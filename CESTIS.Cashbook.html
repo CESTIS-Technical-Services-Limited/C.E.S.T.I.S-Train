@@ -1530,7 +1530,8 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .login-overlay {
     position:fixed; inset:0; z-index:9999;
     background:var(--bg);
-    display:flex; align-items:center; justify-content:center;
+    display:flex; justify-content:center;
+    overflow-y:auto;
     opacity:1; transition:opacity .5s ease, visibility .5s ease;
 }
 .login-overlay.hidden {
@@ -1538,6 +1539,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 }
 .login-container {
     width:100%; max-width:420px; padding:2rem;
+    margin:auto;
     position:relative;
 }
 /* Claude Code Crab */
