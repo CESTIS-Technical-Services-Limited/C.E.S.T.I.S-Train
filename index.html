@@ -30306,12 +30306,12 @@ function runAndDisplayIntegrityCheck() {
 <!-- ================= INLINED STAFF TIME TRACKING (was Staff.Clock.in.html iframe) ================= -->
 <style id="ttAppStyles">
 
-#ttApp, #ttApp * {
+.tt-scope, .tt-scope * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-#ttApp {
+.tt-scope {
             
             --primary-teal: #0d9488;
             --primary-teal-light: #14b8a6;
@@ -30367,14 +30367,14 @@ function runAndDisplayIntegrityCheck() {
             --transition-normal: 250ms ease;
             --transition-slow: 350ms ease;
         }
-#ttApp {
+.tt-scope {
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
             background: var(--bg-dashboard);
             color: var(--text-primary);
             line-height: 1.6;
             min-height: 100vh;
         }
-#ttApp.dark-mode {
+.tt-scope.dark-mode {
             --bg-primary: #0f172a;
             --bg-secondary: #1e293b;
             --bg-tertiary: #1a1a2e;
@@ -30389,12 +30389,12 @@ function runAndDisplayIntegrityCheck() {
             --glass-border: rgba(51, 65, 85, 0.5);
             --header-gradient: linear-gradient(135deg, #134e4a 0%, #115e59 25%, #164e63 50%, #4338ca 75%, #5b21b6 100%);
         }
-#ttApp .container {
+.tt-scope .container {
             max-width: 1400px;
             margin: 0 auto;
             padding: 1.5rem;
         }
-#ttApp .login-container {
+.tt-scope .login-container {
             display: flex;
             justify-content: center;
             align-items: center;
@@ -30410,7 +30410,7 @@ function runAndDisplayIntegrityCheck() {
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
-#ttApp .login-box {
+.tt-scope .login-box {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
             border-radius: 24px;
@@ -30442,27 +30442,27 @@ function runAndDisplayIntegrityCheck() {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.02); }
         }
-#ttApp .login-header {
+.tt-scope .login-header {
             text-align: center;
             margin-bottom: 36px;
         }
-#ttApp .login-title {
+.tt-scope .login-title {
             font-size: 32px;
             font-weight: 800;
             color: #1e3a8a;
             margin-bottom: 12px;
             letter-spacing: -0.5px;
         }
-#ttApp .login-subtitle {
+.tt-scope .login-subtitle {
             color: #64748b;
             font-size: 14px;
             margin-bottom: 5px;
             font-weight: 500;
         }
-#ttApp .input-group {
+.tt-scope .input-group {
             margin-bottom: 24px;
         }
-#ttApp .input-group label {
+.tt-scope .input-group label {
             display: block;
             margin-bottom: 8px;
             color: #1e293b;
@@ -30470,7 +30470,7 @@ function runAndDisplayIntegrityCheck() {
             font-size: 14px;
             letter-spacing: -0.2px;
         }
-#ttApp .login-input {
+.tt-scope .login-input {
             width: 100%;
             padding: 14px 18px;
             border: 2px solid #e2e8f0;
@@ -30479,13 +30479,13 @@ function runAndDisplayIntegrityCheck() {
             transition: all var(--transition-normal);
             background: #f8fafc;
         }
-#ttApp .login-input:focus {
+.tt-scope .login-input:focus {
             outline: none;
             border-color: var(--primary-blue-light);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
             background: white;
         }
-#ttApp .login-btn {
+.tt-scope .login-btn {
             width: 100%;
             padding: 16px;
             background: linear-gradient(135deg, #0f766e 0%, #0891b2 50%, #6366f1 100%);
@@ -30499,15 +30499,15 @@ function runAndDisplayIntegrityCheck() {
             transition: all var(--transition-normal);
             letter-spacing: 0.3px;
         }
-#ttApp .login-btn:hover {
+.tt-scope .login-btn:hover {
             transform: translateY(-3px);
             box-shadow: 0 10px 30px rgba(13, 148, 136, 0.4);
             background-position: 100% 50%;
         }
-#ttApp .login-btn:active {
+.tt-scope .login-btn:active {
             transform: translateY(-1px);
         }
-#ttApp .login-error {
+.tt-scope .login-error {
             background: linear-gradient(135deg, #fef2f2, #fee2e2);
             color: #dc2626;
             padding: 14px 18px;
@@ -30518,29 +30518,29 @@ function runAndDisplayIntegrityCheck() {
             border-left: 4px solid #dc2626;
             font-weight: 500;
         }
-#ttApp .forgot-password-link {
+.tt-scope .forgot-password-link {
             text-align: center;
             margin-top: 16px;
         }
-#ttApp .forgot-password-link a {
+.tt-scope .forgot-password-link a {
             color: var(--primary-blue-light);
             font-size: 14px;
             text-decoration: none;
             font-weight: 500;
             transition: all var(--transition-fast);
         }
-#ttApp .forgot-password-link a:hover {
+.tt-scope .forgot-password-link a:hover {
             color: var(--primary-blue);
             text-decoration: underline;
         }
-#ttApp .login-step {
+.tt-scope .login-step {
             display: none;
         }
-#ttApp .login-step.active {
+.tt-scope .login-step.active {
             display: block;
             animation: ttkf-fadeIn 0.3s ease;
         }
-#ttApp .otp-input {
+.tt-scope .otp-input {
             width: 100%;
             padding: 16px 18px;
             border: 2px solid #e2e8f0;
@@ -30552,36 +30552,36 @@ function runAndDisplayIntegrityCheck() {
             transition: all var(--transition-normal);
             background: #f8fafc;
         }
-#ttApp .otp-input:focus {
+.tt-scope .otp-input:focus {
             outline: none;
             border-color: var(--primary-blue-light);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
             background: white;
         }
-#ttApp .otp-info {
+.tt-scope .otp-info {
             text-align: center;
             color: #64748b;
             font-size: 13px;
             margin-bottom: 20px;
         }
-#ttApp .otp-info strong {
+.tt-scope .otp-info strong {
             color: #1e293b;
         }
-#ttApp .resend-link {
+.tt-scope .resend-link {
             text-align: center;
             margin-top: 16px;
         }
-#ttApp .resend-link a {
+.tt-scope .resend-link a {
             color: var(--primary-blue-light);
             font-size: 14px;
             text-decoration: none;
             font-weight: 500;
             cursor: pointer;
         }
-#ttApp .resend-link a:hover {
+.tt-scope .resend-link a:hover {
             text-decoration: underline;
         }
-#ttApp .back-link {
+.tt-scope .back-link {
             display: flex;
             align-items: center;
             gap: 6px;
@@ -30592,13 +30592,13 @@ function runAndDisplayIntegrityCheck() {
             cursor: pointer;
             transition: color var(--transition-fast);
         }
-#ttApp .back-link:hover {
+.tt-scope .back-link:hover {
             color: #1e293b;
         }
-#ttApp .new-password-form .input-group {
+.tt-scope .new-password-form .input-group {
             margin-bottom: 16px;
         }
-#ttApp .header {
+.tt-scope .header {
             background: var(--header-gradient);
             background-size: 200% 200%;
             animation: ttkf-gradientShift 18s ease infinite;
@@ -30610,7 +30610,7 @@ function runAndDisplayIntegrityCheck() {
             overflow: hidden;
             border: 1px solid rgba(255,255,255,0.12);
         }
-#ttApp .header::before {
+.tt-scope .header::before {
             content: '';
             position: absolute;
             inset: 0;
@@ -30619,14 +30619,14 @@ function runAndDisplayIntegrityCheck() {
                 radial-gradient(600px 200px at 100% 100%, rgba(255,255,255,0.10), transparent 60%);
             pointer-events: none;
         }
-#ttApp .header::after {
+.tt-scope .header::after {
             content: '';
             position: absolute;
             left: 0; right: 0; bottom: 0;
             height: 1px;
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
         }
-#ttApp .header-top {
+.tt-scope .header-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -30634,18 +30634,18 @@ function runAndDisplayIntegrityCheck() {
             position: relative;
             z-index: 1;
         }
-#ttApp .header-logo {
+.tt-scope .header-logo {
             max-width: 100px;
             height: auto;
             filter: drop-shadow(0 4px 12px rgba(0,0,0,0.25));
         }
-#ttApp .header-title {
+.tt-scope .header-title {
             text-align: center;
             flex: 1;
             position: relative;
             z-index: 1;
         }
-#ttApp .header-title h1 {
+.tt-scope .header-title h1 {
             color: #ffffff;
             font-size: 1.75rem;
             font-weight: 800;
@@ -30653,7 +30653,7 @@ function runAndDisplayIntegrityCheck() {
             letter-spacing: 1px;
             text-shadow: 0 2px 12px rgba(0,0,0,0.25);
         }
-#ttApp .tagline {
+.tt-scope .tagline {
             color: #a5f3fc;
             font-size: 0.95rem;
             font-weight: 700;
@@ -30661,12 +30661,12 @@ function runAndDisplayIntegrityCheck() {
             text-transform: uppercase;
             opacity: 0.95;
         }
-#ttApp .subtitle {
+.tt-scope .subtitle {
             color: rgba(255, 255, 255, 0.85);
             font-size: 0.9rem;
             font-weight: 500;
         }
-#ttApp #currentUserDisplay {
+.tt-scope #currentUserDisplay {
             color: #ffffff !important;
             background: rgba(255, 255, 255, 0.12);
             backdrop-filter: blur(12px);
@@ -30677,7 +30677,7 @@ function runAndDisplayIntegrityCheck() {
             box-shadow: 0 2px 8px rgba(0,0,0,0.12);
             font-size: 0.9rem;
         }
-#ttApp .status-card {
+.tt-scope .status-card {
             background: var(--glass-bg);
             backdrop-filter: blur(20px);
             padding: 2rem;
@@ -30688,7 +30688,7 @@ function runAndDisplayIntegrityCheck() {
             position: relative;
             overflow: hidden;
         }
-#ttApp .status-card::before {
+.tt-scope .status-card::before {
             content: '';
             position: absolute;
             top: 0;
@@ -30697,20 +30697,20 @@ function runAndDisplayIntegrityCheck() {
             height: 4px;
             background: linear-gradient(90deg, var(--primary-teal), var(--accent-cyan), var(--accent-violet));
         }
-#ttApp .status-card h2 {
+.tt-scope .status-card h2 {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
             color: var(--primary-teal-dark);
         }
-#ttApp .status-grid {
+.tt-scope .status-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 1.25rem;
             margin-bottom: 1.5rem;
         }
-#ttApp .status-item {
+.tt-scope .status-item {
             text-align: center;
             padding: 1.25rem;
             background: linear-gradient(135deg, rgba(204, 251, 241, 0.5), rgba(167, 243, 208, 0.3));
@@ -30718,11 +30718,11 @@ function runAndDisplayIntegrityCheck() {
             border: 1px solid rgba(13, 148, 136, 0.15);
             transition: all var(--transition-normal);
         }
-#ttApp .status-item:hover {
+.tt-scope .status-item:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(13, 148, 136, 0.15);
         }
-#ttApp .status-label {
+.tt-scope .status-label {
             font-size: 0.8rem;
             color: var(--text-secondary);
             margin-bottom: 0.5rem;
@@ -30730,26 +30730,26 @@ function runAndDisplayIntegrityCheck() {
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-#ttApp .status-value {
+.tt-scope .status-value {
             font-size: 1.75rem;
             font-weight: 800;
             color: var(--primary-blue);
             letter-spacing: -0.5px;
         }
-#ttApp .status-value.active {
+.tt-scope .status-value.active {
             color: var(--success);
             animation: ttkf-pulse 2s ease-in-out infinite;
         }
-#ttApp .status-value.break {
+.tt-scope .status-value.break {
             color: var(--warning);
         }
-#ttApp .action-buttons {
+.tt-scope .action-buttons {
             display: flex;
             gap: 1rem;
             flex-wrap: wrap;
             justify-content: center;
         }
-#ttApp .btn {
+.tt-scope .btn {
             padding: 0.875rem 1.75rem;
             border: none;
             border-radius: 12px;
@@ -30764,7 +30764,7 @@ function runAndDisplayIntegrityCheck() {
             position: relative;
             overflow: hidden;
         }
-#ttApp .btn::before {
+.tt-scope .btn::before {
             content: '';
             position: absolute;
             top: 0;
@@ -30774,74 +30774,74 @@ function runAndDisplayIntegrityCheck() {
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
             transition: left 0.5s;
         }
-#ttApp .btn:hover::before {
+.tt-scope .btn:hover::before {
             left: 100%;
         }
-#ttApp .btn-primary {
+.tt-scope .btn-primary {
             background: linear-gradient(135deg, var(--primary-teal-dark), var(--primary-teal-light));
             color: white;
             box-shadow: 0 4px 15px rgba(13, 148, 136, 0.3);
         }
-#ttApp .btn-primary:hover {
+.tt-scope .btn-primary:hover {
             transform: translateY(-3px);
             box-shadow: 0 8px 25px rgba(13, 148, 136, 0.4);
         }
-#ttApp .btn-success {
+.tt-scope .btn-success {
             background: linear-gradient(135deg, #16a34a, #22c55e);
             color: white;
             box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
         }
-#ttApp .btn-success:hover {
+.tt-scope .btn-success:hover {
             transform: translateY(-3px);
             box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
         }
-#ttApp .btn-warning {
+.tt-scope .btn-warning {
             background: linear-gradient(135deg, #d97706, #f59e0b);
             color: white;
             box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
         }
-#ttApp .btn-warning:hover {
+.tt-scope .btn-warning:hover {
             transform: translateY(-3px);
             box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
         }
-#ttApp .btn-danger {
+.tt-scope .btn-danger {
             background: linear-gradient(135deg, #dc2626, #ef4444);
             color: white;
             box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
         }
-#ttApp .btn-danger:hover {
+.tt-scope .btn-danger:hover {
             transform: translateY(-3px);
             box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
         }
-#ttApp .btn-secondary {
+.tt-scope .btn-secondary {
             background: linear-gradient(135deg, #475569, #64748b);
             color: white;
             box-shadow: 0 4px 15px rgba(71, 85, 105, 0.3);
         }
-#ttApp .btn-secondary:hover {
+.tt-scope .btn-secondary:hover {
             transform: translateY(-3px);
             box-shadow: 0 8px 25px rgba(71, 85, 105, 0.4);
         }
-#ttApp .btn-outline {
+.tt-scope .btn-outline {
             background: transparent;
             border: 2px solid var(--primary-blue);
             color: var(--primary-blue);
         }
-#ttApp .btn-outline:hover {
+.tt-scope .btn-outline:hover {
             background: var(--primary-blue);
             color: white;
             transform: translateY(-3px);
         }
-#ttApp .btn:disabled {
+.tt-scope .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none !important;
             box-shadow: none !important;
         }
-#ttApp .btn:disabled::before {
+.tt-scope .btn:disabled::before {
             display: none;
         }
-#ttApp .nav-tabs {
+.tt-scope .nav-tabs {
             display: flex;
             gap: 0.5rem;
             margin-bottom: 2rem;
@@ -30852,7 +30852,7 @@ function runAndDisplayIntegrityCheck() {
             flex-wrap: wrap;
             border: 1px solid var(--border-color);
         }
-#ttApp .nav-tab {
+.tt-scope .nav-tab {
             padding: 0.75rem 1.25rem;
             background: transparent;
             border: none;
@@ -30863,23 +30863,23 @@ function runAndDisplayIntegrityCheck() {
             font-weight: 600;
             transition: all var(--transition-normal);
         }
-#ttApp .nav-tab:hover {
+.tt-scope .nav-tab:hover {
             color: var(--primary-teal);
             background: linear-gradient(135deg, rgba(13, 148, 136, 0.1), rgba(6, 182, 212, 0.1));
         }
-#ttApp .nav-tab.active {
+.tt-scope .nav-tab.active {
             color: white;
             background: linear-gradient(135deg, var(--primary-teal), var(--accent-cyan));
             box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
-#ttApp .module {
+.tt-scope .module {
             display: none;
             animation: ttkf-fadeIn 0.3s ease;
         }
-#ttApp .module.active {
+.tt-scope .module.active {
             display: block;
         }
-#ttApp .table-container {
+.tt-scope .table-container {
             background: var(--bg-secondary);
             padding: 1.5rem;
             border-radius: 20px;
@@ -30887,7 +30887,7 @@ function runAndDisplayIntegrityCheck() {
             overflow-x: auto;
             border: 1px solid var(--border-color);
         }
-#ttApp .table-container h3 {
+.tt-scope .table-container h3 {
             color: var(--text-primary);
             font-weight: 700;
             margin-bottom: 1rem;
@@ -30895,12 +30895,12 @@ function runAndDisplayIntegrityCheck() {
             align-items: center;
             gap: 0.5rem;
         }
-#ttApp table {
+.tt-scope table {
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
         }
-#ttApp th {
+.tt-scope th {
             background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark));
             color: white;
             padding: 1rem 1.25rem;
@@ -30910,40 +30910,40 @@ function runAndDisplayIntegrityCheck() {
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-#ttApp th:first-child {
+.tt-scope th:first-child {
             border-radius: 12px 0 0 0;
         }
-#ttApp th:last-child {
+.tt-scope th:last-child {
             border-radius: 0 12px 0 0;
         }
-#ttApp td {
+.tt-scope td {
             padding: 1rem 1.25rem;
             border-bottom: 1px solid var(--border-light);
             font-size: 0.95rem;
             color: var(--text-primary);
         }
-#ttApp tbody tr {
+.tt-scope tbody tr {
             transition: all var(--transition-fast);
         }
-#ttApp tbody tr:hover {
+.tt-scope tbody tr:hover {
             background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(99, 102, 241, 0.05));
         }
-#ttApp tbody tr:last-child td {
+.tt-scope tbody tr:last-child td {
             border-bottom: none;
         }
-#ttApp tbody tr:last-child td:first-child {
+.tt-scope tbody tr:last-child td:first-child {
             border-radius: 0 0 0 12px;
         }
-#ttApp tbody tr:last-child td:last-child {
+.tt-scope tbody tr:last-child td:last-child {
             border-radius: 0 0 12px 0;
         }
-#ttApp .stats-grid {
+.tt-scope .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 1.25rem;
             margin-bottom: 2rem;
         }
-#ttApp .stat-card {
+.tt-scope .stat-card {
             background: linear-gradient(135deg, #ffffff 0%, #ecfeff 60%, #d1fae5 100%);
             padding: 1.5rem;
             border-radius: 20px;
@@ -30953,7 +30953,7 @@ function runAndDisplayIntegrityCheck() {
             position: relative;
             overflow: hidden;
         }
-#ttApp .stat-card::before {
+.tt-scope .stat-card::before {
             content: '';
             position: absolute;
             top: -40%;
@@ -30963,12 +30963,12 @@ function runAndDisplayIntegrityCheck() {
             background: radial-gradient(circle, rgba(34, 197, 94, 0.18), transparent 70%);
             border-radius: 50%;
         }
-#ttApp .stat-card:hover {
+.tt-scope .stat-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 16px 40px rgba(13, 148, 136, 0.18), 0 2px 4px rgba(15, 23, 42, 0.05);
             border-color: rgba(34, 197, 94, 0.35);
         }
-#ttApp .stat-label {
+.tt-scope .stat-label {
             font-size: 0.8rem;
             color: var(--dark-green);
             margin-bottom: 0.5rem;
@@ -30976,13 +30976,13 @@ function runAndDisplayIntegrityCheck() {
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-#ttApp .stat-value {
+.tt-scope .stat-value {
             font-size: 2rem;
             font-weight: 800;
             color: var(--dark-green);
             letter-spacing: -0.5px;
         }
-#ttApp .form-section {
+.tt-scope .form-section {
             background: var(--bg-secondary);
             padding: 1.75rem;
             border-radius: 20px;
@@ -30990,27 +30990,27 @@ function runAndDisplayIntegrityCheck() {
             margin-bottom: 2rem;
             border: 1px solid var(--border-color);
         }
-#ttApp .form-section h3 {
+.tt-scope .form-section h3 {
             color: var(--text-primary);
             font-weight: 700;
             margin-bottom: 1.25rem;
         }
-#ttApp .form-grid {
+.tt-scope .form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 1.25rem;
         }
-#ttApp .form-group {
+.tt-scope .form-group {
             margin-bottom: 0.5rem;
         }
-#ttApp .form-group label {
+.tt-scope .form-group label {
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 600;
             color: var(--text-primary);
             font-size: 0.9rem;
         }
-#ttApp .form-group input, #ttApp .form-group select {
+.tt-scope .form-group input, .tt-scope .form-group select {
             width: 100%;
             padding: 0.75rem 1rem;
             border: 2px solid var(--border-color);
@@ -31020,13 +31020,13 @@ function runAndDisplayIntegrityCheck() {
             color: var(--text-primary);
             transition: all var(--transition-normal);
         }
-#ttApp .form-group input:focus, #ttApp .form-group select:focus {
+.tt-scope .form-group input:focus, .tt-scope .form-group select:focus {
             outline: none;
             border-color: var(--primary-blue-light);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
             background: var(--bg-secondary);
         }
-#ttApp .badge {
+.tt-scope .badge {
             display: inline-flex;
             align-items: center;
             padding: 0.35rem 0.85rem;
@@ -31035,27 +31035,27 @@ function runAndDisplayIntegrityCheck() {
             font-weight: 700;
             letter-spacing: 0.2px;
         }
-#ttApp .badge-success {
+.tt-scope .badge-success {
             background: linear-gradient(135deg, #dcfce7, #bbf7d0);
             color: #166534;
         }
-#ttApp .badge-warning {
+.tt-scope .badge-warning {
             background: linear-gradient(135deg, #fef3c7, #fde68a);
             color: #92400e;
         }
-#ttApp .badge-danger {
+.tt-scope .badge-danger {
             background: linear-gradient(135deg, #fee2e2, #fecaca);
             color: #991b1b;
         }
-#ttApp .badge-primary {
+.tt-scope .badge-primary {
             background: linear-gradient(135deg, #dbeafe, #bfdbfe);
             color: #1e40af;
         }
-#ttApp .badge-purple {
+.tt-scope .badge-purple {
             background: linear-gradient(135deg, #ede9fe, #ddd6fe);
             color: #6b21a8;
         }
-#ttApp .logout-btn {
+.tt-scope .logout-btn {
             background: rgba(255, 255, 255, 0.15);
             color: white;
             border: 1px solid rgba(255, 255, 255, 0.3);
@@ -31070,13 +31070,13 @@ function runAndDisplayIntegrityCheck() {
             transition: all var(--transition-normal);
             backdrop-filter: blur(10px);
         }
-#ttApp .logout-btn:hover {
+.tt-scope .logout-btn:hover {
             background: rgba(239, 68, 68, 0.9);
             border-color: rgba(239, 68, 68, 0.5);
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
         }
-#ttApp .theme-toggle-btn {
+.tt-scope .theme-toggle-btn {
             background: rgba(255, 255, 255, 0.15);
             color: white;
             border: 1px solid rgba(255, 255, 255, 0.3);
@@ -31091,7 +31091,7 @@ function runAndDisplayIntegrityCheck() {
             transition: all var(--transition-normal);
             backdrop-filter: blur(10px);
         }
-#ttApp .theme-toggle-btn:hover {
+.tt-scope .theme-toggle-btn:hover {
             background: rgba(255, 255, 255, 0.25);
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
@@ -31099,25 +31099,25 @@ function runAndDisplayIntegrityCheck() {
 
         
         @media (max-width: 768px) {
-#ttApp .header-title h1 {
+.tt-scope .header-title h1 {
                 font-size: 1.25rem;
             }
-#ttApp .stats-grid {
+.tt-scope .stats-grid {
                 grid-template-columns: 1fr;
             }
-#ttApp .action-buttons {
+.tt-scope .action-buttons {
                 flex-direction: column;
             }
-#ttApp .btn {
+.tt-scope .btn {
                 width: 100%;
                 justify-content: center;
             }
-#ttApp .header-top {
+.tt-scope .header-top {
                 flex-direction: column;
                 gap: 1rem;
             }
         }
-#ttApp .timer-display {
+.tt-scope .timer-display {
             background: #60a5fa;
             color: white;
             padding: 2.5rem;
@@ -31126,14 +31126,14 @@ function runAndDisplayIntegrityCheck() {
             margin-bottom: 2rem;
             box-shadow: 0 4px 15px rgba(96, 165, 250, 0.3);
         }
-#ttApp .timer-display h2 {
+.tt-scope .timer-display h2 {
             font-size: 4rem;
             margin: 0;
             font-weight: 800;
             letter-spacing: 4px;
             font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
         }
-#ttApp .timer-label {
+.tt-scope .timer-label {
             font-size: 1rem;
             opacity: 0.9;
             margin-top: 0.75rem;
@@ -31141,7 +31141,7 @@ function runAndDisplayIntegrityCheck() {
             letter-spacing: 2px;
             text-transform: uppercase;
         }
-#ttApp .report-summary {
+.tt-scope .report-summary {
             background: linear-gradient(135deg, #1e3a8a, #7c3aed);
             color: white;
             padding: 2rem;
@@ -31149,11 +31149,11 @@ function runAndDisplayIntegrityCheck() {
             margin-bottom: 1.5rem;
             display: none;
         }
-#ttApp .report-summary.visible {
+.tt-scope .report-summary.visible {
             display: block;
             animation: ttkf-fadeIn 0.3s ease;
         }
-#ttApp .report-summary-header {
+.tt-scope .report-summary-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -31161,40 +31161,40 @@ function runAndDisplayIntegrityCheck() {
             padding-bottom: 1rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
-#ttApp .report-summary-title {
+.tt-scope .report-summary-title {
             font-size: 1.25rem;
             font-weight: 700;
         }
-#ttApp .report-date-range {
+.tt-scope .report-date-range {
             font-size: 0.9rem;
             opacity: 0.9;
         }
-#ttApp .report-summary-grid {
+.tt-scope .report-summary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 1.5rem;
         }
-#ttApp .report-summary-item {
+.tt-scope .report-summary-item {
             text-align: center;
         }
-#ttApp .report-summary-label {
+.tt-scope .report-summary-label {
             font-size: 0.75rem;
             opacity: 0.8;
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 0.5rem;
         }
-#ttApp .report-summary-value {
+.tt-scope .report-summary-value {
             font-size: 1.75rem;
             font-weight: 800;
         }
-#ttApp .report-actions {
+.tt-scope .report-actions {
             display: flex;
             gap: 1rem;
             margin-bottom: 1.5rem;
             flex-wrap: wrap;
         }
-#ttApp .btn-icon {
+.tt-scope .btn-icon {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
@@ -31202,61 +31202,61 @@ function runAndDisplayIntegrityCheck() {
 
         
         @media print {
-#ttApp {
+.tt-scope {
                 background: white !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
-#ttApp .login-container, #ttApp .logout-btn, #ttApp .theme-toggle-btn, #ttApp .cloud-sync-container, #ttApp .nav-tabs, #ttApp .status-card, #ttApp .form-section, #ttApp .action-buttons, #ttApp .report-actions, #ttApp #editTimeModal, #ttApp .btn {
+.tt-scope .login-container, .tt-scope .logout-btn, .tt-scope .theme-toggle-btn, .tt-scope .cloud-sync-container, .tt-scope .nav-tabs, .tt-scope .status-card, .tt-scope .form-section, .tt-scope .action-buttons, .tt-scope .report-actions, .tt-scope #editTimeModal, .tt-scope .btn {
                 display: none !important;
             }
-#ttApp .container {
+.tt-scope .container {
                 max-width: 100% !important;
                 padding: 0 !important;
             }
-#ttApp .header {
+.tt-scope .header {
                 background: white !important;
                 box-shadow: none !important;
                 border: none !important;
                 padding: 1rem 0 !important;
                 margin-bottom: 1rem !important;
             }
-#ttApp .module {
+.tt-scope .module {
                 display: none !important;
             }
-#ttApp .module.active {
+.tt-scope .module.active {
                 display: block !important;
             }
-#ttApp .print-header {
+.tt-scope .print-header {
                 display: block !important;
                 text-align: center;
                 padding: 2rem 0;
                 border-bottom: 3px solid #1e3a8a;
                 margin-bottom: 1.5rem;
             }
-#ttApp .print-header-logo {
+.tt-scope .print-header-logo {
                 font-size: 2rem;
                 font-weight: 800;
                 color: #1e3a8a;
                 margin-bottom: 0.5rem;
             }
-#ttApp .print-header-company {
+.tt-scope .print-header-company {
                 font-size: 1rem;
                 color: #64748b;
                 margin-bottom: 0.25rem;
             }
-#ttApp .print-header-title {
+.tt-scope .print-header-title {
                 font-size: 1.5rem;
                 font-weight: 700;
                 color: #1e293b;
                 margin-top: 1rem;
             }
-#ttApp .print-header-date {
+.tt-scope .print-header-date {
                 font-size: 0.9rem;
                 color: #64748b;
                 margin-top: 0.5rem;
             }
-#ttApp .print-summary {
+.tt-scope .print-summary {
                 display: grid !important;
                 grid-template-columns: repeat(4, 1fr);
                 gap: 1rem;
@@ -31266,90 +31266,90 @@ function runAndDisplayIntegrityCheck() {
                 border-radius: 8px;
                 margin-bottom: 1.5rem;
             }
-#ttApp .print-summary-item {
+.tt-scope .print-summary-item {
                 text-align: center;
                 padding: 1rem;
             }
-#ttApp .print-summary-label {
+.tt-scope .print-summary-label {
                 font-size: 0.75rem;
                 color: #64748b;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }
-#ttApp .print-summary-value {
+.tt-scope .print-summary-value {
                 font-size: 1.25rem;
                 font-weight: 700;
                 color: #1e293b;
                 margin-top: 0.25rem;
             }
-#ttApp .table-container {
+.tt-scope .table-container {
                 background: white !important;
                 box-shadow: none !important;
                 padding: 0 !important;
                 border: none !important;
             }
-#ttApp table {
+.tt-scope table {
                 width: 100%;
                 border-collapse: collapse;
             }
-#ttApp th {
+.tt-scope th {
                 background: #1e3a8a !important;
                 color: white !important;
                 padding: 0.75rem !important;
                 font-size: 0.75rem !important;
                 border: 1px solid #1e3a8a !important;
             }
-#ttApp td {
+.tt-scope td {
                 padding: 0.6rem 0.75rem !important;
                 font-size: 0.85rem !important;
                 border: 1px solid #e2e8f0 !important;
             }
-#ttApp tbody tr:nth-child(even) {
+.tt-scope tbody tr:nth-child(even) {
                 background: #f8fafc !important;
             }
-#ttApp .badge {
+.tt-scope .badge {
                 padding: 0.2rem 0.5rem !important;
                 font-size: 0.7rem !important;
             }
-#ttApp .print-footer {
+.tt-scope .print-footer {
                 display: block !important;
                 margin-top: 2rem;
                 padding-top: 1.5rem;
                 border-top: 2px solid #e2e8f0;
             }
-#ttApp .print-footer-row {
+.tt-scope .print-footer-row {
                 display: flex;
                 justify-content: space-between;
                 margin-bottom: 2rem;
             }
-#ttApp .print-signature {
+.tt-scope .print-signature {
                 width: 200px;
                 text-align: center;
             }
-#ttApp .print-signature-line {
+.tt-scope .print-signature-line {
                 border-top: 1px solid #1e293b;
                 margin-top: 3rem;
                 padding-top: 0.5rem;
                 font-size: 0.85rem;
                 color: #64748b;
             }
-#ttApp .print-generated {
+.tt-scope .print-generated {
                 text-align: center;
                 font-size: 0.75rem;
                 color: #94a3b8;
                 margin-top: 1rem;
             }
-#ttApp h2[style*="color"] {
+.tt-scope h2[style*="color"] {
                 display: none !important;
             }
-#ttApp .report-summary {
+.tt-scope .report-summary {
                 display: none !important;
             }
         }
-#ttApp .print-header, #ttApp .print-summary, #ttApp .print-footer {
+.tt-scope .print-header, .tt-scope .print-summary, .tt-scope .print-footer {
             display: none;
         }
-#ttApp .toast {
+.tt-scope .toast {
             position: fixed;
             bottom: 2rem;
             right: 2rem;
@@ -31375,16 +31375,16 @@ function runAndDisplayIntegrityCheck() {
                 transform: translateX(0);
             }
         }
-#ttApp .toast-success {
+.tt-scope .toast-success {
             border-left-color: var(--success);
         }
-#ttApp .toast-error {
+.tt-scope .toast-error {
             border-left-color: var(--danger);
         }
-#ttApp .toast-warning {
+.tt-scope .toast-warning {
             border-left-color: var(--warning);
         }
-#ttApp .spinner {
+.tt-scope .spinner {
             width: 20px;
             height: 20px;
             border: 2px solid rgba(255, 255, 255, 0.3);
@@ -31396,7 +31396,7 @@ function runAndDisplayIntegrityCheck() {
         @keyframes ttkf-spin {
             to { transform: rotate(360deg); }
         }
-#ttApp .skeleton {
+.tt-scope .skeleton {
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
             background-size: 200% 100%;
             animation: ttkf-shimmer 1.5s infinite;
@@ -31407,37 +31407,37 @@ function runAndDisplayIntegrityCheck() {
             0% { background-position: -200% 0; }
             100% { background-position: 200% 0; }
         }
-#ttApp .totals-row {
+.tt-scope .totals-row {
             background: linear-gradient(135deg, #f0fdf4, #dcfce7) !important;
             font-weight: 700;
         }
-#ttApp .totals-row td {
+.tt-scope .totals-row td {
             border-top: 2px solid var(--success) !important;
         }
-#ttApp .cloud-sync-container {
+.tt-scope .cloud-sync-container {
             display: flex;
             align-items: center;
             gap: 0.75rem;
         }
-#ttApp .cloud-status {
+.tt-scope .cloud-status {
             display: flex;
             align-items: center;
             gap: 0.4rem;
             font-size: 0.75rem;
             color: rgba(255, 255, 255, 0.8);
         }
-#ttApp .cloud-status-dot {
+.tt-scope .cloud-status-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
             background: #6b7280;
             transition: all 0.3s ease;
         }
-#ttApp .cloud-status-dot.connected {
+.tt-scope .cloud-status-dot.connected {
             background: #22c55e;
             box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
         }
-#ttApp .cloud-status-dot.syncing {
+.tt-scope .cloud-status-dot.syncing {
             background: #3b82f6;
             animation: ttkf-pulse-sync 1s infinite;
         }
@@ -31446,7 +31446,7 @@ function runAndDisplayIntegrityCheck() {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.5; transform: scale(1.2); }
         }
-#ttApp .cloud-sync-btn {
+.tt-scope .cloud-sync-btn {
             background: rgba(255, 255, 255, 0.15);
             color: white;
             border: 1px solid rgba(255, 255, 255, 0.3);
@@ -31461,22 +31461,22 @@ function runAndDisplayIntegrityCheck() {
             transition: all var(--transition-normal);
             backdrop-filter: blur(10px);
         }
-#ttApp .cloud-sync-btn:hover {
+.tt-scope .cloud-sync-btn:hover {
             background: rgba(255, 255, 255, 0.25);
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
         }
-#ttApp .cloud-sync-btn.connect-btn {
+.tt-scope .cloud-sync-btn.connect-btn {
             background: rgba(34, 197, 94, 0.2);
             border-color: rgba(34, 197, 94, 0.5);
         }
-#ttApp .cloud-sync-btn.connect-btn:hover {
+.tt-scope .cloud-sync-btn.connect-btn:hover {
             background: rgba(34, 197, 94, 0.4);
         }
-#ttApp .cloud-dropdown {
+.tt-scope .cloud-dropdown {
             position: relative;
         }
-#ttApp .cloud-dropdown-content {
+.tt-scope .cloud-dropdown-content {
             display: none;
             position: absolute;
             right: 0;
@@ -31489,7 +31489,7 @@ function runAndDisplayIntegrityCheck() {
             z-index: 1000;
             overflow: hidden;
         }
-#ttApp .cloud-dropdown-content.show {
+.tt-scope .cloud-dropdown-content.show {
             display: block;
             animation: ttkf-dropdownFadeIn 0.2s ease;
         }
@@ -31498,7 +31498,7 @@ function runAndDisplayIntegrityCheck() {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-#ttApp .cloud-dropdown-item {
+.tt-scope .cloud-dropdown-item {
             display: flex;
             align-items: center;
             gap: 0.75rem;
@@ -31508,26 +31508,26 @@ function runAndDisplayIntegrityCheck() {
             font-size: 0.875rem;
             transition: background 0.15s ease;
         }
-#ttApp .cloud-dropdown-item:hover {
+.tt-scope .cloud-dropdown-item:hover {
             background: var(--bg-tertiary);
         }
-#ttApp .cloud-dropdown-item.danger {
+.tt-scope .cloud-dropdown-item.danger {
             color: var(--danger);
         }
-#ttApp .cloud-dropdown-item.danger:hover {
+.tt-scope .cloud-dropdown-item.danger:hover {
             background: rgba(239, 68, 68, 0.1);
         }
-#ttApp .cloud-dropdown-divider {
+.tt-scope .cloud-dropdown-divider {
             height: 1px;
             background: var(--border-light);
             margin: 0.25rem 0;
         }
-#ttApp .last-sync-info {
+.tt-scope .last-sync-info {
             padding: 0.5rem 1rem;
             font-size: 0.75rem;
             color: var(--text-muted);
         }
-#ttApp .spinning {
+.tt-scope .spinning {
             display: inline-block;
             animation: ttkf-spin 1s linear infinite;
         }
@@ -31536,7 +31536,7 @@ function runAndDisplayIntegrityCheck() {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-#ttApp .modal {
+.tt-scope .modal {
             display: none;
             position: fixed;
             top: 0;
@@ -31549,7 +31549,7 @@ function runAndDisplayIntegrityCheck() {
             align-items: center;
             backdrop-filter: blur(4px);
         }
-#ttApp .modal-content {
+.tt-scope .modal-content {
             background: var(--bg-secondary);
             border-radius: 16px;
             box-shadow: var(--shadow-xl);
@@ -31558,18 +31558,18 @@ function runAndDisplayIntegrityCheck() {
             max-height: 90vh;
             overflow-y: auto;
         }
-#ttApp .modal-header {
+.tt-scope .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 1.25rem 1.5rem;
             border-bottom: 1px solid var(--border-light);
         }
-#ttApp .modal-header h2 {
+.tt-scope .modal-header h2 {
             font-size: 1.25rem;
             color: var(--text-primary);
         }
-#ttApp .close-btn {
+.tt-scope .close-btn {
             background: none;
             border: none;
             font-size: 1.5rem;
@@ -31579,19 +31579,19 @@ function runAndDisplayIntegrityCheck() {
             line-height: 1;
             transition: color 0.15s ease;
         }
-#ttApp .close-btn:hover {
+.tt-scope .close-btn:hover {
             color: var(--text-primary);
         }
-#ttApp .form-group {
+.tt-scope .form-group {
             margin-bottom: 1rem;
         }
-#ttApp .form-group label {
+.tt-scope .form-group label {
             display: block;
             margin-bottom: 0.5rem;
             color: var(--text-primary);
             font-weight: 600;
         }
-#ttApp .btn {
+.tt-scope .btn {
             padding: 0.75rem 1.5rem;
             border-radius: 8px;
             font-weight: 600;
@@ -31599,30 +31599,30 @@ function runAndDisplayIntegrityCheck() {
             transition: all 0.2s ease;
             border: none;
         }
-#ttApp .btn-success {
+.tt-scope .btn-success {
             background: var(--success);
             color: white;
         }
-#ttApp .btn-success:hover {
+.tt-scope .btn-success:hover {
             background: var(--dark-green);
             transform: translateY(-2px);
         }
-#ttApp .btn-secondary {
+.tt-scope .btn-secondary {
             background: var(--bg-tertiary);
             color: var(--text-primary);
             border: 1px solid var(--border-color);
         }
-#ttApp .btn-secondary:hover {
+.tt-scope .btn-secondary:hover {
             background: var(--border-light);
         }
-#ttApp .info-box {
+.tt-scope .info-box {
             background: var(--soft-blue);
             border: 1px solid var(--light-blue);
             border-radius: 8px;
             padding: 1rem;
             margin-bottom: 1rem;
         }
-#ttApp {
+.tt-scope {
             --space-2: 0.5rem;
             --space-3: 0.75rem;
             --space-4: 1rem;
@@ -31644,7 +31644,7 @@ function runAndDisplayIntegrityCheck() {
             --text-dim: var(--text-secondary);
             --text: var(--text-primary);
         }
-#ttApp.dark-mode {
+.tt-scope.dark-mode {
             --info-bg: #1e3a5f;
             --info-border: #3b82f6;
             --success-bg: #14532d;
@@ -31654,26 +31654,26 @@ function runAndDisplayIntegrityCheck() {
             --text-dim: var(--text-secondary);
             --text: var(--text-primary);
         }
-#ttApp .backup-file-item {
+.tt-scope .backup-file-item {
             padding: var(--space-4);
             border-bottom: 1px solid var(--border-light);
             cursor: pointer;
             transition: background-color 0.2s;
         }
-#ttApp .backup-file-item:hover {
+.tt-scope .backup-file-item:hover {
             background-color: var(--bg-hover, rgba(0, 0, 0, 0.05));
         }
-#ttApp .backup-file-item:last-child {
+.tt-scope .backup-file-item:last-child {
             border-bottom: none;
         }
-#ttApp.dark-mode .backup-file-item:hover {
+.tt-scope.dark-mode .backup-file-item:hover {
             background-color: rgba(255, 255, 255, 0.05);
         }
-#ttApp.dark-mode {
+.tt-scope.dark-mode {
             --warning-bg: #78350f;
             --warning: #f59e0b;
         }
-#ttApp .first-time-sync-prompt {
+.tt-scope .first-time-sync-prompt {
             background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
             border: 2px solid #3b82f6;
             border-radius: 12px;
@@ -31681,11 +31681,11 @@ function runAndDisplayIntegrityCheck() {
             margin-bottom: 1.5rem;
             text-align: center;
         }
-#ttApp .first-time-sync-prompt.hidden { display: none; }
-#ttApp .sync-prompt-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
-#ttApp .first-time-sync-prompt h3 { font-size: 1.1rem; font-weight: 600; color: #1e40af; margin-bottom: 0.5rem; }
-#ttApp .first-time-sync-prompt p { font-size: 0.85rem; color: #475569; line-height: 1.5; margin-bottom: 1rem; }
-#ttApp .sync-prompt-btn {
+.tt-scope .first-time-sync-prompt.hidden { display: none; }
+.tt-scope .sync-prompt-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+.tt-scope .first-time-sync-prompt h3 { font-size: 1.1rem; font-weight: 600; color: #1e40af; margin-bottom: 0.5rem; }
+.tt-scope .first-time-sync-prompt p { font-size: 0.85rem; color: #475569; line-height: 1.5; margin-bottom: 1rem; }
+.tt-scope .sync-prompt-btn {
             width: 100%; padding: 0.875rem 1.5rem;
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white; border: none; border-radius: 8px;
@@ -31694,48 +31694,52 @@ function runAndDisplayIntegrityCheck() {
             transition: all 0.2s ease;
             box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
         }
-#ttApp .sync-prompt-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px -2px rgba(59, 130, 246, 0.4); }
-#ttApp .sync-prompt-btn:active { transform: translateY(0); }
-#ttApp .sync-prompt-btn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
-#ttApp .sync-prompt-dismiss { margin-top: 0.75rem; }
-#ttApp .sync-prompt-dismiss a { font-size: 0.8rem; color: #64748b; cursor: pointer; text-decoration: none; }
-#ttApp .sync-prompt-dismiss a:hover { color: #3b82f6; text-decoration: underline; }
-#ttApp .sync-status-message { margin-top: 1rem; padding: 0.75rem; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.9rem; }
-#ttApp .sync-status-message.success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
-#ttApp .sync-status-message.error { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
-#ttApp .sync-status-icon { animation: ttkf-pulse-icon 1.5s ease-in-out infinite; }
-#ttApp .sync-status-message.success .sync-status-icon, #ttApp .sync-status-message.error .sync-status-icon { animation: none; }
+.tt-scope .sync-prompt-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px -2px rgba(59, 130, 246, 0.4); }
+.tt-scope .sync-prompt-btn:active { transform: translateY(0); }
+.tt-scope .sync-prompt-btn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+.tt-scope .sync-prompt-dismiss { margin-top: 0.75rem; }
+.tt-scope .sync-prompt-dismiss a { font-size: 0.8rem; color: #64748b; cursor: pointer; text-decoration: none; }
+.tt-scope .sync-prompt-dismiss a:hover { color: #3b82f6; text-decoration: underline; }
+.tt-scope .sync-status-message { margin-top: 1rem; padding: 0.75rem; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.9rem; }
+.tt-scope .sync-status-message.success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.tt-scope .sync-status-message.error { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+.tt-scope .sync-status-icon { animation: ttkf-pulse-icon 1.5s ease-in-out infinite; }
+.tt-scope .sync-status-message.success .sync-status-icon, .tt-scope .sync-status-message.error .sync-status-icon { animation: none; }
 
         @keyframes ttkf-pulse-icon { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-#ttApp .cloud-notify {position:fixed;top:1.25rem;right:1.25rem;z-index:9999;width:370px;max-width:calc(100vw - 2rem);background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.45);transform:translateX(120%);transition:transform .4s cubic-bezier(.22,1,.36,1);overflow:hidden;opacity:1}
-#ttApp .cloud-notify.show {transform:translateX(0)}
-#ttApp .cloud-notify.warn {border-color:var(--gold)}
-#ttApp .cloud-notify.error {border-color:var(--danger)}
-#ttApp .cloud-notify-bar {height:4px;width:100%}
-#ttApp .cloud-notify.warn .cloud-notify-bar {background:var(--gold)}
-#ttApp .cloud-notify.error .cloud-notify-bar {background:var(--danger)}
-#ttApp .cloud-notify-body {padding:1rem 1.25rem;display:flex;gap:.75rem;align-items:flex-start}
-#ttApp .cloud-notify-icon {font-size:1.6rem;flex-shrink:0;line-height:1}
-#ttApp .cloud-notify-content {flex:1;min-width:0}
-#ttApp .cloud-notify-title {font-size:.9rem;font-weight:700;margin-bottom:.3rem}
-#ttApp .cloud-notify.warn .cloud-notify-title {color:var(--gold)}
-#ttApp .cloud-notify.error .cloud-notify-title {color:var(--danger)}
-#ttApp .cloud-notify-msg {font-size:.8rem;color:var(--text-dim);line-height:1.45}
-#ttApp .cloud-notify-close {background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:0;line-height:1;flex-shrink:0}
-#ttApp .cloud-notify-close:hover {color:var(--text)}
-#ttApp .cloud-notify-actions {padding:0 1.25rem 1rem;display:flex;gap:.5rem}
-#ttApp .cloud-notify-actions .btn {font-size:.8rem;padding:.45rem .9rem}
+.tt-scope .cloud-notify {position:fixed;top:1.25rem;right:1.25rem;z-index:9999;width:370px;max-width:calc(100vw - 2rem);background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.45);transform:translateX(120%);transition:transform .4s cubic-bezier(.22,1,.36,1);overflow:hidden;opacity:1}
+.tt-scope .cloud-notify.show {transform:translateX(0)}
+.tt-scope .cloud-notify.warn {border-color:var(--gold)}
+.tt-scope .cloud-notify.error {border-color:var(--danger)}
+.tt-scope .cloud-notify-bar {height:4px;width:100%}
+.tt-scope .cloud-notify.warn .cloud-notify-bar {background:var(--gold)}
+.tt-scope .cloud-notify.error .cloud-notify-bar {background:var(--danger)}
+.tt-scope .cloud-notify-body {padding:1rem 1.25rem;display:flex;gap:.75rem;align-items:flex-start}
+.tt-scope .cloud-notify-icon {font-size:1.6rem;flex-shrink:0;line-height:1}
+.tt-scope .cloud-notify-content {flex:1;min-width:0}
+.tt-scope .cloud-notify-title {font-size:.9rem;font-weight:700;margin-bottom:.3rem}
+.tt-scope .cloud-notify.warn .cloud-notify-title {color:var(--gold)}
+.tt-scope .cloud-notify.error .cloud-notify-title {color:var(--danger)}
+.tt-scope .cloud-notify-msg {font-size:.8rem;color:var(--text-dim);line-height:1.45}
+.tt-scope .cloud-notify-close {background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:0;line-height:1;flex-shrink:0}
+.tt-scope .cloud-notify-close:hover {color:var(--text)}
+.tt-scope .cloud-notify-actions {padding:0 1.25rem 1rem;display:flex;gap:.5rem}
+.tt-scope .cloud-notify-actions .btn {font-size:.8rem;padding:.45rem .9rem}
         @keyframes ttkf-notifyCountdown{from{width:100%}to{width:0%}}
-#ttApp .cloud-notify-timer {height:3px;background:var(--text-muted);opacity:.3;border-radius:0 0 14px 14px}
-#ttApp .btn-ghost {background:transparent;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;border-radius:12px;transition:all var(--transition-normal)}
-#ttApp .btn-ghost:hover {background:var(--bg-tertiary);color:var(--text-primary)}
+.tt-scope .cloud-notify-timer {height:3px;background:var(--text-muted);opacity:.3;border-radius:0 0 14px 14px}
+.tt-scope .btn-ghost {background:transparent;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;border-radius:12px;transition:all var(--transition-normal)}
+.tt-scope .btn-ghost:hover {background:var(--bg-tertiary);color:var(--text-primary)}
 
 
-#ttApp #staffTab{display:none !important;}
+#ttOverlayRoot{background:transparent !important;min-height:0 !important;}
+
+#ttOverlayRoot .cloud-notify{top:calc(var(--topbar-h, 56px) + 12px) !important;}
+
+.tt-scope #staffTab{display:none !important;}
 
 </style>
 <div id="ttHolder" style="display:none;">
-  <div id="ttApp" class="tt-app-host">
+  <div id="ttApp" class="tt-app-host tt-scope">
     <!-- Main Dashboard -->
     <div id="mainDashboard">
         <div class="container">
@@ -32336,7 +32340,7 @@ function runAndDisplayIntegrityCheck() {
 
     <!-- Edit Time Record Modal -->
     <div id="editTimeModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center;">
-        <div style="background: var(--bg-secondary); padding: 2rem; border-radius: 24px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-xl); animation: slideUp 0.3s ease;">
+        <div style="background: var(--bg-secondary); padding: 2rem; border-radius: 24px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-xl); animation: ttkf-slideUp 0.3s ease;">
             <h2 style="background: linear-gradient(135deg, var(--primary-blue), var(--accent-indigo)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 1.5rem; font-weight: 800;">Edit Time Record</h2>
 
             <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); border-left: 4px solid #f59e0b; padding: 1rem 1.25rem; margin-bottom: 1.5rem; border-radius: 12px;">
@@ -32380,7 +32384,7 @@ function runAndDisplayIntegrityCheck() {
 
     <!-- Smart Merge Cloud Sync Modal (Admin Only) -->
     <div id="smartMergeModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center;">
-        <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-secondary); border-radius: 24px; box-shadow: var(--shadow-xl); animation: slideUp 0.3s ease;">
+        <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-secondary); border-radius: 24px; box-shadow: var(--shadow-xl); animation: ttkf-slideUp 0.3s ease;">
             <div class="modal-header" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
                 <h2 style="color: white; margin: 0; font-weight: 700;">🔀 Smart Merge to Cloud</h2>
                 <button class="close-btn" onclick="closeSmartMergeModal()" style="color: white; background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
@@ -32447,9 +32451,16 @@ function runAndDisplayIntegrityCheck() {
 
   </div>
 </div>
+<div id="ttOverlayRoot" class="tt-scope"></div>
 <script>
 
 function ttRoot(){ return document.getElementById('ttApp'); }
+function ttHost(){ return document.getElementById('ttOverlayRoot') || document.body; }
+function ttScopeRoots(){ var a=[]; var x=document.getElementById('ttApp'); if(x)a.push(x); var y=document.getElementById('ttOverlayRoot'); if(y)a.push(y); return a; }
+function ttQ(sel){ var rs=ttScopeRoots(); for(var i=0;i<rs.length;i++){ var el=rs[i].querySelector(sel); if(el) return el; } return null; }
+function ttQA(sel){ var out=[]; ttScopeRoots().forEach(function(n){ var l=n.querySelectorAll(sel); for(var i=0;i<l.length;i++) out.push(l[i]); }); return out; }
+function ttIsDark(){ var x=document.getElementById('ttApp'); return x ? x.classList.contains('dark-mode') : false; }
+function ttToggleDark(force){ var on=(typeof force==='boolean')?force:!ttIsDark(); ttScopeRoots().forEach(function(n){ n.classList.toggle('dark-mode', on); }); return on; }
 function ttMountInto(pageId){
     var app = document.getElementById('ttApp');
     if(!app){ return; }
@@ -32587,7 +32598,7 @@ function ttUnmount(){
 
         function ttc_closeCloudMenuOnClickOutside(e) {
             const menu = document.getElementById('tt_cloudDropdownMenu');
-            const dropdown = ttRoot().querySelector('.cloud-dropdown');
+            const dropdown = ttQ('.cloud-dropdown');
 
             if (!dropdown.contains(e.target)) {
                 menu.classList.remove('show');
@@ -32694,7 +32705,7 @@ function ttUnmount(){
                 </div>
             `;
 
-            ttRoot().insertAdjacentHTML('beforeend', modalHTML);
+            ttHost().insertAdjacentHTML('beforeend', modalHTML);
         }
 
         // Trigger the direct Google Sign-In popup
@@ -33210,7 +33221,7 @@ function ttUnmount(){
                 </div>
             `;
 
-            ttRoot().insertAdjacentHTML('beforeend', modalHTML);
+            ttHost().insertAdjacentHTML('beforeend', modalHTML);
         }
 
         function closeCloudSaveSuccessModal() {
@@ -33567,7 +33578,7 @@ function ttUnmount(){
                 </style>
             `;
 
-            ttRoot().insertAdjacentHTML('beforeend', progressHTML);
+            ttHost().insertAdjacentHTML('beforeend', progressHTML);
         }
 
         // Update merge progress
@@ -33610,7 +33621,7 @@ function ttUnmount(){
                 // Get conflict resolution preferences
                 const useLocalStaff = new Set();
                 const useLocalRecords = new Set();
-                ttRoot().querySelectorAll('.conflict-override:checked').forEach(cb => {
+                ttQA('.conflict-override:checked').forEach(cb => {
                     if (cb.dataset.type === 'staff') useLocalStaff.add(parseInt(cb.dataset.idx));
                     if (cb.dataset.type === 'record') useLocalRecords.add(parseInt(cb.dataset.idx));
                 });
@@ -34044,7 +34055,7 @@ function ttUnmount(){
                 </div>
             `;
 
-            ttRoot().insertAdjacentHTML('beforeend', modalHTML);
+            ttHost().insertAdjacentHTML('beforeend', modalHTML);
         }
 
         function closeStaffMergeNotification() {
@@ -34112,7 +34123,7 @@ function ttUnmount(){
                 </div>
             `;
 
-            ttRoot().insertAdjacentHTML('beforeend', modalHTML);
+            ttHost().insertAdjacentHTML('beforeend', modalHTML);
         }
 
         function closeMergeSuccessModal() {
@@ -34203,7 +34214,7 @@ function ttUnmount(){
                 </div>
             `;
 
-            ttRoot().insertAdjacentHTML('beforeend', modalHTML);
+            ttHost().insertAdjacentHTML('beforeend', modalHTML);
         }
 
         // Close connect cloud on login modal
@@ -34261,7 +34272,7 @@ function ttUnmount(){
                 </div>
             `;
 
-            ttRoot().insertAdjacentHTML('beforeend', modalHTML);
+            ttHost().insertAdjacentHTML('beforeend', modalHTML);
         }
 
         // Close sync on login modal
@@ -34456,7 +34467,7 @@ function ttUnmount(){
                 </div>
             `;
 
-            ttRoot().insertAdjacentHTML('beforeend', modalHTML);
+            ttHost().insertAdjacentHTML('beforeend', modalHTML);
         }
 
         // Perform forced sync after connection
@@ -34750,7 +34761,7 @@ function ttUnmount(){
                 </div>
             `;
 
-            ttRoot().insertAdjacentHTML('beforeend', modalHTML);
+            ttHost().insertAdjacentHTML('beforeend', modalHTML);
         }
 
         // Close file browser modal
@@ -34911,7 +34922,7 @@ function ttUnmount(){
             // Store backup data for later use
             window.pendingBackupData = backupData;
 
-            ttRoot().insertAdjacentHTML('beforeend', modalHTML);
+            ttHost().insertAdjacentHTML('beforeend', modalHTML);
         }
 
         // Close selective sync modal
@@ -35336,7 +35347,7 @@ function ttUnmount(){
                 </div>
             `;
 
-            ttRoot().appendChild(modal);
+            ttHost().appendChild(modal);
         }
 
         // Submit password change
@@ -35699,11 +35710,11 @@ function ttUnmount(){
 
         // Switch module without requiring event
         function switchToModule(moduleId) {
-            ttRoot().querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
-            const targetTab = ttRoot().querySelector(`.nav-tab[onclick*="${moduleId}"]`);
+            ttQA('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            const targetTab = ttQ(`.nav-tab[onclick*="${moduleId}"]`);
             if (targetTab) targetTab.classList.add('active');
 
-            ttRoot().querySelectorAll('.module').forEach(module => module.classList.remove('active'));
+            ttQA('.module').forEach(module => module.classList.remove('active'));
             document.getElementById(moduleId).classList.add('active');
         }
 
@@ -36509,7 +36520,7 @@ function ttUnmount(){
                 </div>
             `;
 
-            ttRoot().appendChild(modal);
+            ttHost().appendChild(modal);
         }
 
         // Edit Staff Details Modal
@@ -36683,7 +36694,7 @@ function ttUnmount(){
                 </div>
             `;
 
-            ttRoot().appendChild(modal);
+            ttHost().appendChild(modal);
         }
 
         // Save Staff Edit
@@ -37247,9 +37258,9 @@ function ttUnmount(){
             link.setAttribute('href', url);
             link.setAttribute('download', filename);
             link.style.visibility = 'hidden';
-            ttRoot().appendChild(link);
+            ttHost().appendChild(link);
             link.click();
-            ttRoot().removeChild(link);
+            ttHost().removeChild(link);
 
             ttc_showToast('CSV exported successfully!', 'success');
         }
@@ -37266,7 +37277,7 @@ function ttUnmount(){
                 `Report generated on ${new Date().toLocaleString()} by ${ttc_currentUser.fullName}`;
 
             // Switch to reports module for printing
-            ttRoot().querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+            ttQA('.module').forEach(m => m.classList.remove('active'));
             document.getElementById('reports').classList.add('active');
 
             // Small delay to ensure DOM is updated
@@ -37824,7 +37835,7 @@ function ttUnmount(){
         // Toast Notification System
         function ttc_showToast(message, type = 'success') {
             // Remove existing toasts
-            const existingToasts = ttRoot().querySelectorAll('.toast');
+            const existingToasts = ttQA('.toast');
             existingToasts.forEach(t => t.remove());
 
             const toast = document.createElement('div');
@@ -37840,7 +37851,7 @@ function ttUnmount(){
                 <span>${message}</span>
             `;
 
-            ttRoot().appendChild(toast);
+            ttHost().appendChild(toast);
 
             // Auto remove after 3 seconds
             setTimeout(() => {
@@ -37873,7 +37884,7 @@ function ttUnmount(){
         function initiateLoginPageSync() {
             ttc_isLoginPageSync = true;
             ttc_updateLoginSyncStatus('Connecting to Google...', true);
-            const syncBtn = ttRoot().querySelector('.sync-prompt-btn');
+            const syncBtn = ttQ('.sync-prompt-btn');
             if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = '<span>⏳</span> Connecting...'; }
             if (ttc_googleTokenClient) { ttc_googleTokenClient.requestAccessToken(); }
             else {
@@ -37943,7 +37954,7 @@ function ttUnmount(){
         }
 
         function resetLoginSyncButton() {
-            const syncBtn = ttRoot().querySelector('.sync-prompt-btn');
+            const syncBtn = ttQ('.sync-prompt-btn');
             if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '<span>🔄</span> Connect & Sync with Google'; }
         }
 
@@ -37959,17 +37970,17 @@ function ttUnmount(){
 
         // Module Switching
         function switchModule(moduleId) {
-            ttRoot().querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            ttQA('.nav-tab').forEach(tab => tab.classList.remove('active'));
             event.target.classList.add('active');
             
-            ttRoot().querySelectorAll('.module').forEach(module => module.classList.remove('active'));
+            ttQA('.module').forEach(module => module.classList.remove('active'));
             document.getElementById(moduleId).classList.add('active');
         }
 
         // Dark Mode
         function toggleDarkMode() {
-            ttRoot().classList.toggle('dark-mode');
-            const isDark = ttRoot().classList.contains('dark-mode');
+            ttToggleDark();
+            const isDark = ttIsDark();
             localStorage.setItem('cestisTimeDarkMode', isDark);
             
             document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
@@ -38004,7 +38015,7 @@ function ttUnmount(){
             '</div>' +
             (autoDismissSec ? '<div class="cloud-notify-timer" style="animation:ttkf-notifyCountdown ' + autoDismissSec + 's linear forwards"></div>' : '');
 
-          ttRoot().appendChild(el);
+          ttHost().appendChild(el);
           // Trigger slide-in
           requestAnimationFrame(function(){ requestAnimationFrame(function(){ el.classList.add('show'); }); });
 
@@ -38185,7 +38196,7 @@ function ttUnmount(){
             // Dark mode
             const isDark = localStorage.getItem('cestisTimeDarkMode') === 'true';
             if (isDark) {
-                ttRoot().classList.add('dark-mode');
+                ttToggleDark(true);
                 document.getElementById('themeIcon').textContent = '☀️';
                 document.getElementById('themeText').textContent = 'Light';
             }
@@ -38210,7 +38221,7 @@ function ttUnmount(){
             renderHistory();
         }
 
-/* ====== INDEX.HTML <-> TIME TRACKING BRIDGE (added by integration) ====== */
+/* ====== INDEX.HTML <-> TIME TRACKING BRIDGE ====== */
 function ttMapIndexRole(role){ return (role === 'admin') ? 'Admin' : 'Staff'; }
 function ttBuildStaffFromIndex(){
     var accts = (window.userAccounts || []);
@@ -38232,18 +38243,24 @@ function ttSyncCurrentUserFromIndex(){
     return true;
 }
 var ttInited = false;
+function ttRelocateStaticOverlays(){
+    var host = ttHost(); if(!host){ return; }
+    ['editTimeModal','smartMergeModal'].forEach(function(id){
+        var m = document.getElementById(id);
+        if(m && m.parentNode !== host){ host.appendChild(m); }
+    });
+}
 function ttInitApp(){
     if(ttInited){ ttRefreshOnShow(); return; }
     loadTimeRecords();
     staffMembers = ttBuildStaffFromIndex();
     if(!ttSyncCurrentUserFromIndex()){
-        var md0 = document.getElementById('mainDashboard');
-        if(md0){ md0.style.display = 'block'; }
-        return; // no logged-in index user yet
+        var md0 = document.getElementById('mainDashboard'); if(md0){ md0.style.display = 'block'; }
+        return;
     }
     ttInited = true;
-    var md = document.getElementById('mainDashboard');
-    if(md){ md.style.display = 'block'; }
+    ttRelocateStaticOverlays();
+    var md = document.getElementById('mainDashboard'); if(md){ md.style.display = 'block'; }
     var disp = document.getElementById('currentUserDisplay');
     if(disp){ disp.textContent = '👤 ' + ttc_currentUser.fullName + ' (' + ttc_currentUser.workType + ')'; }
     updateUIForRole();
@@ -38256,7 +38273,7 @@ function ttInitApp(){
     var wa = weekAgo.toISOString().split('T')[0];
     ['historyFromDate','reportFromDate','editFromDate'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value = wa; });
     if(localStorage.getItem('cestisTimeDarkMode') === 'true'){
-        ttRoot().classList.add('dark-mode');
+        ttToggleDark(true);
         var ti=document.getElementById('themeIcon'); if(ti) ti.textContent='☀️';
         var tt=document.getElementById('themeText'); if(tt) tt.textContent='Light';
     }
@@ -38265,6 +38282,7 @@ function ttInitApp(){
     setTimeout(function(){ try{ ttc_checkCloudAndNotify('page_load'); ttc_startCloudMonitor(); }catch(e){} }, 2000);
 }
 function ttRefreshOnShow(){
+    ttRelocateStaticOverlays();
     staffMembers = ttBuildStaffFromIndex();
     ttSyncCurrentUserFromIndex();
     if(ttc_currentUser){
