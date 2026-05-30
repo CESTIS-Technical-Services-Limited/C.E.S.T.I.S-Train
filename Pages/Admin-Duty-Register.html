@@ -1,0 +1,46 @@
+<!--
+  ============================================================================
+  Pages/Admin-Duty-Register.html  —  C.E.S.T.I.S Admin Duty Register (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="admin-duty-register" data-prefix="admin">).
+  Initialised on mount by adrOnPageShow() in index.html (renders staff cards,
+  performance overview and the task board). Keep all adr* ids.
+  The task modals (adrAssignTaskModal etc.) stay in index.html (shared overlays).
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
+  ============================================================================
+-->
+<div class="adr-header-bar">
+  <div class="adr-header-left">
+    <h3 style="font-family:'Playfair Display',serif;font-size:20px;">Admin Duty Register</h3>
+    <span class="adr-subtitle">Track admin staff performance, assign tasks &amp; manage accountability</span>
+  </div>
+  <div class="adr-header-right">
+    <button class="btn btn-primary" onclick="adrOpenAssignTaskModal()" id="adrAssignBtn" style="display:none;">+ Assign Task</button>
+    <button class="btn btn-secondary" onclick="adrToggleView()" id="adrViewToggle">View My Tasks</button>
+  </div>
+</div>
+
+<!-- Admin Staff Cards (visible to System Administrator) -->
+<div id="adrStaffCardsSection" style="display:none;">
+  <div class="adr-perf-overview" id="adrPerfOverview"></div>
+  <div class="adr-staff-grid" id="adrStaffGrid"></div>
+</div>
+
+<!-- Task Board -->
+<div id="adrTaskBoard">
+  <div class="adr-tabs">
+    <div class="adr-tab active" onclick="adrSwitchTab(this,'all')">All Tasks</div>
+    <div class="adr-tab" onclick="adrSwitchTab(this,'daily')">Daily</div>
+    <div class="adr-tab" onclick="adrSwitchTab(this,'weekly')">Weekly</div>
+    <div class="adr-tab" onclick="adrSwitchTab(this,'monthly')">Monthly</div>
+    <div class="adr-tab" onclick="adrSwitchTab(this,'pending_review')">Awaiting Review</div>
+    <div class="adr-tab" onclick="adrSwitchTab(this,'completed')">Verified Complete</div>
+  </div>
+  <div class="adr-filters">
+    <select class="form-control" id="adrFilterStaff" onchange="adrRenderTasks()" style="width:200px;"><option value="all">All Staff &amp; Instructors</option></select>
+    <select class="form-control" id="adrFilterPriority" onchange="adrRenderTasks()" style="width:160px;"><option value="all">All Priorities</option><option value="urgent">Urgent</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+    <input type="text" class="form-control" id="adrSearchTasks" placeholder="Search tasks..." onkeyup="adrRenderTasks()" style="width:220px;">
+  </div>
+  <div class="adr-task-list" id="adrTaskList"></div>
+</div>

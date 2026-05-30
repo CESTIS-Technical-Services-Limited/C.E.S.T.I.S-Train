@@ -7726,8 +7726,190 @@ var cestisFeatureConfig = {
     onMount: function() {
       cestisSafe('renderAdminMeetingsList');
     }
+  },
+  'exams': {
+    file: 'Pages/Online-Exams.html',
+    onMount: function() {
+      renderExamsUpcoming();
+      cestisSafe('renderInstructorExams');
+    }
+  },
+  'import-exam': {
+    file: 'Pages/Import-Exam.html',
+    onMount: function() {
+      cestisSafe('populateCourseDropdowns');
+    }
+  },
+  'attendance': {
+    file: 'Pages/Attendance.html',
+    onMount: function() {
+      cestisSetAttDate();
+      cestisSafe('populateCourseDropdowns');
+      cestisSafe('renderAttendancePage');
+    }
+  },
+  'announcements': {
+    file: 'Pages/Announcements.html',
+    onMount: function() {
+      cestisSafe('renderAnnouncements');
+    }
+  },
+  'calendar': {
+    file: 'Pages/Calendar.html',
+    onMount: function() {
+      cestisSafe('renderCalendar');
+      cestisSafe('renderCalendarEventList');
+    }
+  },
+  'certificates': {
+    file: 'Pages/Certificates.html',
+    onMount: function() {
+      cestisSafe('renderCertStats');
+      cestisCertsAll();
+    }
+  },
+  'cert-downloads': {
+    file: 'Pages/Cert-Downloads.html',
+    onMount: function() {
+      cestisSafe('renderCertDownloadMgmt');
+      cestisSafe('populateCertTemplateSkillSelect');
+    }
+  },
+  'verify-users': {
+    file: 'Pages/Verify-Users.html',
+    onMount: function() {
+      cestisSafe('renderVerifyUsersPage');
+    }
+  },
+  'a-resources': {
+    file: 'Pages/Resource-Manager.html',
+    onMount: function() {
+      cestisSafe('populateCourseDropdowns');
+      cestisSafe('renderAdminResources');
+    }
+  },
+  'a-assignments': {
+    file: 'Pages/Assignments.html',
+    onMount: function() {
+      cestisSafe('populateCourseDropdowns');
+      cestisSafe('renderAdminAssignments');
+    }
+  },
+  'settings': {
+    file: 'Pages/Administration.html',
+    onMount: function() {
+      cestisSafe('renderUserAccountsTable');
+    }
+  },
+  'admin-duty-register': {
+    file: 'Pages/Admin-Duty-Register.html',
+    onMount: function() {
+      cestisSafe('adrOnPageShow');
+    }
+  },
+  'i-resources': {
+    file: 'Pages/Instructor-Resources.html',
+    onMount: function() {
+      cestisSafe('renderInstructorCustomResources');
+    }
+  },
+  'i-exams': {
+    file: 'Pages/Instructor-Exams.html',
+    onMount: function() {
+      cestisSafe('renderInstructorExams');
+    }
+  },
+  'i-attendance': {
+    file: 'Pages/Instructor-Attendance.html',
+    onMount: function() {
+      cestisInitIAttendance();
+    }
+  },
+  'i-announcements': {
+    file: 'Pages/Instructor-Announcements.html',
+    onMount: function() {
+      cestisSafe('renderInstructorAnnouncements');
+    }
+  },
+  'i-calendar': {
+    file: 'Pages/Instructor-Calendar.html',
+    onMount: function() {
+      cestisSafe('renderInstructorCalendar');
+    }
+  },
+  'as-resources': {
+    file: 'Pages/AdminStaff-Resources.html',
+    onMount: function() {
+      cestisSafe('renderAsResources');
+    }
+  },
+  'as-exams': {
+    file: 'Pages/AdminStaff-Exams.html',
+    onMount: function() {
+      cestisSafe('renderAsExams');
+    }
+  },
+  'as-attendance': {
+    file: 'Pages/AdminStaff-Attendance.html',
+    onMount: function() {
+      cestisSafe('renderAsAttendance');
+    }
+  },
+  'as-announcements': {
+    file: 'Pages/AdminStaff-Announcements.html',
+    onMount: function() {
+      cestisSafe('renderAsAnnouncements');
+    }
+  },
+  'as-calendar': {
+    file: 'Pages/AdminStaff-Calendar.html',
+    onMount: function() {
+      cestisSafe('renderAsCalendar');
+    }
+  },
+  'as-certificates': {
+    file: 'Pages/AdminStaff-Certificates.html',
+    onMount: function() {
+      cestisSafe('renderAsCertificates');
+    }
+  },
+  's-assignments': {
+    file: 'Pages/Student-Assignments.html',
+    onMount: function() {
+      cestisSafe('renderStudentAssignmentsPage');
+    }
+  },
+  's-calendar': {
+    file: 'Pages/Student-Calendar.html',
+    onMount: function() {
+      cestisSafe('renderStudentCalendar');
+    }
+  },
+  's-resources': {
+    file: 'Pages/Student-Resources.html',
+    onMount: function() {
+      cestisSafe('renderStudentResourcesPage');
+    }
+  },
+  's-exams': {
+    file: 'Pages/Student-Exams.html',
+    onMount: function() {
+      cestisSafe('renderStudentExams');
+    }
+  },
+  's-certificate': {
+    file: 'Pages/Student-Certificate.html',
+    onMount: function() {
+      cestisSafe('renderStudentCertificate');
+    }
   }
 };
+
+// ---- Helpers for externally hosted admin feature pages (run from onMount) ----
+function cestisSetAttDate(){ var el=document.getElementById('attendanceDate'); if(el && !el.value){ el.value=new Date().toISOString().split('T')[0]; } }
+function renderExamsUpcoming(){ if(typeof renderExams==='function'){ try{ renderExams('upcoming'); }catch(e){} } }
+function cestisCertsAll(){ if(typeof renderCerts==='function'){ try{ renderCerts('all',''); }catch(e){} } }
+function cestisInitIAttendance(){ var d=document.getElementById('iAttendanceDate'); if(d && !d.value){ d.value=new Date().toISOString().split('T')[0]; } var lbl=document.getElementById('iAttCourseLabel'); if(lbl && typeof currentInstructor!=='undefined' && currentInstructor){ lbl.textContent='— '+currentInstructor.course; } if(typeof renderInstructorAttendance==='function'){ try{ renderInstructorAttendance(); }catch(e){} } }
 
 // Fetch (once) and inject an external feature file into its page mount slot.
 function cestisMountFeature(slot) {
@@ -7799,19 +7981,12 @@ function showPage(pageId) {
   };
   document.getElementById('topbarTitle').textContent = titles[pageId]||pageId;
   if(pageId === 'support-messages' || pageId === 'as-support-messages') renderSupportMessagesPage();
-  if(pageId === 'admin-duty-register') adrOnPageShow();
   if(pageId === 'as-duties') asOnDutiesPageShow();
   if(pageId === 'i-duties') iOnDutiesPageShow();
-  if(pageId === 'verify-users') renderVerifyUsersPage();
-  if(pageId === 'a-resources') renderAdminResources();
   if(pageId === 'document-hub') renderDocumentHubAdmin();
   if(pageId === 'i-document-hub') renderDocumentHubInstructor();
   if(pageId === 'as-document-hub') renderDocumentHubAdmin();
-  if(pageId === 'a-assignments') renderAdminAssignments();
-  if(pageId === 'exams' || pageId === 'i-exams') renderInstructorExams();
-  if(pageId === 'i-resources') renderInstructorCustomResources();
-  if(pageId === 's-resources') renderStudentDriveResources();
-  if(pageId === 's-assignments') renderStudentAssignmentsPage();
+  if(pageId === 's-resources') renderStudentResourcesPage();
   if(pageId === 's-progress') renderStudentAssignments();
   // LMS Chat and Video Conference for every role are loaded from their own HTML
   // files and initialised by the mount onMount hooks (see the .cestis-mount block
@@ -7990,246 +8165,33 @@ function buildAdminPages() {
 
   <!-- EXAMS -->
   <section class="page" id="page-exams">
-    <div id="examListView">
-      <div class="stats-grid" id="examStatsGrid"></div>
-      <div style="display:flex;gap:12px;margin-bottom:20px;"><button class="btn btn-primary" onclick="openModal('createExamModal')">+ Create Exam</button><button class="btn btn-secondary" onclick="exportExamResults()">Export Results</button></div>
-      <div class="tabs"><div class="tab active" onclick="switchExamTab(this,'upcoming')">Upcoming</div><div class="tab" onclick="switchExamTab(this,'active')">Active Now</div><div class="tab" onclick="switchExamTab(this,'completed')">Completed</div></div>
-      <div class="card"><div class="card-header"><h3>Scheduled Examinations</h3></div><div class="table-wrapper"><table><thead><tr><th>Exam Title</th><th>Course</th><th>Date & Time</th><th>Duration</th><th>Questions</th><th>Status</th><th>Actions</th></tr></thead><tbody id="examTableBody"></tbody></table></div></div>
-    </div>
-    <!-- Exam Results Detail View (shown when clicking Results on a completed exam) -->
-    <div id="examResultsView" style="display:none;"></div>
-    <!-- Admin Exam Preview/Test View -->
-    <div id="adminExamPreviewView" style="display:none;"></div>
+    <div class="cestis-mount" data-feature="exams" data-prefix="admin"></div>
   </section>
 
   <!-- IMPORT EXAM PAGE -->
   <section class="page" id="page-import-exam">
-    <!-- Step indicators -->
-    <div class="import-steps">
-      <div class="import-step active" id="importStep1Indicator"><span class="step-num">1</span>Upload File</div>
-      <div class="import-step" id="importStep2Indicator"><span class="step-num">2</span>Review Text</div>
-      <div class="import-step" id="importStep3Indicator"><span class="step-num">3</span>Edit Questions</div>
-      <div class="import-step" id="importStep4Indicator"><span class="step-num">4</span>Import to Exam</div>
-    </div>
-
-    <!-- Step 1: Upload -->
-    <div id="importStep1">
-      <div class="card">
-        <div class="card-header"><h3>Upload Exam Document</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Upload a PDF or Word document (.docx) containing exam questions. The system will extract the text and detect questions automatically.</p>
-
-        <div class="import-drop-zone" id="importDropZone">
-          <input type="file" accept=".pdf,.docx,.doc" onchange="handleImportFileSelect(event)" id="importFileInput">
-          <div class="drop-icon">📄</div>
-          <div class="drop-title">Drop your file here or click to browse</div>
-          <div class="drop-subtitle">Supports PDF and Word (.docx) files &bull; Max 20MB</div>
-        </div>
-
-        <div id="importFileInfo" style="display:none;"></div>
-
-        <div class="import-format-tips">
-          <strong>Tips for best results:</strong>
-          <ul style="margin:8px 0 0 16px;line-height:1.8;color:var(--text-secondary);">
-            <li>Number your questions: <code>1.</code>, <code>Q1.</code>, <code>1)</code>, or <code>Question 1:</code></li>
-            <li>Letter your MCQ options: <code>A.</code>, <code>B.</code>, <code>a)</code>, or <code>(A)</code></li>
-            <li>Mark answers with: <code>Answer: B</code>, <code>*correct option</code>, or <code>[correct]</code></li>
-            <li>True/False questions are auto-detected when options are only "True" and "False"</li>
-            <li>Text-based PDFs work best — scanned image PDFs cannot be parsed</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step 2: Review Raw Text -->
-    <div id="importStep2" style="display:none;">
-      <div class="card">
-        <div class="card-header"><h3>Extracted Text</h3><span style="font-size:12px;color:var(--text-muted);" id="importCharCount"></span></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Review the extracted text below. You can edit it to fix any parsing issues before auto-detecting questions.</p>
-        <textarea class="import-raw-text" id="importRawText" placeholder="Extracted text will appear here..."></textarea>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
-          <button class="btn btn-secondary" onclick="goToImportStep(1)">← Back</button>
-          <button class="btn btn-primary" onclick="detectQuestionsFromText()">Detect Questions →</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step 3: Preview & Edit Detected Questions -->
-    <div id="importStep3" style="display:none;">
-      <div class="card">
-        <div class="card-header">
-          <h3>Detected Questions</h3>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span style="font-size:13px;color:var(--text-muted);" id="importDetectedCount">0 questions</span>
-            <button class="btn btn-sm btn-secondary" onclick="addImportQuestion()">+ Add Question</button>
-          </div>
-        </div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Review and edit the detected questions. Set the correct answers and question types, then import them into an exam.</p>
-        <div id="importPreviewList"></div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
-          <button class="btn btn-secondary" onclick="goToImportStep(2)">← Edit Text</button>
-          <button class="btn btn-primary" onclick="goToImportStep(4)">Import to Exam →</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step 4: Import into Exam -->
-    <div id="importStep4" style="display:none;">
-      <div class="card">
-        <div class="card-header"><h3>Create Exam from Import</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Configure the exam settings and import the questions.</p>
-        <div class="form-group"><label>Exam Title</label><input type="text" class="form-control" id="importExamTitle" placeholder="e.g. Welding Level 2 — Final Assessment"></div>
-        <div class="grid-2col" style="gap:12px;">
-          <div class="form-group"><label>Programme</label><select class="form-control" id="importExamCourse"></select></div>
-          <div class="form-group"><label>Pass Mark (%)</label><input type="number" class="form-control" id="importExamPassMark" value="60" min="1" max="100"></div>
-        </div>
-        <div class="grid-2col" style="gap:12px;">
-          <div class="form-group"><label>Date</label><input type="date" class="form-control" id="importExamDate"></div>
-          <div class="form-group"><label>Start Time</label><input type="time" class="form-control" id="importExamTime"></div>
-        </div>
-        <div class="grid-2col" style="gap:12px;">
-          <div class="form-group"><label>Duration (minutes)</label><input type="number" class="form-control" id="importExamDuration" value="90" min="15" max="300"></div>
-          <div class="form-group"><label>Shuffle Questions</label><select class="form-control" id="importExamShuffle"><option value="false">No</option><option value="true">Yes</option></select></div>
-        </div>
-        <div style="background:var(--bg-input);padding:16px;border-radius:var(--radius-sm);margin:16px 0;">
-          <div style="font-size:14px;font-weight:600;margin-bottom:6px;" id="importSummaryText">0 questions ready to import</div>
-          <div style="font-size:12px;color:var(--text-muted);" id="importSummaryDetail"></div>
-        </div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-          <button class="btn btn-secondary" onclick="goToImportStep(3)">← Edit Questions</button>
-          <button class="btn btn-primary" style="padding:10px 28px;" onclick="finalizeImportExam()">Create Exam</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Import progress overlay -->
-    <div id="importProgressOverlay" style="display:none;">
-      <div class="import-progress">
-        <div class="import-spinner"></div>
-        <div style="font-size:14px;font-weight:600;" id="importProgressText">Parsing document...</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:6px;" id="importProgressDetail"></div>
-      </div>
-    </div>
+    <div class="cestis-mount" data-feature="import-exam" data-prefix="admin"></div>
   </section>
 
   <section class="page" id="page-attendance">
-    <div class="attendance-summary" id="attendanceSummary"></div>
-    <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
-      <label style="font-size:13px;font-weight:600;">Date:</label>
-      <input type="date" class="form-control" style="width:180px;" id="attendanceDate" value="${new Date().toISOString().split('T')[0]}" onchange="currentAttendanceDate=this.value;renderAttendancePage()">
-      <select class="form-control" style="width:200px;" id="attendanceCourseFilter" onchange="renderAttendancePage()"><option value="all">All Courses</option>${courses.map(c=>'<option>'+c+'</option>').join('')}</select>
-      <button class="btn btn-primary" onclick="saveAttendance()">Save Attendance</button>
-      <button class="btn-export" onclick="exportStudentsCSV()">\uD83D\uDCC4 Export</button>
-    </div>
-    <div class="card"><div class="card-header"><h3>Daily Attendance</h3><span style="font-size:13px;color:var(--text-muted);" id="attCount"></span></div>
-      <div class="table-wrapper"><table class="attendance-table"><thead><tr><th>Student</th><th>ID</th><th>Course</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></thead><tbody id="attendanceTableBody"></tbody></table></div>
-    </div>
-    <div class="card"><div class="card-header"><h3>Weekly Attendance Chart</h3></div>
-      <div class="bar-chart" id="weeklyAttChart"></div>
-    </div>
+    <div class="cestis-mount" data-feature="attendance" data-prefix="admin"></div>
   </section>
 
   <section class="page" id="page-announcements">
-    <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
-      <button class="btn btn-primary" onclick="toggleAnnouncementForm()">+ New Announcement</button>
-      <select class="form-control" style="width:200px;" id="annPriorityFilter" onchange="renderAnnouncements()"><option value="all">All Priorities</option><option value="urgent">Urgent</option><option value="info">Info</option><option value="general">General</option></select>
-    </div>
-    <div id="announcementForm" style="display:none;">
-      <div class="announcement-form">
-        <div class="ann-form-header"><h3>Create Announcement</h3><button class="btn btn-sm btn-secondary" onclick="toggleAnnouncementForm()">\u2715 Close</button></div>
-        <div class="form-group"><label>Title</label><input type="text" class="form-control" id="annTitle" placeholder="Announcement title..."></div>
-        <div class="form-group"><label>Body</label><textarea class="form-control" id="annBody" placeholder="Announcement details..."></textarea></div>
-        <div class="ann-form-row">
-          <div class="form-group"><label>Priority</label><select class="form-control" id="annPriority"><option value="general">General</option><option value="info">Info</option><option value="urgent">Urgent</option></select></div>
-          <div class="form-group"><label>Author</label><input type="text" class="form-control" id="annAuthor" value="Admin"></div>
-        </div>
-        <div class="form-group"><label>Target Audience</label>
-          <div style="display:flex;gap:16px;margin-top:6px;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleAdmin" checked> <span style="background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Admin</span></label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleInstructor" checked> <span style="background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Instructor</span></label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleStudent" checked> <span style="background:var(--blue-dim);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Student</span></label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleAdminStaff" checked> <span style="background:var(--purple-dim);color:var(--purple);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Admin Staff</span></label>
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="createAnnouncement()">Publish Announcement</button>
-      </div>
-    </div>
-    <div id="announcementsList"></div>
+    <div class="cestis-mount" data-feature="announcements" data-prefix="admin"></div>
   </section>
 
   <section class="page" id="page-calendar">
-    <div class="grid-sidebar">
-      <div class="card">
-        <div class="cal-header">
-          <div class="cal-nav"><button onclick="changeCalMonth(-1)">\u2190</button></div>
-          <div class="cal-title" id="calTitle"></div>
-          <div class="cal-nav"><button onclick="changeCalMonth(1)">\u2192</button></div>
-        </div>
-        <div class="calendar-grid" id="calGrid"></div>
-      </div>
-      <div>
-        <div class="card"><div class="card-header"><h3 id="calDayTitle">Select a Day</h3></div><div id="calDayEvents"><p style="font-size:13px;color:var(--text-muted);">Click a day to see events</p></div></div>
-        <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="promptAddEvent()">+ Add Event</button>
-        <div class="card" style="margin-top:12px;"><div class="card-header"><h3>All Events</h3></div><div id="calEventList"></div></div>
-      </div>
-    </div>
+    <div class="cestis-mount" data-feature="calendar" data-prefix="admin"></div>
   </section>
 
   <section class="page" id="page-certificates">
-    <div class="cert-status-grid" id="certStats"></div>
-    <div style="display:flex;gap:12px;margin-bottom:20px;"><select class="form-control" style="width:200px;" id="certFilter" onchange="filterCerts()"><option value="all">All Certificates</option><option value="collected">Collected</option><option value="pending">Awaiting Collection</option></select><input type="text" class="form-control" style="width:260px;" placeholder="Search by name or cert number..." id="certSearch" onkeyup="filterCerts()"></div>
-    <div class="card"><div class="card-header"><h3>Certificate Registry</h3><button class="btn-export" onclick="exportCertsCSV()">\uD83D\uDCC4 Export CSV</button></div><div class="table-wrapper"><table><thead><tr><th>Student</th><th>Certificate No.</th><th>Programme</th><th>Level</th><th>Date Certified</th><th>Collection Status</th><th>Actions</th></tr></thead><tbody id="certTableBody"></tbody></table></div></div>
+    <div class="cestis-mount" data-feature="certificates" data-prefix="admin"></div>
   </section>
 
   <!-- ADMIN CERTIFICATE DOWNLOAD MANAGEMENT -->
   <section class="page" id="page-cert-downloads">
-    <div class="stats-grid stats-grid-4" id="certDlStats"></div>
-
-    <!-- Certificate Template Management -->
-    <div class="card" style="margin-bottom:20px;">
-      <div class="card-header">
-        <h3>Certificate Templates by Skill Area</h3>
-        <div style="display:flex;gap:8px;">
-          <select id="certTemplateSkillSelect" onchange="loadCertTemplateForEdit()" style="padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:13px;">
-            <option value="">-- Select Skill Area --</option>
-          </select>
-          <button class="btn btn-primary btn-sm" onclick="openCertTemplateEditor()">Edit Template</button>
-        </div>
-      </div>
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Configure certificate details (modules, competencies, programme specs) for each skill area. This data appears on Page 2 of the downloaded certificate.</p>
-      <div id="certTemplatePreview" style="padding:16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);">
-        <p style="color:var(--text-muted);text-align:center;">Select a skill area above to view or edit its certificate template.</p>
-      </div>
-    </div>
-
-    <!-- Approve Students -->
-    <div class="card" style="margin-bottom:20px;">
-      <div class="card-header">
-        <h3>Approve Students for Certificate Download</h3>
-        <button class="btn btn-primary btn-sm" onclick="openBulkCertApproveModal()">+ Bulk Approve</button>
-      </div>
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Select certified students and approve them to check status and download their certificates using their Student Number (TRN).</p>
-      <div class="cert-mgmt-toolbar">
-        <input type="text" id="certDlSearch" placeholder="Search by name, ID, or cert number..." style="width:280px;" oninput="renderCertDownloadMgmt()">
-        <select id="certDlFilter" onchange="renderCertDownloadMgmt()">
-          <option value="all">All Certified</option>
-          <option value="approved">Approved for Download</option>
-          <option value="not-approved">Not Yet Approved</option>
-        </select>
-        <select id="certDlCourseFilter" onchange="renderCertDownloadMgmt()">
-          <option value="all">All Programmes</option>
-        </select>
-      </div>
-      <div id="certDlStudentList"></div>
-    </div>
-    <div class="card">
-      <div class="card-header"><h3>Download Activity Log</h3></div>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Student</th><th>Certificate No.</th><th>Programme</th><th>Downloads</th><th>Last Downloaded</th><th>Approved By</th></tr></thead>
-          <tbody id="certDlLogBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">No download activity yet</td></tr></tbody>
-        </table>
-      </div>
-    </div>
+    <div class="cestis-mount" data-feature="cert-downloads" data-prefix="admin"></div>
   </section>
 
   <!-- Bulk Cert Approve Modal -->
@@ -8479,69 +8441,17 @@ function buildAdminPages() {
   <!-- SETTINGS -->
   <!-- VERIFY USERS PAGE -->
   <section class="page" id="page-verify-users">
-    <div class="stats-grid stats-grid-4" id="verifyUsersStats"></div>
-    <div class="card">
-      <div class="card-header">
-        <h3>Pending Account Approvals</h3>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-sm btn-primary" onclick="approveAllPending()">Approve All</button>
-          <button class="btn btn-sm btn-secondary" onclick="rejectAllPending()">Reject All</button>
-        </div>
-      </div>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Programme</th><th>Registered</th><th>Actions</th></tr></thead>
-          <tbody id="verifyUsersTableBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">No pending accounts</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="card" style="margin-top:18px;">
-      <div class="card-header"><h3>Recently Approved / Rejected</h3></div>
-      <div id="recentVerifyActions" style="padding:16px;color:var(--text-muted);font-size:13px;">No recent actions.</div>
-    </div>
+    <div class="cestis-mount" data-feature="verify-users" data-prefix="admin"></div>
   </section>
 
   <!-- ADMIN RESOURCE MANAGER -->
   <section class="page" id="page-a-resources">
-    <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-primary" onclick="openModal('driveUploadModal')">+ Upload Resource to Drive</button>
-      <button class="btn btn-secondary" onclick="scanAllDriveFolders()" title="Scan Google Drive folders and recover any resources not currently tracked">🔄 Rescan Drive</button>
-      <select class="form-control" id="arFilterCourse" style="width:220px;" onchange="renderAdminResources()">
-        <option value="all">All Programmes</option>
-      </select>
-      <select class="form-control" id="arFilterType" style="width:180px;" onchange="renderAdminResources()">
-        <option value="all">All Types</option>
-        <option value="video">Videos</option>
-        <option value="document">Documents</option>
-        <option value="worksheet">Worksheets</option>
-      </select>
-      <input type="text" class="form-control" id="arSearch" placeholder="Search by name or ID..." style="width:240px;" oninput="renderAdminResources()">
-    </div>
-    <div class="stats-grid stats-grid-4" style="margin-bottom:18px;">
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📁</div><div class="stat-value" id="arStatTotal">0</div><div class="stat-label">Total Resources</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">📹</div><div class="stat-value" id="arStatVideos">0</div><div class="stat-label">Videos</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📄</div><div class="stat-value" id="arStatDocs">0</div><div class="stat-label">Documents</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">📝</div><div class="stat-value" id="arStatWorksheets">0</div><div class="stat-label">Worksheets</div></div>
-    </div>
-    <div id="adminResourcesList"></div>
+    <div class="cestis-mount" data-feature="a-resources" data-prefix="admin"></div>
   </section>
 
   <!-- ADMIN ASSIGNMENTS ACTIVITY PAGE -->
   <section class="page" id="page-a-assignments">
-    <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-primary" onclick="openAdminCreateAssignment()">+ Create Assignment</button>
-      <select class="form-control" id="aAssignFilterCourse" style="width:220px;" onchange="renderAdminAssignments()">
-        <option value="all">All Programmes</option>
-      </select>
-      <input type="text" class="form-control" id="aAssignSearch" placeholder="Search assignments..." style="width:240px;" oninput="renderAdminAssignments()">
-    </div>
-    <div class="stats-grid stats-grid-4" style="margin-bottom:18px;">
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📋</div><div class="stat-value" id="aAssignStatTotal">0</div><div class="stat-label">Total Assignments</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">📤</div><div class="stat-value" id="aAssignStatSubmissions">0</div><div class="stat-label">Submissions</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">⭐</div><div class="stat-value" id="aAssignStatGraded">0</div><div class="stat-label">Graded</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">⏳</div><div class="stat-value" id="aAssignStatPending">0</div><div class="stat-label">Pending Review</div></div>
-    </div>
-    <div id="adminAssignmentsList"></div>
+    <div class="cestis-mount" data-feature="a-assignments" data-prefix="admin"></div>
   </section>
 
   <!-- SUPPORT MESSAGES PAGE -->
@@ -8563,211 +8473,12 @@ function buildAdminPages() {
   </section>
 
   <section class="page" id="page-settings">
-    <div class="tabs">
-      <div class="tab active" onclick="switchSettingsTab(this,'system')">System Settings</div>
-      <div class="tab" onclick="switchSettingsTab(this,'users')">User Accounts</div>
-      <div class="tab" onclick="switchSettingsTab(this,'staffaccess')">Admin Staff Access</div>
-      <div class="tab" onclick="switchSettingsTab(this,'datamanagement')">Data Management</div>
-      <div class="tab" onclick="switchSettingsTab(this,'googleverification')">Google Verification</div>
-      <div class="tab" onclick="switchSettingsTab(this,'maintenance')">Maintenance Mode</div>
-    </div>
-
-    <div id="settingsTabSystem">
-      <div class="card" style="max-width:700px;">
-        <div class="card-header"><h3>System Settings</h3></div>
-        <div class="form-group"><label>Institution Name</label><input type="text" class="form-control" id="settInstitution" value="C.E.S.T.I.S LMS - Community Training Intervention"></div>
-        <div class="form-group"><label>Administrator Email</label><input type="email" class="form-control" id="settAdminEmail" value="admin@heartlms.edu.jm"></div>
-        <div class="form-group"><label>Academic Year</label><select class="form-control" id="settAcadYear"><option>2025/2026</option><option>2024/2025</option></select></div>
-        <div class="form-group"><label>Video Conference Provider</label><select class="form-control" id="settVcProvider"><option>Built-in (WebRTC)</option><option>Zoom Integration</option><option>Microsoft Teams</option><option>Google Meet</option></select></div>
-        <button class="btn btn-primary" onclick="saveSystemSettings()">Save Changes</button>
-      </div>
-    </div>
-
-    <div id="settingsTabUsers" style="display:none;">
-      <div class="um-stats">
-        <div class="um-stat"><div class="um-stat-val" id="umStatTotal">0</div><div class="um-stat-label">Total Users</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--green);" id="umStatActive">0</div><div class="um-stat-label">Active</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--red);" id="umStatDisabled">0</div><div class="um-stat-label">Disabled</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--accent);" id="umStatAdmins">0</div><div class="um-stat-label">Admins</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--purple);" id="umStatAdminStaff">0</div><div class="um-stat-label">Admin Staff</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--green);" id="umStatInstructors">0</div><div class="um-stat-label">Instructors</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--blue);" id="umStatStudents">0</div><div class="um-stat-label">Students</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--teal);" id="umStatCmc">0</div><div class="um-stat-label">Board Members</div></div>
-      </div>
-
-      <div class="um-toolbar">
-        <button class="btn btn-primary" onclick="openModal('createUserModal')">+ Create User</button>
-        <select class="form-control" style="width:160px;" id="umRoleFilter" onchange="umSelectedIds=[];renderUserAccountsTable()"><option value="all">All Roles</option><option value="admin">Admins</option><option value="adminstaff">Admin Staff</option><option value="instructor">Instructors</option><option value="student">Students</option><option value="cmc">Board Members</option></select>
-        <select class="form-control" style="width:160px;" id="umStatusFilter" onchange="umSelectedIds=[];renderUserAccountsTable()"><option value="all">All Status</option><option value="active">Active</option><option value="disabled">Disabled</option></select>
-        <input type="text" class="form-control um-search" placeholder="Search users..." id="umSearch" onkeyup="renderUserAccountsTable()">
-        <button class="btn-export" onclick="bulkExportUsers()">📄 Export Selected</button>
-      </div>
-
-      <div class="um-bulk-bar" id="umBulkBar">
-        <span class="um-sel-count" id="umSelCount">0 users selected</span>
-        <div class="um-bulk-actions">
-          <button class="btn btn-sm btn-success" onclick="bulkActivate()">✓ Activate</button>
-          <button class="btn btn-sm btn-danger" onclick="bulkDeactivate()">✕ Deactivate</button>
-          <button class="btn btn-sm btn-secondary" onclick="bulkExportUsers()">📄 Export</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><h3>User Accounts</h3><span style="font-size:13px;color:var(--text-muted);" id="umCount">Showing 0 users</span></div>
-        <div class="table-wrapper">
-          <table class="um-table">
-            <thead><tr>
-              <th style="width:40px;"><input type="checkbox" class="um-cb" id="umSelectAllCb" onchange="toggleUmSelectAll(this.checked)"></th>
-              <th>User</th><th>Role</th><th>Username</th><th>Programme</th><th>Status</th><th>Actions</th>
-            </tr></thead>
-            <tbody id="umTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div id="settingsTabStaffAccess" style="display:none;">
-      <div class="card" style="max-width:900px;">
-        <div class="card-header"><h3>Admin Staff Access Control</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
-          Choose which pages Administrative Staff can access when they log in. All admin staff will always have access to their <strong>Dashboard</strong>, <strong>My Duties</strong>, <strong>LMS Chat</strong>, and <strong>My Profile</strong> pages. Toggle additional pages below.
-        </p>
-        <div class="as-access-grid" id="asAccessGrid"></div>
-        <div style="margin-top:20px;">
-          <button class="btn btn-primary" onclick="saveAdminStaffAccess()">Save Access Settings</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="settingsTabDatamanagement" style="display:none;">
-      <div class="card" style="max-width:700px;">
-        <div class="card-header"><h3>Data Backup &amp; Restore</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
-          Export all system data as a JSON backup file, or restore from a previous backup. Regular backups protect against data loss.
-        </p>
-        <div class="backup-actions">
-          <button class="btn btn-primary" onclick="exportDataBackup()">Export Backup</button>
-          <button class="btn btn-secondary" onclick="importDataBackup()">Import Backup</button>
-        </div>
-        <div style="margin-top:16px;padding:12px;background:var(--accent-dim);border-radius:var(--radius-sm);font-size:12px;color:var(--accent);">
-          Keyboard shortcut: <strong>Ctrl+Shift+E</strong> to export backup at any time.
-        </div>
-      </div>
-
-      <div class="card" style="max-width:700px;margin-top:16px;">
-        <div class="card-header"><h3>Storage Usage</h3></div>
-        <div id="storageUsageInfo" style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Calculating...</div>
-        <div class="storage-bar"><div class="storage-bar-fill low" id="storageBarFill" style="width:0%"></div></div>
-        <button class="btn btn-sm btn-secondary" onclick="refreshStorageUsage()" style="margin-top:12px;">Refresh</button>
-      </div>
-
-      <div class="card" style="max-width:700px;margin-top:16px;">
-        <div class="card-header"><h3>Data Integrity Check</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
-          Scan for orphaned records, duplicate accounts, and missing data fields.
-        </p>
-        <button class="btn btn-primary" onclick="runAndDisplayIntegrityCheck()">Run Integrity Check</button>
-        <div id="integrityResults" style="margin-top:12px;"></div>
-      </div>
-    </div>
-
-    <div id="settingsTabGoogleVerification" style="display:none;">
-      <div class="card" style="max-width:700px;">
-        <div class="card-header"><h3>Google Site Verification</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
-          Add your Google site verification meta tag to verify ownership of this site with Google Search Console.
-          Paste the full meta tag provided by Google (e.g. <code style="background:var(--bg-input);padding:2px 6px;border-radius:4px;">&lt;meta name="google-site-verification" content="..." /&gt;</code>).
-        </p>
-        <div class="form-group">
-          <label>Google Verification Meta Tag</label>
-          <textarea class="form-control" id="settGoogleVerificationHtml" rows="4" placeholder='<meta name="google-site-verification" content="your-verification-code" />' style="font-family:monospace;font-size:13px;resize:vertical;"></textarea>
-        </div>
-        <div id="gvPreview" style="display:none;margin-bottom:16px;padding:12px;border-radius:8px;background:var(--bg-input);border:1px solid var(--accent-dim);">
-          <div style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:6px;">ACTIVE VERIFICATION TAG</div>
-          <code id="gvPreviewCode" style="font-size:12px;color:var(--text-secondary);word-break:break-all;"></code>
-        </div>
-        <div style="display:flex;gap:10px;">
-          <button class="btn btn-primary" onclick="saveGoogleVerification()">Save & Apply</button>
-          <button class="btn btn-secondary" onclick="clearGoogleVerification()">Remove Tag</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="settingsTabMaintenance" style="display:none;">
-      <div class="card" style="max-width:700px;">
-        <div class="card-header">
-          <h3>Maintenance Mode</h3>
-          <span class="maint-status-badge inactive" id="maintStatusBadge"><span class="maint-status-dot"></span> Inactive</span>
-        </div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.6;">
-          When maintenance mode is activated, <strong>all users except the Administrator</strong> will be unable to access the site. They will see a maintenance page informing them the site is temporarily unavailable. Only users with the <strong>admin</strong> role can bypass the maintenance screen.
-        </p>
-
-        <div class="maint-toggle-container">
-          <div class="maint-toggle-label">
-            Enable Maintenance Mode
-            <small>Blocks all non-admin users from accessing the site/dashboard</small>
-          </div>
-          <label class="maint-toggle">
-            <input type="checkbox" id="maintModeToggle" onchange="toggleMaintenanceMode(this.checked)">
-            <span class="maint-toggle-slider"></span>
-          </label>
-        </div>
-
-        <div class="form-group" style="margin-top:20px;">
-          <label>Custom Message (optional)</label>
-          <textarea class="form-control" id="maintCustomMsg" rows="3" placeholder="Enter a custom message to display to users during maintenance..." style="resize:vertical;"></textarea>
-          <small style="color:var(--text-muted);font-size:11px;">Leave blank to use the default maintenance message.</small>
-        </div>
-
-        <div style="margin-top:16px;">
-          <button class="btn btn-primary" onclick="saveMaintenanceSettings()">Save Maintenance Settings</button>
-        </div>
-
-        <div class="maint-preview-box" id="maintPreviewBox" style="margin-top:20px;">
-          <div class="maint-preview-title">Preview</div>
-          <div id="maintPreviewMsg">C.E.S.T.I.S LMS is currently undergoing scheduled maintenance. The site will be back online shortly.</div>
-        </div>
-      </div>
-    </div>
+    <div class="cestis-mount" data-feature="settings" data-prefix="admin"></div>
   </section>
 
   <!-- ADMIN DUTY REGISTER PAGE -->
   <section class="page" id="page-admin-duty-register">
-    <div class="adr-header-bar">
-      <div class="adr-header-left">
-        <h3 style="font-family:'Playfair Display',serif;font-size:20px;">Admin Duty Register</h3>
-        <span class="adr-subtitle">Track admin staff performance, assign tasks & manage accountability</span>
-      </div>
-      <div class="adr-header-right">
-        <button class="btn btn-primary" onclick="adrOpenAssignTaskModal()" id="adrAssignBtn" style="display:none;">+ Assign Task</button>
-        <button class="btn btn-secondary" onclick="adrToggleView()" id="adrViewToggle">View My Tasks</button>
-      </div>
-    </div>
-
-    <!-- Admin Staff Cards (visible to System Administrator) -->
-    <div id="adrStaffCardsSection" style="display:none;">
-      <div class="adr-perf-overview" id="adrPerfOverview"></div>
-      <div class="adr-staff-grid" id="adrStaffGrid"></div>
-    </div>
-
-    <!-- Task Board -->
-    <div id="adrTaskBoard">
-      <div class="adr-tabs">
-        <div class="adr-tab active" onclick="adrSwitchTab(this,'all')">All Tasks</div>
-        <div class="adr-tab" onclick="adrSwitchTab(this,'daily')">Daily</div>
-        <div class="adr-tab" onclick="adrSwitchTab(this,'weekly')">Weekly</div>
-        <div class="adr-tab" onclick="adrSwitchTab(this,'monthly')">Monthly</div>
-        <div class="adr-tab" onclick="adrSwitchTab(this,'pending_review')">Awaiting Review</div>
-        <div class="adr-tab" onclick="adrSwitchTab(this,'completed')">Verified Complete</div>
-      </div>
-      <div class="adr-filters">
-        <select class="form-control" id="adrFilterStaff" onchange="adrRenderTasks()" style="width:200px;"><option value="all">All Staff &amp; Instructors</option></select>
-        <select class="form-control" id="adrFilterPriority" onchange="adrRenderTasks()" style="width:160px;"><option value="all">All Priorities</option><option value="urgent">Urgent</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
-        <input type="text" class="form-control" id="adrSearchTasks" placeholder="Search tasks..." onkeyup="adrRenderTasks()" style="width:220px;">
-      </div>
-      <div class="adr-task-list" id="adrTaskList"></div>
-    </div>
+    <div class="cestis-mount" data-feature="admin-duty-register" data-prefix="admin"></div>
   </section>
 
   <!-- ADMIN DUTY REGISTER MODALS -->
@@ -8932,6 +8643,133 @@ function buildAdminPages() {
 }
 
 // ============================== BUILD STUDENT PAGES ==============================
+// Paint the My Resources (student) programme banner + Drive resource list on mount.
+function renderStudentResourcesPage(){
+  var s = (typeof currentStudent !== 'undefined') ? currentStudent : null;
+  var banner = document.getElementById('sResWelcomeBanner');
+  if(banner && s){
+    var skill = findSkillAreaForCourse(s.course) || {color:'#3498db',icon:'📚',name:(s.course||'Programme')};
+    var rgb = hexToRgb(skill.color);
+    banner.innerHTML =
+      '<div class="student-welcome-banner" style="background:linear-gradient(135deg,rgba('+rgb+',0.15),rgba(52,152,219,0.05));">' +
+        '<div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;">' +
+          '<div style="width:48px;height:48px;border-radius:12px;background:'+skill.color+'33;display:flex;align-items:center;justify-content:center;font-size:24px;">'+skill.icon+'</div>' +
+          '<div><h2 style="font-size:20px;">'+skill.name+' Resources</h2><p style="margin:0;">Your programme-specific learning materials</p></div>' +
+        '</div>' +
+      '</div>';
+  }
+  if(typeof renderStudentDriveResources === 'function'){ try{ renderStudentDriveResources(); }catch(e){} }
+}
+
+// Fill the My Exams (student) page: upcoming/active list + past results, on mount.
+function renderStudentExams(){
+  var s = (typeof currentStudent !== 'undefined') ? currentStudent : null;
+  if(!s) return;
+  if(typeof resolveExamStatuses === 'function'){ try{ resolveExamStatuses(); }catch(e){} }
+  var up = document.getElementById('studentUpcomingExams');
+  if(up){
+    up.innerHTML = exams.filter(function(e){ return (e.course === s.course || instructorCourseMatch(e.course, s.course)) && (e.status === 'upcoming' || e.status === 'active'); }).map(function(e,idx){
+      var examIdx = exams.indexOf(e);
+      var hasQuestions = e.questionData && e.questionData.length > 0;
+      var alreadyTaken = (examResults||[]).some(function(r){ return r.examId === e.id && r.studentId === s.id; });
+      var examStart = parseExamDateTime(e.date, e.time);
+      var examNow = new Date();
+      var isTimePassed = examStart && examNow >= examStart;
+      var badgeHtml = '';
+      if(alreadyTaken){ badgeHtml = '<span class="badge badge-green"><span class="badge-dot"></span>Completed</span>'; }
+      else if(e.status === 'active' && hasQuestions){ badgeHtml = '<button class="btn btn-sm btn-primary" onclick="startStudentExam('+examIdx+')">Take Exam</button>'; }
+      else if(isTimePassed && !hasQuestions){ badgeHtml = '<span class="badge badge-amber">Awaiting Questions</span>'; }
+      else if(isTimePassed){ badgeHtml = '<span class="badge badge-blue">Ready Soon</span>'; }
+      else { badgeHtml = '<span class="badge badge-amber">Upcoming &bull; '+(e.date.split('-').slice(1).join('/'))+'</span>'; }
+      return '<div class="class-schedule-card" style="border-left:3px solid '+(e.status==='active'?'var(--green)':'var(--accent)')+';">' +
+        '<div class="class-time-block"><div class="time" style="font-size:13px;">'+e.date.split('-').slice(1).join('/')+'</div><div class="period">'+e.time+'</div></div>' +
+        '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+e.title+'</div><div style="font-size:12px;color:var(--text-muted);">'+e.duration+' minutes &nbsp;&bull;&nbsp; '+(e.questionData?e.questionData.length:e.questions)+' questions &nbsp;&bull;&nbsp; Pass: '+e.passMark+'%</div></div>' +
+        badgeHtml + '</div>';
+    }).join('') || '<p style="color:var(--text-muted);padding:16px;">No upcoming exams for your programme.</p>';
+  }
+  var past = document.getElementById('studentPastExamResults');
+  if(past){
+    var myResults = (examResults||[]).filter(function(r){ return r.studentId === s.id; });
+    if(myResults.length === 0){
+      var completedForCourse = exams.filter(function(e){ return (e.course === s.course || instructorCourseMatch(e.course, s.course)) && e.status === 'completed'; });
+      if(completedForCourse.length === 0){
+        past.innerHTML = '<p style="color:var(--text-muted);padding:16px;">No past exams yet.</p>';
+      } else {
+        past.innerHTML = completedForCourse.map(function(e){
+          return '<div class="class-schedule-card" style="border-left:3px solid var(--text-muted);">' +
+            '<div class="class-time-block"><div class="time" style="font-size:13px;">'+e.date.split('-').slice(1).join('/')+'</div><div class="period">'+e.time+'</div></div>' +
+            '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+e.title+'</div><div style="font-size:12px;color:var(--text-muted);">Class Average: '+(e.passRate||'—')+'</div></div>' +
+            '<span class="badge badge-amber">Not Taken</span></div>';
+        }).join('');
+      }
+    } else {
+      past.innerHTML = myResults.map(function(r){
+        var ex = exams.find(function(e){ return e.id === r.examId; }) || {};
+        return '<div class="class-schedule-card" style="border-left:3px solid '+(r.passed?'var(--green)':'var(--red)')+';">' +
+          '<div class="class-time-block" style="background:'+(r.passed?'var(--green-dim)':'var(--red-dim)')+';"><div class="time" style="font-size:13px;">'+(r.submittedAt?r.submittedAt.split('T')[0].split('-').slice(1).join('/'):'—')+'</div><div class="period">'+(ex.time||'')+'</div></div>' +
+          '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+(ex.title||'Exam')+'</div><div style="font-size:12px;color:var(--text-muted);">Score: <strong style="color:'+(r.passed?'var(--green)':'var(--red)')+';">'+r.score+'%</strong> &nbsp;&bull;&nbsp; '+r.correctCount+'/'+r.totalQuestions+' correct</div></div>' +
+          '<span class="badge '+(r.passed?'badge-green':'badge-red')+'"><span class="badge-dot"></span>'+(r.passed?'Passed':'Failed')+'</span>' +
+          '<button class="btn btn-sm btn-secondary" onclick="viewExamResultDetail(\''+r.examId+'\',\''+r.studentId+'\')">Review</button></div>';
+      }).join('');
+    }
+  }
+}
+
+// Fill the My Certificate (student) page on mount with the issued-cert card or
+// the not-yet-available card, reproducing the original build-time markup.
+function renderStudentCertificate(){
+  var s = (typeof currentStudent !== 'undefined') ? currentStudent : null;
+  var el = document.getElementById('studentCertContent');
+  if(!el || !s) return;
+  var html;
+  if(s.certNo){
+    var collectStatus = s.certCollected
+      ? '<span class="badge badge-green" style="font-size:14px;padding:8px 20px;"><span class="badge-dot"></span>Certificate Collected ✓</span>'
+      : '<span class="badge badge-amber" style="font-size:14px;padding:8px 20px;"><span class="badge-dot"></span>Awaiting Collection — Visit your centre</span>';
+    var dl = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function(d){ return d.studentId === s.id; });
+    var dlBlock;
+    if(dl && dl.approved){
+      dlBlock = "<button class=\"cert-download-btn\" onclick=\"generateCertificatePDF('" + s.id + "')\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/></svg> Download Certificate</button>";
+    } else {
+      dlBlock = '<p style="font-size:13px;color:var(--text-muted);margin-top:8px;">Certificate download not yet approved. Contact administration.</p>';
+    }
+    html =
+      '<div class="card" style="text-align:center;padding:40px;">' +
+        '<div style="font-size:64px;margin-bottom:16px;">🎓</div>' +
+        '<h2 style="font-size:26px;margin-bottom:8px;color:var(--green);">Congratulations!</h2>' +
+        '<p style="font-size:15px;color:var(--text-secondary);margin-bottom:24px;">You have been certified in <strong>'+s.course+'</strong></p>' +
+        '<div style="display:inline-block;background:var(--bg-input);border:2px dashed var(--border-light);border-radius:var(--radius);padding:24px 40px;margin-bottom:24px;">' +
+          '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Certificate Number</div>' +
+          '<div style="font-size:22px;font-family:\'Playfair Display\',serif;font-weight:700;color:var(--accent);">'+s.certNo+'</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Issued: '+s.certDate+'</div>' +
+        '</div>' +
+        '<div style="margin-bottom:24px;">' +
+          '<div style="font-size:13px;margin-bottom:8px;">Collection Status:</div>' + collectStatus +
+        '</div>' +
+        '<div style="margin-top:8px;">' + dlBlock + '</div>' +
+        '<div style="margin-top:16px;">' +
+          '<button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Refresh from Cloud</button>' +
+        '</div>' +
+      '</div>';
+  } else {
+    html =
+      '<div class="card" style="text-align:center;padding:40px;">' +
+        '<div style="font-size:64px;margin-bottom:16px;opacity:0.3;">🎓</div>' +
+        '<h2 style="font-size:22px;margin-bottom:8px;color:var(--text-muted);">Certificate Not Yet Available</h2>' +
+        '<p style="font-size:14px;color:var(--text-muted);max-width:400px;margin:0 auto 24px;">You must complete all training modules and pass your certification exam before your certificate can be issued.</p>' +
+        '<div style="display:inline-flex;align-items:center;gap:8px;background:var(--bg-input);padding:12px 20px;border-radius:var(--radius-sm);">' +
+          '<span>Current Status:</span>' +
+          '<span class="badge '+(stageBadge[s.stage]||'badge-blue')+'"><span class="badge-dot"></span>'+(stageLabels[s.stage]||s.stage)+'</span>' +
+        '</div>' +
+        '<div style="margin-top:20px;">' +
+          '<button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Check Cloud for Updates</button>' +
+          '<p style="font-size:12px;color:var(--text-muted);margin-top:8px;">If your certificate has been issued, click above to check for updates from the cloud.</p>' +
+        '</div>' +
+      '</div>';
+  }
+  el.innerHTML = html;
+}
+
 function buildStudentPages() {
   try {
   resolveExamStatuses();
@@ -9099,166 +8937,22 @@ function buildStudentPages() {
 
   <!-- STUDENT RESOURCES -->
   <section class="page" id="page-s-resources">
-    <div class="student-welcome-banner" style="background:linear-gradient(135deg,rgba(${skillColorRGB},0.15),rgba(52,152,219,0.05));">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;">
-        <div style="width:48px;height:48px;border-radius:12px;background:${skill.color}33;display:flex;align-items:center;justify-content:center;font-size:24px;">${skill.icon}</div>
-        <div><h2 style="font-size:20px;">${skill.name} Resources</h2><p style="margin:0;">Your programme-specific learning materials</p></div>
-      </div>
-    </div>
-
-    <div class="tabs" id="sResourceTabs">
-      <div class="tab active" onclick="filterStudentResources('all',this)">All Materials</div>
-      <div class="tab" onclick="filterStudentResources('video',this)">Videos</div>
-      <div class="tab" onclick="filterStudentResources('document',this)">Documents</div>
-      <div class="tab" onclick="filterStudentResources('worksheet',this)">Worksheets</div>
-    </div>
-
-    <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;">
-      <input type="text" class="form-control" id="sResSearch" placeholder="Search by name or resource ID..." style="max-width:340px;" oninput="renderStudentDriveResources()">
-    </div>
-
-    <!-- Drive-uploaded resources for this student's class -->
-    <div id="studentDriveResources"></div>
-
-    <!-- Resources are loaded from Google Drive -->
-    <div id="studentStaticResources">
-      <div class="card" style="text-align:center;padding:32px;" id="studentNoResourcesMsg">
-        <div style="font-size:48px;margin-bottom:12px;opacity:0.3;">📁</div>
-        <h3 style="color:var(--text-muted);margin-bottom:8px;">No Resources Available Yet</h3>
-        <p style="font-size:13px;color:var(--text-muted);">Your instructor will upload learning materials to Google Drive. Check back soon.</p>
-      </div>
-    </div>
+    <div class="cestis-mount" data-feature="s-resources" data-prefix="student"></div>
   </section>
 
   <!-- STUDENT ASSIGNMENTS -->
   <section class="page" id="page-s-assignments">
-    <div class="stats-grid stats-grid-4" style="margin-bottom:18px;">
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📋</div><div class="stat-value" id="sAssignTotal">0</div><div class="stat-label">Total Assignments</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">📤</div><div class="stat-value" id="sAssignSubmitted">0</div><div class="stat-label">Submitted</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">⭐</div><div class="stat-value" id="sAssignGraded">0</div><div class="stat-label">Graded</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">⏳</div><div class="stat-value" id="sAssignPending">0</div><div class="stat-label">Pending</div></div>
-    </div>
-    <div class="card">
-      <div class="card-header"><h3>My Assignments</h3><span id="sAssignPageCount" style="font-size:13px;color:var(--text-muted);"></span></div>
-      <div id="studentAssignmentsPageList"></div>
-    </div>
+    <div class="cestis-mount" data-feature="s-assignments" data-prefix="student"></div>
   </section>
 
   <!-- STUDENT EXAMS -->
   <section class="page" id="page-s-exams">
-    <div id="studentExamListView">
-      <div class="card">
-        <div class="card-header"><h3>My Exams</h3></div>
-        ${exams.filter(e => (e.course === s.course || instructorCourseMatch(e.course, s.course)) && (e.status === 'upcoming' || e.status === 'active')).map((e,idx) => {
-          const examIdx = exams.indexOf(e);
-          const hasQuestions = e.questionData && e.questionData.length > 0;
-          const alreadyTaken = (examResults||[]).some(r => r.examId === e.id && r.studentId === s.id);
-          const examStart = parseExamDateTime(e.date, e.time);
-          const examNow = new Date();
-          const isTimePassed = examStart && examNow >= examStart;
-          let badgeHtml = '';
-          if(alreadyTaken) {
-            badgeHtml = '<span class="badge badge-green"><span class="badge-dot"></span>Completed</span>';
-          } else if(e.status === 'active' && hasQuestions) {
-            badgeHtml = '<button class="btn btn-sm btn-primary" onclick="startStudentExam('+examIdx+')">Take Exam</button>';
-          } else if(isTimePassed && !hasQuestions) {
-            badgeHtml = '<span class="badge badge-amber">Awaiting Questions</span>';
-          } else if(isTimePassed) {
-            badgeHtml = '<span class="badge badge-blue">Ready Soon</span>';
-          } else {
-            badgeHtml = '<span class="badge badge-amber">Upcoming &bull; '+(e.date.split('-').slice(1).join('/'))+'</span>';
-          }
-          return '<div class="class-schedule-card" style="border-left:3px solid '+(e.status==='active'?'var(--green)':'var(--accent)')+';">' +
-            '<div class="class-time-block"><div class="time" style="font-size:13px;">'+e.date.split('-').slice(1).join('/')+'</div><div class="period">'+e.time+'</div></div>' +
-            '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+e.title+'</div><div style="font-size:12px;color:var(--text-muted);">'+e.duration+' minutes &nbsp;•&nbsp; '+(e.questionData?e.questionData.length:e.questions)+' questions &nbsp;•&nbsp; Pass: '+e.passMark+'%</div></div>' +
-            badgeHtml +
-            '</div>';
-        }).join('') || '<p style="color:var(--text-muted);padding:16px;">No upcoming exams for your programme.</p>'}
-      </div>
-      <div class="card">
-        <div class="card-header"><h3>Past Exam Results</h3></div>
-        <div id="studentPastExamResults">
-        ${(function(){
-          const myResults = (examResults||[]).filter(r => r.studentId === s.id);
-          if(myResults.length === 0) {
-            var completedForCourse = exams.filter(e => (e.course === s.course || instructorCourseMatch(e.course, s.course)) && e.status === 'completed');
-            if(completedForCourse.length === 0) {
-              return '<p style="color:var(--text-muted);padding:16px;">No past exams yet.</p>';
-            }
-            return completedForCourse.map(e =>
-              '<div class="class-schedule-card" style="border-left:3px solid var(--text-muted);">' +
-              '<div class="class-time-block"><div class="time" style="font-size:13px;">'+e.date.split('-').slice(1).join('/')+'</div><div class="period">'+e.time+'</div></div>' +
-              '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+e.title+'</div><div style="font-size:12px;color:var(--text-muted);">Class Average: '+(e.passRate||'—')+'</div></div>' +
-              '<span class="badge badge-amber">Not Taken</span></div>'
-            ).join('');
-          }
-          return myResults.map(r => {
-            const ex = exams.find(e => e.id === r.examId) || {};
-            return '<div class="class-schedule-card" style="border-left:3px solid '+(r.passed?'var(--green)':'var(--red)')+';">' +
-              '<div class="class-time-block" style="background:'+(r.passed?'var(--green-dim)':'var(--red-dim)') +';"><div class="time" style="font-size:13px;">'+(r.submittedAt?r.submittedAt.split('T')[0].split('-').slice(1).join('/'):'—')+'</div><div class="period">'+(ex.time||'')+'</div></div>' +
-              '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+(ex.title||'Exam')+'</div><div style="font-size:12px;color:var(--text-muted);">Score: <strong style="color:'+(r.passed?'var(--green)':'var(--red)')+';">'+r.score+'%</strong> &nbsp;•&nbsp; '+r.correctCount+'/'+r.totalQuestions+' correct</div></div>' +
-              '<span class="badge '+(r.passed?'badge-green':'badge-red')+'"><span class="badge-dot"></span>'+(r.passed?'Passed':'Failed')+'</span>' +
-              '<button class="btn btn-sm btn-secondary" onclick="viewExamResultDetail(\''+r.examId+'\',\''+r.studentId+'\')">Review</button></div>';
-          }).join('');
-        })()}
-        </div>
-      </div>
-    </div>
-    <!-- Exam taking interface (shown when student clicks Take Exam) -->
-    <div id="studentExamTakingView" style="display:none;"></div>
-    <!-- Exam result review (shown after submission or when reviewing past results) -->
-    <div id="studentExamResultView" style="display:none;"></div>
+    <div class="cestis-mount" data-feature="s-exams" data-prefix="student"></div>
   </section>
 
   <!-- STUDENT CERTIFICATE -->
   <section class="page" id="page-s-certificate">
-    <div id="studentCertContent">
-    ${s.certNo ? `
-      <div class="card" style="text-align:center;padding:40px;">
-        <div style="font-size:64px;margin-bottom:16px;">🎓</div>
-        <h2 style="font-size:26px;margin-bottom:8px;color:var(--green);">Congratulations!</h2>
-        <p style="font-size:15px;color:var(--text-secondary);margin-bottom:24px;">You have been certified in <strong>${s.course}</strong></p>
-        <div style="display:inline-block;background:var(--bg-input);border:2px dashed var(--border-light);border-radius:var(--radius);padding:24px 40px;margin-bottom:24px;">
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Certificate Number</div>
-          <div style="font-size:22px;font-family:'Playfair Display',serif;font-weight:700;color:var(--accent);">${s.certNo}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Issued: ${s.certDate}</div>
-        </div>
-        <div style="margin-bottom:24px;">
-          <div style="font-size:13px;margin-bottom:8px;">Collection Status:</div>
-          ${s.certCollected
-            ? '<span class="badge badge-green" style="font-size:14px;padding:8px 20px;"><span class="badge-dot"></span>Certificate Collected ✓</span>'
-            : '<span class="badge badge-amber" style="font-size:14px;padding:8px 20px;"><span class="badge-dot"></span>Awaiting Collection — Visit your centre</span>'}
-        </div>
-        <div style="margin-top:8px;">
-          ${(function(){
-            const dl = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function(d){ return d.studentId === s.id; });
-            if(dl && dl.approved) {
-              return "<button class=\"cert-download-btn\" onclick=\"generateCertificatePDF('" + s.id + "')\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/></svg> Download Certificate</button>";
-            } else {
-              return '<p style="font-size:13px;color:var(--text-muted);margin-top:8px;">Certificate download not yet approved. Contact administration.</p>';
-            }
-          })()}
-        </div>
-        <div style="margin-top:16px;">
-          <button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Refresh from Cloud</button>
-        </div>
-      </div>
-    ` : `
-      <div class="card" style="text-align:center;padding:40px;">
-        <div style="font-size:64px;margin-bottom:16px;opacity:0.3;">🎓</div>
-        <h2 style="font-size:22px;margin-bottom:8px;color:var(--text-muted);">Certificate Not Yet Available</h2>
-        <p style="font-size:14px;color:var(--text-muted);max-width:400px;margin:0 auto 24px;">You must complete all training modules and pass your certification exam before your certificate can be issued.</p>
-        <div style="display:inline-flex;align-items:center;gap:8px;background:var(--bg-input);padding:12px 20px;border-radius:var(--radius-sm);">
-          <span>Current Status:</span>
-          <span class="badge ${stageBadge[s.stage]}"><span class="badge-dot"></span>${stageLabels[s.stage]}</span>
-        </div>
-        <div style="margin-top:20px;">
-          <button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Check Cloud for Updates</button>
-          <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">If your certificate has been issued, click above to check for updates from the cloud.</p>
-        </div>
-      </div>
-    `}
-    </div>
+    <div class="cestis-mount" data-feature="s-certificate" data-prefix="student"></div>
   </section>
 
   <section class="page" id="page-s-profile">
@@ -9300,20 +8994,7 @@ function buildStudentPages() {
   </section>
 
   <section class="page" id="page-s-calendar">
-    <div class="grid-sidebar-sm">
-      <div class="card">
-        <div class="cal-header">
-          <div class="cal-nav"><button onclick="changeCalMonth(-1)">\u2190</button></div>
-          <div class="cal-title" id="sCalTitle"></div>
-          <div class="cal-nav"><button onclick="changeCalMonth(1)">\u2192</button></div>
-        </div>
-        <div class="calendar-grid" id="sCalGrid"></div>
-      </div>
-      <div>
-        <div class="card"><div class="card-header"><h3 id="sCalDayTitle">Select a Day</h3></div><div id="sCalDayEvents"><p style="font-size:13px;color:var(--text-muted);">Click a day to see events</p></div></div>
-        <div class="card" style="margin-top:12px;"><div class="card-header"><h3>My Events</h3></div><div id="sCalEventList"></div></div>
-      </div>
-    </div>
+    <div class="cestis-mount" data-feature="s-calendar" data-prefix="student"></div>
   </section>
 
   <!-- C.E.S.T.I.S LMS CHAT PAGE (STUDENT) -->
@@ -9434,18 +9115,7 @@ function buildInstructorPages() {
 
   <!-- INSTRUCTOR ATTENDANCE -->
   <section class="page" id="page-i-attendance">
-    <div class="attendance-summary" id="iAttendanceSummary"></div>
-    <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
-      <label style="font-size:13px;font-weight:600;">Date:</label>
-      <input type="date" class="form-control" style="width:180px;" id="iAttendanceDate" value="${new Date().toISOString().split('T')[0]}">
-      <button class="btn btn-primary" onclick="saveInstructorAttendance()">Save Attendance</button>
-    </div>
-    <div class="card"><div class="card-header"><h3>Class Attendance &mdash; ${ins.course}</h3><span style="font-size:13px;color:var(--text-muted);" id="iAttCount">${myStudents.length} students</span></div>
-      <div class="table-wrapper"><table class="attendance-table"><thead><tr><th>Student</th><th>ID</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></thead><tbody id="iAttendanceTableBody"></tbody></table></div>
-    </div>
-    <div class="card"><div class="card-header"><h3>Attendance Overview</h3></div>
-      <div class="bar-chart" id="iWeeklyAttChart"></div>
-    </div>
+    <div class="cestis-mount" data-feature="i-attendance" data-prefix="instructor"></div>
   </section>
 
   <!-- INSTRUCTOR GRADEBOOK -->
@@ -9558,63 +9228,17 @@ function buildInstructorPages() {
 
   <!-- INSTRUCTOR RESOURCES -->
   <section class="page" id="page-i-resources">
-    <div style="display:flex;gap:12px;margin-bottom:18px;">
-      <button class="btn btn-primary" onclick="openModal('uploadResourceModal')">+ Upload Resource</button>
-      <button class="btn btn-secondary" onclick="openModal('createFolderModal')">+ New Folder</button>
-    </div>
-    <div id="iCustomResourcesList" style="margin-bottom:18px;"></div>
-    <div class="card" style="text-align:center;padding:32px;" id="instructorNoResourcesMsg">
-      <div style="font-size:48px;margin-bottom:12px;opacity:0.3;">📁</div>
-      <h3 style="color:var(--text-muted);margin-bottom:8px;">No Resources Uploaded Yet</h3>
-      <p style="font-size:13px;color:var(--text-muted);">Use the buttons above to upload resources to Google Drive for your students.</p>
-    </div>
+    <div class="cestis-mount" data-feature="i-resources" data-prefix="instructor"></div>
   </section>
 
   <!-- INSTRUCTOR ANNOUNCEMENTS -->
   <section class="page" id="page-i-announcements">
-    <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
-      <button class="btn btn-primary" onclick="toggleInstructorAnnouncementForm()">+ New Announcement</button>
-      <select class="form-control" style="width:200px;" id="iAnnPriorityFilter" onchange="renderInstructorAnnouncements()"><option value="all">All Priorities</option><option value="urgent">Urgent</option><option value="info">Info</option><option value="general">General</option></select>
-    </div>
-    <div id="iAnnouncementForm" style="display:none;">
-      <div class="announcement-form">
-        <div class="ann-form-header"><h3>Create Announcement</h3><button class="btn btn-sm btn-secondary" onclick="toggleInstructorAnnouncementForm()">\u2715 Close</button></div>
-        <div class="form-group"><label>Title</label><input type="text" class="form-control" id="iAnnTitle" placeholder="Announcement title..."></div>
-        <div class="form-group"><label>Body</label><textarea class="form-control" id="iAnnBody" placeholder="Announcement details..."></textarea></div>
-        <div class="ann-form-row">
-          <div class="form-group"><label>Priority</label><select class="form-control" id="iAnnPriority"><option value="general">General</option><option value="info">Info</option><option value="urgent">Urgent</option></select></div>
-        </div>
-        <div class="form-group"><label>Target Audience</label>
-          <div style="display:flex;gap:16px;margin-top:6px;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="iAnnRoleInstructor" checked> <span style="background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Instructor</span></label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="iAnnRoleStudent" checked> <span style="background:var(--blue-dim);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Student</span></label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="iAnnRoleAdmin"> <span style="background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Admin</span></label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="iAnnRoleAdminStaff"> <span style="background:var(--purple-dim);color:var(--purple);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Admin Staff</span></label>
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="createInstructorAnnouncement()">Publish Announcement</button>
-      </div>
-    </div>
-    <div id="iAnnouncementsList"></div>
+    <div class="cestis-mount" data-feature="i-announcements" data-prefix="instructor"></div>
   </section>
 
   <!-- INSTRUCTOR CALENDAR -->
   <section class="page" id="page-i-calendar">
-    <div class="grid-sidebar">
-      <div class="card">
-        <div class="cal-header">
-          <div class="cal-nav"><button onclick="changeCalMonth(-1)">\u2190</button></div>
-          <div class="cal-title" id="iCalTitle"></div>
-          <div class="cal-nav"><button onclick="changeCalMonth(1)">\u2192</button></div>
-        </div>
-        <div class="calendar-grid" id="iCalGrid"></div>
-      </div>
-      <div>
-        <div class="card"><div class="card-header"><h3 id="iCalDayTitle">Select a Day</h3></div><div id="iCalDayEvents"><p style="font-size:13px;color:var(--text-muted);">Click a day to see events</p></div></div>
-        <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="promptAddEvent()">+ Add Event</button>
-        <div class="card" style="margin-top:12px;"><div class="card-header"><h3>My Schedule</h3></div><div id="iCalEventList"></div></div>
-      </div>
-    </div>
+    <div class="cestis-mount" data-feature="i-calendar" data-prefix="instructor"></div>
   </section>
 
   <!-- INSTRUCTOR PROFILE -->
@@ -9693,28 +9317,7 @@ function buildInstructorPages() {
 
   <!-- INSTRUCTOR ONLINE EXAMS -->
   <section class="page" id="page-i-exams">
-    <div id="iExamListView">
-      <div class="stats-grid" id="iExamStatsGrid"></div>
-      <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center;">
-        <button class="btn btn-primary" onclick="openModal('createExamModal')">+ Create Exam</button>
-        <button class="btn btn-secondary" onclick="exportExamResults()">Export Results</button>
-      </div>
-      <div class="tabs" style="margin-bottom:16px;">
-        <div class="tab active" onclick="switchInstructorExamTab(this,'upcoming')">Upcoming</div>
-        <div class="tab" onclick="switchInstructorExamTab(this,'active')">Active Now</div>
-        <div class="tab" onclick="switchInstructorExamTab(this,'completed')">Completed</div>
-      </div>
-      <div class="card">
-        <div class="table-wrapper">
-          <table>
-            <thead><tr><th>Exam Title</th><th>Course</th><th>Date & Time</th><th>Duration</th><th>Questions</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody id="iExamTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <div id="iExamResultsView" style="display:none;"></div>
-    <div id="iAdminExamPreviewView" style="display:none;"></div>
+    <div class="cestis-mount" data-feature="i-exams" data-prefix="instructor"></div>
   </section>
 
   <!-- DOCUMENT HUB (Instructor - Download Only) -->
@@ -25464,6 +25067,36 @@ function buildAdminStaffSidebar() {
 }
 
 // ============================== BUILD ADMIN STAFF PAGES ==============================
+// ---- Admin-Staff feature page renderers (fill data rows after fragment mount) ----
+function renderAsResources(){
+  var tb=document.getElementById('asResBody'); if(!tb) return;
+  var html=(driveResources.length > 0 ? driveResources.map(function(r){ return '<tr><td>'+r.name+'</td><td>'+(r.type||'File')+'</td><td>'+(r.course||'General')+'</td><td>'+(r.date||'N/A')+'</td></tr>'; }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">No resources available</td></tr>')
+    + (instructorResources.length > 0 ? instructorResources.map(function(r){ return '<tr><td>'+(r.title||r.name||'Untitled')+'</td><td>'+(r.type||'File')+'</td><td>'+(r.course||'General')+'</td><td>'+(r.date||'N/A')+'</td></tr>'; }).join('') : '');
+  tb.innerHTML=html;
+}
+function renderAsExams(){
+  var tb=document.getElementById('asExamsBody'); if(!tb) return;
+  tb.innerHTML=exams.map(function(ex){ return '<tr><td>'+ex.title+'</td><td>'+ex.course+'</td><td>'+ex.date+'</td><td>'+ex.duration+' min</td><td><span class="badge '+(ex.status==='completed'?'badge-green':ex.status==='active'?'badge-red':'badge-blue')+'">'+ex.status.charAt(0).toUpperCase()+ex.status.slice(1)+'</span></td></tr>'; }).join('');
+}
+function renderAsAttendance(){
+  var tb=document.getElementById('asAttBody'); if(!tb) return;
+  tb.innerHTML=attendanceRecords.slice(0,40).map(function(a){ var days = a.days||{}; function badge(d){ var v=days[d]||'absent'; return '<span class="badge '+(v==='present'?'badge-green':v==='late'?'badge-amber':'badge-red')+'" style="font-size:10px;">'+v.charAt(0).toUpperCase()+v.slice(1)+'</span>'; } return '<tr><td>'+a.studentId+'</td><td>'+a.studentName+'</td><td>'+a.course+'</td><td>'+badge('Mon')+'</td><td>'+badge('Tue')+'</td><td>'+badge('Wed')+'</td><td>'+badge('Thu')+'</td><td>'+badge('Fri')+'</td></tr>'; }).join('');
+}
+function renderAsAnnouncements(){
+  var el=document.getElementById('asAnnouncementsList'); if(!el) return;
+  el.innerHTML=announcements.filter(function(a){ return !a.forRoles || a.forRoles.indexOf('adminstaff') !== -1 || a.forRoles.indexOf('admin') !== -1; }).map(function(a){ return '<div class="card" style="padding:16px;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>'+a.title+'</strong><span class="badge '+(a.priority==='urgent'?'badge-red':a.priority==='info'?'badge-blue':'badge-green')+'">'+a.priority+'</span></div><p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">'+a.body+'</p><div style="font-size:11px;color:var(--text-muted);">By '+a.author+' &bull; '+a.date+'</div></div>'; }).join('');
+}
+function renderAsCalendar(){
+  var el=document.getElementById('asCalendarEvents'); if(!el) return;
+  el.innerHTML=calendarEvents.filter(function(e){ return !e.forRoles || e.forRoles.indexOf('adminstaff') !== -1 || e.forRoles.indexOf('admin') !== -1; }).sort(function(a,b){ return new Date(a.date) - new Date(b.date); }).map(function(e){ return '<div class="card" style="padding:14px;margin-bottom:10px;border-left:4px solid '+(e.color||'var(--accent)')+';"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong style="font-size:14px;">'+e.title+'</strong><div style="font-size:12px;color:var(--text-muted);">'+e.date+' at '+e.time+'</div></div><span class="badge badge-blue" style="font-size:10px;">'+(e.type||'event')+'</span></div></div>'; }).join('');
+}
+function renderAsCertificates(){
+  var tb=document.getElementById('asCertBody'); if(!tb) return;
+  var certd=students.filter(function(st){ return st.stage==='certified'||st.stage==='collected'; });
+  tb.innerHTML=certd.map(function(st){ return '<tr><td>'+st.name+'</td><td>'+st.course+'</td><td><span class="badge '+(st.stage==='collected'?'badge-green':'badge-amber')+'">'+(stageLabels[st.stage]||st.stage)+'</span></td><td>'+(st.certNo||'Pending')+'</td><td>'+(st.certDate||'N/A')+'</td></tr>'; }).join('')
+    + (certd.length === 0 ? '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No certified students yet</td></tr>' : '');
+}
+
 function buildAdminStaffPages() {
   var mc = document.getElementById('mainContent');
   var user = currentLoggedInUser;
@@ -25607,54 +25240,22 @@ function buildAdminStaffPages() {
   '</section>';
 
   // Resource Manager
-  html += '<section class="page" id="page-as-resources">' +
-    '<div class="card-header" style="margin-bottom:16px;"><h3 style="font-family:\'Playfair Display\',serif;">Resources</h3></div>' +
-    '<div class="table-wrapper"><table><thead><tr><th>Title</th><th>Type</th><th>Course</th><th>Added</th></tr></thead><tbody>' +
-      (driveResources.length > 0 ? driveResources.map(function(r){ return '<tr><td>'+r.name+'</td><td>'+(r.type||'File')+'</td><td>'+(r.course||'General')+'</td><td>'+(r.date||'N/A')+'</td></tr>'; }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">No resources available</td></tr>') +
-      (instructorResources.length > 0 ? instructorResources.map(function(r){ return '<tr><td>'+(r.title||r.name||'Untitled')+'</td><td>'+(r.type||'File')+'</td><td>'+(r.course||'General')+'</td><td>'+(r.date||'N/A')+'</td></tr>'; }).join('') : '') +
-    '</tbody></table></div>' +
-  '</section>';
+  html += '<section class="page" id="page-as-resources">' + '<div class="cestis-mount" data-feature="as-resources" data-prefix="adminstaff"></div>' + '</section>';
 
   // Online Exams
-  html += '<section class="page" id="page-as-exams">' +
-    '<div class="card-header" style="margin-bottom:16px;"><h3 style="font-family:\'Playfair Display\',serif;">Online Exams Schedule</h3></div>' +
-    '<div class="table-wrapper"><table><thead><tr><th>Exam</th><th>Course</th><th>Date</th><th>Duration</th><th>Status</th></tr></thead><tbody>' +
-      exams.map(function(ex){ return '<tr><td>'+ex.title+'</td><td>'+ex.course+'</td><td>'+ex.date+'</td><td>'+ex.duration+' min</td><td><span class="badge '+(ex.status==='completed'?'badge-green':ex.status==='active'?'badge-red':'badge-blue')+'">'+ex.status.charAt(0).toUpperCase()+ex.status.slice(1)+'</span></td></tr>'; }).join('') +
-    '</tbody></table></div>' +
-  '</section>';
+  html += '<section class="page" id="page-as-exams">' + '<div class="cestis-mount" data-feature="as-exams" data-prefix="adminstaff"></div>' + '</section>';
 
   // Attendance Management
-  html += '<section class="page" id="page-as-attendance">' +
-    '<div class="card-header" style="margin-bottom:16px;"><h3 style="font-family:\'Playfair Display\',serif;">Attendance Records</h3></div>' +
-    '<div class="table-wrapper"><table><thead><tr><th>Student ID</th><th>Name</th><th>Course</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></thead><tbody>' +
-      attendanceRecords.slice(0,40).map(function(a){ var days = a.days||{}; function badge(d){ var v=days[d]||'absent'; return '<span class="badge '+(v==='present'?'badge-green':v==='late'?'badge-amber':'badge-red')+'" style="font-size:10px;">'+v.charAt(0).toUpperCase()+v.slice(1)+'</span>'; } return '<tr><td>'+a.studentId+'</td><td>'+a.studentName+'</td><td>'+a.course+'</td><td>'+badge('Mon')+'</td><td>'+badge('Tue')+'</td><td>'+badge('Wed')+'</td><td>'+badge('Thu')+'</td><td>'+badge('Fri')+'</td></tr>'; }).join('') +
-    '</tbody></table></div>' +
-  '</section>';
+  html += '<section class="page" id="page-as-attendance">' + '<div class="cestis-mount" data-feature="as-attendance" data-prefix="adminstaff"></div>' + '</section>';
 
   // Announcements
-  html += '<section class="page" id="page-as-announcements">' +
-    '<div class="card-header" style="margin-bottom:16px;"><h3 style="font-family:\'Playfair Display\',serif;">Announcements</h3></div>' +
-    '<div id="asAnnouncementsList">' +
-      announcements.filter(function(a){ return !a.forRoles || a.forRoles.indexOf('adminstaff') !== -1 || a.forRoles.indexOf('admin') !== -1; }).map(function(a){ return '<div class="card" style="padding:16px;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>'+a.title+'</strong><span class="badge '+(a.priority==='urgent'?'badge-red':a.priority==='info'?'badge-blue':'badge-green')+'">'+a.priority+'</span></div><p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">'+a.body+'</p><div style="font-size:11px;color:var(--text-muted);">By '+a.author+' &bull; '+a.date+'</div></div>'; }).join('') +
-    '</div>' +
-  '</section>';
+  html += '<section class="page" id="page-as-announcements">' + '<div class="cestis-mount" data-feature="as-announcements" data-prefix="adminstaff"></div>' + '</section>';
 
   // Calendar
-  html += '<section class="page" id="page-as-calendar">' +
-    '<div class="card-header" style="margin-bottom:16px;"><h3 style="font-family:\'Playfair Display\',serif;">Calendar & Schedule</h3></div>' +
-    '<div id="asCalendarEvents">' +
-      calendarEvents.filter(function(e){ return !e.forRoles || e.forRoles.indexOf('adminstaff') !== -1 || e.forRoles.indexOf('admin') !== -1; }).sort(function(a,b){ return new Date(a.date) - new Date(b.date); }).map(function(e){ return '<div class="card" style="padding:14px;margin-bottom:10px;border-left:4px solid '+(e.color||'var(--accent)')+';"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong style="font-size:14px;">'+e.title+'</strong><div style="font-size:12px;color:var(--text-muted);">'+e.date+' at '+e.time+'</div></div><span class="badge badge-blue" style="font-size:10px;">'+(e.type||'event')+'</span></div></div>'; }).join('') +
-    '</div>' +
-  '</section>';
+  html += '<section class="page" id="page-as-calendar">' + '<div class="cestis-mount" data-feature="as-calendar" data-prefix="adminstaff"></div>' + '</section>';
 
   // Certificate Tracking
-  html += '<section class="page" id="page-as-certificates">' +
-    '<div class="card-header" style="margin-bottom:16px;"><h3 style="font-family:\'Playfair Display\',serif;">Certificate Tracking</h3></div>' +
-    '<div class="table-wrapper"><table><thead><tr><th>Student</th><th>Course</th><th>Status</th><th>Cert #</th><th>Date</th></tr></thead><tbody>' +
-      students.filter(function(st){ return st.stage==='certified'||st.stage==='collected'; }).map(function(st){ return '<tr><td>'+st.name+'</td><td>'+st.course+'</td><td><span class="badge '+(st.stage==='collected'?'badge-green':'badge-amber')+'">'+(stageLabels[st.stage]||st.stage)+'</span></td><td>'+(st.certNo||'Pending')+'</td><td>'+(st.certDate||'N/A')+'</td></tr>'; }).join('') +
-      (students.filter(function(st){ return st.stage==='certified'||st.stage==='collected'; }).length === 0 ? '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No certified students yet</td></tr>' : '') +
-    '</tbody></table></div>' +
-  '</section>';
+  html += '<section class="page" id="page-as-certificates">' + '<div class="cestis-mount" data-feature="as-certificates" data-prefix="adminstaff"></div>' + '</section>';
 
   // Reports
   html += '<section class="page" id="page-as-reports">' +

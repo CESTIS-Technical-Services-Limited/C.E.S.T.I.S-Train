@@ -1,0 +1,22 @@
+<!--
+  ============================================================================
+  Pages/Online-Exams.html  —  C.E.S.T.I.S Online Exams (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="exams" data-prefix="admin">).
+  Tables/stats are filled on mount by renderExams('upcoming') in index.html.
+  Keep ids examStatsGrid / examTableBody / examResultsView / adminExamPreviewView.
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> tags
+  here will NOT run; put JS in index.html.
+  ============================================================================
+-->
+<div id="examListView">
+  <div class="stats-grid" id="examStatsGrid"></div>
+  <div style="display:flex;gap:12px;margin-bottom:20px;"><button class="btn btn-primary" onclick="openModal('createExamModal')">+ Create Exam</button><button class="btn btn-secondary" onclick="exportExamResults()">Export Results</button></div>
+  <div class="tabs"><div class="tab active" onclick="switchExamTab(this,'upcoming')">Upcoming</div><div class="tab" onclick="switchExamTab(this,'active')">Active Now</div><div class="tab" onclick="switchExamTab(this,'completed')">Completed</div></div>
+  <div class="card"><div class="card-header"><h3>Scheduled Examinations</h3></div><div class="table-wrapper"><table><thead><tr><th>Exam Title</th><th>Course</th><th>Date &amp; Time</th><th>Duration</th><th>Questions</th><th>Status</th><th>Actions</th></tr></thead><tbody id="examTableBody"></tbody></table></div></div>
+</div>
+<!-- Exam Results Detail View (shown when clicking Results on a completed exam) -->
+<div id="examResultsView" style="display:none;"></div>
+<!-- Admin Exam Preview/Test View -->
+<div id="adminExamPreviewView" style="display:none;"></div>

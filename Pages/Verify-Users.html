@@ -1,0 +1,31 @@
+<!--
+  ============================================================================
+  Pages/Verify-Users.html  —  C.E.S.T.I.S Verify Users (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="verify-users" data-prefix="admin">).
+  Filled on mount by renderVerifyUsersPage() in index.html.
+  Keep ids verifyUsersStats / verifyUsersTableBody / recentVerifyActions.
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
+  ============================================================================
+-->
+<div class="stats-grid stats-grid-4" id="verifyUsersStats"></div>
+<div class="card">
+  <div class="card-header">
+    <h3>Pending Account Approvals</h3>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-sm btn-primary" onclick="approveAllPending()">Approve All</button>
+      <button class="btn btn-sm btn-secondary" onclick="rejectAllPending()">Reject All</button>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Programme</th><th>Registered</th><th>Actions</th></tr></thead>
+      <tbody id="verifyUsersTableBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">No pending accounts</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<div class="card" style="margin-top:18px;">
+  <div class="card-header"><h3>Recently Approved / Rejected</h3></div>
+  <div id="recentVerifyActions" style="padding:16px;color:var(--text-muted);font-size:13px;">No recent actions.</div>
+</div>

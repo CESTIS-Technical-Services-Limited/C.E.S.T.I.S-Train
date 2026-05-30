@@ -1,0 +1,27 @@
+<!--
+  ============================================================================
+  Pages/Attendance.html  —  C.E.S.T.I.S Attendance Management (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="attendance" data-prefix="admin">).
+  On mount, index.html sets #attendanceDate to today, populates the
+  #attendanceCourseFilter options (populateCourseDropdowns), and fills the table
+  (renderAttendancePage). Keep ids attendanceSummary / attendanceDate /
+  attendanceCourseFilter / attendanceTableBody / attCount / weeklyAttChart.
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
+  ============================================================================
+-->
+<div class="attendance-summary" id="attendanceSummary"></div>
+<div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
+  <label style="font-size:13px;font-weight:600;">Date:</label>
+  <input type="date" class="form-control" style="width:180px;" id="attendanceDate" onchange="currentAttendanceDate=this.value;renderAttendancePage()">
+  <select class="form-control" style="width:200px;" id="attendanceCourseFilter" onchange="renderAttendancePage()"><option value="all">All Courses</option></select>
+  <button class="btn btn-primary" onclick="saveAttendance()">Save Attendance</button>
+  <button class="btn-export" onclick="exportStudentsCSV()">📄 Export</button>
+</div>
+<div class="card"><div class="card-header"><h3>Daily Attendance</h3><span style="font-size:13px;color:var(--text-muted);" id="attCount"></span></div>
+  <div class="table-wrapper"><table class="attendance-table"><thead><tr><th>Student</th><th>ID</th><th>Course</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></thead><tbody id="attendanceTableBody"></tbody></table></div>
+</div>
+<div class="card"><div class="card-header"><h3>Weekly Attendance Chart</h3></div>
+  <div class="bar-chart" id="weeklyAttChart"></div>
+</div>
