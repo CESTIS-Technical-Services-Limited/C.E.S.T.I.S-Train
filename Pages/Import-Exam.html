@@ -1,0 +1,116 @@
+<!--
+  ============================================================================
+  Pages/Import-Exam.html  —  C.E.S.T.I.S Import Exam wizard (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="import-exam" data-prefix="admin">).
+  The #importExamCourse select is populated on mount by populateCourseDropdowns().
+  All JS (handleImportFileSelect, goToImportStep, finalizeImportExam, ...) and CSS
+  remain in index.html. Injected via innerHTML — <script> tags here will NOT run.
+  ============================================================================
+-->
+<!-- Step indicators -->
+<div class="import-steps">
+  <div class="import-step active" id="importStep1Indicator"><span class="step-num">1</span>Upload File</div>
+  <div class="import-step" id="importStep2Indicator"><span class="step-num">2</span>Review Text</div>
+  <div class="import-step" id="importStep3Indicator"><span class="step-num">3</span>Edit Questions</div>
+  <div class="import-step" id="importStep4Indicator"><span class="step-num">4</span>Import to Exam</div>
+</div>
+
+<!-- Step 1: Upload -->
+<div id="importStep1">
+  <div class="card">
+    <div class="card-header"><h3>Upload Exam Document</h3></div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Upload a PDF or Word document (.docx) containing exam questions. The system will extract the text and detect questions automatically.</p>
+
+    <div class="import-drop-zone" id="importDropZone">
+      <input type="file" accept=".pdf,.docx,.doc" onchange="handleImportFileSelect(event)" id="importFileInput">
+      <div class="drop-icon">📄</div>
+      <div class="drop-title">Drop your file here or click to browse</div>
+      <div class="drop-subtitle">Supports PDF and Word (.docx) files &bull; Max 20MB</div>
+    </div>
+
+    <div id="importFileInfo" style="display:none;"></div>
+
+    <div class="import-format-tips">
+      <strong>Tips for best results:</strong>
+      <ul style="margin:8px 0 0 16px;line-height:1.8;color:var(--text-secondary);">
+        <li>Number your questions: <code>1.</code>, <code>Q1.</code>, <code>1)</code>, or <code>Question 1:</code></li>
+        <li>Letter your MCQ options: <code>A.</code>, <code>B.</code>, <code>a)</code>, or <code>(A)</code></li>
+        <li>Mark answers with: <code>Answer: B</code>, <code>*correct option</code>, or <code>[correct]</code></li>
+        <li>True/False questions are auto-detected when options are only "True" and "False"</li>
+        <li>Text-based PDFs work best — scanned image PDFs cannot be parsed</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Step 2: Review Raw Text -->
+<div id="importStep2" style="display:none;">
+  <div class="card">
+    <div class="card-header"><h3>Extracted Text</h3><span style="font-size:12px;color:var(--text-muted);" id="importCharCount"></span></div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Review the extracted text below. You can edit it to fix any parsing issues before auto-detecting questions.</p>
+    <textarea class="import-raw-text" id="importRawText" placeholder="Extracted text will appear here..."></textarea>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="goToImportStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="detectQuestionsFromText()">Detect Questions →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Step 3: Preview & Edit Detected Questions -->
+<div id="importStep3" style="display:none;">
+  <div class="card">
+    <div class="card-header">
+      <h3>Detected Questions</h3>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-size:13px;color:var(--text-muted);" id="importDetectedCount">0 questions</span>
+        <button class="btn btn-sm btn-secondary" onclick="addImportQuestion()">+ Add Question</button>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Review and edit the detected questions. Set the correct answers and question types, then import them into an exam.</p>
+    <div id="importPreviewList"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="goToImportStep(2)">← Edit Text</button>
+      <button class="btn btn-primary" onclick="goToImportStep(4)">Import to Exam →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Step 4: Import into Exam -->
+<div id="importStep4" style="display:none;">
+  <div class="card">
+    <div class="card-header"><h3>Create Exam from Import</h3></div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Configure the exam settings and import the questions.</p>
+    <div class="form-group"><label>Exam Title</label><input type="text" class="form-control" id="importExamTitle" placeholder="e.g. Welding Level 2 — Final Assessment"></div>
+    <div class="grid-2col" style="gap:12px;">
+      <div class="form-group"><label>Programme</label><select class="form-control" id="importExamCourse"></select></div>
+      <div class="form-group"><label>Pass Mark (%)</label><input type="number" class="form-control" id="importExamPassMark" value="60" min="1" max="100"></div>
+    </div>
+    <div class="grid-2col" style="gap:12px;">
+      <div class="form-group"><label>Date</label><input type="date" class="form-control" id="importExamDate"></div>
+      <div class="form-group"><label>Start Time</label><input type="time" class="form-control" id="importExamTime"></div>
+    </div>
+    <div class="grid-2col" style="gap:12px;">
+      <div class="form-group"><label>Duration (minutes)</label><input type="number" class="form-control" id="importExamDuration" value="90" min="15" max="300"></div>
+      <div class="form-group"><label>Shuffle Questions</label><select class="form-control" id="importExamShuffle"><option value="false">No</option><option value="true">Yes</option></select></div>
+    </div>
+    <div style="background:var(--bg-input);padding:16px;border-radius:var(--radius-sm);margin:16px 0;">
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px;" id="importSummaryText">0 questions ready to import</div>
+      <div style="font-size:12px;color:var(--text-muted);" id="importSummaryDetail"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-secondary" onclick="goToImportStep(3)">← Edit Questions</button>
+      <button class="btn btn-primary" style="padding:10px 28px;" onclick="finalizeImportExam()">Create Exam</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import progress overlay -->
+<div id="importProgressOverlay" style="display:none;">
+  <div class="import-progress">
+    <div class="import-spinner"></div>
+    <div style="font-size:14px;font-weight:600;" id="importProgressText">Parsing document...</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:6px;" id="importProgressDetail"></div>
+  </div>
+</div>

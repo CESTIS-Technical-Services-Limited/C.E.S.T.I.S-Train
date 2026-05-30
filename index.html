@@ -7726,8 +7726,93 @@ var cestisFeatureConfig = {
     onMount: function() {
       cestisSafe('renderAdminMeetingsList');
     }
+  },
+  'exams': {
+    file: 'Pages/Online-Exams.html',
+    onMount: function() {
+      renderExamsUpcoming();
+      cestisSafe('renderInstructorExams');
+    }
+  },
+  'import-exam': {
+    file: 'Pages/Import-Exam.html',
+    onMount: function() {
+      cestisSafe('populateCourseDropdowns');
+    }
+  },
+  'attendance': {
+    file: 'Pages/Attendance.html',
+    onMount: function() {
+      cestisSetAttDate();
+      cestisSafe('populateCourseDropdowns');
+      cestisSafe('renderAttendancePage');
+    }
+  },
+  'announcements': {
+    file: 'Pages/Announcements.html',
+    onMount: function() {
+      cestisSafe('renderAnnouncements');
+    }
+  },
+  'calendar': {
+    file: 'Pages/Calendar.html',
+    onMount: function() {
+      cestisSafe('renderCalendar');
+      cestisSafe('renderCalendarEventList');
+    }
+  },
+  'certificates': {
+    file: 'Pages/Certificates.html',
+    onMount: function() {
+      cestisSafe('renderCertStats');
+      cestisCertsAll();
+    }
+  },
+  'cert-downloads': {
+    file: 'Pages/Cert-Downloads.html',
+    onMount: function() {
+      cestisSafe('renderCertDownloadMgmt');
+      cestisSafe('populateCertTemplateSkillSelect');
+    }
+  },
+  'verify-users': {
+    file: 'Pages/Verify-Users.html',
+    onMount: function() {
+      cestisSafe('renderVerifyUsersPage');
+    }
+  },
+  'a-resources': {
+    file: 'Pages/Resource-Manager.html',
+    onMount: function() {
+      cestisSafe('populateCourseDropdowns');
+      cestisSafe('renderAdminResources');
+    }
+  },
+  'a-assignments': {
+    file: 'Pages/Assignments.html',
+    onMount: function() {
+      cestisSafe('populateCourseDropdowns');
+      cestisSafe('renderAdminAssignments');
+    }
+  },
+  'settings': {
+    file: 'Pages/Administration.html',
+    onMount: function() {
+      cestisSafe('renderUserAccountsTable');
+    }
+  },
+  'admin-duty-register': {
+    file: 'Pages/Admin-Duty-Register.html',
+    onMount: function() {
+      cestisSafe('adrOnPageShow');
+    }
   }
 };
+
+// ---- Helpers for externally hosted admin feature pages (run from onMount) ----
+function cestisSetAttDate(){ var el=document.getElementById('attendanceDate'); if(el && !el.value){ el.value=new Date().toISOString().split('T')[0]; } }
+function renderExamsUpcoming(){ if(typeof renderExams==='function'){ try{ renderExams('upcoming'); }catch(e){} } }
+function cestisCertsAll(){ if(typeof renderCerts==='function'){ try{ renderCerts('all',''); }catch(e){} } }
 
 // Fetch (once) and inject an external feature file into its page mount slot.
 function cestisMountFeature(slot) {
@@ -7799,16 +7884,12 @@ function showPage(pageId) {
   };
   document.getElementById('topbarTitle').textContent = titles[pageId]||pageId;
   if(pageId === 'support-messages' || pageId === 'as-support-messages') renderSupportMessagesPage();
-  if(pageId === 'admin-duty-register') adrOnPageShow();
   if(pageId === 'as-duties') asOnDutiesPageShow();
   if(pageId === 'i-duties') iOnDutiesPageShow();
-  if(pageId === 'verify-users') renderVerifyUsersPage();
-  if(pageId === 'a-resources') renderAdminResources();
   if(pageId === 'document-hub') renderDocumentHubAdmin();
   if(pageId === 'i-document-hub') renderDocumentHubInstructor();
   if(pageId === 'as-document-hub') renderDocumentHubAdmin();
-  if(pageId === 'a-assignments') renderAdminAssignments();
-  if(pageId === 'exams' || pageId === 'i-exams') renderInstructorExams();
+  if(pageId === 'i-exams') renderInstructorExams();
   if(pageId === 'i-resources') renderInstructorCustomResources();
   if(pageId === 's-resources') renderStudentDriveResources();
   if(pageId === 's-assignments') renderStudentAssignmentsPage();
@@ -7990,246 +8071,33 @@ function buildAdminPages() {
 
   <!-- EXAMS -->
   <section class="page" id="page-exams">
-    <div id="examListView">
-      <div class="stats-grid" id="examStatsGrid"></div>
-      <div style="display:flex;gap:12px;margin-bottom:20px;"><button class="btn btn-primary" onclick="openModal('createExamModal')">+ Create Exam</button><button class="btn btn-secondary" onclick="exportExamResults()">Export Results</button></div>
-      <div class="tabs"><div class="tab active" onclick="switchExamTab(this,'upcoming')">Upcoming</div><div class="tab" onclick="switchExamTab(this,'active')">Active Now</div><div class="tab" onclick="switchExamTab(this,'completed')">Completed</div></div>
-      <div class="card"><div class="card-header"><h3>Scheduled Examinations</h3></div><div class="table-wrapper"><table><thead><tr><th>Exam Title</th><th>Course</th><th>Date & Time</th><th>Duration</th><th>Questions</th><th>Status</th><th>Actions</th></tr></thead><tbody id="examTableBody"></tbody></table></div></div>
-    </div>
-    <!-- Exam Results Detail View (shown when clicking Results on a completed exam) -->
-    <div id="examResultsView" style="display:none;"></div>
-    <!-- Admin Exam Preview/Test View -->
-    <div id="adminExamPreviewView" style="display:none;"></div>
+    <div class="cestis-mount" data-feature="exams" data-prefix="admin"></div>
   </section>
 
   <!-- IMPORT EXAM PAGE -->
   <section class="page" id="page-import-exam">
-    <!-- Step indicators -->
-    <div class="import-steps">
-      <div class="import-step active" id="importStep1Indicator"><span class="step-num">1</span>Upload File</div>
-      <div class="import-step" id="importStep2Indicator"><span class="step-num">2</span>Review Text</div>
-      <div class="import-step" id="importStep3Indicator"><span class="step-num">3</span>Edit Questions</div>
-      <div class="import-step" id="importStep4Indicator"><span class="step-num">4</span>Import to Exam</div>
-    </div>
-
-    <!-- Step 1: Upload -->
-    <div id="importStep1">
-      <div class="card">
-        <div class="card-header"><h3>Upload Exam Document</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Upload a PDF or Word document (.docx) containing exam questions. The system will extract the text and detect questions automatically.</p>
-
-        <div class="import-drop-zone" id="importDropZone">
-          <input type="file" accept=".pdf,.docx,.doc" onchange="handleImportFileSelect(event)" id="importFileInput">
-          <div class="drop-icon">📄</div>
-          <div class="drop-title">Drop your file here or click to browse</div>
-          <div class="drop-subtitle">Supports PDF and Word (.docx) files &bull; Max 20MB</div>
-        </div>
-
-        <div id="importFileInfo" style="display:none;"></div>
-
-        <div class="import-format-tips">
-          <strong>Tips for best results:</strong>
-          <ul style="margin:8px 0 0 16px;line-height:1.8;color:var(--text-secondary);">
-            <li>Number your questions: <code>1.</code>, <code>Q1.</code>, <code>1)</code>, or <code>Question 1:</code></li>
-            <li>Letter your MCQ options: <code>A.</code>, <code>B.</code>, <code>a)</code>, or <code>(A)</code></li>
-            <li>Mark answers with: <code>Answer: B</code>, <code>*correct option</code>, or <code>[correct]</code></li>
-            <li>True/False questions are auto-detected when options are only "True" and "False"</li>
-            <li>Text-based PDFs work best — scanned image PDFs cannot be parsed</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step 2: Review Raw Text -->
-    <div id="importStep2" style="display:none;">
-      <div class="card">
-        <div class="card-header"><h3>Extracted Text</h3><span style="font-size:12px;color:var(--text-muted);" id="importCharCount"></span></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Review the extracted text below. You can edit it to fix any parsing issues before auto-detecting questions.</p>
-        <textarea class="import-raw-text" id="importRawText" placeholder="Extracted text will appear here..."></textarea>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
-          <button class="btn btn-secondary" onclick="goToImportStep(1)">← Back</button>
-          <button class="btn btn-primary" onclick="detectQuestionsFromText()">Detect Questions →</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step 3: Preview & Edit Detected Questions -->
-    <div id="importStep3" style="display:none;">
-      <div class="card">
-        <div class="card-header">
-          <h3>Detected Questions</h3>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span style="font-size:13px;color:var(--text-muted);" id="importDetectedCount">0 questions</span>
-            <button class="btn btn-sm btn-secondary" onclick="addImportQuestion()">+ Add Question</button>
-          </div>
-        </div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Review and edit the detected questions. Set the correct answers and question types, then import them into an exam.</p>
-        <div id="importPreviewList"></div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
-          <button class="btn btn-secondary" onclick="goToImportStep(2)">← Edit Text</button>
-          <button class="btn btn-primary" onclick="goToImportStep(4)">Import to Exam →</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step 4: Import into Exam -->
-    <div id="importStep4" style="display:none;">
-      <div class="card">
-        <div class="card-header"><h3>Create Exam from Import</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Configure the exam settings and import the questions.</p>
-        <div class="form-group"><label>Exam Title</label><input type="text" class="form-control" id="importExamTitle" placeholder="e.g. Welding Level 2 — Final Assessment"></div>
-        <div class="grid-2col" style="gap:12px;">
-          <div class="form-group"><label>Programme</label><select class="form-control" id="importExamCourse"></select></div>
-          <div class="form-group"><label>Pass Mark (%)</label><input type="number" class="form-control" id="importExamPassMark" value="60" min="1" max="100"></div>
-        </div>
-        <div class="grid-2col" style="gap:12px;">
-          <div class="form-group"><label>Date</label><input type="date" class="form-control" id="importExamDate"></div>
-          <div class="form-group"><label>Start Time</label><input type="time" class="form-control" id="importExamTime"></div>
-        </div>
-        <div class="grid-2col" style="gap:12px;">
-          <div class="form-group"><label>Duration (minutes)</label><input type="number" class="form-control" id="importExamDuration" value="90" min="15" max="300"></div>
-          <div class="form-group"><label>Shuffle Questions</label><select class="form-control" id="importExamShuffle"><option value="false">No</option><option value="true">Yes</option></select></div>
-        </div>
-        <div style="background:var(--bg-input);padding:16px;border-radius:var(--radius-sm);margin:16px 0;">
-          <div style="font-size:14px;font-weight:600;margin-bottom:6px;" id="importSummaryText">0 questions ready to import</div>
-          <div style="font-size:12px;color:var(--text-muted);" id="importSummaryDetail"></div>
-        </div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-          <button class="btn btn-secondary" onclick="goToImportStep(3)">← Edit Questions</button>
-          <button class="btn btn-primary" style="padding:10px 28px;" onclick="finalizeImportExam()">Create Exam</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Import progress overlay -->
-    <div id="importProgressOverlay" style="display:none;">
-      <div class="import-progress">
-        <div class="import-spinner"></div>
-        <div style="font-size:14px;font-weight:600;" id="importProgressText">Parsing document...</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:6px;" id="importProgressDetail"></div>
-      </div>
-    </div>
+    <div class="cestis-mount" data-feature="import-exam" data-prefix="admin"></div>
   </section>
 
   <section class="page" id="page-attendance">
-    <div class="attendance-summary" id="attendanceSummary"></div>
-    <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
-      <label style="font-size:13px;font-weight:600;">Date:</label>
-      <input type="date" class="form-control" style="width:180px;" id="attendanceDate" value="${new Date().toISOString().split('T')[0]}" onchange="currentAttendanceDate=this.value;renderAttendancePage()">
-      <select class="form-control" style="width:200px;" id="attendanceCourseFilter" onchange="renderAttendancePage()"><option value="all">All Courses</option>${courses.map(c=>'<option>'+c+'</option>').join('')}</select>
-      <button class="btn btn-primary" onclick="saveAttendance()">Save Attendance</button>
-      <button class="btn-export" onclick="exportStudentsCSV()">\uD83D\uDCC4 Export</button>
-    </div>
-    <div class="card"><div class="card-header"><h3>Daily Attendance</h3><span style="font-size:13px;color:var(--text-muted);" id="attCount"></span></div>
-      <div class="table-wrapper"><table class="attendance-table"><thead><tr><th>Student</th><th>ID</th><th>Course</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></thead><tbody id="attendanceTableBody"></tbody></table></div>
-    </div>
-    <div class="card"><div class="card-header"><h3>Weekly Attendance Chart</h3></div>
-      <div class="bar-chart" id="weeklyAttChart"></div>
-    </div>
+    <div class="cestis-mount" data-feature="attendance" data-prefix="admin"></div>
   </section>
 
   <section class="page" id="page-announcements">
-    <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
-      <button class="btn btn-primary" onclick="toggleAnnouncementForm()">+ New Announcement</button>
-      <select class="form-control" style="width:200px;" id="annPriorityFilter" onchange="renderAnnouncements()"><option value="all">All Priorities</option><option value="urgent">Urgent</option><option value="info">Info</option><option value="general">General</option></select>
-    </div>
-    <div id="announcementForm" style="display:none;">
-      <div class="announcement-form">
-        <div class="ann-form-header"><h3>Create Announcement</h3><button class="btn btn-sm btn-secondary" onclick="toggleAnnouncementForm()">\u2715 Close</button></div>
-        <div class="form-group"><label>Title</label><input type="text" class="form-control" id="annTitle" placeholder="Announcement title..."></div>
-        <div class="form-group"><label>Body</label><textarea class="form-control" id="annBody" placeholder="Announcement details..."></textarea></div>
-        <div class="ann-form-row">
-          <div class="form-group"><label>Priority</label><select class="form-control" id="annPriority"><option value="general">General</option><option value="info">Info</option><option value="urgent">Urgent</option></select></div>
-          <div class="form-group"><label>Author</label><input type="text" class="form-control" id="annAuthor" value="Admin"></div>
-        </div>
-        <div class="form-group"><label>Target Audience</label>
-          <div style="display:flex;gap:16px;margin-top:6px;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleAdmin" checked> <span style="background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Admin</span></label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleInstructor" checked> <span style="background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Instructor</span></label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleStudent" checked> <span style="background:var(--blue-dim);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Student</span></label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleAdminStaff" checked> <span style="background:var(--purple-dim);color:var(--purple);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Admin Staff</span></label>
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="createAnnouncement()">Publish Announcement</button>
-      </div>
-    </div>
-    <div id="announcementsList"></div>
+    <div class="cestis-mount" data-feature="announcements" data-prefix="admin"></div>
   </section>
 
   <section class="page" id="page-calendar">
-    <div class="grid-sidebar">
-      <div class="card">
-        <div class="cal-header">
-          <div class="cal-nav"><button onclick="changeCalMonth(-1)">\u2190</button></div>
-          <div class="cal-title" id="calTitle"></div>
-          <div class="cal-nav"><button onclick="changeCalMonth(1)">\u2192</button></div>
-        </div>
-        <div class="calendar-grid" id="calGrid"></div>
-      </div>
-      <div>
-        <div class="card"><div class="card-header"><h3 id="calDayTitle">Select a Day</h3></div><div id="calDayEvents"><p style="font-size:13px;color:var(--text-muted);">Click a day to see events</p></div></div>
-        <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="promptAddEvent()">+ Add Event</button>
-        <div class="card" style="margin-top:12px;"><div class="card-header"><h3>All Events</h3></div><div id="calEventList"></div></div>
-      </div>
-    </div>
+    <div class="cestis-mount" data-feature="calendar" data-prefix="admin"></div>
   </section>
 
   <section class="page" id="page-certificates">
-    <div class="cert-status-grid" id="certStats"></div>
-    <div style="display:flex;gap:12px;margin-bottom:20px;"><select class="form-control" style="width:200px;" id="certFilter" onchange="filterCerts()"><option value="all">All Certificates</option><option value="collected">Collected</option><option value="pending">Awaiting Collection</option></select><input type="text" class="form-control" style="width:260px;" placeholder="Search by name or cert number..." id="certSearch" onkeyup="filterCerts()"></div>
-    <div class="card"><div class="card-header"><h3>Certificate Registry</h3><button class="btn-export" onclick="exportCertsCSV()">\uD83D\uDCC4 Export CSV</button></div><div class="table-wrapper"><table><thead><tr><th>Student</th><th>Certificate No.</th><th>Programme</th><th>Level</th><th>Date Certified</th><th>Collection Status</th><th>Actions</th></tr></thead><tbody id="certTableBody"></tbody></table></div></div>
+    <div class="cestis-mount" data-feature="certificates" data-prefix="admin"></div>
   </section>
 
   <!-- ADMIN CERTIFICATE DOWNLOAD MANAGEMENT -->
   <section class="page" id="page-cert-downloads">
-    <div class="stats-grid stats-grid-4" id="certDlStats"></div>
-
-    <!-- Certificate Template Management -->
-    <div class="card" style="margin-bottom:20px;">
-      <div class="card-header">
-        <h3>Certificate Templates by Skill Area</h3>
-        <div style="display:flex;gap:8px;">
-          <select id="certTemplateSkillSelect" onchange="loadCertTemplateForEdit()" style="padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:13px;">
-            <option value="">-- Select Skill Area --</option>
-          </select>
-          <button class="btn btn-primary btn-sm" onclick="openCertTemplateEditor()">Edit Template</button>
-        </div>
-      </div>
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Configure certificate details (modules, competencies, programme specs) for each skill area. This data appears on Page 2 of the downloaded certificate.</p>
-      <div id="certTemplatePreview" style="padding:16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);">
-        <p style="color:var(--text-muted);text-align:center;">Select a skill area above to view or edit its certificate template.</p>
-      </div>
-    </div>
-
-    <!-- Approve Students -->
-    <div class="card" style="margin-bottom:20px;">
-      <div class="card-header">
-        <h3>Approve Students for Certificate Download</h3>
-        <button class="btn btn-primary btn-sm" onclick="openBulkCertApproveModal()">+ Bulk Approve</button>
-      </div>
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Select certified students and approve them to check status and download their certificates using their Student Number (TRN).</p>
-      <div class="cert-mgmt-toolbar">
-        <input type="text" id="certDlSearch" placeholder="Search by name, ID, or cert number..." style="width:280px;" oninput="renderCertDownloadMgmt()">
-        <select id="certDlFilter" onchange="renderCertDownloadMgmt()">
-          <option value="all">All Certified</option>
-          <option value="approved">Approved for Download</option>
-          <option value="not-approved">Not Yet Approved</option>
-        </select>
-        <select id="certDlCourseFilter" onchange="renderCertDownloadMgmt()">
-          <option value="all">All Programmes</option>
-        </select>
-      </div>
-      <div id="certDlStudentList"></div>
-    </div>
-    <div class="card">
-      <div class="card-header"><h3>Download Activity Log</h3></div>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Student</th><th>Certificate No.</th><th>Programme</th><th>Downloads</th><th>Last Downloaded</th><th>Approved By</th></tr></thead>
-          <tbody id="certDlLogBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">No download activity yet</td></tr></tbody>
-        </table>
-      </div>
-    </div>
+    <div class="cestis-mount" data-feature="cert-downloads" data-prefix="admin"></div>
   </section>
 
   <!-- Bulk Cert Approve Modal -->
@@ -8479,69 +8347,17 @@ function buildAdminPages() {
   <!-- SETTINGS -->
   <!-- VERIFY USERS PAGE -->
   <section class="page" id="page-verify-users">
-    <div class="stats-grid stats-grid-4" id="verifyUsersStats"></div>
-    <div class="card">
-      <div class="card-header">
-        <h3>Pending Account Approvals</h3>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-sm btn-primary" onclick="approveAllPending()">Approve All</button>
-          <button class="btn btn-sm btn-secondary" onclick="rejectAllPending()">Reject All</button>
-        </div>
-      </div>
-      <div class="table-wrapper">
-        <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Programme</th><th>Registered</th><th>Actions</th></tr></thead>
-          <tbody id="verifyUsersTableBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">No pending accounts</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="card" style="margin-top:18px;">
-      <div class="card-header"><h3>Recently Approved / Rejected</h3></div>
-      <div id="recentVerifyActions" style="padding:16px;color:var(--text-muted);font-size:13px;">No recent actions.</div>
-    </div>
+    <div class="cestis-mount" data-feature="verify-users" data-prefix="admin"></div>
   </section>
 
   <!-- ADMIN RESOURCE MANAGER -->
   <section class="page" id="page-a-resources">
-    <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-primary" onclick="openModal('driveUploadModal')">+ Upload Resource to Drive</button>
-      <button class="btn btn-secondary" onclick="scanAllDriveFolders()" title="Scan Google Drive folders and recover any resources not currently tracked">🔄 Rescan Drive</button>
-      <select class="form-control" id="arFilterCourse" style="width:220px;" onchange="renderAdminResources()">
-        <option value="all">All Programmes</option>
-      </select>
-      <select class="form-control" id="arFilterType" style="width:180px;" onchange="renderAdminResources()">
-        <option value="all">All Types</option>
-        <option value="video">Videos</option>
-        <option value="document">Documents</option>
-        <option value="worksheet">Worksheets</option>
-      </select>
-      <input type="text" class="form-control" id="arSearch" placeholder="Search by name or ID..." style="width:240px;" oninput="renderAdminResources()">
-    </div>
-    <div class="stats-grid stats-grid-4" style="margin-bottom:18px;">
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📁</div><div class="stat-value" id="arStatTotal">0</div><div class="stat-label">Total Resources</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">📹</div><div class="stat-value" id="arStatVideos">0</div><div class="stat-label">Videos</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📄</div><div class="stat-value" id="arStatDocs">0</div><div class="stat-label">Documents</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">📝</div><div class="stat-value" id="arStatWorksheets">0</div><div class="stat-label">Worksheets</div></div>
-    </div>
-    <div id="adminResourcesList"></div>
+    <div class="cestis-mount" data-feature="a-resources" data-prefix="admin"></div>
   </section>
 
   <!-- ADMIN ASSIGNMENTS ACTIVITY PAGE -->
   <section class="page" id="page-a-assignments">
-    <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-primary" onclick="openAdminCreateAssignment()">+ Create Assignment</button>
-      <select class="form-control" id="aAssignFilterCourse" style="width:220px;" onchange="renderAdminAssignments()">
-        <option value="all">All Programmes</option>
-      </select>
-      <input type="text" class="form-control" id="aAssignSearch" placeholder="Search assignments..." style="width:240px;" oninput="renderAdminAssignments()">
-    </div>
-    <div class="stats-grid stats-grid-4" style="margin-bottom:18px;">
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📋</div><div class="stat-value" id="aAssignStatTotal">0</div><div class="stat-label">Total Assignments</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">📤</div><div class="stat-value" id="aAssignStatSubmissions">0</div><div class="stat-label">Submissions</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">⭐</div><div class="stat-value" id="aAssignStatGraded">0</div><div class="stat-label">Graded</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">⏳</div><div class="stat-value" id="aAssignStatPending">0</div><div class="stat-label">Pending Review</div></div>
-    </div>
-    <div id="adminAssignmentsList"></div>
+    <div class="cestis-mount" data-feature="a-assignments" data-prefix="admin"></div>
   </section>
 
   <!-- SUPPORT MESSAGES PAGE -->
@@ -8563,211 +8379,12 @@ function buildAdminPages() {
   </section>
 
   <section class="page" id="page-settings">
-    <div class="tabs">
-      <div class="tab active" onclick="switchSettingsTab(this,'system')">System Settings</div>
-      <div class="tab" onclick="switchSettingsTab(this,'users')">User Accounts</div>
-      <div class="tab" onclick="switchSettingsTab(this,'staffaccess')">Admin Staff Access</div>
-      <div class="tab" onclick="switchSettingsTab(this,'datamanagement')">Data Management</div>
-      <div class="tab" onclick="switchSettingsTab(this,'googleverification')">Google Verification</div>
-      <div class="tab" onclick="switchSettingsTab(this,'maintenance')">Maintenance Mode</div>
-    </div>
-
-    <div id="settingsTabSystem">
-      <div class="card" style="max-width:700px;">
-        <div class="card-header"><h3>System Settings</h3></div>
-        <div class="form-group"><label>Institution Name</label><input type="text" class="form-control" id="settInstitution" value="C.E.S.T.I.S LMS - Community Training Intervention"></div>
-        <div class="form-group"><label>Administrator Email</label><input type="email" class="form-control" id="settAdminEmail" value="admin@heartlms.edu.jm"></div>
-        <div class="form-group"><label>Academic Year</label><select class="form-control" id="settAcadYear"><option>2025/2026</option><option>2024/2025</option></select></div>
-        <div class="form-group"><label>Video Conference Provider</label><select class="form-control" id="settVcProvider"><option>Built-in (WebRTC)</option><option>Zoom Integration</option><option>Microsoft Teams</option><option>Google Meet</option></select></div>
-        <button class="btn btn-primary" onclick="saveSystemSettings()">Save Changes</button>
-      </div>
-    </div>
-
-    <div id="settingsTabUsers" style="display:none;">
-      <div class="um-stats">
-        <div class="um-stat"><div class="um-stat-val" id="umStatTotal">0</div><div class="um-stat-label">Total Users</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--green);" id="umStatActive">0</div><div class="um-stat-label">Active</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--red);" id="umStatDisabled">0</div><div class="um-stat-label">Disabled</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--accent);" id="umStatAdmins">0</div><div class="um-stat-label">Admins</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--purple);" id="umStatAdminStaff">0</div><div class="um-stat-label">Admin Staff</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--green);" id="umStatInstructors">0</div><div class="um-stat-label">Instructors</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--blue);" id="umStatStudents">0</div><div class="um-stat-label">Students</div></div>
-        <div class="um-stat"><div class="um-stat-val" style="color:var(--teal);" id="umStatCmc">0</div><div class="um-stat-label">Board Members</div></div>
-      </div>
-
-      <div class="um-toolbar">
-        <button class="btn btn-primary" onclick="openModal('createUserModal')">+ Create User</button>
-        <select class="form-control" style="width:160px;" id="umRoleFilter" onchange="umSelectedIds=[];renderUserAccountsTable()"><option value="all">All Roles</option><option value="admin">Admins</option><option value="adminstaff">Admin Staff</option><option value="instructor">Instructors</option><option value="student">Students</option><option value="cmc">Board Members</option></select>
-        <select class="form-control" style="width:160px;" id="umStatusFilter" onchange="umSelectedIds=[];renderUserAccountsTable()"><option value="all">All Status</option><option value="active">Active</option><option value="disabled">Disabled</option></select>
-        <input type="text" class="form-control um-search" placeholder="Search users..." id="umSearch" onkeyup="renderUserAccountsTable()">
-        <button class="btn-export" onclick="bulkExportUsers()">📄 Export Selected</button>
-      </div>
-
-      <div class="um-bulk-bar" id="umBulkBar">
-        <span class="um-sel-count" id="umSelCount">0 users selected</span>
-        <div class="um-bulk-actions">
-          <button class="btn btn-sm btn-success" onclick="bulkActivate()">✓ Activate</button>
-          <button class="btn btn-sm btn-danger" onclick="bulkDeactivate()">✕ Deactivate</button>
-          <button class="btn btn-sm btn-secondary" onclick="bulkExportUsers()">📄 Export</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><h3>User Accounts</h3><span style="font-size:13px;color:var(--text-muted);" id="umCount">Showing 0 users</span></div>
-        <div class="table-wrapper">
-          <table class="um-table">
-            <thead><tr>
-              <th style="width:40px;"><input type="checkbox" class="um-cb" id="umSelectAllCb" onchange="toggleUmSelectAll(this.checked)"></th>
-              <th>User</th><th>Role</th><th>Username</th><th>Programme</th><th>Status</th><th>Actions</th>
-            </tr></thead>
-            <tbody id="umTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div id="settingsTabStaffAccess" style="display:none;">
-      <div class="card" style="max-width:900px;">
-        <div class="card-header"><h3>Admin Staff Access Control</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
-          Choose which pages Administrative Staff can access when they log in. All admin staff will always have access to their <strong>Dashboard</strong>, <strong>My Duties</strong>, <strong>LMS Chat</strong>, and <strong>My Profile</strong> pages. Toggle additional pages below.
-        </p>
-        <div class="as-access-grid" id="asAccessGrid"></div>
-        <div style="margin-top:20px;">
-          <button class="btn btn-primary" onclick="saveAdminStaffAccess()">Save Access Settings</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="settingsTabDatamanagement" style="display:none;">
-      <div class="card" style="max-width:700px;">
-        <div class="card-header"><h3>Data Backup &amp; Restore</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
-          Export all system data as a JSON backup file, or restore from a previous backup. Regular backups protect against data loss.
-        </p>
-        <div class="backup-actions">
-          <button class="btn btn-primary" onclick="exportDataBackup()">Export Backup</button>
-          <button class="btn btn-secondary" onclick="importDataBackup()">Import Backup</button>
-        </div>
-        <div style="margin-top:16px;padding:12px;background:var(--accent-dim);border-radius:var(--radius-sm);font-size:12px;color:var(--accent);">
-          Keyboard shortcut: <strong>Ctrl+Shift+E</strong> to export backup at any time.
-        </div>
-      </div>
-
-      <div class="card" style="max-width:700px;margin-top:16px;">
-        <div class="card-header"><h3>Storage Usage</h3></div>
-        <div id="storageUsageInfo" style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Calculating...</div>
-        <div class="storage-bar"><div class="storage-bar-fill low" id="storageBarFill" style="width:0%"></div></div>
-        <button class="btn btn-sm btn-secondary" onclick="refreshStorageUsage()" style="margin-top:12px;">Refresh</button>
-      </div>
-
-      <div class="card" style="max-width:700px;margin-top:16px;">
-        <div class="card-header"><h3>Data Integrity Check</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
-          Scan for orphaned records, duplicate accounts, and missing data fields.
-        </p>
-        <button class="btn btn-primary" onclick="runAndDisplayIntegrityCheck()">Run Integrity Check</button>
-        <div id="integrityResults" style="margin-top:12px;"></div>
-      </div>
-    </div>
-
-    <div id="settingsTabGoogleVerification" style="display:none;">
-      <div class="card" style="max-width:700px;">
-        <div class="card-header"><h3>Google Site Verification</h3></div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
-          Add your Google site verification meta tag to verify ownership of this site with Google Search Console.
-          Paste the full meta tag provided by Google (e.g. <code style="background:var(--bg-input);padding:2px 6px;border-radius:4px;">&lt;meta name="google-site-verification" content="..." /&gt;</code>).
-        </p>
-        <div class="form-group">
-          <label>Google Verification Meta Tag</label>
-          <textarea class="form-control" id="settGoogleVerificationHtml" rows="4" placeholder='<meta name="google-site-verification" content="your-verification-code" />' style="font-family:monospace;font-size:13px;resize:vertical;"></textarea>
-        </div>
-        <div id="gvPreview" style="display:none;margin-bottom:16px;padding:12px;border-radius:8px;background:var(--bg-input);border:1px solid var(--accent-dim);">
-          <div style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:6px;">ACTIVE VERIFICATION TAG</div>
-          <code id="gvPreviewCode" style="font-size:12px;color:var(--text-secondary);word-break:break-all;"></code>
-        </div>
-        <div style="display:flex;gap:10px;">
-          <button class="btn btn-primary" onclick="saveGoogleVerification()">Save & Apply</button>
-          <button class="btn btn-secondary" onclick="clearGoogleVerification()">Remove Tag</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="settingsTabMaintenance" style="display:none;">
-      <div class="card" style="max-width:700px;">
-        <div class="card-header">
-          <h3>Maintenance Mode</h3>
-          <span class="maint-status-badge inactive" id="maintStatusBadge"><span class="maint-status-dot"></span> Inactive</span>
-        </div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.6;">
-          When maintenance mode is activated, <strong>all users except the Administrator</strong> will be unable to access the site. They will see a maintenance page informing them the site is temporarily unavailable. Only users with the <strong>admin</strong> role can bypass the maintenance screen.
-        </p>
-
-        <div class="maint-toggle-container">
-          <div class="maint-toggle-label">
-            Enable Maintenance Mode
-            <small>Blocks all non-admin users from accessing the site/dashboard</small>
-          </div>
-          <label class="maint-toggle">
-            <input type="checkbox" id="maintModeToggle" onchange="toggleMaintenanceMode(this.checked)">
-            <span class="maint-toggle-slider"></span>
-          </label>
-        </div>
-
-        <div class="form-group" style="margin-top:20px;">
-          <label>Custom Message (optional)</label>
-          <textarea class="form-control" id="maintCustomMsg" rows="3" placeholder="Enter a custom message to display to users during maintenance..." style="resize:vertical;"></textarea>
-          <small style="color:var(--text-muted);font-size:11px;">Leave blank to use the default maintenance message.</small>
-        </div>
-
-        <div style="margin-top:16px;">
-          <button class="btn btn-primary" onclick="saveMaintenanceSettings()">Save Maintenance Settings</button>
-        </div>
-
-        <div class="maint-preview-box" id="maintPreviewBox" style="margin-top:20px;">
-          <div class="maint-preview-title">Preview</div>
-          <div id="maintPreviewMsg">C.E.S.T.I.S LMS is currently undergoing scheduled maintenance. The site will be back online shortly.</div>
-        </div>
-      </div>
-    </div>
+    <div class="cestis-mount" data-feature="settings" data-prefix="admin"></div>
   </section>
 
   <!-- ADMIN DUTY REGISTER PAGE -->
   <section class="page" id="page-admin-duty-register">
-    <div class="adr-header-bar">
-      <div class="adr-header-left">
-        <h3 style="font-family:'Playfair Display',serif;font-size:20px;">Admin Duty Register</h3>
-        <span class="adr-subtitle">Track admin staff performance, assign tasks & manage accountability</span>
-      </div>
-      <div class="adr-header-right">
-        <button class="btn btn-primary" onclick="adrOpenAssignTaskModal()" id="adrAssignBtn" style="display:none;">+ Assign Task</button>
-        <button class="btn btn-secondary" onclick="adrToggleView()" id="adrViewToggle">View My Tasks</button>
-      </div>
-    </div>
-
-    <!-- Admin Staff Cards (visible to System Administrator) -->
-    <div id="adrStaffCardsSection" style="display:none;">
-      <div class="adr-perf-overview" id="adrPerfOverview"></div>
-      <div class="adr-staff-grid" id="adrStaffGrid"></div>
-    </div>
-
-    <!-- Task Board -->
-    <div id="adrTaskBoard">
-      <div class="adr-tabs">
-        <div class="adr-tab active" onclick="adrSwitchTab(this,'all')">All Tasks</div>
-        <div class="adr-tab" onclick="adrSwitchTab(this,'daily')">Daily</div>
-        <div class="adr-tab" onclick="adrSwitchTab(this,'weekly')">Weekly</div>
-        <div class="adr-tab" onclick="adrSwitchTab(this,'monthly')">Monthly</div>
-        <div class="adr-tab" onclick="adrSwitchTab(this,'pending_review')">Awaiting Review</div>
-        <div class="adr-tab" onclick="adrSwitchTab(this,'completed')">Verified Complete</div>
-      </div>
-      <div class="adr-filters">
-        <select class="form-control" id="adrFilterStaff" onchange="adrRenderTasks()" style="width:200px;"><option value="all">All Staff &amp; Instructors</option></select>
-        <select class="form-control" id="adrFilterPriority" onchange="adrRenderTasks()" style="width:160px;"><option value="all">All Priorities</option><option value="urgent">Urgent</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
-        <input type="text" class="form-control" id="adrSearchTasks" placeholder="Search tasks..." onkeyup="adrRenderTasks()" style="width:220px;">
-      </div>
-      <div class="adr-task-list" id="adrTaskList"></div>
-    </div>
+    <div class="cestis-mount" data-feature="admin-duty-register" data-prefix="admin"></div>
   </section>
 
   <!-- ADMIN DUTY REGISTER MODALS -->

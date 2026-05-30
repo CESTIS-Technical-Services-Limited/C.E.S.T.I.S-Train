@@ -1,0 +1,33 @@
+<!--
+  ============================================================================
+  Pages/Resource-Manager.html  —  C.E.S.T.I.S Resource Manager (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="a-resources" data-prefix="admin">).
+  On mount index.html populates #arFilterCourse (populateCourseDropdowns) and
+  fills the list/stats (renderAdminResources). Keep ids arFilterCourse /
+  arFilterType / arSearch / arStat* / adminResourcesList.
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
+  ============================================================================
+-->
+<div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center;">
+  <button class="btn btn-primary" onclick="openModal('driveUploadModal')">+ Upload Resource to Drive</button>
+  <button class="btn btn-secondary" onclick="scanAllDriveFolders()" title="Scan Google Drive folders and recover any resources not currently tracked">🔄 Rescan Drive</button>
+  <select class="form-control" id="arFilterCourse" style="width:220px;" onchange="renderAdminResources()">
+    <option value="all">All Programmes</option>
+  </select>
+  <select class="form-control" id="arFilterType" style="width:180px;" onchange="renderAdminResources()">
+    <option value="all">All Types</option>
+    <option value="video">Videos</option>
+    <option value="document">Documents</option>
+    <option value="worksheet">Worksheets</option>
+  </select>
+  <input type="text" class="form-control" id="arSearch" placeholder="Search by name or ID..." style="width:240px;" oninput="renderAdminResources()">
+</div>
+<div class="stats-grid stats-grid-4" style="margin-bottom:18px;">
+  <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📁</div><div class="stat-value" id="arStatTotal">0</div><div class="stat-label">Total Resources</div></div>
+  <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">📹</div><div class="stat-value" id="arStatVideos">0</div><div class="stat-label">Videos</div></div>
+  <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📄</div><div class="stat-value" id="arStatDocs">0</div><div class="stat-label">Documents</div></div>
+  <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">📝</div><div class="stat-value" id="arStatWorksheets">0</div><div class="stat-label">Worksheets</div></div>
+</div>
+<div id="adminResourcesList"></div>

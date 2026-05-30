@@ -1,0 +1,62 @@
+<!--
+  ============================================================================
+  Pages/Cert-Downloads.html  —  C.E.S.T.I.S Certificate Downloads (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="cert-downloads" data-prefix="admin">).
+  On mount index.html calls renderCertDownloadMgmt() (which also fills the stats,
+  the #certDlCourseFilter options and the activity log) and populates the
+  #certTemplateSkillSelect skill list (populateCertTemplateSkillSelect).
+  The Bulk-Approve and Template-Editor MODALS are NOT here — they stay in
+  index.html because they are shared/global overlays.
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
+  ============================================================================
+-->
+<div class="stats-grid stats-grid-4" id="certDlStats"></div>
+
+<!-- Certificate Template Management -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <h3>Certificate Templates by Skill Area</h3>
+    <div style="display:flex;gap:8px;">
+      <select id="certTemplateSkillSelect" onchange="loadCertTemplateForEdit()" style="padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:13px;">
+        <option value="">-- Select Skill Area --</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="openCertTemplateEditor()">Edit Template</button>
+    </div>
+  </div>
+  <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Configure certificate details (modules, competencies, programme specs) for each skill area. This data appears on Page 2 of the downloaded certificate.</p>
+  <div id="certTemplatePreview" style="padding:16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);">
+    <p style="color:var(--text-muted);text-align:center;">Select a skill area above to view or edit its certificate template.</p>
+  </div>
+</div>
+
+<!-- Approve Students -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <h3>Approve Students for Certificate Download</h3>
+    <button class="btn btn-primary btn-sm" onclick="openBulkCertApproveModal()">+ Bulk Approve</button>
+  </div>
+  <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Select certified students and approve them to check status and download their certificates using their Student Number (TRN).</p>
+  <div class="cert-mgmt-toolbar">
+    <input type="text" id="certDlSearch" placeholder="Search by name, ID, or cert number..." style="width:280px;" oninput="renderCertDownloadMgmt()">
+    <select id="certDlFilter" onchange="renderCertDownloadMgmt()">
+      <option value="all">All Certified</option>
+      <option value="approved">Approved for Download</option>
+      <option value="not-approved">Not Yet Approved</option>
+    </select>
+    <select id="certDlCourseFilter" onchange="renderCertDownloadMgmt()">
+      <option value="all">All Programmes</option>
+    </select>
+  </div>
+  <div id="certDlStudentList"></div>
+</div>
+<div class="card">
+  <div class="card-header"><h3>Download Activity Log</h3></div>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Student</th><th>Certificate No.</th><th>Programme</th><th>Downloads</th><th>Last Downloaded</th><th>Approved By</th></tr></thead>
+      <tbody id="certDlLogBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">No download activity yet</td></tr></tbody>
+    </table>
+  </div>
+</div>
