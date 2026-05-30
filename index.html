@@ -7896,6 +7896,12 @@ var cestisFeatureConfig = {
     onMount: function() {
       cestisSafe('renderStudentExams');
     }
+  },
+  's-certificate': {
+    file: 'Pages/Student-Certificate.html',
+    onMount: function() {
+      cestisSafe('renderStudentCertificate');
+    }
   }
 };
 
@@ -8709,6 +8715,61 @@ function renderStudentExams(){
   }
 }
 
+// Fill the My Certificate (student) page on mount with the issued-cert card or
+// the not-yet-available card, reproducing the original build-time markup.
+function renderStudentCertificate(){
+  var s = (typeof currentStudent !== 'undefined') ? currentStudent : null;
+  var el = document.getElementById('studentCertContent');
+  if(!el || !s) return;
+  var html;
+  if(s.certNo){
+    var collectStatus = s.certCollected
+      ? '<span class="badge badge-green" style="font-size:14px;padding:8px 20px;"><span class="badge-dot"></span>Certificate Collected ✓</span>'
+      : '<span class="badge badge-amber" style="font-size:14px;padding:8px 20px;"><span class="badge-dot"></span>Awaiting Collection — Visit your centre</span>';
+    var dl = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function(d){ return d.studentId === s.id; });
+    var dlBlock;
+    if(dl && dl.approved){
+      dlBlock = "<button class=\"cert-download-btn\" onclick=\"generateCertificatePDF('" + s.id + "')\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/></svg> Download Certificate</button>";
+    } else {
+      dlBlock = '<p style="font-size:13px;color:var(--text-muted);margin-top:8px;">Certificate download not yet approved. Contact administration.</p>';
+    }
+    html =
+      '<div class="card" style="text-align:center;padding:40px;">' +
+        '<div style="font-size:64px;margin-bottom:16px;">🎓</div>' +
+        '<h2 style="font-size:26px;margin-bottom:8px;color:var(--green);">Congratulations!</h2>' +
+        '<p style="font-size:15px;color:var(--text-secondary);margin-bottom:24px;">You have been certified in <strong>'+s.course+'</strong></p>' +
+        '<div style="display:inline-block;background:var(--bg-input);border:2px dashed var(--border-light);border-radius:var(--radius);padding:24px 40px;margin-bottom:24px;">' +
+          '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Certificate Number</div>' +
+          '<div style="font-size:22px;font-family:\'Playfair Display\',serif;font-weight:700;color:var(--accent);">'+s.certNo+'</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Issued: '+s.certDate+'</div>' +
+        '</div>' +
+        '<div style="margin-bottom:24px;">' +
+          '<div style="font-size:13px;margin-bottom:8px;">Collection Status:</div>' + collectStatus +
+        '</div>' +
+        '<div style="margin-top:8px;">' + dlBlock + '</div>' +
+        '<div style="margin-top:16px;">' +
+          '<button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Refresh from Cloud</button>' +
+        '</div>' +
+      '</div>';
+  } else {
+    html =
+      '<div class="card" style="text-align:center;padding:40px;">' +
+        '<div style="font-size:64px;margin-bottom:16px;opacity:0.3;">🎓</div>' +
+        '<h2 style="font-size:22px;margin-bottom:8px;color:var(--text-muted);">Certificate Not Yet Available</h2>' +
+        '<p style="font-size:14px;color:var(--text-muted);max-width:400px;margin:0 auto 24px;">You must complete all training modules and pass your certification exam before your certificate can be issued.</p>' +
+        '<div style="display:inline-flex;align-items:center;gap:8px;background:var(--bg-input);padding:12px 20px;border-radius:var(--radius-sm);">' +
+          '<span>Current Status:</span>' +
+          '<span class="badge '+(stageBadge[s.stage]||'badge-blue')+'"><span class="badge-dot"></span>'+(stageLabels[s.stage]||s.stage)+'</span>' +
+        '</div>' +
+        '<div style="margin-top:20px;">' +
+          '<button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Check Cloud for Updates</button>' +
+          '<p style="font-size:12px;color:var(--text-muted);margin-top:8px;">If your certificate has been issued, click above to check for updates from the cloud.</p>' +
+        '</div>' +
+      '</div>';
+  }
+  el.innerHTML = html;
+}
+
 function buildStudentPages() {
   try {
   resolveExamStatuses();
@@ -8891,53 +8952,7 @@ function buildStudentPages() {
 
   <!-- STUDENT CERTIFICATE -->
   <section class="page" id="page-s-certificate">
-    <div id="studentCertContent">
-    ${s.certNo ? `
-      <div class="card" style="text-align:center;padding:40px;">
-        <div style="font-size:64px;margin-bottom:16px;">🎓</div>
-        <h2 style="font-size:26px;margin-bottom:8px;color:var(--green);">Congratulations!</h2>
-        <p style="font-size:15px;color:var(--text-secondary);margin-bottom:24px;">You have been certified in <strong>${s.course}</strong></p>
-        <div style="display:inline-block;background:var(--bg-input);border:2px dashed var(--border-light);border-radius:var(--radius);padding:24px 40px;margin-bottom:24px;">
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Certificate Number</div>
-          <div style="font-size:22px;font-family:'Playfair Display',serif;font-weight:700;color:var(--accent);">${s.certNo}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Issued: ${s.certDate}</div>
-        </div>
-        <div style="margin-bottom:24px;">
-          <div style="font-size:13px;margin-bottom:8px;">Collection Status:</div>
-          ${s.certCollected
-            ? '<span class="badge badge-green" style="font-size:14px;padding:8px 20px;"><span class="badge-dot"></span>Certificate Collected ✓</span>'
-            : '<span class="badge badge-amber" style="font-size:14px;padding:8px 20px;"><span class="badge-dot"></span>Awaiting Collection — Visit your centre</span>'}
-        </div>
-        <div style="margin-top:8px;">
-          ${(function(){
-            const dl = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function(d){ return d.studentId === s.id; });
-            if(dl && dl.approved) {
-              return "<button class=\"cert-download-btn\" onclick=\"generateCertificatePDF('" + s.id + "')\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/></svg> Download Certificate</button>";
-            } else {
-              return '<p style="font-size:13px;color:var(--text-muted);margin-top:8px;">Certificate download not yet approved. Contact administration.</p>';
-            }
-          })()}
-        </div>
-        <div style="margin-top:16px;">
-          <button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Refresh from Cloud</button>
-        </div>
-      </div>
-    ` : `
-      <div class="card" style="text-align:center;padding:40px;">
-        <div style="font-size:64px;margin-bottom:16px;opacity:0.3;">🎓</div>
-        <h2 style="font-size:22px;margin-bottom:8px;color:var(--text-muted);">Certificate Not Yet Available</h2>
-        <p style="font-size:14px;color:var(--text-muted);max-width:400px;margin:0 auto 24px;">You must complete all training modules and pass your certification exam before your certificate can be issued.</p>
-        <div style="display:inline-flex;align-items:center;gap:8px;background:var(--bg-input);padding:12px 20px;border-radius:var(--radius-sm);">
-          <span>Current Status:</span>
-          <span class="badge ${stageBadge[s.stage]}"><span class="badge-dot"></span>${stageLabels[s.stage]}</span>
-        </div>
-        <div style="margin-top:20px;">
-          <button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Check Cloud for Updates</button>
-          <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">If your certificate has been issued, click above to check for updates from the cloud.</p>
-        </div>
-      </div>
-    `}
-    </div>
+    <div class="cestis-mount" data-feature="s-certificate" data-prefix="student"></div>
   </section>
 
   <section class="page" id="page-s-profile">
