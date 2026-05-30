@@ -7890,6 +7890,12 @@ var cestisFeatureConfig = {
     onMount: function() {
       cestisSafe('renderStudentResourcesPage');
     }
+  },
+  's-exams': {
+    file: 'Pages/Student-Exams.html',
+    onMount: function() {
+      cestisSafe('renderStudentExams');
+    }
   }
 };
 
@@ -8649,6 +8655,60 @@ function renderStudentResourcesPage(){
   if(typeof renderStudentDriveResources === 'function'){ try{ renderStudentDriveResources(); }catch(e){} }
 }
 
+// Fill the My Exams (student) page: upcoming/active list + past results, on mount.
+function renderStudentExams(){
+  var s = (typeof currentStudent !== 'undefined') ? currentStudent : null;
+  if(!s) return;
+  if(typeof resolveExamStatuses === 'function'){ try{ resolveExamStatuses(); }catch(e){} }
+  var up = document.getElementById('studentUpcomingExams');
+  if(up){
+    up.innerHTML = exams.filter(function(e){ return (e.course === s.course || instructorCourseMatch(e.course, s.course)) && (e.status === 'upcoming' || e.status === 'active'); }).map(function(e,idx){
+      var examIdx = exams.indexOf(e);
+      var hasQuestions = e.questionData && e.questionData.length > 0;
+      var alreadyTaken = (examResults||[]).some(function(r){ return r.examId === e.id && r.studentId === s.id; });
+      var examStart = parseExamDateTime(e.date, e.time);
+      var examNow = new Date();
+      var isTimePassed = examStart && examNow >= examStart;
+      var badgeHtml = '';
+      if(alreadyTaken){ badgeHtml = '<span class="badge badge-green"><span class="badge-dot"></span>Completed</span>'; }
+      else if(e.status === 'active' && hasQuestions){ badgeHtml = '<button class="btn btn-sm btn-primary" onclick="startStudentExam('+examIdx+')">Take Exam</button>'; }
+      else if(isTimePassed && !hasQuestions){ badgeHtml = '<span class="badge badge-amber">Awaiting Questions</span>'; }
+      else if(isTimePassed){ badgeHtml = '<span class="badge badge-blue">Ready Soon</span>'; }
+      else { badgeHtml = '<span class="badge badge-amber">Upcoming &bull; '+(e.date.split('-').slice(1).join('/'))+'</span>'; }
+      return '<div class="class-schedule-card" style="border-left:3px solid '+(e.status==='active'?'var(--green)':'var(--accent)')+';">' +
+        '<div class="class-time-block"><div class="time" style="font-size:13px;">'+e.date.split('-').slice(1).join('/')+'</div><div class="period">'+e.time+'</div></div>' +
+        '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+e.title+'</div><div style="font-size:12px;color:var(--text-muted);">'+e.duration+' minutes &nbsp;&bull;&nbsp; '+(e.questionData?e.questionData.length:e.questions)+' questions &nbsp;&bull;&nbsp; Pass: '+e.passMark+'%</div></div>' +
+        badgeHtml + '</div>';
+    }).join('') || '<p style="color:var(--text-muted);padding:16px;">No upcoming exams for your programme.</p>';
+  }
+  var past = document.getElementById('studentPastExamResults');
+  if(past){
+    var myResults = (examResults||[]).filter(function(r){ return r.studentId === s.id; });
+    if(myResults.length === 0){
+      var completedForCourse = exams.filter(function(e){ return (e.course === s.course || instructorCourseMatch(e.course, s.course)) && e.status === 'completed'; });
+      if(completedForCourse.length === 0){
+        past.innerHTML = '<p style="color:var(--text-muted);padding:16px;">No past exams yet.</p>';
+      } else {
+        past.innerHTML = completedForCourse.map(function(e){
+          return '<div class="class-schedule-card" style="border-left:3px solid var(--text-muted);">' +
+            '<div class="class-time-block"><div class="time" style="font-size:13px;">'+e.date.split('-').slice(1).join('/')+'</div><div class="period">'+e.time+'</div></div>' +
+            '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+e.title+'</div><div style="font-size:12px;color:var(--text-muted);">Class Average: '+(e.passRate||'—')+'</div></div>' +
+            '<span class="badge badge-amber">Not Taken</span></div>';
+        }).join('');
+      }
+    } else {
+      past.innerHTML = myResults.map(function(r){
+        var ex = exams.find(function(e){ return e.id === r.examId; }) || {};
+        return '<div class="class-schedule-card" style="border-left:3px solid '+(r.passed?'var(--green)':'var(--red)')+';">' +
+          '<div class="class-time-block" style="background:'+(r.passed?'var(--green-dim)':'var(--red-dim)')+';"><div class="time" style="font-size:13px;">'+(r.submittedAt?r.submittedAt.split('T')[0].split('-').slice(1).join('/'):'—')+'</div><div class="period">'+(ex.time||'')+'</div></div>' +
+          '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+(ex.title||'Exam')+'</div><div style="font-size:12px;color:var(--text-muted);">Score: <strong style="color:'+(r.passed?'var(--green)':'var(--red)')+';">'+r.score+'%</strong> &nbsp;&bull;&nbsp; '+r.correctCount+'/'+r.totalQuestions+' correct</div></div>' +
+          '<span class="badge '+(r.passed?'badge-green':'badge-red')+'"><span class="badge-dot"></span>'+(r.passed?'Passed':'Failed')+'</span>' +
+          '<button class="btn btn-sm btn-secondary" onclick="viewExamResultDetail(\''+r.examId+'\',\''+r.studentId+'\')">Review</button></div>';
+      }).join('');
+    }
+  }
+}
+
 function buildStudentPages() {
   try {
   resolveExamStatuses();
@@ -8826,68 +8886,7 @@ function buildStudentPages() {
 
   <!-- STUDENT EXAMS -->
   <section class="page" id="page-s-exams">
-    <div id="studentExamListView">
-      <div class="card">
-        <div class="card-header"><h3>My Exams</h3></div>
-        ${exams.filter(e => (e.course === s.course || instructorCourseMatch(e.course, s.course)) && (e.status === 'upcoming' || e.status === 'active')).map((e,idx) => {
-          const examIdx = exams.indexOf(e);
-          const hasQuestions = e.questionData && e.questionData.length > 0;
-          const alreadyTaken = (examResults||[]).some(r => r.examId === e.id && r.studentId === s.id);
-          const examStart = parseExamDateTime(e.date, e.time);
-          const examNow = new Date();
-          const isTimePassed = examStart && examNow >= examStart;
-          let badgeHtml = '';
-          if(alreadyTaken) {
-            badgeHtml = '<span class="badge badge-green"><span class="badge-dot"></span>Completed</span>';
-          } else if(e.status === 'active' && hasQuestions) {
-            badgeHtml = '<button class="btn btn-sm btn-primary" onclick="startStudentExam('+examIdx+')">Take Exam</button>';
-          } else if(isTimePassed && !hasQuestions) {
-            badgeHtml = '<span class="badge badge-amber">Awaiting Questions</span>';
-          } else if(isTimePassed) {
-            badgeHtml = '<span class="badge badge-blue">Ready Soon</span>';
-          } else {
-            badgeHtml = '<span class="badge badge-amber">Upcoming &bull; '+(e.date.split('-').slice(1).join('/'))+'</span>';
-          }
-          return '<div class="class-schedule-card" style="border-left:3px solid '+(e.status==='active'?'var(--green)':'var(--accent)')+';">' +
-            '<div class="class-time-block"><div class="time" style="font-size:13px;">'+e.date.split('-').slice(1).join('/')+'</div><div class="period">'+e.time+'</div></div>' +
-            '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+e.title+'</div><div style="font-size:12px;color:var(--text-muted);">'+e.duration+' minutes &nbsp;•&nbsp; '+(e.questionData?e.questionData.length:e.questions)+' questions &nbsp;•&nbsp; Pass: '+e.passMark+'%</div></div>' +
-            badgeHtml +
-            '</div>';
-        }).join('') || '<p style="color:var(--text-muted);padding:16px;">No upcoming exams for your programme.</p>'}
-      </div>
-      <div class="card">
-        <div class="card-header"><h3>Past Exam Results</h3></div>
-        <div id="studentPastExamResults">
-        ${(function(){
-          const myResults = (examResults||[]).filter(r => r.studentId === s.id);
-          if(myResults.length === 0) {
-            var completedForCourse = exams.filter(e => (e.course === s.course || instructorCourseMatch(e.course, s.course)) && e.status === 'completed');
-            if(completedForCourse.length === 0) {
-              return '<p style="color:var(--text-muted);padding:16px;">No past exams yet.</p>';
-            }
-            return completedForCourse.map(e =>
-              '<div class="class-schedule-card" style="border-left:3px solid var(--text-muted);">' +
-              '<div class="class-time-block"><div class="time" style="font-size:13px;">'+e.date.split('-').slice(1).join('/')+'</div><div class="period">'+e.time+'</div></div>' +
-              '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+e.title+'</div><div style="font-size:12px;color:var(--text-muted);">Class Average: '+(e.passRate||'—')+'</div></div>' +
-              '<span class="badge badge-amber">Not Taken</span></div>'
-            ).join('');
-          }
-          return myResults.map(r => {
-            const ex = exams.find(e => e.id === r.examId) || {};
-            return '<div class="class-schedule-card" style="border-left:3px solid '+(r.passed?'var(--green)':'var(--red)')+';">' +
-              '<div class="class-time-block" style="background:'+(r.passed?'var(--green-dim)':'var(--red-dim)') +';"><div class="time" style="font-size:13px;">'+(r.submittedAt?r.submittedAt.split('T')[0].split('-').slice(1).join('/'):'—')+'</div><div class="period">'+(ex.time||'')+'</div></div>' +
-              '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+(ex.title||'Exam')+'</div><div style="font-size:12px;color:var(--text-muted);">Score: <strong style="color:'+(r.passed?'var(--green)':'var(--red)')+';">'+r.score+'%</strong> &nbsp;•&nbsp; '+r.correctCount+'/'+r.totalQuestions+' correct</div></div>' +
-              '<span class="badge '+(r.passed?'badge-green':'badge-red')+'"><span class="badge-dot"></span>'+(r.passed?'Passed':'Failed')+'</span>' +
-              '<button class="btn btn-sm btn-secondary" onclick="viewExamResultDetail(\''+r.examId+'\',\''+r.studentId+'\')">Review</button></div>';
-          }).join('');
-        })()}
-        </div>
-      </div>
-    </div>
-    <!-- Exam taking interface (shown when student clicks Take Exam) -->
-    <div id="studentExamTakingView" style="display:none;"></div>
-    <!-- Exam result review (shown after submission or when reviewing past results) -->
-    <div id="studentExamResultView" style="display:none;"></div>
+    <div class="cestis-mount" data-feature="s-exams" data-prefix="student"></div>
   </section>
 
   <!-- STUDENT CERTIFICATE -->
