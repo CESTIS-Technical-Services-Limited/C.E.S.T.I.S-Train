@@ -14600,6 +14600,12 @@ function filterStudents() {
     // (Training Centre / chat) counts and the skills list.
     try { if (typeof updateSkillAreaCounts === 'function') updateSkillAreaCounts(); } catch(e){}
     try { if (typeof renderSkills === 'function') renderSkills(); } catch(e){}
+    // Join the new students into their matching LMS Chat skill-area rooms and
+    // refresh the chat room list/directory if chat is open.
+    try {
+      if (typeof lmsChatEnsureMembership === 'function') lmsChatEnsureMembership();
+      if (typeof lmsChatRenderRoomList === 'function' && typeof lmsChatGetRolePrefix === 'function') lmsChatRenderRoomList(lmsChatGetRolePrefix());
+    } catch(e){}
   }
   let filtered = [...students];
   const stage = document.getElementById('filterStage')?.value;
@@ -38762,6 +38768,11 @@ function ttRefreshOnShow(){
         // chat) counts and skills list too.
         try { if (typeof updateSkillAreaCounts === 'function') updateSkillAreaCounts(); } catch(e){}
         try { if (typeof renderSkills === 'function') renderSkills(); } catch(e){}
+        // Join them into their matching LMS Chat skill-area rooms.
+        try {
+          if (typeof lmsChatEnsureMembership === 'function') lmsChatEnsureMembership();
+          if (typeof lmsChatRenderRoomList === 'function' && typeof lmsChatGetRolePrefix === 'function') lmsChatRenderRoomList(lmsChatGetRolePrefix());
+        } catch(e){}
       }
       // The fee iframe just announced itself (e.g. on load): reply with the
       // dashboard's students so it picks up any Student-Progress-added people.
