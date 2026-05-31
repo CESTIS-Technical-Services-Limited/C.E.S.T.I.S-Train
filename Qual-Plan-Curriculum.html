@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="cestis-core.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Qual Plan / Curriculum — C.E.S.T.I.S</title>
 <style>
@@ -202,8 +203,10 @@ var QUAL_PLAN_PROGRAMS = [
   { title:"Welding L3",                                     folderId:"1W4I6wpXPJ51grRPNW0EwNqjJ5a3wV1lV", skillArea:"Welding & Fabrication" }
 ];
 
-// Skill areas (mirrors the LMS list) for icon/colour.
-var skillAreas = [
+// Skill areas: sourced from the shared cestis-core catalogue so this viewer's
+// course list can never drift from the dashboard. The inline array below is
+// kept only as a fallback for when the shared module fails to load.
+var skillAreas = (window.CESTISCore && typeof CESTISCore.freshSkillAreas === 'function') ? CESTISCore.freshSkillAreas() : [
   {id:1,name:"Welding & Fabrication",icon:"🔥",color:"#e74c3c",desc:"SMAW, MIG, TIG welding processes and metal fabrication"},
   {id:2,name:"Electrical Installation",icon:"⚡",color:"#f1c40f",desc:"Residential and commercial wiring, conduit bending, circuits"},
   {id:3,name:"Cosmetology",icon:"💇",color:"#e91e63",desc:"Hair care, styling, chemical treatments, salon management"},
