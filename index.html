@@ -38605,6 +38605,23 @@ function ttRefreshOnShow(){
     }
   }
 
+  // Listen for the School Fee iframe broadcasting its live student list. The
+  // iframe and this page keep separate CESTISStore in-memory caches, so when
+  // the fee page reports its data we write it into THIS document's store and
+  // re-pull/re-render the Student Progress page immediately (no reload needed).
+  window.addEventListener('message', function(ev){
+    try {
+      var d = ev && ev.data;
+      if (!d || d.type !== 'cestis-fee-students' || !Array.isArray(d.students)) return;
+      CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(d.students));
+      var added = false;
+      if (typeof syncStudentsFromLocalFeeSystem === 'function') added = syncStudentsFromLocalFeeSystem();
+      // Refresh the Student Progress view if it's the one on screen.
+      try { if (typeof filterStudents === 'function') filterStudents(); } catch(e){}
+      try { if (added && typeof updatePipelineCounts === 'function') updatePipelineCounts(); } catch(e){}
+    } catch(e){ console.warn('fee-students message handler failed:', e); }
+  });
+
   // Install at parse time (main app script has already run), again after the
   // app's own init, then run an initial mirror.
   install();
