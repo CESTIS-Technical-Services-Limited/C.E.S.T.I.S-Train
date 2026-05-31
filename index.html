@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js"></script>
+<script src="cestis-core.js?v=20260531q"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="h1kcrSWbOfqMdqcEuN9crbU73K84WTBd7Qy1lcbcFC4" />
 <title>VocTrain LMS — Vocational Training Management System</title>
@@ -6436,23 +6436,33 @@ function backfillAttendanceRoster() {
 }
 
 function initAttendanceQuarters() {
-  migrateAttendanceToQuarters();
-  loadAttendanceForQuarter(CESTISCore.getActiveQuarter());
-  CESTISCore.onQuarterChange(function (next) {
-    // Persist the roster we were showing, then swap in the newly-selected quarter.
-    mirrorActiveAttendance();
-    loadAttendanceForQuarter(next);
-    backfillAttendanceRoster();
-    if (typeof dedupeAttendanceRecords === 'function') { try { dedupeAttendanceRecords(); } catch (e) {} }
-    try { CESTISStore.setItem(ATTENDANCE_BASE_KEY, JSON.stringify(attendanceRecords)); } catch (e) {}
-    mirrorActiveAttendance();
-    if (typeof renderAttendancePage === 'function') { try { renderAttendancePage(); } catch (e) {} }
-    if (typeof renderInstructorAttendance === 'function' && document.getElementById('iAttendanceTableBody')) { try { renderInstructorAttendance(); } catch (e) {} }
-  });
+  // Hard guard: this is a non-critical feature and must NEVER be able to break
+  // page init (e.g. if a stale cached cestis-core.js lacks the quarter API).
+  if (typeof CESTISCore === 'undefined' || typeof CESTISCore.getActiveQuarter !== 'function'
+      || typeof CESTISCore.quarterKey !== 'function' || typeof CESTISCore.onQuarterChange !== 'function') {
+    console.warn('[Attendance] Quarter API unavailable — attendance runs without quarter separation.');
+    return;
+  }
+  try {
+    migrateAttendanceToQuarters();
+    loadAttendanceForQuarter(CESTISCore.getActiveQuarter());
+    CESTISCore.onQuarterChange(function (next) {
+      // Persist the roster we were showing, then swap in the newly-selected quarter.
+      mirrorActiveAttendance();
+      loadAttendanceForQuarter(next);
+      backfillAttendanceRoster();
+      if (typeof dedupeAttendanceRecords === 'function') { try { dedupeAttendanceRecords(); } catch (e) {} }
+      try { CESTISStore.setItem(ATTENDANCE_BASE_KEY, JSON.stringify(attendanceRecords)); } catch (e) {}
+      mirrorActiveAttendance();
+      if (typeof renderAttendancePage === 'function') { try { renderAttendancePage(); } catch (e) {} }
+      if (typeof renderInstructorAttendance === 'function' && document.getElementById('iAttendanceTableBody')) { try { renderInstructorAttendance(); } catch (e) {} }
+    });
+  } catch (e) {
+    console.warn('[Attendance] initAttendanceQuarters failed; continuing without quarter separation.', e);
+  }
 }
 
 loadState();
-initAttendanceQuarters();
 applyGoogleVerificationMeta();
 // Check and apply maintenance mode on page load
 checkMaintenanceOnLoad();
@@ -6512,6 +6522,9 @@ function loadUserAccounts() {
   } catch(e) {}
 }
 loadUserAccounts();
+// Attendance quarter separation runs AFTER critical auth/account loading so it can
+// never block login, and is itself fully guarded against errors.
+initAttendanceQuarters();
 
 // ============================== ONE-TIME DEMO DATA PURGE ==============================
 // Removes legacy hardcoded demo data that was persisted to localStorage/cloud before
