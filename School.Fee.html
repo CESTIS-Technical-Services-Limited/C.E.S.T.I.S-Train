@@ -4390,6 +4390,87 @@
             } catch (e) { /* cross-origin or no parent: ignore */ }
         }
 
+        // Receive students from the parent LMS dashboard (added on the Student
+        // Progress page) and merge any new ones into the fee system. The fee page
+        // owns fee/personal data, so we only ADD missing students and backfill
+        // empty fields -- never overwrite existing fee records.
+        function applyStudentsFromParent(incoming) {
+            try {
+                if (!Array.isArray(incoming) || incoming.length === 0) return;
+                if (!Array.isArray(students)) students = [];
+                const norm = v => (v == null ? '' : String(v)).trim().toLowerCase().replace(/\s+/g, ' ');
+                let changed = false;
+
+                incoming.forEach(p => {
+                    if (!p || !p.name) return;
+                    // Map dashboard fields -> fee fields.
+                    const pId = p.id || '';
+                    const pSkill = p.skillArea || p.course || '';
+                    const existing = students.find(s => s && (
+                        (pId && (s.id === pId || s.lmsId === pId)) ||
+                        (s.lmsId && s.lmsId === p.lmsId) ||
+                        (norm(s.name) === norm(p.name) &&
+                            (!s.skillArea || !pSkill || norm(s.skillArea) === norm(pSkill)))
+                    ));
+
+                    if (existing) {
+                        if (pId && existing.lmsId !== pId) { existing.lmsId = pId; changed = true; }
+                        if (pSkill && !existing.skillArea) { existing.skillArea = pSkill; changed = true; }
+                        if (p.email && !existing.email) { existing.email = p.email; changed = true; }
+                        if ((p.contact || p.phone) && !existing.contact) { existing.contact = p.contact || p.phone; changed = true; }
+                        if (p.gender && !existing.gender) { existing.gender = p.gender; changed = true; }
+                        return;
+                    }
+
+                    // New dashboard student: add a fee record with blank fee/personal
+                    // fields for the user to complete here.
+                    students.push({
+                        id: pId || ('STU' + Date.now()),
+                        lmsId: pId,
+                        name: p.name,
+                        skillArea: pSkill,
+                        tuitionFee: 0,
+                        contact: p.contact || p.phone || '',
+                        email: p.email || '',
+                        enrollmentDate: (p.createdAt ? String(p.createdAt).split('T')[0] : new Date().toISOString().split('T')[0]),
+                        dateOfBirth: '',
+                        gender: p.gender || '',
+                        nationalId: '',
+                        address: '',
+                        city: '',
+                        parentName: '',
+                        parentContact: '',
+                        emergencyContact: '',
+                        totalPaid: 0,
+                        balance: 0,
+                        status: 'Outstanding',
+                        createdAt: new Date().toISOString(),
+                        source: 'lms',
+                        needsFeeDetails: true
+                    });
+                    changed = true;
+                });
+
+                if (changed) {
+                    // Persist (saveData re-broadcasts to parent, keeping both in sync)
+                    // and refresh the visible fee views.
+                    saveData();
+                    try { if (typeof renderStudentsTable === 'function') renderStudentsTable(); } catch (e) {}
+                    try { if (typeof populatePaymentStudentSelect === 'function') populatePaymentStudentSelect(); } catch (e) {}
+                    try { if (typeof populateDocumentStudentSelect === 'function') populateDocumentStudentSelect(); } catch (e) {}
+                    try { if (typeof updateDashboard === 'function') updateDashboard(); } catch (e) {}
+                }
+            } catch (e) { console.warn('applyStudentsFromParent failed:', e); }
+        }
+
+        window.addEventListener('message', function (ev) {
+            try {
+                const d = ev && ev.data;
+                if (!d || d.type !== 'cestis-lms-students' || !Array.isArray(d.students)) return;
+                applyStudentsFromParent(d.students);
+            } catch (e) { /* ignore */ }
+        });
+
         // Cross-page sync: mirror School Fee students into the Student
         // Progress dashboard (index.html, key 'voctrain_students') so the
         // same people appear there with progress tracking. The fee page owns
