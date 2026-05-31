@@ -7121,10 +7121,18 @@ async function handleAdminClick() {
     var rateCheck = checkLoginRateLimit(uname);
     if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var adminUser = userAccounts.find(function(u){ return u.role==='admin' && (u.username===uname || u.email===uname); });
-    if(!adminUser) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
+    // Diagnostic (no secrets): helps distinguish "account not loaded" from "wrong
+    // password" when investigating login failures. Safe to leave in.
+    try {
+      console.log('[Login][admin] accountsLoaded=' + (Array.isArray(userAccounts)?userAccounts.length:'NONE')
+        + ' adminUsernames=' + JSON.stringify(userAccounts.filter(function(u){return u.role==='admin';}).map(function(u){return u.username;}))
+        + ' matchedAccount=' + (adminUser?('yes(id='+adminUser.id+', pwFormat='+(/^[a-f0-9]{64}$/.test(adminUser.password||'')?'hash':'plaintext')+', hasPlainCache='+(!!adminUser._plaintextPw)+')'):'NO'));
+    } catch(_) {}
+    if(!adminUser) { recordLoginFailure(uname); alert('No admin account found for "' + uname + '" on this device. Try username: cestisadmin — or use "Sync Now" first to pull accounts.'); return; }
     if(adminUser.status==='disabled') { alert('This account has been disabled. Contact a system administrator.'); return; }
     var pwMatch = await checkPassword(pw, adminUser.password, adminUser);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
+    try { console.log('[Login][admin] pwMatch=' + pwMatch); } catch(_) {}
+    if(!pwMatch) { recordLoginFailure(uname); alert('Password incorrect for "' + uname + '".'); return; }
     clearLoginFailures(uname);
     currentLoggedInUser = adminUser;
     enterApp('admin');
