@@ -4845,6 +4845,15 @@
                 return;
             }
 
+            // Enrolment lifecycle: block new trainees once a course has ended.
+            // The admin must create a new training centre/course with a fresh
+            // duration (in the LMS) before enrolling new students.
+            var _dur = feeCourseDurationInfo(skillArea);
+            if (_dur && _dur.ended) {
+                alert('The course "' + skillArea + '" has ENDED' + (_dur.endDate ? (' on ' + _dur.endDate) : '') + ', so new trainees can no longer be enrolled into it.\n\nCreate a new training centre with a new duration (in the LMS) before adding new students to this programme.');
+                return;
+            }
+
             const student = {
                 id: studentId,
                 name: name,

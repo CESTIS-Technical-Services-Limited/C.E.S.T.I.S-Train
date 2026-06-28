@@ -6748,6 +6748,7 @@ async function createUserAccount() {
   if(password.length < 6) { alert('Password must be at least 6 characters.'); return; }
   if(userAccounts.find(function(u){ return u.username === username; })) { alert('Username already exists.'); return; }
   if(role !== 'admin' && role !== 'adminstaff' && role !== 'cmc' && !programme) { alert('Please select a programme.'); return; }
+  if(role === 'student') { var _enrolBlk = courseEnrolmentBlockReason(programme); if(_enrolBlk) { alert(_enrolBlk); return; } }
   var now = new Date(); var dateStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
   var hashedPw = await hashPassword(password);
   var newAccount = {id:getNextUserId(),name:name,role:role,username:username,password:hashedPw,_plaintextPw:password,email:email,programme:(role==='admin'||role==='adminstaff'||role==='cmc')?'':programme,status:'active',createdAt:dateStr,registeredVia:'admin-created'};
@@ -7687,6 +7688,7 @@ async function submitRegistration() {
   if(!name || name.length < 2) { alert('Please enter your full name.'); return; }
   if(!email || !email.includes('@')) { alert('Please enter a valid email address.'); return; }
   if(!programme) { alert('Please select a programme.'); return; }
+  if(role === 'student') { var _enrolBlk = (typeof courseEnrolmentBlockReason==='function') ? courseEnrolmentBlockReason(programme) : ''; if(_enrolBlk) { alert(_enrolBlk); return; } }
   if(!password || password.length < 6) { alert('Password must be at least 6 characters.'); return; }
   if(password !== passwordConfirm) { alert('Passwords do not match.'); return; }
   // Password strength validation
@@ -15853,6 +15855,8 @@ async function addStudent() {
   if(!name){alert('Please enter a name');return;}
   var email = (document.getElementById('newStudentEmail').value || '').trim();
   var selectedCourse = document.getElementById('newStudentCourse').value;
+  var _enrolBlock = courseEnrolmentBlockReason(selectedCourse);
+  if(_enrolBlock) { alert(_enrolBlock); return; }
   var assignedInstructor = (instructorData.find(function(ins){
     if (!ins.course) return false;
     if (ins.course.toLowerCase().trim() === selectedCourse.toLowerCase().trim()) return true;
@@ -16142,6 +16146,21 @@ function isRegisterOpenForCourse(courseName) {
   var rec = courseDurationRecord(courseName);
   if (!rec) return true; // unknown course / no centre => never block
   return CESTISCore.courseDuration.isRegisterOpen(rec, undefined, Date.now());
+}
+
+// Enrolment lifecycle: once a course has ENDED, no NEW trainee may be enrolled
+// into it from anywhere (LMS add-student, account creation, self-registration,
+// or School Fee). The admin must create a new training centre/course with a
+// fresh duration first. Returns a message when blocked, or '' when allowed.
+// (Courses with no matching centre, or no dates / not-yet-started / active
+// durations, are all allowed — only a finished course blocks new intake.)
+function courseEnrolmentBlockReason(courseName) {
+  if (!courseName) return '';
+  if (courseStatus(courseName) === 'ended') {
+    return 'The course "' + courseName + '" has ENDED, so new trainees can no longer be enrolled into it.\n\n' +
+      'To take on new trainees, create a new Training Centre (or set a new duration for this course on the Course Duration page), then enrol them into the new/active course.';
+  }
+  return '';
 }
 
 // Student-facing notice (NOT a hard block): when a student's course has ended,
