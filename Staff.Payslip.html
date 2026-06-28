@@ -2333,7 +2333,54 @@ function buildPayslipHTML(emp,result,date,ytd){
       <div class="box" style="border-color:#10b981"><div class="lbl">Net Pay</div><div class="val" style="color:#10b981">${fmt(result.netPay)}</div></div>
     </div>
     <div class="ps-footer">This is a computer-generated payslip. For queries, contact the Project Coordinator.</div>
+    ${(function(){
+      const cbPayments = getCashbookPaymentsForEmployee(result.empName);
+      if (!cbPayments.length) return '';
+      let rows = cbPayments.map(function(p){
+        return '<tr><td>'+p.date+'</td><td class="mono">'+(p.cheque||'—')+'</td><td>'+p.details+'</td><td class="amt">'+fmt(p.payment)+'</td></tr>';
+      }).join('');
+      const total = cbPayments.reduce(function(s,p){return s+p.payment;},0);
+      return '<div style="margin-top:1rem;border-top:1px solid #ccc;padding-top:.75rem">'
+        +'<div style="font-weight:700;font-size:.8rem;margin-bottom:.4rem;color:#1a2540">CASHBOOK PAYMENT HISTORY</div>'
+        +'<table style="width:100%;border-collapse:collapse;font-size:.75rem">'
+        +'<thead><tr style="background:#1a2540;color:#fff"><th style="padding:3px 6px;text-align:left">Date</th><th style="padding:3px 6px;text-align:left">Cheque #</th><th style="padding:3px 6px;text-align:left">Details</th><th style="padding:3px 6px;text-align:right">Amount</th></tr></thead>'
+        +'<tbody>'+rows+'</tbody>'
+        +'<tfoot><tr style="font-weight:700;border-top:2px solid #1a2540"><td colspan="3" style="padding:3px 6px;text-align:right">Total Paid from Cashbook:</td><td class="amt" style="padding:3px 6px;text-align:right">'+fmt(total)+'</td></tr></tfoot>'
+        +'</table></div>';
+    })()}
   </div>`;
+}
+
+// Read all cashbook transactions for all quarters and return those whose
+// 'details' field contains empName (case-insensitive, trimmed).
+function getCashbookPaymentsForEmployee(empName) {
+  const needle = empName.trim().toLowerCase();
+  const results = [];
+  try {
+    CESTISStore.keys().forEach(function(k) {
+      if (!k.startsWith('cestis_quarter_')) return;
+      try {
+        const raw = CESTISStore.getItem(k);
+        if (!raw) return;
+        const qData = JSON.parse(raw);
+        const txns = Array.isArray(qData.transactions) ? qData.transactions : [];
+        txns.forEach(function(t) {
+          if (t.category === 'Cancelled') return;
+          if (!t.details) return;
+          if (t.details.trim().toLowerCase().indexOf(needle) === -1) return;
+          if ((t.payment || 0) <= 0) return;
+          results.push({
+            date: t.date || '',
+            cheque: t.cheque || '',
+            details: t.details,
+            payment: t.payment || 0
+          });
+        });
+      } catch(e) {}
+    });
+  } catch(e) {}
+  results.sort(function(a,b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  return results;
 }
 
 function printPayslip(){
