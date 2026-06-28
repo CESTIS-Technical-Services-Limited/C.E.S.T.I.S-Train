@@ -8591,6 +8591,7 @@ function showPage(pageId) {
   if(pageId === 'as-document-hub') renderDocumentHubAdmin();
   if(pageId === 's-resources') renderStudentResourcesPage();
   if(pageId === 's-progress') renderStudentAssignments();
+  if(pageId === 's-dashboard' && typeof renderStudentDurationNotice === 'function') renderStudentDurationNotice();
   // LMS Chat and Video Conference for every role are loaded from their own HTML
   // files and initialised by the mount onMount hooks (see the .cestis-mount block
   // near the end of showPage), so no inline init is needed here.
@@ -9436,6 +9437,7 @@ function buildStudentPages() {
       <h2>Welcome back, ${s.name.split(' ')[0]}! 👋</h2>
       <p>Programme: <strong>${s.course}</strong> &nbsp;•&nbsp; ID: <strong>${s.id}</strong> &nbsp;•&nbsp; Instructor: <strong>${s.instructor}</strong></p>
     </div>
+    <div id="sDurationNotice"></div>
 
     <div class="stats-grid stats-grid-4">
       <div class="stat-card" style="text-align:center;">
@@ -16133,6 +16135,36 @@ function isRegisterOpenForCourse(courseName) {
   return CESTISCore.courseDuration.isRegisterOpen(rec, undefined, Date.now());
 }
 
+// Student-facing notice (NOT a hard block): when a student's course has ended,
+// surface it on their dashboard. Certified/collected students see nothing and
+// keep full access (incl. certificate download).
+function renderStudentDurationNotice() {
+  var el = document.getElementById('sDurationNotice');
+  if (!el) return;
+  var s = (typeof currentStudent !== 'undefined') ? currentStudent : null;
+  if (!s || !s.course || s.stage === 'certified' || s.stage === 'collected') { el.innerHTML = ''; return; }
+  if (courseStatus(s.course) !== 'ended') { el.innerHTML = ''; return; }
+  var rec = courseDurationRecord(s.course);
+  var endTxt = (rec && rec.endDate) ? (' on ' + rec.endDate) : '';
+  var nyc = s.stage === 'nyc';
+  el.innerHTML = '<div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.35);font-size:13.5px;">'+
+    '⏳ <strong>Your course has ended'+endTxt+'.</strong> '+
+    (nyc ? 'Your status is currently <strong>Not Yet Competent (NYC)</strong>. ' : '')+
+    'You still have full access to your dashboard, results and certificate page. Please contact your administrator about certification or re-enrolment.</div>';
+}
+
+// Is the given chat room's course ended (register closed)? Non-course rooms
+// (DMs, general/announcement rooms with no skillAreaId) are never gated.
+function lmsChatRoomCourseEnded(roomId) {
+  if (typeof lmsChatRooms === 'undefined' || !Array.isArray(lmsChatRooms)) return false;
+  var room = lmsChatRooms.find(function(r){ return r.id === roomId; });
+  if (!room || room.skillAreaId == null) return false;
+  if (typeof skillAreas === 'undefined' || !Array.isArray(skillAreas)) return false;
+  var sk = skillAreas.find(function(s){ return s.id === room.skillAreaId; });
+  if (!sk) return false;
+  return !CESTISCore.courseDuration.isRegisterOpen(sk, undefined, Date.now());
+}
+
 // When a course has ended, non-certified students become NYC; if a course is
 // later extended (active again), students we auto-marked revert to In Training.
 function applyCourseEndStatuses() {
@@ -17505,6 +17537,12 @@ function startStudentExam(examIdx) {
   var e = exams[examIdx];
   if(!e) { alert('Exam not found.'); return; }
   if(!e.questionData || e.questionData.length === 0) { alert('This exam has no questions yet.'); return; }
+  // Tests are tied to the course duration: once a course has ended (and has not
+  // been extended / temporarily reopened) its exams can no longer be taken.
+  if(typeof isRegisterOpenForCourse === 'function' && e.course && !isRegisterOpenForCourse(e.course)) {
+    alert('This course has ended, so its exams are closed.\n\nAsk your administrator to extend the course duration if you still need to sit this exam.');
+    return;
+  }
   // Check if already taken
   var alreadyTaken = examResults.some(function(r){return r.examId===e.id && r.studentId===currentStudent.id;});
   if(alreadyTaken) { alert('You have already taken this exam.'); return; }
@@ -23710,6 +23748,16 @@ function lmsChatOpenRoom(roomId, prefix) {
     if(headerStatus) headerStatus.textContent = room.members.length + ' members';
   }
 
+  // Reflect the course-duration lock on the composer: a course chat becomes
+  // read-only once its course has ended (reopen by extending the duration).
+  var _composer = document.getElementById(prefix+'ChatInput');
+  var _ended = (typeof lmsChatRoomCourseEnded === 'function') && lmsChatRoomCourseEnded(roomId);
+  if(_composer) {
+    _composer.disabled = !!_ended;
+    _composer.placeholder = _ended ? '🔒 Course ended — chat is read-only' : 'Type a message...';
+  }
+  if(_ended && headerStatus) headerStatus.textContent = (room.type==='dm') ? headerStatus.textContent : 'Course ended · read-only';
+
   lmsChatRenderMessages(prefix);
   lmsChatRenderRoomList(prefix);
 
@@ -23836,6 +23884,15 @@ function lmsChatSendMessage(prefix) {
   var text = input.value.trim();
   if(!text && !lmsChatPendingFile) return;
   if(!lmsChatActiveRoom) return;
+
+  // Course chat rooms are tied to the course duration: once a course has ended
+  // (and is not extended / temporarily reopened), its class chat is read-only.
+  if(lmsChatRoomCourseEnded(lmsChatActiveRoom)) {
+    var _r = lmsChatRooms.find(function(r){ return r.id === lmsChatActiveRoom; });
+    var _nm = _r ? _r.name : 'This course';
+    alert('“'+_nm+'” has ended, so its class chat is now read-only.\n\nAn administrator can extend the course duration to reopen it.');
+    return;
+  }
 
   var user = lmsChatGetCurrentUser();
   var msg = {
