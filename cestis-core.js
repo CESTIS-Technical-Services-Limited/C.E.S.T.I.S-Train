@@ -318,6 +318,18 @@
       });
     }
 
+    if (Array.isArray(data.transcriptGrades)) {
+      data.transcriptGrades.forEach(function (g) {
+        if (g && g.studentId && idMap[g.studentId]) g.studentId = idMap[g.studentId];
+      });
+    }
+
+    if (Array.isArray(data.certTranscriptRequests)) {
+      data.certTranscriptRequests.forEach(function (r) {
+        if (r && r.studentId && idMap[r.studentId]) r.studentId = idMap[r.studentId];
+      });
+    }
+
     return data;
   };
 
@@ -454,6 +466,7 @@
   Core.SNAPSHOT_COUNT_KEYS = [
     'voctrain_students', 'voctrain_users', 'voctrain_attendance', 'voctrain_examResults',
     'voctrain_certDownloadApprovals', 'voctrain_instructorData',
+    'voctrain_unitCatalogs', 'voctrain_transcriptGrades', 'voctrain_certTranscriptRequests',
     'cestiSchoolFeeStudents', 'cestiSchoolFeePayments'
   ];
 
@@ -987,6 +1000,352 @@
       grantExpiry: grantExpiry, permissionActiveAt: permissionActiveAt,
       isRegisterOpen: isRegisterOpen, prunePermissions: prunePermissions
     };
+  })();
+
+  /* ==========================================================================
+     TRANSCRIPT / GRADES ENGINE — shared logic for the Transcript & Grades
+     system (admin editor, trainee live view, instructor view, PDF exports).
+
+     WHY THIS EXISTS
+     ---------------
+     A trainee's final grade for a unit can come from two places:
+       1. LIVE EXAMS taken on VocTrain (voctrain_examResults), matched to a
+          catalogue unit by unit code / unit name appearing in the exam title.
+       2. A MANUAL grade entered (or overridden) by Admin on the
+          Transcript/Grades page (voctrain_transcriptGrades).
+     A manual record always wins over a live exam score for the same unit.
+     Every page (admin, trainee, instructor) must resolve grades identically,
+     so the resolution logic lives here — pure and unit-testable in Node.
+
+     STORAGE KEYS (all JSON in CESTISStore; snapshot-synced like the rest)
+       voctrain_unitCatalogs          [{id,title,skillArea,level,centre,units:[{code,name,coreElective}]}]
+       voctrain_transcriptGrades      [{id,studentId,qualId,unitCode,grade,date,source,examResultId,updatedBy,updatedAt}]
+       voctrain_certTranscriptRequests[{id,studentId,studentName,course,type,note,status,requestedAt,handledBy,handledAt}]
+       voctrain_transcriptProfiles    {studentId:{dob,address,idNo}}
+     ========================================================================== */
+  Core.Transcript = (function () {
+    var T = {};
+
+    T.KEYS = {
+      catalogs: 'voctrain_unitCatalogs',
+      grades: 'voctrain_transcriptGrades',
+      requests: 'voctrain_certTranscriptRequests',
+      profiles: 'voctrain_transcriptProfiles'
+    };
+
+    // Institution block rendered on the official transcript — matches the
+    // approved paper transcript exactly. Do not restyle without approval.
+    T.INSTITUTION = {
+      nameLine1: 'Community Educational and Skills Training',
+      nameLine2: 'Institute and Services Ltd.',
+      centre: 'Hazard Skills Training Centre',
+      addressLines: ['Mack Chem Complex', 'Paisley Avenue, May Pen', 'Clarendon, Jamaica'],
+      email: 'hazardtrainingcentre@gmail.com',
+      tel: '876-679-0111,876-365-2325',
+      region: 'REGION 6 – WORK FORCE SOLUTIONS'
+    };
+
+    T.REQUEST_TYPES = { transcript: 'Transcript', certificate: 'Certificate', both: 'Transcript & Certificate' };
+    T.REQUEST_STATUSES = ['pending', 'processing', 'ready', 'collected', 'declined'];
+    T.REQUEST_STATUS_LABELS = { pending: 'Pending', processing: 'Processing', ready: 'Ready for Collection', collected: 'Collected', declined: 'Declined' };
+
+    /* --- The seeded unit catalogues ---------------------------------------
+       BUSINESS ADMINISTRATION (MANAGEMENT) LEVEL 5 is seeded verbatim from the
+       institution's approved transcript. The other programmes mirror the
+       Qualification Plan page's skill areas; Admin fills their units in from
+       the Transcript/Grades input section. */
+    var BAM_L5_UNITS = [
+      ['BSBBAD0553B', 'Plan and manage meetings'],
+      ['BSBSBM0163A', 'Develop a business proposal'],
+      ['BSBSBM0423A', 'Organize business finances'],
+      ['FSFACC0033B', 'Prepare operational budget'],
+      ['BSBSBM0143A', 'Apply advanced business communication skills'],
+      ['BSBCOR0353B', 'Communicate information relating to work activities'],
+      ['BSBMKP1053B', 'Seize a business opportunity'],
+      ['BSBMKP0173B', 'Conduct research and prepare a marketing plan to achieve goals'],
+      ['BSBMKP0913B', 'Manage business customers'],
+      ['PSSCOR0063B', 'Monitor performance and provide feedback'],
+      ['BSBBAD1273B', 'Lead and manage people'],
+      ['PSSCOR0103B', 'Promote diversity'],
+      ['PSSADM0264B', 'Provide leadership across the organization'],
+      ['FSFACC0134B', 'Produce management reports to enable effective decision making'],
+      ['BSBBAD0274B', 'Manage finances within a budget'],
+      ['FSFADM0074B', 'Provide financial and business performance information'],
+      ['PSSADM0204B', 'Manage policy implementation'],
+      ['BSBSBM0024B', 'Research business opportunities'],
+      ['BSBSBM0054C', 'Develop a business plan'],
+      ['BSBSBM0354A', 'Protect and use intangible assets'],
+      ['PSAHRD0224B', 'Develop and use emotional intelligence'],
+      ['BSBIPR0014A', 'Comply with organizational requirements for protection and use of intellectual property'],
+      ['BSBIPR0044A', 'Manage intellectual property to protect and grow business'],
+      ['FSFACC0884A', 'Implement and maintain internal control procedures'],
+      ['PSSADM0144B', 'Exercise delegations'],
+      ['BSBLEG0014A', 'Apply the principles of contract law'],
+      ['PSSCOR0114B', 'Conduct systems evaluations'],
+      ['PSSCOR0124B', 'Use complex workplace communication strategies'],
+      ['THHWPO0344B', 'Manage quality guest service'],
+      ['PSSCOR0034B', 'Contribute to and manage the change processes'],
+      ['BSBBAD1244B', 'Manage workplace (industrial) relations'],
+      ['PSSCOR0164B', 'Represent and promote the organization'],
+      ['PSSADM0175A', 'Develop partnering arrangements'],
+      ['PSSCOR0145B', 'Prepare high-level-sensitive written materials'],
+      ['PSSPAD0095B', 'Establish and maintain a strategic planning cycle'],
+      ['PSSADM0165B', 'Manage innovation and continuous improvement'],
+      ['BSBEBU0085B', 'Evaluate new technologies for business'],
+      ['BSBFLM0035B', 'Manage effective workplace relationships'],
+      ['BSBBAD1305B', 'Analyse and interpret workforce development trends'],
+      ['BSBEBU0125B', 'Use online systems to support managerial decision- making'],
+      ['BSBFLM0095B', 'Facilitate continuous improvement'],
+      ['PSAHRD0185B', 'Formulate a human resource strategic plan'],
+      ['BSBBAD1365B', 'Manage environmental risks'],
+      ['BSBBAD1345B', 'Monitor and review strategic direction'],
+      ['PSSADM0535B', 'Provide advice to executive team and stakeholders'],
+      ['PSSPAD0065B', 'Evaluate an organization’s OHS performance'],
+      ['PSSPAD0115B', 'Establish and maintain community, government and business partnerships'],
+      ['PSSCOR0023B', 'Develop and implement work unit plan'],
+      ['BSBSBM0313A', 'Lead and facilitate offsite staff'],
+      ['BSBBAD0473B', 'Plan and manage conferences'],
+      ['BSBBAD0793B', 'Promote the business'],
+      ['BSBBAD0384B', 'Ensure sales and service delivery'],
+      ['PSAHRD0214B', 'Manage performance'],
+      ['THTCOT0204B', 'Manage projects'],
+      ['BSBADM0034B', 'Develop and use complex spreadsheets'],
+      ['FSFACC0294B', 'Report on financial activity'],
+      ['BSBBAD1264B', 'Undertake compliance audits'],
+      ['CSCSAD0014A', 'Provide community education projects'],
+      ['BSBMKP0054B', 'Design and deliver a presentation'],
+      ['PSSPAD0075B', 'Develop and implement organizational policies'],
+      ['PSSPAD0105B', 'Plan organizational needs'],
+      ['PSSADM0285B', 'Advise on organisation policy'],
+      ['PSSAPM0065B', 'Negotiate strategic procurement'],
+      ['PSSADM0245B', 'Obtain and manage consultancy services'],
+      ['FSFADM0025B', 'Develop and monitor financial policy statements and operating procedures'],
+      ['BSBFLM0135B', 'Manage budgets and financial plans within the work team'],
+      ['PSAHRD0155B', 'Manage remuneration strategies and plans'],
+      ['PSSADM0235B', 'Manage self as a board member'],
+      ['CSEGCC0075A', 'Provide workplace mentoring'],
+      ['PSSADM0215B', 'Manage a board meeting']
+    ];
+
+    function seedQual(id, title, skillArea, level, units) {
+      return {
+        id: id, title: title, skillArea: skillArea, level: level,
+        centre: T.INSTITUTION.centre,
+        units: (units || []).map(function (u) { return { code: u[0], name: u[1], coreElective: 'Core' }; }),
+        seeded: true
+      };
+    }
+
+    T.seedCatalogs = function () {
+      return [
+        seedQual('QUAL-BAM-L5', 'BUSINESS ADMINISTRATION (MANAGEMENT) LEVEL 5', 'Business Administration', 5, BAM_L5_UNITS),
+        seedQual('QUAL-BT-L2',  'BEAUTY THERAPY LEVEL 2', 'Beauty Therapy', 2, []),
+        seedQual('QUAL-COS-L2', 'COSMETOLOGY LEVEL 2', 'Cosmetology', 2, []),
+        seedQual('QUAL-EIM-L2', 'ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2', 'Electrical Installation', 2, []),
+        seedQual('QUAL-EIM-L3', 'ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3', 'Electrical Installation', 3, []),
+        seedQual('QUAL-HVP-L2', 'HOSPITALITY VILLA PROPERTIES SERVICES LEVEL 2', 'Hospitality & Tourism', 2, []),
+        seedQual('QUAL-WEL-L2', 'WELDING LEVEL 2', 'Welding & Fabrication', 2, []),
+        seedQual('QUAL-WEL-L3', 'WELDING LEVEL 3', 'Welding & Fabrication', 3, [])
+      ];
+    };
+
+    // Merge freshly-seeded catalogues into a stored list without disturbing
+    // admin edits: only quals whose id is absent are added. Idempotent.
+    T.ensureSeeded = function (catalogs) {
+      var list = Array.isArray(catalogs) ? catalogs.slice() : [];
+      var have = {};
+      list.forEach(function (q) { if (q && q.id) have[q.id] = true; });
+      T.seedCatalogs().forEach(function (q) { if (!have[q.id]) list.push(q); });
+      return list;
+    };
+
+    /* --- Normalisation / formatting ---------------------------------------- */
+    T.normText = function (s) {
+      return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    };
+
+    // "90.5" / 90.5 / "90.50" -> "90.5%"; 90 -> "90%"; non-numeric passes through.
+    T.formatGrade = function (v) {
+      if (v == null || v === '') return '';
+      var n = Number(v);
+      if (isNaN(n)) return String(v);
+      var s = String(Math.round(n * 10) / 10);
+      return s + '%';
+    };
+
+    // ISO / Date-parseable string -> DD/MM/YYYY (the transcript's date format).
+    T.formatDateDMY = function (iso) {
+      if (!iso) return '';
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(String(iso))) return String(iso);
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return String(iso);
+      var da = String(d.getDate()), mo = String(d.getMonth() + 1);
+      return (da.length < 2 ? '0' + da : da) + '/' + (mo.length < 2 ? '0' + mo : mo) + '/' + d.getFullYear();
+    };
+
+    /* --- Live-exam matching -------------------------------------------------
+       An exam counts towards a unit when its title carries the unit code, or
+       its title is (or contains / is contained by) the unit name. Length
+       guards stop trivially-short names from matching everything. */
+    T.examMatchesUnit = function (exam, unit) {
+      if (!exam || !unit) return false;
+      var title = T.normText(exam.title);
+      if (!title) return false;
+      var code = T.normText(unit.code);
+      if (code && title.indexOf(code) !== -1) return true;
+      var name = T.normText(unit.name);
+      if (!name) return false;
+      if (title === name) return true;
+      if (name.length >= 12 && title.indexOf(name) !== -1) return true;
+      if (title.length >= 12 && name.indexOf(title) !== -1) return true;
+      return false;
+    };
+
+    // Latest submitted exam result for one student+unit. exams/examResults are
+    // the app's canonical arrays. Returns null when the unit has no live score.
+    T.latestExamResultForUnit = function (unit, studentId, exams, examResults) {
+      if (!unit || !studentId) return null;
+      var examsById = {};
+      (exams || []).forEach(function (e) { if (e && e.id) examsById[e.id] = e; });
+      var best = null, bestTime = -1;
+      (examResults || []).forEach(function (r) {
+        if (!r || r.studentId !== studentId) return;
+        var exam = examsById[r.examId];
+        if (!exam || !T.examMatchesUnit(exam, unit)) return;
+        var t = r.submittedAt ? new Date(r.submittedAt).getTime() : 0;
+        if (isNaN(t)) t = 0;
+        if (t >= bestTime) { bestTime = t; best = r; }
+      });
+      return best;
+    };
+
+    /* --- THE RESOLUTION ALGORITHM -------------------------------------------
+       One row per catalogue unit: manual grade wins, else latest live exam
+       score, else ungraded. Every page renders from this so admin, trainee
+       and instructor always see the same grades. */
+    T.effectiveGrades = function (opts) {
+      opts = opts || {};
+      var qual = opts.qual, studentId = opts.studentId;
+      if (!qual || !Array.isArray(qual.units)) return [];
+      var manual = {};
+      (opts.manualGrades || []).forEach(function (g) {
+        if (g && g.studentId === studentId && g.qualId === qual.id && g.unitCode) {
+          manual[g.unitCode] = g;
+        }
+      });
+      return qual.units.map(function (u) {
+        var row = {
+          code: u.code, name: u.name, coreElective: u.coreElective || 'Core',
+          grade: null, date: '', source: 'none', examResultId: null, examTitle: ''
+        };
+        var m = manual[u.code];
+        if (m && m.grade !== '' && m.grade != null) {
+          row.grade = m.grade;
+          row.date = m.date || '';
+          row.source = 'manual';
+          row.examResultId = m.examResultId || null;
+          return row;
+        }
+        var res = T.latestExamResultForUnit(u, studentId, opts.exams, opts.examResults);
+        if (res) {
+          row.grade = res.score;
+          row.date = T.formatDateDMY(res.submittedAt);
+          row.source = 'exam';
+          row.examResultId = res.id;
+          var exam = (opts.exams || []).filter(function (e) { return e && e.id === res.examId; })[0];
+          row.examTitle = exam ? exam.title : '';
+        }
+        return row;
+      });
+    };
+
+    T.gradeStats = function (rows) {
+      var graded = (rows || []).filter(function (r) { return r && r.grade != null && r.grade !== ''; });
+      var sum = 0;
+      graded.forEach(function (r) { var n = Number(r.grade); if (!isNaN(n)) sum += n; });
+      return {
+        total: (rows || []).length,
+        graded: graded.length,
+        average: graded.length ? Math.round((sum / graded.length) * 10) / 10 : null
+      };
+    };
+
+    /* --- Manual grade upsert (pure) -----------------------------------------
+       Deterministic id from (studentId|qualId|unitCode) so the SAME unit grade
+       resolves to the SAME record on every device — the property the snapshot
+       reconcile's id-union relies on to avoid duplicates. */
+    T.manualGradeId = function (studentId, qualId, unitCode) {
+      return 'TG-' + Core.hashString(String(studentId) + '|' + String(qualId) + '|' + String(unitCode));
+    };
+
+    T.upsertManualGrade = function (grades, rec) {
+      var list = Array.isArray(grades) ? grades.slice() : [];
+      if (!rec || !rec.studentId || !rec.qualId || !rec.unitCode) return list;
+      var id = T.manualGradeId(rec.studentId, rec.qualId, rec.unitCode);
+      var stored = {
+        id: id, studentId: rec.studentId, qualId: rec.qualId, unitCode: rec.unitCode,
+        grade: rec.grade, date: rec.date || '', source: 'manual',
+        examResultId: rec.examResultId || null,
+        updatedBy: rec.updatedBy || '', updatedAt: rec.updatedAt || new Date().toISOString()
+      };
+      var idx = -1;
+      list.forEach(function (g, i) { if (g && g.id === id) idx = i; });
+      if (idx === -1) list.push(stored); else list[idx] = stored;
+      return list;
+    };
+
+    T.removeManualGrade = function (grades, studentId, qualId, unitCode) {
+      var id = T.manualGradeId(studentId, qualId, unitCode);
+      return (Array.isArray(grades) ? grades : []).filter(function (g) { return !g || g.id !== id; });
+    };
+
+    /* --- Qualification lookup for a trainee's course ----------------------- */
+    T.qualForCourse = function (catalogs, course) {
+      var list = Array.isArray(catalogs) ? catalogs : [];
+      var c = T.normText(course);
+      if (!c) return null;
+      var exact = list.filter(function (q) { return q && T.normText(q.skillArea) === c; })[0];
+      if (exact) return exact;
+      var contains = list.filter(function (q) {
+        if (!q) return false;
+        var sa = T.normText(q.skillArea), ti = T.normText(q.title);
+        return (sa && (c.indexOf(sa) !== -1 || sa.indexOf(c) !== -1)) ||
+               (ti && (ti.indexOf(c) !== -1 || c.indexOf(ti) !== -1));
+      })[0];
+      return contains || null;
+    };
+
+    /* --- Certificate / Transcript requests --------------------------------- */
+    T.newRequest = function (opts) {
+      opts = opts || {};
+      return {
+        id: 'CTR-' + Core.hashString(String(opts.studentId) + '|' + String(opts.type) + '|' + String(opts.requestedAt || new Date().toISOString())),
+        studentId: opts.studentId || '',
+        studentName: opts.studentName || '',
+        course: opts.course || '',
+        type: opts.type === 'certificate' || opts.type === 'both' ? opts.type : 'transcript',
+        note: opts.note || '',
+        status: 'pending',
+        requestedAt: opts.requestedAt || new Date().toISOString(),
+        handledBy: '', handledAt: '', adminNote: ''
+      };
+    };
+
+    // A trainee may have at most one OPEN (pending/processing/ready) request
+    // per document type; further clicks are ignored instead of piling up.
+    T.hasOpenRequest = function (requests, studentId, type) {
+      return (requests || []).some(function (r) {
+        return r && r.studentId === studentId &&
+          (r.type === type || r.type === 'both' || type === 'both') &&
+          (r.status === 'pending' || r.status === 'processing' || r.status === 'ready');
+      });
+    };
+
+    T.pendingRequestCount = function (requests) {
+      return (requests || []).filter(function (r) { return r && (r.status === 'pending' || r.status === 'processing') ; }).length;
+    };
+
+    return T;
   })();
 
   root.CESTISCore = Core;
