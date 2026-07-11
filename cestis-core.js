@@ -1041,8 +1041,7 @@
       centre: 'Hazard Skills Training Centre',
       addressLines: ['Mack Chem Complex', 'Paisley Avenue, May Pen', 'Clarendon, Jamaica'],
       email: 'hazardtrainingcentre@gmail.com',
-      tel: '876-679-0111,876-365-2325',
-      region: 'REGION 6 – WORK FORCE SOLUTIONS'
+      tel: '876-679-0111,876-365-2325'
     };
 
     T.REQUEST_TYPES = { transcript: 'Transcript', certificate: 'Certificate', both: 'Transcript & Certificate' };

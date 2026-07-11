@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260711c"></script>
+<script src="cestis-core.js?v=20260711d"></script>
 <script src="transcript-assets.js?v=20260711b"></script>
 <script src="vendor/jspdf-2.5.1.umd.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -168,7 +168,6 @@
   .tr-bio-row { display:flex; }
   .tr-bio-row .left { flex:1 1 auto; padding-right:14px; }
   .tr-bio-row .right { flex:0 0 200px; }
-  .tr-region { text-align:center; font-weight:700; font-size:13.5px; margin-top:12px; letter-spacing:0.3px; }
   .tr-dots { font-size:11px; letter-spacing:1px; color:#000; overflow:hidden; white-space:nowrap; margin-top:4px; }
   .tr-qual { text-align:center; font-weight:700; font-size:13.5px; margin:10px 0 6px; letter-spacing:0.2px; }
 
@@ -334,7 +333,6 @@ function trHeaderHTML(info) {
         '<div class="tr-bio-row"><div class="left">Name: ' + esc(info.name) + '</div><div class="right">D.O.B: ' + esc(info.dob) + '</div></div>' +
         '<div class="tr-bio-row"><div class="left">Address: ' + esc(info.address) + '</div><div class="right">ID No: ' + esc(info.idNo) + '</div></div>' +
       '</div>' +
-      '<div class="tr-region">' + esc(T.INSTITUTION.region) + '</div>' +
     '</div>';
 }
 
@@ -470,11 +468,7 @@ function trPdfHeader(doc, info) {
   var addrLines = doc.splitTextToSize('Address: ' + info.address, rightCol - TR_MARGIN_X - 16);
   doc.text(addrLines, TR_MARGIN_X, yBio);
   doc.text('ID No: ' + info.idNo, rightCol, yBio);
-  yBio += addrLines.length * 12 + 8;
-
-  setSerif(doc, 'bold', 11);
-  doc.text(T.INSTITUTION.region, TR_PAGE_W / 2, yBio, { align: 'center' });
-  return yBio + 10;
+  return yBio + addrLines.length * 12 + 6;
 }
 
 function trPdfTableHeader(doc, y) {
