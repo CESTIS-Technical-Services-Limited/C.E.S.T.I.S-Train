@@ -74,17 +74,21 @@
 })();
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/otpauth@9.2.1/dist/otpauth.umd.min.js"></script>
+<script src="vendor/otpauth-9.2.1.umd.min.js"></script>
+<script>window.OTPAuth||(document.write('<script src="https://cdn.jsdelivr.net/npm/otpauth@9.2.1/dist/otpauth.umd.min.js">\x3C/script>'))</script>
 <script>window.OTPAuth||(document.write('<script src="https://unpkg.com/otpauth@9.2.1/dist/otpauth.umd.min.js">\x3C/script>'))</script>
 <!-- QRCode library for generating QR codes -->
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="vendor/qrcode-1.0.0.min.js"></script>
+<script>window.QRCode||(document.write('<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js">\x3C/script>'))</script>
 <script>window.QRCode||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">\x3C/script>'))</script>
 <!-- Google Identity Services for OAuth -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <!-- EmailJS SDK for sending OTP emails -->
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="vendor/emailjs-4.min.js"></script>
+<script>window.emailjs||(document.write('<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js">\x3C/script>'))</script>
 <script>window.emailjs||(document.write('<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js">\x3C/script>'))</script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script>window.XLSX||(document.write('<script src="vendor/xlsx-0.18.5.full.min.js">\x3C/script>'))</script>
 <script>window.XLSX||(document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">\x3C/script>'))</script>
 <script>
     // Initialize EmailJS with public key

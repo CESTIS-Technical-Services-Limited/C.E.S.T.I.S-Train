@@ -94,11 +94,14 @@
 })();
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="vendor/pdf-3.11.174.min.js"></script>
+<script>window.pdfjsLib||(window.__cestisPdfjsCdnjs=1,document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js">\x3C/script>'))</script>
 <script>window.pdfjsLib||(window.__cestisPdfjsFallback=1,document.write('<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js">\x3C/script>'))</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="vendor/mammoth-1.6.0.browser.min.js"></script>
+<script>window.mammoth||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js">\x3C/script>'))</script>
 <script>window.mammoth||(document.write('<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js">\x3C/script>'))</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="vendor/chart-4.4.1.umd.min.js"></script>
+<script>window.Chart||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">\x3C/script>'))</script>
 <script>window.Chart||(document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">\x3C/script>'))</script>
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
@@ -3714,12 +3717,14 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 @keyframes notifyCountdown{from{width:100%}to{width:0%}}
 .cloud-notify-timer{height:3px;background:var(--text-muted);opacity:.3;border-radius:0 0 14px 14px}
 </style>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="vendor/peerjs-1.5.4.min.js"></script>
+<script>window.Peer||(document.write('<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js">\x3C/script>'))</script>
 <script>window.Peer||(document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js">\x3C/script>'))</script>
 <!-- Google Identity Services for OAuth -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <!-- jsPDF for certificate PDF generation -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf-2.5.1.umd.min.js"></script>
+<script>window.jspdf||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">\x3C/script>'))</script>
 <script>window.jspdf||(document.write('<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">\x3C/script>'))</script>
 </head>
 <body>
@@ -19573,7 +19578,9 @@ var importSelectedFile = null;
 if(typeof pdfjsLib !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = window.__cestisPdfjsFallback
     ? 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'
-    : 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    : (window.__cestisPdfjsCdnjs
+        ? 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+        : 'vendor/pdf.worker-3.11.174.min.js');
 }
 
 // Drag & drop setup
