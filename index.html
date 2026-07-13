@@ -7761,14 +7761,24 @@ function tfaRenderManage(){
       + '<button class="btn btn-danger" onclick="tfaBeginDisable()">Turn Off</button>'
       + '</div>';
   } else {
+    var hasValidEmail = acct.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(acct.email));
     body.innerHTML = emailSection
       + '<div class="tfa-status-off"><strong>Two-step verification is OFF</strong><br>Protect your account with Google Authenticator or any TOTP-compatible app. Once on, you will be asked for a 6-digit code when signing in, and password resets will require re-verification.</div>'
-      + '<button class="btn btn-primary" onclick="tfaOpenSetup()">Turn On Two-Step Verification</button>';
+      + (hasValidEmail ? '' : '<p style="font-size:12px;color:var(--text-secondary);margin:0 0 10px;">Add a recovery email above before turning this on, so a lost authenticator can\'t lock you out.</p>')
+      + '<button class="btn btn-primary" onclick="tfaOpenSetup()"' + (hasValidEmail ? '' : ' disabled style="opacity:.55;cursor:not-allowed;"') + '>Turn On Two-Step Verification</button>';
   }
 }
 function tfaOpenSetup(){
   var acct = tfaAccountRecord(currentLoggedInUser);
   if(!acct) return;
+  // Require a recovery email before turning on 2FA so a lost authenticator
+  // can't lock the user out — reset codes are sent to this address.
+  if(!acct.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(acct.email))){
+    showToast('Add a recovery email address first so you don\'t get locked out.', 'warning');
+    var input = document.getElementById('tfaEmailInput');
+    if(input){ input.focus(); input.style.borderColor = 'var(--red, #ef4444)'; }
+    return;
+  }
   if(typeof OTPAuth === 'undefined'){ showToast('Authenticator library not loaded — reload the page and try again.', 'error'); return; }
   tfaPendingSecret = tfaGenerateSecret();
   document.getElementById('tfaSecretKey').textContent = tfaPendingSecret.match(/.{1,4}/g).join(' ');
