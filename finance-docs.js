@@ -35,6 +35,9 @@
     contactFooter: 'Company Phone Number: 876-679-0111, Email: cestisadmn@gmail.com'
   };
 
+  var BILLED_TO_COMMERCIAL = 'May Pen Hospital - SRHA\n1 Muirhead Avenue, Denbigh\nMay Pen P.O., Clarendon';
+  var BILLED_TO_RBF = 'HEART NSTA Trust\n6B Oxford Road\nKingston 5, St. Andrew';
+
   var cfg = null;      // page config, set by init()
   var docs = [];       // saved documents
   var current = null;  // document being edited
@@ -91,7 +94,7 @@
       status: cfg.hasStatus ? 'Draft' : '',
       date: todayISO(),
       dueDate: addDays(todayISO(), cfg.dueDays),
-      billedTo: cfg.docType === 'po' ? '' : 'May Pen Hospital - SRHA\n1 Muirhead Avenue, Denbigh\nMay Pen P.O., Clarendon',
+      billedTo: cfg.docType === 'po' ? '' : BILLED_TO_COMMERCIAL,
       supplier: '',
       deliverTo: cfg.docType === 'po' ? 'Hazard Skills Training Centre\nMack Chem Complex, Paisley Avenue\nMay Pen P.O., Clarendon' : '',
       poNumber: '', poDate: '',
@@ -183,7 +186,13 @@
         if (el) el.addEventListener('input', function () { current[pair[1]] = el.value; dirty = true; renderPaper(); });
       });
     var tpl = $('fTemplate');
-    if (tpl) tpl.addEventListener('change', function () { current.template = tpl.value; dirty = true; renderEditor(); renderPaper(); });
+    if (tpl) tpl.addEventListener('change', function () {
+      current.template = tpl.value;
+      /* offer the matching default recipient when the block is still untouched */
+      if (tpl.value === 'school' && current.billedTo === BILLED_TO_COMMERCIAL) current.billedTo = BILLED_TO_RBF;
+      else if (tpl.value !== 'school' && current.billedTo === BILLED_TO_RBF) current.billedTo = BILLED_TO_COMMERCIAL;
+      dirty = true; renderEditor(); renderPaper();
+    });
   }
 
   function fld(label, control) { return '<label class="fd-field"><span>' + label + '</span>' + control + '</label>'; }
@@ -194,23 +203,46 @@
   }
 
   /* ================================================================== PAPER */
+  function money$(n) { return '$' + money(n); }
+
   function renderPaper() {
     var d = current, school = d.template === 'school', t = F().docTotals(d);
     var isPO = cfg.docType === 'po';
-    var h = '<div class="sheet" id="fdSheet">';
+    /* theme drives every coloured element on the sheet:
+         green — School / RBF (HEART-NSTA) subvention invoice
+         blue  — commercial invoice & quote
+         slate — purchase order                                              */
+    var theme = school ? 'green' : (isPO ? 'slate' : 'blue');
+    var LOGOS = root.FINANCE_LOGOS || {};
+    var logo = isPO ? '' : (school ? LOGOS.shield : LOGOS.technical);
 
-    /* title + number block */
-    h += '<div class="p-top"><div class="p-title">' + esc(cfg.labels.title) + '</div><table class="p-meta"><tr><td>' + esc(cfg.labels.noLabel) + ':</td><td>' + esc(d.number) + '</td></tr>'
-       + '<tr><td>' + esc(cfg.labels.dateLabel) + ':</td><td>' + esc(fmtDate(d.date)) + '</td></tr>'
-       + '<tr><td>' + esc(cfg.labels.dueLabel) + ':</td><td>' + esc(fmtDate(d.dueDate)) + '</td></tr>'
-       + (d.status === 'Draft' ? '<tr><td colspan="2" class="p-draft">DRAFT</td></tr>' : '')
-       + '</table></div>';
+    /* the office writes DUE DATE on the RBF invoice but EXPIRATION DATE on the
+       commercial invoice — both quotes read EXPIRATION DATE. */
+    var dueLabel = cfg.labels.dueLabel;
+    if (cfg.docType === 'invoice') dueLabel = school ? 'DUE DATE' : 'EXPIRATION DATE';
+
+    var h = '<div class="sheet theme-' + theme + '" id="fdSheet">';
+
+    /* coloured header band: title left, numbering right */
+    h += '<div class="p-band"><div class="p-title">' + esc(cfg.labels.title) + '</div>'
+       + '<div class="p-band-meta">'
+       + '<div><span>' + esc(cfg.labels.noLabel) + ':</span> ' + esc(d.number) + '</div>'
+       + '<div><span>' + esc(cfg.labels.dateLabel) + ':</span> ' + esc(fmtDate(d.date)) + '</div>'
+       + '<div><span>' + esc(dueLabel) + ':</span> ' + esc(fmtDate(d.dueDate)) + '</div>'
+       + (d.status === 'Draft' ? '<div class="p-draft">DRAFT</div>' : '')
+       + '</div></div>';
+
+    h += '<div class="p-doc-body">';
+
+    /* brand mark */
+    if (logo) h += '<div class="p-logo">' + logo + '</div>';
 
     /* company + billed-to blocks */
     h += '<div class="p-blocks"><div class="p-co"><div class="p-co-name">' + esc(COMPANY.name) + '</div>'
-       + [COMPANY.addr1, COMPANY.addr2, COMPANY.phone, COMPANY.email, COMPANY.website].map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('')
-       + (school ? '<div>' + esc(COMPANY.bank) + '</div>' : '')
-       + '<div>' + esc(COMPANY.trn) + '</div></div>';
+       + [COMPANY.addr1, COMPANY.addr2, COMPANY.phone, COMPANY.email].map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('')
+       + '<div class="p-strong">' + esc(COMPANY.website) + '</div>'
+       + (school ? '<div class="p-strong">' + esc(COMPANY.bank) + '</div>' : '')
+       + '<div class="p-strong">' + esc(COMPANY.trn) + '</div></div>';
     var rightTitle = isPO ? 'SUPPLIER' : 'BILLED TO';
     var rightBody = isPO ? d.supplier : d.billedTo;
     h += '<div class="p-billed"><div class="p-billed-title">' + rightTitle + '</div>'
@@ -231,8 +263,8 @@
       if (it.isNote) {
         if (String(it.description || '').trim()) h += '<tr class="p-note"><td></td><td colspan="4">' + esc(it.description) + '</td></tr>';
       } else {
-        h += '<tr><td>' + esc(it.itemNo) + '</td><td>' + esc(it.description) + '</td><td class="num">' + esc(it.qty)
-           + '</td><td class="num">' + money(it.unitPrice) + '</td><td class="num">' + money(F().lineTotal(it, school)) + '</td></tr>';
+        h += '<tr><td>' + esc(it.itemNo) + '</td><td>' + esc(it.description) + '</td><td class="num">' + (school ? esc(it.qty) + '%' : esc(it.qty))
+           + '</td><td class="num">' + money$(it.unitPrice) + '</td><td class="num">' + money$(F().lineTotal(it, school)) + '</td></tr>';
       }
     });
     for (var pad = d.items.length; pad < 6; pad++) h += '<tr class="p-pad"><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>';
@@ -247,18 +279,18 @@
        + '<div>' + esc(COMPANY.contactFooter) + '</div>'
        + (d.notes ? '<div class="p-usernotes">' + esc(d.notes) + '</div>' : '')
        + '</div>';
-    h += '<table class="p-totals"><tr><td>SUBTOTAL</td><td>' + money(t.subtotal) + '</td></tr>';
-    if (Number(d.discountPct)) h += '<tr><td>DISCOUNT (' + esc(d.discountPct) + '%)</td><td>' + money(t.discount) + '</td></tr>';
-    h += '<tr><td>TAX ' + (Number(d.taxPct) ? '(' + esc(d.taxPct) + '%)' : '(%)') + '</td><td>' + (Number(d.taxPct) ? money(t.tax) : '') + '</td></tr>';
-    h += '<tr class="p-due"><td>' + (isPO ? 'ORDER TOTAL' : 'AMOUNT DUE') + '</td><td>' + money(t.amountDue) + '</td></tr></table></div>';
+    h += '<table class="p-totals"><tr><td>SUBTOTAL</td><td>' + money$(t.subtotal) + '</td></tr>';
+    h += '<tr><td>DISCOUNT (' + esc(Number(d.discountPct) || 0) + '%)</td><td>' + money$(t.discount) + '</td></tr>';
+    h += '<tr><td>TAX ' + (Number(d.taxPct) ? '(' + esc(d.taxPct) + '%)' : '(%)') + '</td><td>' + (Number(d.taxPct) ? money$(t.tax) : '') + '</td></tr>';
+    h += '<tr class="p-due"><td>' + (isPO ? 'ORDER TOTAL' : 'AMOUNT DUE') + '</td><td>' + money$(t.amountDue) + '</td></tr></table></div>';
     if (Number(d.depositPct)) {
-      h += '<div class="p-deposit">Deposit Required for Job (' + esc(d.depositPct) + '%) = <b>$' + money(t.deposit) + '</b></div>';
+      h += '<div class="p-deposit">Deposit Required for Job (' + esc(d.depositPct) + '%) = <b>' + money$(t.deposit) + '</b></div>';
     }
 
     /* signature blocks */
     if (school && !isPO) {
       h += '<div class="p-signatories"><div class="p-sig-title">SIGNATORIES</div>'
-         + '<table class="p-sig-table"><tr><th>FULL NAME (IN BLOCK LETTERS)</th><th>SIGNATURES</th></tr>'
+         + '<table class="p-sig-table"><tr class="p-sig-head"><th>FULL NAME (IN BLOCK LETTERS)</th><th>SIGNATURES</th></tr>'
          + ['PROGRAMME COORDINATOR', 'TREASURER', 'CMC CHAIRPERSON'].map(function (role) {
              return '<tr><td><div class="p-sig-line">&nbsp;</div><div class="p-sig-role">' + role + '</div></td><td><div class="p-sig-line">&nbsp;</div></td></tr>';
            }).join('') + '</table></div>';
@@ -269,7 +301,8 @@
     }
 
     h += '<div class="p-thanks">THANK YOU FOR YOUR BUSINESS!</div>';
-    h += '</div>';
+    h += '</div>';   /* /p-doc-body */
+    h += '</div>';   /* /sheet     */
     $('fdPaper').innerHTML = h;
   }
 

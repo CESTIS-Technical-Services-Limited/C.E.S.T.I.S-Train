@@ -112,52 +112,97 @@ button.mini.gold { border-color:var(--gold); color:var(--gold); }
 .fd-paper-wrap { display:flex; justify-content:center; }
 .sheet {
   background:#fff; color:#111; width:100%; max-width:820px; min-height:1000px;
-  padding:48px 54px; box-shadow:0 8px 40px rgba(0,0,0,.5); border-radius:3px;
+  padding:0; box-shadow:0 8px 40px rgba(0,0,0,.5); border-radius:3px; overflow:hidden;
   font:400 13px/1.45 'DM Sans', Arial, sans-serif; position:relative;
 }
 .sheet + .sheet { margin-top:26px; }
+.sheet.theme-green { border:3px solid #2f7d32; }
 
-.p-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:26px; }
-.p-title { font:700 34px 'Playfair Display', Georgia, serif; letter-spacing:2px; color:#111; }
-.p-meta td { font-size:12px; padding:1px 4px; }
-.p-meta td:first-child { font-weight:700; text-align:right; }
-.p-draft { color:#b91c1c; font-weight:800; letter-spacing:4px; text-align:right; font-size:14px; }
+/* ------- coloured header band (title left, numbering right) */
+.p-band {
+  display:flex; justify-content:space-between; align-items:center; gap:20px;
+  padding:20px 46px; color:#fff;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+.theme-blue  .p-band { background:#3f6fbf; }
+.theme-green .p-band { background:#2f6b2f; }
+.theme-slate .p-band { background:#1f2937; }
+.p-title { font:700 40px 'Playfair Display', Georgia, serif; letter-spacing:1px; color:#fff; }
+.p-band-meta { text-align:right; font-size:12.5px; line-height:1.55; white-space:nowrap; }
+.p-band-meta div { font-weight:700; }
+.p-band-meta span { font-weight:700; }
+.p-band-meta .p-draft { color:#ffd7d7; letter-spacing:4px; }
 
-.p-blocks { display:flex; justify-content:space-between; gap:30px; margin-bottom:22px; }
-.p-co { font-size:12px; }
-.p-co-name { font-weight:700; font-size:13px; margin-bottom:2px; }
-.p-billed { font-size:12px; min-width:220px; }
+/* ------- document body */
+.p-doc-body { padding:26px 46px 40px; }
+.theme-green .p-doc-body { background:#eaf0f6; }
+
+.p-logo { margin:2px 0 20px; }
+.p-logo svg { height:96px; width:auto; display:block; margin:0 auto; }   /* centred (blue/slate) */
+.theme-green .p-logo svg { height:118px; margin:0; }                      /* left-aligned crest   */
+
+.p-blocks { display:flex; justify-content:space-between; gap:30px; margin-bottom:20px; }
+.p-co { font-size:12px; line-height:1.5; }
+.p-co-name { font-weight:700; font-size:12.5px; margin-bottom:2px; max-width:340px; }
+.p-strong { font-weight:700; }
+.p-billed { font-size:12px; min-width:220px; line-height:1.5; }
 .p-billed-title { font-weight:700; letter-spacing:.5px; margin-bottom:3px; }
 .p-po { margin-top:6px; font-weight:600; }
 
+/* ------- items table */
 .p-items { width:100%; border-collapse:collapse; margin-bottom:18px; }
-.p-items th { background:#1f2937; color:#fff; font-size:10.5px; letter-spacing:.5px; padding:7px 8px; text-align:left; }
-.p-items td { border:1px solid #cbd5e1; padding:6px 8px; font-size:12px; }
-.p-items td.num { text-align:right; font-variant-numeric:tabular-nums; }
-.p-items tr.p-note td { border-top:none; font-style:italic; font-size:11px; color:#334155; }
-.p-items tr.p-pad td { border-color:#e2e8f0; color:#fff; }
+.p-items th { font-size:10.5px; letter-spacing:.4px; padding:8px; text-align:left;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+.p-items td { padding:7px 8px; font-size:12px; vertical-align:top; }
+.p-items td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.p-items tr.p-note td { font-style:italic; font-size:11px; color:#334155; padding-top:0; }
+.p-items tr.p-pad td { color:transparent; }
+/* blue / slate — light ruled table, no vertical lines */
+.theme-blue .p-items th, .theme-slate .p-items th { color:#111; background:#f3f6fa; border-top:1.5px solid #9aa7b8; border-bottom:1.5px solid #9aa7b8; }
+.theme-blue .p-items tbody td, .theme-slate .p-items tbody td { border-bottom:1px solid #d6e4d6; }
+/* green — full grid, coloured header, tinted figure columns */
+.theme-green .p-items th { background:#2f6b2f; color:#fff; border:1px solid #2f6b2f; }
+.theme-green .p-items tbody td { border:1px solid #b9c6d6; }
+.theme-green .p-items tbody td:nth-child(3),
+.theme-green .p-items tbody td:nth-child(4),
+.theme-green .p-items tbody td:nth-child(5) { background:#d9e2ec; }
 
-.p-bottom { display:flex; justify-content:space-between; gap:30px; align-items:flex-start; }
-.p-footer-notes { font-size:10.5px; color:#334155; max-width:55%; display:flex; flex-direction:column; gap:8px; }
+/* ------- totals + footer */
+.p-bottom { display:flex; justify-content:space-between; gap:30px; align-items:flex-start; margin-top:6px; }
+.p-footer-notes { font-size:10.5px; color:#334155; max-width:52%; display:flex; flex-direction:column; gap:8px; }
+.p-payable { font-style:italic; }
 .p-payable b { font-size:10.5px; color:#111; }
 .p-usernotes { font-style:italic; }
-.p-totals { border-collapse:collapse; min-width:250px; }
-.p-totals td { padding:5px 10px; font-size:12.5px; }
+.p-totals { border-collapse:collapse; min-width:262px; }
+.p-totals td { padding:5px 12px; font-size:12.5px; }
 .p-totals td:first-child { font-weight:700; text-align:right; }
-.p-totals td:last-child { text-align:right; min-width:110px; font-variant-numeric:tabular-nums; border-bottom:1px solid #cbd5e1; }
-.p-totals tr.p-due td { font-weight:800; font-size:14px; border-top:2px solid #111; }
+.p-totals td:last-child { text-align:right; min-width:120px; font-variant-numeric:tabular-nums; }
+.p-totals tr:not(.p-due) td:last-child { border-bottom:1px solid #cbd5e1; }
+.p-totals tr.p-due td { font-weight:800; font-size:13.5px; color:#fff;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+.theme-blue  .p-totals tr.p-due td { background:#3f6fbf; }
+.theme-green .p-totals tr.p-due td { background:#2f6b2f; }
+.theme-slate .p-totals tr.p-due td { background:#1f2937; }
 .p-deposit { margin-top:14px; font-size:13px; }
 
-.p-signatories { margin-top:30px; }
-.p-sig-title { font-weight:800; letter-spacing:1px; margin-bottom:8px; }
-.p-sig-table { width:100%; border-collapse:separate; border-spacing:0 4px; }
-.p-sig-table th { text-align:left; font-size:10.5px; padding:2px 6px; }
-.p-sig-table td { padding:14px 6px 2px; width:50%; }
-.p-sig-line { border-bottom:1px solid #111; height:20px; }
-.p-sig-role { font-size:10px; font-weight:700; margin-top:3px; letter-spacing:.5px; }
+/* ------- signatories (School / RBF) */
+.p-signatories { margin-top:26px; }
+.p-sig-title { background:#2f6b2f; color:#fff; text-align:center; font-weight:800; letter-spacing:1.5px;
+  padding:7px; font-size:14px; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+.p-sig-table { width:100%; border-collapse:collapse; }
+.p-sig-table tr.p-sig-head th { background:#7fae52; color:#12280e; text-align:left; font-size:11px;
+  padding:7px 10px; border:1px solid #b9c6d6; letter-spacing:.5px;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+.p-sig-table td { border:1px solid #b9c6d6; padding:24px 12px 8px; width:50%; vertical-align:bottom; background:#dfe8f1; }
+.p-sig-line { border-bottom:1px solid #111; height:1px; }
+.p-sig-role { font-size:10.5px; font-weight:700; margin-top:6px; letter-spacing:.5px; }
+
 .p-authorize { display:flex; gap:60px; margin-top:44px; font-size:11px; }
 .p-authorize > div { flex:1; }
-.p-thanks { margin-top:34px; text-align:center; font-weight:700; letter-spacing:1.5px; font-size:12.5px; }
+.p-authorize .p-sig-line { margin-bottom:4px; }
+
+.p-thanks { margin-top:30px; text-align:center; font:700 15px 'Georgia', 'Times New Roman', serif; font-style:italic; letter-spacing:.5px; color:#5a6472; }
+.theme-green .p-thanks { color:#2f6b2f; }
 
 /* ============================================================== VOUCHERS */
 .v-sheet {
@@ -165,10 +210,18 @@ button.mini.gold { border-color:var(--gold); color:var(--gold); }
   padding:46px 58px; box-shadow:0 8px 40px rgba(0,0,0,.5); border-radius:3px;
   font:400 13.5px/1.5 'Times New Roman', Georgia, serif;
 }
-.v-head { text-align:center; font-weight:700; margin-bottom:22px; }
+.v-head { position:relative; text-align:center; font-weight:700; margin-bottom:22px; }
 .v-head .l1 { font-size:15px; }
 .v-head .l2 { font-size:14px; }
-.v-head .l3 { font-size:14px; text-decoration:underline; letter-spacing:.5px; }
+.v-head .l3 { font-size:14px; letter-spacing:.5px; }
+/* cheque: HEART logo pinned left, the three title lines centred on the page */
+.v-head-cheque { min-height:66px; }
+.v-head-cheque .l1 { padding-top:6px; }
+.v-logo { position:absolute; left:0; top:0; }
+.v-logo svg { height:62px; width:auto; display:block; }
+/* transfer: company name left-aligned, the form title centred beneath it */
+.v-head-transfer { text-align:left; }
+.v-head-transfer .l3 { text-align:center; margin-top:16px; letter-spacing:1px; }
 .v-row { margin:10px 0; display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; }
 .v-row .lbl { font-weight:600; white-space:nowrap; }
 .v-fill {
@@ -204,8 +257,11 @@ button.mini.gold { border-color:var(--gold); color:var(--gold); }
   .sheet, .v-sheet {
     box-shadow:none !important; border-radius:0 !important; max-width:none !important;
     width:auto !important; min-height:0 !important; margin:0 !important;
-    padding:10mm 12mm !important;
   }
+  .sheet { padding:0 !important; }                    /* band must bleed to the sheet edge */
+  .v-sheet { padding:8mm 12mm !important; }
+  .p-band { padding:16px 12mm !important; }
+  .p-doc-body { padding:18px 12mm 22px !important; }
   /* One document per page. Vouchers are wrapped in .v-wrap (sheet + toolbar),
      so the break must live on the wrapper — putting it on .v-sheet would make
      every sheet match :last-child inside its own wrapper. */
