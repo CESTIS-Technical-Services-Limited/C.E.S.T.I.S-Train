@@ -6,7 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C.E.S.T.I.S — Payment Vouchers</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="finance-docs.css?v=20260712a">
+<link rel="stylesheet" href="finance-docs.css?v=20260713a">
+<script src="finance-logos.js?v=20260713a"></script>
 <style>
 /* page-specific bits on top of the shared finance stylesheet */
 .pv-controls { display:flex; gap:14px; flex-wrap:wrap; align-items:end; }
@@ -87,7 +88,8 @@ var Core = window.CESTISCore, F = Core.Finance;
 var store = window.CESTISStore || window.localStorage;
 var OVERRIDES_KEY = 'cestis_finance_voucher_overrides';
 var BANK_ACCOUNT = '561722854';
-var ROWS = 4; // editable detail rows per voucher
+var LOGOS = window.FINANCE_LOGOS || {};
+var ROWS = 6; // editable detail rows per voucher (matches the printed forms)
 
 var quarters = [];       // [{fy, q}] discovered from cashbook storage
 var activeFY = '', activeQ = 0;
@@ -238,9 +240,10 @@ function renderSheets() {
          '<button class="mini danger" onclick="PV.resetOne(' + v.txnId + ')">↺ Reset edits</button></span></div>';
     h += '<div class="v-sheet">';
     if (isChq) {
-      h += '<div class="v-head"><div class="l1">HEART/NSTA TRUST</div><div class="l2">COMMUNITY TRAINING INTERVENTIONS</div><div class="l3">CHEQUE PAYMENT VOUCHER</div></div>';
+      h += '<div class="v-head v-head-cheque">' + (LOGOS.heart ? '<span class="v-logo">' + LOGOS.heart + '</span>' : '') +
+           '<div class="l1">HEART/NSTA TRUST</div><div class="l2">COMMUNITY TRAINING INTERVENTIONS</div><div class="l3">CHEQUE PAYMENT VOUCHER</div></div>';
     } else {
-      h += '<div class="v-head"><div class="l1">COMMUNITY EDUCATIONAL AND SKILLS TRAINING INSTITUTE AND SERVICES LTD</div><div class="l2">(CESTIS - HAZARD STC)</div><div class="l3">BANK TRANSFER - PAYMENT VOUCHER</div></div>';
+      h += '<div class="v-head v-head-transfer"><div class="l1">COMMUNITY EDUCATIONAL AND SKILLS TRAINING INSTITUTE AND SERVICES LTD</div><div class="l2">(CESTIS - HAZARD STC)</div><div class="l3">BANK TRANSFER - PAYMENT VOUCHER</div></div>';
     }
     h += '<div class="v-row"><span class="lbl">Date Requested:</span>' + fill(v, 'dateRequested', f.dateRequested) + '</div>';
     h += '<div class="v-row"><span class="lbl">Payee:</span>' + fill(v, 'payee', f.payee, 'grow') + '</div>';
@@ -277,9 +280,6 @@ function renderSheets() {
       h += '<div class="v-claimant"><div class="box"><div class="line"></div><div class="cap">Signature of Claimant</div></div>' +
            '<div class="box"><div class="line"></div><div class="cap">Date</div></div></div>';
       h += '<div class="v-version">CTI/Cheque Payment Voucher/Version 2.0:12/03/2020</div>';
-    } else {
-      h += '<div class="v-claimant"><div class="box"><div class="line"></div><div class="cap">Authorised Signature</div></div>' +
-           '<div class="box"><div class="line"></div><div class="cap">Date</div></div></div>';
     }
     h += '</div></div>';
     return h;
