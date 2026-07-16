@@ -39688,16 +39688,19 @@ function ttUnmount(){
             }
         }
 
-        // Login
-        function handleLogin(event) {
+        // Login (hash-aware; shares cestisStaffMembers + hashPassword/verifyPassword
+        // with the main app and Staff.Clock.in, kept in lockstep)
+        async function handleLogin(event) {
             event.preventDefault();
 
             const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value;
 
-            const staff = staffMembers.find(s => s.username === username && s.password === password);
-
+            const _cand = staffMembers.find(s => s.username === username);
+            const staff = (_cand && await verifyPassword(password, _cand.password)) ? _cand : null;
             if (staff) {
+                // Transparently upgrade a plaintext password to PBKDF2 on login.
+                try { if (!isHashedPassword(staff.password)) { staff.password = await hashPassword(password); saveStaffMembers(); } } catch(e) {}
                 // Check if staff account is inactive or suspended
                 if (staff.status === 'Inactive' || staff.status === 'Suspended') {
                     const errorDiv = document.getElementById('loginError');
@@ -39786,7 +39789,7 @@ function ttUnmount(){
         }
 
         // Submit password change
-        function submitPasswordChange() {
+        async function submitPasswordChange() {
             const username = document.getElementById('passwordChangeUsername').value;
             const currentPassword = document.getElementById('currentPasswordInput').value;
             const newPassword = document.getElementById('newPasswordInput').value;
@@ -39804,7 +39807,7 @@ function ttUnmount(){
             const staff = staffMembers[staffIndex];
 
             // Validate current password
-            if (currentPassword !== staff.password) {
+            if (!(await verifyPassword(currentPassword, staff.password))) {
                 errorDiv.textContent = 'Current password is incorrect';
                 errorDiv.style.display = 'block';
                 return;
@@ -39829,8 +39832,8 @@ function ttUnmount(){
                 return;
             }
 
-            // Update password
-            staff.password = newPassword;
+            // Update password (hashed)
+            staff.password = await hashPassword(newPassword);
             staff.mustChangePassword = false;
             staff.passwordChangedDate = new Date().toISOString();
             saveStaffMembers();
@@ -40041,7 +40044,7 @@ function ttUnmount(){
         }
 
         // Reset password
-        function resetPassword() {
+        async function resetPassword() {
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmNewPassword').value;
 
@@ -40073,8 +40076,8 @@ function ttUnmount(){
                 return;
             }
 
-            // Update password
-            staffMembers[staffIndex].password = newPassword;
+            // Update password (hashed)
+            staffMembers[staffIndex].password = await hashPassword(newPassword);
             staffMembers[staffIndex].passwordChangedDate = new Date().toISOString();
             staffMembers[staffIndex].mustChangePassword = false;
             saveStaffMembers();
@@ -40732,7 +40735,7 @@ function ttUnmount(){
         }
 
         // Staff Management (Admin)
-        function addStaff() {
+        async function addStaff() {
             if (ttc_currentUser.role !== 'Admin') {
                 ttc_showToast('Admin access required', 'error');
                 return;
@@ -40775,7 +40778,7 @@ function ttUnmount(){
             const newStaff = {
                 id: 'STAFF' + Date.now(),
                 username: username,
-                password: password,
+                password: await hashPassword(password),
                 fullName: name,
                 workType: workType,
                 role: role,
@@ -41135,7 +41138,7 @@ function ttUnmount(){
         }
 
         // Save Staff Edit
-        function saveStaffEdit() {
+        async function saveStaffEdit() {
             const index = parseInt(document.getElementById('editStaffIndex').value);
             const staff = staffMembers[index];
 
@@ -41153,7 +41156,7 @@ function ttUnmount(){
                     ttc_showToast('Password must be at least 4 characters', 'error');
                     return;
                 }
-                staff.password = newPassword;
+                staff.password = await hashPassword(newPassword);
             }
 
             // Update all fields
