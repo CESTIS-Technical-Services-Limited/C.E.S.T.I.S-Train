@@ -5402,15 +5402,41 @@
         }
 
         // Login
-        function handleLogin(event) {
+        // ---- Password hashing (PBKDF2 + per-user salt), ported from the main LMS ----
+        // This app stored PLAINTEXT staff passwords. New/reset passwords are now
+        // PBKDF2-hashed; existing plaintext still verifies and is transparently
+        // upgraded on the next successful login. The cestisStaffMembers store is
+        // SHARED with the LMS time-clock, whose login was updated in lockstep so a
+        // hash produced here verifies there and vice-versa. No bulk migration on load.
+        var PBKDF2_ITERATIONS = 210000;
+        function _bufToHex(buf){ var b=new Uint8Array(buf),s=''; for(var i=0;i<b.length;i++) s+=b[i].toString(16).padStart(2,'0'); return s; }
+        function _hexToBuf(hex){ var n=Math.floor(hex.length/2),o=new Uint8Array(n); for(var i=0;i<n;i++) o[i]=parseInt(hex.substr(i*2,2),16); return o; }
+        async function _pbkdf2Hex(pw,salt,iter){ var k=await crypto.subtle.importKey('raw',new TextEncoder().encode(String(pw)),{name:'PBKDF2'},false,['deriveBits']); var bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:salt,iterations:iter,hash:'SHA-256'},k,256); return _bufToHex(bits); }
+        async function hashPassword(pw){ try{ var salt=crypto.getRandomValues(new Uint8Array(16)); return 'pbkdf2$'+PBKDF2_ITERATIONS+'$'+_bufToHex(salt)+'$'+(await _pbkdf2Hex(pw,salt,PBKDF2_ITERATIONS)); }catch(e){ return String(pw); } }
+        function isHashedPassword(pw){ return typeof pw==='string' && pw.indexOf('pbkdf2$')===0; }
+        async function verifyPassword(pw,stored){
+            if(typeof stored!=='string') return false;
+            if(stored.indexOf('pbkdf2$')===0){
+                var p=stored.split('$'); if(p.length!==4) return false;
+                var iter=parseInt(p[1],10)||PBKDF2_ITERATIONS;
+                var c=await _pbkdf2Hex(pw,_hexToBuf(p[2]),iter);
+                if(c.length!==p[3].length) return false;
+                var d=0; for(var i=0;i<c.length;i++) d|=c.charCodeAt(i)^p[3].charCodeAt(i); return d===0;
+            }
+            return String(pw)===stored; // plaintext (legacy)
+        }
+        async function maybeUpgradeStaffPassword(staff,plaintext){ try{ if(!staff||isHashedPassword(staff.password)) return; staff.password=await hashPassword(plaintext); saveStaffMembers(); }catch(e){} }
+
+        async function handleLogin(event) {
             event.preventDefault();
 
             const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value;
 
-            const staff = staffMembers.find(s => s.username === username && s.password === password);
-
+            const _cand = staffMembers.find(s => s.username === username);
+            const staff = (_cand && await verifyPassword(password, _cand.password)) ? _cand : null;
             if (staff) {
+                await maybeUpgradeStaffPassword(staff, password);
                 // Check if staff account is inactive or suspended
                 if (staff.status === 'Inactive' || staff.status === 'Suspended') {
                     const errorDiv = document.getElementById('loginError');
@@ -5499,7 +5525,7 @@
         }
 
         // Submit password change
-        function submitPasswordChange() {
+        async function submitPasswordChange() {
             const username = document.getElementById('passwordChangeUsername').value;
             const currentPassword = document.getElementById('currentPasswordInput').value;
             const newPassword = document.getElementById('newPasswordInput').value;
@@ -5516,8 +5542,8 @@
 
             const staff = staffMembers[staffIndex];
 
-            // Validate current password
-            if (currentPassword !== staff.password) {
+            // Validate current password (hash-aware)
+            if (!(await verifyPassword(currentPassword, staff.password))) {
                 errorDiv.textContent = 'Current password is incorrect';
                 errorDiv.style.display = 'block';
                 return;
@@ -5542,8 +5568,8 @@
                 return;
             }
 
-            // Update password
-            staff.password = newPassword;
+            // Update password (hashed)
+            staff.password = await hashPassword(newPassword);
             staff.mustChangePassword = false;
             staff.passwordChangedDate = new Date().toISOString();
             saveStaffMembers();
@@ -5765,7 +5791,7 @@
         }
 
         // Reset password
-        function resetPassword() {
+        async function resetPassword() {
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmNewPassword').value;
 
@@ -5797,8 +5823,8 @@
                 return;
             }
 
-            // Update password
-            staffMembers[staffIndex].password = newPassword;
+            // Update password (hashed)
+            staffMembers[staffIndex].password = await hashPassword(newPassword);
             staffMembers[staffIndex].passwordChangedDate = new Date().toISOString();
             staffMembers[staffIndex].mustChangePassword = false;
             saveStaffMembers();
@@ -6472,7 +6498,7 @@
         }
 
         // Staff Management (Admin)
-        function addStaff() {
+        async function addStaff() {
             if (currentUser.role !== 'Admin') {
                 showToast('Admin access required', 'error');
                 return;
@@ -6515,7 +6541,7 @@
             const newStaff = {
                 id: 'STAFF' + Date.now(),
                 username: username,
-                password: password,
+                password: await hashPassword(password),
                 fullName: name,
                 workType: workType,
                 role: role,
@@ -6875,7 +6901,7 @@
         }
 
         // Save Staff Edit
-        function saveStaffEdit() {
+        async function saveStaffEdit() {
             const index = parseInt(document.getElementById('editStaffIndex').value);
             const staff = staffMembers[index];
 
@@ -6893,7 +6919,7 @@
                     showToast('Password must be at least 4 characters', 'error');
                     return;
                 }
-                staff.password = newPassword;
+                staff.password = await hashPassword(newPassword);
             }
 
             // Update all fields
