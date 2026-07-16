@@ -110,6 +110,22 @@
 <script src="vendor/qrcode-1.0.0.min.js"></script>
 <script>window.QRCode||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">\x3C/script>'))</script>
 <script>window.QRCode||(document.write('<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js">\x3C/script>'))</script>
+<!-- EmailJS SDK + config for e-mailed one-time passcodes (same service as the
+     Staff Clock-in / School Fee / Payslip pages). Now that the main app does
+     verification/2FA, it needs this so OTP e-mails send instead of demo mode. -->
+<script src="vendor/emailjs-4.min.js"></script>
+<script>window.emailjs||(document.write('<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js">\x3C/script>'))</script>
+<script>window.emailjs||(document.write('<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js">\x3C/script>'))</script>
+<script>
+  window.EMAILJS_PUBLIC_KEY = 'z_6Ya8J_WGJjRIGuX';
+  window.EMAILJS_SERVICE_ID = 'service_v49btoq';
+  window.EMAILJS_TEMPLATE_ID = 'template_80h43gm';
+  (function initEmailJS(){
+    function go(){ if(typeof emailjs !== 'undefined'){ try{ emailjs.init(window.EMAILJS_PUBLIC_KEY); }catch(e){ console.warn('EmailJS init failed:', e); } } }
+    if(typeof emailjs !== 'undefined'){ go(); }
+    else { document.addEventListener('DOMContentLoaded', go); }
+  })();
+</script>
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
 <meta name="referrer" content="strict-origin-when-cross-origin">
