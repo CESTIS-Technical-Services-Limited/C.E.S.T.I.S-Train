@@ -5492,11 +5492,25 @@ function exportDataBackup() {
     'voctrain_adrStaffMeta','voctrain_adminStaffAccess','voctrain_instructorData','voctrain_certDownloadApprovals',
     'voctrain_skillAreas','voctrain_certTemplates','voctrain_chatRooms','voctrain_chatMessages',
     'voctrain_chatProfiles','voctrain_chatFollows',
-    'voctrain_unitCatalogs','voctrain_transcriptGrades','voctrain_certTranscriptRequests','voctrain_transcriptProfiles'];
-  // Include every per-quarter attendance bucket so all quarters are backed up.
+    'voctrain_unitCatalogs','voctrain_transcriptGrades','voctrain_certTranscriptRequests','voctrain_transcriptProfiles',
+    // Sibling-app data (same-origin IndexedDB): finance documents, cashbook,
+    // virements, staff time-clock/payroll. Included so this local JSON export is a
+    // true last-resort backup of EVERYTHING, independent of Google Drive — these
+    // modules previously had no Google-free backup path at all.
+    'cestis_finance_invoices','cestis_finance_quotes','cestis_finance_pos','cestis_finance_voucher_overrides',
+    'cestis_finance_convert','cesti_cashbook_data','cesti_virements','cesti_virement_logo',
+    'cestis_budget_overrides','cestis_budget_deleted','cestis_active_quarter',
+    'cestisStaffMembers','cestisTimeRecords','cestiSchoolFeeStudents','cestiSchoolFeePayments','cestiUsers'];
+  // Include every dynamically-keyed bucket (per-quarter attendance/budget/virement,
+  // finance docs) so nothing is silently left out of the backup.
   try {
     (CESTISStore.keys ? CESTISStore.keys() : Object.keys(CESTISStore._cache || {})).forEach(function(k) {
-      if (k && k.indexOf('voctrain_attendance::') === 0 && keys.indexOf(k) === -1) keys.push(k);
+      if (!k || keys.indexOf(k) !== -1) return;
+      if (k.indexOf('voctrain_attendance::') === 0
+          || k.indexOf('cestis_quarter_') === 0
+          || k.indexOf('cestis_budget') === 0
+          || k.indexOf('cestis_finance_') === 0
+          || k.indexOf('cesti_virement') === 0) keys.push(k);
     });
   } catch(e) {}
   keys.forEach(function(k) {

@@ -5461,9 +5461,7 @@ async function firstTimeGoogleSync(){
     var backupData=await resp.json();
 
     // Log cloud backup contents for debugging
-    console.log('[FirstTimeSync] Cloud backup has',backupData.users?backupData.users.length:0,'users:',
-      backupData.users?backupData.users.map(function(u){return u.username+'(pw:'+(u.password?u.password.length+'chars':'NONE')+')';}):[]
-    );
+    console.log('[FirstTimeSync] Cloud backup has',backupData.users?backupData.users.length:0,'users');
 
     // Merge users
     var synced=false;
@@ -5481,8 +5479,7 @@ async function firstTimeGoogleSync(){
 
       // Verify the save by re-reading
       var verify=loadUsers();
-      console.log('[FirstTimeSync] Verified localStorage has',verify.length,'users:',
-        verify.map(function(u){return u.username+'(pw:'+(u.password?u.password.length+'chars':'NONE')+')';}));
+      console.log('[FirstTimeSync] Verified local store has',verify.length,'users');
     }
     // Sync main data & permissions — merged, not replaced. Anything that was
     // already on this device is preserved; cloud records are added/updated.
