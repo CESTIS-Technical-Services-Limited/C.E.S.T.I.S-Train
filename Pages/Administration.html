@@ -54,8 +54,8 @@
       <div class="form-group">
         <label>Display Mode</label>
         <select class="form-control" id="settTmsMode">
-          <option value="launch">Launch panel — opens in its own window (works today)</option>
-          <option value="embed">Embedded — display inside the page (needs HEART to allow it)</option>
+          <option value="embed">Embedded — display inside the page (recommended)</option>
+          <option value="launch">Launch panel — always open in its own window instead</option>
         </select>
       </div>
       <div class="form-group" style="margin-bottom:0;">
@@ -74,8 +74,8 @@
       <div class="form-group">
         <label>Display Mode</label>
         <select class="form-control" id="settNqsMode">
-          <option value="launch">Launch panel — opens in its own window (works today)</option>
-          <option value="embed">Embedded — display inside the page (needs HEART to allow it)</option>
+          <option value="embed">Embedded — display inside the page (recommended)</option>
+          <option value="launch">Launch panel — always open in its own window instead</option>
         </select>
       </div>
       <div class="form-group" style="margin-bottom:0;">
@@ -91,16 +91,18 @@
     </div>
 
     <div style="margin-top:16px;padding:14px;background:var(--accent-dim);border-radius:var(--radius-sm);font-size:12px;color:var(--accent);line-height:1.7;">
-      <strong>Why these open in their own window</strong><br>
-      Both HEART/NSTA systems send a response header (<code>X-Frame-Options</code> /
-      <code>Content-Security-Policy: frame-ancestors</code>) that tells browsers not to display
-      them inside another website. That is enforced by the browser and cannot be switched off
-      from this side.<br><br>
-      To display them inline, ask HEART/NSTA IT to allow this site as a frame ancestor &mdash;
-      i.e. serve those pages with
-      <code>Content-Security-Policy: frame-ancestors 'self' https://your-cestis-domain</code>
-      and drop <code>X-Frame-Options</code> for it. Once that is in place, set the system's
-      Display Mode above to <strong>Embedded</strong>.
+      <strong>If a system shows a blank panel on a device</strong><br>
+      Both HEART/NSTA systems serve a security certificate browsers do not recognise
+      (<code>NET::ERR_CERT_AUTHORITY_INVALID</code>). A browser will not show that certificate
+      warning inside a panel, so the panel stays blank until the certificate is approved once,
+      on that device, in a normal tab.<br><br>
+      Every page has a <strong>Page blank?</strong> button with the steps, and those steps appear
+      automatically the first time a device opens each system. Each person has to do it once per
+      device and browser &mdash; it does not carry over.<br><br>
+      The permanent fix is on HEART/NSTA's side: a certificate from a public certificate authority
+      for those hostnames. Until then, <strong>Embedded</strong> works fine after the one-time
+      approval; switch a system to <strong>Launch panel</strong> if you would rather it always
+      open in its own window.
     </div>
   </div>
 </div>
