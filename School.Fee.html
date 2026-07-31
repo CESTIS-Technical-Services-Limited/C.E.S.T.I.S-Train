@@ -4725,7 +4725,11 @@
                 if (!Array.isArray(incoming) || incoming.length === 0) return;
                 if (!Array.isArray(students)) students = [];
                 const norm = v => (v == null ? '' : String(v)).trim().toLowerCase().replace(/\s+/g, ' ');
+                // A delete on the dashboard reaches us in the same breath as its
+                // student list, so honour it now rather than at the next reload —
+                // otherwise the removed trainee lingers here and gets mirrored back.
                 let changed = false;
+                try { if (dropTombstonedFeeStudents()) changed = true; } catch (e) {}
 
                 incoming.forEach(p => {
                     if (!p || !p.name) return;
@@ -4745,19 +4749,15 @@
 
                     if (existing) {
                         if (pId && existing.lmsId !== pId) { existing.lmsId = pId; changed = true; }
-                        // Adopt a rename made on the dashboard so both systems show
-                        // one name for one person. Edit recency decides, so a newer
-                        // rename made here is not overwritten on its way back.
-                        if (window.CESTISCore && typeof CESTISCore.shouldAdoptName === 'function' &&
-                            CESTISCore.shouldAdoptName(p, existing)) {
-                            existing.name = String(p.name).trim();
+                        // Adopt the details edited on the dashboard so both systems
+                        // show one version of this person. Edit recency decides, so
+                        // a newer edit made here is not overwritten on its way back.
+                        if (window.CESTISCore && typeof CESTISCore.syncTwinFields === 'function' &&
+                            CESTISCore.syncTwinFields(p, existing, 'lms->fee').length) {
                             existing.updatedAt = p.lastModified || new Date().toISOString();
                             changed = true;
                         }
                         if (pSkill && !existing.skillArea) { existing.skillArea = pSkill; changed = true; }
-                        if (p.email && !existing.email) { existing.email = p.email; changed = true; }
-                        if ((p.contact || p.phone) && !existing.contact) { existing.contact = p.contact || p.phone; changed = true; }
-                        if (p.gender && !existing.gender) { existing.gender = p.gender; changed = true; }
                         return;
                     }
 
@@ -4801,6 +4801,31 @@
                 }
             } catch (e) { console.warn('applyStudentsFromParent failed:', e); }
         }
+
+        // Another document — the dashboard, the Student Progress page, another tab —
+        // changed data this page also holds. Reload it rather than keep rendering,
+        // and later saving, a stale copy over someone else's edit.
+        let _feeExternalReload = null;
+        window.addEventListener('storage', function (ev) {
+            if (!ev || !ev.key) return;
+            if (['cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDocuments',
+                 'cestiSchoolFeeDeletedLmsIds', 'voctrain_students', 'voctrain_deletedStudentIds']
+                .indexOf(ev.key) === -1) return;
+            if (_feeExternalReload) clearTimeout(_feeExternalReload);
+            _feeExternalReload = setTimeout(function () {
+                _feeExternalReload = null;
+                try {
+                    refreshLmsStudentCache();          // academic stage column
+                    if (typeof loadData === 'function') loadData();
+                    if (typeof renderStudentsTable === 'function') renderStudentsTable();
+                    if (typeof renderPaymentsTable === 'function') renderPaymentsTable();
+                    if (typeof renderDocumentsTable === 'function') renderDocumentsTable();
+                    if (typeof populatePaymentStudentSelect === 'function') populatePaymentStudentSelect();
+                    if (typeof populateDocumentStudentSelect === 'function') populateDocumentStudentSelect();
+                    if (typeof updateDashboard === 'function') updateDashboard();
+                } catch (e) { console.warn('external change reload failed:', e); }
+            }, 120);
+        });
 
         window.addEventListener('message', function (ev) {
             try {
@@ -4870,22 +4895,18 @@
                     ));
 
                     if (existing) {
-                        // Link records and backfill only EMPTY identity/contact
-                        // fields. Never touch stage / score / progress.
                         if (existing.schoolFeeId !== sf.id) { existing.schoolFeeId = sf.id; changed = true; }
-                        // The name is the exception — it is kept identical in both
-                        // systems, with the most recent edit winning, so a rename
-                        // here reaches Student Progress and vice versa.
-                        if (window.CESTISCore && typeof CESTISCore.shouldAdoptName === 'function' &&
-                            CESTISCore.shouldAdoptName(sf, existing)) {
-                            existing.name = String(sf.name).trim();
+                        // Push every detail edited here onto the dashboard record —
+                        // name, contact, date of birth, address, ID — so both
+                        // systems show the same person. Stage / score / progress are
+                        // the dashboard's and are never touched; edit recency decides,
+                        // so a newer edit made there is not reverted.
+                        if (window.CESTISCore && typeof CESTISCore.syncTwinFields === 'function' &&
+                            CESTISCore.syncTwinFields(sf, existing, 'fee->lms').length) {
                             existing.lastModified = sf.updatedAt || new Date().toISOString();
                             changed = true;
                         }
                         if (sf.skillArea && !existing.course) { existing.course = sf.skillArea; changed = true; }
-                        if (sf.email && !existing.email) { existing.email = sf.email; changed = true; }
-                        if (sf.contact && !existing.phone) { existing.phone = sf.contact; changed = true; }
-                        if (sf.gender && !existing.gender) { existing.gender = sf.gender; changed = true; }
                         return;
                     }
 
@@ -7597,9 +7618,10 @@
             const reportType = document.getElementById('reportType').value;
             const { periodLabel } = getReportFilterPeriod();
 
-            // Colors
-            const primaryBlue = [13, 71, 161];
-            const lightGreen = [168, 213, 165];
+            // Colours: the same toned-down navy the receipt uses, so printed
+            // reports and receipts read as one set of documents.
+            const primaryBlue = [18, 52, 92];
+            const lightGreen = [201, 214, 232];
 
             // Header background
             doc.setFillColor(...primaryBlue);
@@ -7627,7 +7649,7 @@
             doc.setTextColor(0, 0, 0);
 
             // Report info box
-            doc.setFillColor(240, 248, 255);
+            doc.setFillColor(247, 248, 250);
             doc.roundedRect(14, 52, pageWidth - 28, 22, 3, 3, 'F');
 
             const reportTitles = {
@@ -7662,7 +7684,7 @@
                 const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
 
                 // Summary section
-                doc.setFillColor(240, 248, 255);
+                doc.setFillColor(247, 248, 250);
                 doc.roundedRect(14, startY, pageWidth - 28, 15, 3, 3, 'F');
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
@@ -7704,7 +7726,7 @@
                     const collected = studentList.reduce((sum, s) => sum + s.totalPaid, 0);
                     const rate = ((collected / total) * 100).toFixed(1);
 
-                    doc.setFillColor(240, 248, 255);
+                    doc.setFillColor(247, 248, 250);
                     doc.roundedRect(14, yPos, pageWidth - 28, 20, 3, 3, 'F');
 
                     doc.setFontSize(11);
@@ -7737,7 +7759,7 @@
                 const totalBalance = filteredStudents.reduce((sum, s) => sum + s.balance, 0);
 
                 // Summary section
-                doc.setFillColor(240, 248, 255);
+                doc.setFillColor(247, 248, 250);
                 doc.roundedRect(14, startY, pageWidth - 28, 15, 3, 3, 'F');
                 doc.setFontSize(9);
                 doc.setFont('helvetica', 'bold');
@@ -8014,10 +8036,31 @@
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
 
-            // Colors
-            const primaryBlue = [13, 71, 161];
-            const lightGreen = [168, 213, 165];
+            // Colours. The receipt is a printed document, so the blue is a deep
+            // navy rather than the bright screen blue, and the section headings sit
+            // on a pale band instead of full-width saturated slabs — easier to read,
+            // far less ink, and it keeps the eye on the figures.
+            const primaryBlue = [18, 52, 92];      // deep navy: header, footer, headings
+            const bandFill = [234, 238, 244];      // pale slate band behind section titles
+            const bandRule = [200, 210, 224];      // hairline under each band
+            const tagline = [201, 214, 232];       // soft blue-grey on the navy header
+            const lightGreen = [214, 233, 213];
             const darkGreen = [27, 94, 32];
+
+            // Draws a section heading: pale band, navy text, hairline underneath.
+            const sectionHeading = function (title, y) {
+                doc.setFillColor(...bandFill);
+                doc.rect(14, y, pageWidth - 28, 8, 'F');
+                doc.setDrawColor(...bandRule);
+                doc.setLineWidth(0.3);
+                doc.line(14, y + 8, pageWidth - 14, y + 8);
+                doc.setTextColor(...primaryBlue);
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.text(title, 20, y + 5.6);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+            };
 
             // Header background
             doc.setFillColor(...primaryBlue);
@@ -8032,7 +8075,7 @@
             // Tagline
             doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor(...lightGreen);
+            doc.setTextColor(...tagline);
             doc.text('Centre for Excellence - Training you for the future', pageWidth / 2, 26, { align: 'center' });
 
             // Receipt title
@@ -8045,7 +8088,7 @@
             doc.setTextColor(0, 0, 0);
 
             // Receipt info box
-            doc.setFillColor(240, 248, 255);
+            doc.setFillColor(247, 248, 250);
             doc.roundedRect(14, 52, pageWidth - 28, 25, 3, 3, 'F');
 
             doc.setFontSize(11);
@@ -8070,15 +8113,7 @@
             doc.text(payment.term, 138, 72);
 
             // Student Information Section
-            doc.setFillColor(...primaryBlue);
-            doc.rect(14, 85, pageWidth - 28, 8, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.text('STUDENT INFORMATION', 20, 91);
-
-            doc.setTextColor(0, 0, 0);
-            doc.setFont('helvetica', 'normal');
+            sectionHeading('STUDENT INFORMATION', 85);
             doc.setFontSize(10);
 
             let yPos = 102;
@@ -8108,16 +8143,10 @@
 
             // Payment Details Section
             yPos = 135;
-            doc.setFillColor(...primaryBlue);
-            doc.rect(14, yPos - 7, pageWidth - 28, 8, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.text('PAYMENT DETAILS', 20, yPos - 1);
+            sectionHeading('PAYMENT DETAILS', yPos - 7);
 
             // Payment table
             yPos += 8;
-            doc.setTextColor(0, 0, 0);
 
             doc.autoTable({
                 startY: yPos,
@@ -8127,7 +8156,7 @@
                 ],
                 theme: 'grid',
                 headStyles: {
-                    fillColor: [100, 149, 237],
+                    fillColor: primaryBlue,
                     textColor: [255, 255, 255],
                     fontStyle: 'bold',
                     fontSize: 10

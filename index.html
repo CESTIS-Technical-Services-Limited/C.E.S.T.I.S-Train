@@ -6898,6 +6898,43 @@ function cestisRelinkFeeLinks(idMap) {
   return changed;
 }
 
+// Remove the School Fee record for a student deleted on the dashboard and
+// tombstone it, so neither system shows a ghost and no mirror re-creates them.
+// `student` is the record as it read BEFORE the delete (id / name / course /
+// schoolFeeId), which is how the twin is found even after a rename.
+function removeFeeTwinForStudent(student) {
+  if (!student) return false;
+  var removed = false;
+  try {
+    var raw = CESTISStore.getItem('cestiSchoolFeeStudents');
+    var fee = raw ? (JSON.parse(raw) || []) : [];
+    if (!Array.isArray(fee) || !fee.length) return false;
+    var gone = [];
+    var kept = fee.filter(function(f) {
+      var hit = f && (
+        (student.schoolFeeId && f.id === student.schoolFeeId) ||
+        f.lmsId === student.id || f.id === student.id ||
+        (window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function' &&
+         CESTISCore.isFeeTwin(student, f, student))
+      );
+      if (hit) gone.push(f.lmsId || f.id);
+      return !hit;
+    });
+    if (kept.length !== fee.length) {
+      CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(kept));
+      removed = true;
+      var tRaw = CESTISStore.getItem('cestiSchoolFeeDeletedLmsIds');
+      var tomb = tRaw ? (JSON.parse(tRaw) || []) : [];
+      if (!Array.isArray(tomb)) tomb = [];
+      var set = {};
+      tomb.concat([student.id]).concat(gone).forEach(function(id){ if (id) set[id] = true; });
+      CESTISStore.setItem('cestiSchoolFeeDeletedLmsIds', JSON.stringify(Object.keys(set)));
+      if (typeof broadcastStudentsToFeeFrames === 'function') { try { broadcastStudentsToFeeFrames(); } catch(e) {} }
+    }
+  } catch(e) { console.warn('removeFeeTwinForStudent failed:', e); }
+  return removed;
+}
+
 function updateSkillAreaCounts() {
   skillAreas.forEach(function(sk) {
     var skNameLower = sk.name.toLowerCase().trim();
@@ -16855,6 +16892,12 @@ window.addEventListener('message', function(e) {
       try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e2) {}
       try { saveUserAccounts(); } catch(e2) {}
     }
+    // A student deleted in the Student Progress frame must lose their School Fee
+    // twin as well, tombstoned so no mirror resurrects them.
+    if (e.data.deleted) {
+      try { removeFeeTwinForStudent(e.data.deleted); }
+      catch(e2) { console.warn('symmetric fee delete failed:', e2); }
+    }
     // A student edited in the Student Progress frame may have been RENAMED.
     // That moves their stable id and breaks the name match, so the frame hands
     // over the identity they had beforehand — the only way left to find their
@@ -16907,6 +16950,39 @@ function updateCtrRequestsBadge() {
 }
 window.addEventListener('storage', function(e) {
   if(e.key === 'voctrain_certTranscriptRequests') updateCtrRequestsBadge();
+});
+
+// ============================== EXTERNAL CHANGE ADOPTION ==============================
+// Another document — an embedded page, another tab — changed data this page also
+// holds in memory. Re-read just that collection so the dashboard renders the
+// current version and, crucially, never saves its stale copy back over the edit.
+// This is what makes an edit or delete made on ANY page show up on all of them.
+var CESTIS_SHARED_COLLECTIONS = {
+  voctrain_students:            function(v){ students = v; },
+  voctrain_studentProfiles:     function(v){ studentProfiles = v; },
+  voctrain_instructorData:      function(v){ instructorData = v; },
+  voctrain_instructorProfiles:  function(v){ instructorProfiles = v; },
+  voctrain_attendance:          function(v){ attendanceRecords = v; },
+  voctrain_examResults:         function(v){ examResults = v; },
+  voctrain_certDownloadApprovals: function(v){ certDownloadApprovals = v; },
+  voctrain_skillAreas:          function(v){ skillAreas = v; },
+  voctrain_users:               function(v){ userAccounts = v; }
+};
+var _cestisExternalReload = null;
+window.addEventListener('storage', function(e) {
+  if(!e.key || !CESTIS_SHARED_COLLECTIONS[e.key]) return;
+  try {
+    var parsed = e.newValue ? JSON.parse(e.newValue) : null;
+    if(parsed === null) return;
+    CESTIS_SHARED_COLLECTIONS[e.key](parsed);
+  } catch(err) { return; }
+  // One save elsewhere writes many keys; coalesce the burst into one re-render.
+  if(_cestisExternalReload) clearTimeout(_cestisExternalReload);
+  _cestisExternalReload = setTimeout(function(){
+    _cestisExternalReload = null;
+    try { refreshStudentDependentViews(); } catch(err) {}
+    try { refreshContentDependentViews(); } catch(err) {}
+  }, 120);
 });
 
 // ============================== GOOGLE SITE VERIFICATION ==============================
@@ -18446,23 +18522,21 @@ function enrolSyncFeeEditsIntoLms() {
            (norm(x.name) === norm(f.name) && (!x.course || !f.skillArea || norm(x.course) === norm(f.skillArea))))
     ); });
     if (!s) return;
-    // Names sync both ways, resolved by edit recency — without this the
-    // dashboard would push its own name straight back over a fee-page rename.
-    if (window.CESTISCore && typeof CESTISCore.shouldAdoptName === 'function' &&
-        CESTISCore.shouldAdoptName(f, s)) {
-      s.name = String(f.name).trim();
-      s.lastModified = f.updatedAt || new Date().toISOString();
-      changed = true;
+    // Every shared detail flows both ways, resolved by edit recency — without
+    // that, the dashboard would push its own copy straight back over an edit
+    // just made on the fee page (and vice versa).
+    if (window.CESTISCore && typeof CESTISCore.syncTwinFields === 'function') {
+      if (CESTISCore.syncTwinFields(f, s, 'fee->lms').length) {
+        s.lastModified = f.updatedAt || new Date().toISOString();
+        changed = true;
+      }
     }
+    // Contact details are read from the profile map on this side, so mirror them.
     if (typeof studentProfiles === 'undefined' || !studentProfiles) window.studentProfiles = {};
     if (!studentProfiles[s.id]) studentProfiles[s.id] = {};
     var p = studentProfiles[s.id];
-    if (f.email && f.email !== p.email) { p.email = f.email; s.email = f.email; changed = true; }
-    if (f.contact && f.contact !== p.phone) { p.phone = f.contact; s.phone = f.contact; changed = true; }
-    if (f.gender && f.gender !== s.gender) { s.gender = f.gender; changed = true; }
-    if (f.dateOfBirth && f.dateOfBirth !== s.dob) { s.dob = f.dateOfBirth; changed = true; }
-    if (f.address && f.address !== s.address) { s.address = f.address; changed = true; }
-    if (f.nationalId && f.nationalId !== s.trn) { s.trn = f.nationalId; changed = true; }
+    if (s.email && s.email !== p.email) { p.email = s.email; changed = true; }
+    if (s.phone && s.phone !== p.phone) { p.phone = s.phone; changed = true; }
   });
   if (changed) { try { saveState(); } catch (e) {} }
   return changed;
@@ -43460,24 +43534,26 @@ function ttRefreshOnShow(){
         ); });
 
         if (existing){
-          // Link records and backfill only EMPTY fields; never overwrite fee data.
           if (existing.lmsId !== vs.id){ existing.lmsId = vs.id; changed = true; }
-          // The name is the exception: Student Progress owns it, so a rename
-          // there must reach the fee table rather than leaving the two systems
-          // showing different names for one person. Edit recency guards it, so a
-          // newer rename made on the fee page is never reverted.
-          if (window.CESTISCore && typeof CESTISCore.shouldAdoptName === 'function' &&
-              CESTISCore.shouldAdoptName(vs, existing)){
-            existing.name = String(vs.name).trim();
-            existing.updatedAt = vs.lastModified || new Date().toISOString();
-            changed = true;
+          // Carry every detail the user can edit here onto the fee record, so a
+          // corrected name, contact, date of birth or address shows up in both
+          // systems. Money is left alone, and edit recency decides, so a newer
+          // edit made on the fee page is never reverted.
+          if (window.CESTISCore && typeof CESTISCore.syncTwinFields === 'function'){
+            var view = {
+              name: vs.name,
+              email: vs.email || prof.email || '',
+              phone: prof.phone || vs.phone || '',
+              gender: vs.gender, dob: vs.dob, address: vs.address, trn: vs.trn,
+              lastModified: vs.lastModified
+            };
+            if (CESTISCore.syncTwinFields(view, existing, 'lms->fee').length){
+              existing.updatedAt = vs.lastModified || new Date().toISOString();
+              changed = true;
+            }
           }
+          // Skill area stays backfill-only: it drives the fee page's tuition.
           if (vs.course && !existing.skillArea){ existing.skillArea = vs.course; changed = true; }
-          var em = vs.email || prof.email || '';
-          if (em && !existing.email){ existing.email = em; changed = true; }
-          var ph = prof.phone || vs.phone || '';
-          if (ph && !existing.contact){ existing.contact = ph; changed = true; }
-          if (vs.gender && !existing.gender){ existing.gender = vs.gender; changed = true; }
           return;
         }
 

@@ -287,6 +287,49 @@
     return Core.editedAt(dst) <= Core.editedAt(src);
   };
 
+  /* --- Shared person fields ----------------------------------------------
+     The same facts under different names on each side. Everything a user can
+     type about a trainee is shared both ways, so correcting a date of birth or
+     an address in one system reaches the other.
+     Deliberately NOT here: money (tuition, payments, balance, status), which is
+     only ever entered on the fee page; and course/skillArea, which stays
+     backfill-only because the fee page's skill area drives its tuition lookup
+     and must remain a value that page recognises. */
+  Core.TWIN_FIELDS = [
+    { lms: 'name', fee: 'name' },
+    { lms: 'email', fee: 'email' },
+    { lms: 'phone', fee: 'contact' },
+    { lms: 'gender', fee: 'gender' },
+    { lms: 'dob', fee: 'dateOfBirth' },
+    { lms: 'address', fee: 'address' },
+    { lms: 'trn', fee: 'nationalId' }
+  ];
+
+  // Copy every shared field `src` disagrees with `dst` about, unless `dst` was
+  // edited more recently — the same last-edit-wins rule the name uses, applied
+  // to the whole record. Blank source values are skipped: the two systems
+  // collect different subsets of a person's details, so a field one of them
+  // simply doesn't hold must never wipe the other's copy.
+  // `direction` is 'lms->fee' (default) or 'fee->lms'. Returns the changed keys.
+  Core.syncTwinFields = function (src, dst, direction) {
+    var changed = [];
+    if (!src || !dst) return changed;
+    if (Core.editedAt(dst) > Core.editedAt(src)) return changed;
+    var lmsToFee = direction !== 'fee->lms';
+    Core.TWIN_FIELDS.forEach(function (f) {
+      var from = lmsToFee ? f.lms : f.fee;
+      var to = lmsToFee ? f.fee : f.lms;
+      var v = src[from];
+      if (v == null) return;
+      v = String(v).trim();
+      if (!v) return;
+      if (String(dst[to] == null ? '' : dst[to]).trim() === v) return;
+      dst[to] = v;
+      changed.push(to);
+    });
+    return changed;
+  };
+
   /* --- Student record merge (pure; identical semantics to the app) -------- */
   var MERGE_FIELDS = ['stage', 'progress', 'score', 'gpa', 'certNo', 'certDate', 'certCollected',
     'attendance', 'assignments', 'instructor', 'email', 'phone', 'address',

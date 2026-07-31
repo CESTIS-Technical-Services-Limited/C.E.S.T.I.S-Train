@@ -880,7 +880,10 @@ function confirmDeleteStudent() {
   filterStudents();
   updatePipelineCounts();
   showToast(name + ' has been deleted');
-  saveData();
+  // Tell the dashboard who went, so it can remove the matching School Fee
+  // record and tombstone it there too — otherwise the trainee lives on in fee
+  // management and gets mirrored straight back.
+  saveData({ deleted: { id: sid, name: name, course: s.course, schoolFeeId: s.schoolFeeId } });
 }
 
 // ============================== ADD STUDENT ==============================
@@ -1020,9 +1023,20 @@ function init() {
   updatePipelineCounts();
 }
 
-// Listen for storage events (another tab mutated students)
+// Another document (another page, an iframe, another tab) changed data this
+// page shows. Reload it rather than keep rendering — and later saving — a stale
+// copy. Every key loadData() reads is covered, so an edit made anywhere lands
+// here: trainee details, profiles, instructors, attendance, results, accounts.
+var SP_SHARED_KEYS = ['voctrain_students','voctrain_skillAreas','voctrain_studentProfiles',
+  'voctrain_instructorData','voctrain_attendance','voctrain_examResults',
+  'voctrain_certDownloadApprovals','voctrain_userAccounts'];
+// One save elsewhere writes many keys, so coalesce the burst into a single reload.
+var _spExternalReload = null;
 window.addEventListener('storage', function(e){
-  if(e.key === 'voctrain_students' || e.key === 'voctrain_skillAreas'){
+  if(!e.key || SP_SHARED_KEYS.indexOf(e.key) === -1) return;
+  if(_spExternalReload) clearTimeout(_spExternalReload);
+  _spExternalReload = setTimeout(function(){
+    _spExternalReload = null;
     loadData();
     cestisStabilizeStudentIds();
     var _dr3 = deduplicateStudents();
@@ -1030,7 +1044,7 @@ window.addEventListener('storage', function(e){
     populateCourseDropdowns();
     filterStudents();
     updatePipelineCounts();
-  }
+  }, 120);
 });
 
 // Listen for parent-initiated refresh

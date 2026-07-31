@@ -660,4 +660,62 @@ test('shouldAdoptName: converges — once adopted, the reverse push is a no-op',
   assert.ok(!Core.shouldAdoptName(lms, fee), 'and no second pass in the original direction');
 });
 
+test('syncTwinFields: carries every shared detail, not just the name', function () {
+  var lms = { name: 'John Smith', email: 'j@x.com', phone: '876-555-1111', gender: 'Male',
+              dob: '1999-04-02', address: '12 Hope Rd', trn: '123-456-789',
+              lastModified: '2026-06-01T00:00:00Z' };
+  var fee = { name: 'Jon Smith', createdAt: '2026-01-01T00:00:00Z' };
+  var changed = Core.syncTwinFields(lms, fee, 'lms->fee');
+  assert.deepStrictEqual(fee.name, 'John Smith');
+  assert.deepStrictEqual(fee.email, 'j@x.com');
+  assert.deepStrictEqual(fee.contact, '876-555-1111');
+  assert.deepStrictEqual(fee.dateOfBirth, '1999-04-02');
+  assert.deepStrictEqual(fee.address, '12 Hope Rd');
+  assert.deepStrictEqual(fee.nationalId, '123-456-789');
+  assert.strictEqual(changed.length, 7);
+});
+
+test('syncTwinFields: maps back the other way', function () {
+  var fee = { name: 'Mary Brown', contact: '876-555-2222', dateOfBirth: '2001-08-09',
+              nationalId: 'TRN-9', updatedAt: '2026-06-01T00:00:00Z' };
+  var lms = { name: 'Mary Brown', lastModified: '2026-01-01T00:00:00Z' };
+  Core.syncTwinFields(fee, lms, 'fee->lms');
+  assert.strictEqual(lms.phone, '876-555-2222');
+  assert.strictEqual(lms.dob, '2001-08-09');
+  assert.strictEqual(lms.trn, 'TRN-9');
+});
+
+test('syncTwinFields: never wipes the other side with a blank it does not hold', function () {
+  var lms = { name: 'John Smith', email: '', phone: null, lastModified: '2026-06-01T00:00:00Z' };
+  var fee = { name: 'John Smith', email: 'kept@x.com', contact: '876-555-3333',
+              address: '9 Main St', createdAt: '2026-01-01T00:00:00Z' };
+  var changed = Core.syncTwinFields(lms, fee, 'lms->fee');
+  assert.deepStrictEqual(changed, [], 'nothing to copy');
+  assert.strictEqual(fee.email, 'kept@x.com');
+  assert.strictEqual(fee.contact, '876-555-3333');
+  assert.strictEqual(fee.address, '9 Main St', 'a field the dashboard never held survives');
+});
+
+test('syncTwinFields: the more recently edited record wins, and money is never touched', function () {
+  var stale = { name: 'Old Name', email: 'old@x.com', lastModified: '2026-01-01T00:00:00Z' };
+  var fresh = { name: 'New Name', email: 'new@x.com', tuitionFee: 28000, totalPaid: 20000,
+                balance: 8000, status: 'Partial Payment', updatedAt: '2026-06-01T00:00:00Z' };
+  assert.deepStrictEqual(Core.syncTwinFields(stale, fresh, 'lms->fee'), [], 'stale side cannot overwrite');
+  assert.strictEqual(fresh.name, 'New Name');
+  Core.syncTwinFields(fresh, stale, 'fee->lms');
+  assert.strictEqual(stale.name, 'New Name', 'the newer edit propagates');
+  assert.strictEqual(stale.tuitionFee, undefined, 'fee/money fields stay out of the dashboard');
+  assert.strictEqual(stale.balance, undefined);
+  assert.strictEqual(stale.status, undefined);
+});
+
+test('syncTwinFields: converges — a second pass has nothing left to do', function () {
+  var lms = { name: 'John Smith', email: 'j@x.com', lastModified: '2026-06-01T00:00:00Z' };
+  var fee = { name: 'Jon Smith', createdAt: '2026-01-01T00:00:00Z' };
+  assert.ok(Core.syncTwinFields(lms, fee, 'lms->fee').length > 0);
+  fee.updatedAt = lms.lastModified;
+  assert.deepStrictEqual(Core.syncTwinFields(lms, fee, 'lms->fee'), []);
+  assert.deepStrictEqual(Core.syncTwinFields(fee, lms, 'fee->lms'), [], 'and no bounce back');
+});
+
 console.log('\nAll ' + passed + ' tests passed.');
