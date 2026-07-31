@@ -78,7 +78,17 @@
 
   var Store = {
     _cache: cache,
-    getItem: function(k){ k=String(k); return (k in cache) ? cache[k] : null; },
+    // Read through to localStorage before trusting the cache. Every document
+    // (this page, its iframes, other tabs) runs its OWN copy of this store, so a
+    // key written elsewhere would otherwise still read as our stale copy — and
+    // saving that copy back silently reverts the other document's write. The
+    // 'storage' event below is not enough on its own: it arrives asynchronously,
+    // while a re-read immediately after an iframe reports a change is synchronous.
+    getItem: function(k){
+      k=String(k);
+      if(LS){ try { var lv = LS.getItem(k); if(lv !== null){ cache[k] = lv; return lv; } } catch(e){} }
+      return (k in cache) ? cache[k] : null;
+    },
     setItem: function(k,v){ k=String(k); v=String(v); cache[k]=v; try{ if(LS) LS.setItem(k,v); }catch(e){} writeIDB(k,v,false); },
     removeItem: function(k){ k=String(k); delete cache[k]; try{ if(LS) LS.removeItem(k); }catch(e){} writeIDB(k,null,true); },
     clear: function(){ for(var k in cache){ if(Object.prototype.hasOwnProperty.call(cache,k)) delete cache[k]; }
@@ -90,6 +100,17 @@
     whenReady: function(cb){ if(ready){ cb(); } else { window.addEventListener('cestis-store-ready', cb, {once:true}); } },
     get length(){ return Object.keys(cache).length; }
   };
+  // Deletions and clears cannot be seen by the read-through above (a removed key
+  // and a key too large for localStorage both read as null), so mirror them from
+  // the storage event, which fires in every OTHER document of this origin.
+  try {
+    window.addEventListener('storage', function(ev){
+      if(!ev) return;
+      if(ev.key === null){ for(var ck in cache){ if(Object.prototype.hasOwnProperty.call(cache,ck)) delete cache[ck]; } return; }
+      var sk = String(ev.key);
+      if(ev.newValue === null){ delete cache[sk]; } else { cache[sk] = ev.newValue; }
+    });
+  } catch(e){}
   window.CESTISStore = Store;
 })();
 </script>
@@ -6816,6 +6837,12 @@ function cestisStabilizeStudentIds() {
     }
   }
 
+  // A student's stable id is derived from name+course, so RENAMING one moves
+  // its id. Carry the School Fee twin's back-link across that move, or the fee
+  // record stops being recognised as the same person and the rename lands there
+  // as a duplicate instead of an update.
+  try { cestisRelinkFeeLinks(res && res.idMap); } catch(e) {}
+
   var _changed = (res && res.changed) || _droppedTomb > 0;
   if (!_changed) return false;
   try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
@@ -6826,6 +6853,49 @@ function cestisStabilizeStudentIds() {
   try { if (typeof saveUserAccounts === 'function') saveUserAccounts(); } catch(e) {}
   try { console.log('[stableId] remapped ' + Object.keys((res&&res.idMap)||{}).length + ' id(s), removed ' + ((res&&res.removed)||0) + ' duplicate(s), ' + _droppedTomb + ' tombstoned'); } catch(e) {}
   return true;
+}
+
+// Re-point the School Fee system's links after dashboard student ids were
+// remapped (dedupe or stable-id migration — the latter runs on every rename,
+// since the id is a hash of name+course). Fee records carry the dashboard id in
+// `lmsId`, and a fee record minted by the mirror shares the dashboard's stable
+// id outright, so both forms are followed. Fee ids themselves are never touched:
+// payments and documents hang off them.
+function cestisRelinkFeeLinks(idMap) {
+  if (!idMap || Object.keys(idMap).length === 0) return false;
+  var changed = false;
+  try {
+    var raw = CESTISStore.getItem('cestiSchoolFeeStudents');
+    var fee = raw ? (JSON.parse(raw) || []) : [];
+    if (Array.isArray(fee) && fee.length) {
+      fee.forEach(function(f) {
+        if (!f) return;
+        var moved = (f.lmsId && idMap[f.lmsId]) || (f.id && idMap[f.id]) || null;
+        if (moved && f.lmsId !== moved) { f.lmsId = moved; changed = true; }
+      });
+      if (changed) CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(fee));
+    }
+  } catch(e) { console.warn('cestisRelinkFeeLinks failed:', e); }
+  // Tombstones are keyed by dashboard id too — leave them behind and a student
+  // whose fee twin was deleted is resurrected by their next rename.
+  try {
+    var tRaw = CESTISStore.getItem('cestiSchoolFeeDeletedLmsIds');
+    var tomb = tRaw ? (JSON.parse(tRaw) || []) : [];
+    if (Array.isArray(tomb) && tomb.length) {
+      var tChanged = false;
+      var mapped = tomb.map(function(id) {
+        if (id && idMap[id]) { tChanged = true; return idMap[id]; }
+        return id;
+      });
+      if (tChanged) {
+        // Keep the old ids as well: another device may still hold the twin
+        // under its pre-migration id.
+        CESTISStore.setItem('cestiSchoolFeeDeletedLmsIds',
+          JSON.stringify(Object.keys(tomb.concat(mapped).reduce(function(acc, id){ if (id) acc[id] = true; return acc; }, {}))));
+      }
+    }
+  } catch(e) {}
+  return changed;
 }
 
 function updateSkillAreaCounts() {
@@ -16111,12 +16181,14 @@ function saveStudentProfile() {
   s.gender = newGender;
 
   // Update name in student data object, userAccounts, and students array
+  var wasIdentity = null;
   if(newName !== s.name) {
+    wasIdentity = { id: s.id, name: s.name, course: s.course, schoolFeeId: s.schoolFeeId };
     s.name = newName;
     if(currentLoggedInUser) currentLoggedInUser.name = newName;
     var acct = userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; });
     if(acct) acct.name = newName;
-    if(stu) stu.name = newName;
+    if(stu) { stu.name = newName; stu.lastModified = new Date().toISOString(); }
   }
 
   studentProfiles[s.id] = {
@@ -16127,6 +16199,12 @@ function saveStudentProfile() {
     emergencyPhone: emergencyPhone,
     updatedAt: new Date().toISOString()
   };
+
+  // Keep School Fee Management showing the same name as Student Progress.
+  if(wasIdentity && stu) {
+    try { enrolPropagateToFee(stu, studentProfiles[s.id], wasIdentity); }
+    catch(e) { console.warn('fee propagate failed', e); }
+  }
 
   // Sync profile pic and status to LMS Chat
   syncProfileToLmsChat(currentLoggedInUser?.id, newName, 'student', s.course, 'student');
@@ -16777,6 +16855,21 @@ window.addEventListener('message', function(e) {
       try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e2) {}
       try { saveUserAccounts(); } catch(e2) {}
     }
+    // A student edited in the Student Progress frame may have been RENAMED.
+    // That moves their stable id and breaks the name match, so the frame hands
+    // over the identity they had beforehand — the only way left to find their
+    // School Fee record and carry the new name onto it.
+    if (e.data.renamed) {
+      try {
+        var _r = e.data.renamed;
+        var _nrm = function(v){ return (v == null ? '' : String(v)).trim().toLowerCase().replace(/\s+/g, ' '); };
+        var _rs = students.find(function(x){
+          return x && (x.id === _r.newId ||
+            (_nrm(x.name) === _nrm(_r.newName) && _nrm(x.course) === _nrm(_r.newCourse)));
+        });
+        if (_rs) enrolPropagateToFee(_rs, studentProfiles[_rs.id], _r.was);
+      } catch(e2) { console.warn('rename propagate to fee failed:', e2); }
+    }
     refreshStudentDependentViews();
     updateSkillAreaCounts();
     saveState();
@@ -16985,6 +17078,12 @@ function syncStudentsFromLocalFeeSystem() {
       // in the LMS (tombstoned by stable id) or via the fee page is silently resurrected.
       var feeSid = (window.CESTISCore && typeof CESTISCore.stableStudentId === 'function')
         ? CESTISCore.stableStudentId({ name: name, course: course }) : null;
+      // Already represented on the dashboard via an explicit link? Check that
+      // BEFORE the id/name tests below: a rename on either side leaves the two
+      // records disagreeing on both, and adding "again" would split one trainee
+      // into two.
+      if (window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function' &&
+          students.some(function(x){ return x && CESTISCore.isFeeTwin(x, fee); })) return;
       if (deleted[studentId]) return;                 // removed on the dashboard
       if (feeSid && deleted[feeSid]) return;          // tombstoned under its stable id
       if (deleted['SF-' + norm(fee.id)]) return;      // tombstoned under the fee twin id
@@ -17196,6 +17295,9 @@ function saveEditStudent() {
   var name = document.getElementById('editStudentName').value.trim();
   if(!name){alert('Please enter a name');return;}
   var s = students[idx];
+  // Identity before the edit — the School Fee twin is matched on it so a rename
+  // updates that record instead of appearing there as a second person.
+  var was = { id: s.id, name: s.name, course: s.course, schoolFeeId: s.schoolFeeId };
   var newId = document.getElementById('editStudentId').value;
   if(newId && newId !== s.id) {
     var oldId = s.id;
@@ -17233,6 +17335,9 @@ function saveEditStudent() {
     if(_ap) { _ap.name = s.name; _ap.course = s.course; }
   }
   s.lastModified = new Date().toISOString();
+  // Push the edit onto the linked School Fee record before saveState(), whose
+  // mirror can only find twins that are still linked.
+  try { enrolPropagateToFee(s, studentProfiles[s.id], was); } catch(e) { console.warn('fee propagate failed', e); }
   updateSkillAreaCounts();
   closeModal('editStudentModal');
   filterStudents();
@@ -18268,6 +18373,7 @@ function enrolSaveTrainee() {
   var g = function(i){ var el = document.getElementById(i); return el ? el.value.trim() : ''; };
   var name = g('enrolEditName');
   if (!name) { alert('Name cannot be empty.'); return; }
+  var was = { id: s.id, name: s.name, course: s.course, schoolFeeId: s.schoolFeeId };
   s.name = name;
   s.dob = g('enrolEditDob');
   s.gender = g('enrolEditGender');
@@ -18283,7 +18389,7 @@ function enrolSaveTrainee() {
   s.lastModified = new Date().toISOString();
   // Two-way sync: overwrite the linked School Fee record before saveState (whose
   // mirror only backfills empty fields).
-  try { enrolPropagateToFee(s, studentProfiles[id]); } catch (e) { console.warn('[EnrolReg] fee propagate failed', e); }
+  try { enrolPropagateToFee(s, studentProfiles[id], was); } catch (e) { console.warn('[EnrolReg] fee propagate failed', e); }
   saveState();
   if (typeof refreshStudentDependentViews === 'function') { try { refreshStudentDependentViews(); } catch (e) {} }
   var modal = document.getElementById('enrolEditTraineeModal'); if (modal) modal.remove();
@@ -18292,19 +18398,25 @@ function enrolSaveTrainee() {
 }
 
 // Overwrite the matching School Fee record with the LMS edit (true two-way sync).
-function enrolPropagateToFee(student, prof) {
+// `was` is the student's identity BEFORE the edit (id / name / course); without
+// it a rename can no longer find its own fee record, because the name match
+// fails and the stable id has moved with the name.
+function enrolPropagateToFee(student, prof, was) {
   prof = prof || {};
   var raw = CESTISStore.getItem('cestiSchoolFeeStudents');
   var fee = []; if (raw) { try { fee = JSON.parse(raw) || []; } catch (e) { fee = []; } }
   if (!Array.isArray(fee)) return;
   var norm = function(v){ return (v == null ? '' : String(v)).trim().toLowerCase().replace(/\s+/g, ' '); };
   var rec = fee.find(function(f){ return f && (
-    f.lmsId === student.id || f.id === student.id || f.id === student.schoolFeeId ||
-    (norm(f.name) === norm(student.name) && (!f.skillArea || !student.course || norm(f.skillArea) === norm(student.course)))
+    window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function'
+      ? CESTISCore.isFeeTwin(student, f, was)
+      : (f.lmsId === student.id || f.id === student.id || f.id === student.schoolFeeId ||
+         (norm(f.name) === norm(student.name) && (!f.skillArea || !student.course || norm(f.skillArea) === norm(student.course))))
   ); });
   if (!rec) return; // no linked fee record yet; saveState's mirror will create one
   rec.lmsId = student.id;
   rec.name = student.name || rec.name;
+  rec.updatedAt = student.lastModified || new Date().toISOString();
   if (student.course && !rec.skillArea) rec.skillArea = student.course;
   rec.email = prof.email || student.email || '';
   rec.contact = prof.phone || student.phone || '';
@@ -18328,10 +18440,20 @@ function enrolSyncFeeEditsIntoLms() {
   fee.forEach(function(f) {
     if (!f) return;
     var s = students.find(function(x){ return x && (
-      x.id === f.lmsId || x.id === f.id || x.schoolFeeId === f.id ||
-      (norm(x.name) === norm(f.name) && (!x.course || !f.skillArea || norm(x.course) === norm(f.skillArea)))
+      window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function'
+        ? CESTISCore.isFeeTwin(x, f)
+        : (x.id === f.lmsId || x.id === f.id || x.schoolFeeId === f.id ||
+           (norm(x.name) === norm(f.name) && (!x.course || !f.skillArea || norm(x.course) === norm(f.skillArea))))
     ); });
     if (!s) return;
+    // Names sync both ways, resolved by edit recency — without this the
+    // dashboard would push its own name straight back over a fee-page rename.
+    if (window.CESTISCore && typeof CESTISCore.shouldAdoptName === 'function' &&
+        CESTISCore.shouldAdoptName(f, s)) {
+      s.name = String(f.name).trim();
+      s.lastModified = f.updatedAt || new Date().toISOString();
+      changed = true;
+    }
     if (typeof studentProfiles === 'undefined' || !studentProfiles) window.studentProfiles = {};
     if (!studentProfiles[s.id]) studentProfiles[s.id] = {};
     var p = studentProfiles[s.id];
@@ -43329,15 +43451,27 @@ function ttRefreshOnShow(){
 
         var prof = profiles[vs.id] || {};
         var existing = fee.find(function(f){ return f && (
-          f.lmsId === vs.id ||
-          f.id === vs.id ||
-          (norm(f.name) === norm(vs.name) &&
-            (!f.skillArea || !vs.course || norm(f.skillArea) === norm(vs.course)))
+          window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function'
+            ? CESTISCore.isFeeTwin(vs, f)
+            : (f.lmsId === vs.id ||
+               f.id === vs.id ||
+               (norm(f.name) === norm(vs.name) &&
+                 (!f.skillArea || !vs.course || norm(f.skillArea) === norm(vs.course))))
         ); });
 
         if (existing){
           // Link records and backfill only EMPTY fields; never overwrite fee data.
           if (existing.lmsId !== vs.id){ existing.lmsId = vs.id; changed = true; }
+          // The name is the exception: Student Progress owns it, so a rename
+          // there must reach the fee table rather than leaving the two systems
+          // showing different names for one person. Edit recency guards it, so a
+          // newer rename made on the fee page is never reverted.
+          if (window.CESTISCore && typeof CESTISCore.shouldAdoptName === 'function' &&
+              CESTISCore.shouldAdoptName(vs, existing)){
+            existing.name = String(vs.name).trim();
+            existing.updatedAt = vs.lastModified || new Date().toISOString();
+            changed = true;
+          }
           if (vs.course && !existing.skillArea){ existing.skillArea = vs.course; changed = true; }
           var em = vs.email || prof.email || '';
           if (em && !existing.email){ existing.email = em; changed = true; }
@@ -43472,6 +43606,9 @@ function ttRefreshOnShow(){
       CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(d.students));
       var added = false;
       if (typeof syncStudentsFromLocalFeeSystem === 'function') added = syncStudentsFromLocalFeeSystem();
+      // Pull edits (notably renames) made on the fee page into the dashboard's
+      // in-memory list, so the next saveState() doesn't write the old name back.
+      try { if (typeof enrolSyncFeeEditsIntoLms === 'function') enrolSyncFeeEditsIntoLms(); } catch(e){}
       // Refresh the Student Progress table (filterStudents also refreshes the
       // pipeline stage cards and the Dashboard total).
       try { if (typeof filterStudents === 'function') filterStudents(); } catch(e){}

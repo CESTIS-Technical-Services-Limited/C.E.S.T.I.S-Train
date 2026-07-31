@@ -46,7 +46,17 @@
   } catch(e){ db=null; ready=true; }
   var Store = {
     _cache: cache,
-    getItem: function(k){ k=String(k); return (k in cache) ? cache[k] : null; },
+    // Read through to localStorage before trusting the cache. Every document
+    // (this page, its iframes, other tabs) runs its OWN copy of this store, so a
+    // key written elsewhere would otherwise still read as our stale copy — and
+    // saving that copy back silently reverts the other document's write. The
+    // 'storage' event below is not enough on its own: it arrives asynchronously,
+    // while a re-read immediately after an iframe reports a change is synchronous.
+    getItem: function(k){
+      k=String(k);
+      if(LS){ try { var lv = LS.getItem(k); if(lv !== null){ cache[k] = lv; return lv; } } catch(e){} }
+      return (k in cache) ? cache[k] : null;
+    },
     setItem: function(k,v){ k=String(k); v=String(v); cache[k]=v; try{ if(LS) LS.setItem(k,v); }catch(e){} writeIDB(k,v,false); },
     removeItem: function(k){ k=String(k); delete cache[k]; try{ if(LS) LS.removeItem(k); }catch(e){} writeIDB(k,null,true); },
     clear: function(){ for(var k in cache){ if(Object.prototype.hasOwnProperty.call(cache,k)) delete cache[k]; }
@@ -58,6 +68,17 @@
     whenReady: function(cb){ if(ready){ cb(); } else { window.addEventListener('cestis-store-ready', cb, {once:true}); } },
     get length(){ return Object.keys(cache).length; }
   };
+  // Deletions and clears cannot be seen by the read-through above (a removed key
+  // and a key too large for localStorage both read as null), so mirror them from
+  // the storage event, which fires in every OTHER document of this origin.
+  try {
+    window.addEventListener('storage', function(ev){
+      if(!ev) return;
+      if(ev.key === null){ for(var ck in cache){ if(Object.prototype.hasOwnProperty.call(cache,ck)) delete cache[ck]; } return; }
+      var sk = String(ev.key);
+      if(ev.newValue === null){ delete cache[sk]; } else { cache[sk] = ev.newValue; }
+    });
+  } catch(e){}
   window.CESTISStore = Store;
 })();
   </script>
@@ -500,7 +521,12 @@ function cestisStabilizeStudentIds() {
   return true;
 }
 
-function saveData() {
+// `detail` rides along on the notification to the parent dashboard. A rename is
+// the one edit the parent cannot reconstruct on its own: the student's stable id
+// is a hash of name+course, so renaming moves it and the School Fee twin can no
+// longer be matched by either id or name. Passing the pre-edit identity is what
+// lets the parent find that twin and rename it too.
+function saveData(detail) {
   CESTISStore.setItem('voctrain_students', JSON.stringify(students));
   CESTISStore.setItem('voctrain_skillAreas', JSON.stringify(skillAreas));
   CESTISStore.setItem('voctrain_instructorData', JSON.stringify(instructorData));
@@ -511,7 +537,9 @@ function saveData() {
   CESTISStore.setItem('voctrain_studentProfiles', JSON.stringify(studentProfiles));
   // Notify parent window that student data changed
   try {
-    window.top.postMessage({type:'students-updated'}, '*');
+    var msg = {type:'students-updated'};
+    if (detail) { Object.keys(detail).forEach(function(k){ msg[k] = detail[k]; }); }
+    window.top.postMessage(msg, '*');
   } catch(e) {}
   // Reactive views: announce on the shared bus so this page re-renders too.
   try { if (window.CESTISCore && typeof CESTISCore.emit === 'function') CESTISCore.emit('cestis:state-saved'); } catch(e) {}
@@ -780,6 +808,9 @@ function saveEditStudent() {
   var name = document.getElementById('editStudentName').value.trim();
   if(!name){ alert('Please enter a name'); return; }
   var s = students[idx];
+  // Identity before the edit, handed to the dashboard below so the School Fee
+  // record for this person is renamed too instead of being left on the old name.
+  var was = { id: s.id, name: s.name, course: s.course, schoolFeeId: s.schoolFeeId };
   var newId = document.getElementById('editStudentId').value;
   if(newId && newId !== s.id){
     var oldId = s.id;
@@ -814,7 +845,7 @@ function saveEditStudent() {
   closeModal('editStudentModal');
   filterStudents();
   showToast(s.name + ' updated successfully');
-  saveData();
+  saveData({ renamed: { was: was, newId: s.id, newName: s.name, newCourse: s.course } });
 }
 
 // ============================== DELETE STUDENT ==============================
