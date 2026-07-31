@@ -58,7 +58,17 @@
 
   var Store = {
     _cache: cache,
-    getItem: function(k){ k=String(k); return (k in cache) ? cache[k] : null; },
+    // Read through to localStorage before trusting the cache. Every document
+    // (this page, its iframes, other tabs) runs its OWN copy of this store, so a
+    // key written elsewhere would otherwise still read as our stale copy — and
+    // saving that copy back silently reverts the other document's write. The
+    // 'storage' event below is not enough on its own: it arrives asynchronously,
+    // while a re-read immediately after an iframe reports a change is synchronous.
+    getItem: function(k){
+      k=String(k);
+      if(LS){ try { var lv = LS.getItem(k); if(lv !== null){ cache[k] = lv; return lv; } } catch(e){} }
+      return (k in cache) ? cache[k] : null;
+    },
     setItem: function(k,v){ k=String(k); v=String(v); cache[k]=v; try{ if(LS) LS.setItem(k,v); }catch(e){} writeIDB(k,v,false); },
     removeItem: function(k){ k=String(k); delete cache[k]; try{ if(LS) LS.removeItem(k); }catch(e){} writeIDB(k,null,true); },
     clear: function(){ for(var k in cache){ if(Object.prototype.hasOwnProperty.call(cache,k)) delete cache[k]; }
@@ -70,6 +80,17 @@
     whenReady: function(cb){ if(ready){ cb(); } else { window.addEventListener('cestis-store-ready', cb, {once:true}); } },
     get length(){ return Object.keys(cache).length; }
   };
+  // Deletions and clears cannot be seen by the read-through above (a removed key
+  // and a key too large for localStorage both read as null), so mirror them from
+  // the storage event, which fires in every OTHER document of this origin.
+  try {
+    window.addEventListener('storage', function(ev){
+      if(!ev) return;
+      if(ev.key === null){ for(var ck in cache){ if(Object.prototype.hasOwnProperty.call(cache,ck)) delete cache[ck]; } return; }
+      var sk = String(ev.key);
+      if(ev.newValue === null){ delete cache[sk]; } else { cache[sk] = ev.newValue; }
+    });
+  } catch(e){}
   window.CESTISStore = Store;
 })();
 </script>
@@ -4704,26 +4725,39 @@
                 if (!Array.isArray(incoming) || incoming.length === 0) return;
                 if (!Array.isArray(students)) students = [];
                 const norm = v => (v == null ? '' : String(v)).trim().toLowerCase().replace(/\s+/g, ' ');
+                // A delete on the dashboard reaches us in the same breath as its
+                // student list, so honour it now rather than at the next reload —
+                // otherwise the removed trainee lingers here and gets mirrored back.
                 let changed = false;
+                try { if (dropTombstonedFeeStudents()) changed = true; } catch (e) {}
 
                 incoming.forEach(p => {
                     if (!p || !p.name) return;
                     // Map dashboard fields -> fee fields.
                     const pId = p.id || '';
                     const pSkill = p.skillArea || p.course || '';
-                    const existing = students.find(s => s && (
-                        (pId && (s.id === pId || s.lmsId === pId)) ||
-                        (s.lmsId && s.lmsId === p.lmsId) ||
-                        (norm(s.name) === norm(p.name) &&
-                            (!s.skillArea || !pSkill || norm(s.skillArea) === norm(pSkill)))
-                    ));
+                    const twin = (window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function')
+                        ? (s => CESTISCore.isFeeTwin(p, s))
+                        : (s => (
+                            (pId && (s.id === pId || s.lmsId === pId)) ||
+                            (s.lmsId && s.lmsId === p.lmsId) ||
+                            (p.schoolFeeId && s.id === p.schoolFeeId) ||
+                            (norm(s.name) === norm(p.name) &&
+                                (!s.skillArea || !pSkill || norm(s.skillArea) === norm(pSkill)))
+                        ));
+                    const existing = students.find(s => s && twin(s));
 
                     if (existing) {
                         if (pId && existing.lmsId !== pId) { existing.lmsId = pId; changed = true; }
+                        // Adopt the details edited on the dashboard so both systems
+                        // show one version of this person. Edit recency decides, so
+                        // a newer edit made here is not overwritten on its way back.
+                        if (window.CESTISCore && typeof CESTISCore.syncTwinFields === 'function' &&
+                            CESTISCore.syncTwinFields(p, existing, 'lms->fee').length) {
+                            existing.updatedAt = p.lastModified || new Date().toISOString();
+                            changed = true;
+                        }
                         if (pSkill && !existing.skillArea) { existing.skillArea = pSkill; changed = true; }
-                        if (p.email && !existing.email) { existing.email = p.email; changed = true; }
-                        if ((p.contact || p.phone) && !existing.contact) { existing.contact = p.contact || p.phone; changed = true; }
-                        if (p.gender && !existing.gender) { existing.gender = p.gender; changed = true; }
                         return;
                     }
 
@@ -4767,6 +4801,31 @@
                 }
             } catch (e) { console.warn('applyStudentsFromParent failed:', e); }
         }
+
+        // Another document — the dashboard, the Student Progress page, another tab —
+        // changed data this page also holds. Reload it rather than keep rendering,
+        // and later saving, a stale copy over someone else's edit.
+        let _feeExternalReload = null;
+        window.addEventListener('storage', function (ev) {
+            if (!ev || !ev.key) return;
+            if (['cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDocuments',
+                 'cestiSchoolFeeDeletedLmsIds', 'voctrain_students', 'voctrain_deletedStudentIds']
+                .indexOf(ev.key) === -1) return;
+            if (_feeExternalReload) clearTimeout(_feeExternalReload);
+            _feeExternalReload = setTimeout(function () {
+                _feeExternalReload = null;
+                try {
+                    refreshLmsStudentCache();          // academic stage column
+                    if (typeof loadData === 'function') loadData();
+                    if (typeof renderStudentsTable === 'function') renderStudentsTable();
+                    if (typeof renderPaymentsTable === 'function') renderPaymentsTable();
+                    if (typeof renderDocumentsTable === 'function') renderDocumentsTable();
+                    if (typeof populatePaymentStudentSelect === 'function') populatePaymentStudentSelect();
+                    if (typeof populateDocumentStudentSelect === 'function') populateDocumentStudentSelect();
+                    if (typeof updateDashboard === 'function') updateDashboard();
+                } catch (e) { console.warn('external change reload failed:', e); }
+            }, 120);
+        });
 
         window.addEventListener('message', function (ev) {
             try {
@@ -4825,21 +4884,29 @@
                     // Match an existing dashboard record by link id, raw fee id,
                     // stored back-reference, or name (+ matching course).
                     const existing = lmsStudents.find(ls => ls && (
-                        ls.id === linkId ||
-                        ls.id === sf.id ||
-                        ls.schoolFeeId === sf.id ||
-                        (norm(ls.name) === norm(sf.name) &&
-                            (!ls.course || !sf.skillArea || norm(ls.course) === norm(sf.skillArea)))
+                        (window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function')
+                            ? CESTISCore.isFeeTwin(ls, sf)
+                            : (ls.id === linkId ||
+                               ls.id === sf.id ||
+                               ls.id === sf.lmsId ||
+                               ls.schoolFeeId === sf.id ||
+                               (norm(ls.name) === norm(sf.name) &&
+                                   (!ls.course || !sf.skillArea || norm(ls.course) === norm(sf.skillArea))))
                     ));
 
                     if (existing) {
-                        // Link records and backfill only EMPTY identity/contact
-                        // fields. Never touch stage / score / progress.
                         if (existing.schoolFeeId !== sf.id) { existing.schoolFeeId = sf.id; changed = true; }
+                        // Push every detail edited here onto the dashboard record —
+                        // name, contact, date of birth, address, ID — so both
+                        // systems show the same person. Stage / score / progress are
+                        // the dashboard's and are never touched; edit recency decides,
+                        // so a newer edit made there is not reverted.
+                        if (window.CESTISCore && typeof CESTISCore.syncTwinFields === 'function' &&
+                            CESTISCore.syncTwinFields(sf, existing, 'fee->lms').length) {
+                            existing.lastModified = sf.updatedAt || new Date().toISOString();
+                            changed = true;
+                        }
                         if (sf.skillArea && !existing.course) { existing.course = sf.skillArea; changed = true; }
-                        if (sf.email && !existing.email) { existing.email = sf.email; changed = true; }
-                        if (sf.contact && !existing.phone) { existing.phone = sf.contact; changed = true; }
-                        if (sf.gender && !existing.gender) { existing.gender = sf.gender; changed = true; }
                         return;
                     }
 
@@ -4877,6 +4944,39 @@
                 // Best-effort: a sync failure must never block fee management.
                 console.warn('syncStudentsToProgressDashboard failed:', e);
             }
+        }
+
+        // Carry a rename made HERE onto the linked Student Progress record. The
+        // twin is matched on the identity this record had BEFORE the edit as
+        // well as after it, because a rename leaves neither the name nor the
+        // derived stable id matching anything on the other side.
+        function propagateFeeRenameToLms(sf, was) {
+            try {
+                if (!sf || !was) return false;
+                const before = { id: was.id, lmsId: sf.lmsId, name: was.name, skillArea: was.skillArea };
+                let lms = [];
+                const raw = CESTISStore.getItem('voctrain_students');
+                if (raw) { try { lms = JSON.parse(raw) || []; } catch (e) { lms = []; } }
+                if (!Array.isArray(lms) || !lms.length) return false;
+                const isTwin = ls => (window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function')
+                    ? (CESTISCore.isFeeTwin(ls, sf) || CESTISCore.isFeeTwin(ls, before))
+                    : (ls.schoolFeeId === sf.id || ls.id === sf.id || ls.id === sf.lmsId ||
+                       ls.id === 'SF-' + sf.id || ls.schoolFeeId === was.id || ls.id === was.id ||
+                       ls.id === 'SF-' + was.id);
+                const rec = lms.find(ls => ls && isTwin(ls));
+                if (!rec) return false;   // no dashboard twin yet; the mirror will create one
+                let changed = false;
+                if (rec.schoolFeeId !== sf.id) { rec.schoolFeeId = sf.id; changed = true; }
+                const nm = String(sf.name || '').trim();
+                if (nm && rec.name !== nm) {
+                    rec.name = nm;
+                    rec.lastModified = sf.updatedAt || new Date().toISOString();
+                    changed = true;
+                }
+                if (!changed) return false;
+                CESTISStore.setItem('voctrain_students', JSON.stringify(lms));
+                return true;
+            } catch (e) { console.warn('propagateFeeRenameToLms failed:', e); return false; }
         }
 
         // Save data to localStorage
@@ -4926,6 +5026,23 @@
             if (Object.keys(idMap).length) {
                 if (Array.isArray(payments)) payments.forEach(function (p) { if (p && idMap[p.studentId]) p.studentId = idMap[p.studentId]; });
                 if (Array.isArray(documents)) documents.forEach(function (d) { if (d && idMap[d.studentId]) d.studentId = idMap[d.studentId]; });
+                // 4) And the Student Progress dashboard's back-reference, or the
+                //    two records stop recognising each other the moment a rename
+                //    moves this record's id.
+                try {
+                    var _lmsRaw = CESTISStore.getItem('voctrain_students');
+                    var _lms = _lmsRaw ? (JSON.parse(_lmsRaw) || []) : [];
+                    if (Array.isArray(_lms) && _lms.length) {
+                        var _lmsChanged = false;
+                        _lms.forEach(function (ls) {
+                            if (ls && ls.schoolFeeId && idMap[ls.schoolFeeId]) {
+                                ls.schoolFeeId = idMap[ls.schoolFeeId];
+                                _lmsChanged = true;
+                            }
+                        });
+                        if (_lmsChanged) CESTISStore.setItem('voctrain_students', JSON.stringify(_lms));
+                    }
+                } catch (e) { /* best effort: never block a save */ }
             }
             return Object.keys(idMap).length > 0 || removed > 0;
         }
@@ -5745,6 +5862,9 @@
 
             const student = students[editingStudentIndex];
             const oldSkillArea = student.skillArea;
+            // Identity before the edit — the Student Progress twin is matched on
+            // it below so a rename here updates that record too.
+            const wasIdentity = { id: student.id, name: student.name, skillArea: student.skillArea };
             const newTuitionFee = feeStructure[skillArea].total;
 
             // Warn if changing skill area with existing payments
@@ -5771,6 +5891,9 @@
             student.parentContact = parentContact;
             student.emergencyContact = emergencyContact;
             student.balance = newTuitionFee - student.totalPaid;
+            // Stamp the edit: the name is synced both ways and resolved by which
+            // side was edited last, so an undated record would lose every tie.
+            student.updatedAt = new Date().toISOString();
             
             // Update status based on new balance
             if (student.balance <= 0) {
@@ -5797,6 +5920,9 @@
             });
             
             saveData();
+            // After saveData, so the record carries its final (possibly
+            // restabilised) id when the dashboard record is linked to it.
+            propagateFeeRenameToLms(student, wasIdentity);
             renderStudentsTable();
             renderPaymentsTable();
             renderDocumentsTable();
@@ -7492,9 +7618,10 @@
             const reportType = document.getElementById('reportType').value;
             const { periodLabel } = getReportFilterPeriod();
 
-            // Colors
-            const primaryBlue = [13, 71, 161];
-            const lightGreen = [168, 213, 165];
+            // Colours: the same toned-down navy the receipt uses, so printed
+            // reports and receipts read as one set of documents.
+            const primaryBlue = [18, 52, 92];
+            const lightGreen = [201, 214, 232];
 
             // Header background
             doc.setFillColor(...primaryBlue);
@@ -7522,7 +7649,7 @@
             doc.setTextColor(0, 0, 0);
 
             // Report info box
-            doc.setFillColor(240, 248, 255);
+            doc.setFillColor(247, 248, 250);
             doc.roundedRect(14, 52, pageWidth - 28, 22, 3, 3, 'F');
 
             const reportTitles = {
@@ -7557,7 +7684,7 @@
                 const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
 
                 // Summary section
-                doc.setFillColor(240, 248, 255);
+                doc.setFillColor(247, 248, 250);
                 doc.roundedRect(14, startY, pageWidth - 28, 15, 3, 3, 'F');
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
@@ -7599,7 +7726,7 @@
                     const collected = studentList.reduce((sum, s) => sum + s.totalPaid, 0);
                     const rate = ((collected / total) * 100).toFixed(1);
 
-                    doc.setFillColor(240, 248, 255);
+                    doc.setFillColor(247, 248, 250);
                     doc.roundedRect(14, yPos, pageWidth - 28, 20, 3, 3, 'F');
 
                     doc.setFontSize(11);
@@ -7632,7 +7759,7 @@
                 const totalBalance = filteredStudents.reduce((sum, s) => sum + s.balance, 0);
 
                 // Summary section
-                doc.setFillColor(240, 248, 255);
+                doc.setFillColor(247, 248, 250);
                 doc.roundedRect(14, startY, pageWidth - 28, 15, 3, 3, 'F');
                 doc.setFontSize(9);
                 doc.setFont('helvetica', 'bold');
@@ -7909,10 +8036,31 @@
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
 
-            // Colors
-            const primaryBlue = [13, 71, 161];
-            const lightGreen = [168, 213, 165];
+            // Colours. The receipt is a printed document, so the blue is a deep
+            // navy rather than the bright screen blue, and the section headings sit
+            // on a pale band instead of full-width saturated slabs — easier to read,
+            // far less ink, and it keeps the eye on the figures.
+            const primaryBlue = [18, 52, 92];      // deep navy: header, footer, headings
+            const bandFill = [234, 238, 244];      // pale slate band behind section titles
+            const bandRule = [200, 210, 224];      // hairline under each band
+            const tagline = [201, 214, 232];       // soft blue-grey on the navy header
+            const lightGreen = [214, 233, 213];
             const darkGreen = [27, 94, 32];
+
+            // Draws a section heading: pale band, navy text, hairline underneath.
+            const sectionHeading = function (title, y) {
+                doc.setFillColor(...bandFill);
+                doc.rect(14, y, pageWidth - 28, 8, 'F');
+                doc.setDrawColor(...bandRule);
+                doc.setLineWidth(0.3);
+                doc.line(14, y + 8, pageWidth - 14, y + 8);
+                doc.setTextColor(...primaryBlue);
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.text(title, 20, y + 5.6);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+            };
 
             // Header background
             doc.setFillColor(...primaryBlue);
@@ -7927,7 +8075,7 @@
             // Tagline
             doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor(...lightGreen);
+            doc.setTextColor(...tagline);
             doc.text('Centre for Excellence - Training you for the future', pageWidth / 2, 26, { align: 'center' });
 
             // Receipt title
@@ -7940,7 +8088,7 @@
             doc.setTextColor(0, 0, 0);
 
             // Receipt info box
-            doc.setFillColor(240, 248, 255);
+            doc.setFillColor(247, 248, 250);
             doc.roundedRect(14, 52, pageWidth - 28, 25, 3, 3, 'F');
 
             doc.setFontSize(11);
@@ -7965,15 +8113,7 @@
             doc.text(payment.term, 138, 72);
 
             // Student Information Section
-            doc.setFillColor(...primaryBlue);
-            doc.rect(14, 85, pageWidth - 28, 8, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.text('STUDENT INFORMATION', 20, 91);
-
-            doc.setTextColor(0, 0, 0);
-            doc.setFont('helvetica', 'normal');
+            sectionHeading('STUDENT INFORMATION', 85);
             doc.setFontSize(10);
 
             let yPos = 102;
@@ -8003,16 +8143,10 @@
 
             // Payment Details Section
             yPos = 135;
-            doc.setFillColor(...primaryBlue);
-            doc.rect(14, yPos - 7, pageWidth - 28, 8, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.text('PAYMENT DETAILS', 20, yPos - 1);
+            sectionHeading('PAYMENT DETAILS', yPos - 7);
 
             // Payment table
             yPos += 8;
-            doc.setTextColor(0, 0, 0);
 
             doc.autoTable({
                 startY: yPos,
@@ -8022,7 +8156,7 @@
                 ],
                 theme: 'grid',
                 headStyles: {
-                    fillColor: [100, 149, 237],
+                    fillColor: primaryBlue,
                     textColor: [255, 255, 255],
                     fontStyle: 'bold',
                     fontSize: 10

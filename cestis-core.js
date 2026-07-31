@@ -99,7 +99,19 @@
 
     var Store = {
       _cache: cache,
-      getItem: function (k) { k = String(k); return (k in cache) ? cache[k] : null; },
+      // Read through to localStorage before trusting the cache. Every document
+      // (a page, each of its iframes, other tabs) runs its OWN copy of this
+      // store, so a key written in one would otherwise still read as this one's
+      // stale copy — and saving that copy back silently reverts the other
+      // document's write. That is what stopped an edit made in an embedded page
+      // from reaching the rest of the system. The 'storage' event below is not
+      // enough on its own: it is delivered asynchronously, while a re-read
+      // immediately after an iframe reports a change is synchronous.
+      getItem: function (k) {
+        k = String(k);
+        if (LS) { try { var lv = LS.getItem(k); if (lv !== null) { cache[k] = lv; return lv; } } catch (e) {} }
+        return (k in cache) ? cache[k] : null;
+      },
       setItem: function (k, v) { k = String(k); v = String(v); cache[k] = v; try { if (LS) LS.setItem(k, v); } catch (e) {} writeIDB(k, v, false); },
       removeItem: function (k) { k = String(k); delete cache[k]; try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
       clear: function () {
@@ -113,6 +125,18 @@
       whenReady: function (cb) { if (ready) { cb(); } else { root.addEventListener('cestis-store-ready', cb, { once: true }); } },
       get length() { return Object.keys(cache).length; }
     };
+    // Deletions and clears cannot be seen by the read-through above (a removed
+    // key and a key too large for localStorage both read as null), so mirror
+    // them from the storage event, which fires in every OTHER document of this
+    // origin — including this page's iframes and the user's other tabs.
+    try {
+      root.addEventListener('storage', function (ev) {
+        if (!ev) return;
+        if (ev.key === null) { for (var ck in cache) { if (Object.prototype.hasOwnProperty.call(cache, ck)) delete cache[ck]; } return; }
+        var sk = String(ev.key);
+        if (ev.newValue === null) { delete cache[sk]; } else { cache[sk] = ev.newValue; }
+      });
+    } catch (e) {}
     root.CESTISStore = Store;
   })();
 
@@ -202,6 +226,108 @@
     var key = Core.naturalKey(student);
     if (!key) return null;
     return 'STU-' + Core.hashString(key);
+  };
+
+  /* --- Cross-system twin identity (Student Progress <-> School Fee) -------
+     Each trainee exists twice: a dashboard student record and a School Fee
+     record. The two are linked by an explicit id (fee.lmsId / student
+     .schoolFeeId), by a shared stable id (both systems mint ids from the same
+     natural key), or — for pairs that predate any link — by name + course.
+     Renaming a trainee breaks both fallbacks at once: the names no longer
+     match, and the stable id, being derived from the name, has moved. So
+     callers pass the identity the record held BEFORE the edit as `was` and the
+     twin is still found — which is what makes a rename UPDATE the fee record
+     instead of showing up there as a second person. */
+  function sameTwinIdentity(name, course, fee) {
+    if (!name || !fee) return false;
+    if (Core.normName(name) !== Core.normName(fee.name)) return false;
+    var c = Core.normCourse(course), fc = Core.normCourse(fee.skillArea || fee.course);
+    return !c || !fc || c === fc;
+  }
+  function hasId(v) { return v != null && v !== ''; }
+
+  Core.isFeeTwin = function (student, fee, was) {
+    if (!student || !fee) return false;
+    was = was || {};
+    var lmsIds = {};
+    [student.id, was.id].forEach(function (v) { if (hasId(v)) lmsIds[String(v)] = true; });
+    // Explicit links and shared stable ids — the only matches that survive a rename.
+    if (hasId(fee.lmsId) && lmsIds[String(fee.lmsId)]) return true;
+    if (hasId(fee.id) && lmsIds[String(fee.id)]) return true;
+    if (hasId(fee.id) && lmsIds['SF-' + fee.id]) return true; // fee page's mirrored twin id
+    if (hasId(fee.id) && hasId(student.schoolFeeId) && String(student.schoolFeeId) === String(fee.id)) return true;
+    if (hasId(fee.id) && hasId(was.schoolFeeId) && String(was.schoolFeeId) === String(fee.id)) return true;
+    // Never-linked pairs: match the person as they read now, or as they read
+    // before this edit.
+    return sameTwinIdentity(student.name, student.course, fee) ||
+           sameTwinIdentity(was.name, ('course' in was ? was.course : student.course), fee);
+  };
+
+  /* --- Edit recency -------------------------------------------------------
+     The name is the one field both systems may change, so it is resolved by
+     which record was edited last. The dashboard stamps `lastModified`, the fee
+     page `updatedAt`; creation time is the fallback so a freshly created record
+     still outranks one that has never carried a timestamp. */
+  Core.editedAt = function (rec) {
+    if (!rec) return 0;
+    var t = rec.lastModified || rec.updatedAt || rec.createdAt;
+    if (!t) return 0;
+    var ms = Date.parse(t);
+    return isNaN(ms) ? 0 : ms;
+  };
+
+  // Should `src`'s name replace the one on `dst`? Only when it is a real,
+  // different name and `dst` has not been edited more recently — so a rename
+  // propagates across, but never reverts a newer rename made on the other side.
+  Core.shouldAdoptName = function (src, dst) {
+    if (!src || !dst) return false;
+    var name = String(src.name == null ? '' : src.name).trim();
+    if (!name) return false;
+    if (Core.normName(name) === Core.normName(dst.name)) return false;
+    return Core.editedAt(dst) <= Core.editedAt(src);
+  };
+
+  /* --- Shared person fields ----------------------------------------------
+     The same facts under different names on each side. Everything a user can
+     type about a trainee is shared both ways, so correcting a date of birth or
+     an address in one system reaches the other.
+     Deliberately NOT here: money (tuition, payments, balance, status), which is
+     only ever entered on the fee page; and course/skillArea, which stays
+     backfill-only because the fee page's skill area drives its tuition lookup
+     and must remain a value that page recognises. */
+  Core.TWIN_FIELDS = [
+    { lms: 'name', fee: 'name' },
+    { lms: 'email', fee: 'email' },
+    { lms: 'phone', fee: 'contact' },
+    { lms: 'gender', fee: 'gender' },
+    { lms: 'dob', fee: 'dateOfBirth' },
+    { lms: 'address', fee: 'address' },
+    { lms: 'trn', fee: 'nationalId' }
+  ];
+
+  // Copy every shared field `src` disagrees with `dst` about, unless `dst` was
+  // edited more recently — the same last-edit-wins rule the name uses, applied
+  // to the whole record. Blank source values are skipped: the two systems
+  // collect different subsets of a person's details, so a field one of them
+  // simply doesn't hold must never wipe the other's copy.
+  // `direction` is 'lms->fee' (default) or 'fee->lms'. Returns the changed keys.
+  Core.syncTwinFields = function (src, dst, direction) {
+    var changed = [];
+    if (!src || !dst) return changed;
+    if (Core.editedAt(dst) > Core.editedAt(src)) return changed;
+    var lmsToFee = direction !== 'fee->lms';
+    Core.TWIN_FIELDS.forEach(function (f) {
+      var from = lmsToFee ? f.lms : f.fee;
+      var to = lmsToFee ? f.fee : f.lms;
+      var v = src[from];
+      if (v == null) return;
+      v = String(v).trim();
+      if (!v) return;
+      if (String(dst[to] == null ? '' : dst[to]).trim() === v) return;
+      dst[to] = v;
+      changed.push(to);
+    });
+    return changed;
   };
 
   /* --- Student record merge (pure; identical semantics to the app) -------- */

@@ -58,7 +58,17 @@
 
   var Store = {
     _cache: cache,
-    getItem: function(k){ k=String(k); return (k in cache) ? cache[k] : null; },
+    // Read through to localStorage before trusting the cache. Every document
+    // (this page, its iframes, other tabs) runs its OWN copy of this store, so a
+    // key written elsewhere would otherwise still read as our stale copy — and
+    // saving that copy back silently reverts the other document's write. The
+    // 'storage' event below is not enough on its own: it arrives asynchronously,
+    // while a re-read immediately after an iframe reports a change is synchronous.
+    getItem: function(k){
+      k=String(k);
+      if(LS){ try { var lv = LS.getItem(k); if(lv !== null){ cache[k] = lv; return lv; } } catch(e){} }
+      return (k in cache) ? cache[k] : null;
+    },
     setItem: function(k,v){ k=String(k); v=String(v); cache[k]=v; try{ if(LS) LS.setItem(k,v); }catch(e){} writeIDB(k,v,false); },
     removeItem: function(k){ k=String(k); delete cache[k]; try{ if(LS) LS.removeItem(k); }catch(e){} writeIDB(k,null,true); },
     clear: function(){ for(var k in cache){ if(Object.prototype.hasOwnProperty.call(cache,k)) delete cache[k]; }
@@ -70,6 +80,17 @@
     whenReady: function(cb){ if(ready){ cb(); } else { window.addEventListener('cestis-store-ready', cb, {once:true}); } },
     get length(){ return Object.keys(cache).length; }
   };
+  // Deletions and clears cannot be seen by the read-through above (a removed key
+  // and a key too large for localStorage both read as null), so mirror them from
+  // the storage event, which fires in every OTHER document of this origin.
+  try {
+    window.addEventListener('storage', function(ev){
+      if(!ev) return;
+      if(ev.key === null){ for(var ck in cache){ if(Object.prototype.hasOwnProperty.call(cache,ck)) delete cache[ck]; } return; }
+      var sk = String(ev.key);
+      if(ev.newValue === null){ delete cache[sk]; } else { cache[sk] = ev.newValue; }
+    });
+  } catch(e){}
   window.CESTISStore = Store;
 })();
 </script>

@@ -574,4 +574,148 @@ test('reconcileSnapshot: re-links accounts & approvals through collapsed student
   assert.ok(students.some(function (s) { return s.id === accounts[0].studentDataId; }), 'no dangling account link');
 });
 
+/* ---- LMS <-> School Fee twin linking ---------------------------------- */
+console.log('\nStudent Progress <-> School Fee twin linking');
+
+test('isFeeTwin: matches on the explicit lmsId back-link', function () {
+  var lms = { id: 'STU-abc', name: 'John Smith', course: 'Welding' };
+  var fee = { id: '2024-001', lmsId: 'STU-abc', name: 'John Smith', skillArea: 'Welding' };
+  assert.ok(Core.isFeeTwin(lms, fee));
+});
+
+test('isFeeTwin: matches on a shared stable id and on the SF- twin id', function () {
+  var sid = Core.stableStudentId({ name: 'John Smith', course: 'Welding' });
+  assert.ok(Core.isFeeTwin({ id: sid, name: 'John Smith', course: 'Welding' }, { id: sid, name: 'John Smith' }));
+  assert.ok(Core.isFeeTwin({ id: 'SF-9', name: 'John Smith', course: 'Welding' }, { id: '9', name: 'Someone Else' }));
+});
+
+test('isFeeTwin: matches on name + course when nothing is linked yet', function () {
+  var lms = { id: 'STU-1', name: 'John  Smith', course: 'Welding' };
+  assert.ok(Core.isFeeTwin(lms, { id: 'F1', name: 'john smith', skillArea: 'welding' }));
+  assert.ok(!Core.isFeeTwin(lms, { id: 'F1', name: 'John Smith', skillArea: 'Plumbing' }), 'different course is a different person');
+  assert.ok(!Core.isFeeTwin(lms, { id: 'F1', name: 'Jane Smith', skillArea: 'Welding' }));
+});
+
+test('isFeeTwin: a rename still finds the fee record via the pre-edit identity', function () {
+  // This is the reported bug: renaming in Student Progress left School Fee on the
+  // old name. The name no longer matches AND the stable id (a hash of
+  // name+course) has moved, so without `was` the twin is unreachable.
+  var oldId = Core.stableStudentId({ name: 'Jon Smith', course: 'Welding' });
+  var newId = Core.stableStudentId({ name: 'John Smith', course: 'Welding' });
+  assert.notStrictEqual(oldId, newId, 'renaming moves the stable id');
+  var renamed = { id: newId, name: 'John Smith', course: 'Welding' };
+  var fee = { id: oldId, name: 'Jon Smith', skillArea: 'Welding' };
+  assert.ok(!Core.isFeeTwin(renamed, fee), 'unreachable without the previous identity');
+  assert.ok(Core.isFeeTwin(renamed, fee, { id: oldId, name: 'Jon Smith', course: 'Welding' }),
+    'found once the caller passes what the student was called before');
+});
+
+test('isFeeTwin: never matches unrelated people', function () {
+  assert.ok(!Core.isFeeTwin({ id: 'A', name: 'John Smith', course: 'Welding' },
+                            { id: 'B', name: 'Mary Brown', skillArea: 'Cosmetology' },
+                            { id: 'C', name: 'Jon Smith', course: 'Welding' }));
+  assert.ok(!Core.isFeeTwin(null, { id: 'B' }));
+  assert.ok(!Core.isFeeTwin({ id: 'A' }, null));
+});
+
+test('editedAt: reads either system\'s timestamp, newest field first', function () {
+  assert.strictEqual(Core.editedAt(null), 0);
+  assert.strictEqual(Core.editedAt({}), 0);
+  assert.strictEqual(Core.editedAt({ createdAt: 'not a date' }), 0);
+  assert.strictEqual(Core.editedAt({ createdAt: '2026-01-01T00:00:00Z' }), Date.parse('2026-01-01T00:00:00Z'));
+  assert.strictEqual(Core.editedAt({ updatedAt: '2026-02-01T00:00:00Z', createdAt: '2026-01-01T00:00:00Z' }),
+    Date.parse('2026-02-01T00:00:00Z'));
+  assert.strictEqual(Core.editedAt({ lastModified: '2026-03-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' }),
+    Date.parse('2026-03-01T00:00:00Z'));
+});
+
+test('shouldAdoptName: a newer rename propagates, an older one never reverts', function () {
+  var older = { name: 'Jon Smith', lastModified: '2026-01-01T00:00:00Z' };
+  var newer = { name: 'John Smith', updatedAt: '2026-06-01T00:00:00Z' };
+  assert.ok(Core.shouldAdoptName(newer, older), 'the more recently edited side wins');
+  assert.ok(!Core.shouldAdoptName(older, newer), 'and the stale side does not overwrite it');
+});
+
+test('shouldAdoptName: ignores blank names and no-op differences', function () {
+  var dst = { name: 'John Smith', lastModified: '2026-01-01T00:00:00Z' };
+  assert.ok(!Core.shouldAdoptName({ name: '', lastModified: '2026-09-01T00:00:00Z' }, dst), 'never blanks a name');
+  assert.ok(!Core.shouldAdoptName({ name: '   ', lastModified: '2026-09-01T00:00:00Z' }, dst));
+  assert.ok(!Core.shouldAdoptName({ name: ' john   smith ', lastModified: '2026-09-01T00:00:00Z' }, dst),
+    'same name, differently spaced, is not a change');
+  assert.ok(!Core.shouldAdoptName(null, dst));
+  assert.ok(!Core.shouldAdoptName({ name: 'X' }, null));
+});
+
+test('shouldAdoptName: an undated record yields to one carrying a timestamp', function () {
+  assert.ok(Core.shouldAdoptName({ name: 'John Smith', lastModified: '2026-06-01T00:00:00Z' }, { name: 'Jon Smith' }));
+  assert.ok(!Core.shouldAdoptName({ name: 'Jon Smith' }, { name: 'John Smith', updatedAt: '2026-06-01T00:00:00Z' }));
+});
+
+test('shouldAdoptName: converges — once adopted, the reverse push is a no-op', function () {
+  var lms = { name: 'John Smith', lastModified: '2026-06-01T00:00:00Z' };
+  var fee = { name: 'Jon Smith', updatedAt: '2026-01-01T00:00:00Z' };
+  assert.ok(Core.shouldAdoptName(lms, fee));
+  fee.name = lms.name; fee.updatedAt = lms.lastModified;
+  assert.ok(!Core.shouldAdoptName(fee, lms), 'no ping-pong back to the dashboard');
+  assert.ok(!Core.shouldAdoptName(lms, fee), 'and no second pass in the original direction');
+});
+
+test('syncTwinFields: carries every shared detail, not just the name', function () {
+  var lms = { name: 'John Smith', email: 'j@x.com', phone: '876-555-1111', gender: 'Male',
+              dob: '1999-04-02', address: '12 Hope Rd', trn: '123-456-789',
+              lastModified: '2026-06-01T00:00:00Z' };
+  var fee = { name: 'Jon Smith', createdAt: '2026-01-01T00:00:00Z' };
+  var changed = Core.syncTwinFields(lms, fee, 'lms->fee');
+  assert.deepStrictEqual(fee.name, 'John Smith');
+  assert.deepStrictEqual(fee.email, 'j@x.com');
+  assert.deepStrictEqual(fee.contact, '876-555-1111');
+  assert.deepStrictEqual(fee.dateOfBirth, '1999-04-02');
+  assert.deepStrictEqual(fee.address, '12 Hope Rd');
+  assert.deepStrictEqual(fee.nationalId, '123-456-789');
+  assert.strictEqual(changed.length, 7);
+});
+
+test('syncTwinFields: maps back the other way', function () {
+  var fee = { name: 'Mary Brown', contact: '876-555-2222', dateOfBirth: '2001-08-09',
+              nationalId: 'TRN-9', updatedAt: '2026-06-01T00:00:00Z' };
+  var lms = { name: 'Mary Brown', lastModified: '2026-01-01T00:00:00Z' };
+  Core.syncTwinFields(fee, lms, 'fee->lms');
+  assert.strictEqual(lms.phone, '876-555-2222');
+  assert.strictEqual(lms.dob, '2001-08-09');
+  assert.strictEqual(lms.trn, 'TRN-9');
+});
+
+test('syncTwinFields: never wipes the other side with a blank it does not hold', function () {
+  var lms = { name: 'John Smith', email: '', phone: null, lastModified: '2026-06-01T00:00:00Z' };
+  var fee = { name: 'John Smith', email: 'kept@x.com', contact: '876-555-3333',
+              address: '9 Main St', createdAt: '2026-01-01T00:00:00Z' };
+  var changed = Core.syncTwinFields(lms, fee, 'lms->fee');
+  assert.deepStrictEqual(changed, [], 'nothing to copy');
+  assert.strictEqual(fee.email, 'kept@x.com');
+  assert.strictEqual(fee.contact, '876-555-3333');
+  assert.strictEqual(fee.address, '9 Main St', 'a field the dashboard never held survives');
+});
+
+test('syncTwinFields: the more recently edited record wins, and money is never touched', function () {
+  var stale = { name: 'Old Name', email: 'old@x.com', lastModified: '2026-01-01T00:00:00Z' };
+  var fresh = { name: 'New Name', email: 'new@x.com', tuitionFee: 28000, totalPaid: 20000,
+                balance: 8000, status: 'Partial Payment', updatedAt: '2026-06-01T00:00:00Z' };
+  assert.deepStrictEqual(Core.syncTwinFields(stale, fresh, 'lms->fee'), [], 'stale side cannot overwrite');
+  assert.strictEqual(fresh.name, 'New Name');
+  Core.syncTwinFields(fresh, stale, 'fee->lms');
+  assert.strictEqual(stale.name, 'New Name', 'the newer edit propagates');
+  assert.strictEqual(stale.tuitionFee, undefined, 'fee/money fields stay out of the dashboard');
+  assert.strictEqual(stale.balance, undefined);
+  assert.strictEqual(stale.status, undefined);
+});
+
+test('syncTwinFields: converges — a second pass has nothing left to do', function () {
+  var lms = { name: 'John Smith', email: 'j@x.com', lastModified: '2026-06-01T00:00:00Z' };
+  var fee = { name: 'Jon Smith', createdAt: '2026-01-01T00:00:00Z' };
+  assert.ok(Core.syncTwinFields(lms, fee, 'lms->fee').length > 0);
+  fee.updatedAt = lms.lastModified;
+  assert.deepStrictEqual(Core.syncTwinFields(lms, fee, 'lms->fee'), []);
+  assert.deepStrictEqual(Core.syncTwinFields(fee, lms, 'fee->lms'), [], 'and no bounce back');
+});
+
 console.log('\nAll ' + passed + ' tests passed.');
