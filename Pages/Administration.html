@@ -51,6 +51,13 @@
         <label>Page Link (URL)</label>
         <input type="url" class="form-control" id="settTmsUrl" placeholder="https://tms.heart-nta.org/CTI/default.aspx">
       </div>
+      <div class="form-group">
+        <label>Display Mode</label>
+        <select class="form-control" id="settTmsMode">
+          <option value="embed">Embedded — display inside the page (recommended)</option>
+          <option value="launch">Launch panel — always open in its own window instead</option>
+        </select>
+      </div>
       <div class="form-group" style="margin-bottom:0;">
         <label>Headline / Comment (always shown above the page)</label>
         <textarea class="form-control" id="settTmsHeadline" rows="3" placeholder="e.g. Log in with your HEART/NSTA TMS credentials. Enrolment cut-off is Friday 4:00pm." style="resize:vertical;"></textarea>
@@ -64,6 +71,13 @@
         <label>Page Link (URL)</label>
         <input type="url" class="form-control" id="settNqsUrl" placeholder="https://nqs-certification.heart-nta.org/qdocs.aspx">
       </div>
+      <div class="form-group">
+        <label>Display Mode</label>
+        <select class="form-control" id="settNqsMode">
+          <option value="embed">Embedded — display inside the page (recommended)</option>
+          <option value="launch">Launch panel — always open in its own window instead</option>
+        </select>
+      </div>
       <div class="form-group" style="margin-bottom:0;">
         <label>Headline / Comment (always shown above the page)</label>
         <textarea class="form-control" id="settNqsHeadline" rows="3" placeholder="e.g. Use this page to download qualification documents for certification." style="resize:vertical;"></textarea>
@@ -76,9 +90,19 @@
       <button class="btn btn-secondary" onclick="resetExtSystemDefaults()">Restore Default Links</button>
     </div>
 
-    <div style="margin-top:16px;padding:12px;background:var(--accent-dim);border-radius:var(--radius-sm);font-size:12px;color:var(--accent);line-height:1.6;">
-      Some external sites refuse to be displayed inside a frame. If a page comes up blank,
-      the <strong>Open in New Tab</strong> button on that page still opens it normally.
+    <div style="margin-top:16px;padding:14px;background:var(--accent-dim);border-radius:var(--radius-sm);font-size:12px;color:var(--accent);line-height:1.7;">
+      <strong>If a system shows a blank panel on a device</strong><br>
+      Both HEART/NSTA systems serve a security certificate browsers do not recognise
+      (<code>NET::ERR_CERT_AUTHORITY_INVALID</code>). A browser will not show that certificate
+      warning inside a panel, so the panel stays blank until the certificate is approved once,
+      on that device, in a normal tab.<br><br>
+      Every page has a <strong>Page blank?</strong> button with the steps, and those steps appear
+      automatically the first time a device opens each system. Each person has to do it once per
+      device and browser &mdash; it does not carry over.<br><br>
+      The permanent fix is on HEART/NSTA's side: a certificate from a public certificate authority
+      for those hostnames. Until then, <strong>Embedded</strong> works fine after the one-time
+      approval; switch a system to <strong>Launch panel</strong> if you would rather it always
+      open in its own window.
     </div>
   </div>
 </div>

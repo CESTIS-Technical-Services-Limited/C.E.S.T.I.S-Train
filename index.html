@@ -494,6 +494,42 @@ body::-webkit-scrollbar { width:0; display:none; }
   border:1px solid var(--border); border-radius:12px; background:#fff; display:block;
 }
 .ext-sys-hint { font-size:12px; color:var(--text-muted); line-height:1.6; }
+/* Launch panel — shown instead of the frame when the remote system refuses
+   to be embedded (X-Frame-Options / CSP frame-ancestors). */
+.ext-sys-launch {
+  display:flex; align-items:center; justify-content:center;
+  min-height:420px; height:calc(100vh - var(--topbar-h) - 200px);
+  background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:30px;
+}
+.ext-sys-launch-inner { text-align:center; max-width:560px; }
+.ext-sys-launch-icon {
+  width:64px; height:64px; margin:0 auto 18px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--accent-dim); color:var(--accent);
+}
+.ext-sys-launch-inner h4 { font-size:17px; margin:0 0 10px; color:var(--text-primary); }
+.ext-sys-launch-inner p { font-size:13px; color:var(--text-secondary); line-height:1.7; margin:0 0 22px; }
+.ext-sys-launch-actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:16px; }
+.ext-sys-launch-url { font-size:11px; color:var(--text-muted); word-break:break-all; }
+@media (max-width:768px) {
+  .ext-sys-launch { height:auto; min-height:320px; padding:24px 18px; }
+}
+.ext-sys-help-btn {
+  background:var(--accent-dim); color:var(--accent); border:1px solid rgba(243,156,18,0.35);
+}
+.ext-sys-help-btn:hover { background:var(--accent); color:#1a1a1a; }
+/* Steps in the "page blank?" certificate helper */
+.ext-sys-steps { margin:0; padding-left:22px; }
+.ext-sys-steps > li {
+  font-size:13px; color:var(--text-secondary); line-height:1.7; margin-bottom:14px; padding-left:4px;
+}
+.ext-sys-steps > li strong { color:var(--text-primary); }
+.ext-sys-steps code {
+  background:var(--bg-input); padding:2px 6px; border-radius:4px; font-size:12px; word-break:break-all;
+}
+.ext-sys-steps-sub { margin:10px 0 0; padding-left:18px; }
+.ext-sys-steps-sub li { font-size:12.5px; line-height:1.8; margin-bottom:4px; }
+.ext-sys-steps-sub em { color:var(--text-primary); font-style:normal; font-weight:600; }
 @media (max-width:768px) {
   .ext-sys-frame { height:calc(100vh - var(--topbar-h) - 260px); min-height:360px; }
 }
@@ -16289,28 +16325,41 @@ function saveSystemSettings() {
 // editable by the Administrator in Settings -> External Systems, and the pages
 // are available to the Administrator and to Administrative Staff.
 var EXT_SYSTEM_KEYS = ['tms', 'nqs'];
+// mode: 'embed'  — show the system inside an iframe on the page (the default).
+//       'launch' — skip the frame and offer the system in its own window.
+//
+// Both HEART/NSTA systems serve a TLS certificate browsers do not trust
+// (NET::ERR_CERT_AUTHORITY_INVALID). A browser cannot show its certificate
+// warning inside a frame, so the frame stays blank until the viewer approves
+// the certificate once, in a top-level tab, on that device. After that the
+// embed works normally — hence 'embed' stays the default, and the pages carry
+// a "Page blank?" helper that walks the viewer through approving it.
 var EXT_SYSTEM_DEFAULTS = {
   tms: {
     label: 'TMS System',
     url: 'https://tms.heart-nta.org/CTI/default.aspx',
     headline: '',
+    mode: 'embed',
     urlFieldId: 'settTmsUrl',
-    headlineFieldId: 'settTmsHeadline'
+    headlineFieldId: 'settTmsHeadline',
+    modeFieldId: 'settTmsMode'
   },
   nqs: {
     label: 'NQS System',
     url: 'https://nqs-certification.heart-nta.org/qdocs.aspx',
     headline: '',
+    mode: 'embed',
     urlFieldId: 'settNqsUrl',
-    headlineFieldId: 'settNqsHeadline'
+    headlineFieldId: 'settNqsHeadline',
+    modeFieldId: 'settNqsMode'
   }
 };
 // pageId -> which system it shows and the element ids on that page.
 var extSystemPageMap = {
-  'tms-system':    { key:'tms', frameId:'tmsSystemFrame',   headlineId:'tmsSystemHeadline',   urlLabelId:'tmsSystemUrlLabel',   linkId:'tmsSystemOpenLink' },
-  'nqs-system':    { key:'nqs', frameId:'nqsSystemFrame',   headlineId:'nqsSystemHeadline',   urlLabelId:'nqsSystemUrlLabel',   linkId:'nqsSystemOpenLink' },
-  'as-tms-system': { key:'tms', frameId:'asTmsSystemFrame', headlineId:'asTmsSystemHeadline', urlLabelId:'asTmsSystemUrlLabel', linkId:'asTmsSystemOpenLink' },
-  'as-nqs-system': { key:'nqs', frameId:'asNqsSystemFrame', headlineId:'asNqsSystemHeadline', urlLabelId:'asNqsSystemUrlLabel', linkId:'asNqsSystemOpenLink' }
+  'tms-system':    { key:'tms', frameId:'tmsSystemFrame',   headlineId:'tmsSystemHeadline',   urlLabelId:'tmsSystemUrlLabel',   linkId:'tmsSystemOpenLink',   panelId:'tmsSystemLaunch',   hintId:'tmsSystemHint',   reloadId:'tmsSystemReload' },
+  'nqs-system':    { key:'nqs', frameId:'nqsSystemFrame',   headlineId:'nqsSystemHeadline',   urlLabelId:'nqsSystemUrlLabel',   linkId:'nqsSystemOpenLink',   panelId:'nqsSystemLaunch',   hintId:'nqsSystemHint',   reloadId:'nqsSystemReload' },
+  'as-tms-system': { key:'tms', frameId:'asTmsSystemFrame', headlineId:'asTmsSystemHeadline', urlLabelId:'asTmsSystemUrlLabel', linkId:'asTmsSystemOpenLink', panelId:'asTmsSystemLaunch', hintId:'asTmsSystemHint', reloadId:'asTmsSystemReload' },
+  'as-nqs-system': { key:'nqs', frameId:'asNqsSystemFrame', headlineId:'asNqsSystemHeadline', urlLabelId:'asNqsSystemUrlLabel', linkId:'asNqsSystemOpenLink', panelId:'asNqsSystemLaunch', hintId:'asNqsSystemHint', reloadId:'asNqsSystemReload' }
 };
 
 // Saved settings may predate this feature (systemSettings is replaced wholesale
@@ -16323,7 +16372,8 @@ function getExtSystemConfig(key) {
     key: key,
     label: def.label,
     url: url || def.url,
-    headline: typeof saved.headline === 'string' ? saved.headline.trim() : def.headline
+    headline: typeof saved.headline === 'string' ? saved.headline.trim() : def.headline,
+    mode: (saved.mode === 'embed' || saved.mode === 'launch') ? saved.mode : def.mode
   };
 }
 
@@ -16340,9 +16390,9 @@ function extSystemPageHtml(pageId) {
   var info = extSystemPageMap[pageId];
   if(!info) return '';
   var cfg = getExtSystemConfig(info.key);
-  var isAdminStaffPage = pageId.indexOf('as-') === 0;
-  var hint = 'If the system does not load below, it may block being embedded in a frame — use <strong>Open in New Tab</strong>.' +
-    (isAdminStaffPage ? '' : ' The link and the headline above it are editable in <strong>Settings &rarr; External Systems</strong>.');
+  // Both the frame and the launch panel are rendered; mountExtSystemPage shows
+  // whichever the configured mode calls for, so the Administrator can switch
+  // modes without the pages being rebuilt.
   return '<section class="page ext-sys-page" id="page-' + pageId + '">' +
     '<div class="ext-sys-headline" id="' + info.headlineId + '" style="display:none;"></div>' +
     '<div class="ext-sys-toolbar">' +
@@ -16351,13 +16401,122 @@ function extSystemPageHtml(pageId) {
         '<div class="ext-sys-url" id="' + info.urlLabelId + '"></div>' +
       '</div>' +
       '<div class="ext-sys-actions">' +
-        '<button class="btn btn-secondary btn-sm" onclick="reloadExtSystemPage(\'' + pageId + '\')">Reload</button>' +
+        '<button class="btn btn-sm ext-sys-help-btn" onclick="openExtSystemHelp(\'' + pageId + '\')" title="The panel is blank or shows an error">Page blank?</button>' +
+        '<button class="btn btn-secondary btn-sm" id="' + info.reloadId + '" onclick="reloadExtSystemPage(\'' + pageId + '\')">Reload</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="openExtSystemWindow(\'' + pageId + '\')">Open in Window</button>' +
         '<a class="btn btn-primary btn-sm" id="' + info.linkId + '" href="#" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Open in New Tab &#8599;</a>' +
       '</div>' +
     '</div>' +
-    '<iframe id="' + info.frameId + '" class="ext-sys-frame" title="' + escapeAttr(cfg.label) + '" referrerpolicy="no-referrer-when-downgrade"></iframe>' +
-    '<div class="ext-sys-hint">' + hint + '</div>' +
+    '<iframe id="' + info.frameId + '" class="ext-sys-frame" title="' + escapeAttr(cfg.label) + '" referrerpolicy="no-referrer-when-downgrade" style="display:none;"></iframe>' +
+    '<div class="ext-sys-launch" id="' + info.panelId + '" style="display:none;"></div>' +
+    '<div class="ext-sys-hint" id="' + info.hintId + '"></div>' +
   '</section>';
+}
+
+function extSystemLaunchPanelHtml(pageId, cfg) {
+  return '<div class="ext-sys-launch-inner">' +
+    '<div class="ext-sys-launch-icon">' +
+      '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
+    '</div>' +
+    '<h4>' + escapeHtml(cfg.label) + ' opens in its own window</h4>' +
+    '<p>This system is set to open in its own window rather than display inside the page. Everything works normally &mdash; it just runs in a separate window or tab.</p>' +
+    '<div class="ext-sys-launch-actions">' +
+      '<button class="btn btn-primary" onclick="openExtSystemWindow(\'' + pageId + '\')">Open ' + escapeHtml(cfg.label) + '</button>' +
+      '<a class="btn btn-secondary" href="' + escapeAttr(cfg.url) + '" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Open in New Tab &#8599;</a>' +
+    '</div>' +
+    '<div class="ext-sys-launch-url">' + escapeHtml(cfg.url) + '</div>' +
+  '</div>';
+}
+
+// ---- "Page blank?" certificate helper -------------------------------------
+// A cert-blocked frame is indistinguishable from a healthy cross-origin frame
+// from this side: both fire load, neither fires error, and both throw
+// SecurityError on access. So this is never auto-detected — it is offered as a
+// button on every external-system page, and shown once automatically the first
+// time a device opens each system (every new device has to trust the
+// certificate once).
+function extSystemHost(url) {
+  try { return new URL(url).host; } catch(e) { return (url || '').replace(/^https?:\/\//i, '').split('/')[0]; }
+}
+
+function extSystemHelpSeen(key, markSeen) {
+  var storeKey = 'voctrain_extSysCertHelpSeen_' + key;
+  try {
+    // Deliberately raw localStorage, not CESTISStore: trusting a certificate is
+    // per-device, so this flag must never travel with the synced settings.
+    if(markSeen) { window.localStorage.setItem(storeKey, '1'); return true; }
+    return window.localStorage.getItem(storeKey) === '1';
+  } catch(e) { return !!markSeen; }
+}
+
+function ensureExtSystemHelpModal() {
+  if(document.getElementById('extSystemHelpModal')) return;
+  var el = document.createElement('div');
+  el.className = 'modal-overlay';
+  el.id = 'extSystemHelpModal';
+  el.innerHTML = '<div class="modal" style="max-width:660px;max-height:88vh;overflow-y:auto;">' +
+      '<div class="modal-header">' +
+        '<h3 id="extSystemHelpTitle">If the page is blank</h3>' +
+        '<button class="modal-close" onclick="closeModal(\'extSystemHelpModal\')">&times;</button>' +
+      '</div>' +
+      '<div id="extSystemHelpBody"></div>' +
+    '</div>';
+  document.body.appendChild(el);
+}
+
+function openExtSystemHelp(pageId) {
+  var info = extSystemPageMap[pageId];
+  if(!info) return;
+  var cfg = getExtSystemConfig(info.key);
+  var host = extSystemHost(cfg.url);
+  ensureExtSystemHelpModal();
+  document.getElementById('extSystemHelpTitle').textContent = cfg.label + ' — page blank?';
+  document.getElementById('extSystemHelpBody').innerHTML =
+    '<p style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin:0 0 16px;">' +
+      escapeHtml(cfg.label) + ' uses a security certificate your browser does not recognise yet. A browser will not show that certificate warning inside a panel, so the panel stays blank until you approve the certificate once &mdash; on the site itself. <strong>You only do this once on each device.</strong>' +
+    '</p>' +
+    '<ol class="ext-sys-steps">' +
+      '<li>Open the system in its own tab:<div style="margin-top:8px;">' +
+        '<a class="btn btn-primary btn-sm" href="' + escapeAttr(cfg.url) + '" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Open ' + escapeHtml(cfg.label) + ' &#8599;</a>' +
+      '</div></li>' +
+      '<li>The browser warns <strong>&ldquo;Your connection is not private&rdquo;</strong> (<code>NET::ERR_CERT_AUTHORITY_INVALID</code>).</li>' +
+      '<li>Approve it &mdash; the wording depends on the browser:' +
+        '<ul class="ext-sys-steps-sub">' +
+          '<li><strong>Chrome / Edge</strong> (Windows, Mac, Android): <em>Advanced</em> &rarr; <em>Proceed to ' + escapeHtml(host) + ' (unsafe)</em></li>' +
+          '<li><strong>Safari</strong> (Mac, iPhone, iPad): <em>Show Details</em> &rarr; <em>visit this website</em> &rarr; <em>Visit Website</em></li>' +
+          '<li><strong>Firefox</strong>: <em>Advanced</em> &rarr; <em>Accept the Risk and Continue</em></li>' +
+        '</ul>' +
+      '</li>' +
+      '<li>When the ' + escapeHtml(cfg.label) + ' sign-in page appears, come back to this tab and reload the panel.</li>' +
+    '</ol>' +
+    '<div style="margin-top:18px;padding:12px;background:var(--accent-dim);border-radius:var(--radius-sm);font-size:12px;color:var(--accent);line-height:1.7;">' +
+      'Everyone does this on their own device the first time &mdash; approving it on one computer does not carry over to another, or to a different browser on the same computer.' +
+    '</div>' +
+    '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap;">' +
+      '<button class="btn btn-secondary" onclick="closeModal(\'extSystemHelpModal\')">Close</button>' +
+      '<button class="btn btn-primary" onclick="closeModal(\'extSystemHelpModal\');reloadExtSystemPage(\'' + pageId + '\')">I&rsquo;ve done that &mdash; Reload the page</button>' +
+    '</div>';
+  extSystemHelpSeen(info.key, true);
+  openModal('extSystemHelpModal');
+}
+
+// Opens the system in a large named window. Re-clicking focuses the same
+// window instead of piling up copies.
+function openExtSystemWindow(pageId) {
+  var info = extSystemPageMap[pageId];
+  if(!info) return;
+  var cfg = getExtSystemConfig(info.key);
+  if(!cfg.url) return;
+  var availW = (window.screen && screen.availWidth) || 1280;
+  var availH = (window.screen && screen.availHeight) || 800;
+  var w = Math.max(900, Math.round(availW * 0.9));
+  var h = Math.max(600, Math.round(availH * 0.9));
+  var left = Math.max(0, Math.round((availW - w) / 2));
+  var top = Math.max(0, Math.round((availH - h) / 2));
+  var win = window.open(cfg.url, 'cestisExt_' + info.key,
+    'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top + ',resizable=yes,scrollbars=yes');
+  if(win) { try { win.focus(); } catch(e) {} }
+  else showToast('Your browser blocked the pop-up. Allow pop-ups for this site, or use Open in New Tab.', 'warning');
 }
 
 // loadFrame=false refreshes the headline/link text only, without pulling the
@@ -16383,10 +16542,32 @@ function mountExtSystemPage(pageId, loadFrame) {
   var linkEl = document.getElementById(info.linkId);
   if(linkEl) linkEl.href = cfg.url || '#';
 
+  var embed = cfg.mode === 'embed';
   var frame = document.getElementById(info.frameId);
-  if(loadFrame && frame && cfg.url && frame.getAttribute('data-ext-src') !== cfg.url) {
+  var panel = document.getElementById(info.panelId);
+  var reloadBtn = document.getElementById(info.reloadId);
+  if(frame) frame.style.display = embed ? '' : 'none';
+  if(reloadBtn) reloadBtn.style.display = embed ? '' : 'none';
+  if(panel) {
+    panel.style.display = embed ? 'none' : '';
+    if(!embed) panel.innerHTML = extSystemLaunchPanelHtml(pageId, cfg);
+  }
+
+  var hintEl = document.getElementById(info.hintId);
+  if(hintEl) {
+    hintEl.innerHTML = embed
+      ? 'Panel blank on this device? The system\'s security certificate has to be approved once per device &mdash; click <strong>Page blank?</strong> above for the steps.'
+      : '';
+  }
+
+  // Only pull the remote page into a frame when it is actually being embedded.
+  if(embed && loadFrame && frame && cfg.url && frame.getAttribute('data-ext-src') !== cfg.url) {
     frame.setAttribute('data-ext-src', cfg.url);
     frame.src = cfg.url;
+    // First time this device opens this system, walk the viewer through
+    // approving the certificate — otherwise they just get a blank panel with
+    // no idea why. Shown once per device; the button stays for later.
+    if(!extSystemHelpSeen(info.key)) setTimeout(function(){ openExtSystemHelp(pageId); }, 700);
   }
 }
 
@@ -16420,6 +16601,8 @@ function loadExtSystemsUI() {
     if(urlEl) urlEl.value = cfg.url;
     var headEl = document.getElementById(def.headlineFieldId);
     if(headEl) headEl.value = cfg.headline;
+    var modeEl = document.getElementById(def.modeFieldId);
+    if(modeEl) modeEl.value = cfg.mode;
   });
 }
 
@@ -16430,9 +16613,12 @@ function saveExtSystemsSettings() {
     var def = EXT_SYSTEM_DEFAULTS[key];
     var urlEl = document.getElementById(def.urlFieldId);
     var headEl = document.getElementById(def.headlineFieldId);
+    var modeEl = document.getElementById(def.modeFieldId);
     var url = normalizeExtSystemUrl(urlEl ? urlEl.value : (current[key] || {}).url);
     var headline = headEl ? headEl.value.trim() : ((current[key] || {}).headline || '');
-    next[key] = { url: url || def.url, headline: headline };
+    var mode = modeEl ? modeEl.value : (current[key] || {}).mode;
+    if(mode !== 'embed' && mode !== 'launch') mode = def.mode;
+    next[key] = { url: url || def.url, headline: headline, mode: mode };
   });
   systemSettings.extSystems = next;
   saveState();
