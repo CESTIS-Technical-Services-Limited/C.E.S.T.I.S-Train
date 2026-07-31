@@ -471,6 +471,32 @@ body::-webkit-scrollbar { width:0; display:none; }
 .cmc-iframe-content iframe {
   width:100%; height:600px; border:none; background:#fff;
 }
+/* ---- External Systems (TMS / NQS) embedded pages ---- */
+/* The headline bar is a sticky notice the Administrator writes in
+   Settings -> External Systems; it stays pinned above the embedded page. */
+.ext-sys-page.page.active { display:flex; flex-direction:column; gap:12px; }
+.ext-sys-headline {
+  position:sticky; top:0; z-index:5;
+  display:flex; align-items:flex-start; gap:10px;
+  padding:12px 16px; border-radius:var(--radius);
+  background:var(--accent-dim); border:1px solid var(--accent-dim);
+  border-left:4px solid var(--accent);
+  color:var(--text-primary); font-size:14px; font-weight:600; line-height:1.55;
+  white-space:pre-wrap; word-break:break-word;
+}
+.ext-sys-headline .ext-sys-headline-icon { flex:none; font-size:15px; line-height:1.5; }
+.ext-sys-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.ext-sys-toolbar h3 { font-family:'Playfair Display',serif; margin:0; font-size:18px; }
+.ext-sys-toolbar .ext-sys-url { font-size:11px; color:var(--text-muted); word-break:break-all; margin-top:2px; }
+.ext-sys-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.ext-sys-frame {
+  width:100%; height:calc(100vh - var(--topbar-h) - 200px); min-height:420px;
+  border:1px solid var(--border); border-radius:12px; background:#fff; display:block;
+}
+.ext-sys-hint { font-size:12px; color:var(--text-muted); line-height:1.6; }
+@media (max-width:768px) {
+  .ext-sys-frame { height:calc(100vh - var(--topbar-h) - 260px); min-height:360px; }
+}
 .cmc-empty-state {
   text-align:center; padding:60px 30px; color:var(--text-muted);
 }
@@ -5673,7 +5699,14 @@ var driveResources = []; // Admin-managed resources uploaded to Google Drive
 var documentHubFiles = []; // Document Hub files for staff download
 var studentProfiles = {};
 var instructorProfiles = {};
-var systemSettings = { institutionName: 'C.E.S.T.I.S LMS - Community Training Intervention', adminEmail: 'admin@heartlms.edu.jm', academicYear: '2025/2026', vcProvider: 'Built-in (WebRTC)' };
+var systemSettings = { institutionName: 'C.E.S.T.I.S LMS - Community Training Intervention', adminEmail: 'admin@heartlms.edu.jm', academicYear: '2025/2026', vcProvider: 'Built-in (WebRTC)',
+  // Embedded external systems (TMS / NQS). Links and the headline notice shown
+  // above each embedded page are editable in Settings -> External Systems.
+  extSystems: {
+    tms: { url: 'https://tms.heart-nta.org/CTI/default.aspx', headline: '' },
+    nqs: { url: 'https://nqs-certification.heart-nta.org/qdocs.aspx', headline: '' }
+  }
+};
 
 // ============================== LMS CHAT DATA MODEL ==============================
 var lmsChatRooms = [];
@@ -7802,7 +7835,10 @@ function switchSettingsTab(tab, which) {
   document.getElementById('settingsTabDatamanagement').style.display = which==='datamanagement' ? '' : 'none';
   document.getElementById('settingsTabGoogleVerification').style.display = which==='googleverification' ? '' : 'none';
   document.getElementById('settingsTabMaintenance').style.display = which==='maintenance' ? '' : 'none';
+  var extTab = document.getElementById('settingsTabExtsystems');
+  if(extTab) extTab.style.display = which==='extsystems' ? '' : 'none';
   if(which === 'users') renderUserAccountsTable();
+  if(which === 'extsystems') loadExtSystemsUI();
   if(which === 'staffaccess') renderAdminStaffAccessGrid();
   if(which === 'datamanagement') refreshStorageUsage();
   if(which === 'googleverification') loadGoogleVerificationUI();
@@ -9248,6 +9284,13 @@ function buildAdminSidebar() {
     <div class="nav-item" data-page="document-hub" onclick="showPage('document-hub')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>Document Hub</div>
     </div>
+    <div class="nav-section-label nav-section-toggle collapsed" onclick="toggleNavSection(this)">External Systems<svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+    <div class="nav-section-group collapsed">
+    <div class="nav-item" data-page="tms-system" onclick="showPage('tms-system')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="6" y1="8" x2="18" y2="8"/></svg>TMS System</div>
+    <div class="nav-item" data-page="nqs-system" onclick="showPage('nqs-system')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="12" cy="15" r="2.5"/><path d="M10.5 17.2 10 21l2-1.2 2 1.2-.5-3.8"/></svg>NQS System</div>
+    </div>
     <div class="nav-item nav-item-standalone" data-page="settings" onclick="showPage('settings')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</div>
   `;
@@ -9749,7 +9792,8 @@ function showPage(pageId) {
     'qual-plan':'Qual Plan / Curriculum','s-qual-plan':'Qual Plan / Curriculum','i-qual-plan':'Qual Plan / Curriculum','as-qual-plan':'Qual Plan / Curriculum',
     'transcript-grades':'Transcript / Grades','s-transcript-grades':'Transcript / Grades','as-transcript-grades':'Transcript / Grades','i-trainee-grades':'Trainee Grades',
     'cert-transcript-requests':'Certificate / Transcript Requests','as-cert-transcript-requests':'Certificate / Transcript Requests',
-    'cmc-dashboard':'CMC Analytics Dashboard','cmc-financial':'Financial Overview','cmc-staff':'Staff & HR','cmc-academic':'Academic Performance','cmc-sources':'Source Viewer','cmc-profile':'My Profile'
+    'cmc-dashboard':'CMC Analytics Dashboard','cmc-financial':'Financial Overview','cmc-staff':'Staff & HR','cmc-academic':'Academic Performance','cmc-sources':'Source Viewer','cmc-profile':'My Profile',
+    'tms-system':'TMS System','as-tms-system':'TMS System','nqs-system':'NQS System','as-nqs-system':'NQS System'
   };
   document.getElementById('topbarTitle').textContent = titles[pageId]||pageId;
   if(pageId === 'support-messages' || pageId === 'as-support-messages') renderSupportMessagesPage();
@@ -9801,6 +9845,9 @@ function showPage(pageId) {
       try { iframeEl.contentWindow.postMessage({ type: 'cestis-show-privacy' }, '*'); } catch(e){}
     }
   }
+  // External systems (TMS / NQS) — link and headline come from system settings,
+  // so re-apply them each visit and load the frame on first open.
+  if(extSystemPageMap[pageId]) mountExtSystemPage(pageId, true);
   // Qual Plan / Curriculum is hosted in Qual-Plan-Curriculum.html. The src is built
   // with the viewer's role (and, for students/instructors, their skill area) so the
   // page can show only the relevant qualification plan & curriculum folders.
@@ -10479,6 +10526,10 @@ function buildAdminPages() {
     </div>
     <iframe id="pdfWorkshopFrame" style="width:100%;height:calc(100vh - var(--topbar-h) - 56px);border:none;border-radius:12px;"></iframe>
   </section>
+
+  <!-- EXTERNAL SYSTEMS — TMS / NQS (Admin) -->
+  ${extSystemPageHtml('tms-system')}
+  ${extSystemPageHtml('nqs-system')}
   `;
 
   populateCourseDropdowns();
@@ -16230,6 +16281,173 @@ function saveSystemSettings() {
 
   saveState();
   showToast('Settings saved successfully');
+}
+
+// ============================== EXTERNAL SYSTEMS (TMS / NQS) ==============================
+// Two HEART/NSTA web systems are hosted directly inside the dashboard in an
+// iframe. Both the link and the headline notice printed above the frame are
+// editable by the Administrator in Settings -> External Systems, and the pages
+// are available to the Administrator and to Administrative Staff.
+var EXT_SYSTEM_KEYS = ['tms', 'nqs'];
+var EXT_SYSTEM_DEFAULTS = {
+  tms: {
+    label: 'TMS System',
+    url: 'https://tms.heart-nta.org/CTI/default.aspx',
+    headline: '',
+    urlFieldId: 'settTmsUrl',
+    headlineFieldId: 'settTmsHeadline'
+  },
+  nqs: {
+    label: 'NQS System',
+    url: 'https://nqs-certification.heart-nta.org/qdocs.aspx',
+    headline: '',
+    urlFieldId: 'settNqsUrl',
+    headlineFieldId: 'settNqsHeadline'
+  }
+};
+// pageId -> which system it shows and the element ids on that page.
+var extSystemPageMap = {
+  'tms-system':    { key:'tms', frameId:'tmsSystemFrame',   headlineId:'tmsSystemHeadline',   urlLabelId:'tmsSystemUrlLabel',   linkId:'tmsSystemOpenLink' },
+  'nqs-system':    { key:'nqs', frameId:'nqsSystemFrame',   headlineId:'nqsSystemHeadline',   urlLabelId:'nqsSystemUrlLabel',   linkId:'nqsSystemOpenLink' },
+  'as-tms-system': { key:'tms', frameId:'asTmsSystemFrame', headlineId:'asTmsSystemHeadline', urlLabelId:'asTmsSystemUrlLabel', linkId:'asTmsSystemOpenLink' },
+  'as-nqs-system': { key:'nqs', frameId:'asNqsSystemFrame', headlineId:'asNqsSystemHeadline', urlLabelId:'asNqsSystemUrlLabel', linkId:'asNqsSystemOpenLink' }
+};
+
+// Saved settings may predate this feature (systemSettings is replaced wholesale
+// when state loads), so always merge over the defaults.
+function getExtSystemConfig(key) {
+  var def = EXT_SYSTEM_DEFAULTS[key] || { label:key, url:'', headline:'' };
+  var saved = (systemSettings && systemSettings.extSystems && systemSettings.extSystems[key]) || {};
+  var url = typeof saved.url === 'string' ? saved.url.trim() : '';
+  return {
+    key: key,
+    label: def.label,
+    url: url || def.url,
+    headline: typeof saved.headline === 'string' ? saved.headline.trim() : def.headline
+  };
+}
+
+// Keep the stored link to an http(s) address — anything else (javascript:, data:)
+// gets an https:// prefix, which makes it inert as a frame source.
+function normalizeExtSystemUrl(raw) {
+  var v = (raw || '').trim();
+  if(!v) return '';
+  if(!/^https?:\/\//i.test(v)) v = 'https://' + v.replace(/^\/+/, '');
+  return v;
+}
+
+function extSystemPageHtml(pageId) {
+  var info = extSystemPageMap[pageId];
+  if(!info) return '';
+  var cfg = getExtSystemConfig(info.key);
+  var isAdminStaffPage = pageId.indexOf('as-') === 0;
+  var hint = 'If the system does not load below, it may block being embedded in a frame — use <strong>Open in New Tab</strong>.' +
+    (isAdminStaffPage ? '' : ' The link and the headline above it are editable in <strong>Settings &rarr; External Systems</strong>.');
+  return '<section class="page ext-sys-page" id="page-' + pageId + '">' +
+    '<div class="ext-sys-headline" id="' + info.headlineId + '" style="display:none;"></div>' +
+    '<div class="ext-sys-toolbar">' +
+      '<div>' +
+        '<h3>' + escapeHtml(cfg.label) + '</h3>' +
+        '<div class="ext-sys-url" id="' + info.urlLabelId + '"></div>' +
+      '</div>' +
+      '<div class="ext-sys-actions">' +
+        '<button class="btn btn-secondary btn-sm" onclick="reloadExtSystemPage(\'' + pageId + '\')">Reload</button>' +
+        '<a class="btn btn-primary btn-sm" id="' + info.linkId + '" href="#" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Open in New Tab &#8599;</a>' +
+      '</div>' +
+    '</div>' +
+    '<iframe id="' + info.frameId + '" class="ext-sys-frame" title="' + escapeAttr(cfg.label) + '" referrerpolicy="no-referrer-when-downgrade"></iframe>' +
+    '<div class="ext-sys-hint">' + hint + '</div>' +
+  '</section>';
+}
+
+// loadFrame=false refreshes the headline/link text only, without pulling the
+// remote page into a frame the user has not opened yet.
+function mountExtSystemPage(pageId, loadFrame) {
+  var info = extSystemPageMap[pageId];
+  if(!info) return;
+  if(loadFrame === undefined) loadFrame = true;
+  var cfg = getExtSystemConfig(info.key);
+
+  var headEl = document.getElementById(info.headlineId);
+  if(headEl) {
+    if(cfg.headline) {
+      headEl.style.display = '';
+      headEl.innerHTML = '<span class="ext-sys-headline-icon">&#128226;</span><span>' + escapeHtml(cfg.headline) + '</span>';
+    } else {
+      headEl.style.display = 'none';
+      headEl.innerHTML = '';
+    }
+  }
+  var urlEl = document.getElementById(info.urlLabelId);
+  if(urlEl) urlEl.textContent = cfg.url;
+  var linkEl = document.getElementById(info.linkId);
+  if(linkEl) linkEl.href = cfg.url || '#';
+
+  var frame = document.getElementById(info.frameId);
+  if(loadFrame && frame && cfg.url && frame.getAttribute('data-ext-src') !== cfg.url) {
+    frame.setAttribute('data-ext-src', cfg.url);
+    frame.src = cfg.url;
+  }
+}
+
+function reloadExtSystemPage(pageId) {
+  var info = extSystemPageMap[pageId];
+  if(!info) return;
+  var frame = document.getElementById(info.frameId);
+  if(frame) frame.removeAttribute('data-ext-src');
+  mountExtSystemPage(pageId, true);
+}
+
+// After a settings save: update every built page, re-loading only the frames
+// that are already showing a page (or are the active page).
+function refreshExtSystemPages() {
+  Object.keys(extSystemPageMap).forEach(function(pid) {
+    var info = extSystemPageMap[pid];
+    var frame = document.getElementById(info.frameId);
+    if(!frame) return;
+    var pg = document.getElementById('page-' + pid);
+    var alreadyLoaded = !!frame.getAttribute('data-ext-src');
+    var isActive = !!(pg && pg.classList.contains('active'));
+    mountExtSystemPage(pid, alreadyLoaded || isActive);
+  });
+}
+
+function loadExtSystemsUI() {
+  EXT_SYSTEM_KEYS.forEach(function(key) {
+    var def = EXT_SYSTEM_DEFAULTS[key];
+    var cfg = getExtSystemConfig(key);
+    var urlEl = document.getElementById(def.urlFieldId);
+    if(urlEl) urlEl.value = cfg.url;
+    var headEl = document.getElementById(def.headlineFieldId);
+    if(headEl) headEl.value = cfg.headline;
+  });
+}
+
+function saveExtSystemsSettings() {
+  var current = systemSettings.extSystems || {};
+  var next = {};
+  EXT_SYSTEM_KEYS.forEach(function(key) {
+    var def = EXT_SYSTEM_DEFAULTS[key];
+    var urlEl = document.getElementById(def.urlFieldId);
+    var headEl = document.getElementById(def.headlineFieldId);
+    var url = normalizeExtSystemUrl(urlEl ? urlEl.value : (current[key] || {}).url);
+    var headline = headEl ? headEl.value.trim() : ((current[key] || {}).headline || '');
+    next[key] = { url: url || def.url, headline: headline };
+  });
+  systemSettings.extSystems = next;
+  saveState();
+  loadExtSystemsUI();
+  refreshExtSystemPages();
+  showToast('External system settings saved');
+}
+
+function resetExtSystemDefaults() {
+  if(!confirm('Restore the default TMS and NQS links? Your headline text is kept.')) return;
+  EXT_SYSTEM_KEYS.forEach(function(key) {
+    var urlEl = document.getElementById(EXT_SYSTEM_DEFAULTS[key].urlFieldId);
+    if(urlEl) urlEl.value = EXT_SYSTEM_DEFAULTS[key].url;
+  });
+  saveExtSystemsSettings();
 }
 
 // ============================== MAINTENANCE MODE ==============================
@@ -29807,6 +30025,13 @@ function buildAdminStaffSidebar() {
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Support Messages<span class="nav-badge" id="supportMsgBadge" style="display:none;background:var(--red);">0</span></div>';
   }
 
+  // External Systems (TMS / NQS) always visible for admin staff
+  html += '<div class="nav-section-label">External Systems</div>';
+  html += '<div class="nav-item" data-page="as-tms-system" onclick="showPage(\'as-tms-system\')">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="6" y1="8" x2="18" y2="8"/></svg>TMS System</div>';
+  html += '<div class="nav-item" data-page="as-nqs-system" onclick="showPage(\'as-nqs-system\')">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="12" cy="15" r="2.5"/><path d="M10.5 17.2 10 21l2-1.2 2 1.2-.5-3.8"/></svg>NQS System</div>';
+
   // Profile always visible
   html += '<div class="nav-section-label">Account</div>';
   html += '<div class="nav-item" data-page="as-profile" onclick="showPage(\'as-profile\')">' +
@@ -30112,6 +30337,10 @@ function buildAdminStaffPages() {
   html += '<section class="page" id="page-as-cert-transcript-requests">' +
     '<iframe id="asCtrRequestsFrame" style="width:100%;height:calc(100vh - var(--topbar-h) - 56px);border:none;border-radius:12px;"></iframe>' +
   '</section>';
+
+  // ---- External Systems — TMS / NQS (Admin Staff) ----
+  html += extSystemPageHtml('as-tms-system');
+  html += extSystemPageHtml('as-nqs-system');
 
   // ---- Task Detail Modal (needed for My Duties click-to-view) ----
   html += '<div class="modal-overlay" id="adrTaskDetailModal">' +
