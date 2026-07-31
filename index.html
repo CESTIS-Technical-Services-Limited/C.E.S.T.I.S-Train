@@ -494,6 +494,26 @@ body::-webkit-scrollbar { width:0; display:none; }
   border:1px solid var(--border); border-radius:12px; background:#fff; display:block;
 }
 .ext-sys-hint { font-size:12px; color:var(--text-muted); line-height:1.6; }
+/* Launch panel — shown instead of the frame when the remote system refuses
+   to be embedded (X-Frame-Options / CSP frame-ancestors). */
+.ext-sys-launch {
+  display:flex; align-items:center; justify-content:center;
+  min-height:420px; height:calc(100vh - var(--topbar-h) - 200px);
+  background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:30px;
+}
+.ext-sys-launch-inner { text-align:center; max-width:560px; }
+.ext-sys-launch-icon {
+  width:64px; height:64px; margin:0 auto 18px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--accent-dim); color:var(--accent);
+}
+.ext-sys-launch-inner h4 { font-size:17px; margin:0 0 10px; color:var(--text-primary); }
+.ext-sys-launch-inner p { font-size:13px; color:var(--text-secondary); line-height:1.7; margin:0 0 22px; }
+.ext-sys-launch-actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:16px; }
+.ext-sys-launch-url { font-size:11px; color:var(--text-muted); word-break:break-all; }
+@media (max-width:768px) {
+  .ext-sys-launch { height:auto; min-height:320px; padding:24px 18px; }
+}
 @media (max-width:768px) {
   .ext-sys-frame { height:calc(100vh - var(--topbar-h) - 260px); min-height:360px; }
 }
@@ -16289,28 +16309,38 @@ function saveSystemSettings() {
 // editable by the Administrator in Settings -> External Systems, and the pages
 // are available to the Administrator and to Administrative Staff.
 var EXT_SYSTEM_KEYS = ['tms', 'nqs'];
+// mode: 'embed'  — show the system inside an iframe on the page.
+//       'launch' — the remote server refuses to be framed, so show a launch
+//                  panel that opens it in its own window/tab instead.
+// Both HEART/NSTA systems send a frame-blocking response header today, so they
+// default to 'launch'. If HEART allows this site as a frame ancestor, switch
+// the system to 'embed' in Settings -> External Systems and it displays inline.
 var EXT_SYSTEM_DEFAULTS = {
   tms: {
     label: 'TMS System',
     url: 'https://tms.heart-nta.org/CTI/default.aspx',
     headline: '',
+    mode: 'launch',
     urlFieldId: 'settTmsUrl',
-    headlineFieldId: 'settTmsHeadline'
+    headlineFieldId: 'settTmsHeadline',
+    modeFieldId: 'settTmsMode'
   },
   nqs: {
     label: 'NQS System',
     url: 'https://nqs-certification.heart-nta.org/qdocs.aspx',
     headline: '',
+    mode: 'launch',
     urlFieldId: 'settNqsUrl',
-    headlineFieldId: 'settNqsHeadline'
+    headlineFieldId: 'settNqsHeadline',
+    modeFieldId: 'settNqsMode'
   }
 };
 // pageId -> which system it shows and the element ids on that page.
 var extSystemPageMap = {
-  'tms-system':    { key:'tms', frameId:'tmsSystemFrame',   headlineId:'tmsSystemHeadline',   urlLabelId:'tmsSystemUrlLabel',   linkId:'tmsSystemOpenLink' },
-  'nqs-system':    { key:'nqs', frameId:'nqsSystemFrame',   headlineId:'nqsSystemHeadline',   urlLabelId:'nqsSystemUrlLabel',   linkId:'nqsSystemOpenLink' },
-  'as-tms-system': { key:'tms', frameId:'asTmsSystemFrame', headlineId:'asTmsSystemHeadline', urlLabelId:'asTmsSystemUrlLabel', linkId:'asTmsSystemOpenLink' },
-  'as-nqs-system': { key:'nqs', frameId:'asNqsSystemFrame', headlineId:'asNqsSystemHeadline', urlLabelId:'asNqsSystemUrlLabel', linkId:'asNqsSystemOpenLink' }
+  'tms-system':    { key:'tms', frameId:'tmsSystemFrame',   headlineId:'tmsSystemHeadline',   urlLabelId:'tmsSystemUrlLabel',   linkId:'tmsSystemOpenLink',   panelId:'tmsSystemLaunch',   hintId:'tmsSystemHint',   reloadId:'tmsSystemReload' },
+  'nqs-system':    { key:'nqs', frameId:'nqsSystemFrame',   headlineId:'nqsSystemHeadline',   urlLabelId:'nqsSystemUrlLabel',   linkId:'nqsSystemOpenLink',   panelId:'nqsSystemLaunch',   hintId:'nqsSystemHint',   reloadId:'nqsSystemReload' },
+  'as-tms-system': { key:'tms', frameId:'asTmsSystemFrame', headlineId:'asTmsSystemHeadline', urlLabelId:'asTmsSystemUrlLabel', linkId:'asTmsSystemOpenLink', panelId:'asTmsSystemLaunch', hintId:'asTmsSystemHint', reloadId:'asTmsSystemReload' },
+  'as-nqs-system': { key:'nqs', frameId:'asNqsSystemFrame', headlineId:'asNqsSystemHeadline', urlLabelId:'asNqsSystemUrlLabel', linkId:'asNqsSystemOpenLink', panelId:'asNqsSystemLaunch', hintId:'asNqsSystemHint', reloadId:'asNqsSystemReload' }
 };
 
 // Saved settings may predate this feature (systemSettings is replaced wholesale
@@ -16323,7 +16353,8 @@ function getExtSystemConfig(key) {
     key: key,
     label: def.label,
     url: url || def.url,
-    headline: typeof saved.headline === 'string' ? saved.headline.trim() : def.headline
+    headline: typeof saved.headline === 'string' ? saved.headline.trim() : def.headline,
+    mode: (saved.mode === 'embed' || saved.mode === 'launch') ? saved.mode : def.mode
   };
 }
 
@@ -16340,9 +16371,9 @@ function extSystemPageHtml(pageId) {
   var info = extSystemPageMap[pageId];
   if(!info) return '';
   var cfg = getExtSystemConfig(info.key);
-  var isAdminStaffPage = pageId.indexOf('as-') === 0;
-  var hint = 'If the system does not load below, it may block being embedded in a frame — use <strong>Open in New Tab</strong>.' +
-    (isAdminStaffPage ? '' : ' The link and the headline above it are editable in <strong>Settings &rarr; External Systems</strong>.');
+  // Both the frame and the launch panel are rendered; mountExtSystemPage shows
+  // whichever the configured mode calls for, so the Administrator can switch
+  // modes without the pages being rebuilt.
   return '<section class="page ext-sys-page" id="page-' + pageId + '">' +
     '<div class="ext-sys-headline" id="' + info.headlineId + '" style="display:none;"></div>' +
     '<div class="ext-sys-toolbar">' +
@@ -16351,13 +16382,49 @@ function extSystemPageHtml(pageId) {
         '<div class="ext-sys-url" id="' + info.urlLabelId + '"></div>' +
       '</div>' +
       '<div class="ext-sys-actions">' +
-        '<button class="btn btn-secondary btn-sm" onclick="reloadExtSystemPage(\'' + pageId + '\')">Reload</button>' +
+        '<button class="btn btn-secondary btn-sm" id="' + info.reloadId + '" onclick="reloadExtSystemPage(\'' + pageId + '\')">Reload</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="openExtSystemWindow(\'' + pageId + '\')">Open in Window</button>' +
         '<a class="btn btn-primary btn-sm" id="' + info.linkId + '" href="#" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Open in New Tab &#8599;</a>' +
       '</div>' +
     '</div>' +
-    '<iframe id="' + info.frameId + '" class="ext-sys-frame" title="' + escapeAttr(cfg.label) + '" referrerpolicy="no-referrer-when-downgrade"></iframe>' +
-    '<div class="ext-sys-hint">' + hint + '</div>' +
+    '<iframe id="' + info.frameId + '" class="ext-sys-frame" title="' + escapeAttr(cfg.label) + '" referrerpolicy="no-referrer-when-downgrade" style="display:none;"></iframe>' +
+    '<div class="ext-sys-launch" id="' + info.panelId + '" style="display:none;"></div>' +
+    '<div class="ext-sys-hint" id="' + info.hintId + '"></div>' +
   '</section>';
+}
+
+function extSystemLaunchPanelHtml(pageId, cfg) {
+  return '<div class="ext-sys-launch-inner">' +
+    '<div class="ext-sys-launch-icon">' +
+      '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
+    '</div>' +
+    '<h4>' + escapeHtml(cfg.label) + ' opens in its own window</h4>' +
+    '<p>The HEART/NSTA server sends a header telling browsers not to display this system inside another site, so it cannot be shown in the panel here. Everything else works normally &mdash; it just opens in its own window or tab.</p>' +
+    '<div class="ext-sys-launch-actions">' +
+      '<button class="btn btn-primary" onclick="openExtSystemWindow(\'' + pageId + '\')">Open ' + escapeHtml(cfg.label) + '</button>' +
+      '<a class="btn btn-secondary" href="' + escapeAttr(cfg.url) + '" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Open in New Tab &#8599;</a>' +
+    '</div>' +
+    '<div class="ext-sys-launch-url">' + escapeHtml(cfg.url) + '</div>' +
+  '</div>';
+}
+
+// Opens the system in a large named window. Re-clicking focuses the same
+// window instead of piling up copies.
+function openExtSystemWindow(pageId) {
+  var info = extSystemPageMap[pageId];
+  if(!info) return;
+  var cfg = getExtSystemConfig(info.key);
+  if(!cfg.url) return;
+  var availW = (window.screen && screen.availWidth) || 1280;
+  var availH = (window.screen && screen.availHeight) || 800;
+  var w = Math.max(900, Math.round(availW * 0.9));
+  var h = Math.max(600, Math.round(availH * 0.9));
+  var left = Math.max(0, Math.round((availW - w) / 2));
+  var top = Math.max(0, Math.round((availH - h) / 2));
+  var win = window.open(cfg.url, 'cestisExt_' + info.key,
+    'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top + ',resizable=yes,scrollbars=yes');
+  if(win) { try { win.focus(); } catch(e) {} }
+  else showToast('Your browser blocked the pop-up. Allow pop-ups for this site, or use Open in New Tab.', 'warning');
 }
 
 // loadFrame=false refreshes the headline/link text only, without pulling the
@@ -16383,8 +16450,32 @@ function mountExtSystemPage(pageId, loadFrame) {
   var linkEl = document.getElementById(info.linkId);
   if(linkEl) linkEl.href = cfg.url || '#';
 
+  var embed = cfg.mode === 'embed';
   var frame = document.getElementById(info.frameId);
-  if(loadFrame && frame && cfg.url && frame.getAttribute('data-ext-src') !== cfg.url) {
+  var panel = document.getElementById(info.panelId);
+  var reloadBtn = document.getElementById(info.reloadId);
+  if(frame) frame.style.display = embed ? '' : 'none';
+  if(reloadBtn) reloadBtn.style.display = embed ? '' : 'none';
+  if(panel) {
+    panel.style.display = embed ? 'none' : '';
+    if(!embed) panel.innerHTML = extSystemLaunchPanelHtml(pageId, cfg);
+  }
+
+  var hintEl = document.getElementById(info.hintId);
+  if(hintEl) {
+    var forAdmin = pageId.indexOf('as-') !== 0;
+    if(embed) {
+      hintEl.innerHTML = 'If the system does not load below, it is blocking being embedded in a frame &mdash; use <strong>Open in Window</strong>' +
+        (forAdmin ? ', or set its display mode back to <strong>Launch panel</strong> in <strong>Settings &rarr; External Systems</strong>.' : '.');
+    } else if(forAdmin) {
+      hintEl.innerHTML = 'To show this system inline instead, HEART/NSTA must allow this site as a frame ancestor. Once they do, switch its display mode to <strong>Embedded</strong> in <strong>Settings &rarr; External Systems</strong>.';
+    } else {
+      hintEl.innerHTML = '';
+    }
+  }
+
+  // Only pull the remote page into a frame when it is actually being embedded.
+  if(embed && loadFrame && frame && cfg.url && frame.getAttribute('data-ext-src') !== cfg.url) {
     frame.setAttribute('data-ext-src', cfg.url);
     frame.src = cfg.url;
   }
@@ -16420,6 +16511,8 @@ function loadExtSystemsUI() {
     if(urlEl) urlEl.value = cfg.url;
     var headEl = document.getElementById(def.headlineFieldId);
     if(headEl) headEl.value = cfg.headline;
+    var modeEl = document.getElementById(def.modeFieldId);
+    if(modeEl) modeEl.value = cfg.mode;
   });
 }
 
@@ -16430,9 +16523,12 @@ function saveExtSystemsSettings() {
     var def = EXT_SYSTEM_DEFAULTS[key];
     var urlEl = document.getElementById(def.urlFieldId);
     var headEl = document.getElementById(def.headlineFieldId);
+    var modeEl = document.getElementById(def.modeFieldId);
     var url = normalizeExtSystemUrl(urlEl ? urlEl.value : (current[key] || {}).url);
     var headline = headEl ? headEl.value.trim() : ((current[key] || {}).headline || '');
-    next[key] = { url: url || def.url, headline: headline };
+    var mode = modeEl ? modeEl.value : (current[key] || {}).mode;
+    if(mode !== 'embed' && mode !== 'launch') mode = def.mode;
+    next[key] = { url: url || def.url, headline: headline, mode: mode };
   });
   systemSettings.extSystems = next;
   saveState();
