@@ -35,6 +35,18 @@
      getItem/setItem/removeItem call sites; writes persist to IndexedDB
      (durable) and mirror to localStorage when they still fit.
 
+     Every document of this origin — each page, each iframe, each tab — runs its
+     own instance with its own cache, so a write in one has to reach the others
+     or they will keep rendering, and eventually save back, a stale copy. Two
+     mechanisms carry it, and neither depends on the 5MB cap:
+       - BroadcastChannel delivers the changed value itself, at any size, to
+         every other document. This is the one that works for data too large to
+         mirror into localStorage.
+       - The localStorage mirror is still read through synchronously on get, for
+         the case where a document must see a change in the very same tick it is
+         told about it. Values past the cap are tracked in `oversized` so a
+         stale mirror can never shadow the newer value held in IndexedDB.
+
      This is the canonical copy. The identical IIFE inlined in each HTML page
      self-guards with `if (window.CESTISStore) return;`, so once this file has
      defined it, every page's inline copy becomes a harmless no-op.
@@ -46,6 +58,36 @@
     try { LS = root.localStorage; } catch (e) { LS = null; }
     var cache = {};
     try { if (LS) { for (var i = 0; i < LS.length; i++) { var k = LS.key(i); cache[k] = LS.getItem(k); } } } catch (e) {}
+    // Keys whose value did not fit in localStorage. IndexedDB holds the real
+    // value; the mirror is either absent or an older, smaller one, so the
+    // read-through in getItem must skip these.
+    var oversized = {};
+
+    // Cross-document propagation. Carries the value itself, so it keeps working
+    // for data far past the localStorage cap.
+    var chan = null;
+    try { if (typeof BroadcastChannel !== 'undefined') chan = new BroadcastChannel('cestis-kv'); } catch (e) { chan = null; }
+    function announce(msg) {
+      if (!chan) return;
+      try { chan.postMessage(msg); } catch (e) { /* value not cloneable / channel closed */ }
+    }
+    if (chan) {
+      chan.onmessage = function (ev) {
+        var m = ev && ev.data;
+        if (!m || m.db !== DB_NAME) return;
+        if (m.op === 'clear') {
+          for (var ck in cache) { if (Object.prototype.hasOwnProperty.call(cache, ck)) delete cache[ck]; }
+          oversized = {};
+          return;
+        }
+        var mk = String(m.k);
+        if (m.op === 'remove') { delete cache[mk]; delete oversized[mk]; return; }
+        cache[mk] = m.v;
+        if (m.oversized) { oversized[mk] = true; } else { delete oversized[mk]; }
+        // The document that made the change already wrote IndexedDB — writing it
+        // again here would just duplicate every save across every open page.
+      };
+    }
 
     var db = null, ready = false, wq = [];
     // Durable-write failure tracking: quota errors on the IndexedDB transaction
@@ -109,15 +151,37 @@
       // immediately after an iframe reports a change is synchronous.
       getItem: function (k) {
         k = String(k);
-        if (LS) { try { var lv = LS.getItem(k); if (lv !== null) { cache[k] = lv; return lv; } } catch (e) {} }
+        if (LS && !oversized[k]) { try { var lv = LS.getItem(k); if (lv !== null) { cache[k] = lv; return lv; } } catch (e) {} }
         return (k in cache) ? cache[k] : null;
       },
-      setItem: function (k, v) { k = String(k); v = String(v); cache[k] = v; try { if (LS) LS.setItem(k, v); } catch (e) {} writeIDB(k, v, false); },
-      removeItem: function (k) { k = String(k); delete cache[k]; try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
+      setItem: function (k, v) {
+        k = String(k); v = String(v);
+        cache[k] = v;
+        var tooBig = false;
+        if (LS) {
+          try { LS.setItem(k, v); delete oversized[k]; }
+          catch (e) {
+            // Past the ~5MB cap (or storage disabled). IndexedDB still takes it;
+            // drop any older mirror so a stale copy can never be read as current.
+            tooBig = true; oversized[k] = true;
+            try { LS.removeItem(k); } catch (e2) {}
+          }
+        }
+        writeIDB(k, v, false);
+        announce({ db: DB_NAME, op: 'set', k: k, v: v, oversized: tooBig });
+      },
+      removeItem: function (k) {
+        k = String(k); delete cache[k]; delete oversized[k];
+        try { if (LS) LS.removeItem(k); } catch (e) {}
+        writeIDB(k, null, true);
+        announce({ db: DB_NAME, op: 'remove', k: k });
+      },
       clear: function () {
         for (var k in cache) { if (Object.prototype.hasOwnProperty.call(cache, k)) delete cache[k]; }
+        oversized = {};
         try { if (LS) LS.clear(); } catch (e) {}
         if (db) { try { db.transaction(STORE, 'readwrite').objectStore(STORE).clear(); } catch (e) {} }
+        announce({ db: DB_NAME, op: 'clear' });
       },
       key: function (i) { return Object.keys(cache)[i]; },
       keys: function () { return Object.keys(cache); },
@@ -125,15 +189,17 @@
       whenReady: function (cb) { if (ready) { cb(); } else { root.addEventListener('cestis-store-ready', cb, { once: true }); } },
       get length() { return Object.keys(cache).length; }
     };
-    // Deletions and clears cannot be seen by the read-through above (a removed
-    // key and a key too large for localStorage both read as null), so mirror
-    // them from the storage event, which fires in every OTHER document of this
-    // origin — including this page's iframes and the user's other tabs.
+    // Fallback for anything BroadcastChannel does not cover: browsers without it,
+    // and deletions, which the read-through above cannot detect (a removed key
+    // reads as null, exactly like a key that never fitted in localStorage).
+    // Only fires for values small enough to have been mirrored — which is why
+    // BroadcastChannel, not this, is what makes large data propagate.
     try {
       root.addEventListener('storage', function (ev) {
         if (!ev) return;
         if (ev.key === null) { for (var ck in cache) { if (Object.prototype.hasOwnProperty.call(cache, ck)) delete cache[ck]; } return; }
         var sk = String(ev.key);
+        if (oversized[sk]) return; // IndexedDB holds the real value; the mirror is stale
         if (ev.newValue === null) { delete cache[sk]; } else { cache[sk] = ev.newValue; }
       });
     } catch (e) {}

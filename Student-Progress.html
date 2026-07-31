@@ -14,6 +14,22 @@
   try { LS = window.localStorage; } catch(e) { LS = null; }
   var cache = {};
   try { if(LS){ for(var i=0;i<LS.length;i++){ var k=LS.key(i); cache[k]=LS.getItem(k); } } } catch(e){}
+  // Keys whose value did not fit in localStorage: IndexedDB holds the real one,
+  // so the read-through in getItem must not read the older mirror instead.
+  var oversized = {};
+  // Cross-document propagation. Carries the value itself, so unlike the
+  // localStorage mirror it keeps working past the ~5MB cap.
+  var chan=null;
+  try { if(typeof BroadcastChannel !== 'undefined') chan = new BroadcastChannel('cestis-kv'); } catch(e){ chan=null; }
+  function announce(msg){ if(chan){ try{ chan.postMessage(msg); }catch(e){} } }
+  if(chan){ chan.onmessage = function(ev){
+    var m = ev && ev.data; if(!m || m.db !== DB_NAME) return;
+    if(m.op === 'clear'){ for(var ck in cache){ if(Object.prototype.hasOwnProperty.call(cache,ck)) delete cache[ck]; } oversized={}; return; }
+    var mk = String(m.k);
+    if(m.op === 'remove'){ delete cache[mk]; delete oversized[mk]; return; }
+    cache[mk] = m.v;
+    if(m.oversized){ oversized[mk]=true; } else { delete oversized[mk]; }
+  }; }
   var db=null, ready=false, wq=[];
   function drainQueue(){ var q=wq; wq=[]; for(var i=0;i<q.length;i++){ writeIDB(q[i].k,q[i].v,q[i].del); } }
   function writeIDB(k,v,del){
@@ -54,14 +70,18 @@
     // while a re-read immediately after an iframe reports a change is synchronous.
     getItem: function(k){
       k=String(k);
-      if(LS){ try { var lv = LS.getItem(k); if(lv !== null){ cache[k] = lv; return lv; } } catch(e){} }
+      if(LS && !oversized[k]){ try { var lv = LS.getItem(k); if(lv !== null){ cache[k] = lv; return lv; } } catch(e){} }
       return (k in cache) ? cache[k] : null;
     },
-    setItem: function(k,v){ k=String(k); v=String(v); cache[k]=v; try{ if(LS) LS.setItem(k,v); }catch(e){} writeIDB(k,v,false); },
-    removeItem: function(k){ k=String(k); delete cache[k]; try{ if(LS) LS.removeItem(k); }catch(e){} writeIDB(k,null,true); },
+    setItem: function(k,v){ k=String(k); v=String(v); cache[k]=v; var big=false;
+      if(LS){ try{ LS.setItem(k,v); delete oversized[k]; }
+              catch(e){ big=true; oversized[k]=true; try{ LS.removeItem(k); }catch(e2){} } }
+      writeIDB(k,v,false); announce({db:DB_NAME,op:'set',k:k,v:v,oversized:big}); },
+    removeItem: function(k){ k=String(k); delete cache[k]; delete oversized[k]; try{ if(LS) LS.removeItem(k); }catch(e){} writeIDB(k,null,true); announce({db:DB_NAME,op:'remove',k:k}); },
     clear: function(){ for(var k in cache){ if(Object.prototype.hasOwnProperty.call(cache,k)) delete cache[k]; }
                        try{ if(LS) LS.clear(); }catch(e){}
-                       if(db){ try{ db.transaction(STORE,'readwrite').objectStore(STORE).clear(); }catch(e){} } },
+                       if(db){ try{ db.transaction(STORE,'readwrite').objectStore(STORE).clear(); }catch(e){} }
+                       oversized={}; announce({db:DB_NAME,op:'clear'}); },
     key: function(i){ return Object.keys(cache)[i]; },
     keys: function(){ return Object.keys(cache); },
     hasOwnProperty: function(k){ return Object.prototype.hasOwnProperty.call(cache, String(k)); },
@@ -76,6 +96,7 @@
       if(!ev) return;
       if(ev.key === null){ for(var ck in cache){ if(Object.prototype.hasOwnProperty.call(cache,ck)) delete cache[ck]; } return; }
       var sk = String(ev.key);
+      if(oversized[sk]) return; // IndexedDB holds the real value; the mirror is stale
       if(ev.newValue === null){ delete cache[sk]; } else { cache[sk] = ev.newValue; }
     });
   } catch(e){}
