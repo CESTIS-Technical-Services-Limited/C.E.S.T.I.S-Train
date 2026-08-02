@@ -3843,6 +3843,10 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 <script src="vendor/peerjs-1.5.4.min.js"></script>
 <script>window.Peer||(document.write('<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js">\x3C/script>'))</script>
 <script>window.Peer||(document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js">\x3C/script>'))</script>
+<!-- Offline build: introduce video calls through this Centre's own server
+     rather than a public one on the internet. Must load after PeerJS and
+     before any conference code runs. -->
+<script src="cestis-offline-rtc.js?v=20260802a"></script>
 <!-- Google Identity Services for OAuth -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <!-- jsPDF for certificate PDF generation -->

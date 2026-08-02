@@ -8,7 +8,12 @@
    1. Serves every page in this folder over http:// — the system needs a real
       web address, not file://, because browsers refuse storage and page loading
       to documents opened straight off the disk.
-   2. Provides the SHARED STORE the Google Drive sync normally provides. Each
+   2. Introduces browsers to each other so VIDEO CLASSES work. Two browsers
+      cannot start a call unaided — something has to carry the first few
+      messages between them, and online that job is done by a public server.
+      This does it here (see cestis-offline-signalling.js), which is what makes
+      the conference pages work with no internet.
+   3. Provides the SHARED STORE the Google Drive sync normally provides. Each
       page keeps its own file, exactly as it does in the cloud version, except
       the files live in "Offline System/data" on this computer instead of Drive.
       That is what lets the Coordinator's laptop, the office desktop and an
@@ -34,6 +39,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const signalling = require('./cestis-offline-signalling.js');
 
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, 'data');
@@ -185,6 +191,14 @@ const server = http.createServer((req, res) => {
       host: os.hostname(), dataFolder: DATA_DIR, time: new Date().toISOString()
     }), MIME['.json']);
   }
+  if (url === '/_cestis/rooms') {
+    return send(res, 200, JSON.stringify({ ok: true, connected: sig.count(), rooms: sig.rooms() }, null, 2), MIME['.json']);
+  }
+  // PeerJS asks for a generated id when a page does not supply one. Every page
+  // here names its own, but the endpoint has to exist or the library complains.
+  if (url.indexOf('/peerjs/id') === 0) {
+    return send(res, 200, Math.random().toString(36).slice(2) + Date.now().toString(36));
+  }
   if (url === '/_cestis/data' || url === '/_cestis/data/') return listData(res);
   if (url.indexOf('/_cestis/data/') === 0) {
     return handleData(req, res, url.slice('/_cestis/data/'.length));
@@ -193,6 +207,10 @@ const server = http.createServer((req, res) => {
 });
 
 ensureDataDir();
+
+/* Video classes: carry the introductions between browsers on this network. */
+const sig = signalling.attach(server, msg => console.log('  ' + msg));
+
 server.on('error', err => {
   if (err && err.code === 'EADDRINUSE') {
     console.error('\n  Port ' + PORT + ' is already being used by something else.');
@@ -219,6 +237,8 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('\n  This computer is not on a network yet, so only this machine');
     console.log('  can reach it. Connect to the Centre wifi/router and restart.');
   }
+  console.log('\n  Video classes work on this network — this server introduces');
+  console.log('  the browsers to each other, so no internet is needed for them.');
   console.log('\n  Shared data is kept in:');
   console.log('      ' + DATA_DIR);
   console.log('  Back that folder up — it is the Centre\'s records.');

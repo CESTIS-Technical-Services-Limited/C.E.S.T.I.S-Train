@@ -78,14 +78,12 @@ WORKS, completely offline:
     School fees, the cashbook, invoices, quotations, purchase orders,
       payment vouchers, virements, payslips and the time clock
     Every user account, sign-in and role
+    Video classes and LMS Chat calls between devices on this network
     Sharing all of the above across the Centre's own network
 
 DOES NOT WORK without internet, by nature:
     Google Drive sync — replaced by the data folder above, which does the same
       job on your own network
-    Video conferencing — it needs a public server to introduce two browsers to
-      each other. Classes on the same network still work if you run your own
-      signalling server; ask for that if you need it.
     Emailed one-time codes for password resets — an administrator resets
       passwords directly instead (Settings > Users > Reset Password)
     Qualification Plan / Curriculum documents, which are held in Google Drive.
@@ -96,7 +94,37 @@ online version.
 
 
 --------------------------------------------------------------------------------
-  5.  MOVING DATA BETWEEN OFFLINE AND ONLINE
+  5.  VIDEO CLASSES
+--------------------------------------------------------------------------------
+
+These work offline. Start a class the same way as always.
+
+Two browsers cannot begin a call unaided — something has to carry the first few
+messages between them so each learns how to be reached. Online that is done by
+a public server, which is why video used to be the one part that stopped
+without internet. The offline server now does it here, on your own network.
+
+What to expect:
+  - everyone must be on the SAME network as the server, as with everything else;
+  - the picture and sound travel DIRECTLY between the two devices, not through
+    the server, so the server computer does not slow down with more people;
+  - the first time each device joins, the browser asks permission to use the
+    camera and microphone. Say yes. If it was refused once, clear it in the
+    browser's site settings for that address;
+  - the class is limited by the devices themselves, not by this software. Small
+    groups are comfortable; a large class on old tablets will not be.
+
+To see who is currently connected, open on the server computer:
+      http://localhost:8080/_cestis/rooms
+
+If a call will not connect:
+  - check both devices are on the same wifi, not one on mobile data;
+  - check the black window is still open;
+  - reload both pages and try once more — the room is created fresh each time.
+
+
+--------------------------------------------------------------------------------
+  6.  MOVING DATA BETWEEN OFFLINE AND ONLINE
 --------------------------------------------------------------------------------
 
 The files in the data folder are the same format the online version keeps in
@@ -109,7 +137,7 @@ stands.
 
 
 --------------------------------------------------------------------------------
-  6.  IF SOMETHING IS WRONG
+  7.  IF SOMETHING IS WRONG
 --------------------------------------------------------------------------------
 
 "Port 8080 is already being used"
@@ -121,7 +149,8 @@ stands.
     Install Node.js once, from https://nodejs.org, on a computer that has
     internet. After that this folder never needs the internet again. The
     launchers fall back to Python, which serves the pages but does NOT share
-    data between devices — treat that as a temporary measure.
+    data between devices and does NOT carry video classes — treat that as a
+    temporary measure, not a way to run the Centre.
 
 A page is blank
     Refresh once. If it stays blank, stop the server window and start it again.
