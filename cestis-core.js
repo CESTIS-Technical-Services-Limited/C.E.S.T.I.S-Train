@@ -1839,19 +1839,45 @@
       return Core.courseDuration.isRegisterOpen(centre, today, nowMs);
     }
 
+    function coversDate(centre, on) {
+      var s = Core.courseDuration.normDate(centre.startDate);
+      var e = Core.courseDuration.normDate(centre.endDate);
+      return (!s || on >= s) && (!e || on <= e);
+    }
+
     /* A programme that has been run more than once has several centres with the
        same (or an equivalent) name — last year's finished intake and this year's
-       new one. The centre that matters is the one that can still take trainees
-       and, among those, the most recent. Without this the dashboards resolved a
-       repeat programme to the finished centre and reported "course ended" even
-       though a new centre had already been created for it. */
-    function preferCentre(a, b, today, nowMs) {
+       new one. Which of them is meant depends on what is being asked:
+
+         • Enrolling somebody now (the default): the centre that can still take
+           trainees and, among those, the most recent. Without this the
+           dashboards resolved a repeat programme to the finished centre and
+           reported "course ended" even though a new centre had been created.
+
+         • Grounding a record in time (opts.on = the date it belongs to): the
+           intake that was actually running on that date, falling back to the
+           most recent one that had already begun. A trainee who enrolled in
+           2024 belongs to the 2024 intake, not to whatever opened since. */
+    function preferCentre(a, b, opts) {
       if (!a) return b || null;
       if (!b) return a;
-      var ao = registerOpen(a, today, nowMs), bo = registerOpen(b, today, nowMs);
-      if (ao !== bo) return ao ? a : b;
+      opts = opts || {};
       var as = Core.courseDuration.normDate(a.startDate) || '';
       var bs = Core.courseDuration.normDate(b.startDate) || '';
+      var on = opts.on ? Core.courseDuration.normDate(opts.on) : '';
+
+      if (on) {
+        var ac = coversDate(a, on), bc = coversDate(b, on);
+        if (ac !== bc) return ac ? a : b;
+        var ab = !!as && as <= on, bb = !!bs && bs <= on;   // had already begun
+        if (ab !== bb) return ab ? a : b;
+        if (ab && bb) return as > bs ? a : b;               // the most recent one that had
+        if (as !== bs) return as < bs ? a : b;              // both still ahead: the soonest
+        return a;
+      }
+
+      var ao = registerOpen(a, opts.today, opts.nowMs), bo = registerOpen(b, opts.today, opts.nowMs);
+      if (ao !== bo) return ao ? a : b;
       if (as !== bs) return as > bs ? a : b;
       return a;
     }
@@ -1864,26 +1890,26 @@
             the shorter name appearing in the longer one at the same NVQ level,
             so "WELDING L2" finds "Welding and Fabrication Level 2" but never
             "… Level 3".
-       Each pass prefers a centre that is still open (see preferCentre), and a
+       Between equally good matches the choice is made by preferCentre, and a
        later pass only runs when the earlier ones found nothing.
-       opts: { today, nowMs } — both optional, defaulting to now. */
+       opts: { today, nowMs, on } — all optional. 'on' is a date the answer
+       should belong to; without it the answer is about now. */
     function findCentre(areas, courseName, opts) {
       if (!Array.isArray(areas) || !courseName) return null;
       opts = opts || {};
-      var today = opts.today, nowMs = opts.nowMs;
       var cn = norm(courseName);
       if (!cn) return null;
       var hit = null, i, n;
 
       for (i = 0; i < areas.length; i++) {
-        if (areas[i] && norm(areas[i].name) === cn) hit = preferCentre(hit, areas[i], today, nowMs);
+        if (areas[i] && norm(areas[i].name) === cn) hit = preferCentre(hit, areas[i], opts);
       }
       if (hit) return hit;
 
       for (i = 0; i < areas.length; i++) {
         n = norm(areas[i] && areas[i].name);
         if (!n) continue;
-        if (n.indexOf(cn) === 0 || cn.indexOf(n) === 0) hit = preferCentre(hit, areas[i], today, nowMs);
+        if (n.indexOf(cn) === 0 || cn.indexOf(n) === 0) hit = preferCentre(hit, areas[i], opts);
       }
       if (hit) return hit;
 
@@ -1907,7 +1933,7 @@
         // different programme, not an abbreviation of this one.
         if (!shared || shared < Math.min(qW.length, aW.length)) continue;
         if (shared > bestScore) { bestScore = shared; best = area; }
-        else if (shared === bestScore) { best = preferCentre(best, area, today, nowMs); }
+        else if (shared === bestScore) { best = preferCentre(best, area, opts); }
       }
       return best;
     }

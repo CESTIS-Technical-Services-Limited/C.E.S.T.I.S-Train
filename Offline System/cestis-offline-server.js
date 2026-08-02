@@ -13,6 +13,14 @@
       messages between them, and online that job is done by a public server.
       This does it here (see cestis-offline-signalling.js), which is what makes
       the conference pages work with no internet.
+
+      One caveat that is NOT ours to fix here: browsers hand out the camera,
+      the microphone and the video connection only to pages served over
+      https://, or opened on this computer as localhost. A page fetched over
+      the network as http://192.168.x.x is refused them by every browser. So
+      video classes run on THIS computer as-is; to run them on other devices
+      the pages have to be served over https://. Everything else in the system
+      is unaffected and works on every device over http://.
    3. Provides the SHARED STORE the Google Drive sync normally provides. Each
       page keeps its own file, exactly as it does in the cloud version, except
       the files live in "Offline System/data" on this computer instead of Drive.
@@ -237,8 +245,17 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('\n  This computer is not on a network yet, so only this machine');
     console.log('  can reach it. Connect to the Centre wifi/router and restart.');
   }
-  console.log('\n  Video classes work on this network — this server introduces');
-  console.log('  the browsers to each other, so no internet is needed for them.');
+  console.log('\n  VIDEO CLASSES');
+  console.log('  This server introduces the browsers to each other, so video needs');
+  console.log('  no internet. It does need a page address the browser trusts with');
+  console.log('  the camera and microphone, and browsers only trust https:// or');
+  console.log('  localhost — never a plain http:// network address.');
+  console.log('      Video WORKS at:      http://localhost:' + PORT + '/index.html');
+  if (addrs.length) {
+    console.log('      Video is BLOCKED at: http://' + addrs[0].address + ':' + PORT + '/index.html');
+  }
+  console.log('  Everything else — trainees, fees, attendance, documents — works');
+  console.log('  normally on every device at the network address above.');
   console.log('\n  Shared data is kept in:');
   console.log('      ' + DATA_DIR);
   console.log('  Back that folder up — it is the Centre\'s records.');

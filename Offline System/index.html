@@ -4912,6 +4912,25 @@ function findSkillAreaForCourse(courseName) {
   if (!courseName) return skillAreas[0];
   var cn = courseName.toLowerCase().trim();
 
+  // 0a. The shared rule first (CESTISCore.enrolment.findCentre): the exact name,
+  //     then one name starting the other, then the same programme written two
+  //     ways at the SAME NVQ level — "WELDING L2" finds "Welding and Fabrication
+  //     Level 2" and never the Level 3 centre.
+  //
+  //     This has to come before the alias table below, which was written when
+  //     every programme was one undated centre ("Welding & Fabrication") and
+  //     carries no level at all. Left first, it answered "Welding and
+  //     Fabrication Level 2" and "… Level 3" with the SAME centre, so a class
+  //     session scheduled for one level turned up in the other level's video
+  //     conference list — and a centre created since that table was written
+  //     matched nothing in it.
+  try {
+    if (typeof CESTISCore !== 'undefined' && CESTISCore.enrolment && Array.isArray(skillAreas)) {
+      var shared = CESTISCore.enrolment.findCentre(skillAreas, courseName, { nowMs: Date.now() });
+      if (shared) return shared;
+    }
+  } catch (e) {}
+
   // 0. Explicit aliases: map School Fee skill-area names (and common variants)
   //    to the canonical Training Centre / skill-area name, so e.g.
   //    "WELDING L2" -> "Welding & Fabrication", "COMMI CHEF L2" -> "Commercial
@@ -9780,9 +9799,13 @@ var cestisFeatureConfig = {
     }
   },
   // Video Conference — one fragment per role (their layouts differ).
+  // Every one of these re-reads the training centres on the way in
+  // (populateCourseDropdowns), so a centre created since this page was opened is
+  // offered when scheduling a class instead of the list this tab started with.
   'video': {
     file: 'Video-Conference.html',
     onMount: function() {
+      cestisSafe('populateCourseDropdowns');
       cestisSafe('renderAdminAllSessions');
       cestisSafe('renderAdminClassSessions');
       cestisSafe('renderAdminMeetingsList');
@@ -9792,6 +9815,7 @@ var cestisFeatureConfig = {
   'video-student': {
     file: 'Video-Conference-Student.html',
     onMount: function() {
+      cestisSafe('populateCourseDropdowns');
       cestisSafe('renderStudentClassSessions');
       cestisSafe('renderStudentRecordings');
     }
@@ -9799,6 +9823,7 @@ var cestisFeatureConfig = {
   'video-instructor': {
     file: 'Video-Conference-Instructor.html',
     onMount: function() {
+      cestisSafe('populateCourseDropdowns');
       cestisSafe('renderInstructorClassSessions');
       cestisSafe('renderInstructorRecordings');
       cestisSafe('renderAdminMeetingsList');
@@ -9807,6 +9832,7 @@ var cestisFeatureConfig = {
   'video-adminstaff': {
     file: 'Video-Conference-AdminStaff.html',
     onMount: function() {
+      cestisSafe('populateCourseDropdowns');
       cestisSafe('renderAdminMeetingsList');
     }
   },
@@ -12024,6 +12050,22 @@ function enterVideoRoom(title, role, roomCode) {
 }
 
 async function vcStartCameraPreview() {
+  // Say up front why the preview is dead, rather than letting the lobby show an
+  // unexplained "Camera not available" and only naming the real cause once the
+  // user has already clicked Join.
+  var _blocked = vcBlockedReason();
+  if (_blocked) {
+    localStream = null;
+    var _ph = document.getElementById('vc-preview-ph');
+    if (_ph) {
+      _ph.innerHTML = '<div style="text-align:center;color:var(--text-muted);max-width:340px;margin:0 auto;">' +
+        '<div style="font-size:48px;margin-bottom:8px;">&#x1F512;</div>' +
+        '<div style="font-weight:600;margin-bottom:6px;">Video is not available at this address</div>' +
+        '<div style="font-size:11.5px;line-height:1.5;">' + escapeHtml(_blocked.split('\n\n')[0]) + '</div></div>';
+    }
+    vcUpdateStatus('error', 'Video is not available at this page address');
+    return;
+  }
   try {
     localStream = await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'}, audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
     const vid = document.getElementById('vc-preview');
@@ -12074,6 +12116,57 @@ function toggleLobbyDevice(kind) {
       });
     }
   }
+}
+
+// Why video cannot start on this page, in plain words — or '' when it can.
+//
+// PeerJS reports a missing WebRTC API as "browser-incompatible", and the room
+// code showed that verbatim: "Connection error: browser-incompatible". That
+// sends people off to install another browser when the browser is fine. What is
+// actually missing, every time, is a SECURE PAGE ADDRESS: browsers hand out the
+// camera, the microphone and the video connection only to pages served over
+// https://, or opened on the computer itself as localhost. A page reached over
+// the network as http://192.168.x.x is refused them by EVERY browser — Chrome
+// keeps RTCPeerConnection but withholds the camera, Safari and Firefox withhold
+// WebRTC outright, which is the case PeerJS then calls "incompatible".
+function vcBlockedReason() {
+  var host = location.hostname;
+  var secure = (typeof window.isSecureContext === 'boolean')
+    ? window.isSecureContext
+    : (location.protocol === 'https:' || host === 'localhost' || host === '127.0.0.1' || location.protocol === 'file:');
+  var hasRTC = (typeof RTCPeerConnection !== 'undefined');
+  var hasMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  if (hasRTC && hasMedia) return '';
+
+  if (!secure) {
+    var port = location.port ? (':' + location.port) : '';
+    return 'Video classes need a secure page address.\n\n' +
+      'This page was opened as ' + location.protocol + '//' + location.host + '. Browsers do not give ' +
+      'the camera, the microphone or a video connection to a page opened over the network like that — ' +
+      'this is a browser security rule, not a fault in the system or in your browser.\n\n' +
+      'ON THE COMPUTER RUNNING THE SYSTEM it works right away: open ' +
+      'http://localhost' + port + '/index.html instead of the network address.\n\n' +
+      'FOR EVERY OTHER DEVICE the system has to be served over https://. Everything else on this ' +
+      'page — trainees, fees, attendance, documents — keeps working normally over ' + location.protocol + '//.';
+  }
+  if (!hasRTC) {
+    return 'This browser cannot make video calls.\n\n' +
+      'Video classes need WebRTC, which this browser does not provide. Open the system in an ' +
+      'up-to-date Chrome, Edge, Firefox or Safari and try again.';
+  }
+  return 'The camera and microphone are not available on this page, so a video class cannot be started ' +
+    'or joined from here. Check that this browser is allowed to use the camera and microphone.';
+}
+
+// Guard used by every "create room" / "join room" entry point. Shows the real
+// reason and returns true when video cannot run here.
+function vcBlockAndExplain(shortStatus) {
+  var why = vcBlockedReason();
+  if (!why) return false;
+  vcUpdateStatus('error', shortStatus || 'Video cannot start on this page address');
+  try { alert(why); } catch (e) {}
+  console.warn('[VideoConference] blocked: ' + why.split('\n')[0]);
+  return true;
 }
 
 function vcUpdateStatus(type, message) {
@@ -12392,6 +12485,7 @@ function exitLargeRoom(role) {
 
 // ── Create Room (Host) ──
 async function vcCreateRoom(title, role, scheduledCode) {
+  if (vcBlockAndExplain('Cannot start a class from this page address')) return;
   currentRoomCode = (scheduledCode && scheduledCode.length >= 4) ? scheduledCode : generateRoomCode();
   isRoomHost = true;
   activeHostRoom = {code: currentRoomCode, title: title, role: role};
@@ -12424,6 +12518,7 @@ async function vcCreateRoom(title, role, scheduledCode) {
     rtcPeer.on('error', function(err) {
       console.error('Peer error:', err);
       if(err.type === 'unavailable-id') vcUpdateStatus('error', 'Room code in use. Try again.');
+      else if(err.type === 'browser-incompatible') vcBlockAndExplain('Cannot start a class from this page address');
       else vcUpdateStatus('error', 'Connection error: ' + err.type);
     });
   } catch(err) {
@@ -12434,6 +12529,7 @@ async function vcCreateRoom(title, role, scheduledCode) {
 // ── Rejoin Room as Host ──
 async function vcRejoinRoom(title, role) {
   if (!activeHostRoom) return;
+  if (vcBlockAndExplain('Cannot rejoin from this page address')) return;
   currentRoomCode = activeHostRoom.code;
   isRoomHost = true;
   vcUpdateStatus('connecting', 'Rejoining room ' + currentRoomCode + '...');
@@ -12467,6 +12563,8 @@ async function vcRejoinRoom(title, role) {
       console.error('Peer error:', err);
       if(err.type === 'unavailable-id') {
         vcUpdateStatus('error', 'Room host ID is still active. Try again in a moment.');
+      } else if(err.type === 'browser-incompatible') {
+        vcBlockAndExplain('Cannot rejoin from this page address');
       } else {
         vcUpdateStatus('error', 'Connection error: ' + err.type);
       }
@@ -12478,6 +12576,7 @@ async function vcRejoinRoom(title, role) {
 
 // ── Join Room ──
 async function vcJoinRoom(title, role, codeOverride) {
+  if (vcBlockAndExplain('Cannot join a class from this page address')) return;
   var code = codeOverride ? codeOverride.toUpperCase().trim() : (document.getElementById('vc-join-code')?.value || '').toUpperCase().trim();
   if(!code || code.length < 4) { vcUpdateStatus('error', 'Please enter a valid room code'); return; }
 
@@ -12552,6 +12651,7 @@ async function vcJoinRoom(title, role, codeOverride) {
 
     rtcPeer.on('error', function(err) {
       console.error('Peer error:', err);
+      if(err.type === 'browser-incompatible') { vcBlockAndExplain('Cannot join a class from this page address'); return; }
       vcUpdateStatus('error', 'Could not connect. Room may not exist.');
     });
   } catch(err) {
@@ -18648,6 +18748,36 @@ function courseStatus(courseName) {
   return CESTISCore.courseDuration.status(rec.startDate, rec.endDate);
 }
 
+// The training centre a STUDENT belongs to.
+//
+// A trainee's own record is the authority, not their course NAME. The centre id
+// was stamped on the record when they were enrolled, so a programme that has
+// been run more than once resolves to the intake the trainee actually sat in
+// rather than to whichever like-named centre happens to come first in the list.
+// Falling back to the name alone is what left trainees of a finished course
+// sitting in "Testing": the name did not match any centre, so the course-end
+// rule skipped them entirely.
+function studentCentreRecord(s) {
+  if (!s) return null;
+  if (typeof skillAreas === 'undefined' || !Array.isArray(skillAreas)) return null;
+  if (s.centreId != null) {
+    var byId = skillAreas.find(function(a){ return a && a.id === s.centreId; });
+    if (byId) return byId;
+  }
+  return courseDurationRecord(s.centreName || s.course);
+}
+
+// Has this student's course finished? 'no-dates' | 'not-started' | 'active' |
+// 'ended' | 'unknown'. When the centre record is gone (deleted, or never
+// matched), the course dates stamped on the trainee at enrolment still say.
+function studentCourseStatus(s) {
+  if (!s) return 'unknown';
+  var rec = studentCentreRecord(s);
+  if (rec) return CESTISCore.courseDuration.status(rec.startDate, rec.endDate);
+  if (s.courseStart || s.courseEnd) return CESTISCore.courseDuration.status(s.courseStart, s.courseEnd);
+  return 'unknown';
+}
+
 // Is the attendance register / course-scoped editing open for this course?
 function isRegisterOpenForCourse(courseName) {
   var rec = courseDurationRecord(courseName);
@@ -18675,8 +18805,12 @@ function backfillStudentFiscalYears() {
   var n = 0;
   students.forEach(function(s) {
     if (!s || s.fiscalYear) return;
-    var centre = CESTISCore.enrolment.findCentre(skillAreas, s.course);
     var when = s.enrolmentDate || s.enrollmentDate || s.createdAt || '';
+    // Grounded in WHEN they enrolled: a programme that has run several times
+    // must resolve to the intake that was running then, not to whichever one
+    // happens to be open now — otherwise a trainee from a finished course is
+    // stamped onto this year's centre and never reaches Not Yet Competent.
+    var centre = CESTISCore.enrolment.findCentre(skillAreas, s.course, { on: when });
     var stamp = centre ? CESTISCore.enrolment.enrolmentStamp(centre, when) : null;
     if (stamp) {
       if (s.centreId == null) s.centreId = stamp.centreId;
@@ -18717,9 +18851,11 @@ function renderStudentDurationNotice() {
   if (!el) return;
   var s = (typeof currentStudent !== 'undefined') ? currentStudent : null;
   if (!s || !s.course || s.stage === 'certified' || s.stage === 'collected') { el.innerHTML = ''; return; }
-  if (courseStatus(s.course) !== 'ended') { el.innerHTML = ''; return; }
-  var rec = courseDurationRecord(s.course);
-  var endTxt = (rec && rec.endDate) ? (' on ' + rec.endDate) : '';
+  // Judged on the trainee's own intake, so the notice matches the stage the
+  // course-end rule gave them.
+  if (studentCourseStatus(s) !== 'ended') { el.innerHTML = ''; return; }
+  var rec = studentCentreRecord(s);
+  var endTxt = (rec && rec.endDate) ? (' on ' + rec.endDate) : (s.courseEnd ? (' on ' + s.courseEnd) : '');
   var nyc = s.stage === 'nyc';
   el.innerHTML = '<div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.35);font-size:13.5px;">'+
     '⏳ <strong>Your course has ended'+endTxt+'.</strong> '+
@@ -18746,14 +18882,17 @@ function applyCourseEndStatuses() {
   var changed = false;
   students.forEach(function(s){
     if (!s || !s.course) return;
-    var rec = courseDurationRecord(s.course);
-    if (!rec) return;
-    var st = CESTISCore.courseDuration.status(rec.startDate, rec.endDate);
+    // Resolved from the trainee's own record (stamped centre id, then their
+    // course dates), so a trainee whose course name no longer matches a centre
+    // is still moved on when that course ends instead of being skipped.
+    var st = studentCourseStatus(s);
+    if (st === 'unknown') return;
+    var rec = studentCentreRecord(s);
     if (st === 'ended') {
       // Auto-mark NYC ONCE per course-end. Certified/collected are never
       // overridden, and a student an admin has already handled for this same
       // end date is left alone ("...until updated by Administrator").
-      var endKey = rec.endDate || 'ended';
+      var endKey = (rec && rec.endDate) || s.courseEnd || 'ended';
       if (s.stage !== 'certified' && s.stage !== 'collected' && s.stage !== 'nyc'
           && s._nycForCourseEnd !== endKey) {
         s.stage = 'nyc'; s._nycAuto = true; s._nycForCourseEnd = endKey; changed = true;
@@ -44738,7 +44877,6 @@ function ttRefreshOnShow(){
 })();
 </script>
 
-
 <!-- ==========================================================================
      OFFLINE SYSTEM — shared store over the local network.
 
@@ -44761,5 +44899,6 @@ CESTISPageCloud.init({
   keys: ['systemSettings', 'cestiSchoolFeeStudents']
 });
 </script>
+
 </body>
 </html>

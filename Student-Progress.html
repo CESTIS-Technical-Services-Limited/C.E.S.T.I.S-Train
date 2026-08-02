@@ -585,6 +585,17 @@ function getCourseList() {
 function findSkillAreaForCourse(courseName) {
   if(!courseName) return skillAreas[0];
   var cn = courseName.toLowerCase().trim();
+  // The shared rule first (see CESTISCore.enrolment.findCentre): the exact name,
+  // then one name starting the other, then the same programme written two ways
+  // at the SAME NVQ level. The looser passes below are level-blind and answered
+  // "… Level 2" and "… Level 3" with the same centre, so the per-centre trainee
+  // counts merged two different intakes into one.
+  try {
+    if (typeof CESTISCore !== 'undefined' && CESTISCore.enrolment && Array.isArray(skillAreas)) {
+      var shared = CESTISCore.enrolment.findCentre(skillAreas, courseName, { nowMs: Date.now() });
+      if (shared) return shared;
+    }
+  } catch(e) {}
   var exact = skillAreas.find(function(sk){ return sk.name.toLowerCase().trim() === cn; });
   if(exact) return exact;
   var contains = skillAreas.find(function(sk){
