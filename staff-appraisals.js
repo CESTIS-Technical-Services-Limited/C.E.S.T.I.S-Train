@@ -619,6 +619,28 @@
     return hit;
   }
 
+  /* --------------------------------------------------------------------------
+     Signature status. Every completed instrument carries three signature
+     parties: the Appraisee (staff member), the Appraiser
+     (Coordinator/Administrator) and the CMC Chair. A party has signed when a
+     signature record with data exists ({type:'typed'|'drawn'|'upload',
+     data, name, date, agree?, comment?}).
+     -------------------------------------------------------------------------- */
+  function sappSignatureStatus(a) {
+    var s = (a && a.signatures) || {};
+    function has(r) { return !!(s[r] && s[r].data); }
+    var st = { appraisee: has('appraisee'), appraiser: has('appraiser'), cmc: has('cmc') };
+    st.fullySigned = st.appraisee && st.appraiser && st.cmc;
+    return st;
+  }
+  /* Same-person check used to decide whose appraisal a logged-in staff member
+     may view and sign: first and last name must agree. */
+  function sappSamePerson(nameA, nameB) {
+    var a = sappNameTokens(nameA), b = sappNameTokens(nameB);
+    if (a.length < 2 || b.length < 2) return false;
+    return a[0] === b[0] && a[a.length - 1] === b[b.length - 1];
+  }
+
   /* ==========================================================================
      Node export for unit tests (pure parts only).
      ========================================================================== */
@@ -634,7 +656,9 @@
     sappDueStatus: sappDueStatus,
     sappClamp: sappClamp,
     sappIsFullName: sappIsFullName,
-    sappMatchPayslipName: sappMatchPayslipName
+    sappMatchPayslipName: sappMatchPayslipName,
+    sappSignatureStatus: sappSignatureStatus,
+    sappSamePerson: sappSamePerson
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) { root.sappIsFullName = sappIsFullName; root.sappMatchPayslipName = sappMatchPayslipName; }
@@ -875,9 +899,14 @@
     var calc = sappCalc(latest);
     if (!calc) { el.innerHTML = ''; return; }
     var color = calc.finalPct >= 90 ? 'var(--green)' : calc.finalPct >= 80 ? 'var(--accent)' : calc.finalPct >= 60 ? 'var(--orange)' : 'var(--red)';
+    var signPage = elId.indexOf('as') === 0 ? 'as-my-appraisal' : 'i-my-appraisal';
+    var sigSt = sappSignatureStatus(latest);
+    var signHint = sigSt.appraisee
+      ? '<span style="font-size:12px;color:var(--green);">✓ Signed by you</span>'
+      : '<button class="btn btn-primary btn-sm" onclick="showPage(\'' + signPage + '\')">🖋 View & Sign Appraisal</button>';
     el.innerHTML =
       '<div class="card" style="margin-bottom:24px;padding:20px;">' +
-        '<div class="card-header" style="margin-bottom:12px;"><h3>My Performance Appraisal</h3><span style="font-size:12px;color:var(--text-muted);">' + esc(latest.period || latest.cycle) + '</span></div>' +
+        '<div class="card-header" style="margin-bottom:12px;"><h3>My Performance Appraisal</h3><span style="display:flex;gap:10px;align-items:center;"><span style="font-size:12px;color:var(--text-muted);">' + esc(latest.period || latest.cycle) + '</span>' + signHint + '</span></div>' +
         '<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">' +
           '<div style="text-align:center;"><div style="font-size:40px;font-weight:800;color:' + color + ';">' + calc.finalPct + '%</div>' +
           '<div style="font-size:12px;color:var(--text-muted);">Final Score</div></div>' +
@@ -1312,6 +1341,8 @@
     if (typeof root.addNotification === 'function') {
       try { root.addNotification('Performance appraisal completed for ' + a.staffName + ' — ' + calc.finalPct + '% (' + calc.category + ') for ' + a.period + '.', 'success', '📋', ['admin']); } catch (e) {}
     }
+    // Tell the staff member their instrument is ready for signature on "My Appraisal (Staff)"
+    sappNotifyStaffAccount(a.staffName, 'Your performance appraisal for ' + (a.period || a.cycle) + ' is completed (' + calc.finalPct + '% — ' + calc.category + '). Open "My Appraisal (Staff)" to view and sign it.', '📋');
     sappState.editing = null;
     sappRenderPage();
     try { root.sappRenderAdminDueCard(); } catch (e) {}
@@ -1324,6 +1355,27 @@
      All fixed wording is verbatim from the source documents.
      ========================================================================== */
   function docCell(v) { return v === null || v === undefined ? '' : esc(v); }
+
+  /* Render a signature onto the instrument. Unsigned parties keep the
+     original blank underscore line (exact replica); signed parties get their
+     typed name (script face) or signature image sitting on a ruled line. */
+  function sigMark(a, role) {
+    var sig = ((a && a.signatures) || {})[role];
+    if (!sig || !sig.data) return null;
+    return sig.type === 'typed'
+      ? '<span class="ap-sig-typed">' + esc(sig.data) + '</span>'
+      : '<img class="ap-sig-img" src="' + sig.data + '" alt="signature">';
+  }
+  function sigLine(a, role, blankLine, minWidth) {
+    var m = sigMark(a, role);
+    if (!m) return blankLine;
+    return '<span class="ap-sig-slot" style="min-width:' + (minWidth || 200) + 'px;">' + m + '</span>';
+  }
+  function sigDate(a, role, blankLine) {
+    var sig = ((a && a.signatures) || {})[role];
+    if (!sig || !sig.data || !sig.date) return blankLine;
+    return '<span class="ap-sig-slot" style="min-width:90px;">' + esc(sig.date) + '</span>';
+  }
 
   function sappBuildInstrumentHTML(a) {
     var tpl = SAPP_TEMPLATES[a.template];
@@ -1372,7 +1424,7 @@
     h += '<tr><td></td><td></td><td class="ap-c"><b>100</b></td><td class="ap-c"><b>' + (calc.s1Total || '') + '</b></td><td></td></tr>';
     h += '<tr><td></td><td class="ap-c"><b>TOTAL</b></td><td></td><td class="ap-c"><b>' + (calc.s1Total || '') + '</b></td><td></td></tr>';
     h += '</table>';
-    h += '<div class="ap-sig">Signed by Appraisee:_____________________________________PERFORMANCE OBJECTIVE SCORE&nbsp; (total of column 4 )&nbsp;&nbsp;&nbsp;&nbsp;<b>' + (completed ? calc.s1Total : '') + '</b></div>';
+    h += '<div class="ap-sig">Signed by Appraisee:' + sigLine(a, 'appraisee', '_____________________________________', 240) + 'PERFORMANCE OBJECTIVE SCORE&nbsp; (total of column 4 )&nbsp;&nbsp;&nbsp;&nbsp;<b>' + (completed ? calc.s1Total : '') + '</b></div>';
     h += '</div>';
 
     /* ---------- PAGE 3 (portrait): rating guides ---------- */
@@ -1413,7 +1465,7 @@
     h += '<table class="ap-t"><tr><td style="width:45%;"><b>SECTION 2 ONLY<br>SUM OF FACTOR TOTALS</b><br><i>(From a maximum score of 180)</i></td>' +
       '<td class="ap-c" style="width:15%;"><b>' + (calc.s2Total || '') + '</b></td><td>Comments:</td></tr></table>';
     h += '<p>Further Comments:</p>';
-    h += '<div class="ap-sig">Signed by Appraisee: ____________________________________&nbsp;&nbsp; Signed by Appraiser:_________________________</div>';
+    h += '<div class="ap-sig">Signed by Appraisee: ' + sigLine(a, 'appraisee', '____________________________________', 220) + '&nbsp;&nbsp; Signed by Appraiser:' + sigLine(a, 'appraiser', '_________________________', 180) + '</div>';
     h += '</div>';
 
     /* ---------- Section 3 (always printed, scored only for supervisory) ---------- */
@@ -1429,7 +1481,7 @@
     h += '<table class="ap-t"><tr><td style="width:45%;"><b>SECTION 3 ONLY<br>SUM OF FACTOR TOTALS</b><br><i>(From a maximum score of 105)</i></td>' +
       '<td class="ap-c" style="width:15%;"><b>' + (tpl.supervisory && calc.s3Total ? calc.s3Total : '') + '</b></td><td>Comments</td></tr></table>';
     h += '<p>Further Comments:</p>';
-    h += '<div class="ap-sig">Signed by Appraisee: ___________________________________&nbsp;&nbsp; Signed by Appraiser: ________________________</div>';
+    h += '<div class="ap-sig">Signed by Appraisee: ' + sigLine(a, 'appraisee', '___________________________________', 220) + '&nbsp;&nbsp; Signed by Appraiser: ' + sigLine(a, 'appraiser', '________________________', 180) + '</div>';
     h += '</div>';
 
     /* ---------- Final calculation page (portrait) ---------- */
@@ -1466,31 +1518,41 @@
       return '<table class="ap-t" style="font-size:9pt;">' + r1 + '</tr>' + r2 + '</tr></table>';
     }
     h += payRow(scores1) + '<br>' + payRow(scores2);
-    h += '<div class="ap-sig" style="margin-top:14px;">Signed by Appraisee:____________________________ &nbsp;&nbsp;&nbsp;&nbsp;Signed by Appraiser: ________________________</div>';
+    h += '<div class="ap-sig" style="margin-top:14px;">Signed by Appraisee:' + sigLine(a, 'appraisee', '____________________________ ', 220) + '&nbsp;&nbsp;&nbsp;&nbsp;Signed by Appraiser: ' + sigLine(a, 'appraiser', '________________________', 180) + '</div>';
     h += '</div>';
 
     /* ---------- Signatures and comments page ---------- */
+    var sigs = a.signatures || {};
+    var apeSig = sigs.appraisee, agree = !apeSig || apeSig.agree !== false;
+    var apeComment = apeSig && apeSig.comment ? apeSig.comment : '';
+    var aprComment = sigs.appraiser && sigs.appraiser.comment ? sigs.appraiser.comment : '';
+    var LONG = '_______________________________________________________________________________________________';
+    var LONG2 = '_________________________________________________________________________________________________________';
+    function overLine(text, blank) {
+      if (!text) return blank + '<br>';
+      return '<span class="ap-sig-slot" style="min-width:96%;text-align:left;font-size:9.5pt;">' + esc(text) + '</span><br>';
+    }
     h += '<div class="ap-page ap-portrait">';
     h += '<table class="ap-t">' +
       '<tr><th class="ap-c">SIGNATURES AND COMMENTS</th></tr>' +
       '<tr><td><b>APPRAISER.</b>&nbsp; Please summarize salient points of the discussion with the employee and add signature.<br>' +
-      '_______________________________________________________________________________________________<br>' +
-      '_______________________________________________________________________________________________<br>' +
-      '_______________________________________________________________________________________________<br>' +
-      '_______________________________________________________________________________________________<br><br>' +
-      'Appraiser’s Signature: _______________________________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date:_________________</td></tr>' +
+      overLine(aprComment, LONG) +
+      LONG + '<br>' +
+      LONG + '<br>' +
+      LONG + '<br><br>' +
+      'Appraiser’s Signature: ' + sigLine(a, 'appraiser', '_______________________________________________', 300) + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date:' + sigDate(a, 'appraiser', '_________________') + '</td></tr>' +
       '<tr><td><b>APPRAISEE:</b>&nbsp;&nbsp; Please sign to validate this Appraisal Form.&nbsp;&nbsp; Comment (if necessary) on the conduct and/or outcome of the appraisal interview.<br>' +
-      'COMMENTS:&nbsp;&nbsp;&nbsp; __________________________________________________________________________________________<br>' +
-      '_________________________________________________________________________________________________________<br>' +
-      '_________________________________________________________________________________________________________<br>' +
-      '_________________________________________________________________________________________________________<br>' +
-      '_________________________________________________________________________________________________________</td></tr>' +
+      'COMMENTS:&nbsp;&nbsp;&nbsp; ' + (apeComment ? '' : '__________________________________________________________________________________________') + (apeComment ? '<span class="ap-sig-slot" style="min-width:80%;text-align:left;font-size:9.5pt;">' + esc(apeComment) + '</span>' : '') + '<br>' +
+      LONG2 + '<br>' +
+      LONG2 + '<br>' +
+      LONG2 + '<br>' +
+      LONG2 + '</td></tr>' +
       '<tr><td><i>(Please place a tick in the box beside the statement which applies (If you have ticked the second statement, put an X beside conduct and/or outcome to indicate the nature of your disagreement).</i><br><br>' +
-      'I Agree with the conduct and outcome of this appraisal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ________________________________&nbsp;&nbsp; _________<br>' +
+      (apeSig && agree ? '☑' : '☐') + ' I Agree with the conduct and outcome of this appraisal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ' + (apeSig && agree ? sigLine(a, 'appraisee', '________________________________', 220) : '________________________________') + '&nbsp;&nbsp; ' + (apeSig && agree ? sigDate(a, 'appraisee', '_________') : '_________') + '<br>' +
       '<span style="margin-left:340px;">Appraisee’s Signature</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date<br><br>' +
-      'I DO NOT Agree with the&nbsp; ___conduct&nbsp;&nbsp; ___outcome of this appraisal&nbsp; ______________________________&nbsp; __________<br>' +
+      (apeSig && !agree ? '☑' : '☐') + ' I DO NOT Agree with the&nbsp; ___conduct&nbsp;&nbsp; ___outcome of this appraisal&nbsp; ' + (apeSig && !agree ? sigLine(a, 'appraisee', '______________________________', 200) : '______________________________') + '&nbsp; ' + (apeSig && !agree ? sigDate(a, 'appraisee', '__________') : '__________') + '<br>' +
       '<span style="margin-left:340px;">Appraisee’s Signature</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date<br><br>' +
-      'CMC Chair’s Signature:&nbsp;&nbsp;&nbsp; _____________________________________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date:__________</td></tr>' +
+      'CMC Chair’s Signature:&nbsp;&nbsp;&nbsp; ' + sigLine(a, 'cmc', '_____________________________________________________', 320) + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date:' + sigDate(a, 'cmc', '__________') + '</td></tr>' +
       '</table>';
     h += '</div>';
 
@@ -1537,6 +1599,9 @@
     '.ap-s1head{font-size:9.5pt;margin-bottom:6px;}' +
     '.ap-h2{font-weight:bold;font-size:12pt;margin-bottom:8px;}' +
     '.ap-sig{margin-top:10px;font-size:10pt;}' +
+    '.ap-sig-typed{font-family:"Segoe Script","Brush Script MT","Lucida Handwriting",cursive;font-size:13pt;color:#00008b;}' +
+    '.ap-sig-img{height:34px;vertical-align:bottom;}' +
+    '.ap-sig-slot{display:inline-block;border-bottom:1px solid #000;text-align:center;vertical-align:bottom;line-height:1.1;padding:0 8px;}' +
     '.ap-rule{border:none;border-top:1px dashed #000;margin:8px 0;}' +
     '@media print{' +
     'body{margin:0;background:#fff;}' +
@@ -1577,6 +1642,10 @@
       ? (sappCollectFromForm() || sappState.editing)
       : (sappGetAppraisal(sappState.cycleKey, staffId) || (staff && sappNewAppraisal(staff, sappState.cycleKey)));
     if (!a) return;
+    root.sappPrintAppraisal(a);
+  };
+  root.sappPrintAppraisal = function (a) {
+    if (!a) return;
     var w = window.open('', '_blank');
     if (!w) { alert('Please allow pop-ups to print the appraisal.'); return; }
     w.document.write('<!DOCTYPE html><html><head><title>Appraisal Instrument — ' + esc(a.staffName) + '</title>' +
@@ -1585,6 +1654,317 @@
       '<script>window.onload=function(){setTimeout(function(){window.print();},350);};<\/script>' +
       '</body></html>');
     w.document.close();
+  };
+
+  /* ==========================================================================
+     "MY APPRAISAL (STAFF)" — signing page, mounted for four roles.
+     Once the Administrator marks an appraisal COMPLETED, the instrument (the
+     exact-replica PDF) appears here for signing:
+       - staff (instructor / admin staff)  → sign as Appraisee
+       - Administrator (Coordinator)       → sign as Appraiser
+       - CMC (Board)                       → sign as CMC Chair
+     Signatures can be typed (script face), drawn on a canvas, or uploaded as
+     a PNG image, and are rendered onto the instrument's signature lines.
+     ========================================================================== */
+  var sappMy = {}; // per-prefix view state
+
+  function sappSignerRole() {
+    var r = null;
+    try { r = root.currentRole; } catch (e) {}
+    if (r === 'admin') return 'appraiser';
+    if (r === 'cmc') return 'cmc';
+    if (r === 'instructor' || r === 'adminstaff') return 'appraisee';
+    return null;
+  }
+  function sappSignerName() {
+    try {
+      if (root.currentLoggedInUser && root.currentLoggedInUser.name) return root.currentLoggedInUser.name;
+      if (root.currentInstructor && root.currentInstructor.name) return root.currentInstructor.name;
+    } catch (e) {}
+    return '';
+  }
+  function sappRoleTitle(role) {
+    return role === 'appraiser' ? 'Appraiser (Coordinator/Administrator)'
+      : role === 'cmc' ? 'CMC Chair' : 'Appraisee (Staff Member)';
+  }
+  function sappTodayStr() {
+    var d = new Date();
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+  }
+  /* All COMPLETED appraisals, newest cycle first. */
+  function sappCompletedAppraisals() {
+    var d = sappData(), out = [];
+    Object.keys(d.cycles).sort().reverse().forEach(function (ck) {
+      Object.keys(d.cycles[ck]).forEach(function (sid) {
+        var a = d.cycles[ck][sid];
+        if (a && a.status === 'completed') out.push(a);
+      });
+    });
+    return out;
+  }
+  function sappMyList(role) {
+    var all = sappCompletedAppraisals();
+    if (role !== 'appraisee') return all;
+    var me = sappSignerName();
+    return all.filter(function (a) { return sappSamePerson(a.staffName, me); });
+  }
+  function sappNotifyStaffAccount(staffName, text, icon) {
+    try {
+      var acct = (root.userAccounts || []).filter(function (u) {
+        return u && (u.role === 'instructor' || u.role === 'adminstaff') && sappSamePerson(u.name, staffName);
+      })[0];
+      if (acct && typeof root.addNotificationForUser === 'function') {
+        root.addNotificationForUser(text, 'info', icon || '📋', acct.id, acct.role);
+      }
+    } catch (e) {}
+  }
+
+  root.sappMyApprOnShow = function (prefix) {
+    prefix = prefix || 'admin';
+    var el = document.getElementById(prefix + 'SappMyApprRoot');
+    if (!el) return;
+    var role = sappSignerRole();
+    if (!role) {
+      el.innerHTML = '<div class="card" style="padding:32px;text-align:center;color:var(--text-muted);">Please sign in to view appraisals.</div>';
+      return;
+    }
+    if (!sappMy[prefix]) sappMy[prefix] = { view: 'list', method: 'typed', uploadData: null };
+    var st = sappMy[prefix];
+    if (st.view === 'sign' && st.cycle && st.staffId) sappMyRenderSign(el, prefix);
+    else sappMyRenderList(el, prefix);
+  };
+
+  function sappMyRenderList(el, prefix) {
+    var role = sappSignerRole();
+    var list = sappMyList(role);
+    var html = '<div class="card" style="margin-bottom:16px;">' +
+      '<div class="card-header"><h3>My Appraisal (Staff)</h3><span style="font-size:12px;color:var(--text-muted);">You sign as: <strong>' + esc(sappRoleTitle(role)) + '</strong></span></div>' +
+      '<p style="font-size:13px;color:var(--text-muted);margin:0;">Completed performance appraisals appear here as the official Performance Appraisal Instrument (printable PDF). ' +
+      'Sign on your signature line by typing your name, signing digitally, or uploading a signature PNG.</p></div>';
+
+    if (!list.length) {
+      html += '<div class="card" style="padding:36px;text-align:center;color:var(--text-muted);">' +
+        '<div style="font-size:38px;margin-bottom:10px;">🖋️</div>' +
+        (role === 'appraisee'
+          ? 'No completed appraisal is available for you yet. Your appraisal will appear here when the Administrator completes it.'
+          : 'No completed staff appraisals awaiting signature yet.') + '</div>';
+      el.innerHTML = html;
+      return;
+    }
+
+    var rows = list.map(function (a) {
+      var calc = sappCalc(a) || {};
+      var st = sappSignatureStatus(a);
+      function chip(label, on, mine) {
+        return '<span style="font-size:11px;padding:2px 8px;border-radius:10px;margin-right:4px;white-space:nowrap;' +
+          (on ? 'background:rgba(46,204,113,.15);color:var(--green);' : 'background:rgba(240,165,0,.12);color:var(--orange);') + '">' +
+          (on ? '✓ ' : '· ') + label + (mine && !on ? ' (you)' : '') + '</span>';
+      }
+      var chips = chip('Appraisee', st.appraisee, role === 'appraisee') + chip('Appraiser', st.appraiser, role === 'appraiser') + chip('CMC', st.cmc, role === 'cmc');
+      var mineDone = st[role];
+      var btn = '<button class="btn ' + (mineDone ? 'btn-secondary' : 'btn-primary') + ' btn-sm" onclick="sappMyOpenSign(\'' + esc(prefix) + '\',\'' + esc(a.cycle) + '\',\'' + esc(a.staffId) + '\')">' + (mineDone ? 'View' : 'View & Sign') + '</button>';
+      return '<tr>' +
+        '<td><div style="font-weight:600;">' + esc(a.staffName) + '</div><div style="font-size:11px;color:var(--text-muted);">' + esc((SAPP_TEMPLATES[a.template] || {}).label || a.template) + '</div></td>' +
+        '<td>' + esc(a.period || a.cycle) + '</td>' +
+        '<td><strong>' + (calc.finalPct != null ? calc.finalPct + '%' : '—') + '</strong> <span style="font-size:11px;color:var(--text-muted);">' + esc(calc.category || '') + '</span></td>' +
+        '<td>' + chips + (st.fullySigned ? '<div style="font-size:11px;color:var(--green);margin-top:2px;">Fully signed</div>' : '') + '</td>' +
+        '<td>' + btn + '</td></tr>';
+    }).join('');
+
+    html += '<div class="card"><div style="overflow-x:auto;"><table class="data-table" style="width:100%;">' +
+      '<thead><tr><th>Staff Member</th><th>Appraisal Period</th><th>Final Score</th><th>Signatures</th><th>Action</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div></div>';
+    el.innerHTML = html;
+  }
+
+  root.sappMyOpenSign = function (prefix, cycle, staffId) {
+    var st = sappMy[prefix] = sappMy[prefix] || {};
+    st.view = 'sign'; st.cycle = cycle; st.staffId = staffId; st.method = 'typed'; st.uploadData = null;
+    var el = document.getElementById(prefix + 'SappMyApprRoot');
+    if (el) sappMyRenderSign(el, prefix);
+  };
+  root.sappMyBack = function (prefix) {
+    if (sappMy[prefix]) sappMy[prefix].view = 'list';
+    root.sappMyApprOnShow(prefix);
+  };
+
+  function sappMyLoadTarget(prefix) {
+    var st = sappMy[prefix];
+    if (!st) return null;
+    return sappGetAppraisal(st.cycle, st.staffId);
+  }
+
+  function sappMyRenderSign(el, prefix) {
+    var role = sappSignerRole();
+    var a = sappMyLoadTarget(prefix);
+    if (!a) { root.sappMyBack(prefix); return; }
+    // An appraisee may only open their own instrument.
+    if (role === 'appraisee' && !sappSamePerson(a.staffName, sappSignerName())) { root.sappMyBack(prefix); return; }
+    var st = sappMy[prefix];
+    var sigSt = sappSignatureStatus(a);
+    var mine = (a.signatures || {})[role];
+
+    var html = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">' +
+      '<button class="btn btn-secondary" onclick="sappMyBack(\'' + esc(prefix) + '\')">← Back</button>' +
+      '<h3 style="margin:0;flex:1;">Appraisal Instrument — ' + esc(a.staffName) + ' (' + esc(a.period || a.cycle) + ')</h3>' +
+      '<button class="btn btn-secondary" onclick="sappMyPrint(\'' + esc(prefix) + '\')">🖨 Print / Save as PDF</button></div>';
+
+    // Signing panel
+    html += '<div class="card" style="margin-bottom:16px;">' +
+      '<div class="card-header"><h3>Your Signature — ' + esc(sappRoleTitle(role)) + '</h3>' +
+      (mine && mine.data ? '<span style="color:var(--green);font-weight:600;font-size:13px;">✓ Signed on ' + esc(mine.date || '') + '</span>' : '<span style="color:var(--orange);font-size:13px;">Awaiting your signature</span>') + '</div>';
+
+    html += '<div class="sapp-sign-tabs">' +
+      ['typed', 'drawn', 'upload'].map(function (m) {
+        var lbl = m === 'typed' ? '⌨ Type your name' : m === 'drawn' ? '✍ Sign digitally' : '🖼 Upload signature PNG';
+        return '<div class="sapp-sign-tab' + (st.method === m ? ' active' : '') + '" onclick="sappMySetMethod(\'' + esc(prefix) + '\',\'' + m + '\')">' + lbl + '</div>';
+      }).join('') + '</div>';
+
+    if (st.method === 'typed') {
+      html += '<div class="form-group"><label>Type your full name as your signature</label>' +
+        '<input class="form-control" id="' + prefix + 'SappSigTyped" value="' + esc((mine && mine.type === 'typed' ? mine.data : '') || sappSignerName()) + '" oninput="sappMyTypedPreview(\'' + esc(prefix) + '\')" style="max-width:380px;"></div>' +
+        '<div class="sapp-sig-preview-typed" id="' + prefix + 'SappSigTypedPreview" style="max-width:380px;"></div>';
+    } else if (st.method === 'drawn') {
+      html += '<div style="max-width:520px;">' +
+        '<canvas id="' + prefix + 'SappSigCanvas" class="sapp-sign-canvas" width="500" height="150" style="width:100%;"></canvas>' +
+        '<div style="margin-top:8px;display:flex;gap:8px;">' +
+        '<button class="btn btn-secondary btn-sm" onclick="sappMyClearCanvas(\'' + esc(prefix) + '\')">Clear</button>' +
+        '<span style="font-size:12px;color:var(--text-muted);align-self:center;">Sign inside the box with your mouse or finger.</span></div></div>';
+    } else {
+      html += '<div class="form-group"><label>Upload your signature image (PNG, transparent background recommended)</label>' +
+        '<input type="file" accept="image/png,image/jpeg" id="' + prefix + 'SappSigFile" class="form-control" style="max-width:380px;" onchange="sappMyUploadChange(\'' + esc(prefix) + '\')"></div>' +
+        '<div id="' + prefix + 'SappSigUploadPreview" style="background:#fff;border-radius:8px;padding:8px;max-width:380px;min-height:52px;">' +
+        (st.uploadData ? '<img src="' + st.uploadData + '" style="height:44px;">' : '<span style="color:#888;font-size:12px;">No image selected' + (mine && mine.type === 'upload' ? ' — current signature on file will be kept unless you choose a new image.' : '') + '</span>') + '</div>';
+    }
+
+    if (role === 'appraisee') {
+      var agreeNow = !mine || mine.agree !== false;
+      html += '<div class="form-group" style="margin-top:14px;"><label>Conduct and outcome of this appraisal</label>' +
+        '<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;">' +
+        '<label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="' + prefix + 'SappAgree" id="' + prefix + 'SappAgreeYes" ' + (agreeNow ? 'checked' : '') + '> I AGREE with the conduct and outcome</label>' +
+        '<label style="display:flex;align-items:center;gap:6px;"><input type="radio" name="' + prefix + 'SappAgree" id="' + prefix + 'SappAgreeNo" ' + (!agreeNow ? 'checked' : '') + '> I DO NOT agree</label></div></div>';
+      html += '<div class="form-group"><label>Comments (optional — appears in the COMMENTS section of the instrument)</label>' +
+        '<textarea class="form-control" id="' + prefix + 'SappSigComment" rows="2" style="max-width:640px;">' + esc(mine && mine.comment ? mine.comment : '') + '</textarea></div>';
+    } else if (role === 'appraiser') {
+      html += '<div class="form-group" style="margin-top:14px;"><label>Summary of discussion with the employee (optional — appears in the APPRAISER section)</label>' +
+        '<textarea class="form-control" id="' + prefix + 'SappSigComment" rows="2" style="max-width:640px;">' + esc(mine && mine.comment ? mine.comment : '') + '</textarea></div>';
+    }
+
+    html += '<div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
+      '<button class="btn btn-primary" onclick="sappMyApplySignature(\'' + esc(prefix) + '\')">' + (mine && mine.data ? 'Update Signature' : 'Apply Signature') + '</button>' +
+      '<span style="font-size:12px;color:var(--text-muted);">Signing as ' + esc(sappSignerName()) + ' • Date: ' + sappTodayStr() + '</span></div>';
+    html += '</div>';
+
+    // Signature progress
+    function prog(lbl, on) { return '<span style="margin-right:14px;' + (on ? 'color:var(--green);' : 'color:var(--text-muted);') + '">' + (on ? '✓' : '○') + ' ' + lbl + '</span>'; }
+    html += '<div class="card" style="margin-bottom:16px;padding:12px 18px;font-size:13px;">' +
+      prog('Appraisee', sigSt.appraisee) + prog('Appraiser', sigSt.appraiser) + prog('CMC Chair', sigSt.cmc) +
+      (sigSt.fullySigned ? '<strong style="color:var(--green);">— Instrument fully signed</strong>' : '') + '</div>';
+
+    // The instrument itself (exact replica, with signatures rendered)
+    html += '<div class="sapp-doc-scroll"><style>' + SAPP_DOC_CSS + '</style><div class="ap-doc">' + sappBuildInstrumentHTML(a) + '</div></div>';
+
+    el.innerHTML = html;
+    if (st.method === 'typed') root.sappMyTypedPreview(prefix);
+    if (st.method === 'drawn') sappMyWireCanvas(prefix);
+  }
+
+  root.sappMySetMethod = function (prefix, m) {
+    if (!sappMy[prefix]) return;
+    sappMy[prefix].method = m;
+    var el = document.getElementById(prefix + 'SappMyApprRoot');
+    if (el) sappMyRenderSign(el, prefix);
+  };
+  root.sappMyTypedPreview = function (prefix) {
+    var inp = document.getElementById(prefix + 'SappSigTyped');
+    var pv = document.getElementById(prefix + 'SappSigTypedPreview');
+    if (inp && pv) pv.textContent = inp.value || ' ';
+  };
+  function sappMyWireCanvas(prefix) {
+    var cv = document.getElementById(prefix + 'SappSigCanvas');
+    if (!cv) return;
+    var ctx = cv.getContext('2d');
+    ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#00187a';
+    var drawing = false, hasInk = false;
+    function pos(e) {
+      var r = cv.getBoundingClientRect();
+      var sx = cv.width / r.width, sy = cv.height / r.height;
+      return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+    }
+    cv.addEventListener('pointerdown', function (e) { drawing = true; hasInk = true; cv.setPointerCapture(e.pointerId); var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); });
+    cv.addEventListener('pointermove', function (e) { if (!drawing) return; var p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); });
+    cv.addEventListener('pointerup', function () { drawing = false; });
+    cv.addEventListener('pointerleave', function () { drawing = false; });
+    cv._sappHasInk = function () { return hasInk; };
+    cv._sappReset = function () { ctx.clearRect(0, 0, cv.width, cv.height); hasInk = false; };
+  }
+  root.sappMyClearCanvas = function (prefix) {
+    var cv = document.getElementById(prefix + 'SappSigCanvas');
+    if (cv && cv._sappReset) cv._sappReset();
+  };
+  root.sappMyUploadChange = function (prefix) {
+    var inp = document.getElementById(prefix + 'SappSigFile');
+    var f = inp && inp.files && inp.files[0];
+    if (!f) return;
+    if (f.size > 400 * 1024) { alert('Signature image is too large — please use an image under 400 KB.'); inp.value = ''; return; }
+    var rd = new FileReader();
+    rd.onload = function () {
+      sappMy[prefix].uploadData = rd.result;
+      var pv = document.getElementById(prefix + 'SappSigUploadPreview');
+      if (pv) pv.innerHTML = '<img src="' + rd.result + '" style="height:44px;">';
+    };
+    rd.readAsDataURL(f);
+  };
+
+  root.sappMyApplySignature = function (prefix) {
+    var role = sappSignerRole();
+    var a = sappMyLoadTarget(prefix);
+    if (!role || !a) return;
+    if (role === 'appraisee' && !sappSamePerson(a.staffName, sappSignerName())) {
+      alert('You can only sign your own appraisal.'); return;
+    }
+    var st = sappMy[prefix];
+    var sig = { type: st.method, name: sappSignerName(), date: sappTodayStr() };
+    if (st.method === 'typed') {
+      var t = (document.getElementById(prefix + 'SappSigTyped') || {}).value || '';
+      if (!t.trim()) { alert('Please type your name to sign.'); return; }
+      sig.data = t.trim();
+    } else if (st.method === 'drawn') {
+      var cv = document.getElementById(prefix + 'SappSigCanvas');
+      if (!cv || !cv._sappHasInk || !cv._sappHasInk()) { alert('Please draw your signature in the box first.'); return; }
+      sig.data = cv.toDataURL('image/png');
+    } else {
+      var existing = (a.signatures || {})[role];
+      sig.data = st.uploadData || (existing && existing.type === 'upload' ? existing.data : null);
+      if (!sig.data) { alert('Please choose a signature PNG image to upload.'); return; }
+      sig.type = 'upload';
+    }
+    var cEl = document.getElementById(prefix + 'SappSigComment');
+    if (cEl) sig.comment = cEl.value.trim();
+    if (role === 'appraisee') {
+      var no = document.getElementById(prefix + 'SappAgreeNo');
+      sig.agree = !(no && no.checked);
+    }
+    a.signatures = a.signatures || {};
+    a.signatures[role] = sig;
+    sappSaveAppraisal(a);
+    if (typeof root.showToast === 'function') root.showToast('Signature applied to the appraisal instrument.', 'success');
+    // Cross-notify the other parties
+    try {
+      if (role !== 'appraiser' && typeof root.addNotification === 'function') {
+        root.addNotification(esc(sig.name) + ' signed the appraisal instrument for ' + a.staffName + ' (' + (a.period || a.cycle) + ') as ' + sappRoleTitle(role) + '.', 'info', '🖋️', ['admin']);
+      }
+      if (role !== 'appraisee') {
+        sappNotifyStaffAccount(a.staffName, 'Your performance appraisal for ' + (a.period || a.cycle) + ' has been signed by the ' + sappRoleTitle(role) + '.', '🖋️');
+      }
+    } catch (e) {}
+    var el = document.getElementById(prefix + 'SappMyApprRoot');
+    if (el) sappMyRenderSign(el, prefix);
+  };
+
+  root.sappMyPrint = function (prefix) {
+    var a = sappMyLoadTarget(prefix);
+    if (a) root.sappPrintAppraisal(a);
   };
 
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));

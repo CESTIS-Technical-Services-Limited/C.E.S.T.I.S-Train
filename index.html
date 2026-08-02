@@ -9408,6 +9408,8 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>Admin Duty Register<span class="nav-badge" id="dutyTasksBadge" style="display:none;background:var(--accent);">0</span></div>
     <div class="nav-item" data-page="staff-appraisals" onclick="showPage('staff-appraisals')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>Staff Appraisals<span class="nav-badge" id="sappNavBadge" style="display:none;background:var(--accent);">0</span></div>
+    <div class="nav-item" data-page="my-appraisal" onclick="showPage('my-appraisal')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>My Appraisal (Staff)</div>
     <div class="nav-item" data-page="verify-users" onclick="showPage('verify-users')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>Verify Users<span class="nav-badge" id="pendingUsersBadge" style="display:none;background:var(--red);">0</span></div>
     <div class="nav-item" data-page="certificates" onclick="showPage('certificates')">
@@ -9508,6 +9510,8 @@ function buildInstructorSidebar() {
     <div class="nav-section-label">Tasks</div>
     <div class="nav-item" data-page="i-duties" onclick="showPage('i-duties')" style="position:relative;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>My Assigned Tasks<span id="iDutyTasksBadge" class="nav-badge" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:var(--red);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;min-width:18px;text-align:center;">0</span></div>
+    <div class="nav-item" data-page="i-my-appraisal" onclick="showPage('i-my-appraisal')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>My Appraisal (Staff)</div>
     <div class="nav-section-label">Communication</div>
     <div class="nav-item" data-page="i-announcements" onclick="showPage('i-announcements')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"/></svg>Announcements</div>
@@ -9701,6 +9705,12 @@ var cestisFeatureConfig = {
     file: 'Pages/Staff-Appraisals.html',
     onMount: function() {
       cestisSafe('sappOnPageShow');
+    }
+  },
+  'my-appraisal': {
+    file: 'Pages/My-Appraisal.html',
+    onMount: function(prefix) {
+      try { if(typeof sappMyApprOnShow === 'function') sappMyApprOnShow(prefix); } catch(e) { console.warn('my-appraisal mount error', e); }
     }
   },
   'i-resources': {
@@ -9941,6 +9951,7 @@ function showPage(pageId) {
     'i-duties':'My Assigned Tasks','i-announcements':'Announcements','i-calendar':'Calendar','i-profile':'My Profile',
     'lms-chat':'C.E.S.T.I.S LMS Chat','s-lms-chat':'C.E.S.T.I.S LMS Chat','i-lms-chat':'C.E.S.T.I.S LMS Chat',
     'admin-duty-register':'Admin Duty Register','staff-appraisals':'Staff Appraisals',
+    'my-appraisal':'My Appraisal (Staff)','i-my-appraisal':'My Appraisal (Staff)','as-my-appraisal':'My Appraisal (Staff)','cmc-my-appraisal':'My Appraisal (Staff)',
     'support-messages':'Support Messages','as-support-messages':'Support Messages',
     'as-dashboard':'My Dashboard','as-duties':'My Duties','as-lms-chat':'C.E.S.T.I.S LMS Chat','as-profile':'My Profile',
     'as-attendance':'Attendance Management','as-announcements':'Announcements','as-calendar':'Calendar & Schedule',
@@ -10533,6 +10544,10 @@ function buildAdminPages() {
   <!-- ADMIN DUTY REGISTER PAGE -->
   <section class="page" id="page-staff-appraisals">
     <div class="cestis-mount" data-feature="staff-appraisals" data-prefix="admin"></div>
+  </section>
+
+  <section class="page" id="page-my-appraisal">
+    <div class="cestis-mount" data-feature="my-appraisal" data-prefix="admin"></div>
   </section>
 
   <section class="page" id="page-admin-duty-register">
@@ -11196,6 +11211,11 @@ function buildInstructorPages() {
   <!-- C.E.S.T.I.S VIDEO CONFERENCE (INSTRUCTOR) — markup lives in Video-Conference-Instructor.html -->
   <section class="page" id="page-i-classes">
     <div class="cestis-mount" data-feature="video-instructor" data-prefix="instructor"></div>
+  </section>
+
+  <!-- INSTRUCTOR: MY APPRAISAL (STAFF) — markup lives in Pages/My-Appraisal.html -->
+  <section class="page" id="page-i-my-appraisal">
+    <div class="cestis-mount" data-feature="my-appraisal" data-prefix="i"></div>
   </section>
 
   <!-- INSTRUCTOR STUDENTS -->
@@ -30362,6 +30382,9 @@ function buildAdminStaffSidebar() {
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>My Duties' +
     (myPendingTasks > 0 ? '<span class="nav-badge" style="background:var(--accent);">'+myPendingTasks+'</span>' : '') + '</div>';
 
+  html += '<div class="nav-item" data-page="as-my-appraisal" onclick="showPage(\'as-my-appraisal\')">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>My Appraisal (Staff)</div>';
+
   // LMS Chat always visible
   html += '<div class="nav-item" data-page="as-lms-chat" onclick="showPage(\'as-lms-chat\')">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>LMS Chat<span class="nav-badge" style="background:var(--green);">NEW</span></div>';
@@ -30559,6 +30582,11 @@ function buildAdminStaffPages() {
     html += '</div>';
   }
   html += '</section>';
+
+  // ---- My Appraisal (Staff) Page ----
+  html += '<section class="page" id="page-as-my-appraisal">' +
+    '<div class="cestis-mount" data-feature="my-appraisal" data-prefix="as"></div>' +
+  '</section>';
 
   // ---- My Duties Page ----
   html += '<section class="page" id="page-as-duties">' +
@@ -31896,6 +31924,8 @@ function buildCmcSidebar() {
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Financial Overview</div>' +
     '<div class="nav-item" data-page="cmc-staff" onclick="showPage(\'cmc-staff\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Staff & HR</div>' +
+    '<div class="nav-item" data-page="cmc-my-appraisal" onclick="showPage(\'cmc-my-appraisal\')">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>My Appraisal (Staff)</div>' +
     '<div class="nav-item" data-page="cmc-academic" onclick="showPage(\'cmc-academic\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Academic</div>' +
     '<div class="nav-section-label">Drive Sources</div>' +
@@ -32322,6 +32352,11 @@ function buildCmcPages() {
   if(topStudents.length===0) html += '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No students enrolled yet</td></tr>';
   html += '</tbody></table></div>';
   html += '</section>';
+
+  // ---- My Appraisal (Staff) Page — CMC Chair signs completed appraisals ----
+  html += '<section class="page" id="page-cmc-my-appraisal">' +
+    '<div class="cestis-mount" data-feature="my-appraisal" data-prefix="cmc"></div>' +
+  '</section>';
 
   // ---- Profile Page ----
   html += '<section class="page" id="page-cmc-profile">';
