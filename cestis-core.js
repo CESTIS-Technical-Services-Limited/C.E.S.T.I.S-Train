@@ -3185,7 +3185,21 @@
        so they can only be described as a prefix). */
     function ownsKey(spec, key) {
       if (!spec || !key) return false;
-      var keys = spec.keys || [], prefixes = spec.prefixes || [], i;
+      var i;
+      // `all: true` claims the WHOLE store — every key a page has ever written,
+      // including ones no page thought to declare. This is how the offline build
+      // matches what Google Drive does for the online one: the master snapshot
+      // there sweeps everything, so nothing depends on somebody having
+      // remembered to list it. `exclude` / `excludePrefixes` carve out the few
+      // things that must stay on the device they were written on — access
+      // tokens, which are per-machine and secret, and local display choices.
+      if (spec.all) {
+        var ex = spec.exclude || [], exp = spec.excludePrefixes || [];
+        for (i = 0; i < ex.length; i++) if (ex[i] === key) return false;
+        for (i = 0; i < exp.length; i++) if (key.indexOf(exp[i]) === 0) return false;
+        return true;
+      }
+      var keys = spec.keys || [], prefixes = spec.prefixes || [];
       for (i = 0; i < keys.length; i++) if (keys[i] === key) return true;
       for (i = 0; i < prefixes.length; i++) if (key.indexOf(prefixes[i]) === 0) return true;
       return false;
