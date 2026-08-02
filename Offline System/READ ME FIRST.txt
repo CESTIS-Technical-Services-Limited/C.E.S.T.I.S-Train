@@ -22,12 +22,15 @@ Put this folder somewhere sensible on the computer that will act as the server
 A black window opens and prints something like:
 
     On THIS computer, open:
-        http://localhost:8080/index.html
+        https://localhost:8080/index.html
 
     On ANY OTHER device on the same network, open:
-        http://192.168.1.24:8080/index.html
+        https://192.168.1.24:8080/index.html
 
 LEAVE THAT WINDOW OPEN. Closing it stops the system for everybody.
+
+Note the https. It is not decoration: browsers only allow the camera and
+microphone on an address they trust, so video classes need it. See section 2.
 
 On a Mac the first double-click may be refused ("unidentified developer").
 Right-click the file, choose Open, then Open again. Once only.
@@ -41,8 +44,20 @@ Every device must be on the SAME network as the server computer — the same wif
 or plugged into the same router. No internet connection is needed on that
 network; a router with no internet works perfectly.
 
-On each device, open a browser and type the http://192.168... address the black
+On each device, open a browser and type the https://192.168... address the black
 window printed. Bookmark it.
+
+THE FIRST TIME, EXPECT A WARNING
+The browser will say the connection is "not private", or show a red padlock.
+Click Advanced, then Proceed / Continue / Visit this website. The device
+remembers and never asks again.
+
+That warning is not about your data being exposed. It means nobody famous
+vouched for this server's certificate — nobody could, because a certificate
+authority lives on the internet and there is none here, and no authority issues
+certificates for a private address like 192.168.1.24 in any case. The server
+makes its own on first run and keeps it in the "cert" folder. The connection is
+encrypted either way.
 
 If a device cannot reach it:
   - check it is on the same wifi, not a phone's mobile data;
@@ -50,7 +65,9 @@ If a device cannot reach it:
     port 8080, when the firewall asks;
   - the address changes if the router restarts. Read the new one off the black
     window. Ask whoever manages the router to reserve a fixed address for the
-    server computer and the problem goes away for good.
+    server computer and the problem goes away for good. (When the address does
+    change, the server makes a fresh certificate for it, so devices are asked to
+    accept it once more.)
 
 
 --------------------------------------------------------------------------------
@@ -123,12 +140,21 @@ What to expect:
     groups are comfortable; a large class on old tablets will not be.
 
 To see who is currently connected, open on the server computer:
-      http://localhost:8080/_cestis/rooms
+      https://localhost:8080/_cestis/rooms
 
 If a call will not connect:
   - check both devices are on the same wifi, not one on mobile data;
   - check the black window is still open;
   - reload both pages and try once more — the room is created fresh each time.
+
+"Video is not available at this page address"
+    The page was opened over http:// instead of https://, and no browser will
+    give the camera or microphone to a page reached that way over a network.
+    Check the address bar: it must be the https:// one the black window printed.
+    If the black window itself says "VIDEO CLASSES - LIMITED", this computer has
+    no "openssl" command to make a certificate with. macOS and Linux already
+    have it; on Windows it comes with Git (https://git-scm.com). Install it once
+    and start the server again. Everything except video works meanwhile.
 
 
 --------------------------------------------------------------------------------
