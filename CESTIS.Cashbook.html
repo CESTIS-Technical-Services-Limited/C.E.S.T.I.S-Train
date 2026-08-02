@@ -847,6 +847,22 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .fdoc-version { margin-top:10px; font-size:7pt; color:#999; padding-top:4px; }
 
 /* Print */
+/* CMC Board view mode (?view=cmc): read-only oversight — hide every control
+   that would create, edit, delete or sync data. */
+body.cmc-view-mode .btn-success,
+body.cmc-view-mode .btn-danger,
+body.cmc-view-mode .btn-amber,
+body.cmc-view-mode .cloud-section,
+body.cmc-view-mode .sidebar-logout,
+body.cmc-view-mode #loginOverlay,
+body.cmc-view-mode .mandatory-sync-overlay,
+body.cmc-view-mode .first-time-sync-prompt { display: none !important; }
+body.cmc-view-mode .cmc-view-ribbon {
+    background: rgba(26,188,156,0.14); color: #1abc9c; font-weight: 700;
+    font-size: 0.72rem; letter-spacing: .04em; text-align: center;
+    padding: 6px 10px; border-radius: 8px; margin: 10px;
+}
+
 @media print {
     /* ---- Hide non-printable UI ---- */
     .sidebar, .cb-mobile-nav, .header-actions, .btn, .nav-item, .search-bar,
@@ -8832,7 +8848,108 @@ window.addEventListener('online', function(){
 // ============================================================
 // INIT
 // ============================================================
+/* ============================================================
+   CMC BOARD VIEW MODE  (?view=cmc)
+   ------------------------------------------------------------
+   The Community Management Committee oversees the Centre but does
+   not operate it. When this page is opened as CESTIS.Cashbook.html?view=cmc
+   (from the CMC Portal inside the LMS, where the board member has already
+   authenticated), it becomes strictly read-only and exposes ONLY the
+   Main Dashboard and the Transactions page:
+     - the sidebar is reduced to those two entries
+     - navigation to any other page is refused
+     - every create/edit/delete control is hidden and its handler blocked
+   ============================================================ */
+const CMC_VIEW = (function(){
+    try { return new URLSearchParams(window.location.search).get('view') === 'cmc'; }
+    catch(e) { return false; }
+})();
+const CMC_ALLOWED_PAGES = ['dashboard', 'transactions'];
+function cmcPageAllowed(page) { return CMC_ALLOWED_PAGES.indexOf(page) !== -1; }
+
+function applyCmcViewMode() {
+    if (!CMC_VIEW) return;
+    document.body.classList.add('cmc-view-mode');
+
+    // Reduce the sidebar to Dashboard + Transactions.
+    document.querySelectorAll('.sidebar .nav-section').forEach(function(section) {
+        var kept = 0;
+        section.querySelectorAll('.nav-item').forEach(function(item) {
+            var oc = item.getAttribute('onclick') || '';
+            var m = oc.match(/show(?:Page|PageDirect)\('([^']+)'\)/);
+            if (m && cmcPageAllowed(m[1])) { kept++; return; }
+            item.remove();
+        });
+        if (!kept) section.remove();
+    });
+    // Cloud sync / sign-out controls belong to the operating staff, not the board.
+    ['.cloud-section', '.sidebar-logout'].forEach(function(sel) {
+        document.querySelectorAll(sel).forEach(function(el) { el.remove(); });
+    });
+    // Make the restriction visible rather than implicit.
+    var logo = document.querySelector('.sidebar .logo');
+    if (logo && !document.querySelector('.cmc-view-ribbon')) {
+        var ribbon = document.createElement('div');
+        ribbon.className = 'cmc-view-ribbon';
+        ribbon.textContent = '🔒 CMC BOARD — VIEW ONLY';
+        logo.insertAdjacentElement('afterend', ribbon);
+    }
+
+    // Hide every mutating control on the two permitted pages.
+    var mutators = /openAddModal|editTxn|deleteTxn|openEdit|saveEntry|deleteBudgetLine|handleLogout|resetAll|clearAll|importC/i;
+    document.querySelectorAll('button, .btn').forEach(function(b) {
+        var oc = b.getAttribute('onclick') || '';
+        if (mutators.test(oc)) b.style.display = 'none';
+    });
+
+    // Belt and braces: block the mutation entry points outright, in case a
+    // control is rendered after this pass (the transactions table re-renders).
+    ['openAddModal','editTxn','deleteTxn','saveEntry','deleteBudgetLine','saveBudgetLine']
+      .forEach(function(fn) {
+        if (typeof window[fn] === 'function') {
+            window[fn] = function() {
+                alert('The CMC Board has view-only access to the Cashbook.');
+            };
+        }
+      });
+
+    // Refuse navigation to anything outside the permitted pages.
+    var _showPage = window.showPage, _showPageDirect = window.showPageDirect, _navigateToPage = window.navigateToPage;
+    window.showPage = function(page) { if (!cmcPageAllowed(page)) return; return _showPage.apply(this, arguments); };
+    window.navigateToPage = function(page) { if (!cmcPageAllowed(page)) return; return _navigateToPage.apply(this, arguments); };
+    window.showPageDirect = function(page) { if (!cmcPageAllowed(page)) return; return _showPageDirect.apply(this, arguments); };
+
+    // Hide the mutating action column in the transactions table on every render.
+    var hideActionCells = function() {
+        document.querySelectorAll('#page-transactions button[onclick^="editTxn"], #page-transactions button[onclick^="deleteTxn"]')
+          .forEach(function(b) { b.style.display = 'none'; });
+    };
+    hideActionCells();
+    var txnBody = document.querySelector('#page-transactions tbody');
+    if (txnBody && window.MutationObserver) {
+        new MutationObserver(hideActionCells).observe(txnBody, { childList: true, subtree: true });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // CMC board view: the viewer already authenticated in the LMS, so skip this
+    // app's own sign-in and open straight into the restricted read-only view.
+    if (CMC_VIEW) {
+        try {
+            CESTISStore.setItem(AUTH_SESSION_KEY, JSON.stringify({ loggedIn: true, user: 'cmc-board', role: 'CMC' }));
+            document.body.classList.add('cmc-view-mode');
+            // The board reads data the operating staff have already synced; the
+            // mandatory Google-sync gate belongs to the staff sign-in flow, so
+            // neutralise it before the app opens.
+            window.showMandatorySyncOverlay = function() {};
+            window.checkFirstTimeSyncPrompt = function() {};
+            showApp();
+            hideMandatorySyncOverlay();
+            applyCmcViewMode();
+            if (typeof navigateToPage === 'function') navigateToPage('dashboard');
+        } catch(e) { console.warn('[CMC view] init failed', e); }
+        return;
+    }
     // Always require login on page load/refresh
     CESTISStore.removeItem(AUTH_SESSION_KEY);
 

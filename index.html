@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <script src="cestis-core.js?v=20260712a"></script>
 <script src="staff-appraisals.js?v=20260802a"></script>
+<script src="cmc-portal.js?v=20260802a"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="h1kcrSWbOfqMdqcEuN9crbU73K84WTBd7Qy1lcbcFC4" />
 <title>VocTrain LMS — Vocational Training Management System</title>
@@ -3999,6 +4000,25 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
         <button class="role-enter-btn" onclick="handleAdminStaffClick()">Enter as Admin Staff →</button>
       </div>
 
+      <!-- CMC (BOARD) CARD -->
+      <div class="role-card cmc-card" id="cmcCard">
+        <div class="role-icon">🏛️</div>
+        <h2>CMC Board</h2>
+        <p>Community Management Committee — view-only oversight of enrolment, student progress, finances and centre activity.</p>
+        <div class="role-login" id="cmcLogin">
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" placeholder="cmcadmin" id="cmcUser">
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" placeholder="••••••••" id="cmcPass">
+          </div>
+          <span class="register-link" onclick="openForgotPassword('cmc')">Forgot password?</span>
+        </div>
+        <button class="role-enter-btn" onclick="handleCmcClick()">Enter as CMC Board →</button>
+      </div>
+
     </div>
   </div>
 
@@ -4340,7 +4360,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   <div class="modal">
     <div class="modal-header"><h3>Create New User</h3><button class="modal-close" onclick="closeModal('createUserModal')">✕</button></div>
     <div class="um-form-row">
-      <div class="form-group"><label>Full Name</label><input type="text" class="form-control" id="newUserName" placeholder="e.g. John Smith"></div>
+      <div class="form-group"><label>Full Name (first &amp; last name required)</label><input type="text" class="form-control" id="newUserName" placeholder="First and last name, e.g. John Smith"></div>
       <div class="form-group"><label>Role</label><select class="form-control" id="newUserRole" onchange="toggleUserFormFields()"><option value="admin">Administrator</option><option value="adminstaff">Administrative Staff</option><option value="instructor">Instructor</option><option value="student">Student</option><option value="cmc">Board Member (CMC)</option></select></div>
     </div>
     <div class="um-form-row">
@@ -4362,7 +4382,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     <div class="modal-header"><h3 id="editUserTitle">Edit User</h3><button class="modal-close" onclick="closeModal('editUserModal')">✕</button></div>
     <input type="hidden" id="editUserId">
     <div class="um-form-row">
-      <div class="form-group"><label>Full Name</label><input type="text" class="form-control" id="editUserName"></div>
+      <div class="form-group"><label>Full Name (first &amp; last name required)</label><input type="text" class="form-control" id="editUserName" placeholder="First and last name, e.g. John Smith"></div>
       <div class="form-group"><label>Role</label><select class="form-control" id="editUserRole" onchange="toggleEditUserFormFields()"><option value="admin">Administrator</option><option value="adminstaff">Administrative Staff</option><option value="instructor">Instructor</option><option value="student">Student</option><option value="cmc">Board Member (CMC)</option></select></div>
     </div>
     <div class="form-group"><label>Username</label><input type="text" class="form-control" id="editUserUsername"></div>
@@ -7408,6 +7428,7 @@ async function createUserAccount() {
   var email = document.getElementById('newUserEmail').value.trim();
   var programme = document.getElementById('newUserProgramme').value;
   if(!name || !username || !password) { alert('Please fill in Name, Username, and Password.'); return; }
+  if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter the user\'s FULL name — first name AND last name (e.g. "John Smith").\n\nThe full name is required to link staff to their Payslip employee record.'); return; }
   if(password.length < 6) { alert('Password must be at least 6 characters.'); return; }
   if(userAccounts.find(function(u){ return u.username === username; })) { alert('Username already exists.'); return; }
   if(role !== 'admin' && role !== 'adminstaff' && role !== 'cmc' && !programme) { alert('Please select a programme.'); return; }
@@ -7470,6 +7491,7 @@ function saveUserEdit() {
   var email = document.getElementById('editUserEmail').value.trim();
   var programme = document.getElementById('editUserProgramme').value;
   if(!name || !username) { alert('Name and Username are required.'); return; }
+  if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter the user\'s FULL name — first name AND last name (e.g. "John Smith").\n\nThe full name is required to link staff to their Payslip employee record.'); return; }
   var dup = userAccounts.find(function(u){ return u.username === username && u.id !== userId; });
   if(dup) { alert('Username already in use by another account.'); return; }
   if(role !== 'admin' && role !== 'adminstaff' && role !== 'cmc' && !programme) { alert('Please select a programme.'); return; }
@@ -8970,7 +8992,7 @@ function openRegistrationModal(role, prefillName, prefillEmail) {
     '<div class="reg-modal">' +
     '<h3>Register as '+roleLabel+'</h3>' +
     '<div class="reg-subtitle">Create your account. An administrator will review and approve your registration.</div>' +
-    '<div class="form-group"><label>Full Name</label><input type="text" id="regName" placeholder="e.g. John Smith" value="'+escapeAttr(prefillName||'')+'"></div>' +
+    '<div class="form-group"><label>Full Name (first &amp; last name required)</label><input type="text" id="regName" placeholder="First and last name, e.g. John Smith" value="'+escapeAttr(prefillName||'')+'"></div>' +
     '<div class="form-group"><label>Email Address</label><input type="email" id="regEmail" placeholder="your.email@gmail.com" value="'+escapeAttr(prefillEmail||'')+'" '+(prefillEmail?'readonly style="opacity:0.7;"':'')+'></div>' +
     '<div class="form-group"><label>Programme</label><select id="regProgramme"><option value="">— Select Programme —</option>'+programmeOptions+'</select></div>' +
     '<div class="form-group"><label>Password</label><input type="password" id="regPassword" placeholder="Create a password (min 6 characters)"></div>' +
@@ -8997,6 +9019,7 @@ async function submitRegistration() {
   var role = document.getElementById('regRole').value;
 
   if(!name || name.length < 2) { alert('Please enter your full name.'); return; }
+  if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter your FULL name — first name AND last name (e.g. "John Smith").'); return; }
   if(!email || !email.includes('@')) { alert('Please enter a valid email address.'); return; }
   if(!programme) { alert('Please select a programme.'); return; }
   if(role === 'student') { var _enrolBlk = (typeof courseEnrolmentBlockReason==='function') ? courseEnrolmentBlockReason(programme) : ''; if(_enrolBlk) { alert(_enrolBlk); return; } }
@@ -9405,6 +9428,8 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>Admin Duty Register<span class="nav-badge" id="dutyTasksBadge" style="display:none;background:var(--accent);">0</span></div>
     <div class="nav-item" data-page="staff-appraisals" onclick="showPage('staff-appraisals')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>Staff Appraisals<span class="nav-badge" id="sappNavBadge" style="display:none;background:var(--accent);">0</span></div>
+    <div class="nav-item" data-page="my-appraisal" onclick="showPage('my-appraisal')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>My Appraisal (Staff)</div>
     <div class="nav-item" data-page="verify-users" onclick="showPage('verify-users')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>Verify Users<span class="nav-badge" id="pendingUsersBadge" style="display:none;background:var(--red);">0</span></div>
     <div class="nav-item" data-page="certificates" onclick="showPage('certificates')">
@@ -9505,6 +9530,8 @@ function buildInstructorSidebar() {
     <div class="nav-section-label">Tasks</div>
     <div class="nav-item" data-page="i-duties" onclick="showPage('i-duties')" style="position:relative;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>My Assigned Tasks<span id="iDutyTasksBadge" class="nav-badge" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:var(--red);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;min-width:18px;text-align:center;">0</span></div>
+    <div class="nav-item" data-page="i-my-appraisal" onclick="showPage('i-my-appraisal')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>My Appraisal (Staff)</div>
     <div class="nav-section-label">Communication</div>
     <div class="nav-item" data-page="i-announcements" onclick="showPage('i-announcements')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"/></svg>Announcements</div>
@@ -9698,6 +9725,18 @@ var cestisFeatureConfig = {
     file: 'Pages/Staff-Appraisals.html',
     onMount: function() {
       cestisSafe('sappOnPageShow');
+    }
+  },
+  'my-appraisal': {
+    file: 'Pages/My-Appraisal.html',
+    onMount: function(prefix) {
+      try { if(typeof sappMyApprOnShow === 'function') sappMyApprOnShow(prefix); } catch(e) { console.warn('my-appraisal mount error', e); }
+    }
+  },
+  'cmc-portal': {
+    file: 'Pages/CMC-Portal.html',
+    onMount: function() {
+      cestisSafe('cmcPortalOnShow');
     }
   },
   'i-resources': {
@@ -9938,6 +9977,8 @@ function showPage(pageId) {
     'i-duties':'My Assigned Tasks','i-announcements':'Announcements','i-calendar':'Calendar','i-profile':'My Profile',
     'lms-chat':'C.E.S.T.I.S LMS Chat','s-lms-chat':'C.E.S.T.I.S LMS Chat','i-lms-chat':'C.E.S.T.I.S LMS Chat',
     'admin-duty-register':'Admin Duty Register','staff-appraisals':'Staff Appraisals',
+    'my-appraisal':'My Appraisal (Staff)','i-my-appraisal':'My Appraisal (Staff)','as-my-appraisal':'My Appraisal (Staff)','cmc-my-appraisal':'My Appraisal (Staff)',
+    'cmc-portal':'CMC Oversight Portal (View Only)',
     'support-messages':'Support Messages','as-support-messages':'Support Messages',
     'as-dashboard':'My Dashboard','as-duties':'My Duties','as-lms-chat':'C.E.S.T.I.S LMS Chat','as-profile':'My Profile',
     'as-attendance':'Attendance Management','as-announcements':'Announcements','as-calendar':'Calendar & Schedule',
@@ -10530,6 +10571,10 @@ function buildAdminPages() {
   <!-- ADMIN DUTY REGISTER PAGE -->
   <section class="page" id="page-staff-appraisals">
     <div class="cestis-mount" data-feature="staff-appraisals" data-prefix="admin"></div>
+  </section>
+
+  <section class="page" id="page-my-appraisal">
+    <div class="cestis-mount" data-feature="my-appraisal" data-prefix="admin"></div>
   </section>
 
   <section class="page" id="page-admin-duty-register">
@@ -11193,6 +11238,11 @@ function buildInstructorPages() {
   <!-- C.E.S.T.I.S VIDEO CONFERENCE (INSTRUCTOR) — markup lives in Video-Conference-Instructor.html -->
   <section class="page" id="page-i-classes">
     <div class="cestis-mount" data-feature="video-instructor" data-prefix="instructor"></div>
+  </section>
+
+  <!-- INSTRUCTOR: MY APPRAISAL (STAFF) — markup lives in Pages/My-Appraisal.html -->
+  <section class="page" id="page-i-my-appraisal">
+    <div class="cestis-mount" data-feature="my-appraisal" data-prefix="i"></div>
   </section>
 
   <!-- INSTRUCTOR STUDENTS -->
@@ -30359,6 +30409,9 @@ function buildAdminStaffSidebar() {
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>My Duties' +
     (myPendingTasks > 0 ? '<span class="nav-badge" style="background:var(--accent);">'+myPendingTasks+'</span>' : '') + '</div>';
 
+  html += '<div class="nav-item" data-page="as-my-appraisal" onclick="showPage(\'as-my-appraisal\')">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>My Appraisal (Staff)</div>';
+
   // LMS Chat always visible
   html += '<div class="nav-item" data-page="as-lms-chat" onclick="showPage(\'as-lms-chat\')">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>LMS Chat<span class="nav-badge" style="background:var(--green);">NEW</span></div>';
@@ -30556,6 +30609,11 @@ function buildAdminStaffPages() {
     html += '</div>';
   }
   html += '</section>';
+
+  // ---- My Appraisal (Staff) Page ----
+  html += '<section class="page" id="page-as-my-appraisal">' +
+    '<div class="cestis-mount" data-feature="my-appraisal" data-prefix="as"></div>' +
+  '</section>';
 
   // ---- My Duties Page ----
   html += '<section class="page" id="page-as-duties">' +
@@ -31889,10 +31947,14 @@ function buildCmcSidebar() {
     '<div class="nav-section-label">Overview</div>' +
     '<div class="nav-item active" data-page="cmc-dashboard" onclick="showPage(\'cmc-dashboard\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Analytics Dashboard</div>' +
+    '<div class="nav-item" data-page="cmc-portal" onclick="showPage(\'cmc-portal\')">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Oversight Portal<span class="nav-badge" style="background:var(--teal);">VIEW</span></div>' +
     '<div class="nav-item" data-page="cmc-financial" onclick="showPage(\'cmc-financial\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Financial Overview</div>' +
     '<div class="nav-item" data-page="cmc-staff" onclick="showPage(\'cmc-staff\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Staff & HR</div>' +
+    '<div class="nav-item" data-page="cmc-my-appraisal" onclick="showPage(\'cmc-my-appraisal\')">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>My Appraisal (Staff)</div>' +
     '<div class="nav-item" data-page="cmc-academic" onclick="showPage(\'cmc-academic\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Academic</div>' +
     '<div class="nav-section-label">Drive Sources</div>' +
@@ -32319,6 +32381,16 @@ function buildCmcPages() {
   if(topStudents.length===0) html += '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No students enrolled yet</td></tr>';
   html += '</tbody></table></div>';
   html += '</section>';
+
+  // ---- Oversight Portal — view-only hub (markup in Pages/CMC-Portal.html) ----
+  html += '<section class="page" id="page-cmc-portal">' +
+    '<div class="cestis-mount" data-feature="cmc-portal" data-prefix="cmc"></div>' +
+  '</section>';
+
+  // ---- My Appraisal (Staff) Page — CMC Chair signs completed appraisals ----
+  html += '<section class="page" id="page-cmc-my-appraisal">' +
+    '<div class="cestis-mount" data-feature="my-appraisal" data-prefix="cmc"></div>' +
+  '</section>';
 
   // ---- Profile Page ----
   html += '<section class="page" id="page-cmc-profile">';

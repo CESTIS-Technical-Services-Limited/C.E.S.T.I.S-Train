@@ -128,6 +128,47 @@ assertEq(stAug.cycle.key, '2025-2026', 'Aug 2026: due cycle is 2025-2026');
 assert(stAug.overdue, 'Aug 2026: past 30 April due date → overdue');
 assertEq(stAug.dueLabel, '30 April 2026', 'Due label');
 
+/* ---------- 7. Full-name rules & payslip name matching ---------- */
+console.log('Full-name and payslip matching');
+const { sappIsFullName, sappMatchPayslipName } = sapp;
+assert(sappIsFullName('Rashaun Barrett'), '"Rashaun Barrett" is a full name');
+assert(sappIsFullName('Tracy-Ann Johnson'), 'hyphenated first name accepted');
+assert(sappIsFullName('Mr. Steve Anthony Barrett'), 'title + three names accepted');
+assert(!sappIsFullName('Administrator'), 'single word rejected');
+assert(!sappIsFullName('Admin'), '"Admin" rejected');
+assert(!sappIsFullName('Mr. Smith'), 'title + surname only rejected (no first name)');
+assert(!sappIsFullName(''), 'empty rejected');
+assert(!sappIsFullName('J Smith'), 'single-letter first name rejected');
+
+const emps = ['Rashaun Barrett', 'Tracy-Ann Johnson', 'Steve Barrett', 'Horaldo Archer'];
+assertEq(sappMatchPayslipName('Rashaun Barrett', emps), 'Rashaun Barrett', 'exact first+last match');
+assertEq(sappMatchPayslipName('rashaun BARRETT', emps), 'Rashaun Barrett', 'case-insensitive match');
+assertEq(sappMatchPayslipName('Mr. Steve Anthony Barrett', emps), 'Steve Barrett', 'middle name + title ignored; first+last must agree');
+assertEq(sappMatchPayslipName('Tracy Ann Johnson', emps), 'Tracy-Ann Johnson', 'hyphen-insensitive match');
+assertEq(sappMatchPayslipName('Steve Johnson', emps), null, 'first matches one employee, last another → no match');
+assertEq(sappMatchPayslipName('Administrator', emps), null, 'staff without full name never matches');
+assertEq(sappMatchPayslipName('Jason Hall', emps), null, 'unknown name → no match');
+
+/* ---------- 8. Signature status & same-person matching ---------- */
+console.log('Signature status');
+const { sappSignatureStatus, sappSamePerson } = sapp;
+let sigA = { signatures: {} };
+let st0 = sappSignatureStatus(sigA);
+assert(!st0.appraisee && !st0.appraiser && !st0.cmc && !st0.fullySigned, 'unsigned instrument has no signatures');
+sigA.signatures.appraisee = { type: 'typed', data: 'Rashaun Barrett', date: '02/08/2026', agree: true };
+assert(sappSignatureStatus(sigA).appraisee, 'appraisee signed');
+assert(!sappSignatureStatus(sigA).fullySigned, 'not fully signed with one signature');
+sigA.signatures.appraiser = { type: 'drawn', data: 'data:image/png;base64,xxx', date: '02/08/2026' };
+sigA.signatures.cmc = { type: 'upload', data: 'data:image/png;base64,yyy', date: '02/08/2026' };
+assert(sappSignatureStatus(sigA).fullySigned, 'fully signed with all three parties');
+assert(!sappSignatureStatus({ signatures: { cmc: { type: 'typed', data: '' } } }).cmc, 'empty signature data does not count');
+assert(sappSignatureStatus(null).fullySigned === false, 'null appraisal → unsigned');
+
+assert(sappSamePerson('Rashaun Barrett', 'rashaun BARRETT'), 'same person case-insensitive');
+assert(sappSamePerson('Mr. Steve Anthony Barrett', 'Steve Barrett'), 'titles/middle names ignored');
+assert(!sappSamePerson('Steve Barrett', 'Rashaun Barrett'), 'different first names differ');
+assert(!sappSamePerson('Administrator', 'Administrator'), 'single-word names never match (no first+last)');
+
 /* ---------- summary ---------- */
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed > 0) process.exit(1);
