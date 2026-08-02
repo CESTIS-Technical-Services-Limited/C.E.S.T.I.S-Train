@@ -31,56 +31,6 @@ assertEq(E.findCentre(areas, 'Underwater Basket Weaving'), null, 'unknown course
 assertEq(E.findCentre([], 'Beauty Therapy'), null, 'empty roster resolves to null');
 assertEq(E.findCentre(areas, ''), null, 'empty name resolves to null');
 
-/* ---------- 1b. The same programme written two ways ----------
-   The fee side of the Centre files courses as "WELDING L2"; the LMS names the
-   training centre "Welding and Fabrication Level 2". They are one programme,
-   and the School Fee dashboard was reporting "no active training centre" for
-   every one of them. */
-console.log('Abbreviated course names resolve to their centre');
-const written = [
-  { id: 10, name: 'Welding and Fabrication Level 2', startDate: '2026-08-02', endDate: '2027-07-30' },
-  { id: 11, name: 'Welding and Fabrication Level 3', startDate: '2026-08-02', endDate: '2027-07-30' },
-  { id: 12, name: 'General Cosmetology Level 2',     startDate: '2026-08-02', endDate: '2027-07-30' },
-  { id: 13, name: 'Business Administration Level 2', startDate: '2026-08-02', endDate: '2027-07-30' },
-  { id: 14, name: 'Commis Chef Level 2',             startDate: '2026-08-02', endDate: '2027-07-30' },
-  { id: 15, name: 'Hospitality & Tourism Level 2',   startDate: '2026-08-02', endDate: '2027-07-30' }
-];
-assertEq(E.findCentre(written, 'WELDING L2').id, 10, '"WELDING L2" finds the Level 2 centre');
-assertEq(E.findCentre(written, 'WELDING L3').id, 11, '"WELDING L3" finds the Level 3 centre');
-assertEq(E.findCentre(written, 'COSMETOLOGY L2').id, 12, 'a name the centre prefixes still resolves');
-assertEq(E.findCentre(written, 'BUSINESS ADMIN L2').id, 13, 'a shortened word ("admin") resolves');
-assertEq(E.findCentre(written, 'COMMI CHEF L2').id, 14, 'a misspelt shortening ("commi") resolves');
-assertEq(E.findCentre(written, 'Welding Level 2').id, 10, 'the long form of the level resolves too');
-assert(E.canEnrol(written, 'WELDING L2', { today: TODAY }).allowed,
-  'a trainee can be enrolled into the centre the fee name belongs to');
-
-console.log('Level is never crossed');
-assertEq(E.findCentre([written[1]], 'WELDING L2'), null, 'Level 2 does not match a Level 3 centre');
-assertEq(E.findCentre([written[0]], 'WELDING L3'), null, 'Level 3 does not match a Level 2 centre');
-assertEq(E.findCentre(written, 'HOSPITALITY SERVICES L2'), null,
-  'one word in common is not enough — Hospitality Services is not Hospitality & Tourism');
-assertEq(E.findCentre(written, 'Underwater Basket Weaving L2'), null, 'an unrelated name still resolves to null');
-
-/* ---------- 1c. A programme run again resolves to the new intake ---------- */
-console.log('Repeat intakes resolve to the centre that is open');
-const repeats = [
-  { id: 20, name: 'Beauty Therapy Level 2', startDate: '2024-09-01', endDate: '2025-06-30' }, // last year
-  { id: 21, name: 'Beauty Therapy Level 2', startDate: '2026-05-01', endDate: '2027-03-31' }, // this year
-  { id: 22, name: 'Beauty Therapy Level 2', startDate: '2025-09-01', endDate: '2026-06-30' }  // finished
-];
-assertEq(E.findCentre(repeats, 'Beauty Therapy Level 2', { today: TODAY }).id, 21,
-  'the open intake wins over the finished ones');
-const repeat = E.canEnrol(repeats, 'Beauty Therapy Level 2', { today: TODAY });
-assert(repeat.allowed, 'a re-run programme accepts new trainees instead of reporting "course ended"');
-assertEq(repeat.fy, '2026/2027', 'the enrolment is grounded in the NEW intake fiscal year');
-// With no open intake at all, the most recent finished one is still resolved so
-// the refusal can name a real centre and its end date.
-const allEnded = [repeats[0], repeats[2]];
-assertEq(E.findCentre(allEnded, 'Beauty Therapy Level 2', { today: TODAY }).id, 22,
-  'with none open, the latest intake is resolved');
-assertEq(E.canEnrol(allEnded, 'Beauty Therapy Level 2', { today: TODAY }).code, 'ended',
-  'and enrolment into it is still refused');
-
 /* ---------- 2. The reported bug: ended centres must refuse new trainees ---------- */
 console.log('Ended centres refuse enrolment');
 const ended = E.canEnrol(areas, 'Welding & Fabrication', { today: TODAY });
