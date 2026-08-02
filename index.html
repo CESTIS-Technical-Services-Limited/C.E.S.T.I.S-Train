@@ -4340,7 +4340,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   <div class="modal">
     <div class="modal-header"><h3>Create New User</h3><button class="modal-close" onclick="closeModal('createUserModal')">✕</button></div>
     <div class="um-form-row">
-      <div class="form-group"><label>Full Name</label><input type="text" class="form-control" id="newUserName" placeholder="e.g. John Smith"></div>
+      <div class="form-group"><label>Full Name (first &amp; last name required)</label><input type="text" class="form-control" id="newUserName" placeholder="First and last name, e.g. John Smith"></div>
       <div class="form-group"><label>Role</label><select class="form-control" id="newUserRole" onchange="toggleUserFormFields()"><option value="admin">Administrator</option><option value="adminstaff">Administrative Staff</option><option value="instructor">Instructor</option><option value="student">Student</option><option value="cmc">Board Member (CMC)</option></select></div>
     </div>
     <div class="um-form-row">
@@ -4362,7 +4362,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     <div class="modal-header"><h3 id="editUserTitle">Edit User</h3><button class="modal-close" onclick="closeModal('editUserModal')">✕</button></div>
     <input type="hidden" id="editUserId">
     <div class="um-form-row">
-      <div class="form-group"><label>Full Name</label><input type="text" class="form-control" id="editUserName"></div>
+      <div class="form-group"><label>Full Name (first &amp; last name required)</label><input type="text" class="form-control" id="editUserName" placeholder="First and last name, e.g. John Smith"></div>
       <div class="form-group"><label>Role</label><select class="form-control" id="editUserRole" onchange="toggleEditUserFormFields()"><option value="admin">Administrator</option><option value="adminstaff">Administrative Staff</option><option value="instructor">Instructor</option><option value="student">Student</option><option value="cmc">Board Member (CMC)</option></select></div>
     </div>
     <div class="form-group"><label>Username</label><input type="text" class="form-control" id="editUserUsername"></div>
@@ -7408,6 +7408,7 @@ async function createUserAccount() {
   var email = document.getElementById('newUserEmail').value.trim();
   var programme = document.getElementById('newUserProgramme').value;
   if(!name || !username || !password) { alert('Please fill in Name, Username, and Password.'); return; }
+  if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter the user\'s FULL name — first name AND last name (e.g. "John Smith").\n\nThe full name is required to link staff to their Payslip employee record.'); return; }
   if(password.length < 6) { alert('Password must be at least 6 characters.'); return; }
   if(userAccounts.find(function(u){ return u.username === username; })) { alert('Username already exists.'); return; }
   if(role !== 'admin' && role !== 'adminstaff' && role !== 'cmc' && !programme) { alert('Please select a programme.'); return; }
@@ -7470,6 +7471,7 @@ function saveUserEdit() {
   var email = document.getElementById('editUserEmail').value.trim();
   var programme = document.getElementById('editUserProgramme').value;
   if(!name || !username) { alert('Name and Username are required.'); return; }
+  if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter the user\'s FULL name — first name AND last name (e.g. "John Smith").\n\nThe full name is required to link staff to their Payslip employee record.'); return; }
   var dup = userAccounts.find(function(u){ return u.username === username && u.id !== userId; });
   if(dup) { alert('Username already in use by another account.'); return; }
   if(role !== 'admin' && role !== 'adminstaff' && role !== 'cmc' && !programme) { alert('Please select a programme.'); return; }
@@ -8970,7 +8972,7 @@ function openRegistrationModal(role, prefillName, prefillEmail) {
     '<div class="reg-modal">' +
     '<h3>Register as '+roleLabel+'</h3>' +
     '<div class="reg-subtitle">Create your account. An administrator will review and approve your registration.</div>' +
-    '<div class="form-group"><label>Full Name</label><input type="text" id="regName" placeholder="e.g. John Smith" value="'+escapeAttr(prefillName||'')+'"></div>' +
+    '<div class="form-group"><label>Full Name (first &amp; last name required)</label><input type="text" id="regName" placeholder="First and last name, e.g. John Smith" value="'+escapeAttr(prefillName||'')+'"></div>' +
     '<div class="form-group"><label>Email Address</label><input type="email" id="regEmail" placeholder="your.email@gmail.com" value="'+escapeAttr(prefillEmail||'')+'" '+(prefillEmail?'readonly style="opacity:0.7;"':'')+'></div>' +
     '<div class="form-group"><label>Programme</label><select id="regProgramme"><option value="">— Select Programme —</option>'+programmeOptions+'</select></div>' +
     '<div class="form-group"><label>Password</label><input type="password" id="regPassword" placeholder="Create a password (min 6 characters)"></div>' +
@@ -8997,6 +8999,7 @@ async function submitRegistration() {
   var role = document.getElementById('regRole').value;
 
   if(!name || name.length < 2) { alert('Please enter your full name.'); return; }
+  if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter your FULL name — first name AND last name (e.g. "John Smith").'); return; }
   if(!email || !email.includes('@')) { alert('Please enter a valid email address.'); return; }
   if(!programme) { alert('Please select a programme.'); return; }
   if(role === 'student') { var _enrolBlk = (typeof courseEnrolmentBlockReason==='function') ? courseEnrolmentBlockReason(programme) : ''; if(_enrolBlk) { alert(_enrolBlk); return; } }

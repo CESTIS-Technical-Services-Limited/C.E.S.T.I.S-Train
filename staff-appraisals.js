@@ -582,6 +582,43 @@
     };
   }
 
+  /* --------------------------------------------------------------------------
+     Full-name helpers. Every user/staff account must carry a FULL name (first
+     name AND last name) so appraisals can be linked to Staff Payslip employee
+     records, where matching is done on first + last name.
+     -------------------------------------------------------------------------- */
+  var SAPP_TITLES = { mr: 1, mrs: 1, ms: 1, miss: 1, dr: 1, prof: 1, hon: 1, rev: 1 };
+  function sappNameTokens(name) {
+    return String(name || '')
+      .toLowerCase()
+      .replace(/[-_.,'’]/g, ' ')
+      .split(/\s+/)
+      .filter(function (t) { return t && !SAPP_TITLES[t]; });
+  }
+  /* True when the name holds at least a first name and a last name
+     (two or more real word tokens of 2+ letters, titles ignored). */
+  function sappIsFullName(name) {
+    var toks = sappNameTokens(name).filter(function (t) { return t.length >= 2; });
+    return toks.length >= 2;
+  }
+  /* Match a staff name against a list of payslip employee names.
+     Names are matched by FIRST NAME and LAST NAME (both must agree,
+     case/punctuation-insensitive). Returns the matched employee name or null.
+     A staff member without a full first+last name can never match. */
+  function sappMatchPayslipName(staffName, employeeNames) {
+    if (!sappIsFullName(staffName)) return null;
+    var s = sappNameTokens(staffName);
+    var sFirst = s[0], sLast = s[s.length - 1];
+    var hit = null;
+    (employeeNames || []).forEach(function (en) {
+      if (hit) return;
+      var e = sappNameTokens(en);
+      if (e.length < 2) return;
+      if (e[0] === sFirst && e[e.length - 1] === sLast) hit = en;
+    });
+    return hit;
+  }
+
   /* ==========================================================================
      Node export for unit tests (pure parts only).
      ========================================================================== */
@@ -595,9 +632,12 @@
     sappCycleFor: sappCycleFor,
     sappDueCycle: sappDueCycle,
     sappDueStatus: sappDueStatus,
-    sappClamp: sappClamp
+    sappClamp: sappClamp,
+    sappIsFullName: sappIsFullName,
+    sappMatchPayslipName: sappMatchPayslipName
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (root) { root.sappIsFullName = sappIsFullName; root.sappMatchPayslipName = sappMatchPayslipName; }
   if (!root || typeof document === 'undefined') return; // Node: pure exports only.
 
   /* ==========================================================================
@@ -629,6 +669,28 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  /* ----------------------- payslip employee linking ----------------------- */
+  function sappPayrollEmployees() {
+    try {
+      var raw = store().getItem('cestisPayroll');
+      var d = raw ? JSON.parse(raw) : null;
+      return (d && Array.isArray(d.employees)) ? d.employees : [];
+    } catch (e) { return []; }
+  }
+  /* Link a staff member to their Staff Payslip employee record, matched by
+     first name + last name. Returns:
+       { status:'nofullname' }                  — staff name has no first+last name
+       { status:'linked', emp:{...} }           — matched payslip employee
+       { status:'unmatched' }                   — full name, but no payslip match */
+  function sappPayslipLink(staffName) {
+    if (!sappIsFullName(staffName)) return { status: 'nofullname' };
+    var emps = sappPayrollEmployees();
+    var hit = sappMatchPayslipName(staffName, emps.map(function (e) { return e.name; }));
+    if (!hit) return { status: 'unmatched' };
+    var emp = emps.filter(function (e) { return e.name === hit; })[0];
+    return { status: 'linked', emp: emp };
+  }
+
   /* ----------------------- staff roster ----------------------- */
   function defaultTemplateForRole(role) {
     if (role === 'instructor') return 'instructor';
@@ -636,17 +698,33 @@
     if (role === 'admin') return 'coordinator';
     return 'admin_clerk';
   }
+  /* Guess the appraisal instrument from a Staff Payslip designation. */
+  function templateFromDesignation(desig) {
+    var s = String(desig || '').toLowerCase();
+    if (!s) return null;
+    if (/assistant\s+(programme\s+)?co/.test(s)) return 'asst_coordinator';
+    if (/programme\s+co|project\s+manager|co-?ordinator/.test(s)) return 'coordinator';
+    if (/administrative\s+assistant|admin\.?\s+assistant/.test(s)) return 'admin_assistant';
+    if (/clerk/.test(s)) return 'admin_clerk';
+    if (/teacher|store\s*room/.test(s)) return 'teachers_assistant';
+    if (/instructor|facilitator/.test(s)) return 'instructor';
+    return null;
+  }
   function sappRoster() {
     var d = sappData();
     var list = [], seen = {};
-    function push(id, name, sourceRole, extra) {
+    function push(id, name, sourceRole, extra, tplGuess) {
       if (!name) return;
-      var key = name.trim().toLowerCase();
+      // De-duplicate across sources by FIRST + LAST name (same rule used for
+      // the Staff Payslip link), so "Rashaun Barrett" the user account and
+      // "Rashaun Barrett" the payroll employee are one staff member.
+      var toks = sappNameTokens(name).filter(function (t) { return t.length >= 2; });
+      var key = toks.length >= 2 ? (toks[0] + '|' + toks[toks.length - 1]) : name.trim().toLowerCase();
       if (seen[key]) return;
       seen[key] = true;
       list.push({
         id: id, name: name.trim(), sourceRole: sourceRole,
-        template: d.assignments[id] || defaultTemplateForRole(sourceRole),
+        template: d.assignments[id] || tplGuess || defaultTemplateForRole(sourceRole),
         extra: !!extra
       });
     }
@@ -667,6 +745,12 @@
     (clock || []).forEach(function (s) {
       if (!s) return;
       push('CLK:' + (s.username || s.fullName), s.fullName || s.name, 'clockin');
+    });
+    // Staff Payslip employees (Staff.Payslip.html) — every staff member on the
+    // payroll must appear on the appraisal roster, matched by first+last name.
+    sappPayrollEmployees().forEach(function (e) {
+      if (!e || !e.name) return;
+      push('PAY:' + e.name, e.name, 'payslip', false, templateFromDesignation(e.designation));
     });
     (d.extraStaff || []).forEach(function (s) {
       push('EXT:' + s.id, s.name, s.role || 'extra', true);
@@ -867,6 +951,21 @@
       '<div style="font-size:12px;color:var(--text-muted);">Annual appraisal window opens 1 March and is due by ' + esc(sum.status.dueLabel) + '. The Administrator is notified each year when appraisals fall due.</div>' +
       '</div></div></div>';
 
+    // Staff whose account name is not a FULL name (first + last) cannot be
+    // linked to their Staff Payslip employee record — flag them to the admin.
+    var noFull = roster.filter(function (s) { return !sappIsFullName(s.name); });
+    if (noFull.length) {
+      html += '<div class="card" style="margin-bottom:20px;border-left:4px solid var(--orange);">' +
+        '<div style="display:flex;align-items:flex-start;gap:14px;">' +
+        '<div style="font-size:24px;">⚠️</div><div style="flex:1;">' +
+        '<div style="font-weight:700;color:var(--orange);">' + noFull.length + ' staff member' + (noFull.length === 1 ? '' : 's') + ' without a first AND last name: ' +
+        noFull.map(function (s) { return esc(s.name); }).join(', ') + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">All users must enter their full name (first name and last name) on their account. ' +
+        'Without it the appraisal cannot be linked to the Staff Payslip employee record (names are matched by first and last name). ' +
+        'Update the name in Settings → User Accounts.</div>' +
+        '</div></div></div>';
+    }
+
     // Toolbar
     html += '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">' +
       '<label style="font-size:13px;color:var(--text-muted);">Appraisal period:</label>' +
@@ -911,9 +1010,21 @@
         Object.keys(SAPP_TEMPLATES).map(function (k) {
           return '<option value="' + k + '"' + (k === tplKey ? ' selected' : '') + '>' + esc(SAPP_TEMPLATES[k].label) + '</option>';
         }).join('') + '</select>';
+      var link = sappPayslipLink(s.name);
+      var linkCell;
+      if (link.status === 'linked') {
+        linkCell = '<span style="color:var(--green);font-weight:600;" title="Matched by first and last name to Staff Payslip employee &quot;' + esc(link.emp.name) + '&quot;">✓ Linked</span>' +
+          (link.emp.designation ? '<div style="font-size:11px;color:var(--text-muted);">' + esc(link.emp.designation) + '</div>' : '');
+      } else if (link.status === 'nofullname') {
+        linkCell = '<span style="color:var(--orange);font-weight:600;" title="Account name must contain a first name and a last name before it can be matched to a Payslip employee">⚠ No full name</span>';
+      } else {
+        linkCell = '<span style="color:var(--text-muted);" title="No Staff Payslip employee with the same first and last name">Not in Payslip</span>';
+      }
+      var nameWarn = sappIsFullName(s.name) ? '' : ' <span title="No first and last name on this account" style="color:var(--orange);">⚠</span>';
       return '<tr>' +
-        '<td><div style="font-weight:600;">' + esc(s.name) + '</div><div style="font-size:11px;color:var(--text-muted);">' + esc(sappRoleLabel(s.sourceRole)) + '</div></td>' +
+        '<td><div style="font-weight:600;">' + esc(s.name) + nameWarn + '</div><div style="font-size:11px;color:var(--text-muted);">' + esc(sappRoleLabel(s.sourceRole)) + '</div></td>' +
         '<td>' + tplSelect + '</td>' +
+        '<td>' + linkCell + '</td>' +
         '<td><span style="color:' + sColor + ';font-weight:600;">' + status + '</span></td>' +
         '<td>' + score + '</td>' +
         '<td style="white-space:nowrap;">' +
@@ -930,8 +1041,8 @@
       esc(sappCycleFromStartYear(parseInt(cycleKey.split('-')[0], 10)).label) + '</h3>' +
       '<span style="font-size:12px;color:var(--text-muted);">' + roster.length + ' staff</span></div>' +
       '<div style="overflow-x:auto;"><table class="data-table" style="width:100%;">' +
-      '<thead><tr><th>Staff Member</th><th>Appraisal Instrument (Position)</th><th>Status</th><th>Final Score</th><th>Actions</th></tr></thead>' +
-      '<tbody>' + (rows || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">No staff found. Staff appear here from User Accounts (Instructors, Admin Staff, Administrators) and the Staff Clock-in register, or add one manually.</td></tr>') + '</tbody>' +
+      '<thead><tr><th>Staff Member</th><th>Appraisal Instrument (Position)</th><th>Payslip Link</th><th>Status</th><th>Final Score</th><th>Actions</th></tr></thead>' +
+      '<tbody>' + (rows || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">No staff found. Staff appear here from User Accounts (Instructors, Admin Staff, Administrators) and the Staff Clock-in register, or add one manually.</td></tr>') + '</tbody>' +
       '</table></div></div>';
   };
 
@@ -939,7 +1050,8 @@
     return r === 'instructor' ? 'Instructor account' :
            r === 'adminstaff' ? 'Admin staff account' :
            r === 'admin' ? 'Administrator account' :
-           r === 'clockin' ? 'Staff clock-in register' : 'Added manually';
+           r === 'clockin' ? 'Staff clock-in register' :
+           r === 'payslip' ? 'Staff Payslip employee' : 'Added manually';
   }
 
   root.sappAssignTemplate = function (staffId, tplKey) {
@@ -950,8 +1062,12 @@
   };
 
   root.sappAddStaffPrompt = function () {
-    var name = prompt('Staff member’s full name:');
+    var name = prompt('Staff member’s FULL name (first name and last name, e.g. "Rashaun Barrett"):');
     if (!name || !name.trim()) return;
+    if (!sappIsFullName(name)) {
+      alert('Please enter both a first name and a last name. The full name is required to link the appraisal to the Staff Payslip employee record.');
+      return;
+    }
     var d = sappData();
     d.extraStaff.push({ id: 'X' + Date.now(), name: name.trim(), role: 'extra' });
     sappPersist(d);
@@ -1019,7 +1135,14 @@
       '<button class="btn btn-primary" id="sappCompleteBtn" onclick="sappMarkCompleted()">Mark Completed</button>' +
       '</div>';
 
+    var eLink = sappPayslipLink(a.staffName);
+    var eLinkHtml = eLink.status === 'linked'
+      ? '<span style="color:var(--green);font-weight:600;">✓ Linked to Staff Payslip employee “' + esc(eLink.emp.name) + '”' + (eLink.emp.designation ? ' — ' + esc(eLink.emp.designation) : '') + '</span>'
+      : eLink.status === 'nofullname'
+        ? '<span style="color:var(--orange);font-weight:600;">⚠ This staff account has no first and last name — it cannot be linked to a Staff Payslip employee. Update the account name (full name is now required for all users).</span>'
+        : '<span style="color:var(--text-muted);">No Staff Payslip employee matches this first and last name.</span>';
     html += '<div class="card" style="margin-bottom:16px;"><div class="card-header"><h3>Appraisal Details</h3></div>' +
+      '<div style="font-size:12px;margin-bottom:10px;">' + eLinkHtml + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">' +
       '<div class="form-group"><label>Appraisal Period</label><input class="form-control" id="sappFPeriod" value="' + esc(a.period) + '"></div>' +
       '<div class="form-group"><label>Appraiser (Name)</label><input class="form-control" id="sappFAppraiser" value="' + esc(a.appraiser) + '" placeholder="e.g. Mr. Jason Hall"></div>' +
