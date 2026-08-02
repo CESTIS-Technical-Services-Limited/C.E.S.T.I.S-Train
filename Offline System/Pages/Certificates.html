@@ -1,0 +1,14 @@
+<!--
+  ============================================================================
+  Pages/Certificates.html  —  C.E.S.T.I.S Certificate Tracking (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="certificates" data-prefix="admin">).
+  Filled on mount by renderCertStats() + renderCerts('all','') in index.html.
+  Keep ids certStats / certFilter / certSearch / certTableBody.
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
+  ============================================================================
+-->
+<div class="cert-status-grid" id="certStats"></div>
+<div style="display:flex;gap:12px;margin-bottom:20px;"><select class="form-control" style="width:200px;" id="certFilter" onchange="filterCerts()"><option value="all">All Certificates</option><option value="collected">Collected</option><option value="pending">Awaiting Collection</option></select><input type="text" class="form-control" style="width:260px;" placeholder="Search by name or cert number..." id="certSearch" onkeyup="filterCerts()"></div>
+<div class="card"><div class="card-header"><h3>Certificate Registry</h3><button class="btn-export" onclick="exportCertsCSV()">📄 Export CSV</button></div><div class="table-wrapper"><table><thead><tr><th>Student</th><th>Certificate No.</th><th>Programme</th><th>Level</th><th>Date Certified</th><th>Collection Status</th><th>Actions</th></tr></thead><tbody id="certTableBody"></tbody></table></div></div>

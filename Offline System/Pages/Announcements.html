@@ -1,0 +1,36 @@
+<!--
+  ============================================================================
+  Pages/Announcements.html  —  C.E.S.T.I.S Announcements (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="announcements" data-prefix="admin">).
+  The list is filled on mount by renderAnnouncements() in index.html.
+  Keep id announcementsList and the form ids. All JS and CSS remain in index.html.
+  Injected via innerHTML — <script> tags here will NOT run.
+  ============================================================================
+-->
+<div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
+  <button class="btn btn-primary" onclick="toggleAnnouncementForm()">+ New Announcement</button>
+  <select class="form-control" style="width:200px;" id="annPriorityFilter" onchange="renderAnnouncements()"><option value="all">All Priorities</option><option value="urgent">Urgent</option><option value="info">Info</option><option value="general">General</option></select>
+</div>
+<div id="announcementForm" style="display:none;">
+  <div class="announcement-form">
+    <div class="ann-form-header"><h3>Create Announcement</h3><button class="btn btn-sm btn-secondary" onclick="toggleAnnouncementForm()">✕ Close</button></div>
+    <div class="form-group"><label>Title</label><input type="text" class="form-control" id="annTitle" placeholder="Announcement title..."></div>
+    <div class="form-group"><label>Body</label><textarea class="form-control" id="annBody" placeholder="Announcement details..."></textarea></div>
+    <div class="ann-form-row">
+      <div class="form-group"><label>Priority</label><select class="form-control" id="annPriority"><option value="general">General</option><option value="info">Info</option><option value="urgent">Urgent</option></select></div>
+      <div class="form-group"><label>Author</label><input type="text" class="form-control" id="annAuthor" value="Admin"></div>
+    </div>
+    <div class="form-group"><label>Target Audience</label>
+      <div style="display:flex;gap:16px;margin-top:6px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleAdmin" checked> <span style="background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Admin</span></label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleInstructor" checked> <span style="background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Instructor</span></label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleStudent" checked> <span style="background:var(--blue-dim);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Student</span></label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="annRoleAdminStaff" checked> <span style="background:var(--purple-dim);color:var(--purple);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Admin Staff</span></label>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="createAnnouncement()">Publish Announcement</button>
+  </div>
+</div>
+<div id="announcementsList"></div>

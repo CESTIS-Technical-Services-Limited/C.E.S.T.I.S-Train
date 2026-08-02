@@ -1,0 +1,136 @@
+================================================================================
+  C.E.S.T.I.S  —  OFFLINE SYSTEM
+  The whole platform, on your own computer, with no internet.
+================================================================================
+
+This folder is a complete copy of the CESTIS system. It runs on one computer at
+the Centre and serves every other device — laptops, tablets, phones — over your
+own wifi or cable network. Nothing goes to the internet. Nothing needs it.
+
+
+--------------------------------------------------------------------------------
+  1.  STARTING IT
+--------------------------------------------------------------------------------
+
+Put this folder somewhere sensible on the computer that will act as the server
+(the Coordinator's laptop or the office desktop). Then:
+
+    Windows ....... double-click  START-WINDOWS.bat
+    Mac ........... double-click  START-MAC.command
+    Linux ......... double-click  START-LINUX.sh   (or: bash START-LINUX.sh)
+
+A black window opens and prints something like:
+
+    On THIS computer, open:
+        http://localhost:8080/index.html
+
+    On ANY OTHER device on the same network, open:
+        http://192.168.1.24:8080/index.html
+
+LEAVE THAT WINDOW OPEN. Closing it stops the system for everybody.
+
+On a Mac the first double-click may be refused ("unidentified developer").
+Right-click the file, choose Open, then Open again. Once only.
+
+
+--------------------------------------------------------------------------------
+  2.  OTHER DEVICES
+--------------------------------------------------------------------------------
+
+Every device must be on the SAME network as the server computer — the same wifi,
+or plugged into the same router. No internet connection is needed on that
+network; a router with no internet works perfectly.
+
+On each device, open a browser and type the http://192.168... address the black
+window printed. Bookmark it.
+
+If a device cannot reach it:
+  - check it is on the same wifi, not a phone's mobile data;
+  - the server computer's firewall may be blocking it. Allow Node.js, or allow
+    port 8080, when the firewall asks;
+  - the address changes if the router restarts. Read the new one off the black
+    window. Ask whoever manages the router to reserve a fixed address for the
+    server computer and the problem goes away for good.
+
+
+--------------------------------------------------------------------------------
+  3.  WHERE THE DATA LIVES
+--------------------------------------------------------------------------------
+
+    Offline System / data /
+
+Every part of the system saves there and reads from there — the LMS, Student
+Progress, Transcripts, School Fees, the Cashbook, Payment Vouchers, Invoices,
+Quotations, Purchase Orders, Virements, Payslips and the Time Clock. One file
+each. Read that folder's own note for the full list.
+
+BACK IT UP. Copy the "data" folder to a memory stick on a schedule somebody is
+responsible for. It is the Centre's records, and it lives on one computer.
+
+
+--------------------------------------------------------------------------------
+  4.  WHAT WORKS OFFLINE, AND WHAT CANNOT
+--------------------------------------------------------------------------------
+
+WORKS, completely offline:
+    Trainee enrolment, progress, attendance, assignments and exams
+    Transcripts, grades, certificates and the certificate downloads
+    School fees, the cashbook, invoices, quotations, purchase orders,
+      payment vouchers, virements, payslips and the time clock
+    Every user account, sign-in and role
+    Sharing all of the above across the Centre's own network
+
+DOES NOT WORK without internet, by nature:
+    Google Drive sync — replaced by the data folder above, which does the same
+      job on your own network
+    Video conferencing — it needs a public server to introduce two browsers to
+      each other. Classes on the same network still work if you run your own
+      signalling server; ask for that if you need it.
+    Emailed one-time codes for password resets — an administrator resets
+      passwords directly instead (Settings > Users > Reset Password)
+    Qualification Plan / Curriculum documents, which are held in Google Drive.
+      Copy the PDFs into this folder if you need them offline.
+
+Nothing else changes. The pages, the roles and the records are identical to the
+online version.
+
+
+--------------------------------------------------------------------------------
+  5.  MOVING DATA BETWEEN OFFLINE AND ONLINE
+--------------------------------------------------------------------------------
+
+The files in the data folder are the same format the online version keeps in
+Google Drive. A data folder copied off this machine can be read by the online
+system, and a Drive backup can be dropped in here.
+
+Do it one way at a time. If the Centre works offline for a week and online at
+the same time, both sides will have edits and somebody has to decide which
+stands.
+
+
+--------------------------------------------------------------------------------
+  6.  IF SOMETHING IS WRONG
+--------------------------------------------------------------------------------
+
+"Port 8080 is already being used"
+    Something else on the computer has that port. Start it on another one:
+        node cestis-offline-server.js 8090
+    and use :8090 in the address on every device.
+
+"Node.js was not found"
+    Install Node.js once, from https://nodejs.org, on a computer that has
+    internet. After that this folder never needs the internet again. The
+    launchers fall back to Python, which serves the pages but does NOT share
+    data between devices — treat that as a temporary measure.
+
+A page is blank
+    Refresh once. If it stays blank, stop the server window and start it again.
+
+Somebody's work is missing
+    Check the data folder has the file for that part of the system, and that
+    their device is pointed at the server's address rather than a copy of the
+    pages opened straight off a memory stick.
+
+================================================================================
+  Start the server, open the address, and use the system exactly as before.
+================================================================================
