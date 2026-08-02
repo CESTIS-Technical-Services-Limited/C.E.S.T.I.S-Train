@@ -1192,6 +1192,259 @@
   })();
 
   /* ==========================================================================
+     VIDEO CONFERENCE CAPACITY
+
+     The built-in conference is a PEER-TO-PEER FULL MESH: every participant
+     opens a media connection to every other one. With N people each browser
+     encodes and uploads N-1 video streams and decodes N-1 more, so the load
+     grows with the square of the room size:
+
+         connections in the room = N x (N-1) / 2
+         streams per participant = 2 x (N-1)
+
+     That is fine for a small class and impossible for a large one — at 80
+     people every laptop would be sending 79 video streams at once. A mesh
+     cannot be tuned into a large room; hosting 80 needs a media server (an
+     SFU) that each participant sends ONE stream to. The Centre has no media
+     server of its own, so large classes run on a hosted SFU (Jitsi) while
+     small ones keep using the built-in mesh with no external dependency.
+
+     These helpers put real numbers behind that choice instead of letting a
+     room silently degrade.
+     ========================================================================== */
+  Core.vcCapacity = (function () {
+    // Comfortable ceiling for a browser mesh with video. Beyond this, upstream
+    // bandwidth and CPU collapse long before the browser's connection limit.
+    var MESH_MAX_VIDEO = 8;
+    // Audio-only costs far less per stream, so a mesh stretches further.
+    var MESH_MAX_AUDIO = 16;
+    // What a hosted SFU room supports (Jitsi's published guidance).
+    var SFU_MAX = 100;
+
+    function meshConnections(n) {
+      n = Math.max(0, Math.floor(n || 0));
+      return n < 2 ? 0 : (n * (n - 1)) / 2;
+    }
+    function meshStreamsPerParticipant(n) {
+      n = Math.max(0, Math.floor(n || 0));
+      return n < 2 ? 0 : 2 * (n - 1);
+    }
+    /* Rough upstream bandwidth each participant needs, in kbps. */
+    function meshUplinkKbps(n, kbpsPerStream) {
+      n = Math.max(0, Math.floor(n || 0));
+      var per = kbpsPerStream || 400;
+      return n < 2 ? 0 : (n - 1) * per;
+    }
+    function meshLimit(audioOnly) { return audioOnly ? MESH_MAX_AUDIO : MESH_MAX_VIDEO; }
+
+    /* Which transport can actually host `expected` people?
+       -> { mode:'mesh'|'sfu', limit, feasible, reason } */
+    function recommend(expected, opts) {
+      opts = opts || {};
+      var n = Math.max(1, Math.floor(expected || 1));
+      var meshCap = meshLimit(opts.audioOnly);
+      if (n <= meshCap) {
+        return { mode: 'mesh', limit: meshCap, feasible: true,
+          reason: 'A room of ' + n + ' runs peer-to-peer with no server.' };
+      }
+      if (n <= SFU_MAX) {
+        return { mode: 'sfu', limit: SFU_MAX, feasible: true,
+          reason: 'A room of ' + n + ' is beyond what a peer-to-peer mesh can carry (' +
+                  meshCap + ' max), so it runs on a hosted conference server.' };
+      }
+      return { mode: 'sfu', limit: SFU_MAX, feasible: false,
+        reason: 'A single room tops out at about ' + SFU_MAX + ' participants. Split the class into groups.' };
+    }
+
+    /* Can one more person join a mesh room that already has `current`? */
+    function canJoinMesh(current, audioOnly) {
+      var cap = meshLimit(audioOnly);
+      var n = Math.max(0, Math.floor(current || 0));
+      if (n < cap) return { allowed: true, cap: cap, remaining: cap - n, reason: '' };
+      return { allowed: false, cap: cap, remaining: 0,
+        reason: 'This room is full. The built-in peer-to-peer conference carries up to ' + cap +
+                ' participants; start the session as a Large Class to host more.' };
+    }
+
+    return {
+      MESH_MAX_VIDEO: MESH_MAX_VIDEO, MESH_MAX_AUDIO: MESH_MAX_AUDIO, SFU_MAX: SFU_MAX,
+      meshConnections: meshConnections,
+      meshStreamsPerParticipant: meshStreamsPerParticipant,
+      meshUplinkKbps: meshUplinkKbps,
+      meshLimit: meshLimit,
+      recommend: recommend,
+      canJoinMesh: canJoinMesh
+    };
+  })();
+
+  /* ==========================================================================
+     CERTIFICATE TEMPLATE RULES
+
+     Every certificate must come out looking the same. A template carries two
+     kinds of data:
+       - the LOOK: background images, text positions/sizes, body wording,
+         signature titles, contact details. This is identical for every course
+         and is inherited from the FIRST template that was set up, so a newly
+         added course is already correct without re-doing the layout.
+       - the CONTENT: course name, code, modules/clusters, competencies. This
+         is per-course and is never inherited.
+
+     Full-time courses call their units CLUSTERS, short courses call them
+     MODULES, so the Page 2 heading follows the course type automatically.
+
+     "Technical Competencies Achieved" is derived from the course's own units
+     when it has not been filled in by hand, so no certificate goes out with an
+     empty competencies column.
+     ========================================================================== */
+  Core.certTemplate = (function () {
+    /* Fields that define the LOOK — copied from the base template to every
+       other one. Deliberately excludes course-specific content. */
+    var LOOK_FIELDS = [
+      'bgPage1', 'bgPage2', 'textPositions', 'bodyText',
+      'signatureLeft', 'signatureRight', 'contactEmail', 'contactPhone'
+    ];
+
+    function isFullTime(courseType) {
+      return /full\s*-?\s*time/i.test(String(courseType || ''));
+    }
+    /* Page 2 heading: CLUSTERS for full-time programmes, MODULES otherwise. */
+    function unitHeading(courseType) {
+      return isFullTime(courseType) ? 'CLUSTERS COMPLETED' : 'MODULES COMPLETED';
+    }
+    /* Singular label used in the editor and elsewhere ("Cluster 1" / "Module 1"). */
+    function unitLabel(courseType) {
+      return isFullTime(courseType) ? 'Cluster' : 'Module';
+    }
+    function unitLabelPlural(courseType) {
+      return isFullTime(courseType) ? 'Clusters' : 'Modules';
+    }
+
+    function clone(v) {
+      if (v === null || typeof v !== 'object') return v;
+      if (Array.isArray(v)) return v.map(clone);
+      var o = {};
+      Object.keys(v).forEach(function (k) { o[k] = clone(v[k]); });
+      return o;
+    }
+
+    /* Copy the LOOK of `base` onto `target`, leaving the target's own course
+       content alone. Existing look values on the target are replaced, so
+       "apply to all" genuinely makes every certificate match. */
+    function applyLook(base, target) {
+      var out = clone(target || {});
+      if (!base) return out;
+      LOOK_FIELDS.forEach(function (f) {
+        if (base[f] !== undefined && base[f] !== null && base[f] !== '') out[f] = clone(base[f]);
+      });
+      return out;
+    }
+
+    /* A brand-new course template: the base template's look, with only the
+       course's own identity filled in. */
+    function newFromBase(base, courseName) {
+      var t = applyLook(base, {});
+      t.courseFullName = courseName || '';
+      t.courseType = (base && base.courseType) || 'Short Course';
+      t.programmeCode = '';
+      t.version = (base && base.version) || '1.0';
+      t.developedDate = (base && base.developedDate) || '';
+      t.programmeSpecs = clone((base && base.programmeSpecs) || {});
+      t.modules = [];
+      t.competencies = [];
+      t.inheritedFromBase = true;
+      return t;
+    }
+
+    /* Which template is the "first certificate created" whose look everything
+       else follows? The one explicitly marked as base, else the earliest
+       created, else the first key with a background image (a real, set-up
+       template), else simply the first. */
+    function pickBaseKey(templates, explicitKey) {
+      if (!templates || typeof templates !== 'object') return null;
+      var keys = Object.keys(templates);
+      if (!keys.length) return null;
+      if (explicitKey && templates[explicitKey]) return explicitKey;
+      var marked = keys.filter(function (k) { return templates[k] && templates[k].isBaseTemplate; });
+      if (marked.length) return marked[0];
+      var dated = keys.filter(function (k) { return templates[k] && templates[k].createdAt; });
+      if (dated.length) {
+        dated.sort(function (a, b) { return String(templates[a].createdAt).localeCompare(String(templates[b].createdAt)); });
+        return dated[0];
+      }
+      var withBg = keys.filter(function (k) { return templates[k] && (templates[k].bgPage1 || templates[k].bgPage2); });
+      if (withBg.length) return withBg[0];
+      return keys[0];
+    }
+
+    /* Push the base template's look onto every other template. Returns the new
+       templates object plus the list of keys that changed. */
+    function applyLookToAll(templates, baseKey) {
+      var out = {}, changed = [];
+      if (!templates || typeof templates !== 'object') return { templates: out, changed: changed };
+      var bk = pickBaseKey(templates, baseKey);
+      var base = bk ? templates[bk] : null;
+      Object.keys(templates).forEach(function (k) {
+        if (k === bk) { out[k] = clone(templates[k]); return; }
+        var before = JSON.stringify(templates[k]);
+        var applied = applyLook(base, templates[k]);
+        out[k] = applied;
+        if (JSON.stringify(applied) !== before) changed.push(k);
+      });
+      return { templates: out, baseKey: bk, changed: changed };
+    }
+
+    /* Derive "Technical Competencies Achieved" from the course's own units.
+       Each unit (module/cluster) becomes a competency category, and its topics
+       become the competencies demonstrated under it. Used only when the
+       template has no hand-written competencies, so manual entries always win. */
+    function deriveCompetencies(modules, existing, courseType) {
+      if (Array.isArray(existing) && existing.length) return clone(existing);
+      var mods = Array.isArray(modules) ? modules : [];
+      if (!mods.length) return [];
+      var label = unitLabel(courseType);
+      var out = [];
+      mods.forEach(function (m, i) {
+        if (!m) return;
+        var name = (typeof m === 'string') ? m : (m.name || m.title || (label + ' ' + (i + 1)));
+        var topics = (m && Array.isArray(m.topics)) ? m.topics.filter(Boolean) : [];
+        out.push({
+          category: name,
+          // Without topics the competency is still meaningful: the trainee is
+          // competent in the unit itself.
+          items: topics.length ? topics.slice() : ['Competent in ' + name],
+          derived: true
+        });
+      });
+      return out;
+    }
+
+    /* Everything Page 2 needs, with the course-type rules already applied. */
+    function page2Content(tpl) {
+      var t = tpl || {};
+      return {
+        unitHeading: unitHeading(t.courseType),
+        unitLabel: unitLabel(t.courseType),
+        modules: Array.isArray(t.modules) ? t.modules : [],
+        competencies: deriveCompetencies(t.modules, t.competencies, t.courseType)
+      };
+    }
+
+    return {
+      LOOK_FIELDS: LOOK_FIELDS,
+      isFullTime: isFullTime,
+      unitHeading: unitHeading,
+      unitLabel: unitLabel,
+      unitLabelPlural: unitLabelPlural,
+      applyLook: applyLook,
+      newFromBase: newFromBase,
+      pickBaseKey: pickBaseKey,
+      applyLookToAll: applyLookToAll,
+      deriveCompetencies: deriveCompetencies,
+      page2Content: page2Content
+    };
+  })();
+
+  /* ==========================================================================
      EXTERNAL SYSTEM SETTINGS MERGE (TMS / NQS links + headline notices)
 
      WHY THIS EXISTS

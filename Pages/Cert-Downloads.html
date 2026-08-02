@@ -23,9 +23,12 @@
         <option value="">-- Select Skill Area --</option>
       </select>
       <button class="btn btn-primary btn-sm" onclick="openCertTemplateEditor()">Edit Template</button>
+      <button class="btn btn-secondary btn-sm" onclick="applyBaseTemplateToAll()" title="Copy the first template's design — backgrounds, text positions and sizes, body wording, signature titles and contact details — onto every other certificate template">Apply Design to All</button>
     </div>
   </div>
-  <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Configure certificate details (modules, competencies, programme specs) for each skill area. This data appears on Page 2 of the downloaded certificate.</p>
+  <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Configure certificate details (modules, competencies, programme specs) for each skill area. This data appears on Page 2 of the downloaded certificate.
+  Every new template inherits the design of the first one, so all certificates look the same; use <strong>Apply Design to All</strong> to push a corrected design onto templates created earlier.
+  Full-time programmes automatically show <strong>CLUSTERS COMPLETED</strong> instead of Modules, and Technical Competencies are generated from the course's own units when none are entered.</p>
   <div id="certTemplatePreview" style="padding:16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);">
     <p style="color:var(--text-muted);text-align:center;">Select a skill area above to view or edit its certificate template.</p>
   </div>
