@@ -3107,6 +3107,118 @@
       applyApproval: applyApproval, applySkillAreas: applySkillAreas };
   })();
 
+  /* ==========================================================================
+     PER-PAGE CLOUD BACKUP — merge rules
+
+     Most pages here own a slice of the data and had no cloud path of their own:
+     the finance documents, the vouchers, the transcript pages and the chat all
+     reached Google Drive only if the LMS dashboard happened to be open and
+     connected, because its master snapshot sweeps every storage key. Work done
+     with the dashboard closed stayed on one machine.
+
+     Each page now writes its own backup file. Two devices editing the same page
+     must converge without either one's work disappearing, so every key carries
+     the moment it was last written and the newer write wins — the same rule the
+     student and account merges already follow. A key only one side has is
+     always taken; that is new work, not a deletion.
+     ========================================================================== */
+  Core.pageCloud = (function () {
+
+    function stampOf(stamps, key) {
+      return (stamps && Date.parse(stamps[key] || '')) || 0;
+    }
+
+    /* Merge a cloud backup into this device's copy.
+         localData/cloudData   - { storageKey: rawStringValue }
+         localStamps/cloudStamps - { storageKey: ISO time last written }
+       Returns the union plus the keys whose local value must be rewritten. */
+    function mergeKeys(localData, localStamps, cloudData, cloudStamps, opts) {
+      localData = localData || {}; cloudData = cloudData || {};
+      opts = opts || {};
+      var data = {}, stamps = {}, changed = [], k;
+
+      for (k in localData) {
+        if (!Object.prototype.hasOwnProperty.call(localData, k)) continue;
+        data[k] = localData[k];
+        if (localStamps && localStamps[k]) stamps[k] = localStamps[k];
+      }
+      for (k in cloudData) {
+        if (!Object.prototype.hasOwnProperty.call(cloudData, k)) continue;
+        var haveLocal = Object.prototype.hasOwnProperty.call(localData, k);
+        if (!haveLocal) {
+          // Only the cloud has it — another device's work.
+          data[k] = cloudData[k];
+          if (cloudStamps && cloudStamps[k]) stamps[k] = cloudStamps[k];
+          changed.push(k);
+          continue;
+        }
+        if (localData[k] === cloudData[k]) continue;      // identical, nothing to do
+        var lt = stampOf(localStamps, k), ct = stampOf(cloudStamps, k);
+        // The cloud only wins when BOTH sides can be dated and it is the newer
+        // of the two. Local data with no stamp predates this backup existing;
+        // its age cannot be established, so it is never overwritten — it stands
+        // and gets pushed (and stamped) on the next save. Anything else would
+        // let a first sync quietly replace work nobody could date.
+        //
+        // The exception is a device syncing this page for the FIRST time
+        // (opts.firstSync). It has no history of its own, so whatever it holds
+        // is either empty or the page's own start-up defaults — and those must
+        // not beat the Centre's real data. Without this, opening a page on a
+        // new machine kept its blank template and pushed that up.
+        if (opts.firstSync && ct > 0) {
+          data[k] = cloudData[k];
+          stamps[k] = cloudStamps[k];
+          changed.push(k);
+          continue;
+        }
+        if (lt > 0 && ct > lt) {
+          data[k] = cloudData[k];
+          stamps[k] = cloudStamps[k];
+          changed.push(k);
+        }
+      }
+      return { data: data, stamps: stamps, changed: changed };
+    }
+
+    /* Does a storage key belong to this page's backup? Pages declare exact key
+       names and/or prefixes (the Cashbook's quarters are `cestis_quarter_<FY>_Q<n>`,
+       so they can only be described as a prefix). */
+    function ownsKey(spec, key) {
+      if (!spec || !key) return false;
+      var keys = spec.keys || [], prefixes = spec.prefixes || [], i;
+      for (i = 0; i < keys.length; i++) if (keys[i] === key) return true;
+      for (i = 0; i < prefixes.length; i++) if (key.indexOf(prefixes[i]) === 0) return true;
+      return false;
+    }
+
+    /* The subset of a storage map this page is responsible for. */
+    function collect(spec, storeMap) {
+      var out = {};
+      Object.keys(storeMap || {}).forEach(function (k) {
+        if (ownsKey(spec, k)) out[k] = storeMap[k];
+      });
+      return out;
+    }
+
+    /* The backup file a page writes. Kept small and explicit so a person
+       looking in Drive can tell which page produced it and when. */
+    function buildPayload(spec, data, stamps, meta) {
+      meta = meta || {};
+      return {
+        version: '1.0',
+        page: spec.page || '',
+        file: spec.file || '',
+        savedAt: meta.savedAt || '',
+        savedBy: meta.savedBy || '',
+        keyCount: Object.keys(data || {}).length,
+        stamps: stamps || {},
+        data: data || {}
+      };
+    }
+
+    return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload };
+  })();
+
   root.CESTISCore = Core;
 
   if (typeof module !== 'undefined' && module.exports) {

@@ -53,5 +53,15 @@ FinanceDoc.init({
   labels: { title: 'INVOICE', docWord: 'invoice', noLabel: 'INVOICE NO', dateLabel: 'INVOICE DATE', dueLabel: 'DUE DATE' }
 });
 </script>
+
+<!-- Per-page Google Drive save path (own file in the shared backup folder) -->
+<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script>
+CESTISPageCloud.init({
+  page: 'Invoice',
+  file: 'CESTIS_Finance_Invoices.json',
+  keys: ['cestis_finance_invoices', 'cestis_finance_convert']
+});
+</script>
 </body>
 </html>
