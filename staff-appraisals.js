@@ -641,6 +641,72 @@
     return a[0] === b[0] && a[a.length - 1] === b[b.length - 1];
   }
 
+  /* --------------------------------------------------------------------------
+     Cloud sync merge. Appraisals are edited on more than one device — the
+     Administrator completes the instrument on theirs, the staff member signs on
+     theirs and the CMC Chair on a third — so a cloud round-trip must never let
+     one device's copy overwrite another's signature. Rules:
+       - an appraisal present on only one side is kept
+       - when both sides have it, the newer `updatedAt` wins for the scores,
+         but signatures are UNIONED across both copies (each of the three
+         parties owns a different signature slot)
+       - when both sides hold the same signature slot, the later `signedAt` wins
+       - assignments / extraStaff / flags are unioned
+     Pure and order-independent, so it can be unit tested.
+     -------------------------------------------------------------------------- */
+  function sappTime(v) {
+    var t = Date.parse(v || '');
+    return isNaN(t) ? 0 : t;
+  }
+  function sappMergeSignatures(a, b) {
+    var out = {};
+    ['appraisee', 'appraiser', 'cmc'].forEach(function (role) {
+      var x = a && a[role], y = b && b[role];
+      if (x && x.data && y && y.data) out[role] = sappTime(y.signedAt) > sappTime(x.signedAt) ? y : x;
+      else if (x && x.data) out[role] = x;
+      else if (y && y.data) out[role] = y;
+    });
+    return out;
+  }
+  function sappMergeAppraisal(local, remote) {
+    if (!local) return remote;
+    if (!remote) return local;
+    var base = sappTime(remote.updatedAt) > sappTime(local.updatedAt) ? remote : local;
+    var merged = {};
+    Object.keys(base).forEach(function (k) { merged[k] = base[k]; });
+    merged.signatures = sappMergeSignatures(local.signatures, remote.signatures);
+    // A completed appraisal never reverts to draft just because the other
+    // device still held the older draft.
+    if (local.status === 'completed' || remote.status === 'completed') merged.status = 'completed';
+    return merged;
+  }
+  function sappMergeData(local, remote) {
+    var L = local && typeof local === 'object' ? local : {};
+    var R = remote && typeof remote === 'object' ? remote : {};
+    var out = {
+      cycles: {},
+      assignments: Object.assign({}, L.assignments || {}, R.assignments || {}),
+      extraStaff: (L.extraStaff || []).slice(),
+      flags: Object.assign({}, L.flags || {}, R.flags || {})
+    };
+    var lc = L.cycles || {}, rc = R.cycles || {};
+    Object.keys(lc).concat(Object.keys(rc)).forEach(function (ck) {
+      if (out.cycles[ck]) return;
+      out.cycles[ck] = {};
+      var lcy = lc[ck] || {}, rcy = rc[ck] || {};
+      Object.keys(lcy).concat(Object.keys(rcy)).forEach(function (sid) {
+        if (out.cycles[ck][sid]) return;
+        out.cycles[ck][sid] = sappMergeAppraisal(lcy[sid], rcy[sid]);
+      });
+    });
+    var seenExtra = {};
+    out.extraStaff.forEach(function (s) { if (s && s.id) seenExtra[s.id] = true; });
+    (R.extraStaff || []).forEach(function (s) {
+      if (s && s.id && !seenExtra[s.id]) { seenExtra[s.id] = true; out.extraStaff.push(s); }
+    });
+    return out;
+  }
+
   /* ==========================================================================
      Node export for unit tests (pure parts only).
      ========================================================================== */
@@ -658,7 +724,10 @@
     sappIsFullName: sappIsFullName,
     sappMatchPayslipName: sappMatchPayslipName,
     sappSignatureStatus: sappSignatureStatus,
-    sappSamePerson: sappSamePerson
+    sappSamePerson: sappSamePerson,
+    sappMergeData: sappMergeData,
+    sappMergeAppraisal: sappMergeAppraisal,
+    sappMergeSignatures: sappMergeSignatures
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) { root.sappIsFullName = sappIsFullName; root.sappMatchPayslipName = sappMatchPayslipName; }
@@ -692,6 +761,29 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+
+  /* ----------------------- cloud sync bridge -----------------------
+     index.html includes the result of sappCloudExport() in every Google Drive
+     backup payload, and hands whatever it downloads to sappCloudImport(), so
+     appraisals and signatures round-trip across devices like the rest of the
+     LMS data. Returns null when there is nothing to save, so an empty local
+     store can never blank the cloud copy. */
+  root.sappCloudExport = function () {
+    var d = sappData();
+    var hasCycles = Object.keys(d.cycles || {}).some(function (ck) {
+      return Object.keys(d.cycles[ck] || {}).length > 0;
+    });
+    if (!hasCycles && !Object.keys(d.assignments || {}).length && !(d.extraStaff || []).length) return null;
+    return d;
+  };
+  root.sappCloudImport = function (remote) {
+    if (!remote || typeof remote !== 'object') return false;
+    try {
+      var merged = sappMergeData(sappData(), remote);
+      sappPersist(merged);
+      return true;
+    } catch (e) { console.warn('[SAPP] cloud import failed', e); return false; }
+  };
 
   /* ----------------------- payslip employee linking ----------------------- */
   function sappPayrollEmployees() {
@@ -1924,7 +2016,9 @@
       alert('You can only sign your own appraisal.'); return;
     }
     var st = sappMy[prefix];
-    var sig = { type: st.method, name: sappSignerName(), date: sappTodayStr() };
+    // signedAt (ISO) is what the cloud merge compares when two devices hold the
+    // same signature slot; `date` is the human date printed on the instrument.
+    var sig = { type: st.method, name: sappSignerName(), date: sappTodayStr(), signedAt: new Date().toISOString() };
     if (st.method === 'typed') {
       var t = (document.getElementById(prefix + 'SappSigTyped') || {}).value || '';
       if (!t.trim()) { alert('Please type your name to sign.'); return; }
