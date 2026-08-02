@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <script src="cestis-core.js?v=20260712a"></script>
 <script src="staff-appraisals.js?v=20260802a"></script>
+<script src="cmc-portal.js?v=20260802a"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="h1kcrSWbOfqMdqcEuN9crbU73K84WTBd7Qy1lcbcFC4" />
 <title>VocTrain LMS — Vocational Training Management System</title>
@@ -3997,6 +3998,25 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           <span class="register-link" onclick="openForgotPassword('adminstaff')">Forgot password?</span>
         </div>
         <button class="role-enter-btn" onclick="handleAdminStaffClick()">Enter as Admin Staff →</button>
+      </div>
+
+      <!-- CMC (BOARD) CARD -->
+      <div class="role-card cmc-card" id="cmcCard">
+        <div class="role-icon">🏛️</div>
+        <h2>CMC Board</h2>
+        <p>Community Management Committee — view-only oversight of enrolment, student progress, finances and centre activity.</p>
+        <div class="role-login" id="cmcLogin">
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" placeholder="cmcadmin" id="cmcUser">
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" placeholder="••••••••" id="cmcPass">
+          </div>
+          <span class="register-link" onclick="openForgotPassword('cmc')">Forgot password?</span>
+        </div>
+        <button class="role-enter-btn" onclick="handleCmcClick()">Enter as CMC Board →</button>
       </div>
 
     </div>
@@ -9713,6 +9733,12 @@ var cestisFeatureConfig = {
       try { if(typeof sappMyApprOnShow === 'function') sappMyApprOnShow(prefix); } catch(e) { console.warn('my-appraisal mount error', e); }
     }
   },
+  'cmc-portal': {
+    file: 'Pages/CMC-Portal.html',
+    onMount: function() {
+      cestisSafe('cmcPortalOnShow');
+    }
+  },
   'i-resources': {
     file: 'Pages/Instructor-Resources.html',
     onMount: function() {
@@ -9952,6 +9978,7 @@ function showPage(pageId) {
     'lms-chat':'C.E.S.T.I.S LMS Chat','s-lms-chat':'C.E.S.T.I.S LMS Chat','i-lms-chat':'C.E.S.T.I.S LMS Chat',
     'admin-duty-register':'Admin Duty Register','staff-appraisals':'Staff Appraisals',
     'my-appraisal':'My Appraisal (Staff)','i-my-appraisal':'My Appraisal (Staff)','as-my-appraisal':'My Appraisal (Staff)','cmc-my-appraisal':'My Appraisal (Staff)',
+    'cmc-portal':'CMC Oversight Portal (View Only)',
     'support-messages':'Support Messages','as-support-messages':'Support Messages',
     'as-dashboard':'My Dashboard','as-duties':'My Duties','as-lms-chat':'C.E.S.T.I.S LMS Chat','as-profile':'My Profile',
     'as-attendance':'Attendance Management','as-announcements':'Announcements','as-calendar':'Calendar & Schedule',
@@ -31920,6 +31947,8 @@ function buildCmcSidebar() {
     '<div class="nav-section-label">Overview</div>' +
     '<div class="nav-item active" data-page="cmc-dashboard" onclick="showPage(\'cmc-dashboard\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Analytics Dashboard</div>' +
+    '<div class="nav-item" data-page="cmc-portal" onclick="showPage(\'cmc-portal\')">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Oversight Portal<span class="nav-badge" style="background:var(--teal);">VIEW</span></div>' +
     '<div class="nav-item" data-page="cmc-financial" onclick="showPage(\'cmc-financial\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Financial Overview</div>' +
     '<div class="nav-item" data-page="cmc-staff" onclick="showPage(\'cmc-staff\')">' +
@@ -32352,6 +32381,11 @@ function buildCmcPages() {
   if(topStudents.length===0) html += '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No students enrolled yet</td></tr>';
   html += '</tbody></table></div>';
   html += '</section>';
+
+  // ---- Oversight Portal — view-only hub (markup in Pages/CMC-Portal.html) ----
+  html += '<section class="page" id="page-cmc-portal">' +
+    '<div class="cestis-mount" data-feature="cmc-portal" data-prefix="cmc"></div>' +
+  '</section>';
 
   // ---- My Appraisal (Staff) Page — CMC Chair signs completed appraisals ----
   html += '<section class="page" id="page-cmc-my-appraisal">' +
