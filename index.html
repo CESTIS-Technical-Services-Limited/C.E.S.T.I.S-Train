@@ -10532,7 +10532,8 @@ function buildAdminPages() {
       <button class="btn btn-sm btn-secondary" onclick="addCertTemplateModule()" style="margin-bottom:16px;">+ Add Module</button>
 
       <h4 style="font-size:14px;margin-bottom:8px;color:var(--accent);">Technical Competencies Achieved</h4>
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Add competency categories with their items (one per line).</p>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">What the graduate can do, grouped by technical area — the right-hand column of Page 2. Add a category with its statements (one per line).</p>
+      <div id="ctplCompetenciesHint" style="display:none;font-size:12px;border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px;"></div>
       <div id="ctplCompetenciesContainer"></div>
       <button class="btn btn-sm btn-secondary" onclick="addCertTemplateCompetency()" style="margin-bottom:16px;">+ Add Competency Category</button>
 
@@ -35462,13 +35463,17 @@ function loadCertTemplateForEdit() {
     tpl.modules.forEach(function(m) { html += '<li>' + m.name + ' (' + (m.contactHours || '?') + ' hrs) — ' + (m.topics || []).length + ' topics</li>'; });
     html += '</ul>';
   }
-  // Show what will actually print: hand-entered competencies, or the ones
-  // derived from this course's own units when none were entered.
+  // Show what will actually print: the plan's competency profile, anything
+  // entered by hand, or — for a course with no plan — the fallback derived from
+  // this course's own units.
   var _comps = CESTISCore.certTemplate.deriveCompetencies(tpl.modules, tpl.competencies, tpl.courseType);
   if(_comps.length) {
-    var _derived = !(tpl.competencies && tpl.competencies.length);
-    html += '<h4 style="margin-top:12px;font-size:13px;color:var(--accent);">Technical Competencies Achieved (' + _comps.length + ')' +
-      (_derived ? ' <span style="color:var(--text-muted);font-weight:400;">— generated from the ' + _unitsPlural.toLowerCase() + '</span>' : '') + '</h4>' +
+    var _source = !(tpl.competencies && tpl.competencies.length)
+      ? ' <span style="color:var(--text-muted);font-weight:400;">— generated from the ' + _unitsPlural.toLowerCase() + '</span>'
+      : (_comps[0] && _comps[0].fromPlan
+          ? ' <span style="color:var(--text-muted);font-weight:400;">— from qualification plan ' + escapeHtml(_comps[0].fromPlan) + '</span>'
+          : ' <span style="color:var(--text-muted);font-weight:400;">— entered by hand</span>');
+    html += '<h4 style="margin-top:12px;font-size:13px;color:var(--accent);">Technical Competencies Achieved (' + _comps.length + ')' + _source + '</h4>' +
       '<ul style="font-size:12px;color:var(--text-secondary);margin:4px 0 0 16px;">';
     _comps.forEach(function(c) { html += '<li>' + c.category + ' — ' + (c.items || []).length + ' items</li>'; });
     html += '</ul>';
@@ -35508,10 +35513,15 @@ function applyBaseTemplateToAll() {
 // cert-template-seed.js carries the real clustering of every skill area the
 // Centre delivers — cluster names, the units inside each cluster and their
 // nominal hours, straight off the plan. Seeding writes that COURSE CONTENT
-// into each template (clusters + programme specifications) and leaves the
-// DESIGN alone, so the corrected look is preserved. Technical Competencies
-// Achieved are deliberately left empty: the renderer derives them from the
-// clusters, so what the certificate claims always matches what was taught.
+// into each template (clusters, the competency profile and programme
+// specifications) and leaves the DESIGN alone, so the corrected look is
+// preserved.
+//
+// The two Page 2 columns say different things: CLUSTERS COMPLETED is the record
+// of training (what was taught, in the plan's own words), TECHNICAL COMPETENCIES
+// ACHIEVED is the competency profile (what the graduate can do, grouped by
+// technical area). Every seeded competency statement is traceable to the plan's
+// own units, so the certificate can only claim what was assessed.
 // ---------------------------------------------------------------------------
 function certSeedMatches() {
   if(typeof CESTISCertSeed === 'undefined') return [];
@@ -35533,17 +35543,18 @@ function seedCertTemplatesFromPlans() {
   var derived = matches.filter(function(m) { return m.content.clustersDerived; });
   var lines = matches.map(function(m) {
     return '  • ' + m.course + ' — ' + m.content.clusterCount + ' clusters, ' +
+      m.content.competencies.length + ' competency areas, ' +
       m.content.programmeSpecs.duration + (m.content.clustersDerived ? '  (clusters derived — confirm)' : '');
   }).join('\n');
   if(!confirm('Seed certificate content from the Qualification Plans for ' + matches.length + ' programme(s)?\n\n' + lines +
-    '\n\nClusters, taught hours and programme specifications are written from the plan.\n' +
+    '\n\nClusters, taught hours, Technical Competencies Achieved and programme specifications are written from the plan.\n' +
     'The certificate DESIGN (backgrounds, positions, wording, signatures) is not touched.\n' +
-    'Technical Competencies Achieved are generated from each cluster automatically.' +
+    'Competency categories typed in by hand are kept — only plan-seeded ones are refreshed.' +
     (derived.length ? '\n\nNote: the Level 3 plans predate clustering, so their clusters are grouped to follow the Level 2 pattern — please confirm them against the plan.' : ''))) return;
 
   var baseKey = CESTISCore.certTemplate.pickBaseKey(certTemplates, systemSettings.certBaseTemplate);
   var base = baseKey ? certTemplates[baseKey] : null;
-  var seeded = 0;
+  var seeded = 0, kept = 0;
   matches.forEach(function(m) {
     var tpl = certTemplates[m.course] || CESTISCore.certTemplate.newFromBase(base, m.course);
     var c = m.content;
@@ -35551,7 +35562,12 @@ function seedCertTemplatesFromPlans() {
     tpl.courseType = c.courseType;                 // every plan is a full-time NVQ-J
     tpl.programmeCode = c.programmeCode;
     tpl.modules = c.modules;
-    tpl.competencies = [];                          // derived from the clusters at render time
+    // Technical Competencies Achieved come from the plan's competency profile.
+    // Categories an administrator typed in by hand carry no fromPlan marker, so
+    // they are left exactly as they are — hand-written entries always win.
+    var handWritten = (tpl.competencies || []).filter(function(x) { return x && !x.fromPlan; });
+    if(handWritten.length) { tpl.competencies = handWritten; kept++; }
+    else { tpl.competencies = c.competencies; }
     var specs = tpl.programmeSpecs || {};
     specs.duration = c.programmeSpecs.duration;
     specs.industry = c.programmeSpecs.industry;
@@ -35575,7 +35591,8 @@ function seedCertTemplatesFromPlans() {
   });
   saveState();
   try { populateCertTemplateSkillSelect(); loadCertTemplateForEdit(); renderCertSeedStatus(); } catch(e) {}
-  showToast('Seeded ' + seeded + ' certificate template(s) from the qualification plans');
+  showToast('Seeded ' + seeded + ' certificate template(s) from the qualification plans' +
+    (kept ? ' — hand-entered competencies kept on ' + kept : ''));
 }
 
 // Panel on the Cert Downloads page showing which skill areas the plans cover.
@@ -35586,7 +35603,7 @@ function renderCertSeedStatus() {
   var matches = certSeedMatches();
   var matched = {}; matches.forEach(function(m) { matched[m.content.programmeCode] = m.course; });
   var html = '<div class="table-wrapper"><table><thead><tr>' +
-    '<th>Qualification Plan</th><th>Plan Code</th><th>Clusters</th><th>Units</th><th>Taught Hours</th><th>Credits</th><th>On Platform</th>' +
+    '<th>Qualification Plan</th><th>Plan Code</th><th>Clusters</th><th>Units</th><th>Competencies</th><th>Taught Hours</th><th>Credits</th><th>On Platform</th>' +
     '</tr></thead><tbody>';
   CESTISCertSeed.seedSummary().forEach(function(r) {
     var seed = CESTISCertSeed.findSeed(r.course);
@@ -35601,6 +35618,7 @@ function renderCertSeedStatus() {
       '<td>' + escapeHtml(r.planCode) + '</td>' +
       '<td>' + r.clusters + (r.electives ? ' <span style="color:var(--text-muted);">+ 1 elective</span>' : '') + '</td>' +
       '<td>' + r.units + (r.electives ? ' <span style="color:var(--text-muted);">+ ' + r.electives + ' elective</span>' : '') + '</td>' +
+      '<td>' + r.competencyAreas + ' areas <span style="color:var(--text-muted);">/ ' + r.competencyStatements + ' statements</span></td>' +
       '<td>' + escapeHtml(CESTISCertSeed.seedDuration(seed, true).replace(' Contact Hours', '')) + '</td>' +
       '<td>' + (r.totalCredits || '—') + '</td>' +
       '<td>' + state + '</td></tr>';
@@ -35715,12 +35733,15 @@ function openCertTemplateEditor() {
     tpl.modules.forEach(function(mod) { addCertTemplateModule(mod); });
   }
 
-  // Rebuild competencies
+  // Rebuild competencies. An empty section used to be misleading: the renderer
+  // falls back to deriving them from the units, so the certificate printed a
+  // full column while the editor showed nothing. Say so, and offer to fill it.
   var cc = document.getElementById('ctplCompetenciesContainer');
   cc.innerHTML = '';
   if(tpl.competencies && tpl.competencies.length) {
     tpl.competencies.forEach(function(comp) { addCertTemplateCompetency(comp); });
   }
+  renderCertCompetencyHint(tpl);
 
   openModal('certTemplateEditorModal');
   // Scroll modal to top so image upload section is visible
@@ -35751,6 +35772,58 @@ function addCertTemplateModule(data) {
     '<button class="btn btn-sm" style="background:var(--red);color:#fff;" onclick="document.getElementById(\'ctplMod_' + idx + '\').remove()">X</button></div>' +
     '<textarea class="ctpl-mod-topics" placeholder="Topics (one per line)" rows="3" style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:12px;resize:vertical;">' + (data && data.topics ? data.topics.join('\n') : '') + '</textarea>';
   container.appendChild(div);
+}
+
+// Explain, above the competency list, what Page 2 will actually print — and
+// where it comes from. Three cases: seeded from the qualification plan, typed
+// in by hand, or nothing entered (in which case the renderer derives a group
+// per unit, which the editor cannot show because the template holds none).
+function renderCertCompetencyHint(tpl) {
+  var hint = document.getElementById('ctplCompetenciesHint');
+  if(!hint) return;
+  var entered = (tpl.competencies || []).length;
+  if(entered) {
+    var plan = tpl.competencies[0] && tpl.competencies[0].fromPlan;
+    hint.style.display = 'block';
+    hint.style.background = 'rgba(46,204,113,0.10)';
+    hint.style.border = '1px solid rgba(46,204,113,0.3)';
+    hint.style.color = 'var(--text-secondary)';
+    hint.innerHTML = plan
+      ? entered + ' competency area(s) from qualification plan <strong>' + escapeHtml(plan) + '</strong>. Edit any of them — your wording is kept if the plans are seeded again.'
+      : entered + ' competency area(s) entered by hand. These always take precedence over the qualification plan.';
+    return;
+  }
+  var fallback = CESTISCore.certTemplate.deriveCompetencies(tpl.modules, [], tpl.courseType);
+  if(!fallback.length) { hint.style.display = 'none'; hint.innerHTML = ''; return; }
+  var unit = CESTISCore.certTemplate.unitLabelPlural(tpl.courseType).toLowerCase();
+  hint.style.display = 'block';
+  hint.style.background = 'rgba(240,165,0,0.10)';
+  hint.style.border = '1px solid rgba(240,165,0,0.3)';
+  hint.style.color = 'var(--text-secondary)';
+  hint.innerHTML = 'Nothing entered here, so the certificate will fall back to repeating the ' + unit +
+    ' — ' + fallback.length + ' group(s), one per ' + CESTISCore.certTemplate.unitLabel(tpl.courseType).toLowerCase() + '. ' +
+    '<button class="btn btn-sm btn-secondary" style="margin-left:6px;" onclick="fillCertCompetenciesFromUnits()">Fill from the ' + unit + '</button> ' +
+    'then reword each one as what the graduate can do.';
+}
+
+// Drop the fallback groups into the editor so they can be reworded into real
+// competency statements instead of a second copy of the unit list.
+function fillCertCompetenciesFromUnits() {
+  var tpl = certTemplates[_certTplEditingCourse] || {};
+  var modules = [];
+  document.querySelectorAll('.cert-tpl-module').forEach(function(div) {
+    var name = div.querySelector('.ctpl-mod-name')?.value?.trim();
+    var topicsStr = div.querySelector('.ctpl-mod-topics')?.value || '';
+    var topics = topicsStr.split('\n').map(function(t){ return t.trim(); }).filter(Boolean);
+    if(name) modules.push({ name: name, topics: topics });
+  });
+  var courseType = document.getElementById('ctplCourseType')?.value || tpl.courseType;
+  var groups = CESTISCore.certTemplate.deriveCompetencies(modules, [], courseType);
+  if(!groups.length) { showToast('Add some ' + CESTISCore.certTemplate.unitLabelPlural(courseType).toLowerCase() + ' first.'); return; }
+  document.getElementById('ctplCompetenciesContainer').innerHTML = '';
+  groups.forEach(function(g) { addCertTemplateCompetency(g); });
+  renderCertCompetencyHint({ competencies: groups, modules: modules, courseType: courseType });
+  showToast('Filled ' + groups.length + ' competency area(s) — reword them as what the graduate can do');
 }
 
 var _certCompIdx = 0;

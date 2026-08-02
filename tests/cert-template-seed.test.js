@@ -157,10 +157,16 @@ assertEq(tpl.totalCredits, 117, 'credits recorded');
 assertEq(tpl.programmeSpecs.duration, '2925 Contact Hours', 'duration filled from the plan');
 assertEq(tpl.programmeSpecs.industry, 'Metal Engineering and Maintenance', 'industry filled from the plan');
 assertEq(tpl.qualification, 'NVQ-J Level 2 in Welding', 'qualification title carried');
-assertEq(tpl.competencies.length, 0,
-  'competencies deliberately left empty so the renderer derives them from what was taught');
+assertEq(tpl.competencies.length, 8, 'the plan\'s competency profile is seeded onto the template');
+assertEq(tpl.competencies[0].category, 'Workshop Safety, Tools and Machines', 'first competency area');
+assertEq(tpl.competencies[0].fromPlan, 'MEM22423', 'seeded competencies record the plan they came from');
+assert(!('fromUnits' in tpl.competencies[0]), 'provenance is not carried onto the certificate');
+assert(tpl.competencies.every(function (c) { return c.items.length > 0; }), 'every competency area states what the graduate can do');
 assertEq(Seed.templateContentFor('Welding L2', { includeElectives: false }).modules.length, 11,
   'electives can be left off');
+assertEq(Seed.templateContentFor('Welding L2', { includeElectives: false }).competencies.length, 7,
+  'leaving electives off drops the elective competency area too');
+assert(/\(Electives\)$/.test(tpl.competencies[7].category), 'the elective competency area is labelled as such');
 assertEq(Seed.templateContentFor('Nothing At All'), null, 'unknown course seeds nothing');
 
 /* The seed must never carry design fields — the design comes from the base
@@ -170,21 +176,120 @@ CT.LOOK_FIELDS.forEach(function (f) {
   assert(!(f in tpl), 'seeded content does not touch the design field "' + f + '"');
 });
 
-/* ---------- 8. End to end with the certificate renderer ---------- */
+/* ---------- 8. The competency profile is grounded in the plan ----------
+
+   TECHNICAL COMPETENCIES ACHIEVED is the Centre's wording for what a graduate
+   can do; the units are what the trainee was actually assessed against. Each
+   competency area therefore carries `fromUnits`, and these tests hold the two
+   together: nothing may be claimed that the plan does not assess, and nothing
+   the plan assesses may go unrepresented. Without this a competency statement
+   could quietly drift into claiming a skill that was never taught.            */
+console.log('Competency profile is grounded in the plan');
+const normU = function (s) { return String(s).toLowerCase().trim().replace(/\s+/g, ' '); };
+
+Seed.CERT_TEMPLATE_SEED.forEach(function (s) {
+  const core = Seed.seedUnits(s, false).map(normU);
+  const elective = (s.electives ? s.electives.units : []).map(normU);
+  const claimed = [];
+
+  assert((s.competencies || []).length >= 5, s.course + ' groups its competencies into technical areas');
+  (s.competencies || []).forEach(function (c) {
+    assert(!!c.category && c.category.trim().length > 3, s.course + ' competency area is named');
+    assert((c.items || []).length > 0, s.course + ' area "' + c.category + '" states what the graduate can do');
+    assert((c.fromUnits || []).length > 0, s.course + ' area "' + c.category + '" records the units it comes from');
+    (c.fromUnits || []).forEach(function (u) {
+      const isCore = core.indexOf(normU(u)) > -1;
+      const isElective = elective.indexOf(normU(u)) > -1;
+      assert(isCore || isElective,
+        s.course + ' area "' + c.category + '" claims a unit that is in the plan — "' + u + '"');
+      /* An elective area may only draw on elective units, and a core area only
+         on core ones, or the certificate would credit an elective a trainee
+         never took (or bury a core unit inside an optional heading). */
+      if (c.elective) assert(isElective, s.course + ' elective area draws only on elective units — "' + u + '"');
+      else assert(isCore, s.course + ' core area draws only on core units — "' + u + '"');
+      claimed.push(normU(u));
+    });
+  });
+
+  const uncoveredCore = core.filter(function (u) { return claimed.indexOf(u) === -1; });
+  assertEq(uncoveredCore.length, 0,
+    s.course + ' every core unit is represented in a competency area (missing: ' + uncoveredCore.join('; ') + ')');
+  const uncoveredElective = elective.filter(function (u) { return claimed.indexOf(u) === -1; });
+  assertEq(uncoveredElective.length, 0,
+    s.course + ' every elective unit is represented (missing: ' + uncoveredElective.join('; ') + ')');
+});
+
+/* The whole point of seeding these: the right-hand column must no longer be a
+   copy of the left-hand one. */
+console.log('The two Page 2 columns say different things');
+Seed.CERT_TEMPLATE_SEED.forEach(function (s) {
+  const t = Seed.templateContentFor(s.course);
+  const clusterNames = t.modules.map(function (m) { return normU(m.name); });
+  const echoed = t.competencies.filter(function (c) { return clusterNames.indexOf(normU(c.category)) > -1; });
+  assertEq(echoed.length, 0, s.course + ' no competency area simply repeats a cluster heading');
+  /* No core area may reproduce a cluster's unit list — that was exactly the old
+     behaviour, where the fallback echoed the clusters into both columns. The
+     elective areas are exempt: an elective is three units long and its titles
+     already read as outcomes, so restating them would only be a paraphrase. */
+  const clusterLists = t.modules.map(function (m) { return m.topics.map(normU).join('|'); });
+  const copied = t.competencies
+    .filter(function (c) { return !/\(Electives\)$/.test(c.category); })
+    .filter(function (c) { return clusterLists.indexOf(c.items.map(normU).join('|')) > -1; });
+  assertEq(copied.length, 0, s.course + ' no core competency area reproduces a cluster\'s unit list');
+
+  /* Some plan units are already worded as outcomes ("Prepare and produce yeast
+     goods"), so a statement may match one verbatim — but if most of them did,
+     the column would be a unit list wearing a different heading. */
+  const units = t.modules.reduce(function (a, m) { return a.concat(m.topics.map(normU)); }, []);
+  const statements = t.competencies.reduce(function (a, c) { return a.concat(c.items); }, []);
+  const verbatim = statements.filter(function (i) { return units.indexOf(normU(i)) > -1; });
+  assert(verbatim.length * 3 <= statements.length,
+    s.course + ' most competency statements summarise rather than repeat a unit title (' +
+    verbatim.length + ' of ' + statements.length + ')');
+  assert(statements.length < units.length,
+    s.course + ' the competency profile is shorter than the unit list (' +
+    statements.length + ' statements vs ' + units.length + ' units)');
+});
+
+/* ---------- 9. End to end with the certificate renderer ---------- */
 console.log('End to end with the renderer');
 PLANS.concat([{ course: 'Welding L3' }, { course: 'Electrical Installation L3' }]).forEach(function (p) {
   const t = Seed.templateContentFor(p.course);
   const page2 = CT.page2Content(t);
   assertEq(page2.unitHeading, 'CLUSTERS COMPLETED', p.course + ' prints CLUSTERS, not MODULES');
-  assertEq(page2.competencies.length, t.modules.length,
-    p.course + ' derives one Technical Competency group per cluster');
-  assertEq(page2.competencies[0].category, t.modules[0].name,
-    p.course + ' first competency group is the first cluster');
+  assertEq(page2.competencies.length, t.competencies.length,
+    p.course + ' prints the plan\'s competency profile');
   assert(page2.competencies.every(function (c) { return c.items.length > 0; }),
-    p.course + ' every competency group lists competencies');
-  assert(page2.competencies.every(function (c) { return c.derived === true; }),
-    p.course + ' competencies are marked as derived from the clusters');
+    p.course + ' every competency area lists competencies');
+  assert(page2.competencies.every(function (c) { return c.derived !== true; }),
+    p.course + ' competencies come from the plan, not from the cluster fallback');
+  assert(page2.competencies.length < page2.modules.length * 2,
+    p.course + ' the competency column stays a summary, not a second unit list');
 });
+
+/* A course with NO qualification plan still falls back to its own units, so no
+   certificate ever goes out with an empty competencies column. */
+console.log('Fallback for a course with no plan');
+const noPlan = CT.page2Content({
+  courseType: 'Short Course',
+  modules: [{ name: 'Solar Panel Mounting', contactHours: 40, topics: ['Mount roof rails', 'Torque fixings'] },
+            { name: 'Site Survey', contactHours: 20, topics: [] }],
+  competencies: []
+});
+assertEq(noPlan.unitHeading, 'MODULES COMPLETED', 'a short course prints MODULES');
+assertEq(noPlan.competencies.length, 2, 'a course with no plan derives one group per module');
+assertEq(noPlan.competencies[0].items.length, 2, 'the module topics become the competencies');
+assertEq(noPlan.competencies[1].items[0], 'Competent in Site Survey', 'a module with no topics still reads as a competency');
+assert(noPlan.competencies.every(function (c) { return c.derived === true; }), 'the fallback marks itself as derived');
+
+/* Hand-entered competencies always win over the fallback. */
+const byHand = CT.page2Content({
+  courseType: 'Short Course',
+  modules: [{ name: 'Solar Panel Mounting', contactHours: 40, topics: ['Mount roof rails'] }],
+  competencies: [{ category: 'Installation', items: ['Mounts and commissions a domestic PV array'] }]
+});
+assertEq(byHand.competencies.length, 1, 'hand-entered competencies are used as they are');
+assertEq(byHand.competencies[0].items[0], 'Mounts and commissions a domestic PV array', 'hand-entered wording is untouched');
 
 /* Seeding content onto a template must leave the inherited design alone */
 const base = {
