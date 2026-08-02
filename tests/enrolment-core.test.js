@@ -81,6 +81,29 @@ assertEq(E.findCentre(allEnded, 'Beauty Therapy Level 2', { today: TODAY }).id, 
 assertEq(E.canEnrol(allEnded, 'Beauty Therapy Level 2', { today: TODAY }).code, 'ended',
   'and enrolment into it is still refused');
 
+/* ---------- 1d. Grounding a record in the intake it belongs to ----------
+   Asking "which centre does this trainee belong to" is not the same question as
+   "which centre can take somebody today". A trainee who enrolled in 2024 belongs
+   to the 2024 intake — resolve them to this year's open centre instead and their
+   course never registers as finished, which is how trainees of an ended course
+   were left sitting in the Testing stage. */
+console.log('Resolving a centre as of a date');
+assertEq(E.findCentre(repeats, 'Beauty Therapy Level 2', { on: '2024-11-01' }).id, 20,
+  'a 2024 enrolment resolves to the 2024 intake');
+assertEq(E.findCentre(repeats, 'Beauty Therapy Level 2', { on: '2025-11-01' }).id, 22,
+  'a 2025 enrolment resolves to the 2025 intake');
+assertEq(E.findCentre(repeats, 'Beauty Therapy Level 2', { on: '2026-08-02' }).id, 21,
+  'a 2026 enrolment resolves to the current intake');
+assertEq(E.findCentre(repeats, 'Beauty Therapy Level 2', { on: '2025-08-01' }).id, 20,
+  'a date between intakes takes the most recent one that had already begun');
+assertEq(E.findCentre(repeats, 'Beauty Therapy Level 2', { on: '2020-01-01' }).id, 20,
+  'a date before every intake takes the earliest');
+assertEq(E.centreFiscalYear(E.findCentre(repeats, 'Beauty Therapy Level 2', { on: '2024-11-01' })), '2024/2025',
+  'and it carries that intake fiscal year, not this one');
+// The date form still answers with an abbreviated name.
+assertEq(E.findCentre(written, 'WELDING L2', { on: '2026-09-01' }).id, 10,
+  'the abbreviation still resolves when a date is given');
+
 /* ---------- 2. The reported bug: ended centres must refuse new trainees ---------- */
 console.log('Ended centres refuse enrolment');
 const ended = E.canEnrol(areas, 'Welding & Fabrication', { today: TODAY });
