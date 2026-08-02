@@ -5,6 +5,7 @@
 <script src="cestis-core.js?v=20260712a"></script>
 <script src="staff-appraisals.js?v=20260802a"></script>
 <script src="cmc-portal.js?v=20260802a"></script>
+<script src="cert-template-seed.js?v=20260802a"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="h1kcrSWbOfqMdqcEuN9crbU73K84WTBd7Qy1lcbcFC4" />
 <title>VocTrain LMS — Vocational Training Management System</title>
@@ -35227,8 +35228,114 @@ function applyBaseTemplateToAll() {
     if(base.bgPage2) certImageSave(k, 'bgPage2', base.bgPage2);
   });
   saveState();
-  try { renderCertTemplatePreview(); } catch(e) {}
+  try { loadCertTemplateForEdit(); } catch(e) {}
   showToast(res.changed.length ? ('Design of "' + baseKey + '" applied to ' + res.changed.length + ' template(s)') : 'All templates already match the base design');
+}
+
+// ---------------------------------------------------------------------------
+// Seed certificate templates from the NVQ-J Qualification Plans.
+// cert-template-seed.js carries the real clustering of every skill area the
+// Centre delivers — cluster names, the units inside each cluster and their
+// nominal hours, straight off the plan. Seeding writes that COURSE CONTENT
+// into each template (clusters + programme specifications) and leaves the
+// DESIGN alone, so the corrected look is preserved. Technical Competencies
+// Achieved are deliberately left empty: the renderer derives them from the
+// clusters, so what the certificate claims always matches what was taught.
+// ---------------------------------------------------------------------------
+function certSeedMatches() {
+  if(typeof CESTISCertSeed === 'undefined') return [];
+  var out = [];
+  getCourseList().forEach(function(course) {
+    var content = CESTISCertSeed.templateContentFor(course);
+    if(content) out.push({ course: course, content: content });
+  });
+  return out;
+}
+
+function seedCertTemplatesFromPlans() {
+  if(typeof CESTISCertSeed === 'undefined') { showToast('Qualification plan seed not loaded.'); return; }
+  var matches = certSeedMatches();
+  if(!matches.length) {
+    showToast('No skill area on the platform matches a qualification plan.');
+    return;
+  }
+  var derived = matches.filter(function(m) { return m.content.clustersDerived; });
+  var lines = matches.map(function(m) {
+    return '  • ' + m.course + ' — ' + m.content.clusterCount + ' clusters, ' +
+      m.content.programmeSpecs.duration + (m.content.clustersDerived ? '  (clusters derived — confirm)' : '');
+  }).join('\n');
+  if(!confirm('Seed certificate content from the Qualification Plans for ' + matches.length + ' programme(s)?\n\n' + lines +
+    '\n\nClusters, taught hours and programme specifications are written from the plan.\n' +
+    'The certificate DESIGN (backgrounds, positions, wording, signatures) is not touched.\n' +
+    'Technical Competencies Achieved are generated from each cluster automatically.' +
+    (derived.length ? '\n\nNote: the Level 3 plans predate clustering, so their clusters are grouped to follow the Level 2 pattern — please confirm them against the plan.' : ''))) return;
+
+  var baseKey = CESTISCore.certTemplate.pickBaseKey(certTemplates, systemSettings.certBaseTemplate);
+  var base = baseKey ? certTemplates[baseKey] : null;
+  var seeded = 0;
+  matches.forEach(function(m) {
+    var tpl = certTemplates[m.course] || CESTISCore.certTemplate.newFromBase(base, m.course);
+    var c = m.content;
+    tpl.courseFullName = tpl.courseFullName || c.courseFullName;
+    tpl.courseType = c.courseType;                 // every plan is a full-time NVQ-J
+    tpl.programmeCode = c.programmeCode;
+    tpl.modules = c.modules;
+    tpl.competencies = [];                          // derived from the clusters at render time
+    var specs = tpl.programmeSpecs || {};
+    specs.duration = c.programmeSpecs.duration;
+    specs.industry = c.programmeSpecs.industry;
+    specs.subSector = c.programmeSpecs.subSector;
+    if(!specs.assessment) specs.assessment = c.programmeSpecs.assessment;
+    if(!specs.alignment) specs.alignment = c.programmeSpecs.alignment;
+    tpl.programmeSpecs = specs;
+    tpl.qualification = c.qualification;
+    tpl.clusterCount = c.clusterCount;
+    tpl.clustersDerived = c.clustersDerived;
+    tpl.totalCredits = c.totalCredits;
+    tpl.coreCredits = c.coreCredits;
+    tpl.seededFromPlan = c.programmeCode;
+    // A template created here still needs the base backgrounds in IndexedDB.
+    if(!certTemplates[m.course] && base) {
+      if(base.bgPage1) certImageSave(m.course, 'bgPage1', base.bgPage1);
+      if(base.bgPage2) certImageSave(m.course, 'bgPage2', base.bgPage2);
+    }
+    certTemplates[m.course] = tpl;
+    seeded++;
+  });
+  saveState();
+  try { populateCertTemplateSkillSelect(); loadCertTemplateForEdit(); renderCertSeedStatus(); } catch(e) {}
+  showToast('Seeded ' + seeded + ' certificate template(s) from the qualification plans');
+}
+
+// Panel on the Cert Downloads page showing which skill areas the plans cover.
+function renderCertSeedStatus() {
+  var el = document.getElementById('certSeedStatus');
+  if(!el) return;
+  if(typeof CESTISCertSeed === 'undefined') { el.innerHTML = '<p style="color:var(--text-muted);font-size:12px;">Qualification plan seed not loaded.</p>'; return; }
+  var matches = certSeedMatches();
+  var matched = {}; matches.forEach(function(m) { matched[m.content.programmeCode] = m.course; });
+  var html = '<div class="table-wrapper"><table><thead><tr>' +
+    '<th>Qualification Plan</th><th>Plan Code</th><th>Clusters</th><th>Units</th><th>Taught Hours</th><th>Credits</th><th>On Platform</th>' +
+    '</tr></thead><tbody>';
+  CESTISCertSeed.seedSummary().forEach(function(r) {
+    var seed = CESTISCertSeed.findSeed(r.course);
+    var course = matched[r.planCode];
+    var tpl = course ? certTemplates[course] : null;
+    var state = !course
+      ? '<span style="color:var(--text-muted);">no matching skill area</span>'
+      : (tpl && tpl.seededFromPlan === r.planCode
+          ? '<span style="color:var(--green);">' + escapeHtml(course) + ' — seeded</span>'
+          : '<span style="color:var(--amber);">' + escapeHtml(course) + ' — not seeded</span>');
+    html += '<tr><td>' + escapeHtml(r.qualification) + (r.derived ? ' <span title="This plan predates clustering — clusters grouped to follow the Level 2 pattern; confirm against the plan" style="color:var(--amber);">⚠</span>' : '') + '</td>' +
+      '<td>' + escapeHtml(r.planCode) + '</td>' +
+      '<td>' + r.clusters + (r.electives ? ' <span style="color:var(--text-muted);">+ 1 elective</span>' : '') + '</td>' +
+      '<td>' + r.units + (r.electives ? ' <span style="color:var(--text-muted);">+ ' + r.electives + ' elective</span>' : '') + '</td>' +
+      '<td>' + escapeHtml(CESTISCertSeed.seedDuration(seed, true).replace(' Contact Hours', '')) + '</td>' +
+      '<td>' + (r.totalCredits || '—') + '</td>' +
+      '<td>' + state + '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
 }
 
 function openCertTemplateEditor() {
@@ -35514,6 +35621,7 @@ function renderCertDownloadMgmt() {
   reconcileCertifiedFromApprovals();
   backfillCertificateNumbers();
   populateCertTemplateSkillSelect();
+  try { renderCertSeedStatus(); } catch(e) {}
 
   var search = (document.getElementById('certDlSearch')?.value || '').toLowerCase();
   var filter = document.getElementById('certDlFilter')?.value || 'all';
