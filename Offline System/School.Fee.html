@@ -1989,17 +1989,11 @@
                     </div>
                     <div class="form-group">
                         <label>Skill Area *</label>
+                        <!-- Filled by updateSkillAreaOptions() from the live LMS
+                             training centres, so a centre created in the LMS is
+                             offered here at once. -->
                         <select id="skillArea" required onchange="updateTuitionFee()">
                             <option value="">Select Skill Area</option>
-                            <option value="WELDING L2">WELDING L2</option>
-                            <option value="WELDING L3">WELDING L3</option>
-                            <option value="ELECTRICAL L2">ELECTRICAL L2</option>
-                            <option value="ELECTRICAL L3">ELECTRICAL L3</option>
-                            <option value="HOSPITALITY SERVICES L2">HOSPITALITY SERVICES L2</option>
-                            <option value="COMMI CHEF L2">COMMI CHEF L2</option>
-                            <option value="BUSINESS ADMIN L2">BUSINESS ADMIN L2</option>
-                            <option value="BEAUTY THERAPY L2">BEAUTY THERAPY L2</option>
-                            <option value="COSMETOLOGY L2">COSMETOLOGY L2</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -2066,17 +2060,10 @@
 
             <div class="search-filter">
                 <input type="text" id="searchStudent" placeholder="🔍 Search by name or ID..." oninput="filterStudents()">
+                <!-- Filled by updateSkillAreaOptions() — every training centre,
+                     plus any programme the enrolled students actually carry. -->
                 <select id="filterSkillArea" onchange="filterStudents()">
                     <option value="">All Skill Areas</option>
-                    <option value="WELDING L2">WELDING L2</option>
-                    <option value="WELDING L3">WELDING L3</option>
-                    <option value="ELECTRICAL L2">ELECTRICAL L2</option>
-                    <option value="ELECTRICAL L3">ELECTRICAL L3</option>
-                    <option value="HOSPITALITY SERVICES L2">HOSPITALITY SERVICES L2</option>
-                    <option value="COMMI CHEF L2">COMMI CHEF L2</option>
-                    <option value="BUSINESS ADMIN L2">BUSINESS ADMIN L2</option>
-                    <option value="BEAUTY THERAPY L2">BEAUTY THERAPY L2</option>
-                    <option value="COSMETOLOGY L2">COSMETOLOGY L2</option>
                 </select>
                 <select id="filterPaymentStatus" onchange="filterStudents()">
                     <option value="">All Payment Status</option>
@@ -2586,17 +2573,11 @@
                     </div>
                     <div class="form-group">
                         <label>Skill Area *</label>
+                        <!-- Filled by updateSkillAreaOptions(). The edit form keeps
+                             every programme, including finished ones, so an existing
+                             trainee's record can always be opened and corrected. -->
                         <select id="editSkillArea" required onchange="updateEditTuitionFee()">
                             <option value="">Select Skill Area</option>
-                            <option value="WELDING L2">WELDING L2</option>
-                            <option value="WELDING L3">WELDING L3</option>
-                            <option value="ELECTRICAL L2">ELECTRICAL L2</option>
-                            <option value="ELECTRICAL L3">ELECTRICAL L3</option>
-                            <option value="HOSPITALITY SERVICES L2">HOSPITALITY SERVICES L2</option>
-                            <option value="COMMI CHEF L2">COMMI CHEF L2</option>
-                            <option value="BUSINESS ADMIN L2">BUSINESS ADMIN L2</option>
-                            <option value="BEAUTY THERAPY L2">BEAUTY THERAPY L2</option>
-                            <option value="COSMETOLOGY L2">COSMETOLOGY L2</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -4214,9 +4195,18 @@
                 return;
             }
             
-            // Check if any students are enrolled
-            const enrolledCount = students.filter(s => s.skillArea === skillArea).length;
-            
+            // Check if any students are enrolled. A trainee counts whether their
+            // record carries this exact name or the training centre this cost is
+            // filed against — a student enrolled as "Welding and Fabrication
+            // Level 2" is charged by the cost set under "WELDING L2", and
+            // deleting it would leave them with no fee.
+            const enrolledCount = students.filter(s => {
+                if (!s || !s.skillArea) return false;
+                if (s.skillArea === skillArea) return true;
+                const e = feeEntryFor(s.skillArea);
+                return !!e && e.key === skillArea;
+            }).length;
+
             if (enrolledCount > 0) {
                 alert(`❌ Cannot delete this skill area. ${enrolledCount} student(s) are currently enrolled.\n\nPlease reassign or remove these students first.`);
                 return;
@@ -4231,52 +4221,209 @@
             }
         }
 
+        // Every programme this dashboard should offer, in one list.
+        //
+        // The dropdowns used to be built from the fee structure alone, so a
+        // training centre created in the LMS did not appear here at all until
+        // somebody remembered to price it first — which is why new centres kept
+        // going missing. The roster is now led by the LMS training centres
+        // themselves, so a centre shows up the moment it is created, priced or
+        // not. Legacy fee entries that no longer resolve to a centre, and any
+        // programme an already-enrolled student carries, are kept on the end so
+        // nothing that exists in the data can vanish from the page.
+        //
+        // Each entry: { name, source, centre, fee, hasFee, decision, fiscalYear }
+        // 'source' is 'centre' | 'fee' | 'student'.
+        function feeProgrammeRoster() {
+            var centres = feeTrainingCentres();
+            var out = [];
+            var claimed = {};                       // normalised name -> already listed
+            var take = function (n) {
+                var k = (n == null ? '' : String(n)).toLowerCase().trim().replace(/\s+/g, ' ');
+                if (!k || claimed[k]) return false;
+                claimed[k] = true;
+                return true;
+            };
+
+            // 1. The LMS training centres — the real roster.
+            centres.forEach(function (c) {
+                if (!c || !c.name || !take(c.name)) return;
+                var priced = feeEntryFor(c.name);
+                out.push({
+                    name: c.name,
+                    source: 'centre',
+                    centre: c,
+                    fee: priced ? priced.data : null,
+                    hasFee: !!priced,
+                    // Ask by the centre's own name so the decision is about THIS
+                    // centre rather than whatever a like-named one resolves to.
+                    decision: feeEnrolmentDecision(c.name),
+                    fiscalYear: (function () {
+                        try { return CESTISCore.enrolment.centreFiscalYear(c) || null; } catch (e) { return null; }
+                    })()
+                });
+            });
+
+            // 2. Priced programmes with no training centre behind them any more.
+            //    They cannot take a new trainee, but their students and their
+            //    money are still on this page, so they stay visible.
+            Object.keys(feeStructure).forEach(function (key) {
+                var centre = feeResolveCentre(key);
+                if (centre && claimed[String(centre.name).toLowerCase().trim().replace(/\s+/g, ' ')]) return;
+                if (!take(key)) return;
+                out.push({
+                    name: key, source: 'fee', centre: centre || null,
+                    fee: feeStructure[key], hasFee: true,
+                    decision: feeEnrolmentDecision(key),
+                    fiscalYear: (function () {
+                        try { return (feeCourseDurationInfo(key) || {}).fiscalYear || null; } catch (e) { return null; }
+                    })()
+                });
+            });
+
+            // 3. Whatever the enrolled students actually carry — a record must
+            //    always be openable in the edit form.
+            (Array.isArray(students) ? students : []).forEach(function (s) {
+                if (!s || !s.skillArea || !take(s.skillArea)) return;
+                var priced = feeEntryFor(s.skillArea);
+                out.push({
+                    name: s.skillArea, source: 'student', centre: feeResolveCentre(s.skillArea),
+                    fee: priced ? priced.data : null, hasFee: !!priced,
+                    decision: feeEnrolmentDecision(s.skillArea), fiscalYear: null
+                });
+            });
+
+            out.sort(function (a, b) { return a.name.localeCompare(b.name); });
+            return out;
+        }
+
+        // The training centre a programme name belongs to, resolved by the shared
+        // rule (exact name, then abbreviation, e.g. "WELDING L2" ->
+        // "Welding and Fabrication Level 2"), or null when there is none.
+        function feeResolveCentre(name) {
+            try {
+                if (typeof CESTISCore === 'undefined' || !CESTISCore.enrolment) return null;
+                var areas = feeTrainingCentres();     // also refreshes the cache below
+                var k = '#' + String(name == null ? '' : name).toLowerCase().trim();
+                if (!(k in _feeCentreLookup)) {
+                    _feeCentreLookup[k] = CESTISCore.enrolment.findCentre(areas, name, { nowMs: Date.now() });
+                }
+                return _feeCentreLookup[k];
+            } catch (e) { return null; }
+        }
+
+        // The priced fee entry for a programme: its own key first, then the same
+        // key in any casing, then any key that resolves to the same training
+        // centre — so a centre named "Welding and Fabrication Level 2" still
+        // finds the cost filed years ago under "WELDING L2".
+        // Returns { key, data } or null.
+        function feeEntryFor(name) {
+            if (!name || !feeStructure) return null;
+            if (feeStructure[name]) return { key: name, data: feeStructure[name] };
+            var want = String(name).toLowerCase().trim();
+            var keys = Object.keys(feeStructure);
+            for (var i = 0; i < keys.length; i++) {
+                if (keys[i].toLowerCase().trim() === want) return { key: keys[i], data: feeStructure[keys[i]] };
+            }
+            var centre = feeResolveCentre(name);
+            if (!centre || !centre.name) return null;
+            var cn = String(centre.name).toLowerCase().trim();
+            for (var j = 0; j < keys.length; j++) {
+                var c = feeResolveCentre(keys[j]);
+                if (c && c.name && String(c.name).toLowerCase().trim() === cn) {
+                    return { key: keys[j], data: feeStructure[keys[j]] };
+                }
+            }
+            return null;
+        }
+
+        // The tuition total set for a programme, or null when no cost is set yet.
+        function feeTotalFor(name) {
+            var e = feeEntryFor(name);
+            return e ? (parseFloat(e.data.total) || 0) : null;
+        }
+
         // Update skill area options in dropdowns
         function updateSkillAreaOptions() {
             const skillAreaSelect = document.getElementById('skillArea');
             const editSkillAreaSelect = document.getElementById('editSkillArea');
+            const filterSelect = document.getElementById('filterSkillArea');
 
-            const skillAreas = Object.keys(feeStructure).sort();
+            const roster = feeProgrammeRoster();
 
-            // The ADD form only offers programmes that can actually take a new
-            // trainee (an open LMS training centre). Ended or unknown centres are
-            // listed as disabled with the reason, so it is obvious a NEW centre
-            // has to be created rather than the option simply vanishing.
+            // Keep whatever was chosen before the refresh — this runs whenever the
+            // LMS reports a change, and silently clearing a half-filled form or an
+            // active filter would be its own bug.
+            const prevAdd = skillAreaSelect ? skillAreaSelect.value : '';
+            const prevEdit = editSkillAreaSelect ? editSkillAreaSelect.value : '';
+            const prevFilter = filterSelect ? filterSelect.value : '';
+
+            // The ADD form offers every programme, but only one with a training
+            // centre that can actually take a new trainee is selectable. Ended or
+            // centre-less ones stay listed, disabled, with the reason — so it is
+            // obvious a NEW centre has to be created rather than the option simply
+            // vanishing.
             skillAreaSelect.innerHTML = '<option value="">Select Skill Area</option>';
             // The EDIT form keeps every programme, otherwise an existing trainee
             // in a finished course could not be viewed or corrected.
             editSkillAreaSelect.innerHTML = '<option value="">Select Skill Area</option>';
+            if (filterSelect) filterSelect.innerHTML = '<option value="">All Skill Areas</option>';
 
             var anyOpen = false;
-            skillAreas.forEach(area => {
-                var dec = feeEnrolmentDecision(area);
-                var fy = null;
-                try { fy = (feeCourseDurationInfo(area) || {}).fiscalYear || null; } catch (e) {}
+            roster.forEach(function (p) {
+                var fy = p.fiscalYear ? ' — FY ' + p.fiscalYear : '';
+                var cost = p.hasFee ? '' : ' — cost not set';
 
                 const option1 = document.createElement('option');
-                option1.value = area;
-                if (dec.allowed) {
+                option1.value = p.name;
+                if (p.decision.allowed) {
                     anyOpen = true;
-                    option1.textContent = area + (fy ? ' — FY ' + fy : '');
+                    option1.textContent = p.name + fy + cost;
                 } else {
-                    option1.textContent = area + (dec.code === 'ended' ? ' (course ended — create a new centre)' : ' (no active training centre)');
+                    option1.textContent = p.name +
+                        (p.decision.code === 'ended' ? ' (course ended — create a new centre)' : ' (no active training centre)');
                     option1.disabled = true;
                 }
                 skillAreaSelect.appendChild(option1);
 
                 const option2 = document.createElement('option');
-                option2.value = area;
-                option2.textContent = area + (fy ? ' — FY ' + fy : '');
+                option2.value = p.name;
+                option2.textContent = p.name + fy + cost;
                 editSkillAreaSelect.appendChild(option2);
+
+                if (filterSelect) {
+                    const option3 = document.createElement('option');
+                    option3.value = p.name;
+                    option3.textContent = p.name;
+                    filterSelect.appendChild(option3);
+                }
             });
 
-            if (skillAreas.length && !anyOpen) {
+            if (roster.length && !anyOpen) {
                 const none = document.createElement('option');
                 none.value = '';
                 none.textContent = '— No open training centre: create one in the LMS first —';
                 none.disabled = true;
                 skillAreaSelect.insertBefore(none, skillAreaSelect.children[1] || null);
             }
+
+            restoreSelectValue(skillAreaSelect, prevAdd);
+            restoreSelectValue(editSkillAreaSelect, prevEdit);
+            if (filterSelect) restoreSelectValue(filterSelect, prevFilter);
+        }
+
+        // Re-select a value after a dropdown has been rebuilt. A value that is no
+        // longer on the list is added back (disabled) rather than dropped, so a
+        // filter or a half-filled form never silently changes meaning.
+        function restoreSelectValue(select, value) {
+            if (!select || !value) return;
+            select.value = value;
+            if (select.value === value) return;
+            const orphan = document.createElement('option');
+            orphan.value = value;
+            orphan.textContent = value + ' (no longer listed)';
+            select.appendChild(orphan);
+            select.value = value;
         }
 
         // Delete user
@@ -5158,6 +5305,15 @@
             
             if (moduleId === 'dashboard') {
                 updateDashboard();
+            } else if (moduleId === 'students') {
+                // Re-read the LMS training centres on the way in. The storage
+                // event covers most cases, but it does not fire for a centre
+                // created before this page was opened, or when the write was too
+                // large for localStorage — and a missing centre here is exactly
+                // the failure this page keeps being reported for.
+                updateSkillAreaOptions();
+            } else if (moduleId === 'feeStructure') {
+                renderFeeStructure();
             } else if (moduleId === 'reports') {
                 updateReportsStats();
             } else if (moduleId === 'userManagement') {
@@ -5169,11 +5325,26 @@
         function updateTuitionFee() {
             const skillArea = document.getElementById('skillArea').value;
             const tuitionFeeInput = document.getElementById('tuitionFee');
-            
-            if (skillArea && feeStructure[skillArea]) {
-                tuitionFeeInput.value = feeStructure[skillArea].total;
+            const total = skillArea ? feeTotalFor(skillArea) : null;
+
+            if (total !== null) {
+                // A priced programme: the cost comes from the fee structure and
+                // is not typed by hand.
+                tuitionFeeInput.value = total;
+                tuitionFeeInput.readOnly = true;
+                tuitionFeeInput.placeholder = '';
+                tuitionFeeInput.title = '';
             } else {
+                // A training centre that has no cost set yet is still enrollable —
+                // the fee is typed in here and can be set properly later under
+                // Fee Structure. Refusing to enrol until somebody prices the
+                // programme is what kept new centres out of this dashboard.
                 tuitionFeeInput.value = '';
+                tuitionFeeInput.readOnly = !skillArea;
+                tuitionFeeInput.placeholder = skillArea ? 'No cost set — enter the tuition fee' : '';
+                tuitionFeeInput.title = skillArea
+                    ? 'No programme cost is set for "' + skillArea + '" yet. Enter the fee here, or set it once for everyone under Fee Structure.'
+                    : '';
             }
         }
 
@@ -5210,6 +5381,18 @@
             if (!_dec.allowed) { alert(_dec.reason); return; }
             // Ground the trainee in the centre's duration and fiscal year.
             var _stamp = (CESTISCore.enrolment.enrolmentStamp(_dec.centre, enrollmentDate) || {});
+
+            // A brand-new training centre may not have a cost set yet. Enrolling
+            // is still allowed — but a zero fee makes the trainee "Fully Paid" on
+            // sight, so it has to be a deliberate choice, not a blank field.
+            if (!tuitionFee) {
+                if (!confirm('No tuition fee has been entered for "' + skillArea + '".\n\n' +
+                    'The trainee will be recorded with a $0.00 fee and will show as Fully Paid. ' +
+                    'Set the programme cost under Fee Structure to charge everyone on this course the same amount.\n\n' +
+                    'Add the trainee with no fee anyway?')) {
+                    return;
+                }
+            }
 
             const student = {
                 id: studentId,
@@ -5875,19 +6058,44 @@
         function updateEditTuitionFee() {
             const skillArea = document.getElementById('editSkillArea').value;
             const tuitionFeeInput = document.getElementById('editTuitionFee');
-            
-            if (skillArea && feeStructure[skillArea]) {
-                const newFee = feeStructure[skillArea].total;
-                tuitionFeeInput.value = newFee;
-                
+            const total = skillArea ? feeTotalFor(skillArea) : null;
+
+            // The field is styled as locked; unlock it visually too when it has
+            // to be typed into, otherwise it reads as broken.
+            const lock = function (locked) {
+                tuitionFeeInput.readOnly = locked;
+                tuitionFeeInput.style.cursor = locked ? 'not-allowed' : 'text';
+                tuitionFeeInput.style.background = locked ? 'var(--bg-primary)' : '';
+            };
+
+            if (total !== null) {
+                tuitionFeeInput.value = total;
+                lock(true);
+                tuitionFeeInput.placeholder = '';
+
                 // Recalculate balance with new fee
                 if (editingStudentIndex >= 0) {
                     const student = students[editingStudentIndex];
-                    const newBalance = newFee - student.totalPaid;
+                    const newBalance = total - student.totalPaid;
                     document.getElementById('editBalance').textContent = newBalance.toFixed(2);
+                }
+            } else if (skillArea) {
+                // The programme has no cost set. Keep whatever the student is
+                // already being charged rather than wiping it, and let it be
+                // corrected by hand.
+                const current = (editingStudentIndex >= 0)
+                    ? (parseFloat(students[editingStudentIndex].tuitionFee) || 0) : '';
+                tuitionFeeInput.value = current;
+                lock(false);
+                tuitionFeeInput.placeholder = 'No cost set — enter the tuition fee';
+                if (editingStudentIndex >= 0) {
+                    const st = students[editingStudentIndex];
+                    document.getElementById('editBalance').textContent = ((current || 0) - st.totalPaid).toFixed(2);
                 }
             } else {
                 tuitionFeeInput.value = '';
+                lock(true);
+                tuitionFeeInput.placeholder = '';
             }
         }
 
@@ -5924,7 +6132,14 @@
             // Identity before the edit — the Student Progress twin is matched on
             // it below so a rename here updates that record too.
             const wasIdentity = { id: student.id, name: student.name, skillArea: student.skillArea };
-            const newTuitionFee = feeStructure[skillArea].total;
+            // The programme's set cost when it has one; otherwise whatever is in
+            // the (then editable) fee field, falling back to what the student is
+            // already being charged. Reading feeStructure directly threw here
+            // whenever the student's programme had no fee entry.
+            const _setFee = feeTotalFor(skillArea);
+            const newTuitionFee = (_setFee !== null)
+                ? _setFee
+                : (parseFloat(document.getElementById('editTuitionFee').value) || parseFloat(student.tuitionFee) || 0);
 
             // Warn if changing skill area with existing payments
             if (oldSkillArea !== skillArea && student.totalPaid > 0) {
@@ -6084,11 +6299,20 @@
         // via CESTISStore. Returns {ended, endDate, status} or null when unknown.
         // The LMS training centres (with their durations), shared through
         // voctrain_skillAreas. This is the roster the enrolment rule is applied to.
+        // Parsed once per distinct roster: building the dropdowns resolves every
+        // programme against every centre, so re-reading and re-parsing the whole
+        // roster for each of those lookups made a large Centre noticeably slow.
+        // Keyed on the raw stored text, so any change anywhere invalidates it.
+        var _feeCentresRaw = null, _feeCentresParsed = [], _feeCentreLookup = {};
         function feeTrainingCentres() {
             try {
                 var raw = CESTISStore.getItem('voctrain_skillAreas');
+                if (raw === _feeCentresRaw) return _feeCentresParsed;
                 var areas = raw ? JSON.parse(raw) : [];
-                return Array.isArray(areas) ? areas : [];
+                _feeCentresRaw = raw;
+                _feeCentresParsed = Array.isArray(areas) ? areas : [];
+                _feeCentreLookup = {};
+                return _feeCentresParsed;
             } catch (e) { return []; }
         }
 
@@ -7224,10 +7448,23 @@
                     collectionChart.destroy();
                 }
                 
-                const skillAreas = Object.keys(feeStructure);
+                // Charted from the full programme roster, not the fee structure:
+                // a training centre that has trainees but has not been priced yet
+                // was simply missing from the collection chart.
                 const _scopedPays = paymentsInScope();
                 const _scopedStudents = studentsInScope();
                 const _nrm = function(v){ return (v == null ? '' : String(v)).toLowerCase().trim(); };
+                const _charted = {};
+                const skillAreas = feeProgrammeRoster().map(function (p) { return p.name; })
+                    .filter(function (n) {
+                        var k = _nrm(n);
+                        if (_charted[k]) return false;
+                        _charted[k] = 1;
+                        // Only programmes with somebody on them in the current
+                        // scope — an empty bar says nothing and crowds the axis.
+                        return _scopedStudents.some(function (s) { return _nrm(s.skillArea) === k; }) ||
+                               _scopedPays.some(function (p2) { return _nrm(p2.skillArea) === k; });
+                    });
                 const collectionData = skillAreas.map(area => {
                     // Both sides of the rate follow the FY selected in the filter
                     // bar: expected comes from the active FY's student cohort,
@@ -8434,48 +8671,61 @@
             let imported = 0;
             let errors = 0;
             let skippedEnded = 0;
+            let skippedUnknown = 0;
 
             importData.forEach(row => {
                 try {
                     const skillArea = row['Skill Area'] || row['SkillArea'] || row['skill_area'];
-                    if (!skillArea || !feeStructure[skillArea]) {
-                        errors++;
+                    if (!skillArea) { errors++; return; }
+                    // The programme must be a real training centre — but it no
+                    // longer has to be priced first. A newly created centre with
+                    // no cost set imports at the fee stated in the sheet (0 when
+                    // the sheet is silent), which can be corrected afterwards.
+                    if (!feeResolveCentre(skillArea) && !feeEntryFor(skillArea)) {
+                        skippedUnknown++;
                         return;
                     }
                     // Enrolment lifecycle: never import a new trainee into an ended course.
                     var _dur = feeCourseDurationInfo(skillArea);
                     if (_dur && _dur.ended) { skippedEnded++; return; }
 
+                    var _setFee = feeTotalFor(skillArea);
+                    var _fee = (_setFee !== null)
+                        ? _setFee
+                        : (parseFloat(row['Tuition Fee'] || row['TuitionFee'] || row['Fee']) || 0);
+
                     const student = {
                         id: row['Student ID'] || row['StudentID'] || 'STU' + Date.now() + Math.random(),
                         name: row['Name'] || row['Student Name'] || '',
                         skillArea: skillArea,
-                        tuitionFee: feeStructure[skillArea].total,
+                        tuitionFee: _fee,
                         contact: row['Contact Number'] || row['Contact'] || '',
                         email: row['Email'] || '',
                         enrollmentDate: row['Enrollment Date'] || row['EnrollmentDate'] || '',
                         totalPaid: 0,
-                        balance: feeStructure[skillArea].total,
-                        status: 'Outstanding',
+                        balance: _fee,
+                        status: _fee > 0 ? 'Outstanding' : 'Fully Paid',
                         createdAt: new Date().toISOString()
                     };
-                    
+
                     students.push(student);
                     imported++;
                 } catch (e) {
                     errors++;
                 }
             });
-            
+
             saveData();
             renderStudentsTable();
             populatePaymentStudentSelect();
             populateDocumentStudentSelect();
+            updateSkillAreaOptions();
             updateDashboard();
-            
+
             cancelImport();
-            
+
             alert(`Import complete!\nImported: ${imported}\nErrors: ${errors}` +
+                (skippedUnknown ? `\nSkipped (no such training centre): ${skippedUnknown} — create the centre in the LMS first.` : '') +
                 (skippedEnded ? `\nSkipped (course ended): ${skippedEnded} — create a new training centre with a new duration to enrol these.` : ''));
         }
 
