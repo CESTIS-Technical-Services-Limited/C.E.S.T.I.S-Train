@@ -169,6 +169,70 @@ assert(sappSamePerson('Mr. Steve Anthony Barrett', 'Steve Barrett'), 'titles/mid
 assert(!sappSamePerson('Steve Barrett', 'Rashaun Barrett'), 'different first names differ');
 assert(!sappSamePerson('Administrator', 'Administrator'), 'single-word names never match (no first+last)');
 
+/* ---------- 9. Cloud sync merge ---------- */
+console.log('Cloud sync merge');
+const { sappMergeData, sappMergeAppraisal, sappMergeSignatures } = sapp;
+
+// The real cross-device case: admin completes + signs as Appraiser on device A,
+// staff signs as Appraisee on device B. Both signatures must survive the round trip.
+const deviceA = {
+  cycles: { '2025-2026': { 'USR:1': {
+    cycle: '2025-2026', staffId: 'USR:1', staffName: 'Admin Staff', template: 'admin_assistant',
+    status: 'completed', updatedAt: '2026-08-02T10:00:00.000Z',
+    signatures: { appraiser: { type: 'typed', data: 'Steve Barrett', signedAt: '2026-08-02T10:00:00.000Z' } }
+  } } },
+  assignments: { 'USR:1': 'admin_assistant' }, extraStaff: [], flags: { a: true }
+};
+const deviceB = {
+  cycles: { '2025-2026': { 'USR:1': {
+    cycle: '2025-2026', staffId: 'USR:1', staffName: 'Admin Staff', template: 'admin_assistant',
+    status: 'completed', updatedAt: '2026-08-02T11:00:00.000Z',
+    signatures: { appraisee: { type: 'drawn', data: 'data:image/png;base64,zz', signedAt: '2026-08-02T11:00:00.000Z' } }
+  } } },
+  assignments: {}, extraStaff: [{ id: 'X1', name: 'Jane Doe' }], flags: { b: true }
+};
+const m1 = sappMergeData(deviceA, deviceB);
+const mSig = m1.cycles['2025-2026']['USR:1'].signatures;
+assert(!!mSig.appraiser, 'appraiser signature survives the merge');
+assert(!!mSig.appraisee, 'appraisee signature survives the merge');
+assertEq(mSig.appraiser.data, 'Steve Barrett', 'appraiser signature content preserved');
+assertEq(mSig.appraisee.type, 'drawn', 'appraisee drawn signature preserved');
+assertEq(m1.assignments['USR:1'], 'admin_assistant', 'assignments unioned');
+assertEq(m1.extraStaff.length, 1, 'remote extra staff added');
+assert(m1.flags.a && m1.flags.b, 'flags unioned');
+
+// Merging the other way round must give the same signature set (order-independent)
+const m2 = sappMergeData(deviceB, deviceA);
+const mSig2 = m2.cycles['2025-2026']['USR:1'].signatures;
+assert(!!mSig2.appraiser && !!mSig2.appraisee, 'merge is order-independent for signatures');
+
+// Newer updatedAt wins for the scores
+assertEq(m1.cycles['2025-2026']['USR:1'].updatedAt, '2026-08-02T11:00:00.000Z', 'newer updatedAt wins');
+
+// Same slot on both sides → later signedAt wins
+const older = { appraisee: { type: 'typed', data: 'Old', signedAt: '2026-01-01T00:00:00.000Z' } };
+const newer = { appraisee: { type: 'typed', data: 'New', signedAt: '2026-06-01T00:00:00.000Z' } };
+assertEq(sappMergeSignatures(older, newer).appraisee.data, 'New', 'later signedAt wins');
+assertEq(sappMergeSignatures(newer, older).appraisee.data, 'New', 'later signedAt wins either way');
+
+// A completed appraisal never reverts to draft
+const compl = sappMergeAppraisal(
+  { status: 'completed', updatedAt: '2026-01-01T00:00:00.000Z' },
+  { status: 'draft', updatedAt: '2026-09-01T00:00:00.000Z' });
+assertEq(compl.status, 'completed', 'completed status is not lost to a newer draft');
+
+// One-sided data is kept, not dropped
+const onlyLocal = sappMergeData(deviceA, {});
+assert(!!onlyLocal.cycles['2025-2026']['USR:1'], 'local-only appraisal kept when cloud is empty');
+const onlyRemote = sappMergeData({}, deviceB);
+assert(!!onlyRemote.cycles['2025-2026']['USR:1'], 'cloud-only appraisal adopted when local is empty');
+assert(!!sappMergeData(null, null).cycles, 'merging nulls yields an empty but valid shape');
+
+// Appraisals for different staff/cycles both survive
+const other = { cycles: { '2024-2025': { 'USR:9': { staffId: 'USR:9', status: 'completed', updatedAt: '2025-05-01T00:00:00.000Z' } } } };
+const m3 = sappMergeData(deviceA, other);
+assert(!!m3.cycles['2025-2026']['USR:1'] && !!m3.cycles['2024-2025']['USR:9'], 'separate cycles both retained');
+
 /* ---------- summary ---------- */
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed > 0) process.exit(1);

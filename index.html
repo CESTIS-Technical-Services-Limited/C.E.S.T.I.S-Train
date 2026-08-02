@@ -23039,6 +23039,8 @@ async function saveToCloud() {
         certTemplateCourseMap: certTemplateCourseMap
       }
     };
+    // Staff performance appraisals + signatures (stored under cestisStaffAppraisals).
+    try { var _sa = (typeof sappCloudExport === 'function') ? sappCloudExport() : null; if (_sa) backupData.data.staffAppraisals = _sa; } catch(e) {}
 
     const jsonContent = JSON.stringify(backupData, stripSecretFields, 2);
     const blob = new Blob([jsonContent], { type: 'application/json' });
@@ -23250,6 +23252,9 @@ async function syncFromCloud() {
       if (backupData.data.systemSettings && typeof backupData.data.systemSettings === 'object') { systemSettings = backupData.data.systemSettings; applyMaintenanceOverlay(); }
       if (Array.isArray(backupData.data.adrTasks)) adrTasks = backupData.data.adrTasks;
       if (backupData.data.adrStaffMeta && typeof backupData.data.adrStaffMeta === 'object') adrStaffMeta = backupData.data.adrStaffMeta;
+      // Appraisals are merged, never replaced: a signature applied on another
+      // device must survive whichever copy the cloud happens to hold.
+      try { if (backupData.data.staffAppraisals && typeof sappCloudImport === 'function') sappCloudImport(backupData.data.staffAppraisals); } catch(e) { console.warn('[Restore] staffAppraisals error:', e); }
       if (backupData.data.adminStaffAccessSettings && typeof backupData.data.adminStaffAccessSettings === 'object') adminStaffAccessSettings = backupData.data.adminStaffAccessSettings;
       if (Array.isArray(backupData.data.documentHubFiles) && backupData.data.documentHubFiles.length > 0) documentHubFiles = backupData.data.documentHubFiles;
       if (Array.isArray(backupData.data.supportMessages)) { supportMessages = backupData.data.supportMessages; saveSupportMessages(); }
@@ -23766,6 +23771,7 @@ async function mergeFromCloud() {
         });
       }
     } catch(e) { console.warn('[Merge] adrStaffMeta error:', e); }
+    try { if (backupData.data.staffAppraisals && typeof sappCloudImport === 'function') sappCloudImport(backupData.data.staffAppraisals); } catch(e) { console.warn('[Merge] staffAppraisals error:', e); }
 
     // Merge admin staff access settings
     try {
@@ -24218,6 +24224,7 @@ async function savePerUserBackup() {
     if (isAdmin) userData.data.adminStaffAccessSettings = adminStaffAccessSettings;
     if (isAdmin || adrTasks.length > 0) userData.data.adrTasks = adrTasks;
     if (isAdmin || Object.keys(adrStaffMeta).length > 0) userData.data.adrStaffMeta = adrStaffMeta;
+    try { var _saU = (typeof sappCloudExport === 'function') ? sappCloudExport() : null; if (_saU) userData.data.staffAppraisals = _saU; } catch(e) {}
     var cleanCertTpls = {};
     Object.keys(certTemplates).forEach(function(k) {
       cleanCertTpls[k] = Object.assign({}, certTemplates[k]);
@@ -24886,6 +24893,12 @@ async function silentMergeFromBackup(fileId) {
       } catch(e) { console.warn('[Merge] adrStaffMeta error:', e); }
     }
 
+    // Merge staff appraisals + signatures (independent of the duty-register data)
+    if (backupData.data.staffAppraisals) {
+      try { if (typeof sappCloudImport === 'function' && sappCloudImport(backupData.data.staffAppraisals)) changed = true; }
+      catch(e) { console.warn('[Merge] staffAppraisals error:', e); }
+    }
+
     // Merge admin staff access settings
     if (backupData.data.adminStaffAccessSettings && typeof backupData.data.adminStaffAccessSettings === 'object') {
       try {
@@ -25429,6 +25442,7 @@ async function autoSaveToAllFolders() {
     if (_isAdminSave) backupData.data.adminStaffAccessSettings = adminStaffAccessSettings;
     if (_isAdminSave || adrTasks.length > 0) backupData.data.adrTasks = adrTasks;
     if (_isAdminSave || Object.keys(adrStaffMeta).length > 0) backupData.data.adrStaffMeta = adrStaffMeta;
+    try { var _saB = (typeof sappCloudExport === 'function') ? sappCloudExport() : null; if (_saB) backupData.data.staffAppraisals = _saB; } catch(e) {}
     if (_isAdminSave || documentHubFiles.length > 0) backupData.data.documentHubFiles = documentHubFiles;
     var _cleanCertTpls = (function() {
       var clean = {};
