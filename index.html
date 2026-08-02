@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260712a"></script>
+<script src="cestis-core.js?v=20260802a"></script>
 <script src="staff-appraisals.js?v=20260802a"></script>
 <script src="cmc-portal.js?v=20260802a"></script>
-<script src="cert-template-seed.js?v=20260802a"></script>
+<script src="cert-template-seed.js?v=20260802b"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="h1kcrSWbOfqMdqcEuN9crbU73K84WTBd7Qy1lcbcFC4" />
 <title>VocTrain LMS — Vocational Training Management System</title>
@@ -7280,33 +7280,38 @@ function loadUserAccounts() {
     // (enforced in enterApp). A real, admin-set password never gets this flag.
     var DEFAULT_SEED_PW = 'cestisadmin123$';
     var defAdmin = {id:'USR-001',name:'Administrator',role:'admin',username:'cestisadmin',password:DEFAULT_SEED_PW,mustChangePassword:true,email:'admin@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-01'};
-    var adminAcct = userAccounts.find(function(a){ return a.id === 'USR-001' && a.role === 'admin'; });
-    if(adminAcct) {
-      adminAcct.username = 'cestisadmin';
-      if(!adminAcct.password) { adminAcct.password = DEFAULT_SEED_PW; adminAcct.mustChangePassword = true; }
-      adminAcct.status = 'active';
-    } else {
-      userAccounts.push(defAdmin);
-    }
-    // Migrate: ensure default admin staff account exists (password seeded only if missing)
     var defAS = {id:'USR-011',name:'Admin Staff',role:'adminstaff',username:'adminstaff',password:DEFAULT_SEED_PW,mustChangePassword:true,email:'adminstaff@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-15'};
-    var existingAS = userAccounts.find(function(u){ return u.id === 'USR-011'; });
-    if(!existingAS) {
-      userAccounts.push(defAS);
-    } else {
-      existingAS.username = 'adminstaff';
-      if(!existingAS.password) { existingAS.password = DEFAULT_SEED_PW; existingAS.mustChangePassword = true; }
-      existingAS.role = 'adminstaff';
-    }
-    // Migrate: ensure default CMC board member account exists (password seeded only if missing)
     var defCMC = {id:'USR-021',name:'Board Chair',role:'cmc',username:'cmcadmin',password:DEFAULT_SEED_PW,mustChangePassword:true,email:'cmc@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-01'};
-    var existingCMC = userAccounts.find(function(u){ return u.id === 'USR-021'; });
-    if(!existingCMC) {
-      userAccounts.push(defCMC);
-    } else {
-      existingCMC.username = 'cmcadmin';
-      if(!existingCMC.password) { existingCMC.password = DEFAULT_SEED_PW; existingCMC.mustChangePassword = true; }
-      existingCMC.role = 'cmc';
+
+    // Seed the three built-in logins when they are ABSENT. What this must not do
+    // is rewrite them when they are present: it used to force the username and
+    // role of all three back to 'cestisadmin' / 'adminstaff' / 'cmcadmin' on
+    // EVERY page load. Renaming the shared Admin Staff or Board login to the
+    // real member of staff using it therefore lasted until the next refresh,
+    // after which that person could no longer sign in — an account nobody had
+    // disabled, silently reverted underneath them. A password is still seeded
+    // when one is missing, since an account with no password cannot be used.
+    [defAdmin, defAS, defCMC].forEach(function(def) {
+      var acct = userAccounts.find(function(a){ return a && a.id === def.id; });
+      if(!acct) { userAccounts.push(def); return; }
+      if(!acct.username) acct.username = def.username;   // only if it was lost
+      if(!acct.role) acct.role = def.role;
+      if(!acct.password) { acct.password = DEFAULT_SEED_PW; acct.mustChangePassword = true; }
+    });
+
+    // Recovery: the Centre must never be locked out of its own platform. If no
+    // administrator can sign in at all — every admin disabled, or left without a
+    // password — put the built-in one back into a usable state. Previously this
+    // was done unconditionally, which also meant deliberately disabling the
+    // shared admin login never stuck.
+    if(CESTISCore.accountAccess.needsRecoveryAdmin(userAccounts)) {
+      var rec = userAccounts.find(function(a){ return a && a.id === 'USR-001'; });
+      if(!rec) { rec = defAdmin; userAccounts.push(rec); }
+      rec.role = 'admin';
+      rec.status = 'active';
+      if(!rec.username) rec.username = 'cestisadmin';
+      if(!rec.password) { rec.password = DEFAULT_SEED_PW; rec.mustChangePassword = true; }
+      console.warn('[Accounts] No administrator could sign in — the built-in recovery login (' + rec.username + ') has been re-enabled.');
     }
     // Flag ANY account still carrying a known published default password (the
     // literal seeds above start plaintext, before hashing runs) so enterApp forces
@@ -7447,7 +7452,9 @@ async function createUserAccount() {
   if(!name || !username || !password) { alert('Please fill in Name, Username, and Password.'); return; }
   if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter the user\'s FULL name — first name AND last name (e.g. "John Smith").\n\nThe full name is required to link staff to their Payslip employee record.'); return; }
   if(password.length < 6) { alert('Password must be at least 6 characters.'); return; }
-  if(userAccounts.find(function(u){ return u.username === username; })) { alert('Username already exists.'); return; }
+  // Case-insensitive: login matching ignores case, so "JSmith" and "jsmith"
+  // are the same login and must not both exist.
+  if(userAccounts.find(function(u){ return u && String(u.username||'').toLowerCase() === username.toLowerCase(); })) { alert('Username already exists.'); return; }
   if(role !== 'admin' && role !== 'adminstaff' && role !== 'cmc' && !programme) { alert('Please select a programme.'); return; }
   if(role === 'student') { var _enrolBlk = courseEnrolmentBlockReason(programme); if(_enrolBlk) { alert(_enrolBlk); return; } }
   var now = new Date(); var dateStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
@@ -7509,7 +7516,7 @@ function saveUserEdit() {
   var programme = document.getElementById('editUserProgramme').value;
   if(!name || !username) { alert('Name and Username are required.'); return; }
   if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter the user\'s FULL name — first name AND last name (e.g. "John Smith").\n\nThe full name is required to link staff to their Payslip employee record.'); return; }
-  var dup = userAccounts.find(function(u){ return u.username === username && u.id !== userId; });
+  var dup = userAccounts.find(function(u){ return u && u.id !== userId && String(u.username||'').toLowerCase() === username.toLowerCase(); });
   if(dup) { alert('Username already in use by another account.'); return; }
   if(role !== 'admin' && role !== 'adminstaff' && role !== 'cmc' && !programme) { alert('Please select a programme.'); return; }
   var oldRole = user.role;
@@ -7518,11 +7525,11 @@ function saveUserEdit() {
   touchAccount(user);
   // Create linked instructor/student data when role changes
   if(role === 'instructor' && oldRole !== 'instructor') {
-    var existingIns = instructorData.find(function(ins){ return ins.name === user.name || ins.email === user.email; });
+    var existingIns = findInstructorRecordForAccount(user);
     if(!existingIns) { createInstructorDataForAccount(user); }
   }
   if(role === 'student' && oldRole !== 'student') {
-    var existingStu = students.find(function(s){ return s.name === user.name || user.studentDataId === s.id; });
+    var existingStu = findStudentRecordForAccount(user);
     if(!existingStu) { createStudentDataForAccount(user); }
   }
   saveUserAccounts();
@@ -7620,12 +7627,16 @@ async function forgotPwLookup() {
   // Prefer the role the user launched this from, then fall back to any role.
   if(forgotPwState.role) { try { acct = await findLoginAccount(forgotPwState.role, uname); } catch(_){} }
   if(!acct) {
-    var findAny = function(){ return userAccounts.find(function(u){ return u.username === uname || u.email === uname; }); };
+    var findAny = function(){ return CESTISCore.accountAccess.findAnyRole(userAccounts, uname); };
     acct = findAny();
     if(!acct) { try { if(await cloudFetchAccountData(false)) acct = findAny(); } catch(_){} }
   }
   if(!acct) { showToast('No account found for "' + uname + '". Use "Sync Now" first, or contact an administrator.', 'error'); return; }
-  if(acct.status === 'disabled') { showToast('This account has been disabled. Contact an administrator.', 'error'); return; }
+  // A disabled or refused account must not be recoverable — resetting the
+  // password would otherwise hand back access an administrator took away. A
+  // password-less account IS recoverable: setting one is exactly the fix.
+  var _acc = CESTISCore.accountAccess.check(acct);
+  if(!_acc.allowed && _acc.reason !== 'no-password') { showToast(_acc.message, 'error'); return; }
   var recovery = (acct.email || '').trim();
   if(!recovery || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recovery)) {
     showToast('No recovery email is on file for this account. Please contact an administrator to reset your password.', 'error');
@@ -7695,10 +7706,35 @@ async function forgotPwSubmit() {
 function toggleUserStatus(userId) {
   var user = userAccounts.find(function(u){ return u.id === userId; });
   if(!user) return;
-  user.status = user.status === 'active' ? 'disabled' : 'active';
+  var was = String(user.status || '').toLowerCase();
+  // Never let the last administrator switch themselves off.
+  if(was === 'active' && CESTISCore.accountAccess.wouldStrandAdmins(userAccounts, user.id).length) {
+    alert('"' + user.name + '" is the only administrator who can sign in.\n\n' +
+      'Disabling this account would leave nobody able to manage the platform. Create or enable another administrator first.');
+    renderUserAccountsTable();
+    return;
+  }
+  // Flipping the toggle on a registration that was never reviewed — or one that
+  // was refused — used to activate it silently, straight past Verify Users. Say
+  // what is being approved.
+  if(was !== 'active' && was !== 'disabled') {
+    var what = was === 'rejected' ? 'was REJECTED' : 'is still PENDING review';
+    if(!confirm('The account for "' + user.name + '" ' + what + '.\n\nActivating it here approves it without going through Verify Users. Continue?')) {
+      renderUserAccountsTable();
+      return;
+    }
+  }
+  user.status = was === 'active' ? 'disabled' : 'active';
   touchAccount(user);
   saveUserAccounts();
   renderUserAccountsTable();
+  // Activating an account with no password grants nothing — the person still
+  // cannot sign in. Offer to set one there and then.
+  if(user.status === 'active' && !CESTISCore.accountAccess.hasPassword(user)) {
+    showToast(user.name + ' is enabled but has NO PASSWORD — set one so they can sign in', 'warning');
+    if(confirm(user.name + ' has no password set, so they still cannot sign in.\n\nSet a password now?')) openResetPassword(user.id);
+    return;
+  }
   showToast(user.name + ' account ' + (user.status === 'active' ? 'enabled' : 'disabled'));
 }
 
@@ -7748,6 +7784,14 @@ function bulkActivate() {
 }
 
 function bulkDeactivate() {
+  // Selecting every row used to switch off every administrator, leaving nobody
+  // able to sign in and administer the platform.
+  var stranded = CESTISCore.accountAccess.wouldStrandAdmins(userAccounts, umSelectedIds);
+  if(stranded.length) {
+    alert('That would disable every administrator, leaving nobody able to sign in and manage the platform.\n\n' +
+      'Keep at least one administrator enabled, or create another one first (+ Create User).');
+    return;
+  }
   umSelectedIds.forEach(function(id) {
     var u = userAccounts.find(function(a){ return a.id === id; });
     if(u) { u.status = 'disabled'; touchAccount(u); }
@@ -7775,10 +7819,32 @@ function getFilteredUsers() {
   var q = searchInput ? searchInput.value.trim().toLowerCase() : '';
   return userAccounts.filter(function(u) {
     if(role !== 'all' && u.role !== role) return false;
-    if(status !== 'all' && u.status !== status) return false;
+    // "No password set" is not a status on the record — it is the reason an
+    // apparently-active account cannot be signed into, so it is filterable too.
+    if(status === 'nopassword') { if(CESTISCore.accountAccess.hasPassword(u)) return false; }
+    else if(status !== 'all' && u.status !== status) return false;
     if(q && u.name.toLowerCase().indexOf(q) === -1 && u.username.toLowerCase().indexOf(q) === -1 && (u.email||'').toLowerCase().indexOf(q) === -1) return false;
     return true;
   });
+}
+
+// The account's real sign-in state, for the Users table. "Active" here means the
+// person can actually sign in — an activated account with no password set says
+// so, because that is the difference between an administrator having granted
+// access and the trainee actually having it.
+function umStatusChip(u) {
+  var meta = CESTISCore.accountAccess.adminLabel(u);
+  var tones = {
+    good: 'background:var(--green-dim);color:var(--green);',
+    warn: 'background:var(--accent-dim);color:var(--accent);',
+    bad:  'background:var(--red-dim);color:var(--red);',
+    off:  'background:rgba(255,255,255,0.06);color:var(--text-muted);'
+  };
+  var fix = (meta.tone === 'warn' && CESTISCore.accountAccess.check(u).reason === 'no-password')
+    ? ' <button title="Set a password so this user can sign in" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:0;text-decoration:underline;" onclick="openResetPassword(\'' + escapeAttr(u.id) + '\')">set</button>'
+    : '';
+  return '<span title="' + escapeAttr(meta.detail) + '" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:9px;white-space:nowrap;' +
+    (tones[meta.tone] || tones.off) + '">' + escapeHtml(meta.label) + '</span>' + fix;
 }
 
 function renderUserAccountsTable() {
@@ -7797,7 +7863,13 @@ function renderUserAccountsTable() {
       '<td><span class="um-role-badge '+roleBadges[u.role]+'">'+roleLabels[u.role]+'</span></td>' +
       '<td>'+escapeHtml(u.username)+'</td>' +
       '<td>'+escapeHtml(u.programme||'—')+'</td>' +
-      '<td><label class="um-toggle"><input type="checkbox" '+(u.status==='active'?'checked':'')+' onchange="toggleUserStatus(\''+u.id+'\')"><span class="um-slider"></span></label></td>' +
+      // One on/off toggle could not tell "never reviewed" from "refused" from
+      // "switched off", and an account with no password looked fully enabled
+      // while nobody could sign into it. Show the real state next to the toggle.
+      '<td><div style="display:flex;align-items:center;gap:8px;">' +
+        '<label class="um-toggle"><input type="checkbox" '+(u.status==='active'?'checked':'')+' onchange="toggleUserStatus(\''+escapeAttr(u.id)+'\')"><span class="um-slider"></span></label>' +
+        umStatusChip(u) +
+      '</div></td>' +
       '<td><div class="um-actions">' +
         '<button title="Edit" onclick="openEditUser(\''+u.id+'\')">✏️</button>' +
         '<button title="Reset Password" onclick="openResetPassword(\''+u.id+'\')">🔑</button>' +
@@ -8084,7 +8156,7 @@ async function handleAdminClick() {
         + ' matchedAccount=' + (adminUser?('yes(id='+adminUser.id+', pwFormat='+((adminUser.password||'').indexOf('pbkdf2$')===0?'pbkdf2':(/^[a-f0-9]{64}$/.test(adminUser.password||'')?'legacy-sha256':'plaintext'))+', hasPlainCache='+(!!adminUser._plaintextPw)+')'):'NO'));
     } catch(_) {}
     if(!adminUser) { recordLoginFailure(uname); alert('No admin account found for "' + uname + '" on this device. Try username: cestisadmin — or use "Sync Now" first to pull accounts.'); return; }
-    if(adminUser.status==='disabled') { alert('This account has been disabled. Contact a system administrator.'); return; }
+    if(loginBlocked(adminUser, { contact: 'a system administrator' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, adminUser);
     try { console.log('[Login][admin] pwMatch=' + pwMatch); } catch(_) {}
     if(!pwMatch) { recordLoginFailure(uname); alert('Password incorrect for "' + uname + '".'); return; }
@@ -8115,25 +8187,23 @@ async function handleStudentClick() {
       recordLoginFailure(uname);
       alert('Invalid email/username or password. If you are a new student, please register first.'); return;
     }
-    if(userAccount.status === 'disabled') { alert('This account has been disabled. Contact an administrator.'); return; }
-    if(userAccount.status === 'pending') { showPendingApprovalScreen(userAccount); return; }
+    if(loginBlocked(userAccount)) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid email/username or password. If you are a new student, please register first.'); return; }
     clearLoginFailures(uname);
-    // Find matching student data — try studentDataId first, then name match
-    var studentMatch = null;
-    if (userAccount.studentDataId) {
-      studentMatch = students.find(function(s) { return s.id === userAccount.studentDataId; });
-    }
-    if (!studentMatch) {
-      studentMatch = students.find(function(s) { return s.name === userAccount.name; });
-      if (studentMatch && !userAccount.studentDataId) {
-        userAccount.studentDataId = studentMatch.id;
-        saveState();
-      }
-    }
+    // Find matching student data — try studentDataId, then the trainee's stable
+    // id, then their name.
+    //
+    // The name match used to be `s.name === userAccount.name`, an exact compare.
+    // "John  Smith" on the record and "John Smith" on the account missed each
+    // other, so a BLANK second record was created and the trainee signed in to
+    // an empty portal — no progress, no grades, no certificate — while their
+    // real record sat untouched. Matching goes through the same normalisation
+    // the rest of the platform uses (CESTISCore.normName), and prefers the
+    // record for their own programme when a name is shared.
+    var studentMatch = findStudentRecordForAccount(userAccount);
     if(!studentMatch) {
-      // Create a student data entry for this account
+      // Genuinely no record for this trainee — create one.
       studentMatch = createStudentDataForAccount(userAccount);
     }
     currentStudent = studentMatch;
@@ -8167,19 +8237,14 @@ async function handleInstructorClick() {
     if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('instructor', uname);
     if(!userAccount) {
-      var anyMatch = userAccounts.find(function(u) { return u.role === 'instructor' && (u.username === uname || u.email === uname); });
-      if(anyMatch && anyMatch.status === 'disabled') { alert('This account has been disabled. Contact an administrator.'); return; }
-      if(anyMatch && anyMatch.status === 'pending') { showPendingApprovalScreen(anyMatch); return; }
       recordLoginFailure(uname);
       alert('Invalid email/username or password.'); return;
     }
-    if(userAccount.status === 'disabled') { alert('This account has been disabled. Contact an administrator.'); return; }
-    if(userAccount.status === 'pending') { showPendingApprovalScreen(userAccount); return; }
+    if(loginBlocked(userAccount)) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid email/username or password.'); return; }
     clearLoginFailures(uname);
-    // Find matching instructor data
-    var insMatch = instructorData.find(function(ins) { return ins.name === userAccount.name || ins.email === userAccount.email; });
+    var insMatch = findInstructorRecordForAccount(userAccount);
     if(!insMatch) {
       insMatch = createInstructorDataForAccount(userAccount);
     }
@@ -8212,14 +8277,10 @@ async function handleAdminStaffClick() {
     if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('adminstaff', uname);
     if(!userAccount) {
-      var anyMatch = userAccounts.find(function(u) { return u.role === 'adminstaff' && (u.username === uname || u.email === uname); });
-      if(anyMatch && anyMatch.status === 'disabled') { alert('This account has been disabled. Contact the System Administrator.'); return; }
-      if(anyMatch && anyMatch.status === 'pending') { showPendingApprovalScreen(anyMatch); return; }
       recordLoginFailure(uname);
       alert('Invalid username or password.'); return;
     }
-    if(userAccount.status === 'disabled') { alert('This account has been disabled. Contact the System Administrator.'); return; }
-    if(userAccount.status === 'pending') { showPendingApprovalScreen(userAccount); return; }
+    if(loginBlocked(userAccount, { contact: 'the System Administrator' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
     clearLoginFailures(uname);
@@ -8244,14 +8305,10 @@ async function handleCmcClick() {
     if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('cmc', uname);
     if(!userAccount) {
-      var anyMatch = userAccounts.find(function(u) { return u.role === 'cmc' && (u.username === uname || u.email === uname); });
-      if(anyMatch && anyMatch.status === 'disabled') { alert('This account has been disabled. Contact the System Administrator.'); return; }
-      if(anyMatch && anyMatch.status === 'pending') { showPendingApprovalScreen(anyMatch); return; }
       recordLoginFailure(uname);
       alert('Invalid username or password.'); return;
     }
-    if(userAccount.status === 'disabled') { alert('This account has been disabled. Contact the System Administrator.'); return; }
-    if(userAccount.status === 'pending') { showPendingApprovalScreen(userAccount); return; }
+    if(loginBlocked(userAccount, { contact: 'the System Administrator' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
     clearLoginFailures(uname);
@@ -8946,20 +9003,16 @@ function handleGmailProfile(profile, role) {
   var email = profile.email;
   var name = profile.name || email.split('@')[0];
 
-  // Check if account already exists
-  var existing = userAccounts.find(function(u) { return u.email === email; });
+  // Check if account already exists (case-insensitive — Google returns the
+  // address in its own casing, which need not match how it was registered).
+  var existing = CESTISCore.accountAccess.findAnyRole(userAccounts, email);
   if(existing) {
-    if(existing.status === 'pending') {
-      showPendingApprovalScreen(existing);
-      return;
-    }
-    if(existing.status === 'disabled') {
-      alert('This account has been disabled. Contact an administrator.');
-      return;
-    }
+    // Same gate as the password logins: rejected and password-less accounts are
+    // stopped here too, instead of Google sign-in quietly letting them past.
+    if(loginBlocked(existing, { allowNoPassword: true })) return;
     // Active account — log them in
     if(existing.role === 'student') {
-      var studentMatch = students.find(function(s) { return s.name === existing.name || s.id === existing.studentDataId; });
+      var studentMatch = findStudentRecordForAccount(existing);
       if(!studentMatch) studentMatch = createStudentDataForAccount(existing);
       currentStudent = studentMatch;
       // Resolve instructor name if missing
@@ -8971,7 +9024,7 @@ function handleGmailProfile(profile, role) {
       if(savedSP && savedSP.name) { studentMatch.name = savedSP.name; existing.name = savedSP.name; }
       tfaGateLogin(existing, function(){ currentLoggedInUser = existing; enterApp('student'); });
     } else if(existing.role === 'instructor') {
-      var insMatch = instructorData.find(function(ins) { return ins.name === existing.name || ins.email === existing.email; });
+      var insMatch = findInstructorRecordForAccount(existing);
       if(!insMatch) insMatch = createInstructorDataForAccount(existing);
       currentInstructor = insMatch;
       var savedInsProfile = instructorProfiles[insMatch.id];
@@ -9045,8 +9098,10 @@ async function submitRegistration() {
   // Password strength validation
   if(!/[A-Z]/.test(password) || !/[0-9]/.test(password)) { alert('Password must contain at least one uppercase letter and one number.'); return; }
 
-  // Check for duplicate email
-  var dup = userAccounts.find(function(u) { return u.email === email; });
+  // Check for duplicate email. Case-insensitive: registering the same address in
+  // different casing used to create a second account, and the trainee could then
+  // only reach whichever one they happened to match exactly.
+  var dup = CESTISCore.accountAccess.findAnyRole(userAccounts, email);
   if(dup) { alert('An account with this email already exists. Please sign in instead.'); return; }
 
   // Hash the password before storing
@@ -9112,6 +9167,40 @@ function closePendingScreen() {
 }
 
 // ----- Create student/instructor data entries for approved accounts -----
+// The trainee's own record, for the account that just signed in.
+//
+// This used to be an exact `s.name === account.name` compare at each login site.
+// "John  Smith" on the record and "John Smith" on the account missed each other,
+// so a BLANK second record was created and the trainee landed in an empty portal
+// — no progress, no grades, no certificate — while their real record sat
+// untouched. Lookup now goes through the same normalisation the rest of the
+// platform uses (stable id, then normalised name), and prefers the record for
+// their own programme when a name is shared. Returns null only when the trainee
+// genuinely has no record yet.
+function findStudentRecordForAccount(account) {
+  if (!account) return null;
+  var match = null;
+  if (account.studentDataId) {
+    match = students.find(function(s) { return s.id === account.studentDataId; });
+  }
+  if (!match) {
+    var sid = CESTISCore.stableStudentId({ name: account.name, course: account.programme || '' });
+    if (sid) match = students.find(function(s) { return s.id === sid; });
+  }
+  if (!match) {
+    var wantName = CESTISCore.normName(account.name);
+    var wantCourse = CESTISCore.normCourse(account.programme || '');
+    var byName = students.filter(function(s) { return wantName && CESTISCore.normName(s.name) === wantName; });
+    match = (wantCourse && byName.find(function(s) { return CESTISCore.normCourse(s.course) === wantCourse; })) || byName[0] || null;
+  }
+  // Repair the link so the next sign-in resolves on the first try.
+  if (match && account.studentDataId !== match.id) {
+    account.studentDataId = match.id;
+    saveState();
+  }
+  return match;
+}
+
 function createStudentDataForAccount(userAccount) {
   var prog = userAccount.programme || 'Welding';
   var matchedInstructor = instructorData.find(function(ins){ return ins.course && instructorCourseMatch(prog, ins.course); });
@@ -9153,6 +9242,37 @@ function createStudentDataForAccount(userAccount) {
   userAccount.studentDataId = newStudent.id;
   saveState();
   return newStudent;
+}
+
+// The instructor record belonging to the account that just signed in.
+//
+// This used to be `ins.name === account.name || ins.email === account.email`.
+// Instructor records and accounts both routinely carry an empty email — the
+// fee/cloud merges create them that way — and '' === '' is true, so the FIRST
+// instructor with a blank email was handed to whoever signed in next. That is
+// not a blank portal: it is somebody else's portal, with their classes, their
+// trainees and their attendance. A blank field must never identify anyone, so
+// matching goes by normalised name first, then by a non-empty email.
+function findInstructorRecordForAccount(account) {
+  if (!account) return null;
+  var wantName = CESTISCore.normName(account.name);
+  var wantEmail = String(account.email || '').trim().toLowerCase();
+  var wantCourse = CESTISCore.normCourse(account.programme || '');
+  var byName = instructorData.filter(function(ins) {
+    return wantName && CESTISCore.normName(ins.name) === wantName;
+  });
+  // A name shared by two instructors is settled by the programme they teach.
+  if (byName.length > 1 && wantCourse) {
+    var onCourse = byName.find(function(ins) { return CESTISCore.normCourse(ins.course) === wantCourse; });
+    if (onCourse) return onCourse;
+  }
+  if (byName.length) return byName[0];
+  if (wantEmail) {
+    return instructorData.find(function(ins) {
+      return String(ins.email || '').trim().toLowerCase() === wantEmail;
+    }) || null;
+  }
+  return null;
 }
 
 function createInstructorDataForAccount(userAccount) {
@@ -9257,7 +9377,7 @@ function approveUser(userId) {
   touchAccount(user);
   // Ensure student data is created and linked when approving a student account
   if (user.role === 'student' && !user.studentDataId) {
-    var existingStudent = students.find(function(s) { return s.name === user.name; });
+    var existingStudent = findStudentRecordForAccount(user);
     if (existingStudent) {
       user.studentDataId = existingStudent.id;
     } else {
@@ -9266,7 +9386,7 @@ function approveUser(userId) {
   }
   // Ensure instructor data is created and linked when approving an instructor account
   if (user.role === 'instructor') {
-    var existingInstructor = instructorData.find(function(ins) { return ins.name === user.name || ins.email === user.email; });
+    var existingInstructor = findInstructorRecordForAccount(user);
     if (!existingInstructor) {
       createInstructorDataForAccount(user);
     }
@@ -9274,6 +9394,13 @@ function approveUser(userId) {
   saveState();
   renderVerifyUsersPage();
   refreshStudentDependentViews();
+  // Accounts created by the fee sync and the chat backfill carry no password, so
+  // "approved" on its own still leaves the trainee unable to sign in. Finish the
+  // job here rather than letting them meet "invalid username or password".
+  if(!CESTISCore.accountAccess.hasPassword(user)) {
+    showToast(user.name + ' is approved but has NO PASSWORD — set one so they can sign in', 'warning');
+    if(confirm(user.name + ' is approved, but no password has ever been set for this account, so they still cannot sign in.\n\nSet a password now?')) { openResetPassword(user.id); return; }
+  }
   showToast('Account approved: ' + user.name + ' (' + user.role + ')');
   addNotification('Account approved: ' + user.name + ' (' + user.role + ')', 'success', null, ['admin']);
 }
@@ -9304,7 +9431,7 @@ function approveAllPending() {
     touchAccount(u);
     // Create linked student/instructor data on approval
     if (u.role === 'student' && !u.studentDataId) {
-      var existingStudent = students.find(function(s) { return s.name === u.name; });
+      var existingStudent = findStudentRecordForAccount(u);
       if (existingStudent) {
         u.studentDataId = existingStudent.id;
       } else {
@@ -9312,7 +9439,7 @@ function approveAllPending() {
       }
     }
     if (u.role === 'instructor') {
-      var existingInstructor = instructorData.find(function(ins) { return ins.name === u.name || ins.email === u.email; });
+      var existingInstructor = findInstructorRecordForAccount(u);
       if (!existingInstructor) {
         createInstructorDataForAccount(u);
       }
@@ -9321,8 +9448,17 @@ function approveAllPending() {
   saveState();
   renderVerifyUsersPage();
   refreshStudentDependentViews();
-  showToast(pending.length + ' account(s) approved!');
-  addNotification(pending.length + ' user account(s) approved', 'success', null, ['admin']);
+  // Flag the approved accounts that still cannot sign in because no password was
+  // ever set for them (fee-sync / chat-backfill records).
+  var noPw = pending.filter(function(u) { return !CESTISCore.accountAccess.hasPassword(u); });
+  showToast(pending.length + ' account(s) approved!' + (noPw.length ? ' ' + noPw.length + ' still need a password.' : ''));
+  if(noPw.length) {
+    alert(noPw.length + ' of the accounts just approved have no password set, so those people still cannot sign in:\n\n' +
+      noPw.slice(0, 12).map(function(u){ return '  • ' + u.name + ' (' + u.username + ')'; }).join('\n') +
+      (noPw.length > 12 ? '\n  … and ' + (noPw.length - 12) + ' more' : '') +
+      '\n\nSet a password for each in Settings → Users (🔑 Reset Password).');
+  }
+  addNotification(pending.length + ' user account(s) approved' + (noPw.length ? ' — ' + noPw.length + ' still need a password' : ''), 'success', null, ['admin']);
 }
 
 function rejectAllPending() {
@@ -9971,7 +10107,34 @@ function cestisActivePageId() {
   return el ? el.id.replace(/^page-/, '') : null;
 }
 
+// Which Admin Staff pages the administrator's access grid actually governs.
+// Pages not listed here (dashboard, duties, appraisal, chat, profile) are part
+// of the role itself and are always available.
+var AS_PAGE_PERMISSION = {
+  'as-students': 'students', 'as-certificates': 'certificates', 'as-reports': 'reports',
+  'as-training': 'training', 'as-exams': 'exams', 'as-video': 'video',
+  'as-resources': 'resources', 'as-support-messages': 'supportmessages',
+  'as-attendance': 'attendance', 'as-announcements': 'announcements', 'as-calendar': 'calendar'
+};
+
+// Is this page allowed for whoever is signed in? The Admin Staff access grid
+// only ever decided which SIDEBAR ITEMS were drawn — buildAdminStaffPages()
+// builds every page regardless, so any other route to one (a deep link, a
+// dashboard shortcut, a later feature calling showPage) walked straight past
+// the administrator's settings. The permission is now checked where navigation
+// actually happens, the same way the CMC portal gates its panels.
+function pageAllowedForRole(pageId) {
+  if(currentRole !== 'adminstaff') return true;
+  var need = AS_PAGE_PERMISSION[pageId];
+  if(!need) return true;
+  return !!adminStaffAccessSettings[need];
+}
+
 function showPage(pageId) {
+  if(!pageAllowedForRole(pageId)) {
+    showToast('That section has not been enabled for Admin Staff by the Administrator.', 'warning');
+    return;
+  }
   // If navigating away from a video page, release camera/mic permissions
   if(vcVideoPages.indexOf(vcLastPage) !== -1 && vcVideoPages.indexOf(pageId) === -1) {
     vcCleanupMediaIfNeeded();
@@ -26597,17 +26760,36 @@ function cloudFetchAccountData(interactive) {
 
 // Find a login account for the given role, falling back to Google Drive when
 // the account isn't on this device (e.g. it was created on another device).
+// Matching is case- and whitespace-insensitive (CESTISCore.accountAccess.find),
+// so an account registered as "John.Smith@Gmail.com" is reachable by typing the
+// same address in any case. Where a sync has left more than one record for the
+// same person, the one that can actually sign in wins.
 async function findLoginAccount(role, uname) {
   function findLocal() {
-    return userAccounts.find(function(u) {
-      return u.role === role && (u.username === uname || u.email === uname);
-    });
+    return CESTISCore.accountAccess.find(userAccounts, role, uname);
   }
   var acct = findLocal();
   if (!acct && await cloudFetchAccountData(true)) {
     acct = findLocal();
   }
   return acct;
+}
+
+// Single gate for every role's login. Returns true when the attempt must stop.
+// Blocking a trainee is an administrator's decision, so the only silent outcome
+// is 'pending' (which has its own screen); everything else says exactly what is
+// wrong and who can fix it.
+function loginBlocked(account, opts) {
+  opts = opts || {};
+  var res = CESTISCore.accountAccess.check(account);
+  if (res.allowed) return false;
+  // Google sign-in proves who the person is without a password, so a
+  // password-less account (fee-sync/backfill created) must not be turned away
+  // on that route — that would be a lockout no administrator asked for.
+  if (res.reason === 'no-password' && opts.allowNoPassword) return false;
+  if (res.reason === 'pending' && account) { showPendingApprovalScreen(account); return true; }
+  alert(res.reason === 'disabled' && opts.contact ? 'This account has been disabled. Contact ' + opts.contact + '.' : res.message);
+  return true;
 }
 
 // Hash-aware password check that refreshes the account from Google Drive and

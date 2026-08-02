@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260712a"></script>
+<script src="cestis-core.js?v=20260802a"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Qual Plan / Curriculum — C.E.S.T.I.S</title>
 <style>
@@ -116,6 +116,10 @@
     border-radius:var(--radius-sm); padding:7px 13px; font-size:13px; cursor:pointer; font-weight:600;
   }
   .qp-modal-close:hover { color:var(--text-primary); border-color:var(--text-secondary); }
+  .qp-modal-note {
+    display:none; padding:10px 18px; font-size:12px; line-height:1.5;
+    background:rgba(240,165,0,0.10); border-bottom:1px solid rgba(240,165,0,0.3); color:#e8c98a;
+  }
   .qp-modal-body { flex:1; background:#fff; }
   .qp-modal-body iframe { width:100%; height:100%; border:none; }
   @media (max-width: 600px) { .qp-grid { grid-template-columns:1fr; } body { padding:14px; } .qp-modal { height:92vh; } }
@@ -148,9 +152,14 @@
     <div class="qp-modal-head">
       <div class="fic" style="font-size:18px;">📄</div>
       <div class="mt" id="qpModalTitle">Document</div>
+      <a class="qp-modal-close" id="qpModalOpen" href="#" target="_blank" rel="noopener" style="text-decoration:none;">↗ Open in Drive</a>
       <button class="qp-modal-close" onclick="qpCloseViewer()">✕ Close</button>
     </div>
-    <div class="qp-modal-body"><iframe id="qpModalFrame" title="Document viewer" allow="autoplay"></iframe></div>
+    <div class="qp-modal-note" id="qpModalNote">
+      This document is taking longer than usual to preview. If it stays blank it may not be shared with your account —
+      use <strong>Open in Drive</strong> above, or ask an administrator to share the folder.
+    </div>
+    <div class="qp-modal-body"><iframe id="qpModalFrame" title="Document viewer" allow="autoplay" onload="qpViewerLoaded()"></iframe></div>
   </div>
 </div>
 
@@ -346,19 +355,45 @@ function qpListFolder(folderId) {
   return page(null).catch(function(e){ return e; });
 }
 
-function qpPopoutUrl(fileId) {
+// Embeddable preview URL for a Drive item.
+//
+// Everything used to go to drive.google.com/file/d/<id>/preview. That address
+// only serves files STORED in Drive — PDFs, images, uploaded Word/Excel. Native
+// Google Docs, Sheets, Slides and Forms are not files in that sense, and asking
+// for them there returns an error page, so those qualification plans opened to a
+// blank viewer while the PDFs beside them worked. Each native type has its own
+// preview host, which is what this picks.
+function qpPopoutUrl(fileId, mimeType) {
+  var m = mimeType || '';
+  if (m === 'application/vnd.google-apps.document')     return 'https://docs.google.com/document/d/' + fileId + '/preview';
+  if (m === 'application/vnd.google-apps.spreadsheet')  return 'https://docs.google.com/spreadsheets/d/' + fileId + '/preview';
+  if (m === 'application/vnd.google-apps.presentation') return 'https://docs.google.com/presentation/d/' + fileId + '/embed';
+  if (m === 'application/vnd.google-apps.drawing')      return 'https://docs.google.com/drawings/d/' + fileId + '/preview';
+  if (m === 'application/vnd.google-apps.form')         return 'https://docs.google.com/forms/d/' + fileId + '/viewform?embedded=true';
   return 'https://drive.google.com/file/d/' + fileId + '/preview';
 }
 
-// Look up an item's name from cached listings or the manual subfolder registry.
-function qpItemName(itemId) {
+// Open-in-Drive address, used as the fallback when a document will not embed.
+function qpDriveUrl(fileId) {
+  return 'https://drive.google.com/open?id=' + fileId;
+}
+
+// Look up a cached item (name + mimeType) by id.
+function qpItemById(itemId) {
   for (var k in qpFileCache) {
     var arr = qpFileCache[k];
     if (Array.isArray(arr)) {
       var hit = arr.find(function(f){ return f.id === itemId; });
-      if (hit) return hit.name;
+      if (hit) return hit;
     }
   }
+  return null;
+}
+
+// Look up an item's name from cached listings or the manual subfolder registry.
+function qpItemName(itemId) {
+  var hit = qpItemById(itemId);
+  if (hit) return hit.name;
   // Manual subfolder registry (used when the parent can't be enumerated).
   for (var i = 0; i < QUAL_PLAN_PROGRAMS.length; i++) {
     var subs = QUAL_PLAN_PROGRAMS[i].subfolders || [];
@@ -388,15 +423,35 @@ function qpMergeManual(result, manual) {
   return arr;
 }
 
-function qpOpenViewer(fileId) {
+var qpViewerTimer = null;
+
+function qpOpenViewer(fileId, mimeType) {
+  var item = qpItemById(fileId);
+  var mime = mimeType || (item && item.mimeType) || '';
   document.getElementById('qpModalTitle').textContent = qpItemName(fileId) || 'Document';
-  document.getElementById('qpModalFrame').src = qpPopoutUrl(fileId);
+  var openBtn = document.getElementById('qpModalOpen');
+  if (openBtn) openBtn.href = qpDriveUrl(fileId);
+  var note = document.getElementById('qpModalNote');
+  if (note) note.style.display = 'none';
+  var frame = document.getElementById('qpModalFrame');
+  frame.src = qpPopoutUrl(fileId, mime);
   document.getElementById('qpModal').classList.add('open');
+  // A viewer that never paints used to stay blank with nothing to act on. If the
+  // embed has not loaded shortly, show the way out instead of a white rectangle.
+  if (qpViewerTimer) clearTimeout(qpViewerTimer);
+  qpViewerTimer = setTimeout(function(){ if (note) note.style.display = 'block'; }, 6000);
+}
+
+function qpViewerLoaded() {
+  if (qpViewerTimer) { clearTimeout(qpViewerTimer); qpViewerTimer = null; }
 }
 
 function qpCloseViewer() {
+  if (qpViewerTimer) { clearTimeout(qpViewerTimer); qpViewerTimer = null; }
   document.getElementById('qpModal').classList.remove('open');
   document.getElementById('qpModalFrame').src = 'about:blank';
+  var note = document.getElementById('qpModalNote');
+  if (note) note.style.display = 'none';
 }
 
 document.addEventListener('keydown', function(e){ if(e.key === 'Escape') qpCloseViewer(); });
@@ -441,11 +496,23 @@ function qpRenderListing(prog, result) {
     // Remember that a listing failed so we can auto-retry once Drive access is
     // (re)connected — e.g. an expired token that the admin reconnects.
     qpAnyFailed = true;
+    // "Couldn't load documents" was the same message whether the token had
+    // expired, the folder had not been shared with this person, or the folder id
+    // was wrong — so a card that failed gave nobody anything to act on. Name the
+    // cause and offer the folder itself as a way through.
+    var bc0 = (qpNav[prog.folderId] || [])[(qpNav[prog.folderId] || []).length - 1];
+    var openFolder = ' <a href="https://drive.google.com/drive/folders/' + qpEsc((bc0 && bc0.id) || prog.folderId) +
+      '" target="_blank" rel="noopener" style="color:var(--accent);">Open this folder in Drive ↗</a>';
     if (result.message === 'no-auth') {
       host.innerHTML = '<div class="qp-files-msg">Documents can\'t be listed yet — sign in to Google Drive (admin) or add a Drive API key.</div>';
       qpMaybeShowAuthNotice();
+    } else if (result.message === 'http-401') {
+      host.innerHTML = '<div class="qp-files-msg">Your Google session has expired. Use <strong>Sync Now</strong> on the sign-in page to reconnect, then reopen this page.</div>';
+    } else if (result.message === 'http-403' || result.message === 'http-404') {
+      host.innerHTML = '<div class="qp-files-msg">This folder isn\'t shared with your Google account, so its documents can\'t be listed. ' +
+        'Ask an administrator to share it with you (or set it to "anyone with the link").' + openFolder + '</div>';
     } else {
-      host.innerHTML = '<div class="qp-files-msg">Couldn\'t load documents for this folder.</div>';
+      host.innerHTML = '<div class="qp-files-msg">Couldn\'t load documents for this folder (' + qpEsc(result.message || 'unknown error') + ').' + openFolder + '</div>';
     }
     return;
   }
@@ -467,7 +534,7 @@ function qpRenderListing(prog, result) {
       '<div class="fgo">Open ▸</div>' +
     '</div>';
   }).concat(files.map(function(f){
-    return '<div class="qp-file" onclick="qpOpenViewer(\'' + qpEsc(f.id) + '\')">' +
+    return '<div class="qp-file" onclick="qpOpenViewer(\'' + qpEsc(f.id) + '\',\'' + qpEsc(f.mimeType || '') + '\')">' +
       '<div class="fic" style="background:rgba(240,165,0,0.12);">' + qpFileIcon(f.mimeType) + '</div>' +
       '<div class="fnm" title="' + qpEsc(f.name) + '">' + qpEsc(f.name) + '</div>' +
       '<div class="fgo">View ▸</div>' +

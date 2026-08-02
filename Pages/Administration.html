@@ -122,7 +122,7 @@
   <div class="um-toolbar">
     <button class="btn btn-primary" onclick="openModal('createUserModal')">+ Create User</button>
     <select class="form-control" style="width:160px;" id="umRoleFilter" onchange="umSelectedIds=[];renderUserAccountsTable()"><option value="all">All Roles</option><option value="admin">Admins</option><option value="adminstaff">Admin Staff</option><option value="instructor">Instructors</option><option value="student">Students</option><option value="cmc">Board Members</option></select>
-    <select class="form-control" style="width:160px;" id="umStatusFilter" onchange="umSelectedIds=[];renderUserAccountsTable()"><option value="all">All Status</option><option value="active">Active</option><option value="disabled">Disabled</option></select>
+    <select class="form-control" style="width:170px;" id="umStatusFilter" onchange="umSelectedIds=[];renderUserAccountsTable()"><option value="all">All Status</option><option value="active">Active</option><option value="disabled">Disabled</option><option value="pending">Pending approval</option><option value="rejected">Rejected</option><option value="nopassword">No password set</option></select>
     <input type="text" class="form-control um-search" placeholder="Search users..." id="umSearch" onkeyup="renderUserAccountsTable()">
     <button class="btn-export" onclick="bulkExportUsers()">📄 Export Selected</button>
   </div>

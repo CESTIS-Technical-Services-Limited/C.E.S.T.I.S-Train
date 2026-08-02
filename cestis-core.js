@@ -2858,6 +2858,167 @@
     return F;
   })();
 
+  /* ==========================================================================
+     ACCOUNT ACCESS — who may sign in, and why not
+
+     WHY THIS EXISTS
+     ---------------
+     Each of the five role login handlers used to test account status inline,
+     and they did not agree with each other. Between them:
+       - NO handler tested for 'rejected'. rejectUser() sets that status, so a
+         registration an administrator had explicitly refused could still sign
+         in with full access — the opposite of what rejecting means.
+       - NO handler tested whether the account has a password at all. The fee
+         sync and the chat backfill create trainee accounts with password:'',
+         so a trainee could be activated by an administrator and still be told
+         "invalid username or password" on every attempt, with nothing on the
+         admin side showing why.
+       - The admin handler alone never tested 'pending'.
+       - Identifiers were compared with ===, so an account registered as
+         "John.Smith@Gmail.com" could not be reached by typing the same address
+         in lower case. Nobody had disabled anything; the trainee was simply
+         locked out by letter case.
+
+     The rule the Centre wants is simple: a trainee is kept out only when an
+     administrator has kept them out. Everything below either enforces that or
+     names the exact reason so the administrator can fix it.
+     ========================================================================== */
+  Core.accountAccess = (function () {
+
+    /* Compare a typed username/email against an account's. Case and surrounding
+       whitespace never decide whether someone can sign in. */
+    function idMatches(account, identifier) {
+      if (!account) return false;
+      var want = String(identifier == null ? '' : identifier).trim().toLowerCase();
+      if (!want) return false;
+      var u = String(account.username || '').trim().toLowerCase();
+      var e = String(account.email || '').trim().toLowerCase();
+      return (!!u && u === want) || (!!e && e === want);
+    }
+
+    /* A stored password that can never authenticate. verifyPassword() falls
+       through to a plaintext compare for anything that is not a PBKDF2 or
+       legacy hash, so '' only ever matches an empty submission — which the
+       login forms reject. Such an account is unusable until a password is set. */
+    function hasPassword(account) {
+      return !!(account && typeof account.password === 'string' && account.password.length > 0);
+    }
+
+    /* Can this account sign in right now? Returns the outcome plus a message
+       written for the person reading it.
+         allowed  - proceed to the password check
+         reason   - 'ok' | 'not-found' | 'disabled' | 'rejected' | 'pending' | 'no-password'
+         adminFix - true when an administrator must act before this account works
+                    (as opposed to the account simply being switched off on purpose) */
+    function check(account) {
+      if (!account) {
+        return { allowed: false, reason: 'not-found', adminFix: false,
+          message: 'No account found for that username or email on this device. Use "Sync Now" first, or contact an administrator.' };
+      }
+      var status = String(account.status || '').trim().toLowerCase();
+      if (status === 'disabled') {
+        return { allowed: false, reason: 'disabled', adminFix: false,
+          message: 'This account has been disabled. Contact an administrator.' };
+      }
+      if (status === 'rejected') {
+        return { allowed: false, reason: 'rejected', adminFix: false,
+          message: 'This registration was not approved. Contact an administrator.' };
+      }
+      if (status === 'pending') {
+        return { allowed: false, reason: 'pending', adminFix: true,
+          message: 'This account is awaiting approval by an administrator.' };
+      }
+      if (!hasPassword(account)) {
+        return { allowed: false, reason: 'no-password', adminFix: true,
+          message: 'No password has been set for this account yet. Ask an administrator to set one for you (Settings → Users → Reset Password).' };
+      }
+      return { allowed: true, reason: 'ok', adminFix: false, message: '' };
+    }
+
+    /* Find the account a login attempt refers to. Role and identifier must both
+       match; where more than one record does (a duplicate left by a sync), the
+       one that can actually sign in wins, so a password-less or disabled
+       placeholder can never shadow the trainee's real account. */
+    function find(accounts, role, identifier) {
+      var list = Array.isArray(accounts) ? accounts : [];
+      var want = String(role == null ? '' : role).trim().toLowerCase();
+      var best = null;
+      list.forEach(function (a) {
+        if (!a) return;
+        if (String(a.role || '').trim().toLowerCase() !== want) return;
+        if (!idMatches(a, identifier)) return;
+        if (!best || Core.accountLoginScore(a) > Core.accountLoginScore(best)) best = a;
+      });
+      return best;
+    }
+
+    /* The same lookup across every role — used by password recovery, where the
+       person may not know which role their account was filed under. */
+    function findAnyRole(accounts, identifier) {
+      var list = Array.isArray(accounts) ? accounts : [];
+      var best = null;
+      list.forEach(function (a) {
+        if (!a || !idMatches(a, identifier)) return;
+        if (!best || Core.accountLoginScore(a) > Core.accountLoginScore(best)) best = a;
+      });
+      return best;
+    }
+
+    /* What an administrator should see in the accounts table. The old table
+       showed one on/off toggle, so "never reviewed", "refused" and "switched
+       off" were indistinguishable — and an account with no password looked
+       fully enabled while nobody could sign into it. */
+    function adminLabel(account) {
+      var res = check(account);
+      if (res.reason === 'ok') return { label: 'Active', tone: 'good', detail: '' };
+      if (res.reason === 'disabled') return { label: 'Disabled', tone: 'off', detail: 'Switched off by an administrator' };
+      if (res.reason === 'rejected') return { label: 'Rejected', tone: 'bad', detail: 'Registration was refused' };
+      if (res.reason === 'pending') return { label: 'Pending', tone: 'warn', detail: 'Awaiting approval in Verify Users' };
+      if (res.reason === 'no-password') return { label: 'No password', tone: 'warn', detail: 'Cannot sign in until a password is set' };
+      return { label: 'Unknown', tone: 'off', detail: '' };
+    }
+
+    /* Accounts that can actually administer the platform right now: role admin,
+       not blocked, and holding a password somebody can sign in with. An account
+       that merely LOOKS active is not enough — that is the distinction the
+       Centre kept losing. */
+    function usableAdmins(accounts) {
+      return (Array.isArray(accounts) ? accounts : []).filter(function (a) {
+        return a && String(a.role || '').trim().toLowerCase() === 'admin' && check(a).allowed;
+      });
+    }
+
+    /* Would disabling these account ids leave nobody able to administer the
+       platform? Bulk Deactivate had no such guard: selecting every row switched
+       off every administrator, and the only way back in was the seeded recovery
+       login. Returns the ids that must keep their access. */
+    function wouldStrandAdmins(accounts, idsToDisable) {
+      var ids = Array.isArray(idsToDisable) ? idsToDisable : [idsToDisable];
+      var current = usableAdmins(accounts);
+      var remaining = current.filter(function (a) { return ids.indexOf(a.id) === -1; });
+      return remaining.length === 0 ? current.map(function (a) { return a.id; }) : [];
+    }
+
+    /* Should the seeded recovery administrator (USR-001) be forced back to a
+       usable state?
+       The loader used to do this unconditionally, on every single page load —
+       along with rewriting the seeded admin-staff and board usernames back to
+       'adminstaff' and 'cmcadmin'. Renaming those shared logins to a real member
+       of staff therefore lasted until the next refresh, after which that person
+       could no longer sign in; nobody had disabled them. Recovery only needs to
+       step in when there is no other way in. */
+    function needsRecoveryAdmin(accounts) {
+      return usableAdmins(accounts).length === 0;
+    }
+
+    return {
+      idMatches: idMatches, hasPassword: hasPassword, check: check,
+      find: find, findAnyRole: findAnyRole, adminLabel: adminLabel,
+      usableAdmins: usableAdmins, wouldStrandAdmins: wouldStrandAdmins,
+      needsRecoveryAdmin: needsRecoveryAdmin
+    };
+  })();
+
   root.CESTISCore = Core;
 
   if (typeof module !== 'undefined' && module.exports) {
