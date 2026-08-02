@@ -1278,6 +1278,263 @@
   })();
 
   /* ==========================================================================
+     LARGE-CLASS SESSION ATTENDANCE
+
+     A Large Class runs on a hosted conference server, so the platform cannot
+     see inside it the way it can see a peer-to-peer room. Driving the meeting
+     through the conference server's own API instead of a bare frame gives us
+     back the two things that matter: the room can be locked, and we are told
+     who joined and who left.
+
+     This module holds the arithmetic — building a session, folding join/leave
+     events into per-participant totals, and merging sessions recorded on
+     different devices — with no browser or meeting API in sight, so the
+     register can be trusted and tested.
+
+     Times are ISO strings. A participant may join and leave several times in
+     one class (dropped connection, stepped away); each stay is kept and the
+     minutes are summed, so a trainee who reconnects is not double counted and
+     is not penalised either.
+     ========================================================================== */
+  Core.vcSessions = (function () {
+    /* A trainee must be present for at least this share of the class to count
+       as attending. The Centre's registers treat a brief appearance as absent. */
+    var PRESENT_MIN_RATIO = 0.5;
+    /* ...but never demand more than this many minutes, so a three-hour class
+       does not require 90 minutes before anyone counts as present. */
+    var PRESENT_MIN_MINUTES = 20;
+
+    function iso(t) {
+      if (!t) return '';
+      if (typeof t === 'string') return t;
+      try { return new Date(t).toISOString(); } catch (e) { return ''; }
+    }
+    function ms(t) {
+      if (!t) return NaN;
+      var v = (t instanceof Date) ? t.getTime() : Date.parse(t);
+      return isNaN(v) ? NaN : v;
+    }
+    function minutesBetween(a, b) {
+      var x = ms(a), y = ms(b);
+      if (isNaN(x) || isNaN(y) || y < x) return 0;
+      return (y - x) / 60000;
+    }
+    function normName(s) {
+      return String(s == null ? '' : s).toLowerCase().trim().replace(/\s+/g, ' ');
+    }
+
+    /* Open a session record for a Large Class. */
+    function startSession(opts) {
+      opts = opts || {};
+      return {
+        id: opts.id || ('vcs-' + String(opts.code || '') + '-' + iso(opts.startedAt)),
+        code: String(opts.code || '').toUpperCase(),
+        title: opts.title || 'Large Class',
+        course: opts.course || '',
+        hostName: opts.hostName || '',
+        hostRole: opts.hostRole || '',
+        startedAt: iso(opts.startedAt),
+        endedAt: '',
+        locked: !!opts.locked,
+        lobby: !!opts.lobby,
+        participants: [],
+        updatedAt: iso(opts.startedAt)
+      };
+    }
+
+    /* Find a participant by the conference id, falling back to the display
+       name so a reconnection under a new id still lands on the same person. */
+    function findParticipant(session, pid, name) {
+      var list = (session && session.participants) || [];
+      var i;
+      for (i = 0; i < list.length; i++) if (pid && list[i].pid === pid) return list[i];
+      var n = normName(name);
+      if (!n) return null;
+      for (i = 0; i < list.length; i++) if (normName(list[i].name) === n) return list[i];
+      return null;
+    }
+
+    /* Someone joined. Returns the session (mutated) so calls can chain. */
+    function recordJoin(session, pid, name, at) {
+      if (!session) return session;
+      session.participants = session.participants || [];
+      var t = iso(at);
+      var p = findParticipant(session, pid, name);
+      if (!p) {
+        p = { pid: pid || '', name: name || 'Participant', stays: [], minutes: 0, firstJoin: t, lastLeave: '' };
+        session.participants.push(p);
+      }
+      p.pid = pid || p.pid;
+      if (name) p.name = name;
+      if (!p.firstJoin) p.firstJoin = t;
+      // An open stay means we never saw the leave — do not open a second one.
+      var open = p.stays.length && !p.stays[p.stays.length - 1].left;
+      if (!open) p.stays.push({ joined: t, left: '' });
+      session.updatedAt = t || session.updatedAt;
+      return session;
+    }
+
+    /* Someone left. */
+    function recordLeave(session, pid, name, at) {
+      if (!session) return session;
+      var p = findParticipant(session, pid, name);
+      if (!p) return session;
+      var t = iso(at);
+      var last = p.stays[p.stays.length - 1];
+      if (last && !last.left) {
+        last.left = t;
+        p.minutes = Math.round(p.stays.reduce(function (a, s) {
+          return a + minutesBetween(s.joined, s.left);
+        }, 0) * 10) / 10;
+      }
+      p.lastLeave = t;
+      session.updatedAt = t || session.updatedAt;
+      return session;
+    }
+
+    /* Close the session. Anyone still in the room is treated as having stayed
+       to the end — they did not leave early, the class finished. */
+    function endSession(session, at) {
+      if (!session) return session;
+      var t = iso(at);
+      session.endedAt = t;
+      (session.participants || []).forEach(function (p) {
+        var last = p.stays[p.stays.length - 1];
+        if (last && !last.left) { last.left = t; if (!p.lastLeave) p.lastLeave = t; }
+        p.minutes = Math.round(p.stays.reduce(function (a, s) {
+          return a + minutesBetween(s.joined, s.left);
+        }, 0) * 10) / 10;
+      });
+      session.updatedAt = t || session.updatedAt;
+      return session;
+    }
+
+    function sessionMinutes(session) {
+      if (!session) return 0;
+      return Math.round(minutesBetween(session.startedAt, session.endedAt || session.updatedAt) * 10) / 10;
+    }
+
+    /* How long someone must have been in the room to count as present. */
+    function presentThreshold(session) {
+      var total = sessionMinutes(session);
+      if (!total) return 0;
+      return Math.min(PRESENT_MIN_MINUTES, total * PRESENT_MIN_RATIO);
+    }
+
+    /* The register line for a finished session. */
+    function summary(session) {
+      if (!session) return { code: '', title: '', participants: [], present: 0, partial: 0, minutes: 0 };
+      var threshold = presentThreshold(session);
+      var rows = (session.participants || []).map(function (p) {
+        return { name: p.name, minutes: p.minutes || 0, joins: p.stays.length,
+          firstJoin: p.firstJoin, lastLeave: p.lastLeave,
+          present: (p.minutes || 0) >= threshold };
+      }).sort(function (a, b) { return b.minutes - a.minutes || a.name.localeCompare(b.name); });
+      return {
+        code: session.code, title: session.title, course: session.course,
+        startedAt: session.startedAt, endedAt: session.endedAt,
+        minutes: sessionMinutes(session), threshold: Math.round(threshold * 10) / 10,
+        participants: rows,
+        present: rows.filter(function (r) { return r.present; }).length,
+        partial: rows.filter(function (r) { return !r.present; }).length
+      };
+    }
+
+    /* Match the names people typed in the meeting against the student roster,
+       so the Centre sees WHO attended rather than a list of display names.
+       Matching is deliberately conservative: exact name, or first+last name. */
+    function matchRoster(session, students) {
+      var roster = (students || []).filter(Boolean);
+      var byName = {};
+      roster.forEach(function (s) {
+        var n = normName(s.name);
+        if (n) byName[n] = s;
+        var parts = n.split(' ');
+        if (parts.length > 2) byName[parts[0] + ' ' + parts[parts.length - 1]] = s;
+      });
+      return summary(session).participants.map(function (r) {
+        var n = normName(r.name);
+        var s = byName[n];
+        if (!s) {
+          var parts = n.split(' ');
+          if (parts.length > 1) s = byName[parts[0] + ' ' + parts[parts.length - 1]];
+        }
+        return Object.assign({}, r, {
+          studentId: s ? s.id : null,
+          studentName: s ? s.name : '',
+          matched: !!s
+        });
+      });
+    }
+
+    /* Two devices can both be in the same class, and each records what it saw.
+       Merge by session id, keeping every participant and the longest record of
+       each person's time — never letting one device's shorter view win. */
+    function mergeSessions(local, remote) {
+      var out = {};
+      function put(list) {
+        (list || []).forEach(function (s) {
+          if (!s || !s.id) return;
+          var cur = out[s.id];
+          if (!cur) { out[s.id] = JSON.parse(JSON.stringify(s)); return; }
+          // Session envelope: earliest start, latest end.
+          if (!cur.startedAt || (s.startedAt && s.startedAt < cur.startedAt)) cur.startedAt = s.startedAt;
+          if (s.endedAt && (!cur.endedAt || s.endedAt > cur.endedAt)) cur.endedAt = s.endedAt;
+          if (s.updatedAt && (!cur.updatedAt || s.updatedAt > cur.updatedAt)) cur.updatedAt = s.updatedAt;
+          if (!cur.course && s.course) cur.course = s.course;
+          if (!cur.hostName && s.hostName) cur.hostName = s.hostName;
+          cur.locked = cur.locked || s.locked;
+          cur.lobby = cur.lobby || s.lobby;
+          (s.participants || []).forEach(function (p) {
+            var m = findParticipant(cur, p.pid, p.name);
+            if (!m) { cur.participants.push(JSON.parse(JSON.stringify(p))); return; }
+            if ((p.minutes || 0) > (m.minutes || 0)) { m.minutes = p.minutes; m.stays = JSON.parse(JSON.stringify(p.stays || [])); }
+            if (p.firstJoin && (!m.firstJoin || p.firstJoin < m.firstJoin)) m.firstJoin = p.firstJoin;
+            if (p.lastLeave && (!m.lastLeave || p.lastLeave > m.lastLeave)) m.lastLeave = p.lastLeave;
+            if (!m.pid && p.pid) m.pid = p.pid;
+          });
+        });
+      }
+      put(local);
+      put(remote);
+      return Object.keys(out).map(function (k) { return out[k]; })
+        .sort(function (a, b) { return String(b.startedAt).localeCompare(String(a.startedAt)); });
+    }
+
+    /* The room password for a Large Class. Derived from the room code so every
+       device already holds it — trainees never have to be told a second secret,
+       but nobody who merely guesses the room URL can walk in. */
+    function roomPassword(code, salt) {
+      var c = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!c) return '';
+      var s = String(salt || 'CESTIS');
+      var h = 0, i;
+      var seed = s + '|' + c;
+      for (i = 0; i < seed.length; i++) { h = ((h << 5) - h + seed.charCodeAt(i)) | 0; }
+      var alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      var out = '';
+      var x = Math.abs(h);
+      for (i = 0; i < 6; i++) { out += alpha[x % alpha.length]; x = Math.floor(x / alpha.length) + 7 * (i + 1); }
+      return out;
+    }
+
+    return {
+      PRESENT_MIN_RATIO: PRESENT_MIN_RATIO,
+      PRESENT_MIN_MINUTES: PRESENT_MIN_MINUTES,
+      startSession: startSession,
+      recordJoin: recordJoin,
+      recordLeave: recordLeave,
+      endSession: endSession,
+      sessionMinutes: sessionMinutes,
+      presentThreshold: presentThreshold,
+      summary: summary,
+      matchRoster: matchRoster,
+      mergeSessions: mergeSessions,
+      roomPassword: roomPassword
+    };
+  })();
+
+  /* ==========================================================================
      CERTIFICATE TEMPLATE RULES
 
      Every certificate must come out looking the same. A template carries two
