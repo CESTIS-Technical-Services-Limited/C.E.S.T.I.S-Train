@@ -1192,6 +1192,72 @@
   })();
 
   /* ==========================================================================
+     EXTERNAL SYSTEM SETTINGS MERGE (TMS / NQS links + headline notices)
+
+     WHY THIS EXISTS
+     ---------------
+     The headline comment an administrator writes above an embedded external
+     system kept vanishing on the next cloud sync. Three different sync paths
+     were to blame: one replaced systemSettings wholesale, one Object.assign'd
+     the cloud copy over it (which swaps the whole nested extSystems object),
+     and one compared values with !== — which, for an object, is ALWAYS true, so
+     the cloud's extSystems overwrote the local one every single time.
+
+     This merges the two copies entry by entry. A blank or missing remote value
+     can never erase text that exists locally, and when both sides have text the
+     newer updatedAt wins.
+     ========================================================================== */
+  Core.mergeExtSystems = function (local, remote) {
+    var L = (local && typeof local === 'object') ? local : {};
+    var R = (remote && typeof remote === 'object') ? remote : {};
+    var out = {};
+    var keys = {};
+    Object.keys(L).forEach(function (k) { keys[k] = 1; });
+    Object.keys(R).forEach(function (k) { keys[k] = 1; });
+
+    Object.keys(keys).forEach(function (k) {
+      var l = (L[k] && typeof L[k] === 'object') ? L[k] : null;
+      var r = (R[k] && typeof R[k] === 'object') ? R[k] : null;
+      if (!l) { out[k] = r ? shallow(r) : {}; return; }
+      if (!r) { out[k] = shallow(l); return; }
+
+      var lt = Date.parse(l.updatedAt || '') || 0;
+      var rt = Date.parse(r.updatedAt || '') || 0;
+      // Whichever entry was edited more recently forms the base; where only one
+      // side actually carries a value, that value survives regardless.
+      var base = (rt > lt) ? r : l;
+      var other = (rt > lt) ? l : r;
+      var merged = shallow(base);
+      ['url', 'headline', 'mode'].forEach(function (f) {
+        if (isBlank(merged[f]) && !isBlank(other[f])) merged[f] = other[f];
+      });
+      out[k] = merged;
+    });
+    return out;
+
+    function shallow(o) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); return c; }
+    function isBlank(v) { return v === undefined || v === null || String(v).trim() === ''; }
+  };
+
+  /* Merge a whole systemSettings object from the cloud into the local one.
+     Scalars: the cloud copy wins (that is the established behaviour for
+     settings). extSystems: merged entry by entry so a headline is never lost. */
+  Core.mergeSystemSettings = function (local, remote) {
+    var L = (local && typeof local === 'object') ? local : {};
+    var R = (remote && typeof remote === 'object') ? remote : {};
+    var out = {};
+    Object.keys(L).forEach(function (k) { out[k] = L[k]; });
+    Object.keys(R).forEach(function (k) {
+      if (k === 'extSystems') return; // handled below
+      out[k] = R[k];
+    });
+    if (L.extSystems || R.extSystems) {
+      out.extSystems = Core.mergeExtSystems(L.extSystems, R.extSystems);
+    }
+    return out;
+  };
+
+  /* ==========================================================================
      ENROLMENT ELIGIBILITY — the single rule deciding whether a new trainee may
      be enrolled into a training centre / course.
 

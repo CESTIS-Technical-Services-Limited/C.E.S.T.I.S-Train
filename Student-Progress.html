@@ -217,6 +217,7 @@
     .pipeline-stage.s-training { background:rgba(240,165,0,0.12); color:var(--accent); }
     .pipeline-stage.s-certified { background:rgba(46,204,113,0.12); color:var(--green); }
     .pipeline-stage.s-collected { background:rgba(46,204,113,0.2); color:#27ae60; }
+    .pipeline-stage.s-nyc { background:rgba(231,76,60,0.18); color:var(--red); }
     .pipeline-stage.s-incomplete { background:rgba(231,76,60,0.12); color:var(--red); }
 
     /* ---- Toast ---- */
@@ -252,6 +253,7 @@
     <option value="training">In Training</option>
     <option value="certified">Certified</option>
     <option value="collected">Cert. Collected</option>
+    <option value="nyc">Not Yet Competent</option>
     <option value="incomplete">Incomplete</option>
   </select>
   <select class="form-control" style="width:200px;" id="filterCourse" onchange="filterStudents()">
@@ -266,6 +268,7 @@
   <div class="pipeline-stage s-training"><span class="count" id="pTraining2">0</span>In Training</div>
   <div class="pipeline-stage s-certified"><span class="count" id="pCertified2">0</span>Certified</div>
   <div class="pipeline-stage s-collected"><span class="count" id="pCollected2">0</span>Collected</div>
+  <div class="pipeline-stage s-nyc"><span class="count" id="pNyc2">0</span>Not Yet Competent</div>
   <div class="pipeline-stage s-incomplete"><span class="count" id="pIncomplete2">0</span>Incomplete</div>
 </div>
 
@@ -764,7 +767,7 @@ function filterStudents() {
 function updatePipelineCounts() {
   var stagePipelineIds = {
     testing:'pTest2', interview:'pInterview2', training:'pTraining2',
-    certified:'pCertified2', collected:'pCollected2', incomplete:'pIncomplete2'
+    certified:'pCertified2', collected:'pCollected2', nyc:'pNyc2', incomplete:'pIncomplete2'
   };
   stages.forEach(function(s){
     var count = students.filter(function(st){ return st.stage === s; }).length;

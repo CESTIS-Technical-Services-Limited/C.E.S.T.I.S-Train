@@ -1001,6 +1001,7 @@ textarea.form-control { resize:vertical; min-height:80px; }
 .pipeline-stage.s-training { background:rgba(240,165,0,0.12); color:var(--accent); }
 .pipeline-stage.s-certified { background:rgba(46,204,113,0.12); color:var(--green); }
 .pipeline-stage.s-collected { background:rgba(46,204,113,0.2); color:#27ae60; }
+.pipeline-stage.s-nyc { background:rgba(231,76,60,0.18); color:var(--red); }
 .pipeline-stage.s-incomplete { background:rgba(231,76,60,0.12); color:var(--red); }
 
 .skills-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
@@ -6612,7 +6613,9 @@ function loadState() {
     if(sp) studentProfiles = sp;
     var ip = safeJsonParse(CESTISStore.getItem('voctrain_instructorProfiles'), null);
     if(ip) instructorProfiles = ip;
-    if(ss) systemSettings = ss;
+    // Merge onto the defaults so settings saved before a field existed (e.g.
+    // extSystems) keep that field instead of losing it on load.
+    if(ss) systemSettings = CESTISCore.mergeSystemSettings(systemSettings, ss);
     if(er) examResults = er;
     if(ce) { var _cc={class:'var(--blue)',exam:'var(--red)',deadline:'var(--accent)',meeting:'var(--purple)'}; calendarEvents = ce.map(function(e){if(!e.color){e.color=_cc[e.type]||'var(--blue)';}return e;}); }
     var adrT = safeJsonParse(CESTISStore.getItem('voctrain_adrTasks'), null);
@@ -10159,7 +10162,7 @@ function buildAdminPages() {
       <div class="quick-action-btn" onclick="showPage('calendar')"><div class="qa-icon">\uD83D\uDCC5</div><div class="qa-label">View Calendar</div></div>
     </div>
     <div class="card"><div class="card-header"><h3>Student Progress Pipeline</h3><button class="btn btn-secondary btn-sm" onclick="showPage('students')">View All \u2192</button></div>
-      <div class="pipeline"><div class="pipeline-stage s-test"><span class="count" id="pTest">0</span>Testing</div><div class="pipeline-stage s-interview"><span class="count" id="pInterview">0</span>Interview</div><div class="pipeline-stage s-training"><span class="count" id="pTraining">0</span>In Training</div><div class="pipeline-stage s-certified"><span class="count" id="pCertified">0</span>Certified</div><div class="pipeline-stage s-collected"><span class="count" id="pCollected">0</span>Collected</div><div class="pipeline-stage s-incomplete"><span class="count" id="pIncomplete">0</span>Incomplete</div></div>
+      <div class="pipeline"><div class="pipeline-stage s-test"><span class="count" id="pTest">0</span>Testing</div><div class="pipeline-stage s-interview"><span class="count" id="pInterview">0</span>Interview</div><div class="pipeline-stage s-training"><span class="count" id="pTraining">0</span>In Training</div><div class="pipeline-stage s-certified"><span class="count" id="pCertified">0</span>Certified</div><div class="pipeline-stage s-collected"><span class="count" id="pCollected">0</span>Collected</div><div class="pipeline-stage s-nyc"><span class="count" id="pNyc">0</span>Not Yet Competent</div><div class="pipeline-stage s-incomplete"><span class="count" id="pIncomplete">0</span>Incomplete</div></div>
     </div>
     <div class="grid-2col">
       <div class="card"><div class="card-header"><h3>System Alerts</h3></div>
@@ -11209,7 +11212,7 @@ function buildInstructorPages() {
 
     <div class="grid-2col">
       <div class="card"><div class="card-header"><h3>Student Stage Overview</h3><button class="btn btn-secondary btn-sm" onclick="showPage('i-students')">View All &rarr;</button></div>
-        <div class="pipeline"><div class="pipeline-stage s-test"><span class="count">${myStudents.filter(s=>s.stage==='testing').length}</span>Testing</div><div class="pipeline-stage s-interview"><span class="count">${myStudents.filter(s=>s.stage==='interview').length}</span>Interview</div><div class="pipeline-stage s-training"><span class="count">${myStudents.filter(s=>s.stage==='training').length}</span>Training</div><div class="pipeline-stage s-certified"><span class="count">${myStudents.filter(s=>s.stage==='certified').length}</span>Certified</div><div class="pipeline-stage s-collected"><span class="count">${myStudents.filter(s=>s.stage==='collected').length}</span>Collected</div><div class="pipeline-stage s-incomplete"><span class="count">${myStudents.filter(s=>s.stage==='incomplete').length}</span>Incomplete</div></div>
+        <div class="pipeline"><div class="pipeline-stage s-test"><span class="count">${myStudents.filter(s=>s.stage==='testing').length}</span>Testing</div><div class="pipeline-stage s-interview"><span class="count">${myStudents.filter(s=>s.stage==='interview').length}</span>Interview</div><div class="pipeline-stage s-training"><span class="count">${myStudents.filter(s=>s.stage==='training').length}</span>Training</div><div class="pipeline-stage s-certified"><span class="count">${myStudents.filter(s=>s.stage==='certified').length}</span>Certified</div><div class="pipeline-stage s-collected"><span class="count">${myStudents.filter(s=>s.stage==='collected').length}</span>Collected</div><div class="pipeline-stage s-nyc"><span class="count">${myStudents.filter(s=>s.stage==='nyc').length}</span>Not Yet Competent</div><div class="pipeline-stage s-incomplete"><span class="count">${myStudents.filter(s=>s.stage==='incomplete').length}</span>Incomplete</div></div>
       </div>
       <div class="card"><div class="card-header"><h3>Upcoming Exams</h3></div>
         ${upcomingExams.length > 0 ? upcomingExams.slice(0,3).map(e => `
@@ -11264,11 +11267,11 @@ function buildInstructorPages() {
   <!-- INSTRUCTOR STUDENTS -->
   <section class="page" id="page-i-students">
     <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
-      <select class="form-control" style="width:200px;" id="iFilterStage" onchange="filterInstructorStudents()"><option value="all">All Stages</option><option value="testing">Testing</option><option value="interview">Interview</option><option value="training">In Training</option><option value="certified">Certified</option><option value="collected">Cert. Collected</option><option value="incomplete">Incomplete</option></select>
+      <select class="form-control" style="width:200px;" id="iFilterStage" onchange="filterInstructorStudents()"><option value="all">All Stages</option><option value="testing">Testing</option><option value="interview">Interview</option><option value="training">In Training</option><option value="certified">Certified</option><option value="collected">Cert. Collected</option><option value="nyc">Not Yet Competent</option><option value="incomplete">Incomplete</option></select>
       <input type="text" class="form-control" style="width:220px;" placeholder="Search student name..." id="iStudentSearch" onkeyup="filterInstructorStudents()">
       <button class="btn-export" onclick="exportInstructorStudentsCSV()">📄 Export CSV</button>
     </div>
-    <div class="pipeline" style="margin-bottom:20px;"><div class="pipeline-stage s-test"><span class="count" id="ipTest">0</span>Testing</div><div class="pipeline-stage s-interview"><span class="count" id="ipInterview">0</span>Interview</div><div class="pipeline-stage s-training"><span class="count" id="ipTraining">0</span>Training</div><div class="pipeline-stage s-certified"><span class="count" id="ipCertified">0</span>Certified</div><div class="pipeline-stage s-collected"><span class="count" id="ipCollected">0</span>Collected</div><div class="pipeline-stage s-incomplete"><span class="count" id="ipIncomplete">0</span>Incomplete</div></div>
+    <div class="pipeline" style="margin-bottom:20px;"><div class="pipeline-stage s-test"><span class="count" id="ipTest">0</span>Testing</div><div class="pipeline-stage s-interview"><span class="count" id="ipInterview">0</span>Interview</div><div class="pipeline-stage s-training"><span class="count" id="ipTraining">0</span>Training</div><div class="pipeline-stage s-certified"><span class="count" id="ipCertified">0</span>Certified</div><div class="pipeline-stage s-collected"><span class="count" id="ipCollected">0</span>Collected</div><div class="pipeline-stage s-nyc"><span class="count" id="ipNyc">0</span>Not Yet Competent</div><div class="pipeline-stage s-incomplete"><span class="count" id="ipIncomplete">0</span>Incomplete</div></div>
     <div class="card"><div class="card-header"><h3>My Students</h3><span style="font-size:13px;color:var(--text-muted);" id="iStudentCount">Showing ${myStudents.length} students</span></div><div class="table-wrapper"><table><thead><tr><th>Student</th><th>ID</th><th>Stage</th><th>Test Score</th><th>Attendance</th><th>GPA</th><th>Progress</th></tr></thead><tbody id="iStudentTableBody"></tbody></table></div></div>
   </section>
 
@@ -11579,7 +11582,7 @@ function filterInstructorStudents() {
 function updateInstructorPipeline() {
   if(!currentInstructor) return;
   const myStudents = students.filter(s => s.instructor === currentInstructor.name || instructorCourseMatch(s.course, currentInstructor.course));
-  const stageIdMap = {testing:'ipTest',interview:'ipInterview',training:'ipTraining',certified:'ipCertified',collected:'ipCollected',incomplete:'ipIncomplete'};
+  const stageIdMap = {testing:'ipTest',interview:'ipInterview',training:'ipTraining',certified:'ipCertified',collected:'ipCollected',nyc:'ipNyc',incomplete:'ipIncomplete'};
   stages.forEach(s => {
     const count = myStudents.filter(st => st.stage === s).length;
     const el = document.getElementById(stageIdMap[s] || ('ip' + s.charAt(0).toUpperCase() + s.slice(1)));
@@ -16823,7 +16826,9 @@ function saveExtSystemsSettings() {
     var headline = headEl ? headEl.value.trim() : ((current[key] || {}).headline || '');
     var mode = modeEl ? modeEl.value : (current[key] || {}).mode;
     if(mode !== 'embed' && mode !== 'launch') mode = def.mode;
-    next[key] = { url: url || def.url, headline: headline, mode: mode };
+    // updatedAt lets a cloud sync tell which side was edited more recently, so
+    // the headline typed here is not overwritten by another device's older copy.
+    next[key] = { url: url || def.url, headline: headline, mode: mode, updatedAt: new Date().toISOString() };
   });
   systemSettings.extSystems = next;
   saveState();
@@ -17728,7 +17733,7 @@ function updatePipelineCounts() {
   // Explicit stage -> element-id-base map. NOTE: 'testing' uses id base 'pTest'
   // (not 'pTesting'), so deriving the id from the stage name silently failed for
   // Testing — leaving that count stuck at 0 while the table showed the students.
-  var STAGE_ID_BASE = { testing:'pTest', interview:'pInterview', training:'pTraining', certified:'pCertified', collected:'pCollected', incomplete:'pIncomplete' };
+  var STAGE_ID_BASE = { testing:'pTest', interview:'pInterview', training:'pTraining', certified:'pCertified', collected:'pCollected', nyc:'pNyc', incomplete:'pIncomplete' };
   stages.forEach(s => {
     const count = students.filter(st=>st.stage===s).length;
     var base = STAGE_ID_BASE[s] || ('p'+s.charAt(0).toUpperCase()+s.slice(1));
@@ -23327,7 +23332,9 @@ async function syncFromCloud() {
           }
         });
       }
-      if (backupData.data.systemSettings && typeof backupData.data.systemSettings === 'object') { systemSettings = backupData.data.systemSettings; applyMaintenanceOverlay(); }
+      // Merge rather than replace: a wholesale swap dropped the TMS/NQS links
+      // and the headline notice typed above each embedded page.
+      if (backupData.data.systemSettings && typeof backupData.data.systemSettings === 'object') { systemSettings = CESTISCore.mergeSystemSettings(systemSettings, backupData.data.systemSettings); applyMaintenanceOverlay(); }
       if (Array.isArray(backupData.data.adrTasks)) adrTasks = backupData.data.adrTasks;
       if (backupData.data.adrStaffMeta && typeof backupData.data.adrStaffMeta === 'object') adrStaffMeta = backupData.data.adrStaffMeta;
       // Appraisals are merged, never replaced: a signature applied on another
@@ -23823,7 +23830,9 @@ async function mergeFromCloud() {
     // Merge system settings (cloud version wins for settings)
     try {
       if (backupData.data.systemSettings && typeof backupData.data.systemSettings === 'object') {
-        Object.assign(systemSettings, backupData.data.systemSettings);
+        // Object.assign would swap the whole nested extSystems object and take
+        // the headline with it — merge entry by entry instead.
+        systemSettings = CESTISCore.mergeSystemSettings(systemSettings, backupData.data.systemSettings);
         applyMaintenanceOverlay();
       }
     } catch(e) { console.warn('[Merge] systemSettings error:', e); }
@@ -24936,14 +24945,13 @@ async function silentMergeFromBackup(fileId) {
     // Merge system settings (only merge if cloud has newer settings)
     if (backupData.data.systemSettings && typeof backupData.data.systemSettings === 'object') {
       try {
-        var settingsChanged = false;
-        Object.keys(backupData.data.systemSettings).forEach(function(k) {
-          if (systemSettings[k] !== backupData.data.systemSettings[k]) {
-            systemSettings[k] = backupData.data.systemSettings[k];
-            settingsChanged = true;
-          }
-        });
-        if (settingsChanged) { changed = true; applyMaintenanceOverlay(); }
+        // NB: comparing with !== treats every OBJECT value as "different" (two
+        // distinct references are never equal), so the cloud's extSystems used
+        // to overwrite the local one on every single sync — which is how the
+        // headline comment disappeared. Merge properly and compare by content.
+        var beforeSettings = JSON.stringify(systemSettings);
+        systemSettings = CESTISCore.mergeSystemSettings(systemSettings, backupData.data.systemSettings);
+        if (JSON.stringify(systemSettings) !== beforeSettings) { changed = true; applyMaintenanceOverlay(); }
       } catch(e) { console.warn('[Merge] systemSettings error:', e); }
     }
 
@@ -32424,7 +32432,7 @@ function buildCmcPages() {
   html += '</div>';
 
   // Student pipeline breakdown
-  var stages = {testing:0,interview:0,training:0,certified:0,collected:0,incomplete:0};
+  var stages = {testing:0,interview:0,training:0,certified:0,collected:0,nyc:0,incomplete:0};
   students.forEach(function(s){
     var st = (s.stage||'').toLowerCase().replace(/\s+/g,'');
     if(st === 'intraining' || st === 'training') stages.training++;
@@ -32597,7 +32605,7 @@ function cmcRenderCharts() {
   };
 
   // Student Pipeline Chart — stage values are lowercase: testing, interview, training, certified, collected, incomplete
-  var stages = {Testing:0,Interview:0,'In Training':0,Certified:0,Collected:0,Incomplete:0};
+  var stages = {Testing:0,Interview:0,'In Training':0,Certified:0,Collected:0,'Not Yet Competent':0,Incomplete:0};
   students.forEach(function(s) {
     var st = (s.stage||'').toLowerCase();
     if(st === 'testing') stages.Testing++;
@@ -32605,6 +32613,7 @@ function cmcRenderCharts() {
     else if(st === 'training' || st === 'in training' || st === 'intraining') stages['In Training']++;
     else if(st === 'certified') stages.Certified++;
     else if(st === 'collected') stages.Collected++;
+    else if(st === 'nyc') stages['Not Yet Competent']++;
     else if(st === 'incomplete') stages.Incomplete++;
   });
 
