@@ -161,6 +161,45 @@ assertEq(onlyLocal.changed.length, 0, 'and is not reported as changed');
 let undated = PC.mergeKeys({ a: 'mine' }, {}, { a: 'theirs' }, {}, { firstSync: true });
 assertEq(undated.data.a, 'mine', 'an unstamped cloud value never wins');
 
+
+/* ---------- 7. The whole-store mirror (the offline build's "Drive") ---------- */
+console.log('The whole store reaches the data folder, minus what must stay put');
+/* Per-page files only cover what a page declared. Anything nobody declared —
+   the School Fee page's own user list, the board's dashboard, the Centre's
+   settings — lived solely in the browser it was typed into. Online those still
+   reached Drive, because the dashboard's master snapshot sweeps every key.
+   `all: true` is the offline equivalent of that sweep. */
+const ALL = {
+  page: 'Whole store (everything)', file: 'CESTIS_ALL_DATA.json', all: true,
+  exclude: ['schoolDashboardGoogleAccessToken', 'isLoggedIn', 'darkMode'],
+  excludePrefixes: ['cestis_pagecloud_stamps__']
+};
+
+assertEq(PC.ownsKey(ALL, 'cestiUsers'), true, 'a key no page declared is claimed');
+assertEq(PC.ownsKey(ALL, 'cmcDashboardData'), true, 'the board dashboard is claimed');
+assertEq(PC.ownsKey(ALL, 'schoolSettings'), true, 'the Centre settings are claimed');
+assertEq(PC.ownsKey(ALL, 'anything_invented_tomorrow'), true, 'so is a key that does not exist yet');
+
+/* The carve-outs are the point: syncing these would do harm, not good. */
+assertEq(PC.ownsKey(ALL, 'schoolDashboardGoogleAccessToken'), false, 'the Google token never travels');
+assertEq(PC.ownsKey(ALL, 'isLoggedIn'), false, 'a sign-in session stays on its own machine');
+assertEq(PC.ownsKey(ALL, 'darkMode'), false, 'a display preference stays local');
+assertEq(PC.ownsKey(ALL, 'cestis_pagecloud_stamps__CESTIS_Cashbook.json'), false,
+  'this module\'s own bookkeeping is not data');
+
+const sweep = PC.collect(ALL, {
+  'cestiUsers': '[]', 'voctrain_students': '[]', 'schoolSettings': '{}',
+  'schoolDashboardGoogleAccessToken': 'secret', 'darkMode': 'true',
+  'cestis_pagecloud_stamps__CESTIS_Cashbook.json': '{}'
+});
+assertEq(Object.keys(sweep).length, 3, 'the sweep takes the data and leaves the rest');
+assertEq(sweep['schoolDashboardGoogleAccessToken'], undefined, 'no credential is ever collected');
+assertEq(sweep['darkMode'], undefined, 'no display preference is collected');
+
+/* A page-specific spec must not accidentally behave like the sweep. */
+assertEq(PC.ownsKey({ keys: ['a'] }, 'b'), false, 'a normal spec still claims only what it lists');
+assertEq(PC.ownsKey({ all: true }, 'anything'), true, 'a sweep with no carve-outs claims everything');
+
 /* ---------- summary ---------- */
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed > 0) process.exit(1);

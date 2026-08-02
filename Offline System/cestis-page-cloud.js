@@ -345,6 +345,47 @@
     } catch (e) {}
   };
 
+  /* ==========================================================================
+     THE WHOLE STORE — the offline build's equivalent of Drive's master snapshot.
+
+     Per-page files cover what each page declared. That leaves anything nobody
+     declared living only in the browser it was typed into: the School Fee
+     page's own user list, the board's dashboard, the Centre's settings and its
+     configured links were all in that position. Online they still reached
+     Drive, because the dashboard's master snapshot sweeps EVERY storage key.
+     Offline there was no equivalent, so "saved" quietly meant "saved on this
+     machine".
+
+     This registers that sweep. It runs only when the offline server is
+     answering, writes one file beside the per-page ones, and follows the same
+     per-key newest-write-wins merge — so it overlaps the per-page files without
+     either fighting the other.
+     ========================================================================== */
+  var ALL_SPEC = {
+    page: 'Whole store (everything)',
+    file: 'CESTIS_ALL_DATA.json',
+    all: true,
+    // Kept on the device that wrote them, deliberately:
+    exclude: [
+      // Google credentials — secret, and meaningless on another machine.
+      'schoolDashboardGoogleAccessToken', 'schoolDashboardGoogleTokenExpiry',
+      'cestisGoogleAccessToken', 'cestisGoogleTokenExpiry',
+      // Which Drive file/folder THIS machine last used.
+      'schoolDashboardCloudFileId', 'schoolDashboardLastSyncTime',
+      'cestisCloudFileId', 'cestisCloudFolderId', 'cestisLastSyncTime',
+      'schoolFeeCloudFileId', 'cestisUserFilesFolderId',
+      // Who is signed in HERE, and this screen's own preferences. Syncing these
+      // would sign people in as each other and fight over dark mode.
+      'isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
+      'cestisAttendanceCurrentUser', 'darkMode', 'cestisTimeDarkMode',
+      // One-off "I have seen this" dismissals.
+      'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
+      'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled'
+    ],
+    // This module's own bookkeeping about what it has already synced.
+    excludePrefixes: ['cestis_pagecloud_stamps__']
+  };
+
   var API = {
     FOLDER_ID: FOLDER_ID,
     _pages: [],
@@ -357,8 +398,23 @@
       var pg = new Page(spec);
       API._pages.push(pg);
       pg.watch();
-      var start = function () { pg.pull().then(function (changed) { if (changed.length && typeof spec.onRestore === 'function') spec.onRestore(changed); }); };
+      var start = function () {
+        pg.pull().then(function (changed) { if (changed.length && typeof spec.onRestore === 'function') spec.onRestore(changed); });
+        // Offline: also mirror the whole store, so a key nobody declared still
+        // reaches the data folder and comes back on the next machine.
+        detectLocalServer().then(function (isLocal) { if (isLocal) API.initWholeStore(); });
+      };
       if (store() && store().whenReady) store().whenReady(start); else start();
+      return pg;
+    },
+    /* Register the whole-store mirror. Safe to call repeatedly. */
+    initWholeStore: function () {
+      if (API._all) return API._all;
+      var pg = new Page(ALL_SPEC);
+      API._all = pg;
+      API._pages.push(pg);
+      pg.watch();
+      pg.pull();
       return pg;
     },
     saveNow: function () { return Promise.all(API._pages.map(function (p) { clearTimeout(p._timer); return p.push(); })); },

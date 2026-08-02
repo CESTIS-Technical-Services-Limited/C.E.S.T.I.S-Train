@@ -19,6 +19,23 @@ Every part of the system saves here and reads from here:
     Staff Payslips ............... CESTIS_Staff_Payslips.json
     Staff Time Clock ............. CESTIS_Staff_TimeClock.json
 
+and, covering EVERYTHING at once:
+
+    every other setting and record  CESTIS_ALL_DATA.json
+
+That last file is the important one. The others hold what each page declared
+for itself; ALL_DATA holds the whole system's storage, so anything a page saves
+— now or in a future version — reaches this folder whether or not somebody
+remembered to list it. It is what makes this folder behave like the Google
+Drive backup does for the online system.
+
+Four things are deliberately NOT in it, because copying them between machines
+would do harm rather than good:
+    Google sign-in tokens (secret, and meaningless on another computer)
+    which Drive file this machine last used
+    who is signed in on this screen
+    dark mode and other display choices
+
 The files appear as each part is used for the first time. An empty folder is
 normal on day one.
 
