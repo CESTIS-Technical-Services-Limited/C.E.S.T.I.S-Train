@@ -5809,6 +5809,10 @@ var documentHubFiles = []; // Document Hub files for staff download
 var studentProfiles = {};
 var instructorProfiles = {};
 var systemSettings = { institutionName: 'C.E.S.T.I.S LMS - Community Training Intervention', adminEmail: 'admin@heartlms.edu.jm', academicYear: '2025/2026', vcProvider: 'Built-in (WebRTC)',
+  // Blank = use the public introduction service video has always used. Set it
+  // to the Centre's own conference server (host, host:port, or a full URL) to
+  // stop depending on a free public one. Tried BEFORE the public service.
+  vcSignallingHost: '',
   // Embedded external systems (TMS / NQS). Links and the headline notice shown
   // above each embedded page are editable in Settings -> External Systems.
   extSystems: {
@@ -9907,6 +9911,7 @@ var cestisFeatureConfig = {
   'settings': {
     file: 'Pages/Administration.html',
     onMount: function() {
+      cestisSafe('fillSystemSettingsForm');
       cestisSafe('renderUserAccountsTable');
     }
   },
@@ -12051,19 +12056,20 @@ function enterVideoRoom(title, role, roomCode) {
 
 async function vcStartCameraPreview() {
   // Say up front why the preview is dead, rather than letting the lobby show an
-  // unexplained "Camera not available" and only naming the real cause once the
-  // user has already clicked Join.
-  var _blocked = vcBlockedReason();
+  // unexplained "Camera not available". Joining stays available either way —
+  // without a camera you still see and hear everybody else.
+  var _blocked = vcMediaBlockedReason();
   if (_blocked) {
     localStream = null;
     var _ph = document.getElementById('vc-preview-ph');
     if (_ph) {
       _ph.innerHTML = '<div style="text-align:center;color:var(--text-muted);max-width:340px;margin:0 auto;">' +
-        '<div style="font-size:48px;margin-bottom:8px;">&#x1F512;</div>' +
-        '<div style="font-weight:600;margin-bottom:6px;">Video is not available at this address</div>' +
-        '<div style="font-size:11.5px;line-height:1.5;">' + escapeHtml(_blocked.split('\n\n')[0]) + '</div></div>';
+        '<div style="font-size:44px;margin-bottom:6px;">&#x1F507;</div>' +
+        '<div style="font-weight:600;margin-bottom:6px;">No camera or microphone at this address</div>' +
+        '<div style="font-size:11.5px;line-height:1.5;">You can still join &mdash; you will see and hear ' +
+        'everybody, they will not see or hear you.</div></div>';
     }
-    vcUpdateStatus('error', 'Video is not available at this page address');
+    vcUpdateStatus('', 'Ready to connect — without camera or microphone');
     return;
   }
   try {
@@ -12118,55 +12124,258 @@ function toggleLobbyDevice(kind) {
   }
 }
 
-// Why video cannot start on this page, in plain words — or '' when it can.
+// ---------------------------------------------------------------------------
+// What this page can and cannot do, and why — WITHOUT ever standing in the way.
 //
-// PeerJS reports a missing WebRTC API as "browser-incompatible", and the room
-// code showed that verbatim: "Connection error: browser-incompatible". That
-// sends people off to install another browser when the browser is fine. What is
-// actually missing, every time, is a SECURE PAGE ADDRESS: browsers hand out the
-// camera, the microphone and the video connection only to pages served over
-// https://, or opened on the computer itself as localhost. A page reached over
-// the network as http://192.168.x.x is refused them by EVERY browser — Chrome
-// keeps RTCPeerConnection but withholds the camera, Safari and Firefox withhold
-// WebRTC outright, which is the case PeerJS then calls "incompatible".
-function vcBlockedReason() {
+// Browsers hand out the camera and the microphone only to pages on an address
+// they trust: https://, or the machine you are sitting at (localhost). A page
+// reached over a network as http://... is refused them.
+//
+// That does NOT mean the person cannot attend. Chrome keeps the connection
+// itself working, so they can still join the room, see everyone and hear
+// everyone — they simply cannot send their own picture or voice. Refusing to
+// connect at all would take away a class they could have sat in, so nothing
+// below blocks; it explains, and lets them through.
+//
+// The one case that genuinely cannot proceed is a browser with no WebRTC at
+// all, which is what PeerJS reports as "browser-incompatible" — a message the
+// room used to print verbatim, sending people off to change a browser that was
+// never the problem.
+// ---------------------------------------------------------------------------
+
+// True when this page can open a peer connection at all.
+function vcCanConnect() {
+  return typeof RTCPeerConnection !== 'undefined';
+}
+
+// Shown when no introduction service could be reached at all. It names the one
+// thing the Centre can act on, because "connection error" tells nobody anything.
+function vcNoServiceStatus() {
+  return 'Could not reach the video service \u2014 check the internet connection, then try again. ' +
+         'If this keeps happening, set your own conference server in Settings \u2192 Video Conference.';
+}
+
+// ---------------------------------------------------------------------------
+// GETTING THE TWO BROWSERS INTRODUCED
+//
+// Before any picture or sound flows, each browser has to hand the other a
+// description of how to be reached, and something has to carry those first
+// messages. Every room in the system — a trainee's class, a staff meeting, an
+// all-staff conference — depends on that one service, and until now there was
+// exactly one of them: the free public PeerJS service, named once in each of
+// three places, with no retry and nothing to fall back on. When it was
+// unreachable — an outage, its rate limit, a firewall at the Centre — every
+// kind of meeting stopped at once, which is precisely how "it worked perfectly
+// last week" turns into "nothing connects today".
+//
+// So: the candidates are tried in order, a dropped introduction is reconnected
+// rather than abandoned, and the Centre can name its own server (Settings →
+// Video Conference) and stop depending on anybody else's.
+// ---------------------------------------------------------------------------
+
+// STUN tells a browser how it appears from outside; TURN relays the call when
+// two networks cannot reach each other directly. Several of each, because one
+// unreachable server should not decide whether a class happens.
+var VC_ICE_SERVERS = [
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:stun2.l.google.com:19302'},
+  {urls:'stun:stun.cloudflare.com:3478'},
+  {urls:'turn:staticauth.openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turn:staticauth.openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turn:staticauth.openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject'}
+];
+
+// Does the site serving this page also run the CESTIS introduction service?
+// (The Offline System does. A Centre hosting the online build behind its own
+// copy of that server does too.) Probed once, in the background; nothing waits
+// on the answer, and a site without one simply never becomes a candidate.
+var vcSameOriginSignalling = false;
+try {
+  fetch('/_cestis/health', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { vcSameOriginSignalling = !!(d && d.ok && d.mode === 'offline-lan'); })
+    .catch(function () { vcSameOriginSignalling = false; });
+} catch (e) {}
+
+// "conference.example.org", "conference.example.org:9000", ".../peerjs" —
+// whatever the Centre typed in Settings, turned into PeerJS options.
+function vcParseSignallingHost(text) {
+  var raw = String(text || '').trim();
+  if (!raw) return null;
+  var secure = true;
+  if (/^https?:\/\//i.test(raw)) {
+    secure = /^https:/i.test(raw);
+    raw = raw.replace(/^https?:\/\//i, '');
+  }
+  var slash = raw.indexOf('/');
+  var path = '/';
+  if (slash !== -1) { path = raw.slice(slash) || '/'; raw = raw.slice(0, slash); }
+  var parts = raw.split(':');
+  var host = parts[0];
+  if (!host) return null;
+  var port = parts[1] ? Number(parts[1]) : (secure ? 443 : 80);
+  if (!isFinite(port) || port <= 0) return null;
+  return { host: host, port: port, path: path, secure: secure, label: host + ':' + port };
+}
+
+// The introduction services to try, best first.
+function vcSignallingCandidates() {
+  var out = [];
+  try {
+    var custom = (typeof systemSettings !== 'undefined' && systemSettings.vcSignallingHost) || '';
+    var c = vcParseSignallingHost(custom);
+    if (c) out.push(c);
+  } catch (e) {}
+  if (vcSameOriginSignalling) {
+    out.push({
+      host: location.hostname,
+      port: Number(location.port) || (location.protocol === 'https:' ? 443 : 80),
+      path: '/peerjs',
+      secure: location.protocol === 'https:',
+      label: 'this Centre\'s own server'
+    });
+  }
+  out.push(null);   // the public PeerJS service — the library's own default
+  return out;
+}
+
+/* Open a peer, trying each introduction service in turn.
+
+   id     the peer id to register (the room's host id, or a joiner's)
+   wire   called with each attempt's peer so the caller can attach its own
+          'call' / 'connection' handlers
+   opts   onOpen(id, peer)      — registered successfully
+          onError(err, peer)    — an error the caller should deal with
+                                  (e.g. unavailable-id); transport failures are
+                                  handled here and never reach it
+          onExhausted(why)      — no service could be reached
+
+   Assigns the live peer to rtcPeer as it goes, so existing handlers that read
+   rtcPeer keep working across a failover. */
+var VC_SIGNALLING_TIMEOUT_MS = 12000;
+function vcCreatePeer(id, wire, opts) {
+  opts = opts || {};
+  var candidates = vcSignallingCandidates();
+  var idx = 0, settled = false, peer = null, timer = null;
+
+  function label(c) { return c ? (c.label || c.host) : 'the public introduction service'; }
+
+  function giveUpOn(why) {
+    if (timer) { clearTimeout(timer); timer = null; }
+    try { if (peer && !peer.destroyed) peer.destroy(); } catch (e) {}
+    peer = null;
+    idx++;
+    if (idx < candidates.length) {
+      vcUpdateStatus('connecting', 'Trying ' + label(candidates[idx]) + '\u2026');
+      console.warn('[VideoConference] ' + label(candidates[idx - 1]) + ' unreachable (' + why + '); trying the next one.');
+      attempt();
+      return;
+    }
+    settled = true;
+    console.warn('[VideoConference] no introduction service could be reached (' + why + ')');
+    if (typeof opts.onExhausted === 'function') opts.onExhausted(why);
+    else vcUpdateStatus('error', 'Could not reach the video service. Check the internet connection and try again.');
+  }
+
+  function attempt() {
+    var cand = candidates[idx];
+    var options = { config: { iceServers: VC_ICE_SERVERS } };
+    if (cand) { options.host = cand.host; options.port = cand.port; options.path = cand.path; options.secure = cand.secure; }
+
+    try { peer = new Peer(id, options); }
+    catch (e) { giveUpOn('could not be started'); return; }
+    rtcPeer = peer;
+
+    var opened = false;
+    timer = setTimeout(function () {
+      if (!opened && !settled) giveUpOn('no answer in ' + Math.round(VC_SIGNALLING_TIMEOUT_MS / 1000) + 's');
+    }, VC_SIGNALLING_TIMEOUT_MS);
+
+    peer.on('open', function (pid) {
+      opened = true; settled = true;
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (typeof opts.onOpen === 'function') opts.onOpen(pid, peer);
+    });
+
+    // The introduction service dropped us AFTER we were registered. The call
+    // itself carries on — the two browsers are already talking directly — but
+    // nobody new can join until we are back, so reconnect rather than sit dead.
+    peer.on('disconnected', function () {
+      if (settled && peer && !peer.destroyed) {
+        console.warn('[VideoConference] introduction service dropped; reconnecting.');
+        try { peer.reconnect(); } catch (e) {}
+      }
+    });
+
+    peer.on('error', function (err) {
+      var t = err && err.type;
+      // Could not reach this service at all: that is ours to retry, not the
+      // caller's to report as a broken room.
+      if (!opened && (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed')) {
+        giveUpOn(t);
+        return;
+      }
+      if (t === 'network' && opened) { try { peer.reconnect(); } catch (e) {} return; }
+      if (typeof opts.onError === 'function') opts.onError(err, peer);
+    });
+
+    try { wire(peer); } catch (e) { console.warn('[VideoConference] wiring failed:', e); }
+  }
+
+  attempt();
+  return peer;
+}
+
+// Why the camera and microphone are unavailable here, or '' when they are fine.
+// Advisory only.
+function vcMediaBlockedReason() {
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) return '';
   var host = location.hostname;
   var secure = (typeof window.isSecureContext === 'boolean')
     ? window.isSecureContext
     : (location.protocol === 'https:' || host === 'localhost' || host === '127.0.0.1' || location.protocol === 'file:');
-  var hasRTC = (typeof RTCPeerConnection !== 'undefined');
-  var hasMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-  if (hasRTC && hasMedia) return '';
-
   if (!secure) {
     var port = location.port ? (':' + location.port) : '';
-    return 'Video classes need a secure page address.\n\n' +
-      'This page was opened as ' + location.protocol + '//' + location.host + '. Browsers do not give ' +
-      'the camera, the microphone or a video connection to a page opened over the network like that — ' +
-      'this is a browser security rule, not a fault in the system or in your browser.\n\n' +
-      'ON THE COMPUTER RUNNING THE SYSTEM it works right away: open ' +
-      'http://localhost' + port + '/index.html instead of the network address.\n\n' +
-      'FOR EVERY OTHER DEVICE the system has to be served over https://. Everything else on this ' +
-      'page — trainees, fees, attendance, documents — keeps working normally over ' + location.protocol + '//.';
+    return 'Your camera and microphone are not available at this address.\n\n' +
+      'This page was opened as ' + location.protocol + '//' + location.host + ', and browsers only give ' +
+      'the camera and microphone to a page on a trusted address — https://, or the computer you are ' +
+      'sitting at (http://localhost' + port + '/). This is a browser security rule, not a fault in the ' +
+      'system or in your browser.\n\n' +
+      'YOU CAN STILL JOIN THE CLASS. You will see and hear everybody; they will not see or hear you. ' +
+      'To take part fully, open the system at its https:// address.';
   }
-  if (!hasRTC) {
-    return 'This browser cannot make video calls.\n\n' +
-      'Video classes need WebRTC, which this browser does not provide. Open the system in an ' +
-      'up-to-date Chrome, Edge, Firefox or Safari and try again.';
-  }
-  return 'The camera and microphone are not available on this page, so a video class cannot be started ' +
-    'or joined from here. Check that this browser is allowed to use the camera and microphone.';
+  return 'Your camera and microphone are not available on this page.\n\n' +
+    'Check that this browser is allowed to use them for this site (the padlock in the address bar).\n\n' +
+    'YOU CAN STILL JOIN THE CLASS — you will see and hear everybody, but they will not see or hear you.';
 }
 
-// Guard used by every "create room" / "join room" entry point. Shows the real
-// reason and returns true when video cannot run here.
+// The genuinely-cannot-proceed case: no WebRTC in this browser at all.
+function vcNoWebRTCReason() {
+  return 'This browser cannot make video calls.\n\n' +
+    'Video classes need WebRTC, which this browser does not provide. Open the system in an ' +
+    'up-to-date Chrome, Edge, Firefox or Safari and try again.';
+}
+
+// Called at every "create room" / "join room" entry point. Returns true ONLY
+// when connecting is impossible. A missing camera warns once and lets the
+// person through.
+var _vcMediaWarned = false;
 function vcBlockAndExplain(shortStatus) {
-  var why = vcBlockedReason();
-  if (!why) return false;
-  vcUpdateStatus('error', shortStatus || 'Video cannot start on this page address');
-  try { alert(why); } catch (e) {}
-  console.warn('[VideoConference] blocked: ' + why.split('\n')[0]);
-  return true;
+  if (!vcCanConnect()) {
+    vcUpdateStatus('error', shortStatus || 'This browser cannot make video calls');
+    try { alert(vcNoWebRTCReason()); } catch (e) {}
+    return true;
+  }
+  var media = vcMediaBlockedReason();
+  if (media && !_vcMediaWarned) {
+    _vcMediaWarned = true;               // say it once per visit, not on every click
+    console.warn('[VideoConference] ' + media.split('\n')[0]);
+    try { alert(media); } catch (e) {}
+  }
+  return false;                          // never stand in the way of joining
 }
 
 function vcUpdateStatus(type, message) {
@@ -12492,34 +12701,29 @@ async function vcCreateRoom(title, role, scheduledCode) {
   vcUpdateStatus('connecting', 'Creating room...');
 
   try {
-    rtcPeer = new Peer('cestis-' + currentRoomCode + '-host', {
-      config: { iceServers: [{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'}] }
-    });
-
-    rtcPeer.on('open', function() {
-      vcShowConference(title, role);
-    });
-
-    rtcPeer.on('call', function(call) {
-      call.answer(localStream || new MediaStream());
-      call.on('stream', function(rs) {
-        var pid = call.peer;
-        if(!peerConnections[pid]) peerConnections[pid] = {};
-        peerConnections[pid].media = call;
-        peerConnections[pid].stream = rs;
-        vcAddVideo(pid, rs, peerNames[pid] || 'Participant');
+    vcCreatePeer('cestis-' + currentRoomCode + '-host', function(peer) {
+      peer.on('call', function(call) {
+        call.answer(localStream || new MediaStream());
+        call.on('stream', function(rs) {
+          var pid = call.peer;
+          if(!peerConnections[pid]) peerConnections[pid] = {};
+          peerConnections[pid].media = call;
+          peerConnections[pid].stream = rs;
+          vcAddVideo(pid, rs, peerNames[pid] || 'Participant');
+        });
+        call.on('close', function() { vcRemoveVideo(call.peer); });
+        call.on('error', function(err) { console.warn('Incoming call error:', err); });
       });
-      call.on('close', function() { vcRemoveVideo(call.peer); });
-      call.on('error', function(err) { console.warn('Incoming call error:', err); });
-    });
-
-    rtcPeer.on('connection', function(conn) { vcHandleDataConn(conn); });
-
-    rtcPeer.on('error', function(err) {
-      console.error('Peer error:', err);
-      if(err.type === 'unavailable-id') vcUpdateStatus('error', 'Room code in use. Try again.');
-      else if(err.type === 'browser-incompatible') vcBlockAndExplain('Cannot start a class from this page address');
-      else vcUpdateStatus('error', 'Connection error: ' + err.type);
+      peer.on('connection', function(conn) { vcHandleDataConn(conn); });
+    }, {
+      onOpen: function() { vcShowConference(title, role); },
+      onError: function(err) {
+        console.error('Peer error:', err);
+        if(err.type === 'unavailable-id') vcUpdateStatus('error', 'Room code in use. Try again.');
+        else if(err.type === 'browser-incompatible') vcBlockAndExplain('Cannot start a class from this page address');
+        else vcUpdateStatus('error', 'Connection error: ' + err.type);
+      },
+      onExhausted: function() { vcUpdateStatus('error', vcNoServiceStatus()); }
     });
   } catch(err) {
     vcUpdateStatus('error', 'Failed to create room');
@@ -12535,39 +12739,36 @@ async function vcRejoinRoom(title, role) {
   vcUpdateStatus('connecting', 'Rejoining room ' + currentRoomCode + '...');
 
   try {
-    rtcPeer = new Peer('cestis-' + currentRoomCode + '-host', {
-      config: { iceServers: [{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'}] }
-    });
-
-    rtcPeer.on('open', function() {
-      vcShowConference(title, role);
-      showToast('Rejoined room ' + currentRoomCode + ' as host');
-    });
-
-    rtcPeer.on('call', function(call) {
-      call.answer(localStream || new MediaStream());
-      call.on('stream', function(rs) {
-        var pid = call.peer;
-        if(!peerConnections[pid]) peerConnections[pid] = {};
-        peerConnections[pid].media = call;
-        peerConnections[pid].stream = rs;
-        vcAddVideo(pid, rs, peerNames[pid] || 'Participant');
+    vcCreatePeer('cestis-' + currentRoomCode + '-host', function(peer) {
+      peer.on('call', function(call) {
+        call.answer(localStream || new MediaStream());
+        call.on('stream', function(rs) {
+          var pid = call.peer;
+          if(!peerConnections[pid]) peerConnections[pid] = {};
+          peerConnections[pid].media = call;
+          peerConnections[pid].stream = rs;
+          vcAddVideo(pid, rs, peerNames[pid] || 'Participant');
+        });
+        call.on('close', function() { vcRemoveVideo(call.peer); });
+        call.on('error', function(err) { console.warn('Incoming call error:', err); });
       });
-      call.on('close', function() { vcRemoveVideo(call.peer); });
-      call.on('error', function(err) { console.warn('Incoming call error:', err); });
-    });
-
-    rtcPeer.on('connection', function(conn) { vcHandleDataConn(conn); });
-
-    rtcPeer.on('error', function(err) {
-      console.error('Peer error:', err);
-      if(err.type === 'unavailable-id') {
-        vcUpdateStatus('error', 'Room host ID is still active. Try again in a moment.');
-      } else if(err.type === 'browser-incompatible') {
-        vcBlockAndExplain('Cannot rejoin from this page address');
-      } else {
-        vcUpdateStatus('error', 'Connection error: ' + err.type);
-      }
+      peer.on('connection', function(conn) { vcHandleDataConn(conn); });
+    }, {
+      onOpen: function() {
+        vcShowConference(title, role);
+        showToast('Rejoined room ' + currentRoomCode + ' as host');
+      },
+      onError: function(err) {
+        console.error('Peer error:', err);
+        if(err.type === 'unavailable-id') {
+          vcUpdateStatus('error', 'Room host ID is still active. Try again in a moment.');
+        } else if(err.type === 'browser-incompatible') {
+          vcBlockAndExplain('Cannot rejoin from this page address');
+        } else {
+          vcUpdateStatus('error', 'Connection error: ' + err.type);
+        }
+      },
+      onExhausted: function() { vcUpdateStatus('error', vcNoServiceStatus()); }
     });
   } catch(err) {
     vcUpdateStatus('error', 'Failed to rejoin room');
@@ -12593,66 +12794,63 @@ async function vcJoinRoom(title, role, codeOverride) {
   vcUpdateStatus('connecting', 'Joining room ' + code + '...');
 
   try {
-    rtcPeer = new Peer('cestis-' + code + '-' + Math.random().toString(36).substr(2,6), {
-      config: { iceServers: [{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'}] }
-    });
-
-    rtcPeer.on('open', function() {
-      var hostId = 'cestis-' + code + '-host';
-
-      // Data connection to host
-      var conn = rtcPeer.connect(hostId, {reliable:true});
-      conn.on('open', function() {
-        if(!peerConnections[hostId]) peerConnections[hostId] = {};
-        peerConnections[hostId].data = conn;
-        dataConnections[hostId] = conn;
-        conn.send(JSON.stringify({type:'name', name:vcCurrentUserName, role:vcCurrentRole}));
-        conn.on('data', function(data) { vcOnData(data, hostId); });
-        conn.on('close', function() {
-          vcRemoveVideo(hostId); delete peerConnections[hostId]; delete dataConnections[hostId]; vcUpdateParticipants();
-          showToast('Host has disconnected. Waiting for host to return...');
-          vcStartHostReconnect(code, hostId);
-        });
-        vcShowConference(title, role);
-      });
-      conn.on('error', function() { vcUpdateStatus('error', 'Room not found. Check code and try again.'); });
-
-      // Media connection to host — always establish even without camera/mic
-      var mediaStream = localStream || new MediaStream();
-      var call = rtcPeer.call(hostId, mediaStream);
-      if(call) {
+    vcCreatePeer('cestis-' + code + '-' + Math.random().toString(36).substr(2,6), function(peer) {
+      peer.on('call', function(call) {
+        call.answer(localStream || new MediaStream());
         call.on('stream', function(rs) {
-          if(!peerConnections[hostId]) peerConnections[hostId] = {};
-          peerConnections[hostId].media = call;
-          peerConnections[hostId].stream = rs;
-          vcAddVideo(hostId, rs, peerNames[hostId] || 'Host');
+          var pid = call.peer;
+          if(!peerConnections[pid]) peerConnections[pid] = {};
+          peerConnections[pid].media = call;
+          peerConnections[pid].stream = rs;
+          vcAddVideo(pid, rs, peerNames[pid] || 'Participant');
         });
-        call.on('close', function() { vcRemoveVideo(hostId); });
-        call.on('error', function(err) {
-          console.warn('Media call to host failed:', err);
-        });
-      }
-    });
-
-    rtcPeer.on('call', function(call) {
-      call.answer(localStream || new MediaStream());
-      call.on('stream', function(rs) {
-        var pid = call.peer;
-        if(!peerConnections[pid]) peerConnections[pid] = {};
-        peerConnections[pid].media = call;
-        peerConnections[pid].stream = rs;
-        vcAddVideo(pid, rs, peerNames[pid] || 'Participant');
+        call.on('close', function() { vcRemoveVideo(call.peer); });
+        call.on('error', function(err) { console.warn('Incoming call error:', err); });
       });
-      call.on('close', function() { vcRemoveVideo(call.peer); });
-      call.on('error', function(err) { console.warn('Incoming call error:', err); });
-    });
+      peer.on('connection', function(conn) { vcHandleDataConn(conn); });
+    }, {
+      onOpen: function() {
+        var hostId = 'cestis-' + code + '-host';
 
-    rtcPeer.on('connection', function(conn) { vcHandleDataConn(conn); });
+        // Data connection to host
+        var conn = rtcPeer.connect(hostId, {reliable:true});
+        conn.on('open', function() {
+          if(!peerConnections[hostId]) peerConnections[hostId] = {};
+          peerConnections[hostId].data = conn;
+          dataConnections[hostId] = conn;
+          conn.send(JSON.stringify({type:'name', name:vcCurrentUserName, role:vcCurrentRole}));
+          conn.on('data', function(data) { vcOnData(data, hostId); });
+          conn.on('close', function() {
+            vcRemoveVideo(hostId); delete peerConnections[hostId]; delete dataConnections[hostId]; vcUpdateParticipants();
+            showToast('Host has disconnected. Waiting for host to return...');
+            vcStartHostReconnect(code, hostId);
+          });
+          vcShowConference(title, role);
+        });
+        conn.on('error', function() { vcUpdateStatus('error', 'Room not found. Check code and try again.'); });
 
-    rtcPeer.on('error', function(err) {
-      console.error('Peer error:', err);
-      if(err.type === 'browser-incompatible') { vcBlockAndExplain('Cannot join a class from this page address'); return; }
-      vcUpdateStatus('error', 'Could not connect. Room may not exist.');
+        // Media connection to host — always establish even without camera/mic
+        var mediaStream = localStream || new MediaStream();
+        var call = rtcPeer.call(hostId, mediaStream);
+        if(call) {
+          call.on('stream', function(rs) {
+            if(!peerConnections[hostId]) peerConnections[hostId] = {};
+            peerConnections[hostId].media = call;
+            peerConnections[hostId].stream = rs;
+            vcAddVideo(hostId, rs, peerNames[hostId] || 'Host');
+          });
+          call.on('close', function() { vcRemoveVideo(hostId); });
+          call.on('error', function(err) {
+            console.warn('Media call to host failed:', err);
+          });
+        }
+      },
+      onError: function(err) {
+        console.error('Peer error:', err);
+        if(err.type === 'browser-incompatible') { vcBlockAndExplain('Cannot join a class from this page address'); return; }
+        vcUpdateStatus('error', 'Could not connect. Room may not exist.');
+      },
+      onExhausted: function() { vcUpdateStatus('error', vcNoServiceStatus()); }
     });
   } catch(err) {
     vcUpdateStatus('error', 'Failed to join room');
@@ -17128,16 +17326,40 @@ function vcUpdateSidebarName(name) {
 }
 
 // ============================== SYSTEM SETTINGS FUNCTIONS ==============================
+// Show what is actually configured. The fields carry defaults in the markup, so
+// without this the form claimed the stock values however the Centre had set it.
+function fillSystemSettingsForm() {
+  var set = function(id, val) {
+    var el = document.getElementById(id);
+    if (el && val !== undefined && val !== null) el.value = val;
+  };
+  set('settInstitution', systemSettings.institutionName);
+  set('settAdminEmail', systemSettings.adminEmail);
+  set('settAcadYear', systemSettings.academicYear);
+  set('settVcProvider', systemSettings.vcProvider);
+  set('settVcSignalling', systemSettings.vcSignallingHost || '');
+}
+
 function saveSystemSettings() {
   var instName = document.getElementById('settInstitution')?.value?.trim();
   var adminEmail = document.getElementById('settAdminEmail')?.value?.trim();
   var acadYear = document.getElementById('settAcadYear')?.value;
   var vcProvider = document.getElementById('settVcProvider')?.value;
+  var vcSignalling = document.getElementById('settVcSignalling')?.value?.trim();
 
   systemSettings.institutionName = instName || systemSettings.institutionName;
   systemSettings.adminEmail = adminEmail || systemSettings.adminEmail;
   systemSettings.academicYear = acadYear || systemSettings.academicYear;
   systemSettings.vcProvider = vcProvider || systemSettings.vcProvider;
+  // Deliberately assigned even when blank: clearing the box has to mean
+  // "go back to the public service", not "keep whatever was there".
+  if (vcSignalling !== undefined) {
+    if (vcSignalling && !vcParseSignallingHost(vcSignalling)) {
+      showToast('That conference server address could not be read. Use e.g. conference.yourcentre.org or conference.yourcentre.org:9000');
+      return;
+    }
+    systemSettings.vcSignallingHost = vcSignalling;
+  }
 
   saveState();
   showToast('Settings saved successfully');
@@ -28908,12 +29130,10 @@ function lmsChatToggleMute() {
 }
 
 // ── PeerJS config (same STUN/TURN as video conference) ──
-var LMS_CHAT_ICE_SERVERS = [
-  {urls:'stun:stun.l.google.com:19302'},
-  {urls:'stun:stun1.l.google.com:19302'},
-  {urls:'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject'},
-  {urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject'}
-];
+// Chat calls use the same relays as the conference rooms. Kept as one list so a
+// relay that stops working is replaced in one place rather than three, and so
+// chat calls do not quietly keep using a retired one after the classes moved on.
+var LMS_CHAT_ICE_SERVERS = VC_ICE_SERVERS;
 var lmsChatPeerConnections = {}; // {peerId: {media: call, stream: remoteStream}}
 
 // Generate a unique PeerJS ID for LMS Chat calls
