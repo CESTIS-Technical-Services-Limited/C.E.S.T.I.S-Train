@@ -5,7 +5,7 @@
 <script src="cestis-core.js?v=20260802a"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C.E.S.T.I.S — Payment Vouchers</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap"></noscript></noscript>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap"></noscript>
 <link rel="stylesheet" href="finance-docs.css?v=20260713b">
 <script src="finance-logos.js?v=20260713b"></script>
 <style>
@@ -67,8 +67,12 @@ body.print-solo .v-wrap:not(.solo) { display:none; }
           <option value="transfer">Bank transfers only</option>
         </select>
       </label>
+      <label class="fd-field"><span>Cashbook data</span>
+        <button class="btn ghost" id="pvSyncBtn" onclick="PV.syncFromCashbook()">⟳ Sync from Cashbook</button>
+      </label>
     </div>
     <div class="pv-summary" id="pvSummary"></div>
+    <div id="pvSourceNote" style="font-size:.75rem;color:var(--text-dim);margin-top:10px;"></div>
   </div>
 
   <div class="card">
@@ -129,7 +133,171 @@ function discoverQuarters() {
 function loadOverrides() {
   try { overrides = JSON.parse(store.getItem(OVERRIDES_KEY)) || {}; } catch (e) { overrides = {}; }
 }
-function persistOverrides() { store.setItem(OVERRIDES_KEY, JSON.stringify(overrides)); }
+function persistOverrides() {
+  store.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
+  // Voucher edits used to live only in this device's storage. They reached the
+  // cloud only if the LMS dashboard happened to be open and connected, because
+  // its master snapshot sweeps every storage key — so edits made with the
+  // dashboard closed sat here until somebody next opened it. Push them now.
+  pushOverridesToCloud();
+}
+
+/* ======================================================================
+   CLOUD
+
+   This page reads the quarters the Cashbook writes (cestis_quarter_<FY>_Q<n>)
+   and had no cloud path of its own — it could only ever see a quarter that the
+   Cashbook had already been opened and saved on THIS device. On any other
+   machine the page came up with no transactions at all and blamed the Cashbook
+   for it. Virement.Request.html solves the same problem by reading the
+   Cashbook's own Drive backup; this does the same, and pushes voucher edits
+   back so they are not stranded locally.
+   ====================================================================== */
+var DRIVE = {
+  CASHBOOK_FOLDER_ID: '1aL_QZiJ5rmxQUBhj261PzdbYXrI5doOO',
+  CASHBOOK_FILE: 'CESTIS_CASHBOOK_DASHBOARD_BACKUP.json',
+  VOUCHER_FOLDER_ID: '1G6ipD_pGVItBvlPx0LGbD6Prj6AXW303',
+  VOUCHER_FILE: 'CESTIS_Payment_Voucher_Overrides.json'
+};
+
+function driveToken() {
+  var t = store.getItem('schoolDashboardGoogleAccessToken');
+  var exp = store.getItem('schoolDashboardGoogleTokenExpiry');
+  if (!t) return null;
+  if (exp && new Date(exp) <= new Date()) return null;   // expired — treat as offline
+  return t;
+}
+
+function driveFind(name, folderId, token) {
+  var q = "name='" + name + "' and '" + folderId + "' in parents and trashed=false";
+  return fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,modifiedTime)',
+    { headers: { Authorization: 'Bearer ' + token } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { return (d && d.files && d.files.length) ? d.files[0].id : null; });
+}
+
+/* Pull every quarter the Cashbook has in the cloud into local storage, so the
+   vouchers can be generated here exactly as they would be on the Cashbook's own
+   machine. Resolves the number of quarters written. */
+function pullCashbookQuarters() {
+  var token = driveToken();
+  if (!token) return Promise.resolve({ ok: false, reason: 'offline' });
+  return driveFind(DRIVE.CASHBOOK_FILE, DRIVE.CASHBOOK_FOLDER_ID, token)
+    .then(function (fileId) {
+      if (!fileId) return { ok: false, reason: 'no-backup' };
+      return fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media',
+        { headers: { Authorization: 'Bearer ' + token } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (backup) {
+          if (!backup || !backup.data) return { ok: false, reason: 'bad-backup' };
+          var qt = backup.data.quarterlyTransactions || {};
+          var written = 0;
+          Object.keys(qt).forEach(function (key) {
+            if (!/^cestis_quarter_.+_Q[1-4]$/.test(key)) return;
+            var qd = qt[key];
+            if (!qd || !Array.isArray(qd.transactions)) return;
+            // Never overwrite a quarter this device has locally with fewer
+            // transactions than it already holds — the Cashbook here may be
+            // ahead of the last cloud save.
+            var existing = null;
+            try { existing = JSON.parse(store.getItem(key) || 'null'); } catch (e) {}
+            if (existing && Array.isArray(existing.transactions) &&
+                existing.transactions.length > qd.transactions.length) return;
+            store.setItem(key, JSON.stringify(qd));
+            written++;
+          });
+          // The active quarter the Cashbook was last on, so this page opens on
+          // the same one rather than guessing.
+          if (backup.data.activeFY && backup.data.activeQ) {
+            try { store.setItem('cestis_active_quarter', JSON.stringify({ fy: backup.data.activeFY, q: backup.data.activeQ })); } catch (e) {}
+          }
+          return { ok: true, quarters: written };
+        });
+    })
+    .catch(function (e) { return { ok: false, reason: (e && e.message) || 'error' }; });
+}
+
+/* Merge this device's voucher edits with whatever is already in the cloud and
+   write the union back. Newest edit per voucher wins, so two people editing
+   different vouchers in the same quarter never overwrite each other. */
+var _pushTimer = null;
+function pushOverridesToCloud() {
+  clearTimeout(_pushTimer);
+  _pushTimer = setTimeout(function () { doPushOverrides(); }, 1200);   // debounce typing
+}
+
+function doPushOverrides() {
+  var token = driveToken();
+  if (!token) return Promise.resolve(false);
+  return driveFind(DRIVE.VOUCHER_FILE, DRIVE.VOUCHER_FOLDER_ID, token)
+    .then(function (fileId) {
+      var remote = Promise.resolve({});
+      if (fileId) {
+        remote = fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media',
+          { headers: { Authorization: 'Bearer ' + token } })
+          .then(function (r) { return r.ok ? r.json() : {}; })
+          .then(function (d) { return (d && d.overrides) || {}; })
+          .catch(function () { return {}; });
+      }
+      return remote.then(function (cloudOv) {
+        var merged = mergeOverrides(cloudOv, overrides);
+        var body = JSON.stringify({ version: '1.0', savedAt: new Date().toISOString(), overrides: merged });
+        var blob = new Blob([body], { type: 'application/json' });
+        if (fileId) {
+          return fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media',
+            { method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: blob })
+            .then(function (r) { if (r.ok) { overrides = merged; store.setItem(OVERRIDES_KEY, JSON.stringify(merged)); } return r.ok; });
+        }
+        var fd = new FormData();
+        fd.append('metadata', new Blob([JSON.stringify({ name: DRIVE.VOUCHER_FILE, parents: [DRIVE.VOUCHER_FOLDER_ID], mimeType: 'application/json' })], { type: 'application/json' }));
+        fd.append('file', blob);
+        return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+          { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: fd })
+          .then(function (r) { if (r.ok) { overrides = merged; store.setItem(OVERRIDES_KEY, JSON.stringify(merged)); } return r.ok; });
+      });
+    })
+    .catch(function () { return false; });
+}
+
+/* Union of two override maps, newest edit per voucher winning. Each entry
+   carries an `editedAt` stamp written when it is saved. */
+function mergeOverrides(a, b) {
+  var out = {}, k;
+  a = a || {}; b = b || {};
+  for (k in a) if (Object.prototype.hasOwnProperty.call(a, k)) out[k] = a[k];
+  for (k in b) {
+    if (!Object.prototype.hasOwnProperty.call(b, k)) continue;
+    var mine = b[k], theirs = out[k];
+    if (!theirs) { out[k] = mine; continue; }
+    var tm = Date.parse((mine && mine.editedAt) || '') || 0;
+    var tt = Date.parse((theirs && theirs.editedAt) || '') || 0;
+    out[k] = tm >= tt ? mine : theirs;
+  }
+  return out;
+}
+
+/* Pull the cloud's voucher edits in on load, so a voucher corrected on one
+   machine reads the same on the next. */
+function pullOverridesFromCloud() {
+  var token = driveToken();
+  if (!token) return Promise.resolve(false);
+  return driveFind(DRIVE.VOUCHER_FILE, DRIVE.VOUCHER_FOLDER_ID, token)
+    .then(function (fileId) {
+      if (!fileId) return false;
+      return fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media',
+        { headers: { Authorization: 'Bearer ' + token } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.overrides) return false;
+          var merged = mergeOverrides(d.overrides, overrides);
+          if (JSON.stringify(merged) === JSON.stringify(overrides)) return false;
+          overrides = merged;
+          store.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
+          return true;
+        });
+    })
+    .catch(function () { return false; });
+}
 function ovKey(v) { return activeFY + '|Q' + activeQ + '|' + v.txnId; }
 
 function guessPayee(details) {
@@ -209,10 +377,19 @@ function renderControls() {
 function renderList() {
   var list = shown();
   if (!list.length) {
-    document.getElementById('pvList').innerHTML =
-      '<div class="fd-empty">No voucher-eligible payments found for ' + esc(activeFY) + ' ' + QUARTER_LABELS[activeQ] +
-      '. Transactions are entered on the <b>Cashbook</b> page — once saved there, their vouchers appear here automatically. ' +
-      '(Deposits and cancelled cheques never get vouchers.)</div>';
+    // Two very different situations used to read the same: a quarter with no
+    // voucher-eligible payments, and a device that has never seen any Cashbook
+    // data at all. The second one is not the Cashbook's fault and telling the
+    // user to go and save there again does not fix it.
+    var anyLocal = (store.keys ? store.keys() : Object.keys(localStorage))
+      .some(function (k) { return /^cestis_quarter_.+_Q[1-4]$/.test(k); });
+    document.getElementById('pvList').innerHTML = anyLocal
+      ? '<div class="fd-empty">No voucher-eligible payments in ' + esc(activeFY) + ' ' + QUARTER_LABELS[activeQ] +
+        '. Transactions are entered on the <b>Cashbook</b> page — once saved there, their vouchers appear here automatically. ' +
+        '(Deposits and cancelled cheques never get vouchers.)</div>'
+      : '<div class="fd-empty">No Cashbook data has reached this device yet, so there are no vouchers to generate. ' +
+        'Use <b>⟳ Sync from Cashbook</b> above to pull the quarters from the cloud backup, or open the ' +
+        '<b>Cashbook</b> page on this device once.</div>';
     return;
   }
   var rows = list.map(function (v) {
@@ -332,6 +509,9 @@ PV.edit = function (input) {
   } else {
     o[field] = input.value;
   }
+  // Stamp the edit so two machines editing different vouchers in the same
+  // quarter merge by recency instead of one wholesale copy winning.
+  o.editedAt = new Date().toISOString();
   persistOverrides();
   renderList(); /* refresh the edited-dot without touching the sheets */
 };
@@ -370,6 +550,38 @@ PV.printFiltered = function (type) {
   window.print();
 };
 
+/* Where the transactions on screen came from, so an empty page is never a
+   mystery. */
+function renderSourceNote(extra) {
+  var el = document.getElementById('pvSourceNote');
+  if (!el) return;
+  var n = (store.keys ? store.keys() : Object.keys(localStorage))
+    .filter(function (k) { return /^cestis_quarter_.+_Q[1-4]$/.test(k); }).length;
+  var online = !!driveToken();
+  el.innerHTML = (n ? n + ' Cashbook quarter' + (n === 1 ? '' : 's') + ' available on this device' : 'No Cashbook quarters on this device') +
+    ' · ' + (online ? 'Google Drive connected' : 'Drive not connected — sign in on the dashboard to sync') +
+    (extra ? ' · ' + esc(extra) : '');
+}
+
+PV.syncFromCashbook = function () {
+  var btn = document.getElementById('pvSyncBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ Syncing…'; }
+  Promise.all([pullCashbookQuarters(), pullOverridesFromCloud()]).then(function (res) {
+    var r = res[0];
+    if (btn) { btn.disabled = false; btn.textContent = '⟳ Sync from Cashbook'; }
+    if (!r.ok) {
+      var why = r.reason === 'offline' ? 'Google Drive is not connected on this device — sign in from the dashboard first.'
+              : r.reason === 'no-backup' ? 'No Cashbook backup was found in the Cashbook Drive folder. Save from the Cashbook page once.'
+              : 'Could not read the Cashbook backup (' + r.reason + ').';
+      toast('Sync failed'); renderSourceNote(why);
+      return;
+    }
+    boot();
+    toast(r.quarters ? ('Synced ' + r.quarters + ' quarter' + (r.quarters === 1 ? '' : 's') + ' from the Cashbook') : 'Already up to date');
+    renderSourceNote(r.quarters ? 'Last synced just now' : 'Nothing newer in the cloud');
+  });
+};
+
 /* ------------------------------------------------------------------- boot */
 function boot() {
   discoverQuarters();
@@ -377,9 +589,22 @@ function boot() {
   var last = quarters[quarters.length - 1];
   activeFY = last.fy; activeQ = last.q;
   generate(); renderAll();
+  renderSourceNote();
 }
 boot();
-if (store.whenReady) store.whenReady(function () { boot(); });
+if (store.whenReady) store.whenReady(function () {
+  boot();
+  // A device that has never opened the Cashbook has nothing to show. Pull the
+  // Cashbook's own Drive backup so the vouchers are there without the user
+  // having to know which page populates which storage key. Voucher edits made
+  // elsewhere come down at the same time.
+  var haveLocal = (store.keys ? store.keys() : Object.keys(localStorage))
+    .some(function (k) { return /^cestis_quarter_.+_Q[1-4]$/.test(k); });
+  Promise.all([ haveLocal ? Promise.resolve({ ok: true, quarters: 0 }) : pullCashbookQuarters(),
+                pullOverridesFromCloud() ]).then(function (res) {
+    if ((res[0] && res[0].quarters) || res[1]) { boot(); }
+  });
+});
 
 window.PV = PV;
 })();
