@@ -1192,6 +1192,159 @@
   })();
 
   /* ==========================================================================
+     ENROLMENT ELIGIBILITY — the single rule deciding whether a new trainee may
+     be enrolled into a training centre / course.
+
+     WHY THIS EXISTS
+     ---------------
+     The LMS (index.html) and the School Fee dashboard (School.Fee.html) each
+     had their own copy of this check, and BOTH failed OPEN: when a course could
+     not be resolved to a training centre they returned "no reason to block", so
+     trainees were still being added to centres whose course had already ended.
+     This is the one implementation both now call, and it fails CLOSED — if the
+     centre cannot be verified, enrolment is refused and the user is told to
+     create the centre first.
+
+     It also grounds every enrolment in a fiscal year (Apr–Mar, the same FY the
+     rest of the platform uses), so student records carry the course duration
+     and FY they belong to instead of floating free.
+     ========================================================================== */
+  Core.enrolment = (function () {
+    function norm(s) { return String(s == null ? '' : s).toLowerCase().trim().replace(/\s+/g, ' '); }
+
+    /* Resolve a centre by name against a roster of skill areas / training
+       centres. Exact (case/space-insensitive) match first, then a loose match
+       so "Welding" finds "Welding & Fabrication". */
+    function findCentre(areas, courseName) {
+      if (!Array.isArray(areas) || !courseName) return null;
+      var cn = norm(courseName);
+      if (!cn) return null;
+      var hit = null;
+      for (var i = 0; i < areas.length; i++) {
+        if (areas[i] && norm(areas[i].name) === cn) return areas[i];
+      }
+      for (var j = 0; j < areas.length; j++) {
+        var n = norm(areas[j] && areas[j].name);
+        if (!n) continue;
+        if (n.indexOf(cn) === 0 || cn.indexOf(n) === 0) { hit = hit || areas[j]; }
+      }
+      return hit;
+    }
+
+    /* Fiscal year (Apr–Mar) that a date belongs to, e.g. '2025/2026'. */
+    function fiscalYearOf(dateStr) {
+      var dq = Core.deriveQuarter(dateStr);
+      return dq ? dq.fy : null;
+    }
+
+    /* The FY a centre's intake belongs to — taken from its start date, falling
+       back to its end date when only that is set. */
+    function centreFiscalYear(centre) {
+      if (!centre) return null;
+      return fiscalYearOf(centre.startDate) || fiscalYearOf(centre.endDate) || null;
+    }
+
+    /* canEnrol(areas, courseName, opts) -> decision
+         opts.today      'YYYY-MM-DD' (defaults to the real today)
+         opts.enrolDate  the intended enrolment date, if one was entered
+         opts.nowMs      for instructor reopen permissions
+       decision = { allowed, code, reason, centre, status, fy }
+       codes: 'ok' | 'no-course' | 'no-roster' | 'no-centre' | 'ended'
+              | 'enrol-after-end' */
+    function canEnrol(areas, courseName, opts) {
+      opts = opts || {};
+      var today = Core.courseDuration.todayStr(opts.today);
+
+      if (!courseName) {
+        return { allowed: false, code: 'no-course', centre: null, status: null, fy: null,
+          reason: 'Select the training centre / course the trainee is being enrolled into.' };
+      }
+      if (!Array.isArray(areas) || !areas.length) {
+        return { allowed: false, code: 'no-roster', centre: null, status: null, fy: null,
+          reason: 'The list of training centres could not be read, so this enrolment cannot be verified.\n\n' +
+                  'Open the LMS (or sync it) so the training centres and their durations are available, then try again.' };
+      }
+      var centre = findCentre(areas, courseName);
+      if (!centre) {
+        return { allowed: false, code: 'no-centre', centre: null, status: null, fy: null,
+          reason: 'There is no training centre named "' + courseName + '".\n\n' +
+                  'Create the training centre (with its start and end dates) before enrolling trainees into it.' };
+      }
+
+      var status = Core.courseDuration.status(centre.startDate, centre.endDate, today);
+      var fy = centreFiscalYear(centre);
+
+      // Course finished — a new intake needs a NEW centre with a fresh duration.
+      if (status === 'ended' && !Core.courseDuration.permissionActiveAt(centre.instructorPermissions, opts.nowMs)) {
+        return { allowed: false, code: 'ended', centre: centre, status: status, fy: fy,
+          reason: 'The course "' + centre.name + '" ENDED' + (centre.endDate ? ' on ' + centre.endDate : '') +
+                  ', so new trainees can no longer be enrolled into it.\n\n' +
+                  'Create a NEW training centre with a new duration (and fiscal year) before adding new trainees.' };
+      }
+
+      // An enrolment cannot be dated after the centre's course has finished:
+      // that would ground the trainee outside the centre's duration/fiscal year.
+      var ed = Core.courseDuration.normDate(opts.enrolDate);
+      var endD = Core.courseDuration.normDate(centre.endDate);
+      if (ed && endD && ed > endD) {
+        return { allowed: false, code: 'enrol-after-end', centre: centre, status: status, fy: fy,
+          reason: 'The enrolment date ' + ed + ' falls after "' + centre.name + '" ends (' + endD + ').\n\n' +
+                  'Enrol the trainee within the course duration, or create a new training centre for the next intake.' };
+      }
+
+      return { allowed: true, code: 'ok', centre: centre, status: status, fy: fy, reason: '' };
+    }
+
+    /* The stamp written onto a student record so their data is grounded in the
+       course duration and fiscal year they actually belong to. */
+    function enrolmentStamp(centre, enrolDate) {
+      if (!centre) return null;
+      var ed = Core.courseDuration.normDate(enrolDate) || Core.courseDuration.todayStr();
+      return {
+        centreId: centre.id != null ? centre.id : null,
+        centreName: centre.name || '',
+        courseStart: Core.courseDuration.normDate(centre.startDate) || '',
+        courseEnd: Core.courseDuration.normDate(centre.endDate) || '',
+        enrolmentDate: ed,
+        // The intake's FY (from the centre) is what reporting groups by; the
+        // enrolment's own FY is kept too so a mid-year transfer stays visible.
+        fiscalYear: centreFiscalYear(centre) || fiscalYearOf(ed) || null,
+        enrolmentFiscalYear: fiscalYearOf(ed) || null
+      };
+    }
+
+    /* Does an already-enrolled student belong to the given fiscal year?
+       Falls back to their enrolment/creation date for legacy records that were
+       saved before enrolments were stamped. */
+    function studentInFiscalYear(student, fy) {
+      if (!student || !fy) return false;
+      if (student.fiscalYear) return student.fiscalYear === fy;
+      var d = student.enrolmentDate || student.enrollmentDate || student.createdAt;
+      return fiscalYearOf(d) === fy;
+    }
+
+    /* Centres that may currently take new trainees — used to build the course
+       dropdowns so ended centres are never offered in the first place. */
+    function openCentres(areas, today, nowMs) {
+      if (!Array.isArray(areas)) return [];
+      return areas.filter(function (a) {
+        if (!a || !a.name) return false;
+        return canEnrol(areas, a.name, { today: today, nowMs: nowMs }).allowed;
+      });
+    }
+
+    return {
+      findCentre: findCentre,
+      fiscalYearOf: fiscalYearOf,
+      centreFiscalYear: centreFiscalYear,
+      canEnrol: canEnrol,
+      enrolmentStamp: enrolmentStamp,
+      studentInFiscalYear: studentInFiscalYear,
+      openCentres: openCentres
+    };
+  })();
+
+  /* ==========================================================================
      TRANSCRIPT / GRADES ENGINE — shared logic for the Transcript & Grades
      system (admin editor, trainee live view, instructor view, PDF exports).
 

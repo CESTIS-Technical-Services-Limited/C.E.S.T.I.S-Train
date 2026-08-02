@@ -4224,23 +4224,48 @@
         function updateSkillAreaOptions() {
             const skillAreaSelect = document.getElementById('skillArea');
             const editSkillAreaSelect = document.getElementById('editSkillArea');
-            
+
             const skillAreas = Object.keys(feeStructure).sort();
-            
+
+            // The ADD form only offers programmes that can actually take a new
+            // trainee (an open LMS training centre). Ended or unknown centres are
+            // listed as disabled with the reason, so it is obvious a NEW centre
+            // has to be created rather than the option simply vanishing.
             skillAreaSelect.innerHTML = '<option value="">Select Skill Area</option>';
+            // The EDIT form keeps every programme, otherwise an existing trainee
+            // in a finished course could not be viewed or corrected.
             editSkillAreaSelect.innerHTML = '<option value="">Select Skill Area</option>';
-            
+
+            var anyOpen = false;
             skillAreas.forEach(area => {
+                var dec = feeEnrolmentDecision(area);
+                var fy = null;
+                try { fy = (feeCourseDurationInfo(area) || {}).fiscalYear || null; } catch (e) {}
+
                 const option1 = document.createElement('option');
                 option1.value = area;
-                option1.textContent = area;
+                if (dec.allowed) {
+                    anyOpen = true;
+                    option1.textContent = area + (fy ? ' — FY ' + fy : '');
+                } else {
+                    option1.textContent = area + (dec.code === 'ended' ? ' (course ended — create a new centre)' : ' (no active training centre)');
+                    option1.disabled = true;
+                }
                 skillAreaSelect.appendChild(option1);
-                
+
                 const option2 = document.createElement('option');
                 option2.value = area;
-                option2.textContent = area;
+                option2.textContent = area + (fy ? ' — FY ' + fy : '');
                 editSkillAreaSelect.appendChild(option2);
             });
+
+            if (skillAreas.length && !anyOpen) {
+                const none = document.createElement('option');
+                none.value = '';
+                none.textContent = '— No open training centre: create one in the LMS first —';
+                none.disabled = true;
+                skillAreaSelect.insertBefore(none, skillAreaSelect.children[1] || null);
+            }
         }
 
         // Delete user
@@ -4808,8 +4833,12 @@
         let _feeExternalReload = null;
         window.addEventListener('storage', function (ev) {
             if (!ev || !ev.key) return;
+            // voctrain_skillAreas carries the training centres and their
+            // durations. Without watching it this page kept enrolling into a
+            // stale roster after the LMS created a centre or ended a course.
             if (['cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDocuments',
-                 'cestiSchoolFeeDeletedLmsIds', 'voctrain_students', 'voctrain_deletedStudentIds']
+                 'cestiSchoolFeeDeletedLmsIds', 'voctrain_students', 'voctrain_deletedStudentIds',
+                 'voctrain_skillAreas']
                 .indexOf(ev.key) === -1) return;
             if (_feeExternalReload) clearTimeout(_feeExternalReload);
             _feeExternalReload = setTimeout(function () {
@@ -4822,6 +4851,10 @@
                     if (typeof renderDocumentsTable === 'function') renderDocumentsTable();
                     if (typeof populatePaymentStudentSelect === 'function') populatePaymentStudentSelect();
                     if (typeof populateDocumentStudentSelect === 'function') populateDocumentStudentSelect();
+                    // Training centres may have changed: re-evaluate which
+                    // programmes can still take a new trainee.
+                    if (typeof updateSkillAreaOptions === 'function') updateSkillAreaOptions();
+                    if (typeof populateSkillAreaCourseDropdown === 'function') populateSkillAreaCourseDropdown();
                     if (typeof updateDashboard === 'function') updateDashboard();
                 } catch (e) { console.warn('external change reload failed:', e); }
             }, 120);
@@ -4932,7 +4965,16 @@
                         phone: sf.contact || '',
                         createdAt: new Date().toISOString().split('T')[0],
                         lastModified: new Date().toISOString(),
-                        source: 'schoolfee'
+                        source: 'schoolfee',
+                        // Carry the training-centre grounding across, so the
+                        // dashboard record sits in the same course duration and
+                        // fiscal year as the fee record it mirrors.
+                        centreId: sf.centreId != null ? sf.centreId : null,
+                        centreName: sf.centreName || '',
+                        courseStart: sf.courseStart || '',
+                        courseEnd: sf.courseEnd || '',
+                        enrolmentDate: sf.enrollmentDate || '',
+                        fiscalYear: sf.fiscalYear || null
                     });
                     changed = true;
                 });
@@ -5149,14 +5191,14 @@
                 return;
             }
 
-            // Enrolment lifecycle: block new trainees once a course has ended.
-            // The admin must create a new training centre/course with a fresh
-            // duration (in the LMS) before enrolling new students.
-            var _dur = feeCourseDurationInfo(skillArea);
-            if (_dur && _dur.ended) {
-                alert('The course "' + skillArea + '" has ENDED' + (_dur.endDate ? (' on ' + _dur.endDate) : '') + ', so new trainees can no longer be enrolled into it.\n\nCreate a new training centre with a new duration (in the LMS) before adding new students to this programme.');
-                return;
-            }
+            // Enrolment lifecycle (shared rule — see feeEnrolmentDecision):
+            // no new trainee may join a centre whose course has ended, and a
+            // programme with no LMS training centre is refused outright so the
+            // admin creates the new centre first.
+            var _dec = feeEnrolmentDecision(skillArea, enrollmentDate);
+            if (!_dec.allowed) { alert(_dec.reason); return; }
+            // Ground the trainee in the centre's duration and fiscal year.
+            var _stamp = (CESTISCore.enrolment.enrolmentStamp(_dec.centre, enrollmentDate) || {});
 
             const student = {
                 id: studentId,
@@ -5178,7 +5220,13 @@
                 totalPaid: 0,
                 balance: tuitionFee,
                 status: 'Outstanding',
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                // Grounded in the training centre's duration / fiscal year
+                centreId: _stamp.centreId,
+                centreName: _stamp.centreName,
+                courseStart: _stamp.courseStart,
+                courseEnd: _stamp.courseEnd,
+                fiscalYear: _stamp.fiscalYear
             };
 
             students.push(student);
@@ -6023,20 +6071,42 @@
         // Course-duration link (read-only). Durations live on the LMS training
         // centres (persisted under 'voctrain_skillAreas'), which School Fee shares
         // via CESTISStore. Returns {ended, endDate, status} or null when unknown.
+        // The LMS training centres (with their durations), shared through
+        // voctrain_skillAreas. This is the roster the enrolment rule is applied to.
+        function feeTrainingCentres() {
+            try {
+                var raw = CESTISStore.getItem('voctrain_skillAreas');
+                var areas = raw ? JSON.parse(raw) : [];
+                return Array.isArray(areas) ? areas : [];
+            } catch (e) { return []; }
+        }
+
+        // Whether a new trainee may be enrolled into this programme. Decided by
+        // CESTISCore.enrolment — the SAME rule the LMS applies — so the two
+        // dashboards can no longer disagree. It fails closed: a programme with no
+        // matching LMS training centre is refused, telling the user to create the
+        // centre first, instead of silently letting the enrolment through (which
+        // is how trainees were still being added to centres that had ended).
+        function feeEnrolmentDecision(skillAreaName, enrolDate) {
+            if (typeof CESTISCore === 'undefined' || !CESTISCore.enrolment) {
+                return { allowed: false, code: 'no-core',
+                    reason: 'The shared training-centre rules could not be loaded, so this enrolment cannot be verified. Please reload the page.' };
+            }
+            return CESTISCore.enrolment.canEnrol(feeTrainingCentres(), skillAreaName,
+                { enrolDate: enrolDate, nowMs: Date.now() });
+        }
+
         function feeCourseDurationInfo(skillAreaName) {
             try {
                 if (typeof CESTISCore === 'undefined' || !CESTISCore.courseDuration) return null;
-                var raw = CESTISStore.getItem('voctrain_skillAreas');
-                if (!raw) return null;
-                var areas = JSON.parse(raw);
-                if (!Array.isArray(areas)) return null;
-                var cn = String(skillAreaName || '').toLowerCase().trim();
-                var sk = areas.find(function(s){ return s && s.name && s.name.toLowerCase().trim() === cn; });
+                var sk = CESTISCore.enrolment.findCentre(feeTrainingCentres(), skillAreaName);
                 if (!sk) return null;
                 return {
                     ended: !CESTISCore.courseDuration.isRegisterOpen(sk, undefined, Date.now()),
                     endDate: sk.endDate || '',
-                    status: CESTISCore.courseDuration.status(sk.startDate, sk.endDate)
+                    startDate: sk.startDate || '',
+                    status: CESTISCore.courseDuration.status(sk.startDate, sk.endDate),
+                    fiscalYear: CESTISCore.enrolment.centreFiscalYear(sk)
                 };
             } catch (e) { return null; }
         }

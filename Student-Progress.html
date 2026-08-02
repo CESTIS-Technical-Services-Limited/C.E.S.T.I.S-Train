@@ -660,14 +660,46 @@ function recordDeletedStudent(id) {
   } catch(e) {}
 }
 
+function spEscapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ============================== ENROLMENT ELIGIBILITY ==============================
+// One shared rule (CESTISCore.enrolment) decides whether a training centre can
+// take a new trainee, so this page, the LMS dashboard and the School Fee
+// dashboard always agree. Fails closed when the centre cannot be verified.
+function spEnrolmentDecision(courseName, enrolDate) {
+  if (!window.CESTISCore || !CESTISCore.enrolment) {
+    return { allowed: false, code: 'no-core', centre: null,
+      reason: 'The shared training-centre rules could not be loaded, so this enrolment cannot be verified. Please reload the page.' };
+  }
+  return CESTISCore.enrolment.canEnrol(Array.isArray(skillAreas) ? skillAreas : [], courseName,
+    { enrolDate: enrolDate, nowMs: Date.now() });
+}
+
 // ============================== COURSE DROPDOWNS ==============================
 function populateCourseDropdowns() {
   var courses = getCourseList();
+  // The ADD-student dropdown must not offer a centre that can no longer take a
+  // trainee: those stay listed but disabled, with the reason, so it is obvious a
+  // new training centre has to be created. The EDIT dropdown keeps everything,
+  // otherwise an existing trainee in a finished course could not be corrected.
   ['newStudentCourse','editStudentCourse'].forEach(function(id){
     var sel = document.getElementById(id);
     if(!sel) return;
     var prev = sel.value;
-    sel.innerHTML = courses.map(function(c){ return '<option>' + c + '</option>'; }).join('');
+    var forEnrol = (id === 'newStudentCourse');
+    sel.innerHTML = courses.map(function(c){
+      if (!forEnrol) return '<option>' + spEscapeHtml(c) + '</option>';
+      var d = spEnrolmentDecision(c);
+      if (d.allowed) {
+        return '<option value="' + spEscapeHtml(c) + '">' + spEscapeHtml(c + (d.fy ? ' — FY ' + d.fy : '')) + '</option>';
+      }
+      var why = (d.code === 'ended') ? ' (course ended — create a new centre)' : ' (no active training centre)';
+      return '<option value="' + spEscapeHtml(c) + '" disabled>' + spEscapeHtml(c + why) + '</option>';
+    }).join('');
     if(prev && sel.querySelector('option[value="'+prev+'"]')) sel.value = prev;
   });
   // Refresh filterCourse dropdown
@@ -901,20 +933,16 @@ async function addStudent() {
   var email = (document.getElementById('newStudentEmail').value || '').trim();
   var selectedCourse = document.getElementById('newStudentCourse').value;
   // Enrolment lifecycle: once a course has ENDED, no new trainee may be enrolled
-  // into it. The admin must create a new Training Centre / course with a fresh
-  // duration first. (Durations live on skillAreas, shared via voctrain_skillAreas.)
-  if (window.CESTISCore && CESTISCore.courseDuration && selectedCourse) {
-    var _cn = selectedCourse.toLowerCase().trim();
-    var _sk = (Array.isArray(skillAreas) ? skillAreas : []).find(function(s){
-      if (!s || !s.name) return false;
-      if (s.name.toLowerCase().trim() === _cn) return true;
-      return (typeof instructorCourseMatch === 'function') && instructorCourseMatch(s.name, selectedCourse);
-    });
-    if (_sk && CESTISCore.courseDuration.status(_sk.startDate, _sk.endDate) === 'ended') {
-      alert('The course "' + selectedCourse + '" has ENDED, so new trainees can no longer be enrolled into it.\n\nCreate a new Training Centre / course with a new duration before adding new trainees.');
-      return;
-    }
-  }
+  // into it — the admin must create a new Training Centre with a fresh duration
+  // first. Decided by CESTISCore.enrolment, the same rule the LMS dashboard and
+  // the School Fee dashboard use, so the three can no longer disagree. It fails
+  // CLOSED: a course with no matching training centre is refused rather than
+  // waved through (which is how trainees kept landing in ended centres).
+  var _dec = spEnrolmentDecision(selectedCourse);
+  if (!_dec.allowed) { alert(_dec.reason); return; }
+  // Ground the trainee in the centre's course duration and fiscal year.
+  var _stamp = (window.CESTISCore && CESTISCore.enrolment)
+    ? (CESTISCore.enrolment.enrolmentStamp(_dec.centre, new Date().toISOString().split('T')[0]) || {}) : {};
   var assignedInstructor = (instructorData.find(function(ins){
     if(!ins.course) return false;
     if(ins.course.toLowerCase().trim() === selectedCourse.toLowerCase().trim()) return true;
@@ -933,7 +961,11 @@ async function addStudent() {
     attendance:0, assignments:0, assignmentsTotal:8,
     gpa:'0.0', instructor:assignedInstructor, gender:gender,
     createdAt:new Date().toISOString().split('T')[0],
-    lastModified:new Date().toISOString()
+    lastModified:new Date().toISOString(),
+    // Grounded in the training centre's duration and fiscal year
+    centreId:_stamp.centreId, centreName:_stamp.centreName,
+    courseStart:_stamp.courseStart, courseEnd:_stamp.courseEnd,
+    enrolmentDate:_stamp.enrolmentDate, fiscalYear:_stamp.fiscalYear
   });
   // Auto-create attendance record
   var existingAtt = attendanceRecords.find(function(r){ return r.studentId === studentId; });

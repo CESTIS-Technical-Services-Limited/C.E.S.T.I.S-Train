@@ -6638,6 +6638,11 @@ function loadState() {
     var ctcm = safeJsonParse(CESTISStore.getItem('voctrain_certTemplateCourseMap'), null);
     if(ctcm && typeof ctcm === 'object') certTemplateCourseMap = ctcm;
   } catch(e) { console.warn('[loadState] Error loading data:', e.message); }
+  // Ground existing trainees in their training centre's duration / fiscal year.
+  // Records created before enrolments were stamped carry no fiscal year, which
+  // would leave them out of every FY-scoped report; derive it once from the
+  // centre they are enrolled in (falling back to their own enrolment date).
+  try { backfillStudentFiscalYears(); } catch(e) { console.warn('[loadState] FY backfill:', e); }
   // Migrate any cert template images from localStorage to IndexedDB, then load from IndexedDB
   var needsMigration = false;
   Object.keys(certTemplates).forEach(function(course) {
@@ -9117,6 +9122,17 @@ function createStudentDataForAccount(userAccount) {
     createdAt: localDateStr(),
     instructor: assignedInstructor
   };
+  // Ground the trainee in their training centre's duration and fiscal year, so
+  // reporting can group students by the intake they actually belong to.
+  try {
+    var _cs = CESTISCore.enrolment.enrolmentStamp(
+      CESTISCore.enrolment.findCentre(skillAreas, prog), localDateStr());
+    if (_cs) {
+      newStudent.centreId = _cs.centreId; newStudent.centreName = _cs.centreName;
+      newStudent.courseStart = _cs.courseStart; newStudent.courseEnd = _cs.courseEnd;
+      newStudent.enrolmentDate = _cs.enrolmentDate; newStudent.fiscalYear = _cs.fiscalYear;
+    }
+  } catch(e) {}
   if (window.CESTISCore) { var _sid = CESTISCore.stableStudentId(newStudent); if (_sid) newStudent.id = _sid; }
   students.push(newStudent);
   // Auto-create attendance record so the student appears in attendance pages
@@ -17771,8 +17787,10 @@ async function addStudent() {
   if(!name){alert('Please enter a name');return;}
   var email = (document.getElementById('newStudentEmail').value || '').trim();
   var selectedCourse = document.getElementById('newStudentCourse').value;
-  var _enrolBlock = courseEnrolmentBlockReason(selectedCourse);
-  if(_enrolBlock) { alert(_enrolBlock); return; }
+  var _enrolDecision = courseEnrolmentDecision(selectedCourse);
+  if(!_enrolDecision.allowed) { alert(_enrolDecision.reason); return; }
+  // Ground the trainee in the centre's course duration and fiscal year.
+  var _stamp = CESTISCore.enrolment.enrolmentStamp(_enrolDecision.centre, localDateStr()) || {};
   var assignedInstructor = (instructorData.find(function(ins){
     if (!ins.course) return false;
     if (ins.course.toLowerCase().trim() === selectedCourse.toLowerCase().trim()) return true;
@@ -17783,7 +17801,8 @@ async function addStudent() {
   var gender = document.getElementById('newStudentGender').value || '';
   var studentId = generateStudentId();
   if (window.CESTISCore) { var _sid = CESTISCore.stableStudentId({name:name, course:selectedCourse}); if (_sid) studentId = _sid; }
-  students.unshift({id:studentId,name,stage:document.getElementById('newStudentStage').value,course:selectedCourse,score:'',progress:10,certNo:null,certDate:null,certCollected:false,attendance:0,assignments:0,assignmentsTotal:8,gpa:'0.0',instructor:assignedInstructor,gender:gender,createdAt:localDateStr(),lastModified:new Date().toISOString()});
+  students.unshift({id:studentId,name,stage:document.getElementById('newStudentStage').value,course:selectedCourse,score:'',progress:10,certNo:null,certDate:null,certCollected:false,attendance:0,assignments:0,assignmentsTotal:8,gpa:'0.0',instructor:assignedInstructor,gender:gender,createdAt:localDateStr(),lastModified:new Date().toISOString(),
+    centreId:_stamp.centreId,centreName:_stamp.centreName,courseStart:_stamp.courseStart,courseEnd:_stamp.courseEnd,enrolmentDate:_stamp.enrolmentDate,fiscalYear:_stamp.fiscalYear});
   // Auto-create attendance record so the student appears in attendance pages
   var existingAtt = attendanceRecords.find(function(r){ return r.studentId === studentId; });
   if(!existingAtt) {
@@ -17977,18 +17996,38 @@ function populateCourseDropdowns() {
   var plainIds = ['newStudentCourse','editStudentCourse','examCourse','csCourse','importExamCourse','assignCourse'];
   // IDs that need a "— Select Programme —" placeholder first
   var placeholderIds = ['newUserProgramme','editUserProgramme'];
+  // Dropdowns that START a new enrolment: an ended training centre must not be
+  // offered as a destination, so it is shown disabled with the reason. (Exam /
+  // class-session dropdowns keep every course — they legitimately refer back to
+  // finished intakes.)
+  var enrolIds = {newStudentCourse:1, newUserProgramme:1, editUserProgramme:1};
+  function courseOptionHtml(c, forEnrolment) {
+    var label = c, disabled = '';
+    if(forEnrolment) {
+      var d = courseEnrolmentDecision(c);
+      if(!d.allowed) {
+        disabled = ' disabled';
+        label = c + (d.code === 'ended' ? ' (course ended — create a new centre)' : ' (no active training centre)');
+      } else if(d.fy) {
+        label = c + ' — FY ' + d.fy;
+      }
+    }
+    return '<option value="' + escapeAttr(c) + '"' + disabled + '>' + escapeHtml(label) + '</option>';
+  }
   plainIds.forEach(function(id) {
     var sel = document.getElementById(id);
     if(!sel) return;
     var prev = sel.value;
-    sel.innerHTML = courses.map(function(c) { return '<option>' + c + '</option>'; }).join('');
+    var forEnrol = !!enrolIds[id];
+    sel.innerHTML = courses.map(function(c) { return courseOptionHtml(c, forEnrol); }).join('');
     if(prev && sel.querySelector('option[value="'+prev+'"]')) sel.value = prev;
   });
   placeholderIds.forEach(function(id) {
     var sel = document.getElementById(id);
     if(!sel) return;
     var prev = sel.value;
-    sel.innerHTML = '<option value="">— Select Programme —</option>' + courses.map(function(c) { return '<option>' + c + '</option>'; }).join('');
+    var forEnrol = !!enrolIds[id];
+    sel.innerHTML = '<option value="">— Select Programme —</option>' + courses.map(function(c) { return courseOptionHtml(c, forEnrol); }).join('');
     if(prev) sel.value = prev;
   });
   // Also refresh the filter dropdowns if they exist
@@ -18068,15 +18107,54 @@ function isRegisterOpenForCourse(courseName) {
 // into it from anywhere (LMS add-student, account creation, self-registration,
 // or School Fee). The admin must create a new training centre/course with a
 // fresh duration first. Returns a message when blocked, or '' when allowed.
-// (Courses with no matching centre, or no dates / not-yet-started / active
-// durations, are all allowed — only a finished course blocks new intake.)
-function courseEnrolmentBlockReason(courseName) {
+//
+// The decision itself lives in CESTISCore.enrolment so the LMS and the School
+// Fee dashboard apply exactly ONE rule (they used to have separate copies that
+// disagreed). It fails CLOSED: a course that cannot be resolved to a training
+// centre is refused with "create the centre first", instead of being waved
+// through as it was before.
+// One-off grounding of legacy student records: give every trainee the course
+// duration and fiscal year of the training centre they are enrolled in. Only
+// fills blanks — an existing stamp is never overwritten. Returns how many
+// records were grounded.
+function backfillStudentFiscalYears() {
+  if (typeof students === 'undefined' || !Array.isArray(students)) return 0;
+  if (typeof skillAreas === 'undefined' || !Array.isArray(skillAreas) || !skillAreas.length) return 0;
+  var n = 0;
+  students.forEach(function(s) {
+    if (!s || s.fiscalYear) return;
+    var centre = CESTISCore.enrolment.findCentre(skillAreas, s.course);
+    var when = s.enrolmentDate || s.enrollmentDate || s.createdAt || '';
+    var stamp = centre ? CESTISCore.enrolment.enrolmentStamp(centre, when) : null;
+    if (stamp) {
+      if (s.centreId == null) s.centreId = stamp.centreId;
+      if (!s.centreName) s.centreName = stamp.centreName;
+      if (!s.courseStart) s.courseStart = stamp.courseStart;
+      if (!s.courseEnd) s.courseEnd = stamp.courseEnd;
+      if (!s.enrolmentDate) s.enrolmentDate = stamp.enrolmentDate;
+      s.fiscalYear = stamp.fiscalYear;
+      n++;
+    } else {
+      // No centre to inherit from — fall back to the trainee's own dates so the
+      // record still lands in a fiscal year rather than none at all.
+      var fy = CESTISCore.enrolment.fiscalYearOf(when);
+      if (fy) { s.fiscalYear = fy; n++; }
+    }
+  });
+  return n;
+}
+
+function courseEnrolmentDecision(courseName, enrolDate) {
+  return CESTISCore.enrolment.canEnrol(
+    (typeof skillAreas !== 'undefined' && Array.isArray(skillAreas)) ? skillAreas : [],
+    courseName,
+    { enrolDate: enrolDate, nowMs: Date.now() }
+  );
+}
+function courseEnrolmentBlockReason(courseName, enrolDate) {
   if (!courseName) return '';
-  if (courseStatus(courseName) === 'ended') {
-    return 'The course "' + courseName + '" has ENDED, so new trainees can no longer be enrolled into it.\n\n' +
-      'To take on new trainees, create a new Training Centre (or set a new duration for this course on the Course Duration page), then enrol them into the new/active course.';
-  }
-  return '';
+  var d = courseEnrolmentDecision(courseName, enrolDate);
+  return d.allowed ? '' : d.reason;
 }
 
 // Student-facing notice (NOT a hard block): when a student's course has ended,
