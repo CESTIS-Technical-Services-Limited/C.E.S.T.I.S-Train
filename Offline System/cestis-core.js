@@ -1788,23 +1788,154 @@
   Core.enrolment = (function () {
     function norm(s) { return String(s == null ? '' : s).toLowerCase().trim().replace(/\s+/g, ' '); }
 
+    // Joining words that carry no meaning when two course names are compared.
+    var STOP_WORDS = { and: 1, the: 1, of: 1, for: 1, with: 1, amp: 1 };
+
+    /* Split a course name into the words worth comparing. The Centre writes the
+       same programme two ways — "WELDING L2" on the fee side, "Welding and
+       Fabrication Level 2" on the LMS side — so the level shorthand (L2 / Lvl 2)
+       is expanded to "level 2" before anything is compared. */
+    function tokenise(name) {
+      return norm(name)
+        .replace(/[&/,+.\-–—()'"]+/g, ' ')
+        .replace(/\b(?:l|lvl|lev)\s*([1-9])\b/g, 'level $1')
+        .replace(/\s+/g, ' ').trim()
+        .split(' ').filter(Boolean);
+    }
+
+    /* The NVQ level a name states, or null when it states none. Two programmes
+       at different levels are never the same centre, however alike they read. */
+    function levelOfTokens(toks) {
+      for (var i = 0; i < toks.length - 1; i++) {
+        if (toks[i] === 'level' && /^[1-9]$/.test(toks[i + 1])) return toks[i + 1];
+      }
+      return null;
+    }
+
+    /* The distinguishing words of a name: no level marker, no bare numbers, no
+       joining words, nothing shorter than three letters. */
+    function keyWords(toks) {
+      var out = [], seen = {};
+      for (var i = 0; i < toks.length; i++) {
+        var t = toks[i];
+        if (t === 'level' || STOP_WORDS[t] || t.length < 3 || /^[0-9]+$/.test(t)) continue;
+        if (!seen[t]) { seen[t] = 1; out.push(t); }
+      }
+      return out;
+    }
+
+    /* Two words naming the same thing: identical, or one the shortened form of
+       the other ("admin" / "administration", "commi" / "commis"). The shortened
+       form must be at least four letters, so a chance three-letter opening does
+       not join two unrelated programmes. */
+    function sameWord(a, b) {
+      if (a === b) return true;
+      var short = a.length < b.length ? a : b, long = a.length < b.length ? b : a;
+      return short.length >= 4 && long.indexOf(short) === 0;
+    }
+
+    function registerOpen(centre, today, nowMs) {
+      if (!centre) return false;
+      return Core.courseDuration.isRegisterOpen(centre, today, nowMs);
+    }
+
+    function coversDate(centre, on) {
+      var s = Core.courseDuration.normDate(centre.startDate);
+      var e = Core.courseDuration.normDate(centre.endDate);
+      return (!s || on >= s) && (!e || on <= e);
+    }
+
+    /* A programme that has been run more than once has several centres with the
+       same (or an equivalent) name — last year's finished intake and this year's
+       new one. Which of them is meant depends on what is being asked:
+
+         • Enrolling somebody now (the default): the centre that can still take
+           trainees and, among those, the most recent. Without this the
+           dashboards resolved a repeat programme to the finished centre and
+           reported "course ended" even though a new centre had been created.
+
+         • Grounding a record in time (opts.on = the date it belongs to): the
+           intake that was actually running on that date, falling back to the
+           most recent one that had already begun. A trainee who enrolled in
+           2024 belongs to the 2024 intake, not to whatever opened since. */
+    function preferCentre(a, b, opts) {
+      if (!a) return b || null;
+      if (!b) return a;
+      opts = opts || {};
+      var as = Core.courseDuration.normDate(a.startDate) || '';
+      var bs = Core.courseDuration.normDate(b.startDate) || '';
+      var on = opts.on ? Core.courseDuration.normDate(opts.on) : '';
+
+      if (on) {
+        var ac = coversDate(a, on), bc = coversDate(b, on);
+        if (ac !== bc) return ac ? a : b;
+        var ab = !!as && as <= on, bb = !!bs && bs <= on;   // had already begun
+        if (ab !== bb) return ab ? a : b;
+        if (ab && bb) return as > bs ? a : b;               // the most recent one that had
+        if (as !== bs) return as < bs ? a : b;              // both still ahead: the soonest
+        return a;
+      }
+
+      var ao = registerOpen(a, opts.today, opts.nowMs), bo = registerOpen(b, opts.today, opts.nowMs);
+      if (ao !== bo) return ao ? a : b;
+      if (as !== bs) return as > bs ? a : b;
+      return a;
+    }
+
     /* Resolve a centre by name against a roster of skill areas / training
-       centres. Exact (case/space-insensitive) match first, then a loose match
-       so "Welding" finds "Welding & Fabrication". */
-    function findCentre(areas, courseName) {
+       centres, in three widening passes:
+         1. the exact name (case/space-insensitive);
+         2. one name starting the other, so "Welding" finds "Welding & Fabrication";
+         3. the same programme written two ways — every distinguishing word of
+            the shorter name appearing in the longer one at the same NVQ level,
+            so "WELDING L2" finds "Welding and Fabrication Level 2" but never
+            "… Level 3".
+       Between equally good matches the choice is made by preferCentre, and a
+       later pass only runs when the earlier ones found nothing.
+       opts: { today, nowMs, on } — all optional. 'on' is a date the answer
+       should belong to; without it the answer is about now. */
+    function findCentre(areas, courseName, opts) {
       if (!Array.isArray(areas) || !courseName) return null;
+      opts = opts || {};
       var cn = norm(courseName);
       if (!cn) return null;
-      var hit = null;
-      for (var i = 0; i < areas.length; i++) {
-        if (areas[i] && norm(areas[i].name) === cn) return areas[i];
+      var hit = null, i, n;
+
+      for (i = 0; i < areas.length; i++) {
+        if (areas[i] && norm(areas[i].name) === cn) hit = preferCentre(hit, areas[i], opts);
       }
-      for (var j = 0; j < areas.length; j++) {
-        var n = norm(areas[j] && areas[j].name);
+      if (hit) return hit;
+
+      for (i = 0; i < areas.length; i++) {
+        n = norm(areas[i] && areas[i].name);
         if (!n) continue;
-        if (n.indexOf(cn) === 0 || cn.indexOf(n) === 0) { hit = hit || areas[j]; }
+        if (n.indexOf(cn) === 0 || cn.indexOf(n) === 0) hit = preferCentre(hit, areas[i], opts);
       }
-      return hit;
+      if (hit) return hit;
+
+      var qT = tokenise(courseName), qL = levelOfTokens(qT), qW = keyWords(qT);
+      if (!qW.length) return null;
+      var best = null, bestScore = 0;
+      for (i = 0; i < areas.length; i++) {
+        var area = areas[i];
+        if (!area || !area.name) continue;
+        var aT = tokenise(area.name), aL = levelOfTokens(aT), aW = keyWords(aT);
+        if (!aW.length) continue;
+        if (qL && aL && qL !== aL) continue;      // Level 2 is not Level 3
+        var shared = 0;
+        for (var k = 0; k < qW.length; k++) {
+          for (var m = 0; m < aW.length; m++) {
+            if (sameWord(qW[k], aW[m])) { shared++; break; }
+          }
+        }
+        // Every distinguishing word of the shorter name must appear in the
+        // longer one — an overlap of merely one word out of several is a
+        // different programme, not an abbreviation of this one.
+        if (!shared || shared < Math.min(qW.length, aW.length)) continue;
+        if (shared > bestScore) { bestScore = shared; best = area; }
+        else if (shared === bestScore) { best = preferCentre(best, area, opts); }
+      }
+      return best;
     }
 
     /* Fiscal year (Apr–Mar) that a date belongs to, e.g. '2025/2026'. */
@@ -1840,7 +1971,7 @@
           reason: 'The list of training centres could not be read, so this enrolment cannot be verified.\n\n' +
                   'Open the LMS (or sync it) so the training centres and their durations are available, then try again.' };
       }
-      var centre = findCentre(areas, courseName);
+      var centre = findCentre(areas, courseName, { today: today, nowMs: opts.nowMs });
       if (!centre) {
         return { allowed: false, code: 'no-centre', centre: null, status: null, fy: null,
           reason: 'There is no training centre named "' + courseName + '".\n\n' +
