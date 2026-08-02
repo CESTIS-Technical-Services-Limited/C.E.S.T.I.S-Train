@@ -8990,5 +8990,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
+
+<!-- Per-page Google Drive save path (own file in the shared backup folder) -->
+<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script>
+CESTISPageCloud.init({
+  page: 'Cashbook',
+  file: 'CESTIS_Cashbook.json',
+  keys: ['cesti_cashbook_data', 'cestis_active_quarter', 'cestis_budget_overrides', 'cestis_budget_deleted'],
+  prefixes: ['cestis_quarter_', 'cestis_budget_']
+});
+</script>
 </body>
 </html>
