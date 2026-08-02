@@ -9,7 +9,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="h1kcrSWbOfqMdqcEuN9crbU73K84WTBd7Qy1lcbcFC4" />
 <title>VocTrain LMS — Vocational Training Management System</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap"></noscript></noscript>
 <script>
 /* ============================================================================
    CESTISStore — localStorage-compatible API backed by IndexedDB.
@@ -18233,6 +18233,37 @@ function cestisIsStudentTombstoned(stu) {
   if (window.CESTISCore) { var sid = CESTISCore.stableStudentId(stu); if (sid && isStudentDeleted(sid)) return true; }
   return false;
 }
+// ---- Training centre tombstones -------------------------------------------
+// Deleting a training centre was a plain filter with nothing written down, so
+// every merge that saw the centre in a cloud copy added it straight back —
+// together with its chat room and its place in the course lists. Students have
+// had tombstones for exactly this reason; centres now do too.
+function _getDeletedCentreIds() {
+  try { return JSON.parse(CESTISStore.getItem('voctrain_deletedCentreIds') || '[]'); }
+  catch(e) { return []; }
+}
+function isCentreDeleted(id) {
+  if (id == null) return false;
+  return _getDeletedCentreIds().indexOf(String(id)) !== -1;
+}
+function recordDeletedCentre(id) {
+  if (id == null) return;
+  try {
+    var ids = _getDeletedCentreIds();
+    if (ids.indexOf(String(id)) === -1) ids.push(String(id));
+    CESTISStore.setItem('voctrain_deletedCentreIds', JSON.stringify(ids));
+  } catch(e) { /* ignore */ }
+}
+// Re-creating a centre with the same id clears its tombstone, so a deliberate
+// re-add is never suppressed by an old deletion.
+function clearDeletedCentre(id) {
+  if (id == null) return;
+  try {
+    var ids = _getDeletedCentreIds().filter(function(x) { return x !== String(id); });
+    CESTISStore.setItem('voctrain_deletedCentreIds', JSON.stringify(ids));
+  } catch(e) { /* ignore */ }
+}
+
 function recordDeletedStudent(id) {
   if(!id) return;
   try {
@@ -19556,8 +19587,10 @@ function addTrainingCentre() {
   var desc = document.getElementById('newCentreDesc').value.trim();
   if(!name) { alert('Please enter a centre name.'); return; }
   if(!desc) { alert('Please enter a description.'); return; }
+  var _newCentreId = getNextCentreId();
+  clearDeletedCentre(_newCentreId);   // a deliberate re-add is never suppressed
   skillAreas.push({
-    id: getNextCentreId(),
+    id: _newCentreId,
     name: name,
     icon: icon,
     color: color,
@@ -19772,6 +19805,8 @@ function confirmDeleteCentre() {
   var centre = skillAreas.find(function(c) { return c.id === id; });
   var name = centre ? centre.name : 'Centre';
   skillAreas = skillAreas.filter(function(c) { return c.id !== id; });
+  // Write the deletion down, or the next sync brings the centre back.
+  recordDeletedCentre(id);
   // Remove the matching class chat room so a deleted Training Centre does not
   // leave an orphaned room lingering in everyone's LMS Chat list.
   if(typeof lmsChatRooms !== 'undefined' && Array.isArray(lmsChatRooms)) {
@@ -25614,10 +25649,12 @@ async function silentMergeFromBackup(fileId) {
       } catch(e) { console.warn('[Merge] certTemplateCourseMap error:', e); }
     }
 
-    // Merge skillAreas (training centres)
+    // Merge skillAreas (training centres). A centre the Centre has deleted must
+    // stay deleted — an add-only merge brought it back on the next sync.
     if (Array.isArray(backupData.data.skillAreas)) {
       try {
         backupData.data.skillAreas.forEach(function(sa) {
+          if (sa && sa.id && isCentreDeleted(sa.id)) return;
           if (sa && sa.id && !skillAreas.some(function(l) { return l.id === sa.id; })) {
             skillAreas.push(sa);
             changed = true;
@@ -26697,26 +26734,20 @@ function cloudFetchAccountData(interactive) {
       }
     });
 
-    // Merge student records
+    // Merge student records. This used to replace the local record outright
+    // ("cloud is authoritative"), which discarded edits made on this device that
+    // had not been uploaded yet — grades entered, attendance marked, a stage
+    // moved on. The shared rule keeps the newer lastModified and fills blanks
+    // from the other copy, exactly as the main autosave merge does.
     cloudStudents.forEach(function(cs) {
-      if (cestisIsStudentTombstoned(cs)) return;
-      if (!students.find(function(ls) { return ls.id === cs.id; })) {
-        students.push(cs);
-      } else {
-        // Update existing student with cloud data (cloud is authoritative)
-        var idx = students.findIndex(function(ls) { return ls.id === cs.id; });
-        if (idx !== -1) students[idx] = cs;
-      }
+      CESTISCore.cloudMerge.applyStudent(students, cs, cestisIsStudentTombstoned);
     });
 
-    // Merge cert download approvals
+    // Merge certificate-download approvals. Replacing outright let a stale
+    // "not approved yet" row switch a granted approval back off, darkening the
+    // trainee's Download button after a sync. Approved wins, then most recent.
     cloudCertApprovals.forEach(function(ca) {
-      if (!certDownloadApprovals.find(function(la) { return la.studentId === ca.studentId; })) {
-        certDownloadApprovals.push(ca);
-      } else {
-        var idx = certDownloadApprovals.findIndex(function(la) { return la.studentId === ca.studentId; });
-        if (idx !== -1) certDownloadApprovals[idx] = ca;
-      }
+      CESTISCore.cloudMerge.applyApproval(certDownloadApprovals, ca);
     });
 
     // Merge cert templates (without large background images — those are fetched on-demand)
@@ -26733,13 +26764,10 @@ function cloudFetchAccountData(interactive) {
       }
     });
 
-    // Merge skill areas (training centres)
-    var cloudSkillAreas = _bd.skillAreas || [];
-    cloudSkillAreas.forEach(function(sa) {
-      if (sa && sa.id && !skillAreas.some(function(l) { return l.id === sa.id; })) {
-        skillAreas.push(sa);
-      }
-    });
+    // Merge skill areas (training centres). Add-only meant an edited centre —
+    // renamed, or given its intake dates — never reached this path, and a
+    // deleted one came back on the next sync.
+    CESTISCore.cloudMerge.applySkillAreas(skillAreas, _bd.skillAreas || [], isCentreDeleted);
 
     saveState();
     updateLoginSyncStatus('Account data synced from cloud.', 'success');
@@ -27012,28 +27040,25 @@ async function studentRefreshCertData() {
     });
 
     if (cloudStudent) {
-      // Update the student record with cloud data
+      // Merge, don't replace: "Refresh from Cloud" used to overwrite the
+      // trainee's record with the cloud copy, so pressing it could roll back
+      // progress this device had recorded but not yet uploaded.
       var localIdx = students.findIndex(function(s) { return s.id === currentStudent.id; });
       if (localIdx !== -1) {
-        students[localIdx] = cloudStudent;
-        currentStudent = cloudStudent;
+        students[localIdx] = CESTISCore.mergeStudentRecords(students[localIdx], cloudStudent);
+        currentStudent = students[localIdx];
         // Resolve instructor name if missing from cloud data
-        if (!cloudStudent.instructor && cloudStudent.course) {
-          var matchedIns = instructorData.find(function(ins) { return ins.course && instructorCourseMatch(cloudStudent.course, ins.course); });
-          if (matchedIns) cloudStudent.instructor = matchedIns.name;
+        if (!currentStudent.instructor && currentStudent.course) {
+          var matchedIns = instructorData.find(function(ins) { return ins.course && instructorCourseMatch(currentStudent.course, ins.course); });
+          if (matchedIns) currentStudent.instructor = matchedIns.name;
         }
         updated = true;
       }
     }
 
-    // Update cert approvals
+    // Update cert approvals — approved wins over a stale "not approved" row.
     cloudCertApprovals.forEach(function(ca) {
-      var existIdx = certDownloadApprovals.findIndex(function(la) { return la.studentId === ca.studentId; });
-      if (existIdx === -1) {
-        certDownloadApprovals.push(ca);
-      } else {
-        certDownloadApprovals[existIdx] = ca;
-      }
+      CESTISCore.cloudMerge.applyApproval(certDownloadApprovals, ca);
     });
 
     // Merge cert templates (metadata only, images fetched on-demand)
@@ -27049,13 +27074,8 @@ async function studentRefreshCertData() {
       }
     });
 
-    // Merge skill areas (training centres)
-    var cloudSkillAreas = backupData.skillAreas || [];
-    cloudSkillAreas.forEach(function(sa) {
-      if (sa && sa.id && !skillAreas.some(function(l) { return l.id === sa.id; })) {
-        skillAreas.push(sa);
-      }
-    });
+    // Merge skill areas (training centres) — honouring deletions.
+    CESTISCore.cloudMerge.applySkillAreas(skillAreas, backupData.skillAreas || [], isCentreDeleted);
 
     saveState();
 

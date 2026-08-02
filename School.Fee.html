@@ -108,9 +108,20 @@
 <script>(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API&&window.jspdf.jsPDF.API.autoTable)||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js">\x3C/script>'))</script>
 <script>(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API&&window.jspdf.jsPDF.API.autoTable)||(document.write('<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js">\x3C/script>'))</script>
 
-    <!-- Google API for Drive Integration -->
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script src="https://accounts.google.com/gsi/client"></script>
+    <!-- Google Identity Services for Drive Integration.
+         MUST stay async. These two were the only synchronous third-party scripts
+         left in this page's <head> — every other library here loads from vendor/
+         with a CDN fallback. A synchronous script halts HTML parsing until it
+         arrives, so whenever Google could not be reached (a filtered or captive
+         network, or simply offline) the parser never got as far as <body>: the
+         page produced a title and nothing else, and the dashboard showed an
+         empty grey panel where the fee system should be.
+         apis.google.com/js/api.js was removed outright — `gapi` is not used
+         anywhere in this file. The Identity script keeps its one call site,
+         which already guards on `typeof google`, and is re-run on load in case
+         it arrives after the page has finished setting itself up. -->
+    <script async src="https://accounts.google.com/gsi/client"
+            onload="try{ if(typeof initGoogleAuth==='function') initGoogleAuth(); }catch(e){}"></script>
 
     <!-- TOTP/2FA Libraries for Google Authenticator -->
     <script src="vendor/otpauth-9.2.2.umd.min.js"></script>

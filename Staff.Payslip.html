@@ -5,7 +5,7 @@
 <script src="cestis-core.js?v=20260802a"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C.E.S.T.I.S - Payroll Management System</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"></noscript></noscript>
 <!-- OTPAuth library for TOTP (2FA) -->
 <script>
 /* ============================================================================
@@ -108,8 +108,12 @@
 <script src="vendor/emailjs-4.min.js"></script>
 <script>window.emailjs||(document.write('<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js">\x3C/script>'))</script>
 <script>window.emailjs||(document.write('<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js">\x3C/script>'))</script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-<script>window.XLSX||(document.write('<script src="vendor/xlsx-0.18.5.full.min.js">\x3C/script>'))</script>
+<!-- Local copy first, CDNs only as fallback — the order every other page uses.
+     This one had it the other way round, so it stopped to fetch a spreadsheet
+     library from the network that it already ships, and the page would not
+     render at all while that request hung. -->
+<script src="vendor/xlsx-0.18.5.full.min.js"></script>
+<script>window.XLSX||(document.write('<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js">\x3C/script>'))</script>
 <script>window.XLSX||(document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">\x3C/script>'))</script>
 <script>
     // Initialize EmailJS with public key

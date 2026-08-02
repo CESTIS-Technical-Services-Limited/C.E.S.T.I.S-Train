@@ -3019,6 +3019,94 @@
     };
   })();
 
+  /* ==========================================================================
+     CLOUD MERGE RULES
+
+     The main autosave/merge pair converges properly: it merges student records
+     on lastModified, keeps the newest account edit, and covers every dataset the
+     save writes. Three narrower sync paths did not follow those rules, and each
+     one could undo work that had already been done:
+
+       - the pre-login account fetch REPLACED each student record with the cloud
+         copy outright ("cloud is authoritative"), discarding local edits that
+         had not been uploaded yet;
+       - both that path and the trainee's own "Refresh from Cloud" REPLACED the
+         certificate-download approval with whatever the cloud held, so a stale
+         "not approved yet" row switched a granted approval back off and the
+         trainee's Download button went dark again;
+       - every merge re-added training centres that had been deleted, because
+         deletion left no record for the merges to honour.
+
+     These are the shared rules, kept pure so they can be tested.
+     ========================================================================== */
+  Core.cloudMerge = (function () {
+
+    /* Which of two copies of one certificate-download approval to keep.
+       Approved always beats not-approved (an approval is a decision somebody
+       made; its absence is just the default), then the most recent wins. */
+    function bestApproval(a, b) {
+      if (!a) return b || null;
+      if (!b) return a;
+      return Core.approvalScore(b) > Core.approvalScore(a) ? b : a;
+    }
+
+    /* Merge one cloud student record into the local list, in place.
+       Returns 'added' | 'merged' | 'skipped' so callers can report what moved. */
+    function applyStudent(localList, cloudStudent, isDeleted) {
+      if (!Array.isArray(localList) || !cloudStudent) return 'skipped';
+      if (typeof isDeleted === 'function' && isDeleted(cloudStudent)) return 'skipped';
+      var idx = -1;
+      for (var i = 0; i < localList.length; i++) {
+        if (localList[i] && localList[i].id === cloudStudent.id) { idx = i; break; }
+      }
+      if (idx === -1) { localList.push(cloudStudent); return 'added'; }
+      // mergeStudentRecords keeps the newer lastModified and fills blanks from
+      // the other copy, so neither side loses a field the other one has.
+      localList[idx] = Core.mergeStudentRecords(localList[idx], cloudStudent);
+      return 'merged';
+    }
+
+    /* Merge one cloud approval into the local list, in place. */
+    function applyApproval(localList, cloudApproval) {
+      if (!Array.isArray(localList) || !cloudApproval || !cloudApproval.studentId) return 'skipped';
+      for (var i = 0; i < localList.length; i++) {
+        if (localList[i] && localList[i].studentId === cloudApproval.studentId) {
+          localList[i] = bestApproval(localList[i], cloudApproval);
+          return 'merged';
+        }
+      }
+      localList.push(cloudApproval);
+      return 'added';
+    }
+
+    /* Merge cloud training centres into the local list, in place. A centre the
+       Centre has deleted stays deleted — without this every sync brought it
+       back, along with its chat room and its place in the course lists. */
+    function applySkillAreas(localList, cloudList, isDeleted) {
+      var out = { added: 0, updated: 0, skipped: 0 };
+      if (!Array.isArray(localList) || !Array.isArray(cloudList)) return out;
+      cloudList.forEach(function (sa) {
+        if (!sa || sa.id == null) return;
+        if (typeof isDeleted === 'function' && isDeleted(sa.id)) { out.skipped++; return; }
+        var local = null;
+        for (var i = 0; i < localList.length; i++) {
+          if (localList[i] && localList[i].id === sa.id) { local = localList[i]; break; }
+        }
+        if (!local) { localList.push(sa); out.added++; return; }
+        ['name', 'desc', 'icon', 'color', 'startDate', 'endDate'].forEach(function (f) {
+          if (sa[f] !== undefined && sa[f] !== null && sa[f] !== '' && sa[f] !== local[f]) {
+            local[f] = sa[f];
+            out.updated++;
+          }
+        });
+      });
+      return out;
+    }
+
+    return { bestApproval: bestApproval, applyStudent: applyStudent,
+      applyApproval: applyApproval, applySkillAreas: applySkillAreas };
+  })();
+
   root.CESTISCore = Core;
 
   if (typeof module !== 'undefined' && module.exports) {
