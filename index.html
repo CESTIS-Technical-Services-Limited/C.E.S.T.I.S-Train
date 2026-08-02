@@ -5182,6 +5182,11 @@ var calendarEvents = [];
 
 var attendanceRecords = [];
 
+// Large Class attendance: one record per hosted-conference session, holding who
+// joined, when they left and how long they were in the room. Filled from the
+// conference server's own events (see vcShowLargeRoom).
+var vcSessions = [];
+
 var instructorData = [];
 
 var currentRole = null;
@@ -6489,6 +6494,7 @@ function saveState() {
     CESTISStore.setItem('voctrain_exams', JSON.stringify(exams));
     CESTISStore.setItem('voctrain_announcements', JSON.stringify(announcements));
     CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords));
+    try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
     if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance();
     CESTISStore.setItem('voctrain_users', JSON.stringify(userAccounts, stripSecretFields));
     CESTISStore.setItem('voctrain_classSessions', JSON.stringify(classSessions));
@@ -6603,6 +6609,8 @@ function loadState() {
     if(e) exams = e;
     if(a) announcements = a;
     if(at) attendanceRecords = at;
+    var vcs = safeJsonParse(CESTISStore.getItem('voctrain_vcSessions'), null);
+    if(Array.isArray(vcs)) vcSessions = vcs;
     if(cs) classSessions = cs;
     var am = safeJsonParse(CESTISStore.getItem('voctrain_adminMeetings'), null);
     if(am) adminMeetings = am;
@@ -9638,6 +9646,7 @@ var cestisFeatureConfig = {
       cestisSafe('renderAdminAllSessions');
       cestisSafe('renderAdminClassSessions');
       cestisSafe('renderAdminMeetingsList');
+      cestisSafe('renderVcSessionAttendance');
     }
   },
   'video-student': {
@@ -11825,7 +11834,7 @@ function enterVideoRoom(title, role, roomCode) {
           <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
             <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Teaching a whole cohort?</div>
             <button class="btn btn-secondary" onclick="vcCreateLargeRoom('${title.replace(/'/g,"\\'")}','${role}','${escapedRoomCode}')">Start Large Class (up to ${CESTISCore.vcCapacity.SFU_MAX})</button>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Runs on a hosted conference server so every device sends one stream instead of one per person.</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Runs on a hosted conference server so every device sends one stream instead of one per person. The room is locked with a lobby, and attendance is recorded automatically.</div>
           </div>
         </div>
         <div class="vc-divider">or join existing</div>
@@ -11910,19 +11919,69 @@ function vcUpdateStatus(type, message) {
    80 is simply not possible in a browser. A large class therefore runs on a
    hosted conference server (an SFU), where each device sends ONE stream up and
    receives only the speakers — which is what makes 80+ workable. It opens in
-   the same page, and the room code is the same one trainees already receive. */
+   the same page, and the room code is the same one trainees already receive.
+
+   The room is driven through the conference server's own API rather than a bare
+   frame, which buys back the two things a hosted room would otherwise cost us:
+     - the host can LOCK the room with a password and turn the lobby on, so a
+       forwarded invite link no longer walks a stranger into a class;
+     - the platform is told who joined and who left, so a Large Class is
+       recorded in the register instead of vanishing into a third-party page.
+   If the API script cannot be reached (offline, blocked network) the room falls
+   back to a plain frame — the class still runs, only unattended. */
 var vcLargeRoomActive = null;
 var vcLastLargeTitle = '';
-function vcLargeRoomUrl(code) {
+var vcJitsiApi = null;
+var vcActiveSession = null;
+var VC_JITSI_API_SCRIPT = 'external_api.js';
+
+function vcLargeRoomBase() {
   var base = (systemSettings.vcLargeRoomBase || 'https://meet.jit.si/').replace(/\/+$/, '/');
   if(base.slice(-1) !== '/') base += '/';
-  return base + 'CESTIS-' + encodeURIComponent(String(code || '').toUpperCase());
+  return base;
+}
+function vcLargeRoomName(code) {
+  return 'CESTIS-' + String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+function vcLargeRoomUrl(code) {
+  return vcLargeRoomBase() + encodeURIComponent(vcLargeRoomName(code));
+}
+/* Host of the conference server, as the API script expects it (no scheme). */
+function vcLargeRoomHost() {
+  try { return new URL(vcLargeRoomBase()).host; } catch(e) { return 'meet.jit.si'; }
+}
+/* Load the conference API script once. Resolves false if it cannot be had, so
+   the caller can fall back rather than leaving the user with a blank panel. */
+function vcLoadJitsiApi() {
+  return new Promise(function(resolve) {
+    if(typeof JitsiMeetExternalAPI !== 'undefined') { resolve(true); return; }
+    var src = vcLargeRoomBase() + VC_JITSI_API_SCRIPT;
+    var existing = document.querySelector('script[data-vc-jitsi]');
+    if(existing) {
+      existing.addEventListener('load', function() { resolve(typeof JitsiMeetExternalAPI !== 'undefined'); });
+      existing.addEventListener('error', function() { resolve(false); });
+      return;
+    }
+    var el = document.createElement('script');
+    el.src = src;
+    el.async = true;
+    el.setAttribute('data-vc-jitsi', '1');
+    el.onload = function() { resolve(typeof JitsiMeetExternalAPI !== 'undefined'); };
+    el.onerror = function() { resolve(false); };
+    // Do not hang the lobby forever on a silent network.
+    setTimeout(function() { resolve(typeof JitsiMeetExternalAPI !== 'undefined'); }, 12000);
+    document.head.appendChild(el);
+  });
 }
 function vcCreateLargeRoom(title, role, scheduledCode) {
   var code = (scheduledCode && scheduledCode.length >= 4) ? scheduledCode : generateRoomCode();
   currentRoomCode = code;
   isRoomHost = true;
-  activeHostRoom = { code: code, title: title, role: role, large: true };
+  // Record the course when the class title is one, so the register line says
+  // which programme the session belonged to.
+  var _course = '';
+  try { if(getCourseList().indexOf(title) !== -1) _course = title; } catch(e) {}
+  activeHostRoom = { code: code, title: title, role: role, large: true, course: _course };
   vcLargeRoomActive = { code: code, title: title, role: role };
   vcLastLargeTitle = title;
   vcShowLargeRoom(title, role, code);
@@ -11942,7 +12001,6 @@ function vcShowLargeRoom(title, role, code) {
   if(!room) return;
   document.body.classList.add('vc-fullscreen-mode');
   var cap = CESTISCore.vcCapacity.SFU_MAX;
-  var url = vcLargeRoomUrl(code) + '#userInfo.displayName=' + encodeURIComponent('"' + (vcCurrentUserName || 'Participant') + '"');
   room.innerHTML =
     '<div class="vc-conference-wrapper">' +
       '<div class="vc-conference-header">' +
@@ -11950,17 +12008,199 @@ function vcShowLargeRoom(title, role, code) {
           '<button class="btn btn-secondary btn-sm" onclick="exitLargeRoom(\'' + role + '\')">&#8592; Exit Meeting</button>' +
           '<h3 style="font-family:\'Playfair Display\',serif;font-size:16px;margin:0;">' + escapeHtml(title) + '</h3>' +
           '<span class="badge badge-green" style="font-size:11px;">LARGE CLASS &mdash; up to ' + cap + '</span>' +
+          '<span id="vcLargeSecurity" style="font-size:11px;color:var(--text-muted);"></span>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+          '<span id="vcLargeCount" style="font-size:12px;color:var(--text-muted);"></span>' +
           '<span style="font-size:12px;color:var(--text-muted);">Room code</span>' +
           '<span style="font-family:monospace;font-size:18px;letter-spacing:3px;color:var(--accent);">' + escapeHtml(code) + '</span>' +
           '<button class="btn btn-secondary btn-sm" onclick="vcCopyLargeRoomLink(\'' + escapeAttr(code) + '\')">Copy invite link</button>' +
         '</div>' +
       '</div>' +
-      '<iframe id="vcLargeFrame" allow="camera; microphone; fullscreen; display-capture; autoplay" ' +
-        'style="width:100%;height:calc(100vh - 120px);border:none;background:#111;" src="' + escapeAttr(url) + '"></iframe>' +
+      '<div id="vcLargeStage" style="width:100%;height:calc(100vh - 120px);background:#111;"></div>' +
     '</div>';
+
+  var stage = document.getElementById('vcLargeStage');
+  stage.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#bbb;font-size:14px;">Connecting to the conference server&hellip;</div>';
+
+  vcLoadJitsiApi().then(function(ok) {
+    if(!ok) { vcLargeRoomFallback(stage, code); return; }
+    try { vcStartJitsi(stage, title, role, code); }
+    catch(e) { console.warn('Large class API failed, falling back to a plain frame:', e); vcLargeRoomFallback(stage, code); }
+  });
 }
+
+/* No API script available — run the class in a plain frame. It works, but the
+   room cannot be locked from here and attendance is not captured, so say so. */
+function vcLargeRoomFallback(stage, code) {
+  var url = vcLargeRoomUrl(code) + '#userInfo.displayName=' + encodeURIComponent('"' + (vcCurrentUserName || 'Participant') + '"');
+  stage.innerHTML = '<iframe id="vcLargeFrame" allow="camera; microphone; fullscreen; display-capture; autoplay" ' +
+    'style="width:100%;height:100%;border:none;background:#111;" src="' + escapeAttr(url) + '"></iframe>';
+  var sec = document.getElementById('vcLargeSecurity');
+  if(sec) { sec.textContent = 'Attendance not recorded — conference API unavailable'; sec.style.color = 'var(--amber)'; }
+}
+
+/* Drive the hosted room: set the password and lobby (host only) and record who
+   comes and goes. */
+function vcStartJitsi(stage, title, role, code) {
+  var VS = CESTISCore.vcSessions;
+  var pw = VS.roomPassword(code, systemSettings.vcRoomPasswordSalt || 'CESTIS');
+  var host = isRoomHost;
+  var course = (activeHostRoom && activeHostRoom.course) || '';
+
+  vcActiveSession = VS.startSession({
+    code: code, title: title, course: course,
+    hostName: vcCurrentUserName || '', hostRole: role,
+    startedAt: new Date().toISOString(), locked: host, lobby: host
+  });
+
+  var api = new JitsiMeetExternalAPI(vcLargeRoomHost(), {
+    roomName: vcLargeRoomName(code),
+    parentNode: stage,
+    width: '100%', height: '100%',
+    userInfo: { displayName: vcCurrentUserName || 'Participant' },
+    configOverwrite: {
+      prejoinPageEnabled: false,
+      startWithAudioMuted: !host,       // a class of 80 does not start with 80 open mics
+      startWithVideoMuted: !host,
+      disableDeepLinking: true
+    },
+    interfaceConfigOverwrite: { SHOW_JITSI_WATERMARK: false, MOBILE_APP_PROMO: false }
+  });
+  vcJitsiApi = api;
+
+  function refreshCount() {
+    var el = document.getElementById('vcLargeCount');
+    if(!el) return;
+    var n = 0;
+    try { n = api.getNumberOfParticipants(); } catch(e) { n = (vcActiveSession.participants || []).length; }
+    el.textContent = n + ' in the room';
+  }
+  function security(text, colour) {
+    var el = document.getElementById('vcLargeSecurity');
+    if(el) { el.textContent = text; el.style.color = colour || 'var(--text-muted)'; }
+  }
+
+  api.addEventListener('videoConferenceJoined', function(ev) {
+    VS.recordJoin(vcActiveSession, ev.id, ev.displayName || vcCurrentUserName, new Date().toISOString());
+    if(host) {
+      // Lock the room and turn the lobby on. The password comes from the room
+      // code, so every device already has it and trainees are let straight in
+      // — but a stranger holding only the URL is not.
+      try { api.executeCommand('password', pw); } catch(e) {}
+      try { api.executeCommand('toggleLobby', true); } catch(e) {}
+      vcActiveSession.locked = true; vcActiveSession.lobby = true;
+      security('Room locked · lobby on · attendance recording', 'var(--green)');
+    } else {
+      security('Attendance recording', 'var(--green)');
+    }
+    refreshCount();
+    vcSaveActiveSession();
+  });
+  // A locked room asks every later arrival for the password; supply it silently.
+  api.addEventListener('passwordRequired', function() {
+    try { api.executeCommand('password', pw); } catch(e) {}
+  });
+  api.addEventListener('participantJoined', function(p) {
+    VS.recordJoin(vcActiveSession, p.id, p.displayName || 'Participant', new Date().toISOString());
+    refreshCount(); vcSaveActiveSession();
+  });
+  api.addEventListener('participantLeft', function(p) {
+    VS.recordLeave(vcActiveSession, p.id, p.displayName || '', new Date().toISOString());
+    refreshCount(); vcSaveActiveSession();
+  });
+  // Someone renamed themselves mid-class — keep the register on the new name
+  // rather than recording them twice.
+  api.addEventListener('displayNameChange', function(p) {
+    var name = p.displayname || p.displayName;
+    if(!name || !vcActiveSession) return;
+    (vcActiveSession.participants || []).forEach(function(x) { if(x.pid === p.id) x.name = name; });
+    vcSaveActiveSession();
+  });
+  api.addEventListener('videoConferenceLeft', function() {
+    vcCloseActiveSession();
+  });
+  api.addEventListener('readyToClose', function() {
+    try { exitLargeRoom(role); } catch(e) {}
+  });
+}
+
+/* Persist the session as it happens, so a browser that closes mid-class still
+   leaves the register with what it saw. */
+function vcSaveActiveSession() {
+  if(!vcActiveSession) return;
+  vcSessions = CESTISCore.vcSessions.mergeSessions(
+    (vcSessions || []).filter(function(s) { return s.id !== vcActiveSession.id; }),
+    [vcActiveSession]);
+  try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
+}
+
+function vcCloseActiveSession() {
+  if(!vcActiveSession) return;
+  CESTISCore.vcSessions.endSession(vcActiveSession, new Date().toISOString());
+  vcSaveActiveSession();
+  try { saveState(); } catch(e) {}
+  var sum = CESTISCore.vcSessions.summary(vcActiveSession);
+  if(sum.participants.length) {
+    showToast('Large class recorded: ' + sum.present + ' present of ' + sum.participants.length + ' who joined');
+  }
+  vcActiveSession = null;
+  try { renderVcSessionAttendance(); } catch(e) {}
+}
+/* The Large Class register. Names typed in the meeting are matched back to the
+   student roster where they can be, so the Centre sees who attended rather
+   than a list of display names; anyone unmatched is still shown, never hidden. */
+function renderVcSessionAttendance() {
+  var el = document.getElementById('vcSessionAttendance');
+  if(!el) return;
+  var VS = CESTISCore.vcSessions;
+  var list = (vcSessions || []).slice().sort(function(a, b) {
+    return String(b.startedAt).localeCompare(String(a.startedAt));
+  }).slice(0, 25);
+  if(!list.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);padding:14px;">No Large Class has been held yet. ' +
+      'When one runs, everyone who joins is recorded here with the time they spent in the room.</p>';
+    return;
+  }
+  var html = '';
+  list.forEach(function(s) {
+    var sum = VS.summary(s);
+    var rows = VS.matchRoster(s, students);
+    var when = s.startedAt ? new Date(s.startedAt).toLocaleString() : '';
+    var open = !s.endedAt;
+    html += '<div style="border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;background:var(--bg-secondary);">' +
+        '<div><strong>' + escapeHtml(s.title || 'Large Class') + '</strong>' +
+          (s.course && s.course !== s.title ? ' <span style="color:var(--text-muted);font-size:12px;">' + escapeHtml(s.course) + '</span>' : '') +
+          '<div style="font-size:11px;color:var(--text-muted);">' + escapeHtml(when) +
+          (open ? ' &middot; <span style="color:var(--green);">in progress</span>' : ' &middot; ' + sum.minutes + ' min') +
+          ' &middot; room ' + escapeHtml(s.code) +
+          (s.locked ? ' &middot; <span style="color:var(--green);">locked</span>' : '') +
+          (s.lobby ? ' &middot; lobby on' : '') + '</div></div>' +
+        '<div style="text-align:right;font-size:12px;">' +
+          '<span class="badge badge-green">' + sum.present + ' present</span> ' +
+          (sum.partial ? '<span class="badge badge-amber">' + sum.partial + ' partial</span>' : '') +
+          '<div style="color:var(--text-muted);font-size:11px;margin-top:2px;">present = ' + sum.threshold + ' min or more</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="table-wrapper"><table><thead><tr>' +
+        '<th>Name in meeting</th><th>Trainee</th><th>Joined</th><th>Left</th><th>Minutes</th><th>Status</th>' +
+      '</tr></thead><tbody>';
+    rows.forEach(function(r) {
+      html += '<tr>' +
+        '<td>' + escapeHtml(r.name) + (r.joins > 1 ? ' <span style="color:var(--text-muted);font-size:11px;">(' + r.joins + ' joins)</span>' : '') + '</td>' +
+        '<td>' + (r.matched ? escapeHtml(r.studentName) : '<span style="color:var(--text-muted);">not on roster</span>') + '</td>' +
+        '<td>' + escapeHtml(r.firstJoin ? new Date(r.firstJoin).toLocaleTimeString() : '') + '</td>' +
+        '<td>' + escapeHtml(r.lastLeave ? new Date(r.lastLeave).toLocaleTimeString() : '') + '</td>' +
+        '<td>' + r.minutes + '</td>' +
+        '<td>' + (r.present ? '<span class="badge badge-green">Present</span>' : '<span class="badge badge-amber">Partial</span>') + '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table></div></div>';
+  });
+  el.innerHTML = html;
+}
+
 function vcCopyLargeRoomLink(code) {
   var link = vcLargeRoomUrl(code);
   try {
@@ -11970,6 +12210,10 @@ function vcCopyLargeRoomLink(code) {
 }
 function exitLargeRoom(role) {
   document.body.classList.remove('vc-fullscreen-mode');
+  // Close the register entry BEFORE tearing the conference down, so anyone
+  // still in the room when the host leaves is credited to the end of the class.
+  vcCloseActiveSession();
+  if(vcJitsiApi) { try { vcJitsiApi.dispose(); } catch(e) {} vcJitsiApi = null; }
   vcLargeRoomActive = null;
   var containerId = role==='admin' ? 'videoRoom' : role==='adminstaff' ? 'asVideoRoom' : role==='instructor' ? 'iVideoRoom' : 'sVideoRoom';
   var room = document.getElementById(containerId);
@@ -23191,6 +23435,7 @@ async function saveToCloud() {
         exams: exams,
         announcements: announcements,
         attendanceRecords: attendanceRecords,
+        vcSessions: vcSessions,
         calendarEvents: calendarEvents,
         examResults: examResults,
         chatRooms: lmsChatRooms,
@@ -23397,6 +23642,14 @@ async function syncFromCloud() {
 
     if (backupData.data.announcements) {
       announcements = backupData.data.announcements;
+    }
+
+    // Large Class attendance is merged, never replaced: two devices in the
+    // same class each record what they saw, and the fuller view of a person's
+    // time must win. A cloud copy that is missing a session cannot erase it.
+    if (Array.isArray(backupData.data.vcSessions)) {
+      vcSessions = CESTISCore.vcSessions.mergeSessions(vcSessions, backupData.data.vcSessions);
+      try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
     }
 
     if (backupData.data.attendanceRecords) {
@@ -23690,6 +23943,14 @@ async function mergeFromCloud() {
           mergeStats.eventsAdded++;
         }
       });
+    }
+
+    // Large Class attendance is merged, never replaced: two devices in the
+    // same class each record what they saw, and the fuller view of a person's
+    // time must win. A cloud copy that is missing a session cannot erase it.
+    if (Array.isArray(backupData.data.vcSessions)) {
+      vcSessions = CESTISCore.vcSessions.mergeSessions(vcSessions, backupData.data.vcSessions);
+      try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
     }
 
     // Merge attendance records — add new AND update status if cloud has changes
@@ -24396,6 +24657,7 @@ async function savePerUserBackup() {
         examResults: examResults,
         announcements: announcements,
         attendanceRecords: attendanceRecords,
+        vcSessions: vcSessions,
         calendarEvents: calendarEvents,
         classSessions: classSessions,
         adminMeetings: adminMeetings,
@@ -24785,6 +25047,14 @@ async function silentMergeFromBackup(fileId) {
           changed = true;
         }
       });
+    }
+
+    // Large Class attendance is merged, never replaced: two devices in the
+    // same class each record what they saw, and the fuller view of a person's
+    // time must win. A cloud copy that is missing a session cannot erase it.
+    if (Array.isArray(backupData.data.vcSessions)) {
+      vcSessions = CESTISCore.vcSessions.mergeSessions(vcSessions, backupData.data.vcSessions);
+      try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
     }
 
     // Merge attendance records — add new AND update status with timestamp check
@@ -25605,6 +25875,7 @@ async function autoSaveToAllFolders() {
         exams: exams,
         announcements: announcements,
         attendanceRecords: attendanceRecords,
+        vcSessions: vcSessions,
         calendarEvents: calendarEvents,
         examResults: examResults,
         chatRooms: lmsChatRooms,
