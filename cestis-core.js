@@ -2978,9 +2978,44 @@
       return { label: 'Unknown', tone: 'off', detail: '' };
     }
 
+    /* Accounts that can actually administer the platform right now: role admin,
+       not blocked, and holding a password somebody can sign in with. An account
+       that merely LOOKS active is not enough — that is the distinction the
+       Centre kept losing. */
+    function usableAdmins(accounts) {
+      return (Array.isArray(accounts) ? accounts : []).filter(function (a) {
+        return a && String(a.role || '').trim().toLowerCase() === 'admin' && check(a).allowed;
+      });
+    }
+
+    /* Would disabling these account ids leave nobody able to administer the
+       platform? Bulk Deactivate had no such guard: selecting every row switched
+       off every administrator, and the only way back in was the seeded recovery
+       login. Returns the ids that must keep their access. */
+    function wouldStrandAdmins(accounts, idsToDisable) {
+      var ids = Array.isArray(idsToDisable) ? idsToDisable : [idsToDisable];
+      var current = usableAdmins(accounts);
+      var remaining = current.filter(function (a) { return ids.indexOf(a.id) === -1; });
+      return remaining.length === 0 ? current.map(function (a) { return a.id; }) : [];
+    }
+
+    /* Should the seeded recovery administrator (USR-001) be forced back to a
+       usable state?
+       The loader used to do this unconditionally, on every single page load —
+       along with rewriting the seeded admin-staff and board usernames back to
+       'adminstaff' and 'cmcadmin'. Renaming those shared logins to a real member
+       of staff therefore lasted until the next refresh, after which that person
+       could no longer sign in; nobody had disabled them. Recovery only needs to
+       step in when there is no other way in. */
+    function needsRecoveryAdmin(accounts) {
+      return usableAdmins(accounts).length === 0;
+    }
+
     return {
       idMatches: idMatches, hasPassword: hasPassword, check: check,
-      find: find, findAnyRole: findAnyRole, adminLabel: adminLabel
+      find: find, findAnyRole: findAnyRole, adminLabel: adminLabel,
+      usableAdmins: usableAdmins, wouldStrandAdmins: wouldStrandAdmins,
+      needsRecoveryAdmin: needsRecoveryAdmin
     };
   })();
 

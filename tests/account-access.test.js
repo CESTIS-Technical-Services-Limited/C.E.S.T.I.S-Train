@@ -160,6 +160,55 @@ assertEq(AA.check(enrolled).allowed, false, 'and only an administrator takes it 
 enrolled.status = 'active';
 assertEq(AA.check(enrolled).allowed, true, 're-enabling restores access');
 
+/* ---------- 8. Staff, board and administrator accounts ---------- */
+console.log('Every role is judged by the same rule');
+/* The five login handlers each tested status inline and disagreed; the admin
+   handler never tested 'pending' at all. One gate now serves all of them, so a
+   rule fixed for trainees is fixed for instructors, admin staff and the board. */
+['admin', 'adminstaff', 'instructor', 'cmc', 'student'].forEach(function (role) {
+  assertEq(AA.check(trainee({ role: role })).allowed, true, role + ' signs in when nothing blocks them');
+  assertEq(AA.check(trainee({ role: role, status: 'pending' })).reason, 'pending', role + ' awaiting approval is stopped');
+  assertEq(AA.check(trainee({ role: role, status: 'rejected' })).reason, 'rejected', role + ' refused is stopped');
+  assertEq(AA.check(trainee({ role: role, status: 'disabled' })).reason, 'disabled', role + ' disabled is stopped');
+  assertEq(AA.check(trainee({ role: role, password: '' })).reason, 'no-password', role + ' with no password cannot sign in');
+});
+
+console.log('The Centre cannot lock itself out of administration');
+const admin = function (over) { return Object.assign({ id: 'A1', role: 'admin', name: 'Admin One', username: 'admin.one', password: PW, status: 'active' }, over || {}); };
+const staff = { id: 'S1', role: 'adminstaff', name: 'Staff One', username: 'staff.one', password: PW, status: 'active' };
+
+assertEq(AA.usableAdmins([admin(), staff]).length, 1, 'one usable administrator');
+assertEq(AA.usableAdmins([admin(), admin({ id: 'A2', username: 'admin.two' })]).length, 2, 'two usable administrators');
+assertEq(AA.usableAdmins([admin({ status: 'disabled' })]).length, 0, 'a disabled admin is not usable');
+assertEq(AA.usableAdmins([admin({ password: '' })]).length, 0, 'an admin with no password is not usable');
+assertEq(AA.usableAdmins([admin({ status: 'pending' })]).length, 0, 'an unapproved admin is not usable');
+assertEq(AA.usableAdmins(null).length, 0, 'null-safe');
+assertEq(AA.usableAdmins([staff]).length, 0, 'admin staff do not count as administrators');
+
+/* Bulk Deactivate had no guard: selecting every row switched off every
+   administrator and the platform could only be recovered through the seeded
+   login. */
+const twoAdmins = [admin(), admin({ id: 'A2', username: 'admin.two' }), staff];
+assertEq(AA.wouldStrandAdmins(twoAdmins, ['A1']).length, 0, 'disabling one of two administrators is fine');
+assertEq(AA.wouldStrandAdmins(twoAdmins, ['A1', 'A2']).length, 2, 'disabling both is refused');
+assertEq(AA.wouldStrandAdmins(twoAdmins, ['S1']).length, 0, 'disabling admin staff never strands the platform');
+assertEq(AA.wouldStrandAdmins([admin()], 'A1').length, 1, 'the only administrator cannot switch themselves off');
+assertEq(AA.wouldStrandAdmins([admin()], ['A2']).length, 0, 'disabling an unrelated account is fine');
+
+/* Recovery replaces the old unconditional rewrite, which re-activated the
+   seeded admin on every page load — so deliberately disabling it never stuck,
+   and the seeded admin-staff and board usernames were reverted underneath
+   whoever had been renamed to them. */
+console.log('Recovery steps in only when there is no way back in');
+assertEq(AA.needsRecoveryAdmin([admin(), staff]), false, 'a working administrator needs no recovery');
+assertEq(AA.needsRecoveryAdmin([admin({ status: 'disabled' }), staff]), true, 'every administrator disabled — recovery is needed');
+assertEq(AA.needsRecoveryAdmin([admin({ password: '' })]), true, 'administrator with no password — recovery is needed');
+assertEq(AA.needsRecoveryAdmin([staff]), true, 'admin staff alone cannot administer the platform');
+assertEq(AA.needsRecoveryAdmin([]), true, 'no accounts at all');
+/* A renamed shared login stays renamed, because it is still a usable admin. */
+assertEq(AA.needsRecoveryAdmin([admin({ id: 'USR-001', username: 'principal.brown' })]), false,
+  'renaming the built-in administrator does not trigger a rewrite');
+
 /* ---------- summary ---------- */
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed > 0) process.exit(1);
