@@ -5,22 +5,26 @@
 
    WHAT IT DOES
    ------------
-   1. Serves every page in this folder over http:// — the system needs a real
+   1. Serves every page in this folder over https:// — the system needs a real
       web address, not file://, because browsers refuse storage and page loading
-      to documents opened straight off the disk.
+      to documents opened straight off the disk, and it needs an address they
+      TRUST or they will not allow video classes (see 2). The certificate is
+      made by this computer on first run; see cestis-offline-cert.js.
    2. Introduces browsers to each other so VIDEO CLASSES work. Two browsers
       cannot start a call unaided — something has to carry the first few
       messages between them, and online that job is done by a public server.
       This does it here (see cestis-offline-signalling.js), which is what makes
       the conference pages work with no internet.
 
-      One caveat that is NOT ours to fix here: browsers hand out the camera,
-      the microphone and the video connection only to pages served over
-      https://, or opened on this computer as localhost. A page fetched over
-      the network as http://192.168.x.x is refused them by every browser. So
-      video classes run on THIS computer as-is; to run them on other devices
-      the pages have to be served over https://. Everything else in the system
-      is unaffected and works on every device over http://.
+      Browsers hand out the camera, the microphone and the video connection
+      only to pages served over https://, or opened on this computer as
+      localhost — a page fetched over the network as http://192.168.x.x is
+      refused all three by every browser. That is why point 1 serves https://.
+      Each device shows a certificate warning the first time and never again.
+
+      If this computer has no way to make a certificate, the server falls back
+      to http:// and says so: video classes then work on this machine only,
+      and everything else carries on as normal.
    3. Provides the SHARED STORE the Google Drive sync normally provides. Each
       page keeps its own file, exactly as it does in the cloud version, except
       the files live in "Offline System/data" on this computer instead of Drive.
@@ -44,14 +48,21 @@
 'use strict';
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const signalling = require('./cestis-offline-signalling.js');
+const lanCert = require('./cestis-offline-cert.js');
 
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, 'data');
+const CERT_DIR = path.join(ROOT, 'cert');
 const PORT = Number(process.env.CESTIS_PORT || process.argv[2] || 8080);
+// Set CESTIS_HTTP=1 to force plain http:// — video classes then only work on
+// this computer (see the note by the video-class banner below).
+const FORCE_HTTP = String(process.env.CESTIS_HTTP || '') === '1' ||
+                   process.argv.indexOf('--http') !== -1;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -188,7 +199,15 @@ function serveStatic(req, res, urlPath) {
 }
 
 /* ------------------------------------------------------------------ server */
-const server = http.createServer((req, res) => {
+/* https:// when this computer can make itself a certificate, http:// when it
+   cannot. The scheme is not cosmetic: browsers only give the camera, the
+   microphone and the video connection to a page on an address they trust, so
+   video classes work on other devices ONLY over https. Everything else works
+   the same either way. See cestis-offline-cert.js. */
+const tls = FORCE_HTTP ? null : lanCert.ensure(CERT_DIR, msg => console.log('  ' + msg));
+const SCHEME = tls ? 'https' : 'http';
+
+const handler = (req, res) => {
   if (req.method === 'OPTIONS') return send(res, 204, '');
 
   const url = req.url || '/';
@@ -212,7 +231,11 @@ const server = http.createServer((req, res) => {
     return handleData(req, res, url.slice('/_cestis/data/'.length));
   }
   serveStatic(req, res, url);
-});
+};
+
+const server = tls
+  ? https.createServer({ key: tls.key, cert: tls.cert }, handler)
+  : http.createServer(handler);
 
 ensureDataDir();
 
@@ -232,30 +255,49 @@ server.on('error', err => {
 server.listen(PORT, '0.0.0.0', () => {
   const addrs = lanAddresses();
   const line = '='.repeat(64);
+  const url = h => SCHEME + '://' + h + ':' + PORT + '/index.html';
   console.log('\n' + line);
   console.log('  C.E.S.T.I.S  —  OFFLINE SYSTEM IS RUNNING');
   console.log(line);
   console.log('\n  On THIS computer, open:');
-  console.log('      http://localhost:' + PORT + '/index.html');
+  console.log('      ' + url('localhost'));
   if (addrs.length) {
     console.log('\n  On ANY OTHER device on the same network (wifi or cable),');
     console.log('  open one of these in a browser:');
-    addrs.forEach(a => console.log('      http://' + a.address + ':' + PORT + '/index.html      (' + a.name + ')'));
+    addrs.forEach(a => console.log('      ' + url(a.address) + '      (' + a.name + ')'));
   } else {
     console.log('\n  This computer is not on a network yet, so only this machine');
     console.log('  can reach it. Connect to the Centre wifi/router and restart.');
   }
-  console.log('\n  VIDEO CLASSES');
-  console.log('  This server introduces the browsers to each other, so video needs');
-  console.log('  no internet. It does need a page address the browser trusts with');
-  console.log('  the camera and microphone, and browsers only trust https:// or');
-  console.log('  localhost — never a plain http:// network address.');
-  console.log('      Video WORKS at:      http://localhost:' + PORT + '/index.html');
-  if (addrs.length) {
-    console.log('      Video is BLOCKED at: http://' + addrs[0].address + ':' + PORT + '/index.html');
+
+  if (tls) {
+    console.log('\n  THE FIRST TIME each device opens that address, the browser will');
+    console.log('  warn that the connection is "not private". That warning is about');
+    console.log('  WHO vouched for this server\'s certificate — nobody did, because');
+    console.log('  there is no internet here to ask. The connection itself is');
+    console.log('  encrypted. Click Advanced, then Proceed. The device remembers,');
+    console.log('  and never asks again.');
+    console.log('\n  Video classes work on every device at those addresses.');
+    if (tls.created) {
+      console.log('  (A certificate for this computer was just created in the "cert"');
+      console.log('  folder. Keep it — remaking it makes every device ask again.)');
+    }
+  } else {
+    console.log('\n  VIDEO CLASSES — LIMITED');
+    console.log('  This server is speaking plain http://, so browsers will not give');
+    console.log('  it the camera or microphone on any device except this one.');
+    console.log('      Video WORKS at:      ' + url('localhost'));
+    if (addrs.length) console.log('      Video is BLOCKED at: ' + url(addrs[0].address));
+    if (!FORCE_HTTP) {
+      console.log('\n  To turn video on for the whole network, this computer needs the');
+      console.log('  "openssl" command so the server can make itself a certificate.');
+      console.log('  It is already on macOS and Linux; on Windows it comes with Git');
+      console.log('  (https://git-scm.com). Install it, then start this again.');
+    }
+    console.log('\n  Everything else — trainees, fees, attendance, documents — works');
+    console.log('  normally on every device at the addresses above.');
   }
-  console.log('  Everything else — trainees, fees, attendance, documents — works');
-  console.log('  normally on every device at the network address above.');
+
   console.log('\n  Shared data is kept in:');
   console.log('      ' + DATA_DIR);
   console.log('  Back that folder up — it is the Centre\'s records.');
