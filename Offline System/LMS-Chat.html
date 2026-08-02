@@ -1,0 +1,81 @@
+<!--
+  ============================================================================
+  LMS-Chat.html  —  C.E.S.T.I.S LMS Chat (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  This file holds ONLY the markup for the Administrator "LMS Chat" page. It is
+  fetched by index.html and injected into the page's mount slot
+  (<div class="cestis-mount" data-feature="lms-chat" data-prefix="admin">), so it
+  runs inside the main app and uses all the existing lmsChat* functions, data and
+  session — no iframe.
+
+  Edit the chat layout/markup here without touching index.html.
+
+  Notes:
+   • All chat JavaScript (lmsChat* functions) and the chat CSS (.lms-chat-*)
+     remain in index.html — keep using them via the same onclick handlers.
+   • The chat pop-up modals (profile, members directory, manage members, poll,
+     emoji picker, etc.) are global and also live in index.html.
+   • This fragment is injected with innerHTML: a <style> block here WILL apply,
+     but <script> tags will NOT run. Put any JS changes in index.html.
+  ============================================================================
+-->
+<div class="lms-chat-container" id="adminChatContainer">
+  <div class="lms-chat-sidebar" id="adminChatSidebar">
+    <div class="lms-chat-sidebar-header">
+      <h3>C.E.S.T.I.S Chat</h3>
+      <div class="lms-chat-sidebar-actions">
+        <button onclick="lmsChatOpenProfileModal()" title="My Profile">&#128100;</button>
+        <button onclick="lmsChatOpenMembersDirectory()" title="Members">&#128101;</button>
+        <button onclick="lmsChatCreateRoom()" title="New Chat">&#10133;</button>
+      </div>
+    </div>
+    <div class="lms-chat-search">
+      <div class="lms-chat-search-wrap">
+        <input type="text" placeholder="Search chats..." oninput="lmsChatFilterRooms(this.value,'admin')">
+      </div>
+    </div>
+    <div class="lms-chat-list" id="adminChatList"></div>
+  </div>
+  <div class="lms-chat-main" id="adminChatMain">
+    <div class="lms-chat-main-empty" id="adminChatEmpty">
+      <div class="empty-icon">&#128172;</div>
+      <h3>C.E.S.T.I.S LMS Chat</h3>
+      <p>Select a class chat or create a new conversation</p>
+    </div>
+    <div id="adminChatActive" style="display:none;flex:1;flex-direction:column;min-height:0;overflow:hidden;">
+      <div class="lms-chat-main-header">
+        <div class="lms-chat-main-header-left">
+          <button class="back-btn" onclick="lmsChatBack('admin')">&#8592;</button>
+          <div class="lms-chat-avatar" id="adminChatHeaderAvatar"></div>
+          <div class="lms-chat-header-info">
+            <h4 id="adminChatHeaderName"></h4>
+            <span id="adminChatHeaderStatus"></span>
+          </div>
+        </div>
+        <div class="lms-chat-header-actions">
+          <button onclick="lmsChatStartVoiceCall()" title="Voice Call">&#128222;</button>
+          <button onclick="lmsChatStartVideoCall()" title="Video Call">&#128249;</button>
+          <button onclick="lmsChatManageMembers()" title="Manage Members">&#128101;</button>
+          <button onclick="lmsChatToggleInfoPanel('admin')" title="Chat Info">&#9432;</button>
+        </div>
+      </div>
+      <div class="lms-chat-messages" id="adminChatMessages"></div>
+      <div class="lms-chat-input-area">
+        <button class="emoji-btn" onclick="lmsChatToggleEmojiPicker('admin')" title="Emoji">&#128522;</button>
+        <button class="attach-btn" onclick="lmsChatAttachFile()" title="Attach File">&#128206;</button>
+        <button class="poll-btn" onclick="lmsChatOpenPollModal('admin')" title="Create Poll">&#128202;</button>
+        <textarea class="msg-input" id="adminChatInput" placeholder="Type a message..." rows="1" onkeydown="lmsChatInputKeydown(event,'admin')"></textarea>
+        <button class="send-btn" onclick="lmsChatSendMessage('admin')" title="Send">&#10148;</button>
+      </div>
+    </div>
+  </div>
+  <div class="lms-chat-info-panel" id="adminChatInfoPanel">
+    <div class="lms-chat-info-panel-header">
+      <h4>Chat Info</h4>
+      <button onclick="lmsChatToggleInfoPanel('admin')">&#10005;</button>
+    </div>
+    <div class="lms-chat-info-body" id="adminChatInfoBody"></div>
+  </div>
+</div>
+<input type="file" id="lmsChatFileInput" style="display:none" onchange="lmsChatHandleFileUpload(event)" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.mp3,.wav,.mp4,.avi,.mov">
+<input type="file" id="lmsChatProfilePicInput" style="display:none" onchange="lmsChatHandleProfilePic(event)" accept="image/*">

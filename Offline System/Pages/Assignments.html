@@ -1,0 +1,26 @@
+<!--
+  ============================================================================
+  Pages/Assignments.html  —  C.E.S.T.I.S Assignments (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="a-assignments" data-prefix="admin">).
+  On mount index.html populates #aAssignFilterCourse (populateCourseDropdowns)
+  and fills the list/stats (renderAdminAssignments). Keep ids aAssignFilterCourse /
+  aAssignSearch / aAssignStat* / adminAssignmentsList.
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
+  ============================================================================
+-->
+<div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center;">
+  <button class="btn btn-primary" onclick="openAdminCreateAssignment()">+ Create Assignment</button>
+  <select class="form-control" id="aAssignFilterCourse" style="width:220px;" onchange="renderAdminAssignments()">
+    <option value="all">All Programmes</option>
+  </select>
+  <input type="text" class="form-control" id="aAssignSearch" placeholder="Search assignments..." style="width:240px;" oninput="renderAdminAssignments()">
+</div>
+<div class="stats-grid stats-grid-4" style="margin-bottom:18px;">
+  <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📋</div><div class="stat-value" id="aAssignStatTotal">0</div><div class="stat-label">Total Assignments</div></div>
+  <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">📤</div><div class="stat-value" id="aAssignStatSubmissions">0</div><div class="stat-label">Submissions</div></div>
+  <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">⭐</div><div class="stat-value" id="aAssignStatGraded">0</div><div class="stat-label">Graded</div></div>
+  <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">⏳</div><div class="stat-value" id="aAssignStatPending">0</div><div class="stat-label">Pending Review</div></div>
+</div>
+<div id="adminAssignmentsList"></div>

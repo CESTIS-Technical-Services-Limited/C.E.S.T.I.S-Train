@@ -1,0 +1,26 @@
+<!--
+  ============================================================================
+  Pages/Student-Exams.html  —  C.E.S.T.I.S My Exams (Student) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="s-exams" data-prefix="student">).
+  On mount renderStudentExams() fills #studentUpcomingExams (upcoming/active
+  exams for the student's programme) and #studentPastExamResults (past results).
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
+  ============================================================================
+-->
+    <div id="studentExamListView">
+      <div class="card">
+        <div class="card-header"><h3>My Exams</h3></div>
+        <div id="studentUpcomingExams"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>Past Exam Results</h3></div>
+        <div id="studentPastExamResults"></div>
+      </div>
+    </div>
+    <!-- Exam taking interface (shown when student clicks Take Exam) -->
+    <div id="studentExamTakingView" style="display:none;"></div>
+    <!-- Exam result review (shown after submission or when reviewing past results) -->
+    <div id="studentExamResultView" style="display:none;"></div>
+  

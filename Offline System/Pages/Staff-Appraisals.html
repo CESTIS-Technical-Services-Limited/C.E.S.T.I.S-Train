@@ -1,0 +1,48 @@
+<!--
+  ============================================================================
+  Pages/Staff-Appraisals.html — Staff Performance Appraisals (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="staff-appraisals" data-prefix="admin">).
+  All logic lives in staff-appraisals.js (loaded by index.html) because
+  innerHTML-injected fragments cannot run <script>. On mount index.html calls
+  sappOnPageShow(), which enforces Administrator-only access and renders the
+  roster / editor / live preview into #sappPageRoot.
+  Implements the HAZARD SKILLS TRAINING CENTRE Performance Appraisal
+  Instrument (HEART/NSTA Trust Performance Management System).
+  ============================================================================
+-->
+<style>
+  .sapp-edit-table td { vertical-align: middle; }
+  .sapp-edit-table input.form-control { padding: 4px 8px; }
+  input.sapp-score::-webkit-outer-spin-button, input.sapp-score::-webkit-inner-spin-button { opacity: 1; }
+  #sappPreviewOverlay {
+    display: none; position: fixed; inset: 0; z-index: 1000000;
+    background: rgba(0,0,0,.65); align-items: stretch; justify-content: center;
+  }
+  #sappPreviewPanel {
+    background: #6b6f76; width: min(1180px, 96vw); margin: 2vh auto;
+    border-radius: 10px; display: flex; flex-direction: column; overflow: hidden;
+  }
+  #sappPreviewToolbar {
+    background: var(--bg-card, #23262d); color: var(--text, #fff);
+    padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+  }
+  #sappPreviewBody { overflow: auto; padding: 18px; flex: 1; }
+</style>
+
+<div id="sappPageRoot">
+  <div class="card" style="padding:32px;text-align:center;color:var(--text-muted);">Loading staff appraisals…</div>
+</div>
+
+<!-- Live preview overlay: exact replica of the Performance Appraisal Instrument -->
+<div id="sappPreviewOverlay">
+  <div id="sappPreviewPanel">
+    <div id="sappPreviewToolbar">
+      <strong style="flex:1;">Live Preview — Performance Appraisal Instrument (exact replica)</strong>
+      <button class="btn btn-primary btn-sm" onclick="sappPrint(document.getElementById('sappPreviewOverlay').getAttribute('data-staff'))">🖨 Print / Save as PDF</button>
+      <button class="btn btn-secondary btn-sm" onclick="sappClosePreview()">✕ Close</button>
+    </div>
+    <div id="sappPreviewBody"></div>
+  </div>
+</div>

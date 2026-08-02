@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="cestis-core.js?v=20260802a"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qual Plan / Curriculum — C.E.S.T.I.S</title>
+<style>
+  :root {
+    --bg-primary: #0c1117;
+    --bg-secondary: #141b24;
+    --bg-card: #1a2332;
+    --bg-card-hover: #1f2b3d;
+    --bg-input: #0f1820;
+    --accent: #f0a500;
+    --accent-dim: rgba(240,165,0,0.15);
+    --green: #2ecc71;
+    --green-dim: rgba(46,204,113,0.15);
+    --blue: #3498db;
+    --red: #e74c3c;
+    --text-primary: #e8edf3;
+    --text-secondary: #8899aa;
+    --text-muted: #556677;
+    --border: rgba(255,255,255,0.06);
+    --border-light: rgba(255,255,255,0.1);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .qp-header { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+  .qp-header h1 { font-size:22px; font-weight:700; }
+  .qp-header p { font-size:13px; color:var(--text-muted); margin-top:4px; }
+  .qp-controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:18px; }
+  .qp-input, .qp-select {
+    background: var(--bg-input);
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    font-size: 13px;
+    outline: none;
+  }
+  .qp-input { min-width: 240px; }
+  .qp-input:focus, .qp-select:focus { border-color: var(--accent); }
+  .qp-banner {
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 18px;
+    display:flex; align-items:center; gap:14px;
+    border: 1px solid var(--border-light);
+  }
+  .qp-banner .ic { width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; }
+  .qp-banner h2 { font-size:19px; }
+  .qp-banner span.sub { font-size:13px; color:var(--text-secondary); }
+  .qp-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:16px; margin-bottom:24px; }
+  .qp-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display:flex; flex-direction:column;
+  }
+  .qp-card-head { display:flex; align-items:center; gap:12px; padding:16px 18px; border-bottom:1px solid var(--border); }
+  .qp-card-head .ic { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+  .qp-card-head .nm { font-size:15px; font-weight:600; line-height:1.3; }
+  .qp-badge { display:inline-block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; padding:2px 8px; border-radius:20px; margin-top:5px; }
+  .qp-crumbs { display:none; flex-wrap:wrap; align-items:center; gap:4px; padding:9px 18px; border-bottom:1px solid var(--border); font-size:12px; background:var(--bg-input); }
+  .qp-crumbs.show { display:flex; }
+  .qp-crumb { color:var(--text-secondary); cursor:pointer; }
+  .qp-crumb:hover { color:var(--accent); text-decoration:underline; }
+  .qp-crumb.current { color:var(--text-primary); cursor:default; text-decoration:none; }
+  .qp-crumb-sep { color:var(--text-muted); }
+  .qp-files { display:flex; flex-direction:column; }
+  .qp-file.is-folder .fic { background:rgba(52,152,219,0.14) !important; }
+  .qp-file {
+    display:flex; align-items:center; gap:11px;
+    padding:11px 18px;
+    border-bottom:1px solid var(--border);
+    cursor:pointer;
+    transition: background .15s;
+  }
+  .qp-file:last-child { border-bottom:none; }
+  .qp-file:hover { background: var(--bg-card-hover); }
+  .qp-file .fic { width:30px; height:30px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+  .qp-file .fnm { flex:1; min-width:0; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .qp-file .fgo { font-size:11px; color:var(--text-muted); }
+  .qp-file:hover .fgo { color: var(--accent); }
+  .qp-files-msg { padding:16px 18px; font-size:12px; color:var(--text-muted); }
+  .qp-spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border-light); border-top-color:var(--accent); border-radius:50%; animation:qpspin .7s linear infinite; vertical-align:-2px; margin-right:8px; }
+  @keyframes qpspin { to { transform:rotate(360deg); } }
+  .qp-section-title { font-size:13px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:600; margin:6px 0 12px; }
+  .qp-empty { text-align:center; color:var(--text-muted); padding:40px; }
+  .qp-notice { background:rgba(231,76,60,0.10); border:1px solid rgba(231,76,60,0.3); color:#f3b6ae; border-radius:var(--radius-sm); padding:12px 14px; font-size:12px; margin-bottom:16px; line-height:1.5; }
+  /* Popout viewer */
+  .qp-modal-overlay {
+    position:fixed; inset:0; background:rgba(4,8,12,0.82); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center; z-index:9999; padding:24px;
+  }
+  .qp-modal-overlay.open { display:flex; }
+  .qp-modal {
+    background:var(--bg-secondary); border:1px solid var(--border-light); border-radius:var(--radius);
+    width:100%; max-width:980px; height:88vh; display:flex; flex-direction:column;
+    box-shadow:0 24px 64px rgba(0,0,0,0.6); overflow:hidden;
+  }
+  .qp-modal-head { display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); }
+  .qp-modal-head .mt { flex:1; min-width:0; font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .qp-modal-close {
+    background:transparent; border:1px solid var(--border-light); color:var(--text-secondary);
+    border-radius:var(--radius-sm); padding:7px 13px; font-size:13px; cursor:pointer; font-weight:600;
+  }
+  .qp-modal-close:hover { color:var(--text-primary); border-color:var(--text-secondary); }
+  .qp-modal-note {
+    display:none; padding:10px 18px; font-size:12px; line-height:1.5;
+    background:rgba(240,165,0,0.10); border-bottom:1px solid rgba(240,165,0,0.3); color:#e8c98a;
+  }
+  .qp-modal-body { flex:1; background:#fff; }
+  .qp-modal-body iframe { width:100%; height:100%; border:none; }
+  @media (max-width: 600px) { .qp-grid { grid-template-columns:1fr; } body { padding:14px; } .qp-modal { height:92vh; } }
+</style>
+</head>
+<body>
+
+<div class="qp-header">
+  <div>
+    <h1>Qualification Plans &amp; Curriculums</h1>
+    <p id="qpSubtitle">Qualification plan and curriculum documents for each skill area.</p>
+  </div>
+</div>
+
+<div id="qpBannerHost"></div>
+<div id="qpNoticeHost"></div>
+
+<div class="qp-controls" id="qpControls">
+  <input type="text" class="qp-input" id="qpSearch" placeholder="Search programme or skill area…" oninput="qpRender()">
+  <select class="qp-select" id="qpFilter" onchange="qpRender()">
+    <option value="all">All Skill Areas</option>
+  </select>
+</div>
+
+<div class="qp-grid" id="qpGrid"></div>
+
+<!-- Popout document viewer -->
+<div class="qp-modal-overlay" id="qpModal" onclick="if(event.target===this) qpCloseViewer()">
+  <div class="qp-modal">
+    <div class="qp-modal-head">
+      <div class="fic" style="font-size:18px;">📄</div>
+      <div class="mt" id="qpModalTitle">Document</div>
+      <a class="qp-modal-close" id="qpModalOpen" href="#" target="_blank" rel="noopener" style="text-decoration:none;">↗ Open in Drive</a>
+      <button class="qp-modal-close" onclick="qpCloseViewer()">✕ Close</button>
+    </div>
+    <div class="qp-modal-note" id="qpModalNote">
+      This document is taking longer than usual to preview. If it stays blank it may not be shared with your account —
+      use <strong>Open in Drive</strong> above, or ask an administrator to share the folder.
+    </div>
+    <div class="qp-modal-body"><iframe id="qpModalFrame" title="Document viewer" allow="autoplay" onload="qpViewerLoaded()"></iframe></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   Qualification Plan / Curriculum viewer
+   ----------------------------------------------------------------------------
+   Lists the documents inside each programme's Google Drive folder and opens
+   them in an in-app popout viewer (Google's /preview embed) — users are never
+   redirected to Drive itself.
+
+   File enumeration uses, in order of preference:
+     1. The host LMS's Google OAuth token (window.parent.googleAccessToken),
+        available once an admin/staff member has connected Google Drive.
+     2. A Drive API key (QP_API_KEY below) — needed so signed-out users
+        (e.g. students on their own device) can still list the public,
+        "anyone with link" folders.
+
+   Access (from the ?role= / ?course= params set by the LMS):
+     - student / instructor : only their skill area's folder(s) + Short Courses.
+     - admin / adminstaff   : every programme, with a skill-area filter.
+   ========================================================================= */
+
+// OPTIONAL: paste a Google Drive API key here so signed-out users can list the
+// public folders. Leave blank to rely solely on the connected admin/staff token.
+var QP_API_KEY = '';
+
+// Master folder ("0000000 - QUAL PLAN") containing all programme folders.
+var QUAL_PLAN_FOLDER_ID = '1xwBUcgAmiw6LR0oOq4cyqD-VoGQA2P_Z';
+
+// Programme folders for the qualification plans & curriculums. `general:true`
+// programmes (Short Courses) are available to every user.
+var QUAL_PLAN_PROGRAMS = [
+  { title:"000 Short Courses (Job Certificate)",            folderId:"1laQ3n9YRMXZ7kmXkAncxPNNlzXDdYqt0", skillArea:null,                      general:true,
+    subfolders:[
+      { name:"01 Domestic Electrical Technician",   folderId:"1lynuNtNXuiQdEPPk_F0d65YdCGrQi1nW" },
+      { name:"02 Hair Braider and Weaver",          folderId:"1WDe3uU1SXyOv9FjKANKuAmXJNhJkGgQr" },
+      { name:"03 Hair Stylist",                     folderId:"1hTrsWi8nffTX-n7-eKvWf8DYnnMlnBjU" },
+      { name:"04 Makeup Technician",                folderId:"1lh-69VXDpHi-w0QPGxF2RF7nLhog0lyK" },
+      { name:"05 Nail Care Attendant",              folderId:"1d-a6IECJdJgXD9xTbIfu7h1ZOInOhDk_" },
+      { name:"06 Quest Service Practitioner",       folderId:"1axaLeZ6n_AKCIQRrCyLM2EDiX3FqhDOt" },
+      { name:"07 Welding Fabrication Technician",   folderId:"1yPnXugHCvuRGqLM5bRekwpyrqE16mYM5" }
+    ] },
+  { title:"Beauty Therapy Level 2",                         folderId:"194qSUzi_BSQE_0QHLYQAQn_hX2JbHFvL", skillArea:"Beauty Therapy" },
+  { title:"Cosmetology Level 2",                            folderId:"180HFoONPHB44Dq9hKkyuvvcEaPQG2w3a", skillArea:"Cosmetology" },
+  { title:"Electrical Installation and Maintenance L2",     folderId:"1RTYIrphKDbBbNMlWGUhJ5Cmid6cWEgOA", skillArea:"Electrical Installation" },
+  { title:"Electrical Installation and Maintenance L3",     folderId:"1Xf9GXeOS6bJEXwt1V1Wfr__Jhf6h-cq8", skillArea:"Electrical Installation" },
+  { title:"Hospitality Villa.Properties Services L2",       folderId:"1lmeQLq2h-UKhP06dnsyBwxezwfshW5Ll", skillArea:"Hospitality & Tourism" },
+  { title:"Welding L2",                                     folderId:"1A_X9LAGnVGyL-KWAu2rqKcsLoTQqjXEA", skillArea:"Welding & Fabrication" },
+  { title:"Welding L3",                                     folderId:"1W4I6wpXPJ51grRPNW0EwNqjJ5a3wV1lV", skillArea:"Welding & Fabrication" }
+];
+
+// Skill areas: sourced from the shared cestis-core catalogue so this viewer's
+// course list can never drift from the dashboard. The inline array below is
+// kept only as a fallback for when the shared module fails to load.
+var skillAreas = (window.CESTISCore && typeof CESTISCore.freshSkillAreas === 'function') ? CESTISCore.freshSkillAreas() : [
+  {id:1,name:"Welding & Fabrication",icon:"🔥",color:"#e74c3c",desc:"SMAW, MIG, TIG welding processes and metal fabrication"},
+  {id:2,name:"Electrical Installation",icon:"⚡",color:"#f1c40f",desc:"Residential and commercial wiring, conduit bending, circuits"},
+  {id:3,name:"Cosmetology",icon:"💇",color:"#e91e63",desc:"Hair care, styling, chemical treatments, salon management"},
+  {id:4,name:"Business Administration",icon:"💼",color:"#3498db",desc:"Office management, accounting, business communication"},
+  {id:5,name:"Auto Mechanics",icon:"🔧",color:"#e67e22",desc:"Engine repair, diagnostics, brake and suspension systems"},
+  {id:6,name:"Plumbing",icon:"🔩",color:"#1abc9c",desc:"Pipe fitting, drainage systems, water supply installation"},
+  {id:7,name:"Carpentry",icon:"🪚",color:"#8d6e63",desc:"Furniture making, roof framing, cabinet installation"},
+  {id:8,name:"Hospitality & Tourism",icon:"🏨",color:"#9b59b6",desc:"Food & beverage service, front office, housekeeping"},
+  {id:9,name:"Information Technology",icon:"💻",color:"#2196f3",desc:"Networking, hardware repair, software applications"},
+  {id:10,name:"Garment Construction",icon:"🧵",color:"#ff7043",desc:"Pattern drafting, sewing techniques, fashion design basics"},
+  {id:11,name:"Refrigeration & AC",icon:"❄️",color:"#00bcd4",desc:"AC installation, refrigerant handling, system maintenance"},
+  {id:12,name:"Heavy Equipment Ops",icon:"🚜",color:"#ff9800",desc:"Excavator, loader, bulldozer operation and safety"},
+  {id:13,name:"Commercial Cooking",icon:"👨‍🍳",color:"#4caf50",desc:"Culinary arts, food safety, menu planning, pastry arts"},
+  {id:14,name:"Beauty Therapy",icon:"💆",color:"#ce93d8",desc:"Facial treatments, body massage, nail technology"},
+  {id:15,name:"Data Operations",icon:"📊",color:"#42a5f5",desc:"Data entry, spreadsheets, database management"},
+  {id:16,name:"Agriculture",icon:"🌾",color:"#66bb6a",desc:"Crop production, livestock management, agribusiness"},
+  {id:17,name:"Masonry",icon:"🧱",color:"#a1887f",desc:"Block laying, plastering, tiling, concrete work"},
+  {id:18,name:"Solar Energy Tech",icon:"☀️",color:"#fdd835",desc:"PV installation, solar system design, inverter setup"},
+  {id:19,name:"Early Childhood Ed",icon:"👶",color:"#ef9a9a",desc:"Child development, lesson planning, classroom management"},
+  {id:20,name:"Customer Service",icon:"🎯",color:"#7e57c2",desc:"Communication skills, conflict resolution, CRM systems"}
+];
+
+function qpParam(name) {
+  try {
+    var v = new URLSearchParams(window.location.search).get(name);
+    return v ? decodeURIComponent(v) : '';
+  } catch (e) { return ''; }
+}
+
+var qpRole = qpParam('role') || 'admin';
+var qpCourse = qpParam('course');
+var qpUserName = qpParam('student');
+var qpIsStaff = (qpRole === 'admin' || qpRole === 'adminstaff');
+var qpFileCache = {};       // folderId -> array of items (folders + files), or Error
+var qpNav = {};             // programme rootFolderId -> breadcrumb [{id,name}]
+var qpNoticeShown = false;
+var qpAnyFailed = false;     // did the last render have any folder that failed to list?
+var qpLastToken = undefined; // last Drive token seen (to detect reconnect / rotation)
+var qpHadAccess = false;     // did we have Drive access (token or API key) last check?
+var QP_FOLDER_MIME = 'application/vnd.google-apps.folder';
+var QP_SHORTCUT_MIME = 'application/vnd.google-apps.shortcut';
+
+// Read the host LMS's Drive token (same-origin parent). Null if standalone / unset.
+function qpToken() {
+  try {
+    if (window.parent && window.parent !== window && window.parent.googleAccessToken) {
+      return window.parent.googleAccessToken;
+    }
+  } catch (e) { /* cross-origin — ignore */ }
+  return null;
+}
+
+function qpFindSkillArea(name) {
+  if (!name) return null;
+  var cn = name.toLowerCase().trim();
+  var exact = skillAreas.find(function(sk){ return sk.name.toLowerCase().trim() === cn; });
+  if (exact) return exact;
+  var contains = skillAreas.find(function(sk){
+    var sn = sk.name.toLowerCase().trim();
+    return cn.indexOf(sn) !== -1 || sn.indexOf(cn) !== -1;
+  });
+  if (contains) return contains;
+  var firstWord = skillAreas.find(function(sk){
+    var fw = sk.name.split(' ')[0].toLowerCase();
+    return fw.length > 2 && cn.indexOf(fw) !== -1;
+  });
+  return firstWord || null;
+}
+
+function qpSkillMeta(skillAreaName) {
+  return qpFindSkillArea(skillAreaName) ||
+    { name: skillAreaName || 'General', icon: '📚', color: '#3498db', desc: '' };
+}
+
+function qpHexToRgb(hex) {
+  var h = hex.replace('#','');
+  if (h.length === 3) h = h.split('').map(function(c){return c+c;}).join('');
+  var n = parseInt(h, 16);
+  return [(n>>16)&255, (n>>8)&255, n&255].join(',');
+}
+
+function qpEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+function qpFileIcon(mime) {
+  mime = mime || '';
+  if (mime.indexOf('pdf') !== -1) return '📕';
+  if (mime.indexOf('document') !== -1 || mime.indexOf('word') !== -1) return '📄';
+  if (mime.indexOf('spreadsheet') !== -1 || mime.indexOf('excel') !== -1) return '📊';
+  if (mime.indexOf('presentation') !== -1 || mime.indexOf('powerpoint') !== -1) return '📑';
+  if (mime.indexOf('image') !== -1) return '🖼️';
+  if (mime.indexOf('folder') !== -1) return '📁';
+  return '📄';
+}
+
+// Normalise a Drive item, resolving shortcuts to their real target so that
+// shortcut-folders are navigable and shortcut-files open the underlying doc.
+function qpNormalize(f) {
+  var mime = f.mimeType, id = f.id;
+  if (mime === QP_SHORTCUT_MIME && f.shortcutDetails) {
+    mime = f.shortcutDetails.targetMimeType || mime;
+    id = f.shortcutDetails.targetId || id;
+  }
+  return { id: id, name: f.name, mimeType: mime, isFolder: mime === QP_FOLDER_MIME };
+}
+
+// List the (non-trashed) items inside a Drive folder (folders + files),
+// following pagination. Cached per folder.
+function qpListFolder(folderId) {
+  if (qpFileCache[folderId]) return Promise.resolve(qpFileCache[folderId]);
+  var token = qpToken();
+  if (!token && !QP_API_KEY) {
+    var err = new Error('no-auth');
+    return Promise.resolve(err);
+  }
+  var opts = token ? { headers: { 'Authorization': 'Bearer ' + token } } : {};
+  var acc = [];
+  function page(pageToken) {
+    var q = encodeURIComponent("'" + folderId + "' in parents and trashed=false");
+    var url = 'https://www.googleapis.com/drive/v3/files?q=' + q +
+      '&fields=nextPageToken,files(id,name,mimeType,shortcutDetails(targetId,targetMimeType))' +
+      '&orderBy=folder,name&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true';
+    if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
+    if (!token && QP_API_KEY) url += '&key=' + encodeURIComponent(QP_API_KEY);
+    return fetch(url, opts)
+      .then(function(r){ if(!r.ok) throw new Error('http-' + r.status); return r.json(); })
+      .then(function(data){
+        (data.files || []).forEach(function(f){ acc.push(qpNormalize(f)); });
+        if (data.nextPageToken) return page(data.nextPageToken);
+        qpFileCache[folderId] = acc;
+        return acc;
+      });
+  }
+  return page(null).catch(function(e){ return e; });
+}
+
+// Embeddable preview URL for a Drive item.
+//
+// Everything used to go to drive.google.com/file/d/<id>/preview. That address
+// only serves files STORED in Drive — PDFs, images, uploaded Word/Excel. Native
+// Google Docs, Sheets, Slides and Forms are not files in that sense, and asking
+// for them there returns an error page, so those qualification plans opened to a
+// blank viewer while the PDFs beside them worked. Each native type has its own
+// preview host, which is what this picks.
+function qpPopoutUrl(fileId, mimeType) {
+  var m = mimeType || '';
+  if (m === 'application/vnd.google-apps.document')     return 'https://docs.google.com/document/d/' + fileId + '/preview';
+  if (m === 'application/vnd.google-apps.spreadsheet')  return 'https://docs.google.com/spreadsheets/d/' + fileId + '/preview';
+  if (m === 'application/vnd.google-apps.presentation') return 'https://docs.google.com/presentation/d/' + fileId + '/embed';
+  if (m === 'application/vnd.google-apps.drawing')      return 'https://docs.google.com/drawings/d/' + fileId + '/preview';
+  if (m === 'application/vnd.google-apps.form')         return 'https://docs.google.com/forms/d/' + fileId + '/viewform?embedded=true';
+  return 'https://drive.google.com/file/d/' + fileId + '/preview';
+}
+
+// Open-in-Drive address, used as the fallback when a document will not embed.
+function qpDriveUrl(fileId) {
+  return 'https://drive.google.com/open?id=' + fileId;
+}
+
+// Look up a cached item (name + mimeType) by id.
+function qpItemById(itemId) {
+  for (var k in qpFileCache) {
+    var arr = qpFileCache[k];
+    if (Array.isArray(arr)) {
+      var hit = arr.find(function(f){ return f.id === itemId; });
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+
+// Look up an item's name from cached listings or the manual subfolder registry.
+function qpItemName(itemId) {
+  var hit = qpItemById(itemId);
+  if (hit) return hit.name;
+  // Manual subfolder registry (used when the parent can't be enumerated).
+  for (var i = 0; i < QUAL_PLAN_PROGRAMS.length; i++) {
+    var subs = QUAL_PLAN_PROGRAMS[i].subfolders || [];
+    for (var j = 0; j < subs.length; j++) {
+      if (subs[j].folderId === itemId) return subs[j].name;
+    }
+  }
+  return null;
+}
+
+// Merge a folder's dynamic listing with any manually-registered subfolders so
+// known subfolders always appear, even if the parent can't be enumerated.
+function qpMergeManual(result, manual) {
+  var arr = (result instanceof Error) ? [] : result.slice();
+  var seen = {};
+  arr.forEach(function(f){ seen[f.id] = true; });
+  (manual || []).forEach(function(m){
+    if (!seen[m.folderId]) {
+      arr.push({ id: m.folderId, name: m.name, mimeType: QP_FOLDER_MIME, isFolder: true });
+      seen[m.folderId] = true;
+    }
+  });
+  arr.sort(function(a, b){
+    if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  return arr;
+}
+
+var qpViewerTimer = null;
+
+function qpOpenViewer(fileId, mimeType) {
+  var item = qpItemById(fileId);
+  var mime = mimeType || (item && item.mimeType) || '';
+  document.getElementById('qpModalTitle').textContent = qpItemName(fileId) || 'Document';
+  var openBtn = document.getElementById('qpModalOpen');
+  if (openBtn) openBtn.href = qpDriveUrl(fileId);
+  var note = document.getElementById('qpModalNote');
+  if (note) note.style.display = 'none';
+  var frame = document.getElementById('qpModalFrame');
+  frame.src = qpPopoutUrl(fileId, mime);
+  document.getElementById('qpModal').classList.add('open');
+  // A viewer that never paints used to stay blank with nothing to act on. If the
+  // embed has not loaded shortly, show the way out instead of a white rectangle.
+  if (qpViewerTimer) clearTimeout(qpViewerTimer);
+  qpViewerTimer = setTimeout(function(){ if (note) note.style.display = 'block'; }, 6000);
+}
+
+function qpViewerLoaded() {
+  if (qpViewerTimer) { clearTimeout(qpViewerTimer); qpViewerTimer = null; }
+}
+
+function qpCloseViewer() {
+  if (qpViewerTimer) { clearTimeout(qpViewerTimer); qpViewerTimer = null; }
+  document.getElementById('qpModal').classList.remove('open');
+  document.getElementById('qpModalFrame').src = 'about:blank';
+  var note = document.getElementById('qpModalNote');
+  if (note) note.style.display = 'none';
+}
+
+document.addEventListener('keydown', function(e){ if(e.key === 'Escape') qpCloseViewer(); });
+
+function qpProgById(rootId) {
+  return QUAL_PLAN_PROGRAMS.find(function(p){ return p.folderId === rootId; });
+}
+
+// Drill into a subfolder, then re-render that programme card's listing.
+function qpNavInto(rootId, folderId) {
+  var name = qpItemName(folderId) || 'Folder';
+  (qpNav[rootId] = qpNav[rootId] || []).push({ id: folderId, name: name });
+  qpLoadCard(qpProgById(rootId));
+}
+
+// Jump to a breadcrumb level (0 = programme root).
+function qpNavTo(rootId, depth) {
+  if (qpNav[rootId]) qpNav[rootId] = qpNav[rootId].slice(0, depth + 1);
+  qpLoadCard(qpProgById(rootId));
+}
+
+function qpRenderCrumbs(prog) {
+  var el = document.getElementById('qpCrumbs-' + prog.folderId);
+  if (!el) return;
+  var bc = qpNav[prog.folderId] || [];
+  if (bc.length <= 1) { el.className = 'qp-crumbs'; el.innerHTML = ''; return; }
+  el.className = 'qp-crumbs show';
+  el.innerHTML = bc.map(function(c, i){
+    var last = i === bc.length - 1;
+    var label = i === 0 ? '🏠 Home' : qpEsc(c.name);
+    var seg = last
+      ? '<span class="qp-crumb current">' + label + '</span>'
+      : '<span class="qp-crumb" onclick="qpNavTo(\'' + prog.folderId + '\',' + i + ')">' + label + '</span>';
+    return (i ? '<span class="qp-crumb-sep">›</span>' : '') + seg;
+  }).join('');
+}
+
+function qpRenderListing(prog, result) {
+  var host = document.getElementById('qpFiles-' + prog.folderId);
+  if (!host) return;
+  if (result instanceof Error) {
+    // Remember that a listing failed so we can auto-retry once Drive access is
+    // (re)connected — e.g. an expired token that the admin reconnects.
+    qpAnyFailed = true;
+    // "Couldn't load documents" was the same message whether the token had
+    // expired, the folder had not been shared with this person, or the folder id
+    // was wrong — so a card that failed gave nobody anything to act on. Name the
+    // cause and offer the folder itself as a way through.
+    var bc0 = (qpNav[prog.folderId] || [])[(qpNav[prog.folderId] || []).length - 1];
+    var openFolder = ' <a href="https://drive.google.com/drive/folders/' + qpEsc((bc0 && bc0.id) || prog.folderId) +
+      '" target="_blank" rel="noopener" style="color:var(--accent);">Open this folder in Drive ↗</a>';
+    if (result.message === 'no-auth') {
+      host.innerHTML = '<div class="qp-files-msg">Documents can\'t be listed yet — sign in to Google Drive (admin) or add a Drive API key.</div>';
+      qpMaybeShowAuthNotice();
+    } else if (result.message === 'http-401') {
+      host.innerHTML = '<div class="qp-files-msg">Your Google session has expired. Use <strong>Sync Now</strong> on the sign-in page to reconnect, then reopen this page.</div>';
+    } else if (result.message === 'http-403' || result.message === 'http-404') {
+      host.innerHTML = '<div class="qp-files-msg">This folder isn\'t shared with your Google account, so its documents can\'t be listed. ' +
+        'Ask an administrator to share it with you (or set it to "anyone with the link").' + openFolder + '</div>';
+    } else {
+      host.innerHTML = '<div class="qp-files-msg">Couldn\'t load documents for this folder (' + qpEsc(result.message || 'unknown error') + ').' + openFolder + '</div>';
+    }
+    return;
+  }
+  var search = (document.getElementById('qpSearch').value || '').toLowerCase().trim();
+  var match = function(f){ return !search || f.name.toLowerCase().indexOf(search) !== -1; };
+  var folders = result.filter(function(f){ return f.isFolder && match(f); });
+  var files   = result.filter(function(f){ return !f.isFolder && match(f); });
+
+  // Folders sort first, then files; both alphabetical (API already orders by name).
+  if (!folders.length && !files.length) {
+    host.innerHTML = '<div class="qp-files-msg">' +
+      (result.length ? 'Nothing matches your search.' : 'This folder is empty.') + '</div>';
+    return;
+  }
+  var rows = folders.map(function(f){
+    return '<div class="qp-file is-folder" onclick="qpNavInto(\'' + prog.folderId + '\',\'' + qpEsc(f.id) + '\')">' +
+      '<div class="fic">📁</div>' +
+      '<div class="fnm" title="' + qpEsc(f.name) + '">' + qpEsc(f.name) + '</div>' +
+      '<div class="fgo">Open ▸</div>' +
+    '</div>';
+  }).concat(files.map(function(f){
+    return '<div class="qp-file" onclick="qpOpenViewer(\'' + qpEsc(f.id) + '\',\'' + qpEsc(f.mimeType || '') + '\')">' +
+      '<div class="fic" style="background:rgba(240,165,0,0.12);">' + qpFileIcon(f.mimeType) + '</div>' +
+      '<div class="fnm" title="' + qpEsc(f.name) + '">' + qpEsc(f.name) + '</div>' +
+      '<div class="fgo">View ▸</div>' +
+    '</div>';
+  }));
+  host.innerHTML = rows.join('');
+}
+
+// Load + render the current folder (per the breadcrumb) for a programme card.
+function qpLoadCard(prog) {
+  if (!prog) return;
+  if (!qpNav[prog.folderId]) qpNav[prog.folderId] = [{ id: prog.folderId, name: prog.title }];
+  qpRenderCrumbs(prog);
+  var host = document.getElementById('qpFiles-' + prog.folderId);
+  if (host) host.innerHTML = '<div class="qp-files-msg"><span class="qp-spinner"></span>Loading documents…</div>';
+  var bc = qpNav[prog.folderId];
+  var current = bc[bc.length - 1].id;
+  var atRoot = bc.length === 1;
+  qpListFolder(current).then(function(res){
+    // At the programme root, fold in any manually-registered subfolders.
+    if (atRoot && prog.subfolders && prog.subfolders.length) {
+      res = qpMergeManual(res, prog.subfolders);
+    }
+    qpRenderCrumbs(prog);
+    qpRenderListing(prog, res);
+  });
+}
+
+// Auto-recover when Google Drive access is (re)connected. This page reads the
+// host LMS's token live (window.parent.googleAccessToken); when a token expires
+// the listings fail, and when the admin reconnects the parent gets a fresh
+// token but this frame has no way to know — so nothing refreshed and the qual
+// plans stayed gone until a manual reload. We watch for the token appearing or
+// changing and re-render the folders that failed.
+//   - force = true  → an explicit "drive connected" signal from the parent;
+//                     re-render if we currently have access.
+//   - force = false → a poll / focus tick; only re-render on a real edge
+//                     (token gained or rotated) AND only if something had failed,
+//                     so routine hourly token rotation doesn't cause churn.
+function qpRefreshListings(force) {
+  var tok = qpToken();
+  var hasAccess = !!(tok || QP_API_KEY);
+  var edge = (tok !== qpLastToken) || (hasAccess && !qpHadAccess);
+  qpLastToken = tok;
+  qpHadAccess = hasAccess;
+  if (!hasAccess) return;
+  if (!(force || (edge && qpAnyFailed))) return;
+  // Access is back — drop the "needs Drive access" notice and reload. Failed
+  // folders were never cached, so successful folders reload instantly from cache
+  // while the previously-broken ones re-fetch with the fresh token.
+  qpAnyFailed = false;
+  qpNoticeShown = false;
+  var nh = document.getElementById('qpNoticeHost');
+  if (nh) nh.innerHTML = '';
+  qpRender();
+}
+
+// Start watching for a Drive (re)connection: a low-frequency poll plus the
+// prompt signals (parent postMessage, tab regaining focus).
+function qpWatchReconnect() {
+  qpLastToken = qpToken();
+  qpHadAccess = !!(qpLastToken || QP_API_KEY);
+  setInterval(function(){ qpRefreshListings(false); }, 2500);
+  window.addEventListener('message', function(e){
+    var d = e && e.data;
+    if (d && (d.type === 'cestis-drive-connected' || d.type === 'cestis-drive-token')) {
+      qpRefreshListings(true);
+    }
+  });
+  window.addEventListener('focus', function(){ qpRefreshListings(false); });
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden) qpRefreshListings(false);
+  });
+}
+
+function qpMaybeShowAuthNotice() {
+  if (qpNoticeShown || qpToken() || QP_API_KEY) return;
+  qpNoticeShown = true;
+  document.getElementById('qpNoticeHost').innerHTML =
+    '<div class="qp-notice">Document previews need Google Drive access. An administrator should ' +
+    'connect Google Drive in the LMS, or a Drive API key can be added so signed-out users ' +
+    '(e.g. students) can view the public folders.</div>';
+}
+
+function qpCard(prog) {
+  var meta = prog.general
+    ? { name: 'Short Courses', icon: '🎓', color: '#f0a500' }
+    : qpSkillMeta(prog.skillArea);
+  var rgb = qpHexToRgb(meta.color);
+  var badgeLabel = prog.general ? 'All Learners' : meta.name;
+  return '' +
+    '<div class="qp-card">' +
+      '<div class="qp-card-head">' +
+        '<div class="ic" style="background:rgba(' + rgb + ',0.18);color:' + meta.color + ';">' + meta.icon + '</div>' +
+        '<div>' +
+          '<div class="nm">' + qpEsc(prog.title) + '</div>' +
+          '<span class="qp-badge" style="background:rgba(' + rgb + ',0.18);color:' + meta.color + ';">' + qpEsc(badgeLabel) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="qp-crumbs" id="qpCrumbs-' + prog.folderId + '"></div>' +
+      '<div class="qp-files" id="qpFiles-' + prog.folderId + '">' +
+        '<div class="qp-files-msg"><span class="qp-spinner"></span>Loading documents…</div>' +
+      '</div>' +
+    '</div>';
+}
+
+function qpRender() {
+  qpAnyFailed = false; // recomputed as each card's listing resolves
+  var grid = document.getElementById('qpGrid');
+  var search = (document.getElementById('qpSearch').value || '').toLowerCase().trim();
+  var filter = document.getElementById('qpFilter').value;
+  var allowedSkill = (!qpIsStaff && qpCourse) ? qpSkillMeta(qpCourse) : null;
+
+  var list = QUAL_PLAN_PROGRAMS.filter(function(prog){
+    if (allowedSkill && !prog.general && prog.skillArea !== allowedSkill.name) return false;
+    if (qpIsStaff && filter !== 'all' && (prog.general || prog.skillArea !== filter)) return false;
+    return true;
+  });
+
+  if (!list.length) {
+    grid.innerHTML = '<div class="qp-empty">No qualification plans available for this skill area yet.</div>';
+    return;
+  }
+
+  grid.innerHTML = list.map(qpCard).join('');
+  // Load + render each visible programme's current folder (preserves drill-down).
+  list.forEach(function(prog){ qpLoadCard(prog); });
+}
+
+function qpInit() {
+  // Build skill-area filter from skill areas that actually have programmes.
+  var sel = document.getElementById('qpFilter');
+  var withPrograms = {};
+  QUAL_PLAN_PROGRAMS.forEach(function(p){ if (p.skillArea) withPrograms[p.skillArea] = true; });
+  Object.keys(withPrograms).sort().forEach(function(name){
+    var o = document.createElement('option');
+    o.value = name; o.textContent = name;
+    sel.appendChild(o);
+  });
+
+  if (qpIsStaff) {
+    document.getElementById('qpSubtitle').textContent =
+      'All qualification plans & curriculums, organised by skill area.';
+  } else {
+    document.getElementById('qpControls').style.display = 'none';
+    var skill = qpCourse ? qpSkillMeta(qpCourse) : null;
+    if (skill) {
+      document.getElementById('qpSubtitle').textContent =
+        'Your qualification plan & curriculum for ' + skill.name + '.';
+      var rgb = qpHexToRgb(skill.color);
+      document.getElementById('qpBannerHost').innerHTML =
+        '<div class="qp-banner" style="background:linear-gradient(135deg,rgba(' + rgb + ',0.16),rgba(52,152,219,0.05));">' +
+          '<div class="ic" style="background:' + skill.color + '33;color:' + skill.color + ';">' + skill.icon + '</div>' +
+          '<div>' +
+            '<h2>' + qpEsc(skill.name) + '</h2>' +
+            '<span class="sub">' +
+              (qpUserName ? qpEsc(qpUserName) + ' — ' : '') +
+              'Qualification plan &amp; curriculum for your skill area' +
+            '</span>' +
+          '</div>' +
+        '</div>';
+    }
+  }
+
+  qpRender();
+  qpWatchReconnect();
+}
+
+document.addEventListener('DOMContentLoaded', qpInit);
+</script>
+</body>
+</html>

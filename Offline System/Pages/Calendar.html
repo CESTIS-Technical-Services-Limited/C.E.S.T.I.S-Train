@@ -1,0 +1,26 @@
+<!--
+  ============================================================================
+  Pages/Calendar.html  —  C.E.S.T.I.S Calendar & Schedule (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="calendar" data-prefix="admin">).
+  Filled on mount by renderCalendar() + renderCalendarEventList() in index.html.
+  Keep ids calTitle / calGrid / calDayTitle / calDayEvents / calEventList.
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
+  ============================================================================
+-->
+<div class="grid-sidebar">
+  <div class="card">
+    <div class="cal-header">
+      <div class="cal-nav"><button onclick="changeCalMonth(-1)">←</button></div>
+      <div class="cal-title" id="calTitle"></div>
+      <div class="cal-nav"><button onclick="changeCalMonth(1)">→</button></div>
+    </div>
+    <div class="calendar-grid" id="calGrid"></div>
+  </div>
+  <div>
+    <div class="card"><div class="card-header"><h3 id="calDayTitle">Select a Day</h3></div><div id="calDayEvents"><p style="font-size:13px;color:var(--text-muted);">Click a day to see events</p></div></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="promptAddEvent()">+ Add Event</button>
+    <div class="card" style="margin-top:12px;"><div class="card-header"><h3>All Events</h3></div><div id="calEventList"></div></div>
+  </div>
+</div>
