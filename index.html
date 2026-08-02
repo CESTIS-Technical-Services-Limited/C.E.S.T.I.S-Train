@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-core.js?v=20260712a"></script>
+<script src="staff-appraisals.js?v=20260802a"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="h1kcrSWbOfqMdqcEuN9crbU73K84WTBd7Qy1lcbcFC4" />
 <title>VocTrain LMS — Vocational Training Management System</title>
@@ -5583,7 +5584,8 @@ function exportDataBackup() {
     'cestis_finance_invoices','cestis_finance_quotes','cestis_finance_pos','cestis_finance_voucher_overrides',
     'cestis_finance_convert','cesti_cashbook_data','cesti_virements','cesti_virement_logo',
     'cestis_budget_overrides','cestis_budget_deleted','cestis_active_quarter',
-    'cestisStaffMembers','cestisTimeRecords','cestiSchoolFeeStudents','cestiSchoolFeePayments','cestiUsers'];
+    'cestisStaffMembers','cestisTimeRecords','cestiSchoolFeeStudents','cestiSchoolFeePayments','cestiUsers',
+    'cestisStaffAppraisals'];
   // Include every dynamically-keyed bucket (per-quarter attendance/budget/virement,
   // finance docs) so nothing is silently left out of the backup.
   try {
@@ -8771,6 +8773,8 @@ function enterApp(role) {
       document.getElementById('sidebarUserName').textContent = adminName;
       document.getElementById('sidebarUserRole').textContent = 'System Admin';
       showPage('dashboard');
+      // Annual staff-appraisal due check: bell notification + dashboard card + nav badge
+      try { if(typeof sappOnAdminLogin === 'function') sappOnAdminLogin(); } catch(e) {}
     } else if(role === 'instructor') {
       buildInstructorSidebar();
       buildInstructorPages();
@@ -9399,6 +9403,8 @@ function buildAdminSidebar() {
     <div class="nav-section-group collapsed">
     <div class="nav-item" data-page="admin-duty-register" onclick="showPage('admin-duty-register')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>Admin Duty Register<span class="nav-badge" id="dutyTasksBadge" style="display:none;background:var(--accent);">0</span></div>
+    <div class="nav-item" data-page="staff-appraisals" onclick="showPage('staff-appraisals')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>Staff Appraisals<span class="nav-badge" id="sappNavBadge" style="display:none;background:var(--accent);">0</span></div>
     <div class="nav-item" data-page="verify-users" onclick="showPage('verify-users')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>Verify Users<span class="nav-badge" id="pendingUsersBadge" style="display:none;background:var(--red);">0</span></div>
     <div class="nav-item" data-page="certificates" onclick="showPage('certificates')">
@@ -9688,6 +9694,12 @@ var cestisFeatureConfig = {
       cestisSafe('adrOnPageShow');
     }
   },
+  'staff-appraisals': {
+    file: 'Pages/Staff-Appraisals.html',
+    onMount: function() {
+      cestisSafe('sappOnPageShow');
+    }
+  },
   'i-resources': {
     file: 'Pages/Instructor-Resources.html',
     onMount: function() {
@@ -9900,6 +9912,8 @@ function showPage(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
+  // Keep the staff-appraisal due indicator fresh whenever the admin dashboard is shown
+  if(pageId === 'dashboard') { try { if(typeof sappRenderAdminDueCard === 'function') sappRenderAdminDueCard(); } catch(e) {} }
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const navItem = document.querySelector('.nav-item[data-page="'+pageId+'"]');
   if(navItem) {
@@ -9923,7 +9937,7 @@ function showPage(pageId) {
     'i-attendance':'Class Attendance','i-gradebook':'Gradebook','i-resources':'Course Resources','i-exams':'Online Exams',
     'i-duties':'My Assigned Tasks','i-announcements':'Announcements','i-calendar':'Calendar','i-profile':'My Profile',
     'lms-chat':'C.E.S.T.I.S LMS Chat','s-lms-chat':'C.E.S.T.I.S LMS Chat','i-lms-chat':'C.E.S.T.I.S LMS Chat',
-    'admin-duty-register':'Admin Duty Register',
+    'admin-duty-register':'Admin Duty Register','staff-appraisals':'Staff Appraisals',
     'support-messages':'Support Messages','as-support-messages':'Support Messages',
     'as-dashboard':'My Dashboard','as-duties':'My Duties','as-lms-chat':'C.E.S.T.I.S LMS Chat','as-profile':'My Profile',
     'as-attendance':'Attendance Management','as-announcements':'Announcements','as-calendar':'Calendar & Schedule',
@@ -10072,6 +10086,7 @@ function buildAdminPages() {
   const mc = document.getElementById('mainContent');
   mc.innerHTML = `
   <section class="page active" id="page-dashboard">
+    <div id="sappAdminDueCard"></div>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDC65</div><div class="stat-value" data-count="${totalEnrolled}">0</div><div class="stat-label">Total Enrolled Students</div><div class="stat-change" style="color:var(--text-muted);">Across all programmes</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83C\uDF93</div><div class="stat-value" data-count="${totalCertified}">0</div><div class="stat-label">Certified This Year</div><div class="stat-change" style="color:var(--text-muted);">Completed certification</div></div>
@@ -10513,6 +10528,10 @@ function buildAdminPages() {
   </section>
 
   <!-- ADMIN DUTY REGISTER PAGE -->
+  <section class="page" id="page-staff-appraisals">
+    <div class="cestis-mount" data-feature="staff-appraisals" data-prefix="admin"></div>
+  </section>
+
   <section class="page" id="page-admin-duty-register">
     <div class="cestis-mount" data-feature="admin-duty-register" data-prefix="admin"></div>
   </section>
@@ -11115,6 +11134,8 @@ function buildInstructorPages() {
       <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📊</div><div class="stat-value" data-count="${avgAttendance}" data-suffix="%">0</div><div class="stat-label">Avg Attendance</div><div class="stat-change" style="color:${avgAttendance>=80?'var(--green)':'var(--red)'};">${avgAttendance>=80?'On track':'Needs attention'}</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--purple-dim);color:var(--purple);">⭐</div><div class="stat-value" data-count="${avgGpa}">0</div><div class="stat-label">Avg GPA</div><div class="stat-change" style="color:var(--text-muted);">Class average</div></div>
     </div>
+
+    <div id="iMyAppraisalCard"></div>
 
     <div class="quick-actions">
       <div class="quick-action-btn" onclick="showPage('i-classes')"><div class="qa-icon">📹</div><div class="qa-label">Start Class</div></div>
@@ -13793,6 +13814,9 @@ function renderInstructorRecordings() {
 function renderInstructorDashboardDynamic() {
   var ins = currentInstructor;
   if (!ins) return;
+
+  // My Performance Appraisal grade card (completed appraisals only)
+  try { if(typeof sappRenderMyCard === 'function') sappRenderMyCard('iMyAppraisalCard'); } catch(e) {}
 
   // Populate "next class" alert from classSessions
   var alertEl = document.getElementById('iDashNextClassAlert');
@@ -28443,6 +28467,11 @@ async function cestisPullAndRefresh() {
         else if (dutyPage.id === 'page-as-duties' && typeof asOnDutiesPageShow === 'function') asOnDutiesPageShow();
       }
     } catch (e) {}
+    // Refresh staff-appraisal views if data changed while the admin is on them.
+    try {
+      if (document.querySelector('#page-staff-appraisals.active') && typeof sappOnPageShow === 'function') sappOnPageShow();
+      if (typeof sappUpdateNavBadge === 'function') sappUpdateNavBadge();
+    } catch (e) {}
   } catch (e) { console.warn('cestis realtime pull error', e); }
 }
 
@@ -29401,6 +29430,8 @@ function adrInit() {
   adrLoadData();
   adrPopulateStaffDropdowns();
   adrStartNotificationTimers();
+  // My Performance Appraisal grade card on the admin-staff dashboard
+  try { if(typeof sappRenderMyCard === 'function') sappRenderMyCard('asMyAppraisalCard'); } catch(e) {}
 }
 
 function adrLoadData() {
@@ -30492,6 +30523,9 @@ function buildAdminStaffPages() {
       '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);"><span>'+perf.onTime+' on time / '+perf.total+' total</span><span class="adr-badge '+badge.cls+'" style="font-size:12px;">'+badge.icon+' '+badge.label+'</span></div></div>' +
     '</div>' +
   '</div>';
+
+  // My Performance Appraisal grade card (rendered by staff-appraisals.js after build)
+  html += '<div id="asMyAppraisalCard"></div>';
 
   // Urgent Tasks Preview
   if(overdueTasks.length > 0) {
