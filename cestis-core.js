@@ -4012,6 +4012,63 @@
       return (stamps && Date.parse(stamps[key] || '')) || 0;
     }
 
+    /* Is this stored value "nothing"? An absent key, an empty list, an empty
+       object, or an unreadable value that carries no records. */
+    function isEmptyValue(raw) {
+      if (raw == null) return true;
+      var s = String(raw).trim();
+      if (s === '' || s === 'null' || s === 'undefined') return true;
+      if (s === '[]' || s === '{}') return true;
+      try {
+        var v = JSON.parse(s);
+        if (v == null) return true;
+        if (Array.isArray(v)) return v.length === 0;
+        if (typeof v === 'object') return Object.keys(v).length === 0;
+        return false;                       // a number/string/boolean is content
+      } catch (e) {
+        return false;                       // unreadable, but not empty — never discard it
+      }
+    }
+
+    /* Would replacing `from` with `to` throw records away?
+
+       This is the rule that makes a collection unloseable. A timestamp says
+       WHEN a value was written, not that it is right: a page that came up
+       before its data had loaded, wrote an empty list and stamped it NOW would
+       otherwise win every merge and take the Centre's records with it — on this
+       device and then, on the next push, in Drive.
+
+       Emptiness is therefore never treated as newer data. Wiping a collection
+       has to be recorded deliberately (a tombstone list, an explicit reset),
+       which is exactly how deleting a trainee, a payment or a training centre
+       already works — those write a record of the deletion, not an empty list. */
+    function wouldDiscardRecords(from, to) {
+      return !isEmptyValue(from) && isEmptyValue(to);
+    }
+
+    /* Write a collection to the store unless doing so would throw records away.
+
+       The same rule as the merge above, applied one step earlier — at the write
+       itself — so an empty list never even reaches storage, let alone a stamp
+       and an upload. Returns true when written, false when refused.
+
+       Every page persists its collections wholesale ("write out the whole list
+       of students"), which is only safe while that list is actually loaded. It
+       is not loaded during the moments this guards: before a cloud pull has
+       landed, after a failed read, on a device whose store was cleared. */
+    function guardedSet(store, key, value, onRefuse) {
+      if (!store || !key) return false;
+      var next = (typeof value === 'string') ? value : JSON.stringify(value);
+      var current = null;
+      try { current = store.getItem(key); } catch (e) { current = null; }
+      if (wouldDiscardRecords(current, next)) {
+        if (typeof onRefuse === 'function') { try { onRefuse(key, current); } catch (e) {} }
+        return false;
+      }
+      try { store.setItem(key, next); } catch (e) { return false; }
+      return true;
+    }
+
     /* Merge a cloud backup into this device's copy.
          localData/cloudData   - { storageKey: rawStringValue }
          localStamps/cloudStamps - { storageKey: ISO time last written }
@@ -4019,7 +4076,7 @@
     function mergeKeys(localData, localStamps, cloudData, cloudStamps, opts) {
       localData = localData || {}; cloudData = cloudData || {};
       opts = opts || {};
-      var data = {}, stamps = {}, changed = [], k;
+      var data = {}, stamps = {}, changed = [], rescued = [], k;
 
       for (k in localData) {
         if (!Object.prototype.hasOwnProperty.call(localData, k)) continue;
@@ -4037,6 +4094,25 @@
           continue;
         }
         if (localData[k] === cloudData[k]) continue;      // identical, nothing to do
+
+        // An empty local copy NEVER replaces records, however new its stamp
+        // looks. This is the guard that keeps a collection unloseable: a page
+        // that came up before its data had loaded, wrote an empty list and
+        // stamped it now would otherwise win here and take the records with it.
+        if (wouldDiscardRecords(cloudData[k], localData[k])) {
+          data[k] = cloudData[k];
+          if (cloudStamps && cloudStamps[k]) stamps[k] = cloudStamps[k];
+          changed.push(k);
+          rescued.push(k);
+          continue;
+        }
+        // And the same in reverse: an empty cloud copy never wipes what this
+        // device still holds, so one bad upload cannot take everyone down.
+        if (wouldDiscardRecords(localData[k], cloudData[k])) {
+          rescued.push(k);
+          continue;
+        }
+
         var lt = stampOf(localStamps, k), ct = stampOf(cloudStamps, k);
         // The cloud only wins when BOTH sides can be dated and it is the newer
         // of the two. Local data with no stamp predates this backup existing;
@@ -4061,7 +4137,10 @@
           changed.push(k);
         }
       }
-      return { data: data, stamps: stamps, changed: changed };
+      // `rescued` names the keys where one side was empty and the records won
+      // anyway — worth surfacing, because it means a device tried to sync a
+      // collection away and was stopped.
+      return { data: data, stamps: stamps, changed: changed, rescued: rescued };
     }
 
     /* --- Shared collections, and which backup file carries them ------------
@@ -4209,7 +4288,9 @@
 
     return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload,
              sharedSources: sharedSources, isShared: isShared, sourceOf: sourceOf,
-             sharedPullPlan: sharedPullPlan, pickShared: pickShared };
+             sharedPullPlan: sharedPullPlan, pickShared: pickShared,
+             isEmptyValue: isEmptyValue, wouldDiscardRecords: wouldDiscardRecords,
+             guardedSet: guardedSet };
   })();
 
   root.CESTISCore = Core;
