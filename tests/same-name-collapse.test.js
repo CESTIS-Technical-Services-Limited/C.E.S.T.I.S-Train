@@ -226,5 +226,66 @@ r = Core.collapseSameNameStudents([
 ]);
 assertEq(r.students.length, 1, 'unticking it puts the record back under the ordinary rule');
 
+/* ---------- 7. The same exemption on the School Fee roll ---------- */
+console.log('\nThe exemption works the same on two same-named FEE records');
+
+// Two real people who share a name, each owing on their own programme.
+r = Core.collapseSameNameStudents([
+  { id: 'SF-1', name: 'John Brown', skillArea: 'WELDING L2',
+    tuitionFee: 120000, totalPaid: 40000, balance: 80000 },
+  { id: 'SF-2', name: 'John Brown', skillArea: 'COSMETOLOGY L2',
+    tuitionFee: 90000, totalPaid: 0, balance: 90000, keepSeparate: true }
+], { courseField: 'skillArea' });
+assertEq(r.students.length, 2, 'both fee records stand');
+assertEq(Object.keys(r.idMap).length, 0,
+  'and no id is redirected, so neither account has the other one\'s payments moved onto it');
+assertEq(r.students[0].totalPaid, 40000, 'the money stays with the person who paid it');
+assertEq(r.students[1].balance, 90000, 'and the other balance is untouched');
+
+console.log('A genuine fee double still folds away beside a pinned namesake');
+r = Core.collapseSameNameStudents([
+  { id: 'SF-PIN', name: 'John Brown', skillArea: 'COSMETOLOGY L2', totalPaid: 0, keepSeparate: true },
+  { id: 'SF-A',   name: 'John Brown', skillArea: 'WELDING L2',     totalPaid: 15000 },
+  { id: 'SF-B',   name: 'John Brown', skillArea: 'Welding & Fabrication', totalPaid: 0 }
+], { courseField: 'skillArea' });
+assertEq(r.students.length, 2, 'the pinned record, plus one record for the two duplicates');
+assertEq(r.idMap['SF-B'], 'SF-A', 'the duplicate\'s payments relink to the survivor');
+assert(!r.idMap['SF-PIN'], 'nothing is ever mapped away from the pinned fee record');
+
+/* Why the two propagation helpers (feePropagateKeepSeparate on School Fee,
+   spPropagateKeepSeparate on Student Progress) do not stop at the linked twin.
+
+   Marking a fee record has to mark the same person on the dashboard, or one
+   side stands while the other is collapsed on the next launch. But the pin is
+   usually set AFTER the two records have been collapsed once and re-created —
+   and that collapse re-pointed every dashboard link at the survivor, so the
+   record being pinned has no id left to be found by. It is still the same
+   person by name, which is what the marker is about. */
+console.log('After one collapse the twin link no longer reaches the re-created record');
+const lmsRoll = [
+  { id: 'JB1', name: 'John Brown', course: 'Welding & Fabrication', schoolFeeId: 'SF-1' },
+  { id: 'JB2', name: 'John Brown', course: 'Cosmetology', schoolFeeId: 'SF-1' }  // re-pointed by the collapse
+];
+const reCreated = { id: 'SF-2', name: 'John Brown', skillArea: 'COSMETOLOGY L2' };
+assertEq(Core.twinIndex(lmsRoll).find(reCreated), null,
+  'the id link is gone and the programme spellings do not agree, so find() has nothing');
+assertEq(Core.twinIndex(lmsRoll).findByName(reCreated.name).id, 'JB1',
+  'the by-name fallback still reaches the person — and marking EITHER namesake ' +
+  'keeps the whole pair, as the collapse rule above shows');
+
+console.log('And the fee-roll index falls back the same way, for the other direction');
+const feeRoll = [
+  { id: 'SF-1', name: 'John Brown', skillArea: 'WELDING L2', lmsId: 'JB1' },
+  { id: 'SF-2', name: 'John Brown', skillArea: 'COSMETOLOGY L2' }
+];
+const unlinked = { id: 'STU-new', name: 'John Brown', course: 'Cosmetology' };
+assertEq(Core.feeTwinIndex(feeRoll).find(unlinked), null, 'nothing links this record yet');
+assertEq(Core.feeTwinIndex(feeRoll).findByName(unlinked.name).id, 'SF-1',
+  'so the name settles it, exactly as lmsMirrorTarget already resolves a twin');
+
+console.log('A nameless record still matches nobody, in either direction');
+assertEq(Core.twinIndex(lmsRoll).findByName(''), null, 'no name, no namesake');
+assertEq(Core.feeTwinIndex(feeRoll).findByName('   '), null, 'and blanks are not a name');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

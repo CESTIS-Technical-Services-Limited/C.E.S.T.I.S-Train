@@ -971,6 +971,53 @@ function regenerateStudentId() {
   showToast('New ID generated — save to apply');
 }
 
+/* Carry the "keep separate" marker across to this person's School Fee record.
+
+   A trainee exists as two records — one on the roster, one on the fee roll —
+   and each roll is de-duplicated on its own. Marking only the roster side
+   would still let the fee side be folded into its namesake on the next
+   launch, which is the very thing the marker is set to prevent. The mirror on
+   the School Fee page (feePropagateKeepSeparate) writes back the other way.
+
+   Matched the linked twin first, then the same person under another
+   programme — once two same-named records have been collapsed one time the
+   surviving links all point at one record, so the one being pinned has no id
+   left to be found by. It is still the same person by name, which is what the
+   marker is about. Unmarking clears the pin from every fee record of that
+   name, so none is left pinned by a link that no longer reaches it. */
+function spPropagateKeepSeparate(student, keep) {
+  try {
+    if (!student || !window.CESTISCore || typeof CESTISCore.feeTwinIndex !== 'function') return;
+    var raw = CESTISStore.getItem('cestiSchoolFeeStudents');
+    var fee = raw ? (JSON.parse(raw) || []) : [];
+    if (!Array.isArray(fee) || !fee.length) return;
+    var nrm = CESTISCore.normName;
+    var wanted = nrm(student.name);
+    var changed = false;
+    if (!keep) {
+      fee.forEach(function (f) {
+        if (!f || !wanted || nrm(f.name) !== wanted) return;
+        if (!CESTISCore.isKeptSeparate(f)) return;
+        delete f.keepSeparate;
+        f.updatedAt = new Date().toISOString();
+        changed = true;
+      });
+    } else {
+      var idx = CESTISCore.feeTwinIndex(fee);
+      var twin = idx.find(student) || idx.findByName(student.name);
+      if (twin && !CESTISCore.isKeptSeparate(twin)) {
+        twin.keepSeparate = true;
+        twin.updatedAt = new Date().toISOString();
+        changed = true;
+      }
+    }
+    if (!changed) return;                                   // nothing to write
+    spSaveCollection('cestiSchoolFeeStudents', fee);
+  } catch (e) {
+    console.warn('[StudentProgress] could not mark the fee record:', e);
+  }
+}
+
 function saveEditStudent() {
   var idx = parseInt(document.getElementById('editStudentIdx').value);
   var name = document.getElementById('editStudentName').value.trim();
@@ -993,8 +1040,13 @@ function saveEditStudent() {
   // only when set, so an ordinary record carries no extra field; it travels
   // with the record through every merge and sync (MERGE_FIELDS in the core).
   var keepBox = document.getElementById('editStudentKeepSeparate');
-  if (keepBox && keepBox.checked) s.keepSeparate = true;
-  else delete s.keepSeparate;
+  var _keep = !!(keepBox && keepBox.checked);
+  if (_keep) s.keepSeparate = true; else delete s.keepSeparate;
+  // Mark the same person's School Fee record too. The marker means "this
+  // PERSON is distinct from their namesake", and each trainee exists as two
+  // records; marking only one side would leave the other to be collapsed into
+  // its namesake on the next launch — the very thing it is set to prevent.
+  spPropagateKeepSeparate(s, _keep);
   s.gender = document.getElementById('editStudentGender').value || '';
   s.course = document.getElementById('editStudentCourse').value;
   s.instructor = document.getElementById('editStudentInstructor').value.trim();

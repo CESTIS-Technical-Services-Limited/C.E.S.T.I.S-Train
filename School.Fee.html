@@ -2776,6 +2776,27 @@
                     </div>
                 </div>
 
+                <!-- Two real trainees can share a name. The system treats one
+                     name as one person and collapses the rest on launch; this
+                     is how an administrator says "these are genuinely two
+                     people" and exempts a fee record from that. Ticking it here
+                     also marks the same person's Student Progress record, so
+                     both sides agree. -->
+                <div class="form-group" id="editKeepSeparateGroup" style="margin-top:0.75rem;">
+                    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:600;">
+                        <input type="checkbox" id="editKeepSeparate" style="margin-top:3px;width:16px;height:16px;cursor:pointer;">
+                        <span>Keep separate — another trainee has this same name
+                            <span style="display:block;font-weight:400;font-size:0.8rem;color:var(--text-secondary);margin-top:3px;">
+                                Tick this when two different people genuinely share a name. This
+                                fee record will never be merged with its namesake, and the same
+                                person's Student Progress record is marked too. Leave it unticked
+                                and records with the same name are treated as one person.
+                            </span>
+                        </span>
+                    </label>
+                    <div id="editNamesakeNote" style="display:none;font-size:0.8rem;margin-top:6px;padding:8px 10px;border-radius:6px;background:rgba(255,193,7,.14);border:1px solid rgba(255,193,7,.4);color:var(--text-primary);"></div>
+                </div>
+
                 <!-- Personal Information Section -->
                 <h3 style="color: var(--primary-blue); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
                 <div class="form-grid">
@@ -6266,6 +6287,13 @@
                 const paid = (parseFloat(student.totalPaid) || 0).toFixed(2);
                 const balance = (parseFloat(student.balance) || 0).toFixed(2);
                 const stage = renderStageBadge(student) + feeEndedBadge(student);
+                // A pinned record is visibly pinned: otherwise the only way to
+                // tell why two same-named rows both survive is to open both.
+                const keptSep = (window.CESTISCore && CESTISCore.isKeptSeparate(student))
+                    ? ' <span title="Kept separate — marked as a different person from their namesake"' +
+                      ' style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9px;' +
+                      'font-size:10px;font-weight:700;background:rgba(255,193,7,.18);color:#8a6d00;">kept separate</span>'
+                    : '';
                 // Everything the search box matches on is stamped onto the row
                 // now, so filtering never has to walk the cells and re-read
                 // their text on every keystroke.
@@ -6283,7 +6311,7 @@
                                style="width: 18px; height: 18px; cursor: pointer;">
                     </td>
                     <td>${student.id}</td>
-                    <td>${student.name}</td>
+                    <td>${student.name}${keptSep}</td>
                     <td>${student.skillArea}</td>
                     <td>$${tuition}</td>
                     <td>$${paid}</td>
@@ -6871,8 +6899,79 @@
             document.getElementById('editParentContact').value = student.parentContact || '';
             document.getElementById('editEmergencyContact').value = student.emergencyContact || '';
 
+            // "Keep separate": the current setting, plus a plain statement of
+            // whether anybody else on the roll actually shares this name — the
+            // marker only matters when somebody does.
+            const keepBox = document.getElementById('editKeepSeparate');
+            if (keepBox) keepBox.checked = !!(window.CESTISCore && CESTISCore.isKeptSeparate(student));
+            const note = document.getElementById('editNamesakeNote');
+            if (note) {
+                const nrm = v => String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, ' ');
+                const mine = nrm(student.name);
+                const namesakes = students.filter(o => o && o !== student && nrm(o.name) === mine);
+                if (namesakes.length) {
+                    note.style.display = '';
+                    note.textContent = '⚠️ ' + namesakes.length + ' other fee record' +
+                        (namesakes.length === 1 ? '' : 's') + ' carries this exact name. Unless one of them ' +
+                        'is marked “keep separate”, they will be treated as the same person and merged ' +
+                        'into a single record — their payments are kept and moved onto the survivor.';
+                } else {
+                    note.style.display = 'none';
+                    note.textContent = '';
+                }
+            }
+
             // Open modal
             document.getElementById('editStudentModal').classList.add('active');
+        }
+
+        /* Mark (or unmark) the same person's Student Progress record.
+
+           The marker means "this PERSON is a different person from their
+           namesake", and each trainee exists as two records — one here, one on
+           the dashboard. Marking only one side would leave the other to be
+           collapsed into its namesake on the next launch, which is the very
+           thing the marker is set to prevent.
+
+           Matched the way every other cross-page link is: the linked twin
+           first, then the same person under another programme. The second pass
+           earns its keep here — once two same-named fee records have been
+           collapsed one time, the dashboard records BOTH point at the survivor,
+           so the record being pinned has no id to be found by. It is still the
+           same person by name, which is exactly what the marker is about.
+
+           Unmarking clears the pin from every dashboard record of that name, so
+           no stale pin is left behind on a record the link no longer reaches. */
+        function feePropagateKeepSeparate(feeRecord, keep) {
+            try {
+                if (!feeRecord || !window.CESTISCore || typeof CESTISCore.twinIndex !== 'function') return;
+                const raw = CESTISStore.getItem('voctrain_students');
+                const lms = raw ? (JSON.parse(raw) || []) : [];
+                if (!Array.isArray(lms) || !lms.length) return;
+                const nrm = CESTISCore.normName;
+                const wanted = nrm(feeRecord.name);
+                let changed = false;
+                if (!keep) {
+                    lms.forEach(s => {
+                        if (!s || !wanted || nrm(s.name) !== wanted) return;
+                        if (!CESTISCore.isKeptSeparate(s)) return;
+                        delete s.keepSeparate;
+                        s.lastModified = new Date().toISOString();
+                        changed = true;
+                    });
+                } else {
+                    const idx = CESTISCore.twinIndex(lms);
+                    const twin = idx.find(feeRecord) || idx.findByName(feeRecord.name);
+                    if (twin && !CESTISCore.isKeptSeparate(twin)) {
+                        twin.keepSeparate = true;
+                        twin.lastModified = new Date().toISOString();
+                        changed = true;
+                    }
+                }
+                if (!changed) return;                         // nothing to write
+                CESTISStore.setItem('voctrain_students', JSON.stringify(lms));
+                refreshLmsStudentCache();
+            } catch (e) { console.warn('[SchoolFee] could not mark the twin record:', e); }
         }
 
         // Update tuition fee in edit form when skill area changes
@@ -6960,6 +7059,14 @@
             student.parentName = parentName;
             student.parentContact = parentContact;
             student.emergencyContact = emergencyContact;
+            // The administrator's "this is genuinely a different person" marker.
+            // Stored only when set, so an ordinary record carries no extra
+            // field, and mirrored onto the Student Progress twin so one side
+            // cannot be collapsed while the other stands.
+            const _keepBox = document.getElementById('editKeepSeparate');
+            const _keep = !!(_keepBox && _keepBox.checked);
+            if (_keep) student.keepSeparate = true; else delete student.keepSeparate;
+            feePropagateKeepSeparate(student, _keep);
             student.balance = newTuitionFee - student.totalPaid;
             // Stamp the edit: the name is synced both ways and resolved by which
             // side was edited last, so an undated record would lose every tie.
