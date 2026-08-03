@@ -283,6 +283,37 @@ assertEq(Core.feeTwinIndex(feeRoll).find(unlinked), null, 'nothing links this re
 assertEq(Core.feeTwinIndex(feeRoll).findByName(unlinked.name).id, 'SF-1',
   'so the name settles it, exactly as lmsMirrorTarget already resolves a twin');
 
+/* ---------- 8. One rule for "is this the same person?" ----------
+
+   Reported: a trainee stood twice on the roll and the count for their centre
+   read double. The launch collapse decided "same person" with normName — case
+   folded AND every run of whitespace folded — while the account reconciler
+   decided it with .toLowerCase().trim(), which leaves a double space INSIDE a
+   name intact. So an imported account reading "Yaneek  Simmonds" and the roll
+   reading "Yaneek Simmonds" were one person to the collapse and two to the
+   reconciler: the collapse merged them each launch and the reconciler minted
+   the second straight back. Everything that asks now asks Core.sameName. */
+console.log('\nOne rule decides whether two records are the same person');
+assertEq(Core.sameName('Yaneek Simmonds', 'Yaneek  Simmonds'), true,
+  'a double space inside the name is still the same person — this is the pair that doubled');
+assertEq(Core.sameName('  Yaneek Simmonds  ', 'yaneek simmonds'), true,
+  'as are surrounding spaces and case');
+assertEq(Core.sameName('Yaneek\tSimmonds', 'Yaneek Simmonds'), true,
+  'and a tab, which an import can leave behind');
+assertEq(Core.sameName('Yaneek Simmonds', 'Yaneek Simmond'), false,
+  'a genuinely different name is still a different person');
+assertEq(Core.sameName('', ''), false, 'two nameless records are not "the same person"');
+assertEq(Core.sameName(null, undefined), false, 'and neither are two absent ones');
+assertEq(Core.sameName('Yaneek Simmonds', ''), false, 'nor a name and a blank');
+
+console.log('The collapse and the name rule agree, which is the whole point');
+r = Core.collapseSameNameStudents([
+  { id: 'STU-1gtg5dkrt8y', name: 'Yaneek Simmonds', course: 'COSMETOLOGY L2', stage: 'training', progress: 20 },
+  { id: '14072025', name: 'Yaneek  Simmonds', course: 'Cosmetology' }
+]);
+assertEq(r.students.length, 1, 'the pair the reconciler used to re-create is one person');
+assertEq(r.idMap['14072025'], 'STU-1gtg5dkrt8y', 'and the minted id maps back onto the real record');
+
 console.log('A nameless record still matches nobody, in either direction');
 assertEq(Core.twinIndex(lmsRoll).findByName(''), null, 'no name, no namesake');
 assertEq(Core.feeTwinIndex(feeRoll).findByName('   '), null, 'and blanks are not a name');
