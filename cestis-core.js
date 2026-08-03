@@ -525,7 +525,12 @@
     'dob', 'enrollDate', 'completionDate', 'nqfLevel', 'notes', 'gender',
     // Cross-system link fields — must survive a merge so the School-Fee <-> LMS
     // link is not lost when a fee-linked record and a manual record collapse.
-    'schoolFeeId', 'source'];
+    'schoolFeeId', 'source',
+    // The administrator's "keep separate" marker. It must survive every merge
+    // and every sync: if it were dropped, the record it protects would be
+    // collapsed into its namesake on the very next launch — the one outcome an
+    // admin set it to prevent.
+    'keepSeparate'];
 
   Core.mergeStudentRecords = function (a, b) {
     var aMod = a && a.lastModified ? new Date(a.lastModified).getTime() : 0;
@@ -569,6 +574,154 @@
     return out;
   };
 
+  /* --- One person, one record: collapse by NAME alone ---------------------
+
+     The Centre's rule, set deliberately: if two trainee records carry the same
+     exact name they are the same person, and one of them must go — whatever
+     ids they were given and whatever programme each names.
+
+     This is stronger than the centre-identity dedup below, which keeps two
+     records when their programmes differ. That is what left "Omario Bryan"
+     listed once under "Welding & Fabrication" and again under "WELDING L2"
+     with a second machine-generated id: two spellings of one enrolment,
+     correctly read as two enrolments, wrongly for this Centre's purposes.
+
+     Which record survives is decided by evidence, not by array order
+     (studentRecordScore): the one that has actually been used — progress
+     recorded, a stage set, a certificate, an explicit link to a School Fee
+     record or a login — wins, and every field the loser held that the winner
+     lacks is carried across. So the surviving record is never poorer than
+     either of the two.
+
+     Returns { students, removed, idMap }; idMap maps every discarded id to the
+     survivor so attendance, payments, exam results and accounts follow it.
+
+     NOTE the deliberate consequence: two DIFFERENT people who genuinely share
+     a name become one record. That is the instruction — the Centre knows its
+     roll — but it is why this collapses only on an exact name match, after
+     normalising case and spacing, and never on a partial or fuzzy one.
+
+     And it is why `keepSeparate` exists. An administrator who has two real
+     trainees of one name marks the records: a record carrying keepSeparate is
+     exempt — it never absorbs another and is never absorbed, here or in the
+     centre-identity dedup. Mark ONE of the two and they stay two records;
+     unmarked namesakes still collapse among themselves as usual. The marker
+     travels with the record through every merge and sync (MERGE_FIELDS above),
+     because a marker that could be lost would protect nothing. */
+
+  // True when an administrator has pinned this record as its own person.
+  Core.isKeptSeparate = function (s) {
+    return !!(s && (s.keepSeparate === true || s.keepSeparate === 'true'));
+  };
+
+  // How much real use does this record show? Higher wins.
+  Core.studentRecordScore = function (s) {
+    if (!s) return -1;
+    var score = 0;
+    var stage = String(s.stage || '').toLowerCase();
+    if (stage === 'collected') score += 60;
+    else if (stage === 'certified') score += 50;
+    else if (stage === 'nyc' || stage === 'incomplete') score += 20;
+    else if (stage === 'training') score += 30;
+    else if (stage === 'interview') score += 15;
+    else if (stage) score += 5;                       // 'testing' and anything else
+    if (s.certNo) score += 40;
+    if (s.certCollected) score += 10;
+    var prog = parseFloat(s.progress) || 0;
+    if (prog > 0) score += Math.min(25, Math.round(prog / 4));
+    if (s.schoolFeeId) score += 12;                   // linked to a fee record
+    if (s.lmsId) score += 6;
+    var att = parseFloat(s.attendance) || 0;
+    if (att > 0) score += 6;
+    if (parseFloat(s.gpa) > 0) score += 4;
+    if (s.score !== undefined && s.score !== null && s.score !== '') score += 4;
+    // Contact/personal detail somebody took the trouble to enter.
+    ['email', 'phone', 'dob', 'address', 'trn', 'gender', 'instructor'].forEach(function (f) {
+      if (s[f] !== undefined && s[f] !== null && s[f] !== '') score += 2;
+    });
+    // A stamped centre beats an unstamped one; a named programme beats a blank.
+    if (s.centreKey != null && String(s.centreKey).trim() !== '') score += 5;
+    if (s.course || s.skillArea) score += 3;
+    return score;
+  };
+
+  Core.collapseSameNameStudents = function (input, opts) {
+    opts = opts || {};
+    var courseField = opts.courseField || 'course';
+    var list = Array.isArray(input) ? input : [];
+    var idMap = {};
+    var slots = {};        // normalised name -> { rec }
+    var order = [];        // names in first-encounter order
+
+    // Merge `loser` into `winner`, keeping the winner's identity but never
+    // losing a value only the loser held.
+    function absorb(winner, loser) {
+      // Read both programmes BEFORE the backfill below: that loop copies the
+      // loser's centreKey onto a winner that has none, which would make the
+      // winner look keyed and hide the fact that its programme name is the
+      // vaguer of the two.
+      var wi = null, li = null;
+      try {
+        wi = Core.programmeIdentity(winner, courseField);
+        li = Core.programmeIdentity(loser, courseField);
+      } catch (e) {}
+      Object.keys(loser).forEach(function (k) {
+        var have = winner[k];
+        if (have === undefined || have === null || have === '') {
+          var v = loser[k];
+          if (v !== undefined && v !== null && v !== '') winner[k] = v;
+        }
+      });
+      // Numeric progress: keep the higher of the two, since 0 is a real value
+      // that the blank-backfill above would have kept.
+      var wp = parseFloat(winner.progress) || 0, lp = parseFloat(loser.progress) || 0;
+      if (lp > wp) winner.progress = loser.progress;
+      var wa = parseFloat(winner.attendance) || 0, la = parseFloat(loser.attendance) || 0;
+      if (la > wa) winner.attendance = loser.attendance;
+      // The programme: prefer whichever spelling states an intake key, so the
+      // survivor keeps the more specific of "WELDING L2" / "02. Welding …".
+      if (wi && li && !wi.key && li.key && loser[courseField]) {
+        winner[courseField] = loser[courseField];
+      }
+      return winner;
+    }
+
+    list.forEach(function (s) {
+      if (!s) return;
+      if (Core.isKeptSeparate(s)) return;              // the admin pinned this one
+      var n = Core.normName(s.name);
+      if (!n) return;                                  // nameless records are left alone
+      var slot = slots[n];
+      if (!slot) { slots[n] = { rec: s }; order.push(n); return; }
+      var prev = slot.rec;
+      var keepPrev = Core.studentRecordScore(prev) >= Core.studentRecordScore(s);
+      var winner = keepPrev ? prev : s;
+      var loser = keepPrev ? s : prev;
+      slot.rec = absorb(winner, loser);
+      if (loser.id != null && loser.id !== slot.rec.id) idMap[loser.id] = slot.rec.id;
+      // A chain of merges can move the survivor; re-point anything already
+      // mapped at the record that just lost, so no id is left dangling.
+      Object.keys(idMap).forEach(function (k) {
+        if (idMap[k] === loser.id) idMap[k] = slot.rec.id;
+      });
+    });
+
+    // Rebuild in first-encounter order, one record per name, passing through
+    // anything with no usable name exactly as it was.
+    var emitted = {}, out = [];
+    list.forEach(function (s) {
+      if (!s) { out.push(s); return; }
+      if (Core.isKeptSeparate(s)) { out.push(s); return; }   // stands on its own
+      var n = Core.normName(s.name);
+      if (!n) { out.push(s); return; }
+      if (emitted[n]) return;
+      emitted[n] = true;
+      out.push(slots[n].rec);
+    });
+
+    return { students: out, removed: list.length - out.length, idMap: idMap };
+  };
+
   /* --- De-duplicate a student array (pure) -------------------------------
      Returns { students, removed, idMap } where idMap[oldId] = keptId for every
      removed duplicate. Records with no usable natural key are passed through
@@ -600,6 +753,9 @@
     // Group by person + bare programme; partition each group by explicit key.
     var groups = {};  // name|bare -> { keys: {key -> kept}, unkeyed: kept|null }
     function groupOf(s) {
+      // A record the administrator pinned as its own person is exempt from
+      // every dedup, this one included.
+      if (Core.isKeptSeparate(s)) return null;
       var n = Core.normName(s.name);
       if (!n) return null;
       var pid = Core.programmeIdentity(s, courseField);

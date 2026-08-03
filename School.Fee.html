@@ -5823,6 +5823,22 @@
                     Object.keys(_cd.idMap).forEach(function (k) { idMap[k] = _cd.idMap[k]; });
                 }
             }
+            // 2c) And the Centre's rule: one person, one FEE record. The same
+            // exact name is the same trainee however the two records were keyed
+            // and whichever programme each names — so one goes, and its
+            // payments and documents are relinked to the survivor by the idMap
+            // below.
+            if (typeof CESTISCore.collapseSameNameStudents === 'function') {
+                var _cn = CESTISCore.collapseSameNameStudents(students, { courseField: 'skillArea' });
+                if (_cn.removed > 0) {
+                    students = _cn.students;
+                    removed += _cn.removed;
+                    Object.keys(idMap).forEach(function (k) {
+                        if (_cn.idMap[idMap[k]]) idMap[k] = _cn.idMap[idMap[k]];
+                    });
+                    Object.keys(_cn.idMap).forEach(function (k) { idMap[k] = _cn.idMap[k]; });
+                }
+            }
             // 3) Relink payments & documents from the old ids to the stable id.
             if (Object.keys(idMap).length) {
                 if (Array.isArray(payments)) payments.forEach(function (p) { if (p && idMap[p.studentId]) p.studentId = idMap[p.studentId]; });
