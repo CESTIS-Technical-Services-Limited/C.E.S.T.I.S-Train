@@ -4060,6 +4060,41 @@
             return !!feeKeyFor(name);
         }
 
+        // Bind every trainee to the INTAKE they actually sat in.
+        //
+        // Trainees enrolled before intakes carried keys are held only by their
+        // programme's name, and a name is exactly what a repeat intake shares.
+        // Once the Centre runs a programme again, such a trainee would answer to
+        // whichever centre the name resolved to — the new one. Each is stamped
+        // here, once, with the centre that was running on the day they enrolled,
+        // so nothing afterwards can move them. Only blanks are filled: a stamp
+        // already on a record is never rewritten.
+        function feeBindTraineesToIntake() {
+            try {
+                if (!Array.isArray(students) || !students.length) return 0;
+                var centres = feeTrainingCentres();
+                if (!centres.length) return 0;
+                var n = 0;
+                students.forEach(function (s) {
+                    if (!s || !s.skillArea) return;
+                    if (s.centreKey) return;                       // already bound
+                    var when = s.enrollmentDate || s.enrolmentDate || s.createdAt || '';
+                    var centre = null;
+                    try { centre = CESTISCore.enrolment.findCentre(centres, s.skillArea, { on: when }); }
+                    catch (e) { centre = null; }
+                    if (!centre) return;
+                    s.centreKey = CESTISCore.enrolment.centreKeyOf(centre);
+                    if (s.centreId == null) s.centreId = (centre.id != null ? centre.id : null);
+                    if (!s.centreName) s.centreName = centre.name || '';
+                    if (!s.courseStart) s.courseStart = centre.startDate || '';
+                    if (!s.courseEnd) s.courseEnd = centre.endDate || '';
+                    n++;
+                });
+                if (n) { saveData(); console.log('[FeeIntake] Bound ' + n + ' trainee(s) to the intake they enrolled in.'); }
+                return n;
+            } catch (e) { console.warn('[FeeIntake] failed', e); return 0; }
+        }
+
         // The popup that says where programmes are chosen. Shown when a trainee
         // is about to be enrolled and there is nothing to enrol them into.
         function showNoProgrammeNotice() {
@@ -4224,12 +4259,16 @@
             if (!list) return;
             var priced = {};
             Object.keys(feeStructure || {}).forEach(function (k) { priced[feeNameKey(k)] = true; });
-            var avail = getVoctrainActiveCourses().filter(function (c) { return !priced[feeNameKey(c.name)]; });
+            var avail = getVoctrainActiveCourses().filter(function (c) { return !priced[feeNameKey(feeCentreLabel(c))]; });
 
             list.innerHTML = avail.map(function (c) {
                 var st = (typeof CESTISCore !== 'undefined' && CESTISCore.courseDuration) ? CESTISCore.courseDuration.status(c.startDate, c.endDate) : '';
                 var tag = st === 'not-started' ? 'VocTrain — not started yet' : (st === 'no-dates' ? 'VocTrain — no dates set' : 'VocTrain training centre');
-                var nm = String(c.name).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                // Offered by the centre's own name, intake key first ("02. Welding
+                // and Fabrication"), so a programme the Centre is running again is
+                // priced and enrolled into as the separate intake it is — and the
+                // trainees of the earlier one are never swept into it.
+                var nm = String(feeCentreLabel(c)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
                 return '<option value="' + nm + '">' + tag + '</option>';
             }).join('');
 
@@ -4702,6 +4741,7 @@
             loadData();
             normalizeFeeKeysToVoctrain(); // align legacy fee keys to exact VocTrain course names
             dedupeFeeStructure();         // one entry per programme, however it is spelt
+            feeBindTraineesToIntake();    // each trainee held to the intake they enrolled in
             renderFeeStructure();
             updateDashboard();
             renderStudentsTable();
@@ -5123,18 +5163,20 @@
                         (feeSid && delIds.indexOf(feeSid) !== -1) ||
                         (sf.lmsId && delIds.indexOf(sf.lmsId) !== -1)) return;
 
-                    // Match an existing dashboard record by link id, raw fee id,
-                    // stored back-reference, or name (+ matching course).
-                    const existing = lmsStudents.find(ls => ls && (
-                        (window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function')
-                            ? CESTISCore.isFeeTwin(ls, sf)
-                            : (ls.id === linkId ||
-                               ls.id === sf.id ||
-                               ls.id === sf.lmsId ||
-                               ls.schoolFeeId === sf.id ||
-                               (norm(ls.name) === norm(sf.name) &&
-                                   (!ls.course || !sf.skillArea || norm(ls.course) === norm(sf.skillArea))))
-                    ));
+                    // Where does this record belong on the dashboard? The rule is
+                    // shared (CESTISCore.lmsMirrorTarget) and it obeys VocTrain:
+                    // a trainee already on the dashboard is never moved to
+                    // another programme, and a programme with no training centre
+                    // behind it is not mirrored there at all.
+                    const target = (window.CESTISCore && typeof CESTISCore.lmsMirrorTarget === 'function')
+                        ? CESTISCore.lmsMirrorTarget(sf, lmsStudents, feeTrainingCentres(), {
+                            findCentre: CESTISCore.enrolment.findCentre,
+                            on: sf.enrollmentDate || sf.enrolmentDate || sf.createdAt || ''
+                          })
+                        : { action: 'skip', match: null, course: '' };
+
+                    if (target.action === 'skip') return;   // a fee-only programme stays on this page
+                    const existing = target.match;
 
                     if (existing) {
                         if (existing.schoolFeeId !== sf.id) { existing.schoolFeeId = sf.id; changed = true; }
@@ -5148,16 +5190,24 @@
                             existing.lastModified = sf.updatedAt || new Date().toISOString();
                             changed = true;
                         }
-                        if (sf.skillArea && !existing.course) { existing.course = sf.skillArea; changed = true; }
+                        // The programme on the dashboard is VocTrain's, not this
+                        // page's: it is only ever filled in when it is blank, and
+                        // only with a name that resolves to a training centre.
+                        // Overwriting it is what moved trainees onto programmes
+                        // nobody had enrolled them in.
+                        if (!existing.course && target.centreCourse) {
+                            existing.course = target.centreCourse; changed = true;
+                        }
                         return;
                     }
 
-                    // No match: add a new dashboard student mirroring the fee record.
+                    // No match: add a new dashboard student mirroring the fee
+                    // record, under the training centre's own name.
                     lmsStudents.push({
                         id: linkId,
                         schoolFeeId: sf.id,
                         name: sf.name,
-                        course: sf.skillArea || '',
+                        course: target.course || '',
                         stage: 'testing',
                         score: '',
                         progress: 0,
@@ -5179,6 +5229,7 @@
                         // dashboard record sits in the same course duration and
                         // fiscal year as the fee record it mirrors.
                         centreId: sf.centreId != null ? sf.centreId : null,
+                        centreKey: sf.centreKey || '',
                         centreName: sf.centreName || '',
                         courseStart: sf.courseStart || '',
                         courseEnd: sf.courseEnd || '',
@@ -5454,8 +5505,11 @@
                 balance: tuitionFee,
                 status: 'Outstanding',
                 createdAt: new Date().toISOString(),
-                // Grounded in the training centre's duration / fiscal year
+                // Grounded in the training centre's duration / fiscal year, and
+                // bound to its INTAKE by key: the next centre opened under the
+                // same name is a different intake and never claims this trainee.
                 centreId: _stamp.centreId,
+                centreKey: _stamp.centreKey,
                 centreName: _stamp.centreName,
                 courseStart: _stamp.courseStart,
                 courseEnd: _stamp.courseEnd,
@@ -6314,6 +6368,15 @@
         // via CESTISStore. Returns {ended, endDate, status} or null when unknown.
         // The LMS training centres (with their durations), shared through
         // voctrain_skillAreas. This is the roster the enrolment rule is applied to.
+        // A training centre as this page names it: its intake key, then its name
+        // — "01. Welding and Fabrication". Every intake of a repeated programme
+        // therefore has a name of its own here, which is what stops a new centre
+        // from taking over the trainees of the one before it.
+        function feeCentreLabel(c) {
+            try { return CESTISCore.enrolment.centreLabel(c) || (c && c.name) || ''; }
+            catch (e) { return (c && c.name) || ''; }
+        }
+
         function feeTrainingCentres() {
             try {
                 var raw = CESTISStore.getItem('voctrain_skillAreas');

@@ -212,6 +212,90 @@ assertEq(open.length, 3, 'exactly the three enrollable centres');
 assertEq(E.openCentres([], TODAY).length, 0, 'empty roster offers nothing');
 assertEq(E.openCentres(null, TODAY).length, 0, 'null roster offers nothing');
 
+
+/* ---------- 6. Every intake has a key of its own ----------
+   A programme the Centre runs again has a second training centre with the same
+   name. Matching on the name alone swept the first intake's trainees into it
+   the moment it was created. Each centre now carries a key — '01', '02', … —
+   and its full name is written with the key in front, so an intake is a thing
+   in its own right and a trainee stays with the one they enrolled in. */
+console.log('Every intake has a key of its own');
+
+const twice = [
+  { id: 1, name: 'Welding and Fabrication', startDate: '2024-09-01', endDate: '2025-06-30' }, // last year
+  { id: 2, name: 'Welding and Fabrication', startDate: '2026-01-01', endDate: '2027-06-30' }  // this year
+];
+E.assignCentreKeys(twice);
+assertEq(twice[0].centreKey, '01', 'the first intake is 01');
+assertEq(twice[1].centreKey, '02', 'the second is 02');
+assertEq(E.centreLabel(twice[0]), '01. Welding and Fabrication', 'and reads with its key in front');
+assertEq(E.centreLabel(twice[1]), '02. Welding and Fabrication', 'as does the next one');
+
+console.log('A keyed name resolves to that intake and no other');
+
+assertEq(E.findCentre(twice, '01. Welding and Fabrication').id, 1, 'the first intake');
+assertEq(E.findCentre(twice, '02. Welding and Fabrication').id, 2, 'the second intake');
+assertEq(E.findCentre(twice, '01. Welding and Fabrication', { nowMs: Date.parse('2026-08-02') }).id, 1,
+  'the ended intake is still itself — it is never swapped for the open one');
+assertEq(E.findCentre(twice, '03. Welding and Fabrication'), null,
+  'an intake that is not here resolves to nothing, never to a like-named one');
+assertEq(E.findCentre([twice[1]], '01. Welding and Fabrication'), null,
+  'and the surviving intake does not answer for the missing one');
+
+console.log('A trainee is stamped with the intake they enrolled in');
+
+const intakeStamp = E.enrolmentStamp(twice[0], '2024-10-01');
+assertEq(intakeStamp.centreKey, '01', 'the key is stamped on the trainee');
+assertEq(intakeStamp.centreLabel, '01. Welding and Fabrication', 'along with the name they read');
+assertEq(intakeStamp.centreId, 1, 'and the centre id');
+
+console.log('Enrolling names the intake, not just the programme');
+
+assertEq(E.canEnrol(twice, '02. Welding and Fabrication', { today: '2026-08-02' }).allowed, true,
+  'the open intake takes trainees');
+const endedDec = E.canEnrol(twice, '01. Welding and Fabrication', { today: '2026-08-02' });
+assertEq(endedDec.allowed, false, 'the finished intake does not');
+assertEq(endedDec.code, 'ended', 'and says so — it is not silently redirected to the new one');
+
+console.log('Naming the programme without a key still works as it did');
+
+assertEq(E.findCentre(twice, 'Welding and Fabrication', { today: '2026-08-02' }).id, 2,
+  'an unkeyed name still prefers the intake that can take trainees');
+assertEq(E.findCentre(twice, 'WELDING L2', { today: '2026-08-02' }).id, 2,
+  'and so does the fee side\'s way of writing it');
+
+console.log('Keys are given out once and never taken from a centre that has one');
+
+const mixed = [
+  { id: 7, name: 'Plumbing', centreKey: '05' },
+  { id: 8, name: 'Masonry' },
+  { id: 5, name: 'Tiling' }
+];
+assertEq(E.assignCentreKeys(mixed), 2, 'only the two without a key are stamped');
+assertEq(mixed[0].centreKey, '05', 'an existing key is never reassigned');
+assertEq(mixed[1].centreKey, '08', 'a centre takes the key its id gives it');
+assertEq(mixed[2].centreKey, '01', 'unless that key is taken, and then the first free one');
+assertEq(E.assignCentreKeys(mixed), 0, 'running it again stamps nothing');
+assertEq(E.assignCentreKeys(null), 0, 'null-safe');
+
+// A key is always a number the Centre can read as a count, even where the
+// centre's id is a generated string.
+const strIds = [{ id: 'c1', name: 'Plumbing' }, { id: 'c2', name: 'Plumbing' }];
+E.assignCentreKeys(strIds);
+assertEq(strIds[0].centreKey, '01', 'a string id yields the first free number');
+assertEq(strIds[1].centreKey, '02', 'and the next one after it');
+assertEq(E.centreLabel(strIds[1]), '02. Plumbing', 'read as a count, never "c2."');
+assertEq(E.findCentre(strIds, '01. Plumbing').id, 'c1', 'and the key still names one intake only');
+
+console.log('Reading a written name apart');
+
+assertEq(E.parseCentreLabel('02. Welding and Fabrication').key, '02', 'the key');
+assertEq(E.parseCentreLabel('02. Welding and Fabrication').name, 'Welding and Fabrication', 'and the name');
+assertEq(E.parseCentreLabel('2 Day Induction').key, '', 'a name that merely starts with a number is left alone');
+assertEq(E.parseCentreLabel('2 Day Induction').name, '2 Day Induction', 'and kept whole');
+assertEq(E.centreLabel({ name: '01. Welding', centreKey: '01' }), '01. Welding', 'a label is never double-prefixed');
+assertEq(E.centreLabel(null), '', 'null-safe');
+
 /* ---------- summary ---------- */
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed > 0) process.exit(1);

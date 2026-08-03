@@ -6286,8 +6286,72 @@ function lmsChatFlushDriveSyncNow() {
   if(typeof lmsChatSyncToDrive === 'function') lmsChatSyncToDrive();
 }
 
-// Admin Staff Access Settings (declared early for saveState/loadState)
-var adminStaffAccessSettings = { attendance:false, announcements:false, calendar:false, students:false, certificates:false, reports:false, training:false, exams:false, video:false, resources:false };
+// ============================== ADMIN STAFF ACCESS SETTINGS ==============================
+// Which sections an Admin Staff member may use. The Administrator owns this
+// grid (Settings -> Admin Staff Access); every other device only receives it.
+//
+// One key per page in asAccessPages. A key that is missing reads as undefined,
+// which is indistinguishable from "not permitted" — which is how a settings
+// object saved before a page existed could silently hide that page.
+// (declared early for saveState/loadState)
+//
+// Video Conference is on unless an Administrator turns it off. Admin Staff run
+// and join the Centre's meetings, and the role has its own conference page
+// (Video-Conference-AdminStaff.html) — a default of off left it missing from
+// the nav on every install where nobody had opened the grid. A grid that HAS
+// been saved wins, so an Administrator who unticks it is respected.
+var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, certificates:false, reports:false, training:false, exams:false, video:true, resources:false, supportmessages:false };
+function adminStaffAccessDefaults() { return Object.assign({}, AS_ACCESS_DEFAULTS); }
+var adminStaffAccessSettings = adminStaffAccessDefaults();
+
+/* Adopt a set of access settings from anywhere they arrive — local storage, a
+   cloud restore, a merge — and put them on screen.
+
+   Two things went wrong here. The settings replaced the defaults wholesale, so
+   a stored copy written before a page existed left that page's key undefined
+   and the page stayed hidden. And the Admin Staff sidebar is built once, at
+   login, while the Administrator's grid usually arrives from the cloud a moment
+   AFTER that — so a staff member kept the sidebar they logged in with (on a
+   fresh device: no permitted functions at all, Video Conference among them)
+   until they signed out and in again.
+
+   Returns true when something actually changed. */
+function applyAdminStaffAccess(next) {
+  if (!next || typeof next !== 'object') return false;
+  var changed = false;
+  var merged = adminStaffAccessDefaults();
+  Object.keys(next).forEach(function(k) { merged[k] = !!next[k]; });
+  Object.keys(merged).forEach(function(k) {
+    if (adminStaffAccessSettings[k] !== merged[k]) { adminStaffAccessSettings[k] = merged[k]; changed = true; }
+  });
+  Object.keys(adminStaffAccessSettings).forEach(function(k) {
+    if (!(k in merged)) { delete adminStaffAccessSettings[k]; changed = true; }
+  });
+  if (changed) refreshAdminStaffNav();
+  return changed;
+}
+
+/* Redraw the Admin Staff sidebar for the permissions now in force, leaving the
+   user on the page they are reading — unless that page has just been taken
+   away from them, in which case they go back to their dashboard. */
+function refreshAdminStaffNav() {
+  try {
+    if (currentRole !== 'adminstaff') return;
+    if (typeof buildAdminStaffSidebar !== 'function') return;
+    if (!document.getElementById('sidebarNav')) return;
+    var active = (typeof cestisActivePageId === 'function') ? cestisActivePageId() : null;
+    buildAdminStaffSidebar();
+    if (active && typeof pageAllowedForRole === 'function' && !pageAllowedForRole(active)) {
+      showPage('as-dashboard');
+      return;
+    }
+    if (active) {
+      document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+      var item = document.querySelector('.nav-item[data-page="' + active + '"]');
+      if (item) item.classList.add('active');
+    }
+  } catch (e) { console.warn('[AdminStaffAccess] nav refresh failed:', e); }
+}
 
 // ============================== SESSION & DATA CLEANUP ==============================
 
@@ -6389,7 +6453,7 @@ function clearSensitiveStudentData() {
   CESTISStore.removeItem('voctrain_adrStaffMeta');
   adrStaffMeta = {};
   CESTISStore.removeItem('voctrain_adminStaffAccess');
-  adminStaffAccessSettings = { attendance:false, announcements:false, calendar:false, students:false, certificates:false, reports:false, training:false, exams:false, video:false, resources:false };
+  adminStaffAccessSettings = adminStaffAccessDefaults();
   CESTISStore.removeItem('voctrain_instructorData');
   instructorData = [];
   CESTISStore.removeItem('voctrain_instructorProfiles');
@@ -6484,7 +6548,7 @@ function clearAllSessionData() {
   instructorData = [];
   adrTasks = [];
   adrStaffMeta = {};
-  adminStaffAccessSettings = { attendance:false, announcements:false, calendar:false, students:false, certificates:false, reports:false, training:false, exams:false, video:false, resources:false };
+  adminStaffAccessSettings = adminStaffAccessDefaults();
   certDownloadApprovals = [];
   certTemplates = {};
   skillAreas = [];
@@ -6532,6 +6596,10 @@ function saveState() {
     if (isAdmin || driveResources.length > 0) CESTISStore.setItem('voctrain_driveResources', JSON.stringify(driveResources));
     if (isAdmin || skillAreas.length > 0) CESTISStore.setItem('voctrain_skillAreas', JSON.stringify(skillAreas));
     if (isAdmin || documentHubFiles.length > 0) CESTISStore.setItem('voctrain_documentHubFiles', JSON.stringify(documentHubFiles));
+    // The Admin Staff access grid is the Administrator's to publish. A staff
+    // device keeps a local copy of what it was sent, so the nav survives a
+    // reload before the next sync, but it never uploads it — see the
+    // cloud-save guards.
     if (isAdmin) CESTISStore.setItem('voctrain_adminStaffAccess', JSON.stringify(adminStaffAccessSettings));
     if (isAdmin) CESTISStore.setItem('voctrain_maintenanceMode', JSON.stringify({ active: systemSettings.maintenanceMode === true, message: systemSettings.maintenanceMessage || '', updatedAt: new Date().toISOString() }));
     if (isAdmin || adrTasks.length > 0) CESTISStore.setItem('voctrain_adrTasks', JSON.stringify(adrTasks));
@@ -6651,7 +6719,7 @@ function loadState() {
     if(adrT) adrTasks = adrT;
     if(adrM) adrStaffMeta = adrM;
     var asAccess = safeJsonParse(CESTISStore.getItem('voctrain_adminStaffAccess'), null);
-    if(asAccess) adminStaffAccessSettings = asAccess;
+    if(asAccess) applyAdminStaffAccess(asAccess);
     var idData = safeJsonParse(CESTISStore.getItem('voctrain_instructorData'), null);
     if(idData) instructorData = idData;
     var cda = safeJsonParse(CESTISStore.getItem('voctrain_certDownloadApprovals'), null);
@@ -17838,8 +17906,6 @@ function syncStudentsFromLocalFeeSystem() {
 
     var existingIds = {};
     students.forEach(function(s){ if(s) existingIds[s.id] = true; });
-    var existingKeys = {};
-    students.forEach(function(s){ if(s) existingKeys[((s.name||'') + '|' + (s.course||'')).toLowerCase()] = true; });
 
     var norm = function(v){ return (v==null?'':String(v)).trim(); };
     var changed = false;
@@ -17871,8 +17937,22 @@ function syncStudentsFromLocalFeeSystem() {
       if (feeSid && deleted[feeSid]) return;          // tombstoned under its stable id
       if (deleted['SF-' + norm(fee.id)]) return;      // tombstoned under the fee twin id
       if (existingIds[studentId]) return;             // already present by id
-      var dupKey = (name + '|' + course).toLowerCase();
-      if (existingKeys[dupKey]) return;               // already present by name+course
+
+      // The shared rule (see CESTISCore.lmsMirrorTarget). This dashboard's
+      // roster belongs to VocTrain: a trainee already here keeps the programme
+      // the Centre put them on — the fee page never moves them and never adds a
+      // second record under its own programme name, which is how trainees were
+      // turning up on programmes nobody had enrolled them in. A fee programme
+      // with no training centre behind it is not brought over at all.
+      var _t = CESTISCore.lmsMirrorTarget(
+        { name: name, id: studentId, skillArea: course, lmsId: fee.lmsId,
+          enrollmentDate: fee.enrollmentDate || fee.enrolmentDate || fee.createdAt || '' },
+        students, (typeof skillAreas !== 'undefined' && Array.isArray(skillAreas)) ? skillAreas : [],
+        { findCentre: CESTISCore.enrolment.findCentre,
+          on: fee.enrollmentDate || fee.enrolmentDate || fee.createdAt || '' }
+      );
+      if (_t.action !== 'create') return;
+      course = _t.course;                             // the training centre's own name
 
       var assignedInstructor = '';
       var matchedInstructor = (typeof instructorData !== 'undefined' && Array.isArray(instructorData))
@@ -17931,7 +18011,6 @@ function syncStudentsFromLocalFeeSystem() {
       } catch (e) {}
 
       existingIds[studentId] = true;
-      existingKeys[dupKey] = true;
       changed = true;
     });
 
@@ -18019,7 +18098,9 @@ function updateStudentStage(idx) {
      (prevStage==='certified' || prevStage==='collected' || students[idx].certNo)) {
     clearStudentCertification(students[idx]);
   }
-  students[idx].lastModified = new Date().toISOString();
+  // This is the Centre's decision, not the course-end rule's: it is never
+  // undone by the sweep, and it settles this course ending for them.
+  markStageSetByUser(students[idx]);
   closeModal('updateStageModal');filterStudents();updatePipelineCounts();
   refreshStudentDependentViews();
   showToast(`${students[idx].name} moved to ${stageLabels[newStage]}`);
@@ -18712,6 +18793,11 @@ function populateCourseDropdowns() {
 function normalizeCourseDurations() {
   if (typeof skillAreas === 'undefined' || !Array.isArray(skillAreas)) return;
   var nowMs = Date.now();
+  // Every training centre carries an intake key of its own — '01', '02', … —
+  // so a programme run a second time is a plainly different centre and cannot
+  // claim the first intake's trainees. Idempotent: a centre that has one keeps
+  // it.
+  try { CESTISCore.enrolment.assignCentreKeys(skillAreas); } catch (e) {}
   skillAreas.forEach(function(sk) {
     if (!sk) return;
     if (typeof sk.startDate !== 'string') sk.startDate = '';
@@ -18721,6 +18807,14 @@ function normalizeCourseDurations() {
     if (!Array.isArray(sk.instructorPermissions)) sk.instructorPermissions = [];
     sk.instructorPermissions = CESTISCore.courseDuration.prunePermissions(sk.instructorPermissions, nowMs);
   });
+}
+
+// A centre's name as the Centre reads it: its intake key, then its name —
+// "01. Welding and Fabrication". Two intakes of one programme are two plainly
+// different lines on the page.
+function centreDisplayName(sk) {
+  try { return CESTISCore.enrolment.centreLabel(sk) || (sk && sk.name) || ''; }
+  catch (e) { return (sk && sk.name) || ''; }
 }
 
 // Resolve a course NAME to its training-centre record (exact, then alias match).
@@ -18760,7 +18854,27 @@ function studentCentreRecord(s) {
     var byId = skillAreas.find(function(a){ return a && a.id === s.centreId; });
     if (byId) return byId;
   }
-  return courseDurationRecord(s.centreName || s.course);
+  // The intake key stamped at enrolment. This is what keeps a trainee with the
+  // intake they actually sat in when the Centre runs the programme again under
+  // the same name.
+  if (s.centreKey != null && String(s.centreKey) !== '') {
+    var byKey = null;
+    try {
+      var want = CESTISCore.enrolment.centreKeyOf({ centreKey: s.centreKey });
+      byKey = skillAreas.find(function(a){ return a && CESTISCore.enrolment.centreKeyOf(a) === want; });
+    } catch (e) { byKey = null; }
+    if (byKey) return byKey;
+  }
+  var rec = courseDurationRecord(s.centreName || s.course);
+  if (rec) return rec;
+  // Last resort: the shared centre rule, asked as of the day they enrolled, so
+  // a programme written the fee side's way ("WELDING L2") still finds its
+  // centre, and one that has run more than once resolves to the intake the
+  // trainee actually sat in rather than to this year's.
+  try {
+    var when = s.enrolmentDate || s.enrollmentDate || s.enrollDate || s.createdAt || '';
+    return CESTISCore.enrolment.findCentre(skillAreas, s.centreName || s.course, { on: when }) || null;
+  } catch (e) { return null; }
 }
 
 // Has this student's course finished? 'no-dates' | 'not-started' | 'active' |
@@ -18810,6 +18924,7 @@ function backfillStudentFiscalYears() {
     var stamp = centre ? CESTISCore.enrolment.enrolmentStamp(centre, when) : null;
     if (stamp) {
       if (s.centreId == null) s.centreId = stamp.centreId;
+      if (!s.centreKey) s.centreKey = stamp.centreKey;
       if (!s.centreName) s.centreName = stamp.centreName;
       if (!s.courseStart) s.courseStart = stamp.courseStart;
       if (!s.courseEnd) s.courseEnd = stamp.courseEnd;
@@ -18871,16 +18986,39 @@ function lmsChatRoomCourseEnded(roomId) {
   return !CESTISCore.courseDuration.isRegisterOpen(sk, undefined, Date.now());
 }
 
+// Which course-end a trainee's status was decided against, so the same ending
+// is never acted on twice.
+function courseEndKeyFor(s, rec) {
+  if (!rec) rec = studentCentreRecord(s);
+  return (rec && rec.endDate) || (s && s.courseEnd) || 'ended';
+}
+
+// A person, not this rule, has just decided this trainee's stage. Record that:
+// the status is no longer ours to undo, and it counts as the administrator
+// having dealt with this course ending, so the sweep leaves it alone.
+function markStageSetByUser(s) {
+  if (!s) return;
+  delete s._nycAuto;
+  try {
+    if (studentCourseStatus(s) === 'ended') s._nycForCourseEnd = courseEndKeyFor(s, null);
+  } catch (e) {}
+  s.stageSetByUser = true;
+  s.lastModified = new Date().toISOString();
+}
+
 // When a course has ended, non-certified students become NYC; if a course is
-// later extended (active again), students we auto-marked revert to In Training.
+// later extended (genuinely open again), students WE auto-marked revert to In
+// Training — but a status the Centre set by hand is never touched.
 function applyCourseEndStatuses() {
   if (typeof students === 'undefined' || !Array.isArray(students)) return false;
   var changed = false;
   students.forEach(function(s){
-    if (!s || !s.course) return;
-    // Resolved from the trainee's own record (stamped centre id, then their
-    // course dates), so a trainee whose course name no longer matches a centre
-    // is still moved on when that course ends instead of being skipped.
+    if (!s) return;
+    // A trainee with no course NAME is still a trainee: their record carries the
+    // centre they were enrolled in and that centre's dates, and that is what
+    // this rule actually reads. Requiring a name skipped exactly the records
+    // whose programme had since been renamed or removed — and left them sitting
+    // in Testing forever.
     var st = studentCourseStatus(s);
     if (st === 'unknown') return;
     var rec = studentCentreRecord(s);
@@ -18888,15 +19026,21 @@ function applyCourseEndStatuses() {
       // Auto-mark NYC ONCE per course-end. Certified/collected are never
       // overridden, and a student an admin has already handled for this same
       // end date is left alone ("...until updated by Administrator").
-      var endKey = (rec && rec.endDate) || s.courseEnd || 'ended';
+      var endKey = courseEndKeyFor(s, rec);
       if (s.stage !== 'certified' && s.stage !== 'collected' && s.stage !== 'nyc'
           && s._nycForCourseEnd !== endKey) {
         s.stage = 'nyc'; s._nycAuto = true; s._nycForCourseEnd = endKey; changed = true;
       }
-    } else {
-      // Course is open again (extended / not yet started): undo only the
-      // statuses WE auto-applied, returning the student to In Training.
-      if (s.stage === 'nyc' && s._nycAuto) {
+    } else if (st === 'active' || st === 'not-started') {
+      // The course is genuinely open again (extended, or not started yet): undo
+      // only what WE auto-applied, and only where a person has not since had
+      // their say. A status somebody set by hand is theirs, not ours.
+      //
+      // 'no-dates' deliberately does nothing. A centre with no dates says
+      // nothing about whether the course has finished, and treating it as
+      // "open" dragged every auto-marked trainee back to In Training on every
+      // single page load — which is what kept undoing the Centre's own edits.
+      if (s.stage === 'nyc' && s._nycAuto && !s.stageSetByUser) {
         s.stage = 'training'; delete s._nycAuto; delete s._nycForCourseEnd; changed = true;
       }
     }
@@ -18948,7 +19092,7 @@ function renderCourseDurationPage() {
     var enrolled = (typeof students !== 'undefined' && Array.isArray(students))
       ? students.filter(function(st){ return st.course && courseDurationRecord(st.course) === sk; }).length : 0;
     return '<tr>'+
-      '<td><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">'+(sk.icon||'📋')+'</span><strong>'+escapeHtml(sk.name)+'</strong></div>'+
+      '<td><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">'+(sk.icon||'📋')+'</span><strong>'+escapeHtml(centreDisplayName(sk))+'</strong></div>'+
         '<div style="font-size:11px;color:var(--text-muted);">'+enrolled+' student'+(enrolled===1?'':'s')+'</div>'+cdPermissionInfo(sk)+'</td>'+
       '<td><input type="text" class="form-control" style="width:60px;padding:4px 6px;" id="cdLevel_'+sk.id+'" value="'+escapeHtml(sk.level||'')+'" placeholder="–"></td>'+
       '<td><input type="text" class="form-control" style="width:160px;padding:4px 6px;" id="cdProject_'+sk.id+'" value="'+escapeHtml(sk.project||'')+'" placeholder="Project / Centre"></td>'+
@@ -18994,6 +19138,9 @@ function cdSaveCentre(id) {
   sk.endDate = end;
   sk.level = ((document.getElementById('cdLevel_'+id)||{}).value || '').trim();
   sk.project = ((document.getElementById('cdProject_'+id)||{}).value || '').trim();
+  // Stamped so the merge can tell this edit from another device's older copy —
+  // without it every device kept its own dates and none of them agreed.
+  sk.durationModified = new Date().toISOString();
   recomputeCourseStatuses(false);
   saveState();
   if (typeof refreshStudentDependentViews === 'function') { try { refreshStudentDependentViews(); } catch(e) {} }
@@ -19011,11 +19158,13 @@ function cdBulkApply() {
   if (start && end && end < start) { alert('End date cannot be before the start date.'); return; }
   if (!start && !end && !level && !project) { alert('Fill at least one field to apply.'); return; }
   if (!confirm('Apply the filled fields to ALL ' + skillAreas.length + ' training centres?')) return;
+  var _stamp = new Date().toISOString();
   skillAreas.forEach(function(sk){
     if (start) sk.startDate = start;
     if (end) sk.endDate = end;
     if (level) sk.level = level;
     if (project) sk.project = project;
+    if (start || end || level || project) sk.durationModified = _stamp;
   });
   recomputeCourseStatuses(false);
   saveState();
@@ -19695,7 +19844,7 @@ function renderCentreTable() {
   tbody.innerHTML = skillAreas.map(function(c) {
     return '<tr>' +
       '<td style="font-size:24px;text-align:center;">' + c.icon + '</td>' +
-      '<td><strong>' + c.name + '</strong></td>' +
+      '<td><strong>' + centreDisplayName(c) + '</strong></td>' +
       '<td style="font-size:13px;color:var(--text-secondary);">' + c.desc + '</td>' +
       '<td style="text-align:center;">' + c.students + '</td>' +
       '<td style="text-align:center;">' + c.materials + '</td>' +
@@ -19728,6 +19877,12 @@ function addTrainingCentre() {
   if(!desc) { alert('Please enter a description.'); return; }
   var _newCentreId = getNextCentreId();
   clearDeletedCentre(_newCentreId);   // a deliberate re-add is never suppressed
+  // Running a programme again? This is a NEW intake with a key of its own, so
+  // the trainees of the one before it stay where they are.
+  var _sameName = skillAreas.filter(function(c){
+    try { return c && CESTISCore.enrolment.parseCentreLabel(c.name).name.toLowerCase().trim() === name.toLowerCase().trim(); }
+    catch (e) { return false; }
+  }).length;
   skillAreas.push({
     id: _newCentreId,
     name: name,
@@ -19749,11 +19904,16 @@ function addTrainingCentre() {
   document.getElementById('newCentreEmojiGrid').style.display = 'none';
   document.getElementById('newCentreColor').value = '#3498db';
   document.getElementById('newCentreDesc').value = '';
+  try { CESTISCore.enrolment.assignCentreKeys(skillAreas); } catch (e) {}
+  var _newCentre = skillAreas[skillAreas.length - 1];
+  var _newLabel = centreDisplayName(_newCentre);
   renderSkills();
   updateCentreCount();
   if(centreViewMode === 'table') renderCentreTable();
-  showToast(name + ' training centre added!');
-  addNotification('New training centre created: ' + name, 'system', null, ['admin']);
+  showToast(_newLabel + ' training centre added!' +
+    (_sameName ? ' This is intake ' + CESTISCore.enrolment.centreKeyOf(_newCentre) +
+                 ' — the trainees of the earlier one stay with it.' : ''));
+  addNotification('New training centre created: ' + _newLabel, 'system', null, ['admin']);
   populateCourseDropdowns();
   saveState();
   // Auto-recover data from Drive/cloud if this skill area existed before
@@ -21285,7 +21445,7 @@ function renderCerts(filter,search) {
   tbody.innerHTML = certs.map(s=>`<tr><td><strong>${s.name}</strong></td><td style="font-family:monospace;font-size:12px;">${s.certNo}</td><td>${s.course}</td><td>${(certTemplates[getCertTemplateKey(s.course)]||{}).programmeCode||s.course}</td><td>${s.certDate}</td><td>${s.certCollected?'<span class="badge badge-green"><span class="badge-dot"></span>Collected</span>':'<span class="badge badge-amber"><span class="badge-dot"></span>Pending</span>'}</td><td>${!s.certCollected?`<button class="btn btn-sm btn-success" onclick="markCollected(${students.indexOf(s)})">Mark Collected</button>`:'<span style="font-size:12px;color:var(--text-muted);">✓ Done</span>'}</td></tr>`).join('');
 }
 function filterCerts() { renderCerts(document.getElementById('certFilter')?.value,document.getElementById('certSearch')?.value?.toLowerCase()); }
-function markCollected(idx) { students[idx].certCollected=true;students[idx].stage='collected';students[idx].progress=100;filterCerts();updatePipelineCounts();renderCertStats();refreshStudentDependentViews();showToast(`Certificate collected: ${students[idx].name}`);addNotification('Certificate collected: ' + students[idx].name + ' — ' + students[idx].course, 'cert', null, ['admin']);saveState(); }
+function markCollected(idx) { students[idx].certCollected=true;students[idx].stage='collected';students[idx].progress=100;markStageSetByUser(students[idx]);filterCerts();updatePipelineCounts();renderCertStats();refreshStudentDependentViews();showToast(`Certificate collected: ${students[idx].name}`);addNotification('Certificate collected: ' + students[idx].name + ' — ' + students[idx].course, 'cert', null, ['admin']);saveState(); }
 
 function renderPassRates() {
   const el = document.getElementById('passRateChart');
@@ -22946,11 +23106,9 @@ async function syncStudentsFromFeeSystem() {
     // Build a set of existing student IDs for fast duplicate checking
     var existingIds = {};
     students.forEach(function(s) { existingIds[s.id] = true; });
-    // Also index by normalised name+course to avoid duplicates with different ID formats
-    var existingKeys = {};
-    students.forEach(function(s) { existingKeys[(s.name + '|' + s.course).toLowerCase()] = true; });
 
     var changed = false;
+    var skippedNoCentre = 0, skippedEnrolled = 0;
     feeStudents.forEach(function(fee) {
       // Map fee system fields: Name, Student ID, Course (Skill Area)
       var name = fee.Name || fee.name || fee.studentName || fee.student_name || '';
@@ -22967,10 +23125,24 @@ async function syncStudentsFromFeeSystem() {
         studentId = 'STU-FEE-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       }
 
-      // Skip if this student already exists (by ID or by name+course)
       if (existingIds[studentId]) return;
-      var dupKey = (name + '|' + course).toLowerCase();
-      if (existingKeys[dupKey]) return;
+
+      // The same rule the fee page's own mirror applies, so the two directions
+      // cannot disagree: a trainee this dashboard already carries is left on
+      // the programme the Centre put them on — the fee side never moves them,
+      // and never adds a second record under its own programme name. A
+      // programme with no training centre behind it is not brought over at all;
+      // the dashboard's roster is VocTrain's.
+      var _target = CESTISCore.lmsMirrorTarget(
+        { name: name, id: studentId, skillArea: course,
+          enrollmentDate: fee['Enrollment Date'] || fee.enrollmentDate || fee.enrolmentDate || '' },
+        students, skillAreas,
+        { findCentre: CESTISCore.enrolment.findCentre,
+          on: fee['Enrollment Date'] || fee.enrollmentDate || fee.enrolmentDate || '' }
+      );
+      if (_target.action === 'link') { skippedEnrolled++; return; }
+      if (_target.action !== 'create') { skippedNoCentre++; return; }
+      course = _target.course;   // the training centre's own name
 
       // Find an instructor for this course
       var assignedInstructor = '';
@@ -23021,10 +23193,13 @@ async function syncStudentsFromFeeSystem() {
       }
 
       existingIds[studentId] = true;
-      existingKeys[dupKey] = true;
       changed = true;
     });
 
+    if (skippedEnrolled || skippedNoCentre) {
+      console.log('[FeeSync] Left alone: ' + skippedEnrolled + ' already enrolled here (their programme is this dashboard\'s), ' +
+        skippedNoCentre + ' with no training centre for their programme.');
+    }
     if (changed) {
       saveState();
       console.log('[FeeSync] Merged new students from fee system into LMS');
@@ -24035,7 +24210,7 @@ async function syncFromCloud() {
       // Appraisals are merged, never replaced: a signature applied on another
       // device must survive whichever copy the cloud happens to hold.
       try { if (backupData.data.staffAppraisals && typeof sappCloudImport === 'function') sappCloudImport(backupData.data.staffAppraisals); } catch(e) { console.warn('[Restore] staffAppraisals error:', e); }
-      if (backupData.data.adminStaffAccessSettings && typeof backupData.data.adminStaffAccessSettings === 'object') adminStaffAccessSettings = backupData.data.adminStaffAccessSettings;
+      if (backupData.data.adminStaffAccessSettings && typeof backupData.data.adminStaffAccessSettings === 'object') applyAdminStaffAccess(backupData.data.adminStaffAccessSettings);
       if (Array.isArray(backupData.data.documentHubFiles) && backupData.data.documentHubFiles.length > 0) documentHubFiles = backupData.data.documentHubFiles;
       if (Array.isArray(backupData.data.supportMessages)) { supportMessages = backupData.data.supportMessages; saveSupportMessages(); }
       if (Array.isArray(backupData.data.notifications)) { notifications = backupData.data.notifications; saveNotifications(); }
@@ -24220,7 +24395,10 @@ async function mergeFromCloud() {
           var localMod = localMatch.lastModified ? new Date(localMatch.lastModified).getTime() : 0;
           var cloudIsNewer = cloudMod > localMod;
           // Update fields: cloud wins if newer OR if local field is empty/undefined
-          var fieldsToMerge = ['stage','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes'];
+          // 'stageSetByUser' travels with the stage: without it the other
+          // devices still believe the course-end rule owns this trainee, and
+          // would undo the Centre's decision the next time the course reopens.
+          var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes'];
           fieldsToMerge.forEach(function(field) {
             if (cloudStudent[field] !== undefined && cloudStudent[field] !== null && cloudStudent[field] !== '') {
               if (cloudIsNewer || !localMatch[field] || localMatch[field] === '') {
@@ -24566,7 +24744,7 @@ async function mergeFromCloud() {
     // Merge admin staff access settings
     try {
       if (backupData.data.adminStaffAccessSettings && typeof backupData.data.adminStaffAccessSettings === 'object') {
-        Object.assign(adminStaffAccessSettings, backupData.data.adminStaffAccessSettings);
+        applyAdminStaffAccess(backupData.data.adminStaffAccessSettings);
       }
     } catch(e) { console.warn('[Merge] adminStaffAccessSettings error:', e); }
 
@@ -24592,21 +24770,15 @@ async function mergeFromCloud() {
       }
     } catch(e) { console.warn('[Merge] certTemplateCourseMap error:', e); }
 
-    // Merge skillAreas (training centres) — add new AND update existing
+    // Merge skillAreas (training centres) — through the shared rule, which
+    // carries the COURSE DURATION as well as the name and colour. This merge
+    // used to copy the description and leave the dates behind, so an end date
+    // set by the administrator never reached anybody else's device.
     try {
       if (Array.isArray(backupData.data.skillAreas)) {
-        backupData.data.skillAreas.forEach(function(sa) {
-          if (!sa || !sa.id) return;
-          var existing = skillAreas.find(function(l) { return l.id === sa.id; });
-          if (!existing) {
-            skillAreas.push(sa);
-          } else {
-            if (sa.name && sa.name !== existing.name) existing.name = sa.name;
-            if (sa.desc && sa.desc !== existing.desc) existing.desc = sa.desc;
-            if (sa.icon && sa.icon !== existing.icon) existing.icon = sa.icon;
-            if (sa.color && sa.color !== existing.color) existing.color = sa.color;
-          }
-        });
+        CESTISCore.cloudMerge.applySkillAreas(skillAreas, backupData.data.skillAreas, isCentreDeleted);
+        // Statuses follow the dates that just arrived.
+        try { recomputeCourseStatuses(false); } catch(e) {}
       }
     } catch(e) { console.warn('[Merge] skillAreas error:', e); }
 
@@ -25012,7 +25184,10 @@ async function savePerUserBackup() {
     var isAdmin = currentRole === 'admin' || currentRole === 'adminstaff';
     if (isAdmin || driveResources.length > 0) userData.data.driveResources = driveResources;
     if (isAdmin || skillAreas.length > 0) userData.data.skillAreas = skillAreas;
-    if (isAdmin) userData.data.adminStaffAccessSettings = adminStaffAccessSettings;
+    // Published by the Administrator only: a staff device that has not yet
+    // received the grid would otherwise upload its blank defaults over it, and
+    // every Admin Staff member would lose the sections they had been given.
+    if (currentRole === 'admin') userData.data.adminStaffAccessSettings = adminStaffAccessSettings;
     if (isAdmin || adrTasks.length > 0) userData.data.adrTasks = adrTasks;
     if (isAdmin || Object.keys(adrStaffMeta).length > 0) userData.data.adrStaffMeta = adrStaffMeta;
     try { var _saU = (typeof sappCloudExport === 'function') ? sappCloudExport() : null; if (_saU) userData.data.staffAppraisals = _saU; } catch(e) {}
@@ -25290,7 +25465,10 @@ async function silentMergeFromBackup(fileId) {
           var cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
           var localMod = localMatch.lastModified ? new Date(localMatch.lastModified).getTime() : 0;
           var cloudIsNewer = cloudMod > localMod;
-          var fieldsToMerge = ['stage','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes'];
+          // 'stageSetByUser' travels with the stage: without it the other
+          // devices still believe the course-end rule owns this trainee, and
+          // would undo the Centre's decision the next time the course reopens.
+          var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes'];
           fieldsToMerge.forEach(function(field) {
             if (cloudStudent[field] !== undefined && cloudStudent[field] !== null && cloudStudent[field] !== '') {
               if (cloudIsNewer || !localMatch[field] || localMatch[field] === '') {
@@ -25700,14 +25878,9 @@ async function silentMergeFromBackup(fileId) {
     // Merge admin staff access settings
     if (backupData.data.adminStaffAccessSettings && typeof backupData.data.adminStaffAccessSettings === 'object') {
       try {
-        var accessChanged = false;
-        Object.keys(backupData.data.adminStaffAccessSettings).forEach(function(k) {
-          if (adminStaffAccessSettings[k] !== backupData.data.adminStaffAccessSettings[k]) {
-            adminStaffAccessSettings[k] = backupData.data.adminStaffAccessSettings[k];
-            accessChanged = true;
-          }
-        });
-        if (accessChanged) changed = true;
+        // This is the path a signed-in Admin Staff member receives the
+        // Administrator's grid on, so it also redraws their sidebar.
+        if (applyAdminStaffAccess(backupData.data.adminStaffAccessSettings)) changed = true;
       } catch(e) { console.warn('[Merge] adminStaffAccessSettings error:', e); }
     }
 
@@ -25792,24 +25965,20 @@ async function silentMergeFromBackup(fileId) {
     // stay deleted — an add-only merge brought it back on the next sync.
     if (Array.isArray(backupData.data.skillAreas)) {
       try {
-        backupData.data.skillAreas.forEach(function(sa) {
-          if (sa && sa.id && isCentreDeleted(sa.id)) return;
-          if (sa && sa.id && !skillAreas.some(function(l) { return l.id === sa.id; })) {
-            skillAreas.push(sa);
-            changed = true;
-          }
-        });
-        // Also update existing skill areas with cloud data (name, desc, icon, color changes)
-        backupData.data.skillAreas.forEach(function(sa) {
-          if (!sa || !sa.id) return;
-          var local = skillAreas.find(function(l) { return l.id === sa.id; });
-          if (local) {
-            if (sa.name && sa.name !== local.name) { local.name = sa.name; changed = true; }
-            if (sa.desc && sa.desc !== local.desc) { local.desc = sa.desc; changed = true; }
-            if (sa.icon && sa.icon !== local.icon) { local.icon = sa.icon; changed = true; }
-            if (sa.color && sa.color !== local.color) { local.color = sa.color; changed = true; }
-          }
-        });
+        // The shared rule: adds new centres, keeps deleted ones deleted, and
+        // carries the COURSE DURATION across. This is the sync every device
+        // runs on login, and it used to bring everything about a centre EXCEPT
+        // its start and end dates — so each machine kept its own idea of when a
+        // course had finished, and the same trainee showed a different status
+        // on each of them.
+        var _saOut = CESTISCore.cloudMerge.applySkillAreas(skillAreas, backupData.data.skillAreas, isCentreDeleted);
+        if (_saOut.added || _saOut.updated) {
+          changed = true;
+          // Trainees follow the dates that just arrived: a course that ended
+          // while this device was not looking marks its trainees Not Yet
+          // Competent now, rather than at the next reload.
+          try { recomputeCourseStatuses(false); } catch(e) {}
+        }
       } catch(e) { console.warn('[Merge] skillAreas error:', e); }
     }
 
@@ -26045,10 +26214,15 @@ async function autoSyncOnLogin() {
     // 6. Refresh the dashboard display if data changed — but only if the user is
     // actually on the dashboard. If they've navigated elsewhere, leave them there.
     if (anyChanged) {
+      // The Administrator's Admin Staff access grid usually arrives on exactly
+      // this sync, moments after the sidebar was built from whatever this
+      // device happened to hold — so redraw the nav before anything else.
+      try { refreshAdminStaffNav(); } catch (e) {}
       var _ap = cestisActivePageId();
       var _dash = currentRole === 'admin' ? 'dashboard'
                 : currentRole === 'instructor' ? 'i-dashboard'
                 : currentRole === 'student' ? 's-dashboard'
+                : currentRole === 'adminstaff' ? 'as-dashboard'
                 : currentRole === 'cmc' ? 'cmc-dashboard' : null;
       if (_dash && _ap === _dash) {
         try { showPage(_dash); } catch (e) {}
@@ -26240,7 +26414,8 @@ async function autoSaveToAllFolders() {
     // Admin-managed data: only include if admin OR if non-empty (never upload empty to overwrite real data)
     if (_isAdminSave || driveResources.length > 0) backupData.data.driveResources = driveResources;
     if (_isAdminSave || skillAreas.length > 0) backupData.data.skillAreas = skillAreas;
-    if (_isAdminSave) backupData.data.adminStaffAccessSettings = adminStaffAccessSettings;
+    // Published by the Administrator only — see the per-user save above.
+    if (currentRole === 'admin') backupData.data.adminStaffAccessSettings = adminStaffAccessSettings;
     if (_isAdminSave || adrTasks.length > 0) backupData.data.adrTasks = adrTasks;
     if (_isAdminSave || Object.keys(adrStaffMeta).length > 0) backupData.data.adrStaffMeta = adrStaffMeta;
     try { var _saB = (typeof sappCloudExport === 'function') ? sappCloudExport() : null; if (_saB) backupData.data.staffAppraisals = _saB; } catch(e) {}
@@ -31176,7 +31351,7 @@ var asAccessPages = [
 function loadAdminStaffAccess() {
   try {
     var stored = CESTISStore.getItem('voctrain_adminStaffAccess');
-    if(stored) adminStaffAccessSettings = JSON.parse(stored);
+    if(stored) applyAdminStaffAccess(JSON.parse(stored));
   } catch(e) {}
 }
 loadAdminStaffAccess();
@@ -31210,6 +31385,8 @@ function toggleAsAccess(key, itemEl) {
 
 function saveAdminStaffAccess() {
   saveAdminStaffAccessToStorage();
+  // Takes effect at once for anyone signed in as Admin Staff on this device.
+  refreshAdminStaffNav();
   showToast('Admin Staff access settings saved!');
 }
 
@@ -34664,14 +34841,27 @@ async function fetchCertDataFromDrive() {
         if (cestisIsStudentTombstoned(cloudStudent)) return; // Honor tombstone (id + stable id)
         var existing = students.find(function(s) { return s.id === cloudStudent.id; });
         if (existing) {
-          // Update cert-relevant fields from cloud
-          if (cloudStudent.certNo !== undefined) existing.certNo = cloudStudent.certNo;
-          if (cloudStudent.certDate !== undefined) existing.certDate = cloudStudent.certDate;
-          if (cloudStudent.certCollected !== undefined) existing.certCollected = cloudStudent.certCollected;
-          if (cloudStudent.stage !== undefined) existing.stage = cloudStudent.stage;
-          if (cloudStudent.progress !== undefined) existing.progress = cloudStudent.progress;
-          if (cloudStudent.name) existing.name = cloudStudent.name;
-          if (cloudStudent.course) existing.course = cloudStudent.course;
+          // Looking a certificate up must not rewrite the record. This copied
+          // the cloud's stage over the local one every time somebody checked a
+          // certificate, which is one of the ways a status the Centre had just
+          // changed went back to what it was. The cloud copy is only taken when
+          // it is genuinely the newer edit; otherwise blanks are filled and
+          // nothing else is touched.
+          var _cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
+          var _localMod = existing.lastModified ? new Date(existing.lastModified).getTime() : 0;
+          if (_cloudMod > _localMod) {
+            if (cloudStudent.certNo !== undefined) existing.certNo = cloudStudent.certNo;
+            if (cloudStudent.certDate !== undefined) existing.certDate = cloudStudent.certDate;
+            if (cloudStudent.certCollected !== undefined) existing.certCollected = cloudStudent.certCollected;
+            if (cloudStudent.stage !== undefined) existing.stage = cloudStudent.stage;
+            if (cloudStudent.progress !== undefined) existing.progress = cloudStudent.progress;
+            if (cloudStudent.name) existing.name = cloudStudent.name;
+            if (cloudStudent.course) existing.course = cloudStudent.course;
+            existing.lastModified = cloudStudent.lastModified;
+          } else {
+            if (!existing.certNo && cloudStudent.certNo) existing.certNo = cloudStudent.certNo;
+            if (!existing.certDate && cloudStudent.certDate) existing.certDate = cloudStudent.certDate;
+          }
         } else {
           students.push(cloudStudent);
           merged++;

@@ -330,6 +330,77 @@
     return changed;
   };
 
+  /* --- Mirroring a fee record onto the dashboard -------------------------
+     The School Fee page keeps its own list of trainees and mirrors them onto
+     the Student Progress dashboard. Two rules govern that crossing, and both
+     were being broken.
+
+     The programme belongs to VocTrain. The fee page may price a programme of
+     its own — that is its business — but the dashboard's roster is the
+     Centre's training centres, so a fee record whose programme is not one of
+     them is not mirrored at all. It stays a fee record.
+
+     A trainee already on the dashboard is never moved. The old twin test
+     required the programme to match, so the same person filed under a
+     different programme name on the fee side read as a stranger: a SECOND
+     record was created for them, under the fee page's programme, and the
+     Centre saw trainees appear on programmes nobody had put them in. Being
+     the same person is now enough to leave them exactly where they are — only
+     the link between the two records is written.
+
+       lmsMirrorTarget(fee, lmsStudents, centres, opts) ->
+         { action: 'link' | 'create' | 'skip', match, course, centreCourse, reason }
+
+     `centreCourse` is the training centre's OWN name for this fee record's
+     programme, or '' when it answers to none — the only programme name the fee
+     side may ever write onto the dashboard.
+
+     opts.findCentre(centres, name, opts) — the centre resolver (the caller
+     passes Core.enrolment.findCentre); opts.on — the date to resolve as of. */
+  Core.lmsMirrorTarget = function (fee, lmsStudents, centres, opts) {
+    opts = opts || {};
+    var list = Array.isArray(lmsStudents) ? lmsStudents : [];
+    if (!fee || !Core.normName(fee.name)) {
+      return { action: 'skip', match: null, course: '', centreCourse: '', reason: 'no-name' };
+    }
+
+    // The training centre this fee record's programme answers to, under the
+    // centre's own name — so one programme reads as one programme on the
+    // dashboard however the fee side spells it.
+    var centre = null;
+    var name = fee.skillArea || fee.course || '';
+    if (name && typeof opts.findCentre === 'function') {
+      try { centre = opts.findCentre(Array.isArray(centres) ? centres : [], name, { on: opts.on }); }
+      catch (e) { centre = null; }
+    }
+    var centreCourse = (centre && centre.name) ? centre.name : '';
+
+    // Already on the dashboard? A linked id or the same name+programme first,
+    // then the same person under any programme at all — being the same person
+    // is enough to leave them exactly where the Centre put them.
+    var match = null, i;
+    for (i = 0; i < list.length; i++) {
+      if (list[i] && Core.isFeeTwin(list[i], fee)) { match = list[i]; break; }
+    }
+    if (match) {
+      return { action: 'link', match: match, course: match.course || '',
+        centreCourse: centreCourse, reason: 'twin' };
+    }
+    var want = Core.normName(fee.name);
+    for (i = 0; i < list.length; i++) {
+      if (list[i] && Core.normName(list[i].name) === want) {
+        return { action: 'link', match: list[i], course: list[i].course || '',
+          centreCourse: centreCourse, reason: 'already-enrolled-elsewhere' };
+      }
+    }
+
+    // Nobody there yet: the programme has to be one the Centre actually runs.
+    if (!centreCourse) {
+      return { action: 'skip', match: null, course: '', centreCourse: '', reason: 'no-training-centre' };
+    }
+    return { action: 'create', match: null, course: centreCourse, centreCourse: centreCourse, reason: 'ok' };
+  };
+
   /* --- Student record merge (pure; identical semantics to the app) -------- */
   var MERGE_FIELDS = ['stage', 'progress', 'score', 'gpa', 'certNo', 'certDate', 'certCollected',
     'attendance', 'assignments', 'instructor', 'email', 'phone', 'address',
@@ -1788,6 +1859,96 @@
   Core.enrolment = (function () {
     function norm(s) { return String(s == null ? '' : s).toLowerCase().trim().replace(/\s+/g, ' '); }
 
+    /* --- The intake key ---------------------------------------------------
+       A programme the Centre runs more than once has one training centre per
+       intake, and they share a name. Matching on the name alone therefore
+       swept last year's trainees into this year's centre the moment it was
+       created — the very thing the course-end rule exists to prevent.
+
+       Every centre carries a key of its own: '01', '02', '03', … taken from
+       the centre's id, so it is unique, never reused, and stable on every
+       device. A centre's full name is written with it in front —
+       "01. Welding and Fabrication", then "02. Welding and Fabrication" for
+       the next intake — and that is the name the fee side prices and enrols
+       under. A name carrying a key resolves to THAT centre and no other, so a
+       trainee stays with the intake they were enrolled in for good. */
+
+    function padKey(v) {
+      var s = String(v == null ? '' : v).trim();
+      if (!s) return '';
+      if (/^\d+$/.test(s)) return s.length < 2 ? ('0' + s) : s;
+      return s;
+    }
+
+    // A key is a NUMBER: '01', '02', '03'. An id that is not one (some centres
+    // carry a generated string id) gives no key — the centre is allotted the
+    // next free number instead, so what the Centre reads is always a count.
+    function numericKey(v) {
+      var s = String(v == null ? '' : v).trim();
+      return /^\d+$/.test(s) ? padKey(s) : '';
+    }
+
+    /* The key a centre answers to: its own if it carries one, otherwise the
+       one its id gives it. '' when the centre has neither. */
+    function centreKeyOf(centre) {
+      if (!centre) return '';
+      if (centre.centreKey != null && String(centre.centreKey).trim() !== '') return padKey(centre.centreKey);
+      if (centre.id != null) return numericKey(centre.id);
+      return '';
+    }
+
+    /* Split a written programme name into the key it states and the rest.
+         '02. Welding and Fabrication' -> { key: '02', name: 'Welding and Fabrication' }
+         'WELDING L2'                  -> { key: '',   name: 'WELDING L2' }
+       Only a leading run of digits followed by a dot counts, so a name that
+       merely begins with a number ("2 Day Induction") is left alone. */
+    function parseCentreLabel(label) {
+      var s = String(label == null ? '' : label).trim();
+      var m = /^(\d{1,4})\s*[.)]\s*(.+)$/.exec(s);
+      if (!m) return { key: '', name: s };
+      return { key: padKey(m[1]), name: m[2].trim() };
+    }
+
+    /* A centre's full name, key first. This is what the Centre reads on the
+       page and what the fee side prices, so two intakes of one programme are
+       two plainly different things. */
+    function centreLabel(centre) {
+      if (!centre || !centre.name) return '';
+      var k = centreKeyOf(centre);
+      var bare = parseCentreLabel(centre.name).name;   // never double-prefix
+      return k ? (k + '. ' + bare) : bare;
+    }
+
+    /* Give every centre that has no key one of its own, in place. Safe to run
+       on every load: a centre that already has a key is left alone. Returns
+       how many were stamped. */
+    function assignCentreKeys(areas) {
+      if (!Array.isArray(areas)) return 0;
+      var taken = {}, n = 0, i;
+      for (i = 0; i < areas.length; i++) {
+        if (!areas[i]) continue;
+        var k = areas[i].centreKey != null ? padKey(areas[i].centreKey) : '';
+        if (k) taken[k] = true;
+      }
+      var next = 1;
+      var free = function () {
+        while (taken[padKey(next)]) next++;
+        var k = padKey(next);
+        taken[k] = true;
+        return k;
+      };
+      for (i = 0; i < areas.length; i++) {
+        var a = areas[i];
+        if (!a || (a.centreKey != null && String(a.centreKey).trim() !== '')) continue;
+        // The id is the centre's identity already, so it gives a key that is
+        // unique and the same on every device — but never one already taken.
+        var fromId = a.id != null ? numericKey(a.id) : '';
+        a.centreKey = (fromId && !taken[fromId]) ? (taken[fromId] = true, fromId) : free();
+        n++;
+      }
+      return n;
+    }
+
     // Joining words that carry no meaning when two course names are compared.
     var STOP_WORDS = { and: 1, the: 1, of: 1, for: 1, with: 1, amp: 1 };
 
@@ -1892,34 +2053,51 @@
             "… Level 3".
        Between equally good matches the choice is made by preferCentre, and a
        later pass only runs when the earlier ones found nothing.
-       opts: { today, nowMs, on } — all optional. 'on' is a date the answer
-       should belong to; without it the answer is about now. */
+
+       An intake KEY settles it outright. A name written "02. Welding and
+       Fabrication", or an explicit opts.centreKey, names one centre and one
+       only: if that centre is not in the roster the answer is nothing at all,
+       never a like-named intake. This is what keeps a trainee with the intake
+       they were enrolled in when the Centre opens the next one under the same
+       name.
+
+       opts: { today, nowMs, on, centreKey } — all optional. 'on' is a date the
+       answer should belong to; without it the answer is about now. */
     function findCentre(areas, courseName, opts) {
       if (!Array.isArray(areas) || !courseName) return null;
       opts = opts || {};
-      var cn = norm(courseName);
-      if (!cn) return null;
+      var parsed = parseCentreLabel(courseName);
+      var wantKey = padKey(opts.centreKey || parsed.key);
+      var cn = norm(wantKey ? parsed.name : courseName);
       var hit = null, i, n;
 
+      if (wantKey) {
+        for (i = 0; i < areas.length; i++) {
+          if (areas[i] && centreKeyOf(areas[i]) === wantKey) return areas[i];
+        }
+        return null;                 // that intake is not here — never another one
+      }
+      if (!cn) return null;
+
       for (i = 0; i < areas.length; i++) {
-        if (areas[i] && norm(areas[i].name) === cn) hit = preferCentre(hit, areas[i], opts);
+        if (areas[i] && norm(parseCentreLabel(areas[i].name).name) === cn) hit = preferCentre(hit, areas[i], opts);
       }
       if (hit) return hit;
 
       for (i = 0; i < areas.length; i++) {
-        n = norm(areas[i] && areas[i].name);
+        n = norm(areas[i] && parseCentreLabel(areas[i].name).name);
         if (!n) continue;
         if (n.indexOf(cn) === 0 || cn.indexOf(n) === 0) hit = preferCentre(hit, areas[i], opts);
       }
       if (hit) return hit;
 
-      var qT = tokenise(courseName), qL = levelOfTokens(qT), qW = keyWords(qT);
+      var qT = tokenise(cn), qL = levelOfTokens(qT), qW = keyWords(qT);
       if (!qW.length) return null;
       var best = null, bestScore = 0;
       for (i = 0; i < areas.length; i++) {
         var area = areas[i];
         if (!area || !area.name) continue;
-        var aT = tokenise(area.name), aL = levelOfTokens(aT), aW = keyWords(aT);
+        var aT = tokenise(parseCentreLabel(area.name).name), aL = levelOfTokens(aT), aW = keyWords(aT);
         if (!aW.length) continue;
         if (qL && aL && qL !== aL) continue;      // Level 2 is not Level 3
         var shared = 0;
@@ -2009,7 +2187,12 @@
       var ed = Core.courseDuration.normDate(enrolDate) || Core.courseDuration.todayStr();
       return {
         centreId: centre.id != null ? centre.id : null,
+        // The intake key is stamped alongside the id: it is what binds this
+        // trainee to THIS intake, so the next one opened under the same name
+        // never claims them.
+        centreKey: centreKeyOf(centre),
         centreName: centre.name || '',
+        centreLabel: centreLabel(centre),
         courseStart: Core.courseDuration.normDate(centre.startDate) || '',
         courseEnd: Core.courseDuration.normDate(centre.endDate) || '',
         enrolmentDate: ed,
@@ -2042,6 +2225,10 @@
 
     return {
       findCentre: findCentre,
+      centreKeyOf: centreKeyOf,
+      centreLabel: centreLabel,
+      parseCentreLabel: parseCentreLabel,
+      assignCentreKeys: assignCentreKeys,
       fiscalYearOf: fiscalYearOf,
       centreFiscalYear: centreFiscalYear,
       canEnrol: canEnrol,
@@ -3210,9 +3397,45 @@
       return 'added';
     }
 
+    /* How a training centre is described — whoever wrote last is as good as
+       any other, so a non-empty cloud value is taken. */
+    var CENTRE_IDENTITY = ['name', 'desc', 'icon', 'color'];
+
+    /* The course DURATION. This decides whether the register is open and
+       whether a trainee's course has ended, so it is merged on its own terms:
+       the copy edited most recently wins, by the stamp written when an
+       administrator saved it. A device that was never given the dates cannot
+       push its own over them. */
+    var CENTRE_DURATION = ['startDate', 'endDate', 'level', 'project'];
+
+    function durationStamp(centre) {
+      return (centre && Date.parse(centre.durationModified || '')) || 0;
+    }
+
+    /* Should the cloud copy's duration replace this device's?
+         - a newer stamp always wins;
+         - with no stamps on either side (data written before durations were
+           stamped) the cloud copy still wins, as it always did, so an
+           administrator's dates reach the other devices;
+         - a local copy that has been stamped is never overwritten by an
+           unstamped one — that is a device that has not been told yet. */
+    function durationWins(local, cloud) {
+      var lc = durationStamp(local), cc = durationStamp(cloud);
+      if (cc && lc) return cc > lc;
+      if (lc) return false;
+      return true;
+    }
+
     /* Merge cloud training centres into the local list, in place. A centre the
        Centre has deleted stays deleted — without this every sync brought it
-       back, along with its chat room and its place in the course lists. */
+       back, along with its chat room and its place in the course lists.
+
+       Course durations are merged too. The Drive merges used to copy only the
+       name, description, icon and colour, so an end date set by the
+       administrator never reached anybody else: every device kept its own idea
+       of when a course finished, which is why the same trainee showed a
+       different status on every machine and why courses that had ended left
+       their trainees sitting in Testing. */
     function applySkillAreas(localList, cloudList, isDeleted) {
       var out = { added: 0, updated: 0, skipped: 0 };
       if (!Array.isArray(localList) || !Array.isArray(cloudList)) return out;
@@ -3224,12 +3447,38 @@
           if (localList[i] && localList[i].id === sa.id) { local = localList[i]; break; }
         }
         if (!local) { localList.push(sa); out.added++; return; }
-        ['name', 'desc', 'icon', 'color', 'startDate', 'endDate'].forEach(function (f) {
+
+        CENTRE_IDENTITY.forEach(function (f) {
           if (sa[f] !== undefined && sa[f] !== null && sa[f] !== '' && sa[f] !== local[f]) {
             local[f] = sa[f];
             out.updated++;
           }
         });
+
+        if (durationWins(local, sa)) {
+          CENTRE_DURATION.forEach(function (f) {
+            if (sa[f] !== undefined && sa[f] !== null && sa[f] !== '' && sa[f] !== local[f]) {
+              local[f] = sa[f];
+              out.updated++;
+            }
+          });
+          if (sa.durationModified && sa.durationModified !== local.durationModified) {
+            local.durationModified = sa.durationModified;
+          }
+        }
+
+        // A reopen window granted to an instructor is added, never removed:
+        // they expire by their own clock, so the union cannot outlast them.
+        if (Array.isArray(sa.instructorPermissions) && sa.instructorPermissions.length) {
+          if (!Array.isArray(local.instructorPermissions)) local.instructorPermissions = [];
+          sa.instructorPermissions.forEach(function (p) {
+            if (!p) return;
+            var known = local.instructorPermissions.some(function (lp) {
+              return lp && lp.instructor === p.instructor && lp.expiresAtMs === p.expiresAtMs;
+            });
+            if (!known) { local.instructorPermissions.push(p); out.updated++; }
+          });
+        }
       });
       return out;
     }
