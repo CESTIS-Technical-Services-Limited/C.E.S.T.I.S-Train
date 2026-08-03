@@ -1166,7 +1166,19 @@ if(document.readyState === 'loading'){
 CESTISPageCloud.init({
   page: 'Student Progress',
   file: 'CESTIS_Student_Progress.json',
-  keys: ['voctrain_students', 'voctrain_attendance', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles']
+  keys: ['voctrain_students', 'voctrain_attendance', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles'],
+  // The fee roll is read here (trainees the fee page knows about first are
+  // mirrored onto this dashboard) but owned by School Fee, so it is pulled from
+  // Drive and never written back from this page.
+  reads: ['cestiSchoolFeeStudents', 'cestiSchoolFeeDeletedLmsIds'],
+  onRestore: function (changed) {
+    try {
+      if (typeof loadData === 'function') loadData();
+      if (typeof populateCourseDropdowns === 'function') populateCourseDropdowns();
+      if (typeof filterStudents === 'function') filterStudents();
+      if (typeof updatePipelineCounts === 'function') updatePipelineCounts();
+    } catch (e) { console.warn('[PageCloud] Student Progress restore refresh failed:', e); }
+  }
 });
 </script>
 </body>

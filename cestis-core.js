@@ -4064,6 +4064,99 @@
       return { data: data, stamps: stamps, changed: changed };
     }
 
+    /* --- Shared collections, and which backup file carries them ------------
+
+       Some collections belong to one page but are READ by several: the trainee
+       roll, the training centres and their tombstones, the fee roll. A page
+       backs up only the keys it OWNS, so a page that merely reads a shared
+       collection never fetched it from Drive at all — it rendered whatever
+       happened to be in this device's local storage. On a machine that had not
+       opened the owning page, that meant stale data or none, and the page then
+       wrote its own view back over everyone else's.
+
+       This registry says where each shared collection actually lives, so any
+       page can pull the current copy from Drive when it syncs. A reader pulls
+       and merges; it never pushes a key it does not own, so it cannot overwrite
+       the owning page's data. */
+    var SHARED_SOURCES = [
+      {
+        file: 'CESTIS_Student_Progress.json',
+        page: 'Student Progress',
+        keys: ['voctrain_students', 'voctrain_skillAreas', 'voctrain_studentProfiles',
+               'voctrain_instructorData', 'voctrain_attendance', 'voctrain_examResults',
+               'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds',
+               'voctrain_deletedCentreIds']
+      },
+      {
+        file: 'CESTIS_School_Fees.json',
+        page: 'School Fee Management',
+        keys: ['cestiFeeStructure', 'cestiSchoolFeeStudents', 'cestiSchoolFeePayments',
+               'cestiSchoolFeeDocuments', 'cestiSchoolFeeDeletedLmsIds',
+               'cestiSchoolFeeDeletedPaymentIds']
+      },
+      {
+        file: 'CESTIS_Transcript_Grades.json',
+        page: 'Transcript / Grades',
+        keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles']
+      },
+      {
+        file: 'CESTIS_Transcript_Requests.json',
+        page: 'Certificate / Transcript Requests',
+        keys: ['voctrain_certTranscriptRequests']
+      }
+    ];
+
+    function sharedSources() { return SHARED_SOURCES; }
+
+    /* Is this key one several pages depend on? */
+    function isShared(key) {
+      for (var i = 0; i < SHARED_SOURCES.length; i++) {
+        if (SHARED_SOURCES[i].keys.indexOf(key) !== -1) return true;
+      }
+      return false;
+    }
+
+    /* The file that carries a shared key, or null if nothing claims it. */
+    function sourceOf(key) {
+      for (var i = 0; i < SHARED_SOURCES.length; i++) {
+        if (SHARED_SOURCES[i].keys.indexOf(key) !== -1) return SHARED_SOURCES[i];
+      }
+      return null;
+    }
+
+    /* Which files a page must pull to have current copies of `keys`, and which
+       of those keys each file supplies. `ownFile` is the page's own backup — it
+       is already pulled in the normal way, so it is never listed again.
+
+       Returns [{ file, page, keys: [...] }], one entry per file, in registry
+       order. Keys nothing claims are simply not fetched: they are page-local. */
+    function sharedPullPlan(keys, ownFile) {
+      var wanted = Array.isArray(keys) ? keys : [];
+      var plan = [], byFile = {};
+      wanted.forEach(function (k) {
+        var src = sourceOf(k);
+        if (!src || src.file === ownFile) return;
+        if (!byFile[src.file]) {
+          byFile[src.file] = { file: src.file, page: src.page, keys: [] };
+          plan.push(byFile[src.file]);
+        }
+        if (byFile[src.file].keys.indexOf(k) === -1) byFile[src.file].keys.push(k);
+      });
+      return plan;
+    }
+
+    /* Take just the shared keys a reader asked for out of a pulled payload.
+       Everything else in that file belongs to the owning page and is left
+       alone — a reader adopts what it reads, never the whole file. */
+    function pickShared(payloadData, keys) {
+      var out = {}, wanted = Array.isArray(keys) ? keys : [];
+      if (!payloadData) return out;
+      wanted.forEach(function (k) {
+        if (Object.prototype.hasOwnProperty.call(payloadData, k)) out[k] = payloadData[k];
+      });
+      return out;
+    }
+
     /* Does a storage key belong to this page's backup? Pages declare exact key
        names and/or prefixes (the Cashbook's quarters are `cestis_quarter_<FY>_Q<n>`,
        so they can only be described as a prefix). */
@@ -4114,7 +4207,9 @@
       };
     }
 
-    return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload };
+    return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload,
+             sharedSources: sharedSources, isShared: isShared, sourceOf: sourceOf,
+             sharedPullPlan: sharedPullPlan, pickShared: pickShared };
   })();
 
   root.CESTISCore = Core;

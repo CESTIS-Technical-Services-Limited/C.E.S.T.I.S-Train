@@ -1213,7 +1213,11 @@ document.addEventListener('DOMContentLoaded', function () {
 CESTISPageCloud.init({
   page: 'Transcript / Grades',
   file: 'CESTIS_Transcript_Grades.json',
-  keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles']
+  keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles'],
+  // Grades are recorded against the trainee roll and the training centres, both
+  // owned elsewhere: pulled from Drive here, never written back.
+  reads: ['voctrain_students', 'voctrain_skillAreas', 'voctrain_deletedCentreIds',
+          'voctrain_examResults']
 });
 </script>
 </body>
