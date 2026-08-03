@@ -112,8 +112,13 @@
         if (LS) { try { var lv = LS.getItem(k); if (lv !== null) { cache[k] = lv; return lv; } } catch (e) {} }
         return (k in cache) ? cache[k] : null;
       },
-      setItem: function (k, v) { k = String(k); v = String(v); cache[k] = v; try { if (LS) LS.setItem(k, v); } catch (e) {} writeIDB(k, v, false); },
-      removeItem: function (k) { k = String(k); delete cache[k]; try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
+      // `writes` counts every mutation made through this store. It lets the
+      // periodic cloud save ask "has anything changed since my last upload?"
+      // for the price of an integer compare, instead of re-serialising the
+      // whole dataset every tick to find out the answer is no.
+      writes: 0,
+      setItem: function (k, v) { k = String(k); v = String(v); Store.writes++; cache[k] = v; try { if (LS) LS.setItem(k, v); } catch (e) {} writeIDB(k, v, false); },
+      removeItem: function (k) { k = String(k); Store.writes++; delete cache[k]; try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
       clear: function () {
         for (var k in cache) { if (Object.prototype.hasOwnProperty.call(cache, k)) delete cache[k]; }
         try { if (LS) LS.clear(); } catch (e) {}

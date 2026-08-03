@@ -18856,14 +18856,45 @@ function refreshContentDependentViews() {
 // so there is no save -> refresh -> save loop. A re-entrancy guard makes that
 // invariant explicit and prevents nested renders.
 var _cestisRefreshScheduled = false, _cestisRefreshing = false;
+var _cestisLastRefreshAt = 0, _cestisRefreshTrailing = null;
+// The full pass redraws every mounted view — dozens of table and list rebuilds.
+// That is far too much work to run after EVERY save: a burst of saves (a cloud
+// merge landing, a migration, the periodic autosave) used to redraw the whole
+// dashboard several times a second, which the user feels as everything —
+// dropdowns included — moving slowly. One pass a second is more than fresh
+// enough for tables nobody is editing mid-second.
+var CESTIS_REFRESH_MIN_GAP_MS = 1000;
 function cestisReactiveRefreshNow() {
   _cestisRefreshScheduled = false;
   if (_cestisRefreshing) return;
+  // A hidden tab redraws nothing; one pass runs when it becomes visible again.
+  if (document.hidden) { _cestisRefreshScheduled = false; _cestisNeedsRefreshOnShow = true; return; }
+  var now = Date.now();
+  if (now - _cestisLastRefreshAt < CESTIS_REFRESH_MIN_GAP_MS) {
+    // Too soon: run once, later — the LAST save of a burst still renders.
+    if (!_cestisRefreshTrailing) {
+      _cestisRefreshTrailing = setTimeout(function () {
+        _cestisRefreshTrailing = null;
+        cestisReactiveRefreshNow();
+      }, CESTIS_REFRESH_MIN_GAP_MS - (now - _cestisLastRefreshAt) + 20);
+    }
+    return;
+  }
+  _cestisLastRefreshAt = now;
   _cestisRefreshing = true;
   try { if (typeof refreshStudentDependentViews === 'function') refreshStudentDependentViews(); } catch(e) {}
   try { if (typeof refreshContentDependentViews === 'function') refreshContentDependentViews(); } catch(e) {}
   _cestisRefreshing = false;
 }
+var _cestisNeedsRefreshOnShow = false;
+try {
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && _cestisNeedsRefreshOnShow) {
+      _cestisNeedsRefreshOnShow = false;
+      cestisScheduleReactiveRefresh();
+    }
+  });
+} catch (e) {}
 function cestisScheduleReactiveRefresh() {
   if (_cestisRefreshScheduled || _cestisRefreshing) return;
   _cestisRefreshScheduled = true;
@@ -27240,6 +27271,17 @@ async function pullMainIfRemoteNewer() {
 }
 
 // Auto-save all dashboard data to ALL Google Drive folders (silent, every 5s)
+// The store's write counter as of our last completed save. When nothing has
+// been written since, the 5-second tick has NOTHING to do — and must cost
+// nothing. It used to re-serialise the entire dataset (students, attendance,
+// chat, everything — megabytes of JSON.stringify), hash it, and call
+// saveState() — which rewrites every collection to localStorage AND triggers
+// the reactive refresh that redraws every mounted view — every 5 seconds,
+// forever, on a page the user wasn't even touching. That steady tick of
+// serialise + write + full re-render is what made the whole dashboard feel
+// slow and the mouse stutter.
+var _lastAutoSaveWriteMark = -1;
+
 async function autoSaveToAllFolders() {
   if (!isCloudConnected || !googleAccessToken || _isAutoSaving) return;
 
@@ -27247,8 +27289,18 @@ async function autoSaveToAllFolders() {
 
   try {
     // Ingest any newer cloud state first so our save writes the union, never a
-    // stale overwrite. Also serves as the periodic cross-device pull.
+    // stale overwrite. Also serves as the periodic cross-device pull — this is
+    // the cloud→local path, so it runs on every tick regardless of the gate
+    // below: another device's work still arrives within seconds.
     await pullMainIfRemoteNewer();
+
+    // Nothing written since our last completed save: the local copy and the
+    // cloud copy are both already what we would produce. Skip the serialise,
+    // the saveState and the uploads outright.
+    var _writesNow = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -2;
+    if (_writesNow === _lastAutoSaveWriteMark && _lastAutoSaveHash) {
+      return; // finally{} clears _isAutoSaving
+    }
 
     const cloudUser = getCurrentCloudUser();
 
@@ -27318,6 +27370,9 @@ async function autoSaveToAllFolders() {
     const _dataStr = JSON.stringify(backupData.data, stripSecretFields);
     const _curHash = cestisHashString(_dataStr);
     if (_curHash === _lastAutoSaveHash) {
+      // The writes were bookkeeping only — the data itself is unchanged.
+      // Absorb them (including saveState()'s own) so the next tick is free.
+      _lastAutoSaveWriteMark = (window.CESTISStore && CESTISStore.writes) || _lastAutoSaveWriteMark;
       return; // unchanged — nothing to push; finally{} clears _isAutoSaving
     }
 
@@ -27372,6 +27427,10 @@ async function autoSaveToAllFolders() {
     // failed upload is retried on the next tick instead of being skipped.
     if (successCount >= 1) {
       _lastAutoSaveHash = _curHash;
+      // Absorb every write this save itself just made, so an idle next tick
+      // costs an integer compare and nothing else. On failure the mark is left
+      // alone, which is what makes the next tick retry.
+      _lastAutoSaveWriteMark = (window.CESTISStore && CESTISStore.writes) || _lastAutoSaveWriteMark;
       _consecutiveCloudSaveFailures = 0;
     } else {
       _consecutiveCloudSaveFailures = (_consecutiveCloudSaveFailures || 0) + 1;
