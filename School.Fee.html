@@ -512,6 +512,151 @@
             color: var(--text-primary);
         }
 
+        /* Find-a-trainee search, above the Record Payment form */
+        .trainee-search {
+            position: relative;
+            margin-bottom: 1.25rem;
+            max-width: 640px;
+        }
+
+        .trainee-search label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .trainee-search-field {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.15rem 0.6rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: var(--bg-card);
+            transition: border-color .15s, box-shadow .15s;
+        }
+
+        .trainee-search-field:focus-within {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(13, 71, 161, .15);
+        }
+
+        .trainee-search-icon { font-size: 0.95rem; opacity: .7; }
+
+        .trainee-search-field input {
+            flex: 1;
+            min-width: 0;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 1rem;
+            padding: 0.6rem 0;
+        }
+
+        .trainee-search-clear {
+            display: none;
+            border: 0;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.95rem;
+            padding: 0.25rem 0.35rem;
+            border-radius: 0.25rem;
+            line-height: 1;
+        }
+        .trainee-search-clear:hover { background: var(--bg-primary); color: var(--text-primary); }
+        .trainee-search.has-query .trainee-search-clear { display: block; }
+
+        /* The results float over the form rather than pushing it down, so the
+           fields below do not jump about while the user is typing. */
+        .trainee-search-results {
+            display: none;
+            position: absolute;
+            z-index: 40;
+            left: 0;
+            right: 0;
+            margin-top: 0.35rem;
+            max-height: 320px;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, .18);
+        }
+        .trainee-search.open .trainee-search-results { display: block; }
+
+        .trainee-result {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.65rem 0.85rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .trainee-result:last-child { border-bottom: 0; }
+        .trainee-result:hover,
+        .trainee-result.active { background: var(--bg-primary); }
+
+        /* Name on top, ID and programme underneath — a column, or the two run
+           together into one unreadable line. */
+        .trainee-result-main {
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+            min-width: 0;
+        }
+        .trainee-result-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .trainee-result-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .trainee-result-balance {
+            flex-shrink: 0;
+            font-weight: 700;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        .trainee-result-balance.owing { color: #C62828; }
+        .trainee-result-balance.clear { color: #2E7D32; }
+        /* The light-mode reds and greens are too dark to read on the dark card. */
+        body.dark-mode .trainee-result-balance.owing { color: #ff7b72; }
+        body.dark-mode .trainee-result-balance.clear { color: #56d364; }
+        .trainee-result mark {
+            background: rgba(255, 193, 7, .45);
+            color: inherit;
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+
+        .trainee-search-empty,
+        .trainee-search-more {
+            padding: 0.7rem 0.85rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        .trainee-search-more { border-top: 1px solid var(--border-color); }
+
+        .trainee-search-chosen {
+            display: none;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .trainee-search-chosen.shown { display: block; }
+        .trainee-search-chosen strong { color: var(--primary-blue); }
+
         /* Status Badges */
         .status-badge {
             padding: 0.25rem 0.75rem;
@@ -2112,6 +2257,29 @@
         <div id="payments" class="module">
             <div class="form-section">
                 <h2>Record Payment</h2>
+
+                <!-- Find a trainee by typing, instead of scrolling a dropdown of
+                     the whole roll. Picking a result fills the Select Student
+                     dropdown below, so everything that reads that select keeps
+                     working exactly as it did. -->
+                <div class="trainee-search" id="traineeSearchBox">
+                    <label for="traineeSearch">Find Trainee</label>
+                    <div class="trainee-search-field">
+                        <span class="trainee-search-icon" aria-hidden="true">🔍</span>
+                        <input type="text" id="traineeSearch" autocomplete="off" spellcheck="false"
+                               role="combobox" aria-expanded="false" aria-autocomplete="list"
+                               aria-controls="traineeSearchResults"
+                               placeholder="Search by name, trainee ID or programme…"
+                               oninput="traineeSearchInput()"
+                               onkeydown="traineeSearchKeydown(event)"
+                               onfocus="traineeSearchInput()">
+                        <button type="button" class="trainee-search-clear" id="traineeSearchClear"
+                                onclick="clearTraineeSearch()" title="Clear" aria-label="Clear search">✕</button>
+                    </div>
+                    <div class="trainee-search-results" id="traineeSearchResults" role="listbox" aria-label="Matching trainees"></div>
+                    <div class="trainee-search-chosen" id="traineeSearchChosen" role="status"></div>
+                </div>
+
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Select Student *</label>
@@ -5023,10 +5191,18 @@
         // Escape a value for use inside a double-quoted HTML attribute. The rows
         // are built as one HTML string now, so a trainee named O"Brien would
         // otherwise break the markup of their own row.
+        //
+        // Called several times per row, so it checks once and returns the string
+        // untouched in the overwhelmingly common case where there is nothing to
+        // escape, rather than making four passes over every value on every row.
+        const _FEE_ATTR_TEST = /[&"<>]/;
+        const _FEE_ATTR_RE = /[&"<>]/g;
+        const _FEE_ATTR_MAP = { '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' };
         function feeAttr(v) {
-            return (v == null ? '' : String(v))
-                .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
-                .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            if (v == null) return '';
+            const s = String(v);
+            if (!_FEE_ATTR_TEST.test(s)) return s;
+            return s.replace(_FEE_ATTR_RE, c => _FEE_ATTR_MAP[c]);
         }
 
         // The visible text of a snippet of row HTML, for the search index.
@@ -5083,11 +5259,30 @@
             };
         }
 
+        // Newest date first. The dates are 'YYYY-MM-DD', which sorts correctly as
+        // plain text, so this avoids both building two Date objects per
+        // comparison (the old form) and localeCompare, which is far slower than
+        // a plain string comparison and buys nothing on a fixed date format.
+        function _feeByDateDesc(a, b) {
+            const x = (a && a.date) || '', y = (b && b.date) || '';
+            return x < y ? 1 : (x > y ? -1 : 0);
+        }
+
         // Show or hide a row without touching the DOM when nothing changes —
         // writing style.display on every row invalidates layout for all of them.
         function _feeSetRowVisible(row, visible) {
             const next = visible ? '' : 'none';
             if (row.style.display !== next) row.style.display = next;
+        }
+
+        // Is any of these controls actually filtering? A table that has just been
+        // rebuilt is entirely visible already, so with nothing set there is no
+        // reason to walk every row to conclude that nothing should be hidden.
+        function _feeFilterSet(ids) {
+            return ids.some(id => {
+                const el = document.getElementById(id);
+                return !!(el && String(el.value || '').trim());
+            });
         }
 
         // --- Academic stage (from the LMS Student Progress dashboard) ---------
@@ -5807,7 +6002,7 @@
             tbody.innerHTML = rows.join('');
             // A filter that was already set must survive the rebuild, or the
             // full roll reappears under a search the user has not cleared.
-            filterStudents();
+            if (_feeFilterSet(['searchStudent', 'filterSkillArea', 'filterPaymentStatus'])) filterStudents();
         }
 
         // Small "Course ended" pill shown beside a student's stage when their
@@ -6517,15 +6712,244 @@
         // Populate payment student select
         function populatePaymentStudentSelect() {
             const select = document.getElementById('paymentStudentId');
-            select.innerHTML = '<option value="">Select Student</option>';
-            
+            if (!select) return;
+            // Keep whoever is already chosen — rebuilding the list under a
+            // half-filled payment form must not silently clear the trainee.
+            const prev = select.value;
+            // Built as one string and written once, like the tables: on a full
+            // roll this was hundreds of separate DOM insertions.
+            const opts = ['<option value="">Select Student</option>'];
             students.forEach(student => {
-                const option = document.createElement('option');
-                option.value = student.id;
-                option.textContent = `${student.name} - ${student.skillArea} (Balance: $${student.balance.toFixed(2)})`;
-                select.appendChild(option);
+                const balance = (parseFloat(student.balance) || 0).toFixed(2);
+                opts.push('<option value="' + feeAttr(student.id) + '">' +
+                    feeAttr(`${student.name} - ${student.skillArea} (Balance: $${balance})`) +
+                    '</option>');
+            });
+            select.innerHTML = opts.join('');
+            if (prev) {
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === prev) { select.selectedIndex = i; break; }
+                }
+            }
+            // The search index is built from the same roll, so rebuild it here.
+            buildTraineeSearchIndex();
+            renderChosenTrainee();
+        }
+
+        /* ==================== FIND A TRAINEE ================================
+           A Centre with a few hundred trainees on the roll cannot pick one out
+           of a dropdown by scrolling it. This is a search box above that
+           dropdown: type any part of a name, a trainee ID or a programme, and
+           pick from the matches with the mouse or the keyboard.
+
+           It does not replace the Select Student dropdown — it DRIVES it. The
+           selection still lands on #paymentStudentId and still goes through
+           loadStudentPaymentInfo(), so recordPayment() and everything else that
+           reads that select is untouched. */
+
+        // Trainees, each with the one lower-cased string the search matches on,
+        // rebuilt whenever the roll changes rather than on every keystroke.
+        let traineeSearchIndex = [];
+        let traineeSearchMatches = [];
+        let traineeSearchActive = -1;      // highlighted row, -1 for none
+
+        // Never render more than this at once. A search that matches most of the
+        // roll should not cost more to draw than one that matches a handful.
+        const TRAINEE_SEARCH_LIMIT = 30;
+
+        function buildTraineeSearchIndex() {
+            traineeSearchIndex = students.map(student => {
+                const balance = parseFloat(student.balance) || 0;
+                return {
+                    id: student.id,
+                    name: student.name || '',
+                    skillArea: student.skillArea || '',
+                    balance: balance,
+                    haystack: [student.id, student.name, student.skillArea, student.contact, student.email]
+                        .filter(Boolean).join(' ').toLowerCase()
+                };
             });
         }
+
+        function _traineeSearchEls() {
+            return {
+                box: document.getElementById('traineeSearchBox'),
+                input: document.getElementById('traineeSearch'),
+                list: document.getElementById('traineeSearchResults'),
+                chosen: document.getElementById('traineeSearchChosen')
+            };
+        }
+
+        // Wrap the matched run of text so the user can see WHY a row matched.
+        function _highlight(text, term) {
+            const s = String(text == null ? '' : text);
+            if (!term) return feeAttr(s);
+            const at = s.toLowerCase().indexOf(term);
+            if (at < 0) return feeAttr(s);
+            return feeAttr(s.slice(0, at)) + '<mark>' + feeAttr(s.slice(at, at + term.length)) +
+                   '</mark>' + feeAttr(s.slice(at + term.length));
+        }
+
+        function renderTraineeSearchResults(term) {
+            const els = _traineeSearchEls();
+            if (!els.list) return;
+
+            if (!term) {
+                // An empty box is not a search for everybody — close and wait.
+                traineeSearchMatches = [];
+                traineeSearchActive = -1;
+                els.box.classList.remove('open', 'has-query');
+                els.input.setAttribute('aria-expanded', 'false');
+                els.list.innerHTML = '';
+                return;
+            }
+
+            els.box.classList.add('has-query');
+            traineeSearchMatches = traineeSearchIndex.filter(t => t.haystack.includes(term));
+            traineeSearchActive = traineeSearchMatches.length ? 0 : -1;
+
+            if (!traineeSearchMatches.length) {
+                els.list.innerHTML = '<div class="trainee-search-empty">No trainee matches “' +
+                    feeAttr(term) + '”.</div>';
+            } else {
+                const shown = traineeSearchMatches.slice(0, TRAINEE_SEARCH_LIMIT);
+                const rows = shown.map((t, i) => {
+                    const owing = t.balance > 0;
+                    return '<div class="trainee-result' + (i === 0 ? ' active' : '') + '"' +
+                        ' role="option" aria-selected="' + (i === 0) + '" data-pos="' + i + '"' +
+                        ' onmousedown="selectTraineeFromSearch(' + i + ')"' +
+                        ' onmouseenter="setTraineeSearchActive(' + i + ')">' +
+                        '<span class="trainee-result-main">' +
+                            '<span class="trainee-result-name">' + _highlight(t.name, term) + '</span>' +
+                            '<span class="trainee-result-meta">' + _highlight(t.id, term) + ' · ' +
+                                _highlight(t.skillArea, term) + '</span>' +
+                        '</span>' +
+                        '<span class="trainee-result-balance ' + (owing ? 'owing' : 'clear') + '">' +
+                            (owing ? 'Owes $' + t.balance.toFixed(2) : 'Paid up') +
+                        '</span>' +
+                    '</div>';
+                }).join('');
+                const hidden = traineeSearchMatches.length - shown.length;
+                // Never quietly truncate: say how many are not being shown.
+                const more = hidden > 0
+                    ? '<div class="trainee-search-more">' + hidden + ' more match — keep typing to narrow it down.</div>'
+                    : '';
+                els.list.innerHTML = rows + more;
+            }
+
+            els.box.classList.add('open');
+            els.input.setAttribute('aria-expanded', 'true');
+        }
+
+        function traineeSearchInput() {
+            const els = _traineeSearchEls();
+            if (!els.input) return;
+            if (!traineeSearchIndex.length && students.length) buildTraineeSearchIndex();
+            renderTraineeSearchResults(els.input.value.trim().toLowerCase());
+        }
+
+        function setTraineeSearchActive(pos) {
+            const els = _traineeSearchEls();
+            if (!els.list) return;
+            traineeSearchActive = pos;
+            els.list.querySelectorAll('.trainee-result').forEach(row => {
+                const on = Number(row.dataset.pos) === pos;
+                row.classList.toggle('active', on);
+                row.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+            const active = els.list.querySelector('.trainee-result.active');
+            if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+        }
+
+        // Pick a trainee: set the dropdown, tell the form, and close the list.
+        function selectTraineeFromSearch(pos) {
+            const t = traineeSearchMatches[pos];
+            if (!t) return;
+            const els = _traineeSearchEls();
+            const select = document.getElementById('paymentStudentId');
+            if (select) {
+                select.value = t.id;
+                // Anything else listening to the dropdown (now or later) hears
+                // this the same as if the user had worked it directly.
+                try { select.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+            }
+            loadStudentPaymentInfo();
+            if (els.input) {
+                els.input.value = t.name;
+                els.input.setAttribute('aria-expanded', 'false');
+            }
+            if (els.box) els.box.classList.remove('open');
+            renderChosenTrainee();
+        }
+
+        function traineeSearchKeydown(ev) {
+            const els = _traineeSearchEls();
+            const open = els.box && els.box.classList.contains('open');
+            const count = traineeSearchMatches.length;
+
+            if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                if (!open || !count) return;
+                ev.preventDefault();
+                const step = ev.key === 'ArrowDown' ? 1 : -1;
+                const last = Math.min(count, TRAINEE_SEARCH_LIMIT) - 1;
+                let next = traineeSearchActive + step;
+                if (next < 0) next = last;
+                if (next > last) next = 0;
+                setTraineeSearchActive(next);
+                return;
+            }
+            if (ev.key === 'Enter') {
+                if (open && traineeSearchActive >= 0) {
+                    ev.preventDefault();          // do not submit the form behind it
+                    selectTraineeFromSearch(traineeSearchActive);
+                }
+                return;
+            }
+            if (ev.key === 'Escape') {
+                if (open) { ev.preventDefault(); els.box.classList.remove('open'); }
+                else clearTraineeSearch();
+            }
+        }
+
+        // keepFocus is false when the form clears itself after a payment — the
+        // user is not typing then, and pulling focus would be startling.
+        function clearTraineeSearch(keepFocus) {
+            const els = _traineeSearchEls();
+            if (els.input) {
+                els.input.value = '';
+                if (keepFocus !== false) els.input.focus();
+            }
+            if (els.box) els.box.classList.remove('open', 'has-query');
+            traineeSearchMatches = [];
+            traineeSearchActive = -1;
+            if (els.list) els.list.innerHTML = '';
+        }
+
+        // Say plainly who the payment is about to be recorded against — the
+        // dropdown alone is easy to misread once it has been set from up here.
+        function renderChosenTrainee() {
+            const els = _traineeSearchEls();
+            if (!els.chosen) return;
+            const select = document.getElementById('paymentStudentId');
+            const id = select ? select.value : '';
+            const student = id ? students.find(s => s.id === id) : null;
+            if (!student) {
+                els.chosen.classList.remove('shown');
+                els.chosen.innerHTML = '';
+                return;
+            }
+            const balance = (parseFloat(student.balance) || 0).toFixed(2);
+            els.chosen.innerHTML = 'Recording against <strong>' + feeAttr(student.name) +
+                '</strong> · ' + feeAttr(student.id) + ' · ' + feeAttr(student.skillArea) +
+                ' · balance $' + balance;
+            els.chosen.classList.add('shown');
+        }
+
+        // Clicking away closes the list without choosing anything.
+        document.addEventListener('click', function (ev) {
+            const box = document.getElementById('traineeSearchBox');
+            if (box && !box.contains(ev.target)) box.classList.remove('open');
+        });
 
         // Populate document student select
         function populateDocumentStudentSelect() {
@@ -6586,7 +7010,7 @@
         function loadStudentPaymentInfo() {
             const studentId = document.getElementById('paymentStudentId').value;
             const infoDiv = document.getElementById('studentPaymentInfo');
-            
+
             if (studentId) {
                 const student = students.find(s => s.id === studentId);
                 if (student) {
@@ -6596,6 +7020,9 @@
             } else {
                 infoDiv.style.display = 'none';
             }
+            // Keep the line under the search box true whichever way the trainee
+            // was chosen — from the search results or from the dropdown itself.
+            renderChosenTrainee();
         }
 
         // Record payment
@@ -6752,6 +7179,10 @@
             document.getElementById('receiptNumber').value = '';
             document.getElementById('paymentNotes').value = '';
             document.getElementById('studentPaymentInfo').style.display = 'none';
+            // The form has been cleared, so the search box and the line saying
+            // who the payment is for must not go on naming the last trainee.
+            clearTraineeSearch(false);
+            renderChosenTrainee();
 
             renderPaymentsTable();
             renderStudentsTable();
@@ -6933,12 +7364,7 @@
             if (!tbody) return;
             if (_feeDeferRender('payments', 'payments')) return;
 
-            const sortedPayments = payments
-                .filter(paymentInActiveQuarter)
-                // Sort on the date STRING, which is already 'YYYY-MM-DD' and so
-                // sorts correctly. The old comparator built two Date objects for
-                // every comparison — n·log(n) of them across the whole list.
-                .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+            const sortedPayments = payments.filter(paymentInActiveQuarter).sort(_feeByDateDesc);
             const qLbl = document.getElementById('paymentsQuarterLabel');
             if (qLbl) {
                 qLbl.textContent = 'Showing ' + feeScopeLabel() +
@@ -6969,8 +7395,9 @@
                 </tr>`;
             });
             tbody.innerHTML = rows.join('');
-            // Keep any search / date range the user already had in force.
-            filterPayments();
+            // Keep any search / date range the user already had in force — a
+            // rebuild must not quietly bring back rows they had filtered out.
+            if (_feeFilterSet(['searchPayment', 'filterDateFrom', 'filterDateTo'])) filterPayments();
         }
 
         // Filter payments. Matches the data-* stamped on each row at render
@@ -7327,8 +7754,8 @@
             if (!tbody) return;
             if (_feeDeferRender('documents', 'documents')) return;
 
-            const sortedDocs = [...documents]
-                .sort((a, b) => String(b.uploadDate || '').localeCompare(String(a.uploadDate || '')));
+            const sortedDocs = [...documents].sort((a, b) =>
+                _feeByDateDesc({ date: a && a.uploadDate }, { date: b && b.uploadDate }));
 
             // One pass to index the roll by id, instead of scanning the whole
             // roll again for every document to answer the same question.
@@ -7357,7 +7784,7 @@
                 </tr>`;
             });
             tbody.innerHTML = rows.join('');
-            filterDocuments();
+            if (_feeFilterSet(['searchDocuments', 'filterDocStudent', 'filterDocType'])) filterDocuments();
         }
 
         function updateDocumentTypeFilter() {
@@ -7798,10 +8225,7 @@
             const _outScopeEl = document.getElementById('totalOutstandingScope');
             if (_outScopeEl) _outScopeEl.textContent = feeFYLabel() + ' cohort balance';
 
-            const recentPayments = scopedPayments
-                .slice()
-                .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
-                .slice(0, 5);
+            const recentPayments = scopedPayments.slice().sort(_feeByDateDesc).slice(0, 5);
             const activityDiv = document.getElementById('recentActivity');
 
             if (recentPayments.length > 0) {
