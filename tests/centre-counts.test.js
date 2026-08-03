@@ -187,5 +187,74 @@ assertEq(Core.transfer.tally(UNSTAMPED, null, OPTS).of(CENTRES[0]), 0,
   'whereas an unstamped trainee cannot be placed without one');
 assertEq(Core.transfer.tally(ROLL, CENTRES, OPTS).listOf(null).length, 0, 'and no centre asked for');
 
+/* ---------- 5. A past intake is not this intake ----------
+
+   The reported fault: the Training Centres cards read three times the trainees
+   actually enrolled. A programme the Centre has run several times leaves the
+   earlier trainees carrying its NAME and no intake key — keys came later — so
+   asked which centre "Welding & Fabrication" is, there is only the intake
+   running now to answer with, and every past intake piled onto its card. */
+console.log('\nA trainee from a past intake is not counted in the one running now');
+const ONE_INTAKE = [{ id: 9, centreKey: '09', name: 'Welding & Fabrication',
+                      startDate: '2025-08-04', endDate: '2026-07-31' }];
+const OPT1 = { field: 'course', centres: ONE_INTAKE };
+const MIXED = [
+  { id: 'CUR', name: 'Current', course: 'Welding & Fabrication', centreKey: '09', enrolmentDate: '2025-09-10' },
+  { id: 'OLD1', name: 'Two years ago', course: 'Welding & Fabrication', enrolmentDate: '2023-09-10' },
+  { id: 'OLD2', name: 'A year ago', course: 'Welding & Fabrication', enrolmentDate: '2024-09-10' }
+];
+assertEq(Core.transfer.tally(MIXED, ONE_INTAKE, OPT1).of(ONE_INTAKE[0]), 1,
+  'one trainee is in this intake, not three');
+assertEq(Core.transfer.traineesOf(MIXED, ONE_INTAKE[0], OPT1).length, 1,
+  'and the enrolment register says the same number as the card');
+
+console.log('But enrolling shortly BEFORE the intake opens is ordinary, and is kept');
+assertEq(Core.transfer.tally([{ id: 'EARLY', name: 'Signed up in July',
+    course: 'Welding & Fabrication', enrolmentDate: '2025-07-20' }], ONE_INTAKE, OPT1).of(ONE_INTAKE[0]), 1,
+  'registered weeks ahead of the start date — same fiscal year, so it is this intake');
+
+console.log('Only a provably impossible placement is refused');
+assertEq(Core.transfer.tally([{ id: 'NODATE', name: 'No enrolment date',
+    course: 'Welding & Fabrication' }], ONE_INTAKE, OPT1).of(ONE_INTAKE[0]), 1,
+  'with no date on the record nothing is proven, so it is counted as before');
+assertEq(Core.transfer.tally(MIXED, [{ id: 9, centreKey: '09', name: 'Welding & Fabrication' }],
+  { field: 'course', centres: [{ id: 9, centreKey: '09', name: 'Welding & Fabrication' }] })
+  .of({ centreKey: '09' }), 3, 'and an intake with no start date cannot rule anybody out');
+
+console.log('An explicit stamp is still believed — this never overrides one');
+assertEq(Core.transfer.tally([{ id: 'LATE', name: 'Moved in', course: 'Welding & Fabrication',
+    centreKey: '09', enrolmentDate: '2023-09-10' }], ONE_INTAKE, OPT1).of(ONE_INTAKE[0]), 1,
+  'a trainee transferred into this intake carries its key and is counted in it');
+
+console.log('And the past trainees are still on the roll — they are not this intake\'s, not gone');
+assertEq(MIXED.length, 3, 'nothing is removed from the roll by counting it');
+
+/* ---------- 6. Transferred back to the earlier intake ----------
+
+   Reported: a programme was re-run as "22. Welding and Fabrication Level 2",
+   the trainees were transferred BACK to "01. Welding & Fabrication", and both
+   intakes went on showing the same people. A transfer stamps the target intake
+   on the record; it is the programme TEXT they arrived with that still names
+   the intake they left. Counting by that text puts them back where they no
+   longer are — so the stamp has to win, on every page. */
+console.log('\nA trainee transferred back counts only in the intake they were moved to');
+const TWO_INTAKES = [
+  { id: 1,  centreKey: '01', name: '01. Welding & Fabrication',
+    startDate: '2025-08-04', endDate: '2026-07-31' },
+  { id: 22, centreKey: '22', name: '22. Welding and Fabrication Level 2',
+    startDate: '2026-08-02', endDate: '2027-07-30' }
+];
+const OPT2 = { field: 'course', centres: TWO_INTAKES };
+// Stamped with intake 01 by the transfer, still carrying intake 22's name.
+const MOVED = [{ id: 'W1', name: 'Welder', course: '22. Welding and Fabrication Level 2',
+                 centreKey: '01', centreId: 1, enrolmentDate: '2026-08-10' }];
+const mt = Core.transfer.tally(MOVED, TWO_INTAKES, OPT2);
+assertEq(mt.of(TWO_INTAKES[0]), 1, 'counted in 01, where they were moved to');
+assertEq(mt.of(TWO_INTAKES[1]), 0, 'and NOT in 22, which they were moved out of');
+assertEq(mt.of(TWO_INTAKES[0]) + mt.of(TWO_INTAKES[1]), MOVED.length,
+  'one trainee is one trainee — never counted by two intakes at once');
+assertEq(Core.transfer.traineesOf(MOVED, TWO_INTAKES[1], OPT2).length, 0,
+  'and the emptied intake\'s register is empty, as the Centre left it');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

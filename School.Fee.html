@@ -4426,21 +4426,24 @@
             alert('✅ Programme cost added for "' + name + '".\n\nIt can now be chosen on the Add New Student form.');
         }
 
-        // Active VocTrain training centres/courses (durations live on the LMS
-        // skillAreas, shared via voctrain_skillAreas). Excludes ended courses.
+        /* The VocTrain training centres this page may price and enrol into.
+
+           A programme whose intake has ENDED is still one of them. It used to be
+           filtered out, and that was wrong on the Centre's own terms: an intake
+           ends but its trainees do not stop existing — their fees are still
+           being collected, receipted and reported on months afterwards, and a
+           programme with no price cannot be any of that. Dropping the ended ones
+           also left this list shorter than the Training Centres page, so a
+           programme plainly visible there simply could not be found here.
+
+           They are offered, and they are labelled "ended" where they are
+           offered, so the choice is made knowingly. Deleted centres are still
+           excluded — feeTrainingCentres() drops those. */
         function getVoctrainActiveCourses() {
             try {
-                // feeTrainingCentres() already drops deleted centres, so one that
-                // has been removed on the LMS side is never suggested here.
                 var areas = feeTrainingCentres();
                 if (!Array.isArray(areas)) return [];
-                return areas.filter(function(s){
-                    if (!s || !s.name) return false;
-                    if (typeof CESTISCore !== 'undefined' && CESTISCore.courseDuration) {
-                        return CESTISCore.courseDuration.status(s.startDate, s.endDate) !== 'ended';
-                    }
-                    return true;
-                });
+                return areas.filter(function(s){ return !!(s && s.name); });
             } catch (e) { return []; }
         }
 
@@ -4459,7 +4462,12 @@
 
             list.innerHTML = avail.map(function (c) {
                 var st = (typeof CESTISCore !== 'undefined' && CESTISCore.courseDuration) ? CESTISCore.courseDuration.status(c.startDate, c.endDate) : '';
-                var tag = st === 'not-started' ? 'VocTrain — not started yet' : (st === 'no-dates' ? 'VocTrain — no dates set' : 'VocTrain training centre');
+                // An ended intake says so where it is offered, so pricing one is
+                // a deliberate choice and never a mistake for the intake running now.
+                var tag = st === 'ended' ? 'VocTrain — ended'
+                        : st === 'not-started' ? 'VocTrain — not started yet'
+                        : st === 'no-dates' ? 'VocTrain — no dates set'
+                        : 'VocTrain training centre';
                 // Offered by the centre's own name, intake key first ("02. Welding
                 // and Fabrication"), so a programme the Centre is running again is
                 // priced and enrolled into as the separate intake it is — and the
