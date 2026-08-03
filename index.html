@@ -6286,8 +6286,72 @@ function lmsChatFlushDriveSyncNow() {
   if(typeof lmsChatSyncToDrive === 'function') lmsChatSyncToDrive();
 }
 
-// Admin Staff Access Settings (declared early for saveState/loadState)
-var adminStaffAccessSettings = { attendance:false, announcements:false, calendar:false, students:false, certificates:false, reports:false, training:false, exams:false, video:false, resources:false };
+// ============================== ADMIN STAFF ACCESS SETTINGS ==============================
+// Which sections an Admin Staff member may use. The Administrator owns this
+// grid (Settings -> Admin Staff Access); every other device only receives it.
+//
+// One key per page in asAccessPages. A key that is missing reads as undefined,
+// which is indistinguishable from "not permitted" — which is how a settings
+// object saved before a page existed could silently hide that page.
+// (declared early for saveState/loadState)
+//
+// Video Conference is on unless an Administrator turns it off. Admin Staff run
+// and join the Centre's meetings, and the role has its own conference page
+// (Video-Conference-AdminStaff.html) — a default of off left it missing from
+// the nav on every install where nobody had opened the grid. A grid that HAS
+// been saved wins, so an Administrator who unticks it is respected.
+var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, certificates:false, reports:false, training:false, exams:false, video:true, resources:false, supportmessages:false };
+function adminStaffAccessDefaults() { return Object.assign({}, AS_ACCESS_DEFAULTS); }
+var adminStaffAccessSettings = adminStaffAccessDefaults();
+
+/* Adopt a set of access settings from anywhere they arrive — local storage, a
+   cloud restore, a merge — and put them on screen.
+
+   Two things went wrong here. The settings replaced the defaults wholesale, so
+   a stored copy written before a page existed left that page's key undefined
+   and the page stayed hidden. And the Admin Staff sidebar is built once, at
+   login, while the Administrator's grid usually arrives from the cloud a moment
+   AFTER that — so a staff member kept the sidebar they logged in with (on a
+   fresh device: no permitted functions at all, Video Conference among them)
+   until they signed out and in again.
+
+   Returns true when something actually changed. */
+function applyAdminStaffAccess(next) {
+  if (!next || typeof next !== 'object') return false;
+  var changed = false;
+  var merged = adminStaffAccessDefaults();
+  Object.keys(next).forEach(function(k) { merged[k] = !!next[k]; });
+  Object.keys(merged).forEach(function(k) {
+    if (adminStaffAccessSettings[k] !== merged[k]) { adminStaffAccessSettings[k] = merged[k]; changed = true; }
+  });
+  Object.keys(adminStaffAccessSettings).forEach(function(k) {
+    if (!(k in merged)) { delete adminStaffAccessSettings[k]; changed = true; }
+  });
+  if (changed) refreshAdminStaffNav();
+  return changed;
+}
+
+/* Redraw the Admin Staff sidebar for the permissions now in force, leaving the
+   user on the page they are reading — unless that page has just been taken
+   away from them, in which case they go back to their dashboard. */
+function refreshAdminStaffNav() {
+  try {
+    if (currentRole !== 'adminstaff') return;
+    if (typeof buildAdminStaffSidebar !== 'function') return;
+    if (!document.getElementById('sidebarNav')) return;
+    var active = (typeof cestisActivePageId === 'function') ? cestisActivePageId() : null;
+    buildAdminStaffSidebar();
+    if (active && typeof pageAllowedForRole === 'function' && !pageAllowedForRole(active)) {
+      showPage('as-dashboard');
+      return;
+    }
+    if (active) {
+      document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+      var item = document.querySelector('.nav-item[data-page="' + active + '"]');
+      if (item) item.classList.add('active');
+    }
+  } catch (e) { console.warn('[AdminStaffAccess] nav refresh failed:', e); }
+}
 
 // ============================== SESSION & DATA CLEANUP ==============================
 
@@ -6389,7 +6453,7 @@ function clearSensitiveStudentData() {
   CESTISStore.removeItem('voctrain_adrStaffMeta');
   adrStaffMeta = {};
   CESTISStore.removeItem('voctrain_adminStaffAccess');
-  adminStaffAccessSettings = { attendance:false, announcements:false, calendar:false, students:false, certificates:false, reports:false, training:false, exams:false, video:false, resources:false };
+  adminStaffAccessSettings = adminStaffAccessDefaults();
   CESTISStore.removeItem('voctrain_instructorData');
   instructorData = [];
   CESTISStore.removeItem('voctrain_instructorProfiles');
@@ -6484,7 +6548,7 @@ function clearAllSessionData() {
   instructorData = [];
   adrTasks = [];
   adrStaffMeta = {};
-  adminStaffAccessSettings = { attendance:false, announcements:false, calendar:false, students:false, certificates:false, reports:false, training:false, exams:false, video:false, resources:false };
+  adminStaffAccessSettings = adminStaffAccessDefaults();
   certDownloadApprovals = [];
   certTemplates = {};
   skillAreas = [];
@@ -6532,6 +6596,10 @@ function saveState() {
     if (isAdmin || driveResources.length > 0) CESTISStore.setItem('voctrain_driveResources', JSON.stringify(driveResources));
     if (isAdmin || skillAreas.length > 0) CESTISStore.setItem('voctrain_skillAreas', JSON.stringify(skillAreas));
     if (isAdmin || documentHubFiles.length > 0) CESTISStore.setItem('voctrain_documentHubFiles', JSON.stringify(documentHubFiles));
+    // The Admin Staff access grid is the Administrator's to publish. A staff
+    // device keeps a local copy of what it was sent, so the nav survives a
+    // reload before the next sync, but it never uploads it — see the
+    // cloud-save guards.
     if (isAdmin) CESTISStore.setItem('voctrain_adminStaffAccess', JSON.stringify(adminStaffAccessSettings));
     if (isAdmin) CESTISStore.setItem('voctrain_maintenanceMode', JSON.stringify({ active: systemSettings.maintenanceMode === true, message: systemSettings.maintenanceMessage || '', updatedAt: new Date().toISOString() }));
     if (isAdmin || adrTasks.length > 0) CESTISStore.setItem('voctrain_adrTasks', JSON.stringify(adrTasks));
@@ -6651,7 +6719,7 @@ function loadState() {
     if(adrT) adrTasks = adrT;
     if(adrM) adrStaffMeta = adrM;
     var asAccess = safeJsonParse(CESTISStore.getItem('voctrain_adminStaffAccess'), null);
-    if(asAccess) adminStaffAccessSettings = asAccess;
+    if(asAccess) applyAdminStaffAccess(asAccess);
     var idData = safeJsonParse(CESTISStore.getItem('voctrain_instructorData'), null);
     if(idData) instructorData = idData;
     var cda = safeJsonParse(CESTISStore.getItem('voctrain_certDownloadApprovals'), null);
@@ -24035,7 +24103,7 @@ async function syncFromCloud() {
       // Appraisals are merged, never replaced: a signature applied on another
       // device must survive whichever copy the cloud happens to hold.
       try { if (backupData.data.staffAppraisals && typeof sappCloudImport === 'function') sappCloudImport(backupData.data.staffAppraisals); } catch(e) { console.warn('[Restore] staffAppraisals error:', e); }
-      if (backupData.data.adminStaffAccessSettings && typeof backupData.data.adminStaffAccessSettings === 'object') adminStaffAccessSettings = backupData.data.adminStaffAccessSettings;
+      if (backupData.data.adminStaffAccessSettings && typeof backupData.data.adminStaffAccessSettings === 'object') applyAdminStaffAccess(backupData.data.adminStaffAccessSettings);
       if (Array.isArray(backupData.data.documentHubFiles) && backupData.data.documentHubFiles.length > 0) documentHubFiles = backupData.data.documentHubFiles;
       if (Array.isArray(backupData.data.supportMessages)) { supportMessages = backupData.data.supportMessages; saveSupportMessages(); }
       if (Array.isArray(backupData.data.notifications)) { notifications = backupData.data.notifications; saveNotifications(); }
@@ -24566,7 +24634,7 @@ async function mergeFromCloud() {
     // Merge admin staff access settings
     try {
       if (backupData.data.adminStaffAccessSettings && typeof backupData.data.adminStaffAccessSettings === 'object') {
-        Object.assign(adminStaffAccessSettings, backupData.data.adminStaffAccessSettings);
+        applyAdminStaffAccess(backupData.data.adminStaffAccessSettings);
       }
     } catch(e) { console.warn('[Merge] adminStaffAccessSettings error:', e); }
 
@@ -25012,7 +25080,10 @@ async function savePerUserBackup() {
     var isAdmin = currentRole === 'admin' || currentRole === 'adminstaff';
     if (isAdmin || driveResources.length > 0) userData.data.driveResources = driveResources;
     if (isAdmin || skillAreas.length > 0) userData.data.skillAreas = skillAreas;
-    if (isAdmin) userData.data.adminStaffAccessSettings = adminStaffAccessSettings;
+    // Published by the Administrator only: a staff device that has not yet
+    // received the grid would otherwise upload its blank defaults over it, and
+    // every Admin Staff member would lose the sections they had been given.
+    if (currentRole === 'admin') userData.data.adminStaffAccessSettings = adminStaffAccessSettings;
     if (isAdmin || adrTasks.length > 0) userData.data.adrTasks = adrTasks;
     if (isAdmin || Object.keys(adrStaffMeta).length > 0) userData.data.adrStaffMeta = adrStaffMeta;
     try { var _saU = (typeof sappCloudExport === 'function') ? sappCloudExport() : null; if (_saU) userData.data.staffAppraisals = _saU; } catch(e) {}
@@ -25700,14 +25771,9 @@ async function silentMergeFromBackup(fileId) {
     // Merge admin staff access settings
     if (backupData.data.adminStaffAccessSettings && typeof backupData.data.adminStaffAccessSettings === 'object') {
       try {
-        var accessChanged = false;
-        Object.keys(backupData.data.adminStaffAccessSettings).forEach(function(k) {
-          if (adminStaffAccessSettings[k] !== backupData.data.adminStaffAccessSettings[k]) {
-            adminStaffAccessSettings[k] = backupData.data.adminStaffAccessSettings[k];
-            accessChanged = true;
-          }
-        });
-        if (accessChanged) changed = true;
+        // This is the path a signed-in Admin Staff member receives the
+        // Administrator's grid on, so it also redraws their sidebar.
+        if (applyAdminStaffAccess(backupData.data.adminStaffAccessSettings)) changed = true;
       } catch(e) { console.warn('[Merge] adminStaffAccessSettings error:', e); }
     }
 
@@ -26045,10 +26111,15 @@ async function autoSyncOnLogin() {
     // 6. Refresh the dashboard display if data changed — but only if the user is
     // actually on the dashboard. If they've navigated elsewhere, leave them there.
     if (anyChanged) {
+      // The Administrator's Admin Staff access grid usually arrives on exactly
+      // this sync, moments after the sidebar was built from whatever this
+      // device happened to hold — so redraw the nav before anything else.
+      try { refreshAdminStaffNav(); } catch (e) {}
       var _ap = cestisActivePageId();
       var _dash = currentRole === 'admin' ? 'dashboard'
                 : currentRole === 'instructor' ? 'i-dashboard'
                 : currentRole === 'student' ? 's-dashboard'
+                : currentRole === 'adminstaff' ? 'as-dashboard'
                 : currentRole === 'cmc' ? 'cmc-dashboard' : null;
       if (_dash && _ap === _dash) {
         try { showPage(_dash); } catch (e) {}
@@ -26240,7 +26311,8 @@ async function autoSaveToAllFolders() {
     // Admin-managed data: only include if admin OR if non-empty (never upload empty to overwrite real data)
     if (_isAdminSave || driveResources.length > 0) backupData.data.driveResources = driveResources;
     if (_isAdminSave || skillAreas.length > 0) backupData.data.skillAreas = skillAreas;
-    if (_isAdminSave) backupData.data.adminStaffAccessSettings = adminStaffAccessSettings;
+    // Published by the Administrator only — see the per-user save above.
+    if (currentRole === 'admin') backupData.data.adminStaffAccessSettings = adminStaffAccessSettings;
     if (_isAdminSave || adrTasks.length > 0) backupData.data.adrTasks = adrTasks;
     if (_isAdminSave || Object.keys(adrStaffMeta).length > 0) backupData.data.adrStaffMeta = adrStaffMeta;
     try { var _saB = (typeof sappCloudExport === 'function') ? sappCloudExport() : null; if (_saB) backupData.data.staffAppraisals = _saB; } catch(e) {}
@@ -31176,7 +31248,7 @@ var asAccessPages = [
 function loadAdminStaffAccess() {
   try {
     var stored = CESTISStore.getItem('voctrain_adminStaffAccess');
-    if(stored) adminStaffAccessSettings = JSON.parse(stored);
+    if(stored) applyAdminStaffAccess(JSON.parse(stored));
   } catch(e) {}
 }
 loadAdminStaffAccess();
@@ -31210,6 +31282,8 @@ function toggleAsAccess(key, itemEl) {
 
 function saveAdminStaffAccess() {
   saveAdminStaffAccessToStorage();
+  // Takes effect at once for anyone signed in as Admin Staff on this device.
+  refreshAdminStaffNav();
   showToast('Admin Staff access settings saved!');
 }
 
