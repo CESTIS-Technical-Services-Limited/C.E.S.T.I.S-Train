@@ -5123,18 +5123,20 @@
                         (feeSid && delIds.indexOf(feeSid) !== -1) ||
                         (sf.lmsId && delIds.indexOf(sf.lmsId) !== -1)) return;
 
-                    // Match an existing dashboard record by link id, raw fee id,
-                    // stored back-reference, or name (+ matching course).
-                    const existing = lmsStudents.find(ls => ls && (
-                        (window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function')
-                            ? CESTISCore.isFeeTwin(ls, sf)
-                            : (ls.id === linkId ||
-                               ls.id === sf.id ||
-                               ls.id === sf.lmsId ||
-                               ls.schoolFeeId === sf.id ||
-                               (norm(ls.name) === norm(sf.name) &&
-                                   (!ls.course || !sf.skillArea || norm(ls.course) === norm(sf.skillArea))))
-                    ));
+                    // Where does this record belong on the dashboard? The rule is
+                    // shared (CESTISCore.lmsMirrorTarget) and it obeys VocTrain:
+                    // a trainee already on the dashboard is never moved to
+                    // another programme, and a programme with no training centre
+                    // behind it is not mirrored there at all.
+                    const target = (window.CESTISCore && typeof CESTISCore.lmsMirrorTarget === 'function')
+                        ? CESTISCore.lmsMirrorTarget(sf, lmsStudents, feeTrainingCentres(), {
+                            findCentre: CESTISCore.enrolment.findCentre,
+                            on: sf.enrollmentDate || sf.enrolmentDate || sf.createdAt || ''
+                          })
+                        : { action: 'skip', match: null, course: '' };
+
+                    if (target.action === 'skip') return;   // a fee-only programme stays on this page
+                    const existing = target.match;
 
                     if (existing) {
                         if (existing.schoolFeeId !== sf.id) { existing.schoolFeeId = sf.id; changed = true; }
@@ -5148,16 +5150,24 @@
                             existing.lastModified = sf.updatedAt || new Date().toISOString();
                             changed = true;
                         }
-                        if (sf.skillArea && !existing.course) { existing.course = sf.skillArea; changed = true; }
+                        // The programme on the dashboard is VocTrain's, not this
+                        // page's: it is only ever filled in when it is blank, and
+                        // only with a name that resolves to a training centre.
+                        // Overwriting it is what moved trainees onto programmes
+                        // nobody had enrolled them in.
+                        if (!existing.course && target.centreCourse) {
+                            existing.course = target.centreCourse; changed = true;
+                        }
                         return;
                     }
 
-                    // No match: add a new dashboard student mirroring the fee record.
+                    // No match: add a new dashboard student mirroring the fee
+                    // record, under the training centre's own name.
                     lmsStudents.push({
                         id: linkId,
                         schoolFeeId: sf.id,
                         name: sf.name,
-                        course: sf.skillArea || '',
+                        course: target.course || '',
                         stage: 'testing',
                         score: '',
                         progress: 0,

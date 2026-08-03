@@ -330,6 +330,77 @@
     return changed;
   };
 
+  /* --- Mirroring a fee record onto the dashboard -------------------------
+     The School Fee page keeps its own list of trainees and mirrors them onto
+     the Student Progress dashboard. Two rules govern that crossing, and both
+     were being broken.
+
+     The programme belongs to VocTrain. The fee page may price a programme of
+     its own — that is its business — but the dashboard's roster is the
+     Centre's training centres, so a fee record whose programme is not one of
+     them is not mirrored at all. It stays a fee record.
+
+     A trainee already on the dashboard is never moved. The old twin test
+     required the programme to match, so the same person filed under a
+     different programme name on the fee side read as a stranger: a SECOND
+     record was created for them, under the fee page's programme, and the
+     Centre saw trainees appear on programmes nobody had put them in. Being
+     the same person is now enough to leave them exactly where they are — only
+     the link between the two records is written.
+
+       lmsMirrorTarget(fee, lmsStudents, centres, opts) ->
+         { action: 'link' | 'create' | 'skip', match, course, centreCourse, reason }
+
+     `centreCourse` is the training centre's OWN name for this fee record's
+     programme, or '' when it answers to none — the only programme name the fee
+     side may ever write onto the dashboard.
+
+     opts.findCentre(centres, name, opts) — the centre resolver (the caller
+     passes Core.enrolment.findCentre); opts.on — the date to resolve as of. */
+  Core.lmsMirrorTarget = function (fee, lmsStudents, centres, opts) {
+    opts = opts || {};
+    var list = Array.isArray(lmsStudents) ? lmsStudents : [];
+    if (!fee || !Core.normName(fee.name)) {
+      return { action: 'skip', match: null, course: '', centreCourse: '', reason: 'no-name' };
+    }
+
+    // The training centre this fee record's programme answers to, under the
+    // centre's own name — so one programme reads as one programme on the
+    // dashboard however the fee side spells it.
+    var centre = null;
+    var name = fee.skillArea || fee.course || '';
+    if (name && typeof opts.findCentre === 'function') {
+      try { centre = opts.findCentre(Array.isArray(centres) ? centres : [], name, { on: opts.on }); }
+      catch (e) { centre = null; }
+    }
+    var centreCourse = (centre && centre.name) ? centre.name : '';
+
+    // Already on the dashboard? A linked id or the same name+programme first,
+    // then the same person under any programme at all — being the same person
+    // is enough to leave them exactly where the Centre put them.
+    var match = null, i;
+    for (i = 0; i < list.length; i++) {
+      if (list[i] && Core.isFeeTwin(list[i], fee)) { match = list[i]; break; }
+    }
+    if (match) {
+      return { action: 'link', match: match, course: match.course || '',
+        centreCourse: centreCourse, reason: 'twin' };
+    }
+    var want = Core.normName(fee.name);
+    for (i = 0; i < list.length; i++) {
+      if (list[i] && Core.normName(list[i].name) === want) {
+        return { action: 'link', match: list[i], course: list[i].course || '',
+          centreCourse: centreCourse, reason: 'already-enrolled-elsewhere' };
+      }
+    }
+
+    // Nobody there yet: the programme has to be one the Centre actually runs.
+    if (!centreCourse) {
+      return { action: 'skip', match: null, course: '', centreCourse: '', reason: 'no-training-centre' };
+    }
+    return { action: 'create', match: null, course: centreCourse, centreCourse: centreCourse, reason: 'ok' };
+  };
+
   /* --- Student record merge (pure; identical semantics to the app) -------- */
   var MERGE_FIELDS = ['stage', 'progress', 'score', 'gpa', 'certNo', 'certDate', 'certCollected',
     'attendance', 'assignments', 'instructor', 'email', 'phone', 'address',

@@ -618,6 +618,78 @@ test('isFeeTwin: never matches unrelated people', function () {
   assert.ok(!Core.isFeeTwin({ id: 'A' }, null));
 });
 
+/* ---- The fee page may not move a trainee, or invent a programme --------- */
+console.log('\nMirroring a School Fee record onto the dashboard');
+
+var CENTRES = [
+  { id: 1, name: 'Welding and Fabrication Level 2', startDate: '2026-01-01', endDate: '2027-06-30' },
+  { id: 2, name: 'Electrical Installation Level 2', startDate: '2026-01-01', endDate: '2027-06-30' }
+];
+function mirror(fee, lms) {
+  return Core.lmsMirrorTarget(fee, lms, CENTRES,
+    { findCentre: Core.enrolment.findCentre, on: '2026-06-01' });
+}
+
+test('a trainee already on the dashboard is never moved to another programme', function () {
+  // The reported bug: the same person, filed under the fee page's own programme
+  // name, read as a stranger — so a SECOND record was created for them under
+  // that name and the Centre saw trainees on programmes nobody enrolled them in.
+  var lms = [{ id: 'STU-1', name: 'Ann Brown', course: 'Electrical Installation Level 2' }];
+  var t = mirror({ id: 'F1', name: 'Ann Brown', skillArea: 'Welding and Fabrication Level 2' }, lms);
+  assert.strictEqual(t.action, 'link', 'linked, never created');
+  assert.strictEqual(t.reason, 'already-enrolled-elsewhere');
+  assert.strictEqual(t.match.id, 'STU-1');
+  assert.strictEqual(t.course, 'Electrical Installation Level 2', 'the programme stays the dashboard\'s');
+  assert.strictEqual(lms.length, 1, 'no second record is proposed');
+});
+
+test('the same person on the same programme is the ordinary twin link', function () {
+  var lms = [{ id: 'STU-1', name: 'Ann Brown', course: 'Welding and Fabrication Level 2' }];
+  var t = mirror({ id: 'F1', name: 'ann  brown', skillArea: 'Welding and Fabrication Level 2' }, lms);
+  assert.strictEqual(t.action, 'link');
+  assert.strictEqual(t.reason, 'twin');
+});
+
+test('a programme with no training centre is not mirrored at all', function () {
+  // The fee page may price any programme it likes; the dashboard's roster is
+  // VocTrain's, so a fee-only programme stays a fee record.
+  var t = mirror({ id: 'F2', name: 'Ben Cole', skillArea: 'Carpentry L1' }, []);
+  assert.strictEqual(t.action, 'skip');
+  assert.strictEqual(t.reason, 'no-training-centre');
+  assert.strictEqual(t.course, '');
+});
+
+test('a new trainee is mirrored under the training centre\'s own name', function () {
+  var t = mirror({ id: 'F3', name: 'Cy Dean', skillArea: 'WELDING L2' }, []);
+  assert.strictEqual(t.action, 'create');
+  assert.strictEqual(t.course, 'Welding and Fabrication Level 2',
+    'the fee side\'s spelling resolves to the centre\'s own name');
+  assert.strictEqual(t.centreCourse, 'Welding and Fabrication Level 2');
+});
+
+test('the centre\'s name is offered for a blank dashboard programme, and only then', function () {
+  var lms = [{ id: 'STU-1', name: 'Ann Brown', course: '' }];
+  var t = mirror({ id: 'F1', name: 'Ann Brown', skillArea: 'WELDING L2' }, lms);
+  assert.strictEqual(t.action, 'link');
+  assert.strictEqual(t.centreCourse, 'Welding and Fabrication Level 2', 'available to fill a blank');
+
+  var lms2 = [{ id: 'STU-2', name: 'Dee East', course: 'Electrical Installation Level 2' }];
+  var t2 = mirror({ id: 'F4', name: 'Dee East', skillArea: 'Carpentry L1' }, lms2);
+  assert.strictEqual(t2.centreCourse, '', 'a fee-only programme offers nothing to fill it with');
+  assert.strictEqual(t2.course, 'Electrical Installation Level 2', 'and their programme is untouched');
+});
+
+test('a record with no name is never mirrored', function () {
+  assert.strictEqual(mirror({ id: 'F5', name: '', skillArea: 'WELDING L2' }, []).action, 'skip');
+  assert.strictEqual(Core.lmsMirrorTarget(null, [], CENTRES, {}).action, 'skip');
+});
+
+test('mirroring is safe with no centres and no resolver', function () {
+  assert.strictEqual(Core.lmsMirrorTarget({ name: 'Ann Brown', skillArea: 'X' }, [], [], {}).action, 'skip');
+  assert.strictEqual(Core.lmsMirrorTarget({ name: 'Ann Brown', skillArea: 'X' }, null, null,
+    { findCentre: Core.enrolment.findCentre }).action, 'skip');
+});
+
 test('editedAt: reads either system\'s timestamp, newest field first', function () {
   assert.strictEqual(Core.editedAt(null), 0);
   assert.strictEqual(Core.editedAt({}), 0);

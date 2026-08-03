@@ -17910,8 +17910,6 @@ function syncStudentsFromLocalFeeSystem() {
 
     var existingIds = {};
     students.forEach(function(s){ if(s) existingIds[s.id] = true; });
-    var existingKeys = {};
-    students.forEach(function(s){ if(s) existingKeys[((s.name||'') + '|' + (s.course||'')).toLowerCase()] = true; });
 
     var norm = function(v){ return (v==null?'':String(v)).trim(); };
     var changed = false;
@@ -17943,8 +17941,22 @@ function syncStudentsFromLocalFeeSystem() {
       if (feeSid && deleted[feeSid]) return;          // tombstoned under its stable id
       if (deleted['SF-' + norm(fee.id)]) return;      // tombstoned under the fee twin id
       if (existingIds[studentId]) return;             // already present by id
-      var dupKey = (name + '|' + course).toLowerCase();
-      if (existingKeys[dupKey]) return;               // already present by name+course
+
+      // The shared rule (see CESTISCore.lmsMirrorTarget). This dashboard's
+      // roster belongs to VocTrain: a trainee already here keeps the programme
+      // the Centre put them on — the fee page never moves them and never adds a
+      // second record under its own programme name, which is how trainees were
+      // turning up on programmes nobody had enrolled them in. A fee programme
+      // with no training centre behind it is not brought over at all.
+      var _t = CESTISCore.lmsMirrorTarget(
+        { name: name, id: studentId, skillArea: course, lmsId: fee.lmsId,
+          enrollmentDate: fee.enrollmentDate || fee.enrolmentDate || fee.createdAt || '' },
+        students, (typeof skillAreas !== 'undefined' && Array.isArray(skillAreas)) ? skillAreas : [],
+        { findCentre: CESTISCore.enrolment.findCentre,
+          on: fee.enrollmentDate || fee.enrolmentDate || fee.createdAt || '' }
+      );
+      if (_t.action !== 'create') return;
+      course = _t.course;                             // the training centre's own name
 
       var assignedInstructor = '';
       var matchedInstructor = (typeof instructorData !== 'undefined' && Array.isArray(instructorData))
@@ -18003,7 +18015,6 @@ function syncStudentsFromLocalFeeSystem() {
       } catch (e) {}
 
       existingIds[studentId] = true;
-      existingKeys[dupKey] = true;
       changed = true;
     });
 
@@ -23063,11 +23074,9 @@ async function syncStudentsFromFeeSystem() {
     // Build a set of existing student IDs for fast duplicate checking
     var existingIds = {};
     students.forEach(function(s) { existingIds[s.id] = true; });
-    // Also index by normalised name+course to avoid duplicates with different ID formats
-    var existingKeys = {};
-    students.forEach(function(s) { existingKeys[(s.name + '|' + s.course).toLowerCase()] = true; });
 
     var changed = false;
+    var skippedNoCentre = 0, skippedEnrolled = 0;
     feeStudents.forEach(function(fee) {
       // Map fee system fields: Name, Student ID, Course (Skill Area)
       var name = fee.Name || fee.name || fee.studentName || fee.student_name || '';
@@ -23084,10 +23093,24 @@ async function syncStudentsFromFeeSystem() {
         studentId = 'STU-FEE-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       }
 
-      // Skip if this student already exists (by ID or by name+course)
       if (existingIds[studentId]) return;
-      var dupKey = (name + '|' + course).toLowerCase();
-      if (existingKeys[dupKey]) return;
+
+      // The same rule the fee page's own mirror applies, so the two directions
+      // cannot disagree: a trainee this dashboard already carries is left on
+      // the programme the Centre put them on — the fee side never moves them,
+      // and never adds a second record under its own programme name. A
+      // programme with no training centre behind it is not brought over at all;
+      // the dashboard's roster is VocTrain's.
+      var _target = CESTISCore.lmsMirrorTarget(
+        { name: name, id: studentId, skillArea: course,
+          enrollmentDate: fee['Enrollment Date'] || fee.enrollmentDate || fee.enrolmentDate || '' },
+        students, skillAreas,
+        { findCentre: CESTISCore.enrolment.findCentre,
+          on: fee['Enrollment Date'] || fee.enrollmentDate || fee.enrolmentDate || '' }
+      );
+      if (_target.action === 'link') { skippedEnrolled++; return; }
+      if (_target.action !== 'create') { skippedNoCentre++; return; }
+      course = _target.course;   // the training centre's own name
 
       // Find an instructor for this course
       var assignedInstructor = '';
@@ -23138,10 +23161,13 @@ async function syncStudentsFromFeeSystem() {
       }
 
       existingIds[studentId] = true;
-      existingKeys[dupKey] = true;
       changed = true;
     });
 
+    if (skippedEnrolled || skippedNoCentre) {
+      console.log('[FeeSync] Left alone: ' + skippedEnrolled + ' already enrolled here (their programme is this dashboard\'s), ' +
+        skippedNoCentre + ' with no training centre for their programme.');
+    }
     if (changed) {
       saveState();
       console.log('[FeeSync] Merged new students from fee system into LMS');
