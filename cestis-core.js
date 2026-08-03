@@ -226,11 +226,32 @@
     return !!x && x === y;
   };
 
+  /* The natural key is the person plus the programme they are on — but the
+     programme taken WITHOUT its intake key, exactly as dedupeStudents groups
+     them (Core.programmeIdentity below).
+
+     It used to be the raw course string, and that quietly minted duplicates.
+     The id is a hash of this key, so anything that rewrites the course text
+     MOVES a trainee's id — and two things rewrite it on every single load:
+     alignProgrammeTextToIntake(), which sets s.course to the centre's name, and
+     the transfer, which writes the keyed label "01. Welding & Fabrication".
+     So the same person was 'STU-p7al0hg27' before the text was realigned and
+     'STU-1i5e0bi81mr' after it. The snapshot reconcile unions records BY ID,
+     found two ids, and kept both: one trainee, listed twice.
+
+     Stripping the key is what makes the id survive that. It also removes a
+     disagreement inside this file — dedupeStudents already considered
+     'Welding & Fabrication' and '01. Welding & Fabrication' the same person,
+     while the id generator considered them two, so the dedup merged them and
+     the id generator split them straight back apart on the next load. That
+     loop is the "fixes it, then duplicates it again". */
   Core.naturalKey = function (student) {
     if (!student) return '';
     var n = Core.normName(student.name);
-    var c = Core.normCourse(student.course);
     if (!n) return ''; // no usable identity — caller should keep the existing id
+    var c;
+    try { c = Core.programmeIdentity(student, 'course').bare; }
+    catch (e) { c = Core.normCourse(student.course); }
     return n + '|' + c;
   };
 
@@ -2284,6 +2305,41 @@
       return '';
     }
 
+    /* What tells this centre apart from every other one — for COUNTING, never
+       for display.
+
+       centreKeyOf() answers '' for a centre that carries no key and whose id is
+       not a number, which is every centre made with "+ Add Training Centre"
+       until assignCentreKeys() has run over it. Two things went wrong with that
+       empty answer, and between them they are the drift the Centre was seeing:
+
+         - tally() bucketed by the key, and an empty key is falsy, so those
+           trainees were counted under NO centre at all. Every card on the
+           Training Centres page read 0 and the dashboard pipeline emptied.
+         - belongsTo() compared the trainee's centre to the card's with `!==`,
+           and '' !== '' is false — so a trainee "belonged to" EVERY unkeyed
+           centre at once. The Transfer page offered the same person under
+           three programmes, and the registers listed them three times.
+
+       So the same roll read as empty on one screen and as triple on another,
+       and opening Course Duration — the one page that calls assignCentreKeys()
+       — handed every centre a key and made both screens right again. That is
+       the "it corrects itself when I come back from Course Duration".
+
+       An identity is therefore never empty for a centre that exists. The key
+       when it has one (so every trainee already stamped with '01' still finds
+       centre 01), and its id otherwise — which is unique, already on the
+       record, and identical on every device without anything having to be
+       assigned first. It is never shown to anybody: centreLabel() still reads
+       "01. Welding & Fabrication". */
+    function centreIdentity(centre) {
+      if (!centre) return '';
+      var k = centreKeyOf(centre);
+      if (k) return k;
+      var id = centre.id == null ? '' : String(centre.id).trim();
+      return id ? ('#' + id) : '';
+    }
+
     /* Split a written programme name into the key it states and the rest.
          '02. Welding and Fabrication' -> { key: '02', name: 'Welding and Fabrication' }
          'WELDING L2'                  -> { key: '',   name: 'WELDING L2' }
@@ -2308,7 +2364,24 @@
 
     /* Give every centre that has no key one of its own, in place. Safe to run
        on every load: a centre that already has a key is left alone. Returns
-       how many were stamped. */
+       how many were stamped.
+
+       The allocation must not depend on the ORDER the centres happen to sit in.
+       It used to: the leftovers were numbered by walking the array, so the same
+       two centres came out '01','02' on a device that held them one way round
+       and '02','01' on a device that held them the other. Roster order really
+       does differ between devices — reconcileSnapshot keeps the local order and
+       appends whatever the snapshot had on the end, and syncFromCloud pushes
+       cloud-only centres onto the end too — so this quietly handed the same
+       trainee's centreKey stamp to a DIFFERENT programme on each machine. Every
+       sync then swapped the rolls back and forth between two centres, which is
+       the drift the Centre was watching.
+
+       Leftovers are therefore numbered in a fixed order — by their id, which is
+       the one thing about a centre that is the same everywhere — so any two
+       devices holding the same centres agree on the keys without having to talk
+       to each other. Centres that already carry a key keep it, so nothing
+       already stamped on a trainee moves. */
     function assignCentreKeys(areas) {
       if (!Array.isArray(areas)) return 0;
       var taken = {}, n = 0, i;
@@ -2317,6 +2390,23 @@
         var k = areas[i].centreKey != null ? padKey(areas[i].centreKey) : '';
         if (k) taken[k] = true;
       }
+
+      // Everything still unkeyed, in a device-independent order.
+      var pending = [];
+      for (i = 0; i < areas.length; i++) {
+        var a = areas[i];
+        if (!a || (a.centreKey != null && String(a.centreKey).trim() !== '')) continue;
+        pending.push(a);
+      }
+      pending.sort(function (x, y) {
+        var xi = x.id == null ? '' : String(x.id), yi = y.id == null ? '' : String(y.id);
+        // Numeric ids sort as numbers so 2 comes before 10, not after it.
+        var xn = /^\d+$/.test(xi), yn = /^\d+$/.test(yi);
+        if (xn && yn) return Number(xi) - Number(yi);
+        if (xn !== yn) return xn ? -1 : 1;            // numbered centres first
+        return xi < yi ? -1 : (xi > yi ? 1 : 0);
+      });
+
       var next = 1;
       var free = function () {
         while (taken[padKey(next)]) next++;
@@ -2324,13 +2414,12 @@
         taken[k] = true;
         return k;
       };
-      for (i = 0; i < areas.length; i++) {
-        var a = areas[i];
-        if (!a || (a.centreKey != null && String(a.centreKey).trim() !== '')) continue;
+      for (i = 0; i < pending.length; i++) {
+        var c = pending[i];
         // The id is the centre's identity already, so it gives a key that is
         // unique and the same on every device — but never one already taken.
-        var fromId = a.id != null ? numericKey(a.id) : '';
-        a.centreKey = (fromId && !taken[fromId]) ? (taken[fromId] = true, fromId) : free();
+        var fromId = c.id != null ? numericKey(c.id) : '';
+        c.centreKey = (fromId && !taken[fromId]) ? (taken[fromId] = true, fromId) : free();
         n++;
       }
       return n;
@@ -2613,6 +2702,7 @@
     return {
       findCentre: findCentre,
       centreKeyOf: centreKeyOf,
+      centreIdentity: centreIdentity,
       centreLabel: centreLabel,
       parseCentreLabel: parseCentreLabel,
       assignCentreKeys: assignCentreKeys,
@@ -2955,7 +3045,11 @@
       if (!rec || !centre) return false;
       opts = opts || {};
       var field = opts.field || 'course';
-      var key = E.centreKeyOf(centre);
+      // centreIdentity, not centreKeyOf: an unkeyed centre answers '' to
+      // centreKeyOf, and '' === '' made a trainee belong to every unkeyed
+      // centre at once. See centreIdentity() for what that did to the rolls.
+      var key = E.centreIdentity(centre);
+      if (!key) return false;                    // a centre we cannot tell apart holds nobody
 
       if (rec.centreKey != null && String(rec.centreKey).trim() !== '') {
         return E.centreKeyOf({ centreKey: rec.centreKey }) === key;
@@ -2969,7 +3063,7 @@
       var found = null;
       try { found = E.findCentre(centres, written, { on: on, today: opts.today, nowMs: opts.nowMs }); }
       catch (e) { found = null; }
-      if (!found || E.centreKeyOf(found) !== key) return false;
+      if (!found || E.centreIdentity(found) !== key) return false;
       return !enrolledBeforeIntake(rec, found);
     }
 
@@ -3024,7 +3118,7 @@
           key = E.centreKeyOf({ centreKey: rec.centreKey });
         } else if (rec.centreId != null) {
           var c = byId[String(rec.centreId)];
-          key = c ? E.centreKeyOf(c) : null;
+          key = c ? E.centreIdentity(c) : null;
         } else {
           var field = opts.field || 'course';
           var written = nameOf(rec, field) || nameOf(rec, 'course') || nameOf(rec, 'skillArea');
@@ -3033,7 +3127,7 @@
             var found = resolveByName(written, on);
             // A trainee who enrolled before this intake began is an earlier
             // intake's, not this one's — see enrolledBeforeIntake above.
-            key = (found && !enrolledBeforeIntake(rec, found)) ? E.centreKeyOf(found) : null;
+            key = (found && !enrolledBeforeIntake(rec, found)) ? E.centreIdentity(found) : null;
           }
         }
         if (key) {
@@ -3045,8 +3139,8 @@
       return {
         counts: out,
         groups: groups,
-        of: function (centre) { return (centre && out[E.centreKeyOf(centre)]) || 0; },
-        listOf: function (centre) { return (centre && groups[E.centreKeyOf(centre)]) || []; }
+        of: function (centre) { return (centre && out[E.centreIdentity(centre)]) || 0; },
+        listOf: function (centre) { return (centre && groups[E.centreIdentity(centre)]) || []; }
       };
     }
 
@@ -3094,7 +3188,11 @@
       var out = { moved: 0, movedIds: [], checked: 0 };
       if (!Array.isArray(list) || !from || !to) return out;
       opts = opts || {};
-      if (E.centreKeyOf(from) === E.centreKeyOf(to)) return out;   // nowhere to go
+      // centreIdentity, not centreKeyOf: two centres that have not been given a
+      // key yet both answer '', so this read as "same centre, nowhere to go"
+      // and the transfer silently moved nobody.
+      var fromId = E.centreIdentity(from), toId = E.centreIdentity(to);
+      if (fromId && toId && fromId === toId) return out;           // nowhere to go
       var idOf = opts.idOf || function (r) { return r && r.id; };
       var only = opts.ids || null;
       var fromLabel = opts.fromLabel || E.centreLabel(from) || from.name || '';
