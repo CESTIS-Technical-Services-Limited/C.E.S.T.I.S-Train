@@ -686,8 +686,19 @@ test('the mirror the other way never duplicates a person either', function () {
   var fee = [{ id: 'F1', name: 'Ann Brown', skillArea: '02. Welding and Fabrication', totalPaid: 5000 }];
   var t = Core.feeMirrorTarget({ id: 'STU-1', name: 'Ann Brown', course: 'Welding and Fabrication' }, fee);
   assert.strictEqual(t.action, 'link', 'linked, never created');
-  assert.strictEqual(t.reason, 'same-person-other-programme');
+  // The keyed spelling and the bare spelling of ONE centre are now recognised
+  // as the same programme outright, so this is the ordinary twin link — it no
+  // longer needs the weaker name-only fallback.
+  assert.strictEqual(t.reason, 'twin');
   assert.strictEqual(t.match.id, 'F1');
+
+  // Two DIFFERENT intakes of the programme, though, are two different things:
+  // same person's name keyed to another intake links only by the name fallback,
+  // never as a programme match.
+  var other = Core.feeMirrorTarget({ id: 'STU-1', name: 'Ann Brown', course: '09. Welding and Fabrication' }, fee);
+  assert.strictEqual(other.action, 'link', 'still linked — being the same person is enough');
+  assert.strictEqual(other.reason, 'same-person-other-programme',
+    'but keys 02 and 09 are different intakes, not the same programme');
 
   var linked = Core.feeMirrorTarget({ id: 'STU-1', name: 'Ann Brown', course: '02. Welding and Fabrication' }, fee);
   assert.strictEqual(linked.reason, 'twin', 'and matching programmes are the ordinary twin link');

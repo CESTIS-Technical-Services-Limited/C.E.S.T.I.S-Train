@@ -189,8 +189,30 @@
       .then(function (r) { return r.json(); })
       .then(function (d) {
         self.fileId = (d.files && d.files.length) ? d.files[0].id : null;
+        self.remoteModified = (d.files && d.files.length) ? (d.files[0].modifiedTime || '') : '';
         return self.fileId;
       });
+  };
+
+  /* Has the file in Drive changed since we last pulled it? One metadata query —
+     no download — so the periodic refresh below costs almost nothing when
+     nothing moved. Errs on the side of "yes" so a failed check never leaves a
+     page stale. */
+  Page.prototype.remoteChanged = function (tok) {
+    var self = this;
+    var q = "name='" + this.spec.file + "' and '" + FOLDER_ID + "' in parents and trashed=false";
+    return api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,modifiedTime)',
+      { headers: { Authorization: 'Bearer ' + tok } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var f = (d.files && d.files.length) ? d.files[0] : null;
+        if (!f) return false;                       // nothing there to pull
+        self.fileId = f.id;
+        var changed = (f.modifiedTime || '') !== (self.lastPulledModified || '');
+        self.remoteModified = f.modifiedTime || '';
+        return changed;
+      })
+      .catch(function () { return true; });
   };
 
   /* Bring this page's file down and merge it into local storage. Resolves with
@@ -222,6 +244,9 @@
           self.setStamps(res.stamps && Object.keys(res.stamps).length ? res.stamps : { __synced: new Date().toISOString() });
           self.state.lastPull = new Date().toISOString();
           self.state.keys = Object.keys(res.data).length;
+          // Remember which revision this was, so the periodic refresh can tell
+          // "unchanged" from one metadata query instead of a full download.
+          self.lastPulledModified = self.remoteModified || '';
           return res.changed;
         });
     }).catch(function (e) { self.state.error = (e && e.message) || 'pull-failed'; return []; });
@@ -343,6 +368,45 @@
         });
       };
       if (store() && store().whenReady) store().whenReady(start); else start();
+
+      // CLOUD → LOCAL, continuously — not only at page open.
+      //
+      // 1. The moment a Google token appears (the user pressed Connect on the
+      //    dashboard, in this tab or another), pull. Until now a page opened
+      //    before the connection simply stayed empty until a reload — which
+      //    read as "my records are gone".
+      // 2. And every so often while connected, check the file's modifiedTime —
+      //    one metadata query — and pull only when another device has actually
+      //    written. Local storage stays the fast path; Drive keeps it current.
+      if (!API._refreshWired) {
+        API._refreshWired = true;
+        try {
+          root.addEventListener('storage', function (ev) {
+            if (!ev || ev.key !== TOKEN_KEY || !ev.newValue) return;
+            if (token()) API.loadNow();
+          });
+        } catch (e) {}
+        try {
+          setInterval(function () {
+            if (root.document && root.document.hidden) return;   // nobody looking
+            var tok = token();
+            if (!tok) return;
+            API._pages.forEach(function (p) {
+              p.remoteChanged(tok).then(function (changed) {
+                if (!changed) return;
+                p.pull().then(function (keys) {
+                  return p.pullShared().then(function (sk) {
+                    sk.forEach(function (k) { if (keys.indexOf(k) === -1) keys.push(k); });
+                    if (keys.length && typeof p.spec.onRestore === 'function') {
+                      try { p.spec.onRestore(keys); } catch (e) {}
+                    }
+                  });
+                });
+              });
+            });
+          }, 60000);
+        } catch (e) {}
+      }
       return pg;
     },
     saveNow: function () { return Promise.all(API._pages.map(function (p) { clearTimeout(p._timer); return p.push(); })); },

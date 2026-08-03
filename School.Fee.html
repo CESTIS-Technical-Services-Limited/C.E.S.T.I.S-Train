@@ -4917,6 +4917,7 @@
             normalizeFeeKeysToVoctrain(); // align legacy fee keys to exact VocTrain course names
             dedupeFeeStructure();         // one entry per programme, however it is spelt
             feeBindTraineesToIntake();    // each trainee held to the intake they enrolled in
+            seedFeeInformation();         // trainees from the LMS roll; tuition from the Fee Structure
             renderFeeStructure();
             updateDashboard();
             renderStudentsTable();
@@ -5198,14 +5199,19 @@
             return _feeCentresCache;
         }
 
-        // Course-duration answers keyed by programme name. The students table
-        // asks this once per row, and most rows share a handful of programmes.
-        function feeCourseDurationCached(skillAreaName) {
+        // Course-duration answers, keyed by the centre the record actually
+        // points at. `rec` (optional) is the trainee's record: when a transfer
+        // has stamped a centreKey onto them, THAT intake answers — never
+        // another centre that happens to share the programme name. The students
+        // table asks this once per row, and most rows share a handful of
+        // programmes, so answers are memoised per (centreKey, name).
+        function feeCourseDurationCached(skillAreaName, rec) {
             _feeCacheTick();
             if (!_feeDurationCache) _feeDurationCache = new Map();
-            const key = (skillAreaName == null ? '' : String(skillAreaName));
+            const ck = (rec && rec.centreKey != null) ? String(rec.centreKey) : '';
+            const key = ck + '|' + (skillAreaName == null ? '' : String(skillAreaName));
             if (_feeDurationCache.has(key)) return _feeDurationCache.get(key);
-            const info = feeCourseDurationInfo(skillAreaName);
+            const info = feeCourseDurationInfo(skillAreaName, rec);
             _feeDurationCache.set(key, info);
             return info;
         }
@@ -5475,6 +5481,79 @@
             } catch (e) { console.warn('applyStudentsFromParent failed:', e); }
         }
 
+        /* ==================== SEED THE FEE INFORMATION ======================
+           Two gaps left this page showing records that carried no fee truth:
+
+             - Opened on its own (not inside the LMS dashboard), it never
+               seeded itself from the trainee roll: the dashboard's saveState
+               hook and the iframe message are the only paths that created fee
+               records, and neither runs when only this page is open. A device
+               holding the roll still showed an empty fee table.
+             - A trainee mirrored from the LMS arrives with tuitionFee 0 and
+               needsFeeDetails, and nothing ever priced them — in the Centre's
+               own backup 249 of 368 trainees stood at $0 tuition, 193 of them
+               on programmes the Fee Structure prices. With a fee of 0 their
+               balance is 0, so they all read "Fully Paid" while owing their
+               whole tuition.
+
+           seedFeeInformation() closes both: it pulls the LMS roll in through
+           the same twin-matching path the iframe message uses (so nobody is
+           ever duplicated and tombstones are honoured), then prices every
+           unpriced mirrored trainee from the Fee Structure. Idempotent — a
+           second run finds nothing to do. */
+
+        // Price unpriced mirrored trainees from the Fee Structure. Only records
+        // still flagged needsFeeDetails are touched: a trainee an admin has
+        // deliberately priced at 0 by editing is left exactly as set.
+        function feeBackfillTuition() {
+            if (!Array.isArray(students) || !feeStructure) return 0;
+            var changed = 0;
+            var now = new Date().toISOString();
+            students.forEach(function (s) {
+                if (!s || !s.needsFeeDetails) return;
+                if ((parseFloat(s.tuitionFee) || 0) > 0) return;   // already priced
+                var key = feeKeyFor(s.skillArea);
+                if (!key) return;                                   // programme not priced here
+                var total = parseFloat(feeStructure[key] && feeStructure[key].total) || 0;
+                if (total <= 0) return;
+                s.tuitionFee = total;
+                // Stamped, so the pricing survives every merge instead of being
+                // reverted by an older cloud copy still holding the $0.
+                s.updatedAt = now;
+                changed++;
+            });
+            return changed;
+        }
+
+        function seedFeeInformation() {
+            try {
+                // 1. Any trainee the LMS roll holds that this page does not.
+                //    applyStudentsFromParent() is the same path the dashboard
+                //    message uses: twin-matched, tombstone-guarded, and it saves
+                //    and re-renders itself when it adds or links anybody.
+                var lmsRaw = CESTISStore.getItem('voctrain_students');
+                var lms = lmsRaw ? JSON.parse(lmsRaw) : [];
+                if (Array.isArray(lms) && lms.length) applyStudentsFromParent(lms);
+            } catch (e) { console.warn('[SchoolFee] seeding from the LMS roll failed:', e); }
+
+            try {
+                // 2. Price the unpriced, then re-derive every balance and status.
+                var priced = feeBackfillTuition();
+                if (priced > 0) {
+                    recalculateStudentTotals();
+                    saveData();
+                    renderStudentsTable();
+                    renderPaymentsTable();
+                    populatePaymentStudentSelect();
+                    updateDashboard();
+                    console.log('[SchoolFee] Priced ' + priced + ' trainee(s) from the Fee Structure.');
+                    feeShowBanner('Fee information seeded: ' + priced + ' trainee' +
+                        (priced === 1 ? '' : 's') + ' priced from the Fee Structure. ' +
+                        'Their balances and payment statuses now reflect the real tuition.');
+                }
+            } catch (e) { console.warn('[SchoolFee] tuition backfill failed:', e); }
+        }
+
         // Another document — the dashboard, the Student Progress page, another tab —
         // changed data this page also holds. Reload it rather than keep rendering,
         // and later saving, a stale copy over someone else's edit.
@@ -5499,6 +5578,9 @@
                     feeInvalidateCaches();
                     refreshLmsStudentCache();          // academic stage column
                     if (typeof loadData === 'function') loadData();
+                    // The roll or the prices may have just arrived: seed what is
+                    // now seedable (idempotent — nothing to do means nothing done).
+                    if (typeof seedFeeInformation === 'function') seedFeeInformation();
                     if (typeof renderStudentsTable === 'function') renderStudentsTable();
                     if (typeof renderPaymentsTable === 'function') renderPaymentsTable();
                     if (typeof renderDocumentsTable === 'function') renderDocumentsTable();
@@ -5728,6 +5810,19 @@
             });
             var removed = students.length - deduped.length;
             students = deduped;
+            // 2b) Collapse the SAME PERSON written under two spellings of one
+            // centre — 'Electrical Installation' beside '02. Electrical
+            // Installation'. Different ids (each spelling hashes its own), so
+            // the id pass above cannot see them; the centre-identity dedup can,
+            // and it never folds two records keyed to DIFFERENT intakes.
+            if (typeof CESTISCore.dedupeStudents === 'function') {
+                var _cd = CESTISCore.dedupeStudents(students, { courseField: 'skillArea' });
+                if (_cd.removed > 0) {
+                    students = _cd.students;
+                    removed += _cd.removed;
+                    Object.keys(_cd.idMap).forEach(function (k) { idMap[k] = _cd.idMap[k]; });
+                }
+            }
             // 3) Relink payments & documents from the old ids to the stable id.
             if (Object.keys(idMap).length) {
                 if (Array.isArray(payments)) payments.forEach(function (p) { if (p && idMap[p.studentId]) p.studentId = idMap[p.studentId]; });
@@ -6173,11 +6268,9 @@
         // Small "Course ended" pill shown beside a student's stage when their
         // course duration has elapsed (read-only signal; payments still allowed).
         function feeEndedBadge(student) {
-            // Cached by programme name: the uncached call re-read AND re-parsed
-            // the whole training-centre roster out of storage for every row of
-            // the table, to answer the same question about the same handful of
-            // programmes over and over.
-            var dur = feeCourseDurationCached(student && student.skillArea);
+            // Cached, and resolved by the trainee's stamped intake key first, so
+            // the pill reflects THEIR intake — not another centre of the same name.
+            var dur = feeCourseDurationCached(student && student.skillArea, student);
             if (dur && dur.ended) {
                 return ' <span class="course-ended-badge" title="Course ended' + (dur.endDate ? (' on ' + dur.endDate) : '') + '" style="display:inline-block;margin-left:4px;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:700;background:rgba(231,76,60,.15);color:#e74c3c;">Course ended</span>';
             }
@@ -7257,10 +7350,15 @@
             return dec;
         }
 
-        function feeCourseDurationInfo(skillAreaName) {
+        function feeCourseDurationInfo(skillAreaName, rec) {
             try {
                 if (typeof CESTISCore === 'undefined' || !CESTISCore.courseDuration) return null;
-                var sk = CESTISCore.enrolment.findCentre(feeCentresCached(), skillAreaName);
+                // The stamped intake key decides which centre answers; the name
+                // is only the fallback for records that predate the stamps. Two
+                // centres sharing a name are two centres — the key is what
+                // tells this page which one to read.
+                var sk = CESTISCore.enrolment.findCentre(feeCentresCached(), skillAreaName,
+                    { centreKey: rec && rec.centreKey });
                 if (!sk) return null;
                 return {
                     ended: !CESTISCore.courseDuration.isRegisterOpen(sk, undefined, Date.now()),
@@ -14160,6 +14258,9 @@ CESTISPageCloud.init({
       if (typeof feeInvalidateCaches === 'function') feeInvalidateCaches();
       if (typeof refreshLmsStudentCache === 'function') refreshLmsStudentCache();
       if (typeof loadData === 'function') loadData();
+      // What Drive just delivered may be seedable: the LMS roll needing fee
+      // records, or the Fee Structure needing to price mirrored trainees.
+      if (typeof seedFeeInformation === 'function') seedFeeInformation();
       if (typeof updateSkillAreaOptions === 'function') updateSkillAreaOptions();
       if (typeof renderFeeStructure === 'function') renderFeeStructure();
       if (typeof renderStudentsTable === 'function') renderStudentsTable();
