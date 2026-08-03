@@ -2016,6 +2016,10 @@
                                         <span>📁</span>
                                         <span>Browse All Backups</span>
                                     </div>
+                                    <div class="cloud-dropdown-item" onclick="restoreFeeRecordsFromDrive()" style="background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%); color: white;">
+                                        <span>♻️</span>
+                                        <span>Restore Fee Records from Drive</span>
+                                    </div>
                                     <div class="cloud-dropdown-divider"></div>
                                     <div class="last-sync-info" id="lastSyncInfo">
                                         Last sync: Never
@@ -4926,6 +4930,9 @@
             updateSkillAreaOptions();
             setupDragAndDrop();
             initializeReportFilters();
+            // Give the Drive pull a moment to land before deciding the roll is
+            // empty, so a normal cold start does not flash the warning.
+            setTimeout(feeCheckRollNotEmpty, 6000);
 
             // Set today's date as default
             const today = new Date().toISOString().split('T')[0];
@@ -5039,15 +5046,18 @@
             // Self-heal: drop any fee student that has been tombstoned (deleted here or
             // in the LMS). This stops a record removed via the LMS from lingering as a
             // ghost and from being resurrected the next time this page saves its list.
-            try { if (dropTombstonedFeeStudents()) CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students)); } catch (e) {}
+            // Both of these rewrite the roll during load, which is precisely when
+            // it may not have arrived yet — so they go through the same guard as
+            // every other write.
+            try { if (dropTombstonedFeeStudents()) feePersist('cestiSchoolFeeStudents', students); } catch (e) {}
             // Migrate auto-generated ids to deterministic stable ids on load and
             // persist once, so cross-device duplicates collapse before anything
             // else reads the list.
             try {
                 if (window.CESTISCore && stabilizeFeeStudentIds()) {
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeStudents', students);
+                    feePersist('cestiSchoolFeePayments', payments);
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
             } catch (e) { console.warn('[SchoolFee] id stabilization failed:', e); }
             // Make sure existing students also appear on the Progress dashboard.
@@ -5072,7 +5082,7 @@
                 (r2 ? (JSON.parse(r2) || []) : []).forEach(id => { if (id) vdel[id] = true; });
                 if (!Object.keys(feeDel).length && !Object.keys(vdel).length) return false;
                 const before = students.length;
-                students = students.filter(s => {
+                const kept = students.filter(s => {
                     if (!s) return false;
                     const sid = (window.CESTISCore && typeof CESTISCore.stableStudentId === 'function')
                         ? CESTISCore.stableStudentId({ name: s.name, course: s.skillArea }) : null;
@@ -5080,6 +5090,18 @@
                     if (vdel[s.id] || (s.lmsId && vdel[s.lmsId]) || vdel['SF-' + s.id] || (sid && vdel[sid])) return false;
                     return true;
                 });
+                // A sweep that would clear the WHOLE roll is a fault, not a
+                // deletion: the tombstone lists arrive from another page and
+                // another device, and this runs on load, before anybody has asked
+                // for anything. Emptying the roll here would then be saved and
+                // pushed. Deleting every trainee one by one still works — each of
+                // those goes through deleteStudent().
+                if (before > 0 && kept.length === 0) {
+                    console.error('[SchoolFee] Tombstone sweep would have removed every trainee (' +
+                                  before + ' records). Refused — the roll is kept as it stands.');
+                    return false;
+                }
+                students = kept;
                 return students.length !== before;
             } catch (e) { return false; }
         }
@@ -5731,6 +5753,149 @@
             return Object.keys(idMap).length > 0 || removed > 0;
         }
 
+        /* ==================== THE FEE RECORDS CANNOT BE LOST =================
+           Every write of a fee collection goes through here.
+
+           What went wrong: loadData() only adopts a stored value `if (saved…)`,
+           so on a device whose store was empty — a new machine, a cleared
+           browser, or simply a page that opened BEFORE its Google Drive pull had
+           finished — students/payments stayed at their start-up value of []. The
+           page then rendered zero of everything, and the very next thing that
+           called saveData() wrote that [] into storage, stamped it with the
+           current time, and queued it for upload. A newer timestamp on an empty
+           list beat the Centre's real records, and the roll was gone from Drive
+           too.
+
+           So: an empty collection never overwrites stored records. Emptiness is
+           not an edit — deleting a trainee or a payment writes a tombstone, and
+           those paths still work. A write that would throw records away is
+           refused, reported, and the stored copy is reloaded instead. */
+        let _feeLastRescue = 0;
+        function feePersist(key, value) {
+            const guarded = (window.CESTISCore && CESTISCore.pageCloud &&
+                             typeof CESTISCore.pageCloud.guardedSet === 'function')
+                ? CESTISCore.pageCloud.guardedSet
+                : null;
+            if (!guarded) { CESTISStore.setItem(key, JSON.stringify(value)); return true; }
+            return guarded(CESTISStore, key, value, function (k, current) {
+                // Refused. Put the stored records back into memory so the page
+                // stops showing an empty roll it would only try to save again.
+                console.error('[SchoolFee] Refused to overwrite stored records in "' + k +
+                              '" with an empty list. Reloading the stored copy instead.');
+                try { feeRestoreFromStore(k, current); } catch (e) {}
+                feeWarnRecordsProtected();
+            });
+        }
+
+        // Put a refused collection back into memory from what storage still holds.
+        function feeRestoreFromStore(key, raw) {
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return;
+            if (key === 'cestiSchoolFeeStudents') students = parsed;
+            else if (key === 'cestiSchoolFeePayments') payments = parsed;
+            else if (key === 'cestiSchoolFeeDocuments') documents = parsed;
+        }
+
+        // Tell the user once, rather than silently. Being quiet here is how a
+        // roll goes missing without anybody knowing which action did it.
+        function feeWarnRecordsProtected() {
+            const now = Date.now();
+            if (now - _feeLastRescue < 10000) return;   // one message per burst
+            _feeLastRescue = now;
+            feeShowBanner('Your fee records were protected. Something tried to save an empty ' +
+                'list over them — the stored records have been reloaded instead. Nothing was lost.');
+            // Redraw against what was actually kept.
+            try {
+                renderStudentsTable(); renderPaymentsTable(); renderDocumentsTable();
+                populatePaymentStudentSelect(); updateDashboard();
+            } catch (e) {}
+        }
+
+        /* Pull this page's own Drive backup (CESTIS_School_Fees.json) and take
+           back everything it holds that this device is missing.
+
+           Merging is per key and newest-write-wins, and — since the guard above —
+           an empty local list never counts as newer, so this can only ever
+           restore records, never remove them. Safe to run at any time. */
+        async function restoreFeeRecordsFromDrive() {
+            const menu = document.getElementById('cloudDropdownMenu');
+            if (menu) menu.classList.remove('show');
+
+            if (typeof CESTISPageCloud === 'undefined' || !CESTISPageCloud.loadNow) {
+                alert('The Drive backup module is not loaded on this page.');
+                return;
+            }
+            const before = { students: students.length, payments: payments.length, documents: documents.length };
+            try {
+                const results = await CESTISPageCloud.loadNow();
+                const changed = [].concat.apply([], results || []);
+                // Re-read whatever the merge wrote, and redraw against it.
+                loadData();
+                feeInvalidateCaches();
+                renderFeeStructure();
+                updateSkillAreaOptions();
+                renderStudentsTable();
+                renderPaymentsTable();
+                renderDocumentsTable();
+                populatePaymentStudentSelect();
+                populateDocumentStudentSelect();
+                updateDashboard();
+
+                const after = { students: students.length, payments: payments.length, documents: documents.length };
+                if (!changed.length && after.students === before.students && after.payments === before.payments) {
+                    alert('Drive backup checked — nothing to restore.\n\n' +
+                          'This device already holds everything the backup contains:\n' +
+                          `  • ${after.students} trainee record(s)\n` +
+                          `  • ${after.payments} payment(s)\n\n` +
+                          'If you expected to see more, check the financial-year and quarter ' +
+                          'buttons above the table — the figures follow the period selected there.');
+                    return;
+                }
+                alert('Restored from the Drive backup.\n\n' +
+                      `  • Trainees: ${before.students} → ${after.students}\n` +
+                      `  • Payments: ${before.payments} → ${after.payments}\n` +
+                      `  • Documents: ${before.documents} → ${after.documents}\n\n` +
+                      'Remember the figures on the dashboard follow the financial year and ' +
+                      'quarter selected in the filter bar.');
+            } catch (e) {
+                console.error('[SchoolFee] restore from Drive failed:', e);
+                alert('Could not read the Drive backup: ' + ((e && e.message) || e) +
+                      '\n\nCheck that you are connected to Google Drive, then try again. ' +
+                      'Nothing on this device was changed.');
+            }
+        }
+
+        /* An empty roll is worth saying out loud. Before this, a device whose
+           store had not loaded showed zero of everything with no explanation —
+           which reads as "my records are gone" when they are sitting safely in
+           Drive. */
+        function feeCheckRollNotEmpty() {
+            if (students.length || payments.length) return;
+            feeShowBanner('This device is showing no fee records. They are most likely still in ' +
+                'your Google Drive backup — open the Cloud menu and choose ' +
+                '“Restore Fee Records from Drive”. Nothing has been deleted.');
+        }
+
+        // A banner the user cannot miss, for the few things they must know about
+        // their records. Dismissed by clicking it.
+        function feeShowBanner(message) {
+            try {
+                let el = document.getElementById('feeRecordsBanner');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'feeRecordsBanner';
+                    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:14px;' +
+                        'z-index:99999;max-width:min(760px,92vw);padding:14px 18px;border-radius:10px;' +
+                        'background:#8E2A24;color:#fff;font-size:14px;line-height:1.45;cursor:pointer;' +
+                        'box-shadow:0 12px 30px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.25);';
+                    el.title = 'Click to dismiss';
+                    el.onclick = function () { el.remove(); };
+                    document.body.appendChild(el);
+                }
+                el.textContent = '⚠️ ' + message;
+            } catch (e) { console.warn('[SchoolFee] ' + message); }
+        }
+
         function saveData() {
             // Single chokepoint: stabilise ids before every persist so every
             // creation / import / restore / merge path gets stable ids and no
@@ -5747,9 +5912,9 @@
             if (payments.length !== _pBefore) recalculateStudentTotals();
             // Anything derived from the store may have just moved under us.
             feeInvalidateCaches();
-            CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
-            CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
-            CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+            feePersist('cestiSchoolFeeStudents', students);
+            feePersist('cestiSchoolFeePayments', payments);
+            feePersist('cestiSchoolFeeDocuments', documents);
             // Mirror students into the Student Progress dashboard.
             syncStudentsToProgressDashboard();
             // Push the live list to the parent LMS dashboard (if embedded).

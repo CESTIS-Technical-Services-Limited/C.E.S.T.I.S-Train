@@ -6445,6 +6445,9 @@ function clearSensitiveStudentData() {
       return (studentId && r.studentId === studentId) || (studentName && r.studentName === studentName);
     });
     examResults = myResults;
+    // Direct write, NOT saveCollection(): emptying these is the whole point
+    // here — a student's device must not keep everybody else's records — so
+    // the anti-wipe guard must not stand in the way.
     CESTISStore.setItem('voctrain_examResults', JSON.stringify(myResults));
   } catch(e) { examResults = []; CESTISStore.removeItem('voctrain_examResults'); }
 
@@ -6590,32 +6593,51 @@ function clearAllSessionData() {
   console.log('[Session] All session data cleared from localStorage and memory.');
 }
 
+/* Persist a collection unless doing so would throw records away.
+
+   saveState() writes every collection wholesale, which is only safe while
+   those collections are actually loaded. They are not loaded in the moments
+   this guards: before a cloud pull has landed, after a failed read, on a device
+   whose store was cleared. Without it, one save from such a page replaced the
+   Centre's roll with an empty list, stamped it with the current time — and a
+   newer stamp on an empty list then beat the real records in Drive too.
+
+   Emptiness is never an edit. Deleting a trainee writes a tombstone, and those
+   paths are untouched. */
+function saveCollection(key, value) {
+  var ok = CESTISCore.pageCloud.guardedSet(CESTISStore, key, value, function (k) {
+    console.error('[VocTrain] Refused to overwrite stored records in "' + k +
+                  '" with an empty list — the stored copy is kept.');
+  });
+  return ok;
+}
+
 function saveState() {
   try {
     var isAdmin = currentRole === 'admin' || currentRole === 'adminstaff';
-    CESTISStore.setItem('voctrain_students', JSON.stringify(students));
-    CESTISStore.setItem('voctrain_exams', JSON.stringify(exams));
-    CESTISStore.setItem('voctrain_announcements', JSON.stringify(announcements));
+    saveCollection('voctrain_students', students);
+    saveCollection('voctrain_exams', exams);
+    saveCollection('voctrain_announcements', announcements);
     CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords));
     try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
     if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance();
     CESTISStore.setItem('voctrain_users', JSON.stringify(userAccounts, stripSecretFields));
-    CESTISStore.setItem('voctrain_classSessions', JSON.stringify(classSessions));
-    CESTISStore.setItem('voctrain_adminMeetings', JSON.stringify(adminMeetings));
-    CESTISStore.setItem('voctrain_assignments', JSON.stringify(instructorAssignments));
-    CESTISStore.setItem('voctrain_submissions', JSON.stringify(assignmentSubmissions));
-    CESTISStore.setItem('voctrain_resources', JSON.stringify(instructorResources));
+    saveCollection('voctrain_classSessions', classSessions);
+    saveCollection('voctrain_adminMeetings', adminMeetings);
+    saveCollection('voctrain_assignments', instructorAssignments);
+    saveCollection('voctrain_submissions', assignmentSubmissions);
+    saveCollection('voctrain_resources', instructorResources);
     CESTISStore.setItem('voctrain_studentProfiles', JSON.stringify(studentProfiles));
-    CESTISStore.setItem('voctrain_instructorProfiles', JSON.stringify(instructorProfiles));
+    saveCollection('voctrain_instructorProfiles', instructorProfiles);
     CESTISStore.setItem('voctrain_systemSettings', JSON.stringify(systemSettings));
     CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults));
-    CESTISStore.setItem('voctrain_calendarEvents', JSON.stringify(calendarEvents));
-    CESTISStore.setItem('voctrain_instructorData', JSON.stringify(instructorData));
-    CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals));
+    saveCollection('voctrain_calendarEvents', calendarEvents);
+    saveCollection('voctrain_instructorData', instructorData);
+    saveCollection('voctrain_certDownloadApprovals', certDownloadApprovals);
     // Admin-managed data: only save if admin OR if data is non-empty (prevents wiping admin data)
-    if (isAdmin || driveResources.length > 0) CESTISStore.setItem('voctrain_driveResources', JSON.stringify(driveResources));
-    if (isAdmin || skillAreas.length > 0) CESTISStore.setItem('voctrain_skillAreas', JSON.stringify(skillAreas));
-    if (isAdmin || documentHubFiles.length > 0) CESTISStore.setItem('voctrain_documentHubFiles', JSON.stringify(documentHubFiles));
+    if (isAdmin || driveResources.length > 0) saveCollection('voctrain_driveResources', driveResources);
+    if (isAdmin || skillAreas.length > 0) saveCollection('voctrain_skillAreas', skillAreas);
+    if (isAdmin || documentHubFiles.length > 0) saveCollection('voctrain_documentHubFiles', documentHubFiles);
     // The Admin Staff access grid is the Administrator's to publish. A staff
     // device keeps a local copy of what it was sent, so the nav survives a
     // reload before the next sync, but it never uploads it — see the

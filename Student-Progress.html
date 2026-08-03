@@ -533,15 +533,33 @@ function cestisStabilizeStudentIds() {
 // is a hash of name+course, so renaming moves it and the School Fee twin can no
 // longer be matched by either id or name. Passing the pre-edit identity is what
 // lets the parent find that twin and rename it too.
+/* Persist a collection unless doing so would throw records away.
+
+   This page writes each collection wholesale, which is only safe while it is
+   actually loaded. It is not loaded in the moments this guards: before a cloud
+   pull has landed, after a failed read, on a device whose store was cleared.
+   One save from such a page used to replace the Centre's roll with an empty
+   list and stamp it with the current time — and a newer stamp on an empty list
+   then beat the real records in Drive too.
+
+   Emptiness is never an edit: deleting a trainee writes a tombstone, and that
+   path is untouched. */
+function spSaveCollection(key, value) {
+  return CESTISCore.pageCloud.guardedSet(CESTISStore, key, value, function (k) {
+    console.error('[StudentProgress] Refused to overwrite stored records in "' + k +
+                  '" with an empty list — the stored copy is kept.');
+  });
+}
+
 function saveData(detail) {
-  CESTISStore.setItem('voctrain_students', JSON.stringify(students));
-  CESTISStore.setItem('voctrain_skillAreas', JSON.stringify(skillAreas));
-  CESTISStore.setItem('voctrain_instructorData', JSON.stringify(instructorData));
-  CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords));
-  CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults));
-  CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals));
-  CESTISStore.setItem('voctrain_userAccounts', JSON.stringify(userAccounts));
-  CESTISStore.setItem('voctrain_studentProfiles', JSON.stringify(studentProfiles));
+  spSaveCollection('voctrain_students', students);
+  spSaveCollection('voctrain_skillAreas', skillAreas);
+  spSaveCollection('voctrain_instructorData', instructorData);
+  spSaveCollection('voctrain_attendance', attendanceRecords);
+  spSaveCollection('voctrain_examResults', examResults);
+  spSaveCollection('voctrain_certDownloadApprovals', certDownloadApprovals);
+  spSaveCollection('voctrain_userAccounts', userAccounts);
+  spSaveCollection('voctrain_studentProfiles', studentProfiles);
   // Notify parent window that student data changed
   try {
     var msg = {type:'students-updated'};
