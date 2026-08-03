@@ -7112,21 +7112,30 @@ function removeFeeTwinForStudent(student) {
   return removed;
 }
 
+/* The trainee and material counts on the Training Centres cards.
+
+   These are answered by CESTISCore.transfer — the same rule the Transfer
+   Trainees page, the enrolment registers and the fee side all use — so every
+   screen states the same figure.
+
+   They used to be worked out here from the programme NAME written on a record,
+   resolved as of today. Everything else decides which centre holds a trainee
+   from the centre STAMPED on them (their centreKey / centreId), which is what a
+   transfer writes. The moment those two disagreed the cards disagreed with the
+   rest of the system: a trainee moved back into a finished intake keeps that
+   intake's stamp, but the name-based rule handed them to whichever intake of
+   the same programme was running NOW. So a newly created centre that had never
+   enrolled anybody displayed a roll of trainees it did not have — the Transfer
+   page correctly showed "no trainees are held by this training centre" — while
+   the intake actually holding them under-reported by exactly the same number. */
 function updateSkillAreaCounts() {
+  var opts = { field: 'course', centres: skillAreas, nowMs: Date.now() };
+  // One pass over each list, not one pass per centre.
+  var byStudents = CESTISCore.transfer.tally(students, skillAreas, opts);
+  var byMaterials = CESTISCore.transfer.tally(driveResources, skillAreas, opts);
   skillAreas.forEach(function(sk) {
-    var skNameLower = sk.name.toLowerCase().trim();
-    sk.students = students.filter(function(s) {
-      if(!s.course) return false;
-      if(s.course.toLowerCase().trim() === skNameLower) return true;
-      var stuSk = findSkillAreaForCourse(s.course);
-      return stuSk && stuSk.id && stuSk.id === sk.id;
-    }).length;
-    sk.materials = driveResources.filter(function(r) {
-      if(!r.course) return false;
-      if(r.course.toLowerCase().trim() === skNameLower) return true;
-      var resSk = findSkillAreaForCourse(r.course);
-      return resSk && resSk.id && resSk.id === sk.id;
-    }).length;
+    sk.students = byStudents.of(sk);
+    sk.materials = byMaterials.of(sk);
   });
 }
 
@@ -20067,9 +20076,29 @@ function enrolFmtMonthYear(d) {
   return months[parseInt(p[1], 10) - 1] + ' ' + p[0];
 }
 
+/* The trainees a centre holds, for its enrolment register.
+
+   Answered by CESTISCore.transfer, the same rule the Transfer Trainees page and
+   the Training Centres cards use. It used to resolve the programme NAME written
+   on a trainee, which ignored the centre stamped on them by a transfer — so a
+   register could list somebody who had been moved out of that intake, and omit
+   somebody who had been moved into it. */
+var _enrolTallyCache = null, _enrolTallyAt = 0;
+function enrolCentreTally() {
+  // The register page asks this once per centre while it draws its table; the
+  // roll is bucketed once for all of them and reused for a moment.
+  var now = Date.now();
+  if (_enrolTallyCache && (now - _enrolTallyAt) < 500) return _enrolTallyCache;
+  _enrolTallyCache = CESTISCore.transfer.tally(
+    (typeof students !== 'undefined' && Array.isArray(students)) ? students : [],
+    skillAreas, { field: 'course', centres: skillAreas, nowMs: now });
+  _enrolTallyAt = now;
+  return _enrolTallyCache;
+}
+
 function enrolStudentsForCentre(sk) {
   if (typeof students === 'undefined' || !Array.isArray(students)) return [];
-  var list = students.filter(function(s){ return s && s.course && courseDurationRecord(s.course) === sk; });
+  var list = enrolCentreTally().listOf(sk).slice();
   list.sort(function(a, b){ return (a.name || '').localeCompare(b.name || ''); });
   return list;
 }

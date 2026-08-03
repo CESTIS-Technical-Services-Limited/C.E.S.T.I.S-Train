@@ -2653,6 +2653,75 @@
       return list.filter(function (r) { return belongsTo(r, centre, opts); });
     }
 
+    /* How many of `list` each centre holds — the same question traineesOf()
+       answers, asked once per RECORD instead of once per centre.
+
+       This exists so the Training Centres cards can state the same figure the
+       Transfer page does. They used to disagree, badly: the cards decided which
+       centre a trainee belonged to from the programme NAME written on them,
+       resolved as of today, while everything else decides it from the centre
+       stamped on them. A trainee moved back to a finished intake keeps the
+       stamp of that intake, so the cards went on counting them under whichever
+       intake of that programme happened to be running now — and a brand-new
+       centre that had never enrolled anybody showed a roll of trainees who were
+       not there, while the centre actually holding them under-reported by the
+       same number.
+
+       Returns { counts: { centreKey: n }, of(centre) -> n,
+                 groups: { centreKey: [records] }, listOf(centre) -> [records] }
+       so a page that needs the roll and a page that needs only the number are
+       answered by the same pass, and cannot disagree. */
+    function tally(list, centres, opts) {
+      opts = opts || {};
+      var roster = Array.isArray(centres) ? centres : [];
+      var byId = {}, out = {}, groups = {};
+      roster.forEach(function (c) { if (c && c.id != null) byId[String(c.id)] = c; });
+
+      // findCentre() is the expensive step and a roll shares a handful of
+      // programme names, so each (name, date) pair is resolved once.
+      var memo = {};
+      function resolveByName(written, on) {
+        var mk = written + '\u0000' + (on || '');   // a separator no name can contain
+        if (Object.prototype.hasOwnProperty.call(memo, mk)) return memo[mk];
+        var found = null;
+        try { found = E.findCentre(roster, written, { on: on, today: opts.today, nowMs: opts.nowMs }); }
+        catch (e) { found = null; }
+        memo[mk] = found;
+        return found;
+      }
+
+      (Array.isArray(list) ? list : []).forEach(function (rec) {
+        if (!rec) return;
+        var key = null;
+        // Identity first, name last — exactly the order belongsTo() applies.
+        if (rec.centreKey != null && String(rec.centreKey).trim() !== '') {
+          key = E.centreKeyOf({ centreKey: rec.centreKey });
+        } else if (rec.centreId != null) {
+          var c = byId[String(rec.centreId)];
+          key = c ? E.centreKeyOf(c) : null;
+        } else {
+          var field = opts.field || 'course';
+          var written = nameOf(rec, field) || nameOf(rec, 'course') || nameOf(rec, 'skillArea');
+          if (written) {
+            var on = rec.enrolmentDate || rec.enrollmentDate || rec.enrollDate || rec.createdAt || '';
+            var found = resolveByName(written, on);
+            key = found ? E.centreKeyOf(found) : null;
+          }
+        }
+        if (key) {
+          out[key] = (out[key] || 0) + 1;
+          (groups[key] || (groups[key] = [])).push(rec);
+        }
+      });
+
+      return {
+        counts: out,
+        groups: groups,
+        of: function (centre) { return (centre && out[E.centreKeyOf(centre)]) || 0; },
+        listOf: function (centre) { return (centre && groups[E.centreKeyOf(centre)]) || []; }
+      };
+    }
+
     /* Write the target centre onto one record. Returns true when anything
        actually changed, so a caller can tell a real move from a no-op. */
     function place(rec, to, opts) {
@@ -2738,7 +2807,7 @@
       return out;
     }
 
-    return { belongsTo: belongsTo, traineesOf: traineesOf, place: place,
+    return { belongsTo: belongsTo, traineesOf: traineesOf, tally: tally, place: place,
       moveTrainees: moveTrainees, renameCourseFor: renameCourseFor };
   })();
 
