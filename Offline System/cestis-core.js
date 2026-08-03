@@ -2238,6 +2238,183 @@
     };
   })();
 
+  /* The School Fee record a dashboard student belongs to.
+
+     The mirror the other way (lmsMirrorTarget) already refuses to duplicate a
+     person; this is the same rule pointing back. Matching on name AND
+     programme meant that the moment the two sides named a programme
+     differently — after a transfer, or because the fee page prices intakes by
+     their key — the same trainee read as a stranger and a SECOND fee record
+     was minted for them, with no fee and no payments.
+
+     Unlike the dashboard, the fee page may hold a programme of its own, so
+     there is no training centre to satisfy here: being the same person is the
+     whole test.
+
+       feeMirrorTarget(student, feeStudents) -> { action: 'link'|'create'|'skip', match, reason } */
+  Core.feeMirrorTarget = function (student, feeStudents) {
+    var list = Array.isArray(feeStudents) ? feeStudents : [];
+    if (!student || !Core.normName(student.name)) {
+      return { action: 'skip', match: null, reason: 'no-name' };
+    }
+    var i;
+    for (i = 0; i < list.length; i++) {
+      if (list[i] && Core.isFeeTwin(student, list[i])) {
+        return { action: 'link', match: list[i], reason: 'twin' };
+      }
+    }
+    var want = Core.normName(student.name);
+    for (i = 0; i < list.length; i++) {
+      if (list[i] && Core.normName(list[i].name) === want) {
+        return { action: 'link', match: list[i], reason: 'same-person-other-programme' };
+      }
+    }
+    return { action: 'create', match: null, reason: 'ok' };
+  };
+
+  /* ==========================================================================
+     TRANSFERRING TRAINEES BETWEEN TRAINING CENTRES
+
+     A trainee sometimes has to be moved: a programme is re-run and the class
+     carries over, somebody was enrolled into the wrong intake, a centre is
+     being wound up. Moving them by hand means editing the same person in the
+     LMS, in their attendance, on their account and again in School Fee — and
+     whatever is missed leaves them half in one centre and half in another.
+
+     The move is one rule, applied to every list that names a centre. What
+     identifies a trainee's centre is the same everywhere: the intake key
+     stamped on them, then the centre id, then the programme name they carry
+     resolved as of the day they enrolled. What the move writes is the target
+     centre's stamps — key, id, name, dates, fiscal year — and the moment it
+     happened, so the timestamp merges keep the move instead of a stale copy
+     from another device undoing it.
+     ========================================================================== */
+  Core.transfer = (function () {
+    var E = Core.enrolment;
+
+    function nameOf(rec, field) {
+      return String((rec && rec[field]) == null ? '' : rec[field]).trim();
+    }
+
+    /* Is this record one of the centre's? Identity first, name last — a name
+       is what two intakes of a programme share, so it only ever settles a
+       record that carries no stamp at all. */
+    function belongsTo(rec, centre, opts) {
+      if (!rec || !centre) return false;
+      opts = opts || {};
+      var field = opts.field || 'course';
+      var key = E.centreKeyOf(centre);
+
+      if (rec.centreKey != null && String(rec.centreKey).trim() !== '') {
+        return E.centreKeyOf({ centreKey: rec.centreKey }) === key;
+      }
+      if (rec.centreId != null && centre.id != null) return String(rec.centreId) === String(centre.id);
+
+      var written = nameOf(rec, field) || nameOf(rec, 'course') || nameOf(rec, 'skillArea');
+      if (!written) return false;
+      var centres = Array.isArray(opts.centres) ? opts.centres : [centre];
+      var on = rec.enrolmentDate || rec.enrollmentDate || rec.enrollDate || rec.createdAt || '';
+      var found = null;
+      try { found = E.findCentre(centres, written, { on: on, today: opts.today, nowMs: opts.nowMs }); }
+      catch (e) { found = null; }
+      return !!found && E.centreKeyOf(found) === key;
+    }
+
+    /* Every record of `list` that belongs to `centre`. */
+    function traineesOf(list, centre, opts) {
+      if (!Array.isArray(list) || !centre) return [];
+      return list.filter(function (r) { return belongsTo(r, centre, opts); });
+    }
+
+    /* Write the target centre onto one record. Returns true when anything
+       actually changed, so a caller can tell a real move from a no-op. */
+    function place(rec, to, opts) {
+      if (!rec || !to) return false;
+      opts = opts || {};
+      var field = opts.field || 'course';
+      var name = opts.toName || E.centreLabel(to) || to.name || '';
+      var stamp = E.enrolmentStamp(to, rec.enrolmentDate || rec.enrollmentDate || rec.enrollDate || rec.createdAt) || {};
+      var before = {
+        name: nameOf(rec, field), key: rec.centreKey == null ? '' : String(rec.centreKey)
+      };
+      var changed = false;
+
+      if (name && rec[field] !== name) { rec[field] = name; changed = true; }
+      if (rec.centreId !== stamp.centreId) { rec.centreId = stamp.centreId; changed = true; }
+      if (rec.centreKey !== stamp.centreKey) { rec.centreKey = stamp.centreKey; changed = true; }
+      if (rec.centreName !== stamp.centreName) { rec.centreName = stamp.centreName; changed = true; }
+      if (rec.courseStart !== stamp.courseStart) { rec.courseStart = stamp.courseStart; changed = true; }
+      if (rec.courseEnd !== stamp.courseEnd) { rec.courseEnd = stamp.courseEnd; changed = true; }
+      if (stamp.fiscalYear && rec.fiscalYear !== stamp.fiscalYear) { rec.fiscalYear = stamp.fiscalYear; changed = true; }
+
+      if (changed) {
+        // Written down so the move survives every merge: the newest edit wins,
+        // and a device still holding the old centre cannot put it back.
+        var now = opts.now || new Date().toISOString();
+        rec.lastModified = now;
+        if (opts.stampUpdatedAt) rec.updatedAt = now;
+        rec.transferredAt = now;
+        rec.transferredFrom = opts.fromLabel || before.name || '';
+      }
+      return changed;
+    }
+
+    /* Move trainees from one centre to another, in place.
+         opts.field    'course' (LMS) or 'skillArea' (School Fee)
+         opts.ids      { id: true } — only these; omit to move every trainee
+         opts.idOf     how to read a record's id (default r.id)
+         opts.toName   the programme name to write (default the centre's label)
+         opts.centres  the full roster, so an unstamped record can be placed
+       Returns { moved, movedIds, checked }. */
+    function moveTrainees(list, from, to, opts) {
+      var out = { moved: 0, movedIds: [], checked: 0 };
+      if (!Array.isArray(list) || !from || !to) return out;
+      opts = opts || {};
+      if (E.centreKeyOf(from) === E.centreKeyOf(to)) return out;   // nowhere to go
+      var idOf = opts.idOf || function (r) { return r && r.id; };
+      var only = opts.ids || null;
+      var fromLabel = opts.fromLabel || E.centreLabel(from) || from.name || '';
+      var now = opts.now || new Date().toISOString();
+
+      list.forEach(function (rec) {
+        if (!rec) return;
+        if (only && !only[String(idOf(rec))]) return;
+        if (!belongsTo(rec, from, opts)) return;
+        out.checked++;
+        if (place(rec, to, { field: opts.field, toName: opts.toName, now: now,
+                             fromLabel: fromLabel, stampUpdatedAt: opts.stampUpdatedAt })) {
+          out.moved++;
+          out.movedIds.push(idOf(rec));
+        }
+      });
+      return out;
+    }
+
+    /* Rename the centre a record merely NAMES, without moving anybody: used for
+       the trainee-shaped rows that hang off a trainee (attendance, payments),
+       which are matched by the trainee's id rather than by their centre. */
+    function renameCourseFor(list, ids, toName, opts) {
+      var out = { moved: 0 };
+      if (!Array.isArray(list) || !ids || !toName) return out;
+      opts = opts || {};
+      var field = opts.field || 'course';
+      var idOf = opts.idOf || function (r) { return r && r.studentId; };
+      var now = opts.now || new Date().toISOString();
+      list.forEach(function (rec) {
+        if (!rec) return;
+        if (!ids[String(idOf(rec))]) return;
+        if (rec[field] === toName) return;
+        rec[field] = toName;
+        rec.lastModified = now;
+        out.moved++;
+      });
+      return out;
+    }
+
+    return { belongsTo: belongsTo, traineesOf: traineesOf, place: place,
+      moveTrainees: moveTrainees, renameCourseFor: renameCourseFor };
+  })();
+
   /* ==========================================================================
      TRANSCRIPT / GRADES ENGINE — shared logic for the Transcript & Grades
      system (admin editor, trainee live view, instructor view, PDF exports).

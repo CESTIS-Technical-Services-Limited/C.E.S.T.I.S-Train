@@ -9656,6 +9656,8 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Training Centres</div>
     <div class="nav-item" data-page="course-duration" onclick="showPage('course-duration')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>Course Duration</div>
+    <div class="nav-item" data-page="transfer-trainees" onclick="showPage('transfer-trainees')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="21" y1="3" x2="13" y2="11"/><polyline points="8 21 3 21 3 16"/><line x1="3" y1="21" x2="11" y2="13"/><path d="M21 14v5a2 2 0 0 1-2 2h-5"/><path d="M3 10V5a2 2 0 0 1 2-2h5"/></svg>Transfer Trainees</div>
     <div class="nav-item" data-page="enrolment-registers" onclick="showPage('enrolment-registers')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Enrolment Registers</div>
     <div class="nav-item" data-page="a-resources" onclick="showPage('a-resources')">
@@ -10239,6 +10241,7 @@ function showPage(pageId) {
   if(pg) pg.classList.add('active');
   // Keep the staff-appraisal due indicator fresh whenever the admin dashboard is shown
   if(pageId === 'dashboard') { try { if(typeof sappRenderAdminDueCard === 'function') sappRenderAdminDueCard(); } catch(e) {} }
+  if(pageId === 'transfer-trainees') { try { renderTransferTraineesPage(); } catch(e) { console.warn('[Transfer] render failed', e); } }
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const navItem = document.querySelector('.nav-item[data-page="'+pageId+'"]');
   if(navItem) {
@@ -10252,7 +10255,7 @@ function showPage(pageId) {
   }
   const titles = {
     dashboard:'Dashboard',video:'Video Conference',students:'Student Progress',
-    training:'Training Centres','course-duration':'Course / Training Centre Duration','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams','import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
+    training:'Training Centres','course-duration':'Course / Training Centre Duration','transfer-trainees':'Transfer Trainees','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams','import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
     reports:'Reports & Analytics','verify-users':'Verify Users',settings:'Settings',
     attendance:'Attendance Management',announcements:'Announcements',calendar:'Calendar & Schedule',
     's-dashboard':'My Dashboard','s-video':'My Classes','s-progress':'My Progress',
@@ -10533,6 +10536,12 @@ function buildAdminPages() {
   <section class="page" id="page-enrolment-registers">
     <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;">Download a printable HEART/NSTA-style CTI <strong>Enrolment Register</strong> (PDF) for any training centre. Each register is pre-filled with that course's enrolled students and details, with blank rows for completing by hand.</p>
     <div id="enrolmentRegistersContent"></div>
+  </section>
+
+  <!-- TRANSFER TRAINEES BETWEEN TRAINING CENTRES -->
+  <section class="page" id="page-transfer-trainees">
+    <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;">Move a trainee — or a whole class — from one training centre to another. The move follows them everywhere: their record here, their attendance, their user account and their <strong>School Fee</strong> record and payments. Each intake is listed by its own key, so moving into this year's intake never disturbs last year's.</p>
+    <div id="transferTraineesContent"></div>
   </section>
 
   <!-- COURSE / TRAINING CENTRE DURATION -->
@@ -19057,6 +19066,310 @@ function recomputeCourseStatuses(persist) {
     if (typeof refreshStudentDependentViews === 'function') { try { refreshStudentDependentViews(); } catch(e) {} }
   }
   return changed;
+}
+
+/* ==========================================================================
+   TRANSFER TRAINEES — move a trainee, or a whole class, to another centre.
+
+   Done by hand this means editing the same person in four places — here, in
+   their attendance, on their user account and again in School Fee — and
+   whatever is missed leaves them half in one centre and half in another. The
+   rule itself is shared (CESTISCore.transfer) so every list is moved the same
+   way, and every record it touches is stamped with the moment of the move, so
+   the merges keep it and a device still holding the old centre cannot undo it.
+   ========================================================================== */
+var _transferSelection = {};        // trainee id -> chosen
+
+function transferCentres() {
+  if (typeof skillAreas === 'undefined' || !Array.isArray(skillAreas)) return [];
+  return skillAreas.slice().sort(function (a, b) {
+    return centreDisplayName(a).localeCompare(centreDisplayName(b));
+  });
+}
+
+function transferCentreById(id) {
+  if (id == null || id === '') return null;
+  return (skillAreas || []).find(function (c) { return c && String(c.id) === String(id); }) || null;
+}
+
+// The fee page's own name for a centre: whichever spelling it has already
+// priced — its keyed label, or its bare name — so a moved trainee's tuition is
+// still found. Falls back to the label when the intake has no cost set yet.
+function transferFeeNameFor(centre) {
+  if (!centre) return '';
+  var label = centreDisplayName(centre);
+  var bare = centre.name || '';
+  var fee = {};
+  try { fee = JSON.parse(CESTISStore.getItem('cestiFeeStructure') || '{}') || {}; } catch (e) { fee = {}; }
+  var keys = Object.keys(fee);
+  var norm = function (v) { return String(v == null ? '' : v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); };
+  for (var i = 0; i < keys.length; i++) if (norm(keys[i]) === norm(label)) return keys[i];
+  for (var j = 0; j < keys.length; j++) if (norm(keys[j]) === norm(bare)) return keys[j];
+  return label;
+}
+
+function feeStudentsStored() {
+  try { return JSON.parse(CESTISStore.getItem('cestiSchoolFeeStudents') || '[]') || []; } catch (e) { return []; }
+}
+function feePaymentsStored() {
+  try { return JSON.parse(CESTISStore.getItem('cestiSchoolFeePayments') || '[]') || []; } catch (e) { return []; }
+}
+
+function renderTransferTraineesPage() {
+  var el = document.getElementById('transferTraineesContent');
+  if (!el) return;
+  if (currentRole !== 'admin') {
+    el.innerHTML = '<div class="card" style="padding:20px;">Only administrators can transfer trainees.</div>';
+    return;
+  }
+  try { CESTISCore.enrolment.assignCentreKeys(skillAreas); } catch (e) {}
+
+  var centres = transferCentres();
+  if (!centres.length) {
+    el.innerHTML = '<div class="card" style="padding:20px;">There are no training centres yet. Create one under <strong>Training Centres</strong> first.</div>';
+    return;
+  }
+
+  var fromSel = document.getElementById('transferFrom');
+  var toSel = document.getElementById('transferTo');
+  var fromId = fromSel ? fromSel.value : (centres[0] ? centres[0].id : '');
+  var toId = toSel ? toSel.value : '';
+
+  var opt = function (c, sel) {
+    var st = CESTISCore.courseDuration.status(c.startDate, c.endDate);
+    var tag = st === 'ended' ? ' — ended' : (st === 'not-started' ? ' — not started' : (st === 'no-dates' ? ' — no dates' : ''));
+    return '<option value="' + c.id + '"' + (String(c.id) === String(sel) ? ' selected' : '') + '>' +
+      escapeHtml(centreDisplayName(c)) + escapeHtml(tag) + '</option>';
+  };
+
+  el.innerHTML =
+    '<div class="card" style="padding:20px;margin-bottom:16px;">' +
+      '<div class="grid-2" style="gap:16px;align-items:end;">' +
+        '<div><label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;">Transfer FROM</label>' +
+          '<select class="form-control" id="transferFrom" onchange="onTransferFromChanged()">' +
+            centres.map(function (c) { return opt(c, fromId); }).join('') + '</select></div>' +
+        '<div><label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;">Transfer TO</label>' +
+          '<select class="form-control" id="transferTo" onchange="renderTransferCandidates()">' +
+            '<option value="">— Select the receiving training centre —</option>' +
+            centres.map(function (c) { return opt(c, toId); }).join('') + '</select></div>' +
+      '</div>' +
+      '<div id="transferSummary" style="margin-top:14px;font-size:13px;color:var(--text-secondary);"></div>' +
+      '<div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">' +
+        '<button class="btn btn-primary" id="transferSelectedBtn" onclick="transferSelectedTrainees()">Transfer selected</button>' +
+        '<button class="btn btn-secondary" id="transferAllBtn" onclick="transferAllTrainees()">Transfer ALL trainees</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="card" style="padding:0;overflow:hidden;">' +
+      '<div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">' +
+        '<strong id="transferListTitle">Trainees</strong>' +
+        '<label style="font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;cursor:pointer;">' +
+          '<input type="checkbox" id="transferSelectAll" onchange="toggleTransferSelectAll(this.checked)"> Select all</label>' +
+      '</div>' +
+      '<div id="transferCandidates" style="max-height:520px;overflow:auto;"></div>' +
+    '</div>';
+
+  renderTransferCandidates();
+}
+
+function onTransferFromChanged() {
+  _transferSelection = {};
+  renderTransferCandidates();
+}
+
+// Everyone the FROM centre holds — on this dashboard and on the fee page.
+function transferCandidates(from) {
+  var opts = { field: 'course', centres: skillAreas, nowMs: Date.now() };
+  var lms = CESTISCore.transfer.traineesOf(Array.isArray(students) ? students : [], from, opts);
+  var fee = CESTISCore.transfer.traineesOf(feeStudentsStored(), from,
+    { field: 'skillArea', centres: skillAreas, nowMs: Date.now() });
+  var byName = {};
+  lms.forEach(function (s) { byName[CESTISCore.normName(s.name)] = true; });
+  var feeOnly = fee.filter(function (f) { return !byName[CESTISCore.normName(f.name)]; });
+  return { lms: lms, fee: fee, feeOnly: feeOnly };
+}
+
+function renderTransferCandidates() {
+  var list = document.getElementById('transferCandidates');
+  var summary = document.getElementById('transferSummary');
+  var title = document.getElementById('transferListTitle');
+  if (!list) return;
+  var from = transferCentreById((document.getElementById('transferFrom') || {}).value);
+  var to = transferCentreById((document.getElementById('transferTo') || {}).value);
+  if (!from) { list.innerHTML = ''; return; }
+
+  var found = transferCandidates(from);
+  if (title) title.textContent = 'Trainees in ' + centreDisplayName(from);
+
+  var rows = found.lms.map(function (s) {
+    var checked = _transferSelection[String(s.id)] ? ' checked' : '';
+    return '<label style="display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--border);cursor:pointer;">' +
+      '<input type="checkbox" data-transfer-id="' + escapeHtml(String(s.id)) + '"' + checked +
+        ' onchange="setTransferSelected(this.getAttribute(\'data-transfer-id\'), this.checked)">' +
+      '<span style="flex:1;"><strong>' + escapeHtml(s.name || '(unnamed)') + '</strong>' +
+        '<span style="color:var(--text-muted);font-size:12px;"> · ' + escapeHtml(String(s.id)) + '</span></span>' +
+      '<span class="badge badge-blue" style="font-size:11px;">' + escapeHtml(stageLabels[s.stage] || s.stage || '—') + '</span>' +
+    '</label>';
+  }).join('');
+
+  list.innerHTML = rows || '<div style="padding:18px;color:var(--text-muted);font-size:13px;">No trainees are held by this training centre.</div>';
+
+  if (summary) {
+    var chosen = found.lms.filter(function (s) { return _transferSelection[String(s.id)]; }).length;
+    var bits = [found.lms.length + ' trainee' + (found.lms.length === 1 ? '' : 's') + ' here',
+                found.fee.length + ' School Fee record' + (found.fee.length === 1 ? '' : 's')];
+    if (found.feeOnly.length) bits.push(found.feeOnly.length + ' of them fee-only');
+    var text = bits.join(' · ') + '. ' + chosen + ' selected.';
+    if (to && CESTISCore.enrolment.centreKeyOf(to) === CESTISCore.enrolment.centreKeyOf(from)) {
+      text += ' Choose a different centre to transfer into.';
+    } else if (to) {
+      text += ' Receiving: ' + centreDisplayName(to) + '.';
+    } else {
+      text += ' Choose the receiving centre above.';
+    }
+    summary.textContent = text;
+  }
+}
+
+function setTransferSelected(id, on) {
+  if (on) _transferSelection[String(id)] = true; else delete _transferSelection[String(id)];
+  renderTransferCandidates();
+}
+
+function toggleTransferSelectAll(on) {
+  var from = transferCentreById((document.getElementById('transferFrom') || {}).value);
+  if (!from) return;
+  _transferSelection = {};
+  if (on) transferCandidates(from).lms.forEach(function (s) { _transferSelection[String(s.id)] = true; });
+  renderTransferCandidates();
+  var box = document.getElementById('transferSelectAll');
+  if (box) box.checked = !!on;
+}
+
+function transferSelectedTrainees() {
+  var ids = Object.keys(_transferSelection);
+  if (!ids.length) { alert('Select the trainees to transfer, or use "Transfer ALL trainees".'); return; }
+  var only = {};
+  ids.forEach(function (id) { only[id] = true; });
+  runTraineeTransfer(only);
+}
+
+function transferAllTrainees() { runTraineeTransfer(null); }
+
+/* Move them, everywhere. `only` is a map of trainee ids, or null for everyone
+   the centre holds. */
+function runTraineeTransfer(only) {
+  if (currentRole !== 'admin') { alert('Only administrators can transfer trainees.'); return; }
+  var from = transferCentreById((document.getElementById('transferFrom') || {}).value);
+  var to = transferCentreById((document.getElementById('transferTo') || {}).value);
+  if (!from) { alert('Choose the training centre to transfer from.'); return; }
+  if (!to) { alert('Choose the training centre to transfer into.'); return; }
+  if (CESTISCore.enrolment.centreKeyOf(from) === CESTISCore.enrolment.centreKeyOf(to)) {
+    alert('That is the same training centre. Choose a different one to transfer into.');
+    return;
+  }
+
+  var found = transferCandidates(from);
+  var movingLms = only ? found.lms.filter(function (s) { return only[String(s.id)]; }) : found.lms;
+  var names = {};
+  movingLms.forEach(function (s) { names[CESTISCore.normName(s.name)] = true; });
+  var movingFee = only
+    ? found.fee.filter(function (f) { return names[CESTISCore.normName(f.name)]; })
+    : found.fee;
+
+  if (!movingLms.length && !movingFee.length) {
+    alert('There is nobody to transfer from ' + centreDisplayName(from) + '.');
+    return;
+  }
+
+  var toEnded = CESTISCore.courseDuration.status(to.startDate, to.endDate) === 'ended';
+  var msg = 'Transfer ' + (only ? movingLms.length + ' selected trainee(s)' : 'EVERY trainee') +
+    '\n\nfrom:  ' + centreDisplayName(from) +
+    '\ninto:  ' + centreDisplayName(to) + '\n\n' +
+    'This moves them here, in their attendance, on their user account, and in School Fee' +
+    (movingFee.length ? ' (' + movingFee.length + ' fee record(s) and their payments)' : '') + '.' +
+    (toEnded ? '\n\nNote: that course has ENDED, so they will be marked Not Yet Competent.' : '') +
+    '\n\nContinue?';
+  if (!confirm(msg)) return;
+
+  var now = new Date().toISOString();
+  var fromLabel = centreDisplayName(from);
+  var movedIds = {};
+
+  // 1. This dashboard's trainees.
+  var onlyLms = only || null;
+  var resLms = CESTISCore.transfer.moveTrainees(students, from, to, {
+    field: 'course', ids: onlyLms, centres: skillAreas, now: now,
+    toName: to.name || '', fromLabel: fromLabel
+  });
+  resLms.movedIds.forEach(function (id) { movedIds[String(id)] = true; });
+
+  // 2. Their attendance follows them — it is filed under the course name.
+  var resAtt = { moved: 0 };
+  if (Array.isArray(attendanceRecords)) {
+    resAtt = CESTISCore.transfer.renameCourseFor(attendanceRecords, movedIds, to.name || '',
+      { field: 'course', idOf: function (r) { return r && r.studentId; }, now: now });
+  }
+
+  // 3. Their user account's programme.
+  var accounts = 0;
+  if (Array.isArray(userAccounts)) {
+    userAccounts.forEach(function (u) {
+      if (!u || u.role !== 'student') return;
+      var mine = movedIds[String(u.studentDataId)] ||
+        movingLms.some(function (s) { return CESTISCore.normName(s.name) === CESTISCore.normName(u.name); });
+      if (!mine) return;
+      if (u.programme !== (to.name || '')) { u.programme = to.name || ''; accounts++; }
+    });
+  }
+
+  // 4. School Fee: the trainee's fee record and every payment on it.
+  var feeMoved = 0, payMoved = 0;
+  try {
+    var feeList = feeStudentsStored();
+    var feeName = transferFeeNameFor(to);
+    var feeIds = {};
+    var resFee = CESTISCore.transfer.moveTrainees(feeList, from, to, {
+      field: 'skillArea', centres: skillAreas, now: now, toName: feeName,
+      fromLabel: fromLabel, stampUpdatedAt: true,
+      ids: only ? (function () {
+        var m = {};
+        feeList.forEach(function (f) { if (f && names[CESTISCore.normName(f.name)]) m[String(f.id)] = true; });
+        return m;
+      })() : null
+    });
+    feeMoved = resFee.moved;
+    resFee.movedIds.forEach(function (id) { feeIds[String(id)] = true; });
+    if (feeMoved) {
+      CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(feeList));
+      var payList = feePaymentsStored();
+      var resPay = CESTISCore.transfer.renameCourseFor(payList, feeIds, feeName,
+        { field: 'skillArea', idOf: function (r) { return r && r.studentId; }, now: now });
+      payMoved = resPay.moved;
+      if (payMoved) CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payList));
+    }
+  } catch (e) { console.warn('[Transfer] School Fee update failed', e); }
+
+  // 5. Write it all down, then let every view catch up.
+  updateSkillAreaCounts();
+  recomputeCourseStatuses(false);      // the receiving course decides their status
+  saveState();                         // persists locally AND pushes to the cloud
+  try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch (e) {}
+  _transferSelection = {};
+  if (typeof refreshStudentDependentViews === 'function') { try { refreshStudentDependentViews(); } catch (e) {} }
+  renderSkills();
+  renderTransferTraineesPage();
+
+  var done = resLms.moved + ' trainee(s) moved to ' + centreDisplayName(to);
+  showToast(done + '.');
+  addNotification('Trainees transferred: ' + resLms.moved + ' from ' + fromLabel + ' to ' +
+    centreDisplayName(to) + (feeMoved ? ' (' + feeMoved + ' School Fee record(s))' : ''),
+    'system', null, ['admin']);
+  alert('✅ ' + done + '.\n\n' +
+    'Attendance rows updated: ' + resAtt.moved + '\n' +
+    'User accounts updated: ' + accounts + '\n' +
+    'School Fee records moved: ' + feeMoved + '\n' +
+    'Payments re-filed: ' + payMoved + '\n\n' +
+    'Saved on this device and queued for the cloud.');
 }
 
 // ---- Course Duration admin page ----
@@ -44872,14 +45185,16 @@ function ttRefreshOnShow(){
         if (tombstones.indexOf(vs.id) !== -1) return; // deleted in School Fee; don't resurrect
 
         var prof = profiles[vs.id] || {};
-        var existing = fee.find(function(f){ return f && (
-          window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function'
-            ? CESTISCore.isFeeTwin(vs, f)
-            : (f.lmsId === vs.id ||
-               f.id === vs.id ||
-               (norm(f.name) === norm(vs.name) &&
-                 (!f.skillArea || !vs.course || norm(f.skillArea) === norm(vs.course))))
-        ); });
+        // The shared rule (CESTISCore.feeMirrorTarget): a person the fee page
+        // already holds is linked, never duplicated — matching on the programme
+        // as well as the name minted a second, fee-less record for the same
+        // trainee the moment the two sides named their programme differently
+        // (after a transfer, or because the fee page prices intakes by key).
+        var _fmt = (window.CESTISCore && typeof CESTISCore.feeMirrorTarget === 'function')
+          ? CESTISCore.feeMirrorTarget(vs, fee)
+          : { action: 'create', match: null };
+        if (_fmt.action === 'skip') return;
+        var existing = _fmt.match;
 
         if (existing){
           if (existing.lmsId !== vs.id){ existing.lmsId = vs.id; changed = true; }
