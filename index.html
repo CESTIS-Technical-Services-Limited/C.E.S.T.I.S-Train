@@ -18171,6 +18171,15 @@ var CESTIS_SHARED_COLLECTIONS = {
   // here, so the key is listed to trigger the refresh below.
   voctrain_deletedCentreIds:    function(){}
 };
+// The School Fee roll changed in another document (the fee page in its iframe,
+// another tab, a sync). The mirror rate-limits itself, so tell it the roll it
+// remembers is stale rather than leaving it to notice up to a second later.
+window.addEventListener('storage', function(e) {
+  if (e && e.key === 'cestiSchoolFeeStudents') {
+    try { invalidateFeeMirrorCache(); } catch(err) {}
+  }
+});
+
 var _cestisExternalReload = null;
 window.addEventListener('storage', function(e) {
   if(!e.key || !CESTIS_SHARED_COLLECTIONS[e.key]) return;
@@ -18299,8 +18308,12 @@ function renderStudents(data) {
   const tbody = document.getElementById('studentTableBody');
   if(!tbody) return;
   if(!data || !Array.isArray(data)) { data = []; }
+  // Row positions resolved from one index rather than students.indexOf() per
+  // row, which walked the whole roster again for every row it drew.
+  var _posOf = new Map();
+  for (var _i = 0; _i < students.length; _i++) if (!_posOf.has(students[_i])) _posOf.set(students[_i], _i);
   tbody.innerHTML = data.map(s => {
-    var idx = students.indexOf(s);
+    var idx = _posOf.has(s) ? _posOf.get(s) : students.indexOf(s);
     var prog = s.progress || 0;
     return `<tr><td><strong>${s.name||'Unknown'}</strong></td><td style="font-family:monospace;font-size:12px;color:var(--text-muted);">${s.id||'—'}</td><td>${s.course||'—'}</td>
     <td><span class="badge ${stageBadge[s.stage]||'badge-blue'}"><span class="badge-dot"></span>${stageLabels[s.stage]||s.stage||'—'}</span></td><td>${s.score||'—'}</td>
@@ -18315,11 +18328,36 @@ function renderStudents(data) {
 // into the Student Progress list. The fee page runs in an iframe, so its own
 // push may not have fired; this guarantees fee students appear on the dashboard
 // whether or not the fee page has been opened, and without needing cloud sync.
-function syncStudentsFromLocalFeeSystem() {
+// The fee roll this mirror last worked through, and when. filterStudents()
+// calls the mirror on its way in, and filterStudents() runs on every keystroke
+// in the student search box and on every refresh — so this ran a full
+// localStorage read, a JSON.parse of the entire fee roll and a
+// roster-times-roll scan between one letter and the next. Re-mirroring a roll
+// that has not changed cannot produce anything, so it is skipped outright.
+var _feeMirrorLastRaw = null;
+var _feeMirrorCheckedAt = 0;
+var FEE_MIRROR_MIN_INTERVAL_MS = 1000;
+// Called when the fee store is known to have changed (its storage event, an
+// iframe message, a sync), so the next mirror really does re-read it.
+function invalidateFeeMirrorCache() { _feeMirrorLastRaw = null; _feeMirrorCheckedAt = 0; }
+
+function syncStudentsFromLocalFeeSystem(force) {
   try {
     if (!Array.isArray(students)) return false;
+    // Reading the fee roll is itself expensive — it is one of the biggest
+    // values in the store — so on a burst of calls it is read at most once a
+    // second unless the caller insists.
+    var now = Date.now();
+    if (!force && _feeMirrorLastRaw !== null && (now - _feeMirrorCheckedAt) < FEE_MIRROR_MIN_INTERVAL_MS) {
+      return false;
+    }
+    _feeMirrorCheckedAt = now;
     var raw = CESTISStore.getItem('cestiSchoolFeeStudents');
-    if (!raw) return false;
+    if (!raw) { _feeMirrorLastRaw = ''; return false; }
+    // Byte-for-byte the roll we already mirrored: nothing to do, and crucially
+    // no parse and no scan.
+    if (!force && raw === _feeMirrorLastRaw) return false;
+    _feeMirrorLastRaw = raw;
     var feeStudents = [];
     try { feeStudents = JSON.parse(raw) || []; } catch(e) { return false; }
     if (!Array.isArray(feeStudents) || feeStudents.length === 0) return false;
@@ -18334,6 +18372,11 @@ function syncStudentsFromLocalFeeSystem() {
 
     var existingIds = {};
     students.forEach(function(s){ if(s) existingIds[s.id] = true; });
+
+    // One index over the roster, instead of scanning the whole roster twice for
+    // every fee record. It is kept current as records are added below, so a
+    // roll that mentions the same person twice still only creates them once.
+    var twins = CESTISCore.twinIndex(students);
 
     var norm = function(v){ return (v==null?'':String(v)).trim(); };
     var changed = false;
@@ -18359,8 +18402,7 @@ function syncStudentsFromLocalFeeSystem() {
       // BEFORE the id/name tests below: a rename on either side leaves the two
       // records disagreeing on both, and adding "again" would split one trainee
       // into two.
-      if (window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function' &&
-          students.some(function(x){ return x && CESTISCore.isFeeTwin(x, fee); })) return;
+      if (twins.find(fee)) return;
       if (deleted[studentId]) return;                 // removed on the dashboard
       if (feeSid && deleted[feeSid]) return;          // tombstoned under its stable id
       if (deleted['SF-' + norm(fee.id)]) return;      // tombstoned under the fee twin id
@@ -18377,6 +18419,7 @@ function syncStudentsFromLocalFeeSystem() {
           enrollmentDate: fee.enrollmentDate || fee.enrolmentDate || fee.createdAt || '' },
         students, (typeof skillAreas !== 'undefined' && Array.isArray(skillAreas)) ? skillAreas : [],
         { findCentre: CESTISCore.enrolment.findCentre,
+          twinIndex: twins,
           on: fee.enrollmentDate || fee.enrolmentDate || fee.createdAt || '' }
       );
       if (_t.action !== 'create') return;
@@ -18387,7 +18430,10 @@ function syncStudentsFromLocalFeeSystem() {
         ? instructorData.find(function(ins){ return ins.course === course; }) : null;
       if (matchedInstructor) assignedInstructor = matchedInstructor.name;
 
-      students.push({
+      // Added through the index (which pushes onto `students` itself), so the
+      // rest of this roll sees them and a person listed twice in the fee roll
+      // is still only created once.
+      var _newStudent = {
         id: studentId,
         schoolFeeId: norm(fee.id),
         name: name,
@@ -18407,7 +18453,9 @@ function syncStudentsFromLocalFeeSystem() {
         createdAt: localDateStr(),
         instructor: assignedInstructor,
         source: 'schoolfee'
-      });
+      };
+      twins.add(_newStudent);
+      existingIds[studentId] = true;
 
       // Create a linked disabled user account carrying the student's programme
       // so they are auto-associated with the matching Training Centre (skill
@@ -18479,18 +18527,28 @@ function filterStudents() {
   const course = document.getElementById('filterCourse')?.value;
   const search = (document.getElementById('studentSearch')?.value || '').toLowerCase().trim();
   if(stage && stage!=='all') filtered = filtered.filter(s => s.stage===stage);
-  if(course && course!=='all') filtered = filtered.filter(function(s) {
-    if(!s.course) return false;
-    // Exact match first
-    if(s.course === course) return true;
-    // Case-insensitive match
-    if(s.course.toLowerCase().trim() === course.toLowerCase().trim()) return true;
-    // Skill area ID match (handles renamed courses)
-    var studentSkill = findSkillAreaForCourse(s.course);
-    var filterSkill = findSkillAreaForCourse(course);
-    if(studentSkill && filterSkill && studentSkill.id && filterSkill.id && studentSkill.id === filterSkill.id) return true;
-    return false;
-  });
+  if(course && course!=='all') {
+    // Resolved ONCE, not once per row: findSkillAreaForCourse() scans the
+    // training centres and normalises names, and the filter's own course does
+    // not change between rows. Each student's centre is memoised too, since a
+    // roll of hundreds shares a handful of programmes.
+    var _filterCourseLower = course.toLowerCase().trim();
+    var _filterSkill = findSkillAreaForCourse(course);
+    var _skillByCourse = new Map();
+    filtered = filtered.filter(function(s) {
+      if(!s.course) return false;
+      // Exact match first
+      if(s.course === course) return true;
+      // Case-insensitive match
+      if(s.course.toLowerCase().trim() === _filterCourseLower) return true;
+      // Skill area ID match (handles renamed courses)
+      if(!_filterSkill || !_filterSkill.id) return false;
+      var studentSkill;
+      if(_skillByCourse.has(s.course)) studentSkill = _skillByCourse.get(s.course);
+      else { studentSkill = findSkillAreaForCourse(s.course); _skillByCourse.set(s.course, studentSkill); }
+      return !!(studentSkill && studentSkill.id && studentSkill.id === _filterSkill.id);
+    });
+  }
   if(search) filtered = filtered.filter(function(s) {
     // Search by name, ID, or course
     var name = (s.name || '').toLowerCase();
@@ -45632,11 +45690,18 @@ function ttRefreshOnShow(){
       var fee = readArr('cestiSchoolFeeStudents');
       var profiles = (typeof studentProfiles !== 'undefined' && studentProfiles) ? studentProfiles : {};
       var tombstones = readArr('cestiSchoolFeeDeletedLmsIds'); // lms ids whose fee twin was deleted in School Fee
+      var tombstoned = new Set(tombstones);                    // looked up once per student, not scanned
       var changed = false;
+
+      // One index over the fee roll. This mirror runs on EVERY save, once per
+      // student, and without it each student cost two scans of the whole roll
+      // with a name normalisation on every comparison — roster times roll, on
+      // every change the user makes.
+      var feeTwins = CESTISCore.feeTwinIndex(fee);
 
       students.forEach(function(vs){
         if (!vs || !vs.name) return;
-        if (tombstones.indexOf(vs.id) !== -1) return; // deleted in School Fee; don't resurrect
+        if (tombstoned.has(vs.id)) return; // deleted in School Fee; don't resurrect
 
         var prof = profiles[vs.id] || {};
         // The shared rule (CESTISCore.feeMirrorTarget): a person the fee page
@@ -45645,7 +45710,7 @@ function ttRefreshOnShow(){
         // trainee the moment the two sides named their programme differently
         // (after a transfer, or because the fee page prices intakes by key).
         var _fmt = (window.CESTISCore && typeof CESTISCore.feeMirrorTarget === 'function')
-          ? CESTISCore.feeMirrorTarget(vs, fee)
+          ? CESTISCore.feeMirrorTarget(vs, fee, { index: feeTwins })
           : { action: 'create', match: null };
         if (_fmt.action === 'skip') return;
         var existing = _fmt.match;
@@ -45676,7 +45741,9 @@ function ttRefreshOnShow(){
 
         // No match: create a School Fee record mirroring the dashboard student.
         // Fee/personal fields are left blank for the user to complete there.
-        fee.push({
+        // Added through the index (which appends to `fee` itself) so the rest of
+        // this pass sees it and a name listed twice is not mirrored twice.
+        feeTwins.add({
           id: vs.id,
           lmsId: vs.id,
           name: vs.name,
@@ -45798,7 +45865,9 @@ function ttRefreshOnShow(){
       if (!d || d.type !== 'cestis-fee-students' || !Array.isArray(d.students)) return;
       CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(d.students));
       var added = false;
-      if (typeof syncStudentsFromLocalFeeSystem === 'function') added = syncStudentsFromLocalFeeSystem();
+      // Forced: the fee page has just told us its roll changed, so this must not
+      // be held back by the mirror's rate limit.
+      if (typeof syncStudentsFromLocalFeeSystem === 'function') added = syncStudentsFromLocalFeeSystem(true);
       // Pull edits (notably renames) made on the fee page into the dashboard's
       // in-memory list, so the next saveState() doesn't write the old name back.
       try { if (typeof enrolSyncFeeEditsIntoLms === 'function') enrolSyncFeeEditsIntoLms(); } catch(e){}
