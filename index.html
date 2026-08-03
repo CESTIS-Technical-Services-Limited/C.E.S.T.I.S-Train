@@ -6782,6 +6782,30 @@ function loadState() {
     // here came straight back the next time a cloud copy (or another tab) was
     // merged in — and with it, its entry in every course dropdown.
     if(Array.isArray(sa)) skillAreas = CESTISCore.catalogue.liveCentres(sa, CESTISStore);
+    // Stamp an intake key on any centre that has none, and WRITE IT DOWN, here
+    // — before a single count is taken from the roll.
+    //
+    // This used to happen only when somebody opened Course Duration or Transfer
+    // Trainees, and it was never saved, so the keys were re-derived from
+    // scratch on every load against whatever roster happened to be present.
+    // Two things followed. Until one of those pages had been opened, centres
+    // made with "+ Add Training Centre" had no key at all — and an unkeyed
+    // centre counted nobody on its card while holding everybody on the Transfer
+    // page (see enrolment.centreIdentity). That is why the cards read 0, and
+    // why coming back from Course Duration "corrected" them. And because the
+    // numbering was redone each time against a roster that differs between
+    // devices, the same centre could be '01' here and '02' there, so the
+    // centreKey stamped on a trainee pointed at a different programme on each
+    // machine and every sync swapped the rolls over.
+    //
+    // Assigned once, saved, and thereafter a no-op: a centre that carries a key
+    // is never renumbered, so nothing already stamped on a trainee can move.
+    try {
+      if (CESTISCore.enrolment.assignCentreKeys(skillAreas) > 0) {
+        saveCollection('voctrain_skillAreas', skillAreas);
+        console.log('[loadState] Stamped intake keys on training centres that had none');
+      }
+    } catch(e) { console.warn('[loadState] centre keys:', e); }
     var dhf = safeJsonParse(CESTISStore.getItem('voctrain_documentHubFiles'), null);
     if(Array.isArray(dhf)) documentHubFiles = dhf;
     // Load certTemplateCourseMap (modified by course renames)
@@ -19494,8 +19518,14 @@ function normalizeCourseDurations() {
   // Every training centre carries an intake key of its own — '01', '02', … —
   // so a programme run a second time is a plainly different centre and cannot
   // claim the first intake's trainees. Idempotent: a centre that has one keeps
-  // it.
-  try { CESTISCore.enrolment.assignCentreKeys(skillAreas); } catch (e) {}
+  // it. Normally loadState() has already done this and saved it; a key stamped
+  // here is one on a centre created since, and it is written down rather than
+  // left to be re-derived — a key that is worked out afresh on each load can
+  // come out differently on each device, and the trainees stamped with it then
+  // drift between programmes.
+  try {
+    if (CESTISCore.enrolment.assignCentreKeys(skillAreas) > 0) saveCollection('voctrain_skillAreas', skillAreas);
+  } catch (e) {}
   skillAreas.forEach(function(sk) {
     if (!sk) return;
     if (typeof sk.startDate !== 'string') sk.startDate = '';
@@ -19555,11 +19585,15 @@ function studentCentreRecord(s) {
   // The intake key stamped at enrolment. This is what keeps a trainee with the
   // intake they actually sat in when the Centre runs the programme again under
   // the same name.
-  if (s.centreKey != null && String(s.centreKey) !== '') {
+  if (s.centreKey != null && String(s.centreKey).trim() !== '') {
     var byKey = null;
     try {
       var want = CESTISCore.enrolment.centreKeyOf({ centreKey: s.centreKey });
-      byKey = skillAreas.find(function(a){ return a && CESTISCore.enrolment.centreKeyOf(a) === want; });
+      // A key that normalises to nothing must match nothing. Without the guard
+      // it matched the first centre that had no key either, and the trainee was
+      // silently attributed to whichever programme happened to sit first in the
+      // list — a different one on every device.
+      if (want) byKey = skillAreas.find(function(a){ return a && CESTISCore.enrolment.centreKeyOf(a) === want; });
     } catch (e) { byKey = null; }
     if (byKey) return byKey;
   }
@@ -19683,7 +19717,13 @@ function releaseMisStampedIntakes() {
     delete s.centreName;
     delete s.courseStart;
     delete s.courseEnd;
-    s.lastModified = new Date().toISOString();
+    // NOT stamped as an edit. This runs on every load and works the release out
+    // from the trainee's own dates and their intake's, so every device reaches
+    // the same answer on its own — it never needs to travel. Stamping it made a
+    // device that had merely been OPENED the newest writer of that record, so
+    // its derived copy beat a real edit somebody had made elsewhere, and two
+    // devices loading in turn pushed the trainee back and forth between intakes
+    // for as long as both stayed open. That is the drift.
     n++;
   });
   return n;
@@ -19725,7 +19765,10 @@ function alignProgrammeTextToIntake() {
     if (s.course === centre.name) return;
     s.course = centre.name;
     s.centreName = centre.name;
-    s.lastModified = new Date().toISOString();
+    // NOT stamped as an edit, for the same reason as releaseMisStampedIntakes
+    // above: the text is DERIVED from the stamp the trainee already carries, so
+    // every device works out the same words without being told. Stamping it
+    // made simply opening the dashboard outrank a real edit made elsewhere.
     n++;
   });
   return n;
@@ -19903,7 +19946,12 @@ function renderTransferTraineesPage() {
     el.innerHTML = '<div class="card" style="padding:20px;">Only administrators can transfer trainees.</div>';
     return;
   }
-  try { CESTISCore.enrolment.assignCentreKeys(skillAreas); } catch (e) {}
+  // Saved, not just held in memory — see loadState(): a key that is re-derived
+  // on each load can differ between devices, and then so does the centre a
+  // trainee's stamp points at.
+  try {
+    if (CESTISCore.enrolment.assignCentreKeys(skillAreas) > 0) saveCollection('voctrain_skillAreas', skillAreas);
+  } catch (e) {}
 
   var centres = transferCentres();
   if (!centres.length) {
