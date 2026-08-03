@@ -4005,11 +4005,12 @@
                 if (!feeStructure || typeof feeStructure !== 'object') return false;
                 var centreNames = {};
                 try {
-                    var raw = CESTISStore.getItem('voctrain_skillAreas');
-                    var areas = raw ? JSON.parse(raw) : [];
-                    if (Array.isArray(areas)) {
-                        areas.forEach(function (a) { if (a && a.name) centreNames[feeNameKey(a.name)] = String(a.name); });
-                    }
+                    // Only LIVE centres get to decide the canonical spelling: a
+                    // deleted centre must not pull a priced programme back onto
+                    // its name.
+                    feeTrainingCentres().forEach(function (a) {
+                        if (a && a.name) centreNames[feeNameKey(a.name)] = String(a.name);
+                    });
                 } catch (e) {}
 
                 var byName = {};                     // comparison key -> kept spelling
@@ -4125,8 +4126,9 @@
         function normalizeFeeKeysToVoctrain() {
             try {
                 if (!feeStructure || typeof feeStructure !== 'object') return false;
-                var raw = CESTISStore.getItem('voctrain_skillAreas');
-                var areas = raw ? JSON.parse(raw) : [];
+                // Live centres only: a deleted one must not be treated as the
+                // canonical spelling for a programme priced here.
+                var areas = feeTrainingCentres();
                 if (!Array.isArray(areas) || !areas.length) return false; // nothing to align to yet
 
                 // canonical: lowercased+trimmed VocTrain name -> exact VocTrain name
@@ -4235,8 +4237,9 @@
         // skillAreas, shared via voctrain_skillAreas). Excludes ended courses.
         function getVoctrainActiveCourses() {
             try {
-                var raw = CESTISStore.getItem('voctrain_skillAreas');
-                var areas = raw ? JSON.parse(raw) : [];
+                // feeTrainingCentres() already drops deleted centres, so one that
+                // has been removed on the LMS side is never suggested here.
+                var areas = feeTrainingCentres();
                 if (!Array.isArray(areas)) return [];
                 return areas.filter(function(s){
                     if (!s || !s.name) return false;
@@ -5085,7 +5088,10 @@
             // stale roster after the LMS created a centre or ended a course.
             if (['cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDocuments',
                  'cestiSchoolFeeDeletedLmsIds', 'voctrain_students', 'voctrain_deletedStudentIds',
-                 'voctrain_skillAreas']
+                 // A training centre deleted on the LMS dashboard writes its
+                 // tombstone here; without watching it this page kept offering
+                 // the centre until a full reload.
+                 'voctrain_skillAreas', 'voctrain_deletedCentreIds']
                 .indexOf(ev.key) === -1) return;
             if (_feeExternalReload) clearTimeout(_feeExternalReload);
             _feeExternalReload = setTimeout(function () {
@@ -6379,7 +6385,12 @@
             try {
                 var raw = CESTISStore.getItem('voctrain_skillAreas');
                 var areas = raw ? JSON.parse(raw) : [];
-                return Array.isArray(areas) ? areas : [];
+                if (!Array.isArray(areas)) return [];
+                // Read through the shared catalogue, so a training centre deleted
+                // on the LMS dashboard is gone here too. Without this the fee page
+                // went on pricing and enrolling into a centre that no longer
+                // existed anywhere else in the system.
+                return CESTISCore.catalogue.liveCentres(areas, CESTISStore);
             } catch (e) { return []; }
         }
 
