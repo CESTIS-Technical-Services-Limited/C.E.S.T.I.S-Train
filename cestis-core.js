@@ -2238,6 +2238,146 @@
     };
   })();
 
+  /* ==========================================================================
+     Core.catalogue — the one answer to "which programmes may a dropdown offer?"
+
+     Every dashboard used to build that list the same wrong way: take the
+     training centres, then UNION IN every course name written on a student
+     record and every programme on a user account. That union is why a centre
+     deleted on the Training Centres page kept turning up as an option on
+     Student Progress, School Fee and everywhere else — one old record still
+     carried the name, so the name came straight back, and each page grew a
+     longer list than the one before it.
+
+     The training centres are the source of truth. A name no live centre
+     answers to is not a programme the Centre runs; it is a leftover on an old
+     record. Those names are still needed — a filter has to be able to find
+     those trainees, and an edit form must not silently reassign one — so they
+     are returned SEPARATELY, labelled archived, and never offered as a place
+     to enrol somebody new.
+     ========================================================================== */
+  Core.catalogue = (function () {
+    var DELETED_KEY = 'voctrain_deletedCentreIds';
+
+    function norm(s) { return String(s == null ? '' : s).toLowerCase().trim().replace(/\s+/g, ' '); }
+
+    function storeOf(store) { return store || root.CESTISStore || null; }
+
+    /* Ids of training centres that have been deleted. A deletion has to be
+       written down: without it the next merge (another tab, the cloud backup)
+       sees the centre still present in the other copy, reads it as "missing
+       here", and puts it back — which is how a deleted centre reappeared. */
+    function deletedIds(store) {
+      var s = storeOf(store);
+      if (!s) return [];
+      try {
+        var raw = s.getItem(DELETED_KEY);
+        var ids = raw ? JSON.parse(raw) : [];
+        return Array.isArray(ids) ? ids.map(String) : [];
+      } catch (e) { return []; }
+    }
+
+    function recordDeleted(store, id) {
+      var s = storeOf(store);
+      if (!s || id == null) return deletedIds(store);
+      var ids = deletedIds(s);
+      if (ids.indexOf(String(id)) === -1) ids.push(String(id));
+      try { s.setItem(DELETED_KEY, JSON.stringify(ids)); } catch (e) {}
+      return ids;
+    }
+
+    /* Re-creating a centre under an id that was deleted before clears its
+       tombstone, so a deliberate re-add is never suppressed by an old delete. */
+    function clearDeleted(store, id) {
+      var s = storeOf(store);
+      if (!s || id == null) return deletedIds(store);
+      var ids = deletedIds(s).filter(function (x) { return x !== String(id); });
+      try { s.setItem(DELETED_KEY, JSON.stringify(ids)); } catch (e) {}
+      return ids;
+    }
+
+    function isDeleted(id, store) {
+      return id != null && deletedIds(store).indexOf(String(id)) !== -1;
+    }
+
+    /* The centres that still exist: the stored roster minus everything whose
+       deletion has been written down, and minus unnamed rubbish. Every page
+       builds its dropdowns through here, so one delete is a delete everywhere. */
+    function liveCentres(areas, store) {
+      if (!Array.isArray(areas)) return [];
+      var gone = deletedIds(store);
+      return areas.filter(function (a) {
+        if (!a || !a.name || !String(a.name).trim()) return false;
+        return a.id == null || gone.indexOf(String(a.id)) === -1;
+      });
+    }
+
+    /* The programme names a dropdown may offer — one per live training centre,
+       written the way the centre itself is written, de-duplicated and sorted. */
+    function courseNames(areas, store) {
+      var seen = {}, out = [];
+      liveCentres(areas, store).forEach(function (a) {
+        var name = String(a.name).trim();
+        var k = norm(name);
+        if (k && !seen[k]) { seen[k] = true; out.push(name); }
+      });
+      return out.sort(function (a, b) { return a.localeCompare(b); });
+    }
+
+    /* True when a live training centre answers to this exact name.
+
+       Deliberately an exact (case/spacing-insensitive) comparison rather than
+       enrolment.findCentre's tolerant matching: a loose match would fold
+       "Welding" into "Welding & Fabrication", and the trainees recorded under
+       the bare name would then be unreachable from every filter. */
+    function isLive(areas, name, store) {
+      var k = norm(name);
+      if (!k) return false;
+      return liveCentres(areas, store).some(function (a) { return norm(a.name) === k; });
+    }
+
+    /* Names still written on records that no live centre answers to — a centre
+       that has since been deleted, or a spelling from before the centres were
+       set up. `values` is the raw list off the records (duplicates and blanks
+       are fine). These are what a FILTER must keep offering so those people
+       stay findable; an enrolment dropdown must not offer them at all. */
+    function orphanNames(areas, values, store) {
+      var live = {}, seen = {}, out = [];
+      liveCentres(areas, store).forEach(function (a) { live[norm(a.name)] = true; });
+      (Array.isArray(values) ? values : []).forEach(function (v) {
+        var name = String(v == null ? '' : v).trim();
+        var k = norm(name);
+        if (!k || live[k] || seen[k]) return;
+        seen[k] = true;
+        out.push(name);
+      });
+      return out.sort(function (a, b) { return a.localeCompare(b); });
+    }
+
+    /* Everything a page needs to build one dropdown, in one call:
+         { courses: [live centre names], archived: [orphan names] }
+       Pass the record values a filter has to keep reachable via `values`. */
+    function options(areas, values, store) {
+      return {
+        courses: courseNames(areas, store),
+        archived: orphanNames(areas, values, store)
+      };
+    }
+
+    return {
+      DELETED_KEY: DELETED_KEY,
+      deletedIds: deletedIds,
+      recordDeleted: recordDeleted,
+      clearDeleted: clearDeleted,
+      isDeleted: isDeleted,
+      liveCentres: liveCentres,
+      courseNames: courseNames,
+      isLive: isLive,
+      orphanNames: orphanNames,
+      options: options
+    };
+  })();
+
   /* The School Fee record a dashboard student belongs to.
 
      The mirror the other way (lmsMirrorTarget) already refuses to duplicate a

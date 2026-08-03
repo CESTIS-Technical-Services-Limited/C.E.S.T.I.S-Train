@@ -4894,15 +4894,28 @@ var stages = ['testing','interview','training','certified','collected','nyc','in
 var stageLabels = {testing:'Testing',interview:'Interview',training:'In Training',certified:'Certified',collected:'Collected',nyc:'Not Yet Competent',incomplete:'Incomplete'};
 var stageBadge = {testing:'badge-blue',interview:'badge-purple',training:'badge-amber',certified:'badge-green',collected:'badge-green',nyc:'badge-red',incomplete:'badge-red'};
 var stageIcons = {testing:'\uD83D\uDCDD',interview:'\uD83D\uDDE3\uFE0F',training:'\uD83D\uDCDA',certified:'\uD83C\uDF93',collected:'\u2705',nyc:'\u23F3',incomplete:'\u26A0\uFE0F'};
+/* The programmes a dropdown may offer: one per LIVE training centre.
+
+   This used to union in every course name written on a student record and
+   every programme on a user account, which is precisely why a training centre
+   deleted on the Training Centres page went on being offered everywhere else —
+   one old record still carried the name, so the name came back. The centres
+   are the source of truth; the leftovers are handled by getArchivedCourses()
+   below, which keeps them reachable from FILTERS without ever offering them as
+   somewhere to enrol a new trainee. */
 function getCourseList() {
-  var courseSet = {};
-  // Include all skill area names
-  if (skillAreas) skillAreas.forEach(function(s) { courseSet[s.name] = true; });
-  // Also include any course names students actually have (handles legacy/renamed courses)
-  if (students) students.forEach(function(s) { if(s.course && !courseSet[s.course]) courseSet[s.course] = true; });
-  // Also include any courses from user accounts
-  if (userAccounts) userAccounts.forEach(function(u) { if(u.programme && !courseSet[u.programme]) courseSet[u.programme] = true; });
-  return Object.keys(courseSet).sort();
+  return CESTISCore.catalogue.courseNames(skillAreas, CESTISStore);
+}
+
+/* Course names still written on records that no live centre answers to — a
+   centre since deleted, or a spelling from before the centres were set up.
+   Filters keep offering these (under an "Archived" group) so those trainees
+   stay findable; nothing that STARTS an enrolment offers them. */
+function getArchivedCourses() {
+  var values = [];
+  if (students) students.forEach(function(s) { if(s && s.course) values.push(s.course); });
+  if (userAccounts) userAccounts.forEach(function(u) { if(u && u.programme) values.push(u.programme); });
+  return CESTISCore.catalogue.orphanNames(skillAreas, values, CESTISStore);
 }
 function findSkillAreaForCourse(courseName) {
   if (!courseName) return skillAreas[0];
@@ -5622,6 +5635,9 @@ function exportDataBackup() {
     'voctrain_adrStaffMeta','voctrain_adminStaffAccess','voctrain_instructorData','voctrain_certDownloadApprovals',
     'voctrain_skillAreas','voctrain_certTemplates','voctrain_chatRooms','voctrain_chatMessages',
     'voctrain_chatProfiles','voctrain_chatFollows',
+    // Travels with the centres it belongs to: restore the roster without the
+    // record of what was deleted and every deleted training centre comes back.
+    'voctrain_deletedCentreIds','voctrain_deletedStudentIds',
     'voctrain_unitCatalogs','voctrain_transcriptGrades','voctrain_certTranscriptRequests','voctrain_transcriptProfiles',
     // Sibling-app data (same-origin IndexedDB): finance documents, cashbook,
     // virements, staff time-clock/payroll. Included so this local JSON export is a
@@ -6739,7 +6755,11 @@ function loadState() {
     var ct = safeJsonParse(CESTISStore.getItem('voctrain_certTemplates'), null);
     if(ct) certTemplates = ct;
     var sa = safeJsonParse(CESTISStore.getItem('voctrain_skillAreas'), null);
-    if(Array.isArray(sa)) skillAreas = sa;
+    // Drop anything whose deletion has been written down. The tombstones were
+    // being recorded but never applied on load, so a training centre deleted
+    // here came straight back the next time a cloud copy (or another tab) was
+    // merged in — and with it, its entry in every course dropdown.
+    if(Array.isArray(sa)) skillAreas = CESTISCore.catalogue.liveCentres(sa, CESTISStore);
     var dhf = safeJsonParse(CESTISStore.getItem('voctrain_documentHubFiles'), null);
     if(Array.isArray(dhf)) documentHubFiles = dhf;
     // Load certTemplateCourseMap (modified by course renames)
@@ -18060,7 +18080,7 @@ window.addEventListener('message', function(e) {
     try { studentProfiles = JSON.parse(CESTISStore.getItem('voctrain_studentProfiles') || '{}'); } catch(e2) {}
     try { attendanceRecords = JSON.parse(CESTISStore.getItem('voctrain_attendance') || '[]'); } catch(e2) {}
     try { userAccounts = JSON.parse(CESTISStore.getItem('voctrain_userAccounts') || '[]'); } catch(e2) {}
-    try { skillAreas = JSON.parse(CESTISStore.getItem('voctrain_skillAreas') || '[]'); } catch(e2) {}
+    try { skillAreas = CESTISCore.catalogue.liveCentres(JSON.parse(CESTISStore.getItem('voctrain_skillAreas') || '[]'), CESTISStore); } catch(e2) {}
     cestisStabilizeStudentIds();
     var _dr2 = deduplicateStudents();
     if (_dr2.removed > 0) {
@@ -18144,8 +18164,12 @@ var CESTIS_SHARED_COLLECTIONS = {
   voctrain_attendance:          function(v){ attendanceRecords = v; },
   voctrain_examResults:         function(v){ examResults = v; },
   voctrain_certDownloadApprovals: function(v){ certDownloadApprovals = v; },
-  voctrain_skillAreas:          function(v){ skillAreas = v; },
-  voctrain_users:               function(v){ userAccounts = v; }
+  voctrain_skillAreas:          function(v){ skillAreas = CESTISCore.catalogue.liveCentres(v, CESTISStore); },
+  voctrain_users:               function(v){ userAccounts = v; },
+  // Nothing to adopt into memory — the tombstones are read from the store on
+  // demand — but a centre deleted in another tab must still rebuild the views
+  // here, so the key is listed to trigger the refresh below.
+  voctrain_deletedCentreIds:    function(){}
 };
 var _cestisExternalReload = null;
 window.addEventListener('storage', function(e) {
@@ -18721,6 +18745,10 @@ function refreshContentDependentViews() {
     'renderCalendar','renderInstructorCalendar','renderStudentCalendar','renderAsCalendar',
     'renderAdminClassSessions','renderInstructorClassSessions','renderStudentClassSessions',
     'renderSkills','updateCentreCount','renderCentreTable',
+    // The course dropdowns are built from the training centres, so a centre
+    // added or deleted in another tab has to rebuild them here too — otherwise
+    // this page goes on offering a centre that no longer exists.
+    'populateCourseDropdowns',
     'filterCerts','renderCertStats','renderCertDownloadMgmt'
   ];
   fns.forEach(function(name){
@@ -18823,30 +18851,23 @@ function cestisIsStudentTombstoned(stu) {
 // every merge that saw the centre in a cloud copy added it straight back —
 // together with its chat room and its place in the course lists. Students have
 // had tombstones for exactly this reason; centres now do too.
+// The tombstone list itself now lives in CESTISCore.catalogue, so that School
+// Fee, Student Progress and every other page read the SAME deletions this page
+// writes — that is what stops a centre deleted here from still being offered
+// as an option over there.
 function _getDeletedCentreIds() {
-  try { return JSON.parse(CESTISStore.getItem('voctrain_deletedCentreIds') || '[]'); }
-  catch(e) { return []; }
+  return CESTISCore.catalogue.deletedIds(CESTISStore);
 }
 function isCentreDeleted(id) {
-  if (id == null) return false;
-  return _getDeletedCentreIds().indexOf(String(id)) !== -1;
+  return CESTISCore.catalogue.isDeleted(id, CESTISStore);
 }
 function recordDeletedCentre(id) {
-  if (id == null) return;
-  try {
-    var ids = _getDeletedCentreIds();
-    if (ids.indexOf(String(id)) === -1) ids.push(String(id));
-    CESTISStore.setItem('voctrain_deletedCentreIds', JSON.stringify(ids));
-  } catch(e) { /* ignore */ }
+  CESTISCore.catalogue.recordDeleted(CESTISStore, id);
 }
 // Re-creating a centre with the same id clears its tombstone, so a deliberate
 // re-add is never suppressed by an old deletion.
 function clearDeletedCentre(id) {
-  if (id == null) return;
-  try {
-    var ids = _getDeletedCentreIds().filter(function(x) { return x !== String(id); });
-    CESTISStore.setItem('voctrain_deletedCentreIds', JSON.stringify(ids));
-  } catch(e) { /* ignore */ }
+  CESTISCore.catalogue.clearDeleted(CESTISStore, id);
 }
 
 function recordDeletedStudent(id) {
@@ -19125,6 +19146,11 @@ var centreViewMode = 'grid';
 
 function populateCourseDropdowns() {
   courses = getCourseList();
+  // Names left on old records that no training centre answers to any more.
+  // They are never offered as a destination, but a dropdown that has to be
+  // able to REACH those records (a filter, or the edit form of a trainee who
+  // is on one) gets them in a clearly-marked group at the bottom.
+  var archived = getArchivedCourses();
   // IDs of all dropdowns that need course options (no placeholder)
   var plainIds = ['newStudentCourse','editStudentCourse','examCourse','csCourse','importExamCourse','assignCourse'];
   // IDs that need a "— Select Programme —" placeholder first
@@ -19134,6 +19160,10 @@ function populateCourseDropdowns() {
   // class-session dropdowns keep every course — they legitimately refer back to
   // finished intakes.)
   var enrolIds = {newStudentCourse:1, newUserProgramme:1, editUserProgramme:1};
+  // Dropdowns that must still be able to SHOW an archived course, because they
+  // edit or filter records that were written before the centre went away.
+  var keepArchived = {editStudentCourse:1, examCourse:1, csCourse:1, importExamCourse:1, assignCourse:1,
+                      editUserProgramme:1};
   function courseOptionHtml(c, forEnrolment) {
     var label = c, disabled = '';
     if(forEnrolment) {
@@ -19147,38 +19177,69 @@ function populateCourseDropdowns() {
     }
     return '<option value="' + escapeAttr(c) + '"' + disabled + '>' + escapeHtml(label) + '</option>';
   }
+  function archivedGroupHtml(id) {
+    if(!archived.length || !keepArchived[id]) return '';
+    return '<optgroup label="Archived — no training centre">' +
+      archived.map(function(c) {
+        return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + '</option>';
+      }).join('') + '</optgroup>';
+  }
+  // Restore a previous selection only when the rebuilt list still carries it,
+  // so a form or filter never keeps pointing at a centre that has just been
+  // deleted. Walks the options rather than building a CSS selector out of a
+  // course name, which breaks on quotes and other punctuation.
+  function restoreSelection(sel, value) {
+    if(!value) return false;
+    for(var i = 0; i < sel.options.length; i++) {
+      if(sel.options[i].value === value) { sel.selectedIndex = i; return true; }
+    }
+    return false;
+  }
   plainIds.forEach(function(id) {
     var sel = document.getElementById(id);
     if(!sel) return;
     var prev = sel.value;
     var forEnrol = !!enrolIds[id];
-    sel.innerHTML = courses.map(function(c) { return courseOptionHtml(c, forEnrol); }).join('');
-    if(prev && sel.querySelector('option[value="'+prev+'"]')) sel.value = prev;
+    sel.innerHTML = courses.map(function(c) { return courseOptionHtml(c, forEnrol); }).join('') + archivedGroupHtml(id);
+    restoreSelection(sel, prev);
   });
   placeholderIds.forEach(function(id) {
     var sel = document.getElementById(id);
     if(!sel) return;
     var prev = sel.value;
     var forEnrol = !!enrolIds[id];
-    sel.innerHTML = '<option value="">— Select Programme —</option>' + courses.map(function(c) { return courseOptionHtml(c, forEnrol); }).join('');
-    if(prev) sel.value = prev;
+    sel.innerHTML = '<option value="">— Select Programme —</option>' +
+      courses.map(function(c) { return courseOptionHtml(c, forEnrol); }).join('') + archivedGroupHtml(id);
+    restoreSelection(sel, prev);
   });
-  // Also refresh the filter dropdowns if they exist
+  // Also refresh the filter dropdowns if they exist. A filter keeps the
+  // archived names: without them the trainees recorded under a deleted centre
+  // could not be listed at all.
   var filterLabels = {arFilterCourse:'All Programmes'};
+  var archivedFilterHtml = archived.length
+    ? '<optgroup label="Archived — no training centre">' + archived.map(function(c) {
+        return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + '</option>';
+      }).join('') + '</optgroup>'
+    : '';
   ['filterCourse','arFilterCourse','attendanceCourseFilter','asStudentCourse'].forEach(function(filterId) {
     var el = document.getElementById(filterId);
     if(!el) return;
     var prev = el.value;
     var label = filterLabels[filterId] || 'All Courses';
-    el.innerHTML = '<option value="all">'+label+'</option>' + courses.map(function(c) { return '<option value="'+c+'">'+c+'</option>'; }).join('');
-    if(prev) el.value = prev;
+    el.innerHTML = '<option value="all">'+label+'</option>' +
+      courses.map(function(c) { return '<option value="'+escapeAttr(c)+'">'+escapeHtml(c)+'</option>'; }).join('') +
+      archivedFilterHtml;
+    // A filter left pointing at a course that has just gone falls back to
+    // "All", rather than silently showing an empty table.
+    if(!restoreSelection(el, prev)) el.value = 'all';
   });
   // Refresh the resource upload modal course dropdown
   var driveResSel = document.getElementById('driveResCourse');
   if(driveResSel) {
     var prevDrive = driveResSel.value;
-    driveResSel.innerHTML = '<option value="">— Select Programme —</option>' + courses.map(function(c) { return '<option value="'+c+'">'+c+'</option>'; }).join('');
-    if(prevDrive) driveResSel.value = prevDrive;
+    driveResSel.innerHTML = '<option value="">— Select Programme —</option>' +
+      courses.map(function(c) { return '<option value="'+escapeAttr(c)+'">'+escapeHtml(c)+'</option>'; }).join('');
+    restoreSelection(driveResSel, prevDrive);
   }
   // Also refresh the cert template skill area dropdown
   if(typeof populateCertTemplateSkillSelect === 'function') populateCertTemplateSkillSelect();
