@@ -30,6 +30,17 @@
     <div class="form-group"><label>Administrator Email</label><input type="email" class="form-control" id="settAdminEmail" value="admin@heartlms.edu.jm"></div>
     <div class="form-group"><label>Academic Year</label><select class="form-control" id="settAcadYear"><option>2025/2026</option><option>2024/2025</option></select></div>
     <div class="form-group"><label>Video Conference Provider</label><select class="form-control" id="settVcProvider"><option>Built-in (WebRTC)</option><option>Zoom Integration</option><option>Microsoft Teams</option><option>Google Meet</option></select></div>
+    <div class="form-group">
+      <label>Conference Server (optional)</label>
+      <input type="text" class="form-control" id="settVcSignalling" placeholder="conference.yourcentre.org">
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+        Before a class can start, the two browsers have to be introduced to each other, and that is
+        done by a server. Left blank, the Centre uses a free public one — which means every class,
+        staff meeting and all-staff conference stops if that public service is busy or unreachable.
+        Name your own server here and it is tried first, with the public one kept as a fallback.
+        Accepts <code>host</code>, <code>host:port</code> or a full address.
+      </p>
+    </div>
     <button class="btn btn-primary" onclick="saveSystemSettings()">Save Changes</button>
   </div>
 </div>
