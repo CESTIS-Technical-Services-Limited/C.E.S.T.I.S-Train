@@ -117,6 +117,54 @@ assertEq(centres[0].endDate, '2027-06-30', 'nor a blank end date');
 assertEq(CM.applySkillAreas(null, []).added, 0, 'null-safe');
 assertEq(CM.applySkillAreas([], null).added, 0, 'null cloud list is safe');
 
+/* ---------- 3b. The course duration reaches every device ---------- */
+/* The dates decide whether a course has ended, and therefore whether its
+   trainees are Not Yet Competent. When each device kept its own copy of them,
+   the same trainee showed a different status on every machine. */
+console.log('The course duration is merged, newest edit first');
+
+const T1 = '2026-08-01T09:00:00.000Z';   // earlier admin edit
+const T2 = '2026-08-03T09:00:00.000Z';   // later admin edit
+
+centres = [{ id: 1, name: 'Welding L2', startDate: '2025-09-01', endDate: '2026-06-30', durationModified: T1 }];
+CM.applySkillAreas(centres, [{ id: 1, name: 'Welding L2', startDate: '2026-09-01', endDate: '2027-06-30', durationModified: T2 }]);
+assertEq(centres[0].endDate, '2027-06-30', 'a later edit is adopted');
+assertEq(centres[0].startDate, '2026-09-01', 'both dates move together');
+assertEq(centres[0].durationModified, T2, 'and the stamp comes with it');
+
+centres = [{ id: 1, name: 'Welding L2', startDate: '2026-09-01', endDate: '2027-06-30', durationModified: T2 }];
+CM.applySkillAreas(centres, [{ id: 1, name: 'Welding L2', startDate: '2025-09-01', endDate: '2026-06-30', durationModified: T1 }]);
+assertEq(centres[0].endDate, '2027-06-30', 'an older edit does not undo a newer one');
+assertEq(centres[0].durationModified, T2, 'the stamp stands');
+
+console.log('A device that was never told the dates cannot push its own over them');
+
+centres = [{ id: 1, name: 'Welding L2', startDate: '2026-09-01', endDate: '2027-06-30', durationModified: T2 }];
+CM.applySkillAreas(centres, [{ id: 1, name: 'Welding L2', startDate: '2020-01-01', endDate: '2021-01-01' }]);
+assertEq(centres[0].endDate, '2027-06-30', 'an unstamped copy never overwrites a stamped one');
+
+console.log('Dates saved before they were stamped still travel');
+
+centres = [{ id: 1, name: 'Welding L2' }];
+CM.applySkillAreas(centres, [{ id: 1, name: 'Welding L2', startDate: '2026-09-01', endDate: '2027-06-30' }]);
+assertEq(centres[0].endDate, '2027-06-30', 'with no stamps anywhere the cloud copy is taken, as it always was');
+
+centres = [{ id: 1, name: 'Welding L2', level: 'Level 2', project: 'Old' }];
+CM.applySkillAreas(centres, [{ id: 1, name: 'Welding L2', level: 'Level 3', project: 'Workshop Rebuild', durationModified: T2 }]);
+assertEq(centres[0].level, 'Level 3', 'the level travels with the duration');
+assertEq(centres[0].project, 'Workshop Rebuild', 'and so does the project');
+
+console.log('A reopen window granted to an instructor reaches the other devices');
+
+centres = [{ id: 1, name: 'Welding L2', instructorPermissions: [{ instructor: 'A. Brown', expiresAtMs: 111 }] }];
+CM.applySkillAreas(centres, [{ id: 1, name: 'Welding L2', instructorPermissions: [
+  { instructor: 'A. Brown', expiresAtMs: 111 },              // already known
+  { instructor: 'C. Grant', expiresAtMs: 222 }               // granted elsewhere
+] }]);
+assertEq(centres[0].instructorPermissions.length, 2, 'the new window is added, the known one not duplicated');
+CM.applySkillAreas(centres, [{ id: 1, name: 'Welding L2', instructorPermissions: [] }]);
+assertEq(centres[0].instructorPermissions.length, 2, 'and an empty cloud list never revokes one');
+
 /* ---------- 4. Repeating a sync changes nothing further ---------- */
 console.log('Syncing twice is the same as syncing once');
 const cloudStudents = [{ id: 'STU-1', name: 'John Smith', course: 'Welding', stage: 'certified', lastModified: NEW }];

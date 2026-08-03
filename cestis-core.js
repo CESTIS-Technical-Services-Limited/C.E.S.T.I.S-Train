@@ -3210,9 +3210,45 @@
       return 'added';
     }
 
+    /* How a training centre is described — whoever wrote last is as good as
+       any other, so a non-empty cloud value is taken. */
+    var CENTRE_IDENTITY = ['name', 'desc', 'icon', 'color'];
+
+    /* The course DURATION. This decides whether the register is open and
+       whether a trainee's course has ended, so it is merged on its own terms:
+       the copy edited most recently wins, by the stamp written when an
+       administrator saved it. A device that was never given the dates cannot
+       push its own over them. */
+    var CENTRE_DURATION = ['startDate', 'endDate', 'level', 'project'];
+
+    function durationStamp(centre) {
+      return (centre && Date.parse(centre.durationModified || '')) || 0;
+    }
+
+    /* Should the cloud copy's duration replace this device's?
+         - a newer stamp always wins;
+         - with no stamps on either side (data written before durations were
+           stamped) the cloud copy still wins, as it always did, so an
+           administrator's dates reach the other devices;
+         - a local copy that has been stamped is never overwritten by an
+           unstamped one — that is a device that has not been told yet. */
+    function durationWins(local, cloud) {
+      var lc = durationStamp(local), cc = durationStamp(cloud);
+      if (cc && lc) return cc > lc;
+      if (lc) return false;
+      return true;
+    }
+
     /* Merge cloud training centres into the local list, in place. A centre the
        Centre has deleted stays deleted — without this every sync brought it
-       back, along with its chat room and its place in the course lists. */
+       back, along with its chat room and its place in the course lists.
+
+       Course durations are merged too. The Drive merges used to copy only the
+       name, description, icon and colour, so an end date set by the
+       administrator never reached anybody else: every device kept its own idea
+       of when a course finished, which is why the same trainee showed a
+       different status on every machine and why courses that had ended left
+       their trainees sitting in Testing. */
     function applySkillAreas(localList, cloudList, isDeleted) {
       var out = { added: 0, updated: 0, skipped: 0 };
       if (!Array.isArray(localList) || !Array.isArray(cloudList)) return out;
@@ -3224,12 +3260,38 @@
           if (localList[i] && localList[i].id === sa.id) { local = localList[i]; break; }
         }
         if (!local) { localList.push(sa); out.added++; return; }
-        ['name', 'desc', 'icon', 'color', 'startDate', 'endDate'].forEach(function (f) {
+
+        CENTRE_IDENTITY.forEach(function (f) {
           if (sa[f] !== undefined && sa[f] !== null && sa[f] !== '' && sa[f] !== local[f]) {
             local[f] = sa[f];
             out.updated++;
           }
         });
+
+        if (durationWins(local, sa)) {
+          CENTRE_DURATION.forEach(function (f) {
+            if (sa[f] !== undefined && sa[f] !== null && sa[f] !== '' && sa[f] !== local[f]) {
+              local[f] = sa[f];
+              out.updated++;
+            }
+          });
+          if (sa.durationModified && sa.durationModified !== local.durationModified) {
+            local.durationModified = sa.durationModified;
+          }
+        }
+
+        // A reopen window granted to an instructor is added, never removed:
+        // they expire by their own clock, so the union cannot outlast them.
+        if (Array.isArray(sa.instructorPermissions) && sa.instructorPermissions.length) {
+          if (!Array.isArray(local.instructorPermissions)) local.instructorPermissions = [];
+          sa.instructorPermissions.forEach(function (p) {
+            if (!p) return;
+            var known = local.instructorPermissions.some(function (lp) {
+              return lp && lp.instructor === p.instructor && lp.expiresAtMs === p.expiresAtMs;
+            });
+            if (!known) { local.instructorPermissions.push(p); out.updated++; }
+          });
+        }
       });
       return out;
     }
