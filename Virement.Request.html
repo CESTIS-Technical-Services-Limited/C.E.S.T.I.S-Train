@@ -2477,8 +2477,12 @@ function renderRequests(){
         container.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-dim);">No virement requests for this quarter. Go to "Create Virement" to add one.</div>';
         return;
     }
+    // One position map, not an indexOf over the WHOLE request history per row —
+    // requests accumulate across every quarter and financial year.
+    const _vrPos = new Map();
+    virementRequests.forEach((vr, vi) => { if (!_vrPos.has(vr)) _vrPos.set(vr, vi); });
     container.innerHTML = quarterRequests.map((r)=>{
-        let globalIdx = virementRequests.indexOf(r);
+        let globalIdx = _vrPos.has(r) ? _vrPos.get(r) : virementRequests.indexOf(r);
         let badge = r.status==='Approved' ? '<span class="badge badge-approved">Approved</span>'
             : r.status==='Rejected' ? '<span class="badge badge-rejected">Rejected</span>'
             : '<span class="badge badge-pending">Pending</span>';
@@ -3008,8 +3012,12 @@ function renderAdminApprovals(){
         return;
     }
 
+    // Same position map as the request list: no indexOf-per-row over the
+    // whole accumulated history.
+    const _vrPos2 = new Map();
+    virementRequests.forEach((vr, vi) => { if (!_vrPos2.has(vr)) _vrPos2.set(vr, vi); });
     container.innerHTML = filtered.map(r => {
-        let globalIdx = virementRequests.indexOf(r);
+        let globalIdx = _vrPos2.has(r) ? _vrPos2.get(r) : virementRequests.indexOf(r);
         let badge = r.status === 'Approved' ? '<span class="badge badge-approved">Approved</span>'
             : r.status === 'Rejected' ? '<span class="badge badge-rejected">Rejected</span>'
             : '<span class="badge badge-pending">Pending</span>';
@@ -3429,15 +3437,28 @@ function clearFormDraft(){
 
 // ── Autosave timer ───────────────────────────────────────
 // Merge-saves submitted requests AND captures form draft every 15 seconds.
+// The heavy steps are gated: saveAllData() re-parses, dedupes and re-writes the
+// whole request history, and saveCloudCache() re-serialises a mirror of every
+// cashbook quarter — running both every 15 seconds on an idle page is what a
+// user feels as the whole app dragging. When nothing has been written since
+// the last tick, only the cheap form-draft capture runs.
+var _virementLastTickWrites = -1;
 function startAutosave(){
     if (_autosaveInterval) clearInterval(_autosaveInterval);
     _autosaveInterval = setInterval(function(){
+        // 2. runs unconditionally: the draft lives in the FORM, not the store,
+        // so the write counter cannot see it changing.
+        captureFormDraft();
+        var w = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -1;
+        if (w >= 0 && w === _virementLastTickWrites) return;   // nothing new to persist
         // 1. Merge-save the authoritative virementRequests array
         saveAllData();
-        // 2. Capture whatever is in the form right now
-        captureFormDraft();
         // 3. Also persist the cloud/budget cache
         saveCloudCache();
+        // Absorb our own writes so the next idle tick is free.
+        if (window.CESTISStore && typeof CESTISStore.writes === 'number') {
+            _virementLastTickWrites = CESTISStore.writes;
+        }
     }, AUTOSAVE_INTERVAL_MS);
     console.log('⏱️ Autosave started – saving every ' + (AUTOSAVE_INTERVAL_MS / 1000) + 's');
 }

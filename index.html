@@ -12006,9 +12006,21 @@ function exportInstructorStudentsCSV() {
 function renderInstructorAttendance() {
   if(!currentInstructor) return;
   if(typeof dedupeAttendanceRecords === 'function') dedupeAttendanceRecords();
+  // One index over the roster and one memo per distinct course, instead of a
+  // students.find PLUS a centre resolution per attendance record — attendance
+  // is the fastest-growing collection, one row per trainee per week.
+  const _stuById = new Map();
+  students.forEach(s => { if (s && !_stuById.has(s.id)) _stuById.set(s.id, s); });
+  const _courseMatch = new Map();
+  const _matches = (course) => {
+    if (_courseMatch.has(course)) return _courseMatch.get(course);
+    const ok = instructorCourseMatch(course, currentInstructor.course);
+    _courseMatch.set(course, ok);
+    return ok;
+  };
   const myRecords = attendanceRecords.filter(r => {
-    const student = students.find(s => s.id === r.studentId);
-    return student && (student.instructor === currentInstructor.name || instructorCourseMatch(student.course, currentInstructor.course));
+    const student = _stuById.get(r.studentId);
+    return student && (student.instructor === currentInstructor.name || _matches(student.course));
   });
   const tbody = document.getElementById('iAttendanceTableBody');
   if(!tbody) return;
@@ -18942,14 +18954,23 @@ function recomputeStudentAttendance(studentId) {
 // Persistent tombstone list for deleted students.
 // Loaded lazily so it survives reloads, and consulted by every cloud merge
 // path that might otherwise push a deleted student back into the local list.
+// Memoised for one second: the cloud-merge loops ask "is this student
+// tombstoned?" once or twice PER CLOUD STUDENT, and each ask was a real
+// localStorage read plus a JSON.parse plus a map rebuild. Within one merge pass
+// the list cannot change under us; recordDeletedStudent() drops the memo the
+// moment a new deletion is written.
+var _delStudentIdsMemo = null, _delStudentIdsAt = 0;
 function _getDeletedStudentIds() {
+  var now = Date.now();
+  if (_delStudentIdsMemo && (now - _delStudentIdsAt) < 1000) return _delStudentIdsMemo;
   try {
     var raw = CESTISStore.getItem('voctrain_deletedStudentIds');
-    if(!raw) return {};
-    var arr = JSON.parse(raw);
-    if(!Array.isArray(arr)) return {};
     var map = {};
-    arr.forEach(function(id){ if(id) map[id] = true; });
+    if(raw) {
+      var arr = JSON.parse(raw);
+      if(Array.isArray(arr)) arr.forEach(function(id){ if(id) map[id] = true; });
+    }
+    _delStudentIdsMemo = map; _delStudentIdsAt = now;
     return map;
   } catch(e) { return {}; }
 }
@@ -18996,6 +19017,7 @@ function recordDeletedStudent(id) {
     var existing = _getDeletedStudentIds();
     existing[id] = true;
     CESTISStore.setItem('voctrain_deletedStudentIds', JSON.stringify(Object.keys(existing)));
+    _delStudentIdsMemo = null;   // the memo is now stale
   } catch(e) { /* ignore */ }
 }
 function updatePipelineCounts() {
@@ -19003,8 +19025,13 @@ function updatePipelineCounts() {
   // (not 'pTesting'), so deriving the id from the stage name silently failed for
   // Testing — leaving that count stuck at 0 while the table showed the students.
   var STAGE_ID_BASE = { testing:'pTest', interview:'pInterview', training:'pTraining', certified:'pCertified', collected:'pCollected', nyc:'pNyc', incomplete:'pIncomplete' };
+  // One pass to tally every stage, not one full pass PER stage — this runs on
+  // every keystroke in the student search (via filterStudents) and on every
+  // reactive refresh.
+  var tally = {};
+  students.forEach(function (st) { if (st) tally[st.stage] = (tally[st.stage] || 0) + 1; });
   stages.forEach(s => {
-    const count = students.filter(st=>st.stage===s).length;
+    const count = tally[s] || 0;
     var base = STAGE_ID_BASE[s] || ('p'+s.charAt(0).toUpperCase()+s.slice(1));
     ['','2'].forEach(sfx => { const el=document.getElementById(base+sfx); if(el) el.textContent=count; });
   });
@@ -21120,11 +21147,22 @@ function renderExams(filter) {
       <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📊</div><div class="stat-value">${avgScore}%</div><div class="stat-label">Avg Score</div></div>
     `;
   }
+  // Positions and per-exam result counts from one pass each: examResults grows
+  // with every sitting by every trainee, and this render re-scanned the whole
+  // list once per exam row, twice per reactive refresh.
+  var _examPos = new Map();
+  exams.forEach(function (e, i) { if (!_examPos.has(e)) _examPos.set(e, i); });
+  var _resultsByExam = new Map();
+  examResults.forEach(function (r) {
+    if (!r) return;
+    if (!_resultsByExam.has(r.examId)) _resultsByExam.set(r.examId, []);
+    _resultsByExam.get(r.examId).push(r);
+  });
   tbody.innerHTML = filtered.map(function(e) {
-    var idx = exams.indexOf(e);
+    var idx = _examPos.has(e) ? _examPos.get(e) : exams.indexOf(e);
     var qCount = (e.questionData && e.questionData.length > 0) ? e.questionData.length : e.questions;
     var hasQuestions = e.questionData && e.questionData.length > 0;
-    var resultsForExam = examResults.filter(function(r){return r.examId===e.id;});
+    var resultsForExam = _resultsByExam.get(e.id) || [];
     var actionBtns = '<button class="btn btn-sm btn-secondary" onclick="viewExamDetail('+idx+')" title="View exam details & questions">View</button>';
     if(e.status==='upcoming') {
       actionBtns += '<button class="btn btn-sm btn-secondary" style="margin-left:4px;" onclick="editExam('+idx+')" title="Edit exam details & questions">'+(!hasQuestions?'Add Questions':'Edit')+'</button>' +
@@ -22351,7 +22389,19 @@ function renderCerts(filter,search) {
   if(search) certs=certs.filter(c=>c.name.toLowerCase().includes(search)||(c.certNo||'').toLowerCase().includes(search));
   const tbody = document.getElementById('certTableBody');
   if(!tbody) return;
-  tbody.innerHTML = certs.map(s=>`<tr><td><strong>${s.name}</strong></td><td style="font-family:monospace;font-size:12px;">${s.certNo}</td><td>${s.course}</td><td>${(certTemplates[getCertTemplateKey(s.course)]||{}).programmeCode||s.course}</td><td>${s.certDate}</td><td>${s.certCollected?'<span class="badge badge-green"><span class="badge-dot"></span>Collected</span>':'<span class="badge badge-amber"><span class="badge-dot"></span>Pending</span>'}</td><td>${!s.certCollected?`<button class="btn btn-sm btn-success" onclick="markCollected(${students.indexOf(s)})">Mark Collected</button>`:'<span style="font-size:12px;color:var(--text-muted);">✓ Done</span>'}</td></tr>`).join('');
+  // Row positions and template keys resolved ONCE, not per row: this render
+  // runs twice per reactive refresh, and students.indexOf() per certified row
+  // plus a certTemplates key scan per row made it certified × roster work.
+  var _certPos = new Map();
+  for (var _ci = 0; _ci < students.length; _ci++) if (!_certPos.has(students[_ci])) _certPos.set(students[_ci], _ci);
+  var _tplByCourse = new Map();
+  var _tplFor = function (course) {
+    if (_tplByCourse.has(course)) return _tplByCourse.get(course);
+    var t = (certTemplates[getCertTemplateKey(course)] || {}).programmeCode || course;
+    _tplByCourse.set(course, t);
+    return t;
+  };
+  tbody.innerHTML = certs.map(s=>`<tr><td><strong>${s.name}</strong></td><td style="font-family:monospace;font-size:12px;">${s.certNo}</td><td>${s.course}</td><td>${_tplFor(s.course)}</td><td>${s.certDate}</td><td>${s.certCollected?'<span class="badge badge-green"><span class="badge-dot"></span>Collected</span>':'<span class="badge badge-amber"><span class="badge-dot"></span>Pending</span>'}</td><td>${!s.certCollected?`<button class="btn btn-sm btn-success" onclick="markCollected(${_certPos.get(s)})">Mark Collected</button>`:'<span style="font-size:12px;color:var(--text-muted);">✓ Done</span>'}</td></tr>`).join('');
 }
 function filterCerts() { renderCerts(document.getElementById('certFilter')?.value,document.getElementById('certSearch')?.value?.toLowerCase()); }
 function markCollected(idx) { students[idx].certCollected=true;students[idx].stage='collected';students[idx].progress=100;markStageSetByUser(students[idx]);filterCerts();updatePipelineCounts();renderCertStats();refreshStudentDependentViews();showToast(`Certificate collected: ${students[idx].name}`);addNotification('Certificate collected: ' + students[idx].name + ' — ' + students[idx].course, 'cert', null, ['admin']);saveState(); }
@@ -22534,8 +22584,16 @@ function renderGenderDist() {
 // duplicates for the same student into one record (preferring any present/late
 // mark so recorded attendance is never lost), and removes records that no
 // longer match any student. Non-destructive of actual attendance data.
+var _attDedupeAt = 0;
 function dedupeAttendanceRecords() {
   if(!Array.isArray(attendanceRecords) || !Array.isArray(students)) return false;
+  // This sweep — two maps over the roster plus a walk of every attendance
+  // record — used to run at the top of BOTH attendance renderers on every
+  // reactive refresh. Duplicates only appear when a merge lands, not between
+  // one refresh and the next, so once every few seconds is just as safe.
+  var now = Date.now();
+  if (now - _attDedupeAt < 5000) return false;
+  _attDedupeAt = now;
   var byId = {};
   var byNameCourse = {};
   students.forEach(function(s){
@@ -30993,16 +31051,27 @@ function lmsChatOnPageShow(prefix) {
   // change, so this stays cheap and doesn't disturb scrolling. A guard prevents
   // overlapping fetches if a poll is still in flight.
   if(lmsChatCallPollInterval) clearInterval(lmsChatCallPollInterval);
+  var _lmsChatPollTick = 0, _lmsChatLastMembership = 0;
   lmsChatCallPollInterval = setInterval(function() {
     if(!isCloudConnected || !googleAccessToken) return;
     if(_lmsChatPollInFlight) return;
+    // A hidden tab polls at quarter speed: nobody is reading, and an incoming
+    // call still rings within ~14 seconds. Full speed used to fetch, merge and
+    // re-check membership every 3.5s in every background tab, forever.
+    _lmsChatPollTick++;
+    if(document.hidden && (_lmsChatPollTick % 4) !== 0) return;
     _lmsChatPollInFlight = true;
     lmsChatSyncFromDrive().then(function() {
-      // ensureMembership may add a room the cloud merge didn't render (e.g. a new
-      // skill-area room with no messages yet); only re-render the list if it did.
-      var beforeRooms = lmsChatRooms.length;
-      lmsChatEnsureMembership();
-      if(lmsChatRooms.length !== beforeRooms) lmsChatRenderRoomList(prefix);
+      // ensureMembership walks every room × every account × every centre — far
+      // too heavy for every poll tick. New rooms appear when a centre or an
+      // account does, so once every 30 seconds is prompt enough.
+      var now = Date.now();
+      if(now - _lmsChatLastMembership > 30000) {
+        _lmsChatLastMembership = now;
+        var beforeRooms = lmsChatRooms.length;
+        lmsChatEnsureMembership();
+        if(lmsChatRooms.length !== beforeRooms) lmsChatRenderRoomList(prefix);
+      }
       if(lmsChatActiveRoom) lmsChatRenderCallBanner(prefix);
       lmsChatCheckForActiveCalls();
     }).finally(function(){ _lmsChatPollInFlight = false; });
@@ -31157,14 +31226,20 @@ async function lmsChatSyncFromDrive() {
       Object.keys(data.chatMessages).forEach(function(roomId) {
         merged[roomId] = data.chatMessages[roomId].slice();
       });
-      // Add any local messages not in cloud
+      // Add any local messages not in cloud. A Set per room, not indexOf per
+      // message: this merge runs on the 3.5-second chat poll, and the old
+      // cloud×local scan re-walked every message of every room per tick.
       Object.keys(lmsChatMessages).forEach(function(roomId) {
         if(!merged[roomId]) merged[roomId] = [];
-        var cloudIds = merged[roomId].map(function(m){ return m.id; });
+        var cloudIds = new Set(merged[roomId].map(function(m){ return m.id; }));
+        var addedLocal = false;
         lmsChatMessages[roomId].forEach(function(m) {
-          if(cloudIds.indexOf(m.id) === -1) merged[roomId].push(m);
+          if(!cloudIds.has(m.id)) { merged[roomId].push(m); addedLocal = true; }
         });
-        merged[roomId].sort(function(a,b){ return new Date(a.timestamp) - new Date(b.timestamp); });
+        // Cloud copies arrive already ordered; only a local addition can
+        // disturb the order, so only then is the sort (and its Date allocation
+        // per comparison) paid.
+        if(addedLocal) merged[roomId].sort(function(a,b){ return new Date(a.timestamp) - new Date(b.timestamp); });
       });
       lmsChatMessages = merged;
     }
@@ -31186,8 +31261,15 @@ async function lmsChatSyncFromDrive() {
       });
     }
 
-    // Save merged data to localStorage (stripped version)
-    try {
+    // Save merged data to localStorage (stripped version) — but ONLY when the
+    // merge actually changed something. This runs on the 3.5-second poll, and
+    // it used to deep-clone and re-stringify the entire chat history on every
+    // tick even when nothing had arrived, forever.
+    var _sigNow = lmsChatMsgSignature();
+    var _sigKeys = Object.keys(_sigNow), _sigOld = Object.keys(_beforeSig);
+    var _dataMoved = _sigKeys.length !== _sigOld.length ||
+      _sigKeys.some(function(k){ return _beforeSig[k] !== _sigNow[k]; });
+    if (_dataMoved) try {
       var msgCopy = {};
       Object.keys(lmsChatMessages).forEach(function(roomId) {
         msgCopy[roomId] = lmsChatMessages[roomId].map(function(m) {
@@ -31202,8 +31284,6 @@ async function lmsChatSyncFromDrive() {
       CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(lmsChatProfiles));
       CESTISStore.setItem('voctrain_chatFollows', JSON.stringify(lmsChatFollows));
     } catch(e) {}
-
-    console.log('Chat data loaded from Google Drive');
 
     // Re-render only what actually changed so a fast poll doesn't flicker the
     // list or yank the message pane's scroll position on every tick.

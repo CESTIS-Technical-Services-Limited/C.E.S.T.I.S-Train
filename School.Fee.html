@@ -5971,6 +5971,28 @@
                 '“Restore Fee Records from Drive”. Nothing has been deleted.');
         }
 
+        /* A non-blocking success note. The hot actions — recording a payment,
+           adding a trainee — used to end in alert(), which freezes the whole
+           page until OK is clicked: a clerk entering seventy payments clicked
+           OK seventy times. Confirmations of success do not need to interrupt;
+           errors and questions still use dialogs, because those must. */
+        function feeToast(message) {
+            try {
+                let el = document.getElementById('feeToastNote');
+                if (el) el.remove();
+                el = document.createElement('div');
+                el.id = 'feeToastNote';
+                el.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:99999;' +
+                    'max-width:min(440px,90vw);padding:12px 16px;border-radius:10px;' +
+                    'background:#1B5E20;color:#fff;font-size:14px;line-height:1.4;' +
+                    'box-shadow:0 10px 26px rgba(0,0,0,.3);cursor:pointer;';
+                el.textContent = '✅ ' + message;
+                el.onclick = function () { el.remove(); };
+                document.body.appendChild(el);
+                setTimeout(function () { try { el.remove(); } catch (e) {} }, 3500);
+            } catch (e) { /* a lost toast is no loss */ }
+        }
+
         // A banner the user cannot miss, for the few things they must know about
         // their records. Dismissed by clicking it.
         function feeShowBanner(message) {
@@ -6202,7 +6224,7 @@
             populateDocumentStudentSelect();
             updateDashboard();
 
-            alert('Student added successfully!');
+            feeToast('Student added.');
         }
 
         // Render students table
@@ -6964,7 +6986,7 @@
             closeModal('editStudentModal');
             editingStudentIndex = -1;
             
-            alert('✅ Student information updated successfully!');
+            feeToast('Student information updated.');
         }
 
         // Populate payment student select
@@ -7451,7 +7473,7 @@
             renderStudentsTable();
             updateDashboard();
 
-            alert('Payment recorded successfully! Receipt has been generated and downloaded.');
+            feeToast('Payment recorded — receipt generated and downloaded.');
         }
 
         // ----- Fiscal-year + quarterly fee filtering (like the Cashbook) ----
@@ -8428,13 +8450,26 @@
             }
 
             for (const skillArea of rosterNames) {
-                const data = feeStructure[skillArea];
+                const data = feeStructure[skillArea] || {};
                 const row = tbody.insertRow();
+
+                // Defensive: a fee entry can arrive without terms (older
+                // imports, a partial cloud copy, another page writing only the
+                // total). This render runs during page INIT — one malformed
+                // entry used to throw here and abort everything wired after
+                // it, leaving the quarter bar and half the controls dead.
+                const total = parseFloat(data.total) || 0;
+                const terms = Array.isArray(data.terms) ? data.terms : [];
+                const termCells = [];
+                for (let ti = 0; ti < 9; ti++) {
+                    const term = parseFloat(terms[ti]) || 0;
+                    termCells.push(`<td>${term > 0 ? '$' + term.toFixed(2) : '-'}</td>`);
+                }
 
                 let html = `
                     <td><strong>${skillArea}</strong></td>
-                    <td><strong>$${data.total.toFixed(2)}</strong></td>
-                    ${data.terms.map(term => `<td>${term > 0 ? '$' + term.toFixed(2) : '-'}</td>`).join('')}
+                    <td><strong>$${total.toFixed(2)}</strong></td>
+                    ${termCells.join('')}
                 `;
                 
                 if (isAdmin) {
