@@ -159,5 +159,72 @@ assertEq(r.students[0].tuitionFee, 38000, 'the priced record is the one kept');
 assertEq(r.students[0].totalPaid, 5000, 'with the money that was recorded against it');
 assertEq(r.idMap['F2'], 'F1', 'and the discarded id maps across, so its payments relink');
 
+/* ---------- 6. "Keep separate": the administrator's exemption ---------- */
+console.log('\nA record marked "keep separate" is never merged with its namesake');
+
+// Two REAL people who share a name. The admin marks one of them.
+r = Core.collapseSameNameStudents([
+  { id: 'JB1', name: 'John Brown', course: 'WELDING L2', stage: 'training', progress: 40 },
+  { id: 'JB2', name: 'John Brown', course: 'COSMETOLOGY L2', stage: 'testing', keepSeparate: true }
+]);
+assertEq(r.students.length, 2, 'both people stand — marking ONE of the two is enough');
+assertEq(r.removed, 0, 'nothing removed');
+assertEq(Object.keys(r.idMap).length, 0, 'and no id is redirected');
+
+console.log('Marking both works the same way');
+r = Core.collapseSameNameStudents([
+  { id: 'A', name: 'John Brown', course: 'X', keepSeparate: true },
+  { id: 'B', name: 'John Brown', course: 'Y', keepSeparate: true }
+]);
+assertEq(r.students.length, 2, 'two marked namesakes are two records');
+
+console.log('Unmarked namesakes still collapse among themselves');
+r = Core.collapseSameNameStudents([
+  { id: 'PINNED', name: 'John Brown', course: 'X', keepSeparate: true },
+  { id: 'DUP1',   name: 'John Brown', course: 'Y', stage: 'training', progress: 30 },
+  { id: 'DUP2',   name: 'John Brown', course: 'Y', stage: 'testing' }
+]);
+assertEq(r.students.length, 2, 'the pinned record, plus ONE record for the two duplicates');
+assert(r.students.some(s => s.id === 'PINNED'), 'the pinned record is untouched');
+assertEq(r.idMap['DUP2'], 'DUP1', 'and the genuine duplicate still folds away');
+assert(!r.idMap['PINNED'], 'nothing is ever mapped away from a pinned record');
+
+console.log('The pinned record is never absorbed INTO a stronger namesake either');
+r = Core.collapseSameNameStudents([
+  { id: 'STRONG', name: 'John Brown', course: 'X', stage: 'certified', progress: 100, certNo: 'C1' },
+  { id: 'WEAK',   name: 'John Brown', course: 'Y', stage: 'testing', keepSeparate: true }
+]);
+assertEq(r.students.length, 2, 'evidence does not override the administrator');
+assert(r.students.some(s => s.id === 'WEAK'), 'the pinned record survives on its own');
+
+console.log('The centre-identity dedup honours it too');
+r = Core.dedupeStudents([
+  { id: 'A', name: 'John Brown', course: 'Electrical Installation' },
+  { id: 'B', name: 'John Brown', course: '02. Electrical Installation', centreKey: '02', keepSeparate: true }
+]);
+assertEq(r.students.length, 2, 'so a pinned record cannot be folded in by the other pass first');
+
+console.log('The marker is recognised however it survived a round trip');
+assertEq(Core.isKeptSeparate({ keepSeparate: true }), true, 'a real boolean');
+assertEq(Core.isKeptSeparate({ keepSeparate: 'true' }), true, 'the string a form/JSON round trip can leave');
+assertEq(Core.isKeptSeparate({ keepSeparate: false }), false, 'unticked');
+assertEq(Core.isKeptSeparate({}), false, 'absent');
+assertEq(Core.isKeptSeparate(null), false, 'null-safe');
+
+console.log('And it survives a record merge, so it cannot be lost to a sync');
+const mergedKeep = Core.mergeStudentRecords(
+  { id: 'A', name: 'John Brown', course: 'X', lastModified: '2026-08-03T12:00:00.000Z' },
+  { id: 'A', name: 'John Brown', course: 'X', keepSeparate: true, lastModified: '2026-08-01T00:00:00.000Z' });
+assertEq(Core.isKeptSeparate(mergedKeep), true,
+  'a newer copy without the marker does not strip it — losing it would collapse ' +
+  'the record on the next launch, the one thing the admin set it to prevent');
+
+console.log('Clearing the marker lets the records collapse again');
+r = Core.collapseSameNameStudents([
+  { id: 'A', name: 'John Brown', course: 'X', stage: 'training', progress: 30 },
+  { id: 'B', name: 'John Brown', course: 'Y', stage: 'testing' }   // marker removed by the admin
+]);
+assertEq(r.students.length, 1, 'unticking it puts the record back under the ordinary rule');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

@@ -525,7 +525,12 @@
     'dob', 'enrollDate', 'completionDate', 'nqfLevel', 'notes', 'gender',
     // Cross-system link fields — must survive a merge so the School-Fee <-> LMS
     // link is not lost when a fee-linked record and a manual record collapse.
-    'schoolFeeId', 'source'];
+    'schoolFeeId', 'source',
+    // The administrator's "keep separate" marker. It must survive every merge
+    // and every sync: if it were dropped, the record it protects would be
+    // collapsed into its namesake on the very next launch — the one outcome an
+    // admin set it to prevent.
+    'keepSeparate'];
 
   Core.mergeStudentRecords = function (a, b) {
     var aMod = a && a.lastModified ? new Date(a.lastModified).getTime() : 0;
@@ -594,7 +599,20 @@
      NOTE the deliberate consequence: two DIFFERENT people who genuinely share
      a name become one record. That is the instruction — the Centre knows its
      roll — but it is why this collapses only on an exact name match, after
-     normalising case and spacing, and never on a partial or fuzzy one. */
+     normalising case and spacing, and never on a partial or fuzzy one.
+
+     And it is why `keepSeparate` exists. An administrator who has two real
+     trainees of one name marks the records: a record carrying keepSeparate is
+     exempt — it never absorbs another and is never absorbed, here or in the
+     centre-identity dedup. Mark ONE of the two and they stay two records;
+     unmarked namesakes still collapse among themselves as usual. The marker
+     travels with the record through every merge and sync (MERGE_FIELDS above),
+     because a marker that could be lost would protect nothing. */
+
+  // True when an administrator has pinned this record as its own person.
+  Core.isKeptSeparate = function (s) {
+    return !!(s && (s.keepSeparate === true || s.keepSeparate === 'true'));
+  };
 
   // How much real use does this record show? Higher wins.
   Core.studentRecordScore = function (s) {
@@ -670,6 +688,7 @@
 
     list.forEach(function (s) {
       if (!s) return;
+      if (Core.isKeptSeparate(s)) return;              // the admin pinned this one
       var n = Core.normName(s.name);
       if (!n) return;                                  // nameless records are left alone
       var slot = slots[n];
@@ -692,6 +711,7 @@
     var emitted = {}, out = [];
     list.forEach(function (s) {
       if (!s) { out.push(s); return; }
+      if (Core.isKeptSeparate(s)) { out.push(s); return; }   // stands on its own
       var n = Core.normName(s.name);
       if (!n) { out.push(s); return; }
       if (emitted[n]) return;
@@ -733,6 +753,9 @@
     // Group by person + bare programme; partition each group by explicit key.
     var groups = {};  // name|bare -> { keys: {key -> kept}, unkeyed: kept|null }
     function groupOf(s) {
+      // A record the administrator pinned as its own person is exempt from
+      // every dedup, this one included.
+      if (Core.isKeptSeparate(s)) return null;
       var n = Core.normName(s.name);
       if (!n) return null;
       var pid = Core.programmeIdentity(s, courseField);

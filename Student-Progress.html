@@ -329,6 +329,22 @@
     <div class="form-group"><label>Instructor</label><input type="text" class="form-control" id="editStudentInstructor"></div>
     <div class="form-group"><label>Attendance (%)</label><input type="number" class="form-control" id="editStudentAttendance" min="0" max="100"></div>
     <div class="form-group"><label>GPA</label><input type="text" class="form-control" id="editStudentGPA"></div>
+    <!-- Two real trainees can share a name. The system treats one name as one
+         person and collapses the rest on launch; this is how an administrator
+         says "these are genuinely two people" and exempts a record from that. -->
+    <div class="form-group" id="editStudentKeepSeparateGroup">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:600;">
+        <input type="checkbox" id="editStudentKeepSeparate" style="margin-top:3px;width:16px;height:16px;cursor:pointer;">
+        <span>Keep separate — another trainee has this same name
+          <span style="display:block;font-weight:400;font-size:12px;color:var(--text-muted);margin-top:3px;">
+            Tick this when two different people genuinely share a name. This record
+            will never be merged with its namesake. Leave it unticked and records
+            with the same name are treated as one person.
+          </span>
+        </span>
+      </label>
+      <div id="editStudentNamesakeNote" style="display:none;font-size:12px;margin-top:6px;padding:8px 10px;border-radius:6px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.35);"></div>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('editStudentModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveEditStudent()">Save Changes</button>
@@ -807,11 +823,21 @@ function renderStudents(data) {
   var tbody = document.getElementById('studentTableBody');
   if(!tbody) return;
   if(!data || !Array.isArray(data)) { data = []; }
+  // Row positions from one index, not students.indexOf() per row.
+  var _rowPos = new Map();
+  for (var _ri = 0; _ri < students.length; _ri++) if (!_rowPos.has(students[_ri])) _rowPos.set(students[_ri], _ri);
   tbody.innerHTML = data.map(function(s){
-    var idx = students.indexOf(s);
+    var idx = _rowPos.has(s) ? _rowPos.get(s) : students.indexOf(s);
     var prog = s.progress || 0;
+    // A pinned record is visibly pinned: without this the only way to tell why
+    // two same-named rows survive is to open both.
+    var keptSeparate = (window.CESTISCore && CESTISCore.isKeptSeparate(s))
+      ? ' <span title="Kept separate — marked as a different person from their namesake" ' +
+        'style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9px;font-size:10px;' +
+        'font-weight:700;background:rgba(255,193,7,.18);color:#e0a800;">kept separate</span>'
+      : '';
     return '<tr>' +
-      '<td><strong>' + sanitizeInput(s.name||'Unknown') + '</strong></td>' +
+      '<td><strong>' + sanitizeInput(s.name||'Unknown') + '</strong>' + keptSeparate + '</td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-muted);">' + sanitizeInput(s.id||'—') + '</td>' +
       '<td>' + sanitizeInput(s.course||'—') + '</td>' +
       '<td><span class="badge ' + (stageBadge[s.stage]||'badge-blue') + '"><span class="badge-dot"></span>' + sanitizeInput(stageLabels[s.stage]||s.stage||'—') + '</span></td>' +
@@ -910,6 +936,25 @@ function openEditStudent(idx) {
   document.getElementById('editStudentInstructor').value = s.instructor || '';
   document.getElementById('editStudentAttendance').value = s.attendance || 0;
   document.getElementById('editStudentGPA').value = s.gpa || '0.0';
+  // "Keep separate": show the current setting, and say plainly whether anybody
+  // else on the roll actually shares this name — the marker only matters then.
+  var keepBox = document.getElementById('editStudentKeepSeparate');
+  if (keepBox) keepBox.checked = !!(window.CESTISCore && CESTISCore.isKeptSeparate(s));
+  var note = document.getElementById('editStudentNamesakeNote');
+  if (note) {
+    var norm = function (v) { return String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, ' '); };
+    var mine = norm(s.name);
+    var namesakes = students.filter(function (o) { return o && o !== s && norm(o.name) === mine; });
+    if (namesakes.length) {
+      note.style.display = '';
+      note.textContent = '⚠️ ' + namesakes.length + ' other record' + (namesakes.length === 1 ? '' : 's') +
+        ' on the roll carries this exact name. Unless one of them is marked "keep separate", ' +
+        'they will be treated as the same person and merged into a single record.';
+    } else {
+      note.style.display = 'none';
+      note.textContent = '';
+    }
+  }
   populateCourseDropdowns();
   var courseSel = document.getElementById('editStudentCourse');
   if(courseSel) courseSel.value = s.course;
@@ -944,6 +989,12 @@ function saveEditStudent() {
     s.id = newId;
   }
   s.name = name;
+  // The administrator's "this is genuinely a different person" marker. Stored
+  // only when set, so an ordinary record carries no extra field; it travels
+  // with the record through every merge and sync (MERGE_FIELDS in the core).
+  var keepBox = document.getElementById('editStudentKeepSeparate');
+  if (keepBox && keepBox.checked) s.keepSeparate = true;
+  else delete s.keepSeparate;
   s.gender = document.getElementById('editStudentGender').value || '';
   s.course = document.getElementById('editStudentCourse').value;
   s.instructor = document.getElementById('editStudentInstructor').value.trim();
