@@ -26182,6 +26182,17 @@ async function findMasterSnapshotFile() {
 async function saveMasterSnapshot(eventName, force) {
   if (!isCloudConnected || !googleAccessToken) return { ok: false, reason: 'offline' };
   if (!window.CESTISCore || typeof CESTISCore.buildSnapshot !== 'function') return { ok: false, reason: 'no-core' };
+  // A trainee's device never authors the Centre's reference file.
+  //
+  // clearSensitiveStudentData() deliberately strips a student session's store
+  // down to that one trainee's own records — right, on a shared machine, and
+  // the anti-wipe guard is deliberately bypassed there. But this file is the
+  // whole-store backup the Centre restores FROM, and nothing stopped a student
+  // session's autosave overwriting it with a store holding one trainee. Live
+  // data on other devices survived that (the reconcile only ever adds what is
+  // missing), but the backup itself was left holding almost nothing, which is
+  // exactly when it is needed most.
+  if (currentRole === 'student') return { ok: false, reason: 'student-session' };
   try {
     try { saveState(); } catch (e) {}
     var cloudUser = getCurrentCloudUser() || {};
