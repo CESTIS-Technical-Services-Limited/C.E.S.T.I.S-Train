@@ -229,5 +229,32 @@ assertEq(Core.transfer.tally([{ id: 'LATE', name: 'Moved in', course: 'Welding &
 console.log('And the past trainees are still on the roll — they are not this intake\'s, not gone');
 assertEq(MIXED.length, 3, 'nothing is removed from the roll by counting it');
 
+/* ---------- 6. Transferred back to the earlier intake ----------
+
+   Reported: a programme was re-run as "22. Welding and Fabrication Level 2",
+   the trainees were transferred BACK to "01. Welding & Fabrication", and both
+   intakes went on showing the same people. A transfer stamps the target intake
+   on the record; it is the programme TEXT they arrived with that still names
+   the intake they left. Counting by that text puts them back where they no
+   longer are — so the stamp has to win, on every page. */
+console.log('\nA trainee transferred back counts only in the intake they were moved to');
+const TWO_INTAKES = [
+  { id: 1,  centreKey: '01', name: '01. Welding & Fabrication',
+    startDate: '2025-08-04', endDate: '2026-07-31' },
+  { id: 22, centreKey: '22', name: '22. Welding and Fabrication Level 2',
+    startDate: '2026-08-02', endDate: '2027-07-30' }
+];
+const OPT2 = { field: 'course', centres: TWO_INTAKES };
+// Stamped with intake 01 by the transfer, still carrying intake 22's name.
+const MOVED = [{ id: 'W1', name: 'Welder', course: '22. Welding and Fabrication Level 2',
+                 centreKey: '01', centreId: 1, enrolmentDate: '2026-08-10' }];
+const mt = Core.transfer.tally(MOVED, TWO_INTAKES, OPT2);
+assertEq(mt.of(TWO_INTAKES[0]), 1, 'counted in 01, where they were moved to');
+assertEq(mt.of(TWO_INTAKES[1]), 0, 'and NOT in 22, which they were moved out of');
+assertEq(mt.of(TWO_INTAKES[0]) + mt.of(TWO_INTAKES[1]), MOVED.length,
+  'one trainee is one trainee — never counted by two intakes at once');
+assertEq(Core.transfer.traineesOf(MOVED, TWO_INTAKES[1], OPT2).length, 0,
+  'and the emptied intake\'s register is empty, as the Centre left it');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

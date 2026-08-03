@@ -20096,11 +20096,29 @@ function renderCourseDurationPage() {
   if (!el) return;
   if (currentRole !== 'admin') { el.innerHTML = '<div class="card" style="padding:24px;">Only administrators can manage course durations.</div>'; return; }
   normalizeCourseDurations();
+  /* Who is in each intake — asked the one way the whole dashboard asks it.
+
+     This page used to count with a rule of its own: resolve the programme NAME
+     written on the trainee and, failing that, fuzzy-match it. It never looked
+     at the intake stamped on them. So a trainee transferred from "22. Welding
+     and Fabrication Level 2" back to "01. Welding & Fabrication" was stamped
+     with intake 01 — and still counted under 22 here, by the programme text
+     they arrived with. The same 43 people showed as 43 in 01 and 43 in 22, and
+     an intake the Centre had emptied never dropped to zero.
+
+     transfer.tally puts identity first (intake key, then centre id) and the
+     name last, which is what a transfer actually writes — so this page now
+     agrees with the Training Centres cards, the Transfer page and the
+     Enrolment Register. It is also one pass over the roll instead of one per
+     centre. */
+  var _enrolTally = (typeof students !== 'undefined' && Array.isArray(students))
+    ? CESTISCore.transfer.tally(students, skillAreas,
+        { field: 'course', centres: skillAreas, nowMs: Date.now() })
+    : null;
   var rows = skillAreas.map(function(sk) {
     var status = CESTISCore.courseDuration.status(sk.startDate, sk.endDate);
     var open = CESTISCore.courseDuration.isRegisterOpen(sk, undefined, Date.now());
-    var enrolled = (typeof students !== 'undefined' && Array.isArray(students))
-      ? students.filter(function(st){ return st.course && courseDurationRecord(st.course) === sk; }).length : 0;
+    var enrolled = _enrolTally ? _enrolTally.of(sk) : 0;
     return '<tr>'+
       '<td><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">'+(sk.icon||'📋')+'</span><strong>'+escapeHtml(centreDisplayName(sk))+'</strong></div>'+
         '<div style="font-size:11px;color:var(--text-muted);">'+enrolled+' student'+(enrolled===1?'':'s')+'</div>'+cdPermissionInfo(sk)+'</td>'+
