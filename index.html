@@ -6797,12 +6797,8 @@ function loadState() {
   // instead of reading the wrong stamp as settled.
   try {
     var _released = releaseMisStampedIntakes();
-    // Then make the programme each trainee READS say the intake they are in —
-    // after the release above, so the text follows a stamp that survived it.
-    var _aligned = alignProgrammeTextToIntake();
-    if (_released > 0 || _aligned > 0) {
-      if (_released > 0) console.log('[loadState] Released ' + _released + ' trainee(s) from an intake that began after they enrolled');
-      if (_aligned > 0) console.log('[loadState] Brought ' + _aligned + ' trainee record(s) into line with the intake they are in');
+    if (_released > 0) {
+      console.log('[loadState] Released ' + _released + ' trainee(s) from an intake that began after they enrolled');
       try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
     }
   } catch(e) { console.warn('[loadState] intake release:', e); }
@@ -6936,6 +6932,37 @@ function deduplicateStudents() {
   var removed = students.length - deduped.length;
   students = deduped;
   return { removed: removed, idMap: idMap };
+}
+
+/* One person, one record — enforced AFTER everything that can add one.
+
+   deduplicateStudents() runs while the dashboard loads. Three passes can add a
+   trainee once it has: the account reconciler, the School Fee mirror, and a
+   cloud merge. Whatever they add stands until the NEXT launch — which is how a
+   trainee could be found twice, or three times, on a roll that had just been
+   de-duplicated, each copy under a different spelling of the same programme.
+
+   Running the same rule again once those passes have had their say closes that
+   window without having to know which of them added the record. It is the very
+   same rule (CESTISCore.collapseSameNameStudents), so it honours "keep
+   separate" and carries the loser's data onto the survivor, and their
+   attendance, results and accounts are re-linked. Returns how many it removed;
+   zero costs one pass over the roll and writes nothing. */
+function enforceOnePersonOneRecord() {
+  if (!window.CESTISCore || typeof CESTISCore.collapseSameNameStudents !== 'function') return 0;
+  if (typeof students === 'undefined' || !Array.isArray(students)) return 0;
+  var r;
+  try { r = CESTISCore.collapseSameNameStudents(students); } catch (e) { return 0; }
+  if (!r || !r.removed) return 0;
+  students = r.students;
+  try { relinkDependentData(r.idMap); } catch (e) {}
+  try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch (e) {}
+  try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch (e) {}
+  try { saveUserAccounts(); } catch (e) {}
+  console.log('[VocTrain] Collapsed ' + r.removed +
+              ' duplicate trainee record(s) that were added after the roll loaded');
+  try { if (typeof updateSkillAreaCounts === 'function') updateSkillAreaCounts(); } catch (e) {}
+  return r.removed;
 }
 
 // Re-link all dependent arrays after student deduplication.
@@ -9154,7 +9181,7 @@ function enterApp(role) {
     }
     currentRole = role;
     // Ensure all student user accounts have corresponding student records
-    if (reconcileStudentsFromAccounts()) saveState();
+    if (reconcileStudentsFromAccounts()) { enforceOnePersonOneRecord(); saveState(); }
     document.getElementById('landingPage').style.display = 'none';
     document.getElementById('appShell').classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -16970,7 +16997,7 @@ async function recoverAllCourseData() {
     totalAccounts += result.accounts;
   }
   // Reconcile: create student records for any recovered user accounts missing them
-  if (reconcileStudentsFromAccounts()) saveState();
+  if (reconcileStudentsFromAccounts()) { enforceOnePersonOneRecord(); saveState(); }
   var parts = [];
   if (totalStudents > 0) parts.push(totalStudents + ' student(s)');
   if (totalInstructors > 0) parts.push(totalInstructors + ' instructor(s)');
@@ -18633,6 +18660,7 @@ function syncStudentsFromLocalFeeSystem(force) {
 
 function filterStudents() {
   var _feeAdded = syncStudentsFromLocalFeeSystem();
+  if (_feeAdded) enforceOnePersonOneRecord();
   // Always keep the pipeline stage cards and the Dashboard "Total Enrolled"
   // figure in sync with the full student list (cheap), so they never lag behind
   // students added via any path.
@@ -19683,48 +19711,6 @@ function releaseMisStampedIntakes() {
     delete s.centreName;
     delete s.courseStart;
     delete s.courseEnd;
-    s.lastModified = new Date().toISOString();
-    n++;
-  });
-  return n;
-}
-
-/* Make the programme written on a trainee say the intake they are actually in.
-
-   A transfer stamps the receiving intake on the record AND rewrites the
-   programme text to match — but only for the records it moves, and only since
-   it learned to. Records moved before that, or mirrored in from another page,
-   kept the text of the intake they came from while carrying the stamp of the
-   one they are in. Nothing counts them wrongly any more, because every count
-   reads the stamp first. What was left was a record that READ wrong: open a
-   trainee sitting in "01. Welding & Fabrication" and the form still said
-   "22. Welding and Fabrication Level 2".
-
-   The stamp is the truth and the text follows it. Only records whose stamp
-   names a training centre that exists are touched, and only when the text
-   actually disagrees. Returns how many were brought into line. */
-function alignProgrammeTextToIntake() {
-  if (typeof students === 'undefined' || !Array.isArray(students)) return 0;
-  if (typeof skillAreas === 'undefined' || !Array.isArray(skillAreas) || !skillAreas.length) return 0;
-  var byKey = {}, byId = {}, n = 0;
-  skillAreas.forEach(function (c) {
-    if (!c) return;
-    var k = CESTISCore.enrolment.centreKeyOf(c);
-    if (k) byKey[k] = c;
-    if (c.id != null) byId[String(c.id)] = c;
-  });
-  students.forEach(function (s) {
-    if (!s) return;
-    var centre = null;
-    if (s.centreKey != null && String(s.centreKey).trim() !== '') {
-      centre = byKey[CESTISCore.enrolment.centreKeyOf({ centreKey: s.centreKey })] || null;
-    } else if (s.centreId != null) {
-      centre = byId[String(s.centreId)] || null;
-    }
-    if (!centre || !centre.name) return;         // unstamped records keep their own text
-    if (s.course === centre.name) return;
-    s.course = centre.name;
-    s.centreName = centre.name;
     s.lastModified = new Date().toISOString();
     n++;
   });
