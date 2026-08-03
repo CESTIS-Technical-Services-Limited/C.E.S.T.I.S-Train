@@ -19315,13 +19315,24 @@ function showSkillDetail(id) {
   const d = document.getElementById('skillDetailPage');
   d.style.display='block';
 
-  // Filter driveResources that belong to this training centre's course
-  var courseResources = driveResources.filter(function(r) {
-    if (!r.course) return false;
-    return r.course.toLowerCase() === skill.name.toLowerCase() ||
-      skill.name.toLowerCase().indexOf(r.course.toLowerCase().split(' ')[0]) !== -1 ||
-      r.course.toLowerCase().indexOf(skill.name.split(' ')[0].toLowerCase()) !== -1;
-  });
+  /* The materials this training centre holds — by the same rule that produced
+     the number on its card.
+
+     This used to match on the FIRST WORD of the programme name: take the first
+     word of the material's course and look for it anywhere in the centre's
+     name, and the other way round. Every intake of a programme shares that
+     word, so every intake listed every other intake's materials — the Level 2
+     centre showed the Level 1 guides and vice versa. And because the card's
+     figure comes from transfer.tally (updateSkillAreaCounts) while the panel
+     used this, the two openly disagreed: a card reading "2 materials" opened
+     onto a list of three.
+
+     transfer.tally is the one rule — intake key first, centre id next,
+     programme name last — so the card and the list are now the same answer. */
+  var _matTally = CESTISCore.transfer.tally(
+    Array.isArray(driveResources) ? driveResources : [], skillAreas,
+    { field: 'course', centres: skillAreas, nowMs: Date.now() });
+  var courseResources = _matTally.listOf(skill);
 
   // Group resources by category
   var catConfig = [

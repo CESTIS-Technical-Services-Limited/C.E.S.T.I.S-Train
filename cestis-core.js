@@ -987,6 +987,15 @@
     for (k in dr.idMap) { if (Object.prototype.hasOwnProperty.call(dr.idMap, k)) idMap[k] = dr.idMap[k]; }
 
     survivors.forEach(function (s) {
+      // A record the administrator pinned as its own person keeps the id it
+      // has. The stable id is derived from name + programme, so two REAL
+      // people of one name on one programme — exactly what keepSeparate is
+      // for — were handed the same id here. Both records survived every dedup,
+      // as they are meant to, and then shared an identity: their attendance and
+      // results ran together, deleting one tombstoned both, and the next sync
+      // that added anything replaced one of them with a copy of the other. The
+      // id they already carry is unique on this device and must not move.
+      if (Core.isKeptSeparate(s) && s.id != null && String(s.id) !== '') return;
       var newId = Core.stableStudentId(s);
       if (!newId) return; // no natural key — leave id alone
       if (s.id !== newId) {
@@ -1248,15 +1257,40 @@
       var isStudents = (key === 'voctrain_students');
       var snapArr = Core._parseArr(snapStore[key]);
       var locArr = Core._parseArr(localStoreMap[key]);
-      var byId = {}; var order = [];
-      locArr.forEach(function (r) { if (r && r.id != null) { byId[r.id] = r; order.push(r.id); } });
+
+      /* Start from what this device holds, RECORD BY RECORD, and add only what
+         the snapshot has that it does not.
+
+         This used to rebuild the list out of an id->record map: every local
+         record was filed under its id and the list re-derived from those ids.
+         Two kinds of record did not survive the round trip, and both are
+         ordinary:
+
+           - a record with NO id was never filed, so it vanished from the
+             rebuilt list — silently, on any reconcile that changed anything.
+             It applies to every collection here, so an unidentified attendance
+             row, exam result, fee record or payment was dropped just the same.
+           - two records SHARING an id filed the second over the first, and the
+             list then took that one record twice. One real person, or one real
+             payment, was replaced by a copy of another.
+
+         Keeping the local array as the spine fixes both: nothing this device
+         holds is dropped for want of an id, and nothing is duplicated for
+         sharing one. */
+      var byId = {};
+      var merged = [];
+      locArr.forEach(function (r) {
+        if (!r) return;
+        merged.push(r);
+        if (r.id != null && !(r.id in byId)) byId[r.id] = r;
+      });
       var added = 0;
       snapArr.forEach(function (r) {
         if (!r || r.id == null) return;
         if (isStudents && deletedStudents[r.id]) return; // honor tombstone on add
-        if (!(r.id in byId)) { byId[r.id] = r; order.push(r.id); added++; }
+        if (r.id in byId) return;                        // this device already has it
+        byId[r.id] = r; merged.push(r); added++;
       });
-      var merged = order.map(function (id) { return byId[id]; });
       var changedHere = (added > 0);
       if (isStudents) {
         // Drop any student (local OR added) that is now tombstoned, then dedupe.
@@ -1270,6 +1304,43 @@
         // left some users unable to log in / download after a sync — their account
         // still pointed at a student id the dedupe had just removed.
         if (dr.idMap) { for (var _im in dr.idMap) { if (Object.prototype.hasOwnProperty.call(dr.idMap, _im)) studentIdMap[_im] = dr.idMap[_im]; } }
+
+        /* Then the Centre's own rule: one person, one record.
+
+           Without this, a correction made at launch was undone by the very next
+           sync. The launch collapses two records of one person by NAME alone
+           (collapseSameNameStudents — the Centre's instruction, whatever
+           programme each names). Removing a record leaves no trace, so this
+           union simply added it back from the snapshot, and the dedupe above
+           did not catch it because it groups on name AND programme: the two
+           spellings, "Welding & Fabrication" and "WELDING L2", are two groups
+           to it and one person to the Centre.
+
+           So the roll read 447 on opening, dropped to 220 once the launch
+           collapse ran, and was back at 447 after the next sync — the same
+           people arriving again from a master snapshot that still held the
+           duplicated state. Applying the identical rule here settles it in one
+           direction: what the launch corrected, a sync now keeps corrected, and
+           the master is rewritten with the corrected roll. keepSeparate is
+           honoured here exactly as it is there, so genuine namesakes the
+           administrator has pinned still stand apart. */
+        if (typeof Core.collapseSameNameStudents === 'function') {
+          var cr = Core.collapseSameNameStudents(merged);
+          if (cr.removed > 0) {
+            merged = cr.students;
+            changedHere = true;
+            // Re-point anything already mapped at a record this pass removed,
+            // then take on its own mappings, so no dependent is left dangling.
+            for (var _k in studentIdMap) {
+              if (!Object.prototype.hasOwnProperty.call(studentIdMap, _k)) continue;
+              if (cr.idMap[studentIdMap[_k]]) studentIdMap[_k] = cr.idMap[studentIdMap[_k]];
+            }
+            for (var _c in cr.idMap) {
+              if (Object.prototype.hasOwnProperty.call(cr.idMap, _c)) studentIdMap[_c] = cr.idMap[_c];
+            }
+            result.collapsedSameName = (result.collapsedSameName || 0) + cr.removed;
+          }
+        }
         result.recoveredStudents += added;
       }
       if (changedHere) {
@@ -2560,36 +2631,83 @@
       }
       if (hit) return hit;
 
-      for (i = 0; i < areas.length; i++) {
-        n = norm(areas[i] && parseCentreLabel(areas[i].name).name);
-        if (!n) continue;
-        if (n.indexOf(cn) === 0 || cn.indexOf(n) === 0) hit = preferCentre(hit, areas[i], opts);
+      var qT = tokenise(cn), qL = levelOfTokens(qT), qW = keyWords(qT);
+
+      /* One name starting the other — and here too the level decides first.
+
+         Every programme name is a prefix of its own Level 2: "Electrical
+         Installation" starts "Electrical Installation Level 2", and a bare
+         "ELECTRICAL" starts both. This pass had no level test at all, so both
+         intakes matched and preferCentre picked between them by whose register
+         was OPEN — which handed the trainees of a finished programme to the new
+         Level 2 intake the moment it opened, and moved them again whenever that
+         changed. Same rule as the word-matching pass below: a centre stating
+         the level being asked for is preferred outright, and the looser reading
+         is used only when none does. */
+      function prefixScan(exact) {
+        var found = null;
+        for (var i3 = 0; i3 < areas.length; i3++) {
+          var a3 = areas[i3];
+          if (!a3) continue;
+          var bare = parseCentreLabel(a3.name).name;
+          var nn = norm(bare);
+          if (!nn) continue;
+          if (nn.indexOf(cn) !== 0 && cn.indexOf(nn) !== 0) continue;
+          if (exact && levelOfTokens(tokenise(bare)) !== qL) continue;
+          found = preferCentre(found, a3, opts);
+        }
+        return found;
       }
+      hit = prefixScan(true) || prefixScan(false);
       if (hit) return hit;
 
-      var qT = tokenise(cn), qL = levelOfTokens(qT), qW = keyWords(qT);
       if (!qW.length) return null;
-      var best = null, bestScore = 0;
-      for (i = 0; i < areas.length; i++) {
-        var area = areas[i];
-        if (!area || !area.name) continue;
-        var aT = tokenise(parseCentreLabel(area.name).name), aL = levelOfTokens(aT), aW = keyWords(aT);
-        if (!aW.length) continue;
-        if (qL && aL && qL !== aL) continue;      // Level 2 is not Level 3
-        var shared = 0;
-        for (var k = 0; k < qW.length; k++) {
-          for (var m = 0; m < aW.length; m++) {
-            if (sameWord(qW[k], aW[m])) { shared++; break; }
+
+      /* Score the roster on shared words. `exact` restricts it to centres
+         stating the SAME level as the query — where stating none counts as a
+         level of its own.
+
+         Run strictly FIRST, because the two are not equally good answers. The
+         Centre writes its programmes both ways: some centres carry the level in
+         their name ("Electrical Installation Level 2") and some do not
+         ("Welding and Fabrication", run twice), while the fee side writes the
+         level either way ("ELECTRICAL L2"). Matching loosely — the old rule,
+         which only rejected a candidate when BOTH sides named a level — meant a
+         Level 2 query matched an unlevelled centre on one shared word, so
+         "ELECTRICAL L2" trainees were counted in the Level 1 intake and a plain
+         "Electrical Installation" could reach the Level 2 centre. That is the
+         two electrical programmes taking trainees from each other.
+
+         Matching ONLY strictly is wrong too: where a programme's centres carry
+         no level at all, "WELDING L2" has no exact-level centre to find and
+         must still resolve to the intake open now. So the loose pass remains,
+         as the fallback it always should have been — used only when nothing
+         states the level being asked for. */
+      function scan(exact) {
+        var best = null, bestScore = 0;
+        for (var i2 = 0; i2 < areas.length; i2++) {
+          var area = areas[i2];
+          if (!area || !area.name) continue;
+          var aT = tokenise(parseCentreLabel(area.name).name), aL = levelOfTokens(aT), aW = keyWords(aT);
+          if (!aW.length) continue;
+          if (exact) { if (aL !== qL) continue; }              // same level, or both unlevelled
+          else if (qL && aL && qL !== aL) continue;            // Level 2 is never Level 3
+          var shared = 0;
+          for (var k = 0; k < qW.length; k++) {
+            for (var m = 0; m < aW.length; m++) {
+              if (sameWord(qW[k], aW[m])) { shared++; break; }
+            }
           }
+          // Every distinguishing word of the shorter name must appear in the
+          // longer one — an overlap of merely one word out of several is a
+          // different programme, not an abbreviation of this one.
+          if (!shared || shared < Math.min(qW.length, aW.length)) continue;
+          if (shared > bestScore) { bestScore = shared; best = area; }
+          else if (shared === bestScore) { best = preferCentre(best, area, opts); }
         }
-        // Every distinguishing word of the shorter name must appear in the
-        // longer one — an overlap of merely one word out of several is a
-        // different programme, not an abbreviation of this one.
-        if (!shared || shared < Math.min(qW.length, aW.length)) continue;
-        if (shared > bestScore) { bestScore = shared; best = area; }
-        else if (shared === bestScore) { best = preferCentre(best, area, opts); }
+        return best;
       }
-      return best;
+      return scan(true) || scan(false);
     }
 
     /* Fiscal year (Apr–Mar) that a date belongs to, e.g. '2025/2026'. */
