@@ -424,7 +424,21 @@ function deduplicateStudents() {
   if (window.CESTISCore && typeof CESTISCore.dedupeStudents === 'function') {
     var _r = CESTISCore.dedupeStudents(students);
     students = _r.students;
-    return { removed: _r.removed, idMap: _r.idMap };
+    var _idMap = _r.idMap, _removed = _r.removed;
+    // The Centre's rule: one person, one record. Same exact name = same
+    // trainee, whatever ids they were given and whatever programme each names.
+    if (typeof CESTISCore.collapseSameNameStudents === 'function') {
+      var _c = CESTISCore.collapseSameNameStudents(students);
+      if (_c.removed > 0) {
+        students = _c.students;
+        _removed += _c.removed;
+        Object.keys(_idMap).forEach(function (k) {
+          if (_c.idMap[_idMap[k]]) _idMap[k] = _c.idMap[_idMap[k]];
+        });
+        Object.keys(_c.idMap).forEach(function (k) { _idMap[k] = _c.idMap[k]; });
+      }
+    }
+    return { removed: _removed, idMap: _idMap };
   }
   var seen = {}, idMap = {};
   students.forEach(function(s) {

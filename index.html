@@ -6866,7 +6866,25 @@ function deduplicateStudents() {
   if (window.CESTISCore && typeof CESTISCore.dedupeStudents === 'function') {
     var _r = CESTISCore.dedupeStudents(students);
     students = _r.students;
-    return { removed: _r.removed, idMap: _r.idMap };
+    var _idMap = _r.idMap, _removed = _r.removed;
+    // Then the Centre's own rule: one person, one record. Two records with the
+    // same exact name are the same trainee however they were keyed and
+    // whatever programme each names, so one of them goes — the one with less
+    // evidence of use, after everything it held is carried across.
+    if (typeof CESTISCore.collapseSameNameStudents === 'function') {
+      var _c = CESTISCore.collapseSameNameStudents(students);
+      if (_c.removed > 0) {
+        students = _c.students;
+        _removed += _c.removed;
+        // Re-point ids already mapped at a record this pass has now removed,
+        // then take on its own mappings, so nothing dangles.
+        Object.keys(_idMap).forEach(function (k) {
+          if (_c.idMap[_idMap[k]]) _idMap[k] = _c.idMap[_idMap[k]];
+        });
+        Object.keys(_c.idMap).forEach(function (k) { _idMap[k] = _c.idMap[k]; });
+      }
+    }
+    return { removed: _removed, idMap: _idMap };
   }
   var seen = {};    // key -> kept record
   var idMap = {};   // oldId -> keptId
@@ -7183,12 +7201,28 @@ function reconcileStudentsFromAccounts() {
       if (matchedStu && u.studentDataId !== matchedStu.id) u.studentDataId = matchedStu.id;
       return;
     }
-    // Also match by name alone when programme is missing to prevent ghost re-creation
-    if (u.name && !u.programme) {
+    // Match by name ALONE — not only when the account has no programme.
+    //
+    // This is where the doubles were minted. The name+programme test above
+    // compares the account's `programme` with the student's `course`, and the
+    // two sides routinely spell one programme differently ("WELDING L2" on the
+    // account, "Welding & Fabrication" on the record). That mismatch fell
+    // through to the create below, which handed the same person a second
+    // record and a fresh machine-generated id.
+    //
+    // One person, one record: if a trainee of that exact name is already on the
+    // roll, link the account to them and create nothing.
+    if (u.name) {
       var nameOnlyMatch = students.find(function(s) {
         return s.name && s.name.toLowerCase().trim() === u.name.toLowerCase().trim();
       });
-      if (nameOnlyMatch) { u.studentDataId = nameOnlyMatch.id; return; }
+      if (nameOnlyMatch) {
+        if (u.studentDataId !== nameOnlyMatch.id) { u.studentDataId = nameOnlyMatch.id; changed = true; }
+        // Fill a blank programme from the record we just linked to, so the two
+        // sides stop disagreeing about it.
+        if (!u.programme && nameOnlyMatch.course) { u.programme = nameOnlyMatch.course; changed = true; }
+        return;
+      }
     }
 
     // No matching student record — create one
