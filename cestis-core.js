@@ -263,6 +263,95 @@
            sameTwinIdentity(was.name, ('course' in was ? was.course : student.course), fee);
   };
 
+  /* Core.twinIndex(students) — find a fee record's twin without scanning.
+
+     Mirroring the School Fee roll onto the dashboard asked, for every fee
+     record, "is any of these students their twin?" — a scan of the WHOLE
+     roster, normalising two names on each comparison. Two rolls of a thousand
+     is two million normalising comparisons, and the dashboard ran it on every
+     keystroke in the student search box. That is what pinned the main thread.
+
+     This indexes the roster once by every link isFeeTwin() tests, so each fee
+     record is a handful of map lookups.
+
+       idx = Core.twinIndex(students)
+       idx.find(fee)        -> the same student students.find(s => isFeeTwin(s, fee)) would
+       idx.findByName(name) -> the first student of that name, under any programme
+       idx.add(student)     -> keep the index current when one is pushed
+
+     find() resolves ties by ROSTER ORDER, not by which kind of link matched, so
+     it returns exactly what the scan it replaces returned. */
+  Core.twinIndex = function (students) {
+    var list = Array.isArray(students) ? students : [];
+    var byId = new Map(), bySchoolFeeId = new Map(), byName = new Map();
+
+    function putFirst(map, key, i) {
+      if (key == null || key === '') return;
+      var k = String(key);
+      if (!map.has(k)) map.set(k, i);        // first occurrence wins, as .find() does
+    }
+    function index(s, i) {
+      if (!s) return;
+      putFirst(byId, s.id, i);
+      putFirst(bySchoolFeeId, s.schoolFeeId, i);
+      var n = Core.normName(s.name);
+      if (!n) return;
+      if (!byName.has(n)) byName.set(n, []);
+      byName.get(n).push(i);                 // pushed in ascending roster order
+    }
+    for (var i = 0; i < list.length; i++) index(list[i], i);
+
+    function nameCandidates(name) {
+      var n = Core.normName(name);
+      return n ? (byName.get(n) || null) : null;
+    }
+
+    function find(fee) {
+      if (!fee) return null;
+      var best = -1;
+      var consider = function (at) { if (at != null && at >= 0 && (best < 0 || at < best)) best = at; };
+
+      if (hasId(fee.lmsId)) consider(byId.get(String(fee.lmsId)));
+      if (hasId(fee.id)) {
+        consider(byId.get(String(fee.id)));
+        consider(byId.get('SF-' + fee.id));   // the fee page's mirrored twin id
+        consider(bySchoolFeeId.get(String(fee.id)));
+      }
+      // Never-linked pairs: same name, and a programme that does not contradict.
+      var cand = nameCandidates(fee.name);
+      if (cand) {
+        for (var j = 0; j < cand.length; j++) {
+          var s = list[cand[j]];
+          if (s && sameTwinIdentity(s.name, s.course, fee)) { consider(cand[j]); break; }
+        }
+      }
+      return best >= 0 ? list[best] : null;
+    }
+
+    /* The same person under ANY programme — lmsMirrorTarget's second pass.
+
+       A record with no name matches nothing. The scan this replaces compared
+       normalised names with ===, so two NAMELESS records came out equal and it
+       reported them as the same person — something find() itself always refused
+       (sameTwinIdentity rejects an empty name outright). Both callers already
+       return 'skip' before reaching here when the name is empty, so this only
+       makes the two halves agree; it cannot change an answer the app asks for. */
+    function findByName(name) {
+      var cand = nameCandidates(name);
+      return (cand && cand.length) ? list[cand[0]] : null;
+    }
+
+    function add(student) {
+      if (!student) return;
+      // Tolerates being called either INSTEAD OF a push onto the same array or
+      // just AFTER one, so a caller cannot accidentally add the student twice.
+      if (list[list.length - 1] !== student) list.push(student);
+      index(student, list.length - 1);
+    }
+
+    return { find: find, findByName: findByName, add: add, get size() { return list.length; } };
+  };
+
   /* --- Edit recency -------------------------------------------------------
      The name is the one field both systems may change, so it is resolved by
      which record was edited last. The dashboard stamps `lastModified`, the fee
@@ -378,20 +467,33 @@
     // Already on the dashboard? A linked id or the same name+programme first,
     // then the same person under any programme at all — being the same person
     // is enough to leave them exactly where the Centre put them.
+    //
+    // Both questions are answered from opts.twinIndex when the caller supplies
+    // one (see Core.twinIndex). Mirroring a whole roll used to run these two
+    // scans for EVERY fee record, which is what made the dashboard crawl.
+    var idx = opts.twinIndex || null;
     var match = null, i;
-    for (i = 0; i < list.length; i++) {
-      if (list[i] && Core.isFeeTwin(list[i], fee)) { match = list[i]; break; }
+    if (idx) {
+      match = idx.find(fee);
+    } else {
+      for (i = 0; i < list.length; i++) {
+        if (list[i] && Core.isFeeTwin(list[i], fee)) { match = list[i]; break; }
+      }
     }
     if (match) {
       return { action: 'link', match: match, course: match.course || '',
         centreCourse: centreCourse, reason: 'twin' };
     }
-    var want = Core.normName(fee.name);
-    for (i = 0; i < list.length; i++) {
-      if (list[i] && Core.normName(list[i].name) === want) {
-        return { action: 'link', match: list[i], course: list[i].course || '',
-          centreCourse: centreCourse, reason: 'already-enrolled-elsewhere' };
+    var byName = idx ? idx.findByName(fee.name) : null;
+    if (!idx) {
+      var want = Core.normName(fee.name);
+      for (i = 0; i < list.length; i++) {
+        if (list[i] && Core.normName(list[i].name) === want) { byName = list[i]; break; }
       }
+    }
+    if (byName) {
+      return { action: 'link', match: byName, course: byName.course || '',
+        centreCourse: centreCourse, reason: 'already-enrolled-elsewhere' };
     }
 
     // Nobody there yet: the programme has to be one the Centre actually runs.
@@ -2391,13 +2493,25 @@
      there is no training centre to satisfy here: being the same person is the
      whole test.
 
-       feeMirrorTarget(student, feeStudents) -> { action: 'link'|'create'|'skip', match, reason } */
-  Core.feeMirrorTarget = function (student, feeStudents) {
+       feeMirrorTarget(student, feeStudents, opts) -> { action: 'link'|'create'|'skip', match, reason }
+
+     opts.index — a Core.feeTwinIndex over the same roll. The mirror runs on
+     every save, once per student; without an index that is two scans of the
+     whole fee roll per student, normalising names all the way. */
+  Core.feeMirrorTarget = function (student, feeStudents, opts) {
     var list = Array.isArray(feeStudents) ? feeStudents : [];
     if (!student || !Core.normName(student.name)) {
       return { action: 'skip', match: null, reason: 'no-name' };
     }
+    var idx = (opts && opts.index) || null;
     var i;
+    if (idx) {
+      var hit = idx.find(student);
+      if (hit) return { action: 'link', match: hit, reason: 'twin' };
+      var named = idx.findByName(student.name);
+      if (named) return { action: 'link', match: named, reason: 'same-person-other-programme' };
+      return { action: 'create', match: null, reason: 'ok' };
+    }
     for (i = 0; i < list.length; i++) {
       if (list[i] && Core.isFeeTwin(student, list[i])) {
         return { action: 'link', match: list[i], reason: 'twin' };
@@ -2410,6 +2524,79 @@
       }
     }
     return { action: 'create', match: null, reason: 'ok' };
+  };
+
+  /* Core.feeTwinIndex(feeStudents) — Core.twinIndex pointing the other way.
+
+     twinIndex indexes the dashboard roster and is asked "whose twin is this fee
+     record?"; this indexes the FEE roll and is asked "which fee record belongs
+     to this student?" — the question the save-time mirror asks once per
+     student.
+
+       idx.find(student)    -> the same record feeStudents.find(f => isFeeTwin(student, f)) would
+       idx.findByName(name) -> the first fee record of that name, under any programme
+       idx.add(feeRecord)   -> keep the index current when one is appended
+
+     Ties resolve by ROLL ORDER, so it returns exactly what the scan returned. */
+  Core.feeTwinIndex = function (feeStudents) {
+    var list = Array.isArray(feeStudents) ? feeStudents : [];
+    var byFeeId = new Map(), byLmsId = new Map(), byName = new Map();
+
+    function putFirst(map, key, i) {
+      if (key == null || key === '') return;
+      var k = String(key);
+      if (!map.has(k)) map.set(k, i);
+    }
+    function index(f, i) {
+      if (!f) return;
+      putFirst(byFeeId, f.id, i);
+      putFirst(byLmsId, f.lmsId, i);
+      var n = Core.normName(f.name);
+      if (!n) return;
+      if (!byName.has(n)) byName.set(n, []);
+      byName.get(n).push(i);
+    }
+    for (var i = 0; i < list.length; i++) index(list[i], i);
+
+    function find(student) {
+      if (!student) return null;
+      var best = -1;
+      var consider = function (at) { if (at != null && at >= 0 && (best < 0 || at < best)) best = at; };
+      var sid = hasId(student.id) ? String(student.id) : '';
+
+      if (sid) {
+        consider(byLmsId.get(sid));                       // fee.lmsId === student.id
+        consider(byFeeId.get(sid));                       // fee.id === student.id
+        // student.id === 'SF-' + fee.id — the fee page's mirrored twin id.
+        if (sid.indexOf('SF-') === 0) consider(byFeeId.get(sid.slice(3)));
+      }
+      if (hasId(student.schoolFeeId)) consider(byFeeId.get(String(student.schoolFeeId)));
+
+      var n = Core.normName(student.name);
+      if (n) {
+        var cand = byName.get(n);
+        if (cand) {
+          for (var j = 0; j < cand.length; j++) {
+            if (sameTwinIdentity(student.name, student.course, list[cand[j]])) { consider(cand[j]); break; }
+          }
+        }
+      }
+      return best >= 0 ? list[best] : null;
+    }
+
+    function findByName(name) {
+      var n = Core.normName(name);
+      var cand = n ? byName.get(n) : null;
+      return (cand && cand.length) ? list[cand[0]] : null;
+    }
+
+    function add(record) {
+      if (!record) return;
+      if (list[list.length - 1] !== record) list.push(record);
+      index(record, list.length - 1);
+    }
+
+    return { find: find, findByName: findByName, add: add, get size() { return list.length; } };
   };
 
   /* ==========================================================================
@@ -3877,6 +4064,99 @@
       return { data: data, stamps: stamps, changed: changed };
     }
 
+    /* --- Shared collections, and which backup file carries them ------------
+
+       Some collections belong to one page but are READ by several: the trainee
+       roll, the training centres and their tombstones, the fee roll. A page
+       backs up only the keys it OWNS, so a page that merely reads a shared
+       collection never fetched it from Drive at all — it rendered whatever
+       happened to be in this device's local storage. On a machine that had not
+       opened the owning page, that meant stale data or none, and the page then
+       wrote its own view back over everyone else's.
+
+       This registry says where each shared collection actually lives, so any
+       page can pull the current copy from Drive when it syncs. A reader pulls
+       and merges; it never pushes a key it does not own, so it cannot overwrite
+       the owning page's data. */
+    var SHARED_SOURCES = [
+      {
+        file: 'CESTIS_Student_Progress.json',
+        page: 'Student Progress',
+        keys: ['voctrain_students', 'voctrain_skillAreas', 'voctrain_studentProfiles',
+               'voctrain_instructorData', 'voctrain_attendance', 'voctrain_examResults',
+               'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds',
+               'voctrain_deletedCentreIds']
+      },
+      {
+        file: 'CESTIS_School_Fees.json',
+        page: 'School Fee Management',
+        keys: ['cestiFeeStructure', 'cestiSchoolFeeStudents', 'cestiSchoolFeePayments',
+               'cestiSchoolFeeDocuments', 'cestiSchoolFeeDeletedLmsIds',
+               'cestiSchoolFeeDeletedPaymentIds']
+      },
+      {
+        file: 'CESTIS_Transcript_Grades.json',
+        page: 'Transcript / Grades',
+        keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles']
+      },
+      {
+        file: 'CESTIS_Transcript_Requests.json',
+        page: 'Certificate / Transcript Requests',
+        keys: ['voctrain_certTranscriptRequests']
+      }
+    ];
+
+    function sharedSources() { return SHARED_SOURCES; }
+
+    /* Is this key one several pages depend on? */
+    function isShared(key) {
+      for (var i = 0; i < SHARED_SOURCES.length; i++) {
+        if (SHARED_SOURCES[i].keys.indexOf(key) !== -1) return true;
+      }
+      return false;
+    }
+
+    /* The file that carries a shared key, or null if nothing claims it. */
+    function sourceOf(key) {
+      for (var i = 0; i < SHARED_SOURCES.length; i++) {
+        if (SHARED_SOURCES[i].keys.indexOf(key) !== -1) return SHARED_SOURCES[i];
+      }
+      return null;
+    }
+
+    /* Which files a page must pull to have current copies of `keys`, and which
+       of those keys each file supplies. `ownFile` is the page's own backup — it
+       is already pulled in the normal way, so it is never listed again.
+
+       Returns [{ file, page, keys: [...] }], one entry per file, in registry
+       order. Keys nothing claims are simply not fetched: they are page-local. */
+    function sharedPullPlan(keys, ownFile) {
+      var wanted = Array.isArray(keys) ? keys : [];
+      var plan = [], byFile = {};
+      wanted.forEach(function (k) {
+        var src = sourceOf(k);
+        if (!src || src.file === ownFile) return;
+        if (!byFile[src.file]) {
+          byFile[src.file] = { file: src.file, page: src.page, keys: [] };
+          plan.push(byFile[src.file]);
+        }
+        if (byFile[src.file].keys.indexOf(k) === -1) byFile[src.file].keys.push(k);
+      });
+      return plan;
+    }
+
+    /* Take just the shared keys a reader asked for out of a pulled payload.
+       Everything else in that file belongs to the owning page and is left
+       alone — a reader adopts what it reads, never the whole file. */
+    function pickShared(payloadData, keys) {
+      var out = {}, wanted = Array.isArray(keys) ? keys : [];
+      if (!payloadData) return out;
+      wanted.forEach(function (k) {
+        if (Object.prototype.hasOwnProperty.call(payloadData, k)) out[k] = payloadData[k];
+      });
+      return out;
+    }
+
     /* Does a storage key belong to this page's backup? Pages declare exact key
        names and/or prefixes (the Cashbook's quarters are `cestis_quarter_<FY>_Q<n>`,
        so they can only be described as a prefix). */
@@ -3927,7 +4207,9 @@
       };
     }
 
-    return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload };
+    return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload,
+             sharedSources: sharedSources, isShared: isShared, sourceOf: sourceOf,
+             sharedPullPlan: sharedPullPlan, pickShared: pickShared };
   })();
 
   root.CESTISCore = Core;

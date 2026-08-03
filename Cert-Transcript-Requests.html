@@ -235,7 +235,10 @@ document.addEventListener('DOMContentLoaded', function () {
 CESTISPageCloud.init({
   page: 'Certificate / Transcript Requests',
   file: 'CESTIS_Transcript_Requests.json',
-  keys: ['voctrain_certTranscriptRequests']
+  keys: ['voctrain_certTranscriptRequests'],
+  // A request is about a trainee on a programme, both owned elsewhere: pulled
+  // from Drive here, never written back.
+  reads: ['voctrain_students', 'voctrain_skillAreas', 'voctrain_deletedCentreIds']
 });
 </script>
 </body>

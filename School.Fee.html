@@ -13981,7 +13981,29 @@ CESTISPageCloud.init({
   page: 'School Fee Management',
   file: 'CESTIS_School_Fees.json',
   keys: ['cestiFeeStructure'],
-  prefixes: ['cestiSchoolFee']
+  prefixes: ['cestiSchoolFee'],
+  // Read from Drive, never written back from here: the training centres decide
+  // which programmes may be priced and enrolled into, their tombstones decide
+  // which have been deleted, and the trainee roll fills the academic stage
+  // column. Without pulling these, this page ran on whatever the device happened
+  // to hold — which on a machine that had not opened the LMS dashboard meant an
+  // empty or long-stale centre list.
+  reads: ['voctrain_skillAreas', 'voctrain_deletedCentreIds', 'voctrain_students',
+          'voctrain_deletedStudentIds'],
+  onRestore: function (changed) {
+    try {
+      if (typeof feeInvalidateCaches === 'function') feeInvalidateCaches();
+      if (typeof refreshLmsStudentCache === 'function') refreshLmsStudentCache();
+      if (typeof loadData === 'function') loadData();
+      if (typeof updateSkillAreaOptions === 'function') updateSkillAreaOptions();
+      if (typeof renderFeeStructure === 'function') renderFeeStructure();
+      if (typeof renderStudentsTable === 'function') renderStudentsTable();
+      if (typeof renderPaymentsTable === 'function') renderPaymentsTable();
+      if (typeof renderDocumentsTable === 'function') renderDocumentsTable();
+      if (typeof populatePaymentStudentSelect === 'function') populatePaymentStudentSelect();
+      if (typeof updateDashboard === 'function') updateDashboard();
+    } catch (e) { console.warn('[PageCloud] School Fee restore refresh failed:', e); }
+  }
 });
 </script>
 </body>

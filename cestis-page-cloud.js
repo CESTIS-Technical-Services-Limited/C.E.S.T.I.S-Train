@@ -83,9 +83,88 @@
     this.stampsKey = 'cestis_pagecloud_stamps__' + spec.file;
     this.fileId = null;
     this.lastPush = '';
-    this.state = { connected: false, lastPull: '', lastPush: '', error: '', keys: 0 };
+    this.state = { connected: false, lastPull: '', lastPush: '', error: '', keys: 0, shared: 0 };
     this._timer = null;
+    this._sharedIds = {};        // shared file name -> Drive file id, cached per session
   }
+
+  /* Find any file in the folder by name. */
+  function findFile(name, tok) {
+    var q = "name='" + name + "' and '" + FOLDER_ID + "' in parents and trashed=false";
+    return api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)',
+      { headers: { Authorization: 'Bearer ' + tok } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { return (d.files && d.files.length) ? d.files[0].id : null; });
+  }
+
+  /* Bring down the CROSS-PAGE collections this page reads but does not own.
+
+     A page backs up only the keys it owns, so a page that merely reads a shared
+     collection — the trainee roll, the training centres, the fee roll — never
+     fetched it from Drive at all. It rendered whatever was in this device's
+     local storage, which on a machine that had not opened the owning page meant
+     stale data or none.
+
+     Reader semantics, deliberately: what comes down is merged in by the same
+     newest-write-wins rule as everything else, and these keys are NEVER pushed
+     from here (ownsKey() still decides what goes up), so reading a shared
+     collection can never overwrite the page that owns it.
+
+     Resolves with the keys that changed locally. */
+  Page.prototype.pullShared = function () {
+    var self = this, tok = token();
+    var C = core();
+    var reads = self.spec.reads || [];
+    if (!tok || !reads.length || !C.sharedPullPlan) return Promise.resolve([]);
+
+    var plan = C.sharedPullPlan(reads, self.spec.file);
+    if (!plan.length) return Promise.resolve([]);
+
+    return Promise.all(plan.map(function (src) {
+      var idP = self._sharedIds[src.file]
+        ? Promise.resolve(self._sharedIds[src.file])
+        : findFile(src.file, tok).then(function (id) { self._sharedIds[src.file] = id; return id; });
+
+      return idP.then(function (id) {
+        if (!id) return [];
+        return api('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media',
+          { headers: { Authorization: 'Bearer ' + tok } })
+          .then(function (r) { return r.json(); })
+          .then(function (payload) {
+            if (!payload || !payload.data) return [];
+            // Only the keys this page said it reads — the rest of that file is
+            // the owning page's business.
+            var cloud = C.pickShared(payload.data, src.keys);
+            var cloudStamps = C.pickShared(payload.stamps || {}, src.keys);
+            var localMap = storeMap(), local = {};
+            src.keys.forEach(function (k) {
+              if (Object.prototype.hasOwnProperty.call(localMap, k)) local[k] = localMap[k];
+            });
+            var known = self.stamps();
+            var first = Object.keys(known).length === 0;
+            var res = C.mergeKeys(local, known, cloud, cloudStamps, { firstSync: first });
+            res.changed.forEach(function (k) {
+              try { store().setItem(k, res.data[k]); } catch (e) {}
+            });
+            // Remember when each shared key was last taken from the cloud, so
+            // the next pull is judged on recency rather than read as a first
+            // sync — without claiming to OWN the key.
+            if (res.changed.length) {
+              var s = self.stamps();
+              res.changed.forEach(function (k) { if (res.stamps[k]) s[k] = res.stamps[k]; });
+              self.setStamps(s);
+            }
+            return res.changed;
+          })
+          .catch(function () { return []; });
+      }).catch(function () { return []; });
+    })).then(function (lists) {
+      var changed = [];
+      lists.forEach(function (l) { l.forEach(function (k) { if (changed.indexOf(k) === -1) changed.push(k); }); });
+      self.state.shared = changed.length;
+      return changed;
+    });
+  };
 
   Page.prototype.stamps = function () {
     try { return JSON.parse(store().getItem(this.stampsKey) || '{}') || {}; }
@@ -250,16 +329,44 @@
       var pg = new Page(spec);
       API._pages.push(pg);
       pg.watch();
-      var start = function () { pg.pull().then(function (changed) { if (changed.length && typeof spec.onRestore === 'function') spec.onRestore(changed); }); };
+      // Own file first, then the cross-page collections this page reads. Both
+      // sets of changes are reported to onRestore together, so a page re-renders
+      // once with everything the Centre's Drive folder currently holds.
+      var start = function () {
+        pg.pull().then(function (changed) {
+          return pg.pullShared().then(function (sharedChanged) {
+            sharedChanged.forEach(function (k) { if (changed.indexOf(k) === -1) changed.push(k); });
+            return changed;
+          });
+        }).then(function (changed) {
+          if (changed.length && typeof spec.onRestore === 'function') spec.onRestore(changed);
+        });
+      };
       if (store() && store().whenReady) store().whenReady(start); else start();
       return pg;
     },
     saveNow: function () { return Promise.all(API._pages.map(function (p) { clearTimeout(p._timer); return p.push(); })); },
-    loadNow: function () { return Promise.all(API._pages.map(function (p) { return p.pull(); })); },
+    loadNow: function () {
+      return Promise.all(API._pages.map(function (p) {
+        return p.pull().then(function (changed) {
+          return p.pullShared().then(function (sharedChanged) {
+            sharedChanged.forEach(function (k) { if (changed.indexOf(k) === -1) changed.push(k); });
+            if (changed.length && typeof p.spec.onRestore === 'function') {
+              try { p.spec.onRestore(changed); } catch (e) {}
+            }
+            return changed;
+          });
+        });
+      }));
+    },
+    /* Just the cross-page collections, for a page that wants the Centre's
+       current shared data without a full round trip of its own file. */
+    loadShared: function () { return Promise.all(API._pages.map(function (p) { return p.pullShared(); })); },
     status: function () {
       return API._pages.map(function (p) {
         return { page: p.spec.page, file: p.spec.file, folder: FOLDER_ID,
-          connected: p.state.connected, keys: p.state.keys,
+          connected: p.state.connected, keys: p.state.keys, sharedKeys: p.state.shared,
+          reads: (p.spec.reads || []).length,
           lastPull: p.state.lastPull, lastPush: p.state.lastPush, error: p.state.error };
       });
     }
