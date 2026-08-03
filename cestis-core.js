@@ -246,7 +246,18 @@
   function sameTwinIdentity(name, course, fee) {
     if (!name || !fee) return false;
     if (Core.normName(name) !== Core.normName(fee.name)) return false;
-    var c = Core.normCourse(course), fc = Core.normCourse(fee.skillArea || fee.course);
+    // Programmes are compared the way training centres are told apart: by the
+    // intake key when both sides state one, and by the key-stripped bare name
+    // otherwise. Comparing the raw strings meant 'Electrical Installation' and
+    // '02. Electrical Installation' read as different programmes, so the same
+    // person failed the twin test and the mirrors minted a duplicate of them —
+    // while two records keyed to DIFFERENT intakes of one programme are two
+    // records and must never link.
+    var E = Core.enrolment;
+    var a = E ? E.parseCentreLabel(course) : { key: '', name: course };
+    var b = E ? E.parseCentreLabel(fee.skillArea || fee.course) : { key: '', name: fee.skillArea || fee.course };
+    if (a.key && b.key && a.key !== b.key) return false;
+    var c = Core.normCourse(a.name), fc = Core.normCourse(b.name);
     return !c || !fc || c === fc;
   }
   function hasId(v) { return v != null && v !== ''; }
@@ -530,39 +541,134 @@
     return base;
   };
 
+  /* --- Which centre does a record's programme point at, for IDENTITY? ------
+     Training centres are distinct things told apart by their key — '01', '02',
+     '03' — even when they share a programme name. A record names its centre
+     three possible ways: an explicit centreKey stamp (what a transfer writes),
+     a key written into the programme name itself ('02. Electrical
+     Installation'), or a bare legacy spelling ('Electrical Installation').
+
+     Returns { key, bare }: the key when the record states one (stamp first,
+     then the written label), and the key-stripped, normalised programme name.
+     Comparing on THIS instead of the raw course string is what stops one
+     person from existing twice — once under each spelling — and what stops two
+     different intakes from ever being folded into one. */
+  Core.programmeIdentity = function (rec, courseField) {
+    var out = { key: '', bare: '' };
+    if (!rec) return out;
+    var E = Core.enrolment;
+    var written = rec[courseField || 'course'];
+    if (written == null || written === '') written = rec.course != null ? rec.course : rec.skillArea;
+    var parsed = E ? E.parseCentreLabel(written) : { key: '', name: String(written == null ? '' : written) };
+    out.bare = Core.normCourse(parsed.name);
+    if (rec.centreKey != null && String(rec.centreKey).trim() !== '' && E) {
+      out.key = E.centreKeyOf({ centreKey: rec.centreKey });
+    } else {
+      out.key = parsed.key || '';
+    }
+    return out;
+  };
+
   /* --- De-duplicate a student array (pure) -------------------------------
      Returns { students, removed, idMap } where idMap[oldId] = keptId for every
      removed duplicate. Records with no usable natural key are passed through
-     untouched (same behaviour the app has always had). */
-  Core.dedupeStudents = function (input) {
+     untouched.
+
+     Identity is the NAME plus the CENTRE the record points at — compared
+     through programmeIdentity, not the raw course string. The raw comparison
+     is what filled the enrolment registers with every trainee twice: the same
+     person written once as 'Electrical Installation' and once as
+     '02. Electrical Installation' read as two different people, survived every
+     dedup, and was then faithfully listed twice on every page.
+
+     Within one name + one bare programme:
+       - records whose explicit keys AGREE (or that state no key) are the same
+         person and merge;
+       - records whose explicit keys DIFFER are two intakes' records and are
+         NEVER merged — the keys exist precisely so that two centres sharing a
+         name stay two centres;
+       - a record with no key at all merges into the lowest-keyed group, so the
+         legacy spelling joins its keyed twin instead of standing beside it.
+
+     opts.courseField — 'course' (LMS, default) or 'skillArea' (School Fee). */
+  Core.dedupeStudents = function (input, opts) {
+    opts = opts || {};
+    var courseField = opts.courseField || 'course';
     var list = Array.isArray(input) ? input : [];
-    var seen = {};    // key -> kept record
     var idMap = {};   // oldId -> keptId
 
+    // Group by person + bare programme; partition each group by explicit key.
+    var groups = {};  // name|bare -> { keys: {key -> kept}, unkeyed: kept|null }
+    function groupOf(s) {
+      var n = Core.normName(s.name);
+      if (!n) return null;
+      var pid = Core.programmeIdentity(s, courseField);
+      var gk = n + '|' + pid.bare;
+      if (!groups[gk]) groups[gk] = { keys: {}, keyList: [], unkeyed: null };
+      return { g: groups[gk], key: pid.key };
+    }
+    // The centre stamps and the keyed spelling must survive the merge whichever
+    // record is newer, or the merged person would drop back to the bare name
+    // and split again on the next pass.
+    var STAMP_FIELDS = ['centreKey', 'centreId', 'centreName', 'courseStart', 'courseEnd', 'fiscalYear'];
+    function mergeKeeping(a, b, key) {
+      var keyed = null;
+      var aPid = Core.programmeIdentity(a, courseField), bPid = Core.programmeIdentity(b, courseField);
+      if (aPid.key) keyed = a; else if (bPid.key) keyed = b;
+      var kept = Core.mergeStudentRecords(a, b);
+      if (keyed && keyed[courseField]) kept[courseField] = keyed[courseField];
+      if (keyed) STAMP_FIELDS.forEach(function (f) {
+        if (keyed[f] !== undefined && keyed[f] !== null && keyed[f] !== '') kept[f] = keyed[f];
+      });
+      void key;
+      return kept;
+    }
+    function absorb(slot, s) {
+      var prev = slot.rec;
+      slot.rec = mergeKeeping(prev, s, slot.key);
+      if (slot.rec.id !== prev.id) idMap[prev.id] = slot.rec.id;
+      if (slot.rec.id !== s.id) idMap[s.id] = slot.rec.id;
+    }
+
     list.forEach(function (s) {
-      var key = Core.naturalKey(s);
-      if (!key) return;
-      if (seen[key]) {
-        var prev = seen[key];
-        seen[key] = Core.mergeStudentRecords(prev, s);
-        if (seen[key].id !== prev.id) idMap[prev.id] = seen[key].id;
-        if (seen[key].id !== s.id) idMap[s.id] = seen[key].id;
+      if (!s) return;
+      var at = groupOf(s);
+      if (!at) return;
+      if (at.key) {
+        if (!at.g.keys[at.key]) { at.g.keys[at.key] = { key: at.key, rec: s }; at.g.keyList.push(at.key); }
+        else absorb(at.g.keys[at.key], s);
       } else {
-        seen[key] = s;
+        if (!at.g.unkeyed) at.g.unkeyed = { key: '', rec: s };
+        else absorb(at.g.unkeyed, s);
       }
     });
 
-    var added = {}, deduped = [];
+    // Fold each group's unkeyed record into its keyed twin. With several keyed
+    // intakes present the LOWEST key takes it — deterministic, and the earliest
+    // intake is where an unstamped legacy record actually came from.
+    Object.keys(groups).forEach(function (gk) {
+      var g = groups[gk];
+      if (!g.unkeyed || !g.keyList.length) return;
+      var lowest = g.keyList.slice().sort()[0];
+      var slot = g.keys[lowest];
+      absorb(slot, g.unkeyed.rec);
+      g.unkeyed = null;
+    });
+
+    // Rebuild in first-encounter order, one record per surviving slot.
+    var emitted = {}, deduped = [];
     list.forEach(function (s) {
-      var key = Core.naturalKey(s);
-      if (!key) { deduped.push(s); return; }
-      if (!added[key]) {
-        added[key] = true;
-        deduped.push(seen[key]);
-        if (s.id !== seen[key].id) idMap[s.id] = seen[key].id;
-      } else {
-        if (s.id !== seen[key].id) idMap[s.id] = seen[key].id;
+      if (!s) { deduped.push(s); return; }
+      var at = groupOf(s);
+      if (!at) { deduped.push(s); return; }
+      var slot = at.key ? at.g.keys[at.key] : (at.g.unkeyed || at.g.keys[at.g.keyList.slice().sort()[0]]);
+      if (!slot) { deduped.push(s); return; }
+      var mark = Core.normName(s.name) + '|' + Core.programmeIdentity(s, courseField).bare + '|' + slot.key;
+      if (!emitted[mark]) {
+        emitted[mark] = true;
+        deduped.push(slot.rec);
       }
+      if (s.id !== slot.rec.id) idMap[s.id] = slot.rec.id;
     });
 
     return { students: deduped, removed: list.length - deduped.length, idMap: idMap };
