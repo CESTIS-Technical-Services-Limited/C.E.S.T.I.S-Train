@@ -2890,6 +2890,46 @@
       return String((rec && rec[field]) == null ? '' : rec[field]).trim();
     }
 
+    /* Did this trainee enrol BEFORE the intake we are about to credit them to
+       had even begun?
+
+       This is the last guard on the name fallback, and it exists because a
+       programme name is not an intake. When a Centre re-runs a programme, the
+       earlier trainees keep the programme's name on their record and no intake
+       key — keys came later, so every record predating them has none. Asked
+       "which centre is 'Welding & Fabrication'?", findCentre can only answer
+       with the one centre carrying that name, so every trainee the programme
+       ever had piled onto the intake running now: three past intakes read as
+       three times the roll, on a card that should have shown only the trainees
+       actually in it.
+
+       Proof is the whole bar here, and it takes two things, because enrolling
+       shortly BEFORE an intake opens is ordinary — trainees are registered
+       weeks ahead of the start date all the time, and none of them may be
+       dropped. So the record must have enrolled before this intake began AND
+       in a different fiscal year from it. A trainee signed up in July for an
+       August intake shares its fiscal year and is kept; one who enrolled two
+       years earlier does not, and is the earlier intake's.
+
+       With no enrolment date on the record, no start date on the centre, or a
+       date that will not parse, nothing is proven and the record is treated
+       exactly as it was before. This never overrides an explicit stamp — a
+       keyed record has already said where it belongs. */
+    function enrolledBeforeIntake(rec, centre) {
+      if (!rec || !centre) return false;
+      var start = String(centre.startDate || '').trim();
+      if (!start) return false;                       // the intake never said when it began
+      var on = String(rec.enrolmentDate || rec.enrollmentDate ||
+                      rec.enrollDate || rec.createdAt || '').trim();
+      if (!on) return false;                          // the record never said when they joined
+      var a = Date.parse(on.slice(0, 10)), b = Date.parse(start.slice(0, 10));
+      if (isNaN(a) || isNaN(b)) return false;         // unreadable proves nothing
+      if (a >= b) return false;                       // enrolled once it was running
+      var fyRec = E.fiscalYearOf(on), fyCentre = E.centreFiscalYear(centre);
+      if (!fyRec || !fyCentre) return false;          // cannot place either — keep it
+      return fyRec !== fyCentre;                      // a different year's intake
+    }
+
     /* Is this record one of the centre's? Identity first, name last — a name
        is what two intakes of a programme share, so it only ever settles a
        record that carries no stamp at all. */
@@ -2911,7 +2951,8 @@
       var found = null;
       try { found = E.findCentre(centres, written, { on: on, today: opts.today, nowMs: opts.nowMs }); }
       catch (e) { found = null; }
-      return !!found && E.centreKeyOf(found) === key;
+      if (!found || E.centreKeyOf(found) !== key) return false;
+      return !enrolledBeforeIntake(rec, found);
     }
 
     /* Every record of `list` that belongs to `centre`. */
@@ -2972,7 +3013,9 @@
           if (written) {
             var on = rec.enrolmentDate || rec.enrollmentDate || rec.enrollDate || rec.createdAt || '';
             var found = resolveByName(written, on);
-            key = found ? E.centreKeyOf(found) : null;
+            // A trainee who enrolled before this intake began is an earlier
+            // intake's, not this one's — see enrolledBeforeIntake above.
+            key = (found && !enrolledBeforeIntake(rec, found)) ? E.centreKeyOf(found) : null;
           }
         }
         if (key) {
@@ -3075,7 +3118,8 @@
     }
 
     return { belongsTo: belongsTo, traineesOf: traineesOf, tally: tally, place: place,
-      moveTrainees: moveTrainees, renameCourseFor: renameCourseFor };
+      moveTrainees: moveTrainees, renameCourseFor: renameCourseFor,
+      enrolledBeforeIntake: enrolledBeforeIntake };
   })();
 
   /* ==========================================================================

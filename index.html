@@ -6792,6 +6792,16 @@ function loadState() {
   // Records created before enrolments were stamped carry no fiscal year, which
   // would leave them out of every FY-scoped report; derive it once from the
   // centre they are enrolled in (falling back to their own enrolment date).
+  // Release trainees an earlier launch stamped into an intake that opened after
+  // they enrolled — run FIRST, so the backfill below re-grounds them properly
+  // instead of reading the wrong stamp as settled.
+  try {
+    var _released = releaseMisStampedIntakes();
+    if (_released > 0) {
+      console.log('[loadState] Released ' + _released + ' trainee(s) from an intake that began after they enrolled');
+      try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
+    }
+  } catch(e) { console.warn('[loadState] intake release:', e); }
   try { backfillStudentFiscalYears(); } catch(e) { console.warn('[loadState] FY backfill:', e); }
   // Migrate any cert template images from localStorage to IndexedDB, then load from IndexedDB
   var needsMigration = false;
@@ -19567,6 +19577,12 @@ function backfillStudentFiscalYears() {
     // happens to be open now — otherwise a trainee from a finished course is
     // stamped onto this year's centre and never reaches Not Yet Competent.
     var centre = CESTISCore.enrolment.findCentre(skillAreas, s.course, { on: when });
+    // findCentre answers with the one centre carrying the programme's name, and
+    // when the earlier intakes are gone from the roster that is the CURRENT
+    // intake — so this used to stamp a trainee from two years ago into the
+    // class running now, permanently, and the card counted them in it. A
+    // trainee cannot have enrolled in an intake a fiscal year before it opened.
+    if (centre && CESTISCore.transfer.enrolledBeforeIntake(s, centre)) centre = null;
     var stamp = centre ? CESTISCore.enrolment.enrolmentStamp(centre, when) : null;
     if (stamp) {
       if (s.centreId == null) s.centreId = stamp.centreId;
@@ -19583,6 +19599,50 @@ function backfillStudentFiscalYears() {
       var fy = CESTISCore.enrolment.fiscalYearOf(when);
       if (fy) { s.fiscalYear = fy; n++; }
     }
+  });
+  return n;
+}
+
+/* Undo the stamps the backfill above already wrote wrongly.
+
+   Every launch before this fix, a trainee from a finished intake was stamped
+   with the intake running now, because that was the only centre answering to
+   their programme's name. The stamp then outranked everything else — an
+   explicit key is meant to be believed — so the card counted them in a class
+   they were never in, and each past intake added its whole roll again.
+
+   A stamp is undone only where it is impossible: the trainee enrolled a fiscal
+   year before that intake opened. Only the centre stamp is cleared. The
+   trainee, their programme name, their dates, their progress and their fees
+   are all untouched — they simply stop being counted as this intake's, which
+   is what they never were. Returns how many were released. */
+function releaseMisStampedIntakes() {
+  if (typeof students === 'undefined' || !Array.isArray(students)) return 0;
+  if (typeof skillAreas === 'undefined' || !Array.isArray(skillAreas) || !skillAreas.length) return 0;
+  var byKey = {}, byId = {}, n = 0;
+  skillAreas.forEach(function (c) {
+    if (!c) return;
+    var k = CESTISCore.enrolment.centreKeyOf(c);
+    if (k) byKey[k] = c;
+    if (c.id != null) byId[String(c.id)] = c;
+  });
+  students.forEach(function (s) {
+    if (!s) return;
+    var centre = null;
+    if (s.centreKey != null && String(s.centreKey).trim() !== '') {
+      centre = byKey[CESTISCore.enrolment.centreKeyOf({ centreKey: s.centreKey })] || null;
+    } else if (s.centreId != null) {
+      centre = byId[String(s.centreId)] || null;
+    }
+    if (!centre) return;                       // no stamp, or an intake we cannot see
+    if (!CESTISCore.transfer.enrolledBeforeIntake(s, centre)) return;
+    delete s.centreKey;
+    delete s.centreId;
+    delete s.centreName;
+    delete s.courseStart;
+    delete s.courseEnd;
+    s.lastModified = new Date().toISOString();
+    n++;
   });
   return n;
 }

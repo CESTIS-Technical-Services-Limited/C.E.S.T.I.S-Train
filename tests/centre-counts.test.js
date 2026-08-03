@@ -187,5 +187,47 @@ assertEq(Core.transfer.tally(UNSTAMPED, null, OPTS).of(CENTRES[0]), 0,
   'whereas an unstamped trainee cannot be placed without one');
 assertEq(Core.transfer.tally(ROLL, CENTRES, OPTS).listOf(null).length, 0, 'and no centre asked for');
 
+/* ---------- 5. A past intake is not this intake ----------
+
+   The reported fault: the Training Centres cards read three times the trainees
+   actually enrolled. A programme the Centre has run several times leaves the
+   earlier trainees carrying its NAME and no intake key — keys came later — so
+   asked which centre "Welding & Fabrication" is, there is only the intake
+   running now to answer with, and every past intake piled onto its card. */
+console.log('\nA trainee from a past intake is not counted in the one running now');
+const ONE_INTAKE = [{ id: 9, centreKey: '09', name: 'Welding & Fabrication',
+                      startDate: '2025-08-04', endDate: '2026-07-31' }];
+const OPT1 = { field: 'course', centres: ONE_INTAKE };
+const MIXED = [
+  { id: 'CUR', name: 'Current', course: 'Welding & Fabrication', centreKey: '09', enrolmentDate: '2025-09-10' },
+  { id: 'OLD1', name: 'Two years ago', course: 'Welding & Fabrication', enrolmentDate: '2023-09-10' },
+  { id: 'OLD2', name: 'A year ago', course: 'Welding & Fabrication', enrolmentDate: '2024-09-10' }
+];
+assertEq(Core.transfer.tally(MIXED, ONE_INTAKE, OPT1).of(ONE_INTAKE[0]), 1,
+  'one trainee is in this intake, not three');
+assertEq(Core.transfer.traineesOf(MIXED, ONE_INTAKE[0], OPT1).length, 1,
+  'and the enrolment register says the same number as the card');
+
+console.log('But enrolling shortly BEFORE the intake opens is ordinary, and is kept');
+assertEq(Core.transfer.tally([{ id: 'EARLY', name: 'Signed up in July',
+    course: 'Welding & Fabrication', enrolmentDate: '2025-07-20' }], ONE_INTAKE, OPT1).of(ONE_INTAKE[0]), 1,
+  'registered weeks ahead of the start date — same fiscal year, so it is this intake');
+
+console.log('Only a provably impossible placement is refused');
+assertEq(Core.transfer.tally([{ id: 'NODATE', name: 'No enrolment date',
+    course: 'Welding & Fabrication' }], ONE_INTAKE, OPT1).of(ONE_INTAKE[0]), 1,
+  'with no date on the record nothing is proven, so it is counted as before');
+assertEq(Core.transfer.tally(MIXED, [{ id: 9, centreKey: '09', name: 'Welding & Fabrication' }],
+  { field: 'course', centres: [{ id: 9, centreKey: '09', name: 'Welding & Fabrication' }] })
+  .of({ centreKey: '09' }), 3, 'and an intake with no start date cannot rule anybody out');
+
+console.log('An explicit stamp is still believed — this never overrides one');
+assertEq(Core.transfer.tally([{ id: 'LATE', name: 'Moved in', course: 'Welding & Fabrication',
+    centreKey: '09', enrolmentDate: '2023-09-10' }], ONE_INTAKE, OPT1).of(ONE_INTAKE[0]), 1,
+  'a trainee transferred into this intake carries its key and is counted in it');
+
+console.log('And the past trainees are still on the roll — they are not this intake\'s, not gone');
+assertEq(MIXED.length, 3, 'nothing is removed from the roll by counting it');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
