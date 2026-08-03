@@ -679,6 +679,27 @@ test('the centre\'s name is offered for a blank dashboard programme, and only th
   assert.strictEqual(t2.course, 'Electrical Installation Level 2', 'and their programme is untouched');
 });
 
+test('the mirror the other way never duplicates a person either', function () {
+  // A transfer, or the fee page pricing intakes by their key, leaves the two
+  // sides naming the same trainee's programme differently. Matching on the
+  // programme as well as the name minted a second, fee-less record for them.
+  var fee = [{ id: 'F1', name: 'Ann Brown', skillArea: '02. Welding and Fabrication', totalPaid: 5000 }];
+  var t = Core.feeMirrorTarget({ id: 'STU-1', name: 'Ann Brown', course: 'Welding and Fabrication' }, fee);
+  assert.strictEqual(t.action, 'link', 'linked, never created');
+  assert.strictEqual(t.reason, 'same-person-other-programme');
+  assert.strictEqual(t.match.id, 'F1');
+
+  var linked = Core.feeMirrorTarget({ id: 'STU-1', name: 'Ann Brown', course: '02. Welding and Fabrication' }, fee);
+  assert.strictEqual(linked.reason, 'twin', 'and matching programmes are the ordinary twin link');
+
+  var fresh = Core.feeMirrorTarget({ id: 'STU-9', name: 'Nobody Known', course: 'Plumbing' }, fee);
+  assert.strictEqual(fresh.action, 'create', 'somebody genuinely new does get a fee record');
+
+  assert.strictEqual(Core.feeMirrorTarget({ id: 'X', name: '' }, fee).action, 'skip', 'no name, no mirror');
+  assert.strictEqual(Core.feeMirrorTarget(null, fee).action, 'skip', 'null-safe');
+  assert.strictEqual(Core.feeMirrorTarget({ name: 'Ann Brown' }, null).action, 'create', 'null list is safe');
+});
+
 test('a record with no name is never mirrored', function () {
   assert.strictEqual(mirror({ id: 'F5', name: '', skillArea: 'WELDING L2' }, []).action, 'skip');
   assert.strictEqual(Core.lmsMirrorTarget(null, [], CENTRES, {}).action, 'skip');

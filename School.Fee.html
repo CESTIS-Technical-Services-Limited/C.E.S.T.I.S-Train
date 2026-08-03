@@ -5010,16 +5010,14 @@
                     // Map dashboard fields -> fee fields.
                     const pId = p.id || '';
                     const pSkill = p.skillArea || p.course || '';
-                    const twin = (window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function')
-                        ? (s => CESTISCore.isFeeTwin(p, s))
-                        : (s => (
-                            (pId && (s.id === pId || s.lmsId === pId)) ||
-                            (s.lmsId && s.lmsId === p.lmsId) ||
-                            (p.schoolFeeId && s.id === p.schoolFeeId) ||
-                            (norm(s.name) === norm(p.name) &&
-                                (!s.skillArea || !pSkill || norm(s.skillArea) === norm(pSkill)))
-                        ));
-                    const existing = students.find(s => s && twin(s));
+                    // The shared rule: this page already holding the person is
+                    // enough to link them — never a second record because the
+                    // dashboard names their programme differently than we do.
+                    const _fmt = (window.CESTISCore && typeof CESTISCore.feeMirrorTarget === 'function')
+                        ? CESTISCore.feeMirrorTarget(p, students)
+                        : { action: 'create', match: null };
+                    if (_fmt.action === 'skip') return;
+                    const existing = _fmt.match;
 
                     if (existing) {
                         if (pId && existing.lmsId !== pId) { existing.lmsId = pId; changed = true; }
