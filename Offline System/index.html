@@ -7304,7 +7304,24 @@ function initAttendanceQuarters() {
   }
 }
 
+/* The accounts come first, before ANYTHING can write them back.
+
+   loadState() runs the stable-id migration, and that migration saves — through
+   saveState(), which writes voctrain_users. Accounts were not read until later,
+   so what it wrote was the three built-in seeds: every real account on the
+   device was overwritten by the defaults, and every trainee's enabled login
+   disappeared. Their student record survived, orphaned, and a DISABLED
+   placeholder was minted from it — so the trainee could no longer sign in at
+   all. It struck any device whose store still had ids to stabilise: a restored
+   backup, a new browser profile, a machine that had not run this build.
+
+   Reading them first also lets the migration re-point each account at its
+   trainee's new id, which is what keeps the login attached to the record. */
+loadUserAccounts();
 loadState();
+// Any account left pointing at a trainee id that no longer exists is re-attached
+// to the person it belongs to, healing devices this already struck.
+try { repairOrphanedStudentAccounts(); } catch(e) {}
 // Normalize training-centre durations and auto-mark NYC for any ended courses.
 try { recomputeCourseStatuses(false); } catch(e) {}
 // IndexedDB hydrates the store asynchronously and may hold far more data than
@@ -7316,6 +7333,9 @@ try {
   CESTISStore.whenReady(function(){
     try {
       loadState();
+      // The durable store can carry ids the localStorage mirror had not seen, so
+      // the migration may move a trainee again here — re-attach their login.
+      try { repairOrphanedStudentAccounts(); } catch(e) {}
       try { recomputeCourseStatuses(true); } catch(e) {}
       if(window.CESTISCore && typeof CESTISCore.emit === 'function') CESTISCore.emit('cestis:state-saved');
       if(typeof refreshStorageUsage === 'function' && document.getElementById('storageUsageInfo')) refreshStorageUsage();
@@ -7415,6 +7435,41 @@ function loadUserAccounts() {
     userAccounts.forEach(function(a){ delete a._plaintextPw; });
   } catch(e) {}
 }
+/* Re-attach a student account whose trainee id has moved.
+
+   A trainee's record id is a hash of their name and programme, so it moves
+   whenever either is corrected — and an account still pointing at the old id is
+   an account with no trainee behind it. The platform then treats that person as
+   unregistered: no dashboard, no exams, no certificate. Matching them back by
+   name (and programme, when both state one) restores the link without touching
+   anybody's password or status. Returns how many were repaired. */
+function repairOrphanedStudentAccounts() {
+  if (!Array.isArray(userAccounts) || !Array.isArray(students) || !students.length) return 0;
+  var byId = {};
+  students.forEach(function(s){ if (s && s.id) byId[String(s.id)] = s; });
+  var n = 0;
+  userAccounts.forEach(function(u) {
+    if (!u || u.role !== 'student') return;
+    if (u.studentDataId && byId[String(u.studentDataId)]) return;      // still attached
+    var un = CESTISCore.normName(u.name);
+    if (!un) return;
+    var hit = students.find(function(s) {
+      if (!s || CESTISCore.normName(s.name) !== un) return false;
+      if (u.programme && s.course) {
+        return CESTISCore.normCourse(u.programme) === CESTISCore.normCourse(s.course) ||
+               CESTISCore.normCourse(CESTISCore.enrolment.parseCentreLabel(u.programme).name) ===
+               CESTISCore.normCourse(CESTISCore.enrolment.parseCentreLabel(s.course).name);
+      }
+      return true;
+    });
+    if (!hit) return;
+    u.studentDataId = hit.id;
+    n++;
+  });
+  if (n) { try { saveUserAccounts(); } catch(e) {} console.log('[Accounts] Re-attached ' + n + ' student login(s) to their trainee record.'); }
+  return n;
+}
+
 loadUserAccounts();
 // Re-read accounts once IndexedDB hydration completes. The synchronous load above
 // can only see the localStorage mirror; if that mirror was evicted/cleared while
@@ -7426,6 +7481,9 @@ try {
   CESTISStore.whenReady(function(){
     try {
       loadUserAccounts();
+      // Accounts read from the durable store may name trainee ids the mirror's
+      // migration has since moved; re-attach them before anyone signs in.
+      try { repairOrphanedStudentAccounts(); } catch(e) {}
       if(typeof migratePasswordsToHash === 'function'){ _passwordMigrationDone = false; migratePasswordsToHash(); }
       if(typeof flagDefaultPasswordAccounts === 'function'){ flagDefaultPasswordAccounts(); }
       var hasLocalAccounts = userAccounts.length > 3 || userAccounts.some(function(u) {
@@ -12337,7 +12395,9 @@ function vcShowLargeRoom(title, role, code) {
   var containerId = role==='admin' ? 'videoRoom' : role==='adminstaff' ? 'asVideoRoom' : role==='instructor' ? 'iVideoRoom' : 'sVideoRoom';
   var room = document.getElementById(containerId);
   if(!room) return;
-  document.body.classList.add('vc-fullscreen-mode');
+  // Opens in gallery, like the small rooms.
+  document.body.classList.remove('vc-fullscreen-mode');
+  vcCurrentViewMode = 'gallery';
   var cap = CESTISCore.vcCapacity.SFU_MAX;
   room.innerHTML =
     '<div class="vc-conference-wrapper">' +
@@ -12432,6 +12492,9 @@ function vcStartJitsi(stage, title, role, code) {
     } else {
       security('Attendance recording', 'var(--green)');
     }
+    // Everybody on screen at once from the first second — a class wants the
+    // gallery, not whoever happens to be speaking.
+    try { api.executeCommand('setTileView', true); } catch(e) {}
     refreshCount();
     vcSaveActiveSession();
   });
@@ -12651,6 +12714,26 @@ async function vcRejoinRoom(title, role) {
   }
 }
 
+/* Is this room code a large class that is running right now? Reads the shared
+   session list, so it answers the same on every device. */
+function vcLiveLargeSession(code) {
+  try {
+    var want = String(code || '').toUpperCase().trim();
+    if (!want) return null;
+    var list = Array.isArray(vcSessions) ? vcSessions : [];
+    if (!list.length) {
+      var raw = CESTISStore.getItem('voctrain_vcSessions');
+      list = raw ? (JSON.parse(raw) || []) : [];
+    }
+    var open = list.filter(function (s) {
+      return s && String(s.code || '').toUpperCase() === want && !s.endedAt;
+    });
+    if (!open.length) return null;
+    open.sort(function (a, b) { return String(b.startedAt || '').localeCompare(String(a.startedAt || '')); });
+    return open[0];
+  } catch (e) { return null; }
+}
+
 // ── Join Room ──
 async function vcJoinRoom(title, role, codeOverride) {
   if (vcBlockAndExplain('Cannot join a class from this page address')) return;
@@ -12660,8 +12743,15 @@ async function vcJoinRoom(title, role, codeOverride) {
   // A large class runs on the hosted conference server, not the peer-to-peer
   // mesh, so send the joiner straight there rather than letting them wait for a
   // mesh host that does not exist.
-  if(activeHostRoom && activeHostRoom.large && activeHostRoom.code === code) {
-    vcJoinLargeRoom(code, activeHostRoom.title, role);
+  //
+  // `activeHostRoom` only ever describes a room THIS device is hosting, so it
+  // answered for the host and for nobody else: every trainee joining a large
+  // class from their own device fell through to the mesh and tried to call a
+  // peer host that does not exist. The live session list is shared, so ask that
+  // — it is what tells any device that this code is a large class.
+  var _large = vcLiveLargeSession(code);
+  if(_large) {
+    vcJoinLargeRoom(code, _large.title || 'Large Class', role);
     return;
   }
 
@@ -13068,8 +13158,9 @@ function vcShowConference(title, role) {
   var userName = vcCurrentUserName;
   var showHostControls = isRoomHost && (role==='instructor' || role==='admin' || role==='adminstaff');
 
-  // Enter fullscreen conference mode
-  document.body.classList.add('vc-fullscreen-mode');
+  // Opens in gallery — see vcCurrentViewMode. Full Screen is one click away
+  // and takes the whole screen when it is asked for.
+  document.body.classList.remove('vc-fullscreen-mode');
   if(isRoomHost) document.body.classList.add('vc-is-host');
 
   room.innerHTML = `
@@ -13083,8 +13174,8 @@ function vcShowConference(title, role) {
         <div style="display:flex;align-items:center;gap:12px;">
           <div class="vc-view-toggle">
             <button class="vc-view-btn" id="vc-view-hostonly" onclick="vcSetViewMode('host-only')" title="Host screen only">Host Only</button>
-            <button class="vc-view-btn active" id="vc-view-fullscreen" onclick="vcSetViewMode('fullscreen')" title="Full screen conference">Full Screen</button>
-            <button class="vc-view-btn" id="vc-view-gallery" onclick="vcSetViewMode('gallery')" title="Gallery view with sidebar">Gallery</button>
+            <button class="vc-view-btn" id="vc-view-fullscreen" onclick="vcSetViewMode('fullscreen')" title="Full screen conference">Full Screen</button>
+            <button class="vc-view-btn active" id="vc-view-gallery" onclick="vcSetViewMode('gallery')" title="Gallery view with sidebar">Gallery</button>
           </div>
           <div style="font-family:monospace;font-size:12px;color:var(--accent);background:var(--accent-dim);padding:3px 10px;border-radius:6px;cursor:pointer;" onclick="vcCopyCode()" title="Click to copy room code">Room: ${currentRoomCode}</div>
           <div id="vc-rec-indicator" class="vc-rec-indicator" style="display:none;"><span class="vc-rec-dot"></span><span id="vc-rec-timer">REC 00:00</span></div>
@@ -13179,8 +13270,65 @@ function vcShowConference(title, role) {
   }, 1000);
 }
 
+/* ── Real fullscreen ───────────────────────────────────────────────────────
+   "Full Screen" used to be a CSS class and nothing more: the sidebar and the
+   topbar were hidden, but the BROWSER was never asked for the screen. On a
+   phone in landscape the address bar and the system chrome stayed exactly
+   where they were, and on a computer the window kept its frame. The class is
+   still what lays the room out; this is what actually takes the screen. */
+function vcFullscreenTarget() {
+  return document.querySelector('.vc-conference-wrapper') || document.documentElement;
+}
+function vcIsRealFullscreen() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement ||
+            document.mozFullScreenElement || document.msFullscreenElement);
+}
+function vcEnterRealFullscreen() {
+  if (vcIsRealFullscreen()) return;
+  var el = vcFullscreenTarget();
+  var req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen ||
+            el.mozRequestFullScreen || el.msRequestFullscreen;
+  try {
+    if (req) {
+      var p = req.call(el, { navigationUI: 'hide' });
+      if (p && p.catch) p.catch(function () {});
+    } else {
+      // iOS Safari gives fullscreen to a video element only, never to a div.
+      var v = document.querySelector('.vc-conference-wrapper video');
+      if (v && v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+    }
+  } catch (e) { /* a browser that refuses still gets the CSS layout */ }
+  // A class watched on a phone belongs in landscape. Allowed only while
+  // fullscreen, and refused on desktop — either way it must never throw.
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      var lp = screen.orientation.lock('landscape');
+      if (lp && lp.catch) lp.catch(function () {});
+    }
+  } catch (e) {}
+}
+function vcExitRealFullscreen() {
+  try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+  if (!vcIsRealFullscreen()) return;
+  var ex = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen ||
+           document.mozCancelFullScreen || document.msExitFullscreen;
+  try { if (ex) { var p = ex.call(document); if (p && p.catch) p.catch(function () {}); } } catch (e) {}
+}
+// Leaving fullscreen by the Escape key must leave the buttons telling the truth.
+['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(function (ev) {
+  document.addEventListener(ev, function () {
+    if (!vcIsRealFullscreen() && vcCurrentViewMode === 'fullscreen' &&
+        document.body.classList.contains('vc-fullscreen-mode')) {
+      vcSetViewMode('gallery');
+    }
+  });
+});
+
 // ── View Mode Management ──
-var vcCurrentViewMode = 'fullscreen'; // 'host-only', 'fullscreen', 'gallery'
+// A class opens in GALLERY: everyone in the room on screen at once, with the
+// page's own navigation still there. Full Screen is a deliberate choice, not
+// what a trainee is dropped into.
+var vcCurrentViewMode = 'gallery'; // 'host-only', 'fullscreen', 'gallery'
 
 function vcSetViewMode(mode) {
   vcCurrentViewMode = mode;
@@ -13209,14 +13357,25 @@ function vcSetViewMode(mode) {
     // Host screen only - fullscreen stays on, show only the host tile
     body.classList.add('vc-fullscreen-mode');
     body.classList.add('vc-host-only-mode');
+    vcEnterRealFullscreen();
     vcApplyHostOnlyVisibility();
   } else if(mode === 'fullscreen') {
-    // Full screen conference - like the Zoom reference image
+    // Full screen conference: the room fills the page AND the browser is asked
+    // for the screen, so a phone in landscape loses its chrome too.
     body.classList.add('vc-fullscreen-mode');
+    vcEnterRealFullscreen();
   } else if(mode === 'gallery') {
     // Gallery mode - restore sidebar, topbar, show everything
     body.classList.remove('vc-fullscreen-mode');
+    vcExitRealFullscreen();
   }
+  // A large class runs inside the conference server's own frame; tell it to
+  // show everybody too.
+  try {
+    if (vcJitsiApi && typeof vcJitsiApi.executeCommand === 'function') {
+      vcJitsiApi.executeCommand('setTileView', mode !== 'host-only');
+    }
+  } catch (e) {}
 }
 
 // Toggle side panel visibility (chat & participants) for small screens
