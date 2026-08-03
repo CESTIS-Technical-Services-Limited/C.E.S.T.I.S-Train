@@ -6696,47 +6696,52 @@ function loadState() {
     var ss = safeJsonParse(CESTISStore.getItem('voctrain_systemSettings'), null);
     var er = safeJsonParse(CESTISStore.getItem('voctrain_examResults'), null);
     var ce = safeJsonParse(CESTISStore.getItem('voctrain_calendarEvents'), null);
-    if(s) students = s;
-    if(e) exams = e;
-    if(a) announcements = a;
-    if(at) attendanceRecords = at;
+    // A stored list is only adopted when it IS a list. A key holding something
+    // else — a truncated write, a half-finished sync, a hand-edited backup —
+    // used to be taken as-is, and the first .forEach on it threw part-way
+    // through this script: everything declared after that point never ran, and
+    // the device was dead until its storage was cleared by hand.
+    if(Array.isArray(s)) students = s;
+    if(Array.isArray(e)) exams = e;
+    if(Array.isArray(a)) announcements = a;
+    if(Array.isArray(at)) attendanceRecords = at;
     var vcs = safeJsonParse(CESTISStore.getItem('voctrain_vcSessions'), null);
     if(Array.isArray(vcs)) vcSessions = vcs;
-    if(cs) classSessions = cs;
+    if(Array.isArray(cs)) classSessions = cs;
     var am = safeJsonParse(CESTISStore.getItem('voctrain_adminMeetings'), null);
-    if(am) adminMeetings = am;
-    if(ia) instructorAssignments = ia;
-    if(asub) assignmentSubmissions = asub;
-    if(ir) instructorResources = ir;
+    if(Array.isArray(am)) adminMeetings = am;
+    if(Array.isArray(ia)) instructorAssignments = ia;
+    if(Array.isArray(asub)) assignmentSubmissions = asub;
+    if(Array.isArray(ir)) instructorResources = ir;
     var dr = safeJsonParse(CESTISStore.getItem('voctrain_driveResources'), null);
-    if(dr) driveResources = dr;
+    if(Array.isArray(dr)) driveResources = dr;
     if(sp) studentProfiles = sp;
     var ip = safeJsonParse(CESTISStore.getItem('voctrain_instructorProfiles'), null);
     if(ip) instructorProfiles = ip;
     // Merge onto the defaults so settings saved before a field existed (e.g.
     // extSystems) keep that field instead of losing it on load.
     if(ss) systemSettings = CESTISCore.mergeSystemSettings(systemSettings, ss);
-    if(er) examResults = er;
+    if(Array.isArray(er)) examResults = er;
     if(ce) { var _cc={class:'var(--blue)',exam:'var(--red)',deadline:'var(--accent)',meeting:'var(--purple)'}; calendarEvents = ce.map(function(e){if(!e.color){e.color=_cc[e.type]||'var(--blue)';}return e;}); }
     var adrT = safeJsonParse(CESTISStore.getItem('voctrain_adrTasks'), null);
     var adrM = safeJsonParse(CESTISStore.getItem('voctrain_adrStaffMeta'), null);
-    if(adrT) adrTasks = adrT;
+    if(Array.isArray(adrT)) adrTasks = adrT;
     if(adrM) adrStaffMeta = adrM;
     var asAccess = safeJsonParse(CESTISStore.getItem('voctrain_adminStaffAccess'), null);
     if(asAccess) applyAdminStaffAccess(asAccess);
     var idData = safeJsonParse(CESTISStore.getItem('voctrain_instructorData'), null);
-    if(idData) instructorData = idData;
+    if(Array.isArray(idData)) instructorData = idData;
     var cda = safeJsonParse(CESTISStore.getItem('voctrain_certDownloadApprovals'), null);
-    if(cda) certDownloadApprovals = cda;
+    if(Array.isArray(cda)) certDownloadApprovals = cda;
     // Backfill a stable id on any legacy approval that lacks one, so it can
     // propagate through the master-snapshot sync (which skips id-less records).
     if(Array.isArray(certDownloadApprovals)) certDownloadApprovals.forEach(function(c){ if(c && c.studentId && !c.id) c.id = 'CDA-' + c.studentId; });
     var ct = safeJsonParse(CESTISStore.getItem('voctrain_certTemplates'), null);
     if(ct) certTemplates = ct;
     var sa = safeJsonParse(CESTISStore.getItem('voctrain_skillAreas'), null);
-    if(sa) skillAreas = sa;
+    if(Array.isArray(sa)) skillAreas = sa;
     var dhf = safeJsonParse(CESTISStore.getItem('voctrain_documentHubFiles'), null);
-    if(dhf) documentHubFiles = dhf;
+    if(Array.isArray(dhf)) documentHubFiles = dhf;
     // Load certTemplateCourseMap (modified by course renames)
     var ctcm = safeJsonParse(CESTISStore.getItem('voctrain_certTemplateCourseMap'), null);
     if(ctcm && typeof ctcm === 'object') certTemplateCourseMap = ctcm;
@@ -7356,7 +7361,16 @@ checkMaintenanceOnLoad();
 })();
 
 // ============================== USER ACCOUNTS MANAGEMENT ==============================
-var userAccounts = [
+/* The three built-in logins, and ONLY when this device has none of its own.
+
+   The accounts are read before loadState() runs, because that is where the
+   stable-id migration saves and it must not write the seeds over a Centre's
+   real logins. This line runs after that read, so writing the seeds here
+   unconditionally put them straight back — undoing it. Whatever was loaded
+   stands; the seeds are the fallback for a device starting from nothing. */
+var userAccounts = (typeof userAccounts !== 'undefined' && Array.isArray(userAccounts) && userAccounts.length)
+  ? userAccounts
+  : [
   {id:'USR-001',name:'Administrator',role:'admin',username:'cestisadmin',password:'cestisadmin123$',email:'admin@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-01'},
   {id:'USR-011',name:'Admin Staff',role:'adminstaff',username:'adminstaff',password:'cestisadmin123$',email:'adminstaff@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-15'},
   {id:'USR-021',name:'Board Chair',role:'cmc',username:'cmcadmin',password:'cestisadmin123$',email:'cmc@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-01'}
