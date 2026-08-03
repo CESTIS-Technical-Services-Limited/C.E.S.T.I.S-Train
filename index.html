@@ -18793,6 +18793,11 @@ function populateCourseDropdowns() {
 function normalizeCourseDurations() {
   if (typeof skillAreas === 'undefined' || !Array.isArray(skillAreas)) return;
   var nowMs = Date.now();
+  // Every training centre carries an intake key of its own — '01', '02', … —
+  // so a programme run a second time is a plainly different centre and cannot
+  // claim the first intake's trainees. Idempotent: a centre that has one keeps
+  // it.
+  try { CESTISCore.enrolment.assignCentreKeys(skillAreas); } catch (e) {}
   skillAreas.forEach(function(sk) {
     if (!sk) return;
     if (typeof sk.startDate !== 'string') sk.startDate = '';
@@ -18802,6 +18807,14 @@ function normalizeCourseDurations() {
     if (!Array.isArray(sk.instructorPermissions)) sk.instructorPermissions = [];
     sk.instructorPermissions = CESTISCore.courseDuration.prunePermissions(sk.instructorPermissions, nowMs);
   });
+}
+
+// A centre's name as the Centre reads it: its intake key, then its name —
+// "01. Welding and Fabrication". Two intakes of one programme are two plainly
+// different lines on the page.
+function centreDisplayName(sk) {
+  try { return CESTISCore.enrolment.centreLabel(sk) || (sk && sk.name) || ''; }
+  catch (e) { return (sk && sk.name) || ''; }
 }
 
 // Resolve a course NAME to its training-centre record (exact, then alias match).
@@ -18840,6 +18853,17 @@ function studentCentreRecord(s) {
   if (s.centreId != null) {
     var byId = skillAreas.find(function(a){ return a && a.id === s.centreId; });
     if (byId) return byId;
+  }
+  // The intake key stamped at enrolment. This is what keeps a trainee with the
+  // intake they actually sat in when the Centre runs the programme again under
+  // the same name.
+  if (s.centreKey != null && String(s.centreKey) !== '') {
+    var byKey = null;
+    try {
+      var want = CESTISCore.enrolment.centreKeyOf({ centreKey: s.centreKey });
+      byKey = skillAreas.find(function(a){ return a && CESTISCore.enrolment.centreKeyOf(a) === want; });
+    } catch (e) { byKey = null; }
+    if (byKey) return byKey;
   }
   var rec = courseDurationRecord(s.centreName || s.course);
   if (rec) return rec;
@@ -18900,6 +18924,7 @@ function backfillStudentFiscalYears() {
     var stamp = centre ? CESTISCore.enrolment.enrolmentStamp(centre, when) : null;
     if (stamp) {
       if (s.centreId == null) s.centreId = stamp.centreId;
+      if (!s.centreKey) s.centreKey = stamp.centreKey;
       if (!s.centreName) s.centreName = stamp.centreName;
       if (!s.courseStart) s.courseStart = stamp.courseStart;
       if (!s.courseEnd) s.courseEnd = stamp.courseEnd;
@@ -19067,7 +19092,7 @@ function renderCourseDurationPage() {
     var enrolled = (typeof students !== 'undefined' && Array.isArray(students))
       ? students.filter(function(st){ return st.course && courseDurationRecord(st.course) === sk; }).length : 0;
     return '<tr>'+
-      '<td><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">'+(sk.icon||'📋')+'</span><strong>'+escapeHtml(sk.name)+'</strong></div>'+
+      '<td><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">'+(sk.icon||'📋')+'</span><strong>'+escapeHtml(centreDisplayName(sk))+'</strong></div>'+
         '<div style="font-size:11px;color:var(--text-muted);">'+enrolled+' student'+(enrolled===1?'':'s')+'</div>'+cdPermissionInfo(sk)+'</td>'+
       '<td><input type="text" class="form-control" style="width:60px;padding:4px 6px;" id="cdLevel_'+sk.id+'" value="'+escapeHtml(sk.level||'')+'" placeholder="–"></td>'+
       '<td><input type="text" class="form-control" style="width:160px;padding:4px 6px;" id="cdProject_'+sk.id+'" value="'+escapeHtml(sk.project||'')+'" placeholder="Project / Centre"></td>'+
@@ -19819,7 +19844,7 @@ function renderCentreTable() {
   tbody.innerHTML = skillAreas.map(function(c) {
     return '<tr>' +
       '<td style="font-size:24px;text-align:center;">' + c.icon + '</td>' +
-      '<td><strong>' + c.name + '</strong></td>' +
+      '<td><strong>' + centreDisplayName(c) + '</strong></td>' +
       '<td style="font-size:13px;color:var(--text-secondary);">' + c.desc + '</td>' +
       '<td style="text-align:center;">' + c.students + '</td>' +
       '<td style="text-align:center;">' + c.materials + '</td>' +
@@ -19852,6 +19877,12 @@ function addTrainingCentre() {
   if(!desc) { alert('Please enter a description.'); return; }
   var _newCentreId = getNextCentreId();
   clearDeletedCentre(_newCentreId);   // a deliberate re-add is never suppressed
+  // Running a programme again? This is a NEW intake with a key of its own, so
+  // the trainees of the one before it stay where they are.
+  var _sameName = skillAreas.filter(function(c){
+    try { return c && CESTISCore.enrolment.parseCentreLabel(c.name).name.toLowerCase().trim() === name.toLowerCase().trim(); }
+    catch (e) { return false; }
+  }).length;
   skillAreas.push({
     id: _newCentreId,
     name: name,
@@ -19873,11 +19904,16 @@ function addTrainingCentre() {
   document.getElementById('newCentreEmojiGrid').style.display = 'none';
   document.getElementById('newCentreColor').value = '#3498db';
   document.getElementById('newCentreDesc').value = '';
+  try { CESTISCore.enrolment.assignCentreKeys(skillAreas); } catch (e) {}
+  var _newCentre = skillAreas[skillAreas.length - 1];
+  var _newLabel = centreDisplayName(_newCentre);
   renderSkills();
   updateCentreCount();
   if(centreViewMode === 'table') renderCentreTable();
-  showToast(name + ' training centre added!');
-  addNotification('New training centre created: ' + name, 'system', null, ['admin']);
+  showToast(_newLabel + ' training centre added!' +
+    (_sameName ? ' This is intake ' + CESTISCore.enrolment.centreKeyOf(_newCentre) +
+                 ' — the trainees of the earlier one stay with it.' : ''));
+  addNotification('New training centre created: ' + _newLabel, 'system', null, ['admin']);
   populateCourseDropdowns();
   saveState();
   // Auto-recover data from Drive/cloud if this skill area existed before

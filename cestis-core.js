@@ -1859,6 +1859,96 @@
   Core.enrolment = (function () {
     function norm(s) { return String(s == null ? '' : s).toLowerCase().trim().replace(/\s+/g, ' '); }
 
+    /* --- The intake key ---------------------------------------------------
+       A programme the Centre runs more than once has one training centre per
+       intake, and they share a name. Matching on the name alone therefore
+       swept last year's trainees into this year's centre the moment it was
+       created — the very thing the course-end rule exists to prevent.
+
+       Every centre carries a key of its own: '01', '02', '03', … taken from
+       the centre's id, so it is unique, never reused, and stable on every
+       device. A centre's full name is written with it in front —
+       "01. Welding and Fabrication", then "02. Welding and Fabrication" for
+       the next intake — and that is the name the fee side prices and enrols
+       under. A name carrying a key resolves to THAT centre and no other, so a
+       trainee stays with the intake they were enrolled in for good. */
+
+    function padKey(v) {
+      var s = String(v == null ? '' : v).trim();
+      if (!s) return '';
+      if (/^\d+$/.test(s)) return s.length < 2 ? ('0' + s) : s;
+      return s;
+    }
+
+    // A key is a NUMBER: '01', '02', '03'. An id that is not one (some centres
+    // carry a generated string id) gives no key — the centre is allotted the
+    // next free number instead, so what the Centre reads is always a count.
+    function numericKey(v) {
+      var s = String(v == null ? '' : v).trim();
+      return /^\d+$/.test(s) ? padKey(s) : '';
+    }
+
+    /* The key a centre answers to: its own if it carries one, otherwise the
+       one its id gives it. '' when the centre has neither. */
+    function centreKeyOf(centre) {
+      if (!centre) return '';
+      if (centre.centreKey != null && String(centre.centreKey).trim() !== '') return padKey(centre.centreKey);
+      if (centre.id != null) return numericKey(centre.id);
+      return '';
+    }
+
+    /* Split a written programme name into the key it states and the rest.
+         '02. Welding and Fabrication' -> { key: '02', name: 'Welding and Fabrication' }
+         'WELDING L2'                  -> { key: '',   name: 'WELDING L2' }
+       Only a leading run of digits followed by a dot counts, so a name that
+       merely begins with a number ("2 Day Induction") is left alone. */
+    function parseCentreLabel(label) {
+      var s = String(label == null ? '' : label).trim();
+      var m = /^(\d{1,4})\s*[.)]\s*(.+)$/.exec(s);
+      if (!m) return { key: '', name: s };
+      return { key: padKey(m[1]), name: m[2].trim() };
+    }
+
+    /* A centre's full name, key first. This is what the Centre reads on the
+       page and what the fee side prices, so two intakes of one programme are
+       two plainly different things. */
+    function centreLabel(centre) {
+      if (!centre || !centre.name) return '';
+      var k = centreKeyOf(centre);
+      var bare = parseCentreLabel(centre.name).name;   // never double-prefix
+      return k ? (k + '. ' + bare) : bare;
+    }
+
+    /* Give every centre that has no key one of its own, in place. Safe to run
+       on every load: a centre that already has a key is left alone. Returns
+       how many were stamped. */
+    function assignCentreKeys(areas) {
+      if (!Array.isArray(areas)) return 0;
+      var taken = {}, n = 0, i;
+      for (i = 0; i < areas.length; i++) {
+        if (!areas[i]) continue;
+        var k = areas[i].centreKey != null ? padKey(areas[i].centreKey) : '';
+        if (k) taken[k] = true;
+      }
+      var next = 1;
+      var free = function () {
+        while (taken[padKey(next)]) next++;
+        var k = padKey(next);
+        taken[k] = true;
+        return k;
+      };
+      for (i = 0; i < areas.length; i++) {
+        var a = areas[i];
+        if (!a || (a.centreKey != null && String(a.centreKey).trim() !== '')) continue;
+        // The id is the centre's identity already, so it gives a key that is
+        // unique and the same on every device — but never one already taken.
+        var fromId = a.id != null ? numericKey(a.id) : '';
+        a.centreKey = (fromId && !taken[fromId]) ? (taken[fromId] = true, fromId) : free();
+        n++;
+      }
+      return n;
+    }
+
     // Joining words that carry no meaning when two course names are compared.
     var STOP_WORDS = { and: 1, the: 1, of: 1, for: 1, with: 1, amp: 1 };
 
@@ -1963,34 +2053,51 @@
             "… Level 3".
        Between equally good matches the choice is made by preferCentre, and a
        later pass only runs when the earlier ones found nothing.
-       opts: { today, nowMs, on } — all optional. 'on' is a date the answer
-       should belong to; without it the answer is about now. */
+
+       An intake KEY settles it outright. A name written "02. Welding and
+       Fabrication", or an explicit opts.centreKey, names one centre and one
+       only: if that centre is not in the roster the answer is nothing at all,
+       never a like-named intake. This is what keeps a trainee with the intake
+       they were enrolled in when the Centre opens the next one under the same
+       name.
+
+       opts: { today, nowMs, on, centreKey } — all optional. 'on' is a date the
+       answer should belong to; without it the answer is about now. */
     function findCentre(areas, courseName, opts) {
       if (!Array.isArray(areas) || !courseName) return null;
       opts = opts || {};
-      var cn = norm(courseName);
-      if (!cn) return null;
+      var parsed = parseCentreLabel(courseName);
+      var wantKey = padKey(opts.centreKey || parsed.key);
+      var cn = norm(wantKey ? parsed.name : courseName);
       var hit = null, i, n;
 
+      if (wantKey) {
+        for (i = 0; i < areas.length; i++) {
+          if (areas[i] && centreKeyOf(areas[i]) === wantKey) return areas[i];
+        }
+        return null;                 // that intake is not here — never another one
+      }
+      if (!cn) return null;
+
       for (i = 0; i < areas.length; i++) {
-        if (areas[i] && norm(areas[i].name) === cn) hit = preferCentre(hit, areas[i], opts);
+        if (areas[i] && norm(parseCentreLabel(areas[i].name).name) === cn) hit = preferCentre(hit, areas[i], opts);
       }
       if (hit) return hit;
 
       for (i = 0; i < areas.length; i++) {
-        n = norm(areas[i] && areas[i].name);
+        n = norm(areas[i] && parseCentreLabel(areas[i].name).name);
         if (!n) continue;
         if (n.indexOf(cn) === 0 || cn.indexOf(n) === 0) hit = preferCentre(hit, areas[i], opts);
       }
       if (hit) return hit;
 
-      var qT = tokenise(courseName), qL = levelOfTokens(qT), qW = keyWords(qT);
+      var qT = tokenise(cn), qL = levelOfTokens(qT), qW = keyWords(qT);
       if (!qW.length) return null;
       var best = null, bestScore = 0;
       for (i = 0; i < areas.length; i++) {
         var area = areas[i];
         if (!area || !area.name) continue;
-        var aT = tokenise(area.name), aL = levelOfTokens(aT), aW = keyWords(aT);
+        var aT = tokenise(parseCentreLabel(area.name).name), aL = levelOfTokens(aT), aW = keyWords(aT);
         if (!aW.length) continue;
         if (qL && aL && qL !== aL) continue;      // Level 2 is not Level 3
         var shared = 0;
@@ -2080,7 +2187,12 @@
       var ed = Core.courseDuration.normDate(enrolDate) || Core.courseDuration.todayStr();
       return {
         centreId: centre.id != null ? centre.id : null,
+        // The intake key is stamped alongside the id: it is what binds this
+        // trainee to THIS intake, so the next one opened under the same name
+        // never claims them.
+        centreKey: centreKeyOf(centre),
         centreName: centre.name || '',
+        centreLabel: centreLabel(centre),
         courseStart: Core.courseDuration.normDate(centre.startDate) || '',
         courseEnd: Core.courseDuration.normDate(centre.endDate) || '',
         enrolmentDate: ed,
@@ -2113,6 +2225,10 @@
 
     return {
       findCentre: findCentre,
+      centreKeyOf: centreKeyOf,
+      centreLabel: centreLabel,
+      parseCentreLabel: parseCentreLabel,
+      assignCentreKeys: assignCentreKeys,
       fiscalYearOf: fiscalYearOf,
       centreFiscalYear: centreFiscalYear,
       canEnrol: canEnrol,
