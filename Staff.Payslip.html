@@ -1635,14 +1635,34 @@ function saveStore(){
 }
 
 // Autosave: merge from localStorage (cross-tab), then save if dirty or data changed
+// The store's write counter as of the last tick, plus a flag set when ANOTHER
+// tab writes the payroll key (cross-tab changes bypass this document's counter
+// and arrive as storage events). Between them, an idle 15-second tick costs an
+// integer compare — it used to stringify the entire payroll store three to five
+// times per tick, forever, to discover nothing had changed.
+var _payslipLastTickWrites = -1, _payslipStoreChangedElsewhere = false;
+try {
+  window.addEventListener('storage', function (ev) {
+    if (ev && ev.key === STORAGE_KEY) _payslipStoreChangedElsewhere = true;
+  });
+} catch(e){}
+
 function _autoSaveTick(){
   try{
+    var w = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -1;
+    if (!_dataDirty && !_payslipStoreChangedElsewhere && w >= 0 && w === _payslipLastTickWrites) {
+      return;   // nothing moved anywhere since the last tick
+    }
+    _payslipStoreChangedElsewhere = false;
     _mergeFromLocalStorage();
     var currentHash=_dataHash(DATA);
     if(_dataDirty||currentHash!==_lastSaveHash){
       console.log('[AutoSave] Saving data (dirty='+_dataDirty+', hashChanged='+(currentHash!==_lastSaveHash)+')');
       saveStore();
       _showAutoSaveIndicator();
+    }
+    if (window.CESTISStore && typeof CESTISStore.writes === 'number') {
+      _payslipLastTickWrites = CESTISStore.writes;   // absorb our own writes
     }
   }catch(e){console.warn('[AutoSave] Error:',e.message);}
 }

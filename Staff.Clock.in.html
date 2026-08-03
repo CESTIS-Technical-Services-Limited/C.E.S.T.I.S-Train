@@ -5397,12 +5397,18 @@
         // upload also happens on clock-out and can't be lost because the timer
         // is computed from real clock-in timestamps.
         function autoSaveTick() {
-            if (currentSession && currentSession.status !== 'completed') {
+            var _sessionActive = currentSession && currentSession.status !== 'completed';
+            if (_sessionActive) {
                 currentSession.lastModified = new Date().toISOString();
                 var idx = timeRecords.findIndex(function(r){ return r.id === currentSession.id; });
                 if (idx !== -1) timeRecords[idx] = currentSession;
+                // Only an ACTIVE session has anything new to write. This tick
+                // fires every 10 seconds forever, and it used to stringify the
+                // entire time-record history to disk even with nobody clocked
+                // in and nothing changed. Every real change elsewhere already
+                // saves itself.
+                saveTimeRecords();
             }
-            saveTimeRecords();
             try {
                 var exp = CESTISStore.getItem('cestisGoogleTokenExpiry');
                 if (exp) {
