@@ -2,16 +2,24 @@
 
    A trainee's id is a hash of their natural key, and the natural key was the
    name plus the RAW course string. That made the id move whenever the course
-   text was rewritten — and the dashboard rewrites it on every single load:
+   text was rewritten — and it gets rewritten in ordinary use:
 
-     - alignProgrammeTextToIntake() sets s.course to the stamped centre's name;
-     - a transfer writes the keyed label, "01. Welding & Fabrication".
+     - a transfer writes the receiving intake's keyed label onto every record it
+       moves, "01. Welding & Fabrication";
+     - the School Fee mirror and older records carry the bare spelling,
+       "Welding & Fabrication", for that same enrolment.
 
-   So one person was 'STU-p7al0hg27' before the text was realigned and
-   'STU-1i5e0bi81mr' after it. reconcileSnapshot unions records BY ID, found
-   both, and kept both: one trainee, listed twice. The launch dedup then
-   collapsed them, the next load moved the id again, and the pair came back —
-   which is what "fixes it, then duplicates it again" describes.
+   So one person was 'STU-p7al0hg27' under the bare spelling and
+   'STU-1i5e0bi81mr' under the keyed one. reconcileSnapshot unions records BY
+   ID, found both, and kept both: one trainee, listed twice. The dedup then
+   collapsed them and the next write moved the id again, which is what "fixes
+   it, then duplicates it again" describes.
+
+   (A launch-time pass used to rewrite the programme text of the whole roll,
+   which moved every id at once. That pass has since been removed for reasons
+   of its own — `course` is load-bearing for certificate templates, exam
+   matching and the fee pairing. The id must still not move for the writers
+   that remain, which is what these tests hold.)
 
    There was also a disagreement inside cestis-core itself. dedupeStudents
    groups on programmeIdentity().bare, the course name with its intake key
@@ -61,12 +69,12 @@ section('Which is the same rule dedupeStudents already applied');
   assertEq(bundle.students.length, 1, 'and so does the id migration — one record, not two');
 }
 
-section('Realigning the programme text leaves the id where it was');
+section('Rewriting the programme text leaves the id where it was');
 {
   const s = { id: null, name: 'Anthony Williams', course: 'Welding & Fabrication' };
   s.id = Core.stableStudentId(s);
   const enrolled = s.id;
-  // What alignProgrammeTextToIntake() does on every load.
+  // What a transfer writes onto the records it moves.
   s.course = '01. Welding & Fabrication';
   assertEq(Core.stableStudentId(s), enrolled, 'the id survives the rewrite');
 }
@@ -95,10 +103,10 @@ section('And the id is stable across devices and across repeated migrations');
   assertEq(again.changed, false, 'and reports nothing changed');
 }
 
-section('The whole round trip: realign the text, sync, and nobody is duplicated');
+section('The whole round trip: rewrite the text, sync, and nobody is duplicated');
 {
-  // Device A holds the roll as enrolled. Device B has had its programme text
-  // realigned to the keyed label, so before the fix its ids had all moved.
+  // Device A holds the roll as enrolled. Device B holds the same people under
+  // the keyed spelling a transfer writes, so before the fix its ids had moved.
   const enrolled = [
     { id: null, name: 'Shanardo Williams', course: 'Welding & Fabrication', progress: 5 },
     { id: null, name: 'Jadan Walters',     course: 'Welding & Fabrication', progress: 5 }
