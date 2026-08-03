@@ -6797,8 +6797,12 @@ function loadState() {
   // instead of reading the wrong stamp as settled.
   try {
     var _released = releaseMisStampedIntakes();
-    if (_released > 0) {
-      console.log('[loadState] Released ' + _released + ' trainee(s) from an intake that began after they enrolled');
+    // Then make the programme each trainee READS say the intake they are in —
+    // after the release above, so the text follows a stamp that survived it.
+    var _aligned = alignProgrammeTextToIntake();
+    if (_released > 0 || _aligned > 0) {
+      if (_released > 0) console.log('[loadState] Released ' + _released + ' trainee(s) from an intake that began after they enrolled');
+      if (_aligned > 0) console.log('[loadState] Brought ' + _aligned + ' trainee record(s) into line with the intake they are in');
       try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
     }
   } catch(e) { console.warn('[loadState] intake release:', e); }
@@ -7156,6 +7160,38 @@ function removeFeeTwinForStudent(student) {
    enrolled anybody displayed a roll of trainees it did not have — the Transfer
    page correctly showed "no trainees are held by this training centre" — while
    the intake actually holding them under-reported by exactly the same number. */
+/* Who is in each training centre — the dashboard's single answer.
+
+   Every screen that shows a per-centre or per-programme figure goes through
+   these two. They used to be written out by hand wherever they were needed,
+   each with its own idea of what "in this centre" means: some compared the
+   course string exactly, some took the first word of the centre's name and
+   looked for it inside the trainee's, and none of them looked at the intake
+   stamped on the record. That is how one page could say an intake held 43
+   trainees while another said it held none, and how a trainee transferred out
+   of an intake went on being counted in it.
+
+   transfer.tally is the rule the Transfer page and the Enrolment Register
+   already use: intake key first, centre id next, programme name last. Build
+   the tally ONCE and reuse it — it is a single pass over the roll, where the
+   hand-written versions were a pass per centre. */
+function centreRollTally() {
+  if (typeof students === 'undefined' || !Array.isArray(students)) return null;
+  return CESTISCore.transfer.tally(students, skillAreas,
+    { field: 'course', centres: skillAreas, nowMs: Date.now() });
+}
+
+/* The trainees of a programme named the way a dropdown or report names it.
+   The name is resolved to a training centre first, so two intakes of one
+   programme are never merged into a single figure. */
+function programmeRoll(tally, programmeName) {
+  if (!tally || !programmeName) return [];
+  var centre = null;
+  try { centre = CESTISCore.enrolment.findCentre(skillAreas, programmeName, { nowMs: Date.now() }); }
+  catch (e) { centre = null; }
+  return centre ? tally.listOf(centre) : [];
+}
+
 function updateSkillAreaCounts() {
   var opts = { field: 'course', centres: skillAreas, nowMs: Date.now() };
   // One pass over each list, not one pass per centre.
@@ -7179,7 +7215,10 @@ function reconcileStudentsFromAccounts() {
   students.forEach(function(s) {
     studentIds[s.id] = true;
     if (s.name && s.course) {
-      studentNameCourse[(s.name + '|' + s.course).toLowerCase()] = true;
+      // Keyed the one way the whole system reads a name (CESTISCore.normName),
+      // so a stray double space cannot make this pass see a second person where
+      // the launch collapse sees one — that disagreement is what minted doubles.
+      studentNameCourse[CESTISCore.normName(s.name) + '|' + CESTISCore.normCourse(s.course)] = true;
     }
   });
 
@@ -7201,12 +7240,14 @@ function reconcileStudentsFromAccounts() {
 
     // Check if a student record already exists
     if (u.studentDataId && studentIds[u.studentDataId]) return;
-    var nameKey = u.name && u.programme ? (u.name + '|' + u.programme).toLowerCase() : null;
+    var nameKey = u.name && u.programme
+      ? CESTISCore.normName(u.name) + '|' + CESTISCore.normCourse(u.programme) : null;
     if (nameKey && studentNameCourse[nameKey]) {
       // Re-link account to the existing student's ID if it was pointing at a removed duplicate
       var matchedStu = students.find(function(s) {
-        return s.name && u.name && s.name.toLowerCase() === u.name.toLowerCase() &&
-               s.course && u.programme && s.course.toLowerCase() === u.programme.toLowerCase();
+        return CESTISCore.sameName(s.name, u.name) &&
+               s.course && u.programme &&
+               CESTISCore.normCourse(s.course) === CESTISCore.normCourse(u.programme);
       });
       if (matchedStu && u.studentDataId !== matchedStu.id) u.studentDataId = matchedStu.id;
       return;
@@ -7224,7 +7265,7 @@ function reconcileStudentsFromAccounts() {
     // roll, link the account to them and create nothing.
     if (u.name) {
       var nameOnlyMatch = students.find(function(s) {
-        return s.name && s.name.toLowerCase().trim() === u.name.toLowerCase().trim();
+        return CESTISCore.sameName(s.name, u.name);
       });
       if (nameOnlyMatch) {
         if (u.studentDataId !== nameOnlyMatch.id) { u.studentDataId = nameOnlyMatch.id; changed = true; }
@@ -8332,8 +8373,9 @@ function exportCertsCSV() {
 }
 
 function exportReportCSV() {
+  const _t = centreRollTally();
   const data = courses.map(c => {
-    const cs = students.filter(s=>s.course===c);
+    const cs = programmeRoll(_t, c);
     return {course:c,enrolled:cs.length,certified:cs.filter(s=>s.stage==='certified'||s.stage==='collected').length,avgAttendance:cs.length?Math.round(cs.reduce((a,s)=>a+s.attendance,0)/cs.length):0};
   });
   exportCSV(data, ['course','enrolled','certified','avgAttendance'], 'report_export.csv');
@@ -19237,10 +19279,10 @@ function showSkillDetail(id) {
   ];
 
   // Compute pass rate from students enrolled in this course
-  var courseStudents = students.filter(function(s) {
-    return s.course && (s.course.toLowerCase() === skill.name.toLowerCase() ||
-      skill.name.toLowerCase().indexOf(s.course.toLowerCase().split(' ')[0]) !== -1);
-  });
+  // The centre's roll by the shared rule, so this pass rate is computed over
+  // the same trainees the Enrolment Register lists for the intake.
+  var _rmTally = centreRollTally();
+  var courseStudents = _rmTally ? _rmTally.listOf(skill) : [];
   var passRate = courseStudents.length > 0
     ? Math.round(courseStudents.filter(isStudentPassed).length / courseStudents.length * 100)
     : 0;
@@ -19641,6 +19683,48 @@ function releaseMisStampedIntakes() {
     delete s.centreName;
     delete s.courseStart;
     delete s.courseEnd;
+    s.lastModified = new Date().toISOString();
+    n++;
+  });
+  return n;
+}
+
+/* Make the programme written on a trainee say the intake they are actually in.
+
+   A transfer stamps the receiving intake on the record AND rewrites the
+   programme text to match — but only for the records it moves, and only since
+   it learned to. Records moved before that, or mirrored in from another page,
+   kept the text of the intake they came from while carrying the stamp of the
+   one they are in. Nothing counts them wrongly any more, because every count
+   reads the stamp first. What was left was a record that READ wrong: open a
+   trainee sitting in "01. Welding & Fabrication" and the form still said
+   "22. Welding and Fabrication Level 2".
+
+   The stamp is the truth and the text follows it. Only records whose stamp
+   names a training centre that exists are touched, and only when the text
+   actually disagrees. Returns how many were brought into line. */
+function alignProgrammeTextToIntake() {
+  if (typeof students === 'undefined' || !Array.isArray(students)) return 0;
+  if (typeof skillAreas === 'undefined' || !Array.isArray(skillAreas) || !skillAreas.length) return 0;
+  var byKey = {}, byId = {}, n = 0;
+  skillAreas.forEach(function (c) {
+    if (!c) return;
+    var k = CESTISCore.enrolment.centreKeyOf(c);
+    if (k) byKey[k] = c;
+    if (c.id != null) byId[String(c.id)] = c;
+  });
+  students.forEach(function (s) {
+    if (!s) return;
+    var centre = null;
+    if (s.centreKey != null && String(s.centreKey).trim() !== '') {
+      centre = byKey[CESTISCore.enrolment.centreKeyOf({ centreKey: s.centreKey })] || null;
+    } else if (s.centreId != null) {
+      centre = byId[String(s.centreId)] || null;
+    }
+    if (!centre || !centre.name) return;         // unstamped records keep their own text
+    if (s.course === centre.name) return;
+    s.course = centre.name;
+    s.centreName = centre.name;
     s.lastModified = new Date().toISOString();
     n++;
   });
@@ -22523,12 +22607,9 @@ function renderPassRates() {
   if(!el) return;
   // Compute pass rates dynamically from student data per training centre
   var progs = [];
+  var _prTally = centreRollTally();
   skillAreas.forEach(function(sk) {
-    var courseStudents = students.filter(function(s) {
-      return s.course && (s.course.toLowerCase() === sk.name.toLowerCase() ||
-        sk.name.toLowerCase().indexOf(s.course.toLowerCase().split(' ')[0]) !== -1 ||
-        s.course.toLowerCase().indexOf(sk.name.split(' ')[0].toLowerCase()) !== -1);
-    });
+    var courseStudents = _prTally ? _prTally.listOf(sk) : [];
     if (courseStudents.length === 0) return;
     var passed = courseStudents.filter(isStudentPassed).length;
     var rate = Math.round(passed / courseStudents.length * 100);
@@ -22616,7 +22697,8 @@ function renderDonutChart() {
 function renderEnrollmentBars() {
   const el = document.getElementById('enrollmentBarChart');
   if(!el) return;
-  const courseCounts = courses.map(c => ({name:c.substring(0,8),count:students.filter(s=>s.course===c).length}));
+  const _ccTally = centreRollTally();
+  const courseCounts = courses.map(c => ({name:c.substring(0,8),count:programmeRoll(_ccTally, c).length}));
   const maxC = Math.max(...courseCounts.map(c=>c.count),1);
   el.innerHTML = courseCounts.map(c =>
     `<div class="bar-col"><div class="bar" style="height:${(c.count/maxC*100).toFixed(0)}%;background:var(--blue);"></div><div class="bar-label">${c.name}</div></div>`
@@ -32827,7 +32909,7 @@ function buildAdminStaffPages() {
       '<div class="card" style="padding:20px;"><h4 style="margin-bottom:12px;">Enrollment Summary</h4>' +
         '<div style="font-size:42px;font-weight:800;color:var(--accent);margin-bottom:4px;">'+students.length+'</div>' +
         '<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Total Students</div>' +
-        courses.map(function(c){ var count = students.filter(function(s){ return s.course===c; }).length; return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>'+c+'</span><strong>'+count+'</strong></div>'; }).join('') +
+        (function(){ var _t = centreRollTally(); return courses.map(function(c){ var count = programmeRoll(_t, c).length; return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>'+c+'</span><strong>'+count+'</strong></div>'; }).join(''); })() +
       '</div>' +
       '<div class="card" style="padding:20px;"><h4 style="margin-bottom:12px;">Student Pipeline</h4>' +
         stages.map(function(st){ var count = students.filter(function(s){ return s.stage===st; }).length; return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>'+stageIcons[st]+' '+(stageLabels[st]||st)+'</span><strong>'+count+'</strong></div>'; }).join('') +
@@ -34295,10 +34377,12 @@ function buildCmcPages() {
   // ---- Financial Overview Page ----
   // Compute fee/programme data locally
   var programmes = getCourseList();
+  var _foTally = centreRollTally();
   var progData = programmes.map(function(p) {
-    var enrolled = students.filter(function(s){return s.course===p;}).length;
-    var cert = students.filter(function(s){return s.course===p&&(s.stage==='certified'||s.stage==='collected');}).length;
-    var inc = students.filter(function(s){return s.course===p&&s.stage==='incomplete';}).length;
+    var _roll = programmeRoll(_foTally, p);
+    var enrolled = _roll.length;
+    var cert = _roll.filter(function(s){return s.stage==='certified'||s.stage==='collected';}).length;
+    var inc = _roll.filter(function(s){return s.stage==='incomplete';}).length;
     return {name:p, enrolled:enrolled, certified:cert, incomplete:inc};
   }).filter(function(p){return p.enrolled>0;});
 
@@ -34816,8 +34900,9 @@ function cmcRenderCharts() {
   // Enrolment by Programme chart
   var progLabels = []; var progCounts = [];
   var progs = getCourseList();
+  var _epTally = centreRollTally();
   progs.forEach(function(p) {
-    var count = students.filter(function(s){return s.course===p;}).length;
+    var count = programmeRoll(_epTally, p).length;
     if(count > 0) { progLabels.push(p); progCounts.push(count); }
   });
   var enrolEl = document.getElementById('cmcChartEnrolment');

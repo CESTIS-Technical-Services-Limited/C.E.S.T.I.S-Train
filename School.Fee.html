@@ -6642,10 +6642,10 @@
                     const s2 = students[j];
                     const reasons = [];
 
-                    // Check for similar names (case-insensitive, trimmed)
-                    const name1 = (s1.name || '').toLowerCase().trim();
-                    const name2 = (s2.name || '').toLowerCase().trim();
-                    if (name1 && name2 && name1 === name2) {
+                    // The one name rule (CESTISCore.sameName): case and any run
+                    // of whitespace folded, so this finder reports the same
+                    // doubles the launch collapse acts on, not a shorter list.
+                    if (CESTISCore.sameName(s1.name, s2.name)) {
                         reasons.push('Same name');
                     }
 
@@ -12246,10 +12246,10 @@
                     reasons.push('Same ID');
                 }
 
-                // Check name match (case-insensitive)
-                const cloudName = (cloudStudent.name || '').toLowerCase().trim();
-                const localName = (localStudent.name || '').toLowerCase().trim();
-                if (cloudName && localName && cloudName === localName) {
+                // Name match by the one shared rule, so a copy that came back
+                // from Drive with the name spaced differently is recognised as
+                // the same person instead of landing as a second record.
+                if (CESTISCore.sameName(cloudStudent.name, localStudent.name)) {
                     reasons.push('Same name');
                 }
 

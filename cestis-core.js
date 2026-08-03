@@ -208,6 +208,24 @@
   Core.normName = function (s) { return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' '); };
   Core.normCourse = function (s) { return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' '); };
 
+  /* Are these two the same person's name?
+
+     One rule, everywhere. It used to be decided in each place that asked, and
+     the versions disagreed: the launch collapse compared normName (case folded
+     AND every run of whitespace folded to one space), while the account
+     reconciler compared `.toLowerCase().trim()`, which leaves a double space
+     inside a name intact. So "Yaneek  Simmonds" on an imported account and
+     "Yaneek Simmonds" on the roll were the same person to one pass and two
+     people to the other: the collapse merged them on every launch and the
+     reconciler minted the second one straight back, and the roll — and every
+     count drawn from it — settled at double.
+
+     Anything comparing names for identity must come through here. */
+  Core.sameName = function (a, b) {
+    var x = Core.normName(a), y = Core.normName(b);
+    return !!x && x === y;
+  };
+
   Core.naturalKey = function (student) {
     if (!student) return '';
     var n = Core.normName(student.name);
