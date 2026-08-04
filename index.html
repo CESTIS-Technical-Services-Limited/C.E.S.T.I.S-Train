@@ -6149,6 +6149,31 @@ function lmsChatEnsureMembership() {
   try { lmsChatEnsureStudentAccounts(); } catch(e) {}
   var changed = false;
 
+  // 0. A deleted training centre takes its class room with it.
+  //
+  // Deleting a centre removes the room on the machine it was deleted on, and
+  // nowhere else: every other device still held the room, and the room list is
+  // synced whole, so the next sync put it back — the deleted programme was
+  // still there in everybody's chat list, long after the centre had gone. The
+  // deletion itself is written down (the tombstones in CESTISCore.catalogue),
+  // so read it here and the room goes wherever the delete goes.
+  //
+  // The room's MESSAGES are left alone. They are the Centre's record of what
+  // was said; a deleted programme is a reason to stop showing the room, not to
+  // destroy what is in it.
+  try {
+    var _liveRooms = lmsChatRooms.filter(function(r) {
+      if (!r || r.type !== 'class') return true;
+      var cid = (r.skillAreaId != null) ? r.skillAreaId
+              : (String(r.id || '').indexOf('chat-class-') === 0 ? String(r.id).slice(11) : null);
+      return cid == null || !isCentreDeleted(cid);
+    });
+    if (_liveRooms.length !== lmsChatRooms.length) {
+      lmsChatRooms = _liveRooms;
+      changed = true;
+    }
+  } catch(e) { console.warn('[LMSChat] pruning rooms of deleted centres:', e); }
+
   // 1. Ensure default skill area rooms exist and sync names/icons with current skill areas
   skillAreas.forEach(function(sk) {
     var roomId = 'chat-class-' + sk.id;
