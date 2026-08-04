@@ -6901,10 +6901,12 @@ function deduplicateStudents() {
     var _r = CESTISCore.dedupeStudents(students);
     students = _r.students;
     var _idMap = _r.idMap, _removed = _r.removed;
-    // Then the Centre's own rule: one person, one record. Two records with the
-    // same exact name are the same trainee however they were keyed and
-    // whatever programme each names, so one of them goes — the one with less
-    // evidence of use, after everything it held is carried across.
+    // Then one record per ENROLMENT: two records of one name on the same
+    // programme are the same record however they were keyed and however each
+    // spells it, so the one with less evidence of use goes, after everything it
+    // held is carried across. Two records of one name on two genuinely
+    // different programmes are two enrolments — a trainee who went from Level 2
+    // to Level 3, or two real people of one name — and both stand.
     if (typeof CESTISCore.collapseSameNameStudents === 'function') {
       var _c = CESTISCore.collapseSameNameStudents(students);
       if (_c.removed > 0) {
@@ -6968,10 +6970,11 @@ function deduplicateStudents() {
 
    Running the same rule again once those passes have had their say closes that
    window without having to know which of them added the record. It is the very
-   same rule (CESTISCore.collapseSameNameStudents), so it honours "keep
-   separate" and carries the loser's data onto the survivor, and their
-   attendance, results and accounts are re-linked. Returns how many it removed;
-   zero costs one pass over the roll and writes nothing. */
+   same rule (CESTISCore.collapseSameNameStudents), so it removes only a record
+   whose programme does not contradict its namesake's, honours "keep separate",
+   and carries the loser's data onto the survivor, with their attendance,
+   results and accounts re-linked. Returns how many it removed; zero costs one
+   pass over the roll and writes nothing. */
 function enforceOnePersonOneRecord() {
   if (!window.CESTISCore || typeof CESTISCore.collapseSameNameStudents !== 'function') return 0;
   if (typeof students === 'undefined' || !Array.isArray(students)) return 0;
@@ -10507,6 +10510,9 @@ function showPage(pageId) {
   // Keep the staff-appraisal due indicator fresh whenever the admin dashboard is shown
   if(pageId === 'dashboard') { try { if(typeof sappRenderAdminDueCard === 'function') sappRenderAdminDueCard(); } catch(e) {} }
   if(pageId === 'transfer-trainees') { try { renderTransferTraineesPage(); } catch(e) { console.warn('[Transfer] render failed', e); } }
+  // Reports counts the roll on every panel, so it is drawn on the way in rather
+  // than served from whenever the page happened to be built.
+  if(pageId === 'reports') { try { refreshReportsAnalytics(); } catch(e) { console.warn('[Reports] render failed', e); } }
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const navItem = document.querySelector('.nav-item[data-page="'+pageId+'"]');
   if(navItem) {
@@ -18961,7 +18967,13 @@ function refreshStudentDependentViews() {
     'filterInstructorStudents',
     'updateInstructorPipeline',
     'updateSkillAreaCounts',
-    'renderCentreTable'
+    'renderCentreTable',
+    // Reports & Analytics. Every panel there counts the roll, and none of them
+    // was on this list: they ran once at the tail of buildAdminPages() and were
+    // never asked again. So Reports showed the roll as it stood the moment the
+    // page was built while the Dashboard, which has its own refresh, showed it
+    // as it stands — 329 trainees against 220, from the same array.
+    'refreshReportsAnalytics'
   ];
   fns.forEach(function(name){
     try {
@@ -22644,26 +22656,85 @@ function renderCerts(filter,search) {
 function filterCerts() { renderCerts(document.getElementById('certFilter')?.value,document.getElementById('certSearch')?.value?.toLowerCase()); }
 function markCollected(idx) { students[idx].certCollected=true;students[idx].stage='collected';students[idx].progress=100;markStageSetByUser(students[idx]);filterCerts();updatePipelineCounts();renderCertStats();refreshStudentDependentViews();showToast(`Certificate collected: ${students[idx].name}`);addNotification('Certificate collected: ' + students[idx].name + ' — ' + students[idx].course, 'cert', null, ['admin']);saveState(); }
 
+/* The programmes every Reports panel counts, worked out ONCE.
+
+   The three panels each built their own list, three different ways:
+     • Pass Rate by Programme walked the live training centres and skipped the
+       empty ones;
+     • Enrollment by Course walked getCourseList() — one entry per centre NAME,
+       de-duplicated — so it drew a bar for every programme the Centre has ever
+       set up, ~18 of them empty, and then resolved each name BACK to a centre,
+       which cannot tell two intakes of one name apart;
+     • the Attendance Heatmap walked the same name list and matched attendance
+       with `record.course === name`, a raw string comparison that misses every
+       record written under another spelling of the programme.
+   So the three disagreed about which programmes exist and how many trainees
+   each has, on one page.
+
+   And each truncated its labels — to 13 characters, or 8 — which is how two
+   genuinely different centres came to be listed as "Electrical In…" twice and
+   "Beauty T" twice: rows a reader cannot tell apart.
+
+   This returns one entry per live centre that has trainees:
+     { centre, roll, label, full }
+   `full` is the centre's own name with its intake key, so two intakes are always
+   distinguishable, and `label` is unique even after shortening. */
+function reportProgrammeRolls(opts) {
+  var tally = centreRollTally();
+  var out = [];
+  if (!tally || typeof skillAreas === 'undefined' || !Array.isArray(skillAreas)) return out;
+  var maxLen = (opts && opts.maxLabel) || 0;
+  var E = (window.CESTISCore && CESTISCore.enrolment) || null;
+  var bareCount = {};
+  skillAreas.forEach(function (sk) {
+    if (!sk || !sk.name) return;
+    var roll = tally.listOf(sk) || [];
+    if (!roll.length) return;                       // an empty bar says nothing
+    var keyed = String(sk.name), bare = String(sk.name);
+    try {
+      if (E && E.centreLabel) keyed = E.centreLabel(sk) || bare;
+      if (E && E.parseCentreLabel) bare = E.parseCentreLabel(sk.name).name || String(sk.name);
+    } catch (e) { /* keep the raw name */ }
+    var k = bare.toLowerCase().replace(/\s+/g, ' ').trim();
+    bareCount[k] = (bareCount[k] || 0) + 1;
+    out.push({ centre: sk, roll: roll, full: keyed, bare: bare, _k: k });
+  });
+  out.sort(function (a, b) { return b.roll.length - a.roll.length; });
+  // The plain programme name reads best, so it is the default. The intake key is
+  // added only where two centres would otherwise be listed identically — which
+  // is the case the truncated labels used to hide rather than resolve.
+  out.forEach(function (p) { p.label = bareCount[p._k] > 1 ? p.full : p.bare; });
+  if (!maxLen) return out;
+  // Shorten for display, then check that shortening has not made two rows read
+  // the same. Any that now collide keep their full length.
+  var at = {};
+  out.forEach(function (p) {
+    p.short = p.label.length > maxLen ? p.label.substring(0, maxLen - 1) + '…' : p.label;
+    (at[p.short] = at[p.short] || []).push(p);
+  });
+  Object.keys(at).forEach(function (short) {
+    if (at[short].length > 1) at[short].forEach(function (p) { p.short = p.full; });
+  });
+  out.forEach(function (p) { p.label = p.short; });
+  return out;
+}
+
 function renderPassRates() {
   const el = document.getElementById('passRateChart');
   if(!el) return;
   // Compute pass rates dynamically from student data per training centre
-  var progs = [];
-  var _prTally = centreRollTally();
-  skillAreas.forEach(function(sk) {
-    var courseStudents = _prTally ? _prTally.listOf(sk) : [];
-    if (courseStudents.length === 0) return;
-    var passed = courseStudents.filter(isStudentPassed).length;
-    var rate = Math.round(passed / courseStudents.length * 100);
-    // Truncate long names for display
-    var displayName = sk.name.length > 15 ? sk.name.substring(0, 13) + '...' : sk.name;
-    progs.push({name: displayName, rate: rate});
+  var progs = reportProgrammeRolls().map(function (p) {
+    return { name: p.label, full: p.full, n: p.roll.length,
+      rate: Math.round(p.roll.filter(isStudentPassed).length / p.roll.length * 100) };
   });
   if (progs.length === 0) {
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No student data available to compute pass rates.</div>';
     return;
   }
-  el.innerHTML = progs.map(p=>`<div style="display:flex;align-items:center;gap:12px;"><div style="width:100px;font-size:12px;color:var(--text-secondary);text-align:right;">${p.name}</div><div class="progress-bar" style="flex:1;height:10px;"><div class="fill" style="width:${p.rate}%;background:${p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};border-radius:5px;"></div></div><div style="width:40px;font-size:12px;font-weight:700;color:${p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};">${p.rate}%</div></div>`).join('');
+  // The full programme name and its roll size are on every row, so a rate can be
+  // read against the number of trainees it is a rate OF — 0% over 3 trainees and
+  // 0% over 81 are not the same finding.
+  el.innerHTML = progs.map(p=>`<div style="display:flex;align-items:center;gap:12px;" title="${escapeHtml(p.full)} — ${p.n} trainee${p.n===1?'':'s'}"><div style="width:140px;font-size:12px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.name)}</div><div class="progress-bar" style="flex:1;height:10px;"><div class="fill" style="width:${p.rate}%;background:${p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};border-radius:5px;"></div></div><div style="width:40px;font-size:12px;font-weight:700;color:${p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};">${p.rate}%</div><div style="width:64px;font-size:11px;color:var(--text-muted);text-align:right;">${p.n} trainee${p.n===1?'':'s'}</div></div>`).join('');
 }
 
 function renderCertStats() {
@@ -22684,6 +22755,28 @@ function renderCertStats() {
   `;
 }
 
+/* Redraw every panel on Reports & Analytics.
+
+   All seven used to be called once, at the tail of buildAdminPages(), and never
+   again — so the page was a photograph of the roll taken when the app opened.
+   The Dashboard has refreshDashboardStudentTotals() and stays current, which is
+   how the two came to disagree: Reports counted 329 trainees and the Dashboard
+   220, out of one array, because the roll had changed in between and only one of
+   them was told.
+
+   Each renderer guards on its own missing DOM, so this is a safe no-op for a
+   role whose pages do not include Reports. */
+function refreshReportsAnalytics() {
+  ['renderReportStats', 'renderDonutChart', 'renderPassRates', 'renderEnrollmentBars',
+   'renderGaugeChart', 'renderAttendanceHeatmap', 'renderGenderDist',
+   'renderCertStats'].forEach(function (name) {
+    try {
+      var fn = window[name];
+      if (typeof fn === 'function') fn();
+    } catch (e) { /* one bad panel must not blank the rest of the page */ }
+  });
+}
+
 function renderReportStats() {
   const el = document.getElementById('reportStats');
   if(!el) return;
@@ -22702,7 +22795,11 @@ function renderReportStats() {
     }
   });
   const avgMonthsToCert = certCount > 0 ? (totalMonths / certCount).toFixed(1) : '0';
-  const avgAtt = students.length ? Math.round(students.reduce((a,s)=>a+s.attendance,0)/students.length) : 0;
+  // A record whose attendance was never recorded holds undefined, and adding it
+  // made the whole sum NaN — one blank field and the Attendance Rate card read 0%
+  // for the entire Centre, indistinguishable from genuinely zero attendance.
+  const avgAtt = students.length
+    ? Math.round(students.reduce((a,s)=>a+(parseFloat(s && s.attendance)||0),0)/students.length) : 0;
   const dropoutRate = students.length ? (students.filter(s=>s.stage==='incomplete').length/students.length*100).toFixed(1) : 0;
   el.innerHTML = `
     <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83D\uDCCA</div><div class="stat-value" data-count="${overallPassRate}" data-suffix="%">0</div><div class="stat-label">Overall Pass Rate</div></div>
@@ -22718,12 +22815,22 @@ function renderDonutChart() {
   const counts = {};
   stages.forEach(st => counts[st] = students.filter(s=>s.stage===st).length);
   const total = students.length;
-  const colors = {testing:'var(--blue)',interview:'var(--purple)',training:'var(--accent)',certified:'var(--green)',collected:'#27ae60',incomplete:'var(--red)'};
+  /* One colour per stage in `stages` — including 'nyc', which had none.
+
+     A conic-gradient with an invalid colour anywhere in its list is an invalid
+     declaration, and the browser drops the WHOLE thing: no ring, just the number
+     in the hole. 'nyc' is the Centre's largest stage by far (213 of 329), so the
+     stage chart had not drawn at all. A stage the roll can hold and this chart
+     cannot colour must fail loudly here rather than silently blank the panel. */
+  const colors = {testing:'var(--blue)',interview:'var(--purple)',training:'var(--accent)',
+    certified:'var(--green)',collected:'#27ae60',nyc:'#c0392b',incomplete:'var(--red)'};
+  const uncoloured = stages.filter(st => !colors[st]);
+  if (uncoloured.length) console.warn('[Reports] stage(s) with no donut colour:', uncoloured.join(', '));
   let gradientParts = [];
   let cumPct = 0;
   stages.forEach(st => {
     const pct = total > 0 ? (counts[st]/total)*100 : 0;
-    gradientParts.push(`${colors[st]} ${cumPct}% ${cumPct+pct}%`);
+    gradientParts.push(`${colors[st] || 'var(--text-muted)'} ${cumPct}% ${cumPct+pct}%`);
     cumPct += pct;
   });
   el.innerHTML = `
@@ -22731,7 +22838,7 @@ function renderDonutChart() {
       <div class="donut-hole"><div class="donut-val">${total}</div><div class="donut-label">Students</div></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;">
-      ${stages.map(st => `<div class="donut-legend-item"><div class="donut-color" style="background:${colors[st]};"></div>${stageLabels[st]}: ${counts[st]}</div>`).join('')}
+      ${stages.map(st => `<div class="donut-legend-item"><div class="donut-color" style="background:${colors[st] || 'var(--text-muted)'};"></div>${stageLabels[st]}: ${counts[st]}</div>`).join('')}
     </div>
   `;
 }
@@ -22739,11 +22846,18 @@ function renderDonutChart() {
 function renderEnrollmentBars() {
   const el = document.getElementById('enrollmentBarChart');
   if(!el) return;
-  const _ccTally = centreRollTally();
-  const courseCounts = courses.map(c => ({name:c.substring(0,8),count:programmeRoll(_ccTally, c).length}));
-  const maxC = Math.max(...courseCounts.map(c=>c.count),1);
-  el.innerHTML = courseCounts.map(c =>
-    `<div class="bar-col"><div class="bar" style="height:${(c.count/maxC*100).toFixed(0)}%;background:var(--blue);"></div><div class="bar-label">${c.name}</div></div>`
+  // The same programmes, and the same counts, as Pass Rate by Programme above.
+  // This used to draw the whole catalogue — a bar per programme ever set up,
+  // most of them empty — and resolve each NAME back to a centre, which cannot
+  // tell two intakes of one name apart.
+  const progs = reportProgrammeRolls({ maxLabel: 12 });
+  if (!progs.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No trainees enrolled yet.</div>';
+    return;
+  }
+  const maxC = Math.max.apply(null, progs.map(p => p.roll.length).concat([1]));
+  el.innerHTML = progs.map(p =>
+    `<div class="bar-col" title="${escapeHtml(p.full)}: ${p.roll.length} trainee${p.roll.length===1?'':'s'}"><div class="bar" style="height:${(p.roll.length/maxC*100).toFixed(0)}%;background:var(--blue);"></div><div class="bar-label">${escapeHtml(p.label)}</div></div>`
   ).join('');
 }
 
@@ -22769,16 +22883,46 @@ function renderAttendanceHeatmap() {
   const el = document.getElementById('attendanceHeatmap');
   if(!el) return;
   const days = ['Mon','Tue','Wed','Thu','Fri'];
+  /* Same programmes as the two panels above, and attendance matched through the
+     trainee rather than by comparing programme strings.
+
+     `record.course === courseName` missed every record written under another
+     spelling of the programme — 'WELDING L2' against a centre called 'Welding &
+     Fabrication' — and a miss is indistinguishable here from nobody attending:
+     the row still drew, in the colour for zero. That is what made the whole
+     heatmap one flat block of "absent". Records are now bucketed by the trainee
+     they belong to, so a record reaches its programme however it spells it. */
+  const progs = reportProgrammeRolls({ maxLabel: 28 });
+  if (!progs.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No trainees enrolled yet.</div>';
+    return;
+  }
+  const centreOfStudent = new Map();
+  progs.forEach(p => p.roll.forEach(s => { if (s) centreOfStudent.set(s.id, p.full); }));
+  const byProgramme = new Map();
+  (Array.isArray(attendanceRecords) ? attendanceRecords : []).forEach(r => {
+    if (!r) return;
+    const key = centreOfStudent.get(r.studentId);
+    if (!key) return;                      // a record with no trainee on the roll
+    if (!byProgramme.has(key)) byProgramme.set(key, []);
+    byProgramme.get(key).push(r);
+  });
+
   let html = '';
-  courses.forEach(c => {
-    const courseStudents = attendanceRecords.filter(r=>r.course===c);
-    html += `<div class="heatmap-label">${c}</div><div class="heatmap-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:8px;">`;
+  progs.forEach(p => {
+    const recs = byProgramme.get(p.full) || [];
+    html += `<div class="heatmap-label" title="${escapeHtml(p.full)}">${escapeHtml(p.label)}</div><div class="heatmap-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:8px;">`;
     days.forEach(d => {
-      const present = courseStudents.filter(r=>r.days[d]==='present').length;
-      const total = courseStudents.length || 1;
-      const pct = present/total;
+      // No attendance taken is not 0% attendance. It gets the empty shade and
+      // says so, instead of reading as a programme nobody turned up to.
+      if (!recs.length) {
+        html += `<div class="heatmap-cell heat-0" title="${escapeHtml(p.full)} ${d}: no attendance recorded"></div>`;
+        return;
+      }
+      const present = recs.filter(r => r && r.days && r.days[d] === 'present').length;
+      const pct = present / recs.length;
       const heat = pct >= 0.9 ? 'heat-4' : pct >= 0.75 ? 'heat-3' : pct >= 0.6 ? 'heat-2' : pct >= 0.4 ? 'heat-1' : 'heat-absent';
-      html += `<div class="heatmap-cell ${heat}" title="${c} ${d}: ${Math.round(pct*100)}%"></div>`;
+      html += `<div class="heatmap-cell ${heat}" title="${escapeHtml(p.full)} ${d}: ${Math.round(pct*100)}% of ${recs.length}"></div>`;
     });
     html += '</div>';
   });
@@ -22797,17 +22941,37 @@ function renderGenderDist() {
     else if (g === 'female' || g === 'f') female++;
     else other++;
   });
-  var total = students.length || 1;
-  if (male === 0 && female === 0 && other === total) {
+  var counted = students.length;
+  if (male === 0 && female === 0 && other === counted) {
     // No gender data available — show message
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Gender data not available.<br>Add a gender field to student records to see this chart.</div>';
     return;
   }
+  /* The shares shown add up to the roll.
+
+     Male and female were each given as a percentage of EVERY trainee, with the
+     ones whose record states no gender counted in the denominator and then left
+     off the chart — so it read "43% Male, 46% Female" and simply lost the other
+     11%. A reader cannot tell whether the remainder is a third group, missing
+     data, or an arithmetic fault. Say which: the unrecorded share is drawn beside
+     the other two, it carries the rounding remainder so the three always total
+     100, and each figure states the count it came from. */
+  var total = counted || 1;
   var malePct = Math.round(male / total * 100);
   var femalePct = Math.round(female / total * 100);
-  var html = '';
-  html += '<div style="text-align:center;"><div style="width:80px;height:80px;border-radius:50%;background:var(--blue-dim);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 8px;">\u2642</div><div style="font-size:20px;font-weight:700;font-family:\'Playfair Display\',serif;">' + malePct + '%</div><div style="font-size:12px;color:var(--text-muted);">Male</div></div>';
-  html += '<div style="text-align:center;"><div style="width:80px;height:80px;border-radius:50%;background:var(--purple-dim);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 8px;">\u2640</div><div style="font-size:20px;font-weight:700;font-family:\'Playfair Display\',serif;">' + femalePct + '%</div><div style="font-size:12px;color:var(--text-muted);">Female</div></div>';
+  var otherPct = Math.max(0, 100 - malePct - femalePct);
+  var slice = function (bg, glyph, pct, label, n) {
+    return '<div style="text-align:center;"><div style="width:80px;height:80px;border-radius:50%;background:' + bg +
+      ';display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 8px;">' + glyph + '</div>' +
+      '<div style="font-size:20px;font-weight:700;font-family:\'Playfair Display\',serif;">' + pct + '%</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">' + label + '</div>' +
+      '<div style="font-size:11px;color:var(--text-muted);">' + n + ' of ' + counted + '</div></div>';
+  };
+  var html = slice('var(--blue-dim)', '\u2642', malePct, 'Male', male) +
+             slice('var(--purple-dim)', '\u2640', femalePct, 'Female', female);
+  // Only drawn when there is something to draw, so a fully recorded roll is
+  // still just the two figures.
+  if (other > 0) html += slice('rgba(127,127,127,.18)', '\u2014', otherPct, 'Not recorded', other);
   el.innerHTML = html;
 }
 

@@ -318,5 +318,176 @@ console.log('A nameless record still matches nobody, in either direction');
 assertEq(Core.twinIndex(lmsRoll).findByName(''), null, 'no name, no namesake');
 assertEq(Core.feeTwinIndex(feeRoll).findByName('   '), null, 'and blanks are not a name');
 
+/* ---- 9. One record per ENROLMENT, not one per name ---------------------
+
+   Reported: "School Fee is showing one record and the dashboard showing
+   something else, there is more data missing and not loading." The fee page
+   read 116 students where the dashboard read 220.
+
+   Collapsing by the name ALONE is what emptied the roll. The Centre runs the
+   same subject at Level 2 and at Level 3, a trainee who progressed from one to
+   the other holds two enrolments — each with its own tuition, attendance and
+   certificate — and among 400-odd trainees real people share a name. The roll
+   opened at 447 and the collapse cut it to 220, permanently, on every launch
+   and again on every sync.
+
+   The rule now asks whether the PROGRAMMES contradict each other, so two
+   spellings of one enrolment still fold together and two enrolments never do. */
+console.log('\nThe same subject at two NVQ levels is two enrolments, not one record');
+r = Core.collapseSameNameStudents([
+  { id: 'W2', name: 'Omario Bryan', course: 'WELDING L2', stage: 'certified', certNo: 'C1' },
+  { id: 'W3', name: 'Omario Bryan', course: 'WELDING L3', stage: 'training', progress: 40 }
+]);
+assertEq(r.students.length, 2, 'Level 2 and Level 3 both stand — each is a course they sat');
+assertEq(r.removed, 0, 'nothing removed');
+assertEq(Object.keys(r.idMap).length, 0,
+  'and no id is redirected, so the Level 2 certificate stays on the Level 2 record');
+
+console.log('Two people of one name on two programmes both stand, unmarked');
+r = Core.collapseSameNameStudents([
+  { id: 'A', name: 'Anthony Williams', course: 'WELDING L2', attendance: 40 },
+  { id: 'B', name: 'Anthony Williams', course: 'COSMETOLOGY L2', attendance: 55 },
+  { id: 'C', name: 'Anthony Williams', course: 'ELECTRICAL L3', attendance: 20 }
+]);
+assertEq(r.students.length, 3,
+  'keepSeparate is for namesakes on the SAME programme; different programmes settle themselves');
+
+console.log('The vague spelling must not act as a bridge between two levels');
+// 'Welding & Fabrication' agrees with both L2 and L3. Grouped on the survivor
+// alone it joined all three, and the survivor then kept the vague spelling —
+// so the NEXT launch folded the pair again. It has to agree with every member.
+r = Core.collapseSameNameStudents([
+  { id: 'VAGUE', name: 'Omario Bryan', course: 'Welding & Fabrication', progress: 5 },
+  { id: 'L2',    name: 'Omario Bryan', course: 'WELDING L2', stage: 'nyc' },
+  { id: 'L3',    name: 'Omario Bryan', course: 'WELDING L3', stage: 'training', progress: 40 }
+]);
+assertEq(r.students.length, 2, 'the vague record folds into the Level 2 it was written for');
+assertEq(r.removed, 1, 'one removed, not two');
+assert(r.students.some(s => s.course === 'WELDING L3'), 'the Level 3 enrolment survives');
+
+console.log('And the survivor keeps the spelling that says WHICH enrolment it is');
+assertEq(r.students[0].course, 'WELDING L2',
+  'not the vague name — a survivor that dropped back to it collapsed again next launch');
+const twice = Core.collapseSameNameStudents(r.students.map(s => Object.assign({}, s)));
+assertEq(twice.removed, 0, 'so the collapse is idempotent across levels too');
+
+console.log('Two intakes of one programme are still two enrolments');
+r = Core.collapseSameNameStudents([
+  { id: 'I1', name: 'Kemar Cowan', course: '01. Welding & Fabrication', centreKey: '01' },
+  { id: 'I2', name: 'Kemar Cowan', course: '02. Welding & Fabrication', centreKey: '02' }
+]);
+assertEq(r.students.length, 2, 'last year\'s intake is not this year\'s');
+
+console.log('The same trainee, two spellings of ONE programme, still becomes one record');
+[['Welding & Fabrication', 'WELDING L2'],
+ ['Welding and Fabrication Level 2', 'WELDING L2'],
+ ['Electrical Installation', 'ELECTRICAL L2'],
+ ['Cosmetology', 'COSMETOLOGY L2'],
+ ['Business Administration', 'ADMIN L2'],
+ ['WELDING L2', '02. Welding & Fabrication'],
+ ['WELDING L2', '']].forEach(function (pair) {
+  const one = Core.collapseSameNameStudents([
+    { id: 'A', name: 'One Person', course: pair[0] },
+    { id: 'B', name: 'One Person', course: pair[1] }
+  ]);
+  assertEq(one.students.length, 1, '"' + pair[0] + '" and "' + pair[1] + '" are one enrolment');
+});
+
+console.log('And two genuinely different programmes never are');
+[['WELDING L2', 'WELDING L3'],
+ ['ELECTRICAL L2', 'ELECTRICAL L3'],
+ ['WELDING L2', 'COSMETOLOGY L2'],
+ ['Electrical Installation', 'Welding & Fabrication'],
+ ['BEAUTY THERAPY L2', 'COSMETOLOGY L2']].forEach(function (pair) {
+  const two = Core.collapseSameNameStudents([
+    { id: 'A', name: 'One Name', course: pair[0] },
+    { id: 'B', name: 'One Name', course: pair[1] }
+  ]);
+  assertEq(two.students.length, 2, '"' + pair[0] + '" and "' + pair[1] + '" are two enrolments');
+});
+
+console.log('The fee roll follows the same rule on skillArea, so each enrolment is billable');
+r = Core.collapseSameNameStudents([
+  { id: 'F1', name: 'Felisha Bassier', skillArea: 'COSMETOLOGY L2', tuitionFee: 38000, totalPaid: 5000 },
+  { id: 'F2', name: 'Felisha Bassier', skillArea: 'Cosmetology',    tuitionFee: 0,     totalPaid: 0 },
+  { id: 'F3', name: 'Felisha Bassier', skillArea: 'BEAUTY THERAPY L2', tuitionFee: 42000, totalPaid: 0 }
+], { courseField: 'skillArea' });
+assertEq(r.students.length, 2, 'the unpriced duplicate folds away; the second programme does not');
+assertEq(r.students[0].tuitionFee, 38000, 'the Cosmetology tuition');
+assertEq(r.students[1].tuitionFee, 42000, 'and the Beauty Therapy tuition is still expected');
+assertEq(r.students.reduce((t, s) => t + s.tuitionFee, 0), 80000,
+  'so the Centre expects both fees — collapsing by name billed one and lost the other');
+
+console.log('A roll of namesakes across programmes is not cut to one record each');
+// The shape of the reported roll: several common surnames, each held by
+// different people on different programmes.
+const REAL_SHAPE = [];
+['Williams', 'Brown', 'Campbell', 'Smith'].forEach(function (surname, si) {
+  ['WELDING L2', 'WELDING L3', 'COSMETOLOGY L2', 'ELECTRICAL L2', 'BEAUTY THERAPY L2']
+    .forEach(function (course, ci) {
+      REAL_SHAPE.push({ id: 'S' + si + '-' + ci, name: 'Anthony ' + surname, course: course });
+    });
+});
+r = Core.collapseSameNameStudents(REAL_SHAPE);
+assertEq(REAL_SHAPE.length, 20, 'twenty records');
+assertEq(r.students.length, 20, 'and twenty survive — by name alone this read as four');
+
+/* ---- 10. A second enrolment reaches the fee roll to be priced ---------- */
+console.log('\nA trainee on a second programme gets a fee record of their own');
+const feeSide = [{ id: 'SF-1', name: 'Omario Bryan', skillArea: 'WELDING L2',
+  tuitionFee: 120000, totalPaid: 40000, balance: 80000 }];
+
+let t = Core.feeMirrorTarget({ id: 'STU-1', name: 'Omario Bryan', course: 'WELDING L2' }, feeSide);
+assertEq(t.action, 'link', 'the Level 2 enrolment is the existing fee record');
+
+t = Core.feeMirrorTarget({ id: 'STU-2', name: 'Omario Bryan', course: 'WELDING L3' }, feeSide);
+assertEq(t.action, 'create',
+  'the Level 3 enrolment gets its own record — linked, its tuition was never expected');
+assertEq(t.match, null, 'and the Level 2 payments are not counted against it');
+
+console.log('While the two sides spelling one programme differently still links');
+[ 'Welding & Fabrication', 'Welding and Fabrication Level 2', '02. Welding & Fabrication', '' ]
+  .forEach(function (written) {
+    const link = Core.feeMirrorTarget({ id: 'STU-3', name: 'Omario Bryan', course: written }, feeSide);
+    assertEq(link.action, 'link', '"' + (written || '(blank)') + '" is the same enrolment');
+  });
+
+console.log('The same answer through the index the save-time mirror uses');
+const feeIdx = Core.feeTwinIndex(feeSide);
+assertEq(Core.feeMirrorTarget({ id: 'STU-2', name: 'Omario Bryan', course: 'WELDING L3' },
+  feeSide, { index: feeIdx }).action, 'create', 'indexed path agrees on the second enrolment');
+assertEq(Core.feeMirrorTarget({ id: 'STU-1', name: 'Omario Bryan', course: 'Welding & Fabrication' },
+  feeSide, { index: feeIdx }).action, 'link', 'and on the other spelling');
+
+console.log('The fee page still cannot enrol anybody, so its mirror stays tolerant');
+// Pointing the other way the dashboard's roster is the authority: a fee record
+// naming a programme this trainee is not on must find them, never mint a second
+// dashboard record on a programme nobody enrolled them in.
+const centres = [{ id: 1, name: 'Electrical Installation Level 2',
+  startDate: '2026-01-01', endDate: '2027-06-30' }];
+const lmsSide = [{ id: 'STU-1', name: 'Ann Brown', course: 'Electrical Installation Level 2' }];
+const back = Core.lmsMirrorTarget({ id: 'F1', name: 'Ann Brown', skillArea: 'WELDING L2' },
+  lmsSide, centres, { findCentre: Core.enrolment.findCentre, on: '2026-06-01' });
+assertEq(back.action, 'link', 'the person is found rather than duplicated');
+assertEq(back.course, 'Electrical Installation Level 2', 'and their programme is left as the Centre set it');
+
+/* ---- 11. The rule itself ---------------------------------------------- */
+console.log('\nWhat "the same programme" means, stated once');
+const agree = Core.enrolment.programmesAgree;
+assertEq(agree('WELDING L2', 'WELDING L2'), true, 'the same words');
+assertEq(agree('WELDING L2', 'welding  l2'), true, 'case and spacing');
+assertEq(agree('WELDING L2', 'Welding and Fabrication Level 2'), true, 'the shorthand and the full name');
+assertEq(agree('WELDING L2', 'Welding & Fabrication'), true, 'a name that states no level agrees with either');
+assertEq(agree('WELDING L2', ''), true, 'a record naming no programme contradicts nothing');
+assertEq(agree('', ''), true, 'nor do two of them');
+assertEq(agree('WELDING L2', 'WELDING L3'), false, 'two stated levels that differ');
+assertEq(agree('ELECTRICAL L2', 'Electrical Installation Level 3'), false, 'however each is written');
+assertEq(agree('WELDING L2', 'COSMETOLOGY L2'), false, 'two different subjects');
+assertEq(agree('01. Welding & Fabrication', '02. Welding & Fabrication'), false, 'two intakes of one programme');
+assertEq(agree('02. Welding & Fabrication', 'Welding & Fabrication'), true,
+  'but a keyed spelling and the bare one are the same intake written twice');
+assertEq(agree('ADMIN L2', 'Business Administration Level 2'), true,
+  'a shortened word is the same word — this is how the Centre abbreviates');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

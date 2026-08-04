@@ -51,7 +51,8 @@ function extractFunction(name) {
 }
 
 const NAMES = ['feeInvalidateCaches', '_feeCacheTick', 'feeActiveQuarter', 'refreshLmsStudentCache',
-               'feeLmsIndex', 'getStudentStage', 'paymentInActiveQuarter', 'recalculateStudentTotals'];
+               'feeLmsIndex', 'getStudentStage', 'paymentInActiveQuarter', 'feePaymentStatus',
+               'recalculateStudentTotals'];
 
 /* A page-like world. The store counts its reads, which is the whole point. */
 function makePage(opts) {
@@ -109,7 +110,11 @@ function oldRecalculateStudentTotals(students, payments) {
     student.tuitionFee = parseFloat(student.tuitionFee) || 0;
     student.totalPaid = totalPaid;
     student.balance = student.tuitionFee - student.totalPaid;
-    if (student.balance <= 0) student.status = 'Fully Paid';
+    // A trainee with no fee set and nothing paid is 'Not Priced', not settled —
+    // this baseline encodes the same rule the page does, so the comparison below
+    // is still about the nested scan the refactor removed and nothing else.
+    if (student.tuitionFee <= 0 && totalPaid <= 0) student.status = 'Not Priced';
+    else if (student.balance <= 0) student.status = 'Fully Paid';
     else if (student.totalPaid > 0) student.status = 'Partial Payment';
     else student.status = 'Outstanding';
   });
@@ -285,14 +290,15 @@ const ALL_PAYMENTS = buildPayments();
 page = makePage({ payments: ALL_PAYMENTS, showAll: true });
 const scopedAll = ALL_PAYMENTS.filter(p => page.paymentInActiveQuarter(p));
 
-// What the rule says, worked out independently of the page.
-const wantAll = ALL_PAYMENTS.filter(p => {
+// "All Quarters" is every payment, of every year. It used to mean the four
+// quarters of ONE financial year, which is what left the dashboard unable to
+// show the Centre whole: the roll spans five FYs, so no selection ever counted
+// more than a slice of it.
+assertEq(scopedAll.length, ALL_PAYMENTS.length, '"All quarters" holds nothing back');
+assert(ALL_PAYMENTS.some(p => {
   const dq = Core.deriveQuarter(p.date);
-  return !dq || dq.fy === '2026/2027';
-});
-assertEq(scopedAll.length, wantAll.length, '"All quarters" is the whole active financial year');
-assert(scopedAll.length > 0 && scopedAll.length < ALL_PAYMENTS.length,
-  'and it genuinely excludes the other year (the test is not vacuous)');
+  return dq && dq.fy !== '2026/2027';
+}), 'the fixture spans more than one financial year (the test is not vacuous)');
 
 page = makePage({ payments: ALL_PAYMENTS, showAll: false });
 const scopedQ = ALL_PAYMENTS.filter(p => page.paymentInActiveQuarter(p));
@@ -301,7 +307,7 @@ const wantQ = ALL_PAYMENTS.filter(p => {
   return !dq || (dq.fy === '2026/2027' && dq.q === 2);
 });
 assertEq(scopedQ.length, wantQ.length, 'a selected quarter narrows to that quarter of the year');
-assert(scopedQ.length < scopedAll.length, 'which is fewer payments than the whole year');
+assert(scopedQ.length < scopedAll.length, 'which is fewer payments than the whole roll');
 
 console.log('An undated payment is never silently hidden');
 page = makePage({ payments: [], showAll: false });
@@ -311,7 +317,10 @@ assertEq(page.paymentInActiveQuarter({ id: 'x', date: 'not a date' }), true, 'an
 /* ---------- 4. The point: it stops going back to the store ---------- */
 console.log('Scoping the whole payment list reads the active quarter once, not once per payment');
 
-page = makePage({ payments: ALL_PAYMENTS, showAll: true });
+// Measured on a SELECTED quarter: that is the path that consults the active
+// quarter. "All Quarters" now answers without asking anything at all, which is
+// cheaper still but would make the comparison vacuous.
+page = makePage({ payments: ALL_PAYMENTS, showAll: false });
 
 // What the old form cost, measured the same way: it asked CESTISCore for the
 // active quarter on every single call, and CESTISCore reads through to storage.

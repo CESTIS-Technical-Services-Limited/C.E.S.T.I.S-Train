@@ -539,6 +539,17 @@
       return { action: 'link', match: match, course: match.course || '',
         centreCourse: centreCourse, reason: 'twin' };
     }
+    /* The same person under ANY programme — and deliberately so, unlike
+       feeMirrorTarget pointing the other way, which now requires the programmes
+       to agree before it links.
+
+       The asymmetry is the point. The Centre's roster belongs to the dashboard:
+       the fee page may price any programme it likes, but it may not enrol
+       anybody, so a fee record naming a programme this person is not on must
+       still find them rather than mint a second dashboard record on a programme
+       nobody put them on. Pointing the other way the dashboard IS the authority,
+       so a second enrolment it holds has to reach the fee roll and be priced —
+       which is why only that direction tests the programme. */
     var byName = idx ? idx.findByName(fee.name) : null;
     if (!idx) {
       var want = Core.normName(fee.name);
@@ -613,17 +624,25 @@
     return out;
   };
 
-  /* --- One person, one record: collapse by NAME alone ---------------------
+  /* --- One person, one record PER ENROLMENT ------------------------------
 
-     The Centre's rule, set deliberately: if two trainee records carry the same
-     exact name they are the same person, and one of them must go — whatever
-     ids they were given and whatever programme each names.
+     Two trainee records carrying the same exact name and naming the same
+     enrolment are the same record, and one of them must go — whatever ids they
+     were given and however each spells the programme. That is what left
+     "Omario Bryan" listed once under "Welding & Fabrication" and again under
+     "WELDING L2" with a second machine-generated id: two spellings of one
+     enrolment, which the centre-identity dedup below reads as two because it
+     groups on the programme string.
 
-     This is stronger than the centre-identity dedup below, which keeps two
-     records when their programmes differ. That is what left "Omario Bryan"
-     listed once under "Welding & Fabrication" and again under "WELDING L2"
-     with a second machine-generated id: two spellings of one enrolment,
-     correctly read as two enrolments, wrongly for this Centre's purposes.
+     What it must NOT do is collapse a name across two genuinely different
+     programmes. Doing that read the whole roll as one record per name: the
+     Centre runs the same subject at Level 2 and Level 3, a trainee who
+     progressed from one to the other holds two enrolments with their own
+     tuition, attendance and certificate, and among 400-odd trainees plenty of
+     real people share a name. The roll opened at 447, the collapse cut it to
+     220, and the School Fee page — which prices per enrolment — could then only
+     see and bill the survivors. Core.enrolment.programmesAgree decides: two
+     records join only when nothing about their programmes contradicts.
 
      Which record survives is decided by evidence, not by array order
      (studentRecordScore): the one that has actually been used — progress
@@ -635,18 +654,14 @@
      Returns { students, removed, idMap }; idMap maps every discarded id to the
      survivor so attendance, payments, exam results and accounts follow it.
 
-     NOTE the deliberate consequence: two DIFFERENT people who genuinely share
-     a name become one record. That is the instruction — the Centre knows its
-     roll — but it is why this collapses only on an exact name match, after
-     normalising case and spacing, and never on a partial or fuzzy one.
-
-     And it is why `keepSeparate` exists. An administrator who has two real
-     trainees of one name marks the records: a record carrying keepSeparate is
-     exempt — it never absorbs another and is never absorbed, here or in the
-     centre-identity dedup. Mark ONE of the two and they stay two records;
-     unmarked namesakes still collapse among themselves as usual. The marker
-     travels with the record through every merge and sync (MERGE_FIELDS above),
-     because a marker that could be lost would protect nothing. */
+     `keepSeparate` remains the administrator's override for the case the
+     programmes cannot settle: two real people of one name on the SAME
+     programme. A record carrying it is exempt — it never absorbs another and is
+     never absorbed, here or in the centre-identity dedup. Mark ONE of the two
+     and they stay two records; unmarked namesakes still collapse among
+     themselves as usual. The marker travels with the record through every merge
+     and sync (MERGE_FIELDS above), because a marker that could be lost would
+     protect nothing. */
 
   // True when an administrator has pinned this record as its own person.
   Core.isKeptSeparate = function (s) {
@@ -689,8 +704,60 @@
     var courseField = opts.courseField || 'course';
     var list = Array.isArray(input) ? input : [];
     var idMap = {};
-    var slots = {};        // normalised name -> { rec }
-    var order = [];        // names in first-encounter order
+    // normalised name -> the enrolments found for that person, each
+    // { rec, courses[] }. One person can hold several: WELDING L2 and WELDING L3
+    // are two, 'Welding & Fabrication' and 'WELDING L2' are one written twice.
+    var slots = {};
+
+    // The programme a record names, wherever this roll keeps it. The fee roll
+    // calls it skillArea and the dashboard course; a record that carries both
+    // (a mirrored twin) is asked for this roll's field first.
+    function courseOf(s) {
+      var v = s ? s[courseField] : '';
+      if (v == null || v === '') v = (s && s.course != null && s.course !== '') ? s.course : (s ? s.skillArea : '');
+      return v == null ? '' : v;
+    }
+
+    // Two written programmes that could be one enrolment. Falls back to a plain
+    // comparison if the enrolment module is not loaded, which is stricter than
+    // the old behaviour rather than looser — it can only keep a record.
+    function agree(a, b) {
+      var E = Core.enrolment;
+      if (E && typeof E.programmesAgree === 'function') {
+        try { return E.programmesAgree(a, b); } catch (e) { /* fall through */ }
+      }
+      var x = Core.normCourse(a), y = Core.normCourse(b);
+      return !x || !y || x === y;
+    }
+
+    // Does this written programme name its NVQ level?
+    function programmeStatesLevel(written) {
+      var E = Core.enrolment;
+      if (!written || !E || typeof E.programmeLevel !== 'function') return false;
+      try { return !!E.programmeLevel(written); } catch (e) { return false; }
+    }
+
+    /* The enrolment slot a record belongs in, created if it is the first of its
+       kind. A record joins a slot only when it agrees with EVERY programme
+       already filed there — not just with the survivor. Checking the survivor
+       alone let a vague spelling act as a bridge: 'Welding & Fabrication' agrees
+       with both 'WELDING L2' and 'WELDING L3', so once it was the survivor's
+       programme the Level 3 enrolment folded in behind the Level 2 one. */
+    function slotFor(s) {
+      var n = Core.normName(s.name);
+      var bucket = slots[n] || (slots[n] = []);
+      var written = courseOf(s);
+      for (var i = 0; i < bucket.length; i++) {
+        var fits = true;
+        for (var j = 0; j < bucket[i].courses.length; j++) {
+          if (!agree(bucket[i].courses[j], written)) { fits = false; break; }
+        }
+        if (fits) { bucket[i].courses.push(written); return bucket[i]; }
+      }
+      var made = { rec: s, courses: [written] };
+      bucket.push(made);
+      return made;
+    }
 
     // Merge `loser` into `winner`, keeping the winner's identity but never
     // losing a value only the loser held.
@@ -700,6 +767,7 @@
       // winner look keyed and hide the fact that its programme name is the
       // vaguer of the two.
       var wi = null, li = null;
+      var wc = courseOf(winner), lc = courseOf(loser);
       try {
         wi = Core.programmeIdentity(winner, courseField);
         li = Core.programmeIdentity(loser, courseField);
@@ -717,21 +785,33 @@
       if (lp > wp) winner.progress = loser.progress;
       var wa = parseFloat(winner.attendance) || 0, la = parseFloat(loser.attendance) || 0;
       if (la > wa) winner.attendance = loser.attendance;
-      // The programme: prefer whichever spelling states an intake key, so the
-      // survivor keeps the more specific of "WELDING L2" / "02. Welding …".
-      if (wi && li && !wi.key && li.key && loser[courseField]) {
-        winner[courseField] = loser[courseField];
+      // The programme: keep whichever spelling says most about WHICH enrolment
+      // this is — the intake key first ("02. Welding …" over "Welding &
+      // Fabrication"), then the NVQ level ("WELDING L2" over the bare name).
+      //
+      // The level half is not cosmetic. A survivor that dropped back to the
+      // vague spelling agreed with the trainee's OTHER level too, so the pass
+      // after this one folded two real enrolments into one — the collapse was
+      // not idempotent and lost a record on every launch.
+      if (wi && li && !wi.key && li.key && lc) {
+        winner[courseField] = lc;
+      } else if (lc && !programmeStatesLevel(wc) && programmeStatesLevel(lc)) {
+        winner[courseField] = lc;
       }
       return winner;
     }
 
-    list.forEach(function (s) {
+    // Which slot each record went into, so the rebuild below emits exactly the
+    // grouping this pass decided rather than working it out a second time.
+    var slotAt = [];
+
+    list.forEach(function (s, at) {
       if (!s) return;
       if (Core.isKeptSeparate(s)) return;              // the admin pinned this one
-      var n = Core.normName(s.name);
-      if (!n) return;                                  // nameless records are left alone
-      var slot = slots[n];
-      if (!slot) { slots[n] = { rec: s }; order.push(n); return; }
+      if (!Core.normName(s.name)) return;              // nameless records are left alone
+      var slot = slotFor(s);
+      slotAt[at] = slot;
+      if (slot.rec === s) return;                      // first of its enrolment
       var prev = slot.rec;
       var keepPrev = Core.studentRecordScore(prev) >= Core.studentRecordScore(s);
       var winner = keepPrev ? prev : s;
@@ -745,17 +825,17 @@
       });
     });
 
-    // Rebuild in first-encounter order, one record per name, passing through
-    // anything with no usable name exactly as it was.
-    var emitted = {}, out = [];
-    list.forEach(function (s) {
+    // Rebuild in first-encounter order, one record per enrolment, passing
+    // through anything with no usable name exactly as it was.
+    var emitted = [], out = [];
+    list.forEach(function (s, at) {
       if (!s) { out.push(s); return; }
       if (Core.isKeptSeparate(s)) { out.push(s); return; }   // stands on its own
-      var n = Core.normName(s.name);
-      if (!n) { out.push(s); return; }
-      if (emitted[n]) return;
-      emitted[n] = true;
-      out.push(slots[n].rec);
+      var slot = slotAt[at];
+      if (!slot) { out.push(s); return; }                    // nameless
+      if (emitted.indexOf(slot) !== -1) return;
+      emitted.push(slot);
+      out.push(slot.rec);
     });
 
     return { students: out, removed: list.length - out.length, idMap: idMap };
@@ -1305,25 +1385,28 @@
         // still pointed at a student id the dedupe had just removed.
         if (dr.idMap) { for (var _im in dr.idMap) { if (Object.prototype.hasOwnProperty.call(dr.idMap, _im)) studentIdMap[_im] = dr.idMap[_im]; } }
 
-        /* Then the Centre's own rule: one person, one record.
+        /* Then the same rule the launch applies: one record per enrolment.
 
            Without this, a correction made at launch was undone by the very next
-           sync. The launch collapses two records of one person by NAME alone
-           (collapseSameNameStudents — the Centre's instruction, whatever
-           programme each names). Removing a record leaves no trace, so this
-           union simply added it back from the snapshot, and the dedupe above
-           did not catch it because it groups on name AND programme: the two
-           spellings, "Welding & Fabrication" and "WELDING L2", are two groups
-           to it and one person to the Centre.
+           sync. The launch folds together two records of one person written
+           under two spellings of ONE programme (collapseSameNameStudents).
+           Removing a record leaves no trace, so this union simply added it back
+           from the snapshot, and the dedupe above did not catch it because it
+           groups on name AND programme: "Welding & Fabrication" and "WELDING L2"
+           are two groups to it and one enrolment to the Centre.
 
-           So the roll read 447 on opening, dropped to 220 once the launch
-           collapse ran, and was back at 447 after the next sync — the same
-           people arriving again from a master snapshot that still held the
-           duplicated state. Applying the identical rule here settles it in one
-           direction: what the launch corrected, a sync now keeps corrected, and
-           the master is rewritten with the corrected roll. keepSeparate is
-           honoured here exactly as it is there, so genuine namesakes the
-           administrator has pinned still stand apart. */
+           Applying the identical rule here settles it in one direction: what the
+           launch corrected, a sync keeps corrected, and the master is rewritten
+           with the corrected roll.
+
+           It must be the identical rule, and no stronger. When this collapsed by
+           NAME alone the roll read 447 on opening and 220 after — a third of the
+           Centre's trainees removed on every launch and every sync, because the
+           Centre runs the same subject at two levels and real people share a
+           name. Two records naming two different programmes are two enrolments
+           now, and a sync no longer destroys the second. keepSeparate is
+           honoured here exactly as it is there, so namesakes on the SAME
+           programme the administrator has pinned still stand apart. */
         if (typeof Core.collapseSameNameStudents === 'function') {
           var cr = Core.collapseSameNameStudents(merged);
           if (cr.removed > 0) {
@@ -2542,6 +2625,58 @@
       return short.length >= 4 && long.indexOf(short) === 0;
     }
 
+    /* Can these two written programmes be two spellings of ONE enrolment?
+
+       The Centre writes a programme several ways — 'Welding & Fabrication',
+       'WELDING L2', '02. Welding & Fabrication' — and the same trainee could
+       end up recorded once under each. Those are one enrolment.
+
+       But the Centre also runs the SAME subject at two NVQ levels, and a
+       trainee who did Welding L2 and went on to Welding L3 has two enrolments,
+       each with its own tuition, attendance and certificate. And two different
+       people genuinely share a name. Treating every same-named pair as one
+       record is what took the roll from 447 to 220.
+
+       So: agree when nothing contradicts, disagree when something does —
+         - a record naming no programme contradicts nothing;
+         - two DIFFERENT intake keys are two intakes ('01' vs '02');
+         - two DIFFERENT stated levels are two programmes (L2 vs L3);
+         - distinguishing words that do not line up are two programmes
+           (Welding vs Cosmetology).
+       Level shorthand is expanded first, so 'WELDING L2' and 'Welding and
+       Fabrication Level 2' still agree. */
+    /* The NVQ level a written programme states, or null. Exported because the
+       level is what tells one enrolment of a subject from the next, so anything
+       deciding "same enrolment?" has to be able to see it. */
+    function programmeLevel(written) {
+      return levelOfTokens(tokenise(parseCentreLabel(written).name));
+    }
+
+    function programmesAgree(a, b) {
+      var pa = parseCentreLabel(a), pb = parseCentreLabel(b);
+      if (pa.key && pb.key && pa.key !== pb.key) return false;
+      var an = norm(pa.name), bn = norm(pb.name);
+      if (!an || !bn) return true;
+      if (an === bn) return true;
+      var at = tokenise(pa.name), bt = tokenise(pb.name);
+      var al = levelOfTokens(at), bl = levelOfTokens(bt);
+      if (al && bl && al !== bl) return false;
+      var aw = keyWords(at), bw = keyWords(bt);
+      if (!aw.length || !bw.length) return true;
+      // The shorter list must be found in the longer one: 'WELDING L2' (welding)
+      // is the shorthand for 'Welding & Fabrication' (welding, fabrication).
+      var few = aw.length <= bw.length ? aw : bw;
+      var many = aw.length <= bw.length ? bw : aw;
+      for (var i = 0; i < few.length; i++) {
+        var found = false;
+        for (var j = 0; j < many.length; j++) {
+          if (sameWord(few[i], many[j])) { found = true; break; }
+        }
+        if (!found) return false;
+      }
+      return true;
+    }
+
     function registerOpen(centre, today, nowMs) {
       if (!centre) return false;
       return Core.courseDuration.isRegisterOpen(centre, today, nowMs);
@@ -2829,7 +2964,9 @@
       canEnrol: canEnrol,
       enrolmentStamp: enrolmentStamp,
       studentInFiscalYear: studentInFiscalYear,
-      openCentres: openCentres
+      openCentres: openCentres,
+      programmesAgree: programmesAgree,
+      programmeLevel: programmeLevel
     };
   })();
 
@@ -2997,11 +3134,12 @@
       return { action: 'skip', match: null, reason: 'no-name' };
     }
     var idx = (opts && opts.index) || null;
+    var course = student.course || student.skillArea || '';
     var i;
     if (idx) {
       var hit = idx.find(student);
       if (hit) return { action: 'link', match: hit, reason: 'twin' };
-      var named = idx.findByName(student.name);
+      var named = idx.findByPerson(student.name, course);
       if (named) return { action: 'link', match: named, reason: 'same-person-other-programme' };
       return { action: 'create', match: null, reason: 'ok' };
     }
@@ -3012,12 +3150,22 @@
     }
     var want = Core.normName(student.name);
     for (i = 0; i < list.length; i++) {
-      if (list[i] && Core.normName(list[i].name) === want) {
+      if (list[i] && Core.normName(list[i].name) === want &&
+          feeProgrammesAgree(list[i].skillArea || list[i].course, course)) {
         return { action: 'link', match: list[i], reason: 'same-person-other-programme' };
       }
     }
     return { action: 'create', match: null, reason: 'ok' };
   };
+
+  // The by-name fallback's programme test, shared by the indexed and the
+  // scanning path so both mirrors answer alike. Tolerant of the two sides
+  // spelling one programme differently; not of two different programmes.
+  function feeProgrammesAgree(a, b) {
+    var E = Core.enrolment;
+    if (!E || typeof E.programmesAgree !== 'function') return true;
+    try { return E.programmesAgree(a, b); } catch (e) { return true; }
+  }
 
   /* Core.feeTwinIndex(feeStudents) — Core.twinIndex pointing the other way.
 
@@ -3083,13 +3231,29 @@
       return (cand && cand.length) ? list[cand[0]] : null;
     }
 
+    /* This person's fee record for a programme that does not contradict the one
+       asked about — see twinIndex.findByPerson for why the plain by-name answer
+       is too much. A trainee on Welding L2 and Welding L3 needs a fee record for
+       each: each carries its own tuition. */
+    function findByPerson(name, course) {
+      var n = Core.normName(name);
+      var cand = n ? byName.get(n) : null;
+      if (!cand) return null;
+      for (var j = 0; j < cand.length; j++) {
+        var f = list[cand[j]];
+        if (f && feeProgrammesAgree(f.skillArea || f.course, course)) return f;
+      }
+      return null;
+    }
+
     function add(record) {
       if (!record) return;
       if (list[list.length - 1] !== record) list.push(record);
       index(record, list.length - 1);
     }
 
-    return { find: find, findByName: findByName, add: add, get size() { return list.length; } };
+    return { find: find, findByName: findByName, findByPerson: findByPerson,
+      add: add, get size() { return list.length; } };
   };
 
   /* ==========================================================================
