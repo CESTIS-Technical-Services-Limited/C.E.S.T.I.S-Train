@@ -24431,7 +24431,7 @@ async function syncStudentsFromFeeSystem() {
     var query = encodeURIComponent(
       "name='" + FEE_SYSTEM_DRIVE_CONFIG.FILE_NAME + "' and '" + FEE_SYSTEM_DRIVE_CONFIG.FOLDER_ID + "' in parents and trashed=false"
     );
-    var listResp = await fetch(
+    var listResp = await driveFetch(
       'https://www.googleapis.com/drive/v3/files?q=' + query + '&fields=files(id,name)&pageSize=1',
       { headers: { 'Authorization': 'Bearer ' + googleAccessToken } }
     );
@@ -24444,7 +24444,7 @@ async function syncStudentsFromFeeSystem() {
 
     // Download the fee system JSON
     var fileId = listData.files[0].id;
-    var fileResp = await fetch(
+    var fileResp = await driveFetch(
       'https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media',
       { headers: { 'Authorization': 'Bearer ' + googleAccessToken } }
     );
@@ -25173,7 +25173,7 @@ function disconnectFromGoogleDrive() {
 async function findExistingBackupFile() {
   try {
     const query = `name='${GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME}' and '${GOOGLE_DRIVE_CONFIG.FOLDER_ID}' in parents and trashed=false`;
-    const response = await fetch(
+    const response = await driveFetch(
       `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`,
       { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
     );
@@ -26276,12 +26276,122 @@ async function mergeFromCloud() {
 // AUTO-SYNC ON LOGIN & AUTO-SAVE EVERY 5s
 // ============================================
 
+/* Every Drive request gets a deadline.
+
+   There was no AbortController anywhere in this page, so a request that never
+   answered — a dropped connection, a captive portal, Drive itself being slow —
+   blocked its `await` for as long as the browser cared to wait. In the pre-login
+   folder loop that means the login gate simply stops: "Syncing from Class
+   Recording (4/5)…", with the buttons still locked and nothing to do but reload.
+
+   A timeout raises, and every caller already treats a raised request as a FAILED
+   lookup rather than a missing file, which is the distinction that matters: a
+   failure must never be read as "the backup is not there", or the next save
+   creates a second one and the two then fork. */
+var DRIVE_REQUEST_TIMEOUT_MS = 20000;
+
+async function driveFetch(url, options, timeoutMs) {
+  // The literal fallback matters: this runs from paths that can fire before the
+  // var above has been assigned, and a zero-length deadline would abort every
+  // request the instant it was made.
+  var ms = timeoutMs || DRIVE_REQUEST_TIMEOUT_MS || 20000;
+  // AbortController is everywhere this app runs, but a missing one must not stop
+  // the request happening at all.
+  if (typeof AbortController === 'undefined') return fetch(url, options);
+  var ctl = new AbortController();
+  var timer = setTimeout(function () { ctl.abort(); }, ms);
+  try {
+    return await fetch(url, Object.assign({}, options || {}, { signal: ctl.signal }));
+  } catch (e) {
+    if (e && (e.name === 'AbortError' || e.name === 'TimeoutError')) {
+      throw new Error('Drive request timed out after ' + Math.round(ms / 1000) + 's');
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* The backup file in a folder, WITH the fingerprint of its contents.
+
+   findBackupFileInFolder() below asks only for the id, which is all the save
+   path needs. The pre-login sync needs to know whether two folders are holding
+   the same bytes, and whether either has changed since this device last merged
+   it — so this asks for md5Checksum and modifiedTime as well. Same cost, same
+   round trip.
+
+   Returns { id, md5, modifiedTime, size }, or null when the folder confirmed it
+   holds no backup, or 'LOOKUP_FAILED' when the question could not be answered.
+   Those three are not interchangeable: see driveFetch above. */
+async function findBackupMetaInFolder(folderId) {
+  try {
+    const query = `name='${GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME}' and '${folderId}' in parents and trashed=false`;
+    const response = await driveFetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}` +
+        `&fields=files(id,name,md5Checksum,modifiedTime,size)&orderBy=modifiedTime desc&pageSize=1`,
+      { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
+    );
+    if (response.ok) {
+      const data = await response.json();
+      const f = data.files && data.files[0];
+      if (f && f.id) {
+        _autoSaveFileIds[folderId] = f.id;       // the save path can reuse this
+        return { id: f.id, md5: f.md5Checksum || '', modifiedTime: f.modifiedTime || '', size: +f.size || 0 };
+      }
+      return null;                                // confirmed absent
+    }
+    console.warn('[LoginSync] Backup lookup failed in folder ' + folderId + ': HTTP ' + response.status);
+  } catch (e) {
+    console.warn('[LoginSync] Error finding backup in folder ' + folderId + ':', e && e.message);
+  }
+  return 'LOOKUP_FAILED';
+}
+
+/* What this device has already merged, per content fingerprint.
+
+   The autosave writes ONE blob to all five folders, so on a normal login all
+   five hold identical bytes and four of the five merges cannot change anything.
+   Within a single sync that is settled by comparing fingerprints. Across logins
+   it is worth remembering: a folder whose backup has not changed since this
+   device merged it has nothing to say, and re-downloading the whole dataset to
+   discover that is what the user was waiting minutes for. */
+var LOGIN_SYNC_MERGED_KEY = 'schoolDashboardMergedBackupFingerprints';
+
+function loginSyncMergedFingerprints() {
+  try { return JSON.parse(CESTISStore.getItem(LOGIN_SYNC_MERGED_KEY)) || {}; } catch (e) { return {}; }
+}
+function rememberMergedFingerprint(fp) {
+  if (!fp) return;
+  try {
+    var seen = loginSyncMergedFingerprints();
+    seen[fp] = new Date().toISOString();
+    // Keep the record small: only the most recent handful matter.
+    var keys = Object.keys(seen).sort(function (a, b) { return String(seen[a]) < String(seen[b]) ? 1 : -1; });
+    var trimmed = {};
+    keys.slice(0, 12).forEach(function (k) { trimmed[k] = seen[k]; });
+    CESTISStore.setItem(LOGIN_SYNC_MERGED_KEY, JSON.stringify(trimmed));
+  } catch (e) { /* remembering is an optimisation, never a requirement */ }
+}
+
+/* Is it safe to skip content this device has merged before?
+
+   Only when the device still HAS data. A store that has been cleared, or a fresh
+   browser profile that somehow carries the fingerprint record, must download and
+   merge however familiar the file looks — skipping there would leave the user
+   logged in to nothing, which is far worse than waiting. */
+function loginSyncMaySkipKnown() {
+  try {
+    return (Array.isArray(students) && students.length > 0) &&
+           (Array.isArray(userAccounts) && userAccounts.length > 0);
+  } catch (e) { return false; }
+}
+
 // Find or lookup backup file ID in a specific folder
 async function findBackupFileInFolder(folderId) {
   if (_autoSaveFileIds[folderId]) return _autoSaveFileIds[folderId];
   try {
     const query = `name='${GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME}' and '${folderId}' in parents and trashed=false`;
-    const response = await fetch(
+    const response = await driveFetch(
       `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
       { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
     );
@@ -26750,7 +26860,7 @@ async function syncAllUserLoginFoldersToDrive() {
 // Silent merge from a backup file (no confirmations, no alerts, no page reload)
 async function silentMergeFromBackup(fileId) {
   try {
-    const response = await fetch(
+    const response = await driveFetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
     );
@@ -28091,22 +28201,78 @@ async function loginPageSync() {
     var totalMerged = 0;
     var foldersSynced = 0;
 
-    // Step 2: Sync main backup data from ALL 4 folders
-    for (var i = 0; i < ALL_DRIVE_FOLDERS.length; i++) {
-      var folder = ALL_DRIVE_FOLDERS[i];
+    /* Step 2: the main backup, from whichever folders are actually holding
+       something this device has not already got.
+
+       This used to walk the five folders one at a time — look up, download the
+       whole dataset, merge it, then do it again for the next folder — so a login
+       cost ten sequential Drive round trips and five full-dataset transfers
+       before anybody could type a password. And it was five copies of the SAME
+       data: the autosave writes one blob to all five folders (see the
+       Promise.allSettled in the save path), so four of those five merges could
+       not change anything by construction. As the dataset grew, that went from
+       seconds to minutes.
+
+       Now: all five lookups go out together, identical content is recognised by
+       its checksum and fetched once, content this device already merged is
+       skipped, and only genuinely distinct backups are merged — in folder order,
+       one at a time, because the merge mutates the live collections. */
+    if (isAdmin) updateLoginSyncStatus('Checking ' + ALL_DRIVE_FOLDERS.length + ' Cloud folders...', '');
+    var metas = await Promise.all(ALL_DRIVE_FOLDERS.map(function (folder) {
+      return findBackupMetaInFolder(folder.id)
+        .then(function (m) { return { folder: folder, meta: m }; })
+        .catch(function (e) {
+          console.warn('[LoginSync] Lookup failed for ' + folder.label + ':', e && e.message);
+          return { folder: folder, meta: 'LOOKUP_FAILED' };
+        });
+    }));
+
+    // Group the folders by what they are holding. A checksum is the honest
+    // fingerprint; where Drive does not give one, the file id still tells us the
+    // same file is being named twice.
+    var known = loginSyncMergedFingerprints();
+    var maySkipKnown = loginSyncMaySkipKnown();
+    var toMerge = [], byFingerprint = {}, sameCount = 0, skippedKnown = 0, lookupFailed = 0;
+    metas.forEach(function (entry) {
+      var m = entry.meta;
+      if (m === 'LOOKUP_FAILED') { lookupFailed++; return; }
+      if (!m || !m.id) return;                       // folder holds no backup
+      var fp = m.md5 || ('id:' + m.id + '@' + m.modifiedTime);
+      if (byFingerprint[fp]) {                       // another folder's copy of the same bytes
+        byFingerprint[fp].folders.push(entry.folder.label);
+        sameCount++;
+        foldersSynced++;
+        return;
+      }
+      if (maySkipKnown && known[fp]) {               // already merged, nothing changed since
+        skippedKnown++;
+        foldersSynced++;
+        byFingerprint[fp] = { folders: [entry.folder.label], skipped: true };
+        return;
+      }
+      byFingerprint[fp] = { folders: [entry.folder.label], meta: m, fp: fp };
+      toMerge.push(byFingerprint[fp]);
+      foldersSynced++;
+    });
+
+    console.log('[LoginSync] ' + ALL_DRIVE_FOLDERS.length + ' folder(s): ' + toMerge.length +
+      ' to download, ' + sameCount + ' identical copy(ies) skipped, ' + skippedKnown +
+      ' already merged, ' + lookupFailed + ' lookup(s) failed');
+
+    for (var mi = 0; mi < toMerge.length; mi++) {
+      var job = toMerge[mi];
       try {
         if (isAdmin) {
-          updateLoginSyncStatus('Syncing from ' + folder.label + ' (' + (i + 1) + '/' + ALL_DRIVE_FOLDERS.length + ')...', '');
+          updateLoginSyncStatus('Syncing from ' + job.folders[0] +
+            (toMerge.length > 1 ? ' (' + (mi + 1) + '/' + toMerge.length + ')' : '') + '...', '');
         }
-        var fileId = await findBackupFileInFolder(folder.id);
-        if (fileId === 'LOOKUP_FAILED') fileId = null;
-        if (fileId) {
-          var changed = await silentMergeFromBackup(fileId);
-          if (changed) totalMerged++;
-          foldersSynced++;
-        }
+        var changed = await silentMergeFromBackup(job.meta.id);
+        if (changed) totalMerged++;
+        // Only remember content that merged without throwing — a fingerprint
+        // recorded for a merge that failed would skip it forever.
+        rememberMergedFingerprint(job.fp);
       } catch (e) {
-        console.warn('[LoginSync] Error syncing from ' + folder.label + ':', e);
+        console.warn('[LoginSync] Error syncing from ' + job.folders[0] + ':', e);
       }
     }
 
@@ -31613,7 +31779,7 @@ async function lmsChatSyncFromDrive() {
       return;
     }
     var _beforeSig = lmsChatMsgSignature();
-    var resp = await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media', {
+    var resp = await driveFetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media', {
       headers:{'Authorization':'Bearer '+googleAccessToken}
     });
     if(!resp.ok) throw new Error('Download failed');
