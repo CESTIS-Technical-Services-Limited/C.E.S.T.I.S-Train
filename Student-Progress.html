@@ -441,8 +441,10 @@ function deduplicateStudents() {
     var _r = CESTISCore.dedupeStudents(students);
     students = _r.students;
     var _idMap = _r.idMap, _removed = _r.removed;
-    // The Centre's rule: one person, one record. Same exact name = same
-    // trainee, whatever ids they were given and whatever programme each names.
+    // One person, one record PER ENROLMENT: the same name on the same
+    // programme is one record however it was keyed or spelled, while the same
+    // name on two genuinely different programmes is two enrolments and both
+    // stand (Core.enrolment.programmesAgree decides).
     if (typeof CESTISCore.collapseSameNameStudents === 'function') {
       var _c = CESTISCore.collapseSameNameStudents(students);
       if (_c.removed > 0) {

@@ -6901,10 +6901,12 @@ function deduplicateStudents() {
     var _r = CESTISCore.dedupeStudents(students);
     students = _r.students;
     var _idMap = _r.idMap, _removed = _r.removed;
-    // Then the Centre's own rule: one person, one record. Two records with the
-    // same exact name are the same trainee however they were keyed and
-    // whatever programme each names, so one of them goes — the one with less
-    // evidence of use, after everything it held is carried across.
+    // Then one record per ENROLMENT: two records of one name on the same
+    // programme are the same record however they were keyed and however each
+    // spells it, so the one with less evidence of use goes, after everything it
+    // held is carried across. Two records of one name on two genuinely
+    // different programmes are two enrolments — a trainee who went from Level 2
+    // to Level 3, or two real people of one name — and both stand.
     if (typeof CESTISCore.collapseSameNameStudents === 'function') {
       var _c = CESTISCore.collapseSameNameStudents(students);
       if (_c.removed > 0) {
@@ -6968,10 +6970,11 @@ function deduplicateStudents() {
 
    Running the same rule again once those passes have had their say closes that
    window without having to know which of them added the record. It is the very
-   same rule (CESTISCore.collapseSameNameStudents), so it honours "keep
-   separate" and carries the loser's data onto the survivor, and their
-   attendance, results and accounts are re-linked. Returns how many it removed;
-   zero costs one pass over the roll and writes nothing. */
+   same rule (CESTISCore.collapseSameNameStudents), so it removes only a record
+   whose programme does not contradict its namesake's, honours "keep separate",
+   and carries the loser's data onto the survivor, with their attendance,
+   results and accounts re-linked. Returns how many it removed; zero costs one
+   pass over the roll and writes nothing. */
 function enforceOnePersonOneRecord() {
   if (!window.CESTISCore || typeof CESTISCore.collapseSameNameStudents !== 'function') return 0;
   if (typeof students === 'undefined' || !Array.isArray(students)) return 0;

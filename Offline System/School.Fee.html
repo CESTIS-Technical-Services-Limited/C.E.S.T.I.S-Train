@@ -550,6 +550,17 @@
             color: #dc3545;
         }
 
+        /* No fee set yet — neither settled nor a known debt. */
+        .status-unpriced {
+            background: #e2e3e5;
+            color: #41464b;
+        }
+
+        body.dark-mode .status-unpriced {
+            background: #33384d;
+            color: #b6c2d9;
+        }
+
         /* Action Buttons */
         .action-btn {
             padding: 0.5rem 1rem;
@@ -2069,6 +2080,7 @@
                     <option value="Fully Paid">Fully Paid</option>
                     <option value="Partial Payment">Partial Payment</option>
                     <option value="Outstanding">Outstanding</option>
+                    <option value="Not Priced">Not Priced</option>
                 </select>
             </div>
 
@@ -5378,16 +5390,29 @@
                 student.tuitionFee = parseFloat(student.tuitionFee) || 0;
                 student.totalPaid = totalPaid;
                 student.balance = student.tuitionFee - student.totalPaid;
-
-                if (student.balance <= 0) {
-                    student.status = 'Fully Paid';
-                } else if (student.totalPaid > 0) {
-                    student.status = 'Partial Payment';
-                } else {
-                    student.status = 'Outstanding';
-                }
+                student.status = feePaymentStatus(student);
             });
         }
+
+        /* What a trainee's fee record actually says — the ONE place that decides.
+
+           A trainee nobody has priced is not paid up. With a tuition of 0 the
+           balance is 0, so this read "Fully Paid": 27 of the Centre's trainees
+           stood at $0 expected, $0 owed, Fully Paid, while owing their whole
+           tuition, because their programme is not in the Fee Structure. */
+        function feePaymentStatus(student) {
+            const tuition = parseFloat(student && student.tuitionFee) || 0;
+            const paid = parseFloat(student && student.totalPaid) || 0;
+            if (tuition <= 0 && paid <= 0) return 'Not Priced';
+            if (tuition - paid <= 0) return 'Fully Paid';
+            if (paid > 0) return 'Partial Payment';
+            return 'Outstanding';
+        }
+
+        // Settled: priced and paid off. Asking `balance <= 0` instead swept every
+        // unpriced trainee into the "Fully Paid" reports.
+        function feeIsSettled(student) { return feePaymentStatus(student) === 'Fully Paid'; }
+        function feeIsUnpriced(student) { return feePaymentStatus(student) === 'Not Priced'; }
 
         // Switch between modules
         function switchModule(moduleId) {
@@ -5595,6 +5620,7 @@
         function getStatusClass(status) {
             if (status === 'Fully Paid') return 'paid';
             if (status === 'Partial Payment') return 'partial';
+            if (status === 'Not Priced') return 'unpriced';
             return 'outstanding';
         }
 
@@ -6534,12 +6560,12 @@
         // True when a payment is in the current view scope: the active FY when
         // "All Quarters" is selected, otherwise the active FY+quarter.
         function paymentInActiveQuarter(p) {
+            if (feeShowAllPayments) return true;      // the whole roll, every year
             if (typeof CESTISCore === 'undefined' || !CESTISCore.getActiveQuarter) return true;
             // Undated/unparseable payments stay visible so they are never silently hidden.
             const dq = p ? CESTISCore.deriveQuarter(p.date) : null;
             if (!dq) return true;
             const cur = CESTISCore.getActiveQuarter();
-            if (feeShowAllPayments) return dq.fy === cur.fy;
             return dq.fy === cur.fy && dq.q === cur.q;
         }
 
@@ -6548,6 +6574,8 @@
         // Students without a usable date stay visible in every FY so they are
         // never silently hidden.
         function studentInActiveFY(s) {
+            // "All Quarters" is the whole roll, every year — see feeSelectAll().
+            if (feeShowAllPayments) return true;
             if (typeof CESTISCore === 'undefined' || !CESTISCore.getActiveQuarter) return true;
             if (!s) return false;
             const dq = CESTISCore.deriveQuarter(s.enrollmentDate) || CESTISCore.deriveQuarter(s.createdAt);
@@ -6564,16 +6592,17 @@
         // A short label for the active scope, e.g. "FY 2026/2027 · All quarters"
         // or "Q1 · Apr–Jun 2026".
         function feeScopeLabel() {
+            if (feeShowAllPayments) return 'All quarters · every year';
             if (typeof CESTISCore === 'undefined' || !CESTISCore.getActiveQuarter) return 'All Payments';
             const cur = CESTISCore.getActiveQuarter();
-            if (feeShowAllPayments) return 'FY ' + cur.fy + ' · All quarters';
             return CESTISCore.quarterShortLabel(cur.fy, cur.q) + ' ' + CESTISCore.quarterCalendarYear(cur.fy, cur.q);
         }
 
         // Label for the FY the student-derived cards are scoped to.
         function feeFYLabel() {
+            if (feeShowAllPayments) return 'All trainees on the roll';
             if (typeof CESTISCore === 'undefined' || !CESTISCore.getActiveQuarter) return 'All students';
-            return 'FY ' + CESTISCore.getActiveQuarter().fy;
+            return 'FY ' + CESTISCore.getActiveQuarter().fy + ' cohort';
         }
 
         // Inject the filter-bar styles once.
@@ -6615,7 +6644,12 @@
                     '<button class="fee-qbtn" onclick="feeShiftFY(1)" title="Next financial year">▶</button>' +
                 '</div>' +
                 '<div class="fee-qtabs">' +
-                    '<button class="fee-qtab fee-allpay' + (feeShowAllPayments ? ' active' : '') + '" onclick="feeSelectAll()" title="Every quarter of the selected financial year">All Quarters</button>' +
+                    '<button class="fee-qtab fee-allpay' + (feeShowAllPayments ? ' active' : '') +
+                        '" onclick="feeSelectAll()" aria-pressed="' + (feeShowAllPayments ? 'true' : 'false') +
+                        '" title="' + (feeShowAllPayments
+                            ? 'Showing every trainee and every payment, all years. Click to go back to one quarter.'
+                            : 'Show every trainee and every payment, all years') +
+                        '">' + (feeShowAllPayments ? '\u2713 ' : '') + 'All Quarters</button>' +
                     quarters.map(function (m) {
                         return '<button class="fee-qtab' + ((!feeShowAllPayments && m.q === cur.q) ? ' active' : '') +
                             '" onclick="feeSelectQuarter(' + m.q + ')">' + m.label + '</button>';
@@ -6636,7 +6670,13 @@
             if (typeof updateDashboard === 'function') { try { updateDashboard(); } catch (e) {} }
         }
 
-        function feeSelectAll() { feeShowAllPayments = true; feeApplyQuarterChange(); }
+        /* "All Quarters" is a toggle. On, it is the whole roll — the view that
+           matches the LMS dashboard. Clicking it again drops back to the quarter
+           the arrows point at. */
+        function feeSelectAll() {
+            feeShowAllPayments = !feeShowAllPayments;
+            feeApplyQuarterChange();
+        }
         function feeSelectQuarter(q) {
             feeShowAllPayments = false;
             // Persist the shared quarter so the Cashbook/Virement follow, then
@@ -6651,6 +6691,9 @@
             feeApplyQuarterChange();
         }
         function feeShiftFY(dir) {
+            // Stepping to a year is asking to see that year, so it releases the
+            // whole-roll toggle rather than moving a label nothing is reading.
+            feeShowAllPayments = false;
             if (typeof CESTISCore !== 'undefined' && CESTISCore.setActiveQuarter) {
                 const cur = CESTISCore.getActiveQuarter();
                 const start = parseInt(String(cur.fy).split('/')[0], 10) + dir;
@@ -7722,7 +7765,7 @@
             const totalCollected = students.reduce((sum, s) => sum + s.totalPaid, 0);
             const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected * 100).toFixed(1) : 0;
             const outstandingCount = students.filter(s => s.balance > 0).length;
-            const paidCount = students.filter(s => s.balance <= 0).length;
+            const paidCount = students.filter(feeIsSettled).length;
             const avgPayment = totalStudents > 0 ? (totalCollected / totalStudents).toFixed(2) : 0;
             
             document.getElementById('collectionRate').textContent = collectionRate + '%';
@@ -7745,7 +7788,7 @@
             if (reportType === 'outstanding') {
                 filteredStudents = students.filter(s => s.balance > 0);
             } else if (reportType === 'fullypaid') {
-                filteredStudents = students.filter(s => s.status === 'Fully Paid' || s.balance <= 0);
+                filteredStudents = students.filter(feeIsSettled);
             } else if (reportType === 'payments') {
                 generatePaymentsReport();
                 return;
@@ -8163,7 +8206,7 @@
                 if (reportType === 'outstanding') {
                     filteredStudents = students.filter(s => s.balance > 0);
                 } else if (reportType === 'fullypaid') {
-                    filteredStudents = students.filter(s => s.status === 'Fully Paid' || s.balance <= 0);
+                    filteredStudents = students.filter(feeIsSettled);
                 }
 
                 const totalExpected = filteredStudents.reduce((sum, s) => sum + s.tuitionFee, 0);
@@ -8290,7 +8333,7 @@
                 if (reportType === 'outstanding') {
                     filteredStudents = students.filter(s => s.balance > 0);
                 } else if (reportType === 'fullypaid') {
-                    filteredStudents = students.filter(s => s.status === 'Fully Paid' || s.balance <= 0);
+                    filteredStudents = students.filter(feeIsSettled);
                 }
 
                 const totalExpected = filteredStudents.reduce((sum, s) => sum + s.tuitionFee, 0);
@@ -8415,7 +8458,7 @@
                 filteredStudents = students.filter(s => s.balance > 0);
                 doc.text('Report Type: Outstanding Balances', 14, 38);
             } else if (reportType === 'fullypaid') {
-                filteredStudents = students.filter(s => s.status === 'Fully Paid' || s.balance <= 0);
+                filteredStudents = students.filter(feeIsSettled);
                 doc.text('Report Type: Fully Paid Students', 14, 38);
             } else {
                 doc.text('Report Type: All Students', 14, 38);

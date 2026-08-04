@@ -692,13 +692,15 @@ test('the mirror the other way never duplicates a person either', function () {
   assert.strictEqual(t.reason, 'twin');
   assert.strictEqual(t.match.id, 'F1');
 
-  // Two DIFFERENT intakes of the programme, though, are two different things:
-  // same person's name keyed to another intake links only by the name fallback,
-  // never as a programme match.
+  // Two DIFFERENT intakes of the programme are two different enrolments, and
+  // each is billed separately: a fee record prices ONE enrolment. Linking the
+  // intake-09 record onto the intake-02 fee record left the new course expecting
+  // nothing from anybody, with the $5,000 paid for the old one sitting against
+  // it — the Centre's total expected fees short by a whole intake.
   var other = Core.feeMirrorTarget({ id: 'STU-1', name: 'Ann Brown', course: '09. Welding and Fabrication' }, fee);
-  assert.strictEqual(other.action, 'link', 'still linked — being the same person is enough');
-  assert.strictEqual(other.reason, 'same-person-other-programme',
-    'but keys 02 and 09 are different intakes, not the same programme');
+  assert.strictEqual(other.action, 'create',
+    'keys 02 and 09 are two intakes, so the second one gets its own fee record to be priced');
+  assert.strictEqual(other.match, null, 'and it is not folded onto the first intake\'s money');
 
   var linked = Core.feeMirrorTarget({ id: 'STU-1', name: 'Ann Brown', course: '02. Welding and Fabrication' }, fee);
   assert.strictEqual(linked.reason, 'twin', 'and matching programmes are the ordinary twin link');

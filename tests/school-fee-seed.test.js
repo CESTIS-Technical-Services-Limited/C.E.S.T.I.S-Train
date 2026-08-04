@@ -43,7 +43,8 @@ function extractFunction(name) {
   throw new Error('unbalanced braces reading ' + name + '()');
 }
 
-const NAMES = ['feeNameKey', 'feeKeyFor', 'feeBackfillTuition', 'recalculateStudentTotals'];
+const NAMES = ['feeNameKey', 'feeKeyFor', 'feeBackfillTuition', 'feePaymentStatus',
+               'feeIsUnpriced', 'recalculateStudentTotals'];
 
 function makePage(students, payments, feeStructure) {
   const sandbox = {
