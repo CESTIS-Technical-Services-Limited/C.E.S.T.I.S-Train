@@ -4268,6 +4268,164 @@
             } catch (e) { console.warn('[FeeDedupe] failed', e); return false; }
         }
 
+        /* ---- One intake, one priced programme ------------------------------
+
+           dedupeFeeStructure() above folds together the SPELLINGS of one name.
+           This folds together the NAMES of one intake, which is a different
+           duplicate and the one the Centre was looking at.
+
+           A programme gets priced under the training centre's own label —
+           "22. Welding and Fabrication Level 2" — and, from before the intakes
+           carried keys, under the Centre's own shorthand for the same thing —
+           "WELDING L2". Nothing compares those two spellings and finds them
+           equal, so both stood as programmes in their own right: the one intake
+           appeared twice in the Fee Structure table and twice in every
+           dropdown, each copy labelled with the same fiscal year, while only
+           ONE training centre exists in that year. Two entries, two prices, and
+           the trainees of one intake split between two names.
+
+           Two entries are folded only when they answer to the same live intake
+           AND state the same NVQ level it does. A level the centre does not
+           state is NOT the same programme: "WELDING L3" only resolves to the
+           unlevelled "Welding & Fabrication" because nothing better answers,
+           and folding those would move Level 3 trainees into it. Those are left
+           exactly as they are.
+
+           Nobody moves intake. Trainees are held to their intake by the stamp
+           feeBindTraineesToIntake() writes — which is run first, here, so the
+           stamps are in place before a single name changes. A record that
+           belongs to a DIFFERENT intake is renamed to THAT intake's own label
+           instead, and only when that label is priced here; when it is not, the
+           entry it names is the only fee it can reach, so the entry stays and
+           that fold is abandoned. No record is ever left with no fee to answer
+           to.
+
+           Safe to run on every load: with one entry per intake it does nothing
+           and reports false. */
+        function collapseFeeIntakes() {
+            try {
+                if (!feeStructure || typeof feeStructure !== 'object') return false;
+                if (typeof CESTISCore === 'undefined' || !CESTISCore.enrolment) return false;
+
+                // The stamps must exist before any name changes, or renaming a
+                // record could re-answer the question of which intake it is in.
+                try { feeBindTraineesToIntake(); } catch (e) {}
+
+                var E = CESTISCore.enrolment;
+                // Without the level test this would fold Level 3 trainees into a
+                // Level 1 intake, so an older data core that cannot answer what
+                // level a programme states folds nothing at all.
+                if (typeof E.programmeLevel !== 'function') return false;
+                var centres = feeTrainingCentres();      // live centres only
+                if (!centres.length) return false;
+
+                function levelOf(name) {
+                    try { return E.programmeLevel(name) || ''; } catch (e) { return ''; }
+                }
+                function intakeOf(rec) {
+                    if (!rec || rec.centreKey == null || String(rec.centreKey).trim() === '') return '';
+                    try { return E.centreKeyOf({ centreKey: rec.centreKey }); } catch (e) { return ''; }
+                }
+
+                // The intake each priced programme names, and the label that
+                // intake is priced under here (when it is priced at all).
+                var byIntake = {};                       // intake key -> [fee keys]
+                var centreOf = {};                       // intake key -> centre
+                Object.keys(feeStructure).forEach(function (name) {
+                    var centre = null;
+                    try { centre = E.findCentre(centres, name); } catch (e) { centre = null; }
+                    if (!centre) return;                 // priced here only — not an intake
+                    var key = E.centreKeyOf(centre);
+                    if (!key) return;
+                    if (levelOf(name) !== levelOf(centre.name)) return;   // a different programme
+                    centreOf[key] = centre;
+                    (byIntake[key] = byIntake[key] || []).push(name);
+                });
+
+                var labelOfIntake = {};                  // intake key -> its own priced label
+                centres.forEach(function (c) {
+                    var k = E.centreKeyOf(c);
+                    if (!k) return;
+                    var priced = feeKeyFor(feeCentreLabel(c)) || feeKeyFor(c.name);
+                    if (priced) labelOfIntake[k] = priced;
+                });
+
+                // Which spelling is kept: the intake's own label, then its plain
+                // name, then whichever entry actually carries a fee.
+                function survivorFor(key, names) {
+                    var centre = centreOf[key];
+                    var label = feeCentreLabel(centre);
+                    var i;
+                    for (i = 0; i < names.length; i++) if (names[i] === label) return names[i];
+                    for (i = 0; i < names.length; i++) if (names[i] === centre.name) return names[i];
+                    for (i = 0; i < names.length; i++) {
+                        if (parseFloat(feeStructure[names[i]] && feeStructure[names[i]].total) > 0) return names[i];
+                    }
+                    return names[0];
+                }
+
+                var folded = [], kept = [];
+                Object.keys(byIntake).forEach(function (key) {
+                    var names = byIntake[key];
+                    if (names.length < 2) return;
+                    names.sort(function (a, b) { return a.localeCompare(b); });
+                    var keep = survivorFor(key, names);
+
+                    names.forEach(function (from) {
+                        if (from === keep) return;
+                        var fromKey = feeNameKey(from);
+
+                        // Where each record naming this entry actually belongs.
+                        // Anything stamped to another intake follows that
+                        // intake's own label — and only if it has one.
+                        var renames = [], byStudent = {}, blocked = false;
+                        (Array.isArray(students) ? students : []).forEach(function (s) {
+                            if (blocked || !s || !s.skillArea || feeNameKey(s.skillArea) !== fromKey) return;
+                            var own = intakeOf(s);
+                            if (!own || own === key) { renames.push([s, keep]); byStudent[s.id] = keep; return; }
+                            var elsewhere = labelOfIntake[own];
+                            if (!elsewhere) { blocked = true; return; }   // its only fee: leave the entry alone
+                            renames.push([s, elsewhere]);
+                            byStudent[s.id] = elsewhere;
+                        });
+                        if (blocked) { kept.push(from); return; }
+
+                        // A payment follows the trainee it was taken from; one
+                        // whose trainee is gone follows the kept spelling.
+                        (Array.isArray(payments) ? payments : []).forEach(function (p) {
+                            if (!p || !p.skillArea || feeNameKey(p.skillArea) !== fromKey) return;
+                            renames.push([p, byStudent[p.studentId] || keep]);
+                        });
+
+                        renames.forEach(function (r) { r[0].skillArea = r[1]; });
+
+                        // Keep a cost rather than lose one: the entry being
+                        // folded away hands its fee over when the kept one has
+                        // none of its own.
+                        var gone = feeStructure[from], stays = feeStructure[keep];
+                        if (gone && (!stays || !(parseFloat(stays.total) > 0)) && parseFloat(gone.total) > 0) {
+                            feeStructure[keep] = gone;
+                        }
+                        delete feeStructure[from];
+                        folded.push(from + ' -> ' + keep);
+                    });
+                });
+
+                if (kept.length) {
+                    console.log('[FeeIntake] Left ' + kept.length + ' entr' + (kept.length === 1 ? 'y' : 'ies') +
+                        ' in place — trainees of another intake are priced by ' + kept.join(', ') +
+                        ' and nothing else prices them.');
+                }
+                if (!folded.length) return false;
+
+                saveFeeStructure();
+                saveData();
+                console.log('[FeeIntake] Folded ' + folded.length + ' programme(s) into the intake they name: ' +
+                    folded.join(', '));
+                return true;
+            } catch (e) { console.warn('[FeeIntake] collapse failed', e); return false; }
+        }
+
         // Is this programme one the Centre has set up here?
         function feeProgrammeExists(name) {
             return !!feeKeyFor(name);
@@ -4965,6 +5123,7 @@
             normalizeFeeKeysToVoctrain(); // align legacy fee keys to exact VocTrain course names
             dedupeFeeStructure();         // one entry per programme, however it is spelt
             feeBindTraineesToIntake();    // each trainee held to the intake they enrolled in
+            collapseFeeIntakes();         // one entry per intake, however the Centre names it
             seedFeeInformation();         // trainees from the LMS roll; tuition from the Fee Structure
             renderFeeStructure();
             updateDashboard();
@@ -12186,8 +12345,10 @@
                     feeStructure = backupData.data.feeStructure;
                     saveFeeStructure();
                     // A restored fee structure can carry the same programme under
-                    // two spellings; fold them back into one.
+                    // two spellings, and the same intake under two names; fold
+                    // both back into one entry.
                     dedupeFeeStructure();
+                    collapseFeeIntakes();
                 }
 
                 // Update last sync time
@@ -13132,8 +13293,10 @@
                     feeStructure = backupData.data.feeStructure;
                     saveFeeStructure();
                     // A restored fee structure can carry the same programme under
-                    // two spellings; fold them back into one.
+                    // two spellings, and the same intake under two names; fold
+                    // both back into one entry.
                     dedupeFeeStructure();
+                    collapseFeeIntakes();
                 }
 
                 // Update sync tracking
@@ -13515,9 +13678,11 @@
                     saveUsers();
                     saveData();
                     saveFeeStructure();
-                    // Two devices can name the same programme differently; the
-                    // merge keeps both, so fold them back into one entry here.
+                    // Two devices can name the same programme differently, and
+                    // one intake can arrive under two names; the merge keeps
+                    // both, so fold them back into one entry here.
                     dedupeFeeStructure();
+                    collapseFeeIntakes();
 
                     // Refresh UI
                     renderFeeStructure();
@@ -13774,8 +13939,10 @@
                     feeStructure = backupData.data.feeStructure;
                     saveFeeStructure();
                     // A restored fee structure can carry the same programme under
-                    // two spellings; fold them back into one.
+                    // two spellings, and the same intake under two names; fold
+                    // both back into one entry.
                     dedupeFeeStructure();
+                    collapseFeeIntakes();
                 }
 
                 // Update sync tracking
@@ -14274,8 +14441,10 @@
                     feeStructure = backupData.data.feeStructure;
                     saveFeeStructure();
                     // A restored fee structure can carry the same programme under
-                    // two spellings; fold them back into one.
+                    // two spellings, and the same intake under two names; fold
+                    // both back into one entry.
                     dedupeFeeStructure();
+                    collapseFeeIntakes();
                 }
 
                 // Update sync tracking

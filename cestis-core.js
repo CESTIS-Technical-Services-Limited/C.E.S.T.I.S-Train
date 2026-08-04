@@ -1199,7 +1199,44 @@
   // Deletion-tombstone keys. These are UNIONED (never overwritten) during
   // reconcile because tombstones only ever grow — that is how a delete on one
   // device propagates to all others so deleted data cannot re-emerge anywhere.
-  Core.TOMBSTONE_UNION_KEYS = ['voctrain_deletedStudentIds', 'cestiSchoolFeeDeletedLmsIds'];
+  //
+  // Every list of deletions the platform keeps has to be named here. The
+  // training centres' list was not, and that is why a deleted programme came
+  // back: a device that had deleted a centre of its own held a tombstone list
+  // of its own, so its list was merged as ordinary data — one whole list
+  // replacing the other — and whichever side lost took its deletions with it.
+  // The centre was still in the other device's roster, nothing said it had been
+  // deleted any more, and it reappeared with its chat room and its place in
+  // every course list. Same for the deleted payments.
+  Core.TOMBSTONE_UNION_KEYS = ['voctrain_deletedStudentIds', 'voctrain_deletedCentreIds',
+                               'cestiSchoolFeeDeletedLmsIds', 'cestiSchoolFeeDeletedPaymentIds'];
+
+  // Is this key a list of deletions — one that must be merged by union rather
+  // than by "the newer write wins"?
+  Core.isTombstoneKey = function (key) {
+    return !!key && Core.TOMBSTONE_UNION_KEYS.indexOf(String(key)) !== -1;
+  };
+
+  /* The union of two stored tombstone lists, as a stored value — every id
+     either side has ever written down, in a stable order so two devices that
+     hold the same deletions produce the same string and stop rewriting each
+     other. Returns null when the union adds nothing to `a`. */
+  Core.unionTombstoneValues = function (a, b) {
+    var set = {}, order = [];
+    var take = function (raw) {
+      Core._parseArr(raw).forEach(function (id) {
+        if (id == null || id === '') return;
+        var s = String(id);
+        if (!set[s]) { set[s] = true; order.push(s); }
+      });
+    };
+    take(a);
+    var before = order.length;
+    take(b);
+    if (order.length === before) return null;          // `a` already holds them all
+    order.sort();
+    return JSON.stringify(order);
+  };
 
   // Keys that must NEVER leave the device inside a shared snapshot: auth tokens,
   // session pointers, per-device Drive metadata and volatile UI flags. Excluding
@@ -1320,12 +1357,11 @@
     //    unioning is always safe — this propagates a delete made on one device to
     //    every other device so deleted data cannot re-emerge anywhere.
     Core.TOMBSTONE_UNION_KEYS.forEach(function (tk) {
-      var snapIds = Core._parseArr(snapStore[tk]);
-      if (!snapIds.length) return;
-      var set = {}; Core._parseArr(localStoreMap[tk]).forEach(function (id) { if (id) set[id] = true; });
-      var addedAny = false;
-      snapIds.forEach(function (id) { if (id && !set[id]) { set[id] = true; addedAny = true; } });
-      if (addedAny) { out[tk] = JSON.stringify(Object.keys(set)); result.changed = true; if (result.restoredKeys.indexOf(tk) === -1) result.restoredKeys.push(tk); }
+      var union = Core.unionTombstoneValues(localStoreMap[tk], snapStore[tk]);
+      if (union == null) return;                  // the snapshot adds nothing
+      out[tk] = union;
+      result.changed = true;
+      if (result.restoredKeys.indexOf(tk) === -1) result.restoredKeys.push(tk);
     });
     var deletedStudents = {};
     Core._parseArr(localStoreMap['voctrain_deletedStudentIds']).forEach(function (id) { if (id) deletedStudents[id] = true; });
@@ -4872,6 +4908,27 @@
           continue;
         }
         if (localData[k] === cloudData[k]) continue;      // identical, nothing to do
+
+        /* A list of DELETIONS is merged by union, never by whose write is
+           newer. It only ever grows, so both sides are always right, and one
+           whole list replacing the other is a deletion being undone.
+
+           That is exactly how a deleted training centre came back. Two devices
+           each delete a centre; each now holds a tombstone list the other has
+           never seen. Judged as ordinary data, the newer list wins outright and
+           the older one's deletion is simply gone — the centre is still in the
+           roster, nothing says it was deleted any more, so it reappears with
+           its chat room and its place in every course list, on every device, at
+           the next sync. Unioned, neither delete can be lost. */
+        if (Core.isTombstoneKey(k)) {
+          var union = Core.unionTombstoneValues(localData[k], cloudData[k]);
+          if (union != null) { data[k] = union; changed.push(k); }
+          // The union is now the newest thing either side has said about this
+          // key, so it carries the later stamp and goes up on the next push.
+          var lts = stampOf(localStamps, k), cts = stampOf(cloudStamps, k);
+          if (cts > lts && cloudStamps && cloudStamps[k]) stamps[k] = cloudStamps[k];
+          continue;
+        }
 
         // An empty local copy NEVER replaces records, however new its stamp
         // looks. This is the guard that keeps a collection unloseable: a page
