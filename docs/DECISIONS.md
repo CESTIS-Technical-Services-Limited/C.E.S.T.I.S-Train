@@ -118,3 +118,9 @@ zero residual name hits repo-wide; no stored data touched anywhere.
   exposed regardless of the scrub.
 - The rates.json supply-chain fetch (P8) and committed operational
   identifiers (P7) are Phase 2/5 design items, unchanged.
+
+## D9 — Phase 1 gate: design principles P1–P12 signed off (2026-08-05)
+
+**Decision:** "I sign off principles P1–P12." The twelve principles in
+`docs/01-LMS-RESEARCH.md` §10 are the binding contract for the Phase 2
+architecture and all subsequent implementation. Phase 2 design proceeds.
