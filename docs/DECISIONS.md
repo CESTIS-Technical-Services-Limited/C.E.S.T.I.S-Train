@@ -27,12 +27,13 @@ Google account.
 - The HMAC secret and any OAuth client configuration must never be committed —
   the repository is public (see D3). Provisioning is runtime/config-side.
 
-## D2 — Fee cadence: pending client answer (explanation provided)
+## D2 — Fee cadence: per term (2026-08-05, confirmed at the Phase 0 gate)
 
-**Status:** The client asked what this means before answering. Explanation
-given (see conversation, 2026-08-05); Phase 0 will also measure the cadence
-empirically from fee data so a concrete shadow-period window can be proposed
-for confirmation rather than asked for cold.
+**Decision:** "Fees can stay per term." Matches the measured model:
+per-programme fee totals split into up to 9 term instalments; financial year
+April–March, quartered. The shadow-period window will therefore be sized
+around a term boundary plus a payment-heavy stretch, proposed concretely in
+`docs/04-BOOTSTRAP-AND-CUTOVER.md`.
 
 ## D3 — Hosting: GitHub Pages, public repository (2026-08-05)
 
@@ -86,3 +87,34 @@ reads scoped by role so pages receive only what their user's role needs;
 student/fee data stays in the browser stores and the school's Drive, never in
 the repository or any third location; the residual-risk register will carry
 the "PII on shared staff machines" exposure explicitly.
+
+## D7 — Phase 0 gate signed off (2026-08-05)
+
+**Decision:** Client confirmed the divergence register in
+`docs/00-INVENTORY.md` matches observed behaviour ("Yes"). Phase 1 (domain
+research → design principles) proceeds.
+
+## D8 — PII scrub: authorized and executed at HEAD (2026-08-05)
+
+**Decision:** "Carry out PII scrub… once it does not affect data."
+
+**Executed** (commit `43d84f3`): payslip preset employees removed (additive
+merge → no-op), cashbook Q3 seed transactions removed (all three seed guards
+tolerate an empty array), voucher default signatory blanked, every real
+trainee/staff name in tests and code comments replaced with
+structure-preserving synthetic names. Verified: both full test suites pass;
+zero residual name hits repo-wide; no stored data touched anywhere.
+
+**Explicitly NOT covered, carried as open risk:**
+- The removed data remains in **git history** (and any forks/caches). Purging
+  requires a coordinated history rewrite (`git filter-repo`/BFG + force-push +
+  GitHub support for cached views) — scheduled as a Phase 5 operational task
+  with the client, not done unilaterally.
+- Published default credentials (`cestisadmin123$`, `Hazardadmin123$`,
+  `admin123`, virement PIN `1234`, payroll unlock `123654`) are mechanisms,
+  not data; they were left functional. The client should treat them as
+  exposed and rotate the real passwords/PIN in the live system.
+- The staff TRN/NIS/DOB values that were published should be treated as
+  exposed regardless of the scrub.
+- The rates.json supply-chain fetch (P8) and committed operational
+  identifiers (P7) are Phase 2/5 design items, unchanged.
