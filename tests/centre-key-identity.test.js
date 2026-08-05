@@ -29,10 +29,10 @@ function assertEq(actual, expected, msg) {
 /* ---------- 1. The doubled register, exactly as screenshotted ---------- */
 console.log('The same person under two spellings of one centre becomes one record');
 
-// Alex Peart, Amar Smith, … each present twice: the bare legacy spelling and
+// Alex Pryce, Amar Stone, … each present twice: the bare legacy spelling and
 // the keyed spelling a transfer wrote — same phone, same date of birth.
 const DOUBLED = [];
-['Alex Peart', 'Amar Smith', 'Amaru Orrett', 'Anthony Williams.', 'Dannasha Honeyghan', 'Devaughn Clarke']
+['Alex Pryce', 'Amar Stone', 'Amaru Oakes', 'Anthony Walters.', 'Dannasha Hartley', 'Devaughn Carter']
   .forEach((name, i) => {
     DOUBLED.push({ id: 'STU-old-' + i, name: name, course: 'Electrical Installation',
                    phone: '87650000' + i, dob: '2006-01-0' + (i + 1), stage: 'training' });
@@ -94,8 +94,8 @@ assertEq(r.students.length, 3, 'same name on a different programme is a differen
 
 console.log('And the School Fee roll dedupes by the same rule, on skillArea');
 r = Core.dedupeStudents([
-  { id: 'F1', name: 'Alex Peart', skillArea: 'Electrical Installation', tuitionFee: 28000 },
-  { id: 'F2', name: 'Alex Peart', skillArea: '02. Electrical Installation', centreKey: '02',
+  { id: 'F1', name: 'Alex Pryce', skillArea: 'Electrical Installation', tuitionFee: 28000 },
+  { id: 'F2', name: 'Alex Pryce', skillArea: '02. Electrical Installation', centreKey: '02',
     lastModified: '2026-08-03T10:00:00.000Z' }
 ], { courseField: 'skillArea' });
 assertEq(r.students.length, 1, 'one fee record per person per centre');
@@ -105,19 +105,19 @@ assertEq(r.students[0].skillArea, '02. Electrical Installation', 'keeping the ke
 console.log('The twin test recognises the keyed and bare spellings as one programme');
 
 assertEq(Core.isFeeTwin(
-  { id: 'S1', name: 'Alex Peart', course: 'Electrical Installation' },
-  { id: 'F1', name: 'Alex Peart', skillArea: '02. Electrical Installation' }), true,
+  { id: 'S1', name: 'Alex Pryce', course: 'Electrical Installation' },
+  { id: 'F1', name: 'Alex Pryce', skillArea: '02. Electrical Installation' }), true,
   'so the fee↔LMS mirrors link this person instead of minting their double');
 
 assertEq(Core.isFeeTwin(
-  { id: 'S1', name: 'Alex Peart', course: '02. Electrical Installation' },
-  { id: 'F1', name: 'Alex Peart', skillArea: '09. Electrical Installation' }), false,
+  { id: 'S1', name: 'Alex Pryce', course: '02. Electrical Installation' },
+  { id: 'F1', name: 'Alex Pryce', skillArea: '09. Electrical Installation' }), false,
   'while two different intakes of the programme never twin by name+programme');
 
 console.log('twinIndex answers identically, so the indexed mirrors agree');
-const roster = [{ id: 'S1', name: 'Alex Peart', course: 'Electrical Installation' }];
+const roster = [{ id: 'S1', name: 'Alex Pryce', course: 'Electrical Installation' }];
 const idx = Core.twinIndex(roster);
-assertEq(idx.find({ id: 'F1', name: 'Alex Peart', skillArea: '02. Electrical Installation' }), roster[0],
+assertEq(idx.find({ id: 'F1', name: 'Alex Pryce', skillArea: '02. Electrical Installation' }), roster[0],
   'the index links the keyed fee record to the bare-named student');
 
 /* ---------- 4. programmeIdentity itself ---------- */

@@ -841,8 +841,8 @@
     function push(id, name, sourceRole, extra, tplGuess) {
       if (!name) return;
       // De-duplicate across sources by FIRST + LAST name (same rule used for
-      // the Staff Payslip link), so "Rashaun Barrett" the user account and
-      // "Rashaun Barrett" the payroll employee are one staff member.
+      // the Staff Payslip link), so "Rashard Bennett" the user account and
+      // "Rashard Bennett" the payroll employee are one staff member.
       var toks = sappNameTokens(name).filter(function (t) { return t.length >= 2; });
       var key = toks.length >= 2 ? (toks[0] + '|' + toks[toks.length - 1]) : name.trim().toLowerCase();
       if (seen[key]) return;
@@ -1203,7 +1203,7 @@
   };
 
   root.sappAddStaffPrompt = function () {
-    var name = prompt('Staff member’s FULL name (first name and last name, e.g. "Rashaun Barrett"):');
+    var name = prompt('Staff member’s FULL name (first name and last name, e.g. "Rashard Bennett"):');
     if (!name || !name.trim()) return;
     if (!sappIsFullName(name)) {
       alert('Please enter both a first name and a last name. The full name is required to link the appraisal to the Staff Payslip employee record.');
@@ -1286,7 +1286,7 @@
       '<div style="font-size:12px;margin-bottom:10px;">' + eLinkHtml + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">' +
       '<div class="form-group"><label>Appraisal Period</label><input class="form-control" id="sappFPeriod" value="' + esc(a.period) + '"></div>' +
-      '<div class="form-group"><label>Appraiser (Name)</label><input class="form-control" id="sappFAppraiser" value="' + esc(a.appraiser) + '" placeholder="e.g. Mr. Jason Hall"></div>' +
+      '<div class="form-group"><label>Appraiser (Name)</label><input class="form-control" id="sappFAppraiser" value="' + esc(a.appraiser) + '" placeholder="e.g. Mr. John Doe"></div>' +
       '<div class="form-group"><label>Length of time supervising</label><input class="form-control" id="sappFSupervising" value="' + esc(a.lengthSupervising) + '"></div>' +
       (tpl.hasSkillArea ? '<div class="form-group"><label>Skill Area</label><input class="form-control" id="sappFSkill" value="' + esc(a.skillArea) + '" placeholder="e.g. Beauty Therapy Level 2"></div>' : '') +
       '<div class="form-group"><label>Type of Appraisal</label><select class="form-control" id="sappFType">' +

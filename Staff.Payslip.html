@@ -3424,19 +3424,7 @@ async function fetchCurrentRates(){
 function loadPresetData(){
   // Presets are merged additively — any existing employee with the same name
   // is preserved (empty preset fields never overwrite a real value).
-  var presetEmployees=[
-    {name:'Steve Barrett',designation:'Co-ordinator',type:'FT',mobile:'876-365-2325',dob:'1996-11-03',trn:'127-009-850',nis:'C-96-05-01',startDate:'2021-03-01',salary:37145},
-    {name:'Rashaun Barrett',designation:'Administrative Assistant/ Assistant Coordinator',type:'FT',mobile:'876-530-9149',dob:'1998-10-05',trn:'127-009-817',nis:'C-98-03-73',startDate:'2022-10-01',salary:78000},
-    {name:'Rohan Hamilton',designation:'Welding Instructor',type:'FT',mobile:'876-783-8616',dob:'1974-07-26',trn:'105-249-262',nis:'C-74-05-80',startDate:'2018-08-05',salary:95943.09},
-    {name:'Richard Smith',designation:'Electrical Installation Instructor (BNV)',type:'FT',mobile:'876-986-3698',dob:'1971-03-07',trn:'102-183-511',nis:'C-71-08-24',startDate:'2020-04-01',salary:91374.37},
-    {name:'Tracy-Ann Johnson',designation:'Cosmetology/Beauty Therapy Instructor',type:'FT',mobile:'876-879-6059',dob:'1986-01-16',trn:'115-862-331',nis:'C-86-39-20',startDate:'2019-04-01',salary:86190.64},
-    {name:'Kevin Allen',designation:'Welding Instructor (BNV)',type:'FT',mobile:'876-536-5733',dob:'1964-04-08',trn:'100-861-229',nis:'M-64-10-13',startDate:'2020-04-01',salary:91374.37},
-    {name:'Seyoum Blackwood',designation:'Electrical Installation Instructor',type:'FT',mobile:'876-853-7632',dob:'1998-06-01',trn:'127-288-945',nis:'C-98-07-79',startDate:'2022-03-01',salary:91374.37},
-    {name:'Pamella Archer',designation:'Entrepreneurship Instructor (PT)',type:'PT',mobile:'876-454-8458',dob:'1971-09-07',trn:'102-062-072',nis:'C-71-80-34',startDate:'2021-08-05',salary:0},
-    {name:'Fontanette Whittingham',designation:'Information Technology Instructor (PT)',type:'PT',mobile:'876-869-5329',dob:'1986-04-16',trn:'116-017-996',nis:'C-86-32-25',startDate:'2020-08-01',salary:0},
-    {name:'Yves Bergeron',designation:'Personal Development Instructor (PT)',type:'PT',mobile:'876-319-8904',dob:'1963-11-17',trn:'112-579-477',nis:'N-63-15-58',startDate:'2020-08-01',salary:0},
-    {name:'Glowmayne Rowe',designation:'Mathematics Instructor (PT)',type:'PT',mobile:'',dob:'',trn:'126-305-307',nis:'M-96-08-58',startDate:'',salary:0}
-  ];
+  var presetEmployees=[]; // Preset employee records were removed from this public repository (2026-08-05): they carried real staff personal data (names, phones, DOB, TRN, NIS, salaries). The merge below is additive, so an empty preset changes nothing; real employee data arrives via cloud sync or a JSON import.
   var summary=_mergeDataIntoLocal({employees:presetEmployees});
   markDataDirty();saveStore();
   alert('Preset employees merged: +'+summary.addedEmployees+' added, '+summary.updatedEmployees+' updated (no data replaced).');

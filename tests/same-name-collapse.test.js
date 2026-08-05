@@ -5,7 +5,7 @@
    were given and whatever programme each names.
 
    This is stronger than the centre-identity dedup, which keeps two records
-   when their programmes differ. That is what left "Omario Bryan" listed once
+   when their programmes differ. That is what left "Omarion Blake" listed once
    under "Welding & Fabrication" (5% progress, id STU-m6ph27jrre) and again
    under "WELDING L2" (0%, id STU-1sjnz30im1q): two spellings of one enrolment,
    read as two enrolments.
@@ -36,20 +36,20 @@ function assertEq(actual, expected, msg) {
 console.log('The same trainee under two programmes and two ids becomes one record');
 
 const REPORTED = [
-  { id: 'STU-m6ph27jrre', name: 'Omario Bryan', course: 'Welding & Fabrication',
-    stage: 'nyc', progress: 5, email: 'omario@example.invalid' },
-  { id: 'STU-1sjnz30im1q', name: 'Omario Bryan', course: 'WELDING L2',
+  { id: 'STU-m6ph27jrre', name: 'Omarion Blake', course: 'Welding & Fabrication',
+    stage: 'nyc', progress: 5, email: 'omarion@example.invalid' },
+  { id: 'STU-1sjnz30im1q', name: 'Omarion Blake', course: 'WELDING L2',
     stage: 'nyc', progress: 0, phone: '8761234567' }
 ];
 
 let r = Core.collapseSameNameStudents(REPORTED);
 assertEq(r.students.length, 1, 'two records become one');
 assertEq(r.removed, 1, 'and one is reported removed');
-assertEq(r.students[0].name, 'Omario Bryan', 'the person survives');
+assertEq(r.students[0].name, 'Omarion Blake', 'the person survives');
 
 console.log('The survivor keeps everything BOTH records held');
 assertEq(r.students[0].progress, 5, 'the recorded progress is not lost to the 0');
-assertEq(r.students[0].email, 'omario@example.invalid', 'the email from one record');
+assertEq(r.students[0].email, 'omarion@example.invalid', 'the email from one record');
 assertEq(r.students[0].phone, '8761234567', 'and the phone from the other');
 
 console.log('The discarded id is mapped, so their attendance and payments follow');
@@ -97,9 +97,9 @@ assertEq(String(r.students[0].centreKey), '02', 'and the centre stamp with it');
 console.log('Three records of one person collapse to one, with every id mapped');
 
 r = Core.collapseSameNameStudents([
-  { id: 'ONE',   name: 'Devaughn Clarke', course: 'A', stage: 'testing' },
-  { id: 'TWO',   name: 'Devaughn Clarke', course: 'B', stage: 'training', progress: 30 },
-  { id: 'THREE', name: 'Devaughn Clarke', course: 'C', stage: 'testing', email: 'd@example.invalid' }
+  { id: 'ONE',   name: 'Devaughn Carter', course: 'A', stage: 'testing' },
+  { id: 'TWO',   name: 'Devaughn Carter', course: 'B', stage: 'training', progress: 30 },
+  { id: 'THREE', name: 'Devaughn Carter', course: 'C', stage: 'testing', email: 'd@example.invalid' }
 ]);
 assertEq(r.students.length, 1, 'one record remains');
 assertEq(r.removed, 2, 'two removed');
@@ -115,18 +115,18 @@ assert(Object.values(r.idMap).every(v => ids.has(v)), 'no id maps to a record th
 console.log('Different people are never merged');
 
 r = Core.collapseSameNameStudents([
-  { id: 'A', name: 'Alex Peart', course: 'WELDING L2' },
-  { id: 'B', name: 'Alex Peartt', course: 'WELDING L2' },
-  { id: 'C', name: 'Alexa Peart', course: 'WELDING L2' },
-  { id: 'D', name: 'Peart Alex', course: 'WELDING L2' }
+  { id: 'A', name: 'Alex Pryce', course: 'WELDING L2' },
+  { id: 'B', name: 'Alex Prycee', course: 'WELDING L2' },
+  { id: 'C', name: 'Alexa Pryce', course: 'WELDING L2' },
+  { id: 'D', name: 'Pryce Alex', course: 'WELDING L2' }
 ]);
 assertEq(r.students.length, 4, 'a near-miss is a different person — the match is exact, never fuzzy');
 assertEq(r.removed, 0, 'nothing removed');
 
 console.log('Case and extra spacing are still the same name');
 r = Core.collapseSameNameStudents([
-  { id: 'A', name: 'Amar Smith', course: 'X', stage: 'training', progress: 20 },
-  { id: 'B', name: '  amar   SMITH ', course: 'Y', stage: 'testing' }
+  { id: 'A', name: 'Amar Stone', course: 'X', stage: 'training', progress: 20 },
+  { id: 'B', name: '  amar   STONE ', course: 'Y', stage: 'testing' }
 ]);
 assertEq(r.students.length, 1, 'one person, written two ways');
 
@@ -289,27 +289,27 @@ assertEq(Core.feeTwinIndex(feeRoll).findByName(unlinked.name).id, 'SF-1',
    read double. The launch collapse decided "same person" with normName — case
    folded AND every run of whitespace folded — while the account reconciler
    decided it with .toLowerCase().trim(), which leaves a double space INSIDE a
-   name intact. So an imported account reading "Yaneek  Simmonds" and the roll
-   reading "Yaneek Simmonds" were one person to the collapse and two to the
+   name intact. So an imported account reading "Yanique  Samuels" and the roll
+   reading "Yanique Samuels" were one person to the collapse and two to the
    reconciler: the collapse merged them each launch and the reconciler minted
    the second straight back. Everything that asks now asks Core.sameName. */
 console.log('\nOne rule decides whether two records are the same person');
-assertEq(Core.sameName('Yaneek Simmonds', 'Yaneek  Simmonds'), true,
+assertEq(Core.sameName('Yanique Samuels', 'Yanique  Samuels'), true,
   'a double space inside the name is still the same person — this is the pair that doubled');
-assertEq(Core.sameName('  Yaneek Simmonds  ', 'yaneek simmonds'), true,
+assertEq(Core.sameName('  Yanique Samuels  ', 'yanique samuels'), true,
   'as are surrounding spaces and case');
-assertEq(Core.sameName('Yaneek\tSimmonds', 'Yaneek Simmonds'), true,
+assertEq(Core.sameName('Yanique\tSamuels', 'Yanique Samuels'), true,
   'and a tab, which an import can leave behind');
-assertEq(Core.sameName('Yaneek Simmonds', 'Yaneek Simmond'), false,
+assertEq(Core.sameName('Yanique Samuels', 'Yanique Samuel'), false,
   'a genuinely different name is still a different person');
 assertEq(Core.sameName('', ''), false, 'two nameless records are not "the same person"');
 assertEq(Core.sameName(null, undefined), false, 'and neither are two absent ones');
-assertEq(Core.sameName('Yaneek Simmonds', ''), false, 'nor a name and a blank');
+assertEq(Core.sameName('Yanique Samuels', ''), false, 'nor a name and a blank');
 
 console.log('The collapse and the name rule agree, which is the whole point');
 r = Core.collapseSameNameStudents([
-  { id: 'STU-1gtg5dkrt8y', name: 'Yaneek Simmonds', course: 'COSMETOLOGY L2', stage: 'training', progress: 20 },
-  { id: '14072025', name: 'Yaneek  Simmonds', course: 'Cosmetology' }
+  { id: 'STU-1gtg5dkrt8y', name: 'Yanique Samuels', course: 'COSMETOLOGY L2', stage: 'training', progress: 20 },
+  { id: '14072025', name: 'Yanique  Samuels', course: 'Cosmetology' }
 ]);
 assertEq(r.students.length, 1, 'the pair the reconciler used to re-create is one person');
 assertEq(r.idMap['14072025'], 'STU-1gtg5dkrt8y', 'and the minted id maps back onto the real record');
@@ -335,8 +335,8 @@ assertEq(Core.feeTwinIndex(feeRoll).findByName('   '), null, 'and blanks are not
    spellings of one enrolment still fold together and two enrolments never do. */
 console.log('\nThe same subject at two NVQ levels is two enrolments, not one record');
 r = Core.collapseSameNameStudents([
-  { id: 'W2', name: 'Omario Bryan', course: 'WELDING L2', stage: 'certified', certNo: 'C1' },
-  { id: 'W3', name: 'Omario Bryan', course: 'WELDING L3', stage: 'training', progress: 40 }
+  { id: 'W2', name: 'Omarion Blake', course: 'WELDING L2', stage: 'certified', certNo: 'C1' },
+  { id: 'W3', name: 'Omarion Blake', course: 'WELDING L3', stage: 'training', progress: 40 }
 ]);
 assertEq(r.students.length, 2, 'Level 2 and Level 3 both stand — each is a course they sat');
 assertEq(r.removed, 0, 'nothing removed');
@@ -357,9 +357,9 @@ console.log('The vague spelling must not act as a bridge between two levels');
 // alone it joined all three, and the survivor then kept the vague spelling —
 // so the NEXT launch folded the pair again. It has to agree with every member.
 r = Core.collapseSameNameStudents([
-  { id: 'VAGUE', name: 'Omario Bryan', course: 'Welding & Fabrication', progress: 5 },
-  { id: 'L2',    name: 'Omario Bryan', course: 'WELDING L2', stage: 'nyc' },
-  { id: 'L3',    name: 'Omario Bryan', course: 'WELDING L3', stage: 'training', progress: 40 }
+  { id: 'VAGUE', name: 'Omarion Blake', course: 'Welding & Fabrication', progress: 5 },
+  { id: 'L2',    name: 'Omarion Blake', course: 'WELDING L2', stage: 'nyc' },
+  { id: 'L3',    name: 'Omarion Blake', course: 'WELDING L3', stage: 'training', progress: 40 }
 ]);
 assertEq(r.students.length, 2, 'the vague record folds into the Level 2 it was written for');
 assertEq(r.removed, 1, 'one removed, not two');
@@ -434,13 +434,13 @@ assertEq(r.students.length, 20, 'and twenty survive — by name alone this read 
 
 /* ---- 10. A second enrolment reaches the fee roll to be priced ---------- */
 console.log('\nA trainee on a second programme gets a fee record of their own');
-const feeSide = [{ id: 'SF-1', name: 'Omario Bryan', skillArea: 'WELDING L2',
+const feeSide = [{ id: 'SF-1', name: 'Omarion Blake', skillArea: 'WELDING L2',
   tuitionFee: 120000, totalPaid: 40000, balance: 80000 }];
 
-let t = Core.feeMirrorTarget({ id: 'STU-1', name: 'Omario Bryan', course: 'WELDING L2' }, feeSide);
+let t = Core.feeMirrorTarget({ id: 'STU-1', name: 'Omarion Blake', course: 'WELDING L2' }, feeSide);
 assertEq(t.action, 'link', 'the Level 2 enrolment is the existing fee record');
 
-t = Core.feeMirrorTarget({ id: 'STU-2', name: 'Omario Bryan', course: 'WELDING L3' }, feeSide);
+t = Core.feeMirrorTarget({ id: 'STU-2', name: 'Omarion Blake', course: 'WELDING L3' }, feeSide);
 assertEq(t.action, 'create',
   'the Level 3 enrolment gets its own record — linked, its tuition was never expected');
 assertEq(t.match, null, 'and the Level 2 payments are not counted against it');
@@ -448,15 +448,15 @@ assertEq(t.match, null, 'and the Level 2 payments are not counted against it');
 console.log('While the two sides spelling one programme differently still links');
 [ 'Welding & Fabrication', 'Welding and Fabrication Level 2', '02. Welding & Fabrication', '' ]
   .forEach(function (written) {
-    const link = Core.feeMirrorTarget({ id: 'STU-3', name: 'Omario Bryan', course: written }, feeSide);
+    const link = Core.feeMirrorTarget({ id: 'STU-3', name: 'Omarion Blake', course: written }, feeSide);
     assertEq(link.action, 'link', '"' + (written || '(blank)') + '" is the same enrolment');
   });
 
 console.log('The same answer through the index the save-time mirror uses');
 const feeIdx = Core.feeTwinIndex(feeSide);
-assertEq(Core.feeMirrorTarget({ id: 'STU-2', name: 'Omario Bryan', course: 'WELDING L3' },
+assertEq(Core.feeMirrorTarget({ id: 'STU-2', name: 'Omarion Blake', course: 'WELDING L3' },
   feeSide, { index: feeIdx }).action, 'create', 'indexed path agrees on the second enrolment');
-assertEq(Core.feeMirrorTarget({ id: 'STU-1', name: 'Omario Bryan', course: 'Welding & Fabrication' },
+assertEq(Core.feeMirrorTarget({ id: 'STU-1', name: 'Omarion Blake', course: 'Welding & Fabrication' },
   feeSide, { index: feeIdx }).action, 'link', 'and on the other spelling');
 
 console.log('The fee page still cannot enrol anybody, so its mirror stays tolerant');
