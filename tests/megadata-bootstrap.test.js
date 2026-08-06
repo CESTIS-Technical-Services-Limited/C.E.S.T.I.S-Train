@@ -111,6 +111,35 @@ function rawBaseline() {
   eq(repE.verification.balanceDiffSample[0].foldedBalanceMinor, 10000, '…against the fold (100 charged, nothing paid)');
   eq(repE.verification.quarantinedPaymentsMinor, 500, 'the quarantined payments are accounted to the cent (10.00 ghost − 5.00 negative)');
 
+  section('Cross-source unification: a linked fee+LMS pair is ONE person; bad links go to humans');
+  const unifFee = { id: 'test:fee2', kind: 'schoolfee-pagecloud', name: 'fee2', json: { data: {
+    cestiSchoolFeeStudents: JSON.stringify([
+      { id: 'SF-L1', lmsId: 'L1', name: 'Unified Person', skillArea: 'WELDING L2', tuitionFee: 100, balance: 70, updatedAt: '2026-02-01' },
+      { id: 'STU-x9', name: 'Solo Fee Person', skillArea: 'WELDING L2', tuitionFee: 50 },
+      { id: 'SF-L3', lmsId: 'L3', name: 'Different Name', skillArea: 'WELDING L2', tuitionFee: 20 }
+    ]),
+    cestiSchoolFeePayments: JSON.stringify([{ id: 'PAYu1', studentId: 'SF-L1', amount: 30, date: '2026-02-02', method: 'cash' }]),
+    cestiFeeStructure: JSON.stringify({ 'WELDING L2': { total: 100, terms: [100] } }),
+    cestiSchoolFeeDeletedPaymentIds: '[]', cestiSchoolFeeDeletedLmsIds: '[]'
+  } } };
+  const unifSp = { id: 'test:sp1', kind: 'student-progress-pagecloud', name: 'sp1', json: { data: {
+    voctrain_students: JSON.stringify([
+      { id: 'L1', name: 'Unified  person', course: 'WELDING L2', stage: 'training', progress: 40, gpa: '3.2', lastModified: '2026-03-01' },
+      { id: 'L2', name: 'Tombstoned Person', course: 'WELDING L2', stage: 'testing' },
+      { id: 'L3', name: 'Linked Wrongly', course: 'WELDING L2', stage: 'testing' }
+    ]),
+    voctrain_deletedStudentIds: JSON.stringify(['L2'])
+  } } };
+  const repU = await BOOT.runBootstrap({ sources: [unifFee, unifSp], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_test-3' });
+  eq(repU.inventory.totals.lmsStudents, 2, 'two live LMS students (the legacy-deleted one is excluded)');
+  eq(repU.inventory.totals.tombstonedLmsStudents, 1, 'and the tombstoned one is accounted, not imported');
+  eq(repU.events.byType['person.registered'], 4, '5 source records → 4 people: the corroborated link pair collapsed to one');
+  eq(repU.events.byType['enrolment.created'], 4, 'one enrolment each');
+  eq(repU.events.byType['doc.upserted'], 2, 'LMS presentation scalars preserved as roster documents (L1, L3)');
+  ok(repU.adjudicationQueue.some(q => /conflicting names/.test(q.suggestion)), 'the shared link with disagreeing names is a HUMAN queue item, not a merge');
+  eq(repU.verification.storedBalanceDisagreements, 0, 'the unified ledger still matches the stored balance (100 − 30 = 70)');
+  eq(repU.verification.financialIdentityHolds, true, 'and the financial identity holds across both sources');
+
   console.log('');
   console.log(passed + ' passed, ' + failed + ' failed');
   if (failed) process.exitCode = 1;

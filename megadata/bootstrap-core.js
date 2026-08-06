@@ -66,6 +66,24 @@
       });
       out.staging.push({ srcId: src.id, path: 'tombstones', kind: 'tombstones', raw: { deletedPaymentIds: delPay, deletedStudentIds: delStu } });
     },
+    // The Student-Progress page-cloud payload: the LMS roster + its tombstones.
+    'student-progress-pagecloud': function (src, out) {
+      var data = (src.json && src.json.data) || {};
+      function parse(key) {
+        var v = data[key];
+        if (v == null) return null;
+        if (typeof v !== 'string') return v;
+        try { return JSON.parse(v); } catch (e) {
+          out.quarantine.push({ srcId: src.id, path: key, reason: 'unparseable JSON: ' + e.message });
+          return null;
+        }
+      }
+      (parse('voctrain_students') || []).forEach(function (s2, i) {
+        if (!s2 || typeof s2 !== 'object' || !s2.id) { out.quarantine.push({ srcId: src.id, path: 'voctrain_students[' + i + ']', reason: 'student record without id' }); return; }
+        out.staging.push({ srcId: src.id, path: 'voctrain_students[' + i + ']', kind: 'lmsStudent', raw: s2 });
+      });
+      out.staging.push({ srcId: src.id, path: 'lms-tombstones', kind: 'tombstones', raw: { deletedStudentIds: parse('voctrain_deletedStudentIds') || [] } });
+    },
     // The Cert/Transcript-Requests page-cloud payload → Tier-B documents.
     'transcript-requests-pagecloud': function (src, out) {
       var data = (src.json && src.json.data) || {};
@@ -128,8 +146,13 @@
             totalMinor += m.minor; if (!m.exact) imprecise++;
           }
         });
+        var stuTomb = {};
+        R.staging.forEach(function (r) { if (r.kind === 'tombstones') (r.raw.deletedStudentIds || []).forEach(function (id) { stuTomb[id] = 1; }); });
+        R.studentTombstones = stuTomb;
         R.inventory.totals = {
           students: R.staging.filter(function (r) { return r.kind === 'student'; }).length,
+          lmsStudents: R.staging.filter(function (r) { return r.kind === 'lmsStudent' && !stuTomb[r.raw.id]; }).length,
+          tombstonedLmsStudents: R.staging.filter(function (r) { return r.kind === 'lmsStudent' && stuTomb[r.raw.id]; }).length,
           payments: R.staging.filter(function (r) { return r.kind === 'payment' && !tomb[r.raw.id]; }).length,
           tombstonedPayments: Object.keys(tomb).length,
           paymentsTotalMinor: totalMinor, floatPrecisionNotes: imprecise,
@@ -142,25 +165,55 @@
       });
     }
 
-    /* step: identity resolution (docs/04 §5 tiers; P6: fuzzy never merges). */
+    /* step: identity resolution (docs/04 §5 tiers; P6: fuzzy never merges).
+       Cross-source rule: a fee record linked to an LMS record (lmsId /
+       'SF-'-prefixed twin id) and that LMS record share ONE canonical key, so
+       the pair resolves to one person (tier A: exact id link). */
+    function canonicalIdKey(r) {
+      var raw = r.raw;
+      if (r.kind === 'lmsStudent') return 'id:' + String(raw.id);
+      var lms = raw.lmsId || (typeof raw.id === 'string' && raw.id.indexOf('SF-') === 0 ? raw.id.slice(3) : null);
+      return 'id:' + String(lms || raw.id);
+    }
+    function rawNationalId(raw) { return String(raw.nationalId || raw.trn || '').trim(); }
+    function rawDob(raw) { return String(raw.dateOfBirth || raw.dob || '').trim(); }
     function stepResolve() {
-      var students = R.staging.filter(function (r) { return r.kind === 'student'; });
+      var students = R.staging.filter(function (r) {
+        if (r.kind === 'student') return true;
+        if (r.kind === 'lmsStudent') return !R.studentTombstones[r.raw.id]; // legacy-deleted: accounted, not imported
+        return false;
+      });
       var groups = {};       // identityKey → [records]
       var queue = [];        // tier-B human items
       var keepSeparate = []; // tier-C
       var byNationalId = {}, byNameDob = {}, byName = {};
       students.forEach(function (r) {
         var s = r.raw;
-        var nid = String(s.nationalId || '').trim();
-        var nm = normName(s.name), dob = String(s.dateOfBirth || '').trim();
+        var nid = rawNationalId(s);
+        var nm = normName(s.name), dob = rawDob(s);
         (byName[nm] = byName[nm] || []).push(r);
         if (nid) (byNationalId[nid] = byNationalId[nid] || []).push(r);
         else if (nm && dob) (byNameDob[nm + '|' + dob] = byNameDob[nm + '|' + dob] || []).push(r);
       });
       var assigned = {};     // staging path → identityKey
       // Tier A: exact record id (same id across sources IS the same record),
-      // or exact non-empty nationalId.
-      students.forEach(function (r) { assigned[r.path] = 'id:' + r.raw.id; });
+      // or exact non-empty nationalId — but an id-LINK is only trusted when
+      // the linked records' names agree (P6): a shared link joining different
+      // names is a data defect (seen in the wild: an anonymiser reused link
+      // values) and goes to the HUMAN queue, imported separately.
+      var byProposed = {};
+      students.forEach(function (r) { (byProposed[canonicalIdKey(r)] = byProposed[canonicalIdKey(r)] || []).push(r); });
+      Object.keys(byProposed).forEach(function (key) {
+        var rs = byProposed[key];
+        var names = {};
+        rs.forEach(function (r) { var n = normName(r.raw.name); if (n) names[n] = 1; });
+        if (rs.length > 1 && Object.keys(names).length > 1) {
+          rs.forEach(function (r) { assigned[r.path] = 'id:' + String(r.raw.id) + '#' + r.kind; }); // unmerged, distinct
+          queue.push({ kind: 'identity', tier: 'B', suggestion: 'shared id-link with conflicting names (' + key + ')', records: rs.map(function (r) { return { srcId: r.srcId, path: r.path, id: r.raw.id, name: r.raw.name }; }) });
+        } else {
+          rs.forEach(function (r) { assigned[r.path] = key; });
+        }
+      });
       Object.keys(byNationalId).forEach(function (nid) {
         var rs = byNationalId[nid];
         if (rs.length > 1) {
@@ -246,13 +299,15 @@
           });
           return detId('per', 'person|' + gk).then(function (personId) {
             var bio = { names: { full: best.name || '(unnamed)' } };
-            if (/^\d{4}-\d{2}-\d{2}$/.test(String(best.dateOfBirth || ''))) bio.dob = best.dateOfBirth;
-            if (best.nationalId) bio.nationalId = String(best.nationalId);
-            bio.contacts = { phone: best.contact || '', email: best.email || '', address: best.address || '', city: best.city || '' };
+            var dobV = String(best.dateOfBirth || best.dob || '');
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dobV)) bio.dob = dobV;
+            var nidV = String(best.nationalId || best.trn || '');
+            if (nidV) bio.nationalId = nidV;
+            bio.contacts = { phone: best.contact || best.phone || '', email: best.email || '', address: best.address || '', city: best.city || '' };
             return ev('person.registered', personId, bio, null, rs[0].srcId, rs[0].path).then(function () {
               // One enrolment per (person, programme) seen in the group.
               var perProg = {};
-              rs.forEach(function (r) { var pk = normName(r.raw.skillArea || 'unassigned'); (perProg[pk] = perProg[pk] || []).push(r); });
+              rs.forEach(function (r) { var pk = normName(r.raw.skillArea || r.raw.course || 'unassigned'); (perProg[pk] = perProg[pk] || []).push(r); });
               var c2 = Promise.resolve();
               Object.keys(perProg).sort().forEach(function (pk) {
                 c2 = c2.then(function () {
@@ -267,13 +322,32 @@
                       });
                   return mkProg.then(function (prog) {
                     return detId('enr', 'enrolment|' + gk + '|' + pk).then(function (enrId) {
-                      var enrolledAt = /^\d{4}-\d{2}-\d{2}/.test(String(first.raw.enrollmentDate || '')) ? String(first.raw.enrollmentDate).slice(0, 10) : '2024-04-01';
+                      var enrolDates = recs.map(function (r) { return String(r.raw.enrollmentDate || r.raw.enrolmentDate || ''); });
+                      var enrolledAt = enrolDates.filter(function (d) { return /^\d{4}-\d{2}-\d{2}/.test(d); }).map(function (d) { return d.slice(0, 10); })[0] || '2024-04-01';
                       return ev('enrolment.created', enrId, { enrolledAt: enrolledAt }, { person: personId, intake: prog.intakeId }, first.srcId, first.path)
                         .then(function () {
-                          // Charges: legacy tuitionFee is the priced amount for THIS trainee.
-                          var fee = toMinor(first.raw.tuitionFee).minor;
-                          if (fee > 0) return ev('fees.charge.assessed', enrId, { termNo: 1, amountMinor: fee }, null, first.srcId, first.path);
+                          // Charges come ONLY from fee-side records (atomic financial source).
+                          var feeRec = recs.filter(function (r) { return r.kind === 'student'; })[0];
+                          var fee = feeRec ? toMinor(feeRec.raw.tuitionFee).minor : 0;
+                          if (fee > 0) return ev('fees.charge.assessed', enrId, { termNo: 1, amountMinor: fee }, null, feeRec.srcId, feeRec.path);
                           return null; // unpriced stays unpriced (matches legacy 'needsFeeDetails')
+                        })
+                        .then(function () {
+                          // LMS presentation scalars (stage/progress/score/gpa/…): preserved
+                          // losslessly as a Tier-B roster document — semantic mapping to
+                          // enrolment lifecycle events is a later, reviewed step.
+                          var lms = recs.filter(function (r) { return r.kind === 'lmsStudent'; })
+                            .sort(function (x, y) { return String(x.raw.lastModified || '') < String(y.raw.lastModified || '') ? 1 : -1; })[0];
+                          if (!lms) return null;
+                          var f = lms.raw, diff = {};
+                          ['stage', 'progress', 'score', 'gpa', 'attendance', 'assignments', 'assignmentsTotal',
+                           'certNo', 'certDate', 'certCollected', 'instructor', 'notes', 'nqfLevel'].forEach(function (k) {
+                            if (f[k] !== undefined && f[k] !== null && f[k] !== '') diff[k] = f[k];
+                          });
+                          diff.lmsId = f.id;
+                          return detId('doc', 'roster|' + gk + '|' + pk).then(function (docId) {
+                            return ev('doc.upserted', docId, { kind: 'legacyRoster', diff: diff, reason: 'legacy import' }, null, lms.srcId, lms.path);
+                          });
                         })
                         .then(function () {
                           // Legacy stored balances are VERIFICATION FIXTURES, never data.
