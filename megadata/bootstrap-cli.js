@@ -34,7 +34,7 @@ if (!srcDir) { console.error('usage: bootstrap-cli --src <dir> [--out <dir>] [--
 // File-name → extractor kind. Every legacy source gets an entry here as its
 // extractor is implemented; anything unmatched is REPORTED (spec 6.2 step 2).
 const KIND_BY_NAME = [
-  { re: /school[_ ]?fees?.*\.json$/i, kind: 'schoolfee-pagecloud' },
+  { re: /school[-_ ]?fees?.*\.json$/i, kind: 'schoolfee-pagecloud' },
   { re: /CESTIS_School_Fees\.json$/i, kind: 'schoolfee-pagecloud' },
   { re: /school_fee_management_system\.json$/i, kind: 'schoolfee-pagecloud' },
   { re: /Transcript_Requests\.json$/i, kind: 'transcript-requests-pagecloud' },

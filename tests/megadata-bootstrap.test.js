@@ -55,18 +55,20 @@ function rawBaseline() {
   const evA = await A.get('staging', 'events'), evB = await B.get('staging', 'events');
   eq(MD.canon(evA), MD.canon(evB), 'byte-identical events, ids and hashes included');
 
-  section('Interrupt and resume converge to the same result (docs/04 §6)');
-  const C = MemoryAdapter();
-  let interrupted = false;
-  try { await BOOT.runBootstrap({ sources: [feeSrc()], adapter: C, dryRun: true, runStamp: STAMP, runId: 'imp_test-1', failAfterStep: 'resolve' }); }
-  catch (e) { interrupted = !!e.simulated; }
-  ok(interrupted, 'the run was interrupted after the resolve checkpoint');
-  const cp = await C.get('checkpoint', 'state');
-  eq(cp.step, 'resolve', 'the checkpoint recorded the completed step');
-  const repResumed = await BOOT.runBootstrap({ sources: [feeSrc()], adapter: C, dryRun: true, runStamp: STAMP, runId: 'imp_test-1' });
-  const evC = await C.get('staging', 'events');
-  eq(MD.canon(evC), MD.canon(evA), 'resumed run produced the byte-identical event set');
-  eq(repResumed.verification.financialIdentityHolds, true, 'and the financial identity still holds');
+  section('Interrupt and resume converge to the same result, at EVERY checkpoint boundary (docs/04 §6, spec §8)');
+  for (const step of ['extract', 'resolve', 'synthesize', 'verify']) {
+    const C = MemoryAdapter();
+    let interrupted = false;
+    try { await BOOT.runBootstrap({ sources: [feeSrc()], adapter: C, dryRun: true, runStamp: STAMP, runId: 'imp_test-1', failAfterStep: step }); }
+    catch (e) { interrupted = !!e.simulated; }
+    ok(interrupted, 'the run was interrupted after the ' + step + ' checkpoint');
+    const cp = await C.get('checkpoint', 'state');
+    eq(cp.step, step, 'the checkpoint recorded the completed step (' + step + ')');
+    const repResumed = await BOOT.runBootstrap({ sources: [feeSrc()], adapter: C, dryRun: true, runStamp: STAMP, runId: 'imp_test-1' });
+    const evC = await C.get('staging', 'events');
+    eq(MD.canon(evC), MD.canon(evA), 'resume after ' + step + ' produced the byte-identical event set');
+    eq(repResumed.verification.financialIdentityHolds, true, 'and the financial identity still holds after ' + step + ' resume');
+  }
 
   section('Dry-run writes no output events');
   const outEvents = await A.get('out', 'events');
