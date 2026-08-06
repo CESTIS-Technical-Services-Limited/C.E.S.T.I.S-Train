@@ -10,8 +10,8 @@ Drive deployment, or pages that are not yet bridged — it is marked **PENDING**
 honest reason, not adjusted to pass. Nothing below is a promise; every PASS quotes the
 run that produced it.
 
-**Headline:** 45 Node suites — **3,465 tests, 0 failures**. Real-browser smoke —
-**41 passed, 0 failed**. Syntax sweep — **112 JS files, 0 failures**. Bootstrap dry-run
+**Headline:** 46 Node suites — **3,503 tests, 0 failures**. Real-browser smoke —
+**57 passed, 0 failed**. Syntax sweep — **116 JS files, 0 failures**. Bootstrap dry-run
 over the real (anonymised) fee backup — financial identity **HOLDS to the cent**
 (J$1,886,000.00), chain verified, zero quarantined, zero stored-balance disagreements.
 
@@ -322,8 +322,8 @@ the property that matters ("the dataset is not duplicated") holds even if exclus
 
 | Suite | Result |
 |---|---|
-| `npm run test:syntax` — repo-wide `node --check` | 112 files, 0 failed |
-| `npm test` — 45 suites (33 legacy-behaviour + 12 MegaData) | **3,465 passed, 0 failed** |
+| `npm run test:syntax` — repo-wide `node --check` | 116 files, 0 failed |
+| `npm test` — 46 suites (33 legacy-behaviour + 13 MegaData) | **3,503 passed, 0 failed** |
 | — `megadata-schemas` (canon, ids, registry, hashBasis) | 28 passed |
 | — `megadata-broker` (gates, numbering, idempotency, chain, tamper) | 31 passed |
 | — `megadata-dal` (E2E chain, stale basis, crash/resume, two-device, D11) | 31 passed |
@@ -334,7 +334,8 @@ the property that matters ("the dataset is not duplicated") holds even if exclus
 | — `megadata-tg` (generic docsync: drift guard on four collections, soft removal/revival, object-map boundary, array-fold regression, race dedupe) | 37 passed |
 | — `megadata-cb` (cashbook D11: drift guard, edit→void+replacement chains, void/unvoid, the per-device id trap, mirror with remap + supersedes, to-the-cent comparator) | 49 passed |
 | — `megadata-ps` (staff pages: seven drift-guarded kinds, payroll decompose/recompose contract, rename semantics, cashbook hand-off, clock corrections, race dedupe) | 35 passed |
-| `npm run test:browser` — real Chromium over real pages (8 pages incl. `Staff.Payslip.html`, `Staff.Clock.in.html`; external hosts aborted — pages must run from local assets, the Centre's offline reality) | 41 passed, 0 failed |
+| — `megadata-fd` (finance docs: number preservation, issue/supersede/void, line-item array fold regression, presence three-way, mirror-in, duplicate-number report, voucher objmap) | 38 passed |
+| `npm run test:browser` — real Chromium over real pages (12 pages incl. the four finance pages; external hosts aborted — pages must run from local assets, the Centre's offline reality) | 57 passed, 0 failed |
 
 Drift guards deserve a highlight: bootstrap and the live page bridges derive entity ids
 through **separate code paths that are test-pinned byte-identical** ("Drift guard:

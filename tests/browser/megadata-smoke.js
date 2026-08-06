@@ -158,6 +158,30 @@ function serve() {
     await page.close();
   }
 
+  for (const fin of [
+    { file: 'Finance.Invoice.html', page: 'Finance.Invoice' },
+    { file: 'Finance.Quote.html', page: 'Finance.Quote' },
+    { file: 'Finance.Purchase.Order.html', page: 'Finance.Purchase.Order' }
+  ]) {
+    section(fin.page + ' loads clean with the findoc bridge stack');
+    const { page, pageErrors } = await openPage(fin.file);
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.fdPlan && MegaData.findocReconcile && window.FinanceDoc)), 'findoc model + legacy engine registered');
+    ok(await page.evaluate(p => window.__cestisShim && window.__cestisShim.page === p, fin.page), 'shim carries the page identity');
+    ok(await page.evaluate(() => typeof window.__fdTick === 'undefined'), 'bridge stays dormant in legacy mode');
+    await page.close();
+  }
+
+  section('Finance.Payment.Voucher loads clean with the docsync stack');
+  {
+    const { page, pageErrors } = await openPage('Finance.Payment.Voucher.html');
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.docSyncPlan)), 'docsync registered');
+    ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'Finance.Payment.Voucher'), 'shim carries the page identity');
+    ok(await page.evaluate(() => typeof window.__voucherTick === 'undefined'), 'sync stays dormant in legacy mode');
+    await page.close();
+  }
+
   section('MegaData-Admin: the device-setup page loads clean and does its three jobs');
   {
     const { page, pageErrors } = await openPage('MegaData-Admin.html');

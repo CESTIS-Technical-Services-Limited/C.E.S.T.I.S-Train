@@ -63,7 +63,9 @@
         case 'findoc.superseded': {
           var d2 = evt.payload.diff || {};
           e.fields.doc = Object.assign({}, e.fields.doc);
-          Object.keys(d2).forEach(function (f) { e.fields.doc[f] = Array.isArray(d2[f]) ? d2[f][1] : d2[f]; });
+          // Plain values — arrays are DATA (invoice line items). Same fix as
+          // doc.upserted: the [old,new] pair convention truncated them.
+          Object.keys(d2).forEach(function (f) { e.fields.doc[f] = d2[f]; });
           (e.fields.revisions = e.fields.revisions || []).push({ by: evt.id, reason: evt.payload.reason });
           break;
         }

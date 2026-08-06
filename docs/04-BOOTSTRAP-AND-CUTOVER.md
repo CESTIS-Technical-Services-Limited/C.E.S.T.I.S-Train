@@ -192,6 +192,20 @@ Time-correction semantic elevation (`time.corrected`) stays a named deferred ste
 `tests/megadata-ps.test.js` covers all seven drift guards, the decompose/recompose contract,
 rename, the cashbook hand-off, cross-device clock corrections, and the same-edit race.
 
+**Finance documents (implemented and tested, dormant until sealed):** invoice / quote /
+purchase-order pages (one shared `FinanceDoc` engine → one glue) bridge as Tier-A findocs —
+`findoc.issued` with the page-minted number PRESERVED (broker numbering takes over only at the
+enforced stage), edits as `findoc.superseded` diffs (canonical comparison, so line-item ARRAYS
+diff and fold correctly — the same [old,new] fold bug fixed for doc.upserted was found and
+fixed in the findoc fold too), deletions as `findoc.voided` via presence three-way; canonical
+voids remove stale local copies, never resurrect. Mirror-in reconstructs the FULL legacy record
+from the event's `doc` payload. **Duplicate numbers** (each device seeds its own series, and
+deleting the newest doc frees its number) are REPORTED by `window.__findocReconcile()` for
+human review — never auto-renumbered. The Payment-Voucher page syncs only its overrides map
+(docsync objmap, keys pinned to the bootstrap extractor; map key rides as `__k` — bootstrap-born
+overrides sync one-way until first touched locally, noted not hidden). Payments.Invoices is a
+read-only view and needs no bridge. `tests/megadata-fd.test.js` covers all of it.
+
 - **Window**: one full **term boundary** — from before a term's charges are assessed, through
   its payment-heavy opening weeks — plus ordinary weeks, minimum 4 calendar weeks total.
   Concretely: start the shadow ≥1 week before the next term's fee window opens; do not exit
