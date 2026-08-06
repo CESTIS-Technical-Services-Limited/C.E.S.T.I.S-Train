@@ -1,0 +1,105 @@
+/* MegaData — real-browser smoke suite (run manually / CI with a browser):
+     node tests/browser/megadata-smoke.js
+   Validates what Node cannot: the glue modules parse and boot inside real
+   pages, the enforcement shim installs, mode resolution lands on 'legacy'
+   with no broker configured, the legacy page still renders, and the
+   IndexedDB adapter's atomic accept survives a real page reload.
+   Uses the environment's Chromium (PLAYWRIGHT_BROWSERS_PATH) via
+   playwright-core; kept OUT of the default npm test chain because it needs
+   a browser. */
+'use strict';
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const { chromium } = require('playwright-core');
+
+const ROOT = path.join(__dirname, '..', '..');
+const EXE = process.env.CESTIS_CHROME || '/opt/pw-browsers/chromium';
+let passed = 0, failed = 0;
+function ok(cond, msg) { if (cond) passed++; else { failed++; console.log('  ✗ FAIL: ' + msg); } }
+function section(t) { console.log(t); }
+
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png' };
+function serve() {
+  return new Promise((resolve) => {
+    const srv = http.createServer((req, res) => {
+      const p = decodeURIComponent(req.url.split('?')[0]);
+      const file = path.normalize(path.join(ROOT, p === '/' ? 'index.html' : p));
+      if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('nope'); }
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
+      fs.createReadStream(file).pipe(res);
+    });
+    srv.listen(0, '127.0.0.1', () => resolve(srv));
+  });
+}
+
+(async function main() {
+  const srv = await serve();
+  const base = 'http://127.0.0.1:' + srv.address().port;
+  const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
+
+  async function openPage(rel) {
+    const page = await browser.newPage();
+    const pageErrors = [], consoleErrors = [];
+    page.on('pageerror', e => pageErrors.push(String(e.message)));
+    page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
+    await page.goto(base + '/' + rel, { waitUntil: 'load' });
+    await page.waitForTimeout(1200); // whenReady + async pageBoot
+    return { page, pageErrors, consoleErrors };
+  }
+
+  section('Cert-Transcript-Requests loads clean with the MegaData stack');
+  {
+    const { page, pageErrors } = await openPage('Cert-Transcript-Requests.html');
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | '));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.pageBoot && MegaData.createDAL && MegaData.ctrFromDocs)), 'all MegaData modules registered');
+    ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.mode === 'report'), 'enforcement shim installed in report mode');
+    ok(await page.evaluate(() => String(window.load).indexOf('CESTISStore.getItem') !== -1), 'no broker configured → the page kept its LEGACY data layer');
+    ok(await page.evaluate(() => document.querySelectorAll('#crRows td').length > 0), 'the legacy page rendered its table');
+    ok(await page.evaluate(() => (window.__cestisShim.violations || []).every(v => v.api !== 'storage' || v.key.indexOf('voctrain_') === 0 || v.key.indexOf('cesti') === 0)),
+      'shim telemetry contains only legacy-key accesses (allowlist sane)');
+    await page.close();
+  }
+
+  section('Student-Progress loads clean with the bridge stack');
+  {
+    const { page, pageErrors } = await openPage('Student-Progress.html');
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | '));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.identityIds && MegaData.rosterDrifted)), 'roster model registered');
+    ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'Student-Progress'), 'shim carries the page identity');
+    ok(await page.evaluate(() => typeof window.__spBridge === 'undefined'), 'bridge stays dormant in legacy mode');
+    await page.close();
+  }
+
+  section('IndexedDB adapter: an accepted write survives a REAL page reload');
+  {
+    const { page } = await openPage('Cert-Transcript-Requests.html');
+    const first = await page.evaluate(async () => {
+      await new Promise(r => { const q = indexedDB.deleteDatabase('SMOKE_DB'); q.onsuccess = q.onerror = q.onblocked = r; });
+      const stub = { append: async () => ({ ok: true, acks: {}, errors: {}, head: { seq: 0, chain: 'genesis' } }), pull: async () => ({ events: [], head: { seq: 0, chain: 'genesis' } }) };
+      const dal = await MegaData.createDAL({ adapter: MegaData.IdbAdapter('SMOKE_DB'), broker: stub, source: 'smoke', actor: { name: 'Smoke', role: 'admin', device: 'dev_smoke' } });
+      const r = await dal.registerPerson({ names: { full: 'Reload Survivor' } });
+      return { accepted: r.accepted, personId: r.personId, unsynced: dal.head().unsynced };
+    });
+    ok(first.accepted && first.unsynced === 1, 'write accepted into the real IndexedDB outbox');
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForTimeout(800);
+    const second = await page.evaluate(async (personId) => {
+      const stub = { append: async () => ({ ok: true, acks: {}, errors: {}, head: { seq: 0, chain: 'genesis' } }), pull: async () => ({ events: [], head: { seq: 0, chain: 'genesis' } }) };
+      const dal = await MegaData.createDAL({ adapter: MegaData.IdbAdapter('SMOKE_DB'), broker: stub, source: 'smoke', actor: { name: 'Smoke', role: 'admin', device: 'dev_smoke' } });
+      const p = dal.get('person', personId);
+      const out = { unsynced: dal.head().unsynced, name: p && p.fields.names.full };
+      await new Promise(r => { const q = indexedDB.deleteDatabase('SMOKE_DB'); q.onsuccess = q.onerror = q.onblocked = r; });
+      return out;
+    }, first.personId);
+    ok(second.unsynced === 1, 'the outbox survived the reload (acknowledged-write contract, for real)');
+    ok(second.name === 'Reload Survivor', 'the entity folded back from the real IndexedDB replica');
+    await page.close();
+  }
+
+  await browser.close();
+  srv.close();
+  console.log('');
+  console.log(passed + ' passed, ' + failed + ' failed');
+  if (failed) process.exitCode = 1;
+})().catch(e => { console.error(e); process.exitCode = 1; });
