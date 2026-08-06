@@ -168,6 +168,44 @@ function rawBaseline() {
   ok(repA.quarantine.some(q => /attendance row without/.test(q.reason)) && repA.quarantine.some(q => /exam result without id/.test(q.reason)), 'invalid academic rows quarantined, not dropped');
   ok(repA.verification.brokerAccepted === repA.events.count && repA.verification.chainVerified, 'all academic documents pass the broker gates');
 
+  section('LMS main backup: every collection imports; id-less records quarantine');
+  const lmsBackup = { id: 'test:lmsb', kind: 'lms-backup', name: 'lmsb', json: { data: {
+    userAccounts: [{ id: 'USR-1', username: 'admin1', role: 'admin', password: 'pbkdf2$1$s$h' }, { role: 'ghost' }],
+    exams: [{ id: 'EX-1', title: 'Welding Final' }],
+    announcements: [{ id: 'ANN-1', text: 'Term starts' }],
+    chatMessages: { 'chat-admin': [{ id: 'msg-1', text: 'hello' }, { text: 'no id' }] },
+    studentProfiles: { L1: { email: 'x@example.invalid' } },
+    systemSettings: { institutionName: 'CESTIS' },
+    students: [{ id: 'L1', name: 'Backup Person', course: 'WELDING L2' }],
+    attendanceRecords: [{ studentId: 'L1', date: '2026-03-02', days: { Mon: 'present' } }]
+  } } };
+  const repL = await BOOT.runBootstrap({ sources: [lmsBackup], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_test-5' });
+  eq(repL.inventory.totals.lmsDocs, 6, 'six collection documents staged (account, exam, announcement, chat message, profile, settings)');
+  eq(repL.events.byType['doc.upserted'], 8, 'plus the roster document and the attendance row → 8 documents');
+  eq(repL.events.byType['person.registered'], 1, 'the backup roster feeds the same identity pipeline');
+  const lreasons = repL.quarantine.map(q => q.reason).join(' | ');
+  ok(/account record without id/.test(lreasons), 'the id-less account is quarantined, not dropped');
+  ok(/chat message without id/.test(lreasons), 'the id-less chat message is quarantined, not dropped');
+  ok(repL.verification.brokerAccepted === repL.events.count && repL.verification.chainVerified, 'everything passes the broker gates');
+
+  section('Master snapshot: all extractors run over the store; every key is accounted');
+  const snap = { id: 'test:snap', kind: 'master-snapshot', name: 'snap', json: { store: {
+    cestiSchoolFeeStudents: JSON.stringify([{ id: 'SF-Z1', name: 'Snap Person', skillArea: 'WELDING L2', tuitionFee: 10 }]),
+    cestiSchoolFeePayments: '[]', cestiFeeStructure: '{}',
+    cestiSchoolFeeDeletedPaymentIds: '[]', cestiSchoolFeeDeletedLmsIds: '[]',
+    voctrain_users: JSON.stringify([{ id: 'USR-9', username: 'snapadmin', role: 'admin' }]),
+    'cestis_quarter_2025/2026_Q3': '{}',
+    weird_legacy_key: '1',
+    schoolDashboardGoogleAccessToken: 'tok-should-be-ignored'
+  } } };
+  const repS = await BOOT.runBootstrap({ sources: [snap], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_test-6' });
+  eq(repS.events.byType['person.registered'], 1, 'the fee student imports from the snapshot store');
+  ok(repS.events.byType['doc.upserted'] >= 1, 'the account collection imports through the alias name');
+  const sreasons = repS.quarantine.map(q => q.reason + '@' + q.path).join(' | ');
+  ok(/deferred: finance.*cestis_quarter_/.test(sreasons), 'the cashbook quarter key is ACCOUNTED as deferred, not silently skipped');
+  ok(/not yet mapped@weird_legacy_key/.test(sreasons), 'an unknown key is loudly reported');
+  ok(!/AccessToken/.test(sreasons), 'per-machine token keys are deliberately excluded, not noise');
+
   console.log('');
   console.log(passed + ' passed, ' + failed + ' failed');
   if (failed) process.exitCode = 1;

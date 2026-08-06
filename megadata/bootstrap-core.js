@@ -34,6 +34,39 @@
     return MD.sha256Hex('mega-bootstrap|' + key).then(function (h) { return prefix + '_m' + h.slice(0, 20); });
   }
 
+  var LMS_COLLECTIONS = [
+    { names: ['userAccounts', 'voctrain_users'], kind: 'account', mode: 'array', idOf: function (r) { return r.id || r.username; } },
+    { names: ['exams', 'voctrain_exams'], kind: 'exam', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['announcements', 'voctrain_announcements'], kind: 'announcement', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['calendarEvents', 'voctrain_calendarEvents'], kind: 'calendarEvent', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['classSessions', 'voctrain_classSessions'], kind: 'classSession', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['adminMeetings', 'voctrain_adminMeetings'], kind: 'adminMeeting', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['instructorAssignments', 'voctrain_assignments'], kind: 'assignment', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['assignmentSubmissions', 'voctrain_submissions'], kind: 'submission', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['instructorResources', 'voctrain_resources'], kind: 'resource', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['driveResources', 'voctrain_driveResources'], kind: 'driveResource', mode: 'array', idOf: function (r) { return r.id || r.fileId; } },
+    { names: ['supportMessages', 'voctrain_support_messages'], kind: 'supportMessage', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['notifications', 'voctrain_notifications'], kind: 'notification', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['vcSessions', 'voctrain_vcSessions'], kind: 'vcSession', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['certDownloadApprovals', 'voctrain_certDownloadApprovals'], kind: 'certApproval', mode: 'array', idOf: function (r) { return r.id || (r.studentId && 'CDA-' + r.studentId); } },
+    { names: ['adrTasks', 'voctrain_adrTasks'], kind: 'adrTask', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['instructorData', 'voctrain_instructorData'], kind: 'instructorRecord', mode: 'array', idOf: function (r) { return r.id || r.name; } },
+    { names: ['skillAreas', 'voctrain_skillAreas'], kind: 'skillArea', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['documentHubFiles', 'voctrain_documentHubFiles'], kind: 'docHubFile', mode: 'array', idOf: function (r) { return r.id || r.fileId; } },
+    { names: ['chatRooms', 'voctrain_chatRooms'], kind: 'chatRoom', mode: 'array', idOf: function (r) { return r.id; } },
+    { names: ['chatMessages', 'voctrain_chatMessages'], kind: 'chatMessage', mode: 'msgmap' },
+    { names: ['chatProfiles', 'voctrain_chatProfiles'], kind: 'chatProfile', mode: 'objmap' },
+    { names: ['chatFollows', 'voctrain_chatFollows'], kind: 'chatFollow', mode: 'objmap' },
+    { names: ['studentProfiles', 'voctrain_studentProfiles'], kind: 'studentProfile', mode: 'objmap' },
+    { names: ['instructorProfiles', 'voctrain_instructorProfiles'], kind: 'instructorProfile', mode: 'objmap' },
+    { names: ['certTemplates', 'voctrain_certTemplates'], kind: 'certTemplate', mode: 'objmap' },
+    { names: ['systemSettings', 'voctrain_systemSettings'], kind: 'systemSettings', mode: 'single' },
+    { names: ['certTemplateCourseMap', 'voctrain_certTemplateCourseMap'], kind: 'certTemplateCourseMap', mode: 'single' },
+    { names: ['adminStaffAccessSettings', 'voctrain_adminStaffAccess'], kind: 'adminStaffAccess', mode: 'single' },
+    { names: ['adrStaffMeta', 'voctrain_adrStaffMeta'], kind: 'adrStaffMeta', mode: 'single' },
+    { names: ['staffAppraisals', 'cestisStaffAppraisals'], kind: 'appraisalStore', mode: 'single' }
+  ];
+
   /* ---------- extractors ---------- */
   var EXTRACTORS = {
     // The live page-cloud payload: { version, page, file, savedAt, stamps, data:{key→rawString} }
@@ -118,6 +151,97 @@
         out.staging.push({ srcId: src.id, path: 'voctrain_transcriptProfiles[' + JSON.stringify(sid) + ']', kind: 'tgProfile', raw: { studentId: sid, profile: profiles[sid] } });
       });
     },
+    // The LMS main backup (CESTIS_LMS_BACKUP.json data map) and, via the
+    // master-snapshot translator, the voctrain_* store keys. Every collection
+    // imports losslessly as Tier-B documents with deterministic keys; array
+    // records without an id quarantine. Modes: array | objmap (key→record) |
+    // msgmap (roomId→[messages]) | single (one document).
+    'lms-backup': function (src, out) {
+      var data = (src.json && src.json.data) || {};
+      function val(names) {
+        for (var i = 0; i < names.length; i++) {
+          var v = data[names[i]];
+          if (v == null) continue;
+          if (typeof v !== 'string') return { v: v, name: names[i] };
+          try { return { v: JSON.parse(v), name: names[i] }; } catch (e) {
+            out.quarantine.push({ srcId: src.id, path: names[i], reason: 'unparseable JSON: ' + e.message });
+            return null;
+          }
+        }
+        return null;
+      }
+      LMS_COLLECTIONS.forEach(function (spec) {
+        var got = val(spec.names);
+        if (!got) return;
+        var v = got.v, name = got.name;
+        function stage(docKey, raw, path) {
+          out.staging.push({ srcId: src.id, path: path, kind: 'tierbDoc', raw: { docKind: spec.kind, docKey: spec.kind + '|' + docKey, fields: raw } });
+        }
+        if (spec.mode === 'single') {
+          if (v && typeof v === 'object') stage('singleton', v, name);
+        } else if (spec.mode === 'array') {
+          (Array.isArray(v) ? v : []).forEach(function (r, i) {
+            var id = r && spec.idOf(r);
+            if (!id) { out.quarantine.push({ srcId: src.id, path: name + '[' + i + ']', reason: spec.kind + ' record without id' }); return; }
+            stage(String(id), r, name + '[' + i + ']');
+          });
+        } else if (spec.mode === 'objmap') {
+          Object.keys(v || {}).forEach(function (k) {
+            var raw = v[k];
+            stage(String(k), (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : { value: raw }, name + '[' + JSON.stringify(k) + ']');
+          });
+        } else if (spec.mode === 'msgmap') {
+          Object.keys(v || {}).forEach(function (roomId) {
+            (Array.isArray(v[roomId]) ? v[roomId] : []).forEach(function (m, i) {
+              var id = m && m.id;
+              if (!id) { out.quarantine.push({ srcId: src.id, path: name + '[' + JSON.stringify(roomId) + '][' + i + ']', reason: 'chat message without id' }); return; }
+              stage(String(id), Object.assign({ roomId: roomId }, m), name + '[' + JSON.stringify(roomId) + '][' + i + ']');
+            });
+          });
+        }
+      });
+      // The backup's students/attendance/examResults ride the SP extractor
+      // shapes so identity unification applies unchanged.
+      EXTRACTORS['student-progress-pagecloud']({ id: src.id, json: { data: {
+        voctrain_students: data.students || data.voctrain_students,
+        voctrain_deletedStudentIds: data.deletedStudentIds || data.voctrain_deletedStudentIds || [],
+        voctrain_attendance: data.attendanceRecords || data.voctrain_attendance,
+        voctrain_examResults: data.examResults || data.voctrain_examResults
+      } } }, out);
+    },
+    // cestis-master-snapshot.json: { schemaVersion, counts, checksum,
+    // store: { storageKey → rawString } }. Translate the store into a data
+    // map, run every implemented extractor over it, and ACCOUNT for every
+    // key: claimed, deliberately excluded, deferred, or not-yet-mapped.
+    'master-snapshot': function (src, out) {
+      var store = (src.json && src.json.store) || {};
+      var translated = { id: src.id, json: { data: store } };
+      EXTRACTORS['schoolfee-pagecloud'](translated, out);
+      EXTRACTORS['student-progress-pagecloud'](translated, out);
+      EXTRACTORS['transcript-requests-pagecloud'](translated, out);
+      EXTRACTORS['transcript-grades-pagecloud'](translated, out);
+      EXTRACTORS['lms-backup'](translated, out);
+      var claimed = {
+        cestiSchoolFeeStudents: 1, cestiSchoolFeePayments: 1, cestiFeeStructure: 1,
+        cestiSchoolFeeDeletedPaymentIds: 1, cestiSchoolFeeDeletedLmsIds: 1, cestiSchoolFeeDocuments: 1,
+        voctrain_students: 1, voctrain_deletedStudentIds: 1, voctrain_attendance: 1,
+        voctrain_examResults: 1, voctrain_certTranscriptRequests: 1, voctrain_transcriptGrades: 1,
+        voctrain_unitCatalogs: 1, voctrain_transcriptProfiles: 1
+      };
+      LMS_COLLECTIONS.forEach(function (spec) { spec.names.forEach(function (n) { claimed[n] = 1; }); });
+      var EXCLUDE = /token|session|cloudfileid|lastsync|darkmode|pagecloud_stamps|examinprogress|dataversion|maintenancemode|autosync/i;
+      Object.keys(store).forEach(function (k) {
+        if (claimed[k]) return;
+        if (EXCLUDE.test(k)) return;                                   // per-machine state, deliberately not imported
+        if (k.indexOf('voctrain_attendance::') === 0 || k === 'voctrain_attendance_quartered') return; // mirror of voctrain_attendance
+        if (k.indexOf('voctrain_user_') === 0) return;                 // per-user copies of already-claimed collections
+        var note = (k.indexOf('cestis_quarter_') === 0 || k.indexOf('cestis_budget') === 0 || k.indexOf('cesti_virement') === 0 ||
+                    k.indexOf('cestis_finance_') === 0 || k === 'cesti_cashbook_data' || k === 'cestisPayroll' ||
+                    k === 'cestisStaffMembers' || k === 'cestisTimeRecords' || k === 'cestiUsers' || k === 'dashboardUsers')
+          ? 'deferred: finance/staff extractor not yet implemented' : 'snapshot key not yet mapped';
+        out.quarantine.push({ srcId: src.id, path: k, reason: note });
+      });
+    },
     // The Cert/Transcript-Requests page-cloud payload → Tier-B documents.
     'transcript-requests-pagecloud': function (src, out) {
       var data = (src.json && src.json.data) || {};
@@ -195,6 +319,7 @@
           transcriptGrades: R.staging.filter(function (r) { return r.kind === 'tgGrade'; }).length,
           unitCatalogs: R.staging.filter(function (r) { return r.kind === 'unitCatalog'; }).length,
           transcriptProfiles: R.staging.filter(function (r) { return r.kind === 'tgProfile'; }).length,
+          lmsDocs: R.staging.filter(function (r) { return r.kind === 'tierbDoc'; }).length,
           quarantined: R.quarantine.length
         };
         return adapter.put('staging', 'all', R.staging)
@@ -450,6 +575,19 @@
         { staging: 'unitCatalog', kind: 'unitCatalog', key: function (r) { return 'qual|' + r.id; } },
         { staging: 'tgProfile', kind: 'transcriptProfile', key: function (r) { return 'tgprofile|' + r.studentId; } }
       ];
+      chain = chain.then(function () {
+        var c6 = Promise.resolve();
+        R.staging.filter(function (r) { return r.kind === 'tierbDoc'; }).forEach(function (r) {
+          c6 = c6.then(function () {
+            return detId('doc', r.raw.docKey).then(function (docId) {
+              var diff = {};
+              Object.keys(r.raw.fields).forEach(function (k) { if (r.raw.fields[k] !== undefined && r.raw.fields[k] !== null) diff[k] = r.raw.fields[k]; });
+              return ev('doc.upserted', docId, { kind: r.raw.docKind, diff: diff, reason: 'legacy import' }, null, r.srcId, r.path);
+            });
+          });
+        });
+        return c6;
+      });
       TIERB.forEach(function (spec) {
         chain = chain.then(function () {
           var c5 = Promise.resolve();

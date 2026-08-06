@@ -37,7 +37,8 @@ only mutual exclusion this stack can honestly provide. Two mechanical gates back
 | `CESTIS_Student_Progress.json` (LMS roster + tombstones + attendance + exam results) | same | **implemented + tested** (`student-progress-pagecloud`; cross-source identity unification with the fee roll via corroborated id-links — a link joining conflicting names is a human-queue item, never a merge) |
 | `CESTIS_Transcript_Requests.json` | same | **implemented + tested** (`transcript-requests-pagecloud`) |
 | `CESTIS_Transcript_Grades.json` (manual grades, unit catalogues, transcript profiles) | same | **implemented + tested** (`transcript-grades-pagecloud`; lossless Tier-B documents, semantic elevation deferred to a reviewed step) |
-| `CESTIS_LMS_BACKUP.json`, `cestis-master-snapshot.json` | same | next (with the index.html refactor) |
+| `CESTIS_LMS_BACKUP.json` (accounts, exams, announcements, calendar, chat, approvals, settings, 30+ collections) | same | **implemented + tested** (`lms-backup`; every collection a lossless Tier-B document; roster/attendance/exam-results feed the shared identity pipeline) |
+| `cestis-master-snapshot.json` + offline `CESTIS_ALL_DATA.json` | same | **implemented + tested** (`master-snapshot`: translates the store and runs every implemented extractor; every remaining key is ACCOUNTED — claimed, per-machine-excluded, deferred-to-finance-extractor, or loudly not-yet-mapped) |
 | Cashbook/virement/voucher/payslip/clock/transcript page-cloud files (10 more) | same | next (with each page's refactor) |
 | Browser-local stores on each staff machine | **in-app "Export local stores" button** (one click per staff browser, uploads a hashed bundle to a staging folder) — built with the page-refactor step; a CLI cannot read IndexedDB | next |
 | `Offline System/data/` folders, if any Centre ran offline | operator copies the folder into `--src` | same extractors (identical file shapes) |

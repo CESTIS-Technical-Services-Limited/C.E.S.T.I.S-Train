@@ -39,7 +39,11 @@ const KIND_BY_NAME = [
   { re: /school_fee_management_system\.json$/i, kind: 'schoolfee-pagecloud' },
   { re: /Transcript_Requests\.json$/i, kind: 'transcript-requests-pagecloud' },
   { re: /Student_Progress\.json$/i, kind: 'student-progress-pagecloud' },
-  { re: /Transcript_Grades\.json$/i, kind: 'transcript-grades-pagecloud' }
+  { re: /Transcript_Grades\.json$/i, kind: 'transcript-grades-pagecloud' },
+  { re: /CESTIS_LMS_BACKUP\.json$/i, kind: 'lms-backup' },
+  { re: /CESTIS_LMS_Dashboard\.json$/i, kind: 'lms-backup' },
+  { re: /master-snapshot\.json$/i, kind: 'master-snapshot' },
+  { re: /CESTIS_ALL_DATA\.json$/i, kind: 'master-snapshot' }
 ];
 
 const sources = [], unmatched = [];
