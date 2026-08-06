@@ -140,6 +140,34 @@ function rawBaseline() {
   eq(repU.verification.storedBalanceDisagreements, 0, 'the unified ledger still matches the stored balance (100 − 30 = 70)');
   eq(repU.verification.financialIdentityHolds, true, 'and the financial identity holds across both sources');
 
+  section('Academic coverage: attendance, exam results, grades, catalogues, profiles import losslessly');
+  const acadSp = { id: 'test:sp2', kind: 'student-progress-pagecloud', name: 'sp2', json: { data: {
+    voctrain_students: JSON.stringify([{ id: 'L9', name: 'Acad Person', course: 'WELDING L2' }]),
+    voctrain_deletedStudentIds: '[]',
+    voctrain_attendance: JSON.stringify([
+      { studentId: 'L9', studentName: 'Acad Person', course: 'WELDING L2', date: '2026-03-02', days: { Mon: 'present', Tue: 'late' } },
+      { studentName: 'No Ids Row' }
+    ]),
+    voctrain_examResults: JSON.stringify([
+      { id: 'RES-1', examId: 'EX-1', studentId: 'L9', score: 78, passed: true },
+      { examId: 'EX-2' }
+    ])
+  } } };
+  const acadTg = { id: 'test:tg1', kind: 'transcript-grades-pagecloud', name: 'tg1', json: { data: {
+    voctrain_transcriptGrades: JSON.stringify([{ id: 'TG-1', studentId: 'L9', qualId: 'QUAL-1', unitCode: 'U101', grade: 85, date: '02/03/2026', source: 'manual' }]),
+    voctrain_unitCatalogs: JSON.stringify([{ id: 'QUAL-1', title: 'Welding L2', units: [{ code: 'U101', name: 'Safety' }] }]),
+    voctrain_transcriptProfiles: JSON.stringify({ L9: { dob: '2002-03-04', address: '1 Test Lane', idNo: 'X1' } })
+  } } };
+  const repA = await BOOT.runBootstrap({ sources: [acadSp, acadTg], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_test-4' });
+  eq(repA.inventory.totals.attendanceRows, 1, 'one valid attendance row staged');
+  eq(repA.inventory.totals.examResults, 1, 'one valid exam result staged');
+  eq(repA.inventory.totals.transcriptGrades, 1, 'the manual grade staged');
+  eq(repA.inventory.totals.unitCatalogs, 1, 'the unit catalogue staged');
+  eq(repA.inventory.totals.transcriptProfiles, 1, 'the transcript profile staged');
+  eq(repA.events.byType['doc.upserted'], 6, 'roster + attendance + exam + grade + catalogue + profile documents (6)');
+  ok(repA.quarantine.some(q => /attendance row without/.test(q.reason)) && repA.quarantine.some(q => /exam result without id/.test(q.reason)), 'invalid academic rows quarantined, not dropped');
+  ok(repA.verification.brokerAccepted === repA.events.count && repA.verification.chainVerified, 'all academic documents pass the broker gates');
+
   console.log('');
   console.log(passed + ' passed, ' + failed + ' failed');
   if (failed) process.exitCode = 1;

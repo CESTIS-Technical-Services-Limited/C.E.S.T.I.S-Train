@@ -82,7 +82,41 @@
         if (!s2 || typeof s2 !== 'object' || !s2.id) { out.quarantine.push({ srcId: src.id, path: 'voctrain_students[' + i + ']', reason: 'student record without id' }); return; }
         out.staging.push({ srcId: src.id, path: 'voctrain_students[' + i + ']', kind: 'lmsStudent', raw: s2 });
       });
+      (parse('voctrain_attendance') || []).forEach(function (a2, i) {
+        if (!a2 || typeof a2 !== 'object' || !a2.studentId || !a2.date) { out.quarantine.push({ srcId: src.id, path: 'voctrain_attendance[' + i + ']', reason: 'attendance row without studentId/date' }); return; }
+        out.staging.push({ srcId: src.id, path: 'voctrain_attendance[' + i + ']', kind: 'legacyAttendance', raw: a2 });
+      });
+      (parse('voctrain_examResults') || []).forEach(function (e2, i) {
+        if (!e2 || typeof e2 !== 'object' || !e2.id) { out.quarantine.push({ srcId: src.id, path: 'voctrain_examResults[' + i + ']', reason: 'exam result without id' }); return; }
+        out.staging.push({ srcId: src.id, path: 'voctrain_examResults[' + i + ']', kind: 'legacyExamResult', raw: e2 });
+      });
       out.staging.push({ srcId: src.id, path: 'lms-tombstones', kind: 'tombstones', raw: { deletedStudentIds: parse('voctrain_deletedStudentIds') || [] } });
+    },
+    // The Transcript-Grades page-cloud payload: manual grades, unit
+    // catalogues, transcript bio profiles — lossless Tier-B documents.
+    'transcript-grades-pagecloud': function (src, out) {
+      var data = (src.json && src.json.data) || {};
+      function parse(key) {
+        var v = data[key];
+        if (v == null) return null;
+        if (typeof v !== 'string') return v;
+        try { return JSON.parse(v); } catch (e) {
+          out.quarantine.push({ srcId: src.id, path: key, reason: 'unparseable JSON: ' + e.message });
+          return null;
+        }
+      }
+      (parse('voctrain_transcriptGrades') || []).forEach(function (g, i) {
+        if (!g || typeof g !== 'object' || !g.id) { out.quarantine.push({ srcId: src.id, path: 'voctrain_transcriptGrades[' + i + ']', reason: 'grade without id' }); return; }
+        out.staging.push({ srcId: src.id, path: 'voctrain_transcriptGrades[' + i + ']', kind: 'tgGrade', raw: g });
+      });
+      (parse('voctrain_unitCatalogs') || []).forEach(function (u, i) {
+        if (!u || typeof u !== 'object' || !u.id) { out.quarantine.push({ srcId: src.id, path: 'voctrain_unitCatalogs[' + i + ']', reason: 'unit catalogue without id' }); return; }
+        out.staging.push({ srcId: src.id, path: 'voctrain_unitCatalogs[' + i + ']', kind: 'unitCatalog', raw: u });
+      });
+      var profiles = parse('voctrain_transcriptProfiles') || {};
+      Object.keys(profiles).forEach(function (sid) {
+        out.staging.push({ srcId: src.id, path: 'voctrain_transcriptProfiles[' + JSON.stringify(sid) + ']', kind: 'tgProfile', raw: { studentId: sid, profile: profiles[sid] } });
+      });
     },
     // The Cert/Transcript-Requests page-cloud payload → Tier-B documents.
     'transcript-requests-pagecloud': function (src, out) {
@@ -156,6 +190,11 @@
           payments: R.staging.filter(function (r) { return r.kind === 'payment' && !tomb[r.raw.id]; }).length,
           tombstonedPayments: Object.keys(tomb).length,
           paymentsTotalMinor: totalMinor, floatPrecisionNotes: imprecise,
+          attendanceRows: R.staging.filter(function (r) { return r.kind === 'legacyAttendance'; }).length,
+          examResults: R.staging.filter(function (r) { return r.kind === 'legacyExamResult'; }).length,
+          transcriptGrades: R.staging.filter(function (r) { return r.kind === 'tgGrade'; }).length,
+          unitCatalogs: R.staging.filter(function (r) { return r.kind === 'unitCatalog'; }).length,
+          transcriptProfiles: R.staging.filter(function (r) { return r.kind === 'tgProfile'; }).length,
           quarantined: R.quarantine.length
         };
         return adapter.put('staging', 'all', R.staging)
@@ -399,6 +438,32 @@
           });
         });
         return c4;
+      });
+
+      // Generic Tier-B documents: lossless imports with deterministic entity
+      // ids; semantic elevation (attendance.marked / assessment events) is a
+      // later, reviewed step — same posture as the roster scalars.
+      var TIERB = [
+        { staging: 'legacyAttendance', kind: 'legacyAttendance', key: function (r) { return 'att|' + r.studentId + '|' + r.date + '|' + (r.course || ''); } },
+        { staging: 'legacyExamResult', kind: 'legacyExamResult', key: function (r) { return 'examres|' + r.id; } },
+        { staging: 'tgGrade', kind: 'transcriptGrade', key: function (r) { return 'tg|' + r.id; } },
+        { staging: 'unitCatalog', kind: 'unitCatalog', key: function (r) { return 'qual|' + r.id; } },
+        { staging: 'tgProfile', kind: 'transcriptProfile', key: function (r) { return 'tgprofile|' + r.studentId; } }
+      ];
+      TIERB.forEach(function (spec) {
+        chain = chain.then(function () {
+          var c5 = Promise.resolve();
+          R.staging.filter(function (r) { return r.kind === spec.staging; }).forEach(function (r) {
+            c5 = c5.then(function () {
+              return detId('doc', spec.key(r.raw)).then(function (docId) {
+                var diff = {};
+                Object.keys(r.raw).forEach(function (k) { if (r.raw[k] !== undefined && r.raw[k] !== null) diff[k] = r.raw[k]; });
+                return ev('doc.upserted', docId, { kind: spec.kind, diff: diff, reason: 'legacy import' }, null, r.srcId, r.path);
+              });
+            });
+          });
+          return c5;
+        });
       });
 
       return chain.then(function () {
