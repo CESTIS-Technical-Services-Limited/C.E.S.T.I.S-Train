@@ -71,6 +71,17 @@ function serve() {
     await page.close();
   }
 
+  section('School.Fee loads clean with the money-bearing bridge stack');
+  {
+    const { page, pageErrors } = await openPage('School.Fee.html');
+    await page.waitForTimeout(1800); // heavy page: seeds + charts + auto-admin init
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.feeBridgeAll && MegaData.reconcileFees)), 'fee bridge model registered');
+    ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'School.Fee'), 'shim carries the page identity');
+    ok(await page.evaluate(() => typeof window.__feeReconcile === 'undefined'), 'bridge and comparator stay dormant in legacy mode');
+    await page.close();
+  }
+
   section('IndexedDB adapter: an accepted write survives a REAL page reload');
   {
     const { page } = await openPage('Cert-Transcript-Requests.html');

@@ -96,6 +96,7 @@
           l.entries.push({
             eventId: evt.id, seq: evt.seq, kind: 'payment', amountMinor: evt.payload.amountMinor,
             date: evt.payload.date, method: evt.payload.method,
+            reference: evt.payload.reference || null, legacyReceiptNo: evt.payload.legacyReceiptNo || null,
             receiptNo: (evt.assigned && evt.assigned.receiptNo) || evt.payload.receiptNo || null,
             pendingNumber: !(evt.assigned && evt.assigned.receiptNo) && !evt.payload.receiptNo,
             reversedBy: rev, device: evt.actor && evt.actor.device || null

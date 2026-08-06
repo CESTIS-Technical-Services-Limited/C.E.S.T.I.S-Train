@@ -418,9 +418,9 @@
             if (m.minor <= 0) { R.quarantinedPaymentsMinor += m.minor; R.quarantine.push({ srcId: r.srcId, path: r.path, reason: 'non-positive payment amount' }); return null; }
             var date = /^\d{4}-\d{2}-\d{2}/.test(String(r.raw.date || '')) ? String(r.raw.date).slice(0, 10) : runStamp.slice(0, 10);
             var method = { cash: 'cash', cheque: 'cheque', 'bank transfer': 'transfer', transfer: 'transfer', card: 'card' }[String(r.raw.method || '').toLowerCase()] || 'other';
-            return ev('fees.payment.recorded', stu._enrId,
-              { amountMinor: m.minor, method: method, date: date, reference: String(r.raw.receiptNumber || '') },
-              null, r.srcId, r.path);
+            var pp = { amountMinor: m.minor, method: method, date: date, reference: 'legacy:' + String(r.raw.id) };
+            if (r.raw.receiptNumber) pp.legacyReceiptNo = String(r.raw.receiptNumber);
+            return ev('fees.payment.recorded', stu._enrId, pp, null, r.srcId, r.path);
           });
         });
         return c3;

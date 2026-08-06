@@ -145,7 +145,7 @@
     // --- fees (P4) ---
     'fees.schedule.set':      { entity: 'feeSchedule', creates: true, refs: { intake: 'intake' }, payload: { totalMinor: { t: 'minor', required: true }, terms: { t: 'array', required: true, min: 1, items: { no: { t: 'int', required: true }, amountMinor: { t: 'minor', required: true }, dueDate: { t: 'date' } } } } },
     'fees.charge.assessed':   { entity: 'enrolment', payload: { termNo: { t: 'int', required: true }, amountMinor: { t: 'minor', required: true, positive: true }, dueDate: { t: 'date' } } },
-    'fees.payment.recorded':  { entity: 'enrolment', needsNumber: 'receipt', payload: { amountMinor: { t: 'minor', required: true, positive: true }, method: { t: 'enum', values: ['cash', 'cheque', 'transfer', 'card', 'other'], required: true }, date: { t: 'date', required: true }, reference: { t: 'string' }, receiptNo: { t: 'string' } } },
+    'fees.payment.recorded':  { entity: 'enrolment', needsNumber: 'receipt', payload: { amountMinor: { t: 'minor', required: true, positive: true }, method: { t: 'enum', values: ['cash', 'cheque', 'transfer', 'card', 'other'], required: true }, date: { t: 'date', required: true }, reference: { t: 'string' }, receiptNo: { t: 'string' }, legacyReceiptNo: { t: 'string' } } },
     'fees.payment.reversed':  { entity: 'enrolment', payload: { paymentEventId: { t: 'eventId', required: true }, reason: { t: 'string', required: true, nonEmpty: true } } },
     'fees.adjustment.applied':{ entity: 'enrolment', payload: { amountMinor: { t: 'minor', required: true }, kind: { t: 'enum', values: ['waiver', 'discount', 'writeoff', 'correction'], required: true }, reason: { t: 'string', required: true, nonEmpty: true } } },
     // --- cashbook / finance ---
