@@ -36,7 +36,8 @@ if (!srcDir) { console.error('usage: bootstrap-cli --src <dir> [--out <dir>] [--
 const KIND_BY_NAME = [
   { re: /school[_ ]?fees?.*\.json$/i, kind: 'schoolfee-pagecloud' },
   { re: /CESTIS_School_Fees\.json$/i, kind: 'schoolfee-pagecloud' },
-  { re: /school_fee_management_system\.json$/i, kind: 'schoolfee-pagecloud' }
+  { re: /school_fee_management_system\.json$/i, kind: 'schoolfee-pagecloud' },
+  { re: /Transcript_Requests\.json$/i, kind: 'transcript-requests-pagecloud' }
 ];
 
 const sources = [], unmatched = [];

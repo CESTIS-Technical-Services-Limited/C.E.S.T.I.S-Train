@@ -12,7 +12,7 @@
 (function (root, factory) {
   var deps;
   if (typeof module !== 'undefined' && module.exports) {
-    deps = { MD: require('./schemas.js'), BR: require('./broker-core.js'), P: require('./projections.js') };
+    deps = { MD: require('./schemas.js'), BR: require('./broker-core.js'), P: require('./projections.js'), CTR: require('./pages/ctr-model.js') };
     module.exports = factory(deps);
   } else {
     deps = { MD: root.MegaData, BR: root.MegaData, P: root.MegaData };
@@ -20,7 +20,7 @@
   }
 })(typeof window !== 'undefined' ? window : globalThis, function (deps) {
   'use strict';
-  var MD = deps.MD, BR = deps.BR, P = deps.P;
+  var MD = deps.MD, BR = deps.BR, P = deps.P, CTR = deps.CTR || deps.MD;
   var TRANSFORM_V = 1;
   var ACTOR = { name: 'Legacy migration', role: 'system', device: 'cli' };
 
@@ -65,6 +65,20 @@
         out.staging.push({ srcId: src.id, path: 'cestiFeeStructure[' + JSON.stringify(name) + ']', kind: 'feeStructure', raw: { name: name, entry: feeStructure[name] } });
       });
       out.staging.push({ srcId: src.id, path: 'tombstones', kind: 'tombstones', raw: { deletedPaymentIds: delPay, deletedStudentIds: delStu } });
+    },
+    // The Cert/Transcript-Requests page-cloud payload → Tier-B documents.
+    'transcript-requests-pagecloud': function (src, out) {
+      var data = (src.json && src.json.data) || {};
+      var v = data.voctrain_certTranscriptRequests;
+      var arr = null;
+      if (v != null) {
+        if (typeof v !== 'string') arr = v;
+        else { try { arr = JSON.parse(v); } catch (e) { out.quarantine.push({ srcId: src.id, path: 'voctrain_certTranscriptRequests', reason: 'unparseable JSON: ' + e.message }); } }
+      }
+      (arr || []).forEach(function (r, i) {
+        if (!r || typeof r !== 'object' || !r.id) { out.quarantine.push({ srcId: src.id, path: 'voctrain_certTranscriptRequests[' + i + ']', reason: 'request record without id' }); return; }
+        out.staging.push({ srcId: src.id, path: 'voctrain_certTranscriptRequests[' + i + ']', kind: 'ctrRequest', raw: r });
+      });
     }
   };
 
@@ -297,6 +311,20 @@
           });
         });
         return c3;
+      });
+
+      // Tier-B documents: cert/transcript requests (deterministic entity ids
+      // shared with the live page's shadow bridge, so both converge).
+      chain = chain.then(function () {
+        var c4 = Promise.resolve();
+        R.staging.filter(function (r) { return r.kind === 'ctrRequest'; }).forEach(function (r) {
+          c4 = c4.then(function () {
+            return CTR.ctrEntityId(r.raw.id).then(function (docId) {
+              return ev('doc.upserted', docId, { kind: CTR.CTR_KIND, diff: CTR.ctrToDocDiff(r.raw), reason: 'legacy import' }, null, r.srcId, r.path);
+            });
+          });
+        });
+        return c4;
       });
 
       return chain.then(function () {
