@@ -1,11 +1,17 @@
-/* MegaData — School-Fee bridge integration (stage 1; browser-only).
-   Legacy-primary: the fee page's own CRUD keeps writing its keys exactly as
-   today. In shadow mode this bridge turns those keys into REAL ledger events
-   (charges, payments, supersessions, reversals) and exposes the shadow
-   comparator: window.__feeReconcile() prints per-trainee drift, both sides
-   recomputed from atoms (docs/04 §8). Stage 2 (recordPayment as a DAL
-   command with a broker receipt number, balance rendered from the fold)
-   follows once the shadow comparator has run clean. */
+/* MegaData — School-Fee bridge integration (stages 1 + 2; browser-only).
+   Stage 1 (legacy-primary): the page's own CRUD keeps writing its keys; the
+   bridge turns those keys into REAL ledger events (charges, payments,
+   supersessions, reversals); window.__feeReconcile() is the docs/04 §8
+   shadow comparator, both sides recomputed from atoms.
+   Stage 2 (shadow mode): every payment action flows into the record book
+   IMMEDIATELY — the page's recordPayment/savePaymentEdit/deletePayment are
+   wrapped so the bridge + sync run right after the legacy write; the broker
+   issues the receipt number, which is backfilled into the legacy record the
+   page renders (a clerk-entered legacy number is never overwritten);
+   payments pulled from other devices are mirrored INTO the legacy store
+   with fold-derived totals so every unrefactored consumer sees them; and
+   window.__feeBalance(studentId) answers from the fold, never a stored
+   number. The legacy UI stays byte-identical — only the data flow is new. */
 (function () {
   'use strict';
   if (typeof window === 'undefined') return;
@@ -37,7 +43,7 @@
       page: PAGE,
       actor: { name: 'School Fee', role: 'admin', device: 'dev_browser' },
       allow: ALLOW,
-      onChange: function () { bridge(); }
+      onChange: function () { if (window.__feeShadowTick) window.__feeShadowTick(); else bridge(); }
     }).then(function (BOOT) {
       if (BOOT.mode === 'legacy') {
         if (BOOT.reason) console.info('[MegaData] ' + PAGE + ' legacy mode: ' + BOOT.reason);
@@ -69,7 +75,70 @@
       };
       window.__feeBridge = bridge;
 
+      /* ---- stage 2: canonical → legacy (numbers back, other-device mirror) ---- */
+      function applyMirrorAndBackfill() {
+        var legacy = legacySnapshot();
+        return MG.feeReceiptBackfill(dal, legacy).then(function (fills) {
+          return MG.feeLegacyMirror(dal, legacy).then(function (mir) {
+            if (!fills.length && !mir.payments.length && !mir.totals.length) return false;
+            var pays = readJson('cestiSchoolFeePayments', []);
+            var byId = {}; pays.forEach(function (p) { if (p && p.id) byId[p.id] = p; });
+            fills.forEach(function (f) { var p = byId[f.payId]; if (p && !p.receiptNumber) p.receiptNumber = f.receiptNo; });
+            mir.payments.forEach(function (p) { if (!byId[p.id]) { pays.push(p); byId[p.id] = p; } });
+            var studs = readJson('cestiSchoolFeeStudents', []);
+            var sBy = {}; studs.forEach(function (s) { if (s && s.id) sBy[s.id] = s; });
+            mir.totals.forEach(function (t) {
+              var s = sBy[t.studentId]; if (!s) return;
+              s.totalPaid = t.totalPaid; s.balance = t.balance;
+              if (typeof window.feePaymentStatus === 'function') { try { s.status = window.feePaymentStatus(s); } catch (e) {} }
+            });
+            window.CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(pays));
+            window.CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(studs));
+            // The page's own loader + renderers, so its in-memory arrays follow.
+            if (typeof window.loadData === 'function') { try { window.loadData(); } catch (e) {} }
+            ['renderPaymentsTable', 'renderStudentsTable'].forEach(function (fn) {
+              if (typeof window[fn] === 'function') { try { window[fn](); } catch (e) {} }
+            });
+            console.info('[MegaData] stage 2 applied: ' + fills.length + ' receipt number(s) backfilled, '
+              + mir.payments.length + ' payment(s) mirrored, ' + mir.totals.length + ' total(s) refreshed from the fold');
+            return true;
+          });
+        });
+      }
+
+      // Serialised stage-2 tick: legacy write → events → broker numbers → back.
+      var tick = Promise.resolve();
+      function shadowTick() {
+        tick = tick.then(function () {
+          return MG.feeBridgeAll(dal, legacySnapshot())
+            .then(function () { return dal.sync.now().catch(function (e) { console.info('[MegaData] sync deferred: ' + e.message); }); })
+            .then(function () { return applyMirrorAndBackfill(); })
+            .catch(function (e) { console.warn('[MegaData] stage-2 tick: ' + e.message); });
+        });
+        return tick;
+      }
+
+      // Wrap the page's payment actions — the legacy function runs UNCHANGED
+      // (all its validation, dialogs and rendering), then the tick makes the
+      // record book primary for what it just did.
+      ['recordPayment', 'savePaymentEdit', 'deletePayment'].forEach(function (fn) {
+        var orig = window[fn];
+        if (typeof orig !== 'function') return;
+        window[fn] = function () {
+          var r = orig.apply(this, arguments);
+          shadowTick();
+          return r;
+        };
+      });
+
+      // Balance answered from the fold, never a stored number (stage-2 read path).
+      window.__feeBalance = function (studentId) {
+        return MG.feeBalancesFromFold(dal, legacySnapshot()).then(function (map) { return studentId ? map[studentId] || null : map; });
+      };
+      window.__feeShadowTick = shadowTick;
+
       bridge();
+      shadowTick();
       window.addEventListener('storage', function (e) {
         if (e.key && (e.key.indexOf('cestiSchoolFee') === 0 || e.key === 'cestiFeeStructure')) bridge();
       });

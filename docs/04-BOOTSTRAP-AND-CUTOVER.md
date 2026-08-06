@@ -126,6 +126,17 @@ and the fee ledger only** into the legacy keys while MegaData is primary. The ni
 recomputes both sides *from atomic records* and reports per-trainee balances to the cent plus
 bidirectional entity-id set differences; each report is an immutable dated file.
 
+**Stage-2 machinery (implemented and tested, dormant until sealed):** in shadow mode the fee
+page's payment actions are wrapped so every legacy write becomes ledger events and syncs
+immediately; the **broker issues the receipt number** and it is backfilled into the blank legacy
+receipt field (a clerk-entered number is never overwritten — the broker also never renumbers a
+payment that carries a preserved legacy number); payments pulled from other devices are
+**mirrored into the legacy store** (original legacy ids; deterministic `MG-` ids for
+mega-native ones, which the bridge refuses to re-import) with stored totals refreshed from the
+fold; `window.__feeBalance()` answers from the fold. `tests/megadata-fee.test.js` covers the
+number round-trip, the two-device mirror, mirror idempotence and the fold-vs-lying-stored-balance
+case.
+
 - **Window**: one full **term boundary** — from before a term's charges are assessed, through
   its payment-heavy opening weeks — plus ordinary weeks, minimum 4 calendar weeks total.
   Concretely: start the shadow ≥1 week before the next term's fee window opens; do not exit

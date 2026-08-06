@@ -105,6 +105,7 @@
         var pays = paymentsByStudent[rec.id] || [];
         return pays.reduce(function (pr, p) {
           return pr.then(function () {
+            if (String(p.id).indexOf('MG-') === 0) return null;        // a MegaData mirror — the event already exists
             var minor = toMinor(p.amount);
             if (minor <= 0) return null;                               // bootstrap-quarantine class; not bridged
             var ledger = dal.getLedger(ids.enrolmentId);
@@ -179,5 +180,105 @@
     });
   }
 
-  return { feeIdentityKey: feeIdentityKey, feePartition: feePartition, feeBridgeAll: feeBridgeAll, feeBridgeOne: feeBridgeOne, reconcileFees: reconcileFees, _feeToMinor: toMinor };
+  /* ---------- stage 2: DAL-primary payment flow over the legacy UI ---------- */
+
+  // One resolved identity per legacy student — the shared walk backfill,
+  // mirror and fold-balances all reuse.
+  function feeIdentityMap(students) {
+    var part = feePartition(students);
+    return part.safe.reduce(function (pr, item) {
+      return pr.then(function (list) {
+        return MG.identityIds(item.key, item.rec.skillArea).then(function (ids) {
+          list.push({ rec: item.rec, key: item.key, ids: ids }); return list;
+        });
+      });
+    }, Promise.resolve([])).then(function (list) { return { list: list, skipped: part.skipped }; });
+  }
+
+  /* Broker-issued receipt numbers → the legacy records the page renders.
+     Only fills BLANK legacy receipt fields from the canonical entry's
+     assigned number; a legacy number is never overwritten (the broker never
+     assigned over one either). Returns mutations; the caller applies them. */
+  function feeReceiptBackfill(dal, legacy) {
+    var deleted = {};
+    (legacy.deletedPaymentIds || []).forEach(function (id) { deleted[id] = 1; });
+    var fills = [];
+    return feeIdentityMap(legacy.students).then(function (m) {
+      var paysBy = {};
+      (legacy.payments || []).forEach(function (p) { if (p && p.id && p.studentId && !deleted[p.id]) (paysBy[p.studentId] = paysBy[p.studentId] || []).push(p); });
+      m.list.forEach(function (item) {
+        var pays = paysBy[item.rec.id] || [];
+        if (!pays.length) return;
+        var ledger = dal.getLedger(item.ids.enrolmentId);
+        pays.forEach(function (p) {
+          if (p.receiptNumber) return;
+          var live = null;
+          if (String(p.id).indexOf('MG-') === 0) {                     // a mirror: join by event id, not legacy reference
+            (ledger.entries || []).forEach(function (e) {
+              if (e.kind === 'payment' && !e.reversedBy &&
+                  (p.megaEventId ? e.eventId === p.megaEventId : 'MG-' + String(e.eventId).replace(/^evt_/, '').slice(0, 16) === p.id)) live = e;
+            });
+          } else {
+            live = ledgerPaymentByRef(ledger, p.id).live;
+          }
+          if (live && live.receiptNo) fills.push({ payId: p.id, studentId: item.rec.id, receiptNo: live.receiptNo });
+        });
+      });
+      return fills;
+    });
+  }
+
+  /* Canonical → legacy mirror for unrefactored consumers (docs/02 §14):
+     live ledger payments that have no legacy record yet become legacy
+     records (a device pulling another device's payment shows it without
+     waiting for the legacy page-cloud), and stored derived totals are
+     refreshed FROM THE FOLD. Mega-native payments (no legacy reference) get
+     deterministic 'MG-<event id>' record ids so every device mirrors them
+     identically; the bridge skips that prefix so a mirror can never
+     re-import as a fresh event. Returns mutations; the caller applies. */
+  function feeLegacyMirror(dal, legacy) {
+    var known = {};
+    (legacy.payments || []).forEach(function (p) { if (p && p.id) known[p.id] = 1; });
+    (legacy.deletedPaymentIds || []).forEach(function (id) { known[id] = 1; }); // deliberately deleted: never resurrect
+    return feeIdentityMap(legacy.students).then(function (m) {
+      var newPays = [], totals = [];
+      m.list.forEach(function (item) {
+        var ledger = dal.getLedger(item.ids.enrolmentId);
+        (ledger.entries || []).forEach(function (e) {
+          if (e.kind !== 'payment' || e.reversedBy) return;
+          var legacyId = e.reference && e.reference.indexOf('legacy:') === 0 ? e.reference.slice(7) : 'MG-' + String(e.eventId).replace(/^evt_/, '').slice(0, 16);
+          if (known[legacyId]) return;
+          known[legacyId] = 1;
+          newPays.push({
+            id: legacyId, studentId: item.rec.id, studentName: item.rec.name || '', skillArea: item.rec.skillArea || '',
+            amount: e.amountMinor / 100, date: e.date, method: e.method || 'other', term: '',
+            receiptNumber: e.receiptNo || e.legacyReceiptNo || '', notes: 'Mirrored from MegaData',
+            createdAt: (e.date || '2024-04-01') + 'T00:00:00.000Z', megaEventId: e.eventId
+          });
+        });
+        var totalPaid = ledger.paidMinor / 100;
+        var balance = (Number(item.rec.tuitionFee) || 0) - totalPaid;   // the legacy page's own formula
+        if (Number(item.rec.totalPaid) !== totalPaid || Number(item.rec.balance) !== balance) {
+          totals.push({ studentId: item.rec.id, totalPaid: totalPaid, balance: balance });
+        }
+      });
+      return { payments: newPays, totals: totals };
+    });
+  }
+
+  /* Balance rendered from the fold — the stage-2 read path. Per legacy
+     student id, straight off the ledger fold, never a stored number. */
+  function feeBalancesFromFold(dal, legacy) {
+    return feeIdentityMap(legacy.students).then(function (m) {
+      var out = {};
+      m.list.forEach(function (item) {
+        var l = dal.getLedger(item.ids.enrolmentId);
+        out[item.rec.id] = { enrolmentId: item.ids.enrolmentId, chargedMinor: l.chargedMinor, adjustedMinor: l.adjustedMinor, paidMinor: l.paidMinor, balanceMinor: l.balanceMinor, status: l.status };
+      });
+      return out;
+    });
+  }
+
+  return { feeIdentityKey: feeIdentityKey, feePartition: feePartition, feeBridgeAll: feeBridgeAll, feeBridgeOne: feeBridgeOne, reconcileFees: reconcileFees,
+    feeIdentityMap: feeIdentityMap, feeReceiptBackfill: feeReceiptBackfill, feeLegacyMirror: feeLegacyMirror, feeBalancesFromFold: feeBalancesFromFold, _feeToMinor: toMinor };
 });

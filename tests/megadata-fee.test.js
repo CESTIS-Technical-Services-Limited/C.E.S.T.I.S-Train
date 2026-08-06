@@ -109,6 +109,104 @@ async function freshDal(broker, dev) {
   ok(C.get('person', cid1.personId) && C.get('person', cid2.personId) && cid1.personId !== cid2.personId,
     'two DISTINCT people exist — never merged, matching the bootstrap split keys');
 
+  section('Stage 2: the broker issues the receipt number; it lands back on the legacy record');
+  {
+    const bk = createBroker();
+    const D1 = await freshDal(bk, 'S2a');
+    const stu2 = [{ id: 'SF-N1', lmsId: 'N1', name: 'Number Case', skillArea: 'WELDING L2', tuitionFee: 300, totalPaid: 0, balance: 300 }];
+    const pays2 = [
+      { id: 'PN1', studentId: 'SF-N1', amount: 100, date: '2026-03-01', method: 'cash', receiptNumber: '' },
+      { id: 'PN2', studentId: 'SF-N1', amount: 50, date: '2026-03-02', method: 'cash', receiptNumber: 'BOOK-0042' }
+    ];
+    await FM.feeBridgeAll(D1, legacyOf(stu2, pays2));
+    const nIds = await RM.identityIds(FM.feeIdentityKey(stu2[0]), 'WELDING L2');
+    let ledger = D1.getLedger(nIds.enrolmentId);
+    ok(ledger.entries.filter(e => e.kind === 'payment' && e.pendingNumber).length === 1,
+      'before sync: only the number-less payment is pending a number');
+    eq(await FM.feeReceiptBackfill(D1, legacyOf(stu2, pays2)), [], 'nothing to backfill before the broker has spoken');
+    await D1.sync.now();
+    ledger = D1.getLedger(nIds.enrolmentId);
+    const pn1 = ledger.entries.find(e => e.reference === 'legacy:PN1');
+    const pn2 = ledger.entries.find(e => e.reference === 'legacy:PN2');
+    ok(/^R-\d{6}$/.test(pn1.receiptNo), 'the blank one got a broker receipt number (' + pn1.receiptNo + ')');
+    ok(pn2.receiptNo === null && pn2.legacyReceiptNo === 'BOOK-0042' && !pn2.pendingNumber,
+      'the clerk-numbered one is NOT renumbered — history keeps the number on the paper receipt');
+    const fills = await FM.feeReceiptBackfill(D1, legacyOf(stu2, pays2));
+    eq(fills.length, 1, 'backfill returns exactly the blank record');
+    eq(fills[0].payId, 'PN1', 'targeting the right payment');
+    eq(fills[0].receiptNo, pn1.receiptNo, 'with the broker number');
+    pays2[0].receiptNumber = fills[0].receiptNo;                      // the page applies it
+    eq(await FM.feeReceiptBackfill(D1, legacyOf(stu2, pays2)), [], 'applied once, backfill goes quiet');
+    await FM.feeBridgeAll(D1, legacyOf(stu2, pays2));
+    eq(D1.getLedger(nIds.enrolmentId).entries.filter(e => e.kind === 'payment').length, 2,
+      'the backfilled number does NOT read as a legacy edit — no new events');
+    ok((await FM.reconcileFees(D1, legacyOf(stu2, pays2))).ok, 'comparator: zero drift with numbers flowing');
+  }
+
+  section('Stage 2: a payment recorded on one device is MIRRORED into the other device\'s legacy store');
+  {
+    const bk = createBroker();
+    const DA = await freshDal(bk, 'S2b');
+    const DB = await freshDal(bk, 'S2c');
+    const stuA = [{ id: 'SF-M1', lmsId: 'M1', name: 'Mirror Case', skillArea: 'COSMETOLOGY L2', tuitionFee: 400, totalPaid: 0, balance: 400 }];
+    const paysA = [{ id: 'PM1', studentId: 'SF-M1', amount: 150, date: '2026-03-05', method: 'transfer', receiptNumber: '' }];
+    await FM.feeBridgeAll(DA, legacyOf(stuA, paysA));
+    await DA.sync.now();
+    // Device B has the trainee roll (page-cloud synced students) but the
+    // payment never reached its legacy store.
+    const stuB = JSON.parse(JSON.stringify(stuA));
+    const paysB = [];
+    await FM.feeBridgeAll(DB, legacyOf(stuB, paysB));
+    await DB.sync.now();
+    const mir = await FM.feeLegacyMirror(DB, legacyOf(stuB, paysB));
+    eq(mir.payments.length, 1, "the pulled payment appears in B's mirror list");
+    eq(mir.payments[0].id, 'PM1', 'under its ORIGINAL legacy id (page-cloud will dedupe, not duplicate)');
+    eq(mir.payments[0].amount, 150, 'with the right amount');
+    ok(/^R-\d{6}$/.test(mir.payments[0].receiptNumber), 'carrying the broker receipt number');
+    eq(mir.totals, [{ studentId: 'SF-M1', totalPaid: 150, balance: 250 }], 'and the stored totals refresh FROM THE FOLD');
+    paysB.push(mir.payments[0]);
+    stuB[0].totalPaid = 150; stuB[0].balance = 250;
+    ok((await FM.reconcileFees(DB, legacyOf(stuB, paysB))).ok, 'after applying the mirror, B reconciles to zero drift');
+    const mir2 = await FM.feeLegacyMirror(DB, legacyOf(stuB, paysB));
+    eq(mir2.payments.length + mir2.totals.length, 0, 'the mirror is idempotent — a second pass changes nothing');
+  }
+
+  section('Stage 2: a mega-native payment mirrors deterministically and is never re-imported');
+  {
+    const bk = createBroker();
+    const DM = await freshDal(bk, 'S2d');
+    const stuM = [{ id: 'SF-G1', lmsId: 'G1', name: 'Native Case', skillArea: 'WELDING L2', tuitionFee: 500, totalPaid: 0, balance: 500 }];
+    await FM.feeBridgeAll(DM, legacyOf(stuM, []));
+    const gIds = await RM.identityIds(FM.feeIdentityKey(stuM[0]), 'WELDING L2');
+    await DM.recordPayment(gIds.enrolmentId, { amountMinor: 12000, method: 'card', date: '2026-03-10' });
+    await DM.sync.now();
+    const mir = await FM.feeLegacyMirror(DM, legacyOf(stuM, []));
+    eq(mir.payments.length, 1, 'the DAL-native payment appears in the mirror');
+    ok(/^MG-/.test(mir.payments[0].id), 'under a deterministic MG- record id (every device derives the same one)');
+    ok(/^R-\d{6}$/.test(mir.payments[0].receiptNumber), 'with its broker receipt number');
+    const paysM = [mir.payments[0]];
+    stuM[0].totalPaid = 120; stuM[0].balance = 380;
+    const before = DM.getLedger(gIds.enrolmentId).entries.filter(e => e.kind === 'payment').length;
+    await FM.feeBridgeAll(DM, legacyOf(stuM, paysM));
+    eq(DM.getLedger(gIds.enrolmentId).entries.filter(e => e.kind === 'payment').length, before,
+      'the bridge SKIPS MG- mirrors — a mirror can never become a duplicate event');
+    ok((await FM.reconcileFees(DM, legacyOf(stuM, paysM))).ok, 'and the comparator holds at zero drift');
+  }
+
+  section('Stage 2: balances answered from the fold, never a stored number');
+  {
+    const bk = createBroker();
+    const DF = await freshDal(bk, 'S2e');
+    // The stored balance LIES (the original disease) — the fold does not.
+    const stuF = [{ id: 'SF-F1', lmsId: 'F1', name: 'Fold Case', skillArea: 'WELDING L2', tuitionFee: 250, totalPaid: 0, balance: 999 }];
+    const paysF = [{ id: 'PF1', studentId: 'SF-F1', amount: 75, date: '2026-03-08', method: 'cash', receiptNumber: '' }];
+    await FM.feeBridgeAll(DF, legacyOf(stuF, paysF));
+    const map = await FM.feeBalancesFromFold(DF, legacyOf(stuF, paysF));
+    eq(map['SF-F1'].balanceMinor, 17500, 'fold balance: 250.00 − 75.00, ignoring the lying stored 999');
+    eq(map['SF-F1'].paidMinor, 7500, 'fold paid matches the atomic record');
+    eq(map['SF-F1'].status, 'partial', 'status derived from the fold');
+  }
+
   console.log('');
   console.log(passed + ' passed, ' + failed + ' failed');
   if (failed) process.exitCode = 1;

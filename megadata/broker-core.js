@@ -163,9 +163,13 @@
     var series;
     if (reg.needsNumber === 'findoc') series = evt.payload.kind;   // invoice/quote/po/voucher
     else series = reg.needsNumber;                                  // receipt/cert
-    // Legacy imports carry their own numbers — never renumber history.
+    // Legacy imports carry their own numbers — never renumber history. For
+    // receipts that includes the PRESERVED legacy number (legacyReceiptNo,
+    // the field bootstrap and the fee bridge write): the number on the paper
+    // receipt a parent holds stays the payment's number for good.
     var presentField = series === 'receipt' ? 'receiptNo' : series === 'cert' ? 'certNo' : 'number';
     if (evt.payload && evt.payload[presentField]) return null;
+    if (series === 'receipt' && evt.payload && evt.payload.legacyReceiptNo) return null;
     state.series[series] = (state.series[series] || 0) + 1;
     var num = SERIES_PREFIX[series] + pad6(state.series[series]);
     var field = series === 'receipt' ? 'receiptNo' : series === 'cert' ? 'certNo' : 'number';

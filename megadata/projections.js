@@ -98,7 +98,7 @@
             date: evt.payload.date, method: evt.payload.method,
             reference: evt.payload.reference || null, legacyReceiptNo: evt.payload.legacyReceiptNo || null,
             receiptNo: (evt.assigned && evt.assigned.receiptNo) || evt.payload.receiptNo || null,
-            pendingNumber: !(evt.assigned && evt.assigned.receiptNo) && !evt.payload.receiptNo,
+            pendingNumber: !(evt.assigned && evt.assigned.receiptNo) && !evt.payload.receiptNo && !evt.payload.legacyReceiptNo,
             reversedBy: rev, device: evt.actor && evt.actor.device || null
           });
           break;
