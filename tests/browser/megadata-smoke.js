@@ -40,6 +40,13 @@ function serve() {
 
   async function openPage(rel) {
     const page = await browser.newPage();
+    // The sandbox black-holes external hosts (fonts, CDN fallbacks, Google
+    // auth), which would stall the 'load' event forever. Abort them: every
+    // page must work from local assets alone — which is also the offline
+    // reality the Centre actually runs in.
+    await page.route('**/*', route => {
+      route.request().url().startsWith(base) ? route.continue() : route.abort();
+    });
     const pageErrors = [], consoleErrors = [];
     page.on('pageerror', e => pageErrors.push(String(e.message)));
     page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
@@ -117,6 +124,17 @@ function serve() {
     ok(await page.evaluate(() => typeof window.__tgTick === 'undefined'), 'docsync stays dormant in legacy mode');
     ok(await page.evaluate(() => typeof window.writeJSON === 'function' && String(window.writeJSON).indexOf('CESTISStore.setItem') !== -1),
       'no broker configured → the page kept its LEGACY writeJSON unwrapped');
+    await page.close();
+  }
+
+  section('CESTIS.Cashbook loads clean with the D11 bridge stack');
+  {
+    const { page, pageErrors } = await openPage('CESTIS.Cashbook.html');
+    await page.waitForTimeout(1200); // heavy page: charts + recon views
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.cbPlanQuarter && MegaData.cbReconcile && MegaData.cbAmount)), 'cashbook bridge + shared resolver registered');
+    ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'CESTIS.Cashbook'), 'shim carries the page identity');
+    ok(await page.evaluate(() => typeof window.__cbTick === 'undefined'), 'bridge stays dormant in legacy mode');
     await page.close();
   }
 

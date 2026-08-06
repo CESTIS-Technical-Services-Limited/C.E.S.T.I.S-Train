@@ -12,15 +12,16 @@
 (function (root, factory) {
   var deps;
   if (typeof module !== 'undefined' && module.exports) {
-    deps = { MD: require('./schemas.js'), BR: require('./broker-core.js'), P: require('./projections.js'), CTR: require('./pages/ctr-model.js') };
+    deps = { MD: require('./schemas.js'), BR: require('./broker-core.js'), P: require('./projections.js'), CTR: require('./pages/ctr-model.js'), CBS: require('./cashbook-shared.js') };
     module.exports = factory(deps);
   } else {
-    deps = { MD: root.MegaData, BR: root.MegaData, P: root.MegaData };
+    deps = { MD: root.MegaData, BR: root.MegaData, P: root.MegaData, CBS: root.MegaData };
     root.MegaData = Object.assign(root.MegaData || {}, factory(deps));
   }
 })(typeof window !== 'undefined' ? window : globalThis, function (deps) {
   'use strict';
   var MD = deps.MD, BR = deps.BR, P = deps.P, CTR = deps.CTR || deps.MD;
+  var cbAmount = (deps.CBS || deps.MD).cbAmount; // the ONE cashbook resolver (cashbook-shared.js)
   var TRANSFORM_V = 1;
   var ACTOR = { name: 'Legacy migration', role: 'system', device: 'cli' };
 
@@ -32,20 +33,6 @@
   }
   function detId(prefix, key) {
     return MD.sha256Hex('mega-bootstrap|' + key).then(function (h) { return prefix + '_m' + h.slice(0, 20); });
-  }
-
-  // One resolver used by BOTH inventory and synthesis, so the cashbook
-  // financial identity holds by construction. Voided cheques resolve to their
-  // _orig* values (the entry imports, then a voided event supersedes it).
-  function cbAmount(txn) {
-    var voided = String(txn.category || '') === 'Cancelled' && (txn._origPayment != null || txn._origDeposit != null || txn._origCategory != null);
-    var dep = toMinor(voided && txn._origDeposit != null ? txn._origDeposit : txn.deposit).minor;
-    var pay = toMinor(voided && txn._origPayment != null ? txn._origPayment : txn.payment).minor;
-    var category = voided ? (txn._origCategory || txn.category) : txn.category;
-    var payee = voided ? (txn._origDetails || txn.details) : txn.details;
-    if (dep > 0 && pay > 0) return { klass: 'ambiguous' };
-    if (dep === 0 && pay === 0) return { klass: String(txn.category || '') === 'Cancelled' ? 'cancelled-zero' : 'zero' };
-    return { klass: dep > 0 ? 'income' : 'expense', amountMinor: dep > 0 ? dep : pay, category: String(category || 'Uncategorised'), payee: String(payee || ''), voided: voided };
   }
 
   var LMS_COLLECTIONS = [

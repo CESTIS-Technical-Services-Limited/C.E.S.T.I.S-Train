@@ -160,6 +160,24 @@ re-remove another device's deliberate revival. One wrap point (`writeJSON`).
 `tests/megadata-tg.test.js` covers all of it, including the profiles object-map boundary and
 the array-field fold regression.
 
+**Cashbook (implemented and tested, dormant until sealed; D11 — its own book):** Tier-A money
+through `cashbook-model` — entries immutable, an in-place legacy edit becomes VOID + chained
+replacement (linked by `supersedes`), a deletion a void with its reason, a cheque void
+`cashbook.cheque.voided`, an UNVOID a replacement (the void event is permanent history). The
+amount/class resolver moved to `megadata/cashbook-shared.js` so bootstrap and the live bridge
+share one implementation by construction. **The per-device integer-id trap is defused**: legacy
+txn ids are small per-device integers, so two devices can mint the same id for different money —
+bridge-born entries get CONTENT-hashed entity ids, legacy txns are stamped with `megaId` as the
+stable join, and mirrored-in txns are remapped on collision. `window.__cbReconcile()` compares
+every stored quarter against the fold to the cent (voided count zero, exactly like legacy
+`calcTotals`), opening balances included. Budgets stay legacy for now: `budget.set` is
+create-once in the registry, so live re-sets need a deliberate registry change (autovivify the
+`budget` kind) taken as its own reviewed step. One wrap point set: `saveToStorage`,
+`saveTxnToQuarter`, `saveQuarterAndSwitch`. `tests/megadata-cb.test.js` covers the drift guard,
+edit/void/unvoid/deletion chains, the id trap end-to-end, the mirror (remap + supersedes-chain
+edits + legacy-semantics voids), cancelled-zero documents, and the comparator catching a lying
+opening balance.
+
 - **Window**: one full **term boundary** — from before a term's charges are assessed, through
   its payment-heavy opening weeks — plus ordinary weeks, minimum 4 calendar weeks total.
   Concretely: start the shadow ≥1 week before the next term's fee window opens; do not exit

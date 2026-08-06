@@ -153,6 +153,7 @@
           eventId: evt.id, entityId: evt.entity.id, seq: evt.seq, date: evt.payload.date,
           kind: evt.payload.kind, categoryId: evt.payload.categoryId, amountMinor: evt.payload.amountMinor,
           chequeNo: evt.payload.chequeNo || null, payee: evt.payload.payee || null,
+          legacyTxnId: evt.payload.legacyTxnId || null, supersedes: evt.payload.supersedes || null,
           voided: isVoid, voidReason: isVoid ? voided[evt.entity.id].payload.reason : null
         });
         if (!isVoid) {
