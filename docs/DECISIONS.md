@@ -124,3 +124,27 @@ zero residual name hits repo-wide; no stored data touched anywhere.
 **Decision:** "I sign off principles P1–P12." The twelve principles in
 `docs/01-LMS-RESEARCH.md` §10 are the binding contract for the Phase 2
 architecture and all subsequent implementation. Phase 2 design proceeds.
+
+## D10 — Phase 2 gate: architecture + DAL surface approved (2026-08-05)
+
+**Decision:** Client instructed "continue" at the Phase 2 gate — read as
+sign-off of `docs/02-MEGADATA-ARCHITECTURE.md` and the DAL surface (§7),
+subject to the amendment recorded as D11 below (raised by the client
+immediately after). Phase 5 implementation proceeds in the spec's order.
+
+## D11 — Cashbook and School Fee are SEPARATE books (2026-08-05)
+
+**Decision (client, verbatim):** "Cashbook should not be joined to school
+fee."
+
+**Effect:** the architecture's proposed fee↔cashbook join is withdrawn:
+no `feePaymentEventId` link field on cashbook entries, no automatic
+projection of fee payments into cashbook income, and no cross-book
+reconciliation gate. Phase 0's D4 ("fee income vs cashbook: no linkage")
+is reclassified from a Critical divergence to **intentional separation by
+business design** — the cashbook tracks its own account (in practice the
+subvention account). Each book still gets the full internal ledger
+treatment (immutable entries, computed balances, within-book
+reconciliation). Amended in: `megadata/schemas.js`,
+`docs/02-MEGADATA-ARCHITECTURE.md` (§5, §7, §9, §14),
+`docs/01-LMS-RESEARCH.md` (§2, §6), `docs/00-INVENTORY.md` (D4 row).

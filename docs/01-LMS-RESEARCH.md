@@ -74,10 +74,10 @@ Phase 0 registers:
 credits another, Σdebits = Σcredits invariant) is more machinery than a training centre needs
 day-to-day, but two of its ideas are non-negotiable here: (a) every movement of money is an
 immutable dated entry with an account/category dimension, and (b) **reconciliation is an
-arithmetic identity, not a report** — the fee ledger's payments for a period must equal the
-cashbook's fee-income entries for that period *by construction*, which finally gives D4 (fee
-income ↔ cashbook: no linkage) a join: a fee payment event *is* the source record from which the
-cashbook's income line is projected, not a fact staff re-key by hand. The cashbook's own entries
+arithmetic identity, not a report**, applied *within* each book. (An earlier draft proposed
+joining the fee ledger to the cashbook; the client ruled on 2026-08-05 — decision D11 — that the
+cashbook is a separate book from school fees, so Phase 0's D4 is intentional separation, not a
+defect, and no cross-book link or gate exists.) The cashbook's own entries
 (salaries, utilities, subvention) are the same ledger pattern one level up — which also dissolves
 D9 (stored opening balances) into "opening balance is the fold of prior quarters" and D11
 (payroll↔cashbook double-entry-by-hand) into two projections of one payment event.
@@ -174,7 +174,7 @@ Canonical-plus-derived only stays honest if drift is *looked for*:
    cost is a hash compare, and a mismatch names the exact divergent consumer.
 2. **Periodic, arithmetic:** financial identities recomputed from atoms — Σ payment events =
    ledger projection = every page's displayed balance, per student and aggregate, to the cent;
-   fee-income projection = cashbook income lines. Run on every sync and nightly; **a mismatch is
+   each book reconciled within itself (no fee↔cashbook cross-check — D11). Run on every sync and nightly; **a mismatch is
    a loud hard failure, never a silent correction** (the spec's rule, kept verbatim).
 3. **Repair is one-directional.** Canonical wins; the derived copy is rebuilt; the discrepancy is
    logged permanently as a bug report. Merging "back" from a derived copy is what turned the

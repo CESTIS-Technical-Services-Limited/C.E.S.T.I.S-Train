@@ -131,7 +131,7 @@ caches, `examInProgress` scratch state. Generated PDFs are exports with provenan
 | `fees.payment.recorded` | amountMinor, method, date, receiptNo*, reference | immutable payment (D1, D7) |
 | `fees.payment.reversed` | paymentEventId, reason | supersession, no in-place edits (§8 research) |
 | `fees.adjustment.applied` | amountMinor(±), kind: waiver/discount/writeoff/correction, reason | discounts stop being tuition edits |
-| `cashbook.entry.recorded` | date, kind: income/expense, categoryId, amountMinor, chequeNo*, payee, feePaymentEventId? | the D4 join: fee-income lines carry the source payment event |
+| `cashbook.entry.recorded` | date, kind: income/expense, categoryId, amountMinor, chequeNo*, payee | **client decision D11: the cashbook is a separate book from school fees — no fee-payment link, by design** (Phase 0 D4 reclassified as intentional) |
 | `cashbook.cheque.voided` | entryEventId, reason | void as supersession (D8 edit class) |
 | `cashbook.quarter.opened` | fy, q, openingBalanceMinor **computed by fold, recorded as checkpoint** | D9: never hand-set |
 | `budget.set` / `virement.requested/approved/rejected` | … | approval **writes the budget change** (D10) |
@@ -219,7 +219,7 @@ await DAL.recordCollection(certificateId)
 
 // finance / payroll / time -------------------------------------------------
 DAL.getQuarter(fy, q)                      // → cashbook projection (entries, budget, folds)
-await DAL.recordCashbookEntry(entry)                // links feePaymentEventId when income from fees
+await DAL.recordCashbookEntry(entry)                // separate book from fees, by design (D11)
 await DAL.voidCheque(entryEventId, reason)
 await DAL.setBudget(fy, q, lines); await DAL.submitVirement(v); await DAL.decideVirement(id, decision, pin)
 await DAL.issueDoc(kind, doc)                       // → { number }
@@ -278,7 +278,7 @@ every request carries `{hmac, actorContext}`; documented weakness accepted in D1
   instead of a replay — it is itself rebuildable from the log (P7 applies to the broker too).
 - **Validation gates (spec 4.2):** JSON Schema per `type@schemaV`; refs must exist and not be
   tombstoned; money rules (`amountMinor` integer, reversal ≤ original, payment requires live
-  enrolment, cashbook fee-income requires `feePaymentEventId` that exists and is unconsumed);
+  enrolment);
   quarantine responses name the exact rule violated. Nothing invalid is ever appended (P8).
 - **Failure modes, stated:** broker down → clients keep accepting writes into the outbox
   (bounded only by storage; UI shows the unsynced counter), reads serve the local replica;
@@ -365,7 +365,7 @@ broker's LockService (`gate` endpoint) — the one real mutex in scope.
 | Transcript-Grades | `resultsByEnrolment` | `overrideResult`, catalogue Tier B upserts |
 | Cert pages | `certRegister` | approve/issue/collect commands |
 | School.Fee | `ledger`/`balances` | schedule/charge/payment/adjustment commands |
-| Cashbook | `quarter(fy,q)` | `recordCashbookEntry`/`voidCheque`; fee income auto-projected from payment events |
+| Cashbook | `quarter(fy,q)` | `recordCashbookEntry`/`voidCheque` — an independent book; nothing flows in from the fee ledger (D11) |
 | Virement | `quarter` + `virements` | submit/decide (decide writes the budget) |
 | Payslip | `payrollYtd` | `recordPayrollRun` (+ Tier B employees) |
 | Clock-in | `timeRecords` | clockIn/out/correct |
