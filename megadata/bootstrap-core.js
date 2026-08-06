@@ -902,5 +902,28 @@
     });
   }
 
-  return { runBootstrap: runBootstrap, EXTRACTORS: EXTRACTORS, _toMinor: toMinor };
+  /* File-name → extractor kind. The SINGLE source of truth shared by the
+     operator CLI, the in-app "Export local stores" filename convention
+     (admin-model), and the tests that pin the two together. Every legacy
+     source gets an entry here as its extractor is implemented; anything
+     unmatched is REPORTED by the CLI, never silently ignored (spec 6.2). */
+  var KIND_BY_NAME = [
+    { re: /school[-_ ]?fees?.*\.json$/i, kind: 'schoolfee-pagecloud' },
+    { re: /CESTIS_School_Fees\.json$/i, kind: 'schoolfee-pagecloud' },
+    { re: /school_fee_management_system\.json$/i, kind: 'schoolfee-pagecloud' },
+    { re: /Transcript_Requests\.json$/i, kind: 'transcript-requests-pagecloud' },
+    { re: /Student_Progress\.json$/i, kind: 'student-progress-pagecloud' },
+    { re: /Transcript_Grades\.json$/i, kind: 'transcript-grades-pagecloud' },
+    { re: /CESTIS_LMS_BACKUP\.json$/i, kind: 'lms-backup' },
+    { re: /CESTIS_LMS_Dashboard\.json$/i, kind: 'lms-backup' },
+    { re: /master-snapshot.*\.json$/i, kind: 'master-snapshot' },
+    { re: /CESTIS_ALL_DATA\.json$/i, kind: 'master-snapshot' },
+    { re: /CESTIS_(Cashbook|Virement_Requests|Finance_Invoices|Finance_Quotes|Finance_PurchaseOrders|Payments_Invoices|Payment_Vouchers|Staff_Payslips|Staff_TimeClock)\.json$/i, kind: 'finance-staff-pagecloud' }
+  ];
+  function kindForName(name) {
+    var m = KIND_BY_NAME.find(function (k) { return k.re.test(name); });
+    return m ? m.kind : null;
+  }
+
+  return { runBootstrap: runBootstrap, EXTRACTORS: EXTRACTORS, KIND_BY_NAME: KIND_BY_NAME, kindForName: kindForName, _toMinor: toMinor };
 });

@@ -27,7 +27,11 @@ page or the migration relies on it.
    - Who has access: **Anyone with the link** (consumer-account constraint; the HMAC is the
      auth layer — accepted weakness per decision D1)
 6. Authorize the Drive scope when prompted. Copy the deployment URL (`…/exec`).
-7. The URL + secret are what each device's broker-settings screen asks for.
+7. The URL + secret are what each device asks for: open **`MegaData-Admin.html`** on every
+   school computer, paste both into card 2 ("Broker connection"), press **Test connection**,
+   then **Save on this device**. They are stored in that browser's local meta store only —
+   never in the repo, never in an export bundle. Until the migration is sealed, saving
+   changes nothing about how the pages behave.
 
 ## Smoke test (run before anything depends on it)
 

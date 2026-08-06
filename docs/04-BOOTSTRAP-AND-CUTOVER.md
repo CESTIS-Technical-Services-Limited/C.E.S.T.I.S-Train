@@ -41,7 +41,7 @@ only mutual exclusion this stack can honestly provide. Two mechanical gates back
 | `cestis-master-snapshot.json` + offline `CESTIS_ALL_DATA.json` | same | **implemented + tested** (`master-snapshot`: translates the store and runs every implemented extractor; every remaining key is ACCOUNTED — claimed, per-machine-excluded, deferred-to-finance-extractor, or loudly not-yet-mapped) |
 | Cashbook / virement / finance-docs / voucher / payslip / clock page-cloud files (9 files) | same | **implemented + tested** (`finance-staff-pagecloud`: cashbook quarters as Tier-A entries with void supersession and a to-the-cent cashbook identity, budgets, virements with decisions, finance documents keeping their legacy numbers, payroll/clock/user stores as lossless documents) |
 | Bespoke backup shapes (`CESTIS_CASHBOOK_DASHBOARD_BACKUP`, `Cashbook_Virement_Backup`, `employee_payroll_Backup`, per-user clock files) | same | deferred, named in the CLI's not-ingested list — their content duplicates the page-cloud/snapshot files; ingest only if found newer at migration time |
-| Browser-local stores on each staff machine | **in-app "Export local stores" button** (one click per staff browser, uploads a hashed bundle to a staging folder) — built with the page-refactor step; a CLI cannot read IndexedDB | next |
+| Browser-local stores on each staff machine | **implemented + tested**: open `MegaData-Admin.html` on that machine → "Export local data" downloads `master-snapshot.<device>.<date>.json` (built by the legacy core's own `buildSnapshot`, checksum included; tokens/session state excluded by `isSnapshotableKey`; the broker secret lives outside CESTISStore so it *cannot* be included). Drop every machine's file into `--src` — the CLI recognises the name and routes it through the `master-snapshot` extractor | done |
 | `Offline System/data/` folders, if any Centre ran offline | operator copies the folder into `--src` | same extractors (identical file shapes) |
 
 Every file in `--src` is either matched to an extractor or **listed as not-ingested** in the
@@ -159,4 +159,6 @@ in place (they age out naturally). Nothing is deleted by the system, ever.
 - Live Drive fetch/upload and the Apps Script deploy kit are the step-7 work and are untestable
   from this environment (spec 5.3); everything above them runs against the filesystem adapters
   behind the same interfaces.
-- The in-app "export local stores" step ships with the first page refactor.
+- The in-app "export local stores" step is DONE: `MegaData-Admin.html` card 3 (see the §2
+  source table row); its bundle round-trips losslessly through the real extractor in
+  `tests/megadata-admin.test.js` and in the real-browser suite.

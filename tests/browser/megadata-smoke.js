@@ -108,6 +108,44 @@ function serve() {
     await page.close();
   }
 
+  section('MegaData-Admin: the device-setup page loads clean and does its three jobs');
+  {
+    const { page, pageErrors } = await openPage('MegaData-Admin.html');
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | '));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.validateBrokerSettings && MegaData.exportFileName && window.CESTISCore && CESTISCore.buildSnapshot && window.__adminExportBuild)),
+      'admin model + legacy snapshot builder both registered');
+    ok(await page.evaluate(() => /LEGACY/.test(document.getElementById('bootStatus').textContent) && /no broker set up/i.test(document.getElementById('bootStatus').textContent)),
+      'status card reports plain-language LEGACY on an unconfigured device');
+    const exp = await page.evaluate(async () => {
+      CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify([{ id: 'SF-smk', name: 'Smoke Export', skillArea: 'WELDING L2', tuitionFee: 100 }]));
+      CESTISStore.setItem('cestisGoogleAccessToken', 'ya29.SHOULD-NEVER-EXPORT');
+      const snap = window.__adminExportBuild();
+      const out = {
+        hasData: 'cestiSchoolFeeStudents' in snap.store,
+        hasToken: 'cestisGoogleAccessToken' in snap.store,
+        verifies: CESTISCore.verifySnapshot(snap).ok,
+        name: MegaData.exportFileName('Smoke Device', new Date().toISOString())
+      };
+      CESTISStore.removeItem('cestiSchoolFeeStudents');
+      CESTISStore.removeItem('cestisGoogleAccessToken');
+      return out;
+    });
+    ok(exp.hasData && !exp.hasToken && exp.verifies, 'export bundle from the REAL store: data in, tokens OUT, checksum verifies');
+    ok(/^master-snapshot\.smoke-device\.\d{4}-\d{2}-\d{2}\.json$/.test(exp.name), 'export filename follows the CLI-recognised convention');
+    const cfg = await page.evaluate(async () => {
+      const A = MegaData.IdbAdapter();
+      await MegaData.writeBrokerConfig(A, { url: 'https://script.google.com/macros/s/smoke/exec', secret: 'smoke-secret-value-123' });
+      const rd = await MegaData.readBrokerConfig(A);
+      await MegaData.clearBrokerConfig(A);
+      const gone = await MegaData.readBrokerConfig(A);
+      return { saved: rd && rd.url, enforced: rd && rd.enforced, cleared: gone === null || gone === undefined };
+    });
+    ok(cfg.saved === 'https://script.google.com/macros/s/smoke/exec' && cfg.enforced === false,
+      'broker config round-trips through the REAL default IndexedDB, enforced defaulting false');
+    ok(cfg.cleared, 'clear removes it (device left fully legacy for every other suite)');
+    await page.close();
+  }
+
   await browser.close();
   srv.close();
   console.log('');

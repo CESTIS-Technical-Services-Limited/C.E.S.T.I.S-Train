@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MegaData — Device Setup &amp; Data Export | CESTIS</title>
+<style>
+  :root { --ink:#1c2733; --mut:#5b6b7b; --line:#d9e2ec; --card:#ffffff; --bg:#f2f6fa; --ok:#1c7c43; --warn:#9a6700; --bad:#b3261e; --btn:#1a5fb4; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: 'Segoe UI', system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#12324f; color:#fff; padding:18px 22px; }
+  header h1 { margin:0; font-size:1.25rem; }
+  header p { margin:6px 0 0; color:#c8d8e8; font-size:.9rem; max-width:70ch; }
+  main { max-width: 880px; margin: 22px auto 60px; padding: 0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 20px; margin-bottom:18px; }
+  .card h2 { margin:0 0 4px; font-size:1.05rem; }
+  .card p.exp { color:var(--mut); font-size:.88rem; margin:6px 0 14px; max-width:75ch; }
+  label { display:block; font-size:.85rem; font-weight:600; margin:10px 0 4px; }
+  input[type=text], input[type=password], input[type=url] { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:6px; font-size:.92rem; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  button { padding:9px 16px; border:0; border-radius:6px; font-size:.9rem; font-weight:600; cursor:pointer; background:var(--btn); color:#fff; }
+  button.secondary { background:#e7edf3; color:var(--ink); }
+  button.danger { background:#fbe9e7; color:var(--bad); }
+  button:disabled { opacity:.5; cursor:default; }
+  .status { padding:10px 12px; border-radius:6px; font-size:.9rem; margin-top:12px; white-space:pre-wrap; }
+  .status.ok { background:#e6f4ea; color:var(--ok); }
+  .status.warn { background:#fff4d5; color:var(--warn); }
+  .status.bad { background:#fdecea; color:var(--bad); }
+  .status.mut { background:#eef2f6; color:var(--mut); }
+  .kv { font-size:.86rem; color:var(--mut); margin-top:8px; }
+  .kv b { color:var(--ink); }
+  code { background:#eef2f6; padding:1px 5px; border-radius:4px; font-size:.85em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>MegaData — Device Setup &amp; Data Export</h1>
+  <p>This admin page does two jobs: connect <em>this computer</em> to the school's data broker (one-time, per device), and export everything stored locally in this browser so the migration can include it. It changes nothing about how the other pages work until the migration is sealed.</p>
+</header>
+<main>
+
+  <div class="card" id="statusCard">
+    <h2>1 · This device right now</h2>
+    <p class="exp">What the CESTIS pages on this computer will do the next time they open. Until a broker is saved <em>and</em> the one-time migration has been run, everything stays exactly as it is today.</p>
+    <div class="status mut" id="bootStatus">Checking…</div>
+    <div class="kv" id="bootDetail"></div>
+    <div class="row"><button class="secondary" id="btnRecheck">Re-check</button></div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Broker connection (one-time, per device)</h2>
+    <p class="exp">The broker is the school's single gatekeeper for saving data — a small Google&nbsp;Apps&nbsp;Script running in the school's own Google account (see <code>megadata/broker-appsscript/README-DEPLOY.md</code>). Paste its web address and the shared secret that was set when it was deployed. Both are stored <strong>only on this computer</strong> — never in the code, never on GitHub, never inside an export file. Enter them once on each machine the school uses.</p>
+    <label for="brokerUrl">Broker web address (ends in <code>/exec</code>)</label>
+    <input type="url" id="brokerUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+    <label for="brokerSecret">Shared secret</label>
+    <input type="password" id="brokerSecret" placeholder="paste the HMAC_SECRET value" autocomplete="new-password">
+    <div class="row">
+      <button id="btnTest">Test connection</button>
+      <button id="btnSave">Save on this device</button>
+      <button class="danger" id="btnClear">Remove saved connection</button>
+    </div>
+    <div class="status mut" id="brokerStatus" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Export this computer's local data</h2>
+    <p class="exp">Some records may exist <em>only</em> in this browser's storage and in no Drive backup. This button gathers everything CESTIS has stored locally into one file you download and give to the person running the migration (drop it in the migration folder — the tool recognises it by name). Do this once on <strong>every</strong> computer the school uses. Sign-in tokens and session state are deliberately left out, and the broker secret cannot appear in it.</p>
+    <label for="deviceLabel">Name this computer (shows in the file name)</label>
+    <input type="text" id="deviceLabel" placeholder="e.g. front-desk, principal-laptop" autocomplete="off">
+    <div class="row"><button id="btnExport">Export local data</button></div>
+    <div class="status mut" id="exportStatus" style="display:none"></div>
+  </div>
+
+</main>
+
+<script src="cestis-core.js?v=1"></script>
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/admin-model.js?v=1"></script>
+<script>
+(function () {
+  'use strict';
+  var MG = window.MegaData;
+  var adapter = MG.IdbAdapter();
+  var $ = function (id) { return document.getElementById(id); };
+  function show(el, cls, text) { el.style.display = ''; el.className = 'status ' + cls; el.textContent = text; }
+
+  /* ---- Card 1: status via the SAME pageBoot every real page uses ---- */
+  function refreshStatus() {
+    $('bootStatus').className = 'status mut'; $('bootStatus').textContent = 'Checking…'; $('bootDetail').textContent = '';
+    MG.pageBoot({ page: 'MegaData-Admin', actor: { name: 'Admin', role: 'admin', device: 'dev_admin' } }).then(function (boot) {
+      window.__adminBoot = boot;
+      var cls = boot.mode === 'legacy' ? (boot.reason ? 'warn' : 'mut') : 'ok';
+      show($('bootStatus'), cls, MG.describeBoot(boot));
+      return MG.readBrokerConfig(adapter).then(function (bc) {
+        $('bootDetail').innerHTML = bc && bc.url
+          ? 'Saved broker on this device: <b>' + bc.url.replace(/^(https:\/\/[^\/]+\/.{0,24}).*/, '$1…') + '</b> · secret: <b>saved (hidden)</b>'
+          : 'No broker saved on this device yet.';
+        if (boot.sync && boot.sync.stop) boot.sync.stop();
+      });
+    }).catch(function (e) { show($('bootStatus'), 'bad', 'Status check failed: ' + e.message); });
+  }
+
+  /* ---- Card 2: test / save / clear ---- */
+  function settingsFromForm() { return { url: $('brokerUrl').value, secret: $('brokerSecret').value }; }
+  $('btnTest').onclick = function () {
+    var v = MG.validateBrokerSettings(settingsFromForm());
+    if (!v.ok) return show($('brokerStatus'), 'bad', v.errors.join('\n'));
+    show($('brokerStatus'), 'mut', 'Contacting the broker…');
+    var client = MG.createBrokerClient({ url: v.url, secret: v.secret, maxRetries: 1 });
+    MG.probeBroker(client).then(function (p) {
+      if (!p.ok) return show($('brokerStatus'), 'bad', 'Could not reach the broker: ' + p.error + '\nCheck the address, the deployment ("Anyone" access), and the secret.');
+      var extra = v.warnings.length ? '\nNote: ' + v.warnings.join(' ') : '';
+      show($('brokerStatus'), 'ok', 'Connected. The broker answered (log position ' + (p.head && p.head.seq != null ? p.head.seq : '?') + '; migration ' + (p.bootstrap === 'sealed' ? 'SEALED — pages will go live after saving' : 'not run yet — pages stay legacy after saving') + ').' + extra);
+    });
+  };
+  $('btnSave').onclick = function () {
+    var v = MG.validateBrokerSettings(settingsFromForm());
+    if (!v.ok) return show($('brokerStatus'), 'bad', v.errors.join('\n'));
+    MG.writeBrokerConfig(adapter, v).then(function () {
+      $('brokerSecret').value = '';
+      var extra = v.warnings.length ? '\nNote: ' + v.warnings.join(' ') : '';
+      show($('brokerStatus'), 'ok', 'Saved on this device.' + extra + '\nUse "Test connection" any time; remove it with the button on the right.');
+      refreshStatus();
+    }).catch(function (e) { show($('brokerStatus'), 'bad', 'Could not save: ' + e.message); });
+  };
+  $('btnClear').onclick = function () {
+    MG.clearBrokerConfig(adapter).then(function () {
+      show($('brokerStatus'), 'mut', 'Removed. This device is back to fully legacy behaviour.');
+      refreshStatus();
+    });
+  };
+
+  /* ---- Card 3: export ---- */
+  /* Build only (no download) — also the browser test's hook. */
+  window.__adminExportBuild = function () {
+    var store = window.CESTISStore || window.localStorage;
+    var map = MG.storeMapFrom(store);
+    return window.CESTISCore.buildSnapshot(map, { event: 'admin-export', savedBy: 'MegaData-Admin', savedByRole: 'admin' });
+  };
+  $('btnExport').onclick = function () {
+    try {
+      var label = $('deviceLabel').value;
+      var snap = window.__adminExportBuild();
+      var name = MG.exportFileName(label, new Date().toISOString());
+      var blob = new Blob([JSON.stringify(snap)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+      adapter.put('meta', 'deviceLabel', String(label || '')).catch(function () {});
+      show($('exportStatus'), 'ok', 'Downloaded ' + name + ' — ' + snap.keyCount + ' stored keys, checksum ' + String(snap.checksum).slice(0, 12) + '….\nGive this file to the person running the migration, then repeat on the next computer.');
+    } catch (e) { show($('exportStatus'), 'bad', 'Export failed: ' + e.message); }
+  };
+
+  /* ---- boot ---- */
+  function start() {
+    adapter.get('meta', 'deviceLabel').then(function (dl) { if (dl) $('deviceLabel').value = dl; }).catch(function () {});
+    refreshStatus();
+  }
+  if (window.CESTISStore && window.CESTISStore.whenReady) window.CESTISStore.whenReady(start); else start();
+})();
+</script>
+</body>
+</html>

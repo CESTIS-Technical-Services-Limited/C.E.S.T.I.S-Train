@@ -31,29 +31,15 @@ const runId = arg('--run-id', 'imp_' + new Date().toISOString().slice(0, 10) + '
 
 if (!srcDir) { console.error('usage: bootstrap-cli --src <dir> [--out <dir>] [--commit]'); process.exit(2); }
 
-// File-name → extractor kind. Every legacy source gets an entry here as its
-// extractor is implemented; anything unmatched is REPORTED (spec 6.2 step 2).
-const KIND_BY_NAME = [
-  { re: /school[-_ ]?fees?.*\.json$/i, kind: 'schoolfee-pagecloud' },
-  { re: /CESTIS_School_Fees\.json$/i, kind: 'schoolfee-pagecloud' },
-  { re: /school_fee_management_system\.json$/i, kind: 'schoolfee-pagecloud' },
-  { re: /Transcript_Requests\.json$/i, kind: 'transcript-requests-pagecloud' },
-  { re: /Student_Progress\.json$/i, kind: 'student-progress-pagecloud' },
-  { re: /Transcript_Grades\.json$/i, kind: 'transcript-grades-pagecloud' },
-  { re: /CESTIS_LMS_BACKUP\.json$/i, kind: 'lms-backup' },
-  { re: /CESTIS_LMS_Dashboard\.json$/i, kind: 'lms-backup' },
-  { re: /master-snapshot\.json$/i, kind: 'master-snapshot' },
-  { re: /CESTIS_ALL_DATA\.json$/i, kind: 'master-snapshot' },
-  { re: /CESTIS_(Cashbook|Virement_Requests|Finance_Invoices|Finance_Quotes|Finance_PurchaseOrders|Payments_Invoices|Payment_Vouchers|Staff_Payslips|Staff_TimeClock)\.json$/i, kind: 'finance-staff-pagecloud' }
-];
-
+// File-name → extractor kind lives in bootstrap-core (KIND_BY_NAME): one
+// table shared with the in-app export filenames and the tests that pin them.
 const sources = [], unmatched = [];
 for (const f of fs.readdirSync(srcDir).sort()) {
   if (!f.toLowerCase().endsWith('.json')) { unmatched.push(f + ' (not JSON)'); continue; }
-  const m = KIND_BY_NAME.find(k => k.re.test(f));
-  if (!m) { unmatched.push(f + ' (no extractor yet)'); continue; }
+  const kind = BOOT.kindForName(f);
+  if (!kind) { unmatched.push(f + ' (no extractor yet)'); continue; }
   try {
-    sources.push({ id: 'file:' + f, kind: m.kind, name: f, json: JSON.parse(fs.readFileSync(path.join(srcDir, f), 'utf8')) });
+    sources.push({ id: 'file:' + f, kind: kind, name: f, json: JSON.parse(fs.readFileSync(path.join(srcDir, f), 'utf8')) });
   } catch (e) { unmatched.push(f + ' (unreadable: ' + e.message + ')'); }
 }
 
