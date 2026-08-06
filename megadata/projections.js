@@ -43,8 +43,11 @@
         case 'doc.upserted': {
           var diff = evt.payload.diff || {};
           Object.keys(diff).forEach(function (f) {
-            var pair = diff[f];
-            e.fields[f] = Array.isArray(pair) ? pair[1] : pair; // [old,new] or value
+            // Plain value assignment — arrays are DATA here (a catalogue's
+            // units, a programme's aliases). An [old,new] pair convention
+            // once lived on this line and silently truncated every legit
+            // array field to undefined; nothing ever emitted pairs.
+            e.fields[f] = diff[f];
           });
           if (evt.type === 'doc.upserted') e.fields.docKind = evt.payload.kind;
           break;

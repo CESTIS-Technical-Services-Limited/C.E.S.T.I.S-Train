@@ -106,8 +106,10 @@ results, certification, identity merges, corrections, tombstones, finance docume
 virement lifecycle, adjudication decisions.
 
 **Tier B — versioned documents** (slowly-changing state; one generic event
-`doc.upserted {kind, id, diff:{field:[old,new]}, reason}` gives the full audit trail without a
-per-field event taxonomy): person bio fields, programme/intake catalogue, fee schedules' text,
+`doc.upserted {kind, id, diff:{field: newValue}, reason}` gives the full audit trail without a
+per-field event taxonomy — diff values are plain new values, arrays included; the old value is
+recoverable from the event history, so no [old,new] pair encoding, which would collide with
+legitimate array-valued fields like a catalogue's units): person bio fields, programme/intake catalogue, fee schedules' text,
 staff records, accounts (minus secrets), settings, cert templates, unit catalogues, calendar,
 announcements, resources metadata, chat messages (append-only docs, capped **views**, uncapped
 log — L14 fixed), VC session summaries, support messages, ADR tasks, appraisals.

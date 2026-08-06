@@ -10,8 +10,8 @@ Drive deployment, or pages that are not yet bridged — it is marked **PENDING**
 honest reason, not adjusted to pass. Nothing below is a promise; every PASS quotes the
 run that produced it.
 
-**Headline:** 42 Node suites — **3,343 tests, 0 failures**. Real-browser smoke —
-**24 passed, 0 failed**. Syntax sweep — **100 JS files, 0 failures**. Bootstrap dry-run
+**Headline:** 43 Node suites — **3,381 tests, 0 failures**. Real-browser smoke —
+**29 passed, 0 failed**. Syntax sweep — **104 JS files, 0 failures**. Bootstrap dry-run
 over the real (anonymised) fee backup — financial identity **HOLDS to the cent**
 (J$1,886,000.00), chain verified, zero quarantined, zero stored-balance disagreements.
 
@@ -322,8 +322,8 @@ the property that matters ("the dataset is not duplicated") holds even if exclus
 
 | Suite | Result |
 |---|---|
-| `npm run test:syntax` — repo-wide `node --check` | 100 files, 0 failed |
-| `npm test` — 42 suites (33 legacy-behaviour + 9 MegaData) | **3,343 passed, 0 failed** |
+| `npm run test:syntax` — repo-wide `node --check` | 104 files, 0 failed |
+| `npm test` — 43 suites (33 legacy-behaviour + 10 MegaData) | **3,381 passed, 0 failed** |
 | — `megadata-schemas` (canon, ids, registry, hashBasis) | 28 passed |
 | — `megadata-broker` (gates, numbering, idempotency, chain, tamper) | 31 passed |
 | — `megadata-dal` (E2E chain, stale basis, crash/resume, two-device, D11) | 31 passed |
@@ -331,7 +331,8 @@ the property that matters ("the dataset is not duplicated") holds even if exclus
 | — `megadata-glue` (HTTP client auth, backoff, shim policy, putMany contract) | 22 passed |
 | — `megadata-ctr` / `megadata-sp` / `megadata-fee` (pilot + bridges + drift guards + live comparator on real fixture + stage-2 three-way merge / receipt / mirror / fold flows) | 15 / 49 / 49 passed |
 | — `megadata-admin` (device setup + export: validation, filename↔CLI pin, export→import lossless loop, config location pinned to page-boot, probe) | 37 passed |
-| `npm run test:browser` — real Chromium over real pages (now incl. `MegaData-Admin.html`) | 24 passed, 0 failed |
+| — `megadata-tg` (generic docsync: drift guard on four collections, soft removal/revival, object-map boundary, array-fold regression, race dedupe) | 37 passed |
+| `npm run test:browser` — real Chromium over real pages (5 pages incl. `Transcript-Grades.html`, `MegaData-Admin.html`) | 29 passed, 0 failed |
 
 Drift guards deserve a highlight: bootstrap and the live page bridges derive entity ids
 through **separate code paths that are test-pinned byte-identical** ("Drift guard:

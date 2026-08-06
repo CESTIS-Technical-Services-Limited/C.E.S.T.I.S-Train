@@ -108,6 +108,18 @@ function serve() {
     await page.close();
   }
 
+  section('Transcript-Grades loads clean with the docsync stack');
+  {
+    const { page, pageErrors } = await openPage('Transcript-Grades.html');
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | '));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.docSyncPlan && MegaData.TG_SPECS && MegaData.profilesToList)), 'docsync + TG models registered');
+    ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'Transcript-Grades'), 'shim carries the page identity');
+    ok(await page.evaluate(() => typeof window.__tgTick === 'undefined'), 'docsync stays dormant in legacy mode');
+    ok(await page.evaluate(() => typeof window.writeJSON === 'function' && String(window.writeJSON).indexOf('CESTISStore.setItem') !== -1),
+      'no broker configured → the page kept its LEGACY writeJSON unwrapped');
+    await page.close();
+  }
+
   section('MegaData-Admin: the device-setup page loads clean and does its three jobs');
   {
     const { page, pageErrors } = await openPage('MegaData-Admin.html');

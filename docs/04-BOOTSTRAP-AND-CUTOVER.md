@@ -149,6 +149,17 @@ canonical-only trainees mirror in as legacy records; local tombstones are never 
 One wrap point (`saveData`). `tests/megadata-sp.test.js` covers ping-pong prevention, conflict
 last-writer, bio corrections, mirror-in, D11-safe deletion, and the same-edit race.
 
+**Transcript-Grades (implemented and tested, dormant until sealed):** the SP three-way pattern
+generalised into `docsync-model` for keyed Tier-B collections — grades, unit catalogues,
+transcript profiles AND exam results (this page writes those too via its manual-override
+write-back) each sync through one canonical doc per record, ids byte-pinned to bootstrap's
+TIERB table. Removal is a soft `_removed` flag rather than a tombstone because the page
+legitimately clears and re-adds a grade under the same deterministic id — presence gets the
+same three-way treatment as values, so a device that already mirrored a removal cannot
+re-remove another device's deliberate revival. One wrap point (`writeJSON`).
+`tests/megadata-tg.test.js` covers all of it, including the profiles object-map boundary and
+the array-field fold regression.
+
 - **Window**: one full **term boundary** — from before a term's charges are assessed, through
   its payment-heavy opening weeks — plus ordinary weeks, minimum 4 calendar weeks total.
   Concretely: start the shadow ≥1 week before the next term's fee window opens; do not exit
