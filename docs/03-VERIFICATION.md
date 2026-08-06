@@ -10,7 +10,7 @@ Drive deployment, or pages that are not yet bridged — it is marked **PENDING**
 honest reason, not adjusted to pass. Nothing below is a promise; every PASS quotes the
 run that produced it.
 
-**Headline:** 42 Node suites — **3,311 tests, 0 failures**. Real-browser smoke —
+**Headline:** 42 Node suites — **3,343 tests, 0 failures**. Real-browser smoke —
 **24 passed, 0 failed**. Syntax sweep — **100 JS files, 0 failures**. Bootstrap dry-run
 over the real (anonymised) fee backup — financial identity **HOLDS to the cent**
 (J$1,886,000.00), chain verified, zero quarantined, zero stored-balance disagreements.
@@ -323,13 +323,13 @@ the property that matters ("the dataset is not duplicated") holds even if exclus
 | Suite | Result |
 |---|---|
 | `npm run test:syntax` — repo-wide `node --check` | 100 files, 0 failed |
-| `npm test` — 42 suites (33 legacy-behaviour + 9 MegaData) | **3,311 passed, 0 failed** |
+| `npm test` — 42 suites (33 legacy-behaviour + 9 MegaData) | **3,343 passed, 0 failed** |
 | — `megadata-schemas` (canon, ids, registry, hashBasis) | 28 passed |
 | — `megadata-broker` (gates, numbering, idempotency, chain, tamper) | 31 passed |
 | — `megadata-dal` (E2E chain, stale basis, crash/resume, two-device, D11) | 31 passed |
 | — `megadata-bootstrap` (real fixture, determinism, all-boundary interrupts, quarantine, snapshot accounting, finance family) | 82 passed |
 | — `megadata-glue` (HTTP client auth, backoff, shim policy, putMany contract) | 22 passed |
-| — `megadata-ctr` / `megadata-sp` / `megadata-fee` (pilot + bridges + drift guards + live comparator on real fixture + stage-2 receipt/mirror/fold flow) | 15 / 17 / 49 passed |
+| — `megadata-ctr` / `megadata-sp` / `megadata-fee` (pilot + bridges + drift guards + live comparator on real fixture + stage-2 three-way merge / receipt / mirror / fold flows) | 15 / 49 / 49 passed |
 | — `megadata-admin` (device setup + export: validation, filename↔CLI pin, export→import lossless loop, config location pinned to page-boot, probe) | 37 passed |
 | `npm run test:browser` — real Chromium over real pages (now incl. `MegaData-Admin.html`) | 24 passed, 0 failed |
 

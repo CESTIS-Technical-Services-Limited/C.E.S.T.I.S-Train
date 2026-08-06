@@ -1,13 +1,19 @@
-/* MegaData — Student-Progress bridge integration (stage 1; browser-only).
-   The page stays LEGACY-PRIMARY for now: its own CRUD keeps writing
-   voctrain_students exactly as today. In shadow mode this bridge keeps
-   MegaData complete alongside it — new trainees become person + enrolment
-   (+ programme/intake if unseen) and every record's presentation scalars are
-   mirrored into its legacyRoster document. Deterministic entity ids AND
-   deterministic creation-event ids mean any number of devices bridging the
-   same records converge through broker dedupe (P10). Stage 2 (reads from
-   projections, commands instead of array writes) follows once the fee page
-   lands, per the signed order. */
+/* MegaData — Student-Progress bridge integration (stages 1 + 2; browser-only).
+   Stage 1 (creation): new legacy trainees become person + enrolment
+   (+ programme/intake if unseen) with an initial roster document —
+   deterministic entity AND event ids, so any number of devices converge
+   through broker dedupe (P10).
+   Stage 2 (two-way merge): every saveData() triggers a serialised tick that
+   runs the per-field THREE-WAY merge (baseline in local meta) from
+   roster-model — local edits push as audited events (person.corrected /
+   doc.upserted), remote changes apply INTO the legacy arrays the page
+   renders, a local deletion tombstones the roster doc + withdraws the
+   enrolment (never the person — the fee book may still need them, D11),
+   canonical roster docs with no local record mirror in as legacy records,
+   and both-changed conflicts push local (last writer, both audited) and are
+   reported. Attendance / exam results stay stage-1 legacy (their semantic
+   elevation is a named deferred item, docs/04).
+   The legacy UI is untouched — window.saveData is wrapped, nothing else. */
 (function () {
   'use strict';
   if (typeof window === 'undefined') return;
@@ -22,78 +28,81 @@
       'voctrain_studentProfiles', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds',
       'cestiSchoolFeeStudents', 'cestiSchoolFeeDeletedLmsIds', 'cestis_pagecloud_stamps__', 'schoolDashboardGoogle'
     ];
-    var bridging = false;
 
     function readJson(key) {
       try { return JSON.parse(window.CESTISStore.getItem(key) || '[]') || []; } catch (e) { return []; }
+    }
+    function legacySnapshot() {
+      return { students: readJson('voctrain_students'), deletedIds: readJson('voctrain_deletedStudentIds') };
     }
 
     MG.pageBoot({
       page: PAGE,
       actor: { name: 'Student Progress', role: 'admin', device: 'dev_browser' },
       allow: ALLOW,
-      onChange: function () { bridge(); }
+      onChange: function () { if (window.__spTick) window.__spTick(); }
     }).then(function (BOOT) {
       if (BOOT.mode === 'legacy') {
         if (BOOT.reason) console.info('[MegaData] ' + PAGE + ' legacy mode: ' + BOOT.reason);
         return;
       }
-      var dal = BOOT.dal;
-      console.info('[MegaData] ' + PAGE + ' bridge active (' + BOOT.mode + '), head seq ' + dal.head().seq);
+      var dal = BOOT.dal, adapter = BOOT.adapter;
+      console.info('[MegaData] ' + PAGE + ' merge active (' + BOOT.mode + '), head seq ' + dal.head().seq);
 
-      function bridgeOne(rec) {
-        return MG.identityIds('id:' + rec.id, rec.course).then(function (ids) {
-          var steps = [];
-          if (!dal.get('programme', ids.programmeId)) {
-            steps.push(['programme.defined', ids.programmeId, { name: rec.course || 'Unassigned' }, null, 'programme|' + ids.progNorm]);
-          }
-          if (!dal.get('intake', ids.intakeId)) {
-            steps.push(['intake.opened', ids.intakeId, { label: (rec.course || 'Unassigned') + ' (legacy)', start: '2024-04-01', fiscalYear: '2024/2025' }, { programme: ids.programmeId }, 'intake|' + ids.progNorm]);
-          }
-          if (!dal.get('person', ids.personId)) {
-            steps.push(['person.registered', ids.personId, MG.lmsBio(rec), null, 'person|id:' + rec.id]);
-          }
-          if (!dal.get('enrolment', ids.enrolmentId)) {
-            var enrolledAt = /^\d{4}-\d{2}-\d{2}/.test(String(rec.enrolmentDate || rec.enrollDate || '')) ? String(rec.enrolmentDate || rec.enrollDate).slice(0, 10) : '2024-04-01';
-            steps.push(['enrolment.created', ids.enrolmentId, { enrolledAt: enrolledAt }, { person: ids.personId, intake: ids.intakeId }, 'enrolment|id:' + rec.id + '|' + ids.progNorm]);
-          }
-          var rosterDoc = dal.get('doc', ids.rosterDocId);
-          var needRoster = MG.rosterDrifted(rec, rosterDoc);
-          return steps.reduce(function (pr, st) {
-            return pr.then(function () {
-              return MG.bridgeEventId(st[4]).then(function (evtId) {
-                return dal._accept(st[0], st[1], st[2], { id: evtId, refs: st[3] || undefined, prov: { importRun: 'bridge', srcFile: PAGE, srcPath: rec.id } })
-                  .catch(function (e) { if (!/exists/.test(e.message)) throw e; }); // raced another tab locally: fine
+      var applying = false;     // guards the wrap against our own mirror save
+      var tick = Promise.resolve();
+
+      function runTick() {
+        tick = tick.then(function () {
+          return adapter.get('meta', 'spBaseline').then(function (baseline) {
+            var legacy = legacySnapshot();
+            return MG.spMergePlan(dal, legacy, baseline || {}).then(function (plan) {
+              return MG.spPushPlan(dal, plan, PAGE).then(function () {
+                return dal.sync.now().catch(function (e) { console.info('[MegaData] sync deferred: ' + e.message); });
+              }).then(function () {
+                if (plan.conflicts.length) console.warn('[MegaData] ' + plan.conflicts.length + ' both-changed field(s): local pushed as last writer, both versions audited', plan.conflicts);
+                if (plan.skippedDocs.length) console.info('[MegaData] ' + plan.skippedDocs.length + ' canonical roster doc(s) left to adjudication', plan.skippedDocs);
+                var res = MG.spApplyPlanToLegacy(legacy.students, legacy.deletedIds, plan);
+                if (res.changed) {
+                  applying = true;
+                  try {
+                    if (Array.isArray(window.students)) { window.students = res.students; }
+                    window.CESTISStore.setItem('voctrain_students', JSON.stringify(res.students));
+                    window.CESTISStore.setItem('voctrain_deletedStudentIds', JSON.stringify(res.deletedIds));
+                    if (typeof window.saveData === 'function' && Array.isArray(window.students)) { try { window.saveData({ source: 'megadata-mirror' }); } catch (e) {} }
+                    if (typeof window.renderStudents === 'function') { try { window.renderStudents(window.students); } catch (e) {} }
+                    if (typeof window.updateSkillAreaCounts === 'function') { try { window.updateSkillAreaCounts(); } catch (e) {} }
+                  } finally { applying = false; }
+                  console.info('[MegaData] mirror applied: ' + plan.applies.length + ' update(s), ' + plan.newRecords.length + ' new, ' + plan.removals.length + ' removal(s)');
+                }
+                return adapter.put('meta', 'spBaseline', plan.newBaseline);
               });
             });
-          }, Promise.resolve()).then(function () {
-            if (!needRoster) return 0;
-            var upsert = { id: undefined };                 // drift updates use minted ids (each change is its own event)
-            var init = !rosterDoc;
-            var mk = init ? MG.bridgeEventId('roster-init|id:' + rec.id + '|' + ids.progNorm) : Promise.resolve(undefined);
-            return mk.then(function (evtId) {
-              return dal._accept('doc.upserted', ids.rosterDocId,
-                { kind: 'legacyRoster', diff: MG.lmsRosterDiff(rec), reason: init ? 'legacy bridge' : 'legacy drift' },
-                { id: evtId, prov: { importRun: 'bridge', srcFile: PAGE, srcPath: rec.id } }).then(function () { return 1; });
-            });
-          });
+          }).catch(function (e) { console.warn('[MegaData] merge tick: ' + e.message); });
         });
+        return tick;
       }
 
-      function bridge() {
-        if (bridging) return; bridging = true;
-        var tomb = {};
-        readJson('voctrain_deletedStudentIds').forEach(function (id) { tomb[id] = 1; });
-        var roster = readJson('voctrain_students').filter(function (r) { return r && r.id && !tomb[r.id]; });
-        roster.reduce(function (pr, rec) { return pr.then(function () { return bridgeOne(rec); }); }, Promise.resolve())
-          .then(function () { bridging = false; })
-          .catch(function (e) { bridging = false; console.warn('[MegaData] bridge error: ' + e.message); });
+      // ONE wrap point: every legacy persist funnels through saveData.
+      var origSave = window.saveData;
+      if (typeof origSave === 'function') {
+        window.saveData = function () {
+          var r = origSave.apply(this, arguments);
+          if (!applying) runTick();
+          return r;
+        };
       }
 
-      window.__spBridge = bridge; // manual trigger + tests
-      bridge();
-      // Re-bridge when the legacy roster changes in this or another tab.
-      window.addEventListener('storage', function (e) { if (e.key === 'voctrain_students') bridge(); });
+      window.__spTick = runTick;
+      window.__spBridge = runTick;          // back-compat name from stage 1
+      window.__spRoster = function () {      // fold-based read path
+        return dal.find('doc', function (d2) { return d2.fields && d2.fields.docKind === 'legacyRoster' && d2.alive; });
+      };
+
+      runTick();
+      window.addEventListener('storage', function (e) {
+        if (e.key === 'voctrain_students' || e.key === 'voctrain_deletedStudentIds') runTick();
+      });
     }).catch(function (e) { console.warn('[MegaData] boot failed, staying legacy: ' + e.message); });
   });
 })();

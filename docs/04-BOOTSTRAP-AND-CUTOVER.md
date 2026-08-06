@@ -137,6 +137,18 @@ fold; `window.__feeBalance()` answers from the fold. `tests/megadata-fee.test.js
 number round-trip, the two-device mirror, mirror idempotence and the fold-vs-lying-stored-balance
 case.
 
+**Student-Progress stage 2 (implemented and tested, dormant until sealed):** roster scalars are
+MUTABLE, so unlike append-only money the two-way flow runs a per-field **three-way merge**
+against a baseline persisted in local meta — local-only changes push as audited events
+(`person.corrected` / `doc.upserted` with state-hashed deterministic ids: a same-state race
+dedupes to ONE event, a later toggle lands as its own), remote-only changes apply into the
+legacy arrays the page renders, both-changed fields push local as last writer with BOTH
+versions audited and the conflict reported. A local roster deletion tombstones the roster
+**doc** and withdraws the enrolment — never the person, who may still owe fees (D11);
+canonical-only trainees mirror in as legacy records; local tombstones are never resurrected.
+One wrap point (`saveData`). `tests/megadata-sp.test.js` covers ping-pong prevention, conflict
+last-writer, bio corrections, mirror-in, D11-safe deletion, and the same-edit race.
+
 - **Window**: one full **term boundary** — from before a term's charges are assessed, through
   its payment-heavy opening weeks — plus ordinary weeks, minimum 4 calendar weeks total.
   Concretely: start the shadow ≥1 week before the next term's fee window opens; do not exit
