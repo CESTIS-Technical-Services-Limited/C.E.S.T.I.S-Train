@@ -195,10 +195,13 @@
   };
 
   // The hash covers the canonical form minus broker-assigned / self fields.
+  // `assigned` carries broker-issued numbers (receiptNo/certNo/…) so the
+  // client-computed hash stays valid after append (docs/02 §2, §9).
+  var BROKER_FIELDS = { seq: 1, brokerAt: 1, hash: 1, assigned: 1 };
   function hashBasis(evt) {
     var copy = {};
     Object.keys(evt).forEach(function (k) {
-      if (k !== 'seq' && k !== 'brokerAt' && k !== 'hash') copy[k] = evt[k];
+      if (!BROKER_FIELDS[k]) copy[k] = evt[k];
     });
     return canon(copy);
   }
