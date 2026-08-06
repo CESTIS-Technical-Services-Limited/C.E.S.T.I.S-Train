@@ -202,9 +202,56 @@ function rawBaseline() {
   eq(repS.events.byType['person.registered'], 1, 'the fee student imports from the snapshot store');
   ok(repS.events.byType['doc.upserted'] >= 1, 'the account collection imports through the alias name');
   const sreasons = repS.quarantine.map(q => q.reason + '@' + q.path).join(' | ');
-  ok(/deferred: finance.*cestis_quarter_/.test(sreasons), 'the cashbook quarter key is ACCOUNTED as deferred, not silently skipped');
+  ok(!/cestis_quarter_/.test(sreasons), 'cashbook keys are now CLAIMED by the finance extractor (no longer deferred)');
   ok(/not yet mapped@weird_legacy_key/.test(sreasons), 'an unknown key is loudly reported');
   ok(!/AccessToken/.test(sreasons), 'per-machine token keys are deliberately excluded, not noise');
+
+  section('Finance/staff family: cashbook Tier-A, virements, docs, payroll — all gates');
+  const fin = { id: 'test:fin', kind: 'finance-staff-pagecloud', name: 'fin', json: { data: {
+    'cestis_quarter_2025/2026_Q3': JSON.stringify({ openingBalance: 100, transactions: [
+      { id: 3, date: '2025-10-25', cheque: '', details: 'SUBVENTION', deposit: 200, payment: 0, category: 'Subvention' },
+      { id: 9, date: '2025-10-25', cheque: '1000109', details: 'Salary October', deposit: 0, payment: 50, category: 'Coordinator Salary' },
+      { id: 20, date: '2025-11-11', cheque: '1000119', details: 'Cancelled Cheque', deposit: 0, payment: 0, category: 'Cancelled', _origPayment: 25, _origCategory: 'Lunch', _origDetails: 'Lunch Register' },
+      { id: 21, date: '2025-11-11', cheque: '1000120', details: 'Cancelled Cheque', deposit: 0, payment: 0, category: 'Cancelled' },
+      { id: 30, date: '2025-11-12', cheque: '', details: 'Deleted later', deposit: 0, payment: 10, category: 'Admin Expenses' }
+    ], deletedTxnIds: [30] }),
+    'cestis_budget_2025/2026_Q3': JSON.stringify({ budget: { 'Coordinator Salary': 300, Lunch: 40 }, sections: { 'Coordinator Salary': 'Salaries', Lunch: 'Admin & Operations' } }),
+    cesti_virements: JSON.stringify([
+      { id: 111, fy: '2025/2026', quarter: 3, requestedBy: 'Coordinator', status: 'Approved', approvedBy: 'Admin', approvalDate: '2025-12-01', lines: [{ fromId: 'coordinator', toId: 'statutory', amount: 24.5 }] },
+      { id: 222, fy: '2025/2026', quarter: 3, requestedBy: 'Coordinator', status: 'Pending', lines: [] }
+    ]),
+    cesti_virement_deleted_ids: '[]',
+    cestis_finance_invoices: JSON.stringify([{ id: 'FD-1', number: '12551', docType: 'invoice', items: [] }]),
+    cestis_finance_quotes: JSON.stringify([{ id: 'FD-2', docType: 'quote', items: [] }]),
+    cestisPayroll: JSON.stringify({ settings: { nisRate: 3 }, employees: [{ name: 'Employee One', salary: 37145 }], payrollRuns: [{ date: '2026-07-25', results: [] }] }),
+    cestisStaffMembers: JSON.stringify([{ id: 'STAFF1', username: 'staff1', fullName: 'Employee One' }]),
+    cestisTimeRecords: JSON.stringify([{ id: 'SESSION_1', staffId: 'STAFF1', date: '2026-07-01' }]),
+    cestiUsers: JSON.stringify([{ id: 7, username: 'feeadmin', role: 'Admin' }])
+  } } };
+  const repF = await BOOT.runBootstrap({ sources: [fin], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_test-7' });
+  eq(repF.inventory.totals.cashbookEntries, 3, 'three importable entries (income, salary, voided-orig)');
+  eq(repF.inventory.totals.cashbookIncomeMinor, 20000, 'income baseline 200.00');
+  eq(repF.inventory.totals.cashbookExpenseMinor, 5000, 'expense baseline 50.00 — the voided cheque counts ZERO, like the legacy totals');
+  eq(repF.inventory.totals.cashbookVoided, 1, 'and is accounted as a voided import');
+  eq(repF.inventory.totals.cashbookDeletedTxns, 1, 'the legacy-deleted txn is accounted, not imported');
+  ok(repF.verification.cashbookIdentityHolds, 'CASHBOOK identity: fold income/expense equals the inventory baseline to the cent');
+  eq(repF.events.byType['cashbook.entry.recorded'], 3, 'entries synthesized');
+  eq(repF.events.byType['cashbook.cheque.voided'], 1, 'the voided cheque superseded, not erased');
+  eq(repF.events.byType['budget.set'], 1, 'budget imported');
+  eq(repF.events.byType['virement.requested'], 1, 'the valid virement imported');
+  eq(repF.events.byType['virement.decided'], 1, 'with its approval as a decision event');
+  ok(repF.quarantine.some(q => /virement without valid lines/.test(q.reason)), 'the line-less virement quarantines, not dropped');
+  eq(repF.events.byType['findoc.issued'], 2, 'both finance documents imported');
+  ok(repF.verification.brokerAccepted === repF.events.count && repF.verification.chainVerified, 'everything passes the broker gates');
+  // Legacy numbers preserved; missing numbers get the new series.
+  const finEvents = await (async () => { const m = MemoryAdapter(); await BOOT.runBootstrap({ sources: [fin], adapter: m, dryRun: true, runStamp: STAMP, runId: 'imp_test-7' }); return m.get('staging', 'events'); })();
+  const BRK = require('../megadata/broker-core.js');
+  const b2 = BRK.createBroker();
+  const res2 = await b2.append({ events: finEvents }, { nowIso: STAMP });
+  const invEvt = finEvents.find(e => e.type === 'findoc.issued' && e.payload.kind === 'invoice');
+  const quoEvt = finEvents.find(e => e.type === 'findoc.issued' && e.payload.kind === 'quote');
+  eq(res2.acks[invEvt.id].assigned, null, 'the legacy invoice KEEPS number 12551 — no reassignment');
+  eq(res2.acks[quoEvt.id].assigned, { number: 'QUO-000001' }, 'the number-less quote gets the new series');
 
   console.log('');
   console.log(passed + ' passed, ' + failed + ' failed');

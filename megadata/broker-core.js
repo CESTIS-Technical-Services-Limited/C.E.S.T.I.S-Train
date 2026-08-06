@@ -163,6 +163,9 @@
     var series;
     if (reg.needsNumber === 'findoc') series = evt.payload.kind;   // invoice/quote/po/voucher
     else series = reg.needsNumber;                                  // receipt/cert
+    // Legacy imports carry their own numbers — never renumber history.
+    var presentField = series === 'receipt' ? 'receiptNo' : series === 'cert' ? 'certNo' : 'number';
+    if (evt.payload && evt.payload[presentField]) return null;
     state.series[series] = (state.series[series] || 0) + 1;
     var num = SERIES_PREFIX[series] + pad6(state.series[series]);
     var field = series === 'receipt' ? 'receiptNo' : series === 'cert' ? 'certNo' : 'number';

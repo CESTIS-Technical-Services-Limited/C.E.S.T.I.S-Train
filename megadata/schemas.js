@@ -156,7 +156,7 @@
     'cashbook.quarter.opened':{ entity: 'cashbookQuarter', creates: true, payload: { fy: { t: 'fy', required: true }, q: { t: 'int', required: true }, openingBalanceMinor: { t: 'minor', required: true } } },
     'budget.set':             { entity: 'budget', creates: true, payload: { fy: { t: 'fy', required: true }, q: { t: 'int', required: true }, lines: { t: 'array', required: true, items: { categoryId: { t: 'string', required: true, nonEmpty: true }, sectionId: { t: 'string' }, amountMinor: { t: 'minor', required: true } } } } },
     'virement.requested':     { entity: 'virement', creates: true, payload: { fy: { t: 'fy', required: true }, q: { t: 'int', required: true }, lines: { t: 'array', required: true, min: 1, items: VIREMENT_LINE }, requestedBy: { t: 'string', required: true, nonEmpty: true } } },
-    'virement.decided':       { entity: 'virement', payload: { decision: { t: 'enum', values: ['approved', 'rejected'], required: true }, note: { t: 'string' } } },
+    'virement.decided':       { entity: 'virement', payload: { decision: { t: 'enum', values: ['approved', 'rejected'], required: true }, note: { t: 'string' }, decidedBy: { t: 'string' }, decidedOn: { t: 'date' } } },
     'findoc.issued':          { entity: 'findoc', creates: true, needsNumber: 'findoc', payload: { kind: { t: 'enum', values: ['invoice', 'quote', 'po', 'voucher'], required: true }, number: { t: 'string' }, doc: { t: 'any', required: true } } },
     'findoc.superseded':      { entity: 'findoc', payload: { diff: { t: 'object', required: true }, reason: { t: 'string', required: true, nonEmpty: true } } },
     'findoc.voided':          { entity: 'findoc', payload: { reason: { t: 'string', required: true, nonEmpty: true } } },

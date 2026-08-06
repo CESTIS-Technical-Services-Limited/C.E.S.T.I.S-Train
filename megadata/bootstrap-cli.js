@@ -43,7 +43,8 @@ const KIND_BY_NAME = [
   { re: /CESTIS_LMS_BACKUP\.json$/i, kind: 'lms-backup' },
   { re: /CESTIS_LMS_Dashboard\.json$/i, kind: 'lms-backup' },
   { re: /master-snapshot\.json$/i, kind: 'master-snapshot' },
-  { re: /CESTIS_ALL_DATA\.json$/i, kind: 'master-snapshot' }
+  { re: /CESTIS_ALL_DATA\.json$/i, kind: 'master-snapshot' },
+  { re: /CESTIS_(Cashbook|Virement_Requests|Finance_Invoices|Finance_Quotes|Finance_PurchaseOrders|Payments_Invoices|Payment_Vouchers|Staff_Payslips|Staff_TimeClock)\.json$/i, kind: 'finance-staff-pagecloud' }
 ];
 
 const sources = [], unmatched = [];

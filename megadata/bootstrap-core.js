@@ -34,6 +34,20 @@
     return MD.sha256Hex('mega-bootstrap|' + key).then(function (h) { return prefix + '_m' + h.slice(0, 20); });
   }
 
+  // One resolver used by BOTH inventory and synthesis, so the cashbook
+  // financial identity holds by construction. Voided cheques resolve to their
+  // _orig* values (the entry imports, then a voided event supersedes it).
+  function cbAmount(txn) {
+    var voided = String(txn.category || '') === 'Cancelled' && (txn._origPayment != null || txn._origDeposit != null || txn._origCategory != null);
+    var dep = toMinor(voided && txn._origDeposit != null ? txn._origDeposit : txn.deposit).minor;
+    var pay = toMinor(voided && txn._origPayment != null ? txn._origPayment : txn.payment).minor;
+    var category = voided ? (txn._origCategory || txn.category) : txn.category;
+    var payee = voided ? (txn._origDetails || txn.details) : txn.details;
+    if (dep > 0 && pay > 0) return { klass: 'ambiguous' };
+    if (dep === 0 && pay === 0) return { klass: String(txn.category || '') === 'Cancelled' ? 'cancelled-zero' : 'zero' };
+    return { klass: dep > 0 ? 'income' : 'expense', amountMinor: dep > 0 ? dep : pay, category: String(category || 'Uncategorised'), payee: String(payee || ''), voided: voided };
+  }
+
   var LMS_COLLECTIONS = [
     { names: ['userAccounts', 'voctrain_users'], kind: 'account', mode: 'array', idOf: function (r) { return r.id || r.username; } },
     { names: ['exams', 'voctrain_exams'], kind: 'exam', mode: 'array', idOf: function (r) { return r.id; } },
@@ -221,6 +235,7 @@
       EXTRACTORS['transcript-requests-pagecloud'](translated, out);
       EXTRACTORS['transcript-grades-pagecloud'](translated, out);
       EXTRACTORS['lms-backup'](translated, out);
+      EXTRACTORS['finance-staff-pagecloud'](translated, out);
       var claimed = {
         cestiSchoolFeeStudents: 1, cestiSchoolFeePayments: 1, cestiFeeStructure: 1,
         cestiSchoolFeeDeletedPaymentIds: 1, cestiSchoolFeeDeletedLmsIds: 1, cestiSchoolFeeDocuments: 1,
@@ -229,17 +244,88 @@
         voctrain_unitCatalogs: 1, voctrain_transcriptProfiles: 1
       };
       LMS_COLLECTIONS.forEach(function (spec) { spec.names.forEach(function (n) { claimed[n] = 1; }); });
-      var EXCLUDE = /token|session|cloudfileid|lastsync|darkmode|pagecloud_stamps|examinprogress|dataversion|maintenancemode|autosync/i;
+      ['cesti_virements', 'cesti_virement_deleted_ids', 'cesti_virement_logo', 'cesti_cashbook_data',
+       'cestis_finance_invoices', 'cestis_finance_quotes', 'cestis_finance_pos', 'cestis_finance_convert',
+       'cestis_finance_voucher_overrides', 'cestis_budget_overrides', 'cestis_budget_deleted',
+       'cestis_fin_logo', 'cestis_recon_logo', 'cestisPayroll', 'dashboardUsers', 'cestisPermissions',
+       'cestisStaffMembers', 'cestisTimeRecords', 'cestiUsers'].forEach(function (n) { claimed[n] = 1; });
+      var CLAIMED_PREFIX = ['cestis_quarter_', 'cestis_budget_', 'cestis_recon_', 'voctrain_attendance::', 'voctrain_user_'];
+      var EXCLUDE = /token|session|cloudfileid|lastsync|darkmode|pagecloud_stamps|examinprogress|dataversion|maintenancemode|autosync|form_draft|cloud_cache|active_quarter|firsttime|dismissed|currentuser|schoolsettings|mainlinks|quicklinks|auth_session/i;
       Object.keys(store).forEach(function (k) {
         if (claimed[k]) return;
-        if (EXCLUDE.test(k)) return;                                   // per-machine state, deliberately not imported
-        if (k.indexOf('voctrain_attendance::') === 0 || k === 'voctrain_attendance_quartered') return; // mirror of voctrain_attendance
-        if (k.indexOf('voctrain_user_') === 0) return;                 // per-user copies of already-claimed collections
-        var note = (k.indexOf('cestis_quarter_') === 0 || k.indexOf('cestis_budget') === 0 || k.indexOf('cesti_virement') === 0 ||
-                    k.indexOf('cestis_finance_') === 0 || k === 'cesti_cashbook_data' || k === 'cestisPayroll' ||
-                    k === 'cestisStaffMembers' || k === 'cestisTimeRecords' || k === 'cestiUsers' || k === 'dashboardUsers')
-          ? 'deferred: finance/staff extractor not yet implemented' : 'snapshot key not yet mapped';
-        out.quarantine.push({ srcId: src.id, path: k, reason: note });
+        if (EXCLUDE.test(k)) return;                                   // per-machine / view / scratch state, deliberately not imported
+        if (k === 'voctrain_attendance_quartered') return;             // mirror flag
+        if (CLAIMED_PREFIX.some(function (p2) { return k.indexOf(p2) === 0; })) return;
+        out.quarantine.push({ srcId: src.id, path: k, reason: 'snapshot key not yet mapped' });
+      });
+    },
+    // Cashbook / virement / finance-docs / payroll / clock / sibling users:
+    // the page-cloud payloads AND the same keys inside the master snapshot.
+    'finance-staff-pagecloud': function (src, out) {
+      var data = (src.json && src.json.data) || {};
+      function parseVal(v, path) {
+        if (v == null) return null;
+        if (typeof v !== 'string') return v;
+        try { return JSON.parse(v); } catch (e) { out.quarantine.push({ srcId: src.id, path: path, reason: 'unparseable JSON: ' + e.message }); return null; }
+      }
+      function doc(kind, key, fields, path) {
+        out.staging.push({ srcId: src.id, path: path, kind: 'tierbDoc', raw: { docKind: kind, docKey: kind + '|' + key, fields: fields } });
+      }
+      Object.keys(data).forEach(function (k) {
+        var mq = k.match(/^cestis_quarter_(.+)_Q(\d)$/);
+        var mb = k.match(/^cestis_budget_(.+)_Q(\d)$/);
+        if (mq) {
+          var blob = parseVal(data[k], k) || {};
+          out.staging.push({ srcId: src.id, path: k, kind: 'cbQuarter', raw: { fy: mq[1], q: parseInt(mq[2], 10), openingBalance: blob.openingBalance, deletedTxnIds: blob.deletedTxnIds || [] } });
+          (Array.isArray(blob.transactions) ? blob.transactions : []).forEach(function (t, i) {
+            if (t == null || t.id == null) { out.quarantine.push({ srcId: src.id, path: k + '.transactions[' + i + ']', reason: 'cashbook txn without id' }); return; }
+            out.staging.push({ srcId: src.id, path: k + '.transactions[' + i + ']', kind: 'cbTxn', raw: { fy: mq[1], q: parseInt(mq[2], 10), txn: t } });
+          });
+        } else if (mb && k !== 'cestis_budget_overrides' && k !== 'cestis_budget_deleted') {
+          var bb = parseVal(data[k], k) || {};
+          out.staging.push({ srcId: src.id, path: k, kind: 'cbBudget', raw: { fy: mb[1], q: parseInt(mb[2], 10), budget: bb.budget || {}, sections: bb.sections || {} } });
+        } else if (/^cestis_recon_(bank|uncleared|depnotshown)_/.test(k)) {
+          doc('reconState', k, { value: parseVal(data[k], k) }, k);
+        }
+      });
+      (parseVal(data.cesti_virements, 'cesti_virements') || []).forEach(function (r, i) {
+        if (!r || r.id == null) { out.quarantine.push({ srcId: src.id, path: 'cesti_virements[' + i + ']', reason: 'virement without id' }); return; }
+        out.staging.push({ srcId: src.id, path: 'cesti_virements[' + i + ']', kind: 'virement', raw: r });
+      });
+      out.staging.push({ srcId: src.id, path: 'virement-tombstones', kind: 'tombstones', raw: { deletedVirementIds: parseVal(data.cesti_virement_deleted_ids, 'cesti_virement_deleted_ids') || [] } });
+      [['cestis_finance_invoices', 'invoice'], ['cestis_finance_quotes', 'quote'], ['cestis_finance_pos', 'po']].forEach(function (pair) {
+        (parseVal(data[pair[0]], pair[0]) || []).forEach(function (r, i) {
+          if (!r || !r.id) { out.quarantine.push({ srcId: src.id, path: pair[0] + '[' + i + ']', reason: pair[1] + ' without id' }); return; }
+          out.staging.push({ srcId: src.id, path: pair[0] + '[' + i + ']', kind: 'findoc', raw: { kind: pair[1], rec: r } });
+        });
+      });
+      var vo = parseVal(data.cestis_finance_voucher_overrides, 'cestis_finance_voucher_overrides') || {};
+      Object.keys(vo).forEach(function (k2) { doc('voucherOverride', k2, (vo[k2] && typeof vo[k2] === 'object') ? vo[k2] : { value: vo[k2] }, 'cestis_finance_voucher_overrides[' + JSON.stringify(k2) + ']'); });
+      [['cestis_finance_convert', 'financeConvert'], ['cestis_budget_overrides', 'budgetOverrides'], ['cestis_budget_deleted', 'budgetDeleted'],
+       ['cesti_virement_logo', 'virementLogo'], ['cestis_fin_logo', 'finLogo'], ['cestis_recon_logo', 'reconLogo'],
+       ['cesti_cashbook_data', 'legacyCashbookFlat']].forEach(function (pair) {
+        var v = parseVal(data[pair[0]], pair[0]);
+        if (v != null) doc(pair[1], 'singleton', (typeof v === 'object' && !Array.isArray(v)) ? v : { value: v }, pair[0]);
+      });
+      var payroll = parseVal(data.cestisPayroll, 'cestisPayroll');
+      if (payroll) {
+        if (payroll.settings) doc('payrollSettings', 'singleton', payroll.settings, 'cestisPayroll.settings');
+        (payroll.employees || []).forEach(function (e2, i) {
+          if (!e2 || !e2.name) { out.quarantine.push({ srcId: src.id, path: 'cestisPayroll.employees[' + i + ']', reason: 'employee without name' }); return; }
+          doc('employee', e2.name, e2, 'cestisPayroll.employees[' + i + ']');
+        });
+        (payroll.payrollRuns || []).forEach(function (r2, i) {
+          if (!r2 || !r2.date) { out.quarantine.push({ srcId: src.id, path: 'cestisPayroll.payrollRuns[' + i + ']', reason: 'payroll run without date' }); return; }
+          doc('payrollRun', r2.date, r2, 'cestisPayroll.payrollRuns[' + i + ']');
+        });
+      }
+      [['dashboardUsers', 'payslipUser'], ['cestisPermissions', 'permissionRequest'], ['cestisStaffMembers', 'staffMember'],
+       ['cestisTimeRecords', 'timeRecord'], ['cestiUsers', 'feeUser']].forEach(function (pair) {
+        (parseVal(data[pair[0]], pair[0]) || []).forEach(function (r2, i) {
+          var id = r2 && (r2.id || r2.username);
+          if (!id) { out.quarantine.push({ srcId: src.id, path: pair[0] + '[' + i + ']', reason: pair[1] + ' without id' }); return; }
+          doc(pair[1], String(id), r2, pair[0] + '[' + i + ']');
+        });
       });
     },
     // The Cert/Transcript-Requests page-cloud payload → Tier-B documents.
@@ -320,8 +406,26 @@
           unitCatalogs: R.staging.filter(function (r) { return r.kind === 'unitCatalog'; }).length,
           transcriptProfiles: R.staging.filter(function (r) { return r.kind === 'tgProfile'; }).length,
           lmsDocs: R.staging.filter(function (r) { return r.kind === 'tierbDoc'; }).length,
+          cashbookEntries: 0, cashbookIncomeMinor: 0, cashbookExpenseMinor: 0, cashbookDeletedTxns: 0, cashbookVoided: 0,
+          virements: R.staging.filter(function (r) { return r.kind === 'virement'; }).length,
+          findocs: R.staging.filter(function (r) { return r.kind === 'findoc'; }).length,
           quarantined: R.quarantine.length
         };
+        var cbDeleted = {};
+        R.staging.forEach(function (r) {
+          if (r.kind === 'cbQuarter') (r.raw.deletedTxnIds || []).forEach(function (id) { cbDeleted[r.raw.fy + '|Q' + r.raw.q + '|' + id] = 1; });
+        });
+        R.cbDeleted = cbDeleted;
+        R.staging.forEach(function (r) {
+          if (r.kind !== 'cbTxn') return;
+          if (cbDeleted[r.raw.fy + '|Q' + r.raw.q + '|' + r.raw.txn.id]) { R.inventory.totals.cashbookDeletedTxns++; return; }
+          var a2 = cbAmount(r.raw.txn);
+          if (a2.klass !== 'income' && a2.klass !== 'expense') return;
+          R.inventory.totals.cashbookEntries++;
+          if (a2.voided) { R.inventory.totals.cashbookVoided++; return; } // imported for the record; ZERO in totals, like the legacy arithmetic
+          if (a2.klass === 'income') R.inventory.totals.cashbookIncomeMinor += a2.amountMinor;
+          else R.inventory.totals.cashbookExpenseMinor += a2.amountMinor;
+        });
         return adapter.put('staging', 'all', R.staging)
           .then(function () { return adapter.put('staging', 'quarantine', R.quarantine); })
           .then(function () { return adapter.put('staging', 'inventory', R.inventory); })
@@ -575,6 +679,99 @@
         { staging: 'unitCatalog', kind: 'unitCatalog', key: function (r) { return 'qual|' + r.id; } },
         { staging: 'tgProfile', kind: 'transcriptProfile', key: function (r) { return 'tgprofile|' + r.studentId; } }
       ];
+      // Cashbook (independent book, D11): quarters, entries, voids, budgets.
+      chain = chain.then(function () {
+        var c7 = Promise.resolve();
+        R.staging.filter(function (r) { return r.kind === 'cbQuarter'; }).forEach(function (r) {
+          c7 = c7.then(function () {
+            var hasTx = R.staging.some(function (r2) { return r2.kind === 'cbTxn' && r2.raw.fy === r.raw.fy && r2.raw.q === r.raw.q; });
+            if (r.raw.openingBalance == null && !hasTx) return null;   // empty blob: nothing to say
+            return detId('cbq', 'cbq|' + r.raw.fy + '|Q' + r.raw.q).then(function (qid) {
+              return ev('cashbook.quarter.opened', qid, { fy: r.raw.fy, q: r.raw.q, openingBalanceMinor: toMinor(r.raw.openingBalance).minor }, null, r.srcId, r.path);
+            });
+          });
+        });
+        R.staging.filter(function (r) { return r.kind === 'cbTxn'; }).forEach(function (r) {
+          c7 = c7.then(function () {
+            var t = r.raw.txn;
+            if (R.cbDeleted[r.raw.fy + '|Q' + r.raw.q + '|' + t.id]) return null; // legacy-deleted: accounted in inventory
+            var a2 = cbAmount(t);
+            if (a2.klass === 'ambiguous') { R.quarantine.push({ srcId: r.srcId, path: r.path, reason: 'txn has both deposit and payment' }); return null; }
+            if (a2.klass === 'zero') { R.quarantine.push({ srcId: r.srcId, path: r.path, reason: 'zero-amount txn' }); return null; }
+            return detId('cbe', 'cbe|' + r.raw.fy + '|Q' + r.raw.q + '|' + t.id).then(function (eid) {
+              if (a2.klass === 'cancelled-zero') {
+                return ev('doc.upserted', eid, { kind: 'cashbookCancelled', diff: Object.assign({}, t), reason: 'legacy import' }, null, r.srcId, r.path);
+              }
+              var payload = { fy: r.raw.fy, q: r.raw.q, date: /^\d{4}-\d{2}-\d{2}/.test(String(t.date || '')) ? String(t.date).slice(0, 10) : '2024-04-01', kind: a2.klass, categoryId: a2.category, amountMinor: a2.amountMinor };
+              if (t.cheque) payload.chequeNo = String(t.cheque);
+              if (a2.payee) payload.payee = a2.payee;
+              return ev('cashbook.entry.recorded', eid, payload, null, r.srcId, r.path).then(function () {
+                if (!a2.voided) return null;
+                return ev('cashbook.cheque.voided', eid, { reason: 'legacy voided cheque' }, null, r.srcId, r.path + '#void');
+              });
+            });
+          });
+        });
+        R.staging.filter(function (r) { return r.kind === 'cbBudget'; }).forEach(function (r) {
+          c7 = c7.then(function () {
+            var lines = Object.keys(r.raw.budget).map(function (cat) {
+              return { categoryId: cat, sectionId: r.raw.sections[cat] || '', amountMinor: toMinor(r.raw.budget[cat]).minor };
+            });
+            if (!lines.length) return null;
+            return detId('bud', 'bud|' + r.raw.fy + '|Q' + r.raw.q).then(function (bid) {
+              return ev('budget.set', bid, { fy: r.raw.fy, q: r.raw.q, lines: lines }, null, r.srcId, r.path);
+            });
+          });
+        });
+        return c7;
+      });
+
+      // Virements: requested (+ decided when legacy status says so).
+      chain = chain.then(function () {
+        var delV = {};
+        R.staging.forEach(function (r) { if (r.kind === 'tombstones') (r.raw.deletedVirementIds || []).forEach(function (id) { delV[id] = 1; }); });
+        var c8 = Promise.resolve();
+        R.staging.filter(function (r) { return r.kind === 'virement'; }).forEach(function (r) {
+          c8 = c8.then(function () {
+            var v = r.raw;
+            if (delV[v.id]) return null;                               // legacy-deleted virement: accounted
+            var lines = (Array.isArray(v.lines) ? v.lines : []).map(function (l) {
+              return { fromCategoryId: String(l.fromId || l.fromName || ''), toCategoryId: String(l.toId || l.toName || ''), amountMinor: toMinor(l.amount).minor };
+            }).filter(function (l) { return l.fromCategoryId && l.toCategoryId && l.amountMinor > 0; });
+            if (!lines.length) { R.quarantine.push({ srcId: r.srcId, path: r.path, reason: 'virement without valid lines' }); return null; }
+            var fy = /^\d{4}\/\d{4}$/.test(String(v.fy || '')) ? v.fy : '2024/2025';
+            return detId('vir', 'vir|' + v.id).then(function (vid) {
+              return ev('virement.requested', vid, { fy: fy, q: parseInt(v.quarter, 10) || 1, lines: lines, requestedBy: String(v.requestedBy || 'unknown') }, null, r.srcId, r.path)
+                .then(function () {
+                  var st = String(v.status || '');
+                  if (st !== 'Approved' && st !== 'Rejected') return null;
+                  var p2 = { decision: st.toLowerCase() };
+                  if (v.approvalComment) p2.note = String(v.approvalComment);
+                  if (v.approvedBy) p2.decidedBy = String(v.approvedBy);
+                  if (/^\d{4}-\d{2}-\d{2}$/.test(String(v.approvalDate || ''))) p2.decidedOn = v.approvalDate;
+                  return ev('virement.decided', vid, p2, null, r.srcId, r.path + '#decision');
+                });
+            });
+          });
+        });
+        return c8;
+      });
+
+      // Finance documents: legacy numbers are preserved, never reassigned.
+      chain = chain.then(function () {
+        var c9 = Promise.resolve();
+        R.staging.filter(function (r) { return r.kind === 'findoc'; }).forEach(function (r) {
+          c9 = c9.then(function () {
+            return detId('fdc', 'fdc|' + r.raw.kind + '|' + r.raw.rec.id).then(function (fid) {
+              var payload = { kind: r.raw.kind, doc: r.raw.rec };
+              if (r.raw.rec.number != null && String(r.raw.rec.number) !== '') payload.number = String(r.raw.rec.number);
+              return ev('findoc.issued', fid, payload, null, r.srcId, r.path);
+            });
+          });
+        });
+        return c9;
+      });
+
       chain = chain.then(function () {
         var c6 = Promise.resolve();
         R.staging.filter(function (r) { return r.kind === 'tierbDoc'; }).forEach(function (r) {
@@ -636,8 +833,13 @@
           var foldBal = led ? led.balanceMinor : 0;
           if (stored !== foldBal) balanceDiffs.push({ studentId: r.raw.id, name: r.raw.name, enrolmentId: r._enrId, storedBalanceMinor: stored, foldedBalanceMinor: foldBal, deltaMinor: foldBal - stored });
         });
+        var qIncome = 0, qExpense = 0;
+        Object.keys(folded.quarters).forEach(function (k) { qIncome += folded.quarters[k].incomeMinor; qExpense += folded.quarters[k].expenseMinor; });
+        var cashbookIdentityHolds = qIncome === R.inventory.totals.cashbookIncomeMinor && qExpense === R.inventory.totals.cashbookExpenseMinor;
         R.verification = {
           brokerAccepted: R.events.length,
+          cashbookIncomeMinor: qIncome, cashbookExpenseMinor: qExpense,
+          cashbookIdentityHolds: cashbookIdentityHolds,
           paymentsTotalMinor: ledgerTotal,
           quarantinedPaymentsMinor: quarMinor,
           inventoryTotalMinor: R.inventory.totals.paymentsTotalMinor,
