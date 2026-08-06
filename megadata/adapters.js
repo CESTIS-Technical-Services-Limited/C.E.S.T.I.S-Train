@@ -17,6 +17,9 @@
       kind: 'memory',
       get: function (n, k) { return Promise.resolve(ns(n).has(k) ? ns(n).get(k) : null); },
       put: function (n, k, v) { ns(n).set(k, v); return Promise.resolve(); },
+      // Atomic batch: the IndexedDB adapter honours this in ONE transaction;
+      // memory/file apply sequentially (crash-atomicity there is the runner's).
+      putMany: function (list) { list.forEach(function (e) { ns(e.ns).set(e.k, e.v); }); return Promise.resolve(); },
       del: function (n, k) { ns(n).delete(k); return Promise.resolve(); },
       scan: function (n) {
         return Promise.resolve(Array.from(ns(n).entries()).map(function (e) { return { k: e[0], v: e[1] }; }));
@@ -40,6 +43,14 @@
       kind: 'file',
       get: function (n, k) { var o = load(n); return Promise.resolve(k in o ? o[k] : null); },
       put: function (n, k, v) { var o = load(n); o[k] = v; save(n, o); return Promise.resolve(); },
+      putMany: function (list) {
+        var byNs = {};
+        list.forEach(function (e) { (byNs[e.ns] = byNs[e.ns] || []).push(e); });
+        Object.keys(byNs).forEach(function (n) {
+          var o = load(n); byNs[n].forEach(function (e) { o[e.k] = e.v; }); save(n, o);
+        });
+        return Promise.resolve();
+      },
       del: function (n, k) { var o = load(n); delete o[k]; save(n, o); return Promise.resolve(); },
       scan: function (n) {
         var o = load(n);

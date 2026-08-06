@@ -67,12 +67,17 @@
         refs: cmdOpts.refs, cause: cmdOpts.cause, corr: cmdOpts.corr, prov: cmdOpts.prov
       }).then(function (evt) {
         var row = { evt: evt, localIdx: ++localIdx };
-        // One logical transaction: event + outbox marker + counter (the memory/
-        // file adapters apply these atomically enough for tests; the IndexedDB
-        // adapter wraps them in a single IDB transaction — same seam).
-        return adapter.put('events', key10(row.localIdx), evt)
-          .then(function () { return adapter.put('outbox', evt.id, row.localIdx); })
-          .then(function () { return adapter.put('meta', 'localIdx', localIdx); })
+        // One logical transaction: event + outbox marker + counter. Adapters
+        // providing putMany (IndexedDB: one IDB transaction) get atomicity;
+        // others apply sequentially.
+        var batch = [
+          { ns: 'events', k: key10(row.localIdx), v: evt },
+          { ns: 'outbox', k: evt.id, v: row.localIdx },
+          { ns: 'meta', k: 'localIdx', v: localIdx }
+        ];
+        var write = adapter.putMany ? adapter.putMany(batch)
+          : batch.reduce(function (pr, e) { return pr.then(function () { return adapter.put(e.ns, e.k, e.v); }); }, Promise.resolve());
+        return write
           .then(function () {
             rows.push(row); byId[evt.id] = row; refold();
             return { accepted: true, eventId: evt.id, entityId: entityId };
