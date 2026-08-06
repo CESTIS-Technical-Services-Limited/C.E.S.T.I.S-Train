@@ -64,7 +64,7 @@
         if (!k[entityId].alive) return Promise.reject(new Error(reg.entity + '/' + entityId + ' is tombstoned/merged'));
       }
       return MD.buildEvent(type, entityId, payload, actor, source, {
-        refs: cmdOpts.refs, cause: cmdOpts.cause, corr: cmdOpts.corr, prov: cmdOpts.prov
+        id: cmdOpts.id, refs: cmdOpts.refs, cause: cmdOpts.cause, corr: cmdOpts.corr, prov: cmdOpts.prov
       }).then(function (evt) {
         var row = { evt: evt, localIdx: ++localIdx };
         // One logical transaction: event + outbox marker + counter. Adapters
