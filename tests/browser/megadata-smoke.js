@@ -138,6 +138,26 @@ function serve() {
     await page.close();
   }
 
+  section('Staff.Payslip loads clean with the docsync stack');
+  {
+    const { page, pageErrors } = await openPage('Staff.Payslip.html');
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.PS_SPECS && MegaData.payrollDecompose)), 'staff-pages model registered');
+    ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'Staff.Payslip'), 'shim carries the page identity');
+    ok(await page.evaluate(() => typeof window.__psTick === 'undefined'), 'docsync stays dormant in legacy mode');
+    await page.close();
+  }
+
+  section('Staff.Clock.in loads clean with the docsync stack');
+  {
+    const { page, pageErrors } = await openPage('Staff.Clock.in.html');
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.CLOCK_SPECS && MegaData.docSyncPlan)), 'clock specs + docsync registered');
+    ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'Staff.Clock.in'), 'shim carries the page identity');
+    ok(await page.evaluate(() => typeof window.__clockTick === 'undefined'), 'docsync stays dormant in legacy mode');
+    await page.close();
+  }
+
   section('MegaData-Admin: the device-setup page loads clean and does its three jobs');
   {
     const { page, pageErrors } = await openPage('MegaData-Admin.html');

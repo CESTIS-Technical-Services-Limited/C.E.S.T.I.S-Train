@@ -178,6 +178,20 @@ edit/void/unvoid/deletion chains, the id trap end-to-end, the mirror (remap + su
 edits + legacy-semantics voids), cancelled-zero documents, and the comparator catching a lying
 opening balance.
 
+**Staff.Payslip + Staff.Clock.in (implemented and tested, dormant until sealed):** seven
+docsync kinds pinned to the finance-staff extractor's tierbDoc keys — payroll settings
+(singleton), employees (by NAME — a rename is new doc + soft removal, bootstrap semantics),
+payroll runs (by date), dashboard users, permission requests, staff members and time records.
+The payroll store is one key with nested collections, so it decomposes/recomposes at the model
+boundary with every guard field (high-water marks) preserved verbatim and key-less records
+reported but kept local. The payslip page has no in-memory reloader, so its mirror keeps
+STORAGE canonical and the screen catches up on next load — the wrap-after-save re-mirror means
+a stale in-memory save can never permanently clobber a mirrored record. Cashbook-written
+salary runs bridge on the payslip page's next tick (deterministic ids make origin irrelevant).
+Time-correction semantic elevation (`time.corrected`) stays a named deferred step.
+`tests/megadata-ps.test.js` covers all seven drift guards, the decompose/recompose contract,
+rename, the cashbook hand-off, cross-device clock corrections, and the same-edit race.
+
 - **Window**: one full **term boundary** — from before a term's charges are assessed, through
   its payment-heavy opening weeks — plus ordinary weeks, minimum 4 calendar weeks total.
   Concretely: start the shadow ≥1 week before the next term's fee window opens; do not exit
