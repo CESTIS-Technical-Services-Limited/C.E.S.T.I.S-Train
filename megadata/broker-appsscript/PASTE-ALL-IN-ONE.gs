@@ -632,6 +632,45 @@ function doPost(e) {
   catch (err) { return jsonOut({ error: 'body is not JSON' }); }
   if (!hmacOk(req.auth, req.payload)) return jsonOut({ error: 'auth failed' });
 
+  // Read-only Drive lookups for the migration: no broker state, no lock.
+  // 'listLegacy' searches the WHOLE Drive by exact backup filenames (and/or
+  // lists given folders), so the operator never has to know folder ids;
+  // 'fetchLegacy' returns one file's content. Both are HMAC-gated like
+  // every op, and neither can write anything.
+  if (req.op === 'listLegacy') {
+    var found = [];
+    ((req.payload && req.payload.names) || []).forEach(function (nm) {
+      var it = DriveApp.getFilesByName(String(nm));
+      while (it.hasNext()) {
+        var f0 = it.next();
+        if (f0.isTrashed()) continue;
+        var parents = f0.getParents();
+        found.push({ id: f0.getId(), name: f0.getName(), size: f0.getSize(),
+          modified: f0.getLastUpdated().toISOString(),
+          folder: parents.hasNext() ? parents.next().getName() : '' });
+      }
+    });
+    ((req.payload && req.payload.folderIds) || []).forEach(function (fid) {
+      try {
+        var it2 = DriveApp.getFolderById(String(fid)).getFiles();
+        while (it2.hasNext()) {
+          var f1 = it2.next();
+          if (f1.isTrashed()) continue;
+          found.push({ id: f1.getId(), name: f1.getName(), size: f1.getSize(),
+            modified: f1.getLastUpdated().toISOString(), folder: String(fid) });
+        }
+      } catch (e2) { found.push({ error: 'folder ' + fid + ': ' + e2.message }); }
+    });
+    return jsonOut({ files: found });
+  }
+  if (req.op === 'fetchLegacy') {
+    try {
+      var f2 = DriveApp.getFileById(String(req.payload.fileId));
+      if (f2.getSize() > 30 * 1024 * 1024) return jsonOut({ error: 'file too large (>30MB): ' + f2.getName() });
+      return jsonOut({ name: f2.getName(), modified: f2.getLastUpdated().toISOString(), content: f2.getBlob().getDataAsString() });
+    } catch (e3) { return jsonOut({ error: 'fetch failed: ' + e3.message }); }
+  }
+
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(25000)) return jsonOut({ error: 'busy', retryable: true });
   try {

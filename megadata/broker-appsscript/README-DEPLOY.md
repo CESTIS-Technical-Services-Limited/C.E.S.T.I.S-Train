@@ -60,6 +60,29 @@ broker's head, and only `--seal`s when verification passes. Re-running it is alw
 replayed events are answered with their original acks. After it, confirm `seg-…jsonl`,
 `head.json` and `broker-state.json` appeared in the MegaData folder.
 
+## Updating an already-deployed broker (keeps the same URL + secret)
+
+1. Open the project at <https://script.google.com> → *CESTIS MegaData Broker*.
+2. Select all the code, delete it, paste the NEW `PASTE-ALL-IN-ONE.gs`, save.
+3. **Deploy → Manage deployments → ✏️ Edit → Version: "New version" → Deploy.**
+   The `/exec` URL stays the same, every device keeps working, nothing re-enters.
+   (Deploy → *New deployment* would mint a DIFFERENT URL — don't, unless rotating on purpose.)
+
+## Fetching the legacy backups through the broker (no manual downloads)
+
+The broker runs inside the school's account, so the migration can pull its own sources:
+
+```bash
+node megadata/bootstrap-cli.js --from-drive --url '<DEPLOY_URL>'          # dry run
+node megadata/bootstrap-cli.js --from-drive --url '<DEPLOY_URL>' --commit # the real run, after review
+```
+
+`listLegacy` searches the WHOLE Drive by the exact backup filenames (no folder ids needed);
+where the same backup exists in several folders the NEWEST copy is used and every duplicate is
+reported. Fetched files are written verbatim into `--src` (default `./megadata-sources`), so
+the run's inventory hashes exactly what was reviewed. Device export bundles (card 3 of
+MegaData-Admin) are still added to that folder by hand — they are downloads, not Drive files.
+
 ## Known limits (by design — docs/02 §9, §15)
 
 - ~1–3 s per call including cold starts; clients batch and poll at ≥20 s.
