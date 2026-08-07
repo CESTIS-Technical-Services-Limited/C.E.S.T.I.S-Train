@@ -18,8 +18,10 @@
   var SERIES_PREFIX = { receipt: 'R-', cert: 'CT-', invoice: 'INV-', quote: 'QUO-', po: 'PO-', voucher: 'VOU-' };
   function pad6(n) { return String(n).padStart(6, '0'); }
 
-  // Entity kinds that auto-vivify on first event (Tier B docs & queue items).
-  var AUTOVIVIFY = { doc: 1, adjudication: 1 };
+  // Entity kinds that auto-vivify on first event (Tier B docs, queue items,
+  // and budgets — budget.set is a replace whose first set brings the
+  // quarter's budget into existence).
+  var AUTOVIVIFY = { doc: 1, adjudication: 1, budget: 1 };
   // Enrolment statuses that release a person for tombstoning.
   var RELEASED = { withdrawn: 1, completed: 1 };
 

@@ -35,6 +35,19 @@
       });
       return out;
     }
+    function budgetBlobs() {
+      var out = [];
+      var keys = (window.CESTISStore.keys ? window.CESTISStore.keys() : []);
+      keys.forEach(function (k) {
+        var pb = MG.parseBudgetKey(k);
+        if (!pb) return;
+        try {
+          var blob = JSON.parse(window.CESTISStore.getItem(k) || 'null');
+          if (blob && typeof blob === 'object') out.push({ fy: pb.fy, q: pb.q, key: k, blob: blob });
+        } catch (e) { /* unreadable: bootstrap quarantine owns these */ }
+      });
+      return out;
+    }
 
     MG.pageBoot({
       page: PAGE,
@@ -66,7 +79,28 @@
               });
             });
           }, Promise.resolve()).then(function () {
+            // Budgets: local drift pushes a whole-quarter budget.set.
+            return budgetBlobs().reduce(function (pr, spec) {
+              return pr.then(function () {
+                return MG.cbBudgetPlan(dal, spec.fy, spec.q, spec.blob).then(function (bp) { return MG.cbBudgetPush(dal, bp, PAGE); });
+              });
+            }, Promise.resolve());
+          }).then(function () {
             return dal.sync.now().catch(function (e) { console.info('[MegaData] sync deferred: ' + e.message); });
+          }).then(function () {
+            // Budgets mirror-in, driven from CANONICAL budgets so a device
+            // with no local key at all adopts too. Only devices with no
+            // local opinion adopt; local non-empty budgets take the push path.
+            return dal.find('budget', function (e) { return e.alive && e.fields && e.fields.fy != null; }).reduce(function (pr, ent) {
+              return pr.then(function () {
+                var key = 'cestis_budget_' + ent.fields.fy + '_Q' + ent.fields.q;
+                var blob = null;
+                try { blob = JSON.parse(window.CESTISStore.getItem(key) || 'null'); } catch (e) { blob = null; }
+                return MG.cbBudgetMirror(dal, ent.fields.fy, ent.fields.q, blob || {}).then(function (nb) {
+                  if (nb) window.CESTISStore.setItem(key, JSON.stringify(nb));
+                });
+              });
+            }, Promise.resolve());
           }).then(function () {
             var changedAny = false;
             return specs.reduce(function (pr, spec) {
@@ -94,7 +128,7 @@
         return tick;
       }
 
-      ['saveToStorage', 'saveTxnToQuarter', 'saveQuarterAndSwitch'].forEach(function (fn) {
+      ['saveToStorage', 'saveTxnToQuarter', 'saveQuarterAndSwitch', 'saveQuarterBudget'].forEach(function (fn) {
         var orig = window[fn];
         if (typeof orig !== 'function') return;
         window[fn] = function () {

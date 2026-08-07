@@ -182,6 +182,16 @@ function serve() {
     await page.close();
   }
 
+  section('MegaData-Adjudication: the queue page loads clean and explains itself');
+  {
+    const { page, pageErrors } = await openPage('MegaData-Adjudication.html');
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | '));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.adjqPending && MegaData.adjqDecide)), 'queue model registered');
+    ok(await page.evaluate(() => /record book|migration/i.test(document.getElementById('queueHost').textContent)),
+      'unconnected device: plain-language explanation, not a broken queue');
+    await page.close();
+  }
+
   section('MegaData-Admin: the device-setup page loads clean and does its three jobs');
   {
     const { page, pageErrors } = await openPage('MegaData-Admin.html');

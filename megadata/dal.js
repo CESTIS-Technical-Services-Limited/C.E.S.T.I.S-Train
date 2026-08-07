@@ -58,7 +58,7 @@
       }
       // Local existence pre-checks mirror the broker's cheap ones so mistakes
       // fail fast offline; the broker remains the authority (P8).
-      if (!reg.creates && !{ doc: 1, adjudication: 1 }[reg.entity]) {
+      if (!reg.creates && !{ doc: 1, adjudication: 1, budget: 1 }[reg.entity]) { // keep in lockstep with broker-core AUTOVIVIFY
         var k = S.entities[reg.entity];
         if (!k || !k[entityId]) return Promise.reject(new Error(reg.entity + '/' + entityId + ' does not exist locally'));
         if (!k[entityId].alive) return Promise.reject(new Error(reg.entity + '/' + entityId + ' is tombstoned/merged'));

@@ -52,6 +52,8 @@
           if (evt.type === 'doc.upserted') e.fields.docKind = evt.payload.kind;
           break;
         }
+        case 'budget.set': Object.assign(e.fields, evt.payload); break; // whole-quarter replace; history in the log
+        case 'identity.adjudicated': Object.assign(e.fields, evt.payload); break; // latest disposition wins; history in the log
         case 'person.tombstoned': case 'doc.tombstoned': e.alive = false; e.tombstonedBy = evt.id; break;
         case 'person.merged': {
           var loser = ent('person', evt.payload.loserId);

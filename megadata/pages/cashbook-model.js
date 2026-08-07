@@ -378,5 +378,60 @@
     return { ok: okAll, quarters: rows };
   }
 
-  return { parseQuarterKey: parseQuarterKey, cbTxnContent: cbTxnContent, cbPlanQuarter: cbPlanQuarter, cbPushPlan: cbPushPlan, cbMirrorQuarter: cbMirrorQuarter, cbApplyMirror: cbApplyMirror, cbReconcile: cbReconcile };
+  /* ---------- budgets (registry: budget.set = whole-quarter replace) ------- */
+
+  function parseBudgetKey(k) {
+    var m = /^cestis_budget_(.+)_Q(\d)$/.exec(String(k || ''));
+    return m ? { fy: m[1], q: parseInt(m[2], 10) } : null;
+  }
+  function budgetLines(blob) {
+    var b = (blob && blob.budget) || {}, s = (blob && blob.sections) || {};
+    return Object.keys(b).sort().map(function (cat) {
+      return { categoryId: cat, sectionId: s[cat] || '', amountMinor: MG.cbToMinor(b[cat]).minor };
+    });
+  }
+  /* Local budget vs folded budget: differ → one budget.set replaces the
+     quarter (state-hashed event id: retries and same-state races converge;
+     the next edit is a new state and its own audited event). */
+  function cbBudgetPlan(dal, fy, q, blob) {
+    var lines = budgetLines(blob);
+    if (!lines.length) return Promise.resolve(null);
+    return MG.bootstrapId('bud', 'bud|' + fy + '|Q' + q).then(function (bid) {
+      var ent = dal.get('budget', bid);
+      var current = (ent && ent.fields && ent.fields.lines) || [];
+      if (MG.canon(current) === MG.canon(lines)) return null;
+      return {
+        entityId: bid, payload: { fy: fy, q: q, lines: lines },
+        eventKey: 'budset|' + bid + '|' + MG.canon(current) + '|' + MG.canon(lines)
+      };
+    });
+  }
+  function cbBudgetPush(dal, plan, page) {
+    if (!plan) return Promise.resolve(null);
+    return MG.bridgeEventId(plan.eventKey).then(function (evtId) {
+      return dal._accept('budget.set', plan.entityId, plan.payload, { id: evtId, prov: { importRun: 'bridge', srcFile: page || 'CESTIS.Cashbook', srcPath: plan.payload.fy + '|Q' + plan.payload.q } })
+        .catch(function (e) { if (!/exists/.test(e.message)) throw e; });
+    });
+  }
+  /* Canonical budget → legacy blob (the mirror direction). Local-empty blobs
+     adopt the canonical budget; a local non-empty blob that drifted pushes
+     instead (cbBudgetPlan), so the mirror only fills devices that have no
+     opinion yet — budgets are whole-replace, LWW by design. */
+  function cbBudgetMirror(dal, fy, q, blob) {
+    var lines = budgetLines(blob);
+    return MG.bootstrapId('bud', 'bud|' + fy + '|Q' + q).then(function (bid) {
+      var ent = dal.get('budget', bid);
+      if (!ent || !ent.fields || !Array.isArray(ent.fields.lines) || !ent.fields.lines.length) return null;
+      if (lines.length) return null;                     // local has an opinion: push path owns it
+      var budget = {}, sections = {};
+      ent.fields.lines.forEach(function (l) {
+        budget[l.categoryId] = l.amountMinor / 100;
+        if (l.sectionId) sections[l.categoryId] = l.sectionId;
+      });
+      return { budget: budget, sections: sections };
+    });
+  }
+
+  return { parseQuarterKey: parseQuarterKey, cbTxnContent: cbTxnContent, cbPlanQuarter: cbPlanQuarter, cbPushPlan: cbPushPlan, cbMirrorQuarter: cbMirrorQuarter, cbApplyMirror: cbApplyMirror, cbReconcile: cbReconcile,
+    parseBudgetKey: parseBudgetKey, budgetLines: budgetLines, cbBudgetPlan: cbBudgetPlan, cbBudgetPush: cbBudgetPush, cbBudgetMirror: cbBudgetMirror };
 });

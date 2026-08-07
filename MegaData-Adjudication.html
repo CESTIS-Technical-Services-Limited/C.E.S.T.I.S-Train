@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Identity Adjudication Queue | CESTIS MegaData</title>
+<style>
+  :root { --ink:#1c2733; --mut:#5b6b7b; --line:#d9e2ec; --card:#fff; --bg:#f2f6fa; --ok:#1c7c43; --warn:#9a6700; --bad:#b3261e; --btn:#1a5fb4; --hl:#fff3cd; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#12324f; color:#fff; padding:16px 22px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  header h1 { margin:0; font-size:1.15rem; }
+  #progress { color:#c8d8e8; font-size:.9rem; }
+  main { max-width:980px; margin:20px auto 60px; padding:0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .status { padding:10px 12px; border-radius:6px; font-size:.9rem; }
+  .status.mut { background:#eef2f6; color:var(--mut); }
+  .status.ok { background:#e6f4ea; color:var(--ok); }
+  .suggestion { font-weight:600; margin-bottom:4px; }
+  .stake { color:var(--bad); font-weight:600; font-size:.95rem; }
+  table { width:100%; border-collapse:collapse; margin-top:12px; font-size:.9rem; }
+  th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:#eef2f6; }
+  td.diff { background:var(--hl); font-weight:600; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; align-items:center; }
+  button { padding:9px 16px; border:0; border-radius:6px; font-size:.9rem; font-weight:600; cursor:pointer; background:var(--btn); color:#fff; }
+  button.green { background:var(--ok); } button.amber { background:#b58500; } button.grey { background:#e7edf3; color:var(--ink); }
+  button:disabled { opacity:.45; cursor:default; }
+  input[type=text] { flex:1; min-width:220px; padding:8px 10px; border:1px solid var(--line); border-radius:6px; }
+  .kbd { background:#eef2f6; border:1px solid var(--line); border-radius:4px; padding:0 6px; font-family:monospace; }
+  .missing { color:var(--mut); font-style:italic; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Identity Adjudication Queue</h1>
+  <div id="progress">—</div>
+</header>
+<main>
+  <div class="card" id="modeCard">
+    <div class="status mut" id="modeStatus">Checking this device's connection…</div>
+    <p style="color:var(--mut);font-size:.88rem;max-width:78ch">Each item below is a case the migration refused to decide by itself — usually two records sharing an ID number but carrying different names. Nothing was merged automatically (that would risk mixing two people's money). Your decision here is recorded permanently, syncs to every device, and can be revisited in the audit trail. Items are ordered by the money at stake. Keys: <span class="kbd">1</span> keep separate · <span class="kbd">2</span> merge (choose which record wins) · <span class="kbd">3</span> defer.</p>
+  </div>
+  <div id="queueHost"></div>
+</main>
+
+<script src="cestis-core.js?v=1"></script>
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/adjq-model.js?v=1"></script>
+<script>
+(function () {
+  'use strict';
+  var MG = window.MegaData;
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function money(m) { return 'J$' + (m / 100).toFixed(2); }
+  var dal = null, queue = [], decidedCount = 0, current = null;
+
+  function render() {
+    var host = $('queueHost');
+    $('progress').textContent = queue.length + ' pending · ' + decidedCount + ' decided';
+    if (!queue.length) {
+      host.innerHTML = '<div class="card"><div class="status ok">Queue clear — every item has a recorded disposition. New items only appear after another migration import.</div></div>';
+      current = null;
+      return;
+    }
+    current = queue[0];
+    var cols = current.records;
+    var html = '<div class="card">';
+    html += '<div class="suggestion">' + esc(current.suggestion) + ' <span style="color:var(--mut)">(tier ' + esc(current.tier) + ')</span></div>';
+    html += '<div class="stake">Money at stake: ' + money(current.stakeMinor) + '</div>';
+    html += '<table><thead><tr><th>Field</th>';
+    cols.forEach(function (c, i) {
+      html += '<th>Record ' + esc(c.rec.id) + (c.hit ? ' <label style="font-weight:400"><input type="radio" name="winner" value="' + i + '"' + (i === 0 ? ' checked' : '') + '> keep this one</label>' : ' <span class="missing">(no live person)</span>') + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+    var fields = ['name', 'dob', 'nationalId', 'phone', 'email', 'address', 'city'];
+    fields.forEach(function (f) {
+      var vals = cols.map(function (c) {
+        if (!c.hit) return null;
+        var p = c.hit.person.fields, ct = p.contacts || {};
+        return { name: (p.names && p.names.full) || '', dob: p.dob || '', nationalId: p.nationalId || '', phone: ct.phone || '', email: ct.email || '', address: ct.address || '', city: ct.city || '' }[f];
+      });
+      var seen = {}; vals.forEach(function (v) { if (v != null) seen[String(v)] = 1; });
+      var differs = Object.keys(seen).length > 1;
+      html += '<tr><td>' + esc(f) + '</td>' + vals.map(function (v) {
+        return '<td class="' + (differs ? 'diff' : '') + '">' + (v == null ? '<span class="missing">—</span>' : esc(v)) + '</td>';
+      }).join('') + '</tr>';
+    });
+    html += '<tr><td>balance at stake</td>' + cols.map(function (c) { return '<td>' + (c.hit ? money(c.stakeMinor) : '<span class="missing">—</span>') + '</td>'; }).join('') + '</tr>';
+    html += '</tbody></table>';
+    html += '<div class="row"><input type="text" id="note" placeholder="Optional note (kept in the record)">';
+    var canMerge = cols.filter(function (c) { return c.hit; }).length >= 2;
+    html += '<button class="grey" onclick="window.__adjDecide(\'kept-separate\')"><span class="kbd">1</span> Keep separate</button>';
+    html += '<button class="green" onclick="window.__adjDecide(\'merged\')"' + (canMerge ? '' : ' disabled title="needs two live people"') + '><span class="kbd">2</span> Merge</button>';
+    html += '<button class="amber" onclick="window.__adjDecide(\'deferred\')"><span class="kbd">3</span> Defer</button></div>';
+    html += '</div>';
+    host.innerHTML = html;
+  }
+
+  function reload() {
+    return MG.adjqPending(dal).then(function (out) {
+      queue = out.pending; decidedCount = out.decided.length;
+      render();
+    });
+  }
+
+  window.__adjDecide = function (decision) {
+    if (!current || !dal) return;
+    var opts = { note: ($('note') && $('note').value.trim()) || '' };
+    if (decision === 'merged') {
+      var pick = document.querySelector('input[name=winner]:checked');
+      var wi = pick ? parseInt(pick.value, 10) : 0;
+      var live = current.records.filter(function (c) { return c.hit; });
+      var winner = (current.records[wi] && current.records[wi].hit) ? current.records[wi] : live[0];
+      if (!winner) return;
+      opts.winnerPersonId = winner.hit.personId;
+      opts.loserPersonIds = live.filter(function (c) { return c.hit.personId !== winner.hit.personId; }).map(function (c) { return c.hit.personId; });
+      if (!opts.loserPersonIds.length) return;
+    }
+    MG.adjqDecide(dal, current, decision, opts).then(function () {
+      return dal.sync.now().catch(function () {});
+    }).then(reload).catch(function (e) { alert('Could not record the decision: ' + e.message); });
+  };
+
+  document.addEventListener('keydown', function (e) {
+    if (!current || /INPUT|TEXTAREA/.test((e.target && e.target.tagName) || '')) return;
+    if (e.key === '1') window.__adjDecide('kept-separate');
+    if (e.key === '2') window.__adjDecide('merged');
+    if (e.key === '3') window.__adjDecide('deferred');
+  });
+
+  MG.pageBoot({ page: 'MegaData-Adjudication', actor: { name: 'Adjudicator', role: 'admin', device: 'dev_adjq' }, onChange: function () { reload(); } })
+    .then(function (BOOT) {
+      if (BOOT.mode === 'legacy') {
+        $('modeStatus').textContent = MG.describeBoot ? MG.describeBoot(BOOT) : 'Not connected.';
+        $('modeStatus').className = 'status mut';
+        $('queueHost').innerHTML = '<div class="card"><div class="status mut">The queue lives in the shared record book — set up this device on the MegaData Admin page and run the migration first.</div></div>';
+        return;
+      }
+      dal = BOOT.dal;
+      $('modeStatus').textContent = 'Connected (' + BOOT.mode + ' mode). Decisions sync to every device.';
+      $('modeStatus').className = 'status ok';
+      reload();
+    })
+    .catch(function (e) { $('modeStatus').textContent = 'Boot failed: ' + e.message; });
+})();
+</script>
+</body>
+</html>

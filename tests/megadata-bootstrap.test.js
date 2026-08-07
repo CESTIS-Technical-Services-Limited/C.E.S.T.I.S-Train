@@ -137,7 +137,7 @@ function rawBaseline() {
   eq(repU.inventory.totals.tombstonedLmsStudents, 1, 'and the tombstoned one is accounted, not imported');
   eq(repU.events.byType['person.registered'], 4, '5 source records → 4 people: the corroborated link pair collapsed to one');
   eq(repU.events.byType['enrolment.created'], 4, 'one enrolment each');
-  eq(repU.events.byType['doc.upserted'], 2, 'LMS presentation scalars preserved as roster documents (L1, L3)');
+  eq(repU.events.byType['doc.upserted'], 3, 'roster documents for L1+L3 PLUS the queue item as a canonical doc (the queue folds on every device)');
   ok(repU.adjudicationQueue.some(q => /conflicting names/.test(q.suggestion)), 'the shared link with disagreeing names is a HUMAN queue item, not a merge');
   eq(repU.verification.storedBalanceDisagreements, 0, 'the unified ledger still matches the stored balance (100 − 30 = 70)');
   eq(repU.verification.financialIdentityHolds, true, 'and the financial identity holds across both sources');

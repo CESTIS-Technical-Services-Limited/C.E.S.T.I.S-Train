@@ -788,6 +788,28 @@
         });
       });
 
+      // The identity adjudication queue becomes CANONICAL documents, one per
+      // item with a stable content-derived itemId — so every device folds
+      // the same queue, decisions (identity.adjudicated) join by itemId, and
+      // the queue survives across days and machines (verdict: resumable).
+      chain = chain.then(function () {
+        var c8 = Promise.resolve();
+        (R.resolution.queue || []).forEach(function (item, idx) {
+          c8 = c8.then(function () {
+            var ids = (item.records || []).map(function (r) { return String(r.id); }).sort();
+            var itemId = 'idq|' + (item.suggestion || 'identity').replace(/\s*\(.*\)$/, '') + '|' + ids.join(',');
+            return detId('doc', itemId).then(function (docId) {
+              return ev('doc.upserted', docId, {
+                kind: 'identityQueueItem',
+                diff: { itemId: itemId, tier: item.tier, suggestion: item.suggestion, records: item.records },
+                reason: 'legacy import'
+              }, null, 'resolution', 'queue[' + idx + ']');
+            });
+          });
+        });
+        return c8;
+      });
+
       return chain.then(function () {
         R.events = events; R.finQueue = finQueue; R.decisions = decisions;
         return adapter.put('staging', 'events', events)

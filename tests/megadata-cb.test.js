@@ -183,6 +183,39 @@ function foldQ(dal) { return dal.project('quarter', { fy: FY, q: Q }); }
   eq(rep.quarters[0].legacyOpeningMinor, 99900, 'legacy side reported');
   eq(rep.quarters[0].megaOpeningMinor, 50000, 'canonical side reported');
 
+  section('Budgets: budget.set is a live REPLACE now — every version audited');
+  {
+    const bk = createBroker();
+    const D1 = await freshDal(bk, 'B1');
+    const D2 = await freshDal(bk, 'B2');
+    const blob1 = { budget: { Office: 5000, Utilities: 2000 }, sections: { Office: 'Admin' } };
+    const bp1 = await CB.cbBudgetPlan(D1, FY, Q, blob1);
+    ok(bp1, 'a local budget with no canonical counterpart plans a set');
+    await CB.cbBudgetPush(D1, bp1, 'CB'); await D1.sync.now();
+    const bid = await RM.bootstrapId('bud', 'bud|' + FY + '|Q' + Q);
+    eq(D1.get('budget', bid).fields.lines.length, 2, 'the budget folds (autovivified, no creates gate)');
+    eq(await CB.cbBudgetPlan(D1, FY, Q, blob1), null, 'unchanged: quiet');
+    const blob2 = { budget: { Office: 5500, Utilities: 2000 }, sections: { Office: 'Admin' } };
+    const bp2 = await CB.cbBudgetPlan(D1, FY, Q, blob2);
+    ok(bp2, 'an edit plans a REPLACE');
+    await CB.cbBudgetPush(D1, bp2, 'CB'); await D1.sync.now();
+    eq(D1.get('budget', bid).fields.lines.find(l => l.categoryId === 'Office').amountMinor, 550000, 'the re-set landed — no exists rejection');
+    eq(bk._state.events.filter(e => e.type === 'budget.set').length, 2, 'BOTH versions are in the audit trail');
+    // Mirror: a device with NO local opinion adopts; one with an opinion pushes.
+    await D2.sync.now();
+    const nb = await CB.cbBudgetMirror(D2, FY, Q, {});
+    eq(nb.budget.Office, 5500, 'an empty device adopts the canonical budget');
+    eq(await CB.cbBudgetMirror(D2, FY, Q, blob1), null, 'a device WITH an opinion is left to the push path (LWW, audited)');
+    // Same-state race: both devices push the identical change → one event.
+    const raceBlob = { budget: { Office: 6000, Utilities: 2000 }, sections: { Office: 'Admin' } };
+    const r1 = await CB.cbBudgetPlan(D1, FY, Q, raceBlob);
+    const r2 = await CB.cbBudgetPlan(D2, FY, Q, raceBlob);
+    await CB.cbBudgetPush(D1, r1, 'CB'); await CB.cbBudgetPush(D2, r2, 'CB');
+    await D1.sync.now(); await D2.sync.now();
+    eq(bk._state.events.filter(e => e.type === 'budget.set').length, 3, 'the race deduped: three sets total, not four');
+    ok(await bk.verifyChain(), 'budget broker chain verifies');
+  }
+
   ok(await broker.verifyChain(), 'broker A chain verifies');
   ok(await broker2.verifyChain(), 'broker X/Y chain verifies');
 

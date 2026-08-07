@@ -206,6 +206,22 @@ human review — never auto-renumbered. The Payment-Voucher page syncs only its 
 overrides sync one-way until first touched locally, noted not hidden). Payments.Invoices is a
 read-only view and needs no bridge. `tests/megadata-fd.test.js` covers all of it.
 
+**Budgets are live (deliberate registry step, taken):** `budget.set` is now a whole-quarter
+REPLACE — the entity autovivifies on first set (broker + DAL kept in lockstep), every re-set is
+its own audited event, and the cashbook tick pushes local drift / mirrors canonical budgets into
+devices with no local opinion. Same-state races dedupe to one event.
+
+**Adjudication queue (implemented and tested):** the bootstrap now writes every human-review
+identity item as a canonical document (kind `identityQueueItem`, stable content-derived
+itemId), so the queue folds on every device. `MegaData-Adjudication.html` is the throughput UI
+the verdict demanded: money-at-stake ordering (balances summed FROM THE FOLD), side-by-side
+diff-highlighted records, one-keystroke dispositions (1 keep separate / 2 merge with winner
+choice / 3 defer), decisions recorded as `identity.adjudicated` events joined by itemId — a
+merge additionally emits `person.merged` with the queue item as evidence, and the roster fold
+resolves the loser's enrolments to the winner. Two clerks deciding the same item converge to
+one event. The docs/04 §9 identity gate ("every item has a recorded disposition") is now
+machine-checkable: `adjqPending(dal).pending.length === 0`.
+
 - **Window**: one full **term boundary** — from before a term's charges are assessed, through
   its payment-heavy opening weeks — plus ordinary weeks, minimum 4 calendar weeks total.
   Concretely: start the shadow ≥1 week before the next term's fee window opens; do not exit
