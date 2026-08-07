@@ -182,6 +182,18 @@ function serve() {
     await page.close();
   }
 
+  section('index.html — the LMS dashboard loads clean with the full bridge stack');
+  {
+    const { page, pageErrors } = await openPage('index.html');
+    await page.waitForTimeout(2000); // the biggest page: login shell + seeds + badges
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
+    ok(await page.evaluate(() => !!(window.MegaData && MegaData.lmsSpecs && MegaData.lmsDecompose && MegaData.spMergePlan && MegaData.LMS_COLLECTIONS)), 'LMS specs + shared table + roster merge registered');
+    ok(await page.evaluate(() => MegaData.lmsSpecs().length === MegaData.LMS_COLLECTIONS.length), 'every collection in the table has a live spec');
+    ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'index'), 'shim carries the page identity');
+    ok(await page.evaluate(() => typeof window.__lmsTick === 'undefined'), 'bridge stays dormant in legacy mode');
+    await page.close();
+  }
+
   section('MegaData-Adjudication: the queue page loads clean and explains itself');
   {
     const { page, pageErrors } = await openPage('MegaData-Adjudication.html');

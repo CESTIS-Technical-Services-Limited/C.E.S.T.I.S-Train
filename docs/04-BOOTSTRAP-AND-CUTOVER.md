@@ -222,6 +222,18 @@ resolves the loser's enrolments to the winner. Two clerks deciding the same item
 one event. The docs/04 §9 identity gate ("every item has a recorded disposition") is now
 machine-checkable: `adjqPending(dal).pending.length === 0`.
 
+**LMS dashboard (implemented and tested — the LAST page; every page in the system is now
+bridged):** the shared `megadata/lms-collections.js` table (one source of truth with the
+bootstrap extractor, same discipline as cashbook-shared) drives docsync specs for all 31
+collections across four storage shapes (array / objmap / msgmap / single, converters in
+`lms-model.js`); the roster runs the SAME Student-Progress three-way merge under the same
+`spBaseline` meta key, so whichever surface is open converges on identical deterministic
+events. One wrap point: the dashboard's own `saveState` (121 call sites funnel through it);
+mirror applies re-enter through `loadState()`. `tests/megadata-lms.test.js` covers table
+coverage, per-mode drift guards and round-trips, and unkeyed-record preservation.
+`README.md` (setup, credential provisioning, adding a page) and `docs/05-RESIDUAL-RISKS.md`
+(the honest what-can-still-go-wrong list, R1–R12) complete the spec §9 deliverables.
+
 - **Window**: one full **term boundary** — from before a term's charges are assessed, through
   its payment-heavy opening weeks — plus ordinary weeks, minimum 4 calendar weeks total.
   Concretely: start the shadow ≥1 week before the next term's fee window opens; do not exit

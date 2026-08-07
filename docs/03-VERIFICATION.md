@@ -10,8 +10,8 @@ Drive deployment, or pages that are not yet bridged — it is marked **PENDING**
 honest reason, not adjusted to pass. Nothing below is a promise; every PASS quotes the
 run that produced it.
 
-**Headline:** 47 Node suites — **3,533 tests, 0 failures**. Real-browser smoke —
-**60 passed, 0 failed**. Syntax sweep — **118 JS files, 0 failures**. Bootstrap dry-run
+**Headline:** 48 Node suites — **3,558 tests, 0 failures**. Real-browser smoke —
+**65 passed, 0 failed**. Syntax sweep — **122 JS files, 0 failures**. Bootstrap dry-run
 over the real (anonymised) fee backup — financial identity **HOLDS to the cent**
 (J$1,886,000.00), chain verified, zero quarantined, zero stored-balance disagreements.
 
@@ -40,11 +40,11 @@ with the cutover tooling.
 repo excluding `node_modules/`, `vendor/`, staging, `.git/`):
 
 ```
-100 JS files checked, 0 failed
+122 JS files checked, 0 failed
 ```
 
-**Embedded scripts — stand-in PASS.** All three integrated pages
-(`Cert-Transcript-Requests.html`, `Student-Progress.html`, 689 KB `School.Fee.html`)
+**Embedded scripts — stand-in PASS.** All fourteen integrated pages — every page in the
+system, including the 689 KB `School.Fee.html` and the LMS dashboard `index.html` itself —
 load in real Chromium with **zero uncaught page errors** (Gate 6 output below).
 **Extraction-based lint — PENDING** (cutover tooling, per the verdict).
 
@@ -100,19 +100,25 @@ same log in different sync orders reach identical state:
 event set (P10)"; `megadata-dal.test.js` "Two devices converge to identical state
 regardless of sync order (P10)". Both suites green.
 
-**Page-vs-canonical — PASS for the three bridged pages, PENDING for the rest.**
-The comparator pattern is live and green where pages are integrated:
+**Page-vs-canonical — the mechanism is live on EVERY page.** All fourteen pages are
+bridged, each with its own comparator or merge discipline:
 
 - **School.Fee** (money-bearing): `reconcileFees` recomputes per-student balances **to
   the cent from atomic records on both sides** — never from stored balances. On the
   real 368-student fixture: *"The REAL fixture bridges live with ZERO drift (the shadow
-  comparator, green)"* (`megadata-fee.test.js`, 24 passed).
-- **Student-Progress** / **CTR**: drift detectors compare legacy records against the
-  canonical documents field-by-field; drift is detected, reported, and auditable —
-  never absorbed silently (`megadata-sp.test.js` 17 passed, `megadata-ctr.test.js` 15 passed).
+  comparator, green)"* (`megadata-fee.test.js`).
+- **Cashbook**: `cbReconcile` compares every quarter's income/expense/opening to the
+  cent against the fold, voided counting zero exactly like legacy `calcTotals`
+  (`megadata-cb.test.js`).
+- **Finance documents**: `findocReconcile` reports duplicate human-facing numbers for
+  review (`megadata-fd.test.js`).
+- **Student-Progress, Transcript-Grades, staff pages, the LMS dashboard**: per-field
+  three-way merges against local baselines — drift is pushed, applied, or reported as a
+  both-changed conflict; never absorbed silently (sp/tg/ps/lms suites).
 
-The full every-page suite can only exist once every page is bridged (docs/02 §14 order).
-Each page migration lands with its comparator; the cross-page gate completes at cutover.
+The remaining piece of this gate is procedural, not mechanical: the nightly comparator
+reports accrue during the production shadow period (docs/04 §8), and the cross-page
+assertion re-runs at cutover with the fold as referee.
 
 ---
 
@@ -328,8 +334,8 @@ the property that matters ("the dataset is not duplicated") holds even if exclus
 
 | Suite | Result |
 |---|---|
-| `npm run test:syntax` — repo-wide `node --check` | 118 files, 0 failed |
-| `npm test` — 47 suites (33 legacy-behaviour + 14 MegaData) | **3,533 passed, 0 failed** |
+| `npm run test:syntax` — repo-wide `node --check` | 122 files, 0 failed |
+| `npm test` — 48 suites (33 legacy-behaviour + 15 MegaData) | **3,558 passed, 0 failed** |
 | — `megadata-schemas` (canon, ids, registry, hashBasis) | 28 passed |
 | — `megadata-broker` (gates, numbering, idempotency, chain, tamper) | 31 passed |
 | — `megadata-dal` (E2E chain, stale basis, crash/resume, two-device, D11) | 31 passed |
@@ -342,7 +348,8 @@ the property that matters ("the dataset is not duplicated") holds even if exclus
 | — `megadata-ps` (staff pages: seven drift-guarded kinds, payroll decompose/recompose contract, rename semantics, cashbook hand-off, clock corrections, race dedupe) | 35 passed |
 | — `megadata-fd` (finance docs: number preservation, issue/supersede/void, line-item array fold regression, presence three-way, mirror-in, duplicate-number report, voucher objmap) | 38 passed |
 | — `megadata-adjq` (adjudication queue: canonical queue docs, split-key person resolution, money-at-stake ordering, keep-separate/merge/defer, merge fold effects, decision-race dedupe, every-item-disposed gate) | 20 passed |
-| `npm run test:browser` — real Chromium over real pages (13 pages incl. `MegaData-Adjudication.html`; external hosts aborted — pages must run from local assets, the Centre's offline reality) | 60 passed, 0 failed |
+| — `megadata-lms` (LMS dashboard: shared-table coverage, drift guards per mode, array/objmap/msgmap/single round-trips, unkeyed preservation) | 25 passed |
+| `npm run test:browser` — real Chromium over real pages (14 pages — every page in the system, incl. `index.html` itself; external hosts aborted — pages must run from local assets, the Centre's offline reality) | 65 passed, 0 failed |
 
 Drift guards deserve a highlight: bootstrap and the live page bridges derive entity ids
 through **separate code paths that are test-pinned byte-identical** ("Drift guard:
