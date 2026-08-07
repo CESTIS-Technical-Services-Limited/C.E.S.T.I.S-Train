@@ -214,8 +214,8 @@
      the versions disagreed: the launch collapse compared normName (case folded
      AND every run of whitespace folded to one space), while the account
      reconciler compared `.toLowerCase().trim()`, which leaves a double space
-     inside a name intact. So "Yaneek  Simmonds" on an imported account and
-     "Yaneek Simmonds" on the roll were the same person to one pass and two
+     inside a name intact. So "Yanique  Samuels" on an imported account and
+     "Yanique Samuels" on the roll were the same person to one pass and two
      people to the other: the collapse merged them on every launch and the
      reconciler minted the second one straight back, and the roll — and every
      count drawn from it — settled at double.
@@ -629,7 +629,7 @@
      Two trainee records carrying the same exact name and naming the same
      enrolment are the same record, and one of them must go — whatever ids they
      were given and however each spells the programme. That is what left
-     "Omario Bryan" listed once under "Welding & Fabrication" and again under
+     "Omarion Blake" listed once under "Welding & Fabrication" and again under
      "WELDING L2" with a second machine-generated id: two spellings of one
      enrolment, which the centre-identity dedup below reads as two because it
      groups on the programme string.

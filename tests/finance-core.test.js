@@ -62,7 +62,7 @@ test('deposits, zero rows and cancelled cheques get no voucher', function () {
 });
 test('vouchersFromTransactions maps cashbook rows to voucher records', function () {
   var vouchers = F.vouchersFromTransactions([
-    { id: 1, date: '2025-10-06', cheque: '1000102', details: 'Nakia Sterling (Ink Cartridge)', deposit: 0, payment: 120000, category: 'Admin Expenses' },
+    { id: 1, date: '2025-10-06', cheque: '1000102', details: 'Office Supplier (Ink Cartridge)', deposit: 0, payment: 120000, category: 'Admin Expenses' },
     { id: 3, date: '2025-10-25', cheque: '', details: 'SUBVENTION', deposit: 4509467.25, payment: 0, category: 'Subvention' },
     { id: 31, date: '2025-11-25', cheque: '', details: 'TAJ - Bank Transfer (Sep-Oct)', deposit: 0, payment: 298707.93, category: 'Statutory Deductions' },
     { id: 20, date: '2025-11-11', cheque: '1000119', details: 'Cancelled Cheque', deposit: 0, payment: 0, category: 'Cancelled' }

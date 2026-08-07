@@ -334,7 +334,7 @@ function voucherFields(v) {
     totalDeductions: o.totalDeductions != null ? o.totalDeductions : '',
     total: total,
     sumWords: o.sumWords != null ? o.sumWords : F.amountToWords(total),
-    preparedBy: o.preparedBy != null ? o.preparedBy : 'Steve Barrett',
+    preparedBy: o.preparedBy != null ? o.preparedBy : '',
     certifiedBy: o.certifiedBy != null ? o.certifiedBy : ''
   };
 }
@@ -619,5 +619,16 @@ CESTISPageCloud.init({
   keys: ['cestis_finance_voucher_overrides', 'cestis_active_quarter']
 });
 </script>
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/docsync-model.js?v=1"></script>
+<script src="megadata/pages/voucher-page.js?v=1"></script>
 </body>
 </html>

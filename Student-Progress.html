@@ -1297,6 +1297,19 @@ if(document.readyState === 'loading'){
 }
 </script>
 
+<!-- MegaData bridge (stage 1): in shadow mode the DAL is kept complete
+     alongside the legacy-primary page; docs/02 §14, docs/04 §8. -->
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/sp-page.js?v=1"></script>
+
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20260802a"></script>
 <script>

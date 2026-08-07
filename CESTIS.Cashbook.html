@@ -4490,61 +4490,7 @@ function syncBudgetFromTransactions() {
 let OPENING_BALANCE = 237948.69;
 
 // Default transactions for Q3 FY 2025/2026
-const DEFAULT_TRANSACTIONS_Q3 = [
-    {id:1,date:'2025-10-06',cheque:'1000102',details:'Nakia Sterling (Ink Cartridge)',deposit:0,payment:120000,category:'Admin Expenses'},
-    {id:2,date:'2025-10-16',cheque:'1000103',details:'Rohan Hamilton (Lunch Register)',deposit:0,payment:100000,category:'Lunch'},
-    {id:3,date:'2025-10-25',cheque:'',details:'SUBVENTION',deposit:4509467.25,payment:0,category:'Subvention'},
-    {id:4,date:'2025-10-25',cheque:'1000104',details:'Rohan Hamilton - Salary October',deposit:0,payment:89051.98,category:'Welding Instructor'},
-    {id:5,date:'2025-10-25',cheque:'1000105',details:'Kevin Allen - Salary October',deposit:0,payment:89051.98,category:'BNV Welding Instructor'},
-    {id:6,date:'2025-10-25',cheque:'1000106',details:'Peter Williams - Salary October',deposit:0,payment:89051.98,category:'Electrical Instructor'},
-    {id:7,date:'2025-10-25',cheque:'1000107',details:'Melvin Barnes - Salary October',deposit:0,payment:89051.98,category:'BNV Electrical Instructor'},
-    {id:8,date:'2025-10-25',cheque:'1000108',details:'Fontanette Whittingham - Salary October',deposit:0,payment:89051.98,category:'BT Instructor'},
-    {id:9,date:'2025-10-25',cheque:'1000109',details:'Steve Barrett - Salary October',deposit:0,payment:106862.32,category:'Coordinator Salary'},
-    {id:10,date:'2025-10-25',cheque:'1000110',details:'Rashaun Barrett - Salary October',deposit:0,payment:72397.65,category:'Asst. Coordinator'},
-    {id:11,date:'2025-10-25',cheque:'',details:'BANK CHARGES',deposit:0,payment:1017.27,category:'Bank Charges'},
-    {id:12,date:'2025-11-03',cheque:'1000111',details:'Markrys Enterprise Ltd.',deposit:0,payment:44898.30,category:'Admin Expenses'},
-    {id:13,date:'2025-11-03',cheque:'1000112',details:'Rohan Hamilton (Travelling)',deposit:0,payment:21117.60,category:'Travelling'},
-    {id:14,date:'2025-11-03',cheque:'1000113',details:'Dermain Jarrett (Maintenance)',deposit:0,payment:375000,category:'Maintenance'},
-    {id:15,date:'2025-11-03',cheque:'1000114',details:'Nakia Sterling (Ink Cartridge - Colored & Maintenance)',deposit:0,payment:350000,category:'Admin Expenses'},
-    {id:16,date:'2025-11-11',cheque:'1000115',details:'Rohan Hamilton (Lunch Register)',deposit:0,payment:400000,category:'Lunch'},
-    {id:17,date:'2025-11-11',cheque:'1000116',details:'Tenesha Patterson (Communication Instructor)',deposit:0,payment:34477.06,category:'Remedial English'},
-    {id:18,date:'2025-11-11',cheque:'1000117',details:'National Water Commission',deposit:0,payment:21792.91,category:'Utilities'},
-    {id:19,date:'2025-11-11',cheque:'1000118',details:'Columbus Communication Ja Ltd.',deposit:0,payment:15981.44,category:'Utilities'},
-    {id:20,date:'2025-11-11',cheque:'1000119',details:'Cancelled Cheque',deposit:0,payment:0,category:'Cancelled'},
-    {id:21,date:'2025-11-11',cheque:'1000120',details:'Cancelled Cheque',deposit:0,payment:0,category:'Cancelled'},
-    {id:22,date:'2025-11-17',cheque:'1000121',details:'Nakia Sterling (Maintenance)',deposit:0,payment:80000,category:'Maintenance'},
-    {id:23,date:'2025-11-25',cheque:'1000122',details:'Steve Barrett - Salary November',deposit:0,payment:106862.32,category:'Coordinator Salary'},
-    {id:24,date:'2025-11-25',cheque:'1000123',details:'Rashaun Barrett - Salary November',deposit:0,payment:72397.65,category:'Asst. Coordinator'},
-    {id:25,date:'2025-11-25',cheque:'1000124',details:'Rohan Hamilton - Salary November',deposit:0,payment:89051.98,category:'Welding Instructor'},
-    {id:26,date:'2025-11-25',cheque:'1000125',details:'Kevin Allen - Salary November',deposit:0,payment:89051.98,category:'BNV Welding Instructor'},
-    {id:27,date:'2025-11-25',cheque:'1000126',details:'Peter Williams - Salary November',deposit:0,payment:89051.98,category:'Electrical Instructor'},
-    {id:28,date:'2025-11-25',cheque:'1000127',details:'Melvin Barnes - Salary November',deposit:0,payment:89051.98,category:'BNV Electrical Instructor'},
-    {id:29,date:'2025-11-25',cheque:'1000128',details:'Cancelled Cheque',deposit:0,payment:0,category:'Cancelled'},
-    {id:30,date:'2025-11-25',cheque:'1000129',details:'Fontanette Whittingham - Salary November',deposit:0,payment:89051.98,category:'BT Instructor'},
-    {id:31,date:'2025-11-25',cheque:'',details:'TAJ - Bank Transfer (Sep-Oct)',deposit:0,payment:298707.93,category:'Statutory Deductions'},
-    {id:32,date:'2025-11-25',cheque:'',details:'TAJ - Bank Transfer (November)',deposit:0,payment:134539.29,category:'Statutory Deductions'},
-    {id:33,date:'2025-11-25',cheque:'',details:'BANK CHARGES',deposit:0,payment:4.20,category:'Bank Charges'},
-    {id:34,date:'2025-11-25',cheque:'1000130',details:'Cancelled Cheque',deposit:0,payment:0,category:'Cancelled'},
-    {id:35,date:'2025-11-25',cheque:'1000131',details:'Steve Barrett (Travelling)',deposit:0,payment:36363.60,category:'Travelling'},
-    {id:36,date:'2025-11-28',cheque:'1000132',details:'Rohan Campbell (Welding Plant Diagnostics)',deposit:0,payment:56000,category:'Maintenance'},
-    {id:37,date:'2025-12-11',cheque:'1000133',details:'Rashaun Barrett (Salary Advance)',deposit:0,payment:47058.47,category:'Asst. Coordinator'},
-    {id:38,date:'2025-12-11',cheque:'1000134',details:'Cancelled Cheque',deposit:0,payment:0,category:'Cancelled'},
-    {id:39,date:'2025-12-11',cheque:'1000135',details:'Steve Barrett (Reimbursement)',deposit:0,payment:55809.50,category:'Admin Expenses'},
-    {id:40,date:'2025-12-11',cheque:'1000136',details:'Tenesha Patterson (Entrep Instructor)',deposit:0,payment:119920.21,category:'Entrep Instructor'},
-    {id:41,date:'2025-12-11',cheque:'1000137',details:'Kristof Williams (IT Instructor)',deposit:0,payment:119920.21,category:'Data Instructor'},
-    {id:42,date:'2025-12-18',cheque:'1000138',details:'Steve Barrett - Salary December',deposit:0,payment:106862.32,category:'Coordinator Salary'},
-    {id:43,date:'2025-12-18',cheque:'1000139',details:'Rashaun Barrett - Salary December (Advance Taken)',deposit:0,payment:25339.18,category:'Asst. Coordinator'},
-    {id:44,date:'2025-12-18',cheque:'1000140',details:'Rohan Hamilton - Salary December',deposit:0,payment:89051.98,category:'Welding Instructor'},
-    {id:45,date:'2025-12-18',cheque:'1000141',details:'Kevin Allen - Salary December',deposit:0,payment:89051.98,category:'BNV Welding Instructor'},
-    {id:46,date:'2025-12-18',cheque:'1000142',details:'Peter Williams - Salary December',deposit:0,payment:89051.98,category:'Electrical Instructor'},
-    {id:47,date:'2025-12-18',cheque:'1000143',details:'Melvin Barnes - Salary December',deposit:0,payment:89051.98,category:'BNV Electrical Instructor'},
-    {id:48,date:'2025-12-18',cheque:'1000144',details:'Fontanette Whittingham - Salary December',deposit:0,payment:89051.98,category:'BT Instructor'},
-    {id:49,date:'2025-12-18',cheque:'1000145',details:'Tenesha Patterson (Communication Instructor)',deposit:0,payment:71952.13,category:'Entrep Instructor'},
-    {id:50,date:'2025-12-18',cheque:'1000146',details:'Kristof Williams (IT Instructor)',deposit:0,payment:71952.13,category:'Data Instructor'},
-    {id:51,date:'2025-12-20',cheque:'1000147',details:'Rohan Hamilton (Lunch Register) - Replace Chq 1000134',deposit:0,payment:100000,category:'Lunch'},
-    {id:52,date:'2025-12-20',cheque:'',details:'Tax Administration - December',deposit:0,payment:130565.96,category:'Statutory Deductions'},
-    {id:53,date:'2025-12-22',cheque:'',details:'BANK CHARGES',deposit:0,payment:2070,category:'Bank Charges'},
-];
+const DEFAULT_TRANSACTIONS_Q3 = []; // Q3 FY2025/26 seed transactions were removed from this public repository (2026-08-05): they carried real staff names, salaries and cheque numbers. Devices now bootstrap that quarter from cloud/local data like every other quarter; an empty quarter simply starts empty.
 
 let transactions = [];
 let deletedTxnIds = []; // Track deleted transaction IDs to prevent re-sync from cloud
@@ -9039,5 +8985,17 @@ CESTISPageCloud.init({
   prefixes: ['cestis_quarter_', 'cestis_budget_']
 });
 </script>
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/cashbook-shared.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/cashbook-model.js?v=1"></script>
+<script src="megadata/pages/cb-page.js?v=1"></script>
 </body>
 </html>

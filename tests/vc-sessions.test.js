@@ -19,11 +19,11 @@ const T = function (hhmm) { return '2026-03-04T' + hhmm + ':00.000Z'; };
 /* ---------- 1. Opening a session ---------- */
 console.log('Starting a session');
 let s = VS.startSession({ code: 'k4m9pq', title: 'Welding Theory', course: 'WELDING L2',
-  hostName: 'Steve Barrett', hostRole: 'instructor', startedAt: T('09:00'), locked: true, lobby: true });
+  hostName: 'Stefan Brooks', hostRole: 'instructor', startedAt: T('09:00'), locked: true, lobby: true });
 assertEq(s.code, 'K4M9PQ', 'room code stored upper case');
 assertEq(s.title, 'Welding Theory', 'class title kept');
 assertEq(s.course, 'WELDING L2', 'course kept for the register');
-assertEq(s.hostName, 'Steve Barrett', 'host recorded');
+assertEq(s.hostName, 'Stefan Brooks', 'host recorded');
 assertEq(s.startedAt, T('09:00'), 'start time recorded');
 assertEq(s.endedAt, '', 'session is open');
 assertEq(s.participants.length, 0, 'nobody in the room yet');
@@ -32,24 +32,24 @@ assert(!!s.id, 'session has an id');
 
 /* ---------- 2. Join and leave ---------- */
 console.log('Join and leave');
-VS.recordJoin(s, 'p1', 'Steve Barrett', T('09:00'));
-VS.recordJoin(s, 'p2', 'Tracy-Ann Johnson', T('09:02'));
-VS.recordJoin(s, 'p3', 'Rashaun Barrett', T('09:05'));
+VS.recordJoin(s, 'p1', 'Stefan Brooks', T('09:00'));
+VS.recordJoin(s, 'p2', 'Tracy-Ann Jennings', T('09:02'));
+VS.recordJoin(s, 'p3', 'Rashard Bennett', T('09:05'));
 assertEq(s.participants.length, 3, 'three people in the room');
-VS.recordLeave(s, 'p3', 'Rashaun Barrett', T('09:12'));
+VS.recordLeave(s, 'p3', 'Rashard Bennett', T('09:12'));
 assertEq(s.participants[2].minutes, 7, 'a seven minute stay is measured');
 assertEq(s.participants[2].lastLeave, T('09:12'), 'leave time recorded');
 
 /* A dropped connection: same person rejoins under a NEW conference id */
-VS.recordJoin(s, 'p3-again', 'Rashaun Barrett', T('09:20'));
+VS.recordJoin(s, 'p3-again', 'Rashard Bennett', T('09:20'));
 assertEq(s.participants.length, 3, 'a reconnection is the same person, not a new one');
-VS.recordLeave(s, 'p3-again', 'Rashaun Barrett', T('10:00'));
+VS.recordLeave(s, 'p3-again', 'Rashard Bennett', T('10:00'));
 assertEq(s.participants[2].minutes, 47, 'both stays are added together (7 + 40)');
 assertEq(s.participants[2].stays.length, 2, 'each stay is kept');
 assertEq(s.participants[2].firstJoin, T('09:05'), 'first join is the earliest');
 
 /* A duplicate join event must not open a second stay */
-VS.recordJoin(s, 'p2', 'Tracy-Ann Johnson', T('09:30'));
+VS.recordJoin(s, 'p2', 'Tracy-Ann Jennings', T('09:30'));
 assertEq(s.participants[1].stays.length, 1, 'a repeated join while still in the room is ignored');
 
 /* A leave for somebody who was never seen is harmless */
@@ -65,7 +65,7 @@ console.log('Closing the session');
 VS.endSession(s, T('11:00'));
 assertEq(s.endedAt, T('11:00'), 'end time recorded');
 assertEq(VS.sessionMinutes(s), 120, 'the class ran two hours');
-/* Steve and Tracy-Ann never left — they stayed to the end, not zero minutes */
+/* Stefan and Tracy-Ann never left — they stayed to the end, not zero minutes */
 assertEq(s.participants[0].minutes, 120, 'the host stayed the whole class');
 assertEq(s.participants[1].minutes, 118, 'a participant still in the room at the end is credited to the end');
 assertEq(s.participants[2].minutes, 47, 'someone who left early keeps their own total');
@@ -80,7 +80,7 @@ let sum = VS.summary(s);
 assertEq(sum.minutes, 120, 'summary reports the class length');
 assertEq(sum.present, 3, 'all three were present long enough');
 assertEq(sum.partial, 0, 'nobody is partial');
-assertEq(sum.participants[0].name, 'Steve Barrett', 'summary sorted by time in the room');
+assertEq(sum.participants[0].name, 'Stefan Brooks', 'summary sorted by time in the room');
 assertEq(sum.participants[2].joins, 2, 'reconnections visible in the register');
 
 /* A short class: the ratio, not the 20 minute cap, decides */
@@ -103,34 +103,34 @@ assertEq(VS.summary(VS.startSession({ code: 'X', startedAt: T('09:00') })).prese
 /* ---------- 5. Matching the meeting names to the roster ---------- */
 console.log('Matching against the student roster');
 const students = [
-  { id: 11, name: 'Tracy-Ann Johnson', course: 'WELDING L2' },
-  { id: 12, name: 'Rashaun Anthony Barrett', course: 'WELDING L2' },
+  { id: 11, name: 'Tracy-Ann Jennings', course: 'WELDING L2' },
+  { id: 12, name: 'Rashard Anthony Bennett', course: 'WELDING L2' },
   { id: 13, name: 'Someone Else', course: 'WELDING L2' }
 ];
 const matched = VS.matchRoster(s, students);
 const byName = {};
 matched.forEach(function (m) { byName[m.name] = m; });
-assertEq(byName['Tracy-Ann Johnson'].studentId, 11, 'an exact name matches the roster');
-assert(byName['Tracy-Ann Johnson'].matched, 'match flagged');
-assertEq(byName['Rashaun Barrett'].studentId, 12, 'first + last name matches a trainee with a middle name');
-assertEq(byName['Steve Barrett'].studentId, null, 'the instructor is not on the student roster');
-assert(!byName['Steve Barrett'].matched, 'unmatched names are flagged, not guessed');
+assertEq(byName['Tracy-Ann Jennings'].studentId, 11, 'an exact name matches the roster');
+assert(byName['Tracy-Ann Jennings'].matched, 'match flagged');
+assertEq(byName['Rashard Bennett'].studentId, 12, 'first + last name matches a trainee with a middle name');
+assertEq(byName['Stefan Brooks'].studentId, null, 'the instructor is not on the student roster');
+assert(!byName['Stefan Brooks'].matched, 'unmatched names are flagged, not guessed');
 assertEq(VS.matchRoster(s, []).filter(function (m) { return m.matched; }).length, 0, 'no roster -> no matches');
 assertEq(VS.matchRoster(s, null).length, 3, 'null roster still lists who attended');
 /* Matching must not lose the attendance figures */
-assertEq(byName['Tracy-Ann Johnson'].minutes, 118, 'matched rows keep their minutes');
-assert(byName['Tracy-Ann Johnson'].present, 'matched rows keep their present flag');
+assertEq(byName['Tracy-Ann Jennings'].minutes, 118, 'matched rows keep their minutes');
+assert(byName['Tracy-Ann Jennings'].present, 'matched rows keep their present flag');
 
 /* ---------- 6. Merging what two devices saw ---------- */
 console.log('Merging sessions across devices');
 /* The instructor's laptop saw the whole class. */
 const host = VS.startSession({ code: 'K4M9PQ', title: 'Welding Theory', startedAt: T('09:00'), id: 'S1' });
-VS.recordJoin(host, 'p1', 'Steve Barrett', T('09:00'));
-VS.recordJoin(host, 'p2', 'Tracy-Ann Johnson', T('09:02'));
+VS.recordJoin(host, 'p1', 'Stefan Brooks', T('09:00'));
+VS.recordJoin(host, 'p2', 'Tracy-Ann Jennings', T('09:02'));
 VS.endSession(host, T('11:00'));
 /* A trainee's phone joined late and only saw part of it. */
 const guest = VS.startSession({ code: 'K4M9PQ', title: 'Welding Theory', startedAt: T('09:30'), id: 'S1' });
-VS.recordJoin(guest, 'p2', 'Tracy-Ann Johnson', T('09:30'));
+VS.recordJoin(guest, 'p2', 'Tracy-Ann Jennings', T('09:30'));
 VS.recordJoin(guest, 'p9', 'Late Joiner', T('09:35'));
 VS.endSession(guest, T('10:30'));
 
@@ -141,7 +141,7 @@ assertEq(m.startedAt, T('09:00'), 'earliest start wins');
 assertEq(m.endedAt, T('11:00'), 'latest end wins');
 assertEq(m.participants.length, 3, 'everyone either device saw is kept');
 const mp = {}; m.participants.forEach(function (p) { mp[p.name] = p; });
-assertEq(mp['Tracy-Ann Johnson'].minutes, 118, 'the fuller record of a person wins over the shorter one');
+assertEq(mp['Tracy-Ann Jennings'].minutes, 118, 'the fuller record of a person wins over the shorter one');
 assertEq(mp['Late Joiner'].minutes, 55, 'a participant only the phone saw is not lost');
 /* Order must not matter */
 const reversed = VS.mergeSessions([guest], [host]);

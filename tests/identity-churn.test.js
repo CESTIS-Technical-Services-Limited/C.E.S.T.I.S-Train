@@ -58,8 +58,8 @@ section('The intake key written into the programme text does not move the id');
 section('Which is the same rule dedupeStudents already applied');
 {
   const roll = [
-    { id: 'STU-old', name: 'Omario Bryan', course: 'Welding & Fabrication', progress: 45 },
-    { id: 'STU-new', name: 'Omario Bryan', course: '01. Welding & Fabrication' }
+    { id: 'STU-old', name: 'Omarion Blake', course: 'Welding & Fabrication', progress: 45 },
+    { id: 'STU-new', name: 'Omarion Blake', course: '01. Welding & Fabrication' }
   ];
   const r = Core.dedupeStudents(roll.map(function (s) { return Object.assign({}, s); }));
   assertEq(r.students.length, 1, 'the dedup reads them as one person');
@@ -90,7 +90,7 @@ section('Two intakes of one programme are still two different enrolments');
 section('And the id is stable across devices and across repeated migrations');
 {
   const mk = function () {
-    return [{ id: 'STU1700000000000', name: 'Amar Smith', course: 'Electrical Installation' }];
+    return [{ id: 'STU1700000000000', name: 'Amar Stone', course: 'Electrical Installation' }];
   };
   const a = { students: mk() }, b = { students: mk() };
   Core.migrateToStableIds(a);
