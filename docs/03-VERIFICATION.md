@@ -10,8 +10,8 @@ Drive deployment, or pages that are not yet bridged — it is marked **PENDING**
 honest reason, not adjusted to pass. Nothing below is a promise; every PASS quotes the
 run that produced it.
 
-**Headline:** 48 Node suites — **3,558 tests, 0 failures**. Real-browser smoke —
-**65 passed, 0 failed**. Syntax sweep — **122 JS files, 0 failures**. Bootstrap dry-run
+**Headline:** 48 Node suites — **3,560 tests, 0 failures**. Real-browser smoke —
+**65 passed, 0 failed**. Syntax sweep — **123 JS files, 0 failures**. Bootstrap dry-run
 over the real (anonymised) fee backup — financial identity **HOLDS to the cent**
 (J$1,886,000.00), chain verified, zero quarantined, zero stored-balance disagreements.
 
@@ -334,8 +334,8 @@ the property that matters ("the dataset is not duplicated") holds even if exclus
 
 | Suite | Result |
 |---|---|
-| `npm run test:syntax` — repo-wide `node --check` | 122 files, 0 failed |
-| `npm test` — 48 suites (33 legacy-behaviour + 15 MegaData) | **3,558 passed, 0 failed** |
+| `npm run test:syntax` — repo-wide `node --check` | 123 files, 0 failed |
+| `npm test` — 48 suites (33 legacy-behaviour + 15 MegaData) | **3,560 passed, 0 failed** |
 | — `megadata-schemas` (canon, ids, registry, hashBasis) | 28 passed |
 | — `megadata-broker` (gates, numbering, idempotency, chain, tamper) | 31 passed |
 | — `megadata-dal` (E2E chain, stale basis, crash/resume, two-device, D11) | 31 passed |

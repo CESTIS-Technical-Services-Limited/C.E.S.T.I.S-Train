@@ -37,10 +37,18 @@
     throw new Error('canon: unsupported type ' + t);
   }
 
-  /* ---------- hashing (async in both runtimes) ---------- */
+  /* ---------- hashing (async API in every runtime; three backends) ---------- */
   var nodeCrypto = null;
   try { if (typeof module !== 'undefined') nodeCrypto = require('crypto'); } catch (e) {}
   function sha256Hex(str) {
+    // Apps Script (the broker): synchronous digest via Utilities — resolves
+    // immediately, so Code.gs's promise-draining loop settles in one pass.
+    if (typeof Utilities !== 'undefined' && Utilities.computeDigest) {
+      var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, str, Utilities.Charset.UTF_8);
+      var hex = '';
+      for (var i = 0; i < bytes.length; i++) { hex += ((bytes[i] & 0xff) | 0x100).toString(16).slice(1); }
+      return Promise.resolve(hex);
+    }
     if (nodeCrypto) return Promise.resolve(nodeCrypto.createHash('sha256').update(str, 'utf8').digest('hex'));
     var enc = new TextEncoder().encode(str);
     return crypto.subtle.digest('SHA-256', enc).then(function (buf) {
@@ -54,7 +62,8 @@
   function randHex(n) {
     var bytes;
     if (nodeCrypto) bytes = nodeCrypto.randomBytes(n);
-    else { bytes = new Uint8Array(n); crypto.getRandomValues(bytes); }
+    else if (typeof crypto !== 'undefined' && crypto.getRandomValues) { bytes = new Uint8Array(n); crypto.getRandomValues(bytes); }
+    else throw new Error('no CSPRNG in this runtime — the broker validates and numbers events; it never mints ids');
     return Array.prototype.map.call(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
   }
   // Time-ordered unique id: ms timestamp base36 + 10 random bytes.
