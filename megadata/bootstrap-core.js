@@ -340,23 +340,40 @@
       });
       return chain.then(function () {
         // Financial baseline from ATOMIC records (never from stored balances).
+        // Overlapping sources carry COPIES of the same atoms (two fee files,
+        // plus the master snapshot's embedded store): every id-bearing atom
+        // counts ONCE, mirroring the synthesis-side dedupe — otherwise the
+        // identity would compare a deduped fold to a double-counted baseline.
         var totalMinor = 0, imprecise = 0;
         var tomb = {};
         R.staging.forEach(function (r) { if (r.kind === 'tombstones') (r.raw.deletedPaymentIds || []).forEach(function (id) { tomb[id] = 1; }); });
+        var seenPay = {};
         R.staging.forEach(function (r) {
-          if (r.kind === 'payment' && !tomb[r.raw.id]) {
+          if (r.kind === 'payment' && !tomb[r.raw.id] && !seenPay[r.raw.id]) {
+            seenPay[r.raw.id] = 1;
             var m = toMinor(r.raw.amount);
             totalMinor += m.minor; if (!m.exact) imprecise++;
           }
         });
+        function uniqueBy(kind, keyOf, filter) {
+          var seen = {}, n = 0;
+          R.staging.forEach(function (r) {
+            if (r.kind !== kind) return;
+            if (filter && !filter(r)) return;
+            var k = keyOf(r);
+            if (seen[k]) return;
+            seen[k] = 1; n++;
+          });
+          return n;
+        }
         var stuTomb = {};
         R.staging.forEach(function (r) { if (r.kind === 'tombstones') (r.raw.deletedStudentIds || []).forEach(function (id) { stuTomb[id] = 1; }); });
         R.studentTombstones = stuTomb;
         R.inventory.totals = {
-          students: R.staging.filter(function (r) { return r.kind === 'student'; }).length,
-          lmsStudents: R.staging.filter(function (r) { return r.kind === 'lmsStudent' && !stuTomb[r.raw.id]; }).length,
-          tombstonedLmsStudents: R.staging.filter(function (r) { return r.kind === 'lmsStudent' && stuTomb[r.raw.id]; }).length,
-          payments: R.staging.filter(function (r) { return r.kind === 'payment' && !tomb[r.raw.id]; }).length,
+          students: uniqueBy('student', function (r) { return String(r.raw.id); }),
+          lmsStudents: uniqueBy('lmsStudent', function (r) { return String(r.raw.id); }, function (r) { return !stuTomb[r.raw.id]; }),
+          tombstonedLmsStudents: uniqueBy('lmsStudent', function (r) { return String(r.raw.id); }, function (r) { return !!stuTomb[r.raw.id]; }),
+          payments: Object.keys(seenPay).length,
           tombstonedPayments: Object.keys(tomb).length,
           paymentsTotalMinor: totalMinor, floatPrecisionNotes: imprecise,
           attendanceRows: R.staging.filter(function (r) { return r.kind === 'legacyAttendance'; }).length,
@@ -375,9 +392,13 @@
           if (r.kind === 'cbQuarter') (r.raw.deletedTxnIds || []).forEach(function (id) { cbDeleted[r.raw.fy + '|Q' + r.raw.q + '|' + id] = 1; });
         });
         R.cbDeleted = cbDeleted;
+        var seenCb = {};
         R.staging.forEach(function (r) {
           if (r.kind !== 'cbTxn') return;
-          if (cbDeleted[r.raw.fy + '|Q' + r.raw.q + '|' + r.raw.txn.id]) { R.inventory.totals.cashbookDeletedTxns++; return; }
+          var cbKey = r.raw.fy + '|Q' + r.raw.q + '|' + r.raw.txn.id;
+          if (seenCb[cbKey]) return; // a copy of the same atom via another source
+          seenCb[cbKey] = 1;
+          if (cbDeleted[cbKey]) { R.inventory.totals.cashbookDeletedTxns++; return; }
           var a2 = cbAmount(r.raw.txn);
           if (a2.klass !== 'income' && a2.klass !== 'expense') return;
           R.inventory.totals.cashbookEntries++;
@@ -478,7 +499,28 @@
       var tomb = {};
       R.staging.forEach(function (r) { if (r.kind === 'tombstones') (r.raw.deletedPaymentIds || []).forEach(function (id) { tomb[id] = 1; }); });
 
+      /* Overlapping sources are the NORM (two fee files, and the master
+         snapshot contains copies of everything): the same deterministic
+         entity arrives from several places. Two run-level guards make that
+         converge instead of failing broker validation:
+         - creates-dedupe: a creates-type entity is synthesized ONCE per run
+           (first source in deterministic order wins; later copies are the
+           same entity by construction — same id — so nothing is lost);
+         - exact-dedupe: an event identical in (type, entity, payload) is a
+           duplicate import artifact (the same payment via file AND
+           snapshot), emitted once — this also keeps the money from double
+           counting. Distinct payloads on the same entity still all emit
+           (real history: several payments, several doc versions). */
+      R.__created = {}; R.__emitted = {};
       function ev(type, entityId, payload, refs, srcId, path) {
+        var reg = MD.REGISTRY[type];
+        if (reg && reg.creates) {
+          if (R.__created[type + '|' + entityId]) return Promise.resolve(null);
+          R.__created[type + '|' + entityId] = 1;
+        }
+        var dk = type + '|' + entityId + '|' + MD.canon(payload);
+        if (R.__emitted[dk]) return Promise.resolve(null);
+        R.__emitted[dk] = 1;
         return MD.migrationEventId(srcId, path + '#' + type, TRANSFORM_V).then(function (id) {
           return MD.buildEvent(type, entityId, payload, ACTOR, 'bootstrap', {
             id: id, at: runStamp, refs: refs,

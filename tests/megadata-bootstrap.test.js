@@ -190,6 +190,38 @@ function rawBaseline() {
   ok(/chat message without id/.test(lreasons), 'the id-less chat message is quarantined, not dropped');
   ok(repL.verification.brokerAccepted === repL.events.count && repL.verification.chainVerified, 'everything passes the broker gates');
 
+  section('OVERLAPPING sources (the live-run regression): two fee files + the snapshot copy = ONE import');
+  {
+    // Exactly the production shape that failed live: CESTIS_School_Fees.json
+    // and school_fee_management_system.json carry the same records, and the
+    // master snapshot embeds the same store a third time.
+    const feeData = {
+      cestiSchoolFeeStudents: JSON.stringify([{ id: 'SF-OV1', name: 'Overlap Case', skillArea: 'WELDING L2', tuitionFee: 300 }]),
+      cestiSchoolFeePayments: JSON.stringify([{ id: 'POV1', studentId: 'SF-OV1', amount: 120, date: '2026-03-03', method: 'cash' }]),
+      cestiFeeStructure: JSON.stringify({ 'WELDING L2': { total: 300, terms: [300] } }),
+      cestiSchoolFeeDeletedPaymentIds: '[]', cestiSchoolFeeDeletedLmsIds: '[]'
+    };
+    const srcs = [
+      { id: 'file:CESTIS_School_Fees.json', kind: 'schoolfee-pagecloud', name: 'a', json: { data: feeData } },
+      { id: 'file:school_fee_management_system.json', kind: 'schoolfee-pagecloud', name: 'b', json: { data: feeData } },
+      { id: 'file:cestis-master-snapshot.json', kind: 'master-snapshot', name: 'c', json: { store: feeData } }
+    ];
+    const repOV = await BOOT.runBootstrap({ sources: srcs, adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_ov-1' });
+    ok(repOV.verification.brokerAccepted === repOV.events.count && repOV.verification.chainVerified,
+      'the broker accepts the whole plan — no "already exists" refusals from overlapping copies');
+    eq(repOV.events.byType['programme.defined'], 1, 'ONE programme despite three sources naming it');
+    eq(repOV.events.byType['person.registered'], 1, 'ONE person');
+    eq(repOV.events.byType['fees.payment.recorded'], 1, 'the payment synthesized ONCE (money never double-counts)');
+    eq(repOV.inventory.totals.payments, 1, 'the inventory counts the atom once too');
+    eq(repOV.inventory.totals.students, 1, 'and the trainee once');
+    ok(repOV.verification.financialIdentityHolds, 'so the financial identity HOLDS across overlapping sources');
+    // Determinism still byte-exact with overlaps present:
+    const A2 = MemoryAdapter(), B2 = MemoryAdapter();
+    await BOOT.runBootstrap({ sources: srcs, adapter: A2, dryRun: true, runStamp: STAMP, runId: 'imp_ov-1' });
+    await BOOT.runBootstrap({ sources: srcs, adapter: B2, dryRun: true, runStamp: STAMP, runId: 'imp_ov-1' });
+    eq(MD.canon(await A2.get('staging', 'events')), MD.canon(await B2.get('staging', 'events')), 'byte-identical event sets, dedupe included');
+  }
+
   section('Master snapshot: all extractors run over the store; every key is accounted');
   const snap = { id: 'test:snap', kind: 'master-snapshot', name: 'snap', json: { store: {
     cestiSchoolFeeStudents: JSON.stringify([{ id: 'SF-Z1', name: 'Snap Person', skillArea: 'WELDING L2', tuitionFee: 10 }]),
