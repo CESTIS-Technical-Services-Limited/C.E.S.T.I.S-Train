@@ -7,21 +7,24 @@ page or the migration relies on it.
 
 ## One-time setup (the school's Google account, ~15 minutes)
 
+**Everything you paste is ONE file:** `megadata/broker-appsscript/PASTE-ALL-IN-ONE.gs`
+(generated from the three sources by `build-paste.js`; a drift test keeps it in sync — never
+edit the pasted copy by hand, rebuild instead).
+
 1. Open <https://script.new> while signed in as the school account.
-2. Name the project `CESTIS MegaData Broker`.
-3. In the editor, create ONE script file containing, in this order:
-   1. the full contents of `megadata/schemas.js`
-   2. the full contents of `megadata/broker-core.js`
-   3. the full contents of `megadata/broker-appsscript/Code.gs`
-   (Apps Script has no `require`; the modules register themselves on a shared global.)
-4. Project Settings → Script Properties → add:
-   - `HMAC_SECRET` — a long random string. Generate one locally, e.g.
-     `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
-     **Never commit it anywhere** (the repository is public — decision D3). The same value is
-     entered once per staff device in the app's broker-settings screen.
+2. Name the project `CESTIS MegaData Broker` (click "Untitled project", top-left).
+3. The editor shows a file with a stub `function myFunction() {}`. Select ALL of it, delete
+   it, and paste the entire contents of `PASTE-ALL-IN-ONE.gs` in its place. Save (Ctrl+S).
+4. Click the ⚙️ gear ("Project Settings") in the left sidebar → scroll down to
+   **Script Properties** → "Add script property", twice:
+   - `HMAC_SECRET` — a long random string. Easiest: open `MegaData-Admin.html` on any school
+     computer and press **"Make me a strong secret"** (card 2); copy the value it shows and
+     keep an offline copy somewhere safe. **Never commit it anywhere** (the repository is
+     public — decision D3). The same value is entered once per staff device in the same card.
    - `MEGADATA_FOLDER_ID` = `1-BVqRHL3bh0UB30pvlXt0AWAsKWsueec` (the MegaData master folder from
      the spec — the broker will create its files alongside the existing
      `cestis-master-snapshot.json`, which it never touches).
+   Press "Save script properties".
 5. Deploy → New deployment → type **Web app**:
    - Execute as: **Me** (the school account)
    - Who has access: **Anyone with the link** (consumer-account constraint; the HMAC is the
@@ -60,7 +63,7 @@ body returns the identical ack without creating a second segment.
 - `LockService` serializes appends; 25 s lock wait then `{"error":"busy","retryable":true}`
   (clients back off and retry — the broker client already does).
 - If the broker is down, pages keep working offline-first; the outbox drains on recovery.
-- The promise-draining loop in `Code.gs` (`Utilities.sleep` polling) is the part most likely to
-  need adjustment against the live V8 runtime — verify with the smoke test; if it stalls,
-  replace the async `sha256Hex` path in `schemas.js` with `Utilities.computeDigest` when running
-  inside Apps Script (a 5-line change flagged in code).
+- `sha256Hex` now carries a native Apps Script branch (`Utilities.computeDigest`) baked into
+  the paste file, so every promise in the broker resolves synchronously — no post-paste edits.
+  The `Utilities.sleep` draining loop in `Code.gs` remains the belt-and-braces backstop and the
+  first thing to look at if the smoke test ever stalls.

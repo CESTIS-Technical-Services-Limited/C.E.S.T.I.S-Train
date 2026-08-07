@@ -59,6 +59,11 @@
       <button id="btnSave">Save on this device</button>
       <button class="danger" id="btnClear">Remove saved connection</button>
     </div>
+    <div class="row" style="margin-top:10px">
+      <button class="secondary" id="btnGenSecret">Make me a strong secret</button>
+      <input type="text" id="genSecretOut" readonly placeholder="a fresh secret appears here — copy it into Apps Script FIRST, then paste it above" style="flex:1;min-width:260px">
+    </div>
+    <p class="exp" style="margin-top:8px">Setting up the broker for the first time? Press the button, copy the generated value into the Apps Script <code>HMAC_SECRET</code> Script Property, keep an offline copy somewhere safe, then paste the same value into the secret box above. It is generated on this computer and shown only here.</p>
     <div class="status mut" id="brokerStatus" style="display:none"></div>
   </div>
 
@@ -135,6 +140,12 @@
       show($('brokerStatus'), 'mut', 'Removed. This device is back to fully legacy behaviour.');
       refreshStatus();
     });
+  };
+  $('btnGenSecret').onclick = function () {
+    var bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    $('genSecretOut').value = Array.prototype.map.call(bytes, function (b) { return ((b & 0xff) | 0x100).toString(16).slice(1); }).join('');
+    $('genSecretOut').select();
   };
 
   /* ---- Card 3: export ---- */

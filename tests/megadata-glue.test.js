@@ -100,6 +100,17 @@ function makeServer(broker, chaos) {
     eq((await ad.scan('a')).length, 2, name + ': scan sees both ns-a keys');
   }
 
+  section('The operator paste file is exactly its sources (drift guard) and Apps Script-ready');
+  {
+    const paste = require('../megadata/broker-appsscript/build-paste.js');
+    const fs2 = require('fs');
+    eq(fs2.readFileSync(paste.artifact, 'utf8') === paste.build(), true,
+      'PASTE-ALL-IN-ONE.gs matches a fresh build — rebuild after editing schemas/broker-core/Code.gs');
+    const src = fs2.readFileSync(require.resolve('../megadata/schemas.js'), 'utf8');
+    ok(src.indexOf('Utilities.computeDigest') !== -1,
+      'sha256Hex carries the Apps Script digest branch — the paste file needs NO post-paste edits');
+  }
+
   console.log('');
   console.log(passed + ' passed, ' + failed + ' failed');
   if (failed) process.exitCode = 1;
