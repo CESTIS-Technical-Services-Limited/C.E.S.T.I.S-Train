@@ -22,7 +22,7 @@
   'use strict';
   var MD = deps.MD, BR = deps.BR, P = deps.P, CTR = deps.CTR || deps.MD;
   var cbAmount = (deps.CBS || deps.MD).cbAmount; // the ONE cashbook resolver (cashbook-shared.js)
-  var TRANSFORM_V = 1;
+  var TRANSFORM_V = 2; // v2: overlapping-source dedupe (creates-once + exact-once). Bumping this orphans every older checkpoint/staging dir — resumes refuse to blend across transform generations.
   var ACTOR = { name: 'Legacy migration', role: 'system', device: 'cli' };
 
   function normName(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
@@ -948,5 +948,5 @@
     return m ? m.kind : null;
   }
 
-  return { runBootstrap: runBootstrap, EXTRACTORS: EXTRACTORS, KIND_BY_NAME: KIND_BY_NAME, kindForName: kindForName, _toMinor: toMinor };
+  return { runBootstrap: runBootstrap, EXTRACTORS: EXTRACTORS, KIND_BY_NAME: KIND_BY_NAME, kindForName: kindForName, TRANSFORM_V: TRANSFORM_V, _toMinor: toMinor };
 });
