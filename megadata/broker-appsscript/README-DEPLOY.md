@@ -53,9 +53,12 @@ MD.sha256Hex(process.env.S+"|"+MD.canon({})).then(h=>
 # 3. Wrong secret must fail:  … → {"error":"auth failed"}
 ```
 
-Then run one signed `append` with a test event and confirm: `seg-000000-1-1.jsonl`,
-`head.json`, and `broker-state.json` appear in the MegaData folder, and a replay of the same
-body returns the identical ack without creating a second segment.
+The first real `append` exercise is the migration upload itself
+(`node megadata/bootstrap-upload.js --url <…/exec>` after a `--commit` run): it uploads in
+batches, pulls everything back, checks the id set and recomputes the hash chain against the
+broker's head, and only `--seal`s when verification passes. Re-running it is always safe —
+replayed events are answered with their original acks. After it, confirm `seg-…jsonl`,
+`head.json` and `broker-state.json` appeared in the MegaData folder.
 
 ## Known limits (by design — docs/02 §9, §15)
 

@@ -67,5 +67,5 @@ adapter.get('checkpoint', 'state').then(cp => {
   console.log('Stored-balance disagreements (human review): ' + rep.verification.storedBalanceDisagreements);
   if (!rep.verification.financialIdentityHolds) process.exitCode = 1;
   if (rep.dryRun) console.log('\nReview the plan (incl. ' + rep.adjudicationQueue.length + ' adjudication item(s) in the staging dir), then rerun with --commit.');
-  else console.log('\nCommitted to ' + outDir + '/out.json. Next: upload segments via the broker deploy kit.');
+  else console.log('\nCommitted to ' + outDir + '/out.json.\nNext: node megadata/bootstrap-upload.js --url <your …/exec> --seal\n(secret via the MEGADATA_SECRET environment variable or the prompt; re-running is always safe)');
 }).catch(e => { console.error('BOOTSTRAP FAILED: ' + e.message); process.exit(1); });
