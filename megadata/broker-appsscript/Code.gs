@@ -111,6 +111,7 @@ function doPost(e) {
     var state = readJsonFile(fld, STATE_FILE, null) || MegaData.createBrokerState();
     var broker = MegaData.createBroker(state);
     var before = state.events.length;
+    var segBefore = (state.segments || []).length; // broker-core pushes its segment entry during append
     var result;
     switch (req.op) {
       case 'append': result = broker.append(req.payload, { nowIso: new Date().toISOString() }); break;
@@ -133,7 +134,7 @@ function doPost(e) {
 
     if (req.op === 'append' && out.ok && state.events.length > before) {
       var fresh = state.events.slice(before);
-      var segName = 'seg-' + ('000000' + state.segments.length).slice(-6)
+      var segName = 'seg-' + ('000000' + segBefore).slice(-6)
         + '-' + fresh[0].seq + '-' + fresh[fresh.length - 1].seq + '.jsonl';
       fld.createFile(segName, fresh.map(function (ev) { return JSON.stringify(ev); }).join('\n'), 'application/json');
       writeJsonFile(fld, HEAD_FILE, { seq: state.seq, chain: state.chain, segments: state.segments, gates: state.gates });
