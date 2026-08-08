@@ -114,15 +114,18 @@ adapter.get('checkpoint', 'state').then(cp => {
     + ' + quarantined ' + (rep.verification.quarantinedPaymentsMinor / 100).toFixed(2)
     + ' == inventory ' + (rep.verification.inventoryTotalMinor / 100).toFixed(2)
     + '  →  ' + (rep.verification.financialIdentityHolds ? 'HOLDS' : '*** FAILS ***'));
+  console.log('Cashbook identity:  income ' + (rep.verification.cashbookIncomeMinor / 100).toFixed(2)
+    + '  expense ' + (rep.verification.cashbookExpenseMinor / 100).toFixed(2)
+    + ' (fold == inventory, to the cent)  →  ' + (rep.verification.cashbookIdentityHolds ? 'HOLDS' : '*** FAILS ***'));
   console.log('Stored-balance disagreements (human review): ' + rep.verification.storedBalanceDisagreements);
   rep.inventory.sources.forEach(s => {
     const kinds = Object.keys(s.counts).filter(k => k !== 'tombstones');
-    if (!kinds.length) {
-      console.log('\u26a0 ' + s.name + ': recognised but NOTHING staged \u2014 unknown inner dialect; do not proceed while this file was expected to carry data.');
-      if (s.topKeys && s.topKeys.length) {
-        console.log('   shape hint (key NAMES only, safe to share): ' + s.topKeys.join(', ')
-          + (s.dataKeys && s.dataKeys.length ? '  |  data.*: ' + s.dataKeys.join(', ') : ''));
-      }
+    if (kinds.length) return;
+    if (s.benignEmpty) { console.log('\u2139 ' + s.name + ': nothing to import \u2014 ' + s.benignEmpty + ' (fine).'); return; }
+    console.log('\u26a0 ' + s.name + ': recognised but NOTHING staged \u2014 unknown inner dialect; do not proceed while this file was expected to carry data.');
+    if (s.topKeys && s.topKeys.length) {
+      console.log('   shape hint (key NAMES only, safe to share): ' + s.topKeys.join(', ')
+        + (s.dataKeys && s.dataKeys.length ? '  |  data.*: ' + s.dataKeys.join(', ') : ''));
     }
   });
   if (rep.quarantine.length && rep.quarantine.length <= 10) {
@@ -133,7 +136,7 @@ adapter.get('checkpoint', 'state').then(cp => {
     console.log('Stored-balance disagreement detail (stored vs recomputed-from-atoms):');
     rep.verification.balanceDiffSample.forEach(b => console.log('  - ' + JSON.stringify(b)));
   }
-  if (!rep.verification.financialIdentityHolds) process.exitCode = 1;
+  if (!rep.verification.financialIdentityHolds || !rep.verification.cashbookIdentityHolds) process.exitCode = 1;
   if (rep.dryRun) console.log('\nReview the plan (incl. ' + rep.adjudicationQueue.length + ' adjudication item(s) in the staging dir), then rerun with --commit.');
   else console.log('\nCommitted to ' + outDir + '/out.json.\nNext: node megadata/bootstrap-upload.js --url <your …/exec> --seal\n(secret via the MEGADATA_SECRET environment variable or the prompt; re-running is always safe)');
 }).catch(e => { console.error('BOOTSTRAP FAILED: ' + e.message); process.exit(1); });
