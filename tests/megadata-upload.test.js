@@ -106,6 +106,27 @@ async function committedEvents() {
   ok(err2 && /refused a batch/.test(err2.message), 'the refusal is loud, with the broker\'s reasons');
   ok(broker3._state.gates.bootstrap !== 'sealed', 'the gate never sealed');
 
+  section('A log BIGGER than one pull page verifies completely (the live silent-loop regression)');
+  // 2026-08-08 live: verification paged with the wrong parameter name, the
+  // broker served page one forever, and the operator watched a silent hang.
+  // Every earlier fixture fit in ONE page, so only a >500-event log pins it.
+  const many = [];
+  for (let i = 0; i < 1203; i++) {
+    const h = await MD.sha256Hex('multi-page|' + i);
+    many.push(await MD.buildEvent('doc.upserted', 'doc_m' + h.slice(0, 20),
+      { kind: 'pageTest', diff: { n: i }, reason: 'multi-page regression' },
+      { name: 'Uploader', role: 'admin', device: 'dev_test' }, 'bootstrap',
+      { id: 'evt_m' + h.slice(0, 24), at: STAMP }));
+  }
+  const broker4 = createBroker();
+  const dial4 = liveDialect(broker4);
+  const client4 = createBrokerClient({ url: 'https://x/exec', secret: SECRET, fetchImpl: dial4.fetchImpl, sleep: () => Promise.resolve() });
+  const verifyLines = [];
+  const rep4 = await uploadRun({ client: client4, events: many, batchSize: 200, log: l => verifyLines.push(l) });
+  eq(rep4.headSeq, 1203, 'all 1203 events on the broker');
+  ok(rep4.idsOk && rep4.chainOk, 'the multi-page verification completes: every id back, chain verified');
+  ok(verifyLines.filter(l => /^verifying: pulled /.test(l)).length >= 3, 'verification progress is narrated page by page (never a silent wait)');
+
   console.log('');
   console.log(passed + ' passed, ' + failed + ' failed');
   if (failed) process.exitCode = 1;

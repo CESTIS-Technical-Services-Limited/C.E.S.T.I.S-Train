@@ -53,17 +53,25 @@ function uploadRun(opts) {
   }).then(function (h1) {
     replayed = appended - (h1.seq - before.seq);
     // Verify: pull EVERYTHING back, match the id set, recompute the chain.
+    // The broker pages by sinceSeq (LIVE BUG, 2026-08-08: this loop once sent
+    // {after} instead — the broker ignored it, served page one forever, and
+    // the operator watched a silent infinite loop. Progress is logged and a
+    // non-advancing page now ABORTS loudly instead of looping.)
     const pulled = [];
-    function pullFrom(after) {
-      return client.pull({ after: after }).then(function (res) {
+    function pullFrom(sinceSeq) {
+      return client.pull({ sinceSeq: sinceSeq, max: 500 }).then(function (res) {
         (res.events || []).forEach(function (e) { pulled.push(e); });
-        if (res.events && res.events.length && pulled[pulled.length - 1].seq < res.head.seq) {
-          return pullFrom(pulled[pulled.length - 1].seq);
+        const tail = pulled.length ? pulled[pulled.length - 1].seq : sinceSeq;
+        log('verifying: pulled ' + pulled.length + '/' + res.head.seq + ' event(s) back from the broker…');
+        if (tail < res.head.seq) {
+          if (tail <= sinceSeq) throw new Error('verification pull is not advancing past seq ' + sinceSeq + ' (broker page came back empty or stale) — aborting rather than looping; re-run to verify again');
+          return pullFrom(tail);
         }
         return res.head;
       });
     }
     return pullFrom(0).then(function (head) {
+      log('verifying: checking every content hash and the whole chain locally…');
       const wantIds = new Set(events.map(e => e.id));
       const gotIds = new Set(pulled.map(e => e.id));
       const missing = [...wantIds].filter(id => !gotIds.has(id));
