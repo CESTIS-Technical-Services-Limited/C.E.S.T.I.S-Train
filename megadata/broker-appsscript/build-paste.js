@@ -9,6 +9,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..', '..');
 const PARTS = [
+  ['megadata/broker-appsscript/appsscript-prelude.js', 'synchronous Promise for the Apps Script runtime (must be FIRST)'],
   ['megadata/schemas.js', 'canonical serialization, ids, event registry'],
   ['megadata/broker-core.js', 'validation, numbering, hash chain'],
   ['megadata/broker-appsscript/Code.gs', 'Apps Script I/O glue (web app + Drive)']

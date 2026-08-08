@@ -79,8 +79,10 @@ for (const f of fs.readdirSync(srcDir).sort()) {
 
 const adapter = FileAdapter(outDir);
 adapter.get('checkpoint', 'state').then(cp => {
-  const runStamp = (cp && cp.runStamp) || new Date().toISOString();
-  if (cp) console.log('Resuming run ' + runId + ' from checkpoint "' + cp.step + '" (stamp ' + cp.runStamp + ')');
+  const resumable = cp && cp.transformV === BOOT.TRANSFORM_V;
+  const runStamp = (resumable && cp.runStamp) || new Date().toISOString();
+  if (resumable) console.log('Resuming run ' + runId + ' from checkpoint "' + cp.step + '" (stamp ' + cp.runStamp + ')');
+  else if (cp) console.log('Found staging from an OLDER tool version (transform v' + cp.transformV + ' vs v' + BOOT.TRANSFORM_V + ') — starting FRESH, nothing blends across versions.');
   else console.log((commit ? 'COMMIT' : 'DRY') + ' run ' + runId + ' over ' + sources.length + ' source(s); stamp ' + runStamp);
   if (unmatched.length) console.log('NOT ingested (no extractor / unreadable):\n  - ' + unmatched.join('\n  - '));
   return BOOT.runBootstrap({ sources, adapter, dryRun: !commit, runStamp, runId });
