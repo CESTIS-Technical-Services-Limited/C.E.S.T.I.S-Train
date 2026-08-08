@@ -326,6 +326,120 @@ function rawBaseline() {
     eq(repCB.inventory.totals.cashbookIncomeMinor, 5000, 'with the amount, to the cent');
   }
 
+  section('v5 dialects: the REAL cashbook-dashboard and virement backups import to the cent');
+  {
+    // CESTIS_CASHBOOK_DASHBOARD_BACKUP.json — prepareBackupData() shape: a
+    // {version:'2.0', data:{...}} wrapper carrying EVERY quarter's
+    // transactions/budgets under the same storage keys the pages write,
+    // active-quarter scalars, tombstones, and the clock roster.
+    const cbdash = { version: '2.0', timestamp: 'T', savedBy: 'Bursar', data: {
+      activeFY: '2025/2026', activeQ: 4,
+      openingBalance: 20, transactions: [{ id: 41, date: '2026-05-01', details: 'May sale', deposit: 75, payment: 0, category: 'Income' }], deletedTxnIds: [],
+      budget: { Lunch: 90 }, budgetSections: { Lunch: 'Admin & Operations' },
+      quarterlyBudgets: { 'cestis_budget_2025/2026_Q3': { budget: { Lunch: 60 }, sections: { Lunch: 'Admin & Operations' } } },
+      quarterlyTransactions: { 'cestis_quarter_2025/2026_Q3': { openingBalance: 10, transactions: [
+        { id: 7, date: '2026-02-01', details: 'Sale', deposit: 50, payment: 0, category: 'Income' },
+        { id: 8, date: '2026-02-02', details: 'Chalk', deposit: 0, payment: 12.5, category: 'Admin Expenses' }
+      ], deletedTxnIds: [] } },
+      deletedBudgetKeys: ['cestis_budget_2024/2025_Q1'],
+      staffMembers: [{ id: 'STAFF7', username: 'cb', fullName: 'C B' }],
+      timeRecords: [{ id: 'SESSION_77', staffId: 'STAFF7' }]
+    } };
+    const A5 = MemoryAdapter();
+    const repD = await BOOT.runBootstrap({ sources: [{ id: 'file:CESTIS_CASHBOOK_DASHBOARD_BACKUP.json', kind: BOOT.kindForName('CESTIS_CASHBOOK_DASHBOARD_BACKUP.json'), name: 'cbdash', json: cbdash }], adapter: A5, dryRun: true, runStamp: STAMP, runId: 'imp_v5-1' });
+    eq(repD.inventory.totals.cashbookEntries, 3, 'quarter map AND active-quarter fallback import');
+    eq(repD.inventory.totals.cashbookIncomeMinor, 12500, 'income to the cent (50.00 + 75.00)');
+    eq(repD.inventory.totals.cashbookExpenseMinor, 1250, 'expense to the cent (12.50)');
+    ok(repD.verification.cashbookIdentityHolds, 'cashbook identity holds');
+    eq(repD.events.byType['budget.set'], 2, 'Q3 map budget + active-quarter fallback budget');
+    const dEvents = await A5.get('staging', 'events');
+    ok(dEvents.some(e => e.type === 'doc.upserted' && e.payload.kind === 'staffMember'), 'wrapper staff members stage as the shared doc kind');
+    ok(dEvents.some(e => e.type === 'doc.upserted' && e.payload.kind === 'budgetDeleted'), 'deleted budget keys survive as a doc');
+
+    // Cashbook_Virement_Backup.json — the virement page's wrapper. Its
+    // cloudQuarterCache holds SYNCED COPIES of cashbook transactions:
+    // primaries must win, the cache must only fill gaps.
+    const vback = { version: '1.2', timestamp: 'T', savedBy: 'Dashboard User', data: {
+      virementRequests: [
+        { id: 501, fy: '2025/2026', quarter: 3, requestedBy: 'Coordinator', status: 'Approved', approvedBy: 'Admin', approvalDate: '2026-01-05', lines: [{ fromId: 'coordinator', toId: 'statutory', amount: 10 }] },
+        { id: 502, fy: '2025/2026', quarter: 3, requestedBy: 'Coordinator', status: 'Pending', lines: [{ fromId: 'admin', toId: 'lunch', amount: 5 }] }
+      ],
+      deletedRequestIds: [502],
+      cloudQuarterCache: {
+        '2025/2026_Q3': { budget: { Lunch: 999 }, transactions: [
+          { id: 7, date: '2026-02-01', details: 'Sale', deposit: 50, payment: 0, category: 'Income' },
+          { id: 99, date: '2026-02-03', details: 'Only in cache', deposit: 0, payment: 8, category: 'Admin Expenses' }
+        ], syncedAt: 'T' },
+        '2024/2025_Q2': { budget: { Lunch: 11 }, transactions: [{ id: 1, date: '2024-09-01', details: 'Old term', deposit: 30, payment: 0, category: 'Income' }], syncedAt: 'T' }
+      },
+      activeFY: '2025/2026', activeQ: 3
+    } };
+    const A4 = MemoryAdapter();
+    const repV = await BOOT.runBootstrap({ sources: [
+      { id: 'file:CESTIS_CASHBOOK_DASHBOARD_BACKUP.json', kind: 'auto-backup', name: 'cbdash', json: cbdash },
+      { id: 'file:Cashbook_Virement_Backup.json', kind: BOOT.kindForName('Cashbook_Virement_Backup.json'), name: 'vback', json: vback }
+    ], adapter: A4, dryRun: true, runStamp: STAMP, runId: 'imp_v5-2' });
+    eq(BOOT.kindForName('Cashbook_Virement_Backup.json'), 'auto-backup', 'virement backups route by name');
+    eq(repV.events.byType['virement.requested'], 1, 'live virement imports; the tombstoned one is accounted, not imported');
+    eq(repV.events.byType['virement.decided'], 1, 'with its decision');
+    eq(repV.inventory.totals.cashbookEntries, 5, 'primary 3 + cache-only txn + cache-only old quarter');
+    eq(repV.inventory.totals.cashbookIncomeMinor, 12500 + 3000, 'the stale cache copy of a primary txn did NOT double-count');
+    eq(repV.inventory.totals.cashbookExpenseMinor, 1250 + 800, 'the cache-only expense fills its gap');
+    ok(repV.verification.cashbookIdentityHolds, 'identity still holds with the cache in play');
+    const vEvents = await A4.get('staging', 'events');
+    const budQ3 = vEvents.filter(e => e.type === 'budget.set' && e.payload.fy === '2025/2026' && e.payload.q === 3);
+    eq(budQ3.length, 1, 'ONE Q3 budget.set — the stale cache budget is suppressed by the primary');
+    eq(budQ3[0].payload.lines.find(l => l.categoryId === 'Lunch').amountMinor, 6000, 'and it carries the PRIMARY amount');
+    eq(vEvents.filter(e => e.type === 'budget.set' && e.payload.fy === '2024/2025' && e.payload.q === 2).length, 1, 'a quarter known ONLY to the cache still gets its budget');
+    ok(vEvents.some(e => e.type === 'cashbook.quarter.opened' && e.payload.fy === '2024/2025' && e.payload.q === 2 && e.payload.openingBalanceMinor === 0), 'a cache-only quarter opens at 0 (caches carry no opening balance)');
+  }
+
+  section('v5 snapshot accounting: centre tombstones import; the user-files folder id is config, not data');
+  {
+    const snap5 = { id: 'test:snap5', kind: 'master-snapshot', name: 'snap5', json: { store: {
+      voctrain_deletedCentreIds: JSON.stringify(['CTR-2']),
+      cestisUserFilesFolderId: '1AbCdEfGh',
+      weird_v5_key: '1'
+    } } };
+    const A3 = MemoryAdapter();
+    const repS5 = await BOOT.runBootstrap({ sources: [snap5], adapter: A3, dryRun: true, runStamp: STAMP, runId: 'imp_v5-3' });
+    const s5paths = repS5.quarantine.map(q => q.path).join(' | ');
+    ok(!/voctrain_deletedCentreIds/.test(s5paths), 'centre tombstones are claimed…');
+    const s5Events = await A3.get('staging', 'events');
+    ok(s5Events.some(e => e.type === 'doc.upserted' && e.payload.kind === 'lmsDeletedCentreIds' && e.payload.diff.ids[0] === 'CTR-2'), '…and imported losslessly as a doc');
+    ok(!/cestisUserFilesFolderId/.test(s5paths), 'the Drive folder POINTER is excluded as per-site config');
+    ok(/weird_v5_key/.test(s5paths), 'unknown keys still quarantine loudly');
+  }
+
+  section('v5 zero-staged diagnostic: key NAMES are reported, values never');
+  {
+    const mystery = { someUnknownTop: 1, data: { mysteryInner: [1, 2], secretValue: 'THE-VALUE' } };
+    const repM = await BOOT.runBootstrap({ sources: [{ id: 'file:CESTIS_MAIN_DASHBOARD_BACKUP.json', kind: 'auto-backup', name: 'CESTIS_MAIN_DASHBOARD_BACKUP.json', json: mystery }], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_v5-4' });
+    const srcEntry = repM.inventory.sources[0];
+    ok(srcEntry.topKeys && srcEntry.topKeys.includes('someUnknownTop'), 'top-level key names recorded for support');
+    ok(srcEntry.dataKeys && srcEntry.dataKeys.includes('mysteryInner'), 'data.* key names too');
+    ok(!JSON.stringify([srcEntry.topKeys, srcEntry.dataKeys]).includes('THE-VALUE'), 'NO values leave the file');
+    const repK = await BOOT.runBootstrap({ sources: [{ id: 'file:Staff_Clock_In_System_x.json', kind: 'auto-backup', name: 'clock', json: { data: { staffMembers: [{ id: 'S1' }], timeRecords: [] } } }], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_v5-5' });
+    ok(!repK.inventory.sources[0].topKeys, 'files that DO stage carry no diagnostic');
+  }
+
+  section('v5 CLI: a genuinely empty backup is benign, never the do-not-proceed warning');
+  {
+    const cp = require('child_process');
+    const os = require('os');
+    const path = require('path');
+    const tmpSrc = fs.mkdtempSync(path.join(os.tmpdir(), 'mega-cli-'));
+    const tmpOut = fs.mkdtempSync(path.join(os.tmpdir(), 'mega-cli-out-'));
+    fs.writeFileSync(path.join(tmpSrc, 'CESTIS_Payment_Vouchers.json'), '');
+    fs.writeFileSync(path.join(tmpSrc, 'CESTIS_School_Fees.json'), JSON.stringify({ data: {
+      cestiSchoolFeeStudents: JSON.stringify([{ id: 'SF-C1', name: 'Cli Person', skillArea: 'WELDING L2', tuitionFee: 10 }]),
+      cestiSchoolFeePayments: '[]', cestiFeeStructure: '{}', cestiSchoolFeeDeletedPaymentIds: '[]', cestiSchoolFeeDeletedLmsIds: '[]'
+    } }));
+    const outTxt = cp.execFileSync(process.execPath, [path.join(__dirname, '..', 'megadata', 'bootstrap-cli.js'), '--src', tmpSrc, '--out', tmpOut], { encoding: 'utf8' });
+    ok(/Empty on Drive — nothing to import/.test(outTxt) && /CESTIS_Payment_Vouchers\.json/.test(outTxt), 'the empty file is reported as benign');
+    ok(!/NOTHING staged/.test(outTxt), 'and the unknown-dialect warning does not fire for it');
+  }
+
   section('Master snapshot: all extractors run over the store; every key is accounted');
   const snap = { id: 'test:snap', kind: 'master-snapshot', name: 'snap', json: { store: {
     cestiSchoolFeeStudents: JSON.stringify([{ id: 'SF-Z1', name: 'Snap Person', skillArea: 'WELDING L2', tuitionFee: 10 }]),

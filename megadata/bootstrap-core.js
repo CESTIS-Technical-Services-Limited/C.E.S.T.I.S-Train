@@ -22,7 +22,7 @@
   'use strict';
   var MD = deps.MD, BR = deps.BR, P = deps.P, CTR = deps.CTR || deps.MD;
   var cbAmount = (deps.CBS || deps.MD).cbAmount; // the ONE cashbook resolver (cashbook-shared.js)
-  var TRANSFORM_V = 4; // v4: bespoke auto-backup families (per-user, clock, payroll, dashboard dumps). v3: System-1 fee dialect + fee documents/users staged (v2: overlap dedupe). Bumping orphans every older checkpoint/staging dir — resumes refuse to blend across transform generations.
+  var TRANSFORM_V = 5; // v5: cashbook-dashboard + virement-backup dialects (incl. gap-filling cache txns), deletedCentreIds claimed. v4: bespoke auto-backup families. v3: System-1 fee dialect (v2: overlap dedupe). Bumping orphans every older checkpoint/staging dir — resumes refuse to blend across transform generations.
   var ACTOR = { name: 'Legacy migration', role: 'system', device: 'cli' };
 
   function normName(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
@@ -232,8 +232,22 @@
        'cestis_finance_voucher_overrides', 'cestis_budget_overrides', 'cestis_budget_deleted',
        'cestis_fin_logo', 'cestis_recon_logo', 'cestisPayroll', 'dashboardUsers', 'cestisPermissions',
        'cestisStaffMembers', 'cestisTimeRecords', 'cestiUsers'].forEach(function (n) { claimed[n] = 1; });
+      // Centre tombstones are DATA (which training centres were deleted):
+      // imported losslessly as a Tier-B doc so no page's delete history is
+      // dropped. The user-files folder id is per-site Drive config, not data.
+      var delCentres = store.voctrain_deletedCentreIds;
+      if (delCentres != null) {
+        var centreIds = null;
+        try { centreIds = typeof delCentres === 'string' ? JSON.parse(delCentres) : delCentres; } catch (e9) { centreIds = null; }
+        if (Array.isArray(centreIds)) {
+          out.staging.push({ srcId: src.id, path: 'voctrain_deletedCentreIds', kind: 'tierbDoc', raw: { docKind: 'lmsDeletedCentreIds', docKey: 'lmsDeletedCentreIds|singleton', fields: { ids: centreIds } } });
+        } else {
+          out.quarantine.push({ srcId: src.id, path: 'voctrain_deletedCentreIds', reason: 'not a JSON array' });
+        }
+        claimed.voctrain_deletedCentreIds = 1;
+      }
       var CLAIMED_PREFIX = ['cestis_quarter_', 'cestis_budget_', 'cestis_recon_', 'voctrain_attendance::', 'voctrain_user_'];
-      var EXCLUDE = /token|session|cloudfileid|lastsync|darkmode|pagecloud_stamps|examinprogress|dataversion|maintenancemode|autosync|form_draft|cloud_cache|active_quarter|firsttime|dismissed|currentuser|schoolsettings|mainlinks|quicklinks|auth_session/i;
+      var EXCLUDE = /token|session|cloudfileid|lastsync|darkmode|pagecloud_stamps|examinprogress|dataversion|maintenancemode|autosync|form_draft|cloud_cache|active_quarter|firsttime|dismissed|currentuser|schoolsettings|mainlinks|quicklinks|auth_session|userfilesfolderid/i;
       Object.keys(store).forEach(function (k) {
         if (claimed[k]) return;
         if (EXCLUDE.test(k)) return;                                   // per-machine / view / scratch state, deliberately not imported
@@ -295,6 +309,62 @@
         if (!pm || !pm.id) { out.quarantine.push({ srcId: src.id, path: 'permissions[' + i + ']', reason: 'permissionRequest without id' }); return; }
         doc('permissionRequest', String(pm.id), pm, 'permissions[' + i + ']');
       });
+      // Virement-page backup dialect (Cashbook_Virement_Backup.json): the
+      // page's records under bespoke names — translated onto the SAME storage
+      // keys the finance extractor already stages, so ids and dedupe line up
+      // with every other source of the same records.
+      if (Array.isArray(d.virementRequests)) {
+        EXTRACTORS['finance-staff-pagecloud']({ id: src.id, json: { data: {
+          cesti_virements: d.virementRequests,
+          cesti_virement_deleted_ids: Array.isArray(d.deletedRequestIds) ? d.deletedRequestIds : []
+        } } }, out);
+      }
+      // Its cloudQuarterCache carries REAL cashbook transactions (copies the
+      // virement page synced from the cashbook, possibly stale). They are
+      // staged marked fromCache: primary cashbook sources always win, the
+      // cache only fills quarters/txns that exist NOWHERE else — so a stale
+      // copy can neither override nor double-count (see cashbook synthesis).
+      var cache = (d.cloudQuarterCache && typeof d.cloudQuarterCache === 'object' && !Array.isArray(d.cloudQuarterCache)) ? d.cloudQuarterCache : null;
+      if (cache) Object.keys(cache).forEach(function (ck) {
+        var m5 = ck.match(/^(\d{4}\/\d{4})_Q(\d)$/), v5 = cache[ck];
+        if (!m5 || !v5 || typeof v5 !== 'object') { out.quarantine.push({ srcId: src.id, path: 'cloudQuarterCache[' + JSON.stringify(ck) + ']', reason: 'unrecognised cache quarter key' }); return; }
+        var fy5 = m5[1], q5 = parseInt(m5[2], 10);
+        out.staging.push({ srcId: src.id, path: 'cloudQuarterCache[' + ck + ']', kind: 'cbQuarter', raw: { fy: fy5, q: q5, openingBalance: null, deletedTxnIds: [], fromCache: true } });
+        (Array.isArray(v5.transactions) ? v5.transactions : []).forEach(function (t5, i5) {
+          if (t5 == null || t5.id == null) { out.quarantine.push({ srcId: src.id, path: 'cloudQuarterCache[' + ck + '].transactions[' + i5 + ']', reason: 'cashbook txn without id' }); return; }
+          out.staging.push({ srcId: src.id, path: 'cloudQuarterCache[' + ck + '].transactions[' + i5 + ']', kind: 'cbTxn', raw: { fy: fy5, q: q5, txn: t5, fromCache: true } });
+        });
+        if (v5.budget && typeof v5.budget === 'object' && Object.keys(v5.budget).length) {
+          out.staging.push({ srcId: src.id, path: 'cloudQuarterCache[' + ck + '].budget', kind: 'cbBudget', raw: { fy: fy5, q: q5, budget: v5.budget, sections: {}, fromCache: true } });
+        }
+      });
+      // Cashbook-dashboard backup dialect (CESTIS_CASHBOOK_DASHBOARD_BACKUP):
+      // ALL quarters' transactions and budgets under the very storage keys the
+      // pages write — translated verbatim onto the finance extractor. Current
+      // writers already fold the active quarter into the maps; the fallback
+      // covers older payloads where they didn't.
+      var isCbDash = (d.quarterlyTransactions && typeof d.quarterlyTransactions === 'object')
+        || (d.quarterlyBudgets && typeof d.quarterlyBudgets === 'object');
+      if (isCbDash) {
+        var d6 = {};
+        Object.keys(d.quarterlyTransactions || {}).forEach(function (k6) {
+          if (/^cestis_quarter_/.test(k6)) d6[k6] = d.quarterlyTransactions[k6];
+          else out.quarantine.push({ srcId: src.id, path: 'quarterlyTransactions[' + JSON.stringify(k6) + ']', reason: 'unrecognised quarter key' });
+        });
+        Object.keys(d.quarterlyBudgets || {}).forEach(function (k7) {
+          if (/^cestis_budget_/.test(k7)) d6[k7] = d.quarterlyBudgets[k7];
+          else out.quarantine.push({ srcId: src.id, path: 'quarterlyBudgets[' + JSON.stringify(k7) + ']', reason: 'unrecognised budget key' });
+        });
+        var aQ = parseInt(d.activeQ, 10);
+        if (typeof d.activeFY === 'string' && aQ >= 1 && aQ <= 4) {
+          var ak = 'cestis_quarter_' + d.activeFY + '_Q' + aQ;
+          if (!d6[ak] && Array.isArray(d.transactions)) d6[ak] = { openingBalance: d.openingBalance, transactions: d.transactions, deletedTxnIds: Array.isArray(d.deletedTxnIds) ? d.deletedTxnIds : [] };
+          var bk = 'cestis_budget_' + d.activeFY + '_Q' + aQ;
+          if (!d6[bk] && d.budget && typeof d.budget === 'object') d6[bk] = { budget: d.budget, sections: d.budgetSections || {} };
+        }
+        if (Array.isArray(d.deletedBudgetKeys) && d.deletedBudgetKeys.length) d6.cestis_budget_deleted = d.deletedBudgetKeys;
+        EXTRACTORS['finance-staff-pagecloud']({ id: src.id, json: { data: d6 } }, out);
+      }
       // LMS bundle collections (also routes roster/attendance/exam results
       // into the shared identity pipeline via the lms-backup extractor).
       EXTRACTORS['lms-backup']({ id: src.id, json: { data: d } }, out);
@@ -417,7 +487,19 @@
             ex(src, R);
             var counts = {};
             R.staging.slice(before).forEach(function (r) { counts[r.kind] = (counts[r.kind] || 0) + 1; });
-            R.inventory.sources.push({ id: src.id, kind: src.kind, name: src.name, sha256: h, bytes: rawText.length, counts: counts });
+            var entry = { id: src.id, kind: src.kind, name: src.name, sha256: h, bytes: rawText.length, counts: counts };
+            // Zero-staged file (empty tombstone records don't count): record
+            // its KEY NAMES — never values, real data stays out of printouts —
+            // so the operator can report the shape and an extractor can be
+            // written from the report alone.
+            var realKinds = Object.keys(counts).filter(function (k) { return k !== 'tombstones'; });
+            if (!realKinds.length && src.json && typeof src.json === 'object') {
+              entry.topKeys = Object.keys(src.json).slice(0, 24);
+              if (src.json.data && typeof src.json.data === 'object' && !Array.isArray(src.json.data)) {
+                entry.dataKeys = Object.keys(src.json.data).slice(0, 24);
+              }
+            }
+            R.inventory.sources.push(entry);
           });
         });
       });
@@ -475,9 +557,12 @@
           if (r.kind === 'cbQuarter') (r.raw.deletedTxnIds || []).forEach(function (id) { cbDeleted[r.raw.fy + '|Q' + r.raw.q + '|' + id] = 1; });
         });
         R.cbDeleted = cbDeleted;
+        // Primary sources first, cache copies last — SAME order as synthesis,
+        // so a stale virement-page cache can only fill gaps, never win.
         var seenCb = {};
-        R.staging.forEach(function (r) {
-          if (r.kind !== 'cbTxn') return;
+        R.staging.filter(function (r) { return r.kind === 'cbTxn' && !r.raw.fromCache; })
+          .concat(R.staging.filter(function (r) { return r.kind === 'cbTxn' && r.raw.fromCache; }))
+          .forEach(function (r) {
           var cbKey = r.raw.fy + '|Q' + r.raw.q + '|' + r.raw.txn.id;
           if (seenCb[cbKey]) return; // a copy of the same atom via another source
           seenCb[cbKey] = 1;
@@ -764,9 +849,17 @@
         { staging: 'tgProfile', kind: 'transcriptProfile', key: function (r) { return 'tgprofile|' + r.studentId; } }
       ];
       // Cashbook (independent book, D11): quarters, entries, voids, budgets.
+      // Primary sources are processed BEFORE fromCache copies (the virement
+      // page's synced cache): creates-dedupe then makes a cache copy of an
+      // already-staged quarter/txn a no-op, deterministically and regardless
+      // of file order — the cache only contributes what exists nowhere else.
+      function cacheLast(kind) {
+        return R.staging.filter(function (r) { return r.kind === kind && !r.raw.fromCache; })
+          .concat(R.staging.filter(function (r) { return r.kind === kind && r.raw.fromCache; }));
+      }
       chain = chain.then(function () {
         var c7 = Promise.resolve();
-        R.staging.filter(function (r) { return r.kind === 'cbQuarter'; }).forEach(function (r) {
+        cacheLast('cbQuarter').forEach(function (r) {
           c7 = c7.then(function () {
             var hasTx = R.staging.some(function (r2) { return r2.kind === 'cbTxn' && r2.raw.fy === r.raw.fy && r2.raw.q === r.raw.q; });
             if (r.raw.openingBalance == null && !hasTx) return null;   // empty blob: nothing to say
@@ -775,7 +868,7 @@
             });
           });
         });
-        R.staging.filter(function (r) { return r.kind === 'cbTxn'; }).forEach(function (r) {
+        cacheLast('cbTxn').forEach(function (r) {
           c7 = c7.then(function () {
             var t = r.raw.txn;
             if (R.cbDeleted[r.raw.fy + '|Q' + r.raw.q + '|' + t.id]) return null; // legacy-deleted: accounted in inventory
@@ -796,8 +889,18 @@
             });
           });
         });
-        R.staging.filter(function (r) { return r.kind === 'cbBudget'; }).forEach(function (r) {
+        // budget.set REPLACES (not a create), so creates-dedupe cannot guard
+        // it: a cache budget is emitted only when NO primary source set that
+        // quarter's budget, and at most once per quarter across caches.
+        var budPrimary = {}, budCacheSeen = {};
+        R.staging.forEach(function (r2) { if (r2.kind === 'cbBudget' && !r2.raw.fromCache) budPrimary[r2.raw.fy + '|Q' + r2.raw.q] = 1; });
+        cacheLast('cbBudget').forEach(function (r) {
           c7 = c7.then(function () {
+            if (r.raw.fromCache) {
+              var bkey = r.raw.fy + '|Q' + r.raw.q;
+              if (budPrimary[bkey] || budCacheSeen[bkey]) return null;
+              budCacheSeen[bkey] = 1;
+            }
             var lines = Object.keys(r.raw.budget).map(function (cat) {
               return { categoryId: cat, sectionId: r.raw.sections[cat] || '', amountMinor: toMinor(r.raw.budget[cat]).minor };
             });

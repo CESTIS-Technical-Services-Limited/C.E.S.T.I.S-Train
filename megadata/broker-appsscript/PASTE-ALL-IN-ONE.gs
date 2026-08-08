@@ -720,18 +720,45 @@ function doPost(e) {
           folder: par3.hasNext() ? par3.next().getName() : '' });
       }
     });
+    // The broker's own folder is ALWAYS walked too (subfolders included), plus
+    // any folders the operator names: a backup dropped next to
+    // broker-state.json is found even under a name nobody predicted. The
+    // broker's own artifacts (state, head, seg-*) are never offered as legacy
+    // sources, and only .json files are.
+    var OWN_FILES = /^(broker-state\.json|head\.json|seg-\d.*)$/i;
+    var walked = 0;
+    function walkFolder(fld2, label, depth) {
+      if (walked >= 40 || depth > 3) return;
+      walked++;
+      var itF = fld2.getFiles();
+      while (itF.hasNext()) {
+        var f4 = itF.next();
+        if (f4.isTrashed()) continue;
+        var nm4 = f4.getName();
+        if (!/\.json$/i.test(nm4) || OWN_FILES.test(nm4)) continue;
+        found.push({ id: f4.getId(), name: nm4, size: f4.getSize(),
+          modified: f4.getLastUpdated().toISOString(), folder: label });
+      }
+      var itS = fld2.getFolders();
+      while (itS.hasNext()) {
+        var s4 = itS.next();
+        walkFolder(s4, s4.getName(), depth + 1);
+      }
+    }
+    try { var own = folder(); walkFolder(own, own.getName(), 1); }
+    catch (eOwn) { found.push({ error: 'broker folder: ' + eOwn.message }); }
     ((req.payload && req.payload.folderIds) || []).forEach(function (fid) {
-      try {
-        var it2 = DriveApp.getFolderById(String(fid)).getFiles();
-        while (it2.hasNext()) {
-          var f1 = it2.next();
-          if (f1.isTrashed()) continue;
-          found.push({ id: f1.getId(), name: f1.getName(), size: f1.getSize(),
-            modified: f1.getLastUpdated().toISOString(), folder: String(fid) });
-        }
-      } catch (e2) { found.push({ error: 'folder ' + fid + ': ' + e2.message }); }
+      try { var fx = DriveApp.getFolderById(String(fid)); walkFolder(fx, fx.getName(), 1); }
+      catch (e2) { found.push({ error: 'folder ' + fid + ': ' + e2.message }); }
     });
-    return jsonOut({ files: found });
+    // One file may be reached by name, by prefix AND by folder — offer it once.
+    var seenIds = {}, unique = [];
+    found.forEach(function (f5) {
+      if (f5.id && seenIds[f5.id]) return;
+      if (f5.id) seenIds[f5.id] = 1;
+      unique.push(f5);
+    });
+    return jsonOut({ files: unique });
   }
   if (req.op === 'fetchLegacy') {
     try {

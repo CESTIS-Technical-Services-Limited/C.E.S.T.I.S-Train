@@ -24,6 +24,14 @@ const BOOT = require('./bootstrap-core.js');
 
 const args = process.argv.slice(2);
 function arg(name, dflt) { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : dflt; }
+// --folder may repeat: extra Drive folders (id or full URL) to scan for
+// backups on top of the name/prefix search and the broker's own folder.
+const folderIds = [];
+args.forEach((a, i) => {
+  if (a !== '--folder' || !args[i + 1]) return;
+  const m = String(args[i + 1]).match(/folders\/([A-Za-z0-9_-]{10,})/);
+  folderIds.push(m ? m[1] : String(args[i + 1]).trim());
+});
 const srcDir = arg('--src', args.includes('--from-drive') ? './megadata-sources' : null);
 const outDir = arg('--out', './megadata-bootstrap-staging');
 const commit = args.includes('--commit');
@@ -54,7 +62,7 @@ withSecret(function (secret) {
     console.log('Fetching legacy backups from Drive through the broker…');
     pre = fetchLegacySources({
       client: createBrokerClient({ url: brokerUrl, secret: secret }),
-      destDir: srcDir, log: console.log
+      destDir: srcDir, log: console.log, folderIds: folderIds
     }).then(function (rep) {
       console.log('Fetched ' + rep.downloaded.length + ' file(s) into ' + srcDir
         + (rep.duplicates.length ? '; ' + rep.duplicates.length + ' name(s) had multiple Drive copies (newest used, all listed above)' : '')
@@ -67,13 +75,18 @@ withSecret(function (secret) {
 function main() {
 // File-name → extractor kind lives in bootstrap-core (KIND_BY_NAME): one
 // table shared with the in-app export filenames and the tests that pin them.
-const sources = [], unmatched = [];
+const sources = [], unmatched = [], empties = [];
 for (const f of fs.readdirSync(srcDir).sort()) {
   if (!f.toLowerCase().endsWith('.json')) { unmatched.push(f + ' (not JSON)'); continue; }
   const kind = BOOT.kindForName(f);
   if (!kind) { unmatched.push(f + ' (no extractor yet)'); continue; }
+  const text = fs.readFileSync(path.join(srcDir, f), 'utf8');
+  const bare = text.trim();
+  // A genuinely empty backup (feature never used) is benign — reported as
+  // such, and never as the do-not-proceed "unknown inner dialect" warning.
+  if (bare === '' || bare === '{}' || bare === '[]' || bare === 'null') { empties.push(f); continue; }
   try {
-    sources.push({ id: 'file:' + f, kind: kind, name: f, json: JSON.parse(fs.readFileSync(path.join(srcDir, f), 'utf8')) });
+    sources.push({ id: 'file:' + f, kind: kind, name: f, json: JSON.parse(text) });
   } catch (e) { unmatched.push(f + ' (unreadable: ' + e.message + ')'); }
 }
 
@@ -84,6 +97,7 @@ adapter.get('checkpoint', 'state').then(cp => {
   if (resumable) console.log('Resuming run ' + runId + ' from checkpoint "' + cp.step + '" (stamp ' + cp.runStamp + ')');
   else if (cp) console.log('Found staging from an OLDER tool version (transform v' + cp.transformV + ' vs v' + BOOT.TRANSFORM_V + ') — starting FRESH, nothing blends across versions.');
   else console.log((commit ? 'COMMIT' : 'DRY') + ' run ' + runId + ' over ' + sources.length + ' source(s); stamp ' + runStamp);
+  if (empties.length) console.log('Empty on Drive — nothing to import (fine if the feature was never used): ' + empties.join(', '));
   if (unmatched.length) console.log('NOT ingested (no extractor / unreadable):\n  - ' + unmatched.join('\n  - '));
   return BOOT.runBootstrap({ sources, adapter, dryRun: !commit, runStamp, runId });
 }).then(rep => {
@@ -103,7 +117,13 @@ adapter.get('checkpoint', 'state').then(cp => {
   console.log('Stored-balance disagreements (human review): ' + rep.verification.storedBalanceDisagreements);
   rep.inventory.sources.forEach(s => {
     const kinds = Object.keys(s.counts).filter(k => k !== 'tombstones');
-    if (!kinds.length) console.log('\u26a0 ' + s.name + ': recognised but NOTHING staged \u2014 unknown inner dialect; do not proceed while this file was expected to carry data.');
+    if (!kinds.length) {
+      console.log('\u26a0 ' + s.name + ': recognised but NOTHING staged \u2014 unknown inner dialect; do not proceed while this file was expected to carry data.');
+      if (s.topKeys && s.topKeys.length) {
+        console.log('   shape hint (key NAMES only, safe to share): ' + s.topKeys.join(', ')
+          + (s.dataKeys && s.dataKeys.length ? '  |  data.*: ' + s.dataKeys.join(', ') : ''));
+      }
+    }
   });
   if (rep.quarantine.length && rep.quarantine.length <= 10) {
     console.log('Quarantine detail (nothing dropped, human review):');
