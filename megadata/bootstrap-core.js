@@ -22,7 +22,7 @@
   'use strict';
   var MD = deps.MD, BR = deps.BR, P = deps.P, CTR = deps.CTR || deps.MD;
   var cbAmount = (deps.CBS || deps.MD).cbAmount; // the ONE cashbook resolver (cashbook-shared.js)
-  var TRANSFORM_V = 5; // v5: cashbook-dashboard + virement-backup dialects (incl. gap-filling cache txns), deletedCentreIds claimed. v4: bespoke auto-backup families. v3: System-1 fee dialect (v2: overlap dedupe). Bumping orphans every older checkpoint/staging dir — resumes refuse to blend across transform generations.
+  var TRANSFORM_V = 6; // v6: main-dashboard dialect + benign per-machine-only wrappers. v5: cashbook-dashboard + virement-backup dialects (incl. gap-filling cache txns). v4: bespoke auto-backup families. v3: System-1 fee dialect (v2: overlap dedupe). Bumping orphans every older checkpoint/staging dir — resumes refuse to blend across transform generations.
   var ACTOR = { name: 'Legacy migration', role: 'system', device: 'cli' };
 
   function normName(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
@@ -39,6 +39,12 @@
   // truth shared with the live index.html bridge (same discipline as
   // cashbook-shared).
   var LMS_COLLECTIONS = (deps.LMS || deps.MD).LMS_COLLECTIONS;
+
+  // Keys that are per-machine / view / scratch state, deliberately never
+  // imported: ONE regex shared by the master-snapshot accounting and the
+  // zero-staged classifier (a wrapper whose data is ONLY such keys is a
+  // benign nothing-to-import, not an unknown dialect).
+  var PER_MACHINE_KEY = /token|session|cloudfileid|lastsync|darkmode|pagecloud_stamps|examinprogress|dataversion|maintenancemode|autosync|form_draft|cloud_cache|active_quarter|firsttime|dismissed|currentuser|schoolsettings|mainlinks|quicklinks|auth_session|userfilesfolderid/i;
 
   /* ---------- extractors ---------- */
   var EXTRACTORS = {
@@ -247,7 +253,9 @@
         claimed.voctrain_deletedCentreIds = 1;
       }
       var CLAIMED_PREFIX = ['cestis_quarter_', 'cestis_budget_', 'cestis_recon_', 'voctrain_attendance::', 'voctrain_user_'];
-      var EXCLUDE = /token|session|cloudfileid|lastsync|darkmode|pagecloud_stamps|examinprogress|dataversion|maintenancemode|autosync|form_draft|cloud_cache|active_quarter|firsttime|dismissed|currentuser|schoolsettings|mainlinks|quicklinks|auth_session|userfilesfolderid/i;
+      // (Snapshot copies of dashboard link/settings keys stay excluded here:
+      // the dedicated dashboard backups are the authoritative import route.)
+      var EXCLUDE = PER_MACHINE_KEY;
       Object.keys(store).forEach(function (k) {
         if (claimed[k]) return;
         if (EXCLUDE.test(k)) return;                                   // per-machine / view / scratch state, deliberately not imported
@@ -364,6 +372,21 @@
         }
         if (Array.isArray(d.deletedBudgetKeys) && d.deletedBudgetKeys.length) d6.cestis_budget_deleted = d.deletedBudgetKeys;
         EXTRACTORS['finance-staff-pagecloud']({ id: src.id, json: { data: d6 } }, out);
+      }
+      // Main-dashboard dialect (CESTIS_MAIN_DASHBOARD_BACKUP / CESTIS_BACKUP_*
+      // dumps): the landing page's shared content — link tiles, their approval
+      // workflow, delete history, users, settings. No writer lives in this
+      // repo, so nothing is interpreted: every collection imports VERBATIM as
+      // one lossless doc per key (doc history keeps every version; a future
+      // dashboard bridge can elevate semantics later).
+      var DASH_KEYS = ['quickLinks', 'mainLinks', 'quickLinkApprovals', 'mainLinkApprovals', 'deletedQuickLinkKeys', 'deletedMainLinkKeys'];
+      if (DASH_KEYS.some(function (dk) { return d[dk] !== undefined; })) {
+        Object.keys(d).forEach(function (k8) {
+          var v8 = d[k8];
+          if (v8 == null) return;
+          var fields = (typeof v8 === 'object' && !Array.isArray(v8)) ? v8 : { value: v8 };
+          doc('mainDashboard', k8, fields, 'data.' + k8);
+        });
       }
       // LMS bundle collections (also routes roster/attendance/exam results
       // into the shared identity pipeline via the lms-backup extractor).
@@ -496,7 +519,12 @@
             if (!realKinds.length && src.json && typeof src.json === 'object') {
               entry.topKeys = Object.keys(src.json).slice(0, 24);
               if (src.json.data && typeof src.json.data === 'object' && !Array.isArray(src.json.data)) {
-                entry.dataKeys = Object.keys(src.json.data).slice(0, 24);
+                var djk = Object.keys(src.json.data);
+                entry.dataKeys = djk.slice(0, 24);
+                // A wrapper with no data, or with ONLY per-machine view keys,
+                // is a benign nothing-to-import — not an unknown dialect.
+                if (!djk.length) entry.benignEmpty = 'the wrapper holds no data';
+                else if (djk.every(function (k9) { return PER_MACHINE_KEY.test(k9); })) entry.benignEmpty = 'only per-machine view state, never imported';
               }
             }
             R.inventory.sources.push(entry);

@@ -423,6 +423,38 @@ function rawBaseline() {
     ok(!repK.inventory.sources[0].topKeys, 'files that DO stage carry no diagnostic');
   }
 
+  section('v6 main-dashboard dialect: link tiles, approvals and delete history import verbatim');
+  {
+    const dash = { version: '1.0', timestamp: 'T', savedBy: 'Admin', snapshotName: 'Feb snapshot', data: {
+      users: [{ id: 'DU1', username: 'dashadmin' }],
+      quickLinks: [{ key: 'QL1', title: 'Timetable', url: 'https://x' }],
+      mainLinks: [{ key: 'ML1', title: 'LMS', url: 'https://y' }],
+      schoolSettings: { schoolName: 'CESTIS' },
+      quickLinkApprovals: [], mainLinkApprovals: [],
+      deletedQuickLinkKeys: ['QL9'], deletedMainLinkKeys: []
+    } };
+    const A2 = MemoryAdapter();
+    const repDash = await BOOT.runBootstrap({ sources: [{ id: 'file:CESTIS_MAIN_DASHBOARD_BACKUP.json', kind: BOOT.kindForName('CESTIS_MAIN_DASHBOARD_BACKUP.json'), name: 'dash', json: dash }], adapter: A2, dryRun: true, runStamp: STAMP, runId: 'imp_v6-1' });
+    ok(!repDash.inventory.sources[0].topKeys, 'the dashboard backup is no longer zero-staged');
+    const dashEvents = await A2.get('staging', 'events');
+    const dashDocs = dashEvents.filter(e => e.type === 'doc.upserted' && e.payload.kind === 'mainDashboard');
+    eq(dashDocs.length, 8, 'every collection imports as a lossless doc');
+    ok(dashDocs.some(e => e.payload.diff.value && e.payload.diff.value[0] && e.payload.diff.value[0].key === 'QL1'), 'quick links arrive verbatim');
+    ok(dashDocs.some(e => JSON.stringify(e.payload.diff).includes('QL9')), 'delete history survives');
+    ok(repDash.verification.brokerAccepted === repDash.events.count, 'and the broker accepts everything');
+  }
+
+  section('v6 benign wrappers: per-machine-only data is informational, not the do-not-proceed warning');
+  {
+    const wrap = { version: 3, page: 'Voucher.html', file: 'CESTIS_Payment_Vouchers.json', savedAt: 'T', savedBy: 'x', keyCount: 1, stamps: {}, data: { cestis_active_quarter: '2025/2026_Q3' } };
+    const repW = await BOOT.runBootstrap({ sources: [{ id: 'file:CESTIS_Payment_Vouchers.json', kind: BOOT.kindForName('CESTIS_Payment_Vouchers.json'), name: 'CESTIS_Payment_Vouchers.json', json: wrap }], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_v6-2' });
+    eq(repW.inventory.sources[0].benignEmpty, 'only per-machine view state, never imported', 'the voucher wrapper is classified benign');
+    const repW2 = await BOOT.runBootstrap({ sources: [{ id: 'file:CESTIS_Staff_Payslips.json', kind: BOOT.kindForName('CESTIS_Staff_Payslips.json'), name: 'x', json: { data: {} } }], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_v6-3' });
+    eq(repW2.inventory.sources[0].benignEmpty, 'the wrapper holds no data', 'an empty wrapper is benign too');
+    const repW3 = await BOOT.runBootstrap({ sources: [{ id: 'file:CESTIS_MAIN_DASHBOARD_BACKUP.json', kind: 'auto-backup', name: 'm', json: { data: { totallyNewCollection: [1] } } }], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_v6-4' });
+    ok(!repW3.inventory.sources[0].benignEmpty && repW3.inventory.sources[0].dataKeys.includes('totallyNewCollection'), 'a REAL unknown dialect still warns with its shape hint');
+  }
+
   section('v5 CLI: a genuinely empty backup is benign, never the do-not-proceed warning');
   {
     const cp = require('child_process');
@@ -435,9 +467,12 @@ function rawBaseline() {
       cestiSchoolFeeStudents: JSON.stringify([{ id: 'SF-C1', name: 'Cli Person', skillArea: 'WELDING L2', tuitionFee: 10 }]),
       cestiSchoolFeePayments: '[]', cestiFeeStructure: '{}', cestiSchoolFeeDeletedPaymentIds: '[]', cestiSchoolFeeDeletedLmsIds: '[]'
     } }));
+    fs.writeFileSync(path.join(tmpSrc, 'CESTIS_Staff_TimeClock.json'), JSON.stringify({ version: 3, stamps: {}, data: { cestis_active_quarter: '2025/2026_Q3' } }));
     const outTxt = cp.execFileSync(process.execPath, [path.join(__dirname, '..', 'megadata', 'bootstrap-cli.js'), '--src', tmpSrc, '--out', tmpOut], { encoding: 'utf8' });
     ok(/Empty on Drive — nothing to import/.test(outTxt) && /CESTIS_Payment_Vouchers\.json/.test(outTxt), 'the empty file is reported as benign');
-    ok(!/NOTHING staged/.test(outTxt), 'and the unknown-dialect warning does not fire for it');
+    ok(/ℹ CESTIS_Staff_TimeClock\.json: nothing to import — only per-machine view state/.test(outTxt), 'a per-machine-only wrapper is informational');
+    ok(!/NOTHING staged/.test(outTxt), 'and the unknown-dialect warning fires for neither');
+    ok(/Cashbook identity:.*HOLDS/.test(outTxt), 'the cashbook identity line prints in the plan');
   }
 
   section('Master snapshot: all extractors run over the store; every key is accounted');
