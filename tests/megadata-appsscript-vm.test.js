@@ -40,9 +40,11 @@ function gasWorld() {
   }
   function iter(arr) { let i = 0; return { hasNext: () => i < arr.length, next: () => arr[i++] }; }
   const folder = {
-    _files: [],
+    _files: [], _subfolders: [],
+    getName: () => 'MegaData',
     getFilesByName: (n) => iter(folder._files.filter(x => x._name === n)),
     getFiles: () => iter(folder._files.slice()),
+    getFolders: () => iter(folder._subfolders.slice()),
     createFile: (name, content) => { const f = makeFile(name, content, 'MegaData'); folder._files.push(f); return f; }
   };
   const props = { HMAC_SECRET: SECRET, MEGADATA_FOLDER_ID: FOLDER_ID };
@@ -131,6 +133,18 @@ function post(ctx, e) { return JSON.parse(ctx.doPost(e).getContent()); }
   eq(ls.files.filter(f => f.name.indexOf('CESTIS_USER_') === 0).length, 2, 'PREFIX search finds every per-user file');
   const ff = post(ctx, await signed('fetchLegacy', { fileId: ls.files.find(f => f.name === 'CESTIS_School_Fees.json').id }));
   eq(ff.content, '{"data":{}}', 'fetchLegacy returns the exact content');
+
+  section('Own-folder walk: a backup dropped next to broker-state.json is found by NO name at all');
+  folder.createFile('cestis-master-snapshot.json', '{"store":{}}');
+  const sub = { _files: [], getName: () => 'Old exports', getFiles() { return { hasNext: () => this._files.length > this._i, next: () => this._files[this._i++] }; }, _i: 0, getFolders: () => ({ hasNext: () => false, next: () => null }) };
+  sub._files.push({ getId: () => 'file_sub1', getName: () => 'Some_Odd_Backup_Name.json', getSize: () => 2, isTrashed: () => false, getLastUpdated: () => new Date('2026-08-01T10:00:00Z'), getBlob: () => ({ getDataAsString: () => '{}' }) });
+  folder._subfolders.push(sub);
+  const ls2 = post(ctx, await signed('listLegacy', { names: [], prefixes: [], folderIds: [] }));
+  eq(ls2.files.filter(f => f.name === 'cestis-master-snapshot.json').length, 1, 'own-folder walk finds the snapshot');
+  eq(ls2.files.filter(f => f.name === 'Some_Odd_Backup_Name.json').length, 1, 'and walks SUBFOLDERS too');
+  eq(ls2.files.filter(f => f.name && /^(broker-state\.json|head\.json|seg-)/.test(f.name)).length, 0, 'the broker never offers its own artifacts');
+  const ls3 = post(ctx, await signed('listLegacy', { names: ['CESTIS_School_Fees.json'], prefixes: [], folderIds: [] }));
+  eq(ls3.files.filter(f => f.name === 'CESTIS_School_Fees.json').length, 1, 'a file reached by name AND folder walk is offered ONCE');
 
   section('The prelude is present and FIRST in the paste file (drift-guarded)');
   const built = paste.build();

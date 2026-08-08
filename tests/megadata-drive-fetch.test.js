@@ -78,6 +78,38 @@ function driveDialect(files) {
   eq(rep2.inventory.totals.students, 1, 'the fetched fee backup imports');
   ok(rep2.verification.financialIdentityHolds, 'and the financial identity holds over fetched sources');
 
+  section('Own-folder arrivals: an unlisted name flows through; a double-listed file is fetched ONCE');
+  // Model a broker whose folder walk lists files the name/prefix search ALSO
+  // found (an older paste would double-list): the client dedupes by file id,
+  // and names nobody predicted still download and flow into the run.
+  const DRIVE2 = [
+    { id: 'g1', name: 'CESTIS_School_Fees.json', folder: 'MegaData', modified: '2026-08-01T10:00:00.000Z', content: FEE_PAYLOAD },
+    { id: 'g2', name: 'cestis-master-snapshot.json', folder: 'MegaData', modified: '2026-08-08T13:58:00.000Z', content: JSON.stringify({ store: {} }) },
+    { id: 'g3', name: 'Totally_Unknown_Export.json', folder: 'MegaData', modified: '2026-08-05T10:00:00.000Z', content: '{}' }
+  ];
+  const doubleListing = async (url, init) => {
+    const req = JSON.parse(init.body);
+    const auth = await MD.sha256Hex(SECRET + '|' + MD.canon(req.payload || {}));
+    let out;
+    if (req.auth !== auth) out = { error: 'auth failed' };
+    else if (req.op === 'listLegacy') {
+      const nameHits = DRIVE2.filter(f => (req.payload.names || []).includes(f.name));
+      const walkHits = DRIVE2; // the own-folder walk sees everything, overlap included
+      out = { files: nameHits.concat(walkHits).map(f => ({ id: f.id, name: f.name, size: f.content.length, modified: f.modified, folder: f.folder })) };
+    } else if (req.op === 'fetchLegacy') {
+      const f = DRIVE2.find(x => x.id === req.payload.fileId);
+      out = f ? { name: f.name, modified: f.modified, content: f.content } : { error: 'fetch failed: no such file' };
+    } else out = { error: 'unknown op ' + req.op };
+    return { status: 200, text: async () => JSON.stringify(out) };
+  };
+  const client2 = createBrokerClient({ url: 'https://x/exec', secret: SECRET, fetchImpl: doubleListing, sleep: () => Promise.resolve() });
+  const dest2 = fs.mkdtempSync(path.join(os.tmpdir(), 'mega-fetch3-'));
+  const rep3 = await fetchLegacySources({ client: client2, destDir: dest2, log: () => {} });
+  ok(rep3.downloaded.some(d => d.name === 'cestis-master-snapshot.json'), 'the snapshot dropped in the broker folder arrives');
+  ok(rep3.downloaded.some(d => d.name === 'Totally_Unknown_Export.json'), 'so does a name NO list predicted');
+  eq(rep3.duplicates.length, 0, 'a file reached by name AND walk is ONE file — no false duplicate report');
+  eq(rep3.downloaded.filter(d => d.name === 'CESTIS_School_Fees.json').length, 1, 'and it downloads exactly once');
+
   section('A wrong secret is refused before any file content moves');
   const badClient = createBrokerClient({ url: 'https://x/exec', secret: 'wrong', fetchImpl: driveDialect(DRIVE), sleep: () => Promise.resolve(), maxRetries: 0 });
   let err = null;

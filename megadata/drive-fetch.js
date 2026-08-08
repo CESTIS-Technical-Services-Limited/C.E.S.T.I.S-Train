@@ -44,8 +44,11 @@ function fetchLegacySources(opts) {
   fs.mkdirSync(destDir, { recursive: true });
   return client._call('listLegacy', { names: names, prefixes: opts.prefixes || LEGACY_PREFIXES, folderIds: opts.folderIds || [] }).then(function (res) {
     const byName = {};
+    const seenIds = {};
     (res.files || []).forEach(function (f) {
       if (f.error) { log('  ⚠ ' + f.error); return; }
+      if (f.id && seenIds[f.id]) return; // one file reached by name AND prefix AND folder scan is still one file
+      if (f.id) seenIds[f.id] = 1;
       (byName[f.name] = byName[f.name] || []).push(f);
     });
     const report = { downloaded: [], duplicates: [], missing: [] };
