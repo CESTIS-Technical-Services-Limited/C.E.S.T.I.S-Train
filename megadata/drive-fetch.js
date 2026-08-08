@@ -27,12 +27,22 @@ const LEGACY_NAMES = [
   'CESTIS_Staff_TimeClock.json'
 ];
 
+/* Bespoke families found by NAME PREFIX across the whole Drive: per-user
+   files and timestamped dumps cannot be known by exact name. EVERY distinct
+   name in a family is fetched (each per-user file is different data); where
+   one name has several Drive copies, newest wins and the rest are reported. */
+const LEGACY_PREFIXES = [
+  'CESTIS_USER_', 'Staff_Clock_In_System', 'employee_payroll_Backup',
+  'cestis_attendance_backup', 'CESTIS_BACKUP_', 'CESTIS_MAIN_DASHBOARD_BACKUP',
+  'CESTIS_CASHBOOK_DASHBOARD_BACKUP', 'Cashbook_Virement_Backup'
+];
+
 function fetchLegacySources(opts) {
   const client = opts.client, destDir = opts.destDir;
   const names = opts.names || LEGACY_NAMES;
   const log = opts.log || function () {};
   fs.mkdirSync(destDir, { recursive: true });
-  return client._call('listLegacy', { names: names, folderIds: opts.folderIds || [] }).then(function (res) {
+  return client._call('listLegacy', { names: names, prefixes: opts.prefixes || LEGACY_PREFIXES, folderIds: opts.folderIds || [] }).then(function (res) {
     const byName = {};
     (res.files || []).forEach(function (f) {
       if (f.error) { log('  ⚠ ' + f.error); return; }
@@ -40,7 +50,8 @@ function fetchLegacySources(opts) {
     });
     const report = { downloaded: [], duplicates: [], missing: [] };
     let chain = Promise.resolve();
-    names.forEach(function (nm) {
+    const allNames = names.concat(Object.keys(byName).filter(function (n) { return names.indexOf(n) === -1; }).sort());
+    allNames.forEach(function (nm) {
       const copies = (byName[nm] || []).sort(function (a, b) { return String(b.modified).localeCompare(String(a.modified)); });
       if (!copies.length) { report.missing.push(nm); return; }
       const newest = copies[0];
@@ -60,4 +71,4 @@ function fetchLegacySources(opts) {
   });
 }
 
-module.exports = { fetchLegacySources, LEGACY_NAMES };
+module.exports = { fetchLegacySources, LEGACY_NAMES, LEGACY_PREFIXES };

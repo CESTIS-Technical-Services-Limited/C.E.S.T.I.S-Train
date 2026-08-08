@@ -708,6 +708,18 @@ function doPost(e) {
           folder: parents.hasNext() ? parents.next().getName() : '' });
       }
     });
+    ((req.payload && req.payload.prefixes) || []).forEach(function (px) {
+      var q = 'title contains "' + String(px).replace(/"/g, '') + '" and trashed=false';
+      var it3 = DriveApp.searchFiles(q);
+      while (it3.hasNext()) {
+        var f3 = it3.next();
+        if (f3.getName().indexOf(String(px)) !== 0) continue; // contains → enforce PREFIX
+        var par3 = f3.getParents();
+        found.push({ id: f3.getId(), name: f3.getName(), size: f3.getSize(),
+          modified: f3.getLastUpdated().toISOString(),
+          folder: par3.hasNext() ? par3.next().getName() : '' });
+      }
+    });
     ((req.payload && req.payload.folderIds) || []).forEach(function (fid) {
       try {
         var it2 = DriveApp.getFolderById(String(fid)).getFiles();

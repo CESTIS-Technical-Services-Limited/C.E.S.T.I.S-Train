@@ -22,7 +22,7 @@
   'use strict';
   var MD = deps.MD, BR = deps.BR, P = deps.P, CTR = deps.CTR || deps.MD;
   var cbAmount = (deps.CBS || deps.MD).cbAmount; // the ONE cashbook resolver (cashbook-shared.js)
-  var TRANSFORM_V = 3; // v3: System-1 fee dialect + fee documents/users staged (v2: overlap dedupe). Bumping orphans every older checkpoint/staging dir — resumes refuse to blend across transform generations.
+  var TRANSFORM_V = 4; // v4: bespoke auto-backup families (per-user, clock, payroll, dashboard dumps). v3: System-1 fee dialect + fee documents/users staged (v2: overlap dedupe). Bumping orphans every older checkpoint/staging dir — resumes refuse to blend across transform generations.
   var ACTOR = { name: 'Legacy migration', role: 'system', device: 'cli' };
 
   function normName(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
@@ -241,6 +241,65 @@
         if (CLAIMED_PREFIX.some(function (p2) { return k.indexOf(p2) === 0; })) return;
         out.quarantine.push({ srcId: src.id, path: k, reason: 'snapshot key not yet mapped' });
       });
+    },
+    // Bespoke backup families (per-user CESTIS_USER_* files, timestamped
+    // CESTIS_BACKUP_* dumps, the dashboard/attendance/clock/payroll/cashbook
+    // backup files): every writer lives in this repo, and they all reduce to
+    // known dialects. This extractor SNIFFS the shape and routes:
+    //   .store                  → the master-snapshot pipeline (full accounting)
+    //   bundle collections      → the lms-backup extractor (which also feeds
+    //                             students/attendance/examResults to the SP
+    //                             identity pipeline)
+    //   staffMembers/timeRecords→ clock docs (same keys as finance extractor)
+    //   employees/payrollRuns   → payroll docs (+ wrapper users/permissions)
+    //   cestis_* storage keys   → the finance-staff extractor
+    // Copies of atoms already imported from primary files converge through
+    // the run-level dedupe; these families exist to catch what synced ONLY
+    // here. (Per-key accounting stays with the master-snapshot path — these
+    // are redundant-by-design copies; the sources printout shows exactly
+    // what each staged, and a zero-staged file trips the CLI warning.)
+    'auto-backup': function (src, out) {
+      var j = src.json || {};
+      if (j.store && typeof j.store === 'object') { EXTRACTORS['master-snapshot'](src, out); return; }
+      var d = (j.data && typeof j.data === 'object') ? j.data : (Array.isArray(j) ? { attendanceRecords: j } : j);
+      function doc(kind, key, fields, path) {
+        out.staging.push({ srcId: src.id, path: path, kind: 'tierbDoc', raw: { docKind: kind, docKey: kind + '|' + key, fields: fields } });
+      }
+      // Clock dialect
+      (Array.isArray(d.staffMembers) ? d.staffMembers : []).forEach(function (r, i) {
+        var id = r && (r.id || r.username);
+        if (!id) { out.quarantine.push({ srcId: src.id, path: 'staffMembers[' + i + ']', reason: 'staffMember without id' }); return; }
+        doc('staffMember', String(id), r, 'staffMembers[' + i + ']');
+      });
+      (Array.isArray(d.timeRecords) ? d.timeRecords : []).forEach(function (r, i) {
+        var id = r && (r.id || r.username);
+        if (!id) { out.quarantine.push({ srcId: src.id, path: 'timeRecords[' + i + ']', reason: 'timeRecord without id' }); return; }
+        doc('timeRecord', String(id), r, 'timeRecords[' + i + ']');
+      });
+      // Payroll dialect (data:DATA + wrapper users/permissions)
+      if (d.settings && typeof d.settings === 'object') doc('payrollSettings', 'singleton', d.settings, 'data.settings');
+      (Array.isArray(d.employees) ? d.employees : []).forEach(function (e2, i) {
+        if (!e2 || !e2.name) { out.quarantine.push({ srcId: src.id, path: 'employees[' + i + ']', reason: 'employee without name' }); return; }
+        doc('employee', e2.name, e2, 'employees[' + i + ']');
+      });
+      (Array.isArray(d.payrollRuns) ? d.payrollRuns : []).forEach(function (r2, i) {
+        if (!r2 || !r2.date) { out.quarantine.push({ srcId: src.id, path: 'payrollRuns[' + i + ']', reason: 'payroll run without date' }); return; }
+        doc('payrollRun', r2.date, r2, 'payrollRuns[' + i + ']');
+      });
+      (Array.isArray(j.users) ? j.users : []).forEach(function (u, i) {
+        var id = u && (u.id || u.username);
+        if (!id) { out.quarantine.push({ srcId: src.id, path: 'users[' + i + ']', reason: 'payslipUser without id' }); return; }
+        doc('payslipUser', String(id), u, 'users[' + i + ']');
+      });
+      (Array.isArray(j.permissions) ? j.permissions : []).forEach(function (pm, i) {
+        if (!pm || !pm.id) { out.quarantine.push({ srcId: src.id, path: 'permissions[' + i + ']', reason: 'permissionRequest without id' }); return; }
+        doc('permissionRequest', String(pm.id), pm, 'permissions[' + i + ']');
+      });
+      // LMS bundle collections (also routes roster/attendance/exam results
+      // into the shared identity pipeline via the lms-backup extractor).
+      EXTRACTORS['lms-backup']({ id: src.id, json: { data: d } }, out);
+      // Storage-key dialects (cashbook quarters, budgets, finance stores).
+      EXTRACTORS['finance-staff-pagecloud']({ id: src.id, json: { data: d } }, out);
     },
     // Cashbook / virement / finance-docs / payroll / clock / sibling users:
     // the page-cloud payloads AND the same keys inside the master snapshot.
@@ -965,6 +1024,14 @@
     { re: /CESTIS_LMS_Dashboard\.json$/i, kind: 'lms-backup' },
     { re: /master-snapshot.*\.json$/i, kind: 'master-snapshot' },
     { re: /CESTIS_ALL_DATA\.json$/i, kind: 'master-snapshot' },
+    { re: /^cestis_attendance_backup.*\.json$/i, kind: 'auto-backup' },
+    { re: /^CESTIS_BACKUP_.*\.json$/i, kind: 'auto-backup' },
+    { re: /^CESTIS_MAIN_DASHBOARD_BACKUP\.json$/i, kind: 'auto-backup' },
+    { re: /^CESTIS_USER_.*\.json$/i, kind: 'auto-backup' },
+    { re: /^Staff_Clock_In_System.*\.json$/i, kind: 'auto-backup' },
+    { re: /^employee_payroll_Backup\.json$/i, kind: 'auto-backup' },
+    { re: /^CESTIS_CASHBOOK_DASHBOARD_BACKUP.*\.json$/i, kind: 'auto-backup' },
+    { re: /^Cashbook_Virement_Backup.*\.json$/i, kind: 'auto-backup' },
     { re: /CESTIS_(Cashbook|Virement_Requests|Finance_Invoices|Finance_Quotes|Finance_PurchaseOrders|Payments_Invoices|Payment_Vouchers|Staff_Payslips|Staff_TimeClock)\.json$/i, kind: 'finance-staff-pagecloud' }
   ];
   function kindForName(name) {

@@ -35,7 +35,8 @@ function driveDialect(files) {
     let out;
     if (req.auth !== auth) out = { error: 'auth failed' };
     else if (req.op === 'listLegacy') {
-      out = { files: files.filter(f => (req.payload.names || []).includes(f.name)).map(f => ({ id: f.id, name: f.name, size: f.content.length, modified: f.modified, folder: f.folder })) };
+      const hit = f => (req.payload.names || []).includes(f.name) || (req.payload.prefixes || []).some(px => f.name.indexOf(px) === 0);
+      out = { files: files.filter(hit).map(f => ({ id: f.id, name: f.name, size: f.content.length, modified: f.modified, folder: f.folder })) };
     } else if (req.op === 'fetchLegacy') {
       const f = files.find(x => x.id === req.payload.fileId);
       out = f ? { name: f.name, modified: f.modified, content: f.content } : { error: 'fetch failed: no such file' };
@@ -51,13 +52,15 @@ function driveDialect(files) {
   const DRIVE = [
     { id: 'f1', name: 'CESTIS_School_Fees.json', folder: 'CESTIS-LIVE', modified: '2026-08-01T10:00:00.000Z', content: FEE_PAYLOAD },
     { id: 'f2', name: 'CESTIS_School_Fees.json', folder: 'Old backups', modified: '2025-11-02T09:00:00.000Z', content: '{"data":{}}' },
-    { id: 'f3', name: 'CESTIS_Cashbook.json', folder: 'CESTIS-LIVE', modified: '2026-08-02T08:00:00.000Z', content: JSON.stringify({ data: {} }) }
+    { id: 'f3', name: 'CESTIS_Cashbook.json', folder: 'CESTIS-LIVE', modified: '2026-08-02T08:00:00.000Z', content: JSON.stringify({ data: {} }) },
+    { id: 'u1', name: 'CESTIS_USER_admin_USR-001.json', folder: 'USERS DATA', modified: '2026-08-07T08:00:00.000Z', content: '{"data":{}}' },
+    { id: 'u2', name: 'CESTIS_USER_staff_USR-002.json', folder: 'USERS DATA', modified: '2026-08-07T09:00:00.000Z', content: '{"data":{}}' }
   ];
   const client = createBrokerClient({ url: 'https://x/exec', secret: SECRET, fetchImpl: driveDialect(DRIVE), sleep: () => Promise.resolve() });
   const dest = fs.mkdtempSync(path.join(os.tmpdir(), 'mega-fetch-'));
   const logLines = [];
   const rep = await fetchLegacySources({ client, destDir: dest, log: l => logLines.push(l) });
-  eq(rep.downloaded.map(d => d.name).sort(), ['CESTIS_Cashbook.json', 'CESTIS_School_Fees.json'], 'both present names downloaded');
+  eq(rep.downloaded.map(d => d.name).sort(), ['CESTIS_Cashbook.json', 'CESTIS_School_Fees.json', 'CESTIS_USER_admin_USR-001.json', 'CESTIS_USER_staff_USR-002.json'], 'exact names AND every per-user family file downloaded');
   eq(rep.duplicates.length, 1, 'the duplicated name is reported');
   eq(rep.duplicates[0].used.id, 'f1', 'and the NEWEST copy was the one used');
   eq(rep.duplicates[0].passedOver[0].id, 'f2', 'with the stale copy named, not hidden');
