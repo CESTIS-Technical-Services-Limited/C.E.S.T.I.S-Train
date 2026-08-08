@@ -238,6 +238,94 @@ function rawBaseline() {
       'and the result is byte-identical to a clean-slate run');
   }
 
+  section('System-1 dialect (school_fee_management_system.json): parsed arrays import; docs and users staged');
+  {
+    // The live dry run staged NOTHING from this 208KB file — its writer (in
+    // School.Fee.html) stores parsed arrays under different names. This is
+    // that exact shape, overlapping the page-cloud file like production.
+    const s1json = { version: '1.0', timestamp: '2026-08-04T01:04:03.273Z', savedBy: 'admin', data: {
+      users: [{ id: 'U9', username: 'clerk', passwordHash: 'x' }],
+      students: [
+        { id: 'SF-S1A', name: 'Dialect Case', skillArea: 'WELDING L2', tuitionFee: 250 },
+        { id: 'SF-OLD9', name: 'System One Only', skillArea: 'COSMETOLOGY L2', tuitionFee: 90 }
+      ],
+      payments: [{ id: 'PS1A', studentId: 'SF-S1A', amount: 100, date: '2026-02-02', method: 'cash' }],
+      deletedPaymentIds: [],
+      documents: [{ id: 'DOC7', studentId: 'SF-S1A', fileName: 'receipt.pdf' }],
+      feeStructure: { 'WELDING L2': { total: 250, terms: [250] } }
+    } };
+    const pageCloud = { data: {
+      cestiSchoolFeeStudents: JSON.stringify([{ id: 'SF-S1A', name: 'Dialect Case', skillArea: 'WELDING L2', tuitionFee: 250 }]),
+      cestiSchoolFeePayments: JSON.stringify([{ id: 'PS1A', studentId: 'SF-S1A', amount: 100, date: '2026-02-02', method: 'cash' }]),
+      cestiFeeStructure: JSON.stringify({ 'WELDING L2': { total: 250, terms: [250] } }),
+      cestiSchoolFeeDeletedPaymentIds: '[]', cestiSchoolFeeDeletedLmsIds: '[]'
+    } };
+    const repS1 = await BOOT.runBootstrap({ sources: [
+      { id: 'file:CESTIS_School_Fees.json', kind: 'schoolfee-pagecloud', name: 'pc', json: pageCloud },
+      { id: 'file:school_fee_management_system.json', kind: 'schoolfee-pagecloud', name: 's1', json: s1json }
+    ], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_s1-1' });
+    eq(repS1.inventory.totals.students, 2, 'both dialects pool: the shared trainee counted once, the System-1-only one found');
+    eq(repS1.inventory.totals.payments, 1, 'the overlapping payment counted once');
+    ok(repS1.verification.financialIdentityHolds, 'identity holds across dialects');
+    ok(repS1.verification.brokerAccepted === repS1.events.count, 'broker accepts the merged plan');
+    const s1src = repS1.inventory.sources.find(x => x.name === 's1');
+    ok(s1src.counts.student === 2 && s1src.counts.payment === 1 && s1src.counts.tierbDoc === 2,
+      'the System-1 file itself STAGED records (2 students, 1 payment, doc+user) \u2014 no more silent zero');
+    eq(repS1.events.byType['person.registered'], 2, 'the System-1-only trainee becomes a person');
+    ok(repS1.events.byType['doc.upserted'] >= 2, 'the fee document and fee user import as Tier-B docs');
+  }
+
+  section('Bespoke auto-backup families: every writer dialect routes to the right machinery');
+  {
+    // Per-user LMS file (CESTIS_USER_*): the savePerUserBackup bundle shape.
+    const perUser = { version: '1.0', userId: 'USR-001', userRole: 'admin', data: {
+      students: [{ id: 'LU1', name: 'Per User Trainee', course: 'Welding L2' }],
+      exams: [{ id: 'EXU1', title: 'Theory' }],
+      chatMessages: { ROOMX: [{ id: 'MU1', from: 'admin', text: 'hi' }] },
+      userAccounts: [{ id: 'UA1', username: 'peruser' }],
+      systemSettings: { locale: 'en-JM' }
+    } };
+    const repU2 = await BOOT.runBootstrap({ sources: [{ id: 'file:CESTIS_USER_admin_USR-001.json', kind: BOOT.kindForName('CESTIS_USER_admin_USR-001.json'), name: 'peruser', json: perUser }], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_ab-1' });
+    eq(BOOT.kindForName('CESTIS_USER_admin_USR-001.json'), 'auto-backup', 'per-user files route by name');
+    eq(repU2.events.byType['person.registered'], 1, 'the per-user roster feeds the identity pipeline');
+    ok(repU2.events.byType['doc.upserted'] >= 4, 'exam/chat/account/settings import as docs');
+    ok(repU2.verification.brokerAccepted === repU2.events.count, 'broker accepts');
+
+    // Clock per-user file: data.staffMembers/timeRecords.
+    const clock = { version: '1.0', username: 'jb', data: {
+      staffMembers: [{ id: 'STAFF9', username: 'jb', fullName: 'J B' }],
+      timeRecords: [{ id: 'SESSION_9', staffId: 'STAFF9', clockIn: '2026-07-01T08:00:00.000Z' }]
+    } };
+    const repC2 = await BOOT.runBootstrap({ sources: [{ id: 'file:Staff_Clock_In_System_jb.json', kind: BOOT.kindForName('Staff_Clock_In_System_jb.json'), name: 'clock', json: clock }], adapter: MemoryAdapter(), dryRun: true, runStamp: STAMP, runId: 'imp_ab-2' });
+    const clockDocs = (await (async()=>{const A9=MemoryAdapter(); await BOOT.runBootstrap({ sources: [{ id: 'x', kind: 'auto-backup', name: 'c', json: clock }], adapter: A9, dryRun: true, runStamp: STAMP, runId: 'imp_ab-2b' }); return A9.get('staging','events');})());
+    ok(repC2.verification.brokerAccepted === repC2.events.count, 'clock file accepted');
+    ok(clockDocs.some(e => e.type === 'doc.upserted' && e.payload.kind === 'staffMember'), 'staff member staged with the shared doc kind');
+    ok(clockDocs.some(e => e.type === 'doc.upserted' && e.payload.kind === 'timeRecord'), 'time record staged');
+
+    // Payroll backup: data:DATA + wrapper users/permissions.
+    const pay = { version: '1.1', data: { settings: { payCycle: 'monthly' }, employees: [{ name: 'Emp One', baseSalary: 1000 }], payrollRuns: [{ date: '2026-07-31', results: [] }] },
+      users: [{ id: 'DU1', username: 'payadmin' }], permissions: [{ id: 'PR9', user: 'payadmin' }] };
+    const A8 = MemoryAdapter();
+    await BOOT.runBootstrap({ sources: [{ id: 'file:employee_payroll_Backup.json', kind: BOOT.kindForName('employee_payroll_Backup.json'), name: 'pay', json: pay }], adapter: A8, dryRun: true, runStamp: STAMP, runId: 'imp_ab-3' });
+    const payEvents = await A8.get('staging', 'events');
+    for (const k of ['payrollSettings', 'employee', 'payrollRun', 'payslipUser', 'permissionRequest']) {
+      ok(payEvents.some(e => e.type === 'doc.upserted' && e.payload.kind === k), 'payroll backup stages ' + k);
+    }
+
+    // Attendance backup: bare array dialect.
+    const att = [{ studentId: 'LU1', date: '2026-07-02', course: 'Welding L2', status: 'present' }];
+    const A7 = MemoryAdapter();
+    const repA7 = await BOOT.runBootstrap({ sources: [{ id: 'file:cestis_attendance_backup.json', kind: BOOT.kindForName('cestis_attendance_backup.json'), name: 'att', json: att }], adapter: A7, dryRun: true, runStamp: STAMP, runId: 'imp_ab-4' });
+    eq(repA7.inventory.totals.attendanceRows, 1, 'a bare attendance array imports as attendance');
+
+    // Cashbook dashboard backup: storage-key dialect routes to the finance extractor.
+    const cbb = { data: { 'cestis_quarter_2025/2026_Q3': JSON.stringify({ openingBalance: 100, transactions: [{ id: 7, date: '2026-02-01', details: 'Sale', deposit: 50, payment: 0, category: 'Income' }], deletedTxnIds: [] }) } };
+    const A6 = MemoryAdapter();
+    const repCB = await BOOT.runBootstrap({ sources: [{ id: 'file:CESTIS_CASHBOOK_DASHBOARD_BACKUP.json', kind: BOOT.kindForName('CESTIS_CASHBOOK_DASHBOARD_BACKUP.json'), name: 'cbb', json: cbb }], adapter: A6, dryRun: true, runStamp: STAMP, runId: 'imp_ab-5' });
+    eq(repCB.inventory.totals.cashbookEntries, 1, 'the cashbook backup dialect reaches the cashbook pipeline');
+    eq(repCB.inventory.totals.cashbookIncomeMinor, 5000, 'with the amount, to the cent');
+  }
+
   section('Master snapshot: all extractors run over the store; every key is accounted');
   const snap = { id: 'test:snap', kind: 'master-snapshot', name: 'snap', json: { store: {
     cestiSchoolFeeStudents: JSON.stringify([{ id: 'SF-Z1', name: 'Snap Person', skillArea: 'WELDING L2', tuitionFee: 10 }]),

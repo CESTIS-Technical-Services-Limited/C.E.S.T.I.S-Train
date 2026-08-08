@@ -101,6 +101,18 @@ adapter.get('checkpoint', 'state').then(cp => {
     + ' == inventory ' + (rep.verification.inventoryTotalMinor / 100).toFixed(2)
     + '  →  ' + (rep.verification.financialIdentityHolds ? 'HOLDS' : '*** FAILS ***'));
   console.log('Stored-balance disagreements (human review): ' + rep.verification.storedBalanceDisagreements);
+  rep.inventory.sources.forEach(s => {
+    const kinds = Object.keys(s.counts).filter(k => k !== 'tombstones');
+    if (!kinds.length) console.log('\u26a0 ' + s.name + ': recognised but NOTHING staged \u2014 unknown inner dialect; do not proceed while this file was expected to carry data.');
+  });
+  if (rep.quarantine.length && rep.quarantine.length <= 10) {
+    console.log('Quarantine detail (nothing dropped, human review):');
+    rep.quarantine.forEach(q => console.log('  - [' + q.srcId + '] ' + q.path + ': ' + q.reason));
+  }
+  if (rep.verification.balanceDiffSample && rep.verification.balanceDiffSample.length && rep.verification.storedBalanceDisagreements <= 10) {
+    console.log('Stored-balance disagreement detail (stored vs recomputed-from-atoms):');
+    rep.verification.balanceDiffSample.forEach(b => console.log('  - ' + JSON.stringify(b)));
+  }
   if (!rep.verification.financialIdentityHolds) process.exitCode = 1;
   if (rep.dryRun) console.log('\nReview the plan (incl. ' + rep.adjudicationQueue.length + ' adjudication item(s) in the staging dir), then rerun with --commit.');
   else console.log('\nCommitted to ' + outDir + '/out.json.\nNext: node megadata/bootstrap-upload.js --url <your …/exec> --seal\n(secret via the MEGADATA_SECRET environment variable or the prompt; re-running is always safe)');

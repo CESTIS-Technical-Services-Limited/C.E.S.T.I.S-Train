@@ -22,7 +22,7 @@
   'use strict';
   var MD = deps.MD, BR = deps.BR, P = deps.P, CTR = deps.CTR || deps.MD;
   var cbAmount = (deps.CBS || deps.MD).cbAmount; // the ONE cashbook resolver (cashbook-shared.js)
-  var TRANSFORM_V = 2; // v2: overlapping-source dedupe (creates-once + exact-once). Bumping this orphans every older checkpoint/staging dir — resumes refuse to blend across transform generations.
+  var TRANSFORM_V = 4; // v4: bespoke auto-backup families (per-user, clock, payroll, dashboard dumps). v3: System-1 fee dialect + fee documents/users staged (v2: overlap dedupe). Bumping orphans every older checkpoint/staging dir — resumes refuse to blend across transform generations.
   var ACTOR = { name: 'Legacy migration', role: 'system', device: 'cli' };
 
   function normName(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
@@ -43,8 +43,14 @@
   /* ---------- extractors ---------- */
   var EXTRACTORS = {
     // The live page-cloud payload: { version, page, file, savedAt, stamps, data:{key→rawString} }
+    // AND the System-1 dialect (school_fee_management_system.json): the fee
+    // page's own backup writer stores PARSED arrays under different names —
+    // data:{users, students, payments, deletedPaymentIds, documents,
+    // feeStructure}. The first live dry run proved the "same inner shape"
+    // claim in the docs wrong: the file staged nothing. Both dialects import.
     'schoolfee-pagecloud': function (src, out) {
       var data = (src.json && src.json.data) || {};
+      var s1 = !data.cestiSchoolFeeStudents && Array.isArray(data.students); // System-1 dialect
       function parse(key) {
         var v = data[key];
         if (v == null) return null;
@@ -54,21 +60,39 @@
           return null;
         }
       }
-      var students = parse('cestiSchoolFeeStudents') || [];
-      var payments = parse('cestiSchoolFeePayments') || [];
-      var feeStructure = parse('cestiFeeStructure') || {};
-      var delPay = parse('cestiSchoolFeeDeletedPaymentIds') || [];
-      var delStu = parse('cestiSchoolFeeDeletedLmsIds') || [];
+      var students = (s1 ? data.students : parse('cestiSchoolFeeStudents')) || [];
+      var payments = (s1 ? data.payments : parse('cestiSchoolFeePayments')) || [];
+      var feeStructure = (s1 ? data.feeStructure : parse('cestiFeeStructure')) || {};
+      var delPay = (s1 ? data.deletedPaymentIds : parse('cestiSchoolFeeDeletedPaymentIds')) || [];
+      var delStu = (s1 ? [] : parse('cestiSchoolFeeDeletedLmsIds')) || [];
+      var feeDocs = (s1 ? data.documents : parse('cestiSchoolFeeDocuments')) || [];
+      var feeUsers = (s1 ? data.users : parse('cestiUsers')) || [];
+      var pS = s1 ? 'students' : 'cestiSchoolFeeStudents', pP = s1 ? 'payments' : 'cestiSchoolFeePayments';
       students.forEach(function (s, i) {
-        if (!s || typeof s !== 'object' || !s.id) { out.quarantine.push({ srcId: src.id, path: 'cestiSchoolFeeStudents[' + i + ']', reason: 'student record without id' }); return; }
-        out.staging.push({ srcId: src.id, path: 'cestiSchoolFeeStudents[' + i + ']', kind: 'student', raw: s });
+        if (!s || typeof s !== 'object' || !s.id) { out.quarantine.push({ srcId: src.id, path: pS + '[' + i + ']', reason: 'student record without id' }); return; }
+        out.staging.push({ srcId: src.id, path: pS + '[' + i + ']', kind: 'student', raw: s });
       });
       payments.forEach(function (p, i) {
-        if (!p || typeof p !== 'object' || !p.id || p.amount == null) { out.quarantine.push({ srcId: src.id, path: 'cestiSchoolFeePayments[' + i + ']', reason: 'payment record without id/amount' }); return; }
-        out.staging.push({ srcId: src.id, path: 'cestiSchoolFeePayments[' + i + ']', kind: 'payment', raw: p });
+        if (!p || typeof p !== 'object' || !p.id || p.amount == null) { out.quarantine.push({ srcId: src.id, path: pP + '[' + i + ']', reason: 'payment record without id/amount' }); return; }
+        out.staging.push({ srcId: src.id, path: pP + '[' + i + ']', kind: 'payment', raw: p });
       });
       Object.keys(feeStructure).forEach(function (name) {
         out.staging.push({ srcId: src.id, path: 'cestiFeeStructure[' + JSON.stringify(name) + ']', kind: 'feeStructure', raw: { name: name, entry: feeStructure[name] } });
+      });
+      // Fee documents were previously CLAIMED but never staged — a silent
+      // drop the live run surfaced. They import as Tier-B docs now.
+      (Array.isArray(feeDocs) ? feeDocs : []).forEach(function (d, i) {
+        var id = d && (d.id || d.fileName || d.name);
+        if (!id) { out.quarantine.push({ srcId: src.id, path: 'documents[' + i + ']', reason: 'fee document without id' }); return; }
+        out.staging.push({ srcId: src.id, path: 'documents[' + i + ']', kind: 'tierbDoc', raw: { docKind: 'feeDocument', docKey: 'feeDocument|' + id, fields: d } });
+      });
+      // Fee users (System-1 carries them inline; page-cloud via cestiUsers):
+      // the SAME kind/key the finance-staff extractor derives, so copies from
+      // every source converge on one doc per user.
+      (Array.isArray(feeUsers) ? feeUsers : []).forEach(function (u, i) {
+        var id = u && (u.id || u.username);
+        if (!id) { out.quarantine.push({ srcId: src.id, path: 'users[' + i + ']', reason: 'feeUser without id' }); return; }
+        out.staging.push({ srcId: src.id, path: 'users[' + i + ']', kind: 'tierbDoc', raw: { docKind: 'feeUser', docKey: 'feeUser|' + id, fields: u } });
       });
       out.staging.push({ srcId: src.id, path: 'tombstones', kind: 'tombstones', raw: { deletedPaymentIds: delPay, deletedStudentIds: delStu } });
     },
@@ -217,6 +241,65 @@
         if (CLAIMED_PREFIX.some(function (p2) { return k.indexOf(p2) === 0; })) return;
         out.quarantine.push({ srcId: src.id, path: k, reason: 'snapshot key not yet mapped' });
       });
+    },
+    // Bespoke backup families (per-user CESTIS_USER_* files, timestamped
+    // CESTIS_BACKUP_* dumps, the dashboard/attendance/clock/payroll/cashbook
+    // backup files): every writer lives in this repo, and they all reduce to
+    // known dialects. This extractor SNIFFS the shape and routes:
+    //   .store                  → the master-snapshot pipeline (full accounting)
+    //   bundle collections      → the lms-backup extractor (which also feeds
+    //                             students/attendance/examResults to the SP
+    //                             identity pipeline)
+    //   staffMembers/timeRecords→ clock docs (same keys as finance extractor)
+    //   employees/payrollRuns   → payroll docs (+ wrapper users/permissions)
+    //   cestis_* storage keys   → the finance-staff extractor
+    // Copies of atoms already imported from primary files converge through
+    // the run-level dedupe; these families exist to catch what synced ONLY
+    // here. (Per-key accounting stays with the master-snapshot path — these
+    // are redundant-by-design copies; the sources printout shows exactly
+    // what each staged, and a zero-staged file trips the CLI warning.)
+    'auto-backup': function (src, out) {
+      var j = src.json || {};
+      if (j.store && typeof j.store === 'object') { EXTRACTORS['master-snapshot'](src, out); return; }
+      var d = (j.data && typeof j.data === 'object') ? j.data : (Array.isArray(j) ? { attendanceRecords: j } : j);
+      function doc(kind, key, fields, path) {
+        out.staging.push({ srcId: src.id, path: path, kind: 'tierbDoc', raw: { docKind: kind, docKey: kind + '|' + key, fields: fields } });
+      }
+      // Clock dialect
+      (Array.isArray(d.staffMembers) ? d.staffMembers : []).forEach(function (r, i) {
+        var id = r && (r.id || r.username);
+        if (!id) { out.quarantine.push({ srcId: src.id, path: 'staffMembers[' + i + ']', reason: 'staffMember without id' }); return; }
+        doc('staffMember', String(id), r, 'staffMembers[' + i + ']');
+      });
+      (Array.isArray(d.timeRecords) ? d.timeRecords : []).forEach(function (r, i) {
+        var id = r && (r.id || r.username);
+        if (!id) { out.quarantine.push({ srcId: src.id, path: 'timeRecords[' + i + ']', reason: 'timeRecord without id' }); return; }
+        doc('timeRecord', String(id), r, 'timeRecords[' + i + ']');
+      });
+      // Payroll dialect (data:DATA + wrapper users/permissions)
+      if (d.settings && typeof d.settings === 'object') doc('payrollSettings', 'singleton', d.settings, 'data.settings');
+      (Array.isArray(d.employees) ? d.employees : []).forEach(function (e2, i) {
+        if (!e2 || !e2.name) { out.quarantine.push({ srcId: src.id, path: 'employees[' + i + ']', reason: 'employee without name' }); return; }
+        doc('employee', e2.name, e2, 'employees[' + i + ']');
+      });
+      (Array.isArray(d.payrollRuns) ? d.payrollRuns : []).forEach(function (r2, i) {
+        if (!r2 || !r2.date) { out.quarantine.push({ srcId: src.id, path: 'payrollRuns[' + i + ']', reason: 'payroll run without date' }); return; }
+        doc('payrollRun', r2.date, r2, 'payrollRuns[' + i + ']');
+      });
+      (Array.isArray(j.users) ? j.users : []).forEach(function (u, i) {
+        var id = u && (u.id || u.username);
+        if (!id) { out.quarantine.push({ srcId: src.id, path: 'users[' + i + ']', reason: 'payslipUser without id' }); return; }
+        doc('payslipUser', String(id), u, 'users[' + i + ']');
+      });
+      (Array.isArray(j.permissions) ? j.permissions : []).forEach(function (pm, i) {
+        if (!pm || !pm.id) { out.quarantine.push({ srcId: src.id, path: 'permissions[' + i + ']', reason: 'permissionRequest without id' }); return; }
+        doc('permissionRequest', String(pm.id), pm, 'permissions[' + i + ']');
+      });
+      // LMS bundle collections (also routes roster/attendance/exam results
+      // into the shared identity pipeline via the lms-backup extractor).
+      EXTRACTORS['lms-backup']({ id: src.id, json: { data: d } }, out);
+      // Storage-key dialects (cashbook quarters, budgets, finance stores).
+      EXTRACTORS['finance-staff-pagecloud']({ id: src.id, json: { data: d } }, out);
     },
     // Cashbook / virement / finance-docs / payroll / clock / sibling users:
     // the page-cloud payloads AND the same keys inside the master snapshot.
@@ -941,6 +1024,14 @@
     { re: /CESTIS_LMS_Dashboard\.json$/i, kind: 'lms-backup' },
     { re: /master-snapshot.*\.json$/i, kind: 'master-snapshot' },
     { re: /CESTIS_ALL_DATA\.json$/i, kind: 'master-snapshot' },
+    { re: /^cestis_attendance_backup.*\.json$/i, kind: 'auto-backup' },
+    { re: /^CESTIS_BACKUP_.*\.json$/i, kind: 'auto-backup' },
+    { re: /^CESTIS_MAIN_DASHBOARD_BACKUP\.json$/i, kind: 'auto-backup' },
+    { re: /^CESTIS_USER_.*\.json$/i, kind: 'auto-backup' },
+    { re: /^Staff_Clock_In_System.*\.json$/i, kind: 'auto-backup' },
+    { re: /^employee_payroll_Backup\.json$/i, kind: 'auto-backup' },
+    { re: /^CESTIS_CASHBOOK_DASHBOARD_BACKUP.*\.json$/i, kind: 'auto-backup' },
+    { re: /^Cashbook_Virement_Backup.*\.json$/i, kind: 'auto-backup' },
     { re: /CESTIS_(Cashbook|Virement_Requests|Finance_Invoices|Finance_Quotes|Finance_PurchaseOrders|Payments_Invoices|Payment_Vouchers|Staff_Payslips|Staff_TimeClock)\.json$/i, kind: 'finance-staff-pagecloud' }
   ];
   function kindForName(name) {

@@ -59,6 +59,7 @@ function gasWorld() {
     LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
     PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (k in props ? props[k] : null) }) },
     DriveApp: {
+      searchFiles: (q) => { const m = /contains "([^"]+)"/.exec(q); const needle = m ? m[1] : ''; return iter(folder._files.filter(x => !x._trashed && x._name.indexOf(needle) !== -1)); },
       getFolderById: (id) => { if (id !== FOLDER_ID) throw new Error('no folder ' + id); return folder; },
       getFilesByName: (n) => iter(folder._files.filter(x => x._name === n && !x._trashed)),
       getFileById: (id) => { const f = filesById[id]; if (!f) throw new Error('no file ' + id); return f; }
@@ -123,8 +124,11 @@ function post(ctx, e) { return JSON.parse(ctx.doPost(e).getContent()); }
   section('Drive-fetch ops (the --from-drive path) work in the same runtime');
   folder._files.push(...[]);
   folder.createFile('CESTIS_School_Fees.json', '{"data":{}}');
-  const ls = post(ctx, await signed('listLegacy', { names: ['CESTIS_School_Fees.json', 'CESTIS_Cashbook.json'], folderIds: [] }));
+  folder.createFile('CESTIS_USER_admin_USR-001.json', '{"data":{}}');
+  folder.createFile('CESTIS_USER_staff_USR-002.json', '{"data":{}}');
+  const ls = post(ctx, await signed('listLegacy', { names: ['CESTIS_School_Fees.json', 'CESTIS_Cashbook.json'], prefixes: ['CESTIS_USER_'], folderIds: [] }));
   eq(ls.files.filter(f => f.name === 'CESTIS_School_Fees.json').length, 1, 'listLegacy finds the backup by name');
+  eq(ls.files.filter(f => f.name.indexOf('CESTIS_USER_') === 0).length, 2, 'PREFIX search finds every per-user file');
   const ff = post(ctx, await signed('fetchLegacy', { fileId: ls.files.find(f => f.name === 'CESTIS_School_Fees.json').id }));
   eq(ff.content, '{"data":{}}', 'fetchLegacy returns the exact content');
 
