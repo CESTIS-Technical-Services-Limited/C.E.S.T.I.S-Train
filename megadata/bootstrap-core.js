@@ -22,7 +22,7 @@
   'use strict';
   var MD = deps.MD, BR = deps.BR, P = deps.P, CTR = deps.CTR || deps.MD;
   var cbAmount = (deps.CBS || deps.MD).cbAmount; // the ONE cashbook resolver (cashbook-shared.js)
-  var TRANSFORM_V = 2; // v2: overlapping-source dedupe (creates-once + exact-once). Bumping this orphans every older checkpoint/staging dir — resumes refuse to blend across transform generations.
+  var TRANSFORM_V = 3; // v3: System-1 fee dialect + fee documents/users staged (v2: overlap dedupe). Bumping orphans every older checkpoint/staging dir — resumes refuse to blend across transform generations.
   var ACTOR = { name: 'Legacy migration', role: 'system', device: 'cli' };
 
   function normName(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
@@ -43,8 +43,14 @@
   /* ---------- extractors ---------- */
   var EXTRACTORS = {
     // The live page-cloud payload: { version, page, file, savedAt, stamps, data:{key→rawString} }
+    // AND the System-1 dialect (school_fee_management_system.json): the fee
+    // page's own backup writer stores PARSED arrays under different names —
+    // data:{users, students, payments, deletedPaymentIds, documents,
+    // feeStructure}. The first live dry run proved the "same inner shape"
+    // claim in the docs wrong: the file staged nothing. Both dialects import.
     'schoolfee-pagecloud': function (src, out) {
       var data = (src.json && src.json.data) || {};
+      var s1 = !data.cestiSchoolFeeStudents && Array.isArray(data.students); // System-1 dialect
       function parse(key) {
         var v = data[key];
         if (v == null) return null;
@@ -54,21 +60,39 @@
           return null;
         }
       }
-      var students = parse('cestiSchoolFeeStudents') || [];
-      var payments = parse('cestiSchoolFeePayments') || [];
-      var feeStructure = parse('cestiFeeStructure') || {};
-      var delPay = parse('cestiSchoolFeeDeletedPaymentIds') || [];
-      var delStu = parse('cestiSchoolFeeDeletedLmsIds') || [];
+      var students = (s1 ? data.students : parse('cestiSchoolFeeStudents')) || [];
+      var payments = (s1 ? data.payments : parse('cestiSchoolFeePayments')) || [];
+      var feeStructure = (s1 ? data.feeStructure : parse('cestiFeeStructure')) || {};
+      var delPay = (s1 ? data.deletedPaymentIds : parse('cestiSchoolFeeDeletedPaymentIds')) || [];
+      var delStu = (s1 ? [] : parse('cestiSchoolFeeDeletedLmsIds')) || [];
+      var feeDocs = (s1 ? data.documents : parse('cestiSchoolFeeDocuments')) || [];
+      var feeUsers = (s1 ? data.users : parse('cestiUsers')) || [];
+      var pS = s1 ? 'students' : 'cestiSchoolFeeStudents', pP = s1 ? 'payments' : 'cestiSchoolFeePayments';
       students.forEach(function (s, i) {
-        if (!s || typeof s !== 'object' || !s.id) { out.quarantine.push({ srcId: src.id, path: 'cestiSchoolFeeStudents[' + i + ']', reason: 'student record without id' }); return; }
-        out.staging.push({ srcId: src.id, path: 'cestiSchoolFeeStudents[' + i + ']', kind: 'student', raw: s });
+        if (!s || typeof s !== 'object' || !s.id) { out.quarantine.push({ srcId: src.id, path: pS + '[' + i + ']', reason: 'student record without id' }); return; }
+        out.staging.push({ srcId: src.id, path: pS + '[' + i + ']', kind: 'student', raw: s });
       });
       payments.forEach(function (p, i) {
-        if (!p || typeof p !== 'object' || !p.id || p.amount == null) { out.quarantine.push({ srcId: src.id, path: 'cestiSchoolFeePayments[' + i + ']', reason: 'payment record without id/amount' }); return; }
-        out.staging.push({ srcId: src.id, path: 'cestiSchoolFeePayments[' + i + ']', kind: 'payment', raw: p });
+        if (!p || typeof p !== 'object' || !p.id || p.amount == null) { out.quarantine.push({ srcId: src.id, path: pP + '[' + i + ']', reason: 'payment record without id/amount' }); return; }
+        out.staging.push({ srcId: src.id, path: pP + '[' + i + ']', kind: 'payment', raw: p });
       });
       Object.keys(feeStructure).forEach(function (name) {
         out.staging.push({ srcId: src.id, path: 'cestiFeeStructure[' + JSON.stringify(name) + ']', kind: 'feeStructure', raw: { name: name, entry: feeStructure[name] } });
+      });
+      // Fee documents were previously CLAIMED but never staged — a silent
+      // drop the live run surfaced. They import as Tier-B docs now.
+      (Array.isArray(feeDocs) ? feeDocs : []).forEach(function (d, i) {
+        var id = d && (d.id || d.fileName || d.name);
+        if (!id) { out.quarantine.push({ srcId: src.id, path: 'documents[' + i + ']', reason: 'fee document without id' }); return; }
+        out.staging.push({ srcId: src.id, path: 'documents[' + i + ']', kind: 'tierbDoc', raw: { docKind: 'feeDocument', docKey: 'feeDocument|' + id, fields: d } });
+      });
+      // Fee users (System-1 carries them inline; page-cloud via cestiUsers):
+      // the SAME kind/key the finance-staff extractor derives, so copies from
+      // every source converge on one doc per user.
+      (Array.isArray(feeUsers) ? feeUsers : []).forEach(function (u, i) {
+        var id = u && (u.id || u.username);
+        if (!id) { out.quarantine.push({ srcId: src.id, path: 'users[' + i + ']', reason: 'feeUser without id' }); return; }
+        out.staging.push({ srcId: src.id, path: 'users[' + i + ']', kind: 'tierbDoc', raw: { docKind: 'feeUser', docKey: 'feeUser|' + id, fields: u } });
       });
       out.staging.push({ srcId: src.id, path: 'tombstones', kind: 'tombstones', raw: { deletedPaymentIds: delPay, deletedStudentIds: delStu } });
     },
