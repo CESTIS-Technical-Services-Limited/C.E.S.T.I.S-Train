@@ -16,10 +16,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
+rem NOTE for editors: never put ( or ) inside a bracketed if-block message -
+rem cmd treats the ) as the end of the block and kills the whole script.
 if exist megadata-broker-url.txt (
   set /p URL=<megadata-broker-url.txt
 ) else (
-  echo Paste your broker web address (the long https://script.google.com/.../exec one)
+  echo Paste your broker web address - the long https://script.google.com/.../exec one
   set /p URL=Broker URL:
 )
 if "%URL%"=="" ( echo No URL given. & pause & exit /b 1 )
