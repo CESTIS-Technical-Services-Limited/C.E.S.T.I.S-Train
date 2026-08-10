@@ -116,18 +116,25 @@
         });
         return resolve.then(function (entityId) {
           var entry = entityId && liveByEntity[entityId];
-          // Follow the supersession chain to the live head, if any.
-          while (entry && entry.voided && bySupersedes[entry.entityId]) { entry = bySupersedes[entry.entityId]; entityId = entry.entityId; }
           if (!entry) {
             // Born here: content-hashed entity id (defuses the id trap).
             return bridgeEntityId('cbe-n|' + fy + '|Q' + q + '|' + t.id + '|' + MG.canon(payloadOf(content, t.id))).then(function (newId) {
-              if (liveByEntity[newId]) { plan.stamps.push({ txnId: t.id, megaId: newId }); return null; } // raced ourselves: already there
+              // Already there — we raced ourselves, or the stamp that joined
+              // this row to it was lost. ADOPT it and settle its void state
+              // below: stamping alone would strand a later void off the book.
+              if (liveByEntity[newId]) return settle(liveByEntity[newId]);
               plan.records.push({ entityId: newId, payload: payloadOf(content, t.id), eventKey: 'cbrec|' + newId });
               if (content._voided) plan.voids.push({ entityId: newId, reason: 'legacy voided cheque', eventKey: 'cbvoid|' + newId + '|voided' });
               plan.stamps.push({ txnId: t.id, megaId: newId });
               return null;
             });
           }
+          return settle(entry);
+        });
+
+        function settle(entry) {
+          // Follow the supersession chain to the live head, if any.
+          while (entry && entry.voided && bySupersedes[entry.entityId]) { entry = bySupersedes[entry.entityId]; }
           if (t.megaId !== entry.entityId) plan.stamps.push({ txnId: t.id, megaId: entry.entityId });
           var legacyVoided = content._voided;
           if (legacyVoided && !entry.voided) {
@@ -154,7 +161,7 @@
             });
           }
           return null;
-        });
+        }
       });
     });
 
@@ -216,18 +223,37 @@
     return chain;
   }
 
+  /* Of several local rows bound to ONE canonical entry, the row that keeps
+     its money: the entry's own legacy id first (the row the clerk typed),
+     then the lowest id (mirror-remapped phantoms are minted from 100000 up). */
+  function pickClaim(claims, e) {
+    var best = null;
+    claims.forEach(function (t) {
+      if (!best) { best = t; return; }
+      if (String(best.id) === String(e.legacyTxnId)) return;
+      if (String(t.id) === String(e.legacyTxnId)) { best = t; return; }
+      if (Number(t.id) < Number(best.id)) best = t;
+    });
+    return best;
+  }
+
   /* Canonical → legacy mirror for one quarter. Returns mutations the page
      applies to the blob: new txns (id remapped on collision), in-place edit
      applications (via the supersedes chain), voids to apply (Cancelled +
-     _orig*), deletions to apply, and megaId stamps. */
+     _orig*), deletions to apply, drops (phantom double-counting rows) and
+     megaId stamps. */
   function cbMirrorQuarter(dal, fy, q, blob) {
     blob = blob || {};
     var txns = Array.isArray(blob.transactions) ? blob.transactions : [];
     var deleted = {};
     (Array.isArray(blob.deletedTxnIds) ? blob.deletedTxnIds : []).forEach(function (id) { deleted[String(id)] = 1; });
     var fold = quarterFold(dal, fy, q);
-    var byMega = {}, usedIds = {}, out = { newTxns: [], edits: [], voids: [], deletions: [], stamps: [] };
-    txns.forEach(function (t) { if (t && t.megaId) byMega[t.megaId] = t; if (t && t.id != null) usedIds[String(t.id)] = 1; });
+    var byMega = {}, byLocalId = {}, usedIds = {}, out = { newTxns: [], edits: [], voids: [], deletions: [], drops: [], stamps: [] };
+    txns.forEach(function (t) {
+      if (!t) return;
+      if (t.megaId) (byMega[t.megaId] = byMega[t.megaId] || []).push(t);
+      if (t.id != null) { usedIds[String(t.id)] = 1; byLocalId[String(t.id)] = t; }
+    });
     var bySupersedes = {};
     fold.entries.forEach(function (e) { if (e.supersedes) bySupersedes[e.supersedes] = e; });
 
@@ -238,17 +264,29 @@
         // walk back to the lineage root, then check megaId stamps and the
         // bootstrap (fy,q,id) key.
         return MG.bootstrapId('cbe', 'cbe|' + fy + '|Q' + q + '|' + String(e.legacyTxnId == null ? '' : e.legacyTxnId)).then(function (importIdOfClaimed) {
-          var localTxn = byMega[e.entityId] || null;
-          if (!localTxn && e.supersedes && byMega[e.supersedes]) localTxn = byMega[e.supersedes];
+          var claims = (byMega[e.entityId] || []).slice();
+          if (!claims.length && e.supersedes && byMega[e.supersedes]) claims = byMega[e.supersedes].slice();
+          if (e.legacyTxnId != null) {
+            // THE STAMP IS A CACHE, NOT THE JOIN. A row the bridge itself
+            // recorded carries this entity's legacy id and identical content,
+            // so it IS this entry even before (or after losing) its megaId
+            // stamp — a legacy save rewrites the blob from memory and drops
+            // stamps. Without this, the entry below looks like another
+            // device's and mirrors in a SECOND row for money already booked.
+            var cand = byLocalId[String(e.legacyTxnId)];
+            if (cand && !cand.megaId && claims.indexOf(cand) === -1 &&
+              (e.entityId === importIdOfClaimed || entryContentEquals(e, cbTxnContent(fy, q, cand)))) claims.push(cand);
+          }
+          var localTxn = pickClaim(claims, e);
+          // Two local rows for ONE canonical entry double-count it in the
+          // legacy book (a mirror that ran before its stamps landed): the
+          // fold is the money, so the extra rows go.
+          claims.forEach(function (t) { if (t !== localTxn) out.drops.push({ txnId: t.id }); });
           if (!localTxn && e.legacyTxnId == null) {
             // Bootstrap-imported entry: its entity id IS the import key of
             // some legacy id — recover it only via megaId stamps (none here)
             // or leave to legacy page-cloud. Nothing safe to do.
             return null;
-          }
-          if (!localTxn && e.legacyTxnId != null && e.entityId === importIdOfClaimed && usedIds[String(e.legacyTxnId)]) {
-            // Import-keyed entity matching a local txn id (pre-stamp state).
-            localTxn = txns.filter(function (t) { return String(t.id) === String(e.legacyTxnId); })[0] || null;
           }
 
           if (e.voided) {
@@ -268,7 +306,9 @@
             var content = cbTxnContent(fy, q, localTxn);
             if (localTxn.megaId !== e.entityId) {
               // Our txn's lineage advanced (remote edit / unvoid) → apply.
-              out.edits.push({ txnId: localTxn.id, entry: e });
+              // A row that already reads exactly like the entry only needs
+              // the stamp; rewriting it would churn the blob every tick.
+              if (content._voided || !entryContentEquals(e, content)) out.edits.push({ txnId: localTxn.id, entry: e });
               out.stamps.push({ txnId: localTxn.id, megaId: e.entityId });
             } else if (content._voided) {
               // Locally voided but canonically live → a remote UNVOID we have
@@ -307,6 +347,16 @@
     Object.keys(blob).forEach(function (k) { if (!(k in b)) b[k] = blob[k]; });
     var byId = {};
     b.transactions.forEach(function (t, i) { byId[String(t.id)] = i; });
+    // Phantom rows first, so the survivor's stamp and any edit land on the
+    // row that keeps the money. NOT tombstoned in deletedTxnIds: a dropped
+    // row is not a deletion, and a tombstone would void a live entity on the
+    // next bridge tick — real money gone for a rendering artefact.
+    (mirror.drops || []).forEach(function (d) {
+      var i = byId[String(d.txnId)]; if (i === undefined) return;
+      b.transactions.splice(i, 1);
+      byId = {}; b.transactions.forEach(function (t, j) { byId[String(t.id)] = j; });
+      changed = true;
+    });
     (mirror.stamps || []).forEach(function (s) {
       var i = byId[String(s.txnId)];
       if (i !== undefined && b.transactions[i].megaId !== s.megaId) { b.transactions[i].megaId = s.megaId; changed = true; }

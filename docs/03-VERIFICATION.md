@@ -344,7 +344,7 @@ the property that matters ("the dataset is not duplicated") holds even if exclus
 | — `megadata-ctr` / `megadata-sp` / `megadata-fee` (pilot + bridges + drift guards + live comparator on real fixture + stage-2 three-way merge / receipt / mirror / fold flows) | 15 / 49 / 49 passed |
 | — `megadata-admin` (device setup + export: validation, filename↔CLI pin, export→import lossless loop, config location pinned to page-boot, probe) | 37 passed |
 | — `megadata-tg` (generic docsync: drift guard on four collections, soft removal/revival, object-map boundary, array-fold regression, race dedupe) | 37 passed |
-| — `megadata-cb` (cashbook D11: drift guard, edit→void+replacement chains, void/unvoid, the per-device id trap, mirror with remap + supersedes, to-the-cent comparator) | 49 passed |
+| — `megadata-cb` (cashbook D11: drift guard, edit→void+replacement chains, void/unvoid, the per-device id trap, mirror with remap + supersedes, the PAGE tick — one row in, one row out, stamp loss survived, phantom-row repair — to-the-cent comparator) | 78 passed |
 | — `megadata-ps` (staff pages: seven drift-guarded kinds, payroll decompose/recompose contract, rename semantics, cashbook hand-off, clock corrections, race dedupe) | 35 passed |
 | — `megadata-fd` (finance docs: number preservation, issue/supersede/void, line-item array fold regression, presence three-way, mirror-in, duplicate-number report, voucher objmap) | 38 passed |
 | — `megadata-adjq` (adjudication queue: canonical queue docs, split-key person resolution, money-at-stake ordering, keep-separate/merge/defer, merge fold effects, decision-race dedupe, every-item-disposed gate) | 20 passed |

@@ -68,12 +68,22 @@
       function runTick() {
         tick = tick.then(function () {
           var specs = quarterBlobs();
+          var stampedAny = false;
           return specs.reduce(function (pr, spec) {
             return pr.then(function () {
               return MG.cbPlanQuarter(dal, spec.fy, spec.q, spec.blob).then(function (plan) {
                 if (plan.skipped.length) console.warn('[MegaData] cashbook ' + spec.fy + ' Q' + spec.q + ': ' + plan.skipped.length + ' txn(s) not bridgeable', plan.skipped);
                 return MG.cbPushPlan(dal, plan, PAGE).then(function () {
-                  // megaId stamps from the plan land with the mirror below.
+                  // Stamp the rows we just recorded BEFORE the mirror below
+                  // reads them: an entry born here is content-hashed, so an
+                  // unstamped blob makes the mirror read our own new rows as
+                  // another device's and duplicate them into the quarter.
+                  var st = MG.cbApplyMirror(spec.blob, { stamps: plan.stamps });
+                  if (st.changed) {
+                    spec.blob = st.blob;
+                    window.CESTISStore.setItem(spec.key, JSON.stringify(st.blob));
+                    stampedAny = true;                                   // reload below: a legacy save from
+                  }                                                      // stale memory would drop the stamps
                   return null;
                 });
               });
@@ -102,7 +112,7 @@
               });
             }, Promise.resolve());
           }).then(function () {
-            var changedAny = false;
+            var changedAny = stampedAny;
             return specs.reduce(function (pr, spec) {
               return pr.then(function () {
                 return MG.cbMirrorQuarter(dal, spec.fy, spec.q, spec.blob).then(function (mirror) {
