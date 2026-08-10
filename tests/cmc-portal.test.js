@@ -7,7 +7,9 @@ const {
   CMC_ALLOWED_PANELS, CMC_ALLOWED_CASHBOOK_PAGES, CMC_SHARED_FILES,
   cmcPanelAllowed, cmcCashbookPageAllowed, cmcStudentSummary, cmcAverages,
   cmcCashbookRows, cmcCashSummary, cmcPayrollRows, cmcClockRows, cmcVirementRows,
-  cmcVirementDecision, cmcApplyVirementDecision, cmcPendingVirements,
+  cmcVirementStage, cmcRulingFor, cmcRuleVirement, cmcCountersignVirement,
+  cmcWithdrawRuling, cmcApplyRuling, cmcSigner, cmcChairOf,
+  cmcApplyVirementDecision, cmcPendingVirements,
   cmcFilterRows, cmcFilterOptions
 } = cmc;
 
@@ -179,12 +181,13 @@ assert(CMC_SHARED_FILES.find(s => s.key === 'cashbook').prefixes.indexOf('cestis
   'the Cashbook is read by prefix — its quarter keys are generated names');
 
 
-/* ---------- 7. The one decision the Board makes ----------
-   Oversight is read-only everywhere except here: a virement moves money
-   between budget lines and the Board rules on it. The ruling has to land in
-   the fields the Virement Requests page already writes, because every merge in
-   that page resolves Pending against decided by taking the DECISION. */
-console.log('Virement decisions');
+/* ---------- 7. The one decision the Board makes, and it takes two ----------
+   Oversight is read-only everywhere except here. A virement moves money
+   between budget lines, so it takes TWO signatures: the Chairperson rules, a
+   second board member countersigns. Only then does anything reach the register
+   Virement.Request.html reads — a half-signed ruling that leaked into it would
+   have the Centre acting on an approval nobody had seconded. */
+console.log('Virement rulings: who may rule');
 const REGISTER = [
   { id: 11, date: '2025-07-15', project: 'Lunch top-up', requestedBy: 'S. Barrett', total: 100000, status: 'Pending', lines: [{ fromName: 'Remedial English', toName: 'Lunch', amount: 100000 }] },
   { id: 12, date: '2025-06-02', project: 'Electrical', requestedBy: 'S. Barrett', total: 79996.27, status: 'Approved', approvedBy: 'Admin', approvalDate: '2025-06-03', approvalComment: 'agreed', lines: [] }
@@ -192,37 +195,93 @@ const REGISTER = [
 const vrows = cmcVirementRows(JSON.stringify(REGISTER));
 const pendingRow = vrows.find(r => r.status === 'Pending');
 const decidedRow = vrows.find(r => r.status === 'Approved');
+const CHAIR = { name: 'Marcia Reid', username: 'm.reid', isChair: true };
+const MEMBER = { name: 'Delroy Green', username: 'd.green', isChair: false };
+const NOW = '2026-08-10T14:00:00.000Z';
+
 assertEq(cmcPendingVirements(vrows).length, 1, 'one request is awaiting the Board');
 assertEq(decidedRow.approvedBy, 'Admin', 'a decided request says who ruled');
-assertEq(decidedRow.approvalComment, 'agreed', 'and what they minuted');
+assert(!cmcRuleVirement(pendingRow, null, 'Approved', MEMBER, NOW, '').ok,
+  'an ordinary board member cannot rule — that is the Chairperson\'s alone');
+assert(cmcRuleVirement(pendingRow, null, 'Approved', MEMBER, NOW, '').reason.indexOf('Chairperson') !== -1,
+  'and the refusal says whose job it is');
+assert(!cmcRuleVirement(pendingRow, null, 'Approved', { name: 'X', username: '', isChair: true }, NOW, '').ok,
+  'a ruling has to come from a named account');
+assert(!cmcRuleVirement(pendingRow, null, 'Maybe', CHAIR, NOW, '').ok, 'there is no third verdict');
+assert(!cmcRuleVirement(null, null, 'Approved', CHAIR, NOW, '').ok, 'a request that is not there cannot be ruled on');
+assert(!cmcRuleVirement(pendingRow, null, 'Rejected', CHAIR, NOW, '  ').ok, 'a rejection still needs a reason');
+assert(cmcRuleVirement(pendingRow, null, 'Approved', CHAIR, NOW, '').ok, 'an approval needs no minute');
 
-const approve = cmcVirementDecision(pendingRow, 'Approved', 'Marcia Reid', '2026-08-10T14:00:00.000Z', ' looks right ');
-assert(approve.ok, 'a pending request can be approved');
-assertEq(approve.patch.status, 'Approved', 'status is the word the Virement page matches on');
-assertEq(approve.patch.approvedBy, 'Marcia Reid (CMC Board)', 'the ruling is attributed to the board member, and marked as the Board');
-assertEq(approve.patch.approvalDate, '2026-08-10', 'dated the day it was made, no time component');
-assertEq(approve.patch.approvalComment, 'looks right', 'the minute is trimmed');
-assertEq(Object.keys(approve.patch).sort().join(','), 'approvalComment,approvalDate,approvedBy,status',
+console.log('Stage one: the Chair rules, and the register does not move');
+const ruled = cmcRuleVirement(pendingRow, null, 'Approved', CHAIR, NOW, ' agreed at the July meeting ');
+assert(ruled.ok, 'the Chairperson may rule');
+assertEq(ruled.ruling.decision, 'Approved', 'the ruling carries the verdict');
+assertEq(ruled.ruling.by, 'Marcia Reid', 'and who made it');
+assertEq(ruled.ruling.byUsername, 'm.reid', 'by account, so a second signature can be checked against it');
+assertEq(ruled.ruling.comment, 'agreed at the July meeting', 'the minute is trimmed');
+assertEq(cmcVirementStage(pendingRow, ruled.ruling), 'awaiting-countersign', 'the request now awaits a countersignature');
+assertEq(cmcVirementStage(pendingRow, null), 'pending', 'with no ruling it is simply pending');
+assertEq(cmcVirementStage(decidedRow, null), 'settled', 'a request the register already decided is settled');
+assert(!cmcRuleVirement(pendingRow, ruled.ruling, 'Rejected', CHAIR, NOW, 'changed my mind').ok,
+  'the Chair cannot rule twice on the same request');
+assert(!cmcRuleVirement(decidedRow, null, 'Approved', CHAIR, NOW, '').ok, 'nor re-decide a settled one');
+assert(cmcRuleVirement(decidedRow, null, 'Approved', CHAIR, NOW, '').reason.indexOf('Admin') !== -1,
+  'and that refusal names who ruled first');
+
+console.log('Stage two: a SECOND board member countersigns');
+assert(!cmcCountersignVirement(pendingRow, ruled.ruling, CHAIR, NOW).ok,
+  'the Chair cannot countersign their own ruling — that is one signature wearing two hats');
+assert(cmcCountersignVirement(pendingRow, ruled.ruling, CHAIR, NOW).reason.indexOf('second board member') !== -1,
+  'and says so plainly');
+assert(!cmcCountersignVirement(pendingRow, null, MEMBER, NOW).ok, 'there is nothing to countersign before the Chair rules');
+assert(!cmcCountersignVirement(pendingRow, ruled.ruling, { name: 'X', username: '' }, NOW).ok,
+  'a countersignature has to come from a named account');
+
+const signed = cmcCountersignVirement(pendingRow, ruled.ruling, MEMBER, NOW);
+assert(signed.ok, 'a different board member may countersign');
+assertEq(cmcVirementStage(pendingRow, signed.ruling), 'settled', 'and that settles it');
+assertEq(signed.patch.status, 'Approved', 'the register gets the word Virement.Request.html matches on');
+assertEq(signed.patch.approvedBy, 'Marcia Reid (CMC Chair), countersigned by Delroy Green (CMC Board)',
+  'and BOTH signatures, so the decision can be traced to two people');
+assertEq(signed.patch.approvalDate, '2026-08-10', 'dated the day it was settled, no time component');
+assertEq(signed.patch.approvalComment, 'agreed at the July meeting', 'the Chair\'s minute travels with it');
+assertEq(Object.keys(signed.patch).sort().join(','), 'approvalComment,approvalDate,approvedBy,status',
   'and NOTHING else about the request is touched');
+assert(!cmcCountersignVirement(pendingRow, signed.ruling, MEMBER, NOW).ok, 'a settled request cannot be countersigned again');
 
-console.log('A decision cannot be taken twice');
-const again = cmcVirementDecision(decidedRow, 'Rejected', 'Marcia Reid', '2026-08-10T14:00:00.000Z', 'changed my mind');
-assert(!again.ok, 're-deciding a settled request is refused');
-assert(again.reason.indexOf('Admin') !== -1, 'and the refusal names who ruled first');
+console.log('A ruling nobody seconds can be withdrawn, so nothing gets stuck');
+assert(cmcWithdrawRuling(pendingRow, ruled.ruling, CHAIR).ok, 'the Chair may take back an uncountersigned ruling');
+assert(!cmcWithdrawRuling(pendingRow, ruled.ruling, MEMBER).ok, 'another member may not withdraw it for them');
+assert(!cmcWithdrawRuling(pendingRow, signed.ruling, CHAIR).ok, 'and a countersigned decision cannot be withdrawn');
+assert(!cmcWithdrawRuling(pendingRow, null, CHAIR).ok, 'there has to be a ruling to withdraw');
 
-console.log('A rejection must carry a reason');
-assert(!cmcVirementDecision(pendingRow, 'Rejected', 'Marcia Reid', '2026-08-10', '').ok, 'a bare rejection is refused');
-assert(!cmcVirementDecision(pendingRow, 'Rejected', 'Marcia Reid', '2026-08-10', '   ').ok, 'whitespace is not a reason');
-assert(cmcVirementDecision(pendingRow, 'Rejected', 'Marcia Reid', '2026-08-10', 'over budget').ok, 'with a reason it goes through');
-assert(cmcVirementDecision(pendingRow, 'Approved', '', '2026-08-10', '').ok, 'an approval needs no minute');
-assertEq(cmcVirementDecision(pendingRow, 'Approved', '', '2026-08-10', '').patch.approvedBy, 'CMC Board (CMC Board)',
-  'an unnamed session still attributes the ruling to the Board');
-assert(!cmcVirementDecision(pendingRow, 'Maybe', 'M', '2026-08-10', '').ok, 'there is no third verdict');
-assert(!cmcVirementDecision(null, 'Approved', 'M', '2026-08-10', '').ok, 'a request that is not there cannot be ruled on');
+console.log('The minute book is written without being mutated');
+const book0 = {};
+const book1 = cmcApplyRuling(book0, 11, ruled.ruling);
+assertEq(Object.keys(book0).length, 0, 'the book handed in is left alone');
+assertEq(cmcRulingFor(book1, 11).decision, 'Approved', 'the ruling is filed under the request id');
+assertEq(cmcRulingFor(book1, '11').decision, 'Approved', 'found whether the id is a number or a string');
+assertEq(cmcRulingFor(book1, 12), null, 'and nothing is invented for a request nobody ruled on');
+assertEq(Object.keys(cmcApplyRuling(book1, 11, null)).length, 0, 'withdrawing removes the entry');
+assertEq(cmcRulingFor(null, 11), null, 'no book at all is not a crash');
 
-console.log('Applying a decision touches one request and nothing else');
+console.log('Who is signing');
+assertEq(cmcSigner({ name: 'Marcia Reid', username: 'm.reid', cmcChair: true }).isChair, true, 'the chair flag is read off the account');
+assertEq(cmcSigner({ name: 'D', username: 'd' }).isChair, false, 'an ordinary board account is not the Chair');
+assertEq(cmcSigner(null).isChair, false, 'and no account at all is certainly not');
+const ACCOUNTS = [
+  { name: 'Admin', role: 'admin', cmcChair: true },              // not a board member
+  { name: 'Delroy Green', role: 'cmc' },
+  { name: 'Marcia Reid', role: 'cmc', cmcChair: true },
+  { name: 'Old Chair', role: 'cmc', cmcChair: true, status: 'inactive' }
+];
+assertEq(cmcChairOf(ACCOUNTS).name, 'Marcia Reid', 'the Chair is the ACTIVE board account carrying the office');
+assertEq(cmcChairOf([{ name: 'D', role: 'cmc' }]), null, 'a board with no Chair appointed says so');
+assertEq(cmcChairOf(null), null, 'and no accounts at all is not a crash');
+
+console.log('Applying a settled decision touches one request and nothing else');
 const raw = JSON.stringify(REGISTER);
-const next = cmcApplyVirementDecision(raw, 11, approve.patch);
+const next = cmcApplyVirementDecision(raw, 11, signed.patch);
 const after = JSON.parse(next);
 assertEq(after.length, 2, 'the register keeps every request');
 assertEq(after[0].status, 'Approved', 'the ruled request carries the decision');
@@ -230,9 +289,9 @@ assertEq(after[0].total, 100000, 'and everything else about it is untouched');
 assertEq(after[0].lines[0].toName, 'Lunch', 'including its budget lines');
 assertEq(JSON.stringify(after[1]), JSON.stringify(REGISTER[1]), 'the OTHER request is byte-identical — a ruling is not a rewrite');
 assertEq(JSON.parse(raw)[0].status, 'Pending', 'and the register handed in was not mutated');
-assertEq(cmcApplyVirementDecision(raw, 999, approve.patch), null, 'an id that is not in the register writes nothing back');
-assertEq(cmcApplyVirementDecision('not json', 11, approve.patch), null, 'an unreadable register writes nothing back');
-assertEq(cmcApplyVirementDecision(null, 11, approve.patch), null, 'and neither does an absent one');
+assertEq(cmcApplyVirementDecision(raw, 999, signed.patch), null, 'an id that is not in the register writes nothing back');
+assertEq(cmcApplyVirementDecision('not json', 11, signed.patch), null, 'an unreadable register writes nothing back');
+assertEq(cmcApplyVirementDecision(null, 11, signed.patch), null, 'and neither does an absent one');
 
 /* ---------- summary ---------- */
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

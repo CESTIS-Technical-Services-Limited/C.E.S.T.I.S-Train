@@ -4327,6 +4327,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     </div>
     <div class="form-group"><label>Email</label><input type="email" class="form-control" id="newUserEmail" placeholder="e.g. john@heartlms.edu.jm"></div>
     <div class="form-group" id="newUserProgrammeGroup"><label>Programme</label><select class="form-control" id="newUserProgramme"><option value="">— Select Programme —</option></select></div>
+    <div class="form-group" id="newUserChairGroup" style="display:none;">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+        <input type="checkbox" id="newUserChair" style="width:auto;">
+        <span>Board Chairperson</span>
+      </label>
+      <small style="color:var(--text-muted);font-size:11px;">The Chairperson is the only board member who may rule on a virement request; a second board member then countersigns it. The Centre has one Chairperson at a time — appointing a new one stands the previous one down.</small>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('createUserModal')">Cancel</button>
       <button class="btn btn-primary" onclick="createUserAccount()">Create User</button>
@@ -4346,6 +4353,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     <div class="form-group"><label>Username</label><input type="text" class="form-control" id="editUserUsername"></div>
     <div class="form-group"><label>Email</label><input type="email" class="form-control" id="editUserEmail"></div>
     <div class="form-group" id="editUserProgrammeGroup"><label>Programme</label><select class="form-control" id="editUserProgramme"><option value="">— Select Programme —</option></select></div>
+    <div class="form-group" id="editUserChairGroup" style="display:none;">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+        <input type="checkbox" id="editUserChair" style="width:auto;">
+        <span>Board Chairperson</span>
+      </label>
+      <small style="color:var(--text-muted);font-size:11px;">The Chairperson is the only board member who may rule on a virement request; a second board member then countersigns it. The Centre has one Chairperson at a time — appointing a new one stands the previous one down.</small>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('editUserModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveUserEdit()">Save Changes</button>
@@ -5603,7 +5617,9 @@ function exportDataBackup() {
     'cestis_finance_convert','cesti_cashbook_data','cesti_virements','cesti_virement_logo',
     'cestis_budget_overrides','cestis_budget_deleted','cestis_active_quarter',
     'cestisStaffMembers','cestisTimeRecords','cestiSchoolFeeStudents','cestiSchoolFeePayments','cestiUsers',
-    'cestisStaffAppraisals'];
+    // The Board's minute book: rulings awaiting a countersignature. Lose it and
+    // a half-signed decision is gone with no record that the Chair ever ruled.
+    'cestisStaffAppraisals','cestis_cmc_rulings'];
   // Include every dynamically-keyed bucket (per-quarter attendance/budget/virement,
   // finance docs) so nothing is silently left out of the backup.
   try {
@@ -7772,11 +7788,29 @@ function getNextUserId() {
 function toggleUserFormFields() {
   var role = document.getElementById('newUserRole').value;
   document.getElementById('newUserProgrammeGroup').style.display = (role === 'admin' || role === 'adminstaff' || role === 'cmc') ? 'none' : 'block';
+  // Chairperson is a board office, so it is only offered on a board account.
+  var chair = document.getElementById('newUserChairGroup');
+  if(chair) chair.style.display = (role === 'cmc') ? 'block' : 'none';
 }
 
 function toggleEditUserFormFields() {
   var role = document.getElementById('editUserRole').value;
   document.getElementById('editUserProgrammeGroup').style.display = (role === 'admin' || role === 'adminstaff' || role === 'cmc') ? 'none' : 'block';
+  var chair = document.getElementById('editUserChairGroup');
+  if(chair) chair.style.display = (role === 'cmc') ? 'block' : 'none';
+}
+
+/* One Chairperson at a time. Two accounts carrying the office would each be
+   able to rule AND countersign between them, which is exactly the check the
+   two-signature rule exists to make. Returns the name stood down, if any. */
+function setCmcChair(account) {
+  var stoodDown = '';
+  userAccounts.forEach(function(u) {
+    if(!u || u.id === account.id) return;
+    if(u.cmcChair === true) { u.cmcChair = false; stoodDown = u.name || u.username || ''; touchAccount(u); }
+  });
+  account.cmcChair = true;
+  return stoodDown;
 }
 
 async function createUserAccount() {
@@ -7799,6 +7833,12 @@ async function createUserAccount() {
   var newAccount = {id:getNextUserId(),name:name,role:role,username:username,password:hashedPw,email:email,programme:(role==='admin'||role==='adminstaff'||role==='cmc')?'':programme,status:'active',createdAt:dateStr,registeredVia:'admin-created'};
   cachePlaintextPw(newAccount, password);
   userAccounts.push(newAccount);
+  var _chairBox = document.getElementById('newUserChair');
+  if(role === 'cmc' && _chairBox && _chairBox.checked) {
+    var _prev = setCmcChair(newAccount);
+    if(_prev) alert(name + ' is now Board Chairperson. ' + _prev + ' has been stood down — the Centre has one Chairperson at a time.');
+  }
+  if(_chairBox) _chairBox.checked = false;
   // Create linked student/instructor data so the account is immediately usable
   if (role === 'student') {
     var existingStudent = students.find(function(s) { return s.name === name; });
@@ -7837,6 +7877,8 @@ function openEditUser(userId) {
   document.getElementById('editUserUsername').value = user.username;
   document.getElementById('editUserEmail').value = user.email || '';
   document.getElementById('editUserProgramme').value = user.programme || '';
+  var _ec = document.getElementById('editUserChair');
+  if(_ec) _ec.checked = (user.cmcChair === true);
   document.getElementById('editUserTitle').textContent = 'Edit User — ' + user.name;
   toggleEditUserFormFields();
   openModal('editUserModal');
@@ -7859,6 +7901,14 @@ function saveUserEdit() {
   var oldRole = user.role;
   user.name = name; user.role = role; user.username = username; user.email = email;
   user.programme = (role === 'admin' || role === 'adminstaff' || role === 'cmc') ? '' : programme;
+  var _editChair = document.getElementById('editUserChair');
+  var _wantChair = (role === 'cmc' && _editChair && _editChair.checked);
+  if(_wantChair && user.cmcChair !== true) {
+    var _stood = setCmcChair(user);
+    if(_stood) alert(name + ' is now Board Chairperson. ' + _stood + ' has been stood down — the Centre has one Chairperson at a time.');
+  } else if(!_wantChair && user.cmcChair === true) {
+    user.cmcChair = false;                 // stood down, or no longer a board member
+  }
   touchAccount(user);
   // Create linked instructor/student data when role changes
   if(role === 'instructor' && oldRole !== 'instructor') {
@@ -8197,7 +8247,8 @@ function renderUserAccountsTable() {
     return '<tr>' +
       '<td><input type="checkbox" class="um-cb um-row-cb" data-uid="'+escapeAttr(u.id)+'" '+checked+' onchange="toggleUmCheckbox(\''+escapeAttr(u.id)+'\')"></td>' +
       '<td><div class="um-user-cell"><div class="um-avatar" style="background:'+roleColors[u.role]+';">'+escapeHtml(initials)+'</div><div><div class="um-name">'+escapeHtml(u.name)+'</div><div class="um-email">'+escapeHtml(u.email||u.username)+'</div></div></div></td>' +
-      '<td><span class="um-role-badge '+roleBadges[u.role]+'">'+roleLabels[u.role]+'</span></td>' +
+      '<td><span class="um-role-badge '+roleBadges[u.role]+'">'+roleLabels[u.role]+'</span>' +
+        (u.cmcChair === true && u.role === 'cmc' ? ' <span class="um-role-badge" style="background:rgba(230,126,34,0.15);color:var(--orange);">Chairperson</span>' : '') + '</td>' +
       '<td>'+escapeHtml(u.username)+'</td>' +
       '<td>'+escapeHtml(u.programme||'—')+'</td>' +
       // One on/off toggle could not tell "never reviewed" from "refused" from
@@ -33945,9 +33996,11 @@ function cmcStartOversightReader() {
   try {
     window.CESTISPageCloud.init({
       page: 'CMC Oversight',
-      file: 'CESTIS_CMC_Oversight.json',   // never written: readOnly
-      readOnly: true,
-      keys: [],
+      file: 'CESTIS_CMC_Rulings.json',
+      // The board's own minute book: rulings awaiting a countersignature. It
+      // has to travel, or the Chair could rule on one device and no second
+      // member would ever see it to sign. It is the ONLY key the board owns.
+      keys: ['cestis_cmc_rulings'],
       reads: reads,
       // The single collection the board may settle something in. Everything
       // else it can only read — see cmc-portal.js for why this one is different.
@@ -34147,7 +34200,11 @@ function cmcRefreshAllSections() {
 
 function cmcPendingCount() {
   var C = window.CESTISCmc;
-  return C ? C.cmcPendingVirements(cmcData.virement || []).length : 0;
+  if(!C) return 0;
+  var book = cmcRulings();
+  return (cmcData.virement || []).filter(function(r) {
+    return C.cmcVirementStage(r, C.cmcRulingFor(book, r.id)) !== 'settled';
+  }).length;
 }
 
 function buildCmcSidebar() {
@@ -34427,8 +34484,9 @@ function buildCmcPages() {
   html += '<section class="page" id="page-cmc-virements">';
   html += '<div class="cmc-refresh-bar"><h3 class="cmc-section-title">Virement Approvals</h3></div>';
   html += '<p style="font-size:13px;color:var(--text-secondary);max-width:760px;line-height:1.6;margin-bottom:16px;">' +
-    'A virement moves money between budget lines. The Board rules on each request; a request that has been ruled on ' +
-    'is history and cannot be decided twice. Your name and the date are recorded against the decision.</p>';
+    'A virement moves money between budget lines. It takes TWO signatures: the Chairperson rules, then a second board ' +
+    'member countersigns. Only once both names are on it does the decision reach the Centre\'s virement register — a ruling ' +
+    'waiting on its countersignature changes nothing. A settled request is history and cannot be decided twice.</p>';
   html += '<div class="cmc-kpi-grid" style="grid-template-columns:repeat(3,1fr);">';
   html += '<div class="cmc-kpi-card kpi-virement"><div class="cmc-kpi-icon">⏳</div>';
   html += '<div class="cmc-kpi-label">Awaiting Your Decision</div>';
@@ -35120,30 +35178,51 @@ function cmcRenderStaff() {
     }, 'No instructors on record.');
 }
 
-/* The board's one decision surface. Pending requests carry the ruling
-   controls; a request already ruled on shows who ruled and when, and carries
-   no controls at all — the refusal to re-decide is enforced in
-   cmcVirementDecision, but it should not even be offered. */
+/* The board's one decision surface, and it takes two signatures: the
+   Chairperson rules, a second board member countersigns. A ruling waiting on
+   its second signature lives in the board's own minute book — the register
+   stays Pending until both names are on it, so the Centre never acts on an
+   approval nobody seconded. */
+function cmcRulings() {
+  try { return JSON.parse(CESTISStore.getItem('cestis_cmc_rulings') || '{}') || {}; }
+  catch(e) { return {}; }
+}
+function cmcSignerNow() {
+  var C = window.CESTISCmc;
+  return C ? C.cmcSigner(currentLoggedInUser || {}) : { name: '', username: '', isChair: false };
+}
+
 function cmcRenderVirements() {
   var C = window.CESTISCmc;
   var all = cmcData.virement || [];
-  var pending = 0, approved = 0, rejected = 0, pendingValue = 0, approvedValue = 0;
+  var book = cmcRulings();
+  var me = cmcSignerNow();
+  var counts = { pending: 0, awaiting: 0, approved: 0, rejected: 0 };
+  var pendingValue = 0, approvedValue = 0;
   all.forEach(function(r) {
-    var st = String(r.status || 'Pending').toLowerCase();
-    if(st === 'approved') { approved++; approvedValue += (Number(r.amount) || 0); }
-    else if(st === 'rejected') rejected++;
-    else { pending++; pendingValue += (Number(r.amount) || 0); }
+    var stage = C ? C.cmcVirementStage(r, C.cmcRulingFor(book, r.id)) : 'pending';
+    if(stage === 'settled') {
+      if(String(r.status || '').toLowerCase() === 'rejected') counts.rejected++;
+      else { counts.approved++; approvedValue += (Number(r.amount) || 0); }
+    } else if(stage === 'awaiting-countersign') { counts.awaiting++; pendingValue += (Number(r.amount) || 0); }
+    else { counts.pending++; pendingValue += (Number(r.amount) || 0); }
   });
-  cmcSetText('cmcVirPending', String(pending));
-  cmcSetText('cmcVirPendingSub', pending ? cmcMoney(pendingValue) + ' awaiting a ruling' : 'Nothing awaiting the Board');
-  cmcSetText('cmcVirApproved', String(approved));
-  cmcSetText('cmcVirApprovedSub', approved ? cmcMoney(approvedValue) + ' approved' : 'None yet');
-  cmcSetText('cmcVirRejected', String(rejected));
-  cmcSetText('cmcVirRejectedSub', rejected ? rejected + ' turned down' : 'None yet');
+  cmcSetText('cmcVirPending', String(counts.pending + counts.awaiting));
+  cmcSetText('cmcVirPendingSub', (counts.pending + counts.awaiting)
+    ? cmcMoney(pendingValue) + ' — ' + counts.pending + ' for the Chair, ' + counts.awaiting + ' awaiting a countersignature'
+    : 'Nothing awaiting the Board');
+  cmcSetText('cmcVirApproved', String(counts.approved));
+  cmcSetText('cmcVirApprovedSub', counts.approved ? cmcMoney(approvedValue) + ' approved' : 'None yet');
+  cmcSetText('cmcVirRejected', String(counts.rejected));
+  cmcSetText('cmcVirRejectedSub', counts.rejected ? counts.rejected + ' turned down' : 'None yet');
 
   var fEl = document.getElementById('cmcVirementFilters');
   if(fEl) {
-    fEl.innerHTML = cmcFilterBar('virements', [
+    var chair = C ? C.cmcChairOf(userAccounts) : null;
+    var note = '<div style="font-size:12px;color:var(--text-muted);padding:0 2px 10px;">' +
+      (chair ? 'Chairperson: <strong>' + cmcEsc(chair.name) + '</strong>. ' : 'No Chairperson has been appointed — an Administrator sets one on the account. ') +
+      (me.isChair ? 'You rule; another board member countersigns.' : 'The Chairperson rules; you may countersign.') + '</div>';
+    fEl.innerHTML = note + cmcFilterBar('virements', [
       { field: 'status', label: 'Status', options: cmcOptions('virement', 'status') }
     ]);
   }
@@ -35151,69 +35230,135 @@ function cmcRenderVirements() {
   if(!body) return;
 
   var rows = C ? C.cmcFilterRows(all, cmcFilters.virements) : all;
-  var canDecide = (currentRole === 'cmc');
+  var isBoard = (currentRole === 'cmc');
   body.innerHTML = cmcShowingNote(rows.length, all.length, 'virement requests') +
-    cmcTable(['Date', 'Project', 'Requested By', 'From', 'To', 'Amount', 'Status', 'Decision'], rows, function(r) {
-      var st = String(r.status || 'Pending');
-      var low = st.toLowerCase();
-      var cls = low === 'approved' ? 'good' : low === 'rejected' ? 'critical' : 'warning';
-      var decision;
-      if(low === 'pending') {
-        decision = canDecide
-          ? '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' +
-              '<input type="text" id="cmcVirNote_' + cmcEsc(r.id) + '" placeholder="Reason / minute" ' +
-                'style="min-width:150px;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:12px;">' +
-              '<button class="cmc-refresh-btn" style="padding:6px 12px;font-size:11px;" onclick="cmcDecideVirement(\'' + cmcEsc(r.id) + '\',\'Approved\')">✓ Approve</button>' +
-              '<button class="cmc-refresh-btn" style="padding:6px 12px;font-size:11px;background:linear-gradient(135deg,var(--red),#c0392b);" onclick="cmcDecideVirement(\'' + cmcEsc(r.id) + '\',\'Rejected\')">✗ Reject</button>' +
-            '</div>'
-          : '<span style="color:var(--text-muted);font-size:12px;">Board members only</span>';
-      } else {
-        decision = '<span style="font-size:12px;color:var(--text-secondary);">' + cmcEsc(r.approvedBy || 'Admin') +
+    cmcTable(['Date', 'Project', 'Requested By', 'From', 'To', 'Amount', 'Status', 'Signatures'], rows, function(r) {
+      var ruling = C ? C.cmcRulingFor(book, r.id) : null;
+      var stage = C ? C.cmcVirementStage(r, ruling) : 'pending';
+      var id = cmcEsc(r.id);
+      var statusLabel, statusCls, cell;
+
+      if(stage === 'settled') {
+        statusLabel = String(r.status || (ruling && ruling.decision) || 'Decided');
+        statusCls = statusLabel.toLowerCase() === 'rejected' ? 'critical' : 'good';
+        cell = '<span style="font-size:12px;color:var(--text-secondary);">' + cmcEsc(r.approvedBy || (ruling && ruling.by) || 'Admin') +
           (r.approvalDate ? ' · ' + cmcEsc(r.approvalDate) : '') +
           (r.approvalComment ? '<br><em>“' + cmcEsc(r.approvalComment) + '”</em>' : '') + '</span>';
+      } else if(stage === 'awaiting-countersign') {
+        statusLabel = ruling.decision + ' — awaiting countersignature';
+        statusCls = 'warning';
+        var mine = String(ruling.byUsername || '').toLowerCase() === String(me.username || '').toLowerCase();
+        cell = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">Ruled ' + cmcEsc(ruling.decision.toLowerCase()) +
+          ' by <strong>' + cmcEsc(ruling.by) + '</strong>' + (ruling.at ? ' · ' + cmcEsc(String(ruling.at).slice(0, 10)) : '') +
+          (ruling.comment ? '<br><em>“' + cmcEsc(ruling.comment) + '”</em>' : '') + '</div>';
+        if(isBoard && !mine) {
+          cell += '<button class="cmc-refresh-btn" style="padding:6px 12px;font-size:11px;" onclick="cmcCountersignVirement(\'' + id + '\')">✍ Countersign</button>';
+        } else if(mine) {
+          cell += '<span style="font-size:12px;color:var(--text-muted);">Your ruling — a second board member must countersign.</span>' +
+            (me.isChair ? ' <button class="cmc-refresh-btn" style="padding:5px 10px;font-size:11px;background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--border);" onclick="cmcWithdrawVirementRuling(\'' + id + '\')">Withdraw</button>' : '');
+        } else {
+          cell += '<span style="font-size:12px;color:var(--text-muted);">Awaiting a second board member.</span>';
+        }
+      } else {
+        statusLabel = 'Pending';
+        statusCls = 'warning';
+        if(isBoard && me.isChair) {
+          cell = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' +
+            '<input type="text" id="cmcVirNote_' + id + '" placeholder="Reason / minute" ' +
+              'style="min-width:150px;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:12px;">' +
+            '<button class="cmc-refresh-btn" style="padding:6px 12px;font-size:11px;" onclick="cmcRuleVirement(\'' + id + '\',\'Approved\')">✓ Approve</button>' +
+            '<button class="cmc-refresh-btn" style="padding:6px 12px;font-size:11px;background:linear-gradient(135deg,var(--red),#c0392b);" onclick="cmcRuleVirement(\'' + id + '\',\'Rejected\')">✗ Reject</button>' +
+          '</div>';
+        } else {
+          cell = '<span style="font-size:12px;color:var(--text-muted);">Awaiting the Chairperson\'s ruling.</span>';
+        }
       }
+
       return '<tr><td>' + cmcEsc(r.date) + '</td><td>' + cmcEsc(r.project || '--') + '</td><td>' + cmcEsc(r.requestedBy || '--') + '</td>' +
         '<td>' + cmcEsc(r.from || '--') + '</td><td>' + cmcEsc(r.to || '--') + '</td>' +
         '<td style="text-align:right;">' + cmcMoney(r.amount) + '</td>' +
-        '<td><span class="cmc-status ' + cls + '">' + cmcEsc(st) + '</span></td>' +
-        '<td>' + decision + '</td></tr>';
+        '<td><span class="cmc-status ' + statusCls + '">' + cmcEsc(statusLabel) + '</span></td>' +
+        '<td>' + cell + '</td></tr>';
     }, 'No virement requests match this filter.');
 }
 
-/* Rule on one request. The decision is written into the register the Virement
-   Requests page owns and sent to that page's backup — a ruling that lived only
-   on the board member's own laptop would never reach the people who have to
-   act on it. */
-function cmcDecideVirement(id, decision) {
-    var C = window.CESTISCmc;
-    if(!C) return;
-    if(currentRole !== 'cmc') { showToast('Only the CMC Board rules on virements.', 'warning'); return; }
-    var row = (cmcData.virement || []).filter(function(r) { return String(r.id) === String(id); })[0];
-    var noteEl = document.getElementById('cmcVirNote_' + id);
-    var note = noteEl ? noteEl.value : '';
-    var who = (currentLoggedInUser && currentLoggedInUser.name) || 'CMC Board';
-    var verdict = C.cmcVirementDecision(row, decision, who, new Date().toISOString(), note);
-    if(!verdict.ok) { showToast(verdict.reason, 'warning'); return; }
-    if(!confirm(decision + ' the virement of ' + cmcMoney(row.amount) + (row.project ? ' for "' + row.project + '"' : '') +
-      '?\n\nThis is recorded against your name and cannot be undone.')) return;
-
-    var raw = null;
-    try { raw = CESTISStore.getItem('cesti_virements'); } catch(e) {}
-    var next = C.cmcApplyVirementDecision(raw, id, verdict.patch);
-    if(!next) { showToast('That request is no longer in the register — it may have been withdrawn.', 'warning'); return; }
-    try { CESTISStore.setItem('cesti_virements', next); } catch(e) { showToast('Could not save the decision: ' + e.message, 'warning'); return; }
-
-    cmcLoadOversightData();
-    cmcRefreshAllSections();
-    buildCmcSidebar();                       // the pending badge moves with it
-    showToast('Virement ' + decision.toLowerCase() + '.', decision === 'Approved' ? 'success' : 'warning');
-
-    // Send it to the owning page's backup so the Centre sees the ruling.
-    if(window.CESTISPageCloud && typeof window.CESTISPageCloud.saveShared === 'function') {
-      window.CESTISPageCloud.saveShared(['cesti_virements']).then(function(wrote) {
+/* Persist the board's minute book and, when a ruling is complete, the register
+   itself. The book is the board's own collection, so it travels in the board's
+   own backup; the register belongs to Virement Requests and is written into
+   that page's file. */
+function cmcSaveRulings(book, alsoRegister) {
+  try { CESTISStore.setItem('cestis_cmc_rulings', JSON.stringify(book)); }
+  catch(e) { showToast('Could not record the ruling: ' + e.message, 'warning'); return false; }
+  cmcLoadOversightData();
+  cmcRefreshAllSections();
+  buildCmcSidebar();
+  if(window.CESTISPageCloud) {
+    var keys = alsoRegister ? ['cesti_virements'] : [];
+    if(typeof window.CESTISPageCloud.saveNow === 'function') window.CESTISPageCloud.saveNow();
+    if(keys.length && typeof window.CESTISPageCloud.saveShared === 'function') {
+      window.CESTISPageCloud.saveShared(keys).then(function(wrote) {
         if(!wrote.length) console.info('[CMC] decision saved locally; it will travel when the Virement page next syncs');
       }).catch(function(e) { console.warn('[CMC] decision not sent up: ' + e.message); });
     }
+  }
+  return true;
+}
+
+function cmcVirementRow(id) {
+  return (cmcData.virement || []).filter(function(r) { return String(r.id) === String(id); })[0] || null;
+}
+
+/* Stage one — the Chairperson rules. Nothing reaches the register yet. */
+function cmcRuleVirement(id, decision) {
+  var C = window.CESTISCmc;
+  if(!C) return;
+  if(currentRole !== 'cmc') { showToast('Only the CMC Board rules on virements.', 'warning'); return; }
+  var row = cmcVirementRow(id), book = cmcRulings();
+  var noteEl = document.getElementById('cmcVirNote_' + id);
+  var verdict = C.cmcRuleVirement(row, C.cmcRulingFor(book, id), decision, cmcSignerNow(),
+    new Date().toISOString(), noteEl ? noteEl.value : '');
+  if(!verdict.ok) { showToast(verdict.reason, 'warning'); return; }
+  if(!confirm('Rule to ' + decision.toLowerCase().replace(/d$/, '') + ' the virement of ' + cmcMoney(row.amount) +
+    (row.project ? ' for "' + row.project + '"' : '') + '?\n\nIt takes effect only once a second board member countersigns.')) return;
+  if(cmcSaveRulings(C.cmcApplyRuling(book, id, verdict.ruling), false)) {
+    showToast('Ruling recorded — a second board member must now countersign.', 'success');
+  }
+}
+
+/* Stage two — a different board member countersigns, and the decision becomes
+   the register's. */
+function cmcCountersignVirement(id) {
+  var C = window.CESTISCmc;
+  if(!C) return;
+  if(currentRole !== 'cmc') { showToast('Only the CMC Board countersigns a ruling.', 'warning'); return; }
+  var row = cmcVirementRow(id), book = cmcRulings();
+  var res = C.cmcCountersignVirement(row, C.cmcRulingFor(book, id), cmcSignerNow(), new Date().toISOString());
+  if(!res.ok) { showToast(res.reason, 'warning'); return; }
+  if(!confirm('Countersign the Chairperson\'s ruling to ' + res.ruling.decision.toLowerCase() + ' ' + cmcMoney(row.amount) +
+    (row.project ? ' for "' + row.project + '"' : '') + '?\n\nThis settles the request. Both names are recorded and it cannot be undone.')) return;
+
+  var raw = null;
+  try { raw = CESTISStore.getItem('cesti_virements'); } catch(e) {}
+  var next = C.cmcApplyVirementDecision(raw, id, res.patch);
+  if(!next) { showToast('That request is no longer in the register — it may have been withdrawn.', 'warning'); return; }
+  try { CESTISStore.setItem('cesti_virements', next); }
+  catch(e) { showToast('Could not save the decision: ' + e.message, 'warning'); return; }
+  if(cmcSaveRulings(C.cmcApplyRuling(book, id, res.ruling), true)) {
+    showToast('Virement ' + res.ruling.decision.toLowerCase() + ' — signed by ' + res.ruling.by + ' and ' + res.ruling.counterBy + '.',
+      res.ruling.decision === 'Approved' ? 'success' : 'warning');
+  }
+}
+
+/* The Chair takes back a ruling nobody has countersigned, so a mistake does
+   not leave the request stuck between stages forever. */
+function cmcWithdrawVirementRuling(id) {
+  var C = window.CESTISCmc;
+  if(!C) return;
+  var row = cmcVirementRow(id), book = cmcRulings();
+  var res = C.cmcWithdrawRuling(row, C.cmcRulingFor(book, id), cmcSignerNow());
+  if(!res.ok) { showToast(res.reason, 'warning'); return; }
+  if(!confirm('Withdraw your ruling? The request goes back to awaiting a decision.')) return;
+  if(cmcSaveRulings(C.cmcApplyRuling(book, id, null), false)) showToast('Ruling withdrawn.', 'success');
 }
 
 function cmcRenderAcademic() {

@@ -7,10 +7,13 @@
 
    ONE deliberate exception, and it is not in these panels: a virement moves
    money between budget lines and the board is the body entitled to settle it,
-   so the board's dashboards carry an approve/reject decision (see
-   cmcVirementDecision below). It writes the four approval fields the Virement
-   Requests page already writes, on a request that is still Pending, and
-   nothing else — see the notes there for why re-deciding is refused.
+   so the board's dashboards carry a ruling. It takes TWO signatures — the
+   Chairperson rules, a second board member countersigns — and only then does
+   the decision reach the Virement Requests register, in the four approval
+   fields that page already writes. A ruling awaiting its second signature
+   lives in the Board's own minute book, never in the register: put it there
+   and the Centre would act on an approval nobody had yet seconded. See
+   cmcVirementStage below.
 
    Panels (mounted from Pages/CMC-Portal.html):
      Dashboard        — total students on the platform + headline counts
@@ -300,28 +303,140 @@
      invisible to the page that has to act on it. */
   var CMC_DECISIONS = ['Approved', 'Rejected'];
 
-  function cmcVirementDecision(row, decision, actor, todayISO, comment) {
+  /* TWO SIGNATURES, and the register never sees half of one.
+
+     The Chairperson rules; a second board member countersigns; only then does
+     the decision go into the Virement Requests register. A half-finished
+     ruling is kept in the Board's OWN minute book (cestis_cmc_rulings), never
+     in the register — put it there and the Centre would act on an approval
+     that nobody had yet seconded.
+
+     Stages, from a request and the Board's minute for it:
+       pending               nobody has ruled — the Chair's move
+       awaiting-countersign  the Chair has ruled, a second signature is due
+       settled               both signatures given; the register carries it */
+  function cmcVirementStage(row, ruling) {
+    if (row && String(row.status || 'Pending') !== 'Pending') return 'settled';
+    if (ruling && ruling.decision && ruling.counterByUsername) return 'settled';
+    if (ruling && ruling.decision) return 'awaiting-countersign';
+    return 'pending';
+  }
+
+  function cmcRulingFor(rulings, id) {
+    var book = (rulings && typeof rulings === 'object') ? rulings : {};
+    return book[String(id)] || null;
+  }
+
+  function actorOf(a) {
+    a = a || {};
+    return {
+      name: String(a.name == null ? '' : a.name).trim(),
+      username: String(a.username == null ? '' : a.username).trim().toLowerCase(),
+      isChair: a.isChair === true
+    };
+  }
+
+  /* Stage one: the Chairperson rules. */
+  function cmcRuleVirement(row, ruling, decision, actor, nowISO, comment) {
+    var who = actorOf(actor);
     var text = String(comment == null ? '' : comment).trim();
     if (!row) return { ok: false, reason: 'That request could not be found.' };
+    if (!who.isChair) return { ok: false, reason: 'Only the Board Chairperson rules on a virement. A second board member countersigns afterwards.' };
+    if (!who.username) return { ok: false, reason: 'A ruling has to be attributable to a named account.' };
     if (CMC_DECISIONS.indexOf(decision) === -1) return { ok: false, reason: 'A virement is either Approved or Rejected.' };
-    // A decided request is history. Re-deciding it would silently overwrite
+    var stage = cmcVirementStage(row, ruling);
+    // A settled request is history. Re-deciding it would silently overwrite
     // whoever ruled first — if the board changes its mind that is a new
     // request, raised and minuted like any other.
-    if (String(row.status || 'Pending') !== 'Pending') {
-      return { ok: false, reason: 'This request was already ' + String(row.status).toLowerCase() + ' by ' + (row.approvedBy || 'someone') + '. It cannot be decided twice.' };
+    if (stage === 'settled') {
+      return { ok: false, reason: 'This request was already ' + String(row.status || (ruling && ruling.decision) || 'decided').toLowerCase() +
+        ' by ' + ((row && row.approvedBy) || (ruling && ruling.by) || 'someone') + '. It cannot be decided twice.' };
+    }
+    if (stage === 'awaiting-countersign') {
+      return { ok: false, reason: 'You already ruled on this request. It is waiting for a second board member to countersign.' };
     }
     // A refusal without a reason tells the Centre nothing about what to fix.
     if (decision === 'Rejected' && !text) return { ok: false, reason: 'Say why the request is being rejected.' };
-    var who = String(actor == null ? '' : actor).trim();
     return {
       ok: true,
-      patch: {
-        status: decision,
-        approvedBy: (who || 'CMC Board') + ' (CMC Board)',
-        approvalDate: String(todayISO || '').slice(0, 10),
-        approvalComment: text
+      ruling: {
+        decision: decision,
+        by: who.name || 'Chairperson',
+        byUsername: who.username,
+        at: String(nowISO || ''),
+        comment: text
       }
     };
+  }
+
+  /* Stage two: a DIFFERENT board member countersigns, and the decision becomes
+     the register's. The patch is the four fields Virement.Request.html reads —
+     naming both signatures, because a ruling nobody can trace back to two
+     people is not a countersigned ruling. */
+  function cmcCountersignVirement(row, ruling, actor, nowISO) {
+    var who = actorOf(actor);
+    if (!row) return { ok: false, reason: 'That request could not be found.' };
+    if (!ruling || !ruling.decision) return { ok: false, reason: 'The Chairperson has not ruled on this request yet.' };
+    if (cmcVirementStage(row, ruling) === 'settled') return { ok: false, reason: 'This request is already settled.' };
+    if (!who.username) return { ok: false, reason: 'A countersignature has to be attributable to a named account.' };
+    // The whole point of a second signature is that it is a second person.
+    if (who.username === String(ruling.byUsername || '').toLowerCase()) {
+      return { ok: false, reason: 'You cannot countersign your own ruling — a second board member has to.' };
+    }
+    var counter = {
+      decision: ruling.decision,
+      by: ruling.by, byUsername: ruling.byUsername, at: ruling.at, comment: ruling.comment || '',
+      counterBy: who.name || 'Board Member',
+      counterByUsername: who.username,
+      counterAt: String(nowISO || '')
+    };
+    return {
+      ok: true,
+      ruling: counter,
+      patch: {
+        status: counter.decision,
+        approvedBy: counter.by + ' (CMC Chair), countersigned by ' + counter.counterBy + ' (CMC Board)',
+        approvalDate: String(nowISO || '').slice(0, 10),
+        approvalComment: counter.comment
+      }
+    };
+  }
+
+  /* The Chair may take back a ruling that has not been countersigned. Without
+     this a mistaken ruling nobody will second leaves the request stuck: not
+     pending, not settled, and impossible to raise again. */
+  function cmcWithdrawRuling(row, ruling, actor) {
+    var who = actorOf(actor);
+    if (!ruling || !ruling.decision) return { ok: false, reason: 'There is no ruling to withdraw.' };
+    if (cmcVirementStage(row, ruling) === 'settled') return { ok: false, reason: 'A countersigned decision cannot be withdrawn.' };
+    if (!who.isChair || who.username !== String(ruling.byUsername || '').toLowerCase()) {
+      return { ok: false, reason: 'Only the Chairperson who made the ruling can withdraw it.' };
+    }
+    return { ok: true };
+  }
+
+  /* Write a ruling into the Board's minute book (or remove it), returning the
+     new book. Pure: the book handed in is never mutated. */
+  function cmcApplyRuling(rulings, id, ruling) {
+    var book = (rulings && typeof rulings === 'object' && !Array.isArray(rulings)) ? rulings : {};
+    var out = {};
+    Object.keys(book).forEach(function (k) { out[k] = book[k]; });
+    if (ruling) out[String(id)] = ruling; else delete out[String(id)];
+    return out;
+  }
+
+  /* Who is signing: the logged-in account, and whether the Centre has made
+     them Chairperson. Exactly one account carries the chair. */
+  function cmcSigner(user) {
+    var u = user || {};
+    return { name: String(u.name || ''), username: String(u.username || ''), isChair: u.cmcChair === true };
+  }
+  function cmcChairOf(accounts) {
+    var list = Array.isArray(accounts) ? accounts : [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].role === 'cmc' && list[i].cmcChair === true && list[i].status !== 'inactive') return list[i];
+    }
+    return null;
   }
 
   /* Apply a decision to the stored register, touching ONLY that request and
@@ -375,7 +490,14 @@
     cmcPayrollRows: cmcPayrollRows,
     cmcClockRows: cmcClockRows,
     cmcVirementRows: cmcVirementRows,
-    cmcVirementDecision: cmcVirementDecision,
+    cmcVirementStage: cmcVirementStage,
+    cmcRulingFor: cmcRulingFor,
+    cmcRuleVirement: cmcRuleVirement,
+    cmcCountersignVirement: cmcCountersignVirement,
+    cmcWithdrawRuling: cmcWithdrawRuling,
+    cmcApplyRuling: cmcApplyRuling,
+    cmcSigner: cmcSigner,
+    cmcChairOf: cmcChairOf,
     cmcApplyVirementDecision: cmcApplyVirementDecision,
     cmcPendingVirements: cmcPendingVirements,
     cmcFilterRows: cmcFilterRows,

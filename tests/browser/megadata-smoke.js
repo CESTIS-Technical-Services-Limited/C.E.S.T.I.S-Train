@@ -245,7 +245,13 @@ function serve() {
         { id: 11, date: '2025-07-15', project: 'Lunch top-up', requestedBy: 'S. Barrett', total: 100000, status: 'Pending', lines: [{ fromName: 'Remedial English', toName: 'Lunch', amount: 100000 }] }
       ]));
       currentRole = 'cmc';
-      currentLoggedInUser = { name: 'Board Member', username: 'cmc1', email: 'b@cestis.test', status: 'active' };
+      // A Chairperson and one ordinary board member — the two signatures a
+      // virement takes. userAccounts is what cmcChairOf reads.
+      userAccounts = [
+        { id: 'U1', name: 'Marcia Reid', username: 'm.reid', role: 'cmc', cmcChair: true, status: 'active' },
+        { id: 'U2', name: 'Delroy Green', username: 'd.green', role: 'cmc', status: 'active' }
+      ];
+      currentLoggedInUser = userAccounts[0];
       buildCmcPages();
       buildCmcSidebar();
       cmcLoadOversightData();
@@ -278,9 +284,20 @@ function serve() {
         academic: !!document.getElementById('cmcAcademicBody'),
         navBadge: /Virement Approvals<span class="nav-badge"[^>]*>1</.test(document.getElementById('sidebarNav').innerHTML),
         reader: (window.CESTISPageCloud ? window.CESTISPageCloud.status() : []).filter(function (p) { return p.page === 'CMC Oversight'; })[0] || null,
-        readerPushed: await (window.CESTISPageCloud
-          ? window.CESTISPageCloud.saveNow().then(function (r) { return r.some(Boolean); })
-          : Promise.resolve(false))
+        // What the board would send up: its own minute book and nothing else.
+        owns: (function () {
+          var spec = (window.CESTISPageCloud._pages || []).filter(function (p) { return p.spec.page === 'CMC Oversight'; })
+            .map(function (p) { return p.spec; })[0];
+          if (!spec) return null;
+          var o = CESTISCore.pageCloud.ownsKey;
+          return {
+            book: o(spec, 'cestis_cmc_rulings'),
+            register: o(spec, 'cesti_virements'),
+            payroll: o(spec, 'cestisPayroll'),
+            cashbook: o(spec, 'cestis_quarter_2025/2026_Q1'),
+            clock: o(spec, 'cestisTimeRecords')
+          };
+        })()
       };
     });
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
@@ -299,44 +316,76 @@ function serve() {
     ok(cmc.academic, 'Academic renders its own filterable table');
     ok(cmc.navBadge, 'the sidebar tells the board a virement is waiting on it');
     ok(cmc.reader && cmc.reader.reads >= 5, 'the board registered as a page-cloud reader of the operating books');
-    ok(cmc.readerPushed === false, 'and it pushes NOTHING — oversight can never write over the pages it oversees');
+    ok(cmc.owns && cmc.owns.book === true, 'it owns its own minute book, so a half-signed ruling reaches the second signatory');
+    ok(cmc.owns && !cmc.owns.register && !cmc.owns.payroll && !cmc.owns.cashbook && !cmc.owns.clock,
+      'and owns NONE of the books it oversees — its own backup can never carry them, decision or no decision');
 
-    // The one decision the board makes, driven through the real page.
+    // Two signatures, driven through the real page: the Chair rules, an
+    // ordinary member countersigns, and only then does the register move.
     const vir = await page.evaluate(() => {
       showPage('cmc-virements');
       const body = () => document.getElementById('cmcVirementBody').textContent;
-      const before = body();
+      const reg = () => JSON.parse(CESTISStore.getItem('cesti_virements'))[0];
       const originalConfirm = window.confirm, originalToast = window.showToast;
       const toasts = [];
       window.confirm = () => true;
       window.showToast = (m) => toasts.push(String(m));
+
+      // A board member who is not the Chair sees no ruling controls at all.
+      currentLoggedInUser = userAccounts[1];
+      cmcRenderVirements();
+      const memberSees = body();
+
+      // The Chair rules. The register must NOT move.
+      currentLoggedInUser = userAccounts[0];
+      cmcRenderVirements();
+      const chairSees = body();
       document.getElementById('cmcVirNote_11').value = 'Agreed at the July meeting';
-      cmcDecideVirement('11', 'Approved');
-      const afterApprove = body();
-      cmcDecideVirement('11', 'Rejected');            // already ruled on
-      const stored = JSON.parse(CESTISStore.getItem('cesti_virements'));
+      cmcRuleVirement('11', 'Approved');
+      const afterRule = body();
+      const registerAfterRule = reg().status;
+      cmcCountersignVirement('11');                       // the Chair may not second herself
+      const selfSignBlocked = reg().status === 'Pending';
+
+      // The second board member countersigns. Now it settles.
+      currentLoggedInUser = userAccounts[1];
+      cmcRenderVirements();
+      const awaitingSees = body();
+      cmcCountersignVirement('11');
+      const settled = reg();
+      const afterSign = body();
       window.confirm = originalConfirm; window.showToast = originalToast;
       return {
-        beforeHadButton: before.indexOf('Approve') !== -1,
-        nowApproved: afterApprove.indexOf('Approved') !== -1,
-        attributed: afterApprove.indexOf('Board Member (CMC Board)') !== -1,
-        minuted: afterApprove.indexOf('Agreed at the July meeting') !== -1,
-        buttonGone: afterApprove.indexOf('✓ Approve') === -1,
-        storedStatus: stored[0].status,
-        storedBy: stored[0].approvedBy,
-        storedIntact: stored[0].total === 100000 && stored[0].project === 'Lunch top-up',
-        refusedSecond: toasts.some(t => /cannot be decided twice/.test(t)),
+        memberBlocked: /Awaiting the Chairperson/.test(memberSees) && memberSees.indexOf('✓ Approve') === -1,
+        chairOffered: chairSees.indexOf('Approve') !== -1,
+        ruledShows: /awaiting countersignature/i.test(afterRule),
+        registerUntouched: registerAfterRule === 'Pending',
+        selfSignBlocked: selfSignBlocked,
+        selfSignToldWhy: toasts.some(t => /cannot countersign your own/i.test(t)),
+        countersignOffered: /Countersign/.test(awaitingSees),
+        settledStatus: settled.status,
+        bothNames: settled.approvedBy,
+        minuteKept: settled.approvalComment,
+        registerIntact: settled.total === 100000 && settled.project === 'Lunch top-up',
+        controlsGone: afterSign.indexOf('Countersign') === -1,
+        bookCleared: !!JSON.parse(CESTISStore.getItem('cestis_cmc_rulings') || '{}')['11'].counterByUsername,
         pendingKpi: document.getElementById('cmcVirPending').textContent
       };
     });
-    ok(vir.beforeHadButton, 'a pending virement offers the Board an Approve control');
-    ok(vir.nowApproved && vir.buttonGone, 'approving it settles the request and withdraws the controls');
-    ok(vir.attributed, 'the ruling is attributed to the board member who made it');
-    ok(vir.minuted, 'and carries the minute they typed');
-    ok(vir.storedStatus === 'Approved' && /CMC Board/.test(vir.storedBy), 'the register itself records the decision, in the fields the Virement page reads');
-    ok(vir.storedIntact, 'and the rest of the request is untouched');
-    ok(vir.refusedSecond, 'a second ruling on the same request is refused, not silently applied');
-    ok(vir.pendingKpi === '0', 'the awaiting-decision count follows the ruling');
+    ok(vir.memberBlocked, 'an ordinary board member is not offered the ruling — only the Chairperson rules');
+    ok(vir.chairOffered, 'the Chairperson is');
+    ok(vir.ruledShows, 'once ruled, the request shows as awaiting a countersignature');
+    ok(vir.registerUntouched, 'and the Centre\'s register has NOT moved on one signature');
+    ok(vir.selfSignBlocked && vir.selfSignToldWhy, 'the Chair cannot countersign her own ruling, and is told why');
+    ok(vir.countersignOffered, 'a second board member is offered the countersignature');
+    ok(vir.settledStatus === 'Approved', 'signing it settles the request in the register');
+    ok(/Marcia Reid \(CMC Chair\), countersigned by Delroy Green \(CMC Board\)/.test(vir.bothNames),
+      'recorded against BOTH names — got "' + vir.bothNames + '"');
+    ok(vir.minuteKept === 'Agreed at the July meeting', 'with the Chair\'s minute');
+    ok(vir.registerIntact, 'and the rest of the request untouched');
+    ok(vir.controlsGone, 'the controls are withdrawn once it is settled');
+    ok(vir.bookCleared, 'the board\'s minute book records the countersignature');
+    ok(vir.pendingKpi === '0', 'and nothing is left on the board\'s table');
     await page.close();
   }
 
