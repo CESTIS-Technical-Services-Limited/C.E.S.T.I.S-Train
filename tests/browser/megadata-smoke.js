@@ -191,6 +191,31 @@ function serve() {
     ok(await page.evaluate(() => MegaData.lmsSpecs().length === MegaData.LMS_COLLECTIONS.length), 'every collection in the table has a live spec');
     ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'index'), 'shim carries the page identity');
     ok(await page.evaluate(() => typeof window.__lmsTick === 'undefined'), 'bridge stays dormant in legacy mode');
+    // Maintenance mode, deactivated, must survive the pull every login runs and
+    // the reload after it — the page's OWN functions, not a model in isolation.
+    const maint = await page.evaluate(() => {
+      currentRole = 'admin';
+      const CLOUD = { maintenanceMode: true, maintenanceMessage: 'Back shortly.', maintenanceUpdatedAt: '2026-08-09T09:00:00.000Z' };
+      systemSettings.maintenanceMode = true;
+      systemSettings.maintenanceMessage = 'Back shortly.';
+      systemSettings.maintenanceUpdatedAt = CLOUD.maintenanceUpdatedAt;
+      saveMaintenanceSettings();                                   // no toggle in the DOM → deactivate
+      const offAfterSave = systemSettings.maintenanceMode === false;
+      const mirror = JSON.parse(CESTISStore.getItem('voctrain_maintenanceMode') || '{}');
+      systemSettings = CESTISCore.mergeSystemSettings(systemSettings, CLOUD);   // the login pull
+      const offAfterPull = systemSettings.maintenanceMode === false;
+      checkMaintenanceOnLoad();                                    // and the next page load
+      const offAfterReload = systemSettings.maintenanceMode === false;
+      currentRole = 'student';
+      applyMaintenanceOverlay();
+      return { offAfterSave, offAfterPull, offAfterReload, mirrorOff: mirror.active === false,
+        mirrorStamped: !!mirror.updatedAt, overlay: document.getElementById('maintenanceOverlay').style.display };
+    });
+    ok(maint.offAfterSave, 'maintenance mode switches off');
+    ok(maint.mirrorOff && maint.mirrorStamped, 'the local mirror records it off, WITH the time it was decided');
+    ok(maint.offAfterPull, 'a cloud pull carrying the stale ON cannot switch it back on');
+    ok(maint.offAfterReload, 'and it is still off after the next page load');
+    ok(maint.overlay === 'none', 'so a non-admin is not locked out by an overlay nobody asked for');
     await page.close();
   }
 
