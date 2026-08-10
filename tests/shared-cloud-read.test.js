@@ -305,6 +305,36 @@ function runtimeTests() {
       'overwrite the page that owns them');
     assert(!('voctrain_students' in outgoing), 'and neither is the trainee roll');
 
+    /* The operating books: the CMC Board oversees them and operates none, so
+       it is a pure reader. A collection whose key names are GENERATED — the
+       Cashbook writes one blob per quarter — cannot be asked for by name, so
+       it is read by prefix with a trailing star. */
+    console.log('The operating books can be read, including generated key names');
+    assertEq(PC.sourceOf('cestisPayroll').file, 'CESTIS_Staff_Payslips.json', 'payroll resolves to the payslip page');
+    assertEq(PC.sourceOf('cestisTimeRecords').file, 'CESTIS_Staff_TimeClock.json', 'time records resolve to the clock-in page');
+    assertEq(PC.sourceOf('cesti_virements').file, 'CESTIS_Virement_Requests.json', 'virements resolve to their own page');
+    assertEq(PC.sourceOf('cestis_quarter_2025/2026_Q1').file, 'CESTIS_Cashbook.json', 'a generated quarter key resolves by prefix');
+    assertEq(PC.sourceOf('cestis_quarter_*').file, 'CESTIS_Cashbook.json', 'and so does the star form a reader asks with');
+    assert(PC.isShared('cestis_quarter_2025/2026_Q3'), 'a quarter is a shared collection');
+    assertEq(PC.sourceOf('some_page_local_key'), null, 'a page-local key still belongs to nobody');
+
+    const boardPlan = PC.sharedPullPlan(
+      ['cestisPayroll', 'cestisTimeRecords', 'cesti_virements', 'cestis_quarter_*'],
+      'CESTIS_CMC_Oversight.json');
+    assertEq(boardPlan.length, 4, 'the board pulls four files, one per operating book');
+    const cashPlan = boardPlan.find(p2 => p2.file === 'CESTIS_Cashbook.json');
+    assertEq(cashPlan.keys[0], 'cestis_quarter_*', 'the Cashbook entry carries the prefix request');
+
+    const cashFile = {
+      'cestis_quarter_2025/2026_Q1': '{"transactions":[]}',
+      'cestis_quarter_2025/2026_Q2': '{"transactions":[]}',
+      cestis_active_quarter: '{"fy":"2025/2026","q":2}',
+      cesti_cashbook_data: '[]'
+    };
+    const picked = PC.pickShared(cashFile, cashPlan.keys);
+    assertEq(Object.keys(picked).length, 2, 'a star request takes every quarter the file holds…');
+    assert(!('cestis_active_quarter' in picked), '…and nothing else out of the owning page\'s file');
+
     console.log('A second pull with nothing new changes nothing');
     return pg.pullShared().then(again => {
       assertEq(again.length, 0, 'the merge is idempotent — no churn, no re-upload');

@@ -74,15 +74,238 @@
     };
   }
 
+  /* ==========================================================================
+     OVERSIGHT DATA — read from the collections the operating pages own.
+
+     The CMC dashboards used to sit empty behind a "Sync Drive Data" button,
+     scraping four Google Drive FOLDERS for whatever JSON happened to be newest
+     in each. A board member who never pressed the button saw nothing; one
+     without a Drive token could see nothing at all. Meanwhile the very same
+     records were already on the device, under the keys the operating pages
+     write and page-cloud keeps current.
+
+     So the board reads those keys instead — the ordinary shared-collection
+     route (see CESTISCore.pageCloud.sharedSources). READ-ONLY by construction:
+     these functions take a storage map and return rows. Nothing here writes.
+
+     Every parser is deliberately forgiving about field names: four different
+     apps wrote these blobs over several years and each spells things its own
+     way. A missing field costs one column, never the row.
+     ========================================================================== */
+
+  /* The operating pages whose collections the board reads, and the page-cloud
+     file each one publishes. Used to pull current copies without asking the
+     board member to press anything. */
+  var CMC_SHARED_FILES = [
+    { key: 'cashbook', file: 'CESTIS_Cashbook.json', page: 'Cashbook',
+      keys: ['cesti_cashbook_data', 'cestis_active_quarter'], prefixes: ['cestis_quarter_', 'cestis_budget_'] },
+    { key: 'payslip', file: 'CESTIS_Staff_Payslips.json', page: 'Staff Payslips', keys: ['cestisPayroll'] },
+    { key: 'clockin', file: 'CESTIS_Staff_TimeClock.json', page: 'Staff Time Clock', keys: ['cestisStaffMembers', 'cestisTimeRecords'] },
+    { key: 'virement', file: 'CESTIS_Virement_Requests.json', page: 'Virement Requests', keys: ['cesti_virements'] }
+  ];
+
+  function num(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  function parseJson(raw, dflt) {
+    if (raw == null) return dflt;
+    if (typeof raw !== 'string') return raw;
+    try { var v = JSON.parse(raw); return v == null ? dflt : v; } catch (e) { return dflt; }
+  }
+  /* A stored collection may be an array, or an object wrapping one under any of
+     several names — every app made its own choice. */
+  function listOf(v, names) {
+    if (Array.isArray(v)) return v;
+    if (!v || typeof v !== 'object') return [];
+    for (var i = 0; i < (names || []).length; i++) {
+      if (Array.isArray(v[names[i]])) return v[names[i]];
+    }
+    return [];
+  }
+  function ymd(v) {
+    var s = String(v == null ? '' : v);
+    var m = /(\d{4})-(\d{2})-(\d{2})/.exec(s);
+    return m ? m[0] : '';
+  }
+
+  /* Cashbook transactions across every stored quarter. The cashbook keeps one
+     blob per quarter (cestis_quarter_<FY>_Q<n>), so the board's view of the
+     book is the union of them, with deleted rows and voided cheques honoured
+     exactly as the cashbook's own totals honour them: a voided cheque counts
+     ZERO, it does not vanish. */
+  function cmcCashbookRows(storeMap) {
+    var map = storeMap || {}, rows = [];
+    Object.keys(map).forEach(function (k) {
+      var m = /^cestis_quarter_(.+)_Q(\d)$/.exec(k);
+      if (!m) return;
+      var blob = parseJson(map[k], null);
+      if (!blob || typeof blob !== 'object') return;
+      var dropped = {};
+      (Array.isArray(blob.deletedTxnIds) ? blob.deletedTxnIds : []).forEach(function (id) { dropped[String(id)] = 1; });
+      (Array.isArray(blob.transactions) ? blob.transactions : []).forEach(function (t) {
+        if (!t || t.id == null || dropped[String(t.id)]) return;
+        var voided = String(t.category || '') === 'Cancelled';
+        var dep = num(t.deposit), pay = num(t.payment);
+        rows.push({
+          id: String(t.id), fy: m[1], quarter: 'Q' + m[2], period: m[1] + ' Q' + m[2],
+          date: ymd(t.date), details: String(t.details || ''), cheque: String(t.cheque || ''),
+          category: String(t.category || 'Uncategorised'),
+          deposit: dep, payment: pay, amount: dep > 0 ? dep : pay,
+          type: voided ? 'cancelled' : (dep > 0 ? 'income' : 'expense'),
+          voided: voided
+        });
+      });
+    });
+    return rows.sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+  }
+
+  /* Income / expenditure / balance over a set of cashbook rows. A cancelled
+     cheque contributes nothing — the same rule the cashbook's own calcTotals
+     applies — so the board's figure and the Centre's figure agree. */
+  function cmcCashSummary(rows) {
+    var income = 0, expense = 0, cancelled = 0;
+    (rows || []).forEach(function (r) {
+      if (!r) return;
+      if (r.voided || r.type === 'cancelled') { cancelled++; return; }
+      if (r.type === 'income') income += num(r.amount); else expense += num(r.amount);
+    });
+    return { count: (rows || []).length, income: income, expense: expense, balance: income - expense, cancelled: cancelled };
+  }
+
+  /* Payslip runs → one row per person per pay cycle. */
+  function cmcPayrollRows(raw) {
+    var blob = parseJson(raw, null), rows = [];
+    if (!blob || typeof blob !== 'object') return rows;
+    listOf(blob.payrollRuns, ['runs']).forEach(function (run) {
+      if (!run) return;
+      var date = ymd(run.date) || String(run.date || '');
+      listOf(run.results, ['entries', 'lines']).forEach(function (r) {
+        if (!r) return;
+        var gross = num(r.gross != null ? r.gross : r.grossPay);
+        var net = num(r.net != null ? r.net : (r.netPay != null ? r.netPay : r.takeHome));
+        rows.push({
+          date: date, period: date.slice(0, 7),
+          name: String(r.empName || r.name || r.employee || 'Unnamed'),
+          position: String(r.position || r.role || r.jobTitle || ''),
+          gross: gross, deductions: num(r.deductions != null ? r.deductions : (gross && net ? gross - net : 0)),
+          net: net || gross, amount: net || gross
+        });
+      });
+    });
+    return rows.sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  }
+
+  /* Clock-in sessions → one row per session, hours worked resolved. */
+  function cmcClockRows(recordsRaw, staffRaw) {
+    var records = listOf(parseJson(recordsRaw, []), ['records', 'timeRecords', 'entries']);
+    var staff = listOf(parseJson(staffRaw, []), ['staff', 'staffMembers', 'members']);
+    var nameById = {};
+    staff.forEach(function (s) {
+      if (!s) return;
+      var id = s.id != null ? String(s.id) : (s.staffId != null ? String(s.staffId) : '');
+      if (id) nameById[id] = String(s.fullName || s.name || s.username || '');
+    });
+    return records.map(function (r) {
+      if (!r) return null;
+      var sid = r.staffId != null ? String(r.staffId) : '';
+      var inAt = r.clockIn || r.in || null, outAt = r.clockOut || r.out || null;
+      var hours = num(r.hours != null ? r.hours : r.totalHours);
+      if (!hours && inAt && outAt) {
+        var ms = Date.parse(outAt) - Date.parse(inAt);
+        if (isFinite(ms) && ms > 0) hours = Math.round(ms / 36000) / 100;
+      }
+      return {
+        id: String(r.id == null ? '' : r.id), staffId: sid,
+        name: String(r.staffName || nameById[sid] || r.name || 'Unnamed'),
+        workType: String(r.workType || r.type || ''),
+        date: ymd(r.date) || ymd(inAt), period: (ymd(r.date) || ymd(inAt)).slice(0, 7),
+        clockIn: inAt || '', clockOut: outAt || '',
+        status: String(r.status || (outAt ? 'completed' : 'working')),
+        hours: hours, amount: hours
+      };
+    }).filter(Boolean).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  }
+
+  /* Virement requests → one row each, with the budget lines counted. */
+  function cmcVirementRows(raw) {
+    var list = listOf(parseJson(raw, []), ['requests', 'virements', 'entries']);
+    return list.map(function (v) {
+      if (!v) return null;
+      var lines = listOf(v.lines, ['items']);
+      return {
+        id: String(v.id == null ? '' : v.id), date: ymd(v.date),
+        period: (v.fy ? String(v.fy) : '') + (v.quarter ? ' Q' + String(v.quarter).replace(/^Q/i, '') : ''),
+        project: String(v.project || v.projectName || ''),
+        requestedBy: String(v.requestedBy || v.requester || ''),
+        status: String(v.status || 'Pending'),
+        lines: lines.length,
+        from: lines.map(function (l) { return (l && l.fromName) || ''; }).filter(Boolean).join(', '),
+        to: lines.map(function (l) { return (l && l.toName) || ''; }).filter(Boolean).join(', '),
+        amount: num(v.total != null ? v.total : v.amount)
+      };
+    }).filter(Boolean).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  }
+
+  /* --- Filtering: the board decides what it wants to look at ---------------
+     One filter shape for every table so a board member learns it once:
+       { search, from, to, <field>: value }
+     'all' and blank mean "no restriction". Dates are compared as YYYY-MM-DD
+     strings, which sort correctly and need no timezone to be right. */
+  function cmcFilterRows(rows, filter) {
+    var f = filter || {};
+    var q = String(f.search == null ? '' : f.search).trim().toLowerCase();
+    var from = ymd(f.from), to = ymd(f.to);
+    var fields = Object.keys(f).filter(function (k) {
+      return k !== 'search' && k !== 'from' && k !== 'to' &&
+        f[k] != null && f[k] !== '' && String(f[k]).toLowerCase() !== 'all';
+    });
+    return (rows || []).filter(function (r) {
+      if (!r) return false;
+      if (from && (!r.date || String(r.date) < from)) return false;
+      if (to && (!r.date || String(r.date) > to)) return false;
+      for (var i = 0; i < fields.length; i++) {
+        if (String(r[fields[i]] == null ? '' : r[fields[i]]).toLowerCase() !== String(f[fields[i]]).toLowerCase()) return false;
+      }
+      if (!q) return true;
+      var hay = '';
+      for (var k in r) {
+        if (!Object.prototype.hasOwnProperty.call(r, k)) continue;
+        if (r[k] != null && typeof r[k] !== 'object') hay += String(r[k]).toLowerCase() + ' ';
+      }
+      return hay.indexOf(q) !== -1;
+    });
+  }
+
+  /* The distinct values of a field, for a filter dropdown — sorted, blanks
+     dropped, so the board only ever sees choices that select something. */
+  function cmcFilterOptions(rows, field) {
+    var seen = {}, out = [];
+    (rows || []).forEach(function (r) {
+      var v = r && r[field];
+      if (v == null || v === '') return;
+      var s = String(v);
+      if (seen[s]) return;
+      seen[s] = 1; out.push(s);
+    });
+    return out.sort(function (a, b) { return a.localeCompare(b); });
+  }
+
   var api = {
     CMC_ALLOWED_PANELS: CMC_ALLOWED_PANELS,
     CMC_ALLOWED_CASHBOOK_PAGES: CMC_ALLOWED_CASHBOOK_PAGES,
+    CMC_SHARED_FILES: CMC_SHARED_FILES,
     cmcPanelAllowed: cmcPanelAllowed,
     cmcCashbookPageAllowed: cmcCashbookPageAllowed,
     cmcStudentSummary: cmcStudentSummary,
-    cmcAverages: cmcAverages
+    cmcAverages: cmcAverages,
+    cmcCashbookRows: cmcCashbookRows,
+    cmcCashSummary: cmcCashSummary,
+    cmcPayrollRows: cmcPayrollRows,
+    cmcClockRows: cmcClockRows,
+    cmcVirementRows: cmcVirementRows,
+    cmcFilterRows: cmcFilterRows,
+    cmcFilterOptions: cmcFilterOptions
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (root) root.CESTISCmc = api;          // the dashboards in index.html read through this
   if (!root || typeof document === 'undefined') return; // Node: pure exports only.
 
   /* ==========================================================================

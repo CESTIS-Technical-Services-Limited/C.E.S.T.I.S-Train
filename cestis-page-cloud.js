@@ -136,10 +136,10 @@
             // the owning page's business.
             var cloud = C.pickShared(payload.data, src.keys);
             var cloudStamps = C.pickShared(payload.stamps || {}, src.keys);
-            var localMap = storeMap(), local = {};
-            src.keys.forEach(function (k) {
-              if (Object.prototype.hasOwnProperty.call(localMap, k)) local[k] = localMap[k];
-            });
+            // Picked the same way as the cloud side, so a generated-name
+            // collection ('cestis_quarter_*') compares like for like instead of
+            // looking absent locally and being adopted wholesale every pull.
+            var local = C.pickShared(storeMap(), src.keys);
             var known = self.stamps();
             var first = Object.keys(known).length === 0;
             var res = C.mergeKeys(local, known, cloud, cloudStamps, { firstSync: first });
@@ -219,6 +219,9 @@
      the keys that changed locally. */
   Page.prototype.pull = function () {
     var self = this, tok = token();
+    // A READER owns no keys and publishes no file of its own — there is nothing
+    // to pull or create here; pullShared() is its whole job.
+    if (self.spec.readOnly) { self.state.connected = !!tok; return Promise.resolve([]); }
     if (!tok) { self.state.connected = false; return Promise.resolve([]); }
     self.state.connected = true;
     return self.find(tok).then(function (id) {
@@ -256,6 +259,7 @@
      second device's work is never dropped. */
   Page.prototype.push = function () {
     var self = this, tok = token();
+    if (self.spec.readOnly) return Promise.resolve(false);   // a reader never writes
     if (!tok) { self.state.connected = false; return Promise.resolve(false); }
     self.state.connected = true;
     var C = core();
@@ -353,7 +357,7 @@
       if (existing) return existing;
       var pg = new Page(spec);
       API._pages.push(pg);
-      pg.watch();
+      if (!spec.readOnly) pg.watch();     // a reader has no keys of its own to watch
       // Own file first, then the cross-page collections this page reads. Both
       // sets of changes are reported to onRestore together, so a page re-renders
       // once with everything the Centre's Drive folder currently holds.
@@ -392,14 +396,21 @@
             var tok = token();
             if (!tok) return;
             API._pages.forEach(function (p) {
+              var report = function (keys) {
+                if (keys.length && typeof p.spec.onRestore === 'function') {
+                  try { p.spec.onRestore(keys); } catch (e) {}
+                }
+              };
+              // A reader has no file of its own, so remoteChanged() would say
+              // "nothing new" forever and its shared collections would never
+              // refresh. It goes straight to the collections it reads.
+              if (p.spec.readOnly) { p.pullShared().then(report); return; }
               p.remoteChanged(tok).then(function (changed) {
                 if (!changed) return;
                 p.pull().then(function (keys) {
                   return p.pullShared().then(function (sk) {
                     sk.forEach(function (k) { if (keys.indexOf(k) === -1) keys.push(k); });
-                    if (keys.length && typeof p.spec.onRestore === 'function') {
-                      try { p.spec.onRestore(keys); } catch (e) {}
-                    }
+                    report(keys);
                   });
                 });
               });

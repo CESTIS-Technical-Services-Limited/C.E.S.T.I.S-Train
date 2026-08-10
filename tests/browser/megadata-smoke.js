@@ -219,6 +219,88 @@ function serve() {
     await page.close();
   }
 
+  section('CMC Board dashboards fill themselves from the operating books — no button, no Drive');
+  {
+    const { page, pageErrors } = await openPage('index.html');
+    await page.waitForTimeout(2000);
+    const cmc = await page.evaluate(async () => {
+      // The operating pages' own collections, same-origin, exactly as they write them.
+      CESTISStore.setItem('cestis_quarter_2025/2026_Q1', JSON.stringify({
+        openingBalance: 433419.51,
+        transactions: [
+          { id: 1, date: '2025-07-07', cheque: '', details: 'Cheque from C. Palmer', deposit: 88800, payment: 0, category: 'Training Material' },
+          { id: 2, date: '2025-07-23', cheque: '', details: 'Crystal-Lee Gordon', deposit: 0, payment: 83535.75, category: 'Administrative Assistant' },
+          { id: 3, date: '2025-07-24', cheque: '9001', details: 'Cancelled Cheque', deposit: 0, payment: 0, category: 'Cancelled' }
+        ], deletedTxnIds: []
+      }));
+      CESTISStore.setItem('cestisPayroll', JSON.stringify({
+        employees: [{ name: 'Crystal-Lee Gordon' }],
+        payrollRuns: [{ date: '2025-07-25', results: [{ empName: 'Crystal-Lee Gordon', gross: 90000, net: 83535.75 }] }]
+      }));
+      CESTISStore.setItem('cestisStaffMembers', JSON.stringify([{ id: '7', fullName: 'Jodene Williams-Barrett' }]));
+      CESTISStore.setItem('cestisTimeRecords', JSON.stringify([
+        { id: 'S1', staffId: '7', date: '2025-07-23', clockIn: '2025-07-23T08:00:00Z', clockOut: '2025-07-23T16:30:00Z', status: 'completed' }
+      ]));
+      CESTISStore.setItem('cesti_virements', JSON.stringify([
+        { id: 11, date: '2025-07-15', project: 'Lunch top-up', requestedBy: 'S. Barrett', total: 100000, status: 'Pending', lines: [{ fromName: 'Remedial English', toName: 'Lunch', amount: 100000 }] }
+      ]));
+      currentRole = 'cmc';
+      currentLoggedInUser = { name: 'Board Member', username: 'cmc1', email: 'b@cestis.test', status: 'active' };
+      buildCmcSidebar();
+      buildCmcPages();
+      cmcLoadOversightData();
+      cmcRefreshAllSections();
+      const text = function (id) { var e = document.getElementById(id); return e ? e.textContent : ''; };
+      const before = document.getElementById('cmcFinancialBody').textContent;
+      // The board narrows to expenditure only — nothing is fetched, it just filters.
+      cmcSetFilter('financial', 'type', 'expense');
+      const filtered = document.getElementById('cmcFinancialBody').textContent;
+      cmcSetFilter('financial', 'type', 'all');
+      cmcSetStaffView('clockin');
+      const clockText = document.getElementById('cmcStaffBody').textContent;
+      cmcSetStaffView('payslip');
+      const payText = document.getElementById('cmcStaffBody').textContent;
+      return {
+        sidebar: document.getElementById('sidebarNav').innerHTML,
+        sourcesPage: !!document.getElementById('page-cmc-sources'),
+        syncButtons: (document.getElementById('mainContent').innerHTML.match(/Sync Drive Data|Sync All Sources|Refresh from Drive|Fetch HTML/g) || []).length,
+        cashKpi: text('cmcFinCashbook'),
+        cashSub: text('cmcFinCashbookSub'),
+        virKpi: text('cmcFinVirement'),
+        payKpi: text('cmcHrPayroll'),
+        clockKpi: text('cmcHrClockin'),
+        financialHasPayee: before.indexOf('Crystal-Lee Gordon') !== -1,
+        financialHasVirement: before.indexOf('Lunch top-up') !== -1,
+        filteredDropsIncome: filtered.indexOf('C. Palmer') === -1 && filtered.indexOf('Crystal-Lee Gordon') !== -1,
+        filteredSaysSoMuch: /Showing \d+ of \d+/.test(filtered),
+        clockShowsStaff: clockText.indexOf('Jodene Williams-Barrett') !== -1,
+        payShowsStaff: payText.indexOf('Crystal-Lee Gordon') !== -1,
+        academic: !!document.getElementById('cmcAcademicBody'),
+        reader: (window.CESTISPageCloud ? window.CESTISPageCloud.status() : []).filter(function (p) { return p.page === 'CMC Oversight'; })[0] || null,
+        readerPushed: await (window.CESTISPageCloud
+          ? window.CESTISPageCloud.saveNow().then(function (r) { return r.some(Boolean); })
+          : Promise.resolve(false))
+      };
+    });
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
+    ok(cmc.sidebar.indexOf('Source Viewer') === -1 && !cmc.sourcesPage, 'the Source Viewer is gone — nav entry and page both');
+    ok(cmc.syncButtons === 0, 'no sync button anywhere in the CMC pages — got ' + cmc.syncButtons);
+    ok(/5,264\.25|5264\.25/.test(cmc.cashKpi), 'Financial Overview shows the cashbook balance unprompted — got "' + cmc.cashKpi + '"');
+    ok(/88,800/.test(cmc.cashSub) && /83,535\.75/.test(cmc.cashSub), 'with income and expenditure, the cancelled cheque counting zero — got "' + cmc.cashSub + '"');
+    ok(cmc.virKpi === '1 Requests', 'the virement register loads too — got "' + cmc.virKpi + '"');
+    ok(/83,535\.75/.test(cmc.payKpi), 'Staff & HR shows payroll — got "' + cmc.payKpi + '"');
+    ok(cmc.clockKpi === '1 Sessions', 'and clock-in sessions — got "' + cmc.clockKpi + '"');
+    ok(cmc.financialHasPayee && cmc.financialHasVirement, 'the cashbook and virement tables carry real rows, not a prompt to sync');
+    ok(cmc.filteredDropsIncome, 'the board can filter to expenditure and the income row goes');
+    ok(cmc.filteredSaysSoMuch, 'and a filtered table says how much of the whole it is showing');
+    ok(cmc.clockShowsStaff, 'the Staff & HR clock-in view names the staff member');
+    ok(cmc.payShowsStaff, 'and the payslip view names who was paid');
+    ok(cmc.academic, 'Academic renders its own filterable table');
+    ok(cmc.reader && cmc.reader.reads >= 5, 'the board registered as a page-cloud reader of the operating books');
+    ok(cmc.readerPushed === false, 'and it pushes NOTHING — oversight can never write over the pages it oversees');
+    await page.close();
+  }
+
   section('MegaData-Adjudication: the queue page loads clean and explains itself');
   {
     const { page, pageErrors } = await openPage('MegaData-Adjudication.html');
