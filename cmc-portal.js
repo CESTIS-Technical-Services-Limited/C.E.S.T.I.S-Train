@@ -5,6 +5,13 @@
    STRICTLY READ-ONLY: the portal renders from the shared data core and exposes
    no control that creates, edits or deletes anything.
 
+   ONE deliberate exception, and it is not in these panels: a virement moves
+   money between budget lines and the board is the body entitled to settle it,
+   so the board's dashboards carry an approve/reject decision (see
+   cmcVirementDecision below). It writes the four approval fields the Virement
+   Requests page already writes, on a request that is still Pending, and
+   nothing else — see the notes there for why re-deciding is refused.
+
    Panels (mounted from Pages/CMC-Portal.html):
      Dashboard        — total students on the platform + headline counts
      Student Progress — enrolment/progress roster, read-only
@@ -236,6 +243,11 @@
         project: String(v.project || v.projectName || ''),
         requestedBy: String(v.requestedBy || v.requester || ''),
         status: String(v.status || 'Pending'),
+        // Who ruled and why: without these the board sees a status with nobody
+        // behind it, and its own rulings read as though they came from nowhere.
+        approvedBy: String(v.approvedBy || ''),
+        approvalDate: String(v.approvalDate || ''),
+        approvalComment: String(v.approvalComment || ''),
         lines: lines.length,
         from: lines.map(function (l) { return (l && l.fromName) || ''; }).filter(Boolean).join(', '),
         to: lines.map(function (l) { return (l && l.toName) || ''; }).filter(Boolean).join(', '),
@@ -274,6 +286,68 @@
     });
   }
 
+  /* --- Virement approval: the one thing the board DECIDES ------------------
+
+     Everything else here is oversight — the board reads books it does not
+     operate. A virement moves money between budget lines, and the board is the
+     body entitled to settle it, so this is a deliberate, audited exception to
+     the read-only rule and the only write the board can make.
+
+     Recorded in exactly the fields the Virement Requests page already writes
+     (status / approvedBy / approvalDate / approvalComment), because every merge
+     in that page resolves a Pending record against a decided one by taking the
+     DECISION. Writing anything else here would leave the board's ruling
+     invisible to the page that has to act on it. */
+  var CMC_DECISIONS = ['Approved', 'Rejected'];
+
+  function cmcVirementDecision(row, decision, actor, todayISO, comment) {
+    var text = String(comment == null ? '' : comment).trim();
+    if (!row) return { ok: false, reason: 'That request could not be found.' };
+    if (CMC_DECISIONS.indexOf(decision) === -1) return { ok: false, reason: 'A virement is either Approved or Rejected.' };
+    // A decided request is history. Re-deciding it would silently overwrite
+    // whoever ruled first — if the board changes its mind that is a new
+    // request, raised and minuted like any other.
+    if (String(row.status || 'Pending') !== 'Pending') {
+      return { ok: false, reason: 'This request was already ' + String(row.status).toLowerCase() + ' by ' + (row.approvedBy || 'someone') + '. It cannot be decided twice.' };
+    }
+    // A refusal without a reason tells the Centre nothing about what to fix.
+    if (decision === 'Rejected' && !text) return { ok: false, reason: 'Say why the request is being rejected.' };
+    var who = String(actor == null ? '' : actor).trim();
+    return {
+      ok: true,
+      patch: {
+        status: decision,
+        approvedBy: (who || 'CMC Board') + ' (CMC Board)',
+        approvalDate: String(todayISO || '').slice(0, 10),
+        approvalComment: text
+      }
+    };
+  }
+
+  /* Apply a decision to the stored register, touching ONLY that request and
+     leaving every other record byte-identical — the board is settling one
+     virement, not rewriting the Centre's register. Returns the new JSON string,
+     or null when the id is not there (so a caller never writes back a register
+     it failed to change). */
+  function cmcApplyVirementDecision(raw, id, patch) {
+    var list = parseJson(raw, null);
+    if (!Array.isArray(list)) return null;
+    var found = false;
+    var out = list.map(function (v) {
+      if (!v || String(v.id) !== String(id) || found) return v;
+      found = true;
+      var copy = {};
+      Object.keys(v).forEach(function (k) { copy[k] = v[k]; });
+      Object.keys(patch || {}).forEach(function (k) { copy[k] = patch[k]; });
+      return copy;
+    });
+    return found ? JSON.stringify(out) : null;
+  }
+
+  function cmcPendingVirements(rows) {
+    return (rows || []).filter(function (r) { return String((r && r.status) || 'Pending') === 'Pending'; });
+  }
+
   /* The distinct values of a field, for a filter dropdown — sorted, blanks
      dropped, so the board only ever sees choices that select something. */
   function cmcFilterOptions(rows, field) {
@@ -301,6 +375,9 @@
     cmcPayrollRows: cmcPayrollRows,
     cmcClockRows: cmcClockRows,
     cmcVirementRows: cmcVirementRows,
+    cmcVirementDecision: cmcVirementDecision,
+    cmcApplyVirementDecision: cmcApplyVirementDecision,
+    cmcPendingVirements: cmcPendingVirements,
     cmcFilterRows: cmcFilterRows,
     cmcFilterOptions: cmcFilterOptions
   };

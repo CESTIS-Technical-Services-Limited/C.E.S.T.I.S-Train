@@ -9231,8 +9231,11 @@ function enterApp(role) {
       showPage('as-dashboard');
       adrInit();
     } else if(role === 'cmc') {
-      buildCmcSidebar();
+      // Pages first: they load the books, and the sidebar's pending-approvals
+      // badge is counted from them — built the other way round it always read
+      // zero, however many virements were waiting.
       buildCmcPages();
+      buildCmcSidebar();
       var cmcInitials = currentLoggedInUser.name.split(' ').map(function(n){return n[0];}).join('').substring(0,2);
       document.getElementById('sidebarRoleLabel').textContent = 'CMC Dashboard';
       document.getElementById('sidebarAvatar').textContent = cmcInitials;
@@ -10538,7 +10541,7 @@ function showPage(pageId) {
     'qual-plan':'Qual Plan / Curriculum','s-qual-plan':'Qual Plan / Curriculum','i-qual-plan':'Qual Plan / Curriculum','as-qual-plan':'Qual Plan / Curriculum',
     'transcript-grades':'Transcript / Grades','s-transcript-grades':'Transcript / Grades','as-transcript-grades':'Transcript / Grades','i-trainee-grades':'Trainee Grades',
     'cert-transcript-requests':'Certificate / Transcript Requests','as-cert-transcript-requests':'Certificate / Transcript Requests',
-    'cmc-dashboard':'CMC Analytics Dashboard','cmc-financial':'Financial Overview','cmc-staff':'Staff & HR','cmc-academic':'Academic Performance','cmc-profile':'My Profile',
+    'cmc-dashboard':'CMC Analytics Dashboard','cmc-financial':'Financial Overview','cmc-virements':'Virement Approvals','cmc-staff':'Staff & HR','cmc-academic':'Academic Performance','cmc-profile':'My Profile',
     'tms-system':'TMS System','as-tms-system':'TMS System','nqs-system':'NQS System','as-nqs-system':'NQS System'
   };
   document.getElementById('topbarTitle').textContent = titles[pageId]||pageId;
@@ -25654,7 +25657,7 @@ async function syncFromCloud() {
       else if (currentRole === 'instructor') { buildInstructorPages(); showPage(_ap || 'i-dashboard'); }
       else if (currentRole === 'student') { buildStudentPages(); showPage(_ap || 's-dashboard'); }
       else if (currentRole === 'adminstaff') { buildAdminStaffPages(); showPage(_ap || 'as-dashboard'); }
-      else if (currentRole === 'cmc') { buildCmcPages(); showPage(_ap || 'cmc-dashboard'); setTimeout(cmcLoadAllData, 300); }
+      else if (currentRole === 'cmc') { buildCmcPages(); buildCmcSidebar(); showPage(_ap || 'cmc-dashboard'); setTimeout(cmcLoadAllData, 300); }
     } catch(e) { console.warn('[SyncFromCloud] Dashboard refresh error:', e); }
 
   } catch (error) {
@@ -26270,7 +26273,7 @@ async function mergeFromCloud() {
         else if (currentRole === 'instructor') { buildInstructorPages(); showPage(_ap || 'i-dashboard'); }
         else if (currentRole === 'student') { buildStudentPages(); showPage(_ap || 's-dashboard'); }
         else if (currentRole === 'adminstaff') { buildAdminStaffPages(); showPage(_ap || 'as-dashboard'); }
-        else if (currentRole === 'cmc') { buildCmcPages(); showPage(_ap || 'cmc-dashboard'); setTimeout(cmcLoadAllData, 300); }
+        else if (currentRole === 'cmc') { buildCmcPages(); buildCmcSidebar(); showPage(_ap || 'cmc-dashboard'); setTimeout(cmcLoadAllData, 300); }
       } catch(e) { console.warn('[MergeFromCloud] Dashboard refresh error:', e); }
     }
 
@@ -33899,6 +33902,7 @@ var cmcStaffView = 'payslip';    // which staff book is on screen — a view, no
    moving between pages does not lose them. */
 var cmcFilters = {
   financial: { search: '', period: 'all', category: 'all', type: 'all', from: '', to: '' },
+  virements: { search: '', status: 'all', from: '', to: '' },
   staff: { search: '', period: 'all', from: '', to: '' },
   academic: { search: '', course: 'all', stage: 'all' }
 };
@@ -33945,6 +33949,9 @@ function cmcStartOversightReader() {
       readOnly: true,
       keys: [],
       reads: reads,
+      // The single collection the board may settle something in. Everything
+      // else it can only read — see cmc-portal.js for why this one is different.
+      writes: ['cesti_virements'],
       onRestore: function() {
         // Another device's book arrived: reload and repaint in place.
         cmcLoadOversightData();
@@ -34128,13 +34135,19 @@ function cmcRenderSection(section) {
   if(section === 'financial') cmcRenderFinancial();
   else if(section === 'staff') cmcRenderStaff();
   else if(section === 'academic') cmcRenderAcademic();
+  else if(section === 'virements') cmcRenderVirements();
 }
 
 function cmcRefreshAllSections() {
-  ['financial', 'staff', 'academic'].forEach(cmcRenderSection);
+  ['financial', 'virements', 'staff', 'academic'].forEach(cmcRenderSection);
   cmcRefreshDataPanels();
   cmcUpdateLocalKpis();
   cmcUpdateDriveCharts();
+}
+
+function cmcPendingCount() {
+  var C = window.CESTISCmc;
+  return C ? C.cmcPendingVirements(cmcData.virement || []).length : 0;
 }
 
 function buildCmcSidebar() {
@@ -34146,6 +34159,9 @@ function buildCmcSidebar() {
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Oversight Portal<span class="nav-badge" style="background:var(--teal);">VIEW</span></div>' +
     '<div class="nav-item" data-page="cmc-financial" onclick="showPage(\'cmc-financial\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Financial Overview</div>' +
+    '<div class="nav-item" data-page="cmc-virements" onclick="showPage(\'cmc-virements\')">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Virement Approvals' +
+      (cmcPendingCount() ? '<span class="nav-badge" style="background:var(--orange);">' + cmcPendingCount() + '</span>' : '') + '</div>' +
     '<div class="nav-item" data-page="cmc-staff" onclick="showPage(\'cmc-staff\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Staff & HR</div>' +
     '<div class="nav-item" data-page="cmc-my-appraisal" onclick="showPage(\'cmc-my-appraisal\')">' +
@@ -34405,6 +34421,32 @@ function buildCmcPages() {
   html += '<div id="cmcFinancialBody"></div>';
   html += '</div>';
 
+  html += '</section>';
+
+  // ---- Virement Approvals — the one page where the board DECIDES ----
+  html += '<section class="page" id="page-cmc-virements">';
+  html += '<div class="cmc-refresh-bar"><h3 class="cmc-section-title">Virement Approvals</h3></div>';
+  html += '<p style="font-size:13px;color:var(--text-secondary);max-width:760px;line-height:1.6;margin-bottom:16px;">' +
+    'A virement moves money between budget lines. The Board rules on each request; a request that has been ruled on ' +
+    'is history and cannot be decided twice. Your name and the date are recorded against the decision.</p>';
+  html += '<div class="cmc-kpi-grid" style="grid-template-columns:repeat(3,1fr);">';
+  html += '<div class="cmc-kpi-card kpi-virement"><div class="cmc-kpi-icon">⏳</div>';
+  html += '<div class="cmc-kpi-label">Awaiting Your Decision</div>';
+  html += '<div class="cmc-kpi-value" id="cmcVirPending">--</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcVirPendingSub">--</div></div>';
+  html += '<div class="cmc-kpi-card kpi-payroll"><div class="cmc-kpi-icon">✓</div>';
+  html += '<div class="cmc-kpi-label">Approved</div>';
+  html += '<div class="cmc-kpi-value" id="cmcVirApproved">--</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcVirApprovedSub">--</div></div>';
+  html += '<div class="cmc-kpi-card kpi-clockin"><div class="cmc-kpi-icon">✗</div>';
+  html += '<div class="cmc-kpi-label">Rejected</div>';
+  html += '<div class="cmc-kpi-value" id="cmcVirRejected">--</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcVirRejectedSub">--</div></div>';
+  html += '</div>';
+  html += '<div class="cmc-table-card"><h4>Requests</h4>';
+  html += '<div id="cmcVirementFilters"></div>';
+  html += '<div id="cmcVirementBody"></div>';
+  html += '</div>';
   html += '</section>';
 
   // ---- Staff & HR Page ----
@@ -35076,6 +35118,102 @@ function cmcRenderStaff() {
       return '<tr><td>' + (i + 1) + '</td><td><strong>' + cmcEsc(ins.name) + '</strong></td><td>' + cmcEsc(ins.course || '--') + '</td>' +
         '<td>' + insStudents.length + '</td><td><span class="cmc-status ' + cls + '">' + insAtt + '%</span></td></tr>';
     }, 'No instructors on record.');
+}
+
+/* The board's one decision surface. Pending requests carry the ruling
+   controls; a request already ruled on shows who ruled and when, and carries
+   no controls at all — the refusal to re-decide is enforced in
+   cmcVirementDecision, but it should not even be offered. */
+function cmcRenderVirements() {
+  var C = window.CESTISCmc;
+  var all = cmcData.virement || [];
+  var pending = 0, approved = 0, rejected = 0, pendingValue = 0, approvedValue = 0;
+  all.forEach(function(r) {
+    var st = String(r.status || 'Pending').toLowerCase();
+    if(st === 'approved') { approved++; approvedValue += (Number(r.amount) || 0); }
+    else if(st === 'rejected') rejected++;
+    else { pending++; pendingValue += (Number(r.amount) || 0); }
+  });
+  cmcSetText('cmcVirPending', String(pending));
+  cmcSetText('cmcVirPendingSub', pending ? cmcMoney(pendingValue) + ' awaiting a ruling' : 'Nothing awaiting the Board');
+  cmcSetText('cmcVirApproved', String(approved));
+  cmcSetText('cmcVirApprovedSub', approved ? cmcMoney(approvedValue) + ' approved' : 'None yet');
+  cmcSetText('cmcVirRejected', String(rejected));
+  cmcSetText('cmcVirRejectedSub', rejected ? rejected + ' turned down' : 'None yet');
+
+  var fEl = document.getElementById('cmcVirementFilters');
+  if(fEl) {
+    fEl.innerHTML = cmcFilterBar('virements', [
+      { field: 'status', label: 'Status', options: cmcOptions('virement', 'status') }
+    ]);
+  }
+  var body = document.getElementById('cmcVirementBody');
+  if(!body) return;
+
+  var rows = C ? C.cmcFilterRows(all, cmcFilters.virements) : all;
+  var canDecide = (currentRole === 'cmc');
+  body.innerHTML = cmcShowingNote(rows.length, all.length, 'virement requests') +
+    cmcTable(['Date', 'Project', 'Requested By', 'From', 'To', 'Amount', 'Status', 'Decision'], rows, function(r) {
+      var st = String(r.status || 'Pending');
+      var low = st.toLowerCase();
+      var cls = low === 'approved' ? 'good' : low === 'rejected' ? 'critical' : 'warning';
+      var decision;
+      if(low === 'pending') {
+        decision = canDecide
+          ? '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' +
+              '<input type="text" id="cmcVirNote_' + cmcEsc(r.id) + '" placeholder="Reason / minute" ' +
+                'style="min-width:150px;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:12px;">' +
+              '<button class="cmc-refresh-btn" style="padding:6px 12px;font-size:11px;" onclick="cmcDecideVirement(\'' + cmcEsc(r.id) + '\',\'Approved\')">✓ Approve</button>' +
+              '<button class="cmc-refresh-btn" style="padding:6px 12px;font-size:11px;background:linear-gradient(135deg,var(--red),#c0392b);" onclick="cmcDecideVirement(\'' + cmcEsc(r.id) + '\',\'Rejected\')">✗ Reject</button>' +
+            '</div>'
+          : '<span style="color:var(--text-muted);font-size:12px;">Board members only</span>';
+      } else {
+        decision = '<span style="font-size:12px;color:var(--text-secondary);">' + cmcEsc(r.approvedBy || 'Admin') +
+          (r.approvalDate ? ' · ' + cmcEsc(r.approvalDate) : '') +
+          (r.approvalComment ? '<br><em>“' + cmcEsc(r.approvalComment) + '”</em>' : '') + '</span>';
+      }
+      return '<tr><td>' + cmcEsc(r.date) + '</td><td>' + cmcEsc(r.project || '--') + '</td><td>' + cmcEsc(r.requestedBy || '--') + '</td>' +
+        '<td>' + cmcEsc(r.from || '--') + '</td><td>' + cmcEsc(r.to || '--') + '</td>' +
+        '<td style="text-align:right;">' + cmcMoney(r.amount) + '</td>' +
+        '<td><span class="cmc-status ' + cls + '">' + cmcEsc(st) + '</span></td>' +
+        '<td>' + decision + '</td></tr>';
+    }, 'No virement requests match this filter.');
+}
+
+/* Rule on one request. The decision is written into the register the Virement
+   Requests page owns and sent to that page's backup — a ruling that lived only
+   on the board member's own laptop would never reach the people who have to
+   act on it. */
+function cmcDecideVirement(id, decision) {
+    var C = window.CESTISCmc;
+    if(!C) return;
+    if(currentRole !== 'cmc') { showToast('Only the CMC Board rules on virements.', 'warning'); return; }
+    var row = (cmcData.virement || []).filter(function(r) { return String(r.id) === String(id); })[0];
+    var noteEl = document.getElementById('cmcVirNote_' + id);
+    var note = noteEl ? noteEl.value : '';
+    var who = (currentLoggedInUser && currentLoggedInUser.name) || 'CMC Board';
+    var verdict = C.cmcVirementDecision(row, decision, who, new Date().toISOString(), note);
+    if(!verdict.ok) { showToast(verdict.reason, 'warning'); return; }
+    if(!confirm(decision + ' the virement of ' + cmcMoney(row.amount) + (row.project ? ' for "' + row.project + '"' : '') +
+      '?\n\nThis is recorded against your name and cannot be undone.')) return;
+
+    var raw = null;
+    try { raw = CESTISStore.getItem('cesti_virements'); } catch(e) {}
+    var next = C.cmcApplyVirementDecision(raw, id, verdict.patch);
+    if(!next) { showToast('That request is no longer in the register — it may have been withdrawn.', 'warning'); return; }
+    try { CESTISStore.setItem('cesti_virements', next); } catch(e) { showToast('Could not save the decision: ' + e.message, 'warning'); return; }
+
+    cmcLoadOversightData();
+    cmcRefreshAllSections();
+    buildCmcSidebar();                       // the pending badge moves with it
+    showToast('Virement ' + decision.toLowerCase() + '.', decision === 'Approved' ? 'success' : 'warning');
+
+    // Send it to the owning page's backup so the Centre sees the ruling.
+    if(window.CESTISPageCloud && typeof window.CESTISPageCloud.saveShared === 'function') {
+      window.CESTISPageCloud.saveShared(['cesti_virements']).then(function(wrote) {
+        if(!wrote.length) console.info('[CMC] decision saved locally; it will travel when the Virement page next syncs');
+      }).catch(function(e) { console.warn('[CMC] decision not sent up: ' + e.message); });
+    }
 }
 
 function cmcRenderAcademic() {

@@ -246,8 +246,8 @@ function serve() {
       ]));
       currentRole = 'cmc';
       currentLoggedInUser = { name: 'Board Member', username: 'cmc1', email: 'b@cestis.test', status: 'active' };
-      buildCmcSidebar();
       buildCmcPages();
+      buildCmcSidebar();
       cmcLoadOversightData();
       cmcRefreshAllSections();
       const text = function (id) { var e = document.getElementById(id); return e ? e.textContent : ''; };
@@ -276,6 +276,7 @@ function serve() {
         clockShowsStaff: clockText.indexOf('Jodene Williams-Barrett') !== -1,
         payShowsStaff: payText.indexOf('Crystal-Lee Gordon') !== -1,
         academic: !!document.getElementById('cmcAcademicBody'),
+        navBadge: /Virement Approvals<span class="nav-badge"[^>]*>1</.test(document.getElementById('sidebarNav').innerHTML),
         reader: (window.CESTISPageCloud ? window.CESTISPageCloud.status() : []).filter(function (p) { return p.page === 'CMC Oversight'; })[0] || null,
         readerPushed: await (window.CESTISPageCloud
           ? window.CESTISPageCloud.saveNow().then(function (r) { return r.some(Boolean); })
@@ -296,8 +297,46 @@ function serve() {
     ok(cmc.clockShowsStaff, 'the Staff & HR clock-in view names the staff member');
     ok(cmc.payShowsStaff, 'and the payslip view names who was paid');
     ok(cmc.academic, 'Academic renders its own filterable table');
+    ok(cmc.navBadge, 'the sidebar tells the board a virement is waiting on it');
     ok(cmc.reader && cmc.reader.reads >= 5, 'the board registered as a page-cloud reader of the operating books');
     ok(cmc.readerPushed === false, 'and it pushes NOTHING — oversight can never write over the pages it oversees');
+
+    // The one decision the board makes, driven through the real page.
+    const vir = await page.evaluate(() => {
+      showPage('cmc-virements');
+      const body = () => document.getElementById('cmcVirementBody').textContent;
+      const before = body();
+      const originalConfirm = window.confirm, originalToast = window.showToast;
+      const toasts = [];
+      window.confirm = () => true;
+      window.showToast = (m) => toasts.push(String(m));
+      document.getElementById('cmcVirNote_11').value = 'Agreed at the July meeting';
+      cmcDecideVirement('11', 'Approved');
+      const afterApprove = body();
+      cmcDecideVirement('11', 'Rejected');            // already ruled on
+      const stored = JSON.parse(CESTISStore.getItem('cesti_virements'));
+      window.confirm = originalConfirm; window.showToast = originalToast;
+      return {
+        beforeHadButton: before.indexOf('Approve') !== -1,
+        nowApproved: afterApprove.indexOf('Approved') !== -1,
+        attributed: afterApprove.indexOf('Board Member (CMC Board)') !== -1,
+        minuted: afterApprove.indexOf('Agreed at the July meeting') !== -1,
+        buttonGone: afterApprove.indexOf('✓ Approve') === -1,
+        storedStatus: stored[0].status,
+        storedBy: stored[0].approvedBy,
+        storedIntact: stored[0].total === 100000 && stored[0].project === 'Lunch top-up',
+        refusedSecond: toasts.some(t => /cannot be decided twice/.test(t)),
+        pendingKpi: document.getElementById('cmcVirPending').textContent
+      };
+    });
+    ok(vir.beforeHadButton, 'a pending virement offers the Board an Approve control');
+    ok(vir.nowApproved && vir.buttonGone, 'approving it settles the request and withdraws the controls');
+    ok(vir.attributed, 'the ruling is attributed to the board member who made it');
+    ok(vir.minuted, 'and carries the minute they typed');
+    ok(vir.storedStatus === 'Approved' && /CMC Board/.test(vir.storedBy), 'the register itself records the decision, in the fields the Virement page reads');
+    ok(vir.storedIntact, 'and the rest of the request is untouched');
+    ok(vir.refusedSecond, 'a second ruling on the same request is refused, not silently applied');
+    ok(vir.pendingKpi === '0', 'the awaiting-decision count follows the ruling');
     await page.close();
   }
 

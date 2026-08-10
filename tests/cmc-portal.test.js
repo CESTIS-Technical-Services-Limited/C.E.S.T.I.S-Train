@@ -7,6 +7,7 @@ const {
   CMC_ALLOWED_PANELS, CMC_ALLOWED_CASHBOOK_PAGES, CMC_SHARED_FILES,
   cmcPanelAllowed, cmcCashbookPageAllowed, cmcStudentSummary, cmcAverages,
   cmcCashbookRows, cmcCashSummary, cmcPayrollRows, cmcClockRows, cmcVirementRows,
+  cmcVirementDecision, cmcApplyVirementDecision, cmcPendingVirements,
   cmcFilterRows, cmcFilterOptions
 } = cmc;
 
@@ -176,6 +177,62 @@ assertEq(CMC_SHARED_FILES.length, 4, 'four operating books');
   .forEach(f => assert(CMC_SHARED_FILES.some(s => s.file === f), 'reads ' + f));
 assert(CMC_SHARED_FILES.find(s => s.key === 'cashbook').prefixes.indexOf('cestis_quarter_') !== -1,
   'the Cashbook is read by prefix — its quarter keys are generated names');
+
+
+/* ---------- 7. The one decision the Board makes ----------
+   Oversight is read-only everywhere except here: a virement moves money
+   between budget lines and the Board rules on it. The ruling has to land in
+   the fields the Virement Requests page already writes, because every merge in
+   that page resolves Pending against decided by taking the DECISION. */
+console.log('Virement decisions');
+const REGISTER = [
+  { id: 11, date: '2025-07-15', project: 'Lunch top-up', requestedBy: 'S. Barrett', total: 100000, status: 'Pending', lines: [{ fromName: 'Remedial English', toName: 'Lunch', amount: 100000 }] },
+  { id: 12, date: '2025-06-02', project: 'Electrical', requestedBy: 'S. Barrett', total: 79996.27, status: 'Approved', approvedBy: 'Admin', approvalDate: '2025-06-03', approvalComment: 'agreed', lines: [] }
+];
+const vrows = cmcVirementRows(JSON.stringify(REGISTER));
+const pendingRow = vrows.find(r => r.status === 'Pending');
+const decidedRow = vrows.find(r => r.status === 'Approved');
+assertEq(cmcPendingVirements(vrows).length, 1, 'one request is awaiting the Board');
+assertEq(decidedRow.approvedBy, 'Admin', 'a decided request says who ruled');
+assertEq(decidedRow.approvalComment, 'agreed', 'and what they minuted');
+
+const approve = cmcVirementDecision(pendingRow, 'Approved', 'Marcia Reid', '2026-08-10T14:00:00.000Z', ' looks right ');
+assert(approve.ok, 'a pending request can be approved');
+assertEq(approve.patch.status, 'Approved', 'status is the word the Virement page matches on');
+assertEq(approve.patch.approvedBy, 'Marcia Reid (CMC Board)', 'the ruling is attributed to the board member, and marked as the Board');
+assertEq(approve.patch.approvalDate, '2026-08-10', 'dated the day it was made, no time component');
+assertEq(approve.patch.approvalComment, 'looks right', 'the minute is trimmed');
+assertEq(Object.keys(approve.patch).sort().join(','), 'approvalComment,approvalDate,approvedBy,status',
+  'and NOTHING else about the request is touched');
+
+console.log('A decision cannot be taken twice');
+const again = cmcVirementDecision(decidedRow, 'Rejected', 'Marcia Reid', '2026-08-10T14:00:00.000Z', 'changed my mind');
+assert(!again.ok, 're-deciding a settled request is refused');
+assert(again.reason.indexOf('Admin') !== -1, 'and the refusal names who ruled first');
+
+console.log('A rejection must carry a reason');
+assert(!cmcVirementDecision(pendingRow, 'Rejected', 'Marcia Reid', '2026-08-10', '').ok, 'a bare rejection is refused');
+assert(!cmcVirementDecision(pendingRow, 'Rejected', 'Marcia Reid', '2026-08-10', '   ').ok, 'whitespace is not a reason');
+assert(cmcVirementDecision(pendingRow, 'Rejected', 'Marcia Reid', '2026-08-10', 'over budget').ok, 'with a reason it goes through');
+assert(cmcVirementDecision(pendingRow, 'Approved', '', '2026-08-10', '').ok, 'an approval needs no minute');
+assertEq(cmcVirementDecision(pendingRow, 'Approved', '', '2026-08-10', '').patch.approvedBy, 'CMC Board (CMC Board)',
+  'an unnamed session still attributes the ruling to the Board');
+assert(!cmcVirementDecision(pendingRow, 'Maybe', 'M', '2026-08-10', '').ok, 'there is no third verdict');
+assert(!cmcVirementDecision(null, 'Approved', 'M', '2026-08-10', '').ok, 'a request that is not there cannot be ruled on');
+
+console.log('Applying a decision touches one request and nothing else');
+const raw = JSON.stringify(REGISTER);
+const next = cmcApplyVirementDecision(raw, 11, approve.patch);
+const after = JSON.parse(next);
+assertEq(after.length, 2, 'the register keeps every request');
+assertEq(after[0].status, 'Approved', 'the ruled request carries the decision');
+assertEq(after[0].total, 100000, 'and everything else about it is untouched');
+assertEq(after[0].lines[0].toName, 'Lunch', 'including its budget lines');
+assertEq(JSON.stringify(after[1]), JSON.stringify(REGISTER[1]), 'the OTHER request is byte-identical — a ruling is not a rewrite');
+assertEq(JSON.parse(raw)[0].status, 'Pending', 'and the register handed in was not mutated');
+assertEq(cmcApplyVirementDecision(raw, 999, approve.patch), null, 'an id that is not in the register writes nothing back');
+assertEq(cmcApplyVirementDecision('not json', 11, approve.patch), null, 'an unreadable register writes nothing back');
+assertEq(cmcApplyVirementDecision(null, 11, approve.patch), null, 'and neither does an absent one');
 
 /* ---------- summary ---------- */
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

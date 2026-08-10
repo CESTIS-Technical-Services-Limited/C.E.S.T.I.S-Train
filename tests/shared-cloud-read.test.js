@@ -222,6 +222,13 @@ function runtimeTests() {
 
   // The Centre's Drive folder: the dashboard has centres, a deletion and a roll.
   const DRIVE = {
+    'CESTIS_Virement_Requests.json': {
+      data: {
+        cesti_virements: '[{"id":11,"project":"Lunch top-up","total":100000,"status":"Pending"}]',
+        cesti_virement_logo: 'LOGO'                 // owned there; a reader must not touch it
+      },
+      stamps: { cesti_virements: '2026-08-01T09:00:00.000Z', cesti_virement_logo: '2026-08-01T09:00:00.000Z' }
+    },
     'CESTIS_Student_Progress.json': {
       data: {
         voctrain_skillAreas: '[{"id":1,"name":"Plumbing"},{"id":2,"name":"Welding"}]',
@@ -251,9 +258,20 @@ function runtimeTests() {
     }
     const media = url.match(/files\/id-([^?]+)\?alt=media/);
     if (media) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(DRIVE[media[1]]) });
+      // A DEEP COPY, deliberately: handing back the stored object would let a
+      // caller mutate Drive by reference and a test could then "prove" an
+      // upload that never happened.
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(JSON.parse(JSON.stringify(DRIVE[media[1]]))) });
     }
-    // Any upload: accept but record, so we can prove nothing shared went up.
+    // An upload to an existing file really replaces it, so what a page claims
+    // to have written is what the next reader would actually find.
+    const patch = url.match(/upload\/drive\/v3\/files\/id-([^?]+)\?/);
+    if (patch && opts && opts.method === 'PATCH' && opts.body) {
+      return Promise.resolve(opts.body.text ? opts.body.text() : String(opts.body))
+        .then(text => { try { DRIVE[patch[1]] = JSON.parse(text); } catch (e) {} })
+        .then(() => ({ ok: true, json: () => Promise.resolve({ id: 'id-' + patch[1] }) }));
+    }
+    // Any other upload: accept but record, so we can prove nothing shared went up.
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: 'new' }) });
   };
 
@@ -339,12 +357,42 @@ function runtimeTests() {
     return pg.pullShared().then(again => {
       assertEq(again.length, 0, 'the merge is idempotent — no churn, no re-upload');
 
-      console.log('With no Drive token the page simply stays local');
+      /* A reader that must SETTLE something inside a collection it does not
+         own — the CMC Board ruling on a virement. The ruling has to reach the
+         owning page's file, or it never leaves the board member's laptop. */
+      console.log('A reader can send a DECISION back into the owning page\'s file');
+      const board = PageCloud.init({
+        page: 'CMC Oversight', file: 'CESTIS_CMC_Oversight.json', readOnly: true,
+        keys: [], reads: ['cesti_virements'], writes: ['cesti_virements']
+      });
+      assert(!!board, 'the board registers as a reader');
+      return board.pullShared().then(() => {
+        assertEq(JSON.parse(local.cesti_virements)[0].status, 'Pending', 'it pulls the register down first');
+        // The board rules, exactly as the dashboard does: write locally, then send it up.
+        const reg = JSON.parse(local.cesti_virements);
+        reg[0].status = 'Approved';
+        reg[0].approvedBy = 'Marcia Reid (CMC Board)';
+        local.cesti_virements = JSON.stringify(reg);
+        return PageCloud.saveShared(['cesti_virements']);
+      }).then(wrote => {
+        assertEq(wrote.join(','), 'cesti_virements', 'the decision goes up');
+        const file = DRIVE['CESTIS_Virement_Requests.json'];
+        assertEq(JSON.parse(file.data.cesti_virements)[0].status, 'Approved',
+          'and lands in the file the Virement Requests page reads, not a file of the board\'s own');
+        assertEq(file.data.cesti_virement_logo, 'LOGO',
+          'while everything else in that page\'s file is left exactly as it was');
+        assert(!DRIVE['CESTIS_CMC_Oversight.json'], 'the reader still publishes no file of its own');
+        return PageCloud.saveShared(['voctrain_students']);
+      }).then(refused => {
+        assertEq(refused.length, 0, 'and a key it did not declare in writes is refused — reading is not permission to write');
+
+        console.log('With no Drive token the page simply stays local');
       delete local.schoolDashboardGoogleAccessToken;
       return pg.pullShared().then(offline => {
         assertEq(offline.length, 0, 'nothing pulled, nothing thrown');
         console.log('\n' + passed + ' passed, ' + failed + ' failed');
         process.exit(failed ? 1 : 0);
+        });
       });
     });
   });
