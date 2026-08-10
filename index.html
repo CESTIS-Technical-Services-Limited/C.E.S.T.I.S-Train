@@ -6668,7 +6668,10 @@ function saveState() {
     // reload before the next sync, but it never uploads it — see the
     // cloud-save guards.
     if (isAdmin) CESTISStore.setItem('voctrain_adminStaffAccess', JSON.stringify(adminStaffAccessSettings));
-    if (isAdmin) CESTISStore.setItem('voctrain_maintenanceMode', JSON.stringify({ active: systemSettings.maintenanceMode === true, message: systemSettings.maintenanceMessage || '', updatedAt: new Date().toISOString() }));
+    // updatedAt is WHEN MAINTENANCE MODE WAS LAST DECIDED, never "now": stamping
+    // every save made the mirror look freshly edited on each keystroke elsewhere
+    // in the app, and the newest-wins merge would then trust a value nobody set.
+    if (isAdmin) CESTISStore.setItem('voctrain_maintenanceMode', JSON.stringify({ active: systemSettings.maintenanceMode === true, message: systemSettings.maintenanceMessage || '', updatedAt: systemSettings.maintenanceUpdatedAt }));
     if (isAdmin || adrTasks.length > 0) CESTISStore.setItem('voctrain_adrTasks', JSON.stringify(adrTasks));
     if (isAdmin || Object.keys(adrStaffMeta).length > 0) CESTISStore.setItem('voctrain_adrStaffMeta', JSON.stringify(adrStaffMeta));
     // Strip large base64 images before saving to localStorage (images are in IndexedDB)
@@ -18211,8 +18214,12 @@ function saveMaintenanceSettings() {
   var isNowActive = toggle ? toggle.checked : false;
   systemSettings.maintenanceMode = isNowActive;
   systemSettings.maintenanceMessage = msgBox ? msgBox.value.trim() : '';
+  // WHEN this was decided, not just what: the cloud copy only changes on a
+  // manual Save to Cloud, so without a stamp the next pull (every login runs
+  // one) handed back the stale setting and switched maintenance mode on again.
+  systemSettings.maintenanceUpdatedAt = new Date().toISOString();
   // Persist to localStorage immediately so all browser tabs pick it up
-  CESTISStore.setItem('voctrain_maintenanceMode', JSON.stringify({ active: isNowActive, message: systemSettings.maintenanceMessage, updatedAt: new Date().toISOString() }));
+  CESTISStore.setItem('voctrain_maintenanceMode', JSON.stringify({ active: isNowActive, message: systemSettings.maintenanceMessage, updatedAt: systemSettings.maintenanceUpdatedAt }));
   saveState();
   // Update the overlay state
   applyMaintenanceOverlay();
@@ -18221,12 +18228,16 @@ function saveMaintenanceSettings() {
   if(previewMsg) {
     previewMsg.textContent = systemSettings.maintenanceMessage || 'C.E.S.T.I.S LMS is currently undergoing scheduled maintenance. The site will be back online shortly.';
   }
+  // Other devices keep their own copy until the cloud backup is rewritten, and
+  // that only happens on a manual Save to Cloud — say so rather than let the
+  // administrator assume the whole Centre has followed.
+  var cloudNote = isCloudConnected ? ' Save to Cloud to apply it on other devices.' : '';
   if(isNowActive && !wasActive) {
-    showToast('Maintenance mode ACTIVATED — all non-admin users will be blocked.', 'warning');
+    showToast('Maintenance mode ACTIVATED — all non-admin users will be blocked.' + cloudNote, 'warning');
   } else if(!isNowActive && wasActive) {
-    showToast('Maintenance mode DEACTIVATED — site is now accessible to all users.', 'success');
+    showToast('Maintenance mode DEACTIVATED — site is now accessible to all users.' + cloudNote, 'success');
   } else {
-    showToast('Maintenance settings saved.', 'success');
+    showToast('Maintenance settings saved.' + cloudNote, 'success');
   }
 }
 
@@ -18274,11 +18285,17 @@ function maintenanceShowAdminLogin() {
 function checkMaintenanceOnLoad() {
   // Check from localStorage first for cross-tab awareness
   var stored = safeJsonParse(CESTISStore.getItem('voctrain_maintenanceMode'), null);
-  if(stored && stored.active === true) {
-    systemSettings.maintenanceMode = true;
-    if(stored.message) systemSettings.maintenanceMessage = stored.message;
-  } else if(stored && stored.active === false) {
-    systemSettings.maintenanceMode = false;
+  if(stored && typeof stored.active === 'boolean') {
+    // This key is the device's own record of the last decision. Adopt its
+    // STAMP too, so the loadState/cloud merges that run after this can tell
+    // which side is newer instead of silently taking the other one.
+    var storedAt = Date.parse(stored.updatedAt || '') || 0;
+    var settingsAt = Date.parse(systemSettings.maintenanceUpdatedAt || '') || 0;
+    if(storedAt >= settingsAt) {
+      systemSettings.maintenanceMode = stored.active === true;
+      if(stored.message) systemSettings.maintenanceMessage = stored.message;
+      if(stored.updatedAt) systemSettings.maintenanceUpdatedAt = stored.updatedAt;
+    }
   }
   applyMaintenanceOverlay();
 }
@@ -18290,6 +18307,7 @@ window.addEventListener('storage', function(e) {
     if(val) {
       systemSettings.maintenanceMode = val.active === true;
       systemSettings.maintenanceMessage = val.message || '';
+      if(val.updatedAt) systemSettings.maintenanceUpdatedAt = val.updatedAt;
       applyMaintenanceOverlay();
       // If maintenance just activated and current user is not admin, force them out
       if(val.active === true && currentRole && currentRole !== 'admin') {

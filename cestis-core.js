@@ -2418,9 +2418,49 @@
     function isBlank(v) { return v === undefined || v === null || String(v).trim() === ''; }
   };
 
+  /* ==========================================================================
+     MAINTENANCE MODE MERGE
+
+     WHY THIS EXISTS
+     ---------------
+     Maintenance mode would not stay switched off. Turning it off is a LOCAL
+     change — the cloud copy only changes when an administrator runs a manual
+     "Save to Cloud" — but every settings scalar was blanket cloud-wins, and a
+     pull runs on every login and every sync. So the stale ON in the cloud came
+     straight back, the overlay returned, non-admins were locked out again, and
+     the local mirror key was then rewritten to match. The administrator's
+     decision could not survive its own next sync.
+
+     The flag now carries its own updatedAt and the more recent decision wins —
+     the same discipline as an external-system headline. A side with no stamp
+     cannot say WHEN it was set, so a stamped side outranks it; with neither
+     stamped, the established cloud-wins rule stands.
+     ========================================================================== */
+  function mergeMaintenance(out, L, R) {
+    var hasL = ('maintenanceMode' in L), hasR = ('maintenanceMode' in R);
+    if (!hasL && !hasR) return;
+    var lt = Date.parse(L.maintenanceUpdatedAt || '') || 0;
+    var rt = Date.parse(R.maintenanceUpdatedAt || '') || 0;
+    var takeLocal;
+    if (!hasR) takeLocal = true;
+    else if (!hasL) takeLocal = false;
+    else if (lt || rt) takeLocal = lt > rt;
+    else takeLocal = false;                       // neither dated: cloud wins, as before
+    var win = takeLocal ? L : R, other = takeLocal ? R : L;
+    out.maintenanceMode = win.maintenanceMode === true;
+    // A blank message never erases text the other side still has — the same
+    // rule the headline merge uses.
+    var msg = win.maintenanceMessage;
+    if ((msg === undefined || String(msg).trim() === '') && other.maintenanceMessage) msg = other.maintenanceMessage;
+    if (msg !== undefined) out.maintenanceMessage = msg;
+    var stamp = win.maintenanceUpdatedAt;
+    if (stamp) out.maintenanceUpdatedAt = stamp; else delete out.maintenanceUpdatedAt;
+  }
+
   /* Merge a whole systemSettings object from the cloud into the local one.
      Scalars: the cloud copy wins (that is the established behaviour for
-     settings). extSystems: merged entry by entry so a headline is never lost. */
+     settings). extSystems: merged entry by entry so a headline is never lost.
+     Maintenance mode: the more recent decision wins — see above. */
   Core.mergeSystemSettings = function (local, remote) {
     var L = (local && typeof local === 'object') ? local : {};
     var R = (remote && typeof remote === 'object') ? remote : {};
@@ -2433,6 +2473,7 @@
     if (L.extSystems || R.extSystems) {
       out.extSystems = Core.mergeExtSystems(L.extSystems, R.extSystems);
     }
+    mergeMaintenance(out, L, R);
     return out;
   };
 
