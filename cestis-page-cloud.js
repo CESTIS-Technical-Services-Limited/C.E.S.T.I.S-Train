@@ -107,8 +107,12 @@
 
      Reader semantics, deliberately: what comes down is merged in by the same
      newest-write-wins rule as everything else, and these keys are NEVER pushed
-     from here (ownsKey() still decides what goes up), so reading a shared
-     collection can never overwrite the page that owns it.
+     up as part of this page's own backup (ownsKey() still decides what goes
+     into the page's file), so reading a shared collection can never overwrite
+     the page that owns it. A page that must also DECIDE something inside a
+     shared collection — the CMC Board approving a virement — declares that one
+     key in `writes` and sends it back into the OWNING page's file through
+     pushShared(); see below.
 
      Resolves with the keys that changed locally. */
   Page.prototype.pullShared = function () {
@@ -136,10 +140,10 @@
             // the owning page's business.
             var cloud = C.pickShared(payload.data, src.keys);
             var cloudStamps = C.pickShared(payload.stamps || {}, src.keys);
-            var localMap = storeMap(), local = {};
-            src.keys.forEach(function (k) {
-              if (Object.prototype.hasOwnProperty.call(localMap, k)) local[k] = localMap[k];
-            });
+            // Picked the same way as the cloud side, so a generated-name
+            // collection ('cestis_quarter_*') compares like for like instead of
+            // looking absent locally and being adopted wholesale every pull.
+            var local = C.pickShared(storeMap(), src.keys);
             var known = self.stamps();
             var first = Object.keys(known).length === 0;
             var res = C.mergeKeys(local, known, cloud, cloudStamps, { firstSync: first });
@@ -163,6 +167,86 @@
       lists.forEach(function (l) { l.forEach(function (k) { if (changed.indexOf(k) === -1) changed.push(k); }); });
       self.state.shared = changed.length;
       return changed;
+    });
+  };
+
+  /* Send a DECISION back into a collection this page reads but does not own.
+
+     A reader is normally write-blind, and that is right for a page that only
+     displays somebody else's records. But a page can be the one body entitled
+     to settle something inside them: the CMC Board approves virement requests
+     it does not otherwise operate. Writing that approval only into local
+     storage would strand it on the board member's own device.
+
+     So a key named in `writes` — which must also be in `reads`, since deciding
+     without reading is nonsense — is merged into the OWNING page's file:
+       - only the declared keys are touched; the rest of that file is the
+         owning page's business and is copied back untouched;
+       - the merge is the same newest-write-wins rule as everywhere else, with
+         the same guard that an empty value never replaces records, so a
+         decision cannot wipe the register it was recorded in;
+       - if the owning page has never published a file, nothing is created
+         here. The decision stays local and travels when that page next
+         pushes — writing a file on another page's behalf would invent a
+         backup nobody had verified.
+
+     Resolves with the keys actually written up. */
+  Page.prototype.pushShared = function (keys) {
+    var self = this, tok = token(), C = core();
+    var allowed = self.spec.writes || [];
+    var wanted = (Array.isArray(keys) ? keys : allowed).filter(function (k) { return allowed.indexOf(k) !== -1; });
+    if (!tok || !wanted.length || !C.sharedPullPlan) return Promise.resolve([]);
+
+    var plan = C.sharedPullPlan(wanted, self.spec.file);
+    if (!plan.length) return Promise.resolve([]);
+
+    return Promise.all(plan.map(function (src) {
+      var idP = self._sharedIds[src.file]
+        ? Promise.resolve(self._sharedIds[src.file])
+        : findFile(src.file, tok).then(function (id) { self._sharedIds[src.file] = id; return id; });
+
+      return idP.then(function (id) {
+        if (!id) return [];                               // owner has no file: stay local
+        return api('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media',
+          { headers: { Authorization: 'Bearer ' + tok } })
+          .then(function (r) { return r.json(); })
+          .then(function (payload) {
+            if (!payload || !payload.data) return [];
+            var cloudAll = payload.data, cloudStampsAll = payload.stamps || {};
+            var local = C.pickShared(storeMap(), src.keys);
+            if (!Object.keys(local).length) return [];
+            var cloud = C.pickShared(cloudAll, src.keys);
+            var cloudStamps = C.pickShared(cloudStampsAll, src.keys);
+            var merged = C.mergeKeys(local, self.stamps(), cloud, cloudStamps);
+
+            var wrote = [];
+            Object.keys(merged.data).forEach(function (k) {
+              if (cloudAll[k] === merged.data[k]) return;
+              cloudAll[k] = merged.data[k];
+              if (merged.stamps[k]) cloudStampsAll[k] = merged.stamps[k];
+              wrote.push(k);
+            });
+            if (!wrote.length) return [];
+            payload.data = cloudAll;
+            payload.stamps = cloudStampsAll;
+            payload.savedAt = new Date().toISOString();
+            payload.keyCount = Object.keys(cloudAll).length;
+            var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+            return api('https://www.googleapis.com/upload/drive/v3/files/' + id + '?uploadType=media',
+              { method: 'PATCH', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: blob })
+              .then(function () {   // only now is the decision really in the Centre's folder
+                // Anything the cloud contributed is now local too.
+                merged.changed.forEach(function (k) { try { store().setItem(k, merged.data[k]); } catch (e) {} });
+                self.setStamps(merged.stamps);
+                return wrote;
+              });
+          })
+          .catch(function () { return []; });
+      }).catch(function () { return []; });
+    })).then(function (lists) {
+      var wrote = [];
+      lists.forEach(function (l) { l.forEach(function (k) { if (wrote.indexOf(k) === -1) wrote.push(k); }); });
+      return wrote;
     });
   };
 
@@ -219,6 +303,9 @@
      the keys that changed locally. */
   Page.prototype.pull = function () {
     var self = this, tok = token();
+    // A READER owns no keys and publishes no file of its own — there is nothing
+    // to pull or create here; pullShared() is its whole job.
+    if (self.spec.readOnly) { self.state.connected = !!tok; return Promise.resolve([]); }
     if (!tok) { self.state.connected = false; return Promise.resolve([]); }
     self.state.connected = true;
     return self.find(tok).then(function (id) {
@@ -256,6 +343,7 @@
      second device's work is never dropped. */
   Page.prototype.push = function () {
     var self = this, tok = token();
+    if (self.spec.readOnly) return Promise.resolve(false);   // a reader never writes
     if (!tok) { self.state.connected = false; return Promise.resolve(false); }
     self.state.connected = true;
     var C = core();
@@ -353,7 +441,7 @@
       if (existing) return existing;
       var pg = new Page(spec);
       API._pages.push(pg);
-      pg.watch();
+      if (!spec.readOnly) pg.watch();     // a reader has no keys of its own to watch
       // Own file first, then the cross-page collections this page reads. Both
       // sets of changes are reported to onRestore together, so a page re-renders
       // once with everything the Centre's Drive folder currently holds.
@@ -392,14 +480,21 @@
             var tok = token();
             if (!tok) return;
             API._pages.forEach(function (p) {
+              var report = function (keys) {
+                if (keys.length && typeof p.spec.onRestore === 'function') {
+                  try { p.spec.onRestore(keys); } catch (e) {}
+                }
+              };
+              // A reader has no file of its own, so remoteChanged() would say
+              // "nothing new" forever and its shared collections would never
+              // refresh. It goes straight to the collections it reads.
+              if (p.spec.readOnly) { p.pullShared().then(report); return; }
               p.remoteChanged(tok).then(function (changed) {
                 if (!changed) return;
                 p.pull().then(function (keys) {
                   return p.pullShared().then(function (sk) {
                     sk.forEach(function (k) { if (keys.indexOf(k) === -1) keys.push(k); });
-                    if (keys.length && typeof p.spec.onRestore === 'function') {
-                      try { p.spec.onRestore(keys); } catch (e) {}
-                    }
+                    report(keys);
                   });
                 });
               });
@@ -426,6 +521,24 @@
     /* Just the cross-page collections, for a page that wants the Centre's
        current shared data without a full round trip of its own file. */
     loadShared: function () { return Promise.all(API._pages.map(function (p) { return p.pullShared(); })); },
+    /* Record a decision this page is entitled to make inside a collection it
+       reads but does not own, and send it to the owning page's file. The
+       caller has already written the new value to local storage; stamping it
+       here is what makes it the newest write, so the merge on the way up keeps
+       it instead of the copy it is replacing. */
+    saveShared: function (keys) {
+      var wanted = Array.isArray(keys) ? keys : [];
+      return Promise.all(API._pages.map(function (p) {
+        var mine = wanted.filter(function (k) { return (p.spec.writes || []).indexOf(k) !== -1; });
+        if (!mine.length) return Promise.resolve([]);
+        p.touch(mine);
+        return p.pushShared(mine);
+      })).then(function (lists) {
+        var wrote = [];
+        lists.forEach(function (l) { l.forEach(function (k) { if (wrote.indexOf(k) === -1) wrote.push(k); }); });
+        return wrote;
+      });
+    },
     status: function () {
       return API._pages.map(function (p) {
         return { page: p.spec.page, file: p.spec.file, folder: FOLDER_ID,

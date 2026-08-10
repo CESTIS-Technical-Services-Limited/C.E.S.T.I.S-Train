@@ -219,6 +219,176 @@ function serve() {
     await page.close();
   }
 
+  section('CMC Board dashboards fill themselves from the operating books — no button, no Drive');
+  {
+    const { page, pageErrors } = await openPage('index.html');
+    await page.waitForTimeout(2000);
+    const cmc = await page.evaluate(async () => {
+      // The operating pages' own collections, same-origin, exactly as they write them.
+      CESTISStore.setItem('cestis_quarter_2025/2026_Q1', JSON.stringify({
+        openingBalance: 433419.51,
+        transactions: [
+          { id: 1, date: '2025-07-07', cheque: '', details: 'Cheque from C. Palmer', deposit: 88800, payment: 0, category: 'Training Material' },
+          { id: 2, date: '2025-07-23', cheque: '', details: 'Crystal-Lee Gordon', deposit: 0, payment: 83535.75, category: 'Administrative Assistant' },
+          { id: 3, date: '2025-07-24', cheque: '9001', details: 'Cancelled Cheque', deposit: 0, payment: 0, category: 'Cancelled' }
+        ], deletedTxnIds: []
+      }));
+      CESTISStore.setItem('cestisPayroll', JSON.stringify({
+        employees: [{ name: 'Crystal-Lee Gordon' }],
+        payrollRuns: [{ date: '2025-07-25', results: [{ empName: 'Crystal-Lee Gordon', gross: 90000, net: 83535.75 }] }]
+      }));
+      CESTISStore.setItem('cestisStaffMembers', JSON.stringify([{ id: '7', fullName: 'Jodene Williams-Barrett' }]));
+      CESTISStore.setItem('cestisTimeRecords', JSON.stringify([
+        { id: 'S1', staffId: '7', date: '2025-07-23', clockIn: '2025-07-23T08:00:00Z', clockOut: '2025-07-23T16:30:00Z', status: 'completed' }
+      ]));
+      CESTISStore.setItem('cesti_virements', JSON.stringify([
+        { id: 11, date: '2025-07-15', project: 'Lunch top-up', requestedBy: 'S. Barrett', total: 100000, status: 'Pending', lines: [{ fromName: 'Remedial English', toName: 'Lunch', amount: 100000 }] }
+      ]));
+      currentRole = 'cmc';
+      // A Chairperson and one ordinary board member — the two signatures a
+      // virement takes. userAccounts is what cmcChairOf reads.
+      userAccounts = [
+        { id: 'U1', name: 'Marcia Reid', username: 'm.reid', role: 'cmc', cmcChair: true, status: 'active' },
+        { id: 'U2', name: 'Delroy Green', username: 'd.green', role: 'cmc', status: 'active' }
+      ];
+      currentLoggedInUser = userAccounts[0];
+      buildCmcPages();
+      buildCmcSidebar();
+      cmcLoadOversightData();
+      cmcRefreshAllSections();
+      const text = function (id) { var e = document.getElementById(id); return e ? e.textContent : ''; };
+      const before = document.getElementById('cmcFinancialBody').textContent;
+      // The board narrows to expenditure only — nothing is fetched, it just filters.
+      cmcSetFilter('financial', 'type', 'expense');
+      const filtered = document.getElementById('cmcFinancialBody').textContent;
+      cmcSetFilter('financial', 'type', 'all');
+      cmcSetStaffView('clockin');
+      const clockText = document.getElementById('cmcStaffBody').textContent;
+      cmcSetStaffView('payslip');
+      const payText = document.getElementById('cmcStaffBody').textContent;
+      return {
+        sidebar: document.getElementById('sidebarNav').innerHTML,
+        sourcesPage: !!document.getElementById('page-cmc-sources'),
+        syncButtons: (document.getElementById('mainContent').innerHTML.match(/Sync Drive Data|Sync All Sources|Refresh from Drive|Fetch HTML/g) || []).length,
+        cashKpi: text('cmcFinCashbook'),
+        cashSub: text('cmcFinCashbookSub'),
+        virKpi: text('cmcFinVirement'),
+        payKpi: text('cmcHrPayroll'),
+        clockKpi: text('cmcHrClockin'),
+        financialHasPayee: before.indexOf('Crystal-Lee Gordon') !== -1,
+        financialHasVirement: before.indexOf('Lunch top-up') !== -1,
+        filteredDropsIncome: filtered.indexOf('C. Palmer') === -1 && filtered.indexOf('Crystal-Lee Gordon') !== -1,
+        filteredSaysSoMuch: /Showing \d+ of \d+/.test(filtered),
+        clockShowsStaff: clockText.indexOf('Jodene Williams-Barrett') !== -1,
+        payShowsStaff: payText.indexOf('Crystal-Lee Gordon') !== -1,
+        academic: !!document.getElementById('cmcAcademicBody'),
+        navBadge: /Virement Approvals<span class="nav-badge"[^>]*>1</.test(document.getElementById('sidebarNav').innerHTML),
+        reader: (window.CESTISPageCloud ? window.CESTISPageCloud.status() : []).filter(function (p) { return p.page === 'CMC Oversight'; })[0] || null,
+        // What the board would send up: its own minute book and nothing else.
+        owns: (function () {
+          var spec = (window.CESTISPageCloud._pages || []).filter(function (p) { return p.spec.page === 'CMC Oversight'; })
+            .map(function (p) { return p.spec; })[0];
+          if (!spec) return null;
+          var o = CESTISCore.pageCloud.ownsKey;
+          return {
+            book: o(spec, 'cestis_cmc_rulings'),
+            register: o(spec, 'cesti_virements'),
+            payroll: o(spec, 'cestisPayroll'),
+            cashbook: o(spec, 'cestis_quarter_2025/2026_Q1'),
+            clock: o(spec, 'cestisTimeRecords')
+          };
+        })()
+      };
+    });
+    ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
+    ok(cmc.sidebar.indexOf('Source Viewer') === -1 && !cmc.sourcesPage, 'the Source Viewer is gone — nav entry and page both');
+    ok(cmc.syncButtons === 0, 'no sync button anywhere in the CMC pages — got ' + cmc.syncButtons);
+    ok(/5,264\.25|5264\.25/.test(cmc.cashKpi), 'Financial Overview shows the cashbook balance unprompted — got "' + cmc.cashKpi + '"');
+    ok(/88,800/.test(cmc.cashSub) && /83,535\.75/.test(cmc.cashSub), 'with income and expenditure, the cancelled cheque counting zero — got "' + cmc.cashSub + '"');
+    ok(cmc.virKpi === '1 Requests', 'the virement register loads too — got "' + cmc.virKpi + '"');
+    ok(/83,535\.75/.test(cmc.payKpi), 'Staff & HR shows payroll — got "' + cmc.payKpi + '"');
+    ok(cmc.clockKpi === '1 Sessions', 'and clock-in sessions — got "' + cmc.clockKpi + '"');
+    ok(cmc.financialHasPayee && cmc.financialHasVirement, 'the cashbook and virement tables carry real rows, not a prompt to sync');
+    ok(cmc.filteredDropsIncome, 'the board can filter to expenditure and the income row goes');
+    ok(cmc.filteredSaysSoMuch, 'and a filtered table says how much of the whole it is showing');
+    ok(cmc.clockShowsStaff, 'the Staff & HR clock-in view names the staff member');
+    ok(cmc.payShowsStaff, 'and the payslip view names who was paid');
+    ok(cmc.academic, 'Academic renders its own filterable table');
+    ok(cmc.navBadge, 'the sidebar tells the board a virement is waiting on it');
+    ok(cmc.reader && cmc.reader.reads >= 5, 'the board registered as a page-cloud reader of the operating books');
+    ok(cmc.owns && cmc.owns.book === true, 'it owns its own minute book, so a half-signed ruling reaches the second signatory');
+    ok(cmc.owns && !cmc.owns.register && !cmc.owns.payroll && !cmc.owns.cashbook && !cmc.owns.clock,
+      'and owns NONE of the books it oversees — its own backup can never carry them, decision or no decision');
+
+    // Two signatures, driven through the real page: the Chair rules, an
+    // ordinary member countersigns, and only then does the register move.
+    const vir = await page.evaluate(() => {
+      showPage('cmc-virements');
+      const body = () => document.getElementById('cmcVirementBody').textContent;
+      const reg = () => JSON.parse(CESTISStore.getItem('cesti_virements'))[0];
+      const originalConfirm = window.confirm, originalToast = window.showToast;
+      const toasts = [];
+      window.confirm = () => true;
+      window.showToast = (m) => toasts.push(String(m));
+
+      // A board member who is not the Chair sees no ruling controls at all.
+      currentLoggedInUser = userAccounts[1];
+      cmcRenderVirements();
+      const memberSees = body();
+
+      // The Chair rules. The register must NOT move.
+      currentLoggedInUser = userAccounts[0];
+      cmcRenderVirements();
+      const chairSees = body();
+      document.getElementById('cmcVirNote_11').value = 'Agreed at the July meeting';
+      cmcRuleVirement('11', 'Approved');
+      const afterRule = body();
+      const registerAfterRule = reg().status;
+      cmcCountersignVirement('11');                       // the Chair may not second herself
+      const selfSignBlocked = reg().status === 'Pending';
+
+      // The second board member countersigns. Now it settles.
+      currentLoggedInUser = userAccounts[1];
+      cmcRenderVirements();
+      const awaitingSees = body();
+      cmcCountersignVirement('11');
+      const settled = reg();
+      const afterSign = body();
+      window.confirm = originalConfirm; window.showToast = originalToast;
+      return {
+        memberBlocked: /Awaiting the Chairperson/.test(memberSees) && memberSees.indexOf('✓ Approve') === -1,
+        chairOffered: chairSees.indexOf('Approve') !== -1,
+        ruledShows: /awaiting countersignature/i.test(afterRule),
+        registerUntouched: registerAfterRule === 'Pending',
+        selfSignBlocked: selfSignBlocked,
+        selfSignToldWhy: toasts.some(t => /cannot countersign your own/i.test(t)),
+        countersignOffered: /Countersign/.test(awaitingSees),
+        settledStatus: settled.status,
+        bothNames: settled.approvedBy,
+        minuteKept: settled.approvalComment,
+        registerIntact: settled.total === 100000 && settled.project === 'Lunch top-up',
+        controlsGone: afterSign.indexOf('Countersign') === -1,
+        bookCleared: !!JSON.parse(CESTISStore.getItem('cestis_cmc_rulings') || '{}')['11'].counterByUsername,
+        pendingKpi: document.getElementById('cmcVirPending').textContent
+      };
+    });
+    ok(vir.memberBlocked, 'an ordinary board member is not offered the ruling — only the Chairperson rules');
+    ok(vir.chairOffered, 'the Chairperson is');
+    ok(vir.ruledShows, 'once ruled, the request shows as awaiting a countersignature');
+    ok(vir.registerUntouched, 'and the Centre\'s register has NOT moved on one signature');
+    ok(vir.selfSignBlocked && vir.selfSignToldWhy, 'the Chair cannot countersign her own ruling, and is told why');
+    ok(vir.countersignOffered, 'a second board member is offered the countersignature');
+    ok(vir.settledStatus === 'Approved', 'signing it settles the request in the register');
+    ok(/Marcia Reid \(CMC Chair\), countersigned by Delroy Green \(CMC Board\)/.test(vir.bothNames),
+      'recorded against BOTH names — got "' + vir.bothNames + '"');
+    ok(vir.minuteKept === 'Agreed at the July meeting', 'with the Chair\'s minute');
+    ok(vir.registerIntact, 'and the rest of the request untouched');
+    ok(vir.controlsGone, 'the controls are withdrawn once it is settled');
+    ok(vir.bookCleared, 'the board\'s minute book records the countersignature');
+    ok(vir.pendingKpi === '0', 'and nothing is left on the board\'s table');
+    await page.close();
+  }
+
   section('MegaData-Adjudication: the queue page loads clean and explains itself');
   {
     const { page, pageErrors } = await openPage('MegaData-Adjudication.html');

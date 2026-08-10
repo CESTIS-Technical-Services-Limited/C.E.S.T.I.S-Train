@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-core.js?v=20260802a"></script>
+<!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
+     so the operating pages' books reach its dashboards without anyone syncing. -->
+<script src="cestis-page-cloud.js?v=20260802a"></script>
 <script src="staff-appraisals.js?v=20260802a"></script>
 <script src="cmc-portal.js?v=20260802a"></script>
 <script src="cert-template-seed.js?v=20260802b"></script>
@@ -456,45 +459,6 @@ body::-webkit-scrollbar { width:0; display:none; }
 .cmc-refresh-btn:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(26,188,156,0.3); }
 .cmc-refresh-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
 .cmc-section-title { font-size:18px; font-weight:700; color:var(--text-primary); margin-bottom:16px; font-family:'Playfair Display',serif; }
-/* CMC Source Viewer & Embedded Content Styles */
-.cmc-source-tabs { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:20px; overflow-x:auto; }
-.cmc-source-tab {
-  padding:12px 20px; font-size:13px; font-weight:600; color:var(--text-muted); cursor:pointer;
-  border-bottom:2px solid transparent; margin-bottom:-2px; transition:all var(--transition);
-  white-space:nowrap; font-family:'DM Sans',sans-serif; background:none; border-top:none; border-left:none; border-right:none;
-}
-.cmc-source-tab:hover { color:var(--text-primary); background:rgba(255,255,255,0.03); }
-.cmc-source-tab.active { color:var(--teal); border-bottom-color:var(--teal); }
-.cmc-source-tab .tab-badge {
-  display:inline-block; padding:2px 7px; border-radius:10px; font-size:10px; margin-left:6px;
-  background:var(--green-dim); color:var(--green); font-weight:700;
-}
-.cmc-source-tab .tab-badge.pending { background:rgba(230,126,34,0.15); color:var(--orange); }
-.cmc-source-panel { display:none; }
-.cmc-source-panel.active { display:block; }
-.cmc-iframe-wrap {
-  background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
-  overflow:hidden; margin-bottom:20px;
-}
-.cmc-iframe-toolbar {
-  display:flex; align-items:center; justify-content:space-between; padding:10px 16px;
-  border-bottom:1px solid var(--border); background:rgba(255,255,255,0.02);
-}
-.cmc-iframe-toolbar .toolbar-title { font-size:13px; font-weight:600; color:var(--text-primary); }
-.cmc-iframe-toolbar .toolbar-meta { font-size:11px; color:var(--text-muted); }
-.cmc-iframe-toolbar .toolbar-actions { display:flex; gap:8px; }
-.cmc-iframe-toolbar button {
-  padding:6px 14px; border-radius:var(--radius-sm); font-size:11px; font-weight:600;
-  font-family:'DM Sans',sans-serif; cursor:pointer; transition:all var(--transition);
-  border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary);
-}
-.cmc-iframe-toolbar button:hover { border-color:var(--teal); color:var(--teal); }
-.cmc-iframe-content {
-  width:100%; min-height:500px; background:#fff; position:relative;
-}
-.cmc-iframe-content iframe {
-  width:100%; height:600px; border:none; background:#fff;
-}
 /* ---- External Systems (TMS / NQS) embedded pages ---- */
 /* The headline bar is a sticky notice the Administrator writes in
    Settings -> External Systems; it stays pinned above the embedded page. */
@@ -587,14 +551,6 @@ body::-webkit-scrollbar { width:0; display:none; }
 .cmc-live-badge {
   display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px;
   font-size:10px; font-weight:600; background:var(--green-dim); color:var(--green);
-}
-.cmc-html-viewer {
-  background:#fff; border-radius:var(--radius); overflow:auto; max-height:600px;
-  border:1px solid var(--border); position:relative;
-}
-.cmc-html-viewer-overlay {
-  position:absolute; top:0; left:0; right:0; bottom:0; z-index:1;
-  pointer-events:none;
 }
 .cmc-source-summary {
   display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;
@@ -4371,6 +4327,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     </div>
     <div class="form-group"><label>Email</label><input type="email" class="form-control" id="newUserEmail" placeholder="e.g. john@heartlms.edu.jm"></div>
     <div class="form-group" id="newUserProgrammeGroup"><label>Programme</label><select class="form-control" id="newUserProgramme"><option value="">— Select Programme —</option></select></div>
+    <div class="form-group" id="newUserChairGroup" style="display:none;">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+        <input type="checkbox" id="newUserChair" style="width:auto;">
+        <span>Board Chairperson</span>
+      </label>
+      <small style="color:var(--text-muted);font-size:11px;">The Chairperson is the only board member who may rule on a virement request; a second board member then countersigns it. The Centre has one Chairperson at a time — appointing a new one stands the previous one down.</small>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('createUserModal')">Cancel</button>
       <button class="btn btn-primary" onclick="createUserAccount()">Create User</button>
@@ -4390,6 +4353,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     <div class="form-group"><label>Username</label><input type="text" class="form-control" id="editUserUsername"></div>
     <div class="form-group"><label>Email</label><input type="email" class="form-control" id="editUserEmail"></div>
     <div class="form-group" id="editUserProgrammeGroup"><label>Programme</label><select class="form-control" id="editUserProgramme"><option value="">— Select Programme —</option></select></div>
+    <div class="form-group" id="editUserChairGroup" style="display:none;">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+        <input type="checkbox" id="editUserChair" style="width:auto;">
+        <span>Board Chairperson</span>
+      </label>
+      <small style="color:var(--text-muted);font-size:11px;">The Chairperson is the only board member who may rule on a virement request; a second board member then countersigns it. The Centre has one Chairperson at a time — appointing a new one stands the previous one down.</small>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('editUserModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveUserEdit()">Save Changes</button>
@@ -5647,7 +5617,9 @@ function exportDataBackup() {
     'cestis_finance_convert','cesti_cashbook_data','cesti_virements','cesti_virement_logo',
     'cestis_budget_overrides','cestis_budget_deleted','cestis_active_quarter',
     'cestisStaffMembers','cestisTimeRecords','cestiSchoolFeeStudents','cestiSchoolFeePayments','cestiUsers',
-    'cestisStaffAppraisals'];
+    // The Board's minute book: rulings awaiting a countersignature. Lose it and
+    // a half-signed decision is gone with no record that the Chair ever ruled.
+    'cestisStaffAppraisals','cestis_cmc_rulings'];
   // Include every dynamically-keyed bucket (per-quarter attendance/budget/virement,
   // finance docs) so nothing is silently left out of the backup.
   try {
@@ -7816,11 +7788,29 @@ function getNextUserId() {
 function toggleUserFormFields() {
   var role = document.getElementById('newUserRole').value;
   document.getElementById('newUserProgrammeGroup').style.display = (role === 'admin' || role === 'adminstaff' || role === 'cmc') ? 'none' : 'block';
+  // Chairperson is a board office, so it is only offered on a board account.
+  var chair = document.getElementById('newUserChairGroup');
+  if(chair) chair.style.display = (role === 'cmc') ? 'block' : 'none';
 }
 
 function toggleEditUserFormFields() {
   var role = document.getElementById('editUserRole').value;
   document.getElementById('editUserProgrammeGroup').style.display = (role === 'admin' || role === 'adminstaff' || role === 'cmc') ? 'none' : 'block';
+  var chair = document.getElementById('editUserChairGroup');
+  if(chair) chair.style.display = (role === 'cmc') ? 'block' : 'none';
+}
+
+/* One Chairperson at a time. Two accounts carrying the office would each be
+   able to rule AND countersign between them, which is exactly the check the
+   two-signature rule exists to make. Returns the name stood down, if any. */
+function setCmcChair(account) {
+  var stoodDown = '';
+  userAccounts.forEach(function(u) {
+    if(!u || u.id === account.id) return;
+    if(u.cmcChair === true) { u.cmcChair = false; stoodDown = u.name || u.username || ''; touchAccount(u); }
+  });
+  account.cmcChair = true;
+  return stoodDown;
 }
 
 async function createUserAccount() {
@@ -7843,6 +7833,12 @@ async function createUserAccount() {
   var newAccount = {id:getNextUserId(),name:name,role:role,username:username,password:hashedPw,email:email,programme:(role==='admin'||role==='adminstaff'||role==='cmc')?'':programme,status:'active',createdAt:dateStr,registeredVia:'admin-created'};
   cachePlaintextPw(newAccount, password);
   userAccounts.push(newAccount);
+  var _chairBox = document.getElementById('newUserChair');
+  if(role === 'cmc' && _chairBox && _chairBox.checked) {
+    var _prev = setCmcChair(newAccount);
+    if(_prev) alert(name + ' is now Board Chairperson. ' + _prev + ' has been stood down — the Centre has one Chairperson at a time.');
+  }
+  if(_chairBox) _chairBox.checked = false;
   // Create linked student/instructor data so the account is immediately usable
   if (role === 'student') {
     var existingStudent = students.find(function(s) { return s.name === name; });
@@ -7881,6 +7877,8 @@ function openEditUser(userId) {
   document.getElementById('editUserUsername').value = user.username;
   document.getElementById('editUserEmail').value = user.email || '';
   document.getElementById('editUserProgramme').value = user.programme || '';
+  var _ec = document.getElementById('editUserChair');
+  if(_ec) _ec.checked = (user.cmcChair === true);
   document.getElementById('editUserTitle').textContent = 'Edit User — ' + user.name;
   toggleEditUserFormFields();
   openModal('editUserModal');
@@ -7903,6 +7901,14 @@ function saveUserEdit() {
   var oldRole = user.role;
   user.name = name; user.role = role; user.username = username; user.email = email;
   user.programme = (role === 'admin' || role === 'adminstaff' || role === 'cmc') ? '' : programme;
+  var _editChair = document.getElementById('editUserChair');
+  var _wantChair = (role === 'cmc' && _editChair && _editChair.checked);
+  if(_wantChair && user.cmcChair !== true) {
+    var _stood = setCmcChair(user);
+    if(_stood) alert(name + ' is now Board Chairperson. ' + _stood + ' has been stood down — the Centre has one Chairperson at a time.');
+  } else if(!_wantChair && user.cmcChair === true) {
+    user.cmcChair = false;                 // stood down, or no longer a board member
+  }
   touchAccount(user);
   // Create linked instructor/student data when role changes
   if(role === 'instructor' && oldRole !== 'instructor') {
@@ -8241,7 +8247,8 @@ function renderUserAccountsTable() {
     return '<tr>' +
       '<td><input type="checkbox" class="um-cb um-row-cb" data-uid="'+escapeAttr(u.id)+'" '+checked+' onchange="toggleUmCheckbox(\''+escapeAttr(u.id)+'\')"></td>' +
       '<td><div class="um-user-cell"><div class="um-avatar" style="background:'+roleColors[u.role]+';">'+escapeHtml(initials)+'</div><div><div class="um-name">'+escapeHtml(u.name)+'</div><div class="um-email">'+escapeHtml(u.email||u.username)+'</div></div></div></td>' +
-      '<td><span class="um-role-badge '+roleBadges[u.role]+'">'+roleLabels[u.role]+'</span></td>' +
+      '<td><span class="um-role-badge '+roleBadges[u.role]+'">'+roleLabels[u.role]+'</span>' +
+        (u.cmcChair === true && u.role === 'cmc' ? ' <span class="um-role-badge" style="background:rgba(230,126,34,0.15);color:var(--orange);">Chairperson</span>' : '') + '</td>' +
       '<td>'+escapeHtml(u.username)+'</td>' +
       '<td>'+escapeHtml(u.programme||'—')+'</td>' +
       // One on/off toggle could not tell "never reviewed" from "refused" from
@@ -9275,8 +9282,11 @@ function enterApp(role) {
       showPage('as-dashboard');
       adrInit();
     } else if(role === 'cmc') {
-      buildCmcSidebar();
+      // Pages first: they load the books, and the sidebar's pending-approvals
+      // badge is counted from them — built the other way round it always read
+      // zero, however many virements were waiting.
       buildCmcPages();
+      buildCmcSidebar();
       var cmcInitials = currentLoggedInUser.name.split(' ').map(function(n){return n[0];}).join('').substring(0,2);
       document.getElementById('sidebarRoleLabel').textContent = 'CMC Dashboard';
       document.getElementById('sidebarAvatar').textContent = cmcInitials;
@@ -10582,7 +10592,7 @@ function showPage(pageId) {
     'qual-plan':'Qual Plan / Curriculum','s-qual-plan':'Qual Plan / Curriculum','i-qual-plan':'Qual Plan / Curriculum','as-qual-plan':'Qual Plan / Curriculum',
     'transcript-grades':'Transcript / Grades','s-transcript-grades':'Transcript / Grades','as-transcript-grades':'Transcript / Grades','i-trainee-grades':'Trainee Grades',
     'cert-transcript-requests':'Certificate / Transcript Requests','as-cert-transcript-requests':'Certificate / Transcript Requests',
-    'cmc-dashboard':'CMC Analytics Dashboard','cmc-financial':'Financial Overview','cmc-staff':'Staff & HR','cmc-academic':'Academic Performance','cmc-sources':'Source Viewer','cmc-profile':'My Profile',
+    'cmc-dashboard':'CMC Analytics Dashboard','cmc-financial':'Financial Overview','cmc-virements':'Virement Approvals','cmc-staff':'Staff & HR','cmc-academic':'Academic Performance','cmc-profile':'My Profile',
     'tms-system':'TMS System','as-tms-system':'TMS System','nqs-system':'NQS System','as-nqs-system':'NQS System'
   };
   document.getElementById('topbarTitle').textContent = titles[pageId]||pageId;
@@ -25698,7 +25708,7 @@ async function syncFromCloud() {
       else if (currentRole === 'instructor') { buildInstructorPages(); showPage(_ap || 'i-dashboard'); }
       else if (currentRole === 'student') { buildStudentPages(); showPage(_ap || 's-dashboard'); }
       else if (currentRole === 'adminstaff') { buildAdminStaffPages(); showPage(_ap || 'as-dashboard'); }
-      else if (currentRole === 'cmc') { buildCmcPages(); showPage(_ap || 'cmc-dashboard'); setTimeout(cmcLoadAllData, 300); }
+      else if (currentRole === 'cmc') { buildCmcPages(); buildCmcSidebar(); showPage(_ap || 'cmc-dashboard'); setTimeout(cmcLoadAllData, 300); }
     } catch(e) { console.warn('[SyncFromCloud] Dashboard refresh error:', e); }
 
   } catch (error) {
@@ -26314,7 +26324,7 @@ async function mergeFromCloud() {
         else if (currentRole === 'instructor') { buildInstructorPages(); showPage(_ap || 'i-dashboard'); }
         else if (currentRole === 'student') { buildStudentPages(); showPage(_ap || 's-dashboard'); }
         else if (currentRole === 'adminstaff') { buildAdminStaffPages(); showPage(_ap || 'as-dashboard'); }
-        else if (currentRole === 'cmc') { buildCmcPages(); showPage(_ap || 'cmc-dashboard'); setTimeout(cmcLoadAllData, 300); }
+        else if (currentRole === 'cmc') { buildCmcPages(); buildCmcSidebar(); showPage(_ap || 'cmc-dashboard'); setTimeout(cmcLoadAllData, 300); }
       } catch(e) { console.warn('[MergeFromCloud] Dashboard refresh error:', e); }
     }
 
@@ -33915,82 +33925,98 @@ function iRenderDuties() {
 // Override notification targets for admin staff: they should receive 'admin' role notifications for their tasks
 
 // ============================== CMC DASHBOARD ==============================
-// Google Drive folder IDs for data sources
-var CMC_DRIVE_CONFIG = {
-  STORAGE_FOLDER: '1f2QGRwqkQxFiCQ8yixtoXFAbciB2ygMz',
-  SOURCES: [
-    { id: '1JY8N-AXxxM_eQJ3Gfr0OKBoK4rKchdeV', label: 'Staff Payslip Dashboard', key: 'payslip' },
-    { id: '11vWe_Nc40TtJ1Hi7PoE7EZ3JrpR-K0Vj', label: 'Staff Clock-in System', key: 'clockin' },
-    { id: '1aL_QZiJ5rmxQUBhj261PzdbYXrI5doOO', label: 'CESTIS Cashbook Dashboard', key: 'cashbook' },
-    { id: '1G6ipD_pGVItBvlPx0LGbD6Prj6AXW303', label: 'CESTIS Virement Request', key: 'virement' }
-  ]
-};
+/* The CMC Board oversees the Centre but operates none of it, so every dashboard
+   here is a READER of collections other pages own.
 
-var cmcData = {
-  payslip: null,
-  clockin: null,
-  cashbook: null,
-  virement: null,
-  lastRefresh: null
-};
+   It used to be a reader with no way to read. Each panel sat empty behind a
+   "Sync Drive Data" button that scraped four Google Drive FOLDERS for whatever
+   JSON happened to be newest in each, so a board member who never pressed it
+   saw nothing, and one without a Drive token could see nothing at all — while
+   the very same records sat on the device under the keys the operating pages
+   write. The board now reads those keys through the ordinary shared-collection
+   route (CESTISCore.pageCloud.sharedSources), which page-cloud keeps current on
+   its own: local storage renders instantly, Drive refreshes it in the
+   background, and there is nothing to press. */
+var CMC_SOURCES = [
+  { key: 'cashbook', label: 'Cashbook', icon: '📒', noun: 'entries' },
+  { key: 'payslip',  label: 'Staff Payslips', icon: '💰', noun: 'pay records' },
+  { key: 'clockin',  label: 'Staff Clock-in', icon: '🕐', noun: 'sessions' },
+  { key: 'virement', label: 'Virement Requests', icon: '📋', noun: 'requests' }
+];
+
+/* Normalised rows, one list per book — see cmc-portal.js for the parsers. */
+var cmcData = { payslip: [], clockin: [], cashbook: [], virement: [], loadedAt: null };
 var cmcChartInstances = {};
-var cmcHtmlContent = { payslip: null, clockin: null, cashbook: null, virement: null };
+var cmcStaffView = 'payslip';    // which staff book is on screen — a view, not a filter
 
-// Persist CMC data to localStorage so it survives page refreshes
-function cmcSaveToCache() {
+/* What the board has chosen to look at. Each section keeps its own choices so
+   moving between pages does not lose them. */
+var cmcFilters = {
+  financial: { search: '', period: 'all', category: 'all', type: 'all', from: '', to: '' },
+  virements: { search: '', status: 'all', from: '', to: '' },
+  staff: { search: '', period: 'all', from: '', to: '' },
+  academic: { search: '', course: 'all', stage: 'all' }
+};
+
+function cmcStoreMap() {
+  var out = {};
   try {
-    var cache = {
-      payslip: cmcData.payslip,
-      clockin: cmcData.clockin,
-      cashbook: cmcData.cashbook,
-      virement: cmcData.virement,
-      lastRefresh: cmcData.lastRefresh ? cmcData.lastRefresh.toISOString() : null
-    };
-    CESTISStore.setItem('cmcDashboardData', JSON.stringify(cache));
-  } catch(e) { console.warn('CMC: Failed to cache data', e); }
-  try {
-    var htmlCache = {};
-    Object.keys(cmcHtmlContent).forEach(function(k) {
-      if(cmcHtmlContent[k]) htmlCache[k] = cmcHtmlContent[k];
+    (CESTISStore.keys ? CESTISStore.keys() : []).forEach(function(k) {
+      try { out[k] = CESTISStore.getItem(k); } catch(e) {}
     });
-    if(Object.keys(htmlCache).length > 0) {
-      CESTISStore.setItem('cmcHtmlContent', JSON.stringify(htmlCache));
-    }
-  } catch(e) { console.warn('CMC: Failed to cache HTML content', e); }
-}
-
-function cmcLoadFromCache() {
-  try {
-    var cached = CESTISStore.getItem('cmcDashboardData');
-    if(cached) {
-      var parsed = JSON.parse(cached);
-      if(parsed.payslip) cmcData.payslip = parsed.payslip;
-      if(parsed.clockin) cmcData.clockin = parsed.clockin;
-      if(parsed.cashbook) cmcData.cashbook = parsed.cashbook;
-      if(parsed.virement) cmcData.virement = parsed.virement;
-      if(parsed.lastRefresh) cmcData.lastRefresh = new Date(parsed.lastRefresh);
-      return true;
-    }
-  } catch(e) { console.warn('CMC: Failed to load cache', e); }
-  return false;
-}
-
-function cmcLoadHtmlFromCache() {
-  try {
-    var cached = CESTISStore.getItem('cmcHtmlContent');
-    if(cached) {
-      var parsed = JSON.parse(cached);
-      Object.keys(parsed).forEach(function(k) { cmcHtmlContent[k] = parsed[k]; });
-      return true;
-    }
   } catch(e) {}
-  return false;
+  return out;
 }
 
-function cmcGetCacheAge() {
-  if(!cmcData.lastRefresh) return null;
-  var diffMs = Date.now() - cmcData.lastRefresh.getTime();
-  var mins = Math.floor(diffMs / 60000);
+/* Rebuild every board list from what is on the device right now. Cheap, needs
+   no network, and is the only thing the dashboards render from. */
+function cmcLoadOversightData() {
+  var C = window.CESTISCmc;
+  if(!C) return cmcData;
+  var map = cmcStoreMap();
+  cmcData.cashbook = C.cmcCashbookRows(map);
+  cmcData.payslip  = C.cmcPayrollRows(map.cestisPayroll);
+  cmcData.clockin  = C.cmcClockRows(map.cestisTimeRecords, map.cestisStaffMembers);
+  cmcData.virement = C.cmcVirementRows(map.cesti_virements);
+  cmcData.loadedAt = new Date();
+  return cmcData;
+}
+
+/* Register the board as a READ-ONLY page-cloud reader: it pulls the operating
+   pages' collections and can never push a key it does not own. Registered once,
+   and only for a CMC session — no other role needs these books pulled here. */
+function cmcStartOversightReader() {
+  if(window.__cmcReaderStarted || !window.CESTISPageCloud || !window.CESTISCmc) return;
+  window.__cmcReaderStarted = true;
+  var reads = [];
+  (window.CESTISCmc.CMC_SHARED_FILES || []).forEach(function(src) {
+    (src.keys || []).forEach(function(k) { if(reads.indexOf(k) === -1) reads.push(k); });
+    (src.prefixes || []).forEach(function(p) { if(reads.indexOf(p + '*') === -1) reads.push(p + '*'); });
+  });
+  try {
+    window.CESTISPageCloud.init({
+      page: 'CMC Oversight',
+      file: 'CESTIS_CMC_Rulings.json',
+      // The board's own minute book: rulings awaiting a countersignature. It
+      // has to travel, or the Chair could rule on one device and no second
+      // member would ever see it to sign. It is the ONLY key the board owns.
+      keys: ['cestis_cmc_rulings'],
+      reads: reads,
+      // The single collection the board may settle something in. Everything
+      // else it can only read — see cmc-portal.js for why this one is different.
+      writes: ['cesti_virements'],
+      onRestore: function() {
+        // Another device's book arrived: reload and repaint in place.
+        cmcLoadOversightData();
+        cmcRefreshAllSections();
+      }
+    });
+  } catch(e) { console.warn('[CMC] oversight reader unavailable: ' + e.message); }
+}
+
+function cmcLoadedAgo() {
+  if(!cmcData.loadedAt) return null;
+  var mins = Math.floor((Date.now() - cmcData.loadedAt.getTime()) / 60000);
   if(mins < 1) return 'just now';
   if(mins < 60) return mins + ' min ago';
   var hrs = Math.floor(mins / 60);
@@ -33998,427 +34024,187 @@ function cmcGetCacheAge() {
   return Math.floor(hrs / 24) + 'd ago';
 }
 
-// Helper: count records from a data source
-function cmcCountRecords(data, key) {
-  if(!data) return 0;
-  if(key === 'payslip') return (data.payslips || data.records || []).length || Object.keys(data).length;
-  if(key === 'clockin') return (data.records || data.clockins || data.entries || []).length || Object.keys(data).length;
-  if(key === 'cashbook') return (data.transactions || data.entries || []).length || Object.keys(data).length;
-  if(key === 'virement') return (data.requests || data.virements || data.entries || []).length || Object.keys(data).length;
-  return 0;
-}
 
-// Helper: compute payroll summary text
+// ---- Headline figures, all from the normalised rows ----
+function cmcMoney(n) { return 'D' + (Math.round((Number(n) || 0) * 100) / 100).toLocaleString(); }
+
 function cmcComputePayrollSummary() {
-  if(!cmcData.payslip) return '--';
-  var records = cmcData.payslip.payslips || cmcData.payslip.records || [];
-  var totalNet = 0;
-  records.forEach(function(p) { totalNet += parseFloat(p.netPay || p.net || p.net_pay || p.amount || 0); });
-  return totalNet > 0 ? 'D' + totalNet.toLocaleString() : records.length + ' Rec';
+  var rows = cmcData.payslip || [];
+  if(!rows.length) return '--';
+  var net = 0;
+  rows.forEach(function(r) { net += (Number(r.net) || 0); });
+  return net > 0 ? cmcMoney(net) : rows.length + ' Rec';
 }
 
-// Helper: compute cashbook balance
+function cmcCashSummary(rows) {
+  var C = window.CESTISCmc;
+  return C ? C.cmcCashSummary(rows || []) : { count: 0, income: 0, expense: 0, balance: 0, cancelled: 0 };
+}
+
 function cmcComputeCashbookBalance() {
-  if(!cmcData.cashbook) return '--';
-  var records = cmcData.cashbook.transactions || cmcData.cashbook.entries || [];
-  var income = 0, expenses = 0;
-  records.forEach(function(t) {
-    var amt = parseFloat(t.amount || t.total || 0);
-    var tp = (t.type || t.transaction_type || t.category || '').toLowerCase();
-    if(tp === 'income' || tp === 'credit' || tp === 'receipt' || amt > 0) income += Math.abs(amt);
-    else expenses += Math.abs(amt);
-  });
-  var bal = income - expenses;
-  return bal !== 0 ? 'D' + bal.toLocaleString() : records.length + ' Entries';
+  var rows = cmcData.cashbook || [];
+  if(!rows.length) return '--';
+  return cmcMoney(cmcCashSummary(rows).balance);
 }
 
-// Helper: compute cashbook income/expense summary
 function cmcComputeCashbookInOut() {
-  if(!cmcData.cashbook) return 'Sync to load cashbook data';
-  var records = cmcData.cashbook.transactions || cmcData.cashbook.entries || [];
-  var income = 0, expenses = 0;
-  records.forEach(function(t) {
-    var amt = parseFloat(t.amount || t.total || 0);
-    var tp = (t.type || t.transaction_type || t.category || '').toLowerCase();
-    if(tp === 'income' || tp === 'credit' || tp === 'receipt' || amt > 0) income += Math.abs(amt);
-    else expenses += Math.abs(amt);
-  });
-  return 'In: D' + income.toLocaleString() + ' | Out: D' + expenses.toLocaleString();
+  var rows = cmcData.cashbook || [];
+  if(!rows.length) return 'No cashbook entries on this device yet';
+  var s = cmcCashSummary(rows);
+  return 'In: ' + cmcMoney(s.income) + ' | Out: ' + cmcMoney(s.expense);
 }
 
-// Build mini dashboard panels for each data source on main page
+/* An empty book is a fact about the Centre's records, not a prompt to press
+   something — the board has nothing to press. Say which page owns the book so
+   a board member knows who to ask. */
+function cmcEmptyNote(owner) {
+  return '<div style="color:var(--text-muted);font-size:12px;padding:8px;">Nothing recorded yet. This arrives from ' + owner + ' as soon as that page has records to share.</div>';
+}
+
+// ---- Mini panels on the analytics dashboard ----
 function cmcBuildPayslipPanel() {
-  if(!cmcData.payslip) return '<div style="color:var(--text-muted);font-size:12px;padding:8px;">No payslip data. Sync Drive to load.</div>';
-  var records = cmcData.payslip.payslips || cmcData.payslip.records || [];
-  if(records.length === 0 && typeof cmcData.payslip === 'object') {
-    records = Object.keys(cmcData.payslip).filter(function(k) { return typeof cmcData.payslip[k] === 'object'; }).map(function(k) { return cmcData.payslip[k]; });
-  }
-  var totalNet = 0, totalGross = 0;
-  records.forEach(function(p) {
-    totalNet += parseFloat(p.netPay || p.net || p.net_pay || p.amount || 0);
-    totalGross += parseFloat(p.grossPay || p.gross || p.gross_pay || p.basic || 0);
+  var rows = cmcData.payslip || [];
+  if(!rows.length) return cmcEmptyNote('Staff Payslips');
+  var gross = 0, net = 0;
+  rows.forEach(function(r) { gross += (Number(r.gross) || 0); net += (Number(r.net) || 0); });
+  var h = '<div class="mini-stat"><span class="label">Pay Records</span><span class="value">' + rows.length + '</span></div>';
+  h += '<div class="mini-stat"><span class="label">Total Gross</span><span class="value">' + cmcMoney(gross) + '</span></div>';
+  h += '<div class="mini-stat"><span class="label">Total Net Pay</span><span class="value" style="color:var(--green);">' + cmcMoney(net) + '</span></div>';
+  h += '<div style="margin-top:10px;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Most Recent</div>';
+  rows.slice(0, 3).forEach(function(r) {
+    h += '<div class="mini-stat"><span class="label">' + cmcEsc(r.name) + '</span><span class="value">' + cmcMoney(r.net) + '</span></div>';
   });
-  var h = '<div class="mini-stat"><span class="label">Staff Records</span><span class="value">' + records.length + '</span></div>';
-  h += '<div class="mini-stat"><span class="label">Total Gross</span><span class="value">D' + totalGross.toLocaleString() + '</span></div>';
-  h += '<div class="mini-stat"><span class="label">Total Net Pay</span><span class="value" style="color:var(--green);">D' + totalNet.toLocaleString() + '</span></div>';
-  // Show top 3 recent entries
-  if(records.length > 0) {
-    h += '<div style="margin-top:10px;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Recent Entries</div>';
-    records.slice(0, 3).forEach(function(p) {
-      var name = p.name || p.employee || p.staff_name || p.employeeName || 'Staff';
-      var net = parseFloat(p.netPay || p.net || p.net_pay || p.amount || 0);
-      h += '<div class="mini-stat"><span class="label">' + name + '</span><span class="value">D' + net.toLocaleString() + '</span></div>';
-    });
-  }
   return h;
 }
 
 function cmcBuildClockinPanel() {
-  if(!cmcData.clockin) return '<div style="color:var(--text-muted);font-size:12px;padding:8px;">No clock-in data. Sync Drive to load.</div>';
-  var records = cmcData.clockin.records || cmcData.clockin.clockins || cmcData.clockin.entries || [];
-  if(records.length === 0 && typeof cmcData.clockin === 'object') {
-    records = Object.keys(cmcData.clockin).filter(function(k) { return typeof cmcData.clockin[k] === 'object'; }).map(function(k) { return cmcData.clockin[k]; });
-  }
-  var onTime = 0, late = 0, absent = 0;
-  records.forEach(function(r) {
-    var status = (r.status || r.clockin_status || '').toLowerCase();
-    if(status === 'late' || status === 'tardy') late++;
-    else if(status === 'absent' || status === 'no show') absent++;
-    else onTime++;
+  var rows = cmcData.clockin || [];
+  if(!rows.length) return cmcEmptyNote('Staff Clock-in');
+  var hours = 0, open = 0, people = {};
+  rows.forEach(function(r) {
+    hours += (Number(r.hours) || 0);
+    if(r.status !== 'completed') open++;
+    if(r.name) people[r.name] = 1;
   });
-  var h = '<div class="mini-stat"><span class="label">Total Entries</span><span class="value">' + records.length + '</span></div>';
-  h += '<div class="mini-stat"><span class="label">On Time</span><span class="value" style="color:var(--green);">' + onTime + '</span></div>';
-  h += '<div class="mini-stat"><span class="label">Late</span><span class="value" style="color:var(--orange);">' + late + '</span></div>';
-  h += '<div class="mini-stat"><span class="label">Absent</span><span class="value" style="color:var(--red);">' + absent + '</span></div>';
+  var h = '<div class="mini-stat"><span class="label">Sessions</span><span class="value">' + rows.length + '</span></div>';
+  h += '<div class="mini-stat"><span class="label">Staff Seen</span><span class="value">' + Object.keys(people).length + '</span></div>';
+  h += '<div class="mini-stat"><span class="label">Hours Logged</span><span class="value">' + (Math.round(hours * 10) / 10).toLocaleString() + '</span></div>';
+  h += '<div class="mini-stat"><span class="label">Still Clocked In</span><span class="value" style="color:var(--orange);">' + open + '</span></div>';
   return h;
 }
 
 function cmcBuildCashbookPanel() {
-  if(!cmcData.cashbook) return '<div style="color:var(--text-muted);font-size:12px;padding:8px;">No cashbook data. Sync Drive to load.</div>';
-  var records = cmcData.cashbook.transactions || cmcData.cashbook.entries || [];
-  var income = 0, expenses = 0;
-  records.forEach(function(t) {
-    var amt = parseFloat(t.amount || t.total || 0);
-    var tp = (t.type || t.transaction_type || t.category || '').toLowerCase();
-    if(tp === 'income' || tp === 'credit' || tp === 'receipt' || amt > 0) income += Math.abs(amt);
-    else expenses += Math.abs(amt);
-  });
-  var h = '<div class="mini-stat"><span class="label">Transactions</span><span class="value">' + records.length + '</span></div>';
-  h += '<div class="mini-stat"><span class="label">Total Income</span><span class="value" style="color:var(--green);">D' + income.toLocaleString() + '</span></div>';
-  h += '<div class="mini-stat"><span class="label">Total Expenses</span><span class="value" style="color:var(--red);">D' + expenses.toLocaleString() + '</span></div>';
-  h += '<div class="mini-stat"><span class="label">Balance</span><span class="value" style="font-weight:700;">D' + (income - expenses).toLocaleString() + '</span></div>';
+  var rows = cmcData.cashbook || [];
+  if(!rows.length) return cmcEmptyNote('the Cashbook');
+  var s = cmcCashSummary(rows);
+  var h = '<div class="mini-stat"><span class="label">Transactions</span><span class="value">' + s.count + '</span></div>';
+  h += '<div class="mini-stat"><span class="label">Total Income</span><span class="value" style="color:var(--green);">' + cmcMoney(s.income) + '</span></div>';
+  h += '<div class="mini-stat"><span class="label">Total Expenditure</span><span class="value" style="color:var(--red);">' + cmcMoney(s.expense) + '</span></div>';
+  h += '<div class="mini-stat"><span class="label">Balance</span><span class="value" style="font-weight:700;">' + cmcMoney(s.balance) + '</span></div>';
+  if(s.cancelled) h += '<div class="mini-stat"><span class="label">Cancelled Cheques</span><span class="value">' + s.cancelled + '</span></div>';
   return h;
 }
 
 function cmcBuildVirementPanel() {
-  if(!cmcData.virement) return '<div style="color:var(--text-muted);font-size:12px;padding:8px;">No virement data. Sync Drive to load.</div>';
-  var records = cmcData.virement.requests || cmcData.virement.virements || cmcData.virement.entries || [];
-  if(records.length === 0 && typeof cmcData.virement === 'object') {
-    records = Object.keys(cmcData.virement).filter(function(k) { return typeof cmcData.virement[k] === 'object'; }).map(function(k) { return cmcData.virement[k]; });
-  }
-  var pending = 0, approved = 0, totalAmt = 0;
-  records.forEach(function(r) {
-    var status = (r.status || '').toLowerCase();
-    if(status === 'pending') pending++;
-    else if(status === 'approved') approved++;
-    totalAmt += parseFloat(r.amount || r.total || 0);
+  var rows = cmcData.virement || [];
+  if(!rows.length) return cmcEmptyNote('Virement Requests');
+  var pending = 0, approved = 0, total = 0;
+  rows.forEach(function(r) {
+    var st = String(r.status || '').toLowerCase();
+    if(st === 'pending') pending++; else if(st === 'approved') approved++;
+    total += (Number(r.amount) || 0);
   });
-  var h = '<div class="mini-stat"><span class="label">Total Requests</span><span class="value">' + records.length + '</span></div>';
+  var h = '<div class="mini-stat"><span class="label">Total Requests</span><span class="value">' + rows.length + '</span></div>';
   h += '<div class="mini-stat"><span class="label">Pending</span><span class="value" style="color:var(--orange);">' + pending + '</span></div>';
   h += '<div class="mini-stat"><span class="label">Approved</span><span class="value" style="color:var(--green);">' + approved + '</span></div>';
-  h += '<div class="mini-stat"><span class="label">Total Amount</span><span class="value">D' + totalAmt.toLocaleString() + '</span></div>';
+  h += '<div class="mini-stat"><span class="label">Total Amount</span><span class="value">' + cmcMoney(total) + '</span></div>';
   return h;
 }
 
-// Source Viewer helpers
-function cmcSwitchSourceTab(key, tabEl) {
-  document.querySelectorAll('.cmc-source-tab').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.cmc-source-panel').forEach(function(p) { p.classList.remove('active'); });
-  tabEl.classList.add('active');
-  var panel = document.getElementById('cmcSourcePanel_' + key);
-  if(panel) panel.classList.add('active');
+function cmcEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// Sanitize HTML from Drive sources to prevent XSS but preserve layout
-function cmcSanitizeHtml(html) {
-  // Remove script tags, event handlers, and dangerous elements
-  var sanitized = html.replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/on\w+\s*=\s*[^\s>]*/gi, '')
-    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
-    .replace(/<object[\s\S]*?<\/object>/gi, '')
-    .replace(/<embed[\s\S]*?>/gi, '')
-    .replace(/<link[^>]*>/gi, '')
-    .replace(/javascript\s*:/gi, '');
-  return sanitized;
-}
-
-// Build data view for source panel (when no HTML is available)
-function cmcBuildSourceDataView(key, data) {
-  if(!data) return '<div class="cmc-empty-state"><div class="empty-icon">📭</div><h4>No data</h4></div>';
-  var records = [];
-  if(key === 'payslip') records = data.payslips || data.records || [];
-  else if(key === 'clockin') records = data.records || data.clockins || data.entries || [];
-  else if(key === 'cashbook') records = data.transactions || data.entries || [];
-  else if(key === 'virement') records = data.requests || data.virements || data.entries || [];
-  if(records.length === 0 && typeof data === 'object' && !Array.isArray(data)) {
-    records = Object.keys(data).filter(function(k) { return typeof data[k] === 'object'; }).map(function(k) { var o = data[k]; o._key = k; return o; });
-  }
-  if(records.length === 0) return '<div class="cmc-empty-state"><div class="empty-icon">📄</div><h4>Data loaded but no records found</h4><p>The data structure might be in an unexpected format. Check the raw JSON in the console.</p></div>';
-
-  // Auto-detect columns from first record
-  var firstRec = records[0];
-  var columns = Object.keys(firstRec).filter(function(k) { return k !== '_key' && typeof firstRec[k] !== 'object'; }).slice(0, 8);
-
-  var h = '<div style="overflow:auto;max-height:480px;padding:12px;">';
-  h += '<table class="cmc-table"><thead><tr>';
-  h += '<th>#</th>';
-  columns.forEach(function(col) {
-    h += '<th>' + col.replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); }) + '</th>';
-  });
-  h += '</tr></thead><tbody>';
-  records.slice(0, 50).forEach(function(rec, i) {
-    h += '<tr><td>' + (i+1) + '</td>';
-    columns.forEach(function(col) {
-      var val = rec[col] || '--';
-      // Detect numeric values and format
-      if(!isNaN(val) && val !== '' && val !== '--') {
-        var num = parseFloat(val);
-        if(num >= 100) val = 'D' + num.toLocaleString();
-      }
-      h += '<td>' + val + '</td>';
+/* ---- Filters: the board decides what it wants to see --------------------
+   One bar shape everywhere, so it is learned once. Every control writes into
+   cmcFilters and repaints just its own section — nothing is fetched, because
+   everything is already here. */
+function cmcFilterBar(section, controls) {
+  var f = cmcFilters[section];
+  var h = '<div class="cmc-filter-bar" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">';
+  h += '<input type="text" id="cmcFilter_' + section + '_search" value="' + cmcEsc(f.search) + '" placeholder="Search…" ' +
+       'oninput="cmcSetFilter(\'' + section + '\',\'search\',this.value)" ' +
+       'style="flex:1;min-width:180px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:13px;font-family:\'DM Sans\',sans-serif;">';
+  (controls || []).forEach(function(c) {
+    h += '<select onchange="cmcSetFilter(\'' + section + '\',\'' + c.field + '\',this.value)" title="' + cmcEsc(c.label) + '" ' +
+         'style="padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:13px;font-family:\'DM Sans\',sans-serif;">';
+    h += '<option value="all">' + cmcEsc(c.label) + ': All</option>';
+    (c.options || []).forEach(function(o) {
+      var sel = String(f[c.field]) === String(o) ? ' selected' : '';
+      h += '<option value="' + cmcEsc(o) + '"' + sel + '>' + cmcEsc(o) + '</option>';
     });
-    h += '</tr>';
+    h += '</select>';
   });
-  h += '</tbody></table>';
-  if(records.length > 50) h += '<div style="text-align:center;color:var(--text-muted);padding:8px;font-size:11px;">Showing 50 of ' + records.length + ' records</div>';
+  if(f.from !== undefined) {
+    h += '<label style="font-size:12px;color:var(--text-muted);">From <input type="date" value="' + cmcEsc(f.from) + '" onchange="cmcSetFilter(\'' + section + '\',\'from\',this.value)" style="padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:12px;"></label>';
+    h += '<label style="font-size:12px;color:var(--text-muted);">To <input type="date" value="' + cmcEsc(f.to) + '" onchange="cmcSetFilter(\'' + section + '\',\'to\',this.value)" style="padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:12px;"></label>';
+  }
+  h += '<button class="cmc-refresh-btn" style="background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--border);" onclick="cmcClearFilter(\'' + section + '\')">Clear</button>';
   h += '</div>';
   return h;
 }
 
-// Build full data table for source (used below the viewer)
-function cmcBuildSourceDataTable(key, data) {
-  return cmcBuildSourceDataView(key, data);
+function cmcSetFilter(section, field, value) {
+  if(!cmcFilters[section]) return;
+  cmcFilters[section][field] = value;
+  cmcRenderSection(section);
 }
 
-// Fetch HTML page content from a Drive folder
-async function cmcFetchSingleHtml(key, folderId) {
-  if(!googleAccessToken) {
-    alert('Please connect to Google Drive first using the Cloud button in the top bar.');
-    return;
-  }
-  var contentEl = document.getElementById('cmcSourceContent_' + key);
-  if(contentEl) contentEl.innerHTML = '<div class="cmc-empty-state"><div class="empty-icon" style="animation:spin 1s linear infinite;">⏳</div><h4>Fetching HTML from Drive...</h4></div>';
-  var metaEl = document.getElementById('cmcSourceMeta_' + key);
-
-  try {
-    // Search for HTML files in the folder
-    var query = encodeURIComponent("'" + folderId + "' in parents and trashed=false");
-    var resp = await fetch('https://www.googleapis.com/drive/v3/files?q=' + query + '&fields=files(id,name,mimeType,modifiedTime,size)&orderBy=modifiedTime desc&pageSize=20', {
-      headers: { 'Authorization': 'Bearer ' + googleAccessToken }
-    });
-    if(!resp.ok) throw new Error('Drive API error: ' + resp.status);
-    var data = await resp.json();
-    if(!data.files || data.files.length === 0) {
-      if(contentEl) contentEl.innerHTML = '<div class="cmc-empty-state"><div class="empty-icon">📭</div><h4>No files found</h4><p>The Drive folder appears to be empty.</p></div>';
-      return;
-    }
-
-    // Prefer HTML files
-    var htmlFile = data.files.find(function(f) {
-      return f.mimeType === 'text/html' || f.name.endsWith('.html') || f.name.endsWith('.htm');
-    });
-
-    // If no HTML, try Google Docs (can export as HTML)
-    if(!htmlFile) {
-      htmlFile = data.files.find(function(f) {
-        return f.mimeType === 'application/vnd.google-apps.document';
-      });
-      if(htmlFile) {
-        // Export Google Doc as HTML
-        var exportResp = await fetch('https://www.googleapis.com/drive/v3/files/' + htmlFile.id + '/export?mimeType=text/html', {
-          headers: { 'Authorization': 'Bearer ' + googleAccessToken }
-        });
-        if(exportResp.ok) {
-          var htmlText = await exportResp.text();
-          cmcHtmlContent[key] = htmlText;
-          cmcSaveToCache();
-          if(contentEl) contentEl.innerHTML = '<div class="cmc-html-viewer">' + cmcSanitizeHtml(htmlText) + '</div>';
-          if(metaEl) metaEl.textContent = 'Loaded: ' + htmlFile.name + ' (Google Doc, exported as HTML)';
-          return;
-        }
-      }
-    }
-
-    // If no HTML and no Google Doc, try any file (show file list)
-    if(!htmlFile) {
-      // Build a file browser showing all files in the folder
-      var h = '<div style="padding:20px;">';
-      h += '<div style="margin-bottom:16px;font-size:14px;color:var(--text-primary);font-weight:600;">Files in this Drive folder (' + data.files.length + ' files)</div>';
-      h += '<table class="cmc-table"><thead><tr><th>Name</th><th>Type</th><th>Modified</th><th>Actions</th></tr></thead><tbody>';
-      data.files.forEach(function(f) {
-        var typeName = (f.mimeType || '').split('/').pop().split('.').pop();
-        h += '<tr><td>' + f.name + '</td><td><span class="cmc-status info">' + typeName + '</span></td>';
-        h += '<td>' + (f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : '--') + '</td>';
-        h += '<td><button class="cmc-refresh-btn" style="padding:4px 10px;font-size:11px;" onclick="cmcTryLoadFile(\'' + key + '\',\'' + f.id + '\',\'' + (f.mimeType || '') + '\')">Load</button></td></tr>';
-      });
-      h += '</tbody></table></div>';
-      if(contentEl) contentEl.innerHTML = h;
-      if(metaEl) metaEl.textContent = data.files.length + ' files found (no HTML files)';
-      return;
-    }
-
-    // Fetch the HTML file content
-    var fileResp = await fetch('https://www.googleapis.com/drive/v3/files/' + htmlFile.id + '?alt=media', {
-      headers: { 'Authorization': 'Bearer ' + googleAccessToken }
-    });
-    if(!fileResp.ok) throw new Error('Failed to download file: ' + fileResp.status);
-    var htmlText = await fileResp.text();
-    cmcHtmlContent[key] = htmlText;
-    cmcSaveToCache();
-
-    if(contentEl) contentEl.innerHTML = '<div class="cmc-html-viewer">' + cmcSanitizeHtml(htmlText) + '</div>';
-    if(metaEl) metaEl.textContent = 'Loaded: ' + htmlFile.name + ' (' + new Date(htmlFile.modifiedTime).toLocaleDateString() + ')';
-
-    // Update tab badge
-    var tab = document.querySelector('.cmc-source-tab.active .tab-badge');
-    if(tab) { tab.textContent = 'HTML'; tab.className = 'tab-badge'; }
-
-  } catch(err) {
-    console.error('CMC: Error fetching HTML for ' + key + ':', err);
-    if(contentEl) contentEl.innerHTML = '<div class="cmc-empty-state"><div class="empty-icon">❌</div><h4>Error loading content</h4><p>' + err.message + '</p></div>';
-  }
+function cmcClearFilter(section) {
+  var f = cmcFilters[section];
+  Object.keys(f).forEach(function(k) { f[k] = (k === 'search' || k === 'from' || k === 'to') ? '' : 'all'; });
+  cmcRenderSection(section);
 }
 
-// Try to load any file type from Drive and render it
-async function cmcTryLoadFile(key, fileId, mimeType) {
-  var contentEl = document.getElementById('cmcSourceContent_' + key);
-  if(contentEl) contentEl.innerHTML = '<div class="cmc-empty-state"><div class="empty-icon">⏳</div><h4>Loading...</h4></div>';
-
-  try {
-    // For Google Sheets, export as HTML
-    if(mimeType === 'application/vnd.google-apps.spreadsheet') {
-      var exportResp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/export?mimeType=text/html', {
-        headers: { 'Authorization': 'Bearer ' + googleAccessToken }
-      });
-      if(exportResp.ok) {
-        var htmlText = await exportResp.text();
-        cmcHtmlContent[key] = htmlText;
-        cmcSaveToCache();
-        if(contentEl) contentEl.innerHTML = '<div class="cmc-html-viewer">' + cmcSanitizeHtml(htmlText) + '</div>';
-        return;
-      }
-    }
-
-    // For Google Docs, export as HTML
-    if(mimeType === 'application/vnd.google-apps.document') {
-      var exportResp2 = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/export?mimeType=text/html', {
-        headers: { 'Authorization': 'Bearer ' + googleAccessToken }
-      });
-      if(exportResp2.ok) {
-        var htmlText2 = await exportResp2.text();
-        cmcHtmlContent[key] = htmlText2;
-        cmcSaveToCache();
-        if(contentEl) contentEl.innerHTML = '<div class="cmc-html-viewer">' + cmcSanitizeHtml(htmlText2) + '</div>';
-        return;
-      }
-    }
-
-    // Download as media
-    var fileResp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
-      headers: { 'Authorization': 'Bearer ' + googleAccessToken }
-    });
-    if(!fileResp.ok) throw new Error('Failed to download: ' + fileResp.status);
-    var text = await fileResp.text();
-
-    // Check if it's HTML
-    if(text.trim().startsWith('<') && (text.includes('<html') || text.includes('<body') || text.includes('<div') || text.includes('<table'))) {
-      cmcHtmlContent[key] = text;
-      cmcSaveToCache();
-      if(contentEl) contentEl.innerHTML = '<div class="cmc-html-viewer">' + cmcSanitizeHtml(text) + '</div>';
-      return;
-    }
-
-    // Check if it's JSON
-    if(text.trim().startsWith('{') || text.trim().startsWith('[')) {
-      var parsed = JSON.parse(text);
-      cmcData[key] = parsed;
-      cmcSaveToCache();
-      if(contentEl) contentEl.innerHTML = cmcBuildSourceDataView(key, parsed);
-      return;
-    }
-
-    // Check if it's CSV
-    if(text.includes(',') && text.includes('\n')) {
-      var csvData = cmcConvertCsvToJson(text);
-      cmcData[key] = csvData;
-      cmcSaveToCache();
-      if(contentEl) contentEl.innerHTML = cmcBuildSourceDataView(key, csvData);
-      return;
-    }
-
-    // Plain text fallback
-    if(contentEl) contentEl.innerHTML = '<div style="padding:20px;"><pre style="white-space:pre-wrap;font-size:12px;color:var(--text-secondary);max-height:400px;overflow:auto;">' + text.substring(0, 5000) + '</pre></div>';
-
-  } catch(err) {
-    console.error('CMC: Error loading file:', err);
-    if(contentEl) contentEl.innerHTML = '<div class="cmc-empty-state"><div class="empty-icon">❌</div><h4>Error</h4><p>' + err.message + '</p></div>';
-  }
+function cmcSetStaffView(view) {
+  cmcStaffView = view;
+  cmcRenderStaff();
 }
 
-// Fetch all HTML pages from all sources
-async function cmcFetchAllHtml() {
-  for(var i = 0; i < CMC_DRIVE_CONFIG.SOURCES.length; i++) {
-    var src = CMC_DRIVE_CONFIG.SOURCES[i];
-    await cmcFetchSingleHtml(src.key, src.id);
-  }
+function cmcRows(key, section) {
+  var C = window.CESTISCmc;
+  var rows = cmcData[key] || [];
+  return C ? C.cmcFilterRows(rows, cmcFilters[section]) : rows;
 }
 
-// Refresh a single data source
-async function cmcRefreshSingleSource(key, folderId) {
-  if(!googleAccessToken) {
-    alert('Please connect to Google Drive first using the Cloud button in the top bar.');
-    return;
-  }
-  try {
-    var data = await cmcFetchBackupFromFolder(folderId);
-    if(data) {
-      cmcData[key] = data;
-      cmcSaveToCache();
-      var contentEl = document.getElementById('cmcSourceContent_' + key);
-      if(contentEl && !cmcHtmlContent[key]) {
-        contentEl.innerHTML = cmcBuildSourceDataView(key, data);
-      }
-      var metaEl = document.getElementById('cmcSourceMeta_' + key);
-      if(metaEl) metaEl.textContent = 'Data refreshed: ' + new Date().toLocaleTimeString() + ' (' + cmcCountRecords(data, key) + ' records)';
-    }
-  } catch(err) {
-    console.error('CMC: Error refreshing ' + key + ':', err);
-  }
+function cmcOptions(key, field) {
+  var C = window.CESTISCmc;
+  return C ? C.cmcFilterOptions(cmcData[key] || [], field) : [];
 }
 
-// Open HTML content in a new browser tab
-function cmcOpenInNewTab(key) {
-  var content = cmcHtmlContent[key];
-  if(!content) {
-    alert('No HTML content loaded for this source. Click "Fetch HTML" first.');
-    return;
-  }
-  var newWin = window.open('', '_blank');
-  if(newWin) {
-    newWin.document.write(content);
-    newWin.document.close();
-  }
+function cmcRenderSection(section) {
+  if(section === 'financial') cmcRenderFinancial();
+  else if(section === 'staff') cmcRenderStaff();
+  else if(section === 'academic') cmcRenderAcademic();
+  else if(section === 'virements') cmcRenderVirements();
 }
 
-// Clear cached CMC data
-function cmcClearCache() {
-  CESTISStore.removeItem('cmcDashboardData');
-  CESTISStore.removeItem('cmcHtmlContent');
-  cmcData = { payslip: null, clockin: null, cashbook: null, virement: null, lastRefresh: null };
-  cmcHtmlContent = { payslip: null, clockin: null, cashbook: null, virement: null };
-  buildCmcPages();
-  showPage('cmc-dashboard');
+function cmcRefreshAllSections() {
+  ['financial', 'virements', 'staff', 'academic'].forEach(cmcRenderSection);
+  cmcRefreshDataPanels();
+  cmcUpdateLocalKpis();
+  cmcUpdateDriveCharts();
+}
+
+function cmcPendingCount() {
+  var C = window.CESTISCmc;
+  if(!C) return 0;
+  var book = cmcRulings();
+  return (cmcData.virement || []).filter(function(r) {
+    return C.cmcVirementStage(r, C.cmcRulingFor(book, r.id)) !== 'settled';
+  }).length;
 }
 
 function buildCmcSidebar() {
@@ -34430,15 +34216,15 @@ function buildCmcSidebar() {
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Oversight Portal<span class="nav-badge" style="background:var(--teal);">VIEW</span></div>' +
     '<div class="nav-item" data-page="cmc-financial" onclick="showPage(\'cmc-financial\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Financial Overview</div>' +
+    '<div class="nav-item" data-page="cmc-virements" onclick="showPage(\'cmc-virements\')">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Virement Approvals' +
+      (cmcPendingCount() ? '<span class="nav-badge" style="background:var(--orange);">' + cmcPendingCount() + '</span>' : '') + '</div>' +
     '<div class="nav-item" data-page="cmc-staff" onclick="showPage(\'cmc-staff\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Staff & HR</div>' +
     '<div class="nav-item" data-page="cmc-my-appraisal" onclick="showPage(\'cmc-my-appraisal\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>My Appraisal (Staff)</div>' +
     '<div class="nav-item" data-page="cmc-academic" onclick="showPage(\'cmc-academic\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Academic</div>' +
-    '<div class="nav-section-label">Drive Sources</div>' +
-    '<div class="nav-item" data-page="cmc-sources" onclick="showPage(\'cmc-sources\')">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Source Viewer</div>' +
     '<div class="nav-section-label">Account</div>' +
     '<div class="nav-item" data-page="cmc-profile" onclick="showPage(\'cmc-profile\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>My Profile</div>';
@@ -34449,14 +34235,24 @@ function buildCmcPages() {
   var user = currentLoggedInUser;
   var firstName = user.name.split(' ')[0] || user.name;
 
-  // Load cached data from localStorage
-  var hasCachedData = cmcLoadFromCache();
-  cmcLoadHtmlFromCache();
-  var cacheAge = cmcGetCacheAge();
+  // Every book the board oversees, read straight off the device. No button, no
+  // token required: page-cloud keeps these keys current in the background.
+  cmcLoadOversightData();
+  cmcStartOversightReader();
+  var loadedAgo = cmcLoadedAgo();
 
   var totalStudents = students.length;
   var totalCertified = students.filter(function(s){ return s.stage==='certified'||s.stage==='collected'; }).length;
-  var totalInstructors = Object.keys(instructorProfiles || {}).length || instructorData.length;
+  // Instructors on record: the roster the Centre maintains, the accounts that
+  // carry the instructor role, and the profile blobs — whichever the Centre has
+  // actually filled in. Counting only one of the three showed "0 instructors"
+  // to a board looking at a Centre that plainly had them.
+  var _insNames = {};
+  (instructorData || []).forEach(function(i) { if(i && i.name) _insNames[String(i.name).toLowerCase()] = 1; });
+  Object.keys(instructorProfiles || {}).forEach(function(k) { if(k) _insNames[String(k).toLowerCase()] = 1; });
+  (userAccounts || []).forEach(function(u) { if(u && u.role === 'instructor' && u.name) _insNames[String(u.name).toLowerCase()] = 1; });
+  (students || []).forEach(function(s) { if(s && s.instructor) _insNames[String(s.instructor).toLowerCase()] = 1; });
+  var totalInstructors = Object.keys(_insNames).length;
   var totalStaff = userAccounts.filter(function(u){ return u.role === 'adminstaff'; }).length;
   // Compute avg attendance from attendanceRecords if available
   var avgAttendance = 0;
@@ -34495,17 +34291,7 @@ function buildCmcPages() {
   html += '<section class="page" id="page-cmc-dashboard">';
   html += '<div class="cmc-refresh-bar">';
   html += '<div><h3 class="cmc-section-title" style="margin-bottom:4px;">CMC Analytics Dashboard</h3>';
-  if(hasCachedData && cacheAge) {
-    html += '<span class="cmc-last-sync" id="cmcLastSync">Welcome, ' + firstName + '. <span class="cmc-cached-badge">Cached data loaded (' + cacheAge + ')</span></span>';
-  } else {
-    html += '<span class="cmc-last-sync" id="cmcLastSync">Welcome, ' + firstName + '. Data from local storage.</span>';
-  }
-  html += '</div>';
-  html += '<div style="display:flex;gap:8px;align-items:center;">';
-  if(hasCachedData) {
-    html += '<button class="cmc-refresh-btn" style="background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--border);" onclick="cmcClearCache()">Clear Cache</button>';
-  }
-  html += '<button class="cmc-refresh-btn" id="cmcRefreshBtn" onclick="cmcRefreshFromDrive()">Refresh from Drive</button>';
+  html += '<span class="cmc-last-sync" id="cmcLastSync">Welcome, ' + firstName + '. Every figure below loads on its own' + (loadedAgo ? ' — read ' + loadedAgo : '') + '.</span>';
   html += '</div></div>';
 
   // Compute local metrics
@@ -34519,29 +34305,8 @@ function buildCmcPages() {
   var examPassRate = totalExamResults > 0 ? Math.round((passedResults/totalExamResults)*100) : 0;
   var attRecCount = (attendanceRecords||[]).length;
 
-  // Drive Source Summary Cards — show status of each Drive source at top
-  html += '<div class="cmc-source-summary">';
-  CMC_DRIVE_CONFIG.SOURCES.forEach(function(src) {
-    var data = cmcData[src.key];
-    var count = 0;
-    var statusClass = '';
-    var statusText = 'Not synced';
-    if(data) {
-      statusClass = 'synced';
-      if(src.key === 'payslip') { count = (data.payslips || data.records || []).length || Object.keys(data).length; statusText = count + ' records'; }
-      else if(src.key === 'clockin') { count = (data.records || data.clockins || data.entries || []).length || Object.keys(data).length; statusText = count + ' records'; }
-      else if(src.key === 'cashbook') { count = (data.transactions || data.entries || []).length || Object.keys(data).length; statusText = count + ' entries'; }
-      else if(src.key === 'virement') { count = (data.requests || data.virements || data.entries || []).length || Object.keys(data).length; statusText = count + ' requests'; }
-    }
-    var icons = {payslip:'💰', clockin:'🕐', cashbook:'📒', virement:'📋'};
-    html += '<div class="cmc-source-card ' + statusClass + '" onclick="cmcShowDetail(\'' + src.key + '\')">';
-    html += '<div class="source-icon">' + (icons[src.key]||'📁') + '</div>';
-    html += '<div class="source-label">' + src.label + '</div>';
-    html += '<div class="source-status">' + (data ? count : '--') + '</div>';
-    html += '<div class="source-sub">' + statusText + (hasCachedData && data ? ' <span class="cmc-cached-badge">cached</span>' : '') + '</div>';
-    html += '</div>';
-  });
-  html += '</div>';
+  // The books the board oversees, with what each currently holds.
+  html += '<div class="cmc-source-summary" id="cmcSourceSummary">' + cmcBuildSourceSummary() + '</div>';
 
   // KPI Cards — all driven by local data
   html += '<div class="cmc-kpi-grid">';
@@ -34571,14 +34336,14 @@ function buildCmcPages() {
 
   html += '<div class="cmc-kpi-card kpi-payroll" onclick="cmcShowDetail(\'payroll\')"><div class="cmc-kpi-icon">💰</div>';
   html += '<div class="cmc-kpi-label">Payroll</div>';
-  html += '<div class="cmc-kpi-value" id="cmcKpiPayroll">' + (cmcData.payslip ? cmcComputePayrollSummary() : '--') + '</div>';
-  html += '<div class="cmc-kpi-sub" id="cmcKpiPayrollSub">' + (cmcData.payslip ? cmcCountRecords(cmcData.payslip, 'payslip') + ' payslip records' : 'Sync to load payroll data') + '</div>';
+  html += '<div class="cmc-kpi-value" id="cmcKpiPayroll">' + cmcComputePayrollSummary() + '</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcKpiPayrollSub">' + cmcData.payslip.length + ' pay records</div>';
   html += '<div class="cmc-kpi-hint">Click to view details</div></div>';
 
   html += '<div class="cmc-kpi-card kpi-fees" onclick="cmcShowDetail(\'cashbook\')"><div class="cmc-kpi-icon">📒</div>';
   html += '<div class="cmc-kpi-label">Cashbook Balance</div>';
-  html += '<div class="cmc-kpi-value" id="cmcKpiCashbook">' + (cmcData.cashbook ? cmcComputeCashbookBalance() : '--') + '</div>';
-  html += '<div class="cmc-kpi-sub" id="cmcKpiCashbookSub">' + (cmcData.cashbook ? cmcComputeCashbookInOut() : 'Sync to load cashbook data') + '</div>';
+  html += '<div class="cmc-kpi-value" id="cmcKpiCashbook">' + cmcComputeCashbookBalance() + '</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcKpiCashbookSub">' + cmcComputeCashbookInOut() + '</div>';
   html += '<div class="cmc-kpi-hint">Click to view details</div></div>';
   html += '</div>';
 
@@ -34588,7 +34353,7 @@ function buildCmcPages() {
   // Payslip Panel
   html += '<div class="cmc-data-panel">';
   html += '<div class="cmc-data-panel-header"><h4>💰 Staff Payslip Dashboard</h4>';
-  html += (cmcData.payslip ? '<span class="cmc-live-badge">Loaded</span>' : '<span class="cmc-cached-badge">No data</span>') + '</div>';
+  html += ((cmcData.payslip || []).length ? '<span class="cmc-live-badge">Loaded</span>' : '<span class="cmc-cached-badge">Nothing recorded yet</span>') + '</div>';
   html += '<div class="cmc-data-panel-body" id="cmcPanelPayslip">';
   html += cmcBuildPayslipPanel();
   html += '</div></div>';
@@ -34596,7 +34361,7 @@ function buildCmcPages() {
   // Clock-in Panel
   html += '<div class="cmc-data-panel">';
   html += '<div class="cmc-data-panel-header"><h4>🕐 Staff Clock-in System</h4>';
-  html += (cmcData.clockin ? '<span class="cmc-live-badge">Loaded</span>' : '<span class="cmc-cached-badge">No data</span>') + '</div>';
+  html += ((cmcData.clockin || []).length ? '<span class="cmc-live-badge">Loaded</span>' : '<span class="cmc-cached-badge">Nothing recorded yet</span>') + '</div>';
   html += '<div class="cmc-data-panel-body" id="cmcPanelClockin">';
   html += cmcBuildClockinPanel();
   html += '</div></div>';
@@ -34604,7 +34369,7 @@ function buildCmcPages() {
   // Cashbook Panel
   html += '<div class="cmc-data-panel">';
   html += '<div class="cmc-data-panel-header"><h4>📒 CESTIS Cashbook</h4>';
-  html += (cmcData.cashbook ? '<span class="cmc-live-badge">Loaded</span>' : '<span class="cmc-cached-badge">No data</span>') + '</div>';
+  html += ((cmcData.cashbook || []).length ? '<span class="cmc-live-badge">Loaded</span>' : '<span class="cmc-cached-badge">Nothing recorded yet</span>') + '</div>';
   html += '<div class="cmc-data-panel-body" id="cmcPanelCashbook">';
   html += cmcBuildCashbookPanel();
   html += '</div></div>';
@@ -34612,7 +34377,7 @@ function buildCmcPages() {
   // Virement Panel
   html += '<div class="cmc-data-panel">';
   html += '<div class="cmc-data-panel-header"><h4>📋 Virement Requests</h4>';
-  html += (cmcData.virement ? '<span class="cmc-live-badge">Loaded</span>' : '<span class="cmc-cached-badge">No data</span>') + '</div>';
+  html += ((cmcData.virement || []).length ? '<span class="cmc-live-badge">Loaded</span>' : '<span class="cmc-cached-badge">Nothing recorded yet</span>') + '</div>';
   html += '<div class="cmc-data-panel-body" id="cmcPanelVirement">';
   html += cmcBuildVirementPanel();
   html += '</div></div>';
@@ -34637,14 +34402,11 @@ function buildCmcPages() {
   html += '<tr><td>Exam Results</td><td><span class="cmc-status good">Local</span></td><td>Active</td><td>' + totalExamResults + ' results</td></tr>';
   html += '<tr><td>Instructor Data</td><td><span class="cmc-status good">Local</span></td><td>Active</td><td>' + totalInstructors + ' instructors</td></tr>';
   html += '<tr><td>User Accounts</td><td><span class="cmc-status good">Local</span></td><td>Active</td><td>' + userAccounts.length + ' accounts</td></tr>';
-  CMC_DRIVE_CONFIG.SOURCES.forEach(function(src) {
-    var data = cmcData[src.key];
-    var count = data ? cmcCountRecords(data, src.key) : 0;
-    var statusCls = data ? 'good' : (hasCachedData ? 'warning' : 'info');
-    var statusText = data ? 'Connected' : (hasCachedData ? 'Cached (stale)' : 'Not synced');
-    html += '<tr><td>' + src.label + '</td><td><span class="cmc-status info">Drive</span></td>';
-    html += '<td><span class="cmc-status ' + statusCls + '">' + statusText + '</span></td>';
-    html += '<td id="cmcRec' + src.key.charAt(0).toUpperCase() + src.key.slice(1) + '">' + (data ? count + ' records' : '--') + '</td></tr>';
+  CMC_SOURCES.forEach(function(src) {
+    var count = (cmcData[src.key] || []).length;
+    html += '<tr><td>' + src.label + '</td><td><span class="cmc-status info">Shared</span></td>';
+    html += '<td><span class="cmc-status ' + (count ? 'good' : 'info') + '">' + (count ? 'Loaded' : 'Nothing recorded yet') + '</span></td>';
+    html += '<td id="cmcRec' + src.key.charAt(0).toUpperCase() + src.key.slice(1) + '">' + count + ' ' + src.noun + '</td></tr>';
   });
   html += '</tbody></table></div>';
 
@@ -34663,10 +34425,7 @@ function buildCmcPages() {
   }).filter(function(p){return p.enrolled>0;});
 
   html += '<section class="page" id="page-cmc-financial">';
-  html += '<div class="cmc-refresh-bar">';
-  html += '<h3 class="cmc-section-title">Financial & Programme Overview</h3>';
-  html += '<button class="cmc-refresh-btn" onclick="cmcRefreshFromDrive()">Sync Drive Data</button>';
-  html += '</div>';
+  html += '<div class="cmc-refresh-bar"><h3 class="cmc-section-title">Financial &amp; Programme Overview</h3></div>';
 
   // Programme enrolment KPIs
   html += '<div class="cmc-kpi-grid" style="grid-template-columns:repeat(3,1fr);">';
@@ -34679,9 +34438,9 @@ function buildCmcPages() {
   html += '<div class="cmc-kpi-value" id="cmcKpiFees">' + completionRate + '%</div>';
   html += '<div class="cmc-kpi-sub" id="cmcKpiFeesSub">' + totalCertified + ' certified of ' + totalStudents + '</div></div>';
   html += '<div class="cmc-kpi-card kpi-virement"><div class="cmc-kpi-icon">📒</div>';
-  html += '<div class="cmc-kpi-label">Drive Finance</div>';
+  html += '<div class="cmc-kpi-label">Cashbook Balance</div>';
   html += '<div class="cmc-kpi-value" id="cmcFinCashbook">--</div>';
-  html += '<div class="cmc-kpi-sub" id="cmcFinCashbookSub">Sync to load cashbook data</div></div>';
+  html += '<div class="cmc-kpi-sub" id="cmcFinCashbookSub">--</div></div>';
   html += '</div>';
 
   // Charts: Fee completion doughnut + Enrolment by programme bar
@@ -34690,13 +34449,12 @@ function buildCmcPages() {
   html += '<div class="cmc-chart-card"><h4>Enrolment by Programme</h4><canvas id="cmcChartEnrolment"></canvas></div>';
   html += '</div>';
 
-  // Cashbook Trends (populated after Drive sync)
   html += '<div class="cmc-charts-grid">';
   html += '<div class="cmc-chart-card"><h4>Cashbook Trends</h4><canvas id="cmcChartCashbookTrend"></canvas></div>';
   html += '<div class="cmc-chart-card"><h4>Virement Summary</h4>';
   html += '<div id="cmcFinVirementPanel" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">';
   html += '<div class="cmc-kpi-value" id="cmcFinVirement" style="font-size:28px;">--</div>';
-  html += '<div id="cmcFinVirementSub">Sync Google Drive to load virement data</div>';
+  html += '<div id="cmcFinVirementSub">--</div>';
   html += '</div></div>';
   html += '</div>';
 
@@ -34712,23 +34470,41 @@ function buildCmcPages() {
   if(progData.length === 0) html += '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No students enrolled yet</td></tr>';
   html += '</tbody></table></div>';
 
-  // Drive financial activity (populated after sync)
-  html += '<div class="cmc-table-card"><h4>Financial Activity (Google Drive)</h4>';
-  html += '<div id="cmcFinancialActivity" style="color:var(--text-muted);font-size:13px;padding:12px;">Click "Sync Drive Data" to load cashbook and virement records from Google Drive.</div>';
+  // The cashbook and the virement register, filtered by the board itself. One
+  // filter bar drives both: what the board narrows to, it narrows everywhere,
+  // including the totals above the tables.
+  html += '<div class="cmc-table-card"><h4>Cashbook &amp; Virements</h4>';
+  html += '<div id="cmcFinancialFilters"></div>';
+  html += '<div id="cmcFinancialBody"></div>';
   html += '</div>';
 
-  // Cashbook Checks / Transactions Section
-  html += '<div class="cmc-table-card"><h4>Cashbook Transactions &amp; Checks</h4>';
-  html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">';
-  html += '<input type="text" id="cmcCheckSearch" placeholder="Search transactions..." oninput="cmcFilterChecks()" style="flex:1;min-width:200px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:13px;font-family:\'DM Sans\',sans-serif;">';
-  html += '<select id="cmcCheckFilter" onchange="cmcFilterChecks()" style="padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:13px;font-family:\'DM Sans\',sans-serif;">';
-  html += '<option value="all">All Types</option><option value="check">Checks Only</option><option value="income">Income Only</option><option value="expense">Expenses Only</option></select>';
-  html += '</div>';
-  html += '<div id="cmcChecksTable" style="overflow-x:auto;">';
-  html += '<table class="cmc-table"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Check #</th><th>Amount</th><th>Balance</th></tr></thead>';
-  html += '<tbody id="cmcChecksBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">Click "Sync Drive Data" to load cashbook transactions.</td></tr></tbody></table>';
-  html += '</div></div>';
+  html += '</section>';
 
+  // ---- Virement Approvals — the one page where the board DECIDES ----
+  html += '<section class="page" id="page-cmc-virements">';
+  html += '<div class="cmc-refresh-bar"><h3 class="cmc-section-title">Virement Approvals</h3></div>';
+  html += '<p style="font-size:13px;color:var(--text-secondary);max-width:760px;line-height:1.6;margin-bottom:16px;">' +
+    'A virement moves money between budget lines. It takes TWO signatures: the Chairperson rules, then a second board ' +
+    'member countersigns. Only once both names are on it does the decision reach the Centre\'s virement register — a ruling ' +
+    'waiting on its countersignature changes nothing. A settled request is history and cannot be decided twice.</p>';
+  html += '<div class="cmc-kpi-grid" style="grid-template-columns:repeat(3,1fr);">';
+  html += '<div class="cmc-kpi-card kpi-virement"><div class="cmc-kpi-icon">⏳</div>';
+  html += '<div class="cmc-kpi-label">Awaiting Your Decision</div>';
+  html += '<div class="cmc-kpi-value" id="cmcVirPending">--</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcVirPendingSub">--</div></div>';
+  html += '<div class="cmc-kpi-card kpi-payroll"><div class="cmc-kpi-icon">✓</div>';
+  html += '<div class="cmc-kpi-label">Approved</div>';
+  html += '<div class="cmc-kpi-value" id="cmcVirApproved">--</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcVirApprovedSub">--</div></div>';
+  html += '<div class="cmc-kpi-card kpi-clockin"><div class="cmc-kpi-icon">✗</div>';
+  html += '<div class="cmc-kpi-label">Rejected</div>';
+  html += '<div class="cmc-kpi-value" id="cmcVirRejected">--</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcVirRejectedSub">--</div></div>';
+  html += '</div>';
+  html += '<div class="cmc-table-card"><h4>Requests</h4>';
+  html += '<div id="cmcVirementFilters"></div>';
+  html += '<div id="cmcVirementBody"></div>';
+  html += '</div>';
   html += '</section>';
 
   // ---- Staff & HR Page ----
@@ -34751,46 +34527,28 @@ function buildCmcPages() {
   html += '<div class="cmc-kpi-sub">All staff members</div></div>';
   html += '</div>';
 
+  // What the staff books actually say — the board had no figure for either.
+  html += '<div class="cmc-kpi-grid" style="grid-template-columns:repeat(2,1fr);">';
+  html += '<div class="cmc-kpi-card kpi-payroll"><div class="cmc-kpi-icon">💰</div>';
+  html += '<div class="cmc-kpi-label">Payroll</div>';
+  html += '<div class="cmc-kpi-value" id="cmcHrPayroll">--</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcHrPayrollSub">--</div></div>';
+  html += '<div class="cmc-kpi-card kpi-clockin"><div class="cmc-kpi-icon">🕐</div>';
+  html += '<div class="cmc-kpi-label">Clock-in</div>';
+  html += '<div class="cmc-kpi-value" id="cmcHrClockin">--</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcHrClockinSub">--</div></div>';
+  html += '</div>';
+
   // Charts
   html += '<div class="cmc-charts-grid">';
   html += '<div class="cmc-chart-card"><h4>Staff Distribution</h4><canvas id="cmcChartStaffHR"></canvas></div>';
   html += '<div class="cmc-chart-card"><h4>Students per Instructor</h4><canvas id="cmcChartStudentInstr"></canvas></div>';
   html += '</div>';
 
-  // Instructor table with local data
-  html += '<div class="cmc-table-card"><h4>Instructor Roster</h4>';
-  html += '<table class="cmc-table"><thead><tr><th>#</th><th>Name</th><th>Course</th><th>Students</th><th>Avg Attendance</th></tr></thead><tbody>';
-  (instructorData||[]).forEach(function(ins, i) {
-    // Match students the same way the instructor's own views do (by assigned
-    // instructor name OR by course/skill-area) so the admin roster count agrees
-    // with what the instructor sees as "My Students".
-    var insStudents = students.filter(function(s){ return s.instructor===ins.name || (typeof instructorCourseMatch==='function' && instructorCourseMatch(s.course, ins.course)); });
-    var insAtt = 0;
-    if(attendanceRecords && attendanceRecords.length > 0 && insStudents.length > 0) {
-      var insStudentIds = insStudents.map(function(s){return s.id;});
-      var insRecs = attendanceRecords.filter(function(r){return insStudentIds.indexOf(r.studentId) !== -1;});
-      if(insRecs.length > 0) {
-        var sum = 0;
-        insRecs.forEach(function(r) {
-          var days = r.days||{}, total=0, present=0;
-          ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){if(days[d]){total++;if(days[d]==='present'||days[d]==='late')present++;}});
-          sum += (total>0?(present/total*100):0);
-        });
-        insAtt = Math.round(sum/insRecs.length);
-      }
-    }
-    var attCls = insAtt >= 80 ? 'good' : insAtt >= 60 ? 'warning' : 'critical';
-    html += '<tr><td>' + (i+1) + '</td><td><strong>' + ins.name + '</strong></td><td>' + (ins.course||'--') + '</td>';
-    html += '<td>' + insStudents.length + '</td>';
-    html += '<td><span class="cmc-status ' + attCls + '">' + insAtt + '%</span></td></tr>';
-  });
-  if(!instructorData||instructorData.length===0) html += '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No instructors on record</td></tr>';
-  html += '</tbody></table></div>';
-
-  // Drive data section
-  html += '<div class="cmc-table-card"><h4>Drive Data: Payslip & Clock-in</h4>';
-  html += '<div style="display:flex;justify-content:flex-end;margin-bottom:12px;"><button class="cmc-refresh-btn" onclick="cmcRefreshFromDrive()">Sync Drive Data</button></div>';
-  html += '<div id="cmcStaffRecords" style="color:var(--text-muted);font-size:13px;padding:12px;">Click "Sync Drive Data" to load payslip and clock-in records from Google Drive.</div>';
+  // Instructor roster and the staff books, filtered by the board itself.
+  html += '<div class="cmc-table-card"><h4>Staff Records</h4>';
+  html += '<div id="cmcStaffFilters"></div>';
+  html += '<div id="cmcStaffBody"></div>';
   html += '</div>';
   html += '</section>';
 
@@ -34825,42 +34583,12 @@ function buildCmcPages() {
   html += '<div class="cmc-chart-card"><h4>Attendance Distribution</h4><canvas id="cmcChartAttDist"></canvas></div>';
   html += '</div>';
 
-  // Top performers table — use examResults for scores and attendanceRecords for attendance
-  var studentExamAvg = {};
-  if(examResults && examResults.length > 0) {
-    examResults.forEach(function(r) {
-      var sid = r.studentId||r.student_id;
-      if(!sid) return;
-      if(!studentExamAvg[sid]) studentExamAvg[sid] = {total:0,count:0};
-      studentExamAvg[sid].total += (parseFloat(r.score)||0);
-      studentExamAvg[sid].count++;
-    });
-  }
-  var studentAttPct = {};
-  if(attendanceRecords && attendanceRecords.length > 0) {
-    attendanceRecords.forEach(function(r) {
-      var days = r.days||{}, total=0, present=0;
-      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){if(days[d]){total++;if(days[d]==='present'||days[d]==='late')present++;}});
-      studentAttPct[r.studentId] = total > 0 ? Math.round(present/total*100) : 0;
-    });
-  }
-  var topStudents = students.slice().map(function(s) {
-    var examAvg = studentExamAvg[s.id] && studentExamAvg[s.id].count > 0 ? Math.round(studentExamAvg[s.id].total / studentExamAvg[s.id].count) : 0;
-    var att = studentAttPct[s.id] !== undefined ? studentAttPct[s.id] : (parseFloat(s.attendance)||0);
-    return {name:s.name, course:s.course, examAvg:examAvg, att:att, stage:s.stage};
-  }).sort(function(a,b){ return b.examAvg - a.examAvg; }).slice(0,10);
-  html += '<div class="cmc-table-card"><h4>Top 10 Performers</h4>';
-  html += '<table class="cmc-table"><thead><tr><th>#</th><th>Name</th><th>Course</th><th>Avg Score</th><th>Attendance</th><th>Stage</th></tr></thead><tbody>';
-  topStudents.forEach(function(s, i) {
-    var attCls = s.att >= 80 ? 'good' : s.att >= 60 ? 'warning' : 'critical';
-    var scoreCls = s.examAvg >= 80 ? 'good' : s.examAvg >= 60 ? 'warning' : 'critical';
-    html += '<tr><td>' + (i+1) + '</td><td>' + s.name + '</td><td>' + (s.course||'--') + '</td>';
-    html += '<td><span class="cmc-status ' + scoreCls + '">' + s.examAvg + '%</span></td>';
-    html += '<td><span class="cmc-status ' + attCls + '">' + s.att + '%</span></td>';
-    html += '<td>' + (s.stage||'--') + '</td></tr>';
-  });
-  if(topStudents.length===0) html += '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No students enrolled yet</td></tr>';
-  html += '</tbody></table></div>';
+  // The whole roll, filtered by the board — not a fixed top ten. A board that
+  // can only see the ten highest scores cannot ask about the ones struggling.
+  html += '<div class="cmc-table-card"><h4>Trainee Performance</h4>';
+  html += '<div id="cmcAcademicFilters"></div>';
+  html += '<div id="cmcAcademicBody"></div>';
+  html += '</div>';
   html += '</section>';
 
   // ---- Oversight Portal — view-only hub (markup in Pages/CMC-Portal.html) ----
@@ -34891,81 +34619,30 @@ function buildCmcPages() {
   html += '</div></div>';
   html += '</section>';
 
-  // ---- Source Viewer Page ----
-  html += '<section class="page" id="page-cmc-sources">';
-  html += '<div class="cmc-refresh-bar">';
-  html += '<h3 class="cmc-section-title">Drive Source Viewer</h3>';
-  html += '<div style="display:flex;gap:8px;">';
-  html += '<button class="cmc-refresh-btn" onclick="cmcRefreshFromDrive()">Sync All Sources</button>';
-  html += '<button class="cmc-refresh-btn" style="background:linear-gradient(135deg,var(--blue),#2980b9);" onclick="cmcFetchAllHtml()">Fetch HTML Pages</button>';
-  html += '</div></div>';
-
-  // Tabbed navigation for each source
-  html += '<div class="cmc-source-tabs" id="cmcSourceTabs">';
-  CMC_DRIVE_CONFIG.SOURCES.forEach(function(src, idx) {
-    var data = cmcData[src.key];
-    var hasHtml = cmcHtmlContent[src.key];
-    var badgeCls = data ? '' : 'pending';
-    var badgeText = hasHtml ? 'HTML' : (data ? 'JSON' : 'N/A');
-    html += '<button class="cmc-source-tab' + (idx === 0 ? ' active' : '') + '" onclick="cmcSwitchSourceTab(\'' + src.key + '\', this)">';
-    html += src.label + ' <span class="tab-badge ' + badgeCls + '">' + badgeText + '</span></button>';
-  });
-  html += '</div>';
-
-  // Panels for each source
-  CMC_DRIVE_CONFIG.SOURCES.forEach(function(src, idx) {
-    html += '<div class="cmc-source-panel' + (idx === 0 ? ' active' : '') + '" id="cmcSourcePanel_' + src.key + '">';
-
-    // Toolbar for this source
-    html += '<div class="cmc-iframe-wrap">';
-    html += '<div class="cmc-iframe-toolbar">';
-    html += '<div><div class="toolbar-title">' + src.label + '</div>';
-    html += '<div class="toolbar-meta" id="cmcSourceMeta_' + src.key + '">Folder ID: ' + src.id.substring(0, 12) + '...</div></div>';
-    html += '<div class="toolbar-actions">';
-    html += '<button onclick="cmcFetchSingleHtml(\'' + src.key + '\', \'' + src.id + '\')">Fetch HTML</button>';
-    html += '<button onclick="cmcRefreshSingleSource(\'' + src.key + '\', \'' + src.id + '\')">Refresh Data</button>';
-    html += '<button onclick="cmcOpenInNewTab(\'' + src.key + '\')">Open in Tab</button>';
-    html += '</div></div>';
-
-    // Content area — HTML viewer or data table
-    html += '<div class="cmc-iframe-content" id="cmcSourceContent_' + src.key + '">';
-    if(cmcHtmlContent[src.key]) {
-      html += '<div class="cmc-html-viewer" id="cmcHtmlViewer_' + src.key + '">' + cmcSanitizeHtml(cmcHtmlContent[src.key]) + '</div>';
-    } else if(cmcData[src.key]) {
-      html += cmcBuildSourceDataView(src.key, cmcData[src.key]);
-    } else {
-      html += '<div class="cmc-empty-state">';
-      html += '<div class="empty-icon">📁</div>';
-      html += '<h4>No data loaded for ' + src.label + '</h4>';
-      html += '<p>Click "Fetch HTML" to load the original page from this Drive folder, or click "Refresh Data" to load JSON/CSV data.</p>';
-      html += '<button class="cmc-refresh-btn" onclick="cmcFetchSingleHtml(\'' + src.key + '\', \'' + src.id + '\')">Fetch HTML Page</button>';
-      html += '</div>';
-    }
-    html += '</div></div>';
-
-    // Data summary below the viewer (if data exists)
-    if(cmcData[src.key]) {
-      html += '<div class="cmc-table-card" style="margin-top:16px;"><h4>' + src.label + ' - Parsed Data</h4>';
-      html += cmcBuildSourceDataTable(src.key, cmcData[src.key]);
-      html += '</div>';
-    }
-
-    html += '</div>';
-  });
-
-  html += '</section>';
 
   mc.innerHTML = html;
 
-  // Render charts after DOM is ready
+  // Everything the board reads is already in hand, so paint it all now —
+  // there is no second state where the numbers "arrive".
   setTimeout(function() {
     cmcRenderCharts();
-    // If we have cached data, update Drive-dependent UI
-    if(hasCachedData) {
-      cmcUpdateDriveCharts();
-      cmcUpdateLocalKpis();
-    }
+    cmcRefreshAllSections();
   }, 100);
+}
+
+/* The books the board oversees, and what each currently holds. */
+function cmcBuildSourceSummary() {
+  var h = '';
+  CMC_SOURCES.forEach(function(src) {
+    var count = (cmcData[src.key] || []).length;
+    h += '<div class="cmc-source-card ' + (count ? 'synced' : '') + '" onclick="cmcShowDetail(\'' + src.key + '\')">';
+    h += '<div class="source-icon">' + src.icon + '</div>';
+    h += '<div class="source-label">' + src.label + '</div>';
+    h += '<div class="source-status">' + (count || '--') + '</div>';
+    h += '<div class="source-sub">' + (count ? count + ' ' + src.noun : 'nothing recorded yet') + '</div>';
+    h += '</div>';
+  });
+  return h;
 }
 
 function cmcRenderCharts() {
@@ -35248,8 +34925,10 @@ function cmcRenderCharts() {
 
 // Load data from local state (students, attendance, etc.)
 function cmcLoadAllData() {
-  cmcUpdateLocalKpis();
+  cmcLoadOversightData();
+  cmcStartOversightReader();
   cmcRenderCharts();
+  cmcRefreshAllSections();
 }
 
 function cmcUpdateLocalKpis() {
@@ -35273,59 +34952,15 @@ function cmcUpdateLocalKpis() {
   var el = document.getElementById('cmcKpiAttendance');
   if(el) el.textContent = avgAtt + '%';
 
-  // Update KPIs from Drive data if available
-  if(cmcData.payslip) cmcUpdatePayslipKpi(cmcData.payslip);
-  if(cmcData.clockin) cmcUpdateClockinKpi(cmcData.clockin);
-  if(cmcData.cashbook) cmcUpdateCashbookKpi(cmcData.cashbook);
-  if(cmcData.virement) cmcUpdateVirementKpi(cmcData.virement);
+  cmcUpdatePayslipKpi();
+  cmcUpdateClockinKpi();
+  cmcUpdateCashbookKpi();
+  cmcUpdateVirementKpi();
+  var sum3 = document.getElementById('cmcSourceSummary');
+  if(sum3) sum3.innerHTML = cmcBuildSourceSummary();
 }
 
-// Refresh data from Google Drive
-async function cmcRefreshFromDrive() {
-  if(!googleAccessToken) {
-    alert('Please connect to Google Drive first using the Cloud button in the top bar.');
-    return;
-  }
-  var btn = document.getElementById('cmcRefreshBtn');
-  if(btn) { btn.disabled = true; btn.textContent = 'Refreshing...'; }
-  var syncEl = document.getElementById('cmcLastSync');
-  if(syncEl) syncEl.textContent = 'Fetching data from Google Drive...';
-
-  var successCount = 0;
-  for(var i = 0; i < CMC_DRIVE_CONFIG.SOURCES.length; i++) {
-    var source = CMC_DRIVE_CONFIG.SOURCES[i];
-    try {
-      var data = await cmcFetchBackupFromFolder(source.id);
-      if(data) {
-        cmcData[source.key] = data;
-        cmcUpdateSourceStatus(source.key, 'good', 'Connected', new Date().toLocaleTimeString());
-        successCount++;
-      } else {
-        cmcUpdateSourceStatus(source.key, 'warning', 'No Data', '--');
-      }
-    } catch(err) {
-      console.error('CMC: Error fetching ' + source.label + ':', err);
-      cmcUpdateSourceStatus(source.key, 'critical', 'Error', '--');
-    }
-  }
-
-  cmcData.lastRefresh = new Date();
-  cmcSaveToCache();
-  cmcUpdateLocalKpis();
-  cmcRenderCharts();
-  cmcUpdateDriveCharts();
-  cmcRefreshDataPanels();
-
-  // Save CMC snapshot to its own Drive folder
-  try {
-    await cmcSaveSnapshot();
-  } catch(e) { console.warn('CMC snapshot save failed:', e); }
-
-  if(btn) { btn.disabled = false; btn.textContent = 'Refresh from Drive'; }
-  if(syncEl) syncEl.textContent = '<span class="cmc-live-badge">Live</span> Last refresh: ' + new Date().toLocaleString() + ' (' + successCount + '/' + CMC_DRIVE_CONFIG.SOURCES.length + ' sources)';
-}
-
-// Refresh the data panels on the main dashboard after sync
+// Repaint the four mini panels on the analytics dashboard.
 function cmcRefreshDataPanels() {
   var panels = {
     cmcPanelPayslip: cmcBuildPayslipPanel,
@@ -35337,535 +34972,494 @@ function cmcRefreshDataPanels() {
     var el = document.getElementById(id);
     if(el) el.innerHTML = panels[id]();
   });
-  // Update source viewer panels if they exist
-  CMC_DRIVE_CONFIG.SOURCES.forEach(function(src) {
-    var contentEl = document.getElementById('cmcSourceContent_' + src.key);
-    if(contentEl && !cmcHtmlContent[src.key] && cmcData[src.key]) {
-      contentEl.innerHTML = cmcBuildSourceDataView(src.key, cmcData[src.key]);
-    }
-  });
 }
 
-async function cmcFetchBackupFromFolder(folderId) {
-  // First try: search for JSON files by mime type
-  var query = encodeURIComponent("'" + folderId + "' in parents and trashed=false and mimeType='application/json'");
-  var resp = await fetch('https://www.googleapis.com/drive/v3/files?q=' + query + '&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=5', {
-    headers: { 'Authorization': 'Bearer ' + googleAccessToken }
+function cmcSetText(id, text) {
+  var el = document.getElementById(id);
+  if(el) el.textContent = text;
+}
+
+function cmcUpdatePayslipKpi() {
+  var rows = cmcData.payslip || [];
+  var net = 0;
+  rows.forEach(function(r) { net += (Number(r.net) || 0); });
+  var headline = net > 0 ? cmcMoney(net) : rows.length + ' Records';
+  cmcSetText('cmcKpiPayroll', headline);
+  cmcSetText('cmcKpiPayrollSub', rows.length + ' pay records');
+  cmcSetText('cmcRecPayslip', rows.length + ' pay records');
+  cmcSetText('cmcHrPayroll', headline);
+  cmcSetText('cmcHrPayrollSub', rows.length + ' pay records');
+}
+
+function cmcUpdateClockinKpi() {
+  var rows = cmcData.clockin || [];
+  cmcSetText('cmcKpiClockin', rows.length + ' Sessions');
+  cmcSetText('cmcKpiClockinSub', 'Clock-in sessions on record');
+  cmcSetText('cmcRecClockin', rows.length + ' sessions');
+  cmcSetText('cmcHrClockin', rows.length + ' Sessions');
+  cmcSetText('cmcHrClockinSub', rows.length + ' clock-in sessions');
+}
+
+function cmcUpdateCashbookKpi() {
+  var s = cmcCashSummary(cmcData.cashbook || []);
+  var inOut = 'Income: ' + cmcMoney(s.income) + ' | Expenditure: ' + cmcMoney(s.expense);
+  cmcSetText('cmcKpiCashbook', s.count ? cmcMoney(s.balance) : '0 Entries');
+  cmcSetText('cmcKpiCashbookSub', inOut);
+  cmcSetText('cmcRecCashbook', s.count + ' entries');
+  cmcSetText('cmcFinCashbook', s.count ? cmcMoney(s.balance) : '0 Entries');
+  cmcSetText('cmcFinCashbookSub', inOut);
+}
+
+function cmcUpdateVirementKpi() {
+  var rows = cmcData.virement || [];
+  var pending = 0, approved = 0;
+  rows.forEach(function(r) {
+    var st = String(r.status || '').toLowerCase();
+    if(st === 'pending') pending++; else if(st === 'approved') approved++;
   });
-  if(!resp.ok) throw new Error('Drive API error: ' + resp.status);
-  var data = await resp.json();
+  var sub = pending + ' pending, ' + approved + ' approved';
+  cmcSetText('cmcKpiVirement', rows.length + ' Requests');
+  cmcSetText('cmcKpiVirementSub', sub);
+  cmcSetText('cmcRecVirement', rows.length + ' requests');
+  cmcSetText('cmcFinVirement', rows.length + ' Requests');
+  cmcSetText('cmcFinVirementSub', sub);
+}
 
-  // Second try: if no JSON mime type files found, search for files with .json extension
-  if(!data.files || data.files.length === 0) {
-    var query2 = encodeURIComponent("'" + folderId + "' in parents and trashed=false and name contains '.json'");
-    resp = await fetch('https://www.googleapis.com/drive/v3/files?q=' + query2 + '&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=5', {
-      headers: { 'Authorization': 'Bearer ' + googleAccessToken }
+/* ---- Section renderers: rows in, table out, filters applied -------------- */
+
+function cmcTable(cols, rows, rowFn, emptyMsg) {
+  var h = '<div style="overflow-x:auto;"><table class="cmc-table"><thead><tr>';
+  cols.forEach(function(c) { h += '<th>' + cmcEsc(c) + '</th>'; });
+  h += '</tr></thead><tbody>';
+  if(!rows.length) {
+    h += '<tr><td colspan="' + cols.length + '" style="text-align:center;color:var(--text-muted);padding:20px;">' + cmcEsc(emptyMsg) + '</td></tr>';
+  } else {
+    rows.forEach(function(r, i) { h += rowFn(r, i); });
+  }
+  h += '</tbody></table></div>';
+  return h;
+}
+
+/* A filtered table can mislead by omission, so every one of them says how much
+   of the whole it is showing. */
+function cmcShowingNote(shown, total, noun) {
+  if(shown === total) return '<div style="font-size:12px;color:var(--text-muted);padding:6px 2px;">' + total + ' ' + noun + '</div>';
+  return '<div style="font-size:12px;color:var(--text-muted);padding:6px 2px;">Showing ' + shown + ' of ' + total + ' ' + noun + ' — the rest are filtered out, not missing.</div>';
+}
+
+function cmcRenderFinancial() {
+  var fEl = document.getElementById('cmcFinancialFilters');
+  if(fEl) {
+    fEl.innerHTML = cmcFilterBar('financial', [
+      { field: 'period', label: 'Quarter', options: cmcOptions('cashbook', 'period') },
+      { field: 'category', label: 'Category', options: cmcOptions('cashbook', 'category') },
+      { field: 'type', label: 'Type', options: ['income', 'expense', 'cancelled'] }
+    ]);
+  }
+  var body = document.getElementById('cmcFinancialBody');
+  if(!body) return;
+
+  var cash = cmcRows('cashbook', 'financial');
+  var s = cmcCashSummary(cash);
+  var h = '<div class="cmc-kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;">';
+  h += '<div class="cmc-kpi-card"><div class="cmc-kpi-label">Transactions</div><div class="cmc-kpi-value">' + s.count + '</div></div>';
+  h += '<div class="cmc-kpi-card"><div class="cmc-kpi-label">Income</div><div class="cmc-kpi-value" style="color:var(--green);">' + cmcMoney(s.income) + '</div></div>';
+  h += '<div class="cmc-kpi-card"><div class="cmc-kpi-label">Expenditure</div><div class="cmc-kpi-value" style="color:var(--red);">' + cmcMoney(s.expense) + '</div></div>';
+  h += '<div class="cmc-kpi-card"><div class="cmc-kpi-label">Balance</div><div class="cmc-kpi-value">' + cmcMoney(s.balance) + '</div></div>';
+  h += '</div>';
+
+  h += cmcShowingNote(cash.length, (cmcData.cashbook || []).length, 'cashbook entries');
+  h += cmcTable(['Date', 'Details', 'Category', 'Cheque #', 'Type', 'Amount'], cash, function(r) {
+    var cls = r.voided ? 'info' : (r.type === 'income' ? 'good' : 'warning');
+    var label = r.voided ? 'cancelled' : r.type;
+    return '<tr><td>' + cmcEsc(r.date) + '</td><td>' + cmcEsc(r.details) + '</td><td>' + cmcEsc(r.category) + '</td>' +
+      '<td>' + cmcEsc(r.cheque || '--') + '</td>' +
+      '<td><span class="cmc-status ' + cls + '">' + cmcEsc(label) + '</span></td>' +
+      '<td style="text-align:right;">' + (r.voided ? '--' : cmcMoney(r.amount)) + '</td></tr>';
+  }, 'No cashbook entries match this filter.');
+
+  var vir = cmcRows('virement', 'financial');
+  h += '<h4 style="margin:20px 0 8px;">Virement Requests</h4>';
+  h += cmcShowingNote(vir.length, (cmcData.virement || []).length, 'virement requests');
+  h += cmcTable(['Date', 'Project', 'Requested By', 'From', 'To', 'Status', 'Amount'], vir, function(r) {
+    var st = String(r.status || '').toLowerCase();
+    var cls = st === 'approved' ? 'good' : st === 'rejected' ? 'critical' : 'warning';
+    return '<tr><td>' + cmcEsc(r.date) + '</td><td>' + cmcEsc(r.project || '--') + '</td><td>' + cmcEsc(r.requestedBy || '--') + '</td>' +
+      '<td>' + cmcEsc(r.from || '--') + '</td><td>' + cmcEsc(r.to || '--') + '</td>' +
+      '<td><span class="cmc-status ' + cls + '">' + cmcEsc(r.status) + '</span></td>' +
+      '<td style="text-align:right;">' + cmcMoney(r.amount) + '</td></tr>';
+  }, 'No virement requests match this filter.');
+
+  body.innerHTML = h;
+}
+
+function cmcRenderStaff() {
+  var view = cmcStaffView;
+  var fEl = document.getElementById('cmcStaffFilters');
+  if(fEl) {
+    var bar = '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">';
+    [['payslip', 'Payslips'], ['clockin', 'Clock-in'], ['instructors', 'Instructor Roster']].forEach(function(v) {
+      bar += '<button class="cmc-refresh-btn" style="' + (view === v[0] ? '' : 'background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--border);') +
+        '" onclick="cmcSetStaffView(\'' + v[0] + '\')">' + v[1] + '</button>';
     });
-    if(resp.ok) data = await resp.json();
+    bar += '</div>';
+    var controls = view === 'payslip'
+      ? [{ field: 'period', label: 'Month', options: cmcOptions('payslip', 'period') }]
+      : (view === 'clockin'
+        ? [{ field: 'period', label: 'Month', options: cmcOptions('clockin', 'period') },
+           { field: 'status', label: 'Status', options: cmcOptions('clockin', 'status') }]
+        : []);
+    fEl.innerHTML = bar + cmcFilterBar('staff', controls);
+  }
+  var body = document.getElementById('cmcStaffBody');
+  if(!body) return;
+
+  if(view === 'payslip') {
+    var pay = cmcRows('payslip', 'staff');
+    var gross = 0, net = 0;
+    pay.forEach(function(r) { gross += (Number(r.gross) || 0); net += (Number(r.net) || 0); });
+    var h = cmcShowingNote(pay.length, (cmcData.payslip || []).length, 'pay records');
+    h += cmcTable(['Date', 'Name', 'Position', 'Gross', 'Deductions', 'Net'], pay, function(r) {
+      return '<tr><td>' + cmcEsc(r.date) + '</td><td><strong>' + cmcEsc(r.name) + '</strong></td><td>' + cmcEsc(r.position || '--') + '</td>' +
+        '<td style="text-align:right;">' + cmcMoney(r.gross) + '</td>' +
+        '<td style="text-align:right;">' + cmcMoney(r.deductions) + '</td>' +
+        '<td style="text-align:right;font-weight:700;">' + cmcMoney(r.net) + '</td></tr>';
+    }, 'No pay records match this filter.');
+    if(pay.length) h += '<div style="text-align:right;font-size:13px;padding:8px 2px;">Gross ' + cmcMoney(gross) + ' &nbsp;·&nbsp; Net ' + cmcMoney(net) + '</div>';
+    body.innerHTML = h;
+    return;
   }
 
-  // Third try: if still nothing, get any file from the folder (some backup systems use different mime types)
-  if(!data.files || data.files.length === 0) {
-    var query3 = encodeURIComponent("'" + folderId + "' in parents and trashed=false");
-    resp = await fetch('https://www.googleapis.com/drive/v3/files?q=' + query3 + '&fields=files(id,name,modifiedTime,mimeType)&orderBy=modifiedTime desc&pageSize=10', {
-      headers: { 'Authorization': 'Bearer ' + googleAccessToken }
-    });
-    if(resp.ok) {
-      data = await resp.json();
-      // Filter to parseable file types (JSON, text, CSV, HTML, or sheets export)
-      if(data.files) {
-        var jsonFiles = data.files.filter(function(f) {
-          return f.name.endsWith('.json') ||
-                 f.mimeType === 'application/json' ||
-                 f.mimeType === 'text/plain' ||
-                 f.mimeType === 'text/csv' ||
-                 f.mimeType === 'text/html' ||
-                 f.name.endsWith('.html') ||
-                 f.name.endsWith('.htm');
-        });
-        // If we found parseable files, use those; otherwise try the most recent file
-        if(jsonFiles.length > 0) {
-          data.files = jsonFiles;
-        }
-      }
-    }
+  if(view === 'clockin') {
+    var clock = cmcRows('clockin', 'staff');
+    var hours = 0;
+    clock.forEach(function(r) { hours += (Number(r.hours) || 0); });
+    var h2 = cmcShowingNote(clock.length, (cmcData.clockin || []).length, 'clock-in sessions');
+    h2 += cmcTable(['Date', 'Name', 'Work Type', 'In', 'Out', 'Status', 'Hours'], clock, function(r) {
+      var t = function(v) { return v ? String(v).slice(11, 16) : '--'; };
+      return '<tr><td>' + cmcEsc(r.date) + '</td><td><strong>' + cmcEsc(r.name) + '</strong></td><td>' + cmcEsc(r.workType || '--') + '</td>' +
+        '<td>' + cmcEsc(t(r.clockIn)) + '</td><td>' + cmcEsc(t(r.clockOut)) + '</td>' +
+        '<td><span class="cmc-status ' + (r.status === 'completed' ? 'good' : 'warning') + '">' + cmcEsc(r.status) + '</span></td>' +
+        '<td style="text-align:right;">' + (Math.round((Number(r.hours) || 0) * 10) / 10) + '</td></tr>';
+    }, 'No clock-in sessions match this filter.');
+    if(clock.length) h2 += '<div style="text-align:right;font-size:13px;padding:8px 2px;">' + (Math.round(hours * 10) / 10).toLocaleString() + ' hours logged</div>';
+    body.innerHTML = h2;
+    return;
   }
 
-  if(!data.files || data.files.length === 0) return null;
-
-  // Try each file until we find one that parses as valid JSON
-  for(var i = 0; i < data.files.length; i++) {
-    try {
-      var fileId = data.files[i].id;
-      var mimeType = data.files[i].mimeType || '';
-
-      // For Google Sheets, export as JSON via Sheets API
-      if(mimeType === 'application/vnd.google-apps.spreadsheet') {
-        var sheetResp = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + fileId + '/values/Sheet1', {
-          headers: { 'Authorization': 'Bearer ' + googleAccessToken }
-        });
-        if(sheetResp.ok) {
-          var sheetData = await sheetResp.json();
-          if(sheetData.values && sheetData.values.length > 1) {
-            return cmcConvertSheetToJson(sheetData.values);
-          }
-        }
-        continue;
-      }
-
-      var fileResp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
-        headers: { 'Authorization': 'Bearer ' + googleAccessToken }
+  // Instructor roster — matched the same way the instructor's own views match,
+  // so the board's count and the instructor's "My Students" agree.
+  var q = String(cmcFilters.staff.search || '').trim().toLowerCase();
+  var roster = (instructorData || []).filter(function(ins) {
+    return !q || String(ins.name || '').toLowerCase().indexOf(q) !== -1 || String(ins.course || '').toLowerCase().indexOf(q) !== -1;
+  });
+  body.innerHTML = cmcShowingNote(roster.length, (instructorData || []).length, 'instructors') +
+    cmcTable(['#', 'Name', 'Course', 'Students', 'Avg Attendance'], roster, function(ins, i) {
+      var insStudents = students.filter(function(s) {
+        return s.instructor === ins.name || (typeof instructorCourseMatch === 'function' && instructorCourseMatch(s.course, ins.course));
       });
-      if(!fileResp.ok) continue;
-
-      var contentType = fileResp.headers.get('content-type') || '';
-      var text = await fileResp.text();
-
-      // Try to parse as JSON
-      if(text.trim().startsWith('{') || text.trim().startsWith('[')) {
-        return JSON.parse(text);
-      }
-
-      // If CSV, convert to JSON structure
-      if(mimeType === 'text/csv' || data.files[i].name.endsWith('.csv')) {
-        return cmcConvertCsvToJson(text);
-      }
-
-      // If HTML, try to extract table data from it
-      if(mimeType === 'text/html' || data.files[i].name.endsWith('.html') || data.files[i].name.endsWith('.htm') ||
-         (text.trim().startsWith('<') && (text.includes('<html') || text.includes('<table')))) {
-        // Store raw HTML content for the source viewer
-        var sourceKey = cmcFindSourceKeyByFolderId(folderId);
-        if(sourceKey) cmcHtmlContent[sourceKey] = text;
-        // Try to extract data from HTML tables
-        var extracted = cmcExtractDataFromHtml(text);
-        if(extracted && extracted.records && extracted.records.length > 0) {
-          return extracted;
+      var insAtt = 0;
+      if(attendanceRecords && attendanceRecords.length > 0 && insStudents.length > 0) {
+        var ids = insStudents.map(function(s){ return s.id; });
+        var recs = attendanceRecords.filter(function(r){ return ids.indexOf(r.studentId) !== -1; });
+        if(recs.length) {
+          var sum = 0;
+          recs.forEach(function(r) {
+            var days = r.days || {}, total = 0, present = 0;
+            ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){ if(days[d]){ total++; if(days[d]==='present'||days[d]==='late') present++; } });
+            sum += (total > 0 ? (present / total * 100) : 0);
+          });
+          insAtt = Math.round(sum / recs.length);
         }
-        // Even if no table data, return a marker so we know data exists
-        return { _htmlSource: true, _fileId: data.files[i].id, _fileName: data.files[i].name, records: [] };
       }
-    } catch(parseErr) {
-      console.warn('CMC: Could not parse file ' + data.files[i].name + ':', parseErr.message);
-      continue;
-    }
-  }
-
-  return null;
+      var cls = insAtt >= 80 ? 'good' : insAtt >= 60 ? 'warning' : 'critical';
+      return '<tr><td>' + (i + 1) + '</td><td><strong>' + cmcEsc(ins.name) + '</strong></td><td>' + cmcEsc(ins.course || '--') + '</td>' +
+        '<td>' + insStudents.length + '</td><td><span class="cmc-status ' + cls + '">' + insAtt + '%</span></td></tr>';
+    }, 'No instructors on record.');
 }
 
-// Convert Google Sheets data (array of arrays) to a usable JSON structure
-function cmcConvertSheetToJson(rows) {
-  if(!rows || rows.length < 2) return null;
-  var headers = rows[0].map(function(h) { return (h || '').toString().trim().toLowerCase().replace(/\s+/g, '_'); });
-  var records = [];
-  for(var i = 1; i < rows.length; i++) {
-    var row = rows[i];
-    if(!row || row.length === 0) continue;
-    var obj = {};
-    headers.forEach(function(h, idx) { obj[h] = row[idx] || ''; });
-    records.push(obj);
-  }
-  // Detect data type from headers and wrap appropriately
-  var hasAmount = headers.some(function(h) { return h.includes('amount') || h.includes('balance') || h.includes('total'); });
-  var hasDate = headers.some(function(h) { return h.includes('date') || h.includes('time'); });
-  if(hasAmount && hasDate) return { transactions: records, entries: records };
-  return { records: records };
+/* The board's one decision surface, and it takes two signatures: the
+   Chairperson rules, a second board member countersigns. A ruling waiting on
+   its second signature lives in the board's own minute book — the register
+   stays Pending until both names are on it, so the Centre never acts on an
+   approval nobody seconded. */
+function cmcRulings() {
+  try { return JSON.parse(CESTISStore.getItem('cestis_cmc_rulings') || '{}') || {}; }
+  catch(e) { return {}; }
+}
+function cmcSignerNow() {
+  var C = window.CESTISCmc;
+  return C ? C.cmcSigner(currentLoggedInUser || {}) : { name: '', username: '', isChair: false };
 }
 
-// Convert CSV text to JSON structure
-function cmcConvertCsvToJson(csvText) {
-  var lines = csvText.split('\n').filter(function(l) { return l.trim().length > 0; });
-  if(lines.length < 2) return null;
-  var headers = lines[0].split(',').map(function(h) { return h.trim().replace(/^"|"$/g, '').toLowerCase().replace(/\s+/g, '_'); });
-  var records = [];
-  for(var i = 1; i < lines.length; i++) {
-    var vals = lines[i].split(',').map(function(v) { return v.trim().replace(/^"|"$/g, ''); });
-    var obj = {};
-    headers.forEach(function(h, idx) { obj[h] = vals[idx] || ''; });
-    records.push(obj);
-  }
-  var hasAmount = headers.some(function(h) { return h.includes('amount') || h.includes('balance') || h.includes('total'); });
-  if(hasAmount) return { transactions: records, entries: records };
-  return { records: records };
-}
-
-// Find source key by folder ID
-function cmcFindSourceKeyByFolderId(folderId) {
-  for(var i = 0; i < CMC_DRIVE_CONFIG.SOURCES.length; i++) {
-    if(CMC_DRIVE_CONFIG.SOURCES[i].id === folderId) return CMC_DRIVE_CONFIG.SOURCES[i].key;
-  }
-  return null;
-}
-
-// Extract structured data from HTML content (parse table elements)
-function cmcExtractDataFromHtml(html) {
-  var parser = new DOMParser();
-  var doc = parser.parseFromString(html, 'text/html');
-  var tables = doc.querySelectorAll('table');
-  if(tables.length === 0) return { records: [] };
-
-  // Find the largest table (most likely the main data table)
-  var largestTable = tables[0];
-  var maxRows = 0;
-  tables.forEach(function(t) {
-    var rowCount = t.querySelectorAll('tr').length;
-    if(rowCount > maxRows) { maxRows = rowCount; largestTable = t; }
+function cmcRenderVirements() {
+  var C = window.CESTISCmc;
+  var all = cmcData.virement || [];
+  var book = cmcRulings();
+  var me = cmcSignerNow();
+  var counts = { pending: 0, awaiting: 0, approved: 0, rejected: 0 };
+  var pendingValue = 0, approvedValue = 0;
+  all.forEach(function(r) {
+    var stage = C ? C.cmcVirementStage(r, C.cmcRulingFor(book, r.id)) : 'pending';
+    if(stage === 'settled') {
+      if(String(r.status || '').toLowerCase() === 'rejected') counts.rejected++;
+      else { counts.approved++; approvedValue += (Number(r.amount) || 0); }
+    } else if(stage === 'awaiting-countersign') { counts.awaiting++; pendingValue += (Number(r.amount) || 0); }
+    else { counts.pending++; pendingValue += (Number(r.amount) || 0); }
   });
+  cmcSetText('cmcVirPending', String(counts.pending + counts.awaiting));
+  cmcSetText('cmcVirPendingSub', (counts.pending + counts.awaiting)
+    ? cmcMoney(pendingValue) + ' — ' + counts.pending + ' for the Chair, ' + counts.awaiting + ' awaiting a countersignature'
+    : 'Nothing awaiting the Board');
+  cmcSetText('cmcVirApproved', String(counts.approved));
+  cmcSetText('cmcVirApprovedSub', counts.approved ? cmcMoney(approvedValue) + ' approved' : 'None yet');
+  cmcSetText('cmcVirRejected', String(counts.rejected));
+  cmcSetText('cmcVirRejectedSub', counts.rejected ? counts.rejected + ' turned down' : 'None yet');
 
-  var rows = largestTable.querySelectorAll('tr');
-  if(rows.length < 2) return { records: [] };
-
-  // Extract headers from first row
-  var headerRow = rows[0];
-  var headers = [];
-  headerRow.querySelectorAll('th, td').forEach(function(cell) {
-    headers.push((cell.textContent || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''));
-  });
-
-  // Extract data rows
-  var records = [];
-  for(var i = 1; i < rows.length; i++) {
-    var cells = rows[i].querySelectorAll('td');
-    if(cells.length === 0) continue;
-    var obj = {};
-    cells.forEach(function(cell, idx) {
-      var key = headers[idx] || ('col_' + idx);
-      obj[key] = (cell.textContent || '').trim();
-    });
-    records.push(obj);
+  var fEl = document.getElementById('cmcVirementFilters');
+  if(fEl) {
+    var chair = C ? C.cmcChairOf(userAccounts) : null;
+    var note = '<div style="font-size:12px;color:var(--text-muted);padding:0 2px 10px;">' +
+      (chair ? 'Chairperson: <strong>' + cmcEsc(chair.name) + '</strong>. ' : 'No Chairperson has been appointed — an Administrator sets one on the account. ') +
+      (me.isChair ? 'You rule; another board member countersigns.' : 'The Chairperson rules; you may countersign.') + '</div>';
+    fEl.innerHTML = note + cmcFilterBar('virements', [
+      { field: 'status', label: 'Status', options: cmcOptions('virement', 'status') }
+    ]);
   }
+  var body = document.getElementById('cmcVirementBody');
+  if(!body) return;
 
-  // Detect if it's a financial/transaction table
-  var hasAmount = headers.some(function(h) { return h.includes('amount') || h.includes('balance') || h.includes('total') || h.includes('net') || h.includes('gross'); });
-  var hasDate = headers.some(function(h) { return h.includes('date') || h.includes('time'); });
-  if(hasAmount && hasDate) return { transactions: records, entries: records, records: records };
-  if(hasAmount) return { entries: records, records: records };
-  return { records: records };
-}
+  var rows = C ? C.cmcFilterRows(all, cmcFilters.virements) : all;
+  var isBoard = (currentRole === 'cmc');
+  body.innerHTML = cmcShowingNote(rows.length, all.length, 'virement requests') +
+    cmcTable(['Date', 'Project', 'Requested By', 'From', 'To', 'Amount', 'Status', 'Signatures'], rows, function(r) {
+      var ruling = C ? C.cmcRulingFor(book, r.id) : null;
+      var stage = C ? C.cmcVirementStage(r, ruling) : 'pending';
+      var id = cmcEsc(r.id);
+      var statusLabel, statusCls, cell;
 
-function cmcUpdateSourceStatus(key, statusClass, statusText, syncTime) {
-  var statusEl = document.getElementById('cmcStatus' + key.charAt(0).toUpperCase() + key.slice(1));
-  if(statusEl) { statusEl.className = 'cmc-status ' + statusClass; statusEl.textContent = statusText; }
-  var syncEl = document.getElementById('cmcSync' + key.charAt(0).toUpperCase() + key.slice(1));
-  if(syncEl) syncEl.textContent = syncTime;
-}
-
-function cmcUpdatePayslipKpi(data) {
-  var count = 0; var totalNet = 0;
-  if(data && data.payslips && Array.isArray(data.payslips)) {
-    count = data.payslips.length;
-    data.payslips.forEach(function(p) { totalNet += parseFloat(p.netPay || p.net || p.amount || 0); });
-  } else if(data && data.records) {
-    count = data.records.length;
-  } else if(data && typeof data === 'object') {
-    var keys = Object.keys(data);
-    count = keys.length;
-  }
-  var el = document.getElementById('cmcKpiPayroll');
-  if(el) el.textContent = totalNet > 0 ? 'D' + totalNet.toLocaleString() : count + ' Records';
-  var subEl = document.getElementById('cmcKpiPayrollSub');
-  if(subEl) subEl.textContent = count + ' payslip records found';
-  var recEl = document.getElementById('cmcRecPayslip');
-  if(recEl) recEl.textContent = count + ' records';
-  // HR page
-  var hrEl = document.getElementById('cmcHrPayroll');
-  if(hrEl) hrEl.textContent = totalNet > 0 ? 'D' + totalNet.toLocaleString() : count + ' Records';
-  var hrSub = document.getElementById('cmcHrPayrollSub');
-  if(hrSub) hrSub.textContent = count + ' payslip records synced';
-}
-
-function cmcUpdateClockinKpi(data) {
-  var count = 0;
-  if(data && data.records && Array.isArray(data.records)) { count = data.records.length; }
-  else if(data && data.clockins) { count = data.clockins.length; }
-  else if(data && typeof data === 'object') { count = Object.keys(data).length; }
-  var el = document.getElementById('cmcKpiClockin');
-  if(el) el.textContent = count + ' Records';
-  var subEl = document.getElementById('cmcKpiClockinSub');
-  if(subEl) subEl.textContent = 'Clock-in entries synced';
-  var recEl = document.getElementById('cmcRecClockin');
-  if(recEl) recEl.textContent = count + ' records';
-  var hrEl = document.getElementById('cmcHrClockin');
-  if(hrEl) hrEl.textContent = count + ' Records';
-  var hrSub = document.getElementById('cmcHrClockinSub');
-  if(hrSub) hrSub.textContent = count + ' clock-in entries synced';
-}
-
-function cmcUpdateCashbookKpi(data) {
-  var income = 0; var expenses = 0; var count = 0;
-  if(data && data.transactions && Array.isArray(data.transactions)) {
-    count = data.transactions.length;
-    data.transactions.forEach(function(t) {
-      var amt = parseFloat(t.amount || 0);
-      if(t.type === 'income' || t.type === 'credit' || amt > 0) income += Math.abs(amt);
-      else expenses += Math.abs(amt);
-    });
-  } else if(data && data.entries) {
-    count = data.entries.length;
-  } else if(data && typeof data === 'object') {
-    count = Object.keys(data).length;
-  }
-  var balance = income - expenses;
-  var el = document.getElementById('cmcKpiCashbook');
-  if(el) el.textContent = balance !== 0 ? 'D' + balance.toLocaleString() : count + ' Entries';
-  var subEl = document.getElementById('cmcKpiCashbookSub');
-  if(subEl) subEl.textContent = 'Income: D' + income.toLocaleString() + ' | Exp: D' + expenses.toLocaleString();
-  var recEl = document.getElementById('cmcRecCashbook');
-  if(recEl) recEl.textContent = count + ' entries';
-  var finEl = document.getElementById('cmcFinCashbook');
-  if(finEl) finEl.textContent = balance !== 0 ? 'D' + balance.toLocaleString() : count + ' Entries';
-  var finSub = document.getElementById('cmcFinCashbookSub');
-  if(finSub) finSub.textContent = 'Income: D' + income.toLocaleString() + ' | Exp: D' + expenses.toLocaleString();
-
-  // Render checks table on Financial Overview page
-  var records = (data && data.transactions) ? data.transactions : ((data && data.entries) ? data.entries : []);
-  cmcRenderChecksTable(records);
-}
-
-function cmcUpdateVirementKpi(data) {
-  var total = 0; var pending = 0; var approved = 0;
-  if(data && data.requests && Array.isArray(data.requests)) {
-    total = data.requests.length;
-    data.requests.forEach(function(r) {
-      if(r.status === 'pending') pending++;
-      else if(r.status === 'approved') approved++;
-    });
-  } else if(data && data.virements) {
-    total = data.virements.length;
-  } else if(data && typeof data === 'object') {
-    total = Object.keys(data).length;
-  }
-  var el = document.getElementById('cmcKpiVirement');
-  if(el) el.textContent = total + ' Requests';
-  var subEl = document.getElementById('cmcKpiVirementSub');
-  if(subEl) subEl.textContent = pending + ' pending, ' + approved + ' approved';
-  var recEl = document.getElementById('cmcRecVirement');
-  if(recEl) recEl.textContent = total + ' requests';
-  var finEl = document.getElementById('cmcFinVirement');
-  if(finEl) finEl.textContent = total + ' Requests';
-  var finSub = document.getElementById('cmcFinVirementSub');
-  if(finSub) finSub.textContent = pending + ' pending, ' + approved + ' approved';
-}
-
-function cmcUpdateDriveCharts() {
-  // Update cashbook trend chart if data exists
-  if(cmcData.cashbook && cmcChartInstances.cashTrend) {
-    var transactions = cmcData.cashbook.transactions || cmcData.cashbook.entries || [];
-    if(transactions.length > 0) {
-      var monthlyIncome = {};
-      var monthlyExpense = {};
-      transactions.forEach(function(t) {
-        var d = new Date(t.date || t.transaction_date || t.timestamp || Date.now());
-        var key = d.toLocaleString('default', {month:'short'});
-        var amt = parseFloat(t.amount || t.total || 0);
-        var tp = (t.type || t.transaction_type || t.category || '').toLowerCase();
-        if(tp === 'income' || tp === 'credit' || tp === 'receipt' || amt > 0) {
-          monthlyIncome[key] = (monthlyIncome[key]||0) + Math.abs(amt);
+      if(stage === 'settled') {
+        statusLabel = String(r.status || (ruling && ruling.decision) || 'Decided');
+        statusCls = statusLabel.toLowerCase() === 'rejected' ? 'critical' : 'good';
+        cell = '<span style="font-size:12px;color:var(--text-secondary);">' + cmcEsc(r.approvedBy || (ruling && ruling.by) || 'Admin') +
+          (r.approvalDate ? ' · ' + cmcEsc(r.approvalDate) : '') +
+          (r.approvalComment ? '<br><em>“' + cmcEsc(r.approvalComment) + '”</em>' : '') + '</span>';
+      } else if(stage === 'awaiting-countersign') {
+        statusLabel = ruling.decision + ' — awaiting countersignature';
+        statusCls = 'warning';
+        var mine = String(ruling.byUsername || '').toLowerCase() === String(me.username || '').toLowerCase();
+        cell = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">Ruled ' + cmcEsc(ruling.decision.toLowerCase()) +
+          ' by <strong>' + cmcEsc(ruling.by) + '</strong>' + (ruling.at ? ' · ' + cmcEsc(String(ruling.at).slice(0, 10)) : '') +
+          (ruling.comment ? '<br><em>“' + cmcEsc(ruling.comment) + '”</em>' : '') + '</div>';
+        if(isBoard && !mine) {
+          cell += '<button class="cmc-refresh-btn" style="padding:6px 12px;font-size:11px;" onclick="cmcCountersignVirement(\'' + id + '\')">✍ Countersign</button>';
+        } else if(mine) {
+          cell += '<span style="font-size:12px;color:var(--text-muted);">Your ruling — a second board member must countersign.</span>' +
+            (me.isChair ? ' <button class="cmc-refresh-btn" style="padding:5px 10px;font-size:11px;background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--border);" onclick="cmcWithdrawVirementRuling(\'' + id + '\')">Withdraw</button>' : '');
         } else {
-          monthlyExpense[key] = (monthlyExpense[key]||0) + Math.abs(amt);
+          cell += '<span style="font-size:12px;color:var(--text-muted);">Awaiting a second board member.</span>';
         }
-      });
-      var labels = Object.keys(monthlyIncome).length > 0 ? Object.keys(monthlyIncome) : Object.keys(monthlyExpense);
-      if(labels.length > 0) {
-        cmcChartInstances.cashTrend.data.labels = labels;
-        cmcChartInstances.cashTrend.data.datasets[0].data = labels.map(function(l){ return monthlyIncome[l]||0; });
-        cmcChartInstances.cashTrend.data.datasets[1].data = labels.map(function(l){ return monthlyExpense[l]||0; });
-        cmcChartInstances.cashTrend.update();
+      } else {
+        statusLabel = 'Pending';
+        statusCls = 'warning';
+        if(isBoard && me.isChair) {
+          cell = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' +
+            '<input type="text" id="cmcVirNote_' + id + '" placeholder="Reason / minute" ' +
+              'style="min-width:150px;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:12px;">' +
+            '<button class="cmc-refresh-btn" style="padding:6px 12px;font-size:11px;" onclick="cmcRuleVirement(\'' + id + '\',\'Approved\')">✓ Approve</button>' +
+            '<button class="cmc-refresh-btn" style="padding:6px 12px;font-size:11px;background:linear-gradient(135deg,var(--red),#c0392b);" onclick="cmcRuleVirement(\'' + id + '\',\'Rejected\')">✗ Reject</button>' +
+          '</div>';
+        } else {
+          cell = '<span style="font-size:12px;color:var(--text-muted);">Awaiting the Chairperson\'s ruling.</span>';
+        }
       }
+
+      return '<tr><td>' + cmcEsc(r.date) + '</td><td>' + cmcEsc(r.project || '--') + '</td><td>' + cmcEsc(r.requestedBy || '--') + '</td>' +
+        '<td>' + cmcEsc(r.from || '--') + '</td><td>' + cmcEsc(r.to || '--') + '</td>' +
+        '<td style="text-align:right;">' + cmcMoney(r.amount) + '</td>' +
+        '<td><span class="cmc-status ' + statusCls + '">' + cmcEsc(statusLabel) + '</span></td>' +
+        '<td>' + cell + '</td></tr>';
+    }, 'No virement requests match this filter.');
+}
+
+/* Persist the board's minute book and, when a ruling is complete, the register
+   itself. The book is the board's own collection, so it travels in the board's
+   own backup; the register belongs to Virement Requests and is written into
+   that page's file. */
+function cmcSaveRulings(book, alsoRegister) {
+  try { CESTISStore.setItem('cestis_cmc_rulings', JSON.stringify(book)); }
+  catch(e) { showToast('Could not record the ruling: ' + e.message, 'warning'); return false; }
+  cmcLoadOversightData();
+  cmcRefreshAllSections();
+  buildCmcSidebar();
+  if(window.CESTISPageCloud) {
+    var keys = alsoRegister ? ['cesti_virements'] : [];
+    if(typeof window.CESTISPageCloud.saveNow === 'function') window.CESTISPageCloud.saveNow();
+    if(keys.length && typeof window.CESTISPageCloud.saveShared === 'function') {
+      window.CESTISPageCloud.saveShared(keys).then(function(wrote) {
+        if(!wrote.length) console.info('[CMC] decision saved locally; it will travel when the Virement page next syncs');
+      }).catch(function(e) { console.warn('[CMC] decision not sent up: ' + e.message); });
+    }
+  }
+  return true;
+}
+
+function cmcVirementRow(id) {
+  return (cmcData.virement || []).filter(function(r) { return String(r.id) === String(id); })[0] || null;
+}
+
+/* Stage one — the Chairperson rules. Nothing reaches the register yet. */
+function cmcRuleVirement(id, decision) {
+  var C = window.CESTISCmc;
+  if(!C) return;
+  if(currentRole !== 'cmc') { showToast('Only the CMC Board rules on virements.', 'warning'); return; }
+  var row = cmcVirementRow(id), book = cmcRulings();
+  var noteEl = document.getElementById('cmcVirNote_' + id);
+  var verdict = C.cmcRuleVirement(row, C.cmcRulingFor(book, id), decision, cmcSignerNow(),
+    new Date().toISOString(), noteEl ? noteEl.value : '');
+  if(!verdict.ok) { showToast(verdict.reason, 'warning'); return; }
+  if(!confirm('Rule to ' + decision.toLowerCase().replace(/d$/, '') + ' the virement of ' + cmcMoney(row.amount) +
+    (row.project ? ' for "' + row.project + '"' : '') + '?\n\nIt takes effect only once a second board member countersigns.')) return;
+  if(cmcSaveRulings(C.cmcApplyRuling(book, id, verdict.ruling), false)) {
+    showToast('Ruling recorded — a second board member must now countersign.', 'success');
+  }
+}
+
+/* Stage two — a different board member countersigns, and the decision becomes
+   the register's. */
+function cmcCountersignVirement(id) {
+  var C = window.CESTISCmc;
+  if(!C) return;
+  if(currentRole !== 'cmc') { showToast('Only the CMC Board countersigns a ruling.', 'warning'); return; }
+  var row = cmcVirementRow(id), book = cmcRulings();
+  var res = C.cmcCountersignVirement(row, C.cmcRulingFor(book, id), cmcSignerNow(), new Date().toISOString());
+  if(!res.ok) { showToast(res.reason, 'warning'); return; }
+  if(!confirm('Countersign the Chairperson\'s ruling to ' + res.ruling.decision.toLowerCase() + ' ' + cmcMoney(row.amount) +
+    (row.project ? ' for "' + row.project + '"' : '') + '?\n\nThis settles the request. Both names are recorded and it cannot be undone.')) return;
+
+  var raw = null;
+  try { raw = CESTISStore.getItem('cesti_virements'); } catch(e) {}
+  var next = C.cmcApplyVirementDecision(raw, id, res.patch);
+  if(!next) { showToast('That request is no longer in the register — it may have been withdrawn.', 'warning'); return; }
+  try { CESTISStore.setItem('cesti_virements', next); }
+  catch(e) { showToast('Could not save the decision: ' + e.message, 'warning'); return; }
+  if(cmcSaveRulings(C.cmcApplyRuling(book, id, res.ruling), true)) {
+    showToast('Virement ' + res.ruling.decision.toLowerCase() + ' — signed by ' + res.ruling.by + ' and ' + res.ruling.counterBy + '.',
+      res.ruling.decision === 'Approved' ? 'success' : 'warning');
+  }
+}
+
+/* The Chair takes back a ruling nobody has countersigned, so a mistake does
+   not leave the request stuck between stages forever. */
+function cmcWithdrawVirementRuling(id) {
+  var C = window.CESTISCmc;
+  if(!C) return;
+  var row = cmcVirementRow(id), book = cmcRulings();
+  var res = C.cmcWithdrawRuling(row, C.cmcRulingFor(book, id), cmcSignerNow());
+  if(!res.ok) { showToast(res.reason, 'warning'); return; }
+  if(!confirm('Withdraw your ruling? The request goes back to awaiting a decision.')) return;
+  if(cmcSaveRulings(C.cmcApplyRuling(book, id, null), false)) showToast('Ruling withdrawn.', 'success');
+}
+
+function cmcRenderAcademic() {
+  var C = window.CESTISCmc;
+  var courses = {}, stages = {};
+  (students || []).forEach(function(s) {
+    if(s && s.course) courses[s.course] = 1;
+    if(s && s.stage) stages[s.stage] = 1;
+  });
+  var fEl = document.getElementById('cmcAcademicFilters');
+  if(fEl) {
+    fEl.innerHTML = cmcFilterBar('academic', [
+      { field: 'course', label: 'Course', options: Object.keys(courses).sort() },
+      { field: 'stage', label: 'Stage', options: Object.keys(stages).sort() }
+    ]);
+  }
+  var body = document.getElementById('cmcAcademicBody');
+  if(!body) return;
+
+  var examAvg = {};
+  (examResults || []).forEach(function(r) {
+    var sid = r.studentId || r.student_id;
+    if(!sid) return;
+    if(!examAvg[sid]) examAvg[sid] = { total: 0, count: 0 };
+    examAvg[sid].total += (parseFloat(r.score) || 0);
+    examAvg[sid].count++;
+  });
+  var attPct = {};
+  (attendanceRecords || []).forEach(function(r) {
+    var days = r.days || {}, total = 0, present = 0;
+    ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){ if(days[d]){ total++; if(days[d]==='present'||days[d]==='late') present++; } });
+    attPct[r.studentId] = total > 0 ? Math.round(present / total * 100) : 0;
+  });
+  var rows = (students || []).map(function(s) {
+    return {
+      name: s.name, course: s.course || '', stage: s.stage || '',
+      score: examAvg[s.id] && examAvg[s.id].count ? Math.round(examAvg[s.id].total / examAvg[s.id].count) : 0,
+      attendance: attPct[s.id] !== undefined ? attPct[s.id] : (parseFloat(s.attendance) || 0)
+    };
+  }).sort(function(a, b) { return b.score - a.score; });
+  var shown = C ? C.cmcFilterRows(rows, cmcFilters.academic) : rows;
+
+  body.innerHTML = cmcShowingNote(shown.length, rows.length, 'trainees') +
+    cmcTable(['#', 'Name', 'Course', 'Avg Score', 'Attendance', 'Stage'], shown, function(s, i) {
+      var attCls = s.attendance >= 80 ? 'good' : s.attendance >= 60 ? 'warning' : 'critical';
+      var scoreCls = s.score >= 80 ? 'good' : s.score >= 60 ? 'warning' : 'critical';
+      return '<tr><td>' + (i + 1) + '</td><td>' + cmcEsc(s.name) + '</td><td>' + cmcEsc(s.course || '--') + '</td>' +
+        '<td><span class="cmc-status ' + scoreCls + '">' + s.score + '%</span></td>' +
+        '<td><span class="cmc-status ' + attCls + '">' + s.attendance + '%</span></td>' +
+        '<td>' + cmcEsc(s.stage || '--') + '</td></tr>';
+    }, 'No trainees match this filter.');
+}
+
+/* Charts that depend on the operating books, repainted from the same rows the
+   tables use so a figure never disagrees with the picture beside it. */
+function cmcUpdateDriveCharts() {
+  var cash = cmcData.cashbook || [];
+  if(cmcChartInstances.cashTrend && cash.length) {
+    var income = {}, expense = {}, order = [];
+    cash.forEach(function(t) {
+      if(t.voided) return;
+      var key = (t.date || '').slice(0, 7) || t.period || 'Unknown';
+      if(order.indexOf(key) === -1) order.push(key);
+      if(t.type === 'income') income[key] = (income[key] || 0) + t.amount;
+      else expense[key] = (expense[key] || 0) + t.amount;
+    });
+    order.sort();
+    if(order.length) {
+      cmcChartInstances.cashTrend.data.labels = order;
+      cmcChartInstances.cashTrend.data.datasets[0].data = order.map(function(l){ return income[l] || 0; });
+      cmcChartInstances.cashTrend.data.datasets[1].data = order.map(function(l){ return expense[l] || 0; });
+      cmcChartInstances.cashTrend.update();
     }
   }
 
-  // Update fees chart from local student data
   if(cmcChartInstances.fees) {
     var collected = students.filter(function(s){ return s.stage === 'certified' || s.stage === 'collected'; }).length;
-    var outstanding = students.length - collected;
-    cmcChartInstances.fees.data.datasets[0].data = [collected, outstanding];
+    cmcChartInstances.fees.data.datasets[0].data = [collected, students.length - collected];
     cmcChartInstances.fees.update();
-  }
-
-  // Populate Financial Activity section with recent cashbook + virement entries
-  var finActivityEl = document.getElementById('cmcFinancialActivity');
-  if(finActivityEl) {
-    var activityHtml = '';
-    var activityItems = [];
-
-    // Gather cashbook transactions
-    if(cmcData.cashbook) {
-      var cbRecords = cmcData.cashbook.transactions || cmcData.cashbook.entries || [];
-      cbRecords.forEach(function(t) {
-        var amt = parseFloat(t.amount || t.total || 0);
-        var tp = (t.type || t.transaction_type || t.category || '').toLowerCase();
-        var isIncome = tp === 'income' || tp === 'credit' || tp === 'receipt' || amt > 0;
-        activityItems.push({
-          date: t.date || t.transaction_date || t.timestamp || '--',
-          desc: t.description || t.memo || t.details || t.narration || t.particular || 'Cashbook Entry',
-          amount: Math.abs(amt),
-          isIncome: isIncome,
-          source: 'Cashbook',
-          checkNum: t.check_number || t.checkNumber || t.cheque_no || t.check_no || t.chequeNumber || ''
-        });
-      });
-    }
-
-    // Gather virement requests
-    if(cmcData.virement) {
-      var virRecords = cmcData.virement.requests || cmcData.virement.virements || cmcData.virement.entries || [];
-      virRecords.forEach(function(r) {
-        activityItems.push({
-          date: r.date || r.request_date || r.timestamp || '--',
-          desc: (r.from || r.from_budget || r.source || '') + ' -> ' + (r.to || r.to_budget || r.destination || '') + (r.reason ? ': ' + r.reason : ''),
-          amount: parseFloat(r.amount || r.total || 0),
-          isIncome: false,
-          source: 'Virement (' + (r.status || 'pending') + ')',
-          checkNum: ''
-        });
-      });
-    }
-
-    if(activityItems.length > 0) {
-      // Sort by date descending (most recent first)
-      activityItems.sort(function(a, b) {
-        return new Date(b.date || 0) - new Date(a.date || 0);
-      });
-
-      activityHtml = '<table class="cmc-table"><thead><tr><th>Date</th><th>Description</th><th>Source</th><th>Check #</th><th>Amount</th></tr></thead><tbody>';
-      activityItems.slice(0, 30).forEach(function(item) {
-        activityHtml += '<tr>';
-        activityHtml += '<td>' + item.date + '</td>';
-        activityHtml += '<td>' + item.desc + '</td>';
-        activityHtml += '<td><span class="cmc-status info">' + item.source + '</span></td>';
-        activityHtml += '<td>' + (item.checkNum || '--') + '</td>';
-        activityHtml += '<td style="color:' + (item.isIncome ? 'var(--green)' : 'var(--red)') + ';font-weight:600;">' +
-          (item.isIncome ? '+' : '-') + 'D' + item.amount.toLocaleString() + '</td>';
-        activityHtml += '</tr>';
-      });
-      activityHtml += '</tbody></table>';
-      if(activityItems.length > 30) activityHtml += '<div style="text-align:center;color:var(--text-muted);padding:8px;font-size:12px;">Showing 30 of ' + activityItems.length + ' entries</div>';
-    } else {
-      activityHtml = '<div style="color:var(--text-muted);font-size:13px;padding:12px;">No financial activity data found. Ensure cashbook and virement data exists in Google Drive folders.</div>';
-    }
-
-    finActivityEl.innerHTML = activityHtml;
-  }
-
-  // Populate Staff Records section
-  var staffRecEl = document.getElementById('cmcStaffRecords');
-  if(staffRecEl) {
-    var staffHtml = '';
-    var hasPayslip = cmcData.payslip;
-    var hasClockin = cmcData.clockin;
-
-    if(hasPayslip || hasClockin) {
-      staffHtml = '<table class="cmc-table"><thead><tr><th>#</th><th>Name</th><th>Type</th><th>Details</th><th>Status</th></tr></thead><tbody>';
-      var rowIdx = 0;
-
-      if(hasPayslip) {
-        var payRecords = cmcData.payslip.payslips || cmcData.payslip.records || [];
-        payRecords.slice(0, 25).forEach(function(p) {
-          rowIdx++;
-          var name = p.name || p.employee || p.staff_name || p.employeeName || ('Staff ' + rowIdx);
-          var net = parseFloat(p.netPay || p.net || p.net_pay || p.amount || 0);
-          staffHtml += '<tr><td>' + rowIdx + '</td><td>' + name + '</td><td><span class="cmc-status info">Payslip</span></td>';
-          staffHtml += '<td>Net: D' + net.toLocaleString() + '</td>';
-          staffHtml += '<td><span class="cmc-status good">Processed</span></td></tr>';
-        });
-      }
-
-      if(hasClockin) {
-        var clockRecords = cmcData.clockin.records || cmcData.clockin.clockins || cmcData.clockin.entries || [];
-        clockRecords.slice(0, 25).forEach(function(r) {
-          rowIdx++;
-          var name = r.name || r.employee || r.staff_name || r.employeeName || ('Staff ' + rowIdx);
-          var time = r.time || r.clock_in || r.timeIn || r.time_in || '--';
-          var status = r.status || r.clockin_status || 'Present';
-          var statusCls = status.toLowerCase() === 'late' ? 'warning' : status.toLowerCase() === 'absent' ? 'critical' : 'good';
-          staffHtml += '<tr><td>' + rowIdx + '</td><td>' + name + '</td><td><span class="cmc-status info">Clock-in</span></td>';
-          staffHtml += '<td>' + time + '</td>';
-          staffHtml += '<td><span class="cmc-status ' + statusCls + '">' + status + '</span></td></tr>';
-        });
-      }
-
-      staffHtml += '</tbody></table>';
-    } else {
-      staffHtml = '<div style="color:var(--text-muted);font-size:13px;padding:12px;">No staff data found. Ensure payslip and clock-in data exists in Google Drive folders.</div>';
-    }
-
-    staffRecEl.innerHTML = staffHtml;
-  }
-
-  // Update payroll chart from Drive data
-  if(cmcData.payslip && cmcChartInstances.payroll) {
-    var payRecords = cmcData.payslip.payslips || cmcData.payslip.records || [];
-    if(payRecords.length > 0) {
-      var totalBasic = 0; var totalAllowances = 0; var totalDeductions = 0; var totalNetPay = 0;
-      payRecords.forEach(function(p) {
-        totalBasic += parseFloat(p.basic || p.basicSalary || p.basic_salary || 0);
-        totalAllowances += parseFloat(p.allowances || p.allowance || p.total_allowances || 0);
-        totalDeductions += parseFloat(p.deductions || p.deduction || p.total_deductions || 0);
-        totalNetPay += parseFloat(p.netPay || p.net || p.net_pay || p.amount || 0);
-      });
-      cmcChartInstances.payroll.data.datasets[0].data = [totalBasic, totalAllowances, totalDeductions, totalNetPay];
-      cmcChartInstances.payroll.update();
-    }
-  }
-
-  // Update clock-in chart from Drive data
-  if(cmcData.clockin && cmcChartInstances.clockin) {
-    var clockRecords = cmcData.clockin.records || cmcData.clockin.clockins || cmcData.clockin.entries || [];
-    if(clockRecords.length > 0) {
-      var dayStats = {Mon:{onTime:0,late:0},Tue:{onTime:0,late:0},Wed:{onTime:0,late:0},Thu:{onTime:0,late:0},Fri:{onTime:0,late:0}};
-      clockRecords.forEach(function(r) {
-        var d = new Date(r.date || r.clock_date || r.timestamp || Date.now());
-        var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-        var dayKey = dayNames[d.getDay()] || 'Mon';
-        if(dayStats[dayKey]) {
-          var status = (r.status || r.clockin_status || '').toLowerCase();
-          if(status === 'late' || status === 'tardy') dayStats[dayKey].late++;
-          else dayStats[dayKey].onTime++;
-        }
-      });
-      cmcChartInstances.clockin.data.datasets[0].data = ['Mon','Tue','Wed','Thu','Fri'].map(function(d){ return dayStats[d].onTime; });
-      cmcChartInstances.clockin.data.datasets[1].data = ['Mon','Tue','Wed','Thu','Fri'].map(function(d){ return dayStats[d].late; });
-      cmcChartInstances.clockin.update();
-    }
   }
 }
 
-// ---- KPI Card Detail Modal ----
 function cmcShowDetail(type) {
   var overlay = document.createElement('div');
   overlay.className = 'cmc-detail-overlay';
   overlay.onclick = function(e) { if(e.target === overlay) overlay.remove(); };
 
-  var title = '';
-  var bodyHtml = '';
-
+  var title = '', bodyHtml = '';
   switch(type) {
-    case 'payroll':
-      title = 'Staff Payroll Details';
-      bodyHtml = cmcBuildPayrollDetail();
-      break;
+    case 'payroll': case 'payslip':
+      title = 'Staff Payroll'; bodyHtml = cmcBuildPayrollDetail(); break;
     case 'clockin':
-      title = 'Staff Clock-in Details';
-      bodyHtml = cmcBuildClockinDetail();
-      break;
+      title = 'Staff Clock-in'; bodyHtml = cmcBuildClockinDetail(); break;
     case 'cashbook':
-      title = 'Cashbook Details';
-      bodyHtml = cmcBuildCashbookDetail();
-      break;
+      title = 'Cashbook'; bodyHtml = cmcBuildCashbookDetail(); break;
     case 'virement':
-      title = 'Virement Request Details';
-      bodyHtml = cmcBuildVirementDetail();
-      break;
+      title = 'Virement Requests'; bodyHtml = cmcBuildVirementDetail(); break;
     case 'attendance':
-      title = 'Student Attendance Details';
-      bodyHtml = cmcBuildAttendanceDetail();
-      break;
+      title = 'Student Attendance Details'; bodyHtml = cmcBuildAttendanceDetail(); break;
     case 'fees':
-      title = 'School Fees Details';
-      bodyHtml = cmcBuildFeesDetail();
-      break;
+      title = 'School Fees Details'; bodyHtml = cmcBuildFeesDetail(); break;
   }
 
   overlay.innerHTML =
@@ -35878,171 +35472,85 @@ function cmcShowDetail(type) {
   document.body.appendChild(overlay);
 }
 
+function cmcDetailEmpty(owner) {
+  return '<div style="text-align:center;color:var(--text-muted);padding:30px;">Nothing recorded yet. This arrives from ' + owner + ' as soon as that page has records to share.</div>';
+}
+
 function cmcBuildPayrollDetail() {
-  var data = cmcData.payslip;
-  if(!data) return '<div style="text-align:center;color:var(--text-muted);padding:30px;">No payroll data loaded. Click "Refresh from Drive" to sync data from Google Drive.</div>';
-
-  var records = data.payslips || data.records || (Array.isArray(data) ? data : []);
-  if(records.length === 0 && typeof data === 'object' && !Array.isArray(data)) {
-    records = Object.keys(data).filter(function(k) { return typeof data[k] === 'object'; }).map(function(k) { return data[k]; });
-  }
-
-  var totalNet = 0; var totalGross = 0; var totalDeductions = 0;
-  records.forEach(function(p) {
-    totalNet += parseFloat(p.netPay || p.net || p.net_pay || p.amount || 0);
-    totalGross += parseFloat(p.grossPay || p.gross || p.gross_pay || p.basic || 0);
-    totalDeductions += parseFloat(p.deductions || p.deduction || p.total_deductions || 0);
-  });
-
-  var html = '<div class="cmc-detail-summary">';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Total Records</div><div class="stat-value">' + records.length + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Total Gross</div><div class="stat-value">D' + totalGross.toLocaleString() + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Total Deductions</div><div class="stat-value">D' + totalDeductions.toLocaleString() + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Total Net Pay</div><div class="stat-value">D' + totalNet.toLocaleString() + '</div></div>';
-  html += '</div>';
-
-  if(records.length > 0) {
-    html += '<table class="cmc-table"><thead><tr><th>#</th><th>Name</th><th>Gross Pay</th><th>Deductions</th><th>Net Pay</th></tr></thead><tbody>';
-    records.slice(0, 50).forEach(function(p, i) {
-      var name = p.name || p.employee || p.staff_name || p.employeeName || ('Record ' + (i+1));
-      var gross = parseFloat(p.grossPay || p.gross || p.gross_pay || p.basic || 0);
-      var ded = parseFloat(p.deductions || p.deduction || p.total_deductions || 0);
-      var net = parseFloat(p.netPay || p.net || p.net_pay || p.amount || 0);
-      html += '<tr><td>' + (i+1) + '</td><td>' + name + '</td><td>D' + gross.toLocaleString() + '</td><td>D' + ded.toLocaleString() + '</td><td><strong>D' + net.toLocaleString() + '</strong></td></tr>';
-    });
-    html += '</tbody></table>';
-    if(records.length > 50) html += '<div style="text-align:center;color:var(--text-muted);padding:10px;font-size:12px;">Showing first 50 of ' + records.length + ' records</div>';
-  }
-  return html;
+  var rows = cmcData.payslip || [];
+  if(!rows.length) return cmcDetailEmpty('Staff Payslips');
+  var gross = 0, net = 0, people = {};
+  rows.forEach(function(r) { gross += r.gross; net += r.net; people[r.name] = 1; });
+  var h = '<div class="cmc-detail-stats">';
+  h += '<div class="cmc-detail-stat"><span class="label">Pay Records</span><span class="value">' + rows.length + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Staff Paid</span><span class="value">' + Object.keys(people).length + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Total Gross</span><span class="value">' + cmcMoney(gross) + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Total Net</span><span class="value" style="color:var(--green);">' + cmcMoney(net) + '</span></div>';
+  h += '</div>';
+  return h + cmcTable(['Date', 'Name', 'Position', 'Gross', 'Net'], rows.slice(0, 100), function(r) {
+    return '<tr><td>' + cmcEsc(r.date) + '</td><td>' + cmcEsc(r.name) + '</td><td>' + cmcEsc(r.position || '--') + '</td>' +
+      '<td style="text-align:right;">' + cmcMoney(r.gross) + '</td><td style="text-align:right;">' + cmcMoney(r.net) + '</td></tr>';
+  }, 'No pay records.');
 }
 
 function cmcBuildClockinDetail() {
-  var data = cmcData.clockin;
-  if(!data) return '<div style="text-align:center;color:var(--text-muted);padding:30px;">No clock-in data loaded. Click "Refresh from Drive" to sync data from Google Drive.</div>';
-
-  var records = data.records || data.clockins || data.entries || (Array.isArray(data) ? data : []);
-  if(records.length === 0 && typeof data === 'object' && !Array.isArray(data)) {
-    records = Object.keys(data).filter(function(k) { return typeof data[k] === 'object'; }).map(function(k) { return data[k]; });
-  }
-
-  var onTime = 0; var late = 0; var absent = 0;
-  records.forEach(function(r) {
-    var status = (r.status || r.clockin_status || '').toLowerCase();
-    if(status === 'late' || status === 'tardy') late++;
-    else if(status === 'absent' || status === 'no show') absent++;
-    else onTime++;
-  });
-
-  var html = '<div class="cmc-detail-summary">';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Total Entries</div><div class="stat-value">' + records.length + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">On Time</div><div class="stat-value" style="color:var(--green)">' + onTime + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Late</div><div class="stat-value" style="color:var(--orange)">' + late + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Absent</div><div class="stat-value" style="color:var(--red)">' + absent + '</div></div>';
-  html += '</div>';
-
-  if(records.length > 0) {
-    html += '<table class="cmc-table"><thead><tr><th>#</th><th>Name</th><th>Date</th><th>Time In</th><th>Status</th></tr></thead><tbody>';
-    records.slice(0, 50).forEach(function(r, i) {
-      var name = r.name || r.employee || r.staff_name || r.employeeName || ('Staff ' + (i+1));
-      var date = r.date || r.clock_date || r.timestamp || '--';
-      var time = r.time || r.clock_in || r.timeIn || r.time_in || '--';
-      var status = r.status || r.clockin_status || 'Present';
-      var statusCls = status.toLowerCase() === 'late' ? 'warning' : status.toLowerCase() === 'absent' ? 'critical' : 'good';
-      html += '<tr><td>' + (i+1) + '</td><td>' + name + '</td><td>' + date + '</td><td>' + time + '</td><td><span class="cmc-status ' + statusCls + '">' + status + '</span></td></tr>';
-    });
-    html += '</tbody></table>';
-    if(records.length > 50) html += '<div style="text-align:center;color:var(--text-muted);padding:10px;font-size:12px;">Showing first 50 of ' + records.length + ' records</div>';
-  }
-  return html;
+  var rows = cmcData.clockin || [];
+  if(!rows.length) return cmcDetailEmpty('Staff Clock-in');
+  var hours = 0, people = {}, open = 0;
+  rows.forEach(function(r) { hours += r.hours; people[r.name] = 1; if(r.status !== 'completed') open++; });
+  var h = '<div class="cmc-detail-stats">';
+  h += '<div class="cmc-detail-stat"><span class="label">Sessions</span><span class="value">' + rows.length + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Staff Seen</span><span class="value">' + Object.keys(people).length + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Hours Logged</span><span class="value">' + (Math.round(hours * 10) / 10).toLocaleString() + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Still Clocked In</span><span class="value" style="color:var(--orange);">' + open + '</span></div>';
+  h += '</div>';
+  return h + cmcTable(['Date', 'Name', 'Status', 'Hours'], rows.slice(0, 100), function(r) {
+    return '<tr><td>' + cmcEsc(r.date) + '</td><td>' + cmcEsc(r.name) + '</td>' +
+      '<td><span class="cmc-status ' + (r.status === 'completed' ? 'good' : 'warning') + '">' + cmcEsc(r.status) + '</span></td>' +
+      '<td style="text-align:right;">' + (Math.round(r.hours * 10) / 10) + '</td></tr>';
+  }, 'No clock-in sessions.');
 }
 
 function cmcBuildCashbookDetail() {
-  var data = cmcData.cashbook;
-  if(!data) return '<div style="text-align:center;color:var(--text-muted);padding:30px;">No cashbook data loaded. Click "Refresh from Drive" to sync data from Google Drive.</div>';
-
-  var records = data.transactions || data.entries || (Array.isArray(data) ? data : []);
-  if(records.length === 0 && typeof data === 'object' && !Array.isArray(data)) {
-    records = Object.keys(data).filter(function(k) { return typeof data[k] === 'object'; }).map(function(k) { var o = data[k]; o._key = k; return o; });
-  }
-
-  var income = 0; var expenses = 0; var checkCount = 0;
-  records.forEach(function(t) {
-    var amt = parseFloat(t.amount || t.total || 0);
-    var tp = (t.type || t.transaction_type || t.category || '').toLowerCase();
-    if(tp === 'income' || tp === 'credit' || tp === 'receipt' || amt > 0) income += Math.abs(amt);
-    else expenses += Math.abs(amt);
-    if(t.check_number || t.checkNumber || t.cheque_no || t.check_no || t.chequeNumber || (tp === 'check' || tp === 'cheque')) checkCount++;
-  });
-
-  var html = '<div class="cmc-detail-summary">';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Total Transactions</div><div class="stat-value">' + records.length + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Total Income</div><div class="stat-value" style="color:var(--green)">D' + income.toLocaleString() + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Total Expenses</div><div class="stat-value" style="color:var(--red)">D' + expenses.toLocaleString() + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Balance</div><div class="stat-value">D' + (income - expenses).toLocaleString() + '</div></div>';
-  if(checkCount > 0) html += '<div class="cmc-detail-stat"><div class="stat-label">Checks Logged</div><div class="stat-value">' + checkCount + '</div></div>';
-  html += '</div>';
-
-  if(records.length > 0) {
-    html += '<table class="cmc-table"><thead><tr><th>#</th><th>Date</th><th>Description</th><th>Type</th><th>Check #</th><th>Amount</th></tr></thead><tbody>';
-    records.slice(0, 50).forEach(function(t, i) {
-      var date = t.date || t.transaction_date || t.timestamp || '--';
-      var desc = t.description || t.memo || t.details || t.narration || t.particular || '--';
-      var amt = parseFloat(t.amount || t.total || 0);
-      var tp = (t.type || t.transaction_type || t.category || '').toLowerCase();
-      var isIncome = tp === 'income' || tp === 'credit' || tp === 'receipt' || amt > 0;
-      var checkNum = t.check_number || t.checkNumber || t.cheque_no || t.check_no || t.chequeNumber || '--';
-      var typeLabel = isIncome ? 'Income' : 'Expense';
-      var typeCls = isIncome ? 'good' : 'critical';
-      html += '<tr><td>' + (i+1) + '</td><td>' + date + '</td><td>' + desc + '</td>';
-      html += '<td><span class="cmc-status ' + typeCls + '">' + typeLabel + '</span></td>';
-      html += '<td>' + checkNum + '</td>';
-      html += '<td style="color:' + (isIncome ? 'var(--green)' : 'var(--red)') + ';font-weight:600;">D' + Math.abs(amt).toLocaleString() + '</td></tr>';
-    });
-    html += '</tbody></table>';
-    if(records.length > 50) html += '<div style="text-align:center;color:var(--text-muted);padding:10px;font-size:12px;">Showing first 50 of ' + records.length + ' records</div>';
-  }
-  return html;
+  var rows = cmcData.cashbook || [];
+  if(!rows.length) return cmcDetailEmpty('the Cashbook');
+  var s = cmcCashSummary(rows);
+  var h = '<div class="cmc-detail-stats">';
+  h += '<div class="cmc-detail-stat"><span class="label">Transactions</span><span class="value">' + s.count + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Income</span><span class="value" style="color:var(--green);">' + cmcMoney(s.income) + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Expenditure</span><span class="value" style="color:var(--red);">' + cmcMoney(s.expense) + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Balance</span><span class="value">' + cmcMoney(s.balance) + '</span></div>';
+  h += '</div>';
+  return h + cmcTable(['Date', 'Details', 'Category', 'Type', 'Amount'], rows.slice(-100).reverse(), function(r) {
+    var cls = r.voided ? 'info' : (r.type === 'income' ? 'good' : 'warning');
+    return '<tr><td>' + cmcEsc(r.date) + '</td><td>' + cmcEsc(r.details) + '</td><td>' + cmcEsc(r.category) + '</td>' +
+      '<td><span class="cmc-status ' + cls + '">' + cmcEsc(r.voided ? 'cancelled' : r.type) + '</span></td>' +
+      '<td style="text-align:right;">' + (r.voided ? '--' : cmcMoney(r.amount)) + '</td></tr>';
+  }, 'No cashbook entries.');
 }
 
 function cmcBuildVirementDetail() {
-  var data = cmcData.virement;
-  if(!data) return '<div style="text-align:center;color:var(--text-muted);padding:30px;">No virement data loaded. Click "Refresh from Drive" to sync data from Google Drive.</div>';
-
-  var records = data.requests || data.virements || data.entries || (Array.isArray(data) ? data : []);
-  if(records.length === 0 && typeof data === 'object' && !Array.isArray(data)) {
-    records = Object.keys(data).filter(function(k) { return typeof data[k] === 'object'; }).map(function(k) { return data[k]; });
-  }
-
-  var pending = 0; var approved = 0; var rejected = 0; var totalAmt = 0;
-  records.forEach(function(r) {
-    var status = (r.status || '').toLowerCase();
-    if(status === 'pending') pending++;
-    else if(status === 'approved') approved++;
-    else if(status === 'rejected' || status === 'denied') rejected++;
-    totalAmt += parseFloat(r.amount || r.total || 0);
+  var rows = cmcData.virement || [];
+  if(!rows.length) return cmcDetailEmpty('Virement Requests');
+  var pending = 0, approved = 0, total = 0;
+  rows.forEach(function(r) {
+    var st = String(r.status || '').toLowerCase();
+    if(st === 'pending') pending++; else if(st === 'approved') approved++;
+    total += r.amount;
   });
-
-  var html = '<div class="cmc-detail-summary">';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Total Requests</div><div class="stat-value">' + records.length + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Pending</div><div class="stat-value" style="color:var(--orange)">' + pending + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Approved</div><div class="stat-value" style="color:var(--green)">' + approved + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Total Amount</div><div class="stat-value">D' + totalAmt.toLocaleString() + '</div></div>';
-  html += '</div>';
-
-  if(records.length > 0) {
-    html += '<table class="cmc-table"><thead><tr><th>#</th><th>Date</th><th>From</th><th>To</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
-    records.slice(0, 50).forEach(function(r, i) {
-      var date = r.date || r.request_date || r.timestamp || '--';
-      var from = r.from || r.from_budget || r.source || r.from_account || '--';
-      var to = r.to || r.to_budget || r.destination || r.to_account || '--';
-      var amt = parseFloat(r.amount || r.total || 0);
-      var status = r.status || 'Pending';
-      var statusCls = status.toLowerCase() === 'approved' ? 'good' : status.toLowerCase() === 'rejected' ? 'critical' : 'warning';
-      html += '<tr><td>' + (i+1) + '</td><td>' + date + '</td><td>' + from + '</td><td>' + to + '</td><td>D' + amt.toLocaleString() + '</td><td><span class="cmc-status ' + statusCls + '">' + status + '</span></td></tr>';
-    });
-    html += '</tbody></table>';
-  }
-  return html;
+  var h = '<div class="cmc-detail-stats">';
+  h += '<div class="cmc-detail-stat"><span class="label">Requests</span><span class="value">' + rows.length + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Pending</span><span class="value" style="color:var(--orange);">' + pending + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Approved</span><span class="value" style="color:var(--green);">' + approved + '</span></div>';
+  h += '<div class="cmc-detail-stat"><span class="label">Total Value</span><span class="value">' + cmcMoney(total) + '</span></div>';
+  h += '</div>';
+  return h + cmcTable(['Date', 'Project', 'Requested By', 'Status', 'Amount'], rows.slice(0, 100), function(r) {
+    var st = String(r.status || '').toLowerCase();
+    var cls = st === 'approved' ? 'good' : st === 'rejected' ? 'critical' : 'warning';
+    return '<tr><td>' + cmcEsc(r.date) + '</td><td>' + cmcEsc(r.project || '--') + '</td><td>' + cmcEsc(r.requestedBy || '--') + '</td>' +
+      '<td><span class="cmc-status ' + cls + '">' + cmcEsc(r.status) + '</span></td>' +
+      '<td style="text-align:right;">' + cmcMoney(r.amount) + '</td></tr>';
+  }, 'No virement requests.');
 }
 
 function cmcBuildAttendanceDetail() {
@@ -36143,111 +35651,6 @@ function cmcBuildFeesDetail() {
   html += '</tbody></table>';
   if(students.length > 50) html += '<div style="text-align:center;color:var(--text-muted);padding:10px;font-size:12px;">Showing first 50 of ' + students.length + ' students</div>';
   return html;
-}
-
-// ---- Cashbook Checks Table (Financial Overview) ----
-function cmcRenderChecksTable(records) {
-  var body = document.getElementById('cmcChecksBody');
-  if(!body) return;
-
-  if(!records || records.length === 0) {
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">No transaction records found. Ensure cashbook data exists in Google Drive.</td></tr>';
-    return;
-  }
-
-  var runningBalance = 0;
-  var html = '';
-  records.forEach(function(t, i) {
-    var date = t.date || t.transaction_date || t.timestamp || '--';
-    var desc = t.description || t.memo || t.details || t.narration || t.particular || '--';
-    var amt = parseFloat(t.amount || t.total || 0);
-    var tp = (t.type || t.transaction_type || t.category || '').toLowerCase();
-    var isIncome = tp === 'income' || tp === 'credit' || tp === 'receipt' || amt > 0;
-    var checkNum = t.check_number || t.checkNumber || t.cheque_no || t.check_no || t.chequeNumber || '';
-    var isCheck = checkNum || tp === 'check' || tp === 'cheque';
-
-    if(isIncome) runningBalance += Math.abs(amt);
-    else runningBalance -= Math.abs(amt);
-
-    var typeLabel = isCheck ? 'Check' : (isIncome ? 'Income' : 'Expense');
-    var typeCls = isCheck ? 'info' : (isIncome ? 'good' : 'critical');
-
-    html += '<tr data-type="' + (isCheck ? 'check' : (isIncome ? 'income' : 'expense')) + '" data-search="' + (date + ' ' + desc + ' ' + checkNum).toLowerCase() + '">';
-    html += '<td>' + date + '</td>';
-    html += '<td>' + desc + '</td>';
-    html += '<td><span class="cmc-status ' + typeCls + '">' + typeLabel + '</span></td>';
-    html += '<td>' + (checkNum || '--') + '</td>';
-    html += '<td style="color:' + (isIncome ? 'var(--green)' : 'var(--red)') + ';font-weight:600;">' + (isIncome ? '+' : '-') + 'D' + Math.abs(amt).toLocaleString() + '</td>';
-    html += '<td style="font-weight:600;color:' + (runningBalance >= 0 ? 'var(--text-primary)' : 'var(--red)') + '">D' + runningBalance.toLocaleString() + '</td>';
-    html += '</tr>';
-  });
-
-  body.innerHTML = html;
-}
-
-function cmcFilterChecks() {
-  var searchVal = (document.getElementById('cmcCheckSearch') || {}).value || '';
-  var filterVal = (document.getElementById('cmcCheckFilter') || {}).value || 'all';
-  var body = document.getElementById('cmcChecksBody');
-  if(!body) return;
-  var rows = body.querySelectorAll('tr[data-type]');
-  var search = searchVal.toLowerCase();
-  rows.forEach(function(row) {
-    var matchType = filterVal === 'all' || row.getAttribute('data-type') === filterVal;
-    var matchSearch = !search || (row.getAttribute('data-search') || '').indexOf(search) > -1;
-    row.style.display = (matchType && matchSearch) ? '' : 'none';
-  });
-}
-
-async function cmcSaveSnapshot() {
-  if(!googleAccessToken) return;
-  try {
-  var snapshot = {
-    timestamp: new Date().toISOString(),
-    savedBy: currentLoggedInUser ? currentLoggedInUser.name : 'CMC User',
-    totalStudents: students.length,
-    avgAttendance: students.length > 0 ? Math.round(students.reduce(function(s,st){ return s+(parseFloat(st.attendance)||0); },0)/students.length) : 0,
-    avgGpa: students.length > 0 ? (students.reduce(function(s,st){ return s+(parseFloat(st.gpa)||0); },0)/students.length).toFixed(2) : '0',
-    certifiedCount: students.filter(function(s){ return s.stage==='certified'||s.stage==='collected'; }).length,
-    totalAccounts: userAccounts.length,
-    driveDataSummary: {
-      payslip: cmcData.payslip ? 'synced' : 'not synced',
-      clockin: cmcData.clockin ? 'synced' : 'not synced',
-      cashbook: cmcData.cashbook ? 'synced' : 'not synced',
-      virement: cmcData.virement ? 'synced' : 'not synced'
-    }
-  };
-  var blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
-  var metadata = { name: 'CMC_DASHBOARD_SNAPSHOT.json', mimeType: 'application/json', parents: [CMC_DRIVE_CONFIG.STORAGE_FOLDER] };
-
-  // Check if file already exists
-  var query = encodeURIComponent("name='CMC_DASHBOARD_SNAPSHOT.json' and '" + CMC_DRIVE_CONFIG.STORAGE_FOLDER + "' in parents and trashed=false");
-  var searchResp = await fetch('https://www.googleapis.com/drive/v3/files?q=' + query + '&fields=files(id)', {
-    headers: { 'Authorization': 'Bearer ' + googleAccessToken }
-  });
-  var searchData = await searchResp.json();
-  var existingId = searchData.files && searchData.files.length > 0 ? searchData.files[0].id : null;
-
-  var form = new FormData();
-  if(existingId) {
-    // Update existing file
-    form.append('metadata', new Blob([JSON.stringify({ name: 'CMC_DASHBOARD_SNAPSHOT.json', mimeType: 'application/json' })], { type: 'application/json' }));
-    form.append('file', blob);
-    await fetch('https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=multipart', {
-      method: 'PATCH', headers: { 'Authorization': 'Bearer ' + googleAccessToken }, body: form
-    });
-  } else {
-    // Create new file
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', blob);
-    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-      method: 'POST', headers: { 'Authorization': 'Bearer ' + googleAccessToken }, body: form
-    });
-  }
-  } catch(e) {
-    console.error('[CMC] Failed to save snapshot:', e);
-    showToast('Failed to save snapshot. Please try again.');
-  }
 }
 
 // ============================== CERTIFICATE CHECK & DOWNLOAD ==============================

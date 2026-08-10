@@ -5058,15 +5058,61 @@
         file: 'CESTIS_Transcript_Requests.json',
         page: 'Certificate / Transcript Requests',
         keys: ['voctrain_certTranscriptRequests']
+      },
+      /* The operating books. The CMC Board oversees these but operates none of
+         them, so its dashboards are pure readers — and a reader that is not in
+         this registry has nowhere to pull from, which is why those dashboards
+         used to sit empty behind a "Sync Drive Data" button. The Cashbook's
+         quarters are generated key names (cestis_quarter_<FY>_Q<n>), so they
+         are listed by prefix. */
+      {
+        file: 'CESTIS_Cashbook.json',
+        page: 'Cashbook',
+        keys: ['cesti_cashbook_data', 'cestis_active_quarter'],
+        prefixes: ['cestis_quarter_', 'cestis_budget_']
+      },
+      {
+        file: 'CESTIS_Staff_Payslips.json',
+        page: 'Staff Payslips',
+        keys: ['cestisPayroll']
+      },
+      {
+        file: 'CESTIS_Staff_TimeClock.json',
+        page: 'Staff Time Clock',
+        keys: ['cestisStaffMembers', 'cestisTimeRecords']
+      },
+      {
+        file: 'CESTIS_Virement_Requests.json',
+        page: 'Virement Requests',
+        keys: ['cesti_virements']
       }
     ];
 
     function sharedSources() { return SHARED_SOURCES; }
 
+    /* A collection whose key names are GENERATED — the Cashbook's quarters are
+       `cestis_quarter_<FY>_Q<n>` — cannot be asked for by name, because a
+       reader does not know which quarters exist until it has the file. Such a
+       collection is read by writing the declared prefix with a trailing star:
+       `reads: ['cestis_quarter_*']`. Everything else is an exact key, exactly
+       as before. */
+    function starPrefix(entry) {
+      var s = String(entry == null ? '' : entry);
+      return s.charAt(s.length - 1) === '*' ? s.slice(0, -1) : null;
+    }
+    function sourceClaims(src, entry) {
+      var pfx = starPrefix(entry);
+      if (pfx) return (src.prefixes || []).indexOf(pfx) !== -1;
+      if (src.keys.indexOf(entry) !== -1) return true;
+      var list = src.prefixes || [];
+      for (var i = 0; i < list.length; i++) if (String(entry).indexOf(list[i]) === 0) return true;
+      return false;
+    }
+
     /* Is this key one several pages depend on? */
     function isShared(key) {
       for (var i = 0; i < SHARED_SOURCES.length; i++) {
-        if (SHARED_SOURCES[i].keys.indexOf(key) !== -1) return true;
+        if (sourceClaims(SHARED_SOURCES[i], key)) return true;
       }
       return false;
     }
@@ -5074,7 +5120,7 @@
     /* The file that carries a shared key, or null if nothing claims it. */
     function sourceOf(key) {
       for (var i = 0; i < SHARED_SOURCES.length; i++) {
-        if (SHARED_SOURCES[i].keys.indexOf(key) !== -1) return SHARED_SOURCES[i];
+        if (sourceClaims(SHARED_SOURCES[i], key)) return SHARED_SOURCES[i];
       }
       return null;
     }
@@ -5107,6 +5153,13 @@
       var out = {}, wanted = Array.isArray(keys) ? keys : [];
       if (!payloadData) return out;
       wanted.forEach(function (k) {
+        var pfx = starPrefix(k);
+        if (pfx) {
+          // A generated-name collection: take every key the file carries under
+          // this prefix, since the reader cannot know their names in advance.
+          Object.keys(payloadData).forEach(function (pk) { if (pk.indexOf(pfx) === 0) out[pk] = payloadData[pk]; });
+          return;
+        }
         if (Object.prototype.hasOwnProperty.call(payloadData, k)) out[k] = payloadData[k];
       });
       return out;
