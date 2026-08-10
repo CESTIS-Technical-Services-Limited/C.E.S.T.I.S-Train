@@ -164,6 +164,72 @@ function foldQ(dal) { return dal.project('quarter', { fy: FY, q: Q }); }
     'applied EXACTLY like the legacy void button: Cancelled + _orig* kept for unvoid');
   ok(CB.cbReconcile(D1, [{ fy: FY, q: Q, blob: ax3.blob }]).ok, 'books agree with the void applied');
 
+  section('THE PAGE TICK: a locally-entered row is booked ONCE, never mirrored back as a second row');
+  {
+    // cb-page.js's runTick verbatim: plan → push → stamp → sync → mirror →
+    // apply. The unit tests above hand-applied plan.stamps; the page did not,
+    // so every row the clerk typed came back as a phantom copy of itself and
+    // the cashbook showed two figures for one payment.
+    const P = await freshDal(createBroker(), 'P');
+    let blob = blobOf([
+      { id: 100, date: '2026-02-20', cheque: '', details: 'Crystal-Lee Gordon', deposit: 0, payment: 83535.75, category: 'Administrative Assistant' },
+      { id: 101, date: '2026-02-20', cheque: '', details: 'Rashaun Barrett', deposit: 0, payment: 125303.63, category: 'Asst. Coordinator' }
+    ], 433419.51);
+    async function pageTick(stampFromPlan) {
+      const plan = await CB.cbPlanQuarter(P, FY, Q, blob);
+      await CB.cbPushPlan(P, plan, 'CB');
+      if (stampFromPlan !== false) blob = CB.cbApplyMirror(blob, { stamps: plan.stamps }).blob;
+      await P.sync.now();
+      const mirror = await CB.cbMirrorQuarter(P, FY, Q, blob);
+      blob = CB.cbApplyMirror(blob, mirror).blob;
+      return { plan, mirror };
+    }
+    const w1 = await pageTick();
+    eq(w1.plan.records.length, 2, 'both rows record canonically');
+    eq(w1.mirror.newTxns.length, 0, 'and the mirror adds NOTHING back — they are already here');
+    eq(blob.transactions.length, 2, 'two rows in, two rows out');
+    ok(CB.cbReconcile(P, [{ fy: FY, q: Q, blob }]).ok, 'the legacy book agrees with the fold to the cent');
+    await pageTick();
+    eq(blob.transactions.length, 2, 'a second tick still cannot grow the book');
+
+    // A legacy save rewrites the blob from the page's in-memory array, which
+    // has no megaId: the stamp is a cache, so the join must survive losing it.
+    blob.transactions.forEach(t => { delete t.megaId; });
+    const w2 = await pageTick(false);
+    eq(w2.mirror.newTxns.length, 0, 'stamps wiped by a legacy save: still no phantom');
+    eq(w2.plan.records.length, 0, 'and no second entity minted for the same money');
+    eq(blob.transactions.length, 2, 'the book holds at two rows');
+
+    // A book ALREADY doubled by the old mirror heals itself.
+    const megaOf = {};
+    blob.transactions.forEach(t => { megaOf[t.id] = t.megaId; });
+    blob.transactions.push(
+      { id: 100000, date: '2026-02-20', cheque: '', details: 'Crystal-Lee Gordon', deposit: 0, payment: 83535.75, category: 'Administrative Assistant', megaId: megaOf[100] },
+      { id: 100001, date: '2026-02-20', cheque: '', details: 'Rashaun Barrett', deposit: 0, payment: 125303.63, category: 'Asst. Coordinator', megaId: megaOf[101] });
+    ok(!CB.cbReconcile(P, [{ fy: FY, q: Q, blob }]).ok, 'the doubled book is CAUGHT as drift');
+    const w3 = await pageTick();
+    eq(w3.mirror.drops.length, 2, 'the phantom rows are dropped');
+    eq(blob.transactions.map(t => t.id).sort((a, b) => a - b), [100, 101], 'the rows the clerk typed are the ones that stay');
+    eq(blob.deletedTxnIds, [], 'and NOTHING is tombstoned — a tombstone would void live money on the next tick');
+    ok(CB.cbReconcile(P, [{ fy: FY, q: Q, blob }]).ok, 'the book balances again, to the cent');
+    const w4 = await pageTick();
+    eq(w4.plan.records.length + w4.plan.voids.length + w4.mirror.newTxns.length + w4.mirror.drops.length, 0, 'and the tick after the repair is QUIET');
+    f = foldQ(P);
+    eq(f.expenseMinor, 20883938, 'the canonical book still holds ONE of each payment (208,839.38)');
+
+    // A void the clerk applies AFTER the stamp was lost must still reach the
+    // book: adopting the content-matched entity is not enough on its own.
+    blob.transactions.forEach(t => { delete t.megaId; });
+    const tv = blob.transactions[0];
+    tv._origDetails = tv.details; tv._origCategory = tv.category; tv._origPayment = tv.payment; tv._origDeposit = tv.deposit;
+    tv.details = 'Cancelled Cheque'; tv.category = 'Cancelled'; tv.payment = 0; tv.deposit = 0;
+    const w5 = await pageTick(false);
+    eq(w5.plan.voids.length, 1, 'the void bridges even with no stamp to join on');
+    eq(w5.mirror.newTxns.length, 0, 'and the voided row is not re-mirrored as live money');
+    eq(foldQ(P).expenseMinor, 12530363, 'the canonical book drops to 125,303.63 — the void counted');
+    ok(CB.cbReconcile(P, [{ fy: FY, q: Q, blob }]).ok, 'legacy and canonical agree with the void applied');
+  }
+
   section('cancelled-zero txns become documents, never ledger entries');
   const cz = { id: 300, date: '2026-02-12', cheque: '3003', details: 'Cancelled Cheque', deposit: 0, payment: 0, category: 'Cancelled' };
   const blobZ = blobOf([cz], 0);

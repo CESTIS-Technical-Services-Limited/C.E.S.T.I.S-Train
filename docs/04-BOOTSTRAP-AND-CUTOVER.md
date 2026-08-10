@@ -168,15 +168,22 @@ amount/class resolver moved to `megadata/cashbook-shared.js` so bootstrap and th
 share one implementation by construction. **The per-device integer-id trap is defused**: legacy
 txn ids are small per-device integers, so two devices can mint the same id for different money —
 bridge-born entries get CONTENT-hashed entity ids, legacy txns are stamped with `megaId` as the
-stable join, and mirrored-in txns are remapped on collision. `window.__cbReconcile()` compares
+stable join, and mirrored-in txns are remapped on collision. **The stamp is a cache, not the
+join**: the page stamps the rows it just recorded *before* the mirror reads them, and the mirror
+also joins an unstamped row on the entry's own legacy id + identical content — otherwise a row
+the clerk typed reads as another device's and mirrors back in as a second line for money already
+booked (the cashbook then shows two figures for one payment). Several local rows bound to one
+canonical entry are dropped to one — the entry's own legacy id wins, and a dropped row is never
+tombstoned, since a tombstone would void live money on the next tick. `window.__cbReconcile()` compares
 every stored quarter against the fold to the cent (voided count zero, exactly like legacy
 `calcTotals`), opening balances included. Budgets stay legacy for now: `budget.set` is
 create-once in the registry, so live re-sets need a deliberate registry change (autovivify the
 `budget` kind) taken as its own reviewed step. One wrap point set: `saveToStorage`,
 `saveTxnToQuarter`, `saveQuarterAndSwitch`. `tests/megadata-cb.test.js` covers the drift guard,
 edit/void/unvoid/deletion chains, the id trap end-to-end, the mirror (remap + supersedes-chain
-edits + legacy-semantics voids), cancelled-zero documents, and the comparator catching a lying
-opening balance.
+edits + legacy-semantics voids), the page's own tick order (one row in → one row out, a void
+that lands after the stamp was lost, and a book already doubled healing itself in one tick),
+cancelled-zero documents, and the comparator catching a lying opening balance.
 
 **Staff.Payslip + Staff.Clock.in (implemented and tested, dormant until sealed):** seven
 docsync kinds pinned to the finance-staff extractor's tierbDoc keys — payroll settings
