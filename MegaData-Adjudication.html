@@ -42,20 +42,21 @@
     <div class="status mut" id="modeStatus">Checking this device's connection…</div>
     <p style="color:var(--mut);font-size:.88rem;max-width:78ch">Each item below is a case the migration refused to decide by itself — usually two records sharing an ID number but carrying different names. Nothing was merged automatically (that would risk mixing two people's money). Your decision here is recorded permanently, syncs to every device, and can be revisited in the audit trail. Items are ordered by the money at stake. Keys: <span class="kbd">1</span> keep separate · <span class="kbd">2</span> merge (choose which record wins) · <span class="kbd">3</span> defer.</p>
   </div>
+  <div class="status mut" id="syncNote" style="display:none;margin-bottom:16px"></div>
   <div id="queueHost"></div>
 </main>
 
-<script src="cestis-core.js?v=1"></script>
-<script src="megadata/schemas.js?v=1"></script>
-<script src="megadata/projections.js?v=1"></script>
-<script src="megadata/dal.js?v=1"></script>
-<script src="megadata/adapter-idb.js?v=1"></script>
-<script src="megadata/broker-client.js?v=1"></script>
-<script src="megadata/enforcement-shim.js?v=1"></script>
-<script src="megadata/browser-sync.js?v=1"></script>
-<script src="megadata/page-boot.js?v=1"></script>
-<script src="megadata/pages/roster-model.js?v=1"></script>
-<script src="megadata/pages/adjq-model.js?v=1"></script>
+<script src="cestis-core.js?v=2"></script>
+<script src="megadata/schemas.js?v=2"></script>
+<script src="megadata/projections.js?v=2"></script>
+<script src="megadata/dal.js?v=2"></script>
+<script src="megadata/adapter-idb.js?v=2"></script>
+<script src="megadata/broker-client.js?v=2"></script>
+<script src="megadata/enforcement-shim.js?v=2"></script>
+<script src="megadata/browser-sync.js?v=2"></script>
+<script src="megadata/page-boot.js?v=2"></script>
+<script src="megadata/pages/roster-model.js?v=2"></script>
+<script src="megadata/pages/adjq-model.js?v=2"></script>
 <script>
 (function () {
   'use strict';
@@ -64,12 +65,38 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function money(m) { return 'J$' + (m / 100).toFixed(2); }
   var dal = null, queue = [], decidedCount = 0, current = null;
+  var busy = false, pulling = false;
+  var noteTimer = null;
+
+  // Every outcome is shown INLINE — never alert(): browsers can silently
+  // suppress dialogs inside embedded pages, which reads as "dead buttons".
+  function note(cls, text, autoHide) {
+    var el = $('syncNote');
+    el.style.display = ''; el.className = 'status ' + cls; el.textContent = text;
+    if (noteTimer) { clearTimeout(noteTimer); noteTimer = null; }
+    if (autoHide) noteTimer = setTimeout(function () { el.style.display = 'none'; }, 4000);
+  }
+
+  // Any script error becomes visible — a broken page must LOOK broken.
+  window.addEventListener('error', function (ev) {
+    var el = $('modeStatus');
+    if (el) { el.className = 'status bad'; el.textContent = 'Page error: ' + (ev.message || 'unknown') + ' — press Ctrl+F5 for a fresh copy; if it persists, screenshot this message.'; }
+  });
+
+  function setButtonsDisabled(dis) {
+    var host = $('queueHost');
+    Array.prototype.forEach.call(host.querySelectorAll('button'), function (b) { b.disabled = dis || b.getAttribute('data-locked') === '1'; });
+  }
 
   function render() {
     var host = $('queueHost');
-    $('progress').textContent = queue.length + ' pending · ' + decidedCount + ' decided';
+    var seq = dal ? dal.head().seq : 0;
+    $('progress').textContent = queue.length + ' pending · ' + decidedCount + ' decided · book at record ' + seq;
     if (!queue.length) {
-      host.innerHTML = '<div class="card"><div class="status ok">Queue clear — every item has a recorded disposition. New items only appear after another migration import.</div></div>';
+      host.innerHTML = '<div class="card"><div class="status ok">'
+        + (decidedCount ? 'Queue clear — every item has a recorded disposition. New items only appear after another migration import.'
+                        : 'No queue items on this device yet (book at record ' + seq + '). If the record book is still downloading, this page updates itself when it lands.')
+        + '</div></div>';
       current = null;
       return;
     }
@@ -78,9 +105,11 @@
     var html = '<div class="card">';
     html += '<div class="suggestion">' + esc(current.suggestion) + ' <span style="color:var(--mut)">(tier ' + esc(current.tier) + ')</span></div>';
     html += '<div class="stake">Money at stake: ' + money(current.stakeMinor) + '</div>';
-    html += '<table><thead><tr><th>Field</th>';
+    html += '<div style="overflow-x:auto"><table><thead><tr><th>Field</th>';
     cols.forEach(function (c, i) {
-      html += '<th>Record ' + esc(c.rec.id) + (c.hit ? ' <label style="font-weight:400"><input type="radio" name="winner" value="' + i + '"' + (i === 0 ? ' checked' : '') + '> keep this one</label>' : ' <span class="missing">(no live person)</span>') + '</th>';
+      html += '<th>Record ' + esc(c.rec.id)
+        + (c.copies > 1 ? ' <span style="font-weight:400;color:var(--mut)">(seen in ' + c.copies + ' backups)</span>' : '')
+        + (c.hit ? ' <label style="font-weight:400"><input type="radio" name="winner" value="' + i + '"' + (i === 0 ? ' checked' : '') + '> keep this one</label>' : ' <span class="missing">(no live person)</span>') + '</th>';
     });
     html += '</tr></thead><tbody>';
     var fields = ['name', 'dob', 'nationalId', 'phone', 'email', 'address', 'city'];
@@ -97,49 +126,81 @@
       }).join('') + '</tr>';
     });
     html += '<tr><td>balance at stake</td>' + cols.map(function (c) { return '<td>' + (c.hit ? money(c.stakeMinor) : '<span class="missing">—</span>') + '</td>'; }).join('') + '</tr>';
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     html += '<div class="row"><input type="text" id="note" placeholder="Optional note (kept in the record)">';
     var canMerge = cols.filter(function (c) { return c.hit; }).length >= 2;
     html += '<button class="grey" onclick="window.__adjDecide(\'kept-separate\')"><span class="kbd">1</span> Keep separate</button>';
-    html += '<button class="green" onclick="window.__adjDecide(\'merged\')"' + (canMerge ? '' : ' disabled title="needs two live people"') + '><span class="kbd">2</span> Merge</button>';
+    html += '<button class="green" onclick="window.__adjDecide(\'merged\')"' + (canMerge ? '' : ' disabled data-locked="1" title="needs two live people"') + '><span class="kbd">2</span> Merge</button>';
     html += '<button class="amber" onclick="window.__adjDecide(\'deferred\')"><span class="kbd">3</span> Defer</button></div>';
     html += '</div>';
     host.innerHTML = html;
   }
 
   function reload() {
+    if (!dal) return Promise.resolve();
     return MG.adjqPending(dal).then(function (out) {
       queue = out.pending; decidedCount = out.decided.length;
       render();
     });
   }
 
+  // Only ONE page instance per browser runs the background sync loop (the
+  // leader). This instance may not be it — so when another tab announces
+  // new data, or when this page needs fresh data, it pulls for itself.
+  function catchUp() {
+    if (pulling || !dal) return Promise.resolve();
+    pulling = true;
+    return dal.sync.now()
+      .catch(function (e) { note('warn', 'Could not reach the broker just now (' + e.message + ') — will keep retrying.'); })
+      .then(function () { pulling = false; return reload(); });
+  }
+
   window.__adjDecide = function (decision) {
-    if (!current || !dal) return;
+    if (busy) return;
+    if (!current || !dal) { note('warn', 'No item is loaded yet — wait for the queue to appear.'); return; }
+    var item = current;
     var opts = { note: ($('note') && $('note').value.trim()) || '' };
     if (decision === 'merged') {
       var pick = document.querySelector('input[name=winner]:checked');
       var wi = pick ? parseInt(pick.value, 10) : 0;
-      var live = current.records.filter(function (c) { return c.hit; });
-      var winner = (current.records[wi] && current.records[wi].hit) ? current.records[wi] : live[0];
-      if (!winner) return;
+      var live = item.records.filter(function (c) { return c.hit; });
+      var winner = (item.records[wi] && item.records[wi].hit) ? item.records[wi] : live[0];
+      if (!winner) { note('warn', 'Merge needs at least one live person — use Keep separate or Defer for this item.'); return; }
       opts.winnerPersonId = winner.hit.personId;
       opts.loserPersonIds = live.filter(function (c) { return c.hit.personId !== winner.hit.personId; }).map(function (c) { return c.hit.personId; });
-      if (!opts.loserPersonIds.length) return;
+      if (!opts.loserPersonIds.length) { note('warn', 'All the live columns are the SAME person — nothing to merge. Use Keep separate (records already point at one person) or Defer.'); return; }
     }
-    MG.adjqDecide(dal, current, decision, opts).then(function () {
-      return dal.sync.now().catch(function () {});
-    }).then(reload).catch(function (e) { alert('Could not record the decision: ' + e.message); });
+    busy = true; setButtonsDisabled(true);
+    note('mut', 'Recording decision…');
+    MG.adjqDecide(dal, item, decision, opts).then(function () {
+      // The decision is folded on this device the moment it is accepted —
+      // advance NOW; the broker send happens in the background.
+      busy = false;
+      queue.shift(); decidedCount++; render();
+      note('mut', 'Decision saved on this device — sending to the record book…');
+      return dal.sync.now().then(function () {
+        note('ok', 'Decision synced to the record book.', true);
+      }).catch(function (e) {
+        note('warn', 'Decision saved on this device; the broker was unreachable (' + e.message + ') — it sends automatically on the next sync.');
+      });
+    }).catch(function (e) {
+      busy = false; setButtonsDisabled(false);
+      note('bad', 'Could not record the decision: ' + e.message);
+    });
   };
 
   document.addEventListener('keydown', function (e) {
-    if (!current || /INPUT|TEXTAREA/.test((e.target && e.target.tagName) || '')) return;
+    if (busy || !current || /INPUT|TEXTAREA/.test((e.target && e.target.tagName) || '')) return;
     if (e.key === '1') window.__adjDecide('kept-separate');
     if (e.key === '2') window.__adjDecide('merged');
     if (e.key === '3') window.__adjDecide('deferred');
   });
 
-  MG.pageBoot({ page: 'MegaData-Adjudication', actor: { name: 'Adjudicator', role: 'admin', device: 'dev_adjq' }, onChange: function () { reload(); } })
+  MG.pageBoot({ page: 'MegaData-Adjudication', actor: { name: 'Adjudicator', role: 'admin', device: 'dev_adjq' }, onChange: function (m) {
+    if (m && m.reason === 'sync-error') { note('warn', 'Sync problem: ' + (m.error || 'unknown') + ' — will retry automatically.'); return; }
+    if (m && m.reason === 'broadcast') { catchUp(); return; }  // another tab advanced the shared book
+    reload();
+  } })
     .then(function (BOOT) {
       if (BOOT.mode === 'legacy') {
         $('modeStatus').textContent = MG.describeBoot ? MG.describeBoot(BOOT) : 'Not connected.';
@@ -150,9 +211,17 @@
       dal = BOOT.dal;
       $('modeStatus').textContent = 'Connected (' + BOOT.mode + ' mode). Decisions sync to every device.';
       $('modeStatus').className = 'status ok';
-      reload();
+      reload().then(function () {
+        // Fresh device or mid-download: the queue docs sit at the TAIL of
+        // the log, so an empty queue usually means "not downloaded yet".
+        // Pull to the broker head, then this render is trustworthy.
+        if (!queue.length && !decidedCount) {
+          note('mut', 'Checking the record book for queue items…');
+          catchUp().then(function () { $('syncNote').style.display = 'none'; });
+        }
+      });
     })
-    .catch(function (e) { $('modeStatus').textContent = 'Boot failed: ' + e.message; });
+    .catch(function (e) { $('modeStatus').className = 'status bad'; $('modeStatus').textContent = 'Boot failed: ' + e.message; });
 })();
 </script>
 </body>

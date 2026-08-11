@@ -98,6 +98,22 @@ async function dalFromBootstrap(broker) {
   ok(await broker.verifyChain(), 'the log chain verifies');
 
   console.log('');
+  section('Overlapping backups: one column per DISTINCT record, copy count carried (the live 14-column item)');
+  const broker2 = createBroker();
+  const st2 = MemoryAdapter();
+  const copyPayload = JSON.parse(JSON.stringify(payload)); copyPayload.id = 'test:adjq-copy'; copyPayload.name = 'adjq copy';
+  await BOOT.runBootstrap({ sources: [payload, copyPayload], adapter: st2, dryRun: true, runStamp: STAMP, runId: 'imp_adjq-2' });
+  const ev2 = await st2.get('staging', 'events');
+  await broker2.append({ events: ev2 }, { nowIso: STAMP });
+  const D2 = await createDAL({ adapter: MemoryAdapter(), broker: broker2, source: 'adjq', actor: { name: 'Adjudicator', role: 'admin', device: 'dev_Q2' } });
+  await D2.sync.now();
+  const twinDoc = D2.find('doc', d => d.alive && d.fields.docKind === 'identityQueueItem').find(d => /name \+ dob/.test(d.fields.suggestion));
+  ok(twinDoc && twinDoc.fields.records.length > 2, 'the queue DOC carries one records entry per source copy (' + (twinDoc && twinDoc.fields.records.length) + ')');
+  const q9 = await AQ.adjqPending(D2);
+  const twin9 = q9.pending.find(i => /name \+ dob/.test(i.suggestion));
+  eq(twin9.records.length, 2, 'the QUEUE shows one column per DISTINCT record');
+  ok(twin9.records.every(r => r.copies === 2), 'and each column knows how many backups carried it');
+
   console.log(passed + ' passed, ' + failed + ' failed');
   if (failed) process.exitCode = 1;
 })().catch(function (e) { console.error(e); process.exitCode = 1; });
