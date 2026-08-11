@@ -65,10 +65,21 @@
           var decided = dal.get('adjudication', aid);
           if (decided && decided.fields && decided.fields.decision) { out.decided.push({ itemId: itemId, decision: decided.fields.decision }); return out; }
           var recs = doc.fields.records || [];
-          return recs.reduce(function (pr2, rec) {
+          // Identity evidence is gathered from EVERY overlapping backup, so
+          // the same record id arrives once per source copy (a live run
+          // showed 14 columns of one id). One column per DISTINCT record;
+          // the copy count rides along for display.
+          var copies = {}, uniq = [];
+          recs.forEach(function (rec) {
+            var k = String(rec.id);
+            if (copies[k]) { copies[k]++; return; }
+            copies[k] = 1;
+            uniq.push(rec);
+          });
+          return uniq.reduce(function (pr2, rec) {
             return pr2.then(function (resolved) {
               return personFor(dal, rec).then(function (hit) {
-                resolved.push({ rec: rec, hit: hit, stakeMinor: hit ? stakeFor(dal, hit.personId) : 0 });
+                resolved.push({ rec: rec, hit: hit, copies: copies[String(rec.id)], stakeMinor: hit ? stakeFor(dal, hit.personId) : 0 });
                 return resolved;
               });
             });
