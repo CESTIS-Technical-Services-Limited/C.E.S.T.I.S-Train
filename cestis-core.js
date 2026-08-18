@@ -1209,7 +1209,12 @@
   // deleted any more, and it reappeared with its chat room and its place in
   // every course list. Same for the deleted payments.
   Core.TOMBSTONE_UNION_KEYS = ['voctrain_deletedStudentIds', 'voctrain_deletedCentreIds',
-                               'cestiSchoolFeeDeletedLmsIds', 'cestiSchoolFeeDeletedPaymentIds'];
+                               'cestiSchoolFeeDeletedLmsIds', 'cestiSchoolFeeDeletedPaymentIds',
+                               // Deleted user accounts. Every cloud path ADDS an account it
+                               // does not find locally, so removing one without writing the
+                               // removal down means the next sync hands it straight back —
+                               // and a login an administrator revoked is live again.
+                               'voctrain_deletedUserIds'];
 
   // Is this key a list of deletions — one that must be merged by union rather
   // than by "the newer write wins"?
@@ -4688,11 +4693,64 @@
       return usableAdmins(accounts).length === 0;
     }
 
+    /* May these accounts be deleted? Deleting is disabling that cannot be undone,
+       so it answers to the same rule and two more of its own.
+
+       An administrator can remove any role — a trainee, an instructor, admin
+       staff, a board member, another administrator — because the Centre's staff
+       change and a login nobody owns any more is the thing being cleaned up.
+       What they must not be able to do by accident is lock the Centre out of its
+       own platform, or delete the chair they are sitting on.
+
+         actingId - the id of the administrator doing the deleting, if known */
+    function deletionBlocked(accounts, idsToDelete, opts) {
+      opts = opts || {};
+      var ids = (Array.isArray(idsToDelete) ? idsToDelete : [idsToDelete])
+        .filter(function (v) { return v != null && v !== ''; });
+      if (!ids.length) {
+        return { blocked: true, reason: 'none-selected', ids: [],
+          message: 'No accounts were selected.' };
+      }
+      if (opts.actingId && ids.indexOf(opts.actingId) !== -1) {
+        return { blocked: true, reason: 'self', ids: [opts.actingId],
+          message: 'You cannot delete the account you are signed in with.\n\n' +
+            'Ask another administrator to remove it, or sign in as someone else first.' };
+      }
+      var stranded = wouldStrandAdmins(accounts, ids);
+      if (stranded.length) {
+        return { blocked: true, reason: 'strand-admins', ids: stranded,
+          message: 'That would delete every administrator who can sign in, leaving nobody ' +
+            'able to manage the platform.\n\nKeep at least one administrator, or create ' +
+            'another one first (+ Create User).' };
+      }
+      return { blocked: false, reason: 'ok', ids: ids, message: '' };
+    }
+
+    /* Remove every account whose id has been written down as deleted.
+
+       Deleting an account is written down rather than acted out, for the same
+       reason a deleted trainee is: the record is still present in the other
+       device's copy, and every merge reads "missing here" as "new there" and
+       adds it back. This is the sweep that makes the removal stick — run it
+       wherever the list is loaded or saved and a revoked login cannot return by
+       ANY path, without each of those paths having to know about it. */
+    function dropDeleted(accounts, deletedMap) {
+      var list = Array.isArray(accounts) ? accounts : [];
+      var del = deletedMap || {};
+      var droppedIds = [];
+      var kept = list.filter(function (a) {
+        if (a && a.id != null && del[a.id] === true) { droppedIds.push(a.id); return false; }
+        return true;
+      });
+      return { accounts: kept, removed: droppedIds.length, droppedIds: droppedIds };
+    }
+
     return {
       idMatches: idMatches, hasPassword: hasPassword, check: check,
       find: find, findAnyRole: findAnyRole, adminLabel: adminLabel,
       usableAdmins: usableAdmins, wouldStrandAdmins: wouldStrandAdmins,
-      needsRecoveryAdmin: needsRecoveryAdmin
+      needsRecoveryAdmin: needsRecoveryAdmin,
+      deletionBlocked: deletionBlocked, dropDeleted: dropDeleted
     };
   })();
 
