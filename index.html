@@ -6609,6 +6609,29 @@ function saveCollection(key, value) {
   return ok;
 }
 
+/* Persist the user accounts — unless doing so would throw every login away.
+
+   Accounts are the one collection a device cannot rebuild for itself. Lose them
+   and nobody can sign in: every password is reported wrong, and the next load
+   re-seeds the three built-in logins as though the Centre had never had any
+   users. Worse, the blank list uploads to Drive and takes the accounts off every
+   other device too.
+
+   Both writers — saveState() and saveUserAccounts() — used to write the list
+   unguarded, so one blanked in-memory array was enough to do exactly that (see
+   the 'students-updated' handler, which read the accounts from a key nothing
+   writes). The rule the other collections already follow applies here as well:
+   emptiness is never an edit. Deleting a user is a filter over a loaded list and
+   still leaves the built-in logins behind, so this never blocks a real removal. */
+function persistUserAccounts() {
+  return CESTISCore.pageCloud.guardedSet(
+    CESTISStore, 'voctrain_users', JSON.stringify(userAccounts, stripSecretFields),
+    function () {
+      console.error('[VocTrain] Refused to overwrite the stored user accounts with an ' +
+                    'empty list — the stored accounts (and their passwords) are kept.');
+    });
+}
+
 function saveState() {
   try {
     var isAdmin = currentRole === 'admin' || currentRole === 'adminstaff';
@@ -6618,7 +6641,7 @@ function saveState() {
     CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords));
     try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
     if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance();
-    CESTISStore.setItem('voctrain_users', JSON.stringify(userAccounts, stripSecretFields));
+    persistUserAccounts();
     saveCollection('voctrain_classSessions', classSessions);
     saveCollection('voctrain_adminMeetings', adminMeetings);
     saveCollection('voctrain_assignments', instructorAssignments);
@@ -7568,7 +7591,7 @@ var userAccounts = (typeof userAccounts !== 'undefined' && Array.isArray(userAcc
 var umSelectedIds = [];
 
 function saveUserAccounts() {
-  try { CESTISStore.setItem('voctrain_users', JSON.stringify(userAccounts, stripSecretFields)); } catch(e) {}
+  try { persistUserAccounts(); } catch(e) {}
   // Push changes to Google Drive immediately (debounced)
   scheduleDebouncedCloudSave();
 }
@@ -18329,13 +18352,39 @@ window.addEventListener('storage', function(e) {
 });
 
 // ============================== STUDENT IFRAME MESSAGE HANDLER ==============================
+/* Re-read one collection this window also holds in memory, for the handlers below.
+
+   Reading a key the store does not hold used to fall back to an empty list, and
+   the caller assigned that emptiness straight over the loaded records.
+
+   'voctrain_userAccounts' was such a key. Nothing has ever written it — accounts
+   live under 'voctrain_users' — so EVERY nudge from the Student Progress frame
+   blanked userAccounts, and the saveState() at the end of this handler wrote the
+   blank list back over every account on the device, hashed passwords included,
+   then uploaded it to Drive. Users were told their password was wrong, and the
+   next load re-seeded the three built-in logins as if the Centre had no users.
+
+   Emptiness is never an edit — the same rule saveCollection() applies on the way
+   out. A missing, unreadable or empty stored value leaves memory as it is; only
+   a value that actually holds records is adopted. */
+function adoptStoredCollection(key, current) {
+  try {
+    var raw = CESTISStore.getItem(key);
+    if (raw == null || String(raw).trim() === '') return current;
+    var parsed = JSON.parse(raw);
+    if (parsed == null) return current;
+    if (Array.isArray(parsed)) return parsed.length ? parsed : current;
+    if (typeof parsed === 'object') return Object.keys(parsed).length ? parsed : current;
+    return current;
+  } catch (e) { return current; }   // half-written or corrupt: never mistake it for empty
+}
 window.addEventListener('message', function(e) {
   if(e.data && e.data.type === 'students-updated') {
-    try { students = JSON.parse(CESTISStore.getItem('voctrain_students') || '[]'); } catch(e2) {}
-    try { studentProfiles = JSON.parse(CESTISStore.getItem('voctrain_studentProfiles') || '{}'); } catch(e2) {}
-    try { attendanceRecords = JSON.parse(CESTISStore.getItem('voctrain_attendance') || '[]'); } catch(e2) {}
-    try { userAccounts = JSON.parse(CESTISStore.getItem('voctrain_userAccounts') || '[]'); } catch(e2) {}
-    try { skillAreas = CESTISCore.catalogue.liveCentres(JSON.parse(CESTISStore.getItem('voctrain_skillAreas') || '[]'), CESTISStore); } catch(e2) {}
+    students = adoptStoredCollection('voctrain_students', students);
+    studentProfiles = adoptStoredCollection('voctrain_studentProfiles', studentProfiles);
+    attendanceRecords = adoptStoredCollection('voctrain_attendance', attendanceRecords);
+    userAccounts = adoptStoredCollection('voctrain_users', userAccounts);
+    try { skillAreas = CESTISCore.catalogue.liveCentres(adoptStoredCollection('voctrain_skillAreas', skillAreas), CESTISStore); } catch(e2) {}
     cestisStabilizeStudentIds();
     var _dr2 = deduplicateStudents();
     if (_dr2.removed > 0) {
@@ -18377,7 +18426,7 @@ window.addEventListener('message', function(e) {
   // push the change to cloud sync — WITHOUT calling saveState(), which would
   // overwrite the store with this window's (now stale) arrays.
   if(e.data && e.data.type === 'transcript-data-updated') {
-    try { examResults = JSON.parse(CESTISStore.getItem('voctrain_examResults') || '[]'); } catch(e2) {}
+    examResults = adoptStoredCollection('voctrain_examResults', examResults);
     updateCtrRequestsBadge();
     try { scheduleDebouncedCloudSave(); } catch(e2) {}
   }
