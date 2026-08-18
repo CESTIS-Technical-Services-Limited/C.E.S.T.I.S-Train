@@ -1875,6 +1875,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .um-actions { display:flex; gap:6px; }
 .um-actions button { background:none; border:1px solid var(--border); color:var(--text-secondary); width:30px; height:30px; border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:all var(--transition); }
 .um-actions button:hover { background:rgba(255,255,255,0.06); color:var(--text-primary); border-color:var(--border-light); }
+/* Deleting is the one row action that cannot be undone — it should not look
+   like the two beside it that can. */
+.um-actions button.um-danger:hover { background:var(--red-dim); color:var(--red); border-color:var(--red); }
 .um-actions button.um-btn-danger:hover { background:var(--red-dim); color:var(--red); border-color:var(--red); }
 .um-toggle { position:relative; width:40px; height:22px; cursor:pointer; }
 .um-toggle input { opacity:0; width:0; height:0; }
@@ -4382,6 +4385,44 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   </div>
 </div>
 
+<!-- DELETE USER ACCOUNT — the warning shown before any login is removed.
+     Deleting is the one action in this table that cannot be undone, so it says
+     exactly who goes, what goes with them, what does NOT, and that it reaches
+     every device. -->
+<div class="modal-overlay" id="deleteUserModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 style="color:var(--red);">⚠️ Delete Account</h3>
+      <button class="modal-close" onclick="closeModal('deleteUserModal')">✕</button>
+    </div>
+
+    <div style="background:var(--red-dim);border:1px solid var(--red);border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:4px;">This cannot be undone.</div>
+      <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.55;">
+        The person loses their sign-in immediately, on this device and on every other
+        one after the next sync. Their password and any two-step verification go with
+        the account.
+      </div>
+      <div id="deleteUserAdminNote" style="display:none;font-size:12.5px;font-weight:700;color:var(--red);margin-top:8px;"></div>
+    </div>
+
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;" id="deleteUserCount">This account will be permanently deleted:</p>
+    <ul id="deleteUserList" style="font-size:13px;color:var(--text-primary);margin:0 0 16px 18px;padding:0;max-height:190px;overflow-y:auto;"></ul>
+
+    <p style="font-size:12px;color:var(--text-muted);line-height:1.55;margin-bottom:20px;">
+      This removes the <strong>login only</strong>. A trainee’s record — their progress,
+      grades and certificates — belongs to the trainee, not to their sign-in, and stays
+      exactly as it is. Delete that from <strong>Student Progress</strong> if that is what
+      you meant. To keep someone out without removing them, switch the account off instead.
+    </p>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeModal('deleteUserModal')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDeleteUsers()">Delete Permanently</button>
+    </div>
+  </div>
+</div>
+
 <!-- FORGOT PASSWORD (SELF-SERVICE) MODAL -->
 <div class="modal-overlay" id="forgotPasswordModal" style="z-index:1100;">
   <div class="modal" style="max-width:420px;">
@@ -5607,7 +5648,7 @@ function exportDataBackup() {
     'voctrain_chatProfiles','voctrain_chatFollows',
     // Travels with the centres it belongs to: restore the roster without the
     // record of what was deleted and every deleted training centre comes back.
-    'voctrain_deletedCentreIds','voctrain_deletedStudentIds',
+    'voctrain_deletedCentreIds','voctrain_deletedStudentIds','voctrain_deletedUserIds',
     'voctrain_unitCatalogs','voctrain_transcriptGrades','voctrain_certTranscriptRequests','voctrain_transcriptProfiles',
     // Sibling-app data (same-origin IndexedDB): finance documents, cashbook,
     // virements, staff time-clock/payroll. Included so this local JSON export is a
@@ -6624,6 +6665,9 @@ function saveCollection(key, value) {
    emptiness is never an edit. Deleting a user is a filter over a loaded list and
    still leaves the built-in logins behind, so this never blocks a real removal. */
 function persistUserAccounts() {
+  // A merge may have just added back an account an administrator deleted; it
+  // must not reach storage, or Drive, or the next device.
+  try { if (typeof dropDeletedAccounts === 'function') dropDeletedAccounts(); } catch(e) {}
   return CESTISCore.pageCloud.guardedSet(
     CESTISStore, 'voctrain_users', JSON.stringify(userAccounts, stripSecretFields),
     function () {
@@ -7629,9 +7673,15 @@ function loadUserAccounts() {
     // after which that person could no longer sign in — an account nobody had
     // disabled, silently reverted underneath them. A password is still seeded
     // when one is missing, since an account with no password cannot be used.
+    // An account an administrator deleted must not be read back in, and a
+    // deleted built-in login must not be re-seeded below as though it had simply
+    // gone missing — that would undo the removal on every page load.
+    try { if (typeof dropDeletedAccounts === 'function') dropDeletedAccounts(); } catch(e) {}
+    var _delUsers = (typeof _getDeletedUserIds === 'function') ? _getDeletedUserIds() : {};
+
     [defAdmin, defAS, defCMC].forEach(function(def) {
       var acct = userAccounts.find(function(a){ return a && a.id === def.id; });
-      if(!acct) { userAccounts.push(def); return; }
+      if(!acct) { if(!_delUsers[def.id]) userAccounts.push(def); return; }
       if(!acct.username) acct.username = def.username;   // only if it was lost
       if(!acct.role) acct.role = def.role;
       if(!acct.password) { acct.password = DEFAULT_SEED_PW; acct.mustChangePassword = true; }
@@ -7644,6 +7694,10 @@ function loadUserAccounts() {
     // shared admin login never stuck.
     if(CESTISCore.accountAccess.needsRecoveryAdmin(userAccounts)) {
       var rec = userAccounts.find(function(a){ return a && a.id === 'USR-001'; });
+      // Being locked out outranks the deletion — but the tombstone has to go
+      // with it, or the sweep above would remove the recovery login again on the
+      // next load and the Centre would still have no way in.
+      if(typeof clearDeletedUser === 'function') clearDeletedUser('USR-001');
       if(!rec) { rec = defAdmin; userAccounts.push(rec); }
       rec.role = 'admin';
       rec.status = 'active';
@@ -7855,6 +7909,9 @@ async function createUserAccount() {
   var hashedPw = await hashPassword(password);
   var newAccount = {id:getNextUserId(),name:name,role:role,username:username,password:hashedPw,email:email,programme:(role==='admin'||role==='adminstaff'||role==='cmc')?'':programme,status:'active',createdAt:dateStr,registeredVia:'admin-created'};
   cachePlaintextPw(newAccount, password);
+  // Ids are random, so this is defensive — but an id that ever did land on a
+  // deleted one would see the new account swept away again the moment it saved.
+  clearDeletedUser(newAccount.id);
   userAccounts.push(newAccount);
   var _chairBox = document.getElementById('newUserChair');
   if(role === 'cmc' && _chairBox && _chairBox.checked) {
@@ -8212,6 +8269,113 @@ function bulkDeactivate() {
   showToast('Selected accounts deactivated');
 }
 
+/* ==========================================================================
+   DELETING AN ACCOUNT — for every role
+
+   Until now an administrator could only switch an account OFF. That is the
+   right thing for a trainee between intakes, but not for a login that should
+   not exist any more: a member of staff who has left, a duplicate a sync made,
+   a registration typed in wrong. Those sat in the Users table for good, still
+   counted in the totals, still holding a password.
+
+   Deleting works for every role — trainee, instructor, admin staff, board
+   member and administrator alike — because those are exactly the logins that
+   change. Three things make it safe rather than merely possible:
+
+     - it cannot lock the Centre out. Deleting the last administrator who can
+       sign in is refused, the same rule that guards Bulk Deactivate;
+     - it cannot be done to yourself by accident, and (when the administrator
+       has two-step verification on) not without a fresh code — the same bar a
+       password reset already has to clear;
+     - it is written down. The id goes into the deletion list, so the account
+       cannot come back at the next sync — see recordDeletedUser.
+
+   It removes the LOGIN, not the person's records. A trainee's progress, grades
+   and certificates belong to the trainee, not to their sign-in, and are deleted
+   from Student Progress if that is what is actually wanted.
+   ========================================================================== */
+var umDeleteIds = [];
+
+function openDeleteUser(userId) { openDeleteUsers([userId]); }
+function openBulkDeleteUsers() { openDeleteUsers(umSelectedIds.slice()); }
+
+// Check first, then WARN — the popup only opens for a deletion that is allowed,
+// so the administrator is never asked to confirm something that is then refused.
+function openDeleteUsers(ids) {
+  var acting = currentLoggedInUser ? currentLoggedInUser.id : null;
+  var res = CESTISCore.accountAccess.deletionBlocked(userAccounts, ids, { actingId: acting });
+  if(res.blocked) { alert(res.message); return; }
+  umDeleteIds = res.ids.slice();
+
+  var targets = userAccounts.filter(function(u){ return u && umDeleteIds.indexOf(u.id) > -1; });
+  var roleLabels = {admin:'Administrator',adminstaff:'Admin Staff',instructor:'Instructor',student:'Trainee',cmc:'Board Member'};
+  var listEl = document.getElementById('deleteUserList');
+  if(listEl) {
+    listEl.innerHTML = targets.map(function(u){
+      return '<li style="margin-bottom:6px;"><strong>' + escapeHtml(u.name || '(no name)') + '</strong>' +
+        ' <span style="color:var(--text-muted);">— ' + escapeHtml(roleLabels[u.role] || u.role || 'Unknown') +
+        ', ' + escapeHtml(u.username || u.email || 'no username') + '</span></li>';
+    }).join('');
+  }
+  var countEl = document.getElementById('deleteUserCount');
+  if(countEl) countEl.textContent = targets.length === 1
+    ? 'This account will be permanently deleted:'
+    : 'These ' + targets.length + ' accounts will be permanently deleted:';
+
+  // Say plainly when an administrator is among them — that is the deletion an
+  // administrator is most likely to regret.
+  var admins = targets.filter(function(u){ return u.role === 'admin'; }).length;
+  var noteEl = document.getElementById('deleteUserAdminNote');
+  if(noteEl) {
+    noteEl.style.display = admins ? 'block' : 'none';
+    noteEl.textContent = admins === 1
+      ? 'One of these is an ADMINISTRATOR account.'
+      : admins + ' of these are ADMINISTRATOR accounts.';
+  }
+  openModal('deleteUserModal');
+}
+
+function confirmDeleteUsers() {
+  // Deleting a login is at least as sensitive as resetting its password, so it
+  // clears the same bar: an administrator with two-step verification on enters a
+  // fresh code before anything is removed.
+  var actor = tfaAccountRecord(currentLoggedInUser);
+  if(tfaEnabled(actor)) {
+    tfaOpenVerify(actor, { title: 'Authorize Account Deletion', subtitle: 'Enter your 6-digit code to authorize deleting the selected account(s).', allowBackup: false }, confirmDeleteUsersVerified);
+    return;
+  }
+  confirmDeleteUsersVerified();
+}
+
+function confirmDeleteUsersVerified() {
+  var ids = umDeleteIds.slice();
+  // The list can move while the popup is open — another device's sync may have
+  // disabled the administrator that was keeping this deletion safe. Ask again.
+  var acting = currentLoggedInUser ? currentLoggedInUser.id : null;
+  var res = CESTISCore.accountAccess.deletionBlocked(userAccounts, ids, { actingId: acting });
+  if(res.blocked) { closeModal('deleteUserModal'); umDeleteIds = []; alert(res.message); return; }
+
+  var gone = userAccounts.filter(function(u){ return u && ids.indexOf(u.id) > -1; });
+  var names = gone.map(function(u){ return u.name || u.username || u.id; });
+
+  gone.forEach(function(u) {
+    // Written down BEFORE the removal, so a sync landing mid-delete cannot see a
+    // missing account with nothing to say it went, and add it back.
+    recordDeletedUser(u.id);
+    try { if(u.username) clearLoginFailures(u.username); if(u.email) clearLoginFailures(u.email); } catch(_){}
+  });
+  userAccounts = userAccounts.filter(function(u){ return !(u && ids.indexOf(u.id) > -1); });
+
+  saveUserAccounts();
+  umSelectedIds = umSelectedIds.filter(function(id){ return ids.indexOf(id) === -1; });
+  umDeleteIds = [];
+  closeModal('deleteUserModal');
+  renderUserAccountsTable();
+  showToast(names.length === 1
+    ? names[0] + '\u2019s account deleted'
+    : names.length + ' accounts deleted');
+}
+
 function bulkExportUsers() {
   var selected = userAccounts.filter(function(u){ return umSelectedIds.indexOf(u.id) > -1; });
   if(selected.length === 0) { showToast('No users selected'); return; }
@@ -8284,6 +8448,7 @@ function renderUserAccountsTable() {
       '<td><div class="um-actions">' +
         '<button title="Edit" onclick="openEditUser(\''+u.id+'\')">✏️</button>' +
         '<button title="Reset Password" onclick="openResetPassword(\''+u.id+'\')">🔑</button>' +
+        '<button class="um-danger" title="Delete this account" onclick="openDeleteUser(\''+escapeAttr(u.id)+'\')">🗑️</button>' +
       '</div></td></tr>';
   }).join('');
 
@@ -17051,6 +17216,7 @@ async function recoverCourseDataFromCloud(courseName) {
     // Recover user accounts linked to this course
     if (Array.isArray(backupData.data.userAccounts)) {
       backupData.data.userAccounts.forEach(function(cloudUser) {
+        if (isUserDeleted(cloudUser.id)) return; // Honor the deletion tombstone
         if (!cloudUser.programme || cloudUser.programme.toLowerCase().trim() !== courseNameLower) return;
         var exists = userAccounts.some(function(u) {
           return u.id === cloudUser.id ||
@@ -19277,6 +19443,72 @@ function recordDeletedCentre(id) {
 // re-add is never suppressed by an old deletion.
 function clearDeletedCentre(id) {
   CESTISCore.catalogue.clearDeleted(CESTISStore, id);
+}
+
+// ---- Deleted user accounts ------------------------------------------------
+// Same reason as the trainee and centre tombstones above: every cloud path ADDS
+// an account it cannot find locally, so an account merely spliced out of the
+// list is handed straight back at the next sync — and a login an administrator
+// revoked is live again, password and all. Memoised for a second like the
+// trainee list, because the merges ask once per cloud account.
+var _delUserIdsMemo = null, _delUserIdsAt = 0;
+function _getDeletedUserIds() {
+  var now = Date.now();
+  if (_delUserIdsMemo && (now - _delUserIdsAt) < 1000) return _delUserIdsMemo;
+  try {
+    var raw = CESTISStore.getItem('voctrain_deletedUserIds');
+    var map = {};
+    if(raw) {
+      var arr = JSON.parse(raw);
+      if(Array.isArray(arr)) arr.forEach(function(id){ if(id) map[id] = true; });
+    }
+    _delUserIdsMemo = map; _delUserIdsAt = now;
+    return map;
+  } catch(e) { return {}; }
+}
+function isUserDeleted(id) {
+  if(!id) return false;
+  return _getDeletedUserIds()[id] === true;
+}
+function recordDeletedUser(id) {
+  if(!id) return;
+  try {
+    var existing = _getDeletedUserIds();
+    existing[id] = true;
+    CESTISStore.setItem('voctrain_deletedUserIds', JSON.stringify(Object.keys(existing)));
+    _delUserIdsMemo = null;   // the memo is now stale
+  } catch(e) { /* ignore */ }
+}
+// Deliberately re-creating an account under an id that was deleted clears its
+// tombstone, so a fresh account is never suppressed by an old removal.
+function clearDeletedUser(id) {
+  if(!id) return;
+  try {
+    var existing = _getDeletedUserIds();
+    if(!existing[id]) return;
+    delete existing[id];
+    CESTISStore.setItem('voctrain_deletedUserIds', JSON.stringify(Object.keys(existing)));
+    _delUserIdsMemo = null;
+  } catch(e) { /* ignore */ }
+}
+/* Drop every account an administrator has deleted, wherever the list came from.
+
+   Thirteen places add accounts — five cloud merges, the fee sync, the chat
+   backfill, registration, the seeds. Rather than teach each of them about
+   deletions, the sweep runs at the two points every one of them passes through:
+   when the list is read (loadUserAccounts) and when it is written
+   (persistUserAccounts). A revoked login therefore cannot come back by ANY
+   path, including one added later. */
+function dropDeletedAccounts() {
+  if(!Array.isArray(userAccounts)) return 0;
+  var del = _getDeletedUserIds();
+  if(!del || !Object.keys(del).length) return 0;
+  var res = CESTISCore.accountAccess.dropDeleted(userAccounts, del);
+  if(res.removed > 0) {
+    userAccounts = res.accounts;
+    console.log('[Accounts] Dropped ' + res.removed + ' deleted account(s) that a merge had added back.');
+  }
+  return res.removed;
 }
 
 function recordDeletedStudent(id) {
@@ -25851,6 +26083,7 @@ async function mergeFromCloud() {
       const localUsernames = userAccounts.map(u => u.username.toLowerCase());
       backupData.data.userAccounts.forEach(cloudUser => {
         if (_demoUserIds[cloudUser.id]) return; // Skip legacy demo accounts
+        if (isUserDeleted(cloudUser.id)) return; // Honor the deletion tombstone
         if (!localUsernames.includes(cloudUser.username.toLowerCase())) {
           userAccounts.push(cloudUser);
           mergeStats.usersAdded++;
@@ -26898,6 +27131,7 @@ async function silentMergeFromBackup(fileId) {
       var userAccountsChanged = false;
       backupData.data.userAccounts.forEach(cloudUser => {
         if (_du[cloudUser.id]) return; // Skip legacy demo accounts
+        if (isUserDeleted(cloudUser.id)) return; // Honor the deletion tombstone
         var cloudUsername = (cloudUser.username || '').toLowerCase();
         var cloudEmail = (cloudUser.email || '').toLowerCase();
         // Find matching local user by id, username, or email
@@ -27652,6 +27886,7 @@ async function autoSyncOnLogin() {
           // Recover user accounts
           if (Array.isArray(_backupData.data.userAccounts)) {
             _backupData.data.userAccounts.forEach(function(cu) {
+              if (isUserDeleted(cu.id)) return; // Honor the deletion tombstone
               if (!cu.programme || cu.programme.toLowerCase().trim() !== _courseNameLower) return;
               var exists = userAccounts.some(function(u) {
                 return u.id === cu.id || (u.username && cu.username && u.username.toLowerCase() === cu.username.toLowerCase());
@@ -28534,6 +28769,7 @@ function cloudFetchAccountData(interactive) {
     // Merge user accounts — update existing records AND add new ones, so that
     // passwords reset or accounts changed on another device take effect here.
     cloudAccounts.forEach(function(ca) {
+      if (isUserDeleted(ca.id)) return;   // an administrator revoked this login
       var caUser = (ca.username || '').toLowerCase();
       var caEmail = (ca.email || '').toLowerCase();
       var local = userAccounts.find(function(la) {
