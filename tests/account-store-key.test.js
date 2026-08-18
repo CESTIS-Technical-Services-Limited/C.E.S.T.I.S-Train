@@ -166,7 +166,45 @@ r = runPersist(cached, {});
 assert(r.store.getItem('voctrain_users').indexOf('hunter2') === -1,
   'the plaintext cache is stripped on the way out');
 
-/* ---------- 4. Both writers go through the guard ---------- */
+/* ---------- 4. Every role, not just the trainees ---------- */
+console.log('The guard covers every role that signs in');
+
+/* There is ONE account list and ONE key behind it: administrators, admin staff,
+   the board (CMC), instructors and trainees are all rows in userAccounts, told
+   apart only by their `role`. So the wipe was never a trainee problem — it took
+   every login on the device at once.
+
+   What differed was the SYMPTOM, which is why it could look like only some roles
+   were affected: loadUserAccounts() re-seeds three built-in logins when the list
+   comes up empty, so admin / adminstaff / cmc reappeared under their ORIGINAL
+   usernames on the published default password, while instructors and trainees —
+   and any renamed or second administrator — came back not at all. */
+['admin', 'adminstaff', 'cmc', 'instructor', 'student'].forEach(function (role) {
+  assert(PAGE.indexOf("findLoginAccount('" + role + "'") !== -1,
+    'the ' + role + ' login resolves against the one shared account list');
+});
+
+const ROLES = [
+  { id: 'USR-001', role: 'admin',      username: 'r.barrett',   password: 'pbkdf2$210000$a$b', status: 'active' },
+  { id: 'USR-011', role: 'adminstaff', username: 'j.brown',     password: 'pbkdf2$210000$c$d', status: 'active' },
+  { id: 'USR-021', role: 'cmc',        username: 'chair.smith', password: 'pbkdf2$210000$e$f', status: 'active' },
+  { id: 'USR-030', role: 'instructor', username: 'm.green',     password: 'pbkdf2$210000$g$h', status: 'active' },
+  { id: 'USR-040', role: 'student',    username: 'john.smith',  password: 'pbkdf2$210000$i$j', status: 'active' }
+];
+
+r = runPersist([], { voctrain_users: JSON.stringify(ROLES) });
+assertEq(r.wrote, false, 'a blanked list is refused with every role in the store');
+const kept = JSON.parse(r.store.getItem('voctrain_users')).map(function (a) { return a.role; });
+ROLES.forEach(function (a) {
+  assert(kept.indexOf(a.role) !== -1,
+    'the ' + a.role + ' login survives — it is the same list and the same guard');
+});
+
+s = runAdopt({});
+assertDeep(vm.runInContext("adoptStoredCollection('voctrain_users', " + JSON.stringify(ROLES) + ")", s), ROLES,
+  'and a missed read leaves all five roles in memory untouched');
+
+/* ---------- 5. Both writers go through the guard ---------- */
 console.log('Both account writers go through the guard');
 
 ['index.html', 'Offline System/index.html'].forEach(function (f) {
