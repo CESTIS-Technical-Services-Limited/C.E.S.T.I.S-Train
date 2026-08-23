@@ -160,5 +160,77 @@ assert(PAGE.indexOf("'voctrain_deletedUserIds'") !== -1, 'the deletions are stor
 assert(PAGE.indexOf("'voctrain_deletedCentreIds','voctrain_deletedStudentIds','voctrain_deletedUserIds'") !== -1,
   'and travel with the accounts in every backup — restore the users without them and every deleted login returns');
 
+/* ---------- 6. The offline build has the same feature, under the same rules ----------
+
+   The Centre runs a self-hosted copy from `Offline System/` when there is no
+   internet — the same platform, the same people, the same staff turnover. An
+   administrator who can delete a stale login on one build and not the other has
+   half a feature, and the two would drift apart on exactly the rules that decide
+   who may be removed. So the rules are the SAME BYTES in both cores, and these
+   tests are run against both. */
+console.log('The offline build offers it too, under the same rules');
+
+const OfflineCore = require('../Offline System/cestis-core.js');
+const OAA = OfflineCore.accountAccess;
+
+assertEq(typeof OAA.deletionBlocked, 'function', 'the offline core knows the deletion rules');
+assertEq(typeof OAA.dropDeleted, 'function', 'and how to sweep a deleted account away');
+assertEq(OfflineCore.isTombstoneKey('voctrain_deletedUserIds'), true,
+  'and merges the deletion list by union, so an offline machine and an online one keep each other\'s removals');
+
+/* The rules themselves, not just their presence — re-run the cases that matter. */
+assertEq(OAA.deletionBlocked(ROSTER, ['USR-I1'], { actingId: 'USR-A1' }).blocked, false,
+  'offline: an instructor can be deleted');
+assertEq(OAA.deletionBlocked(ROSTER, ['USR-S1', 'USR-C1', 'USR-T1'], { actingId: 'USR-A1' }).blocked, false,
+  'offline: admin staff, board member and trainee too');
+assertEq(OAA.deletionBlocked(ROSTER, ['USR-A1', 'USR-A2'], {}).reason, 'strand-admins',
+  'offline: it still cannot leave the Centre unable to administer itself');
+assertEq(OAA.deletionBlocked(WEAK, ['USR-A1'], {}).reason, 'strand-admins',
+  'offline: counting administrators who can really sign in, not rows that look active');
+assertEq(OAA.deletionBlocked(ROSTER, ['USR-A1'], { actingId: 'USR-A1' }).reason, 'self',
+  'offline: still not the chair you are sitting on');
+assertEq(OAA.dropDeleted(ROSTER, { 'USR-I1': true, 'USR-T1': true }).removed, 2,
+  'offline: the sweep removes what was deleted');
+
+/* Same source, so the two builds cannot answer differently. */
+function rulesBlock(file) {
+  const src = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+  const a = src.indexOf('    /* May these accounts be deleted?');
+  const b = src.indexOf('    return {\n      idMatches: idMatches', a);
+  return a > -1 && b > a ? src.slice(a, b) : null;
+}
+const onlineRules = rulesBlock('cestis-core.js');
+const offlineRules = rulesBlock('Offline System/cestis-core.js');
+assert(onlineRules && onlineRules.length > 500, 'the online build states the rules');
+assertEq(offlineRules, onlineRules,
+  'and the offline build states them in the SAME BYTES — the two cannot drift on who may be deleted');
+
+console.log('The offline page offers it, warns first, and honours it everywhere');
+
+const OPAGE = fs.readFileSync(path.join(__dirname, '..', 'Offline System', 'index.html'), 'utf8');
+const OADMIN = fs.readFileSync(path.join(__dirname, '..', 'Offline System', 'Pages', 'Administration.html'), 'utf8');
+
+assert(OPAGE.indexOf('id="deleteUserModal"') !== -1, 'offline: the warning popup is there');
+assert(OPAGE.indexOf('This cannot be undone.') !== -1, 'offline: it says the deletion cannot be undone');
+assert(OPAGE.indexOf('openDeleteUser(') !== -1, 'offline: every row offers Delete');
+assert(OADMIN.indexOf('openBulkDeleteUsers()') !== -1, 'offline: the bulk bar offers it for a selection');
+assert(OPAGE.indexOf('function recordDeletedUser(') !== -1, 'offline: the removal is written down');
+assert(OPAGE.indexOf('function dropDeletedAccounts(') !== -1, 'offline: and swept wherever the list is read or saved');
+
+const oGuards = (OPAGE.match(/isUserDeleted\(/g) || []).length;
+assert(oGuards >= 6, 'offline: every cloud merge checks the tombstone first (found ' + oGuards + ')');
+assert(OPAGE.indexOf("'voctrain_deletedUserIds',") !== -1,
+  'offline: the deletions travel with the accounts in the local backup');
+
+/* The delete flow is lifted from the online build, so a fix to one is a fix to
+   both. Compare the part that actually removes accounts. */
+function flowBlock(src) {
+  const a = src.indexOf('function confirmDeleteUsersVerified(');
+  const b = src.indexOf('function bulkExportUsers(', a);
+  return a > -1 && b > a ? src.slice(a, b).trim() : null;
+}
+assertEq(flowBlock(OPAGE), flowBlock(PAGE),
+  'both builds delete accounts with the same code — one fix, both builds');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
