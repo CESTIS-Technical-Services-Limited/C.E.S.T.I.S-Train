@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="cestis-core.js?v=20260802a"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CESTIS — Income and Expenditure Account</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
+<style>
+/* Same visual language as CESTIS.Cashbook.html — this page is the Cashbook's
+   statement room, so it dresses like the Cashbook. */
+:root {
+    --bg: #0c0f1a;
+    --surface: #141827;
+    --surface2: #1a1f35;
+    --surface3: #222842;
+    --border: #2a3050;
+    --text: #e8eaf0;
+    --text2: #9ba3bf;
+    --text3: #6a7294;
+    --accent: #3b82f6;
+    --accent2: #60a5fa;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.1);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.1);
+    --amber: #f59e0b;
+    --amber-bg: rgba(245,158,11,0.1);
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --radius: 10px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--sans); background:var(--bg); color:var(--text); min-height:100vh; }
+input, select, button, textarea { font-family:var(--sans); }
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:var(--surface); }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+.app { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+
+/* Sidebar — mirrors the Cashbook's */
+.sidebar { background:var(--surface); border-right:1px solid var(--border); padding:1.5rem 0;
+    display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto; }
+.logo { padding:0 1.25rem 1.5rem; border-bottom:1px solid var(--border); margin-bottom:1rem; }
+.logo h1 { font-size:.85rem; font-weight:700; color:var(--accent2); letter-spacing:1px; text-transform:uppercase; }
+.logo p { font-size:.7rem; color:var(--text3); margin-top:.25rem; }
+.nav-section { padding:0 .75rem; margin-bottom:.5rem; }
+.nav-label { font-size:.6rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; padding:.5rem .5rem; }
+.nav-item { display:flex; align-items:center; gap:.625rem; padding:.625rem .75rem; border-radius:8px; cursor:pointer;
+    color:var(--text2); font-size:.8125rem; font-weight:500; transition:all .15s; }
+.nav-item:hover { background:var(--surface2); color:var(--text); }
+.nav-item.active { background:rgba(59,130,246,0.12); color:var(--accent2); }
+.nav-item .icon { font-size:1rem; width:1.25rem; text-align:center; }
+.sidebar-footer { margin-top:auto; padding:1rem 1.25rem; border-top:1px solid var(--border); }
+.sidebar-footer p { font-size:.65rem; color:var(--text3); line-height:1.6; }
+
+.main { padding:1.5rem 2rem; overflow-y:auto; }
+.page { display:none; }
+.page.active { display:block; }
+
+.page-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; flex-wrap:wrap; gap:1rem; }
+.page-header h2 { font-size:1.375rem; font-weight:700; }
+.page-header .subtitle { font-size:.8125rem; color:var(--text3); margin-top:.125rem; }
+.header-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+
+.btn { padding:.5rem 1rem; border:none; border-radius:6px; cursor:pointer; font-size:.8125rem; font-weight:600;
+    display:inline-flex; align-items:center; gap:.375rem; transition:all .15s; }
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:#2563eb; }
+.btn-ghost { background:var(--surface2); color:var(--text2); border:1px solid var(--border); }
+.btn-ghost:hover { background:var(--surface3); color:var(--text); }
+
+/* Financial-year tabs — same look as the Cashbook's month tabs */
+.fy-tabs { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.25rem; }
+.fy-tab { padding:.45rem .9rem; border-radius:8px; border:1px solid var(--border); background:var(--surface);
+    color:var(--text2); font-size:.8125rem; font-weight:600; cursor:pointer; font-family:var(--mono); transition:all .15s; }
+.fy-tab:hover { background:var(--surface2); color:var(--text); }
+.fy-tab.active { background:rgba(59,130,246,0.12); color:var(--accent2); border-color:var(--accent); }
+
+/* Stat cards — same pattern as the Cashbook dashboard */
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.1rem 1.25rem; position:relative; overflow:hidden; }
+.stat-card::before { content:''; position:absolute; inset:0 0 auto 0; height:3px; background:var(--accent); }
+.stat-card.green::before { background:var(--green); }
+.stat-card.red::before { background:var(--red); }
+.stat-card.amber::before { background:var(--amber); }
+.stat-card .label { font-size:.68rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1px; }
+.stat-card .value { font-family:var(--mono); font-size:1.35rem; font-weight:600; margin-top:.4rem; }
+.stat-card .sub { font-size:.7rem; color:var(--text3); margin-top:.3rem; }
+
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem 1.5rem; margin-bottom:1.5rem; }
+.card h3 { font-size:.9rem; font-weight:700; color:var(--accent2); margin-bottom:.9rem; text-transform:uppercase; letter-spacing:.5px; }
+
+table.ie { width:100%; border-collapse:collapse; font-size:.8125rem; }
+table.ie th, table.ie td { padding:.5rem .65rem; border-bottom:1px solid var(--border); text-align:right; white-space:nowrap; }
+table.ie th { color:var(--text3); font-size:.68rem; text-transform:uppercase; letter-spacing:1px; }
+table.ie th:first-child, table.ie td:first-child { text-align:left; }
+table.ie td.cat { color:var(--text2); }
+table.ie td.num { font-family:var(--mono); }
+table.ie tr.sect td { color:var(--accent2); font-weight:700; font-size:.7rem; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid var(--border); padding-top:.9rem; }
+table.ie tr.subtotal td { font-weight:700; background:var(--surface2); }
+table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.85rem; }
+.tbl-scroll { overflow-x:auto; }
+.pos { color:var(--green); }
+.neg { color:var(--red); }
+.empty-note { text-align:center; color:var(--text3); font-size:.8125rem; padding:2rem 1rem; line-height:1.7; }
+
+/* Live/cloud badges */
+.badges { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+.badge { font-size:.65rem; font-weight:700; letter-spacing:.5px; padding:.25rem .6rem; border-radius:999px; }
+.badge-live { background:var(--green-bg); color:var(--green); }
+.badge-cloud-on { background:rgba(59,130,246,.12); color:var(--accent2); }
+.badge-cloud-off { background:var(--amber-bg); color:var(--amber); }
+
+/* The certified statement — rendered as the paper it prints to */
+.paper { background:#fdfdf8; color:#1a1a1a; border-radius:6px; max-width:820px; margin:0 auto;
+    padding:3rem 3.5rem; box-shadow:var(--shadow); font-size:.9375rem; }
+.paper h1 { font-size:1rem; text-align:center; font-weight:700; text-transform:uppercase; letter-spacing:.5px; line-height:1.6; }
+.paper .period { margin:1.5rem 0 .25rem; font-weight:600; }
+.paper .period-line { display:flex; gap:2.5rem; font-size:.875rem; margin-top:.35rem; }
+.paper table.stmt { width:100%; border-collapse:collapse; margin-top:1.25rem; }
+.paper table.stmt td { padding:.45rem .25rem; font-size:.9375rem; }
+.paper table.stmt td.amt { text-align:right; font-family:var(--mono); font-size:.875rem; white-space:nowrap; }
+.paper td.sect { font-weight:700; text-transform:uppercase; padding-top:1.4rem; letter-spacing:.5px; }
+.paper tr.total td { border-top:1px solid #1a1a1a; font-weight:700; }
+.paper tr.result td { border-top:2px solid #1a1a1a; border-bottom:6px double #1a1a1a; font-weight:700; font-size:1rem; padding:.6rem .25rem; }
+.paper .cert { margin-top:2.5rem; font-size:.875rem; line-height:1.9; }
+.paper .cert .name-input { border:none; border-bottom:1px solid #1a1a1a; background:transparent; font-family:inherit;
+    font-size:.875rem; min-width:220px; padding:0 .25rem; color:#1a1a1a; }
+.paper .sign { margin-top:3rem; }
+.paper .sign .line { border-bottom:1px solid #1a1a1a; width:320px; height:2.2rem; }
+.paper .sign p { font-size:.8125rem; margin-top:.35rem; }
+
+@media (max-width: 860px) {
+  .app { grid-template-columns:1fr; }
+  .sidebar { position:relative; height:auto; }
+  .paper { padding:1.5rem; }
+}
+
+@media print {
+  body { background:#fff; }
+  .sidebar, .page-header .header-actions, .fy-tabs, .stat-grid, .no-print { display:none !important; }
+  .app { display:block; }
+  .main { padding:0; }
+  .card, .paper { box-shadow:none; border:none; }
+  .paper { max-width:none; padding:0; }
+  /* Calculation grid prints black on white */
+  .page.active .card { background:#fff; color:#000; }
+  .page.active .card h3 { color:#000; }
+  table.ie th, table.ie td { color:#000 !important; border-color:#999; background:#fff !important; }
+  .page-header h2, .page-header .subtitle { color:#000; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar no-print">
+    <div class="logo">
+      <h1>📗 Income &amp; Expenditure</h1>
+      <p>C.E.S.T.I.S — live from the Cashbook</p>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Statements</div>
+      <div class="nav-item active" id="nav-calc" onclick="showView('calc')"><span class="icon">🧮</span> I&amp;E Calculation</div>
+      <div class="nav-item" id="nav-account" onclick="showView('account')"><span class="icon">📜</span> Account Statement</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="badges" style="margin-bottom:.5rem;">
+        <span class="badge badge-live" id="liveBadge">LIVE</span>
+        <span class="badge badge-cloud-off" id="cloudBadge">CLOUD: LOCAL ONLY</span>
+      </div>
+      <p id="liveInfo">Reading Cashbook data…</p>
+      <p style="margin-top:.4rem;">Figures come straight from Cashbook Management. Enter or fix transactions there; this page follows.</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h2 id="pageTitle">Income and Expenditure Account</h2>
+        <div class="subtitle" id="pageSubtitle">Financial year April – March</div>
+      </div>
+      <div class="header-actions no-print">
+        <button class="btn btn-ghost" onclick="refreshNow()">🔄 Refresh</button>
+        <button class="btn btn-ghost" onclick="syncCloudNow()" id="syncBtn">☁️ Sync Cloud</button>
+        <button class="btn btn-primary" onclick="window.print()">🖨️ Print</button>
+      </div>
+    </div>
+
+    <div class="fy-tabs no-print" id="fyTabs"></div>
+
+    <div class="stat-grid no-print" id="statGrid"></div>
+
+    <!-- VIEW 1 · the calculation workbook, live -->
+    <section class="page active" id="view-calc">
+      <div class="card">
+        <h3 id="incomeCardTitle">Income — Subvention Received</h3>
+        <div class="tbl-scroll" id="incomeTable"></div>
+      </div>
+      <div class="card">
+        <h3 id="expCardTitle">Expenditure by Category</h3>
+        <div class="tbl-scroll" id="expTable"></div>
+      </div>
+    </section>
+
+    <!-- VIEW 2 · the account workbook, live -->
+    <section class="page" id="view-account">
+      <div class="paper" id="statementPaper"></div>
+    </section>
+  </main>
+</div>
+
+<script src="income-expenditure-core.js?v=1"></script>
+<script>
+(function () {
+  'use strict';
+  var store = window.CESTISStore || window.localStorage;
+  var IE = window.IECore;
+
+  var SETTINGS_KEY = 'cestis_ie_settings';
+  var SNAPSHOT_PREFIX = 'cestis_ie_snapshot_';
+  var ORG_NAME = 'COMMUNITY TRAINING AND DEVELOPMENT AND SERVICES LTD.';
+
+  var currentFY = null;
+  var currentView = 'calc';
+  var settings = loadSettings();
+
+  function loadSettings() {
+    try { var s = JSON.parse(store.getItem(SETTINGS_KEY) || '{}'); return (s && typeof s === 'object') ? s : {}; }
+    catch (e) { return {}; }
+  }
+  function saveSettings() {
+    try { store.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+  }
+
+  function storeMap() {
+    var out = {};
+    try {
+      var keys = store.keys ? store.keys() : Object.keys(window.localStorage);
+      keys.forEach(function (k) {
+        if (k.indexOf('cestis_quarter_') === 0 || k.indexOf('cestis_budget_') === 0) {
+          try { out[k] = store.getItem(k); } catch (e) {}
+        }
+      });
+    } catch (e) {}
+    return out;
+  }
+
+  function fmt(n) {
+    var v = Number(n) || 0;
+    var s = '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return v < 0 ? '(' + s + ')' : s;
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function longDate(ymd) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''));
+    if (!m) return String(ymd || '');
+    var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return months[parseInt(m[2], 10) - 1] + ' ' + parseInt(m[3], 10) + ', ' + m[1];
+  }
+
+  /* ---------------------------------------------------------------- render */
+  var lastMapJson = '';
+  function render(force) {
+    var map = storeMap();
+    var mapJson = JSON.stringify(map);
+    var changed = mapJson !== lastMapJson;
+    lastMapJson = mapJson;
+    if (!changed && !force) { stampLive(); return; }
+
+    var todayFY = IE.fyForDate(new Date());
+    var years = IE.listYears(map, todayFY);
+    if (!years.length) years = [todayFY];
+    if (!currentFY || years.indexOf(currentFY) === -1) {
+      currentFY = years.indexOf(todayFY) !== -1 ? todayFY : years[0];
+    }
+
+    var year = IE.buildYear(map, currentFY);
+    var stmt = IE.buildStatement(year);
+
+    renderTabs(years);
+    renderStats(year, stmt);
+    renderCalc(year);
+    renderStatement(stmt);
+    captureSnapshots(map, years);
+    stampLive(year);
+
+    document.getElementById('pageSubtitle').textContent =
+      'Financial year ' + currentFY + ' · ' + longDate(year.periodStart) + ' to ' + longDate(year.periodEnd);
+  }
+
+  function renderTabs(years) {
+    var el = document.getElementById('fyTabs');
+    el.innerHTML = years.map(function (fy) {
+      return '<button class="fy-tab' + (fy === currentFY ? ' active' : '') + '" data-fy="' + esc(fy) + '">FY ' + esc(fy) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(el.querySelectorAll('.fy-tab'), function (b) {
+      b.onclick = function () { currentFY = b.getAttribute('data-fy'); render(true); };
+    });
+  }
+
+  function renderStats(year, stmt) {
+    var t = year.totals;
+    var resClass = t.result >= 0 ? 'green' : 'red';
+    var resLabel = stmt.resultLabel === 'SURPLUS' ? 'Surplus' : 'Deficit';
+    document.getElementById('statGrid').innerHTML =
+      '<div class="stat-card green"><div class="label">Total Income</div><div class="value">' + fmt(t.income) + '</div>' +
+        '<div class="sub">Subvention ' + fmt(t.subvention) + ' · Other ' + fmt(t.otherIncome) + '</div></div>' +
+      '<div class="stat-card red"><div class="label">Total Expenditure</div><div class="value">' + fmt(t.expenditure) + '</div>' +
+        '<div class="sub">Salary ' + fmt(t.salary) + ' · Other ' + fmt(t.other) + '</div></div>' +
+      '<div class="stat-card ' + resClass + '"><div class="label">' + resLabel + '</div><div class="value ' + (t.result >= 0 ? 'pos' : 'neg') + '">' + fmt(Math.abs(t.result)) + '</div>' +
+        '<div class="sub">Income − Expenditure</div></div>' +
+      '<div class="stat-card"><div class="label">Transactions</div><div class="value">' + year.txnCount + '</div>' +
+        '<div class="sub">' + year.voidedCount + ' voided (count zero)</div></div>';
+  }
+
+  function renderCalc(year) {
+    document.getElementById('incomeCardTitle').textContent = 'Income — Subvention Received · FY ' + year.fy;
+    document.getElementById('expCardTitle').textContent = 'Expenditure by Category · FY ' + year.fy;
+
+    if (!year.hasData) {
+      var note = '<div class="empty-note">No Cashbook transactions recorded for FY ' + esc(year.fy) + ' yet.<br>' +
+        'Enter transactions in <b>Cashbook Management</b> — they appear here the moment they are saved.</div>';
+      document.getElementById('incomeTable').innerHTML = note;
+      document.getElementById('expTable').innerHTML = '';
+      return;
+    }
+
+    /* Income block — the calculation workbook's left column */
+    var ih = '<table class="ie"><thead><tr><th>Period</th><th>Subvention</th><th>Other Income</th><th>Total</th></tr></thead><tbody>';
+    year.quarters.forEach(function (c) {
+      ih += '<tr><td class="cat">' + esc(c.label) + '</td>' +
+            '<td class="num">' + fmt(c.subvention) + '</td>' +
+            '<td class="num">' + fmt(c.otherIncome) + '</td>' +
+            '<td class="num">' + fmt(c.income) + '</td></tr>';
+    });
+    var t = year.totals;
+    ih += '<tr class="grand"><td>TOTAL INCOME</td><td class="num">' + fmt(t.subvention) + '</td>' +
+          '<td class="num">' + fmt(t.otherIncome) + '</td><td class="num">' + fmt(t.income) + '</td></tr>';
+    ih += '</tbody></table>';
+    document.getElementById('incomeTable').innerHTML = ih;
+
+    /* Expenditure grid — categories × quarters, salary block then other block */
+    var head = '<tr><th>Category</th>' + year.quarters.map(function (c) { return '<th>' + esc(c.label) + '</th>'; }).join('') + '<th>Total</th></tr>';
+    function catRow(cat) {
+      var total = 0;
+      var cells = year.quarters.map(function (c) {
+        var v = c.byCategory[cat] || 0; total += v;
+        return '<td class="num">' + (v ? fmt(v) : '—') + '</td>';
+      }).join('');
+      return '<tr><td class="cat">' + esc(cat) + '</td>' + cells + '<td class="num">' + fmt(total) + '</td></tr>';
+    }
+    function subtotalRow(label, field, totalV) {
+      return '<tr class="subtotal"><td>' + label + '</td>' +
+        year.quarters.map(function (c) { return '<td class="num">' + fmt(c[field]) + '</td>'; }).join('') +
+        '<td class="num">' + fmt(totalV) + '</td></tr>';
+    }
+    var eh = '<table class="ie"><thead>' + head + '</thead><tbody>';
+    eh += '<tr class="sect"><td colspan="' + (year.quarters.length + 2) + '">Salary</td></tr>';
+    eh += year.salaryCategories.length
+        ? year.salaryCategories.map(catRow).join('')
+        : '<tr><td class="cat" colspan="' + (year.quarters.length + 2) + '">No salary payments recorded</td></tr>';
+    eh += subtotalRow('SALARY TOTAL', 'salary', t.salary);
+    eh += '<tr class="sect"><td colspan="' + (year.quarters.length + 2) + '">Other Expenses</td></tr>';
+    eh += year.otherCategories.length
+        ? year.otherCategories.map(catRow).join('')
+        : '<tr><td class="cat" colspan="' + (year.quarters.length + 2) + '">No other payments recorded</td></tr>';
+    eh += subtotalRow('OTHER EXPENSES TOTAL', 'other', t.other);
+    eh += subtotalRow('TOTAL EXPENDITURE', 'expenditure', t.expenditure);
+    var resultLabel = t.result >= 0 ? 'SURPLUS' : 'DEFICIT';
+    eh += '<tr class="grand"><td>' + resultLabel + ' (Income − Expenditure)</td>' +
+          '<td class="num" colspan="' + year.quarters.length + '"></td>' +
+          '<td class="num ' + (t.result >= 0 ? 'pos' : 'neg') + '">' + fmt(Math.abs(t.result)) + '</td></tr>';
+    eh += '</tbody></table>';
+    document.getElementById('expTable').innerHTML = eh;
+  }
+
+  function renderStatement(stmt) {
+    var director = settings.directorName || '';
+    var h =
+      '<h1>Income and Expenditure Account for:<br>' + esc(ORG_NAME) + '</h1>' +
+      '<div class="period">Period for which return is made up:</div>' +
+      '<div class="period-line"><span><b>Start:</b> ' + esc(longDate(stmt.periodStart)) + '</span>' +
+      '<span><b>End:</b> ' + esc(longDate(stmt.periodEnd)) + '</span></div>' +
+      '<table class="stmt"><tbody>' +
+      '<tr><td class="sect" colspan="2">Income</td></tr>' +
+      '<tr><td>Income Amount (Subvention)</td><td class="amt">' + fmt(stmt.incomeAmount) + '</td></tr>' +
+      '<tr><td>Other Income</td><td class="amt">' + fmt(stmt.otherIncome) + '</td></tr>' +
+      '<tr class="total"><td>Total Income</td><td class="amt">' + fmt(stmt.totalIncome) + '</td></tr>' +
+      '<tr><td class="sect" colspan="2">Expenditure</td></tr>' +
+      '<tr><td>Salary</td><td class="amt">' + fmt(stmt.salary) + '</td></tr>' +
+      '<tr><td>Other Expenses</td><td class="amt">' + fmt(stmt.otherExpenses) + '</td></tr>' +
+      '<tr class="total"><td>Total Expenditure</td><td class="amt">' + fmt(stmt.totalExpenditure) + '</td></tr>' +
+      '<tr class="result"><td>' + stmt.resultLabel + '</td><td class="amt">' + fmt(stmt.resultAmount) + '</td></tr>' +
+      '</tbody></table>' +
+      '<div class="cert">I <input class="name-input" id="directorName" value="' + esc(director) + '" placeholder="Name of Director" /> ' +
+      'Director of the above named company hereby certify that the above information is a true copy of the ' +
+      'income and expenditure account for the year ended ' + esc(longDate(stmt.periodEnd)) + '.</div>' +
+      '<div class="sign"><div class="line"></div><p>(Signature of Director)</p></div>' +
+      (stmt.hasData ? '' :
+        '<p class="no-print" style="margin-top:2rem;font-size:.8125rem;color:#8a6d1a;">No Cashbook transactions recorded for this financial year yet — the statement above shows zeros until entries are made in Cashbook Management.</p>');
+    document.getElementById('statementPaper').innerHTML = h;
+    var inp = document.getElementById('directorName');
+    inp.addEventListener('change', function () {
+      settings.directorName = inp.value.trim();
+      saveSettings();          // page-owned key → picked up by the cloud backup
+    });
+  }
+
+  /* The page's own cloud capture: what this page computed, one snapshot per
+     financial year, written only when it actually changed so the debounced
+     Drive push isn't poked for nothing. */
+  function captureSnapshots(map, years) {
+    years.forEach(function (fy) {
+      try {
+        var y = IE.buildYear(map, fy);
+        if (!y.hasData) return;
+        var key = SNAPSHOT_PREFIX + fy;
+        var val = IE.snapshotValue(y);
+        if (store.getItem(key) !== val) store.setItem(key, val);
+      } catch (e) {}
+    });
+  }
+
+  function stampLive(year) {
+    var el = document.getElementById('liveInfo');
+    var now = new Date();
+    var t = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+    el.textContent = (year && year.hasData ? year.txnCount + ' transactions in FY ' + currentFY : 'No FY ' + currentFY + ' transactions yet') +
+      ' · checked ' + t;
+  }
+
+  function updateCloudBadge() {
+    var badge = document.getElementById('cloudBadge');
+    try {
+      var st = (window.CESTISPageCloud && CESTISPageCloud.status()) || [];
+      var mine = st.filter(function (p) { return p.file === 'CESTIS_Income_Expenditure.json'; })[0];
+      if (mine && mine.connected) {
+        badge.className = 'badge badge-cloud-on';
+        badge.textContent = 'CLOUD: SYNCED';
+      } else {
+        badge.className = 'badge badge-cloud-off';
+        badge.textContent = 'CLOUD: LOCAL ONLY';
+      }
+    } catch (e) {}
+  }
+
+  /* --------------------------------------------------------------- actions */
+  window.showView = function (v) {
+    currentView = v;
+    document.getElementById('view-calc').classList.toggle('active', v === 'calc');
+    document.getElementById('view-account').classList.toggle('active', v === 'account');
+    document.getElementById('nav-calc').classList.toggle('active', v === 'calc');
+    document.getElementById('nav-account').classList.toggle('active', v === 'account');
+    document.getElementById('pageTitle').textContent =
+      v === 'calc' ? 'Income and Expenditure Calculation' : 'Income and Expenditure Account';
+  };
+  window.refreshNow = function () { render(true); };
+  window.syncCloudNow = function () {
+    var btn = document.getElementById('syncBtn');
+    btn.disabled = true; btn.textContent = '☁️ Syncing…';
+    var done = function () { btn.disabled = false; btn.textContent = '☁️ Sync Cloud'; updateCloudBadge(); render(true); };
+    try {
+      if (window.CESTISPageCloud) CESTISPageCloud.loadNow().then(function () { return CESTISPageCloud.saveNow(); }).then(done, done);
+      else done();
+    } catch (e) { done(); }
+  };
+
+  /* ------------------------------------------------------------------ live */
+  // Another document (the Cashbook tab or iframe) wrote a quarter or budget →
+  // the storage event carries it here; re-render on the next frame.
+  var pending = null;
+  function scheduleRender() {
+    if (pending) return;
+    pending = setTimeout(function () { pending = null; render(false); }, 150);
+  }
+  window.addEventListener('storage', function (ev) {
+    if (!ev) return;
+    if (ev.key === null || String(ev.key).indexOf('cestis_quarter_') === 0 || String(ev.key).indexOf('cestis_budget_') === 0) scheduleRender();
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) render(false); });
+  window.addEventListener('focus', function () { render(false); });
+  // Belt-and-braces for writes too large to mirror into localStorage (which
+  // fire no storage event): a slow poll that only repaints when data changed.
+  setInterval(function () { render(false); updateCloudBadge(); }, 30000);
+
+  function start() { render(true); updateCloudBadge(); }
+  if (store.whenReady) store.whenReady(start); else start();
+})();
+</script>
+
+<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script>
+/* Cloud capture and restore for this page.
+   OWNS: its settings and the per-year statement snapshots — they go up into
+   this page's own Drive file, automatically, whenever they change.
+   READS: the Cashbook's quarters and budgets (owned by CESTIS_Cashbook.json),
+   pulled from Drive so a fresh machine shows the books without the Cashbook
+   page ever having been opened — and never pushed back from here. */
+CESTISPageCloud.init({
+  page: 'Income & Expenditure',
+  file: 'CESTIS_Income_Expenditure.json',
+  keys: ['cestis_ie_settings'],
+  prefixes: ['cestis_ie_snapshot_'],
+  reads: ['cestis_quarter_*', 'cestis_budget_*', 'cestis_active_quarter'],
+  onRestore: function () {
+    try { if (typeof window.refreshNow === 'function') window.refreshNow(); } catch (e) {}
+  }
+});
+</script>
+
+</body>
+</html>
