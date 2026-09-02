@@ -5316,28 +5316,38 @@ async function hashPassword(password) {
   }
 }
 
-// Passwords published in this (public) repo. Any account still using one must be
-// forced to change it before it can access the app (see enterApp / mustChangePassword).
+// Passwords published in this (public) repo. The built-in logins are seeded with
+// the first one and KEEP it until somebody changes it — the Centre's decision:
+// cestisadmin signs in with cestisadmin123$ on any device unless its password
+// has been changed, and nothing forces a change at sign-in. An account still on
+// a published default carries the marker defaultPassword:true, so the cloud
+// merge knows it holds a seed and not a password somebody set — a seed never
+// replaces a real password (CESTISCore.accountAccess.cloudCopyWins). Every
+// path that sets a password clears the marker.
 var KNOWN_DEFAULT_PASSWORDS = ['cestisadmin123$', 'admin123'];
 
-// One-time async sweep: flag accounts whose ALREADY-HASHED password still verifies
-// against a known default (covers deployments that hashed the default before the
-// force-change guard existed). Bounded to privileged roles so it's cheap.
+// One-time async sweep: keep the marker true to the hash for the privileged
+// accounts. Set it where an ALREADY-HASHED password still verifies against a
+// published default (devices that hashed the seed before the marker existed),
+// clear it where it no longer does (a password set by a path that forgot to).
+// Bounded to privileged roles so it's cheap.
 var _defaultPwSweepDone = false;
-async function flagDefaultPasswordAccounts() {
+async function markDefaultPasswordAccounts() {
   if(_defaultPwSweepDone) return;
   _defaultPwSweepDone = true;
   var changed = false;
   for(var i = 0; i < userAccounts.length; i++) {
     var a = userAccounts[i];
-    if(!a || !a.password || a.mustChangePassword) continue;
+    if(!a || !a.password) continue;
     if(a.role !== 'admin' && a.role !== 'adminstaff' && a.role !== 'cmc') continue;
-    if(!isHashedPassword(a.password)) continue; // plaintext defaults handled synchronously
+    if(!isHashedPassword(a.password)) continue; // plaintext defaults are marked synchronously
+    var onDefault = false, unsure = false;
     for(var d = 0; d < KNOWN_DEFAULT_PASSWORDS.length; d++) {
-      try {
-        if(await verifyPassword(KNOWN_DEFAULT_PASSWORDS[d], a.password)) { a.mustChangePassword = true; changed = true; break; }
-      } catch(e) {}
+      try { if(await verifyPassword(KNOWN_DEFAULT_PASSWORDS[d], a.password)) { onDefault = true; break; } }
+      catch(e) { unsure = true; }
     }
+    if(onDefault && a.defaultPassword !== true) { a.defaultPassword = true; changed = true; }
+    if(!onDefault && !unsure && a.defaultPassword) { delete a.defaultPassword; changed = true; }
   }
   if(changed) { try { saveUserAccounts(); } catch(e) {} }
 }
@@ -5416,7 +5426,9 @@ async function maybeUpgradePasswordHash(account, plaintext, storedPassword) {
     canonical.password = await hashPassword(plaintext);
     if (account !== canonical) account.password = canonical.password;
     cachePlaintextPw(canonical, plaintext);
-    if (typeof touchAccount === 'function') touchAccount(canonical);
+    // Re-hashing is not an edit of a seed: stamping one would make the
+    // published default the newest copy, and a real password would yield to it.
+    if (typeof touchAccount === 'function' && !CESTISCore.accountAccess.isSeededLogin(canonical)) touchAccount(canonical);
     if (typeof saveUserAccounts === 'function') saveUserAccounts();
     console.log('[Security] Upgraded account ' + (canonical.id || '') + ' password hash to PBKDF2');
   } catch (e) { console.warn('[Security] Password hash upgrade skipped:', e); }
@@ -5446,10 +5458,13 @@ async function checkPassword(inputPassword, storedPassword, account) {
 // laptop that had been off for months, a brand-new device's seed. Stamping the
 // copy that just worked makes it the newest, so every other copy yields to it
 // from now on. Only an UNSTAMPED copy is stamped: a real edit's stamp is never
-// moved, and a wrong password never stamps anything.
+// moved, and a wrong password never stamps anything. A SEED is never stamped
+// either: signing in with the published default must not make the default the
+// newest copy, or it would replace a real password on the next sync.
 function stampVerifiedAccount(account) {
   try {
     if (!account || account.updatedAt) return;
+    if (CESTISCore.accountAccess.isSeededLogin(account)) return;
     var canonical = (typeof userAccounts !== 'undefined' && Array.isArray(userAccounts))
       ? (userAccounts.find(function(u){ return u.id === account.id; }) || account) : account;
     touchAccount(canonical);
@@ -5826,7 +5841,7 @@ function batchDOMUpdate(callback) {
 }
 
 // ---------- Run password migration on load ----------
-setTimeout(function() { migratePasswordsToHash(); flagDefaultPasswordAccounts(); }, 100);
+setTimeout(function() { migratePasswordsToHash(); markDefaultPasswordAccounts(); }, 100);
 
 // ============================== SESSION EXPIRY CONFIG ==============================
 var SESSION_EXPIRY_MS = 8 * 60 * 60 * 1000; // 8 hours default session duration
@@ -7527,14 +7542,18 @@ function loadUserAccounts() {
     // default on every load silently undid admin password changes and left a
     // permanent default-credentials backdoor that synced to every device.
     // The default password is only seeded when the account has no password.
-    // The seeded password below is PUBLISHED in this (public) repo, so any account
-    // still carrying it is a known-credentials backdoor. Mark such seeds with
-    // mustChangePassword so the app forces a new password before granting access
-    // (enforced in enterApp). A real, admin-set password never gets this flag.
+    // The seeded password is PUBLISHED in this (public) repo and the built-in
+    // logins keep it until somebody changes it — the Centre's decision, so the
+    // administrator can always sign in on any device with the default unless
+    // the password has been changed. Seeds carry defaultPassword:true so the
+    // cloud merge knows they hold a seed, not a password somebody set; a seed
+    // never replaces a real password. A real, admin-set password never carries
+    // the marker. (Older versions marked seeds mustChangePassword and forced a
+    // change at first sign-in; that gate is retired below.)
     var DEFAULT_SEED_PW = 'cestisadmin123$';
-    var defAdmin = {id:'USR-001',name:'Administrator',role:'admin',username:'cestisadmin',password:DEFAULT_SEED_PW,mustChangePassword:true,email:'admin@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-01'};
-    var defAS = {id:'USR-011',name:'Admin Staff',role:'adminstaff',username:'adminstaff',password:DEFAULT_SEED_PW,mustChangePassword:true,email:'adminstaff@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-15'};
-    var defCMC = {id:'USR-021',name:'Board Chair',role:'cmc',username:'cmcadmin',password:DEFAULT_SEED_PW,mustChangePassword:true,email:'cmc@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-01'};
+    var defAdmin = {id:'USR-001',name:'Administrator',role:'admin',username:'cestisadmin',password:DEFAULT_SEED_PW,defaultPassword:true,email:'admin@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-01'};
+    var defAS = {id:'USR-011',name:'Admin Staff',role:'adminstaff',username:'adminstaff',password:DEFAULT_SEED_PW,defaultPassword:true,email:'adminstaff@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-15'};
+    var defCMC = {id:'USR-021',name:'Board Chair',role:'cmc',username:'cmcadmin',password:DEFAULT_SEED_PW,defaultPassword:true,email:'cmc@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-01'};
 
     // Seed the three built-in logins when they are ABSENT. What this must not do
     // is rewrite them when they are present: it used to force the username and
@@ -7555,7 +7574,7 @@ function loadUserAccounts() {
       if(!acct) { if(!_delUsers[def.id]) userAccounts.push(def); return; }
       if(!acct.username) acct.username = def.username;   // only if it was lost
       if(!acct.role) acct.role = def.role;
-      if(!acct.password) { acct.password = DEFAULT_SEED_PW; acct.mustChangePassword = true; }
+      if(!acct.password) { acct.password = DEFAULT_SEED_PW; acct.defaultPassword = true; }
     });
 
     // Recovery: the Centre must never be locked out of its own platform. If no
@@ -7573,14 +7592,18 @@ function loadUserAccounts() {
       rec.role = 'admin';
       rec.status = 'active';
       if(!rec.username) rec.username = 'cestisadmin';
-      if(!rec.password) { rec.password = DEFAULT_SEED_PW; rec.mustChangePassword = true; }
+      if(!rec.password) { rec.password = DEFAULT_SEED_PW; rec.defaultPassword = true; }
       console.warn('[Accounts] No administrator could sign in — the built-in recovery login (' + rec.username + ') has been re-enabled.');
     }
-    // Flag ANY account still carrying a known published default password (the
-    // literal seeds above start plaintext, before hashing runs) so enterApp forces
-    // a change. This is the primary guard for fresh devices / public repo clones.
+    // Mark ANY account still carrying a published default (the literal seeds
+    // above start plaintext, before hashing runs) so the cloud merge treats it
+    // as a seed. A flag left by an older version meant the same thing and is
+    // carried over as the marker — never as a gate. (The sweep in
+    // markDefaultPasswordAccounts then checks the marker against the hash.)
     userAccounts.forEach(function(a){
-      if(a && a.password && KNOWN_DEFAULT_PASSWORDS.indexOf(a.password) !== -1) a.mustChangePassword = true;
+      if(!a) return;
+      if(a.password && KNOWN_DEFAULT_PASSWORDS.indexOf(a.password) !== -1) a.defaultPassword = true;
+      if(a.mustChangePassword) { a.defaultPassword = true; delete a.mustChangePassword; }
     });
     // Purge any plaintext password caches that older versions persisted to
     // storage/backups — they are transient, in-memory-only session caches.
@@ -7637,7 +7660,7 @@ try {
       // migration has since moved; re-attach them before anyone signs in.
       try { repairOrphanedStudentAccounts(); } catch(e) {}
       if(typeof migratePasswordsToHash === 'function'){ _passwordMigrationDone = false; migratePasswordsToHash(); }
-      if(typeof flagDefaultPasswordAccounts === 'function'){ flagDefaultPasswordAccounts(); }
+      if(typeof markDefaultPasswordAccounts === 'function'){ markDefaultPasswordAccounts(); }
       var hasLocalAccounts = userAccounts.length > 3 || userAccounts.some(function(u) {
         return u.id !== 'USR-001' && u.id !== 'USR-011' && u.id !== 'USR-021';
       });
@@ -7872,6 +7895,7 @@ async function confirmResetPasswordVerified() {
   var user = userAccounts.find(function(u){ return u.id === userId; });
   if(!user) return;
   user.password = await hashPassword(newPw);
+  delete user.defaultPassword;   // a password somebody set, not the seed
   cachePlaintextPw(user, newPw);
   touchAccount(user);
   saveUserAccounts();
@@ -7997,6 +8021,7 @@ async function forgotPwSubmit() {
   if(!newPw || newPw.length < 6) { showToast('Password must be at least 6 characters.', 'warning'); return; }
   if(newPw !== confirmPw) { showToast('Passwords do not match.', 'warning'); return; }
   acct.password = await hashPassword(newPw);
+  delete acct.defaultPassword;   // a password somebody set, not the seed
   cachePlaintextPw(acct, newPw);
   touchAccount(acct);
   // Clear any active lockout so the user can sign in right away.
@@ -9238,10 +9263,10 @@ async function forceChangePwSubmit() {
   if(np === 'cestisadmin123$' || np === 'admin123' || np.toLowerCase() === 'password'){ fail('Choose a password that is not the default.'); return; }
   var canonical = userAccounts.find(function(u){ return u.id === acct.id; }) || acct;
   canonical.password = await hashPassword(np);
-  canonical.mustChangePassword = false;
+  delete canonical.defaultPassword; delete canonical.mustChangePassword;
   cachePlaintextPw(canonical, np);
   touchAccount(canonical);
-  if(acct !== canonical){ acct.password = canonical.password; acct.mustChangePassword = false; }
+  if(acct !== canonical){ acct.password = canonical.password; delete acct.defaultPassword; delete acct.mustChangePassword; }
   try { if(canonical.username) clearLoginFailures(canonical.username); if(canonical.email) clearLoginFailures(canonical.email); } catch(_){}
   saveUserAccounts();
   closeModal('forceChangePwModal');
@@ -9251,14 +9276,9 @@ async function forceChangePwSubmit() {
 }
 function enterApp(role) {
   try {
-    // Force a password change before granting access to any account still using a
-    // seeded/default password (published in this public repo). Closes the
-    // default-credentials backdoor without locking out first-run setup: the
-    // legitimate first admin signs in with the default, then must set a new one.
-    if(currentLoggedInUser && currentLoggedInUser.mustChangePassword) {
-      openForceChangePw(role);
-      return;
-    }
+    // The built-in logins keep their published default password until somebody
+    // changes it — the Centre's decision — so nothing forces a change here. (The
+    // force-change modal above is kept only for the Centre to reinstate.)
     // Maintenance mode check — block all non-admin users
     if(systemSettings.maintenanceMode === true && role !== 'admin') {
       alert('The site is currently under maintenance. Only administrators can access the system at this time. Please try again later.');
@@ -26643,7 +26663,10 @@ async function silentMergeFromBackup(fileId) {
             if (cloudUser.email && cloudUser.email !== localMatch.email) { localMatch.email = cloudUser.email; userAccountsChanged = true; }
             if (cloudUser.programme !== undefined && cloudUser.programme !== localMatch.programme) { localMatch.programme = cloudUser.programme; userAccountsChanged = true; }
             if (cloudUser.role && cloudUser.role !== localMatch.role) { localMatch.role = cloudUser.role; userAccountsChanged = true; }
-            if (!!cloudUser.mustChangePassword !== !!localMatch.mustChangePassword) { localMatch.mustChangePassword = !!cloudUser.mustChangePassword; userAccountsChanged = true; }
+            // The seed marker travels with the password (an older version's
+            // mustChangePassword meant the same thing).
+            var _cSeed = !!(cloudUser.defaultPassword || cloudUser.mustChangePassword);
+            if (_cSeed !== !!localMatch.defaultPassword) { if (_cSeed) localMatch.defaultPassword = true; else delete localMatch.defaultPassword; userAccountsChanged = true; }
             if (_cu > _lu && cloudUser.updatedAt !== localMatch.updatedAt) { localMatch.updatedAt = cloudUser.updatedAt; userAccountsChanged = true; }
           }
           if (cloudUser.studentDataId && !localMatch.studentDataId) { localMatch.studentDataId = cloudUser.studentDataId; userAccountsChanged = true; }
@@ -28280,7 +28303,10 @@ function cloudFetchAccountData(interactive) {
           if (ca.email && ca.email !== local.email) local.email = ca.email;
           if (ca.role && ca.role !== local.role) local.role = ca.role;
           if (ca.programme !== undefined && ca.programme !== local.programme) local.programme = ca.programme;
-          if (!!ca.mustChangePassword !== !!local.mustChangePassword) local.mustChangePassword = !!ca.mustChangePassword;
+          // The seed marker travels with the password (an older version's
+          // mustChangePassword meant the same thing).
+          var _cSeed2 = !!(ca.defaultPassword || ca.mustChangePassword);
+          if (_cSeed2 !== !!local.defaultPassword) { if (_cSeed2) local.defaultPassword = true; else delete local.defaultPassword; }
           if (_cu2 > _lu2 && ca.updatedAt !== local.updatedAt) local.updatedAt = ca.updatedAt;
         }
         if (ca.studentDataId && !local.studentDataId) local.studentDataId = ca.studentDataId;
