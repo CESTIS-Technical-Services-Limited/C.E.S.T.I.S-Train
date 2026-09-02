@@ -6489,6 +6489,7 @@ function stopSessionExpiryCheck() {
 // Selectively clear sensitive data while preserving the student's own progress
 // Called on student logout or session expiry
 function clearSensitiveStudentData() {
+  _sessionWiped = true;
   var sessionRole = currentRole || CESTISStore.getItem('voctrain_sessionRole');
   // Only do selective clearing for student role; admins/instructors wipe all data
   if(sessionRole !== 'student') {
@@ -6616,11 +6617,18 @@ function clearSensitiveDataOnExpiry() {
 
 // Complete data wipe (for admin/instructor/staff logout or unknown sessions)
 function clearAllSessionData() {
+  _sessionWiped = true;
   // Clear localStorage (preserve user accounts so other users can still log in)
   var keysToRemove = [];
   for(var i = 0; i < CESTISStore.length; i++) {
     var key = CESTISStore.key(i);
     if(key === 'voctrain_users') continue; // preserve user accounts for login
+    // The Centre's settings are not a person's session data. Wiping them here
+    // threw away the stamp that says WHEN maintenance mode was last decided,
+    // so the next load had no opinion of its own and adopted whatever stale
+    // "on" a cloud copy still held — maintenance mode came back after every
+    // administrator logout. They stay, and the newest decision keeps winning.
+    if(key === 'voctrain_systemSettings' || key === 'voctrain_maintenanceMode') continue;
     if(key === 'schoolDashboardGoogleAccessToken' || key === 'schoolDashboardGoogleTokenExpiry') continue; // preserve auth tokens for cloud sync
     if(key && key.startsWith('voctrain_user_')) continue; // preserve per-user chat data so messages survive logout/login
     if(key && (key.startsWith('voctrain_') || key.startsWith('schoolDashboard') || key === 'cmcDashboardData' || key === 'cmcHtmlContent')) {
@@ -9473,6 +9481,7 @@ function enterApp(role) {
       return;
     }
     currentRole = role;
+    _sessionWiped = false; _sessionSeq++;
     // Ensure all student user accounts have corresponding student records
     if (reconcileStudentsFromAccounts()) { enforceOnePersonOneRecord(); saveState(); }
     document.getElementById('landingPage').style.display = 'none';
@@ -10122,12 +10131,15 @@ function logout() {
   closeMobileSidebar();
   // Release all camera/mic permissions and cleanup WebRTC
   vcCleanupMediaIfNeeded();
-  // Final cloud save before logout to ensure latest data (including new accounts) reaches the cloud.
-  // logout() does not navigate/reload the page (it only hides the app shell), so these in-flight
-  // requests complete normally. The master snapshot is built synchronously here (before session
-  // state is cleared below) so it captures correct savedBy metadata.
+  // Final cloud save before logout, so the latest data (new accounts included)
+  // reaches the cloud. It is AWAITED before anything is wiped: the payload is
+  // built after an await inside autoSaveToAllFolders, so firing it and wiping
+  // the store in the same breath meant the store was already empty by the
+  // time it was serialised — every logout uploaded an EMPTY backup to every
+  // Drive folder. The screen changes at once; the wipe follows the save.
+  var finalSave = Promise.resolve();
   if(isCloudConnected && googleAccessToken) {
-    try { autoSaveToAllFolders(); } catch(e) { console.warn('[Logout] Final cloud save failed:', e); }
+    finalSave = finalCloudSaveBeforeLogout();
     try { saveMasterSnapshot('logout', true); } catch(e) { console.warn('[Logout] Master snapshot failed:', e); }
   }
   // Stop auto-save, debounced cloud save, and session expiry checks
@@ -10136,13 +10148,8 @@ function logout() {
   stopSessionExpiryCheck();
   // Tear down the realtime chat data-channel peer
   try { if(typeof lmsChatRTStop === 'function') lmsChatRTStop(); } catch(e) {}
-  // Clear sensitive data from localStorage based on role
-  clearSensitiveStudentData();
-  // Clear in-memory session state
-  currentRole = null;
-  currentStudent = null;
-  currentInstructor = null;
-  currentLoggedInUser = null;
+  var seq = ++_sessionSeq;
+  // Screen: back to the landing page now.
   adminLoginShown = false; studentLoginShown = false; instructorLoginShown = false; adminStaffLoginShown = false; cmcLoginShown = false;
   document.getElementById('appShell').classList.remove('active');
   document.getElementById('landingPage').style.display = '';
@@ -10161,6 +10168,30 @@ function logout() {
     loginSyncCompleted = true;
     enableLoginButtons();
   }
+  // Data: wiped once the final save has left, and only if nobody has signed
+  // in again in the meantime.
+  finalSave.then(function() {
+    if (seq !== _sessionSeq) return;
+    // Clear sensitive data from localStorage based on role
+    clearSensitiveStudentData();
+    // Clear in-memory session state
+    currentRole = null;
+    currentStudent = null;
+    currentInstructor = null;
+    currentLoggedInUser = null;
+  });
+}
+
+// The final save of a session: wait for a save already in flight, then run one
+// more, bounded so a dead network can never hold the logout.
+var _sessionSeq = 0;
+async function finalCloudSaveBeforeLogout() {
+  var sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+  try {
+    var waited = 0;
+    while (_isAutoSaving && waited < 15000) { await sleep(250); waited += 250; }
+    await Promise.race([autoSaveToAllFolders(), sleep(20000)]);
+  } catch(e) { console.warn('[Logout] Final cloud save failed:', e); }
 }
 
 function toggleNavSection(labelEl) {
@@ -17264,20 +17295,13 @@ async function recoverCourseDataFromCloud(courseName) {
       });
     }
 
-    // Recover user accounts linked to this course
+    // Recover user accounts linked to this course — through the one account
+    // rule, so a stale cloud copy never lands as a duplicate or overwrites a
+    // password somebody set.
     if (Array.isArray(backupData.data.userAccounts)) {
-      backupData.data.userAccounts.forEach(function(cloudUser) {
-        if (isUserDeleted(cloudUser.id)) return; // Honor the deletion tombstone
-        if (!cloudUser.programme || cloudUser.programme.toLowerCase().trim() !== courseNameLower) return;
-        var exists = userAccounts.some(function(u) {
-          return u.id === cloudUser.id ||
-            (u.username && cloudUser.username && u.username.toLowerCase() === cloudUser.username.toLowerCase());
-        });
-        if (!exists) {
-          userAccounts.push(cloudUser);
-          result.accounts++;
-        }
-      });
+      result.accounts += mergeCloudAccounts(backupData.data.userAccounts, { accept: function(cu) {
+        return !!cu.programme && String(cu.programme).toLowerCase().trim() === courseNameLower;
+      } });
     }
 
     // Recover attendance records for recovered students
@@ -18555,6 +18579,12 @@ window.addEventListener('storage', function(e) {
   if(e.key === 'voctrain_maintenanceMode') {
     var val = safeJsonParse(e.newValue, null);
     if(val) {
+      // Another tab's mirror is adopted only when it is the newer decision: a
+      // stale write (an older build, a tab that lost a race) must not undo a
+      // deactivation this tab already holds.
+      var valAt = Date.parse(val.updatedAt || '') || 0;
+      var haveAt = Date.parse(systemSettings.maintenanceUpdatedAt || '') || 0;
+      if(valAt < haveAt) return;
       systemSettings.maintenanceMode = val.active === true;
       systemSettings.maintenanceMessage = val.message || '';
       if(val.updatedAt) systemSettings.maintenanceUpdatedAt = val.updatedAt;
@@ -18707,6 +18737,10 @@ window.addEventListener('storage', function(e) {
   try {
     var parsed = e.newValue ? JSON.parse(e.newValue) : null;
     if(parsed === null) return;
+    // Emptiness is never an edit (the rule adoptStoredCollection applies):
+    // a blank list written elsewhere must not blank the accounts — or any
+    // other collection — in this tab, which would then save and upload it.
+    if(Array.isArray(parsed) ? !parsed.length : (typeof parsed === 'object' && !Object.keys(parsed).length)) return;
     CESTIS_SHARED_COLLECTIONS[e.key](parsed);
   } catch(err) { return; }
   // One save elsewhere writes many keys; coalesce the burst into one re-render.
@@ -19243,6 +19277,9 @@ function confirmDeleteStudent() {
     certDownloadApprovals = certDownloadApprovals.filter(function(a){ return a.studentId !== sid; });
   }
   if(typeof userAccounts !== 'undefined' && Array.isArray(userAccounts)) {
+    // Tombstone each login too, or the next sync hands it straight back and
+    // the next launch deletes it again — forever.
+    userAccounts.forEach(function(u){ if(u && u.studentDataId === sid && typeof recordDeletedUser === 'function') recordDeletedUser(u.id); });
     userAccounts = userAccounts.filter(function(u){ return u.studentDataId !== sid; });
     if(typeof saveUserAccounts === 'function') saveUserAccounts();
   }
@@ -19678,6 +19715,7 @@ async function addStudent() {
       role: 'student',
       username: username,
       password: defaultPw,
+      defaultPassword: true,   // an initial password the Centre hands out: a seed, never allowed to replace one the trainee set
       email: email || '',
       programme: selectedCourse,
       status: 'disabled',
@@ -24766,10 +24804,17 @@ var loginSyncCompleted = false;
 // Auto-sync & auto-save state
 var _autoSaveIntervalId = null;
 var _isAutoSaving = false;
+// Set the moment a session's data is wiped (logout, expiry); cleared on the
+// next sign-in. A save that is still in flight when the wipe lands would
+// otherwise serialise the emptied store and publish it.
+var _sessionWiped = false;
 var _autoSaveFileIds = {}; // { folderId: fileId } for tracking backup files per folder
 // { folderId: modifiedTime } — when Drive last saw each folder's copy written,
 // so the login merges can apply the oldest copy first and the newest last.
 var _backupFileModified = {};
+// Has the Main backup been merged into this device in this session? Until it
+// has, the first autosave pulls before it pushes.
+var _mainMergedThisSession = false;
 var AUTO_SAVE_INTERVAL_MS = 5000; // 5 seconds
 var _debouncedCloudSaveTimer = null;
 var _lastAutoSaveHash = null; // hash of last data successfully pushed to the cloud (dirty-check)
@@ -25193,6 +25238,7 @@ function ensureSilentRefreshClient() {
         CESTISStore.setItem('schoolDashboardGoogleTokenExpiry', expiry.toISOString());
         try { dismissCloudNotification(); } catch(e) {}
         console.log('[Auth] Google token refreshed silently — backup continues.');
+        resumeCloudSyncIfLoggedIn();
       }
     },
     error_callback: function(err) {
@@ -25872,7 +25918,7 @@ async function syncFromCloud() {
     return;
   }
 
-  if (!confirm('⚠️ This will replace your local data with the cloud backup. Are you sure you want to continue?')) {
+  if (!confirm('🔀 SYNC FROM CLOUD\n\nThis merges the cloud backup into this device:\n\n• Records missing here are added\n• Where both sides hold a record, the newer edit wins\n• Nothing on this device is deleted\n\nContinue?')) {
     return;
   }
 
@@ -25908,111 +25954,12 @@ async function syncFromCloud() {
       throw new Error('Invalid backup file format');
     }
 
-    // Restore data — mapped to actual LMS variables
-    if (backupData.data.userAccounts) {
-      userAccounts = backupData.data.userAccounts;
-      saveUserAccounts();
-    }
-
-    if (backupData.data.students) {
-      students = backupData.data.students;
-    }
-
-    if (backupData.data.exams) {
-      var _testExamIds = {'EXAM-001':1,'EXAM-002':1,'EXAM-003':1,'EXAM-004':1,'EXAM-005':1,'EXAM-006':1,'EXAM-007':1,'EXAM-008':1,'EXAM-009':1,'EXAM-010':1,'EXAM-011':1,'EXAM-012':1};
-      var _testExamTitles = {'Welding Final Assessment':1,'Welding Level 2 \u2014 Final Theory':1,'Electrical Installation L3 \u2014 Safety':1,'Business Admin L1 \u2014 Midterm':1,'Cosmetology L1 \u2014 Practical Theory':1,'Plumbing L2 \u2014 Pipe Systems':1,'Carpentry \u2014 Joints & Framing':1,'Beauty Therapy \u2014 Skin Analysis':1,'Data Operations \u2014 Spreadsheets':1};
-      exams = backupData.data.exams.filter(function(e) { return !_testExamIds[e.id] && !_testExamTitles[e.title]; });
-    }
-
-    if (backupData.data.announcements) {
-      announcements = backupData.data.announcements;
-    }
-
-    // Large Class attendance is merged, never replaced: two devices in the
-    // same class each record what they saw, and the fuller view of a person's
-    // time must win. A cloud copy that is missing a session cannot erase it.
-    if (Array.isArray(backupData.data.vcSessions)) {
-      vcSessions = CESTISCore.vcSessions.mergeSessions(vcSessions, backupData.data.vcSessions);
-      try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
-    }
-
-    if (backupData.data.attendanceRecords) {
-      attendanceRecords = backupData.data.attendanceRecords;
-    }
-
-    if (backupData.data.calendarEvents) {
-      calendarEvents = backupData.data.calendarEvents;
-    }
-
-    if (backupData.data.examResults) {
-      examResults = backupData.data.examResults;
-    }
-
-    if (backupData.data.driveResources && backupData.data.driveResources.length > 0) {
-      // Merge: add cloud resources that don't exist locally, never replace with empty
-      backupData.data.driveResources.forEach(function(cr) {
-        if (!driveResources.some(function(lr) { return lr.id === cr.id; })) {
-          driveResources.push(cr);
-        }
-      });
-    }
-
-    // Restore additional data arrays from cloud backup
-    try {
-      if (Array.isArray(backupData.data.classSessions)) classSessions = backupData.data.classSessions;
-      if (Array.isArray(backupData.data.adminMeetings)) adminMeetings = backupData.data.adminMeetings;
-      if (Array.isArray(backupData.data.instructorAssignments)) instructorAssignments = backupData.data.instructorAssignments;
-      if (Array.isArray(backupData.data.assignmentSubmissions)) assignmentSubmissions = backupData.data.assignmentSubmissions;
-      if (Array.isArray(backupData.data.instructorResources)) instructorResources = backupData.data.instructorResources;
-      if (backupData.data.studentProfiles && typeof backupData.data.studentProfiles === 'object') studentProfiles = backupData.data.studentProfiles;
-      if (backupData.data.instructorProfiles && typeof backupData.data.instructorProfiles === 'object') instructorProfiles = backupData.data.instructorProfiles;
-      if (Array.isArray(backupData.data.instructorData)) {
-        backupData.data.instructorData.forEach(function(ci) {
-          if (ci && ci.id && !instructorData.some(function(li) { return li.id === ci.id; })) {
-            instructorData.push(ci);
-          }
-        });
-      }
-      // Merge rather than replace: a wholesale swap dropped the TMS/NQS links
-      // and the headline notice typed above each embedded page.
-      if (backupData.data.systemSettings && typeof backupData.data.systemSettings === 'object') { systemSettings = CESTISCore.mergeSystemSettings(systemSettings, backupData.data.systemSettings); applyMaintenanceOverlay(); }
-      if (Array.isArray(backupData.data.adrTasks)) adrTasks = backupData.data.adrTasks;
-      if (backupData.data.adrStaffMeta && typeof backupData.data.adrStaffMeta === 'object') adrStaffMeta = backupData.data.adrStaffMeta;
-      // Appraisals are merged, never replaced: a signature applied on another
-      // device must survive whichever copy the cloud happens to hold.
-      try { if (backupData.data.staffAppraisals && typeof sappCloudImport === 'function') sappCloudImport(backupData.data.staffAppraisals); } catch(e) { console.warn('[Restore] staffAppraisals error:', e); }
-      if (backupData.data.adminStaffAccessSettings && typeof backupData.data.adminStaffAccessSettings === 'object') applyAdminStaffAccess(backupData.data.adminStaffAccessSettings);
-      if (Array.isArray(backupData.data.documentHubFiles) && backupData.data.documentHubFiles.length > 0) documentHubFiles = backupData.data.documentHubFiles;
-      if (Array.isArray(backupData.data.supportMessages)) { supportMessages = backupData.data.supportMessages; saveSupportMessages(); }
-      if (Array.isArray(backupData.data.notifications)) { notifications = backupData.data.notifications; saveNotifications(); }
-      if (backupData.data.chatFollows && typeof backupData.data.chatFollows === 'object') lmsChatFollows = backupData.data.chatFollows;
-      // Only adopt the cloud room list when it actually has rooms — an empty
-      // array must not wipe the local rooms (would show "No chats available").
-      if (Array.isArray(backupData.data.chatRooms) && backupData.data.chatRooms.length > 0) {
-        var _cloudRoomIds = backupData.data.chatRooms.map(function(r){ return r.id; });
-        var _localOnly = lmsChatRooms.filter(function(r){ return _cloudRoomIds.indexOf(r.id) === -1; });
-        lmsChatRooms = backupData.data.chatRooms.concat(_localOnly);
-      }
-      if (backupData.data.chatMessages && typeof backupData.data.chatMessages === 'object') lmsChatMessages = backupData.data.chatMessages;
-      if (backupData.data.chatProfiles && typeof backupData.data.chatProfiles === 'object') lmsChatProfiles = backupData.data.chatProfiles;
-      if (Array.isArray(backupData.data.skillAreas) && backupData.data.skillAreas.length > 0) {
-        // Merge: add cloud skill areas that don't exist locally, update existing ones
-        backupData.data.skillAreas.forEach(function(sa) {
-          if (!sa || !sa.id) return;
-          var existing = skillAreas.find(function(l) { return l.id === sa.id; });
-          if (!existing) { skillAreas.push(sa); }
-          else { if(sa.name) existing.name = sa.name; if(sa.desc) existing.desc = sa.desc; if(sa.icon) existing.icon = sa.icon; if(sa.color) existing.color = sa.color; }
-        });
-      }
-      if (backupData.data.certTemplates && typeof backupData.data.certTemplates === 'object' && Object.keys(backupData.data.certTemplates).length > 0) {
-        Object.keys(backupData.data.certTemplates).forEach(function(k) { certTemplates[k] = backupData.data.certTemplates[k]; });
-      }
-      if (Array.isArray(backupData.data.certDownloadApprovals)) certDownloadApprovals = backupData.data.certDownloadApprovals;
-      // Restore certTemplateCourseMap (course rename mappings)
-      if (backupData.data.certTemplateCourseMap && typeof backupData.data.certTemplateCourseMap === 'object') {
-        Object.assign(certTemplateCourseMap, backupData.data.certTemplateCourseMap);
-      }
-    } catch(e) { console.warn('[SyncFromCloud] Error restoring additional data:', e); }
+    // This used to REPLACE the device's data with the file's copy — every
+    // account and password included — and the 5-second autosave then
+    // published that copy to every folder. One click against a stale or
+    // partial backup told every user on every device that their password was
+    // wrong. It is now the same merge every automatic pull runs.
+    await mergeBackupData(backupData);
 
     // Reconcile: create student records for any user accounts missing them
     reconcileStudentsFromAccounts();
@@ -26132,17 +26079,12 @@ async function mergeFromCloud() {
     for (var _dj = 1; _dj <= 8; _dj++) _demoInstructorIds['INS-202600' + _dj] = true;
     var _demoUserIds = {'USR-002':1,'USR-003':1,'USR-004':1,'USR-005':1,'USR-006':1,'USR-007':1,'USR-008':1,'USR-009':1,'USR-010':1};
 
-    // Merge user accounts — add cloud users that don't exist locally (match by username, case-insensitive)
+    // Merge user accounts — through the one rule every path uses. This used
+    // to match by username alone (and threw on any account without one), so
+    // the same person under a renamed username arrived as a duplicate with a
+    // stale password of its own.
     if (backupData.data.userAccounts) {
-      const localUsernames = userAccounts.map(u => u.username.toLowerCase());
-      backupData.data.userAccounts.forEach(cloudUser => {
-        if (_demoUserIds[cloudUser.id]) return; // Skip legacy demo accounts
-        if (isUserDeleted(cloudUser.id)) return; // Honor the deletion tombstone
-        if (!localUsernames.includes(cloudUser.username.toLowerCase())) {
-          userAccounts.push(cloudUser);
-          mergeStats.usersAdded++;
-        }
-      });
+      mergeStats.usersAdded = mergeCloudAccounts(backupData.data.userAccounts);
       if (mergeStats.usersAdded > 0) {
         saveUserAccounts();
       }
@@ -26682,6 +26624,19 @@ async function mergeFromCloud() {
 // ============================================
 
 // Find or lookup backup file ID in a specific folder
+// The login merges order the folder copies by age, and the Main folder's file
+// id is restored from storage at load — so its age was unknown, it sorted as
+// the OLDEST, was merged first, and every stale copy in the other folders was
+// merged after it and won the ties. This always asks Drive for the real time.
+async function locateBackupCopy(folderId) {
+  var fileId = await findBackupFileInFolder(folderId);
+  if (!fileId || fileId === 'LOOKUP_FAILED') return fileId;
+  try {
+    var m = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=modifiedTime', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+    if (m.ok) { var mj = await m.json(); _backupFileModified[folderId] = mj.modifiedTime || ''; }
+  } catch (e) {}
+  return fileId;
+}
 async function findBackupFileInFolder(folderId) {
   if (_autoSaveFileIds[folderId]) return _autoSaveFileIds[folderId];
   try {
@@ -26828,6 +26783,10 @@ async function reconcileWithMasterSnapshot() {
         if (res.store[k] !== local[k]) { try { CESTISStore.setItem(k, res.store[k]); } catch (e) {} }
       });
       try { loadState(); } catch (e) {}
+      // loadState() never reads the accounts; without this the reconciled
+      // list sat in the store while the stale one in memory was saved back
+      // over it on the next write — and uploaded.
+      try { loadUserAccounts(); } catch (e) {}
       try { cestisStabilizeStudentIds(); } catch (e) {}
       try { refreshStudentDependentViews(); refreshContentDependentViews(); } catch (e) {}
       if (report.totalMissing > 0) {
@@ -26878,6 +26837,10 @@ async function restoreFromMasterBackup() {
         if (res.store[k] !== local[k]) { try { CESTISStore.setItem(k, res.store[k]); } catch (e) {} }
       });
       try { loadState(); } catch (e) {}
+      // loadState() never reads the accounts; without this the reconciled
+      // list sat in the store while the stale one in memory was saved back
+      // over it on the next write — and uploaded.
+      try { loadUserAccounts(); } catch (e) {}
       try { cestisStabilizeStudentIds(); } catch (e) {}
       try { refreshStudentDependentViews(); refreshContentDependentViews(); } catch (e) {}
       _lastMasterSnapshotHash = null; // re-save so the master reflects the merged state
@@ -26960,7 +26923,7 @@ async function savePerUserBackup() {
         instructorResources: instructorResources,
         instructorData: instructorData,
         certDownloadApprovals: certDownloadApprovals,
-        systemSettings: systemSettings,
+        systemSettings: (currentRole === 'admin' || currentRole === 'adminstaff') ? systemSettings : undefined,
         userAccounts: userAccounts
       }
     };
@@ -27154,22 +27117,141 @@ async function syncAllUserLoginFoldersToDrive() {
 }
 
 // Silent merge from a backup file (no confirmations, no alerts, no page reload)
+/* ONE rule for every account that arrives from the cloud.
+
+   Five paths brought accounts in — the folder merge, the pre-login fetch,
+   the manual Sync from Cloud, the course recovery on login and the course
+   recovery button — and each decided differently which copy to keep. Sync
+   from Cloud replaced the whole list with one file's copy; the recoveries
+   pushed a copy verbatim, password and all, if its id or username was new
+   here. So which device a person was on decided whose password survived,
+   and one click could hand every device a stale list. Every path now goes
+   through this: match by id, username or email; a matched record is
+   updated only when the cloud copy wins (CESTISCore.accountAccess
+   .cloudCopyWins — newer stamp wins, a seed never replaces a real password);
+   an unmatched one is added; a deleted one stays deleted.
+   Returns how many records changed. */
+function mergeCloudAccounts(cloudAccounts, opts) {
+  opts = opts || {};
+  if (!Array.isArray(cloudAccounts) || !Array.isArray(userAccounts)) return 0;
+  var legacyDemo = {'USR-002':1,'USR-003':1,'USR-004':1,'USR-005':1,'USR-006':1,'USR-007':1,'USR-008':1,'USR-009':1,'USR-010':1};
+  var changed = 0;
+  cloudAccounts.forEach(function(cloudUser) {
+    if (!cloudUser || typeof cloudUser !== 'object') return;
+    if (legacyDemo[cloudUser.id]) return;                       // the demo logins purged in data version 4
+    if (isUserDeleted(cloudUser.id)) return;                    // an administrator revoked this login
+    if (typeof opts.accept === 'function' && !opts.accept(cloudUser)) return;
+    var cloudUsername = String(cloudUser.username || '').trim().toLowerCase();
+    var cloudEmail = String(cloudUser.email || '').trim().toLowerCase();
+    var localMatch = userAccounts.find(function(u) {
+      if (!u) return false;
+      if (u.id === cloudUser.id) return true;
+      if (cloudUsername && u.username && String(u.username).trim().toLowerCase() === cloudUsername) return true;
+      if (cloudEmail && u.email && String(u.email).trim().toLowerCase() === cloudEmail) return true;
+      return false;
+    });
+    if (!localMatch) {
+      var fresh = Object.assign({}, cloudUser);
+      delete fresh._plaintextPw;                                // never adopt a plaintext cache an old backup leaked
+      userAccounts.push(fresh);
+      changed++;
+      return;
+    }
+    var _cu = Date.parse(cloudUser.updatedAt || '') || 0;
+    var _lu = Date.parse(localMatch.updatedAt || '') || 0;
+    if (CESTISCore.accountAccess.cloudCopyWins(localMatch, cloudUser)) {
+      if (cloudUser.password && cloudUser.password !== localMatch.password) {
+        localMatch.password = cloudUser.password;
+        try { delete localMatch._plaintextPw; } catch(e) {}     // an old password must no longer validate
+        changed++;
+      }
+      if (cloudUser.status && cloudUser.status !== localMatch.status) { localMatch.status = cloudUser.status; changed++; }
+      if (cloudUser.name && cloudUser.name !== localMatch.name) { localMatch.name = cloudUser.name; changed++; }
+      if (cloudUser.email && cloudUser.email !== localMatch.email) { localMatch.email = cloudUser.email; changed++; }
+      if (cloudUser.programme !== undefined && cloudUser.programme !== localMatch.programme) { localMatch.programme = cloudUser.programme; changed++; }
+      if (cloudUser.role && cloudUser.role !== localMatch.role) { localMatch.role = cloudUser.role; changed++; }
+      if (cloudUser.cmcChair !== undefined && !!cloudUser.cmcChair !== !!localMatch.cmcChair) { localMatch.cmcChair = cloudUser.cmcChair === true; changed++; }
+      // The seed marker travels with the password (an older version's
+      // mustChangePassword meant the same thing).
+      var _cSeed = !!(cloudUser.defaultPassword || cloudUser.mustChangePassword);
+      if (_cSeed !== !!localMatch.defaultPassword) { if (_cSeed) localMatch.defaultPassword = true; else delete localMatch.defaultPassword; changed++; }
+      if (_cu > _lu && cloudUser.updatedAt !== localMatch.updatedAt) { localMatch.updatedAt = cloudUser.updatedAt; changed++; }
+    }
+    if (cloudUser.studentDataId && !localMatch.studentDataId) { localMatch.studentDataId = cloudUser.studentDataId; changed++; }
+    if (cloudUser.registeredVia && !localMatch.registeredVia) { localMatch.registeredVia = cloudUser.registeredVia; changed++; }
+    // Two-step-verification state (secret, enabled flag, backup codes) has its
+    // own newest-wins stamp, so it sits outside the guard above.
+    if (typeof mergeTwoFactorState === 'function' && mergeTwoFactorState(localMatch, cloudUser)) changed++;
+  });
+  return changed;
+}
+
+/* What only an administrator publishes, as this device last saw it in the
+   cloud. A save replaces the WHOLE backup file, so a payload that omits a key
+   deletes that key from the shared backup: every save from a trainee's or
+   instructor's device stripped the Admin Staff access grid, the settings and
+   the rest of the Centre's data out of the cloud until an administrator
+   happened to save again. A device that is not an administrator's carries
+   these forward exactly as it received them. */
+var _cloudAdminSlices = {};
+var CLOUD_ADMIN_SLICE_KEYS = ['systemSettings', 'adminStaffAccessSettings', 'driveResources', 'skillAreas', 'adrTasks', 'adrStaffMeta', 'documentHubFiles', 'certTemplates'];
+function rememberCloudAdminSlices(data) {
+  if (!data || typeof data !== 'object') return;
+  CLOUD_ADMIN_SLICE_KEYS.forEach(function(k) {
+    var v = data[k];
+    if (v === undefined || v === null) return;
+    if (Array.isArray(v) && !v.length) return;
+    if (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length) return;
+    _cloudAdminSlices[k] = v;
+  });
+}
+function carryForwardCloudAdminSlices(data) {
+  if (!data || typeof data !== 'object') return;
+  CLOUD_ADMIN_SLICE_KEYS.forEach(function(k) {
+    if (!(k in _cloudAdminSlices)) return;
+    var v = data[k];
+    var empty = v === undefined || v === null || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
+    if (empty) data[k] = _cloudAdminSlices[k];
+  });
+}
+
 async function silentMergeFromBackup(fileId) {
   try {
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
     );
-    if (!response.ok) return false;
-
+    if (!response.ok) {
+      // A failed PULL used to be indistinguishable from "nothing changed": no
+      // log, and a dead token kept the uploads going while nothing came back.
+      console.warn('[AutoSync] Could not download backup ' + fileId + ': HTTP ' + response.status);
+      if (response.status === 401 || response.status === 403) handleCloudAuthExpired();
+      return false;
+    }
     const backupData = await response.json();
-    if (!backupData.data) {
+    try {
+      if (fileId && (fileId === _autoSaveFileIds[GOOGLE_DRIVE_CONFIG.FOLDER_ID] || fileId === cloudFileId)) _mainMergedThisSession = true;
+    } catch (e) {}
+    return await mergeBackupData(backupData);
+  } catch (err) {
+    console.warn('[AutoSync] Silent merge download error:', err);
+    return false;
+  }
+}
+
+// Merge one backup object (the .data envelope written by autoSaveToAllFolders)
+// into this device. Every automatic pull and the manual Sync from Cloud come
+// through here, so there is exactly one set of merge rules.
+async function mergeBackupData(backupData) {
+  try {
+    if (!backupData || !backupData.data) {
       console.warn('[AutoSync] Backup file has no .data envelope — skipping merge (file left untouched)');
       return false;
     }
     if (!backupData.version) {
       console.warn('[AutoSync] Backup file missing version field — merging anyway (legacy format)');
     }
+    try { rememberCloudAdminSlices(backupData.data); } catch (e) {}
 
     let changed = false;
 
@@ -27181,63 +27263,9 @@ async function silentMergeFromBackup(fileId) {
     var _dt = {'Welding L2 Final Theory':1,'Electrical Safety Class':1,'Business Admin Midterm':1,'Cosmetology Practical':1,'Workshop Portfolio Due':1,'Staff Meeting':1,'Final Project Due':1,'Plumbing L2 Pipe Systems':1,'Guest Lecture: Industry Trends':1,'Carpentry Joints Exam':1,'Budget Review Meeting':1,'Instructor Evaluation Deadline':1,'Curriculum Workshop':1,'Student ID Collection':1};
     var _du = {'USR-002':1,'USR-003':1,'USR-004':1,'USR-005':1,'USR-006':1,'USR-007':1,'USR-008':1,'USR-009':1,'USR-010':1};
 
-    // Merge user accounts — update existing records AND add new ones
+    // Merge user accounts — through the one rule every path uses.
     if (backupData.data.userAccounts) {
-      var userAccountsChanged = false;
-      backupData.data.userAccounts.forEach(cloudUser => {
-        if (_du[cloudUser.id]) return; // Skip legacy demo accounts
-        if (isUserDeleted(cloudUser.id)) return; // Honor the deletion tombstone
-        var cloudUsername = (cloudUser.username || '').toLowerCase();
-        var cloudEmail = (cloudUser.email || '').toLowerCase();
-        // Find matching local user by id, username, or email
-        var localMatch = userAccounts.find(function(u) {
-          if (u.id === cloudUser.id) return true;
-          if (cloudUsername && u.username && u.username.toLowerCase() === cloudUsername) return true;
-          if (cloudEmail && u.email && u.email.toLowerCase() === cloudEmail) return true;
-          return false;
-        });
-        if (localMatch) {
-          // Newest-edit-wins guard: if THIS device's copy was edited more recently
-          // than the cloud copy (see touchAccount), do NOT let the stale cloud
-          // record overwrite it — that was silently reverting password resets,
-          // status changes and role edits whenever an out-of-date device had
-          // auto-saved first. Two UNSTAMPED copies (most long-standing accounts)
-          // used to be a tie the cloud always won, so a fresh device's seeded
-          // default, or a stale copy in any folder, replaced the real password
-          // and then travelled everywhere. The shared rule decides ties now: a
-          // seeded default never replaces a real password, in either direction
-          // (CESTISCore.accountAccess.cloudCopyWins).
-          var _cu = Date.parse(cloudUser.updatedAt || '') || 0;
-          var _lu = Date.parse(localMatch.updatedAt || '') || 0;
-          if (CESTISCore.accountAccess.cloudCopyWins(localMatch, cloudUser)) {
-            // Update existing account with cloud data (password, status, name, etc.)
-            if (cloudUser.password && cloudUser.password !== localMatch.password) { localMatch.password = cloudUser.password; userAccountsChanged = true; }
-            if (cloudUser.status && cloudUser.status !== localMatch.status) { localMatch.status = cloudUser.status; userAccountsChanged = true; }
-            if (cloudUser.name && cloudUser.name !== localMatch.name) { localMatch.name = cloudUser.name; userAccountsChanged = true; }
-            if (cloudUser.email && cloudUser.email !== localMatch.email) { localMatch.email = cloudUser.email; userAccountsChanged = true; }
-            if (cloudUser.programme !== undefined && cloudUser.programme !== localMatch.programme) { localMatch.programme = cloudUser.programme; userAccountsChanged = true; }
-            if (cloudUser.role && cloudUser.role !== localMatch.role) { localMatch.role = cloudUser.role; userAccountsChanged = true; }
-            // The seed marker travels with the password (an older version's
-            // mustChangePassword meant the same thing).
-            var _cSeed = !!(cloudUser.defaultPassword || cloudUser.mustChangePassword);
-            if (_cSeed !== !!localMatch.defaultPassword) { if (_cSeed) localMatch.defaultPassword = true; else delete localMatch.defaultPassword; userAccountsChanged = true; }
-            if (_cu > _lu && cloudUser.updatedAt !== localMatch.updatedAt) { localMatch.updatedAt = cloudUser.updatedAt; userAccountsChanged = true; }
-          }
-          if (cloudUser.studentDataId && !localMatch.studentDataId) { localMatch.studentDataId = cloudUser.studentDataId; userAccountsChanged = true; }
-          if (cloudUser.registeredVia && !localMatch.registeredVia) { localMatch.registeredVia = cloudUser.registeredVia; userAccountsChanged = true; }
-          // Two-step-verification state (secret, enabled flag, backup codes) —
-          // WITHOUT this, enabling 2FA on one device never reached devices that
-          // already had the account row, so 2FA "didn't work" across devices.
-          // (Has its own newest-wins stamp, so it sits outside the guard above.)
-          if (mergeTwoFactorState(localMatch, cloudUser)) userAccountsChanged = true;
-        } else {
-          // New account — add it (dropping any plaintext cache an old backup leaked)
-          delete cloudUser._plaintextPw;
-          userAccounts.push(cloudUser);
-          userAccountsChanged = true;
-        }
-      });
-      if (userAccountsChanged) { changed = true; saveUserAccounts(); }
+      if (mergeCloudAccounts(backupData.data.userAccounts) > 0) { changed = true; saveUserAccounts(); }
     }
 
     // Merge students — timestamp-based update for existing, add new ones
@@ -27831,7 +27859,7 @@ async function autoSyncOnLogin() {
     var _copies = [];
     for (const folder of ALL_DRIVE_FOLDERS) {
       try {
-        const fileId = await findBackupFileInFolder(folder.id);
+        const fileId = await locateBackupCopy(folder.id);
         if (fileId === 'LOOKUP_FAILED') continue;
         if (fileId) {
           _copies.push({ folder: folder, fileId: fileId, modifiedTime: _backupFileModified[folder.id] });
@@ -27957,16 +27985,12 @@ async function autoSyncOnLogin() {
             });
           }
 
-          // Recover user accounts
+          // Recover user accounts — through the one account rule (see
+          // mergeCloudAccounts), never a verbatim push.
           if (Array.isArray(_backupData.data.userAccounts)) {
-            _backupData.data.userAccounts.forEach(function(cu) {
-              if (isUserDeleted(cu.id)) return; // Honor the deletion tombstone
-              if (!cu.programme || cu.programme.toLowerCase().trim() !== _courseNameLower) return;
-              var exists = userAccounts.some(function(u) {
-                return u.id === cu.id || (u.username && cu.username && u.username.toLowerCase() === cu.username.toLowerCase());
-              });
-              if (!exists) { userAccounts.push(cu); _totalRecovered.accounts++; }
-            });
+            _totalRecovered.accounts += mergeCloudAccounts(_backupData.data.userAccounts, { accept: function(cu) {
+              return !!cu.programme && String(cu.programme).toLowerCase().trim() === _courseNameLower;
+            } });
           }
 
           // Recover attendance
@@ -28149,10 +28173,16 @@ async function pullMainIfRemoteNewer() {
     if (!ver) return false;
     var baseline = _lastCloudVersion[folderId];
     if (baseline === undefined) {
-      // First sight this session — login sync already merged, so just record the
-      // baseline; don't re-download.
       _lastCloudVersion[folderId] = ver;
-      return false;
+      // First sight this session. If a login sync already merged the Main
+      // copy, this is just the baseline. If NOT — a token restored from
+      // storage with no login sync behind it, a pre-login sync that could not
+      // complete — the very next step is an upload, and uploading before ever
+      // pulling is how a stale device overwrote everybody else's work.
+      if (_mainMergedThisSession) return false;
+      var first = await silentMergeFromBackup(fileId);
+      if (first) console.log('[Sync] Merged the cloud copy before this device\'s first save.');
+      return first;
     }
     if (ver === baseline) return false; // nobody else has written since we last saw it
     // Another device wrote: merge their changes into local before we save ours.
@@ -28180,6 +28210,10 @@ var _lastAutoSaveWriteMark = -1;
 
 async function autoSaveToAllFolders() {
   if (!isCloudConnected || !googleAccessToken || _isAutoSaving) return;
+  // Only a signed-in session publishes the backup: nothing goes up from the
+  // landing page (a pre-login merge, a registration) before this device has
+  // pulled, and nothing goes up from a store that has just been wiped.
+  if (_sessionWiped || !currentRole) return;
 
   _isAutoSaving = true;
 
@@ -28189,6 +28223,7 @@ async function autoSaveToAllFolders() {
     // the cloud→local path, so it runs on every tick regardless of the gate
     // below: another device's work still arrives within seconds.
     await pullMainIfRemoteNewer();
+    if (_sessionWiped || !currentRole) return;   // the session ended while we were pulling
 
     // Nothing written since our last completed save: the local copy and the
     // cloud copy are both already what we would produce. Skip the serialise,
@@ -28230,7 +28265,10 @@ async function autoSaveToAllFolders() {
         studentProfiles: studentProfiles,
         instructorProfiles: instructorProfiles,
         instructorData: instructorData,
-        systemSettings: systemSettings,
+        // The Centre's settings are the administrator's to publish; every
+        // other device republished whatever copy it held, every 5 seconds, to
+        // every folder — a stale one included.
+        systemSettings: _isAdminSave ? systemSettings : undefined,
         supportMessages: supportMessages,
         notifications: notifications,
         certDownloadApprovals: certDownloadApprovals,
@@ -28255,9 +28293,17 @@ async function autoSaveToAllFolders() {
       return clean;
     })();
     if (_isAdminSave || Object.keys(_cleanCertTpls).length > 0) backupData.data.certTemplates = _cleanCertTpls;
+    // A payload that omits a key DELETES it from the shared file (the upload
+    // replaces the whole backup). A device that is not an administrator's
+    // carries forward what only an administrator publishes, as it last saw it.
+    if (!_isAdminSave) carryForwardCloudAdminSlices(backupData.data);
 
     // Persist locally first (cheap, always runs).
     saveState();
+    // The write count as of THIS payload. Absorbing the count at the end of
+    // the upload swallowed every edit made while it was in flight — an edit
+    // that then never went up until something unrelated changed.
+    var _writesAfterSave = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : _lastAutoSaveWriteMark;
 
     // Dirty-check: skip ALL cloud uploads when nothing changed since the last
     // successful save. Hash only backupData.data — not the timestamp/savedBy,
@@ -28268,7 +28314,7 @@ async function autoSaveToAllFolders() {
     if (_curHash === _lastAutoSaveHash) {
       // The writes were bookkeeping only — the data itself is unchanged.
       // Absorb them (including saveState()'s own) so the next tick is free.
-      _lastAutoSaveWriteMark = (window.CESTISStore && CESTISStore.writes) || _lastAutoSaveWriteMark;
+      _lastAutoSaveWriteMark = _writesAfterSave;
       return; // unchanged — nothing to push; finally{} clears _isAutoSaving
     }
 
@@ -28326,7 +28372,7 @@ async function autoSaveToAllFolders() {
       // Absorb every write this save itself just made, so an idle next tick
       // costs an integer compare and nothing else. On failure the mark is left
       // alone, which is what makes the next tick retry.
-      _lastAutoSaveWriteMark = (window.CESTISStore && CESTISStore.writes) || _lastAutoSaveWriteMark;
+      _lastAutoSaveWriteMark = _writesAfterSave;
       _consecutiveCloudSaveFailures = 0;
     } else {
       _consecutiveCloudSaveFailures = (_consecutiveCloudSaveFailures || 0) + 1;
@@ -28530,7 +28576,7 @@ async function loginPageSync() {
         if (isAdmin) {
           updateLoginSyncStatus('Locating backups (' + (i + 1) + '/' + ALL_DRIVE_FOLDERS.length + ')...', '');
         }
-        var fileId = await findBackupFileInFolder(folder.id);
+        var fileId = await locateBackupCopy(folder.id);
         if (fileId === 'LOOKUP_FAILED') fileId = null;
         if (fileId) _found.push({ folder: folder, fileId: fileId, modifiedTime: _backupFileModified[folder.id] });
       } catch (e) {
@@ -28729,6 +28775,13 @@ function loginPageGoogleAuth() {
 // Handles bfcache restoration (back/forward navigation) and tab switching
 // so users can sync immediately after navigating to the page without refreshing
 // ============================================
+// After a token expiry the periodic tick is stopped (rightly). When a token
+// comes back — a silent refresh, a restore on focus — the debounced uploads
+// resumed but the tick that PULLS did not, so the device pushed for the rest
+// of the session without ever pulling again.
+function resumeCloudSyncIfLoggedIn() {
+  try { if (currentRole && !_autoSaveIntervalId && typeof startAutoSave === 'function') startAutoSave(); } catch(e) {}
+}
 function revalidateCloudSync() {
   var savedToken = CESTISStore.getItem('schoolDashboardGoogleAccessToken');
   var savedExpiry = CESTISStore.getItem('schoolDashboardGoogleTokenExpiry');
@@ -28740,6 +28793,7 @@ function revalidateCloudSync() {
       dismissCloudNotification();
       updateCloudUI(true);
       console.log('[CloudSync] Token revalidated on page restore/focus');
+      resumeCloudSyncIfLoggedIn();
     }
   } else if (isCloudConnected || CESTISStore.getItem('schoolDashboardGoogleAccessToken')) {
     // Token expired — clear stale state and notify the user to reconnect
@@ -28855,51 +28909,10 @@ function cloudFetchAccountData(interactive) {
     var cloudCertApprovals = _bd.certDownloadApprovals || [];
     var cloudCertTemplates = _bd.certTemplates || {};
 
-    // Merge user accounts — update existing records AND add new ones, so that
-    // passwords reset or accounts changed on another device take effect here.
-    cloudAccounts.forEach(function(ca) {
-      if (isUserDeleted(ca.id)) return;   // an administrator revoked this login
-      var caUser = (ca.username || '').toLowerCase();
-      var caEmail = (ca.email || '').toLowerCase();
-      var local = userAccounts.find(function(la) {
-        if (la.id === ca.id) return true;
-        if (caUser && la.username && la.username.toLowerCase() === caUser) return true;
-        if (caEmail && la.email && la.email.toLowerCase() === caEmail) return true;
-        return false;
-      });
-      if (local) {
-        // Newest-edit-wins (see touchAccount): a stale cloud copy must not
-        // overwrite a fresher local edit. Ties — two unstamped copies — go
-        // through the shared rule, so a seeded default never replaces a real
-        // password in either direction (CESTISCore.accountAccess.cloudCopyWins).
-        var _cu2 = Date.parse(ca.updatedAt || '') || 0;
-        var _lu2 = Date.parse(local.updatedAt || '') || 0;
-        if (CESTISCore.accountAccess.cloudCopyWins(local, ca)) {
-          if (ca.password && ca.password !== local.password) {
-            local.password = ca.password;
-            // Drop any stale plaintext cache so an old password no longer validates
-            delete local._plaintextPw;
-          }
-          if (ca.status && ca.status !== local.status) local.status = ca.status;
-          if (ca.name && ca.name !== local.name) local.name = ca.name;
-          if (ca.email && ca.email !== local.email) local.email = ca.email;
-          if (ca.role && ca.role !== local.role) local.role = ca.role;
-          if (ca.programme !== undefined && ca.programme !== local.programme) local.programme = ca.programme;
-          // The seed marker travels with the password (an older version's
-          // mustChangePassword meant the same thing).
-          var _cSeed2 = !!(ca.defaultPassword || ca.mustChangePassword);
-          if (_cSeed2 !== !!local.defaultPassword) { if (_cSeed2) local.defaultPassword = true; else delete local.defaultPassword; }
-          if (_cu2 > _lu2 && ca.updatedAt !== local.updatedAt) local.updatedAt = ca.updatedAt;
-        }
-        if (ca.studentDataId && !local.studentDataId) local.studentDataId = ca.studentDataId;
-        // Carry two-step-verification state across devices (see mergeTwoFactorState).
-        mergeTwoFactorState(local, ca);
-      } else {
-        // Drop any plaintext cache an old backup leaked before adding
-        delete ca._plaintextPw;
-        userAccounts.push(ca);
-      }
-    });
+    // Merge user accounts — through the one rule every path uses, so a
+    // password reset on another device takes effect here and a stale copy
+    // never replaces a fresher one.
+    mergeCloudAccounts(cloudAccounts);
 
     // Merge student records. This used to replace the local record outright
     // ("cloud is authoritative"), which discarded edits made on this device that

@@ -153,9 +153,25 @@ assert(confirmFn.slice(0, 1200).indexOf('deletionBlocked') !== -1,
 assert(confirmFn.slice(0, 1600).indexOf('recordDeletedUser') !== -1,
   'and the removal is written down, not just spliced out');
 
-/* Every path that adds an account from the cloud must honour the tombstone. */
-const guards = (PAGE.match(/isUserDeleted\(/g) || []).length;
-assert(guards >= 6, 'every cloud merge that adds an account checks the tombstone first (found ' + guards + ')');
+/* Every path that adds an account from the cloud must honour the tombstone.
+   Every such path now runs through ONE function, mergeCloudAccounts, so the
+   check is structural: that function checks the tombstone, and it is the
+   only place a cloud account is pushed onto the list. */
+function mergeFn(src) {
+  const at = src.indexOf('function mergeCloudAccounts(');
+  let depth = 0;
+  for (let i = src.indexOf('{', at); i < src.length; i++) {
+    if (src[i] === '{') depth++; else if (src[i] === '}') { depth--; if (!depth) return src.slice(at, i + 1); }
+  }
+  return '';
+}
+const mergeSrc = mergeFn(PAGE);
+assert(mergeSrc.indexOf('isUserDeleted(') !== -1, 'the one account merge checks the tombstone first');
+const cloudPushes = (PAGE.match(/userAccounts\.push\((cloudUser|cu|ca|fresh)\)/g) || []);
+assert(cloudPushes.length === 1 && mergeSrc.indexOf('userAccounts.push(fresh)') !== -1,
+  'and it is the only place a cloud account is added (found ' + cloudPushes.length + ')');
+assert(PAGE.indexOf('function dropDeletedAccounts(') !== -1 && (PAGE.match(/dropDeletedAccounts\(\)/g) || []).length >= 2,
+  'and the tombstones are swept wherever the list is read or saved');
 assert(PAGE.indexOf("'voctrain_deletedUserIds'") !== -1, 'the deletions are stored');
 assert(PAGE.indexOf("'voctrain_deletedCentreIds','voctrain_deletedStudentIds','voctrain_deletedUserIds'") !== -1,
   'and travel with the accounts in every backup — restore the users without them and every deleted login returns');
@@ -217,8 +233,11 @@ assert(OADMIN.indexOf('openBulkDeleteUsers()') !== -1, 'offline: the bulk bar of
 assert(OPAGE.indexOf('function recordDeletedUser(') !== -1, 'offline: the removal is written down');
 assert(OPAGE.indexOf('function dropDeletedAccounts(') !== -1, 'offline: and swept wherever the list is read or saved');
 
-const oGuards = (OPAGE.match(/isUserDeleted\(/g) || []).length;
-assert(oGuards >= 6, 'offline: every cloud merge checks the tombstone first (found ' + oGuards + ')');
+const oMerge = mergeFn(OPAGE);
+assert(oMerge.indexOf('isUserDeleted(') !== -1, 'offline: the one account merge checks the tombstone first');
+const oPushes = (OPAGE.match(/userAccounts\.push\((cloudUser|cu|ca|fresh)\)/g) || []);
+assert(oPushes.length === 1 && oMerge.indexOf('userAccounts.push(fresh)') !== -1,
+  'offline: and it is the only place a cloud account is added (found ' + oPushes.length + ')');
 assert(OPAGE.indexOf("'voctrain_deletedUserIds',") !== -1,
   'offline: the deletions travel with the accounts in the local backup');
 
