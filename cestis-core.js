@@ -4745,12 +4745,69 @@
       return { accounts: kept, removed: droppedIds.length, droppedIds: droppedIds };
     }
 
+    /* ---- Which copy of an account a cloud merge keeps ----------------------
+
+       Every device seeds the three built-in logins (cestisadmin, adminstaff,
+       cmcadmin) with the published default password the first time it opens
+       the platform, and only then pulls the real accounts from Drive. The merge
+       decided between two copies of an account by their edit stamp (updatedAt)
+       and treated a tie — which is what two UNSTAMPED copies are — as "the
+       cloud copy wins". Most long-standing accounts are unstamped: the stamp
+       arrived long after their passwords were set. So a tie went to whichever
+       copy happened to arrive last: a brand-new device's seed, the backup in a
+       redundant Drive folder that a failed write left behind, a laptop that had
+       been off for months. Any of those carried a stale or default password
+       over the real one, and the next autosave carried it to every other
+       device. The Centre saw accounts nobody had touched refuse the right
+       password — the administrator's first, since that is the account every
+       device seeds and every backup ever written contains.
+
+       The rule is now:
+         1. a strictly newer stamp wins, in either direction (as before);
+         2. on a tie, a seeded copy — one still marked to change its published
+            default — yields to a copy holding a real password, in either
+            direction: a fresh device takes the real account, and a seed can
+            never replace a real password;
+         3. any other tie converges on the cloud copy, as before, so legacy
+            deployments still settle. (checkPassword stamps an unstamped copy
+            the moment it authenticates its owner, so after one sign-in the
+            working password is the newest copy and rule 1 protects it.) */
+    var KNOWN_DEFAULT_PASSWORDS = ['cestisadmin123$', 'admin123'];
+
+    /* A copy still on the platform's published default: seeded by a device
+       that had never seen the real account, or never changed since. */
+    function isSeededLogin(account) {
+      if (!account) return false;
+      if (account.mustChangePassword) return true;
+      return KNOWN_DEFAULT_PASSWORDS.indexOf(account.password) !== -1;
+    }
+
+    function editStamp(account) {
+      var t = Date.parse((account && account.updatedAt) || '');
+      return isNaN(t) ? 0 : t;
+    }
+
+    /* Should the cloud copy of an account replace the local one? */
+    function cloudCopyWins(local, cloud) {
+      if (!cloud) return false;
+      if (!local) return true;
+      var cu = editStamp(cloud), lu = editStamp(local);
+      if (cu > lu) return true;
+      if (lu > cu) return false;
+      var cloudReal = hasPassword(cloud) && !isSeededLogin(cloud);
+      var localReal = hasPassword(local) && !isSeededLogin(local);
+      if (localReal && !cloudReal) return false;   // a default never replaces a real password
+      if (cloudReal && !localReal) return true;    // the seed on a fresh device yields
+      return true;                                 // legacy tie: converge on the cloud copy
+    }
+
     return {
       idMatches: idMatches, hasPassword: hasPassword, check: check,
       find: find, findAnyRole: findAnyRole, adminLabel: adminLabel,
       usableAdmins: usableAdmins, wouldStrandAdmins: wouldStrandAdmins,
       needsRecoveryAdmin: needsRecoveryAdmin,
-      deletionBlocked: deletionBlocked, dropDeleted: dropDeleted
+      deletionBlocked: deletionBlocked, dropDeleted: dropDeleted,
+      isSeededLogin: isSeededLogin, cloudCopyWins: cloudCopyWins
     };
   })();
 
@@ -4900,8 +4957,24 @@
       return out;
     }
 
+    /* Order the copies of a backup so the newest applies LAST — and so wins
+       every tie the record-level rules cannot decide (two unstamped copies of
+       the same account, say). Every Drive folder holds a copy of the same
+       backup; a copy a failed write left behind is older than the rest, and
+       merging the folders in list order let such a copy overrule the current
+       one simply by coming later in the list. Copies whose age is unknown go
+       first: they are the ones a known-newer copy should overrule. */
+    function oldestFirst(entries, stampOf) {
+      var get = stampOf || function (e) { return e && e.modifiedTime; };
+      return (Array.isArray(entries) ? entries.slice() : []).map(function (e, i) {
+        var t = Date.parse(get(e) || '');
+        return { e: e, i: i, t: isNaN(t) ? 0 : t };
+      }).sort(function (a, b) { return (a.t - b.t) || (a.i - b.i); }).map(function (x) { return x.e; });
+    }
+
     return { bestApproval: bestApproval, applyStudent: applyStudent,
-      applyApproval: applyApproval, applySkillAreas: applySkillAreas };
+      applyApproval: applyApproval, applySkillAreas: applySkillAreas,
+      oldestFirst: oldestFirst };
   })();
 
   /* ==========================================================================
