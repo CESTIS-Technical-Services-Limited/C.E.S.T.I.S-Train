@@ -173,9 +173,10 @@ PAGES.forEach(function (page) {
   assertEq(admin && admin.mustChangePassword, undefined, w + ': and NOT marked to change it');
   assert(accts.every(function (a) { return !a.mustChangePassword; }), w + ': no seed is marked to change its password');
 
-  // A password somebody set is left exactly as it is — that is "unless changed by user".
+  // A password somebody set AFTER the Centre's decision is left exactly as it
+  // is — that is "unless changed by user".
   accts = loadAccounts(page, { voctrain_users: JSON.stringify([
-    { id: 'USR-001', username: 'cestisadmin', role: 'admin', password: REAL, status: 'active', updatedAt: T1 }]) });
+    { id: 'USR-001', username: 'cestisadmin', role: 'admin', password: REAL, status: 'active', updatedAt: '2026-09-10T00:00:00.000Z' }]) });
   const kept = accts.find(function (a) { return a.id === 'USR-001'; });
   assertEq(kept && kept.password, REAL, w + ': a changed password is never put back to the default');
   assertEq(kept && kept.defaultPassword, undefined, w + ': and is not marked as a seed');
@@ -186,6 +187,30 @@ PAGES.forEach(function (page) {
   const legacy = accts.find(function (a) { return a.id === 'USR-001'; });
   assertEq(legacy && legacy.defaultPassword, true, w + ': an older version\'s flag becomes the seed marker');
   assertEq(legacy && legacy.mustChangePassword, undefined, w + ': and the forced change is retired');
+
+  // The Centre's one-time decision: whatever copy of the administrator a
+  // device holds — a password set under an older version's forced change, a
+  // stale hash from a folder — goes back to the default, ONCE, stamped with
+  // the decision, so it outranks every copy from before it.
+  accts = loadAccounts(page, { voctrain_users: JSON.stringify([
+    { id: 'USR-001', username: 'cestisadmin', role: 'admin', password: REAL, status: 'disabled' }]) });
+  const reset = accts.find(function (a) { return a.id === 'USR-001'; });
+  assertEq(reset && reset.password, 'cestisadmin123$', w + ': an unknown administrator password is put back to the default');
+  assertEq(reset && reset.defaultPassword, true, w + ': marked as a seed');
+  assertEq(reset && reset.status, 'active', w + ': and usable');
+  assert(reset && Date.parse(reset.updatedAt) > 0, w + ': stamped with the decision, so it outranks every older copy');
+  assertEq(page.core.accountAccess.cloudCopyWins(reset, { id: 'USR-001', password: OTHER }), false, w + ': a stale unstamped cloud copy cannot bring the unknown password back');
+  assertEq(page.core.accountAccess.cloudCopyWins(reset, { id: 'USR-001', password: OTHER, updatedAt: T1 }), false, w + ': nor one stamped before the decision');
+  const later = new Date(Date.parse(reset.updatedAt) + 86400000).toISOString();
+  assertEq(page.core.accountAccess.cloudCopyWins(reset, { id: 'USR-001', password: OTHER, updatedAt: later }), true, w + ': a password the Centre sets after the decision wins');
+  // Applied once per device: a later load leaves a password set afterwards alone.
+  const done = { voctrain_adminDefaultReset: '1', voctrain_users: JSON.stringify([
+    { id: 'USR-001', username: 'cestisadmin', role: 'admin', password: REAL, status: 'active', updatedAt: later }]) };
+  accts = loadAccounts(page, done);
+  assertEq(accts.find(function (a) { return a.id === 'USR-001'; }).password, REAL, w + ': a device that already applied it never applies it again');
+  accts = loadAccounts(page, { voctrain_users: JSON.stringify([
+    { id: 'USR-001', username: 'cestisadmin', role: 'admin', password: REAL, status: 'active', updatedAt: later }]) });
+  assertEq(accts.find(function (a) { return a.id === 'USR-001'; }).password, REAL, w + ': and a copy already changed after the decision is left alone even on first application');
 
   // A seed left with no password at all gets the default back.
   accts = loadAccounts(page, { voctrain_users: JSON.stringify([

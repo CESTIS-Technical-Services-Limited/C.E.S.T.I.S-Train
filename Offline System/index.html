@@ -7641,7 +7641,9 @@ var umSelectedIds = [];
 
 function saveUserAccounts() {
   try { persistUserAccounts(); } catch(e) {}
-  // Push changes to Google Drive immediately (debounced)
+  // The accounts ledger goes up at once (its own small file), and the whole
+  // dataset follows on the debounced save.
+  try { scheduleAccountsLedgerSave(); } catch(e) {}
   scheduleDebouncedCloudSave();
 }
 // Stamp an account as edited NOW. The cloud merges compare this stamp so a stale
@@ -7714,6 +7716,32 @@ function loadUserAccounts() {
       if(!rec.password) { rec.password = DEFAULT_SEED_PW; rec.defaultPassword = true; }
       console.warn('[Accounts] No administrator could sign in — the built-in recovery login (' + rec.username + ') has been re-enabled.');
     }
+    // The Centre's decision (2 September 2026): the built-in administrator
+    // signs in with the published default on every device. Every copy of that
+    // account in circulation — a default hashed by an older version, a
+    // password set under the forced change those versions imposed, a stale
+    // copy in a folder — is put back to the default ONCE, carrying the stamp
+    // of that decision, so it outranks every copy from before it and yields
+    // to any password the Centre sets after it. Each device applies it once.
+    var ADMIN_DEFAULT_RESET = { version: 1, at: '2026-09-03T05:00:00.000Z' };
+    try {
+      var _resetDone = parseInt(CESTISStore.getItem('voctrain_adminDefaultReset') || '0', 10) || 0;
+      if (_resetDone < ADMIN_DEFAULT_RESET.version) {
+        var adm = userAccounts.find(function(a){ return a && a.id === 'USR-001'; });
+        if (adm && (Date.parse(adm.updatedAt || '') || 0) < Date.parse(ADMIN_DEFAULT_RESET.at)) {
+          adm.password = DEFAULT_SEED_PW;
+          adm.defaultPassword = true;
+          delete adm.mustChangePassword;
+          try { delete adm._plaintextPw; } catch(e) {}
+          adm.role = 'admin';
+          adm.status = 'active';
+          if(!adm.username) adm.username = 'cestisadmin';
+          adm.updatedAt = ADMIN_DEFAULT_RESET.at;
+          console.warn('[Accounts] The built-in administrator is back on the published default password (one-time reset v' + ADMIN_DEFAULT_RESET.version + ').');
+        }
+        CESTISStore.setItem('voctrain_adminDefaultReset', String(ADMIN_DEFAULT_RESET.version));
+      }
+    } catch(e) {}
     // Mark ANY account still carrying a published default (the literal seeds
     // above start plaintext, before hashing runs) so the cloud merge treats it
     // as a seed. A flag left by an older version meant the same thing and is
@@ -26689,6 +26717,88 @@ async function syncAllUserLoginFoldersToDrive() {
 }
 
 // Silent merge from a backup file (no confirmations, no alerts, no page reload)
+/* ===================== ACCOUNT LEDGER — own file, own save, first to load =====================
+   The accounts have a file of their own on Drive: CESTIS_ACCOUNTS.json in the
+   Main folder. It holds the accounts (hashed) and the deletions, nothing else.
+   It is written the moment an account changes — not on the debounced tick
+   with the whole dataset — and it is read FIRST at every login sync, before
+   any of the big backups, so a device can sign people in even when the main
+   backup is huge, stale or broken, and a password reset reaches every device
+   within seconds. It is merged through the one account rule, so it can add
+   and update but never wipe. */
+var ACCOUNTS_LEDGER_FILE = 'CESTIS_ACCOUNTS.json';
+var _accountsLedgerFileId = null;
+var _accountsLedgerTimer = null;
+var _accountsLedgerSaving = false;
+function ledgerHeaders(token) { return { 'Authorization': 'Bearer ' + (token || googleAccessToken) }; }
+async function findAccountsLedgerFile(token) {
+  if (_accountsLedgerFileId) return _accountsLedgerFileId;
+  try {
+    var q = "name='" + ACCOUNTS_LEDGER_FILE + "' and '" + GOOGLE_DRIVE_CONFIG.FOLDER_ID + "' in parents and trashed=false";
+    var r = await fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)&pageSize=1', { headers: ledgerHeaders(token) });
+    if (!r.ok) return 'LOOKUP_FAILED';
+    var d = await r.json();
+    if (d.files && d.files.length) { _accountsLedgerFileId = d.files[0].id; return _accountsLedgerFileId; }
+    return null;                                  // confirmed absent — safe to create
+  } catch (e) { return 'LOOKUP_FAILED'; }
+}
+function scheduleAccountsLedgerSave() {
+  if (!isCloudConnected || !googleAccessToken) return;
+  if (_accountsLedgerTimer) clearTimeout(_accountsLedgerTimer);
+  _accountsLedgerTimer = setTimeout(function() { _accountsLedgerTimer = null; saveAccountsLedger(); }, 800);
+}
+async function saveAccountsLedger() {
+  if (!isCloudConnected || !googleAccessToken || _accountsLedgerSaving) return false;
+  if (!Array.isArray(userAccounts) || !userAccounts.length) return false;   // an empty ledger is never published
+  if (typeof _sessionWiped !== 'undefined' && _sessionWiped) return false;
+  _accountsLedgerSaving = true;
+  try {
+    var body = JSON.stringify({
+      version: 1,
+      savedAt: new Date().toISOString(),
+      savedBy: (currentLoggedInUser && currentLoggedInUser.username) || '',
+      accounts: userAccounts,
+      deletedUserIds: Object.keys((typeof _getDeletedUserIds === 'function' ? _getDeletedUserIds() : {}) || {})
+    }, stripSecretFields);
+    var fileId = await findAccountsLedgerFile();
+    if (fileId === 'LOOKUP_FAILED') return false;
+    var resp;
+    if (fileId) {
+      resp = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
+        method: 'PATCH', headers: { 'Authorization': 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' }, body: body });
+    } else {
+      var meta = { name: ACCOUNTS_LEDGER_FILE, parents: [GOOGLE_DRIVE_CONFIG.FOLDER_ID], mimeType: 'application/json' };
+      var fd = new FormData();
+      fd.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+      fd.append('file', new Blob([body], { type: 'application/json' }));
+      resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+        method: 'POST', headers: { 'Authorization': 'Bearer ' + googleAccessToken }, body: fd });
+      if (resp.ok) { try { _accountsLedgerFileId = (await resp.json()).id; } catch (e) {} }
+    }
+    if (!resp.ok) { if (resp.status === 401 || resp.status === 403) handleCloudAuthExpired(); return false; }
+    return true;
+  } catch (e) { console.warn('[Accounts] Ledger save failed:', e && e.message); return false; }
+  finally { _accountsLedgerSaving = false; }
+}
+/* Read the ledger and merge it through the one account rule. Returns true
+   when a ledger was read, whether or not anything changed. */
+async function loadAccountsLedger(token) {
+  try {
+    var fileId = await findAccountsLedgerFile(token);
+    if (!fileId || fileId === 'LOOKUP_FAILED') return false;
+    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: ledgerHeaders(token) });
+    if (!r.ok) return false;
+    var led = await r.json();
+    if (!led || !Array.isArray(led.accounts) || !led.accounts.length) return false;
+    // Deletions first, so a revoked login is not merged back in.
+    if (Array.isArray(led.deletedUserIds)) led.deletedUserIds.forEach(function(id) { if (id && !isUserDeleted(id)) recordDeletedUser(id); });
+    var changed = mergeCloudAccounts(led.accounts);
+    if (changed) { try { persistUserAccounts(); } catch (e) {} }
+    console.log('[Accounts] Ledger read: ' + led.accounts.length + ' account(s), ' + changed + ' change(s).');
+    return true;
+  } catch (e) { console.warn('[Accounts] Ledger read failed:', e && e.message); return false; }
+}
+
 /* ONE rule for every account that arrives from the cloud.
 
    Five paths brought accounts in — the folder merge, the pre-login fetch,
@@ -27288,6 +27398,7 @@ async function autoSyncOnLogin() {
     // rest; merging in list order let such a copy overrule the current one by
     // coming later. Locate them all first and merge the OLDEST first, so the
     // newest copy applies last and wins every tie the record rules leave open.
+    try { await loadAccountsLedger(); } catch (e) {}   // the accounts first
     var _copies = [];
     for (const folder of ALL_DRIVE_FOLDERS) {
       try {
@@ -27312,6 +27423,7 @@ async function autoSyncOnLogin() {
       }
     }
 
+    try { await loadAccountsLedger(); } catch (e) {}   // and again, so its copy settles ties
     // 1b. Load per-user backup (user-specific data like chat, profiles)
     try {
       _perUserFileId = null; // reset cache for new login
@@ -28032,6 +28144,10 @@ async function loginPageSync() {
     var totalMerged = 0;
     var foldersSynced = 0;
 
+    // Step 1b: The accounts first — their own small file, so people can sign
+    // in even when the big backups are slow, stale or broken.
+    try { updateLoginSyncStatus('Reading the accounts...', ''); await loadAccountsLedger(); } catch (e) {}
+
     // Step 2: Sync main backup data from ALL folders. Every folder holds a copy
     // of the same backup, and a copy a failed write left behind is older than
     // the rest. Locate them all first and merge the OLDEST first, so the newest
@@ -28065,6 +28181,10 @@ async function loginPageSync() {
         console.warn('[LoginSync] Error syncing from ' + entry.folder.label + ':', e);
       }
     }
+
+    // Step 2b: The accounts ledger once more, after the folders, so its copy
+    // settles any tie a folder's stale copy would otherwise win.
+    try { await loadAccountsLedger(); } catch (e) {}
 
     // Step 3: Also sync chat-specific data from chat folder
     try {
@@ -28134,6 +28254,9 @@ async function loginPageSync() {
     } else {
       updateLoginSyncStatus(isAdmin ? 'Sync failed: ' + err.message : 'Sync failed. Try again.', 'error');
     }
+    // The accounts ledger is small and its own file: try it even when the
+    // big sync failed, so the people can still sign in.
+    try { await loadAccountsLedger(); } catch (e) {}
     // Still allow login if local accounts exist — don't trap users on a failed sync
     var hasLocalData = userAccounts.length > 3 || userAccounts.some(function(u) {
       return u.id !== 'USR-001' && u.id !== 'USR-011' && u.id !== 'USR-021';
@@ -28335,6 +28458,10 @@ function cloudFetchAccountData(interactive) {
       updateLoginSyncStatus('Could not connect to cloud. Use the Sync Now button to sign in to Google.', 'error');
       return false;
     }
+
+    // Step 1b: The accounts ledger first — small, its own file, read even
+    // when the main backup cannot be.
+    try { await loadAccountsLedger(token); } catch (e) {}
 
     // Step 2: Find and read the backup file from Google Drive
     var folderId = GOOGLE_DRIVE_CONFIG.FOLDER_ID;
