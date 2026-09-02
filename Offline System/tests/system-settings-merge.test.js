@@ -95,7 +95,54 @@ let s2 = Core.mergeSystemSettings(s1, { extSystems: { tms: { url: 'x', headline:
 let s3 = Core.mergeSystemSettings(s2, { extSystems: { tms: { url: 'x', headline: '' } } });
 assertEq(s3.extSystems.tms.headline, LOCAL_HEADLINE, 'headline still present after three consecutive syncs');
 
-/* ---------- 6. Null-safety ---------- */
+/* ---------- 6. Maintenance mode stays switched off ----------
+   The reported bug: an administrator deactivates maintenance mode and it turns
+   itself back on. Deactivating is local-only — the cloud copy changes only on a
+   manual Save to Cloud — and every login pulls, so the stale ON came back. */
+console.log('Maintenance mode: the more recent decision wins');
+const CLOUD_ON = { maintenanceMode: true, maintenanceMessage: 'Back shortly.', maintenanceUpdatedAt: '2026-08-09T09:00:00.000Z' };
+
+// The admin switches it OFF after the cloud copy was written.
+let offLocal = { maintenanceMode: false, maintenanceMessage: '', maintenanceUpdatedAt: '2026-08-09T15:00:00.000Z' };
+let afterPull = Core.mergeSystemSettings(offLocal, CLOUD_ON);
+assertEq(afterPull.maintenanceMode, false, 'a pull cannot switch maintenance mode back on');
+assertEq(afterPull.maintenanceUpdatedAt, '2026-08-09T15:00:00.000Z', 'and the newer stamp is what carries forward');
+
+// Every login pulls again — three in a row must not flip it either.
+let p2 = Core.mergeSystemSettings(afterPull, CLOUD_ON);
+let p3 = Core.mergeSystemSettings(p2, CLOUD_ON);
+assertEq(p3.maintenanceMode, false, 'still off after three consecutive pulls');
+
+// A cloud copy predating the fix has no stamp at all: it cannot outrank a
+// decision that knows when it was made.
+assertEq(Core.mergeSystemSettings(offLocal, { maintenanceMode: true }).maintenanceMode, false,
+  'an UNDATED cloud value does not override a dated local decision');
+
+// The other direction still works: an admin activating it elsewhere wins.
+let onRemote = { maintenanceMode: true, maintenanceMessage: 'Upgrading tonight.', maintenanceUpdatedAt: '2026-08-10T08:00:00.000Z' };
+let activated = Core.mergeSystemSettings(offLocal, onRemote);
+assertEq(activated.maintenanceMode, true, 'a NEWER remote activation still takes effect');
+assertEq(activated.maintenanceMessage, 'Upgrading tonight.', 'with its message');
+
+// A device that has never touched the setting adopts the cloud value.
+assertEq(Core.mergeSystemSettings({ institutionName: 'C.E.S.T.I.S' }, CLOUD_ON).maintenanceMode, true,
+  'a device with no opinion adopts the cloud setting');
+// ...and a cloud copy with no maintenance key cannot erase a local one.
+assertEq(Core.mergeSystemSettings(offLocal, { institutionName: 'C.E.S.T.I.S' }).maintenanceMode, false,
+  'a cloud copy that predates the feature leaves the local setting alone');
+assertEq(Core.mergeSystemSettings({ maintenanceMode: true, maintenanceUpdatedAt: '2026-08-09T09:00:00.000Z' }, {}).maintenanceMode, true,
+  'including when the local setting is ON');
+
+// A blank message never erases the text still held on the other side.
+assertEq(Core.mergeSystemSettings({ maintenanceMode: false, maintenanceMessage: '', maintenanceUpdatedAt: '2026-08-09T15:00:00.000Z' }, CLOUD_ON).maintenanceMessage,
+  'Back shortly.', 'a blank message does not wipe the one the cloud still holds');
+
+// Repeated merges are stable — the shape that made this "come back" every sync.
+let s = offLocal;
+for (let i = 0; i < 5; i++) s = Core.mergeSystemSettings(s, CLOUD_ON);
+assertEq(s.maintenanceMode, false, 'five syncs later it is STILL off');
+
+/* ---------- 7. Null-safety ---------- */
 console.log('Null safety');
 assert(!!Core.mergeSystemSettings(null, null), 'merging nulls returns an object');
 assertEq(Object.keys(Core.mergeSystemSettings(null, null)).length, 0, 'merging nulls yields an empty object');

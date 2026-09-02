@@ -125,7 +125,8 @@ console.log('Every account merge goes through the shared rule');
 PAGES.forEach(function (page) {
   const src = page.src, where = page.where;
   const uses = (src.match(/CESTISCore\.accountAccess\.cloudCopyWins\(/g) || []).length;
-  assert(uses >= 2, where + ' decides the cloud-vs-local copy through cloudCopyWins on both merge paths (found ' + uses + ')');
+  assert(uses >= 1 && src.indexOf('function mergeCloudAccounts(') !== -1 && (src.match(/mergeCloudAccounts\(/g) || []).length >= 5,
+    where + ' decides the cloud-vs-local copy through cloudCopyWins inside the one account merge every path uses (found ' + uses + ')');
   assert(src.indexOf('if (_cu >= _lu)') === -1 && src.indexOf('if (_cu2 >= _lu2)') === -1,
     where + ' no longer settles an unstamped tie on the cloud copy by itself');
   const orders = (src.match(/CESTISCore\.cloudMerge\.oldestFirst\(/g) || []).length;
@@ -142,9 +143,8 @@ PAGES.forEach(function (page) {
     where + ' clears the seed marker on every path that sets a password');
   assert(src.indexOf('function markDefaultPasswordAccounts') !== -1 && src.indexOf('flagDefaultPasswordAccounts') === -1,
     where + ' keeps the marker true to the hash instead of flagging accounts for a forced change');
-  assert((src.match(/cloudUser\.defaultPassword \|\| cloudUser\.mustChangePassword/g) || []).length === 1
-    && (src.match(/ca\.defaultPassword \|\| ca\.mustChangePassword/g) || []).length === 1,
-    where + ' carries the seed marker with the password on both merge paths');
+  assert((src.match(/cloudUser\.defaultPassword \|\| cloudUser\.mustChangePassword/g) || []).length === 1,
+    where + ' carries the seed marker with the password in the one account merge');
 });
 
 /* ---------- 3b. The seed keeps the published default, and says so ---------- */
