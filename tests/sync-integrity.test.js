@@ -199,5 +199,64 @@ PAGES.forEach(function (page) {
   assert(auto.indexOf('systemSettings: _isAdminSave ? systemSettings : undefined') !== -1, w + ': only an administrator publishes the settings');
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed ? 1 : 0);
+/* ---------- 5. The accounts have a file of their own ---------- */
+console.log('The accounts have their own ledger: saved at once, read first');
+async function ledger(page) {
+  const w = page.where, src = page.src;
+  assert(extractFunction(src, 'saveUserAccounts', w).indexOf('scheduleAccountsLedgerSave()') !== -1, w + ': every account change schedules the ledger');
+  const lp = extractFunction(src, 'loginPageSync', w);
+  const firstLedger = lp.indexOf('await loadAccountsLedger()'), folders = lp.indexOf('oldestFirst(_found)');
+  assert(firstLedger !== -1 && firstLedger < folders, w + ': the login sync reads the ledger before the folders');
+  assert((lp.match(/await loadAccountsLedger\(\)/g) || []).length >= 3, w + ': and again after them, and on a failed sync');
+  const al = extractFunction(src, 'autoSyncOnLogin', w);
+  assert((al.match(/await loadAccountsLedger\(\)/g) || []).length >= 2, w + ': the post-login sync does the same');
+  assert(extractFunction(src, 'cloudFetchAccountData', w).indexOf('await loadAccountsLedger(token)') !== -1, w + ': the pre-login account fetch reads it first');
+
+  // Run the real save and read against a stubbed Drive.
+  const calls = [];
+  const drive = { file: null, body: null };
+  const sandbox = {
+    console: { log: function () {}, warn: function () {} }, JSON: JSON, Object: Object, Array: Array, Date: Date, Blob: function (parts) { this.text = parts.join(''); },
+    FormData: function () { this.parts = {}; this.append = function (k, v) { this.parts[k] = v; }; },
+    isCloudConnected: true, googleAccessToken: 'tok', currentLoggedInUser: { username: 'cestisadmin' }, _sessionWiped: false,
+    GOOGLE_DRIVE_CONFIG: { FOLDER_ID: 'F1' }, CESTISCore: page.core, encodeURIComponent: encodeURIComponent,
+    userAccounts: [{ id: 'USR-001', username: 'cestisadmin', role: 'admin', password: REAL, updatedAt: T2 }],
+    _getDeletedUserIds: function () { return { 'USR-gone': true }; }, stripSecretFields: function (k, v) { return k === '_plaintextPw' ? undefined : v; },
+    handleCloudAuthExpired: function () {}, isUserDeleted: function (id) { return id === 'USR-gone'; }, recordDeletedUser: function (id) { calls.push('tomb:' + id); },
+    persistUserAccounts: function () { calls.push('persist'); }, mergeTwoFactorState: function () { return false; },
+    setTimeout: setTimeout, clearTimeout: clearTimeout,
+    fetch: async function (url, opts) {
+      calls.push((opts && opts.method || 'GET') + ' ' + url.replace(/\?.*$/, ''));
+      if (url.indexOf('/files?q=') !== -1) return { ok: true, json: async function () { return { files: drive.file ? [{ id: drive.file }] : [] }; } };
+      if (url.indexOf('uploadType=multipart') !== -1) { drive.file = 'LEDGER1'; drive.body = opts.body.parts.file.text; return { ok: true, json: async function () { return { id: 'LEDGER1' }; } }; }
+      if (url.indexOf('uploadType=media') !== -1) { drive.body = opts.body; return { ok: true, json: async function () { return {}; } }; }
+      if (url.indexOf('alt=media') !== -1) return { ok: true, json: async function () { return JSON.parse(drive.body); } };
+      return { ok: false, status: 404 };
+    }
+  };
+  vm.createContext(sandbox);
+  const names = ['ledgerHeaders', 'findAccountsLedgerFile', 'saveAccountsLedger', 'loadAccountsLedger', 'mergeCloudAccounts'];
+  vm.runInContext("var ACCOUNTS_LEDGER_FILE = 'CESTIS_ACCOUNTS.json'; var _accountsLedgerFileId = null; var _accountsLedgerSaving = false;\n"
+    + names.map(function (n) { return extractFunction(src, n, w); }).join('\n'), sandbox);
+  assertEq(await vm.runInContext('saveAccountsLedger()', sandbox), true, w + ': the ledger is created when absent');
+  const written = JSON.parse(drive.body);
+  assertEq(written.accounts.length, 1, w + ': it holds the accounts');
+  assertEq(written.accounts[0].password, REAL, w + ': hashed, as stored');
+  assertEq(written.deletedUserIds.join(','), 'USR-gone', w + ': and the deletions');
+  sandbox.userAccounts = [];
+  assertEq(await vm.runInContext('saveAccountsLedger()', sandbox), false, w + ': an empty list is never published');
+  sandbox.userAccounts[0] = { id: 'USR-001', username: 'cestisadmin', role: 'admin', password: 'pbkdf2$210000$aa$bb', defaultPassword: true };
+  sandbox.userAccounts.push({ id: 'USR-gone', username: 'old', role: 'student', password: OTHER });
+  assertEq(await vm.runInContext("loadAccountsLedger('tok')", sandbox), true, w + ': the ledger is read');
+  assertEq(sandbox.userAccounts[0].password, REAL, w + ': and merged through the one account rule (the seed yields to the real password)');
+  assert(calls.indexOf('tomb:USR-gone') === -1 && calls.indexOf('persist') !== -1, w + ': a known deletion is not re-recorded, and the result is saved');
+  sandbox.userAccounts[0].password = OTHER; sandbox.userAccounts[0].updatedAt = T3 = '2026-09-10T00:00:00.000Z';
+  await vm.runInContext("loadAccountsLedger('tok')", sandbox);
+  assertEq(sandbox.userAccounts[0].password, OTHER, w + ': a fresher local change is never undone by the ledger');
+}
+var T3;
+(async function () {
+  for (const page of PAGES) await ledger(page);
+  console.log('\n' + passed + ' passed, ' + failed + ' failed');
+  process.exit(failed ? 1 : 0);
+})().catch(function (e) { console.error(e); process.exit(1); });
