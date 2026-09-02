@@ -1974,8 +1974,16 @@
     var R = (remote && typeof remote === 'object') ? remote : {};
     var out = {};
     Object.keys(L).forEach(function (k) { out[k] = L[k]; });
+    // The settings as a whole carry updatedAt (stamped on save when their
+    // content changed): a strictly newer local copy keeps its scalars, and a
+    // stamped local copy outranks an unstamped cloud one. Otherwise the
+    // established cloud-wins rule stands. extSystems and maintenance mode
+    // carry their own stamps and are decided below.
+    var lt = Date.parse(L.updatedAt || '') || 0, rt = Date.parse(R.updatedAt || '') || 0;
+    var localWins = (lt && rt) ? lt > rt : (lt > 0 && !rt);
     Object.keys(R).forEach(function (k) {
       if (k === 'extSystems') return; // handled below
+      if (localWins && (k in L)) return;
       out[k] = R[k];
     });
     if (L.extSystems || R.extSystems) {
@@ -4051,6 +4059,194 @@
      student and account merges already follow. A key only one side has is
      always taken; that is new work, not a deletion.
      ========================================================================== */
+  /* ==========================================================================
+     RECORD SYNC — newest edit wins, deletions travel, on EVERY collection
+
+     WHY THIS EXISTS
+     ---------------
+     Most collections merged add-only: a record the cloud had and this device
+     did not was added, and that was all. An exam edited on one machine, an
+     announcement corrected, a grade changed, a notification dismissed, a
+     resource removed — none of it reached any other device, and a deleted
+     record came straight back on the next sync. Every device held its own
+     version of the Centre's data and called it synced.
+
+     Two things make convergence possible, and both are decided here so every
+     collection follows the same rule:
+
+       - a record carries updatedAt, the moment it last changed. Records are
+         not stamped by the code that edits them (there are hundreds of edit
+         sites); they are stamped on SAVE, by comparing each record's content
+         with a fingerprint taken the last time it was saved or loaded. A
+         record whose content changed but whose stamp did not was edited
+         here — stamp it now. A record whose stamp changed too arrived from
+         elsewhere with its own stamp — keep it.
+       - a deletion leaves a tombstone: the record's key and the moment it
+         was removed. Tombstones travel with the backup, and a record is
+         dropped on every device unless it was edited AFTER it was deleted,
+         in which case the edit wins and the record lives.
+
+     The merge: the cloud copy replaces the local one only when it is
+     strictly newer; a strictly newer local copy is kept; two copies with no
+     stamp — records from before this existed — keep the local one and fill
+     its blanks from the cloud, exactly as the old add-only merges did, so a
+     legacy deployment settles the way it always has.
+     ========================================================================== */
+  Core.sync = (function () {
+    var STAMP = 'updatedAt';
+    var IGNORE = { updatedAt: 1, _plaintextPw: 1 };
+
+    function stampOf(r) { var t = Date.parse((r && r[STAMP]) || ''); return isNaN(t) ? 0 : t; }
+    function isBlank(v) { return v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length); }
+    function isPlain(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+
+    /* The content of a record, stamp excluded — what "changed" means. */
+    function fingerprint(r, ignoreKeys) {
+      if (!r || typeof r !== 'object') return Core.hashString(String(r));
+      var c = {};
+      Object.keys(r).sort().forEach(function (k) {
+        if (IGNORE[k] || (ignoreKeys && ignoreKeys[k])) return;
+        c[k] = r[k];
+      });
+      return Core.hashString(JSON.stringify(c));
+    }
+
+    /* Stamp every record whose content changed here since the index was
+       taken; return the new index. An index of null means "no baseline yet":
+       nothing is stamped, the baseline is simply taken. A record not in the
+       index is new here and is stamped unless it already carries a stamp. */
+    function stampChanges(records, keyOf, index, now, ignoreKeys) {
+      var next = {};
+      var list = Array.isArray(records) ? records : Object.keys(records || {}).map(function (k) { return records[k]; });
+      var keys = Array.isArray(records) ? null : Object.keys(records || {});
+      list.forEach(function (r, i) {
+        if (!r || typeof r !== 'object') return;
+        var k = keys ? keys[i] : keyOf(r);
+        if (k === undefined || k === null) return;
+        var fp = fingerprint(r, ignoreKeys);
+        if (index) {
+          var prev = index[k];
+          if (!prev) { if (!r[STAMP]) r[STAMP] = now; }
+          else if (prev.fp !== fp && (r[STAMP] || '') === (prev.stamp || '')) { r[STAMP] = now; }
+        }
+        next[k] = { fp: fp, stamp: r[STAMP] || '' };
+      });
+      return next;
+    }
+
+    /* Keys in the index that the list no longer holds. A blanked list is
+       never a deletion (emptiness is never an edit), and neither is a sweep
+       that removes more than a quarter of a collection at once — that is
+       what a bug looks like, not what a person does; a deliberate bulk
+       removal is written down by the code that performs it. */
+    function detectRemovals(records, keyOf, index) {
+      if (!index) return [];
+      var have = {};
+      if (Array.isArray(records)) records.forEach(function (r) { if (r && typeof r === 'object') have[keyOf(r)] = 1; });
+      else Object.keys(records || {}).forEach(function (k) { have[k] = 1; });
+      var was = Object.keys(index);
+      var gone = was.filter(function (k) { return !have[k]; });
+      if (!gone.length) return [];
+      if (!Object.keys(have).length) return [];
+      if (gone.length > 5 && gone.length > was.length / 4) return [];
+      return gone;
+    }
+
+    /* Merge one collection's tombstones with another's: the later removal
+       of each key stands. Mutates and returns `into`. */
+    function mergeTombstones(into, from) {
+      into = into || {};
+      Object.keys(from || {}).forEach(function (k) {
+        var t = Date.parse(from[k] || '') || 0, have = Date.parse(into[k] || '') || 0;
+        if (t > have) into[k] = from[k];
+      });
+      return into;
+    }
+    function deletedAfter(tombs, k, r) {
+      var t = tombs && tombs[k] ? (Date.parse(tombs[k]) || 0) : 0;
+      return t > 0 && t >= stampOf(r);
+    }
+
+    /* Replace the local record's content with the cloud copy's, keeping the
+       fields listed in keep (device-only data such as certificate images). */
+    function takeOver(local, cloud, keep) {
+      Object.keys(local).forEach(function (k) { if (!(keep && keep[k]) && !(k in cloud)) delete local[k]; });
+      Object.keys(cloud).forEach(function (k) { if (!(keep && keep[k]) || isBlank(local[k])) local[k] = cloud[k]; });
+    }
+    /* Two copies neither of which says when it changed: keep ours, fill its
+       blanks from theirs — one level into plain objects too (grades). */
+    function fillBlanks(local, cloud) {
+      var changed = false;
+      Object.keys(cloud).forEach(function (k) {
+        if (IGNORE[k]) return;
+        if (isBlank(local[k]) && !isBlank(cloud[k])) { local[k] = cloud[k]; changed = true; }
+        else if (isPlain(local[k]) && isPlain(cloud[k])) {
+          Object.keys(cloud[k]).forEach(function (j) {
+            if (local[k][j] === undefined && cloud[k][j] !== undefined) { local[k][j] = cloud[k][j]; changed = true; }
+          });
+        }
+      });
+      return changed;
+    }
+
+    /* Merge a cloud list into a local list IN PLACE. opts: { tombs, keep,
+       accept }. Returns { added, updated, removed }. */
+    function mergeList(local, cloud, keyOf, opts) {
+      opts = opts || {};
+      var out = { added: 0, updated: 0, removed: 0 };
+      if (!Array.isArray(local)) return out;
+      var tombs = opts.tombs || {};
+      // Deletions first: a record removed elsewhere after its last edit here.
+      for (var i = local.length - 1; i >= 0; i--) {
+        var r = local[i];
+        if (r && typeof r === 'object' && deletedAfter(tombs, keyOf(r), r)) { local.splice(i, 1); out.removed++; }
+      }
+      var byKey = {};
+      local.forEach(function (r) { if (r && typeof r === 'object') byKey[keyOf(r)] = r; });
+      (Array.isArray(cloud) ? cloud : []).forEach(function (c) {
+        if (!c || typeof c !== 'object') return;
+        if (opts.accept && !opts.accept(c)) return;
+        var k = keyOf(c);
+        if (k === undefined || k === null) return;
+        if (deletedAfter(tombs, k, c)) return;
+        var l = byKey[k];
+        if (!l) {
+          var fresh = {}; Object.keys(c).forEach(function (f) { if (!IGNORE[f] || f === STAMP) fresh[f] = c[f]; });
+          local.push(fresh); byKey[k] = fresh; out.added++; return;
+        }
+        var cs = stampOf(c), ls = stampOf(l);
+        if (cs > ls) { takeOver(l, c, opts.keep); out.updated++; }
+        else if (cs === ls && fillBlanks(l, c)) out.updated++;
+      });
+      return out;
+    }
+
+    /* The same for a map of key -> record. */
+    function mergeMap(local, cloud, opts) {
+      opts = opts || {};
+      var out = { added: 0, updated: 0, removed: 0 };
+      if (!isPlain(local)) return out;
+      var tombs = opts.tombs || {};
+      Object.keys(local).forEach(function (k) {
+        if (deletedAfter(tombs, k, local[k])) { delete local[k]; out.removed++; }
+      });
+      Object.keys(isPlain(cloud) ? cloud : {}).forEach(function (k) {
+        var c = cloud[k];
+        if (!isPlain(c)) { if (local[k] === undefined) { local[k] = c; out.added++; } return; }
+        if (deletedAfter(tombs, k, c)) return;
+        var l = local[k];
+        if (!isPlain(l)) { var fresh = {}; Object.keys(c).forEach(function (f) { if (f !== '_plaintextPw') fresh[f] = c[f]; }); local[k] = fresh; out.added++; return; }
+        var cs = stampOf(c), ls = stampOf(l);
+        if (cs > ls) { takeOver(l, c, opts.keep); out.updated++; }
+        else if (cs === ls && fillBlanks(l, c)) out.updated++;
+      });
+      return out;
+    }
+
+    return { stampOf: stampOf, fingerprint: fingerprint, stampChanges: stampChanges, detectRemovals: detectRemovals,
+      mergeTombstones: mergeTombstones, deletedAfter: deletedAfter, mergeList: mergeList, mergeMap: mergeMap };
+  })();
+
   Core.pageCloud = (function () {
 
     function stampOf(stamps, key) {

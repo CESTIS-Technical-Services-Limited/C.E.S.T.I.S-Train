@@ -5305,6 +5305,98 @@ async function hashPassword(password) {
 // path that sets a password clears the marker.
 var KNOWN_DEFAULT_PASSWORDS = ['cestisadmin123$', 'admin123'];
 
+/* ===================== RECORD SYNC: stamps and tombstones =====================
+   Every collection converges on the newest edit and deletions travel — see
+   CESTISCore.sync for the rule. This page's part: stamp what changed on every
+   save, write down what was deleted, and carry both to the cloud. */
+var syncTombstones = {};      // { collection: { key: deletedAtISO } } — travels with the backup
+var _syncIndex = {};          // { collection: { key: { fp, stamp } } } — the content last saved or loaded
+
+function syncKeyById(r) { return r && r.id != null ? String(r.id) : undefined; }
+function syncCollections() {
+  var lower = function(v) { return String(v == null ? '' : v).trim().toLowerCase(); };
+  return [
+    { name: 'exams',                 get: function(){ return exams; },                 key: function(r){ return lower(r.title) + '|' + lower(r.course); }, removals: true },
+    { name: 'announcements',         get: function(){ return announcements; },         key: function(r){ return r.id != null ? String(r.id) : 'title:' + lower(r.title); }, removals: true },
+    { name: 'calendarEvents',        get: function(){ return calendarEvents; },        key: function(r){ return lower(r.title) + '|' + lower(r.date); }, removals: true },
+    { name: 'chatRooms',             get: function(){ return lmsChatRooms; },          key: syncKeyById, removals: true },
+    { name: 'driveResources',        get: function(){ return driveResources; },        key: function(r){ return r.driveFileId ? 'drive:' + r.driveFileId : syncKeyById(r); }, removals: true },
+    { name: 'classSessions',         get: function(){ return classSessions; },         key: syncKeyById, removals: true },
+    { name: 'adminMeetings',         get: function(){ return adminMeetings; },         key: syncKeyById, removals: true },
+    { name: 'instructorAssignments', get: function(){ return instructorAssignments; }, key: syncKeyById, removals: true },
+    { name: 'assignmentSubmissions', get: function(){ return assignmentSubmissions; }, key: syncKeyById, removals: true },
+    { name: 'instructorResources',   get: function(){ return instructorResources; },   key: syncKeyById, removals: true },
+    { name: 'instructorData',        get: function(){ return instructorData; },        key: syncKeyById, removals: true },
+    { name: 'adrTasks',              get: function(){ return adrTasks; },              key: syncKeyById, removals: true },
+    { name: 'supportMessages',       get: function(){ return supportMessages; },       key: syncKeyById, removals: true },
+    { name: 'notifications',         get: function(){ return notifications; },         key: syncKeyById, removals: true },
+    { name: 'documentHubFiles',      get: function(){ return documentHubFiles; },      key: syncKeyById, removals: true },
+    { name: 'studentProfiles',       get: function(){ return studentProfiles; },       map: true, removals: true },
+    { name: 'instructorProfiles',    get: function(){ return instructorProfiles; },    map: true, removals: true },
+    { name: 'adrStaffMeta',          get: function(){ return adrStaffMeta; },          map: true, removals: true },
+    { name: 'certTemplates',         get: function(){ return certTemplates; },         map: true, removals: true, ignore: { bgPage1: 1, bgPage2: 1 } },
+    { name: 'chatProfiles',          get: function(){ return lmsChatProfiles; },       map: true, removals: false },
+    { name: 'systemSettings',        get: function(){ return systemSettings; },        single: true, ignore: { extSystems: 1, maintenanceMode: 1, maintenanceMessage: 1, maintenanceUpdatedAt: 1 } },
+    { name: 'adminStaffAccessSettings', get: function(){ return adminStaffAccessSettings; }, single: true }
+  ];
+}
+/* Stamp what changed since the last save or load, and write down what was
+   removed. Runs at the top of every saveState(). */
+function syncStampAll() {
+  if (!window.CESTISCore || !CESTISCore.sync) return;
+  var now = new Date().toISOString();
+  syncCollections().forEach(function(c) {
+    try {
+      var recs = c.get();
+      if (recs == null) return;
+      if (c.single) {
+        var one = CESTISCore.sync.stampChanges([recs], function(){ return 'single'; }, _syncIndex[c.name] || null, now, c.ignore);
+        _syncIndex[c.name] = one;
+        return;
+      }
+      var keyOf = c.map ? null : c.key;
+      var prev = _syncIndex[c.name] || null;
+      if (prev && c.removals) {
+        CESTISCore.sync.detectRemovals(recs, keyOf, prev).forEach(function(k) { syncRecordTombstone(c.name, k, now); });
+      }
+      _syncIndex[c.name] = CESTISCore.sync.stampChanges(recs, keyOf, prev, now, c.ignore);
+    } catch (e) {}
+  });
+}
+/* Take the baseline afresh — after a load or a merge, when nothing that
+   differs from the index was edited here. */
+function syncRebaselineAll() {
+  if (!window.CESTISCore || !CESTISCore.sync) return;
+  syncCollections().forEach(function(c) {
+    try {
+      var recs = c.get();
+      if (recs == null) return;
+      _syncIndex[c.name] = c.single
+        ? CESTISCore.sync.stampChanges([recs], function(){ return 'single'; }, null, '', c.ignore)
+        : CESTISCore.sync.stampChanges(recs, c.map ? null : c.key, null, '', c.ignore);
+    } catch (e) {}
+  });
+}
+function syncRecordTombstone(collection, key, at) {
+  if (!collection || key === undefined || key === null) return;
+  if (!syncTombstones[collection]) syncTombstones[collection] = {};
+  syncTombstones[collection][String(key)] = at || new Date().toISOString();
+}
+/* Write down every record `before` held that `after` no longer does — used
+   by the code that deletes deliberately, so a bulk removal is never mistaken
+   for a fault and left to come back. */
+function syncTombstoneRemoved(collection, before, after) {
+  try {
+    var c = syncCollections().find(function(x) { return x.name === collection; });
+    if (!c || !Array.isArray(before) || !Array.isArray(after)) return;
+    var have = {};
+    after.forEach(function(r) { if (r) have[c.key(r)] = 1; });
+    var now = new Date().toISOString();
+    before.forEach(function(r) { if (r && !have[c.key(r)]) syncRecordTombstone(collection, c.key(r), now); });
+  } catch (e) {}
+}
+function syncTombsFor(collection) { return (syncTombstones && syncTombstones[collection]) || {}; }
+
 // One-time async sweep: keep the marker true to the hash for the privileged
 // accounts. Set it where an ALREADY-HASHED password still verifies against a
 // published default (devices that hashed the seed before the marker existed),
@@ -6414,15 +6506,22 @@ var adminStaffAccessSettings = adminStaffAccessDefaults();
    Returns true when something actually changed. */
 function applyAdminStaffAccess(next) {
   if (!next || typeof next !== 'object') return false;
+  // The grid carries updatedAt (stamped on save when it changed). A copy
+  // older than the one in force is a stale folder's and must not revoke
+  // sections the Administrator has since granted.
+  var nextAt = Date.parse(next.updatedAt || '') || 0, haveAt = Date.parse(adminStaffAccessSettings.updatedAt || '') || 0;
+  if (haveAt && nextAt < haveAt) return false;
   var changed = false;
   var merged = adminStaffAccessDefaults();
-  Object.keys(next).forEach(function(k) { merged[k] = !!next[k]; });
+  Object.keys(next).forEach(function(k) { if (k === 'updatedAt') return; merged[k] = !!next[k]; });
   Object.keys(merged).forEach(function(k) {
     if (adminStaffAccessSettings[k] !== merged[k]) { adminStaffAccessSettings[k] = merged[k]; changed = true; }
   });
   Object.keys(adminStaffAccessSettings).forEach(function(k) {
+    if (k === 'updatedAt') return;
     if (!(k in merged)) { delete adminStaffAccessSettings[k]; changed = true; }
   });
+  if (next.updatedAt && next.updatedAt !== adminStaffAccessSettings.updatedAt) { adminStaffAccessSettings.updatedAt = next.updatedAt; changed = true; }
   if (changed) refreshAdminStaffNav();
   return changed;
 }
@@ -6629,6 +6728,7 @@ function clearAllSessionData() {
     // "on" a cloud copy still held — maintenance mode came back after every
     // administrator logout. They stay, and the newest decision keeps winning.
     if(key === 'voctrain_systemSettings' || key === 'voctrain_maintenanceMode') continue;
+    if(key === 'voctrain_syncTombstones') continue; // what was deleted is shared truth, not session data
     if(key === 'schoolDashboardGoogleAccessToken' || key === 'schoolDashboardGoogleTokenExpiry') continue; // preserve auth tokens for cloud sync
     if(key && key.startsWith('voctrain_user_')) continue; // preserve per-user chat data so messages survive logout/login
     if(key && (key.startsWith('voctrain_') || key.startsWith('schoolDashboard') || key === 'cmcDashboardData' || key === 'cmcHtmlContent')) {
@@ -6725,6 +6825,9 @@ function persistUserAccounts() {
 function saveState() {
   try {
     var isAdmin = currentRole === 'admin' || currentRole === 'adminstaff';
+    // Stamp every record edited here since the last save, and write down what
+    // was removed, before anything is written — see CESTISCore.sync.
+    try { syncStampAll(); } catch(e) {}
     saveCollection('voctrain_students', students);
     saveCollection('voctrain_exams', exams);
     saveCollection('voctrain_announcements', announcements);
@@ -6769,6 +6872,7 @@ function saveState() {
     if (isAdmin || Object.keys(certTplsClean).length > 0) CESTISStore.setItem('voctrain_certTemplates', JSON.stringify(certTplsClean));
     // Persist certTemplateCourseMap (modified by course renames)
     try { CESTISStore.setItem('voctrain_certTemplateCourseMap', JSON.stringify(certTemplateCourseMap)); } catch(e) {}
+    try { CESTISStore.setItem('voctrain_syncTombstones', JSON.stringify(syncTombstones)); } catch(e) {}
     saveLmsChatData();
     // Save per-user data keyed by user ID
     savePerUserLocalData();
@@ -6986,6 +7090,10 @@ function loadState() {
     try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
   }
   updateSkillAreaCounts();
+  // What was deleted, and the content just loaded — the baseline every later
+  // save compares against to decide what was edited HERE.
+  try { var _tombs = safeJsonParse(CESTISStore.getItem('voctrain_syncTombstones'), null); if (_tombs && typeof _tombs === 'object' && !Array.isArray(_tombs)) syncTombstones = _tombs; } catch(e) {}
+  try { syncRebaselineAll(); } catch(e) {}
 }
 
 function mergeStudentRecords(a, b) {
@@ -8652,10 +8760,10 @@ function markAllNotificationsRead() {
 
 function clearAllNotifications() {
   if(currentRole) {
-    notifications = notifications.filter(function(n) {
+    syncTombstoneRemoved('notifications', notifications, notifications = notifications.filter(function(n) {
       if(!n.forRoles || !n.forRoles.length) return false;
       return n.forRoles.indexOf(currentRole) === -1;
-    });
+    }));
   } else {
     notifications = [];
   }
@@ -15557,7 +15665,7 @@ function renderAdminClassSessions() {
 }
 
 function deleteClassSession(id) {
-  classSessions = classSessions.filter(s => s.id !== id);
+  syncTombstoneRemoved('classSessions', classSessions, classSessions = classSessions.filter(s => s.id !== id));
   saveState();
   showToast('Class session deleted');
   if(currentRole === 'instructor') renderInstructorClassSessions();
@@ -15718,7 +15826,7 @@ function deleteAdminMeeting(id) {
     var myId = currentLoggedInUser ? currentLoggedInUser.id : '';
     if(meetingAccess(m) !== 'allstaff' || m.createdById !== myId) { showToast('You can only delete conferences you created'); return; }
   }
-  adminMeetings = adminMeetings.filter(function(m){ return m.id !== id; });
+  syncTombstoneRemoved('adminMeetings', adminMeetings, adminMeetings = adminMeetings.filter(function(m){ return m.id !== id; }));
   saveState();
   showToast('Meeting deleted');
   renderAdminMeetingsList();
@@ -16010,8 +16118,8 @@ function gradeSubmission(assignmentId, studentId) {
 function deleteAssignment(id) {
   if (!confirm('Delete this assignment and all its submissions?')) return;
   var a = instructorAssignments.find(function(a) { return a.id === id; });
-  instructorAssignments = instructorAssignments.filter(a => a.id !== id);
-  assignmentSubmissions = assignmentSubmissions.filter(function(s) { return s.assignmentId !== id; });
+  syncTombstoneRemoved('instructorAssignments', instructorAssignments, instructorAssignments = instructorAssignments.filter(a => a.id !== id));
+  syncTombstoneRemoved('assignmentSubmissions', assignmentSubmissions, assignmentSubmissions = assignmentSubmissions.filter(function(s) { return s.assignmentId !== id; }));
   saveState();
   showToast('Assignment deleted');
   if (a) addNotification('Assignment "' + a.title + '" was deleted', 'exam', null, ['admin','instructor','student']);
@@ -16932,7 +17040,7 @@ function assignResourceAsAssignment(resourceId) {
 }
 
 function deleteResource(id) {
-  instructorResources = instructorResources.filter(r => r.id !== id);
+  syncTombstoneRemoved('instructorResources', instructorResources, instructorResources = instructorResources.filter(r => r.id !== id));
   saveState();
   showToast('Resource deleted');
   renderInstructorCustomResources();
@@ -17608,7 +17716,7 @@ function copyResourceId(id) {
 
 function deleteDriveResource(id) {
   if (!confirm('Are you sure you want to remove this resource? This will remove it from the dashboard but NOT delete the file from Google Drive.')) return;
-  driveResources = driveResources.filter(r => r.id !== id);
+  syncTombstoneRemoved('driveResources', driveResources, driveResources = driveResources.filter(r => r.id !== id));
   saveState();
   showToast('Resource removed');
   renderAdminResources();
@@ -21673,6 +21781,7 @@ function propagateCourseNameChange(oldName, newName) {
   if(certTemplates[oldName]) {
     certTemplates[newName] = certTemplates[oldName];
     delete certTemplates[oldName];
+    syncRecordTombstone('certTemplates', oldName);
     count++;
   }
 
@@ -21735,7 +21844,7 @@ function confirmDeleteCentre() {
   // leave an orphaned room lingering in everyone's LMS Chat list.
   if(typeof lmsChatRooms !== 'undefined' && Array.isArray(lmsChatRooms)) {
     var _roomId = 'chat-class-' + id;
-    lmsChatRooms = lmsChatRooms.filter(function(r){ return r.id !== _roomId && r.skillAreaId !== id; });
+    syncTombstoneRemoved('chatRooms', lmsChatRooms, lmsChatRooms = lmsChatRooms.filter(function(r){ return r.id !== _roomId && r.skillAreaId !== id; }));
     if(typeof saveLmsChatData === 'function') saveLmsChatData();
   }
   closeModal('deleteCentreModal');
@@ -22167,7 +22276,9 @@ function deleteExam(idx) {
   }
   if (!confirm(msg)) return;
   var examId = e.id;
+  var _examsBefore = exams.slice();
   exams.splice(idx, 1);
+  syncTombstoneRemoved('exams', _examsBefore, exams);
   // Remove associated exam results
   examResults = examResults.filter(function(r) { return r.examId !== examId; });
   saveState();
@@ -23645,7 +23756,7 @@ function createAnnouncement() {
 }
 
 function deleteAnnouncement(id) {
-  announcements = announcements.filter(a => a.id !== id);
+  syncTombstoneRemoved('announcements', announcements, announcements = announcements.filter(a => a.id !== id));
   renderAnnouncements();
   refreshContentDependentViews();
   saveState();
@@ -23966,7 +24077,9 @@ function deleteCalendarEvent(idx) {
   var e = calendarEvents[idx];
   if(!e) return;
   if(!confirm('Delete event "' + e.title + '" on ' + e.date + '?')) return;
+  var _eventsBefore = calendarEvents.slice();
   calendarEvents.splice(idx, 1);
+  syncTombstoneRemoved('calendarEvents', _eventsBefore, calendarEvents);
   renderCalendar();
   refreshContentDependentViews();
   saveState();
@@ -24157,7 +24270,7 @@ function markSupportReplied(id) {
 function deleteSupportMessage(id) {
   if(!confirm('Are you sure you want to delete this support message?')) return;
   loadSupportMessages();
-  supportMessages = supportMessages.filter(function(m){ return m.id !== id; });
+  syncTombstoneRemoved('supportMessages', supportMessages, supportMessages = supportMessages.filter(function(m){ return m.id !== id; }));
   saveSupportMessages();
   closeSupportDetail();
   showToast('Support message deleted');
@@ -27248,12 +27361,25 @@ async function mergeBackupData(backupData) {
       console.warn('[AutoSync] Backup file has no .data envelope — skipping merge (file left untouched)');
       return false;
     }
+    let changed = false;
     if (!backupData.version) {
       console.warn('[AutoSync] Backup file missing version field — merging anyway (legacy format)');
     }
     try { rememberCloudAdminSlices(backupData.data); } catch (e) {}
+    // What other devices deleted: the later removal of each key stands, and
+    // each collection's merge below drops what was removed after its last
+    // edit here.
+    try {
+      var _ct = backupData.data.syncTombstones;
+      if (_ct && typeof _ct === 'object' && !Array.isArray(_ct)) {
+        Object.keys(_ct).forEach(function(col) {
+          var before = JSON.stringify(syncTombstones[col] || {});
+          syncTombstones[col] = CESTISCore.sync.mergeTombstones(syncTombstones[col] || {}, _ct[col]);
+          if (JSON.stringify(syncTombstones[col]) !== before) changed = true;
+        });
+      }
+    } catch (e) {}
 
-    let changed = false;
 
     // Legacy demo data IDs and titles to exclude from merges
     var _ds = {}; for (var _i = 0; _i < 80; _i++) _ds['STU-' + String(2026000 + _i)] = true;
@@ -27346,44 +27472,29 @@ async function mergeBackupData(backupData) {
       });
     }
 
-    // Merge exams
-    if (backupData.data.exams) {
-      const localExamKeys = exams.map(e => (e.title + '|' + e.course).toLowerCase());
-      backupData.data.exams.forEach(cloudExam => {
-        if (_de[cloudExam.id]) return;
-        if (_det[cloudExam.title]) return; // Skip test exams by title
-        const key = (cloudExam.title + '|' + cloudExam.course).toLowerCase();
-        if (!localExamKeys.includes(key)) {
-          exams.push(cloudExam);
-          changed = true;
-        }
-      });
+    // Merge exams — newest edit wins, deletions travel (CESTISCore.sync).
+    if (Array.isArray(backupData.data.exams)) {
+      var _exOut = CESTISCore.sync.mergeList(exams, backupData.data.exams, function(r){ return String(r.title||'').trim().toLowerCase() + '|' + String(r.course||'').trim().toLowerCase(); },
+        { tombs: syncTombsFor('exams'), accept: function(c){ return !_de[c.id] && !_det[c.title]; } });
+      if (_exOut.added || _exOut.updated || _exOut.removed) changed = true;
     }
+
 
     // Merge announcements
-    if (backupData.data.announcements) {
-      const localAnnTitles = announcements.map(a => a.title.toLowerCase());
-      backupData.data.announcements.forEach(cloudAnn => {
-        if (_da[cloudAnn.id]) return;
-        if (!localAnnTitles.includes(cloudAnn.title.toLowerCase())) {
-          announcements.push(cloudAnn);
-          changed = true;
-        }
-      });
+    if (Array.isArray(backupData.data.announcements)) {
+      var _anOut = CESTISCore.sync.mergeList(announcements, backupData.data.announcements, function(r){ return r.id != null ? String(r.id) : 'title:' + String(r.title||'').trim().toLowerCase(); },
+        { tombs: syncTombsFor('announcements'), accept: function(c){ return !_da[c.id]; } });
+      if (_anOut.added || _anOut.updated || _anOut.removed) changed = true;
     }
 
+
     // Merge calendar events
-    if (backupData.data.calendarEvents) {
-      const localEventKeys = calendarEvents.map(e => (e.title + '|' + e.date).toLowerCase());
-      backupData.data.calendarEvents.forEach(cloudEvent => {
-        if (_dt[cloudEvent.title]) return;
-        const key = (cloudEvent.title + '|' + cloudEvent.date).toLowerCase();
-        if (!localEventKeys.includes(key)) {
-          calendarEvents.push(cloudEvent);
-          changed = true;
-        }
-      });
+    if (Array.isArray(backupData.data.calendarEvents)) {
+      var _ceOut = CESTISCore.sync.mergeList(calendarEvents, backupData.data.calendarEvents, function(r){ return String(r.title||'').trim().toLowerCase() + '|' + String(r.date||'').trim().toLowerCase(); },
+        { tombs: syncTombsFor('calendarEvents'), accept: function(c){ return !_dt[c.title]; } });
+      if (_ceOut.added || _ceOut.updated || _ceOut.removed) changed = true;
     }
+
 
     // Large Class attendance is merged, never replaced: two devices in the
     // same class each record what they saw, and the fuller view of a person's
@@ -27440,15 +27551,11 @@ async function mergeBackupData(backupData) {
     }
 
     // Merge chat rooms
-    if (backupData.data.chatRooms) {
-      var localRoomIds = lmsChatRooms.map(function(r) { return r.id; });
-      backupData.data.chatRooms.forEach(function(cloudRoom) {
-        if (localRoomIds.indexOf(cloudRoom.id) === -1) {
-          lmsChatRooms.push(cloudRoom);
-          changed = true;
-        }
-      });
+    if (Array.isArray(backupData.data.chatRooms)) {
+      var _crOut = CESTISCore.sync.mergeList(lmsChatRooms, backupData.data.chatRooms, syncKeyById, { tombs: syncTombsFor('chatRooms') });
+      if (_crOut.added || _crOut.updated || _crOut.removed) changed = true;
     }
+
 
     // Merge chat messages
     if (backupData.data.chatMessages) {
@@ -27466,29 +27573,20 @@ async function mergeBackupData(backupData) {
       trimLmsChatHistory();
     }
 
-    // Merge chat profiles
-    if (backupData.data.chatProfiles) {
-      Object.keys(backupData.data.chatProfiles).forEach(function(uid) {
-        if (!lmsChatProfiles[uid]) {
-          lmsChatProfiles[uid] = {};
-          changed = true;
-        }
-        Object.assign(lmsChatProfiles[uid], backupData.data.chatProfiles[uid]);
-      });
+    // Merge chat profiles — newest wins (this used to let any cloud copy
+    // overwrite the local one, and never saved the result).
+    if (backupData.data.chatProfiles && typeof backupData.data.chatProfiles === 'object') {
+      var _cpOut = CESTISCore.sync.mergeMap(lmsChatProfiles, backupData.data.chatProfiles, {});
+      if (_cpOut.added || _cpOut.updated) changed = true;
     }
 
-    // Merge drive resources (match by id or driveFileId to avoid duplicates from recovery)
-    if (backupData.data.driveResources) {
-      backupData.data.driveResources.forEach(function(cr) {
-        var isDuplicate = driveResources.some(function(lr) {
-          return lr.id === cr.id || (cr.driveFileId && lr.driveFileId === cr.driveFileId);
-        });
-        if (!isDuplicate) {
-          driveResources.push(cr);
-          changed = true;
-        }
-      });
+
+    // Merge drive resources (match by driveFileId, else id, so a recovery never duplicates one)
+    if (Array.isArray(backupData.data.driveResources)) {
+      var _drOut = CESTISCore.sync.mergeList(driveResources, backupData.data.driveResources, function(r){ return r.driveFileId ? 'drive:' + r.driveFileId : syncKeyById(r); }, { tombs: syncTombsFor('driveResources') });
+      if (_drOut.added || _drOut.updated || _drOut.removed) changed = true;
     }
+
 
     // Merge chat follows
     if (backupData.data.chatFollows && typeof backupData.data.chatFollows === 'object') {
@@ -27507,150 +27605,74 @@ async function mergeBackupData(backupData) {
       } catch(e) { console.warn('[Merge] chatFollows error:', e); }
     }
 
-    // Merge class sessions — add new AND update recording URLs/attendees
+    // Merge class sessions — newest edit wins; attendees are the union of what each device saw
     if (Array.isArray(backupData.data.classSessions)) {
       try {
-        backupData.data.classSessions.forEach(function(cs) {
-          if (!cs || !cs.id) return;
-          var existing = classSessions.find(function(ls) { return ls.id === cs.id; });
-          if (!existing) {
-            classSessions.push(cs);
-            changed = true;
-          } else {
-            if (cs.recordingUrl && !existing.recordingUrl) { existing.recordingUrl = cs.recordingUrl; changed = true; }
-            if (cs.recordingDriveId && !existing.recordingDriveId) { existing.recordingDriveId = cs.recordingDriveId; changed = true; }
-            if (cs.endTime && !existing.endTime) { existing.endTime = cs.endTime; changed = true; }
-            if (cs.duration && !existing.duration) { existing.duration = cs.duration; changed = true; }
-            if (Array.isArray(cs.attendees) && cs.attendees.length > 0) {
-              if (!Array.isArray(existing.attendees)) existing.attendees = [];
-              cs.attendees.forEach(function(att) {
-                if (!existing.attendees.some(function(ea) { return (ea.id || ea.name) === (att.id || att.name); })) {
-                  existing.attendees.push(att);
-                  changed = true;
-                }
-              });
-            }
-          }
+        var _csAtt = {};
+        backupData.data.classSessions.forEach(function(cs) { if (cs && cs.id && Array.isArray(cs.attendees)) _csAtt[cs.id] = cs.attendees; });
+        var _csOut = CESTISCore.sync.mergeList(classSessions, backupData.data.classSessions, syncKeyById, { tombs: syncTombsFor('classSessions') });
+        if (_csOut.added || _csOut.updated || _csOut.removed) changed = true;
+        classSessions.forEach(function(existing) {
+          var att = existing && _csAtt[existing.id];
+          if (!att || !att.length) return;
+          if (!Array.isArray(existing.attendees)) existing.attendees = [];
+          att.forEach(function(a) {
+            if (!existing.attendees.some(function(ea) { return (ea.id || ea.name) === (a.id || a.name); })) { existing.attendees.push(a); changed = true; }
+          });
         });
       } catch(e) { console.warn('[Merge] classSessions error:', e); }
     }
 
+
     // Merge admin meetings
     if (Array.isArray(backupData.data.adminMeetings)) {
-      try {
-        backupData.data.adminMeetings.forEach(function(m) {
-          if (m && m.id && !adminMeetings.some(function(lm) { return lm.id === m.id; })) {
-            adminMeetings.push(m);
-            changed = true;
-          }
-        });
-      } catch(e) { console.warn('[Merge] adminMeetings error:', e); }
+      var _amOut = CESTISCore.sync.mergeList(adminMeetings, backupData.data.adminMeetings, syncKeyById, { tombs: syncTombsFor('adminMeetings') });
+      if (_amOut.added || _amOut.updated || _amOut.removed) changed = true;
     }
 
-    // Merge instructor assignments — add new AND merge grades/Drive links
+
+    // Merge instructor assignments — newest edit wins; on a tie, grades and
+    // files fill in from the other copy (a corrected grade now travels).
     if (Array.isArray(backupData.data.instructorAssignments)) {
-      try {
-        backupData.data.instructorAssignments.forEach(function(ca) {
-          if (!ca || !ca.id) return;
-          var existing = instructorAssignments.find(function(la) { return la.id === ca.id; });
-          if (!existing) {
-            instructorAssignments.push(ca);
-            changed = true;
-          } else {
-            // Merge grades from cloud additively
-            if (ca.grades && typeof ca.grades === 'object') {
-              if (!existing.grades) existing.grades = {};
-              Object.keys(ca.grades).forEach(function(sid) {
-                if (existing.grades[sid] === undefined) {
-                  existing.grades[sid] = ca.grades[sid];
-                  changed = true;
-                }
-              });
-            }
-            if (ca.driveFiles && Array.isArray(ca.driveFiles) && (!existing.driveFiles || existing.driveFiles.length === 0)) {
-              existing.driveFiles = ca.driveFiles;
-              changed = true;
-            }
-            if (ca.instructions && !existing.instructions) { existing.instructions = ca.instructions; changed = true; }
-            if (ca.attachments && Array.isArray(ca.attachments) && (!existing.attachments || existing.attachments.length === 0)) {
-              existing.attachments = ca.attachments;
-              changed = true;
-            }
-          }
-        });
-      } catch(e) { console.warn('[Merge] instructorAssignments error:', e); }
+      var _iaOut = CESTISCore.sync.mergeList(instructorAssignments, backupData.data.instructorAssignments, syncKeyById, { tombs: syncTombsFor('instructorAssignments') });
+      if (_iaOut.added || _iaOut.updated || _iaOut.removed) changed = true;
     }
 
-    // Merge assignment submissions — add new AND merge Drive links
+
+    // Merge assignment submissions
     if (Array.isArray(backupData.data.assignmentSubmissions)) {
-      try {
-        backupData.data.assignmentSubmissions.forEach(function(cs) {
-          if (!cs || !cs.id) return;
-          var existing = assignmentSubmissions.find(function(ls) { return ls.id === cs.id; });
-          if (!existing) {
-            assignmentSubmissions.push(cs);
-            changed = true;
-          } else {
-            if (cs.driveFiles && Array.isArray(cs.driveFiles) && (!existing.driveFiles || existing.driveFiles.length === 0)) {
-              existing.driveFiles = cs.driveFiles;
-              changed = true;
-            }
-            if (cs.files && Array.isArray(cs.files) && cs.files.length > 0 && (!existing.files || existing.files.length === 0)) {
-              existing.files = cs.files;
-              changed = true;
-            }
-          }
-        });
-      } catch(e) { console.warn('[Merge] assignmentSubmissions error:', e); }
+      var _asOut = CESTISCore.sync.mergeList(assignmentSubmissions, backupData.data.assignmentSubmissions, syncKeyById, { tombs: syncTombsFor('assignmentSubmissions') });
+      if (_asOut.added || _asOut.updated || _asOut.removed) changed = true;
     }
+
 
     // Merge instructor resources
     if (Array.isArray(backupData.data.instructorResources)) {
-      try {
-        backupData.data.instructorResources.forEach(function(cr) {
-          if (cr && cr.id && !instructorResources.some(function(lr) { return lr.id === cr.id; })) {
-            instructorResources.push(cr);
-            changed = true;
-          }
-        });
-      } catch(e) { console.warn('[Merge] instructorResources error:', e); }
+      var _irOut = CESTISCore.sync.mergeList(instructorResources, backupData.data.instructorResources, syncKeyById, { tombs: syncTombsFor('instructorResources') });
+      if (_irOut.added || _irOut.updated || _irOut.removed) changed = true;
     }
 
-    // Merge student profiles
+
+    // Merge student profiles — an edited profile now reaches every device
     if (backupData.data.studentProfiles && typeof backupData.data.studentProfiles === 'object') {
-      try {
-        Object.keys(backupData.data.studentProfiles).forEach(function(sid) {
-          if (!studentProfiles[sid]) {
-            studentProfiles[sid] = backupData.data.studentProfiles[sid];
-            changed = true;
-          }
-        });
-      } catch(e) { console.warn('[Merge] studentProfiles error:', e); }
+      var _spOut = CESTISCore.sync.mergeMap(studentProfiles, backupData.data.studentProfiles, { tombs: syncTombsFor('studentProfiles') });
+      if (_spOut.added || _spOut.updated || _spOut.removed) changed = true;
     }
+
 
     // Merge instructor profiles
     if (backupData.data.instructorProfiles && typeof backupData.data.instructorProfiles === 'object') {
-      try {
-        Object.keys(backupData.data.instructorProfiles).forEach(function(iid) {
-          if (!instructorProfiles[iid]) {
-            instructorProfiles[iid] = backupData.data.instructorProfiles[iid];
-            changed = true;
-          }
-        });
-      } catch(e) { console.warn('[Merge] instructorProfiles error:', e); }
+      var _ipOut = CESTISCore.sync.mergeMap(instructorProfiles, backupData.data.instructorProfiles, { tombs: syncTombsFor('instructorProfiles') });
+      if (_ipOut.added || _ipOut.updated || _ipOut.removed) changed = true;
     }
+
 
     // Merge instructorData (dynamically created instructors)
     if (Array.isArray(backupData.data.instructorData)) {
-      try {
-        backupData.data.instructorData.forEach(function(ci) {
-          if (ci && ci.id && !instructorData.some(function(li) { return li.id === ci.id; })) {
-            instructorData.push(ci);
-            changed = true;
-          }
-        });
-      } catch(e) { console.warn('[Merge] instructorData error:', e); }
+      var _idOut = CESTISCore.sync.mergeList(instructorData, backupData.data.instructorData, syncKeyById, { tombs: syncTombsFor('instructorData') });
+      if (_idOut.added || _idOut.updated || _idOut.removed) changed = true;
     }
+
 
     // Merge system settings (only merge if cloud has newer settings)
     if (backupData.data.systemSettings && typeof backupData.data.systemSettings === 'object') {
@@ -27667,27 +27689,17 @@ async function mergeBackupData(backupData) {
 
     // Merge ADR tasks
     if (Array.isArray(backupData.data.adrTasks)) {
-      try {
-        backupData.data.adrTasks.forEach(function(ct) {
-          if (ct && ct.id && !adrTasks.some(function(lt) { return lt.id === ct.id; })) {
-            adrTasks.push(ct);
-            changed = true;
-          }
-        });
-      } catch(e) { console.warn('[Merge] adrTasks error:', e); }
+      var _atOut = CESTISCore.sync.mergeList(adrTasks, backupData.data.adrTasks, syncKeyById, { tombs: syncTombsFor('adrTasks') });
+      if (_atOut.added || _atOut.updated || _atOut.removed) changed = true;
     }
+
 
     // Merge ADR staff meta
     if (backupData.data.adrStaffMeta && typeof backupData.data.adrStaffMeta === 'object' && !Array.isArray(backupData.data.adrStaffMeta)) {
-      try {
-        Object.keys(backupData.data.adrStaffMeta).forEach(function(key) {
-          if (!adrStaffMeta[key]) {
-            adrStaffMeta[key] = backupData.data.adrStaffMeta[key];
-            changed = true;
-          }
-        });
-      } catch(e) { console.warn('[Merge] adrStaffMeta error:', e); }
+      var _smOut = CESTISCore.sync.mergeMap(adrStaffMeta, backupData.data.adrStaffMeta, { tombs: syncTombsFor('adrStaffMeta') });
+      if (_smOut.added || _smOut.updated || _smOut.removed) changed = true;
     }
+
 
     // Merge staff appraisals + signatures (independent of the duty-register data)
     if (backupData.data.staffAppraisals) {
@@ -27706,68 +27718,33 @@ async function mergeBackupData(backupData) {
 
     // Merge support messages
     if (Array.isArray(backupData.data.supportMessages)) {
-      try {
-        var supportChanged = false;
-        backupData.data.supportMessages.forEach(function(cm) {
-          if (cm && cm.id && !supportMessages.some(function(lm) { return lm.id === cm.id; })) {
-            supportMessages.push(cm);
-            supportChanged = true;
-            changed = true;
-          }
-        });
-        if (supportChanged) saveSupportMessages();
-      } catch(e) { console.warn('[Merge] supportMessages error:', e); }
+      var _suOut = CESTISCore.sync.mergeList(supportMessages, backupData.data.supportMessages, syncKeyById, { tombs: syncTombsFor('supportMessages') });
+      if (_suOut.added || _suOut.updated || _suOut.removed) { changed = true; try { saveSupportMessages(); } catch(e) {} }
     }
 
-    // Merge notifications
+
+    // Merge notifications — a dismissed notification now stays dismissed everywhere
     if (Array.isArray(backupData.data.notifications)) {
-      try {
-        var notifsChanged = false;
-        backupData.data.notifications.forEach(function(cn) {
-          if (cn && cn.id && !notifications.some(function(ln) { return ln.id === cn.id; })) {
-            notifications.push(cn);
-            notifsChanged = true;
-            changed = true;
-          }
-        });
-        if (notifsChanged) saveNotifications();
-      } catch(e) { console.warn('[Merge] notifications error:', e); }
+      var _noOut = CESTISCore.sync.mergeList(notifications, backupData.data.notifications, syncKeyById, { tombs: syncTombsFor('notifications') });
+      if (_noOut.added || _noOut.updated || _noOut.removed) { changed = true; try { saveNotifications(); } catch(e) {} }
     }
 
-    // Merge certTemplates (metadata only, no images)
-    if (backupData.data.certTemplates) {
-      try {
-        var cloudCT = backupData.data.certTemplates;
-        Object.keys(cloudCT).forEach(function(course) {
-          if (!certTemplates[course]) {
-            certTemplates[course] = cloudCT[course];
-            changed = true;
-          } else {
-            // Merge fields that are missing locally
-            var local = certTemplates[course];
-            var cloud = cloudCT[course];
-            Object.keys(cloud).forEach(function(key) {
-              if (key !== 'bgPage1' && key !== 'bgPage2' && !local[key] && cloud[key]) {
-                local[key] = cloud[key];
-                changed = true;
-              }
-            });
-          }
-        });
-      } catch(e) { console.warn('[Merge] certTemplates error:', e); }
+
+    // Merge certTemplates (metadata only — the images stay on the device that holds them)
+    if (backupData.data.certTemplates && typeof backupData.data.certTemplates === 'object') {
+      var _ctOut = CESTISCore.sync.mergeMap(certTemplates, backupData.data.certTemplates, { tombs: syncTombsFor('certTemplates'), keep: { bgPage1: 1, bgPage2: 1 } });
+      if (_ctOut.added || _ctOut.updated || _ctOut.removed) changed = true;
     }
 
-    // Merge certDownloadApprovals
-    if (backupData.data.certDownloadApprovals) {
-      try {
-        backupData.data.certDownloadApprovals.forEach(function(ca) {
-          if (ca && ca.studentId && !certDownloadApprovals.some(function(l) { return l.studentId === ca.studentId; })) {
-            certDownloadApprovals.push(ca);
-            changed = true;
-          }
-        });
-      } catch(e) { console.warn('[Merge] certDownloadApprovals error:', e); }
+
+    // Merge certDownloadApprovals — the shared rule (approved wins, then most
+    // recent), the same one the pre-login fetch already used.
+    if (Array.isArray(backupData.data.certDownloadApprovals)) {
+      var _caBefore = JSON.stringify(certDownloadApprovals);
+      backupData.data.certDownloadApprovals.forEach(function(ca) { try { CESTISCore.cloudMerge.applyApproval(certDownloadApprovals, ca); } catch(e) {} });
+      if (JSON.stringify(certDownloadApprovals) !== _caBefore) changed = true;
     }
+
 
     // Merge certTemplateCourseMap
     if (backupData.data.certTemplateCourseMap && typeof backupData.data.certTemplateCourseMap === 'object') {
@@ -27804,19 +27781,15 @@ async function mergeBackupData(backupData) {
 
     // Merge documentHubFiles
     if (Array.isArray(backupData.data.documentHubFiles)) {
-      try {
-        backupData.data.documentHubFiles.forEach(function(cf) {
-          if (cf && cf.id && !documentHubFiles.some(function(lf) { return lf.id === cf.id; })) {
-            documentHubFiles.push(cf);
-            changed = true;
-          }
-        });
-      } catch(e) { console.warn('[Merge] documentHubFiles error:', e); }
+      var _dhOut = CESTISCore.sync.mergeList(documentHubFiles, backupData.data.documentHubFiles, syncKeyById, { tombs: syncTombsFor('documentHubFiles') });
+      if (_dhOut.added || _dhOut.updated || _dhOut.removed) changed = true;
     }
+
 
     // Reconcile: create student records for any user accounts missing them
     var reconciled = reconcileStudentsFromAccounts();
     if (reconciled) changed = true;
+    try { syncRebaselineAll(); } catch(e) {}
 
     if (changed) {
       saveState();
@@ -28095,7 +28068,15 @@ async function silentSaveToFolder(folderId, folderLabel, blob) {
       );
       if (response.ok) {
         const pResult = await response.json().catch(() => ({}));
-        if (pResult && pResult.version != null) _lastCloudVersion[folderId] = String(pResult.version);
+        if (pResult && pResult.version != null) {
+          var prevVer = _lastCloudVersion[folderId];
+          _lastCloudVersion[folderId] = String(pResult.version);
+          // A jump of more than one: somebody's write landed inside the window
+          // between this device's version check and its PATCH. Recover it.
+          if (folderId === GOOGLE_DRIVE_CONFIG.FOLDER_ID && prevVer !== undefined && Number(pResult.version) - Number(prevVer) > 1) {
+            recoverOvertakenWrite(fileId, prevVer, String(pResult.version));
+          }
+        }
       }
     } else {
       // Create new file in this folder
@@ -28152,6 +28133,46 @@ async function silentSaveToFolder(folderId, folderLabel, blob) {
 // and (b) doubles as the cross-device pull that was previously missing between
 // logins — it runs on every autosave tick, but only downloads the file when the
 // version actually changed, so idle devices stay cheap.
+/* Has the Main backup moved since this device last pulled it? If so, merge
+   that copy now (the caller rebuilds its payload) and record the version. */
+async function mainMovedSincePull() {
+  try {
+    var folderId = GOOGLE_DRIVE_CONFIG.FOLDER_ID;
+    var fileId = _autoSaveFileIds[folderId];
+    if (!fileId || !isCloudConnected || !googleAccessToken) return false;
+    var baseline = _lastCloudVersion[folderId];
+    if (baseline === undefined) return false;
+    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+    if (!r.ok) return false;
+    var ver = String((await r.json()).version || '');
+    if (!ver || ver === baseline) return false;
+    console.log('[Sync] The Main backup moved (v' + baseline + ' → v' + ver + ') since this device pulled; merging it before this save.');
+    await silentMergeFromBackup(fileId);
+    _lastCloudVersion[folderId] = ver;
+    return true;
+  } catch (e) { return false; }
+}
+
+/* A write from another device landed between this device's version check
+   and its own write: Drive's version jumped by more than one. That write is
+   still in the file's revision history — take it in, and let the next tick
+   put the union up. */
+async function recoverOvertakenWrite(fileId, prevVer, newVer) {
+  try {
+    console.warn('[Sync] Another device wrote the Main backup between this device\'s check and its write (v' + prevVer + ' → v' + newVer + '); recovering that write from the file\'s revisions.');
+    var lr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/revisions?fields=revisions(id,modifiedTime)&pageSize=1000', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+    if (!lr.ok) return false;
+    var revs = ((await lr.json()).revisions || []).slice().sort(function(a, b) { return Date.parse(a.modifiedTime || '') - Date.parse(b.modifiedTime || ''); });
+    if (revs.length < 2) return false;
+    var theirs = revs[revs.length - 2];   // the revision this device's write replaced
+    var dr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/revisions/' + theirs.id + '?alt=media', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+    if (!dr.ok) return false;
+    var merged = await mergeBackupData(await dr.json());
+    _lastAutoSaveHash = null;             // the union goes up on the next tick
+    return merged;
+  } catch (e) { console.warn('[Sync] Could not recover the overtaken write:', e && e.message); return false; }
+}
+
 async function pullMainIfRemoteNewer() {
   try {
     if (!isCloudConnected || !googleAccessToken) return false;
@@ -28239,6 +28260,9 @@ async function autoSaveToAllFolders() {
     // Only include admin-managed data if user is admin/adminstaff OR data is non-empty
     // This prevents non-admin users from uploading empty arrays that would overwrite admin data
     var _isAdminSave = currentRole === 'admin' || currentRole === 'adminstaff';
+    // Built by a function so it can be rebuilt after a last-moment merge (see
+    // the version check below).
+    var buildPayload = function() {
     const backupData = {
       version: '1.0',
       timestamp: new Date().toISOString(),
@@ -28272,7 +28296,8 @@ async function autoSaveToAllFolders() {
         supportMessages: supportMessages,
         notifications: notifications,
         certDownloadApprovals: certDownloadApprovals,
-        certTemplateCourseMap: certTemplateCourseMap
+        certTemplateCourseMap: certTemplateCourseMap,
+        syncTombstones: syncTombstones
       }
     };
     // Admin-managed data: only include if admin OR if non-empty (never upload empty to overwrite real data)
@@ -28297,6 +28322,9 @@ async function autoSaveToAllFolders() {
     // replaces the whole backup). A device that is not an administrator's
     // carries forward what only an administrator publishes, as it last saw it.
     if (!_isAdminSave) carryForwardCloudAdminSlices(backupData.data);
+    return backupData;
+    };
+    let backupData = buildPayload();
 
     // Persist locally first (cheap, always runs).
     saveState();
@@ -28304,6 +28332,15 @@ async function autoSaveToAllFolders() {
     // the upload swallowed every edit made while it was in flight — an edit
     // that then never went up until something unrelated changed.
     var _writesAfterSave = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : _lastAutoSaveWriteMark;
+    // Version precondition. Drive offers none server-side for a media upload,
+    // so it is done here: re-read the Main file's version right before
+    // writing; if another device wrote since this device last pulled, take
+    // that copy in first and rebuild the payload, so the write is the union.
+    // The window that remains — between this check and the PATCH landing —
+    // is a few hundred milliseconds, and silentSaveToFolder detects a write
+    // that lands inside it from the version Drive hands back and recovers it
+    // from the file's revisions.
+    if (await mainMovedSincePull()) { backupData = buildPayload(); }
 
     // Dirty-check: skip ALL cloud uploads when nothing changed since the last
     // successful save. Hash only backupData.data — not the timestamp/savedBy,
@@ -33796,7 +33833,7 @@ function docHubUploadFile(prefix) {
 
 function docHubDeleteFile(docId) {
   if(!confirm('Are you sure you want to delete this document?')) return;
-  documentHubFiles = documentHubFiles.filter(function(d) { return d.id !== docId; });
+  syncTombstoneRemoved('documentHubFiles', documentHubFiles, documentHubFiles = documentHubFiles.filter(function(d) { return d.id !== docId; }));
   saveState();
   showToast('Document deleted', 'success');
   renderDocumentHubAdmin();
