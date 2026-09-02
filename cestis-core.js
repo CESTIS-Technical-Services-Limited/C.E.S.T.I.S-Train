@@ -4764,10 +4764,10 @@
 
        The rule is now:
          1. a strictly newer stamp wins, in either direction (as before);
-         2. on a tie, a seeded copy — one still marked to change its published
-            default — yields to a copy holding a real password, in either
-            direction: a fresh device takes the real account, and a seed can
-            never replace a real password;
+         2. on a tie, a seeded copy — one still marked as holding its
+            published default — yields to a copy holding a real password, in
+            either direction: a fresh device takes the real account, and a
+            seed can never replace a real password;
          3. any other tie converges on the cloud copy, as before, so legacy
             deployments still settle. (checkPassword stamps an unstamped copy
             the moment it authenticates its owner, so after one sign-in the
@@ -4775,10 +4775,13 @@
     var KNOWN_DEFAULT_PASSWORDS = ['cestisadmin123$', 'admin123'];
 
     /* A copy still on the platform's published default: seeded by a device
-       that had never seen the real account, or never changed since. */
+       that had never seen the real account, or never changed since. The seed
+       carries defaultPassword:true (older versions marked the same thing as
+       mustChangePassword), and a seed that has not been hashed yet is the
+       published text itself. */
     function isSeededLogin(account) {
       if (!account) return false;
-      if (account.mustChangePassword) return true;
+      if (account.defaultPassword === true || account.mustChangePassword) return true;
       return KNOWN_DEFAULT_PASSWORDS.indexOf(account.password) !== -1;
     }
 

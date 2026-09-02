@@ -12,7 +12,15 @@
    for months — and the next autosave carried that copy to every device. People
    were told their password was wrong on accounts nobody had touched.
 
+   And the Centre's rule for the built-in logins: cestisadmin signs in with
+   cestisadmin123$ on any device unless its password has been changed. The
+   seed keeps that password — nothing forces a change at first sign-in — and
+   carries the marker defaultPassword:true so a sync can tell a seed from a
+   password somebody set.
+
    The rules these tests pin:
+     - a seed keeps the published default until a password is set, and every
+       path that sets one clears the marker;
      - a strictly newer stamp wins, in either direction;
      - on a tie, a seeded default never replaces a real password, in either
        direction — the fresh device takes the real account, and a seed can
@@ -55,21 +63,24 @@ PAGES.forEach(function (page) {
   console.log('Merge rule (' + page.where.replace('/index.html', '') + ')');
 
   // The fresh-device case: the seed yields to the real account.
-  const seed = { id: 'USR-001', username: 'cestisadmin', password: 'pbkdf2$210000$aa$bb', mustChangePassword: true };
+  const seed = { id: 'USR-001', username: 'cestisadmin', password: 'pbkdf2$210000$aa$bb', defaultPassword: true };
+  const legacySeed = { id: 'USR-001', username: 'cestisadmin', password: 'pbkdf2$210000$aa$bb', mustChangePassword: true };
   const real = { id: 'USR-001', username: 'cestisadmin', password: REAL, mustChangePassword: false };
   assertEq(AA.cloudCopyWins(seed, real), true, 'a new device takes the real account over its own seed');
   assertEq(AA.cloudCopyWins({ id: 'USR-001', password: 'cestisadmin123$' }, real), true,
     'a still-plaintext seed yields too');
+  assertEq(AA.cloudCopyWins(legacySeed, real), true, 'and a seed an older version marked to change its password');
 
   // The infection: a seeded copy arriving from the cloud never replaces a real password.
   assertEq(AA.cloudCopyWins(real, seed), false, 'a seeded copy in the cloud never replaces a real password');
+  assertEq(AA.cloudCopyWins(real, legacySeed), false, 'nor one an older version marked');
   assertEq(AA.cloudCopyWins(real, { id: 'USR-001', password: 'cestisadmin123$' }), false,
     'nor does a plaintext default');
   assertEq(AA.cloudCopyWins(real, { id: 'USR-001', password: '' }), false, 'nor a copy with no password at all');
 
   // A strictly newer stamp still wins in either direction.
   assertEq(AA.cloudCopyWins(Object.assign({}, real, { updatedAt: T1 }), Object.assign({}, seed, { updatedAt: T2 })), true,
-    'a newer stamp wins even for a copy marked to change its password (a deliberate reset)');
+    'a newer stamp wins even for a copy marked as a seed (a deliberate reset to the default)');
   assertEq(AA.cloudCopyWins(Object.assign({}, real, { updatedAt: T2 }), { id: 'USR-001', password: OTHER, updatedAt: T1 }), false,
     'a fresher local edit is never overwritten by an older cloud copy');
   assertEq(AA.cloudCopyWins({ id: 'USR-001', password: OTHER, updatedAt: T1 }, Object.assign({}, real, { updatedAt: T2 })), true,
@@ -85,7 +96,8 @@ PAGES.forEach(function (page) {
   assertEq(AA.cloudCopyWins({ password: REAL, updatedAt: 'not a date' }, { password: OTHER, updatedAt: T1 }), true,
     'an unreadable stamp counts as no stamp');
 
-  assertEq(AA.isSeededLogin(seed), true, 'a copy marked to change its default is a seed');
+  assertEq(AA.isSeededLogin(seed), true, 'a copy marked as holding the default is a seed');
+  assertEq(AA.isSeededLogin(legacySeed), true, 'so is one an older version marked to change it');
   assertEq(AA.isSeededLogin({ password: 'admin123' }), true, 'a plaintext published default is a seed');
   assertEq(AA.isSeededLogin(real), false, 'a real password is not');
 });
@@ -120,6 +132,67 @@ PAGES.forEach(function (page) {
   assert(orders >= 2, where + ' merges the folders oldest copy first on both login syncs (found ' + orders + ')');
   assert(src.indexOf('fields=files(id,name,modifiedTime)') !== -1, where + ' asks Drive when each copy was written');
   assert(src.indexOf('stampVerifiedAccount(account)') !== -1, where + ' stamps the copy that authenticated');
+  assert(src.indexOf('password:DEFAULT_SEED_PW,mustChangePassword:true') === -1
+    && (src.match(/password:DEFAULT_SEED_PW,defaultPassword:true/g) || []).length === 3,
+    where + ' seeds the three built-in logins with the default and marks them as seeds, not as must-change');
+  assert(src.indexOf('currentLoggedInUser.mustChangePassword') === -1,
+    where + ' no longer forces a password change at sign-in — the default stays until somebody changes it');
+  assert(src.indexOf('delete user.defaultPassword') !== -1 && src.indexOf('delete acct.defaultPassword') !== -1
+    && src.indexOf('delete canonical.defaultPassword') !== -1,
+    where + ' clears the seed marker on every path that sets a password');
+  assert(src.indexOf('function markDefaultPasswordAccounts') !== -1 && src.indexOf('flagDefaultPasswordAccounts') === -1,
+    where + ' keeps the marker true to the hash instead of flagging accounts for a forced change');
+  assert((src.match(/cloudUser\.defaultPassword \|\| cloudUser\.mustChangePassword/g) || []).length === 1
+    && (src.match(/ca\.defaultPassword \|\| ca\.mustChangePassword/g) || []).length === 1,
+    where + ' carries the seed marker with the password on both merge paths');
+});
+
+/* ---------- 3b. The seed keeps the published default, and says so ---------- */
+console.log('The built-in administrator keeps cestisadmin123$ until somebody changes it');
+function makeStore(initial) {
+  const data = Object.assign({}, initial);
+  return {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
+    setItem: function (k, v) { data[k] = String(v); }, removeItem: function (k) { delete data[k]; }
+  };
+}
+function loadAccounts(page, stored) {
+  const sandbox = { CESTISStore: makeStore(stored), CESTISCore: page.core, console: console,
+    KNOWN_DEFAULT_PASSWORDS: ['cestisadmin123$', 'admin123'], userAccounts: [] };
+  vm.createContext(sandbox);
+  vm.runInContext(extractFunction(page.src, 'loadUserAccounts', page.where) + '\nloadUserAccounts();', sandbox);
+  return sandbox.userAccounts;
+}
+PAGES.forEach(function (page) {
+  const w = page.where;
+  let accts = loadAccounts(page, {});
+  const admin = accts.find(function (a) { return a.id === 'USR-001'; });
+  assert(!!admin && admin.username === 'cestisadmin', w + ': a fresh device seeds cestisadmin');
+  assertEq(admin && admin.password, 'cestisadmin123$', w + ': with the published default password');
+  assertEq(admin && admin.defaultPassword, true, w + ': marked as a seed');
+  assertEq(admin && admin.mustChangePassword, undefined, w + ': and NOT marked to change it');
+  assert(accts.every(function (a) { return !a.mustChangePassword; }), w + ': no seed is marked to change its password');
+
+  // A password somebody set is left exactly as it is — that is "unless changed by user".
+  accts = loadAccounts(page, { voctrain_users: JSON.stringify([
+    { id: 'USR-001', username: 'cestisadmin', role: 'admin', password: REAL, status: 'active', updatedAt: T1 }]) });
+  const kept = accts.find(function (a) { return a.id === 'USR-001'; });
+  assertEq(kept && kept.password, REAL, w + ': a changed password is never put back to the default');
+  assertEq(kept && kept.defaultPassword, undefined, w + ': and is not marked as a seed');
+
+  // A device on an older version left the seed flagged for a forced change.
+  accts = loadAccounts(page, { voctrain_users: JSON.stringify([
+    { id: 'USR-001', username: 'cestisadmin', role: 'admin', password: 'pbkdf2$210000$aa$bb', status: 'active', mustChangePassword: true }]) });
+  const legacy = accts.find(function (a) { return a.id === 'USR-001'; });
+  assertEq(legacy && legacy.defaultPassword, true, w + ': an older version\'s flag becomes the seed marker');
+  assertEq(legacy && legacy.mustChangePassword, undefined, w + ': and the forced change is retired');
+
+  // A seed left with no password at all gets the default back.
+  accts = loadAccounts(page, { voctrain_users: JSON.stringify([
+    { id: 'USR-001', username: 'cestisadmin', role: 'admin', password: '', status: 'active' }]) });
+  const restored = accts.find(function (a) { return a.id === 'USR-001'; });
+  assertEq(restored && restored.password, 'cestisadmin123$', w + ': an administrator left without a password gets the default back');
+  assertEq(restored && restored.defaultPassword, true, w + ': marked as a seed');
 });
 
 /* ---------- 4. A sign-in stamps the copy that worked ---------- */
@@ -143,6 +216,7 @@ async function signInStamps(page) {
   const saves = [];
   const sandbox = {
     crypto: globalThis.crypto, TextEncoder: TextEncoder, Uint8Array: Uint8Array, console: console,
+    CESTISCore: page.core,
     PBKDF2_ITERATIONS: 1000, userAccounts: [], saveUserAccounts: function () { saves.push(1); }
   };
   vm.createContext(sandbox);
@@ -169,10 +243,27 @@ async function signInStamps(page) {
 
   // From here on a stale unstamped copy — the seed, an old folder — yields.
   const AA = page.core.accountAccess;
-  assertEq(AA.cloudCopyWins(sandbox.userAccounts[0], { id: 'USR-001', password: 'pbkdf2$1000$aa$bb', mustChangePassword: true }), false,
+  assertEq(AA.cloudCopyWins(sandbox.userAccounts[0], { id: 'USR-001', password: 'pbkdf2$1000$aa$bb', defaultPassword: true }), false,
     page.where + ': a seed arriving later yields to the stamped account');
   assertEq(AA.cloudCopyWins(sandbox.userAccounts[0], { id: 'USR-001', password: OTHER }), false,
     page.where + ': and so does an unstamped stale real copy');
+
+  // Signing in with the published default on a seed stamps NOTHING: the seed
+  // must never become the newest copy, or it would replace a real password on
+  // the next sync — the opposite of "the default, unless changed".
+  const seedHash = await run("hashPassword('cestisadmin123$')");
+  sandbox.userAccounts.push({ id: 'USR-011', username: 'adminstaff', role: 'adminstaff', password: seedHash, defaultPassword: true, status: 'active' });
+  assertEq(await run("checkPassword('cestisadmin123$', userAccounts[1].password, userAccounts[1])"), true,
+    page.where + ': the published default signs in on a seed');
+  assertEq(sandbox.userAccounts[1].updatedAt, undefined, page.where + ': but a seed is never stamped');
+  // The same when the sign-in upgrades an old-format seed to PBKDF2.
+  const legacySeedHash = await run("hashPasswordLegacy('cestisadmin123$')");
+  sandbox.userAccounts.push({ id: 'USR-021', username: 'cmcadmin', role: 'cmc', password: legacySeedHash, defaultPassword: true, status: 'active' });
+  assertEq(await run("checkPassword('cestisadmin123$', userAccounts[2].password, userAccounts[2])"), true,
+    page.where + ': an old-format seed still signs in with the default');
+  assert(sandbox.userAccounts[2].password.indexOf('pbkdf2$') === 0, page.where + ': and is upgraded to PBKDF2');
+  assertEq(sandbox.userAccounts[2].updatedAt, undefined, page.where + ': without being stamped');
+  assertEq(sandbox.userAccounts[2].defaultPassword, true, page.where + ': and still marked as a seed');
 
   // A stamp that exists is never moved by a sign-in.
   sandbox.userAccounts[0].updatedAt = T1;
@@ -187,7 +278,32 @@ async function signInStamps(page) {
     page.where + ': the stamp lands on the stored record and on the copy the handler holds');
 }
 
+async function sweepKeepsMarkerHonest(page) {
+  const names = ['_bufToHex', '_hexToBuf', 'hashPasswordLegacy', '_pbkdf2Hex', 'hashPassword', 'verifyPassword',
+    'isHashedPassword', 'markDefaultPasswordAccounts'];
+  const code = names.map(function (n) { return extractFunction(page.src, n, page.where); }).join('\n');
+  const sandbox = { crypto: globalThis.crypto, TextEncoder: TextEncoder, Uint8Array: Uint8Array, console: console,
+    PBKDF2_ITERATIONS: 1000, KNOWN_DEFAULT_PASSWORDS: ['cestisadmin123$', 'admin123'], _defaultPwSweepDone: false,
+    userAccounts: [], saveUserAccounts: function () {} };
+  vm.createContext(sandbox);
+  vm.runInContext(code, sandbox);
+  const run = function (expr) { return vm.runInContext(expr, sandbox); };
+  const seedHash = await run("hashPassword('cestisadmin123$')");
+  const realHash = await run("hashPassword('Centre-2026!')");
+  sandbox.userAccounts = [
+    { id: 'USR-001', role: 'admin', password: seedHash },                        // hashed seed, never marked
+    { id: 'USR-011', role: 'adminstaff', password: realHash, defaultPassword: true }, // changed, marker forgotten
+    { id: 'USR-7', role: 'student', password: seedHash }                          // out of the sweep's scope
+  ];
+  await run('markDefaultPasswordAccounts()');
+  assertEq(sandbox.userAccounts[0].defaultPassword, true, page.where + ': a hashed seed is marked as a seed');
+  assertEq(sandbox.userAccounts[1].defaultPassword, undefined, page.where + ': a real password loses a stale marker');
+  assertEq(sandbox.userAccounts[2].defaultPassword, undefined, page.where + ': only privileged accounts are swept');
+}
+
 (async function () {
+  console.log('The sweep keeps the seed marker true to the hash');
+  for (const page of PAGES) await sweepKeepsMarkerHonest(page);
   console.log('A sign-in stamps the copy that authenticated');
   for (const page of PAGES) await signInStamps(page);
 
