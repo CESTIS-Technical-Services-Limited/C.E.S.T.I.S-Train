@@ -19,7 +19,7 @@
   <div class="tab" onclick="switchSettingsTab(this,'users')">User Accounts</div>
   <div class="tab" onclick="switchSettingsTab(this,'staffaccess')">Admin Staff Access</div>
   <div class="tab" onclick="switchSettingsTab(this,'datamanagement')">Data Management</div>
-  <div class="tab" onclick="switchSettingsTab(this,'googleverification')">Google Verification</div>
+  <div class="tab" onclick="switchSettingsTab(this,'googleverification')">Verification &amp; Links</div>
   <div class="tab" onclick="switchSettingsTab(this,'maintenance')">Maintenance Mode</div>
 </div>
 
@@ -225,6 +225,24 @@
     <div style="display:flex;gap:10px;">
       <button class="btn btn-primary" onclick="saveGoogleVerification()">Save &amp; Apply</button>
       <button class="btn btn-secondary" onclick="clearGoogleVerification()">Remove Tag</button>
+    </div>
+  </div>
+
+  <div class="card" style="max-width:700px;margin-top:16px;">
+    <div class="card-header"><h3>Certificate Verification Link</h3></div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
+      Every certificate carries a QR code that opens this site's <strong>Verify / Download Certificate</strong> page for that certificate.
+      Leave this blank to use the address of the page the certificate is made from. Set it when certificates are produced away from the public site
+      — on the offline system, or from a local copy — so the code still points at the public address.
+    </p>
+    <div class="form-group">
+      <label>Public address of this site</label>
+      <input type="text" class="form-control" id="settCertVerifyUrl" placeholder="https://your-site.github.io/C.E.S.T.I.S-Train/index.html">
+    </div>
+    <div id="certVerifyUrlPreview" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;word-break:break-all;"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" onclick="saveCertVerifyUrl()">Save</button>
+      <button class="btn btn-secondary" onclick="clearCertVerifyUrl()">Use This Page's Address</button>
     </div>
   </div>
 </div>
