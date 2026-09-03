@@ -3553,6 +3553,38 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 }
 .cert-download-btn:hover { background:#27ae60; transform:translateY(-1px); }
 .cert-download-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+/* Certificate portal — Verify / Download, reached from the QR code on every
+   certificate (index.html?certificate=NUMBER) and from the landing page. */
+.cert-portal { position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,0.88); backdrop-filter:blur(8px); display:none; overflow-y:auto; padding:24px 12px; }
+.cert-portal.active { display:block; }
+.cert-portal-panel { background:var(--bg-card); border:1px solid var(--border-light); border-radius:var(--radius-lg); padding:36px 32px; max-width:640px; margin:0 auto; position:relative; box-shadow:0 24px 80px rgba(0,0,0,0.5); animation:fadeIn 0.3s ease; }
+.cert-portal-panel.wide { max-width:960px; }
+.cert-portal-panel .close-btn { position:absolute; top:14px; right:16px; background:none; border:none; color:var(--text-muted); font-size:22px; cursor:pointer; transition:var(--transition); }
+.cert-portal-panel .close-btn:hover { color:var(--text-primary); }
+.cert-portal-panel h2 { font-size:24px; font-family:'Playfair Display',serif; text-align:center; margin-bottom:6px; }
+.cert-portal-panel .subtitle { font-size:13px; color:var(--text-muted); text-align:center; margin-bottom:22px; line-height:1.6; }
+.cert-portal-view { display:none; }
+.cert-portal-view.active { display:block; }
+.cert-portal-back { background:none; border:none; color:var(--text-secondary); font-size:13px; cursor:pointer; padding:0; margin-bottom:14px; font-family:'DM Sans',sans-serif; }
+.cert-portal-back:hover { color:var(--accent); }
+.cert-portal-choices { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:8px; }
+.cert-portal-choice { display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; padding:24px 16px; background:var(--bg-secondary); border:1px solid var(--border-light); border-radius:var(--radius); color:var(--text-primary); cursor:pointer; transition:var(--transition); font-family:'DM Sans',sans-serif; }
+.cert-portal-choice:hover { border-color:var(--accent); transform:translateY(-2px); background:var(--bg-card-hover); }
+.cert-portal-choice .icon { font-size:34px; }
+.cert-portal-choice strong { font-size:16px; }
+.cert-portal-choice span { font-size:12px; color:var(--text-muted); line-height:1.5; }
+.cert-portal-sync { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:10px 14px; border-radius:var(--radius-sm); background:var(--bg-secondary); border:1px solid var(--border); margin-bottom:18px; font-size:12px; }
+.cert-portal-sync .state { color:var(--text-secondary); }
+.cert-portal-sync .state.ok { color:var(--green); }
+.cert-portal-sync .state.warn { color:var(--accent); }
+.cert-portal-sync button { padding:7px 14px; background:var(--accent); color:#000; border:none; border-radius:var(--radius-sm); font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap; font-family:'DM Sans',sans-serif; }
+.cert-portal-sync button:disabled { opacity:0.6; cursor:wait; }
+.cert-portal-certno { display:inline-block; font-family:monospace; font-size:13px; padding:4px 10px; border-radius:6px; background:var(--accent-dim); color:var(--accent); margin:0 auto 16px; }
+.cert-preview-wrap { margin-top:18px; display:grid; gap:14px; }
+.cert-preview-page { background:#fff; border-radius:6px; overflow:hidden; box-shadow:0 6px 24px rgba(0,0,0,0.45); }
+.cert-preview-page canvas, .cert-preview-page img { display:block; width:100%; height:auto; }
+.cert-preview-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin:0 0 6px; }
+@media (max-width:560px) { .cert-portal-choices { grid-template-columns:1fr; } .cert-portal-panel { padding:26px 18px; } }
 
 /* Admin Cert Download Management */
 .cert-mgmt-toolbar {
@@ -3985,9 +4017,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 
   <!-- Certificate Check Button -->
   <div style="text-align:center;margin-top:8px;">
-    <button class="cert-check-btn" onclick="openCertCheckOverlay()">
+    <button class="cert-check-btn" onclick="openCertPortal('home')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
-      Check &amp; Download Certificate
+      Verify / Download Certificate
     </button>
   </div>
 
@@ -3995,19 +4027,62 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     © 2026 C.E.S.T.I.S - LMS v2.0 &nbsp;|&nbsp; <a href="#" onclick="event.preventDefault();openModal('privacyPolicyModal')">Privacy Policy</a> &nbsp;|&nbsp; <a href="#" onclick="event.preventDefault();openModal('supportContactModal')">Support</a>
   </div>
 
-  <!-- Public Certificate Check Overlay -->
-  <div class="cert-check-overlay" id="certCheckOverlay">
-    <div class="cert-check-panel">
-      <button class="close-btn" onclick="closeCertCheckOverlay()">&times;</button>
-      <div style="text-align:center;margin-bottom:8px;font-size:40px;">🎓</div>
-      <h2 style="text-align:center;">Certificate Verification</h2>
-      <p class="subtitle" style="text-align:center;">Enter your <strong>Student ID Number</strong> to download your certificate, or your <strong>Certificate Number</strong> to verify a certificate.</p>
-      <div id="certCheckDriveStatus" style="display:none;text-align:center;margin-bottom:12px;padding:10px 16px;border-radius:8px;font-size:12px;"></div>
-      <div class="cert-check-input-group">
-        <input type="text" id="certCheckInput" placeholder="e.g. STU-2026001 or WE-2026-1234" onkeydown="if(event.key==='Enter')checkCertificatePublic()">
-        <button onclick="checkCertificatePublic()">Search</button>
+  <!-- Certificate Portal: Verify / Download. Opened from the QR code printed on
+       every certificate (index.html?certificate=NUMBER) and from the button
+       above. -->
+  <div class="cert-portal" id="certPortal" role="dialog" aria-modal="true" aria-label="Certificate Portal">
+    <div class="cert-portal-panel" id="certPortalPanel">
+      <button class="close-btn" onclick="closeCertPortal()" aria-label="Close">&times;</button>
+      <div style="text-align:center;margin-bottom:6px;font-size:40px;">🎓</div>
+      <h2 id="certPortalTitle">Verify / Download Certificate</h2>
+      <p class="subtitle">Community Educational and Skills Training Institute and Services Ltd.</p>
+      <div style="text-align:center;" id="certPortalCertNoWrap"></div>
+
+      <div class="cert-portal-sync" id="certPortalSyncBar">
+        <div style="flex:1;min-width:200px;">
+          <div class="state" id="certPortalSyncState">Not synced with the cloud yet.</div>
+          <div id="certPortalSyncStatus" style="display:none;margin-top:6px;padding:6px 10px;border-radius:6px;font-size:12px;"></div>
+        </div>
+        <button id="certPortalSyncBtn" onclick="certPortalSync()">Sync Now</button>
       </div>
-      <div id="certCheckResult"></div>
+
+      <!-- Home: the two doors -->
+      <div class="cert-portal-view active" id="certPortalHome">
+        <div class="cert-portal-choices">
+          <button class="cert-portal-choice" onclick="certPortalShow('verify')">
+            <span class="icon">🔎</span>
+            <strong>Verify Certificate</strong>
+            <span>For employers and institutions. Confirm that a certificate number is genuine and see who it was issued to.</span>
+          </button>
+          <button class="cert-portal-choice" onclick="certPortalShow('download')">
+            <span class="icon">📄</span>
+            <strong>Download Certificate</strong>
+            <span>For trainees. Enter your Student Number to preview your certificate and download it.</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Verify (employers) -->
+      <div class="cert-portal-view" id="certPortalVerify">
+        <button class="cert-portal-back" onclick="certPortalShow('home')">&larr; Back</button>
+        <p class="subtitle" style="text-align:left;margin-bottom:12px;">Enter the <strong>Certificate Number</strong> printed on the certificate. A genuine certificate shows the holder's name, programme and date of certification. Student numbers are never shown here.</p>
+        <div class="cert-check-input-group">
+          <input type="text" id="certPortalVerifyInput" placeholder="e.g. PH-2026-2972" onkeydown="if(event.key==='Enter')certPortalVerify()">
+          <button onclick="certPortalVerify()">Verify</button>
+        </div>
+        <div id="certPortalVerifyResult"></div>
+      </div>
+
+      <!-- Download (trainees) -->
+      <div class="cert-portal-view" id="certPortalDownload">
+        <button class="cert-portal-back" onclick="certPortalShow('home')">&larr; Back</button>
+        <p class="subtitle" style="text-align:left;margin-bottom:12px;">Enter your <strong>Student Number</strong> to see a live preview of your certificate. Sync with the cloud first: the Download button stays off until this device has synced, so every download is recorded.</p>
+        <div class="cert-check-input-group">
+          <input type="text" id="certPortalStudentInput" placeholder="e.g. STU-2026001" onkeydown="if(event.key==='Enter')certPortalPreview()">
+          <button onclick="certPortalPreview()">Show Certificate</button>
+        </div>
+        <div id="certPortalDownloadResult"></div>
+      </div>
     </div>
   </div>
 
@@ -7213,6 +7288,48 @@ function enforceOnePersonOneRecord() {
   return r.removed;
 }
 
+/* The roll as it is COUNTED, on every path that can add to it.
+
+   loadState() settles the roll once, as the page opens: stable ids, the
+   tombstones, the duplicate collapse, the certificate back-fill. Then the
+   pre-login sync merges five folder copies and the fee roll, the login
+   reconciles the accounts, the certificate lookup pulls the cloud copy —
+   and none of those ran the same pass. So the dashboard was built from a
+   roll that held the same trainee two or three times (406 where the Student
+   Progress page, drawn after the post-login sync had reloaded everything,
+   showed 224), and which number a screen showed depended on which pass had
+   run last.
+
+   One function, called after every merge and before any count is taken, so
+   every screen counts the same roll. Returns the number of records it
+   removed; nothing is written when nothing changed. */
+function cestisSettleRoster(reason) {
+  if (typeof students === 'undefined' || !Array.isArray(students)) return 0;
+  var before = students.length, removed = 0;
+  try { cestisStabilizeStudentIds(); } catch (e) {}
+  try {
+    var r = deduplicateStudents();
+    if (r && r.removed > 0) {
+      removed += r.removed;
+      try { relinkDependentData(r.idMap); } catch (e) {}
+    }
+  } catch (e) {}
+  try { if (typeof enforceOnePersonOneRecord === 'function') removed += enforceOnePersonOneRecord() || 0; } catch (e) {}
+  try { reconcileCertifiedFromApprovals(); } catch (e) {}
+  try { backfillCertificateNumbers(); } catch (e) {}
+  if (removed > 0 || students.length !== before) {
+    try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch (e) {}
+    try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch (e) {}
+    try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch (e) {}
+    try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch (e) {}
+    try { CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults)); } catch (e) {}
+    try { saveUserAccounts(); } catch (e) {}
+    console.log('[VocTrain] Settled the roll after ' + (reason || 'a merge') + ': ' + before + ' -> ' + students.length + ' trainee record(s)');
+  }
+  try { updateSkillAreaCounts(); } catch (e) {}
+  return removed;
+}
+
 // Re-link all dependent arrays after student deduplication.
 // Any record referencing a removed student ID is updated to use the kept ID.
 function relinkDependentData(idMap) {
@@ -9619,7 +9736,10 @@ function enterApp(role) {
     currentRole = role;
     _sessionWiped = false; _sessionSeq++;
     // Ensure all student user accounts have corresponding student records
-    if (reconcileStudentsFromAccounts()) { enforceOnePersonOneRecord(); saveState(); }
+    // Ensure all student user accounts have corresponding student records,
+    // then settle the roll BEFORE a single count is taken from it.
+    var _accountsChanged = reconcileStudentsFromAccounts();
+    if (cestisSettleRoster('login') > 0 || _accountsChanged) saveState();
     document.getElementById('landingPage').style.display = 'none';
     document.getElementById('appShell').classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -11426,6 +11546,12 @@ function buildAdminPages() {
             <td style="padding:2px 4px;"><input type="number" id="ctplP2FooterY" value="90" step="1" min="0" max="100" style="width:52px;font-size:11px;" oninput="updateCertLivePreviewP2()"></td>
             <td style="padding:2px 4px;"><input type="number" id="ctplP2FooterSize" value="10" step="1" min="6" max="30" style="width:52px;font-size:11px;" oninput="updateCertLivePreviewP2()"></td>
           </tr>
+          <tr style="border-top:1px solid var(--border-light);">
+            <td style="padding:4px 6px;color:#ff7ab6;font-weight:600;" title="The validation QR code drawn over the template's generic one. X and Y are the square's top-left corner; Size is its width, all as percentages of the page.">QR code</td>
+            <td style="padding:2px 4px;"><input type="number" id="ctplP2QrX" value="3" step="0.5" min="0" max="100" style="width:52px;font-size:11px;" oninput="updateCertLivePreviewP2()"></td>
+            <td style="padding:2px 4px;"><input type="number" id="ctplP2QrY" value="86.5" step="0.5" min="0" max="100" style="width:52px;font-size:11px;" oninput="updateCertLivePreviewP2()"></td>
+            <td style="padding:2px 4px;"><input type="number" id="ctplP2QrSize" value="7.5" step="0.5" min="2" max="30" style="width:52px;font-size:11px;" title="Width, % of the page" oninput="updateCertLivePreviewP2()"></td>
+          </tr>
         </tbody>
       </table>
 
@@ -11881,7 +12007,14 @@ function renderStudentCertificate(){
     var dl = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function(d){ return d.studentId === s.id; });
     var dlBlock;
     if(dl && dl.approved){
-      dlBlock = "<button class=\"cert-download-btn\" onclick=\"generateCertificatePDF('" + s.id + "')\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/></svg> Download Certificate</button>";
+      // Greyed out until this session has synced with the cloud (certSyncDone):
+      // a certificate is never produced from stale local data, and every
+      // download must be recorded centrally. "Refresh from Cloud" below is
+      // the sync that switches it on.
+      var _dlOk = certDownloadAllowed(s);
+      dlBlock = '<button class="cert-download-btn" id="certPublicDownloadBtn" ' + (_dlOk.allowed ? '' : 'disabled ') + 'title="' + _certEsc(_dlOk.reason) + '" onclick="if(certDownloadAllowed(currentStudent).allowed)generateCertificatePDF(\'' + s.id + '\')">' + CERT_DOWNLOAD_ICON + ' Download Certificate</button>' +
+        '<div id="certDownloadHint" style="font-size:12px;color:var(--accent);margin-top:8px;' + (_dlOk.allowed ? 'display:none;' : '') + '">' + _certEsc(_dlOk.reason) + '</div>' +
+        '<div id="certPublicDownloadStatus" style="display:none;font-size:13px;margin-top:8px;padding:10px 14px;border-radius:8px;"></div>';
     } else {
       dlBlock = '<p style="font-size:13px;color:var(--text-muted);margin-top:8px;">Certificate download not yet approved. Contact administration.</p>';
     }
@@ -18892,6 +19025,7 @@ window.addEventListener('storage', function(e) {
 
 // ============================== GOOGLE SITE VERIFICATION ==============================
 function loadGoogleVerificationUI() {
+  try { loadCertVerifyUrlUI(); } catch(e) {}
   var textarea = document.getElementById('settGoogleVerificationHtml');
   var preview = document.getElementById('gvPreview');
   var previewCode = document.getElementById('gvPreviewCode');
@@ -18967,6 +19101,36 @@ function clearGoogleVerification() {
   saveState();
   loadGoogleVerificationUI();
   showToast('Google verification tag removed');
+}
+
+// ============================== CERTIFICATE VERIFICATION LINK ==============================
+// The public address the QR code on every certificate points at (see
+// certVerifyBaseUrl). Blank means "this page's own address".
+function loadCertVerifyUrlUI() {
+  var input = document.getElementById('settCertVerifyUrl');
+  var preview = document.getElementById('certVerifyUrlPreview');
+  if(input) input.value = systemSettings.certVerifyUrl || '';
+  if(preview) {
+    var sample = certVerifyUrlFor('PH-2026-0001');
+    preview.textContent = sample
+      ? 'A certificate\u2019s QR code currently opens: ' + sample
+      : 'No public address is known here: set one above so the QR codes point somewhere reachable.';
+  }
+}
+function saveCertVerifyUrl() {
+  var input = document.getElementById('settCertVerifyUrl');
+  var raw = input ? input.value.trim() : '';
+  if(raw && !/^https?:\/\/\S+$/i.test(raw)) { showToast('Enter a full web address starting with http:// or https://', 'warning'); return; }
+  systemSettings.certVerifyUrl = raw;
+  saveState();
+  loadCertVerifyUrlUI();
+  showToast(raw ? 'Certificate verification link saved' : 'Certificates will use this page\u2019s own address');
+}
+function clearCertVerifyUrl() {
+  systemSettings.certVerifyUrl = '';
+  saveState();
+  loadCertVerifyUrlUI();
+  showToast('Certificates will use this page\u2019s own address');
 }
 
 // ============================== EXPORT FUNCTIONS ==============================
@@ -26159,6 +26323,8 @@ async function syncFromCloud() {
 
     // Reconcile: create student records for any user accounts missing them
     reconcileStudentsFromAccounts();
+    // Count nobody twice, whichever copy brought them in.
+    cestisSettleRoster('Sync from Cloud');
 
     // Persist all restored data to localStorage
     saveState();
@@ -26750,6 +26916,9 @@ async function mergeFromCloud() {
       }
     } catch(e) { console.warn('[Merge] notifications error:', e); }
 
+    // Count nobody twice, whichever copy brought them in.
+    try { cestisSettleRoster('Merge from Cloud'); } catch(e) {}
+
     // Persist all merged data
     saveState();
 
@@ -26963,11 +27132,11 @@ async function fetchMasterSnapshot() {
 // and report any data loss it recovered. Safe by construction (cestis-core):
 // never overwrites newer local edits, never resurrects deleted students.
 async function reconcileWithMasterSnapshot() {
-  if (!isCloudConnected || !googleAccessToken) return;
-  if (!window.CESTISCore || typeof CESTISCore.reconcileSnapshot !== 'function') return;
+  if (!isCloudConnected || !googleAccessToken) return false;
+  if (!window.CESTISCore || typeof CESTISCore.reconcileSnapshot !== 'function') return false;
   try {
     var snapshot = await fetchMasterSnapshot();
-    if (!snapshot || !snapshot.store) return;
+    if (!snapshot || !snapshot.store) return false;
     var ver = CESTISCore.verifySnapshot(snapshot);
     if (!ver.ok) console.warn('[MasterSnapshot] checksum mismatch — snapshot may be partial; merging cautiously.');
     try { updateMasterBackupInfo(snapshot); } catch (e) {}
@@ -26993,7 +27162,9 @@ async function reconcileWithMasterSnapshot() {
     } else {
       console.log('[MasterSnapshot] local data consistent with master backup (checksumOk:' + ver.ok + ')');
     }
-  } catch (e) { console.warn('[MasterSnapshot] reconcile failed:', e); }
+    // True means the master file was read — whether or not it changed anything.
+    return true;
+  } catch (e) { console.warn('[MasterSnapshot] reconcile failed:', e); return false; }
 }
 
 // Update the header indicator that shows when/who/how-much for the master file.
@@ -28168,6 +28339,12 @@ async function autoSyncOnLogin() {
     // and refreshes views), so it does not need anyChanged plumbing.
     try { await reconcileWithMasterSnapshot(); } catch (e) { console.warn('[AutoSync] Master reconcile error:', e); }
 
+    // 3c. Settle the roll after every pass above has added what it will, so
+    // the dashboard's totals are the roll the Student Progress page shows.
+    try {
+      if (cestisSettleRoster('the login sync') > 0) { anyChanged = true; try { refreshStudentDependentViews(); } catch (e) {} }
+    } catch (e) {}
+
     // 4. Update sync timestamp
     lastSyncTime = new Date();
     CESTISStore.setItem('schoolDashboardLastSyncTime', lastSyncTime.toISOString());
@@ -28839,12 +29016,29 @@ async function loginPageSync() {
       console.warn('[LoginSync] Fee system student sync error:', e);
     }
 
+    // Step 3b2: The master backup — the whole store, kept as one file. The
+    // post-login sync has always reconciled against it; this pre-login sync
+    // never did, so a certificate issued on another device and carried only
+    // by the master file was "not found" until somebody logged in. The
+    // reconcile only ever ADDS what is missing here.
+    try {
+      if (isAdmin) updateLoginSyncStatus('Checking the master backup...', '');
+      await reconcileWithMasterSnapshot();
+    } catch (e) {
+      console.warn('[LoginSync] Master backup reconcile error:', e);
+    }
+
     // Step 3c: Reconcile student user accounts with student records
     try {
       if (reconcileStudentsFromAccounts()) { totalMerged++; saveState(); }
     } catch (e) {
       console.warn('[LoginSync] Reconcile error:', e);
     }
+
+    // Step 3d: Settle the roll. The five folder copies, the fee roll, the
+    // master backup and the accounts have each had their say; count nobody
+    // twice before the dashboard is built from this.
+    try { if (cestisSettleRoster('the pre-login sync') > 0) totalMerged++; } catch (e) {}
 
     // Step 4: Ensure main cloudFileId is set
     if (!cloudFileId) {
@@ -28870,6 +29064,8 @@ async function loginPageSync() {
     // Unlock login — sync completed successfully
     loginSyncCompleted = true;
     enableLoginButtons();
+    // The certificate portal, if it is open, now counts as synced too.
+    try { certPortalRefreshSyncUi(); certPortalRerender(); } catch (e) {}
 
     // Apply maintenance mode overlay after cloud data is merged
     applyMaintenanceOverlay();
@@ -29435,6 +29631,7 @@ async function studentRefreshCertData() {
     if (!downloadResp.ok) { showToast('Could not download cloud data.'); return; }
 
     var backupData = await downloadResp.json();
+    _certDriveLastFetched = Date.now();   // this session has now synced: the Download button may switch on
 
     // Update current student's data from cloud
     var cloudStudents = backupData.students || [];
@@ -36279,27 +36476,342 @@ var _certDriveFetchInProgress = false;
 var _certDriveLastFetched = null;
 var CERT_DRIVE_CACHE_MS = 60000; // Re-fetch from Drive at most once per minute
 
-function openCertCheckOverlay() {
-  document.getElementById('certCheckOverlay').classList.add('active');
-  document.getElementById('certCheckInput').value = '';
-  document.getElementById('certCheckResult').innerHTML = '';
-  setTimeout(function(){ document.getElementById('certCheckInput').focus(); }, 100);
+// ============================== CERTIFICATE PORTAL ==============================
+// Verify / Download Certificate. The QR code printed on every certificate
+// opens index.html?certificate=NUMBER, which lands here; the landing page's
+// "Verify / Download Certificate" button lands here too.
+//
+//   home      — the two doors: Verify (employers) and Download (trainees)
+//   verify    — a certificate number in; the holder's name, programme and
+//               date out. Never the student number.
+//   download  — a student number in; a live preview of both pages out, and
+//               the Download button — which stays greyed out until this
+//               device has actually synced with the cloud, so no certificate
+//               is ever produced from stale local data and every download is
+//               recorded centrally.
+var _certPortalCertNo = '';         // the number the QR code carried, if any
+var _certPortalView = 'home';
+var _certPortalPreviewStudent = null;
+var _certPortalSyncing = false;
+var CERT_DOWNLOAD_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
 
-  // Auto-fetch latest certificate data from Google Drive (lightweight, no login required)
-  fetchCertDataFromDrive();
-}
-function closeCertCheckOverlay() {
-  document.getElementById('certCheckOverlay').classList.remove('active');
+function openCertCheckOverlay() { openCertPortal('home'); }   // the old name, kept for any caller
+function closeCertCheckOverlay() { closeCertPortal(); }
+
+function _certEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
 }
 
-// Lightweight on-demand fetch: pulls only students + certDownloadApprovals from Google Drive backup
-// No LMS account required — uses cached Google OAuth token if available
+function openCertPortal(view, certNo) {
+  var portal = document.getElementById('certPortal');
+  if (!portal) return;
+  if (certNo !== undefined) _certPortalCertNo = String(certNo || '').trim();
+  portal.classList.add('active');
+  var wrap = document.getElementById('certPortalCertNoWrap');
+  if (wrap) wrap.innerHTML = _certPortalCertNo ? '<span class="cert-portal-certno">Certificate ' + _certEsc(_certPortalCertNo) + '</span>' : '';
+  var vi = document.getElementById('certPortalVerifyInput');
+  if (vi && _certPortalCertNo) vi.value = _certPortalCertNo;
+  certPortalShow(view || 'home');
+  certPortalRefreshSyncUi();
+  // Pull the latest records quietly when a token is already on this device.
+  Promise.resolve(fetchCertDataFromDrive()).then(function () { certPortalRefreshSyncUi(); certPortalRerender(); }).catch(function () {});
+}
+function closeCertPortal() {
+  var portal = document.getElementById('certPortal');
+  if (portal) portal.classList.remove('active');
+  // Leave the address clean so a reload lands on the login page.
+  try { if (/[?&](certificate|verify|cert)=/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
+}
+function certPortalShow(view) {
+  _certPortalView = view;
+  ['home', 'verify', 'download'].forEach(function (v) {
+    var el = document.getElementById('certPortal' + v.charAt(0).toUpperCase() + v.slice(1));
+    if (el) el.classList.toggle('active', v === view);
+  });
+  var panel = document.getElementById('certPortalPanel');
+  if (panel) panel.classList.toggle('wide', view === 'download');
+  var title = document.getElementById('certPortalTitle');
+  if (title) title.textContent = view === 'verify' ? 'Verify a Certificate' : view === 'download' ? 'Download your Certificate' : 'Verify / Download Certificate';
+  var focusId = view === 'verify' ? 'certPortalVerifyInput' : view === 'download' ? 'certPortalStudentInput' : null;
+  if (focusId) setTimeout(function () { var f = document.getElementById(focusId); if (f) f.focus(); }, 80);
+  var vr = document.getElementById('certPortalVerifyResult');
+  if (view === 'verify' && _certPortalCertNo && vr && !vr.innerHTML) certPortalVerify();
+}
+// Re-draw whatever door is open, after a sync brought new records in.
+function certPortalRerender() {
+  var vi = document.getElementById('certPortalVerifyInput'), si = document.getElementById('certPortalStudentInput');
+  if (_certPortalView === 'verify' && vi && vi.value.trim()) certPortalVerify();
+  if (_certPortalView === 'download' && si && si.value.trim()) certPortalPreview();
+}
+
+// The sync line and the Download button follow one question: has this device
+// synced? (certSyncDone — a cloud pull here, or a cloud-connected login sync.)
+function certPortalRefreshSyncUi() {
+  var state = document.getElementById('certPortalSyncState');
+  var btn = document.getElementById('certPortalSyncBtn');
+  var synced = certSyncDone();
+  var busy = !!_certDriveFetchInProgress || !!_certPortalSyncing;
+  if (state) {
+    state.className = 'state ' + (synced ? 'ok' : 'warn');
+    state.textContent = synced
+      ? 'Synced with the cloud' + (_certDriveLastFetched ? ' at ' + new Date(_certDriveLastFetched).toLocaleTimeString() : '') + '.'
+      : 'Not synced with the cloud yet \u2014 press Sync Now to load the latest certificate records.';
+  }
+  if (btn) { btn.disabled = busy; btn.textContent = busy ? 'Syncing\u2026' : (synced ? 'Sync Again' : 'Sync Now'); }
+  var dl = document.getElementById('certPublicDownloadBtn');
+  if (dl) certApplyDownloadState(dl, _certPortalPreviewStudent || (typeof currentStudent !== 'undefined' ? currentStudent : null));
+}
+
+// May a Download button produce THIS trainee's certificate right now? One rule
+// for the portal and for the trainee's own My Certificate page: a certificate
+// must have been issued, the download approved, and this device synced.
+function certDownloadAllowed(student) {
+  if (!student || !student.certNo) return { allowed: false, reason: 'No certificate has been issued yet.' };
+  var approval = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function (d) { return d && d.studentId === student.id; });
+  if (!(approval && approval.approved)) return { allowed: false, reason: 'Certificate download has not been approved yet. Please contact the administration office.' };
+  if (!certSyncDone()) return { allowed: false, reason: 'Sync with the cloud first \u2014 the Download button switches on once this device has synced.' };
+  return { allowed: true, reason: '' };
+}
+function certApplyDownloadState(btn, student) {
+  var v = certDownloadAllowed(student);
+  btn.disabled = !v.allowed;
+  btn.title = v.reason;
+  btn.setAttribute('aria-disabled', v.allowed ? 'false' : 'true');
+  var hint = document.getElementById('certDownloadHint');
+  if (hint) { hint.textContent = v.reason; hint.style.display = v.allowed ? 'none' : 'block'; }
+  return v.allowed;
+}
+
+// The Sync Now button: a token already on this device, else the same Google
+// sign-in the login page uses; then the certificate records, the master
+// backup and the template images.
+async function certPortalSync() {
+  if (_certPortalSyncing) return;
+  _certPortalSyncing = true;
+  certPortalRefreshSyncUi();
+  try {
+    if (!_certHasCloudToken()) {
+      _certCloudStatus('Opening secure sign-in...', '');
+      var token = await loginPageGoogleAuth();
+      if (!token) { _certCloudStatus('Sign-in was cancelled. Press Sync Now to try again.', 'error'); return; }
+      googleAccessToken = token; isCloudConnected = true;
+    }
+    _certDriveLastFetched = null;   // a fresh pull, not the cached one
+    var ok = await fetchCertDataFromDrive();
+    if (!ok) { _certCloudStatus('Could not reach the cloud. Check the connection and try again.', 'error'); return; }
+    try { await certImageLoadAllFromDrive(); } catch (e) {}
+    certPortalRerender();
+  } catch (e) {
+    console.warn('[CertPortal] sync failed:', e);
+    _certCloudStatus('Sync failed: ' + ((e && e.message) || 'unknown error'), 'error');
+  } finally {
+    _certPortalSyncing = false;
+    certPortalRefreshSyncUi();
+  }
+}
+
+function _certNotFoundCard(query, what) {
+  if (!certSyncDone()) {
+    return '<div class="cert-result-card pending">' +
+      '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(240,165,0,0.15);color:var(--accent);">&#9203;</div>' +
+      '<div><div style="font-size:16px;font-weight:700;color:var(--accent);">Sync Required</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">This device has not loaded the certificate records yet</div></div></div>' +
+      '<p style="font-size:13px;color:var(--text-muted);">No record on this device matches &quot;' + _certEsc(query) + '&quot;, but this device has not synced with the cloud. Press <strong>Sync Now</strong> above, then try again.</p></div>';
+  }
+  return '<div class="cert-result-card not-found">' +
+    '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(231,76,60,0.15);color:var(--red);">&#10005;</div>' +
+    '<div><div style="font-size:16px;font-weight:700;color:var(--red);">No Record Found</div>' +
+    '<div style="font-size:12px;color:var(--text-muted);">No ' + what + ' matches &quot;' + _certEsc(query) + '&quot;</div></div></div>' +
+    '<p style="font-size:13px;color:var(--text-muted);">Check the number and try again. If it is correct, contact the Centre: cestisadmn@gmail.com | +(876) 679-0111.</p></div>';
+}
+
+// ---- Verify (employers): a certificate number only ----
+function certPortalVerify() {
+  backfillCertificateNumbers();
+  var input = document.getElementById('certPortalVerifyInput');
+  var out = document.getElementById('certPortalVerifyResult');
+  if (!input || !out) return;
+  var query = (input.value || '').trim();
+  if (!query) { out.innerHTML = '<p style="color:var(--red);font-size:13px;margin-top:8px;">Please enter a Certificate Number.</p>'; return; }
+  // A student number typed here is not a match, so nothing about the trainee
+  // leaks through this door.
+  var q = query.toLowerCase();
+  var student = (students || []).find(function (s) { return s && s.certNo && String(s.certNo).toLowerCase() === q; });
+  if (!student) { out.innerHTML = _certNotFoundCard(query, 'certificate'); return; }
+  out.innerHTML = '<div class="cert-result-card success">' +
+    '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(46,204,113,0.15);color:var(--green);">&#10003;</div>' +
+    '<div><div style="font-size:16px;font-weight:700;color:var(--green);">Certificate Verified</div>' +
+    '<div style="font-size:12px;color:var(--text-muted);">Issued by the Community Educational and Skills Training Institute and Services Ltd.</div></div></div>' +
+    '<div class="cert-result-details">' +
+    '<div class="cert-detail-item"><div class="label">Holder</div><div class="value">' + _certEsc(student.name) + '</div></div>' +
+    '<div class="cert-detail-item"><div class="label">Certificate No.</div><div class="value" style="font-family:monospace;">' + _certEsc(student.certNo) + '</div></div>' +
+    '<div class="cert-detail-item"><div class="label">Programme</div><div class="value">' + _certEsc(student.course) + '</div></div>' +
+    '<div class="cert-detail-item"><div class="label">Date Certified</div><div class="value">' + _certEsc(student.certDate || '\u2014') + '</div></div>' +
+    '<div class="cert-detail-item"><div class="label">Collection Status</div><div class="value">' + (student.certCollected ? 'Collected' : 'Awaiting Collection') + '</div></div>' +
+    '</div>' +
+    (certSyncDone() ? '' : '<p style="font-size:12px;color:var(--text-muted);margin-top:10px;">Verified against the records held on this device. Press Sync Now for the latest cloud records.</p>') +
+    '</div>';
+}
+
+// ---- Download (trainees): a student number, a live preview, the button ----
+function certPortalPreview() {
+  backfillCertificateNumbers();
+  var input = document.getElementById('certPortalStudentInput');
+  var out = document.getElementById('certPortalDownloadResult');
+  if (!input || !out) return;
+  _certPortalPreviewStudent = null;
+  var query = (input.value || '').trim();
+  if (!query) { out.innerHTML = '<p style="color:var(--red);font-size:13px;margin-top:8px;">Please enter your Student Number.</p>'; return; }
+  var q = query.toLowerCase();
+  var student = (students || []).find(function (s) { return s && s.id && String(s.id).toLowerCase() === q; });
+  if (!student) { out.innerHTML = _certNotFoundCard(query, 'student'); return; }
+  // Opened from a certificate's QR code: the student number must be the
+  // holder's. Somebody else's number does not open somebody else's certificate.
+  if (_certPortalCertNo && String(student.certNo || '').toLowerCase() !== _certPortalCertNo.toLowerCase()) {
+    out.innerHTML = '<div class="cert-result-card not-found">' +
+      '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(231,76,60,0.15);color:var(--red);">&#10005;</div>' +
+      '<div><div style="font-size:16px;font-weight:700;color:var(--red);">Student Number Does Not Match</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">Certificate ' + _certEsc(_certPortalCertNo) + ' was not issued to student ' + _certEsc(student.id) + '</div></div></div>' +
+      '<p style="font-size:13px;color:var(--text-muted);">Enter the Student Number of the person named on this certificate.</p></div>';
+    return;
+  }
+  if (!student.certNo) {
+    var stageLabel = {testing:'Assessment Stage',interview:'Interview Stage',training:'In Training',incomplete:'Incomplete'}[student.stage] || student.stage;
+    out.innerHTML = '<div class="cert-result-card pending">' +
+      '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(240,165,0,0.15);color:var(--accent);">&#9203;</div>' +
+      '<div><div style="font-size:16px;font-weight:700;color:var(--accent);">Certificate Not Yet Issued</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">' + _certEsc(student.name) + '</div></div></div>' +
+      '<div class="cert-result-details">' +
+      '<div class="cert-detail-item"><div class="label">Student ID</div><div class="value">' + _certEsc(student.id) + '</div></div>' +
+      '<div class="cert-detail-item"><div class="label">Programme</div><div class="value">' + _certEsc(student.course) + '</div></div>' +
+      '<div class="cert-detail-item"><div class="label">Current Stage</div><div class="value">' + _certEsc(stageLabel) + '</div></div>' +
+      '<div class="cert-detail-item"><div class="label">Progress</div><div class="value">' + _certEsc(student.progress) + '%</div></div>' +
+      '</div><p style="font-size:13px;color:var(--text-muted);">Complete all training modules and pass certification to receive your certificate.</p></div>';
+    return;
+  }
+  _certPortalPreviewStudent = student;
+  var v = certDownloadAllowed(student);
+  out.innerHTML = '<div class="cert-result-card success">' +
+    '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(46,204,113,0.15);color:var(--green);">&#10003;</div>' +
+    '<div><div style="font-size:16px;font-weight:700;color:var(--green);">Certificate Found</div>' +
+    '<div style="font-size:12px;color:var(--text-muted);">' + _certEsc(student.name) + '</div></div></div>' +
+    '<div class="cert-result-details">' +
+    '<div class="cert-detail-item"><div class="label">Student ID</div><div class="value">' + _certEsc(student.id) + '</div></div>' +
+    '<div class="cert-detail-item"><div class="label">Certificate No.</div><div class="value" style="font-family:monospace;">' + _certEsc(student.certNo) + '</div></div>' +
+    '<div class="cert-detail-item"><div class="label">Programme</div><div class="value">' + _certEsc(student.course) + '</div></div>' +
+    '<div class="cert-detail-item"><div class="label">Date Certified</div><div class="value">' + _certEsc(student.certDate || '\u2014') + '</div></div>' +
+    '</div>' +
+    '<button class="cert-download-btn" id="certPublicDownloadBtn" ' + (v.allowed ? '' : 'disabled ') + 'title="' + _certEsc(v.reason) + '" onclick="certPortalDownload()">' + CERT_DOWNLOAD_ICON + ' Download Certificate</button>' +
+    '<div id="certDownloadHint" style="font-size:12px;color:var(--accent);margin-top:8px;' + (v.allowed ? 'display:none;' : '') + '">' + _certEsc(v.reason) + '</div>' +
+    '<div id="certPublicDownloadStatus" style="display:none;font-size:13px;margin-top:8px;padding:10px 14px;border-radius:8px;"></div>' +
+    '<div class="cert-preview-wrap" id="certPortalPreviewArea"><p style="font-size:13px;color:var(--text-muted);">Preparing the preview\u2026</p></div>' +
+    '</div>';
+  certRenderPreview(student, document.getElementById('certPortalPreviewArea'));
+}
+function certPortalDownload() {
+  var s = _certPortalPreviewStudent;
+  if (!s) return;
+  if (!certDownloadAllowed(s).allowed) { certPortalRefreshSyncUi(); return; }
+  generateCertificatePDF(s.id);
+}
+
+// The live preview: the same two pages the PDF is made from, drawn by the same
+// renderers, scaled to fit. The template comes from this device's store, then
+// from Google Drive when there is a token.
+function certLoadTemplateFor(student) {
+  var certKey = getCertTemplateKey(student.course || '');
+  var have = function () { var t = certTemplates[certKey]; return (t && t.bgPage1) ? t : null; };
+  if (have()) return Promise.resolve(have());
+  return ensureCertImagesLoaded().then(function () {
+    if (have()) return have();
+    if (!googleAccessToken) return null;
+    return certImageLoadFromDrive(certKey, 'bgPage1').then(function (d) {
+      if (!d) return null;
+      return certImageLoadFromDrive(certKey, 'bgPage2').then(function () { return have(); });
+    });
+  }).catch(function () { return have(); });
+}
+function _certLoadImage(src) {
+  return new Promise(function (resolve, reject) {
+    var img = new Image();
+    img.onload = function () { resolve(img); };
+    img.onerror = function () { reject(new Error('image failed')); };
+    img.src = src;
+  });
+}
+function certRenderPreview(student, host) {
+  if (!host) return Promise.resolve(false);
+  return certLoadTemplateFor(student).then(function (tpl) {
+    if (!tpl || !tpl.bgPage1) {
+      host.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">The certificate template for ' + _certEsc(student.course || 'this course') + ' is not on this device yet. Press <strong>Sync Now</strong> to fetch it.</p>';
+      return false;
+    }
+    return _certLoadImage(tpl.bgPage1).then(function (img1) {
+      var pages = [{ label: 'Page 1', canvas: renderCertPage1OnBg(img1, student, tpl) }];
+      if (tpl.bgPage2 && tpl.modules && tpl.modules.length > 0) {
+        return _certLoadImage(tpl.bgPage2).then(function (img2) {
+          pages.push({ label: 'Page 2', canvas: renderCertPage2OnBg(img2, student, tpl) });
+          return pages;
+        }).catch(function () { return pages; });
+      }
+      return pages;
+    }).then(function (pages) {
+      host.innerHTML = '';
+      pages.forEach(function (p) {
+        var lab = document.createElement('p'); lab.className = 'cert-preview-label'; lab.textContent = p.label + ' \u2014 preview';
+        var box = document.createElement('div'); box.className = 'cert-preview-page';
+        var img = document.createElement('img'); img.alt = 'Certificate ' + p.label; img.src = p.canvas.toDataURL('image/jpeg', 0.85);
+        box.appendChild(img);
+        var cell = document.createElement('div'); cell.appendChild(lab); cell.appendChild(box);
+        host.appendChild(cell);
+      });
+      return true;
+    });
+  }).catch(function (e) {
+    console.warn('[CertPortal] preview failed:', e);
+    host.innerHTML = '<p style="font-size:13px;color:var(--red);">The preview could not be drawn. Please try again.</p>';
+    return false;
+  });
+}
+
+// The QR code lands here: index.html?certificate=NUMBER (also ?verify= / ?cert=).
+function certPortalCertNoFromAddress(search) {
+  var m = /[?&](?:certificate|verify|cert)=([^&#]*)/.exec(search || '');
+  if (!m) return null;
+  try { return decodeURIComponent(m[1].replace(/\+/g, ' ')).trim(); } catch (e) { return m[1]; }
+}
+(function () {
+  function openFromAddress() {
+    var no = certPortalCertNoFromAddress(location.search);
+    if (no !== null) openCertPortal('home', no);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', openFromAddress);
+  else openFromAddress();
+})();
+
+// Where the certificate lookup reports its cloud status: the portal's sync
+// line when it is open. Null-safe — the lookup also runs with nothing on screen.
+function _certCloudStatus(msg, kind) {
+  var el = document.getElementById('certPortalSyncStatus');
+  if (!el) return;
+  if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+  el.style.display = 'block';
+  el.style.background = kind === 'error' ? 'rgba(231,76,60,0.1)' : kind === 'ok' ? 'rgba(46,204,113,0.1)' : 'rgba(240,165,0,0.1)';
+  el.style.color = kind === 'error' ? 'var(--red)' : kind === 'ok' ? 'var(--green)' : 'var(--accent)';
+  el.textContent = msg;
+}
+
+// On-demand fetch for the certificate portal: pulls students +
+// certDownloadApprovals from the Google Drive backup, then reconciles against
+// the MASTER backup. No LMS account required — uses the cached Google OAuth
+// token if there is one. Resolves true when the cloud was read (or was read
+// within the last minute).
 async function fetchCertDataFromDrive() {
   // Skip if already fetching or recently fetched
-  if (_certDriveFetchInProgress) return;
-  if (_certDriveLastFetched && (Date.now() - _certDriveLastFetched < CERT_DRIVE_CACHE_MS)) return;
-
-  var statusDiv = document.getElementById('certCheckDriveStatus');
+  if (_certDriveFetchInProgress) return false;
+  if (_certDriveLastFetched && (Date.now() - _certDriveLastFetched < CERT_DRIVE_CACHE_MS)) return true;
 
   // Try to get a Google access token from localStorage (no popup, no login)
   var token = googleAccessToken;
@@ -36311,15 +36823,14 @@ async function fetchCertDataFromDrive() {
     }
   }
   if (!token) {
-    // No token available — silently use whatever local data exists
-    return;
+    // No token — the caller shows whatever local data exists and says that
+    // this device has not synced.
+    return false;
   }
 
   _certDriveFetchInProgress = true;
-  statusDiv.style.display = 'block';
-  statusDiv.style.background = 'rgba(240,165,0,0.1)';
-  statusDiv.style.color = 'var(--accent)';
-  statusDiv.textContent = 'Loading latest certificate records from cloud...';
+  _certCloudStatus('Loading latest certificate records from cloud...', '');
+  var readMain = false, readMaster = false;
 
   try {
     // Find the backup file in the Main Backup folder
@@ -36416,21 +36927,35 @@ async function fetchCertDataFromDrive() {
     // Backfill certificate numbers for certified students pulled from the cloud
     // so the verification recognises them as issued.
     backfillCertificateNumbers();
-
-    _certDriveLastFetched = Date.now();
-
-    // Show success briefly then hide
-    statusDiv.style.background = 'rgba(46,204,113,0.1)';
-    statusDiv.style.color = 'var(--green)';
-    statusDiv.textContent = 'Certificate records updated from cloud.';
-    setTimeout(function() { statusDiv.style.display = 'none'; }, 2500);
-
+    readMain = true;
   } catch (err) {
     console.warn('[CertFetch] Error fetching certificate data from Drive:', err);
-    statusDiv.style.background = 'rgba(231,76,60,0.1)';
-    statusDiv.style.color = 'var(--red)';
-    statusDiv.textContent = 'Using cached data. Cloud sync unavailable.';
-    setTimeout(function() { statusDiv.style.display = 'none'; }, 3000);
+  }
+
+  // The master backup too. It is the one file that carries the WHOLE store,
+  // and a certificate issued on another device can sit there before the
+  // folder copies catch up. The post-login sync has always read it; this
+  // lookup never did — which is how a trainee the Centre had certified came
+  // back "No Record Found" until somebody logged in. The reconcile only ever
+  // adds what is missing here.
+  try {
+    if (!isCloudConnected || !googleAccessToken) { try { revalidateCloudSync(); } catch (e) {} }
+    if (!isCloudConnected || !googleAccessToken) { googleAccessToken = token; isCloudConnected = true; }
+    readMaster = !!(await reconcileWithMasterSnapshot());
+  } catch (e) { console.warn('[CertFetch] master backup:', e); }
+
+  try {
+    if (readMain || readMaster) {
+      // Count nobody twice, whichever copy brought them in.
+      try { cestisSettleRoster('the certificate lookup'); } catch (e) {}
+      _certDriveLastFetched = Date.now();
+      _certCloudStatus('Certificate records updated from cloud.', 'ok');
+      setTimeout(function() { _certCloudStatus(''); }, 2500);
+      return true;
+    }
+    _certCloudStatus('Using cached data. Cloud sync unavailable.', 'error');
+    setTimeout(function() { _certCloudStatus(''); }, 3000);
+    return false;
   } finally {
     _certDriveFetchInProgress = false;
   }
@@ -36548,96 +37073,6 @@ function backfillCertificateNumbers() {
     }
   });
   return changed;
-}
-
-function checkCertificatePublic() {
-  backfillCertificateNumbers();
-  var query = (document.getElementById('certCheckInput').value || '').trim();
-  var resultDiv = document.getElementById('certCheckResult');
-  if(!query) { resultDiv.innerHTML = '<p style="color:var(--red);font-size:13px;margin-top:8px;">Please enter a Student ID Number or Certificate Number.</p>'; return; }
-
-  var queryLower = query.toLowerCase();
-
-  // Determine if the query matched by Student ID or by Certificate Number
-  var student = null;
-  var searchedByStudentId = false;
-
-  // First try matching by Student ID
-  student = students.find(function(s) {
-    return s.id.toLowerCase() === queryLower;
-  });
-  if(student) {
-    searchedByStudentId = true;
-  } else {
-    // Then try matching by Certificate Number
-    student = students.find(function(s) {
-      return s.certNo && s.certNo.toLowerCase() === queryLower;
-    });
-    searchedByStudentId = false;
-  }
-
-  if(!student) {
-    resultDiv.innerHTML = '<div class="cert-result-card not-found">' +
-      '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(231,76,60,0.15);color:var(--red);">&#10005;</div>' +
-      '<div><div style="font-size:16px;font-weight:700;color:var(--red);">No Record Found</div>' +
-      '<div style="font-size:12px;color:var(--text-muted);">No student or certificate matches &quot;' + query + '&quot;</div></div></div>' +
-      '<p style="font-size:13px;color:var(--text-muted);">Please try creating a user account and authenticate before downloading your certificate. If you already have an account, double-check your Student ID Number (e.g. STU-2026001) or Certificate Number and try again.</p></div>';
-    return;
-  }
-
-  if(!student.certNo) {
-    var stageLabel = {testing:'Assessment Stage',interview:'Interview Stage',training:'In Training',incomplete:'Incomplete'}[student.stage] || student.stage;
-    resultDiv.innerHTML = '<div class="cert-result-card pending">' +
-      '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(240,165,0,0.15);color:var(--accent);">&#9203;</div>' +
-      '<div><div style="font-size:16px;font-weight:700;color:var(--accent);">Certificate Not Yet Issued</div>' +
-      '<div style="font-size:12px;color:var(--text-muted);">' + student.name + '</div></div></div>' +
-      '<div class="cert-result-details">' +
-      '<div class="cert-detail-item"><div class="label">Student ID</div><div class="value">' + student.id + '</div></div>' +
-      '<div class="cert-detail-item"><div class="label">Programme</div><div class="value">' + student.course + '</div></div>' +
-      '<div class="cert-detail-item"><div class="label">Current Stage</div><div class="value">' + stageLabel + '</div></div>' +
-      '<div class="cert-detail-item"><div class="label">Progress</div><div class="value">' + student.progress + '%</div></div>' +
-      '</div><p style="font-size:13px;color:var(--text-muted);">Complete all training modules and pass certification to receive your certificate.</p></div>';
-    return;
-  }
-
-  var approval = certDownloadApprovals.find(function(d){ return d.studentId === student.id; });
-  var canDownload = approval && approval.approved;
-
-  // Certificate Number search: verification only (no download)
-  // Student ID search: verification + download (if approved)
-  var downloadSection = '';
-  if(searchedByStudentId) {
-    downloadSection = '<div class="cert-detail-item"><div class="label">Download</div><div class="value">' + (canDownload ? 'Approved' : 'Not yet approved') + '</div></div>' +
-      '</div>' +
-      (canDownload
-        ? '<button class="cert-download-btn" id="certPublicDownloadBtn" onclick="generateCertificatePDF(\'' + student.id + '\')"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Certificate</button>' +
-          '<div id="certPublicDownloadStatus" style="display:none;font-size:13px;margin-top:8px;padding:10px 14px;border-radius:8px;"></div>'
-        : '<p style="font-size:13px;color:var(--text-muted);margin-top:4px;">Certificate download has not been approved yet. Please contact the administration office.</p>');
-  } else {
-    downloadSection = '</div>' +
-      '<p style="font-size:13px;color:var(--text-muted);margin-top:4px;">To download your certificate, please search using your <strong>Student ID Number</strong> instead.</p>';
-  }
-
-  // Privacy: only reveal the Student ID when the search was BY student ID (the
-  // student looking up their own record to download). For certificate-number
-  // lookups (employer verification) the Student ID is withheld — the employer
-  // only confirms the certificate is genuine, and cannot download it.
-  var studentIdRow = searchedByStudentId
-    ? '<div class="cert-detail-item"><div class="label">Student ID</div><div class="value">' + student.id + '</div></div>'
-    : '';
-
-  resultDiv.innerHTML = '<div class="cert-result-card success">' +
-    '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(46,204,113,0.15);color:var(--green);">&#10003;</div>' +
-    '<div><div style="font-size:16px;font-weight:700;color:var(--green);">Certificate Verified</div>' +
-    '<div style="font-size:12px;color:var(--text-muted);">' + student.name + '</div></div></div>' +
-    '<div class="cert-result-details">' +
-    studentIdRow +
-    '<div class="cert-detail-item"><div class="label">Certificate No.</div><div class="value" style="font-family:monospace;">' + student.certNo + '</div></div>' +
-    '<div class="cert-detail-item"><div class="label">Programme</div><div class="value">' + student.course + '</div></div>' +
-    '<div class="cert-detail-item"><div class="label">Date Certified</div><div class="value">' + student.certDate + '</div></div>' +
-    '<div class="cert-detail-item"><div class="label">Collection Status</div><div class="value">' + (student.certCollected ? 'Collected' : 'Awaiting Collection') + '</div></div>' +
-    downloadSection +
-    '</div>';
 }
 
 // ============================== CERTIFICATE PDF GENERATION ==============================
@@ -36907,6 +37342,87 @@ function renderCertPage1OnBg(bgImg, student, tpl) {
   return canvas;
 }
 
+// ---- The validation QR code ----
+// The uploaded page-2 backgrounds carry a generic QR code in the bottom-left
+// corner under "PLEASE VALIDATE CERTIFICATE HERE". It pointed at nothing this
+// system knows about, and it was the same square on every certificate. The
+// renderer now paints that square out and draws a code of its own in its
+// place: the address of this site's certificate portal carrying the
+// certificate number, so a scan opens Verify / Download for THAT certificate.
+//
+// Where the square sits is part of the template's look (textPositions
+// p2QrX / p2QrY / p2QrSize, percentages of the page), so the editor can move
+// it and "Apply Design to All" carries it to every template. The defaults
+// match the Centre's current backgrounds.
+var CERT_QR_DEFAULTS = { x: 3, y: 86.5, size: 7.5 };
+
+// The public address certificates point at. Set in Settings when the PDF is
+// made somewhere other than the public site (the offline build, a local
+// file); otherwise this page's own address.
+function certVerifyBaseUrl() {
+  var s = (typeof systemSettings !== 'undefined' && systemSettings && systemSettings.certVerifyUrl) ? String(systemSettings.certVerifyUrl).trim() : '';
+  if (s) return s;
+  try {
+    if (typeof location !== 'undefined' && /^https?:$/.test(location.protocol)) return location.origin + location.pathname;
+  } catch (e) {}
+  return '';
+}
+function certVerifyUrlFor(certNo) {
+  var base = certVerifyBaseUrl();
+  if (!base) return '';
+  base = base.replace(/[#?].*$/, '');
+  return base + '?certificate=' + encodeURIComponent(certNo || '');
+}
+function certQrGeometry(tpl, w, h) {
+  var pos = (tpl && tpl.textPositions) || {};
+  var num = function (v, d) { v = parseFloat(v); return isFinite(v) && v > 0 ? v : d; };
+  var size = Math.round(num(pos.p2QrSize, CERT_QR_DEFAULTS.size) / 100 * w);
+  return {
+    x: Math.round(num(pos.p2QrX, CERT_QR_DEFAULTS.x) / 100 * w),
+    y: Math.round(num(pos.p2QrY, CERT_QR_DEFAULTS.y) / 100 * h),
+    size: size,
+    pad: Math.max(4, Math.round(size * 0.08))
+  };
+}
+// A QR code as a canvas, drawn by the bundled qrcode.js. Null when the
+// library is missing or the text is too long for it.
+function certMakeQrCanvas(text, px) {
+  if (typeof QRCode === 'undefined' || !text) return null;
+  try {
+    var host = document.createElement('div');
+    new QRCode(host, { text: text, width: px, height: px, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    return host.querySelector('canvas') || null;
+  } catch (e) { console.warn('[CertQR] could not draw the code:', e); return null; }
+}
+// Paint out the template's generic code and draw the live one. The cover
+// colour is sampled from the page beside the square, so the patch matches a
+// cream background as well as a white one.
+function certDrawValidationQr(ctx, student, tpl, w, h) {
+  var g = certQrGeometry(tpl, w, h);
+  var url = certVerifyUrlFor(student && student.certNo);
+  var fill = '#ffffff';
+  try {
+    var px = ctx.getImageData(Math.min(w - 1, g.x + g.size + g.pad + 6), Math.min(h - 1, g.y + Math.round(g.size / 2)), 1, 1).data;
+    if (px && px[3] > 0) fill = 'rgb(' + px[0] + ',' + px[1] + ',' + px[2] + ')';
+  } catch (e) {}
+  ctx.save();
+  ctx.fillStyle = fill;
+  ctx.fillRect(g.x - g.pad, g.y - g.pad, g.size + g.pad * 2, g.size + g.pad * 2);
+  var qr = certMakeQrCanvas(url, Math.max(64, g.size * 2));
+  if (qr) {
+    ctx.drawImage(qr, g.x, g.y, g.size, g.size);
+  } else if (url) {
+    // No QR library on this device: print the address, so the certificate
+    // still says where it can be verified.
+    ctx.fillStyle = '#1B2A4A';
+    ctx.font = Math.max(8, Math.round(g.size * 0.09)) + 'px Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(url, g.x, g.y + Math.round(g.size / 2));
+  }
+  ctx.restore();
+  return { geometry: g, url: url, drawn: !!qr };
+}
+
 // ---- PAGE 2: Overlay programme details on background template ----
 function renderCertPage2OnBg(bgImg, student, tpl) {
   var canvas = document.createElement('canvas');
@@ -37102,6 +37618,9 @@ function renderCertPage2OnBg(bgImg, student, tpl) {
   ctx.font = 'bold ' + Math.round(footerSize*1.8) + 'px Georgia, serif';
   ctx.fillStyle = '#1B2A4A';
   ctx.fillText('Certificate No. ' + student.certNo, footerX, footerCurY + footerSize*0.8);
+
+  // The validation QR code: the live one, over the template's generic square.
+  try { certDrawValidationQr(ctx, student, tpl, w, h); } catch (e) { console.warn('[CertQR]', e); }
 
   return canvas;
 }
@@ -37377,6 +37896,16 @@ function _renderCertLivePreviewP2() {
   ctx.beginPath(); ctx.moveTo(0,footerY); ctx.lineTo(w,footerY); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(footerX,0); ctx.lineTo(footerX,h); ctx.stroke(); ctx.setLineDash([]);
   canvas._hitZones.push({id:'footer', x:footerX, y:footerY, xInput:'ctplP2FooterX', yInput:'ctplP2FooterY', r:footerSize*8});
+
+  // --- Validation QR code (pink) — the square the live code is drawn in ---
+  var qrX=_cpv('ctplP2QrX',CERT_QR_DEFAULTS.x)/100*w, qrY=_cpv('ctplP2QrY',CERT_QR_DEFAULTS.y)/100*h, qrS=_cpv('ctplP2QrSize',CERT_QR_DEFAULTS.size)/100*w;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,122,182,0.18)'; ctx.fillRect(qrX, qrY, qrS, qrS);
+  ctx.strokeStyle = 'rgba(255,122,182,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([6,4]); ctx.strokeRect(qrX, qrY, qrS, qrS); ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,122,182,0.95)'; ctx.font = 'bold ' + Math.max(10, Math.round(qrS*0.16)) + 'px Arial, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('QR', qrX + qrS/2, qrY + qrS/2 + qrS*0.06);
+  ctx.restore();
+  canvas._hitZones.push({id:'qr code', x:qrX, y:qrY, xInput:'ctplP2QrX', yInput:'ctplP2QrY', r:Math.max(40, qrS)});
 }
 
 // ===== CANVAS DRAG SYSTEM (works for both pages) =====
@@ -37766,6 +38295,9 @@ function openCertTemplateEditor() {
   document.getElementById('ctplP2FooterX').value = pos.p2FooterX || 50;
   document.getElementById('ctplP2FooterY').value = pos.p2FooterY || 90;
   document.getElementById('ctplP2FooterSize').value = pos.p2FooterSize || 10;
+  document.getElementById('ctplP2QrX').value = pos.p2QrX || CERT_QR_DEFAULTS.x;
+  document.getElementById('ctplP2QrY').value = pos.p2QrY || CERT_QR_DEFAULTS.y;
+  document.getElementById('ctplP2QrSize').value = pos.p2QrSize || CERT_QR_DEFAULTS.size;
 
   // Rebuild modules
   var mc = document.getElementById('ctplModulesContainer');
@@ -37953,7 +38485,10 @@ function saveCertTemplate() {
       p2SpecsSize: parseInt(document.getElementById('ctplP2SpecsSize').value) || 13,
       p2FooterX: parseInt(document.getElementById('ctplP2FooterX').value) || 50,
       p2FooterY: parseInt(document.getElementById('ctplP2FooterY').value) || 90,
-      p2FooterSize: parseInt(document.getElementById('ctplP2FooterSize').value) || 10
+      p2FooterSize: parseInt(document.getElementById('ctplP2FooterSize').value) || 10,
+      p2QrX: parseFloat(document.getElementById('ctplP2QrX').value) || CERT_QR_DEFAULTS.x,
+      p2QrY: parseFloat(document.getElementById('ctplP2QrY').value) || CERT_QR_DEFAULTS.y,
+      p2QrSize: parseFloat(document.getElementById('ctplP2QrSize').value) || CERT_QR_DEFAULTS.size
     },
     bodyText: {
       completionLine: document.getElementById('ctplBodyCompletionLine').value,
