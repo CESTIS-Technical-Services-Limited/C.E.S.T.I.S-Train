@@ -14835,7 +14835,9 @@ async function vcUploadRecordingToDrive() {
 
     if (!response.ok) {
       var errData = await response.json();
-      throw new Error(errData.error?.message || 'Upload failed');
+      var upErr = new Error(errData.error?.message || 'Upload failed');
+      upErr.status = response.status;
+      throw upErr;
     }
 
     var result = await response.json();
@@ -24728,7 +24730,7 @@ function showCloudNotification(type, title, message, showConnect, autoDismissSec
       '<button class="cloud-notify-close" onclick="dismissCloudNotification()">&times;</button>' +
     '</div>' +
     '<div class="cloud-notify-actions">' +
-      (showConnect ? '<button class="btn btn-success" onclick="dismissCloudNotification();connectToGoogleDrive()">Reconnect Now</button>' : '') +
+      (showConnect ? '<button class="btn btn-success" onclick="dismissCloudNotification();reconnectCloudSync()">Reconnect Now</button>' : '') +
       '<button class="btn btn-secondary" onclick="dismissCloudNotification()">Dismiss</button>' +
     '</div>' +
     (autoDismissSec ? '<div class="cloud-notify-timer" style="animation:notifyCountdown ' + autoDismissSec + 's linear forwards"></div>' : '');
@@ -24769,7 +24771,34 @@ window.addEventListener('cestis-store-write-error', function(ev) {
 // Marks the cloud connection as down WITHOUT touching local data, stops the
 // background auto-save so it can't keep firing a dead token, and surfaces a
 // clear banner asking the user to reconnect their Google account.
+var _authExpiryPending = false;
+var _lastSilentRefreshOkAt = 0;
 function handleCloudAuthExpired() {
+  if (_authExpiryPending) return;
+  // Google's access token lives about an hour; the sign-in behind it usually
+  // lives far longer. Ask for a fresh token silently first — it arrives
+  // without any UI when the Google session is still good — and only declare
+  // the session gone when that fails.
+  var canRefresh = typeof attemptSilentTokenRefresh === 'function' && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2;
+  if (canRefresh && (isCloudConnected || googleAccessToken)) {
+    _authExpiryPending = true;
+    var startedAt = Date.now();
+    _lastSilentRefreshAt = 0;                       // let it run now, not in two minutes
+    try { attemptSilentTokenRefresh(); } catch (e) {}
+    setTimeout(function() {
+      _authExpiryPending = false;
+      if (_lastSilentRefreshOkAt >= startedAt && googleAccessToken) {
+        console.log('[Auth] Token refreshed silently after a rejection — sync continues.');
+        try { resumeCloudSyncIfLoggedIn(); } catch (e) {}
+        return;
+      }
+      declareCloudAuthExpired();
+    }, 4000);
+    return;
+  }
+  declareCloudAuthExpired();
+}
+function declareCloudAuthExpired() {
   var wasConnected = isCloudConnected || !!googleAccessToken;
   if (typeof stopAutoSave === 'function') stopAutoSave();
   googleAccessToken = null;
@@ -24848,6 +24877,7 @@ function ensureSilentRefreshClient() {
         CESTISStore.setItem('schoolDashboardGoogleAccessToken', googleAccessToken);
         CESTISStore.setItem('schoolDashboardGoogleTokenExpiry', expiry.toISOString());
         try { dismissCloudNotification(); } catch(e) {}
+        _lastSilentRefreshOkAt = Date.now();
         console.log('[Auth] Google token refreshed silently — backup continues.');
         resumeCloudSyncIfLoggedIn();
       }
@@ -24886,7 +24916,11 @@ function startCloudMonitor() {
       if (!savedExpiry) return;
       var msLeft = new Date(savedExpiry).getTime() - Date.now();
       if (msLeft <= 0) {
-        handleCloudAuthExpired();
+        // Past the expected expiry: ask for a fresh token. The next request
+        // that is actually rejected decides whether the session is gone —
+        // the clock alone raised the banner every hour on a connection that
+        // still worked.
+        attemptSilentTokenRefresh();
       } else if (msLeft < 5 * 60 * 1000) {
         // Within 5 minutes of expiry — try to renew silently so backup never stops.
         attemptSilentTokenRefresh();
@@ -24961,6 +24995,27 @@ function initGoogleAuth() {
 
 // Connect to Google Drive using OAuth
 async function connectToGoogleDrive() {
+  showGoogleAuthModal();
+}
+
+// The banner's Reconnect: a token that is still valid (in memory or stored)
+// is simply put back to work; the sign-in dialog opens only when there is
+// none. Opening the dialog over a working connection — while the header
+// said Connected — was the confusing half of "keeps popping up".
+async function reconnectCloudSync() {
+  try {
+    var savedToken = CESTISStore.getItem('schoolDashboardGoogleAccessToken');
+    var savedExpiry = CESTISStore.getItem('schoolDashboardGoogleTokenExpiry');
+    var stillValid = savedToken && savedExpiry && new Date(savedExpiry) > new Date();
+    if (stillValid || (isCloudConnected && googleAccessToken)) {
+      if (stillValid) { googleAccessToken = savedToken; isCloudConnected = true; }
+      _cloudAuthExpiredNotified = false;
+      updateCloudUI(true);
+      resumeCloudSyncIfLoggedIn();
+      showToast('Google Drive is connected — sync resumed.');
+      return;
+    }
+  } catch (e) {}
   showGoogleAuthModal();
 }
 
@@ -26775,7 +26830,7 @@ async function saveAccountsLedger() {
         method: 'POST', headers: { 'Authorization': 'Bearer ' + googleAccessToken }, body: fd });
       if (resp.ok) { try { _accountsLedgerFileId = (await resp.json()).id; } catch (e) {} }
     }
-    if (!resp.ok) { if (resp.status === 401 || resp.status === 403) handleCloudAuthExpired(); return false; }
+    if (!resp.ok) { if (resp.status === 401) handleCloudAuthExpired(); else console.warn('[Accounts] Ledger write refused: HTTP ' + resp.status); return false; }
     return true;
   } catch (e) { console.warn('[Accounts] Ledger save failed:', e && e.message); return false; }
   finally { _accountsLedgerSaving = false; }
@@ -26907,7 +26962,7 @@ async function silentMergeFromBackup(fileId) {
       // A failed PULL used to be indistinguishable from "nothing changed": no
       // log, and a dead token kept the uploads going while nothing came back.
       console.warn('[AutoSync] Could not download backup ' + fileId + ': HTTP ' + response.status);
-      if (response.status === 401 || response.status === 403) handleCloudAuthExpired();
+      if (response.status === 401) handleCloudAuthExpired();   // 403 is a folder permission or a rate limit, never expiry
       return false;
     }
     const backupData = await response.json();
@@ -27683,15 +27738,23 @@ async function silentSaveToFolder(folderId, folderLabel, blob) {
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error?.message || 'Upload failed');
+      var upErr = new Error(errData.error?.message || 'Upload failed');
+      upErr.status = response.status;
+      throw upErr;
     }
 
     return true;
   } catch (err) {
     console.warn('[AutoSave] Error saving to ' + folderLabel + ':', err.message);
-    // Handle expired token — notify the user and stop syncing the dead token.
-    if (err.message && (err.message.includes('invalid_token') || err.message.includes('Invalid Credentials') || err.message.indexOf('401') !== -1 || err.message.indexOf('403') !== -1)) {
+    // Only a REJECTED token is an expired session. This used to match '403'
+    // anywhere in the message, and Drive answers 403 for a folder this
+    // account cannot write to and for a rate limit — so a save to one shared
+    // folder could tear down a perfectly good connection, wipe the token and
+    // raise "Google Session Expired" while the header still said Connected.
+    if (err.status === 401 || (err.message && (err.message.includes('invalid_token') || err.message.includes('Invalid Credentials')))) {
       handleCloudAuthExpired();
+    } else if (err.status === 403) {
+      console.warn('[AutoSave] ' + folderLabel + ': Drive refused the write (permission or rate limit) — this folder is skipped this cycle, the connection stays.');
     }
     return false;
   }
@@ -27757,7 +27820,7 @@ async function pullMainIfRemoteNewer() {
       headers: { 'Authorization': 'Bearer ' + googleAccessToken }
     });
     if (!metaResp.ok) {
-      if (metaResp.status === 401 || metaResp.status === 403) handleCloudAuthExpired();
+      if (metaResp.status === 401) handleCloudAuthExpired();   // 403 is a folder permission or a rate limit, never expiry
       return false;
     }
     var meta = await metaResp.json();
@@ -28387,9 +28450,10 @@ function revalidateCloudSync() {
       resumeCloudSyncIfLoggedIn();
     }
   } else if (isCloudConnected || CESTISStore.getItem('schoolDashboardGoogleAccessToken')) {
-    // Token expired — clear stale state and notify the user to reconnect
-    console.log('[CloudSync] Token expired — cleared stale connection state');
-    handleCloudAuthExpired();
+    // The stored token is past its expected expiry. Ask for a fresh one
+    // silently; the next rejected request, not the clock, decides.
+    console.log('[CloudSync] Stored token past expiry on focus — refreshing silently');
+    try { attemptSilentTokenRefresh(); } catch (e) {}
   }
   // Re-initialize Google Identity Services client if needed
   if (!googleTokenClient) {

@@ -199,6 +199,27 @@ PAGES.forEach(function (page) {
   assert(auto.indexOf('systemSettings: _isAdminSave ? systemSettings : undefined') !== -1, w + ': only an administrator publishes the settings');
 });
 
+/* ---------- 4b. A 403 is never an expired session ---------- */
+console.log('Only a rejected token ends the session; a refresh is tried first; Reconnect resumes');
+PAGES.forEach(function (page) {
+  const w = page.where, src = page.src;
+  assert(src.indexOf('status === 403) handleCloudAuthExpired') === -1 && src.indexOf("err.message.indexOf('403')") === -1,
+    w + ': a 403 (folder permission, rate limit) never declares the Google session expired');
+  const save = extractFunction(src, 'silentSaveToFolder', w);
+  assert(save.indexOf('upErr.status = response.status') !== -1 && save.indexOf('err.status === 401') !== -1, w + ': a save decides on the real HTTP status, not on text');
+  const h = extractFunction(src, 'handleCloudAuthExpired', w);
+  assert(h.indexOf('attemptSilentTokenRefresh()') !== -1 && h.indexOf('declareCloudAuthExpired()') !== -1 && h.indexOf('_lastSilentRefreshOkAt >= startedAt') !== -1,
+    w + ': a rejected token is refreshed silently first, and the banner only follows a failed refresh');
+  const mon = extractFunction(src, 'startCloudMonitor', w);
+  assert(mon.indexOf('handleCloudAuthExpired()') === -1 && mon.indexOf('attemptSilentTokenRefresh()') !== -1, w + ': the clock never raises the banner by itself');
+  const rv = extractFunction(src, 'revalidateCloudSync', w);
+  assert(rv.indexOf('handleCloudAuthExpired()') === -1, w + ': nor does a stored token past its expiry on focus');
+  assert(src.indexOf('reconnectCloudSync()">Reconnect Now') !== -1, w + ': Reconnect Now goes through the resume path');
+  const rc = extractFunction(src, 'reconnectCloudSync', w);
+  assert(rc.indexOf('stillValid') !== -1 && rc.indexOf('showGoogleAuthModal()') !== -1 && rc.indexOf('resumeCloudSyncIfLoggedIn()') !== -1,
+    w + ': which resumes a still-valid token and opens the sign-in only when there is none');
+});
+
 /* ---------- 5. The accounts have a file of their own ---------- */
 console.log('The accounts have their own ledger: saved at once, read first');
 async function ledger(page) {
