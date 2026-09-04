@@ -3773,6 +3773,16 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   transition:color 0.2s;
 }
 .maintenance-admin-bypass a:hover { color:rgba(255,255,255,0.7); }
+.maintenance-since { margin-top:14px; font-size:12px; color:rgba(255,255,255,0.45); }
+.maintenance-recheck { margin-top:18px; }
+.maintenance-recheck button {
+  padding:10px 22px; border-radius:10px; border:1px solid rgba(255,255,255,0.25);
+  background:rgba(255,255,255,0.12); color:#fff; font-size:13px; font-weight:600; cursor:pointer;
+  font-family:'DM Sans',sans-serif; transition:background 0.2s;
+}
+.maintenance-recheck button:hover { background:rgba(255,255,255,0.2); }
+.maintenance-recheck button:disabled { opacity:0.6; cursor:wait; }
+.maintenance-recheck-status { margin-top:10px; font-size:12px; color:rgba(255,255,255,0.55); min-height:16px; }
 /* Maintenance mode toggle in settings */
 .maint-toggle-container {
   display:flex; align-items:center; gap:16px; padding:20px;
@@ -3859,6 +3869,11 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     <div class="maintenance-msg">
       <strong>C.E.S.T.I.S LMS</strong> is currently undergoing scheduled maintenance.<br>
       The site will be back online shortly. Thank you for your patience.
+    </div>
+    <div class="maintenance-since" id="maintSince"></div>
+    <div class="maintenance-recheck">
+      <button type="button" id="maintRecheckBtn" onclick="maintenanceRecheck()">Check for Updates</button>
+      <div class="maintenance-recheck-status" id="maintRecheckStatus"></div>
     </div>
     <div class="maintenance-admin-bypass">
       <a onclick="maintenanceShowAdminLogin()">Administrator Access</a>
@@ -11549,8 +11564,8 @@ function buildAdminPages() {
           <tr style="border-top:1px solid var(--border-light);">
             <td style="padding:4px 6px;color:#ff7ab6;font-weight:600;" title="The validation QR code drawn over the template's generic one. X and Y are the square's top-left corner; Size is its width, all as percentages of the page.">QR code</td>
             <td style="padding:2px 4px;"><input type="number" id="ctplP2QrX" value="3" step="0.5" min="0" max="100" style="width:52px;font-size:11px;" oninput="updateCertLivePreviewP2()"></td>
-            <td style="padding:2px 4px;"><input type="number" id="ctplP2QrY" value="86.5" step="0.5" min="0" max="100" style="width:52px;font-size:11px;" oninput="updateCertLivePreviewP2()"></td>
-            <td style="padding:2px 4px;"><input type="number" id="ctplP2QrSize" value="7.5" step="0.5" min="2" max="30" style="width:52px;font-size:11px;" title="Width, % of the page" oninput="updateCertLivePreviewP2()"></td>
+            <td style="padding:2px 4px;"><input type="number" id="ctplP2QrY" value="87" step="0.5" min="0" max="100" style="width:52px;font-size:11px;" oninput="updateCertLivePreviewP2()"></td>
+            <td style="padding:2px 4px;"><input type="number" id="ctplP2QrSize" value="7" step="0.5" min="2" max="30" style="width:52px;font-size:11px;" title="Width, % of the page" oninput="updateCertLivePreviewP2()"></td>
           </tr>
         </tbody>
       </table>
@@ -18802,9 +18817,71 @@ function applyMaintenanceOverlay() {
         msgEl.innerHTML = '<strong>C.E.S.T.I.S LMS</strong> is currently undergoing scheduled maintenance.<br>The site will be back online shortly. Thank you for your patience.';
       }
     }
+    // WHEN it was switched on — so a screen that has outlived the decision
+    // shows its age.
+    var since = document.getElementById('maintSince');
+    if(since) {
+      var at = Date.parse(systemSettings.maintenanceUpdatedAt || '') || 0;
+      since.textContent = at ? 'Maintenance mode was switched on ' + new Date(at).toLocaleString() + '.' : '';
+    }
     overlay.style.display = 'flex';
+    maintenanceScheduleRecheck();
   } else {
     overlay.style.display = 'none';
+    maintenanceScheduleRecheck(false);
+  }
+}
+
+/* The way out of a stale maintenance screen.
+
+   The overlay is drawn from the decision this device last SAW, before any
+   sync runs — and it covers the whole page, the login page's Sync Now button
+   included. The pre-login sync only starts by itself when a still-valid
+   Google token is on the device, and a token lives about an hour; so a
+   device that saw maintenance mode switched on and came back the next day
+   had no way of ever learning it had been switched off. It sat "under
+   maintenance" until an administrator signed in on that very device.
+
+   The screen now checks for itself: soon after it appears and every five
+   minutes while it is up (quietly, when the device holds a token), and on
+   demand with its button, which runs the same sync as the login page and
+   asks for the Google sign-in when there is no token. */
+var _maintRecheckTimer = null;
+var _maintRecheckInFlight = false;
+function maintenanceScheduleRecheck(on) {
+  if (on === false) { if (_maintRecheckTimer) { clearInterval(_maintRecheckTimer); _maintRecheckTimer = null; } return; }
+  if (_maintRecheckTimer) return;
+  setTimeout(function () { maintenanceRecheck(true); }, 1800);
+  _maintRecheckTimer = setInterval(function () { maintenanceRecheck(true); }, 5 * 60 * 1000);
+}
+async function maintenanceRecheck(quiet) {
+  if (_maintRecheckInFlight) return;
+  var overlay = document.getElementById('maintenanceOverlay');
+  if (quiet && (!overlay || overlay.style.display === 'none')) return;
+  // A quiet check never opens a sign-in window: it needs a token already
+  // here, and otherwise only asks Google for one without any prompt.
+  if (quiet && !_certHasCloudToken()) { try { attemptSilentTokenRefresh(); } catch (e) {} return; }
+  var btn = document.getElementById('maintRecheckBtn'), st = document.getElementById('maintRecheckStatus');
+  _maintRecheckInFlight = true;
+  if (btn) btn.disabled = true;
+  if (st) st.textContent = 'Checking with the cloud\u2026';
+  try {
+    if (isLoginPageSync) {
+      // The login page's own sync is running: wait for it rather than start another.
+      var waited = 0;
+      while (isLoginPageSync && waited < 60000) { await new Promise(function (r) { setTimeout(r, 500); }); waited += 500; }
+    } else if (currentRole && isCloudConnected && googleAccessToken) {
+      await autoSyncOnLogin();
+    } else {
+      await loginPageSync();
+    }
+  } catch (e) { console.warn('[Maintenance] recheck failed:', e); }
+  _maintRecheckInFlight = false;
+  applyMaintenanceOverlay();
+  if (btn) btn.disabled = false;
+  if (st) {
+    var stillOn = systemSettings.maintenanceMode === true && currentRole !== 'admin';
+    st.textContent = stillOn ? 'Still under maintenance \u2014 checked ' + new Date().toLocaleTimeString() + '.' : '';
   }
 }
 
@@ -19431,7 +19508,7 @@ function updateStudentStage(idx) {
   const newStage = document.getElementById('newStage').value;
   const prevStage = students[idx].stage;
   students[idx].stage = newStage;
-  if(newStage==='certified'){students[idx].progress=90;students[idx].certNo=generateUniqueCertNo(students[idx].course.substring(0,2).toUpperCase());students[idx].certDate=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'2-digit'});}
+  if(newStage==='certified'){students[idx].progress=90;if(!students[idx].certDate)students[idx].certDate=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'2-digit'});/* a number, once issued, never changes: kept across collected/certified moves; a re-certification reuses the withdrawn one */if(!students[idx].certNo)students[idx].certNo=certPreviousNumber(students[idx])||certApprovedNumber(students[idx])||generateUniqueCertNo(certNumberPrefix(students[idx].course), students[idx]);}
   if(newStage==='collected'){students[idx].progress=100;students[idx].certCollected=true;}
   if(newStage==='incomplete')students[idx].progress=Math.min(students[idx].progress,40);
   // Demotion: if the student is no longer certified/collected, strip the
@@ -19460,15 +19537,16 @@ function updateStudentStage(idx) {
 // reconcileCertifiedFromApprovals() does not resurrect the certification.
 function clearStudentCertification(s) {
   if(!s) return;
+  // The number stays on record as an alias: a certificate once issued keeps
+  // its number even when the certification is withdrawn, so the paper still
+  // resolves (as withdrawn) and a later re-certification reuses it.
+  if(s.certNo) certRememberAlias(s, s.certNo);
   s.certNo = null;
   s.certDate = null;
   s.certCollected = false;
   if(typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) {
     var approval = certDownloadApprovals.find(function(a){ return a && a.studentId === s.id; });
-    if(approval) {
-      approval.approved = false;
-      approval.certNo = null;
-    }
+    if(approval) approval.approved = false;
   }
 }
 function openEditStudent(idx) {
@@ -26470,12 +26548,14 @@ async function mergeFromCloud() {
           var cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
           var localMod = localMatch.lastModified ? new Date(localMatch.lastModified).getTime() : 0;
           var cloudIsNewer = cloudMod > localMod;
+          certMergeNumberAliases(localMatch, cloudStudent);
           // Update fields: cloud wins if newer OR if local field is empty/undefined
           // 'stageSetByUser' travels with the stage: without it the other
           // devices still believe the course-end rule owns this trainee, and
           // would undo the Centre's decision the next time the course reopens.
           var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes'];
           fieldsToMerge.forEach(function(field) {
+            if (field === 'certNo' && localMatch.certNo) return;   // a number, once issued, never changes
             if (cloudStudent[field] !== undefined && cloudStudent[field] !== null && cloudStudent[field] !== '') {
               if (cloudIsNewer || !localMatch[field] || localMatch[field] === '') {
                 if (localMatch[field] !== cloudStudent[field]) {
@@ -27747,11 +27827,14 @@ async function mergeBackupData(backupData) {
           var cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
           var localMod = localMatch.lastModified ? new Date(localMatch.lastModified).getTime() : 0;
           var cloudIsNewer = cloudMod > localMod;
+          // Whichever number the field merge keeps, the other stays as an alias.
+          if (certMergeNumberAliases(localMatch, cloudStudent)) changed = true;
           // 'stageSetByUser' travels with the stage: without it the other
           // devices still believe the course-end rule owns this trainee, and
           // would undo the Centre's decision the next time the course reopens.
           var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes'];
           fieldsToMerge.forEach(function(field) {
+            if (field === 'certNo' && localMatch.certNo) return;   // a number, once issued, never changes
             if (cloudStudent[field] !== undefined && cloudStudent[field] !== null && cloudStudent[field] !== '') {
               if (cloudIsNewer || !localMatch[field] || localMatch[field] === '') {
                 if (localMatch[field] !== cloudStudent[field]) {
@@ -36624,7 +36707,35 @@ function _certNotFoundCard(query, what) {
     '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(231,76,60,0.15);color:var(--red);">&#10005;</div>' +
     '<div><div style="font-size:16px;font-weight:700;color:var(--red);">No Record Found</div>' +
     '<div style="font-size:12px;color:var(--text-muted);">No ' + what + ' matches &quot;' + _certEsc(query) + '&quot;</div></div></div>' +
-    '<p style="font-size:13px;color:var(--text-muted);">Check the number and try again. If it is correct, contact the Centre: cestisadmn@gmail.com | +(876) 679-0111.</p></div>';
+    '<p style="font-size:13px;color:var(--text-muted);">Check the number and try again \u2014 it looks like WE-2026-1234; spaces, dashes and capitals do not matter. If it is correct, contact the Centre: cestisadmn@gmail.com | +(876) 679-0111.</p></div>';
+}
+
+// The other door's kind of number: say so, and offer the way across,
+// rather than a flat "not found". Nothing about the trainee is revealed.
+function _certWrongDoorCard(kind, query) {
+  if (kind === 'certificate') {
+    return '<div class="cert-result-card pending">' +
+      '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(240,165,0,0.15);color:var(--accent);">&#8505;</div>' +
+      '<div><div style="font-size:16px;font-weight:700;color:var(--accent);">That is a Certificate Number</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">' + _certEsc(query) + '</div></div></div>' +
+      '<p style="font-size:13px;color:var(--text-muted);">To preview and download, enter your <strong>Student Number</strong> (it begins with STU-). To confirm that this certificate is genuine, use Verify Certificate.</p>' +
+      '<button class="btn btn-sm btn-secondary" style="margin-top:12px;" onclick="certPortalVerifyWith(' + JSON.stringify(String(query)).replace(/"/g, '&quot;') + ')">Verify this number instead</button></div>';
+  }
+  return '<div class="cert-result-card pending">' +
+    '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(240,165,0,0.15);color:var(--accent);">&#8505;</div>' +
+    '<div><div style="font-size:16px;font-weight:700;color:var(--accent);">That is a Student Number</div>' +
+    '<div style="font-size:12px;color:var(--text-muted);">' + _certEsc(query) + '</div></div></div>' +
+    '<p style="font-size:13px;color:var(--text-muted);">Verification uses the <strong>Certificate Number</strong> printed on the certificate (for example WE-2026-1234). Trainees preview and download their own certificate from Download Certificate.</p>' +
+    '<button class="btn btn-sm btn-secondary" style="margin-top:12px;" onclick="certPortalDownloadWith(' + JSON.stringify(String(query)).replace(/"/g, '&quot;') + ')">Go to Download Certificate</button></div>';
+}
+function certPortalVerifyWith(no) {
+  var vi = document.getElementById('certPortalVerifyInput'); if (vi) vi.value = no || '';
+  var vr = document.getElementById('certPortalVerifyResult'); if (vr) vr.innerHTML = '';
+  certPortalShow('verify'); certPortalVerify();
+}
+function certPortalDownloadWith(id) {
+  var si = document.getElementById('certPortalStudentInput'); if (si) si.value = id || '';
+  certPortalShow('download'); certPortalPreview();
 }
 
 // ---- Verify (employers): a certificate number only ----
@@ -36637,16 +36748,28 @@ function certPortalVerify() {
   if (!query) { out.innerHTML = '<p style="color:var(--red);font-size:13px;margin-top:8px;">Please enter a Certificate Number.</p>'; return; }
   // A student number typed here is not a match, so nothing about the trainee
   // leaks through this door.
-  var q = query.toLowerCase();
-  var student = (students || []).find(function (s) { return s && s.certNo && String(s.certNo).toLowerCase() === q; });
-  if (!student) { out.innerHTML = _certNotFoundCard(query, 'certificate'); return; }
+  var hit = certResolveNumber(query);
+  var student = hit.student;
+  if (!student) {
+    if (/^STU[-\s]?/i.test(query)) { out.innerHTML = _certWrongDoorCard('student', query); return; }
+    out.innerHTML = _certNotFoundCard(query, 'certificate'); return;
+  }
+  if (!student.certNo) {
+    // The number is on record but the certification has been withdrawn.
+    out.innerHTML = '<div class="cert-result-card not-found">' +
+      '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(231,76,60,0.15);color:var(--red);">&#10005;</div>' +
+      '<div><div style="font-size:16px;font-weight:700;color:var(--red);">Certificate Withdrawn</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">' + _certEsc(hit.number) + '</div></div></div>' +
+      '<p style="font-size:13px;color:var(--text-muted);">This number was issued, but the certification is no longer current. Please contact the Centre: cestisadmn@gmail.com | +(876) 679-0111.</p></div>';
+    return;
+  }
   out.innerHTML = '<div class="cert-result-card success">' +
     '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(46,204,113,0.15);color:var(--green);">&#10003;</div>' +
     '<div><div style="font-size:16px;font-weight:700;color:var(--green);">Certificate Verified</div>' +
     '<div style="font-size:12px;color:var(--text-muted);">Issued by the Community Educational and Skills Training Institute and Services Ltd.</div></div></div>' +
     '<div class="cert-result-details">' +
     '<div class="cert-detail-item"><div class="label">Holder</div><div class="value">' + _certEsc(student.name) + '</div></div>' +
-    '<div class="cert-detail-item"><div class="label">Certificate No.</div><div class="value" style="font-family:monospace;">' + _certEsc(student.certNo) + '</div></div>' +
+    '<div class="cert-detail-item"><div class="label">Certificate No.</div><div class="value" style="font-family:monospace;">' + _certEsc(hit.number || student.certNo) + '</div></div>' +
     '<div class="cert-detail-item"><div class="label">Programme</div><div class="value">' + _certEsc(student.course) + '</div></div>' +
     '<div class="cert-detail-item"><div class="label">Date Certified</div><div class="value">' + _certEsc(student.certDate || '\u2014') + '</div></div>' +
     '<div class="cert-detail-item"><div class="label">Collection Status</div><div class="value">' + (student.certCollected ? 'Collected' : 'Awaiting Collection') + '</div></div>' +
@@ -36666,10 +36789,13 @@ function certPortalPreview() {
   if (!query) { out.innerHTML = '<p style="color:var(--red);font-size:13px;margin-top:8px;">Please enter your Student Number.</p>'; return; }
   var q = query.toLowerCase();
   var student = (students || []).find(function (s) { return s && s.id && String(s.id).toLowerCase() === q; });
-  if (!student) { out.innerHTML = _certNotFoundCard(query, 'student'); return; }
+  if (!student) {
+    if (certResolveNumber(query).student) { out.innerHTML = _certWrongDoorCard('certificate', query); return; }
+    out.innerHTML = _certNotFoundCard(query, 'student'); return;
+  }
   // Opened from a certificate's QR code: the student number must be the
   // holder's. Somebody else's number does not open somebody else's certificate.
-  if (_certPortalCertNo && String(student.certNo || '').toLowerCase() !== _certPortalCertNo.toLowerCase()) {
+  if (_certPortalCertNo && !certStudentHasNumber(student, _certPortalCertNo)) {
     out.innerHTML = '<div class="cert-result-card not-found">' +
       '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(231,76,60,0.15);color:var(--red);">&#10005;</div>' +
       '<div><div style="font-size:16px;font-weight:700;color:var(--red);">Student Number Does Not Match</div>' +
@@ -36691,6 +36817,9 @@ function certPortalPreview() {
       '</div><p style="font-size:13px;color:var(--text-muted);">Complete all training modules and pass certification to receive your certificate.</p></div>';
     return;
   }
+  // The preview shows the number that will be printed: the record's own,
+  // which the approval learns if it has none yet.
+  if (certAlignNumberWithApproval(student)) { try { saveState(); } catch (e) {} }
   _certPortalPreviewStudent = student;
   var v = certDownloadAllowed(student);
   out.innerHTML = '<div class="cert-result-card success">' +
@@ -36870,8 +36999,9 @@ async function fetchCertDataFromDrive() {
           // nothing else is touched.
           var _cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
           var _localMod = existing.lastModified ? new Date(existing.lastModified).getTime() : 0;
+          certMergeNumberAliases(existing, cloudStudent);
           if (_cloudMod > _localMod) {
-            if (cloudStudent.certNo !== undefined) existing.certNo = cloudStudent.certNo;
+            if (cloudStudent.certNo && !existing.certNo) existing.certNo = cloudStudent.certNo;   // a number, once issued, never changes
             if (cloudStudent.certDate !== undefined) existing.certDate = cloudStudent.certDate;
             if (cloudStudent.certCollected !== undefined) existing.certCollected = cloudStudent.certCollected;
             if (cloudStudent.stage !== undefined) existing.stage = cloudStudent.stage;
@@ -37027,6 +37157,8 @@ function reconcileCertifiedFromApprovals() {
     if(stu.stage === 'certified' || stu.stage === 'collected') {
       // Already certified; just keep the approval's studentId in sync if dedup re-IDed.
       if(stu.id !== a.studentId) { a.studentId = stu.id; changed = true; }
+      // And the NUMBER in step: the approved number is the printed one.
+      if(certAlignNumberWithApproval(stu, a)) changed = true;
       return;
     }
     // Restore certified status.
@@ -37035,23 +37167,161 @@ function reconcileCertifiedFromApprovals() {
     if((!stu.certNo) && a.certNo) stu.certNo = a.certNo;
     if((!stu.certDate) && a.certDate) stu.certDate = a.certDate;
     if(stu.id !== a.studentId) a.studentId = stu.id;
+    certAlignNumberWithApproval(stu, a);
     changed = true;
   });
   if(changed) saveState();
   return changed;
 }
 
-// Generate a certificate number that is unique across all students.
-// A bare 4-digit random has a ~50% collision chance after ~112 certificates
-// per prefix/year (birthday bound); duplicate certNos break the certificate
-// download lookup which matches by exact certNo.
-function generateUniqueCertNo(prefix) {
-  var year = new Date().getFullYear();
+/* CERTIFICATE NUMBERS — one number per certificate, the same on every device.
+
+   A number used to be four RANDOM digits, minted wherever a certified trainee
+   was found without one: by the administrator's Update Stage, and by the
+   back-fill that runs on EVERY device as it loads. So a trainee certified in
+   bulk was given a different number on each device that opened the roll —
+   under the template's programme code on one ("CESTIS-SOLAR-02-2026-5364")
+   and the course initials on another ("PH-2026-2972") — and a certificate
+   downloaded on one device printed a number no other device had ever seen.
+   "No Record Found", for a certificate the Centre really issued.
+
+   Three rules now hold:
+     - a number is DERIVED from the trainee (name + programme), so every
+       device mints the same one;
+     - a number, once issued, NEVER CHANGES: not on a stage change, not in a
+       merge, not for an approval that holds a different one — a second
+       number is kept as an alias instead, and the approval carries the
+       number that was printed;
+     - a number a trainee's record ever carried stays with them as an alias,
+       and a lookup answers to any of them — spaces, dashes and case aside. */
+function certNumberKey(no) { return String(no == null ? '' : no).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+// The prefix Update Stage has always used: the programme's first two letters
+// (with an intake key such as "02. " out of the way).
+function certNumberPrefix(course) {
+  var bare = String(course || '').replace(/^\s*\d+\.\s*/, '').trim();
+  return (bare.substring(0, 2).toUpperCase() || 'CE');
+}
+function certRememberAlias(student, no) {
+  if (!student || !no) return false;
+  var key = certNumberKey(no);
+  if (!key) return false;
+  if (!Array.isArray(student.certNoAliases)) student.certNoAliases = [];
+  if (student.certNoAliases.some(function (a) { return certNumberKey(a) === key; })) return false;
+  student.certNoAliases.push(String(no).trim());
+  return true;
+}
+// The number this record was issued before (the latest alias), for a
+// re-certification to take back rather than mint a new one.
+function certPreviousNumber(student) {
+  var list = (student && Array.isArray(student.certNoAliases)) ? student.certNoAliases.filter(function (a) { return certNumberKey(a); }) : [];
+  return list.length ? list[list.length - 1] : null;
+}
+function certStudentHasNumber(student, no) {
+  if (!student || !no) return false;
+  var key = certNumberKey(no);
+  if (!key) return false;
+  if (certNumberKey(student.certNo) === key) return true;
+  if (Array.isArray(student.certNoAliases) && student.certNoAliases.some(function (a) { return certNumberKey(a) === key; })) return true;
+  return certNumberKey(certApprovedNumber(student)) === key;
+}
+// Before a merge decides which number a record shows, both records' numbers
+// are kept on the local one. Returns true when anything was added.
+function certMergeNumberAliases(local, cloud) {
+  if (!local || !cloud) return false;
+  var added = false;
+  if (cloud.certNo && local.certNo && certNumberKey(cloud.certNo) !== certNumberKey(local.certNo)) {
+    if (certRememberAlias(local, local.certNo)) added = true;
+    if (certRememberAlias(local, cloud.certNo)) added = true;
+  }
+  (Array.isArray(cloud.certNoAliases) ? cloud.certNoAliases : []).forEach(function (a) { if (certRememberAlias(local, a)) added = true; });
+  return added;
+}
+function _certApprovalOf(student) {
+  var list = (typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) ? certDownloadApprovals : [];
+  return list.find(function (d) { return d && student && d.studentId === student.id; }) || null;
+}
+// The number the Centre approved for download — the one that gets printed.
+function certApprovedNumber(student) {
+  var a = _certApprovalOf(student);
+  return (a && a.certNo) ? a.certNo : null;
+}
+// Fill-only, both ways: a trainee with no number takes the approved one, an
+// approval with no number takes the trainee's — and a number already issued
+// is never replaced. Returns true when something changed.
+function certAlignNumberWithApproval(student, approval) {
+  if (!student) return false;
+  approval = approval || _certApprovalOf(student);
+  if (!approval) return false;
+  var changed = false;
+  if (approval.certNo && !student.certNo) { student.certNo = approval.certNo; changed = true; }
+  else if (student.certNo && !approval.certNo) { approval.certNo = student.certNo; changed = true; }
+  else if (approval.certNo && student.certNo && certNumberKey(approval.certNo) !== certNumberKey(student.certNo)) {
+    // Two numbers for one certificate: neither replaces the other. The record
+    // keeps the number it was issued; the approval's is kept as an alias so a
+    // certificate printed under it still verifies.
+    if (certRememberAlias(student, approval.certNo)) changed = true;
+  }
+  return changed;
+}
+// The trainee a certificate number belongs to: by their current number, by
+// any number they ever carried, or by the number on their download approval.
+function certResolveNumber(query) {
+  var key = certNumberKey(query);
+  if (!key) return { student: null, number: '', via: '' };
+  var roll = (typeof students !== 'undefined' && Array.isArray(students)) ? students : [];
+  var hit = roll.find(function (s) { return s && certNumberKey(s.certNo) === key; });
+  if (hit) return { student: hit, number: hit.certNo, via: 'number' };
+  hit = roll.find(function (s) { return s && Array.isArray(s.certNoAliases) && s.certNoAliases.some(function (a) { return certNumberKey(a) === key; }); });
+  if (hit) return { student: hit, number: hit.certNoAliases.filter(function (a) { return certNumberKey(a) === key; })[0], via: 'alias' };
+  var approvals = (typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) ? certDownloadApprovals : [];
+  var appr = approvals.find(function (d) { return d && certNumberKey(d.certNo) === key; });
+  if (appr) {
+    var same = function (s) {
+      if (typeof CESTISCore !== 'undefined' && CESTISCore.sameName && CESTISCore.normCourse) return CESTISCore.sameName(s.name, appr.name) && CESTISCore.normCourse(s.course || '') === CESTISCore.normCourse(appr.course || '');
+      return String(s.name || '').trim().toLowerCase() === String(appr.name || '').trim().toLowerCase() && String(s.course || '').trim().toLowerCase() === String(appr.course || '').trim().toLowerCase();
+    };
+    hit = roll.find(function (s) { return s && s.id === appr.studentId; }) || roll.find(function (s) { return s && same(s); });
+    if (hit) return { student: hit, number: appr.certNo, via: 'approval' };
+  }
+  return { student: null, number: '', via: '' };
+}
+// What a trainee's number is derived from: the same natural key their stable
+// id is a hash of, so it is the same on every device.
+function certNumberSeed(student) {
+  var key = '';
+  try { if (typeof CESTISCore !== 'undefined' && typeof CESTISCore.naturalKey === 'function') key = CESTISCore.naturalKey(student) || ''; } catch (e) {}
+  if (!key) key = String(student.name || '').toLowerCase().trim() + '|' + String(student.course || '').toLowerCase().trim();
+  return key === '|' ? '' : key;
+}
+// PREFIX-YEAR-NNNN, unique across the roll. Derived from the trainee when one
+// is given (four digits at a time out of a hash of their natural key, moving
+// along on a clash), so every device mints the same number for the same
+// person; the old random draw only when there is no trainee to derive from.
+function generateUniqueCertNo(prefix, student) {
+  prefix = String(prefix || 'CE').toUpperCase();
   var existing = {};
-  (students || []).forEach(function(st) { if (st && st.certNo) existing[st.certNo] = true; });
+  (students || []).forEach(function (st) {
+    if (!st || (student && st === student)) return;
+    if (st.certNo) existing[certNumberKey(st.certNo)] = true;
+    (Array.isArray(st.certNoAliases) ? st.certNoAliases : []).forEach(function (a) { existing[certNumberKey(a)] = true; });
+  });
+  var yearMatch = student && student.certDate ? /\b(20\d\d)\b/.exec(String(student.certDate)) : null;
+  var year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
+  var seed = student ? certNumberSeed(student) : '';
+  if (seed && typeof CESTISCore !== 'undefined' && typeof CESTISCore.hashString === 'function') {
+    var digits = '';
+    for (var round = 0; digits.length < 48; round++) {
+      var h = parseInt(CESTISCore.hashString(seed + '|' + round), 36) || 0;
+      digits += String(Math.floor(Math.abs(h)) % 100000000 + 100000000).slice(1);
+    }
+    for (var i = 0; i + 4 <= digits.length; i += 4) {
+      var candidate = prefix + '-' + year + '-' + String(1000 + (parseInt(digits.substr(i, 4), 10) % 9000));
+      if (!existing[certNumberKey(candidate)]) return candidate;
+    }
+  }
   for (var attempt = 0; attempt < 50; attempt++) {
-    var candidate = prefix + '-' + year + '-' + String(Math.floor(Math.random() * 9000) + 1000);
-    if (!existing[candidate]) return candidate;
+    var c = prefix + '-' + year + '-' + String(Math.floor(Math.random() * 9000) + 1000);
+    if (!existing[certNumberKey(c)]) return c;
   }
   // Number space saturated for this prefix/year — extend with a base36 suffix
   return prefix + '-' + year + '-' + Date.now().toString(36).toUpperCase();
@@ -37063,11 +37333,12 @@ function backfillCertificateNumbers() {
   students.forEach(function(s) {
     if(!s || !s.course) return;
     if((s.stage === 'certified' || s.stage === 'collected') && !s.certNo) {
-      var code = (typeof certTemplates !== 'undefined' && certTemplates[s.course] && certTemplates[s.course].programmeCode)
-        ? certTemplates[s.course].programmeCode
-        : s.course.substring(0, 2).toUpperCase();
-      s.certNo = generateUniqueCertNo(code);
       if(!s.certDate) s.certDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+      // The number this record held before, else the one the Centre approved,
+      // else the number every device derives for this trainee — never a
+      // random one, and never a prefix that depends on which templates this
+      // device holds.
+      s.certNo = certPreviousNumber(s) || certApprovedNumber(s) || generateUniqueCertNo(certNumberPrefix(s.course), s);
       if(s.stage === 'collected') s.certCollected = true;
       changed = true;
     }
@@ -37213,9 +37484,12 @@ function _generateCertPDFInner(studentId) {
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student) return;
 
-  // Track download
+  // Track download. The approval records the number printed (fill-only
+  // both ways — a number, once issued, never changes), so the number on the
+  // paper is always on record somewhere that syncs.
   var approval = certDownloadApprovals.find(function(d){ return d.studentId === studentId; });
   if(approval) {
+    certAlignNumberWithApproval(student, approval);
     approval.downloadCount = (approval.downloadCount || 0) + 1;
     approval.lastDownloaded = new Date().toISOString();
     saveState();
@@ -37354,7 +37628,7 @@ function renderCertPage1OnBg(bgImg, student, tpl) {
 // p2QrX / p2QrY / p2QrSize, percentages of the page), so the editor can move
 // it and "Apply Design to All" carries it to every template. The defaults
 // match the Centre's current backgrounds.
-var CERT_QR_DEFAULTS = { x: 3, y: 86.5, size: 7.5 };
+var CERT_QR_DEFAULTS = { x: 3, y: 87, size: 7 };
 
 // The public address certificates point at. Set in Settings when the PDF is
 // made somewhere other than the public site (the offline build, a local
@@ -37373,16 +37647,57 @@ function certVerifyUrlFor(certNo) {
   base = base.replace(/[#?].*$/, '');
   return base + '?certificate=' + encodeURIComponent(certNo || '');
 }
-function certQrGeometry(tpl, w, h) {
+// Where the page's own margins are, seen from the square: the first light
+// row above the bottom border and the first light column past the left
+// border, sampled from the page as drawn. Null when the canvas cannot be read.
+function certPageInnerBounds(ctx, w, h, g) {
+  try {
+    var col = Math.max(0, Math.min(w - 1, g.x + Math.round(g.size / 2)));
+    var row = Math.max(0, Math.min(h - 1, g.y + Math.round(g.size / 2)));
+    var light = function (d, i) { return d[i + 3] > 0 && (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) > 170; };
+    var colData = ctx.getImageData(col, 0, 1, h).data;
+    var rowData = ctx.getImageData(0, row, w, 1).data;
+    if (!colData || !rowData || colData.length !== h * 4 || rowData.length !== w * 4) return null;
+    var bottom = h;
+    for (var y = h - 1; y >= 0; y--) { if (light(colData, y * 4)) { bottom = y + 1; break; } }
+    var left = 0;
+    for (var x = 0; x < w; x++) { if (light(rowData, x * 4)) { left = x; break; } }
+    return { left: left, bottom: bottom };
+  } catch (e) { return null; }
+}
+// The square the code is drawn in, and the patch painted under it. Contained
+// within the page whatever the background's proportions: the patch runs to
+// the page's own margins and no further (it must hide the whole of the
+// generic square, and must not paint over the border), and the code keeps a
+// clear margin inside the border — shrinking to fit above it, keeping its top
+// just under the "PLEASE VALIDATE" label, and only moving up when shrinking
+// would leave it too small to scan.
+function certQrGeometry(tpl, w, h, ctx) {
   var pos = (tpl && tpl.textPositions) || {};
   var num = function (v, d) { v = parseFloat(v); return isFinite(v) && v > 0 ? v : d; };
   var size = Math.round(num(pos.p2QrSize, CERT_QR_DEFAULTS.size) / 100 * w);
-  return {
-    x: Math.round(num(pos.p2QrX, CERT_QR_DEFAULTS.x) / 100 * w),
-    y: Math.round(num(pos.p2QrY, CERT_QR_DEFAULTS.y) / 100 * h),
-    size: size,
-    pad: Math.max(4, Math.round(size * 0.08))
-  };
+  var pad = Math.max(4, Math.round(size * 0.08)), sidePad = Math.round(pad * 1.5);
+  var raw = { x: Math.round(num(pos.p2QrX, CERT_QR_DEFAULTS.x) / 100 * w), y: Math.round(num(pos.p2QrY, CERT_QR_DEFAULTS.y) / 100 * h), size: size, pad: pad };
+  var g = { x: raw.x, y: raw.y, size: raw.size, pad: raw.pad };
+  var cover = { x: raw.x - sidePad, y: raw.y - pad, w: raw.size + sidePad * 2, h: raw.size + pad + sidePad };
+  var b = ctx ? certPageInnerBounds(ctx, w, h, raw) : null;
+  if (b) {
+    var right = cover.x + cover.w, bottom = Math.min(cover.y + cover.h, b.bottom);
+    cover.x = Math.max(cover.x, b.left);
+    cover.w = Math.max(0, right - cover.x);
+    cover.h = Math.max(0, bottom - cover.y);
+    var margin = Math.max(6, Math.round(h * 0.01));
+    var limit = b.bottom - margin;
+    if (g.y + g.size > limit) {
+      var fit = limit - g.y;
+      if (fit >= Math.round(raw.size * 0.6)) g.size = fit;
+      else g.y = Math.max(0, limit - g.size);
+    }
+    var leftLimit = b.left + margin;
+    if (g.x < leftLimit) g.x = leftLimit;
+  }
+  g.cover = cover;
+  return g;
 }
 // A QR code as a canvas, drawn by the bundled qrcode.js. Null when the
 // library is missing or the text is too long for it.
@@ -37395,19 +37710,19 @@ function certMakeQrCanvas(text, px) {
   } catch (e) { console.warn('[CertQR] could not draw the code:', e); return null; }
 }
 // Paint out the template's generic code and draw the live one. The cover
-// colour is sampled from the page beside the square, so the patch matches a
-// cream background as well as a white one.
+// colour is sampled from the page beside the patch, so it matches a cream
+// background as well as a white one.
 function certDrawValidationQr(ctx, student, tpl, w, h) {
-  var g = certQrGeometry(tpl, w, h);
+  var g = certQrGeometry(tpl, w, h, ctx);
   var url = certVerifyUrlFor(student && student.certNo);
   var fill = '#ffffff';
   try {
-    var px = ctx.getImageData(Math.min(w - 1, g.x + g.size + g.pad + 6), Math.min(h - 1, g.y + Math.round(g.size / 2)), 1, 1).data;
+    var px = ctx.getImageData(Math.min(w - 1, g.cover.x + g.cover.w + 6), Math.min(h - 1, g.y + Math.round(g.size / 2)), 1, 1).data;
     if (px && px[3] > 0) fill = 'rgb(' + px[0] + ',' + px[1] + ',' + px[2] + ')';
   } catch (e) {}
   ctx.save();
   ctx.fillStyle = fill;
-  ctx.fillRect(g.x - g.pad, g.y - g.pad, g.size + g.pad * 2, g.size + g.pad * 2);
+  ctx.fillRect(g.cover.x, g.cover.y, g.cover.w, g.cover.h);
   var qr = certMakeQrCanvas(url, Math.max(64, g.size * 2));
   if (qr) {
     ctx.drawImage(qr, g.x, g.y, g.size, g.size);
@@ -37898,7 +38213,9 @@ function _renderCertLivePreviewP2() {
   canvas._hitZones.push({id:'footer', x:footerX, y:footerY, xInput:'ctplP2FooterX', yInput:'ctplP2FooterY', r:footerSize*8});
 
   // --- Validation QR code (pink) — the square the live code is drawn in ---
-  var qrX=_cpv('ctplP2QrX',CERT_QR_DEFAULTS.x)/100*w, qrY=_cpv('ctplP2QrY',CERT_QR_DEFAULTS.y)/100*h, qrS=_cpv('ctplP2QrSize',CERT_QR_DEFAULTS.size)/100*w;
+  // The same containment the certificate gets: inside the page's own margins.
+  var _qg = certQrGeometry({ textPositions: { p2QrX: _cpv('ctplP2QrX',CERT_QR_DEFAULTS.x), p2QrY: _cpv('ctplP2QrY',CERT_QR_DEFAULTS.y), p2QrSize: _cpv('ctplP2QrSize',CERT_QR_DEFAULTS.size) } }, w, h, ctx);
+  var qrX=_qg.x, qrY=_qg.y, qrS=_qg.size;
   ctx.save();
   ctx.fillStyle = 'rgba(255,122,182,0.18)'; ctx.fillRect(qrX, qrY, qrS, qrS);
   ctx.strokeStyle = 'rgba(255,122,182,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([6,4]); ctx.strokeRect(qrX, qrY, qrS, qrS); ctx.setLineDash([]);
@@ -38588,7 +38905,8 @@ function renderCertDownloadMgmt() {
         (isApproved
           ? '<span class="badge badge-green"><span class="badge-dot"></span>Approved</span>' +
             '<span style="font-size:11px;color:var(--text-muted);margin-left:4px;">Downloads: ' + (approval.downloadCount || 0) + '</span>' +
-            '<button class="btn btn-sm btn-secondary" style="margin-left:8px;" onclick="revokeCertDownload(\'' + s.id + '\')">Revoke</button>'
+            '<button class="btn btn-sm btn-secondary" style="margin-left:8px;" onclick="revokeCertDownload(\'' + s.id + '\')">Revoke</button>' +
+            '<button class="btn btn-sm btn-secondary" style="margin-left:8px;" title="Record a number already printed on this trainee\'s certificate, so that paper verifies" onclick="certRegisterPrintedNumber(\'' + s.id + '\')">+ Printed No.</button>'
           : '<button class="btn btn-sm btn-success" onclick="approveCertDownload(\'' + s.id + '\')">Approve Download</button>') +
         '</div></div>';
     }).join('');
@@ -38636,6 +38954,8 @@ function renderCertDlLog() {
 function approveCertDownload(studentId) {
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student) return;
+  // The approval carries the number that will be printed; make sure there is one.
+  if(!student.certNo) backfillCertificateNumbers();
   var existing = certDownloadApprovals.find(function(d){ return d.studentId === studentId; });
   if(existing) {
     existing.approved = true;
@@ -38663,6 +38983,24 @@ function revokeCertDownload(studentId) {
     renderCertDownloadMgmt();
     showToast('Download access revoked');
   }
+}
+
+// A number already printed on paper that this device does not know — a
+// certificate downloaded before numbers were derived, on a device that had
+// minted its own. Recording it here makes that paper verifiable everywhere.
+function certRegisterPrintedNumber(studentId) {
+  var student = students.find(function(s){ return s.id === studentId; });
+  if(!student) return;
+  var no = prompt('Enter the certificate number exactly as printed on ' + student.name + '\u2019s certificate:', '');
+  if(no === null) return;
+  no = String(no).trim();
+  if(!certNumberKey(no)) { showToast('No number entered.', 'warning'); return; }
+  var other = certResolveNumber(no);
+  if(other.student && other.student.id !== student.id) { showToast('That number already belongs to ' + other.student.name + '.', 'warning'); return; }
+  if(!certRememberAlias(student, no)) { showToast(no + ' is already recorded for ' + student.name + '.'); return; }
+  saveState();
+  renderCertDownloadMgmt();
+  showToast('Number ' + no + ' recorded for ' + student.name + ' \u2014 it now verifies.');
 }
 
 function openBulkCertApproveModal() {

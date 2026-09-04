@@ -593,6 +593,23 @@
         base[f] = other[f];
       }
     });
+    // A certificate number, once issued, never changes: the FIRST record's
+    // number stands whichever copy was edited later (`a` is the record this
+    // device holds, or the one it met first), and every number either record
+    // ever carried stays with the survivor as an alias, so a certificate
+    // printed under any of them still verifies as this person.
+    if (a && a.certNo) base.certNo = a.certNo;
+    var norm = function (n) { return String(n == null ? '' : n).toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+    var aliases = [], seen = {};
+    [a, b].forEach(function (r) {
+      if (!r) return;
+      (Array.isArray(r.certNoAliases) ? r.certNoAliases : []).concat(r.certNo ? [r.certNo] : []).forEach(function (n) {
+        var k = norm(n);
+        if (!k || k === norm(base.certNo) || seen[k]) return;
+        seen[k] = true; aliases.push(String(n).trim());
+      });
+    });
+    if (aliases.length) base.certNoAliases = aliases; else delete base.certNoAliases;
     return base;
   };
 
@@ -778,6 +795,17 @@
           var v = loser[k];
           if (v !== undefined && v !== null && v !== '') winner[k] = v;
         }
+      });
+      // A certificate number is never lost in a merge: the loser's, when it
+      // differs from the winner's, rides along as an alias (as
+      // mergeStudentRecords does), so a certificate printed under it still
+      // verifies as this person.
+      var normNo = function (n) { return String(n == null ? '' : n).toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+      (Array.isArray(loser.certNoAliases) ? loser.certNoAliases : []).concat(loser.certNo ? [loser.certNo] : []).forEach(function (n) {
+        var k = normNo(n);
+        if (!k || k === normNo(winner.certNo)) return;
+        if (!Array.isArray(winner.certNoAliases)) winner.certNoAliases = [];
+        if (!winner.certNoAliases.some(function (x) { return normNo(x) === k; })) winner.certNoAliases.push(String(n).trim());
       });
       // Numeric progress: keep the higher of the two, since 0 is a real value
       // that the blank-backfill above would have kept.
