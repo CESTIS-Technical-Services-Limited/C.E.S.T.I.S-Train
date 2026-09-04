@@ -3817,6 +3817,16 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   transition:color 0.2s;
 }
 .maintenance-admin-bypass a:hover { color:rgba(255,255,255,0.7); }
+.maintenance-since { margin-top:14px; font-size:12px; color:rgba(255,255,255,0.45); }
+.maintenance-recheck { margin-top:18px; }
+.maintenance-recheck button {
+  padding:10px 22px; border-radius:10px; border:1px solid rgba(255,255,255,0.25);
+  background:rgba(255,255,255,0.12); color:#fff; font-size:13px; font-weight:600; cursor:pointer;
+  font-family:'DM Sans',sans-serif; transition:background 0.2s;
+}
+.maintenance-recheck button:hover { background:rgba(255,255,255,0.2); }
+.maintenance-recheck button:disabled { opacity:0.6; cursor:wait; }
+.maintenance-recheck-status { margin-top:10px; font-size:12px; color:rgba(255,255,255,0.55); min-height:16px; }
 /* Maintenance mode toggle in settings */
 .maint-toggle-container {
   display:flex; align-items:center; gap:16px; padding:20px;
@@ -3907,6 +3917,11 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     <div class="maintenance-msg">
       <strong>C.E.S.T.I.S LMS</strong> is currently undergoing scheduled maintenance.<br>
       The site will be back online shortly. Thank you for your patience.
+    </div>
+    <div class="maintenance-since" id="maintSince"></div>
+    <div class="maintenance-recheck">
+      <button type="button" id="maintRecheckBtn" onclick="maintenanceRecheck()">Check for Updates</button>
+      <div class="maintenance-recheck-status" id="maintRecheckStatus"></div>
     </div>
     <div class="maintenance-admin-bypass">
       <a onclick="maintenanceShowAdminLogin()">Administrator Access</a>
@@ -11352,8 +11367,8 @@ function buildAdminPages() {
           <tr style="border-top:1px solid var(--border-light);">
             <td style="padding:4px 6px;color:#ff7ab6;font-weight:600;" title="The validation QR code drawn over the template's generic one. X and Y are the square's top-left corner; Size is its width, all as percentages of the page.">QR code</td>
             <td style="padding:2px 4px;"><input type="number" id="ctplP2QrX" value="3" step="0.5" min="0" max="100" style="width:52px;font-size:11px;" oninput="updateCertLivePreviewP2()"></td>
-            <td style="padding:2px 4px;"><input type="number" id="ctplP2QrY" value="86.5" step="0.5" min="0" max="100" style="width:52px;font-size:11px;" oninput="updateCertLivePreviewP2()"></td>
-            <td style="padding:2px 4px;"><input type="number" id="ctplP2QrSize" value="7.5" step="0.5" min="2" max="30" style="width:52px;font-size:11px;" title="Width, % of the page" oninput="updateCertLivePreviewP2()"></td>
+            <td style="padding:2px 4px;"><input type="number" id="ctplP2QrY" value="87" step="0.5" min="0" max="100" style="width:52px;font-size:11px;" oninput="updateCertLivePreviewP2()"></td>
+            <td style="padding:2px 4px;"><input type="number" id="ctplP2QrSize" value="7" step="0.5" min="2" max="30" style="width:52px;font-size:11px;" title="Width, % of the page" oninput="updateCertLivePreviewP2()"></td>
           </tr>
         </tbody>
       </table>
@@ -18573,9 +18588,71 @@ function applyMaintenanceOverlay() {
         msgEl.innerHTML = '<strong>C.E.S.T.I.S LMS</strong> is currently undergoing scheduled maintenance.<br>The site will be back online shortly. Thank you for your patience.';
       }
     }
+    // WHEN it was switched on — so a screen that has outlived the decision
+    // shows its age.
+    var since = document.getElementById('maintSince');
+    if(since) {
+      var at = Date.parse(systemSettings.maintenanceUpdatedAt || '') || 0;
+      since.textContent = at ? 'Maintenance mode was switched on ' + new Date(at).toLocaleString() + '.' : '';
+    }
     overlay.style.display = 'flex';
+    maintenanceScheduleRecheck();
   } else {
     overlay.style.display = 'none';
+    maintenanceScheduleRecheck(false);
+  }
+}
+
+/* The way out of a stale maintenance screen.
+
+   The overlay is drawn from the decision this device last SAW, before any
+   sync runs — and it covers the whole page, the login page's Sync Now button
+   included. The pre-login sync only starts by itself when a still-valid
+   Google token is on the device, and a token lives about an hour; so a
+   device that saw maintenance mode switched on and came back the next day
+   had no way of ever learning it had been switched off. It sat "under
+   maintenance" until an administrator signed in on that very device.
+
+   The screen now checks for itself: soon after it appears and every five
+   minutes while it is up (quietly, when the device holds a token), and on
+   demand with its button, which runs the same sync as the login page and
+   asks for the Google sign-in when there is no token. */
+var _maintRecheckTimer = null;
+var _maintRecheckInFlight = false;
+function maintenanceScheduleRecheck(on) {
+  if (on === false) { if (_maintRecheckTimer) { clearInterval(_maintRecheckTimer); _maintRecheckTimer = null; } return; }
+  if (_maintRecheckTimer) return;
+  setTimeout(function () { maintenanceRecheck(true); }, 1800);
+  _maintRecheckTimer = setInterval(function () { maintenanceRecheck(true); }, 5 * 60 * 1000);
+}
+async function maintenanceRecheck(quiet) {
+  if (_maintRecheckInFlight) return;
+  var overlay = document.getElementById('maintenanceOverlay');
+  if (quiet && (!overlay || overlay.style.display === 'none')) return;
+  // A quiet check never opens a sign-in window: it needs a token already
+  // here, and otherwise only asks Google for one without any prompt.
+  if (quiet && !_certHasCloudToken()) { try { attemptSilentTokenRefresh(); } catch (e) {} return; }
+  var btn = document.getElementById('maintRecheckBtn'), st = document.getElementById('maintRecheckStatus');
+  _maintRecheckInFlight = true;
+  if (btn) btn.disabled = true;
+  if (st) st.textContent = 'Checking with the cloud\u2026';
+  try {
+    if (isLoginPageSync) {
+      // The login page's own sync is running: wait for it rather than start another.
+      var waited = 0;
+      while (isLoginPageSync && waited < 60000) { await new Promise(function (r) { setTimeout(r, 500); }); waited += 500; }
+    } else if (currentRole && isCloudConnected && googleAccessToken) {
+      await autoSyncOnLogin();
+    } else {
+      await loginPageSync();
+    }
+  } catch (e) { console.warn('[Maintenance] recheck failed:', e); }
+  _maintRecheckInFlight = false;
+  applyMaintenanceOverlay();
+  if (btn) btn.disabled = false;
+  if (st) {
+    var stillOn = systemSettings.maintenanceMode === true && currentRole !== 'admin';
+    st.textContent = stillOn ? 'Still under maintenance \u2014 checked ' + new Date().toLocaleTimeString() + '.' : '';
   }
 }
 
@@ -37367,7 +37444,7 @@ function renderCertPage1OnBg(bgImg, student, tpl) {
 // p2QrX / p2QrY / p2QrSize, percentages of the page), so the editor can move
 // it and "Apply Design to All" carries it to every template. The defaults
 // match the Centre's current backgrounds.
-var CERT_QR_DEFAULTS = { x: 3, y: 86.5, size: 7.5 };
+var CERT_QR_DEFAULTS = { x: 3, y: 87, size: 7 };
 
 // The public address certificates point at. Set in Settings when the PDF is
 // made somewhere other than the public site (the offline build, a local
@@ -37386,16 +37463,57 @@ function certVerifyUrlFor(certNo) {
   base = base.replace(/[#?].*$/, '');
   return base + '?certificate=' + encodeURIComponent(certNo || '');
 }
-function certQrGeometry(tpl, w, h) {
+// Where the page's own margins are, seen from the square: the first light
+// row above the bottom border and the first light column past the left
+// border, sampled from the page as drawn. Null when the canvas cannot be read.
+function certPageInnerBounds(ctx, w, h, g) {
+  try {
+    var col = Math.max(0, Math.min(w - 1, g.x + Math.round(g.size / 2)));
+    var row = Math.max(0, Math.min(h - 1, g.y + Math.round(g.size / 2)));
+    var light = function (d, i) { return d[i + 3] > 0 && (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) > 170; };
+    var colData = ctx.getImageData(col, 0, 1, h).data;
+    var rowData = ctx.getImageData(0, row, w, 1).data;
+    if (!colData || !rowData || colData.length !== h * 4 || rowData.length !== w * 4) return null;
+    var bottom = h;
+    for (var y = h - 1; y >= 0; y--) { if (light(colData, y * 4)) { bottom = y + 1; break; } }
+    var left = 0;
+    for (var x = 0; x < w; x++) { if (light(rowData, x * 4)) { left = x; break; } }
+    return { left: left, bottom: bottom };
+  } catch (e) { return null; }
+}
+// The square the code is drawn in, and the patch painted under it. Contained
+// within the page whatever the background's proportions: the patch runs to
+// the page's own margins and no further (it must hide the whole of the
+// generic square, and must not paint over the border), and the code keeps a
+// clear margin inside the border — shrinking to fit above it, keeping its top
+// just under the "PLEASE VALIDATE" label, and only moving up when shrinking
+// would leave it too small to scan.
+function certQrGeometry(tpl, w, h, ctx) {
   var pos = (tpl && tpl.textPositions) || {};
   var num = function (v, d) { v = parseFloat(v); return isFinite(v) && v > 0 ? v : d; };
   var size = Math.round(num(pos.p2QrSize, CERT_QR_DEFAULTS.size) / 100 * w);
-  return {
-    x: Math.round(num(pos.p2QrX, CERT_QR_DEFAULTS.x) / 100 * w),
-    y: Math.round(num(pos.p2QrY, CERT_QR_DEFAULTS.y) / 100 * h),
-    size: size,
-    pad: Math.max(4, Math.round(size * 0.08))
-  };
+  var pad = Math.max(4, Math.round(size * 0.08)), sidePad = Math.round(pad * 1.5);
+  var raw = { x: Math.round(num(pos.p2QrX, CERT_QR_DEFAULTS.x) / 100 * w), y: Math.round(num(pos.p2QrY, CERT_QR_DEFAULTS.y) / 100 * h), size: size, pad: pad };
+  var g = { x: raw.x, y: raw.y, size: raw.size, pad: raw.pad };
+  var cover = { x: raw.x - sidePad, y: raw.y - pad, w: raw.size + sidePad * 2, h: raw.size + pad + sidePad };
+  var b = ctx ? certPageInnerBounds(ctx, w, h, raw) : null;
+  if (b) {
+    var right = cover.x + cover.w, bottom = Math.min(cover.y + cover.h, b.bottom);
+    cover.x = Math.max(cover.x, b.left);
+    cover.w = Math.max(0, right - cover.x);
+    cover.h = Math.max(0, bottom - cover.y);
+    var margin = Math.max(6, Math.round(h * 0.01));
+    var limit = b.bottom - margin;
+    if (g.y + g.size > limit) {
+      var fit = limit - g.y;
+      if (fit >= Math.round(raw.size * 0.6)) g.size = fit;
+      else g.y = Math.max(0, limit - g.size);
+    }
+    var leftLimit = b.left + margin;
+    if (g.x < leftLimit) g.x = leftLimit;
+  }
+  g.cover = cover;
+  return g;
 }
 // A QR code as a canvas, drawn by the bundled qrcode.js. Null when the
 // library is missing or the text is too long for it.
@@ -37408,19 +37526,19 @@ function certMakeQrCanvas(text, px) {
   } catch (e) { console.warn('[CertQR] could not draw the code:', e); return null; }
 }
 // Paint out the template's generic code and draw the live one. The cover
-// colour is sampled from the page beside the square, so the patch matches a
-// cream background as well as a white one.
+// colour is sampled from the page beside the patch, so it matches a cream
+// background as well as a white one.
 function certDrawValidationQr(ctx, student, tpl, w, h) {
-  var g = certQrGeometry(tpl, w, h);
+  var g = certQrGeometry(tpl, w, h, ctx);
   var url = certVerifyUrlFor(student && student.certNo);
   var fill = '#ffffff';
   try {
-    var px = ctx.getImageData(Math.min(w - 1, g.x + g.size + g.pad + 6), Math.min(h - 1, g.y + Math.round(g.size / 2)), 1, 1).data;
+    var px = ctx.getImageData(Math.min(w - 1, g.cover.x + g.cover.w + 6), Math.min(h - 1, g.y + Math.round(g.size / 2)), 1, 1).data;
     if (px && px[3] > 0) fill = 'rgb(' + px[0] + ',' + px[1] + ',' + px[2] + ')';
   } catch (e) {}
   ctx.save();
   ctx.fillStyle = fill;
-  ctx.fillRect(g.x - g.pad, g.y - g.pad, g.size + g.pad * 2, g.size + g.pad * 2);
+  ctx.fillRect(g.cover.x, g.cover.y, g.cover.w, g.cover.h);
   var qr = certMakeQrCanvas(url, Math.max(64, g.size * 2));
   if (qr) {
     ctx.drawImage(qr, g.x, g.y, g.size, g.size);
@@ -37911,7 +38029,9 @@ function _renderCertLivePreviewP2() {
   canvas._hitZones.push({id:'footer', x:footerX, y:footerY, xInput:'ctplP2FooterX', yInput:'ctplP2FooterY', r:footerSize*8});
 
   // --- Validation QR code (pink) — the square the live code is drawn in ---
-  var qrX=_cpv('ctplP2QrX',CERT_QR_DEFAULTS.x)/100*w, qrY=_cpv('ctplP2QrY',CERT_QR_DEFAULTS.y)/100*h, qrS=_cpv('ctplP2QrSize',CERT_QR_DEFAULTS.size)/100*w;
+  // The same containment the certificate gets: inside the page's own margins.
+  var _qg = certQrGeometry({ textPositions: { p2QrX: _cpv('ctplP2QrX',CERT_QR_DEFAULTS.x), p2QrY: _cpv('ctplP2QrY',CERT_QR_DEFAULTS.y), p2QrSize: _cpv('ctplP2QrSize',CERT_QR_DEFAULTS.size) } }, w, h, ctx);
+  var qrX=_qg.x, qrY=_qg.y, qrS=_qg.size;
   ctx.save();
   ctx.fillStyle = 'rgba(255,122,182,0.18)'; ctx.fillRect(qrX, qrY, qrS, qrS);
   ctx.strokeStyle = 'rgba(255,122,182,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([6,4]); ctx.strokeRect(qrX, qrY, qrS, qrS); ctx.setLineDash([]);
