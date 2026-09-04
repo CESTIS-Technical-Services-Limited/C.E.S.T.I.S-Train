@@ -19215,7 +19215,7 @@ function updateStudentStage(idx) {
   const newStage = document.getElementById('newStage').value;
   const prevStage = students[idx].stage;
   students[idx].stage = newStage;
-  if(newStage==='certified'){students[idx].progress=90;students[idx].certNo=generateUniqueCertNo(certNumberPrefix(students[idx].course), students[idx]);students[idx].certDate=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'2-digit'});}
+  if(newStage==='certified'){students[idx].progress=90;if(!students[idx].certDate)students[idx].certDate=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'2-digit'});/* a number, once issued, never changes: kept across collected/certified moves; a re-certification reuses the withdrawn one */if(!students[idx].certNo)students[idx].certNo=certPreviousNumber(students[idx])||certApprovedNumber(students[idx])||generateUniqueCertNo(certNumberPrefix(students[idx].course), students[idx]);}
   if(newStage==='collected'){students[idx].progress=100;students[idx].certCollected=true;}
   if(newStage==='incomplete')students[idx].progress=Math.min(students[idx].progress,40);
   // Demotion: if the student is no longer certified/collected, strip the
@@ -19244,15 +19244,16 @@ function updateStudentStage(idx) {
 // reconcileCertifiedFromApprovals() does not resurrect the certification.
 function clearStudentCertification(s) {
   if(!s) return;
+  // The number stays on record as an alias: a certificate once issued keeps
+  // its number even when the certification is withdrawn, so the paper still
+  // resolves (as withdrawn) and a later re-certification reuses it.
+  if(s.certNo) certRememberAlias(s, s.certNo);
   s.certNo = null;
   s.certDate = null;
   s.certCollected = false;
   if(typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) {
     var approval = certDownloadApprovals.find(function(a){ return a && a.studentId === s.id; });
-    if(approval) {
-      approval.approved = false;
-      approval.certNo = null;
-    }
+    if(approval) approval.approved = false;
   }
 }
 function openEditStudent(idx) {
@@ -26024,6 +26025,7 @@ async function mergeFromCloud() {
           // would undo the Centre's decision the next time the course reopens.
           var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes'];
           fieldsToMerge.forEach(function(field) {
+            if (field === 'certNo' && localMatch.certNo) return;   // a number, once issued, never changes
             if (cloudStudent[field] !== undefined && cloudStudent[field] !== null && cloudStudent[field] !== '') {
               if (cloudIsNewer || !localMatch[field] || localMatch[field] === '') {
                 if (localMatch[field] !== cloudStudent[field]) {
@@ -27291,6 +27293,7 @@ async function mergeBackupData(backupData) {
           // would undo the Centre's decision the next time the course reopens.
           var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes'];
           fieldsToMerge.forEach(function(field) {
+            if (field === 'certNo' && localMatch.certNo) return;   // a number, once issued, never changes
             if (cloudStudent[field] !== undefined && cloudStudent[field] !== null && cloudStudent[field] !== '') {
               if (cloudIsNewer || !localMatch[field] || localMatch[field] === '') {
                 if (localMatch[field] !== cloudStudent[field]) {
@@ -36764,6 +36767,15 @@ function certPortalVerify() {
     if (/^STU[-\s]?/i.test(query)) { out.innerHTML = _certWrongDoorCard('student', query); return; }
     out.innerHTML = _certNotFoundCard(query, 'certificate'); return;
   }
+  if (!student.certNo) {
+    // The number is on record but the certification has been withdrawn.
+    out.innerHTML = '<div class="cert-result-card not-found">' +
+      '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(231,76,60,0.15);color:var(--red);">&#10005;</div>' +
+      '<div><div style="font-size:16px;font-weight:700;color:var(--red);">Certificate Withdrawn</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">' + _certEsc(hit.number) + '</div></div></div>' +
+      '<p style="font-size:13px;color:var(--text-muted);">This number was issued, but the certification is no longer current. Please contact the Centre: cestisadmn@gmail.com | +(876) 679-0111.</p></div>';
+    return;
+  }
   out.innerHTML = '<div class="cert-result-card success">' +
     '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(46,204,113,0.15);color:var(--green);">&#10003;</div>' +
     '<div><div style="font-size:16px;font-weight:700;color:var(--green);">Certificate Verified</div>' +
@@ -36818,7 +36830,8 @@ function certPortalPreview() {
       '</div><p style="font-size:13px;color:var(--text-muted);">Complete all training modules and pass certification to receive your certificate.</p></div>';
     return;
   }
-  // The preview shows the number that will be printed: the approved one.
+  // The preview shows the number that will be printed: the record's own,
+  // which the approval learns if it has none yet.
   if (certAlignNumberWithApproval(student)) { try { saveState(); } catch (e) {} }
   _certPortalPreviewStudent = student;
   var v = certDownloadAllowed(student);
@@ -37001,7 +37014,7 @@ async function fetchCertDataFromDrive() {
           var _localMod = existing.lastModified ? new Date(existing.lastModified).getTime() : 0;
           certMergeNumberAliases(existing, cloudStudent);
           if (_cloudMod > _localMod) {
-            if (cloudStudent.certNo !== undefined) existing.certNo = cloudStudent.certNo;
+            if (cloudStudent.certNo && !existing.certNo) existing.certNo = cloudStudent.certNo;   // a number, once issued, never changes
             if (cloudStudent.certDate !== undefined) existing.certDate = cloudStudent.certDate;
             if (cloudStudent.certCollected !== undefined) existing.certCollected = cloudStudent.certCollected;
             if (cloudStudent.stage !== undefined) existing.stage = cloudStudent.stage;
@@ -37188,8 +37201,10 @@ function reconcileCertifiedFromApprovals() {
    Three rules now hold:
      - a number is DERIVED from the trainee (name + programme), so every
        device mints the same one;
-     - the number PRINTED is the number the Centre approved, carried on the
-       download approval; a device holding a different one adopts it;
+     - a number, once issued, NEVER CHANGES: not on a stage change, not in a
+       merge, not for an approval that holds a different one — a second
+       number is kept as an alias instead, and the approval carries the
+       number that was printed;
      - a number a trainee's record ever carried stays with them as an alias,
        and a lookup answers to any of them — spaces, dashes and case aside. */
 function certNumberKey(no) { return String(no == null ? '' : no).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
@@ -37207,6 +37222,12 @@ function certRememberAlias(student, no) {
   if (student.certNoAliases.some(function (a) { return certNumberKey(a) === key; })) return false;
   student.certNoAliases.push(String(no).trim());
   return true;
+}
+// The number this record was issued before (the latest alias), for a
+// re-certification to take back rather than mint a new one.
+function certPreviousNumber(student) {
+  var list = (student && Array.isArray(student.certNoAliases)) ? student.certNoAliases.filter(function (a) { return certNumberKey(a); }) : [];
+  return list.length ? list[list.length - 1] : null;
 }
 function certStudentHasNumber(student, no) {
   if (!student || !no) return false;
@@ -37237,21 +37258,23 @@ function certApprovedNumber(student) {
   var a = _certApprovalOf(student);
   return (a && a.certNo) ? a.certNo : null;
 }
-// A device holding a different number from the approved one adopts the
-// approved one, keeping its own as an alias; an approval with no number yet
-// takes the trainee's. Returns true when something changed.
+// Fill-only, both ways: a trainee with no number takes the approved one, an
+// approval with no number takes the trainee's — and a number already issued
+// is never replaced. Returns true when something changed.
 function certAlignNumberWithApproval(student, approval) {
   if (!student) return false;
   approval = approval || _certApprovalOf(student);
   if (!approval) return false;
-  if (approval.certNo) {
-    if (certNumberKey(approval.certNo) === certNumberKey(student.certNo)) return false;
-    if (student.certNo) certRememberAlias(student, student.certNo);
-    student.certNo = approval.certNo;
-    return true;
+  var changed = false;
+  if (approval.certNo && !student.certNo) { student.certNo = approval.certNo; changed = true; }
+  else if (student.certNo && !approval.certNo) { approval.certNo = student.certNo; changed = true; }
+  else if (approval.certNo && student.certNo && certNumberKey(approval.certNo) !== certNumberKey(student.certNo)) {
+    // Two numbers for one certificate: neither replaces the other. The record
+    // keeps the number it was issued; the approval's is kept as an alias so a
+    // certificate printed under it still verifies.
+    if (certRememberAlias(student, approval.certNo)) changed = true;
   }
-  if (student.certNo) { approval.certNo = student.certNo; return true; }
-  return false;
+  return changed;
 }
 // The trainee a certificate number belongs to: by their current number, by
 // any number they ever carried, or by the number on their download approval.
@@ -37324,10 +37347,11 @@ function backfillCertificateNumbers() {
     if(!s || !s.course) return;
     if((s.stage === 'certified' || s.stage === 'collected') && !s.certNo) {
       if(!s.certDate) s.certDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
-      // The number the Centre approved, when there is one; else the number
-      // every device derives for this trainee — never a random one, and
-      // never a prefix that depends on which templates this device holds.
-      s.certNo = certApprovedNumber(s) || generateUniqueCertNo(certNumberPrefix(s.course), s);
+      // The number this record held before, else the one the Centre approved,
+      // else the number every device derives for this trainee — never a
+      // random one, and never a prefix that depends on which templates this
+      // device holds.
+      s.certNo = certPreviousNumber(s) || certApprovedNumber(s) || generateUniqueCertNo(certNumberPrefix(s.course), s);
       if(s.stage === 'collected') s.certCollected = true;
       changed = true;
     }
@@ -37473,9 +37497,9 @@ function _generateCertPDFInner(studentId) {
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student) return;
 
-  // Track download. The number PRINTED is the number the Centre approved: a
-  // device that minted one of its own for this trainee must not print it,
-  // because nobody else could ever verify it.
+  // Track download. The approval records the number printed (fill-only
+  // both ways — a number, once issued, never changes), so the number on the
+  // paper is always on record somewhere that syncs.
   var approval = certDownloadApprovals.find(function(d){ return d.studentId === studentId; });
   if(approval) {
     certAlignNumberWithApproval(student, approval);

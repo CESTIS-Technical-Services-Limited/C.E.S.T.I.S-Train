@@ -440,9 +440,12 @@
         base[f] = other[f];
       }
     });
-    // Every certificate number either record ever carried stays with the
-    // survivor, so a certificate printed under the losing record's number
-    // still verifies as this person.
+    // A certificate number, once issued, never changes: the FIRST record's
+    // number stands whichever copy was edited later (`a` is the record this
+    // device holds, or the one it met first), and every number either record
+    // ever carried stays with the survivor as an alias, so a certificate
+    // printed under any of them still verifies as this person.
+    if (a && a.certNo) base.certNo = a.certNo;
     var norm = function (n) { return String(n == null ? '' : n).toUpperCase().replace(/[^A-Z0-9]/g, ''); };
     var aliases = [], seen = {};
     [a, b].forEach(function (r) {

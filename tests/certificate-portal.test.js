@@ -351,7 +351,7 @@ function numbersHarness(page, roll, approvals) {
     CESTISCore: page.core, students: JSON.parse(JSON.stringify(roll)), certDownloadApprovals: JSON.parse(JSON.stringify(approvals || [])),
     saved: 0, saveState: function () { sb.saved++; } };
   vm.createContext(sb);
-  vm.runInContext(['certNumberKey', 'certNumberPrefix', 'certRememberAlias', 'certStudentHasNumber', 'certMergeNumberAliases', '_certApprovalOf', 'certApprovedNumber',
+  vm.runInContext(['certNumberKey', 'certNumberPrefix', 'certRememberAlias', 'certPreviousNumber', 'certStudentHasNumber', 'certMergeNumberAliases', '_certApprovalOf', 'certApprovedNumber',
     'certAlignNumberWithApproval', 'certResolveNumber', 'certNumberSeed', 'generateUniqueCertNo', 'backfillCertificateNumbers', 'reconcileCertifiedFromApprovals']
     .map(function (n) { return extractFunction(src, n, w); }).join('\n'), sb);
   return sb;
@@ -375,12 +375,12 @@ PAGES.forEach(function (page) {
   const sb = numbersHarness(page, [Object.assign({}, DW, { certNo: 'PH-2026-1111' })],
     [{ id: 'CDA-STU-a', studentId: 'STU-a', name: DW.name, course: DW.course, certNo: 'CESTIS-SOLAR-02-2026-5364', approved: true }]);
   vm.runInContext('reconcileCertifiedFromApprovals()', sb);
-  assertEq(sb.students[0].certNo, 'CESTIS-SOLAR-02-2026-5364', w + ': the trainee adopts the approved number');
-  assert(sb.students[0].certNoAliases.indexOf('PH-2026-1111') !== -1, w + ': and keeps the number it held as an alias');
+  assertEq(sb.students[0].certNo, 'PH-2026-1111', w + ': the trainee KEEPS the number it was issued — a number never changes');
+  assert(sb.students[0].certNoAliases.indexOf('CESTIS-SOLAR-02-2026-5364') !== -1, w + ': and the approval\'s number is kept as an alias');
   let r = vm.runInContext("certResolveNumber('cestis solar 02 2026 5364')", sb);
-  assert(r.student && r.student.id === 'STU-a' && r.via === 'number', w + ': the printed solar number verifies, spaces and case aside');
+  assert(r.student && r.student.id === 'STU-a' && r.via === 'alias', w + ': the printed solar number verifies, spaces and case aside');
   r = vm.runInContext("certResolveNumber('ph20261111')", sb);
-  assert(r.student && r.student.id === 'STU-a' && r.via === 'alias' && r.number === 'PH-2026-1111', w + ': the old number still verifies, through the alias');
+  assert(r.student && r.student.id === 'STU-a' && r.via === 'number' && r.number === 'PH-2026-1111', w + ': and so does the record\'s own number');
   assert(vm.runInContext("certStudentHasNumber(students[0], 'PH-2026-1111') && certStudentHasNumber(students[0], 'CESTIS-SOLAR-02-2026-5364') && !certStudentHasNumber(students[0], 'PH-2026-9999')", sb), w + ': a trainee answers to every number they carried and no other');
 
   // A number known only to an approval (the trainee\'s record lost it) still resolves.
@@ -398,18 +398,64 @@ PAGES.forEach(function (page) {
 
   // The dedupe in cestis-core keeps the losing record\'s number too.
   const merged = page.core.mergeStudentRecords({ id: 'A', name: 'X', course: 'C', certNo: 'PH-2026-1111', lastModified: '2026-08-01T00:00:00Z' }, { id: 'B', name: 'X', course: 'C', certNo: 'PH-2026-2222', lastModified: '2026-07-01T00:00:00Z' });
-  assertEq(merged.certNo, 'PH-2026-1111', w + ': the newer record\'s number is shown');
+  assertEq(merged.certNo, 'PH-2026-1111', w + ': the first record\'s number is shown');
   assertEq(JSON.stringify(merged.certNoAliases), JSON.stringify(['PH-2026-2222']), w + ': and the other record\'s number rides along as an alias');
+  const mergedLater = page.core.mergeStudentRecords({ id: 'A', name: 'X', course: 'C', certNo: 'PH-2026-1111', lastModified: '2026-07-01T00:00:00Z' }, { id: 'B', name: 'X', course: 'C', certNo: 'PH-2026-2222', lastModified: '2026-08-01T00:00:00Z' });
+  assertEq(mergedLater.certNo, 'PH-2026-1111', w + ': even when the OTHER copy was edited later, the number this device holds stands');
+  assertEq(JSON.stringify(mergedLater.certNoAliases), JSON.stringify(['PH-2026-2222']), w + ': with the later copy\'s number as an alias');
 
   // Every path that could disagree now agrees.
   assert(extractFunction(src, 'updateStudentStage', w).indexOf('generateUniqueCertNo(certNumberPrefix(students[idx].course), students[idx])') !== -1, w + ': Update Stage derives the number from the trainee');
-  assert(extractFunction(src, '_generateCertPDFInner', w).indexOf('certAlignNumberWithApproval(student, approval)') !== -1, w + ': the PDF prints the approved number');
+  assert(extractFunction(src, '_generateCertPDFInner', w).indexOf('certAlignNumberWithApproval(student, approval)') !== -1, w + ': the PDF records the printed number on the approval');
   assert(extractFunction(src, 'mergeBackupData', w).indexOf('certMergeNumberAliases(localMatch, cloudStudent)') !== -1, w + ': the cloud merge keeps displaced numbers');
   assert(extractFunction(src, 'fetchCertDataFromDrive', w).indexOf('certMergeNumberAliases(existing, cloudStudent)') !== -1, w + ': so does the certificate lookup\'s pull');
   assert(extractFunction(src, 'certPortalVerify', w).indexOf('certResolveNumber(query)') !== -1, w + ': the verify door resolves through aliases and approvals');
   assert(extractFunction(src, 'certPortalPreview', w).indexOf('certStudentHasNumber(student, _certPortalCertNo)') !== -1, w + ': a QR-opened download answers to any number the holder carried');
   assert(extractFunction(src, 'certPortalPreview', w).indexOf("_certWrongDoorCard('certificate'") !== -1 && extractFunction(src, 'certPortalVerify', w).indexOf("_certWrongDoorCard('student'") !== -1, w + ': each door recognises the other door\'s kind of number and points the way across');
   assert(extractFunction(src, 'renderCertDownloadMgmt', w).indexOf("certRegisterPrintedNumber(") !== -1 && count(src, 'function certRegisterPrintedNumber(') === 1, w + ': an administrator can record a number already printed on paper');
+});
+
+/* ---------- 8c. A number, once issued, never changes ---------- */
+console.log('A certificate number, once issued, never changes');
+PAGES.forEach(function (page) {
+  const w = page.where, src = page.src;
+  const us = extractFunction(src, 'updateStudentStage', w);
+  assert(us.indexOf('if(!students[idx].certNo)students[idx].certNo=certPreviousNumber(students[idx])||certApprovedNumber(students[idx])||generateUniqueCertNo(') !== -1, w + ': Update Stage never re-mints a number a trainee already has, and reuses a withdrawn one');
+  assert(us.indexOf('if(!students[idx].certDate)students[idx].certDate=') !== -1, w + ': nor re-dates a certificate');
+  assert(count(extractFunction(src, 'mergeBackupData', w), "if (field === 'certNo' && localMatch.certNo) return;") === 1
+      && count(extractFunction(src, 'mergeFromCloud', w), "if (field === 'certNo' && localMatch.certNo) return;") === 1, w + ': no cloud merge overwrites a number this device holds');
+  assert(extractFunction(src, 'fetchCertDataFromDrive', w).indexOf('if (cloudStudent.certNo && !existing.certNo) existing.certNo = cloudStudent.certNo;') !== -1, w + ': nor does the certificate lookup\'s pull');
+  assert(extractFunction(src, 'certPortalVerify', w).indexOf('Certificate Withdrawn') !== -1, w + ': a withdrawn certificate\'s number resolves, and says so');
+
+  // Fill-only alignment, both ways; never a replacement.
+  const DW = { id: 'STU-a', name: 'Dwayne Williamson', course: 'Photovoltaic Installer', stage: 'certified', certDate: '2026-02-15' };
+  let sb = numbersHarness(page, [Object.assign({}, DW, { certNo: 'PH-2026-1111' })], [{ studentId: 'STU-a', certNo: 'PH-2026-9999', approved: true }]);
+  assert(vm.runInContext('certAlignNumberWithApproval(students[0], certDownloadApprovals[0])', sb) === true, w + ': two numbers for one certificate is a change worth writing down');
+  assertEq(sb.students[0].certNo, 'PH-2026-1111', w + ': but the record keeps the number it was issued');
+  assertEq(sb.certDownloadApprovals[0].certNo, 'PH-2026-9999', w + ': and the approval keeps its own');
+  assert(sb.students[0].certNoAliases.indexOf('PH-2026-9999') !== -1, w + ': the other number becomes an alias');
+  sb = numbersHarness(page, [Object.assign({}, DW, { certNo: null })], [{ studentId: 'STU-a', certNo: 'PH-2026-9999', approved: true }]);
+  vm.runInContext('certAlignNumberWithApproval(students[0], certDownloadApprovals[0])', sb);
+  assertEq(sb.students[0].certNo, 'PH-2026-9999', w + ': a trainee with no number takes the approved one');
+
+  // Withdrawn, then re-certified: the same number comes back.
+  const sb2 = numbersHarness(page, [Object.assign({}, DW, { certNo: 'PH-2026-4242' })], [{ studentId: 'STU-a', certNo: 'PH-2026-4242', approved: true }]);
+  vm.runInContext(extractFunction(src, 'clearStudentCertification', w) + '\nclearStudentCertification(students[0]); students[0].stage = "certified";', sb2);
+  assert(sb2.students[0].certNo === null && sb2.students[0].certNoAliases.indexOf('PH-2026-4242') !== -1, w + ': withdrawing keeps the number on record');
+  assertEq(sb2.certDownloadApprovals[0].approved, false, w + ': and the download approval is switched off');
+  vm.runInContext('backfillCertificateNumbers()', sb2);
+  assertEq(sb2.students[0].certNo, 'PH-2026-4242', w + ': re-certified, the trainee gets the same number back');
+
+  // The same-name collapse in cestis-core keeps the loser\'s number too.
+  if (typeof page.core.collapseSameNameStudents === 'function') {
+    const col = page.core.collapseSameNameStudents([
+      { id: 'STU-1', name: 'Omarion Blake', course: 'Welding & Fabrication', stage: 'certified', certNo: 'WE-2026-1111', progress: 90 },
+      { id: 'STU-2', name: 'Omarion Blake', course: 'WELDING L2', stage: 'certified', certNo: 'WE-2026-2222', progress: 50 }
+    ]);
+    assertEq(col.students.length, 1, w + ': the two records become one');
+    const nos = [col.students[0].certNo].concat(col.students[0].certNoAliases || []).sort().join(' ');
+    assertEq(nos, 'WE-2026-1111 WE-2026-2222', w + ': and both certificate numbers survive on the one record');
+  }
 });
 
 /* ---------- 9. A stale maintenance screen can find its own way out ---------- */
