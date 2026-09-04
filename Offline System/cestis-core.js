@@ -440,6 +440,20 @@
         base[f] = other[f];
       }
     });
+    // Every certificate number either record ever carried stays with the
+    // survivor, so a certificate printed under the losing record's number
+    // still verifies as this person.
+    var norm = function (n) { return String(n == null ? '' : n).toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+    var aliases = [], seen = {};
+    [a, b].forEach(function (r) {
+      if (!r) return;
+      (Array.isArray(r.certNoAliases) ? r.certNoAliases : []).concat(r.certNo ? [r.certNo] : []).forEach(function (n) {
+        var k = norm(n);
+        if (!k || k === norm(base.certNo) || seen[k]) return;
+        seen[k] = true; aliases.push(String(n).trim());
+      });
+    });
+    if (aliases.length) base.certNoAliases = aliases; else delete base.certNoAliases;
     return base;
   };
 

@@ -334,13 +334,82 @@ PAGES.forEach(function (page) {
   assert(extractFunction(src, 'studentRefreshCertData', w).indexOf('_certDriveLastFetched = Date.now()') !== -1, w + ': Refresh from Cloud is the sync that switches it on');
   const pv = extractFunction(src, 'certPortalPreview', w);
   assert(pv.indexOf("(v.allowed ? '' : 'disabled ')") !== -1, w + ': the portal button is rendered disabled until allowed');
-  assert(pv.indexOf('_certPortalCertNo.toLowerCase()') !== -1, w + ': a certificate opened from its QR code only answers to its holder\'s student number');
+  assert(pv.indexOf('certStudentHasNumber(student, _certPortalCertNo)') !== -1, w + ': a certificate opened from its QR code only answers to its holder\'s student number');
   assert(pv.indexOf('renderCertPage1OnBg') === -1 && extractFunction(src, 'certRenderPreview', w).indexOf('renderCertPage1OnBg(img1, student, tpl)') !== -1
     && extractFunction(src, 'certRenderPreview', w).indexOf('renderCertPage2OnBg(img2, student, tpl)') !== -1,
     w + ': the live preview is drawn by the same renderers as the PDF');
   const vf = extractFunction(src, 'certPortalVerify', w);
   assert(vf.indexOf('student.id') === -1, w + ': the employer\'s verify page never prints the student number');
   assert(extractFunction(src, '_certNotFoundCard', w).indexOf('Sync Required') !== -1, w + ': an unmatched number on an unsynced device asks for a sync instead of declaring "No Record Found"');
+});
+
+/* ---------- 8b. One certificate number per certificate, the same on every device ---------- */
+console.log('Certificate numbers are derived, printed as approved, and answer to every number ever carried');
+function numbersHarness(page, roll, approvals) {
+  const w = page.where, src = page.src;
+  const sb = { console: { log() {}, warn() {} }, Math, Date, String, Array, Object, parseInt, RegExp, JSON,
+    CESTISCore: page.core, students: JSON.parse(JSON.stringify(roll)), certDownloadApprovals: JSON.parse(JSON.stringify(approvals || [])),
+    saved: 0, saveState: function () { sb.saved++; } };
+  vm.createContext(sb);
+  vm.runInContext(['certNumberKey', 'certNumberPrefix', 'certRememberAlias', 'certStudentHasNumber', 'certMergeNumberAliases', '_certApprovalOf', 'certApprovedNumber',
+    'certAlignNumberWithApproval', 'certResolveNumber', 'certNumberSeed', 'generateUniqueCertNo', 'backfillCertificateNumbers', 'reconcileCertifiedFromApprovals']
+    .map(function (n) { return extractFunction(src, n, w); }).join('\n'), sb);
+  return sb;
+}
+PAGES.forEach(function (page) {
+  const w = page.where, src = page.src;
+  const DW = { id: 'STU-a', name: 'Dwayne Williamson', course: 'Photovoltaic Installer', stage: 'certified', certDate: '2026-02-15' };
+  const AB = { id: 'STU-b', name: 'Ann Brown', course: 'Photovoltaic Installer', stage: 'certified', certDate: '2026-02-15' };
+
+  // Two devices, the same roll, no numbers yet: both mint the SAME numbers.
+  const d1 = numbersHarness(page, [DW, AB]), d2 = numbersHarness(page, [AB, DW]);
+  vm.runInContext('backfillCertificateNumbers()', d1); vm.runInContext('backfillCertificateNumbers()', d2);
+  const n1 = d1.students.map(function (s) { return s.id + '=' + s.certNo; }).sort().join(' '), n2 = d2.students.map(function (s) { return s.id + '=' + s.certNo; }).sort().join(' ');
+  assertEq(n1, n2, w + ': two devices derive identical numbers for the same trainees');
+  assert(/^PH-2026-\d{4}$/.test(d1.students[0].certNo), w + ': the number is PREFIX-YEAR-NNNN from the course initials and the certificate year: ' + d1.students[0].certNo);
+  assert(d1.students[0].certNo !== d1.students[1].certNo, w + ': two trainees get two numbers');
+  assertEq(vm.runInContext("generateUniqueCertNo('PH', students[0])", d1), d1.students[0].certNo, w + ': re-deriving a trainee\'s number gives the same number back');
+  assertEq(vm.runInContext("certNumberPrefix('02. Electrical Installation')", d1), 'EL', w + ': an intake key never becomes the prefix');
+
+  // The device that PRINTED used a number of its own; the approval carries the Centre\'s.
+  const sb = numbersHarness(page, [Object.assign({}, DW, { certNo: 'PH-2026-1111' })],
+    [{ id: 'CDA-STU-a', studentId: 'STU-a', name: DW.name, course: DW.course, certNo: 'CESTIS-SOLAR-02-2026-5364', approved: true }]);
+  vm.runInContext('reconcileCertifiedFromApprovals()', sb);
+  assertEq(sb.students[0].certNo, 'CESTIS-SOLAR-02-2026-5364', w + ': the trainee adopts the approved number');
+  assert(sb.students[0].certNoAliases.indexOf('PH-2026-1111') !== -1, w + ': and keeps the number it held as an alias');
+  let r = vm.runInContext("certResolveNumber('cestis solar 02 2026 5364')", sb);
+  assert(r.student && r.student.id === 'STU-a' && r.via === 'number', w + ': the printed solar number verifies, spaces and case aside');
+  r = vm.runInContext("certResolveNumber('ph20261111')", sb);
+  assert(r.student && r.student.id === 'STU-a' && r.via === 'alias' && r.number === 'PH-2026-1111', w + ': the old number still verifies, through the alias');
+  assert(vm.runInContext("certStudentHasNumber(students[0], 'PH-2026-1111') && certStudentHasNumber(students[0], 'CESTIS-SOLAR-02-2026-5364') && !certStudentHasNumber(students[0], 'PH-2026-9999')", sb), w + ': a trainee answers to every number they carried and no other');
+
+  // A number known only to an approval (the trainee\'s record lost it) still resolves.
+  const sb2 = numbersHarness(page, [Object.assign({}, DW, { certNo: null, stage: 'training' })], [{ studentId: 'STU-a', name: DW.name, course: DW.course, certNo: 'PH-2026-4242', approved: true }]);
+  r = vm.runInContext("certResolveNumber('PH-2026-4242')", sb2);
+  assert(r.student && r.student.id === 'STU-a' && r.via === 'approval', w + ': a number carried only by the download approval finds its trainee');
+  // An approval without a number takes the trainee\'s, so the printed number is recorded.
+  const sb3 = numbersHarness(page, [Object.assign({}, DW, { certNo: 'PH-2026-3333' })], [{ studentId: 'STU-a', name: DW.name, course: DW.course, certNo: null, approved: true }]);
+  vm.runInContext('reconcileCertifiedFromApprovals()', sb3);
+  assertEq(sb3.certDownloadApprovals[0].certNo, 'PH-2026-3333', w + ': an approval with no number takes the trainee\'s');
+  // Merging two copies keeps both numbers.
+  const sb4 = numbersHarness(page, [Object.assign({}, DW, { certNo: 'PH-2026-1111' })]);
+  vm.runInContext("certMergeNumberAliases(students[0], { certNo: 'PH-2026-2222', certNoAliases: ['PH-2026-0001'] })", sb4);
+  assertEq(JSON.stringify(sb4.students[0].certNoAliases), JSON.stringify(['PH-2026-1111', 'PH-2026-2222', 'PH-2026-0001']), w + ': a merge keeps every number either copy held');
+
+  // The dedupe in cestis-core keeps the losing record\'s number too.
+  const merged = page.core.mergeStudentRecords({ id: 'A', name: 'X', course: 'C', certNo: 'PH-2026-1111', lastModified: '2026-08-01T00:00:00Z' }, { id: 'B', name: 'X', course: 'C', certNo: 'PH-2026-2222', lastModified: '2026-07-01T00:00:00Z' });
+  assertEq(merged.certNo, 'PH-2026-1111', w + ': the newer record\'s number is shown');
+  assertEq(JSON.stringify(merged.certNoAliases), JSON.stringify(['PH-2026-2222']), w + ': and the other record\'s number rides along as an alias');
+
+  // Every path that could disagree now agrees.
+  assert(extractFunction(src, 'updateStudentStage', w).indexOf('generateUniqueCertNo(certNumberPrefix(students[idx].course), students[idx])') !== -1, w + ': Update Stage derives the number from the trainee');
+  assert(extractFunction(src, '_generateCertPDFInner', w).indexOf('certAlignNumberWithApproval(student, approval)') !== -1, w + ': the PDF prints the approved number');
+  assert(extractFunction(src, 'mergeBackupData', w).indexOf('certMergeNumberAliases(localMatch, cloudStudent)') !== -1, w + ': the cloud merge keeps displaced numbers');
+  assert(extractFunction(src, 'fetchCertDataFromDrive', w).indexOf('certMergeNumberAliases(existing, cloudStudent)') !== -1, w + ': so does the certificate lookup\'s pull');
+  assert(extractFunction(src, 'certPortalVerify', w).indexOf('certResolveNumber(query)') !== -1, w + ': the verify door resolves through aliases and approvals');
+  assert(extractFunction(src, 'certPortalPreview', w).indexOf('certStudentHasNumber(student, _certPortalCertNo)') !== -1, w + ': a QR-opened download answers to any number the holder carried');
+  assert(extractFunction(src, 'certPortalPreview', w).indexOf("_certWrongDoorCard('certificate'") !== -1 && extractFunction(src, 'certPortalVerify', w).indexOf("_certWrongDoorCard('student'") !== -1, w + ': each door recognises the other door\'s kind of number and points the way across');
+  assert(extractFunction(src, 'renderCertDownloadMgmt', w).indexOf("certRegisterPrintedNumber(") !== -1 && count(src, 'function certRegisterPrintedNumber(') === 1, w + ': an administrator can record a number already printed on paper');
 });
 
 /* ---------- 9. A stale maintenance screen can find its own way out ---------- */
