@@ -92,10 +92,29 @@
     // while a re-read immediately after an iframe reports a change is synchronous.
     getItem: function(k){
       k=String(k);
+      // When localStorage is full its write throws and the PREVIOUS value is
+      // left sitting there untouched. This read trusts any non-null answer
+      // from localStorage, so from that moment on every read returned the
+      // STALE copy while the data the user had just entered sat unreachable
+      // in IndexedDB — and the next save wrote the stale copy back over the
+      // good one and uploaded it. Dropping the stale entry on a failed write
+      // (see setItem below) is what makes this read safe.
       if(LS){ try { var lv = LS.getItem(k); if(lv !== null){ cache[k] = lv; return lv; } } catch(e){} }
       return (k in cache) ? cache[k] : null;
     },
-    setItem: function(k,v){ k=String(k); v=String(v); cache[k]=v; try{ if(LS) LS.setItem(k,v); }catch(e){} writeIDB(k,v,false); },
+    setItem: function(k,v){
+      k=String(k); v=String(v); cache[k]=v;
+      // A failed localStorage write leaves the OLD value in place. Left there,
+      // it out-votes the truth on every later read (see getItem above), so the
+      // stale entry is removed and the read falls through to the cache and
+      // IndexedDB, which both hold what was actually written.
+      try{ if(LS) LS.setItem(k,v); }
+      catch(e){
+        try{ if(LS) LS.removeItem(k); }catch(e2){}
+        if (typeof reportWriteFailure === 'function') reportWriteFailure(k, e);
+      }
+      writeIDB(k,v,false);
+    },
     removeItem: function(k){ k=String(k); delete cache[k]; try{ if(LS) LS.removeItem(k); }catch(e){} writeIDB(k,null,true); },
     clear: function(){ for(var k in cache){ if(Object.prototype.hasOwnProperty.call(cache,k)) delete cache[k]; }
                        try{ if(LS) LS.clear(); }catch(e){}
@@ -6925,8 +6944,15 @@ function saveState() {
     saveCollection('voctrain_students', students);
     saveCollection('voctrain_exams', exams);
     saveCollection('voctrain_announcements', announcements);
-    CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords));
-    try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
+    /* These four go through the same guard as the collections above. They used
+       to be written raw, which left them outside the one rule that makes a
+       collection unloseable: an empty value never replaces stored records. A
+       load that threw partway leaves the variables read after it at their empty
+       defaults, and the very next save then wrote those empties over the
+       Centre's attendance, exam results and trainee profiles — and uploaded
+       them. */
+    saveCollection('voctrain_attendance', attendanceRecords);
+    try { saveCollection('voctrain_vcSessions', vcSessions); } catch(e) {}
     if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance();
     persistUserAccounts();
     saveCollection('voctrain_classSessions', classSessions);
@@ -6934,10 +6960,10 @@ function saveState() {
     saveCollection('voctrain_assignments', instructorAssignments);
     saveCollection('voctrain_submissions', assignmentSubmissions);
     saveCollection('voctrain_resources', instructorResources);
-    CESTISStore.setItem('voctrain_studentProfiles', JSON.stringify(studentProfiles));
+    saveCollection('voctrain_studentProfiles', studentProfiles);
     saveCollection('voctrain_instructorProfiles', instructorProfiles);
     CESTISStore.setItem('voctrain_systemSettings', JSON.stringify(systemSettings));
-    CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults));
+    saveCollection('voctrain_examResults', examResults);
     saveCollection('voctrain_calendarEvents', calendarEvents);
     saveCollection('voctrain_instructorData', instructorData);
     saveCollection('voctrain_certDownloadApprovals', certDownloadApprovals);
@@ -7134,7 +7160,7 @@ function loadState() {
     var _released = releaseMisStampedIntakes();
     if (_released > 0) {
       console.log('[loadState] Released ' + _released + ' trainee(s) from an intake that began after they enrolled');
-      try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
+      try { saveCollection('voctrain_students', students); } catch(e) {}
     }
   } catch(e) { console.warn('[loadState] intake release:', e); }
   try { backfillStudentFiscalYears(); } catch(e) { console.warn('[loadState] FY backfill:', e); }
@@ -7166,11 +7192,11 @@ function loadState() {
   if (_dedupResult.removed > 0) {
     console.log('[loadState] Removed ' + _dedupResult.removed + ' duplicate student record(s)');
     relinkDependentData(_dedupResult.idMap);
-    try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
-    try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch(e) {}
+    try { saveCollection('voctrain_students', students); } catch(e) {}
+    try { saveCollection('voctrain_attendance', attendanceRecords); } catch(e) {}
     try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch(e) {}
     try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e) {}
-    try { CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults)); } catch(e) {}
+    try { saveCollection('voctrain_examResults', examResults); } catch(e) {}
     try { saveUserAccounts(); } catch(e) {}
   }
   reconcileCertifiedFromApprovals();
@@ -7181,7 +7207,7 @@ function loadState() {
   // Backfill certificate numbers for any certified students missing one so they
   // appear in the admin download-approval list and verify publicly as issued.
   if(backfillCertificateNumbers()) {
-    try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
+    try { saveCollection('voctrain_students', students); } catch(e) {}
   }
   updateSkillAreaCounts();
   // What was deleted, and the content just loaded — the baseline every later
@@ -7298,8 +7324,8 @@ function enforceOnePersonOneRecord() {
   if (!r || !r.removed) return 0;
   students = r.students;
   try { relinkDependentData(r.idMap); } catch (e) {}
-  try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch (e) {}
-  try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch (e) {}
+  try { saveCollection('voctrain_students', students); } catch (e) {}
+  try { saveCollection('voctrain_attendance', attendanceRecords); } catch (e) {}
   try { saveUserAccounts(); } catch (e) {}
   console.log('[VocTrain] Collapsed ' + r.removed +
               ' duplicate trainee record(s) that were added after the roll loaded');
@@ -7337,11 +7363,11 @@ function cestisSettleRoster(reason) {
   try { reconcileCertifiedFromApprovals(); } catch (e) {}
   try { backfillCertificateNumbers(); } catch (e) {}
   if (removed > 0 || students.length !== before) {
-    try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch (e) {}
-    try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch (e) {}
+    try { saveCollection('voctrain_students', students); } catch (e) {}
+    try { saveCollection('voctrain_attendance', attendanceRecords); } catch (e) {}
     try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch (e) {}
     try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch (e) {}
-    try { CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults)); } catch (e) {}
+    try { saveCollection('voctrain_examResults', examResults); } catch (e) {}
     try { saveUserAccounts(); } catch (e) {}
     console.log('[VocTrain] Settled the roll after ' + (reason || 'a merge') + ': ' + before + ' -> ' + students.length + ' trainee record(s)');
   }
@@ -7465,11 +7491,11 @@ function cestisStabilizeStudentIds() {
 
   var _changed = (res && res.changed) || _droppedTomb > 0;
   if (!_changed) return false;
-  try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
-  try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch(e) {}
+  try { saveCollection('voctrain_students', students); } catch(e) {}
+  try { saveCollection('voctrain_attendance', attendanceRecords); } catch(e) {}
   try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch(e) {}
   try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e) {}
-  try { if (typeof examResults !== 'undefined' && Array.isArray(examResults)) CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults)); } catch(e) {}
+  try { if (typeof examResults !== 'undefined' && Array.isArray(examResults)) saveCollection('voctrain_examResults', examResults); } catch(e) {}
   try { if (typeof saveUserAccounts === 'function') saveUserAccounts(); } catch(e) {}
   try { console.log('[stableId] remapped ' + Object.keys((res&&res.idMap)||{}).length + ' id(s), removed ' + ((res&&res.removed)||0) + ' duplicate(s), ' + _droppedTomb + ' tombstoned'); } catch(e) {}
   return true;
@@ -13628,7 +13654,7 @@ function vcSaveActiveSession() {
   vcSessions = CESTISCore.vcSessions.mergeSessions(
     (vcSessions || []).filter(function(s) { return s.id !== vcActiveSession.id; }),
     [vcActiveSession]);
-  try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
+  try { saveCollection('voctrain_vcSessions', vcSessions); } catch(e) {}
 }
 
 function vcCloseActiveSession() {
@@ -19046,8 +19072,8 @@ window.addEventListener('message', function(e) {
     var _dr2 = deduplicateStudents();
     if (_dr2.removed > 0) {
       relinkDependentData(_dr2.idMap);
-      try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e2) {}
-      try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch(e2) {}
+      try { saveCollection('voctrain_students', students); } catch(e2) {}
+      try { saveCollection('voctrain_attendance', attendanceRecords); } catch(e2) {}
       try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch(e2) {}
       try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e2) {}
       try { saveUserAccounts(); } catch(e2) {}
@@ -21069,7 +21095,7 @@ function runTraineeTransfer(only) {
   updateSkillAreaCounts();
   recomputeCourseStatuses(false);      // the receiving course decides their status
   saveState();                         // persists locally AND pushes to the cloud
-  try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch (e) {}
+  try { saveCollection('voctrain_students', students); } catch (e) {}
   _transferSelection = {};
   if (typeof refreshStudentDependentViews === 'function') { try { refreshStudentDependentViews(); } catch (e) {} }
   renderSkills();
@@ -26684,7 +26710,7 @@ async function mergeFromCloud() {
     // time must win. A cloud copy that is missing a session cannot erase it.
     if (Array.isArray(backupData.data.vcSessions)) {
       vcSessions = CESTISCore.vcSessions.mergeSessions(vcSessions, backupData.data.vcSessions);
-      try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
+      try { saveCollection('voctrain_vcSessions', vcSessions); } catch(e) {}
     }
 
     // Merge attendance records — add new AND update status if cloud has changes
@@ -27982,7 +28008,7 @@ async function mergeBackupData(backupData) {
     // time must win. A cloud copy that is missing a session cannot erase it.
     if (Array.isArray(backupData.data.vcSessions)) {
       vcSessions = CESTISCore.vcSessions.mergeSessions(vcSessions, backupData.data.vcSessions);
-      try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
+      try { saveCollection('voctrain_vcSessions', vcSessions); } catch(e) {}
     }
 
     // Merge attendance records — add new AND update status with timestamp check
