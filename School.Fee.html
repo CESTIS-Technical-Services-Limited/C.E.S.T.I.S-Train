@@ -2092,7 +2092,10 @@
                     </button>
                 </div>
             </div>
-            <img src="../uploads/CESTI_-_LOGO.png" alt="CESTIS Logo" class="header-logo" onerror="this.style.display='none'">
+            <!-- ../uploads/ is not part of either build, so this was always a
+                 broken image that quietly hid itself. The Centre's logo that
+                 ships alongside this page is used instead. -->
+            <img src="CESTI%20Logo%202-Photoroom%20(1).png" alt="CESTIS Logo" class="header-logo" onerror="this.style.display='none'">
             <h1>COMMUNITY EDUCATIONAL AND SKILLS TRAINING INSTITUTE AND SERVICES LIMITED</h1>
             <div class="tagline">EMPOWERING COMMUNITIES</div>
             <div class="subtitle">School Fee Monitoring Dashboard</div>
@@ -3333,7 +3336,7 @@
     <div id="inactivityOverlay" class="inactivity-overlay">
         <div id="dvdLogo" class="dvd-logo">
             <img src="https://drive.google.com/thumbnail?id=1P-DmK6T37lr6ryEfWBMDfOoa3-pqeWIG&sz=w500" alt="CESTIS Logo"
-                 onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='../uploads/CESTI_-_LOGO.png';}else{this.replaceWith(Object.assign(document.createElement('div'),{className:'dvd-logo-fallback',textContent:'CESTIS'}));}">
+                 onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='CESTI%20Logo%202-Photoroom%20(1).png';}else{this.replaceWith(Object.assign(document.createElement('div'),{className:'dvd-logo-fallback',textContent:'CESTIS'}));}">
         </div>
         <div class="inactivity-message">User inactive, please activate page when ready</div>
         <button id="activateWindowBtn" class="activate-window-btn" onclick="deactivateInactivityScreen()">Activate Window</button>
@@ -12347,17 +12350,17 @@
 
                 if (backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (backupData.data.feeStructure) {
@@ -13295,17 +13298,17 @@
 
                 if (backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (backupData.data.feeStructure) {
@@ -13941,17 +13944,17 @@
 
                 if (backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (backupData.data.feeStructure) {
@@ -14443,17 +14446,17 @@
 
                 if (syncStudents && backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (syncPayments && backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (syncDocuments && backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (syncFeeStructure && backupData.data.feeStructure) {

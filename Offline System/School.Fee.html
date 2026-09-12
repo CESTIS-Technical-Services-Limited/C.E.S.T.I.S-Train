@@ -1941,7 +1941,10 @@
                     </button>
                 </div>
             </div>
-            <img src="../uploads/CESTI_-_LOGO.png" alt="CESTIS Logo" class="header-logo" onerror="this.style.display='none'">
+            <!-- ../uploads/ is not part of either build, so this was always a
+                 broken image that quietly hid itself. The Centre's logo that
+                 ships alongside this page is used instead. -->
+            <img src="CESTI%20Logo%202-Photoroom%20(1).png" alt="CESTIS Logo" class="header-logo" onerror="this.style.display='none'">
             <h1>COMMUNITY EDUCATIONAL AND SKILLS TRAINING INSTITUTE AND SERVICES LIMITED</h1>
             <div class="tagline">EMPOWERING COMMUNITIES</div>
             <div class="subtitle">School Fee Monitoring Dashboard</div>
@@ -3133,7 +3136,7 @@
     <div id="inactivityOverlay" class="inactivity-overlay">
         <div id="dvdLogo" class="dvd-logo">
             <img src="https://drive.google.com/thumbnail?id=1P-DmK6T37lr6ryEfWBMDfOoa3-pqeWIG&sz=w500" alt="CESTIS Logo"
-                 onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='../uploads/CESTI_-_LOGO.png';}else{this.replaceWith(Object.assign(document.createElement('div'),{className:'dvd-logo-fallback',textContent:'CESTIS'}));}">
+                 onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='CESTI%20Logo%202-Photoroom%20(1).png';}else{this.replaceWith(Object.assign(document.createElement('div'),{className:'dvd-logo-fallback',textContent:'CESTIS'}));}">
         </div>
         <div class="inactivity-message">User inactive, please activate page when ready</div>
         <button id="activateWindowBtn" class="activate-window-btn" onclick="deactivateInactivityScreen()">Activate Window</button>
@@ -5058,15 +5061,15 @@
             // Self-heal: drop any fee student that has been tombstoned (deleted here or
             // in the LMS). This stops a record removed via the LMS from lingering as a
             // ghost and from being resurrected the next time this page saves its list.
-            try { if (dropTombstonedFeeStudents()) CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students)); } catch (e) {}
+            try { if (dropTombstonedFeeStudents()) feePersist('cestiSchoolFeeStudents', students); } catch (e) {}
             // Migrate auto-generated ids to deterministic stable ids on load and
             // persist once, so cross-device duplicates collapse before anything
             // else reads the list.
             try {
                 if (window.CESTISCore && stabilizeFeeStudentIds()) {
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeStudents', students);
+                    feePersist('cestiSchoolFeePayments', payments);
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
             } catch (e) { console.warn('[SchoolFee] id stabilization failed:', e); }
             // Make sure existing students also appear on the Progress dashboard.
@@ -5537,6 +5540,52 @@
             return Object.keys(idMap).length > 0 || removed > 0;
         }
 
+        /* THE FEE RECORDS CANNOT BE LOST.
+
+           loadData() only adopts a stored value when there is one, so on a
+           device whose store was empty — a new machine, cleared site data, or a
+           page that opened before its pull landed — students/payments/documents
+           stayed at their start-up value of []. The page then rendered zero of
+           everything, and the very next save wrote that [] into storage, stamped
+           it with the current time, and queued it for upload. A newer timestamp
+           on an empty list beat the Centre's real records, and the fee roll was
+           gone from the shared copy too. The main build has had this guard for
+           some time; this copy was still writing raw. */
+        function feePersist(key, value) {
+            const guarded = (window.CESTISCore && CESTISCore.pageCloud &&
+                             typeof CESTISCore.pageCloud.guardedSet === 'function')
+                ? CESTISCore.pageCloud.guardedSet
+                : null;
+            if (!guarded) { CESTISStore.setItem(key, JSON.stringify(value)); return true; }
+            return guarded(CESTISStore, key, value, function (k, current) {
+                // Refused. Put the stored records back into memory so the page
+                // stops showing an empty roll it would only try to save again.
+                console.error('[SchoolFee] Refused to overwrite stored records in "' + k +
+                              '" with an empty list. Reloading the stored copy instead.');
+                try { feeRestoreFromStore(k, current); } catch (e) {}
+                feeWarnRecordsProtected();
+            });
+        }
+        function feeRestoreFromStore(key, raw) {
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return;
+            if (key === 'cestiSchoolFeeStudents') students = parsed;
+            else if (key === 'cestiSchoolFeePayments') payments = parsed;
+            else if (key === 'cestiSchoolFeeDocuments') documents = parsed;
+        }
+        function feeWarnRecordsProtected() {
+            const now = Date.now();
+            if (now - _feeLastRescue < 10000) return;   // one message per burst
+            _feeLastRescue = now;
+            feeShowBanner('Your fee records were protected. Something tried to save an empty ' +
+                'list over them — the stored records have been reloaded instead. Nothing was lost.');
+            // Redraw against what was actually kept.
+            try {
+                renderStudentsTable(); renderPaymentsTable(); renderDocumentsTable();
+                populatePaymentStudentSelect(); updateDashboard();
+            } catch (e) {}
+        }
+
         function saveData() {
             // Single chokepoint: stabilise ids before every persist so every
             // creation / import / restore / merge path gets stable ids and no
@@ -5551,9 +5600,9 @@
             const _pBefore = payments.length;
             payments = filterTombstonedPayments(payments);
             if (payments.length !== _pBefore) recalculateStudentTotals();
-            CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
-            CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
-            CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+            feePersist('cestiSchoolFeeStudents', students);
+            feePersist('cestiSchoolFeePayments', payments);
+            feePersist('cestiSchoolFeeDocuments', documents);
             // Mirror students into the Student Progress dashboard.
             syncStudentsToProgressDashboard();
             // Push the live list to the parent LMS dashboard (if embedded).
@@ -11098,17 +11147,17 @@
 
                 if (backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (backupData.data.feeStructure) {
@@ -12050,17 +12099,17 @@
 
                 if (backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (backupData.data.feeStructure) {
@@ -12696,17 +12745,17 @@
 
                 if (backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (backupData.data.feeStructure) {
@@ -13198,17 +13247,17 @@
 
                 if (syncStudents && backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (syncPayments && backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (syncDocuments && backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (syncFeeStructure && backupData.data.feeStructure) {

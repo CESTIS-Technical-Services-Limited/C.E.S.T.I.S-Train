@@ -548,15 +548,33 @@ function cestisStabilizeStudentIds() {
 // is a hash of name+course, so renaming moves it and the School Fee twin can no
 // longer be matched by either id or name. Passing the pre-edit identity is what
 // lets the parent find that twin and rename it too.
+/* Every write goes through the one rule that makes a collection unloseable: an
+   empty value never replaces stored records, however new its stamp looks.
+
+   Without it, a page that came up before its data had loaded held empty lists,
+   saved them, stamped them "now", and pushed them out — and because the stamp
+   was the newest, that emptiness beat the Centre's real records everywhere. One
+   save from this page could replace the whole trainee roll, the training-centre
+   roster, attendance, exam results and the certificate approvals with nothing.
+   Offline that is worse than online, because there is no Drive revision history
+   to recover from. The main build has had this guard for some time; this copy
+   did not. */
+function spSaveCollection(key, value) {
+  return CESTISCore.pageCloud.guardedSet(CESTISStore, key, value, function (k) {
+    console.error('[StudentProgress] Refused to overwrite stored records in "' + k +
+                  '" with an empty list — the stored copy is kept.');
+  });
+}
+
 function saveData(detail) {
-  CESTISStore.setItem('voctrain_students', JSON.stringify(students));
-  CESTISStore.setItem('voctrain_skillAreas', JSON.stringify(skillAreas));
-  CESTISStore.setItem('voctrain_instructorData', JSON.stringify(instructorData));
-  CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords));
-  CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults));
-  CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals));
-  CESTISStore.setItem('voctrain_userAccounts', JSON.stringify(userAccounts));
-  CESTISStore.setItem('voctrain_studentProfiles', JSON.stringify(studentProfiles));
+  spSaveCollection('voctrain_students', students);
+  spSaveCollection('voctrain_skillAreas', skillAreas);
+  spSaveCollection('voctrain_instructorData', instructorData);
+  spSaveCollection('voctrain_attendance', attendanceRecords);
+  spSaveCollection('voctrain_examResults', examResults);
+  spSaveCollection('voctrain_certDownloadApprovals', certDownloadApprovals);
+  spSaveCollection('voctrain_userAccounts', userAccounts);
+  spSaveCollection('voctrain_studentProfiles', studentProfiles);
   // Notify parent window that student data changed
   try {
     var msg = {type:'students-updated'};

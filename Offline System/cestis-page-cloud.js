@@ -417,6 +417,36 @@
         detectLocalServer().then(function (isLocal) { if (isLocal) API.initWholeStore(); });
       };
       if (store() && store().whenReady) store().whenReady(start); else start();
+
+      /* CLOUD -> LOCAL, CONTINUOUSLY — not only when the page opens.
+
+         Without this a page pulled once at start-up and never again. On the
+         Centre's network that is the whole point defeated: a fee recorded on the
+         office desktop stayed invisible on the Coordinator's laptop until
+         somebody reloaded the page, and each device's push merged against a copy
+         that had been stale since the morning, so the window for losing an edit
+         was the whole working day rather than a moment.
+
+         Two triggers, the same as the online build has:
+           - the moment a Google token appears (a page opened before the
+             connection simply stayed empty until a reload, which reads as "my
+             records are gone");
+           - and a quiet re-read every half minute. Against the Centre's own
+             server that is a read over the local network and costs nothing; the
+             offline store has no "has it changed?" query to ask first. */
+      if (!API._refreshWired) {
+        API._refreshWired = true;
+        try {
+          root.addEventListener('storage', function (ev) {
+            if (ev && ev.key === TOKEN_KEY && ev.newValue) API.loadNow();
+          });
+        } catch (e) {}
+        try {
+          setInterval(function () {
+            try { API.loadNow(); } catch (e) {}
+          }, 30000);
+        } catch (e) {}
+      }
       return pg;
     },
     /* Register the whole-store mirror. Safe to call repeatedly. */
