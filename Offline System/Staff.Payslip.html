@@ -2269,22 +2269,30 @@ function calculatePayroll(){
   DATA.employees.forEach((e,i)=>{
     const gross=parseFloat(document.getElementById('grossInput_'+i)?.value)||0;
 
+    /* Every figure is rounded to the cent where it is worked out, because a
+       payslip has to add up. Raw floats were stored and only the DISPLAY was
+       rounded, so the printed deductions did not sum to the printed net pay —
+       a payslip a penny out from itself, and the error carried into every
+       total built on it. (The edit path below always rounded; the two
+       therefore disagreed for the same gross.) */
+    const money = n => Math.round((Number(n) || 0) * 100) / 100;
+
     // NIS — capped at ceiling
     const nisableGross=Math.min(gross,nisCeiling);
-    const nisEmp=nisableGross*(s.nisEmp/100);
-    const nisEr=nisableGross*(s.nisEr/100);
+    const nisEmp=money(nisableGross*(s.nisEmp/100));
+    const nisEr=money(nisableGross*(s.nisEr/100));
 
     // NHT — no cap
-    const nhtEmp=gross*(s.nhtEmp/100);
-    const nhtEr=gross*(s.nhtEr/100);
+    const nhtEmp=money(gross*(s.nhtEmp/100));
+    const nhtEr=money(gross*(s.nhtEr/100));
 
     // Statutory income for Education Tax = Gross - NIS employee
     const statutoryIncome=gross-nisEmp;
-    const edTaxEmp=statutoryIncome*(s.edTaxEmp/100);
-    const edTaxEr=statutoryIncome*(s.edTaxEr/100);
+    const edTaxEmp=money(statutoryIncome*(s.edTaxEmp/100));
+    const edTaxEr=money(statutoryIncome*(s.edTaxEr/100));
 
     // HEART/NSTA — employer only
-    const heartEr=gross*((s.heartEr||3)/100);
+    const heartEr=money(gross*((s.heartEr||3)/100));
 
     // Income Tax — progressive: 25% up to $6M bracket, 30% above
     // Chargeable income = Gross - NIS - NHT (approved deductions)
@@ -2300,9 +2308,10 @@ function calculatePayroll(){
       }
     }
 
-    const totalEmpDeductions=nisEmp+edTaxEmp+nhtEmp+incomeTax;
-    const totalErContributions=nisEr+edTaxEr+nhtEr+heartEr;
-    const netPay=gross-totalEmpDeductions;
+    incomeTax=money(incomeTax);
+    const totalEmpDeductions=money(nisEmp+edTaxEmp+nhtEmp+incomeTax);
+    const totalErContributions=money(nisEr+edTaxEr+nhtEr+heartEr);
+    const netPay=money(gross-totalEmpDeductions);
 
     results.push({
       empName:e.name,empType:e.type,designation:e.designation,trn:e.trn,nis:e.nis,
@@ -2375,8 +2384,14 @@ function editPayrollEntry(runIdx,entryIdx){
   const nisableGross=Math.min(gross,nisCeiling);
   const nisEmp=empType==='contractual'?0:Math.round(nisableGross*s.nisEmp/100*100)/100;
   const nisEr=empType==='contractual'?0:Math.round(nisableGross*s.nisEr/100*100)/100;
-  const edTaxEmp=empType==='contractual'?0:Math.round(gross*s.edTaxEmp/100*100)/100;
-  const edTaxEr=empType==='contractual'?0:Math.round(gross*s.edTaxEr/100*100)/100;
+  /* Education Tax is charged on gross AFTER the NIS contribution, which is what
+     calculatePayroll() does and what this file's own statutory-return header
+     says ("Gross after Deductions and NIS"). This path used raw gross, so
+     re-saving an unchanged gross through Edit silently changed the employee's
+     net pay and the employer's contribution. */
+  const statutoryIncomeEdit=gross-nisEmp;
+  const edTaxEmp=empType==='contractual'?0:Math.round(statutoryIncomeEdit*s.edTaxEmp/100*100)/100;
+  const edTaxEr=empType==='contractual'?0:Math.round(statutoryIncomeEdit*s.edTaxEr/100*100)/100;
   const nhtEmp=empType==='contractual'?0:Math.round(gross*s.nhtEmp/100*100)/100;
   const nhtEr=empType==='contractual'?0:Math.round(gross*s.nhtEr/100*100)/100;
   const heartEr=empType==='contractual'?0:Math.round(gross*s.heartEr/100*100)/100;
@@ -2497,8 +2512,16 @@ function generatePayslipPreview(){
   // Calculate YTD — only for same calendar year
   const runYear=parseLocalDate(run.date).getFullYear();
   let ytd={nis:0,edTax:0,nht:0,incomeTax:0,gross:0,heartEr:0,netPay:0};
-  DATA.payrollRuns.forEach((r,ri)=>{
-    if(ri>cycIdx)return;
+  /* Year to date means every run UP TO THIS ONE BY DATE, not by where it
+     happens to sit in the array. savePayrollRun() removes a month that is being
+     re-run and pushes the new one onto the END, so re-running any month
+     reordered the list — and every later payslip then silently dropped it from
+     the year-to-date figures, while the re-run month itself showed the whole
+     year's tax on one payslip. */
+  const _runDate = parseLocalDate(run.date).getTime();
+  DATA.payrollRuns.forEach((r)=>{
+    const rDate = parseLocalDate(r.date).getTime();
+    if(rDate > _runDate) return;
     if(parseLocalDate(r.date).getFullYear()!==runYear)return;
     const match=r.results.find(x=>x.empName===emp.name);
     if(match){ytd.nis+=match.nisEmp;ytd.edTax+=match.edTaxEmp;ytd.nht+=match.nhtEmp;ytd.incomeTax+=match.incomeTax;ytd.gross+=match.gross;ytd.heartEr+=(match.heartEr||0);ytd.netPay+=match.netPay;}
@@ -2825,7 +2848,12 @@ function so1OnCellEdit(rowIdx, colIdx, el) {
 
 function so1UpdateTotals(totals) {
   const grossTotal = (totals[5] || 0) + (totals[6] || 0);
-  const heartTax = grossTotal * 0.03;
+  // The configured rate, not a literal 3%. A Centre that changed the HEART rate
+  // in Settings had its payroll charge the new rate while this statutory return
+  // reported the old one — an understated figure on a filed return, with no
+  // warning that the two disagreed.
+  const heartRate = (DATA.settings && DATA.settings.heartEr != null) ? Number(DATA.settings.heartEr) : 3;
+  const heartTax = Math.round(grossTotal * (heartRate / 100) * 100) / 100;
   const allOtherTax = (totals[9]||0) + (totals[10]||0) + (totals[11]||0) + (totals[12]||0);
   const fmtN = function(n){ return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); };
   const hg = document.getElementById('so1HeartGross');
@@ -2903,10 +2931,13 @@ function so1DownloadExcel() {
   XLSX.utils.book_append_sheet(wb, ws1, 'S01ScheduleA');
 
   // === Sheet 2: HEART NSTA ===
-  const heartTax = grossSum * 0.03;
+  // Same rule as the on-screen totals: the configured rate, and the sheet says
+  // which rate it used rather than always claiming 3%.
+  const heartRate2 = (DATA.settings && DATA.settings.heartEr != null) ? Number(DATA.settings.heartEr) : 3;
+  const heartTax = Math.round(grossSum * (heartRate2 / 100) * 100) / 100;
   const allTax = nisSum + nhtSum + edSum + heartTax;
   const ws2Data = [
-    ['','Gross Emoluments','HEART NSTA Tax = 3%'],
+    ['','Gross Emoluments','HEART NSTA Tax = ' + heartRate2 + '%'],
     ['', grossSum, heartTax],
     [],[],[],[],[],[],[],
     ['','Total Taxes',''],
