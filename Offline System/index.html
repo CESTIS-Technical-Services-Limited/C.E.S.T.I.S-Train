@@ -27481,8 +27481,21 @@ async function mergeBackupData(backupData) {
 
     // Merge attendance records — add new AND update status with timestamp check
     if (backupData.data.attendanceRecords) {
+      /* Only rows belonging to the quarter currently on screen.
+
+         attendanceRecords holds ONE quarter — whichever the user last opened —
+         and saveState() mirrors that array straight back into that quarter's
+         bucket. The merge matched on trainee and date only, with no quarter
+         test, so opening a past register and letting one sync tick run appended
+         another device's CURRENT rows into it and saved them there. The old
+         quarter was contaminated permanently, and switching back did not undo
+         it. */
+      var _attQ = (typeof attnLoadedQuarter !== 'undefined' && attnLoadedQuarter)
+        ? attnLoadedQuarter
+        : (CESTISCore.getActiveQuarter ? CESTISCore.getActiveQuarter() : null);
       backupData.data.attendanceRecords.forEach(cloudRec => {
         if (_ds[cloudRec.studentId]) return;
+        if (_attQ && CESTISCore.recordInQuarter && !CESTISCore.recordInQuarter(cloudRec, _attQ.fy, _attQ.q)) return;
         var existing = attendanceRecords.find(function(a) { return a.studentId === cloudRec.studentId && a.date === cloudRec.date; });
         if (!existing) {
           attendanceRecords.push(cloudRec);
@@ -28969,14 +28982,26 @@ function cloudFetchAccountData(interactive) {
     Object.keys(cloudCertTemplates).forEach(function(key) {
       if (!certTemplates[key]) {
         certTemplates[key] = cloudCertTemplates[key];
-      } else {
-        // Merge fields but preserve any locally loaded images
-        var localBg1 = certTemplates[key].bgPage1;
-        var localBg2 = certTemplates[key].bgPage2;
-        certTemplates[key] = cloudCertTemplates[key];
-        if (localBg1) certTemplates[key].bgPage1 = localBg1;
-        if (localBg2) certTemplates[key].bgPage2 = localBg2;
+        return;
       }
+      /* The newer copy wins, rather than the cloud always winning.
+
+         This replaced the local template outright with no comparison at all, so
+         an administrator who had just repositioned the fields on a certificate
+         lost that work the moment anybody signed in: the older cloud copy
+         overwrote it in memory and the save that followed wrote it to storage
+         and queued it for upload. Only the background images survived, because
+         they were carried over by hand. Every other collection in this function
+         merges newest-wins; this one did not. */
+      var _lt = Date.parse((certTemplates[key] && (certTemplates[key].updatedAt || certTemplates[key].savedAt)) || '') || 0;
+      var _ct = Date.parse((cloudCertTemplates[key] && (cloudCertTemplates[key].updatedAt || cloudCertTemplates[key].savedAt)) || '') || 0;
+      if (_ct < _lt) return;   // this device holds the newer template — keep it
+      // Merge fields but preserve any locally loaded images
+      var localBg1 = certTemplates[key].bgPage1;
+      var localBg2 = certTemplates[key].bgPage2;
+      certTemplates[key] = cloudCertTemplates[key];
+      if (localBg1) certTemplates[key].bgPage1 = localBg1;
+      if (localBg2) certTemplates[key].bgPage2 = localBg2;
     });
 
     // Merge skill areas (training centres). Add-only meant an edited centre —
@@ -29090,17 +29115,27 @@ async function studentPushRegistration(newUserAccount) {
       return false;
     }
 
-    // Step 2: Download the existing backup
+    // Step 2: Download the existing backup, and note which version of the file
+    // this copy is. See the note by the upload below for why that matters.
     var fileId = searchData.files[0].id;
-    var downloadResp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
-      headers: { Authorization: 'Bearer ' + token }
-    });
-    if (!downloadResp.ok) {
+    async function _regReadBackup() {
+      var vr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      var ver = vr.ok ? String((await vr.json()).version || '') : '';
+      var dr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (!dr.ok) return null;
+      return { data: await dr.json(), version: ver };
+    }
+    var _regRead = await _regReadBackup();
+    if (!_regRead) {
       console.warn('[StudentPushReg] Could not download backup file');
       return false;
     }
-
-    var backupData = await downloadResp.json();
+    var backupData = _regRead.data;
+    var _regBaseVersion = _regRead.version;
 
     // Step 3: Merge the new account into the cloud backup data
     var cloudAccounts = backupData.userAccounts || (backupData.data && backupData.data.userAccounts) || [];
@@ -29128,25 +29163,63 @@ async function studentPushRegistration(newUserAccount) {
       backupData.timestamp = new Date().toISOString();
     }
 
-    // Step 4: Upload the updated backup back to ALL Drive folders
-    var jsonContent = JSON.stringify(backupData, stripSecretFields);
-    var blob = new Blob([jsonContent], { type: 'application/json' });
+    /* Step 4: Put it back — but only if nobody else wrote to the file first.
 
-    // Upload to main folder
-    var uploadResp = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media',
-      {
-        method: 'PATCH',
-        headers: {
-          'Authorization': 'Bearer ' + token,
-          'Content-Type': 'application/json'
-        },
-        body: blob
+       This reads the WHOLE shared backup, adds one account, and writes the whole
+       thing back. Without a check, anything another device saved between the
+       read and the write was silently reverted: an instructor entering the
+       week's results a few seconds earlier lost them, from the main file and
+       then from every folder copy, because the second loop below stamps this
+       same content over all of them. Nothing reported it, and the instructor's
+       own device had already marked its work as saved.
+
+       So: re-read the file's version immediately before writing. If it moved,
+       start again from the new content and re-apply the one account. */
+    var _regAttempts = 0;
+    var uploadResp = null;
+    while (_regAttempts < 4) {
+      _regAttempts++;
+      var _verResp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      var _nowVersion = _verResp.ok ? String((await _verResp.json()).version || '') : '';
+      if (_nowVersion && _regBaseVersion && _nowVersion !== _regBaseVersion) {
+        console.log('[StudentPushReg] The shared backup moved (v' + _regBaseVersion + ' \u2192 v' + _nowVersion +
+                    ') while this registration was being prepared — re-reading so nobody else\u2019s work is lost.');
+        var _again = await _regReadBackup();
+        if (!_again) { console.warn('[StudentPushReg] Could not re-read the backup'); return false; }
+        backupData = _again.data;
+        _regBaseVersion = _again.version;
+        isWrapped = !!backupData.data;
+        accountList = (isWrapped ? backupData.data.userAccounts : backupData.userAccounts) || [];
+        if (accountList.find(function (u) { return u.id === newUserAccount.id || u.email === newUserAccount.email; })) {
+          console.log('[StudentPushReg] Account is already in the cloud copy — nothing to add');
+          return true;
+        }
+        accountList.push(newUserAccount);
+        if (isWrapped) { backupData.data.userAccounts = accountList; backupData.timestamp = new Date().toISOString(); }
+        else { backupData.userAccounts = accountList; }
+        continue;   // check the version again before writing
       }
-    );
 
-    if (!uploadResp.ok) {
-      var errData = await uploadResp.json().catch(function() { return {}; });
+      var jsonContent = JSON.stringify(backupData, stripSecretFields);
+      var blob = new Blob([jsonContent], { type: 'application/json' });
+      uploadResp = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media',
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: blob
+        }
+      );
+      break;
+    }
+
+    if (!uploadResp || !uploadResp.ok) {
+      var errData = uploadResp ? await uploadResp.json().catch(function() { return {}; }) : {};
       console.warn('[StudentPushReg] Upload failed:', errData);
       return false;
     }
@@ -38877,6 +38950,10 @@ function saveCertTemplate() {
   if(bgPage2) { certImageSave(_certTplEditingCourse, 'bgPage2', bgPage2); certImageSaveToDrive(_certTplEditingCourse, 'bgPage2', bgPage2); }
 
   certTemplates[_certTplEditingCourse] = {
+    // Stamped so a sync can tell which copy is the newer one. Without it every
+    // merge simply took the cloud's, and an administrator's layout work was
+    // overwritten by an older copy the moment anybody signed in.
+    updatedAt: new Date().toISOString(),
     courseFullName: document.getElementById('ctplCourseFullName').value.trim(),
     courseType: document.getElementById('ctplCourseType').value || 'Short Course',
     programmeCode: document.getElementById('ctplProgrammeCode').value.trim(),
