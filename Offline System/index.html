@@ -8592,6 +8592,9 @@ function renderUserAccountsTable() {
       '<td><div class="um-actions">' +
         '<button title="Edit" onclick="openEditUser(\''+u.id+'\')">✏️</button>' +
         '<button title="Reset Password" onclick="openResetPassword(\''+u.id+'\')">🔑</button>' +
+        // Shown only where there is something to clear, so the column doubles
+        // as the administrator's view of who actually has two-step on.
+        (accountHasTwoStep(u) ? '<button title="Turn off two-step verification" onclick="adminClearTwoStep(\''+escapeAttr(u.id)+'\')">🔐</button>' : '') +
         '<button class="um-danger" title="Delete this account" onclick="openDeleteUser(\''+escapeAttr(u.id)+'\')">🗑️</button>' +
       '</div></td></tr>';
   }).join('');
@@ -9116,10 +9119,16 @@ function mergeTwoFactorState(localAcct, cloudAcct){
   var lt = Date.parse(localAcct.twoFactorUpdatedAt || '') || 0;
   var ct = Date.parse(cloudAcct.twoFactorUpdatedAt || '') || 0;
   var cloudHas2fa = !!cloudAcct.twoFactorSecret || cloudAcct.twoFactorEnabled === true;
-  var localHas2fa = !!localAcct.twoFactorSecret || localAcct.twoFactorEnabled === true;
-  // Adopt the cloud enabled/secret when its 2FA state is strictly newer, or when
-  // this device has no 2FA state at all yet (first time it sees the account).
-  if((cloudHas2fa || cloudAcct.twoFactorUpdatedAt) && (ct > lt || (!localHas2fa && cloudHas2fa))){
+  // "This device has never seen a two-step decision for this account" means it
+  // carries NO stamp of its own — not merely that two-step happens to be off
+  // right now. The old test was `!localHas2fa`, which became true the instant
+  // somebody switched two-step OFF: the very next sync against an older cloud
+  // copy that still said ON walked straight past the newest-wins check and put
+  // the old secret back, so an account that had been disabled went on asking
+  // for a code at every sign-in. Once a device carries a stamp, only a strictly
+  // newer stamp may change the state.
+  var localUnseen = !localAcct.twoFactorUpdatedAt;
+  if((cloudHas2fa || cloudAcct.twoFactorUpdatedAt) && (ct > lt || (localUnseen && cloudHas2fa))){
     if(localAcct.twoFactorEnabled !== !!cloudAcct.twoFactorEnabled){ localAcct.twoFactorEnabled = !!cloudAcct.twoFactorEnabled; changed = true; }
     if((cloudAcct.twoFactorSecret || null) !== (localAcct.twoFactorSecret || null)){ localAcct.twoFactorSecret = cloudAcct.twoFactorSecret || null; changed = true; }
     if(cloudAcct.twoFactorUpdatedAt && cloudAcct.twoFactorUpdatedAt !== localAcct.twoFactorUpdatedAt){ localAcct.twoFactorUpdatedAt = cloudAcct.twoFactorUpdatedAt; changed = true; }
@@ -9129,9 +9138,13 @@ function mergeTwoFactorState(localAcct, cloudAcct){
   if(cloudAcct.twoFactorUpdatedAt && (ct > lt || (localAcct.emailOtpLogin === undefined && cloudAcct.emailOtpLogin !== undefined))){
     if(!!localAcct.emailOtpLogin !== !!cloudAcct.emailOtpLogin){ localAcct.emailOtpLogin = !!cloudAcct.emailOtpLogin; changed = true; }
   }
-  // Union backup codes regardless of direction, OR-ing the "used" flag so a
-  // one-time code consumed anywhere is burned everywhere.
-  if(Array.isArray(cloudAcct.backupCodes)){
+  // Union backup codes, OR-ing the "used" flag so a one-time code consumed
+  // anywhere is burned everywhere. Never, though, onto an account this device
+  // has more recently switched two-step OFF: those codes are spent history, and
+  // re-seeding them from an older cloud copy left live backup codes sitting on
+  // a disabled account.
+  var localTwoStepOff = !localAcct.twoFactorSecret && localAcct.twoFactorEnabled !== true;
+  if(Array.isArray(cloudAcct.backupCodes) && !(localTwoStepOff && lt > ct)){
     if(!Array.isArray(localAcct.backupCodes)){ localAcct.backupCodes = []; changed = true; }
     var byCode = {};
     localAcct.backupCodes.forEach(function(bc){ if(bc && bc.code) byCode[bc.code] = bc; });
@@ -9294,7 +9307,10 @@ function tfaSubmitVerify(){
 // Email-only 2FA path (account opted in via emailOtpLogin, no authenticator):
 // open the modal and immediately send a code, then accept it.
 async function tfaBeginEmailLogin(account, proceed){
-  tfaOpenVerify(account, { title: 'Two-Step Verification', subtitle: 'Sending a verification code to your email…', allowBackup: false, allowEmail: false }, proceed);
+  // Titled for what it actually is. Calling an emailed sign-in code "Two-Step
+  // Verification" made accounts look as though authenticator two-step were on
+  // while the manage panel plainly said it was off.
+  tfaOpenVerify(account, { title: 'Email Sign-in Code', subtitle: 'Sending a verification code to your email…', allowBackup: false, allowEmail: false }, proceed);
   tfaVerifyAccount = account; // ensure still set
   var res = await sendEmailOtp(account, 'login');
   if(!res.ok){
@@ -9515,6 +9531,48 @@ function tfaBeginDisable(){
     tfaRenderManage();
     showToast('Two-step verification disabled.');
   });
+}
+
+// ---- Administrator override: turn two-step off for somebody else's account ----
+// A member of staff who loses their authenticator — or whose device never
+// received a switch-off — would otherwise be locked out with nobody able to
+// help, because every other way of turning it off needs a code from the very
+// app they have lost. Only an administrator may do this, and an administrator
+// who has two-step on themselves clears the same bar as a password reset or an
+// account deletion: their own fresh code first.
+function accountHasTwoStep(acct){
+  return !!(acct && (acct.twoFactorEnabled || acct.twoFactorSecret || acct.emailOtpLogin));
+}
+function adminClearTwoStep(userId){
+  if(currentRole !== 'admin'){ showToast('Only an administrator can turn off two-step verification for another account.', 'warning'); return; }
+  var target = userAccounts.find(function(u){ return u.id === userId; });
+  if(!target){ showToast('That account is no longer on this device — sync and try again.', 'warning'); return; }
+  if(!accountHasTwoStep(target)){ showToast('Two-step verification is already off for this account.'); return; }
+  var who = target.name || target.username || target.email || 'this account';
+  if(!confirm('Turn OFF two-step verification for ' + who + '?\n\nTheir authenticator, backup codes and email sign-in codes are all cleared, on every device after the next sync. They sign in with their password alone until they turn it back on.')) return;
+  var actor = tfaAccountRecord(currentLoggedInUser);
+  if(tfaEnabled(actor)){
+    tfaOpenVerify(actor, { title: 'Authorize Two-Step Removal', subtitle: 'Enter your 6-digit code to authorize turning off two-step verification for ' + who + '.', allowBackup: false }, function(){ adminClearTwoStepApply(userId); });
+    return;
+  }
+  adminClearTwoStepApply(userId);
+}
+// The write itself, shared by the verified and unverified paths.
+function adminClearTwoStepApply(userId){
+  var target = userAccounts.find(function(u){ return u.id === userId; });
+  if(!target) return false;
+  target.twoFactorEnabled = false;
+  target.twoFactorSecret = null;
+  target.backupCodes = null;
+  target.emailOtpLogin = false;
+  // Stamped so the clear WINS over every other device's older copy instead of
+  // being merged away the next time one of them syncs.
+  target.twoFactorUpdatedAt = new Date().toISOString();
+  if(currentLoggedInUser && currentLoggedInUser.id === target.id) currentLoggedInUser = target;
+  saveUserAccounts();
+  if(typeof renderUserAccountsTable === 'function') renderUserAccountsTable();
+  showToast('Two-step verification turned off for ' + (target.name || target.username || 'the account') + '.');
+  return true;
 }
 
 var _forceChangePwRole = null;
