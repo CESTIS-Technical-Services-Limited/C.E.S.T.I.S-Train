@@ -1470,12 +1470,11 @@
 <div id="tab-admin" class="tab-panel">
     <!-- PIN Gate (shown when admin not verified) -->
     <div id="adminGate" class="admin-gate">
-        <h3>🛡️ Admin Access Required</h3>
-        <p>Enter the admin PIN to review and approve pending virement requests.</p>
-        <input type="password" id="adminPinInput" class="pin-input" maxlength="6" placeholder="••••" onkeydown="if(event.key==='Enter') verifyAdminPin()">
+        <h3>🛡️ Board Approval</h3>
+        <p id="adminGateWho">Checking who is signed in…</p>
         <div id="adminPinError" class="pin-error"></div>
         <br>
-        <button class="btn-gold" onclick="verifyAdminPin()">Unlock</button>
+        <button class="btn-gold" onclick="openApprovalPanel()">Open Approval Panel</button>
     </div>
     <!-- Approval Dashboard (shown after PIN verified) -->
     <div id="adminDashboard" style="display:none;">
@@ -1929,7 +1928,10 @@ function renderBudgetOverview(){
     });
     let netVariance = totalAlloc - totalActual;
     let quarterRequests = getActiveQuarterRequests();
-    let totalVired = quarterRequests.reduce((s,r)=>s+r.lines.reduce((a,l)=>a+l.amount,0),0);
+    // Approved only — see the note by the virement fold below. A pending or
+    // refused request is not money that has moved.
+    let totalVired = quarterRequests.filter(vrIsApproved).reduce((s,r)=>s+r.lines.reduce((a,l)=>a+l.amount,0),0);
+    let awaitingCount = quarterRequests.filter(r => r.status === 'Pending' || r.status === 'Awaiting Second Signature').length;
 
     // Dynamic quarter label for stats
     let quarterLabel = getQuarterShortLabel(virementActiveFY, virementActiveQ) + ' Subvention';
@@ -1942,7 +1944,7 @@ function renderBudgetOverview(){
         <div class="stat-card emerald"><div class="label">Total Surplus Lines</div><div class="value">${fmt(totalSurplus)}</div><div class="sub">Available for virement</div></div>
         <div class="stat-card rose"><div class="label">Total Deficit Lines</div><div class="value">${fmt(totalDeficit)}</div><div class="sub">Requiring additional funds</div></div>
         <div class="stat-card gold"><div class="label">Net Variance</div><div class="value">${fmtSigned(netVariance)}</div><div class="sub">${netVariance>=0?'Under budget':'Over budget'}</div></div>
-        <div class="stat-card sky"><div class="label">Total Vired</div><div class="value">${fmt(totalVired)}</div><div class="sub">${quarterRequests.length} request(s) this quarter</div></div>
+        <div class="stat-card sky"><div class="label">Total Vired (approved)</div><div class="value">${fmt(totalVired)}</div><div class="sub">${awaitingCount} awaiting, ${quarterRequests.length} request(s) this quarter</div></div>
     `;
 
     // Charts
@@ -2065,7 +2067,14 @@ function renderLivePreview() {
     const virementDetails = []; // { requestIdx, lineIdx, fromId, toId, amount, color, label }
     let colorIdx = 0;
 
-    quarterRequests.forEach((req, ri) => {
+    /* Only APPROVED virements move a budget figure.
+
+       Every request in the quarter used to be folded in here regardless of its
+       status, so a virement that had been refused — with a written reason —
+       still showed the money as moved in the Virement Net, the Adjusted Balance
+       and the Final Balance, and a request nobody had ruled on yet did the
+       same. The decision changed a coloured badge and nothing else. */
+    quarterRequests.filter(vrIsApproved).forEach((req, ri) => {
         req.lines.forEach((line, li) => {
             const color = VIREMENT_COLORS[colorIdx % VIREMENT_COLORS.length];
             colorIdx++;
@@ -2442,6 +2451,22 @@ function submitVirement(){
         existing.lines = lines;
         existing.deficitComment = deficitComment;
         existing.anyLineComment = anyLineComment;
+        /* Changing what a virement asks for un-does any ruling on it.
+
+           An approved request used to keep its approval through an edit: the
+           amount could be changed from $44,288.25 to $444,288.25 and the record
+           still read "Approved", with the original signatures and date printed
+           over a figure nobody had ever agreed to. A signature belongs to the
+           request that was signed, so it does not survive a change to it. */
+        if (existing.status && existing.status !== 'Pending') {
+            existing.status = 'Pending';
+            existing.signatures = [];
+            existing.approvedBy = '';
+            existing.approvalDate = '';
+            existing.approvalAt = '';
+            existing.approvalComment = '';
+            alert('This virement had been ruled on. Because its details have changed it goes back to Pending and needs signing again.');
+        }
         let updatedIdx = editingVirementIdx;
         editingVirementIdx = -1;
         document.getElementById('editModeBanner').style.display = 'none';
@@ -2953,31 +2978,83 @@ function printVirementFormPreview() {
 // ═══════════════════════════════════════════════════════════
 //  ADMIN APPROVAL SYSTEM
 // ═══════════════════════════════════════════════════════════
-const ADMIN_PIN = '1234'; // Default admin PIN — change as needed
+/* WHO IS SIGNING.
+
+   This panel used to be gated by a PIN written into this file in plain sight
+   ("1234"), on a page anybody can read the source of, and every decision was
+   stamped with the literal word "Admin". So nothing recorded WHO approved a
+   virement, one person could approve alone, and the two signatures the Centre's
+   own form prints lines for existed only as blank ink.
+
+   The signer is now the person signed in on the dashboard. This page reads that
+   from the shared session the dashboard writes, and a virement needs TWO
+   different signers before it is approved and before a single figure moves. */
 let adminUnlocked = false;
 let adminFilter = 'pending';
 
-function verifyAdminPin(){
-    let pin = document.getElementById('adminPinInput').value;
-    let errorEl = document.getElementById('adminPinError');
-    if(pin === ADMIN_PIN){
-        adminUnlocked = true;
-        document.getElementById('adminGate').style.display = 'none';
-        document.getElementById('adminDashboard').style.display = 'block';
-        document.getElementById('adminPinInput').value = '';
-        errorEl.textContent = '';
-        renderAdminApprovals();
+function vrStore(){ return window.CESTISStore || window.localStorage; }
+
+function vrSignedInUser(){
+    try {
+        const S = vrStore();
+        const expiry = Number(S.getItem('voctrain_sessionExpiry') || 0);
+        if (!expiry || Date.now() > expiry) return null;   // nobody signed in, or the session ended
+        const id = S.getItem('voctrain_sessionUserId') || '';
+        if (!id) return null;
+        let users = [];
+        try { users = JSON.parse(S.getItem('voctrain_users') || '[]') || []; } catch(e) { users = []; }
+        const u = users.find(x => x && x.id === id);
+        if (!u) return null;
+        return { id: u.id,
+                 name: u.name || u.username || u.email || 'Unnamed',
+                 role: u.role || S.getItem('voctrain_sessionRole') || '' };
+    } catch(e) { return null; }
+}
+/* Only an administrator or a board member may rule on a virement. */
+function vrMaySign(u){ return !!u && (u.role === 'admin' || u.role === 'cmc'); }
+
+function vrSignatures(r){ return Array.isArray(r && r.signatures) ? r.signatures : []; }
+function vrHasSigned(r, userId){ return vrSignatures(r).some(s => s && s.id === userId); }
+/* The one rule the whole workflow exists for: money moves only once a request
+   carries two signatures from two different people. */
+function vrIsApproved(r){ return !!r && r.status === 'Approved' && vrSignatures(r).length >= 2; }
+
+function describeSigner(){
+    const el = document.getElementById('adminGateWho');
+    if (!el) return;
+    const u = vrSignedInUser();
+    if (!u) {
+        el.textContent = 'Sign in on the main dashboard first. A virement is signed in somebody\u2019s name, so the panel needs to know who you are.';
+    } else if (!vrMaySign(u)) {
+        el.textContent = 'Signed in as ' + u.name + '. Only an administrator or a board member can rule on a virement.';
     } else {
-        errorEl.textContent = 'Incorrect PIN. Please try again.';
-        document.getElementById('adminPinInput').value = '';
-        document.getElementById('adminPinInput').focus();
+        el.textContent = 'Signed in as ' + u.name + '. A virement needs two signatures from two different people before any money moves.';
     }
+}
+
+function openApprovalPanel(){
+    const errorEl = document.getElementById('adminPinError');
+    const u = vrSignedInUser();
+    if (!u) {
+        if (errorEl) errorEl.textContent = 'Nobody is signed in on this device. Sign in on the main dashboard, then come back.';
+        return;
+    }
+    if (!vrMaySign(u)) {
+        if (errorEl) errorEl.textContent = 'Signed in as ' + u.name + ' — only an administrator or a board member may approve a virement.';
+        return;
+    }
+    adminUnlocked = true;
+    document.getElementById('adminGate').style.display = 'none';
+    document.getElementById('adminDashboard').style.display = 'block';
+    if (errorEl) errorEl.textContent = '';
+    renderAdminApprovals();
 }
 
 function lockAdminPanel(){
     adminUnlocked = false;
     document.getElementById('adminGate').style.display = 'block';
     document.getElementById('adminDashboard').style.display = 'none';
+    describeSigner();
 }
 
 function setAdminFilter(filter, btn){
@@ -3029,14 +3106,15 @@ function renderAdminApprovals(){
 
     container.innerHTML = filtered.map(r => {
         let globalIdx = virementRequests.indexOf(r);
-        let badge = r.status === 'Approved' ? '<span class="badge badge-approved">Approved</span>'
+        let badge = vrIsApproved(r) ? '<span class="badge badge-approved">Approved</span>'
             : r.status === 'Rejected' ? '<span class="badge badge-rejected">Rejected</span>'
+            : r.status === 'Awaiting Second Signature' ? '<span class="badge badge-pending">Awaiting second signature</span>'
             : '<span class="badge badge-pending">Pending</span>';
         let summaryLines = r.lines.map(l => `${l.fromName} → ${l.toName}`).join(', ');
         if(summaryLines.length > 100) summaryLines = summaryLines.substring(0,100) + '…';
 
         let actionsHtml = '';
-        if(r.status === 'Pending'){
+        if(r.status === 'Pending' || r.status === 'Awaiting Second Signature'){
             actionsHtml = `
                 <div class="ali-actions">
                     <input type="text" class="approval-comment-input" id="approvalComment_${globalIdx}" placeholder="Comment (optional)">
@@ -3044,10 +3122,14 @@ function renderAdminApprovals(){
                     <button class="btn-reject" onclick="rejectVirement(${globalIdx})">✗ Reject</button>
                 </div>`;
         } else {
-            let stampClass = r.status === 'Approved' ? 'stamp-approved' : 'stamp-rejected';
-            let stampIcon = r.status === 'Approved' ? '✓' : '✗';
-            let stampText = `${stampIcon} ${r.status} by ${r.approvedBy || 'Admin'}`;
-            if(r.approvalDate) stampText += ` on ${r.approvalDate}`;
+            let stampClass = vrIsApproved(r) ? 'stamp-approved' : 'stamp-rejected';
+            let stampIcon = vrIsApproved(r) ? '✓' : '✗';
+            // Names every signature, so the record says who decided rather than
+            // the word "Admin", which is what every decision used to say.
+            let who = vrSignatures(r).length
+                ? vrSignatures(r).map(s => s.name + ' (' + (s.at || '').split('T')[0] + ')').join(' and ')
+                : (r.approvedBy || 'unrecorded');
+            let stampText = `${stampIcon} ${r.status} by ${who}`;
             if(r.approvalComment) stampText += ` — "${r.approvalComment}"`;
             actionsHtml = `<div class="ali-stamp ${stampClass}">${stampText}</div>`;
         }
@@ -3070,24 +3152,56 @@ function renderAdminApprovals(){
     }).join('');
 }
 
+/* One press is one signature, never the whole decision.
+
+   The first signature moves a request to "Awaiting second signature". The
+   second, from a DIFFERENT person, approves it — and only then does any figure
+   move. Nobody can sign the same request twice, so one person cannot approve
+   alone however many times they press the button. */
 function approveVirement(idx){
-    let r = virementRequests[idx];
-    if(!r || r.status !== 'Pending') return;
-    let comment = document.getElementById('approvalComment_' + idx);
-    r.status = 'Approved';
-    r.approvedBy = 'Admin';
-    r.approvalDate = new Date().toISOString().split('T')[0];
-    r.approvalComment = comment ? comment.value.trim() : '';
+    const r = virementRequests[idx];
+    if(!r || (r.status !== 'Pending' && r.status !== 'Awaiting Second Signature')) return;
+    const u = vrSignedInUser();
+    if(!vrMaySign(u)){ alert('Sign in as an administrator or a board member to sign a virement.'); return; }
+    if(vrHasSigned(r, u.id)){
+        alert('You have already signed this virement. It needs a second signature from somebody else.');
+        return;
+    }
+    const commentEl = document.getElementById('approvalComment_' + idx);
+    const comment = commentEl ? commentEl.value.trim() : '';
+
+    if(!Array.isArray(r.signatures)) r.signatures = [];
+    r.signatures.push({
+        id: u.id, name: u.name, role: u.role,
+        // A full timestamp, not just a date: two decisions made on the same day
+        // used to be unorderable, so a sync could leave one device showing the
+        // request approved and another showing it rejected, for ever.
+        at: new Date().toISOString(),
+        comment: comment
+    });
+
+    if(r.signatures.length >= 2){
+        r.status = 'Approved';
+        r.approvedBy = r.signatures.map(s => s.name).join(' and ');
+    } else {
+        r.status = 'Awaiting Second Signature';
+        r.approvedBy = r.signatures[0].name + ' (awaiting a second signature)';
+    }
+    r.approvalDate = r.signatures[r.signatures.length - 1].at.split('T')[0];
+    r.approvalAt = r.signatures[r.signatures.length - 1].at;
+    r.approvalComment = comment || r.approvalComment || '';
     saveAllData();
     renderAdminApprovals();
     renderRequests();
-    // Auto-save approval to cloud so other devices see it immediately
+    renderBudgetOverview();
+    renderPrintPreview();
+    // Auto-save to cloud so other devices see it immediately
     autoSaveApprovalToCloud();
 }
 
 function rejectVirement(idx){
     let r = virementRequests[idx];
-    if(!r || r.status !== 'Pending') return;
+    if(!r || (r.status !== 'Pending' && r.status !== 'Awaiting Second Signature')) return;
     let comment = document.getElementById('approvalComment_' + idx);
     let commentText = comment ? comment.value.trim() : '';
     if(!commentText){
@@ -3096,13 +3210,22 @@ function rejectVirement(idx){
             return;
         }
     }
+    const u = vrSignedInUser();
+    if(!vrMaySign(u)){ alert('Sign in as an administrator or a board member to rule on a virement.'); return; }
+    // A refusal does not move money, so one signature is enough to stop it —
+    // but it is recorded in that person's name, like every other decision here.
+    const nowIso = new Date().toISOString();
     r.status = 'Rejected';
-    r.approvedBy = 'Admin';
-    r.approvalDate = new Date().toISOString().split('T')[0];
+    r.signatures = [{ id: u.id, name: u.name, role: u.role, at: nowIso, comment: commentText, decision: 'Rejected' }];
+    r.approvedBy = u.name;
+    r.approvalDate = nowIso.split('T')[0];
+    r.approvalAt = nowIso;
     r.approvalComment = commentText;
     saveAllData();
     renderAdminApprovals();
     renderRequests();
+    renderBudgetOverview();
+    renderPrintPreview();
     // Auto-save rejection to cloud so other devices see it immediately
     autoSaveApprovalToCloud();
 }
@@ -3140,20 +3263,38 @@ async function autoSaveApprovalToCloud() {
                                 virementRequests.push(cr);
                             } else {
                                 // Bidirectional approval sync: prefer the most recent
+                                /* Rulings are merged by the moment they were made.
+
+                                   This used to compare a plain YYYY-MM-DD date,
+                                   so two decisions made on the SAME day never
+                                   ordered: a rejection here and an approval
+                                   there each kept their own copy, and the two
+                                   devices disagreed for ever, each printing a
+                                   stamp asserting its own version. A ruling now
+                                   carries the full moment it was made, and the
+                                   signatures travel with it so a request cannot
+                                   arrive "approved" with nobody's name on it. */
                                 const local = virementRequests[localMap[cr.id]];
-                                const cloudHasApproval = cr.status === 'Approved' || cr.status === 'Rejected';
-                                const localHasApproval = local.status === 'Approved' || local.status === 'Rejected';
-                                const localPending = local.status === 'Pending';
-                                if (cloudHasApproval && localPending) {
+                                const decided = st => st === 'Approved' || st === 'Rejected' || st === 'Awaiting Second Signature';
+                                const at = r => Date.parse(r.approvalAt || r.approvalDate || '') || 0;
+                                const cloudDecided = decided(cr.status);
+                                const localDecided = decided(local.status);
+                                const takeCloud = cloudDecided && (!localDecided || at(cr) > at(local));
+                                if (takeCloud) {
                                     local.status = cr.status;
                                     local.approvedBy = cr.approvedBy;
                                     local.approvalDate = cr.approvalDate;
+                                    local.approvalAt = cr.approvalAt || cr.approvalDate;
                                     local.approvalComment = cr.approvalComment;
-                                } else if (cloudHasApproval && localHasApproval && cr.approvalDate > local.approvalDate) {
-                                    local.status = cr.status;
-                                    local.approvedBy = cr.approvedBy;
-                                    local.approvalDate = cr.approvalDate;
-                                    local.approvalComment = cr.approvalComment;
+                                    local.signatures = Array.isArray(cr.signatures) ? cr.signatures : [];
+                                } else if (cloudDecided && localDecided && at(cr) === at(local) && cr.status !== local.status) {
+                                    // Same instant, different answers: refuse to
+                                    // guess. The safe reading of a disagreement
+                                    // about money is that nothing was agreed.
+                                    local.status = 'Pending';
+                                    local.signatures = [];
+                                    local.approvedBy = '';
+                                    local.approvalComment = 'Two devices recorded different decisions at the same moment — this needs signing again.';
                                 }
                             }
                         });
@@ -4342,16 +4483,35 @@ async function autoMergeFromCloudOnLoad() {
                 } else {
                     // Bidirectional approval sync: prefer the most recent approval
                     const local = virementRequests[localMap[cr.id]];
-                    const cloudHasApproval = cr.status === 'Approved' || cr.status === 'Rejected';
-                    const localHasApproval = local.status === 'Approved' || local.status === 'Rejected';
+                    /* Ordered by the MOMENT a ruling was made, not by its date.
+                       A plain YYYY-MM-DD comparison cannot separate two decisions
+                       taken on the same day, so a rejection here and an approval
+                       there each kept their own copy and the two devices
+                       disagreed for ever. The signatures travel with the ruling,
+                       so a request cannot arrive approved with nobody's name on
+                       it. */
+                    const _decided = st => st === 'Approved' || st === 'Rejected' || st === 'Awaiting Second Signature';
+                    const _at = rr => Date.parse(rr.approvalAt || rr.approvalDate || '') || 0;
+                    const cloudHasApproval = _decided(cr.status);
+                    const localHasApproval = _decided(local.status);
                     const localIsPending = local.status === 'Pending';
                     const cloudIsPending = cr.status === 'Pending';
-                    const cloudDateNewer = cr.approvalDate && (!local.approvalDate || cr.approvalDate > local.approvalDate);
+                    const cloudDateNewer = _at(cr) > _at(local);
                     if (cloudHasApproval && (localIsPending || cloudDateNewer)) {
                         local.status = cr.status;
                         local.approvedBy = cr.approvedBy;
                         local.approvalDate = cr.approvalDate;
+                        local.approvalAt = cr.approvalAt || cr.approvalDate;
                         local.approvalComment = cr.approvalComment;
+                        local.signatures = Array.isArray(cr.signatures) ? cr.signatures : [];
+                        changed = true;
+                    } else if (cloudHasApproval && localHasApproval && _at(cr) === _at(local) && cr.status !== local.status) {
+                        // Same instant, opposite answers: the safe reading of a
+                        // disagreement about money is that nothing was agreed.
+                        local.status = 'Pending';
+                        local.signatures = [];
+                        local.approvedBy = '';
+                        local.approvalComment = 'Two devices recorded different decisions at the same moment — this needs signing again.';
                         changed = true;
                     }
                     // Detect if local has an approval that cloud is missing
@@ -4888,15 +5048,26 @@ async function saveToCloud() {
                             } else {
                                 // Bidirectional approval sync: prefer the most recent approval
                                 const local = virementRequests[localMap[cr.id]];
-                                const cloudApproved = cr.status === 'Approved' || cr.status === 'Rejected';
+                                // Same rule as the other merge paths: order by the
+                                // moment of the ruling, and carry its signatures.
+                                const _decided2 = st => st === 'Approved' || st === 'Rejected' || st === 'Awaiting Second Signature';
+                                const _at2 = rr => Date.parse(rr.approvalAt || rr.approvalDate || '') || 0;
+                                const cloudApproved = _decided2(cr.status);
                                 const localPending = local.status === 'Pending';
-                                const localApproved = local.status === 'Approved' || local.status === 'Rejected';
-                                const cloudDateNewer = cr.approvalDate && (!local.approvalDate || cr.approvalDate > local.approvalDate);
+                                const localApproved = _decided2(local.status);
+                                const cloudDateNewer = _at2(cr) > _at2(local);
                                 if (cloudApproved && (localPending || cloudDateNewer)) {
                                     local.status = cr.status;
                                     local.approvedBy = cr.approvedBy;
                                     local.approvalDate = cr.approvalDate;
+                                    local.approvalAt = cr.approvalAt || cr.approvalDate;
                                     local.approvalComment = cr.approvalComment;
+                                    local.signatures = Array.isArray(cr.signatures) ? cr.signatures : [];
+                                } else if (cloudApproved && localApproved && _at2(cr) === _at2(local) && cr.status !== local.status) {
+                                    local.status = 'Pending';
+                                    local.signatures = [];
+                                    local.approvedBy = '';
+                                    local.approvalComment = 'Two devices recorded different decisions at the same moment — this needs signing again.';
                                 }
                                 // Local approval preserved when cloud is pending (local wins on save)
                             }
@@ -5593,10 +5764,20 @@ function getTimeAgo(date) {
     return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
 }
 
-// Check if first visit
-if(virementRequests.length === 0){
-    preloadFromDocData();
-}
+/* The seed no longer runs by itself.
+
+   preloadFromDocData() creates seventeen virement requests totalling
+   $1,515,511.40, every one stamped 2025-10-01, financial year 2025/2026,
+   quarter 3, status Pending, with a blank requester. It used to run on ANY
+   device whose request list was empty — a new machine, a private window, a
+   browser whose data had been cleared — so the Centre's approval queue filled
+   with financial records nobody had raised, permanently filed in a quarter that
+   has passed, and they synced to every other device. Two devices starting empty
+   produced thirty-four of them, because the ids are time-based and the
+   de-duplicator matches on id.
+
+   It stays here as the Centre's record of those presets, and an administrator
+   can still run it deliberately from the console, but nothing calls it. */
 </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->

@@ -22507,7 +22507,7 @@ function renderExamBuilderQuestions() {
   }).join('');
 }
 
-function escapeAttr(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function addExamOption(qIdx) {
   var q = examBuilderQuestions[qIdx];
@@ -23268,7 +23268,9 @@ function renderExamTaking() {
   updateExamTimerDisplay();
 }
 
-function escapeHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// Coerces first: a number (an exam duration, a count) has no .replace and used
+// to throw straight out of whatever was building the page.
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 function selectExamAnswer(qIdx,answer) {
   if(!currentExamSession) return;
@@ -33991,26 +33993,32 @@ function renderAsResources(){
     + (instructorResources.length > 0 ? instructorResources.map(function(r){ return '<tr><td>'+(r.title||r.name||'Untitled')+'</td><td>'+(r.type||'File')+'</td><td>'+(r.course||'General')+'</td><td>'+(r.date||'N/A')+'</td></tr>'; }).join('') : '');
   tb.innerHTML=html;
 }
+/* Everything a person typed is escaped on its way into the page. A trainee
+   registers with their own full name, and an instructor writes announcement and
+   calendar text, so any of these can carry markup. Built by concatenation
+   without escaping, a name of the shape <img src=x onerror=...> RAN in the Admin
+   Staff session — verified in a browser before this was fixed. Every other
+   renderer in this file already escapes; these five had been missed. */
 function renderAsExams(){
   var tb=document.getElementById('asExamsBody'); if(!tb) return;
-  tb.innerHTML=exams.map(function(ex){ return '<tr><td>'+ex.title+'</td><td>'+ex.course+'</td><td>'+ex.date+'</td><td>'+ex.duration+' min</td><td><span class="badge '+(ex.status==='completed'?'badge-green':ex.status==='active'?'badge-red':'badge-blue')+'">'+ex.status.charAt(0).toUpperCase()+ex.status.slice(1)+'</span></td></tr>'; }).join('');
+  tb.innerHTML=exams.map(function(ex){ var st=String(ex.status||''); return '<tr><td>'+escapeHtml(ex.title)+'</td><td>'+escapeHtml(ex.course)+'</td><td>'+escapeHtml(ex.date)+'</td><td>'+escapeHtml(ex.duration)+' min</td><td><span class="badge '+(st==='completed'?'badge-green':st==='active'?'badge-red':'badge-blue')+'">'+escapeHtml(st.charAt(0).toUpperCase()+st.slice(1))+'</span></td></tr>'; }).join('');
 }
 function renderAsAttendance(){
   var tb=document.getElementById('asAttBody'); if(!tb) return;
-  tb.innerHTML=attendanceRecords.slice(0,40).map(function(a){ var days = a.days||{}; function badge(d){ var v=days[d]||'absent'; return '<span class="badge '+(v==='present'?'badge-green':v==='late'?'badge-amber':'badge-red')+'" style="font-size:10px;">'+v.charAt(0).toUpperCase()+v.slice(1)+'</span>'; } return '<tr><td>'+a.studentId+'</td><td>'+a.studentName+'</td><td>'+a.course+'</td><td>'+badge('Mon')+'</td><td>'+badge('Tue')+'</td><td>'+badge('Wed')+'</td><td>'+badge('Thu')+'</td><td>'+badge('Fri')+'</td></tr>'; }).join('');
+  tb.innerHTML=attendanceRecords.slice(0,40).map(function(a){ var days = a.days||{}; function badge(d){ var v=String(days[d]||'absent'); return '<span class="badge '+(v==='present'?'badge-green':v==='late'?'badge-amber':'badge-red')+'" style="font-size:10px;">'+escapeHtml(v.charAt(0).toUpperCase()+v.slice(1))+'</span>'; } return '<tr><td>'+escapeHtml(a.studentId)+'</td><td>'+escapeHtml(a.studentName)+'</td><td>'+escapeHtml(a.course)+'</td><td>'+badge('Mon')+'</td><td>'+badge('Tue')+'</td><td>'+badge('Wed')+'</td><td>'+badge('Thu')+'</td><td>'+badge('Fri')+'</td></tr>'; }).join('');
 }
 function renderAsAnnouncements(){
   var el=document.getElementById('asAnnouncementsList'); if(!el) return;
-  el.innerHTML=announcements.filter(function(a){ return !a.forRoles || a.forRoles.indexOf('adminstaff') !== -1 || a.forRoles.indexOf('admin') !== -1; }).map(function(a){ return '<div class="card" style="padding:16px;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>'+a.title+'</strong><span class="badge '+(a.priority==='urgent'?'badge-red':a.priority==='info'?'badge-blue':'badge-green')+'">'+a.priority+'</span></div><p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">'+a.body+'</p><div style="font-size:11px;color:var(--text-muted);">By '+a.author+' &bull; '+a.date+'</div></div>'; }).join('');
+  el.innerHTML=announcements.filter(function(a){ return !a.forRoles || a.forRoles.indexOf('adminstaff') !== -1 || a.forRoles.indexOf('admin') !== -1; }).map(function(a){ return '<div class="card" style="padding:16px;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>'+escapeHtml(a.title)+'</strong><span class="badge '+(a.priority==='urgent'?'badge-red':a.priority==='info'?'badge-blue':'badge-green')+'">'+escapeHtml(a.priority)+'</span></div><p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">'+escapeHtml(a.body)+'</p><div style="font-size:11px;color:var(--text-muted);">By '+escapeHtml(a.author)+' &bull; '+escapeHtml(a.date)+'</div></div>'; }).join('');
 }
 function renderAsCalendar(){
   var el=document.getElementById('asCalendarEvents'); if(!el) return;
-  el.innerHTML=calendarEvents.filter(function(e){ return !e.forRoles || e.forRoles.indexOf('adminstaff') !== -1 || e.forRoles.indexOf('admin') !== -1; }).sort(function(a,b){ return new Date(a.date) - new Date(b.date); }).map(function(e){ return '<div class="card" style="padding:14px;margin-bottom:10px;border-left:4px solid '+(e.color||'var(--accent)')+';"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong style="font-size:14px;">'+e.title+'</strong><div style="font-size:12px;color:var(--text-muted);">'+e.date+' at '+e.time+'</div></div><span class="badge badge-blue" style="font-size:10px;">'+(e.type||'event')+'</span></div></div>'; }).join('');
+  el.innerHTML=calendarEvents.filter(function(e){ return !e.forRoles || e.forRoles.indexOf('adminstaff') !== -1 || e.forRoles.indexOf('admin') !== -1; }).sort(function(a,b){ return new Date(a.date) - new Date(b.date); }).map(function(e){ return '<div class="card" style="padding:14px;margin-bottom:10px;border-left:4px solid '+escapeAttr(e.color||'var(--accent)')+';"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong style="font-size:14px;">'+escapeHtml(e.title)+'</strong><div style="font-size:12px;color:var(--text-muted);">'+escapeHtml(e.date)+' at '+escapeHtml(e.time)+'</div></div><span class="badge badge-blue" style="font-size:10px;">'+escapeHtml(e.type||'event')+'</span></div></div>'; }).join('');
 }
 function renderAsCertificates(){
   var tb=document.getElementById('asCertBody'); if(!tb) return;
   var certd=students.filter(function(st){ return st.stage==='certified'||st.stage==='collected'; });
-  tb.innerHTML=certd.map(function(st){ return '<tr><td>'+st.name+'</td><td>'+st.course+'</td><td><span class="badge '+(st.stage==='collected'?'badge-green':'badge-amber')+'">'+(stageLabels[st.stage]||st.stage)+'</span></td><td>'+(st.certNo||'Pending')+'</td><td>'+(st.certDate||'N/A')+'</td></tr>'; }).join('')
+  tb.innerHTML=certd.map(function(st){ return '<tr><td>'+escapeHtml(st.name)+'</td><td>'+escapeHtml(st.course)+'</td><td><span class="badge '+(st.stage==='collected'?'badge-green':'badge-amber')+'">'+escapeHtml(stageLabels[st.stage]||st.stage)+'</span></td><td>'+escapeHtml(st.certNo||'Pending')+'</td><td>'+escapeHtml(st.certDate||'N/A')+'</td></tr>'; }).join('')
     + (certd.length === 0 ? '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No certified students yet</td></tr>' : '');
 }
 
