@@ -4569,7 +4569,11 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 
 <!-- TWO-STEP VERIFICATION (TOTP) MODALS -->
 <style>
-#tfaVerifyModal{z-index:300;}
+/* The login landing page is a fixed layer at z-index 1000 and the forgot-password
+   dialog sits at 1100; this prompt opens on top of both (a two-step sign-in, the
+   "Verify It's You" reset step), so it must be layered above them or it is drawn
+   behind the login screen and Sign In appears to do nothing. */
+#tfaVerifyModal{z-index:1300;}
 .tfa-code-input{text-align:center;font-size:24px;letter-spacing:8px;font-family:monospace;}
 .tfa-secret{background:var(--bg-primary);border:1px solid var(--border-light);padding:10px 14px;border-radius:8px;font-family:monospace;font-size:15px;letter-spacing:2px;text-align:center;word-break:break-all;user-select:all;margin:10px 0;}
 .tfa-qr{display:flex;justify-content:center;margin:14px 0;padding:12px;background:#ffffff;border-radius:12px;}
