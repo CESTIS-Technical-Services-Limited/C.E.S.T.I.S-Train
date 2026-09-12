@@ -69,6 +69,18 @@
   var LOCAL_BASE = '/_cestis/data/';
   var localReady = null;      // Promise<boolean>
 
+  /* The offline server stamps this run's access token in here as it serves this
+     file, so our own pages are authenticated automatically and nothing has to be
+     typed on any device. A client that did not come from the server keeps the
+     placeholder and is refused — which is what stops a phone on the Centre wifi
+     downloading every account and payslip from the records folder. */
+  var LAN_TOKEN = '__CESTIS_LAN_TOKEN__';
+  function lanHeaders(extra) {
+    var h = extra || {};
+    h['X-CESTIS-Token'] = LAN_TOKEN;
+    return h;
+  }
+
   function detectLocalServer() {
     if (localReady) return localReady;
     localReady = root.fetch('/_cestis/health', { cache: 'no-store' })
@@ -79,14 +91,14 @@
   }
 
   function localGet(file) {
-    return root.fetch(LOCAL_BASE + encodeURIComponent(file), { cache: 'no-store' })
+    return root.fetch(LOCAL_BASE + encodeURIComponent(file), { cache: 'no-store', headers: lanHeaders() })
       .then(function (r) { return r.ok ? r.json() : null; })
       .catch(function () { return null; });
   }
 
   function localPut(file, body) {
     return root.fetch(LOCAL_BASE + encodeURIComponent(file), {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: body
+      method: 'PUT', headers: lanHeaders({ 'Content-Type': 'application/json' }), body: body
     }).then(function (r) { return r.ok; }).catch(function () { return false; });
   }
 
