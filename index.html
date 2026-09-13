@@ -92,10 +92,29 @@
     // while a re-read immediately after an iframe reports a change is synchronous.
     getItem: function(k){
       k=String(k);
+      // When localStorage is full its write throws and the PREVIOUS value is
+      // left sitting there untouched. This read trusts any non-null answer
+      // from localStorage, so from that moment on every read returned the
+      // STALE copy while the data the user had just entered sat unreachable
+      // in IndexedDB — and the next save wrote the stale copy back over the
+      // good one and uploaded it. Dropping the stale entry on a failed write
+      // (see setItem below) is what makes this read safe.
       if(LS){ try { var lv = LS.getItem(k); if(lv !== null){ cache[k] = lv; return lv; } } catch(e){} }
       return (k in cache) ? cache[k] : null;
     },
-    setItem: function(k,v){ k=String(k); v=String(v); cache[k]=v; try{ if(LS) LS.setItem(k,v); }catch(e){} writeIDB(k,v,false); },
+    setItem: function(k,v){
+      k=String(k); v=String(v); cache[k]=v;
+      // A failed localStorage write leaves the OLD value in place. Left there,
+      // it out-votes the truth on every later read (see getItem above), so the
+      // stale entry is removed and the read falls through to the cache and
+      // IndexedDB, which both hold what was actually written.
+      try{ if(LS) LS.setItem(k,v); }
+      catch(e){
+        try{ if(LS) LS.removeItem(k); }catch(e2){}
+        if (typeof reportWriteFailure === 'function') reportWriteFailure(k, e);
+      }
+      writeIDB(k,v,false);
+    },
     removeItem: function(k){ k=String(k); delete cache[k]; try{ if(LS) LS.removeItem(k); }catch(e){} writeIDB(k,null,true); },
     clear: function(){ for(var k in cache){ if(Object.prototype.hasOwnProperty.call(cache,k)) delete cache[k]; }
                        try{ if(LS) LS.clear(); }catch(e){}
@@ -6925,8 +6944,15 @@ function saveState() {
     saveCollection('voctrain_students', students);
     saveCollection('voctrain_exams', exams);
     saveCollection('voctrain_announcements', announcements);
-    CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords));
-    try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
+    /* These four go through the same guard as the collections above. They used
+       to be written raw, which left them outside the one rule that makes a
+       collection unloseable: an empty value never replaces stored records. A
+       load that threw partway leaves the variables read after it at their empty
+       defaults, and the very next save then wrote those empties over the
+       Centre's attendance, exam results and trainee profiles — and uploaded
+       them. */
+    saveCollection('voctrain_attendance', attendanceRecords);
+    try { saveCollection('voctrain_vcSessions', vcSessions); } catch(e) {}
     if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance();
     persistUserAccounts();
     saveCollection('voctrain_classSessions', classSessions);
@@ -6934,10 +6960,10 @@ function saveState() {
     saveCollection('voctrain_assignments', instructorAssignments);
     saveCollection('voctrain_submissions', assignmentSubmissions);
     saveCollection('voctrain_resources', instructorResources);
-    CESTISStore.setItem('voctrain_studentProfiles', JSON.stringify(studentProfiles));
+    saveCollection('voctrain_studentProfiles', studentProfiles);
     saveCollection('voctrain_instructorProfiles', instructorProfiles);
     CESTISStore.setItem('voctrain_systemSettings', JSON.stringify(systemSettings));
-    CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults));
+    saveCollection('voctrain_examResults', examResults);
     saveCollection('voctrain_calendarEvents', calendarEvents);
     saveCollection('voctrain_instructorData', instructorData);
     saveCollection('voctrain_certDownloadApprovals', certDownloadApprovals);
@@ -7134,7 +7160,7 @@ function loadState() {
     var _released = releaseMisStampedIntakes();
     if (_released > 0) {
       console.log('[loadState] Released ' + _released + ' trainee(s) from an intake that began after they enrolled');
-      try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
+      try { saveCollection('voctrain_students', students); } catch(e) {}
     }
   } catch(e) { console.warn('[loadState] intake release:', e); }
   try { backfillStudentFiscalYears(); } catch(e) { console.warn('[loadState] FY backfill:', e); }
@@ -7166,11 +7192,11 @@ function loadState() {
   if (_dedupResult.removed > 0) {
     console.log('[loadState] Removed ' + _dedupResult.removed + ' duplicate student record(s)');
     relinkDependentData(_dedupResult.idMap);
-    try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
-    try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch(e) {}
+    try { saveCollection('voctrain_students', students); } catch(e) {}
+    try { saveCollection('voctrain_attendance', attendanceRecords); } catch(e) {}
     try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch(e) {}
     try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e) {}
-    try { CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults)); } catch(e) {}
+    try { saveCollection('voctrain_examResults', examResults); } catch(e) {}
     try { saveUserAccounts(); } catch(e) {}
   }
   reconcileCertifiedFromApprovals();
@@ -7181,7 +7207,7 @@ function loadState() {
   // Backfill certificate numbers for any certified students missing one so they
   // appear in the admin download-approval list and verify publicly as issued.
   if(backfillCertificateNumbers()) {
-    try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
+    try { saveCollection('voctrain_students', students); } catch(e) {}
   }
   updateSkillAreaCounts();
   // What was deleted, and the content just loaded — the baseline every later
@@ -7298,8 +7324,8 @@ function enforceOnePersonOneRecord() {
   if (!r || !r.removed) return 0;
   students = r.students;
   try { relinkDependentData(r.idMap); } catch (e) {}
-  try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch (e) {}
-  try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch (e) {}
+  try { saveCollection('voctrain_students', students); } catch (e) {}
+  try { saveCollection('voctrain_attendance', attendanceRecords); } catch (e) {}
   try { saveUserAccounts(); } catch (e) {}
   console.log('[VocTrain] Collapsed ' + r.removed +
               ' duplicate trainee record(s) that were added after the roll loaded');
@@ -7337,11 +7363,11 @@ function cestisSettleRoster(reason) {
   try { reconcileCertifiedFromApprovals(); } catch (e) {}
   try { backfillCertificateNumbers(); } catch (e) {}
   if (removed > 0 || students.length !== before) {
-    try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch (e) {}
-    try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch (e) {}
+    try { saveCollection('voctrain_students', students); } catch (e) {}
+    try { saveCollection('voctrain_attendance', attendanceRecords); } catch (e) {}
     try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch (e) {}
     try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch (e) {}
-    try { CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults)); } catch (e) {}
+    try { saveCollection('voctrain_examResults', examResults); } catch (e) {}
     try { saveUserAccounts(); } catch (e) {}
     console.log('[VocTrain] Settled the roll after ' + (reason || 'a merge') + ': ' + before + ' -> ' + students.length + ' trainee record(s)');
   }
@@ -7465,11 +7491,11 @@ function cestisStabilizeStudentIds() {
 
   var _changed = (res && res.changed) || _droppedTomb > 0;
   if (!_changed) return false;
-  try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e) {}
-  try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch(e) {}
+  try { saveCollection('voctrain_students', students); } catch(e) {}
+  try { saveCollection('voctrain_attendance', attendanceRecords); } catch(e) {}
   try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch(e) {}
   try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e) {}
-  try { if (typeof examResults !== 'undefined' && Array.isArray(examResults)) CESTISStore.setItem('voctrain_examResults', JSON.stringify(examResults)); } catch(e) {}
+  try { if (typeof examResults !== 'undefined' && Array.isArray(examResults)) saveCollection('voctrain_examResults', examResults); } catch(e) {}
   try { if (typeof saveUserAccounts === 'function') saveUserAccounts(); } catch(e) {}
   try { console.log('[stableId] remapped ' + Object.keys((res&&res.idMap)||{}).length + ' id(s), removed ' + ((res&&res.removed)||0) + ' duplicate(s), ' + _droppedTomb + ' tombstoned'); } catch(e) {}
   return true;
@@ -8776,6 +8802,9 @@ function renderUserAccountsTable() {
       '<td><div class="um-actions">' +
         '<button title="Edit" onclick="openEditUser(\''+u.id+'\')">✏️</button>' +
         '<button title="Reset Password" onclick="openResetPassword(\''+u.id+'\')">🔑</button>' +
+        // Shown only where there is something to clear, so the column doubles
+        // as the administrator's view of who actually has two-step on.
+        (accountHasTwoStep(u) ? '<button title="Turn off two-step verification" onclick="adminClearTwoStep(\''+escapeAttr(u.id)+'\')">🔐</button>' : '') +
         '<button class="um-danger" title="Delete this account" onclick="openDeleteUser(\''+escapeAttr(u.id)+'\')">🗑️</button>' +
       '</div></td></tr>';
   }).join('');
@@ -9301,10 +9330,16 @@ function mergeTwoFactorState(localAcct, cloudAcct){
   var lt = Date.parse(localAcct.twoFactorUpdatedAt || '') || 0;
   var ct = Date.parse(cloudAcct.twoFactorUpdatedAt || '') || 0;
   var cloudHas2fa = !!cloudAcct.twoFactorSecret || cloudAcct.twoFactorEnabled === true;
-  var localHas2fa = !!localAcct.twoFactorSecret || localAcct.twoFactorEnabled === true;
-  // Adopt the cloud enabled/secret when its 2FA state is strictly newer, or when
-  // this device has no 2FA state at all yet (first time it sees the account).
-  if((cloudHas2fa || cloudAcct.twoFactorUpdatedAt) && (ct > lt || (!localHas2fa && cloudHas2fa))){
+  // "This device has never seen a two-step decision for this account" means it
+  // carries NO stamp of its own — not merely that two-step happens to be off
+  // right now. The old test was `!localHas2fa`, which became true the instant
+  // somebody switched two-step OFF: the very next sync against an older cloud
+  // copy that still said ON walked straight past the newest-wins check and put
+  // the old secret back, so an account that had been disabled went on asking
+  // for a code at every sign-in. Once a device carries a stamp, only a strictly
+  // newer stamp may change the state.
+  var localUnseen = !localAcct.twoFactorUpdatedAt;
+  if((cloudHas2fa || cloudAcct.twoFactorUpdatedAt) && (ct > lt || (localUnseen && cloudHas2fa))){
     if(localAcct.twoFactorEnabled !== !!cloudAcct.twoFactorEnabled){ localAcct.twoFactorEnabled = !!cloudAcct.twoFactorEnabled; changed = true; }
     if((cloudAcct.twoFactorSecret || null) !== (localAcct.twoFactorSecret || null)){ localAcct.twoFactorSecret = cloudAcct.twoFactorSecret || null; changed = true; }
     if(cloudAcct.twoFactorUpdatedAt && cloudAcct.twoFactorUpdatedAt !== localAcct.twoFactorUpdatedAt){ localAcct.twoFactorUpdatedAt = cloudAcct.twoFactorUpdatedAt; changed = true; }
@@ -9314,9 +9349,13 @@ function mergeTwoFactorState(localAcct, cloudAcct){
   if(cloudAcct.twoFactorUpdatedAt && (ct > lt || (localAcct.emailOtpLogin === undefined && cloudAcct.emailOtpLogin !== undefined))){
     if(!!localAcct.emailOtpLogin !== !!cloudAcct.emailOtpLogin){ localAcct.emailOtpLogin = !!cloudAcct.emailOtpLogin; changed = true; }
   }
-  // Union backup codes regardless of direction, OR-ing the "used" flag so a
-  // one-time code consumed anywhere is burned everywhere.
-  if(Array.isArray(cloudAcct.backupCodes)){
+  // Union backup codes, OR-ing the "used" flag so a one-time code consumed
+  // anywhere is burned everywhere. Never, though, onto an account this device
+  // has more recently switched two-step OFF: those codes are spent history, and
+  // re-seeding them from an older cloud copy left live backup codes sitting on
+  // a disabled account.
+  var localTwoStepOff = !localAcct.twoFactorSecret && localAcct.twoFactorEnabled !== true;
+  if(Array.isArray(cloudAcct.backupCodes) && !(localTwoStepOff && lt > ct)){
     if(!Array.isArray(localAcct.backupCodes)){ localAcct.backupCodes = []; changed = true; }
     var byCode = {};
     localAcct.backupCodes.forEach(function(bc){ if(bc && bc.code) byCode[bc.code] = bc; });
@@ -9479,7 +9518,10 @@ function tfaSubmitVerify(){
 // Email-only 2FA path (account opted in via emailOtpLogin, no authenticator):
 // open the modal and immediately send a code, then accept it.
 async function tfaBeginEmailLogin(account, proceed){
-  tfaOpenVerify(account, { title: 'Two-Step Verification', subtitle: 'Sending a verification code to your email…', allowBackup: false, allowEmail: false }, proceed);
+  // Titled for what it actually is. Calling an emailed sign-in code "Two-Step
+  // Verification" made accounts look as though authenticator two-step were on
+  // while the manage panel plainly said it was off.
+  tfaOpenVerify(account, { title: 'Email Sign-in Code', subtitle: 'Sending a verification code to your email…', allowBackup: false, allowEmail: false }, proceed);
   tfaVerifyAccount = account; // ensure still set
   var res = await sendEmailOtp(account, 'login');
   if(!res.ok){
@@ -9700,6 +9742,48 @@ function tfaBeginDisable(){
     tfaRenderManage();
     showToast('Two-step verification disabled.');
   });
+}
+
+// ---- Administrator override: turn two-step off for somebody else's account ----
+// A member of staff who loses their authenticator — or whose device never
+// received a switch-off — would otherwise be locked out with nobody able to
+// help, because every other way of turning it off needs a code from the very
+// app they have lost. Only an administrator may do this, and an administrator
+// who has two-step on themselves clears the same bar as a password reset or an
+// account deletion: their own fresh code first.
+function accountHasTwoStep(acct){
+  return !!(acct && (acct.twoFactorEnabled || acct.twoFactorSecret || acct.emailOtpLogin));
+}
+function adminClearTwoStep(userId){
+  if(currentRole !== 'admin'){ showToast('Only an administrator can turn off two-step verification for another account.', 'warning'); return; }
+  var target = userAccounts.find(function(u){ return u.id === userId; });
+  if(!target){ showToast('That account is no longer on this device — sync and try again.', 'warning'); return; }
+  if(!accountHasTwoStep(target)){ showToast('Two-step verification is already off for this account.'); return; }
+  var who = target.name || target.username || target.email || 'this account';
+  if(!confirm('Turn OFF two-step verification for ' + who + '?\n\nTheir authenticator, backup codes and email sign-in codes are all cleared, on every device after the next sync. They sign in with their password alone until they turn it back on.')) return;
+  var actor = tfaAccountRecord(currentLoggedInUser);
+  if(tfaEnabled(actor)){
+    tfaOpenVerify(actor, { title: 'Authorize Two-Step Removal', subtitle: 'Enter your 6-digit code to authorize turning off two-step verification for ' + who + '.', allowBackup: false }, function(){ adminClearTwoStepApply(userId); });
+    return;
+  }
+  adminClearTwoStepApply(userId);
+}
+// The write itself, shared by the verified and unverified paths.
+function adminClearTwoStepApply(userId){
+  var target = userAccounts.find(function(u){ return u.id === userId; });
+  if(!target) return false;
+  target.twoFactorEnabled = false;
+  target.twoFactorSecret = null;
+  target.backupCodes = null;
+  target.emailOtpLogin = false;
+  // Stamped so the clear WINS over every other device's older copy instead of
+  // being merged away the next time one of them syncs.
+  target.twoFactorUpdatedAt = new Date().toISOString();
+  if(currentLoggedInUser && currentLoggedInUser.id === target.id) currentLoggedInUser = target;
+  saveUserAccounts();
+  if(typeof renderUserAccountsTable === 'function') renderUserAccountsTable();
+  showToast('Two-step verification turned off for ' + (target.name || target.username || 'the account') + '.');
+  return true;
 }
 
 var _forceChangePwRole = null;
@@ -13570,7 +13654,7 @@ function vcSaveActiveSession() {
   vcSessions = CESTISCore.vcSessions.mergeSessions(
     (vcSessions || []).filter(function(s) { return s.id !== vcActiveSession.id; }),
     [vcActiveSession]);
-  try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
+  try { saveCollection('voctrain_vcSessions', vcSessions); } catch(e) {}
 }
 
 function vcCloseActiveSession() {
@@ -18988,8 +19072,8 @@ window.addEventListener('message', function(e) {
     var _dr2 = deduplicateStudents();
     if (_dr2.removed > 0) {
       relinkDependentData(_dr2.idMap);
-      try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch(e2) {}
-      try { CESTISStore.setItem('voctrain_attendance', JSON.stringify(attendanceRecords)); } catch(e2) {}
+      try { saveCollection('voctrain_students', students); } catch(e2) {}
+      try { saveCollection('voctrain_attendance', attendanceRecords); } catch(e2) {}
       try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch(e2) {}
       try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e2) {}
       try { saveUserAccounts(); } catch(e2) {}
@@ -21011,7 +21095,7 @@ function runTraineeTransfer(only) {
   updateSkillAreaCounts();
   recomputeCourseStatuses(false);      // the receiving course decides their status
   saveState();                         // persists locally AND pushes to the cloud
-  try { CESTISStore.setItem('voctrain_students', JSON.stringify(students)); } catch (e) {}
+  try { saveCollection('voctrain_students', students); } catch (e) {}
   _transferSelection = {};
   if (typeof refreshStudentDependentViews === 'function') { try { refreshStudentDependentViews(); } catch (e) {} }
   renderSkills();
@@ -22423,7 +22507,7 @@ function renderExamBuilderQuestions() {
   }).join('');
 }
 
-function escapeAttr(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function addExamOption(qIdx) {
   var q = examBuilderQuestions[qIdx];
@@ -23184,7 +23268,9 @@ function renderExamTaking() {
   updateExamTimerDisplay();
 }
 
-function escapeHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// Coerces first: a number (an exam duration, a count) has no .replace and used
+// to throw straight out of whatever was building the page.
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 function selectExamAnswer(qIdx,answer) {
   if(!currentExamSession) return;
@@ -26626,7 +26712,7 @@ async function mergeFromCloud() {
     // time must win. A cloud copy that is missing a session cannot erase it.
     if (Array.isArray(backupData.data.vcSessions)) {
       vcSessions = CESTISCore.vcSessions.mergeSessions(vcSessions, backupData.data.vcSessions);
-      try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
+      try { saveCollection('voctrain_vcSessions', vcSessions); } catch(e) {}
     }
 
     // Merge attendance records — add new AND update status if cloud has changes
@@ -27924,13 +28010,26 @@ async function mergeBackupData(backupData) {
     // time must win. A cloud copy that is missing a session cannot erase it.
     if (Array.isArray(backupData.data.vcSessions)) {
       vcSessions = CESTISCore.vcSessions.mergeSessions(vcSessions, backupData.data.vcSessions);
-      try { CESTISStore.setItem('voctrain_vcSessions', JSON.stringify(vcSessions)); } catch(e) {}
+      try { saveCollection('voctrain_vcSessions', vcSessions); } catch(e) {}
     }
 
     // Merge attendance records — add new AND update status with timestamp check
     if (backupData.data.attendanceRecords) {
+      /* Only rows belonging to the quarter currently on screen.
+
+         attendanceRecords holds ONE quarter — whichever the user last opened —
+         and saveState() mirrors that array straight back into that quarter's
+         bucket. The merge matched on trainee and date only, with no quarter
+         test, so opening a past register and letting one sync tick run appended
+         another device's CURRENT rows into it and saved them there. The old
+         quarter was contaminated permanently, and switching back did not undo
+         it. */
+      var _attQ = (typeof attnLoadedQuarter !== 'undefined' && attnLoadedQuarter)
+        ? attnLoadedQuarter
+        : (CESTISCore.getActiveQuarter ? CESTISCore.getActiveQuarter() : null);
       backupData.data.attendanceRecords.forEach(cloudRec => {
         if (_ds[cloudRec.studentId]) return;
+        if (_attQ && CESTISCore.recordInQuarter && !CESTISCore.recordInQuarter(cloudRec, _attQ.fy, _attQ.q)) return;
         var existing = attendanceRecords.find(function(a) { return a.studentId === cloudRec.studentId && a.date === cloudRec.date; });
         if (!existing) {
           attendanceRecords.push(cloudRec);
@@ -29445,14 +29544,26 @@ function cloudFetchAccountData(interactive) {
     Object.keys(cloudCertTemplates).forEach(function(key) {
       if (!certTemplates[key]) {
         certTemplates[key] = cloudCertTemplates[key];
-      } else {
-        // Merge fields but preserve any locally loaded images
-        var localBg1 = certTemplates[key].bgPage1;
-        var localBg2 = certTemplates[key].bgPage2;
-        certTemplates[key] = cloudCertTemplates[key];
-        if (localBg1) certTemplates[key].bgPage1 = localBg1;
-        if (localBg2) certTemplates[key].bgPage2 = localBg2;
+        return;
       }
+      /* The newer copy wins, rather than the cloud always winning.
+
+         This replaced the local template outright with no comparison at all, so
+         an administrator who had just repositioned the fields on a certificate
+         lost that work the moment anybody signed in: the older cloud copy
+         overwrote it in memory and the save that followed wrote it to storage
+         and queued it for upload. Only the background images survived, because
+         they were carried over by hand. Every other collection in this function
+         merges newest-wins; this one did not. */
+      var _lt = Date.parse((certTemplates[key] && (certTemplates[key].updatedAt || certTemplates[key].savedAt)) || '') || 0;
+      var _ct = Date.parse((cloudCertTemplates[key] && (cloudCertTemplates[key].updatedAt || cloudCertTemplates[key].savedAt)) || '') || 0;
+      if (_ct < _lt) return;   // this device holds the newer template — keep it
+      // Merge fields but preserve any locally loaded images
+      var localBg1 = certTemplates[key].bgPage1;
+      var localBg2 = certTemplates[key].bgPage2;
+      certTemplates[key] = cloudCertTemplates[key];
+      if (localBg1) certTemplates[key].bgPage1 = localBg1;
+      if (localBg2) certTemplates[key].bgPage2 = localBg2;
     });
 
     // Merge skill areas (training centres). Add-only meant an edited centre —
@@ -29566,17 +29677,27 @@ async function studentPushRegistration(newUserAccount) {
       return false;
     }
 
-    // Step 2: Download the existing backup
+    // Step 2: Download the existing backup, and note which version of the file
+    // this copy is. See the note by the upload below for why that matters.
     var fileId = searchData.files[0].id;
-    var downloadResp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
-      headers: { Authorization: 'Bearer ' + token }
-    });
-    if (!downloadResp.ok) {
+    async function _regReadBackup() {
+      var vr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      var ver = vr.ok ? String((await vr.json()).version || '') : '';
+      var dr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (!dr.ok) return null;
+      return { data: await dr.json(), version: ver };
+    }
+    var _regRead = await _regReadBackup();
+    if (!_regRead) {
       console.warn('[StudentPushReg] Could not download backup file');
       return false;
     }
-
-    var backupData = await downloadResp.json();
+    var backupData = _regRead.data;
+    var _regBaseVersion = _regRead.version;
 
     // Step 3: Merge the new account into the cloud backup data
     var cloudAccounts = backupData.userAccounts || (backupData.data && backupData.data.userAccounts) || [];
@@ -29604,25 +29725,63 @@ async function studentPushRegistration(newUserAccount) {
       backupData.timestamp = new Date().toISOString();
     }
 
-    // Step 4: Upload the updated backup back to ALL Drive folders
-    var jsonContent = JSON.stringify(backupData, stripSecretFields);
-    var blob = new Blob([jsonContent], { type: 'application/json' });
+    /* Step 4: Put it back — but only if nobody else wrote to the file first.
 
-    // Upload to main folder
-    var uploadResp = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media',
-      {
-        method: 'PATCH',
-        headers: {
-          'Authorization': 'Bearer ' + token,
-          'Content-Type': 'application/json'
-        },
-        body: blob
+       This reads the WHOLE shared backup, adds one account, and writes the whole
+       thing back. Without a check, anything another device saved between the
+       read and the write was silently reverted: an instructor entering the
+       week's results a few seconds earlier lost them, from the main file and
+       then from every folder copy, because the second loop below stamps this
+       same content over all of them. Nothing reported it, and the instructor's
+       own device had already marked its work as saved.
+
+       So: re-read the file's version immediately before writing. If it moved,
+       start again from the new content and re-apply the one account. */
+    var _regAttempts = 0;
+    var uploadResp = null;
+    while (_regAttempts < 4) {
+      _regAttempts++;
+      var _verResp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      var _nowVersion = _verResp.ok ? String((await _verResp.json()).version || '') : '';
+      if (_nowVersion && _regBaseVersion && _nowVersion !== _regBaseVersion) {
+        console.log('[StudentPushReg] The shared backup moved (v' + _regBaseVersion + ' \u2192 v' + _nowVersion +
+                    ') while this registration was being prepared — re-reading so nobody else\u2019s work is lost.');
+        var _again = await _regReadBackup();
+        if (!_again) { console.warn('[StudentPushReg] Could not re-read the backup'); return false; }
+        backupData = _again.data;
+        _regBaseVersion = _again.version;
+        isWrapped = !!backupData.data;
+        accountList = (isWrapped ? backupData.data.userAccounts : backupData.userAccounts) || [];
+        if (accountList.find(function (u) { return u.id === newUserAccount.id || u.email === newUserAccount.email; })) {
+          console.log('[StudentPushReg] Account is already in the cloud copy — nothing to add');
+          return true;
+        }
+        accountList.push(newUserAccount);
+        if (isWrapped) { backupData.data.userAccounts = accountList; backupData.timestamp = new Date().toISOString(); }
+        else { backupData.userAccounts = accountList; }
+        continue;   // check the version again before writing
       }
-    );
 
-    if (!uploadResp.ok) {
-      var errData = await uploadResp.json().catch(function() { return {}; });
+      var jsonContent = JSON.stringify(backupData, stripSecretFields);
+      var blob = new Blob([jsonContent], { type: 'application/json' });
+      uploadResp = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media',
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: blob
+        }
+      );
+      break;
+    }
+
+    if (!uploadResp || !uploadResp.ok) {
+      var errData = uploadResp ? await uploadResp.json().catch(function() { return {}; }) : {};
       console.warn('[StudentPushReg] Upload failed:', errData);
       return false;
     }
@@ -33907,26 +34066,32 @@ function renderAsResources(){
     + (instructorResources.length > 0 ? instructorResources.map(function(r){ return '<tr><td>'+(r.title||r.name||'Untitled')+'</td><td>'+(r.type||'File')+'</td><td>'+(r.course||'General')+'</td><td>'+(r.date||'N/A')+'</td></tr>'; }).join('') : '');
   tb.innerHTML=html;
 }
+/* Everything a person typed is escaped on its way into the page. A trainee
+   registers with their own full name, and an instructor writes announcement and
+   calendar text, so any of these can carry markup. Built by concatenation
+   without escaping, a name of the shape <img src=x onerror=...> RAN in the Admin
+   Staff session — verified in a browser before this was fixed. Every other
+   renderer in this file already escapes; these five had been missed. */
 function renderAsExams(){
   var tb=document.getElementById('asExamsBody'); if(!tb) return;
-  tb.innerHTML=exams.map(function(ex){ return '<tr><td>'+ex.title+'</td><td>'+ex.course+'</td><td>'+ex.date+'</td><td>'+ex.duration+' min</td><td><span class="badge '+(ex.status==='completed'?'badge-green':ex.status==='active'?'badge-red':'badge-blue')+'">'+ex.status.charAt(0).toUpperCase()+ex.status.slice(1)+'</span></td></tr>'; }).join('');
+  tb.innerHTML=exams.map(function(ex){ var st=String(ex.status||''); return '<tr><td>'+escapeHtml(ex.title)+'</td><td>'+escapeHtml(ex.course)+'</td><td>'+escapeHtml(ex.date)+'</td><td>'+escapeHtml(ex.duration)+' min</td><td><span class="badge '+(st==='completed'?'badge-green':st==='active'?'badge-red':'badge-blue')+'">'+escapeHtml(st.charAt(0).toUpperCase()+st.slice(1))+'</span></td></tr>'; }).join('');
 }
 function renderAsAttendance(){
   var tb=document.getElementById('asAttBody'); if(!tb) return;
-  tb.innerHTML=attendanceRecords.slice(0,40).map(function(a){ var days = a.days||{}; function badge(d){ var v=days[d]||'absent'; return '<span class="badge '+(v==='present'?'badge-green':v==='late'?'badge-amber':'badge-red')+'" style="font-size:10px;">'+v.charAt(0).toUpperCase()+v.slice(1)+'</span>'; } return '<tr><td>'+a.studentId+'</td><td>'+a.studentName+'</td><td>'+a.course+'</td><td>'+badge('Mon')+'</td><td>'+badge('Tue')+'</td><td>'+badge('Wed')+'</td><td>'+badge('Thu')+'</td><td>'+badge('Fri')+'</td></tr>'; }).join('');
+  tb.innerHTML=attendanceRecords.slice(0,40).map(function(a){ var days = a.days||{}; function badge(d){ var v=String(days[d]||'absent'); return '<span class="badge '+(v==='present'?'badge-green':v==='late'?'badge-amber':'badge-red')+'" style="font-size:10px;">'+escapeHtml(v.charAt(0).toUpperCase()+v.slice(1))+'</span>'; } return '<tr><td>'+escapeHtml(a.studentId)+'</td><td>'+escapeHtml(a.studentName)+'</td><td>'+escapeHtml(a.course)+'</td><td>'+badge('Mon')+'</td><td>'+badge('Tue')+'</td><td>'+badge('Wed')+'</td><td>'+badge('Thu')+'</td><td>'+badge('Fri')+'</td></tr>'; }).join('');
 }
 function renderAsAnnouncements(){
   var el=document.getElementById('asAnnouncementsList'); if(!el) return;
-  el.innerHTML=announcements.filter(function(a){ return !a.forRoles || a.forRoles.indexOf('adminstaff') !== -1 || a.forRoles.indexOf('admin') !== -1; }).map(function(a){ return '<div class="card" style="padding:16px;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>'+a.title+'</strong><span class="badge '+(a.priority==='urgent'?'badge-red':a.priority==='info'?'badge-blue':'badge-green')+'">'+a.priority+'</span></div><p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">'+a.body+'</p><div style="font-size:11px;color:var(--text-muted);">By '+a.author+' &bull; '+a.date+'</div></div>'; }).join('');
+  el.innerHTML=announcements.filter(function(a){ return !a.forRoles || a.forRoles.indexOf('adminstaff') !== -1 || a.forRoles.indexOf('admin') !== -1; }).map(function(a){ return '<div class="card" style="padding:16px;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>'+escapeHtml(a.title)+'</strong><span class="badge '+(a.priority==='urgent'?'badge-red':a.priority==='info'?'badge-blue':'badge-green')+'">'+escapeHtml(a.priority)+'</span></div><p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">'+escapeHtml(a.body)+'</p><div style="font-size:11px;color:var(--text-muted);">By '+escapeHtml(a.author)+' &bull; '+escapeHtml(a.date)+'</div></div>'; }).join('');
 }
 function renderAsCalendar(){
   var el=document.getElementById('asCalendarEvents'); if(!el) return;
-  el.innerHTML=calendarEvents.filter(function(e){ return !e.forRoles || e.forRoles.indexOf('adminstaff') !== -1 || e.forRoles.indexOf('admin') !== -1; }).sort(function(a,b){ return new Date(a.date) - new Date(b.date); }).map(function(e){ return '<div class="card" style="padding:14px;margin-bottom:10px;border-left:4px solid '+(e.color||'var(--accent)')+';"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong style="font-size:14px;">'+e.title+'</strong><div style="font-size:12px;color:var(--text-muted);">'+e.date+' at '+e.time+'</div></div><span class="badge badge-blue" style="font-size:10px;">'+(e.type||'event')+'</span></div></div>'; }).join('');
+  el.innerHTML=calendarEvents.filter(function(e){ return !e.forRoles || e.forRoles.indexOf('adminstaff') !== -1 || e.forRoles.indexOf('admin') !== -1; }).sort(function(a,b){ return new Date(a.date) - new Date(b.date); }).map(function(e){ return '<div class="card" style="padding:14px;margin-bottom:10px;border-left:4px solid '+escapeAttr(e.color||'var(--accent)')+';"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong style="font-size:14px;">'+escapeHtml(e.title)+'</strong><div style="font-size:12px;color:var(--text-muted);">'+escapeHtml(e.date)+' at '+escapeHtml(e.time)+'</div></div><span class="badge badge-blue" style="font-size:10px;">'+escapeHtml(e.type||'event')+'</span></div></div>'; }).join('');
 }
 function renderAsCertificates(){
   var tb=document.getElementById('asCertBody'); if(!tb) return;
   var certd=students.filter(function(st){ return st.stage==='certified'||st.stage==='collected'; });
-  tb.innerHTML=certd.map(function(st){ return '<tr><td>'+st.name+'</td><td>'+st.course+'</td><td><span class="badge '+(st.stage==='collected'?'badge-green':'badge-amber')+'">'+(stageLabels[st.stage]||st.stage)+'</span></td><td>'+(st.certNo||'Pending')+'</td><td>'+(st.certDate||'N/A')+'</td></tr>'; }).join('')
+  tb.innerHTML=certd.map(function(st){ return '<tr><td>'+escapeHtml(st.name)+'</td><td>'+escapeHtml(st.course)+'</td><td><span class="badge '+(st.stage==='collected'?'badge-green':'badge-amber')+'">'+escapeHtml(stageLabels[st.stage]||st.stage)+'</span></td><td>'+escapeHtml(st.certNo||'Pending')+'</td><td>'+escapeHtml(st.certDate||'N/A')+'</td></tr>'; }).join('')
     + (certd.length === 0 ? '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No certified students yet</td></tr>' : '');
 }
 
@@ -38765,6 +38930,10 @@ function saveCertTemplate() {
   if(bgPage2) { certImageSave(_certTplEditingCourse, 'bgPage2', bgPage2); certImageSaveToDrive(_certTplEditingCourse, 'bgPage2', bgPage2); }
 
   certTemplates[_certTplEditingCourse] = {
+    // Stamped so a sync can tell which copy is the newer one. Without it every
+    // merge simply took the cloud's, and an administrator's layout work was
+    // overwritten by an older copy the moment anybody signed in.
+    updatedAt: new Date().toISOString(),
     courseFullName: document.getElementById('ctplCourseFullName').value.trim(),
     courseType: document.getElementById('ctplCourseType').value || 'Short Course',
     programmeCode: document.getElementById('ctplProgrammeCode').value.trim(),

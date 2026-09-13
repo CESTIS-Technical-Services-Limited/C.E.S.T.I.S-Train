@@ -109,11 +109,35 @@
       // immediately after an iframe reports a change is synchronous.
       getItem: function (k) {
         k = String(k);
+        // When localStorage is full its write throws and the PREVIOUS value is
+        // left sitting there untouched. This read trusts any non-null answer
+        // from localStorage, so from that moment on every read returned the
+        // STALE copy while the data the user had just entered sat unreachable
+        // in IndexedDB — and the next save wrote the stale copy back over the
+        // good one and uploaded it. Dropping the stale entry on a failed write
+        // (see setItem below) is what makes this read safe.
         if (LS) { try { var lv = LS.getItem(k); if (lv !== null) { cache[k] = lv; return lv; } } catch (e) {} }
         return (k in cache) ? cache[k] : null;
       },
-      setItem: function (k, v) { k = String(k); v = String(v); cache[k] = v; try { if (LS) LS.setItem(k, v); } catch (e) {} writeIDB(k, v, false); },
-      removeItem: function (k) { k = String(k); delete cache[k]; try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
+      // `writes` counts every mutation made through this store. It lets the
+      // periodic cloud save ask "has anything changed since my last upload?"
+      // for the price of an integer compare, instead of re-serialising the
+      // whole dataset every tick to find out the answer is no.
+      writes: 0,
+      setItem: function (k, v) {
+        k = String(k); v = String(v); Store.writes++; cache[k] = v;
+        // A failed localStorage write leaves the OLD value in place. Left there,
+        // it out-votes the truth on every later read (see getItem above), so the
+        // stale entry is removed and the read falls through to the cache and
+        // IndexedDB, which both hold what was actually written.
+        try { if (LS) LS.setItem(k, v); }
+        catch (e) {
+          try { if (LS) LS.removeItem(k); } catch (e2) {}
+          reportWriteFailure(k, e);
+        }
+        writeIDB(k, v, false);
+      },
+      removeItem: function (k) { k = String(k); Store.writes++; delete cache[k]; try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
       clear: function () {
         for (var k in cache) { if (Object.prototype.hasOwnProperty.call(cache, k)) delete cache[k]; }
         try { if (LS) LS.clear(); } catch (e) {}
@@ -203,31 +227,50 @@
   Core.normName = function (s) { return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' '); };
   Core.normCourse = function (s) { return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' '); };
 
+  /* Are these two the same person's name?
+
+     One rule, everywhere. It used to be decided in each place that asked, and
+     the versions disagreed: the launch collapse compared normName (case folded
+     AND every run of whitespace folded to one space), while the account
+     reconciler compared `.toLowerCase().trim()`, which leaves a double space
+     inside a name intact. So "Yanique  Samuels" on an imported account and
+     "Yanique Samuels" on the roll were the same person to one pass and two
+     people to the other: the collapse merged them on every launch and the
+     reconciler minted the second one straight back, and the roll — and every
+     count drawn from it — settled at double.
+
+     Anything comparing names for identity must come through here. */
+  Core.sameName = function (a, b) {
+    var x = Core.normName(a), y = Core.normName(b);
+    return !!x && x === y;
+  };
+
   /* The natural key is the person plus the programme they are on — but the
      programme taken WITHOUT its intake key, exactly as dedupeStudents groups
-     them (Core.programmeIdentity).
+     them (Core.programmeIdentity below).
 
      It used to be the raw course string, and that quietly minted duplicates.
      The id is a hash of this key, so anything that rewrites the course text
-     MOVES a trainee's id — and the dashboard rewrites it on every load, both
-     when it realigns the programme text to the stamped intake and when a
-     transfer writes the keyed label "01. Welding & Fabrication". The snapshot
-     reconcile then unions records BY ID, found two, and kept both: one trainee,
-     listed twice. Stripping the key is what makes the id survive that, and it
-     also settles a disagreement inside this file — dedupeStudents already read
-     the two spellings as one person while the id generator read them as two, so
-     the dedup merged them and the id generator split them apart again on the
-     next load, for ever. */
+     MOVES a trainee's id — and two things rewrite it on every single load:
+     alignProgrammeTextToIntake(), which sets s.course to the centre's name, and
+     the transfer, which writes the keyed label "01. Welding & Fabrication".
+     So the same person was 'STU-p7al0hg27' before the text was realigned and
+     'STU-1i5e0bi81mr' after it. The snapshot reconcile unions records BY ID,
+     found two ids, and kept both: one trainee, listed twice.
+
+     Stripping the key is what makes the id survive that. It also removes a
+     disagreement inside this file — dedupeStudents already considered
+     'Welding & Fabrication' and '01. Welding & Fabrication' the same person,
+     while the id generator considered them two, so the dedup merged them and
+     the id generator split them straight back apart on the next load. That
+     loop is the "fixes it, then duplicates it again". */
   Core.naturalKey = function (student) {
     if (!student) return '';
     var n = Core.normName(student.name);
     if (!n) return ''; // no usable identity — caller should keep the existing id
     var c;
-    try {
-      // '01. Welding & Fabrication' -> 'welding & fabrication', so the intake
-      // key written into the text cannot move the person's id.
-      c = Core.normCourse(Core.enrolment.parseCentreLabel(student.course).name);
-    } catch (e) { c = Core.normCourse(student.course); }
+    try { c = Core.programmeIdentity(student, 'course').bare; }
+    catch (e) { c = Core.normCourse(student.course); }
     return n + '|' + c;
   };
 
@@ -261,7 +304,18 @@
   function sameTwinIdentity(name, course, fee) {
     if (!name || !fee) return false;
     if (Core.normName(name) !== Core.normName(fee.name)) return false;
-    var c = Core.normCourse(course), fc = Core.normCourse(fee.skillArea || fee.course);
+    // Programmes are compared the way training centres are told apart: by the
+    // intake key when both sides state one, and by the key-stripped bare name
+    // otherwise. Comparing the raw strings meant 'Electrical Installation' and
+    // '02. Electrical Installation' read as different programmes, so the same
+    // person failed the twin test and the mirrors minted a duplicate of them —
+    // while two records keyed to DIFFERENT intakes of one programme are two
+    // records and must never link.
+    var E = Core.enrolment;
+    var a = E ? E.parseCentreLabel(course) : { key: '', name: course };
+    var b = E ? E.parseCentreLabel(fee.skillArea || fee.course) : { key: '', name: fee.skillArea || fee.course };
+    if (a.key && b.key && a.key !== b.key) return false;
+    var c = Core.normCourse(a.name), fc = Core.normCourse(b.name);
     return !c || !fc || c === fc;
   }
   function hasId(v) { return v != null && v !== ''; }
@@ -281,6 +335,95 @@
     // before this edit.
     return sameTwinIdentity(student.name, student.course, fee) ||
            sameTwinIdentity(was.name, ('course' in was ? was.course : student.course), fee);
+  };
+
+  /* Core.twinIndex(students) — find a fee record's twin without scanning.
+
+     Mirroring the School Fee roll onto the dashboard asked, for every fee
+     record, "is any of these students their twin?" — a scan of the WHOLE
+     roster, normalising two names on each comparison. Two rolls of a thousand
+     is two million normalising comparisons, and the dashboard ran it on every
+     keystroke in the student search box. That is what pinned the main thread.
+
+     This indexes the roster once by every link isFeeTwin() tests, so each fee
+     record is a handful of map lookups.
+
+       idx = Core.twinIndex(students)
+       idx.find(fee)        -> the same student students.find(s => isFeeTwin(s, fee)) would
+       idx.findByName(name) -> the first student of that name, under any programme
+       idx.add(student)     -> keep the index current when one is pushed
+
+     find() resolves ties by ROSTER ORDER, not by which kind of link matched, so
+     it returns exactly what the scan it replaces returned. */
+  Core.twinIndex = function (students) {
+    var list = Array.isArray(students) ? students : [];
+    var byId = new Map(), bySchoolFeeId = new Map(), byName = new Map();
+
+    function putFirst(map, key, i) {
+      if (key == null || key === '') return;
+      var k = String(key);
+      if (!map.has(k)) map.set(k, i);        // first occurrence wins, as .find() does
+    }
+    function index(s, i) {
+      if (!s) return;
+      putFirst(byId, s.id, i);
+      putFirst(bySchoolFeeId, s.schoolFeeId, i);
+      var n = Core.normName(s.name);
+      if (!n) return;
+      if (!byName.has(n)) byName.set(n, []);
+      byName.get(n).push(i);                 // pushed in ascending roster order
+    }
+    for (var i = 0; i < list.length; i++) index(list[i], i);
+
+    function nameCandidates(name) {
+      var n = Core.normName(name);
+      return n ? (byName.get(n) || null) : null;
+    }
+
+    function find(fee) {
+      if (!fee) return null;
+      var best = -1;
+      var consider = function (at) { if (at != null && at >= 0 && (best < 0 || at < best)) best = at; };
+
+      if (hasId(fee.lmsId)) consider(byId.get(String(fee.lmsId)));
+      if (hasId(fee.id)) {
+        consider(byId.get(String(fee.id)));
+        consider(byId.get('SF-' + fee.id));   // the fee page's mirrored twin id
+        consider(bySchoolFeeId.get(String(fee.id)));
+      }
+      // Never-linked pairs: same name, and a programme that does not contradict.
+      var cand = nameCandidates(fee.name);
+      if (cand) {
+        for (var j = 0; j < cand.length; j++) {
+          var s = list[cand[j]];
+          if (s && sameTwinIdentity(s.name, s.course, fee)) { consider(cand[j]); break; }
+        }
+      }
+      return best >= 0 ? list[best] : null;
+    }
+
+    /* The same person under ANY programme — lmsMirrorTarget's second pass.
+
+       A record with no name matches nothing. The scan this replaces compared
+       normalised names with ===, so two NAMELESS records came out equal and it
+       reported them as the same person — something find() itself always refused
+       (sameTwinIdentity rejects an empty name outright). Both callers already
+       return 'skip' before reaching here when the name is empty, so this only
+       makes the two halves agree; it cannot change an answer the app asks for. */
+    function findByName(name) {
+      var cand = nameCandidates(name);
+      return (cand && cand.length) ? list[cand[0]] : null;
+    }
+
+    function add(student) {
+      if (!student) return;
+      // Tolerates being called either INSTEAD OF a push onto the same array or
+      // just AFTER one, so a caller cannot accidentally add the student twice.
+      if (list[list.length - 1] !== student) list.push(student);
+      index(student, list.length - 1);
+    }
+
+    return { find: find, findByName: findByName, add: add, get size() { return list.length; } };
   };
 
   /* --- Edit recency -------------------------------------------------------
@@ -398,20 +541,44 @@
     // Already on the dashboard? A linked id or the same name+programme first,
     // then the same person under any programme at all — being the same person
     // is enough to leave them exactly where the Centre put them.
+    //
+    // Both questions are answered from opts.twinIndex when the caller supplies
+    // one (see Core.twinIndex). Mirroring a whole roll used to run these two
+    // scans for EVERY fee record, which is what made the dashboard crawl.
+    var idx = opts.twinIndex || null;
     var match = null, i;
-    for (i = 0; i < list.length; i++) {
-      if (list[i] && Core.isFeeTwin(list[i], fee)) { match = list[i]; break; }
+    if (idx) {
+      match = idx.find(fee);
+    } else {
+      for (i = 0; i < list.length; i++) {
+        if (list[i] && Core.isFeeTwin(list[i], fee)) { match = list[i]; break; }
+      }
     }
     if (match) {
       return { action: 'link', match: match, course: match.course || '',
         centreCourse: centreCourse, reason: 'twin' };
     }
-    var want = Core.normName(fee.name);
-    for (i = 0; i < list.length; i++) {
-      if (list[i] && Core.normName(list[i].name) === want) {
-        return { action: 'link', match: list[i], course: list[i].course || '',
-          centreCourse: centreCourse, reason: 'already-enrolled-elsewhere' };
+    /* The same person under ANY programme — and deliberately so, unlike
+       feeMirrorTarget pointing the other way, which now requires the programmes
+       to agree before it links.
+
+       The asymmetry is the point. The Centre's roster belongs to the dashboard:
+       the fee page may price any programme it likes, but it may not enrol
+       anybody, so a fee record naming a programme this person is not on must
+       still find them rather than mint a second dashboard record on a programme
+       nobody put them on. Pointing the other way the dashboard IS the authority,
+       so a second enrolment it holds has to reach the fee roll and be priced —
+       which is why only that direction tests the programme. */
+    var byName = idx ? idx.findByName(fee.name) : null;
+    if (!idx) {
+      var want = Core.normName(fee.name);
+      for (i = 0; i < list.length; i++) {
+        if (list[i] && Core.normName(list[i].name) === want) { byName = list[i]; break; }
       }
+    }
+    if (byName) {
+      return { action: 'link', match: byName, course: byName.course || '',
+        centreCourse: centreCourse, reason: 'already-enrolled-elsewhere' };
     }
 
     // Nobody there yet: the programme has to be one the Centre actually runs.
@@ -427,7 +594,12 @@
     'dob', 'enrollDate', 'completionDate', 'nqfLevel', 'notes', 'gender',
     // Cross-system link fields — must survive a merge so the School-Fee <-> LMS
     // link is not lost when a fee-linked record and a manual record collapse.
-    'schoolFeeId', 'source'];
+    'schoolFeeId', 'source',
+    // The administrator's "keep separate" marker. It must survive every merge
+    // and every sync: if it were dropped, the record it protects would be
+    // collapsed into its namesake on the very next launch — the one outcome an
+    // admin set it to prevent.
+    'keepSeparate'];
 
   Core.mergeStudentRecords = function (a, b) {
     var aMod = a && a.lastModified ? new Date(a.lastModified).getTime() : 0;
@@ -460,39 +632,365 @@
     return base;
   };
 
+  /* --- Which centre does a record's programme point at, for IDENTITY? ------
+     Training centres are distinct things told apart by their key — '01', '02',
+     '03' — even when they share a programme name. A record names its centre
+     three possible ways: an explicit centreKey stamp (what a transfer writes),
+     a key written into the programme name itself ('02. Electrical
+     Installation'), or a bare legacy spelling ('Electrical Installation').
+
+     Returns { key, bare }: the key when the record states one (stamp first,
+     then the written label), and the key-stripped, normalised programme name.
+     Comparing on THIS instead of the raw course string is what stops one
+     person from existing twice — once under each spelling — and what stops two
+     different intakes from ever being folded into one. */
+  Core.programmeIdentity = function (rec, courseField) {
+    var out = { key: '', bare: '' };
+    if (!rec) return out;
+    var E = Core.enrolment;
+    var written = rec[courseField || 'course'];
+    if (written == null || written === '') written = rec.course != null ? rec.course : rec.skillArea;
+    var parsed = E ? E.parseCentreLabel(written) : { key: '', name: String(written == null ? '' : written) };
+    out.bare = Core.normCourse(parsed.name);
+    if (rec.centreKey != null && String(rec.centreKey).trim() !== '' && E) {
+      out.key = E.centreKeyOf({ centreKey: rec.centreKey });
+    } else {
+      out.key = parsed.key || '';
+    }
+    return out;
+  };
+
+  /* --- One person, one record PER ENROLMENT ------------------------------
+
+     Two trainee records carrying the same exact name and naming the same
+     enrolment are the same record, and one of them must go — whatever ids they
+     were given and however each spells the programme. That is what left
+     "Omarion Blake" listed once under "Welding & Fabrication" and again under
+     "WELDING L2" with a second machine-generated id: two spellings of one
+     enrolment, which the centre-identity dedup below reads as two because it
+     groups on the programme string.
+
+     What it must NOT do is collapse a name across two genuinely different
+     programmes. Doing that read the whole roll as one record per name: the
+     Centre runs the same subject at Level 2 and Level 3, a trainee who
+     progressed from one to the other holds two enrolments with their own
+     tuition, attendance and certificate, and among 400-odd trainees plenty of
+     real people share a name. The roll opened at 447, the collapse cut it to
+     220, and the School Fee page — which prices per enrolment — could then only
+     see and bill the survivors. Core.enrolment.programmesAgree decides: two
+     records join only when nothing about their programmes contradicts.
+
+     Which record survives is decided by evidence, not by array order
+     (studentRecordScore): the one that has actually been used — progress
+     recorded, a stage set, a certificate, an explicit link to a School Fee
+     record or a login — wins, and every field the loser held that the winner
+     lacks is carried across. So the surviving record is never poorer than
+     either of the two.
+
+     Returns { students, removed, idMap }; idMap maps every discarded id to the
+     survivor so attendance, payments, exam results and accounts follow it.
+
+     `keepSeparate` remains the administrator's override for the case the
+     programmes cannot settle: two real people of one name on the SAME
+     programme. A record carrying it is exempt — it never absorbs another and is
+     never absorbed, here or in the centre-identity dedup. Mark ONE of the two
+     and they stay two records; unmarked namesakes still collapse among
+     themselves as usual. The marker travels with the record through every merge
+     and sync (MERGE_FIELDS above), because a marker that could be lost would
+     protect nothing. */
+
+  // True when an administrator has pinned this record as its own person.
+  Core.isKeptSeparate = function (s) {
+    return !!(s && (s.keepSeparate === true || s.keepSeparate === 'true'));
+  };
+
+  // How much real use does this record show? Higher wins.
+  Core.studentRecordScore = function (s) {
+    if (!s) return -1;
+    var score = 0;
+    var stage = String(s.stage || '').toLowerCase();
+    if (stage === 'collected') score += 60;
+    else if (stage === 'certified') score += 50;
+    else if (stage === 'nyc' || stage === 'incomplete') score += 20;
+    else if (stage === 'training') score += 30;
+    else if (stage === 'interview') score += 15;
+    else if (stage) score += 5;                       // 'testing' and anything else
+    if (s.certNo) score += 40;
+    if (s.certCollected) score += 10;
+    var prog = parseFloat(s.progress) || 0;
+    if (prog > 0) score += Math.min(25, Math.round(prog / 4));
+    if (s.schoolFeeId) score += 12;                   // linked to a fee record
+    if (s.lmsId) score += 6;
+    var att = parseFloat(s.attendance) || 0;
+    if (att > 0) score += 6;
+    if (parseFloat(s.gpa) > 0) score += 4;
+    if (s.score !== undefined && s.score !== null && s.score !== '') score += 4;
+    // Contact/personal detail somebody took the trouble to enter.
+    ['email', 'phone', 'dob', 'address', 'trn', 'gender', 'instructor'].forEach(function (f) {
+      if (s[f] !== undefined && s[f] !== null && s[f] !== '') score += 2;
+    });
+    // A stamped centre beats an unstamped one; a named programme beats a blank.
+    if (s.centreKey != null && String(s.centreKey).trim() !== '') score += 5;
+    if (s.course || s.skillArea) score += 3;
+    return score;
+  };
+
+  Core.collapseSameNameStudents = function (input, opts) {
+    opts = opts || {};
+    var courseField = opts.courseField || 'course';
+    var list = Array.isArray(input) ? input : [];
+    var idMap = {};
+    // normalised name -> the enrolments found for that person, each
+    // { rec, courses[] }. One person can hold several: WELDING L2 and WELDING L3
+    // are two, 'Welding & Fabrication' and 'WELDING L2' are one written twice.
+    var slots = {};
+
+    // The programme a record names, wherever this roll keeps it. The fee roll
+    // calls it skillArea and the dashboard course; a record that carries both
+    // (a mirrored twin) is asked for this roll's field first.
+    function courseOf(s) {
+      var v = s ? s[courseField] : '';
+      if (v == null || v === '') v = (s && s.course != null && s.course !== '') ? s.course : (s ? s.skillArea : '');
+      return v == null ? '' : v;
+    }
+
+    // Two written programmes that could be one enrolment. Falls back to a plain
+    // comparison if the enrolment module is not loaded, which is stricter than
+    // the old behaviour rather than looser — it can only keep a record.
+    function agree(a, b) {
+      var E = Core.enrolment;
+      if (E && typeof E.programmesAgree === 'function') {
+        try { return E.programmesAgree(a, b); } catch (e) { /* fall through */ }
+      }
+      var x = Core.normCourse(a), y = Core.normCourse(b);
+      return !x || !y || x === y;
+    }
+
+    // Does this written programme name its NVQ level?
+    function programmeStatesLevel(written) {
+      var E = Core.enrolment;
+      if (!written || !E || typeof E.programmeLevel !== 'function') return false;
+      try { return !!E.programmeLevel(written); } catch (e) { return false; }
+    }
+
+    /* The enrolment slot a record belongs in, created if it is the first of its
+       kind. A record joins a slot only when it agrees with EVERY programme
+       already filed there — not just with the survivor. Checking the survivor
+       alone let a vague spelling act as a bridge: 'Welding & Fabrication' agrees
+       with both 'WELDING L2' and 'WELDING L3', so once it was the survivor's
+       programme the Level 3 enrolment folded in behind the Level 2 one. */
+    function slotFor(s) {
+      var n = Core.normName(s.name);
+      var bucket = slots[n] || (slots[n] = []);
+      var written = courseOf(s);
+      for (var i = 0; i < bucket.length; i++) {
+        var fits = true;
+        for (var j = 0; j < bucket[i].courses.length; j++) {
+          if (!agree(bucket[i].courses[j], written)) { fits = false; break; }
+        }
+        if (fits) { bucket[i].courses.push(written); return bucket[i]; }
+      }
+      var made = { rec: s, courses: [written] };
+      bucket.push(made);
+      return made;
+    }
+
+    // Merge `loser` into `winner`, keeping the winner's identity but never
+    // losing a value only the loser held.
+    function absorb(winner, loser) {
+      // Read both programmes BEFORE the backfill below: that loop copies the
+      // loser's centreKey onto a winner that has none, which would make the
+      // winner look keyed and hide the fact that its programme name is the
+      // vaguer of the two.
+      var wi = null, li = null;
+      var wc = courseOf(winner), lc = courseOf(loser);
+      try {
+        wi = Core.programmeIdentity(winner, courseField);
+        li = Core.programmeIdentity(loser, courseField);
+      } catch (e) {}
+      Object.keys(loser).forEach(function (k) {
+        var have = winner[k];
+        if (have === undefined || have === null || have === '') {
+          var v = loser[k];
+          if (v !== undefined && v !== null && v !== '') winner[k] = v;
+        }
+      });
+      // A certificate number is never lost in a merge: the loser's, when it
+      // differs from the winner's, rides along as an alias (as
+      // mergeStudentRecords does), so a certificate printed under it still
+      // verifies as this person.
+      var normNo = function (n) { return String(n == null ? '' : n).toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+      (Array.isArray(loser.certNoAliases) ? loser.certNoAliases : []).concat(loser.certNo ? [loser.certNo] : []).forEach(function (n) {
+        var k = normNo(n);
+        if (!k || k === normNo(winner.certNo)) return;
+        if (!Array.isArray(winner.certNoAliases)) winner.certNoAliases = [];
+        if (!winner.certNoAliases.some(function (x) { return normNo(x) === k; })) winner.certNoAliases.push(String(n).trim());
+      });
+      // Numeric progress: keep the higher of the two, since 0 is a real value
+      // that the blank-backfill above would have kept.
+      var wp = parseFloat(winner.progress) || 0, lp = parseFloat(loser.progress) || 0;
+      if (lp > wp) winner.progress = loser.progress;
+      var wa = parseFloat(winner.attendance) || 0, la = parseFloat(loser.attendance) || 0;
+      if (la > wa) winner.attendance = loser.attendance;
+      // The programme: keep whichever spelling says most about WHICH enrolment
+      // this is — the intake key first ("02. Welding …" over "Welding &
+      // Fabrication"), then the NVQ level ("WELDING L2" over the bare name).
+      //
+      // The level half is not cosmetic. A survivor that dropped back to the
+      // vague spelling agreed with the trainee's OTHER level too, so the pass
+      // after this one folded two real enrolments into one — the collapse was
+      // not idempotent and lost a record on every launch.
+      if (wi && li && !wi.key && li.key && lc) {
+        winner[courseField] = lc;
+      } else if (lc && !programmeStatesLevel(wc) && programmeStatesLevel(lc)) {
+        winner[courseField] = lc;
+      }
+      return winner;
+    }
+
+    // Which slot each record went into, so the rebuild below emits exactly the
+    // grouping this pass decided rather than working it out a second time.
+    var slotAt = [];
+
+    list.forEach(function (s, at) {
+      if (!s) return;
+      if (Core.isKeptSeparate(s)) return;              // the admin pinned this one
+      if (!Core.normName(s.name)) return;              // nameless records are left alone
+      var slot = slotFor(s);
+      slotAt[at] = slot;
+      if (slot.rec === s) return;                      // first of its enrolment
+      var prev = slot.rec;
+      var keepPrev = Core.studentRecordScore(prev) >= Core.studentRecordScore(s);
+      var winner = keepPrev ? prev : s;
+      var loser = keepPrev ? s : prev;
+      slot.rec = absorb(winner, loser);
+      if (loser.id != null && loser.id !== slot.rec.id) idMap[loser.id] = slot.rec.id;
+      // A chain of merges can move the survivor; re-point anything already
+      // mapped at the record that just lost, so no id is left dangling.
+      Object.keys(idMap).forEach(function (k) {
+        if (idMap[k] === loser.id) idMap[k] = slot.rec.id;
+      });
+    });
+
+    // Rebuild in first-encounter order, one record per enrolment, passing
+    // through anything with no usable name exactly as it was.
+    var emitted = [], out = [];
+    list.forEach(function (s, at) {
+      if (!s) { out.push(s); return; }
+      if (Core.isKeptSeparate(s)) { out.push(s); return; }   // stands on its own
+      var slot = slotAt[at];
+      if (!slot) { out.push(s); return; }                    // nameless
+      if (emitted.indexOf(slot) !== -1) return;
+      emitted.push(slot);
+      out.push(slot.rec);
+    });
+
+    return { students: out, removed: list.length - out.length, idMap: idMap };
+  };
+
   /* --- De-duplicate a student array (pure) -------------------------------
      Returns { students, removed, idMap } where idMap[oldId] = keptId for every
      removed duplicate. Records with no usable natural key are passed through
-     untouched (same behaviour the app has always had). */
-  Core.dedupeStudents = function (input) {
+     untouched.
+
+     Identity is the NAME plus the CENTRE the record points at — compared
+     through programmeIdentity, not the raw course string. The raw comparison
+     is what filled the enrolment registers with every trainee twice: the same
+     person written once as 'Electrical Installation' and once as
+     '02. Electrical Installation' read as two different people, survived every
+     dedup, and was then faithfully listed twice on every page.
+
+     Within one name + one bare programme:
+       - records whose explicit keys AGREE (or that state no key) are the same
+         person and merge;
+       - records whose explicit keys DIFFER are two intakes' records and are
+         NEVER merged — the keys exist precisely so that two centres sharing a
+         name stay two centres;
+       - a record with no key at all merges into the lowest-keyed group, so the
+         legacy spelling joins its keyed twin instead of standing beside it.
+
+     opts.courseField — 'course' (LMS, default) or 'skillArea' (School Fee). */
+  Core.dedupeStudents = function (input, opts) {
+    opts = opts || {};
+    var courseField = opts.courseField || 'course';
     var list = Array.isArray(input) ? input : [];
-    var seen = {};    // key -> kept record
     var idMap = {};   // oldId -> keptId
 
+    // Group by person + bare programme; partition each group by explicit key.
+    var groups = {};  // name|bare -> { keys: {key -> kept}, unkeyed: kept|null }
+    function groupOf(s) {
+      // A record the administrator pinned as its own person is exempt from
+      // every dedup, this one included.
+      if (Core.isKeptSeparate(s)) return null;
+      var n = Core.normName(s.name);
+      if (!n) return null;
+      var pid = Core.programmeIdentity(s, courseField);
+      var gk = n + '|' + pid.bare;
+      if (!groups[gk]) groups[gk] = { keys: {}, keyList: [], unkeyed: null };
+      return { g: groups[gk], key: pid.key };
+    }
+    // The centre stamps and the keyed spelling must survive the merge whichever
+    // record is newer, or the merged person would drop back to the bare name
+    // and split again on the next pass.
+    var STAMP_FIELDS = ['centreKey', 'centreId', 'centreName', 'courseStart', 'courseEnd', 'fiscalYear'];
+    function mergeKeeping(a, b, key) {
+      var keyed = null;
+      var aPid = Core.programmeIdentity(a, courseField), bPid = Core.programmeIdentity(b, courseField);
+      if (aPid.key) keyed = a; else if (bPid.key) keyed = b;
+      var kept = Core.mergeStudentRecords(a, b);
+      if (keyed && keyed[courseField]) kept[courseField] = keyed[courseField];
+      if (keyed) STAMP_FIELDS.forEach(function (f) {
+        if (keyed[f] !== undefined && keyed[f] !== null && keyed[f] !== '') kept[f] = keyed[f];
+      });
+      void key;
+      return kept;
+    }
+    function absorb(slot, s) {
+      var prev = slot.rec;
+      slot.rec = mergeKeeping(prev, s, slot.key);
+      if (slot.rec.id !== prev.id) idMap[prev.id] = slot.rec.id;
+      if (slot.rec.id !== s.id) idMap[s.id] = slot.rec.id;
+    }
+
     list.forEach(function (s) {
-      var key = Core.naturalKey(s);
-      if (!key) return;
-      if (seen[key]) {
-        var prev = seen[key];
-        seen[key] = Core.mergeStudentRecords(prev, s);
-        if (seen[key].id !== prev.id) idMap[prev.id] = seen[key].id;
-        if (seen[key].id !== s.id) idMap[s.id] = seen[key].id;
+      if (!s) return;
+      var at = groupOf(s);
+      if (!at) return;
+      if (at.key) {
+        if (!at.g.keys[at.key]) { at.g.keys[at.key] = { key: at.key, rec: s }; at.g.keyList.push(at.key); }
+        else absorb(at.g.keys[at.key], s);
       } else {
-        seen[key] = s;
+        if (!at.g.unkeyed) at.g.unkeyed = { key: '', rec: s };
+        else absorb(at.g.unkeyed, s);
       }
     });
 
-    var added = {}, deduped = [];
+    // Fold each group's unkeyed record into its keyed twin. With several keyed
+    // intakes present the LOWEST key takes it — deterministic, and the earliest
+    // intake is where an unstamped legacy record actually came from.
+    Object.keys(groups).forEach(function (gk) {
+      var g = groups[gk];
+      if (!g.unkeyed || !g.keyList.length) return;
+      var lowest = g.keyList.slice().sort()[0];
+      var slot = g.keys[lowest];
+      absorb(slot, g.unkeyed.rec);
+      g.unkeyed = null;
+    });
+
+    // Rebuild in first-encounter order, one record per surviving slot.
+    var emitted = {}, deduped = [];
     list.forEach(function (s) {
-      var key = Core.naturalKey(s);
-      if (!key) { deduped.push(s); return; }
-      if (!added[key]) {
-        added[key] = true;
-        deduped.push(seen[key]);
-        if (s.id !== seen[key].id) idMap[s.id] = seen[key].id;
-      } else {
-        if (s.id !== seen[key].id) idMap[s.id] = seen[key].id;
+      if (!s) { deduped.push(s); return; }
+      var at = groupOf(s);
+      if (!at) { deduped.push(s); return; }
+      var slot = at.key ? at.g.keys[at.key] : (at.g.unkeyed || at.g.keys[at.g.keyList.slice().sort()[0]]);
+      if (!slot) { deduped.push(s); return; }
+      var mark = Core.normName(s.name) + '|' + Core.programmeIdentity(s, courseField).bare + '|' + slot.key;
+      if (!emitted[mark]) {
+        emitted[mark] = true;
+        deduped.push(slot.rec);
       }
+      if (s.id !== slot.rec.id) idMap[s.id] = slot.rec.id;
     });
 
     return { students: deduped, removed: list.length - deduped.length, idMap: idMap };
@@ -617,14 +1115,14 @@
 
     survivors.forEach(function (s) {
       // A record the administrator pinned as its own person keeps the id it
-      // has. The stable id comes from name + programme, so two REAL people of
-      // one name on one programme — exactly what pinning is for — were handed
-      // the SAME id here: their attendance and results ran together, deleting
-      // one tombstoned both, and the next sync that added anything replaced one
-      // of them with a copy of the other. (This build predates the pinning
-      // feature, so the check is guarded; it takes effect if the flag arrives.)
-      if (typeof Core.isKeptSeparate === 'function' &&
-          Core.isKeptSeparate(s) && s.id != null && String(s.id) !== '') return;
+      // has. The stable id is derived from name + programme, so two REAL
+      // people of one name on one programme — exactly what keepSeparate is
+      // for — were handed the same id here. Both records survived every dedup,
+      // as they are meant to, and then shared an identity: their attendance and
+      // results ran together, deleting one tombstoned both, and the next sync
+      // that added anything replaced one of them with a copy of the other. The
+      // id they already carry is unique on this device and must not move.
+      if (Core.isKeptSeparate(s) && s.id != null && String(s.id) !== '') return;
       var newId = Core.stableStudentId(s);
       if (!newId) return; // no natural key — leave id alone
       if (s.id !== newId) {
@@ -927,12 +1425,26 @@
       var isStudents = (key === 'voctrain_students');
       var snapArr = Core._parseArr(snapStore[key]);
       var locArr = Core._parseArr(localStoreMap[key]);
+
       /* Start from what this device holds, RECORD BY RECORD, and add only what
-         the snapshot has that it does not. Rebuilding the list out of an
-         id->record map dropped every record with NO id, and filed two records
-         SHARING an id over one another so the list then took that one record
-         twice — one real person, or one real payment, replaced by a copy of
-         another. It applies to every collection here, not just students. */
+         the snapshot has that it does not.
+
+         This used to rebuild the list out of an id->record map: every local
+         record was filed under its id and the list re-derived from those ids.
+         Two kinds of record did not survive the round trip, and both are
+         ordinary:
+
+           - a record with NO id was never filed, so it vanished from the
+             rebuilt list — silently, on any reconcile that changed anything.
+             It applies to every collection here, so an unidentified attendance
+             row, exam result, fee record or payment was dropped just the same.
+           - two records SHARING an id filed the second over the first, and the
+             list then took that one record twice. One real person, or one real
+             payment, was replaced by a copy of another.
+
+         Keeping the local array as the spine fixes both: nothing this device
+         holds is dropped for want of an id, and nothing is duplicated for
+         sharing one. */
       var byId = {};
       var merged = [];
       locArr.forEach(function (r) {
@@ -961,20 +1473,35 @@
         // still pointed at a student id the dedupe had just removed.
         if (dr.idMap) { for (var _im in dr.idMap) { if (Object.prototype.hasOwnProperty.call(dr.idMap, _im)) studentIdMap[_im] = dr.idMap[_im]; } }
 
-        /* Then the Centre's own rule: one person, one record.
+        /* Then the same rule the launch applies: one record per enrolment.
 
-           Without this a correction made at launch was undone by the very next
-           sync. The launch collapses two records of one person by NAME alone;
-           removing a record leaves no trace, so this union added it straight
-           back from the snapshot, and the dedupe above did not catch it because
-           it groups on name AND programme. The roll read 447 on opening, fell
-           to 220 once the launch collapse ran, and was back at 447 after the
-           next sync. keepSeparate is honoured here exactly as it is there. */
+           Without this, a correction made at launch was undone by the very next
+           sync. The launch folds together two records of one person written
+           under two spellings of ONE programme (collapseSameNameStudents).
+           Removing a record leaves no trace, so this union simply added it back
+           from the snapshot, and the dedupe above did not catch it because it
+           groups on name AND programme: "Welding & Fabrication" and "WELDING L2"
+           are two groups to it and one enrolment to the Centre.
+
+           Applying the identical rule here settles it in one direction: what the
+           launch corrected, a sync keeps corrected, and the master is rewritten
+           with the corrected roll.
+
+           It must be the identical rule, and no stronger. When this collapsed by
+           NAME alone the roll read 447 on opening and 220 after — a third of the
+           Centre's trainees removed on every launch and every sync, because the
+           Centre runs the same subject at two levels and real people share a
+           name. Two records naming two different programmes are two enrolments
+           now, and a sync no longer destroys the second. keepSeparate is
+           honoured here exactly as it is there, so namesakes on the SAME
+           programme the administrator has pinned still stand apart. */
         if (typeof Core.collapseSameNameStudents === 'function') {
           var cr = Core.collapseSameNameStudents(merged);
           if (cr.removed > 0) {
             merged = cr.students;
             changedHere = true;
+            // Re-point anything already mapped at a record this pass removed,
+            // then take on its own mappings, so no dependent is left dangling.
             for (var _k in studentIdMap) {
               if (!Object.prototype.hasOwnProperty.call(studentIdMap, _k)) continue;
               if (cr.idMap[studentIdMap[_k]]) studentIdMap[_k] = cr.idMap[studentIdMap[_k]];
@@ -2074,16 +2601,28 @@
 
        centreKeyOf() answers '' for a centre that carries no key and whose id is
        not a number, which is every centre made with "+ Add Training Centre"
-       until assignCentreKeys() has run over it. belongsTo() then compared the
-       trainee's centre to the card's, and '' === '' is true — so a trainee
-       "belonged to" EVERY unkeyed centre at once, and the same person was
-       listed under three different programmes.
+       until assignCentreKeys() has run over it. Two things went wrong with that
+       empty answer, and between them they are the drift the Centre was seeing:
 
-       An identity is therefore never empty for a centre that exists: the key
+         - tally() bucketed by the key, and an empty key is falsy, so those
+           trainees were counted under NO centre at all. Every card on the
+           Training Centres page read 0 and the dashboard pipeline emptied.
+         - belongsTo() compared the trainee's centre to the card's with `!==`,
+           and '' !== '' is false — so a trainee "belonged to" EVERY unkeyed
+           centre at once. The Transfer page offered the same person under
+           three programmes, and the registers listed them three times.
+
+       So the same roll read as empty on one screen and as triple on another,
+       and opening Course Duration — the one page that calls assignCentreKeys()
+       — handed every centre a key and made both screens right again. That is
+       the "it corrects itself when I come back from Course Duration".
+
+       An identity is therefore never empty for a centre that exists. The key
        when it has one (so every trainee already stamped with '01' still finds
-       centre 01), and its id otherwise — unique, already on the record, and the
-       same on every device without anything having to be assigned first. It is
-       never shown to anybody: centreLabel() still reads "01. Welding". */
+       centre 01), and its id otherwise — which is unique, already on the
+       record, and identical on every device without anything having to be
+       assigned first. It is never shown to anybody: centreLabel() still reads
+       "01. Welding & Fabrication". */
     function centreIdentity(centre) {
       if (!centre) return '';
       var k = centreKeyOf(centre);
@@ -2116,7 +2655,24 @@
 
     /* Give every centre that has no key one of its own, in place. Safe to run
        on every load: a centre that already has a key is left alone. Returns
-       how many were stamped. */
+       how many were stamped.
+
+       The allocation must not depend on the ORDER the centres happen to sit in.
+       It used to: the leftovers were numbered by walking the array, so the same
+       two centres came out '01','02' on a device that held them one way round
+       and '02','01' on a device that held them the other. Roster order really
+       does differ between devices — reconcileSnapshot keeps the local order and
+       appends whatever the snapshot had on the end, and syncFromCloud pushes
+       cloud-only centres onto the end too — so this quietly handed the same
+       trainee's centreKey stamp to a DIFFERENT programme on each machine. Every
+       sync then swapped the rolls back and forth between two centres, which is
+       the drift the Centre was watching.
+
+       Leftovers are therefore numbered in a fixed order — by their id, which is
+       the one thing about a centre that is the same everywhere — so any two
+       devices holding the same centres agree on the keys without having to talk
+       to each other. Centres that already carry a key keep it, so nothing
+       already stamped on a trainee moves. */
     function assignCentreKeys(areas) {
       if (!Array.isArray(areas)) return 0;
       var taken = {}, n = 0, i;
@@ -2125,15 +2681,8 @@
         var k = areas[i].centreKey != null ? padKey(areas[i].centreKey) : '';
         if (k) taken[k] = true;
       }
+
       // Everything still unkeyed, in a device-independent order.
-      //
-      // The leftovers used to be numbered by walking the array, so the same two
-      // centres came out '01','02' on a device that held them one way round and
-      // '02','01' on a device that held them the other — and roster order really
-      // does differ between devices. The centreKey stamped on a trainee then
-      // pointed at a DIFFERENT programme on each machine, and every sync swapped
-      // the rolls over. Ordering by id — the one thing about a centre that is
-      // the same everywhere — makes any two devices agree without talking.
       var pending = [];
       for (i = 0; i < areas.length; i++) {
         var a = areas[i];
@@ -2191,13 +2740,6 @@
       return null;
     }
 
-    /* The NVQ level a written programme states, or null. Exported because the
-       level is what tells one enrolment of a subject from the next, so anything
-       deciding "same enrolment?" has to be able to see it. */
-    function programmeLevel(written) {
-      return levelOfTokens(tokenise(parseCentreLabel(written).name));
-    }
-
     /* The distinguishing words of a name: no level marker, no bare numbers, no
        joining words, nothing shorter than three letters. */
     function keyWords(toks) {
@@ -2218,6 +2760,58 @@
       if (a === b) return true;
       var short = a.length < b.length ? a : b, long = a.length < b.length ? b : a;
       return short.length >= 4 && long.indexOf(short) === 0;
+    }
+
+    /* Can these two written programmes be two spellings of ONE enrolment?
+
+       The Centre writes a programme several ways — 'Welding & Fabrication',
+       'WELDING L2', '02. Welding & Fabrication' — and the same trainee could
+       end up recorded once under each. Those are one enrolment.
+
+       But the Centre also runs the SAME subject at two NVQ levels, and a
+       trainee who did Welding L2 and went on to Welding L3 has two enrolments,
+       each with its own tuition, attendance and certificate. And two different
+       people genuinely share a name. Treating every same-named pair as one
+       record is what took the roll from 447 to 220.
+
+       So: agree when nothing contradicts, disagree when something does —
+         - a record naming no programme contradicts nothing;
+         - two DIFFERENT intake keys are two intakes ('01' vs '02');
+         - two DIFFERENT stated levels are two programmes (L2 vs L3);
+         - distinguishing words that do not line up are two programmes
+           (Welding vs Cosmetology).
+       Level shorthand is expanded first, so 'WELDING L2' and 'Welding and
+       Fabrication Level 2' still agree. */
+    /* The NVQ level a written programme states, or null. Exported because the
+       level is what tells one enrolment of a subject from the next, so anything
+       deciding "same enrolment?" has to be able to see it. */
+    function programmeLevel(written) {
+      return levelOfTokens(tokenise(parseCentreLabel(written).name));
+    }
+
+    function programmesAgree(a, b) {
+      var pa = parseCentreLabel(a), pb = parseCentreLabel(b);
+      if (pa.key && pb.key && pa.key !== pb.key) return false;
+      var an = norm(pa.name), bn = norm(pb.name);
+      if (!an || !bn) return true;
+      if (an === bn) return true;
+      var at = tokenise(pa.name), bt = tokenise(pb.name);
+      var al = levelOfTokens(at), bl = levelOfTokens(bt);
+      if (al && bl && al !== bl) return false;
+      var aw = keyWords(at), bw = keyWords(bt);
+      if (!aw.length || !bw.length) return true;
+      // The shorter list must be found in the longer one: 'WELDING L2' (welding)
+      // is the shorthand for 'Welding & Fabrication' (welding, fabrication).
+      var few = aw.length <= bw.length ? aw : bw;
+      var many = aw.length <= bw.length ? bw : aw;
+      for (var i = 0; i < few.length; i++) {
+        var found = false;
+        for (var j = 0; j < many.length; j++) {
+          if (sameWord(few[i], many[j])) { found = true; break; }
+        }
+        if (!found) return false;
+      }
+      return true;
     }
 
     function registerOpen(centre, today, nowMs) {
@@ -2311,7 +2905,7 @@
 
       var qT = tokenise(cn), qL = levelOfTokens(qT), qW = keyWords(qT);
 
-      /* One name starting the other — and here the level decides first.
+      /* One name starting the other — and here too the level decides first.
 
          Every programme name is a prefix of its own Level 2: "Electrical
          Installation" starts "Electrical Installation Level 2", and a bare
@@ -2319,8 +2913,9 @@
          intakes matched and preferCentre picked between them by whose register
          was OPEN — which handed the trainees of a finished programme to the new
          Level 2 intake the moment it opened, and moved them again whenever that
-         changed. A centre stating the level being asked for is preferred
-         outright; the looser reading is used only when none does. */
+         changed. Same rule as the word-matching pass below: a centre stating
+         the level being asked for is preferred outright, and the looser reading
+         is used only when none does. */
       function prefixScan(exact) {
         var found = null;
         for (var i3 = 0; i3 < areas.length; i3++) {
@@ -2340,13 +2935,26 @@
 
       if (!qW.length) return null;
 
-      /* The same rule for the word-matching pass. It used to reject a candidate
-         only when BOTH names stated a level, so a Level 2 query matched an
-         unlevelled centre on one shared word — the fee side's "ELECTRICAL L2"
-         was counted in the Level 1 intake. Matching only strictly is wrong too:
-         a programme run twice may carry no level in either centre's name, and
-         "WELDING L2" must still find the intake that is open. So: exact level
-         first, looser reading only as a fallback. */
+      /* Score the roster on shared words. `exact` restricts it to centres
+         stating the SAME level as the query — where stating none counts as a
+         level of its own.
+
+         Run strictly FIRST, because the two are not equally good answers. The
+         Centre writes its programmes both ways: some centres carry the level in
+         their name ("Electrical Installation Level 2") and some do not
+         ("Welding and Fabrication", run twice), while the fee side writes the
+         level either way ("ELECTRICAL L2"). Matching loosely — the old rule,
+         which only rejected a candidate when BOTH sides named a level — meant a
+         Level 2 query matched an unlevelled centre on one shared word, so
+         "ELECTRICAL L2" trainees were counted in the Level 1 intake and a plain
+         "Electrical Installation" could reach the Level 2 centre. That is the
+         two electrical programmes taking trainees from each other.
+
+         Matching ONLY strictly is wrong too: where a programme's centres carry
+         no level at all, "WELDING L2" has no exact-level centre to find and
+         must still resolve to the intake open now. So the loose pass remains,
+         as the fallback it always should have been — used only when nothing
+         states the level being asked for. */
       function scan(exact) {
         var best = null, bestScore = 0;
         for (var i2 = 0; i2 < areas.length; i2++) {
@@ -2494,7 +3102,148 @@
       enrolmentStamp: enrolmentStamp,
       studentInFiscalYear: studentInFiscalYear,
       openCentres: openCentres,
+      programmesAgree: programmesAgree,
       programmeLevel: programmeLevel
+    };
+  })();
+
+  /* ==========================================================================
+     Core.catalogue — the one answer to "which programmes may a dropdown offer?"
+
+     Every dashboard used to build that list the same wrong way: take the
+     training centres, then UNION IN every course name written on a student
+     record and every programme on a user account. That union is why a centre
+     deleted on the Training Centres page kept turning up as an option on
+     Student Progress, School Fee and everywhere else — one old record still
+     carried the name, so the name came straight back, and each page grew a
+     longer list than the one before it.
+
+     The training centres are the source of truth. A name no live centre
+     answers to is not a programme the Centre runs; it is a leftover on an old
+     record. Those names are still needed — a filter has to be able to find
+     those trainees, and an edit form must not silently reassign one — so they
+     are returned SEPARATELY, labelled archived, and never offered as a place
+     to enrol somebody new.
+     ========================================================================== */
+  Core.catalogue = (function () {
+    var DELETED_KEY = 'voctrain_deletedCentreIds';
+
+    function norm(s) { return String(s == null ? '' : s).toLowerCase().trim().replace(/\s+/g, ' '); }
+
+    function storeOf(store) { return store || root.CESTISStore || null; }
+
+    /* Ids of training centres that have been deleted. A deletion has to be
+       written down: without it the next merge (another tab, the cloud backup)
+       sees the centre still present in the other copy, reads it as "missing
+       here", and puts it back — which is how a deleted centre reappeared. */
+    function deletedIds(store) {
+      var s = storeOf(store);
+      if (!s) return [];
+      try {
+        var raw = s.getItem(DELETED_KEY);
+        var ids = raw ? JSON.parse(raw) : [];
+        return Array.isArray(ids) ? ids.map(String) : [];
+      } catch (e) { return []; }
+    }
+
+    function recordDeleted(store, id) {
+      var s = storeOf(store);
+      if (!s || id == null) return deletedIds(store);
+      var ids = deletedIds(s);
+      if (ids.indexOf(String(id)) === -1) ids.push(String(id));
+      try { s.setItem(DELETED_KEY, JSON.stringify(ids)); } catch (e) {}
+      return ids;
+    }
+
+    /* Re-creating a centre under an id that was deleted before clears its
+       tombstone, so a deliberate re-add is never suppressed by an old delete. */
+    function clearDeleted(store, id) {
+      var s = storeOf(store);
+      if (!s || id == null) return deletedIds(store);
+      var ids = deletedIds(s).filter(function (x) { return x !== String(id); });
+      try { s.setItem(DELETED_KEY, JSON.stringify(ids)); } catch (e) {}
+      return ids;
+    }
+
+    function isDeleted(id, store) {
+      return id != null && deletedIds(store).indexOf(String(id)) !== -1;
+    }
+
+    /* The centres that still exist: the stored roster minus everything whose
+       deletion has been written down, and minus unnamed rubbish. Every page
+       builds its dropdowns through here, so one delete is a delete everywhere. */
+    function liveCentres(areas, store) {
+      if (!Array.isArray(areas)) return [];
+      var gone = deletedIds(store);
+      return areas.filter(function (a) {
+        if (!a || !a.name || !String(a.name).trim()) return false;
+        return a.id == null || gone.indexOf(String(a.id)) === -1;
+      });
+    }
+
+    /* The programme names a dropdown may offer — one per live training centre,
+       written the way the centre itself is written, de-duplicated and sorted. */
+    function courseNames(areas, store) {
+      var seen = {}, out = [];
+      liveCentres(areas, store).forEach(function (a) {
+        var name = String(a.name).trim();
+        var k = norm(name);
+        if (k && !seen[k]) { seen[k] = true; out.push(name); }
+      });
+      return out.sort(function (a, b) { return a.localeCompare(b); });
+    }
+
+    /* True when a live training centre answers to this exact name.
+
+       Deliberately an exact (case/spacing-insensitive) comparison rather than
+       enrolment.findCentre's tolerant matching: a loose match would fold
+       "Welding" into "Welding & Fabrication", and the trainees recorded under
+       the bare name would then be unreachable from every filter. */
+    function isLive(areas, name, store) {
+      var k = norm(name);
+      if (!k) return false;
+      return liveCentres(areas, store).some(function (a) { return norm(a.name) === k; });
+    }
+
+    /* Names still written on records that no live centre answers to — a centre
+       that has since been deleted, or a spelling from before the centres were
+       set up. `values` is the raw list off the records (duplicates and blanks
+       are fine). These are what a FILTER must keep offering so those people
+       stay findable; an enrolment dropdown must not offer them at all. */
+    function orphanNames(areas, values, store) {
+      var live = {}, seen = {}, out = [];
+      liveCentres(areas, store).forEach(function (a) { live[norm(a.name)] = true; });
+      (Array.isArray(values) ? values : []).forEach(function (v) {
+        var name = String(v == null ? '' : v).trim();
+        var k = norm(name);
+        if (!k || live[k] || seen[k]) return;
+        seen[k] = true;
+        out.push(name);
+      });
+      return out.sort(function (a, b) { return a.localeCompare(b); });
+    }
+
+    /* Everything a page needs to build one dropdown, in one call:
+         { courses: [live centre names], archived: [orphan names] }
+       Pass the record values a filter has to keep reachable via `values`. */
+    function options(areas, values, store) {
+      return {
+        courses: courseNames(areas, store),
+        archived: orphanNames(areas, values, store)
+      };
+    }
+
+    return {
+      DELETED_KEY: DELETED_KEY,
+      deletedIds: deletedIds,
+      recordDeleted: recordDeleted,
+      clearDeleted: clearDeleted,
+      isDeleted: isDeleted,
+      liveCentres: liveCentres,
+      courseNames: courseNames,
+      isLive: isLive,
+      orphanNames: orphanNames,
+      options: options
     };
   })();
 
@@ -2511,13 +3260,26 @@
      there is no training centre to satisfy here: being the same person is the
      whole test.
 
-       feeMirrorTarget(student, feeStudents) -> { action: 'link'|'create'|'skip', match, reason } */
-  Core.feeMirrorTarget = function (student, feeStudents) {
+       feeMirrorTarget(student, feeStudents, opts) -> { action: 'link'|'create'|'skip', match, reason }
+
+     opts.index — a Core.feeTwinIndex over the same roll. The mirror runs on
+     every save, once per student; without an index that is two scans of the
+     whole fee roll per student, normalising names all the way. */
+  Core.feeMirrorTarget = function (student, feeStudents, opts) {
     var list = Array.isArray(feeStudents) ? feeStudents : [];
     if (!student || !Core.normName(student.name)) {
       return { action: 'skip', match: null, reason: 'no-name' };
     }
+    var idx = (opts && opts.index) || null;
+    var course = student.course || student.skillArea || '';
     var i;
+    if (idx) {
+      var hit = idx.find(student);
+      if (hit) return { action: 'link', match: hit, reason: 'twin' };
+      var named = idx.findByPerson(student.name, course);
+      if (named) return { action: 'link', match: named, reason: 'same-person-other-programme' };
+      return { action: 'create', match: null, reason: 'ok' };
+    }
     for (i = 0; i < list.length; i++) {
       if (list[i] && Core.isFeeTwin(student, list[i])) {
         return { action: 'link', match: list[i], reason: 'twin' };
@@ -2525,11 +3287,110 @@
     }
     var want = Core.normName(student.name);
     for (i = 0; i < list.length; i++) {
-      if (list[i] && Core.normName(list[i].name) === want) {
+      if (list[i] && Core.normName(list[i].name) === want &&
+          feeProgrammesAgree(list[i].skillArea || list[i].course, course)) {
         return { action: 'link', match: list[i], reason: 'same-person-other-programme' };
       }
     }
     return { action: 'create', match: null, reason: 'ok' };
+  };
+
+  // The by-name fallback's programme test, shared by the indexed and the
+  // scanning path so both mirrors answer alike. Tolerant of the two sides
+  // spelling one programme differently; not of two different programmes.
+  function feeProgrammesAgree(a, b) {
+    var E = Core.enrolment;
+    if (!E || typeof E.programmesAgree !== 'function') return true;
+    try { return E.programmesAgree(a, b); } catch (e) { return true; }
+  }
+
+  /* Core.feeTwinIndex(feeStudents) — Core.twinIndex pointing the other way.
+
+     twinIndex indexes the dashboard roster and is asked "whose twin is this fee
+     record?"; this indexes the FEE roll and is asked "which fee record belongs
+     to this student?" — the question the save-time mirror asks once per
+     student.
+
+       idx.find(student)    -> the same record feeStudents.find(f => isFeeTwin(student, f)) would
+       idx.findByName(name) -> the first fee record of that name, under any programme
+       idx.add(feeRecord)   -> keep the index current when one is appended
+
+     Ties resolve by ROLL ORDER, so it returns exactly what the scan returned. */
+  Core.feeTwinIndex = function (feeStudents) {
+    var list = Array.isArray(feeStudents) ? feeStudents : [];
+    var byFeeId = new Map(), byLmsId = new Map(), byName = new Map();
+
+    function putFirst(map, key, i) {
+      if (key == null || key === '') return;
+      var k = String(key);
+      if (!map.has(k)) map.set(k, i);
+    }
+    function index(f, i) {
+      if (!f) return;
+      putFirst(byFeeId, f.id, i);
+      putFirst(byLmsId, f.lmsId, i);
+      var n = Core.normName(f.name);
+      if (!n) return;
+      if (!byName.has(n)) byName.set(n, []);
+      byName.get(n).push(i);
+    }
+    for (var i = 0; i < list.length; i++) index(list[i], i);
+
+    function find(student) {
+      if (!student) return null;
+      var best = -1;
+      var consider = function (at) { if (at != null && at >= 0 && (best < 0 || at < best)) best = at; };
+      var sid = hasId(student.id) ? String(student.id) : '';
+
+      if (sid) {
+        consider(byLmsId.get(sid));                       // fee.lmsId === student.id
+        consider(byFeeId.get(sid));                       // fee.id === student.id
+        // student.id === 'SF-' + fee.id — the fee page's mirrored twin id.
+        if (sid.indexOf('SF-') === 0) consider(byFeeId.get(sid.slice(3)));
+      }
+      if (hasId(student.schoolFeeId)) consider(byFeeId.get(String(student.schoolFeeId)));
+
+      var n = Core.normName(student.name);
+      if (n) {
+        var cand = byName.get(n);
+        if (cand) {
+          for (var j = 0; j < cand.length; j++) {
+            if (sameTwinIdentity(student.name, student.course, list[cand[j]])) { consider(cand[j]); break; }
+          }
+        }
+      }
+      return best >= 0 ? list[best] : null;
+    }
+
+    function findByName(name) {
+      var n = Core.normName(name);
+      var cand = n ? byName.get(n) : null;
+      return (cand && cand.length) ? list[cand[0]] : null;
+    }
+
+    /* This person's fee record for a programme that does not contradict the one
+       asked about — see twinIndex.findByPerson for why the plain by-name answer
+       is too much. A trainee on Welding L2 and Welding L3 needs a fee record for
+       each: each carries its own tuition. */
+    function findByPerson(name, course) {
+      var n = Core.normName(name);
+      var cand = n ? byName.get(n) : null;
+      if (!cand) return null;
+      for (var j = 0; j < cand.length; j++) {
+        var f = list[cand[j]];
+        if (f && feeProgrammesAgree(f.skillArea || f.course, course)) return f;
+      }
+      return null;
+    }
+
+    function add(record) {
+      if (!record) return;
+      if (list[list.length - 1] !== record) list.push(record);
+      index(record, list.length - 1);
+    }
+
+    return { find: find, findByName: findByName, findByPerson: findByPerson,
+      add: add, get size() { return list.length; } };
   };
 
   /* ==========================================================================
@@ -2554,6 +3415,46 @@
 
     function nameOf(rec, field) {
       return String((rec && rec[field]) == null ? '' : rec[field]).trim();
+    }
+
+    /* Did this trainee enrol BEFORE the intake we are about to credit them to
+       had even begun?
+
+       This is the last guard on the name fallback, and it exists because a
+       programme name is not an intake. When a Centre re-runs a programme, the
+       earlier trainees keep the programme's name on their record and no intake
+       key — keys came later, so every record predating them has none. Asked
+       "which centre is 'Welding & Fabrication'?", findCentre can only answer
+       with the one centre carrying that name, so every trainee the programme
+       ever had piled onto the intake running now: three past intakes read as
+       three times the roll, on a card that should have shown only the trainees
+       actually in it.
+
+       Proof is the whole bar here, and it takes two things, because enrolling
+       shortly BEFORE an intake opens is ordinary — trainees are registered
+       weeks ahead of the start date all the time, and none of them may be
+       dropped. So the record must have enrolled before this intake began AND
+       in a different fiscal year from it. A trainee signed up in July for an
+       August intake shares its fiscal year and is kept; one who enrolled two
+       years earlier does not, and is the earlier intake's.
+
+       With no enrolment date on the record, no start date on the centre, or a
+       date that will not parse, nothing is proven and the record is treated
+       exactly as it was before. This never overrides an explicit stamp — a
+       keyed record has already said where it belongs. */
+    function enrolledBeforeIntake(rec, centre) {
+      if (!rec || !centre) return false;
+      var start = String(centre.startDate || '').trim();
+      if (!start) return false;                       // the intake never said when it began
+      var on = String(rec.enrolmentDate || rec.enrollmentDate ||
+                      rec.enrollDate || rec.createdAt || '').trim();
+      if (!on) return false;                          // the record never said when they joined
+      var a = Date.parse(on.slice(0, 10)), b = Date.parse(start.slice(0, 10));
+      if (isNaN(a) || isNaN(b)) return false;         // unreadable proves nothing
+      if (a >= b) return false;                       // enrolled once it was running
+      var fyRec = E.fiscalYearOf(on), fyCentre = E.centreFiscalYear(centre);
+      if (!fyRec || !fyCentre) return false;          // cannot place either — keep it
+      return fyRec !== fyCentre;                      // a different year's intake
     }
 
     /* Is this record one of the centre's? Identity first, name last — a name
@@ -2581,13 +3482,85 @@
       var found = null;
       try { found = E.findCentre(centres, written, { on: on, today: opts.today, nowMs: opts.nowMs }); }
       catch (e) { found = null; }
-      return !!found && E.centreIdentity(found) === key;
+      if (!found || E.centreIdentity(found) !== key) return false;
+      return !enrolledBeforeIntake(rec, found);
     }
 
     /* Every record of `list` that belongs to `centre`. */
     function traineesOf(list, centre, opts) {
       if (!Array.isArray(list) || !centre) return [];
       return list.filter(function (r) { return belongsTo(r, centre, opts); });
+    }
+
+    /* How many of `list` each centre holds — the same question traineesOf()
+       answers, asked once per RECORD instead of once per centre.
+
+       This exists so the Training Centres cards can state the same figure the
+       Transfer page does. They used to disagree, badly: the cards decided which
+       centre a trainee belonged to from the programme NAME written on them,
+       resolved as of today, while everything else decides it from the centre
+       stamped on them. A trainee moved back to a finished intake keeps the
+       stamp of that intake, so the cards went on counting them under whichever
+       intake of that programme happened to be running now — and a brand-new
+       centre that had never enrolled anybody showed a roll of trainees who were
+       not there, while the centre actually holding them under-reported by the
+       same number.
+
+       Returns { counts: { centreKey: n }, of(centre) -> n,
+                 groups: { centreKey: [records] }, listOf(centre) -> [records] }
+       so a page that needs the roll and a page that needs only the number are
+       answered by the same pass, and cannot disagree. */
+    function tally(list, centres, opts) {
+      opts = opts || {};
+      var roster = Array.isArray(centres) ? centres : [];
+      var byId = {}, out = {}, groups = {};
+      roster.forEach(function (c) { if (c && c.id != null) byId[String(c.id)] = c; });
+
+      // findCentre() is the expensive step and a roll shares a handful of
+      // programme names, so each (name, date) pair is resolved once.
+      var memo = {};
+      function resolveByName(written, on) {
+        var mk = written + '\u0000' + (on || '');   // a separator no name can contain
+        if (Object.prototype.hasOwnProperty.call(memo, mk)) return memo[mk];
+        var found = null;
+        try { found = E.findCentre(roster, written, { on: on, today: opts.today, nowMs: opts.nowMs }); }
+        catch (e) { found = null; }
+        memo[mk] = found;
+        return found;
+      }
+
+      (Array.isArray(list) ? list : []).forEach(function (rec) {
+        if (!rec) return;
+        var key = null;
+        // Identity first, name last — exactly the order belongsTo() applies.
+        if (rec.centreKey != null && String(rec.centreKey).trim() !== '') {
+          key = E.centreKeyOf({ centreKey: rec.centreKey });
+        } else if (rec.centreId != null) {
+          var c = byId[String(rec.centreId)];
+          key = c ? E.centreIdentity(c) : null;
+        } else {
+          var field = opts.field || 'course';
+          var written = nameOf(rec, field) || nameOf(rec, 'course') || nameOf(rec, 'skillArea');
+          if (written) {
+            var on = rec.enrolmentDate || rec.enrollmentDate || rec.enrollDate || rec.createdAt || '';
+            var found = resolveByName(written, on);
+            // A trainee who enrolled before this intake began is an earlier
+            // intake's, not this one's — see enrolledBeforeIntake above.
+            key = (found && !enrolledBeforeIntake(rec, found)) ? E.centreIdentity(found) : null;
+          }
+        }
+        if (key) {
+          out[key] = (out[key] || 0) + 1;
+          (groups[key] || (groups[key] = [])).push(rec);
+        }
+      });
+
+      return {
+        counts: out,
+        groups: groups,
+        of: function (centre) { return (centre && out[E.centreIdentity(centre)]) || 0; },
+        listOf: function (centre) { return (centre && groups[E.centreIdentity(centre)]) || []; }
+      };
     }
 
     /* Write the target centre onto one record. Returns true when anything
@@ -2679,8 +3652,9 @@
       return out;
     }
 
-    return { belongsTo: belongsTo, traineesOf: traineesOf, place: place,
-      moveTrainees: moveTrainees, renameCourseFor: renameCourseFor };
+    return { belongsTo: belongsTo, traineesOf: traineesOf, tally: tally, place: place,
+      moveTrainees: moveTrainees, renameCourseFor: renameCourseFor,
+      enrolledBeforeIntake: enrolledBeforeIntake };
   })();
 
   /* ==========================================================================
@@ -4270,6 +5244,63 @@
       return (stamps && Date.parse(stamps[key] || '')) || 0;
     }
 
+    /* Is this stored value "nothing"? An absent key, an empty list, an empty
+       object, or an unreadable value that carries no records. */
+    function isEmptyValue(raw) {
+      if (raw == null) return true;
+      var s = String(raw).trim();
+      if (s === '' || s === 'null' || s === 'undefined') return true;
+      if (s === '[]' || s === '{}') return true;
+      try {
+        var v = JSON.parse(s);
+        if (v == null) return true;
+        if (Array.isArray(v)) return v.length === 0;
+        if (typeof v === 'object') return Object.keys(v).length === 0;
+        return false;                       // a number/string/boolean is content
+      } catch (e) {
+        return false;                       // unreadable, but not empty — never discard it
+      }
+    }
+
+    /* Would replacing `from` with `to` throw records away?
+
+       This is the rule that makes a collection unloseable. A timestamp says
+       WHEN a value was written, not that it is right: a page that came up
+       before its data had loaded, wrote an empty list and stamped it NOW would
+       otherwise win every merge and take the Centre's records with it — on this
+       device and then, on the next push, in Drive.
+
+       Emptiness is therefore never treated as newer data. Wiping a collection
+       has to be recorded deliberately (a tombstone list, an explicit reset),
+       which is exactly how deleting a trainee, a payment or a training centre
+       already works — those write a record of the deletion, not an empty list. */
+    function wouldDiscardRecords(from, to) {
+      return !isEmptyValue(from) && isEmptyValue(to);
+    }
+
+    /* Write a collection to the store unless doing so would throw records away.
+
+       The same rule as the merge above, applied one step earlier — at the write
+       itself — so an empty list never even reaches storage, let alone a stamp
+       and an upload. Returns true when written, false when refused.
+
+       Every page persists its collections wholesale ("write out the whole list
+       of students"), which is only safe while that list is actually loaded. It
+       is not loaded during the moments this guards: before a cloud pull has
+       landed, after a failed read, on a device whose store was cleared. */
+    function guardedSet(store, key, value, onRefuse) {
+      if (!store || !key) return false;
+      var next = (typeof value === 'string') ? value : JSON.stringify(value);
+      var current = null;
+      try { current = store.getItem(key); } catch (e) { current = null; }
+      if (wouldDiscardRecords(current, next)) {
+        if (typeof onRefuse === 'function') { try { onRefuse(key, current); } catch (e) {} }
+        return false;
+      }
+      try { store.setItem(key, next); } catch (e) { return false; }
+      return true;
+    }
+
     /* Merge a cloud backup into this device's copy.
          localData/cloudData   - { storageKey: rawStringValue }
          localStamps/cloudStamps - { storageKey: ISO time last written }
@@ -4277,7 +5308,7 @@
     function mergeKeys(localData, localStamps, cloudData, cloudStamps, opts) {
       localData = localData || {}; cloudData = cloudData || {};
       opts = opts || {};
-      var data = {}, stamps = {}, changed = [], k;
+      var data = {}, stamps = {}, changed = [], rescued = [], k;
 
       for (k in localData) {
         if (!Object.prototype.hasOwnProperty.call(localData, k)) continue;
@@ -4317,6 +5348,24 @@
           continue;
         }
 
+        // An empty local copy NEVER replaces records, however new its stamp
+        // looks. This is the guard that keeps a collection unloseable: a page
+        // that came up before its data had loaded, wrote an empty list and
+        // stamped it now would otherwise win here and take the records with it.
+        if (wouldDiscardRecords(cloudData[k], localData[k])) {
+          data[k] = cloudData[k];
+          if (cloudStamps && cloudStamps[k]) stamps[k] = cloudStamps[k];
+          changed.push(k);
+          rescued.push(k);
+          continue;
+        }
+        // And the same in reverse: an empty cloud copy never wipes what this
+        // device still holds, so one bad upload cannot take everyone down.
+        if (wouldDiscardRecords(localData[k], cloudData[k])) {
+          rescued.push(k);
+          continue;
+        }
+
         var lt = stampOf(localStamps, k), ct = stampOf(cloudStamps, k);
         // The cloud only wins when BOTH sides can be dated and it is the newer
         // of the two. Local data with no stamp predates this backup existing;
@@ -4341,7 +5390,156 @@
           changed.push(k);
         }
       }
-      return { data: data, stamps: stamps, changed: changed };
+      // `rescued` names the keys where one side was empty and the records won
+      // anyway — worth surfacing, because it means a device tried to sync a
+      // collection away and was stopped.
+      return { data: data, stamps: stamps, changed: changed, rescued: rescued };
+    }
+
+    /* --- Shared collections, and which backup file carries them ------------
+
+       Some collections belong to one page but are READ by several: the trainee
+       roll, the training centres and their tombstones, the fee roll. A page
+       backs up only the keys it OWNS, so a page that merely reads a shared
+       collection never fetched it from Drive at all — it rendered whatever
+       happened to be in this device's local storage. On a machine that had not
+       opened the owning page, that meant stale data or none, and the page then
+       wrote its own view back over everyone else's.
+
+       This registry says where each shared collection actually lives, so any
+       page can pull the current copy from Drive when it syncs. A reader pulls
+       and merges; it never pushes a key it does not own, so it cannot overwrite
+       the owning page's data. */
+    var SHARED_SOURCES = [
+      {
+        file: 'CESTIS_Student_Progress.json',
+        page: 'Student Progress',
+        keys: ['voctrain_students', 'voctrain_skillAreas', 'voctrain_studentProfiles',
+               'voctrain_instructorData', 'voctrain_attendance', 'voctrain_examResults',
+               'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds',
+               'voctrain_deletedCentreIds']
+      },
+      {
+        file: 'CESTIS_School_Fees.json',
+        page: 'School Fee Management',
+        keys: ['cestiFeeStructure', 'cestiSchoolFeeStudents', 'cestiSchoolFeePayments',
+               'cestiSchoolFeeDocuments', 'cestiSchoolFeeDeletedLmsIds',
+               'cestiSchoolFeeDeletedPaymentIds']
+      },
+      {
+        file: 'CESTIS_Transcript_Grades.json',
+        page: 'Transcript / Grades',
+        keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles']
+      },
+      {
+        file: 'CESTIS_Transcript_Requests.json',
+        page: 'Certificate / Transcript Requests',
+        keys: ['voctrain_certTranscriptRequests']
+      },
+      /* The operating books. The CMC Board oversees these but operates none of
+         them, so its dashboards are pure readers — and a reader that is not in
+         this registry has nowhere to pull from, which is why those dashboards
+         used to sit empty behind a "Sync Drive Data" button. The Cashbook's
+         quarters are generated key names (cestis_quarter_<FY>_Q<n>), so they
+         are listed by prefix. */
+      {
+        file: 'CESTIS_Cashbook.json',
+        page: 'Cashbook',
+        keys: ['cesti_cashbook_data', 'cestis_active_quarter'],
+        prefixes: ['cestis_quarter_', 'cestis_budget_']
+      },
+      {
+        file: 'CESTIS_Staff_Payslips.json',
+        page: 'Staff Payslips',
+        keys: ['cestisPayroll']
+      },
+      {
+        file: 'CESTIS_Staff_TimeClock.json',
+        page: 'Staff Time Clock',
+        keys: ['cestisStaffMembers', 'cestisTimeRecords']
+      },
+      {
+        file: 'CESTIS_Virement_Requests.json',
+        page: 'Virement Requests',
+        keys: ['cesti_virements']
+      }
+    ];
+
+    function sharedSources() { return SHARED_SOURCES; }
+
+    /* A collection whose key names are GENERATED — the Cashbook's quarters are
+       `cestis_quarter_<FY>_Q<n>` — cannot be asked for by name, because a
+       reader does not know which quarters exist until it has the file. Such a
+       collection is read by writing the declared prefix with a trailing star:
+       `reads: ['cestis_quarter_*']`. Everything else is an exact key, exactly
+       as before. */
+    function starPrefix(entry) {
+      var s = String(entry == null ? '' : entry);
+      return s.charAt(s.length - 1) === '*' ? s.slice(0, -1) : null;
+    }
+    function sourceClaims(src, entry) {
+      var pfx = starPrefix(entry);
+      if (pfx) return (src.prefixes || []).indexOf(pfx) !== -1;
+      if (src.keys.indexOf(entry) !== -1) return true;
+      var list = src.prefixes || [];
+      for (var i = 0; i < list.length; i++) if (String(entry).indexOf(list[i]) === 0) return true;
+      return false;
+    }
+
+    /* Is this key one several pages depend on? */
+    function isShared(key) {
+      for (var i = 0; i < SHARED_SOURCES.length; i++) {
+        if (sourceClaims(SHARED_SOURCES[i], key)) return true;
+      }
+      return false;
+    }
+
+    /* The file that carries a shared key, or null if nothing claims it. */
+    function sourceOf(key) {
+      for (var i = 0; i < SHARED_SOURCES.length; i++) {
+        if (sourceClaims(SHARED_SOURCES[i], key)) return SHARED_SOURCES[i];
+      }
+      return null;
+    }
+
+    /* Which files a page must pull to have current copies of `keys`, and which
+       of those keys each file supplies. `ownFile` is the page's own backup — it
+       is already pulled in the normal way, so it is never listed again.
+
+       Returns [{ file, page, keys: [...] }], one entry per file, in registry
+       order. Keys nothing claims are simply not fetched: they are page-local. */
+    function sharedPullPlan(keys, ownFile) {
+      var wanted = Array.isArray(keys) ? keys : [];
+      var plan = [], byFile = {};
+      wanted.forEach(function (k) {
+        var src = sourceOf(k);
+        if (!src || src.file === ownFile) return;
+        if (!byFile[src.file]) {
+          byFile[src.file] = { file: src.file, page: src.page, keys: [] };
+          plan.push(byFile[src.file]);
+        }
+        if (byFile[src.file].keys.indexOf(k) === -1) byFile[src.file].keys.push(k);
+      });
+      return plan;
+    }
+
+    /* Take just the shared keys a reader asked for out of a pulled payload.
+       Everything else in that file belongs to the owning page and is left
+       alone — a reader adopts what it reads, never the whole file. */
+    function pickShared(payloadData, keys) {
+      var out = {}, wanted = Array.isArray(keys) ? keys : [];
+      if (!payloadData) return out;
+      wanted.forEach(function (k) {
+        var pfx = starPrefix(k);
+        if (pfx) {
+          // A generated-name collection: take every key the file carries under
+          // this prefix, since the reader cannot know their names in advance.
+          Object.keys(payloadData).forEach(function (pk) { if (pk.indexOf(pfx) === 0) out[pk] = payloadData[pk]; });
+          return;
+        }
+        if (Object.prototype.hasOwnProperty.call(payloadData, k)) out[k] = payloadData[k];
+      });
+      return out;
     }
 
     /* Does a storage key belong to this page's backup? Pages declare exact key
@@ -4394,7 +5592,11 @@
       };
     }
 
-    return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload };
+    return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload,
+             sharedSources: sharedSources, isShared: isShared, sourceOf: sourceOf,
+             sharedPullPlan: sharedPullPlan, pickShared: pickShared,
+             isEmptyValue: isEmptyValue, wouldDiscardRecords: wouldDiscardRecords,
+             guardedSet: guardedSet };
   })();
 
   root.CESTISCore = Core;

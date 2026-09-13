@@ -323,9 +323,13 @@
           // Centre's data in the cloud wins that first time.
           var first = Object.keys(known).length === 0;
           var res = C.mergeKeys(local, known, payload.data, payload.stamps || {}, { firstSync: first });
-          res.changed.forEach(function (k) {
-            try { store().setItem(k, res.data[k]); } catch (e) {}
-          });
+          // Adopting the cloud's copy is not editing — see the note in watch().
+          API._applying = true;
+          try {
+            res.changed.forEach(function (k) {
+              try { store().setItem(k, res.data[k]); } catch (e) {}
+            });
+          } finally { API._applying = false; }
           // Always record stamps after a pull, even when nothing changed, so the
           // next pull is judged on recency rather than treated as a first sync.
           self.setStamps(res.stamps && Object.keys(res.stamps).length ? res.stamps : { __synced: new Date().toISOString() });
@@ -411,6 +415,13 @@
       s.setItem = function (k, v) {
         var r = orig(k, v);
         try {
+          // A pull writing the cloud's own copy back into storage is not an edit
+          // made on this device. Without this test each of those writes was
+          // stamped "now" and scheduled straight back up, so the value just
+          // taken from Drive was immediately re-uploaded with a newer stamp —
+          // and two devices on the refresh cycle could trade the same value
+          // between them indefinitely, re-writing the file every time.
+          if (API._applying) return r;
           (root.CESTISPageCloud._pages || []).forEach(function (pg) {
             if (core().ownsKey(pg.spec, String(k))) { pg.touch([String(k)]); pg.schedulePush(); }
           });
@@ -434,6 +445,9 @@
   var API = {
     FOLDER_ID: FOLDER_ID,
     _pages: [],
+    // True only while a pull is writing the cloud's copy into local storage, so
+    // those writes are not mistaken for edits made on this device.
+    _applying: false,
     init: function (spec) {
       if (!spec || !spec.file) throw new Error('CESTISPageCloud.init needs a file name');
       if (!core()) { try { console.warn('[PageCloud] cestis-core.js must load first'); } catch (e) {} return null; }

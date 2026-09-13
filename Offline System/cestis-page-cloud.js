@@ -69,6 +69,18 @@
   var LOCAL_BASE = '/_cestis/data/';
   var localReady = null;      // Promise<boolean>
 
+  /* The offline server stamps this run's access token in here as it serves this
+     file, so our own pages are authenticated automatically and nothing has to be
+     typed on any device. A client that did not come from the server keeps the
+     placeholder and is refused — which is what stops a phone on the Centre wifi
+     downloading every account and payslip from the records folder. */
+  var LAN_TOKEN = '__CESTIS_LAN_TOKEN__';
+  function lanHeaders(extra) {
+    var h = extra || {};
+    h['X-CESTIS-Token'] = LAN_TOKEN;
+    return h;
+  }
+
   function detectLocalServer() {
     if (localReady) return localReady;
     localReady = root.fetch('/_cestis/health', { cache: 'no-store' })
@@ -79,14 +91,14 @@
   }
 
   function localGet(file) {
-    return root.fetch(LOCAL_BASE + encodeURIComponent(file), { cache: 'no-store' })
+    return root.fetch(LOCAL_BASE + encodeURIComponent(file), { cache: 'no-store', headers: lanHeaders() })
       .then(function (r) { return r.ok ? r.json() : null; })
       .catch(function () { return null; });
   }
 
   function localPut(file, body) {
     return root.fetch(LOCAL_BASE + encodeURIComponent(file), {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: body
+      method: 'PUT', headers: lanHeaders({ 'Content-Type': 'application/json' }), body: body
     }).then(function (r) { return r.ok; }).catch(function () { return false; });
   }
 
@@ -405,6 +417,36 @@
         detectLocalServer().then(function (isLocal) { if (isLocal) API.initWholeStore(); });
       };
       if (store() && store().whenReady) store().whenReady(start); else start();
+
+      /* CLOUD -> LOCAL, CONTINUOUSLY — not only when the page opens.
+
+         Without this a page pulled once at start-up and never again. On the
+         Centre's network that is the whole point defeated: a fee recorded on the
+         office desktop stayed invisible on the Coordinator's laptop until
+         somebody reloaded the page, and each device's push merged against a copy
+         that had been stale since the morning, so the window for losing an edit
+         was the whole working day rather than a moment.
+
+         Two triggers, the same as the online build has:
+           - the moment a Google token appears (a page opened before the
+             connection simply stayed empty until a reload, which reads as "my
+             records are gone");
+           - and a quiet re-read every half minute. Against the Centre's own
+             server that is a read over the local network and costs nothing; the
+             offline store has no "has it changed?" query to ask first. */
+      if (!API._refreshWired) {
+        API._refreshWired = true;
+        try {
+          root.addEventListener('storage', function (ev) {
+            if (ev && ev.key === TOKEN_KEY && ev.newValue) API.loadNow();
+          });
+        } catch (e) {}
+        try {
+          setInterval(function () {
+            try { API.loadNow(); } catch (e) {}
+          }, 30000);
+        } catch (e) {}
+      }
       return pg;
     },
     /* Register the whole-store mirror. Safe to call repeatedly. */

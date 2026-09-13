@@ -65,10 +65,29 @@
     // while a re-read immediately after an iframe reports a change is synchronous.
     getItem: function(k){
       k=String(k);
+      // When localStorage is full its write throws and the PREVIOUS value is
+      // left sitting there untouched. This read trusts any non-null answer
+      // from localStorage, so from that moment on every read returned the
+      // STALE copy while the data the user had actually just entered sat
+      // unreachable in IndexedDB — and the next save wrote the stale copy
+      // back over the good one and uploaded it to the backup. Dropping the
+      // stale entry on a failed write (below) is what makes this read safe.
       if(LS){ try { var lv = LS.getItem(k); if(lv !== null){ cache[k] = lv; return lv; } } catch(e){} }
       return (k in cache) ? cache[k] : null;
     },
-    setItem: function(k,v){ k=String(k); v=String(v); cache[k]=v; try{ if(LS) LS.setItem(k,v); }catch(e){} writeIDB(k,v,false); },
+    setItem: function(k,v){
+      k=String(k); v=String(v); cache[k]=v;
+      // A failed localStorage write leaves the OLD value in place. Left there,
+      // it out-votes the truth on every later read (see getItem above), so the
+      // stale entry is removed and the read falls through to the cache and
+      // IndexedDB, which both hold what was actually written.
+      try{ if(LS) LS.setItem(k,v); }
+      catch(e){
+        try{ if(LS) LS.removeItem(k); }catch(e2){}
+        if (typeof reportWriteFailure === 'function') reportWriteFailure(k, e);
+      }
+      writeIDB(k,v,false);
+    },
     removeItem: function(k){ k=String(k); delete cache[k]; try{ if(LS) LS.removeItem(k); }catch(e){} writeIDB(k,null,true); },
     clear: function(){ for(var k in cache){ if(Object.prototype.hasOwnProperty.call(cache,k)) delete cache[k]; }
                        try{ if(LS) LS.clear(); }catch(e){}
@@ -4084,11 +4103,22 @@ async function mergeFromCloud() {
             if (cloudFY === activeFY && cloudQ === activeQ) {
                 // Same quarter — merge into in-memory transactions, skip deleted
                 var localTxnIds = new Set(transactions.map(function(t) { return t.id; }));
+                var localUidsM = new Set(transactions.map(function(t) { return t && t.uid; }).filter(Boolean));
                 var mergeDelSet = new Set(deletedTxnIds);
                 d.transactions.forEach(function(cloudTxn) {
+                    // Judged by uid where both sides have one: a matching id between
+                    // two devices means nothing, and treating it as "already have
+                    // it" silently threw the other device's entry away.
+                    if (cloudTxn && cloudTxn.uid) {
+                        if (!localUidsM.has(cloudTxn.uid) && !mergeDelSet.has(cloudTxn.id)) {
+                            var ad1 = cbAdoptTransaction(cloudTxn);
+                            if (ad1) { localUidsM.add(ad1.uid); localTxnIds.add(ad1.id); mergeStats.transactionsAdded++; }
+                        }
+                        return;
+                    }
                     if (!localTxnIds.has(cloudTxn.id) && !mergeDelSet.has(cloudTxn.id)) {
-                        transactions.push(cloudTxn);
-                        mergeStats.transactionsAdded++;
+                        var ad1b = cbAdoptTransaction(cloudTxn);
+                        if (ad1b) { localUidsM.add(ad1b.uid); localTxnIds.add(ad1b.id); mergeStats.transactionsAdded++; }
                     }
                 });
                 if (mergeStats.transactionsAdded > 0) {
@@ -5085,6 +5115,16 @@ function saveTransaction() {
         // Skip past any IDs that are in the deletedTxnIds list to avoid collisions
         while (deletedTxnIds.indexOf(nextId) !== -1) { nextId++; }
         data.id = nextId++;
+        /* A second name for this entry that no other device can produce.
+
+           `id` counts up from 100 out of THIS device's list, so two machines
+           entering their first transaction into the same quarter both create
+           id 100. The merge treated a matching id as "already have it" and
+           silently dropped the other device's row: its payment vanished, the
+           totals were short by that amount, and nothing said so. The id still
+           orders and addresses rows on this device; `uid` is what tells two
+           records apart between devices. */
+        data.uid = cbNewUid();
         transactions.push(data);
         savedTxn = data;
     }
@@ -5371,6 +5411,34 @@ function previewVoidCheque() {
     btn.disabled = false;
 }
 
+/* A globally unique name for a transaction, so two devices cannot mint the same
+   one: the moment it was created, this device's own random tag, and a counter. */
+var _cbUidSalt = Math.random().toString(36).slice(2, 8);
+var _cbUidSeq = 0;
+function cbNewUid() {
+    _cbUidSeq++;
+    return 'T-' + Date.now().toString(36) + '-' + _cbUidSalt + '-' + _cbUidSeq;
+}
+/* Adopt a transaction from another device without ever dropping it.
+
+   If its id is already taken here by a DIFFERENT record, the incoming row is
+   given the next free id on this device rather than being discarded — the id is
+   only this device's way of addressing a row, while `uid` says which record it
+   actually is. */
+function cbAdoptTransaction(cloudTxn) {
+    if (!cloudTxn) return null;
+    var row = Object.assign({}, cloudTxn);
+    if (!row.uid) row.uid = cbNewUid();
+    var taken = transactions.some(function (t) { return t && t.id === row.id; });
+    if (taken) {
+        var maxId = transactions.reduce(function (m, t) { return Math.max(m, Number(t && t.id) || 0); }, 99);
+        row.id = maxId + 1;
+        while (deletedTxnIds.indexOf(row.id) !== -1) { row.id++; }
+    }
+    transactions.push(row);
+    return row;
+}
+
 function voidSelectedCheque() {
     const sel = document.getElementById('voidChequeSelect');
     const id = parseInt(sel.value);
@@ -5394,6 +5462,18 @@ function voidSelectedCheque() {
     t.category = 'Cancelled';
     t.payment = 0;
     t.deposit = 0;
+
+    /* A voided salary cheque must leave the payroll too.
+
+       Deleting or editing a salary transaction already unwound the payslip
+       entry it had created; voiding one did not. So the cashbook correctly gave
+       the money back while Staff Payslip went on reporting the same salary for
+       that month, the Salary Records still totalled it, and a statutory return
+       loaded "From Payroll" still filed it. One void, two systems, the whole
+       amount apart. */
+    if (typeof unsyncSalaryFromPayslip === 'function') {
+        try { unsyncSalaryFromPayslip(t); } catch (e) { console.warn('[Void] payroll unsync failed:', e); }
+    }
 
     saveToStorage();
     refreshAll();
@@ -5502,6 +5582,12 @@ function unvoidSelectedCheque() {
     t.category = t._origCategory;
     t.payment = t._origPayment;
     t.deposit = t._origDeposit;
+
+    // Restoring the cheque restores the payroll entry it created, so the two
+    // systems agree again — the mirror of the unsync on the void path.
+    if (typeof syncSalaryToPayslip === 'function') {
+        try { syncSalaryToPayslip(t); } catch (e) { console.warn('[Unvoid] payroll re-sync failed:', e); }
+    }
 
     // Clean up stored originals
     delete t._origDetails;
@@ -8689,11 +8775,20 @@ function silentMerge(backupData) {
         var currentQData = d.quarterlyTransactions[currentQKey];
         if (currentQData && Array.isArray(currentQData.transactions)) {
             var localTxnIdsQ = new Set(transactions.map(function(t) { return t.id; }));
+            var localUidsQ = new Set(transactions.map(function(t) { return t && t.uid; }).filter(Boolean));
             var localDelIdsQ = new Set(deletedTxnIds);
             currentQData.transactions.forEach(function(ct) {
+                // Same rule as the other merge paths — see cbNewUid().
+                if (ct && ct.uid) {
+                    if (!localUidsQ.has(ct.uid) && !localDelIdsQ.has(ct.id)) {
+                        var adQ = cbAdoptTransaction(ct);
+                        if (adQ) { localUidsQ.add(adQ.uid); localTxnIdsQ.add(adQ.id); changed = true; }
+                    }
+                    return;
+                }
                 if (!localTxnIdsQ.has(ct.id) && !localDelIdsQ.has(ct.id)) {
-                    transactions.push(ct);
-                    changed = true;
+                    var adQ2 = cbAdoptTransaction(ct);
+                    if (adQ2) { localUidsQ.add(adQ2.uid); localTxnIdsQ.add(adQ2.id); changed = true; }
                 }
             });
             if (changed) {
@@ -8710,8 +8805,18 @@ function silentMerge(backupData) {
         if (cloudFY === activeFY && cloudQ === activeQ) {
             // Same quarter — merge into in-memory transactions, skip locally deleted
             var localTxnIds = new Set(transactions.map(function(t) { return t.id; }));
+            var localUids = new Set(transactions.map(function(t) { return t && t.uid; }).filter(Boolean));
             var localDelSet = new Set(deletedTxnIds);
             d.transactions.forEach(function(cloudTxn) {
+                // Already here? Judged by uid where both sides have one, because a
+                // matching id between two devices means nothing (see cbNewUid).
+                if (cloudTxn && cloudTxn.uid) {
+                    if (!localUids.has(cloudTxn.uid) && !localDelSet.has(cloudTxn.id)) {
+                        var adopted = cbAdoptTransaction(cloudTxn);
+                        if (adopted) { localUids.add(adopted.uid); localTxnIds.add(adopted.id); mergeStats.transactionsAdded++; }
+                    }
+                    return;
+                }
                 if (!localTxnIds.has(cloudTxn.id) && !localDelSet.has(cloudTxn.id)) {
                     transactions.push(cloudTxn);
                     changed = true;

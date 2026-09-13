@@ -66,10 +66,29 @@
     // while a re-read immediately after an iframe reports a change is synchronous.
     getItem: function(k){
       k=String(k);
+      // When localStorage is full its write throws and the PREVIOUS value is
+      // left sitting there untouched. This read trusts any non-null answer
+      // from localStorage, so from that moment on every read returned the
+      // STALE copy while the data the user had just entered sat unreachable
+      // in IndexedDB — and the next save wrote the stale copy back over the
+      // good one and uploaded it. Dropping the stale entry on a failed write
+      // (see setItem below) is what makes this read safe.
       if(LS){ try { var lv = LS.getItem(k); if(lv !== null){ cache[k] = lv; return lv; } } catch(e){} }
       return (k in cache) ? cache[k] : null;
     },
-    setItem: function(k,v){ k=String(k); v=String(v); cache[k]=v; try{ if(LS) LS.setItem(k,v); }catch(e){} writeIDB(k,v,false); },
+    setItem: function(k,v){
+      k=String(k); v=String(v); cache[k]=v;
+      // A failed localStorage write leaves the OLD value in place. Left there,
+      // it out-votes the truth on every later read (see getItem above), so the
+      // stale entry is removed and the read falls through to the cache and
+      // IndexedDB, which both hold what was actually written.
+      try{ if(LS) LS.setItem(k,v); }
+      catch(e){
+        try{ if(LS) LS.removeItem(k); }catch(e2){}
+        if (typeof reportWriteFailure === 'function') reportWriteFailure(k, e);
+      }
+      writeIDB(k,v,false);
+    },
     removeItem: function(k){ k=String(k); delete cache[k]; try{ if(LS) LS.removeItem(k); }catch(e){} writeIDB(k,null,true); },
     clear: function(){ for(var k in cache){ if(Object.prototype.hasOwnProperty.call(cache,k)) delete cache[k]; }
                        try{ if(LS) LS.clear(); }catch(e){}
@@ -2073,7 +2092,10 @@
                     </button>
                 </div>
             </div>
-            <img src="../uploads/CESTI_-_LOGO.png" alt="CESTIS Logo" class="header-logo" onerror="this.style.display='none'">
+            <!-- ../uploads/ is not part of either build, so this was always a
+                 broken image that quietly hid itself. The Centre's logo that
+                 ships alongside this page is used instead. -->
+            <img src="CESTI%20Logo%202-Photoroom%20(1).png" alt="CESTIS Logo" class="header-logo" onerror="this.style.display='none'">
             <h1>COMMUNITY EDUCATIONAL AND SKILLS TRAINING INSTITUTE AND SERVICES LIMITED</h1>
             <div class="tagline">EMPOWERING COMMUNITIES</div>
             <div class="subtitle">School Fee Monitoring Dashboard</div>
@@ -3314,7 +3336,7 @@
     <div id="inactivityOverlay" class="inactivity-overlay">
         <div id="dvdLogo" class="dvd-logo">
             <img src="https://drive.google.com/thumbnail?id=1P-DmK6T37lr6ryEfWBMDfOoa3-pqeWIG&sz=w500" alt="CESTIS Logo"
-                 onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='../uploads/CESTI_-_LOGO.png';}else{this.replaceWith(Object.assign(document.createElement('div'),{className:'dvd-logo-fallback',textContent:'CESTIS'}));}">
+                 onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='CESTI%20Logo%202-Photoroom%20(1).png';}else{this.replaceWith(Object.assign(document.createElement('div'),{className:'dvd-logo-fallback',textContent:'CESTIS'}));}">
         </div>
         <div class="inactivity-message">User inactive, please activate page when ready</div>
         <button id="activateWindowBtn" class="activate-window-btn" onclick="deactivateInactivityScreen()">Activate Window</button>
@@ -12328,17 +12350,17 @@
 
                 if (backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (backupData.data.feeStructure) {
@@ -13276,17 +13298,17 @@
 
                 if (backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (backupData.data.feeStructure) {
@@ -13922,17 +13944,17 @@
 
                 if (backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (backupData.data.feeStructure) {
@@ -14424,17 +14446,17 @@
 
                 if (syncStudents && backupData.data.students) {
                     students = backupData.data.students;
-                    CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(students));
+                    feePersist('cestiSchoolFeeStudents', students);
                 }
 
                 if (syncPayments && backupData.data.payments) {
                     payments = backupData.data.payments;
-                    CESTISStore.setItem('cestiSchoolFeePayments', JSON.stringify(payments));
+                    feePersist('cestiSchoolFeePayments', payments);
                 }
 
                 if (syncDocuments && backupData.data.documents) {
                     documents = backupData.data.documents;
-                    CESTISStore.setItem('cestiSchoolFeeDocuments', JSON.stringify(documents));
+                    feePersist('cestiSchoolFeeDocuments', documents);
                 }
 
                 if (syncFeeStructure && backupData.data.feeStructure) {

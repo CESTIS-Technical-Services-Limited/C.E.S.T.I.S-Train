@@ -786,11 +786,20 @@
   };
 
   /* ----------------------- payslip employee linking ----------------------- */
+  // Memoised for a second: sappPayslipLink() asks for this list once per staff
+  // ROW rendered, and each ask was a read plus a JSON.parse of the entire
+  // payroll store — every payroll run ever — repeated per row, per keystroke
+  // in the roster search box.
+  var _sappPayrollMemo = null, _sappPayrollAt = 0;
   function sappPayrollEmployees() {
+    var now = Date.now();
+    if (_sappPayrollMemo && (now - _sappPayrollAt) < 1000) return _sappPayrollMemo;
     try {
       var raw = store().getItem('cestisPayroll');
       var d = raw ? JSON.parse(raw) : null;
-      return (d && Array.isArray(d.employees)) ? d.employees : [];
+      _sappPayrollMemo = (d && Array.isArray(d.employees)) ? d.employees : [];
+      _sappPayrollAt = now;
+      return _sappPayrollMemo;
     } catch (e) { return []; }
   }
   /* Link a staff member to their Staff Payslip employee record, matched by
@@ -1096,7 +1105,7 @@
         return '<option value="' + k + '"' + (k === cycle.key ? ' selected' : '') + '>' + esc(c.label) + '</option>';
       }).join('') +
       '</select>' +
-      '<input type="text" id="sappSearch" class="form-control" style="width:240px;" placeholder="Search staff..." onkeyup="sappRenderRoster()">' +
+      '<input type="text" id="sappSearch" class="form-control" style="width:240px;" placeholder="Search staff..." onkeyup="sappRenderRosterDebounced()">' +
       '<button class="btn btn-secondary" onclick="sappAddStaffPrompt()">+ Add Staff Member</button>' +
       '</div>';
 
@@ -1106,6 +1115,17 @@
   }
 
   root.sappSetCycle = function (k) { sappState.cycleKey = k; sappRenderPage(); };
+
+  // The search box rebuilds the whole roster table (with a storage parse per
+  // row before the memo above); firing it on every keystroke made typing lag.
+  var _sappSearchTimer = null;
+  root.sappRenderRosterDebounced = function () {
+    if (_sappSearchTimer) clearTimeout(_sappSearchTimer);
+    _sappSearchTimer = setTimeout(function () {
+      _sappSearchTimer = null;
+      root.sappRenderRoster();
+    }, 150);
+  };
 
   root.sappRenderRoster = function () {
     var wrap = document.getElementById('sappRosterWrap');

@@ -157,6 +157,11 @@ PAGES.forEach(function (page) {
     ],
     attendanceRecords: [], certDownloadApprovals: [], examResults: [], userAccounts: [], skillAreas: [], certTemplates: {},
     CESTISStore: { setItem: function (k, v) { written[k] = v; }, getItem: function () { return null; } },
+    // The roll is written through the same anti-blanking guard the page uses,
+    // so this still proves a real write happened rather than stubbing it away.
+    saveCollection: function (k, v) {
+      return page.core.pageCloud.guardedSet(sb.CESTISStore, k, v, function () {});
+    },
     saveUserAccounts: function () { written.accounts = true; },
     updateSkillAreaCounts: function () { written.counts = true; },
     cestisStabilizeStudentIds: function () { return false; },

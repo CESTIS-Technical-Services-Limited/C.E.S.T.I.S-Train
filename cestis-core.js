@@ -109,6 +109,13 @@
       // immediately after an iframe reports a change is synchronous.
       getItem: function (k) {
         k = String(k);
+        // When localStorage is full its write throws and the PREVIOUS value is
+        // left sitting there untouched. This read trusts any non-null answer
+        // from localStorage, so from that moment on every read returned the
+        // STALE copy while the data the user had just entered sat unreachable
+        // in IndexedDB — and the next save wrote the stale copy back over the
+        // good one and uploaded it. Dropping the stale entry on a failed write
+        // (see setItem below) is what makes this read safe.
         if (LS) { try { var lv = LS.getItem(k); if (lv !== null) { cache[k] = lv; return lv; } } catch (e) {} }
         return (k in cache) ? cache[k] : null;
       },
@@ -117,7 +124,19 @@
       // for the price of an integer compare, instead of re-serialising the
       // whole dataset every tick to find out the answer is no.
       writes: 0,
-      setItem: function (k, v) { k = String(k); v = String(v); Store.writes++; cache[k] = v; try { if (LS) LS.setItem(k, v); } catch (e) {} writeIDB(k, v, false); },
+      setItem: function (k, v) {
+        k = String(k); v = String(v); Store.writes++; cache[k] = v;
+        // A failed localStorage write leaves the OLD value in place. Left there,
+        // it out-votes the truth on every later read (see getItem above), so the
+        // stale entry is removed and the read falls through to the cache and
+        // IndexedDB, which both hold what was actually written.
+        try { if (LS) LS.setItem(k, v); }
+        catch (e) {
+          try { if (LS) LS.removeItem(k); } catch (e2) {}
+          reportWriteFailure(k, e);
+        }
+        writeIDB(k, v, false);
+      },
       removeItem: function (k) { k = String(k); Store.writes++; delete cache[k]; try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
       clear: function () {
         for (var k in cache) { if (Object.prototype.hasOwnProperty.call(cache, k)) delete cache[k]; }

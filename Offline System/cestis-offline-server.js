@@ -52,6 +52,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const signalling = require('./cestis-offline-signalling.js');
 const lanCert = require('./cestis-offline-cert.js');
 
@@ -79,6 +80,23 @@ function ensureDataDir() {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
 }
 
+/* The Centre's records used to be readable and writable by anyone who could
+   reach this address — a trainee's phone on the Centre wifi could download
+   every account, password hash and payslip, or replace them. Every request to
+   the store now has to carry this token. The pages get it automatically: the
+   server stamps it into cestis-page-cloud.js as that file is served, so any
+   device that can open the system is already carrying it and nobody has to
+   type anything. A client that is not one of our pages does not have it. */
+const ACCESS_TOKEN = crypto.randomBytes(24).toString('hex');
+const TOKEN_PLACEHOLDER = '__CESTIS_LAN_TOKEN__';
+function tokenOk(req) {
+  const given = req.headers['x-cestis-token'];
+  if (typeof given !== 'string' || given.length !== ACCESS_TOKEN.length) return false;
+  // Constant-time compare so the token cannot be guessed a character at a time.
+  try { return crypto.timingSafeEqual(Buffer.from(given), Buffer.from(ACCESS_TOKEN)); }
+  catch (e) { return false; }
+}
+
 /* Every address this computer can be reached on, so whoever is setting the
    Centre up can read one out to the room instead of hunting through settings. */
 function lanAddresses() {
@@ -95,10 +113,12 @@ function lanAddresses() {
 function send(res, status, body, type, extraHeaders) {
   const headers = Object.assign({
     'Content-Type': type || 'text/plain; charset=utf-8',
-    // Everything is local; let any device on the network talk to the store.
-    'Access-Control-Allow-Origin': '*',
+    // The pages this server serves are same-origin, so they need no CORS grant
+    // at all. It used to send '*', which invited EVERY page in every browser on
+    // the network — including any website a trainee happened to have open — to
+    // read and rewrite the Centre's records.
     'Access-Control-Allow-Methods': 'GET, PUT, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, X-CESTIS-Token',
     'Cache-Control': 'no-store'
   }, extraHeaders || {});
   res.writeHead(status, headers);
@@ -128,12 +148,25 @@ function handleData(req, res, name) {
   }
 
   if (req.method === 'PUT' || req.method === 'POST') {
-    let body = '';
+    // Collect the raw bytes and decode ONCE at the end. Concatenating each
+    // chunk as a string decoded every chunk on its own, so a multi-byte
+    // character (any accented name, a dash, a currency symbol) that straddled a
+    // chunk boundary was torn in half and stored as two replacement characters
+    // — and because the JSON still parsed, the damage was saved and synced
+    // everywhere without a single error.
+    const chunks = [];
+    let received = 0, tooBig = false;
     req.on('data', c => {
-      body += c;
-      if (body.length > 64 * 1024 * 1024) { req.destroy(); }   // sanity bound
+      received += c.length;
+      if (received > 64 * 1024 * 1024) {
+        if (!tooBig) { tooBig = true; send(res, 413, 'too large'); req.destroy(); }
+        return;
+      }
+      chunks.push(c);
     });
     req.on('end', () => {
+      if (tooBig) return;
+      const body = Buffer.concat(chunks).toString('utf8');
       try { JSON.parse(body); } catch (e) { return send(res, 400, 'not JSON'); }
       ensureDataDir();
       // Write to a temporary file and rename, so a power cut mid-save cannot
@@ -143,7 +176,7 @@ function handleData(req, res, name) {
         if (err) return send(res, 500, 'write failed: ' + err.message);
         fs.rename(tmp, file, err2 => {
           if (err2) return send(res, 500, 'save failed: ' + err2.message);
-          send(res, 200, JSON.stringify({ ok: true, file: path.basename(file), bytes: body.length }), MIME['.json']);
+          send(res, 200, JSON.stringify({ ok: true, file: path.basename(file), bytes: Buffer.byteLength(body) }), MIME['.json']);
         });
       });
     });
@@ -166,10 +199,26 @@ function listData(res) {
 
 /* --------------------------------------------------------------- the pages */
 function serveStatic(req, res, urlPath) {
-  let rel = decodeURIComponent(urlPath.split('?')[0]);
+  // A stray percent sign in the address used to throw out of this line and take
+  // the whole server down with it — one mistyped address, one stale bookmark or
+  // one network scanner and the entire Centre lost the system until somebody
+  // walked over and started it again.
+  let rel;
+  try { rel = decodeURIComponent(urlPath.split('?')[0]); }
+  catch (e) { return send(res, 400, 'That address could not be read.'); }
   if (rel === '/' || rel === '') rel = '/index.html';
   const full = path.normalize(path.join(ROOT, rel));
-  if (!full.startsWith(ROOT)) return send(res, 403, 'forbidden');
+  // A prefix test alone let any SIBLING folder whose name merely starts the same
+  // way be served — "Offline System-backup", "Offline System (old)" — each of
+  // which holds an older copy of the Centre's data and its own private key.
+  if (full !== ROOT && !full.startsWith(ROOT + path.sep)) return send(res, 403, 'forbidden');
+  // The records folder and the certificate folder are NOT web pages. Serving
+  // them as ordinary files handed out the whole store and the server's private
+  // key to anyone who guessed the path.
+  if (full === DATA_DIR || full.startsWith(DATA_DIR + path.sep) ||
+      full === CERT_DIR || full.startsWith(CERT_DIR + path.sep)) {
+    return send(res, 403, 'forbidden');
+  }
 
   fs.stat(full, (err, st) => {
     if (err || !st.isFile()) {
@@ -179,11 +228,24 @@ function serveStatic(req, res, urlPath) {
     // Range support so long videos and PDFs can be scrubbed rather than
     // downloaded whole before anything plays.
     const range = req.headers.range;
-    if (range && /^bytes=\d*-\d*$/.test(range)) {
+    if (range && /^bytes=\d*-\d*$/.test(range) && range !== 'bytes=-') {
       const [s, e] = range.replace('bytes=', '').split('-');
-      const start = s ? parseInt(s, 10) : 0;
-      const end = e ? parseInt(e, 10) : st.size - 1;
-      if (start >= st.size) return send(res, 416, 'range not satisfiable');
+      let start, end;
+      if (s === '') {
+        // "bytes=-N" means the LAST N bytes. It used to be read as "the first N",
+        // so a player asking for the tail of a file was handed the head instead
+        // and reported the file as corrupt.
+        const n = parseInt(e, 10);
+        start = Math.max(0, st.size - n);
+        end = st.size - 1;
+      } else {
+        start = parseInt(s, 10);
+        // Clamp: an open-ended or over-long request used to promise more bytes
+        // in Content-Length than the file holds, so the player sat waiting for
+        // data that could never arrive until the connection timed out.
+        end = e ? Math.min(parseInt(e, 10), st.size - 1) : st.size - 1;
+      }
+      if (start >= st.size || end < start) return send(res, 416, 'range not satisfiable');
       res.writeHead(206, {
         'Content-Type': type,
         'Content-Range': 'bytes ' + start + '-' + end + '/' + st.size,
@@ -192,6 +254,17 @@ function serveStatic(req, res, urlPath) {
       });
       fs.createReadStream(full, { start, end }).pipe(res);
       return;
+    }
+    // The one file that talks to the store gets the run's access token stamped
+    // into it on the way out, so our own pages authenticate without anybody
+    // typing anything, and a client that did not come from here cannot.
+    if (path.basename(full) === 'cestis-page-cloud.js') {
+      return fs.readFile(full, 'utf8', (rErr, txt) => {
+        if (rErr) return send(res, 500, 'read failed');
+        const out = txt.split(TOKEN_PLACEHOLDER).join(ACCESS_TOKEN);
+        res.writeHead(200, { 'Content-Type': type, 'Content-Length': Buffer.byteLength(out), 'Cache-Control': 'no-store' });
+        res.end(out);
+      });
     }
     res.writeHead(200, { 'Content-Type': type, 'Content-Length': st.size, 'Accept-Ranges': 'bytes' });
     fs.createReadStream(full).pipe(res);
@@ -226,12 +299,24 @@ const handler = (req, res) => {
   if (url.indexOf('/peerjs/id') === 0) {
     return send(res, 200, Math.random().toString(36).slice(2) + Date.now().toString(36));
   }
-  if (url === '/_cestis/data' || url === '/_cestis/data/') return listData(res);
-  if (url.indexOf('/_cestis/data/') === 0) {
+  if (url === '/_cestis/data' || url === '/_cestis/data/' || url.indexOf('/_cestis/data/') === 0) {
+    if (!tokenOk(req)) {
+      return send(res, 401, JSON.stringify({ ok: false, error: 'not authorised for this Centre\u2019s records' }), MIME['.json']);
+    }
+    if (url === '/_cestis/data' || url === '/_cestis/data/') return listData(res);
     return handleData(req, res, url.slice('/_cestis/data/'.length));
   }
   serveStatic(req, res, url);
 };
+
+/* Last line of defence. Whatever goes wrong in one request, the Centre keeps
+   its system: the fault is written down and the server carries on serving. */
+process.on('uncaughtException', err => {
+  try { console.error('  A request failed unexpectedly (the system is still running): ' + (err && err.stack || err)); } catch (e) {}
+});
+process.on('unhandledRejection', err => {
+  try { console.error('  A background step failed (the system is still running): ' + (err && err.stack || err)); } catch (e) {}
+});
 
 const server = tls
   ? https.createServer({ key: tls.key, cert: tls.cert }, handler)
