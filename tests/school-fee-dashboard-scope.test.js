@@ -83,7 +83,11 @@ function makePage(opts) {
   const sandbox = {
     students: opts.students || [],
     payments: opts.payments || [],
-    feeShowAllPayments: opts.showAll !== false,
+    // The page has three scopes now: 'year' (the present group, and the
+    // default), 'quarter', and 'all'. These suites were written when it was
+    // a boolean, so `showAll` still selects between every-year and the one
+    // selected quarter, which is what they are testing.
+    feeScopeMode: opts.showAll !== false ? 'all' : 'quarter',
     feeStructure: opts.feeStructure || { 'WELDING L2': { total: 28000 } },
     FEE_CACHE_TTL_MS: 750, _feeCacheStamp: 0, _feeQuarterCache: null,
     CESTISCore: Core, CESTISStore: store,
@@ -153,8 +157,8 @@ function runFor(pageFile) {
     'expected minus outstanding IS what has been collected');
 
   console.log('The label says so, rather than naming a year it is not scoped to');
-  assertEq(page.feeFYLabel(), 'All trainees on the roll', 'the student cards');
-  assertEq(page.feeScopeLabel(), 'All quarters · every year', 'and the collected card');
+  assertEq(page.feeFYLabel(), 'Every trainee, all years', 'the student cards');
+  assertEq(page.feeScopeLabel(), 'Every year · whole history', 'and the collected card');
 
   console.log('Stepping the financial year does not change a whole-roll figure');
   page._setQuarter({ fy: '2023/2024', q: 1 });
@@ -174,7 +178,7 @@ function runFor(pageFile) {
   // Of that year's receipts only P3 (Jul 2025) falls in Q2 — P4 is Feb 2026 (Q4)
   // and P5 Dec 2025 (Q3).
   assertEq(c.collected, 7000, 'and only the payments in the selected quarter');
-  assertEq(page.feeFYLabel(), 'FY 2025/2026 cohort', 'and the label names the cohort');
+  assertEq(page.feeFYLabel(), 'FY 2025/2026 group', 'and the label names the group');
 
   console.log('A different year is a different cohort');
   page._setQuarter({ fy: '2023/2024', q: 1 });
@@ -203,15 +207,15 @@ function runFor(pageFile) {
   page = makePage({ students: clone(ROLL), payments: clone(PAID), showAll: true });
   page.recalculateStudentTotals();
   assertEq(cards(page).students, 5, 'on: the whole roll');
-  page.feeShowAllPayments = false;                       // what feeSelectAll() flips
+  page.feeScopeMode = 'quarter';                         // what picking a quarter does
   assertEq(cards(page).students, 3, 'off: back to the selected year');
-  page.feeShowAllPayments = true;
+  page.feeScopeMode = 'all';
   assertEq(cards(page).students, 5, 'and on again');
 
-  // The page's own handler must be the flip, not a one-way set — before this the
-  // only way off "All Quarters" was to pick a quarter.
-  assert(/function feeSelectAll\(\)\s*\{\s*[\s\S]{0,200}feeShowAllPayments\s*=\s*!feeShowAllPayments/.test(SRC),
-    'feeSelectAll() flips the setting rather than forcing it on');
+  // "All Years" is still a toggle rather than a one-way switch, and it now falls
+  // back to the present group rather than to a single quarter.
+  assert(/function feeSelectAll\(\)\s*\{\s*[\s\S]{0,200}feeScopeMode = \(feeScopeMode === 'all'\) \? 'year' : 'all'/.test(SRC),
+    'feeSelectAll() toggles between every year and the present group');
 
   /* ---------- 4. A trainee with no fee is not "Fully Paid" ---------- */
   console.log('\nA trainee nobody has priced is not counted as settled');

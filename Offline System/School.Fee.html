@@ -208,38 +208,64 @@
         }
 
         /* Header Styles */
+        /* The banner used to take a third of the first screen — a 120px crest
+           above a 1.8rem title above a tagline above a subtitle, all centred and
+           stacked, before a single figure appeared. It is now one compact row:
+           crest beside the name, with the tagline and page name on the line
+           under it, so the work starts near the top of the window. */
         .header {
             background: #0D47A1;
-            padding: 2rem;
+            padding: 0.85rem 1.25rem;
             border-radius: 1rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             box-shadow: 0 4px 6px var(--shadow);
-            text-align: center;
             position: relative;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            text-align: left;
         }
 
         .header-logo {
-            max-width: 120px;
-            margin: 0 auto 1rem;
+            max-width: 56px;
+            margin: 0;
             display: block;
+            flex: 0 0 auto;
+        }
+
+        .header-titles { min-width: 0; flex: 1 1 auto; }
+        .header-controls { order: 3; margin-left: auto; flex: 0 0 auto; }
+        @media (max-width: 900px) {
+            .header-controls { order: 4; flex-basis: 100%; margin-left: 0; }
+            .header-controls > div { justify-content: flex-start !important; }
         }
 
         .header h1 {
             color: #ffffff;
-            font-size: 1.8rem;
-            margin-bottom: 0.5rem;
+            font-size: 1.15rem;
+            line-height: 1.25;
+            margin: 0 0 0.15rem;
         }
 
         .header .tagline {
             color: #A8D5A5;
-            font-size: 1.1rem;
+            font-size: 0.82rem;
             font-weight: 600;
-            margin-bottom: 0.25rem;
+            margin: 0;
+            display: inline;
         }
 
         .header .subtitle {
             color: #E3F2FD;
-            font-size: 0.9rem;
+            font-size: 0.82rem;
+            display: inline;
+        }
+        /* One line: "EMPOWERING COMMUNITIES · School Fee Monitoring Dashboard" */
+        .header .tagline + .subtitle::before { content: ' · '; opacity: .6; }
+
+        @media (max-width: 720px) {
+            .header { flex-wrap: wrap; }
+            .header h1 { font-size: 1rem; }
         }
 
         /* Dark Mode Toggle */
@@ -263,24 +289,30 @@
         }
 
         /* Navigation Tabs */
+        /* Eight tabs at 2rem of side padding each could not fit one row, so the
+           last one was stranded on a line of its own. They share the width now
+           and stay on one row down to tablet size. */
         .nav-tabs {
             display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1.5rem;
+            gap: 0.4rem;
+            margin-bottom: 1rem;
             flex-wrap: wrap;
         }
 
         .nav-tab {
             background: var(--bg-card);
             border: none;
-            padding: 1rem 2rem;
+            padding: 0.7rem 0.95rem;
             border-radius: 0.5rem;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.92rem;
             font-weight: 600;
             color: var(--text-primary);
             box-shadow: 0 2px 4px var(--shadow);
             transition: all 0.3s ease;
+            flex: 1 1 auto;
+            white-space: nowrap;
+            text-align: center;
         }
 
         .nav-tab:hover {
@@ -314,28 +346,52 @@
             margin-bottom: 2rem;
         }
 
+        /* All four cards used to be the same green, so money collected and money
+           still owed read identically at a glance — the one comparison the page
+           exists to make. Each now carries its own meaning: neutral for a count,
+           blue for what is expected, green for what has come in, amber for what
+           is still out. The scope line underneath is part of the figure, not a
+           footnote, so it is legible rather than 12px grey. */
         .stat-card {
-            background: var(--light-green);
-            color: var(--dark-green);
-            padding: 1.5rem;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            padding: 1.1rem 1.25rem;
             border-radius: 0.75rem;
             box-shadow: 0 4px 6px var(--shadow);
             transition: transform 0.3s ease;
+            border-left: 5px solid #90a4ae;
         }
+        .stat-card:nth-child(1) { border-left-color: #546e7a; }
+        .stat-card:nth-child(2) { border-left-color: #1565c0; }
+        .stat-card:nth-child(3) { border-left-color: #1b8a5a; }
+        .stat-card:nth-child(4) { border-left-color: #b26a00; }
+        .stat-card:nth-child(3) .value { color: #1b8a5a; }
+        .stat-card:nth-child(4) .value { color: #b26a00; }
 
         .stat-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-3px);
         }
 
         .stat-card h3 {
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-            opacity: 0.9;
+            font-size: 0.82rem;
+            margin-bottom: 0.35rem;
+            opacity: 0.85;
+            text-transform: uppercase;
+            letter-spacing: .04em;
         }
 
         .stat-card .value {
-            font-size: 2rem;
+            font-size: 1.9rem;
             font-weight: bold;
+            line-height: 1.15;
+        }
+        /* The line that says WHICH group and period the figure covers. */
+        .stat-card > div[id$="Scope"] {
+            font-size: 12.5px !important;
+            font-weight: 600;
+            margin-top: 6px !important;
+            opacity: .85;
+            color: inherit !important;
         }
 
         /* Form Styles */
@@ -531,6 +587,151 @@
             color: var(--text-primary);
         }
 
+        /* Find-a-trainee search, above the Record Payment form */
+        .trainee-search {
+            position: relative;
+            margin-bottom: 1.25rem;
+            max-width: 640px;
+        }
+
+        .trainee-search label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .trainee-search-field {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.15rem 0.6rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: var(--bg-card);
+            transition: border-color .15s, box-shadow .15s;
+        }
+
+        .trainee-search-field:focus-within {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(13, 71, 161, .15);
+        }
+
+        .trainee-search-icon { font-size: 0.95rem; opacity: .7; }
+
+        .trainee-search-field input {
+            flex: 1;
+            min-width: 0;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 1rem;
+            padding: 0.6rem 0;
+        }
+
+        .trainee-search-clear {
+            display: none;
+            border: 0;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.95rem;
+            padding: 0.25rem 0.35rem;
+            border-radius: 0.25rem;
+            line-height: 1;
+        }
+        .trainee-search-clear:hover { background: var(--bg-primary); color: var(--text-primary); }
+        .trainee-search.has-query .trainee-search-clear { display: block; }
+
+        /* The results float over the form rather than pushing it down, so the
+           fields below do not jump about while the user is typing. */
+        .trainee-search-results {
+            display: none;
+            position: absolute;
+            z-index: 40;
+            left: 0;
+            right: 0;
+            margin-top: 0.35rem;
+            max-height: 320px;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, .18);
+        }
+        .trainee-search.open .trainee-search-results { display: block; }
+
+        .trainee-result {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.65rem 0.85rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .trainee-result:last-child { border-bottom: 0; }
+        .trainee-result:hover,
+        .trainee-result.active { background: var(--bg-primary); }
+
+        /* Name on top, ID and programme underneath — a column, or the two run
+           together into one unreadable line. */
+        .trainee-result-main {
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+            min-width: 0;
+        }
+        .trainee-result-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .trainee-result-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .trainee-result-balance {
+            flex-shrink: 0;
+            font-weight: 700;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        .trainee-result-balance.owing { color: #C62828; }
+        .trainee-result-balance.clear { color: #2E7D32; }
+        /* The light-mode reds and greens are too dark to read on the dark card. */
+        body.dark-mode .trainee-result-balance.owing { color: #ff7b72; }
+        body.dark-mode .trainee-result-balance.clear { color: #56d364; }
+        .trainee-result mark {
+            background: rgba(255, 193, 7, .45);
+            color: inherit;
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+
+        .trainee-search-empty,
+        .trainee-search-more {
+            padding: 0.7rem 0.85rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        .trainee-search-more { border-top: 1px solid var(--border-color); }
+
+        .trainee-search-chosen {
+            display: none;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .trainee-search-chosen.shown { display: block; }
+        .trainee-search-chosen strong { color: var(--primary-blue); }
+
         /* Status Badges */
         .status-badge {
             padding: 0.25rem 0.75rem;
@@ -569,7 +770,9 @@
             color: #dc3545;
         }
 
-        /* No fee set yet — neither settled nor a known debt. */
+        /* No fee set yet — neither settled nor a known debt, so it reads as
+           neither. Distinct from Outstanding, which is a figure the Centre can
+           actually chase. */
         .status-unpriced {
             background: #e2e3e5;
             color: #41464b;
@@ -944,12 +1147,8 @@
             transform: translateY(-2px);
         }
 
-        /* Update header logo to not overlap */
-        .header-logo {
-            max-width: 120px;
-            margin: 0 auto 1rem;
-            display: block;
-        }
+        /* (The crest is sized once, with the compact header above. This rule
+           used to re-inflate it to 120px and stack it, undoing that.) */
 
         /* ============================================
            Two-Factor Authentication (2FA) Styles
@@ -1858,9 +2057,11 @@
     <div id="mainDashboard" style="display: none;">
     <div class="container">
         <div class="header">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
-                <span></span>
-                <div style="display: flex; align-items: center; gap: 1rem;">
+            <!-- The account name, connection light and Cloud menu sit at the end
+                 of the bar, after the crest and the Centre's name, rather than
+                 ahead of them. -->
+            <div class="header-controls">
+                <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: flex-end;">
                     <span id="currentUserDisplay" style="font-size: 0.9rem; color: #ffffff; font-weight: 600;"></span>
 
                     <!-- Cloud Sync Controls -->
@@ -1900,6 +2101,10 @@
                                     <div class="cloud-dropdown-item" onclick="browseBackupFiles()">
                                         <span>📁</span>
                                         <span>Browse All Backups</span>
+                                    </div>
+                                    <div class="cloud-dropdown-item" onclick="restoreFeeRecordsFromDrive()" style="background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%); color: white;">
+                                        <span>♻️</span>
+                                        <span>Restore Fee Records from Drive</span>
                                     </div>
                                     <div class="cloud-dropdown-divider"></div>
                                     <div class="last-sync-info" id="lastSyncInfo">
@@ -1945,9 +2150,10 @@
                  broken image that quietly hid itself. The Centre's logo that
                  ships alongside this page is used instead. -->
             <img src="CESTI%20Logo%202-Photoroom%20(1).png" alt="CESTIS Logo" class="header-logo" onerror="this.style.display='none'">
-            <h1>COMMUNITY EDUCATIONAL AND SKILLS TRAINING INSTITUTE AND SERVICES LIMITED</h1>
-            <div class="tagline">EMPOWERING COMMUNITIES</div>
-            <div class="subtitle">School Fee Monitoring Dashboard</div>
+            <div class="header-titles">
+                <h1>COMMUNITY EDUCATIONAL AND SKILLS TRAINING INSTITUTE AND SERVICES LIMITED</h1>
+                <div class="tagline">EMPOWERING COMMUNITIES</div><div class="subtitle">School Fee Monitoring Dashboard</div>
+            </div>
         </div>
 
         <div class="nav-tabs">
@@ -1964,6 +2170,11 @@
         <!-- Dashboard Module -->
         <div id="dashboard" class="module active">
             <div id="dashboardQuarterBar"></div>
+            <!-- Trainees the Fee Structure cannot price. Hidden when there are
+                 none; filled by reportUnpricedTrainees(). -->
+            <div id="feeUnpricedNotice" style="display:none;margin-bottom:1rem;padding:0.9rem 1.1rem;
+                 border-radius:0.5rem;background:#fff3cd;color:#856404;border:1px solid #ffe08a;
+                 font-size:14px;line-height:1.5;"></div>
             <div class="stats-grid">
                 <div class="stat-card">
                     <h3>Total Students</h3>
@@ -1989,14 +2200,14 @@
 
             <div class="chart-container">
                 <h2>Collection Rate by Skill Area</h2>
-                <div style="position:relative;height:380px;">
+                <div style="position:relative;height:300px;">
                     <canvas id="collectionChart"></canvas>
                 </div>
             </div>
 
             <div class="chart-container">
                 <h2>Payment Trends</h2>
-                <div style="position:relative;height:380px;">
+                <div style="position:relative;height:300px;">
                     <canvas id="trendChart"></canvas>
                 </div>
             </div>
@@ -2091,7 +2302,7 @@
             </div>
 
             <div class="search-filter">
-                <input type="text" id="searchStudent" placeholder="🔍 Search by name or ID..." oninput="filterStudents()">
+                <input type="text" id="searchStudent" placeholder="🔍 Search by name or ID..." oninput="filterStudentsDebounced()">
                 <!-- Filled by updateSkillAreaOptions(), so a programme
                      added under Fee Structure can be filtered by here. -->
                 <select id="filterSkillArea" onchange="filterStudents()">
@@ -2146,6 +2357,29 @@
         <div id="payments" class="module">
             <div class="form-section">
                 <h2>Record Payment</h2>
+
+                <!-- Find a trainee by typing, instead of scrolling a dropdown of
+                     the whole roll. Picking a result fills the Select Student
+                     dropdown below, so everything that reads that select keeps
+                     working exactly as it did. -->
+                <div class="trainee-search" id="traineeSearchBox">
+                    <label for="traineeSearch">Find Trainee</label>
+                    <div class="trainee-search-field">
+                        <span class="trainee-search-icon" aria-hidden="true">🔍</span>
+                        <input type="text" id="traineeSearch" autocomplete="off" spellcheck="false"
+                               role="combobox" aria-expanded="false" aria-autocomplete="list"
+                               aria-controls="traineeSearchResults"
+                               placeholder="Search by name, trainee ID or programme…"
+                               oninput="traineeSearchInput()"
+                               onkeydown="traineeSearchKeydown(event)"
+                               onfocus="traineeSearchInput()">
+                        <button type="button" class="trainee-search-clear" id="traineeSearchClear"
+                                onclick="clearTraineeSearch()" title="Clear" aria-label="Clear search">✕</button>
+                    </div>
+                    <div class="trainee-search-results" id="traineeSearchResults" role="listbox" aria-label="Matching trainees"></div>
+                    <div class="trainee-search-chosen" id="traineeSearchChosen" role="status"></div>
+                </div>
+
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Select Student *</label>
@@ -2203,7 +2437,7 @@
             <div id="paymentsQuarterLabel" style="font-size:13px;color:var(--text-muted,#5b6b80);margin:0 0 10px;font-weight:600;"></div>
 
             <div class="search-filter">
-                <input type="text" id="searchPayment" placeholder="🔍 Search payments..." oninput="filterPayments()">
+                <input type="text" id="searchPayment" placeholder="🔍 Search payments..." oninput="filterPaymentsDebounced()">
                 <input type="date" id="filterDateFrom" onchange="filterPayments()">
                 <input type="date" id="filterDateTo" onchange="filterPayments()">
             </div>
@@ -2284,7 +2518,7 @@
             </div>
 
             <div class="search-filter">
-                <input type="text" id="searchDocuments" placeholder="🔍 Search documents..." oninput="filterDocuments()">
+                <input type="text" id="searchDocuments" placeholder="🔍 Search documents..." oninput="filterDocumentsDebounced()">
                 <select id="filterDocStudent" onchange="filterDocuments()">
                     <option value="">All Students</option>
                 </select>
@@ -2352,15 +2586,19 @@
                         <tr>
                             <th>Skill Area</th>
                             <th>Total Tuition Fee</th>
-                            <th>Term 1</th>
-                            <th>Term 2</th>
-                            <th>Term 3</th>
-                            <th>Term 4</th>
-                            <th>Term 5</th>
-                            <th>Term 6</th>
-                            <th>Term 7</th>
-                            <th>Term 8</th>
-                            <th>Term 9</th>
+                            <!-- Nine term columns are always in the markup, but only the
+                                 ones a programme actually uses are shown (see
+                                 renderFeeStructure). Six empty columns used to squeeze
+                                 the real ones until the headings wrapped mid-word. -->
+                            <th class="fee-term-col" data-term="1">Term 1</th>
+                            <th class="fee-term-col" data-term="2">Term 2</th>
+                            <th class="fee-term-col" data-term="3">Term 3</th>
+                            <th class="fee-term-col" data-term="4">Term 4</th>
+                            <th class="fee-term-col" data-term="5">Term 5</th>
+                            <th class="fee-term-col" data-term="6">Term 6</th>
+                            <th class="fee-term-col" data-term="7">Term 7</th>
+                            <th class="fee-term-col" data-term="8">Term 8</th>
+                            <th class="fee-term-col" data-term="9">Term 9</th>
                             <th id="feeStructureActionsHeader" style="display: none;">Actions</th>
                         </tr>
                     </thead>
@@ -2636,6 +2874,27 @@
                         <label>Enrollment Date</label>
                         <input type="date" id="editEnrollmentDate">
                     </div>
+                </div>
+
+                <!-- Two real trainees can share a name. The system treats one
+                     name as one person and collapses the rest on launch; this
+                     is how an administrator says "these are genuinely two
+                     people" and exempts a fee record from that. Ticking it here
+                     also marks the same person's Student Progress record, so
+                     both sides agree. -->
+                <div class="form-group" id="editKeepSeparateGroup" style="margin-top:0.75rem;">
+                    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:600;">
+                        <input type="checkbox" id="editKeepSeparate" style="margin-top:3px;width:16px;height:16px;cursor:pointer;">
+                        <span>Keep separate — another trainee has this same name
+                            <span style="display:block;font-weight:400;font-size:0.8rem;color:var(--text-secondary);margin-top:3px;">
+                                Tick this when two different people genuinely share a name. This
+                                fee record will never be merged with its namesake, and the same
+                                person's Student Progress record is marked too. Leave it unticked
+                                and records with the same name are treated as one person.
+                            </span>
+                        </span>
+                    </label>
+                    <div id="editNamesakeNote" style="display:none;font-size:0.8rem;margin-top:6px;padding:8px 10px;border-radius:6px;background:rgba(255,193,7,.14);border:1px solid rgba(255,193,7,.4);color:var(--text-primary);"></div>
                 </div>
 
                 <!-- Personal Information Section -->
@@ -4039,11 +4298,12 @@
                 if (!feeStructure || typeof feeStructure !== 'object') return false;
                 var centreNames = {};
                 try {
-                    var raw = CESTISStore.getItem('voctrain_skillAreas');
-                    var areas = raw ? JSON.parse(raw) : [];
-                    if (Array.isArray(areas)) {
-                        areas.forEach(function (a) { if (a && a.name) centreNames[feeNameKey(a.name)] = String(a.name); });
-                    }
+                    // Only LIVE centres get to decide the canonical spelling: a
+                    // deleted centre must not pull a priced programme back onto
+                    // its name.
+                    feeTrainingCentres().forEach(function (a) {
+                        if (a && a.name) centreNames[feeNameKey(a.name)] = String(a.name);
+                    });
                 } catch (e) {}
 
                 var byName = {};                     // comparison key -> kept spelling
@@ -4317,8 +4577,9 @@
         function normalizeFeeKeysToVoctrain() {
             try {
                 if (!feeStructure || typeof feeStructure !== 'object') return false;
-                var raw = CESTISStore.getItem('voctrain_skillAreas');
-                var areas = raw ? JSON.parse(raw) : [];
+                // Live centres only: a deleted one must not be treated as the
+                // canonical spelling for a programme priced here.
+                var areas = feeTrainingCentres();
                 if (!Array.isArray(areas) || !areas.length) return false; // nothing to align to yet
 
                 // canonical: lowercased+trimmed VocTrain name -> exact VocTrain name
@@ -4423,20 +4684,24 @@
             alert('✅ Programme cost added for "' + name + '".\n\nIt can now be chosen on the Add New Student form.');
         }
 
-        // Active VocTrain training centres/courses (durations live on the LMS
-        // skillAreas, shared via voctrain_skillAreas). Excludes ended courses.
+        /* The VocTrain training centres this page may price and enrol into.
+
+           A programme whose intake has ENDED is still one of them. It used to be
+           filtered out, and that was wrong on the Centre's own terms: an intake
+           ends but its trainees do not stop existing — their fees are still
+           being collected, receipted and reported on months afterwards, and a
+           programme with no price cannot be any of that. Dropping the ended ones
+           also left this list shorter than the Training Centres page, so a
+           programme plainly visible there simply could not be found here.
+
+           They are offered, and they are labelled "ended" where they are
+           offered, so the choice is made knowingly. Deleted centres are still
+           excluded — feeTrainingCentres() drops those. */
         function getVoctrainActiveCourses() {
             try {
-                var raw = CESTISStore.getItem('voctrain_skillAreas');
-                var areas = raw ? JSON.parse(raw) : [];
+                var areas = feeTrainingCentres();
                 if (!Array.isArray(areas)) return [];
-                return areas.filter(function(s){
-                    if (!s || !s.name) return false;
-                    if (typeof CESTISCore !== 'undefined' && CESTISCore.courseDuration) {
-                        return CESTISCore.courseDuration.status(s.startDate, s.endDate) !== 'ended';
-                    }
-                    return true;
-                });
+                return areas.filter(function(s){ return !!(s && s.name); });
             } catch (e) { return []; }
         }
 
@@ -4455,7 +4720,12 @@
 
             list.innerHTML = avail.map(function (c) {
                 var st = (typeof CESTISCore !== 'undefined' && CESTISCore.courseDuration) ? CESTISCore.courseDuration.status(c.startDate, c.endDate) : '';
-                var tag = st === 'not-started' ? 'VocTrain — not started yet' : (st === 'no-dates' ? 'VocTrain — no dates set' : 'VocTrain training centre');
+                // An ended intake says so where it is offered, so pricing one is
+                // a deliberate choice and never a mistake for the intake running now.
+                var tag = st === 'ended' ? 'VocTrain — ended'
+                        : st === 'not-started' ? 'VocTrain — not started yet'
+                        : st === 'no-dates' ? 'VocTrain — no dates set'
+                        : 'VocTrain training centre';
                 // Offered by the centre's own name, intake key first ("02. Welding
                 // and Fabrication"), so a programme the Centre is running again is
                 // priced and enrolled into as the separate intake it is — and the
@@ -4935,6 +5205,7 @@
             dedupeFeeStructure();         // one entry per programme, however it is spelt
             feeBindTraineesToIntake();    // each trainee held to the intake they enrolled in
             collapseFeeIntakes();         // one entry per intake, however the Centre names it
+            seedFeeInformation();         // trainees from the LMS roll; tuition from the Fee Structure
             renderFeeStructure();
             updateDashboard();
             renderStudentsTable();
@@ -4948,6 +5219,9 @@
             updateSkillAreaOptions();
             setupDragAndDrop();
             initializeReportFilters();
+            // Give the Drive pull a moment to land before deciding the roll is
+            // empty, so a normal cold start does not flash the warning.
+            setTimeout(feeCheckRollNotEmpty, 6000);
 
             // Set today's date as default
             const today = new Date().toISOString().split('T')[0];
@@ -5061,6 +5335,9 @@
             // Self-heal: drop any fee student that has been tombstoned (deleted here or
             // in the LMS). This stops a record removed via the LMS from lingering as a
             // ghost and from being resurrected the next time this page saves its list.
+            // Both of these rewrite the roll during load, which is precisely when
+            // it may not have arrived yet — so they go through the same guard as
+            // every other write.
             try { if (dropTombstonedFeeStudents()) feePersist('cestiSchoolFeeStudents', students); } catch (e) {}
             // Migrate auto-generated ids to deterministic stable ids on load and
             // persist once, so cross-device duplicates collapse before anything
@@ -5094,7 +5371,7 @@
                 (r2 ? (JSON.parse(r2) || []) : []).forEach(id => { if (id) vdel[id] = true; });
                 if (!Object.keys(feeDel).length && !Object.keys(vdel).length) return false;
                 const before = students.length;
-                students = students.filter(s => {
+                const kept = students.filter(s => {
                     if (!s) return false;
                     const sid = (window.CESTISCore && typeof CESTISCore.stableStudentId === 'function')
                         ? CESTISCore.stableStudentId({ name: s.name, course: s.skillArea }) : null;
@@ -5102,6 +5379,18 @@
                     if (vdel[s.id] || (s.lmsId && vdel[s.lmsId]) || vdel['SF-' + s.id] || (sid && vdel[sid])) return false;
                     return true;
                 });
+                // A sweep that would clear the WHOLE roll is a fault, not a
+                // deletion: the tombstone lists arrive from another page and
+                // another device, and this runs on load, before anybody has asked
+                // for anything. Emptying the roll here would then be saved and
+                // pushed. Deleting every trainee one by one still works — each of
+                // those goes through deleteStudent().
+                if (before > 0 && kept.length === 0) {
+                    console.error('[SchoolFee] Tombstone sweep would have removed every trainee (' +
+                                  before + ' records). Refused — the roll is kept as it stands.');
+                    return false;
+                }
+                students = kept;
                 return students.length !== before;
             } catch (e) { return false; }
         }
@@ -5131,6 +5420,187 @@
             return arr.filter(p => !p || t.indexOf(p.id) === -1);
         }
 
+        /* ==================== RENDER PERFORMANCE LAYER ======================
+           This page re-renders three tables, five dropdowns and two charts after
+           almost every action, and each of those passes used to go back to
+           storage for the same handful of answers over and over:
+
+             • the active FY/quarter — read and JSON-parsed ONCE PER PAYMENT, by
+               paymentInActiveQuarter(), which the dashboard then called three
+               more times over the whole payment list;
+             • the training-centre roster — read and JSON-parsed ONCE PER STUDENT
+               ROW, to decide whether to show the "Course ended" pill;
+             • the LMS student list — scanned end to end once per row for the
+               academic stage.
+
+           CESTISStore.getItem() reads through to localStorage on every call (it
+           has to: another tab or an embedded page may have written since), so a
+           single refresh on a real centre's data meant thousands of storage
+           reads and JSON parses before a single row was drawn. That is what made
+           the page feel slow.
+
+           The helpers below answer those questions from memory instead. Each
+           cache is dropped the moment the thing behind it can have changed — a
+           quarter switch, a save, a change from another tab — and in any case
+           once it is older than FEE_CACHE_TTL_MS, so a cached answer can never
+           be more than a moment behind the store even if a hook is missed. */
+        const FEE_CACHE_TTL_MS = 750;
+        let _feeCacheStamp = 0;
+        let _feeQuarterCache = null;   // the active FY+quarter
+        let _feeCentresCache = null;   // the parsed training-centre roster
+        let _feeDurationCache = null;  // programme name -> course-duration info
+        let _feeLmsIndex = null;       // lookup index over the LMS student list
+
+        // Drop every derived cache. Cheap, and safe to call as often as you like.
+        function feeInvalidateCaches() {
+            _feeQuarterCache = null;
+            _feeCentresCache = null;
+            _feeDurationCache = null;
+            _feeLmsIndex = null;
+        }
+
+        // Expire the whole generation once it is older than the TTL. This is the
+        // backstop: correctness does not depend on every writer remembering to
+        // invalidate, only on nothing being stale for longer than a moment.
+        function _feeCacheTick() {
+            const now = Date.now();
+            if (now - _feeCacheStamp >= FEE_CACHE_TTL_MS) {
+                feeInvalidateCaches();
+                _feeCacheStamp = now;
+            }
+        }
+
+        // The active FY+quarter. Returns null when the shared quarter engine is
+        // unavailable, which callers read as "no scope, show everything".
+        function feeActiveQuarter() {
+            _feeCacheTick();
+            if (_feeQuarterCache) return _feeQuarterCache;
+            if (typeof CESTISCore === 'undefined' || !CESTISCore.getActiveQuarter) return null;
+            _feeQuarterCache = CESTISCore.getActiveQuarter();
+            return _feeQuarterCache;
+        }
+
+        // The training centres, parsed once per pass rather than once per row.
+        function feeCentresCached() {
+            _feeCacheTick();
+            if (!_feeCentresCache) _feeCentresCache = feeTrainingCentres();
+            return _feeCentresCache;
+        }
+
+        // Course-duration answers, keyed by the centre the record actually
+        // points at. `rec` (optional) is the trainee's record: when a transfer
+        // has stamped a centreKey onto them, THAT intake answers — never
+        // another centre that happens to share the programme name. The students
+        // table asks this once per row, and most rows share a handful of
+        // programmes, so answers are memoised per (centreKey, name).
+        function feeCourseDurationCached(skillAreaName, rec) {
+            _feeCacheTick();
+            if (!_feeDurationCache) _feeDurationCache = new Map();
+            const ck = (rec && rec.centreKey != null) ? String(rec.centreKey) : '';
+            const key = ck + '|' + (skillAreaName == null ? '' : String(skillAreaName));
+            if (_feeDurationCache.has(key)) return _feeDurationCache.get(key);
+            const info = feeCourseDurationInfo(skillAreaName, rec);
+            _feeDurationCache.set(key, info);
+            return info;
+        }
+
+        // Escape a value for use inside a double-quoted HTML attribute. The rows
+        // are built as one HTML string now, so a trainee named O"Brien would
+        // otherwise break the markup of their own row.
+        //
+        // Called several times per row, so it checks once and returns the string
+        // untouched in the overwhelmingly common case where there is nothing to
+        // escape, rather than making four passes over every value on every row.
+        const _FEE_ATTR_TEST = /[&"<>]/;
+        const _FEE_ATTR_RE = /[&"<>]/g;
+        const _FEE_ATTR_MAP = { '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' };
+        function feeAttr(v) {
+            if (v == null) return '';
+            const s = String(v);
+            if (!_FEE_ATTR_TEST.test(s)) return s;
+            return s.replace(_FEE_ATTR_RE, c => _FEE_ATTR_MAP[c]);
+        }
+
+        // The visible text of a snippet of row HTML, for the search index.
+        function feeStripTags(html) {
+            return String(html == null ? '' : html).replace(/<[^>]*>/g, ' ');
+        }
+
+        /* --- Deferred rendering ---------------------------------------------
+           A table nobody is looking at does not need to be rebuilt now. Almost
+           every action on this page calls all three table renderers plus the
+           dashboard in a row, so recording a payment used to redraw the students
+           and documents tables — thousands of rows between them — that the user
+           could not even see. The call is remembered instead and paid the moment
+           its tab is opened. */
+        const _feePendingRenders = { students: false, payments: false, documents: false };
+
+        function _feeModuleActive(moduleId) {
+            const el = document.getElementById(moduleId);
+            return !!(el && el.classList.contains('active'));
+        }
+
+        // True when the caller should skip the render and leave it pending.
+        function _feeDeferRender(key, moduleId) {
+            if (_feeModuleActive(moduleId)) { _feePendingRenders[key] = false; return false; }
+            _feePendingRenders[key] = true;
+            return true;
+        }
+
+        // Pay any render that was deferred while its tab was hidden. Called when
+        // a tab is opened and by the filter functions, which read the rows.
+        function feeFlushPendingRenders(moduleId) {
+            if ((!moduleId || moduleId === 'students') && _feePendingRenders.students) {
+                _feePendingRenders.students = false;
+                if (_feeModuleActive('students')) renderStudentsTable();
+            }
+            if ((!moduleId || moduleId === 'payments') && _feePendingRenders.payments) {
+                _feePendingRenders.payments = false;
+                if (_feeModuleActive('payments')) renderPaymentsTable();
+            }
+            if ((!moduleId || moduleId === 'documents') && _feePendingRenders.documents) {
+                _feePendingRenders.documents = false;
+                if (_feeModuleActive('documents')) renderDocumentsTable();
+            }
+        }
+
+        // Run fn once the user has stopped typing. The search boxes filter by
+        // walking every row, so firing on each keystroke made typing itself lag.
+        function feeDebounce(fn, wait) {
+            let timer = null;
+            return function () {
+                const args = arguments, self = this;
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(function () { timer = null; fn.apply(self, args); }, wait || 140);
+            };
+        }
+
+        // Newest date first. The dates are 'YYYY-MM-DD', which sorts correctly as
+        // plain text, so this avoids both building two Date objects per
+        // comparison (the old form) and localeCompare, which is far slower than
+        // a plain string comparison and buys nothing on a fixed date format.
+        function _feeByDateDesc(a, b) {
+            const x = (a && a.date) || '', y = (b && b.date) || '';
+            return x < y ? 1 : (x > y ? -1 : 0);
+        }
+
+        // Show or hide a row without touching the DOM when nothing changes —
+        // writing style.display on every row invalidates layout for all of them.
+        function _feeSetRowVisible(row, visible) {
+            const next = visible ? '' : 'none';
+            if (row.style.display !== next) row.style.display = next;
+        }
+
+        // Is any of these controls actually filtering? A table that has just been
+        // rebuilt is entirely visible already, so with nothing set there is no
+        // reason to walk every row to conclude that nothing should be hidden.
+        function _feeFilterSet(ids) {
+            return ids.some(id => {
+                const el = document.getElementById(id);
+                return !!(el && String(el.value || '').trim());
+            });
+        }
+
         // --- Academic stage (from the LMS Student Progress dashboard) ---------
         // The dashboard owns each student's training stage/progress; we read it
         // from voctrain_students (and live messages) so the fee table can show it.
@@ -5143,20 +5613,52 @@
                 lmsStudentCache = raw ? (JSON.parse(raw) || []) : [];
                 if (!Array.isArray(lmsStudentCache)) lmsStudentCache = [];
             } catch (e) { lmsStudentCache = []; }
+            _feeLmsIndex = null;   // the index below is built from this list
         }
-        function getStudentStage(student) {
-            if (!student) return null;
+
+        // An index over the LMS student list, built once per render pass. The
+        // stage column used to scan the WHOLE list for every row it drew, so a
+        // roll of 300 trainees against 300 LMS records was 90,000 comparisons
+        // (each one lower-casing and re-spacing both names) to fill one column.
+        function feeLmsIndex() {
+            _feeCacheTick();
+            if (_feeLmsIndex) return _feeLmsIndex;
             if (!lmsStudentCache.length) refreshLmsStudentCache();
             const norm = v => (v == null ? '' : String(v)).trim().toLowerCase().replace(/\s+/g, ' ');
-            const linkId = 'SF-' + student.id;
-            const m = lmsStudentCache.find(ls => ls && (
-                (student.lmsId && ls.id === student.lmsId) ||
-                ls.id === student.id ||
-                ls.id === linkId ||
-                ls.schoolFeeId === student.id ||
-                (norm(ls.name) === norm(student.name) &&
-                    (!ls.course || !student.skillArea || norm(ls.course) === norm(student.skillArea)))
-            ));
+            const byId = new Map(), bySchoolFeeId = new Map(), byName = new Map();
+            lmsStudentCache.forEach(ls => {
+                if (!ls) return;
+                if (ls.id != null && !byId.has(ls.id)) byId.set(ls.id, ls);
+                if (ls.schoolFeeId != null && !bySchoolFeeId.has(ls.schoolFeeId)) bySchoolFeeId.set(ls.schoolFeeId, ls);
+                const n = norm(ls.name);
+                if (n) {
+                    if (!byName.has(n)) byName.set(n, []);
+                    byName.get(n).push(ls);
+                }
+            });
+            _feeLmsIndex = { byId: byId, bySchoolFeeId: bySchoolFeeId, byName: byName, norm: norm };
+            return _feeLmsIndex;
+        }
+
+        function getStudentStage(student) {
+            if (!student) return null;
+            const ix = feeLmsIndex();
+            const norm = ix.norm;
+            // The same links the scan tested, in the same order it listed them:
+            // the explicit LMS id, then the fee id and its 'SF-' form, then the
+            // back-reference, and only then the name.
+            let m = (student.lmsId != null ? ix.byId.get(student.lmsId) : null) ||
+                    ix.byId.get(student.id) ||
+                    ix.byId.get('SF-' + student.id) ||
+                    ix.bySchoolFeeId.get(student.id) || null;
+            if (!m) {
+                // Same name: keep the first whose programme does not contradict.
+                const sameName = ix.byName.get(norm(student.name));
+                if (sameName) {
+                    m = sameName.find(ls => !ls.course || !student.skillArea ||
+                        norm(ls.course) === norm(student.skillArea)) || null;
+                }
+            }
             return m ? { stage: m.stage || 'testing', progress: (m.progress != null ? m.progress : '') } : null;
         }
         function renderStageBadge(student) {
@@ -5267,6 +5769,129 @@
             } catch (e) { console.warn('applyStudentsFromParent failed:', e); }
         }
 
+        /* ==================== SEED THE FEE INFORMATION ======================
+           Two gaps left this page showing records that carried no fee truth:
+
+             - Opened on its own (not inside the LMS dashboard), it never
+               seeded itself from the trainee roll: the dashboard's saveState
+               hook and the iframe message are the only paths that created fee
+               records, and neither runs when only this page is open. A device
+               holding the roll still showed an empty fee table.
+             - A trainee mirrored from the LMS arrives with tuitionFee 0 and
+               needsFeeDetails, and nothing ever priced them — in the Centre's
+               own backup 249 of 368 trainees stood at $0 tuition, 193 of them
+               on programmes the Fee Structure prices. With a fee of 0 their
+               balance is 0, so they all read "Fully Paid" while owing their
+               whole tuition.
+
+           seedFeeInformation() closes both: it pulls the LMS roll in through
+           the same twin-matching path the iframe message uses (so nobody is
+           ever duplicated and tombstones are honoured), then prices every
+           unpriced mirrored trainee from the Fee Structure. Idempotent — a
+           second run finds nothing to do. */
+
+        // Price unpriced mirrored trainees from the Fee Structure. Only records
+        // still flagged needsFeeDetails are touched: a trainee an admin has
+        // deliberately priced at 0 by editing is left exactly as set.
+        function feeBackfillTuition() {
+            if (!Array.isArray(students) || !feeStructure) return 0;
+            var changed = 0;
+            var now = new Date().toISOString();
+            students.forEach(function (s) {
+                if (!s || !s.needsFeeDetails) return;
+                if ((parseFloat(s.tuitionFee) || 0) > 0) return;   // already priced
+                var key = feeKeyFor(s.skillArea);
+                if (!key) return;                                   // programme not priced here
+                var total = parseFloat(feeStructure[key] && feeStructure[key].total) || 0;
+                if (total <= 0) return;
+                s.tuitionFee = total;
+                // Stamped, so the pricing survives every merge instead of being
+                // reverted by an older cloud copy still holding the $0.
+                s.updatedAt = now;
+                changed++;
+            });
+            return changed;
+        }
+
+        function seedFeeInformation() {
+            try {
+                // 1. Any trainee the LMS roll holds that this page does not.
+                //    applyStudentsFromParent() is the same path the dashboard
+                //    message uses: twin-matched, tombstone-guarded, and it saves
+                //    and re-renders itself when it adds or links anybody.
+                var lmsRaw = CESTISStore.getItem('voctrain_students');
+                var lms = lmsRaw ? JSON.parse(lmsRaw) : [];
+                if (Array.isArray(lms) && lms.length) applyStudentsFromParent(lms);
+            } catch (e) { console.warn('[SchoolFee] seeding from the LMS roll failed:', e); }
+
+            try {
+                // 2. Price the unpriced, then re-derive every balance and status.
+                var priced = feeBackfillTuition();
+                if (priced > 0) {
+                    recalculateStudentTotals();
+                    saveData();
+                    renderStudentsTable();
+                    renderPaymentsTable();
+                    populatePaymentStudentSelect();
+                    updateDashboard();
+                    console.log('[SchoolFee] Priced ' + priced + ' trainee(s) from the Fee Structure.');
+                    feeShowBanner('Fee information seeded: ' + priced + ' trainee' +
+                        (priced === 1 ? '' : 's') + ' priced from the Fee Structure. ' +
+                        'Their balances and payment statuses now reflect the real tuition.');
+                }
+            } catch (e) { console.warn('[SchoolFee] tuition backfill failed:', e); }
+
+            // Then say plainly who is still unpriced. The backfill can only price
+            // a programme the Fee Structure holds, and 27 of the Centre's
+            // trainees sat on programmes it does not — so nothing priced them,
+            // nothing said so, and they read "Fully Paid" at $0 owing their whole
+            // tuition. The page cannot invent a fee; it can name what is missing.
+            try { reportUnpricedTrainees(); } catch (e) {}
+        }
+
+        /* Name the trainees no fee can reach, and the programmes to add.
+
+           Only a programme the Fee Structure prices can be backfilled, so a
+           trainee on any other programme stays at $0 until somebody prices them
+           here. Left silent that is invisible: they are absent from Expected,
+           absent from Outstanding, and their programme's bar on the collection
+           chart is empty for no stated reason. */
+        function reportUnpricedTrainees() {
+            if (!Array.isArray(students) || !students.length) return 0;
+            const unpriced = students.filter(feeIsUnpriced);
+            const el = document.getElementById('feeUnpricedNotice');
+            if (!unpriced.length) { if (el) el.style.display = 'none'; return 0; }
+
+            // Which programmes the Fee Structure cannot price, each named once.
+            const missing = [];
+            const seen = {};
+            unpriced.forEach(function (s) {
+                const written = (s && s.skillArea) ? String(s.skillArea).trim() : '';
+                const label = written || '(no programme recorded)';
+                if (seen[label]) return;
+                seen[label] = true;
+                if (!written || !feeKeyFor(written)) missing.push(label);
+            });
+
+            if (el) {
+                el.style.display = '';
+                el.innerHTML =
+                    '<strong>' + unpriced.length.toLocaleString() + ' trainee' +
+                    (unpriced.length === 1 ? '' : 's') + ' have no fee set</strong> — ' +
+                    'they are listed as "Not Priced" and are counted in Total Students, ' +
+                    'but nothing can be expected or collected from them until a fee exists.' +
+                    (missing.length
+                        ? ' The Fee Structure does not price: <strong>' +
+                          missing.map(feeAttr).join('</strong>, <strong>') + '</strong>.'
+                        : '') +
+                    ' <a href="#" onclick="switchModule(\'feeStructure\');return false;"' +
+                    ' style="color:inherit;font-weight:700;text-decoration:underline;">Open the Fee Structure →</a>';
+            }
+            console.log('[SchoolFee] ' + unpriced.length + ' trainee(s) unpriced' +
+                (missing.length ? '; unpriced programmes: ' + missing.join(', ') : ''));
+            return unpriced.length;
+        }
+
         // Another document — the dashboard, the Student Progress page, another tab —
         // changed data this page also holds. Reload it rather than keep rendering,
         // and later saving, a stale copy over someone else's edit.
@@ -5278,14 +5903,22 @@
             // stale roster after the LMS created a centre or ended a course.
             if (['cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDocuments',
                  'cestiSchoolFeeDeletedLmsIds', 'voctrain_students', 'voctrain_deletedStudentIds',
-                 'voctrain_skillAreas']
+                 // A training centre deleted on the LMS dashboard writes its
+                 // tombstone here; without watching it this page kept offering
+                 // the centre until a full reload.
+                 'voctrain_skillAreas', 'voctrain_deletedCentreIds']
                 .indexOf(ev.key) === -1) return;
             if (_feeExternalReload) clearTimeout(_feeExternalReload);
             _feeExternalReload = setTimeout(function () {
                 _feeExternalReload = null;
                 try {
+                    // Another document changed the data these caches summarise.
+                    feeInvalidateCaches();
                     refreshLmsStudentCache();          // academic stage column
                     if (typeof loadData === 'function') loadData();
+                    // The roll or the prices may have just arrived: seed what is
+                    // now seedable (idempotent — nothing to do means nothing done).
+                    if (typeof seedFeeInformation === 'function') seedFeeInformation();
                     if (typeof renderStudentsTable === 'function') renderStudentsTable();
                     if (typeof renderPaymentsTable === 'function') renderPaymentsTable();
                     if (typeof renderDocumentsTable === 'function') renderDocumentsTable();
@@ -5515,6 +6148,36 @@
             });
             var removed = students.length - deduped.length;
             students = deduped;
+            // 2b) Collapse the SAME PERSON written under two spellings of one
+            // centre — 'Electrical Installation' beside '02. Electrical
+            // Installation'. Different ids (each spelling hashes its own), so
+            // the id pass above cannot see them; the centre-identity dedup can,
+            // and it never folds two records keyed to DIFFERENT intakes.
+            if (typeof CESTISCore.dedupeStudents === 'function') {
+                var _cd = CESTISCore.dedupeStudents(students, { courseField: 'skillArea' });
+                if (_cd.removed > 0) {
+                    students = _cd.students;
+                    removed += _cd.removed;
+                    Object.keys(_cd.idMap).forEach(function (k) { idMap[k] = _cd.idMap[k]; });
+                }
+            }
+            // 2c) And one fee record per ENROLMENT. The same exact name on the
+            // same programme is the same record however the two were keyed and
+            // however each spells the programme — so one goes, and its payments
+            // and documents are relinked to the survivor by the idMap below.
+            // Two genuinely different programmes are two enrolments, each with
+            // its own tuition to be expected and collected, and both stand.
+            if (typeof CESTISCore.collapseSameNameStudents === 'function') {
+                var _cn = CESTISCore.collapseSameNameStudents(students, { courseField: 'skillArea' });
+                if (_cn.removed > 0) {
+                    students = _cn.students;
+                    removed += _cn.removed;
+                    Object.keys(idMap).forEach(function (k) {
+                        if (_cn.idMap[idMap[k]]) idMap[k] = _cn.idMap[idMap[k]];
+                    });
+                    Object.keys(_cn.idMap).forEach(function (k) { idMap[k] = _cn.idMap[k]; });
+                }
+            }
             // 3) Relink payments & documents from the old ids to the stable id.
             if (Object.keys(idMap).length) {
                 if (Array.isArray(payments)) payments.forEach(function (p) { if (p && idMap[p.studentId]) p.studentId = idMap[p.studentId]; });
@@ -5540,17 +6203,24 @@
             return Object.keys(idMap).length > 0 || removed > 0;
         }
 
-        /* THE FEE RECORDS CANNOT BE LOST.
+        /* ==================== THE FEE RECORDS CANNOT BE LOST =================
+           Every write of a fee collection goes through here.
 
-           loadData() only adopts a stored value when there is one, so on a
-           device whose store was empty — a new machine, cleared site data, or a
-           page that opened before its pull landed — students/payments/documents
-           stayed at their start-up value of []. The page then rendered zero of
-           everything, and the very next save wrote that [] into storage, stamped
-           it with the current time, and queued it for upload. A newer timestamp
-           on an empty list beat the Centre's real records, and the fee roll was
-           gone from the shared copy too. The main build has had this guard for
-           some time; this copy was still writing raw. */
+           What went wrong: loadData() only adopts a stored value `if (saved…)`,
+           so on a device whose store was empty — a new machine, a cleared
+           browser, or simply a page that opened BEFORE its Google Drive pull had
+           finished — students/payments stayed at their start-up value of []. The
+           page then rendered zero of everything, and the very next thing that
+           called saveData() wrote that [] into storage, stamped it with the
+           current time, and queued it for upload. A newer timestamp on an empty
+           list beat the Centre's real records, and the roll was gone from Drive
+           too.
+
+           So: an empty collection never overwrites stored records. Emptiness is
+           not an edit — deleting a trainee or a payment writes a tombstone, and
+           those paths still work. A write that would throw records away is
+           refused, reported, and the stored copy is reloaded instead. */
+        let _feeLastRescue = 0;
         function feePersist(key, value) {
             const guarded = (window.CESTISCore && CESTISCore.pageCloud &&
                              typeof CESTISCore.pageCloud.guardedSet === 'function')
@@ -5566,6 +6236,8 @@
                 feeWarnRecordsProtected();
             });
         }
+
+        // Put a refused collection back into memory from what storage still holds.
         function feeRestoreFromStore(key, raw) {
             const parsed = JSON.parse(raw);
             if (!Array.isArray(parsed)) return;
@@ -5573,6 +6245,9 @@
             else if (key === 'cestiSchoolFeePayments') payments = parsed;
             else if (key === 'cestiSchoolFeeDocuments') documents = parsed;
         }
+
+        // Tell the user once, rather than silently. Being quiet here is how a
+        // roll goes missing without anybody knowing which action did it.
         function feeWarnRecordsProtected() {
             const now = Date.now();
             if (now - _feeLastRescue < 10000) return;   // one message per burst
@@ -5584,6 +6259,116 @@
                 renderStudentsTable(); renderPaymentsTable(); renderDocumentsTable();
                 populatePaymentStudentSelect(); updateDashboard();
             } catch (e) {}
+        }
+
+        /* Pull this page's own Drive backup (CESTIS_School_Fees.json) and take
+           back everything it holds that this device is missing.
+
+           Merging is per key and newest-write-wins, and — since the guard above —
+           an empty local list never counts as newer, so this can only ever
+           restore records, never remove them. Safe to run at any time. */
+        async function restoreFeeRecordsFromDrive() {
+            const menu = document.getElementById('cloudDropdownMenu');
+            if (menu) menu.classList.remove('show');
+
+            if (typeof CESTISPageCloud === 'undefined' || !CESTISPageCloud.loadNow) {
+                alert('The Drive backup module is not loaded on this page.');
+                return;
+            }
+            const before = { students: students.length, payments: payments.length, documents: documents.length };
+            try {
+                const results = await CESTISPageCloud.loadNow();
+                const changed = [].concat.apply([], results || []);
+                // Re-read whatever the merge wrote, and redraw against it.
+                loadData();
+                feeInvalidateCaches();
+                renderFeeStructure();
+                updateSkillAreaOptions();
+                renderStudentsTable();
+                renderPaymentsTable();
+                renderDocumentsTable();
+                populatePaymentStudentSelect();
+                populateDocumentStudentSelect();
+                updateDashboard();
+
+                const after = { students: students.length, payments: payments.length, documents: documents.length };
+                if (!changed.length && after.students === before.students && after.payments === before.payments) {
+                    alert('Drive backup checked — nothing to restore.\n\n' +
+                          'This device already holds everything the backup contains:\n' +
+                          `  • ${after.students} trainee record(s)\n` +
+                          `  • ${after.payments} payment(s)\n\n` +
+                          'If you expected to see more, check the financial-year and quarter ' +
+                          'buttons above the table — the figures follow the period selected there.');
+                    return;
+                }
+                alert('Restored from the Drive backup.\n\n' +
+                      `  • Trainees: ${before.students} → ${after.students}\n` +
+                      `  • Payments: ${before.payments} → ${after.payments}\n` +
+                      `  • Documents: ${before.documents} → ${after.documents}\n\n` +
+                      'Remember the figures on the dashboard follow the financial year and ' +
+                      'quarter selected in the filter bar.');
+            } catch (e) {
+                console.error('[SchoolFee] restore from Drive failed:', e);
+                alert('Could not read the Drive backup: ' + ((e && e.message) || e) +
+                      '\n\nCheck that you are connected to Google Drive, then try again. ' +
+                      'Nothing on this device was changed.');
+            }
+        }
+
+        /* An empty roll is worth saying out loud. Before this, a device whose
+           store had not loaded showed zero of everything with no explanation —
+           which reads as "my records are gone" when they are sitting safely in
+           Drive. */
+        function feeCheckRollNotEmpty() {
+            if (students.length || payments.length) return;
+            feeShowBanner('This device is showing no fee records. They are most likely still in ' +
+                'your Google Drive backup — open the Cloud menu and choose ' +
+                '“Restore Fee Records from Drive”. Nothing has been deleted.');
+        }
+
+        /* A non-blocking success note. The hot actions — recording a payment,
+           adding a trainee — used to end in alert(), which freezes the whole
+           page until OK is clicked: a clerk entering seventy payments clicked
+           OK seventy times. Confirmations of success do not need to interrupt;
+           errors and questions still use dialogs, because those must. */
+        function feeToast(message) {
+            try {
+                let el = document.getElementById('feeToastNote');
+                if (el) el.remove();
+                el = document.createElement('div');
+                el.id = 'feeToastNote';
+                el.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:99999;' +
+                    'max-width:min(440px,90vw);padding:12px 16px;border-radius:10px;' +
+                    'background:#1B5E20;color:#fff;font-size:14px;line-height:1.4;' +
+                    'box-shadow:0 10px 26px rgba(0,0,0,.3);cursor:pointer;';
+                el.textContent = '✅ ' + message;
+                el.onclick = function () { el.remove(); };
+                document.body.appendChild(el);
+                setTimeout(function () { try { el.remove(); } catch (e) {} }, 3500);
+            } catch (e) { /* a lost toast is no loss */ }
+        }
+
+        // A banner the user cannot miss, for the few things they must know about
+        // their records. Dismissed by clicking it.
+        function feeShowBanner(message) {
+            try {
+                let el = document.getElementById('feeRecordsBanner');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'feeRecordsBanner';
+                    // Pinned to the BOTTOM. Centred at the top it sat squarely over
+                    // the account name, the connection light and the Cloud menu —
+                    // the controls somebody reads this very message and then needs.
+                    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:18px;' +
+                        'z-index:99999;max-width:min(760px,92vw);padding:14px 18px;border-radius:10px;' +
+                        'background:#8E2A24;color:#fff;font-size:14px;line-height:1.45;cursor:pointer;' +
+                        'box-shadow:0 12px 30px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.25);';
+                    el.title = 'Click to dismiss';
+                    el.onclick = function () { el.remove(); };
+                    document.body.appendChild(el);
+                }
+                el.textContent = '⚠️ ' + message;
+            } catch (e) { console.warn('[SchoolFee] ' + message); }
         }
 
         function saveData() {
@@ -5600,6 +6385,8 @@
             const _pBefore = payments.length;
             payments = filterTombstonedPayments(payments);
             if (payments.length !== _pBefore) recalculateStudentTotals();
+            // Anything derived from the store may have just moved under us.
+            feeInvalidateCaches();
             feePersist('cestiSchoolFeeStudents', students);
             feePersist('cestiSchoolFeePayments', payments);
             feePersist('cestiSchoolFeeDocuments', documents);
@@ -5609,14 +6396,25 @@
             broadcastStudentsToParent();
         }
 
-        // Recalculate student totals from actual payment records
+        // Recalculate student totals from actual payment records.
+        //
+        // One pass over the payments to total them per trainee, rather than
+        // re-scanning the WHOLE payment list once for every trainee on the roll.
+        // The old form was students × payments — 300 trainees against 3,000
+        // payments was 900,000 comparisons, paid again on every dashboard
+        // refresh, which is to say after almost every action on the page.
         function recalculateStudentTotals() {
+            const paidById = new Map();
+            payments.forEach(p => {
+                if (!p) return;
+                paidById.set(p.studentId, (paidById.get(p.studentId) || 0) + (parseFloat(p.amount) || 0));
+            });
             students.forEach(student => {
-                const studentPayments = payments.filter(p => p.studentId === student.id);
-                const totalPaid = studentPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+                const totalPaid = paidById.get(student.id) || 0;
                 student.tuitionFee = parseFloat(student.tuitionFee) || 0;
                 student.totalPaid = totalPaid;
                 student.balance = student.tuitionFee - student.totalPaid;
+
                 student.status = feePaymentStatus(student);
             });
         }
@@ -5624,9 +6422,18 @@
         /* What a trainee's fee record actually says — the ONE place that decides.
 
            A trainee nobody has priced is not paid up. With a tuition of 0 the
-           balance is 0, so this read "Fully Paid": 27 of the Centre's trainees
-           stood at $0 expected, $0 owed, Fully Paid, while owing their whole
-           tuition, because their programme is not in the Fee Structure. */
+           balance is 0, so every one of the seven copies of this rule read
+           "Fully Paid" — and in the Centre's own roll 27 trainees stood exactly
+           like that: $0 expected, $0 owed, Fully Paid, while owing their whole
+           tuition. They are on programmes the Fee Structure does not price
+           (Photovoltaic Installer, and the bare spellings 'Welding' and
+           'Electrical Installation'), so the pricing pass could find no fee for
+           them and left them at zero — where they read as settled, dropped out
+           of every collection figure, and left their programme's bar on the
+           collection chart empty. Say what is true instead: no fee is set yet.
+
+           A record carrying payments is never called unpriced, whatever its
+           tuition reads, so money already taken is never disowned. */
         function feePaymentStatus(student) {
             const tuition = parseFloat(student && student.tuitionFee) || 0;
             const paid = parseFloat(student && student.totalPaid) || 0;
@@ -5636,10 +6443,18 @@
             return 'Outstanding';
         }
 
+        // True when this record has no fee set and nothing paid — so it owes an
+        // unknown amount rather than nothing. What "Fully Paid" must not claim.
+        function feeIsUnpriced(student) {
+            return feePaymentStatus(student) === 'Not Priced';
+        }
+
         // Settled: priced and paid off. Asking `balance <= 0` instead swept every
-        // unpriced trainee into the "Fully Paid" reports.
-        function feeIsSettled(student) { return feePaymentStatus(student) === 'Fully Paid'; }
-        function feeIsUnpriced(student) { return feePaymentStatus(student) === 'Not Priced'; }
+        // unpriced trainee into the "Fully Paid" reports, where the Centre read
+        // them as nothing left to collect.
+        function feeIsSettled(student) {
+            return feePaymentStatus(student) === 'Fully Paid';
+        }
 
         // Switch between modules
         function switchModule(moduleId) {
@@ -5659,6 +6474,12 @@
 
             document.querySelectorAll('.module').forEach(module => module.classList.remove('active'));
             document.getElementById(moduleId).classList.add('active');
+
+            // Tables and charts are not rebuilt while their tab is hidden, so
+            // opening one is where that work is finally paid. It has to happen
+            // after the .active class is set, since that is what marks the tab
+            // as visible.
+            feeFlushPendingRenders(moduleId);
 
             if (moduleId === 'dashboard') {
                 updateDashboard();
@@ -5792,7 +6613,7 @@
             populateDocumentStudentSelect();
             updateDashboard();
 
-            alert('Student added successfully!');
+            feeToast('Student added.');
         }
 
         // Render students table
@@ -5801,13 +6622,39 @@
 
         function renderStudentsTable() {
             const tbody = document.getElementById('studentsTableBody');
-            tbody.innerHTML = '';
+            if (!tbody) return;
+            // The merge counter is about the selection, not the table, so it is
+            // kept honest even when the table itself is left for later.
+            updateMergeControls();
+            if (_feeDeferRender('students', 'students')) return;
+
             refreshLmsStudentCache(); // pull latest stages from the Progress dashboard
 
-            students.forEach((student, index) => {
+            // Built as ONE html string and handed to the DOM once. Row-at-a-time
+            // insertRow() + innerHTML made the browser re-parse and re-lay-out
+            // the table for every trainee on the roll.
+            const rows = students.map((student, index) => {
                 const isSelected = selectedForMerge.includes(index);
-                const row = tbody.insertRow();
-                row.innerHTML = `
+                const tuition = (parseFloat(student.tuitionFee) || 0).toFixed(2);
+                const paid = (parseFloat(student.totalPaid) || 0).toFixed(2);
+                const balance = (parseFloat(student.balance) || 0).toFixed(2);
+                const stage = renderStageBadge(student) + feeEndedBadge(student);
+                // A pinned record is visibly pinned: otherwise the only way to
+                // tell why two same-named rows both survive is to open both.
+                const keptSep = (window.CESTISCore && CESTISCore.isKeptSeparate(student))
+                    ? ' <span title="Kept separate — marked as a different person from their namesake"' +
+                      ' style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9px;' +
+                      'font-size:10px;font-weight:700;background:rgba(255,193,7,.18);color:#8a6d00;">kept separate</span>'
+                    : '';
+                // Everything the search box matches on is stamped onto the row
+                // now, so filtering never has to walk the cells and re-read
+                // their text on every keystroke.
+                const search = [student.id, student.name, student.skillArea,
+                                '$' + tuition, '$' + paid, '$' + balance,
+                                student.status, feeStripTags(stage)]
+                    .join(' ').toLowerCase();
+                return `
+                <tr data-search="${feeAttr(search)}" data-skill="${feeAttr(student.skillArea)}" data-status="${feeAttr(student.status)}">
                     <td style="text-align: center;">
                         <input type="checkbox" class="merge-checkbox"
                                data-index="${index}"
@@ -5816,27 +6663,32 @@
                                style="width: 18px; height: 18px; cursor: pointer;">
                     </td>
                     <td>${student.id}</td>
-                    <td>${student.name}</td>
+                    <td>${student.name}${keptSep}</td>
                     <td>${student.skillArea}</td>
-                    <td>$${student.tuitionFee.toFixed(2)}</td>
-                    <td>$${student.totalPaid.toFixed(2)}</td>
-                    <td>$${student.balance.toFixed(2)}</td>
+                    <td>$${tuition}</td>
+                    <td>$${paid}</td>
+                    <td>$${balance}</td>
                     <td><span class="status-badge status-${getStatusClass(student.status)}">${student.status}</span></td>
-                    <td>${renderStageBadge(student)}${feeEndedBadge(student)}</td>
+                    <td>${stage}</td>
                     <td>
                         <button class="action-btn btn-success" onclick="viewStudent(${index})">View</button>
                         <button class="action-btn" style="background: #FFA726;" onclick="editStudent(${index})">Edit</button>
                         <button class="action-btn btn-danger" onclick="deleteStudent(${index})">Delete</button>
                     </td>
-                `;
+                </tr>`;
             });
-            updateMergeControls();
+            tbody.innerHTML = rows.join('');
+            // A filter that was already set must survive the rebuild, or the
+            // full roll reappears under a search the user has not cleared.
+            if (_feeFilterSet(['searchStudent', 'filterSkillArea', 'filterPaymentStatus'])) filterStudents();
         }
 
         // Small "Course ended" pill shown beside a student's stage when their
         // course duration has elapsed (read-only signal; payments still allowed).
         function feeEndedBadge(student) {
-            var dur = feeCourseDurationInfo(student && student.skillArea);
+            // Cached, and resolved by the trainee's stamped intake key first, so
+            // the pill reflects THEIR intake — not another centre of the same name.
+            var dur = feeCourseDurationCached(student && student.skillArea, student);
             if (dur && dur.ended) {
                 return ' <span class="course-ended-badge" title="Course ended' + (dur.endDate ? (' on ' + dur.endDate) : '') + '" style="display:inline-block;margin-left:4px;padding:2px 8px;border-radius:9px;font-size:10px;font-weight:700;background:rgba(231,76,60,.15);color:#e74c3c;">Course ended</span>';
             }
@@ -5851,26 +6703,31 @@
             return 'outstanding';
         }
 
-        // Filter students
+        // Filter students. Matches the data-* the row was stamped with at render
+        // time rather than re-reading textContent and walking cells for every
+        // row on every keystroke.
         function filterStudents() {
-            const searchTerm = document.getElementById('searchStudent').value.toLowerCase();
+            feeFlushPendingRenders('students');
+            const searchEl = document.getElementById('searchStudent');
+            const searchTerm = (searchEl ? searchEl.value : '').toLowerCase().trim();
             const skillFilter = document.getElementById('filterSkillArea').value;
             const statusFilter = document.getElementById('filterPaymentStatus').value;
 
             const rows = document.querySelectorAll('#studentsTableBody tr');
 
             rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                const skillArea = row.cells[3].textContent; // Updated index due to checkbox column
-                const status = row.querySelector('.status-badge').textContent;
+                const text = row.dataset.search || row.textContent.toLowerCase();
+                const skillArea = row.dataset.skill != null ? row.dataset.skill : row.cells[3].textContent;
+                const status = row.dataset.status != null ? row.dataset.status : row.cells[7].textContent;
 
-                const matchesSearch = text.includes(searchTerm);
+                const matchesSearch = !searchTerm || text.includes(searchTerm);
                 const matchesSkill = !skillFilter || skillArea === skillFilter;
                 const matchesStatus = !statusFilter || status === statusFilter;
 
-                row.style.display = (matchesSearch && matchesSkill && matchesStatus) ? '' : 'none';
+                _feeSetRowVisible(row, matchesSearch && matchesSkill && matchesStatus);
             });
         }
+        const filterStudentsDebounced = feeDebounce(filterStudents);
 
         // ==================== MERGE STUDENTS FUNCTIONALITY ====================
 
@@ -5992,7 +6849,7 @@
                 </div>`;
 
             document.getElementById('mergeComparisonTable').innerHTML = html;
-            document.getElementById('mergeStudentModal').style.display = 'flex';
+            openModal('mergeStudentModal');
         }
 
         // Execute the merge operation
@@ -6034,14 +6891,8 @@
             mergedStudent.balance = mergedStudent.tuitionFee - mergedStudent.totalPaid;
 
             // Update status based on balance
-            if (mergedStudent.balance <= 0) {
-                mergedStudent.status = 'Fully Paid';
-                mergedStudent.balance = 0;
-            } else if (mergedStudent.totalPaid > 0) {
-                mergedStudent.status = 'Partial Payment';
-            } else {
-                mergedStudent.status = 'Outstanding';
-            }
+            if (mergedStudent.balance <= 0) mergedStudent.balance = 0;
+            mergedStudent.status = feePaymentStatus(mergedStudent);
 
             // Handle payments and documents
             const dataAction = document.getElementById('mergeDataAction').value;
@@ -6130,10 +6981,10 @@
                     const s2 = students[j];
                     const reasons = [];
 
-                    // Check for similar names (case-insensitive, trimmed)
-                    const name1 = (s1.name || '').toLowerCase().trim();
-                    const name2 = (s2.name || '').toLowerCase().trim();
-                    if (name1 && name2 && name1 === name2) {
+                    // The one name rule (CESTISCore.sameName): case and any run
+                    // of whitespace folded, so this finder reports the same
+                    // doubles the launch collapse acts on, not a shorter list.
+                    if (CESTISCore.sameName(s1.name, s2.name)) {
                         reasons.push('Same name');
                     }
 
@@ -6223,7 +7074,7 @@
                 </p>`;
 
             document.getElementById('duplicatesListContent').innerHTML = html;
-            document.getElementById('duplicatesModal').style.display = 'flex';
+            openModal('duplicatesModal');
         }
 
         // Select duplicates for merge from the duplicates modal
@@ -6395,8 +7246,79 @@
             document.getElementById('editParentContact').value = student.parentContact || '';
             document.getElementById('editEmergencyContact').value = student.emergencyContact || '';
 
+            // "Keep separate": the current setting, plus a plain statement of
+            // whether anybody else on the roll actually shares this name — the
+            // marker only matters when somebody does.
+            const keepBox = document.getElementById('editKeepSeparate');
+            if (keepBox) keepBox.checked = !!(window.CESTISCore && CESTISCore.isKeptSeparate(student));
+            const note = document.getElementById('editNamesakeNote');
+            if (note) {
+                const nrm = v => String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, ' ');
+                const mine = nrm(student.name);
+                const namesakes = students.filter(o => o && o !== student && nrm(o.name) === mine);
+                if (namesakes.length) {
+                    note.style.display = '';
+                    note.textContent = '⚠️ ' + namesakes.length + ' other fee record' +
+                        (namesakes.length === 1 ? '' : 's') + ' carries this exact name. Unless one of them ' +
+                        'is marked “keep separate”, they will be treated as the same person and merged ' +
+                        'into a single record — their payments are kept and moved onto the survivor.';
+                } else {
+                    note.style.display = 'none';
+                    note.textContent = '';
+                }
+            }
+
             // Open modal
             document.getElementById('editStudentModal').classList.add('active');
+        }
+
+        /* Mark (or unmark) the same person's Student Progress record.
+
+           The marker means "this PERSON is a different person from their
+           namesake", and each trainee exists as two records — one here, one on
+           the dashboard. Marking only one side would leave the other to be
+           collapsed into its namesake on the next launch, which is the very
+           thing the marker is set to prevent.
+
+           Matched the way every other cross-page link is: the linked twin
+           first, then the same person under another programme. The second pass
+           earns its keep here — once two same-named fee records have been
+           collapsed one time, the dashboard records BOTH point at the survivor,
+           so the record being pinned has no id to be found by. It is still the
+           same person by name, which is exactly what the marker is about.
+
+           Unmarking clears the pin from every dashboard record of that name, so
+           no stale pin is left behind on a record the link no longer reaches. */
+        function feePropagateKeepSeparate(feeRecord, keep) {
+            try {
+                if (!feeRecord || !window.CESTISCore || typeof CESTISCore.twinIndex !== 'function') return;
+                const raw = CESTISStore.getItem('voctrain_students');
+                const lms = raw ? (JSON.parse(raw) || []) : [];
+                if (!Array.isArray(lms) || !lms.length) return;
+                const nrm = CESTISCore.normName;
+                const wanted = nrm(feeRecord.name);
+                let changed = false;
+                if (!keep) {
+                    lms.forEach(s => {
+                        if (!s || !wanted || nrm(s.name) !== wanted) return;
+                        if (!CESTISCore.isKeptSeparate(s)) return;
+                        delete s.keepSeparate;
+                        s.lastModified = new Date().toISOString();
+                        changed = true;
+                    });
+                } else {
+                    const idx = CESTISCore.twinIndex(lms);
+                    const twin = idx.find(feeRecord) || idx.findByName(feeRecord.name);
+                    if (twin && !CESTISCore.isKeptSeparate(twin)) {
+                        twin.keepSeparate = true;
+                        twin.lastModified = new Date().toISOString();
+                        changed = true;
+                    }
+                }
+                if (!changed) return;                         // nothing to write
+                CESTISStore.setItem('voctrain_students', JSON.stringify(lms));
+                refreshLmsStudentCache();
+            } catch (e) { console.warn('[SchoolFee] could not mark the twin record:', e); }
         }
 
         // Update tuition fee in edit form when skill area changes
@@ -6484,19 +7406,20 @@
             student.parentName = parentName;
             student.parentContact = parentContact;
             student.emergencyContact = emergencyContact;
+            // The administrator's "this is genuinely a different person" marker.
+            // Stored only when set, so an ordinary record carries no extra
+            // field, and mirrored onto the Student Progress twin so one side
+            // cannot be collapsed while the other stands.
+            const _keepBox = document.getElementById('editKeepSeparate');
+            const _keep = !!(_keepBox && _keepBox.checked);
+            if (_keep) student.keepSeparate = true; else delete student.keepSeparate;
+            feePropagateKeepSeparate(student, _keep);
             student.balance = newTuitionFee - student.totalPaid;
             // Stamp the edit: the name is synced both ways and resolved by which
             // side was edited last, so an undated record would lose every tie.
             student.updatedAt = new Date().toISOString();
             
-            // Update status based on new balance
-            if (student.balance <= 0) {
-                student.status = 'Fully Paid';
-            } else if (student.totalPaid > 0) {
-                student.status = 'Partial Payment';
-            } else {
-                student.status = 'Outstanding';
-            }
+            student.status = feePaymentStatus(student);
             
             // Update all payment records with new skill area
             payments.forEach(payment => {
@@ -6526,21 +7449,250 @@
             closeModal('editStudentModal');
             editingStudentIndex = -1;
             
-            alert('✅ Student information updated successfully!');
+            feeToast('Student information updated.');
         }
 
         // Populate payment student select
         function populatePaymentStudentSelect() {
             const select = document.getElementById('paymentStudentId');
-            select.innerHTML = '<option value="">Select Student</option>';
-            
+            if (!select) return;
+            // Keep whoever is already chosen — rebuilding the list under a
+            // half-filled payment form must not silently clear the trainee.
+            const prev = select.value;
+            // Built as one string and written once, like the tables: on a full
+            // roll this was hundreds of separate DOM insertions.
+            const opts = ['<option value="">Select Student</option>'];
             students.forEach(student => {
-                const option = document.createElement('option');
-                option.value = student.id;
-                option.textContent = `${student.name} - ${student.skillArea} (Balance: $${student.balance.toFixed(2)})`;
-                select.appendChild(option);
+                const balance = (parseFloat(student.balance) || 0).toFixed(2);
+                opts.push('<option value="' + feeAttr(student.id) + '">' +
+                    feeAttr(`${student.name} - ${student.skillArea} (Balance: $${balance})`) +
+                    '</option>');
+            });
+            select.innerHTML = opts.join('');
+            if (prev) {
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === prev) { select.selectedIndex = i; break; }
+                }
+            }
+            // The search index is built from the same roll, so rebuild it here.
+            buildTraineeSearchIndex();
+            renderChosenTrainee();
+        }
+
+        /* ==================== FIND A TRAINEE ================================
+           A Centre with a few hundred trainees on the roll cannot pick one out
+           of a dropdown by scrolling it. This is a search box above that
+           dropdown: type any part of a name, a trainee ID or a programme, and
+           pick from the matches with the mouse or the keyboard.
+
+           It does not replace the Select Student dropdown — it DRIVES it. The
+           selection still lands on #paymentStudentId and still goes through
+           loadStudentPaymentInfo(), so recordPayment() and everything else that
+           reads that select is untouched. */
+
+        // Trainees, each with the one lower-cased string the search matches on,
+        // rebuilt whenever the roll changes rather than on every keystroke.
+        let traineeSearchIndex = [];
+        let traineeSearchMatches = [];
+        let traineeSearchActive = -1;      // highlighted row, -1 for none
+
+        // Never render more than this at once. A search that matches most of the
+        // roll should not cost more to draw than one that matches a handful.
+        const TRAINEE_SEARCH_LIMIT = 30;
+
+        function buildTraineeSearchIndex() {
+            traineeSearchIndex = students.map(student => {
+                const balance = parseFloat(student.balance) || 0;
+                return {
+                    id: student.id,
+                    name: student.name || '',
+                    skillArea: student.skillArea || '',
+                    balance: balance,
+                    haystack: [student.id, student.name, student.skillArea, student.contact, student.email]
+                        .filter(Boolean).join(' ').toLowerCase()
+                };
             });
         }
+
+        function _traineeSearchEls() {
+            return {
+                box: document.getElementById('traineeSearchBox'),
+                input: document.getElementById('traineeSearch'),
+                list: document.getElementById('traineeSearchResults'),
+                chosen: document.getElementById('traineeSearchChosen')
+            };
+        }
+
+        // Wrap the matched run of text so the user can see WHY a row matched.
+        function _highlight(text, term) {
+            const s = String(text == null ? '' : text);
+            if (!term) return feeAttr(s);
+            const at = s.toLowerCase().indexOf(term);
+            if (at < 0) return feeAttr(s);
+            return feeAttr(s.slice(0, at)) + '<mark>' + feeAttr(s.slice(at, at + term.length)) +
+                   '</mark>' + feeAttr(s.slice(at + term.length));
+        }
+
+        function renderTraineeSearchResults(term) {
+            const els = _traineeSearchEls();
+            if (!els.list) return;
+
+            if (!term) {
+                // An empty box is not a search for everybody — close and wait.
+                traineeSearchMatches = [];
+                traineeSearchActive = -1;
+                els.box.classList.remove('open', 'has-query');
+                els.input.setAttribute('aria-expanded', 'false');
+                els.list.innerHTML = '';
+                return;
+            }
+
+            els.box.classList.add('has-query');
+            traineeSearchMatches = traineeSearchIndex.filter(t => t.haystack.includes(term));
+            traineeSearchActive = traineeSearchMatches.length ? 0 : -1;
+
+            if (!traineeSearchMatches.length) {
+                els.list.innerHTML = '<div class="trainee-search-empty">No trainee matches “' +
+                    feeAttr(term) + '”.</div>';
+            } else {
+                const shown = traineeSearchMatches.slice(0, TRAINEE_SEARCH_LIMIT);
+                const rows = shown.map((t, i) => {
+                    const owing = t.balance > 0;
+                    return '<div class="trainee-result' + (i === 0 ? ' active' : '') + '"' +
+                        ' role="option" aria-selected="' + (i === 0) + '" data-pos="' + i + '"' +
+                        ' onmousedown="selectTraineeFromSearch(' + i + ')"' +
+                        ' onmouseenter="setTraineeSearchActive(' + i + ')">' +
+                        '<span class="trainee-result-main">' +
+                            '<span class="trainee-result-name">' + _highlight(t.name, term) + '</span>' +
+                            '<span class="trainee-result-meta">' + _highlight(t.id, term) + ' · ' +
+                                _highlight(t.skillArea, term) + '</span>' +
+                        '</span>' +
+                        '<span class="trainee-result-balance ' + (owing ? 'owing' : 'clear') + '">' +
+                            (owing ? 'Owes $' + t.balance.toFixed(2) : 'Paid up') +
+                        '</span>' +
+                    '</div>';
+                }).join('');
+                const hidden = traineeSearchMatches.length - shown.length;
+                // Never quietly truncate: say how many are not being shown.
+                const more = hidden > 0
+                    ? '<div class="trainee-search-more">' + hidden + ' more match — keep typing to narrow it down.</div>'
+                    : '';
+                els.list.innerHTML = rows + more;
+            }
+
+            els.box.classList.add('open');
+            els.input.setAttribute('aria-expanded', 'true');
+        }
+
+        function traineeSearchInput() {
+            const els = _traineeSearchEls();
+            if (!els.input) return;
+            if (!traineeSearchIndex.length && students.length) buildTraineeSearchIndex();
+            renderTraineeSearchResults(els.input.value.trim().toLowerCase());
+        }
+
+        function setTraineeSearchActive(pos) {
+            const els = _traineeSearchEls();
+            if (!els.list) return;
+            traineeSearchActive = pos;
+            els.list.querySelectorAll('.trainee-result').forEach(row => {
+                const on = Number(row.dataset.pos) === pos;
+                row.classList.toggle('active', on);
+                row.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+            const active = els.list.querySelector('.trainee-result.active');
+            if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+        }
+
+        // Pick a trainee: set the dropdown, tell the form, and close the list.
+        function selectTraineeFromSearch(pos) {
+            const t = traineeSearchMatches[pos];
+            if (!t) return;
+            const els = _traineeSearchEls();
+            const select = document.getElementById('paymentStudentId');
+            if (select) {
+                select.value = t.id;
+                // Anything else listening to the dropdown (now or later) hears
+                // this the same as if the user had worked it directly.
+                try { select.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+            }
+            loadStudentPaymentInfo();
+            if (els.input) {
+                els.input.value = t.name;
+                els.input.setAttribute('aria-expanded', 'false');
+            }
+            if (els.box) els.box.classList.remove('open');
+            renderChosenTrainee();
+        }
+
+        function traineeSearchKeydown(ev) {
+            const els = _traineeSearchEls();
+            const open = els.box && els.box.classList.contains('open');
+            const count = traineeSearchMatches.length;
+
+            if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                if (!open || !count) return;
+                ev.preventDefault();
+                const step = ev.key === 'ArrowDown' ? 1 : -1;
+                const last = Math.min(count, TRAINEE_SEARCH_LIMIT) - 1;
+                let next = traineeSearchActive + step;
+                if (next < 0) next = last;
+                if (next > last) next = 0;
+                setTraineeSearchActive(next);
+                return;
+            }
+            if (ev.key === 'Enter') {
+                if (open && traineeSearchActive >= 0) {
+                    ev.preventDefault();          // do not submit the form behind it
+                    selectTraineeFromSearch(traineeSearchActive);
+                }
+                return;
+            }
+            if (ev.key === 'Escape') {
+                if (open) { ev.preventDefault(); els.box.classList.remove('open'); }
+                else clearTraineeSearch();
+            }
+        }
+
+        // keepFocus is false when the form clears itself after a payment — the
+        // user is not typing then, and pulling focus would be startling.
+        function clearTraineeSearch(keepFocus) {
+            const els = _traineeSearchEls();
+            if (els.input) {
+                els.input.value = '';
+                if (keepFocus !== false) els.input.focus();
+            }
+            if (els.box) els.box.classList.remove('open', 'has-query');
+            traineeSearchMatches = [];
+            traineeSearchActive = -1;
+            if (els.list) els.list.innerHTML = '';
+        }
+
+        // Say plainly who the payment is about to be recorded against — the
+        // dropdown alone is easy to misread once it has been set from up here.
+        function renderChosenTrainee() {
+            const els = _traineeSearchEls();
+            if (!els.chosen) return;
+            const select = document.getElementById('paymentStudentId');
+            const id = select ? select.value : '';
+            const student = id ? students.find(s => s.id === id) : null;
+            if (!student) {
+                els.chosen.classList.remove('shown');
+                els.chosen.innerHTML = '';
+                return;
+            }
+            const balance = (parseFloat(student.balance) || 0).toFixed(2);
+            els.chosen.innerHTML = 'Recording against <strong>' + feeAttr(student.name) +
+                '</strong> · ' + feeAttr(student.id) + ' · ' + feeAttr(student.skillArea) +
+                ' · balance $' + balance;
+            els.chosen.classList.add('shown');
+        }
+
+        // Clicking away closes the list without choosing anything.
+        document.addEventListener('click', function (ev) {
+            const box = document.getElementById('traineeSearchBox');
+            if (box && !box.contains(ev.target)) box.classList.remove('open');
+        });
 
         // Populate document student select
         function populateDocumentStudentSelect() {
@@ -6601,7 +7753,7 @@
         function loadStudentPaymentInfo() {
             const studentId = document.getElementById('paymentStudentId').value;
             const infoDiv = document.getElementById('studentPaymentInfo');
-            
+
             if (studentId) {
                 const student = students.find(s => s.id === studentId);
                 if (student) {
@@ -6611,6 +7763,9 @@
             } else {
                 infoDiv.style.display = 'none';
             }
+            // Keep the line under the search box true whichever way the trainee
+            // was chosen — from the search results or from the dropdown itself.
+            renderChosenTrainee();
         }
 
         // Record payment
@@ -6633,19 +7788,11 @@
                 var raw = CESTISStore.getItem('voctrain_skillAreas');
                 var areas = raw ? JSON.parse(raw) : [];
                 if (!Array.isArray(areas)) return [];
-                // A training centre deleted on the LMS dashboard is gone here
-                // too. The deletion is written down under this key — without
-                // reading it this page went on pricing and enrolling into a
-                // centre that no longer existed anywhere else in the system.
-                var gone = [];
-                try {
-                    var t = JSON.parse(CESTISStore.getItem('voctrain_deletedCentreIds') || '[]');
-                    if (Array.isArray(t)) gone = t.map(String);
-                } catch (e) {}
-                return areas.filter(function (a) {
-                    if (!a || !a.name || !String(a.name).trim()) return false;
-                    return a.id == null || gone.indexOf(String(a.id)) === -1;
-                });
+                // Read through the shared catalogue, so a training centre deleted
+                // on the LMS dashboard is gone here too. Without this the fee page
+                // went on pricing and enrolling into a centre that no longer
+                // existed anywhere else in the system.
+                return CESTISCore.catalogue.liveCentres(areas, CESTISStore);
             } catch (e) { return []; }
         }
 
@@ -6676,8 +7823,9 @@
                     reason: 'The shared training-centre rules could not be loaded, so this enrolment cannot be verified. Please reload the page.' };
             }
 
-            var dec = CESTISCore.enrolment.canEnrol(feeTrainingCentres(), skillAreaName,
-                { enrolDate: enrolDate, nowMs: Date.now() });
+            var dec = CESTISCore.enrolment.canEnrol(
+                (typeof feeCentresCached === 'function' ? feeCentresCached() : feeTrainingCentres()),
+                skillAreaName, { enrolDate: enrolDate, nowMs: Date.now() });
 
             // No training centre of this name (or no roster to read at all): the
             // programme stands on the cost set for it here.
@@ -6687,10 +7835,15 @@
             return dec;
         }
 
-        function feeCourseDurationInfo(skillAreaName) {
+        function feeCourseDurationInfo(skillAreaName, rec) {
             try {
                 if (typeof CESTISCore === 'undefined' || !CESTISCore.courseDuration) return null;
-                var sk = CESTISCore.enrolment.findCentre(feeTrainingCentres(), skillAreaName);
+                // The stamped intake key decides which centre answers; the name
+                // is only the fallback for records that predate the stamps. Two
+                // centres sharing a name are two centres — the key is what
+                // tells this page which one to read.
+                var sk = CESTISCore.enrolment.findCentre(feeCentresCached(), skillAreaName,
+                    { centreKey: rec && rec.centreKey });
                 if (!sk) return null;
                 return {
                     ended: !CESTISCore.courseDuration.isRegisterOpen(sk, undefined, Date.now()),
@@ -6755,14 +7908,7 @@
             
             student.totalPaid += amount;
             student.balance = student.tuitionFee - student.totalPaid;
-            
-            if (student.balance <= 0) {
-                student.status = 'Fully Paid';
-            } else if (student.totalPaid > 0) {
-                student.status = 'Partial Payment';
-            } else {
-                student.status = 'Outstanding';
-            }
+            student.status = feePaymentStatus(student);
             
             saveData();
 
@@ -6774,75 +7920,124 @@
             document.getElementById('receiptNumber').value = '';
             document.getElementById('paymentNotes').value = '';
             document.getElementById('studentPaymentInfo').style.display = 'none';
+            // The form has been cleared, so the search box and the line saying
+            // who the payment is for must not go on naming the last trainee.
+            clearTraineeSearch(false);
+            renderChosenTrainee();
 
             renderPaymentsTable();
             renderStudentsTable();
             updateDashboard();
 
-            alert('Payment recorded successfully! Receipt has been generated and downloaded.');
+            feeToast('Payment recorded — receipt generated and downloaded.');
         }
 
-        // ----- Fiscal-year + quarterly fee filtering (like the Cashbook) ----
-        // Exactly as the Cashbook buckets every transaction into the financial
-        // quarter its date falls in, every record here is bucketed by its own
-        // date into the CESTIS financial year (Apr–Mar) and quarter (Apr–Jun =
-        // Q1 … Jan–Mar = Q4):
-        //   • payments  → the FY+quarter of their payment date,
-        //   • students  → the FY of their enrollment date (cohort),
-        // so the whole dashboard follows the FY selected in the filter bar.
-        // "All Quarters" shows the active FY's four quarters together; Q1–Q4
-        // narrow payments to one quarter of that FY. The selection is the
-        // app-wide shared quarter (cestis_active_quarter), so it stays in sync
-        // with the Cashbook & Virement.
-        let feeShowAllPayments = true;   // default: show the whole active FY (all four quarters)
+        /* ----- Fiscal-year + quarterly fee filtering ---------------------
+
+           Every record here is bucketed by its own date into the CESTIS
+           financial year (Apr–Mar) and quarter (Apr–Jun = Q1 … Jan–Mar = Q4):
+             • payments  → the FY+quarter of their payment date,
+             • students  → the FY of their enrollment date (cohort).
+           The selection is the app-wide shared quarter (cestis_active_quarter),
+           so it stays in sync with the Cashbook & Virement.
+
+           ALL QUARTERS MEANS EVERYONE. It used to mean "the four quarters of
+           the FY the arrows are pointing at", which quietly made the dashboard a
+           per-year view with no way to see the Centre whole: the roll is spread
+           over five financial years, so the page reported 116 students against
+           the LMS dashboard's 220 — and 7, 39, 32 as the user stepped the arrows
+           back, never the 220 that are actually enrolled. Now "All Quarters" is
+           the whole roll, every year, and Q1–Q4 narrow to one quarter of the FY
+           the arrows select. */
+        /* THREE SCOPES, not two.
+
+           The Centre works a group at a time, so the figures it needs by default
+           are THIS financial year's — the present group. Until now the choice was
+           only between "All Quarters", which silently meant every year at once
+           and was the default, and a SINGLE quarter. There was no way to ask for
+           "this year", so the cards mixed last year's cohort into every total and
+           the only way to narrow them was to look at one quarter in isolation.
+
+             'year'    — the selected financial year, all four quarters (default)
+             'quarter' — one quarter of the selected financial year
+             'all'     — every year, for the whole history
+
+           'all' is still there, because the roll spans five financial years and
+           somebody occasionally needs the Centre whole. It is now a deliberate
+           choice rather than the silent default, and every card says which scope
+           it is showing. */
+        let feeScopeMode = 'year';       // default: the present group
         let _feeSuppressQuarterSub = false; // set while a LOCAL quarter change renders itself
 
-        // True when a payment is in the current view scope: the active FY when
-        // "All Quarters" is selected, otherwise the active FY+quarter.
+        // Kept as a read-only alias so older call sites keep meaning what they said.
+        Object.defineProperty(window, 'feeShowAllPayments', {
+            get: function () { return feeScopeMode === 'all'; },
+            configurable: true
+        });
+
+        // True when no date narrowing at all is in force.
+        function feeWholeRollScope() { return feeScopeMode === 'all'; }
+
+        // True when a payment is in the current view scope.
         function paymentInActiveQuarter(p) {
-            if (feeShowAllPayments) return true;      // the whole roll, every year
-            if (typeof CESTISCore === 'undefined' || !CESTISCore.getActiveQuarter) return true;
+            if (feeScopeMode === 'all') return true;
+            if (feeScopeMode === 'year') {
+                // The whole financial year — the present group's takings, not one
+                // quarter of them and not last year's as well.
+                const curY = feeActiveQuarter();
+                if (!curY) return true;
+                const dqY = p ? CESTISCore.deriveQuarter(p.date) : null;
+                if (!dqY) return true;             // undated stays visible
+                return dqY.fy === curY.fy;
+            }
+            // feeActiveQuarter() answers from memory. Asking the store directly
+            // here meant a localStorage read and a JSON.parse FOR EVERY PAYMENT,
+            // repeated for each of the four passes the dashboard makes over the
+            // list — easily thousands of storage reads to draw one screen.
+            const cur = feeActiveQuarter();
+            if (!cur) return true;
             // Undated/unparseable payments stay visible so they are never silently hidden.
             const dq = p ? CESTISCore.deriveQuarter(p.date) : null;
             if (!dq) return true;
-            const cur = CESTISCore.getActiveQuarter();
             return dq.fy === cur.fy && dq.q === cur.q;
         }
 
-        // True when a student belongs to the active financial year's cohort —
-        // the FY their enrollment date falls in (createdAt as fallback).
-        // Students without a usable date stay visible in every FY so they are
-        // never silently hidden.
+        // True when a student is in the current view scope: everybody on the roll
+        // under "All Quarters", otherwise the selected FY's cohort — the FY their
+        // enrollment date falls in (createdAt as fallback). A trainee with no
+        // usable date stays visible in every FY so they are never silently
+        // hidden; 36 of the Centre's records carry no enrollment date at all.
         function studentInActiveFY(s) {
-            // "All Quarters" is the whole roll, every year — see feeSelectAll().
-            if (feeShowAllPayments) return true;
-            if (typeof CESTISCore === 'undefined' || !CESTISCore.getActiveQuarter) return true;
+            if (feeScopeMode === 'all') return true;
+            const cur = feeActiveQuarter();
+            if (!cur) return true;
             if (!s) return false;
             const dq = CESTISCore.deriveQuarter(s.enrollmentDate) || CESTISCore.deriveQuarter(s.createdAt);
             if (!dq) return true;
-            return dq.fy === CESTISCore.getActiveQuarter().fy;
+            return dq.fy === cur.fy;
         }
 
         // Payments currently in scope (used by the dashboard "Total Collected").
         function paymentsInScope() { return payments.filter(paymentInActiveQuarter); }
 
-        // Students in the active FY's cohort (drives Expected/Outstanding).
+        // Students currently in scope (drives Total Students/Expected/Outstanding).
         function studentsInScope() { return students.filter(studentInActiveFY); }
 
-        // A short label for the active scope, e.g. "FY 2026/2027 · All quarters"
-        // or "Q1 · Apr–Jun 2026".
+        // A short label for the active scope, e.g. "Q1 · Apr–Jun 2026", or the
+        // whole roll under "All Quarters".
         function feeScopeLabel() {
-            if (feeShowAllPayments) return 'All quarters · every year';
-            if (typeof CESTISCore === 'undefined' || !CESTISCore.getActiveQuarter) return 'All Payments';
-            const cur = CESTISCore.getActiveQuarter();
+            if (feeScopeMode === 'all') return 'Every year · whole history';
+            const cur = feeActiveQuarter();
+            if (!cur) return 'All Payments';
+            if (feeScopeMode === 'year') return 'FY ' + cur.fy + ' · all four quarters';
             return CESTISCore.quarterShortLabel(cur.fy, cur.q) + ' ' + CESTISCore.quarterCalendarYear(cur.fy, cur.q);
         }
 
-        // Label for the FY the student-derived cards are scoped to.
+        // Label for what the student-derived cards are counting.
         function feeFYLabel() {
-            if (feeShowAllPayments) return 'All trainees on the roll';
-            if (typeof CESTISCore === 'undefined' || !CESTISCore.getActiveQuarter) return 'All students';
-            return 'FY ' + CESTISCore.getActiveQuarter().fy + ' cohort';
+            if (feeScopeMode === 'all') return 'Every trainee, all years';
+            const cur = feeActiveQuarter();
+            return cur ? ('FY ' + cur.fy + ' group') : 'All students';
         }
 
         // Inject the filter-bar styles once.
@@ -6861,7 +8056,17 @@
                 'color:inherit;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;transition:all .15s;}' +
                 '.fee-qtab:hover,.fee-qbtn:hover{background:rgba(13,71,161,.10);}' +
                 '.fee-qtab.active{background:#0D47A1;color:#fff;border-color:#0D47A1;box-shadow:0 0 0 3px rgba(13,71,161,.18);}' +
-                '.fee-allpay.active{background:#1b8a5a;border-color:#1b8a5a;box-shadow:0 0 0 3px rgba(27,138,90,.18);}';
+                '.fee-allpay.active{background:#8a6d1b;border-color:#8a6d1b;box-shadow:0 0 0 3px rgba(138,109,27,.18);}' +
+                '.fee-thisyear.active{background:#1b8a5a;border-color:#1b8a5a;box-shadow:0 0 0 3px rgba(27,138,90,.18);}' +
+                // A past year is flagged in the label and spelled out underneath,
+                // because entering this year's money against last year's group is
+                // easy to do and awkward to undo.
+                '.fee-fy-past{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;' +
+                'background:#8a6d1b;color:#fff;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle;}' +
+                '.fee-pastyear-note{flex-basis:100%;text-align:center;font-size:13px;line-height:1.7;' +
+                'padding:8px 12px;border-radius:8px;background:rgba(138,109,27,.10);border:1px solid rgba(138,109,27,.30);}' +
+                '.fee-return{padding:3px 10px;font-size:12px;}' +
+                '';
             document.head.appendChild(st);
         }
 
@@ -6877,24 +8082,74 @@
                 { q: 3, label: 'Q3 · Oct–Dec' }, { q: 4, label: 'Q4 · Jan–Mar' }
             ];
             el.className = 'fee-qfilter';
+            const mode = feeScopeMode;
+            const isAll = mode === 'all';
+            /* The year picker is always live now. It used to be dimmed whenever
+               "All Quarters" was on — which was the default — so the one control
+               for stepping back to last year looked broken most of the time. It
+               is also labelled in words, because it is how the Centre goes back
+               to enter last year's outstanding fees. */
+            const thisFY = feeCurrentFY();
+            const isPast = !isAll && cur.fy && thisFY && cur.fy !== thisFY;
             el.innerHTML =
                 '<div class="fee-qfilter-fy">' +
-                    '<button class="fee-qbtn" onclick="feeShiftFY(-1)" title="Previous financial year">◀</button>' +
-                    '<span class="fee-qfy-label">FY ' + cur.fy + '</span>' +
-                    '<button class="fee-qbtn" onclick="feeShiftFY(1)" title="Next financial year">▶</button>' +
+                    '<button class="fee-qbtn" onclick="feeShiftFY(-1)" title="Go back one financial year">◀ Previous year</button>' +
+                    '<span class="fee-qfy-label">FY ' + cur.fy + (isPast ? ' <span class="fee-fy-past">past</span>' : '') + '</span>' +
+                    '<button class="fee-qbtn" onclick="feeShiftFY(1)" title="Go forward one financial year">Next year ▶</button>' +
                 '</div>' +
                 '<div class="fee-qtabs">' +
-                    '<button class="fee-qtab fee-allpay' + (feeShowAllPayments ? ' active' : '') +
-                        '" onclick="feeSelectAll()" aria-pressed="' + (feeShowAllPayments ? 'true' : 'false') +
-                        '" title="' + (feeShowAllPayments
-                            ? 'Showing every trainee and every payment, all years. Click to go back to one quarter.'
-                            : 'Show every trainee and every payment, all years') +
-                        '">' + (feeShowAllPayments ? '\u2713 ' : '') + 'All Quarters</button>' +
+                    '<button class="fee-qtab fee-thisyear' + (mode === 'year' ? ' active' : '') +
+                        '" onclick="feeSelectYear()" aria-pressed="' + (mode === 'year' ? 'true' : 'false') +
+                        '" title="The whole of FY ' + cur.fy + ' — this is the group\u2019s own total">' +
+                        (mode === 'year' ? '✓ ' : '') + 'Whole Year</button>' +
                     quarters.map(function (m) {
-                        return '<button class="fee-qtab' + ((!feeShowAllPayments && m.q === cur.q) ? ' active' : '') +
+                        return '<button class="fee-qtab' + ((mode === 'quarter' && m.q === cur.q) ? ' active' : '') +
                             '" onclick="feeSelectQuarter(' + m.q + ')">' + m.label + '</button>';
                     }).join('') +
-                '</div>';
+                    '<button class="fee-qtab fee-allpay' + (isAll ? ' active' : '') +
+                        '" onclick="feeSelectAll()" aria-pressed="' + (isAll ? 'true' : 'false') + '" title="' +
+                        (isAll
+                            ? 'Showing every year at once. Click to go back to one year.'
+                            : 'Every year at once — the Centre\u2019s whole history, not this group') +
+                        '">' + (isAll ? '✓ ' : '') + 'All Years</button>' +
+                '</div>' +
+                /* Working in a past year is easy to do by accident and expensive
+                   to get wrong, so while one is selected the bar says so plainly
+                   and offers the way back. */
+                (isPast
+                    ? '<div class="fee-pastyear-note">You are looking at <strong>FY ' + cur.fy + '</strong>, not the present group. ' +
+                      'Enter last year\u2019s outstanding fees here, then ' +
+                      '<button class="fee-qbtn fee-return" onclick="feeReturnToPresent()">return to FY ' + thisFY + '</button></div>'
+                    : '') +
+                (isAll
+                    ? '<div class="fee-pastyear-note">Every year is counted together, so these totals include past groups. ' +
+                      '<button class="fee-qbtn fee-return" onclick="feeSelectYear()">Show the present group only</button></div>'
+                    : '');
+        }
+
+        // The financial year today falls in — the present group's year.
+        function feeCurrentFY() {
+            try {
+                if (typeof CESTISCore !== 'undefined' && CESTISCore.deriveQuarter) {
+                    const dq = CESTISCore.deriveQuarter(new Date().toISOString().slice(0, 10));
+                    if (dq && dq.fy) return dq.fy;
+                }
+            } catch (e) {}
+            return '';
+        }
+
+        /* Step straight back to the present group from wherever the user is.
+           Going back a year to enter arrears is a round trip, and without this
+           the way home is to press the arrow the right number of times. */
+        function feeReturnToPresent() {
+            const fy = feeCurrentFY();
+            if (fy && typeof CESTISCore !== 'undefined' && CESTISCore.setActiveQuarter) {
+                const cur = CESTISCore.getActiveQuarter();
+                _feeSuppressQuarterSub = true;
+                try { CESTISCore.setActiveQuarter(fy, cur.q); } finally { _feeSuppressQuarterSub = false; }
+            }
+            feeScopeMode = 'year';
+            feeApplyQuarterChange();
         }
 
         function _renderFeeFilters() {
@@ -6904,21 +8159,34 @@
 
         // Re-render the filter bars + every quarter-scoped view.
         function feeApplyQuarterChange() {
+            // The cached active quarter is exactly what has just changed.
+            feeInvalidateCaches();
             try { _renderFeeFilters(); } catch (e) {}
             if (typeof renderPaymentsTable === 'function') { try { renderPaymentsTable(); } catch (e) {} }
             // Dashboard refresh is non-critical to the filter — never let it block.
             if (typeof updateDashboard === 'function') { try { updateDashboard(); } catch (e) {} }
         }
 
-        /* "All Quarters" is a toggle. On, it is the whole roll — the view that
-           matches the LMS dashboard. Clicking it again drops back to the quarter
-           the arrows point at. */
+        /* "All Quarters" is a toggle, not a one-way switch.
+
+           On, it is the whole roll — every trainee, every year, which is the view
+           that matches the LMS dashboard. Clicking it again turns it OFF and
+           drops back to the quarter the arrows are pointing at, so the Centre can
+           go from "where do we stand" to "what came in this quarter" and back
+           with the same button. Before this, once it was on the only way off was
+           to pick a quarter, and the button gave no sign it could be released. */
+        // Every year at once. A deliberate choice now, not the default.
         function feeSelectAll() {
-            feeShowAllPayments = !feeShowAllPayments;
+            feeScopeMode = (feeScopeMode === 'all') ? 'year' : 'all';
+            feeApplyQuarterChange();
+        }
+        // The present group: the selected financial year, all four quarters.
+        function feeSelectYear() {
+            feeScopeMode = 'year';
             feeApplyQuarterChange();
         }
         function feeSelectQuarter(q) {
-            feeShowAllPayments = false;
+            feeScopeMode = 'quarter';
             // Persist the shared quarter so the Cashbook/Virement follow, then
             // render DIRECTLY here. We no longer rely on the onQuarterChange
             // subscriber for the local re-render — if page init ever aborted before
@@ -6931,9 +8199,11 @@
             feeApplyQuarterChange();
         }
         function feeShiftFY(dir) {
-            // Stepping to a year is asking to see that year, so it releases the
-            // whole-roll toggle rather than moving a label nothing is reading.
-            feeShowAllPayments = false;
+            // Stepping to a year is asking to SEE that year, so it lands on the
+            // whole of it rather than moving a label nothing is reading. From
+            // "every year" it drops into the year it lands on; from a single
+            // quarter it keeps that quarter in the new year.
+            if (feeScopeMode === 'all') feeScopeMode = 'year';
             if (typeof CESTISCore !== 'undefined' && CESTISCore.setActiveQuarter) {
                 const cur = CESTISCore.getActiveQuarter();
                 const start = parseInt(String(cur.fy).split('/')[0], 10) + dir;
@@ -6951,9 +8221,10 @@
             if (typeof CESTISCore !== 'undefined' && CESTISCore.onQuarterChange) {
                 CESTISCore.onQuarterChange(function () {
                     if (_feeSuppressQuarterSub) return; // a local click already re-rendered
-                    // Every view is FY-scoped (even "All Quarters" = whole FY),
-                    // so any FY/quarter switch from another page must re-render
-                    // the data, not just the filter bars.
+                    // A quarter picked on another page (the Cashbook, Virement) is
+                    // a request to see that quarter, so it releases the whole-roll
+                    // toggle here too — otherwise this page would ignore it.
+                    feeScopeMode = 'quarter';
                     feeApplyQuarterChange();
                 });
             }
@@ -6962,55 +8233,68 @@
         // Render payments table
         function renderPaymentsTable() {
             const tbody = document.getElementById('paymentsTableBody');
-            tbody.innerHTML = '';
+            if (!tbody) return;
+            if (_feeDeferRender('payments', 'payments')) return;
 
-            const sortedPayments = [...payments]
-                .filter(paymentInActiveQuarter)
-                .sort((a, b) => new Date(b.date) - new Date(a.date));
+            const sortedPayments = payments.filter(paymentInActiveQuarter).sort(_feeByDateDesc);
             const qLbl = document.getElementById('paymentsQuarterLabel');
             if (qLbl) {
                 qLbl.textContent = 'Showing ' + feeScopeLabel() +
                     ' — ' + sortedPayments.length + ' payment' + (sortedPayments.length === 1 ? '' : 's');
             }
 
-            sortedPayments.forEach((payment) => {
-                const row = tbody.insertRow();
-                row.innerHTML = `
+            // One html string, one write to the DOM — see renderStudentsTable().
+            const rows = sortedPayments.map((payment) => {
+                const amount = (parseFloat(payment.amount) || 0).toFixed(2);
+                const receipt = payment.receiptNumber || '-';
+                const search = [payment.date, receipt, payment.studentName, payment.skillArea,
+                                payment.term, '$' + amount, payment.method]
+                    .join(' ').toLowerCase();
+                return `
+                <tr data-search="${feeAttr(search)}" data-date="${feeAttr(payment.date)}">
                     <td>${payment.date}</td>
-                    <td>${payment.receiptNumber || '-'}</td>
+                    <td>${receipt}</td>
                     <td>${payment.studentName}</td>
                     <td>${payment.skillArea}</td>
                     <td>${payment.term}</td>
-                    <td>$${payment.amount.toFixed(2)}</td>
+                    <td>$${amount}</td>
                     <td>${payment.method}</td>
                     <td>
                         <button class="action-btn btn-success" onclick="printReceipt('${payment.id}')" title="Print Receipt">Receipt</button>
                         <button class="action-btn" style="background: #FFA726;" onclick="editPayment('${payment.id}')">Edit</button>
                         <button class="action-btn btn-danger" onclick="deletePayment('${payment.id}')">Delete</button>
                     </td>
-                `;
+                </tr>`;
             });
+            tbody.innerHTML = rows.join('');
+            // Keep any search / date range the user already had in force — a
+            // rebuild must not quietly bring back rows they had filtered out.
+            if (_feeFilterSet(['searchPayment', 'filterDateFrom', 'filterDateTo'])) filterPayments();
         }
 
-        // Filter payments
+        // Filter payments. Matches the data-* stamped on each row at render
+        // time instead of re-reading its text on every keystroke.
         function filterPayments() {
-            const searchTerm = document.getElementById('searchPayment').value.toLowerCase();
+            feeFlushPendingRenders('payments');
+            const searchEl = document.getElementById('searchPayment');
+            const searchTerm = (searchEl ? searchEl.value : '').toLowerCase().trim();
             const dateFrom = document.getElementById('filterDateFrom').value;
             const dateTo = document.getElementById('filterDateTo').value;
-            
+
             const rows = document.querySelectorAll('#paymentsTableBody tr');
-            
+
             rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                const date = row.cells[0].textContent;
-                
-                const matchesSearch = text.includes(searchTerm);
+                const text = row.dataset.search || row.textContent.toLowerCase();
+                const date = row.dataset.date != null ? row.dataset.date : row.cells[0].textContent;
+
+                const matchesSearch = !searchTerm || text.includes(searchTerm);
                 const matchesDateFrom = !dateFrom || date >= dateFrom;
                 const matchesDateTo = !dateTo || date <= dateTo;
-                
-                row.style.display = (matchesSearch && matchesDateFrom && matchesDateTo) ? '' : 'none';
+
+                _feeSetRowVisible(row, matchesSearch && matchesDateFrom && matchesDateTo);
             });
         }
+        const filterPaymentsDebounced = feeDebounce(filterPayments);
 
         // Delete payment
         function deletePayment(paymentId) {
@@ -7022,14 +8306,7 @@
                 if (student) {
                     student.totalPaid -= payment.amount;
                     student.balance = student.tuitionFee - student.totalPaid;
-                    
-                    if (student.balance <= 0) {
-                        student.status = 'Fully Paid';
-                    } else if (student.totalPaid > 0) {
-                        student.status = 'Partial Payment';
-                    } else {
-                        student.status = 'Outstanding';
-                    }
+                    student.status = feePaymentStatus(student);
                 }
                 
                 payments.splice(paymentIndex, 1);
@@ -7128,14 +8405,7 @@
             student.totalPaid = student.totalPaid - oldAmount + newAmount;
             student.balance = student.tuitionFee - student.totalPaid;
             
-            // Update status
-            if (student.balance <= 0) {
-                student.status = 'Fully Paid';
-            } else if (student.totalPaid > 0) {
-                student.status = 'Partial Payment';
-            } else {
-                student.status = 'Outstanding';
-            }
+            student.status = feePaymentStatus(student);
             
             saveData();
             renderPaymentsTable();
@@ -7339,29 +8609,40 @@
 
         function renderDocumentsTable() {
             const tbody = document.getElementById('documentsTableBody');
-            tbody.innerHTML = '';
+            if (!tbody) return;
+            if (_feeDeferRender('documents', 'documents')) return;
 
-            const sortedDocs = [...documents].sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+            const sortedDocs = [...documents].sort((a, b) =>
+                _feeByDateDesc({ date: a && a.uploadDate }, { date: b && b.uploadDate }));
 
-            sortedDocs.forEach((doc) => {
-                const student = students.find(s => s.id === doc.studentId);
+            // One pass to index the roll by id, instead of scanning the whole
+            // roll again for every document to answer the same question.
+            const studentById = new Map();
+            students.forEach(s => { if (s) studentById.set(s.id, s); });
+
+            const rows = sortedDocs.map((doc) => {
+                const student = studentById.get(doc.studentId);
                 const studentId = student ? student.id : 'N/A';
-
-                const row = tbody.insertRow();
-                row.innerHTML = `
+                const size = formatFileSize(doc.size);
+                const search = [doc.uploadDate, doc.studentName, studentId, doc.type, doc.fileName, size]
+                    .join(' ').toLowerCase();
+                return `
+                <tr data-search="${feeAttr(search)}" data-student="${feeAttr(studentId)}" data-type="${feeAttr(doc.type)}">
                     <td>${doc.uploadDate}</td>
                     <td>${doc.studentName}</td>
                     <td>${studentId}</td>
                     <td>${doc.type}</td>
                     <td>${doc.fileName}</td>
-                    <td>${formatFileSize(doc.size)}</td>
+                    <td>${size}</td>
                     <td>
                         <button class="action-btn btn-primary" onclick="viewDocumentPrint('${doc.id}')" style="background: var(--primary-blue);">View</button>
                         <button class="action-btn btn-success" onclick="downloadDocument('${doc.id}')">Download</button>
                         <button class="action-btn btn-danger" onclick="deleteDocument('${doc.id}')">Delete</button>
                     </td>
-                `;
+                </tr>`;
             });
+            tbody.innerHTML = rows.join('');
+            if (_feeFilterSet(['searchDocuments', 'filterDocStudent', 'filterDocType'])) filterDocuments();
         }
 
         function updateDocumentTypeFilter() {
@@ -7381,24 +8662,27 @@
         }
 
         function filterDocuments() {
-            const searchTerm = document.getElementById('searchDocuments').value.toLowerCase();
+            feeFlushPendingRenders('documents');
+            const searchEl = document.getElementById('searchDocuments');
+            const searchTerm = (searchEl ? searchEl.value : '').toLowerCase().trim();
             const studentFilter = document.getElementById('filterDocStudent').value;
             const typeFilter = document.getElementById('filterDocType').value;
-            
+
             const rows = document.querySelectorAll('#documentsTableBody tr');
-            
+
             rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                const studentId = row.cells[2].textContent;
-                const type = row.cells[3].textContent;
-                
-                const matchesSearch = text.includes(searchTerm);
+                const text = row.dataset.search || row.textContent.toLowerCase();
+                const studentId = row.dataset.student != null ? row.dataset.student : row.cells[2].textContent;
+                const type = row.dataset.type != null ? row.dataset.type : row.cells[3].textContent;
+
+                const matchesSearch = !searchTerm || text.includes(searchTerm);
                 const matchesStudent = !studentFilter || studentId === studentFilter;
                 const matchesType = !typeFilter || type === typeFilter;
-                
-                row.style.display = (matchesSearch && matchesStudent && matchesType) ? '' : 'none';
+
+                _feeSetRowVisible(row, matchesSearch && matchesStudent && matchesType);
             });
         }
+        const filterDocumentsDebounced = feeDebounce(filterDocuments);
 
         async function downloadDocument(docId) {
             const doc = documents.find(d => d.id === docId);
@@ -7738,14 +9022,38 @@
                 return;
             }
 
+            /* How many term columns any programme actually uses. Every programme
+               here runs three or four terms, but the table always drew nine, so
+               six empty columns crushed the real ones and the headings wrapped. */
+            let termsInUse = 0;
+            for (const nm of rosterNames) {
+                const t = (feeStructure[nm] || {}).terms;
+                if (!Array.isArray(t)) continue;
+                for (let i = 0; i < 9; i++) if ((parseFloat(t[i]) || 0) > 0 && i + 1 > termsInUse) termsInUse = i + 1;
+            }
+            if (termsInUse < 1) termsInUse = 3;    // nothing priced yet: show a sensible few
+
             for (const skillArea of rosterNames) {
-                const data = feeStructure[skillArea];
+                const data = feeStructure[skillArea] || {};
                 const row = tbody.insertRow();
+
+                // Defensive: a fee entry can arrive without terms (older
+                // imports, a partial cloud copy, another page writing only the
+                // total). This render runs during page INIT — one malformed
+                // entry used to throw here and abort everything wired after
+                // it, leaving the quarter bar and half the controls dead.
+                const total = parseFloat(data.total) || 0;
+                const terms = Array.isArray(data.terms) ? data.terms : [];
+                const termCells = [];
+                for (let ti = 0; ti < 9; ti++) {
+                    const term = parseFloat(terms[ti]) || 0;
+                    termCells.push(`<td class="fee-term-col" data-term="${ti + 1}">${term > 0 ? '$' + term.toFixed(2) : '-'}</td>`);
+                }
 
                 let html = `
                     <td><strong>${skillArea}</strong></td>
-                    <td><strong>$${data.total.toFixed(2)}</strong></td>
-                    ${data.terms.map(term => `<td>${term > 0 ? '$' + term.toFixed(2) : '-'}</td>`).join('')}
+                    <td><strong>$${total.toFixed(2)}</strong></td>
+                    ${termCells.join('')}
                 `;
                 
                 if (isAdmin) {
@@ -7759,6 +9067,16 @@
                 
                 row.innerHTML = html;
             }
+
+            // Show only the terms in use — header and body together, so the
+            // columns stay lined up.
+            try {
+                const host = tbody.closest('table') || document;
+                host.querySelectorAll('.fee-term-col').forEach(function (cell) {
+                    const n = parseInt(cell.getAttribute('data-term'), 10) || 0;
+                    cell.style.display = (n > termsInUse) ? 'none' : '';
+                });
+            } catch (e) {}
         }
 
         // Format number with commas and two decimal places
@@ -7771,15 +9089,32 @@
             // Recalculate student totals from actual payment records
             recalculateStudentTotals();
 
-            // Every figure follows the FY selected in the filter bar (like the
-            // Cashbook): Students/Expected count the active FY's cohort (by
-            // enrollment date); Collected reflects the active scope (whole FY,
-            // or the selected quarter within it); Outstanding is what the FY's
-            // cohort still owes (their expected minus everything they've paid).
+            /* Every figure follows the filter bar, and "All Quarters" is
+               everybody.
+
+               The four cards used to be scoped two different ways at once:
+               Students/Expected/Outstanding by the trainee's ENROLMENT FY and
+               Collected by the PAYMENT date. Nothing reconciled — Collected
+               included receipts from trainees Expected had excluded, so
+               Expected − Outstanding came out $29,000 short of Collected — and
+               because the Centre's roll spans five financial years, no
+               selection ever showed it whole: 116 students against the LMS
+               dashboard's 220, or 7, 39, 32 as the arrows stepped back.
+
+               With "All Quarters" meaning the whole roll, the default view
+               matches the LMS dashboard, this page's Students tab and its
+               Reports, and Expected − Outstanding is exactly Collected. Picking
+               a quarter still narrows to that quarter of the FY the arrows
+               select, and every card says which it is showing.
+
+               Both scoped lists are worked out ONCE and passed on: each walks
+               every record bucketing it into a financial quarter, and this used
+               to ask for them four separate times. */
             const fyStudents = studentsInScope();
+            const scopedPayments = paymentsInScope();
             const totalStudents = fyStudents.length;
             const totalExpected = fyStudents.reduce((sum, s) => sum + (parseFloat(s.tuitionFee) || 0), 0);
-            const collectedInScope = paymentsInScope().reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+            const collectedInScope = scopedPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
             const totalOutstanding = fyStudents.reduce((sum, s) => sum + (parseFloat(s.balance) || 0), 0);
 
             document.getElementById('totalStudents').textContent = totalStudents.toLocaleString();
@@ -7793,9 +9128,13 @@
             const _expScopeEl = document.getElementById('totalExpectedScope');
             if (_expScopeEl) _expScopeEl.textContent = feeFYLabel();
             const _outScopeEl = document.getElementById('totalOutstandingScope');
-            if (_outScopeEl) _outScopeEl.textContent = feeFYLabel() + ' cohort balance';
+            // Says whose balance it is, and that it is a position not a period.
+            if (_outScopeEl) _outScopeEl.textContent = feeFYLabel() + ' · owed as at today';
+            // Kept beside the cards it explains: Expected and Outstanding cannot
+            // include a trainee who has no fee, so say how many that is.
+            try { reportUnpricedTrainees(); } catch (e) {}
 
-            const recentPayments = paymentsInScope().sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+            const recentPayments = scopedPayments.slice().sort(_feeByDateDesc).slice(0, 5);
             const activityDiv = document.getElementById('recentActivity');
 
             if (recentPayments.length > 0) {
@@ -7814,18 +9153,28 @@
                 activityDiv.innerHTML = '<p>No recent payments</p>';
             }
 
-            // Refresh charts with current data
-            initializeCharts();
+            // Refresh charts with current data, reusing the scoped lists above.
+            initializeCharts(scopedPayments, fyStudents);
         }
 
-        // Initialize Charts
-        function initializeCharts() {
+        // Initialize Charts.
+        //
+        // scopedPayments / scopedStudents are passed in by updateDashboard(),
+        // which has already worked them out; called without them (page init)
+        // they are worked out here.
+        function initializeCharts(scopedPayments, scopedStudents) {
             // Defensive: if Chart.js failed to load (CDN blocked / offline), skip
             // chart rendering instead of throwing. updateDashboard() runs during
             // page init BEFORE mountSchoolFeeQuarterBar() and the other control
             // wiring, so an uncaught error here would abort init and leave the
             // quarterly payment filter (and more) dead. Charts are non-critical.
             if (typeof Chart === 'undefined') return;
+            // Building a chart is the single most expensive thing on the page,
+            // and every recorded payment, edit and delete used to destroy and
+            // rebuild both of them — while the user was looking at the Payments
+            // tab and the canvases were not even on screen. Opening the
+            // Dashboard tab calls updateDashboard(), which draws them then.
+            if (!_feeModuleActive('dashboard')) return;
             const isDarkMode = document.body.classList.contains('dark-mode');
             const textColor = isDarkMode ? '#e0e0e0' : '#2C3E50';
             const gridColor = isDarkMode ? '#2d4059' : '#e0e0e0';
@@ -7839,17 +9188,36 @@
                 
                 // One bar per programme, not one per spelling of it.
                 const skillAreas = feeProgrammeNames();
-                const _scopedPays = paymentsInScope();
-                const _scopedStudents = studentsInScope();
                 const _nrm = function(v){ return (v == null ? '' : String(v)).toLowerCase().trim(); };
+                /* A rate needs both its sides drawn from the SAME trainees.
+
+                   Expected came from the FY's enrolment cohort while collected
+                   came from every payment in the scope, so a programme could show
+                   receipts against trainees who were not in its expected figure
+                   at all — a rate over 100% that only looked sane because it is
+                   capped, or a rate near zero because most of the programme's
+                   trainees enrolled in a different year. Under "All Quarters"
+                   both sides are now the whole roll and everything recorded
+                   against it, so the bars read as the Centre's real collection.
+
+                   Totalled in ONE pass each and looked up per bar: filtering the
+                   whole cohort and the whole payment list again for every
+                   programme made this programmes × records on each refresh. */
+                const _scopedStudents = scopedStudents || studentsInScope();
+                const _scopedPays = scopedPayments || paymentsInScope();
+                const _expectedByArea = new Map(), _collectedByArea = new Map();
+                _scopedStudents.forEach(s => {
+                    const k = _nrm(s && s.skillArea);
+                    _expectedByArea.set(k, (_expectedByArea.get(k) || 0) + (parseFloat(s && s.tuitionFee) || 0));
+                });
+                _scopedPays.forEach(p => {
+                    const k = _nrm(p && p.skillArea);
+                    _collectedByArea.set(k, (_collectedByArea.get(k) || 0) + (parseFloat(p && p.amount) || 0));
+                });
                 const collectionData = skillAreas.map(area => {
-                    // Both sides of the rate follow the FY selected in the filter
-                    // bar: expected comes from the active FY's student cohort,
-                    // collected from payments in the active scope (whole FY, or
-                    // the selected quarter within it).
-                    const areaStudents = _scopedStudents.filter(s => _nrm(s.skillArea) === _nrm(area));
-                    const expected = areaStudents.reduce((sum, s) => sum + (parseFloat(s.tuitionFee) || 0), 0);
-                    const collected = _scopedPays.filter(p => _nrm(p.skillArea) === _nrm(area)).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+                    const k = _nrm(area);
+                    const expected = _expectedByArea.get(k) || 0;
+                    const collected = _collectedByArea.get(k) || 0;
                     return expected > 0 ? Math.min(100, (collected / expected * 100)).toFixed(1) : 0;
                 });
                 
@@ -7924,7 +9292,7 @@
                 };
                 if (typeof CESTISCore !== 'undefined' && CESTISCore.getActiveQuarter) {
                     const cur = CESTISCore.getActiveQuarter();
-                    if (!feeShowAllPayments) {
+                    if (feeScopeMode === 'quarter') {
                         const meta = CESTISCore.getQuarterMeta(cur.q);
                         const yr = CESTISCore.quarterCalendarYear(cur.fy, cur.q);
                         const sm = (meta ? meta.startMonth : 1) - 1; // 0-based start month
@@ -7938,10 +9306,16 @@
                     for (let i = 5; i >= 0; i--) { const d = new Date(today.getFullYear(), today.getMonth() - i, 1); pushMonth(d.getFullYear(), d.getMonth()); }
                 }
                 const months = trendMonths.map(t => t.label);
-                const amounts = trendMonths.map(t =>
-                    payments.filter(p => p && typeof p.date === 'string' && p.date.slice(0, 7) === t.ym)
-                            .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
-                );
+                // Totalled per month in one pass, then read off. The old form
+                // filtered the entire payment list once per point on the line —
+                // twelve full scans to draw one chart.
+                const _byMonth = new Map();
+                payments.forEach(p => {
+                    if (!p || typeof p.date !== 'string') return;
+                    const ym = p.date.slice(0, 7);
+                    _byMonth.set(ym, (_byMonth.get(ym) || 0) + (parseFloat(p.amount) || 0));
+                });
+                const amounts = trendMonths.map(t => _byMonth.get(t.ym) || 0);
                 
                 trendChart = new Chart(trendCtx, {
                     type: 'line',
@@ -8005,6 +9379,9 @@
             const totalCollected = students.reduce((sum, s) => sum + s.totalPaid, 0);
             const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected * 100).toFixed(1) : 0;
             const outstandingCount = students.filter(s => s.balance > 0).length;
+            // Settled, not merely "owing nothing": a trainee with no fee set owes
+            // an unknown amount, and counting them here told the Centre it had
+            // 27 more accounts closed than it did.
             const paidCount = students.filter(feeIsSettled).length;
             const avgPayment = totalStudents > 0 ? (totalCollected / totalStudents).toFixed(2) : 0;
             
@@ -9203,17 +10580,37 @@
         }
 
         // Close modal
+        /* Opening and closing a dialog must agree on HOW it is hidden.
+
+           Closing used to set an inline display:none on the element. An inline
+           style outranks a stylesheet rule, so `.modal.active { display:flex }`
+           could never show that dialog again: the class went on, and nothing
+           happened. Every dialog on this page therefore worked exactly ONCE per
+           page load and was dead from then on — which is why the Edit and Delete
+           buttons in Fee Structure appeared to stop working.
+
+           Both helpers now speak the same language: the `active` class alone
+           decides, and any inline display left behind by older code (or by a
+           dialog opened with style.display = 'flex') is cleared on the way in. */
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            modal.style.display = '';        // let the stylesheet decide again
+            modal.classList.add('active');
+        }
+
         function closeModal(modalId) {
             const modal = document.getElementById(modalId);
+            if (!modal) return;
             modal.classList.remove('active');
-            modal.style.display = 'none';
+            modal.style.display = '';        // NOT 'none' — see openModal above
         }
 
         // Close modal when clicking outside
         window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
+            if (event.target.classList && event.target.classList.contains('modal')) {
                 event.target.classList.remove('active');
-                event.target.style.display = 'none';
+                event.target.style.display = '';
             }
         }
 
@@ -10095,7 +11492,7 @@
             document.getElementById('mergeToCloudLoading').style.display = 'block';
             document.getElementById('mergeToCloudContent').style.display = 'none';
             document.getElementById('executeMergeToCloudBtn').disabled = true;
-            document.getElementById('mergeToCloudModal').style.display = 'flex';
+            openModal('mergeToCloudModal');
 
             try {
                 let cloudData = null;
@@ -11243,7 +12640,7 @@
             document.getElementById('smartMergeLoading').style.display = 'block';
             document.getElementById('smartMergeContent').style.display = 'none';
             document.getElementById('executeMergeBtn').disabled = true;
-            document.getElementById('smartMergeModal').style.display = 'flex';
+            openModal('smartMergeModal');
 
             try {
                 // Download the cloud file
@@ -11360,10 +12757,10 @@
                     reasons.push('Same ID');
                 }
 
-                // Check name match (case-insensitive)
-                const cloudName = (cloudStudent.name || '').toLowerCase().trim();
-                const localName = (localStudent.name || '').toLowerCase().trim();
-                if (cloudName && localName && cloudName === localName) {
+                // Name match by the one shared rule, so a copy that came back
+                // from Drive with the name spaced differently is recognised as
+                // the same person instead of landing as a second record.
+                if (CESTISCore.sameName(cloudStudent.name, localStudent.name)) {
                     reasons.push('Same name');
                 }
 
@@ -11646,12 +13043,8 @@
                         if (student) {
                             student.totalPaid = (student.totalPaid || 0) + payment.amount;
                             student.balance = student.tuitionFee - student.totalPaid;
-                            if (student.balance <= 0) {
-                                student.status = 'Fully Paid';
-                                student.balance = 0;
-                            } else if (student.totalPaid > 0) {
-                                student.status = 'Partial Payment';
-                            }
+                            if (student.balance <= 0) student.balance = 0;
+                            student.status = feePaymentStatus(student);
                         }
                     }
                 });
@@ -13525,6 +14918,10 @@
     </div>
 </div>
 
+<!-- MegaData bridge (stage 1): in shadow mode the legacy fee keys become real
+     ledger events and window.__feeReconcile() runs the shadow comparator.
+     docs/02 §14, docs/04 §8. -->
+
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20260802a"></script>
 <script>
@@ -13532,7 +14929,32 @@ CESTISPageCloud.init({
   page: 'School Fee Management',
   file: 'CESTIS_School_Fees.json',
   keys: ['cestiFeeStructure'],
-  prefixes: ['cestiSchoolFee']
+  prefixes: ['cestiSchoolFee'],
+  // Read from Drive, never written back from here: the training centres decide
+  // which programmes may be priced and enrolled into, their tombstones decide
+  // which have been deleted, and the trainee roll fills the academic stage
+  // column. Without pulling these, this page ran on whatever the device happened
+  // to hold — which on a machine that had not opened the LMS dashboard meant an
+  // empty or long-stale centre list.
+  reads: ['voctrain_skillAreas', 'voctrain_deletedCentreIds', 'voctrain_students',
+          'voctrain_deletedStudentIds'],
+  onRestore: function (changed) {
+    try {
+      if (typeof feeInvalidateCaches === 'function') feeInvalidateCaches();
+      if (typeof refreshLmsStudentCache === 'function') refreshLmsStudentCache();
+      if (typeof loadData === 'function') loadData();
+      // What Drive just delivered may be seedable: the LMS roll needing fee
+      // records, or the Fee Structure needing to price mirrored trainees.
+      if (typeof seedFeeInformation === 'function') seedFeeInformation();
+      if (typeof updateSkillAreaOptions === 'function') updateSkillAreaOptions();
+      if (typeof renderFeeStructure === 'function') renderFeeStructure();
+      if (typeof renderStudentsTable === 'function') renderStudentsTable();
+      if (typeof renderPaymentsTable === 'function') renderPaymentsTable();
+      if (typeof renderDocumentsTable === 'function') renderDocumentsTable();
+      if (typeof populatePaymentStudentSelect === 'function') populatePaymentStudentSelect();
+      if (typeof updateDashboard === 'function') updateDashboard();
+    } catch (e) { console.warn('[PageCloud] School Fee restore refresh failed:', e); }
+  }
 });
 </script>
 </body>
