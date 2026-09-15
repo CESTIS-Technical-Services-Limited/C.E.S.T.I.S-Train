@@ -195,5 +195,73 @@ PAGES.forEach(where => {
     where + ': the charts no longer push the figures off the screen');
 });
 
+/* ---------- 5. The Payments page ---------- */
+console.log('The Payments page says how much, not just which payments');
+
+PAGES.forEach(where => {
+  const src = read(where);
+
+  /* The list answered "which payments" and never "how much". To learn what the
+     year had taken, or what the group still owed, you had to leave the page. */
+  assert(/id="paymentsSummary"/.test(src),
+    where + ': the page carries a summary above the list');
+  ['paySumCount', 'paySumCollected', 'paySumDue'].forEach(id => {
+    assert(src.indexOf('id="' + id + '"') !== -1, where + ': it shows ' + id);
+  });
+
+  const render = extractFunction(src, 'renderPaymentsTable', where);
+  assert(/paySumCollected/.test(render) && /paySumDue/.test(render),
+    where + ': both figures are filled when the list is drawn');
+  /* The amount due is a financial-year figure: it is the balance of the group
+     enrolled in the year the scope bar is pointing at, not a running all-time
+     total. */
+  assert(/studentsInScope\(\)/.test(render),
+    where + ': the amount due is the selected financial year\u2019s group');
+  assert(/feeFYLabel\(\) \+ ' \u00b7 owed as at today'/.test(render),
+    where + ': and it names that year rather than leaving the reader to guess');
+  assert(/feeScopeLabel\(\)/.test(render),
+    where + ': the collected figure names its year too');
+
+  // Two unlabelled date boxes gave no clue which end of the range each was.
+  assert(/>Paid from</.test(src) && />Paid up to</.test(src),
+    where + ': the date filters say which end of the range they are');
+  assert(/function clearPaymentFilters\(\)/.test(src),
+    where + ': and there is one way to clear them again');
+
+  // Money reads down a column.
+  assert(/class="pay-amount-col"/.test(src),
+    where + ': the amount column is set apart for figures');
+  assert(/\.pay-amount-col \{ text-align: right;/.test(src),
+    where + ': right-aligned, so the figures line up');
+  assert(/formatCurrency\(parseFloat\(amount\) \|\| 0\)/.test(render),
+    where + ': and carries thousands separators like every other figure on the page');
+
+  // A narrowed list totals itself.
+  assert(/function updatePaymentsShownTotal\(\)/.test(src),
+    where + ': the rows actually on screen are totalled');
+  const total = extractFunction(src, 'updatePaymentsShownTotal', where);
+  assert(/row\.style\.display === 'none'/.test(total),
+    where + ': skipping the rows a search or date range has hidden');
+  assert(/data-amount/.test(total),
+    where + ': and adding the raw figures rather than re-parsing the formatted text');
+  const filter = extractFunction(src, 'filterPayments', where);
+  assert(/updatePaymentsShownTotal\(\)/.test(filter),
+    where + ': so the total follows every change to the filters');
+
+  // Nothing to show is a state worth explaining.
+  assert(/No payments in/.test(render),
+    where + ': an empty year says which year it is');
+  assert(/All Years/.test(render),
+    where + ': and what to try instead');
+
+  // Three equally loud buttons made Delete as inviting as Receipt.
+  assert(/pay-act-danger/.test(src) && /pay-act-quiet/.test(src),
+    where + ': Edit and Delete recede behind the action that gets used');
+
+  // The figure being entered is the point of the form.
+  assert(/pay-amount-field/.test(src),
+    where + ': the payment amount reads like a figure, not another text box');
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

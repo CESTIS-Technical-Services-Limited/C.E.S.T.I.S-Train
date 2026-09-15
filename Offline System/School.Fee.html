@@ -575,6 +575,95 @@
             flex-wrap: wrap;
         }
 
+        /* ---- Payments page ------------------------------------------------
+           The list answered "which payments" but never "how much", so the only
+           way to learn what the year had taken or what the group still owed was
+           to leave for the Dashboard. Both figures sit above the list now, and
+           both follow the financial year chosen in the bar above them. */
+        .pay-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 0.75rem;
+            margin: 0 0 1rem;
+        }
+        .pay-sum-card {
+            display: flex; flex-direction: column; gap: 2px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-left: 5px solid #90a4ae;
+            border-radius: 0.6rem;
+            padding: 0.75rem 0.9rem;
+        }
+        .pay-sum-count { border-left-color: #546e7a; }
+        .pay-sum-in    { border-left-color: #1b8a5a; }
+        .pay-sum-due   { border-left-color: #b26a00; }
+        .pay-sum-label {
+            font-size: 0.74rem; font-weight: 700; letter-spacing: .05em;
+            text-transform: uppercase; opacity: .8;
+        }
+        .pay-sum-value { font-size: 1.45rem; font-weight: 700; line-height: 1.2;
+                         font-variant-numeric: tabular-nums; }
+        .pay-sum-in  .pay-sum-value { color: #1b8a5a; }
+        .pay-sum-due .pay-sum-value { color: #b26a00; }
+        .pay-sum-scope { font-size: 12px; font-weight: 600; opacity: .8; }
+
+        /* A labelled filter row. Two unlabelled date boxes reading mm/dd/yyyy
+           gave no clue which end of the range each one was, and they stretched
+           to twice the width of the search box they sat beside. */
+        .pay-filter { align-items: flex-end; gap: 0.75rem; }
+        .pay-filter-field { display: flex; flex-direction: column; gap: 4px; }
+        .pay-filter-field label {
+            font-size: 0.78rem; font-weight: 700; opacity: .85;
+        }
+        .pay-filter-field input { flex: none !important; min-width: 0 !important; width: 100%; }
+        .pay-filter-search { flex: 3 1 260px; }
+        .pay-filter-date   { flex: 0 1 170px; }
+        .pay-filter-reset  { flex: 0 0 auto; }
+        .pay-filter-reset .btn { padding: 0.7rem 1rem; }
+
+        /* Money reads down a column, so it is right-aligned and figures line up. */
+        .pay-amount-col { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        #paymentsTableFoot td {
+            font-weight: 700;
+            border-top: 2px solid var(--primary-blue);
+            background: var(--bg-primary);
+        }
+        .pay-foot-label { text-align: right; opacity: .85; }
+
+        /* Three equally loud buttons on every row made Delete as inviting as
+           Receipt. Receipt is the one that gets used; the other two recede. */
+        .pay-row-actions { display: flex; gap: 6px; justify-content: flex-start; }
+        .pay-row-actions .action-btn { padding: 0.35rem 0.7rem; font-size: 0.82rem; }
+        .pay-act-quiet {
+            background: transparent !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-primary) !important;
+        }
+        .pay-act-quiet:hover { background: var(--bg-primary) !important; }
+        .pay-act-danger {
+            background: transparent !important;
+            border: 1px solid rgba(198,40,40,.45) !important;
+            color: #c62828 !important;
+        }
+        .pay-act-danger:hover { background: rgba(198,40,40,.10) !important; }
+
+        /* Nothing to show is a state worth explaining — which year is selected,
+           and what to try instead. */
+        /* The figure being entered is the point of this form, so it reads like
+           one rather than like another text box among seven. */
+        .pay-amount-field input {
+            font-size: 1.15rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            border-color: var(--primary-blue);
+        }
+        .pay-amount-field label::after { content: ' ($)'; font-weight: 400; opacity: .7; }
+
+        .pay-empty {
+            text-align: center; padding: 1.75rem 1rem; line-height: 1.7;
+            color: var(--text-secondary);
+        }
+
         .search-filter input,
         .search-filter select {
             padding: 0.75rem;
@@ -2387,9 +2476,9 @@
                             <option value="">Select Student</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group pay-amount-field">
                         <label>Payment Amount *</label>
-                        <input type="number" id="paymentAmount" step="0.01" required>
+                        <input type="number" id="paymentAmount" step="0.01" required placeholder="0.00" inputmode="decimal">
                     </div>
                     <div class="form-group">
                         <label>Payment Date *</label>
@@ -2434,13 +2523,51 @@
             </div>
 
             <div id="paymentsQuarterBar"></div>
-            <div id="paymentsQuarterLabel" style="font-size:13px;color:var(--text-muted,#5b6b80);margin:0 0 10px;font-weight:600;"></div>
 
-            <div class="search-filter">
-                <input type="text" id="searchPayment" placeholder="🔍 Search payments..." oninput="filterPaymentsDebounced()">
-                <input type="date" id="filterDateFrom" onchange="filterPayments()">
-                <input type="date" id="filterDateTo" onchange="filterPayments()">
+            <!-- What this financial year actually looks like, before the list.
+                 The page used to show only a row of payments and a grey line
+                 saying how many: to learn what the Centre had taken, or what the
+                 group still owes, you had to leave and read the Dashboard. Both
+                 figures are for the financial year selected above. -->
+            <div class="pay-summary" id="paymentsSummary">
+                <div class="pay-sum-card pay-sum-count">
+                    <span class="pay-sum-label">Payments recorded</span>
+                    <span class="pay-sum-value" id="paySumCount">0</span>
+                    <span class="pay-sum-scope" id="paySumScope"></span>
+                </div>
+                <div class="pay-sum-card pay-sum-in">
+                    <span class="pay-sum-label">Collected</span>
+                    <span class="pay-sum-value" id="paySumCollected">$0.00</span>
+                    <span class="pay-sum-scope" id="paySumCollectedScope"></span>
+                </div>
+                <div class="pay-sum-card pay-sum-due">
+                    <span class="pay-sum-label">Still due</span>
+                    <span class="pay-sum-value" id="paySumDue">$0.00</span>
+                    <span class="pay-sum-scope" id="paySumDueScope"></span>
+                </div>
             </div>
+
+            <div class="search-filter pay-filter">
+                <div class="pay-filter-field pay-filter-search">
+                    <label for="searchPayment">Search</label>
+                    <input type="text" id="searchPayment" placeholder="🔍 Name, receipt number, programme or method…" oninput="filterPaymentsDebounced()">
+                </div>
+                <!-- Two bare date boxes reading mm/dd/yyyy gave no clue which one
+                     was the start of the range and which the end. -->
+                <div class="pay-filter-field pay-filter-date">
+                    <label for="filterDateFrom">Paid from</label>
+                    <input type="date" id="filterDateFrom" onchange="filterPayments()">
+                </div>
+                <div class="pay-filter-field pay-filter-date">
+                    <label for="filterDateTo">Paid up to</label>
+                    <input type="date" id="filterDateTo" onchange="filterPayments()">
+                </div>
+                <div class="pay-filter-field pay-filter-reset">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn btn-secondary" onclick="clearPaymentFilters()">Clear</button>
+                </div>
+            </div>
+            <div id="paymentsQuarterLabel" style="font-size:13px;color:var(--text-muted,#5b6b80);margin:0 0 10px;font-weight:600;"></div>
 
             <div class="table-container">
                 <table id="paymentsTable">
@@ -2451,13 +2578,23 @@
                             <th>Student</th>
                             <th>Skill Area</th>
                             <th>Term</th>
-                            <th>Amount</th>
+                            <th class="pay-amount-col">Amount</th>
                             <th>Method</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="paymentsTableBody">
                     </tbody>
+                    <tfoot id="paymentsTableFoot">
+                        <!-- The total of the rows actually on screen, so a search
+                             or a date range totals itself instead of leaving the
+                             reader to add the column up by hand. -->
+                        <tr>
+                            <td colspan="5" class="pay-foot-label">Shown below</td>
+                            <td class="pay-amount-col" id="paymentsShownTotal">$0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
@@ -8243,6 +8380,24 @@
                     ' — ' + sortedPayments.length + ' payment' + (sortedPayments.length === 1 ? '' : 's');
             }
 
+            /* What the selected FINANCIAL YEAR has taken, and what its group
+               still owes. Both follow the scope bar above, so stepping back a
+               year shows that year's takings and that year's arrears rather than
+               a running all-time figure. */
+            try {
+                const collected = sortedPayments.reduce(function (t, p) { return t + (parseFloat(p.amount) || 0); }, 0);
+                const dueGroup = studentsInScope();
+                const due = dueGroup.reduce(function (t, s) { return t + (parseFloat(s.balance) || 0); }, 0);
+                const setTxt = function (id, v) { const e = document.getElementById(id); if (e) e.textContent = v; };
+                setTxt('paySumCount', String(sortedPayments.length));
+                setTxt('paySumCollected', formatCurrency(collected));
+                setTxt('paySumDue', formatCurrency(due));
+                setTxt('paySumScope', feeScopeLabel());
+                setTxt('paySumCollectedScope', feeScopeLabel());
+                // Says whose debt it is and that it is a position, not a period.
+                setTxt('paySumDueScope', feeFYLabel() + ' · owed as at today');
+            } catch (e) { /* the list still renders */ }
+
             // One html string, one write to the DOM — see renderStudentsTable().
             const rows = sortedPayments.map((payment) => {
                 const amount = (parseFloat(payment.amount) || 0).toFixed(2);
@@ -8257,16 +8412,29 @@
                     <td>${payment.studentName}</td>
                     <td>${payment.skillArea}</td>
                     <td>${payment.term}</td>
-                    <td>$${amount}</td>
+                    <td class="pay-amount-col" data-amount="${feeAttr(amount)}">${formatCurrency(parseFloat(amount) || 0)}</td>
                     <td>${payment.method}</td>
                     <td>
-                        <button class="action-btn btn-success" onclick="printReceipt('${payment.id}')" title="Print Receipt">Receipt</button>
-                        <button class="action-btn" style="background: #FFA726;" onclick="editPayment('${payment.id}')">Edit</button>
-                        <button class="action-btn btn-danger" onclick="deletePayment('${payment.id}')">Delete</button>
+                        <div class="pay-row-actions">
+                            <button class="action-btn btn-success" onclick="printReceipt('${payment.id}')" title="Print receipt">Receipt</button>
+                            <button class="action-btn pay-act-quiet" onclick="editPayment('${payment.id}')" title="Edit this payment">Edit</button>
+                            <button class="action-btn pay-act-danger" onclick="deletePayment('${payment.id}')" title="Delete this payment">Delete</button>
+                        </div>
                     </td>
                 </tr>`;
             });
-            tbody.innerHTML = rows.join('');
+            if (!rows.length) {
+                // An empty list used to be an empty table with no explanation.
+                // Say which year is selected and what to try instead.
+                const wider = (typeof feeScopeMode !== 'undefined' && feeScopeMode === 'all')
+                    ? 'No payments have been recorded yet.'
+                    : 'Try another quarter, step back a year, or choose <strong>All Years</strong>.';
+                tbody.innerHTML = '<tr><td colspan="8" class="pay-empty">' +
+                    'No payments in <strong>' + feeScopeLabel() + '</strong>.<br>' + wider + '</td></tr>';
+            } else {
+                tbody.innerHTML = rows.join('');
+            }
+            updatePaymentsShownTotal();
             // Keep any search / date range the user already had in force — a
             // rebuild must not quietly bring back rows they had filtered out.
             if (_feeFilterSet(['searchPayment', 'filterDateFrom', 'filterDateTo'])) filterPayments();
@@ -8293,8 +8461,41 @@
 
                 _feeSetRowVisible(row, matchesSearch && matchesDateFrom && matchesDateTo);
             });
+            updatePaymentsShownTotal();
         }
         const filterPaymentsDebounced = feeDebounce(filterPayments);
+
+        /* Total the rows actually on screen. A search or a date range narrows the
+           list, and the reader was left to add the amount column up by hand to
+           learn what the narrowed set came to. */
+        function updatePaymentsShownTotal() {
+            try {
+                const foot = document.getElementById('paymentsShownTotal');
+                if (!foot) return;
+                let total = 0, shown = 0;
+                document.querySelectorAll('#paymentsTableBody tr').forEach(function (row) {
+                    if (row.style.display === 'none') return;
+                    const cell = row.querySelector('[data-amount]');
+                    if (!cell) return;                       // the empty-state row
+                    total += parseFloat(cell.getAttribute('data-amount')) || 0;
+                    shown++;
+                });
+                foot.textContent = formatCurrency(total);
+                const lbl = foot.parentElement ? foot.parentElement.querySelector('.pay-foot-label') : null;
+                if (lbl) lbl.textContent = shown + (shown === 1 ? ' payment shown' : ' payments shown');
+                const ft = document.getElementById('paymentsTableFoot');
+                if (ft) ft.style.display = shown ? '' : 'none';
+            } catch (e) { /* the list is still usable */ }
+        }
+
+        // Put the list back to the whole of the selected financial year.
+        function clearPaymentFilters() {
+            ['searchPayment', 'filterDateFrom', 'filterDateTo'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            filterPayments();
+        }
 
         // Delete payment
         function deletePayment(paymentId) {
