@@ -75,7 +75,11 @@ function makePage(opts) {
     students: opts.students || [],
     payments: opts.payments || [],
     documents: [],
-    feeShowAllPayments: opts.showAll !== false,
+    // The page has three scopes now: 'year' (the present group, and the
+    // default), 'quarter', and 'all'. These suites were written when it was
+    // a boolean, so `showAll` still selects between every-year and the one
+    // selected quarter, which is what they are testing.
+    feeScopeMode: opts.showAll !== false ? 'all' : 'quarter',
     lmsStudentCache: [],
     FEE_CACHE_TTL_MS: 750,
     _feeCacheStamp: 0,

@@ -28311,6 +28311,42 @@ async function mergeBackupData(backupData) {
     // Reconcile: create student records for any user accounts missing them
     var reconciled = reconcileStudentsFromAccounts();
     if (reconciled) changed = true;
+
+    /* Settle the roll on EVERY merge, not only when somebody presses Sync.
+
+       This merge pushes in any trainee the cloud copy has and this device does
+       not. Two devices that hold the same person under slightly different
+       spellings — "Electrical Installation" against "02. Electrical
+       Installation", a name with a double space — each therefore gained a
+       second copy of them, and "Total Enrolled Students" climbed a little
+       further after every background sync: 224 became 228, then 242.
+
+       The roll was only ever collapsed by the manual "Sync from Cloud" button
+       and by the login sync. That is exactly why the true figure came back the
+       moment somebody opened Student Progress or pressed Sync, and why it drifted
+       up again on its own afterwards.
+
+       cestisSettleRoster() is idempotent and writes nothing when there is
+       nothing to collapse, so this costs nothing on a roll that is already
+       clean. */
+    var _settled = 0;
+    try { _settled = cestisSettleRoster('a background sync') || 0; } catch (e) {}
+    if (_settled > 0) changed = true;
+
+    /* And show the settled figures. The Dashboard's own count and the pipeline
+       are only refreshed from filterStudents(), which a background sync never
+       reaches — so the card went on showing the inflated number until the user
+       navigated to Student Progress. Both are cheap; the heavier rebuild of
+       every roll-dependent view runs only when records were actually merged
+       away. */
+    if (changed) {
+      try { if (typeof refreshDashboardStudentTotals === 'function') refreshDashboardStudentTotals(); } catch (e) {}
+      try { if (typeof updatePipelineCounts === 'function') updatePipelineCounts(); } catch (e) {}
+    }
+    if (_settled > 0) {
+      try { if (typeof refreshStudentDependentViews === 'function') refreshStudentDependentViews(); } catch (e) {}
+    }
+
     try { syncRebaselineAll(); } catch(e) {}
 
     if (changed) {
