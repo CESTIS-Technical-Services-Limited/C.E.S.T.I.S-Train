@@ -26,8 +26,12 @@
 
    Also pinned: voiding a salary cheque unwinds the payroll entry it created (the
    delete and edit paths always did; the void path did not, so the cashbook gave
-   the money back while the payslip still reported the salary), and the payroll
-   run rounds each figure where it is worked out so a payslip adds up to itself.
+   the money back while the payslip still reported the salary), the payroll
+   run rounds each figure where it is worked out so a payslip adds up to itself,
+   and an uncleared cheque follows the bank reconciliation into every later
+   month — across quarters and the fiscal-year boundary — until the month whose
+   statement finally shows it (each month used to see only its own cheques, so
+   the month after an uncleared cheque could never reconcile).
 
    Run: node tests/money-correctness.test.js */
 'use strict';
@@ -181,6 +185,94 @@ PAYSLIPS.forEach(where => {
   });
   assert(/const netPay=money\(gross-totalEmpDeductions\);/.test(src),
     where + ': and so is net pay, so the printed lines sum to the printed total');
+});
+
+/* ---------- 7. An uncleared cheque follows the reconciliation forward ---------- */
+console.log('An uncleared cheque stays on every later month\'s reconciliation until it clears');
+
+CASHBOOKS.forEach(where => {
+  const src = read(where);
+
+  const sb = {
+    CESTISStore: (function () {
+      const m = {};
+      return {
+        getItem: k => Object.prototype.hasOwnProperty.call(m, k) ? m[k] : null,
+        setItem: (k, v) => { m[k] = String(v); },
+        removeItem: k => { delete m[k]; }
+      };
+    })(),
+    QUARTER_META: [
+      { q: 1, months: ['apr', 'may', 'jun'], monthNums: [4, 5, 6], monthNames: ['April', 'May', 'June'] },
+      { q: 2, months: ['jul', 'aug', 'sep'], monthNums: [7, 8, 9], monthNames: ['July', 'August', 'September'] },
+      { q: 3, months: ['oct', 'nov', 'dec'], monthNums: [10, 11, 12], monthNames: ['October', 'November', 'December'] },
+      { q: 4, months: ['jan', 'feb', 'mar'], monthNums: [1, 2, 3], monthNames: ['January', 'February', 'March'] }
+    ]
+  };
+  vm.createContext(sb);
+  ['getQuarterMeta', 'getQuarterCalendarYear', 'loadQuarterDataForRecon',
+   'getUnclearedKey', 'loadUnclearedCheques', 'saveUnclearedCheques',
+   'bfItemKey', 'getBfClearedKey', 'loadBfCleared', 'saveBfCleared',
+   'computeBroughtForwardMap'].forEach(fn => {
+    vm.runInContext(extractFunction(src, fn, where), sb);
+  });
+
+  // FY 2030/2031, Q2: four July cheques and August's only movement, a bank
+  // charge. All four are ticked uncleared on July's reconciliation.
+  sb.CESTISStore.setItem('cestis_quarter_2030/2031_Q2', JSON.stringify({
+    openingBalance: 114669.55,
+    transactions: [
+      { id: 100, date: '2030-07-05', details: 'Nadine Thompson (Assessor Fees)', cheque: '1000226', payment: 29393 },
+      { id: 101, date: '2030-07-05', details: 'Viron Manning (Assessor Fees)', cheque: '1000227', payment: 29393 },
+      { id: 102, date: '2030-07-12', details: 'Lovan Lambert (Assessor)', cheque: '1000229', payment: 35704 },
+      { id: 103, date: '2030-07-12', details: 'Clover Thompson (Assessor)', cheque: '1000230', payment: 8926 },
+      { id: 104, date: '2030-08-20', details: 'Bank Charges', category: 'Bank Charges', payment: 1816.95 }
+    ]
+  }));
+  vm.runInContext('saveUnclearedCheques("2030/2031", 2, "jul", [100, 101, 102, 103])', sb);
+
+  let map = vm.runInContext('computeBroughtForwardMap("2030/2031")', sb);
+  assert(map['2-aug'].length === 4,
+    where + ': August inherits all four of July\'s uncleared cheques');
+  assert(Math.abs(map['2-aug'].reduce((s, it) => s + it.payment, 0) - 103416) < 0.005,
+    where + ': and their $103,416 counts against August\'s bank balance');
+  assert(map['3-oct'].length === 4,
+    where + ': a quarter boundary does not drop them');
+
+  // Three clear on August's statement; cheque #1000226 is still out.
+  vm.runInContext('saveBfCleared("2030/2031", 2, "aug", ' +
+    '[bfItemKey("2030/2031", 2, 101), bfItemKey("2030/2031", 2, 102), bfItemKey("2030/2031", 2, 103)])', sb);
+  map = vm.runInContext('computeBroughtForwardMap("2030/2031")', sb);
+  assert(map['2-aug'].length === 4,
+    where + ': August still lists all four, so a clearance can be unticked');
+  assert(map['2-sep'].length === 1 && map['2-sep'][0].cheque === '1000226',
+    where + ': September inherits only the cheque that has not cleared');
+  assert(Math.abs(map.__end.reduce((s, it) => s + it.payment, 0) - 29393) < 0.005,
+    where + ': the FY hands exactly the outstanding $29,393 to the next one');
+
+  const nextMap = vm.runInContext('computeBroughtForwardMap("2031/2032")', sb);
+  assert(nextMap['1-apr'].length === 1 && nextMap['1-apr'][0].cheque === '1000226',
+    where + ': and it follows the reconciliation into April of the next FY');
+
+  // Ids restart at 100 every quarter, so clearing Q2's id 100 must not also
+  // clear the unrelated Q1 cheque that carries the same id.
+  sb.CESTISStore.setItem('cestis_quarter_2030/2031_Q1', JSON.stringify({
+    openingBalance: 0,
+    transactions: [{ id: 100, date: '2030-06-10', details: 'June cheque', cheque: '900001', payment: 500 }]
+  }));
+  vm.runInContext('saveUnclearedCheques("2030/2031", 1, "jun", [100])', sb);
+  vm.runInContext('saveBfCleared("2030/2031", 2, "sep", [bfItemKey("2030/2031", 2, 100)])', sb);
+  map = vm.runInContext('computeBroughtForwardMap("2030/2031")', sb);
+  assert(map['3-oct'].length === 1 && map['3-oct'][0].cheque === '900001',
+    where + ': clearing one quarter\'s id 100 leaves the other quarter\'s id 100 outstanding');
+
+  // And the pages actually consume the carried list, not just compute it.
+  assert(/const bfMap = computeBroughtForwardMap\(reconFY\);/.test(src),
+    where + ': the monthly recon cards read the carried-forward list');
+  assert(/bankVal \+ depNotShownVal - monthUnclearedTotal/.test(src),
+    where + ': the adjusted bank balance subtracts brought-forward items too');
+  assert(/unclearedItems = bfItems\.concat\(unclearedItems\);/.test(src),
+    where + ': the printable reconciliation statement includes them as well');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
