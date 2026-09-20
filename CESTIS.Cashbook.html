@@ -449,6 +449,26 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .recon-cheques-list tr.cheque-uncleared { background:rgba(245,158,11,0.08); }
 .recon-cheques-list tr.cheque-uncleared td { color:var(--amber); }
 
+/* Brought-forward uncleared payments (outstanding from previous months) */
+.recon-bf-block {
+    margin:.5rem 0; padding:.5rem .625rem; background:var(--surface2);
+    border:1px solid var(--border); border-left:3px solid var(--amber); border-radius:6px;
+}
+.recon-bf-title { font-size:.75rem; font-weight:700; color:var(--amber); margin-bottom:.125rem; }
+.recon-bf-hint { font-size:.6875rem; color:var(--text3); margin-bottom:.375rem; }
+.recon-bf-block table { font-size:.75rem; width:100%; border-collapse:collapse; }
+.recon-bf-block th {
+    background:var(--surface2); color:var(--text3); font-size:.625rem;
+    padding:.375rem .5rem; text-align:left;
+}
+.recon-bf-block td { padding:.25rem .5rem; border-bottom:1px solid var(--border); }
+.recon-bf-block td input[type="checkbox"] { width:14px; height:14px; cursor:pointer; accent-color:var(--amber); }
+.recon-bf-block tr.cheque-uncleared { background:rgba(245,158,11,0.08); }
+.recon-bf-block tr.cheque-uncleared td { color:var(--amber); }
+.recon-bf-block tr.bf-cleared td { color:var(--text3); }
+.recon-bf-block td.bf-src { color:var(--text3); font-size:.6875rem; white-space:nowrap; }
+.recon-bf-block td.amount { text-align:right; font-family:var(--mono); }
+
 /* Bank Reconciliation Statement */
 .recon-statement {
     margin-top:1rem; padding:1rem 1.25rem;
@@ -7130,6 +7150,9 @@ function renderMonthlyRecon() {
     document.getElementById('reconFYLabel').textContent = fyLabel(reconFY);
     document.getElementById('reconFYSummaryLabel').textContent = reconFY;
 
+    // Uncleared payments carried forward from earlier months (and the previous FY)
+    const bfMap = computeBroughtForwardMap(reconFY);
+
     const quarterIcons = { 1: '📗', 2: '📘', 3: '📙', 4: '📕' };
     const quarterLabels = { 1: 'Quarter 1 · April – June', 2: 'Quarter 2 · July – September', 3: 'Quarter 3 · October – December', 4: 'Quarter 4 · January – March' };
     let cardsHtml = '';
@@ -7193,8 +7216,14 @@ function renderMonthlyRecon() {
             monthAllPayments.forEach(function(txn) {
                 if (preUnclearedList.indexOf(txn.id) >= 0) preUnclearedTotal += txn.payment;
             });
-            fyTotalUncleared += preUnclearedTotal;
-            const preAdjustedDiff = !isNaN(bankVal) ? (bankVal + depNotShownVal - preUnclearedTotal) - closeBal : NaN;
+            // Payments from earlier months still not cleared on this month's
+            // statement reduce the adjusted bank balance here too
+            const broughtForward = bfMap[q + '-' + mKey] || [];
+            const bfClearedList = loadBfCleared(reconFY, q, mKey);
+            const bfOutstanding = broughtForward.filter(function(it) { return bfClearedList.indexOf(it.key) < 0; });
+            const bfTotal = bfOutstanding.reduce(function(s, it) { return s + (it.payment || 0); }, 0);
+            const monthUnclearedTotal = preUnclearedTotal + bfTotal;
+            const preAdjustedDiff = !isNaN(bankVal) ? (bankVal + depNotShownVal - monthUnclearedTotal) - closeBal : NaN;
 
             // Status based on adjusted difference (bank balance minus uncleared cheques vs cashbook)
             let statusClass, statusText;
@@ -7259,8 +7288,29 @@ function renderMonthlyRecon() {
                 cardsHtml += '</tbody></table></div>';
             }
 
-            // Adjusted bank balance = bank statement + deposits not shown - uncleared cheques
-            var adjustedBankBal = !isNaN(bankVal) ? bankVal + depNotShownVal - preUnclearedTotal : NaN;
+            // Brought-forward outstanding payments: ticked = still uncleared;
+            // unticking records that this month's statement finally shows it
+            if (broughtForward.length > 0) {
+                cardsHtml += '<div class="recon-bf-block">' +
+                    '<div class="recon-bf-title">↩ Brought Forward — uncleared from previous months (' + broughtForward.length + ')</div>' +
+                    '<div class="recon-bf-hint">Untick an item once it appears on this month\'s bank statement.</div>' +
+                    '<table><thead><tr><th style="width:30px">Uncleared</th><th>Cheque No.</th><th>Payee / Details</th><th>From</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+                broughtForward.forEach(function(it) {
+                    var stillOut = bfClearedList.indexOf(it.key) < 0;
+                    var typeLabel = it.cheque ? it.cheque : (it.category === 'Bank Charges' ? 'Bank Charge' : 'Direct Transfer');
+                    cardsHtml += '<tr class="' + (stillOut ? 'cheque-uncleared' : 'bf-cleared') + '">' +
+                        '<td style="text-align:center"><input type="checkbox" ' + (stillOut ? 'checked' : '') +
+                            ' onchange="toggleBroughtForwardCleared(\'' + reconFY + '\',' + q + ',\'' + mKey + '\',\'' + it.key + '\')" title="Ticked = still not cleared at bank"></td>' +
+                        '<td class="cheque-num">' + typeLabel + '</td>' +
+                        '<td>' + it.details + '</td>' +
+                        '<td class="bf-src">' + it.srcLabel + '</td>' +
+                        '<td class="amount negative">' + fmt(it.payment) + '</td></tr>';
+                });
+                cardsHtml += '</tbody></table></div>';
+            }
+
+            // Adjusted bank balance = bank statement + deposits not shown - uncleared cheques (b/f included)
+            var adjustedBankBal = !isNaN(bankVal) ? bankVal + depNotShownVal - monthUnclearedTotal : NaN;
             var adjustedDiff = !isNaN(adjustedBankBal) ? adjustedBankBal - closeBal : NaN;
             var adjustedDiffDisplay = !isNaN(adjustedDiff) ? ((adjustedDiff >= 0 ? '' : '-') + fmt(Math.abs(adjustedDiff))) : '—';
             var adjustedDiffColor = !isNaN(adjustedDiff) ? (Math.abs(adjustedDiff) < 1 ? 'var(--green)' : 'var(--red)') : 'var(--text3)';
@@ -7296,11 +7346,18 @@ function renderMonthlyRecon() {
                     '</div>';
                 }
 
-                if (unclearedItems.length > 0) {
+                if (unclearedItems.length > 0 || bfOutstanding.length > 0) {
                     cardsHtml += '<div class="recon-statement-line">' +
-                        '<span class="rs-label">Less: Payments Issued &amp; Not Yet Cleared (' + unclearedItems.length + ')</span>' +
-                        '<span class="rs-value" style="color:var(--amber);">- ' + fmt(preUnclearedTotal) + '</span>' +
+                        '<span class="rs-label">Less: Payments Issued &amp; Not Yet Cleared (' + (unclearedItems.length + bfOutstanding.length) + ')</span>' +
+                        '<span class="rs-value" style="color:var(--amber);">- ' + fmt(monthUnclearedTotal) + '</span>' +
                     '</div>';
+                    bfOutstanding.forEach(function(it) {
+                        var bfLabel = it.cheque ? ('Chq #' + it.cheque) : (it.category === 'Bank Charges' ? 'Bank Charge' : 'Direct Transfer');
+                        cardsHtml += '<div class="recon-statement-line rs-indent">' +
+                            '<span class="rs-label">' + bfLabel + ' — ' + it.details + ' (b/f ' + it.srcLabel + ')</span>' +
+                            '<span class="rs-value">' + fmt(it.payment) + '</span>' +
+                        '</div>';
+                    });
                     unclearedItems.forEach(function(uc) {
                         var ucLabel = uc.cheque ? ('Chq #' + uc.cheque) : (uc.category === 'Bank Charges' ? 'Bank Charge' : 'Direct Transfer');
                         cardsHtml += '<div class="recon-statement-line rs-indent">' +
@@ -7339,6 +7396,9 @@ function renderMonthlyRecon() {
     });
 
     document.getElementById('reconMonthCards').innerHTML = cardsHtml;
+
+    // Still outstanding at the end of the FY (carried into the next one)
+    fyTotalUncleared = bfMap.__end.reduce(function(s, it) { return s + (it.payment || 0); }, 0);
 
     // Fiscal year summary with bank charges and uncleared cheques
     const summaryHtml =
@@ -7389,6 +7449,81 @@ function toggleUnclearedCheque(fy, q, monthKey, chequeId) {
     else list.push(chequeId);
     saveUnclearedCheques(fy, q, monthKey, list);
     renderMonthlyRecon();
+}
+
+// Brought-forward uncleared payments: a cheque ticked uncleared in one month
+// stays outstanding on every later month's reconciliation until it is marked
+// cleared in the month whose bank statement finally shows it. Items are keyed
+// fy|Qq|id because transaction ids restart at 100 in every quarter.
+function bfItemKey(fy, q, txnId) {
+    return fy + '|Q' + q + '|' + txnId;
+}
+
+function getBfClearedKey(fy, q, monthKey) {
+    return 'cestis_recon_bfcleared_' + fy + '_Q' + q + '_' + monthKey;
+}
+
+function loadBfCleared(fy, q, monthKey) {
+    try {
+        const saved = CESTISStore.getItem(getBfClearedKey(fy, q, monthKey));
+        return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+}
+
+function saveBfCleared(fy, q, monthKey, keys) {
+    try { CESTISStore.setItem(getBfClearedKey(fy, q, monthKey), JSON.stringify(keys)); } catch(e) {}
+}
+
+function toggleBroughtForwardCleared(fy, q, monthKey, itemKey) {
+    const list = loadBfCleared(fy, q, monthKey);
+    const idx = list.indexOf(itemKey);
+    if (idx >= 0) list.splice(idx, 1);
+    else list.push(itemKey);
+    saveBfCleared(fy, q, monthKey, list);
+    renderMonthlyRecon();
+}
+
+// One pass over a fiscal year: for each month ('q-mKey'), the payments still
+// outstanding from EARLIER months when that month's reconciliation starts —
+// items cleared during the month itself stay in that month's list so the
+// checkbox to re-open them remains visible. '__end' holds what the fiscal
+// year hands to the next one (lookBack seeds April from the previous FY).
+function computeBroughtForwardMap(fy, lookBack) {
+    if (lookBack === undefined) lookBack = 2;
+    let outstanding = [];
+    if (lookBack > 0) {
+        const prevY = parseInt(fy.split('/')[0]) - 1;
+        outstanding = computeBroughtForwardMap(prevY + '/' + (prevY + 1), lookBack - 1).__end;
+    }
+    const map = {};
+    [1, 2, 3, 4].forEach(function(q) {
+        const qm = getQuarterMeta(q);
+        const calYear = getQuarterCalendarYear(fy, q);
+        const data = loadQuarterDataForRecon(fy, q);
+        const activeTxns = data.transactions.filter(function(t) { return t.category !== 'Cancelled'; });
+        qm.months.forEach(function(mKey, mi) {
+            map[q + '-' + mKey] = outstanding.slice();
+            const cleared = loadBfCleared(fy, q, mKey);
+            if (cleared.length) {
+                outstanding = outstanding.filter(function(it) { return cleared.indexOf(it.key) < 0; });
+            }
+            const monthNum = qm.monthNums[mi];
+            const unclearedIds = loadUnclearedCheques(fy, q, mKey);
+            activeTxns.forEach(function(t) {
+                if (!(t.payment > 0) || unclearedIds.indexOf(t.id) < 0) return;
+                const inMonth = !t.date ? mi === 0 : parseInt(t.date.split('-')[1]) === monthNum;
+                if (!inMonth) return;
+                outstanding.push({
+                    key: bfItemKey(fy, q, t.id),
+                    cheque: t.cheque, details: t.details, payment: t.payment || 0,
+                    category: t.category, date: t.date,
+                    srcLabel: qm.monthNames[mi].slice(0, 3) + ' ' + calYear
+                });
+            });
+        });
+    });
+    map.__end = outstanding;
+    return map;
 }
 
 // Deposit not shown on statement storage
@@ -7550,6 +7685,10 @@ function generateReconDocPage(fy, q, mKey, monthName, monthNum) {
     var depNotShownVal = savedDepNotShown !== '' ? parseFloat(savedDepNotShown) : 0;
     var unclearedList = loadUnclearedCheques(fy, q, mKey);
     var unclearedItems = monthAllPayments.filter(function(c) { return unclearedList.indexOf(c.id) >= 0; });
+    // Payments from earlier months still outstanding at this month's statement date
+    var bfCleared = loadBfCleared(fy, q, mKey);
+    var bfItems = (computeBroughtForwardMap(fy)[q + '-' + mKey] || []).filter(function(it) { return bfCleared.indexOf(it.key) < 0; });
+    unclearedItems = bfItems.concat(unclearedItems);
     var unclearedTotal = unclearedItems.reduce(function(s,c){ return s + (c.payment||0); }, 0);
     var bankPlusDeposits = !isNaN(bankVal) ? bankVal + depNotShownVal : NaN;
     var adjustedBank = !isNaN(bankVal) ? bankVal + depNotShownVal - unclearedTotal : NaN;
