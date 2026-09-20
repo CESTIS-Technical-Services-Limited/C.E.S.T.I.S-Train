@@ -2593,7 +2593,7 @@ body.cmc-view-mode .cmc-view-ribbon {
                 <div class="stat-card green">
                     <div class="label">Total Deposits</div>
                     <div class="value green-text" id="dash-deposits">$0</div>
-                    <div class="change">Subvention received</div>
+                    <div class="change" id="dash-deposits-change">Subvention received</div>
                 </div>
                 <div class="stat-card red">
                     <div class="label">Total Expenditure</div>
@@ -2802,7 +2802,7 @@ body.cmc-view-mode .cmc-view-ribbon {
                     <h4>Subvention Summary</h4>
                     <div class="fin-line"><span>Opening Balance</span><span class="amount" id="fin-opening">$0</span></div>
                     <div class="fin-line"><span>Subvention Received</span><span class="amount positive" id="fin-subvention">$0</span></div>
-                    <div class="fin-line"><span>Other Deposits</span><span class="amount">$0.00</span></div>
+                    <div class="fin-line"><span>Other Deposits</span><span class="amount positive" id="fin-other-deposits">$0.00</span></div>
                     <div class="fin-line total"><span>Total Available</span><span class="amount" id="fin-total">$0</span></div>
                 </div>
                 <div class="fin-connector">→</div>
@@ -4615,7 +4615,7 @@ function getCategoryTag(cat) {
 // ============================================================
 function calcTotals() {
     const qm = getQuarterMeta(activeQ);
-    let totalDeposits = 0, totalPayments = 0;
+    let totalDeposits = 0, totalPayments = 0, subventionDeposits = 0, otherDeposits = 0;
     const catSpend = {};
     const monthSpend = {};
     const monthDeposit = {};
@@ -4633,6 +4633,12 @@ function calcTotals() {
     activeTxns.forEach(t => {
         totalDeposits += t.deposit;
         totalPayments += t.payment;
+        // Only money the transaction says is subvention counts as subvention;
+        // every other deposit is an "other deposit" on the HEART forms
+        if (t.deposit > 0) {
+            if (t.category === 'Subvention') subventionDeposits += t.deposit;
+            else otherDeposits += t.deposit;
+        }
         if (t.payment > 0 && t.category !== 'Subvention') {
             catSpend[t.category] = (catSpend[t.category]||0) + t.payment;
         }
@@ -4647,7 +4653,7 @@ function calcTotals() {
     const closingBalance = OPENING_BALANCE + totalDeposits - totalPayments;
     const utilization = totalAvailable > 0 ? (totalPayments / totalAvailable * 100) : 0;
 
-    return { totalDeposits, totalPayments, totalAvailable, closingBalance, utilization, catSpend, monthSpend, monthDeposit, activeTxns };
+    return { totalDeposits, subventionDeposits, otherDeposits, totalPayments, totalAvailable, closingBalance, utilization, catSpend, monthSpend, monthDeposit, activeTxns };
 }
 
 // ============================================================
@@ -4657,6 +4663,10 @@ function renderDashboard() {
     const d = calcTotals();
     document.getElementById('dash-budget').textContent = fmt(d.totalAvailable);
     document.getElementById('dash-deposits').textContent = fmt(d.totalDeposits);
+    document.getElementById('dash-deposits-change').textContent =
+        d.otherDeposits > 0
+            ? (d.subventionDeposits > 0 ? 'Subvention + other deposits' : 'Other deposits')
+            : 'Subvention received';
     document.getElementById('dash-spent').textContent = fmt(d.totalPayments);
     document.getElementById('dash-balance').textContent = fmt(d.closingBalance);
     document.getElementById('dash-util').textContent = d.utilization.toFixed(1) + '%';
@@ -4854,7 +4864,8 @@ function renderMonthlyPage() {
 function renderFinancialForm() {
     const d = calcTotals();
     document.getElementById('fin-opening').textContent = fmt(OPENING_BALANCE);
-    document.getElementById('fin-subvention').textContent = fmt(d.totalDeposits);
+    document.getElementById('fin-subvention').textContent = fmt(d.subventionDeposits);
+    document.getElementById('fin-other-deposits').textContent = fmt(d.otherDeposits);
     document.getElementById('fin-total').textContent = fmt(d.totalAvailable);
     document.getElementById('fin-spent').textContent = fmt(d.totalPayments);
     document.getElementById('fin-bank').textContent = fmt(d.catSpend['Bank Charges']||0);
@@ -7817,6 +7828,8 @@ function generateReconDocPage(fy, q, mKey, monthName, monthNum) {
         return parseInt(t.date.split('-')[1]) === monthNum;
     });
     var monthDeposits = monthTxns.reduce(function(s,t){ return s + (t.deposit||0); }, 0);
+    var monthSubventionDeposits = monthTxns.reduce(function(s,t){ return s + (t.category === 'Subvention' ? (t.deposit||0) : 0); }, 0);
+    var monthOtherDeposits = monthDeposits - monthSubventionDeposits;
     var monthPayments = monthTxns.reduce(function(s,t){ return s + (t.payment||0); }, 0);
     var monthBankCharges = monthTxns.filter(function(t){ return t.category === 'Bank Charges'; }).reduce(function(s,t){ return s + (t.payment||0); }, 0);
     var monthCheques = monthTxns.filter(function(t){ return t.cheque && t.payment > 0; });
@@ -7884,14 +7897,14 @@ function generateReconDocPage(fy, q, mKey, monthName, monthNum) {
     // Row 2: Deposits
     h += '<tr>';
     h += '<td class="rdoc-bt-left rdoc-bt-label">Deposit during month<br>Subvention</td>';
-    h += '<td class="rdoc-bt-left rdoc-bt-val">' + (monthDeposits > 0 ? fmt(monthDeposits) : '$ -') + '</td>';
+    h += '<td class="rdoc-bt-left rdoc-bt-val">' + (monthSubventionDeposits > 0 ? fmt(monthSubventionDeposits) : '$ -') + '</td>';
     h += '<td class="rdoc-bt-right rdoc-bt-label">Deposit made not shown on<br>statement</td>';
     h += '<td class="rdoc-bt-right rdoc-bt-val">' + depNotShownDisplay + '</td>';
     h += '</tr>';
     // Row 3: Other Deposits / spacer
     h += '<tr>';
     h += '<td class="rdoc-bt-left rdoc-bt-label">Other Deposits*</td>';
-    h += '<td class="rdoc-bt-left rdoc-bt-val">$ -</td>';
+    h += '<td class="rdoc-bt-left rdoc-bt-val">' + (monthOtherDeposits > 0 ? fmt(monthOtherDeposits) : '$ -') + '</td>';
     h += '<td class="rdoc-bt-right"></td>';
     h += '<td class="rdoc-bt-right"></td>';
     h += '</tr>';
@@ -8054,11 +8067,17 @@ function getFinQuarterData(q) {
     var data = loadQuarterDataForRecon(activeFY, q);
     var activeTxns = data.transactions.filter(function(t) { return t.category !== 'Cancelled'; });
 
-    var totalDeposits = 0, totalPayments = 0;
+    var totalDeposits = 0, totalPayments = 0, subventionDeposits = 0, otherDeposits = 0;
     var catSpend = {};
     activeTxns.forEach(function(t) {
         totalDeposits += t.deposit || 0;
         totalPayments += t.payment || 0;
+        // The form separates subvention from other money received, so only a
+        // deposit categorised Subvention may appear on the subvention line
+        if (t.deposit > 0) {
+            if (t.category === 'Subvention') subventionDeposits += t.deposit;
+            else otherDeposits += t.deposit;
+        }
         if (t.payment > 0 && t.category !== 'Subvention') {
             catSpend[t.category] = (catSpend[t.category] || 0) + t.payment;
         }
@@ -8072,6 +8091,8 @@ function getFinQuarterData(q) {
     return {
         openBal: openBal,
         totalDeposits: totalDeposits,
+        subventionDeposits: subventionDeposits,
+        otherDeposits: otherDeposits,
         totalPayments: totalPayments,
         totalAvailable: totalAvailable,
         closingBalance: closingBalance,
@@ -8129,8 +8150,8 @@ function generateFinDocPage1(q) {
     h += '<table class="fdoc-summary-table">';
     h += '<tr class="fdoc-st-header"><td></td><td style="text-align:right;font-weight:700;">$</td></tr>';
     h += '<tr><td class="fdoc-st-label">OPENING SUBVENTION BALANCE</td><td class="fdoc-st-val">' + fmt(fd.openBal) + '</td></tr>';
-    h += '<tr><td class="fdoc-st-label">SUBVENTION RECEIVED DURING THE PERIOD</td><td class="fdoc-st-val">' + fmt(fd.totalDeposits) + '</td></tr>';
-    h += '<tr><td class="fdoc-st-label">OTHER DEPOSITS</td><td class="fdoc-st-val">$-</td></tr>';
+    h += '<tr><td class="fdoc-st-label">SUBVENTION RECEIVED DURING THE PERIOD</td><td class="fdoc-st-val">' + (fd.subventionDeposits > 0 ? fmt(fd.subventionDeposits) : '$-') + '</td></tr>';
+    h += '<tr><td class="fdoc-st-label">OTHER DEPOSITS</td><td class="fdoc-st-val">' + (fd.otherDeposits > 0 ? fmt(fd.otherDeposits) : '$-') + '</td></tr>';
     h += '<tr class="fdoc-st-spacer"><td></td><td></td></tr>';
     h += '<tr><td class="fdoc-st-label">TOTAL SUBVENTION AVAILABLE</td><td class="fdoc-st-val">' + fmt(fd.totalAvailable) + '</td></tr>';
     h += '<tr><td class="fdoc-st-label">AMOUNT SPENT DURING PERIOD</td><td class="fdoc-st-val">' + fmt(fd.totalPayments) + '</td></tr>';

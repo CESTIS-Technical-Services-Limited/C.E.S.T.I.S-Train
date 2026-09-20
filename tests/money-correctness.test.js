@@ -35,7 +35,10 @@
    still does not reconcile, the hint offers exactly the payments whose ticking
    or un-ticking closes the gap, matching in whole cents so float noise cannot
    hide the right cheque; applying a suggestion only moves the same tick state
-   the checkboxes do, so it is always reversible.
+   the checkboxes do, so it is always reversible. And the Financial Data
+   Collection Form reports as SUBVENTION RECEIVED only deposits categorised
+   Subvention — every other deposit is OTHER DEPOSITS (the form used to print
+   every deposit as subvention, overstating what HEART had granted).
 
    Run: node tests/money-correctness.test.js */
 'use strict';
@@ -353,6 +356,67 @@ CASHBOOKS.forEach(where => {
     where + ': a bank-lower gap can be recorded as a deposit not shown');
   assert(/_reconSuggestions\[sugId\] = combo;/.test(src),
     where + ': each button applies a suggestion the render itself registered');
+});
+
+/* ---------- 9. Only subvention money is reported as subvention ---------- */
+console.log('The Financial Data Collection Form separates subvention from other deposits');
+
+CASHBOOKS.forEach(where => {
+  const src = read(where);
+
+  const sb = {
+    activeFY: '2030/2031',
+    CESTISStore: (function () {
+      const m = {};
+      return {
+        getItem: k => Object.prototype.hasOwnProperty.call(m, k) ? m[k] : null,
+        setItem: (k, v) => { m[k] = String(v); },
+        removeItem: k => { delete m[k]; }
+      };
+    })(),
+    QUARTER_META: [
+      { q: 1, months: ['apr', 'may', 'jun'], monthNums: [4, 5, 6], monthNames: ['April', 'May', 'June'] },
+      { q: 2, months: ['jul', 'aug', 'sep'], monthNums: [7, 8, 9], monthNames: ['July', 'August', 'September'] },
+      { q: 3, months: ['oct', 'nov', 'dec'], monthNums: [10, 11, 12], monthNames: ['October', 'November', 'December'] },
+      { q: 4, months: ['jan', 'feb', 'mar'], monthNums: [1, 2, 3], monthNames: ['January', 'February', 'March'] }
+    ]
+  };
+  vm.createContext(sb);
+  ['getQuarterMeta', 'loadQuarterDataForRecon', 'getFinQuarterData'].forEach(fn => {
+    vm.runInContext(extractFunction(src, fn, where), sb);
+  });
+
+  // A quarter holding the subvention, a cheque received from a project (the
+  // Edit dialog's category was "Other", not "Subvention"), and spending.
+  sb.CESTISStore.setItem('cestis_quarter_2030/2031_Q2', JSON.stringify({
+    openingBalance: 491961.67,
+    transactions: [
+      { id: 100, date: '2030-07-01', details: 'SUBVENTION', deposit: 250000, payment: 0, category: 'Subvention' },
+      { id: 101, date: '2030-07-07', details: 'Cheque from: C. Palmer Project of Hope', deposit: 88800, payment: 0, category: 'Other' },
+      { id: 102, date: '2030-08-02', details: 'Assessor fees', payment: 70525.07, category: 'Admin Expenses' }
+    ]
+  }));
+
+  const fd = vm.runInContext('getFinQuarterData(2)', sb);
+  assert(fd.subventionDeposits === 250000,
+    where + ': only the deposit categorised Subvention is subvention received');
+  assert(fd.otherDeposits === 88800,
+    where + ': the project cheque categorised Other lands on the OTHER DEPOSITS line');
+  assert(fd.totalAvailable === 491961.67 + 250000 + 88800,
+    where + ': total subvention available still counts every deposit, so the form sums');
+
+  // The printed rows and the on-page summary read the split, not the lump sum.
+  assert(src.indexOf("fmt(fd.subventionDeposits) : '$-'") >= 0 &&
+         src.indexOf("fmt(fd.otherDeposits) : '$-'") >= 0,
+    where + ': the printed form fills both lines from the split');
+  assert(src.indexOf('SUBVENTION RECEIVED DURING THE PERIOD</td><td class="fdoc-st-val">\' + fmt(fd.totalDeposits)') === -1,
+    where + ': and no longer prints every deposit as subvention');
+  assert(/fin-subvention'\)\.textContent = fmt\(d\.subventionDeposits\);/.test(src) &&
+         /fin-other-deposits'\)\.textContent = fmt\(d\.otherDeposits\);/.test(src),
+    where + ': the on-page Subvention Summary shows the same split');
+  assert(/monthSubventionDeposits > 0 \? fmt\(monthSubventionDeposits\)/.test(src) &&
+         /monthOtherDeposits > 0 \? fmt\(monthOtherDeposits\)/.test(src),
+    where + ': the monthly bank reconciliation document separates them too');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
