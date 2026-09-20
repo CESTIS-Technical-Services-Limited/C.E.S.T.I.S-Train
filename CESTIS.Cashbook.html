@@ -469,6 +469,31 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .recon-bf-block td.bf-src { color:var(--text3); font-size:.6875rem; white-space:nowrap; }
 .recon-bf-block td.amount { text-align:right; font-family:var(--mono); }
 
+/* Reconciliation hint: what would close the remaining difference */
+.recon-hint-block {
+    margin-top:.75rem; padding:.75rem 1rem;
+    background:var(--surface2); border:1px solid var(--border);
+    border-left:3px solid var(--accent2); border-radius:8px;
+}
+.recon-hint-title {
+    font-size:.75rem; font-weight:700; color:var(--accent2); text-transform:uppercase;
+    letter-spacing:1px; margin-bottom:.375rem;
+}
+.recon-hint-text { font-size:.75rem; color:var(--text2); margin-bottom:.375rem; }
+.recon-hint-text.recon-hint-none { color:var(--text3); font-style:italic; }
+.recon-hint-suggestion {
+    display:flex; justify-content:space-between; align-items:center; gap:.75rem;
+    padding:.5rem .625rem; margin-top:.375rem;
+    background:rgba(245,158,11,0.06); border:1px dashed var(--border); border-radius:6px;
+}
+.recon-hint-items { font-size:.75rem; color:var(--text); }
+.recon-hint-items .hint-amt { font-family:var(--mono); font-weight:600; color:var(--amber); }
+.recon-hint-apply {
+    flex-shrink:0; background:var(--accent); color:#fff; border:none; border-radius:6px;
+    padding:.375rem .75rem; font-size:.6875rem; font-weight:700; cursor:pointer;
+}
+.recon-hint-apply:hover { filter:brightness(1.15); }
+
 /* Bank Reconciliation Statement */
 .recon-statement {
     margin-top:1rem; padding:1rem 1.25rem;
@@ -2568,7 +2593,7 @@ body.cmc-view-mode .cmc-view-ribbon {
                 <div class="stat-card green">
                     <div class="label">Total Deposits</div>
                     <div class="value green-text" id="dash-deposits">$0</div>
-                    <div class="change">Subvention received</div>
+                    <div class="change" id="dash-deposits-change">Subvention received</div>
                 </div>
                 <div class="stat-card red">
                     <div class="label">Total Expenditure</div>
@@ -2777,7 +2802,7 @@ body.cmc-view-mode .cmc-view-ribbon {
                     <h4>Subvention Summary</h4>
                     <div class="fin-line"><span>Opening Balance</span><span class="amount" id="fin-opening">$0</span></div>
                     <div class="fin-line"><span>Subvention Received</span><span class="amount positive" id="fin-subvention">$0</span></div>
-                    <div class="fin-line"><span>Other Deposits</span><span class="amount">$0.00</span></div>
+                    <div class="fin-line"><span>Other Deposits</span><span class="amount positive" id="fin-other-deposits">$0.00</span></div>
                     <div class="fin-line total"><span>Total Available</span><span class="amount" id="fin-total">$0</span></div>
                 </div>
                 <div class="fin-connector">→</div>
@@ -4590,7 +4615,7 @@ function getCategoryTag(cat) {
 // ============================================================
 function calcTotals() {
     const qm = getQuarterMeta(activeQ);
-    let totalDeposits = 0, totalPayments = 0;
+    let totalDeposits = 0, totalPayments = 0, subventionDeposits = 0, otherDeposits = 0;
     const catSpend = {};
     const monthSpend = {};
     const monthDeposit = {};
@@ -4608,6 +4633,12 @@ function calcTotals() {
     activeTxns.forEach(t => {
         totalDeposits += t.deposit;
         totalPayments += t.payment;
+        // Only money the transaction says is subvention counts as subvention;
+        // every other deposit is an "other deposit" on the HEART forms
+        if (t.deposit > 0) {
+            if (t.category === 'Subvention') subventionDeposits += t.deposit;
+            else otherDeposits += t.deposit;
+        }
         if (t.payment > 0 && t.category !== 'Subvention') {
             catSpend[t.category] = (catSpend[t.category]||0) + t.payment;
         }
@@ -4622,7 +4653,7 @@ function calcTotals() {
     const closingBalance = OPENING_BALANCE + totalDeposits - totalPayments;
     const utilization = totalAvailable > 0 ? (totalPayments / totalAvailable * 100) : 0;
 
-    return { totalDeposits, totalPayments, totalAvailable, closingBalance, utilization, catSpend, monthSpend, monthDeposit, activeTxns };
+    return { totalDeposits, subventionDeposits, otherDeposits, totalPayments, totalAvailable, closingBalance, utilization, catSpend, monthSpend, monthDeposit, activeTxns };
 }
 
 // ============================================================
@@ -4632,6 +4663,10 @@ function renderDashboard() {
     const d = calcTotals();
     document.getElementById('dash-budget').textContent = fmt(d.totalAvailable);
     document.getElementById('dash-deposits').textContent = fmt(d.totalDeposits);
+    document.getElementById('dash-deposits-change').textContent =
+        d.otherDeposits > 0
+            ? (d.subventionDeposits > 0 ? 'Subvention + other deposits' : 'Other deposits')
+            : 'Subvention received';
     document.getElementById('dash-spent').textContent = fmt(d.totalPayments);
     document.getElementById('dash-balance').textContent = fmt(d.closingBalance);
     document.getElementById('dash-util').textContent = d.utilization.toFixed(1) + '%';
@@ -4829,7 +4864,8 @@ function renderMonthlyPage() {
 function renderFinancialForm() {
     const d = calcTotals();
     document.getElementById('fin-opening').textContent = fmt(OPENING_BALANCE);
-    document.getElementById('fin-subvention').textContent = fmt(d.totalDeposits);
+    document.getElementById('fin-subvention').textContent = fmt(d.subventionDeposits);
+    document.getElementById('fin-other-deposits').textContent = fmt(d.otherDeposits);
     document.getElementById('fin-total').textContent = fmt(d.totalAvailable);
     document.getElementById('fin-spent').textContent = fmt(d.totalPayments);
     document.getElementById('fin-bank').textContent = fmt(d.catSpend['Bank Charges']||0);
@@ -7152,6 +7188,7 @@ function renderMonthlyRecon() {
 
     // Uncleared payments carried forward from earlier months (and the previous FY)
     const bfMap = computeBroughtForwardMap(reconFY);
+    _reconSuggestions = {};
 
     const quarterIcons = { 1: '📗', 2: '📘', 3: '📙', 4: '📕' };
     const quarterLabels = { 1: 'Quarter 1 · April – June', 2: 'Quarter 2 · July – September', 3: 'Quarter 3 · October – December', 4: 'Quarter 4 · January – March' };
@@ -7385,6 +7422,72 @@ function renderMonthlyRecon() {
                         '<span class="rs-value" style="color:' + adjustedDiffColor + ';">' + adjustedDiffDisplay + '</span>' +
                     '</div>' +
                 '</div>';
+
+                // Reconciliation hint: the remaining gap is a concrete number,
+                // so look for the tick or untick that closes it exactly and
+                // offer it — the user chooses, nothing applies itself
+                if (Math.abs(adjustedDiff) >= 1) {
+                    var gap = Math.abs(adjustedDiff);
+                    var hintCandidates = [];
+                    var payLabel = function(t) {
+                        return (t.cheque ? 'Chq #' + t.cheque : (t.category === 'Bank Charges' ? 'Bank Charge' : 'Direct Transfer')) + ' — ' + t.details;
+                    };
+                    if (adjustedDiff > 0) {
+                        // Bank higher: a payment not yet deducted from the bank side
+                        monthAllPayments.forEach(function(txn) {
+                            if (preUnclearedList.indexOf(txn.id) >= 0) return;
+                            hintCandidates.push({ amount: txn.payment || 0, label: payLabel(txn), act: 'tick-own', id: txn.id });
+                        });
+                        broughtForward.forEach(function(it) {
+                            if (bfClearedList.indexOf(it.key) < 0) return;
+                            hintCandidates.push({ amount: it.payment || 0, label: payLabel(it) + ' (b/f ' + it.srcLabel + ')', act: 'reopen-bf', key: it.key });
+                        });
+                    } else {
+                        // Bank lower: an item held as uncleared that in fact cleared
+                        monthAllPayments.forEach(function(txn) {
+                            if (preUnclearedList.indexOf(txn.id) < 0) return;
+                            hintCandidates.push({ amount: txn.payment || 0, label: payLabel(txn), act: 'untick-own', id: txn.id });
+                        });
+                        bfOutstanding.forEach(function(it) {
+                            hintCandidates.push({ amount: it.payment || 0, label: payLabel(it) + ' (b/f ' + it.srcLabel + ')', act: 'clear-bf', key: it.key });
+                        });
+                    }
+                    var hintCombos = findReconCombos(hintCandidates, gap);
+                    cardsHtml += '<div class="recon-hint-block">' +
+                        '<div class="recon-hint-title">💡 Reconciliation Hint</div>' +
+                        '<div class="recon-hint-text">' + (adjustedDiff > 0
+                            ? 'The bank statement is <span class="hint-amt">' + fmt(gap) + '</span> higher than the cash book — usually a payment issued but not yet ticked as uncleared.'
+                            : 'The bank statement is <span class="hint-amt">' + fmt(gap) + '</span> lower than the cash book — an item ticked uncleared may in fact have cleared, or a deposit has not reached the statement.') +
+                        '</div>';
+                    if (hintCombos.length > 0) {
+                        cardsHtml += '<div class="recon-hint-text">' + (hintCombos.length > 1
+                            ? 'These match the difference exactly — choose the right one:'
+                            : 'This matches the difference exactly:') + '</div>';
+                        hintCombos.forEach(function(combo, ci) {
+                            var sugId = q + '-' + mKey + '-' + ci;
+                            _reconSuggestions[sugId] = combo;
+                            var parts = combo.map(function(c) {
+                                return c.label + ' <span class="hint-amt">(' + fmt(c.amount) + ')</span>';
+                            }).join('<br>');
+                            cardsHtml += '<div class="recon-hint-suggestion">' +
+                                '<div class="recon-hint-items">' + parts + '</div>' +
+                                '<button class="recon-hint-apply" onclick="applyReconSuggestion(\'' + reconFY + '\',' + q + ',\'' + mKey + '\',\'' + sugId + '\')">' +
+                                    (adjustedDiff > 0 ? 'Mark uncleared' : 'Mark cleared') + '</button>' +
+                            '</div>';
+                        });
+                    } else {
+                        cardsHtml += '<div class="recon-hint-text recon-hint-none">No payment or combination matches ' + fmt(gap) +
+                            ' exactly — check for bank charges, interest, or an amount entered differently from the statement.</div>';
+                    }
+                    if (adjustedDiff < 0) {
+                        var hintDepValue = (depNotShownVal + gap).toFixed(2);
+                        cardsHtml += '<div class="recon-hint-suggestion">' +
+                            '<div class="recon-hint-items">A deposit of <span class="hint-amt">' + fmt(gap) + '</span> recorded in the cash book but not yet on the statement</div>' +
+                            '<button class="recon-hint-apply" onclick="applyReconDepositHint(\'' + reconFY + '\',' + q + ',\'' + mKey + '\',\'' + hintDepValue + '\')">Record as not shown</button>' +
+                        '</div>';
+                    }
+                    cardsHtml += '</div>';
+                }
             }
 
             cardsHtml +=
@@ -7524,6 +7627,61 @@ function computeBroughtForwardMap(fy, lookBack) {
     });
     map.__end = outstanding;
     return map;
+}
+
+// Reconciliation hint: find the payment(s) whose amounts sum to exactly the
+// remaining difference. A month has few payments, so a bounded search over
+// combinations is plenty; amounts compare in whole cents so float noise
+// cannot hide a match.
+function findReconCombos(candidates, target, maxSize, maxCombos) {
+    maxSize = maxSize || 4; maxCombos = maxCombos || 3;
+    var targetCents = Math.round(target * 100);
+    if (targetCents <= 0) return [];
+    var items = [];
+    candidates.forEach(function(c, i) {
+        var cents = Math.round((c.amount || 0) * 100);
+        if (cents > 0 && cents <= targetCents) items.push({ i: i, cents: cents });
+    });
+    items.sort(function(a, b) { return b.cents - a.cents; });
+    var combos = [], nodes = 0;
+    (function dfs(start, remaining, picked) {
+        for (var k = start; k < items.length; k++) {
+            if (combos.length >= maxCombos || ++nodes > 20000) return;
+            var it = items[k];
+            if (it.cents > remaining) continue;
+            picked.push(it.i);
+            if (it.cents === remaining) combos.push(picked.slice());
+            else if (picked.length < maxSize) dfs(k + 1, remaining - it.cents, picked);
+            picked.pop();
+        }
+    })(0, targetCents, []);
+    return combos.map(function(idx) { return idx.map(function(i) { return candidates[i]; }); });
+}
+
+// Suggestions offered by the current render, keyed by suggestion id. Only
+// ever applied through the buttons the render itself drew.
+var _reconSuggestions = {};
+
+function applyReconSuggestion(fy, q, monthKey, sugId) {
+    var sel = _reconSuggestions[sugId];
+    if (!sel) return;
+    var unclearedIds = loadUnclearedCheques(fy, q, monthKey);
+    var bfCleared = loadBfCleared(fy, q, monthKey);
+    sel.forEach(function(a) {
+        var i;
+        if (a.act === 'tick-own' && unclearedIds.indexOf(a.id) < 0) unclearedIds.push(a.id);
+        if (a.act === 'untick-own' && (i = unclearedIds.indexOf(a.id)) >= 0) unclearedIds.splice(i, 1);
+        if (a.act === 'clear-bf' && bfCleared.indexOf(a.key) < 0) bfCleared.push(a.key);
+        if (a.act === 'reopen-bf' && (i = bfCleared.indexOf(a.key)) >= 0) bfCleared.splice(i, 1);
+    });
+    saveUnclearedCheques(fy, q, monthKey, unclearedIds);
+    saveBfCleared(fy, q, monthKey, bfCleared);
+    renderMonthlyRecon();
+}
+
+function applyReconDepositHint(fy, q, monthKey, value) {
+    saveDepositNotShown(fy, q, monthKey, value);
+    renderMonthlyRecon();
 }
 
 // Deposit not shown on statement storage
@@ -7670,6 +7828,8 @@ function generateReconDocPage(fy, q, mKey, monthName, monthNum) {
         return parseInt(t.date.split('-')[1]) === monthNum;
     });
     var monthDeposits = monthTxns.reduce(function(s,t){ return s + (t.deposit||0); }, 0);
+    var monthSubventionDeposits = monthTxns.reduce(function(s,t){ return s + (t.category === 'Subvention' ? (t.deposit||0) : 0); }, 0);
+    var monthOtherDeposits = monthDeposits - monthSubventionDeposits;
     var monthPayments = monthTxns.reduce(function(s,t){ return s + (t.payment||0); }, 0);
     var monthBankCharges = monthTxns.filter(function(t){ return t.category === 'Bank Charges'; }).reduce(function(s,t){ return s + (t.payment||0); }, 0);
     var monthCheques = monthTxns.filter(function(t){ return t.cheque && t.payment > 0; });
@@ -7737,14 +7897,14 @@ function generateReconDocPage(fy, q, mKey, monthName, monthNum) {
     // Row 2: Deposits
     h += '<tr>';
     h += '<td class="rdoc-bt-left rdoc-bt-label">Deposit during month<br>Subvention</td>';
-    h += '<td class="rdoc-bt-left rdoc-bt-val">' + (monthDeposits > 0 ? fmt(monthDeposits) : '$ -') + '</td>';
+    h += '<td class="rdoc-bt-left rdoc-bt-val">' + (monthSubventionDeposits > 0 ? fmt(monthSubventionDeposits) : '$ -') + '</td>';
     h += '<td class="rdoc-bt-right rdoc-bt-label">Deposit made not shown on<br>statement</td>';
     h += '<td class="rdoc-bt-right rdoc-bt-val">' + depNotShownDisplay + '</td>';
     h += '</tr>';
     // Row 3: Other Deposits / spacer
     h += '<tr>';
     h += '<td class="rdoc-bt-left rdoc-bt-label">Other Deposits*</td>';
-    h += '<td class="rdoc-bt-left rdoc-bt-val">$ -</td>';
+    h += '<td class="rdoc-bt-left rdoc-bt-val">' + (monthOtherDeposits > 0 ? fmt(monthOtherDeposits) : '$ -') + '</td>';
     h += '<td class="rdoc-bt-right"></td>';
     h += '<td class="rdoc-bt-right"></td>';
     h += '</tr>';
@@ -7907,11 +8067,17 @@ function getFinQuarterData(q) {
     var data = loadQuarterDataForRecon(activeFY, q);
     var activeTxns = data.transactions.filter(function(t) { return t.category !== 'Cancelled'; });
 
-    var totalDeposits = 0, totalPayments = 0;
+    var totalDeposits = 0, totalPayments = 0, subventionDeposits = 0, otherDeposits = 0;
     var catSpend = {};
     activeTxns.forEach(function(t) {
         totalDeposits += t.deposit || 0;
         totalPayments += t.payment || 0;
+        // The form separates subvention from other money received, so only a
+        // deposit categorised Subvention may appear on the subvention line
+        if (t.deposit > 0) {
+            if (t.category === 'Subvention') subventionDeposits += t.deposit;
+            else otherDeposits += t.deposit;
+        }
         if (t.payment > 0 && t.category !== 'Subvention') {
             catSpend[t.category] = (catSpend[t.category] || 0) + t.payment;
         }
@@ -7925,6 +8091,8 @@ function getFinQuarterData(q) {
     return {
         openBal: openBal,
         totalDeposits: totalDeposits,
+        subventionDeposits: subventionDeposits,
+        otherDeposits: otherDeposits,
         totalPayments: totalPayments,
         totalAvailable: totalAvailable,
         closingBalance: closingBalance,
@@ -7982,8 +8150,8 @@ function generateFinDocPage1(q) {
     h += '<table class="fdoc-summary-table">';
     h += '<tr class="fdoc-st-header"><td></td><td style="text-align:right;font-weight:700;">$</td></tr>';
     h += '<tr><td class="fdoc-st-label">OPENING SUBVENTION BALANCE</td><td class="fdoc-st-val">' + fmt(fd.openBal) + '</td></tr>';
-    h += '<tr><td class="fdoc-st-label">SUBVENTION RECEIVED DURING THE PERIOD</td><td class="fdoc-st-val">' + fmt(fd.totalDeposits) + '</td></tr>';
-    h += '<tr><td class="fdoc-st-label">OTHER DEPOSITS</td><td class="fdoc-st-val">$-</td></tr>';
+    h += '<tr><td class="fdoc-st-label">SUBVENTION RECEIVED DURING THE PERIOD</td><td class="fdoc-st-val">' + (fd.subventionDeposits > 0 ? fmt(fd.subventionDeposits) : '$-') + '</td></tr>';
+    h += '<tr><td class="fdoc-st-label">OTHER DEPOSITS</td><td class="fdoc-st-val">' + (fd.otherDeposits > 0 ? fmt(fd.otherDeposits) : '$-') + '</td></tr>';
     h += '<tr class="fdoc-st-spacer"><td></td><td></td></tr>';
     h += '<tr><td class="fdoc-st-label">TOTAL SUBVENTION AVAILABLE</td><td class="fdoc-st-val">' + fmt(fd.totalAvailable) + '</td></tr>';
     h += '<tr><td class="fdoc-st-label">AMOUNT SPENT DURING PERIOD</td><td class="fdoc-st-val">' + fmt(fd.totalPayments) + '</td></tr>';

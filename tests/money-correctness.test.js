@@ -31,7 +31,14 @@
    and an uncleared cheque follows the bank reconciliation into every later
    month — across quarters and the fiscal-year boundary — until the month whose
    statement finally shows it (each month used to see only its own cheques, so
-   the month after an uncleared cheque could never reconcile).
+   the month after an uncleared cheque could never reconcile). When a month
+   still does not reconcile, the hint offers exactly the payments whose ticking
+   or un-ticking closes the gap, matching in whole cents so float noise cannot
+   hide the right cheque; applying a suggestion only moves the same tick state
+   the checkboxes do, so it is always reversible. And the Financial Data
+   Collection Form reports as SUBVENTION RECEIVED only deposits categorised
+   Subvention — every other deposit is OTHER DEPOSITS (the form used to print
+   every deposit as subvention, overstating what HEART had granted).
 
    Run: node tests/money-correctness.test.js */
 'use strict';
@@ -273,6 +280,143 @@ CASHBOOKS.forEach(where => {
     where + ': the adjusted bank balance subtracts brought-forward items too');
   assert(/unclearedItems = bfItems\.concat\(unclearedItems\);/.test(src),
     where + ': the printable reconciliation statement includes them as well');
+});
+
+/* ---------- 8. The hint names the figure that closes the gap ---------- */
+console.log('The reconciliation hint offers exactly the payments that close the difference');
+
+CASHBOOKS.forEach(where => {
+  const src = read(where);
+
+  const sb = {
+    CESTISStore: (function () {
+      const m = {};
+      return {
+        getItem: k => Object.prototype.hasOwnProperty.call(m, k) ? m[k] : null,
+        setItem: (k, v) => { m[k] = String(v); },
+        removeItem: k => { delete m[k]; }
+      };
+    })(),
+    renderCalls: 0
+  };
+  vm.createContext(sb);
+  ['findReconCombos', 'getUnclearedKey', 'loadUnclearedCheques', 'saveUnclearedCheques',
+   'bfItemKey', 'getBfClearedKey', 'loadBfCleared', 'saveBfCleared',
+   'applyReconSuggestion'].forEach(fn => {
+    vm.runInContext(extractFunction(src, fn, where), sb);
+  });
+  vm.runInContext('var _reconSuggestions = {}; function renderMonthlyRecon() { renderCalls++; }', sb);
+
+  // August's candidates: July's four cheques and the August bank charge.
+  const candidates = [
+    { amount: 29393, label: 'A', act: 'tick-own', id: 100 },
+    { amount: 29393, label: 'B', act: 'tick-own', id: 101 },
+    { amount: 35704, label: 'C', act: 'tick-own', id: 102 },
+    { amount: 8926, label: 'D', act: 'tick-own', id: 103 },
+    { amount: 1816.95, label: 'E', act: 'tick-own', id: 104 }
+  ];
+  sb.candidates = candidates;
+
+  let combos = vm.runInContext('findReconCombos(candidates, 29393)', sb);
+  assert(combos.length === 2 && combos.every(c => c.length === 1 && c[0].amount === 29393),
+    where + ': two cheques share the gap amount, so BOTH are offered — the user picks');
+
+  combos = vm.runInContext('findReconCombos(candidates, 44630)', sb);
+  assert(combos.length === 1 && combos[0].map(c => c.label).sort().join('') === 'CD',
+    where + ': a gap no single cheque explains finds the pair that sums to it');
+
+  combos = vm.runInContext('findReconCombos(candidates, 31209.95)', sb);
+  assert(combos.length === 2 && combos.every(c => c.map(x => x.label).includes('E')),
+    where + ': cent amounts match in whole cents, so $1,816.95 is never missed to float noise');
+
+  assert(vm.runInContext('findReconCombos(candidates, 12345)', sb).length === 0,
+    where + ': a gap nothing sums to offers nothing rather than a near miss');
+
+  // Applying a suggestion moves the same tick state the checkboxes use.
+  vm.runInContext('saveBfCleared("2030/2031", 2, "aug", ["2030/2031|Q2|101"]);' +
+    '_reconSuggestions["s"] = [' +
+    '{ act: "tick-own", id: 100 },' +
+    '{ act: "reopen-bf", key: "2030/2031|Q2|101" }];' +
+    'applyReconSuggestion("2030/2031", 2, "aug", "s")', sb);
+  assert(vm.runInContext('loadUnclearedCheques("2030/2031", 2, "aug")', sb).indexOf(100) >= 0,
+    where + ': applying ticks the suggested payment as uncleared');
+  assert(vm.runInContext('loadBfCleared("2030/2031", 2, "aug")', sb).length === 0,
+    where + ': and re-opens a brought-forward item that was wrongly marked cleared');
+  assert(sb.renderCalls === 1,
+    where + ': then re-renders so the difference is recomputed');
+  assert(vm.runInContext('applyReconSuggestion("2030/2031", 2, "aug", "stale"); loadUnclearedCheques("2030/2031", 2, "aug").length', sb) === 1,
+    where + ': an unknown suggestion id changes nothing');
+
+  // The cards actually draw the hint and only offer, never auto-apply.
+  assert(/if \(Math\.abs\(adjustedDiff\) >= 1\) \{/.test(src),
+    where + ': the hint appears exactly when the month shows Unmatched');
+  assert(/findReconCombos\(hintCandidates, gap\)/.test(src),
+    where + ': and searches this month\'s payments plus brought-forward items');
+  assert(/applyReconDepositHint\(/.test(src),
+    where + ': a bank-lower gap can be recorded as a deposit not shown');
+  assert(/_reconSuggestions\[sugId\] = combo;/.test(src),
+    where + ': each button applies a suggestion the render itself registered');
+});
+
+/* ---------- 9. Only subvention money is reported as subvention ---------- */
+console.log('The Financial Data Collection Form separates subvention from other deposits');
+
+CASHBOOKS.forEach(where => {
+  const src = read(where);
+
+  const sb = {
+    activeFY: '2030/2031',
+    CESTISStore: (function () {
+      const m = {};
+      return {
+        getItem: k => Object.prototype.hasOwnProperty.call(m, k) ? m[k] : null,
+        setItem: (k, v) => { m[k] = String(v); },
+        removeItem: k => { delete m[k]; }
+      };
+    })(),
+    QUARTER_META: [
+      { q: 1, months: ['apr', 'may', 'jun'], monthNums: [4, 5, 6], monthNames: ['April', 'May', 'June'] },
+      { q: 2, months: ['jul', 'aug', 'sep'], monthNums: [7, 8, 9], monthNames: ['July', 'August', 'September'] },
+      { q: 3, months: ['oct', 'nov', 'dec'], monthNums: [10, 11, 12], monthNames: ['October', 'November', 'December'] },
+      { q: 4, months: ['jan', 'feb', 'mar'], monthNums: [1, 2, 3], monthNames: ['January', 'February', 'March'] }
+    ]
+  };
+  vm.createContext(sb);
+  ['getQuarterMeta', 'loadQuarterDataForRecon', 'getFinQuarterData'].forEach(fn => {
+    vm.runInContext(extractFunction(src, fn, where), sb);
+  });
+
+  // A quarter holding the subvention, a cheque received from a project (the
+  // Edit dialog's category was "Other", not "Subvention"), and spending.
+  sb.CESTISStore.setItem('cestis_quarter_2030/2031_Q2', JSON.stringify({
+    openingBalance: 491961.67,
+    transactions: [
+      { id: 100, date: '2030-07-01', details: 'SUBVENTION', deposit: 250000, payment: 0, category: 'Subvention' },
+      { id: 101, date: '2030-07-07', details: 'Cheque from: C. Palmer Project of Hope', deposit: 88800, payment: 0, category: 'Other' },
+      { id: 102, date: '2030-08-02', details: 'Assessor fees', payment: 70525.07, category: 'Admin Expenses' }
+    ]
+  }));
+
+  const fd = vm.runInContext('getFinQuarterData(2)', sb);
+  assert(fd.subventionDeposits === 250000,
+    where + ': only the deposit categorised Subvention is subvention received');
+  assert(fd.otherDeposits === 88800,
+    where + ': the project cheque categorised Other lands on the OTHER DEPOSITS line');
+  assert(fd.totalAvailable === 491961.67 + 250000 + 88800,
+    where + ': total subvention available still counts every deposit, so the form sums');
+
+  // The printed rows and the on-page summary read the split, not the lump sum.
+  assert(src.indexOf("fmt(fd.subventionDeposits) : '$-'") >= 0 &&
+         src.indexOf("fmt(fd.otherDeposits) : '$-'") >= 0,
+    where + ': the printed form fills both lines from the split');
+  assert(src.indexOf('SUBVENTION RECEIVED DURING THE PERIOD</td><td class="fdoc-st-val">\' + fmt(fd.totalDeposits)') === -1,
+    where + ': and no longer prints every deposit as subvention');
+  assert(/fin-subvention'\)\.textContent = fmt\(d\.subventionDeposits\);/.test(src) &&
+         /fin-other-deposits'\)\.textContent = fmt\(d\.otherDeposits\);/.test(src),
+    where + ': the on-page Subvention Summary shows the same split');
+  assert(/monthSubventionDeposits > 0 \? fmt\(monthSubventionDeposits\)/.test(src) &&
+         /monthOtherDeposits > 0 \? fmt\(monthOtherDeposits\)/.test(src),
+    where + ': the monthly bank reconciliation document separates them too');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
