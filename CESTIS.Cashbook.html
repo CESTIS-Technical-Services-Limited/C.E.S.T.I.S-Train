@@ -469,6 +469,31 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .recon-bf-block td.bf-src { color:var(--text3); font-size:.6875rem; white-space:nowrap; }
 .recon-bf-block td.amount { text-align:right; font-family:var(--mono); }
 
+/* Reconciliation hint: what would close the remaining difference */
+.recon-hint-block {
+    margin-top:.75rem; padding:.75rem 1rem;
+    background:var(--surface2); border:1px solid var(--border);
+    border-left:3px solid var(--accent2); border-radius:8px;
+}
+.recon-hint-title {
+    font-size:.75rem; font-weight:700; color:var(--accent2); text-transform:uppercase;
+    letter-spacing:1px; margin-bottom:.375rem;
+}
+.recon-hint-text { font-size:.75rem; color:var(--text2); margin-bottom:.375rem; }
+.recon-hint-text.recon-hint-none { color:var(--text3); font-style:italic; }
+.recon-hint-suggestion {
+    display:flex; justify-content:space-between; align-items:center; gap:.75rem;
+    padding:.5rem .625rem; margin-top:.375rem;
+    background:rgba(245,158,11,0.06); border:1px dashed var(--border); border-radius:6px;
+}
+.recon-hint-items { font-size:.75rem; color:var(--text); }
+.recon-hint-items .hint-amt { font-family:var(--mono); font-weight:600; color:var(--amber); }
+.recon-hint-apply {
+    flex-shrink:0; background:var(--accent); color:#fff; border:none; border-radius:6px;
+    padding:.375rem .75rem; font-size:.6875rem; font-weight:700; cursor:pointer;
+}
+.recon-hint-apply:hover { filter:brightness(1.15); }
+
 /* Bank Reconciliation Statement */
 .recon-statement {
     margin-top:1rem; padding:1rem 1.25rem;
@@ -7152,6 +7177,7 @@ function renderMonthlyRecon() {
 
     // Uncleared payments carried forward from earlier months (and the previous FY)
     const bfMap = computeBroughtForwardMap(reconFY);
+    _reconSuggestions = {};
 
     const quarterIcons = { 1: '📗', 2: '📘', 3: '📙', 4: '📕' };
     const quarterLabels = { 1: 'Quarter 1 · April – June', 2: 'Quarter 2 · July – September', 3: 'Quarter 3 · October – December', 4: 'Quarter 4 · January – March' };
@@ -7385,6 +7411,72 @@ function renderMonthlyRecon() {
                         '<span class="rs-value" style="color:' + adjustedDiffColor + ';">' + adjustedDiffDisplay + '</span>' +
                     '</div>' +
                 '</div>';
+
+                // Reconciliation hint: the remaining gap is a concrete number,
+                // so look for the tick or untick that closes it exactly and
+                // offer it — the user chooses, nothing applies itself
+                if (Math.abs(adjustedDiff) >= 1) {
+                    var gap = Math.abs(adjustedDiff);
+                    var hintCandidates = [];
+                    var payLabel = function(t) {
+                        return (t.cheque ? 'Chq #' + t.cheque : (t.category === 'Bank Charges' ? 'Bank Charge' : 'Direct Transfer')) + ' — ' + t.details;
+                    };
+                    if (adjustedDiff > 0) {
+                        // Bank higher: a payment not yet deducted from the bank side
+                        monthAllPayments.forEach(function(txn) {
+                            if (preUnclearedList.indexOf(txn.id) >= 0) return;
+                            hintCandidates.push({ amount: txn.payment || 0, label: payLabel(txn), act: 'tick-own', id: txn.id });
+                        });
+                        broughtForward.forEach(function(it) {
+                            if (bfClearedList.indexOf(it.key) < 0) return;
+                            hintCandidates.push({ amount: it.payment || 0, label: payLabel(it) + ' (b/f ' + it.srcLabel + ')', act: 'reopen-bf', key: it.key });
+                        });
+                    } else {
+                        // Bank lower: an item held as uncleared that in fact cleared
+                        monthAllPayments.forEach(function(txn) {
+                            if (preUnclearedList.indexOf(txn.id) < 0) return;
+                            hintCandidates.push({ amount: txn.payment || 0, label: payLabel(txn), act: 'untick-own', id: txn.id });
+                        });
+                        bfOutstanding.forEach(function(it) {
+                            hintCandidates.push({ amount: it.payment || 0, label: payLabel(it) + ' (b/f ' + it.srcLabel + ')', act: 'clear-bf', key: it.key });
+                        });
+                    }
+                    var hintCombos = findReconCombos(hintCandidates, gap);
+                    cardsHtml += '<div class="recon-hint-block">' +
+                        '<div class="recon-hint-title">💡 Reconciliation Hint</div>' +
+                        '<div class="recon-hint-text">' + (adjustedDiff > 0
+                            ? 'The bank statement is <span class="hint-amt">' + fmt(gap) + '</span> higher than the cash book — usually a payment issued but not yet ticked as uncleared.'
+                            : 'The bank statement is <span class="hint-amt">' + fmt(gap) + '</span> lower than the cash book — an item ticked uncleared may in fact have cleared, or a deposit has not reached the statement.') +
+                        '</div>';
+                    if (hintCombos.length > 0) {
+                        cardsHtml += '<div class="recon-hint-text">' + (hintCombos.length > 1
+                            ? 'These match the difference exactly — choose the right one:'
+                            : 'This matches the difference exactly:') + '</div>';
+                        hintCombos.forEach(function(combo, ci) {
+                            var sugId = q + '-' + mKey + '-' + ci;
+                            _reconSuggestions[sugId] = combo;
+                            var parts = combo.map(function(c) {
+                                return c.label + ' <span class="hint-amt">(' + fmt(c.amount) + ')</span>';
+                            }).join('<br>');
+                            cardsHtml += '<div class="recon-hint-suggestion">' +
+                                '<div class="recon-hint-items">' + parts + '</div>' +
+                                '<button class="recon-hint-apply" onclick="applyReconSuggestion(\'' + reconFY + '\',' + q + ',\'' + mKey + '\',\'' + sugId + '\')">' +
+                                    (adjustedDiff > 0 ? 'Mark uncleared' : 'Mark cleared') + '</button>' +
+                            '</div>';
+                        });
+                    } else {
+                        cardsHtml += '<div class="recon-hint-text recon-hint-none">No payment or combination matches ' + fmt(gap) +
+                            ' exactly — check for bank charges, interest, or an amount entered differently from the statement.</div>';
+                    }
+                    if (adjustedDiff < 0) {
+                        var hintDepValue = (depNotShownVal + gap).toFixed(2);
+                        cardsHtml += '<div class="recon-hint-suggestion">' +
+                            '<div class="recon-hint-items">A deposit of <span class="hint-amt">' + fmt(gap) + '</span> recorded in the cash book but not yet on the statement</div>' +
+                            '<button class="recon-hint-apply" onclick="applyReconDepositHint(\'' + reconFY + '\',' + q + ',\'' + mKey + '\',\'' + hintDepValue + '\')">Record as not shown</button>' +
+                        '</div>';
+                    }
+                    cardsHtml += '</div>';
+                }
             }
 
             cardsHtml +=
@@ -7524,6 +7616,61 @@ function computeBroughtForwardMap(fy, lookBack) {
     });
     map.__end = outstanding;
     return map;
+}
+
+// Reconciliation hint: find the payment(s) whose amounts sum to exactly the
+// remaining difference. A month has few payments, so a bounded search over
+// combinations is plenty; amounts compare in whole cents so float noise
+// cannot hide a match.
+function findReconCombos(candidates, target, maxSize, maxCombos) {
+    maxSize = maxSize || 4; maxCombos = maxCombos || 3;
+    var targetCents = Math.round(target * 100);
+    if (targetCents <= 0) return [];
+    var items = [];
+    candidates.forEach(function(c, i) {
+        var cents = Math.round((c.amount || 0) * 100);
+        if (cents > 0 && cents <= targetCents) items.push({ i: i, cents: cents });
+    });
+    items.sort(function(a, b) { return b.cents - a.cents; });
+    var combos = [], nodes = 0;
+    (function dfs(start, remaining, picked) {
+        for (var k = start; k < items.length; k++) {
+            if (combos.length >= maxCombos || ++nodes > 20000) return;
+            var it = items[k];
+            if (it.cents > remaining) continue;
+            picked.push(it.i);
+            if (it.cents === remaining) combos.push(picked.slice());
+            else if (picked.length < maxSize) dfs(k + 1, remaining - it.cents, picked);
+            picked.pop();
+        }
+    })(0, targetCents, []);
+    return combos.map(function(idx) { return idx.map(function(i) { return candidates[i]; }); });
+}
+
+// Suggestions offered by the current render, keyed by suggestion id. Only
+// ever applied through the buttons the render itself drew.
+var _reconSuggestions = {};
+
+function applyReconSuggestion(fy, q, monthKey, sugId) {
+    var sel = _reconSuggestions[sugId];
+    if (!sel) return;
+    var unclearedIds = loadUnclearedCheques(fy, q, monthKey);
+    var bfCleared = loadBfCleared(fy, q, monthKey);
+    sel.forEach(function(a) {
+        var i;
+        if (a.act === 'tick-own' && unclearedIds.indexOf(a.id) < 0) unclearedIds.push(a.id);
+        if (a.act === 'untick-own' && (i = unclearedIds.indexOf(a.id)) >= 0) unclearedIds.splice(i, 1);
+        if (a.act === 'clear-bf' && bfCleared.indexOf(a.key) < 0) bfCleared.push(a.key);
+        if (a.act === 'reopen-bf' && (i = bfCleared.indexOf(a.key)) >= 0) bfCleared.splice(i, 1);
+    });
+    saveUnclearedCheques(fy, q, monthKey, unclearedIds);
+    saveBfCleared(fy, q, monthKey, bfCleared);
+    renderMonthlyRecon();
+}
+
+function applyReconDepositHint(fy, q, monthKey, value) {
+    saveDepositNotShown(fy, q, monthKey, value);
+    renderMonthlyRecon();
 }
 
 // Deposit not shown on statement storage

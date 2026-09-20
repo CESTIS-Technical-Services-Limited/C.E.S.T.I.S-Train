@@ -31,7 +31,11 @@
    and an uncleared cheque follows the bank reconciliation into every later
    month — across quarters and the fiscal-year boundary — until the month whose
    statement finally shows it (each month used to see only its own cheques, so
-   the month after an uncleared cheque could never reconcile).
+   the month after an uncleared cheque could never reconcile). When a month
+   still does not reconcile, the hint offers exactly the payments whose ticking
+   or un-ticking closes the gap, matching in whole cents so float noise cannot
+   hide the right cheque; applying a suggestion only moves the same tick state
+   the checkboxes do, so it is always reversible.
 
    Run: node tests/money-correctness.test.js */
 'use strict';
@@ -273,6 +277,82 @@ CASHBOOKS.forEach(where => {
     where + ': the adjusted bank balance subtracts brought-forward items too');
   assert(/unclearedItems = bfItems\.concat\(unclearedItems\);/.test(src),
     where + ': the printable reconciliation statement includes them as well');
+});
+
+/* ---------- 8. The hint names the figure that closes the gap ---------- */
+console.log('The reconciliation hint offers exactly the payments that close the difference');
+
+CASHBOOKS.forEach(where => {
+  const src = read(where);
+
+  const sb = {
+    CESTISStore: (function () {
+      const m = {};
+      return {
+        getItem: k => Object.prototype.hasOwnProperty.call(m, k) ? m[k] : null,
+        setItem: (k, v) => { m[k] = String(v); },
+        removeItem: k => { delete m[k]; }
+      };
+    })(),
+    renderCalls: 0
+  };
+  vm.createContext(sb);
+  ['findReconCombos', 'getUnclearedKey', 'loadUnclearedCheques', 'saveUnclearedCheques',
+   'bfItemKey', 'getBfClearedKey', 'loadBfCleared', 'saveBfCleared',
+   'applyReconSuggestion'].forEach(fn => {
+    vm.runInContext(extractFunction(src, fn, where), sb);
+  });
+  vm.runInContext('var _reconSuggestions = {}; function renderMonthlyRecon() { renderCalls++; }', sb);
+
+  // August's candidates: July's four cheques and the August bank charge.
+  const candidates = [
+    { amount: 29393, label: 'A', act: 'tick-own', id: 100 },
+    { amount: 29393, label: 'B', act: 'tick-own', id: 101 },
+    { amount: 35704, label: 'C', act: 'tick-own', id: 102 },
+    { amount: 8926, label: 'D', act: 'tick-own', id: 103 },
+    { amount: 1816.95, label: 'E', act: 'tick-own', id: 104 }
+  ];
+  sb.candidates = candidates;
+
+  let combos = vm.runInContext('findReconCombos(candidates, 29393)', sb);
+  assert(combos.length === 2 && combos.every(c => c.length === 1 && c[0].amount === 29393),
+    where + ': two cheques share the gap amount, so BOTH are offered — the user picks');
+
+  combos = vm.runInContext('findReconCombos(candidates, 44630)', sb);
+  assert(combos.length === 1 && combos[0].map(c => c.label).sort().join('') === 'CD',
+    where + ': a gap no single cheque explains finds the pair that sums to it');
+
+  combos = vm.runInContext('findReconCombos(candidates, 31209.95)', sb);
+  assert(combos.length === 2 && combos.every(c => c.map(x => x.label).includes('E')),
+    where + ': cent amounts match in whole cents, so $1,816.95 is never missed to float noise');
+
+  assert(vm.runInContext('findReconCombos(candidates, 12345)', sb).length === 0,
+    where + ': a gap nothing sums to offers nothing rather than a near miss');
+
+  // Applying a suggestion moves the same tick state the checkboxes use.
+  vm.runInContext('saveBfCleared("2030/2031", 2, "aug", ["2030/2031|Q2|101"]);' +
+    '_reconSuggestions["s"] = [' +
+    '{ act: "tick-own", id: 100 },' +
+    '{ act: "reopen-bf", key: "2030/2031|Q2|101" }];' +
+    'applyReconSuggestion("2030/2031", 2, "aug", "s")', sb);
+  assert(vm.runInContext('loadUnclearedCheques("2030/2031", 2, "aug")', sb).indexOf(100) >= 0,
+    where + ': applying ticks the suggested payment as uncleared');
+  assert(vm.runInContext('loadBfCleared("2030/2031", 2, "aug")', sb).length === 0,
+    where + ': and re-opens a brought-forward item that was wrongly marked cleared');
+  assert(sb.renderCalls === 1,
+    where + ': then re-renders so the difference is recomputed');
+  assert(vm.runInContext('applyReconSuggestion("2030/2031", 2, "aug", "stale"); loadUnclearedCheques("2030/2031", 2, "aug").length', sb) === 1,
+    where + ': an unknown suggestion id changes nothing');
+
+  // The cards actually draw the hint and only offer, never auto-apply.
+  assert(/if \(Math\.abs\(adjustedDiff\) >= 1\) \{/.test(src),
+    where + ': the hint appears exactly when the month shows Unmatched');
+  assert(/findReconCombos\(hintCandidates, gap\)/.test(src),
+    where + ': and searches this month\'s payments plus brought-forward items');
+  assert(/applyReconDepositHint\(/.test(src),
+    where + ': a bank-lower gap can be recorded as a deposit not shown');
+  assert(/_reconSuggestions\[sugId\] = combo;/.test(src),
+    where + ': each button applies a suggestion the render itself registered');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
