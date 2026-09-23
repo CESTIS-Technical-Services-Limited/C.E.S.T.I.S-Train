@@ -18,8 +18,13 @@
         which year it is and how many of the roll that is, with the way to
         every year;
      3. a search that matches somebody the year is hiding says where they are;
-     4. a record saved with a date in another year moves the page to that year
-        and says so, instead of vanishing as if it had not saved.
+     4. a past year is shown ONLY when somebody deliberately steps to it on
+        this page: not because another page (the Cashbook) changed the shared
+        year, and not because a record was saved with a past date — that
+        confirmation says where the record went and offers a button instead;
+     5. everything that lists trainees follows the year: the "no fee set"
+        notice, the payment and document pickers, the trainee search, and the
+        documents list.
 
    Run: node tests/school-fee-year-records.test.js */
 'use strict';
@@ -56,12 +61,13 @@ function extractFunction(name) {
   return SRC.slice(at, i + 1);
 }
 
-// The expression the page initialises its own year with.
-function extractViewYearInit() {
-  const at = SRC.indexOf('let _feeViewFY = (function () {');
-  if (at < 0) throw new Error(PAGE + ' no longer initialises _feeViewFY');
+// The expression the page initialises its own year (or quarter) with.
+function extractViewInit(name) {
+  const decl = 'let ' + name + ' = ';
+  const at = SRC.indexOf(decl + '(function () {');
+  if (at < 0) throw new Error(PAGE + ' no longer initialises ' + name);
   const end = SRC.indexOf('})();', at);
-  return SRC.slice(at + 'let _feeViewFY = '.length, end + '})()'.length);
+  return SRC.slice(at + decl.length, end + '})()'.length);
 }
 
 // Years relative to today, so the suite means the same thing whenever it runs.
@@ -101,7 +107,6 @@ function makePage(opts) {
     students: opts.students || clone(ROLL),
     payments: [],
     feeScopeMode: opts.mode || 'year',
-    _feeSuppressQuarterSub: false,
     selectedForMerge: [],
     FEE_CACHE_TTL_MS: 750, _feeCacheStamp: 0, _feeQuarterCache: null,
     CESTISCore: Core, CESTISStore: store,
@@ -125,9 +130,10 @@ function makePage(opts) {
     'feeInvalidateCaches', '_feeCacheTick', 'feeActiveQuarter', '_feeSetView', 'feeCurrentFY',
     'feeYearTense', 'studentInActiveFY', 'studentsInScope', 'feeFYLabel', 'feeScopeLabel',
     'renderFeeYearBar', 'renderStudentsTable', 'feeHiddenMatchHint', 'feeReportStudents',
-    'feeRevealRecordYear', 'feeReturnToPresent', 'feeShiftFY'
+    'feeRecordYearNote', 'feeShowPeriod', 'feeReturnToPresent', 'feeShiftFY', 'documentInActiveFY'
   ].map(extractFunction).join('\n\n'), sandbox);
-  sandbox._feeViewFY = vm.runInContext(extractViewYearInit(), sandbox);
+  sandbox._feeViewFY = vm.runInContext(extractViewInit('_feeViewFY'), sandbox);
+  sandbox._feeViewQ = vm.runInContext(extractViewInit('_feeViewQ'), sandbox);
   sandbox._els = els;
   sandbox._backing = backing;
   sandbox._writes = writes;
@@ -230,35 +236,67 @@ function runFor(file) {
   assert(/isTraineeReport[\s\S]*feeFYLabel\(\)/.test(extractFunction('getReportFilterPeriod')),
     'a trainee report is labelled with its group, not a month it was never filtered by');
 
-  /* ---------- 5. A saved record follows its own year ---------- */
-  console.log('\nA trainee saved into another year moves the page there, and says so');
+  /* ---------- 5. Only a deliberate step on THIS page shows the past ---------- */
+  console.log('\nAnother page changing the shared year does not move this one');
   page = makePage();
-  let note = page.feeRevealRecordYear(dayIn(LAST, '11-20'), 'trainee’s enrolment');
-  assertEq(page.feeActiveQuarter().fy, LAST, 'the page is now on FY ' + LAST);
-  assert(page.applied === 1, 'and everything was redrawn for it');
-  assert(note.indexOf('falls in FY ' + LAST) >= 0 && note.indexOf('was showing FY ' + PRESENT) >= 0,
-    'the message says which year it went to and which it came from');
-  assert(/Back to FY /.test(note), 'and how to get back to the present group');
+  page._backing.cestis_active_quarter = JSON.stringify({ fy: EARLIER, q: 2 });   // the Cashbook steps back
+  page.feeInvalidateCaches();
+  assertEq(page.feeActiveQuarter().fy, PRESENT, 'still the present year');
+  assertEq(listedIds(page).join(','), 'P1,P2', 'still the present group');
+  const mount = extractFunction('mountSchoolFeeQuarterBar');
+  assert(!/onQuarterChange/.test(mount), 'the page no longer subscribes to other pages\u2019 quarter switches');
+  assert(!/onQuarterChange\(/.test(SRC), 'nowhere on the page follows them');
 
-  console.log('A record already in view changes nothing');
+  console.log('A trainee saved into a past year is NOT a step into the past');
   page = makePage();
-  assertEq(page.feeRevealRecordYear(dayIn(PRESENT, '08-01'), 'payment', true), '', 'a present-year record: no move');
-  assertEq(page.feeRevealRecordYear('', 'trainee’s enrolment'), '', 'an undated one: no move');
-  assertEq(page.applied, 0, 'and nothing is redrawn');
+  let note = page.feeRecordYearNote(dayIn(LAST, '11-20'), 'trainee\u2019s enrolment');
+  assertEq(page.feeActiveQuarter().fy, PRESENT, 'the page stays on the present year');
+  assertEq(page.applied, 0, 'and nothing is redrawn into another year');
+  assert(note && note.text.indexOf('FY ' + LAST) >= 0 && /a past year/.test(note.text) && note.text.indexOf('FY ' + PRESENT) >= 0,
+    'the confirmation says it went to FY ' + LAST + ', a past year, and that FY ' + PRESENT + ' stays on screen');
+  assertEq(note && note.label, 'Show FY ' + LAST, 'and offers a button to go there');
+  page.feeShowPeriod(note.fy, note.q);
+  assertEq(listedIds(page).join(','), 'L1,L2', 'pressing it is the deliberate step: last year\u2019s group');
+
+  console.log('A record already in view says nothing');
+  page = makePage();
+  assertEq(page.feeRecordYearNote(dayIn(PRESENT, '08-01'), 'payment', true), null, 'a present-year record');
+  assertEq(page.feeRecordYearNote('', 'trainee\u2019s enrolment'), null, 'an undated one');
   page.feeScopeMode = 'all';
-  assertEq(page.feeRevealRecordYear(dayIn(LAST, '08-01'), 'payment', true), '', 'every year on screen: no move');
+  assertEq(page.feeRecordYearNote(dayIn(LAST, '08-01'), 'payment', true), null, 'every year on screen');
 
-  console.log('A payment outside the selected quarter moves to its quarter');
+  console.log('A payment outside the selected quarter is pointed to, not jumped to');
   page = makePage();
   page.feeScopeMode = 'quarter';
   page._feeSetView(PRESENT, 1);
-  note = page.feeRevealRecordYear(dayIn(PRESENT, '11-03'), 'payment', true);
-  assertEq(page.feeActiveQuarter().q, 3, 'a November payment lands the view on Q3');
-  assert(note.length > 0, 'and says so');
-  // A trainee is a whole-year group, so another quarter of the same year is in view.
+  note = page.feeRecordYearNote(dayIn(PRESENT, '11-03'), 'payment', true);
+  assertEq(page.feeActiveQuarter().q, 1, 'the view stays on Q1');
+  assert(note && /^Show Q3/.test(note.label), 'and the button offers Q3');
   page._feeSetView(PRESENT, 1);
-  assertEq(page.feeRevealRecordYear(dayIn(PRESENT, '11-03'), 'trainee’s enrolment'), '',
+  assertEq(page.feeRecordYearNote(dayIn(PRESENT, '11-03'), 'trainee\u2019s enrolment'), null,
     'a trainee enrolled in another quarter of the same year is already listed');
+  ['addStudent', 'saveStudentEdit', 'recordPayment'].forEach(fn => {
+    const body = extractFunction(fn);
+    assert(/feeRecordYearNote\(/.test(body) && !/_feeSetView|feeShiftFY|feeApplyQuarterChange/.test(body),
+      fn + '() reports the year but never moves the page itself');
+  });
+
+  /* ---------- 6. Everything that lists trainees follows the year ---------- */
+  console.log('\nThe notice, the pickers, the search and the documents follow the year');
+  // Reads the year's group, and never walks the whole roll.
+  const scoped = fn => { const b = extractFunction(fn); return /studentsInScope\(\)/.test(b) && !/(^|[^\w.])students\.(forEach|map|filter)\(/.test(b); };
+  assert(scoped('reportUnpricedTrainees'), 'the "no fee set" notice counts the year\u2019s group, as the cards beside it do');
+  assert(scoped('populatePaymentStudentSelect'), 'the payment "Select Student" list offers the year\u2019s group');
+  assert(scoped('buildTraineeSearchIndex'), 'and so does the trainee search above it');
+  assert(scoped('populateDocumentStudentSelect'), 'and the document pickers');
+  assert(/documentInActiveFY\(doc, student\)/.test(extractFunction('renderDocumentsTable')), 'the documents list shows the year\u2019s trainees\u2019 documents');
+  page = makePage();
+  assert(page.documentInActiveFY({ uploadDate: dayIn(EARLIER, '05-05') }, page.students[0]), 'a present trainee\u2019s document is listed, whenever it was uploaded');
+  assert(!page.documentInActiveFY({ uploadDate: dayIn(PRESENT, '05-05') }, page.students[2]), 'a past trainee\u2019s document is not');
+  assert(!page.documentInActiveFY({ uploadDate: dayIn(LAST, '05-05') }, null), 'one with no trainee on the roll goes by its upload date');
+  const apply = extractFunction('feeApplyQuarterChange');
+  assert(/populatePaymentStudentSelect\(\)/.test(apply) && /populateDocumentStudentSelect\(\)/.test(apply) && /renderDocumentsTable\(\)/.test(apply),
+    'changing the year refreshes the pickers and the documents with it');
 }
 
 PAGES.forEach(runFor);
