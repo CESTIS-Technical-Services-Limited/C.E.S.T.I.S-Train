@@ -144,8 +144,13 @@ PAGES.forEach(where => {
   const ret = extractFunction(src, 'feeReturnToPresent', where);
   assert(/feeScopeMode = 'year';/.test(ret),
     where + ': returning lands on the whole present year, not a stray quarter');
-  assert(/setActiveQuarter\(fy,/.test(ret),
-    where + ': and actually moves the shared year, so the other pages follow');
+  // It moves the page's own year through _feeSetView, which is the one place
+  // that also writes the shared year — so the other pages still follow.
+  assert(/_feeSetView\(fy,/.test(ret),
+    where + ': and actually moves the year, through the one setter');
+  const setView = extractFunction(src, '_feeSetView', where);
+  assert(/setActiveQuarter\(fy, q\)/.test(setView) && /_feeViewFY = fy;/.test(setView),
+    where + ': which moves this page AND the shared year, so the other pages follow');
 
   assert(/not the present group/.test(src),
     where + ': while a past year is selected the bar says so plainly');
