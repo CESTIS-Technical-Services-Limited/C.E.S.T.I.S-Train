@@ -166,6 +166,12 @@
             /* CESTI Colors */
             --primary-blue: #0D47A1;
             --light-blue: #1565C0;
+            /* Headings and emphasised labels. The same navy as before in the
+               light theme; a light blue on the rich-blue theme, where navy text
+               on a blue card could not be read. */
+            --heading-color: #0D47A1;
+            /* Small explanatory lines (which year and quarter a list shows). */
+            --text-muted: #5b6b80;
             --soft-blue: #E3F2FD;
             --light-green: #A8D5A5;
             --medium-green: #66BB6A;
@@ -182,16 +188,100 @@
             --shadow: rgba(0, 0, 0, 0.1);
         }
 
+        /* RICH BLUE — the page's own look, and its default (see the script at
+           the top of <body>). The class is still called dark-mode because the
+           Student Progress page reads the same preference.
+
+           It used to be a near-black purple page (#1a1a2e) with blue cards on
+           it, so only the cards were blue; the gutters and every form panel
+           were black-purple, and headings kept the light theme's navy, which
+           all but vanished on a blue card. Every surface is now a shade of the
+           one blue, darkest at the back: page and inset panels, then the cards
+           (#0f3460), then inputs and hovers. Text and headings are light blues
+           and whites chosen to stay above 4.5:1 on each of them. */
         body.dark-mode {
-            --bg-primary: #1a1a2e;
-            --bg-secondary: #16213e;
+            --bg-primary: #0a1f44;
+            --bg-secondary: #0c2a5b;
             --bg-card: #0f3460;
-            --text-primary: #e0e0e0;
-            --text-secondary: #a0a0a0;
-            --border-color: #2d4059;
-            --table-hover: #16213e;
-            --shadow: rgba(0, 0, 0, 0.3);
+            --soft-blue: rgba(142, 197, 255, 0.14);
+            --text-primary: #e8f0fe;
+            --text-secondary: #a9c1e8;
+            --heading-color: #8ec5ff;
+            --text-muted: #a9c1e8;
+            --border-color: #24497f;
+            --table-hover: #15407a;
+            --shadow: rgba(2, 10, 30, 0.45);
+            /* Native controls — date pickers, dropdown lists, scrollbars —
+               draw themselves dark instead of as white islands. */
+            color-scheme: dark;
         }
+        body.dark-mode .header { background: linear-gradient(135deg, #0D47A1 0%, #0f3a7a 100%); }
+        body.dark-mode .btn-secondary { background: #2a5694; }
+        body.dark-mode .btn-secondary:hover { background: #33649f; }
+        /* The four figures keep their meanings, bright enough to read on blue. */
+        body.dark-mode .stat-card:nth-child(1) { border-left-color: #94a3b8; }
+        body.dark-mode .stat-card:nth-child(2) { border-left-color: #60a5fa; }
+        body.dark-mode .stat-card:nth-child(3) { border-left-color: #34d399; }
+        body.dark-mode .stat-card:nth-child(4) { border-left-color: #fbbf24; }
+        body.dark-mode .stat-card:nth-child(3) .value { color: #4ade80; }
+        body.dark-mode .stat-card:nth-child(4) .value { color: #fbbf24; }
+        /* The year and quarter controls, drawn for the light theme. */
+        body.dark-mode .fee-qfilter { background: rgba(142, 197, 255, 0.06); border-color: rgba(142, 197, 255, 0.22); }
+        body.dark-mode .fee-qtab, body.dark-mode .fee-qbtn { border-color: rgba(142, 197, 255, 0.30); }
+        body.dark-mode .fee-qtab:hover, body.dark-mode .fee-qbtn:hover { background: rgba(142, 197, 255, 0.12); }
+        body.dark-mode .fee-qtab.active { background: #1565C0; border-color: #1565C0; }
+        body.dark-mode .fee-yb-nav:hover:not(:disabled),
+        body.dark-mode .fee-yb-all:hover { border-color: #8ec5ff; color: #8ec5ff; }
+        body.dark-mode .fee-yb-all.active { background: #1565C0; border-color: #1565C0; color: #fff; }
+        body.dark-mode .fee-yb-hint { background: rgba(142, 197, 255, 0.08); border-color: rgba(142, 197, 255, 0.25); }
+        /* Notices written with light-theme inline colours. */
+        body.dark-mode #feeUnpricedNotice {
+            background: rgba(251, 191, 36, 0.12) !important;
+            color: #fde68a !important;
+            border-color: rgba(251, 191, 36, 0.45) !important;
+        }
+        body.dark-mode #feeUnpricedNotice a, body.dark-mode #feeUnpricedNotice strong { color: #fde68a !important; }
+        body.dark-mode #mergeControls {
+            background: rgba(186, 104, 200, 0.14) !important;
+            border-color: #ba68c8 !important;
+        }
+        body.dark-mode #selectedCount { color: #e1bee7 !important; }
+        /* Dialogs (merge, cloud sync, backup) are built with inline light
+           tints and dark text. On the blue theme each tint becomes the same
+           hue at low strength, and each dark text colour its light partner. */
+        body.dark-mode [style*="background: #E3F2FD" i], body.dark-mode [style*="background:#E3F2FD" i] { background: rgba(142, 197, 255, 0.10) !important; }
+        body.dark-mode [style*="background: #E8F5E9" i], body.dark-mode [style*="background:#E8F5E9" i] { background: rgba(74, 222, 128, 0.10) !important; }
+        body.dark-mode [style*="background: #FFF8E1" i], body.dark-mode [style*="background:#FFF8E1" i] { background: rgba(251, 191, 36, 0.10) !important; }
+        body.dark-mode [style*="background: #FFE0B2" i], body.dark-mode [style*="background:#FFE0B2" i] { background: rgba(251, 146, 60, 0.18) !important; }
+        body.dark-mode [style*="background: #F3E5F5" i], body.dark-mode [style*="background:#F3E5F5" i] { background: rgba(186, 104, 200, 0.14) !important; }
+        body.dark-mode [style*="background: #f5f5f5" i], body.dark-mode [style*="background:#f5f5f5" i] { background: rgba(255, 255, 255, 0.05) !important; }
+        body.dark-mode [style*="background: #FFF3E0" i], body.dark-mode [style*="background:#FFF3E0" i] { background: rgba(251, 146, 60, 0.12) !important; }
+        body.dark-mode [style*="background: #e0f2fe" i], body.dark-mode [style*="background:#e0f2fe" i] { background: rgba(142, 197, 255, 0.10) !important; }
+        body.dark-mode [style*="background: #fef3c7" i], body.dark-mode [style*="background:#fef3c7" i] { background: rgba(251, 191, 36, 0.12) !important; }
+        body.dark-mode [style*="background: #d1fae5" i], body.dark-mode [style*="background:#d1fae5" i] { background: rgba(16, 185, 129, 0.12) !important; }
+        body.dark-mode [style*="color: #2196F3" i], body.dark-mode [style*="color:#2196F3" i],
+        body.dark-mode [style*="color: #3b82f6" i], body.dark-mode [style*="color:#3b82f6" i] { color: #93c5fd !important; }
+        body.dark-mode [style*="color: #E91E63" i], body.dark-mode [style*="color:#E91E63" i] { color: #f9a8d4 !important; }
+        body.dark-mode [style*="color: #ef4444" i], body.dark-mode [style*="color:#ef4444" i],
+        body.dark-mode [style*="color: #e74c3c" i], body.dark-mode [style*="color:#e74c3c" i] { color: #fca5a5 !important; }
+        /* Deliberately left alone: small pills that carry BOTH a light
+           background and a dark text colour of their own (the auto-sync ON/OFF
+           tag), which read the same on either theme. */
+        body.dark-mode [style*="color: #0D47A1" i], body.dark-mode [style*="color:#0D47A1" i],
+        body.dark-mode [style*="color: #1565C0" i], body.dark-mode [style*="color:#1565C0" i],
+        body.dark-mode [style*="color: #0369a1" i], body.dark-mode [style*="color:#0369a1" i] { color: #8ec5ff !important; }
+        body.dark-mode [style*="color: #2E7D32" i], body.dark-mode [style*="color:#2E7D32" i],
+        body.dark-mode [style*="color: #1B5E20" i], body.dark-mode [style*="color:#1B5E20" i] { color: #86efac !important; }
+        body.dark-mode [style*="color: #E65100" i], body.dark-mode [style*="color:#E65100" i] { color: #fdba74 !important; }
+        body.dark-mode [style*="color: #d97706" i], body.dark-mode [style*="color:#d97706" i],
+        body.dark-mode [style*="color: #856404" i], body.dark-mode [style*="color:#856404" i],
+        body.dark-mode [style*="color: #8a6d00" i], body.dark-mode [style*="color:#8a6d00" i] { color: #fcd34d !important; }
+        body.dark-mode [style*="color: #7B1FA2" i], body.dark-mode [style*="color:#7B1FA2" i],
+        body.dark-mode [style*="color: #9C27B0" i], body.dark-mode [style*="color:#9C27B0" i] { color: #e1bee7 !important; }
+        body.dark-mode [style*="color: #6b7280" i], body.dark-mode [style*="color:#6b7280" i],
+        body.dark-mode [style*="color: #666" i], body.dark-mode [style*="color:#666" i],
+        body.dark-mode [style*="color: #555" i], body.dark-mode [style*="color:#555" i] { color: var(--text-secondary) !important; }
+        body.dark-mode [style*="color: #333" i], body.dark-mode [style*="color:#333" i] { color: var(--text-primary) !important; }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -403,7 +493,7 @@
         }
 
         .form-section h2 {
-            color: var(--primary-blue);
+            color: var(--heading-color);
             margin-bottom: 1rem;
             font-size: 1.5rem;
         }
@@ -730,7 +820,7 @@
             color: var(--text-secondary);
         }
         .trainee-search-chosen.shown { display: block; }
-        .trainee-search-chosen strong { color: var(--primary-blue); }
+        .trainee-search-chosen strong { color: var(--heading-color); }
 
         /* Status Badges */
         .status-badge {
@@ -832,7 +922,7 @@
         }
 
         .modal-header h2 {
-            color: var(--primary-blue);
+            color: var(--heading-color);
         }
 
         .close-btn {
@@ -857,7 +947,7 @@
         }
 
         .chart-container h2 {
-            color: var(--primary-blue);
+            color: var(--heading-color);
             margin-bottom: 1rem;
         }
 
@@ -889,7 +979,7 @@
         .month-header {
             font-size: 1.2rem;
             font-weight: bold;
-            color: var(--primary-blue);
+            color: var(--heading-color);
             margin-bottom: 1rem;
             display: flex;
             justify-content: space-between;
@@ -1095,7 +1185,7 @@
 
         /* Forgot Password Styles */
         .forgot-password-link a {
-            color: var(--primary-blue);
+            color: var(--heading-color);
             text-decoration: none;
             transition: color 0.3s ease;
         }
@@ -1118,7 +1208,7 @@
         }
 
         .otp-resend a {
-            color: var(--primary-blue);
+            color: var(--heading-color);
             text-decoration: none;
             transition: color 0.3s ease;
         }
@@ -1405,7 +1495,7 @@
         }
 
         .twofa-use-backup a {
-            color: var(--primary-blue);
+            color: var(--heading-color);
             cursor: pointer;
             text-decoration: underline;
         }
@@ -2051,6 +2141,19 @@
     </style>
 </head>
 <body>
+<script>
+/* RICH BLUE IS THIS PAGE'S LOOK. It is applied here, before anything is drawn,
+   so the page never flashes the light theme first and the charts are built in
+   the right colours. Light is still one click away on the header button, and
+   is remembered only when somebody chooses it there: 'light' is that choice.
+   The old toggle stored 'false' for light; that value is deliberately not
+   honoured, so every device moves to rich blue once. */
+(function () {
+    var light = false;
+    try { light = CESTISStore.getItem('darkMode') === 'light'; } catch (e) {}
+    if (!light) document.body.classList.add('dark-mode');
+})();
+</script>
     <!-- Login page removed: page runs embedded in the authenticated LMS dashboard -->
 
     <!-- Main Dashboard (Hidden until login) -->
@@ -2141,8 +2244,8 @@
                     </div>
 
                     <button class="theme-toggle-btn" onclick="toggleDarkMode()">
-                        <span id="themeIcon">🌙</span>
-                        <span id="themeText">Dark</span>
+                        <span id="themeIcon">☀️</span>
+                        <span id="themeText">Light</span>
                     </button>
                 </div>
             </div>
@@ -2258,7 +2361,7 @@
                 </div>
 
                 <!-- Personal Information Section -->
-                <h3 style="color: var(--primary-blue); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
+                <h3 style="color: var(--heading-color); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Date of Birth</label>
@@ -2469,7 +2572,7 @@
 
         <!-- Documents Module -->
         <div id="documents" class="module">
-            <h2 style="color: var(--primary-blue); margin-bottom: 1.5rem;">Student Documents Management</h2>
+            <h2 style="color: var(--heading-color); margin-bottom: 1.5rem;">Student Documents Management</h2>
             
             <div class="btn-group" style="margin-bottom: 1.5rem;">
                 <button class="btn" onclick="viewAllDocuments()">📁 View All Student Documents</button>
@@ -2553,7 +2656,7 @@
 
         <!-- Fee Structure Module -->
         <div id="feeStructure" class="module">
-            <h2 style="color: var(--primary-blue); margin-bottom: 1.5rem;">Fee Structure by Skill Area</h2>
+            <h2 style="color: var(--heading-color); margin-bottom: 1.5rem;">Fee Structure by Skill Area</h2>
             
             <!-- Admin Controls -->
             <div id="feeStructureAdminControls" style="display: none; margin-bottom: 2rem;">
@@ -2615,7 +2718,7 @@
 
         <!-- Reports Module -->
         <div id="reports" class="module">
-            <h2 style="color: var(--primary-blue); margin-bottom: 1rem;">Financial Reports</h2>
+            <h2 style="color: var(--heading-color); margin-bottom: 1rem;">Financial Reports</h2>
             <!-- The trainee reports count the same year's group as the rest of
                  the page; filled by renderFeeYearBar(). -->
             <div id="reportsYearBar"></div>
@@ -2694,14 +2797,14 @@
 
             <!-- Monthly Breakdown -->
             <div id="monthlyBreakdown" style="display: none;">
-                <h2 style="color: var(--primary-blue); margin-top: 2rem; margin-bottom: 1rem;">Monthly Payment Breakdown</h2>
+                <h2 style="color: var(--heading-color); margin-top: 2rem; margin-bottom: 1rem;">Monthly Payment Breakdown</h2>
                 <div class="months-grid" id="monthsGrid"></div>
             </div>
         </div>
 
         <!-- Import/Export Module -->
         <div id="import" class="module">
-            <h2 style="color: var(--primary-blue); margin-bottom: 1.5rem;">Data Import & Export</h2>
+            <h2 style="color: var(--heading-color); margin-bottom: 1.5rem;">Data Import & Export</h2>
             
             <div class="form-section">
                 <h2>Import Student Data</h2>
@@ -2751,7 +2854,7 @@
 
         <!-- User Management Module (Admin Only) -->
         <div id="userManagement" class="module">
-            <h2 style="color: var(--primary-blue); margin-bottom: 1.5rem;">User Management (Admin Only)</h2>
+            <h2 style="color: var(--heading-color); margin-bottom: 1.5rem;">User Management (Admin Only)</h2>
 
             <!-- 2FA Settings Section for Current User -->
             <div class="twofa-settings-section">
@@ -2906,7 +3009,7 @@
                 </div>
 
                 <!-- Personal Information Section -->
-                <h3 style="color: var(--primary-blue); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
+                <h3 style="color: var(--heading-color); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Date of Birth</label>
@@ -3195,7 +3298,7 @@
             </div>
             <div id="viewUserContent" style="padding: 1rem;">
                 <div style="background: var(--bg-primary); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-                    <h3 style="margin-bottom: 1rem; color: var(--primary-blue);">Account Information</h3>
+                    <h3 style="margin-bottom: 1rem; color: var(--heading-color);">Account Information</h3>
                     <div style="display: grid; grid-template-columns: 150px 1fr; gap: 0.75rem;">
                         <strong>User ID:</strong>
                         <span id="viewUserId">-</span>
@@ -3225,7 +3328,7 @@
                 </div>
                 
                 <div style="background: var(--bg-primary); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-                    <h3 style="margin-bottom: 1rem; color: var(--primary-blue);">Activity Information</h3>
+                    <h3 style="margin-bottom: 1rem; color: var(--heading-color);">Activity Information</h3>
                     <div style="display: grid; grid-template-columns: 150px 1fr; gap: 0.75rem;">
                         <strong>Created Date:</strong>
                         <span id="viewUserCreated">-</span>
@@ -5236,12 +5339,9 @@
             document.getElementById('enrollmentDate').value = today;
             document.getElementById('paymentDate').value = today;
 
-            // Load dark mode preference
-            const isDarkMode = CESTISStore.getItem('darkMode') === 'true';
-            if (isDarkMode) {
-                document.body.classList.add('dark-mode');
-                updateThemeToggle();
-            }
+            // The theme was applied as the body opened (rich blue unless Light
+            // was chosen); the header button only has to say which it is.
+            updateThemeToggle();
 
             // Hide upload form by default
             if (document.getElementById('uploadDocumentForm')) {
@@ -5300,7 +5400,8 @@
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
             const isDarkMode = document.body.classList.contains('dark-mode');
-            CESTISStore.setItem('darkMode', isDarkMode);
+            // 'light' is an explicit choice; rich blue is the default.
+            CESTISStore.setItem('darkMode', isDarkMode ? 'true' : 'light');
             updateThemeToggle();
             
             // Refresh charts with new theme
@@ -5314,14 +5415,14 @@
 
         function updateThemeToggle() {
             const isDarkMode = document.body.classList.contains('dark-mode');
-            document.getElementById('themeIcon').textContent = isDarkMode ? '☀️' : '🌙';
-            document.getElementById('themeText').textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';
+            document.getElementById('themeIcon').textContent = isDarkMode ? '☀️' : '🔵';
+            document.getElementById('themeText').textContent = isDarkMode ? 'Light' : 'Rich Blue';
         }
 
         function updateChartTheme(chart) {
             const isDarkMode = document.body.classList.contains('dark-mode');
-            const textColor = isDarkMode ? '#e0e0e0' : '#2C3E50';
-            const gridColor = isDarkMode ? '#2d4059' : '#e0e0e0';
+            const textColor = isDarkMode ? '#dbe7fb' : '#2C3E50';
+            const gridColor = isDarkMode ? 'rgba(142, 197, 255, 0.16)' : '#e0e0e0';
             
             chart.options.scales.x.ticks.color = textColor;
             chart.options.scales.y.ticks.color = textColor;
@@ -7198,7 +7299,7 @@
 
             let content = `
                 <div style="margin-bottom: 1.5rem;">
-                    <h3 style="color: var(--primary-blue); margin-bottom: 1rem;">${student.name}</h3>
+                    <h3 style="color: var(--heading-color); margin-bottom: 1rem;">${student.name}</h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                         <p><strong>Student ID:</strong> ${student.id}</p>
                         <p><strong>Skill Area:</strong> ${student.skillArea}</p>
@@ -7212,7 +7313,7 @@
                     </div>
                 </div>
 
-                <h3 style="color: var(--primary-blue); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
+                <h3 style="color: var(--heading-color); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1.5rem;">
                     <p><strong>Date of Birth:</strong> ${student.dateOfBirth || 'N/A'}</p>
                     <p><strong>Gender:</strong> ${student.gender || 'N/A'}</p>
@@ -7224,7 +7325,7 @@
                     <p><strong>Emergency Contact:</strong> ${student.emergencyContact || 'N/A'}</p>
                 </div>
 
-                <h3 style="color: var(--primary-blue); margin-bottom: 1rem;">Payment History</h3>
+                <h3 style="color: var(--heading-color); margin-bottom: 1rem;">Payment History</h3>
             `;
             
             if (studentPayments.length > 0) {
@@ -7245,7 +7346,7 @@
                 content += '<p>No payments recorded yet.</p>';
             }
 
-            content += '<h3 style="color: var(--primary-blue); margin: 1.5rem 0 1rem;">Documents</h3>';
+            content += '<h3 style="color: var(--heading-color); margin: 1.5rem 0 1rem;">Documents</h3>';
             if (studentDocs.length > 0) {
                 studentDocs.forEach(doc => {
                     content += `
@@ -9404,8 +9505,8 @@
             // Dashboard tab calls updateDashboard(), which draws them then.
             if (!_feeModuleActive('dashboard')) return;
             const isDarkMode = document.body.classList.contains('dark-mode');
-            const textColor = isDarkMode ? '#e0e0e0' : '#2C3E50';
-            const gridColor = isDarkMode ? '#2d4059' : '#e0e0e0';
+            const textColor = isDarkMode ? '#dbe7fb' : '#2C3E50';
+            const gridColor = isDarkMode ? 'rgba(142, 197, 255, 0.16)' : '#e0e0e0';
 
             // Collection Rate Chart
             const collectionCtx = document.getElementById('collectionChart');
@@ -9656,14 +9757,14 @@
                     grouped[s.skillArea].push(s);
                 });
 
-                let html = `<h3 style="color: var(--primary-blue); margin-bottom: 1rem;">Students by Skill Area - ${periodLabel}</h3>`;
+                let html = `<h3 style="color: var(--heading-color); margin-bottom: 1rem;">Students by Skill Area - ${periodLabel}</h3>`;
                 for (const [skillArea, studentList] of Object.entries(grouped)) {
                     const total = studentList.reduce((sum, s) => sum + s.tuitionFee, 0);
                     const collected = studentList.reduce((sum, s) => sum + s.totalPaid, 0);
 
                     html += `
                         <div style="background: var(--bg-primary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-                            <h4 style="color: var(--primary-blue);">${skillArea} (${studentList.length} students)</h4>
+                            <h4 style="color: var(--heading-color);">${skillArea} (${studentList.length} students)</h4>
                             <p><strong>Total Expected:</strong> $${total.toFixed(2)}</p>
                             <p><strong>Total Collected:</strong> $${collected.toFixed(2)}</p>
                             <p><strong>Collection Rate:</strong> ${(collected / total * 100).toFixed(1)}%</p>
@@ -9679,7 +9780,7 @@
                 };
 
                 let html = `
-                    <h3 style="color: var(--primary-blue); margin-bottom: 1rem;">${reportTitles[reportType] || 'Report'} - ${periodLabel}</h3>
+                    <h3 style="color: var(--heading-color); margin-bottom: 1rem;">${reportTitles[reportType] || 'Report'} - ${periodLabel}</h3>
                     <table>
                         <thead>
                             <tr>
@@ -9738,7 +9839,7 @@
             const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
 
             let html = `
-                <h3 style="color: var(--primary-blue); margin-bottom: 1rem;">Payments Report - ${periodLabel}</h3>
+                <h3 style="color: var(--heading-color); margin-bottom: 1rem;">Payments Report - ${periodLabel}</h3>
                 <div style="background: var(--bg-primary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; display: flex; gap: 2rem; flex-wrap: wrap;">
                     <div><strong>Total Payments:</strong> ${filteredPayments.length}</div>
                     <div><strong>Total Amount:</strong> $${totalAmount.toFixed(2)}</div>
@@ -14629,7 +14730,7 @@
                                     Modified ${timeAgo}
                                 </div>
                             </div>
-                            <span style="color: var(--primary-blue); font-size: 1.2rem;">→</span>
+                            <span style="color: var(--heading-color); font-size: 1.2rem;">→</span>
                         </div>
                     </div>
                 `;
