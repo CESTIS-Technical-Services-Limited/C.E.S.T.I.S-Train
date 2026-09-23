@@ -43,13 +43,18 @@ function extractFunction(name) {
   throw new Error('unbalanced braces reading ' + name + '()');
 }
 
-const NAMES = ['feeNameKey', 'feeKeyFor', 'feeBackfillTuition', 'feePaymentStatus',
+// feeIntakeFeeKey is how the backfill reaches an intake priced under its own
+// label for a trainee recorded under the plain programme name. The backup holds
+// no training centres, so it finds nothing here and every count below is the
+// name-only answer; that path is covered by school-fee-carry-forward.test.js.
+const NAMES = ['feeNameKey', 'feeKeyFor', 'feeBackfillTuition', 'feeIntakeFeeKey', 'feePaymentStatus',
                'feeIsUnpriced', 'recalculateStudentTotals'];
 
 function makePage(students, payments, feeStructure) {
   const sandbox = {
     students: students, payments: payments, feeStructure: feeStructure,
     CESTISCore: Core, console: { log: () => {}, warn: () => {} },
+    feeTrainingCentres: () => [],
     Date: Date, Object: Object, Array: Array, String: String,
     parseFloat: parseFloat, JSON: JSON, Map: Map
   };

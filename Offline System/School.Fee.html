@@ -216,6 +216,7 @@
             color-scheme: dark;
         }
         body.dark-mode .header { background: linear-gradient(135deg, #0D47A1 0%, #0f3a7a 100%); }
+        body.dark-mode .fee-carried-tag { color: #8ec5ff; background: rgba(142, 197, 255, 0.12); border-color: rgba(142, 197, 255, 0.35); }
         body.dark-mode .btn-secondary { background: #2a5694; }
         body.dark-mode .btn-secondary:hover { background: #33649f; }
         /* The four figures keep their meanings, bright enough to read on blue. */
@@ -491,6 +492,15 @@
             border-radius: 0.75rem;
             margin-bottom: 2rem;
         }
+
+        /* A fee set automatically from the previous intake, until edited. */
+        .fee-carried-tag {
+            display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 9px;
+            font-size: 11px; font-weight: 600; color: #0D47A1;
+            background: rgba(13, 71, 161, 0.08); border: 1px solid rgba(13, 71, 161, 0.25);
+        }
+        .fee-carry-note { margin: -0.25rem 0 0.75rem; font-size: 0.85rem; color: var(--heading-color); min-height: 1em; }
+        .fee-carry-note:empty { display: none; }
 
         .form-section h2 {
             color: var(--heading-color);
@@ -2674,19 +2684,21 @@
                                  course that has not been created in VocTrain (or
                                  is spelt the fee side's way) can still be priced
                                  and enrolled into. -->
-                            <input type="text" id="newSkillAreaName" list="voctrainCourseOptions" autocomplete="off" placeholder="e.g., WELDING L2">
+                            <input type="text" id="newSkillAreaName" list="voctrainCourseOptions" autocomplete="off" placeholder="e.g., WELDING L2" oninput="feePrefillProgrammeCost()" onchange="feePrefillProgrammeCost()">
                             <datalist id="voctrainCourseOptions"></datalist>
                             <small id="newSkillAreaHint" style="display:block;margin-top:0.35rem;color:var(--text-secondary);font-size:0.78rem;"></small>
                         </div>
                         <div class="form-group">
                             <label>Total Tuition Fee ($) *</label>
-                            <input type="number" id="newSkillAreaFee" step="0.01" placeholder="e.g., 35000">
+                            <input type="number" id="newSkillAreaFee" step="0.01" placeholder="e.g., 35000" oninput="feeProgrammeCostTyped(this)">
                         </div>
                         <div class="form-group">
                             <label>Number of Terms *</label>
-                            <input type="number" id="newSkillAreaTerms" min="1" max="9" placeholder="e.g., 6">
+                            <input type="number" id="newSkillAreaTerms" min="1" max="9" placeholder="e.g., 6" oninput="feeProgrammeCostTyped(this)">
                         </div>
                     </div>
+                    <!-- Where pre-filled figures came from (feePrefillProgrammeCost). -->
+                    <p id="newSkillAreaCarryNote" class="fee-carry-note" aria-live="polite"></p>
                     <button class="btn" onclick="addNewSkillArea()">➕ Add Programme Cost</button>
                 </div>
             </div>
@@ -4661,6 +4673,253 @@
             } catch (e) { console.warn('[FeeIntake] failed', e); return 0; }
         }
 
+        /* ---- A new intake takes the previous intake's fee ------------------
+
+           Every intake of a programme is priced under its own label — "01.
+           Welding and Fabrication", then "02. Welding and Fabrication" when the
+           Centre runs it again — so each new training centre created on the LMS
+           arrived here with no fee at all. Its trainees read "Not Priced", and
+           somebody had to type the same cost and term split in again, intake
+           after intake.
+
+           Now a new intake is priced from the one before it, automatically,
+           whenever this page opens or the LMS changes its training centres:
+             - "the one before it" is the most recent EARLIER intake of the same
+               programme that has a fee here (same programme = same name, with
+               case, "&"/"and" and "L2"/"Level 2" set aside; a different NVQ
+               level is never the same programme);
+             - the total and the term split are copied, and the entry is marked
+               as carried over, which the Fee Structure table shows;
+             - a fee somebody has set is never touched, and editing a carried
+               one makes it theirs; deleting or renaming it is remembered
+               (cestiSchoolFeeCarryDeclined, synced like the rest of the fee
+               data) so it is not quietly put back;
+             - a programme with no earlier priced intake is left alone — there
+               is no previous fee to carry, and the page does not invent one.
+
+           Only intakes are carried from. A fee written under an older shorthand
+           ("WELDING L2") is offered as a pre-filled suggestion on the Set
+           Programme Cost form instead (feeSuggestedFeeFor), because pricing a
+           centre's label from a shorthand name automatically would hand that
+           shorthand's trainees to the new intake the next time
+           collapseFeeIntakes() runs. */
+        const FEE_CARRY_DECLINED_KEY = 'cestiSchoolFeeCarryDeclined';
+        const _FEE_IDENTITY_STOP = { and: 1, the: 1, of: 1, for: 1, with: 1 };
+
+        // A programme's name with the intake key, case, punctuation, "&"/"and"
+        // and the level shorthand set aside: two intakes of one programme give
+        // the same answer, two levels of one subject do not.
+        function feeProgrammeIdentity(name) {
+            var bare = name;
+            try { bare = CESTISCore.enrolment.parseCentreLabel(name).name; } catch (e) {}
+            return String(bare == null ? '' : bare).toLowerCase()
+                .replace(/&/g, ' and ')
+                .replace(/\b(?:l|lvl|lev)\s*([1-9])\b/g, 'level $1')
+                .replace(/[^a-z0-9]+/g, ' ')
+                .split(' ')
+                .filter(function (w) { return w && !_FEE_IDENTITY_STOP[w]; })
+                .join(' ');
+        }
+
+        // Is intake a earlier than intake b? By start date when both have one,
+        // otherwise by intake number ('01' before '02'). Undecidable is "no".
+        function feeIntakeBefore(a, b) {
+            function order(c) {
+                var s = '', k = NaN;
+                try { s = CESTISCore.courseDuration.normDate(c.startDate) || ''; } catch (e) {}
+                try { k = parseInt(CESTISCore.enrolment.centreKeyOf(c), 10); } catch (e) {}
+                return { start: s, key: k };
+            }
+            var A = order(a), B = order(b);
+            if (A.start && B.start && A.start !== B.start) return A.start < B.start;
+            if (!isNaN(A.key) && !isNaN(B.key) && A.key !== B.key) return A.key < B.key;
+            return false;
+        }
+
+        // Intake labels the user has taken a carried fee away from.
+        function feeCarryDeclined() {
+            var out = {};
+            try {
+                var list = JSON.parse(CESTISStore.getItem(FEE_CARRY_DECLINED_KEY) || '[]');
+                if (Array.isArray(list)) list.forEach(function (k) { if (k) out[k] = true; });
+            } catch (e) {}
+            return out;
+        }
+
+        // Remember that the user removed (or renamed away) the fee of a live
+        // intake, so the carry-over does not put it back.
+        function feeDeclineCarry(name) {
+            try {
+                var k = feeNameKey(name);
+                if (!k) return false;
+                var isIntake = feeTrainingCentres().some(function (c) { return feeNameKey(feeCentreLabel(c)) === k; });
+                if (!isIntake) return false;
+                var list = Object.keys(feeCarryDeclined());
+                if (list.indexOf(k) >= 0) return false;
+                list.push(k);
+                CESTISStore.setItem(FEE_CARRY_DECLINED_KEY, JSON.stringify(list));
+                return true;
+            } catch (e) { return false; }
+        }
+
+        // Price every new intake from the one before it. Intakes are walked
+        // earliest first, so a run of new ones is priced in order and each takes
+        // the fee of the one just before it. Returns what was carried.
+        function feeCarryForwardIntakeFees() {
+            try {
+                if (!feeStructure || typeof feeStructure !== 'object') return [];
+                if (typeof CESTISCore === 'undefined' || !CESTISCore.enrolment) return [];
+                var centres = feeTrainingCentres().filter(function (c) { return c && c.name; });
+                if (centres.length < 2) return [];
+                centres.sort(function (a, b) { return feeIntakeBefore(a, b) ? -1 : (feeIntakeBefore(b, a) ? 1 : 0); });
+                var declined = feeCarryDeclined();
+                var carried = [];
+                centres.forEach(function (c) {
+                    var label = feeCentreLabel(c);
+                    if (!label || declined[feeNameKey(label)]) return;
+                    if (feeKeyFor(label)) return;                  // priced already — by somebody, or earlier
+                    var bare = c.name;
+                    try { bare = CESTISCore.enrolment.parseCentreLabel(c.name).name; } catch (e) {}
+                    if (feeKeyFor(bare)) return;                   // priced by its plain name, which covers every intake
+                    var id = feeProgrammeIdentity(c.name);
+                    if (!id) return;
+
+                    var best = null, bestKey = null;
+                    centres.forEach(function (d) {
+                        if (d === c || feeProgrammeIdentity(d.name) !== id) return;
+                        if (!feeIntakeBefore(d, c)) return;        // only an EARLIER intake is "previous"
+                        var k = feeKeyFor(feeCentreLabel(d));
+                        if (!k || !(parseFloat(feeStructure[k] && feeStructure[k].total) > 0)) return;
+                        if (!best || feeIntakeBefore(best, d)) { best = d; bestKey = k; }
+                    });
+                    if (!best) return;
+
+                    var src = feeStructure[bestKey];
+                    var terms = [];
+                    for (var i = 0; i < 9; i++) terms.push(parseFloat(Array.isArray(src.terms) ? src.terms[i] : 0) || 0);
+                    feeStructure[label] = {
+                        total: parseFloat(src.total) || 0,
+                        terms: terms,
+                        carriedFrom: bestKey,
+                        carriedAt: new Date().toISOString()
+                    };
+                    carried.push({ to: label, from: bestKey, total: parseFloat(src.total) || 0,
+                                   terms: terms.filter(function (t) { return t > 0; }).length });
+                });
+                if (carried.length) {
+                    saveFeeStructure();
+                    console.log('[FeeCarry] Priced ' + carried.length + ' new intake(s) from the one before: ' +
+                        carried.map(function (x) { return x.to + ' <- ' + x.from; }).join(', '));
+                }
+                return carried;
+            } catch (e) { console.warn('[FeeCarry] failed', e); return []; }
+        }
+
+        // Tell whoever is looking that a fee was carried, and where to change it.
+        function feeReportCarried(carried) {
+            if (!carried || !carried.length) return;
+            var first = carried[0];
+            var msg = carried.length === 1
+                ? 'New intake priced automatically: ' + first.to + ' takes the fee of ' + first.from +
+                  ' — ' + formatCurrency(first.total) + ' over ' + first.terms + ' term' + (first.terms === 1 ? '' : 's') +
+                  '. Edit it under Fee Structure if this intake costs differently.'
+                : carried.length + ' new intakes priced automatically from the intake before each (' +
+                  carried.map(function (x) { return x.to; }).join(', ') +
+                  '). Edit any of them under Fee Structure if it costs differently.';
+            feeToast(msg, 12000, { label: 'Open Fee Structure', run: function () { switchModule('feeStructure'); } });
+        }
+
+        // The fee a trainee's own intake is priced at, for a trainee recorded
+        // under the programme's plain name — which is how the LMS records them —
+        // while the intake is priced under its label. Their stamped intake
+        // decides; without a stamp, the intake running when they enrolled.
+        function feeIntakeFeeKey(s) {
+            try {
+                if (!s || !s.skillArea || typeof CESTISCore === 'undefined' || !CESTISCore.enrolment) return null;
+                var centres = (typeof feeCentresCached === 'function') ? feeCentresCached() : feeTrainingCentres();
+                if (!centres.length) return null;
+                var opts = s.centreKey ? { centreKey: s.centreKey }
+                    : { on: s.enrollmentDate || s.enrolmentDate || s.createdAt || '' };
+                var c = CESTISCore.enrolment.findCentre(centres, s.skillArea, opts);
+                // The same programme, not merely a name the loose match accepted.
+                if (!c || feeProgrammeIdentity(c.name) !== feeProgrammeIdentity(s.skillArea)) return null;
+                return feeKeyFor(feeCentreLabel(c)) || null;
+            } catch (e) { return null; }
+        }
+
+        /* The fee to pre-fill on the Set Programme Cost form for a programme
+           being priced by hand: the previous intake's, as the carry-over would
+           pick, or else one priced entry of the same programme at the same
+           level under any other name (the older shorthand, "WELDING L2" for
+           "Welding and Fabrication Level 2"). Several such entries that
+           disagree give nothing — the user is not guessed at. */
+        function feeSuggestedFeeFor(name) {
+            try {
+                if (!name || feeKeyFor(name) || !feeStructure) return null;
+                var E = CESTISCore.enrolment;
+                var id = feeProgrammeIdentity(name);
+                var centres = feeTrainingCentres().filter(function (c) { return c && c.name; });
+                var me = null;
+                centres.forEach(function (c) { if (!me && feeNameKey(feeCentreLabel(c)) === feeNameKey(name)) me = c; });
+                if (me) {
+                    var best = null, bestKey = null;
+                    centres.forEach(function (d) {
+                        if (d === me || feeProgrammeIdentity(d.name) !== id || !feeIntakeBefore(d, me)) return;
+                        var k = feeKeyFor(feeCentreLabel(d));
+                        if (!k || !(parseFloat(feeStructure[k].total) > 0)) return;
+                        if (!best || feeIntakeBefore(best, d)) { best = d; bestKey = k; }
+                    });
+                    if (bestKey) return { from: bestKey, entry: feeStructure[bestKey] };
+                }
+                var level = E.programmeLevel(name) || '';
+                var hits = Object.keys(feeStructure).filter(function (k) {
+                    var f = feeStructure[k];
+                    if (!f || !(parseFloat(f.total) > 0)) return false;
+                    if ((E.programmeLevel(k) || '') !== level) return false;
+                    return feeProgrammeIdentity(k) === id || E.programmesAgree(k, name);
+                });
+                if (!hits.length) return null;
+                var sig = function (k) { return JSON.stringify([parseFloat(feeStructure[k].total) || 0, feeStructure[k].terms || []]); };
+                var same = hits.every(function (k) { return sig(k) === sig(hits[0]); });
+                return same ? { from: hits[0], entry: feeStructure[hits[0]] } : null;
+            } catch (e) { return null; }
+        }
+
+        // As the programme is chosen on Set Programme Cost, pre-fill the fee and
+        // terms from the previous one. Only fields the user has not typed into
+        // are filled, and the hint says where the figures came from.
+        function feePrefillProgrammeCost() {
+            var nameEl = document.getElementById('newSkillAreaName');
+            var feeEl = document.getElementById('newSkillAreaFee');
+            var termsEl = document.getElementById('newSkillAreaTerms');
+            var note = document.getElementById('newSkillAreaCarryNote');
+            if (!nameEl || !feeEl || !termsEl) return;
+            var ours = function (el) { return !el.value || el.dataset.prefilled === '1'; };
+            var sug = feeSuggestedFeeFor(nameEl.value.trim().replace(/\s+/g, ' '));
+            if (sug && ours(feeEl) && ours(termsEl)) {
+                var t = (sug.entry.terms || []).filter(function (x) { return (parseFloat(x) || 0) > 0; }).length || 1;
+                feeEl.value = parseFloat(sug.entry.total) || '';
+                termsEl.value = t;
+                feeEl.dataset.prefilled = termsEl.dataset.prefilled = '1';
+                if (note) note.textContent = '↻ Filled in from ' + sug.from + ' (' + formatCurrency(parseFloat(sug.entry.total) || 0) +
+                    ', ' + t + ' term' + (t === 1 ? '' : 's') + '). Change the figures if this programme costs differently.';
+            } else if (!sug && feeEl.dataset.prefilled === '1' && termsEl.dataset.prefilled === '1') {
+                feeEl.value = ''; termsEl.value = '';
+                delete feeEl.dataset.prefilled; delete termsEl.dataset.prefilled;
+                if (note) note.textContent = '';
+            } else if (!sug && note) {
+                note.textContent = '';
+            }
+        }
+
+        // Typing a figure makes it the user's: it is never replaced by a
+        // suggestion afterwards.
+        function feeProgrammeCostTyped(el) {
+            if (el) delete el.dataset.prefilled;
+            var note = document.getElementById('newSkillAreaCarryNote');
+            if (note && note.textContent) note.textContent = 'Your figures will be used.';
+        }
+
         // The popup that says where programmes are chosen. Shown when a trainee
         // is about to be enrolled and there is nothing to enrol them into.
         function showNoProgrammeNotice() {
@@ -4790,6 +5049,10 @@
             document.getElementById('newSkillAreaName').value = '';
             document.getElementById('newSkillAreaFee').value = '';
             document.getElementById('newSkillAreaTerms').value = '';
+            delete document.getElementById('newSkillAreaFee').dataset.prefilled;
+            delete document.getElementById('newSkillAreaTerms').dataset.prefilled;
+            const _carryNote = document.getElementById('newSkillAreaCarryNote');
+            if (_carryNote) _carryNote.textContent = '';
             populateSkillAreaCourseDropdown(); // refresh: the just-priced course drops off the suggestions
 
             // Update skill area dropdown in student form
@@ -4955,8 +5218,10 @@
                     }
                 });
                 
-                // Delete old entry
+                // Delete old entry — and, if it was a training centre's own
+                // label, do not let the carry-over price that label again.
                 delete feeStructure[editingFeeSkillArea];
+                feeDeclineCarry(editingFeeSkillArea);
             }
             
             feeStructure[newName] = { total: fee, terms: terms };
@@ -4993,6 +5258,9 @@
             
             if (confirm(`Are you sure you want to delete the skill area "${skillArea}"?\n\nThis action cannot be undone.`)) {
                 delete feeStructure[skillArea];
+                // A new intake's fee is carried over automatically; one the
+                // user deletes stays deleted.
+                feeDeclineCarry(skillArea);
                 saveFeeStructure();
                 renderFeeStructure();
                 updateSkillAreaOptions();
@@ -5319,6 +5587,7 @@
             dedupeFeeStructure();         // one entry per programme, however it is spelt
             feeBindTraineesToIntake();    // each trainee held to the intake they enrolled in
             collapseFeeIntakes();         // one entry per intake, however the Centre names it
+            const _feeCarried = feeCarryForwardIntakeFees();   // a new intake takes the previous intake's fee
             seedFeeInformation();         // trainees from the LMS roll; tuition from the Fee Structure
             renderFeeStructure();
             updateDashboard();
@@ -5328,6 +5597,7 @@
             renderDocumentsTable();
             renderUsersTable();
             populatePaymentStudentSelect();
+            feeReportCarried(_feeCarried);
             populateDocumentStudentSelect();
             updateDocumentTypeFilter();
             updateSkillAreaOptions();
@@ -5964,7 +6234,9 @@
             students.forEach(function (s) {
                 if (!s || !s.needsFeeDetails) return;
                 if ((parseFloat(s.tuitionFee) || 0) > 0) return;   // already priced
-                var key = feeKeyFor(s.skillArea);
+                // Their programme by name — or, for a trainee the LMS recorded
+                // under the plain name, the intake they are in.
+                var key = feeKeyFor(s.skillArea) || feeIntakeFeeKey(s);
                 if (!key) return;                                   // programme not priced here
                 var total = parseFloat(feeStructure[key] && feeStructure[key].total) || 0;
                 if (total <= 0) return;
@@ -6082,9 +6354,18 @@
                     feeInvalidateCaches();
                     refreshLmsStudentCache();          // academic stage column
                     if (typeof loadData === 'function') loadData();
+                    // A training centre created on the LMS takes the previous
+                    // intake's fee. Read the stored fees first, so a fee set on
+                    // another device or tab is never written back over.
+                    let _carried = [];
+                    if (typeof feeCarryForwardIntakeFees === 'function') {
+                        loadFeeStructure();
+                        _carried = feeCarryForwardIntakeFees();
+                    }
                     // The roll or the prices may have just arrived: seed what is
                     // now seedable (idempotent — nothing to do means nothing done).
                     if (typeof seedFeeInformation === 'function') seedFeeInformation();
+                    if (_carried.length) { renderFeeStructure(); feeReportCarried(_carried); }
                     if (typeof renderStudentsTable === 'function') renderStudentsTable();
                     if (typeof renderPaymentsTable === 'function') renderPaymentsTable();
                     if (typeof renderDocumentsTable === 'function') renderDocumentsTable();
@@ -9455,8 +9736,13 @@
                     termCells.push(`<td class="fee-term-col" data-term="${ti + 1}">${term > 0 ? '$' + term.toFixed(2) : '-'}</td>`);
                 }
 
+                // A fee carried over from the previous intake says so until the
+                // user edits it (which replaces the entry and drops the mark).
+                const carriedTag = data.carriedFrom
+                    ? `<div class="fee-carried-tag" title="Set automatically when this intake appeared. Edit to change it.">↻ Carried over from ${feeAttr(data.carriedFrom)}</div>`
+                    : '';
                 let html = `
-                    <td><strong>${skillArea}</strong></td>
+                    <td><strong>${skillArea}</strong>${carriedTag}</td>
                     <td><strong>$${total.toFixed(2)}</strong></td>
                     ${termCells.join('')}
                 `;
