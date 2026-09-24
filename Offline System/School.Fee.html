@@ -166,6 +166,12 @@
             /* CESTI Colors */
             --primary-blue: #0D47A1;
             --light-blue: #1565C0;
+            /* Headings and emphasised labels. The same navy as before in the
+               light theme; a light blue on the rich-blue theme, where navy text
+               on a blue card could not be read. */
+            --heading-color: #0D47A1;
+            /* Small explanatory lines (which year and quarter a list shows). */
+            --text-muted: #5b6b80;
             --soft-blue: #E3F2FD;
             --light-green: #A8D5A5;
             --medium-green: #66BB6A;
@@ -182,16 +188,101 @@
             --shadow: rgba(0, 0, 0, 0.1);
         }
 
+        /* RICH BLUE — the page's own look, and its default (see the script at
+           the top of <body>). The class is still called dark-mode because the
+           Student Progress page reads the same preference.
+
+           It used to be a near-black purple page (#1a1a2e) with blue cards on
+           it, so only the cards were blue; the gutters and every form panel
+           were black-purple, and headings kept the light theme's navy, which
+           all but vanished on a blue card. Every surface is now a shade of the
+           one blue, darkest at the back: page and inset panels, then the cards
+           (#0f3460), then inputs and hovers. Text and headings are light blues
+           and whites chosen to stay above 4.5:1 on each of them. */
         body.dark-mode {
-            --bg-primary: #1a1a2e;
-            --bg-secondary: #16213e;
+            --bg-primary: #0a1f44;
+            --bg-secondary: #0c2a5b;
             --bg-card: #0f3460;
-            --text-primary: #e0e0e0;
-            --text-secondary: #a0a0a0;
-            --border-color: #2d4059;
-            --table-hover: #16213e;
-            --shadow: rgba(0, 0, 0, 0.3);
+            --soft-blue: rgba(142, 197, 255, 0.14);
+            --text-primary: #e8f0fe;
+            --text-secondary: #a9c1e8;
+            --heading-color: #8ec5ff;
+            --text-muted: #a9c1e8;
+            --border-color: #24497f;
+            --table-hover: #15407a;
+            --shadow: rgba(2, 10, 30, 0.45);
+            /* Native controls — date pickers, dropdown lists, scrollbars —
+               draw themselves dark instead of as white islands. */
+            color-scheme: dark;
         }
+        body.dark-mode .header { background: linear-gradient(135deg, #0D47A1 0%, #0f3a7a 100%); }
+        body.dark-mode .fee-carried-tag { color: #8ec5ff; background: rgba(142, 197, 255, 0.12); border-color: rgba(142, 197, 255, 0.35); }
+        body.dark-mode .btn-secondary { background: #2a5694; }
+        body.dark-mode .btn-secondary:hover { background: #33649f; }
+        /* The four figures keep their meanings, bright enough to read on blue. */
+        body.dark-mode .stat-card:nth-child(1) { border-left-color: #94a3b8; }
+        body.dark-mode .stat-card:nth-child(2) { border-left-color: #60a5fa; }
+        body.dark-mode .stat-card:nth-child(3) { border-left-color: #34d399; }
+        body.dark-mode .stat-card:nth-child(4) { border-left-color: #fbbf24; }
+        body.dark-mode .stat-card:nth-child(3) .value { color: #4ade80; }
+        body.dark-mode .stat-card:nth-child(4) .value { color: #fbbf24; }
+        /* The year and quarter controls, drawn for the light theme. */
+        body.dark-mode .fee-qfilter { background: rgba(142, 197, 255, 0.06); border-color: rgba(142, 197, 255, 0.22); }
+        body.dark-mode .fee-qtab, body.dark-mode .fee-qbtn { border-color: rgba(142, 197, 255, 0.30); }
+        body.dark-mode .fee-qtab:hover, body.dark-mode .fee-qbtn:hover { background: rgba(142, 197, 255, 0.12); }
+        body.dark-mode .fee-qtab.active { background: #1565C0; border-color: #1565C0; }
+        body.dark-mode .fee-yb-nav:hover:not(:disabled),
+        body.dark-mode .fee-yb-all:hover { border-color: #8ec5ff; color: #8ec5ff; }
+        body.dark-mode .fee-yb-all.active { background: #1565C0; border-color: #1565C0; color: #fff; }
+        body.dark-mode .fee-yb-hint { background: rgba(142, 197, 255, 0.08); border-color: rgba(142, 197, 255, 0.25); }
+        /* Notices written with light-theme inline colours. */
+        body.dark-mode #feeUnpricedNotice {
+            background: rgba(251, 191, 36, 0.12) !important;
+            color: #fde68a !important;
+            border-color: rgba(251, 191, 36, 0.45) !important;
+        }
+        body.dark-mode #feeUnpricedNotice a, body.dark-mode #feeUnpricedNotice strong { color: #fde68a !important; }
+        body.dark-mode #mergeControls {
+            background: rgba(186, 104, 200, 0.14) !important;
+            border-color: #ba68c8 !important;
+        }
+        body.dark-mode #selectedCount { color: #e1bee7 !important; }
+        /* Dialogs (merge, cloud sync, backup) are built with inline light
+           tints and dark text. On the blue theme each tint becomes the same
+           hue at low strength, and each dark text colour its light partner. */
+        body.dark-mode [style*="background: #E3F2FD" i], body.dark-mode [style*="background:#E3F2FD" i] { background: rgba(142, 197, 255, 0.10) !important; }
+        body.dark-mode [style*="background: #E8F5E9" i], body.dark-mode [style*="background:#E8F5E9" i] { background: rgba(74, 222, 128, 0.10) !important; }
+        body.dark-mode [style*="background: #FFF8E1" i], body.dark-mode [style*="background:#FFF8E1" i] { background: rgba(251, 191, 36, 0.10) !important; }
+        body.dark-mode [style*="background: #FFE0B2" i], body.dark-mode [style*="background:#FFE0B2" i] { background: rgba(251, 146, 60, 0.18) !important; }
+        body.dark-mode [style*="background: #F3E5F5" i], body.dark-mode [style*="background:#F3E5F5" i] { background: rgba(186, 104, 200, 0.14) !important; }
+        body.dark-mode [style*="background: #f5f5f5" i], body.dark-mode [style*="background:#f5f5f5" i] { background: rgba(255, 255, 255, 0.05) !important; }
+        body.dark-mode [style*="background: #FFF3E0" i], body.dark-mode [style*="background:#FFF3E0" i] { background: rgba(251, 146, 60, 0.12) !important; }
+        body.dark-mode [style*="background: #e0f2fe" i], body.dark-mode [style*="background:#e0f2fe" i] { background: rgba(142, 197, 255, 0.10) !important; }
+        body.dark-mode [style*="background: #fef3c7" i], body.dark-mode [style*="background:#fef3c7" i] { background: rgba(251, 191, 36, 0.12) !important; }
+        body.dark-mode [style*="background: #d1fae5" i], body.dark-mode [style*="background:#d1fae5" i] { background: rgba(16, 185, 129, 0.12) !important; }
+        body.dark-mode [style*="color: #2196F3" i], body.dark-mode [style*="color:#2196F3" i],
+        body.dark-mode [style*="color: #3b82f6" i], body.dark-mode [style*="color:#3b82f6" i] { color: #93c5fd !important; }
+        body.dark-mode [style*="color: #E91E63" i], body.dark-mode [style*="color:#E91E63" i] { color: #f9a8d4 !important; }
+        body.dark-mode [style*="color: #ef4444" i], body.dark-mode [style*="color:#ef4444" i],
+        body.dark-mode [style*="color: #e74c3c" i], body.dark-mode [style*="color:#e74c3c" i] { color: #fca5a5 !important; }
+        /* Deliberately left alone: small pills that carry BOTH a light
+           background and a dark text colour of their own (the auto-sync ON/OFF
+           tag), which read the same on either theme. */
+        body.dark-mode [style*="color: #0D47A1" i], body.dark-mode [style*="color:#0D47A1" i],
+        body.dark-mode [style*="color: #1565C0" i], body.dark-mode [style*="color:#1565C0" i],
+        body.dark-mode [style*="color: #0369a1" i], body.dark-mode [style*="color:#0369a1" i] { color: #8ec5ff !important; }
+        body.dark-mode [style*="color: #2E7D32" i], body.dark-mode [style*="color:#2E7D32" i],
+        body.dark-mode [style*="color: #1B5E20" i], body.dark-mode [style*="color:#1B5E20" i] { color: #86efac !important; }
+        body.dark-mode [style*="color: #E65100" i], body.dark-mode [style*="color:#E65100" i] { color: #fdba74 !important; }
+        body.dark-mode [style*="color: #d97706" i], body.dark-mode [style*="color:#d97706" i],
+        body.dark-mode [style*="color: #856404" i], body.dark-mode [style*="color:#856404" i],
+        body.dark-mode [style*="color: #8a6d00" i], body.dark-mode [style*="color:#8a6d00" i] { color: #fcd34d !important; }
+        body.dark-mode [style*="color: #7B1FA2" i], body.dark-mode [style*="color:#7B1FA2" i],
+        body.dark-mode [style*="color: #9C27B0" i], body.dark-mode [style*="color:#9C27B0" i] { color: #e1bee7 !important; }
+        body.dark-mode [style*="color: #6b7280" i], body.dark-mode [style*="color:#6b7280" i],
+        body.dark-mode [style*="color: #666" i], body.dark-mode [style*="color:#666" i],
+        body.dark-mode [style*="color: #555" i], body.dark-mode [style*="color:#555" i] { color: var(--text-secondary) !important; }
+        body.dark-mode [style*="color: #333" i], body.dark-mode [style*="color:#333" i] { color: var(--text-primary) !important; }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -402,8 +493,17 @@
             margin-bottom: 2rem;
         }
 
+        /* A fee set automatically from the previous intake, until edited. */
+        .fee-carried-tag {
+            display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 9px;
+            font-size: 11px; font-weight: 600; color: #0D47A1;
+            background: rgba(13, 71, 161, 0.08); border: 1px solid rgba(13, 71, 161, 0.25);
+        }
+        .fee-carry-note { margin: -0.25rem 0 0.75rem; font-size: 0.85rem; color: var(--heading-color); min-height: 1em; }
+        .fee-carry-note:empty { display: none; }
+
         .form-section h2 {
-            color: var(--primary-blue);
+            color: var(--heading-color);
             margin-bottom: 1rem;
             font-size: 1.5rem;
         }
@@ -730,7 +830,7 @@
             color: var(--text-secondary);
         }
         .trainee-search-chosen.shown { display: block; }
-        .trainee-search-chosen strong { color: var(--primary-blue); }
+        .trainee-search-chosen strong { color: var(--heading-color); }
 
         /* Status Badges */
         .status-badge {
@@ -832,7 +932,7 @@
         }
 
         .modal-header h2 {
-            color: var(--primary-blue);
+            color: var(--heading-color);
         }
 
         .close-btn {
@@ -857,7 +957,7 @@
         }
 
         .chart-container h2 {
-            color: var(--primary-blue);
+            color: var(--heading-color);
             margin-bottom: 1rem;
         }
 
@@ -889,7 +989,7 @@
         .month-header {
             font-size: 1.2rem;
             font-weight: bold;
-            color: var(--primary-blue);
+            color: var(--heading-color);
             margin-bottom: 1rem;
             display: flex;
             justify-content: space-between;
@@ -1095,7 +1195,7 @@
 
         /* Forgot Password Styles */
         .forgot-password-link a {
-            color: var(--primary-blue);
+            color: var(--heading-color);
             text-decoration: none;
             transition: color 0.3s ease;
         }
@@ -1118,7 +1218,7 @@
         }
 
         .otp-resend a {
-            color: var(--primary-blue);
+            color: var(--heading-color);
             text-decoration: none;
             transition: color 0.3s ease;
         }
@@ -1405,7 +1505,7 @@
         }
 
         .twofa-use-backup a {
-            color: var(--primary-blue);
+            color: var(--heading-color);
             cursor: pointer;
             text-decoration: underline;
         }
@@ -2051,6 +2151,19 @@
     </style>
 </head>
 <body>
+<script>
+/* RICH BLUE IS THIS PAGE'S LOOK. It is applied here, before anything is drawn,
+   so the page never flashes the light theme first and the charts are built in
+   the right colours. Light is still one click away on the header button, and
+   is remembered only when somebody chooses it there: 'light' is that choice.
+   The old toggle stored 'false' for light; that value is deliberately not
+   honoured, so every device moves to rich blue once. */
+(function () {
+    var light = false;
+    try { light = CESTISStore.getItem('darkMode') === 'light'; } catch (e) {}
+    if (!light) document.body.classList.add('dark-mode');
+})();
+</script>
     <!-- Login page removed: page runs embedded in the authenticated LMS dashboard -->
 
     <!-- Main Dashboard (Hidden until login) -->
@@ -2141,8 +2254,8 @@
                     </div>
 
                     <button class="theme-toggle-btn" onclick="toggleDarkMode()">
-                        <span id="themeIcon">🌙</span>
-                        <span id="themeText">Dark</span>
+                        <span id="themeIcon">☀️</span>
+                        <span id="themeText">Light</span>
                     </button>
                 </div>
             </div>
@@ -2258,7 +2371,7 @@
                 </div>
 
                 <!-- Personal Information Section -->
-                <h3 style="color: var(--primary-blue); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
+                <h3 style="color: var(--heading-color); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Date of Birth</label>
@@ -2300,6 +2413,11 @@
                 </div>
                 <button class="btn" onclick="addStudent()">Add Student</button>
             </div>
+
+            <!-- Which financial year these trainees are. The dashboard had a
+                 year filter, but this list ignored it and showed every year's
+                 trainees together; filled by renderFeeYearBar(). -->
+            <div id="studentsYearBar"></div>
 
             <div class="search-filter">
                 <input type="text" id="searchStudent" placeholder="🔍 Search by name or ID..." oninput="filterStudentsDebounced()">
@@ -2464,7 +2582,7 @@
 
         <!-- Documents Module -->
         <div id="documents" class="module">
-            <h2 style="color: var(--primary-blue); margin-bottom: 1.5rem;">Student Documents Management</h2>
+            <h2 style="color: var(--heading-color); margin-bottom: 1.5rem;">Student Documents Management</h2>
             
             <div class="btn-group" style="margin-bottom: 1.5rem;">
                 <button class="btn" onclick="viewAllDocuments()">📁 View All Student Documents</button>
@@ -2517,6 +2635,9 @@
                 <button class="btn" onclick="uploadDocuments()" style="margin-top: 1rem;">📤 Upload Documents</button>
             </div>
 
+            <!-- The documents of the year's trainees; filled by renderFeeYearBar(). -->
+            <div id="documentsYearBar"></div>
+
             <div class="search-filter">
                 <input type="text" id="searchDocuments" placeholder="🔍 Search documents..." oninput="filterDocumentsDebounced()">
                 <select id="filterDocStudent" onchange="filterDocuments()">
@@ -2548,7 +2669,7 @@
 
         <!-- Fee Structure Module -->
         <div id="feeStructure" class="module">
-            <h2 style="color: var(--primary-blue); margin-bottom: 1.5rem;">Fee Structure by Skill Area</h2>
+            <h2 style="color: var(--heading-color); margin-bottom: 1.5rem;">Fee Structure by Skill Area</h2>
             
             <!-- Admin Controls -->
             <div id="feeStructureAdminControls" style="display: none; margin-bottom: 2rem;">
@@ -2563,19 +2684,21 @@
                                  course that has not been created in VocTrain (or
                                  is spelt the fee side's way) can still be priced
                                  and enrolled into. -->
-                            <input type="text" id="newSkillAreaName" list="voctrainCourseOptions" autocomplete="off" placeholder="e.g., WELDING L2">
+                            <input type="text" id="newSkillAreaName" list="voctrainCourseOptions" autocomplete="off" placeholder="e.g., WELDING L2" oninput="feePrefillProgrammeCost()" onchange="feePrefillProgrammeCost()">
                             <datalist id="voctrainCourseOptions"></datalist>
                             <small id="newSkillAreaHint" style="display:block;margin-top:0.35rem;color:var(--text-secondary);font-size:0.78rem;"></small>
                         </div>
                         <div class="form-group">
                             <label>Total Tuition Fee ($) *</label>
-                            <input type="number" id="newSkillAreaFee" step="0.01" placeholder="e.g., 35000">
+                            <input type="number" id="newSkillAreaFee" step="0.01" placeholder="e.g., 35000" oninput="feeProgrammeCostTyped(this)">
                         </div>
                         <div class="form-group">
                             <label>Number of Terms *</label>
-                            <input type="number" id="newSkillAreaTerms" min="1" max="9" placeholder="e.g., 6">
+                            <input type="number" id="newSkillAreaTerms" min="1" max="9" placeholder="e.g., 6" oninput="feeProgrammeCostTyped(this)">
                         </div>
                     </div>
+                    <!-- Where pre-filled figures came from (feePrefillProgrammeCost). -->
+                    <p id="newSkillAreaCarryNote" class="fee-carry-note" aria-live="polite"></p>
                     <button class="btn" onclick="addNewSkillArea()">➕ Add Programme Cost</button>
                 </div>
             </div>
@@ -2610,7 +2733,10 @@
 
         <!-- Reports Module -->
         <div id="reports" class="module">
-            <h2 style="color: var(--primary-blue); margin-bottom: 1rem;">Financial Reports</h2>
+            <h2 style="color: var(--heading-color); margin-bottom: 1rem;">Financial Reports</h2>
+            <!-- The trainee reports count the same year's group as the rest of
+                 the page; filled by renderFeeYearBar(). -->
+            <div id="reportsYearBar"></div>
             
             <div class="stats-grid">
                 <div class="stat-card">
@@ -2686,14 +2812,14 @@
 
             <!-- Monthly Breakdown -->
             <div id="monthlyBreakdown" style="display: none;">
-                <h2 style="color: var(--primary-blue); margin-top: 2rem; margin-bottom: 1rem;">Monthly Payment Breakdown</h2>
+                <h2 style="color: var(--heading-color); margin-top: 2rem; margin-bottom: 1rem;">Monthly Payment Breakdown</h2>
                 <div class="months-grid" id="monthsGrid"></div>
             </div>
         </div>
 
         <!-- Import/Export Module -->
         <div id="import" class="module">
-            <h2 style="color: var(--primary-blue); margin-bottom: 1.5rem;">Data Import & Export</h2>
+            <h2 style="color: var(--heading-color); margin-bottom: 1.5rem;">Data Import & Export</h2>
             
             <div class="form-section">
                 <h2>Import Student Data</h2>
@@ -2743,7 +2869,7 @@
 
         <!-- User Management Module (Admin Only) -->
         <div id="userManagement" class="module">
-            <h2 style="color: var(--primary-blue); margin-bottom: 1.5rem;">User Management (Admin Only)</h2>
+            <h2 style="color: var(--heading-color); margin-bottom: 1.5rem;">User Management (Admin Only)</h2>
 
             <!-- 2FA Settings Section for Current User -->
             <div class="twofa-settings-section">
@@ -2898,7 +3024,7 @@
                 </div>
 
                 <!-- Personal Information Section -->
-                <h3 style="color: var(--primary-blue); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
+                <h3 style="color: var(--heading-color); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Date of Birth</label>
@@ -3187,7 +3313,7 @@
             </div>
             <div id="viewUserContent" style="padding: 1rem;">
                 <div style="background: var(--bg-primary); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-                    <h3 style="margin-bottom: 1rem; color: var(--primary-blue);">Account Information</h3>
+                    <h3 style="margin-bottom: 1rem; color: var(--heading-color);">Account Information</h3>
                     <div style="display: grid; grid-template-columns: 150px 1fr; gap: 0.75rem;">
                         <strong>User ID:</strong>
                         <span id="viewUserId">-</span>
@@ -3217,7 +3343,7 @@
                 </div>
                 
                 <div style="background: var(--bg-primary); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-                    <h3 style="margin-bottom: 1rem; color: var(--primary-blue);">Activity Information</h3>
+                    <h3 style="margin-bottom: 1rem; color: var(--heading-color);">Activity Information</h3>
                     <div style="display: grid; grid-template-columns: 150px 1fr; gap: 0.75rem;">
                         <strong>Created Date:</strong>
                         <span id="viewUserCreated">-</span>
@@ -4547,6 +4673,253 @@
             } catch (e) { console.warn('[FeeIntake] failed', e); return 0; }
         }
 
+        /* ---- A new intake takes the previous intake's fee ------------------
+
+           Every intake of a programme is priced under its own label — "01.
+           Welding and Fabrication", then "02. Welding and Fabrication" when the
+           Centre runs it again — so each new training centre created on the LMS
+           arrived here with no fee at all. Its trainees read "Not Priced", and
+           somebody had to type the same cost and term split in again, intake
+           after intake.
+
+           Now a new intake is priced from the one before it, automatically,
+           whenever this page opens or the LMS changes its training centres:
+             - "the one before it" is the most recent EARLIER intake of the same
+               programme that has a fee here (same programme = same name, with
+               case, "&"/"and" and "L2"/"Level 2" set aside; a different NVQ
+               level is never the same programme);
+             - the total and the term split are copied, and the entry is marked
+               as carried over, which the Fee Structure table shows;
+             - a fee somebody has set is never touched, and editing a carried
+               one makes it theirs; deleting or renaming it is remembered
+               (cestiSchoolFeeCarryDeclined, synced like the rest of the fee
+               data) so it is not quietly put back;
+             - a programme with no earlier priced intake is left alone — there
+               is no previous fee to carry, and the page does not invent one.
+
+           Only intakes are carried from. A fee written under an older shorthand
+           ("WELDING L2") is offered as a pre-filled suggestion on the Set
+           Programme Cost form instead (feeSuggestedFeeFor), because pricing a
+           centre's label from a shorthand name automatically would hand that
+           shorthand's trainees to the new intake the next time
+           collapseFeeIntakes() runs. */
+        const FEE_CARRY_DECLINED_KEY = 'cestiSchoolFeeCarryDeclined';
+        const _FEE_IDENTITY_STOP = { and: 1, the: 1, of: 1, for: 1, with: 1 };
+
+        // A programme's name with the intake key, case, punctuation, "&"/"and"
+        // and the level shorthand set aside: two intakes of one programme give
+        // the same answer, two levels of one subject do not.
+        function feeProgrammeIdentity(name) {
+            var bare = name;
+            try { bare = CESTISCore.enrolment.parseCentreLabel(name).name; } catch (e) {}
+            return String(bare == null ? '' : bare).toLowerCase()
+                .replace(/&/g, ' and ')
+                .replace(/\b(?:l|lvl|lev)\s*([1-9])\b/g, 'level $1')
+                .replace(/[^a-z0-9]+/g, ' ')
+                .split(' ')
+                .filter(function (w) { return w && !_FEE_IDENTITY_STOP[w]; })
+                .join(' ');
+        }
+
+        // Is intake a earlier than intake b? By start date when both have one,
+        // otherwise by intake number ('01' before '02'). Undecidable is "no".
+        function feeIntakeBefore(a, b) {
+            function order(c) {
+                var s = '', k = NaN;
+                try { s = CESTISCore.courseDuration.normDate(c.startDate) || ''; } catch (e) {}
+                try { k = parseInt(CESTISCore.enrolment.centreKeyOf(c), 10); } catch (e) {}
+                return { start: s, key: k };
+            }
+            var A = order(a), B = order(b);
+            if (A.start && B.start && A.start !== B.start) return A.start < B.start;
+            if (!isNaN(A.key) && !isNaN(B.key) && A.key !== B.key) return A.key < B.key;
+            return false;
+        }
+
+        // Intake labels the user has taken a carried fee away from.
+        function feeCarryDeclined() {
+            var out = {};
+            try {
+                var list = JSON.parse(CESTISStore.getItem(FEE_CARRY_DECLINED_KEY) || '[]');
+                if (Array.isArray(list)) list.forEach(function (k) { if (k) out[k] = true; });
+            } catch (e) {}
+            return out;
+        }
+
+        // Remember that the user removed (or renamed away) the fee of a live
+        // intake, so the carry-over does not put it back.
+        function feeDeclineCarry(name) {
+            try {
+                var k = feeNameKey(name);
+                if (!k) return false;
+                var isIntake = feeTrainingCentres().some(function (c) { return feeNameKey(feeCentreLabel(c)) === k; });
+                if (!isIntake) return false;
+                var list = Object.keys(feeCarryDeclined());
+                if (list.indexOf(k) >= 0) return false;
+                list.push(k);
+                CESTISStore.setItem(FEE_CARRY_DECLINED_KEY, JSON.stringify(list));
+                return true;
+            } catch (e) { return false; }
+        }
+
+        // Price every new intake from the one before it. Intakes are walked
+        // earliest first, so a run of new ones is priced in order and each takes
+        // the fee of the one just before it. Returns what was carried.
+        function feeCarryForwardIntakeFees() {
+            try {
+                if (!feeStructure || typeof feeStructure !== 'object') return [];
+                if (typeof CESTISCore === 'undefined' || !CESTISCore.enrolment) return [];
+                var centres = feeTrainingCentres().filter(function (c) { return c && c.name; });
+                if (centres.length < 2) return [];
+                centres.sort(function (a, b) { return feeIntakeBefore(a, b) ? -1 : (feeIntakeBefore(b, a) ? 1 : 0); });
+                var declined = feeCarryDeclined();
+                var carried = [];
+                centres.forEach(function (c) {
+                    var label = feeCentreLabel(c);
+                    if (!label || declined[feeNameKey(label)]) return;
+                    if (feeKeyFor(label)) return;                  // priced already — by somebody, or earlier
+                    var bare = c.name;
+                    try { bare = CESTISCore.enrolment.parseCentreLabel(c.name).name; } catch (e) {}
+                    if (feeKeyFor(bare)) return;                   // priced by its plain name, which covers every intake
+                    var id = feeProgrammeIdentity(c.name);
+                    if (!id) return;
+
+                    var best = null, bestKey = null;
+                    centres.forEach(function (d) {
+                        if (d === c || feeProgrammeIdentity(d.name) !== id) return;
+                        if (!feeIntakeBefore(d, c)) return;        // only an EARLIER intake is "previous"
+                        var k = feeKeyFor(feeCentreLabel(d));
+                        if (!k || !(parseFloat(feeStructure[k] && feeStructure[k].total) > 0)) return;
+                        if (!best || feeIntakeBefore(best, d)) { best = d; bestKey = k; }
+                    });
+                    if (!best) return;
+
+                    var src = feeStructure[bestKey];
+                    var terms = [];
+                    for (var i = 0; i < 9; i++) terms.push(parseFloat(Array.isArray(src.terms) ? src.terms[i] : 0) || 0);
+                    feeStructure[label] = {
+                        total: parseFloat(src.total) || 0,
+                        terms: terms,
+                        carriedFrom: bestKey,
+                        carriedAt: new Date().toISOString()
+                    };
+                    carried.push({ to: label, from: bestKey, total: parseFloat(src.total) || 0,
+                                   terms: terms.filter(function (t) { return t > 0; }).length });
+                });
+                if (carried.length) {
+                    saveFeeStructure();
+                    console.log('[FeeCarry] Priced ' + carried.length + ' new intake(s) from the one before: ' +
+                        carried.map(function (x) { return x.to + ' <- ' + x.from; }).join(', '));
+                }
+                return carried;
+            } catch (e) { console.warn('[FeeCarry] failed', e); return []; }
+        }
+
+        // Tell whoever is looking that a fee was carried, and where to change it.
+        function feeReportCarried(carried) {
+            if (!carried || !carried.length) return;
+            var first = carried[0];
+            var msg = carried.length === 1
+                ? 'New intake priced automatically: ' + first.to + ' takes the fee of ' + first.from +
+                  ' — ' + formatCurrency(first.total) + ' over ' + first.terms + ' term' + (first.terms === 1 ? '' : 's') +
+                  '. Edit it under Fee Structure if this intake costs differently.'
+                : carried.length + ' new intakes priced automatically from the intake before each (' +
+                  carried.map(function (x) { return x.to; }).join(', ') +
+                  '). Edit any of them under Fee Structure if it costs differently.';
+            feeToast(msg, 12000, { label: 'Open Fee Structure', run: function () { switchModule('feeStructure'); } });
+        }
+
+        // The fee a trainee's own intake is priced at, for a trainee recorded
+        // under the programme's plain name — which is how the LMS records them —
+        // while the intake is priced under its label. Their stamped intake
+        // decides; without a stamp, the intake running when they enrolled.
+        function feeIntakeFeeKey(s) {
+            try {
+                if (!s || !s.skillArea || typeof CESTISCore === 'undefined' || !CESTISCore.enrolment) return null;
+                var centres = (typeof feeCentresCached === 'function') ? feeCentresCached() : feeTrainingCentres();
+                if (!centres.length) return null;
+                var opts = s.centreKey ? { centreKey: s.centreKey }
+                    : { on: s.enrollmentDate || s.enrolmentDate || s.createdAt || '' };
+                var c = CESTISCore.enrolment.findCentre(centres, s.skillArea, opts);
+                // The same programme, not merely a name the loose match accepted.
+                if (!c || feeProgrammeIdentity(c.name) !== feeProgrammeIdentity(s.skillArea)) return null;
+                return feeKeyFor(feeCentreLabel(c)) || null;
+            } catch (e) { return null; }
+        }
+
+        /* The fee to pre-fill on the Set Programme Cost form for a programme
+           being priced by hand: the previous intake's, as the carry-over would
+           pick, or else one priced entry of the same programme at the same
+           level under any other name (the older shorthand, "WELDING L2" for
+           "Welding and Fabrication Level 2"). Several such entries that
+           disagree give nothing — the user is not guessed at. */
+        function feeSuggestedFeeFor(name) {
+            try {
+                if (!name || feeKeyFor(name) || !feeStructure) return null;
+                var E = CESTISCore.enrolment;
+                var id = feeProgrammeIdentity(name);
+                var centres = feeTrainingCentres().filter(function (c) { return c && c.name; });
+                var me = null;
+                centres.forEach(function (c) { if (!me && feeNameKey(feeCentreLabel(c)) === feeNameKey(name)) me = c; });
+                if (me) {
+                    var best = null, bestKey = null;
+                    centres.forEach(function (d) {
+                        if (d === me || feeProgrammeIdentity(d.name) !== id || !feeIntakeBefore(d, me)) return;
+                        var k = feeKeyFor(feeCentreLabel(d));
+                        if (!k || !(parseFloat(feeStructure[k].total) > 0)) return;
+                        if (!best || feeIntakeBefore(best, d)) { best = d; bestKey = k; }
+                    });
+                    if (bestKey) return { from: bestKey, entry: feeStructure[bestKey] };
+                }
+                var level = E.programmeLevel(name) || '';
+                var hits = Object.keys(feeStructure).filter(function (k) {
+                    var f = feeStructure[k];
+                    if (!f || !(parseFloat(f.total) > 0)) return false;
+                    if ((E.programmeLevel(k) || '') !== level) return false;
+                    return feeProgrammeIdentity(k) === id || E.programmesAgree(k, name);
+                });
+                if (!hits.length) return null;
+                var sig = function (k) { return JSON.stringify([parseFloat(feeStructure[k].total) || 0, feeStructure[k].terms || []]); };
+                var same = hits.every(function (k) { return sig(k) === sig(hits[0]); });
+                return same ? { from: hits[0], entry: feeStructure[hits[0]] } : null;
+            } catch (e) { return null; }
+        }
+
+        // As the programme is chosen on Set Programme Cost, pre-fill the fee and
+        // terms from the previous one. Only fields the user has not typed into
+        // are filled, and the hint says where the figures came from.
+        function feePrefillProgrammeCost() {
+            var nameEl = document.getElementById('newSkillAreaName');
+            var feeEl = document.getElementById('newSkillAreaFee');
+            var termsEl = document.getElementById('newSkillAreaTerms');
+            var note = document.getElementById('newSkillAreaCarryNote');
+            if (!nameEl || !feeEl || !termsEl) return;
+            var ours = function (el) { return !el.value || el.dataset.prefilled === '1'; };
+            var sug = feeSuggestedFeeFor(nameEl.value.trim().replace(/\s+/g, ' '));
+            if (sug && ours(feeEl) && ours(termsEl)) {
+                var t = (sug.entry.terms || []).filter(function (x) { return (parseFloat(x) || 0) > 0; }).length || 1;
+                feeEl.value = parseFloat(sug.entry.total) || '';
+                termsEl.value = t;
+                feeEl.dataset.prefilled = termsEl.dataset.prefilled = '1';
+                if (note) note.textContent = '↻ Filled in from ' + sug.from + ' (' + formatCurrency(parseFloat(sug.entry.total) || 0) +
+                    ', ' + t + ' term' + (t === 1 ? '' : 's') + '). Change the figures if this programme costs differently.';
+            } else if (!sug && feeEl.dataset.prefilled === '1' && termsEl.dataset.prefilled === '1') {
+                feeEl.value = ''; termsEl.value = '';
+                delete feeEl.dataset.prefilled; delete termsEl.dataset.prefilled;
+                if (note) note.textContent = '';
+            } else if (!sug && note) {
+                note.textContent = '';
+            }
+        }
+
+        // Typing a figure makes it the user's: it is never replaced by a
+        // suggestion afterwards.
+        function feeProgrammeCostTyped(el) {
+            if (el) delete el.dataset.prefilled;
+            var note = document.getElementById('newSkillAreaCarryNote');
+            if (note && note.textContent) note.textContent = 'Your figures will be used.';
+        }
+
         // The popup that says where programmes are chosen. Shown when a trainee
         // is about to be enrolled and there is nothing to enrol them into.
         function showNoProgrammeNotice() {
@@ -4676,6 +5049,10 @@
             document.getElementById('newSkillAreaName').value = '';
             document.getElementById('newSkillAreaFee').value = '';
             document.getElementById('newSkillAreaTerms').value = '';
+            delete document.getElementById('newSkillAreaFee').dataset.prefilled;
+            delete document.getElementById('newSkillAreaTerms').dataset.prefilled;
+            const _carryNote = document.getElementById('newSkillAreaCarryNote');
+            if (_carryNote) _carryNote.textContent = '';
             populateSkillAreaCourseDropdown(); // refresh: the just-priced course drops off the suggestions
 
             // Update skill area dropdown in student form
@@ -4841,8 +5218,10 @@
                     }
                 });
                 
-                // Delete old entry
+                // Delete old entry — and, if it was a training centre's own
+                // label, do not let the carry-over price that label again.
                 delete feeStructure[editingFeeSkillArea];
+                feeDeclineCarry(editingFeeSkillArea);
             }
             
             feeStructure[newName] = { total: fee, terms: terms };
@@ -4879,6 +5258,9 @@
             
             if (confirm(`Are you sure you want to delete the skill area "${skillArea}"?\n\nThis action cannot be undone.`)) {
                 delete feeStructure[skillArea];
+                // A new intake's fee is carried over automatically; one the
+                // user deletes stays deleted.
+                feeDeclineCarry(skillArea);
                 saveFeeStructure();
                 renderFeeStructure();
                 updateSkillAreaOptions();
@@ -5205,6 +5587,7 @@
             dedupeFeeStructure();         // one entry per programme, however it is spelt
             feeBindTraineesToIntake();    // each trainee held to the intake they enrolled in
             collapseFeeIntakes();         // one entry per intake, however the Centre names it
+            const _feeCarried = feeCarryForwardIntakeFees();   // a new intake takes the previous intake's fee
             seedFeeInformation();         // trainees from the LMS roll; tuition from the Fee Structure
             renderFeeStructure();
             updateDashboard();
@@ -5214,6 +5597,7 @@
             renderDocumentsTable();
             renderUsersTable();
             populatePaymentStudentSelect();
+            feeReportCarried(_feeCarried);
             populateDocumentStudentSelect();
             updateDocumentTypeFilter();
             updateSkillAreaOptions();
@@ -5228,12 +5612,9 @@
             document.getElementById('enrollmentDate').value = today;
             document.getElementById('paymentDate').value = today;
 
-            // Load dark mode preference
-            const isDarkMode = CESTISStore.getItem('darkMode') === 'true';
-            if (isDarkMode) {
-                document.body.classList.add('dark-mode');
-                updateThemeToggle();
-            }
+            // The theme was applied as the body opened (rich blue unless Light
+            // was chosen); the header button only has to say which it is.
+            updateThemeToggle();
 
             // Hide upload form by default
             if (document.getElementById('uploadDocumentForm')) {
@@ -5292,7 +5673,8 @@
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
             const isDarkMode = document.body.classList.contains('dark-mode');
-            CESTISStore.setItem('darkMode', isDarkMode);
+            // 'light' is an explicit choice; rich blue is the default.
+            CESTISStore.setItem('darkMode', isDarkMode ? 'true' : 'light');
             updateThemeToggle();
             
             // Refresh charts with new theme
@@ -5306,14 +5688,14 @@
 
         function updateThemeToggle() {
             const isDarkMode = document.body.classList.contains('dark-mode');
-            document.getElementById('themeIcon').textContent = isDarkMode ? '☀️' : '🌙';
-            document.getElementById('themeText').textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';
+            document.getElementById('themeIcon').textContent = isDarkMode ? '☀️' : '🔵';
+            document.getElementById('themeText').textContent = isDarkMode ? 'Light' : 'Rich Blue';
         }
 
         function updateChartTheme(chart) {
             const isDarkMode = document.body.classList.contains('dark-mode');
-            const textColor = isDarkMode ? '#e0e0e0' : '#2C3E50';
-            const gridColor = isDarkMode ? '#2d4059' : '#e0e0e0';
+            const textColor = isDarkMode ? '#dbe7fb' : '#2C3E50';
+            const gridColor = isDarkMode ? 'rgba(142, 197, 255, 0.16)' : '#e0e0e0';
             
             chart.options.scales.x.ticks.color = textColor;
             chart.options.scales.y.ticks.color = textColor;
@@ -5470,14 +5852,66 @@
             }
         }
 
+        /* THE PAGE OPENS ON THE PRESENT YEAR, the way the Fixed Asset register
+           opens on the fiscal year today falls in.
+
+           The shared quarter (cestis_active_quarter) is remembered between
+           visits and synced between devices, so whatever year somebody last
+           stepped to — usually last year, to enter arrears — was the year this
+           page opened on next time, and a past group sat on screen looking like
+           the present one. _feeViewFY / _feeViewQ are this page's own year
+           and quarter, set to today's every time the page loads.
+
+           ONLY THIS PAGE'S OWN BUTTONS MOVE THEM. A past year is seen here
+           only when somebody deliberately steps back to it. The Cashbook and
+           Virement rewrite the shared key whenever their own quarter changes,
+           and this page used to follow them, so a bookkeeper stepping the
+           Cashbook back a year dragged the fee dashboard into that year too,
+           with nobody touching it. That is no longer followed. Choices made
+           HERE are still shared outward, so the Cashbook follows the fee page
+           as it always has. */
+        let _feeViewFY = (function () {
+            try {
+                const t = (typeof CESTISCore !== 'undefined' && CESTISCore.currentQuarter) ? CESTISCore.currentQuarter() : null;
+                return (t && t.fy) || '';
+            } catch (e) { return ''; }
+        })();
+        let _feeViewQ = (function () {
+            try {
+                const t = (typeof CESTISCore !== 'undefined' && CESTISCore.currentQuarter) ? CESTISCore.currentQuarter() : null;
+                return (t && t.q) || 1;
+            } catch (e) { return 1; }
+        })();
+
         // The active FY+quarter. Returns null when the shared quarter engine is
         // unavailable, which callers read as "no scope, show everything".
         function feeActiveQuarter() {
             _feeCacheTick();
             if (_feeQuarterCache) return _feeQuarterCache;
             if (typeof CESTISCore === 'undefined' || !CESTISCore.getActiveQuarter) return null;
+            // This page's own year and quarter — never the shared key, which
+            // other pages move (see _feeViewFY).
+            const view = (typeof _feeViewFY === 'string') ? _feeViewFY : '';
+            if (view) {
+                const q = (typeof _feeViewQ === 'number' && _feeViewQ >= 1 && _feeViewQ <= 4)
+                    ? _feeViewQ : ((CESTISCore.currentQuarter() || {}).q || 1);
+                _feeQuarterCache = { fy: view, q: q };
+                return _feeQuarterCache;
+            }
             _feeQuarterCache = CESTISCore.getActiveQuarter();
             return _feeQuarterCache;
+        }
+
+        // Point this page at a financial year and quarter — only ever from this
+        // page's own controls — and share the choice so the Cashbook and
+        // Virement follow. The re-render is the caller's job.
+        function _feeSetView(fy, q) {
+            _feeViewFY = fy;
+            _feeViewQ = q;
+            if (typeof CESTISCore !== 'undefined' && CESTISCore.setActiveQuarter) {
+                try { CESTISCore.setActiveQuarter(fy, q); } catch (e) {}
+            }
+            feeInvalidateCaches();
         }
 
         // The training centres, parsed once per pass rather than once per row.
@@ -5800,7 +6234,9 @@
             students.forEach(function (s) {
                 if (!s || !s.needsFeeDetails) return;
                 if ((parseFloat(s.tuitionFee) || 0) > 0) return;   // already priced
-                var key = feeKeyFor(s.skillArea);
+                // Their programme by name — or, for a trainee the LMS recorded
+                // under the plain name, the intake they are in.
+                var key = feeKeyFor(s.skillArea) || feeIntakeFeeKey(s);
                 if (!key) return;                                   // programme not priced here
                 var total = parseFloat(feeStructure[key] && feeStructure[key].total) || 0;
                 if (total <= 0) return;
@@ -5857,9 +6293,11 @@
            absent from Outstanding, and their programme's bar on the collection
            chart is empty for no stated reason. */
         function reportUnpricedTrainees() {
-            if (!Array.isArray(students) || !students.length) return 0;
-            const unpriced = students.filter(feeIsUnpriced);
             const el = document.getElementById('feeUnpricedNotice');
+            if (!Array.isArray(students) || !students.length) { if (el) el.style.display = 'none'; return 0; }
+            // The same group the cards beside it count. It used to be the whole
+            // roll, so the notice told the present group about past trainees.
+            const unpriced = studentsInScope().filter(feeIsUnpriced);
             if (!unpriced.length) { if (el) el.style.display = 'none'; return 0; }
 
             // Which programmes the Fee Structure cannot price, each named once.
@@ -5916,9 +6354,18 @@
                     feeInvalidateCaches();
                     refreshLmsStudentCache();          // academic stage column
                     if (typeof loadData === 'function') loadData();
+                    // A training centre created on the LMS takes the previous
+                    // intake's fee. Read the stored fees first, so a fee set on
+                    // another device or tab is never written back over.
+                    let _carried = [];
+                    if (typeof feeCarryForwardIntakeFees === 'function') {
+                        loadFeeStructure();
+                        _carried = feeCarryForwardIntakeFees();
+                    }
                     // The roll or the prices may have just arrived: seed what is
                     // now seedable (idempotent — nothing to do means nothing done).
                     if (typeof seedFeeInformation === 'function') seedFeeInformation();
+                    if (_carried.length) { renderFeeStructure(); feeReportCarried(_carried); }
                     if (typeof renderStudentsTable === 'function') renderStudentsTable();
                     if (typeof renderPaymentsTable === 'function') renderPaymentsTable();
                     if (typeof renderDocumentsTable === 'function') renderDocumentsTable();
@@ -6331,7 +6778,15 @@
            page until OK is clicked: a clerk entering seventy payments clicked
            OK seventy times. Confirmations of success do not need to interrupt;
            errors and questions still use dialogs, because those must. */
-        function feeToast(message) {
+        // A save confirmation, plus — when the record went into a year that is
+        // not on screen — where it went and a button to go there.
+        function feeToastWithYearNote(message, note) {
+            if (!note) { feeToast(message); return; }
+            feeToast(message + ' ' + note.text, 12000,
+                { label: note.label, run: function () { feeShowPeriod(note.fy, note.q); } });
+        }
+
+        function feeToast(message, ms, action) {
             try {
                 let el = document.getElementById('feeToastNote');
                 if (el) el.remove();
@@ -6343,8 +6798,19 @@
                     'box-shadow:0 10px 26px rgba(0,0,0,.3);cursor:pointer;';
                 el.textContent = '✅ ' + message;
                 el.onclick = function () { el.remove(); };
+                // An optional button, e.g. "Show FY 2025/2026" after a record
+                // was saved into a year that is not on screen.
+                if (action && action.label && typeof action.run === 'function') {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = action.label;
+                    btn.style.cssText = 'display:block;margin-top:8px;padding:6px 12px;border-radius:7px;cursor:pointer;' +
+                        'border:1px solid rgba(255,255,255,.6);background:rgba(255,255,255,.15);color:#fff;font-weight:700;font-size:13px;';
+                    btn.onclick = function (ev) { ev.stopPropagation(); el.remove(); action.run(); };
+                    el.appendChild(btn);
+                }
                 document.body.appendChild(el);
-                setTimeout(function () { try { el.remove(); } catch (e) {} }, 3500);
+                setTimeout(function () { try { el.remove(); } catch (e) {} }, ms || 3500);
             } catch (e) { /* a lost toast is no loss */ }
         }
 
@@ -6608,12 +7074,15 @@
             document.getElementById('parentContact').value = '';
             document.getElementById('emergencyContact').value = '';
 
+            // A trainee enrolled in another year is not in this year's list.
+            const yearNote = feeRecordYearNote(enrollmentDate, 'trainee\u2019s enrolment');
+
             renderStudentsTable();
             populatePaymentStudentSelect();
             populateDocumentStudentSelect();
             updateDashboard();
 
-            feeToast('Student added.');
+            feeToastWithYearNote('Student added.', yearNote);
         }
 
         // Render students table
@@ -6630,10 +7099,20 @@
 
             refreshLmsStudentCache(); // pull latest stages from the Progress dashboard
 
+            // The banner above the table says which year these rows are.
+            try { renderFeeYearBar('studentsYearBar'); } catch (e) {}
+
             // Built as ONE html string and handed to the DOM once. Row-at-a-time
             // insertRow() + innerHTML made the browser re-parse and re-lay-out
             // the table for every trainee on the roll.
+            //
+            // Only the selected year's group is listed — the present one unless
+            // somebody steps back or asks for every year. It used to be the whole
+            // roll whatever the year filter said, so past groups were mixed in
+            // with the present one. Rows keep their index into `students`, which
+            // View, Edit, Delete and the merge boxes all address them by.
             const rows = students.map((student, index) => {
+                if (!studentInActiveFY(student)) return '';
                 const isSelected = selectedForMerge.includes(index);
                 const tuition = (parseFloat(student.tuitionFee) || 0).toFixed(2);
                 const paid = (parseFloat(student.totalPaid) || 0).toFixed(2);
@@ -6677,10 +7156,49 @@
                     </td>
                 </tr>`;
             });
-            tbody.innerHTML = rows.join('');
+            const html = rows.join('');
+            // A year with nobody in it says so, and says where everyone else is,
+            // rather than leaving an empty table that looks like lost records.
+            tbody.innerHTML = html || (
+                '<tr class="fee-yb-empty"><td colspan="10">' +
+                (feeScopeMode === 'all' ? 'No trainees on the roll yet.'
+                    : 'No trainees enrolled in ' + feeAttr(feeFYLabel().replace(/ group$/, '')) + '.') +
+                (students.length
+                    ? ' ' + students.length.toLocaleString() + ' trainee' + (students.length === 1 ? ' is' : 's are') +
+                      ' on the roll in other years — <button class="fee-yb-link" onclick="feeSelectAll()">Show all years</button>' +
+                      ' or <button class="fee-yb-link" onclick="feeReturnToPresent()">go to FY ' + feeAttr(feeCurrentFY()) + '</button>.'
+                    : '') +
+                '</td></tr>');
             // A filter that was already set must survive the rebuild, or the
             // full roll reappears under a search the user has not cleared.
             if (_feeFilterSet(['searchStudent', 'filterSkillArea', 'filterPaymentStatus'])) filterStudents();
+        }
+
+        /* A search for somebody the year is hiding. The name is on the roll —
+           just in another year's group — so say so, with the way to them,
+           instead of an empty table that reads as a lost record. */
+        function feeHiddenMatchHint(term, skill, status) {
+            const hint = document.getElementById('studentsYearBarHint');
+            if (!hint) return;
+            if (!term || feeScopeMode === 'all') { hint.innerHTML = ''; return; }
+            const years = {};
+            let n = 0;
+            students.forEach(s => {
+                if (!s || studentInActiveFY(s)) return;
+                if (skill && s.skillArea !== skill) return;
+                if (status && s.status !== status) return;
+                const text = [s.id, s.name, s.skillArea].join(' ').toLowerCase();
+                if (text.indexOf(term) < 0) return;
+                n++;
+                const dq = CESTISCore.deriveQuarter(s.enrollmentDate) || CESTISCore.deriveQuarter(s.createdAt);
+                if (dq) years[dq.fy] = true;
+            });
+            const list = Object.keys(years).sort().map(fy => 'FY ' + fy);
+            hint.innerHTML = n
+                ? '🔎 ' + n + ' more trainee' + (n === 1 ? '' : 's') + ' matching “' + feeAttr(term) +
+                  '” ' + (n === 1 ? 'is' : 'are') + ' in ' + (list.length ? feeAttr(list.join(', ')) : 'another year') +
+                  ' — <button class="fee-yb-link" onclick="feeSelectAll()">Show all years</button>'
+                : '';
         }
 
         // Small "Course ended" pill shown beside a student's stage when their
@@ -6716,6 +7234,8 @@
             const rows = document.querySelectorAll('#studentsTableBody tr');
 
             rows.forEach(row => {
+                // The "nobody in this year" line is not a trainee to filter.
+                if (row.classList.contains('fee-yb-empty')) return;
                 const text = row.dataset.search || row.textContent.toLowerCase();
                 const skillArea = row.dataset.skill != null ? row.dataset.skill : row.cells[3].textContent;
                 const status = row.dataset.status != null ? row.dataset.status : row.cells[7].textContent;
@@ -6726,6 +7246,7 @@
 
                 _feeSetRowVisible(row, matchesSearch && matchesSkill && matchesStatus);
             });
+            feeHiddenMatchHint(searchTerm, skillFilter, statusFilter);
         }
         const filterStudentsDebounced = feeDebounce(filterStudents);
 
@@ -7097,7 +7618,7 @@
 
             let content = `
                 <div style="margin-bottom: 1.5rem;">
-                    <h3 style="color: var(--primary-blue); margin-bottom: 1rem;">${student.name}</h3>
+                    <h3 style="color: var(--heading-color); margin-bottom: 1rem;">${student.name}</h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                         <p><strong>Student ID:</strong> ${student.id}</p>
                         <p><strong>Skill Area:</strong> ${student.skillArea}</p>
@@ -7111,7 +7632,7 @@
                     </div>
                 </div>
 
-                <h3 style="color: var(--primary-blue); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
+                <h3 style="color: var(--heading-color); margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">Personal Information</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1.5rem;">
                     <p><strong>Date of Birth:</strong> ${student.dateOfBirth || 'N/A'}</p>
                     <p><strong>Gender:</strong> ${student.gender || 'N/A'}</p>
@@ -7123,7 +7644,7 @@
                     <p><strong>Emergency Contact:</strong> ${student.emergencyContact || 'N/A'}</p>
                 </div>
 
-                <h3 style="color: var(--primary-blue); margin-bottom: 1rem;">Payment History</h3>
+                <h3 style="color: var(--heading-color); margin-bottom: 1rem;">Payment History</h3>
             `;
             
             if (studentPayments.length > 0) {
@@ -7144,7 +7665,7 @@
                 content += '<p>No payments recorded yet.</p>';
             }
 
-            content += '<h3 style="color: var(--primary-blue); margin: 1.5rem 0 1rem;">Documents</h3>';
+            content += '<h3 style="color: var(--heading-color); margin: 1.5rem 0 1rem;">Documents</h3>';
             if (studentDocs.length > 0) {
                 studentDocs.forEach(doc => {
                     content += `
@@ -7440,6 +7961,9 @@
             // After saveData, so the record carries its final (possibly
             // restabilised) id when the dashboard record is linked to it.
             propagateFeeRenameToLms(student, wasIdentity);
+            // An enrolment date moved into another year takes the trainee out
+            // of this year's list; say where they went.
+            const yearNote = feeRecordYearNote(enrollmentDate, 'trainee\u2019s enrolment');
             renderStudentsTable();
             renderPaymentsTable();
             renderDocumentsTable();
@@ -7449,7 +7973,7 @@
             closeModal('editStudentModal');
             editingStudentIndex = -1;
             
-            feeToast('Student information updated.');
+            feeToastWithYearNote('Student information updated.', yearNote);
         }
 
         // Populate payment student select
@@ -7462,7 +7986,10 @@
             // Built as one string and written once, like the tables: on a full
             // roll this was hundreds of separate DOM insertions.
             const opts = ['<option value="">Select Student</option>'];
-            students.forEach(student => {
+            // The year's group only: last year's trainees are offered once
+            // somebody steps back to last year — which is where the page says
+            // their outstanding fees are entered.
+            studentsInScope().forEach(student => {
                 const balance = (parseFloat(student.balance) || 0).toFixed(2);
                 opts.push('<option value="' + feeAttr(student.id) + '">' +
                     feeAttr(`${student.name} - ${student.skillArea} (Balance: $${balance})`) +
@@ -7473,8 +8000,11 @@
                 for (let i = 0; i < select.options.length; i++) {
                     if (select.options[i].value === prev) { select.selectedIndex = i; break; }
                 }
+                // Whoever was chosen belongs to another year now on screen:
+                // clear their balance line rather than leave it naming them.
+                if (select.value !== prev) { try { loadStudentPaymentInfo(); } catch (e) {} }
             }
-            // The search index is built from the same roll, so rebuild it here.
+            // The search index is built from the same group, so rebuild it here.
             buildTraineeSearchIndex();
             renderChosenTrainee();
         }
@@ -7501,7 +8031,8 @@
         const TRAINEE_SEARCH_LIMIT = 30;
 
         function buildTraineeSearchIndex() {
-            traineeSearchIndex = students.map(student => {
+            // The same year's group as the dropdown it fills.
+            traineeSearchIndex = studentsInScope().map(student => {
                 const balance = parseFloat(student.balance) || 0;
                 return {
                     id: student.id,
@@ -7702,7 +8233,8 @@
             select.innerHTML = '<option value="">Select Student</option>';
             filterSelect.innerHTML = '<option value="">All Students</option>';
             
-            students.forEach(student => {
+            // The year's group, as everywhere else on the page.
+            studentsInScope().forEach(student => {
                 const option = document.createElement('option');
                 option.value = student.id;
                 option.textContent = `${student.name} - ${student.id}`;
@@ -7925,11 +8457,15 @@
             clearTraineeSearch(false);
             renderChosenTrainee();
 
+            // A payment dated outside the year (or quarter) on screen is not in
+            // the list below; say where it went.
+            const yearNote = feeRecordYearNote(date, 'payment', true);
+
             renderPaymentsTable();
             renderStudentsTable();
             updateDashboard();
 
-            feeToast('Payment recorded — receipt generated and downloaded.');
+            feeToastWithYearNote('Payment recorded — receipt generated and downloaded.', yearNote);
         }
 
         /* ----- Fiscal-year + quarterly fee filtering ---------------------
@@ -7967,7 +8503,6 @@
            choice rather than the silent default, and every card says which scope
            it is showing. */
         let feeScopeMode = 'year';       // default: the present group
-        let _feeSuppressQuarterSub = false; // set while a LOCAL quarter change renders itself
 
         // Kept as a read-only alias so older call sites keep meaning what they said.
         Object.defineProperty(window, 'feeShowAllPayments', {
@@ -8066,8 +8601,95 @@
                 '.fee-pastyear-note{flex-basis:100%;text-align:center;font-size:13px;line-height:1.7;' +
                 'padding:8px 12px;border-radius:8px;background:rgba(138,109,27,.10);border:1px solid rgba(138,109,27,.30);}' +
                 '.fee-return{padding:3px 10px;font-size:12px;}' +
+                // The year bar above the record tables — the Fixed Asset
+                // register's banner: which year these rows are, how many of the
+                // roll that is, and the way to every year.
+                '.fee-yearbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 12px;' +
+                'padding:10px 14px;border-radius:10px;background:var(--bg-card,#fff);border:1px solid var(--border-color,#e0e0e0);}' +
+                '.fee-yb-icon{font-size:16px;}' +
+                '.fee-yb-nav{width:30px;height:30px;padding:0;border-radius:6px;cursor:pointer;font-size:12px;line-height:1;' +
+                'border:1px solid var(--border-color,#e0e0e0);background:var(--bg-primary,#E3F2FD);color:var(--text-primary,#2C3E50);}' +
+                '.fee-yb-nav:hover:not(:disabled){border-color:#0D47A1;color:#0D47A1;}' +
+                '.fee-yb-nav:disabled{opacity:.4;cursor:default;}' +
+                '.fee-yb-label{font-weight:700;font-size:15px;min-width:118px;text-align:center;color:var(--text-primary,#2C3E50);}' +
+                '.fee-yb-tag{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;border-radius:6px;padding:2px 7px;color:#fff;}' +
+                '.fee-yb-tag.present{background:#1b8a5a;}.fee-yb-tag.past{background:#8a6d1b;}' +
+                '.fee-yb-tag.future{background:#5b6b80;}.fee-yb-tag.all{background:#0D47A1;}' +
+                '.fee-yb-count{font-size:13px;color:var(--text-secondary,#5b6b80);}' +
+                '.fee-yb-count strong{color:var(--text-primary,#2C3E50);}' +
+                '.fee-yb-all{margin-left:auto;cursor:pointer;padding:6px 14px;border-radius:7px;font-size:13px;font-weight:600;' +
+                'border:1px solid var(--border-color,#e0e0e0);background:var(--bg-primary,#E3F2FD);color:var(--text-primary,#2C3E50);}' +
+                '.fee-yb-all:hover{border-color:#0D47A1;color:#0D47A1;}' +
+                '.fee-yb-all.active{background:#0D47A1;border-color:#0D47A1;color:#fff;}' +
+                '.fee-yb-note{flex-basis:100%;font-size:13px;line-height:1.6;padding:7px 12px;border-radius:8px;' +
+                'background:rgba(138,109,27,.10);border:1px solid rgba(138,109,27,.30);color:var(--text-primary,#2C3E50);}' +
+                '.fee-yb-hint{flex-basis:100%;font-size:13px;line-height:1.6;padding:7px 12px;border-radius:8px;' +
+                'background:rgba(13,71,161,.07);border:1px solid rgba(13,71,161,.22);color:var(--text-primary,#2C3E50);}' +
+                '.fee-yb-hint:empty{display:none;}' +
+                '.fee-yb-link{cursor:pointer;border:none;background:none;padding:0;color:#0D47A1;font-weight:700;' +
+                'text-decoration:underline;font-size:inherit;}' +
+                'body.dark-mode .fee-yb-link{color:#90caf9;}' +
+                '.fee-yb-empty td{text-align:center;padding:28px 12px !important;color:var(--text-secondary,#5b6b80);}' +
                 '';
             document.head.appendChild(st);
+        }
+
+        // Is this financial year the present one, behind it, or ahead of it?
+        function feeYearTense(fy) {
+            const now = feeCurrentFY();
+            if (!fy || !now || fy === now) return 'present';
+            return parseInt(String(fy), 10) < parseInt(String(now), 10) ? 'past' : 'future';
+        }
+
+        /* The Fixed Asset register's year banner, above each list of records.
+
+           The dashboard had a year filter, but the Students table and the
+           Reports ignored it and listed every trainee from every year together —
+           368 rows on the Centre's roll when the present group is 240. The
+           banner states the year those rows belong to, how many of the roll that
+           is, steps between years, and lifts the filter altogether with "Show
+           all years". It drives the same selection as the dashboard's bar, so
+           the two can never disagree about which year is on screen. */
+        function renderFeeYearBar(containerId) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            _ensureFeeQFilterStyles();
+            const cur = feeActiveQuarter() || { fy: '' };
+            const isAll = feeScopeMode === 'all';
+            const thisFY = feeCurrentFY();
+            const tense = isAll ? 'all' : feeYearTense(cur.fy);
+            const total = Array.isArray(students) ? students.length : 0;
+            const shown = isAll ? total : studentsInScope().length;
+            const others = total - shown;
+            const tagText = { present: 'Present', past: 'Past', future: 'Ahead', all: 'Every year' }[tense];
+            el.className = 'fee-yearbar';
+            el.innerHTML =
+                '<span class="fee-yb-icon" aria-hidden="true">📅</span>' +
+                '<button class="fee-yb-nav" onclick="feeShiftFY(-1)" title="Previous financial year"' +
+                    (isAll ? ' disabled' : '') + '>◀</button>' +
+                '<span class="fee-yb-label">' + (isAll ? 'All years' : 'FY ' + feeAttr(cur.fy)) + '</span>' +
+                '<button class="fee-yb-nav" onclick="feeShiftFY(1)" title="Next financial year"' +
+                    (isAll ? ' disabled' : '') + '>▶</button>' +
+                '<span class="fee-yb-tag ' + tense + '">' + tagText + '</span>' +
+                '<span class="fee-yb-count">showing <strong>' + shown.toLocaleString() + '</strong> of ' +
+                    total.toLocaleString() + ' trainees on the roll' +
+                    (!isAll && others > 0 ? ' · ' + others.toLocaleString() + ' from other years not listed' : '') +
+                '</span>' +
+                '<button class="fee-yb-all' + (isAll ? ' active' : '') + '" onclick="feeSelectAll()" aria-pressed="' +
+                    (isAll ? 'true' : 'false') + '">' + (isAll ? 'Show one year' : 'Show all years') + '</button>' +
+                (tense === 'past' || tense === 'future'
+                    ? '<div class="fee-yb-note">These are the trainees enrolled in <strong>FY ' + feeAttr(cur.fy) +
+                      '</strong> — ' + (tense === 'past' ? 'a past group' : 'a year still to come') +
+                      ', not the present one. <button class="fee-yb-link" onclick="feeReturnToPresent()">Back to FY ' +
+                      feeAttr(thisFY) + '</button></div>'
+                    : '') +
+                (isAll
+                    ? '<div class="fee-yb-note">Every year is listed together, so past groups are mixed in with the present one. ' +
+                      '<button class="fee-yb-link" onclick="feeReturnToPresent()">Show FY ' + feeAttr(thisFY) + ' only</button></div>'
+                    : '') +
+                // Filled by filterStudents() when a search matches trainees the
+                // year is hiding, so a record never just seems to be missing.
+                '<div class="fee-yb-hint" id="' + containerId + 'Hint"></div>';
         }
 
         // Render the All/Q1–Q4 filter bar (image-4 style) into a container.
@@ -8075,8 +8697,7 @@
             const el = document.getElementById(containerId);
             if (!el) return;
             _ensureFeeQFilterStyles();
-            const cur = (typeof CESTISCore !== 'undefined' && CESTISCore.getActiveQuarter)
-                ? CESTISCore.getActiveQuarter() : { fy: '', q: 1 };
+            const cur = feeActiveQuarter() || { fy: '', q: 1 };
             const quarters = [
                 { q: 1, label: 'Q1 · Apr–Jun' }, { q: 2, label: 'Q2 · Jul–Sep' },
                 { q: 3, label: 'Q3 · Oct–Dec' }, { q: 4, label: 'Q4 · Jan–Mar' }
@@ -8091,10 +8712,12 @@
                to enter last year's outstanding fees. */
             const thisFY = feeCurrentFY();
             const isPast = !isAll && cur.fy && thisFY && cur.fy !== thisFY;
+            // Stepping forward is allowed too; a year ahead is not "past".
+            const tense = isPast ? feeYearTense(cur.fy) : 'present';
             el.innerHTML =
                 '<div class="fee-qfilter-fy">' +
                     '<button class="fee-qbtn" onclick="feeShiftFY(-1)" title="Go back one financial year">◀ Previous year</button>' +
-                    '<span class="fee-qfy-label">FY ' + cur.fy + (isPast ? ' <span class="fee-fy-past">past</span>' : '') + '</span>' +
+                    '<span class="fee-qfy-label">FY ' + cur.fy + (isPast ? ' <span class="fee-fy-past">' + (tense === 'future' ? 'ahead' : 'past') + '</span>' : '') + '</span>' +
                     '<button class="fee-qbtn" onclick="feeShiftFY(1)" title="Go forward one financial year">Next year ▶</button>' +
                 '</div>' +
                 '<div class="fee-qtabs">' +
@@ -8118,12 +8741,12 @@
                    and offers the way back. */
                 (isPast
                     ? '<div class="fee-pastyear-note">You are looking at <strong>FY ' + cur.fy + '</strong>, not the present group. ' +
-                      'Enter last year\u2019s outstanding fees here, then ' +
+                      (tense === 'future' ? 'This year has not started yet. ' : 'Enter last year\u2019s outstanding fees here, then ') +
                       '<button class="fee-qbtn fee-return" onclick="feeReturnToPresent()">return to FY ' + thisFY + '</button></div>'
                     : '') +
                 (isAll
                     ? '<div class="fee-pastyear-note">Every year is counted together, so these totals include past groups. ' +
-                      '<button class="fee-qbtn fee-return" onclick="feeSelectYear()">Show the present group only</button></div>'
+                      '<button class="fee-qbtn fee-return" onclick="feeReturnToPresent()">Show the present group only</button></div>'
                     : '');
         }
 
@@ -8143,10 +8766,10 @@
            the way home is to press the arrow the right number of times. */
         function feeReturnToPresent() {
             const fy = feeCurrentFY();
-            if (fy && typeof CESTISCore !== 'undefined' && CESTISCore.setActiveQuarter) {
-                const cur = CESTISCore.getActiveQuarter();
-                _feeSuppressQuarterSub = true;
-                try { CESTISCore.setActiveQuarter(fy, cur.q); } finally { _feeSuppressQuarterSub = false; }
+            if (fy) {
+                const cur = feeActiveQuarter();
+                const today = (typeof CESTISCore !== 'undefined' && CESTISCore.currentQuarter) ? CESTISCore.currentQuarter() : null;
+                _feeSetView(fy, (today && today.q) || (cur && cur.q) || 1);
             }
             feeScopeMode = 'year';
             feeApplyQuarterChange();
@@ -8155,6 +8778,9 @@
         function _renderFeeFilters() {
             renderFeeQuarterFilter('dashboardQuarterBar');
             renderFeeQuarterFilter('paymentsQuarterBar');
+            renderFeeYearBar('studentsYearBar');
+            renderFeeYearBar('reportsYearBar');
+            renderFeeYearBar('documentsYearBar');
         }
 
         // Re-render the filter bars + every quarter-scoped view.
@@ -8163,6 +8789,20 @@
             feeInvalidateCaches();
             try { _renderFeeFilters(); } catch (e) {}
             if (typeof renderPaymentsTable === 'function') { try { renderPaymentsTable(); } catch (e) {} }
+            // The trainee list follows the same year (left pending while its tab
+            // is hidden, like every other table), and so do the documents and
+            // every "choose a trainee" list.
+            if (typeof renderStudentsTable === 'function') { try { renderStudentsTable(); } catch (e) {} }
+            if (typeof renderDocumentsTable === 'function') { try { renderDocumentsTable(); } catch (e) {} }
+            try { populatePaymentStudentSelect(); } catch (e) {}
+            try { populateDocumentStudentSelect(); } catch (e) {}
+            // Reports are worked out from the same group; one already on screen
+            // is redrawn so it cannot go on showing the year just left.
+            if (_feeModuleActive('reports')) {
+                try { updateReportsStats(); } catch (e) {}
+                const out = document.getElementById('reportOutput');
+                if (out && out.innerHTML.trim()) { try { generateReport(); } catch (e) {} }
+            }
             // Dashboard refresh is non-critical to the filter — never let it block.
             if (typeof updateDashboard === 'function') { try { updateDashboard(); } catch (e) {} }
         }
@@ -8187,15 +8827,10 @@
         }
         function feeSelectQuarter(q) {
             feeScopeMode = 'quarter';
-            // Persist the shared quarter so the Cashbook/Virement follow, then
-            // render DIRECTLY here. We no longer rely on the onQuarterChange
-            // subscriber for the local re-render — if page init ever aborted before
-            // that subscriber was registered, the filter would silently do nothing.
-            if (typeof CESTISCore !== 'undefined' && CESTISCore.setActiveQuarter) {
-                const cur = CESTISCore.getActiveQuarter();
-                _feeSuppressQuarterSub = true;
-                try { CESTISCore.setActiveQuarter(cur.fy, q); } finally { _feeSuppressQuarterSub = false; }
-            }
+            // Move this page's own quarter (sharing it so the Cashbook/Virement
+            // follow), then render directly here.
+            const cur = feeActiveQuarter();
+            if (cur) _feeSetView(cur.fy, q);
             feeApplyQuarterChange();
         }
         function feeShiftFY(dir) {
@@ -8204,30 +8839,59 @@
             // "every year" it drops into the year it lands on; from a single
             // quarter it keeps that quarter in the new year.
             if (feeScopeMode === 'all') feeScopeMode = 'year';
-            if (typeof CESTISCore !== 'undefined' && CESTISCore.setActiveQuarter) {
-                const cur = CESTISCore.getActiveQuarter();
+            const cur = feeActiveQuarter();
+            if (cur) {
                 const start = parseInt(String(cur.fy).split('/')[0], 10) + dir;
-                _feeSuppressQuarterSub = true;
-                try { CESTISCore.setActiveQuarter(start + '/' + (start + 1), cur.q); } finally { _feeSuppressQuarterSub = false; }
+                _feeSetView(start + '/' + (start + 1), cur.q);
             }
             feeApplyQuarterChange();
         }
 
-        // Set up the filter bars and follow quarter switches made on OTHER pages/tabs.
-        // Local button clicks render themselves (see above) and suppress this handler
-        // to avoid a double render.
+        // Draw the filter bars. Quarter switches made on OTHER pages (the
+        // Cashbook, Virement, another tab) are deliberately not followed: this
+        // page's year changes only when somebody changes it here (see _feeViewFY).
         function mountSchoolFeeQuarterBar() {
             _renderFeeFilters();
-            if (typeof CESTISCore !== 'undefined' && CESTISCore.onQuarterChange) {
-                CESTISCore.onQuarterChange(function () {
-                    if (_feeSuppressQuarterSub) return; // a local click already re-rendered
-                    // A quarter picked on another page (the Cashbook, Virement) is
-                    // a request to see that quarter, so it releases the whole-roll
-                    // toggle here too — otherwise this page would ignore it.
-                    feeScopeMode = 'quarter';
-                    feeApplyQuarterChange();
-                });
-            }
+        }
+
+        /* A record saved with a date outside the year on screen is not listed
+           there. The page does NOT move to it: a past year is only ever shown
+           when somebody chooses it. Instead the confirmation says which year
+           the record went to and offers a button to go and look, which is that
+           choice. `byQuarter` is for payments, which a single-quarter view also
+           narrows; trainees are a whole-year group.
+
+           Returns null when the record is already in view, otherwise
+           { text, label, fy, q } for feeToast's action button. */
+        function feeRecordYearNote(dateStr, what, byQuarter) {
+            if (feeScopeMode === 'all') return null;
+            const dq = (typeof CESTISCore !== 'undefined' && CESTISCore.deriveQuarter) ? CESTISCore.deriveQuarter(dateStr) : null;
+            const cur = feeActiveQuarter();
+            if (!dq || !cur) return null;
+            const quarterView = byQuarter && feeScopeMode === 'quarter';
+            if (dq.fy === cur.fy && (!quarterView || dq.q === cur.q)) return null;
+            const shown = quarterView ? feeScopeLabel() : ('FY ' + cur.fy);
+            const target = (quarterView && dq.fy === cur.fy)
+                ? CESTISCore.quarterShortLabel(dq.fy, dq.q) + ' ' + CESTISCore.quarterCalendarYear(dq.fy, dq.q)
+                : 'FY ' + dq.fy;
+            const tense = feeYearTense(dq.fy);
+            return {
+                text: 'This ' + what + ' is dated ' + dateStr + ', which is in ' + target +
+                    (tense === 'past' ? ' — a past year' : '') + ', so it is not listed under ' + shown +
+                    ', which stays on screen.',
+                label: 'Show ' + target,
+                fy: dq.fy,
+                q: dq.q
+            };
+        }
+
+        // The confirmation's "Show FY …" button: the deliberate step to the
+        // year a record was saved into.
+        function feeShowPeriod(fy, q) {
+            if (feeScopeMode === 'all') feeScopeMode = 'year';
+            const cur = feeActiveQuarter();
+            _feeSetView(fy, feeScopeMode === 'quarter' ? q : ((cur && cur.q) || q));
+            feeApplyQuarterChange();
         }
 
         // Render payments table
@@ -8620,8 +9284,14 @@
             const studentById = new Map();
             students.forEach(s => { if (s) studentById.set(s.id, s); });
 
+            // The banner above the table says which year these documents are.
+            try { renderFeeYearBar('documentsYearBar'); } catch (e) {}
+
             const rows = sortedDocs.map((doc) => {
                 const student = studentById.get(doc.studentId);
+                // A document belongs to its trainee's year. One whose trainee is
+                // no longer on the roll goes by its upload date instead.
+                if (!documentInActiveFY(doc, student)) return '';
                 const studentId = student ? student.id : 'N/A';
                 const size = formatFileSize(doc.size);
                 const search = [doc.uploadDate, doc.studentName, studentId, doc.type, doc.fileName, size]
@@ -8641,8 +9311,23 @@
                     </td>
                 </tr>`;
             });
-            tbody.innerHTML = rows.join('');
+            tbody.innerHTML = rows.join('') || ('<tr class="fee-yb-empty"><td colspan="7">' +
+                (documents.length
+                    ? 'No documents for ' + feeAttr(feeFYLabel().replace(/ group$/, '')) + '\u2019s trainees. ' +
+                      '<button class="fee-yb-link" onclick="feeSelectAll()">Show all years</button>'
+                    : 'No documents uploaded yet.') +
+                '</td></tr>');
             if (_feeFilterSet(['searchDocuments', 'filterDocStudent', 'filterDocType'])) filterDocuments();
+        }
+
+        // Is this document in the year on screen? Its trainee's year decides;
+        // without a trainee on the roll, the date it was uploaded does.
+        function documentInActiveFY(doc, student) {
+            if (feeScopeMode === 'all') return true;
+            if (student) return studentInActiveFY(student);
+            const cur = feeActiveQuarter();
+            const dq = (doc && typeof CESTISCore !== 'undefined') ? CESTISCore.deriveQuarter(doc.uploadDate) : null;
+            return !cur || !dq || dq.fy === cur.fy;
         }
 
         function updateDocumentTypeFilter() {
@@ -8671,6 +9356,7 @@
             const rows = document.querySelectorAll('#documentsTableBody tr');
 
             rows.forEach(row => {
+                if (row.classList.contains('fee-yb-empty')) return;
                 const text = row.dataset.search || row.textContent.toLowerCase();
                 const studentId = row.dataset.student != null ? row.dataset.student : row.cells[2].textContent;
                 const type = row.dataset.type != null ? row.dataset.type : row.cells[3].textContent;
@@ -9050,8 +9736,13 @@
                     termCells.push(`<td class="fee-term-col" data-term="${ti + 1}">${term > 0 ? '$' + term.toFixed(2) : '-'}</td>`);
                 }
 
+                // A fee carried over from the previous intake says so until the
+                // user edits it (which replaces the entry and drops the mark).
+                const carriedTag = data.carriedFrom
+                    ? `<div class="fee-carried-tag" title="Set automatically when this intake appeared. Edit to change it.">↻ Carried over from ${feeAttr(data.carriedFrom)}</div>`
+                    : '';
                 let html = `
-                    <td><strong>${skillArea}</strong></td>
+                    <td><strong>${skillArea}</strong>${carriedTag}</td>
                     <td><strong>$${total.toFixed(2)}</strong></td>
                     ${termCells.join('')}
                 `;
@@ -9176,8 +9867,8 @@
             // Dashboard tab calls updateDashboard(), which draws them then.
             if (!_feeModuleActive('dashboard')) return;
             const isDarkMode = document.body.classList.contains('dark-mode');
-            const textColor = isDarkMode ? '#e0e0e0' : '#2C3E50';
-            const gridColor = isDarkMode ? '#2d4059' : '#e0e0e0';
+            const textColor = isDarkMode ? '#dbe7fb' : '#2C3E50';
+            const gridColor = isDarkMode ? 'rgba(142, 197, 255, 0.16)' : '#e0e0e0';
 
             // Collection Rate Chart
             const collectionCtx = document.getElementById('collectionChart');
@@ -9291,7 +9982,7 @@
                     });
                 };
                 if (typeof CESTISCore !== 'undefined' && CESTISCore.getActiveQuarter) {
-                    const cur = CESTISCore.getActiveQuarter();
+                    const cur = feeActiveQuarter() || CESTISCore.getActiveQuarter();
                     if (feeScopeMode === 'quarter') {
                         const meta = CESTISCore.getQuarterMeta(cur.q);
                         const yr = CESTISCore.quarterCalendarYear(cur.fy, cur.q);
@@ -9372,17 +10063,25 @@
             }
         }
 
+        // The trainees the Reports tab is about: the selected year's group —
+        // the same one the dashboard cards and the Students list count. The
+        // reports used to read the whole roll, so a report titled for one month
+        // listed every trainee from every year.
+        function feeReportStudents() { return studentsInScope(); }
+
         // Update reports stats
         function updateReportsStats() {
-            const totalStudents = students.length;
-            const totalExpected = students.reduce((sum, s) => sum + s.tuitionFee, 0);
-            const totalCollected = students.reduce((sum, s) => sum + s.totalPaid, 0);
+            try { renderFeeYearBar('reportsYearBar'); } catch (e) {}
+            const group = feeReportStudents();
+            const totalStudents = group.length;
+            const totalExpected = group.reduce((sum, s) => sum + s.tuitionFee, 0);
+            const totalCollected = group.reduce((sum, s) => sum + s.totalPaid, 0);
             const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected * 100).toFixed(1) : 0;
-            const outstandingCount = students.filter(s => s.balance > 0).length;
+            const outstandingCount = group.filter(s => s.balance > 0).length;
             // Settled, not merely "owing nothing": a trainee with no fee set owes
             // an unknown amount, and counting them here told the Centre it had
             // 27 more accounts closed than it did.
-            const paidCount = students.filter(feeIsSettled).length;
+            const paidCount = group.filter(feeIsSettled).length;
             const avgPayment = totalStudents > 0 ? (totalCollected / totalStudents).toFixed(2) : 0;
             
             document.getElementById('collectionRate').textContent = collectionRate + '%';
@@ -9400,12 +10099,12 @@
 
             monthlyBreakdown.style.display = 'none';
 
-            let filteredStudents = [...students];
+            let filteredStudents = feeReportStudents();
 
             if (reportType === 'outstanding') {
-                filteredStudents = students.filter(s => s.balance > 0);
+                filteredStudents = feeReportStudents().filter(s => s.balance > 0);
             } else if (reportType === 'fullypaid') {
-                filteredStudents = students.filter(feeIsSettled);
+                filteredStudents = feeReportStudents().filter(feeIsSettled);
             } else if (reportType === 'payments') {
                 generatePaymentsReport();
                 return;
@@ -9413,21 +10112,21 @@
 
             if (reportType === 'skillarea') {
                 const grouped = {};
-                students.forEach(s => {
+                feeReportStudents().forEach(s => {
                     if (!grouped[s.skillArea]) {
                         grouped[s.skillArea] = [];
                     }
                     grouped[s.skillArea].push(s);
                 });
 
-                let html = `<h3 style="color: var(--primary-blue); margin-bottom: 1rem;">Students by Skill Area - ${periodLabel}</h3>`;
+                let html = `<h3 style="color: var(--heading-color); margin-bottom: 1rem;">Students by Skill Area - ${periodLabel}</h3>`;
                 for (const [skillArea, studentList] of Object.entries(grouped)) {
                     const total = studentList.reduce((sum, s) => sum + s.tuitionFee, 0);
                     const collected = studentList.reduce((sum, s) => sum + s.totalPaid, 0);
 
                     html += `
                         <div style="background: var(--bg-primary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-                            <h4 style="color: var(--primary-blue);">${skillArea} (${studentList.length} students)</h4>
+                            <h4 style="color: var(--heading-color);">${skillArea} (${studentList.length} students)</h4>
                             <p><strong>Total Expected:</strong> $${total.toFixed(2)}</p>
                             <p><strong>Total Collected:</strong> $${collected.toFixed(2)}</p>
                             <p><strong>Collection Rate:</strong> ${(collected / total * 100).toFixed(1)}%</p>
@@ -9443,7 +10142,7 @@
                 };
 
                 let html = `
-                    <h3 style="color: var(--primary-blue); margin-bottom: 1rem;">${reportTitles[reportType] || 'Report'} - ${periodLabel}</h3>
+                    <h3 style="color: var(--heading-color); margin-bottom: 1rem;">${reportTitles[reportType] || 'Report'} - ${periodLabel}</h3>
                     <table>
                         <thead>
                             <tr>
@@ -9502,7 +10201,7 @@
             const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
 
             let html = `
-                <h3 style="color: var(--primary-blue); margin-bottom: 1rem;">Payments Report - ${periodLabel}</h3>
+                <h3 style="color: var(--heading-color); margin-bottom: 1rem;">Payments Report - ${periodLabel}</h3>
                 <div style="background: var(--bg-primary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; display: flex; gap: 2rem; flex-wrap: wrap;">
                     <div><strong>Total Payments:</strong> ${filteredPayments.length}</div>
                     <div><strong>Total Amount:</strong> $${totalAmount.toFixed(2)}</div>
@@ -9657,12 +10356,19 @@
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                                'July', 'August', 'September', 'October', 'November', 'December'];
 
+            // The month only narrows the Payments report. The trainee reports
+            // are a year's group, so they are labelled with the group, not with
+            // a month they were never filtered by.
+            const typeEl = document.getElementById('reportType');
+            const isTraineeReport = !!typeEl && typeEl.value !== 'payments';
             return {
                 dateRange,
                 month,
                 year,
                 monthName: monthNames[month],
-                periodLabel: dateRange === 'all' ? 'All Time' : `${monthNames[month]} ${year}`
+                periodLabel: isTraineeReport
+                    ? feeFYLabel()
+                    : (dateRange === 'all' ? 'All Time' : `${monthNames[month]} ${year}`)
             };
         }
 
@@ -9787,7 +10493,7 @@
             } else if (reportType === 'skillarea') {
                 // Skill area report
                 const grouped = {};
-                students.forEach(s => {
+                feeReportStudents().forEach(s => {
                     if (!grouped[s.skillArea]) grouped[s.skillArea] = [];
                     grouped[s.skillArea].push(s);
                 });
@@ -9819,11 +10525,11 @@
                 }
             } else {
                 // Student reports (all, outstanding, fullypaid)
-                let filteredStudents = [...students];
+                let filteredStudents = feeReportStudents();
                 if (reportType === 'outstanding') {
-                    filteredStudents = students.filter(s => s.balance > 0);
+                    filteredStudents = feeReportStudents().filter(s => s.balance > 0);
                 } else if (reportType === 'fullypaid') {
-                    filteredStudents = students.filter(feeIsSettled);
+                    filteredStudents = feeReportStudents().filter(feeIsSettled);
                 }
 
                 const totalExpected = filteredStudents.reduce((sum, s) => sum + s.tuitionFee, 0);
@@ -9872,7 +10578,7 @@
             doc.text('CESTIS - Centre for Excellence - Training you for the future', pageWidth / 2, footerY + 5, { align: 'center' });
 
             // Save
-            const fileName = `CESTIS_${reportTitles[reportType].replace(/\s+/g, '_')}_${periodLabel.replace(/\s+/g, '_')}.pdf`;
+            const fileName = `CESTIS_${reportTitles[reportType].replace(/\s+/g, '_')}_${periodLabel.replace(/[\s\/,]+/g, '_')}.pdf`;
             doc.save(fileName);
         }
 
@@ -9930,7 +10636,7 @@
                 `;
             } else if (reportType === 'skillarea') {
                 const grouped = {};
-                students.forEach(s => {
+                feeReportStudents().forEach(s => {
                     if (!grouped[s.skillArea]) grouped[s.skillArea] = [];
                     grouped[s.skillArea].push(s);
                 });
@@ -9946,11 +10652,11 @@
                     `;
                 }).join('');
             } else {
-                let filteredStudents = [...students];
+                let filteredStudents = feeReportStudents();
                 if (reportType === 'outstanding') {
-                    filteredStudents = students.filter(s => s.balance > 0);
+                    filteredStudents = feeReportStudents().filter(s => s.balance > 0);
                 } else if (reportType === 'fullypaid') {
-                    filteredStudents = students.filter(feeIsSettled);
+                    filteredStudents = feeReportStudents().filter(feeIsSettled);
                 }
 
                 const totalExpected = filteredStudents.reduce((sum, s) => sum + s.tuitionFee, 0);
@@ -10345,7 +11051,10 @@
 
         // Export to Excel
         function exportToExcel() {
-            if (students.length === 0) {
+            // The Reports tab's export is the year's group it is showing; the
+            // whole roll is still one click away under Import/Export.
+            const group = feeReportStudents();
+            if (group.length === 0) {
                 alert('No data to export');
                 return;
             }
@@ -10353,7 +11062,7 @@
             const wb = XLSX.utils.book_new();
             const headers = ['Student ID', 'Name', 'Skill Area', 'Tuition Fee', 'Total Paid', 
                            'Balance', 'Status', 'Contact', 'Email', 'Enrollment Date'];
-            const rows = students.map(s => [
+            const rows = group.map(s => [
                 s.id,
                 s.name,
                 s.skillArea,
@@ -10368,7 +11077,9 @@
             
             const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
             XLSX.utils.book_append_sheet(wb, ws, 'Students');
-            XLSX.writeFile(wb, `CESTI_Students_${new Date().toISOString().split('T')[0]}.xlsx`);
+            const scopeTag = feeScopeMode === 'all' ? 'All_Years'
+                : 'FY' + String((feeActiveQuarter() || {}).fy || '').replace(/\//g, '-');
+            XLSX.writeFile(wb, `CESTI_Students_${scopeTag}_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
 
         // Import/Export Functions
@@ -14381,7 +15092,7 @@
                                     Modified ${timeAgo}
                                 </div>
                             </div>
-                            <span style="color: var(--primary-blue); font-size: 1.2rem;">→</span>
+                            <span style="color: var(--heading-color); font-size: 1.2rem;">→</span>
                         </div>
                     </div>
                 `;

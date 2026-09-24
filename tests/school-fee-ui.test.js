@@ -144,8 +144,13 @@ PAGES.forEach(where => {
   const ret = extractFunction(src, 'feeReturnToPresent', where);
   assert(/feeScopeMode = 'year';/.test(ret),
     where + ': returning lands on the whole present year, not a stray quarter');
-  assert(/setActiveQuarter\(fy,/.test(ret),
-    where + ': and actually moves the shared year, so the other pages follow');
+  // It moves the page's own year through _feeSetView, which is the one place
+  // that also writes the shared year — so the other pages still follow.
+  assert(/_feeSetView\(fy,/.test(ret),
+    where + ': and actually moves the year, through the one setter');
+  const setView = extractFunction(src, '_feeSetView', where);
+  assert(/setActiveQuarter\(fy, q\)/.test(setView) && /_feeViewFY = fy;/.test(setView),
+    where + ': which moves this page AND the shared year, so the other pages follow');
 
   assert(/not the present group/.test(src),
     where + ': while a past year is selected the bar says so plainly');
@@ -193,6 +198,49 @@ PAGES.forEach(where => {
 
   assert(src.indexOf('height:380px') === -1 && /height:300px/.test(src),
     where + ': the charts no longer push the figures off the screen');
+});
+
+/* ---------- 5. Rich blue is the page's look ---------- */
+console.log('\nThe page opens in rich blue, and Light is a choice that is remembered');
+
+PAGES.forEach(where => {
+  const src = read(where);
+
+  // The script that sets the theme as <body> opens, run for real against each
+  // value the shared preference can hold.
+  const m = src.match(/<body>\s*<script>([\s\S]*?)<\/script>/);
+  assert(!!m, where + ': the theme is applied as the body opens, before anything is drawn');
+  if (m) {
+    const opensBlue = stored => {
+      const classes = new Set();
+      const ctx = {
+        CESTISStore: { getItem: k => (k === 'darkMode' ? stored : null) },
+        document: { body: { classList: { add: c => classes.add(c) } } }
+      };
+      vm.createContext(ctx);
+      vm.runInContext(m[1], ctx);
+      return classes.has('dark-mode');
+    };
+    assert(opensBlue(null), where + ': with nothing chosen it opens in rich blue');
+    assert(opensBlue('true'), where + ': and when rich blue was chosen');
+    assert(opensBlue('false'), where + ': the old toggle’s "false" is not honoured, so every device moves to rich blue once');
+    assert(!opensBlue('light'), where + ': only an explicit Light choice opens light');
+  }
+
+  const toggle = extractFunction(src, 'toggleDarkMode', where);
+  assert(/setItem\('darkMode', isDarkMode \? 'true' : 'light'\)/.test(toggle),
+    where + ': the header button stores Light as "light", which the opening script honours');
+
+  // Every surface is a shade of blue, not the old near-black purple.
+  const block = (src.match(/body\.dark-mode \{([\s\S]*?)\}/) || [])[1] || '';
+  assert(block.indexOf('#1a1a2e') < 0 && /--bg-primary: #0a1f44;/.test(block),
+    where + ': the page and its panels are blue, not near-black purple');
+  assert(/--bg-card: #0f3460;/.test(block), where + ': the cards keep the rich blue');
+  assert(/--heading-color: #8ec5ff;/.test(block) && /--heading-color: #0D47A1;/.test(src),
+    where + ': headings are light blue on blue, and the same navy as before in light');
+  assert(!/(?<![-\w])color:\s*var\(--primary-blue\)/.test(src),
+    where + ': no heading is left in navy text, which vanished on a blue card');
+  assert(/color-scheme: dark;/.test(block), where + ': date pickers and dropdowns draw themselves to match');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
