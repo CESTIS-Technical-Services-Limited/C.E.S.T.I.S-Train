@@ -504,9 +504,17 @@
   function lanNow() { return new Date(Date.now() + (lan.offset || 0)).toISOString(); }
 
   /* Keys that describe THIS device, never the Centre: copying them to another
-     machine would sign people in as each other or resume someone else's exam. */
+     machine would sign people in as each other or resume someone else's exam.
+     A trainee's saved exam attempt (cestisExamSession__<trainee>__<exam>) and
+     this PC's queue of not-yet-uploaded submissions hold a trainee's answers;
+     the results themselves travel in voctrain_examResults. Each user's private
+     copy (voctrain_user_<id>_*) holds their direct messages, so it stays on the
+     PC it was written on — the shared collections already carry the Centre's
+     records. */
   function deviceOnly(k) {
     return /^voctrain_session(Expiry|Role|UserId)$/.test(k) || k === 'voctrain_examInProgress' ||
+           k.indexOf('cestisExamSession__') === 0 || k === 'cestisExamOutbox' ||
+           k.indexOf('voctrain_user_') === 0 ||
            /AccessToken$|TokenExpiry$/i.test(k);
   }
   function lanCollect(spec, map) {

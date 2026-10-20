@@ -4286,13 +4286,17 @@
 
     // Latest submitted exam result for one student+unit. exams/examResults are
     // the app's canonical arrays. Returns null when the unit has no live score.
+    // A result archived because its exam was deleted is no longer evidence of
+    // anything and is skipped. A result still awaiting manual marking IS
+    // returned: it is the latest attempt, and effectiveGrades shows it as
+    // pending rather than letting an older attempt's grade stand in for it.
     T.latestExamResultForUnit = function (unit, studentId, exams, examResults) {
       if (!unit || !studentId) return null;
       var examsById = {};
       (exams || []).forEach(function (e) { if (e && e.id) examsById[e.id] = e; });
       var best = null, bestTime = -1;
       (examResults || []).forEach(function (r) {
-        if (!r || r.studentId !== studentId) return;
+        if (!r || r.studentId !== studentId || r.archived) return;
         var exam = examsById[r.examId];
         if (!exam || !T.examMatchesUnit(exam, unit)) return;
         var t = r.submittedAt ? new Date(r.submittedAt).getTime() : 0;
@@ -4331,9 +4335,13 @@
         }
         var res = T.latestExamResultForUnit(u, studentId, opts.exams, opts.examResults);
         if (res) {
-          row.grade = res.score;
+          // A provisional score (only the auto-marked part, short answers
+          // still unmarked) is not the unit grade: it read as 40 and "Failed"
+          // on the transcript before the instructor had marked anything.
+          var pending = !!(res.needsReview && !res.reviewComplete);
+          row.grade = pending ? null : res.score;
           row.date = T.formatDateDMY(res.submittedAt);
-          row.source = 'exam';
+          row.source = pending ? 'pending' : 'exam';
           row.examResultId = res.id;
           var exam = (opts.exams || []).filter(function (e) { return e && e.id === res.examId; })[0];
           row.examTitle = exam ? exam.title : '';
@@ -6738,6 +6746,449 @@
 
     return { esc: esc, attr: esc, jsArg: jsArg, safeUrl: safeUrl, linkify: linkify,
              escKeepCharRefs: escKeepCharRefs, notifIcon: notifIcon, cleanNotification: cleanNotification };
+  })();
+
+  /* --------------------------------------------------------------------------
+     Core.html — the ONE escaping toolkit every page uses when it builds markup
+     out of strings.
+
+     Why it exists: names, course titles, chat messages, file names, resource
+     links and notification texts are typed by trainees, instructors and even
+     anonymous visitors (the Support form), then shown in the Administrator's
+     browser — the session that holds the Centre's Google Drive token. Anything
+     that reaches innerHTML unescaped there can read or destroy every record.
+     The pages had grown four slightly different escapers, some of which forgot
+     quotes, and inline onclick handlers that "escaped" an apostrophe as &#39; —
+     which the browser decodes straight back before the JavaScript runs. These
+     helpers are the single correct version; the page-level escapeHtml,
+     escapeAttr, _certEsc and lmsChatEscapeHtml now hand their work to them.
+
+       esc(s)        text or a quoted attribute value: & < > " ' ` all encoded.
+       jsArg(s)      a JavaScript string literal that is safe INSIDE a
+                     double-quoted inline handler: onclick="f(' + jsArg(x) + ')".
+                     The literal is JSON-quoted first, then HTML-escaped, so the
+                     browser's attribute decoding gives back exactly x.
+       safeUrl(u)    u if it is an http(s)/mailto/tel/blob/relative link or a
+                     data:image, otherwise '' — so a javascript: link can never
+                     be clicked. { data: true } also allows any data: URL, for
+                     the download links of files stored inline.
+       linkify(t, { style }) escapes plain chat text and turns http(s) links
+                     into anchors built from the escaped address, which can no
+                     longer run past a quote into a new attribute.
+       escKeepCharRefs(s) like esc, but keeps numeric character references
+                     such as &#128222; (some stored notification texts carry
+                     their emoji that way). A numeric reference can only ever
+                     produce one character of text, never markup.
+       notifIcon(icon, fallback) a notification's icon only if it is an
+                     emoji/character reference, otherwise the fallback.
+       cleanNotification(n) a fresh notification object built only from the
+                     known fields of one that arrived from another device.
+     -------------------------------------------------------------------------- */
+  Core.html = (function () {
+    var MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' };
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"'`]/g, function (c) { return MAP[c]; });
+    }
+
+    function jsArg(s) {
+      var lit = JSON.stringify(String(s == null ? '' : s))
+        .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+      return esc(lit);
+    }
+
+    // Browsers ignore leading/trailing spaces and control characters, and
+    // every tab or newline anywhere, when they read a link's scheme — so
+    // " java\tscript:" is still javascript:. Look at the URL the same way.
+    function schemeOf(u) {
+      var s = String(u == null ? '' : u).replace(/^[\u0000-\u0020]+/, '').replace(/[\t\n\r]/g, '');
+      var m = /^([a-zA-Z][a-zA-Z0-9+.\-]*):/.exec(s);
+      return m ? m[1].toLowerCase() : '';
+    }
+
+    var SAFE_SCHEMES = { http: 1, https: 1, mailto: 1, tel: 1, blob: 1 };
+    // Any picture is fine: an image (even an SVG) shown in <img> runs no script,
+    // and browsers refuse to open a data: URL as a page.
+    var SAFE_DATA_IMAGE = /^data:image\/[a-z0-9.+\-]+[;,]/i;
+
+    function safeUrl(u, opts) {
+      if (u == null) return '';
+      var raw = String(u).trim();
+      if (!raw) return '';
+      var scheme = schemeOf(raw);
+      if (!scheme) return raw;                      // relative link: same site, no script
+      if (SAFE_SCHEMES[scheme]) return raw;
+      if (scheme === 'data') {
+        if (opts && opts.data) return raw;          // inline file download
+        var compact = raw.replace(/[\u0000-\u0020]+/g, '');
+        if (SAFE_DATA_IMAGE.test(compact)) return raw;
+      }
+      return '';
+    }
+
+    // A link inside chat text ends at whitespace or at any character that
+    // could close an attribute or open a tag.
+    var URL_RE = /https?:\/\/[^\s<>"'`]+/gi;
+
+    function linkify(text, opts) {
+      var s = String(text == null ? '' : text);
+      var style = opts && opts.style ? ' style="' + esc(opts.style) + '"' : '';
+      var out = '', last = 0, m;
+      URL_RE.lastIndex = 0;
+      while ((m = URL_RE.exec(s))) {
+        out += esc(s.slice(last, m.index));
+        var url = m[0];
+        out += '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"' + style + '>' + esc(url) + '</a>';
+        last = m.index + url.length;
+      }
+      return out + esc(s.slice(last));
+    }
+
+    function escKeepCharRefs(s) {
+      return esc(s).replace(/&amp;#(\d{1,7}|x[0-9a-fA-F]{1,6});/g, '&#$1;');
+    }
+
+    // An icon is one or two emoji (possibly written as numeric references) —
+    // never letters, never markup. Anything else gets the fallback.
+    function notifIcon(icon, fallback) {
+      var s = String(icon == null ? '' : icon);
+      if (s && s.length <= 24 && /^(?:&#\d{1,7};|[^\x00-\x7F]|\s)+$/.test(s)) return s;
+      return fallback == null ? '\uD83D\uDD14' : String(fallback);
+    }
+
+    var NOTIF_TYPES = { info: 1, success: 1, warning: 1 };
+    var ROLES = { admin: 1, adminstaff: 1, instructor: 1, student: 1, cmc: 1 };
+
+    function strList(a, max, allow) {
+      if (!Array.isArray(a)) return [];
+      var out = [];
+      for (var i = 0; i < a.length && out.length < max; i++) {
+        if (typeof a[i] !== 'string' && typeof a[i] !== 'number') continue;
+        var v = String(a[i]).slice(0, 80);
+        if (allow && !allow[v]) continue;
+        out.push(v);
+      }
+      return out;
+    }
+
+    // Another device (or anyone on the public realtime broker) can send us a
+    // notification. Keep only the fields the bell uses, as plain strings of a
+    // sensible length; everything else is dropped. Returns null for junk.
+    function cleanNotification(n) {
+      if (!n || typeof n !== 'object' || n.id == null || n.text == null) return null;
+      var ts = Number(n.timestamp);
+      var out = {
+        id: String(n.id).slice(0, 80),
+        text: String(n.text).slice(0, 500),
+        timestamp: isFinite(ts) && ts > 0 ? ts : Date.now(),
+        time: 'Just now',
+        read: false,
+        icon: notifIcon(n.icon),
+        type: NOTIF_TYPES[n.type] ? n.type : 'info',
+        forRoles: strList(n.forRoles, 8, ROLES)
+      };
+      var users = strList(n.forUsers, 50);
+      if (users.length) out.forUsers = users;
+      return out;
+    }
+
+    return { esc: esc, attr: esc, jsArg: jsArg, safeUrl: safeUrl, linkify: linkify,
+             escKeepCharRefs: escKeepCharRefs, notifIcon: notifIcon, cleanNotification: cleanNotification };
+  })();
+
+  /* --------------------------------------------------------------------------
+     Core.exams — the rules of an online exam that every page must agree on.
+
+     Why it exists: each device decided these for itself, and got them wrong
+     in ways that cost trainees their results.
+       - The exam window was read in the device's OWN timezone, so a lab PC
+         left on UTC closed a 09:00 Jamaica exam at 05:31 and published that
+         to every other device. The Centre's schedule is Centre time: Jamaica
+         is UTC-05:00 all year (no daylight saving), so a date and a time
+         typed by staff mean one fixed instant everywhere.
+       - A manually activated exam had no record of WHEN it was activated, so
+         an exam scheduled for 09:00 and activated at 14:00 was "over" by the
+         next tick. activatedAt opens a fresh window of `duration` minutes.
+       - The clock of an attempt restarted from full on every reload. The
+         deadline is now an absolute moment fixed when the attempt starts,
+         and never later than the window's end.
+       - Marking compared answers with keys that might be missing (an import
+         with no answer key, a deleted option): null === null scored an
+         unanswered question as correct. A question with no usable key now
+         goes to the instructor instead of being guessed.
+       - Results awaiting manual marking were counted as final Fails in pass
+         rates and averages. Only final results count.
+
+       centreTime(date, time, offset)   ms of a Centre-local date + time
+       centreParts(ms, offset)          { date:'YYYY-MM-DD', time:'HH:MM' }
+       defaultStart(now, offset)        the next 5-minute mark, Centre time
+       windowOf(exam, offset)           { start, end } in ms, or null
+       statusAt(exam, now, offset)      'upcoming' | 'active' | 'completed'
+       sessionDeadline(exam, startedAt, offset)  ms the attempt must end by
+       publicQuestions(questionData)    the questions WITHOUT their keys
+       mark(questions, answers, keyed)  marks an attempt against the exam's keys
+       keyProblems(questions)           question numbers whose MCQ/TF key is unset
+       fixKeyAfterOptionRemoved(q, i)   keeps the key on the same option text
+       isProvisional(r) / isFinal(r)    awaiting marking / counts towards scores
+       passRateOf(results)              '67%' over final results, or null
+       averageOf(results)               mean score of final results, or null
+       canRevealAnswers(exam, now, off) may a trainee see the correct answers?
+       syncKey(exam) / legacyKey(exam)  the exam's merge key (id) / old key
+       translateLegacyTombs(tombs, lists...) old title|course tombstones -> ids
+       csvCell(v)                       a CSV cell, quoted and formula-safe
+       draftKey(studentId, examId)      where an attempt in progress is kept
+       outboxAdd / outboxPending / outboxRestore  results not yet in the cloud
+     -------------------------------------------------------------------------- */
+  Core.exams = (function () {
+    var DEFAULT_OFFSET = '-05:00';
+    var MIN = 60000;
+
+    function offsetMinutes(off) {
+      if (typeof off === 'number' && isFinite(off)) return off;
+      var m = /^([+-])(\d{1,2}):?(\d{2})$/.exec(String(off == null || off === '' ? DEFAULT_OFFSET : off).trim());
+      if (!m) m = /^([+-])(\d{1,2}):?(\d{2})$/.exec(DEFAULT_OFFSET);
+      var v = parseInt(m[2], 10) * 60 + parseInt(m[3], 10);
+      return m[1] === '-' ? -v : v;
+    }
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+    function centreTime(dateStr, timeStr, offset) {
+      var d = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(dateStr || '').trim());
+      if (!d) return null;
+      var t = /^(\d{1,2}):(\d{2})/.exec(String(timeStr || '00:00').trim()) || [null, '0', '0'];
+      var utc = Date.UTC(+d[1], +d[2] - 1, +d[3], parseInt(t[1], 10) || 0, parseInt(t[2], 10) || 0);
+      return utc - offsetMinutes(offset) * MIN;
+    }
+    function centreParts(ms, offset) {
+      var x = new Date(ms + offsetMinutes(offset) * MIN);
+      return {
+        date: x.getUTCFullYear() + '-' + pad(x.getUTCMonth() + 1) + '-' + pad(x.getUTCDate()),
+        time: pad(x.getUTCHours()) + ':' + pad(x.getUTCMinutes())
+      };
+    }
+    /* "Now", rounded UP to the next five minutes — what a blank date and time
+       on a new exam mean, instead of 09:00 today (which, after 10:30, made
+       the exam finished before anyone could sit it). */
+    function defaultStart(nowMs, offset) {
+      var step = 5 * MIN;
+      return centreParts(Math.ceil(nowMs / step) * step, offset);
+    }
+    function durationMs(exam) { return (parseInt(exam && exam.duration, 10) || 90) * MIN; }
+    function hasQuestions(exam) { return !!(exam && Array.isArray(exam.questionData) && exam.questionData.length); }
+
+    function windowOf(exam, offset) {
+      if (!exam) return null;
+      var dur = durationMs(exam);
+      var start = centreTime(exam.date, exam.time, offset);
+      var end = start == null ? null : start + dur;
+      var act = Date.parse(exam.activatedAt || '');
+      if (!isNaN(act)) {
+        start = start == null ? act : Math.min(start, act);
+        end = Math.max(end == null ? 0 : end, act + dur);
+      }
+      return start == null ? null : { start: start, end: end };
+    }
+
+    /* The status an exam should have NOW. Pure: it never changes the exam.
+       'completed' is final until staff reschedule; an exam without questions
+       never opens by itself. */
+    function statusAt(exam, nowMs, offset) {
+      if (!exam) return 'upcoming';
+      var stored = exam.status === 'active' || exam.status === 'completed' ? exam.status : 'upcoming';
+      if (stored === 'completed') return 'completed';
+      var w = windowOf(exam, offset);
+      if (!w) return stored;
+      if (stored === 'upcoming' && (nowMs < w.start || !hasQuestions(exam))) return 'upcoming';
+      return nowMs >= w.end ? 'completed' : 'active';
+    }
+
+    function sessionDeadline(exam, startedAt, offset) {
+      var d = startedAt + durationMs(exam);
+      var w = windowOf(exam, offset);
+      if (w && w.end != null) d = Math.min(d, w.end);
+      return d;
+    }
+
+    function publicQuestions(questionData) {
+      return (Array.isArray(questionData) ? questionData : []).map(function (q) {
+        var c = {};
+        Object.keys(q || {}).forEach(function (k) { if (k !== 'correctAnswer') c[k] = q[k]; });
+        return c;
+      });
+    }
+
+    function validKey(q, key) {
+      if (!q) return false;
+      if (q.type === 'mcq') return typeof key === 'number' && key >= 0 && key < (q.options || []).length && Math.floor(key) === key;
+      if (q.type === 'tf') return key === true || key === false;
+      return true;
+    }
+    function keyProblems(questions) {
+      var out = [];
+      (questions || []).forEach(function (q, i) {
+        if (q && (q.type === 'mcq' || q.type === 'tf') && !validKey(q, q.correctAnswer)) out.push(i + 1);
+      });
+      return out;
+    }
+    function fixKeyAfterOptionRemoved(q, optIdx) {
+      if (q && typeof q.correctAnswer === 'number') {
+        if (q.correctAnswer === optIdx) q.correctAnswer = null;
+        else if (q.correctAnswer > optIdx) q.correctAnswer--;
+      }
+      return q;
+    }
+
+    /* Mark an attempt. `questions` are what the trainee saw (keys stripped),
+       `keyed` is the exam's own questionData, matched by question id. A
+       question whose key is missing or unusable is never auto-marked: it is
+       sent to the instructor, like a short answer. */
+    function mark(questions, answers, keyed) {
+      var byId = {};
+      (keyed || []).forEach(function (k) { if (k && k.id != null) byId[String(k.id)] = k; });
+      var out = { gradedResults: [], totalPoints: 0, earnedPoints: 0, correctCount: 0, manualCount: 0 };
+      (questions || []).forEach(function (q, i) {
+        var src = q && q.id != null && byId[String(q.id)] ? byId[String(q.id)] : null;
+        var key = src ? src.correctAnswer : (q && 'correctAnswer' in q ? q.correctAnswer : null);
+        if (key === undefined) key = null;
+        var pts = Number(q.points) || 0;
+        var ans = answers ? answers[i] : null;
+        if (ans === undefined) ans = null;
+        var isCorrect = false, manual = false, autoMatch = null;
+        if (q.type === 'mcq' || q.type === 'tf') {
+          if (validKey(q, key)) isCorrect = ans === key;
+          else { manual = true; key = null; }
+        } else if (q.type === 'fill') {
+          autoMatch = typeof key === 'string' && key.trim() !== '' &&
+            String(ans == null ? '' : ans).trim().toLowerCase() === key.trim().toLowerCase();
+          isCorrect = autoMatch;
+          manual = true; // the instructor confirms every fill-in
+        } else {
+          manual = true;
+        }
+        out.totalPoints += pts;
+        if (isCorrect && !manual) { out.earnedPoints += pts; out.correctCount++; }
+        if (manual) out.manualCount++;
+        out.gradedResults.push({
+          questionId: q.id,
+          questionText: q.text,
+          type: q.type,
+          studentAnswer: ans,
+          correctAnswer: key,
+          isCorrect: manual ? null : isCorrect,
+          needsManualGrade: manual,
+          points: pts,
+          earnedPoints: (isCorrect && !manual) ? pts : 0,
+          awardedPoints: manual ? null : (isCorrect ? pts : 0),
+          graded: !manual,
+          gradedBy: manual ? null : 'auto',
+          autoMatch: q.type === 'fill' ? autoMatch : null
+        });
+      });
+      return out;
+    }
+
+    function isProvisional(r) { return !!(r && r.needsReview && !r.reviewComplete); }
+    function isFinal(r) { return !!(r && !r.archived && !isProvisional(r)); }
+    function passRateOf(results) {
+      var fin = (results || []).filter(isFinal);
+      if (!fin.length) return null;
+      return Math.round(fin.filter(function (r) { return r.passed; }).length / fin.length * 100) + '%';
+    }
+    function averageOf(results) {
+      var fin = (results || []).filter(function (r) { return isFinal(r) && !isNaN(parseFloat(r.score)); });
+      if (!fin.length) return null;
+      return Math.round(fin.reduce(function (a, r) { return a + parseFloat(r.score); }, 0) / fin.length);
+    }
+
+    /* A trainee sees the correct answers only once the exam has closed, or
+       when staff release them; staff may also withhold them for good.
+       An exam saved before this existed has no setting: after close. */
+    function canRevealAnswers(exam, nowMs, offset) {
+      if (!exam) return false;
+      if (exam.answersRelease === 'released') return true;
+      if (exam.answersRelease === 'withheld') return false;
+      return statusAt(exam, nowMs, offset) === 'completed';
+    }
+
+    function lower(v) { return String(v == null ? '' : v).trim().toLowerCase(); }
+    function legacyKey(e) { return lower(e && e.title) + '|' + lower(e && e.course); }
+    function syncKey(e) { return e && e.id != null && e.id !== '' ? String(e.id) : legacyKey(e); }
+    /* Exams used to be merged by title|programme, so the deletions already
+       written down are under that key. Carry each one over to the exam's id,
+       but only when exactly one exam answers to it — two same-titled exams
+       must never both go because one was deleted. */
+    function translateLegacyTombs(tombs) {
+      var out = {};
+      Object.keys(tombs || {}).forEach(function (k) { out[k] = tombs[k]; });
+      var ids = {};
+      Array.prototype.slice.call(arguments, 1).forEach(function (list) {
+        (list || []).forEach(function (e) {
+          if (!e || e.id == null || e.id === '') return;
+          var lk = legacyKey(e);
+          (ids[lk] = ids[lk] || {})[String(e.id)] = 1;
+        });
+      });
+      Object.keys(tombs || {}).forEach(function (k) {
+        if (k.indexOf('|') === -1 || !ids[k]) return;
+        var match = Object.keys(ids[k]);
+        if (match.length !== 1) return;
+        var t = Date.parse(tombs[k]) || 0, have = Date.parse(out[match[0]] || '') || 0;
+        if (t > have) out[match[0]] = tombs[k];
+      });
+      return out;
+    }
+
+    /* One CSV cell: quotes doubled, and a leading = + - @ (which a
+       spreadsheet would run as a formula) neutralised with an apostrophe. */
+    function csvCell(v) {
+      var s = String(v == null ? '' : v);
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+
+    /* An attempt in progress lives on the device it is sat on, under a key
+       per trainee and exam: outside the voctrain_ prefix so a staff sign-out
+       on a shared PC does not wipe it, and with "Session" in its name so it
+       never goes into a shared snapshot (isSnapshotableKey). */
+    var DRAFT_PREFIX = 'cestisExamSession__';
+    function draftKey(studentId, examId) { return DRAFT_PREFIX + String(studentId) + '__' + String(examId); }
+
+    /* Results submitted on this device that the cloud has not yet been seen
+       to hold. A sign-out on a shared PC keeps only the signed-in trainee's
+       rows (or, for staff, none) — these come back until they are safe. */
+    function outboxAdd(list, result) {
+      var out = (Array.isArray(list) ? list : []).filter(function (r) { return r && r.id !== result.id; });
+      out.push(result);
+      return out;
+    }
+    function outboxPending(list, cloudResults) {
+      var inCloud = {};
+      (cloudResults || []).forEach(function (r) { if (r && r.id != null) inCloud[String(r.id)] = 1; });
+      return (Array.isArray(list) ? list : []).filter(function (r) { return r && !inCloud[String(r.id)]; });
+    }
+    function outboxRestore(examResults, list) {
+      if (!Array.isArray(examResults)) return 0;
+      var added = 0;
+      (Array.isArray(list) ? list : []).forEach(function (r) {
+        if (!r || r.id == null) return;
+        var have = examResults.some(function (x) {
+          return x && (x.id === r.id || (x.examId === r.examId && x.studentId === r.studentId));
+        });
+        if (!have) { examResults.push(r); added++; }
+      });
+      return added;
+    }
+
+    return {
+      DEFAULT_OFFSET: DEFAULT_OFFSET, offsetMinutes: offsetMinutes, centreTime: centreTime, centreParts: centreParts,
+      defaultStart: defaultStart, windowOf: windowOf, hasQuestions: hasQuestions, statusAt: statusAt,
+      sessionDeadline: sessionDeadline, publicQuestions: publicQuestions, mark: mark, keyProblems: keyProblems,
+      fixKeyAfterOptionRemoved: fixKeyAfterOptionRemoved, isProvisional: isProvisional, isFinal: isFinal,
+      passRateOf: passRateOf, averageOf: averageOf, canRevealAnswers: canRevealAnswers,
+      legacyKey: legacyKey, syncKey: syncKey, translateLegacyTombs: translateLegacyTombs, csvCell: csvCell,
+      DRAFT_PREFIX: DRAFT_PREFIX, draftKey: draftKey,
+      outboxAdd: outboxAdd, outboxPending: outboxPending, outboxRestore: outboxRestore
+    };
   })();
 
   root.CESTISCore = Core;

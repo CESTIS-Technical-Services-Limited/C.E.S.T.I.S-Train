@@ -161,6 +161,9 @@ const ids = list => (list || []).map(r => r.id).sort().join(',');
     office.set('voctrain_systemSettings', { institutionName: 'CESTIS' });
     office.set('voctrain_sessionRole', 'admin');
     office.set('voctrain_examInProgress', '{"examId":"E1"}');
+    office.set('cestisExamSession__S1__E1', { answers: { q1: 'B' } });
+    office.set('cestisExamOutbox', [{ id: 'R9' }]);
+    office.set('voctrain_user_U1_chat', { dm: 'private' });
     await office.api.saveNow();
     assertEq(ids(serverList(DASH, 'voctrain_students')), 'S1,S2,S3', 'the dashboard file holds the roll');
     assertEq(ids(serverList(ALL, 'voctrain_examResults')), 'R1,R2,R3', 'and the whole-store mirror holds the results');
@@ -168,6 +171,10 @@ const ids = list => (list || []).map(r => r.id).sort().join(',');
     assert(!('voctrain_sessionRole' in dash.data) && !('voctrain_examInProgress' in dash.data),
       'who is signed in HERE, and an exam half-way through, never leave the device');
     assert(!('voctrain_sessionRole' in onServer(ALL).data), 'not even through the whole-store mirror');
+    ['cestisExamSession__S1__E1', 'cestisExamOutbox', 'voctrain_user_U1_chat'].forEach(k => {
+      assert(!(k in onServer(ALL).data) && !(k in dash.data),
+        k + ' (a trainee\'s answers, or one user\'s private messages) stays on the PC that wrote it');
+    });
 
     /* ---------- 2. A trainee signs in on a lab PC, then out ---------- */
     console.log('A trainee signs in on a lab PC and out again');
