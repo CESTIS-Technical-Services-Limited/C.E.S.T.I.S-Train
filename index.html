@@ -3863,6 +3863,10 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 <script src="vendor/peerjs-1.5.4.min.js"></script>
 <script>window.Peer||(document.write('<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js">\x3C/script>'))</script>
 <script>window.Peer||(document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js">\x3C/script>'))</script>
+<!-- Video on the Centre's own network (the Offline System): introduce calls
+     through the Centre's server instead of a public one on the internet.
+     Inert everywhere else — it changes nothing unless that server answers. -->
+<script src="cestis-offline-rtc.js?v=20261020a"></script>
 <!-- Google Identity Services for OAuth -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <!-- jsPDF for certificate PDF generation -->
@@ -5457,7 +5461,11 @@ function syncCollections() {
    removed. Runs at the top of every saveState(). */
 function syncStampAll() {
   if (!window.CESTISCore || !CESTISCore.sync) return;
-  var now = new Date().toISOString();
+  // The newest edit wins, so "now" must be comparable between devices. On the
+  // Centre's own network (no internet, so nothing sets the clocks) that is
+  // the Centre server's clock; everywhere else it is this device's, as before.
+  var now = (window.CESTISPageCloud && typeof CESTISPageCloud.now === 'function')
+    ? CESTISPageCloud.now() : new Date().toISOString();
   syncCollections().forEach(function(c) {
     try {
       var recs = c.get();
@@ -36880,6 +36888,16 @@ async function certPortalSync() {
   _certPortalSyncing = true;
   certPortalRefreshSyncUi();
   try {
+    // The Offline System: sync with the Centre's own server — there is no
+    // Google to sign in to, and the button used to wait on it for ever.
+    if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) {
+      _certCloudStatus('Syncing with the Centre\u2019s server...', '');
+      await CESTISPageCloud.loadNow();
+      if (!certSyncDone()) { _certCloudStatus('Could not reach the Centre\u2019s server. Check the server window is open, then try again.', 'error'); return; }
+      _certCloudStatus('Synced with the Centre\u2019s server.', 'ok');
+      certPortalRerender();
+      return;
+    }
     if (!_certHasCloudToken()) {
       _certCloudStatus('Opening secure sign-in...', '');
       var token = await loginPageGoogleAuth();
@@ -37576,6 +37594,10 @@ function _certDownloadStatus(msg, isError) {
 // treated as synced.
 function certSyncDone() {
   if (_certDriveLastFetched) return true;
+  // On the Centre's own network (the Offline System) its server IS the
+  // central store: once this device has read it, the download is recorded
+  // centrally the same way. Online this is always false.
+  if (window.CESTISPageCloud && typeof CESTISPageCloud.lanSynced === 'function' && CESTISPageCloud.lanSynced()) return true;
   if (typeof isCloudConnected !== 'undefined' && isCloudConnected &&
       typeof loginSyncCompleted !== 'undefined' && loginSyncCompleted) return true;
   return false;
@@ -47664,6 +47686,94 @@ function ttRefreshOnShow(){
   install();
   window.addEventListener('DOMContentLoaded', function(){
     setTimeout(function(){ install(); try { syncStudentsToSchoolFee(); } catch(e){} }, 0);
+  });
+})();
+</script>
+
+<!-- ==========================================================================
+     THE CENTRE'S OWN NETWORK (the Offline System) — this dashboard's shared
+     store.
+
+     Online this dashboard syncs through its own Google Drive backup, and this
+     block does nothing at all: CESTISPageCloud.initLan() registers the page
+     only when the pages were served by cestis-offline-server.js. On the
+     Centre's network there is no Drive, so the dashboard's data is kept on
+     the Centre's own computer and every device reads it from there.
+
+     Three things make that safe:
+       - collections of records merge record by record (a shorter list — a
+         trainee's sign-out trim, a device that has not pulled yet — never
+         deletes anybody's records; only a tombstone does);
+       - a trainee's device, and one whose session has just been cleared, may
+         publish records but never a Centre-wide setting (author policy);
+       - what other devices saved is adopted into this page's memory as it
+         arrives, so a stale copy here is never saved back over it.
+     ========================================================================== -->
+<script>
+(function () {
+  if (!window.CESTISPageCloud || typeof CESTISPageCloud.initLan !== 'function') return;
+
+  // Collections this page holds in memory besides the shared ones adopted by
+  // CESTIS_SHARED_COLLECTIONS (the roll, accounts, attendance, results...).
+  var LAN_COLLECTIONS = {
+    voctrain_exams:            function (v) { exams = v; },
+    voctrain_announcements:    function (v) { announcements = v; },
+    voctrain_calendarEvents:   function (v) { calendarEvents = v; },
+    voctrain_notifications:    function (v) { notifications = v; },
+    voctrain_support_messages: function (v) { supportMessages = v; },
+    voctrain_adrTasks:         function (v) { adrTasks = v; },
+    voctrain_assignments:      function (v) { instructorAssignments = v; },
+    voctrain_submissions:      function (v) { assignmentSubmissions = v; },
+    voctrain_classSessions:    function (v) { classSessions = v; },
+    voctrain_adminMeetings:    function (v) { adminMeetings = v; },
+    voctrain_resources:        function (v) { instructorResources = v; },
+    voctrain_driveResources:   function (v) { driveResources = v; },
+    voctrain_documentHubFiles: function (v) { documentHubFiles = v; },
+    voctrain_chatRooms:        function (v) { lmsChatRooms = v; },
+    voctrain_chatMessages:     function (v) { lmsChatMessages = v; },
+    voctrain_vcSessions:       function (v) { vcSessions = v; },
+    voctrain_syncTombstones:   function (v) { syncTombstones = v; }
+  };
+
+  /* Another device's work just arrived in storage: take it into memory and
+     re-render. Same rule as the cross-tab adoption (an empty value is never
+     adopted), and the same refresh funnels. */
+  function adoptLanPull(changed) {
+    var any = false;
+    (changed || []).forEach(function (k) {
+      var set = (typeof CESTIS_SHARED_COLLECTIONS !== 'undefined' && CESTIS_SHARED_COLLECTIONS[k]) || LAN_COLLECTIONS[k];
+      if (!set) return;
+      try {
+        var v = JSON.parse(CESTISStore.getItem(k) || 'null');
+        if (v == null || typeof v !== 'object') return;
+        if (Array.isArray(v) ? !v.length : !Object.keys(v).length) return;
+        set(v);
+        any = true;
+      } catch (e) {}
+    });
+    if (!any) return;
+    try { refreshStudentDependentViews(); } catch (e) {}
+    try { refreshContentDependentViews(); } catch (e) {}
+  }
+
+  /* A trainee's device — or any device between one session being cleared and
+     the next sign-in — writes Centre-wide settings for itself only. Its
+     records still go up (exam submissions, attendance check-ins), and those
+     merge record by record, so a trimmed or stale list cannot delete
+     anything. Its own per-user keys are its own. */
+  CESTISPageCloud.setAuthorPolicy(function (key) {
+    if (!_sessionWiped && currentRole && currentRole !== 'student') return true;
+    if (CESTISCore.pageCloud.isRecordKey(key)) return true;
+    var me = currentLoggedInUser && currentLoggedInUser.id;
+    return !!(me && currentRole && key.indexOf('voctrain_user_' + me + '_') === 0);
+  });
+
+  CESTISPageCloud.initLan({
+    page: 'LMS Dashboard',
+    file: 'CESTIS_LMS_Dashboard.json',
+    prefixes: ['voctrain_'],
+    keys: ['systemSettings', 'cestiSchoolFeeStudents'],
+    onRestore: adoptLanPull
   });
 })();
 </script>

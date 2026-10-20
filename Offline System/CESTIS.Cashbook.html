@@ -68,10 +68,10 @@
       // When localStorage is full its write throws and the PREVIOUS value is
       // left sitting there untouched. This read trusts any non-null answer
       // from localStorage, so from that moment on every read returned the
-      // STALE copy while the data the user had just entered sat unreachable
-      // in IndexedDB — and the next save wrote the stale copy back over the
-      // good one and uploaded it. Dropping the stale entry on a failed write
-      // (see setItem below) is what makes this read safe.
+      // STALE copy while the data the user had actually just entered sat
+      // unreachable in IndexedDB — and the next save wrote the stale copy
+      // back over the good one and uploaded it to the backup. Dropping the
+      // stale entry on a failed write (below) is what makes this read safe.
       if(LS){ try { var lv = LS.getItem(k); if(lv !== null){ cache[k] = lv; return lv; } } catch(e){} }
       return (k in cache) ? cache[k] : null;
     },
@@ -2650,7 +2650,7 @@ body.cmc-view-mode .cmc-view-ribbon {
                 <div class="header-actions">
                     <div class="search-bar">
                         <span>🔍</span>
-                        <input type="text" id="searchInput" placeholder="Search transactions..." oninput="filterTransactions()">
+                        <input type="text" id="searchInput" placeholder="Search transactions..." oninput="filterTransactionsDebounced()">
                     </div>
                     <button class="btn btn-success" onclick="openAddModal()">+ Add Entry</button>
                     <button class="btn btn-ghost" onclick="exportCSV()">⬇ CSV</button>
@@ -2692,7 +2692,7 @@ body.cmc-view-mode .cmc-view-ribbon {
                     <div class="form-group">
                         <label>Select transaction to void</label>
                         <div class="void-cheque-select-wrap">
-                            <input type="text" class="void-cheque-search" id="voidChequeSearch" placeholder="Search by cheque #, payee, or details..." oninput="filterVoidDropdown()">
+                            <input type="text" class="void-cheque-search" id="voidChequeSearch" placeholder="Search by cheque #, payee, or details..." oninput="filterVoidDropdownDebounced()">
                             <select id="voidChequeSelect" class="void-cheque-select" size="6" onchange="previewVoidCheque()"></select>
                         </div>
                     </div>
@@ -2715,7 +2715,7 @@ body.cmc-view-mode .cmc-view-ribbon {
                     <div class="form-group">
                         <label>Select voided transaction to restore</label>
                         <div class="void-cheque-select-wrap">
-                            <input type="text" class="void-cheque-search" id="unvoidChequeSearch" placeholder="Search voided cheques..." oninput="filterUnvoidDropdown()">
+                            <input type="text" class="void-cheque-search" id="unvoidChequeSearch" placeholder="Search voided cheques..." oninput="filterUnvoidDropdownDebounced()">
                             <select id="unvoidChequeSelect" class="void-cheque-select" size="6" onchange="previewUnvoidCheque()"></select>
                         </div>
                     </div>
@@ -2990,7 +2990,7 @@ body.cmc-view-mode .cmc-view-ribbon {
                 <div class="header-actions">
                     <div class="budget-search-bar">
                         <span>🔍</span>
-                        <input type="text" id="ablSearch" placeholder="Search budget lines..." oninput="renderAddBudgetLinesPage()">
+                        <input type="text" id="ablSearch" placeholder="Search budget lines..." oninput="renderAddBudgetLinesPageDebounced()">
                     </div>
                     <button class="btn btn-ghost" onclick="copyBudgetFromQuarter()">📋 Copy from Quarter</button>
                     <button class="btn btn-ghost" onclick="openCopyBudgetLineModal()">📄 Copy Budget Line</button>
@@ -3051,7 +3051,7 @@ body.cmc-view-mode .cmc-view-ribbon {
                 <div class="header-actions">
                     <div class="budget-search-bar">
                         <span>🔍</span>
-                        <input type="text" id="budgetLineSearch" placeholder="Search budget amounts..." oninput="renderBudgetLinesPage()">
+                        <input type="text" id="budgetLineSearch" placeholder="Search budget amounts..." oninput="renderBudgetLinesPageDebounced()">
                     </div>
                     <button class="btn btn-ghost btn-sm" onclick="navigateToPage('addbudgetlines')">✏️ Edit in Add Budget Lines</button>
                 </div>
@@ -5732,7 +5732,23 @@ function filterMonth(m, el) {
     renderTransactions();
 }
 
+// Run fn once the user has stopped typing. Every search box on this page
+// rebuilds a whole table or dropdown; rebuilding it per keystroke made typing
+// itself stutter once the quarter held a few hundred transactions.
+function cbDebounce(fn, wait) {
+    var timer = null;
+    return function () {
+        var args = arguments, self = this;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(function () { timer = null; fn.apply(self, args); }, wait || 150);
+    };
+}
 function filterTransactions() { renderTransactions(); }
+var filterTransactionsDebounced = cbDebounce(filterTransactions);
+var filterVoidDropdownDebounced = cbDebounce(function(){ filterVoidDropdown(); });
+var filterUnvoidDropdownDebounced = cbDebounce(function(){ filterUnvoidDropdown(); });
+var renderAddBudgetLinesPageDebounced = cbDebounce(function(){ renderAddBudgetLinesPage(); });
+var renderBudgetLinesPageDebounced = cbDebounce(function(){ renderBudgetLinesPage(); });
 
 function refreshAll() {
     syncBudgetFromTransactions();
@@ -8622,6 +8638,21 @@ let isMandatorySync = false;
 function showMandatorySyncOverlay() {
     const overlay = document.getElementById('mandatorySyncOverlay');
     if (overlay) overlay.classList.remove('hidden');
+    // On the Centre's own network (the Offline System) there is no Google to
+    // sign in to: the Centre's server is the central store, so the sync this
+    // gate insists on is a pull from THAT server. Without this the bursar was
+    // stuck on "Cloud Sync Required" for ever. Online this does nothing.
+    if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function') {
+        CESTISPageCloud.lan().then(function (onLan) {
+            if (!onLan) return;
+            updateMandatorySyncStatus('Syncing with the Centre’s server...', true);
+            return CESTISPageCloud.loadNow().then(function () {
+                hideMandatorySyncOverlay();
+                loadFromStorage();
+                refreshAll();
+            });
+        }).catch(function () {});
+    }
 }
 
 function hideMandatorySyncOverlay() {
@@ -8852,6 +8883,10 @@ function updateAutoSyncStatusUI(active) {
     }
 }
 
+// The store's write counter as of our last completed cloud push — the gate
+// that makes an idle 15-second tick cost nothing on the push side.
+var _cashbookLastPushWrites = -1;
+
 async function autoMergeAndSave() {
     // Skip if not connected, already syncing, or offline
     if (!isCloudConnected || !googleAccessToken || cloudSyncing || !navigator.onLine) return;
@@ -8885,8 +8920,21 @@ async function autoMergeAndSave() {
         }
 
         // --- STEP 2: Save to cloud (push local changes) ---
+        // Only when something has actually been WRITTEN since the last push.
+        // This tick fires every 15 seconds forever; without the gate it
+        // re-collected every quarter's transactions and budgets, re-serialised
+        // the whole store and re-uploaded it four times a minute on an idle
+        // page. The pull above still runs every tick, so another device's work
+        // keeps arriving; only the pointless push is skipped. Our own writes
+        // (the pull's merges included) are absorbed after a successful push.
+        var _writesNow = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -1;
+        if (_writesNow >= 0 && _writesNow === _cashbookLastPushWrites) {
+            return; // finally{} clears the syncing flags
+        }
         var backupPayload = prepareBackupData();
-        var jsonContent = JSON.stringify(backupPayload, null, 2);
+        // No pretty-printing: the indentation inflated every upload by roughly
+        // a third, and no person reads the wire format.
+        var jsonContent = JSON.stringify(backupPayload);
         var blob = new Blob([jsonContent], { type: 'application/json' });
 
         var pushResponse;
@@ -8936,6 +8984,11 @@ async function autoMergeAndSave() {
             cloudFileTimestamp = new Date().toISOString();
             updateLastSyncDisplay();
             updateLastSavedByDisplay();
+            // Absorb every write this sync itself made (the pull's merges and
+            // the bookkeeping above), so the next idle tick skips the push.
+            if (window.CESTISStore && typeof CESTISStore.writes === 'number') {
+                _cashbookLastPushWrites = CESTISStore.writes;
+            }
         } else if (pushResponse.status === 401 || pushResponse.status === 403) {
             // Auth failure on push — token is invalid
             throw new Error('invalid_token');
@@ -9359,5 +9412,17 @@ CESTISPageCloud.init({
   prefixes: ['cestis_quarter_', 'cestis_budget_']
 });
 </script>
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/cashbook-shared.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/cashbook-model.js?v=1"></script>
+<script src="megadata/pages/cb-page.js?v=1"></script>
 </body>
 </html>

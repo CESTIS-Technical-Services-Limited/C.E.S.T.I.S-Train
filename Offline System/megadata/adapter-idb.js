@@ -1,0 +1,89 @@
+/* MegaData — IndexedDB storage adapter (browser; Phase 5 step 7).
+   Implements the same interface as adapters.js (get/put/putMany/del/scan)
+   over one database CESTIS_MEGA, one object store 'kv', composite key
+   "<ns>\u0000<key>". putMany runs in a SINGLE IndexedDB transaction — this is
+   the atomic event+outbox+counter commit the DAL's acknowledged-write
+   contract rests on (docs/02 §11). durability:'strict' is requested where
+   supported; the honest limits (power loss, storage eviction) are the signed
+   Section 0 ones and are mitigated by navigator.storage.persist() plus the
+   visible unsynced counter, not denied. Node tests exercise the same
+   interface via the memory/file adapters; this file is exercised by the
+   Playwright suite (Phase 6). */
+(function (root, factory) {
+  var api = factory();
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  root.MegaData = Object.assign(root.MegaData || {}, api);
+})(typeof window !== 'undefined' ? window : globalThis, function () {
+  'use strict';
+  var SEP = '\u0000';
+
+  function IdbAdapter(dbName) {
+    dbName = dbName || 'CESTIS_MEGA';
+    var dbP = null;
+    function db() {
+      if (dbP) return dbP;
+      dbP = new Promise(function (resolve, reject) {
+        var req = indexedDB.open(dbName, 1);
+        req.onupgradeneeded = function () { req.result.createObjectStore('kv'); };
+        req.onsuccess = function () { resolve(req.result); };
+        req.onerror = function () { reject(req.error); };
+      });
+      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+        try { navigator.storage.persist(); } catch (e) {}
+      }
+      return dbP;
+    }
+    function tx(mode, fn) {
+      return db().then(function (d) {
+        return new Promise(function (resolve, reject) {
+          var t;
+          try { t = d.transaction('kv', mode, { durability: 'strict' }); }
+          catch (e) { t = d.transaction('kv', mode); }
+          var store = t.objectStore('kv');
+          var req = fn(store); // an IDBRequest (get/put/delete) or undefined (putMany's forEach)
+          // Read .result only inside oncomplete — the transaction completing
+          // guarantees every request in it has settled. A missing key's get
+          // resolves undefined here (→ null in get() below), NEVER the
+          // IDBRequest object itself, which is truthy and poisons callers
+          // that test "is there a stored value".
+          t.oncomplete = function () { resolve(req && ('result' in req) ? req.result : undefined); };
+          t.onerror = function () { reject(t.error); };
+          t.onabort = function () { reject(t.error || new Error('idb transaction aborted')); };
+        });
+      });
+    }
+    return {
+      kind: 'idb',
+      get: function (n, k) {
+        return tx('readonly', function (s) { return s.get(n + SEP + k); })
+          .then(function (v) { return v === undefined ? null : v; });
+      },
+      put: function (n, k, v) { return tx('readwrite', function (s) { s.put(v, n + SEP + k); }); },
+      putMany: function (list) {
+        return tx('readwrite', function (s) {
+          list.forEach(function (e) { s.put(e.v, e.ns + SEP + e.k); });
+        });
+      },
+      del: function (n, k) { return tx('readwrite', function (s) { s.delete(n + SEP + k); }); },
+      scan: function (n) {
+        return db().then(function (d) {
+          return new Promise(function (resolve, reject) {
+            var t = d.transaction('kv', 'readonly');
+            var out = [];
+            var range = IDBKeyRange.bound(n + SEP, n + SEP + '￿');
+            var cur = t.objectStore('kv').openCursor(range);
+            cur.onsuccess = function () {
+              var c = cur.result;
+              if (!c) return resolve(out);
+              out.push({ k: String(c.key).slice(n.length + 1), v: c.value });
+              c.continue();
+            };
+            cur.onerror = function () { reject(cur.error); };
+          });
+        });
+      }
+    };
+  }
+
+  return { IdbAdapter: IdbAdapter };
+});

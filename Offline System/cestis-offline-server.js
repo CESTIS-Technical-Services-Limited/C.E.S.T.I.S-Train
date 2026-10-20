@@ -42,10 +42,21 @@
    NO INSTALLATION
    ---------------
    Uses only what Node.js ships with — nothing to download, which is the point
-   of an offline build. If Node is not available, use the Python launcher
-   instead; it serves the pages but not the shared store.
+   of an offline build. Node.js 14 or newer is needed; the launchers say so
+   and stop if it is missing or older. (They used to fall back to Python's
+   web server, which served the records folder and the private key to the
+   whole network and shared nothing between devices — see READ ME FIRST.)
    ============================================================================ */
 'use strict';
+
+const store = require('./cestis-offline-store.js');
+if (store.nodeTooOld(process.versions.node)) {
+  console.error('\n  This computer has Node.js ' + process.versions.node + '. The offline system needs');
+  console.error('  Node.js ' + store.MIN_NODE_MAJOR + ' or newer — with an older one the pages open but every');
+  console.error('  video class fails. Install the current "LTS" version from https://nodejs.org');
+  console.error('  (on a computer with internet; copy the installer here), then start again.\n');
+  process.exit(1);
+}
 
 const http = require('http');
 const https = require('https');
@@ -55,10 +66,16 @@ const os = require('os');
 const crypto = require('crypto');
 const signalling = require('./cestis-offline-signalling.js');
 const lanCert = require('./cestis-offline-cert.js');
+// The same merge rules every device uses, so the server can merge each save
+// into what it holds instead of replacing it.
+let Core = null;
+try { Core = require('./cestis-core.js'); } catch (e) { Core = null; }
 
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, 'data');
-const CERT_DIR = path.join(ROOT, 'cert');
+// Both overridable so the tests can run a server on a scratch folder.
+const DATA_DIR = path.resolve(process.env.CESTIS_DATA_DIR || path.join(ROOT, 'data'));
+const CERT_DIR = path.resolve(process.env.CESTIS_CERT_DIR || path.join(ROOT, 'cert'));
+const USER_LOGIN_DIR = path.join(ROOT, 'User Login');
 const PORT = Number(process.env.CESTIS_PORT || process.argv[2] || 8080);
 // Set CESTIS_HTTP=1 to force plain http:// — video classes then only work on
 // this computer (see the note by the video-class banner below).
@@ -80,15 +97,19 @@ function ensureDataDir() {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
 }
 
-/* The Centre's records used to be readable and writable by anyone who could
-   reach this address — a trainee's phone on the Centre wifi could download
-   every account, password hash and payslip, or replace them. Every request to
-   the store now has to carry this token. The pages get it automatically: the
-   server stamps it into cestis-page-cloud.js as that file is served, so any
-   device that can open the system is already carrying it and nobody has to
-   type anything. A client that is not one of our pages does not have it. */
-const ACCESS_TOKEN = crypto.randomBytes(24).toString('hex');
-const TOKEN_PLACEHOLDER = '__CESTIS_LAN_TOKEN__';
+/* Every request to the store has to carry this token. The pages fetch it from
+   /_cestis/token once they have found this server, so nobody types anything.
+
+   BE HONEST ABOUT WHAT IT DOES: it stops other WEBSITES, open in some browser
+   on the network, from reading or rewriting the Centre's records. It does NOT
+   stop a person on the Centre's network who can open the system — anyone who
+   can load the pages can ask for the token the same way they do. See READ ME
+   FIRST, "WHO CAN SEE THE RECORDS".
+
+   It is kept in cert/lan-token so it survives a restart: it used to change
+   every time the server started, and every page already open then failed
+   every save, silently, until somebody reloaded it. */
+const ACCESS_TOKEN = store.loadOrCreateToken(CERT_DIR);
 function tokenOk(req) {
   const given = req.headers['x-cestis-token'];
   if (typeof given !== 'string' || given.length !== ACCESS_TOKEN.length) return false;
@@ -140,9 +161,14 @@ function handleData(req, res, name) {
   if (!file) return send(res, 400, 'bad file name');
 
   if (req.method === 'GET') {
-    fs.readFile(file, 'utf8', (err, txt) => {
+    fs.readFile(file, (err, buf) => {
       if (err) return send(res, 404, '{}', MIME['.json']);
-      send(res, 200, txt, MIME['.json']);
+      // A device asking "has it changed since <etag>?" gets a 304 and no body:
+      // the half-minute refresh on every device costs next to nothing when
+      // nothing moved, instead of the whole file every time.
+      const etag = store.etagOf(buf);
+      if (req.headers['if-none-match'] === etag) return send(res, 304, '', null, { ETag: etag });
+      send(res, 200, buf, MIME['.json'], { ETag: etag });
     });
     return;
   }
@@ -167,17 +193,16 @@ function handleData(req, res, name) {
     req.on('end', () => {
       if (tooBig) return;
       const body = Buffer.concat(chunks).toString('utf8');
-      try { JSON.parse(body); } catch (e) { return send(res, 400, 'not JSON'); }
-      ensureDataDir();
-      // Write to a temporary file and rename, so a power cut mid-save cannot
-      // leave a half-written page file behind.
-      const tmp = file + '.tmp';
-      fs.writeFile(tmp, body, 'utf8', err => {
-        if (err) return send(res, 500, 'write failed: ' + err.message);
-        fs.rename(tmp, file, err2 => {
-          if (err2) return send(res, 500, 'save failed: ' + err2.message);
-          send(res, 200, JSON.stringify({ ok: true, file: path.basename(file), bytes: Buffer.byteLength(body) }), MIME['.json']);
-        });
+      let incoming;
+      try { incoming = JSON.parse(body); } catch (e) { return send(res, 400, 'not JSON'); }
+      // Merged into what is stored, one save at a time per file, written to a
+      // temporary file of its own and renamed into place, with the previous
+      // version kept in data/.history — see cestis-offline-store.js.
+      store.save({ file, dataDir: DATA_DIR, incoming, core: Core }).then(r => {
+        send(res, 200, JSON.stringify({ ok: true, file: path.basename(file), bytes: r.bytes,
+          etag: r.etag, changedByServer: r.changedByServer }), MIME['.json'], { ETag: r.etag });
+      }, err => {
+        send(res, 500, 'save failed: ' + (err && err.message));
       });
     });
     return;
@@ -188,6 +213,7 @@ function handleData(req, res, name) {
 function listData(res) {
   ensureDataDir();
   fs.readdir(DATA_DIR, (err, files) => {
+    // (data/.history holds earlier versions, not page files, and is a folder.)
     const list = (files || []).filter(f => f.endsWith('.json')).map(f => {
       let size = 0, modified = '';
       try { const st = fs.statSync(path.join(DATA_DIR, f)); size = st.size; modified = st.mtime.toISOString(); } catch (e) {}
@@ -214,9 +240,13 @@ function serveStatic(req, res, urlPath) {
   if (full !== ROOT && !full.startsWith(ROOT + path.sep)) return send(res, 403, 'forbidden');
   // The records folder and the certificate folder are NOT web pages. Serving
   // them as ordinary files handed out the whole store and the server's private
-  // key to anyone who guessed the path.
-  if (full === DATA_DIR || full.startsWith(DATA_DIR + path.sep) ||
-      full === CERT_DIR || full.startsWith(CERT_DIR + path.sep)) {
+  // key to anyone who guessed the path. "User Login" can hold real per-user
+  // exports (password hashes, two-step secrets), dot-files are not pages, and
+  // no key file is ever one either.
+  const inside = d => full === d || full.startsWith(d + path.sep);
+  const relParts = path.relative(ROOT, full).split(path.sep);
+  if (inside(DATA_DIR) || inside(CERT_DIR) || inside(path.join(ROOT, 'data')) || inside(path.join(ROOT, 'cert')) ||
+      inside(USER_LOGIN_DIR) || relParts.some(p => p.charAt(0) === '.') || /\.(pem|key)$/i.test(full)) {
     return send(res, 403, 'forbidden');
   }
 
@@ -255,20 +285,14 @@ function serveStatic(req, res, urlPath) {
       fs.createReadStream(full, { start, end }).pipe(res);
       return;
     }
-    // The one file that talks to the store gets the run's access token stamped
-    // into it on the way out, so our own pages authenticate without anybody
-    // typing anything, and a client that did not come from here cannot.
-    if (path.basename(full) === 'cestis-page-cloud.js') {
-      return fs.readFile(full, 'utf8', (rErr, txt) => {
-        if (rErr) return send(res, 500, 'read failed');
-        const out = txt.split(TOKEN_PLACEHOLDER).join(ACCESS_TOKEN);
-        res.writeHead(200, { 'Content-Type': type, 'Content-Length': Buffer.byteLength(out), 'Cache-Control': 'no-store' });
-        res.end(out);
-      });
-    }
     res.writeHead(200, { 'Content-Type': type, 'Content-Length': st.size, 'Accept-Ranges': 'bytes' });
     fs.createReadStream(full).pipe(res);
   });
+}
+
+function isLoopback(req) {
+  const a = String((req.socket && req.socket.remoteAddress) || '');
+  return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
 }
 
 /* ------------------------------------------------------------------ server */
@@ -286,12 +310,20 @@ const handler = (req, res) => {
   const url = req.url || '/';
 
   if (url === '/_cestis/health') {
+    // Just enough for a page to know this is the Centre's server and to set
+    // its clock by — no folder paths or machine names for anyone who asks.
     return send(res, 200, JSON.stringify({
-      ok: true, mode: 'offline-lan', version: '1.0',
-      host: os.hostname(), dataFolder: DATA_DIR, time: new Date().toISOString()
+      ok: true, mode: 'offline-lan', version: '1.1', time: new Date().toISOString()
     }), MIME['.json']);
   }
+  if (url === '/_cestis/token') {
+    return send(res, 200, JSON.stringify({ ok: true, token: ACCESS_TOKEN }), MIME['.json']);
+  }
   if (url === '/_cestis/rooms') {
+    // Every live class's room code — and the room code is all it takes to
+    // join. Shown on the server computer itself (READ ME FIRST, section 5),
+    // or to one of our pages carrying the token; not to the whole network.
+    if (!isLoopback(req) && !tokenOk(req)) return send(res, 403, 'Open this on the server computer itself.');
     return send(res, 200, JSON.stringify({ ok: true, connected: sig.count(), rooms: sig.rooms() }, null, 2), MIME['.json']);
   }
   // PeerJS asks for a generated id when a page does not supply one. Every page
@@ -385,7 +417,10 @@ server.listen(PORT, '0.0.0.0', () => {
 
   console.log('\n  Shared data is kept in:');
   console.log('      ' + DATA_DIR);
-  console.log('  Back that folder up — it is the Centre\'s records.');
+  console.log('  Back that folder up — it is the Centre\'s records. The last ' + store.HISTORY_KEEP);
+  console.log('  versions of every file are kept in its ".history" folder, so a');
+  console.log('  bad save can be undone (see READ ME FIRST, section 3).');
+  if (!Core) console.log('\n  WARNING: cestis-core.js could not be loaded, so saves REPLACE files instead of merging.');
   console.log('\n  Leave this window OPEN while people are using the system.');
   console.log('  Closing it stops the server for everybody.');
   console.log('\n' + line + '\n');

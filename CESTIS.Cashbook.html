@@ -8638,6 +8638,21 @@ let isMandatorySync = false;
 function showMandatorySyncOverlay() {
     const overlay = document.getElementById('mandatorySyncOverlay');
     if (overlay) overlay.classList.remove('hidden');
+    // On the Centre's own network (the Offline System) there is no Google to
+    // sign in to: the Centre's server is the central store, so the sync this
+    // gate insists on is a pull from THAT server. Without this the bursar was
+    // stuck on "Cloud Sync Required" for ever. Online this does nothing.
+    if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function') {
+        CESTISPageCloud.lan().then(function (onLan) {
+            if (!onLan) return;
+            updateMandatorySyncStatus('Syncing with the Centre’s server...', true);
+            return CESTISPageCloud.loadNow().then(function () {
+                hideMandatorySyncOverlay();
+                loadFromStorage();
+                refreshAll();
+            });
+        }).catch(function () {});
+    }
 }
 
 function hideMandatorySyncOverlay() {

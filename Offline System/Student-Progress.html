@@ -348,6 +348,22 @@
     <div class="form-group"><label>Instructor</label><input type="text" class="form-control" id="editStudentInstructor"></div>
     <div class="form-group"><label>Attendance (%)</label><input type="number" class="form-control" id="editStudentAttendance" min="0" max="100"></div>
     <div class="form-group"><label>GPA</label><input type="text" class="form-control" id="editStudentGPA"></div>
+    <!-- Two real trainees can share a name. The system treats one name as one
+         person and collapses the rest on launch; this is how an administrator
+         says "these are genuinely two people" and exempts a record from that. -->
+    <div class="form-group" id="editStudentKeepSeparateGroup">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:600;">
+        <input type="checkbox" id="editStudentKeepSeparate" style="margin-top:3px;width:16px;height:16px;cursor:pointer;">
+        <span>Keep separate — another trainee has this same name
+          <span style="display:block;font-weight:400;font-size:12px;color:var(--text-muted);margin-top:3px;">
+            Tick this when two different people genuinely share a name. This record
+            will never be merged with its namesake. Leave it unticked and records
+            with the same name are treated as one person.
+          </span>
+        </span>
+      </label>
+      <div id="editStudentNamesakeNote" style="display:none;font-size:12px;margin-top:6px;padding:8px 10px;border-radius:6px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.35);"></div>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('editStudentModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveEditStudent()">Save Changes</button>
@@ -404,7 +420,11 @@ function safeJsonParse(v, fallback) {
 
 function loadData() {
   students = safeJsonParse(CESTISStore.getItem('voctrain_students'), []);
-  skillAreas = safeJsonParse(CESTISStore.getItem('voctrain_skillAreas'), []);
+  // Read through the shared catalogue so a training centre deleted on the main
+  // dashboard is gone here too, rather than lingering in this page's copy of
+  // the roster and in every dropdown built from it.
+  skillAreas = CESTISCore.catalogue.liveCentres(
+    safeJsonParse(CESTISStore.getItem('voctrain_skillAreas'), []), CESTISStore);
   instructorData = safeJsonParse(CESTISStore.getItem('voctrain_instructorData'), []);
   attendanceRecords = safeJsonParse(CESTISStore.getItem('voctrain_attendance'), []);
   examResults = safeJsonParse(CESTISStore.getItem('voctrain_examResults'), []);
@@ -439,7 +459,23 @@ function deduplicateStudents() {
   if (window.CESTISCore && typeof CESTISCore.dedupeStudents === 'function') {
     var _r = CESTISCore.dedupeStudents(students);
     students = _r.students;
-    return { removed: _r.removed, idMap: _r.idMap };
+    var _idMap = _r.idMap, _removed = _r.removed;
+    // One person, one record PER ENROLMENT: the same name on the same
+    // programme is one record however it was keyed or spelled, while the same
+    // name on two genuinely different programmes is two enrolments and both
+    // stand (Core.enrolment.programmesAgree decides).
+    if (typeof CESTISCore.collapseSameNameStudents === 'function') {
+      var _c = CESTISCore.collapseSameNameStudents(students);
+      if (_c.removed > 0) {
+        students = _c.students;
+        _removed += _c.removed;
+        Object.keys(_idMap).forEach(function (k) {
+          if (_c.idMap[_idMap[k]]) _idMap[k] = _c.idMap[_idMap[k]];
+        });
+        Object.keys(_c.idMap).forEach(function (k) { _idMap[k] = _c.idMap[k]; });
+      }
+    }
+    return { removed: _removed, idMap: _idMap };
   }
   var seen = {}, idMap = {};
   students.forEach(function(s) {
@@ -548,17 +584,17 @@ function cestisStabilizeStudentIds() {
 // is a hash of name+course, so renaming moves it and the School Fee twin can no
 // longer be matched by either id or name. Passing the pre-edit identity is what
 // lets the parent find that twin and rename it too.
-/* Every write goes through the one rule that makes a collection unloseable: an
-   empty value never replaces stored records, however new its stamp looks.
+/* Persist a collection unless doing so would throw records away.
 
-   Without it, a page that came up before its data had loaded held empty lists,
-   saved them, stamped them "now", and pushed them out — and because the stamp
-   was the newest, that emptiness beat the Centre's real records everywhere. One
-   save from this page could replace the whole trainee roll, the training-centre
-   roster, attendance, exam results and the certificate approvals with nothing.
-   Offline that is worse than online, because there is no Drive revision history
-   to recover from. The main build has had this guard for some time; this copy
-   did not. */
+   This page writes each collection wholesale, which is only safe while it is
+   actually loaded. It is not loaded in the moments this guards: before a cloud
+   pull has landed, after a failed read, on a device whose store was cleared.
+   One save from such a page used to replace the Centre's roll with an empty
+   list and stamp it with the current time — and a newer stamp on an empty list
+   then beat the real records in Drive too.
+
+   Emptiness is never an edit: deleting a trainee writes a tombstone, and that
+   path is untouched. */
 function spSaveCollection(key, value) {
   return CESTISCore.pageCloud.guardedSet(CESTISStore, key, value, function (k) {
     console.error('[StudentProgress] Refused to overwrite stored records in "' + k +
@@ -611,12 +647,30 @@ try {
 
 // ============================== UTILITIES ==============================
 
+/* The programmes a dropdown may offer: one per LIVE training centre, read
+   through the shared catalogue so this page and the main dashboard can never
+   disagree about which centres exist.
+
+   This used to union in every course name written on a student record and
+   every programme on a user account, which is why the "All Courses" filter
+   listed names like "COMMI CHEF L2" and a bare "Welding" beside the real
+   centres, and why a centre deleted on the Training Centres page went on being
+   offered here — one old record still carried the name, so the name came back. */
 function getCourseList() {
-  var courseSet = {};
-  if(skillAreas) skillAreas.forEach(function(s){ courseSet[s.name] = true; });
-  if(students) students.forEach(function(s){ if(s.course && !courseSet[s.course]) courseSet[s.course] = true; });
-  if(userAccounts) userAccounts.forEach(function(u){ if(u.programme && !courseSet[u.programme]) courseSet[u.programme] = true; });
-  return Object.keys(courseSet).sort();
+  return CESTISCore.catalogue.courseNames(skillAreas, CESTISStore);
+}
+
+/* Course names still written on records that no live centre answers to. The
+   FILTER keeps offering these, under a clearly-marked group, so trainees
+   recorded against a deleted centre stay findable; nothing that starts a new
+   enrolment offers them. */
+function getArchivedCourses() {
+  var values = [];
+  if(students) students.forEach(function(s){ if(s && s.course) values.push(s.course); });
+  if(typeof userAccounts !== 'undefined' && userAccounts) {
+    userAccounts.forEach(function(u){ if(u && u.programme) values.push(u.programme); });
+  }
+  return CESTISCore.catalogue.orphanNames(skillAreas, values, CESTISStore);
 }
 
 function findSkillAreaForCourse(courseName) {
@@ -733,32 +787,55 @@ function spEnrolmentDecision(courseName, enrolDate) {
 // ============================== COURSE DROPDOWNS ==============================
 function populateCourseDropdowns() {
   var courses = getCourseList();
+  var archived = getArchivedCourses();
+  var archivedHtml = archived.length
+    ? '<optgroup label="Archived — no training centre">' + archived.map(function(c){
+        return '<option value="' + spEscapeHtml(c) + '">' + spEscapeHtml(c) + '</option>';
+      }).join('') + '</optgroup>'
+    : '';
+  // Restore a previous selection only when the rebuilt list still carries it,
+  // so a form or filter never keeps pointing at a centre that has just been
+  // deleted. Walks the options rather than building a CSS selector out of a
+  // course name, which breaks on quotes and other punctuation.
+  function restoreSelection(sel, value) {
+    if(!value) return false;
+    for(var i = 0; i < sel.options.length; i++) {
+      if(sel.options[i].value === value) { sel.selectedIndex = i; return true; }
+    }
+    return false;
+  }
   // The ADD-student dropdown must not offer a centre that can no longer take a
   // trainee: those stay listed but disabled, with the reason, so it is obvious a
-  // new training centre has to be created. The EDIT dropdown keeps everything,
-  // otherwise an existing trainee in a finished course could not be corrected.
+  // new training centre has to be created. The EDIT dropdown also carries the
+  // archived names, otherwise an existing trainee whose centre has gone could
+  // not be viewed or corrected without being silently reassigned.
   ['newStudentCourse','editStudentCourse'].forEach(function(id){
     var sel = document.getElementById(id);
     if(!sel) return;
     var prev = sel.value;
     var forEnrol = (id === 'newStudentCourse');
     sel.innerHTML = courses.map(function(c){
-      if (!forEnrol) return '<option>' + spEscapeHtml(c) + '</option>';
+      if (!forEnrol) return '<option value="' + spEscapeHtml(c) + '">' + spEscapeHtml(c) + '</option>';
       var d = spEnrolmentDecision(c);
       if (d.allowed) {
         return '<option value="' + spEscapeHtml(c) + '">' + spEscapeHtml(c + (d.fy ? ' — FY ' + d.fy : '')) + '</option>';
       }
       var why = (d.code === 'ended') ? ' (course ended — create a new centre)' : ' (no active training centre)';
       return '<option value="' + spEscapeHtml(c) + '" disabled>' + spEscapeHtml(c + why) + '</option>';
-    }).join('');
-    if(prev && sel.querySelector('option[value="'+prev+'"]')) sel.value = prev;
+    }).join('') + (forEnrol ? '' : archivedHtml);
+    restoreSelection(sel, prev);
   });
-  // Refresh filterCourse dropdown
+  // Refresh filterCourse dropdown. It keeps the archived names: without them
+  // the trainees recorded under a deleted centre could not be listed at all.
   var filt = document.getElementById('filterCourse');
   if(filt){
     var prev = filt.value;
-    filt.innerHTML = '<option value="all">All Courses</option>' + courses.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('');
-    if(prev) filt.value = prev;
+    filt.innerHTML = '<option value="all">All Courses</option>' +
+      courses.map(function(c){ return '<option value="'+spEscapeHtml(c)+'">'+spEscapeHtml(c)+'</option>'; }).join('') +
+      archivedHtml;
+    // A filter left pointing at a course that has just gone falls back to
+    // "All", rather than silently showing an empty table.
+    if(!restoreSelection(filt, prev)) filt.value = 'all';
   }
 }
 
@@ -767,11 +844,21 @@ function renderStudents(data) {
   var tbody = document.getElementById('studentTableBody');
   if(!tbody) return;
   if(!data || !Array.isArray(data)) { data = []; }
+  // Row positions from one index, not students.indexOf() per row.
+  var _rowPos = new Map();
+  for (var _ri = 0; _ri < students.length; _ri++) if (!_rowPos.has(students[_ri])) _rowPos.set(students[_ri], _ri);
   tbody.innerHTML = data.map(function(s){
-    var idx = students.indexOf(s);
+    var idx = _rowPos.has(s) ? _rowPos.get(s) : students.indexOf(s);
     var prog = s.progress || 0;
+    // A pinned record is visibly pinned: without this the only way to tell why
+    // two same-named rows survive is to open both.
+    var keptSeparate = (window.CESTISCore && CESTISCore.isKeptSeparate(s))
+      ? ' <span title="Kept separate — marked as a different person from their namesake" ' +
+        'style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9px;font-size:10px;' +
+        'font-weight:700;background:rgba(255,193,7,.18);color:#e0a800;">kept separate</span>'
+      : '';
     return '<tr>' +
-      '<td><strong>' + sanitizeInput(s.name||'Unknown') + '</strong></td>' +
+      '<td><strong>' + sanitizeInput(s.name||'Unknown') + '</strong>' + keptSeparate + '</td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-muted);">' + sanitizeInput(s.id||'—') + '</td>' +
       '<td>' + sanitizeInput(s.course||'—') + '</td>' +
       '<td><span class="badge ' + (stageBadge[s.stage]||'badge-blue') + '"><span class="badge-dot"></span>' + sanitizeInput(stageLabels[s.stage]||s.stage||'—') + '</span></td>' +
@@ -870,6 +957,25 @@ function openEditStudent(idx) {
   document.getElementById('editStudentInstructor').value = s.instructor || '';
   document.getElementById('editStudentAttendance').value = s.attendance || 0;
   document.getElementById('editStudentGPA').value = s.gpa || '0.0';
+  // "Keep separate": show the current setting, and say plainly whether anybody
+  // else on the roll actually shares this name — the marker only matters then.
+  var keepBox = document.getElementById('editStudentKeepSeparate');
+  if (keepBox) keepBox.checked = !!(window.CESTISCore && CESTISCore.isKeptSeparate(s));
+  var note = document.getElementById('editStudentNamesakeNote');
+  if (note) {
+    var norm = function (v) { return String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, ' '); };
+    var mine = norm(s.name);
+    var namesakes = students.filter(function (o) { return o && o !== s && norm(o.name) === mine; });
+    if (namesakes.length) {
+      note.style.display = '';
+      note.textContent = '⚠️ ' + namesakes.length + ' other record' + (namesakes.length === 1 ? '' : 's') +
+        ' on the roll carries this exact name. Unless one of them is marked "keep separate", ' +
+        'they will be treated as the same person and merged into a single record.';
+    } else {
+      note.style.display = 'none';
+      note.textContent = '';
+    }
+  }
   populateCourseDropdowns();
   var courseSel = document.getElementById('editStudentCourse');
   if(courseSel) courseSel.value = s.course;
@@ -884,6 +990,53 @@ function regenerateStudentId() {
   var newId = generateStudentId();
   document.getElementById('editStudentId').value = newId;
   showToast('New ID generated — save to apply');
+}
+
+/* Carry the "keep separate" marker across to this person's School Fee record.
+
+   A trainee exists as two records — one on the roster, one on the fee roll —
+   and each roll is de-duplicated on its own. Marking only the roster side
+   would still let the fee side be folded into its namesake on the next
+   launch, which is the very thing the marker is set to prevent. The mirror on
+   the School Fee page (feePropagateKeepSeparate) writes back the other way.
+
+   Matched the linked twin first, then the same person under another
+   programme — once two same-named records have been collapsed one time the
+   surviving links all point at one record, so the one being pinned has no id
+   left to be found by. It is still the same person by name, which is what the
+   marker is about. Unmarking clears the pin from every fee record of that
+   name, so none is left pinned by a link that no longer reaches it. */
+function spPropagateKeepSeparate(student, keep) {
+  try {
+    if (!student || !window.CESTISCore || typeof CESTISCore.feeTwinIndex !== 'function') return;
+    var raw = CESTISStore.getItem('cestiSchoolFeeStudents');
+    var fee = raw ? (JSON.parse(raw) || []) : [];
+    if (!Array.isArray(fee) || !fee.length) return;
+    var nrm = CESTISCore.normName;
+    var wanted = nrm(student.name);
+    var changed = false;
+    if (!keep) {
+      fee.forEach(function (f) {
+        if (!f || !wanted || nrm(f.name) !== wanted) return;
+        if (!CESTISCore.isKeptSeparate(f)) return;
+        delete f.keepSeparate;
+        f.updatedAt = new Date().toISOString();
+        changed = true;
+      });
+    } else {
+      var idx = CESTISCore.feeTwinIndex(fee);
+      var twin = idx.find(student) || idx.findByName(student.name);
+      if (twin && !CESTISCore.isKeptSeparate(twin)) {
+        twin.keepSeparate = true;
+        twin.updatedAt = new Date().toISOString();
+        changed = true;
+      }
+    }
+    if (!changed) return;                                   // nothing to write
+    spSaveCollection('cestiSchoolFeeStudents', fee);
+  } catch (e) {
+    console.warn('[StudentProgress] could not mark the fee record:', e);
+  }
 }
 
 function saveEditStudent() {
@@ -904,6 +1057,17 @@ function saveEditStudent() {
     s.id = newId;
   }
   s.name = name;
+  // The administrator's "this is genuinely a different person" marker. Stored
+  // only when set, so an ordinary record carries no extra field; it travels
+  // with the record through every merge and sync (MERGE_FIELDS in the core).
+  var keepBox = document.getElementById('editStudentKeepSeparate');
+  var _keep = !!(keepBox && keepBox.checked);
+  if (_keep) s.keepSeparate = true; else delete s.keepSeparate;
+  // Mark the same person's School Fee record too. The marker means "this
+  // PERSON is distinct from their namesake", and each trainee exists as two
+  // records; marking only one side would leave the other to be collapsed into
+  // its namesake on the next launch — the very thing it is set to prevent.
+  spPropagateKeepSeparate(s, _keep);
   s.gender = document.getElementById('editStudentGender').value || '';
   s.course = document.getElementById('editStudentCourse').value;
   s.instructor = document.getElementById('editStudentInstructor').value.trim();
@@ -1112,6 +1276,10 @@ function init() {
 // here: trainee details, profiles, instructors, attendance, results, accounts.
 var SP_SHARED_KEYS = ['voctrain_students','voctrain_skillAreas','voctrain_studentProfiles',
   'voctrain_instructorData','voctrain_attendance','voctrain_examResults',
+  // A training centre deleted on the main dashboard writes its tombstone here.
+  // Without this key the course dropdowns on this page kept offering the centre
+  // until a full reload.
+  'voctrain_deletedCentreIds',
   'voctrain_certDownloadApprovals','voctrain_userAccounts'];
 // One save elsewhere writes many keys, so coalesce the burst into a single reload.
 var _spExternalReload = null;
@@ -1148,13 +1316,38 @@ if(document.readyState === 'loading'){
 }
 </script>
 
+<!-- MegaData bridge (stage 1): in shadow mode the DAL is kept complete
+     alongside the legacy-primary page; docs/02 §14, docs/04 §8. -->
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/sp-page.js?v=1"></script>
+
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20260802a"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Student Progress',
   file: 'CESTIS_Student_Progress.json',
-  keys: ['voctrain_students', 'voctrain_attendance', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles']
+  keys: ['voctrain_students', 'voctrain_attendance', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles'],
+  // The fee roll is read here (trainees the fee page knows about first are
+  // mirrored onto this dashboard) but owned by School Fee, so it is pulled from
+  // Drive and never written back from this page.
+  reads: ['cestiSchoolFeeStudents', 'cestiSchoolFeeDeletedLmsIds'],
+  onRestore: function (changed) {
+    try {
+      if (typeof loadData === 'function') loadData();
+      if (typeof populateCourseDropdowns === 'function') populateCourseDropdowns();
+      if (typeof filterStudents === 'function') filterStudents();
+      if (typeof updatePipelineCounts === 'function') updatePipelineCounts();
+    } catch (e) { console.warn('[PageCloud] Student Progress restore refresh failed:', e); }
+  }
 });
 </script>
 </body>

@@ -38,6 +38,16 @@
    for consent of its own: a page that opens without a token simply stays local
    and says so through status(), rather than throwing an OAuth popup at somebody
    in the middle of typing an invoice.
+
+   THE CENTRE'S OWN SERVER (the Offline System)
+   --------------------------------------------
+   The same file runs both builds. When the pages are served by
+   cestis-offline-server.js — the "Offline System" folder, on the Centre's own
+   network with no internet — that server answers /_cestis/health, and every
+   page's file is kept THERE instead of in Drive: same file per page, same
+   merge rules, plus a mirror of the whole store. Anywhere else (GitHub Pages,
+   a memory stick) nothing answers, and the Drive path below runs exactly as it
+   always has. See the LAN section near the end of this file.
    ============================================================================ */
 (function (root) {
   'use strict';
@@ -257,9 +267,11 @@
   Page.prototype.setStamps = function (s) {
     try { store().setItem(this.stampsKey, JSON.stringify(s)); } catch (e) {}
   };
-  /* Record that these keys were written here, now. */
+  /* Record that these keys were written here, now. ("Now" by the Centre's
+     server clock on its network — see lanNow() — and this device's clock
+     everywhere else.) */
   Page.prototype.touch = function (keys) {
-    var s = this.stamps(), now = new Date().toISOString();
+    var s = this.stamps(), now = lanNow();
     (keys || []).forEach(function (k) { s[k] = now; });
     this.setStamps(s);
   };
@@ -422,6 +434,10 @@
           // and two devices on the refresh cycle could trade the same value
           // between them indefinitely, re-writing the file every time.
           if (API._applying) return r;
+          // On the Centre's network, a device that may not author this key
+          // (a trainee's, or one whose session was just cleared) writes it
+          // locally only — see setAuthorPolicy().
+          if (lan.on && API._authorPolicy && !API._authorPolicy(String(k))) return r;
           (root.CESTISPageCloud._pages || []).forEach(function (pg) {
             if (core().ownsKey(pg.spec, String(k))) { pg.touch([String(k)]); pg.schedulePush(); }
           });
@@ -440,6 +456,379 @@
     try {
       root.addEventListener('pagehide', function () { clearTimeout(self._timer); self.push(); });
     } catch (e) {}
+  };
+
+  /* ==========================================================================
+     THE LAN — the Centre's own server, for the Offline System.
+
+     When the pages are served by cestis-offline-server.js, that server is the
+     Centre's shared store: each page's file lives in its data/ folder and every
+     device on the network reads and writes it there. Nothing below runs unless
+     /_cestis/health answers as that server, so on GitHub Pages (or a page
+     opened off a memory stick) the Drive path above is untouched.
+
+     What is different here, and why:
+       - Collections of records (the roll, exam results, attendance,
+         submissions, chat...) are merged RECORD BY RECORD
+         (CESTISCore.pageCloud.mergeKeys with `records`). A shorter list —
+         a trainee's device trimming its copy at sign-out, a device that has
+         not pulled yet — can never delete anybody else's records; only a
+         tombstone deletes. The server merges every save into what it holds
+         by the same rule, so two devices saving at once cannot lose either.
+       - A few keys never leave the device: who is signed in on THIS screen,
+         an exam half-way through, Google tokens.
+       - "Now" is the server's clock. Devices on a network with no internet
+         have nothing to set their clocks by, and newest-wins is only as good
+         as the clocks it compares.
+       - The server's access token is fetched once the server has answered,
+         and fetched again if the server was restarted, instead of every open
+         page silently failing until somebody reloaded it.
+     ========================================================================== */
+  var LOCAL_BASE = '/_cestis/data/';
+  var LAN_REFRESH_MS = 30000;
+  var lan = { probe: null, on: false, token: '', offset: 0, synced: false, failures: 0, cache: {} };
+
+  function lanNow() { return new Date(Date.now() + (lan.offset || 0)).toISOString(); }
+
+  /* Keys that describe THIS device, never the Centre: copying them to another
+     machine would sign people in as each other or resume someone else's exam. */
+  function deviceOnly(k) {
+    return /^voctrain_session(Expiry|Role|UserId)$/.test(k) || k === 'voctrain_examInProgress' ||
+           /AccessToken$|TokenExpiry$/i.test(k);
+  }
+  function lanCollect(spec, map) {
+    var out = core().collect(spec, map);
+    Object.keys(out).forEach(function (k) { if (deviceOnly(k)) delete out[k]; });
+    return out;
+  }
+  function lanOnly(data) {
+    var out = {};
+    Object.keys(data || {}).forEach(function (k) { if (!deviceOnly(k)) out[k] = data[k]; });
+    return out;
+  }
+
+  function fetchLanToken() {
+    return root.fetch('/_cestis/token', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.token) lan.token = String(d.token); return !!(d && d.token); })
+      .catch(function () { return false; });
+  }
+
+  /* Is this page being served by the Centre's own server? Asked once. */
+  function detectLocalServer() {
+    if (lan.probe) return lan.probe;
+    var loc = root.location;
+    // GitHub Pages is never the Centre's server, and a page opened straight
+    // off the disk cannot fetch anything — do not even ask.
+    if (!root.fetch || !loc || !/^https?:$/.test(loc.protocol || '') || /\.github\.io$/i.test(loc.hostname || '')) {
+      lan.probe = Promise.resolve(false);
+      return lan.probe;
+    }
+    lan.probe = root.fetch('/_cestis/health', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!(d && d.ok && d.mode === 'offline-lan')) return false;
+        var t = Date.parse(d.time || '');
+        if (!isNaN(t)) lan.offset = t - Date.now();
+        return fetchLanToken().then(function () { lan.on = true; return true; });
+      })
+      .catch(function () { return false; });
+    return lan.probe;
+  }
+
+  /* One request to the store, with the token. A 401 means the server was
+     restarted with a new token (or the token was never fetched): fetch it
+     again and try once more, rather than failing quietly from then on. */
+  function lanFetch(file, opts, retried) {
+    var o = opts || {};
+    var h = {};
+    Object.keys(o.headers || {}).forEach(function (k) { h[k] = o.headers[k]; });
+    h['X-CESTIS-Token'] = lan.token;
+    return root.fetch(LOCAL_BASE + encodeURIComponent(file), {
+      method: o.method || 'GET', cache: 'no-store', headers: h, body: o.body
+    }).then(function (r) {
+      if (r.status === 401 && !retried) {
+        return fetchLanToken().then(function () { return lanFetch(file, opts, true); });
+      }
+      return r;
+    });
+  }
+
+  /* Read a file from the Centre's server. Resolves { ok, status, payload }:
+     payload null when the file does not exist yet. A file that has not changed
+     since the last read comes back as "not modified" and the copy already in
+     hand is reused, so the half-minute refresh costs almost nothing. */
+  function localGet(file) {
+    var cached = lan.cache[file];
+    var headers = cached && cached.etag ? { 'If-None-Match': cached.etag } : {};
+    return lanFetch(file, { headers: headers }).then(function (r) {
+      if (r.status === 304 && cached) return { ok: true, status: 304, payload: cached.payload, same: true };
+      if (r.status === 404) { delete lan.cache[file]; return { ok: true, status: 404, payload: null }; }
+      if (!r.ok) return { ok: false, status: r.status, payload: null };
+      var etag = (r.headers && r.headers.get) ? r.headers.get('ETag') : null;
+      return r.json().then(function (payload) {
+        lan.cache[file] = { etag: etag, payload: payload };
+        return { ok: true, status: r.status, payload: payload };
+      }, function () { return { ok: false, status: r.status, payload: null }; });
+    }).catch(function () { return { ok: false, status: 0, payload: null }; });
+  }
+
+  function localPut(file, payload) {
+    var body = JSON.stringify(payload);
+    return lanFetch(file, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: body })
+      .then(function (r) {
+        if (!r.ok) return { ok: false, status: r.status };
+        return r.json().then(function (d) { return d || {}; }, function () { return {}; }).then(function (d) {
+          // The server merges what it is sent into what it holds. When that
+          // left exactly what we sent, our copy IS the file — remember it, so
+          // the next refresh is a "not modified".
+          if (d.etag && d.changedByServer === false) lan.cache[file] = { etag: d.etag, payload: payload };
+          else delete lan.cache[file];
+          return { ok: true, status: r.status };
+        });
+      })
+      .catch(function () { return { ok: false, status: 0 }; });
+  }
+
+  /* Somebody has to be told when their work is not reaching the server: a
+     push failing silently looked exactly like one succeeding. A small notice,
+     only on the Centre's network, gone as soon as a save gets through. */
+  function lanTrouble(on, why) {
+    var doc = root.document;
+    if (!doc || !doc.body) return;
+    var el = doc.getElementById('cestisLanTrouble');
+    if (!on) { if (el) el.parentNode.removeChild(el); return; }
+    if (!el) {
+      el = doc.createElement('div');
+      el.id = 'cestisLanTrouble';
+      el.setAttribute('role', 'alert');
+      el.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:2147483000;padding:10px 14px;' +
+        'border-radius:8px;background:#7a2e0e;color:#fff;font:600 13px/1.4 system-ui,sans-serif;' +
+        'box-shadow:0 4px 18px rgba(0,0,0,.35);';
+      doc.body.appendChild(el);
+    }
+    el.textContent = 'Not reaching the Centre’s server — your work is saved on this device only. ' +
+      (why === 'auth' ? 'Reload this page. ' : '') +
+      'If this stays, check the server window is still open.';
+  }
+  function lanResult(page, ok, status) {
+    if (ok) {
+      lan.failures = 0;
+      page.state.error = '';
+      lanTrouble(false);
+      return;
+    }
+    lan.failures++;
+    page.state.error = status === 401 ? 'not-authorised' : ('server-' + (status || 'unreachable'));
+    if (status === 401 || lan.failures >= 2) lanTrouble(true, status === 401 ? 'auth' : '');
+  }
+
+  /* Merge a pulled payload into local storage. Returns the keys that changed. */
+  Page.prototype.lanApply = function (payload) {
+    var self = this;
+    if (!payload || !payload.data) return [];
+    var C = core();
+    var local = lanCollect(self.spec, storeMap());
+    var known = self.stamps();
+    var first = Object.keys(known).length === 0;
+    var res = C.mergeKeys(local, known, lanOnly(payload.data), payload.stamps || {}, { firstSync: first, records: true });
+    // Adopting the server's copy is not an edit made here — see watch().
+    API._applying = true;
+    try {
+      res.changed.forEach(function (k) { try { store().setItem(k, res.data[k]); } catch (e) {} });
+    } finally { API._applying = false; }
+    self.setStamps(res.stamps && Object.keys(res.stamps).length ? res.stamps : { __synced: lanNow() });
+    self.state.lastPull = lanNow();
+    self.state.keys = Object.keys(res.data).length;
+    return res.changed;
+  };
+
+  Page.prototype.lanPull = function () {
+    var self = this;
+    self.state.connected = true;
+    self.state.backend = 'offline-server';
+    if (self.spec.readOnly) return Promise.resolve([]);   // a reader has no file of its own
+    return localGet(self.spec.file).then(function (got) {
+      lanResult(self, got.ok, got.status);
+      if (!got.ok) return [];
+      lan.synced = true;
+      if (got.same && self._lanPulledEtag && self._lanPulledEtag === (lan.cache[self.spec.file] || {}).etag) return [];
+      self._lanPulledEtag = (lan.cache[self.spec.file] || {}).etag || null;
+      return self.lanApply(got.payload);
+    });
+  };
+
+  Page.prototype.lanPush = function () {
+    var self = this;
+    if (self.spec.readOnly) return Promise.resolve(false);
+    self.state.connected = true;
+    self.state.backend = 'offline-server';
+    var C = core();
+    var data = lanCollect(self.spec, storeMap());
+    return localGet(self.spec.file).then(function (got) {
+      if (!got.ok) { lanResult(self, false, got.status); return false; }
+      var remote = got.payload || {};
+      var merged = C.mergeKeys(data, self.stamps(), lanOnly(remote.data || {}), remote.stamps || {}, { records: true });
+      // Only the data and the stamps say whether anything changed; the
+      // payload's own savedAt is new on every call, which made the old
+      // "nothing to upload" test impossible to pass.
+      var sig = JSON.stringify([merged.data, merged.stamps]);
+      if (sig === self._lanLastSig && got.same) return true;
+      var payload = C.buildPayload(self.spec, merged.data, merged.stamps, {
+        savedAt: lanNow(),
+        savedBy: (root.currentLoggedInUser && root.currentLoggedInUser.username) || root.currentRole || 'offline'
+      });
+      return localPut(self.spec.file, payload).then(function (put) {
+        lanResult(self, put.ok, put.status);
+        if (!put.ok) return false;
+        self._lanLastSig = sig;
+        self.state.lastPush = payload.savedAt;
+        self.state.keys = payload.keyCount;
+        API._applying = true;
+        try {
+          merged.changed.forEach(function (k) { try { store().setItem(k, merged.data[k]); } catch (e) {} });
+        } finally { API._applying = false; }
+        self.setStamps(merged.stamps);
+        return true;
+      });
+    });
+  };
+
+  /* The collections this page reads but does not own, from the files that do. */
+  Page.prototype.lanPullShared = function () {
+    var self = this, C = core();
+    var reads = self.spec.reads || [];
+    if (!reads.length || !C.sharedPullPlan) return Promise.resolve([]);
+    var plan = C.sharedPullPlan(reads, self.spec.file);
+    return Promise.all(plan.map(function (src) {
+      return localGet(src.file).then(function (got) {
+        if (!got.ok || !got.payload || !got.payload.data) return [];
+        var cloud = lanOnly(C.pickShared(got.payload.data, src.keys));
+        var cloudStamps = C.pickShared(got.payload.stamps || {}, src.keys);
+        var local = C.pickShared(storeMap(), src.keys);
+        var known = self.stamps();
+        var res = C.mergeKeys(local, known, cloud, cloudStamps, { firstSync: Object.keys(known).length === 0, records: true });
+        API._applying = true;
+        try {
+          res.changed.forEach(function (k) { try { store().setItem(k, res.data[k]); } catch (e) {} });
+        } finally { API._applying = false; }
+        if (res.changed.length) {
+          var s = self.stamps();
+          res.changed.forEach(function (k) { if (res.stamps[k]) s[k] = res.stamps[k]; });
+          self.setStamps(s);
+        }
+        return res.changed;
+      });
+    })).then(function (lists) {
+      var changed = [];
+      lists.forEach(function (l) { l.forEach(function (k) { if (changed.indexOf(k) === -1) changed.push(k); }); });
+      self.state.shared = changed.length;
+      return changed;
+    });
+  };
+
+  /* A decision this page may make inside another page's collection (see
+     pushShared above), sent into that page's file on the Centre's server. As
+     with Drive, nothing is created on the owning page's behalf. */
+  Page.prototype.lanPushShared = function (keys) {
+    var self = this, C = core();
+    var allowed = self.spec.writes || [];
+    var wanted = (Array.isArray(keys) ? keys : allowed).filter(function (k) { return allowed.indexOf(k) !== -1; });
+    if (!wanted.length || !C.sharedPullPlan) return Promise.resolve([]);
+    var plan = C.sharedPullPlan(wanted, self.spec.file);
+    return Promise.all(plan.map(function (src) {
+      return localGet(src.file).then(function (got) {
+        if (!got.ok || !got.payload || !got.payload.data) return [];
+        var payload = got.payload;
+        var local = C.pickShared(storeMap(), src.keys);
+        if (!Object.keys(local).length) return [];
+        var merged = C.mergeKeys(local, self.stamps(), C.pickShared(payload.data, src.keys),
+          C.pickShared(payload.stamps || {}, src.keys), { records: true });
+        var out = JSON.parse(JSON.stringify(payload));
+        out.stamps = out.stamps || {};
+        var wrote = [];
+        Object.keys(merged.data).forEach(function (k) {
+          if (out.data[k] === merged.data[k]) return;
+          out.data[k] = merged.data[k];
+          if (merged.stamps[k]) out.stamps[k] = merged.stamps[k];
+          wrote.push(k);
+        });
+        if (!wrote.length) return [];
+        out.savedAt = lanNow();
+        out.keyCount = Object.keys(out.data).length;
+        return localPut(src.file, out).then(function (put) {
+          if (!put.ok) return [];
+          API._applying = true;
+          try {
+            merged.changed.forEach(function (k) { try { store().setItem(k, merged.data[k]); } catch (e) {} });
+          } finally { API._applying = false; }
+          self.setStamps(merged.stamps);
+          return wrote;
+        });
+      });
+    })).then(function (lists) {
+      var wrote = [];
+      lists.forEach(function (l) { l.forEach(function (k) { if (wrote.indexOf(k) === -1) wrote.push(k); }); });
+      return wrote;
+    });
+  };
+
+  /* Every sync entry point asks once which backend it is talking to; the Drive
+     versions above run unchanged whenever the Centre's server is not there. */
+  var drive = { pull: Page.prototype.pull, push: Page.prototype.push,
+                pullShared: Page.prototype.pullShared, pushShared: Page.prototype.pushShared };
+  Page.prototype.pull = function () {
+    var self = this;
+    return detectLocalServer().then(function (on) { return on ? self.lanPull() : drive.pull.call(self); });
+  };
+  Page.prototype.push = function () {
+    var self = this;
+    return detectLocalServer().then(function (on) { return on ? self.lanPush() : drive.push.call(self); });
+  };
+  Page.prototype.pullShared = function () {
+    var self = this;
+    return detectLocalServer().then(function (on) { return on ? self.lanPullShared() : drive.pullShared.call(self); });
+  };
+  Page.prototype.pushShared = function (keys) {
+    var self = this;
+    return detectLocalServer().then(function (on) { return on ? self.lanPushShared(keys) : drive.pushShared.call(self, keys); });
+  };
+
+  /* THE WHOLE STORE — the LAN's equivalent of Drive's master snapshot.
+
+     Per-page files cover what each page declared. Online, everything else
+     still reaches Drive because the dashboard's master snapshot sweeps EVERY
+     storage key; on the Centre's network nothing did, so "saved" quietly meant
+     "saved on this machine". This mirrors the whole store into one more file,
+     by the same merge rules, so a key nobody declared still reaches the server
+     and comes back on the next machine. */
+  var ALL_SPEC = {
+    page: 'Whole store (everything)',
+    file: 'CESTIS_ALL_DATA.json',
+    all: true,
+    // Kept on the device that wrote them, deliberately:
+    exclude: [
+      // Google credentials — secret, and meaningless on another machine.
+      'schoolDashboardGoogleAccessToken', 'schoolDashboardGoogleTokenExpiry',
+      'cestisGoogleAccessToken', 'cestisGoogleTokenExpiry',
+      // Which Drive file/folder THIS machine last used.
+      'schoolDashboardCloudFileId', 'schoolDashboardLastSyncTime',
+      'cestisCloudFileId', 'cestisCloudFolderId', 'cestisLastSyncTime',
+      'schoolFeeCloudFileId', 'cestisUserFilesFolderId',
+      // Who is signed in HERE, and this screen's own preferences. Syncing these
+      // would sign people in as each other and fight over dark mode.
+      'isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
+      'cestisAttendanceCurrentUser', 'darkMode', 'cestisTimeDarkMode',
+      // One-off "I have seen this" dismissals.
+      'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
+      'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled'
+    ],
+    // This module's own bookkeeping about what it has already synced.
+    excludePrefixes: ['cestis_pagecloud_stamps__'],
+    // What this file brings down belongs to the pages that own or read it:
+    // whichever pull lands first writes a key, and the other then sees nothing
+    // new — so the page must be told either way.
+    onRestore: function (keys) { API._lanReport(keys, API._all); }
   };
 
   var API = {
@@ -471,6 +860,10 @@
       };
       if (store() && store().whenReady) store().whenReady(start); else start();
 
+      // On the Centre's own network: mirror the whole store as well, and keep
+      // pulling every half minute (see the LAN section above).
+      detectLocalServer().then(function (on) { if (on) API._wireLan(); });
+
       // CLOUD → LOCAL, continuously — not only at page open.
       //
       // 1. The moment a Google token appears (the user pressed Connect on the
@@ -491,6 +884,7 @@
         try {
           setInterval(function () {
             if (root.document && root.document.hidden) return;   // nobody looking
+            if (lan.on) return;                                  // the LAN refresh does this job
             var tok = token();
             if (!tok) return;
             API._pages.forEach(function (p) {
@@ -556,10 +950,75 @@
     status: function () {
       return API._pages.map(function (p) {
         return { page: p.spec.page, file: p.spec.file, folder: FOLDER_ID,
-          connected: p.state.connected, keys: p.state.keys, sharedKeys: p.state.shared,
+          connected: p.state.connected, backend: p.state.backend || (lan.on ? 'offline-server' : 'google-drive'),
+          keys: p.state.keys, sharedKeys: p.state.shared,
           reads: (p.spec.reads || []).length,
           lastPull: p.state.lastPull, lastPush: p.state.lastPush, error: p.state.error };
       });
+    },
+
+    /* ---- The Centre's own server (Offline System) ---- */
+
+    /* Resolves true when these pages are being served by the Centre's own
+       server — the Offline System — and false everywhere else. */
+    lan: function () { return detectLocalServer(); },
+    /* True once this page has read the Centre's server successfully in this
+       session: the LAN's answer to "has this device synced?". */
+    lanSynced: function () { return !!(lan.on && lan.synced); },
+    /* The current time by the Centre's server's clock (this device's clock
+       anywhere else). */
+    now: function () { return lanNow(); },
+    /* Register a page's file ONLY when served by the Centre's own server. The
+       LMS dashboard syncs through its own Drive backup online, and through
+       this on the Centre's network. */
+    initLan: function (spec) {
+      return detectLocalServer().then(function (on) { return on ? API.init(spec) : null; });
+    },
+    /* fn(key) -> may this device publish a new value of `key` to the Centre's
+       server? Without it, every write is published. The dashboard uses it so
+       a trainee's device — and one whose session has just been cleared — can
+       never publish a Centre-wide setting; their record writes still go up,
+       and those merge record by record so they cannot delete anything. */
+    setAuthorPolicy: function (fn) { API._authorPolicy = (typeof fn === 'function') ? fn : null; },
+    /* Hand pulled changes to every page that owns or reads them, so one page's
+       pull landing first never leaves another page's screen stale. */
+    _lanReport: function (changed, from) {
+      if (!changed || !changed.length) return;
+      API._pages.forEach(function (p) {
+        if (p === from || typeof p.spec.onRestore !== 'function') return;
+        var mine = changed.filter(function (k) {
+          return core().ownsKey(p.spec, k) || (p.spec.reads || []).indexOf(k) !== -1;
+        });
+        if (mine.length) { try { p.spec.onRestore(mine); } catch (e) {} }
+      });
+    },
+    _wireLan: function () {
+      if (API._lanWired) return;
+      API._lanWired = true;
+      API.initWholeStore();
+      try {
+        setInterval(function () {
+          if (root.document && root.document.hidden) return;   // nobody looking
+          API._pages.forEach(function (p) {
+            p.pull().then(function (keys) {
+              return p.pullShared().then(function (sk) {
+                sk.forEach(function (k) { if (keys.indexOf(k) === -1) keys.push(k); });
+                if (keys.length && typeof p.spec.onRestore === 'function') { try { p.spec.onRestore(keys); } catch (e) {} }
+              });
+            });
+          });
+        }, LAN_REFRESH_MS);
+      } catch (e) {}
+    },
+    /* Register the whole-store mirror. Safe to call repeatedly. */
+    initWholeStore: function () {
+      if (API._all) return API._all;
+      var pg = new Page(ALL_SPEC);
+      API._all = pg;
+      API._pages.push(pg);
+      pg.watch();
+      pg.pull().then(function (keys) { if (keys.length) ALL_SPEC.onRestore(keys); });
+      return pg;
     }
   };
 

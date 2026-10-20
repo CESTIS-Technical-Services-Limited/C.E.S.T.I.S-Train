@@ -1213,8 +1213,24 @@ document.addEventListener('DOMContentLoaded', function () {
 CESTISPageCloud.init({
   page: 'Transcript / Grades',
   file: 'CESTIS_Transcript_Grades.json',
-  keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles']
+  keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles'],
+  // Grades are recorded against the trainee roll and the training centres, both
+  // owned elsewhere: pulled from Drive here, never written back.
+  reads: ['voctrain_students', 'voctrain_skillAreas', 'voctrain_deletedCentreIds',
+          'voctrain_examResults']
 });
 </script>
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/docsync-model.js?v=1"></script>
+<script src="megadata/pages/tg-model.js?v=1"></script>
+<script src="megadata/pages/tg-page.js?v=1"></script>
 </body>
 </html>
