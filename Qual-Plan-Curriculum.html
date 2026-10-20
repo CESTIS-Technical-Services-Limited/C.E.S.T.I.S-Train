@@ -302,6 +302,13 @@ function qpEsc(s) {
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
   });
 }
+// A value handed to an inline handler: a quoted JavaScript string that
+// survives the browser decoding the attribute first. Shared toolkit, with a
+// fallback for a stale cached cestis-core.js.
+function qpJsArg(s) {
+  if (window.CESTISCore && CESTISCore.html) return CESTISCore.html.jsArg(s);
+  return qpEsc(JSON.stringify(String(s == null ? '' : s)));
+}
 
 function qpFileIcon(mime) {
   mime = mime || '';
@@ -484,7 +491,7 @@ function qpRenderCrumbs(prog) {
     var label = i === 0 ? '🏠 Home' : qpEsc(c.name);
     var seg = last
       ? '<span class="qp-crumb current">' + label + '</span>'
-      : '<span class="qp-crumb" onclick="qpNavTo(\'' + prog.folderId + '\',' + i + ')">' + label + '</span>';
+      : '<span class="qp-crumb" onclick="qpNavTo(' + qpJsArg(prog.folderId) + ',' + i + ')">' + label + '</span>';
     return (i ? '<span class="qp-crumb-sep">›</span>' : '') + seg;
   }).join('');
 }
@@ -528,13 +535,13 @@ function qpRenderListing(prog, result) {
     return;
   }
   var rows = folders.map(function(f){
-    return '<div class="qp-file is-folder" onclick="qpNavInto(\'' + prog.folderId + '\',\'' + qpEsc(f.id) + '\')">' +
+    return '<div class="qp-file is-folder" onclick="qpNavInto(' + qpJsArg(prog.folderId) + ',' + qpJsArg(f.id) + ')">' +
       '<div class="fic">📁</div>' +
       '<div class="fnm" title="' + qpEsc(f.name) + '">' + qpEsc(f.name) + '</div>' +
       '<div class="fgo">Open ▸</div>' +
     '</div>';
   }).concat(files.map(function(f){
-    return '<div class="qp-file" onclick="qpOpenViewer(\'' + qpEsc(f.id) + '\',\'' + qpEsc(f.mimeType || '') + '\')">' +
+    return '<div class="qp-file" onclick="qpOpenViewer(' + qpJsArg(f.id) + ',' + qpJsArg(f.mimeType || '') + ')">' +
       '<div class="fic" style="background:rgba(240,165,0,0.12);">' + qpFileIcon(f.mimeType) + '</div>' +
       '<div class="fnm" title="' + qpEsc(f.name) + '">' + qpEsc(f.name) + '</div>' +
       '<div class="fgo">View ▸</div>' +
@@ -628,14 +635,14 @@ function qpCard(prog) {
   return '' +
     '<div class="qp-card">' +
       '<div class="qp-card-head">' +
-        '<div class="ic" style="background:rgba(' + rgb + ',0.18);color:' + meta.color + ';">' + meta.icon + '</div>' +
+        '<div class="ic" style="background:rgba(' + rgb + ',0.18);color:' + qpEsc(meta.color) + ';">' + qpEsc(meta.icon) + '</div>' +
         '<div>' +
           '<div class="nm">' + qpEsc(prog.title) + '</div>' +
-          '<span class="qp-badge" style="background:rgba(' + rgb + ',0.18);color:' + meta.color + ';">' + qpEsc(badgeLabel) + '</span>' +
+          '<span class="qp-badge" style="background:rgba(' + rgb + ',0.18);color:' + qpEsc(meta.color) + ';">' + qpEsc(badgeLabel) + '</span>' +
         '</div>' +
       '</div>' +
-      '<div class="qp-crumbs" id="qpCrumbs-' + prog.folderId + '"></div>' +
-      '<div class="qp-files" id="qpFiles-' + prog.folderId + '">' +
+      '<div class="qp-crumbs" id="qpCrumbs-' + qpEsc(prog.folderId) + '"></div>' +
+      '<div class="qp-files" id="qpFiles-' + qpEsc(prog.folderId) + '">' +
         '<div class="qp-files-msg"><span class="qp-spinner"></span>Loading documents…</div>' +
       '</div>' +
     '</div>';
@@ -687,7 +694,7 @@ function qpInit() {
       var rgb = qpHexToRgb(skill.color);
       document.getElementById('qpBannerHost').innerHTML =
         '<div class="qp-banner" style="background:linear-gradient(135deg,rgba(' + rgb + ',0.16),rgba(52,152,219,0.05));">' +
-          '<div class="ic" style="background:' + skill.color + '33;color:' + skill.color + ';">' + skill.icon + '</div>' +
+          '<div class="ic" style="background:' + qpEsc(skill.color) + '33;color:' + qpEsc(skill.color) + ';">' + qpEsc(skill.icon) + '</div>' +
           '<div>' +
             '<h2>' + qpEsc(skill.name) + '</h2>' +
             '<span class="sub">' +

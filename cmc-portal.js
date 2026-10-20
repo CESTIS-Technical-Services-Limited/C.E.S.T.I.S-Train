@@ -516,6 +516,12 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+  /* A value handed to an inline handler. esc() inside onclick="fn('...')" is
+     undone by the browser decoding the attribute before the JavaScript runs,
+     so a room id with an apostrophe broke the button (and could run code). */
+  function jsq(s) {
+    return esc(JSON.stringify(String(s == null ? '' : s)));
+  }
   function arr(name) {
     try { var v = root[name]; return Array.isArray(v) ? v : []; } catch (e) { return []; }
   }
@@ -735,7 +741,7 @@
     }
     var roomList = rooms.map(function (r) {
       var n = (msgs[r.id] || []).length;
-      return '<div class="cmcp-room' + (r.id === cmcpState.room ? ' active' : '') + '" onclick="cmcPortalSetRoom(\'' + esc(r.id) + '\')">' +
+      return '<div class="cmcp-room' + (r.id === cmcpState.room ? ' active' : '') + '" onclick="cmcPortalSetRoom(' + jsq(r.id) + ')">' +
         (r.icon ? esc(r.icon) + ' ' : '') + esc(r.name) +
         '<span style="float:right;font-size:11px;color:var(--text-muted);">' + n + '</span></div>';
     }).join('');
