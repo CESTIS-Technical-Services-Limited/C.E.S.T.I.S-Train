@@ -2044,11 +2044,27 @@
       return String(s == null ? '' : s).toLowerCase().trim().replace(/\s+/g, ' ');
     }
 
+    /* One class is one record. The id used to carry the exact start time of
+       whichever device opened it, so the instructor's laptop and every
+       trainee's phone each wrote their own record of the same class — and the
+       register showed one class as several. The room code and the day are the
+       same on every device, so they name the class instead. (The day is the
+       device's own calendar day: everyone in a class is in the same place.) */
+    function dayOf(t) {
+      var v = ms(t);
+      var d = isNaN(v) ? new Date() : new Date(v);
+      var p = function (n) { return (n < 10 ? '0' : '') + n; };
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    }
+    function sessionId(code, at) {
+      return 'vcs-' + String(code || '').toUpperCase() + '-' + dayOf(at);
+    }
+
     /* Open a session record for a Large Class. */
     function startSession(opts) {
       opts = opts || {};
       return {
-        id: opts.id || ('vcs-' + String(opts.code || '') + '-' + iso(opts.startedAt)),
+        id: opts.id || sessionId(opts.code, opts.startedAt),
         code: String(opts.code || '').toUpperCase(),
         title: opts.title || 'Large Class',
         course: opts.course || '',
@@ -2130,6 +2146,96 @@
       return session;
     }
 
+    /* The host came back to a class it had left or ended earlier the same
+       day. The record carries on — everyone it already holds is kept — and
+       says when it reopened, so a copy elsewhere that still shows it ended
+       gives way when the two meet (see mergeSessions). */
+    function reopenSession(session, at) {
+      if (!session) return session;
+      var t = iso(at);
+      session.reopenedAt = t;
+      session.endedAt = '';
+      session.updatedAt = t || session.updatedAt;
+      return session;
+    }
+
+    function isOpen(session) {
+      if (!session) return false;
+      if (!session.endedAt) return true;
+      return !!(session.reopenedAt && session.reopenedAt > session.endedAt);
+    }
+
+    /* A record left open by a device that crashed, lost power or simply
+       closed the tab would otherwise be "in progress" for ever — and every
+       trainee who typed that room code weeks later would be sent into an
+       empty hosted room. The host's device touches the record every few
+       minutes while the class runs, so an open record that has not moved for
+       this long is a class that is over. */
+    var STALE_MS = 45 * 60000;
+    function isLive(session, now, staleMs) {
+      if (!isOpen(session)) return false;
+      var last = ms(session.updatedAt || session.startedAt);
+      var n = (now == null) ? Date.now() : ms(now);
+      if (isNaN(last) || isNaN(n)) return false;
+      return (n - last) < (staleMs || STALE_MS);
+    }
+
+    /* The running Large Class for a room code, or null. */
+    function liveFor(list, code, now, staleMs) {
+      var want = String(code || '').toUpperCase().trim();
+      if (!want) return null;
+      var open = (list || []).filter(function (s) {
+        return s && String(s.code || '').toUpperCase() === want && isLive(s, now, staleMs);
+      });
+      if (!open.length) return null;
+      open.sort(function (a, b) { return String(b.startedAt || '').localeCompare(String(a.startedAt || '')); });
+      return open[0];
+    }
+
+    /* Bring the clock forward on a running class (the host's heartbeat). */
+    function touch(session, at) {
+      if (session) session.updatedAt = iso(at) || session.updatedAt;
+      return session;
+    }
+
+    /* Close, at its last activity, every record that was left open and has
+       gone stale. Run by a host as it starts a class, so the register stops
+       showing old classes as "in progress". Returns how many were closed. */
+    function closeStale(list, now, staleMs) {
+      var n = 0;
+      (list || []).forEach(function (s) {
+        if (s && isOpen(s) && !isLive(s, now, staleMs)) {
+          endSession(s, s.updatedAt || s.startedAt);
+          n++;
+        }
+      });
+      return n;
+    }
+
+    /* What the register should show for a record: a stale open record is
+       shown as it stood at its last activity, with everyone still in the room
+       credited up to then — never as a class everyone attended for 0 minutes.
+       Works on a copy; the stored record is untouched. */
+    function displayView(session, now, staleMs) {
+      if (!session || !isOpen(session) || isLive(session, now, staleMs)) return session;
+      var copy = JSON.parse(JSON.stringify(session));
+      return endSession(copy, copy.updatedAt || copy.startedAt);
+    }
+
+    /* Put one session into the stored list, replacing the copy with the same
+       id IN PLACE. A class of 80 records a join or a leave every few seconds;
+       re-merging (and deep-copying) every session ever held on each one made
+       the host's laptop slower with every class the Centre had run. */
+    function upsertSession(list, session) {
+      var out = Array.isArray(list) ? list : [];
+      if (!session || !session.id) return out;
+      for (var i = 0; i < out.length; i++) {
+        if (out[i] && out[i].id === session.id) { out[i] = session; return out; }
+      }
+      out.push(session);
+      return out;
+    }
+
     function sessionMinutes(session) {
       if (!session) return 0;
       return Math.round(minutesBetween(session.startedAt, session.endedAt || session.updatedAt) * 10) / 10;
@@ -2202,6 +2308,7 @@
           if (!cur.startedAt || (s.startedAt && s.startedAt < cur.startedAt)) cur.startedAt = s.startedAt;
           if (s.endedAt && (!cur.endedAt || s.endedAt > cur.endedAt)) cur.endedAt = s.endedAt;
           if (s.updatedAt && (!cur.updatedAt || s.updatedAt > cur.updatedAt)) cur.updatedAt = s.updatedAt;
+          if (s.reopenedAt && (!cur.reopenedAt || s.reopenedAt > cur.reopenedAt)) cur.reopenedAt = s.reopenedAt;
           if (!cur.course && s.course) cur.course = s.course;
           if (!cur.hostName && s.hostName) cur.hostName = s.hostName;
           cur.locked = cur.locked || s.locked;
@@ -2218,6 +2325,11 @@
       }
       put(local);
       put(remote);
+      // Reopened after the latest end anybody saw: the class is running again.
+      Object.keys(out).forEach(function (k) {
+        var s = out[k];
+        if (s.reopenedAt && s.endedAt && s.reopenedAt > s.endedAt) s.endedAt = '';
+      });
       return Object.keys(out).map(function (k) { return out[k]; })
         .sort(function (a, b) { return String(b.startedAt).localeCompare(String(a.startedAt)); });
     }
@@ -2242,7 +2354,17 @@
     return {
       PRESENT_MIN_RATIO: PRESENT_MIN_RATIO,
       PRESENT_MIN_MINUTES: PRESENT_MIN_MINUTES,
+      STALE_MS: STALE_MS,
+      sessionId: sessionId,
       startSession: startSession,
+      reopenSession: reopenSession,
+      isOpen: isOpen,
+      isLive: isLive,
+      liveFor: liveFor,
+      touch: touch,
+      closeStale: closeStale,
+      displayView: displayView,
+      upsertSession: upsertSession,
       recordJoin: recordJoin,
       recordLeave: recordLeave,
       endSession: endSession,
@@ -2252,6 +2374,253 @@
       matchRoster: matchRoster,
       mergeSessions: mergeSessions,
       roomPassword: roomPassword
+    };
+  })();
+
+  /* ==========================================================================
+     THE BUILT-IN CONFERENCE ROOM — the rules, without the browser
+
+     The peer-to-peer room has no server of its own to decide anything: every
+     decision — who may join, whose instructions to obey, who sends video to
+     whom, how long to wait before trying the introduction service again — is
+     taken in each participant's browser. These are those decisions, kept here
+     so they are the same on every device and can be tested.
+     ========================================================================== */
+  Core.vcRoom = (function () {
+    /* Room codes. Six characters drawn with Math.random could be guessed —
+       and a room code is the only key to a class. Ten characters from a
+       32-letter alphabet (no 0/O or 1/I to misread) is about 10^15
+       possibilities, drawn from the browser's cryptographic generator.
+       Codes already handed out (six characters) keep working. */
+    var CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var CODE_LENGTH = 10;
+    var CODE_MIN = 4, CODE_MAX = 16;
+
+    /* randomBytes(n) -> n integers 0..255 (crypto.getRandomValues in a page).
+       32 divides 256, so taking each byte modulo 32 is unbiased. */
+    function generateCode(randomBytes, length) {
+      var n = length || CODE_LENGTH;
+      var bytes = randomBytes(n);
+      var out = '';
+      for (var i = 0; i < n; i++) out += CODE_ALPHABET[(bytes[i] & 255) % CODE_ALPHABET.length];
+      return out;
+    }
+    /* What somebody typed, as a code: upper case, spaces and dashes dropped. */
+    function normaliseCode(text) {
+      return String(text == null ? '' : text).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    }
+    function isValidCode(code) {
+      var c = normaliseCode(code);
+      return c.length >= CODE_MIN && c.length <= CODE_MAX && c === String(code);
+    }
+    function hostPeerId(code) { return 'cestis-' + normaliseCode(code) + '-host'; }
+
+    /* Instructions only the room's host may give. Every participant holds a
+       connection to every other, so without this check any trainee could end
+       the class for everybody, mute the instructor or remove classmates from
+       the browser console. The host itself never takes these from anyone. */
+    var HOST_ONLY = {
+      'end-meeting': 1, 'kick': 1, 'force-mute': 1, 'force-unmute': 1, 'mute-all': 1,
+      'force-cam-off': 1, 'promote-host': 1, 'demote-host': 1, 'permission-update': 1,
+      'room-full': 1, 'access-denied': 1, 'peer-list': 1, 'new-peer': 1, 'peer-left': 1,
+      'peer-kicked': 1, 'peer-muted': 1, 'peer-unmuted': 1, 'peer-name': 1, 'cohost': 1,
+      'screen-share-started': 1, 'screen-share-stopped': 1
+    };
+    /* Messages the host accepts from a co-host it appointed, and acts on. */
+    var COHOST_TO_HOST = { 'cohost-action': 1 };
+
+    /* Should this message be acted on?
+       ctx: { amHost, hostId, fromId, admitted, coHost }
+         admitted — the sender has been let into the room (by this host, or
+                    announced by the host to this participant)
+         coHost   — the host appointed the sender as co-host */
+    function acceptFrom(type, ctx) {
+      ctx = ctx || {};
+      if (type === 'name') return true;              // how a newcomer introduces itself
+      if (ctx.amHost) {
+        if (HOST_ONLY[type]) return false;           // nobody instructs the host
+        if (!ctx.admitted) return false;             // not in the room yet
+        if (COHOST_TO_HOST[type]) return !!ctx.coHost;
+        return true;
+      }
+      if (HOST_ONLY[type]) return !!ctx.hostId && ctx.fromId === ctx.hostId;
+      if (COHOST_TO_HOST[type]) return false;
+      return ctx.fromId === ctx.hostId || !!ctx.admitted;
+    }
+
+    /* The room code is a convenience, not a password: it travels in
+       notifications, backups and invitations. A staff meeting marked Admin
+       Only is closed to everybody else whatever code they hold.
+       meeting — the scheduled admin meeting for this code, if there is one. */
+    function canJoinMeeting(meeting, role) {
+      if (!meeting) return { allowed: true, reason: '' };
+      var access = meeting.access === 'allstaff' ? 'allstaff' : 'adminonly';
+      var staff = role === 'admin' || role === 'adminstaff';
+      if (access === 'adminonly' && !staff) {
+        return { allowed: false, reason: 'This meeting is for the Administration only.' };
+      }
+      if (access === 'allstaff' && !(staff || role === 'instructor')) {
+        return { allowed: false, reason: 'This meeting is for staff only.' };
+      }
+      return { allowed: true, reason: '' };
+    }
+
+    /* Two participants learn about each other at the same moment (the host
+       tells the newcomer about everyone, and everyone about the newcomer), so
+       both used to dial — two connections and two video streams for every
+       pair. Exactly one of them dials: the lower id. */
+    function shouldInitiate(myId, theirId) { return String(myId) < String(theirId); }
+
+    /* Who sends video to whom. Trainees see only the instructor (and
+       themselves), so a trainee's camera going to every classmate was upload
+       spent on tiles nobody shows — on a phone, the difference between a
+       class that works and one that breaks up. Trainees still HEAR each other
+       (a question asked aloud), so audio goes to everyone. */
+    function mediaPlan(opts) {
+      opts = opts || {};
+      var video = !!(opts.amHost || opts.peerIsHost);
+      return { sendVideo: video, receiveVideo: video, sendAudio: true, receiveAudio: true };
+    }
+
+    /* How much picture each device sends. A phone filming at 720p for a tile
+       the size of a thumbnail costs data and battery for nothing.
+       opts: { mobile, host, peers }  ->  { width, height, frameRate, maxBitrate } */
+    function videoProfile(opts) {
+      opts = opts || {};
+      var p;
+      if (opts.host) {
+        p = opts.mobile ? { width: 960, height: 540, frameRate: 24 } : { width: 1280, height: 720, frameRate: 30 };
+        // The host uploads one copy per participant: share a fixed budget.
+        var n = Math.max(1, Math.floor(opts.peers || 1));
+        p.maxBitrate = Math.max(250000, Math.min(1200000, Math.floor(5000000 / n)));
+      } else if (opts.mobile) {
+        p = { width: 640, height: 360, frameRate: 24, maxBitrate: 350000 };
+      } else {
+        p = { width: 960, height: 540, frameRate: 24, maxBitrate: 600000 };
+      }
+      return p;
+    }
+
+    /* Wait before reconnecting to the introduction service: 1 s, 2 s, 4 s ...
+       up to 30 s, spread a little so a room full of browsers does not knock
+       on a recovering service all at the same instant. rand in [0,1). */
+    function backoffDelay(attempt, rand) {
+      var a = Math.max(0, Math.floor(attempt || 0));
+      var base = Math.min(30000, 1000 * Math.pow(2, Math.min(a, 15)));
+      var r = (typeof rand === 'number' && rand >= 0 && rand < 1) ? rand : 0.5;
+      return Math.round(base * (0.75 + 0.5 * r));
+    }
+
+    /* Relay (TURN) servers the Centre configured in Settings, one per line:
+         turn:relay.example.org:3478 username password
+         turns:relay.example.org:5349 username password
+         stun:stun.example.org:3478
+       Returns { servers: [...], errors: [line numbers] }. Nothing here is
+       ever committed: the Centre types its own server and credentials. */
+    function parseIceServers(text) {
+      var out = { servers: [], errors: [] };
+      String(text == null ? '' : text).split(/\r?\n/).forEach(function (line, i) {
+        var t = line.trim();
+        if (!t || t.charAt(0) === '#') return;
+        var parts = t.split(/\s+/);
+        var url = parts[0];
+        if (!/^(turns?|stun):[^\s]+$/i.test(url)) { out.errors.push(i + 1); return; }
+        var entry = { urls: url };
+        if (/^turns?:/i.test(url)) {
+          if (parts.length < 3) { out.errors.push(i + 1); return; }
+          entry.username = parts[1];
+          entry.credential = parts.slice(2).join(' ');
+        }
+        out.servers.push(entry);
+      });
+      return out;
+    }
+    /* The list handed to each connection: a few public STUN servers, then the
+       Centre's own relays. Browsers slow down with a long list, so it is
+       capped. */
+    var ICE_MAX = 6;
+    function iceServers(stunDefaults, configuredText) {
+      var mine = parseIceServers(configuredText).servers.slice(0, ICE_MAX - 1);
+      var stun = (stunDefaults || []).slice(0, Math.max(1, ICE_MAX - mine.length));
+      return stun.concat(mine);
+    }
+    function hasRelay(configuredText) {
+      return parseIceServers(configuredText).servers.some(function (s) { return /^turns?:/i.test(s.urls); });
+    }
+
+    /* The Large Class server address the Centre typed. Must be https (a
+       conference page will not get a camera otherwise). meet.jit.si is
+       allowed but flagged: it no longer supports embedding for real classes. */
+    function checkLargeRoomBase(text) {
+      var raw = String(text == null ? '' : text).trim();
+      if (!raw) return { ok: true, base: '', publicJitsi: true, reason: '' };
+      if (!/^https?:\/\//i.test(raw)) raw = 'https://' + raw;
+      var m = /^(https?):\/\/([^\/\s?#]+)(\/[^\s?#]*)?$/i.exec(raw);
+      if (!m) return { ok: false, base: '', publicJitsi: false, reason: 'That address could not be read.' };
+      if (m[1].toLowerCase() !== 'https') return { ok: false, base: '', publicJitsi: false, reason: 'The Large Class server must be an https:// address.' };
+      var host = m[2].toLowerCase();
+      var path = (m[3] || '/').replace(/\/+$/, '') + '/';
+      return { ok: true, base: 'https://' + host + path, publicJitsi: host === 'meet.jit.si', reason: '' };
+    }
+
+    /* The scheduled class session a room code belongs to. A code is unique to
+       its session, but prefer today's if a code was ever reused. */
+    function findClassSession(sessions, code, today) {
+      var c = normaliseCode(code);
+      if (!c) return null;
+      var hits = (sessions || []).filter(function (s) { return s && normaliseCode(s.roomCode) === c; });
+      if (!hits.length) return null;
+      var t = hits.filter(function (s) { return s.date === today; });
+      if (t.length) return t[0];
+      hits.sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+      return hits[0];
+    }
+    /* scheduled -> live -> completed, on the one record, stamped so the
+       newest-edit-wins merge carries it to every other device. Returns the
+       record changed, or null when nothing changed. */
+    function setSessionStatus(sessions, code, status, now, today) {
+      var s = findClassSession(sessions, code, today);
+      if (!s || s.status === status) return null;
+      s.status = status;
+      s.updatedAt = now;
+      if (status === 'live' && !s.startedLiveAt) s.startedLiveAt = now;
+      if (status === 'completed') s.completedAt = now;
+      return s;
+    }
+    /* A finished recording, linked to its class so trainees find it under
+       Past Recordings. A class still running stays 'live'; it is shown once
+       the host closes it. info: { url, fileId, name } */
+    function attachRecording(sessions, code, info, now, today) {
+      var s = findClassSession(sessions, code, today);
+      if (!s || !info || !info.url) return null;
+      s.recordingUrl = info.url;
+      if (info.fileId) s.recordingDriveId = info.fileId;
+      if (info.name) s.recordingName = info.name;
+      if (s.status !== 'live') s.status = 'completed';
+      s.updatedAt = now;
+      return s;
+    }
+
+    return {
+      CODE_ALPHABET: CODE_ALPHABET, CODE_LENGTH: CODE_LENGTH, CODE_MIN: CODE_MIN, CODE_MAX: CODE_MAX,
+      HOST_ONLY: HOST_ONLY,
+      generateCode: generateCode,
+      normaliseCode: normaliseCode,
+      isValidCode: isValidCode,
+      hostPeerId: hostPeerId,
+      acceptFrom: acceptFrom,
+      canJoinMeeting: canJoinMeeting,
+      shouldInitiate: shouldInitiate,
+      mediaPlan: mediaPlan,
+      videoProfile: videoProfile,
+      backoffDelay: backoffDelay,
+      parseIceServers: parseIceServers,
+      iceServers: iceServers,
+      hasRelay: hasRelay,
+      checkLargeRoomBase: checkLargeRoomBase,
+      findClassSession: findClassSession,
+      setSessionStatus: setSessionStatus,
+      attachRecording: attachRecording
     };
   })();
 
