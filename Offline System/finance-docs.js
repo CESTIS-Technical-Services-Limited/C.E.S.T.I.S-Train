@@ -50,7 +50,43 @@
     catch (e) { docs = []; }
     if (!Array.isArray(docs)) docs = [];
   }
-  function persistDocs() { store().setItem(cfg.storageKey, JSON.stringify(docs)); }
+  /* Documents deleted here, by id, so no merge brings one back. */
+  function delKey() { return cfg.storageKey + '_deleted'; }
+  function deletedIds() {
+    try { var v = JSON.parse(store().getItem(delKey()) || '[]'); return Array.isArray(v) ? v : []; }
+    catch (e) { return []; }
+  }
+  /* Fold what storage holds into the in-memory list: a document only storage
+     has is added, a stored copy saved later wins, a deleted one is dropped.
+
+     The list used to be read once, when the page opened, and written back
+     whole on every save. A cloud pull that landed in storage after that — the
+     first one at page open included — was then overwritten by the next save,
+     and the save, stamped as the newer edit, pushed the "deletion" to Drive:
+     an invoice saved on another PC vanished from both. Returns whether the
+     list changed. */
+  function mergeStored() {
+    var stored = [];
+    try { stored = JSON.parse(store().getItem(cfg.storageKey) || '[]'); } catch (e) { stored = []; }
+    if (!Array.isArray(stored)) stored = [];
+    var del = {}, changed = false;
+    deletedIds().forEach(function (id) { del[id] = 1; });
+    var at = {};
+    docs.forEach(function (d, i) { if (d && d.id) at[d.id] = i; });
+    stored.forEach(function (sd) {
+      if (!sd || !sd.id || del[sd.id]) return;
+      if (!(sd.id in at)) { at[sd.id] = docs.length; docs.push(sd); changed = true; return; }
+      var ld = docs[at[sd.id]];
+      if ((Date.parse(sd.updatedAt || '') || 0) > (Date.parse((ld && ld.updatedAt) || '') || 0)) { docs[at[sd.id]] = sd; changed = true; }
+    });
+    var before = docs.length;
+    docs = docs.filter(function (d) { return !(d && d.id && del[d.id]); });
+    return changed || docs.length !== before;
+  }
+  function persistDocs() {
+    mergeStored();
+    store().setItem(cfg.storageKey, JSON.stringify(docs));
+  }
 
   /* ------------------------------------------------------------------ utils */
   function $(id) { return document.getElementById(id); }
@@ -399,6 +435,17 @@
     setTimeout(consumeConvertPayload, 600);
   };
 
+  /* Page-cloud has just written Drive's copy into storage: fold it into the
+     list on screen (nothing held here is dropped) and save the union. */
+  API.reload = function () {
+    if (!cfg) return;
+    var before = JSON.stringify(docs);
+    mergeStored();
+    var after = JSON.stringify(docs);
+    if (after !== before || store().getItem(cfg.storageKey) !== after) store().setItem(cfg.storageKey, after);
+    renderList();
+  };
+
   API.setItem = function (i, key, val) {
     var it = current.items[i];
     if (!it) return;
@@ -460,7 +507,14 @@
         $('fRevNote').value = '';
       }
     }
+    // What other devices saved first, so a new document cannot take a number
+    // one of theirs already has (two invoices #12551).
+    mergeStored();
     var idx = docs.findIndex(function (d) { return d.id === current.id; });
+    if (idx === -1 && docs.some(function (d) { return d && String(d.number) === String(current.number); })) {
+      current.number = String(F().nextDocNumber(docs.map(function (x) { return x.number; }), cfg.numberSeed));
+      renderEditor(); renderPaper();
+    }
     if (idx === -1) docs.push(JSON.parse(JSON.stringify(current)));
     else docs[idx] = JSON.parse(JSON.stringify(current));
     persistDocs(); dirty = false; renderList();
@@ -503,6 +557,9 @@
     if (!d) return;
     if (!confirm('Delete ' + cfg.labels.docWord + ' #' + d.number + '? This cannot be undone.')) return;
     docs = docs.filter(function (x) { return x.id !== id; });
+    // Written down, or the next merge (or another device) brings it back.
+    var del = deletedIds();
+    if (del.indexOf(id) === -1) { del.push(id); store().setItem(delKey(), JSON.stringify(del)); }
     persistDocs(); renderList();
   };
 

@@ -60,7 +60,10 @@ FinanceDoc.init({
 CESTISPageCloud.init({
   page: 'Invoice',
   file: 'CESTIS_Finance_Invoices.json',
-  keys: ['cestis_finance_invoices', 'cestis_finance_convert']
+  keys: ['cestis_finance_invoices', 'cestis_finance_convert', 'cestis_finance_invoices_deleted'],
+  // A pull lands in storage while the page holds its list in memory; fold it
+  // in, or the next save writes the stale list back over it.
+  onRestore: function () { try { if (window.FinanceDoc && FinanceDoc.reload) FinanceDoc.reload(); } catch (e) {} }
 });
 </script>
 <script src="megadata/schemas.js?v=1"></script>

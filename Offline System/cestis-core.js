@@ -1267,7 +1267,10 @@
                                // created again can live).
                                'cestiSchoolFeeDeletedDocumentIds', 'cestiSchoolFeeDeletedFeeKeys',
                                // Time-clock sessions an administrator deleted.
-                               'cestisTimeRecordTombstones'];
+                               'cestisTimeRecordTombstones',
+                               // Deleted invoices, quotes and purchase orders (by id).
+                               'cestis_finance_invoices_deleted', 'cestis_finance_quotes_deleted',
+                               'cestis_finance_pos_deleted'];
 
   // Is this key a list of deletions — one that must be merged by union rather
   // than by "the newer write wins"?
