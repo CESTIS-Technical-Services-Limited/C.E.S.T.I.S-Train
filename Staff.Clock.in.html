@@ -2668,10 +2668,10 @@
                         var fd = await fr.json();
                         var recs = (fd && fd.data && Array.isArray(fd.data.timeRecords)) ? fd.data.timeRecords : [];
                         staffCount++;
-                        for (var j = 0; j < recs.length; j++) {
-                            var r = recs[j];
-                            if (!timeRecords.find(function(x){ return x.id === r.id; })) { timeRecords.push(r); newRecords++; }
-                        }
+                        // Merged like every other path: a session an administrator
+                        // deleted is not brought back from its owner's file.
+                        var _res = ttApplyCloudSlice({ timeRecords: recs, deletedTimeRecordIds: fd.data && fd.data.deletedTimeRecordIds }, { timeRecords: true });
+                        if (_res) newRecords += _res.added;
                     } catch (e) {}
                 }
                 saveTimeRecords();
@@ -3241,22 +3241,9 @@
                 }
 
                 // Restore data (using this app's data structure)
-                if (backupData.data.staffMembers) {
-                    staffMembers = backupData.data.staffMembers;
-                    saveStaffMembers();
-                }
-
-                if (backupData.data.timeRecords) {
-                    // Preserve current user's active session if one exists
-                    if (currentSession && currentSession.status !== 'completed') {
-                        const cloudRecords = backupData.data.timeRecords.filter(r => r.id !== currentSession.id);
-                        timeRecords = cloudRecords;
-                        timeRecords.push(currentSession);
-                    } else {
-                        timeRecords = backupData.data.timeRecords;
-                    }
-                    saveTimeRecords();
-                }
+                // A per-user file is a one-person slice: merge it, never assign it
+                // over the whole staff list and everybody's hours (ttApplyCloudSlice).
+                ttApplyCloudSlice(backupData.data);
 
                 // Update last sync time
                 lastSyncTime = new Date();
@@ -3862,7 +3849,8 @@
                     mergedBy: currentUser ? currentUser.fullName : 'Unknown',
                     data: {
                         staffMembers: mergedStaff.filter(function(s){ return currentUser && s.id === currentUser.id; }),
-                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; })
+                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; }),
+                        deletedTimeRecordIds: ttTimeTombs()
                     }
                 };
 
@@ -4092,7 +4080,8 @@
                     mergedBy: currentUser ? currentUser.fullName : 'Unknown',
                     data: {
                         staffMembers: mergedStaff.filter(function(s){ return currentUser && s.id === currentUser.id; }),
-                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; })
+                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; }),
+                        deletedTimeRecordIds: ttTimeTombs()
                     }
                 };
 
@@ -4507,22 +4496,9 @@
                 }
 
                 // Restore all data
-                if (backupData.data.staffMembers) {
-                    staffMembers = backupData.data.staffMembers;
-                    saveStaffMembers();
-                }
-
-                if (backupData.data.timeRecords) {
-                    // Preserve current user's active session if one exists
-                    if (currentSession && currentSession.status !== 'completed') {
-                        const cloudRecords = backupData.data.timeRecords.filter(r => r.id !== currentSession.id);
-                        timeRecords = cloudRecords;
-                        timeRecords.push(currentSession);
-                    } else {
-                        timeRecords = backupData.data.timeRecords;
-                    }
-                    saveTimeRecords();
-                }
+                // A per-user file is a one-person slice: merge it, never assign it
+                // over the whole staff list and everybody's hours (ttApplyCloudSlice).
+                ttApplyCloudSlice(backupData.data);
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -4674,15 +4650,9 @@
                 }
 
                 // Restore data
-                if (backupData.data.staffMembers) {
-                    staffMembers = backupData.data.staffMembers;
-                    saveStaffMembers();
-                }
-
-                if (backupData.data.timeRecords) {
-                    timeRecords = backupData.data.timeRecords;
-                    saveTimeRecords();
-                }
+                // A per-user file is a one-person slice: merge it, never assign it
+                // over the whole staff list and everybody's hours (ttApplyCloudSlice).
+                ttApplyCloudSlice(backupData.data);
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -5129,15 +5099,9 @@
 
             try {
                 // Perform selective restore
-                if (syncStaffMembers && backupData.data.staffMembers) {
-                    staffMembers = backupData.data.staffMembers;
-                    saveStaffMembers();
-                }
-
-                if (syncTimeRecords && backupData.data.timeRecords) {
-                    timeRecords = backupData.data.timeRecords;
-                    saveTimeRecords();
-                }
+                // A per-user file is a one-person slice: merge it, never assign it
+                // over the whole staff list and everybody's hours (ttApplyCloudSlice).
+                ttApplyCloudSlice(backupData.data, { staffMembers: syncStaffMembers, timeRecords: syncTimeRecords });
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -5199,6 +5163,46 @@
 
         function saveTimeRecords() {
             CESTISStore.setItem('cestisTimeRecords', JSON.stringify(timeRecords));
+        }
+
+        /* Time-clock merge for every sync path — see CESTISCore.mergeTimeClock.
+           Sessions an administrator deleted are written down in
+           cestisTimeRecordTombstones (a union tombstone list) so no file brings
+           them back. */
+        function ttTimeTombs() {
+            try { const v = JSON.parse(CESTISStore.getItem('cestisTimeRecordTombstones') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+        }
+        function ttRecordTimeTomb(id) {
+            if (id === undefined || id === null || id === '') return;
+            const t = ttTimeTombs();
+            if (t.indexOf(id) === -1) { t.push(id); CESTISStore.setItem('cestisTimeRecordTombstones', JSON.stringify(t)); }
+        }
+        function ttUnionTimeTombs(ids) {
+            if (!Array.isArray(ids) || !ids.length) return;
+            const t = ttTimeTombs();
+            let changed = false;
+            ids.forEach(id => { if (id != null && id !== '' && t.indexOf(id) === -1) { t.push(id); changed = true; } });
+            if (changed) CESTISStore.setItem('cestisTimeRecordTombstones', JSON.stringify(t));
+        }
+        // Merge a cloud file's staff and sessions into this device's, and save.
+        // `only` limits it to { staffMembers, timeRecords } (the selective sync).
+        function ttApplyCloudSlice(data, only) {
+            if (!data || !window.CESTISCore || typeof CESTISCore.mergeTimeClock !== 'function') return null;
+            ttUnionTimeTombs(data.deletedTimeRecordIds);
+            const want = n => !only || only[n];
+            const res = CESTISCore.mergeTimeClock(
+                { staffMembers: staffMembers, timeRecords: timeRecords },
+                { staffMembers: want('staffMembers') ? data.staffMembers : [],
+                  timeRecords: want('timeRecords') ? data.timeRecords : [] },
+                { activeSessionId: (currentSession && currentSession.status !== 'completed') ? currentSession.id : null,
+                  deletedIds: ttTimeTombs() });
+            staffMembers = res.staffMembers;
+            timeRecords = res.timeRecords;
+            // Saved only when something moved, so an unchanged merge is not
+            // stamped as an edit and pushed again.
+            if (res.staffAdded) saveStaffMembers();
+            if (res.added || res.updated || res.removed) saveTimeRecords();
+            return res;
         }
 
         function loadTimeRecords() {
@@ -5280,39 +5284,11 @@
                                 const cloudRecords = Array.isArray(cloudData.data.timeRecords) ? cloudData.data.timeRecords : [];
                                 const cloudStaff = Array.isArray(cloudData.data.staffMembers) ? cloudData.data.staffMembers : [];
 
-                                // Merge time records using lastModified timestamps
-                                mergedRecords = [...timeRecords];
-                                cloudRecords.forEach(cloudRecord => {
-                                    const localIdx = mergedRecords.findIndex(r => r.id === cloudRecord.id);
-                                    if (localIdx === -1) {
-                                        // Cloud-only record - pull it in
-                                        mergedRecords.push({ ...cloudRecord });
-                                    } else {
-                                        // Exists in both - keep the most recently modified
-                                        const localMod = mergedRecords[localIdx].lastModified ? new Date(mergedRecords[localIdx].lastModified) : new Date(0);
-                                        const cloudMod = cloudRecord.lastModified ? new Date(cloudRecord.lastModified) : new Date(0);
-                                        // Don't overwrite current user's active session
-                                        if (currentSession && currentSession.id === cloudRecord.id && currentSession.status !== 'completed') {
-                                            // Keep local active session
-                                        } else if (cloudMod > localMod) {
-                                            mergedRecords[localIdx] = { ...cloudRecord };
-                                        }
-                                    }
-                                });
-
-                                // Merge staff members
-                                mergedStaff = [...staffMembers];
-                                cloudStaff.forEach(cs => {
-                                    if (!mergedStaff.find(s => s.id === cs.id || s.username === cs.username)) {
-                                        mergedStaff.push({ ...cs });
-                                    }
-                                });
-
-                                // Update local data with merged results
-                                timeRecords = mergedRecords;
-                                staffMembers = mergedStaff;
-                                saveTimeRecords();
-                                saveStaffMembers();
+                                // The shared slice merge: newest lastModified wins, the
+                                // live session is kept, deleted sessions stay deleted.
+                                ttApplyCloudSlice(cloudData.data);
+                                mergedRecords = timeRecords;
+                                mergedStaff = staffMembers;
                             }
                         }
                     } catch (downloadErr) {
@@ -5329,7 +5305,8 @@
                     username: currentUser ? (currentUser.username || currentUser.fullName) : 'unknown',
                     data: {
                         staffMembers: mergedStaff.filter(function(s){ return currentUser && s.id === currentUser.id; }),
-                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; })
+                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; }),
+                        deletedTimeRecordIds: ttTimeTombs()
                     }
                 };
 
@@ -7301,6 +7278,10 @@
             }
             
             record.breaks = newBreaks;
+            // Dated, or every merge keeps the uncorrected copy (it compares
+            // lastModified) and the correction never leaves this PC.
+            record.lastModified = new Date().toISOString();
+            record.editedBy = currentUser ? (currentUser.username || currentUser.fullName || '') : '';
 
             saveTimeRecords();
             closeEditTimeModal();
@@ -7325,6 +7306,8 @@
 
             if (confirm(`Are you sure you want to delete this time record?\n\nEmployee: ${record.staffName}\nDate: ${new Date(record.date).toLocaleDateString()}\nClock In: ${new Date(record.clockIn).toLocaleTimeString()}`)) {
                 timeRecords.splice(index, 1);
+                // Written down, or "Refresh all staff" and the next sync bring it back.
+                ttRecordTimeTomb(record.id);
                 saveTimeRecords();
                 loadEditableRecords();
 
@@ -8167,17 +8150,8 @@
                 const backup = await response.json();
                 if (!backup.version || !backup.data) throw new Error('Invalid backup format');
 
-                // Restore staff members (required for login)
-                if (backup.data.staffMembers) {
-                    staffMembers = backup.data.staffMembers;
-                    CESTISStore.setItem('cestisStaffMembers', JSON.stringify(staffMembers));
-                }
-
-                // Restore time records
-                if (backup.data.timeRecords) {
-                    timeRecords = backup.data.timeRecords;
-                    CESTISStore.setItem('cestisTimeRecords', JSON.stringify(timeRecords));
-                }
+                // Staff members (required for login) and time records: merged, never replaced.
+                ttApplyCloudSlice(backup.data);
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -8496,7 +8470,19 @@
 CESTISPageCloud.init({
   page: 'Staff Time Clock',
   file: 'CESTIS_Staff_TimeClock.json',
-  keys: ['cestisStaffMembers', 'cestisTimeRecords']
+  keys: ['cestisStaffMembers', 'cestisTimeRecords', 'cestisTimeRecordTombstones'],
+  // A pull writes the cloud lists into storage while this page still holds its
+  // own in memory; without this the next clock-out saved the stale memory over
+  // what was pulled. Merge what arrived into memory instead (newest wins,
+  // nothing this page holds is dropped) and save the union.
+  onRestore: function () {
+    try {
+      var read = function (k) { try { var v = JSON.parse(CESTISStore.getItem(k) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
+      if (typeof ttApplyCloudSlice === 'function') {
+        ttApplyCloudSlice({ staffMembers: read('cestisStaffMembers'), timeRecords: read('cestisTimeRecords') });
+      }
+    } catch (e) { console.warn('[PageCloud] Time clock restore merge failed:', e); }
+  }
 });
 </script>
 <script src="megadata/schemas.js?v=1"></script>

@@ -1265,7 +1265,9 @@
                                // School Fee documents and fee-structure programmes
                                // ("key|when" entries, so a name deleted and later
                                // created again can live).
-                               'cestiSchoolFeeDeletedDocumentIds', 'cestiSchoolFeeDeletedFeeKeys'];
+                               'cestiSchoolFeeDeletedDocumentIds', 'cestiSchoolFeeDeletedFeeKeys',
+                               // Time-clock sessions an administrator deleted.
+                               'cestisTimeRecordTombstones'];
 
   // Is this key a list of deletions — one that must be merged by union rather
   // than by "the newer write wins"?
@@ -5241,6 +5243,65 @@
     return { stampOf: stampOf, fingerprint: fingerprint, stampChanges: stampChanges, detectRemovals: detectRemovals,
       mergeTombstones: mergeTombstones, deletedAfter: deletedAfter, mergeList: mergeList, mergeMap: mergeMap };
   })();
+
+  /* ==========================================================================
+     STAFF TIME CLOCK: merge a cloud file into this device's lists.
+
+     Each staff member's Drive file holds only THAT person — their own staff
+     row and their own sessions. Five sync paths (login "Sync Now", Connect,
+     Sync from Cloud, the selective sync and the sign-in page sync) assigned
+     that one-person slice over the whole staff list and every staff member's
+     time history, so after Mary pressed Sync on the office PC only Mary could
+     sign in, everybody else's hours were gone, and page-cloud then pushed the
+     one-person list to every other PC.
+
+     A per-user file is a slice, so it is only ever MERGED: a session the other
+     side holds and this one does not is added; a session both hold keeps the
+     copy changed later (lastModified); the session somebody is clocked into
+     right now is never replaced; a session written down as deleted is dropped
+     and not re-added; and staff are added by id or username, never removed.
+     Pure — returns new lists and leaves the arguments alone except for the
+     local record objects it keeps (so a live session keeps its identity).
+     ========================================================================== */
+  Core.mergeTimeClock = function (local, cloud, opts) {
+    local = local || {}; cloud = cloud || {}; opts = opts || {};
+    var out = { staffMembers: [], timeRecords: [], added: 0, updated: 0, removed: 0, staffAdded: 0 };
+    var deleted = {};
+    (Array.isArray(opts.deletedIds) ? opts.deletedIds : []).forEach(function (id) { if (id != null && id !== '') deleted[String(id)] = 1; });
+    var active = opts.activeSessionId != null ? String(opts.activeSessionId) : null;
+    var mod = function (r) { var t = Date.parse((r && r.lastModified) || ''); return isNaN(t) ? 0 : t; };
+
+    var recs = [], at = {};
+    (Array.isArray(local.timeRecords) ? local.timeRecords : []).forEach(function (r) {
+      if (!r || typeof r !== 'object') return;
+      var id = r.id != null ? String(r.id) : null;
+      if (id && deleted[id] && id !== active) { out.removed++; return; }
+      if (id) at[id] = recs.length;
+      recs.push(r);
+    });
+    (Array.isArray(cloud.timeRecords) ? cloud.timeRecords : []).forEach(function (c) {
+      if (!c || typeof c !== 'object' || c.id == null) return;
+      var id = String(c.id);
+      if (deleted[id]) return;
+      if (at[id] === undefined) { at[id] = recs.length; recs.push(Object.assign({}, c)); out.added++; return; }
+      if (id === active) return;
+      if (mod(c) > mod(recs[at[id]])) { recs[at[id]] = Object.assign({}, c); out.updated++; }
+    });
+    out.timeRecords = recs;
+
+    var staff = (Array.isArray(local.staffMembers) ? local.staffMembers : []).slice();
+    var ids = {}, names = {};
+    staff.forEach(function (s) { if (!s) return; if (s.id != null) ids[String(s.id)] = 1; if (s.username) names[String(s.username)] = 1; });
+    (Array.isArray(cloud.staffMembers) ? cloud.staffMembers : []).forEach(function (s) {
+      if (!s || typeof s !== 'object') return;
+      if ((s.id != null && ids[String(s.id)]) || (s.username && names[String(s.username)])) return;
+      staff.push(Object.assign({}, s)); out.staffAdded++;
+      if (s.id != null) ids[String(s.id)] = 1;
+      if (s.username) names[String(s.username)] = 1;
+    });
+    out.staffMembers = staff;
+    return out;
+  };
 
   Core.pageCloud = (function () {
 
