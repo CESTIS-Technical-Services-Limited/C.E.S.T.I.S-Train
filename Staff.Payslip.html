@@ -1464,11 +1464,16 @@ function _mergeFromLocalStorage(){
               var local=existingRun.results.find(function(lr){return (lr.empName||'').trim().toLowerCase()===key;});
               if(!local){
                 existingRun.results.push(Object.assign({},sr));
+              } else if(!sr.cashbookSynced && sr.cbPaid!==undefined && sr.cbPaid!==local.cbPaid){
+                // The cashbook's total beside a computed entry (never its gross).
+                local.cbPaid=sr.cbPaid;
+                if(sr.cashbookTxns)local.cashbookTxns=sr.cashbookTxns;
+                if(sr.updatedAt)local.updatedAt=sr.updatedAt;
               } else if(sr.cashbookSynced && (!local.cashbookSynced || local.gross!==sr.gross || local.netPay!==sr.netPay)){
                 // Cashbook is the source of truth for auto-synced salary/instructor
                 // pay. Propagate first-time syncs AND later edits/deletes (the gross
                 // changes when a source transaction is added, edited, or removed).
-                ['gross','netPay','designation','empType','trn','nis','cashbookSynced','cashbookTxnId','cashbookTxns'].forEach(function(k){
+                ['gross','netPay','designation','empType','trn','nis','cashbookSynced','cashbookTxnId','cashbookTxns','updatedAt'].forEach(function(k){
                   if(sr[k]!==undefined&&sr[k]!==null&&sr[k]!=='')local[k]=sr[k];
                 });
               }
@@ -2105,7 +2110,9 @@ function getQuarterRunsByMonth(fyStart,qDef,qi){
     if(d.getFullYear()!==calYear)return;
     const m=d.getMonth();
     const idx=qDef.months.indexOf(m);
-    if(idx>=0)result[idx]=run;
+    // A month can hold the computed payroll AND an older pseudo-run the
+    // cashbook filed on the 1st; the computed one is the payroll.
+    if(idx>=0&&!(result[idx]&&!result[idx].cashbookSynced&&run.cashbookSynced))result[idx]=run;
   });
   return result;
 }
@@ -3070,7 +3077,10 @@ function getMonthlyData(year){
         if(nameLookup[normalized]){key=nameLookup[normalized];}
         else return; // Skip employees not in current list (deleted)
       }
-      monthly[key][m]={gross:r.gross,netPay:r.netPay,nisEmp:r.nisEmp,nisEr:r.nisEr,edTaxEmp:r.edTaxEmp,edTaxEr:r.edTaxEr,nhtEmp:r.nhtEmp,nhtEr:r.nhtEr,heartEr:r.heartEr||0,incomeTax:r.incomeTax,totalEmpDeductions:r.totalEmpDeductions,totalErContributions:r.totalErContributions};
+      // A computed entry is not overwritten by a cashbook-only one for the
+      // same month (the cashbook's pseudo-run has no deductions).
+      if(monthly[key][m]&&monthly[key][m]._computed&&r.cashbookSynced)return;
+      monthly[key][m]={_computed:!r.cashbookSynced,gross:r.gross,netPay:r.netPay,nisEmp:r.nisEmp,nisEr:r.nisEr,edTaxEmp:r.edTaxEmp,edTaxEr:r.edTaxEr,nhtEmp:r.nhtEmp,nhtEr:r.nhtEr,heartEr:r.heartEr||0,incomeTax:r.incomeTax,totalEmpDeductions:r.totalEmpDeductions,totalErContributions:r.totalErContributions};
     });
   });
   return monthly;
