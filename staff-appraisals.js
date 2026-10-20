@@ -856,7 +856,9 @@
     var accounts = [];
     try { accounts = (root.userAccounts || []).slice(); } catch (e) {}
     if (!accounts.length) {
-      try { accounts = JSON.parse(store().getItem('voctrain_userAccounts') || '[]'); } catch (e) {}
+      // The accounts live under 'voctrain_users' ('voctrain_userAccounts' was a key
+      // nothing ever wrote — admin-02 in the audit).
+      try { accounts = JSON.parse(store().getItem('voctrain_users') || '[]'); } catch (e) {}
     }
     accounts.forEach(function (u) {
       if (!u || u.status === 'inactive') return;

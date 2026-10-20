@@ -1046,7 +1046,15 @@
       });
       data.userAccounts = data.userAccounts.filter(function (u) {
         if (!u || !u.studentDataId) return true;   // never touch system/staff accounts
-        return bestAcct[u.studentDataId] === u;    // keep only the winner for each student
+        var win = bestAcct[u.studentDataId];
+        if (win === u) return true;                // the winner for each student
+        // Two logins that each hold a password somebody set are two people as
+        // far as anyone can tell (two trainees whose records collapsed after one
+        // renamed herself to the other's name). Silently deleting one locked a
+        // real person out with no trace; both stay, for an administrator to
+        // settle. Only a password-less placeholder is folded away.
+        var real = function (a) { return Core.accountAccess.hasPassword(a) && !Core.accountAccess.isSeededLogin(a); };
+        return real(u) && real(win) && u.id !== win.id;
       });
     }
 
@@ -4856,7 +4864,139 @@
       var localReal = hasPassword(local) && !isSeededLogin(local);
       if (localReal && !cloudReal) return false;   // a default never replaces a real password
       if (cloudReal && !localReal) return true;    // the seed on a fresh device yields
+      // Two real copies with the same edit stamp: the one that most recently
+      // let its owner sign in is the working one. (A sign-in used to stamp
+      // updatedAt itself, which made a stale device's copy NEWER than an
+      // administrator's earlier "disable" — and the next sync switched the
+      // account back on everywhere. The sign-in proof now has its own field,
+      // verifiedAt, and only ever breaks a tie; status, role and name follow
+      // updatedAt alone.)
+      var cv = Date.parse((cloud && cloud.verifiedAt) || '') || 0;
+      var lv = Date.parse((local && local.verifiedAt) || '') || 0;
+      if (lv > cv) return false;
+      if (cv > lv) return true;
       return true;                                 // legacy tie: converge on the cloud copy
+    }
+
+    /* Is this a password printed in the platform's own (public) repository? */
+    function isPublishedDefault(password) {
+      return typeof password === 'string' && KNOWN_DEFAULT_PASSWORDS.indexOf(password) !== -1;
+    }
+
+    /* A sign-in has just matched a published default password. May it go on?
+
+       The built-in logins were seeded with a password anybody can read on
+       GitHub, and they kept it until somebody changed it — so a trainee at a lab
+       PC could type it and get the Administrator panel, the Admin Staff portal
+       or the Board's countersignature. The default now opens nothing by
+       itself:
+         - once the Centre has ANY administrator with a password of its own
+           (not a seed), a login still on the default is refused outright — an
+           administrator sets its password in Settings → Users;
+         - before that (a brand-new installation, or a Centre whose every
+           administrator is still on the seed), the default is accepted only
+           to set a new password, before anything else opens. That is the
+           first-run path that keeps the Centre from ever being locked out.
+       Returns { allowed, mustChange, message }. */
+    function publishedDefaultLogin(accounts, account) {
+      var real = usableAdmins(accounts).filter(function (a) {
+        return a !== account && !(account && a.id != null && a.id === account.id) && !isSeededLogin(a);
+      });
+      if (real.length) {
+        return { allowed: false, mustChange: false,
+          message: 'This login is still on the default password published with the platform, so it cannot be used to sign in.\n\n' +
+            'Ask an administrator to set a new password for it (Settings → Users → Reset Password).' };
+      }
+      return { allowed: true, mustChange: true, message: '' };
+    }
+
+    /* The recovery e-mail the built-in logins were seeded with. Nobody at the
+       Centre reads that domain, so a reset code sent there is lost — or, if
+       the domain ever changes hands, read by a stranger. */
+    var PLACEHOLDER_RECOVERY_EMAILS = ['admin@heartlms.edu.jm', 'adminstaff@heartlms.edu.jm', 'cmc@heartlms.edu.jm'];
+    function isPlaceholderRecoveryEmail(email) {
+      return PLACEHOLDER_RECOVERY_EMAILS.indexOf(String(email == null ? '' : email).trim().toLowerCase()) !== -1;
+    }
+
+    /* The role a self-registration may ask for. The form carried it in a
+       hidden field and the value was stored as typed, so editing that field in
+       the browser's inspector filed a registration as 'admin' — and Approve All
+       made the registrant an Administrator on every device. A registration is a
+       trainee's or an instructor's request at most; any other role is decided
+       by the approving administrator (Edit User). */
+    function registrationRole(requested) {
+      return String(requested == null ? '' : requested).trim().toLowerCase() === 'instructor' ? 'instructor' : 'student';
+    }
+    /* A registration that came in through the public form but carries a staff
+       role — tampered, or from a version before the rule above. Approving it
+       must never be one click. */
+    function isPrivilegedSelfRegistration(account) {
+      if (!account || account.registeredVia !== 'registration') return false;
+      var r = String(account.role || '').trim().toLowerCase();
+      return r !== 'student' && r !== 'instructor';
+    }
+
+    /* What Verify Users lists, and what Approve All / Reject All act on.
+
+       It used to be every pending account PLUS every disabled one except
+       administrators — so a departed member of Admin Staff, a removed
+       instructor or an expelled trainee an administrator had switched off on
+       purpose came back to life the next time somebody pressed Approve All
+       for a batch of new registrations. The queue is now:
+         - every account awaiting approval (status 'pending'), and
+         - trainee placeholders that are disabled only because nobody has
+           looked at them yet: role student, created by the fee roll, the chat
+           backfill or an administrator, and never approved by a person.
+       An account a person switched off is managed in Settings → Users. */
+    var PLACEHOLDER_SOURCES = { 'fee-system': 1, 'student-sync': 1, 'admin-created': 1, 'student-progress': 1 };
+    function reviewQueue(accounts) {
+      return (Array.isArray(accounts) ? accounts : []).filter(function (u) {
+        if (!u) return false;
+        var st = String(u.status || '').trim().toLowerCase();
+        if (st === 'pending') return true;
+        if (st !== 'disabled') return false;
+        if (String(u.role || '').trim().toLowerCase() !== 'student') return false;
+        if (!PLACEHOLDER_SOURCES[u.registeredVia]) return false;
+        if (u.disabledAt || u.disabledBy) return false;          // switched off by a person
+        var by = String(u.approvedBy || '').trim().toLowerCase();
+        return !u.approvedAt || by === '' || by === 'system' || by === 'fee-system';
+      });
+    }
+
+    /* Which trainee record does a sign-in account belong to, when its own link
+       (studentDataId) is missing or stale and only the NAME is left to go on?
+
+       Name alone used to decide: the first trainee of that name, in any
+       programme. A second John Brown registering for Plumbing was handed the
+       Welding John Brown's record — his scores, his attendance, his
+       certificate — and his own exam submissions landed on that man's record.
+       A name now links only to a namesake whose programme agrees with the
+       account's (Core.enrolment.programmesAgree, which still treats 'WELDING L2'
+       and 'Welding & Fabrication' as one programme), and only when exactly one
+       such namesake exists (or exactly one carries the very same programme).
+         { match }            - the record to link to
+         { ambiguous: true }  - several agreeing namesakes: an administrator decides
+         {}                   - nobody of that name in that programme: a new person */
+    function studentLinkFor(account, students) {
+      var list = Array.isArray(students) ? students : [];
+      if (!account || !account.name) return {};
+      var want = Core.normName(account.name);
+      if (!want) return {};
+      var prog = String(account.programme || '');
+      var E = Core.enrolment;
+      var agree = list.filter(function (s) {
+        if (!s || Core.normName(s.name) !== want) return false;
+        if (!prog || !s.course) return true;
+        if (E && typeof E.programmesAgree === 'function') { try { return E.programmesAgree(prog, s.course); } catch (e) {} }
+        return Core.normCourse(prog) === Core.normCourse(s.course);
+      });
+      if (agree.length === 1) return { match: agree[0] };
+      if (!agree.length) return {};
+      if (prog) {
+        var exact = agree.filter(function (s) { return s.course && Core.normCourse(s.course) === Core.normCourse(prog); });
+        if (exact.length === 1) return { match: exact[0] };
+      }
+      return { ambiguous: true };
     }
 
     return {
@@ -4865,8 +5005,179 @@
       usableAdmins: usableAdmins, wouldStrandAdmins: wouldStrandAdmins,
       needsRecoveryAdmin: needsRecoveryAdmin,
       deletionBlocked: deletionBlocked, dropDeleted: dropDeleted,
-      isSeededLogin: isSeededLogin, cloudCopyWins: cloudCopyWins
+      isSeededLogin: isSeededLogin, cloudCopyWins: cloudCopyWins,
+      isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin,
+      isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
+      registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
+      reviewQueue: reviewQueue, studentLinkFor: studentLinkFor
     };
+
+  })();
+
+  /* ==========================================================================
+     WHO IS LOOKING AT THIS PAGE
+
+     The record pages (Student Progress, Transcript / Grades, the request
+     queue) are embedded in the dashboard, which passed the viewer's role in
+     the iframe address — '?role=admin', '?studentId=…' — and the pages
+     believed it. Opened on their own, with no address at all, they defaulted
+     to the most powerful view there is. So on a lab PC a trainee could type
+     …/Transcript-Grades.html and get the grade editor and every trainee's
+     date of birth and address, or edit the address to read a classmate's
+     grades.
+
+     The viewer now comes from the signed-in session the dashboard writes
+     ('voctrain_sessionRole', '_UserId', '_Expiry', '_StudentId', and a
+     heartbeat '_SeenAt'), or — when embedded — from the dashboard window
+     itself. The address can only NARROW the view (an administrator previewing
+     a trainee's page); it can never widen it, and it never picks whose
+     records a trainee sees. With no live session the page shows nothing but
+     "sign in first". (This is a browser-side check: it stops a person using
+     the pages, not one rewriting their code — the broker is the real lock.)
+     ========================================================================== */
+  Core.sessionAccess = (function () {
+    var RANK = { student: 1, instructor: 2, cmc: 2, adminstaff: 3, admin: 4 };
+    var FRESH_MS = 10 * 60 * 1000;   // the dashboard refreshes its heartbeat every minute
+
+    function parseUsers(raw) {
+      try { var v = JSON.parse(raw || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+    }
+    function refuse(reason) {
+      var msg = reason === 'not-allowed'
+        ? 'This page is not part of your account. Open it from the C.E.S.T.I.S dashboard.'
+        : 'Please sign in to the C.E.S.T.I.S dashboard first, then open this page from there.';
+      return { ok: false, reason: reason, message: msg, role: null, userId: null, studentId: null, account: null };
+    }
+
+    /* opts: { get: function(key) -> stored string | null, now: ms,
+               allowed: [roles], urlRole, urlStudentId,
+               parent: null | { role, userId, studentId }  (the embedding dashboard, if same-origin),
+               freshMs } */
+    function resolve(opts) {
+      opts = opts || {};
+      var get = typeof opts.get === 'function' ? opts.get : function () { return null; };
+      var now = typeof opts.now === 'number' ? opts.now : Date.now();
+      var allowed = Array.isArray(opts.allowed) ? opts.allowed : [];
+      var fresh = typeof opts.freshMs === 'number' ? opts.freshMs : FRESH_MS;
+      var sessionRole, userId, studentId;
+      var p = opts.parent;
+      if (p && p.role) {
+        sessionRole = String(p.role); userId = p.userId || null; studentId = p.studentId || null;
+      } else {
+        var expiry = Number(get('voctrain_sessionExpiry')) || 0;
+        if (!expiry || now > expiry) return refuse('no-session');
+        var seen = Number(get('voctrain_sessionSeenAt')) || 0;
+        if (!seen || now - seen > fresh) return refuse('no-session');   // the dashboard was closed
+        sessionRole = String(get('voctrain_sessionRole') || '');
+        userId = get('voctrain_sessionUserId') || null;
+        studentId = get('voctrain_sessionStudentId') || null;
+        if (!sessionRole || !userId) return refuse('no-session');
+      }
+      var account = null;
+      if (userId) {
+        account = parseUsers(get('voctrain_users')).filter(function (u) { return u && u.id === userId; })[0] || null;
+      }
+      // Outside the dashboard the stored account must back the stored role up,
+      // and still be allowed in: a role key edited by hand, or an account
+      // switched off since, opens nothing.
+      if (!(p && p.role)) {
+        if (!account) return refuse('no-session');
+        if (String(account.role || '').trim().toLowerCase() !== sessionRole) return refuse('no-session');
+        var st = String(account.status || '').trim().toLowerCase();
+        if (st === 'disabled' || st === 'rejected' || st === 'pending') return refuse('no-session');
+      }
+      if (allowed.indexOf(sessionRole) === -1) return refuse('not-allowed');
+      var role = sessionRole;
+      var want = String(opts.urlRole || '').trim().toLowerCase();
+      if (want && allowed.indexOf(want) !== -1 && (RANK[want] || 0) < (RANK[sessionRole] || 0)) role = want;
+      if (role === 'student') {
+        if (sessionRole === 'student') studentId = studentId || (account && account.studentDataId) || null;
+        else studentId = opts.urlStudentId || null;                      // staff previewing a trainee's page
+        if (!studentId) return refuse('no-session');
+      } else {
+        studentId = null;
+      }
+      return { ok: true, reason: 'ok', message: '', role: role, sessionRole: sessionRole,
+               userId: userId, studentId: studentId, account: account };
+    }
+
+    /* Idle lock and expiry, as one decision the dashboard asks every minute.
+       Sessions used to last eight hours from sign-in with nothing in between:
+       a lab PC left signed in handed the gradebook to the next person for the
+       rest of the day, and the forced logout at hour eight landed mid-exam
+       with no warning. */
+    var IDLE_MS = { student: 60 * 60 * 1000, staff: 20 * 60 * 1000 };
+    var WARN_MS = 2 * 60 * 1000;
+    function idleLimit(role) { return role === 'student' ? IDLE_MS.student : IDLE_MS.staff; }
+    function state(now, lastActivity, expiry, role) {
+      if (expiry && now > expiry) return 'expired';
+      if (lastActivity && now - lastActivity > idleLimit(role)) return 'lock';
+      if (expiry && expiry - now <= WARN_MS) return 'warn';
+      return 'ok';
+    }
+
+    /* The dashboard this page is embedded in, if it is the same site and
+       somebody is signed in to it. (A page on another site cannot read it.) */
+    function embeddingSession(win) {
+      try {
+        var p = win && win.parent;
+        if (p && p !== win && p.currentRole) {
+          return { role: p.currentRole,
+                   userId: p.currentLoggedInUser ? p.currentLoggedInUser.id : null,
+                   studentId: (p.currentRole === 'student' && p.currentStudent) ? p.currentStudent.id : null };
+        }
+      } catch (e) {}
+      return null;
+    }
+    /* resolve() for the page that is running: its own store, its own address,
+       and its embedding dashboard. */
+    function forPage(opts) {
+      opts = opts || {};
+      var win = typeof window !== 'undefined' ? window : null;
+      var store = root.CESTISStore || null;
+      var qs = null;
+      try { qs = new URLSearchParams(win.location.search); } catch (e) { qs = null; }
+      return resolve({
+        get: function (k) { try { return store ? store.getItem(k) : null; } catch (e) { return null; } },
+        now: Date.now(),
+        allowed: opts.allowed,
+        urlRole: qs ? qs.get('role') : '',
+        urlStudentId: qs ? qs.get('studentId') : '',
+        parent: embeddingSession(win)
+      });
+    }
+
+    /* What the top search box may look through. It searched the whole roll
+       for everybody, so a trainee typing two letters got a directory of every
+       enrolled person with their student ID and programme. Staff search the
+       roll (an instructor only their own programme's trainees); a trainee
+       finds only themselves and their own programme's exams; the Board
+       searches no trainees at all.
+         ctx: { students, exams, me (the trainee record), myCourse,
+                courseMatch(a, b) -> bool } */
+    function searchPool(role, ctx) {
+      ctx = ctx || {};
+      var students = Array.isArray(ctx.students) ? ctx.students : [];
+      var exams = Array.isArray(ctx.exams) ? ctx.exams : [];
+      var match = typeof ctx.courseMatch === 'function' ? ctx.courseMatch
+        : function (a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); };
+      if (role === 'admin' || role === 'adminstaff') return { students: students, exams: exams };
+      if (role === 'instructor') {
+        var c = ctx.myCourse;
+        if (!c) return { students: [], exams: [] };
+        return { students: students.filter(function (s) { return s && match(s.course, c); }),
+                 exams: exams.filter(function (e) { return e && match(e.course, c); }) };
+      }
+      if (role === 'student') {
+        var me = ctx.me;
+        if (!me) return { students: [], exams: [] };
+        return { students: [me], exams: exams.filter(function (e) { return e && match(e.course, me.course); }) };
+      }
+      return { students: [], exams: [] };
+    }
+
+    return { resolve: resolve, state: state, idleLimit: idleLimit, RANK: RANK, FRESH_MS: FRESH_MS,
+             embeddingSession: embeddingSession, forPage: forPage, searchPool: searchPool };
   })();
 
   /* ==========================================================================
@@ -5033,6 +5344,58 @@
     return { bestApproval: bestApproval, applyStudent: applyStudent,
       applyApproval: applyApproval, applySkillAreas: applySkillAreas,
       oldestFirst: oldestFirst };
+  })();
+
+  /* ==========================================================================
+     RESTORING A BACKUP FILE (Settings → Import Backup)
+
+     The import wrote every key in the file over what the device held. Restoring
+     last month's export to recover one thing therefore put every account back
+     on last month's password and status, brought back every account and
+     trainee deleted since (the deletion lists were replaced by older, shorter
+     ones), and threw away everything entered since. A backup is now MERGED in
+     by the same rules a sync follows:
+       - deletion lists are unioned — a backup never un-deletes anything;
+       - a list of records is merged record by record: one the device lacks is
+         added, one the device holds is replaced only by a strictly newer copy
+         (updatedAt), otherwise only its blanks are filled;
+       - a map gains the entries it lacks; anything else the device already
+         holds is kept;
+       - nothing empty is ever written over something that is not.
+     Returns the value to store for the key, or null to leave it alone. Order
+     the keys with restoreOrder() so the deletions land first. */
+  Core.backupRestore = (function () {
+    function parse(raw) { if (raw == null || raw === '') return null; try { return JSON.parse(raw); } catch (e) { return undefined; } }
+    function isEmpty(v) {
+      return v == null || v === '' || (Array.isArray(v) && !v.length) ||
+        (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
+    }
+    function mergeValue(key, storedRaw, incoming) {
+      if (incoming === undefined || incoming === null) return null;
+      if (Core.isTombstoneKey(key)) return Core.unionTombstoneValues(storedRaw, JSON.stringify(incoming));
+      var stored = parse(storedRaw);
+      if (stored === undefined) return null;                    // unreadable here: never mistake it for empty
+      if (isEmpty(stored)) return isEmpty(incoming) ? null : JSON.stringify(incoming);
+      if (Array.isArray(stored) && Array.isArray(incoming)) {
+        var byId = function (r) { return r && r.id != null ? String(r.id) : undefined; };
+        var res = Core.sync.mergeList(stored, incoming, byId, {});
+        return (res.added || res.updated || res.removed) ? JSON.stringify(stored) : null;
+      }
+      if (stored && typeof stored === 'object' && !Array.isArray(stored) &&
+          incoming && typeof incoming === 'object' && !Array.isArray(incoming)) {
+        var added = 0;
+        Object.keys(incoming).forEach(function (k) {
+          if (!(k in stored) && incoming[k] !== undefined) { stored[k] = incoming[k]; added++; }
+        });
+        return added ? JSON.stringify(stored) : null;
+      }
+      return null;                                               // a value the device already holds stands
+    }
+    function restoreOrder(keys) {
+      var list = Array.isArray(keys) ? keys.slice() : [];
+      return list.filter(Core.isTombstoneKey).concat(list.filter(function (k) { return !Core.isTombstoneKey(k); }));
+    }
+    return { mergeValue: mergeValue, restoreOrder: restoreOrder };
   })();
 
   /* ==========================================================================

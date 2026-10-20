@@ -264,7 +264,7 @@
 
 <!-- Page content -->
 <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;" class="filter-row">
-  <button class="btn btn-primary" onclick="openModal('addStudentModal')">+ Add Student</button>
+  <button class="btn btn-primary" id="spAddStudentBtn" onclick="if(!spRefuseEdit())openModal('addStudentModal')">+ Add Student</button>
   <select class="form-control" style="width:200px;" id="filterStage" onchange="filterStudents()">
     <option value="all">All Stages</option>
     <option value="testing">Testing</option>
@@ -397,6 +397,32 @@
 <div id="toastContainer"></div>
 
 <script>
+// ============================== WHO IS LOOKING ==============================
+// This page holds every trainee's record and can certify, delete and re-id
+// them. It used to check nothing: opened by its address on any device holding
+// the roll — a lab PC after a trainee's session — it gave the full editor to
+// whoever was there. The viewer now comes from the signed-in dashboard session
+// (CESTISCore.sessionAccess): Administrators and Admin Staff only, and only an
+// Administrator — or Admin Staff the Administrator has granted "Student
+// Progress — manage" — may change anything. "View student data" means view.
+var SP_VIEWER = (window.CESTISCore && CESTISCore.sessionAccess)
+  ? CESTISCore.sessionAccess.forPage({ allowed: ['admin', 'adminstaff'] })
+  : { ok: false, message: 'Shared data core failed to load. Please refresh.' };
+function spCanManage() {
+  if (!SP_VIEWER.ok) return false;
+  if (SP_VIEWER.role === 'admin') return true;
+  if (SP_VIEWER.role !== 'adminstaff') return false;
+  var grid = null;
+  try { if (window.parent && window.parent !== window && window.parent.adminStaffAccessSettings) grid = window.parent.adminStaffAccessSettings; } catch (e) {}
+  if (!grid) { try { grid = JSON.parse(CESTISStore.getItem('voctrain_adminStaffAccess') || 'null'); } catch (e) { grid = null; } }
+  return !!(grid && grid.studentsmanage === true);
+}
+function spRefuseEdit() {
+  if (spCanManage()) return false;
+  showToast('You can view Student Progress but not change it. Ask the Administrator for "Student Progress — manage".', 'warning');
+  return true;
+}
+
 // ============================== DATA ==============================
 var students = [];
 var skillAreas = [];
@@ -429,7 +455,13 @@ function loadData() {
   attendanceRecords = safeJsonParse(CESTISStore.getItem('voctrain_attendance'), []);
   examResults = safeJsonParse(CESTISStore.getItem('voctrain_examResults'), []);
   certDownloadApprovals = safeJsonParse(CESTISStore.getItem('voctrain_certDownloadApprovals'), []);
-  userAccounts = safeJsonParse(CESTISStore.getItem('voctrain_userAccounts'), []);
+  // The sign-in accounts live in 'voctrain_users' and belong to the dashboard.
+  // This page only READS them (for the programme names they carry) and never
+  // writes them back; it used to keep its own copy under a key nothing else
+  // reads ('voctrain_userAccounts'), so a trainee deleted here kept a working
+  // login and a trainee added here never got the promised one. That old key
+  // is left untouched in storage.
+  userAccounts = safeJsonParse(CESTISStore.getItem('voctrain_users'), []);
   studentProfiles = safeJsonParse(CESTISStore.getItem('voctrain_studentProfiles'), {});
 }
 
@@ -609,7 +641,6 @@ function saveData(detail) {
   spSaveCollection('voctrain_attendance', attendanceRecords);
   spSaveCollection('voctrain_examResults', examResults);
   spSaveCollection('voctrain_certDownloadApprovals', certDownloadApprovals);
-  spSaveCollection('voctrain_userAccounts', userAccounts);
   spSaveCollection('voctrain_studentProfiles', studentProfiles);
   // Notify parent window that student data changed
   try {
@@ -864,10 +895,11 @@ function renderStudents(data) {
       '<td><span class="badge ' + (stageBadge[s.stage]||'badge-blue') + '"><span class="badge-dot"></span>' + sanitizeInput(stageLabels[s.stage]||s.stage||'—') + '</span></td>' +
       '<td>' + sanitizeInput(s.score||'—') + '</td>' +
       '<td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:80px;"><div class="fill" style="width:' + prog + '%;background:' + (prog>=80?'var(--green)':prog>=40?'var(--accent)':'var(--red)') + ';"></div></div><span style="font-size:12px;color:var(--text-muted);">' + prog + '%</span></div></td>' +
-      '<td><div style="display:flex;gap:6px;">' +
+      '<td><div style="display:flex;gap:6px;">' + (spCanManage() ?
         '<button class="btn btn-sm btn-secondary" onclick="openUpdateStage(' + idx + ')">Update</button>' +
         '<button class="btn btn-sm btn-secondary" onclick="openEditStudent(' + idx + ')" style="font-size:11px;">&#x270E; Edit</button>' +
-        '<button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:11px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteStudent(' + idx + ')">&#x2715; Delete</button>' +
+        '<button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:11px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteStudent(' + idx + ')">&#x2715; Delete</button>'
+        : '<span style="font-size:11px;color:var(--text-muted);">View only</span>') +
       '</div></td>' +
     '</tr>';
   }).join('');
@@ -913,6 +945,7 @@ function updatePipelineCounts() {
 
 // ============================== STAGE OPERATIONS ==============================
 function openUpdateStage(idx) {
+  if(spRefuseEdit()) return;
   var s = students[idx];
   document.getElementById('updateStageContent').innerHTML =
     '<p style="margin-bottom:16px;font-size:14px;">Student: <strong>' + sanitizeInput(s.name) + '</strong> (' + sanitizeInput(s.id) + ')<br>Course: ' + sanitizeInput(s.course) + '<br>Current: <span class="badge ' + (stageBadge[s.stage]||'badge-blue') + '">' + (stageLabels[s.stage]||s.stage) + '</span></p>' +
@@ -928,6 +961,7 @@ function openUpdateStage(idx) {
 }
 
 function updateStudentStage(idx) {
+  if(spRefuseEdit()) return;
   var newStage = document.getElementById('newStage').value;
   students[idx].stage = newStage;
   if(newStage === 'certified'){
@@ -947,6 +981,7 @@ function updateStudentStage(idx) {
 
 // ============================== EDIT STUDENT ==============================
 function openEditStudent(idx) {
+  if(spRefuseEdit()) return;
   var s = students[idx];
   document.getElementById('editStudentIdx').value = idx;
   document.getElementById('editStudentId').value = s.id;
@@ -987,6 +1022,7 @@ function generateStudentId() {
 }
 
 function regenerateStudentId() {
+  if(spRefuseEdit()) return;
   var newId = generateStudentId();
   document.getElementById('editStudentId').value = newId;
   showToast('New ID generated — save to apply');
@@ -1040,6 +1076,7 @@ function spPropagateKeepSeparate(student, keep) {
 }
 
 function saveEditStudent() {
+  if(spRefuseEdit()) return;
   var idx = parseInt(document.getElementById('editStudentIdx').value);
   var name = document.getElementById('editStudentName').value.trim();
   if(!name){ alert('Please enter a name'); return; }
@@ -1097,6 +1134,7 @@ function saveEditStudent() {
 
 // ============================== DELETE STUDENT ==============================
 function openDeleteStudent(idx) {
+  if(spRefuseEdit()) return;
   var s = students[idx];
   document.getElementById('deleteStudentIdx').value = idx;
   document.getElementById('deleteStudentName').textContent = s.name + ' (' + s.id + ')';
@@ -1104,6 +1142,7 @@ function openDeleteStudent(idx) {
 }
 
 function confirmDeleteStudent() {
+  if(spRefuseEdit()) return;
   var idx = parseInt(document.getElementById('deleteStudentIdx').value);
   var s = students[idx];
   var name = s.name;
@@ -1119,9 +1158,8 @@ function confirmDeleteStudent() {
   if(Array.isArray(certDownloadApprovals)){
     certDownloadApprovals = certDownloadApprovals.filter(function(a){ return a.studentId !== sid; });
   }
-  if(Array.isArray(userAccounts)){
-    userAccounts = userAccounts.filter(function(u){ return u.studentDataId !== sid; });
-  }
+  // Their login is removed — and written down as deleted — by the dashboard,
+  // which owns the accounts, when it receives the 'deleted' notice below.
   recordDeletedStudent(sid);
   closeModal('deleteStudentModal');
   filterStudents();
@@ -1134,15 +1172,9 @@ function confirmDeleteStudent() {
 }
 
 // ============================== ADD STUDENT ==============================
-async function hashPassword(password) {
-  var encoder = new TextEncoder();
-  var data = encoder.encode(password + '__CESTIS_SALT_2026__');
-  var hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  var hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
-}
 
 async function addStudent() {
+  if(spRefuseEdit()) return;
   var name = document.getElementById('newStudentName').value.trim();
   if(!name){ alert('Please enter a name'); return; }
   var email = (document.getElementById('newStudentEmail').value || '').trim();
@@ -1188,29 +1220,16 @@ async function addStudent() {
     attendanceRecords.push({studentId:studentId, studentName:name, course:selectedCourse, date:new Date().toISOString().split('T')[0], days:{Mon:'absent',Tue:'absent',Wed:'absent',Thu:'absent',Fri:'absent'}});
   }
   updateSkillAreaCounts();
-  // Create linked disabled user account
-  var username = email ? email.split('@')[0] : name.toLowerCase().replace(/\s+/g,'.');
-  var dupAccount = userAccounts.find(function(u){
-    if(email && u.email === email) return true;
-    if(u.username === username && u.role === 'student') return true;
-    return false;
-  });
-  if(!dupAccount){
-    var defaultPw = await hashPassword(name.split(' ')[0].toLowerCase() + '123');
-    userAccounts.push({
-      id:'USR-'+Date.now(), name:name, role:'student',
-      username:username, password:defaultPw, email:email||'',
-      programme:selectedCourse, status:'disabled',
-      createdAt:new Date().toISOString().split('T')[0],
-      registeredVia:'admin-created', studentDataId:studentId, approvedBy:'admin'
-    });
-  } else {
-    dupAccount.studentDataId = studentId;
-  }
+  // No login is made here. This page used to write one — with a password of
+  // their first name plus "123", under a key the sign-in never reads — and
+  // promise it was "disabled until activated". The trainee's login is made by
+  // the dashboard (they register, or an administrator creates it in
+  // Settings → Users) and appears in Verify Users.
+  if (email) { studentProfiles[studentId] = Object.assign({}, studentProfiles[studentId] || {}, { email: email }); }
   closeModal('addStudentModal');
   filterStudents();
   updatePipelineCounts();
-  showToast(name + ' added (account disabled until activated)!');
+  showToast(name + ' added. Their login is set up in Verify Users / Settings → Users.');
   document.getElementById('newStudentName').value = '';
   document.getElementById('newStudentGender').value = '';
   document.getElementById('newStudentEmail').value = '';
@@ -1257,6 +1276,13 @@ function init() {
   var isDark = CESTISStore.getItem('darkMode') === 'true';
   // Our page is dark-only matching index.html's :root defaults
 
+  if (!SP_VIEWER.ok) {
+    document.body.innerHTML = '<div style="padding:60px 24px;text-align:center;color:#c9d1d9;font-family:sans-serif;">' +
+      '<div style="font-size:40px;margin-bottom:12px;">🔒</div>' + spEscapeHtml(SP_VIEWER.message || 'Please sign in to the C.E.S.T.I.S dashboard first.') + '</div>';
+    return;
+  }
+  if (!spCanManage()) { var _ab = document.getElementById('spAddStudentBtn'); if (_ab) _ab.style.display = 'none'; }
+
   loadData();
   cestisStabilizeStudentIds();
   var _dr = deduplicateStudents();
@@ -1280,10 +1306,11 @@ var SP_SHARED_KEYS = ['voctrain_students','voctrain_skillAreas','voctrain_studen
   // Without this key the course dropdowns on this page kept offering the centre
   // until a full reload.
   'voctrain_deletedCentreIds',
-  'voctrain_certDownloadApprovals','voctrain_userAccounts'];
+  'voctrain_certDownloadApprovals','voctrain_users'];
 // One save elsewhere writes many keys, so coalesce the burst into a single reload.
 var _spExternalReload = null;
 window.addEventListener('storage', function(e){
+  if(!SP_VIEWER.ok) return;
   if(!e.key || SP_SHARED_KEYS.indexOf(e.key) === -1) return;
   if(_spExternalReload) clearTimeout(_spExternalReload);
   _spExternalReload = setTimeout(function(){
@@ -1300,7 +1327,7 @@ window.addEventListener('storage', function(e){
 
 // Listen for parent-initiated refresh
 window.addEventListener('message', function(e){
-  if(e.data && e.data.type === 'refresh-students'){
+  if(SP_VIEWER.ok && e.data && e.data.type === 'refresh-students'){
     loadData();
     populateCourseDropdowns();
     filterStudents();
@@ -1335,6 +1362,8 @@ if(document.readyState === 'loading'){
 CESTISPageCloud.init({
   page: 'Student Progress',
   file: 'CESTIS_Student_Progress.json',
+  // Opened with no signed-in session it shows nothing, so it moves nothing either.
+  readOnly: !(typeof SP_VIEWER !== 'undefined' && SP_VIEWER.ok),
   keys: ['voctrain_students', 'voctrain_attendance', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles'],
   // The fee roll is read here (trainees the fee page knows about first are
   // mirrored onto this dashboard) but owned by School Fee, so it is pulled from
