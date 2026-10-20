@@ -106,7 +106,12 @@ VIREMENTS.forEach(where => {
   vm.createContext(sb);
   vm.runInContext(extractFunction(src, 'vrSignatures', where) + '\n'
     + extractFunction(src, 'vrHasSigned', where) + '\n'
-    + extractFunction(src, 'vrIsApproved', where), sb);
+    + extractFunction(src, 'vrIsApproved', where)
+    // A signature counts only for the content it was made on (the root build
+    // checks this; see tests/virement-edit-approval.test.js).
+    + (/function vrValidSignatures\(/.test(src)
+        ? '\n' + extractFunction(src, 'vrContentRev', where) + '\n' + extractFunction(src, 'vrValidSignatures', where)
+        : ''), sb);
 
   const one = { status: 'Approved', signatures: [{ id: 'U-A', name: 'Chair' }] };
   const two = { status: 'Approved', signatures: [{ id: 'U-A', name: 'Chair' }, { id: 'U-B', name: 'Second' }] };

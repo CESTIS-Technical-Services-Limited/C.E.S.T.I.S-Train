@@ -1363,6 +1363,8 @@ const STORAGE_KEY = 'cestisPayroll';
 const BACKUP_STORAGE_KEY = 'cestisPayroll_backup';
 const HIGH_WATER_KEY = 'cestisDataHighWater';
 let DATA = loadStore();
+// The baseline later edits are dated against (see _psStamp).
+try{setTimeout(function(){if(typeof _psStamp==='function'&&!_psSyncIndex)_psStamp(true);},0);}catch(e){}
 // Seed the high-water mark from whatever was in localStorage at boot. If this
 // device already has real data stored locally, any future attempt to save an
 // empty DATA will be blocked by _isSuspiciousDataLoss().
@@ -1462,11 +1464,16 @@ function _mergeFromLocalStorage(){
               var local=existingRun.results.find(function(lr){return (lr.empName||'').trim().toLowerCase()===key;});
               if(!local){
                 existingRun.results.push(Object.assign({},sr));
+              } else if(!sr.cashbookSynced && sr.cbPaid!==undefined && sr.cbPaid!==local.cbPaid){
+                // The cashbook's total beside a computed entry (never its gross).
+                local.cbPaid=sr.cbPaid;
+                if(sr.cashbookTxns)local.cashbookTxns=sr.cashbookTxns;
+                if(sr.updatedAt)local.updatedAt=sr.updatedAt;
               } else if(sr.cashbookSynced && (!local.cashbookSynced || local.gross!==sr.gross || local.netPay!==sr.netPay)){
                 // Cashbook is the source of truth for auto-synced salary/instructor
                 // pay. Propagate first-time syncs AND later edits/deletes (the gross
                 // changes when a source transaction is added, edited, or removed).
-                ['gross','netPay','designation','empType','trn','nis','cashbookSynced','cashbookTxnId','cashbookTxns'].forEach(function(k){
+                ['gross','netPay','designation','empType','trn','nis','cashbookSynced','cashbookTxnId','cashbookTxns','updatedAt'].forEach(function(k){
                   if(sr[k]!==undefined&&sr[k]!==null&&sr[k]!=='')local[k]=sr[k];
                 });
               }
@@ -1484,97 +1491,158 @@ function markDataDirty(){_dataDirty=true;}
 // The core invariant for this app: data should NEVER be replaced, only merged.
 // This helper takes any incoming payroll payload (from cloud, import, backup,
 // preset, etc.) and folds it into the in-memory DATA without removing anything
-// that already exists locally.
+// that already exists locally — except what was deliberately deleted.
 //
-// Rules:
-//   - Employees: matched by case-insensitive trimmed name. An incoming employee
-//     with a name we already have is treated as an UPDATE: any field the
-//     incoming record has a non-empty value for overwrites the local field;
-//     fields the incoming record lacks are preserved from local. Locally-only
-//     employees are always kept.
-//   - Payroll runs: matched by `date`. New dates are added. Existing dates
-//     have their `results` array merged by employee name — local results are
-//     preserved, new ones are added, and matching ones have their numeric
-//     fields updated from the incoming record if present.
-//   - Settings: shallow-merged (incoming keys override, local keys preserved).
+// It used to let the INCOMING copy win every non-blank field. The 60-second
+// cloud tick runs this on the cloud copy before every upload, and the cloud
+// only holds what the previous tick pushed — so a salary corrected from
+// 120,000 to 135,000 was put back to 120,000 within a minute and the old
+// figure uploaded, and an employee or payroll entry deleted here was re-added
+// from the cloud copy. The rule is now the shared one (CESTISCore.sync):
 //
-// Returns a summary {addedEmployees, updatedEmployees, addedRuns, updatedRuns}.
+//   - Employees (by name), payroll runs (by date), each run's results (by
+//     employee name) and the settings carry updatedAt, set when they are SAVED
+//     (_psStamp in saveStore), so no edit screen had to change.
+//   - The copy changed later wins. Two copies from before records were dated
+//     keep the local one and only fill its blanks.
+//   - A record only one side holds is kept, unless it was deleted (DATA.deleted,
+//     { key: when }, which travels with the payroll data) after its last edit.
+//
+// Returns a summary {addedEmployees, updatedEmployees, addedRuns, updatedRuns, removed}.
+function _psKeyEmp(e){return 'emp:'+String(e&&e.name||'').trim().toLowerCase();}
+function _psKeyRun(r){return 'run:'+String(r&&r.date||'');}
+function _psKeyRes(run,res){return 'res:'+String(run&&run.date||'')+'|'+String(res&&res.empName||'').trim().toLowerCase();}
+var _psSyncIndex=null;
+// Date every record whose content changed here since the last save or load.
+// rebaseline: take the baseline afresh without dating anything (after a load
+// or a merge, when nothing that differs from it was edited here).
+function _psStamp(rebaseline){
+  if(typeof window==='undefined'||!window.CESTISCore||!CESTISCore.sync)return;
+  var S=CESTISCore.sync,now=rebaseline?'':new Date().toISOString(),prev=rebaseline?null:_psSyncIndex;
+  var resKey=new Map(),results=[];
+  (DATA.payrollRuns||[]).forEach(function(run){
+    if(!run||!run.date)return;
+    (run.results||[]).forEach(function(res){if(res&&res.empName){resKey.set(res,_psKeyRes(run,res));results.push(res);}});
+  });
+  _psSyncIndex={
+    emp:S.stampChanges(DATA.employees||[],_psKeyEmp,prev&&prev.emp,now),
+    run:S.stampChanges(DATA.payrollRuns||[],_psKeyRun,prev&&prev.run,now,{results:1}),
+    res:S.stampChanges(results,function(r){return resKey.get(r);},prev&&prev.res,now),
+    set:S.stampChanges(DATA.settings?[DATA.settings]:[],function(){return 'settings';},prev&&prev.set,now)
+  };
+}
+// Write a deletion down so no merge brings the record back.
+function _psRecordDeleted(key){
+  if(!DATA.deleted||typeof DATA.deleted!=='object')DATA.deleted={};
+  DATA.deleted[key]=new Date().toISOString();
+}
+function _psStampOf(r){var t=Date.parse((r&&r.updatedAt)||'');return isNaN(t)?0:t;}
+function _psBlank(v){return v===undefined||v===null||v===''||(Array.isArray(v)&&!v.length);}
+// Fold one incoming record into the local one by the newest-wins rule.
+// skip: fields this record does not own (a run's results merge separately).
+function _psFold(local,inc,skip){
+  var cs=_psStampOf(inc),ls=_psStampOf(local),changed=false;
+  if(cs>ls){
+    Object.keys(local).forEach(function(k){if(!(skip&&skip[k])&&!(k in inc)){delete local[k];changed=true;}});
+    Object.keys(inc).forEach(function(k){if(skip&&skip[k])return;if(local[k]!==inc[k]){local[k]=inc[k];changed=true;}});
+  }else if(cs===ls){
+    Object.keys(inc).forEach(function(k){if(skip&&skip[k])return;if(_psBlank(local[k])&&!_psBlank(inc[k])){local[k]=inc[k];changed=true;}});
+  }
+  return changed;
+}
 function _mergeDataIntoLocal(incoming){
-  var summary={addedEmployees:0,updatedEmployees:0,addedRuns:0,updatedRuns:0};
+  var summary={addedEmployees:0,updatedEmployees:0,addedRuns:0,updatedRuns:0,removed:0};
   if(!incoming||typeof incoming!=='object')return summary;
   if(!Array.isArray(DATA.employees))DATA.employees=[];
   if(!Array.isArray(DATA.payrollRuns))DATA.payrollRuns=[];
+  // Date anything edited here and not yet saved, so it competes fairly.
+  _psStamp(false);
+
+  // --- Deletions, from both sides: the later removal of each key stands ---
+  if(!DATA.deleted||typeof DATA.deleted!=='object')DATA.deleted={};
+  if(incoming.deleted&&typeof incoming.deleted==='object'&&!Array.isArray(incoming.deleted)){
+    Object.keys(incoming.deleted).forEach(function(k){
+      var t=Date.parse(incoming.deleted[k]||'')||0,have=Date.parse(DATA.deleted[k]||'')||0;
+      if(t>have)DATA.deleted[k]=incoming.deleted[k];
+    });
+  }
+  var tombs=DATA.deleted;
+  var gone=function(k,r){var t=tombs[k]?(Date.parse(tombs[k])||0):0;return t>0&&t>=_psStampOf(r);};
+  DATA.employees=DATA.employees.filter(function(e){if(e&&e.name&&gone(_psKeyEmp(e),e)){summary.removed++;return false;}return true;});
+  DATA.payrollRuns=DATA.payrollRuns.filter(function(run){if(run&&run.date&&gone(_psKeyRun(run),run)){summary.removed++;return false;}return true;});
+  DATA.payrollRuns.forEach(function(run){
+    if(!run||!Array.isArray(run.results))return;
+    run.results=run.results.filter(function(res){if(res&&res.empName&&gone(_psKeyRes(run,res),res)){summary.removed++;return false;}return true;});
+  });
 
   // --- Employees ---
   if(Array.isArray(incoming.employees)){
+    var byName={};
+    DATA.employees.forEach(function(le){if(le&&le.name)byName[_psKeyEmp(le)]=le;});
     incoming.employees.forEach(function(ie){
       if(!ie||!ie.name)return;
-      var key=ie.name.trim().toLowerCase();
-      var existing=DATA.employees.find(function(le){return (le.name||'').trim().toLowerCase()===key;});
+      var key=_psKeyEmp(ie);
+      if(gone(key,ie))return;
+      var existing=byName[key];
       if(!existing){
-        DATA.employees.push(Object.assign({},ie));
+        var fresh=Object.assign({},ie);
+        DATA.employees.push(fresh);byName[key]=fresh;
         summary.addedEmployees++;
-      }else{
-        // Additive field update: only overwrite with non-empty incoming values.
-        var changed=false;
-        Object.keys(ie).forEach(function(k){
-          var v=ie[k];
-          if(v===undefined||v===null||v==='')return;
-          if(existing[k]!==v){existing[k]=v;changed=true;}
-        });
-        if(changed)summary.updatedEmployees++;
+      }else if(_psFold(existing,ie)){
+        summary.updatedEmployees++;
       }
     });
   }
 
   // --- Payroll runs ---
   if(Array.isArray(incoming.payrollRuns)){
+    var byDate={};
+    DATA.payrollRuns.forEach(function(lr){if(lr&&lr.date)byDate[lr.date]=lr;});
     incoming.payrollRuns.forEach(function(ir){
       if(!ir||!ir.date)return;
-      var existingRun=DATA.payrollRuns.find(function(lr){return lr.date===ir.date;});
+      if(gone(_psKeyRun(ir),ir))return;
+      var existingRun=byDate[ir.date];
       if(!existingRun){
         var cloned=Object.assign({},ir);
-        if(!Array.isArray(cloned.results))cloned.results=[];
-        DATA.payrollRuns.push(cloned);
+        cloned.results=(Array.isArray(ir.results)?ir.results:[]).filter(function(res){return !(res&&res.empName&&gone(_psKeyRes(ir,res),res));})
+          .map(function(res){return Object.assign({},res);});
+        DATA.payrollRuns.push(cloned);byDate[ir.date]=cloned;
         summary.addedRuns++;
         return;
       }
-      // Same date exists — merge results additively by employee name.
       if(!Array.isArray(existingRun.results))existingRun.results=[];
       var runChanged=false;
       if(Array.isArray(ir.results)){
+        var byEmp={};
+        existingRun.results.forEach(function(lr){if(lr&&lr.empName)byEmp[_psKeyRes(existingRun,lr)]=lr;});
         ir.results.forEach(function(ires){
           if(!ires||!ires.empName)return;
-          var rkey=ires.empName.trim().toLowerCase();
-          var localRes=existingRun.results.find(function(lr){return (lr.empName||'').trim().toLowerCase()===rkey;});
+          var rkey=_psKeyRes(ir,ires);
+          if(gone(rkey,ires))return;
+          var localRes=byEmp[rkey];
           if(!localRes){
-            existingRun.results.push(Object.assign({},ires));
+            var r2=Object.assign({},ires);
+            existingRun.results.push(r2);byEmp[rkey]=r2;
             runChanged=true;
-          }else{
-            Object.keys(ires).forEach(function(k){
-              var v=ires[k];
-              if(v===undefined||v===null||v==='')return;
-              if(localRes[k]!==v){localRes[k]=v;runChanged=true;}
-            });
+          }else if(_psFold(localRes,ires)){
+            runChanged=true;
           }
         });
       }
-      // Preserve top-level run metadata additively (don't overwrite with blanks).
-      Object.keys(ir).forEach(function(k){
-        if(k==='results')return;
-        var v=ir[k];
-        if(v===undefined||v===null||v==='')return;
-        if(existingRun[k]!==v){existingRun[k]=v;runChanged=true;}
-      });
+      // Run details (not its results, merged above) by the same rule.
+      if(_psFold(existingRun,ir,{results:1}))runChanged=true;
       if(runChanged)summary.updatedRuns++;
     });
   }
 
-  // --- Settings: shallow merge, incoming wins for keys it defines ---
+  // --- Settings: the copy changed later wins; undated copies fill blanks ---
   if(incoming.settings&&typeof incoming.settings==='object'){
-    DATA.settings=Object.assign({},DATA.settings||{},incoming.settings);
+    if(!DATA.settings||typeof DATA.settings!=='object')DATA.settings=Object.assign({},incoming.settings);
+    else _psFold(DATA.settings,incoming.settings);
   }
 
+  // What the merge produced is the new baseline: nothing in it was edited here.
+  _psStamp(true);
   return summary;
 }
 
@@ -1646,6 +1714,9 @@ function saveStore(){
       return;
     }
   }
+  // Date what was edited here since the last save, so a merge on another
+  // device knows this copy is the newer one.
+  _psStamp(false);
   _backupBeforeSave();
   CESTISStore.setItem(STORAGE_KEY,JSON.stringify(DATA));
   _updateHighWaterMark();
@@ -1765,26 +1836,11 @@ window.addEventListener('beforeunload',function(e){
     var isDirty=_dataDirty||currentHash!==_lastSaveHash;
     if(isDirty){ saveStore(); }
 
-    // Best-effort cloud push on close. Uses sendBeacon so it fires even as
-    // the page tears down. Only runs if cloud is connected, the initial merge
-    // has completed (so we never push empty data), and data is not suspicious.
-    if(isDirty && _cloudMergeCompleted && !_isSuspiciousDataLoss()
-        && typeof isCloudConnected!=='undefined' && isCloudConnected
-        && typeof googleAccessToken!=='undefined' && googleAccessToken
-        && typeof GOOGLE_DRIVE_CONFIG!=='undefined' && cloudFileId){
-      try{
-        var payload=JSON.stringify({
-          version:'1.1',
-          timestamp:new Date().toISOString(),
-          savedBy:(typeof currentUser!=='undefined'&&currentUser)?currentUser.displayName:'Dashboard User',
-          data:DATA
-        });
-        // Drive v3 update endpoint — sendBeacon fires the request as the page closes
-        var url='https://www.googleapis.com/upload/drive/v3/files/'+cloudFileId+'?uploadType=media';
-        var blob=new Blob([payload],{type:'application/json'});
-        navigator.sendBeacon(url+'&access_token='+encodeURIComponent(googleAccessToken),blob);
-      }catch(_){}
-    }
+    // No last-second cloud push here. It used navigator.sendBeacon, which can
+    // only POST — Drive updates a file with PATCH — so it never saved anything,
+    // only gave the impression it had, and it put the Google token in a URL
+    // where proxies and server logs keep it. saveStore() above has the edit
+    // safely on this device; the next session's merge-then-push uploads it.
 
     // Warn if SO1 table has unsaved data
     if(typeof so1Rows!=='undefined' && so1Rows.length>0){
@@ -2001,12 +2057,17 @@ function deleteEmployee(i){
   if(currentUser&&currentUser.role==='viewer'){alert('View-only access: You cannot delete employees.');return;}
   if(!confirm('Delete '+DATA.employees[i].name+'?\n\nThis will also remove all their payroll records.'))return;
   const deletedName=DATA.employees[i].name;
+  // Written down, or the next cloud merge hands the employee and their
+  // payroll entries straight back.
+  _psRecordDeleted(_psKeyEmp(DATA.employees[i]));
   DATA.employees.splice(i,1);
   // Remove deleted employee from all payroll runs
   DATA.payrollRuns.forEach(run=>{
+    (run.results||[]).forEach(r=>{if(r&&r.empName===deletedName)_psRecordDeleted(_psKeyRes(run,r));});
     run.results=(run.results||[]).filter(r=>r.empName!==deletedName);
   });
   // Remove empty payroll runs (no results left)
+  DATA.payrollRuns.forEach(run=>{if((run.results||[]).length===0)_psRecordDeleted(_psKeyRun(run));});
   DATA.payrollRuns=DATA.payrollRuns.filter(run=>(run.results||[]).length>0);
   markDataDirty();saveStore();renderEmployees();refreshActiveSections();
 }
@@ -2049,7 +2110,9 @@ function getQuarterRunsByMonth(fyStart,qDef,qi){
     if(d.getFullYear()!==calYear)return;
     const m=d.getMonth();
     const idx=qDef.months.indexOf(m);
-    if(idx>=0)result[idx]=run;
+    // A month can hold the computed payroll AND an older pseudo-run the
+    // cashbook filed on the 1st; the computed one is the payroll.
+    if(idx>=0&&!(result[idx]&&!result[idx].cashbookSynced&&run.cashbookSynced))result[idx]=run;
   });
   return result;
 }
@@ -2445,9 +2508,11 @@ function deletePayrollEntry(runIdx,entryIdx){
   if(!run||!run.results[entryIdx])return;
   const r=run.results[entryIdx];
   if(!confirm('Delete payroll entry for '+r.empName+'?\n\nGross: $'+fmt(r.gross)+' | Net: $'+fmt(r.netPay)+'\n\nThis action cannot be undone.'))return;
+  _psRecordDeleted(_psKeyRes(run,r));
   run.results.splice(entryIdx,1);
   // If no results left, remove entire run
   if(run.results.length===0){
+    _psRecordDeleted(_psKeyRun(run));
     DATA.payrollRuns.splice(runIdx,1);
   }
   markDataDirty();saveStore();
@@ -2461,6 +2526,8 @@ function deleteEntirePayrollRun(runIdx){
   if(!run)return;
   const d=parseLocalDate(run.date);
   if(!confirm('DELETE ENTIRE PAYROLL RUN\n\n'+MONTH_NAMES[d.getMonth()]+' '+d.getFullYear()+'\n\n'+run.results.length+' employee records will be permanently deleted.\n\nThis action cannot be undone. Continue?'))return;
+  _psRecordDeleted(_psKeyRun(run));
+  (run.results||[]).forEach(function(r){if(r&&r.empName)_psRecordDeleted(_psKeyRes(run,r));});
   DATA.payrollRuns.splice(runIdx,1);
   markDataDirty();saveStore();
   renderPayrollInput();
@@ -3010,7 +3077,10 @@ function getMonthlyData(year){
         if(nameLookup[normalized]){key=nameLookup[normalized];}
         else return; // Skip employees not in current list (deleted)
       }
-      monthly[key][m]={gross:r.gross,netPay:r.netPay,nisEmp:r.nisEmp,nisEr:r.nisEr,edTaxEmp:r.edTaxEmp,edTaxEr:r.edTaxEr,nhtEmp:r.nhtEmp,nhtEr:r.nhtEr,heartEr:r.heartEr||0,incomeTax:r.incomeTax,totalEmpDeductions:r.totalEmpDeductions,totalErContributions:r.totalErContributions};
+      // A computed entry is not overwritten by a cashbook-only one for the
+      // same month (the cashbook's pseudo-run has no deductions).
+      if(monthly[key][m]&&monthly[key][m]._computed&&r.cashbookSynced)return;
+      monthly[key][m]={_computed:!r.cashbookSynced,gross:r.gross,netPay:r.netPay,nisEmp:r.nisEmp,nisEr:r.nisEr,edTaxEmp:r.edTaxEmp,edTaxEr:r.edTaxEr,nhtEmp:r.nhtEmp,nhtEr:r.nhtEr,heartEr:r.heartEr||0,incomeTax:r.incomeTax,totalEmpDeductions:r.totalEmpDeductions,totalErContributions:r.totalErContributions};
     });
   });
   return monthly;
@@ -3955,6 +4025,75 @@ async function checkCloudForChanges() {
 }
 
 // Auto-save users to cloud (called when admin creates/edits/deletes a user)
+
+/* Fold a cloud backup's accounts and permission grants into this device's.
+   addOnly (the automatic pre-push peek): only add what is missing — changing
+   an existing account from an older cloud copy every minute would revert a
+   role or password changed here. Otherwise (an explicit Sync from Cloud):
+   also take the cloud's name, role and two-step state, keeping a local
+   password. Accounts and grants only this device holds are always kept, and
+   the default administrator always exists. */
+function _mergeCloudUsersAndPerms(backup,addOnly){
+  var out={usersAdded:0,permsAdded:0};
+  if(!backup)return out;
+  if(Array.isArray(backup.users)){
+    var localUsers=loadUsers();
+    backup.users.forEach(function(cu){
+      if(!cu||!cu.username)return;
+      var existing=localUsers.find(function(u){return String(u.username||'').toLowerCase()===String(cu.username).toLowerCase();});
+      if(!existing){localUsers.push(cu);out.usersAdded++;return;}
+      if(addOnly)return;
+      if(cu.displayName)existing.displayName=cu.displayName;
+      if(cu.role)existing.role=cu.role;
+      if(!existing.password&&cu.password)existing.password=cu.password;
+      pyMergeUser2FA(existing,cu);
+    });
+    if(!localUsers.some(function(u){return String(u.username||'').toLowerCase()==='cestisadmin';})){
+      localUsers.push(getDefaultUsers()[0]);
+    }
+    saveUsers(localUsers);
+  }
+  if(Array.isArray(backup.permissions)){
+    var localPerms=loadPermissions();
+    backup.permissions.forEach(function(cp){
+      if(cp&&!localPerms.some(function(p){return p.id===cp.id;})){localPerms.push(cp);out.permsAdded++;}
+    });
+    savePermissions(localPerms);
+  }
+  return out;
+}
+
+/* Fold the cloud copy into this device's data BEFORE any upload, so the upload
+   is always a superset of what the cloud holds and never erases another
+   device's runs, employees, accounts or grants. Returns false when the cloud
+   could not be read (the caller must not upload then). */
+async function _peekMergeCloud(){
+  if(!cloudFileId)return true;
+  try{
+    var peekResp=await fetch('https://www.googleapis.com/drive/v3/files/'+cloudFileId+'?alt=media',{headers:{'Authorization':'Bearer '+googleAccessToken}});
+    if(!peekResp.ok)return peekResp.status===404;
+    var cloudBackup=await peekResp.json();
+    if(cloudBackup&&cloudBackup.data){
+      var peekSummary=_mergeDataIntoLocal(cloudBackup.data);
+      DATA.payrollRuns.forEach(function(r){if(!Array.isArray(r.results))r.results=[];});
+      var moved=peekSummary.addedEmployees||peekSummary.updatedEmployees||peekSummary.addedRuns||peekSummary.updatedRuns||peekSummary.removed;
+      if(moved){
+        console.log('[CloudPush] Pre-push merge from cloud:',peekSummary);
+        saveStore();
+        try{if(typeof renderDashboard==='function'&&typeof currentUser!=='undefined'&&currentUser)renderDashboard();}catch(e){}
+      }
+    }
+    if(cloudBackup)_mergeCloudUsersAndPerms(cloudBackup,true);
+    return true;
+  }catch(peekErr){
+    console.warn('[CloudPush] Safety peek failed, not uploading to avoid data loss:',peekErr.message);
+    return false;
+  }
+}
+// What was last uploaded by the automatic push: an idle minute uploads nothing.
+var _psLastCloudPushHash=null;
+function _psCloudContentHash(){return _dataHash({d:DATA,u:loadUsers(),p:loadPermissions()});}
+
 async function autoSaveUsersToCloud(){
   if(!isCloudConnected||!googleAccessToken){
     console.log('[AutoCloudPush] Not connected to cloud, skipping');
@@ -3964,30 +4103,18 @@ async function autoSaveUsersToCloud(){
   try{
     await findExistingBackupFile();
 
-    // SAFETY PEEK: before writing to cloud, fetch the existing backup and fold
-    // it into local DATA via _mergeDataIntoLocal (non-destructive). This
-    // guarantees the payload we upload is a SUPERSET of what's already in
-    // cloud — we can never erase another device's work by pushing.
-    if(cloudFileId){
-      try{
-        var peekResp=await fetch('https://www.googleapis.com/drive/v3/files/'+cloudFileId+'?alt=media',{headers:{'Authorization':'Bearer '+googleAccessToken}});
-        if(peekResp.ok){
-          var cloudBackup=await peekResp.json();
-          if(cloudBackup&&cloudBackup.data){
-            var peekSummary=_mergeDataIntoLocal(cloudBackup.data);
-            if(peekSummary.addedEmployees||peekSummary.updatedEmployees||peekSummary.addedRuns||peekSummary.updatedRuns){
-              console.log('[AutoCloudPush] Pre-push merge from cloud:',peekSummary);
-            }
-            DATA.payrollRuns.forEach(function(r){if(!Array.isArray(r.results))r.results=[];});
-            saveStore();
-            try{if(typeof renderDashboard==='function'&&typeof currentUser!=='undefined'&&currentUser)renderDashboard();}catch(e){}
-          }
-        }
-      }catch(peekErr){
-        console.warn('[AutoCloudPush] Safety peek failed, aborting push to avoid potential data loss:',peekErr.message);
-        setCloudSyncing(false);
-        return;
-      }
+    // Nothing changed here since the last automatic upload: other devices'
+    // work arrives through the page's own Drive file, so there is nothing to
+    // download, merge, re-render and re-upload every minute.
+    if(_psLastCloudPushHash!==null&&_psCloudContentHash()===_psLastCloudPushHash){
+      setCloudSyncing(false);
+      return;
+    }
+    // SAFETY PEEK: fold the cloud copy in first (newest-wins, deletions kept),
+    // so the upload is a superset of what the cloud holds.
+    if(!(await _peekMergeCloud())){
+      setCloudSyncing(false);
+      return;
     }
 
     var backupData={
@@ -3998,7 +4125,9 @@ async function autoSaveUsersToCloud(){
       users:loadUsers(),
       permissions:loadPermissions()
     };
-    var jsonContent=JSON.stringify(backupData,null,2);
+    // Compact: this goes up every time something changes.
+    var jsonContent=JSON.stringify(backupData);
+    var pushedHash=_psCloudContentHash();
     var response;
     if(cloudFileId){
       var boundary='boundary_'+Date.now();
@@ -4032,6 +4161,7 @@ async function autoSaveUsersToCloud(){
       updateLastSyncDisplay();
       lastSavedBy=currentUser?currentUser.displayName:'Dashboard User';
       cloudFileTimestamp=new Date().toISOString();
+      _psLastCloudPushHash=pushedHash;
       console.log('[AutoCloudPush] User data auto-saved to cloud');
     }else{
       console.log('[AutoCloudPush] Cloud save failed');
@@ -4072,7 +4202,7 @@ async function saveToCloud() {
         }
     }
 
-    confirmMessage += 'This will overwrite the cloud backup. Continue?';
+    confirmMessage += 'The cloud copy is merged in first, so nothing saved from another device is lost. Continue?';
 
     if (!confirm(confirmMessage)) return;
 
@@ -4082,6 +4212,14 @@ async function saveToCloud() {
         // Always search the correct folder so a stale cloudFileId from an
         // old/different folder is replaced with the right one.
         await findExistingBackupFile();
+
+        // Merge the cloud copy in before uploading, exactly as the automatic
+        // push does. Without it this button replaced the cloud file with this
+        // device's data, removing every run, employee, account and grant
+        // another device had saved since this one last merged.
+        if (!(await _peekMergeCloud())) {
+            throw new Error('Could not read the cloud copy to merge it first — nothing was uploaded, so nothing there was lost');
+        }
 
         const backupData = {
             version: '1.1',
@@ -4262,18 +4400,10 @@ async function syncFromCloud() {
         _cloudMergeCompleted = true;
         console.log('[SyncFromCloud] Merged cloud → local:',_syncSummary);
 
-        // Restore users and permissions from cloud if available
-        if(backupData.users&&Array.isArray(backupData.users)&&backupData.users.length>0){
-          // Ensure default admin always exists
-          var cloudUsers=backupData.users;
-          if(!cloudUsers.some(function(u){return u.username.toLowerCase()==='cestisadmin';})){
-            cloudUsers.push(getDefaultUsers()[0]);
-          }
-          saveUsers(cloudUsers);
-        }
-        if(backupData.permissions&&Array.isArray(backupData.permissions)){
-          savePermissions(backupData.permissions);
-        }
+        // Accounts and permission grants are merged, as the confirmation
+        // promises: they used to be REPLACED, which erased an account or grant
+        // made here and reverted a password changed here.
+        _mergeCloudUsersAndPerms(backupData,false);
 
         // Update last sync time
         lastSyncTime = new Date();

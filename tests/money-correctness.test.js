@@ -137,7 +137,14 @@ CASHBOOKS.forEach(where => {
     where + ': a transaction gets a name no other device can produce');
   assert(/function cbAdoptTransaction\(/.test(src),
     where + ': and an incoming one is adopted rather than dropped on an id clash');
-  assert((src.match(/cbAdoptTransaction\(/g) || []).length >= 4,
+  // Either every merge path adopts row by row (the older build), or every path
+  // goes through the one shared quarter merge, which adopts the same way
+  // (CESTISCore.cashbook.mergeQuarter — pinned in tests/cashbook-merge.test.js).
+  const sharedMerge = /function cbMergeQuarterKey\(/.test(src) &&
+    /CESTISCore\.cashbook\.mergeQuarter\(/.test(src) &&
+    /function restoreBackupData\(backupData\) \{[\s\S]{0,120}silentMerge\(backupData\)/.test(src) &&
+    /var mergeStats = silentMerge\(backupData\);/.test(src);
+  assert(sharedMerge || (src.match(/cbAdoptTransaction\(/g) || []).length >= 4,
     where + ': every merge path adopts (found ' + (src.match(/cbAdoptTransaction\(/g) || []).length + ' uses)');
   assert(/data\.uid = cbNewUid\(\);/.test(src),
     where + ': new transactions are given one when they are created');

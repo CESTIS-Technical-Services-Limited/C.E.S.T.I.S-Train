@@ -145,8 +145,21 @@
             // looking absent locally and being adopted wholesale every pull.
             var local = C.pickShared(storeMap(), src.keys);
             var known = self.stamps();
-            var first = Object.keys(known).length === 0;
-            var res = C.mergeKeys(local, known, cloud, cloudStamps, { firstSync: first });
+            /* Recency is judged against the OWNING page's stamp too. This
+               page's own map only says when it last took a key from the cloud;
+               a write the owner made on this device since (a cheque entered on
+               the Cashbook while its uploads were stopped) is stamped in the
+               owner's map, and without it any newer cloud copy replaced that
+               write here — on the first pull it replaced it outright. */
+            var owner = {};
+            try { owner = JSON.parse(store().getItem('cestis_pagecloud_stamps__' + src.file) || '{}') || {}; } catch (e) { owner = {}; }
+            var judged = {};
+            Object.keys(known).forEach(function (k) { judged[k] = known[k]; });
+            Object.keys(owner).forEach(function (k) {
+              if ((Date.parse(owner[k] || '') || 0) > (Date.parse(judged[k] || '') || 0)) judged[k] = owner[k];
+            });
+            var first = Object.keys(judged).length === 0;
+            var res = C.mergeKeys(local, judged, cloud, cloudStamps, { firstSync: first });
             res.changed.forEach(function (k) {
               try { store().setItem(k, res.data[k]); } catch (e) {}
             });

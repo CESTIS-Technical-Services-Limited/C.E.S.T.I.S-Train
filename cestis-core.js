@@ -1261,7 +1261,16 @@
                                // does not find locally, so removing one without writing the
                                // removal down means the next sync hands it straight back —
                                // and a login an administrator revoked is live again.
-                               'voctrain_deletedUserIds'];
+                               'voctrain_deletedUserIds',
+                               // School Fee documents and fee-structure programmes
+                               // ("key|when" entries, so a name deleted and later
+                               // created again can live).
+                               'cestiSchoolFeeDeletedDocumentIds', 'cestiSchoolFeeDeletedFeeKeys',
+                               // Time-clock sessions an administrator deleted.
+                               'cestisTimeRecordTombstones',
+                               // Deleted invoices, quotes and purchase orders (by id).
+                               'cestis_finance_invoices_deleted', 'cestis_finance_quotes_deleted',
+                               'cestis_finance_pos_deleted'];
 
   // Is this key a list of deletions — one that must be merged by union rather
   // than by "the newer write wins"?
@@ -4539,6 +4548,7 @@
         if (!type) return out;
         out.push({
           txnId: t.id,
+          txnUid: t.uid || '',                          // the same cheque on every device
           type: type,                                   // 'cheque' | 'transfer'
           date: t.date || '',
           payee: t.details || '',
@@ -5237,6 +5247,247 @@
     return { stampOf: stampOf, fingerprint: fingerprint, stampChanges: stampChanges, detectRemovals: detectRemovals,
       mergeTombstones: mergeTombstones, deletedAfter: deletedAfter, mergeList: mergeList, mergeMap: mergeMap };
   })();
+
+  /* ==========================================================================
+     CASHBOOK: one merge rule for every quarter, on every path.
+
+     A transaction's `id` counts up from 100 in each quarter on each device, so
+     the same number names different cheques on different machines once rows
+     have been adopted across devices. The merges for the active quarter
+     matched by `uid`, but the merges for every OTHER quarter, the login
+     restore, Merge from Cloud and the Payment Voucher's pull still matched by
+     id or replaced whole quarters — dropping one device's cheque, doubling
+     another's, letting a deletion on one PC remove a DIFFERENT live cheque on
+     the next, and erasing anything entered while uploads were stopped. Rows
+     that never had a uid (the Subvention panel, saves into another quarter,
+     everything from before uids) were given a RANDOM uid by whichever device
+     adopted them, so the originating device saw an unknown uid come back and
+     adopted it again: the quarter's subvention was counted twice.
+
+     The rule now:
+       - every row is known by its uid. A row without one gets a uid DERIVED
+         from what it says (quarter, date, cheque, details, amounts — the
+         original amounts for a voided cheque), so every device names the same
+         legacy row the same way; exact duplicates are told apart by order;
+       - a deletion is written down by uid (deletedTxnUids) and travels;
+         a quarter's old id-based list only ever applies to its own rows;
+       - the copy of a row changed later (updatedAt) wins, so voids and edits
+         reach every device; the Balance B/F carries openingBalanceAt;
+       - a row only one side holds is kept; an adopted row whose id is taken
+         here is given the next free id, never dropped;
+       - a row a device once adopted under a random uid is recognised as the
+         same legacy row (one-to-one), so the doubled subvention stops spreading.
+     Pure: it mutates and returns the local quarter blob it is given.
+     ========================================================================== */
+  Core.cashbook = (function () {
+    function str(v) { return v == null ? '' : String(v).trim(); }
+    function amt(v) { var n = parseFloat(v); return isNaN(n) ? 0 : Math.round(n * 100) / 100; }
+    function stampOf(r) { var t = Date.parse((r && r.updatedAt) || ''); return isNaN(t) ? 0 : t; }
+
+    /* The uid every device derives for a row from before uids existed. */
+    function legacyUid(fy, q, t) {
+      var orig = function (k, o) { return t[o] !== undefined && t[o] !== null && t[o] !== '' ? t[o] : t[k]; };
+      var sig = [str(fy), 'Q' + str(q), str(t.date), str(t.cheque), str(orig('details', '_origDetails')).toLowerCase(),
+                 amt(orig('deposit', '_origDeposit')), amt(orig('payment', '_origPayment'))].join('|');
+      return 'L-' + Core.hashString(sig);
+    }
+    /* Give every uid-less row in a quarter blob its derived uid. Returns how
+       many were given one. Rows are never added or removed. */
+    function ensureUids(blob, fy, q) {
+      if (!blob || !Array.isArray(blob.transactions)) return 0;
+      var seen = {}, n = 0;
+      blob.transactions.forEach(function (t) { if (t && t.uid) seen[t.uid] = 1; });
+      blob.transactions.forEach(function (t) {
+        if (!t || typeof t !== 'object' || t.uid) return;
+        var base = legacyUid(fy, q, t), u = base, k = 0;
+        while (seen[u]) { k++; u = base + '-' + k; }
+        t.uid = u; seen[u] = 1; n++;
+      });
+      return n;
+    }
+    function parseQuarterKey(key) {
+      var m = /^cestis_(?:quarter|budget)_(\d{4}\/\d{4})_Q([1-4])$/.exec(String(key || ''));
+      return m ? { fy: m[1], q: parseInt(m[2], 10) } : null;
+    }
+    function copy(o) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); return c; }
+
+    /* Merge a cloud quarter blob into the local one IN PLACE.
+       Returns { changed, added, updated, removed }. */
+    function mergeQuarter(local, cloud, fy, q) {
+      var out = { changed: false, added: 0, updated: 0, removed: 0 };
+      if (!local || typeof local !== 'object' || !cloud || typeof cloud !== 'object') return out;
+      if (!Array.isArray(local.transactions)) local.transactions = [];
+      if (!Array.isArray(local.deletedTxnIds)) local.deletedTxnIds = [];
+      if (ensureUids(local, fy, q)) out.changed = true;
+      // The cloud quarter's own id-based deletions apply to its own legacy rows
+      // only; ids mean nothing on this device.
+      var cDel = {};
+      (Array.isArray(cloud.deletedTxnIds) ? cloud.deletedTxnIds : []).forEach(function (id) { cDel[id] = 1; });
+      var cBlob = { transactions: (Array.isArray(cloud.transactions) ? cloud.transactions : [])
+        .filter(function (t) { return t && typeof t === 'object' && (t.uid || !cDel[t.id]); }).map(copy) };
+      ensureUids(cBlob, fy, q);
+
+      // Deletions by uid: the union of both sides.
+      var tomb = {}, tombList = Array.isArray(local.deletedTxnUids) ? local.deletedTxnUids.slice() : [];
+      tombList.forEach(function (u) { tomb[u] = 1; });
+      (Array.isArray(cloud.deletedTxnUids) ? cloud.deletedTxnUids : []).forEach(function (u) {
+        if (u && !tomb[u]) { tomb[u] = 1; tombList.push(u); out.changed = true; }
+      });
+      if (tombList.length || local.deletedTxnUids) local.deletedTxnUids = tombList;
+      var before = local.transactions.length;
+      local.transactions = local.transactions.filter(function (t) { return !(t && tomb[t.uid]); });
+      out.removed = before - local.transactions.length;
+
+      var byUid = {}, byContent = {}, cloudUids = {}, matched = {};
+      cBlob.transactions.forEach(function (c) { cloudUids[c.uid] = 1; });
+      var used = {}, maxId = 99;
+      local.transactions.forEach(function (t) {
+        if (!t) return;
+        byUid[t.uid] = t;
+        var ck = legacyUid(fy, q, t);
+        (byContent[ck] = byContent[ck] || []).push(t);
+        used[t.id] = 1; maxId = Math.max(maxId, Number(t.id) || 0);
+      });
+      local.deletedTxnIds.forEach(function (id) { used[id] = 1; maxId = Math.max(maxId, Number(id) || 0); });
+
+      cBlob.transactions.forEach(function (c) {
+        if (tomb[c.uid]) return;
+        var l = byUid[c.uid];
+        if (!l) {
+          // The same legacy row under a uid a device once invented for it?
+          var ck = legacyUid(fy, q, c);
+          var cands = (byContent[ck] || []).filter(function (t) { return !cloudUids[t.uid]; });
+          var isL = function (u) { return String(u || '').indexOf('L-') === 0; };
+          var pick = null;
+          for (var i = 0; i < cands.length && !pick; i++) {
+            if (!matched[cands[i].uid] && (isL(c.uid) || isL(cands[i].uid))) pick = cands[i];
+          }
+          if (!pick && !isL(c.uid)) {
+            for (var j = 0; j < cands.length && !pick; j++) if (isL(cands[j].uid)) pick = cands[j];
+          }
+          if (pick) {
+            matched[pick.uid] = 1;
+            // Converge on the derived name, so both devices end with one uid.
+            if (isL(c.uid) && !isL(pick.uid)) { delete byUid[pick.uid]; pick.uid = c.uid; byUid[c.uid] = pick; out.changed = true; }
+            l = pick;
+          }
+        }
+        if (!l) {
+          var row = copy(c);
+          if (row.id == null || used[row.id]) { do { maxId++; } while (used[maxId]); row.id = maxId; }
+          used[row.id] = 1; maxId = Math.max(maxId, Number(row.id) || 0);
+          local.transactions.push(row);
+          byUid[row.uid] = row;
+          out.added++;
+          return;
+        }
+        if (stampOf(c) > stampOf(l)) {
+          // The newer copy wins — all but this device's own id for the row.
+          var keepId = l.id, keepUid = l.uid;
+          Object.keys(l).forEach(function (k) { if (!(k in c)) delete l[k]; });
+          Object.keys(c).forEach(function (k) { l[k] = c[k]; });
+          l.id = keepId; l.uid = keepUid;
+          out.updated++;
+        }
+      });
+
+      // Balance B/F: the later-dated value wins; an undated one never replaces.
+      var cAt = Date.parse(cloud.openingBalanceAt || '') || 0, lAt = Date.parse(local.openingBalanceAt || '') || 0;
+      if (typeof cloud.openingBalance === 'number' && cAt > lAt) {
+        if (local.openingBalance !== cloud.openingBalance) out.changed = true;
+        local.openingBalance = cloud.openingBalance;
+        local.openingBalanceAt = cloud.openingBalanceAt;
+      }
+      if (out.added || out.updated || out.removed) out.changed = true;
+      return out;
+    }
+
+    /* Merge a cloud quarter budget ({ budget, sections, budgetAt }) into the
+       local one IN PLACE: a line only the cloud has is added; a line both have
+       takes the later-dated amount; an undated line never replaces. */
+    function mergeBudget(local, cloud) {
+      var out = { changed: false };
+      if (!local || !cloud || typeof cloud.budget !== 'object' || !cloud.budget) return out;
+      if (!local.budget || typeof local.budget !== 'object') local.budget = {};
+      if (!local.sections || typeof local.sections !== 'object') local.sections = {};
+      var lAt = local.budgetAt && typeof local.budgetAt === 'object' ? local.budgetAt : null;
+      var cAt = cloud.budgetAt && typeof cloud.budgetAt === 'object' ? cloud.budgetAt : {};
+      Object.keys(cloud.budget).forEach(function (cat) {
+        var ct = Date.parse(cAt[cat] || '') || 0, lt = lAt ? (Date.parse(lAt[cat] || '') || 0) : 0;
+        if (local.budget[cat] === undefined || (ct > lt && local.budget[cat] !== cloud.budget[cat])) {
+          local.budget[cat] = cloud.budget[cat];
+          if (cAt[cat]) { if (!local.budgetAt) local.budgetAt = lAt = {}; local.budgetAt[cat] = cAt[cat]; }
+          out.changed = true;
+        }
+      });
+      Object.keys(cloud.sections && typeof cloud.sections === 'object' ? cloud.sections : {}).forEach(function (cat) {
+        if (!local.sections[cat]) { local.sections[cat] = cloud.sections[cat]; out.changed = true; }
+      });
+      return out;
+    }
+
+    return { legacyUid: legacyUid, ensureUids: ensureUids, parseQuarterKey: parseQuarterKey,
+             mergeQuarter: mergeQuarter, mergeBudget: mergeBudget };
+  })();
+
+  /* ==========================================================================
+     STAFF TIME CLOCK: merge a cloud file into this device's lists.
+
+     Each staff member's Drive file holds only THAT person — their own staff
+     row and their own sessions. Five sync paths (login "Sync Now", Connect,
+     Sync from Cloud, the selective sync and the sign-in page sync) assigned
+     that one-person slice over the whole staff list and every staff member's
+     time history, so after Mary pressed Sync on the office PC only Mary could
+     sign in, everybody else's hours were gone, and page-cloud then pushed the
+     one-person list to every other PC.
+
+     A per-user file is a slice, so it is only ever MERGED: a session the other
+     side holds and this one does not is added; a session both hold keeps the
+     copy changed later (lastModified); the session somebody is clocked into
+     right now is never replaced; a session written down as deleted is dropped
+     and not re-added; and staff are added by id or username, never removed.
+     Pure — returns new lists and leaves the arguments alone except for the
+     local record objects it keeps (so a live session keeps its identity).
+     ========================================================================== */
+  Core.mergeTimeClock = function (local, cloud, opts) {
+    local = local || {}; cloud = cloud || {}; opts = opts || {};
+    var out = { staffMembers: [], timeRecords: [], added: 0, updated: 0, removed: 0, staffAdded: 0 };
+    var deleted = {};
+    (Array.isArray(opts.deletedIds) ? opts.deletedIds : []).forEach(function (id) { if (id != null && id !== '') deleted[String(id)] = 1; });
+    var active = opts.activeSessionId != null ? String(opts.activeSessionId) : null;
+    var mod = function (r) { var t = Date.parse((r && r.lastModified) || ''); return isNaN(t) ? 0 : t; };
+
+    var recs = [], at = {};
+    (Array.isArray(local.timeRecords) ? local.timeRecords : []).forEach(function (r) {
+      if (!r || typeof r !== 'object') return;
+      var id = r.id != null ? String(r.id) : null;
+      if (id && deleted[id] && id !== active) { out.removed++; return; }
+      if (id) at[id] = recs.length;
+      recs.push(r);
+    });
+    (Array.isArray(cloud.timeRecords) ? cloud.timeRecords : []).forEach(function (c) {
+      if (!c || typeof c !== 'object' || c.id == null) return;
+      var id = String(c.id);
+      if (deleted[id]) return;
+      if (at[id] === undefined) { at[id] = recs.length; recs.push(Object.assign({}, c)); out.added++; return; }
+      if (id === active) return;
+      if (mod(c) > mod(recs[at[id]])) { recs[at[id]] = Object.assign({}, c); out.updated++; }
+    });
+    out.timeRecords = recs;
+
+    var staff = (Array.isArray(local.staffMembers) ? local.staffMembers : []).slice();
+    var ids = {}, names = {};
+    staff.forEach(function (s) { if (!s) return; if (s.id != null) ids[String(s.id)] = 1; if (s.username) names[String(s.username)] = 1; });
+    (Array.isArray(cloud.staffMembers) ? cloud.staffMembers : []).forEach(function (s) {
+      if (!s || typeof s !== 'object') return;
+      if ((s.id != null && ids[String(s.id)]) || (s.username && names[String(s.username)])) return;
+      staff.push(Object.assign({}, s)); out.staffAdded++;
+      if (s.id != null) ids[String(s.id)] = 1;
+      if (s.username) names[String(s.username)] = 1;
+    });
+    out.staffMembers = staff;
+    return out;
+  };
 
   Core.pageCloud = (function () {
 
