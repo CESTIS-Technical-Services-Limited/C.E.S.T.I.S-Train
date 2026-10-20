@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const SKIP = [/node_modules/, /vendor\//, /megadata-bootstrap-staging/, /\.git\//];
+const SKIP = [/node_modules/, /vendor\//, /megadata-bootstrap-staging/, /\.git\//, /\.claude\//];
 const files = [];
 (function walk(dir) {
   for (const f of fs.readdirSync(dir)) {

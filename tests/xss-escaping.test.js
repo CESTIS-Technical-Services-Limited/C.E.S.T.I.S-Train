@@ -446,10 +446,15 @@ console.log('Certificates: the QR verify link and the admin pages');
     certDownloadApprovals: [{ studentId: s.id, approved: true, downloadCount: 3, name: EVIL, course: EVIL, certNo: EVIL, approvedBy: EVIL, lastDownloaded: '2026-01-01' }],
     isStudentCertified() { return true; }, isStudentPassed() { return true; },
     dedupeCertDownloadApprovals() { return false; }, reconcileCertifiedFromApprovals() {}, populateCertTemplateSkillSelect() {},
-    renderCertSeedStatus() {}, renderCertDlStats() {}, renderCertDlLog() {}
+    renderCertSeedStatus() {}, renderCertDlStats() {}, renderCertDlLog() {},
+    // The eligibility badge (its tooltip carries record text) and the signed
+    // badge, added with the certificate checklist; the panel draws itself.
+    certEligibilityContext() { return {}; },
+    certEligibilityFor() { return { warnings: 1, items: [{ key: 'fees', label: EVIL, state: 'warn', detail: EVIL }] }; },
+    certSignedFields() { return {}; }, renderCertSigningPanel() {}
   };
   render('renderCerts', ['renderCerts'], setup, 'renderCerts()', sb2 => el(sb2, 'certTableBody'));
-  const r = render('renderCertDownloadMgmt', ['renderCertDownloadMgmt'], setup, 'renderCertDownloadMgmt()', sb2 => el(sb2, 'certDlStudentList'));
+  const r = render('renderCertDownloadMgmt', ['renderCertDownloadMgmt', 'certEligibilityText', 'certEligibilityBadge'], setup, 'renderCertDownloadMgmt()', sb2 => el(sb2, 'certDlStudentList'));
   const calls = handlerCalls(r.html).filter(c => /revokeCertDownload|approveCertDownload|certRegisterPrintedNumber/.test(c.name));
   assert(calls.length > 0 && calls.every(c => c.args[0] === s.id), 'the certificate buttons still pass the exact trainee id');
   render('renderCertDlLog', ['renderCertDlLog'], setup, 'renderCertDlLog()', sb2 => el(sb2, 'certDlLogBody'));
@@ -608,7 +613,7 @@ console.log('Staff appraisal roster buttons work for "Dwayne O\'Connor"');
 {
   const libSrc = read('staff-appraisals.js');
   const els = {};
-  const store = { voctrain_userAccounts: JSON.stringify([{ id: 'U1', name: "Dwayne O'Connor", role: 'instructor' }, { id: 'U2', name: 'Kevin <img src=x onerror=__pwn(1)> Brown', role: 'adminstaff' }]) };
+  const store = { voctrain_users: JSON.stringify([{ id: 'U1', name: "Dwayne O'Connor", role: 'instructor' }, { id: 'U2', name: 'Kevin <img src=x onerror=__pwn(1)> Brown', role: 'adminstaff' }]) };
   const sb = {
     console, JSON, Math, Date, Object, Array, String, Number, RegExp, parseInt, parseFloat, isNaN, setTimeout() {}, clearTimeout() {},
     document: { getElementById(id) { if (!els[id]) els[id] = makeEl(id); return els[id]; }, querySelector() { return null; }, querySelectorAll() { return []; }, createElement() { return makeEl(); }, addEventListener() {} },

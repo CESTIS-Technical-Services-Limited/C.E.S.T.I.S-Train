@@ -18,6 +18,8 @@ Every part of the system saves here and reads from here:
     Virement Requests ............ CESTIS_Virement_Requests.json
     Staff Payslips ............... CESTIS_Staff_Payslips.json
     Staff Time Clock ............. CESTIS_Staff_TimeClock.json
+    Income & Expenditure ......... CESTIS_Income_Expenditure.json
+    Board (CMC) rulings .......... CESTIS_CMC_Rulings.json
 
 and, covering EVERYTHING at once:
 
@@ -36,14 +38,30 @@ would do harm rather than good:
     who is signed in on this screen
     dark mode and other display choices
 
+Two more things are never in it at all: who is signed in on a particular
+screen, and an exam somebody is half-way through. Those belong to one device.
+
 The files appear as each part is used for the first time. An empty folder is
 normal on day one.
 
 --------------------------------------------------------------------------------
+EARLIER VERSIONS (the hidden ".history" folder)
+--------------------------------------------------------------------------------
+Every time a file here is saved, the version it replaced is kept in
+.history/<file name>/, named by date and time — the last 40 of each. If a
+file is damaged, or a bad save got through, stop the server, copy the version
+you want back over the file here, and start the server again.
+
+Saves from several devices are MERGED into these files, not written over
+them: a device holding fewer records than the server cannot remove any. Only
+a deletion made in the system removes a record.
+
+--------------------------------------------------------------------------------
 BACKING UP
 --------------------------------------------------------------------------------
-Copy this whole "data" folder onto a memory stick. That is a complete backup of
-the Centre's trainees, fees, grades and financial records.
+Copy this whole "data" folder onto a memory stick (the hidden ".history"
+folder inside it comes too). That is a complete backup of the Centre's
+trainees, fees, grades and financial records.
 
 To restore, put the folder back in the same place and start the system again.
 
@@ -54,7 +72,11 @@ computer is the single thing that would be hard to recreate.
 WHAT NOT TO DO
 --------------------------------------------------------------------------------
 Do not edit these files by hand while the system is running — the next save
-will overwrite your changes. Stop the server first if you must.
+will be merged over your changes. Stop the server first if you must.
+
+Do not put this folder (or copies of it) anywhere public, including a shared
+drive or a public code repository. It holds every account's password hash and
+every payslip.
 
 Do not delete a file to "start fresh" for one part of the system unless you
 mean to lose that part's records permanently.

@@ -104,6 +104,7 @@
   .tg-src.exam   { background: var(--green-dim); color: var(--green); }
   .tg-src.manual { background: var(--blue-dim); color: var(--blue); }
   .tg-src.none   { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+  .tg-src.pending { background: rgba(243,156,18,0.12); color: var(--accent); }
 
   .tg-note { font-size:12px; color:var(--text-secondary); line-height:1.5; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:12px; }
   .tg-note b { color: var(--text-primary); }
@@ -226,12 +227,25 @@ function param(name) {
   try { var v = new URLSearchParams(location.search).get(name); return v ? v : ''; }
   catch (e) { return ''; }
 }
-var ROLE = param('role') || 'admin';
+// WHO is looking comes from the signed-in dashboard session, never from the
+// address: '?role=' used to default to 'admin' (so the bare URL opened the
+// grade editor and every trainee's personal details to anyone on a synced
+// device) and '?studentId=' picked whose grades a trainee saw. The address may
+// only narrow the view; with no live session the page shows nothing
+// (CESTISCore.sessionAccess).
+var VIEWER = (window.CESTISCore && CESTISCore.sessionAccess)
+  ? CESTISCore.sessionAccess.forPage({ allowed: ['admin', 'adminstaff', 'instructor', 'student'] })
+  : { ok: false, message: 'Shared data core failed to load. Please refresh.' };
+var ROLE = VIEWER.ok ? VIEWER.role : '';
 var IS_STAFF = (ROLE === 'admin' || ROLE === 'adminstaff');
-var MY_STUDENT_ID = param('studentId');
-var MY_NAME = param('name');
+var MY_STUDENT_ID = VIEWER.ok ? (VIEWER.studentId || '') : '';
+var _acctName = (VIEWER.ok && VIEWER.account && VIEWER.account.name) || '';
+// A trainee is named by their own account; an instructor's grade sheet keeps
+// the instructor-record name the dashboard hands over (it only chooses which
+// of the Centre's trainees a member of staff sees).
+var MY_NAME = !VIEWER.ok ? '' : (ROLE === 'student' ? _acctName : (param('name') || _acctName));
 var MY_COURSE = param('course');
-var ACTOR = param('actor') || (IS_STAFF ? 'Admin' : MY_NAME || ROLE);
+var ACTOR = (VIEWER.ok && VIEWER.account && VIEWER.account.name) || (IS_STAFF ? 'Admin' : MY_NAME || ROLE);
 
 /* ------------------------------ data access ------------------------------ */
 function readJSON(key, fallback) {
@@ -268,6 +282,14 @@ function esc(s) {
   });
 }
 function escAttr(s) { return esc(s).replace(/\n/g, ' '); }
+// A value handed to an inline handler: a quoted JavaScript string that
+// survives the browser decoding the attribute first (\'...\' with &#39;
+// inside did not). The shared toolkit does it; the fallback covers a stale
+// cached cestis-core.js.
+function jsArg(s) {
+  if (window.CESTISCore && CESTISCore.html) return CESTISCore.html.jsArg(s);
+  return esc(JSON.stringify(String(s == null ? '' : s)));
+}
 
 var toastTimer = null;
 function toast(msg, kind) {
@@ -812,7 +834,7 @@ function renderGradeRows() {
     '<div class="tg-stat"><div class="v">' + (stats.average == null ? '—' : T.formatGrade(stats.average)) + '</div><div class="l">Average</div></div>' +
     '<div class="tg-stat"><div class="v">' + (stats.total ? Math.round(stats.graded / stats.total * 100) : 0) + '%</div><div class="l">Completion</div></div>';
   tbody.innerHTML = rows.map(function (r, i) {
-    var srcLabel = r.source === 'exam' ? 'Live exam' : (r.source === 'manual' ? 'Manual' : '—');
+    var srcLabel = r.source === 'exam' ? 'Live exam' : (r.source === 'manual' ? 'Manual' : (r.source === 'pending' ? 'Awaiting marking' : '—'));
     return '<tr>' +
       '<td class="unit-code">' + esc(r.code) + '</td>' +
       '<td class="unit-name">' + esc(r.name) + (r.source === 'exam' && r.examTitle ? '<div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">from exam: ' + esc(r.examTitle) + '</div>' : '') + '</td>' +
@@ -935,13 +957,13 @@ function renderCatalogEditor(qualId) {
             '<td><select class="tg-select" style="min-width:100px;width:100%;" id="tgcE-' + i + '">' +
               '<option' + (u.coreElective !== 'Elective' ? ' selected' : '') + '>Core</option>' +
               '<option' + (u.coreElective === 'Elective' ? ' selected' : '') + '>Elective</option></select></td>' +
-            '<td><button class="tg-btn sm danger" onclick="removeCatalogUnit(\'' + escAttr(q.id) + '\',' + i + ')">✕</button></td>' +
+            '<td><button class="tg-btn sm danger" onclick="removeCatalogUnit(' + jsArg(q.id) + ',' + i + ')">✕</button></td>' +
           '</tr>';
         }).join('') +
         '</tbody></table>' +
         '<div style="display:flex;gap:9px;margin-top:12px;flex-wrap:wrap;">' +
-          '<button class="tg-btn" onclick="addCatalogUnit(\'' + escAttr(q.id) + '\')">＋ Add Unit</button>' +
-          '<button class="tg-btn green" onclick="saveCatalog(\'' + escAttr(q.id) + '\')">💾 Save Catalogue</button>' +
+          '<button class="tg-btn" onclick="addCatalogUnit(' + jsArg(q.id) + ')">＋ Add Unit</button>' +
+          '<button class="tg-btn green" onclick="saveCatalog(' + jsArg(q.id) + ')">💾 Save Catalogue</button>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -1006,8 +1028,11 @@ function renderAdmin() {
    STUDENT (TRAINEE) VIEW — live grades + transcript/certificate requests
    ============================================================================ */
 function myStudentRecord() {
+  // The session's own record only — never a name or id typed into the address.
+  // (The name fallback, for a record whose id moved since sign-in, uses the
+  // signed-in account's own name.)
   var s = MY_STUDENT_ID ? studentById(MY_STUDENT_ID) : null;
-  if (s) return s;
+  if (s || !MY_NAME) return s;
   var n = T.normText(MY_NAME), c = T.normText(MY_COURSE);
   return db.students.filter(function (st) {
     return st && T.normText(st.name) === n && (!c || T.normText(st.course) === c);
@@ -1108,10 +1133,10 @@ function renderInstructor() {
       var stats = T.gradeStats(rows);
       var open = !!insOpen[s.id];
       return '<div class="tg-card" style="margin-bottom:12px;">' +
-        '<div class="tg-card-head" style="cursor:pointer;" onclick="toggleInsRow(\'' + escAttr(s.id) + '\')">' +
+        '<div class="tg-card-head" style="cursor:pointer;" onclick="toggleInsRow(' + jsArg(s.id) + ')">' +
           '<div><h2>' + esc(s.name) + '</h2><div class="sub">' + esc(s.course || '') + ' • ' + stats.graded + '/' + stats.total + ' units graded • avg ' + (stats.average == null ? '—' : T.formatGrade(stats.average)) + '</div></div>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
-            '<button class="tg-btn sm green" onclick="event.stopPropagation();insGradeSheet(\'' + escAttr(s.id) + '\')">⬇ Grade Sheet</button>' +
+            '<button class="tg-btn sm green" onclick="event.stopPropagation();insGradeSheet(' + jsArg(s.id) + ')">⬇ Grade Sheet</button>' +
             '<span style="color:var(--text-muted);font-size:12px;">' + (open ? '▲' : '▼') + '</span></div>' +
         '</div>' +
         (open ? '<div class="tg-card-body" style="padding-top:6px;">' +
@@ -1120,7 +1145,7 @@ function renderInstructor() {
             var graded = r.grade != null && r.grade !== '';
             return '<tr><td class="unit-code">' + esc(r.code) + '</td><td class="unit-name">' + esc(r.name) + '</td><td>' + esc(r.date || '—') + '</td>' +
               '<td style="font-weight:700;color:' + (graded ? 'var(--green)' : 'var(--text-muted)') + ';">' + (graded ? T.formatGrade(r.grade) : 'Pending') + '</td>' +
-              '<td><span class="tg-src ' + r.source + '">' + (r.source === 'exam' ? 'Live exam' : r.source === 'manual' ? 'Manual' : '—') + '</span></td></tr>';
+              '<td><span class="tg-src ' + r.source + '">' + (r.source === 'exam' ? 'Live exam' : r.source === 'manual' ? 'Manual' : r.source === 'pending' ? 'Awaiting marking' : '—') + '</span></td></tr>';
           }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:18px;">No unit catalogue for this programme yet.</td></tr>') +
           '</tbody></table></div>' : '') +
       '</div>';
@@ -1138,6 +1163,10 @@ function insGradeSheet(id) {
    BOOT + LIVE UPDATES
    ============================================================================ */
 function renderForRole() {
+  if (!VIEWER.ok) {
+    document.getElementById('tgApp').innerHTML = '<div class="tg-empty">' + esc(VIEWER.message || 'Please sign in to the C.E.S.T.I.S dashboard first.') + '</div>';
+    return;
+  }
   if (IS_STAFF) renderAdmin();
   else if (ROLE === 'instructor') renderInstructor();
   else renderStudent();
@@ -1170,7 +1199,7 @@ setInterval(function () {
          String(CESTISStore.getItem(T.KEYS.requests) || '').length + '|' +
          String(CESTISStore.getItem('voctrain_students') || '').length;
   } catch (e) {}
-  if (fp !== lastFingerprint) {
+  if (fp !== lastFingerprint && VIEWER.ok) {
     lastFingerprint = fp;
     loadAll();
     renderForRole();
@@ -1182,6 +1211,7 @@ function boot() {
     document.getElementById('tgApp').innerHTML = '<div class="tg-empty">Shared data core failed to load. Please refresh.</div>';
     return;
   }
+  if (!VIEWER.ok) { renderForRole(); return; }   // nothing is read, rendered or written without a session
   loadAll();
   renderForRole();
 }
@@ -1210,11 +1240,40 @@ document.addEventListener('DOMContentLoaded', function () {
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20260802a"></script>
 <script>
-CESTISPageCloud.init({
+// Staff own this page's file: they pull it and push their edits. Anybody else
+// — a trainee, an instructor — only READS the grades and catalogues they are
+// shown, and never the other trainees' transcript profiles; a page opened with
+// no signed-in session moves nothing at all. (A trainee's device keeps only
+// its own transcript data after logout, so a push from it would carry a cut-
+// down list over the Centre's file.)
+var TG_READS = ['voctrain_students', 'voctrain_skillAreas', 'voctrain_deletedCentreIds', 'voctrain_examResults'];
+var _tgStaff = (typeof IS_STAFF !== 'undefined' && IS_STAFF);
+var _tgSignedIn = (typeof VIEWER !== 'undefined' && VIEWER.ok);
+CESTISPageCloud.init(_tgStaff ? {
   page: 'Transcript / Grades',
   file: 'CESTIS_Transcript_Grades.json',
-  keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles']
+  keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles'],
+  // Grades are recorded against the trainee roll and the training centres, both
+  // owned elsewhere: pulled from Drive here, never written back.
+  reads: TG_READS
+} : {
+  page: 'Transcript / Grades (reader)',
+  file: 'CESTIS_Transcript_Grades.reader',      // a reader publishes no file of its own
+  readOnly: true,
+  reads: _tgSignedIn ? TG_READS.concat(['voctrain_transcriptGrades', 'voctrain_unitCatalogs']) : []
 });
 </script>
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/docsync-model.js?v=1"></script>
+<script src="megadata/pages/tg-model.js?v=1"></script>
+<script src="megadata/pages/tg-page.js?v=1"></script>
 </body>
 </html>

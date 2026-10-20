@@ -8,25 +8,27 @@ echo "   C.E.S.T.I.S  -  Starting the offline system"
 echo " ================================================================"
 echo
 
-if command -v node >/dev/null 2>&1; then
-  node cestis-offline-server.js
-else
+# There used to be a Python fallback here. It served the records folder and
+# the server's private key to every device on the network and shared nothing
+# between devices, so it is gone: the system needs Node.js 14 or newer.
+if ! command -v node >/dev/null 2>&1; then
   echo "  Node.js was not found on this computer."
+  NEED_NODE=1
+elif ! node -e "process.exit(parseInt(process.versions.node,10)>=14?0:1)"; then
+  echo "  The Node.js on this computer ($(node -v)) is too old for the offline system."
+  NEED_NODE=1
+fi
+
+if [ -n "$NEED_NODE" ]; then
   echo
-  echo "  Trying Python instead. The pages will work, but devices on the"
-  echo "  network will NOT share data without Node.js."
+  echo "  The offline system needs Node.js 14 or newer. The version in some"
+  echo "  distributions' own package lists is older than that (Ubuntu 18.04"
+  echo "  ships 8.x), so get the current \"LTS\" version from https://nodejs.org"
+  echo "  (on a computer with internet; copy it onto a memory stick), install"
+  echo "  it here, then start this again."
   echo
-  if command -v python3 >/dev/null 2>&1; then
-    echo "  Open http://localhost:8080/index.html when it starts."
-    python3 -m http.server 8080
-  else
-    echo "  Python was not found either."
-    echo
-    echo "  Install it with your package manager, e.g.:"
-    echo "      sudo apt install nodejs        (Debian / Ubuntu / Mint)"
-    echo "      sudo dnf install nodejs        (Fedora)"
-    echo
-  fi
+else
+  node cestis-offline-server.js
 fi
 
 echo

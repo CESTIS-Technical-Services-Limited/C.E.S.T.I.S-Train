@@ -99,9 +99,38 @@ function decodeFrames(buf) {
    connected and hands each message to the one it is addressed to — nothing
    more. It never sees video or audio; those go straight between the browsers.
    ============================================================================ */
-function attach(server, log) {
-  const peers = new Map();            // id -> { socket, token, since }
+/* A peer that has gone silent is gone. PeerJS sends a HEARTBEAT every few
+   seconds; a laptop whose lid closed, or that dropped off the wifi, simply
+   stops — no goodbye ever arrives, so the socket used to stay registered for
+   ever and the teacher reloading to "Rejoin as Host" was told "Room host ID is
+   still active" again and again. The same limits the upstream PeerJS server
+   uses: silent for a minute and the peer is dropped; and a reconnect for the
+   same id may take over a peer that has been silent for a quarter of that. */
+const ALIVE_TIMEOUT_MS = 60000;
+const TAKEOVER_SILENCE_MS = 15000;
+const SWEEP_EVERY_MS = 15000;
+
+function attach(server, log, options) {
+  const opts = options || {};
+  const aliveTimeout = opts.aliveTimeoutMs || ALIVE_TIMEOUT_MS;
+  const takeoverAfter = opts.takeoverAfterMs || TAKEOVER_SILENCE_MS;
+  const now = typeof opts.now === 'function' ? opts.now : Date.now;
+  const peers = new Map();            // id -> { socket, token, since, lastSeen }
   const say = log || function () {};
+
+  // Drop whoever has gone quiet. unref() so this timer never keeps a process
+  // alive on its own (the tests, a server shutting down).
+  const sweeper = setInterval(() => {
+    const t = now();
+    peers.forEach((p, id) => {
+      if (t - p.lastSeen > aliveTimeout) {
+        say('[signalling] ' + id + ' went silent — dropped');
+        try { p.socket.destroy(); } catch (e) {}
+        dropPeer(id, p.socket);
+      }
+    });
+  }, opts.sweepMs || SWEEP_EVERY_MS);
+  if (sweeper.unref) sweeper.unref();
 
   function send(sock, obj) {
     try { sock.write(encodeFrame(JSON.stringify(obj))); } catch (e) {}
@@ -141,24 +170,29 @@ function attach(server, log) {
       'Sec-WebSocket-Accept: ' + accept + '\r\n\r\n'
     );
     socket.setNoDelay(true);
+    // Let the operating system notice a connection that died without a word.
+    try { socket.setKeepAlive(true, 30000); } catch (e) {}
 
     // A room host that reloads reclaims its own id; a genuine clash is refused,
-    // which is what the library expects to hear.
+    // which is what the library expects to hear — unless the holder has gone
+    // silent, in which case it is a dead connection and the newcomer takes over.
     const existing = peers.get(id);
-    if (existing && existing.token !== token) {
+    if (existing && existing.token !== token && now() - existing.lastSeen <= takeoverAfter) {
       send(socket, { type: 'ID-TAKEN', payload: { msg: 'ID is taken' } });
       try { socket.end(); } catch (e) {}
       return;
     }
     if (existing) { try { existing.socket.destroy(); } catch (e) {} }
 
-    peers.set(id, { socket, token, since: Date.now() });
+    peers.set(id, { socket, token, since: now(), lastSeen: now() });
     send(socket, { type: 'OPEN' });
     say('[signalling] ' + id + ' joined (' + peers.size + ' connected)');
 
     let buffer = Buffer.alloc(0);
 
     socket.on('data', chunk => {
+      const me = peers.get(id);
+      if (me && me.socket === socket) me.lastSeen = now();   // any frame at all means alive
       buffer = Buffer.concat([buffer, chunk]);
       const { frames, rest } = decodeFrames(buffer);
       buffer = rest;
@@ -176,24 +210,26 @@ function attach(server, log) {
       });
     });
 
-    const bye = () => {
-      const cur = peers.get(id);
-      if (cur && cur.socket === socket) {
-        peers.delete(id);
-        say('[signalling] ' + id + ' left (' + peers.size + ' connected)');
-        // Tell everyone still in the same room, so tiles disappear promptly
-        // instead of hanging as frozen video.
-        const room = roomOf(id);
-        if (room) {
-          peers.forEach((p, otherId) => {
-            if (roomOf(otherId) === room) send(p.socket, { type: 'LEAVE', src: id, dst: otherId });
-          });
-        }
-      }
-    };
+    const bye = () => dropPeer(id, socket);
     socket.on('close', bye);
     socket.on('error', bye);
   });
+
+  function dropPeer(id, socket) {
+    const cur = peers.get(id);
+    if (cur && cur.socket === socket) {
+      peers.delete(id);
+      say('[signalling] ' + id + ' left (' + peers.size + ' connected)');
+      // Tell everyone still in the same room, so tiles disappear promptly
+      // instead of hanging as frozen video.
+      const room = roomOf(id);
+      if (room) {
+        peers.forEach((p, otherId) => {
+          if (roomOf(otherId) === room) send(p.socket, { type: 'LEAVE', src: id, dst: otherId });
+        });
+      }
+    }
+  }
 
   /* Ids are minted as  cestis-<ROOMCODE>-host  and  cestis-<ROOMCODE>-<random>,
      so the room is the middle part. Used only to announce departures. */
@@ -203,6 +239,7 @@ function attach(server, log) {
   }
 
   return {
+    stop: () => clearInterval(sweeper),
     count: () => peers.size,
     ids: () => Array.from(peers.keys()),
     rooms: () => {
@@ -216,4 +253,4 @@ function attach(server, log) {
   };
 }
 
-module.exports = { attach, encodeFrame, decodeFrames };
+module.exports = { attach, encodeFrame, decodeFrames, ALIVE_TIMEOUT_MS, TAKEOVER_SILENCE_MS };

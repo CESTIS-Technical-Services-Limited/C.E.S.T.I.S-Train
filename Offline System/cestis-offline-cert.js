@@ -86,9 +86,33 @@ function opensslPath() {
   return null;
 }
 
+/* The certificate is its own authority (CA:TRUE), which is what lets a phone
+   or tablet install it as trusted and stop warning. But a trusted authority
+   whose key sits on a shared office PC could be used to vouch for ANY website
+   to those devices. Name constraints limit it to what it is for: the private
+   network address ranges and this computer's own local names — never a public
+   website. */
+function nameConstraints(names) {
+  const permitted = [
+    'IP:10.0.0.0/255.0.0.0', 'IP:172.16.0.0/255.240.0.0', 'IP:192.168.0.0/255.255.0.0',
+    'IP:169.254.0.0/255.255.0.0', 'IP:127.0.0.0/255.0.0.0',
+    'IP:0:0:0:0:0:0:0:1/FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF',
+    'DNS:localhost', 'DNS:.local'
+  ];
+  // This computer's own addresses, whatever range they are in (a Centre's
+  // router may not use a private range at all).
+  names.ips.forEach(ip => {
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(ip)) permitted.push('IP:' + ip + '/255.255.255.255');
+  });
+  names.dns.forEach(d => {
+    if (d !== 'localhost' && !/\.local$/i.test(d) && /^[A-Za-z0-9.-]+$/.test(d)) permitted.push('DNS:' + d);
+  });
+  return 'nameConstraints = critical,' + permitted.map(p => 'permitted;' + p).join(',');
+}
+
 /* Written to a file rather than passed as -addext, because the openssl macOS
    ships (LibreSSL) does not accept -addext. A config file works on both. */
-function opensslConfig(names) {
+function opensslConfig(names, constrained) {
   const alt = []
     .concat(names.dns.map((d, i) => 'DNS.' + (i + 1) + ' = ' + d))
     .concat(names.ips.map((ip, i) => 'IP.' + (i + 1) + ' = ' + ip))
@@ -108,6 +132,7 @@ function opensslConfig(names) {
     'keyUsage = critical,digitalSignature,keyEncipherment,keyCertSign',
     'extendedKeyUsage = serverAuth',
     'subjectAltName = @alt',
+    constrained === false ? '' : nameConstraints(names),
     '',
     '[alt]',
     alt,
@@ -169,14 +194,20 @@ function ensure(dir, log) {
 
   try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}
   const cnfFile = path.join(dir, 'cestis-lan-openssl.cnf');
-  try { fs.writeFileSync(cnfFile, opensslConfig(names)); } catch (e) { return null; }
-
-  const r = spawnSync(ssl, [
-    'req', '-x509', '-newkey', 'rsa:2048', '-sha256', '-nodes',
-    '-days', String(DAYS),
-    '-keyout', keyFile, '-out', certFile,
-    '-config', cnfFile
-  ], { encoding: 'utf8' });
+  const make = constrained => {
+    try { fs.writeFileSync(cnfFile, opensslConfig(names, constrained)); } catch (e) { return { error: e }; }
+    return spawnSync(ssl, [
+      'req', '-x509', '-newkey', 'rsa:2048', '-sha256', '-nodes',
+      '-days', String(DAYS),
+      '-keyout', keyFile, '-out', certFile,
+      '-config', cnfFile
+    ], { encoding: 'utf8' });
+  };
+  let r = make(true);
+  // An openssl too old to understand the constraints line still gets a
+  // certificate (as before) rather than none at all — no certificate would
+  // mean no video classes on any other device.
+  if (r.error || r.status !== 0) r = make(false);
 
   if (r.error || r.status !== 0) {
     say('openssl could not make the certificate: ' + ((r.stderr || (r.error && r.error.message) || '').split('\n')[0]));
@@ -193,4 +224,4 @@ function ensure(dir, log) {
   }
 }
 
-module.exports = { ensure, subjectNames, opensslPath };
+module.exports = { ensure, subjectNames, opensslPath, opensslConfig, nameConstraints };

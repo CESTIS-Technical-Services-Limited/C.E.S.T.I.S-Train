@@ -2451,6 +2451,9 @@ function submitVirement(){
         existing.lines = lines;
         existing.deficitComment = deficitComment;
         existing.anyLineComment = anyLineComment;
+        // When it was last changed: the later edit wins between devices, and
+        // no ruling made on the earlier wording carries over to it.
+        existing.editedAt = new Date().toISOString();
         /* Changing what a virement asks for un-does any ruling on it.
 
            An approved request used to keep its approval through an edit: the
@@ -2521,9 +2524,13 @@ function renderRequests(){
         container.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-dim);">No virement requests for this quarter. Go to "Create Virement" to add one.</div>';
         return;
     }
+    // One position map, not an indexOf over the WHOLE request history per row —
+    // requests accumulate across every quarter and financial year.
+    const _vrPos = new Map();
+    virementRequests.forEach((vr, vi) => { if (!_vrPos.has(vr)) _vrPos.set(vr, vi); });
     container.innerHTML = quarterRequests.map((r)=>{
-        let globalIdx = virementRequests.indexOf(r);
-        let badge = r.status==='Approved' ? '<span class="badge badge-approved">Approved</span>'
+        let globalIdx = _vrPos.has(r) ? _vrPos.get(r) : virementRequests.indexOf(r);
+        let badge = vrIsApproved(r) ? '<span class="badge badge-approved">Approved</span>'
             : r.status==='Rejected' ? '<span class="badge badge-rejected">Rejected</span>'
             : '<span class="badge badge-pending">Pending</span>';
         let summaryLines = r.lines.map(l=>`${l.fromName} → ${l.toName}`).join(', ');
@@ -2570,8 +2577,8 @@ function showDetail(idx){
         ${deficitTable}
         ${anyTable}
         <p style="margin-top:0.75rem;font-size:0.82rem;color:var(--text-dim);font-style:italic;">${r.totalWords}</p>
-        ${r.status !== 'Pending' ? `<div class="ali-stamp ${r.status==='Approved'?'stamp-approved':'stamp-rejected'}" style="margin-top:1rem;">
-            ${r.status==='Approved'?'✓':'✗'} ${r.status} by ${r.approvedBy||'Admin'}${r.approvalDate?' on '+r.approvalDate:''}${r.approvalComment?' — "'+r.approvalComment+'"':''}
+        ${r.status !== 'Pending' ? `<div class="ali-stamp ${vrIsApproved(r)?'stamp-approved':'stamp-rejected'}" style="margin-top:1rem;">
+            ${vrIsApproved(r)?'✓':'✗'} ${r.status === 'Approved' && !vrIsApproved(r) ? 'Not yet approved' : r.status} by ${r.approvedBy||'Admin'}${r.approvalDate?' on '+r.approvalDate:''}${r.approvalComment?' — "'+r.approvalComment+'"':''}
         </div>` : ''}
     `;
     document.getElementById('detailModal').classList.add('show');
@@ -2752,9 +2759,9 @@ function renderPrintPreview(){
                     Total = ${fmt(r.total)}
                 </div>
 
-                ${r.status !== 'Pending' ? `<div style="margin-top:1.5rem;padding:0.75rem 1rem;border:2px solid ${r.status==='Approved'?'#059669':'#e11d48'};border-radius:6px;">
-                    <p style="font-weight:700;color:${r.status==='Approved'?'#059669':'#e11d48'};margin:0;">
-                        ${r.status==='Approved'?'✓ APPROVED':'✗ REJECTED'} by ${r.approvedBy||'Admin'}${r.approvalDate?' — '+r.approvalDate:''}
+                ${r.status !== 'Pending' ? `<div style="margin-top:1.5rem;padding:0.75rem 1rem;border:2px solid ${vrIsApproved(r)?'#059669':'#e11d48'};border-radius:6px;">
+                    <p style="font-weight:700;color:${vrIsApproved(r)?'#059669':'#e11d48'};margin:0;">
+                        ${vrIsApproved(r)?'✓ APPROVED':(r.status==='Rejected'?'✗ REJECTED':'⏳ NOT YET APPROVED')} by ${r.approvedBy||'Admin'}${r.approvalDate?' — '+r.approvalDate:''}
                     </p>
                     ${r.approvalComment?'<p style="font-size:0.85rem;margin:0.25rem 0 0;color:#333;">Comment: '+r.approvalComment+'</p>':''}
                 </div>` : '<div style="margin-top:1.5rem;padding:0.75rem 1rem;border:2px dashed #d97706;border-radius:6px;"><p style="font-weight:600;color:#d97706;margin:0;">⏳ PENDING APPROVAL</p></div>'}
@@ -3017,7 +3024,95 @@ function vrSignatures(r){ return Array.isArray(r && r.signatures) ? r.signatures
 function vrHasSigned(r, userId){ return vrSignatures(r).some(s => s && s.id === userId); }
 /* The one rule the whole workflow exists for: money moves only once a request
    carries two signatures from two different people. */
-function vrIsApproved(r){ return !!r && r.status === 'Approved' && vrSignatures(r).length >= 2; }
+/* What a request asks for — the content a signature agrees to. */
+function vrContentRev(r){
+    if (!r) return '';
+    const sig = JSON.stringify([r.date || '', r.fy || '', r.quarter || '', r.project || '', r.period || '',
+        r.requestedBy || '', r.position || '', Math.round((Number(r.total) || 0) * 100),
+        (Array.isArray(r.lines) ? r.lines : []).map(l => [l.fromId || '', l.toId || '', Math.round((Number(l.amount) || 0) * 100), !!l.anyLine]),
+        r.deficitComment || '', r.anyLineComment || '']);
+    let h = 5381;
+    for (let i = 0; i < sig.length; i++) h = ((h << 5) + h + sig.charCodeAt(i)) | 0;
+    return 'v' + (h >>> 0).toString(36) + sig.length.toString(36);
+}
+/* Signatures made on THIS content (a signature that records which content it
+   was made on, and it was another, does not count). */
+function vrValidSignatures(r){
+    const rev = vrContentRev(r);
+    return vrSignatures(r).filter(s => s && (!s.rev || s.rev === rev));
+}
+/* The one rule the whole workflow exists for: money moves only once a request
+   carries two signatures from two different people, on what it now says. */
+function vrIsApproved(r){ return !!r && r.status === 'Approved' && vrValidSignatures(r).length >= 2; }
+
+/* Fold another copy of the same request (another device, another tab, the
+   stored copy) into this one. Every merge path uses this.
+
+   An approved virement edited to a new amount went back to Pending here — and
+   then got its approval straight back: the save re-read the stored copy and
+   restored "Approved", and the cloud merge copied the original two signatures
+   onto the NEW amount, so $444,288.25 went through on signatures given for
+   $44,288.25. A ruling now only ever moves between copies that ask for the
+   same thing. When the two copies differ, the one edited later (editedAt) wins
+   whole, and neither side's ruling crosses over. When they are the same: two
+   signing copies are united (two different people make it Approved, the
+   menu syncs used to drop a first signature), otherwise the later ruling wins
+   and a same-instant disagreement goes back to Pending. Returns whether the
+   local copy changed. */
+function vrMergeRequest(local, cr){
+    if (!local || !cr || local === cr) return false;
+    const edited = r => Date.parse(r.editedAt || '') || 0;
+    if (vrContentRev(local) !== vrContentRev(cr)) {
+        if (edited(cr) > edited(local)) {
+            const copy = JSON.parse(JSON.stringify(cr));
+            Object.keys(local).forEach(k => { if (!(k in copy)) delete local[k]; });
+            Object.assign(local, copy);
+            return true;
+        }
+        return false;
+    }
+    const decided = st => st === 'Approved' || st === 'Rejected' || st === 'Awaiting Second Signature';
+    const signing = st => st === 'Approved' || st === 'Awaiting Second Signature';
+    const at = r => Date.parse(r.approvalAt || r.approvalDate || '') || 0;
+    if (signing(local.status) && signing(cr.status)) {
+        const seen = {}, sigs = [];
+        vrValidSignatures(local).concat(vrValidSignatures(cr)).forEach(sg => {
+            const k = sg.id || sg.name;
+            if (!k || seen[k]) return;
+            seen[k] = 1; sigs.push(sg);
+        });
+        if (!sigs.length || sigs.length === vrSignatures(local).length) return false;
+        sigs.sort((a, b) => (Date.parse(a.at || '') || 0) - (Date.parse(b.at || '') || 0));
+        local.signatures = sigs;
+        if (sigs.length >= 2) { local.status = 'Approved'; local.approvedBy = sigs.map(sg => sg.name).join(' and '); }
+        else { local.status = 'Awaiting Second Signature'; local.approvedBy = sigs[0].name + ' (awaiting a second signature)'; }
+        local.approvalAt = sigs[sigs.length - 1].at || local.approvalAt;
+        local.approvalDate = String(local.approvalAt || '').split('T')[0];
+        return true;
+    }
+    const cloudDecided = decided(cr.status), localDecided = decided(local.status);
+    if (cloudDecided && (!localDecided || at(cr) > at(local))) {
+        if (local.status === cr.status && local.approvalAt === (cr.approvalAt || cr.approvalDate) &&
+            JSON.stringify(vrSignatures(local)) === JSON.stringify(vrValidSignatures(cr))) return false;
+        local.status = cr.status;
+        local.approvedBy = cr.approvedBy;
+        local.approvalDate = cr.approvalDate;
+        local.approvalAt = cr.approvalAt || cr.approvalDate;
+        local.approvalComment = cr.approvalComment;
+        local.signatures = vrValidSignatures(cr);
+        return true;
+    }
+    if (cloudDecided && localDecided && at(cr) === at(local) && cr.status !== local.status) {
+        // Same instant, different answers: the safe reading of a disagreement
+        // about money is that nothing was agreed.
+        local.status = 'Pending';
+        local.signatures = [];
+        local.approvedBy = '';
+        local.approvalComment = 'Two devices recorded different decisions at the same moment — this needs signing again.';
+        return true;
+    }
+    return false;
+}
 
 function describeSigner(){
     const el = document.getElementById('adminGateWho');
@@ -3104,8 +3199,12 @@ function renderAdminApprovals(){
         return;
     }
 
+    // Same position map as the request list: no indexOf-per-row over the
+    // whole accumulated history.
+    const _vrPos2 = new Map();
+    virementRequests.forEach((vr, vi) => { if (!_vrPos2.has(vr)) _vrPos2.set(vr, vi); });
     container.innerHTML = filtered.map(r => {
-        let globalIdx = virementRequests.indexOf(r);
+        let globalIdx = _vrPos2.has(r) ? _vrPos2.get(r) : virementRequests.indexOf(r);
         let badge = vrIsApproved(r) ? '<span class="badge badge-approved">Approved</span>'
             : r.status === 'Rejected' ? '<span class="badge badge-rejected">Rejected</span>'
             : r.status === 'Awaiting Second Signature' ? '<span class="badge badge-pending">Awaiting second signature</span>'
@@ -3177,7 +3276,8 @@ function approveVirement(idx){
         // used to be unorderable, so a sync could leave one device showing the
         // request approved and another showing it rejected, for ever.
         at: new Date().toISOString(),
-        comment: comment
+        comment: comment,
+        rev: vrContentRev(r)          // the content this signature agrees to
     });
 
     if(r.signatures.length >= 2){
@@ -3216,7 +3316,7 @@ function rejectVirement(idx){
     // but it is recorded in that person's name, like every other decision here.
     const nowIso = new Date().toISOString();
     r.status = 'Rejected';
-    r.signatures = [{ id: u.id, name: u.name, role: u.role, at: nowIso, comment: commentText, decision: 'Rejected' }];
+    r.signatures = [{ id: u.id, name: u.name, role: u.role, at: nowIso, comment: commentText, decision: 'Rejected', rev: vrContentRev(r) }];
     r.approvedBy = u.name;
     r.approvalDate = nowIso.split('T')[0];
     r.approvalAt = nowIso;
@@ -3262,40 +3362,8 @@ async function autoSaveApprovalToCloud() {
                             if (!(cr.id in localMap)) {
                                 virementRequests.push(cr);
                             } else {
-                                // Bidirectional approval sync: prefer the most recent
-                                /* Rulings are merged by the moment they were made.
-
-                                   This used to compare a plain YYYY-MM-DD date,
-                                   so two decisions made on the SAME day never
-                                   ordered: a rejection here and an approval
-                                   there each kept their own copy, and the two
-                                   devices disagreed for ever, each printing a
-                                   stamp asserting its own version. A ruling now
-                                   carries the full moment it was made, and the
-                                   signatures travel with it so a request cannot
-                                   arrive "approved" with nobody's name on it. */
-                                const local = virementRequests[localMap[cr.id]];
-                                const decided = st => st === 'Approved' || st === 'Rejected' || st === 'Awaiting Second Signature';
-                                const at = r => Date.parse(r.approvalAt || r.approvalDate || '') || 0;
-                                const cloudDecided = decided(cr.status);
-                                const localDecided = decided(local.status);
-                                const takeCloud = cloudDecided && (!localDecided || at(cr) > at(local));
-                                if (takeCloud) {
-                                    local.status = cr.status;
-                                    local.approvedBy = cr.approvedBy;
-                                    local.approvalDate = cr.approvalDate;
-                                    local.approvalAt = cr.approvalAt || cr.approvalDate;
-                                    local.approvalComment = cr.approvalComment;
-                                    local.signatures = Array.isArray(cr.signatures) ? cr.signatures : [];
-                                } else if (cloudDecided && localDecided && at(cr) === at(local) && cr.status !== local.status) {
-                                    // Same instant, different answers: refuse to
-                                    // guess. The safe reading of a disagreement
-                                    // about money is that nothing was agreed.
-                                    local.status = 'Pending';
-                                    local.signatures = [];
-                                    local.approvedBy = '';
-                                    local.approvalComment = 'Two devices recorded different decisions at the same moment — this needs signing again.';
-                                }
+                                // The one shared rule — see vrMergeRequest.
+                                vrMergeRequest(virementRequests[localMap[cr.id]], cr);
                             }
                         });
                         saveAllData();
@@ -3417,10 +3485,7 @@ function deduplicateRequests() {
         if (deletedRequestIds.has(r.id)) continue; // also strip deleted
         if (r.id in seen) {
             // If this duplicate has an approval and the kept one doesn't, replace
-            const kept = unique[seen[r.id]];
-            if (kept.status === 'Pending' && (r.status === 'Approved' || r.status === 'Rejected')) {
-                unique[seen[r.id]] = r;
-            }
+            vrMergeRequest(unique[seen[r.id]], r);
             continue;
         }
         seen[r.id] = unique.length;
@@ -3449,15 +3514,9 @@ function saveAllData(){
                             // New request from another tab — add it
                             virementRequests.push(r);
                         } else {
-                            // Existing request — sync approval state if the stored
-                            // version has a newer approval we don't have yet
-                            const local = virementRequests[memoryMap[r.id]];
-                            if (local.status === 'Pending' && (r.status === 'Approved' || r.status === 'Rejected')) {
-                                local.status = r.status;
-                                local.approvedBy = r.approvedBy;
-                                local.approvalDate = r.approvalDate;
-                                local.approvalComment = r.approvalComment;
-                            }
+                            // Existing request — the one shared rule (vrMergeRequest):
+                            // a stored ruling is taken only for the same content.
+                            vrMergeRequest(virementRequests[memoryMap[r.id]], r);
                         }
                     });
                 }
@@ -3589,15 +3648,28 @@ function clearFormDraft(){
 
 // ── Autosave timer ───────────────────────────────────────
 // Merge-saves submitted requests AND captures form draft every 15 seconds.
+// The heavy steps are gated: saveAllData() re-parses, dedupes and re-writes the
+// whole request history, and saveCloudCache() re-serialises a mirror of every
+// cashbook quarter — running both every 15 seconds on an idle page is what a
+// user feels as the whole app dragging. When nothing has been written since
+// the last tick, only the cheap form-draft capture runs.
+var _virementLastTickWrites = -1;
 function startAutosave(){
     if (_autosaveInterval) clearInterval(_autosaveInterval);
     _autosaveInterval = setInterval(function(){
+        // 2. runs unconditionally: the draft lives in the FORM, not the store,
+        // so the write counter cannot see it changing.
+        captureFormDraft();
+        var w = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -1;
+        if (w >= 0 && w === _virementLastTickWrites) return;   // nothing new to persist
         // 1. Merge-save the authoritative virementRequests array
         saveAllData();
-        // 2. Capture whatever is in the form right now
-        captureFormDraft();
         // 3. Also persist the cloud/budget cache
         saveCloudCache();
+        // Absorb our own writes so the next idle tick is free.
+        if (window.CESTISStore && typeof CESTISStore.writes === 'number') {
+            _virementLastTickWrites = CESTISStore.writes;
+        }
     }, AUTOSAVE_INTERVAL_MS);
     console.log('⏱️ Autosave started – saving every ' + (AUTOSAVE_INTERVAL_MS / 1000) + 's');
 }
@@ -4481,39 +4553,12 @@ async function autoMergeFromCloudOnLoad() {
                     virementRequests.push(cr);
                     changed = true;
                 } else {
-                    // Bidirectional approval sync: prefer the most recent approval
+                    // The one shared rule — see vrMergeRequest.
                     const local = virementRequests[localMap[cr.id]];
-                    /* Ordered by the MOMENT a ruling was made, not by its date.
-                       A plain YYYY-MM-DD comparison cannot separate two decisions
-                       taken on the same day, so a rejection here and an approval
-                       there each kept their own copy and the two devices
-                       disagreed for ever. The signatures travel with the ruling,
-                       so a request cannot arrive approved with nobody's name on
-                       it. */
+                    if (vrMergeRequest(local, cr)) changed = true;
                     const _decided = st => st === 'Approved' || st === 'Rejected' || st === 'Awaiting Second Signature';
-                    const _at = rr => Date.parse(rr.approvalAt || rr.approvalDate || '') || 0;
-                    const cloudHasApproval = _decided(cr.status);
                     const localHasApproval = _decided(local.status);
-                    const localIsPending = local.status === 'Pending';
                     const cloudIsPending = cr.status === 'Pending';
-                    const cloudDateNewer = _at(cr) > _at(local);
-                    if (cloudHasApproval && (localIsPending || cloudDateNewer)) {
-                        local.status = cr.status;
-                        local.approvedBy = cr.approvedBy;
-                        local.approvalDate = cr.approvalDate;
-                        local.approvalAt = cr.approvalAt || cr.approvalDate;
-                        local.approvalComment = cr.approvalComment;
-                        local.signatures = Array.isArray(cr.signatures) ? cr.signatures : [];
-                        changed = true;
-                    } else if (cloudHasApproval && localHasApproval && _at(cr) === _at(local) && cr.status !== local.status) {
-                        // Same instant, opposite answers: the safe reading of a
-                        // disagreement about money is that nothing was agreed.
-                        local.status = 'Pending';
-                        local.signatures = [];
-                        local.approvedBy = '';
-                        local.approvalComment = 'Two devices recorded different decisions at the same moment — this needs signing again.';
-                        changed = true;
-                    }
                     // Detect if local has an approval that cloud is missing
                     if (localHasApproval && cloudIsPending) {
                         localHasApprovalsCloudMissing = true;
@@ -5282,17 +5327,14 @@ async function syncFromCloud() {
             // Keep local-only requests (not present in cloud), excluding deleted
             const localOnly = virementRequests.filter(r => r.id && !(r.id in cloudMap) && !deletedRequestIds.has(r.id));
 
-            // For requests in both: prefer the one with the most recent
-            // approval action, falling back to the cloud version
+            // For requests in both: the one shared rule (vrMergeRequest) — a
+            // first signature is no longer dropped, and rulings are ordered by
+            // the moment they were made, not the date.
             const merged = cloudRequests.map(cloudReq => {
                 const localReq = virementRequests.find(r => r.id === cloudReq.id);
                 if (!localReq) return cloudReq;
-                // If local has a newer approval than cloud, keep local approval
-                const localHasApproval = localReq.status === 'Approved' || localReq.status === 'Rejected';
-                const cloudHasApproval = cloudReq.status === 'Approved' || cloudReq.status === 'Rejected';
-                if (localHasApproval && !cloudHasApproval) return localReq;
-                if (localHasApproval && cloudHasApproval && localReq.approvalDate > cloudReq.approvalDate) return localReq;
-                return cloudReq;
+                vrMergeRequest(localReq, cloudReq);
+                return localReq;
             });
 
             virementRequests = merged.concat(localOnly);
@@ -5449,23 +5491,10 @@ async function mergeFromCloud() {
                     virementRequests.push(cloudRequest);
                     mergeStats.requestsAdded++;
                 } else {
-                    // Existing request — sync approval state if cloud has a
-                    // newer approval (Approved/Rejected beats Pending, or
-                    // a later approvalDate wins)
-                    const local = virementRequests[localMap[cloudRequest.id]];
-                    const cloudHasApproval = cloudRequest.status === 'Approved' || cloudRequest.status === 'Rejected';
-                    const localIsPending = local.status === 'Pending';
-                    const cloudDateNewer = cloudRequest.approvalDate && (!local.approvalDate || cloudRequest.approvalDate > local.approvalDate);
-                    if (cloudHasApproval && (localIsPending || cloudDateNewer)) {
-                        local.status = cloudRequest.status;
-                        local.approvedBy = cloudRequest.approvedBy;
-                        local.approvalDate = cloudRequest.approvalDate;
-                        local.approvalComment = cloudRequest.approvalComment;
-                        mergeStats.approvalsUpdated++;
-                    }
-                    // Also sync any field edits from cloud if cloud version is newer
-                    if (cloudRequest.date && local.date && cloudRequest.date > local.date) {
-                        Object.assign(local, cloudRequest);
+                    // Existing request — the one shared rule (vrMergeRequest):
+                    // the later edit wins whole, a ruling moves only between
+                    // copies asking for the same thing.
+                    if (vrMergeRequest(virementRequests[localMap[cloudRequest.id]], cloudRequest)) {
                         mergeStats.approvalsUpdated++;
                     }
                 }

@@ -60,8 +60,22 @@ FinanceDoc.init({
 CESTISPageCloud.init({
   page: 'Invoice',
   file: 'CESTIS_Finance_Invoices.json',
-  keys: ['cestis_finance_invoices', 'cestis_finance_convert']
+  keys: ['cestis_finance_invoices', 'cestis_finance_convert', 'cestis_finance_invoices_deleted'],
+  // A pull lands in storage while the page holds its list in memory; fold it
+  // in, or the next save writes the stale list back over it.
+  onRestore: function () { try { if (window.FinanceDoc && FinanceDoc.reload) FinanceDoc.reload(); } catch (e) {} }
 });
 </script>
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/findoc-model.js?v=1"></script>
+<script src="megadata/pages/findoc-page.js?v=1"></script>
 </body>
 </html>

@@ -629,6 +629,10 @@
       });
     });
     if (aliases.length) base.certNoAliases = aliases; else delete base.certNoAliases;
+    // A withdrawal (or a re-certification) made on either copy stands until a
+    // later decision, whichever copy was edited last for other reasons; the
+    // newest signature travels too.
+    if (Core.certs) Core.certs.mergeLifecycle(base, other || {});
     return base;
   };
 
@@ -1046,7 +1050,15 @@
       });
       data.userAccounts = data.userAccounts.filter(function (u) {
         if (!u || !u.studentDataId) return true;   // never touch system/staff accounts
-        return bestAcct[u.studentDataId] === u;    // keep only the winner for each student
+        var win = bestAcct[u.studentDataId];
+        if (win === u) return true;                // the winner for each student
+        // Two logins that each hold a password somebody set are two people as
+        // far as anyone can tell (two trainees whose records collapsed after one
+        // renamed herself to the other's name). Silently deleting one locked a
+        // real person out with no trace; both stay, for an administrator to
+        // settle. Only a password-less placeholder is folded away.
+        var real = function (a) { return Core.accountAccess.hasPassword(a) && !Core.accountAccess.isSeededLogin(a); };
+        return real(u) && real(win) && u.id !== win.id;
       });
     }
 
@@ -1261,7 +1273,16 @@
                                // does not find locally, so removing one without writing the
                                // removal down means the next sync hands it straight back —
                                // and a login an administrator revoked is live again.
-                               'voctrain_deletedUserIds'];
+                               'voctrain_deletedUserIds',
+                               // School Fee documents and fee-structure programmes
+                               // ("key|when" entries, so a name deleted and later
+                               // created again can live).
+                               'cestiSchoolFeeDeletedDocumentIds', 'cestiSchoolFeeDeletedFeeKeys',
+                               // Time-clock sessions an administrator deleted.
+                               'cestisTimeRecordTombstones',
+                               // Deleted invoices, quotes and purchase orders (by id).
+                               'cestis_finance_invoices_deleted', 'cestis_finance_quotes_deleted',
+                               'cestis_finance_pos_deleted'];
 
   // Is this key a list of deletions — one that must be merged by union rather
   // than by "the newer write wins"?
@@ -2788,6 +2809,723 @@
       applyLookToAll: applyLookToAll,
       deriveCompetencies: deriveCompetencies,
       page2Content: page2Content
+    };
+  })();
+
+  /* ==========================================================================
+     CERTIFICATES — numbers, issuing and withdrawing, eligibility, signatures
+
+     WHY THIS EXISTS
+     ---------------
+     A certificate was issued in three places, each with its own rules. The
+     Student Progress page — the one the administrator actually uses — drew
+     four RANDOM digits every time "Certified" was saved, so re-saving a
+     trainee whose certificate was already printed gave them a new number and
+     the paper stopped verifying; two trainees of one programme shared a number
+     about one cohort in five; an intake key ("02. Electrical") became the
+     prefix; and moving a trainee back to In Training left the certificate on
+     the record, where the approvals reconcile promoted them straight back.
+     The dashboard's own (correct) rules sat in a function nothing called.
+
+     Every path now goes through this one place:
+       ensureNumber(s, ctx)   the number a certificate carries: the one it was
+                              issued if it has one — a number, once issued,
+                              NEVER changes — else the one it carried before a
+                              withdrawal, else the approved one, else a new one;
+       applyStage(s, stage)   the Update Stage rule, for every page;
+       revoke(s, approvals)   withdrawal keeps the number (as an alias) and the
+                              history, and stamps when, who and why, so the
+                              certificate verifies as REVOKED rather than
+                              vanishing — and so the decision outlives a sync.
+
+     New numbers are PREFIX-YEAR-NNNN-XX: the four digits and two letters are
+     derived from the trainee (the natural key their stable id is made from),
+     so every device mints the same number for the same person, and the space
+     is wide enough (5.2 million per prefix and year) that two people meeting
+     on one number is a practical impossibility rather than a one-in-five
+     event. Numbers already issued in the old PREFIX-YEAR-NNNN form are never
+     touched: they stay exactly as printed.
+     ========================================================================== */
+  Core.certs = (function () {
+    var ISSUED = { certified: 1, collected: 1 };
+    // Two letters from these: no I or O to be read as 1 or 0.
+    var LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+    function t(v) { var n = Date.parse(v || ''); return isNaN(n) ? 0 : n; }
+    function nowIso(ctx) { return (ctx && ctx.now) || new Date().toISOString(); }
+    function longDate(ctx) {
+      var d = ctx && ctx.now ? new Date(ctx.now) : new Date();
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+    }
+
+    function numberKey(no) { return String(no == null ? '' : no).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+    // The programme's first two letters, with an intake key such as "02. " out
+    // of the way — and never a TypeError for a record with no programme.
+    function numberPrefix(course) {
+      var bare = String(course || '').replace(/^\s*\d+\.\s*/, '').trim();
+      return (bare.substring(0, 2).toUpperCase() || 'CE');
+    }
+    function rememberAlias(student, no) {
+      if (!student || !no) return false;
+      var key = numberKey(no);
+      if (!key) return false;
+      if (!Array.isArray(student.certNoAliases)) student.certNoAliases = [];
+      if (student.certNoAliases.some(function (a) { return numberKey(a) === key; })) return false;
+      student.certNoAliases.push(String(no).trim());
+      return true;
+    }
+    // The number this record was issued before (the latest alias), for a
+    // re-certification to take back rather than mint a new one.
+    function previousNumber(student) {
+      var list = (student && Array.isArray(student.certNoAliases)) ? student.certNoAliases.filter(function (a) { return numberKey(a); }) : [];
+      return list.length ? list[list.length - 1] : null;
+    }
+    function approvalOf(student, approvals) {
+      if (!student || !Array.isArray(approvals)) return null;
+      for (var i = 0; i < approvals.length; i++) {
+        if (approvals[i] && approvals[i].studentId === student.id) return approvals[i];
+      }
+      return null;
+    }
+    function approvedNumber(student, approvals) {
+      var a = approvalOf(student, approvals);
+      return (a && a.certNo) ? a.certNo : null;
+    }
+    function hasNumber(student, no, approvals) {
+      if (!student || !no) return false;
+      var key = numberKey(no);
+      if (!key) return false;
+      if (numberKey(student.certNo) === key) return true;
+      if (Array.isArray(student.certNoAliases) && student.certNoAliases.some(function (a) { return numberKey(a) === key; })) return true;
+      return numberKey(approvedNumber(student, approvals)) === key;
+    }
+    // What a trainee's number is derived from: the natural key their stable id
+    // is a hash of, so it is the same on every device.
+    function numberSeed(student) {
+      if (!student) return '';
+      var key = '';
+      try { key = Core.naturalKey(student) || ''; } catch (e) {}
+      if (!key) key = String(student.name || '').toLowerCase().trim() + '|' + String(student.course || '').toLowerCase().trim();
+      return key === '|' ? '' : key;
+    }
+    function shape(prefix, year, n) {
+      var digits = String(1000 + (n % 9000));
+      var rest = Math.floor(n / 9000);
+      var letters = LETTERS.charAt(rest % 24) + LETTERS.charAt(Math.floor(rest / 24) % 24);
+      return prefix + '-' + year + '-' + digits + '-' + letters;
+    }
+    function cryptoObj() {
+      return (root && root.crypto) || (typeof globalThis !== 'undefined' && globalThis.crypto) || null;
+    }
+    function randomInt() {
+      try {
+        var c = cryptoObj();
+        if (c && c.getRandomValues) { var a = new Uint32Array(2); c.getRandomValues(a); return (a[0] % 2097152) * 4294967296 + a[1]; }
+      } catch (e) {}
+      return Math.floor(Math.random() * 9007199254740991);
+    }
+    /* PREFIX-YEAR-NNNN-XX, unique across the roll it is given. Derived from the
+       trainee (the same answer on every device, whatever order the roll is in);
+       on the rare clash with SOMEBODY ELSE on this roll the next derivation is
+       tried, which is the same for this trainee everywhere too. With no trainee
+       to derive from, a random draw from the same space. */
+    function generateNumber(prefix, student, roll) {
+      prefix = String(prefix || 'CE').toUpperCase();
+      var existing = {};
+      (Array.isArray(roll) ? roll : []).forEach(function (st) {
+        if (!st || (student && (st === student || (student.id != null && st.id === student.id)))) return;
+        if (st.certNo) existing[numberKey(st.certNo)] = true;
+        (Array.isArray(st.certNoAliases) ? st.certNoAliases : []).forEach(function (a) { existing[numberKey(a)] = true; });
+      });
+      var yearMatch = student && student.certDate ? /\b(20\d\d)\b/.exec(String(student.certDate)) : null;
+      var year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
+      var seed = numberSeed(student);
+      var c, round;
+      var derive = function (sd, r) { return shape(prefix, year, parseInt(Core.hashString(sd + '|cert|' + r), 36) || 0); };
+      if (seed) {
+        // Who else on this roll is waiting for a number under this prefix and
+        // year, and which number they would take first. When two of them want
+        // the same one, the trainee whose seed sorts first has it — whichever
+        // of the two this device happens to number first — so two devices
+        // numbering the same roll in different orders still agree.
+        var reserved = {};
+        (Array.isArray(roll) ? roll : []).forEach(function (st) {
+          if (!st || st === student || (student && student.id != null && st.id === student.id)) return;
+          if (st.certNo || !ISSUED[st.stage] || numberPrefix(st.course) !== prefix) return;
+          var ym = st.certDate ? /\b(20\d\d)\b/.exec(String(st.certDate)) : null;
+          if ((ym ? ym[1] : String(new Date().getFullYear())) !== year) return;
+          var ps = numberSeed(st);
+          if (ps && ps < seed) reserved[numberKey(derive(ps, 0))] = true;
+        });
+        for (round = 0; round < 64; round++) {
+          c = derive(seed, round);
+          if (!existing[numberKey(c)] && !reserved[numberKey(c)]) return c;
+        }
+      }
+      for (round = 0; round < 64; round++) {
+        c = shape(prefix, year, randomInt());
+        if (!existing[numberKey(c)]) return c;
+      }
+      return prefix + '-' + year + '-' + Date.now().toString(36).toUpperCase();
+    }
+    /* THE one place a certificate gets its number. ctx: { roll, approvals }. */
+    function ensureNumber(student, ctx) {
+      if (!student) return null;
+      if (student.certNo) return student.certNo;          // a number, once issued, never changes
+      ctx = ctx || {};
+      student.certNo = previousNumber(student) || approvedNumber(student, ctx.approvals) ||
+        generateNumber(numberPrefix(student.course), student, ctx.roll);
+      return student.certNo;
+    }
+
+    /* --- Withdrawal ------------------------------------------------------- */
+    // A withdrawal stands until a LATER re-certification: two stamps, and the
+    // newer of them decides, so either decision survives a sync with a device
+    // that has not heard of it yet.
+    function isRevoked(student) {
+      if (!student) return false;
+      var r = t(student.certRevokedAt);
+      return r > 0 && r > t(student.certReinstatedAt);
+    }
+    function pushHistory(student, entry) {
+      if (!Array.isArray(student.certHistory)) student.certHistory = [];
+      student.certHistory.push(entry);
+    }
+    /* Withdraw a certificate. The number stays on record (as an alias, and in
+       the history), so the paper still resolves — as revoked — and a later
+       re-certification reuses it. The download approval is switched off with a
+       decision time, so a stale "approved" copy from another device cannot
+       outvote it. opts: { by, reason, now }. Returns the number withdrawn. */
+    function revoke(student, approvals, opts) {
+      if (!student) return null;
+      opts = opts || {};
+      var at = nowIso(opts);
+      var no = student.certNo || previousNumber(student) || approvedNumber(student, approvals);
+      if (student.certNo) rememberAlias(student, student.certNo);
+      pushHistory(student, { event: 'revoked', certNo: no || null, certDate: student.certDate || null,
+        at: at, by: opts.by || '', reason: opts.reason || '' });
+      student.certRevokedAt = at;
+      student.certRevokedBy = opts.by || '';
+      student.certRevokedReason = opts.reason || '';
+      student.certNo = null;
+      student.certDate = null;
+      student.certCollected = false;
+      var a = approvalOf(student, approvals);
+      if (a) {
+        a.approved = false;
+        a.revokedAt = at;
+        a.revokedBy = opts.by || '';
+        if (opts.reason) a.revokedReason = opts.reason;
+      }
+      return no || null;
+    }
+    function reinstate(student, opts) {
+      opts = opts || {};
+      var at = nowIso(opts);
+      student.certReinstatedAt = at;
+      pushHistory(student, { event: 'reinstated', certNo: student.certNo || null, certDate: student.certDate || null, at: at, by: opts.by || '' });
+    }
+
+    /* The Update Stage rule, the same on every page.
+       ctx: { roll, approvals, by, reason, now }.
+       Returns { issued, revoked, number }. */
+    function applyStage(student, newStage, ctx) {
+      ctx = ctx || {};
+      var out = { issued: false, revoked: false, number: null };
+      if (!student) return out;
+      var prev = student.stage;
+      student.stage = newStage;
+      if (ISSUED[newStage]) {
+        if (newStage === 'certified') student.progress = 90;
+        else { student.progress = 100; student.certCollected = true; }
+        if (!student.certDate) student.certDate = longDate(ctx);
+        var had = !!student.certNo;
+        out.number = ensureNumber(student, ctx);
+        out.issued = !had;
+        if (isRevoked(student)) reinstate(student, ctx);
+      } else {
+        if (newStage === 'incomplete') student.progress = Math.min(parseFloat(student.progress) || 0, 40);
+        // Demotion: the certificate is withdrawn, not silently left on the
+        // record (where the approvals reconcile promoted the trainee straight
+        // back) and not silently deleted either.
+        if (ISSUED[prev] || student.certNo) {
+          out.number = revoke(student, ctx.approvals, ctx);
+          out.revoked = true;
+        }
+      }
+      student.lastModified = nowIso(ctx);
+      return out;
+    }
+
+    /* Bring the certificate's own state across from another copy of the same
+       record: every number (as aliases), the newest withdrawal and the newest
+       re-certification, the history, and the newest signature. Field merges
+       that keep one whole value cannot do this — they would drop a withdrawal
+       made on the other device. Returns true when `local` changed. */
+    function mergeState(local, other) {
+      if (!local || !other || local === other) return false;
+      var changed = false;
+      if (other.certNo && local.certNo && numberKey(other.certNo) !== numberKey(local.certNo)) {
+        if (rememberAlias(local, local.certNo)) changed = true;
+        if (rememberAlias(local, other.certNo)) changed = true;
+      }
+      (Array.isArray(other.certNoAliases) ? other.certNoAliases : []).forEach(function (a) { if (rememberAlias(local, a)) changed = true; });
+      return mergeLifecycle(local, other) || changed;
+    }
+    /* The same, without the numbers (a caller that settles aliases itself).
+       Never mutates `other`, nor an array `local` may share with it. */
+    function mergeLifecycle(local, other) {
+      if (!local || !other || local === other) return false;
+      var changed = false;
+      if (t(other.certRevokedAt) > t(local.certRevokedAt)) {
+        local.certRevokedAt = other.certRevokedAt;
+        local.certRevokedBy = other.certRevokedBy || '';
+        local.certRevokedReason = other.certRevokedReason || '';
+        changed = true;
+      }
+      if (t(other.certReinstatedAt) > t(local.certReinstatedAt)) { local.certReinstatedAt = other.certReinstatedAt; changed = true; }
+      if (Array.isArray(other.certHistory) && other.certHistory.length) {
+        var seen = {}, add = [];
+        var mine = Array.isArray(local.certHistory) ? local.certHistory : [];
+        mine.forEach(function (h) { if (h) seen[h.event + '|' + h.at] = true; });
+        other.certHistory.forEach(function (h) {
+          if (!h || seen[h.event + '|' + h.at]) return;
+          seen[h.event + '|' + h.at] = true;
+          add.push(JSON.parse(JSON.stringify(h)));
+        });
+        if (add.length) {
+          local.certHistory = mine.concat(add).sort(function (a, b) { return t(a && a.at) - t(b && b.at); });
+          changed = true;
+        }
+      }
+      if (other.certSig && other.certSig.sig && (!local.certSig || t(other.certSig.signedAt) > t(local.certSig.signedAt))) {
+        local.certSig = JSON.parse(JSON.stringify(other.certSig));
+        changed = true;
+      }
+      return changed;
+    }
+
+    /* Who a certificate number belongs to. Ambiguity — one number held by two
+       different people, which only two devices both minting before either
+       synced can produce — is reported as such, so the employer is told to
+       contact the Centre rather than shown a name that may be the wrong one. */
+    function bareCourse(s) { return Core.normCourse(String(s || '').replace(/^\s*\d+\.\s*/, '')); }
+    function samePerson(a, b) {
+      if (!a || !b) return false;
+      if (a === b || (a.id != null && a.id === b.id)) return true;
+      return Core.sameName(a.name, b.name) && bareCourse(a.course) === bareCourse(b.course);
+    }
+    function resolve(query, roll, approvals) {
+      var key = numberKey(query);
+      var none = { student: null, number: '', via: '', ambiguous: false };
+      if (!key) return none;
+      roll = Array.isArray(roll) ? roll : [];
+      var hits = [];
+      roll.forEach(function (s) {
+        if (!s) return;
+        if (numberKey(s.certNo) === key) { hits.push({ student: s, number: s.certNo, via: 'number' }); return; }
+        if (Array.isArray(s.certNoAliases)) {
+          var a = s.certNoAliases.filter(function (x) { return numberKey(x) === key; })[0];
+          if (a) hits.push({ student: s, number: a, via: 'alias' });
+        }
+      });
+      if (hits.length) {
+        var first = hits.filter(function (h) { return h.via === 'number'; })[0] || hits[0];
+        var others = hits.filter(function (h) { return !samePerson(h.student, first.student); });
+        return { student: first.student, number: first.number, via: first.via, ambiguous: others.length > 0 };
+      }
+      var appr = (Array.isArray(approvals) ? approvals : []).filter(function (d) { return d && numberKey(d.certNo) === key; })[0];
+      if (appr) {
+        var hit = roll.filter(function (s) { return s && s.id === appr.studentId; })[0] ||
+          roll.filter(function (s) { return s && Core.sameName(s.name, appr.name) && Core.normCourse(s.course || '') === Core.normCourse(appr.course || ''); })[0];
+        if (hit) return { student: hit, number: appr.certNo, via: 'approval', ambiguous: false };
+      }
+      return none;
+    }
+    /* 'valid' | 'revoked' for a record a number was found on ('none' without). */
+    function status(student) {
+      if (!student) return 'none';
+      if (isRevoked(student) || !student.certNo || !ISSUED[student.stage]) return 'revoked';
+      return 'valid';
+    }
+
+    /* --- Download approvals ------------------------------------------------
+       A revocation is a decision too. Approved used to beat not-approved
+       outright, so an "approved" copy still sitting on another device won
+       every merge and switched a revoked download back on. Once either copy
+       carries a revocation stamp, the LATER decision (approval date or
+       revocation date) wins. Downloads are counted per device and merged by
+       the larger count for each device, so two devices' downloads add up
+       instead of one device's being dropped. */
+    function decidedAt(c) { return Math.max(t(c && c.approvedDate), t(c && c.revokedAt)); }
+    function pickApproval(a, b) {
+      if (a.revokedAt || b.revokedAt) {
+        var da = decidedAt(a), db = decidedAt(b);
+        if (da !== db) return db > da ? b : a;
+      }
+      return Core.approvalScore(b) > Core.approvalScore(a) ? b : a;
+    }
+    function downloadMap(c) {
+      return (c && c.downloadsByDevice && typeof c.downloadsByDevice === 'object') ? c.downloadsByDevice : null;
+    }
+    function sumMap(m) { var s = 0; Object.keys(m).forEach(function (k) { s += Math.max(0, parseInt(m[k], 10) || 0); }); return s; }
+    function mergeApprovals(a, b) {
+      if (!a) return b || null;
+      if (!b) return a;
+      var w = pickApproval(a, b), l = w === a ? b : a;
+      var mw = downloadMap(w), ml = downloadMap(l);
+      var cw = parseInt(w.downloadCount, 10) || 0, cl = parseInt(l.downloadCount, 10) || 0;
+      var lastW = t(w.lastDownloaded), lastL = t(l.lastDownloaded);
+      if (!mw && !ml && cw >= cl && lastW >= lastL) return w;
+      var map = {};
+      [mw, ml].forEach(function (m) {
+        if (!m) return;
+        Object.keys(m).forEach(function (k) { map[k] = Math.max(map[k] || 0, parseInt(m[k], 10) || 0); });
+      });
+      var out = Object.assign({}, w);
+      if (mw || ml) out.downloadsByDevice = map;
+      out.downloadCount = Math.max(cw, cl, sumMap(map));
+      if (lastL > lastW) out.lastDownloaded = l.lastDownloaded;
+      return out;
+    }
+    /* Record one download made on this device. */
+    function recordDownload(approval, deviceId, now) {
+      if (!approval) return;
+      var m = downloadMap(approval);
+      if (!m) {
+        m = {};
+        var earlier = parseInt(approval.downloadCount, 10) || 0;
+        if (earlier) m._earlier = earlier;   // counted before devices were told apart
+      }
+      var dev = String(deviceId || 'this-device');
+      m[dev] = (parseInt(m[dev], 10) || 0) + 1;
+      approval.downloadsByDevice = m;
+      approval.downloadCount = sumMap(m);
+      approval.lastDownloaded = now || new Date().toISOString();
+    }
+
+    /* --- Eligibility --------------------------------------------------------
+       What the Centre's own records say before a certificate is issued. It
+       WARNS — the administrator decides — and says plainly what it could not
+       check. opts: { qual, manualGrades, exams, examResults, feeRecord,
+       passMark (60, the transcript's COMPETENT line), minAttendance (70, the
+       dashboard's low-attendance line) }.
+       Returns { items:[{ key, label, state:'ok'|'warn'|'unknown', detail }], warnings }. */
+    function eligibility(student, opts) {
+      opts = opts || {};
+      student = student || {};
+      var pass = opts.passMark != null ? Number(opts.passMark) : 60;
+      var minAtt = opts.minAttendance != null ? Number(opts.minAttendance) : 70;
+      var items = [];
+      // 1. Assessments. The transcript system's own readiness verdict when this
+      // build has one (Core.transcriptReadiness — added by the transcript
+      // work, so it is looked for rather than assumed); else the transcript's
+      // units; else the online exams.
+      var T = Core.Transcript;
+      var ready = null;
+      if (typeof Core.transcriptReadiness === 'function') {
+        try { ready = Core.transcriptReadiness(student, opts); } catch (e) { ready = null; }
+      }
+      var rows = (!ready && opts.qual && T) ? T.effectiveGrades({ qual: opts.qual, studentId: student.id,
+        manualGrades: opts.manualGrades, exams: opts.exams, examResults: opts.examResults }) : [];
+      if (ready !== null && ready !== undefined && (typeof ready === 'boolean' || typeof ready === 'object')) {
+        var ok = typeof ready === 'boolean' ? ready : !!(ready.ready || ready.ok || ready.eligible);
+        var known = typeof ready === 'boolean' || ready.known !== false;
+        items.push({ key: 'units', label: 'Transcript results', state: !known ? 'unknown' : ok ? 'ok' : 'warn',
+          detail: String((typeof ready === 'object' && (ready.detail || ready.reason || ready.summary || ready.message)) || (ok ? 'Ready to certify' : 'Not yet ready to certify')) });
+      } else if (rows.length) {
+        var graded = rows.filter(function (r) { return r.grade != null && r.grade !== '' && !isNaN(Number(r.grade)); });
+        var nyc = graded.filter(function (r) { return Number(r.grade) < pass; });
+        var missing = rows.length - graded.length;
+        items.push({ key: 'units', label: 'Units competent (transcript)',
+          state: (!nyc.length && !missing) ? 'ok' : 'warn',
+          detail: (graded.length - nyc.length) + ' of ' + rows.length + ' units competent' +
+            (nyc.length ? '; not yet competent: ' + nyc.slice(0, 3).map(function (r) { return r.code || r.name; }).join(', ') + (nyc.length > 3 ? '…' : '') : '') +
+            (missing ? '; ' + missing + ' not graded' : '') });
+      } else {
+        var mine = (Array.isArray(opts.examResults) ? opts.examResults : []).filter(function (r) { return r && r.studentId === student.id; });
+        if (!mine.length) items.push({ key: 'units', label: 'Assessments passed', state: 'unknown', detail: 'No transcript units or exam results on record' });
+        else {
+          var failed = mine.filter(function (r) { return r.passed === false || (r.passed == null && Number(r.score) < pass); });
+          items.push({ key: 'units', label: 'Assessments passed', state: failed.length ? 'warn' : 'ok',
+            detail: (mine.length - failed.length) + ' of ' + mine.length + ' exam results passed' });
+        }
+      }
+      // 2. Attendance — the percentage the register keeps on the record.
+      var rawAtt = student.attendance;
+      var att = parseFloat(rawAtt);
+      if (rawAtt === undefined || rawAtt === null || rawAtt === '' || isNaN(att)) {
+        items.push({ key: 'attendance', label: 'Attendance', state: 'unknown', detail: 'No attendance recorded' });
+      } else {
+        items.push({ key: 'attendance', label: 'Attendance', state: att >= minAtt ? 'ok' : 'warn', detail: Math.round(att) + '% (the line is ' + minAtt + '%)' });
+      }
+      // 3. Fees — the trainee's School Fee record, when this device has one.
+      var f = opts.feeRecord;
+      if (!f) items.push({ key: 'fees', label: 'Fees cleared', state: 'unknown', detail: 'No School Fee record on this device' });
+      else {
+        var tuition = parseFloat(f.tuitionFee) || 0, paid = parseFloat(f.totalPaid) || 0;
+        if (tuition <= 0) items.push({ key: 'fees', label: 'Fees cleared', state: 'unknown', detail: 'No tuition set on the fee record' });
+        else items.push({ key: 'fees', label: 'Fees cleared', state: paid >= tuition ? 'ok' : 'warn',
+          detail: paid >= tuition ? 'Paid in full' : 'Owes $' + (tuition - paid).toFixed(2) });
+      }
+      return { items: items, warnings: items.filter(function (i) { return i.state === 'warn'; }).length };
+    }
+
+    /* --- Template lookup -----------------------------------------------------
+       Which template prints a trainee's certificate: the exact name, else the
+       Centre's mapping, else ONE unambiguous programme match (intake key and
+       letter case aside). Two candidates (a Level 2 and a Level 3), none, or
+       an empty programme is a miss — the page then says the template is
+       missing instead of quietly printing another programme's certificate. */
+    function levelOf(s) { var m = /(?:^|\s)(?:l|lvl|level)\s*(\d+)(?:\s|$)/i.exec(bareCourse(s)); return m ? m[1] : null; }
+    function templateKey(course, templates, courseMap) {
+      templates = templates || {};
+      course = String(course == null ? '' : course);
+      if (templates[course]) return course;
+      var mapped = courseMap ? courseMap[course] : null;
+      if (mapped && templates[mapped]) return mapped;
+      var want = bareCourse(course);
+      if (!want) return mapped || course;
+      var keys = Object.keys(templates);
+      var exact = keys.filter(function (k) { return bareCourse(k) === want; });
+      if (exact.length === 1) return exact[0];
+      if (exact.length > 1) return mapped || course;
+      var lvl = levelOf(course);
+      var loose = keys.filter(function (k) {
+        var b = bareCourse(k);
+        if (!b || (b.indexOf(want) === -1 && want.indexOf(b) === -1)) return false;
+        var kl = levelOf(k);
+        return !(lvl && kl && kl !== lvl);
+      });
+      if (loose.length === 1) return loose[0];
+      return mapped || course;
+    }
+
+    /* Saving a template from the editor keeps what the editor does not show:
+       the plan it was seeded from, its gender wording, any future field — and a
+       competency the administrator did not change stays "from the plan", so a
+       later re-seed can still refresh it. */
+    function keepTemplateProvenance(existing, edited) {
+      existing = existing || {};
+      var out = Object.assign({}, existing, edited);
+      var before = Array.isArray(existing.competencies) ? existing.competencies : [];
+      if (Array.isArray(edited.competencies)) {
+        out.competencies = edited.competencies.map(function (c) {
+          var same = before.filter(function (b) {
+            return b && b.fromPlan && b.category === c.category &&
+              JSON.stringify(b.items || []) === JSON.stringify(c.items || []);
+          })[0];
+          return same ? Object.assign({}, c, { fromPlan: same.fromPlan }) : c;
+        });
+      }
+      return out;
+    }
+
+    /* The PDF page: A4 in millimetres, turned to suit the picture, with the
+       picture fitted inside and centred. The page used to be the picture's
+       pixel count read as points (a 2000-pixel background made a 37-inch
+       page), so every programme printed at a different size. */
+    function pdfPage(width, height) {
+      width = width || 1; height = height || 1;
+      var landscape = width >= height;
+      var pw = landscape ? 297 : 210, ph = landscape ? 210 : 297;
+      var scale = Math.min(pw / width, ph / height);
+      var w = width * scale, h = height * scale;
+      return { orientation: landscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4',
+        pageWidth: pw, pageHeight: ph, x: (pw - w) / 2, y: (ph - h) / 2, w: w, h: h };
+    }
+
+    /* --- Dashboard figures --------------------------------------------------
+       Certificate dates are stored as "October 16, 2026" (older records as ISO
+       dates); Date.parse reads both. The chart used to split on '-', which
+       gave nothing for every certificate issued through Update Stage. */
+    function certTime(s) { var n = Date.parse((s && s.certDate) || ''); return isNaN(n) ? 0 : n; }
+    function byMonth(students, now, months) {
+      now = now ? new Date(now) : new Date();
+      months = months || 6;
+      var out = [];
+      for (var i = months - 1; i >= 0; i--) {
+        var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        out.push({ year: d.getFullYear(), month: d.getMonth(), count: 0 });
+      }
+      (Array.isArray(students) ? students : []).forEach(function (s) {
+        var ms = certTime(s);
+        if (!ms || !s.certNo || isRevoked(s)) return;
+        var d = new Date(ms);
+        out.forEach(function (b) { if (b.year === d.getFullYear() && b.month === d.getMonth()) b.count++; });
+      });
+      return out;
+    }
+    function certifiedInYear(students, year) {
+      return (Array.isArray(students) ? students : []).filter(function (s) {
+        if (!s || !ISSUED[s.stage] || isRevoked(s)) return false;
+        var ms = certTime(s);
+        return !!ms && new Date(ms).getFullYear() === year;
+      }).length;
+    }
+
+    /* --- Signatures: verification with no login ------------------------------
+       The QR code on a certificate carries what the certificate states — its
+       number, the holder's name, the programme and the date — and an ECDSA
+       P-256 signature over exactly that, made on an administrator's device
+       with a private key that never leaves it (it is not in the store, so no
+       backup or sync can carry it). The verify page checks the signature in the
+       employer's own browser against the Centre's PUBLIC keys, published in
+       cert-keys.json in this repository. Nothing is looked up and nothing else
+       about the trainee is revealed; one changed letter breaks the signature. */
+    var SIG_VERSION = 'CESTIS-CERT-1';
+    function sigNorm(v) {
+      var s = String(v == null ? '' : v);
+      try { s = s.normalize('NFC'); } catch (e) {}
+      return s.replace(/\s+/g, ' ').trim();
+    }
+    function sigFields(student, programme) {
+      return { no: sigNorm(student && student.certNo), name: sigNorm(student && student.name),
+        programme: sigNorm(programme != null ? programme : String((student && student.course) || '').replace(/^\s*\d+\.\s*/, '')),
+        date: sigNorm(student && student.certDate) };
+    }
+    function canonical(f, kid) {
+      return [SIG_VERSION, sigNorm(kid), sigNorm(f.no), sigNorm(f.name), sigNorm(f.programme), sigNorm(f.date)].join('\n');
+    }
+    var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    function b64url(bytes) {
+      bytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      var out = '', i;
+      for (i = 0; i + 2 < bytes.length; i += 3) {
+        var n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+        out += B64[(n >> 18) & 63] + B64[(n >> 12) & 63] + B64[(n >> 6) & 63] + B64[n & 63];
+      }
+      var rem = bytes.length - i;
+      if (rem === 1) { var a = bytes[i] << 16; out += B64[(a >> 18) & 63] + B64[(a >> 12) & 63]; }
+      else if (rem === 2) { var b = (bytes[i] << 16) | (bytes[i + 1] << 8); out += B64[(b >> 18) & 63] + B64[(b >> 12) & 63] + B64[(b >> 6) & 63]; }
+      return out;
+    }
+    function fromB64url(s) {
+      s = String(s || '');
+      if (!/^[A-Za-z0-9_-]*$/.test(s)) return null;
+      var out = [], buf = 0, bits = 0;
+      for (var i = 0; i < s.length; i++) {
+        buf = ((buf << 6) | B64.indexOf(s.charAt(i))) & 0xffffff; bits += 6;
+        if (bits >= 8) { bits -= 8; out.push((buf >> bits) & 255); }
+      }
+      return new Uint8Array(out);
+    }
+    function utf8(s) {
+      if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(s);
+      var e = unescape(encodeURIComponent(s)), a = new Uint8Array(e.length);
+      for (var i = 0; i < e.length; i++) a[i] = e.charCodeAt(i);
+      return a;
+    }
+    function subtle() { var c = cryptoObj(); return c && c.subtle ? c.subtle : null; }
+    function noCrypto() { return Promise.reject(new Error('This browser cannot check signatures (WebCrypto is missing; it needs https or localhost).')); }
+    var ALG = { name: 'ECDSA', namedCurve: 'P-256' }, SIGN = { name: 'ECDSA', hash: 'SHA-256' };
+    function publicOnly(jwk) { return { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y }; }
+    // A key's short name: the first 12 characters of a hash of the public key.
+    function keyId(publicJwk) {
+      var s = subtle();
+      if (!s) return noCrypto();
+      return s.digest('SHA-256', utf8(publicJwk.x + '.' + publicJwk.y)).then(function (d) { return b64url(new Uint8Array(d)).slice(0, 12); });
+    }
+    function generateKey(label) {
+      var s = subtle();
+      if (!s) return noCrypto();
+      return s.generateKey(ALG, true, ['sign', 'verify']).then(function (kp) {
+        return Promise.all([s.exportKey('jwk', kp.privateKey), s.exportKey('jwk', kp.publicKey)]);
+      }).then(function (j) {
+        var pub = publicOnly(j[1]);
+        return keyId(pub).then(function (kid) {
+          return { kid: kid, alg: 'ES256', label: label || '', createdAt: new Date().toISOString(), publicJwk: pub,
+            privateJwk: { kty: 'EC', crv: 'P-256', x: j[0].x, y: j[0].y, d: j[0].d } };
+        });
+      });
+    }
+    /* key: { kid, privateJwk }. Resolves with the signature record kept on
+       the trainee's record (certSig). */
+    function sign(key, fields, signedAt) {
+      var s = subtle();
+      if (!s) return noCrypto();
+      if (!key || !key.kid || !key.privateJwk || !key.privateJwk.d) return Promise.reject(new Error('No signing key on this device.'));
+      return s.importKey('jwk', Object.assign({ ext: true }, key.privateJwk), ALG, false, ['sign']).then(function (k) {
+        return s.sign(SIGN, k, utf8(canonical(fields, key.kid)));
+      }).then(function (sig) {
+        return { kid: key.kid, sig: b64url(new Uint8Array(sig)), no: fields.no, name: fields.name,
+          programme: fields.programme, date: fields.date, signedAt: signedAt || new Date().toISOString() };
+      });
+    }
+    /* Does a record's signature still describe what its certificate states? */
+    function sigCurrent(sigRec, fields) {
+      if (!sigRec || !sigRec.sig || !fields) return false;
+      return sigNorm(sigRec.no) === fields.no && sigNorm(sigRec.name) === fields.name &&
+        sigNorm(sigRec.programme) === fields.programme && sigNorm(sigRec.date) === fields.date;
+    }
+    function findKey(keysFile, kid) {
+      var list = keysFile && Array.isArray(keysFile.keys) ? keysFile.keys : [];
+      return list.filter(function (k) { return k && k.kid === kid && k.publicJwk && k.publicJwk.x && k.publicJwk.y; })[0] || null;
+    }
+    /* Check a signed certificate against the published keys. Resolves with
+       { result: 'valid' | 'altered' | 'unknown-key' | 'malformed' | 'unsupported', key }. */
+    function verify(signed, keysFile) {
+      if (!signed || !signed.sig || !signed.kid || !signed.no) return Promise.resolve({ result: 'malformed', key: null });
+      var key = findKey(keysFile, signed.kid);
+      if (!key) return Promise.resolve({ result: 'unknown-key', key: null });
+      var s = subtle();
+      if (!s) return Promise.resolve({ result: 'unsupported', key: key });
+      var raw = fromB64url(signed.sig);
+      if (!raw || raw.length !== 64) return Promise.resolve({ result: 'altered', key: key });
+      var f = { no: sigNorm(signed.no), name: sigNorm(signed.name), programme: sigNorm(signed.programme), date: sigNorm(signed.date) };
+      return s.importKey('jwk', Object.assign({ ext: true }, publicOnly(key.publicJwk)), ALG, false, ['verify']).then(function (k) {
+        return s.verify(SIGN, k, raw, utf8(canonical(f, signed.kid)));
+      }).then(function (ok) { return { result: ok ? 'valid' : 'altered', key: key }; },
+        function () { return { result: 'malformed', key: key }; });
+    }
+    /* The address a signed certificate's QR code carries. */
+    function signedUrl(base, sigRec) {
+      if (!base || !sigRec || !sigRec.sig) return '';
+      var e = encodeURIComponent;
+      return String(base).replace(/[#?].*$/, '') + '?certificate=' + e(sigRec.no) + '&n=' + e(sigRec.name) +
+        '&p=' + e(sigRec.programme) + '&d=' + e(sigRec.date) + '&k=' + e(sigRec.kid) + '&s=' + e(sigRec.sig);
+    }
+    /* The signed fields an address carries, or null when it carries none. */
+    function parseSigned(search) {
+      var q = String(search || '').replace(/^\?/, '');
+      var p = {};
+      q.split('&').forEach(function (kv) {
+        if (!kv) return;
+        var i = kv.indexOf('='), k = i < 0 ? kv : kv.slice(0, i), v = i < 0 ? '' : kv.slice(i + 1);
+        try { v = decodeURIComponent(v.replace(/\+/g, ' ')); } catch (e) { return; }
+        if (!Object.prototype.hasOwnProperty.call(p, k)) p[k] = v;
+      });
+      var no = p.certificate || p.verify || p.cert;
+      if (!no || !p.s || !p.k) return null;
+      if (String(no).length > 60 || String(p.n || '').length > 200 || String(p.p || '').length > 200 ||
+          String(p.d || '').length > 60 || String(p.s).length > 200 || String(p.k).length > 40) return null;
+      return { no: no, name: p.n || '', programme: p.p || '', date: p.d || '', kid: p.k, sig: p.s };
+    }
+    /* Withdrawn certificates the Centre has published (cert-keys.json
+       "revoked": [{ "no": "...", "at": "..." }]). A signature cannot be taken
+       back, so this list is how an employer's browser learns of a withdrawal
+       without asking anybody. */
+    function publishedRevocation(keysFile, no) {
+      var list = keysFile && Array.isArray(keysFile.revoked) ? keysFile.revoked : [];
+      var key = numberKey(no);
+      return list.filter(function (r) { return r && numberKey(typeof r === 'string' ? r : r.no) === key; })[0] || null;
+    }
+
+    return {
+      ISSUED: ISSUED,
+      numberKey: numberKey, numberPrefix: numberPrefix, rememberAlias: rememberAlias,
+      previousNumber: previousNumber, approvalOf: approvalOf, approvedNumber: approvedNumber,
+      hasNumber: hasNumber, numberSeed: numberSeed, generateNumber: generateNumber,
+      ensureNumber: ensureNumber, isRevoked: isRevoked, revoke: revoke, applyStage: applyStage,
+      mergeState: mergeState, mergeLifecycle: mergeLifecycle, resolve: resolve, status: status,
+      decidedAt: decidedAt, mergeApprovals: mergeApprovals, recordDownload: recordDownload,
+      eligibility: eligibility, templateKey: templateKey, keepTemplateProvenance: keepTemplateProvenance,
+      pdfPage: pdfPage, certTime: certTime, byMonth: byMonth, certifiedInYear: certifiedInYear,
+      sig: {
+        VERSION: SIG_VERSION, fields: sigFields, canonical: canonical, b64url: b64url, fromB64url: fromB64url,
+        keyId: keyId, generateKey: generateKey, sign: sign, current: sigCurrent, verify: verify,
+        url: signedUrl, parse: parseSigned, publishedRevocation: publishedRevocation, publicOnly: publicOnly
+      }
     };
   })();
 
@@ -4638,13 +5376,17 @@
 
     // Latest submitted exam result for one student+unit. exams/examResults are
     // the app's canonical arrays. Returns null when the unit has no live score.
+    // A result archived because its exam was deleted is no longer evidence of
+    // anything and is skipped. A result still awaiting manual marking IS
+    // returned: it is the latest attempt, and effectiveGrades shows it as
+    // pending rather than letting an older attempt's grade stand in for it.
     T.latestExamResultForUnit = function (unit, studentId, exams, examResults) {
       if (!unit || !studentId) return null;
       var examsById = {};
       (exams || []).forEach(function (e) { if (e && e.id) examsById[e.id] = e; });
       var best = null, bestTime = -1;
       (examResults || []).forEach(function (r) {
-        if (!r || r.studentId !== studentId) return;
+        if (!r || r.studentId !== studentId || r.archived) return;
         var exam = examsById[r.examId];
         if (!exam || !T.examMatchesUnit(exam, unit)) return;
         var t = r.submittedAt ? new Date(r.submittedAt).getTime() : 0;
@@ -4683,9 +5425,13 @@
         }
         var res = T.latestExamResultForUnit(u, studentId, opts.exams, opts.examResults);
         if (res) {
-          row.grade = res.score;
+          // A provisional score (only the auto-marked part, short answers
+          // still unmarked) is not the unit grade: it read as 40 and "Failed"
+          // on the transcript before the instructor had marked anything.
+          var pending = !!(res.needsReview && !res.reviewComplete);
+          row.grade = pending ? null : res.score;
           row.date = T.formatDateDMY(res.submittedAt);
-          row.source = 'exam';
+          row.source = pending ? 'pending' : 'exam';
           row.examResultId = res.id;
           var exam = (opts.exams || []).filter(function (e) { return e && e.id === res.examId; })[0];
           row.examTitle = exam ? exam.title : '';
@@ -4908,6 +5654,7 @@
         if (!type) return out;
         out.push({
           txnId: t.id,
+          txnUid: t.uid || '',                          // the same cheque on every device
           type: type,                                   // 'cheque' | 'transfer'
           date: t.date || '',
           payee: t.details || '',
@@ -5225,7 +5972,139 @@
       var localReal = hasPassword(local) && !isSeededLogin(local);
       if (localReal && !cloudReal) return false;   // a default never replaces a real password
       if (cloudReal && !localReal) return true;    // the seed on a fresh device yields
+      // Two real copies with the same edit stamp: the one that most recently
+      // let its owner sign in is the working one. (A sign-in used to stamp
+      // updatedAt itself, which made a stale device's copy NEWER than an
+      // administrator's earlier "disable" — and the next sync switched the
+      // account back on everywhere. The sign-in proof now has its own field,
+      // verifiedAt, and only ever breaks a tie; status, role and name follow
+      // updatedAt alone.)
+      var cv = Date.parse((cloud && cloud.verifiedAt) || '') || 0;
+      var lv = Date.parse((local && local.verifiedAt) || '') || 0;
+      if (lv > cv) return false;
+      if (cv > lv) return true;
       return true;                                 // legacy tie: converge on the cloud copy
+    }
+
+    /* Is this a password printed in the platform's own (public) repository? */
+    function isPublishedDefault(password) {
+      return typeof password === 'string' && KNOWN_DEFAULT_PASSWORDS.indexOf(password) !== -1;
+    }
+
+    /* A sign-in has just matched a published default password. May it go on?
+
+       The built-in logins were seeded with a password anybody can read on
+       GitHub, and they kept it until somebody changed it — so a trainee at a lab
+       PC could type it and get the Administrator panel, the Admin Staff portal
+       or the Board's countersignature. The default now opens nothing by
+       itself:
+         - once the Centre has ANY administrator with a password of its own
+           (not a seed), a login still on the default is refused outright — an
+           administrator sets its password in Settings → Users;
+         - before that (a brand-new installation, or a Centre whose every
+           administrator is still on the seed), the default is accepted only
+           to set a new password, before anything else opens. That is the
+           first-run path that keeps the Centre from ever being locked out.
+       Returns { allowed, mustChange, message }. */
+    function publishedDefaultLogin(accounts, account) {
+      var real = usableAdmins(accounts).filter(function (a) {
+        return a !== account && !(account && a.id != null && a.id === account.id) && !isSeededLogin(a);
+      });
+      if (real.length) {
+        return { allowed: false, mustChange: false,
+          message: 'This login is still on the default password published with the platform, so it cannot be used to sign in.\n\n' +
+            'Ask an administrator to set a new password for it (Settings → Users → Reset Password).' };
+      }
+      return { allowed: true, mustChange: true, message: '' };
+    }
+
+    /* The recovery e-mail the built-in logins were seeded with. Nobody at the
+       Centre reads that domain, so a reset code sent there is lost — or, if
+       the domain ever changes hands, read by a stranger. */
+    var PLACEHOLDER_RECOVERY_EMAILS = ['admin@heartlms.edu.jm', 'adminstaff@heartlms.edu.jm', 'cmc@heartlms.edu.jm'];
+    function isPlaceholderRecoveryEmail(email) {
+      return PLACEHOLDER_RECOVERY_EMAILS.indexOf(String(email == null ? '' : email).trim().toLowerCase()) !== -1;
+    }
+
+    /* The role a self-registration may ask for. The form carried it in a
+       hidden field and the value was stored as typed, so editing that field in
+       the browser's inspector filed a registration as 'admin' — and Approve All
+       made the registrant an Administrator on every device. A registration is a
+       trainee's or an instructor's request at most; any other role is decided
+       by the approving administrator (Edit User). */
+    function registrationRole(requested) {
+      return String(requested == null ? '' : requested).trim().toLowerCase() === 'instructor' ? 'instructor' : 'student';
+    }
+    /* A registration that came in through the public form but carries a staff
+       role — tampered, or from a version before the rule above. Approving it
+       must never be one click. */
+    function isPrivilegedSelfRegistration(account) {
+      if (!account || account.registeredVia !== 'registration') return false;
+      var r = String(account.role || '').trim().toLowerCase();
+      return r !== 'student' && r !== 'instructor';
+    }
+
+    /* What Verify Users lists, and what Approve All / Reject All act on.
+
+       It used to be every pending account PLUS every disabled one except
+       administrators — so a departed member of Admin Staff, a removed
+       instructor or an expelled trainee an administrator had switched off on
+       purpose came back to life the next time somebody pressed Approve All
+       for a batch of new registrations. The queue is now:
+         - every account awaiting approval (status 'pending'), and
+         - trainee placeholders that are disabled only because nobody has
+           looked at them yet: role student, created by the fee roll, the chat
+           backfill or an administrator, and never approved by a person.
+       An account a person switched off is managed in Settings → Users. */
+    var PLACEHOLDER_SOURCES = { 'fee-system': 1, 'student-sync': 1, 'admin-created': 1, 'student-progress': 1 };
+    function reviewQueue(accounts) {
+      return (Array.isArray(accounts) ? accounts : []).filter(function (u) {
+        if (!u) return false;
+        var st = String(u.status || '').trim().toLowerCase();
+        if (st === 'pending') return true;
+        if (st !== 'disabled') return false;
+        if (String(u.role || '').trim().toLowerCase() !== 'student') return false;
+        if (!PLACEHOLDER_SOURCES[u.registeredVia]) return false;
+        if (u.disabledAt || u.disabledBy) return false;          // switched off by a person
+        var by = String(u.approvedBy || '').trim().toLowerCase();
+        return !u.approvedAt || by === '' || by === 'system' || by === 'fee-system';
+      });
+    }
+
+    /* Which trainee record does a sign-in account belong to, when its own link
+       (studentDataId) is missing or stale and only the NAME is left to go on?
+
+       Name alone used to decide: the first trainee of that name, in any
+       programme. A second John Brown registering for Plumbing was handed the
+       Welding John Brown's record — his scores, his attendance, his
+       certificate — and his own exam submissions landed on that man's record.
+       A name now links only to a namesake whose programme agrees with the
+       account's (Core.enrolment.programmesAgree, which still treats 'WELDING L2'
+       and 'Welding & Fabrication' as one programme), and only when exactly one
+       such namesake exists (or exactly one carries the very same programme).
+         { match }            - the record to link to
+         { ambiguous: true }  - several agreeing namesakes: an administrator decides
+         {}                   - nobody of that name in that programme: a new person */
+    function studentLinkFor(account, students) {
+      var list = Array.isArray(students) ? students : [];
+      if (!account || !account.name) return {};
+      var want = Core.normName(account.name);
+      if (!want) return {};
+      var prog = String(account.programme || '');
+      var E = Core.enrolment;
+      var agree = list.filter(function (s) {
+        if (!s || Core.normName(s.name) !== want) return false;
+        if (!prog || !s.course) return true;
+        if (E && typeof E.programmesAgree === 'function') { try { return E.programmesAgree(prog, s.course); } catch (e) {} }
+        return Core.normCourse(prog) === Core.normCourse(s.course);
+      });
+      if (agree.length === 1) return { match: agree[0] };
+      if (!agree.length) return {};
+      if (prog) {
+        var exact = agree.filter(function (s) { return s.course && Core.normCourse(s.course) === Core.normCourse(prog); });
+        if (exact.length === 1) return { match: exact[0] };
+      }
+      return { ambiguous: true };
     }
 
     return {
@@ -5234,8 +6113,179 @@
       usableAdmins: usableAdmins, wouldStrandAdmins: wouldStrandAdmins,
       needsRecoveryAdmin: needsRecoveryAdmin,
       deletionBlocked: deletionBlocked, dropDeleted: dropDeleted,
-      isSeededLogin: isSeededLogin, cloudCopyWins: cloudCopyWins
+      isSeededLogin: isSeededLogin, cloudCopyWins: cloudCopyWins,
+      isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin,
+      isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
+      registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
+      reviewQueue: reviewQueue, studentLinkFor: studentLinkFor
     };
+
+  })();
+
+  /* ==========================================================================
+     WHO IS LOOKING AT THIS PAGE
+
+     The record pages (Student Progress, Transcript / Grades, the request
+     queue) are embedded in the dashboard, which passed the viewer's role in
+     the iframe address — '?role=admin', '?studentId=…' — and the pages
+     believed it. Opened on their own, with no address at all, they defaulted
+     to the most powerful view there is. So on a lab PC a trainee could type
+     …/Transcript-Grades.html and get the grade editor and every trainee's
+     date of birth and address, or edit the address to read a classmate's
+     grades.
+
+     The viewer now comes from the signed-in session the dashboard writes
+     ('voctrain_sessionRole', '_UserId', '_Expiry', '_StudentId', and a
+     heartbeat '_SeenAt'), or — when embedded — from the dashboard window
+     itself. The address can only NARROW the view (an administrator previewing
+     a trainee's page); it can never widen it, and it never picks whose
+     records a trainee sees. With no live session the page shows nothing but
+     "sign in first". (This is a browser-side check: it stops a person using
+     the pages, not one rewriting their code — the broker is the real lock.)
+     ========================================================================== */
+  Core.sessionAccess = (function () {
+    var RANK = { student: 1, instructor: 2, cmc: 2, adminstaff: 3, admin: 4 };
+    var FRESH_MS = 10 * 60 * 1000;   // the dashboard refreshes its heartbeat every minute
+
+    function parseUsers(raw) {
+      try { var v = JSON.parse(raw || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+    }
+    function refuse(reason) {
+      var msg = reason === 'not-allowed'
+        ? 'This page is not part of your account. Open it from the C.E.S.T.I.S dashboard.'
+        : 'Please sign in to the C.E.S.T.I.S dashboard first, then open this page from there.';
+      return { ok: false, reason: reason, message: msg, role: null, userId: null, studentId: null, account: null };
+    }
+
+    /* opts: { get: function(key) -> stored string | null, now: ms,
+               allowed: [roles], urlRole, urlStudentId,
+               parent: null | { role, userId, studentId }  (the embedding dashboard, if same-origin),
+               freshMs } */
+    function resolve(opts) {
+      opts = opts || {};
+      var get = typeof opts.get === 'function' ? opts.get : function () { return null; };
+      var now = typeof opts.now === 'number' ? opts.now : Date.now();
+      var allowed = Array.isArray(opts.allowed) ? opts.allowed : [];
+      var fresh = typeof opts.freshMs === 'number' ? opts.freshMs : FRESH_MS;
+      var sessionRole, userId, studentId;
+      var p = opts.parent;
+      if (p && p.role) {
+        sessionRole = String(p.role); userId = p.userId || null; studentId = p.studentId || null;
+      } else {
+        var expiry = Number(get('voctrain_sessionExpiry')) || 0;
+        if (!expiry || now > expiry) return refuse('no-session');
+        var seen = Number(get('voctrain_sessionSeenAt')) || 0;
+        if (!seen || now - seen > fresh) return refuse('no-session');   // the dashboard was closed
+        sessionRole = String(get('voctrain_sessionRole') || '');
+        userId = get('voctrain_sessionUserId') || null;
+        studentId = get('voctrain_sessionStudentId') || null;
+        if (!sessionRole || !userId) return refuse('no-session');
+      }
+      var account = null;
+      if (userId) {
+        account = parseUsers(get('voctrain_users')).filter(function (u) { return u && u.id === userId; })[0] || null;
+      }
+      // Outside the dashboard the stored account must back the stored role up,
+      // and still be allowed in: a role key edited by hand, or an account
+      // switched off since, opens nothing.
+      if (!(p && p.role)) {
+        if (!account) return refuse('no-session');
+        if (String(account.role || '').trim().toLowerCase() !== sessionRole) return refuse('no-session');
+        var st = String(account.status || '').trim().toLowerCase();
+        if (st === 'disabled' || st === 'rejected' || st === 'pending') return refuse('no-session');
+      }
+      if (allowed.indexOf(sessionRole) === -1) return refuse('not-allowed');
+      var role = sessionRole;
+      var want = String(opts.urlRole || '').trim().toLowerCase();
+      if (want && allowed.indexOf(want) !== -1 && (RANK[want] || 0) < (RANK[sessionRole] || 0)) role = want;
+      if (role === 'student') {
+        if (sessionRole === 'student') studentId = studentId || (account && account.studentDataId) || null;
+        else studentId = opts.urlStudentId || null;                      // staff previewing a trainee's page
+        if (!studentId) return refuse('no-session');
+      } else {
+        studentId = null;
+      }
+      return { ok: true, reason: 'ok', message: '', role: role, sessionRole: sessionRole,
+               userId: userId, studentId: studentId, account: account };
+    }
+
+    /* Idle lock and expiry, as one decision the dashboard asks every minute.
+       Sessions used to last eight hours from sign-in with nothing in between:
+       a lab PC left signed in handed the gradebook to the next person for the
+       rest of the day, and the forced logout at hour eight landed mid-exam
+       with no warning. */
+    var IDLE_MS = { student: 60 * 60 * 1000, staff: 20 * 60 * 1000 };
+    var WARN_MS = 2 * 60 * 1000;
+    function idleLimit(role) { return role === 'student' ? IDLE_MS.student : IDLE_MS.staff; }
+    function state(now, lastActivity, expiry, role) {
+      if (expiry && now > expiry) return 'expired';
+      if (lastActivity && now - lastActivity > idleLimit(role)) return 'lock';
+      if (expiry && expiry - now <= WARN_MS) return 'warn';
+      return 'ok';
+    }
+
+    /* The dashboard this page is embedded in, if it is the same site and
+       somebody is signed in to it. (A page on another site cannot read it.) */
+    function embeddingSession(win) {
+      try {
+        var p = win && win.parent;
+        if (p && p !== win && p.currentRole) {
+          return { role: p.currentRole,
+                   userId: p.currentLoggedInUser ? p.currentLoggedInUser.id : null,
+                   studentId: (p.currentRole === 'student' && p.currentStudent) ? p.currentStudent.id : null };
+        }
+      } catch (e) {}
+      return null;
+    }
+    /* resolve() for the page that is running: its own store, its own address,
+       and its embedding dashboard. */
+    function forPage(opts) {
+      opts = opts || {};
+      var win = typeof window !== 'undefined' ? window : null;
+      var store = root.CESTISStore || null;
+      var qs = null;
+      try { qs = new URLSearchParams(win.location.search); } catch (e) { qs = null; }
+      return resolve({
+        get: function (k) { try { return store ? store.getItem(k) : null; } catch (e) { return null; } },
+        now: Date.now(),
+        allowed: opts.allowed,
+        urlRole: qs ? qs.get('role') : '',
+        urlStudentId: qs ? qs.get('studentId') : '',
+        parent: embeddingSession(win)
+      });
+    }
+
+    /* What the top search box may look through. It searched the whole roll
+       for everybody, so a trainee typing two letters got a directory of every
+       enrolled person with their student ID and programme. Staff search the
+       roll (an instructor only their own programme's trainees); a trainee
+       finds only themselves and their own programme's exams; the Board
+       searches no trainees at all.
+         ctx: { students, exams, me (the trainee record), myCourse,
+                courseMatch(a, b) -> bool } */
+    function searchPool(role, ctx) {
+      ctx = ctx || {};
+      var students = Array.isArray(ctx.students) ? ctx.students : [];
+      var exams = Array.isArray(ctx.exams) ? ctx.exams : [];
+      var match = typeof ctx.courseMatch === 'function' ? ctx.courseMatch
+        : function (a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); };
+      if (role === 'admin' || role === 'adminstaff') return { students: students, exams: exams };
+      if (role === 'instructor') {
+        var c = ctx.myCourse;
+        if (!c) return { students: [], exams: [] };
+        return { students: students.filter(function (s) { return s && match(s.course, c); }),
+                 exams: exams.filter(function (e) { return e && match(e.course, c); }) };
+      }
+      if (role === 'student') {
+        var me = ctx.me;
+        if (!me) return { students: [], exams: [] };
+        return { students: [me], exams: exams.filter(function (e) { return e && match(e.course, me.course); }) };
+      }
+      return { students: [], exams: [] };
+    }
+
+    return { resolve: resolve, state: state, idleLimit: idleLimit, RANK: RANK, FRESH_MS: FRESH_MS,
+             embeddingSession: embeddingSession, forPage: forPage, searchPool: searchPool };
   })();
 
   /* ==========================================================================
@@ -5266,6 +6316,9 @@
     function bestApproval(a, b) {
       if (!a) return b || null;
       if (!b) return a;
+      // A stamped revocation is a decision too, and the later decision wins;
+      // downloads made on either device are kept (Core.certs.mergeApprovals).
+      if (Core.certs) return Core.certs.mergeApprovals(a, b);
       return Core.approvalScore(b) > Core.approvalScore(a) ? b : a;
     }
 
@@ -5402,6 +6455,58 @@
     return { bestApproval: bestApproval, applyStudent: applyStudent,
       applyApproval: applyApproval, applySkillAreas: applySkillAreas,
       oldestFirst: oldestFirst };
+  })();
+
+  /* ==========================================================================
+     RESTORING A BACKUP FILE (Settings → Import Backup)
+
+     The import wrote every key in the file over what the device held. Restoring
+     last month's export to recover one thing therefore put every account back
+     on last month's password and status, brought back every account and
+     trainee deleted since (the deletion lists were replaced by older, shorter
+     ones), and threw away everything entered since. A backup is now MERGED in
+     by the same rules a sync follows:
+       - deletion lists are unioned — a backup never un-deletes anything;
+       - a list of records is merged record by record: one the device lacks is
+         added, one the device holds is replaced only by a strictly newer copy
+         (updatedAt), otherwise only its blanks are filled;
+       - a map gains the entries it lacks; anything else the device already
+         holds is kept;
+       - nothing empty is ever written over something that is not.
+     Returns the value to store for the key, or null to leave it alone. Order
+     the keys with restoreOrder() so the deletions land first. */
+  Core.backupRestore = (function () {
+    function parse(raw) { if (raw == null || raw === '') return null; try { return JSON.parse(raw); } catch (e) { return undefined; } }
+    function isEmpty(v) {
+      return v == null || v === '' || (Array.isArray(v) && !v.length) ||
+        (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
+    }
+    function mergeValue(key, storedRaw, incoming) {
+      if (incoming === undefined || incoming === null) return null;
+      if (Core.isTombstoneKey(key)) return Core.unionTombstoneValues(storedRaw, JSON.stringify(incoming));
+      var stored = parse(storedRaw);
+      if (stored === undefined) return null;                    // unreadable here: never mistake it for empty
+      if (isEmpty(stored)) return isEmpty(incoming) ? null : JSON.stringify(incoming);
+      if (Array.isArray(stored) && Array.isArray(incoming)) {
+        var byId = function (r) { return r && r.id != null ? String(r.id) : undefined; };
+        var res = Core.sync.mergeList(stored, incoming, byId, {});
+        return (res.added || res.updated || res.removed) ? JSON.stringify(stored) : null;
+      }
+      if (stored && typeof stored === 'object' && !Array.isArray(stored) &&
+          incoming && typeof incoming === 'object' && !Array.isArray(incoming)) {
+        var added = 0;
+        Object.keys(incoming).forEach(function (k) {
+          if (!(k in stored) && incoming[k] !== undefined) { stored[k] = incoming[k]; added++; }
+        });
+        return added ? JSON.stringify(stored) : null;
+      }
+      return null;                                               // a value the device already holds stands
+    }
+    function restoreOrder(keys) {
+      var list = Array.isArray(keys) ? keys.slice() : [];
+      return list.filter(Core.isTombstoneKey).concat(list.filter(function (k) { return !Core.isTombstoneKey(k); }));
+    }
+    return { mergeValue: mergeValue, restoreOrder: restoreOrder };
   })();
 
   /* ==========================================================================
@@ -5607,6 +6712,247 @@
       mergeTombstones: mergeTombstones, deletedAfter: deletedAfter, mergeList: mergeList, mergeMap: mergeMap };
   })();
 
+  /* ==========================================================================
+     CASHBOOK: one merge rule for every quarter, on every path.
+
+     A transaction's `id` counts up from 100 in each quarter on each device, so
+     the same number names different cheques on different machines once rows
+     have been adopted across devices. The merges for the active quarter
+     matched by `uid`, but the merges for every OTHER quarter, the login
+     restore, Merge from Cloud and the Payment Voucher's pull still matched by
+     id or replaced whole quarters — dropping one device's cheque, doubling
+     another's, letting a deletion on one PC remove a DIFFERENT live cheque on
+     the next, and erasing anything entered while uploads were stopped. Rows
+     that never had a uid (the Subvention panel, saves into another quarter,
+     everything from before uids) were given a RANDOM uid by whichever device
+     adopted them, so the originating device saw an unknown uid come back and
+     adopted it again: the quarter's subvention was counted twice.
+
+     The rule now:
+       - every row is known by its uid. A row without one gets a uid DERIVED
+         from what it says (quarter, date, cheque, details, amounts — the
+         original amounts for a voided cheque), so every device names the same
+         legacy row the same way; exact duplicates are told apart by order;
+       - a deletion is written down by uid (deletedTxnUids) and travels;
+         a quarter's old id-based list only ever applies to its own rows;
+       - the copy of a row changed later (updatedAt) wins, so voids and edits
+         reach every device; the Balance B/F carries openingBalanceAt;
+       - a row only one side holds is kept; an adopted row whose id is taken
+         here is given the next free id, never dropped;
+       - a row a device once adopted under a random uid is recognised as the
+         same legacy row (one-to-one), so the doubled subvention stops spreading.
+     Pure: it mutates and returns the local quarter blob it is given.
+     ========================================================================== */
+  Core.cashbook = (function () {
+    function str(v) { return v == null ? '' : String(v).trim(); }
+    function amt(v) { var n = parseFloat(v); return isNaN(n) ? 0 : Math.round(n * 100) / 100; }
+    function stampOf(r) { var t = Date.parse((r && r.updatedAt) || ''); return isNaN(t) ? 0 : t; }
+
+    /* The uid every device derives for a row from before uids existed. */
+    function legacyUid(fy, q, t) {
+      var orig = function (k, o) { return t[o] !== undefined && t[o] !== null && t[o] !== '' ? t[o] : t[k]; };
+      var sig = [str(fy), 'Q' + str(q), str(t.date), str(t.cheque), str(orig('details', '_origDetails')).toLowerCase(),
+                 amt(orig('deposit', '_origDeposit')), amt(orig('payment', '_origPayment'))].join('|');
+      return 'L-' + Core.hashString(sig);
+    }
+    /* Give every uid-less row in a quarter blob its derived uid. Returns how
+       many were given one. Rows are never added or removed. */
+    function ensureUids(blob, fy, q) {
+      if (!blob || !Array.isArray(blob.transactions)) return 0;
+      var seen = {}, n = 0;
+      blob.transactions.forEach(function (t) { if (t && t.uid) seen[t.uid] = 1; });
+      blob.transactions.forEach(function (t) {
+        if (!t || typeof t !== 'object' || t.uid) return;
+        var base = legacyUid(fy, q, t), u = base, k = 0;
+        while (seen[u]) { k++; u = base + '-' + k; }
+        t.uid = u; seen[u] = 1; n++;
+      });
+      return n;
+    }
+    function parseQuarterKey(key) {
+      var m = /^cestis_(?:quarter|budget)_(\d{4}\/\d{4})_Q([1-4])$/.exec(String(key || ''));
+      return m ? { fy: m[1], q: parseInt(m[2], 10) } : null;
+    }
+    function copy(o) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); return c; }
+
+    /* Merge a cloud quarter blob into the local one IN PLACE.
+       Returns { changed, added, updated, removed }. */
+    function mergeQuarter(local, cloud, fy, q) {
+      var out = { changed: false, added: 0, updated: 0, removed: 0 };
+      if (!local || typeof local !== 'object' || !cloud || typeof cloud !== 'object') return out;
+      if (!Array.isArray(local.transactions)) local.transactions = [];
+      if (!Array.isArray(local.deletedTxnIds)) local.deletedTxnIds = [];
+      if (ensureUids(local, fy, q)) out.changed = true;
+      // The cloud quarter's own id-based deletions apply to its own legacy rows
+      // only; ids mean nothing on this device.
+      var cDel = {};
+      (Array.isArray(cloud.deletedTxnIds) ? cloud.deletedTxnIds : []).forEach(function (id) { cDel[id] = 1; });
+      var cBlob = { transactions: (Array.isArray(cloud.transactions) ? cloud.transactions : [])
+        .filter(function (t) { return t && typeof t === 'object' && (t.uid || !cDel[t.id]); }).map(copy) };
+      ensureUids(cBlob, fy, q);
+
+      // Deletions by uid: the union of both sides.
+      var tomb = {}, tombList = Array.isArray(local.deletedTxnUids) ? local.deletedTxnUids.slice() : [];
+      tombList.forEach(function (u) { tomb[u] = 1; });
+      (Array.isArray(cloud.deletedTxnUids) ? cloud.deletedTxnUids : []).forEach(function (u) {
+        if (u && !tomb[u]) { tomb[u] = 1; tombList.push(u); out.changed = true; }
+      });
+      if (tombList.length || local.deletedTxnUids) local.deletedTxnUids = tombList;
+      var before = local.transactions.length;
+      local.transactions = local.transactions.filter(function (t) { return !(t && tomb[t.uid]); });
+      out.removed = before - local.transactions.length;
+
+      var byUid = {}, byContent = {}, cloudUids = {}, matched = {};
+      cBlob.transactions.forEach(function (c) { cloudUids[c.uid] = 1; });
+      var used = {}, maxId = 99;
+      local.transactions.forEach(function (t) {
+        if (!t) return;
+        byUid[t.uid] = t;
+        var ck = legacyUid(fy, q, t);
+        (byContent[ck] = byContent[ck] || []).push(t);
+        used[t.id] = 1; maxId = Math.max(maxId, Number(t.id) || 0);
+      });
+      local.deletedTxnIds.forEach(function (id) { used[id] = 1; maxId = Math.max(maxId, Number(id) || 0); });
+
+      cBlob.transactions.forEach(function (c) {
+        if (tomb[c.uid]) return;
+        var l = byUid[c.uid];
+        if (!l) {
+          // The same legacy row under a uid a device once invented for it?
+          var ck = legacyUid(fy, q, c);
+          var cands = (byContent[ck] || []).filter(function (t) { return !cloudUids[t.uid]; });
+          var isL = function (u) { return String(u || '').indexOf('L-') === 0; };
+          var pick = null;
+          for (var i = 0; i < cands.length && !pick; i++) {
+            if (!matched[cands[i].uid] && (isL(c.uid) || isL(cands[i].uid))) pick = cands[i];
+          }
+          if (!pick && !isL(c.uid)) {
+            for (var j = 0; j < cands.length && !pick; j++) if (isL(cands[j].uid)) pick = cands[j];
+          }
+          if (pick) {
+            matched[pick.uid] = 1;
+            // Converge on the derived name, so both devices end with one uid.
+            if (isL(c.uid) && !isL(pick.uid)) { delete byUid[pick.uid]; pick.uid = c.uid; byUid[c.uid] = pick; out.changed = true; }
+            l = pick;
+          }
+        }
+        if (!l) {
+          var row = copy(c);
+          if (row.id == null || used[row.id]) { do { maxId++; } while (used[maxId]); row.id = maxId; }
+          used[row.id] = 1; maxId = Math.max(maxId, Number(row.id) || 0);
+          local.transactions.push(row);
+          byUid[row.uid] = row;
+          out.added++;
+          return;
+        }
+        if (stampOf(c) > stampOf(l)) {
+          // The newer copy wins — all but this device's own id for the row.
+          var keepId = l.id, keepUid = l.uid;
+          Object.keys(l).forEach(function (k) { if (!(k in c)) delete l[k]; });
+          Object.keys(c).forEach(function (k) { l[k] = c[k]; });
+          l.id = keepId; l.uid = keepUid;
+          out.updated++;
+        }
+      });
+
+      // Balance B/F: the later-dated value wins; an undated one never replaces.
+      var cAt = Date.parse(cloud.openingBalanceAt || '') || 0, lAt = Date.parse(local.openingBalanceAt || '') || 0;
+      if (typeof cloud.openingBalance === 'number' && cAt > lAt) {
+        if (local.openingBalance !== cloud.openingBalance) out.changed = true;
+        local.openingBalance = cloud.openingBalance;
+        local.openingBalanceAt = cloud.openingBalanceAt;
+      }
+      if (out.added || out.updated || out.removed) out.changed = true;
+      return out;
+    }
+
+    /* Merge a cloud quarter budget ({ budget, sections, budgetAt }) into the
+       local one IN PLACE: a line only the cloud has is added; a line both have
+       takes the later-dated amount; an undated line never replaces. */
+    function mergeBudget(local, cloud) {
+      var out = { changed: false };
+      if (!local || !cloud || typeof cloud.budget !== 'object' || !cloud.budget) return out;
+      if (!local.budget || typeof local.budget !== 'object') local.budget = {};
+      if (!local.sections || typeof local.sections !== 'object') local.sections = {};
+      var lAt = local.budgetAt && typeof local.budgetAt === 'object' ? local.budgetAt : null;
+      var cAt = cloud.budgetAt && typeof cloud.budgetAt === 'object' ? cloud.budgetAt : {};
+      Object.keys(cloud.budget).forEach(function (cat) {
+        var ct = Date.parse(cAt[cat] || '') || 0, lt = lAt ? (Date.parse(lAt[cat] || '') || 0) : 0;
+        if (local.budget[cat] === undefined || (ct > lt && local.budget[cat] !== cloud.budget[cat])) {
+          local.budget[cat] = cloud.budget[cat];
+          if (cAt[cat]) { if (!local.budgetAt) local.budgetAt = lAt = {}; local.budgetAt[cat] = cAt[cat]; }
+          out.changed = true;
+        }
+      });
+      Object.keys(cloud.sections && typeof cloud.sections === 'object' ? cloud.sections : {}).forEach(function (cat) {
+        if (!local.sections[cat]) { local.sections[cat] = cloud.sections[cat]; out.changed = true; }
+      });
+      return out;
+    }
+
+    return { legacyUid: legacyUid, ensureUids: ensureUids, parseQuarterKey: parseQuarterKey,
+             mergeQuarter: mergeQuarter, mergeBudget: mergeBudget };
+  })();
+
+  /* ==========================================================================
+     STAFF TIME CLOCK: merge a cloud file into this device's lists.
+
+     Each staff member's Drive file holds only THAT person — their own staff
+     row and their own sessions. Five sync paths (login "Sync Now", Connect,
+     Sync from Cloud, the selective sync and the sign-in page sync) assigned
+     that one-person slice over the whole staff list and every staff member's
+     time history, so after Mary pressed Sync on the office PC only Mary could
+     sign in, everybody else's hours were gone, and page-cloud then pushed the
+     one-person list to every other PC.
+
+     A per-user file is a slice, so it is only ever MERGED: a session the other
+     side holds and this one does not is added; a session both hold keeps the
+     copy changed later (lastModified); the session somebody is clocked into
+     right now is never replaced; a session written down as deleted is dropped
+     and not re-added; and staff are added by id or username, never removed.
+     Pure — returns new lists and leaves the arguments alone except for the
+     local record objects it keeps (so a live session keeps its identity).
+     ========================================================================== */
+  Core.mergeTimeClock = function (local, cloud, opts) {
+    local = local || {}; cloud = cloud || {}; opts = opts || {};
+    var out = { staffMembers: [], timeRecords: [], added: 0, updated: 0, removed: 0, staffAdded: 0 };
+    var deleted = {};
+    (Array.isArray(opts.deletedIds) ? opts.deletedIds : []).forEach(function (id) { if (id != null && id !== '') deleted[String(id)] = 1; });
+    var active = opts.activeSessionId != null ? String(opts.activeSessionId) : null;
+    var mod = function (r) { var t = Date.parse((r && r.lastModified) || ''); return isNaN(t) ? 0 : t; };
+
+    var recs = [], at = {};
+    (Array.isArray(local.timeRecords) ? local.timeRecords : []).forEach(function (r) {
+      if (!r || typeof r !== 'object') return;
+      var id = r.id != null ? String(r.id) : null;
+      if (id && deleted[id] && id !== active) { out.removed++; return; }
+      if (id) at[id] = recs.length;
+      recs.push(r);
+    });
+    (Array.isArray(cloud.timeRecords) ? cloud.timeRecords : []).forEach(function (c) {
+      if (!c || typeof c !== 'object' || c.id == null) return;
+      var id = String(c.id);
+      if (deleted[id]) return;
+      if (at[id] === undefined) { at[id] = recs.length; recs.push(Object.assign({}, c)); out.added++; return; }
+      if (id === active) return;
+      if (mod(c) > mod(recs[at[id]])) { recs[at[id]] = Object.assign({}, c); out.updated++; }
+    });
+    out.timeRecords = recs;
+
+    var staff = (Array.isArray(local.staffMembers) ? local.staffMembers : []).slice();
+    var ids = {}, names = {};
+    staff.forEach(function (s) { if (!s) return; if (s.id != null) ids[String(s.id)] = 1; if (s.username) names[String(s.username)] = 1; });
+    (Array.isArray(cloud.staffMembers) ? cloud.staffMembers : []).forEach(function (s) {
+      if (!s || typeof s !== 'object') return;
+      if ((s.id != null && ids[String(s.id)]) || (s.username && names[String(s.username)])) return;
+      staff.push(Object.assign({}, s)); out.staffAdded++;
+      if (s.id != null) ids[String(s.id)] = 1;
+      if (s.username) names[String(s.username)] = 1;
+    });
+    out.staffMembers = staff;
+    return out;
+  };
+
   Core.pageCloud = (function () {
 
     function stampOf(stamps, key) {
@@ -5670,14 +7016,370 @@
       return true;
     }
 
+    /* --- Collections of RECORDS, merged record by record -------------------
+
+       WHY THIS EXISTS
+       ---------------
+       mergeKeys below decides each storage key as ONE value: the newer write
+       wins the whole thing. That is right for a setting, and wrong for a list
+       of records. In the Offline System every device on the Centre's network
+       saves the LMS dashboard's collections to the Centre's own server, and
+       with whole-value merging:
+         - two trainees submitting an exam within the same half-minute each
+           wrote "everything I know + my result"; the second write replaced
+           the first and one result was gone everywhere;
+         - a trainee signing out trims that device's copy to their own records
+           (so a shared PC does not keep everybody's data) — and that trimmed
+           list, being the newest write, replaced the Centre's whole roll,
+           every exam result and the attendance on the server and then on
+           every device that pulled it.
+
+       So these collections are merged the way the online build's Drive merge
+       already treats them: by record. A record either side has survives; when
+       both sides have it the newer edit wins (the record's own updatedAt /
+       lastModified / submittedAt stamp); a record goes away ONLY through a
+       tombstone — the same deletion lists the app already writes. A shorter
+       list is therefore never a deletion, however new it is.
+
+       A tie (neither copy says which is newer) goes to the side whose copy of
+       the whole collection was written more recently — exactly what the old
+       whole-value rule did, only now per record — and the loser's blank
+       fields are still filled in from it, so nothing typed is dropped.
+
+       Nothing here applies unless a caller asks for it (opts.records), and a
+       value that does not parse as the expected list or map falls straight
+       back to the whole-value rule, so a key that is not really a record
+       collection is never mangled. */
+    function lower(v) { return String(v == null ? '' : v).trim().toLowerCase(); }
+    function byId(r) { return r && r.id != null ? String(r.id) : undefined; }
+    var DEMO_STUDENT = /^STU-20260[0-7][0-9]$/;          // the purged demo roll (STU-2026000..079)
+    var DEMO_EXAM = /^EXAM-0(0[1-9]|1[0-2])$/;           // and its demo exams (EXAM-001..012)
+
+    // storage key (or prefix) -> how its records are told apart and merged.
+    // `tombs` names the dashboard's own tombstone collection (syncCollections()
+    // in index.html), so a deletion made on one device travels here too.
+    var RECORD_KEYS = [
+      { key: 'voctrain_students', type: 'students' },
+      { key: 'voctrain_users', type: 'users' },
+      { key: 'voctrain_examResults', type: 'list', studentField: 'studentId',
+        id: function (r) { return r.id != null ? String(r.id) : lower(r.examId) + '|' + lower(r.studentId); },
+        stamps: ['updatedAt', 'gradedAt', 'reviewedAt', 'submittedAt'],
+        accept: function (r) { return !DEMO_EXAM.test(String(r.examId || '')) && !DEMO_STUDENT.test(String(r.studentId || '')); } },
+      // The register, and every quarter's bucket of it (voctrain_attendance_<FY>_Q<n>).
+      { prefix: 'voctrain_attendance', type: 'list', studentField: 'studentId',
+        id: function (r) { return lower(r.studentId) + '|' + lower(r.date); },
+        stamps: ['updatedAt', 'markedAt'],
+        accept: function (r) { return !DEMO_STUDENT.test(String(r.studentId || '')); } },
+      { key: 'voctrain_certDownloadApprovals', type: 'approvals' },
+      // Certificate / transcript requests: each request is its own record, so
+      // one office marking REQ-1 Ready and another marking REQ-2 Collected
+      // both stand, instead of the later whole list undoing the other.
+      { key: 'voctrain_certTranscriptRequests', type: 'list', id: byId,
+        stamps: ['updatedAt', 'handledAt', 'requestedAt'] },
+      { key: 'voctrain_skillAreas', type: 'centres' },
+      { key: 'voctrain_vcSessions', type: 'vcSessions' },
+      { key: 'voctrain_syncTombstones', type: 'tombstones' },
+      { key: 'voctrain_chatMessages', type: 'rooms' },
+      { key: 'voctrain_exams', type: 'list', tombs: 'exams',
+        id: function (r) { return lower(r.title) + '|' + lower(r.course); },
+        accept: function (r) { return !DEMO_EXAM.test(String(r.id || '')); } },
+      { key: 'voctrain_announcements', type: 'list', tombs: 'announcements',
+        id: function (r) { return r.id != null ? String(r.id) : 'title:' + lower(r.title); } },
+      { key: 'voctrain_calendarEvents', type: 'list', tombs: 'calendarEvents',
+        id: function (r) { return lower(r.title) + '|' + lower(r.date); } },
+      { key: 'voctrain_driveResources', type: 'list', tombs: 'driveResources',
+        id: function (r) { return r.driveFileId ? 'drive:' + r.driveFileId : byId(r); } },
+      { key: 'voctrain_chatRooms', type: 'list', tombs: 'chatRooms', id: byId },
+      { key: 'voctrain_classSessions', type: 'list', tombs: 'classSessions', id: byId },
+      { key: 'voctrain_adminMeetings', type: 'list', tombs: 'adminMeetings', id: byId },
+      { key: 'voctrain_assignments', type: 'list', tombs: 'instructorAssignments', id: byId },
+      { key: 'voctrain_submissions', type: 'list', tombs: 'assignmentSubmissions', id: byId },
+      { key: 'voctrain_resources', type: 'list', tombs: 'instructorResources', id: byId },
+      { key: 'voctrain_instructorData', type: 'list', tombs: 'instructorData', id: byId },
+      { key: 'voctrain_adrTasks', type: 'list', tombs: 'adrTasks', id: byId },
+      { key: 'voctrain_support_messages', type: 'list', tombs: 'supportMessages', id: byId },
+      { key: 'voctrain_notifications', type: 'list', tombs: 'notifications', id: byId },
+      { key: 'voctrain_documentHubFiles', type: 'list', tombs: 'documentHubFiles', id: byId },
+      { key: 'voctrain_studentProfiles', type: 'map', tombs: 'studentProfiles' },
+      { key: 'voctrain_instructorProfiles', type: 'map', tombs: 'instructorProfiles' },
+      { key: 'voctrain_adrStaffMeta', type: 'map', tombs: 'adrStaffMeta' },
+      { key: 'voctrain_certTemplates', type: 'map', tombs: 'certTemplates' },
+      { key: 'voctrain_chatProfiles', type: 'map' }
+    ];
+
+    function recordSpec(key) {
+      if (!key) return null;
+      key = String(key);
+      for (var i = 0; i < RECORD_KEYS.length; i++) {
+        var s = RECORD_KEYS[i];
+        if (s.key === key) return s;
+        // 'voctrain_attendance_quartered' is a one-off marker ('1'), not a
+        // bucket; it fails the list parse below and keeps the whole-value rule.
+        if (s.prefix && key.indexOf(s.prefix) === 0) return s;
+      }
+      return null;
+    }
+    /* Is this key merged record by record? */
+    function isRecordKey(key) { return !!recordSpec(key); }
+
+    function parseJson(raw) { try { return JSON.parse(raw); } catch (e) { return undefined; } }
+    function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+    function newestOf(r, fields) {
+      var best = 0;
+      (fields || ['updatedAt', 'lastModified']).forEach(function (f) {
+        var t = Date.parse((r && r[f]) || '');
+        if (!isNaN(t) && t > best) best = t;
+      });
+      return best;
+    }
+    /* Fill the winner's blank fields from the loser: a tie must never drop
+       something that was typed on one side only. */
+    function fillFrom(winner, loser) {
+      var out = {};
+      Object.keys(winner).forEach(function (f) { out[f] = winner[f]; });
+      Object.keys(loser || {}).forEach(function (f) {
+        var w = out[f];
+        if (f === '_plaintextPw') return;
+        if ((w === undefined || w === null || w === '') && loser[f] !== undefined && loser[f] !== null && loser[f] !== '') out[f] = loser[f];
+      });
+      return out;
+    }
+
+    /* Which tombstones apply, read from BOTH sides being merged — a deletion
+       either device has written down stands. */
+    function tombContext(localData, cloudData) {
+      var ids = function (k) {
+        var set = {};
+        [localData[k], cloudData[k]].forEach(function (raw) {
+          Core._parseArr(raw).forEach(function (id) { if (id != null && id !== '') set[String(id)] = true; });
+        });
+        return set;
+      };
+      var sync = {};
+      [localData.voctrain_syncTombstones, cloudData.voctrain_syncTombstones].forEach(function (raw) {
+        var t = parseJson(raw || 'null');
+        if (!isObj(t)) return;
+        Object.keys(t).forEach(function (col) {
+          if (isObj(t[col])) sync[col] = Core.sync.mergeTombstones(sync[col] || {}, t[col]);
+        });
+      });
+      return { students: ids('voctrain_deletedStudentIds'), users: ids('voctrain_deletedUserIds'),
+               centres: ids('voctrain_deletedCentreIds'), sync: sync };
+    }
+
+    /* Union two lists of records by identity, IN THIS DEVICE'S ORDER: the
+       local records first as they stand, then what only the other side has.
+       (Keeping one order whichever side is newer stops a list flipping order
+       on every sync, which would rewrite and re-upload it each time.)
+       pick(localRecord, cloudRecord) decides a record both sides hold.
+       Duplicate identities on one side are kept as duplicates rather than
+       folded, so the merge itself can never shrink a list. */
+    function unionList(local, cloud, idOf, pick, keep) {
+      var out = [], slots = {}, used = {}, i;
+      for (i = 0; i < local.length; i++) {
+        var l = local[i];
+        if (!l || typeof l !== 'object' || !keep(l)) continue;
+        out.push(l);
+        var lid = idOf(l);
+        if (lid !== undefined && lid !== null) (slots[lid] = slots[lid] || []).push(out.length - 1);
+      }
+      for (i = 0; i < cloud.length; i++) {
+        var c = cloud[i];
+        if (!c || typeof c !== 'object' || !keep(c)) continue;
+        var id = idOf(c);
+        var list = (id !== undefined && id !== null) ? slots[id] : null;
+        var n = list ? (used[id] || 0) : 0;
+        if (list && n < list.length) {
+          used[id] = n + 1;
+          out[list[n]] = pick(out[list[n]], c);
+        } else {
+          out.push(c);
+        }
+      }
+      return out;
+    }
+
+    /* Merge one record collection. `preferCloud` says which side wins a tie.
+       Returns the merged value as a string, or null when the values are not
+       the shape this key is registered as (the caller then uses the
+       whole-value rule). */
+    function mergeRecordValue(key, localRaw, cloudRaw, preferCloud, ctx) {
+      var spec = recordSpec(key);
+      if (!spec) return null;
+      var L = parseJson(localRaw), C = parseJson(cloudRaw);
+      var wantMap = spec.type === 'map' || spec.type === 'tombstones' || spec.type === 'rooms';
+      if (wantMap ? !(isObj(L) && isObj(C)) : !(Array.isArray(L) && Array.isArray(C))) return null;
+      ctx = ctx || { students: {}, users: {}, centres: {}, sync: {} };
+      var tombs = spec.tombs ? (ctx.sync[spec.tombs] || {}) : {};
+      var out;
+      // Two copies of one record, dated by `fields`: the newer wins; on a tie
+      // the side that wrote the collection last; and the winner's blanks are
+      // filled from the loser either way.
+      var newer = function (l, c, fields) {
+        var tl = newestOf(l, fields), tc = newestOf(c, fields);
+        return (tc > tl || (tc === tl && preferCloud)) ? fillFrom(c, l) : fillFrom(l, c);
+      };
+
+      if (spec.type === 'tombstones') {
+        out = {};
+        Object.keys(L).forEach(function (col) { out[col] = isObj(L[col]) ? Core.sync.mergeTombstones({}, L[col]) : L[col]; });
+        Object.keys(C).forEach(function (col) {
+          if (isObj(C[col]) && isObj(out[col])) out[col] = Core.sync.mergeTombstones(out[col], C[col]);
+          else if (out[col] === undefined) out[col] = C[col];
+        });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'rooms') {
+        // { roomId: [message, ...] } — every message either side has, by id,
+        // in time order.
+        out = {};
+        Object.keys(L).concat(Object.keys(C)).forEach(function (room) {
+          if (out[room]) return;
+          var a = L[room], b = C[room];
+          if (!Array.isArray(a) || !Array.isArray(b)) { out[room] = a !== undefined ? a : b; return; }
+          var merged = unionList(a, b, byId, function (x, y) { return newer(x, y); }, function () { return true; });
+          merged.sort(function (x, y) { return (Date.parse(x && x.timestamp) || 0) - (Date.parse(y && y.timestamp) || 0); });
+          out[room] = merged;
+        });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'map') {
+        out = {};
+        Object.keys(L).concat(Object.keys(C).filter(function (k) { return !(k in L); })).forEach(function (k) {
+          var a = L[k], b = C[k];
+          var cand;
+          if (a === undefined) cand = b;
+          else if (b === undefined) cand = a;
+          else if (isObj(a) && isObj(b)) cand = newer(a, b);
+          else cand = preferCloud ? b : a;
+          if (isObj(cand) && Core.sync.deletedAfter(tombs, k, cand)) return;
+          out[k] = cand;
+        });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'students') {
+        var dead = ctx.students;
+        var live = function (r) {
+          if (DEMO_STUDENT.test(String(r.id || ''))) return false;
+          return Core.dropTombstonedStudents([r], dead).removed === 0;
+        };
+        // One person is one record however their id was minted: the app moves
+        // trainees onto deterministic ids (Core.stableStudentId), so the same
+        // person can arrive under an old id and a new one. Paired by id, else
+        // by name + programme (the online merge's rule), never across a
+        // "keep separate" marker; the pair keeps the stable id.
+        var natural = function (r) { return r.keepSeparate ? null : (Core.naturalKey(r) || null); };
+        var pair = function (l, c) {
+          // mergeStudentRecords keeps the newer lastModified and fills blanks;
+          // on a tie its first argument stands, so the tie-winner goes first.
+          var m = preferCloud ? Core.mergeStudentRecords(c, l) : Core.mergeStudentRecords(l, c);
+          var stable = Core.stableStudentId(m);
+          if (stable && (l.id === stable || c.id === stable)) m.id = stable;
+          return m;
+        };
+        out = [];
+        var slotById = {}, slotByName = {};
+        L.forEach(function (l) {
+          if (!l || typeof l !== 'object' || !live(l)) return;
+          out.push(l);
+          if (l.id != null && slotById[String(l.id)] === undefined) slotById[String(l.id)] = out.length - 1;
+          var nk = natural(l);
+          if (nk && slotByName[nk] === undefined) slotByName[nk] = out.length - 1;
+        });
+        C.forEach(function (c) {
+          if (!c || typeof c !== 'object' || !live(c)) return;
+          var at = (c.id != null) ? slotById[String(c.id)] : undefined;
+          if (at === undefined) {
+            var nk = natural(c);
+            if (nk && slotByName[nk] !== undefined && natural(out[slotByName[nk]]) === nk) at = slotByName[nk];
+          }
+          // Several copies of one person on the other side all fold into the
+          // one record here.
+          if (at !== undefined) { out[at] = pair(out[at], c); return; }
+          out.push(c);
+          if (c.id != null && slotById[String(c.id)] === undefined) slotById[String(c.id)] = out.length - 1;
+          var nk2 = natural(c);
+          if (nk2 && slotByName[nk2] === undefined) slotByName[nk2] = out.length - 1;
+        });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'users') {
+        var gone = ctx.users;
+        out = unionList(L, C, byId, function (l, c) {
+          // cloudCopyWins is the one rule every account merge follows: the
+          // newer edit, and a real password is never replaced by a default.
+          var w = Core.accountAccess.cloudCopyWins(l, c) ? c : l;
+          var merged = fillFrom(w, w === c ? l : c);
+          delete merged._plaintextPw;
+          return merged;
+        }, function (r) { return !(r.id != null && gone[String(r.id)]); });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'approvals') {
+        out = unionList(L, C, function (r) { return r.studentId != null ? String(r.studentId) : undefined; },
+          function (l, c) {
+            // An approval beats no approval, then the newer; a tie stays with
+            // the tie-winner (bestApproval keeps its first argument).
+            return preferCloud ? Core.cloudMerge.bestApproval(c, l) : Core.cloudMerge.bestApproval(l, c);
+          },
+          function (r) { return !(r.studentId != null && ctx.students[String(r.studentId)]); });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'centres') {
+        // applySkillAreas lets the list it is GIVEN win a centre's name and
+        // description, so the tie-winner is the one applied onto the other;
+        // the result keeps this device's order.
+        var deadCentre = function (id) { return !!ctx.centres[String(id)]; };
+        var alive = function (list) { return JSON.parse(JSON.stringify(list)).filter(function (c) { return !(c && deadCentre(c.id)); }); };
+        var base = alive(preferCloud ? L : C);
+        Core.cloudMerge.applySkillAreas(base, preferCloud ? C : L, deadCentre);
+        var byCentre = {};
+        base.forEach(function (c) { if (c && c.id != null) byCentre[String(c.id)] = c; });
+        out = [];
+        L.concat(C).forEach(function (c) {
+          var id = c && c.id != null ? String(c.id) : null;
+          if (id !== null && byCentre[id]) { out.push(byCentre[id]); delete byCentre[id]; }
+        });
+        base.forEach(function (c) { if (!c || c.id == null || byCentre[String(c.id)]) out.push(c); });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'vcSessions') {
+        return JSON.stringify(Core.vcSessions.mergeSessions(L, C));
+      }
+
+      // A plain list of records.
+      out = unionList(L, C, spec.id, function (l, c) { return newer(l, c, spec.stamps); }, function (r) {
+        if (spec.accept && !spec.accept(r)) return false;
+        if (spec.studentField && r[spec.studentField] != null && ctx.students[String(r[spec.studentField])]) return false;
+        if (spec.tombs && Core.sync.deletedAfter(tombs, spec.id(r), r)) return false;
+        return true;
+      });
+      return JSON.stringify(out);
+    }
+
     /* Merge a cloud backup into this device's copy.
          localData/cloudData   - { storageKey: rawStringValue }
          localStamps/cloudStamps - { storageKey: ISO time last written }
+       opts.firstSync - this device has never synced this file (see below)
+       opts.records   - merge the registered record collections record by
+                        record (RECORD_KEYS above) instead of as one value
+       opts.symmetric - the copies are peers rather than "this device" and "the
+                        cloud": the strictly newer stamp wins, and a value with
+                        no stamp is simply the older one. The Centre's own
+                        server merges every incoming save into what it holds
+                        this way.
        Returns the union plus the keys whose local value must be rewritten. */
     function mergeKeys(localData, localStamps, cloudData, cloudStamps, opts) {
       localData = localData || {}; cloudData = cloudData || {};
       opts = opts || {};
-      var data = {}, stamps = {}, changed = [], rescued = [], k;
+      var data = {}, stamps = {}, changed = [], rescued = [], k, ctx = null;
 
       for (k in localData) {
         if (!Object.prototype.hasOwnProperty.call(localData, k)) continue;
@@ -5694,7 +7396,16 @@
           changed.push(k);
           continue;
         }
-        if (localData[k] === cloudData[k]) continue;      // identical, nothing to do
+        if (localData[k] === cloudData[k]) {              // identical, nothing to do —
+          // except keep the newer of the two stamps. Dropping the cloud's stamp
+          // here left the key UNSTAMPED in what this device pushed next, and a
+          // new device's first sync only adopts a stamped value — so it kept
+          // its own start-up defaults (three built-in logins instead of the
+          // Centre's accounts) and pushed those.
+          var ils = stampOf(localStamps, k), ics = stampOf(cloudStamps, k);
+          if (ics > ils && cloudStamps && cloudStamps[k]) stamps[k] = cloudStamps[k];
+          continue;
+        }
 
         /* A list of DELETIONS is merged by union, never by whose write is
            newer. It only ever grows, so both sides are always right, and one
@@ -5751,6 +7462,25 @@
           data[k] = cloudData[k];
           stamps[k] = cloudStamps[k];
           changed.push(k);
+          continue;
+        }
+        // A collection of records: neither copy replaces the other — see
+        // RECORD_KEYS above. The union carries the newer of the two stamps.
+        if (opts.records && isRecordKey(k)) {
+          if (!ctx) ctx = tombContext(localData, cloudData);
+          var merged = mergeRecordValue(k, localData[k], cloudData[k], ct > lt, ctx);
+          if (merged != null) {
+            if (merged !== localData[k]) { data[k] = merged; changed.push(k); }
+            if (ct > lt && cloudStamps && cloudStamps[k]) stamps[k] = cloudStamps[k];
+            continue;
+          }
+        }
+        if (opts.symmetric) {
+          if (ct > lt) {
+            data[k] = cloudData[k];
+            stamps[k] = cloudStamps[k];
+            changed.push(k);
+          }
           continue;
         }
         if (lt > 0 && ct > lt) {
@@ -5965,7 +7695,7 @@
              sharedSources: sharedSources, isShared: isShared, sourceOf: sourceOf,
              sharedPullPlan: sharedPullPlan, pickShared: pickShared,
              isEmptyValue: isEmptyValue, wouldDiscardRecords: wouldDiscardRecords,
-             guardedSet: guardedSet };
+             guardedSet: guardedSet, isRecordKey: isRecordKey, mergeRecordValue: mergeRecordValue };
   })();
 
   /* --------------------------------------------------------------------------
@@ -6114,6 +7844,449 @@
 
     return { esc: esc, attr: esc, jsArg: jsArg, safeUrl: safeUrl, linkify: linkify,
              escKeepCharRefs: escKeepCharRefs, notifIcon: notifIcon, cleanNotification: cleanNotification };
+  })();
+
+  /* --------------------------------------------------------------------------
+     Core.html — the ONE escaping toolkit every page uses when it builds markup
+     out of strings.
+
+     Why it exists: names, course titles, chat messages, file names, resource
+     links and notification texts are typed by trainees, instructors and even
+     anonymous visitors (the Support form), then shown in the Administrator's
+     browser — the session that holds the Centre's Google Drive token. Anything
+     that reaches innerHTML unescaped there can read or destroy every record.
+     The pages had grown four slightly different escapers, some of which forgot
+     quotes, and inline onclick handlers that "escaped" an apostrophe as &#39; —
+     which the browser decodes straight back before the JavaScript runs. These
+     helpers are the single correct version; the page-level escapeHtml,
+     escapeAttr, _certEsc and lmsChatEscapeHtml now hand their work to them.
+
+       esc(s)        text or a quoted attribute value: & < > " ' ` all encoded.
+       jsArg(s)      a JavaScript string literal that is safe INSIDE a
+                     double-quoted inline handler: onclick="f(' + jsArg(x) + ')".
+                     The literal is JSON-quoted first, then HTML-escaped, so the
+                     browser's attribute decoding gives back exactly x.
+       safeUrl(u)    u if it is an http(s)/mailto/tel/blob/relative link or a
+                     data:image, otherwise '' — so a javascript: link can never
+                     be clicked. { data: true } also allows any data: URL, for
+                     the download links of files stored inline.
+       linkify(t, { style }) escapes plain chat text and turns http(s) links
+                     into anchors built from the escaped address, which can no
+                     longer run past a quote into a new attribute.
+       escKeepCharRefs(s) like esc, but keeps numeric character references
+                     such as &#128222; (some stored notification texts carry
+                     their emoji that way). A numeric reference can only ever
+                     produce one character of text, never markup.
+       notifIcon(icon, fallback) a notification's icon only if it is an
+                     emoji/character reference, otherwise the fallback.
+       cleanNotification(n) a fresh notification object built only from the
+                     known fields of one that arrived from another device.
+     -------------------------------------------------------------------------- */
+  Core.html = (function () {
+    var MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' };
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"'`]/g, function (c) { return MAP[c]; });
+    }
+
+    function jsArg(s) {
+      var lit = JSON.stringify(String(s == null ? '' : s))
+        .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+      return esc(lit);
+    }
+
+    // Browsers ignore leading/trailing spaces and control characters, and
+    // every tab or newline anywhere, when they read a link's scheme — so
+    // " java\tscript:" is still javascript:. Look at the URL the same way.
+    function schemeOf(u) {
+      var s = String(u == null ? '' : u).replace(/^[\u0000-\u0020]+/, '').replace(/[\t\n\r]/g, '');
+      var m = /^([a-zA-Z][a-zA-Z0-9+.\-]*):/.exec(s);
+      return m ? m[1].toLowerCase() : '';
+    }
+
+    var SAFE_SCHEMES = { http: 1, https: 1, mailto: 1, tel: 1, blob: 1 };
+    // Any picture is fine: an image (even an SVG) shown in <img> runs no script,
+    // and browsers refuse to open a data: URL as a page.
+    var SAFE_DATA_IMAGE = /^data:image\/[a-z0-9.+\-]+[;,]/i;
+
+    function safeUrl(u, opts) {
+      if (u == null) return '';
+      var raw = String(u).trim();
+      if (!raw) return '';
+      var scheme = schemeOf(raw);
+      if (!scheme) return raw;                      // relative link: same site, no script
+      if (SAFE_SCHEMES[scheme]) return raw;
+      if (scheme === 'data') {
+        if (opts && opts.data) return raw;          // inline file download
+        var compact = raw.replace(/[\u0000-\u0020]+/g, '');
+        if (SAFE_DATA_IMAGE.test(compact)) return raw;
+      }
+      return '';
+    }
+
+    // A link inside chat text ends at whitespace or at any character that
+    // could close an attribute or open a tag.
+    var URL_RE = /https?:\/\/[^\s<>"'`]+/gi;
+
+    function linkify(text, opts) {
+      var s = String(text == null ? '' : text);
+      var style = opts && opts.style ? ' style="' + esc(opts.style) + '"' : '';
+      var out = '', last = 0, m;
+      URL_RE.lastIndex = 0;
+      while ((m = URL_RE.exec(s))) {
+        out += esc(s.slice(last, m.index));
+        var url = m[0];
+        out += '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"' + style + '>' + esc(url) + '</a>';
+        last = m.index + url.length;
+      }
+      return out + esc(s.slice(last));
+    }
+
+    function escKeepCharRefs(s) {
+      return esc(s).replace(/&amp;#(\d{1,7}|x[0-9a-fA-F]{1,6});/g, '&#$1;');
+    }
+
+    // An icon is one or two emoji (possibly written as numeric references) —
+    // never letters, never markup. Anything else gets the fallback.
+    function notifIcon(icon, fallback) {
+      var s = String(icon == null ? '' : icon);
+      if (s && s.length <= 24 && /^(?:&#\d{1,7};|[^\x00-\x7F]|\s)+$/.test(s)) return s;
+      return fallback == null ? '\uD83D\uDD14' : String(fallback);
+    }
+
+    var NOTIF_TYPES = { info: 1, success: 1, warning: 1 };
+    var ROLES = { admin: 1, adminstaff: 1, instructor: 1, student: 1, cmc: 1 };
+
+    function strList(a, max, allow) {
+      if (!Array.isArray(a)) return [];
+      var out = [];
+      for (var i = 0; i < a.length && out.length < max; i++) {
+        if (typeof a[i] !== 'string' && typeof a[i] !== 'number') continue;
+        var v = String(a[i]).slice(0, 80);
+        if (allow && !allow[v]) continue;
+        out.push(v);
+      }
+      return out;
+    }
+
+    // Another device (or anyone on the public realtime broker) can send us a
+    // notification. Keep only the fields the bell uses, as plain strings of a
+    // sensible length; everything else is dropped. Returns null for junk.
+    function cleanNotification(n) {
+      if (!n || typeof n !== 'object' || n.id == null || n.text == null) return null;
+      var ts = Number(n.timestamp);
+      var out = {
+        id: String(n.id).slice(0, 80),
+        text: String(n.text).slice(0, 500),
+        timestamp: isFinite(ts) && ts > 0 ? ts : Date.now(),
+        time: 'Just now',
+        read: false,
+        icon: notifIcon(n.icon),
+        type: NOTIF_TYPES[n.type] ? n.type : 'info',
+        forRoles: strList(n.forRoles, 8, ROLES)
+      };
+      var users = strList(n.forUsers, 50);
+      if (users.length) out.forUsers = users;
+      return out;
+    }
+
+    return { esc: esc, attr: esc, jsArg: jsArg, safeUrl: safeUrl, linkify: linkify,
+             escKeepCharRefs: escKeepCharRefs, notifIcon: notifIcon, cleanNotification: cleanNotification };
+  })();
+
+  /* --------------------------------------------------------------------------
+     Core.exams — the rules of an online exam that every page must agree on.
+
+     Why it exists: each device decided these for itself, and got them wrong
+     in ways that cost trainees their results.
+       - The exam window was read in the device's OWN timezone, so a lab PC
+         left on UTC closed a 09:00 Jamaica exam at 05:31 and published that
+         to every other device. The Centre's schedule is Centre time: Jamaica
+         is UTC-05:00 all year (no daylight saving), so a date and a time
+         typed by staff mean one fixed instant everywhere.
+       - A manually activated exam had no record of WHEN it was activated, so
+         an exam scheduled for 09:00 and activated at 14:00 was "over" by the
+         next tick. activatedAt opens a fresh window of `duration` minutes.
+       - The clock of an attempt restarted from full on every reload. The
+         deadline is now an absolute moment fixed when the attempt starts,
+         and never later than the window's end.
+       - Marking compared answers with keys that might be missing (an import
+         with no answer key, a deleted option): null === null scored an
+         unanswered question as correct. A question with no usable key now
+         goes to the instructor instead of being guessed.
+       - Results awaiting manual marking were counted as final Fails in pass
+         rates and averages. Only final results count.
+
+       centreTime(date, time, offset)   ms of a Centre-local date + time
+       centreParts(ms, offset)          { date:'YYYY-MM-DD', time:'HH:MM' }
+       defaultStart(now, offset)        the next 5-minute mark, Centre time
+       windowOf(exam, offset)           { start, end } in ms, or null
+       statusAt(exam, now, offset)      'upcoming' | 'active' | 'completed'
+       sessionDeadline(exam, startedAt, offset)  ms the attempt must end by
+       publicQuestions(questionData)    the questions WITHOUT their keys
+       mark(questions, answers, keyed)  marks an attempt against the exam's keys
+       keyProblems(questions)           question numbers whose MCQ/TF key is unset
+       fixKeyAfterOptionRemoved(q, i)   keeps the key on the same option text
+       isProvisional(r) / isFinal(r)    awaiting marking / counts towards scores
+       passRateOf(results)              '67%' over final results, or null
+       averageOf(results)               mean score of final results, or null
+       canRevealAnswers(exam, now, off) may a trainee see the correct answers?
+       syncKey(exam) / legacyKey(exam)  the exam's merge key (id) / old key
+       translateLegacyTombs(tombs, lists...) old title|course tombstones -> ids
+       csvCell(v)                       a CSV cell, quoted and formula-safe
+       draftKey(studentId, examId)      where an attempt in progress is kept
+       outboxAdd / outboxPending / outboxRestore  results not yet in the cloud
+     -------------------------------------------------------------------------- */
+  Core.exams = (function () {
+    var DEFAULT_OFFSET = '-05:00';
+    var MIN = 60000;
+
+    function offsetMinutes(off) {
+      if (typeof off === 'number' && isFinite(off)) return off;
+      var m = /^([+-])(\d{1,2}):?(\d{2})$/.exec(String(off == null || off === '' ? DEFAULT_OFFSET : off).trim());
+      if (!m) m = /^([+-])(\d{1,2}):?(\d{2})$/.exec(DEFAULT_OFFSET);
+      var v = parseInt(m[2], 10) * 60 + parseInt(m[3], 10);
+      return m[1] === '-' ? -v : v;
+    }
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+    function centreTime(dateStr, timeStr, offset) {
+      var d = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(dateStr || '').trim());
+      if (!d) return null;
+      var t = /^(\d{1,2}):(\d{2})/.exec(String(timeStr || '00:00').trim()) || [null, '0', '0'];
+      var utc = Date.UTC(+d[1], +d[2] - 1, +d[3], parseInt(t[1], 10) || 0, parseInt(t[2], 10) || 0);
+      return utc - offsetMinutes(offset) * MIN;
+    }
+    function centreParts(ms, offset) {
+      var x = new Date(ms + offsetMinutes(offset) * MIN);
+      return {
+        date: x.getUTCFullYear() + '-' + pad(x.getUTCMonth() + 1) + '-' + pad(x.getUTCDate()),
+        time: pad(x.getUTCHours()) + ':' + pad(x.getUTCMinutes())
+      };
+    }
+    /* "Now", rounded UP to the next five minutes — what a blank date and time
+       on a new exam mean, instead of 09:00 today (which, after 10:30, made
+       the exam finished before anyone could sit it). */
+    function defaultStart(nowMs, offset) {
+      var step = 5 * MIN;
+      return centreParts(Math.ceil(nowMs / step) * step, offset);
+    }
+    function durationMs(exam) { return (parseInt(exam && exam.duration, 10) || 90) * MIN; }
+    function hasQuestions(exam) { return !!(exam && Array.isArray(exam.questionData) && exam.questionData.length); }
+
+    function windowOf(exam, offset) {
+      if (!exam) return null;
+      var dur = durationMs(exam);
+      var start = centreTime(exam.date, exam.time, offset);
+      var end = start == null ? null : start + dur;
+      var act = Date.parse(exam.activatedAt || '');
+      if (!isNaN(act)) {
+        start = start == null ? act : Math.min(start, act);
+        end = Math.max(end == null ? 0 : end, act + dur);
+      }
+      return start == null ? null : { start: start, end: end };
+    }
+
+    /* The status an exam should have NOW. Pure: it never changes the exam.
+       'completed' is final until staff reschedule; an exam without questions
+       never opens by itself. */
+    function statusAt(exam, nowMs, offset) {
+      if (!exam) return 'upcoming';
+      var stored = exam.status === 'active' || exam.status === 'completed' ? exam.status : 'upcoming';
+      if (stored === 'completed') return 'completed';
+      var w = windowOf(exam, offset);
+      if (!w) return stored;
+      if (stored === 'upcoming' && (nowMs < w.start || !hasQuestions(exam))) return 'upcoming';
+      return nowMs >= w.end ? 'completed' : 'active';
+    }
+
+    function sessionDeadline(exam, startedAt, offset) {
+      var d = startedAt + durationMs(exam);
+      var w = windowOf(exam, offset);
+      if (w && w.end != null) d = Math.min(d, w.end);
+      return d;
+    }
+
+    function publicQuestions(questionData) {
+      return (Array.isArray(questionData) ? questionData : []).map(function (q) {
+        var c = {};
+        Object.keys(q || {}).forEach(function (k) { if (k !== 'correctAnswer') c[k] = q[k]; });
+        return c;
+      });
+    }
+
+    function validKey(q, key) {
+      if (!q) return false;
+      if (q.type === 'mcq') return typeof key === 'number' && key >= 0 && key < (q.options || []).length && Math.floor(key) === key;
+      if (q.type === 'tf') return key === true || key === false;
+      return true;
+    }
+    function keyProblems(questions) {
+      var out = [];
+      (questions || []).forEach(function (q, i) {
+        if (q && (q.type === 'mcq' || q.type === 'tf') && !validKey(q, q.correctAnswer)) out.push(i + 1);
+      });
+      return out;
+    }
+    function fixKeyAfterOptionRemoved(q, optIdx) {
+      if (q && typeof q.correctAnswer === 'number') {
+        if (q.correctAnswer === optIdx) q.correctAnswer = null;
+        else if (q.correctAnswer > optIdx) q.correctAnswer--;
+      }
+      return q;
+    }
+
+    /* Mark an attempt. `questions` are what the trainee saw (keys stripped),
+       `keyed` is the exam's own questionData, matched by question id. A
+       question whose key is missing or unusable is never auto-marked: it is
+       sent to the instructor, like a short answer. */
+    function mark(questions, answers, keyed) {
+      var byId = {};
+      (keyed || []).forEach(function (k) { if (k && k.id != null) byId[String(k.id)] = k; });
+      var out = { gradedResults: [], totalPoints: 0, earnedPoints: 0, correctCount: 0, manualCount: 0 };
+      (questions || []).forEach(function (q, i) {
+        var src = q && q.id != null && byId[String(q.id)] ? byId[String(q.id)] : null;
+        var key = src ? src.correctAnswer : (q && 'correctAnswer' in q ? q.correctAnswer : null);
+        if (key === undefined) key = null;
+        var pts = Number(q.points) || 0;
+        var ans = answers ? answers[i] : null;
+        if (ans === undefined) ans = null;
+        var isCorrect = false, manual = false, autoMatch = null;
+        if (q.type === 'mcq' || q.type === 'tf') {
+          if (validKey(q, key)) isCorrect = ans === key;
+          else { manual = true; key = null; }
+        } else if (q.type === 'fill') {
+          autoMatch = typeof key === 'string' && key.trim() !== '' &&
+            String(ans == null ? '' : ans).trim().toLowerCase() === key.trim().toLowerCase();
+          isCorrect = autoMatch;
+          manual = true; // the instructor confirms every fill-in
+        } else {
+          manual = true;
+        }
+        out.totalPoints += pts;
+        if (isCorrect && !manual) { out.earnedPoints += pts; out.correctCount++; }
+        if (manual) out.manualCount++;
+        out.gradedResults.push({
+          questionId: q.id,
+          questionText: q.text,
+          type: q.type,
+          studentAnswer: ans,
+          correctAnswer: key,
+          isCorrect: manual ? null : isCorrect,
+          needsManualGrade: manual,
+          points: pts,
+          earnedPoints: (isCorrect && !manual) ? pts : 0,
+          awardedPoints: manual ? null : (isCorrect ? pts : 0),
+          graded: !manual,
+          gradedBy: manual ? null : 'auto',
+          autoMatch: q.type === 'fill' ? autoMatch : null
+        });
+      });
+      return out;
+    }
+
+    function isProvisional(r) { return !!(r && r.needsReview && !r.reviewComplete); }
+    function isFinal(r) { return !!(r && !r.archived && !isProvisional(r)); }
+    function passRateOf(results) {
+      var fin = (results || []).filter(isFinal);
+      if (!fin.length) return null;
+      return Math.round(fin.filter(function (r) { return r.passed; }).length / fin.length * 100) + '%';
+    }
+    function averageOf(results) {
+      var fin = (results || []).filter(function (r) { return isFinal(r) && !isNaN(parseFloat(r.score)); });
+      if (!fin.length) return null;
+      return Math.round(fin.reduce(function (a, r) { return a + parseFloat(r.score); }, 0) / fin.length);
+    }
+
+    /* A trainee sees the correct answers only once the exam has closed, or
+       when staff release them; staff may also withhold them for good.
+       An exam saved before this existed has no setting: after close. */
+    function canRevealAnswers(exam, nowMs, offset) {
+      if (!exam) return false;
+      if (exam.answersRelease === 'released') return true;
+      if (exam.answersRelease === 'withheld') return false;
+      return statusAt(exam, nowMs, offset) === 'completed';
+    }
+
+    function lower(v) { return String(v == null ? '' : v).trim().toLowerCase(); }
+    function legacyKey(e) { return lower(e && e.title) + '|' + lower(e && e.course); }
+    function syncKey(e) { return e && e.id != null && e.id !== '' ? String(e.id) : legacyKey(e); }
+    /* Exams used to be merged by title|programme, so the deletions already
+       written down are under that key. Carry each one over to the exam's id,
+       but only when exactly one exam answers to it — two same-titled exams
+       must never both go because one was deleted. */
+    function translateLegacyTombs(tombs) {
+      var out = {};
+      Object.keys(tombs || {}).forEach(function (k) { out[k] = tombs[k]; });
+      var ids = {};
+      Array.prototype.slice.call(arguments, 1).forEach(function (list) {
+        (list || []).forEach(function (e) {
+          if (!e || e.id == null || e.id === '') return;
+          var lk = legacyKey(e);
+          (ids[lk] = ids[lk] || {})[String(e.id)] = 1;
+        });
+      });
+      Object.keys(tombs || {}).forEach(function (k) {
+        if (k.indexOf('|') === -1 || !ids[k]) return;
+        var match = Object.keys(ids[k]);
+        if (match.length !== 1) return;
+        var t = Date.parse(tombs[k]) || 0, have = Date.parse(out[match[0]] || '') || 0;
+        if (t > have) out[match[0]] = tombs[k];
+      });
+      return out;
+    }
+
+    /* One CSV cell: quotes doubled, and a leading = + - @ (which a
+       spreadsheet would run as a formula) neutralised with an apostrophe. */
+    function csvCell(v) {
+      var s = String(v == null ? '' : v);
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+
+    /* An attempt in progress lives on the device it is sat on, under a key
+       per trainee and exam: outside the voctrain_ prefix so a staff sign-out
+       on a shared PC does not wipe it, and with "Session" in its name so it
+       never goes into a shared snapshot (isSnapshotableKey). */
+    var DRAFT_PREFIX = 'cestisExamSession__';
+    function draftKey(studentId, examId) { return DRAFT_PREFIX + String(studentId) + '__' + String(examId); }
+
+    /* Results submitted on this device that the cloud has not yet been seen
+       to hold. A sign-out on a shared PC keeps only the signed-in trainee's
+       rows (or, for staff, none) — these come back until they are safe. */
+    function outboxAdd(list, result) {
+      var out = (Array.isArray(list) ? list : []).filter(function (r) { return r && r.id !== result.id; });
+      out.push(result);
+      return out;
+    }
+    function outboxPending(list, cloudResults) {
+      var inCloud = {};
+      (cloudResults || []).forEach(function (r) { if (r && r.id != null) inCloud[String(r.id)] = 1; });
+      return (Array.isArray(list) ? list : []).filter(function (r) { return r && !inCloud[String(r.id)]; });
+    }
+    function outboxRestore(examResults, list) {
+      if (!Array.isArray(examResults)) return 0;
+      var added = 0;
+      (Array.isArray(list) ? list : []).forEach(function (r) {
+        if (!r || r.id == null) return;
+        var have = examResults.some(function (x) {
+          return x && (x.id === r.id || (x.examId === r.examId && x.studentId === r.studentId));
+        });
+        if (!have) { examResults.push(r); added++; }
+      });
+      return added;
+    }
+
+    return {
+      DEFAULT_OFFSET: DEFAULT_OFFSET, offsetMinutes: offsetMinutes, centreTime: centreTime, centreParts: centreParts,
+      defaultStart: defaultStart, windowOf: windowOf, hasQuestions: hasQuestions, statusAt: statusAt,
+      sessionDeadline: sessionDeadline, publicQuestions: publicQuestions, mark: mark, keyProblems: keyProblems,
+      fixKeyAfterOptionRemoved: fixKeyAfterOptionRemoved, isProvisional: isProvisional, isFinal: isFinal,
+      passRateOf: passRateOf, averageOf: averageOf, canRevealAnswers: canRevealAnswers,
+      legacyKey: legacyKey, syncKey: syncKey, translateLegacyTombs: translateLegacyTombs, csvCell: csvCell,
+      DRAFT_PREFIX: DRAFT_PREFIX, draftKey: draftKey,
+      outboxAdd: outboxAdd, outboxPending: outboxPending, outboxRestore: outboxRestore
+    };
   })();
 
   root.CESTISCore = Core;
