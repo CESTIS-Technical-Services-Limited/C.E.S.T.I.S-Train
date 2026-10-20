@@ -5903,22 +5903,37 @@ function exportDataBackup() {
     'cestisStaffMembers','cestisTimeRecords','cestiSchoolFeeStudents','cestiSchoolFeePayments','cestiUsers',
     // The Board's minute book: rulings awaiting a countersignature. Lose it and
     // a half-signed decision is gone with no record that the Chair ever ruled.
-    'cestisStaffAppraisals','cestis_cmc_rulings'];
-  // Include every dynamically-keyed bucket (per-quarter attendance/budget/virement,
-  // finance docs) so nothing is silently left out of the backup.
+    'cestisStaffAppraisals','cestis_cmc_rulings',
+    // Payroll (and its accounts and permission grants), the fee structure and
+    // fee documents, the fee and time-clock deletion lists, bank
+    // reconciliation and Income & Expenditure. None of these were in this
+    // "last-resort" export, so a Centre restoring from it after losing Drive
+    // lost its payroll history and every programme's price, and deleted
+    // payments came back on the first merge.
+    'cestisPayroll','cestisPayroll_backup','dashboardUsers','cestisPermissions',
+    'cestiFeeStructure','cestiSchoolFeeDocuments','cestiSchoolFeeDeletedPaymentIds','cestiSchoolFeeDeletedLmsIds',
+    'cestiSchoolFeeDeletedDocumentIds','cestiSchoolFeeDeletedFeeKeys','cestisTimeRecordTombstones'];
+  // Then EVERY other key on this device that may travel at all (the same
+  // filter as the master snapshot: no tokens, sessions or per-device sync
+  // pointers), so an app added later is never silently left out.
   try {
     (CESTISStore.keys ? CESTISStore.keys() : Object.keys(CESTISStore._cache || {})).forEach(function(k) {
       if (!k || keys.indexOf(k) !== -1) return;
-      if (k.indexOf('voctrain_attendance::') === 0
-          || k.indexOf('cestis_quarter_') === 0
-          || k.indexOf('cestis_budget') === 0
-          || k.indexOf('cestis_finance_') === 0
-          || k.indexOf('cesti_virement') === 0) keys.push(k);
+      if (window.CESTISCore && typeof CESTISCore.isSnapshotableKey === 'function'
+          ? CESTISCore.isSnapshotableKey(k)
+          : (k.indexOf('voctrain_attendance::') === 0 || k.indexOf('cestis_quarter_') === 0
+             || k.indexOf('cestis_budget') === 0 || k.indexOf('cestis_finance_') === 0
+             || k.indexOf('cesti_virement') === 0)) keys.push(k);
     });
   } catch(e) {}
   keys.forEach(function(k) {
     var val = CESTISStore.getItem(k);
-    if(val) backup.data[k] = safeJsonParse(val, null);
+    if(!val) return;
+    var parsed = safeJsonParse(val, undefined);
+    // A value that is not JSON (a reconciliation bank balance typed as text,
+    // a logo) is kept exactly as stored rather than dropped as null.
+    if(parsed === undefined || parsed === null) { backup.raw = backup.raw || {}; backup.raw[k] = val; }
+    else backup.data[k] = parsed;
   });
   var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   var url = URL.createObjectURL(blob);
@@ -5951,6 +5966,10 @@ function importDataBackup() {
           if(backup.data[k] !== null) {
             CESTISStore.setItem(k, JSON.stringify(backup.data[k]));
           }
+        });
+        // Values that were not JSON travel as they were stored.
+        Object.keys(backup.raw || {}).forEach(function(k) {
+          if(typeof backup.raw[k] === 'string') CESTISStore.setItem(k, backup.raw[k]);
         });
         showToast('Backup restored! Reloading...');
         setTimeout(function(){ location.reload(); }, 1500);
