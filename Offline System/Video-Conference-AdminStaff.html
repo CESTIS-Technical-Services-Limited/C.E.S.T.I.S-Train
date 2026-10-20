@@ -34,7 +34,7 @@
     <div style="padding:20px;text-align:center;">
       <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Enter a room code shared by the meeting host to join</p>
       <div style="display:flex;gap:8px;align-items:center;justify-content:center;">
-        <input type="text" class="form-control" id="as-vc-join-code" placeholder="ABC123" maxlength="6" style="font-family:monospace;font-size:20px;letter-spacing:4px;text-align:center;text-transform:uppercase;width:200px;" onkeyup="this.value=this.value.toUpperCase();if(event.key==='Enter')asJoinMeetingByCode()">
+        <input type="text" class="form-control" id="as-vc-join-code" placeholder="ROOM CODE" maxlength="16" autocomplete="off" style="font-family:monospace;font-size:20px;letter-spacing:3px;text-align:center;text-transform:uppercase;width:100%;max-width:280px;" onkeyup="this.value=this.value.toUpperCase();if(event.key==='Enter')asJoinMeetingByCode()">
         <button class="btn btn-primary" onclick="asJoinMeetingByCode()">Join</button>
       </div>
     </div>

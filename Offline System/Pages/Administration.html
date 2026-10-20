@@ -29,7 +29,11 @@
     <div class="form-group"><label>Institution Name</label><input type="text" class="form-control" id="settInstitution" value="C.E.S.T.I.S LMS - Community Training Intervention"></div>
     <div class="form-group"><label>Administrator Email</label><input type="email" class="form-control" id="settAdminEmail" value="admin@heartlms.edu.jm"></div>
     <div class="form-group"><label>Academic Year</label><select class="form-control" id="settAcadYear"><option>2025/2026</option><option>2024/2025</option></select></div>
-    <div class="form-group"><label>Video Conference Provider</label><select class="form-control" id="settVcProvider"><option>Built-in (WebRTC)</option><option>Zoom Integration</option><option>Microsoft Teams</option><option>Google Meet</option></select></div>
+    <div class="form-group"><label>Video Conference Provider</label><select class="form-control" id="settVcProvider"><option>Built-in (WebRTC)</option></select>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+        Classes and meetings run in the built-in conference room; a Large Class runs on the conference server named below.
+      </p>
+    </div>
     <div class="form-group">
       <label>Conference Server (optional)</label>
       <input type="text" class="form-control" id="settVcSignalling" placeholder="conference.yourcentre.org">
@@ -39,6 +43,35 @@
         staff meeting and all-staff conference stops if that public service is busy or unreachable.
         Name your own server here and it is tried first, with the public one kept as a fallback.
         Accepts <code>host</code>, <code>host:port</code> or a full address.
+      </p>
+    </div>
+    <div class="form-group">
+      <label>Relay (TURN) servers (optional)</label>
+      <textarea class="form-control" id="settVcTurn" rows="3" spellcheck="false" style="font-family:monospace;font-size:12px;" placeholder="turn:relay.yourcentre.org:3478 username password"></textarea>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+        Some networks &mdash; many phones on mobile data &mdash; cannot be reached directly, and a call to them only
+        connects through a relay server. There is no longer a free public one, so without a relay of the Centre's own
+        those calls fail (the room says so when it happens). One per line:
+        <code>turn:host:port username password</code> (or <code>turns:</code>). A free, self-hosted
+        <em>coturn</em> server on the Centre's own machine is enough. Stored with the Centre's settings, never in the
+        published code.
+      </p>
+    </div>
+    <div class="form-group">
+      <label>Large Class conference server (optional)</label>
+      <input type="text" class="form-control" id="settVcLargeBase" placeholder="https://meet.yourcentre.org/">
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+        A Large Class runs on a Jitsi conference server. Left blank it uses the free public <code>meet.jit.si</code>,
+        which no longer supports meetings embedded in another site: it can ask the host to sign in and end the
+        meeting after a few minutes. Name the Centre's own Jitsi server here (an <code>https://</code> address).
+      </p>
+    </div>
+    <div class="form-group">
+      <label>Large Class room password phrase (optional)</label>
+      <input type="text" class="form-control" id="settVcRoomSalt" autocomplete="off" placeholder="Any phrase only this Centre knows">
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+        Mixed into each Large Class room's password, so a room cannot be entered by someone who only guesses its
+        address. Change it only between classes: every device must hold the same phrase.
       </p>
     </div>
     <button class="btn btn-primary" onclick="saveSystemSettings()">Save Changes</button>
