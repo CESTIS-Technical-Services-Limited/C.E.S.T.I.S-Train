@@ -5993,7 +5993,8 @@ function runDataIntegrityCheck() {
   // Check for exam results referencing non-existent exams
   var examIds = exams.map(function(ex){ return ex.id; });
   examResults.forEach(function(er) {
-    if(examIds.indexOf(er.examId) === -1) issues.push('Exam result references missing exam: ' + er.examId);
+    // A deleted exam's results are archived on purpose (deleteExam), not orphans.
+    if(er && !er.archived && examIds.indexOf(er.examId) === -1) issues.push('Exam result references missing exam: ' + er.examId);
   });
   // Check for duplicate user accounts
   var seenUsernames = {};
