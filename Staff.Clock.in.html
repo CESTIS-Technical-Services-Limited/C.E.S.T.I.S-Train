@@ -5945,7 +5945,7 @@
                 staffId: currentUser.id,
                 staffName: currentUser.fullName,
                 workType: currentUser.workType,
-                date: now.toISOString().split('T')[0],
+                date: clockLocalDate(now),
                 clockIn: now.toISOString(),
                 clockOut: null,
                 status: 'working',
@@ -6169,9 +6169,19 @@
             document.getElementById('totalBreakTime').textContent = formatSecondsToHoursMinutes(breakSeconds);
         }
 
+        // The calendar date on this computer's clock (the Centre's own day).
+        // toISOString() is UTC: in Jamaica (UTC-5) a session started after
+        // 7 pm was dated tomorrow — the wrong pay day, and on the last day of
+        // a quarter the wrong quarter. The dashboard's copy of this page
+        // already dates sessions this way, so the shared records now agree.
+        function clockLocalDate(d) {
+            const n = d instanceof Date ? d : new Date();
+            return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+        }
+
         // Load Today's Session
         function loadTodaysSession() {
-            const today = new Date().toISOString().split('T')[0];
+            const today = clockLocalDate();
             // Find any in-progress session for this user (regardless of date) so
             // sessions that crossed midnight or were left open before a computer
             // restart still resume instead of being orphaned in CESTISStore.
@@ -6215,7 +6225,7 @@
 
         // Render Today's Log
         function renderTodayLog() {
-            const today = new Date().toISOString().split('T')[0];
+            const today = clockLocalDate();
             const todayRecords = timeRecords.filter(r => r.staffId === currentUser.id && r.date === today);
 
             const tbody = document.getElementById('todayLogTable');
@@ -8407,16 +8417,16 @@
             checkFirstTimeSyncPrompt();
 
             // Set dates
-            const today = new Date().toISOString().split('T')[0];
+            const today = clockLocalDate();
             document.getElementById('historyToDate').value = today;
             document.getElementById('reportToDate').value = today;
             document.getElementById('editToDate').value = today;
             
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
-            document.getElementById('historyFromDate').value = weekAgo.toISOString().split('T')[0];
-            document.getElementById('reportFromDate').value = weekAgo.toISOString().split('T')[0];
-            document.getElementById('editFromDate').value = weekAgo.toISOString().split('T')[0];
+            document.getElementById('historyFromDate').value = clockLocalDate(weekAgo);
+            document.getElementById('reportFromDate').value = clockLocalDate(weekAgo);
+            document.getElementById('editFromDate').value = clockLocalDate(weekAgo);
 
             // Dark mode
             const isDark = CESTISStore.getItem('cestisTimeDarkMode') === 'true';
