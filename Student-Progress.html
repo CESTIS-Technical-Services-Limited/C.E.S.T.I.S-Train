@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261020c"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CESTIS - Student Progress</title>
 
@@ -915,36 +915,107 @@ function updatePipelineCounts() {
 function openUpdateStage(idx) {
   var s = students[idx];
   document.getElementById('updateStageContent').innerHTML =
-    '<p style="margin-bottom:16px;font-size:14px;">Student: <strong>' + sanitizeInput(s.name) + '</strong> (' + sanitizeInput(s.id) + ')<br>Course: ' + sanitizeInput(s.course) + '<br>Current: <span class="badge ' + (stageBadge[s.stage]||'badge-blue') + '">' + sanitizeInput(stageLabels[s.stage]||s.stage) + '</span></p>' +
-    '<div class="form-group"><label>Move to Stage</label><select class="form-control" id="newStage">' +
+    '<p style="margin-bottom:16px;font-size:14px;">Student: <strong>' + sanitizeInput(s.name) + '</strong> (' + sanitizeInput(s.id) + ')<br>Course: ' + sanitizeInput(s.course) + '<br>Current: <span class="badge ' + (stageBadge[s.stage]||'badge-blue') + '">' + sanitizeInput(stageLabels[s.stage]||s.stage) + '</span>' +
+      (s.certNo ? '<br>Certificate: <strong style="font-family:monospace;">' + sanitizeInput(s.certNo) + '</strong>' : '') + '</p>' +
+    '<div class="form-group"><label>Move to Stage</label><select class="form-control" id="newStage" onchange="spRenderCertChecklist(' + idx + ')">' +
       stages.map(function(st){ return '<option value="' + st + '"' + (st===s.stage?' selected':'') + '>' + stageLabels[st] + '</option>'; }).join('') +
     '</select></div>' +
-    '<div class="form-group"><label>Notes</label><textarea class="form-control" placeholder="Add notes..."></textarea></div>' +
+    '<div id="spCertChecklist"></div>' +
+    '<div class="form-group"><label>Notes</label><textarea class="form-control" id="spStageNotes" placeholder="Add notes..."></textarea></div>' +
     '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">' +
       '<button class="btn btn-secondary" onclick="closeModal(\'updateStageModal\')">Cancel</button>' +
       '<button class="btn btn-primary" onclick="updateStudentStage(' + idx + ')">Update</button>' +
     '</div>';
+  spRenderCertChecklist(idx);
   openModal('updateStageModal');
+}
+
+// What the Centre's own records say before a certificate is issued: units
+// competent (transcript) or exams passed, attendance, and fees. It warns; the
+// administrator decides (CESTISCore.certs.eligibility).
+function spCertEligibility(s) {
+  var read = function (k, d) { try { var v = JSON.parse(CESTISStore.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+  var T = CESTISCore.Transcript, qual = null, fee = null;
+  try {
+    var catalogs = read('voctrain_unitCatalogs', []);
+    if (T && T.ensureSeeded) catalogs = T.ensureSeeded(catalogs);
+    qual = T ? T.qualForCourse(catalogs, s.course) : null;
+  } catch (e) { qual = null; }
+  try { fee = CESTISCore.feeTwinIndex(read('cestiSchoolFeeStudents', [])).find(s); } catch (e) { fee = null; }
+  return CESTISCore.certs.eligibility(s, { qual: qual, manualGrades: read('voctrain_transcriptGrades', []),
+    exams: read('voctrain_exams', []), examResults: examResults, feeRecord: fee });
+}
+function spRenderCertChecklist(idx) {
+  var host = document.getElementById('spCertChecklist');
+  var sel = document.getElementById('newStage');
+  if (!host || !sel) return;
+  var s = students[idx];
+  var to = sel.value;
+  if (to === 'certified' && s.stage !== 'certified' && s.stage !== 'collected') {
+    var e = spCertEligibility(s);
+    var icon = { ok: '&#10003;', warn: '&#9888;', unknown: '?' }, colour = { ok: 'var(--green)', warn: 'var(--amber, #e6a23c)', unknown: 'var(--text-muted)' };
+    host.innerHTML = '<div class="form-group" style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px;">' +
+      '<label style="margin-bottom:6px;">Before issuing the certificate</label>' +
+      e.items.map(function (i) {
+        return '<div style="font-size:13px;margin:3px 0;"><span style="color:' + colour[i.state] + ';font-weight:700;display:inline-block;width:18px;">' + icon[i.state] + '</span>' +
+          sanitizeInput(i.label) + ': <span style="color:var(--text-muted);">' + sanitizeInput(i.detail) + '</span></div>';
+      }).join('') +
+      (e.warnings ? '<div style="font-size:12px;margin-top:6px;color:var(--text-muted);">You can still issue it — you will be asked to confirm.</div>' : '') +
+      '</div>';
+  } else if ((s.stage === 'certified' || s.stage === 'collected') && to !== 'certified' && to !== 'collected') {
+    host.innerHTML = '<div class="form-group" style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;">' +
+      'This withdraws certificate <strong style="font-family:monospace;">' + sanitizeInput(s.certNo || '') + '</strong>: it will verify as <strong>revoked</strong>, and its download approval is switched off. The number stays on record and comes back if they are certified again.</div>';
+  } else {
+    host.innerHTML = '';
+  }
+}
+
+// Who is recorded as having issued or withdrawn a certificate: the person
+// signed in on the dashboard this page sits inside.
+function spActorName() {
+  try { var u = window.top && window.top.currentLoggedInUser; if (u && u.name) return String(u.name); } catch (e) {}
+  return 'Admin';
+}
+// A person, not the course-end rule, decided this stage: the sweep must not
+// undo it, and it settles this course ending for them (as the dashboard's
+// markStageSetByUser does).
+function spMarkStageSetByUser(s) {
+  delete s._nycAuto;
+  try {
+    var rec = null;
+    if (s.centreId != null) rec = skillAreas.filter(function (a) { return a && a.id === s.centreId; })[0] || null;
+    if (!rec) rec = CESTISCore.enrolment.findCentre(skillAreas, s.course, { nowMs: Date.now() });
+    if (rec && CESTISCore.courseDuration.status(rec.startDate, rec.endDate) === 'ended') s._nycForCourseEnd = rec.endDate || s.courseEnd || 'ended';
+  } catch (e) {}
+  s.stageSetByUser = true;
 }
 
 function updateStudentStage(idx) {
   var newStage = document.getElementById('newStage').value;
-  students[idx].stage = newStage;
-  if(newStage === 'certified'){
-    students[idx].progress = 90;
-    students[idx].certNo = students[idx].course.substring(0,2).toUpperCase()+'-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*9000)+1000);
-    students[idx].certDate = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'2-digit'});
+  var s = students[idx];
+  var wasIssued = s.stage === 'certified' || s.stage === 'collected';
+  if (newStage === 'certified' && !wasIssued) {
+    var e = spCertEligibility(s);
+    if (e.warnings && !confirm('Before issuing ' + s.name + '’s certificate:\n\n' +
+        e.items.map(function (i) { return (i.state === 'ok' ? '✓ ' : i.state === 'warn' ? '⚠ ' : '? ') + i.label + ': ' + i.detail; }).join('\n') +
+        '\n\nIssue the certificate anyway?')) return;
   }
-  if(newStage === 'collected'){ students[idx].progress=100; students[idx].certCollected=true; }
-  if(newStage === 'incomplete') students[idx].progress = Math.min(students[idx].progress,40);
-  students[idx].lastModified = new Date().toISOString();
+  var notesEl = document.getElementById('spStageNotes');
+  // The one rule every page uses (CESTISCore.certs.applyStage): a number,
+  // once issued, never changes and is never re-dated — it used to be a fresh
+  // RANDOM number on every save, so a printed certificate stopped verifying;
+  // a re-certification takes back the withdrawn number; and a demotion
+  // withdraws the certificate (kept on record, verifiable as revoked, its
+  // approval switched off) instead of leaving it to be promoted straight back.
+  CESTISCore.certs.applyStage(s, newStage, { roll: students, approvals: certDownloadApprovals, by: spActorName(),
+    reason: notesEl ? String(notesEl.value || '').trim() : '' });
+  spMarkStageSetByUser(s);
   closeModal('updateStageModal');
   filterStudents();
   updatePipelineCounts();
-  showToast(students[idx].name + ' moved to ' + stageLabels[newStage]);
+  showToast(s.name + ' moved to ' + stageLabels[newStage]);
   saveData();
 }
-
 // ============================== EDIT STUDENT ==============================
 function openEditStudent(idx) {
   var s = students[idx];

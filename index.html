@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261020c"></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
 <script src="cestis-page-cloud.js?v=20260802a"></script>
@@ -5189,20 +5189,14 @@ var certTemplateCourseMap = {
 };
 
 function getCertTemplateKey(studentCourse) {
-  // Try exact match first, then mapped name, then partial match
-  if (certTemplates[studentCourse]) return studentCourse;
-  var mapped = certTemplateCourseMap[studentCourse];
-  if (mapped && certTemplates[mapped]) return mapped;
-  // Try partial match: find a template key that starts with or contains the student course
-  var keys = Object.keys(certTemplates);
-  for (var i = 0; i < keys.length; i++) {
-    if (keys[i].toLowerCase().indexOf(studentCourse.toLowerCase()) > -1 ||
-        studentCourse.toLowerCase().indexOf(keys[i].toLowerCase()) > -1) {
-      return keys[i];
-    }
-  }
-  // Return mapped name even if template doesn't exist yet (for Drive lookups)
-  return mapped || studentCourse;
+  // The exact name, then the mapped name, then ONE unambiguous programme match
+  // (intake key and case aside). The old "first key that contains it" gave a
+  // Level 3 trainee whichever of the L2/L3 templates was created first — and
+  // gave an empty programme the first template of all — so a certificate went
+  // out with another programme's content looking entirely genuine. A miss now
+  // returns the mapped or given name (for Drive look-ups), and the page says
+  // the template is missing.
+  return CESTISCore.certs.templateKey(studentCourse, certTemplates, certTemplateCourseMap);
 }
 
 var exams = [];
@@ -9041,10 +9035,12 @@ function exportCertsCSV() {
 }
 
 function exportReportCSV() {
-  const _t = centreRollTally();
-  const data = courses.map(c => {
-    const cs = programmeRoll(_t, c);
-    return {course:c,enrolled:cs.length,certified:cs.filter(s=>s.stage==='certified'||s.stage==='collected').length,avgAttendance:cs.length?Math.round(cs.reduce((a,s)=>a+s.attendance,0)/cs.length):0};
+  // One row per training centre that holds trainees, named with its intake key
+  // where two share a programme — the old one-row-per-programme-name resolved
+  // each name to a single centre and silently dropped every other intake.
+  const data = reportProgrammeRolls().map(p => {
+    const cs = p.roll;
+    return {course:p.full||p.label,enrolled:cs.length,certified:cs.filter(s=>s.stage==='certified'||s.stage==='collected').length,avgAttendance:cs.length?Math.round(cs.reduce((a,s)=>a+(parseFloat(s && s.attendance)||0),0)/cs.length):0};
   });
   exportCSV(data, ['course','enrolled','certified','avgAttendance'], 'report_export.csv');
   showToast('Report CSV exported!');
@@ -11381,11 +11377,16 @@ function buildAdminPages() {
   resolveExamStatuses();
   setTimeout(renderVerifyUsersPage, 200);
   const totalEnrolled = students.length;
-  const totalCertified = students.filter(s=>s.stage==='certified'||s.stage==='collected').length;
+  // Certified THIS calendar year, by the certificate's own date — the card
+  // used to count every graduate the Centre ever had.
+  const totalCertified = CESTISCore.certs.certifiedInYear(students, new Date().getFullYear());
   const upcomingExams = exams.filter(e=>e.status==='upcoming').length;
   const topPerformers = [...students].sort((a,b)=>parseFloat(b.gpa)-parseFloat(a.gpa)).slice(0,5);
   const incompleteCount = students.filter(s=>s.stage==='incomplete').length;
-  const lowAttendance = students.filter(s=>s.attendance<70).length;
+  // Only trainees still in training, and only where attendance has been
+  // recorded: graduates and never-registered trainees are not a warning.
+  const lowAttendance = students.filter(s=>s && (s.stage==='testing'||s.stage==='interview'||s.stage==='training') &&
+    s.attendance!==undefined && s.attendance!==null && s.attendance!=='' && parseFloat(s.attendance)<70).length;
   const pendingCerts = students.filter(s=>s.stage==='certified'&&!s.certCollected).length;
   const nextExam = exams.filter(e=>e.status==='upcoming').sort((a,b)=>a.date.localeCompare(b.date))[0];
   const mc = document.getElementById('mainContent');
@@ -11451,20 +11452,17 @@ function buildAdminPages() {
       <div class="card"><div class="card-header"><h3>Certifications by Month</h3></div>
         <div class="bar-chart">${(function(){
           const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-          const now = new Date();
-          const certsByMonth = {};
-          students.filter(s => s.certDate).forEach(s => {
-            const m = parseInt(s.certDate.split('-')[1]) - 1;
-            certsByMonth[m] = (certsByMonth[m]||0) + 1;
-          });
-          const maxCerts = Math.max(1, ...Object.values(certsByMonth));
-          const startMonth = Math.max(0, now.getMonth() - 5);
+          // The last six calendar months as (year, month), across January;
+          // certificate dates are read with Date.parse, which understands the
+          // "October 16, 2026" every issuing path writes (splitting on '-'
+          // counted none of them, and lumped last October into this one).
+          const buckets = CESTISCore.certs.byMonth(students, new Date(), 6);
+          const maxCerts = Math.max(1, ...buckets.map(b => b.count));
           let html = '';
-          for(let i = startMonth; i <= now.getMonth(); i++) {
-            const count = certsByMonth[i] || 0;
-            const pct = (count / maxCerts * 100).toFixed(0);
-            html += '<div class="bar-col"><div class="bar" style="height:'+pct+'%;background:'+(i===now.getMonth()?'var(--blue)':'var(--accent)')+';"></div><div class="bar-label">'+months[i]+'</div></div>';
-          }
+          buckets.forEach((b, i) => {
+            const pct = (b.count / maxCerts * 100).toFixed(0);
+            html += '<div class="bar-col" title="'+b.count+' certificate'+(b.count===1?'':'s')+'"><div class="bar" style="height:'+pct+'%;background:'+(i===buckets.length-1?'var(--blue)':'var(--accent)')+';"></div><div class="bar-label">'+months[b.month]+'</div></div>';
+          });
           if(!html) html = '<p style="color:var(--text-muted);padding:16px;text-align:center;">No certification data yet.</p>';
           return html;
         })()}</div>
@@ -19119,6 +19117,10 @@ window.addEventListener('message', function(e) {
     students = adoptStoredCollection('voctrain_students', students);
     studentProfiles = adoptStoredCollection('voctrain_studentProfiles', studentProfiles);
     attendanceRecords = adoptStoredCollection('voctrain_attendance', attendanceRecords);
+    // A withdrawal in the frame switches the trainee's download approval off;
+    // without adopting it, the saveState() below wrote this window's stale
+    // "approved" copy straight back over it.
+    certDownloadApprovals = adoptStoredCollection('voctrain_certDownloadApprovals', certDownloadApprovals);
     userAccounts = adoptStoredCollection('voctrain_users', userAccounts);
     try { skillAreas = CESTISCore.catalogue.liveCentres(adoptStoredCollection('voctrain_skillAreas', skillAreas), CESTISStore); } catch(e2) {}
     cestisStabilizeStudentIds();
@@ -19647,19 +19649,13 @@ function openUpdateStage(idx) {
 }
 function updateStudentStage(idx) {
   const newStage = document.getElementById('newStage').value;
-  const prevStage = students[idx].stage;
-  students[idx].stage = newStage;
-  if(newStage==='certified'){students[idx].progress=90;if(!students[idx].certDate)students[idx].certDate=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'2-digit'});/* a number, once issued, never changes: kept across collected/certified moves; a re-certification reuses the withdrawn one */if(!students[idx].certNo)students[idx].certNo=certPreviousNumber(students[idx])||certApprovedNumber(students[idx])||generateUniqueCertNo(certNumberPrefix(students[idx].course), students[idx]);}
-  if(newStage==='collected'){students[idx].progress=100;students[idx].certCollected=true;}
-  if(newStage==='incomplete')students[idx].progress=Math.min(students[idx].progress,40);
-  // Demotion: if the student is no longer certified/collected, strip the
-  // certificate data so the Certificate Tracking and Certificate Download
-  // pages stop listing them. Without this the certNo lingers (and
-  // reconcileCertifiedFromApprovals would silently re-promote them).
-  if(newStage!=='certified' && newStage!=='collected' &&
-     (prevStage==='certified' || prevStage==='collected' || students[idx].certNo)) {
-    clearStudentCertification(students[idx]);
-  }
+  // One rule for every page that issues or withdraws a certificate
+  // (CESTISCore.certs.applyStage): a number, once issued, never changes and
+  // is never re-dated; a re-certification reuses the withdrawn number; and a
+  // demotion withdraws the certificate — the number stays on record, the
+  // approval is switched off with a decision time, and verification then
+  // reports it as revoked instead of the reconcile promoting them back.
+  CESTISCore.certs.applyStage(students[idx], newStage, { roll: students, approvals: certDownloadApprovals, by: certActorName() });
   // This is the Centre's decision, not the course-end rule's: it is never
   // undone by the sweep, and it settles this course ending for them.
   markStageSetByUser(students[idx]);
@@ -19672,23 +19668,22 @@ function updateStudentStage(idx) {
   saveState();
 }
 
-// Strip all certificate data from a student and deactivate any pending
-// download approval. Keeps the parallel certDownloadApprovals store in sync
-// with the student's stage so the Cert Download page reflects demotions and
-// reconcileCertifiedFromApprovals() does not resurrect the certification.
-function clearStudentCertification(s) {
+// Who is recorded as having issued, approved or withdrawn a certificate.
+function certActorName() {
+  try { if (typeof currentLoggedInUser !== 'undefined' && currentLoggedInUser && currentLoggedInUser.name) return String(currentLoggedInUser.name); } catch (e) {}
+  return 'Admin';
+}
+
+// Withdraw a certificate (CESTISCore.certs.revoke): the number stays on
+// record as an alias — the paper still resolves, as revoked, and a later
+// re-certification reuses it — the withdrawal is stamped with when and who,
+// and the download approval is switched off with the same decision time, so
+// reconcileCertifiedFromApprovals() does not resurrect the certification and
+// a stale approval from another device cannot outvote it.
+function clearStudentCertification(s, reason) {
   if(!s) return;
-  // The number stays on record as an alias: a certificate once issued keeps
-  // its number even when the certification is withdrawn, so the paper still
-  // resolves (as withdrawn) and a later re-certification reuses it.
-  if(s.certNo) certRememberAlias(s, s.certNo);
-  s.certNo = null;
-  s.certDate = null;
-  s.certCollected = false;
-  if(typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) {
-    var approval = certDownloadApprovals.find(function(a){ return a && a.studentId === s.id; });
-    if(approval) approval.approved = false;
-  }
+  var approvals = (typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) ? certDownloadApprovals : [];
+  CESTISCore.certs.revoke(s, approvals, { by: certActorName(), reason: reason || '' });
 }
 function openEditStudent(idx) {
   var s = students[idx];
@@ -20182,7 +20177,7 @@ function backfillAccountProgrammes() {
 function refreshDashboardStudentTotals() {
   try {
     var totalEnrolled = students.length;
-    var totalCertified = students.filter(function(s){ return s && (s.stage === 'certified' || s.stage === 'collected'); }).length;
+    var totalCertified = CESTISCore.certs.certifiedInYear(students, new Date().getFullYear());
     var map = { 'Total Enrolled Students': totalEnrolled, 'Certified This Year': totalCertified };
     document.querySelectorAll('#page-dashboard .stat-card').forEach(function(card){
       var labelEl = card.querySelector('.stat-label');
@@ -23800,7 +23795,8 @@ function renderReportStats() {
   // for the entire Centre, indistinguishable from genuinely zero attendance.
   const avgAtt = students.length
     ? Math.round(students.reduce((a,s)=>a+(parseFloat(s && s.attendance)||0),0)/students.length) : 0;
-  const dropoutRate = students.length ? (students.filter(s=>s.stage==='incomplete').length/students.length*100).toFixed(1) : 0;
+  // A dropout marked on the enrolment register counts, as well as the stage.
+  const dropoutRate = students.length ? (students.filter(s=>s && (s.stage==='incomplete' || s.enrolStatus==='dropout')).length/students.length*100).toFixed(1) : 0;
   el.innerHTML = `
     <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83D\uDCCA</div><div class="stat-value" data-count="${overallPassRate}" data-suffix="%">0</div><div class="stat-label">Overall Pass Rate</div></div>
     <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">\u23F1\uFE0F</div><div class="stat-value" data-count="${avgMonthsToCert}">0</div><div class="stat-label">Avg. Months to Cert</div></div>
@@ -30006,18 +30002,28 @@ async function studentRefreshCertData() {
     if (!downloadResp.ok) { showToast('Could not download cloud data.'); return; }
 
     var backupData = await downloadResp.json();
+    // Every writer of the backup wraps its collections in .data (the
+    // pre-login sync has always unwrapped it). Reading the top level found
+    // nothing at all, so this button reported "No certificate issued yet" to a
+    // trainee whose certificate had been issued — while marking the device
+    // synced.
+    var _bd = (backupData && backupData.data && typeof backupData.data === 'object') ? backupData.data : (backupData || {});
+    if (!Array.isArray(_bd.students)) { showToast('The cloud backup could not be read. Please try again later.'); return; }
     _certDriveLastFetched = Date.now();   // this session has now synced: the Download button may switch on
 
     // Update current student's data from cloud
-    var cloudStudents = backupData.students || [];
-    var cloudCertApprovals = backupData.certDownloadApprovals || [];
-    var cloudCertTemplates = backupData.certTemplates || {};
+    var cloudStudents = _bd.students || [];
+    var cloudCertApprovals = _bd.certDownloadApprovals || [];
+    var cloudCertTemplates = _bd.certTemplates || {};
     var updated = false;
 
-    // Find this student in cloud data (by name match or ID)
-    var cloudStudent = cloudStudents.find(function(cs) {
-      return cs.id === currentStudent.id || cs.name === currentStudent.name;
-    });
+    // Find this student in cloud data: by id, else the same name on the same
+    // programme — never just a namesake on another course.
+    var cloudStudent = cloudStudents.find(function(cs) { return cs && cs.id === currentStudent.id; }) ||
+      cloudStudents.find(function(cs) {
+        return cs && CESTISCore.sameName(cs.name, currentStudent.name) &&
+          CESTISCore.normCourse(String(cs.course || '').replace(/^\s*\d+\.\s*/, '')) === CESTISCore.normCourse(String(currentStudent.course || '').replace(/^\s*\d+\.\s*/, ''));
+      });
 
     if (cloudStudent) {
       // Merge, don't replace: "Refresh from Cloud" used to overwrite the
@@ -30041,21 +30047,16 @@ async function studentRefreshCertData() {
       CESTISCore.cloudMerge.applyApproval(certDownloadApprovals, ca);
     });
 
-    // Merge cert templates (metadata only, images fetched on-demand)
-    Object.keys(cloudCertTemplates).forEach(function(key) {
-      if (!certTemplates[key]) {
-        certTemplates[key] = cloudCertTemplates[key];
-      } else {
-        var localBg1 = certTemplates[key].bgPage1;
-        var localBg2 = certTemplates[key].bgPage2;
-        certTemplates[key] = cloudCertTemplates[key];
-        if (localBg1) certTemplates[key].bgPage1 = localBg1;
-        if (localBg2) certTemplates[key].bgPage2 = localBg2;
-      }
-    });
+    // Merge cert templates (metadata only, images fetched on-demand) by the
+    // rule every other sync uses: the newer copy wins, and the images this
+    // device holds stay. Taking the cloud copy whatever its age would roll an
+    // administrator's newer layout back.
+    if (cloudCertTemplates && typeof cloudCertTemplates === 'object') {
+      CESTISCore.sync.mergeMap(certTemplates, cloudCertTemplates, { tombs: syncTombsFor('certTemplates'), keep: { bgPage1: 1, bgPage2: 1 } });
+    }
 
     // Merge skill areas (training centres) — honouring deletions.
-    CESTISCore.cloudMerge.applySkillAreas(skillAreas, backupData.skillAreas || [], isCentreDeleted);
+    CESTISCore.cloudMerge.applySkillAreas(skillAreas, _bd.skillAreas || [], isCentreDeleted);
 
     saveState();
 
@@ -36888,6 +36889,7 @@ var CERT_DRIVE_CACHE_MS = 60000; // Re-fetch from Drive at most once per minute
 //               is ever produced from stale local data and every download is
 //               recorded centrally.
 var _certPortalCertNo = '';         // the number the QR code carried, if any
+var _certPortalSigned = null;       // what a SIGNED QR code states, if it carried a signature
 var _certPortalView = 'home';
 var _certPortalPreviewStudent = null;
 var _certPortalSyncing = false;
@@ -36915,6 +36917,17 @@ function openCertPortal(view, certNo) {
 function closeCertPortal() {
   var portal = document.getElementById('certPortal');
   if (portal) portal.classList.remove('active');
+  // The number a QR code carried belongs to that visit only. Kept, it made the
+  // next trainee at a shared tablet "not the holder" of a certificate they
+  // never asked about, until somebody reloaded the page.
+  _certPortalCertNo = '';
+  _certPortalSigned = null;
+  var wrap = document.getElementById('certPortalCertNoWrap');
+  if (wrap) wrap.innerHTML = '';
+  var vi = document.getElementById('certPortalVerifyInput');
+  if (vi) vi.value = '';
+  var vr = document.getElementById('certPortalVerifyResult');
+  if (vr) vr.innerHTML = '';
   // Leave the address clean so a reload lands on the login page.
   try { if (/[?&](certificate|verify|cert)=/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
 }
@@ -36962,6 +36975,9 @@ function certPortalRefreshSyncUi() {
 // for the portal and for the trainee's own My Certificate page: a certificate
 // must have been issued, the download approved, and this device synced.
 function certDownloadAllowed(student) {
+  // A withdrawn certificate is withdrawn even where an older copy put its
+  // number back on the record.
+  if (student && typeof CESTISCore !== 'undefined' && CESTISCore.certs && CESTISCore.certs.isRevoked(student)) return { allowed: false, reason: 'This certificate has been withdrawn. Please contact the administration office.' };
   if (!student || !student.certNo) return { allowed: false, reason: 'No certificate has been issued yet.' };
   var approval = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function (d) { return d && d.studentId === student.id; });
   if (!(approval && approval.approved)) return { allowed: false, reason: 'Certificate download has not been approved yet. Please contact the administration office.' };
@@ -37063,13 +37079,20 @@ function certPortalDownloadWith(id) {
 }
 
 // ---- Verify (employers): a certificate number only ----
-function certPortalVerify() {
+function certPortalVerify(recordsOnly) {
   backfillCertificateNumbers();
   var input = document.getElementById('certPortalVerifyInput');
   var out = document.getElementById('certPortalVerifyResult');
   if (!input || !out) return;
   var query = (input.value || '').trim();
   if (!query) { out.innerHTML = '<p style="color:var(--red);font-size:13px;margin-top:8px;">Please enter a Certificate Number.</p>'; return; }
+  // A SIGNED certificate's QR code states its own details, and the Centre's
+  // signature over them is checked right here in this browser — no records,
+  // no sync and no sign-in needed, which is what an employer has.
+  if (!recordsOnly && _certPortalSigned && certNumberKey(_certPortalSigned.no) === certNumberKey(query)) {
+    certPortalVerifySigned(_certPortalSigned, out);
+    return;
+  }
   // A student number typed here is not a match, so nothing about the trainee
   // leaks through this door.
   var hit = certResolveNumber(query);
@@ -37078,13 +37101,24 @@ function certPortalVerify() {
     if (/^STU[-\s]?/i.test(query)) { out.innerHTML = _certWrongDoorCard('student', query); return; }
     out.innerHTML = _certNotFoundCard(query, 'certificate'); return;
   }
-  if (!student.certNo) {
+  if (hit.ambiguous) {
+    // Two different people answer to this number on this device. Naming one
+    // of them could name the wrong person; the Centre can tell which.
+    out.innerHTML = '<div class="cert-result-card pending">' +
+      '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(240,165,0,0.15);color:var(--accent);">&#9888;</div>' +
+      '<div><div style="font-size:16px;font-weight:700;color:var(--accent);">Please Contact the Centre</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">' + _certEsc(hit.number) + '</div></div></div>' +
+      '<p style="font-size:13px;color:var(--text-muted);">This number is on record for more than one certificate, so it cannot be confirmed here. Please contact the Centre: cestisadmn@gmail.com | +(876) 679-0111.</p></div>';
+    return;
+  }
+  if (CESTISCore.certs.status(student) === 'revoked') {
     // The number is on record but the certification has been withdrawn.
+    var when = CESTISCore.certs.isRevoked(student) ? new Date(student.certRevokedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' }) : '';
     out.innerHTML = '<div class="cert-result-card not-found">' +
       '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(231,76,60,0.15);color:var(--red);">&#10005;</div>' +
       '<div><div style="font-size:16px;font-weight:700;color:var(--red);">Certificate Withdrawn</div>' +
       '<div style="font-size:12px;color:var(--text-muted);">' + _certEsc(hit.number) + '</div></div></div>' +
-      '<p style="font-size:13px;color:var(--text-muted);">This number was issued, but the certification is no longer current. Please contact the Centre: cestisadmn@gmail.com | +(876) 679-0111.</p></div>';
+      '<p style="font-size:13px;color:var(--text-muted);">This number was issued, but the certification ' + (when ? 'was revoked on ' + _certEsc(when) + ' and ' : '') + 'is no longer current. Please contact the Centre: cestisadmn@gmail.com | +(876) 679-0111.</p></div>';
     return;
   }
   out.innerHTML = '<div class="cert-result-card success">' +
@@ -37095,11 +37129,83 @@ function certPortalVerify() {
     '<div class="cert-detail-item"><div class="label">Holder</div><div class="value">' + _certEsc(student.name) + '</div></div>' +
     '<div class="cert-detail-item"><div class="label">Certificate No.</div><div class="value" style="font-family:monospace;">' + _certEsc(hit.number || student.certNo) + '</div></div>' +
     '<div class="cert-detail-item"><div class="label">Programme</div><div class="value">' + _certEsc(student.course) + '</div></div>' +
-    '<div class="cert-detail-item"><div class="label">Date Certified</div><div class="value">' + _certEsc(student.certDate || '\u2014') + '</div></div>' +
+    '<div class="cert-detail-item"><div class="label">Date Certified</div><div class="value">' + _certEsc(student.certDate || '—') + '</div></div>' +
     '<div class="cert-detail-item"><div class="label">Collection Status</div><div class="value">' + (student.certCollected ? 'Collected' : 'Awaiting Collection') + '</div></div>' +
     '</div>' +
     (certSyncDone() ? '' : '<p style="font-size:12px;color:var(--text-muted);margin-top:10px;">Verified against the records held on this device. Press Sync Now for the latest cloud records.</p>') +
     '</div>';
+}
+
+/* ---- Signed certificates: verified in the employer's own browser ----
+   The Centre's PUBLIC keys are published in cert-keys.json beside this page
+   (see docs/CERTIFICATE-SIGNING.md). The private key that made a signature
+   never leaves the administrator's device, so a certificate whose name,
+   programme, date or number was changed — or that was never issued — cannot
+   carry a signature that checks out. Only what the certificate itself states
+   is shown; nothing is looked up about the trainee. */
+var _certKeysPromise = null, _certSignedCheck = null;
+function certLoadPublishedKeys() {
+  if (!_certKeysPromise) {
+    _certKeysPromise = fetch('cert-keys.json', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (k) { if (!k) _certKeysPromise = null; return k; });
+  }
+  return _certKeysPromise;
+}
+function certPortalVerifySigned(signed, out) {
+  var token = {};
+  _certSignedCheck = token;
+  out.innerHTML = '<div class="cert-result-card pending"><div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(240,165,0,0.15);color:var(--accent);">&#9203;</div>' +
+    '<div><div style="font-size:16px;font-weight:700;color:var(--accent);">Checking the Centre’s signature…</div></div></div></div>';
+  var sig = CESTISCore.certs.sig;
+  return certLoadPublishedKeys().then(function (keys) {
+    return sig.verify(signed, keys).then(function (v) { return { keys: keys, v: v }; });
+  }).then(function (r) {
+    if (_certSignedCheck !== token) return r.v.result;   // a newer check took over
+    var res = r.v.result;
+    var row = function (label, value, mono) {
+      return '<div class="cert-detail-item"><div class="label">' + label + '</div><div class="value"' + (mono ? ' style="font-family:monospace;"' : '') + '>' + _certEsc(value || '—') + '</div></div>';
+    };
+    var details = '<div class="cert-result-details">' + row('Holder', signed.name) + row('Certificate No.', signed.no, true) +
+      row('Programme', signed.programme) + row('Date Certified', signed.date) + '</div>';
+    if (res === 'valid') {
+      var published = sig.publishedRevocation(r.keys, signed.no);
+      var local = certResolveNumber(signed.no);
+      var localWithdrawn = !!(local.student && !local.ambiguous && CESTISCore.certs.status(local.student) === 'revoked');
+      if (published || localWithdrawn) {
+        var at = (published && published.at) || (local.student && local.student.certRevokedAt) || '';
+        var when = at ? new Date(at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' }) : '';
+        out.innerHTML = '<div class="cert-result-card not-found" data-cert-verdict="revoked">' +
+          '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(231,76,60,0.15);color:var(--red);">&#10005;</div>' +
+          '<div><div style="font-size:16px;font-weight:700;color:var(--red);">Certificate Revoked</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);">Genuinely issued by the Centre, then withdrawn' + (when ? ' on ' + _certEsc(when) : '') + '</div></div></div>' +
+          details + '<p style="font-size:13px;color:var(--text-muted);margin-top:10px;">This certificate is no longer current. Please contact the Centre: cestisadmn@gmail.com | +(876) 679-0111.</p></div>';
+        return res;
+      }
+      out.innerHTML = '<div class="cert-result-card success" data-cert-verdict="valid">' +
+        '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(46,204,113,0.15);color:var(--green);">&#10003;</div>' +
+        '<div><div style="font-size:16px;font-weight:700;color:var(--green);">Certificate Verified</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">Digitally signed by the Community Educational and Skills Training Institute and Services Ltd.</div></div></div>' +
+        details + '<p style="font-size:12px;color:var(--text-muted);margin-top:10px;">The Centre’s signature over these details was checked in this browser against its published key (' + _certEsc(signed.kid) + '). Only what the certificate itself states is shown.</p></div>';
+      return res;
+    }
+    if (res === 'altered' || res === 'malformed') {
+      out.innerHTML = '<div class="cert-result-card not-found" data-cert-verdict="altered">' +
+        '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(231,76,60,0.15);color:var(--red);">&#10005;</div>' +
+        '<div><div style="font-size:16px;font-weight:700;color:var(--red);">Not Verified — Details Do Not Match</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">' + _certEsc(signed.no) + '</div></div></div>' +
+        '<p style="font-size:13px;color:var(--text-muted);">The details in this link are not the ones the Centre signed: the name, programme, date or number has been changed. Do not rely on this certificate. Please contact the Centre: cestisadmn@gmail.com | +(876) 679-0111.</p></div>';
+      return res;
+    }
+    // The key is not one this page knows (or this browser cannot check
+    // signatures): fall back to the records, as for a certificate issued
+    // before signing began.
+    certPortalVerify(true);
+    out.insertAdjacentHTML('beforeend', '<p style="font-size:12px;color:var(--text-muted);margin-top:8px;">This certificate carries a signature this page could not check' +
+      (res === 'unsupported' ? ' in this browser' : ' (its key is not in the Centre’s published list)') + ', so the Centre’s records were used instead.</p>');
+    return res;
+  });
 }
 
 // ---- Download (trainees): a student number, a live preview, the button ----
@@ -37243,7 +37349,13 @@ function certPortalCertNoFromAddress(search) {
 (function () {
   function openFromAddress() {
     var no = certPortalCertNoFromAddress(location.search);
-    if (no !== null) openCertPortal('home', no);
+    if (no === null) return;
+    // A signed QR code is the employer's: open straight on Verify, where the
+    // signature is checked. An unsigned one opens on the choice of doors.
+    var signed = null;
+    try { signed = CESTISCore.certs.sig.parse(location.search); } catch (e) { signed = null; }
+    _certPortalSigned = (signed && certNumberKey(signed.no) === certNumberKey(no)) ? signed : null;
+    openCertPortal(_certPortalSigned ? 'verify' : 'home', no);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', openFromAddress);
   else openFromAddress();
@@ -37351,17 +37463,14 @@ async function fetchCertDataFromDrive() {
 
     // Merge certDownloadApprovals — update existing and add new
     if (backupData.data.certDownloadApprovals && Array.isArray(backupData.data.certDownloadApprovals)) {
+      // The shared rule, as every other sync path uses it: the later decision
+      // wins (an approval, or a stamped revocation) and downloads made on
+      // either device are kept. Copying the cloud's decision over the local
+      // one whatever its age switched an approval — or a revocation — made
+      // here back the moment anybody looked a certificate up.
       backupData.data.certDownloadApprovals.forEach(function(ca) {
         if (!ca || !ca.studentId) return;
-        var existing = certDownloadApprovals.find(function(l) { return l.studentId === ca.studentId; });
-        if (existing) {
-          // Update approval status from cloud (admin controls this)
-          existing.approved = ca.approved;
-          existing.approvedDate = ca.approvedDate;
-          existing.approvedBy = ca.approvedBy;
-        } else {
-          certDownloadApprovals.push(ca);
-        }
+        CESTISCore.cloudMerge.applyApproval(certDownloadApprovals, ca);
       });
     }
 
@@ -37490,7 +37599,12 @@ function reconcileCertifiedFromApprovals() {
       if(certAlignNumberWithApproval(stu, a)) changed = true;
       return;
     }
-    // Restore certified status.
+    // A withdrawal decided after this approval stands: an approval that is
+    // older than the withdrawal is stale, not a reason to re-certify.
+    if(CESTISCore.certs.isRevoked(stu) && (Date.parse(stu.certRevokedAt) || 0) >= CESTISCore.certs.decidedAt(a)) return;
+    // Restore certified status. An approval decided after a withdrawal is a
+    // later decision to issue, so it re-certifies (stamped like Update Stage).
+    if(CESTISCore.certs.isRevoked(stu)) stu.certReinstatedAt = new Date(CESTISCore.certs.decidedAt(a)).toISOString();
     stu.stage = 'certified';
     if(stu.progress === undefined || stu.progress === null || stu.progress < 90) stu.progress = 90;
     if((!stu.certNo) && a.certNo) stu.certNo = a.certNo;
@@ -37523,57 +37637,26 @@ function reconcileCertifiedFromApprovals() {
        number that was printed;
      - a number a trainee's record ever carried stays with them as an alias,
        and a lookup answers to any of them — spaces, dashes and case aside. */
-function certNumberKey(no) { return String(no == null ? '' : no).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function certNumberKey(no) { return CESTISCore.certs.numberKey(no); }
 // The prefix Update Stage has always used: the programme's first two letters
 // (with an intake key such as "02. " out of the way).
-function certNumberPrefix(course) {
-  var bare = String(course || '').replace(/^\s*\d+\.\s*/, '').trim();
-  return (bare.substring(0, 2).toUpperCase() || 'CE');
-}
-function certRememberAlias(student, no) {
-  if (!student || !no) return false;
-  var key = certNumberKey(no);
-  if (!key) return false;
-  if (!Array.isArray(student.certNoAliases)) student.certNoAliases = [];
-  if (student.certNoAliases.some(function (a) { return certNumberKey(a) === key; })) return false;
-  student.certNoAliases.push(String(no).trim());
-  return true;
-}
+function certNumberPrefix(course) { return CESTISCore.certs.numberPrefix(course); }
+function certRememberAlias(student, no) { return CESTISCore.certs.rememberAlias(student, no); }
 // The number this record was issued before (the latest alias), for a
 // re-certification to take back rather than mint a new one.
-function certPreviousNumber(student) {
-  var list = (student && Array.isArray(student.certNoAliases)) ? student.certNoAliases.filter(function (a) { return certNumberKey(a); }) : [];
-  return list.length ? list[list.length - 1] : null;
+function certPreviousNumber(student) { return CESTISCore.certs.previousNumber(student); }
+function _certApprovalList() {
+  return (typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) ? certDownloadApprovals : [];
 }
-function certStudentHasNumber(student, no) {
-  if (!student || !no) return false;
-  var key = certNumberKey(no);
-  if (!key) return false;
-  if (certNumberKey(student.certNo) === key) return true;
-  if (Array.isArray(student.certNoAliases) && student.certNoAliases.some(function (a) { return certNumberKey(a) === key; })) return true;
-  return certNumberKey(certApprovedNumber(student)) === key;
-}
+function _certRoll() { return (typeof students !== 'undefined' && Array.isArray(students)) ? students : []; }
+function certStudentHasNumber(student, no) { return CESTISCore.certs.hasNumber(student, no, _certApprovalList()); }
 // Before a merge decides which number a record shows, both records' numbers
-// are kept on the local one. Returns true when anything was added.
-function certMergeNumberAliases(local, cloud) {
-  if (!local || !cloud) return false;
-  var added = false;
-  if (cloud.certNo && local.certNo && certNumberKey(cloud.certNo) !== certNumberKey(local.certNo)) {
-    if (certRememberAlias(local, local.certNo)) added = true;
-    if (certRememberAlias(local, cloud.certNo)) added = true;
-  }
-  (Array.isArray(cloud.certNoAliases) ? cloud.certNoAliases : []).forEach(function (a) { if (certRememberAlias(local, a)) added = true; });
-  return added;
-}
-function _certApprovalOf(student) {
-  var list = (typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) ? certDownloadApprovals : [];
-  return list.find(function (d) { return d && student && d.studentId === student.id; }) || null;
-}
+// are kept on the local one — and so are a withdrawal, a re-certification and
+// a signature made on the other copy. Returns true when anything was added.
+function certMergeNumberAliases(local, cloud) { return CESTISCore.certs.mergeState(local, cloud); }
+function _certApprovalOf(student) { return CESTISCore.certs.approvalOf(student, _certApprovalList()); }
 // The number the Centre approved for download — the one that gets printed.
-function certApprovedNumber(student) {
-  var a = _certApprovalOf(student);
-  return (a && a.certNo) ? a.certNo : null;
-}
+function certApprovedNumber(student) { return CESTISCore.certs.approvedNumber(student, _certApprovalList()); }
 // Fill-only, both ways: a trainee with no number takes the approved one, an
 // approval with no number takes the trainee's — and a number already issued
 // is never replaced. Returns true when something changed.
@@ -37594,80 +37677,29 @@ function certAlignNumberWithApproval(student, approval) {
 }
 // The trainee a certificate number belongs to: by their current number, by
 // any number they ever carried, or by the number on their download approval.
-function certResolveNumber(query) {
-  var key = certNumberKey(query);
-  if (!key) return { student: null, number: '', via: '' };
-  var roll = (typeof students !== 'undefined' && Array.isArray(students)) ? students : [];
-  var hit = roll.find(function (s) { return s && certNumberKey(s.certNo) === key; });
-  if (hit) return { student: hit, number: hit.certNo, via: 'number' };
-  hit = roll.find(function (s) { return s && Array.isArray(s.certNoAliases) && s.certNoAliases.some(function (a) { return certNumberKey(a) === key; }); });
-  if (hit) return { student: hit, number: hit.certNoAliases.filter(function (a) { return certNumberKey(a) === key; })[0], via: 'alias' };
-  var approvals = (typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) ? certDownloadApprovals : [];
-  var appr = approvals.find(function (d) { return d && certNumberKey(d.certNo) === key; });
-  if (appr) {
-    var same = function (s) {
-      if (typeof CESTISCore !== 'undefined' && CESTISCore.sameName && CESTISCore.normCourse) return CESTISCore.sameName(s.name, appr.name) && CESTISCore.normCourse(s.course || '') === CESTISCore.normCourse(appr.course || '');
-      return String(s.name || '').trim().toLowerCase() === String(appr.name || '').trim().toLowerCase() && String(s.course || '').trim().toLowerCase() === String(appr.course || '').trim().toLowerCase();
-    };
-    hit = roll.find(function (s) { return s && s.id === appr.studentId; }) || roll.find(function (s) { return s && same(s); });
-    if (hit) return { student: hit, number: appr.certNo, via: 'approval' };
-  }
-  return { student: null, number: '', via: '' };
-}
+// `ambiguous` says two different people answer to it (see CESTISCore.certs).
+function certResolveNumber(query) { return CESTISCore.certs.resolve(query, _certRoll(), _certApprovalList()); }
 // What a trainee's number is derived from: the same natural key their stable
 // id is a hash of, so it is the same on every device.
-function certNumberSeed(student) {
-  var key = '';
-  try { if (typeof CESTISCore !== 'undefined' && typeof CESTISCore.naturalKey === 'function') key = CESTISCore.naturalKey(student) || ''; } catch (e) {}
-  if (!key) key = String(student.name || '').toLowerCase().trim() + '|' + String(student.course || '').toLowerCase().trim();
-  return key === '|' ? '' : key;
-}
-// PREFIX-YEAR-NNNN, unique across the roll. Derived from the trainee when one
-// is given (four digits at a time out of a hash of their natural key, moving
-// along on a clash), so every device mints the same number for the same
-// person; the old random draw only when there is no trainee to derive from.
-function generateUniqueCertNo(prefix, student) {
-  prefix = String(prefix || 'CE').toUpperCase();
-  var existing = {};
-  (students || []).forEach(function (st) {
-    if (!st || (student && st === student)) return;
-    if (st.certNo) existing[certNumberKey(st.certNo)] = true;
-    (Array.isArray(st.certNoAliases) ? st.certNoAliases : []).forEach(function (a) { existing[certNumberKey(a)] = true; });
-  });
-  var yearMatch = student && student.certDate ? /\b(20\d\d)\b/.exec(String(student.certDate)) : null;
-  var year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
-  var seed = student ? certNumberSeed(student) : '';
-  if (seed && typeof CESTISCore !== 'undefined' && typeof CESTISCore.hashString === 'function') {
-    var digits = '';
-    for (var round = 0; digits.length < 48; round++) {
-      var h = parseInt(CESTISCore.hashString(seed + '|' + round), 36) || 0;
-      digits += String(Math.floor(Math.abs(h)) % 100000000 + 100000000).slice(1);
-    }
-    for (var i = 0; i + 4 <= digits.length; i += 4) {
-      var candidate = prefix + '-' + year + '-' + String(1000 + (parseInt(digits.substr(i, 4), 10) % 9000));
-      if (!existing[certNumberKey(candidate)]) return candidate;
-    }
-  }
-  for (var attempt = 0; attempt < 50; attempt++) {
-    var c = prefix + '-' + year + '-' + String(Math.floor(Math.random() * 9000) + 1000);
-    if (!existing[certNumberKey(c)]) return c;
-  }
-  // Number space saturated for this prefix/year — extend with a base36 suffix
-  return prefix + '-' + year + '-' + Date.now().toString(36).toUpperCase();
-}
+function certNumberSeed(student) { return CESTISCore.certs.numberSeed(student); }
+// PREFIX-YEAR-NNNN-XX, derived from the trainee and unique across the roll —
+// see CESTISCore.certs.generateNumber.
+function generateUniqueCertNo(prefix, student) { return CESTISCore.certs.generateNumber(prefix, student, _certRoll()); }
 
 function backfillCertificateNumbers() {
   if(!Array.isArray(students)) return false;
   var changed = false;
   students.forEach(function(s) {
     if(!s || !s.course) return;
-    if((s.stage === 'certified' || s.stage === 'collected') && !s.certNo) {
+    // A withdrawn certificate is not re-issued by a stage some older copy
+    // still carried; only the administrator's Update Stage re-certifies.
+    if((s.stage === 'certified' || s.stage === 'collected') && !s.certNo && !CESTISCore.certs.isRevoked(s)) {
       if(!s.certDate) s.certDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
       // The number this record held before, else the one the Centre approved,
       // else the number every device derives for this trainee — never a
       // random one, and never a prefix that depends on which templates this
-      // device holds.
-      s.certNo = certPreviousNumber(s) || certApprovedNumber(s) || generateUniqueCertNo(certNumberPrefix(s.course), s);
+      // device holds. One rule for every issuing path: CESTISCore.certs.ensureNumber.
+      CESTISCore.certs.ensureNumber(s, { roll: students, approvals: _certApprovalList() });
       if(s.stage === 'collected') s.certCollected = true;
       changed = true;
     }
@@ -37696,16 +37728,25 @@ function _certDownloadStatus(msg, isError) {
 // A certificate download is only allowed after an ACTUAL cloud sync, so the
 // download is always recorded centrally (downloadCount/lastDownloaded pushed to
 // the cloud). "Synced" = the public verifier pulled the latest from Drive, OR a
-// cloud-connected login sync completed. A purely-local session (no cloud) is not
-// treated as synced.
+// sync with the cloud completed in THIS session, recently. A purely-local
+// session (no cloud) is not treated as synced — and neither is a cached token:
+// "connected" was set from a saved token with no network call, and the login
+// gate opened whenever accounts existed locally, so the download used to count
+// as recorded centrally on a machine that had not reached Drive at all.
+var _certPageOpenedAt = Date.now();
+var CERT_SYNC_FRESH_MS = 30 * 60 * 1000;
 function certSyncDone() {
   if (_certDriveLastFetched) return true;
   // On the Centre's own network (the Offline System) its server IS the
   // central store: once this device has read it, the download is recorded
   // centrally the same way. Online this is always false.
   if (window.CESTISPageCloud && typeof CESTISPageCloud.lanSynced === 'function' && CESTISPageCloud.lanSynced()) return true;
+  // lastSyncTime only moves when a pull or a save actually reached Drive; the
+  // copy restored from storage as the page opened does not count.
+  var last = (typeof lastSyncTime !== 'undefined' && lastSyncTime) ? new Date(lastSyncTime).getTime() : 0;
   if (typeof isCloudConnected !== 'undefined' && isCloudConnected &&
-      typeof loginSyncCompleted !== 'undefined' && loginSyncCompleted) return true;
+      typeof loginSyncCompleted !== 'undefined' && loginSyncCompleted &&
+      last >= _certPageOpenedAt && Date.now() - last < CERT_SYNC_FRESH_MS) return true;
   return false;
 }
 
@@ -37813,6 +37854,17 @@ function generateCertificatePDF(studentId) {
   _generateCertPDFInner(studentId);
 }
 
+// Names THIS device in the per-device download count. "Session" in the key
+// keeps it out of every backup, snapshot and sync: it must never travel.
+function certDeviceId() {
+  var k = 'cestisCertDeviceSessionId';
+  try {
+    var v = localStorage.getItem(k);
+    if (!v) { v = 'D-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem(k, v); }
+    return v;
+  } catch (e) { return 'this-device'; }
+}
+
 function _generateCertPDFInner(studentId) {
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student) return;
@@ -37823,8 +37875,9 @@ function _generateCertPDFInner(studentId) {
   var approval = certDownloadApprovals.find(function(d){ return d.studentId === studentId; });
   if(approval) {
     certAlignNumberWithApproval(student, approval);
-    approval.downloadCount = (approval.downloadCount || 0) + 1;
-    approval.lastDownloaded = new Date().toISOString();
+    // Counted per device, so two devices' downloads add up when they sync
+    // instead of one device's count replacing the other's.
+    CESTISCore.certs.recordDownload(approval, certDeviceId());
     saveState();
   }
 
@@ -37847,16 +37900,20 @@ function _generateCertPDFInner(studentId) {
     var canvas1 = renderCertPage1OnBg(img1, student, tpl);
 
     var jsPDF = window.jspdf.jsPDF;
-    var pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas1.width, canvas1.height], compress: true });
-    pdf.addImage(canvas1.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, canvas1.width, canvas1.height);
+    // A4 in millimetres, the picture fitted and centred — not a page as big
+    // as the background's pixel count (a 2000-pixel image made a 37-inch page).
+    var pg1 = CESTISCore.certs.pdfPage(canvas1.width, canvas1.height);
+    var pdf = new jsPDF({ orientation: pg1.orientation, unit: pg1.unit, format: pg1.format, compress: true });
+    pdf.addImage(canvas1.toDataURL('image/jpeg', 0.95), 'JPEG', pg1.x, pg1.y, pg1.w, pg1.h);
 
     // Load Page 2 if background exists
     if(tpl.bgPage2 && tpl.modules && tpl.modules.length > 0) {
       var img2 = new Image();
       img2.onload = function() {
         var canvas2 = renderCertPage2OnBg(img2, student, tpl);
-        pdf.addPage([canvas2.width, canvas2.height], canvas2.width > canvas2.height ? 'landscape' : 'portrait');
-        pdf.addImage(canvas2.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, canvas2.width, canvas2.height);
+        var pg2 = CESTISCore.certs.pdfPage(canvas2.width, canvas2.height);
+        pdf.addPage(pg2.format, pg2.orientation);
+        pdf.addImage(canvas2.toDataURL('image/jpeg', 0.95), 'JPEG', pg2.x, pg2.y, pg2.w, pg2.h);
         pdf.save('Certificate_' + student.name.replace(/\s+/g, '_') + '_' + student.certNo + '.pdf');
         showToast('Certificate PDF downloaded for ' + student.name);
         _certDownloadStatus('Certificate downloaded successfully!', false);
@@ -37912,8 +37969,11 @@ function renderCertPage1OnBg(bgImg, student, tpl) {
   var certNoSize = pos.p1CertNoSize || 16;
 
   var courseFullName = tpl.courseFullName || student.course;
-  var gender = tpl.gender || 'their';
-  var pronoun = gender === 'his' ? 'his' : gender === 'her' ? 'her' : 'their';
+  // The trainee's own gender, recorded at enrolment ('Male'/'Female'), decides
+  // the pronoun; the template's setting only when the record has none.
+  var g = String(student.gender || '').toLowerCase();
+  var pronoun = g === 'male' || g === 'm' ? 'his' : g === 'female' || g === 'f' ? 'her' :
+    (tpl.gender === 'his' || tpl.gender === 'her' ? tpl.gender : 'their');
 
   ctx.textAlign = 'center';
 
@@ -37979,6 +38039,20 @@ function certVerifyUrlFor(certNo) {
   if (!base) return '';
   base = base.replace(/[#?].*$/, '');
   return base + '?certificate=' + encodeURIComponent(certNo || '');
+}
+// The programme exactly as page 1 prints it (the template's full name, else
+// the trainee's programme) — the wording a signature has to cover.
+function certProgrammeTitle(student, tpl) {
+  if (!tpl) { try { tpl = certTemplates[getCertTemplateKey((student && student.course) || '')]; } catch (e) { tpl = null; } }
+  return (tpl && tpl.courseFullName) || (student && student.course) || '';
+}
+function certSignedFields(student, tpl) { return CESTISCore.certs.sig.fields(student, certProgrammeTitle(student, tpl)); }
+// The signed address for a trainee's certificate, or '' when it has no
+// signature that still matches what the certificate states.
+function certSignedUrlFor(student, tpl) {
+  if (!student || !student.certSig || !student.certNo) return '';
+  if (!CESTISCore.certs.sig.current(student.certSig, certSignedFields(student, tpl))) return '';
+  return CESTISCore.certs.sig.url(certVerifyBaseUrl(), student.certSig);
 }
 // Where the page's own margins are, seen from the square: the first light
 // row above the bottom border and the first light column past the left
@@ -38048,6 +38122,10 @@ function certMakeQrCanvas(text, px) {
 function certDrawValidationQr(ctx, student, tpl, w, h) {
   var g = certQrGeometry(tpl, w, h, ctx);
   var url = certVerifyUrlFor(student && student.certNo);
+  // A signed certificate's code carries what it states and the Centre's
+  // signature, so an employer can verify it with no sign-in. Only while the
+  // signature still matches what is printed; otherwise the plain address.
+  if (url && student && student.certSig && typeof certSignedUrlFor === 'function') url = certSignedUrlFor(student, tpl) || url;
   var fill = '#ffffff';
   try {
     var px = ctx.getImageData(Math.min(w - 1, g.cover.x + g.cover.w + 6), Math.min(h - 1, g.y + Math.round(g.size / 2)), 1, 1).data;
@@ -39093,7 +39171,11 @@ function saveCertTemplate() {
   if(bgPage1) { certImageSave(_certTplEditingCourse, 'bgPage1', bgPage1); certImageSaveToDrive(_certTplEditingCourse, 'bgPage1', bgPage1); }
   if(bgPage2) { certImageSave(_certTplEditingCourse, 'bgPage2', bgPage2); certImageSaveToDrive(_certTplEditingCourse, 'bgPage2', bgPage2); }
 
-  certTemplates[_certTplEditingCourse] = {
+  // Start from the template as it stands and overwrite only what the editor
+  // edits: the plan it was seeded from, its gender wording and any field the
+  // editor does not show survive a save, and competencies left unchanged stay
+  // "from the plan" so a later re-seed still refreshes them.
+  certTemplates[_certTplEditingCourse] = CESTISCore.certs.keepTemplateProvenance(existing, {
     // Stamped so a sync can tell which copy is the newer one. Without it every
     // merge simply took the cloud's, and an administrator's layout work was
     // overwritten by an older copy the moment anybody signed in.
@@ -39164,7 +39246,7 @@ function saveCertTemplate() {
     // template. isBaseTemplate lets an admin nominate a different one.
     createdAt: (existing.createdAt || new Date().toISOString()),
     isBaseTemplate: !!existing.isBaseTemplate
-  };
+  });
 
   // Save to localStorage WITHOUT the large base64 images (they're in IndexedDB)
   var tplForStorage = JSON.parse(JSON.stringify(certTemplates[_certTplEditingCourse]));
@@ -39229,9 +39311,11 @@ function renderCertDownloadMgmt() {
   if(certified.length === 0) {
     listDiv.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:24px;">No certified students found.</p>';
   } else {
+    var eligCtx = certEligibilityContext();
     listDiv.innerHTML = certified.map(function(s) {
       var approval = certDownloadApprovals.find(function(d){ return d.studentId === s.id; });
       var isApproved = approval && approval.approved;
+      var signedNow = isApproved && CESTISCore.certs.sig.current(s.certSig, certSignedFields(s));
       var initials = s.name.split(' ').map(function(n){ return n[0]; }).join('');
       return '<div class="cert-approve-row">' +
         '<div class="cert-approve-info">' +
@@ -39239,8 +39323,10 @@ function renderCertDownloadMgmt() {
         '<div><div class="cert-approve-name">' + escapeHtml(s.name) + '</div>' +
         '<div class="cert-approve-meta">' + escapeHtml(s.id) + ' &bull; ' + escapeHtml(s.course) + ' &bull; ' + escapeHtml(s.certNo) + ' &bull; ' + escapeHtml(s.certDate) + '</div></div></div>' +
         '<div class="cert-approve-actions">' +
+        certEligibilityBadge(certEligibilityFor(s, eligCtx)) +
         (isApproved
           ? '<span class="badge badge-green"><span class="badge-dot"></span>Approved</span>' +
+            (signedNow ? '<span class="badge badge-blue" style="margin-left:4px;" title="The QR code carries the Centre\u2019s signature: an employer can verify it with no sign-in">Signed</span>' : '') +
             '<span style="font-size:11px;color:var(--text-muted);margin-left:4px;">Downloads: ' + escapeHtml(approval.downloadCount || 0) + '</span>' +
             '<button class="btn btn-sm btn-secondary" style="margin-left:8px;" onclick="revokeCertDownload(' + jsArg(s.id) + ')">Revoke</button>' +
             '<button class="btn btn-sm btn-secondary" style="margin-left:8px;" title="Record a number already printed on this trainee\'s certificate, so that paper verifies" onclick="certRegisterPrintedNumber(' + jsArg(s.id) + ')">+ Printed No.</button>'
@@ -39251,6 +39337,7 @@ function renderCertDownloadMgmt() {
 
   renderCertDlStats();
   renderCertDlLog();
+  try { renderCertSigningPanel(); } catch (e) {}
 }
 
 function renderCertDlStats() {
@@ -39288,40 +39375,265 @@ function renderCertDlLog() {
   }).join('');
 }
 
-function approveCertDownload(studentId) {
+// Approve one trainee's download, changing nothing but the data: the bulk
+// approval applies many of these and then saves and redraws ONCE. Returns
+// the student approved, or null.
+function _applyCertApproval(studentId, when) {
   var student = students.find(function(s){ return s.id === studentId; });
-  if(!student) return;
-  // The approval carries the number that will be printed; make sure there is one.
-  if(!student.certNo) backfillCertificateNumbers();
+  if(!student) return null;
+  // The approval carries the number that will be printed; make sure there is
+  // one — through the one rule every issuing path uses.
+  if(!student.certNo && !CESTISCore.certs.isRevoked(student)) CESTISCore.certs.ensureNumber(student, { roll: students, approvals: certDownloadApprovals });
+  when = when || new Date().toISOString();
   var existing = certDownloadApprovals.find(function(d){ return d.studentId === studentId; });
   if(existing) {
     existing.approved = true;
-    existing.approvedDate = new Date().toISOString();
-    existing.approvedBy = 'Admin';
+    existing.approvedDate = when;
+    existing.approvedBy = certActorName();
+    if(!existing.certNo && student.certNo) existing.certNo = student.certNo;
   } else {
     certDownloadApprovals.push({
       id: 'CDA-' + student.id, // stable id so the approval can ride the master snapshot sync
       studentId: student.id, name: student.name, course: student.course,
       certNo: student.certNo, certDate: student.certDate,
-      approved: true, approvedDate: new Date().toISOString(), approvedBy: 'Admin',
+      approved: true, approvedDate: when, approvedBy: certActorName(),
       downloadCount: 0, lastDownloaded: null
     });
   }
+  return student;
+}
+
+// What the Centre's own records say about a trainee before their certificate
+// goes out: units competent / exams passed, attendance, fees. Built once per
+// screen (the fee look-up is an index over the whole fee roll).
+function certEligibilityContext() {
+  var read = function (k, d) { try { var v = JSON.parse(CESTISStore.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+  var T = CESTISCore.Transcript;
+  var catalogs = read('voctrain_unitCatalogs', []);
+  try { if (T && T.ensureSeeded) catalogs = T.ensureSeeded(catalogs); } catch (e) {}
+  var feeIdx = null;
+  try { feeIdx = CESTISCore.feeTwinIndex(read('cestiSchoolFeeStudents', [])); } catch (e) { feeIdx = null; }
+  return { T: T, catalogs: catalogs, grades: read('voctrain_transcriptGrades', []), feeIdx: feeIdx,
+    exams: (typeof exams !== 'undefined' && Array.isArray(exams)) ? exams : [],
+    examResults: (typeof examResults !== 'undefined' && Array.isArray(examResults)) ? examResults : [] };
+}
+function certEligibilityFor(student, ctx) {
+  ctx = ctx || certEligibilityContext();
+  var qual = null, fee = null;
+  try { qual = ctx.T ? ctx.T.qualForCourse(ctx.catalogs, student.course) : null; } catch (e) {}
+  try { fee = ctx.feeIdx ? ctx.feeIdx.find(student) : null; } catch (e) {}
+  return CESTISCore.certs.eligibility(student, { qual: qual, manualGrades: ctx.grades, exams: ctx.exams, examResults: ctx.examResults, feeRecord: fee });
+}
+function certEligibilityText(e) {
+  return e.items.map(function (i) { return (i.state === 'ok' ? '✓ ' : i.state === 'warn' ? '⚠ ' : '? ') + i.label + ': ' + i.detail; }).join('\n');
+}
+function certEligibilityBadge(e) {
+  var tip = certEligibilityText(e);
+  if (e.warnings) return '<span class="badge badge-amber" style="margin-right:6px;" title="' + escapeAttr(tip) + '">⚠ ' + e.warnings + ' to check</span>';
+  var unknown = e.items.filter(function (i) { return i.state === 'unknown'; }).length;
+  return '<span class="badge ' + (unknown ? 'badge-blue' : 'badge-green') + '" style="margin-right:6px;" title="' + escapeAttr(tip) + '">' + (unknown ? '? ' + unknown + ' not on record' : '✓ Records complete') + '</span>';
+}
+
+function approveCertDownload(studentId) {
+  var student = students.find(function(s){ return s.id === studentId; });
+  if(!student) return;
+  // Warn, don't block: the Centre decides, but it decides having seen what
+  // its own records say.
+  var e = certEligibilityFor(student);
+  if(e.warnings && !confirm('Before approving ' + student.name + '’s certificate:\n\n' + certEligibilityText(e) + '\n\nApprove the download anyway?')) return;
+  _applyCertApproval(studentId);
   saveState();
   renderCertDownloadMgmt();
   showToast('Download approved for ' + student.name);
+  certSignApproved({ ids: [studentId], quiet: true });
 }
 
 function revokeCertDownload(studentId) {
   var approval = certDownloadApprovals.find(function(d){ return d.studentId === studentId; });
   if(approval) {
     approval.approved = false;
+    // A revocation is a decision with a time, so a stale "approved" copy on
+    // another device cannot switch it back on at the next sync.
+    approval.revokedAt = new Date().toISOString();
+    approval.revokedBy = certActorName();
     saveState();
     renderCertDownloadMgmt();
     showToast('Download access revoked');
   }
 }
 
+/* ---- Certificate signing: the Centre's key lives on this device only ----
+   Kept in its own IndexedDB database, outside CESTISStore, so no backup,
+   snapshot, page sync or LAN sync can ever carry the private key anywhere.
+   Steps for the Centre are in docs/CERTIFICATE-SIGNING.md. */
+var CERT_SIGNING_DB = 'CESTIS_CertSigning';
+function _certSigningStore(mode) {
+  return new Promise(function (resolve, reject) {
+    if (typeof indexedDB === 'undefined') { reject(new Error('This browser has no IndexedDB.')); return; }
+    var req = indexedDB.open(CERT_SIGNING_DB, 1);
+    req.onupgradeneeded = function (e) { var db = e.target.result; if (!db.objectStoreNames.contains('keys')) db.createObjectStore('keys'); };
+    req.onsuccess = function (e) { var db = e.target.result; resolve(db.transaction('keys', mode).objectStore('keys')); };
+    req.onerror = function () { reject(req.error || new Error('Could not open the signing key store.')); };
+  });
+}
+function certSigningKeyLoad() {
+  return _certSigningStore('readonly').then(function (os) {
+    return new Promise(function (resolve) {
+      var r = os.get('current');
+      r.onsuccess = function () { resolve(r.result || null); };
+      r.onerror = function () { resolve(null); };
+    });
+  }).catch(function () { return null; });
+}
+function certSigningKeySave(key) {
+  return _certSigningStore('readwrite').then(function (os) {
+    return new Promise(function (resolve, reject) {
+      var r = os.put(key, 'current');
+      r.onsuccess = function () { resolve(true); };
+      r.onerror = function () { reject(r.error || new Error('Could not save the signing key.')); };
+    });
+  });
+}
+function _certDownloadJson(name, obj) {
+  var blob = new Blob([JSON.stringify(obj, null, 2) + '\n'], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function certSigningCreateKey() {
+  certSigningKeyLoad().then(function (have) {
+    if (have && !confirm('This device already has signing key ' + have.kid + '. A new key replaces it here (certificates it signed stay valid while its public key stays published). Continue?')) return null;
+    if (!have && !confirm('Create the Centre’s certificate signing key on this device?\n\nThe private key stays on this device only. Afterwards: download the private-key backup and keep it somewhere safe and offline, and publish the public key (cert-keys.json).')) return null;
+    return CESTISCore.certs.sig.generateKey('Created by ' + certActorName() + ' on ' + new Date().toLocaleDateString()).then(function (key) {
+      return certSigningKeySave(key).then(function () { return key; });
+    });
+  }).then(function (key) {
+    if (!key) return;
+    showToast('Signing key ' + key.kid + ' created. Next: back it up, then publish its public key.');
+    renderCertSigningPanel();
+  }).catch(function (e) { showToast('Could not create the key: ' + ((e && e.message) || e), 'error'); });
+}
+function certSigningExportBackup() {
+  certSigningKeyLoad().then(function (key) {
+    if (!key) { showToast('There is no signing key on this device.', 'warning'); return; }
+    if (!confirm('This file holds the PRIVATE signing key. Anyone who has it can sign certificates in the Centre’s name.\n\nKeep it offline (a USB stick in the safe). Never email it, never put it in Google Drive, never commit it to GitHub. Download it now?')) return;
+    _certDownloadJson('CESTIS-certificate-signing-key-PRIVATE-' + key.kid + '.json',
+      { _warning: 'PRIVATE KEY. Keep offline. Never share, upload or commit this file.', type: 'cestis-cert-signing-key', kid: key.kid,
+        alg: key.alg, label: key.label, createdAt: key.createdAt, publicJwk: key.publicJwk, privateJwk: key.privateJwk });
+  });
+}
+function certSigningImportBackup(input) {
+  var f = input && input.files && input.files[0];
+  if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function () {
+    var k = null;
+    try { k = JSON.parse(String(reader.result || '')); } catch (e) { k = null; }
+    input.value = '';
+    if (!k || !k.privateJwk || !k.privateJwk.d || !k.publicJwk || !k.publicJwk.x) { showToast('That file is not a certificate signing key backup.', 'error'); return; }
+    CESTISCore.certs.sig.keyId(k.publicJwk).then(function (kid) {
+      var key = { kid: kid, alg: 'ES256', label: k.label || '', createdAt: k.createdAt || new Date().toISOString(),
+        publicJwk: CESTISCore.certs.sig.publicOnly(k.publicJwk), privateJwk: { kty: 'EC', crv: 'P-256', x: k.privateJwk.x, y: k.privateJwk.y, d: k.privateJwk.d } };
+      return certSigningKeySave(key).then(function () { showToast('Signing key ' + kid + ' restored on this device.'); renderCertSigningPanel(); });
+    }).catch(function (e) { showToast('Could not restore the key: ' + ((e && e.message) || e), 'error'); });
+  };
+  reader.readAsText(f);
+}
+// The file to publish: what is published now, plus this device's public key
+// and every withdrawn certificate that was ever signed (a signature cannot be
+// taken back, so the published list is how an employer learns of it).
+function certSigningDownloadPublic() {
+  Promise.all([certSigningKeyLoad(), certLoadPublishedKeys()]).then(function (r) {
+    var key = r[0], cur = r[1] || {};
+    var out = { _readme: (cur && cur._readme) || 'Public keys that verify CESTIS certificates, and withdrawn certificate numbers. Public data only: never put a private key here. See docs/CERTIFICATE-SIGNING.md.',
+      version: 1, keys: Array.isArray(cur.keys) ? cur.keys.slice() : [], revoked: Array.isArray(cur.revoked) ? cur.revoked.slice() : [] };
+    if (key && !out.keys.some(function (k) { return k && k.kid === key.kid; })) {
+      out.keys.push({ kid: key.kid, alg: 'ES256', label: key.label || '', createdAt: key.createdAt, publicJwk: CESTISCore.certs.sig.publicOnly(key.publicJwk) });
+    }
+    students.forEach(function (s) {
+      if (!s || !s.certSig || !CESTISCore.certs.isRevoked(s)) return;
+      var no = s.certSig.no;
+      if (!CESTISCore.certs.sig.publishedRevocation(out, no)) out.revoked.push({ no: no, at: s.certRevokedAt });
+    });
+    _certDownloadJson('cert-keys.json', out);
+  });
+}
+// Sign every approved certificate whose signature is missing or no longer
+// matches what it states. opts: { ids: [studentId...] to limit it, quiet }.
+function certSignApproved(opts) {
+  opts = opts || {};
+  return certSigningKeyLoad().then(function (key) {
+    if (!key) { if (!opts.quiet) showToast('Create or restore a signing key on this device first.', 'warning'); return 0; }
+    var want = opts.ids ? opts.ids.reduce(function (m, id) { m[id] = true; return m; }, {}) : null;
+    var todo = students.filter(function (s) {
+      if (!s || !s.certNo || (want && !want[s.id]) || CESTISCore.certs.isRevoked(s)) return false;
+      if (s.stage !== 'certified' && s.stage !== 'collected') return false;
+      var a = certDownloadApprovals.find(function (d) { return d && d.studentId === s.id; });
+      if (!(a && a.approved)) return false;
+      return !CESTISCore.certs.sig.current(s.certSig, certSignedFields(s));
+    });
+    var now = new Date().toISOString();
+    return Promise.all(todo.map(function (s) {
+      return CESTISCore.certs.sig.sign(key, certSignedFields(s), now).then(function (rec) { s.certSig = rec; s.lastModified = now; return 1; }, function () { return 0; });
+    })).then(function (done) {
+      var n = done.reduce(function (a, b) { return a + b; }, 0);
+      if (n) { saveState(); renderCertDownloadMgmt(); }
+      if (!opts.quiet) showToast(n ? n + ' certificate(s) signed.' : 'Every approved certificate is already signed.');
+      return n;
+    });
+  }).catch(function (e) { if (!opts.quiet) showToast('Signing failed: ' + ((e && e.message) || e), 'error'); return 0; });
+}
+function renderCertSigningPanel() {
+  var el = document.getElementById('certSigningPanel');
+  if (!el) return;
+  var approved = students.filter(function (s) {
+    return s && s.certNo && !CESTISCore.certs.isRevoked(s) && certDownloadApprovals.some(function (d) { return d && d.studentId === s.id && d.approved; });
+  });
+  var signed = approved.filter(function (s) { return CESTISCore.certs.sig.current(s.certSig, certSignedFields(s)); }).length;
+  Promise.all([certSigningKeyLoad(), certLoadPublishedKeys()]).then(function (r) {
+    var key = r[0], pub = r[1];
+    var published = !!(key && pub && Array.isArray(pub.keys) && pub.keys.some(function (k) { return k && k.kid === key.kid; }));
+    var line = key
+      ? 'This device signs with key <strong style="font-family:monospace;">' + escapeHtml(key.kid) + '</strong>' +
+        (published ? ' <span class="badge badge-green">published</span>' : ' <span class="badge badge-amber">not yet published — employers cannot check it until cert-keys.json carries it</span>')
+      : 'There is no signing key on this device. Certificates still verify through the Centre’s records, but an employer needs a signed certificate to verify with no sign-in.';
+    el.innerHTML = '<p style="font-size:13px;margin-bottom:8px;">' + line + '</p>' +
+      '<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">' + signed + ' of ' + approved.length + ' approved certificates carry a current signature. Approving a download signs it automatically on a device that holds the key.</p>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+      (key ? '<button class="btn btn-sm btn-primary" onclick="certSignApproved()">Sign approved certificates</button>' +
+             '<button class="btn btn-sm btn-secondary" onclick="certSigningDownloadPublic()">Download cert-keys.json (public)</button>' +
+             '<button class="btn btn-sm btn-secondary" onclick="certSigningExportBackup()">Back up private key</button>'
+           : '<button class="btn btn-sm btn-primary" onclick="certSigningCreateKey()">Create signing key</button>') +
+      '<label class="btn btn-sm btn-secondary" style="cursor:pointer;">Restore key from backup<input type="file" accept="application/json,.json" style="display:none;" onchange="certSigningImportBackup(this)"></label>' +
+      (key ? '<button class="btn btn-sm btn-secondary" onclick="certSigningCreateKey()">Replace key</button>' : '') +
+      '</div>';
+  });
+}
+
+function bulkApproveCertDownloads() {
+  var selected = [];
+  document.querySelectorAll('.bulk-cert-cb:checked').forEach(function(cb){ selected.push(cb.value); });
+  if(selected.length === 0) { showToast('No students selected'); return; }
+  // One check, one save, one redraw — not a full save and re-render of the
+  // whole roll for every trainee selected (200 trainees took seconds).
+  var ctx = certEligibilityContext();
+  var flagged = [];
+  selected.forEach(function(sid){
+    var s = students.find(function(x){ return x.id === sid; });
+    if(s && certEligibilityFor(s, ctx).warnings) flagged.push(s.name);
+  });
+  if(flagged.length && !confirm(flagged.length + ' of the ' + selected.length + ' selected have something to check in their records (units, attendance or fees):\n\n' +
+      flagged.slice(0, 15).join('\n') + (flagged.length > 15 ? '\n…' : '') + '\n\nApprove all ' + selected.length + ' anyway?')) return;
+  var when = new Date().toISOString();
+  var done = selected.filter(function(sid){ return !!_applyCertApproval(sid, when); });
+  saveState();
+  renderCertDownloadMgmt();
+  closeModal('bulkCertApproveModal');
+  showToast(done.length + ' student(s) approved for download');
+  certSignApproved({ ids: done, quiet: true });
+}
 // A number already printed on paper that this device does not know — a
 // certificate downloaded before numbers were derived, on a device that had
 // minted its own. Recording it here makes that paper verifiable everywhere.
@@ -39363,15 +39675,6 @@ function openBulkCertApproveModal() {
 function toggleBulkCertSelectAll() {
   var checked = document.getElementById('bulkCertSelectAll').checked;
   document.querySelectorAll('.bulk-cert-cb').forEach(function(cb){ cb.checked = checked; });
-}
-
-function bulkApproveCertDownloads() {
-  var selected = [];
-  document.querySelectorAll('.bulk-cert-cb:checked').forEach(function(cb){ selected.push(cb.value); });
-  if(selected.length === 0) { showToast('No students selected'); return; }
-  selected.forEach(function(sid){ approveCertDownload(sid); });
-  closeModal('bulkCertApproveModal');
-  showToast(selected.length + ' student(s) approved for download');
 }
 
 // Hook into showPage

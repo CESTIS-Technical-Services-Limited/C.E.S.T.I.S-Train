@@ -629,6 +629,10 @@
       });
     });
     if (aliases.length) base.certNoAliases = aliases; else delete base.certNoAliases;
+    // A withdrawal (or a re-certification) made on either copy stands until a
+    // later decision, whichever copy was edited last for other reasons; the
+    // newest signature travels too.
+    if (Core.certs) Core.certs.mergeLifecycle(base, other || {});
     return base;
   };
 
@@ -2428,6 +2432,723 @@
       applyLookToAll: applyLookToAll,
       deriveCompetencies: deriveCompetencies,
       page2Content: page2Content
+    };
+  })();
+
+  /* ==========================================================================
+     CERTIFICATES — numbers, issuing and withdrawing, eligibility, signatures
+
+     WHY THIS EXISTS
+     ---------------
+     A certificate was issued in three places, each with its own rules. The
+     Student Progress page — the one the administrator actually uses — drew
+     four RANDOM digits every time "Certified" was saved, so re-saving a
+     trainee whose certificate was already printed gave them a new number and
+     the paper stopped verifying; two trainees of one programme shared a number
+     about one cohort in five; an intake key ("02. Electrical") became the
+     prefix; and moving a trainee back to In Training left the certificate on
+     the record, where the approvals reconcile promoted them straight back.
+     The dashboard's own (correct) rules sat in a function nothing called.
+
+     Every path now goes through this one place:
+       ensureNumber(s, ctx)   the number a certificate carries: the one it was
+                              issued if it has one — a number, once issued,
+                              NEVER changes — else the one it carried before a
+                              withdrawal, else the approved one, else a new one;
+       applyStage(s, stage)   the Update Stage rule, for every page;
+       revoke(s, approvals)   withdrawal keeps the number (as an alias) and the
+                              history, and stamps when, who and why, so the
+                              certificate verifies as REVOKED rather than
+                              vanishing — and so the decision outlives a sync.
+
+     New numbers are PREFIX-YEAR-NNNN-XX: the four digits and two letters are
+     derived from the trainee (the natural key their stable id is made from),
+     so every device mints the same number for the same person, and the space
+     is wide enough (5.2 million per prefix and year) that two people meeting
+     on one number is a practical impossibility rather than a one-in-five
+     event. Numbers already issued in the old PREFIX-YEAR-NNNN form are never
+     touched: they stay exactly as printed.
+     ========================================================================== */
+  Core.certs = (function () {
+    var ISSUED = { certified: 1, collected: 1 };
+    // Two letters from these: no I or O to be read as 1 or 0.
+    var LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+    function t(v) { var n = Date.parse(v || ''); return isNaN(n) ? 0 : n; }
+    function nowIso(ctx) { return (ctx && ctx.now) || new Date().toISOString(); }
+    function longDate(ctx) {
+      var d = ctx && ctx.now ? new Date(ctx.now) : new Date();
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+    }
+
+    function numberKey(no) { return String(no == null ? '' : no).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+    // The programme's first two letters, with an intake key such as "02. " out
+    // of the way — and never a TypeError for a record with no programme.
+    function numberPrefix(course) {
+      var bare = String(course || '').replace(/^\s*\d+\.\s*/, '').trim();
+      return (bare.substring(0, 2).toUpperCase() || 'CE');
+    }
+    function rememberAlias(student, no) {
+      if (!student || !no) return false;
+      var key = numberKey(no);
+      if (!key) return false;
+      if (!Array.isArray(student.certNoAliases)) student.certNoAliases = [];
+      if (student.certNoAliases.some(function (a) { return numberKey(a) === key; })) return false;
+      student.certNoAliases.push(String(no).trim());
+      return true;
+    }
+    // The number this record was issued before (the latest alias), for a
+    // re-certification to take back rather than mint a new one.
+    function previousNumber(student) {
+      var list = (student && Array.isArray(student.certNoAliases)) ? student.certNoAliases.filter(function (a) { return numberKey(a); }) : [];
+      return list.length ? list[list.length - 1] : null;
+    }
+    function approvalOf(student, approvals) {
+      if (!student || !Array.isArray(approvals)) return null;
+      for (var i = 0; i < approvals.length; i++) {
+        if (approvals[i] && approvals[i].studentId === student.id) return approvals[i];
+      }
+      return null;
+    }
+    function approvedNumber(student, approvals) {
+      var a = approvalOf(student, approvals);
+      return (a && a.certNo) ? a.certNo : null;
+    }
+    function hasNumber(student, no, approvals) {
+      if (!student || !no) return false;
+      var key = numberKey(no);
+      if (!key) return false;
+      if (numberKey(student.certNo) === key) return true;
+      if (Array.isArray(student.certNoAliases) && student.certNoAliases.some(function (a) { return numberKey(a) === key; })) return true;
+      return numberKey(approvedNumber(student, approvals)) === key;
+    }
+    // What a trainee's number is derived from: the natural key their stable id
+    // is a hash of, so it is the same on every device.
+    function numberSeed(student) {
+      if (!student) return '';
+      var key = '';
+      try { key = Core.naturalKey(student) || ''; } catch (e) {}
+      if (!key) key = String(student.name || '').toLowerCase().trim() + '|' + String(student.course || '').toLowerCase().trim();
+      return key === '|' ? '' : key;
+    }
+    function shape(prefix, year, n) {
+      var digits = String(1000 + (n % 9000));
+      var rest = Math.floor(n / 9000);
+      var letters = LETTERS.charAt(rest % 24) + LETTERS.charAt(Math.floor(rest / 24) % 24);
+      return prefix + '-' + year + '-' + digits + '-' + letters;
+    }
+    function cryptoObj() {
+      return (root && root.crypto) || (typeof globalThis !== 'undefined' && globalThis.crypto) || null;
+    }
+    function randomInt() {
+      try {
+        var c = cryptoObj();
+        if (c && c.getRandomValues) { var a = new Uint32Array(2); c.getRandomValues(a); return (a[0] % 2097152) * 4294967296 + a[1]; }
+      } catch (e) {}
+      return Math.floor(Math.random() * 9007199254740991);
+    }
+    /* PREFIX-YEAR-NNNN-XX, unique across the roll it is given. Derived from the
+       trainee (the same answer on every device, whatever order the roll is in);
+       on the rare clash with SOMEBODY ELSE on this roll the next derivation is
+       tried, which is the same for this trainee everywhere too. With no trainee
+       to derive from, a random draw from the same space. */
+    function generateNumber(prefix, student, roll) {
+      prefix = String(prefix || 'CE').toUpperCase();
+      var existing = {};
+      (Array.isArray(roll) ? roll : []).forEach(function (st) {
+        if (!st || (student && (st === student || (student.id != null && st.id === student.id)))) return;
+        if (st.certNo) existing[numberKey(st.certNo)] = true;
+        (Array.isArray(st.certNoAliases) ? st.certNoAliases : []).forEach(function (a) { existing[numberKey(a)] = true; });
+      });
+      var yearMatch = student && student.certDate ? /\b(20\d\d)\b/.exec(String(student.certDate)) : null;
+      var year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
+      var seed = numberSeed(student);
+      var c, round;
+      var derive = function (sd, r) { return shape(prefix, year, parseInt(Core.hashString(sd + '|cert|' + r), 36) || 0); };
+      if (seed) {
+        // Who else on this roll is waiting for a number under this prefix and
+        // year, and which number they would take first. When two of them want
+        // the same one, the trainee whose seed sorts first has it — whichever
+        // of the two this device happens to number first — so two devices
+        // numbering the same roll in different orders still agree.
+        var reserved = {};
+        (Array.isArray(roll) ? roll : []).forEach(function (st) {
+          if (!st || st === student || (student && student.id != null && st.id === student.id)) return;
+          if (st.certNo || !ISSUED[st.stage] || numberPrefix(st.course) !== prefix) return;
+          var ym = st.certDate ? /\b(20\d\d)\b/.exec(String(st.certDate)) : null;
+          if ((ym ? ym[1] : String(new Date().getFullYear())) !== year) return;
+          var ps = numberSeed(st);
+          if (ps && ps < seed) reserved[numberKey(derive(ps, 0))] = true;
+        });
+        for (round = 0; round < 64; round++) {
+          c = derive(seed, round);
+          if (!existing[numberKey(c)] && !reserved[numberKey(c)]) return c;
+        }
+      }
+      for (round = 0; round < 64; round++) {
+        c = shape(prefix, year, randomInt());
+        if (!existing[numberKey(c)]) return c;
+      }
+      return prefix + '-' + year + '-' + Date.now().toString(36).toUpperCase();
+    }
+    /* THE one place a certificate gets its number. ctx: { roll, approvals }. */
+    function ensureNumber(student, ctx) {
+      if (!student) return null;
+      if (student.certNo) return student.certNo;          // a number, once issued, never changes
+      ctx = ctx || {};
+      student.certNo = previousNumber(student) || approvedNumber(student, ctx.approvals) ||
+        generateNumber(numberPrefix(student.course), student, ctx.roll);
+      return student.certNo;
+    }
+
+    /* --- Withdrawal ------------------------------------------------------- */
+    // A withdrawal stands until a LATER re-certification: two stamps, and the
+    // newer of them decides, so either decision survives a sync with a device
+    // that has not heard of it yet.
+    function isRevoked(student) {
+      if (!student) return false;
+      var r = t(student.certRevokedAt);
+      return r > 0 && r > t(student.certReinstatedAt);
+    }
+    function pushHistory(student, entry) {
+      if (!Array.isArray(student.certHistory)) student.certHistory = [];
+      student.certHistory.push(entry);
+    }
+    /* Withdraw a certificate. The number stays on record (as an alias, and in
+       the history), so the paper still resolves — as revoked — and a later
+       re-certification reuses it. The download approval is switched off with a
+       decision time, so a stale "approved" copy from another device cannot
+       outvote it. opts: { by, reason, now }. Returns the number withdrawn. */
+    function revoke(student, approvals, opts) {
+      if (!student) return null;
+      opts = opts || {};
+      var at = nowIso(opts);
+      var no = student.certNo || previousNumber(student) || approvedNumber(student, approvals);
+      if (student.certNo) rememberAlias(student, student.certNo);
+      pushHistory(student, { event: 'revoked', certNo: no || null, certDate: student.certDate || null,
+        at: at, by: opts.by || '', reason: opts.reason || '' });
+      student.certRevokedAt = at;
+      student.certRevokedBy = opts.by || '';
+      student.certRevokedReason = opts.reason || '';
+      student.certNo = null;
+      student.certDate = null;
+      student.certCollected = false;
+      var a = approvalOf(student, approvals);
+      if (a) {
+        a.approved = false;
+        a.revokedAt = at;
+        a.revokedBy = opts.by || '';
+        if (opts.reason) a.revokedReason = opts.reason;
+      }
+      return no || null;
+    }
+    function reinstate(student, opts) {
+      opts = opts || {};
+      var at = nowIso(opts);
+      student.certReinstatedAt = at;
+      pushHistory(student, { event: 'reinstated', certNo: student.certNo || null, certDate: student.certDate || null, at: at, by: opts.by || '' });
+    }
+
+    /* The Update Stage rule, the same on every page.
+       ctx: { roll, approvals, by, reason, now }.
+       Returns { issued, revoked, number }. */
+    function applyStage(student, newStage, ctx) {
+      ctx = ctx || {};
+      var out = { issued: false, revoked: false, number: null };
+      if (!student) return out;
+      var prev = student.stage;
+      student.stage = newStage;
+      if (ISSUED[newStage]) {
+        if (newStage === 'certified') student.progress = 90;
+        else { student.progress = 100; student.certCollected = true; }
+        if (!student.certDate) student.certDate = longDate(ctx);
+        var had = !!student.certNo;
+        out.number = ensureNumber(student, ctx);
+        out.issued = !had;
+        if (isRevoked(student)) reinstate(student, ctx);
+      } else {
+        if (newStage === 'incomplete') student.progress = Math.min(parseFloat(student.progress) || 0, 40);
+        // Demotion: the certificate is withdrawn, not silently left on the
+        // record (where the approvals reconcile promoted the trainee straight
+        // back) and not silently deleted either.
+        if (ISSUED[prev] || student.certNo) {
+          out.number = revoke(student, ctx.approvals, ctx);
+          out.revoked = true;
+        }
+      }
+      student.lastModified = nowIso(ctx);
+      return out;
+    }
+
+    /* Bring the certificate's own state across from another copy of the same
+       record: every number (as aliases), the newest withdrawal and the newest
+       re-certification, the history, and the newest signature. Field merges
+       that keep one whole value cannot do this — they would drop a withdrawal
+       made on the other device. Returns true when `local` changed. */
+    function mergeState(local, other) {
+      if (!local || !other || local === other) return false;
+      var changed = false;
+      if (other.certNo && local.certNo && numberKey(other.certNo) !== numberKey(local.certNo)) {
+        if (rememberAlias(local, local.certNo)) changed = true;
+        if (rememberAlias(local, other.certNo)) changed = true;
+      }
+      (Array.isArray(other.certNoAliases) ? other.certNoAliases : []).forEach(function (a) { if (rememberAlias(local, a)) changed = true; });
+      return mergeLifecycle(local, other) || changed;
+    }
+    /* The same, without the numbers (a caller that settles aliases itself).
+       Never mutates `other`, nor an array `local` may share with it. */
+    function mergeLifecycle(local, other) {
+      if (!local || !other || local === other) return false;
+      var changed = false;
+      if (t(other.certRevokedAt) > t(local.certRevokedAt)) {
+        local.certRevokedAt = other.certRevokedAt;
+        local.certRevokedBy = other.certRevokedBy || '';
+        local.certRevokedReason = other.certRevokedReason || '';
+        changed = true;
+      }
+      if (t(other.certReinstatedAt) > t(local.certReinstatedAt)) { local.certReinstatedAt = other.certReinstatedAt; changed = true; }
+      if (Array.isArray(other.certHistory) && other.certHistory.length) {
+        var seen = {}, add = [];
+        var mine = Array.isArray(local.certHistory) ? local.certHistory : [];
+        mine.forEach(function (h) { if (h) seen[h.event + '|' + h.at] = true; });
+        other.certHistory.forEach(function (h) {
+          if (!h || seen[h.event + '|' + h.at]) return;
+          seen[h.event + '|' + h.at] = true;
+          add.push(JSON.parse(JSON.stringify(h)));
+        });
+        if (add.length) {
+          local.certHistory = mine.concat(add).sort(function (a, b) { return t(a && a.at) - t(b && b.at); });
+          changed = true;
+        }
+      }
+      if (other.certSig && other.certSig.sig && (!local.certSig || t(other.certSig.signedAt) > t(local.certSig.signedAt))) {
+        local.certSig = JSON.parse(JSON.stringify(other.certSig));
+        changed = true;
+      }
+      return changed;
+    }
+
+    /* Who a certificate number belongs to. Ambiguity — one number held by two
+       different people, which only two devices both minting before either
+       synced can produce — is reported as such, so the employer is told to
+       contact the Centre rather than shown a name that may be the wrong one. */
+    function bareCourse(s) { return Core.normCourse(String(s || '').replace(/^\s*\d+\.\s*/, '')); }
+    function samePerson(a, b) {
+      if (!a || !b) return false;
+      if (a === b || (a.id != null && a.id === b.id)) return true;
+      return Core.sameName(a.name, b.name) && bareCourse(a.course) === bareCourse(b.course);
+    }
+    function resolve(query, roll, approvals) {
+      var key = numberKey(query);
+      var none = { student: null, number: '', via: '', ambiguous: false };
+      if (!key) return none;
+      roll = Array.isArray(roll) ? roll : [];
+      var hits = [];
+      roll.forEach(function (s) {
+        if (!s) return;
+        if (numberKey(s.certNo) === key) { hits.push({ student: s, number: s.certNo, via: 'number' }); return; }
+        if (Array.isArray(s.certNoAliases)) {
+          var a = s.certNoAliases.filter(function (x) { return numberKey(x) === key; })[0];
+          if (a) hits.push({ student: s, number: a, via: 'alias' });
+        }
+      });
+      if (hits.length) {
+        var first = hits.filter(function (h) { return h.via === 'number'; })[0] || hits[0];
+        var others = hits.filter(function (h) { return !samePerson(h.student, first.student); });
+        return { student: first.student, number: first.number, via: first.via, ambiguous: others.length > 0 };
+      }
+      var appr = (Array.isArray(approvals) ? approvals : []).filter(function (d) { return d && numberKey(d.certNo) === key; })[0];
+      if (appr) {
+        var hit = roll.filter(function (s) { return s && s.id === appr.studentId; })[0] ||
+          roll.filter(function (s) { return s && Core.sameName(s.name, appr.name) && Core.normCourse(s.course || '') === Core.normCourse(appr.course || ''); })[0];
+        if (hit) return { student: hit, number: appr.certNo, via: 'approval', ambiguous: false };
+      }
+      return none;
+    }
+    /* 'valid' | 'revoked' for a record a number was found on ('none' without). */
+    function status(student) {
+      if (!student) return 'none';
+      if (isRevoked(student) || !student.certNo || !ISSUED[student.stage]) return 'revoked';
+      return 'valid';
+    }
+
+    /* --- Download approvals ------------------------------------------------
+       A revocation is a decision too. Approved used to beat not-approved
+       outright, so an "approved" copy still sitting on another device won
+       every merge and switched a revoked download back on. Once either copy
+       carries a revocation stamp, the LATER decision (approval date or
+       revocation date) wins. Downloads are counted per device and merged by
+       the larger count for each device, so two devices' downloads add up
+       instead of one device's being dropped. */
+    function decidedAt(c) { return Math.max(t(c && c.approvedDate), t(c && c.revokedAt)); }
+    function pickApproval(a, b) {
+      if (a.revokedAt || b.revokedAt) {
+        var da = decidedAt(a), db = decidedAt(b);
+        if (da !== db) return db > da ? b : a;
+      }
+      return Core.approvalScore(b) > Core.approvalScore(a) ? b : a;
+    }
+    function downloadMap(c) {
+      return (c && c.downloadsByDevice && typeof c.downloadsByDevice === 'object') ? c.downloadsByDevice : null;
+    }
+    function sumMap(m) { var s = 0; Object.keys(m).forEach(function (k) { s += Math.max(0, parseInt(m[k], 10) || 0); }); return s; }
+    function mergeApprovals(a, b) {
+      if (!a) return b || null;
+      if (!b) return a;
+      var w = pickApproval(a, b), l = w === a ? b : a;
+      var mw = downloadMap(w), ml = downloadMap(l);
+      var cw = parseInt(w.downloadCount, 10) || 0, cl = parseInt(l.downloadCount, 10) || 0;
+      var lastW = t(w.lastDownloaded), lastL = t(l.lastDownloaded);
+      if (!mw && !ml && cw >= cl && lastW >= lastL) return w;
+      var map = {};
+      [mw, ml].forEach(function (m) {
+        if (!m) return;
+        Object.keys(m).forEach(function (k) { map[k] = Math.max(map[k] || 0, parseInt(m[k], 10) || 0); });
+      });
+      var out = Object.assign({}, w);
+      if (mw || ml) out.downloadsByDevice = map;
+      out.downloadCount = Math.max(cw, cl, sumMap(map));
+      if (lastL > lastW) out.lastDownloaded = l.lastDownloaded;
+      return out;
+    }
+    /* Record one download made on this device. */
+    function recordDownload(approval, deviceId, now) {
+      if (!approval) return;
+      var m = downloadMap(approval);
+      if (!m) {
+        m = {};
+        var earlier = parseInt(approval.downloadCount, 10) || 0;
+        if (earlier) m._earlier = earlier;   // counted before devices were told apart
+      }
+      var dev = String(deviceId || 'this-device');
+      m[dev] = (parseInt(m[dev], 10) || 0) + 1;
+      approval.downloadsByDevice = m;
+      approval.downloadCount = sumMap(m);
+      approval.lastDownloaded = now || new Date().toISOString();
+    }
+
+    /* --- Eligibility --------------------------------------------------------
+       What the Centre's own records say before a certificate is issued. It
+       WARNS — the administrator decides — and says plainly what it could not
+       check. opts: { qual, manualGrades, exams, examResults, feeRecord,
+       passMark (60, the transcript's COMPETENT line), minAttendance (70, the
+       dashboard's low-attendance line) }.
+       Returns { items:[{ key, label, state:'ok'|'warn'|'unknown', detail }], warnings }. */
+    function eligibility(student, opts) {
+      opts = opts || {};
+      student = student || {};
+      var pass = opts.passMark != null ? Number(opts.passMark) : 60;
+      var minAtt = opts.minAttendance != null ? Number(opts.minAttendance) : 70;
+      var items = [];
+      // 1. Assessments. The transcript system's own readiness verdict when this
+      // build has one (Core.transcriptReadiness — added by the transcript
+      // work, so it is looked for rather than assumed); else the transcript's
+      // units; else the online exams.
+      var T = Core.Transcript;
+      var ready = null;
+      if (typeof Core.transcriptReadiness === 'function') {
+        try { ready = Core.transcriptReadiness(student, opts); } catch (e) { ready = null; }
+      }
+      var rows = (!ready && opts.qual && T) ? T.effectiveGrades({ qual: opts.qual, studentId: student.id,
+        manualGrades: opts.manualGrades, exams: opts.exams, examResults: opts.examResults }) : [];
+      if (ready !== null && ready !== undefined && (typeof ready === 'boolean' || typeof ready === 'object')) {
+        var ok = typeof ready === 'boolean' ? ready : !!(ready.ready || ready.ok || ready.eligible);
+        var known = typeof ready === 'boolean' || ready.known !== false;
+        items.push({ key: 'units', label: 'Transcript results', state: !known ? 'unknown' : ok ? 'ok' : 'warn',
+          detail: String((typeof ready === 'object' && (ready.detail || ready.reason || ready.summary || ready.message)) || (ok ? 'Ready to certify' : 'Not yet ready to certify')) });
+      } else if (rows.length) {
+        var graded = rows.filter(function (r) { return r.grade != null && r.grade !== '' && !isNaN(Number(r.grade)); });
+        var nyc = graded.filter(function (r) { return Number(r.grade) < pass; });
+        var missing = rows.length - graded.length;
+        items.push({ key: 'units', label: 'Units competent (transcript)',
+          state: (!nyc.length && !missing) ? 'ok' : 'warn',
+          detail: (graded.length - nyc.length) + ' of ' + rows.length + ' units competent' +
+            (nyc.length ? '; not yet competent: ' + nyc.slice(0, 3).map(function (r) { return r.code || r.name; }).join(', ') + (nyc.length > 3 ? '…' : '') : '') +
+            (missing ? '; ' + missing + ' not graded' : '') });
+      } else {
+        var mine = (Array.isArray(opts.examResults) ? opts.examResults : []).filter(function (r) { return r && r.studentId === student.id; });
+        if (!mine.length) items.push({ key: 'units', label: 'Assessments passed', state: 'unknown', detail: 'No transcript units or exam results on record' });
+        else {
+          var failed = mine.filter(function (r) { return r.passed === false || (r.passed == null && Number(r.score) < pass); });
+          items.push({ key: 'units', label: 'Assessments passed', state: failed.length ? 'warn' : 'ok',
+            detail: (mine.length - failed.length) + ' of ' + mine.length + ' exam results passed' });
+        }
+      }
+      // 2. Attendance — the percentage the register keeps on the record.
+      var rawAtt = student.attendance;
+      var att = parseFloat(rawAtt);
+      if (rawAtt === undefined || rawAtt === null || rawAtt === '' || isNaN(att)) {
+        items.push({ key: 'attendance', label: 'Attendance', state: 'unknown', detail: 'No attendance recorded' });
+      } else {
+        items.push({ key: 'attendance', label: 'Attendance', state: att >= minAtt ? 'ok' : 'warn', detail: Math.round(att) + '% (the line is ' + minAtt + '%)' });
+      }
+      // 3. Fees — the trainee's School Fee record, when this device has one.
+      var f = opts.feeRecord;
+      if (!f) items.push({ key: 'fees', label: 'Fees cleared', state: 'unknown', detail: 'No School Fee record on this device' });
+      else {
+        var tuition = parseFloat(f.tuitionFee) || 0, paid = parseFloat(f.totalPaid) || 0;
+        if (tuition <= 0) items.push({ key: 'fees', label: 'Fees cleared', state: 'unknown', detail: 'No tuition set on the fee record' });
+        else items.push({ key: 'fees', label: 'Fees cleared', state: paid >= tuition ? 'ok' : 'warn',
+          detail: paid >= tuition ? 'Paid in full' : 'Owes $' + (tuition - paid).toFixed(2) });
+      }
+      return { items: items, warnings: items.filter(function (i) { return i.state === 'warn'; }).length };
+    }
+
+    /* --- Template lookup -----------------------------------------------------
+       Which template prints a trainee's certificate: the exact name, else the
+       Centre's mapping, else ONE unambiguous programme match (intake key and
+       letter case aside). Two candidates (a Level 2 and a Level 3), none, or
+       an empty programme is a miss — the page then says the template is
+       missing instead of quietly printing another programme's certificate. */
+    function levelOf(s) { var m = /(?:^|\s)(?:l|lvl|level)\s*(\d+)(?:\s|$)/i.exec(bareCourse(s)); return m ? m[1] : null; }
+    function templateKey(course, templates, courseMap) {
+      templates = templates || {};
+      course = String(course == null ? '' : course);
+      if (templates[course]) return course;
+      var mapped = courseMap ? courseMap[course] : null;
+      if (mapped && templates[mapped]) return mapped;
+      var want = bareCourse(course);
+      if (!want) return mapped || course;
+      var keys = Object.keys(templates);
+      var exact = keys.filter(function (k) { return bareCourse(k) === want; });
+      if (exact.length === 1) return exact[0];
+      if (exact.length > 1) return mapped || course;
+      var lvl = levelOf(course);
+      var loose = keys.filter(function (k) {
+        var b = bareCourse(k);
+        if (!b || (b.indexOf(want) === -1 && want.indexOf(b) === -1)) return false;
+        var kl = levelOf(k);
+        return !(lvl && kl && kl !== lvl);
+      });
+      if (loose.length === 1) return loose[0];
+      return mapped || course;
+    }
+
+    /* Saving a template from the editor keeps what the editor does not show:
+       the plan it was seeded from, its gender wording, any future field — and a
+       competency the administrator did not change stays "from the plan", so a
+       later re-seed can still refresh it. */
+    function keepTemplateProvenance(existing, edited) {
+      existing = existing || {};
+      var out = Object.assign({}, existing, edited);
+      var before = Array.isArray(existing.competencies) ? existing.competencies : [];
+      if (Array.isArray(edited.competencies)) {
+        out.competencies = edited.competencies.map(function (c) {
+          var same = before.filter(function (b) {
+            return b && b.fromPlan && b.category === c.category &&
+              JSON.stringify(b.items || []) === JSON.stringify(c.items || []);
+          })[0];
+          return same ? Object.assign({}, c, { fromPlan: same.fromPlan }) : c;
+        });
+      }
+      return out;
+    }
+
+    /* The PDF page: A4 in millimetres, turned to suit the picture, with the
+       picture fitted inside and centred. The page used to be the picture's
+       pixel count read as points (a 2000-pixel background made a 37-inch
+       page), so every programme printed at a different size. */
+    function pdfPage(width, height) {
+      width = width || 1; height = height || 1;
+      var landscape = width >= height;
+      var pw = landscape ? 297 : 210, ph = landscape ? 210 : 297;
+      var scale = Math.min(pw / width, ph / height);
+      var w = width * scale, h = height * scale;
+      return { orientation: landscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4',
+        pageWidth: pw, pageHeight: ph, x: (pw - w) / 2, y: (ph - h) / 2, w: w, h: h };
+    }
+
+    /* --- Dashboard figures --------------------------------------------------
+       Certificate dates are stored as "October 16, 2026" (older records as ISO
+       dates); Date.parse reads both. The chart used to split on '-', which
+       gave nothing for every certificate issued through Update Stage. */
+    function certTime(s) { var n = Date.parse((s && s.certDate) || ''); return isNaN(n) ? 0 : n; }
+    function byMonth(students, now, months) {
+      now = now ? new Date(now) : new Date();
+      months = months || 6;
+      var out = [];
+      for (var i = months - 1; i >= 0; i--) {
+        var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        out.push({ year: d.getFullYear(), month: d.getMonth(), count: 0 });
+      }
+      (Array.isArray(students) ? students : []).forEach(function (s) {
+        var ms = certTime(s);
+        if (!ms || !s.certNo || isRevoked(s)) return;
+        var d = new Date(ms);
+        out.forEach(function (b) { if (b.year === d.getFullYear() && b.month === d.getMonth()) b.count++; });
+      });
+      return out;
+    }
+    function certifiedInYear(students, year) {
+      return (Array.isArray(students) ? students : []).filter(function (s) {
+        if (!s || !ISSUED[s.stage] || isRevoked(s)) return false;
+        var ms = certTime(s);
+        return !!ms && new Date(ms).getFullYear() === year;
+      }).length;
+    }
+
+    /* --- Signatures: verification with no login ------------------------------
+       The QR code on a certificate carries what the certificate states — its
+       number, the holder's name, the programme and the date — and an ECDSA
+       P-256 signature over exactly that, made on an administrator's device
+       with a private key that never leaves it (it is not in the store, so no
+       backup or sync can carry it). The verify page checks the signature in the
+       employer's own browser against the Centre's PUBLIC keys, published in
+       cert-keys.json in this repository. Nothing is looked up and nothing else
+       about the trainee is revealed; one changed letter breaks the signature. */
+    var SIG_VERSION = 'CESTIS-CERT-1';
+    function sigNorm(v) {
+      var s = String(v == null ? '' : v);
+      try { s = s.normalize('NFC'); } catch (e) {}
+      return s.replace(/\s+/g, ' ').trim();
+    }
+    function sigFields(student, programme) {
+      return { no: sigNorm(student && student.certNo), name: sigNorm(student && student.name),
+        programme: sigNorm(programme != null ? programme : String((student && student.course) || '').replace(/^\s*\d+\.\s*/, '')),
+        date: sigNorm(student && student.certDate) };
+    }
+    function canonical(f, kid) {
+      return [SIG_VERSION, sigNorm(kid), sigNorm(f.no), sigNorm(f.name), sigNorm(f.programme), sigNorm(f.date)].join('\n');
+    }
+    var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    function b64url(bytes) {
+      bytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      var out = '', i;
+      for (i = 0; i + 2 < bytes.length; i += 3) {
+        var n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+        out += B64[(n >> 18) & 63] + B64[(n >> 12) & 63] + B64[(n >> 6) & 63] + B64[n & 63];
+      }
+      var rem = bytes.length - i;
+      if (rem === 1) { var a = bytes[i] << 16; out += B64[(a >> 18) & 63] + B64[(a >> 12) & 63]; }
+      else if (rem === 2) { var b = (bytes[i] << 16) | (bytes[i + 1] << 8); out += B64[(b >> 18) & 63] + B64[(b >> 12) & 63] + B64[(b >> 6) & 63]; }
+      return out;
+    }
+    function fromB64url(s) {
+      s = String(s || '');
+      if (!/^[A-Za-z0-9_-]*$/.test(s)) return null;
+      var out = [], buf = 0, bits = 0;
+      for (var i = 0; i < s.length; i++) {
+        buf = ((buf << 6) | B64.indexOf(s.charAt(i))) & 0xffffff; bits += 6;
+        if (bits >= 8) { bits -= 8; out.push((buf >> bits) & 255); }
+      }
+      return new Uint8Array(out);
+    }
+    function utf8(s) {
+      if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(s);
+      var e = unescape(encodeURIComponent(s)), a = new Uint8Array(e.length);
+      for (var i = 0; i < e.length; i++) a[i] = e.charCodeAt(i);
+      return a;
+    }
+    function subtle() { var c = cryptoObj(); return c && c.subtle ? c.subtle : null; }
+    function noCrypto() { return Promise.reject(new Error('This browser cannot check signatures (WebCrypto is missing; it needs https or localhost).')); }
+    var ALG = { name: 'ECDSA', namedCurve: 'P-256' }, SIGN = { name: 'ECDSA', hash: 'SHA-256' };
+    function publicOnly(jwk) { return { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y }; }
+    // A key's short name: the first 12 characters of a hash of the public key.
+    function keyId(publicJwk) {
+      var s = subtle();
+      if (!s) return noCrypto();
+      return s.digest('SHA-256', utf8(publicJwk.x + '.' + publicJwk.y)).then(function (d) { return b64url(new Uint8Array(d)).slice(0, 12); });
+    }
+    function generateKey(label) {
+      var s = subtle();
+      if (!s) return noCrypto();
+      return s.generateKey(ALG, true, ['sign', 'verify']).then(function (kp) {
+        return Promise.all([s.exportKey('jwk', kp.privateKey), s.exportKey('jwk', kp.publicKey)]);
+      }).then(function (j) {
+        var pub = publicOnly(j[1]);
+        return keyId(pub).then(function (kid) {
+          return { kid: kid, alg: 'ES256', label: label || '', createdAt: new Date().toISOString(), publicJwk: pub,
+            privateJwk: { kty: 'EC', crv: 'P-256', x: j[0].x, y: j[0].y, d: j[0].d } };
+        });
+      });
+    }
+    /* key: { kid, privateJwk }. Resolves with the signature record kept on
+       the trainee's record (certSig). */
+    function sign(key, fields, signedAt) {
+      var s = subtle();
+      if (!s) return noCrypto();
+      if (!key || !key.kid || !key.privateJwk || !key.privateJwk.d) return Promise.reject(new Error('No signing key on this device.'));
+      return s.importKey('jwk', Object.assign({ ext: true }, key.privateJwk), ALG, false, ['sign']).then(function (k) {
+        return s.sign(SIGN, k, utf8(canonical(fields, key.kid)));
+      }).then(function (sig) {
+        return { kid: key.kid, sig: b64url(new Uint8Array(sig)), no: fields.no, name: fields.name,
+          programme: fields.programme, date: fields.date, signedAt: signedAt || new Date().toISOString() };
+      });
+    }
+    /* Does a record's signature still describe what its certificate states? */
+    function sigCurrent(sigRec, fields) {
+      if (!sigRec || !sigRec.sig || !fields) return false;
+      return sigNorm(sigRec.no) === fields.no && sigNorm(sigRec.name) === fields.name &&
+        sigNorm(sigRec.programme) === fields.programme && sigNorm(sigRec.date) === fields.date;
+    }
+    function findKey(keysFile, kid) {
+      var list = keysFile && Array.isArray(keysFile.keys) ? keysFile.keys : [];
+      return list.filter(function (k) { return k && k.kid === kid && k.publicJwk && k.publicJwk.x && k.publicJwk.y; })[0] || null;
+    }
+    /* Check a signed certificate against the published keys. Resolves with
+       { result: 'valid' | 'altered' | 'unknown-key' | 'malformed' | 'unsupported', key }. */
+    function verify(signed, keysFile) {
+      if (!signed || !signed.sig || !signed.kid || !signed.no) return Promise.resolve({ result: 'malformed', key: null });
+      var key = findKey(keysFile, signed.kid);
+      if (!key) return Promise.resolve({ result: 'unknown-key', key: null });
+      var s = subtle();
+      if (!s) return Promise.resolve({ result: 'unsupported', key: key });
+      var raw = fromB64url(signed.sig);
+      if (!raw || raw.length !== 64) return Promise.resolve({ result: 'altered', key: key });
+      var f = { no: sigNorm(signed.no), name: sigNorm(signed.name), programme: sigNorm(signed.programme), date: sigNorm(signed.date) };
+      return s.importKey('jwk', Object.assign({ ext: true }, publicOnly(key.publicJwk)), ALG, false, ['verify']).then(function (k) {
+        return s.verify(SIGN, k, raw, utf8(canonical(f, signed.kid)));
+      }).then(function (ok) { return { result: ok ? 'valid' : 'altered', key: key }; },
+        function () { return { result: 'malformed', key: key }; });
+    }
+    /* The address a signed certificate's QR code carries. */
+    function signedUrl(base, sigRec) {
+      if (!base || !sigRec || !sigRec.sig) return '';
+      var e = encodeURIComponent;
+      return String(base).replace(/[#?].*$/, '') + '?certificate=' + e(sigRec.no) + '&n=' + e(sigRec.name) +
+        '&p=' + e(sigRec.programme) + '&d=' + e(sigRec.date) + '&k=' + e(sigRec.kid) + '&s=' + e(sigRec.sig);
+    }
+    /* The signed fields an address carries, or null when it carries none. */
+    function parseSigned(search) {
+      var q = String(search || '').replace(/^\?/, '');
+      var p = {};
+      q.split('&').forEach(function (kv) {
+        if (!kv) return;
+        var i = kv.indexOf('='), k = i < 0 ? kv : kv.slice(0, i), v = i < 0 ? '' : kv.slice(i + 1);
+        try { v = decodeURIComponent(v.replace(/\+/g, ' ')); } catch (e) { return; }
+        if (!Object.prototype.hasOwnProperty.call(p, k)) p[k] = v;
+      });
+      var no = p.certificate || p.verify || p.cert;
+      if (!no || !p.s || !p.k) return null;
+      if (String(no).length > 60 || String(p.n || '').length > 200 || String(p.p || '').length > 200 ||
+          String(p.d || '').length > 60 || String(p.s).length > 200 || String(p.k).length > 40) return null;
+      return { no: no, name: p.n || '', programme: p.p || '', date: p.d || '', kid: p.k, sig: p.s };
+    }
+    /* Withdrawn certificates the Centre has published (cert-keys.json
+       "revoked": [{ "no": "...", "at": "..." }]). A signature cannot be taken
+       back, so this list is how an employer's browser learns of a withdrawal
+       without asking anybody. */
+    function publishedRevocation(keysFile, no) {
+      var list = keysFile && Array.isArray(keysFile.revoked) ? keysFile.revoked : [];
+      var key = numberKey(no);
+      return list.filter(function (r) { return r && numberKey(typeof r === 'string' ? r : r.no) === key; })[0] || null;
+    }
+
+    return {
+      ISSUED: ISSUED,
+      numberKey: numberKey, numberPrefix: numberPrefix, rememberAlias: rememberAlias,
+      previousNumber: previousNumber, approvalOf: approvalOf, approvedNumber: approvedNumber,
+      hasNumber: hasNumber, numberSeed: numberSeed, generateNumber: generateNumber,
+      ensureNumber: ensureNumber, isRevoked: isRevoked, revoke: revoke, applyStage: applyStage,
+      mergeState: mergeState, mergeLifecycle: mergeLifecycle, resolve: resolve, status: status,
+      decidedAt: decidedAt, mergeApprovals: mergeApprovals, recordDownload: recordDownload,
+      eligibility: eligibility, templateKey: templateKey, keepTemplateProvenance: keepTemplateProvenance,
+      pdfPage: pdfPage, certTime: certTime, byMonth: byMonth, certifiedInYear: certifiedInYear,
+      sig: {
+        VERSION: SIG_VERSION, fields: sigFields, canonical: canonical, b64url: b64url, fromB64url: fromB64url,
+        keyId: keyId, generateKey: generateKey, sign: sign, current: sigCurrent, verify: verify,
+        url: signedUrl, parse: parseSigned, publishedRevocation: publishedRevocation, publicOnly: publicOnly
+      }
     };
   })();
 
@@ -4907,6 +5628,9 @@
     function bestApproval(a, b) {
       if (!a) return b || null;
       if (!b) return a;
+      // A stamped revocation is a decision too, and the later decision wins;
+      // downloads made on either device are kept (Core.certs.mergeApprovals).
+      if (Core.certs) return Core.certs.mergeApprovals(a, b);
       return Core.approvalScore(b) > Core.approvalScore(a) ? b : a;
     }
 
@@ -5607,6 +6331,11 @@
         stamps: ['updatedAt', 'markedAt'],
         accept: function (r) { return !DEMO_STUDENT.test(String(r.studentId || '')); } },
       { key: 'voctrain_certDownloadApprovals', type: 'approvals' },
+      // Certificate / transcript requests: each request is its own record, so
+      // one office marking REQ-1 Ready and another marking REQ-2 Collected
+      // both stand, instead of the later whole list undoing the other.
+      { key: 'voctrain_certTranscriptRequests', type: 'list', id: byId,
+        stamps: ['updatedAt', 'handledAt', 'requestedAt'] },
       { key: 'voctrain_skillAreas', type: 'centres' },
       { key: 'voctrain_vcSessions', type: 'vcSessions' },
       { key: 'voctrain_syncTombstones', type: 'tombstones' },
