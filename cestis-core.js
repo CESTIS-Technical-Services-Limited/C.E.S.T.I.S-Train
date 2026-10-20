@@ -5599,6 +5599,154 @@
              guardedSet: guardedSet };
   })();
 
+  /* --------------------------------------------------------------------------
+     Core.html — the ONE escaping toolkit every page uses when it builds markup
+     out of strings.
+
+     Why it exists: names, course titles, chat messages, file names, resource
+     links and notification texts are typed by trainees, instructors and even
+     anonymous visitors (the Support form), then shown in the Administrator's
+     browser — the session that holds the Centre's Google Drive token. Anything
+     that reaches innerHTML unescaped there can read or destroy every record.
+     The pages had grown four slightly different escapers, some of which forgot
+     quotes, and inline onclick handlers that "escaped" an apostrophe as &#39; —
+     which the browser decodes straight back before the JavaScript runs. These
+     helpers are the single correct version; the page-level escapeHtml,
+     escapeAttr, _certEsc and lmsChatEscapeHtml now hand their work to them.
+
+       esc(s)        text or a quoted attribute value: & < > " ' ` all encoded.
+       jsArg(s)      a JavaScript string literal that is safe INSIDE a
+                     double-quoted inline handler: onclick="f(' + jsArg(x) + ')".
+                     The literal is JSON-quoted first, then HTML-escaped, so the
+                     browser's attribute decoding gives back exactly x.
+       safeUrl(u)    u if it is an http(s)/mailto/tel/blob/relative link or a
+                     data:image, otherwise '' — so a javascript: link can never
+                     be clicked. { data: true } also allows any data: URL, for
+                     the download links of files stored inline.
+       linkify(t, { style }) escapes plain chat text and turns http(s) links
+                     into anchors built from the escaped address, which can no
+                     longer run past a quote into a new attribute.
+       escKeepCharRefs(s) like esc, but keeps numeric character references
+                     such as &#128222; (some stored notification texts carry
+                     their emoji that way). A numeric reference can only ever
+                     produce one character of text, never markup.
+       notifIcon(icon, fallback) a notification's icon only if it is an
+                     emoji/character reference, otherwise the fallback.
+       cleanNotification(n) a fresh notification object built only from the
+                     known fields of one that arrived from another device.
+     -------------------------------------------------------------------------- */
+  Core.html = (function () {
+    var MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' };
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"'`]/g, function (c) { return MAP[c]; });
+    }
+
+    function jsArg(s) {
+      var lit = JSON.stringify(String(s == null ? '' : s))
+        .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+      return esc(lit);
+    }
+
+    // Browsers ignore leading/trailing spaces and control characters, and
+    // every tab or newline anywhere, when they read a link's scheme — so
+    // " java\tscript:" is still javascript:. Look at the URL the same way.
+    function schemeOf(u) {
+      var s = String(u == null ? '' : u).replace(/^[\u0000-\u0020]+/, '').replace(/[\t\n\r]/g, '');
+      var m = /^([a-zA-Z][a-zA-Z0-9+.\-]*):/.exec(s);
+      return m ? m[1].toLowerCase() : '';
+    }
+
+    var SAFE_SCHEMES = { http: 1, https: 1, mailto: 1, tel: 1, blob: 1 };
+    // Any picture is fine: an image (even an SVG) shown in <img> runs no script,
+    // and browsers refuse to open a data: URL as a page.
+    var SAFE_DATA_IMAGE = /^data:image\/[a-z0-9.+\-]+[;,]/i;
+
+    function safeUrl(u, opts) {
+      if (u == null) return '';
+      var raw = String(u).trim();
+      if (!raw) return '';
+      var scheme = schemeOf(raw);
+      if (!scheme) return raw;                      // relative link: same site, no script
+      if (SAFE_SCHEMES[scheme]) return raw;
+      if (scheme === 'data') {
+        if (opts && opts.data) return raw;          // inline file download
+        var compact = raw.replace(/[\u0000-\u0020]+/g, '');
+        if (SAFE_DATA_IMAGE.test(compact)) return raw;
+      }
+      return '';
+    }
+
+    // A link inside chat text ends at whitespace or at any character that
+    // could close an attribute or open a tag.
+    var URL_RE = /https?:\/\/[^\s<>"'`]+/gi;
+
+    function linkify(text, opts) {
+      var s = String(text == null ? '' : text);
+      var style = opts && opts.style ? ' style="' + esc(opts.style) + '"' : '';
+      var out = '', last = 0, m;
+      URL_RE.lastIndex = 0;
+      while ((m = URL_RE.exec(s))) {
+        out += esc(s.slice(last, m.index));
+        var url = m[0];
+        out += '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"' + style + '>' + esc(url) + '</a>';
+        last = m.index + url.length;
+      }
+      return out + esc(s.slice(last));
+    }
+
+    function escKeepCharRefs(s) {
+      return esc(s).replace(/&amp;#(\d{1,7}|x[0-9a-fA-F]{1,6});/g, '&#$1;');
+    }
+
+    // An icon is one or two emoji (possibly written as numeric references) —
+    // never letters, never markup. Anything else gets the fallback.
+    function notifIcon(icon, fallback) {
+      var s = String(icon == null ? '' : icon);
+      if (s && s.length <= 24 && /^(?:&#\d{1,7};|[^\x00-\x7F]|\s)+$/.test(s)) return s;
+      return fallback == null ? '\uD83D\uDD14' : String(fallback);
+    }
+
+    var NOTIF_TYPES = { info: 1, success: 1, warning: 1 };
+    var ROLES = { admin: 1, adminstaff: 1, instructor: 1, student: 1, cmc: 1 };
+
+    function strList(a, max, allow) {
+      if (!Array.isArray(a)) return [];
+      var out = [];
+      for (var i = 0; i < a.length && out.length < max; i++) {
+        if (typeof a[i] !== 'string' && typeof a[i] !== 'number') continue;
+        var v = String(a[i]).slice(0, 80);
+        if (allow && !allow[v]) continue;
+        out.push(v);
+      }
+      return out;
+    }
+
+    // Another device (or anyone on the public realtime broker) can send us a
+    // notification. Keep only the fields the bell uses, as plain strings of a
+    // sensible length; everything else is dropped. Returns null for junk.
+    function cleanNotification(n) {
+      if (!n || typeof n !== 'object' || n.id == null || n.text == null) return null;
+      var ts = Number(n.timestamp);
+      var out = {
+        id: String(n.id).slice(0, 80),
+        text: String(n.text).slice(0, 500),
+        timestamp: isFinite(ts) && ts > 0 ? ts : Date.now(),
+        time: 'Just now',
+        read: false,
+        icon: notifIcon(n.icon),
+        type: NOTIF_TYPES[n.type] ? n.type : 'info',
+        forRoles: strList(n.forRoles, 8, ROLES)
+      };
+      var users = strList(n.forUsers, 50);
+      if (users.length) out.forUsers = users;
+      return out;
+    }
+
+    return { esc: esc, attr: esc, jsArg: jsArg, safeUrl: safeUrl, linkify: linkify,
+             escKeepCharRefs: escKeepCharRefs, notifIcon: notifIcon, cleanNotification: cleanNotification };
+  })();
+
   root.CESTISCore = Core;
 
   if (typeof module !== 'undefined' && module.exports) {
