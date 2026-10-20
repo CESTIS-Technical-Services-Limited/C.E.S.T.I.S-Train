@@ -3551,10 +3551,13 @@
             } else {
                 users = JSON.parse(savedUsers);
             }
+            if (typeof feeSyncRebaseline === 'function') feeSyncRebaseline(['users']);
         }
 
         // Save users to localStorage
         function saveUsers() {
+            // Date what changed, so the newer copy of an account wins a merge.
+            if (typeof feeSyncStamp === 'function') feeSyncStamp(['users']);
             CESTISStore.setItem('cestiUsers', JSON.stringify(users));
         }
 
@@ -4364,9 +4367,11 @@
             if (saved) {
                 feeStructure = JSON.parse(saved);
             }
+            if (typeof feeSyncRebaseline === 'function') feeSyncRebaseline(['feeStructure']);
         }
 
         function saveFeeStructure() {
+            if (typeof feeSyncStamp === 'function') feeSyncStamp(['feeStructure']);
             CESTISStore.setItem('cestiFeeStructure', JSON.stringify(feeStructure));
         }
 
@@ -5222,6 +5227,9 @@
                 // label, do not let the carry-over price that label again.
                 delete feeStructure[editingFeeSkillArea];
                 feeDeclineCarry(editingFeeSkillArea);
+                // Written down, or the next sync brings the old name back as a
+                // second programme from the cloud copy.
+                feeRecordTimedTomb(FEE_DELETED_KEYS, editingFeeSkillArea);
             }
             
             feeStructure[newName] = { total: fee, terms: terms };
@@ -5261,6 +5269,8 @@
                 // A new intake's fee is carried over automatically; one the
                 // user deletes stays deleted.
                 feeDeclineCarry(skillArea);
+                // Written down so the cloud copy cannot bring it back.
+                feeRecordTimedTomb(FEE_DELETED_KEYS, skillArea);
                 saveFeeStructure();
                 renderFeeStructure();
                 updateSkillAreaOptions();
@@ -5736,6 +5746,8 @@
             // If embedded in the LMS dashboard, push the live list to the parent
             // so it can refresh the Student Progress page immediately.
             broadcastStudentsToParent();
+            // What was just read is the baseline later edits are dated against.
+            feeSyncRebaseline(['students', 'payments', 'documents']);
         }
 
         // Remove fee students that have been tombstoned — either here (their id/lmsId is
@@ -5800,6 +5812,169 @@
             const t = getDeletedPaymentIds();
             if (!t.length) return arr;
             return arr.filter(p => !p || t.indexOf(p.id) === -1);
+        }
+
+        /* ==================== ONE MERGE FOR EVERY CLOUD PATH ====================
+           Connect to Drive, the "Sync Now" offered at sign-in, Sync from Cloud and
+           the selective sync used to REPLACE the trainees, payments, documents,
+           fee structure and accounts with whatever the cloud file held. The cloud
+           only holds what was last uploaded, and uploading stops whenever the
+           Google token expires — so a payment taken in that window was erased the
+           moment somebody pressed Sync, while the trainee held a printed receipt
+           for it and their balance went back up. And the 15-second auto-sync let
+           THIS device's copy of every record win, so a payment corrected on one
+           PC was put back to its old amount by any PC that had not caught up, for
+           ever, every 15 seconds.
+
+           Now every one of those paths merges record by record, by the shared
+           rule (CESTISCore.sync): the copy changed later wins, wherever it was
+           changed; a record only one side holds is kept; two copies from before
+           records were dated keep this device's and only fill its blanks; and a
+           deletion written down on either side stands. Records are dated when
+           they are SAVED (saveData, saveUsers, saveFeeStructure) by comparing
+           them with how they looked at the last save or load, so none of the
+           many edit screens had to change. */
+        var _feeSyncIndex = {};
+        var FEE_DELETED_DOCS = 'cestiSchoolFeeDeletedDocumentIds';
+        var FEE_DELETED_KEYS = 'cestiSchoolFeeDeletedFeeKeys';
+        function feeSyncKeyById(r) { return r && r.id != null && r.id !== '' ? String(r.id) : undefined; }
+        // An account is the same account on every device by its username.
+        function feeUserKey(u) {
+            if (!u) return undefined;
+            const n = String(u.username || '').trim().toLowerCase();
+            return n ? 'u:' + n : (u.id != null ? 'id:' + u.id : undefined);
+        }
+        function feeSyncSets() {
+            return [
+                // A trainee's paid / balance / status are worked out from the
+                // payments, so they are not an edit to the trainee.
+                { name: 'students',     get: () => students,     key: feeSyncKeyById, ignore: { totalPaid: 1, balance: 1, status: 1 } },
+                { name: 'payments',     get: () => payments,     key: feeSyncKeyById },
+                { name: 'documents',    get: () => documents,    key: feeSyncKeyById },
+                { name: 'users',        get: () => users,        key: feeUserKey },
+                { name: 'feeStructure', get: () => feeStructure, map: true }
+            ];
+        }
+        // Date every record that changed here since the last save or load.
+        function feeSyncStamp(names) {
+            if (!window.CESTISCore || !CESTISCore.sync) return;
+            const now = new Date().toISOString();
+            feeSyncSets().forEach(c => {
+                if (names && names.indexOf(c.name) === -1) return;
+                try {
+                    const recs = c.get();
+                    if (recs == null) return;
+                    _feeSyncIndex[c.name] = CESTISCore.sync.stampChanges(recs, c.map ? null : c.key,
+                        _feeSyncIndex[c.name] || null, now, c.ignore);
+                } catch (e) {}
+            });
+        }
+        // Take the baseline afresh — after a load or a merge, when nothing that
+        // differs from it was edited here.
+        function feeSyncRebaseline(names) {
+            if (!window.CESTISCore || !CESTISCore.sync) return;
+            feeSyncSets().forEach(c => {
+                if (names && names.indexOf(c.name) === -1) return;
+                try {
+                    const recs = c.get();
+                    if (recs == null) return;
+                    _feeSyncIndex[c.name] = CESTISCore.sync.stampChanges(recs, c.map ? null : c.key, null, '', c.ignore);
+                } catch (e) {}
+            });
+        }
+
+        /* Dated deletions for documents and fee-structure programmes. Stored as
+           "key|when" strings so the list unions like every other tombstone list
+           (CESTISCore.TOMBSTONE_UNION_KEYS) and still says WHEN — a programme
+           deleted and later created again under the same name must live. */
+        function feeTimedTombList(storeKey) {
+            try { const v = JSON.parse(CESTISStore.getItem(storeKey) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+        }
+        function feeTimedTombs(storeKey) {
+            const map = {};
+            feeTimedTombList(storeKey).forEach(entry => {
+                const s = String(entry || ''), at = s.lastIndexOf('|');
+                if (at <= 0) return;
+                const k = s.slice(0, at), t = s.slice(at + 1);
+                if (!map[k] || (Date.parse(t) || 0) > (Date.parse(map[k]) || 0)) map[k] = t;
+            });
+            return map;
+        }
+        function feeRecordTimedTomb(storeKey, key) {
+            if (key === undefined || key === null || key === '') return;
+            const list = feeTimedTombList(storeKey);
+            list.push(String(key) + '|' + new Date().toISOString());
+            CESTISStore.setItem(storeKey, JSON.stringify(list));
+        }
+        function feeUnionTimedTombs(storeKey, incoming) {
+            if (!Array.isArray(incoming) || !incoming.length) return;
+            const list = feeTimedTombList(storeKey);
+            let changed = false;
+            incoming.forEach(e => { if (typeof e === 'string' && e.indexOf('|') > 0 && list.indexOf(e) === -1) { list.push(e); changed = true; } });
+            if (changed) CESTISStore.setItem(storeKey, JSON.stringify(list));
+        }
+        // Every deletion list this page sends with its backup.
+        function feeTombstonePayload() {
+            return {
+                deletedPaymentIds: getDeletedPaymentIds(),
+                deletedDocumentIds: feeTimedTombList(FEE_DELETED_DOCS),
+                deletedFeeKeys: feeTimedTombList(FEE_DELETED_KEYS)
+            };
+        }
+
+        /* Merge a cloud backup's data into this device's records, in memory.
+           `only` (optional) limits it to some collections — the selective sync.
+           Returns { changed } — whether anything here moved. Nothing is saved
+           here: feeApplyCloudBackup() does that. */
+        function feeMergeCloudData(data, only) {
+            const out = { changed: false };
+            if (!data || typeof data !== 'object' || !window.CESTISCore || !CESTISCore.sync) return out;
+            const want = name => !only || only[name];
+            const S = CESTISCore.sync;
+            // Deletions first, from both sides.
+            unionDeletedPaymentIds(data.deletedPaymentIds);
+            feeUnionTimedTombs(FEE_DELETED_DOCS, data.deletedDocumentIds);
+            feeUnionTimedTombs(FEE_DELETED_KEYS, data.deletedFeeKeys);
+            // Date whatever was edited here and not yet saved, so it competes fairly.
+            feeSyncStamp();
+            const tally = r => { if (r && (r.added || r.updated || r.removed)) out.changed = true; };
+            if (want('students') && Array.isArray(data.students)) {
+                tally(S.mergeList(students, data.students, feeSyncKeyById));
+            }
+            if (want('payments') && Array.isArray(data.payments)) {
+                tally(S.mergeList(payments, filterTombstonedPayments(data.payments), feeSyncKeyById));
+            }
+            if (want('documents') && Array.isArray(data.documents)) {
+                tally(S.mergeList(documents, data.documents, feeSyncKeyById, { tombs: feeTimedTombs(FEE_DELETED_DOCS) }));
+            }
+            if (want('users') && Array.isArray(data.users)) {
+                tally(S.mergeList(users, data.users, feeUserKey));
+            }
+            if (want('feeStructure') && data.feeStructure && typeof data.feeStructure === 'object' && !Array.isArray(data.feeStructure)) {
+                tally(S.mergeMap(feeStructure, data.feeStructure, { tombs: feeTimedTombs(FEE_DELETED_KEYS) }));
+            }
+            // Deletions held on this device apply to what just arrived too.
+            const pBefore = payments.length;
+            payments = filterTombstonedPayments(payments);
+            if (payments.length !== pBefore) out.changed = true;
+            if (dropTombstonedFeeStudents()) out.changed = true;
+            feeSyncRebaseline();
+            return out;
+        }
+
+        /* Merge a cloud backup in and save the result — what every "sync from the
+           cloud" path now does instead of replacing. */
+        function feeApplyCloudBackup(data, only) {
+            const res = feeMergeCloudData(data, only);
+            saveUsers();
+            saveFeeStructure();
+            // Two devices can name the same programme differently, and one
+            // intake can arrive under two names; fold them back into one entry.
+            dedupeFeeStructure();
+            collapseFeeIntakes();
+            recalculateStudentTotals();
+            saveData();
+            return res;
         }
 
         /* ==================== RENDER PERFORMANCE LAYER ======================
@@ -6851,6 +7026,9 @@
             const _pBefore = payments.length;
             payments = filterTombstonedPayments(payments);
             if (payments.length !== _pBefore) recalculateStudentTotals();
+            // Date every record edited here since the last save, so a merge on
+            // another device knows this copy is the newer one.
+            feeSyncStamp(['students', 'payments', 'documents']);
             // Anything derived from the store may have just moved under us.
             feeInvalidateCaches();
             feePersist('cestiSchoolFeeStudents', students);
@@ -7728,6 +7906,11 @@
                     }
                 } catch (e) {}
 
+                // Write down the payments and documents that go with the trainee.
+                // Without this the next sync handed them straight back from the
+                // cloud copy — orphan receipts inflating "Total collected".
+                payments.forEach(p => { if (p && p.studentId === studentId) recordDeletedPaymentId(p.id); });
+                documents.forEach(d => { if (d && d.studentId === studentId) feeRecordTimedTomb(FEE_DELETED_DOCS, d.id); });
                 payments = payments.filter(p => p.studentId !== studentId);
                 documents = documents.filter(d => d.studentId !== studentId);
                 
@@ -9457,6 +9640,7 @@
 
                 const index = documents.findIndex(d => d.id === docId);
                 documents.splice(index, 1);
+                feeRecordTimedTomb(FEE_DELETED_DOCS, docId);
                 saveData();
                 renderDocumentsTable();
                 updateDocumentTypeFilter();
@@ -12722,7 +12906,7 @@
                         users: mergedUsers,
                         students: mergedStudents,
                         payments: filterTombstonedPayments(mergedPayments),
-                        deletedPaymentIds: getDeletedPaymentIds(),
+                        ...feeTombstonePayload(),
                         documents: mergedDocuments,
                         feeStructure: feeStructure
                     }
@@ -12980,7 +13164,7 @@
                         users: mergedUsers,
                         students: mergedStudents,
                         payments: filterTombstonedPayments(mergedPayments),
-                        deletedPaymentIds: getDeletedPaymentIds(),
+                        ...feeTombstonePayload(),
                         documents: mergedDocuments,
                         feeStructure: feeStructure
                     }
@@ -13219,7 +13403,7 @@
                 return;
             }
 
-            if (!confirm('This will replace your local data with the cloud backup. Are you sure you want to continue?')) {
+            if (!confirm('This will merge the cloud backup into your local data: newer records from the cloud are brought in, and records only this device holds are kept. Continue?')) {
                 return;
             }
 
@@ -13248,35 +13432,10 @@
                 }
 
                 // Restore data
-                if (backupData.data.users) {
-                    users = backupData.data.users;
-                    saveUsers();
-                }
-
-                if (backupData.data.students) {
-                    students = backupData.data.students;
-                    feePersist('cestiSchoolFeeStudents', students);
-                }
-
-                if (backupData.data.payments) {
-                    payments = backupData.data.payments;
-                    feePersist('cestiSchoolFeePayments', payments);
-                }
-
-                if (backupData.data.documents) {
-                    documents = backupData.data.documents;
-                    feePersist('cestiSchoolFeeDocuments', documents);
-                }
-
-                if (backupData.data.feeStructure) {
-                    feeStructure = backupData.data.feeStructure;
-                    saveFeeStructure();
-                    // A restored fee structure can carry the same programme under
-                    // two spellings, and the same intake under two names; fold
-                    // both back into one entry.
-                    dedupeFeeStructure();
-                    collapseFeeIntakes();
-                }
+                // Merge, never replace: what was recorded here since the last
+                // upload (a payment taken while the token had expired) stays,
+                // and the newer copy of each record wins. See feeMergeCloudData.
+                feeApplyCloudBackup(backupData.data);
 
                 // Update last sync time
                 lastSyncTime = new Date();
@@ -14196,35 +14355,10 @@
                 }
 
                 // Restore all data
-                if (backupData.data.users) {
-                    users = backupData.data.users;
-                    saveUsers();
-                }
-
-                if (backupData.data.students) {
-                    students = backupData.data.students;
-                    feePersist('cestiSchoolFeeStudents', students);
-                }
-
-                if (backupData.data.payments) {
-                    payments = backupData.data.payments;
-                    feePersist('cestiSchoolFeePayments', payments);
-                }
-
-                if (backupData.data.documents) {
-                    documents = backupData.data.documents;
-                    feePersist('cestiSchoolFeeDocuments', documents);
-                }
-
-                if (backupData.data.feeStructure) {
-                    feeStructure = backupData.data.feeStructure;
-                    saveFeeStructure();
-                    // A restored fee structure can carry the same programme under
-                    // two spellings, and the same intake under two names; fold
-                    // both back into one entry.
-                    dedupeFeeStructure();
-                    collapseFeeIntakes();
-                }
+                // Merge, never replace: what was recorded here since the last
+                // upload (a payment taken while the token had expired) stays,
+                // and the newer copy of each record wins. See feeMergeCloudData.
+                feeApplyCloudBackup(backupData.data);
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -14481,135 +14615,28 @@
                     }
                 }
 
-                // --- STEP 2: Full bidirectional auto-merge (local <-> cloud) ---
-                // Merges all records: adds new, updates existing with most recent data
-                let changesMade = false;
+                // --- STEP 2: Merge the cloud copy in, record by record ---
+                // This used to let THIS device's copy of every record win, so a
+                // device that had not caught up put a corrected payment back to
+                // its old amount every 15 seconds, and started from the cloud's
+                // trainee list, so a trainee deleted here came back. Now the
+                // newer copy of each record wins and deletions stand
+                // (feeMergeCloudData).
+                const cloudSide = cloudData && cloudData.data ? cloudData.data : null;
+                const mergeRes = cloudSide ? feeMergeCloudData(cloudSide) : { changed: false };
+                const localNeedsUpdate = mergeRes.changed;
 
-                // Auto-merge users: start with cloud as base, overlay local on top,
-                // then add cloud-only records back (local edits win on conflict)
-                const mergedUsers = [...existingUsers];
-                users.forEach(localUser => {
-                    const cloudIdx = mergedUsers.findIndex(u => u.id === localUser.id || u.username === localUser.username);
-                    if (cloudIdx >= 0) {
-                        // Record exists in both — use local version (local wins)
-                        const cloudUser = mergedUsers[cloudIdx];
-                        if (JSON.stringify(cloudUser) !== JSON.stringify(localUser)) {
-                            mergedUsers[cloudIdx] = { ...localUser };
-                            changesMade = true;
-                        }
-                    } else {
-                        // Local-only record — add to merged
-                        mergedUsers.push({ ...localUser });
-                        changesMade = true;
-                    }
-                });
-                // Detect cloud-only users (already in merged from cloud base spread)
-                existingUsers.forEach(cloudUser => {
-                    if (!users.find(u => u.id === cloudUser.id || u.username === cloudUser.username)) {
-                        // Cloud-only record — already in mergedUsers from spread, just flag change
-                        changesMade = true;
-                    }
-                });
-
-                // Auto-merge students: update existing + add new from both sides
-                const mergedStudents = [...existingStudents];
-                students.forEach(localStudent => {
-                    const cloudIdx = mergedStudents.findIndex(s => s.id === localStudent.id);
-                    if (cloudIdx >= 0) {
-                        const cloudStudent = mergedStudents[cloudIdx];
-                        if (JSON.stringify(cloudStudent) !== JSON.stringify(localStudent)) {
-                            mergedStudents[cloudIdx] = { ...localStudent };
-                            changesMade = true;
-                        }
-                    } else {
-                        mergedStudents.push({ ...localStudent });
-                        changesMade = true;
-                    }
-                });
-                existingStudents.forEach(cloudStudent => {
-                    if (!students.find(s => s.id === cloudStudent.id)) {
-                        changesMade = true;
-                    }
-                });
-
-                // Auto-merge payments: update existing + add new from both sides
-                const mergedPayments = [...existingPayments];
-                payments.forEach(localPayment => {
-                    const cloudIdx = mergedPayments.findIndex(p => p.id === localPayment.id);
-                    if (cloudIdx >= 0) {
-                        const cloudPayment = mergedPayments[cloudIdx];
-                        if (JSON.stringify(cloudPayment) !== JSON.stringify(localPayment)) {
-                            mergedPayments[cloudIdx] = { ...localPayment };
-                            changesMade = true;
-                        }
-                    } else {
-                        mergedPayments.push({ ...localPayment });
-                        changesMade = true;
-                    }
-                });
-                existingPayments.forEach(cloudPayment => {
-                    if (!payments.find(p => p.id === cloudPayment.id)) {
-                        changesMade = true;
-                    }
-                });
-
-                // Auto-merge documents: update existing + add new from both sides
-                const mergedDocuments = [...existingDocuments];
-                documents.forEach(localDoc => {
-                    const cloudIdx = mergedDocuments.findIndex(d => d.id === localDoc.id);
-                    if (cloudIdx >= 0) {
-                        const cloudDoc = mergedDocuments[cloudIdx];
-                        if (JSON.stringify(cloudDoc) !== JSON.stringify(localDoc)) {
-                            mergedDocuments[cloudIdx] = { ...localDoc };
-                            changesMade = true;
-                        }
-                    } else {
-                        mergedDocuments.push({ ...localDoc });
-                        changesMade = true;
-                    }
-                });
-                existingDocuments.forEach(cloudDoc => {
-                    if (!documents.find(d => d.id === cloudDoc.id)) {
-                        changesMade = true;
-                    }
-                });
-
-                // Auto-merge fee structure: merge term-level changes
-                let mergedFeeStructure = { ...feeStructure };
-                if (existingFeeStructure) {
-                    Object.keys(existingFeeStructure).forEach(key => {
-                        if (!mergedFeeStructure[key]) {
-                            // Cloud has a fee structure entry local doesn't
-                            mergedFeeStructure[key] = { ...existingFeeStructure[key] };
-                            changesMade = true;
-                        }
-                    });
-                    // Local entries always preserved (local wins)
-                }
-
-                // --- STEP 3: Update local data with full merged set ---
-                const localNeedsUpdate = changesMade ||
-                    mergedUsers.length !== users.length ||
-                    mergedStudents.length !== students.length ||
-                    mergedPayments.length !== payments.length ||
-                    mergedDocuments.length !== documents.length;
-
+                // --- STEP 3: Save what the merge changed here ---
                 if (localNeedsUpdate) {
-                    users = mergedUsers;
-                    students = mergedStudents;
-                    payments = mergedPayments;
-                    documents = mergedDocuments;
-                    feeStructure = mergedFeeStructure;
-
-                    recalculateStudentTotals();
                     saveUsers();
-                    saveData();
                     saveFeeStructure();
                     // Two devices can name the same programme differently, and
                     // one intake can arrive under two names; the merge keeps
                     // both, so fold them back into one entry here.
                     dedupeFeeStructure();
                     collapseFeeIntakes();
+                    recalculateStudentTotals();
+                    saveData();
 
                     // Refresh UI
                     renderFeeStructure();
@@ -14623,6 +14650,34 @@
                     updateDashboard();
                 }
 
+                const mergedUsers = users;
+                const mergedStudents = students;
+                const mergedPayments = payments;
+                const mergedDocuments = documents;
+                const mergedFeeStructure = feeStructure;
+                // Upload only when the cloud copy is behind what this device now
+                // holds (a record or a deletion it does not have).
+                // Compared without regard to order, so two devices that list the
+                // same records differently do not re-upload to each other forever.
+                const fp = x => (x && typeof x === 'object' && window.CESTISCore && CESTISCore.sync)
+                    ? CESTISCore.sync.fingerprint(x) : JSON.stringify(x === undefined ? null : x);
+                const canon = v => {
+                    if (Array.isArray(v)) return v.map(fp).sort().join('\n');
+                    if (v && typeof v === 'object') return Object.keys(v).sort().map(k => k + '=' + fp(v[k])).join('\n');
+                    return JSON.stringify(v == null ? null : v);
+                };
+                const sameAsCloud = (a, b) => canon(a) === canon(b);
+                const tombs = feeTombstonePayload();
+                const changesMade = !cloudSide ||
+                    !sameAsCloud(mergedUsers, cloudSide.users) ||
+                    !sameAsCloud(mergedStudents, cloudSide.students) ||
+                    !sameAsCloud(mergedPayments, cloudSide.payments) ||
+                    !sameAsCloud(mergedDocuments, cloudSide.documents) ||
+                    !sameAsCloud(mergedFeeStructure, cloudSide.feeStructure) ||
+                    !sameAsCloud(tombs.deletedPaymentIds, cloudSide.deletedPaymentIds || []) ||
+                    !sameAsCloud(tombs.deletedDocumentIds, cloudSide.deletedDocumentIds || []) ||
+                    !sameAsCloud(tombs.deletedFeeKeys, cloudSide.deletedFeeKeys || []);
+
                 // --- STEP 4: Upload fully merged data to cloud ---
                 if (changesMade || localNeedsUpdate) {
                     const backupData = {
@@ -14634,7 +14689,7 @@
                             users: mergedUsers,
                             students: mergedStudents,
                             payments: filterTombstonedPayments(mergedPayments),
-                        deletedPaymentIds: getDeletedPaymentIds(),
+                        ...feeTombstonePayload(),
                             documents: mergedDocuments,
                             feeStructure: mergedFeeStructure
                         }
@@ -14766,7 +14821,7 @@
                                 <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1.25rem;">
                                     <strong style="color: #d97706;">Important:</strong>
                                     <span style="color: var(--text-secondary); font-size: 0.9rem;">
-                                        This will replace your local data with the cloud backup.
+                                        The cloud backup is merged with this device's data. Records only this device holds are kept.
                                     </span>
                                 </div>
 
@@ -14842,35 +14897,10 @@
                 }
 
                 // Restore data
-                if (backupData.data.users) {
-                    users = backupData.data.users;
-                    saveUsers();
-                }
-
-                if (backupData.data.students) {
-                    students = backupData.data.students;
-                    feePersist('cestiSchoolFeeStudents', students);
-                }
-
-                if (backupData.data.payments) {
-                    payments = backupData.data.payments;
-                    feePersist('cestiSchoolFeePayments', payments);
-                }
-
-                if (backupData.data.documents) {
-                    documents = backupData.data.documents;
-                    feePersist('cestiSchoolFeeDocuments', documents);
-                }
-
-                if (backupData.data.feeStructure) {
-                    feeStructure = backupData.data.feeStructure;
-                    saveFeeStructure();
-                    // A restored fee structure can carry the same programme under
-                    // two spellings, and the same intake under two names; fold
-                    // both back into one entry.
-                    dedupeFeeStructure();
-                    collapseFeeIntakes();
-                }
+                // Merge, never replace: what was recorded here since the last
+                // upload (a payment taken while the token had expired) stays,
+                // and the newer copy of each record wins. See feeMergeCloudData.
+                feeApplyCloudBackup(backupData.data);
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -15335,7 +15365,7 @@
             if (syncDocuments) selectedItems.push('Documents');
             if (syncFeeStructure) selectedItems.push('Fee Structure');
 
-            if (!confirm(`You are about to sync the following data:\n\n• ${selectedItems.join('\n• ')}\n\nThis will replace your current local data. Continue?`)) {
+            if (!confirm(`You are about to sync the following data:\n\n• ${selectedItems.join('\n• ')}\n\nNewer cloud records are merged in; records only this device holds are kept. Continue?`)) {
                 return;
             }
 
@@ -15344,35 +15374,12 @@
 
             try {
                 // Perform selective restore
-                if (syncUsers && backupData.data.users) {
-                    users = backupData.data.users;
-                    saveUsers();
-                }
-
-                if (syncStudents && backupData.data.students) {
-                    students = backupData.data.students;
-                    feePersist('cestiSchoolFeeStudents', students);
-                }
-
-                if (syncPayments && backupData.data.payments) {
-                    payments = backupData.data.payments;
-                    feePersist('cestiSchoolFeePayments', payments);
-                }
-
-                if (syncDocuments && backupData.data.documents) {
-                    documents = backupData.data.documents;
-                    feePersist('cestiSchoolFeeDocuments', documents);
-                }
-
-                if (syncFeeStructure && backupData.data.feeStructure) {
-                    feeStructure = backupData.data.feeStructure;
-                    saveFeeStructure();
-                    // A restored fee structure can carry the same programme under
-                    // two spellings, and the same intake under two names; fold
-                    // both back into one entry.
-                    dedupeFeeStructure();
-                    collapseFeeIntakes();
-                }
+                // Merge the chosen collections in, never replace them — the
+                // same record-by-record rule as every other sync path.
+                feeApplyCloudBackup(backupData.data, {
+                    users: syncUsers, students: syncStudents, payments: syncPayments,
+                    documents: syncDocuments, feeStructure: syncFeeStructure
+                });
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -15479,8 +15486,10 @@
                 const backup = await response.json();
                 if (!backup.version || !backup.data) throw new Error('Invalid backup format');
                 if (backup.data.users) {
-                    users = backup.data.users;
-                    CESTISStore.setItem('cestiUsers', JSON.stringify(users));
+                    // Merged by username, newest wins — an account or password
+                    // changed here and not yet uploaded is not thrown away.
+                    feeMergeCloudData({ users: backup.data.users }, { users: true });
+                    saveUsers();
                 }
                 if (backup.data.quickLinks) {
                     quickLinks = backup.data.quickLinks;
@@ -15632,6 +15641,17 @@
 <!-- MegaData bridge (stage 1): in shadow mode the legacy fee keys become real
      ledger events and window.__feeReconcile() runs the shadow comparator.
      docs/02 §14, docs/04 §8. -->
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/fee-model.js?v=1"></script>
+<script src="megadata/pages/fee-page.js?v=1"></script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20260802a"></script>

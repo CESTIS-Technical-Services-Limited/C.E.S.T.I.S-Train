@@ -28,12 +28,33 @@
       held, so a video or PDF hung until the connection timed out; and a
       "last N bytes" request was served the FIRST N instead.
 
+   5. SAVES AT THE SAME MOMENT TORE THE FILE. Every save wrote to one shared
+      "<file>.tmp": overlapping saves mostly failed with 500, and the file left
+      on disk was often not even valid JSON. A save also REPLACED the file with
+      whatever one device sent, so a device with a smaller copy took records
+      away, and there was no history to recover from. Saves now merge into
+      what is stored, one at a time, through a temporary file of their own,
+      keeping the previous version in data/.history.
+
+   6. MORE THAN THE STORE WAS PUBLIC. "User Login/" exports (hashes, two-step
+      secrets), dot-files and key files were served as ordinary files; the
+      health check told anyone the data folder's path; and /_cestis/rooms
+      listed every live class's room code — all it takes to join — to anyone
+      on the network. The token used to be stamped into a public script and
+      changed on every restart, breaking every open page; it is now fetched
+      from /_cestis/token and kept across restarts. (What the token does and
+      does not protect is spelt out in READ ME FIRST.)
+
+   The server runs on a scratch data folder (CESTIS_DATA_DIR / CESTIS_CERT_DIR),
+   so this test never touches the Centre's real records.
+
    Run: node tests/offline-server-hardening.test.js */
 'use strict';
 
 const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 let passed = 0, failed = 0;
@@ -43,12 +64,14 @@ function assert(cond, msg) {
 
 const ROOT = path.join(__dirname, '..');
 const PORT = 8000 + Math.floor(Math.random() * 1500);
+const SCRATCH = fs.mkdtempSync(path.join(os.tmpdir(), 'cestis-hardening-'));
+const DATA = path.join(SCRATCH, 'data'), CERT = path.join(SCRATCH, 'cert');
 
 function req(pathname, opts) {
   opts = opts || {};
   return new Promise(resolve => {
     const r = http.request({
-      host: '127.0.0.1', port: PORT, path: pathname,
+      host: opts.host || '127.0.0.1', port: PORT, path: pathname,
       method: opts.method || 'GET', headers: opts.headers || {}
     }, res => {
       const chunks = [];
@@ -67,7 +90,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
   const server = spawn(process.execPath, ['cestis-offline-server.js'], {
-    cwd: ROOT, env: Object.assign({}, process.env, { CESTIS_HTTP: '1', CESTIS_PORT: String(PORT) }),
+    cwd: ROOT, env: Object.assign({}, process.env, { CESTIS_HTTP: '1', CESTIS_PORT: String(PORT),
+      CESTIS_DATA_DIR: DATA, CESTIS_CERT_DIR: CERT }),
     stdio: ['ignore', 'pipe', 'pipe']
   });
   let serverExited = false;
@@ -100,6 +124,15 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(dataFile.status === 403, 'the data folder is not served as ordinary files');
   assert((await req('/data/')).status === 403, 'nor is the folder itself');
   assert((await req('/cert/cestis-lan-key.pem')).status === 403, 'nor is the TLS private key');
+  assert((await req('/User%20Login/somebody/account.json')).status === 403,
+    'nor a real per-user export in "User Login" (password hashes, two-step secrets)');
+  assert((await req('/User%20Login/README.md')).status === 403, 'nor anything else in that folder');
+  assert((await req('/.gitignore')).status === 403, 'nor dot-files');
+  assert((await req('/vendor/x.pem')).status === 403, 'nor a key file anywhere');
+  const healthBody = JSON.parse(health.body || '{}');
+  assert(healthBody.mode === 'offline-lan' && !!healthBody.time, 'the health check still says what it is, and the time');
+  assert(!('dataFolder' in healthBody) && !('host' in healthBody),
+    'but no longer tells anyone where the records are kept or what the machine is called');
   assert((await req('/index.html')).status === 200, 'while the pages themselves are still served');
   assert((await req('/cestis-core.js')).status === 200, 'and so are the scripts they need');
 
@@ -110,17 +143,32 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{"stolen":1}'
   });
   assert(putNoTok.status === 401, 'writing to the records without the token is refused');
-  assert(!fs.existsSync(path.join(ROOT, 'data', 'HARDENING_TEST.json')),
+  assert(!fs.existsSync(path.join(DATA, 'HARDENING_TEST.json')),
     'and the refused write left nothing behind');
 
   const script = await req('/cestis-page-cloud.js');
   assert(script.status === 200, 'the page-cloud script is served');
-  const m = script.body.match(/var LAN_TOKEN = '([a-f0-9]{32,})'/);
-  assert(!!m, 'the server stamps a real token into it, so our own pages authenticate by themselves');
-  assert(script.body.indexOf('__CESTIS_LAN_TOKEN__') === -1,
-    'and the placeholder does not survive into what the browser receives');
-  const TOKEN = m ? m[1] : '';
+  assert(script.body === fs.readFileSync(path.join(ROOT, 'cestis-page-cloud.js'), 'utf8'),
+    'exactly as it is on disk — the same file both builds run, with no secret stamped into it');
+  const tok = await req('/_cestis/token');
+  const TOKEN = (JSON.parse(tok.body || '{}').token) || '';
+  assert(/^[a-f0-9]{48}$/.test(TOKEN), 'our pages fetch the token once they have found the server');
+  assert(fs.readFileSync(path.join(CERT, 'lan-token'), 'utf8').trim() === TOKEN,
+    'and it is kept with the certificate, so a restart no longer breaks every open page');
   const hdr = { 'X-CESTIS-Token': TOKEN };
+
+  console.log('The room list is for the server computer');
+  assert((await req('/_cestis/rooms')).status === 200, 'it opens on the server computer itself (README section 5)');
+  const lanIp = Object.values(os.networkInterfaces()).reduce((a, l) => a.concat(l || []), [])
+    .filter(i => i.family === 'IPv4' && !i.internal).map(i => i.address)[0];
+  if (lanIp) {
+    assert((await req('/_cestis/rooms', { host: lanIp })).status === 403,
+      'but another device on the network is not shown every class\'s room code');
+    assert((await req('/_cestis/rooms', { host: lanIp, headers: hdr })).status === 200,
+      'unless it is one of our pages carrying the token');
+  } else {
+    console.log('  (no network address on this machine — skipping the from-another-device check)');
+  }
 
   assert((await req('/_cestis/data', { headers: hdr })).status === 200,
     'a page carrying the token can read the records');
@@ -145,7 +193,44 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(parsed && parsed.name === NAME.name,
     'the accented name comes back character for character — a chunk boundary no longer tears it in half');
   assert(parsed && parsed.note === NAME.note, 'and so does a long run of multi-byte characters');
-  try { fs.unlinkSync(path.join(ROOT, 'data', 'HARDENING_TEST.json')); } catch (e) {}
+
+  /* ---------- 5. Saves at the same moment ---------- */
+  console.log('Saves arriving at the same moment');
+  const big = 'x'.repeat(2 * 1024 * 1024);
+  const many = await Promise.all([0, 1, 2, 3, 4, 5, 6, 7].map(i => req('/_cestis/data/CONCURRENT.json', {
+    method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, hdr),
+    body: JSON.stringify({ n: i, pad: i % 2 ? big : 'small' })
+  })));
+  assert(many.every(r => r.status === 200), 'eight overlapping saves all succeed (they used to fail with 500): ' +
+    many.map(r => r.status).join(','));
+  let whole = null;
+  try { whole = JSON.parse(fs.readFileSync(path.join(DATA, 'CONCURRENT.json'), 'utf8')); } catch (e) {}
+  assert(!!whole && typeof whole.n === 'number', 'and the file left on disk is whole, valid JSON');
+  assert(!fs.readdirSync(DATA).some(f => /\.tmp$/.test(f)), 'with no temporary file left behind');
+  const histDir = path.join(DATA, '.history', 'CONCURRENT.json');
+  assert(fs.existsSync(histDir) && fs.readdirSync(histDir).length === 7,
+    'every replaced version is kept in data/.history (7 of 8 saves replaced one)');
+  assert(!JSON.parse((await req('/_cestis/data', { headers: hdr })).body).files.some(f => f.file === '.history'),
+    'and the history is not listed as a page file');
+
+  console.log('A save is merged into what the server holds, never a replacement');
+  const T1 = '2026-10-01T09:00:00.000Z', T2 = '2026-10-01T10:00:00.000Z';
+  const page = (students, stamp) => JSON.stringify({ version: '1.0', page: 'LMS Dashboard', file: 'MERGE.json',
+    stamps: { voctrain_students: stamp }, data: { voctrain_students: JSON.stringify(students) } });
+  await req('/_cestis/data/MERGE.json', { method: 'PUT', headers: hdr,
+    body: page([{ id: 'S1' }, { id: 'S2' }, { id: 'S3' }], T1) });
+  const shrink = await req('/_cestis/data/MERGE.json', { method: 'PUT', headers: hdr, body: page([{ id: 'S1' }], T2) });
+  assert(shrink.status === 200 && JSON.parse(shrink.body).changedByServer === true,
+    'a newer save holding one trainee is accepted, and the reply says the server merged it');
+  const roll = JSON.parse(JSON.parse(fs.readFileSync(path.join(DATA, 'MERGE.json'), 'utf8')).data.voctrain_students);
+  assert(roll.map(s => s.id).join(',') === 'S1,S2,S3', 'and the server still holds all three trainees');
+
+  console.log('An unchanged file is not sent again');
+  const first = await req('/_cestis/data/MERGE.json', { headers: hdr });
+  const etag = first.headers.etag;
+  assert(!!etag, 'a read carries an ETag');
+  const again = await req('/_cestis/data/MERGE.json', { headers: Object.assign({ 'If-None-Match': etag }, hdr) });
+  assert(again.status === 304 && again.body === '', 'and asking again with it is a 304 with no body');
 
   /* ---------- 4. Ranges tell the truth ---------- */
   console.log('A part-file request is answered with the part that was asked for');
@@ -163,6 +248,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   server.kill();
   await wait(200);
+  try { fs.rmSync(SCRATCH, { recursive: true, force: true }); } catch (e) {}
   console.log('\n' + passed + ' passed, ' + failed + ' failed');
   process.exit(failed ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

@@ -5552,14 +5552,365 @@
       return true;
     }
 
+    /* --- Collections of RECORDS, merged record by record -------------------
+
+       WHY THIS EXISTS
+       ---------------
+       mergeKeys below decides each storage key as ONE value: the newer write
+       wins the whole thing. That is right for a setting, and wrong for a list
+       of records. In the Offline System every device on the Centre's network
+       saves the LMS dashboard's collections to the Centre's own server, and
+       with whole-value merging:
+         - two trainees submitting an exam within the same half-minute each
+           wrote "everything I know + my result"; the second write replaced
+           the first and one result was gone everywhere;
+         - a trainee signing out trims that device's copy to their own records
+           (so a shared PC does not keep everybody's data) — and that trimmed
+           list, being the newest write, replaced the Centre's whole roll,
+           every exam result and the attendance on the server and then on
+           every device that pulled it.
+
+       So these collections are merged the way the online build's Drive merge
+       already treats them: by record. A record either side has survives; when
+       both sides have it the newer edit wins (the record's own updatedAt /
+       lastModified / submittedAt stamp); a record goes away ONLY through a
+       tombstone — the same deletion lists the app already writes. A shorter
+       list is therefore never a deletion, however new it is.
+
+       A tie (neither copy says which is newer) goes to the side whose copy of
+       the whole collection was written more recently — exactly what the old
+       whole-value rule did, only now per record — and the loser's blank
+       fields are still filled in from it, so nothing typed is dropped.
+
+       Nothing here applies unless a caller asks for it (opts.records), and a
+       value that does not parse as the expected list or map falls straight
+       back to the whole-value rule, so a key that is not really a record
+       collection is never mangled. */
+    function lower(v) { return String(v == null ? '' : v).trim().toLowerCase(); }
+    function byId(r) { return r && r.id != null ? String(r.id) : undefined; }
+    var DEMO_STUDENT = /^STU-20260[0-7][0-9]$/;          // the purged demo roll (STU-2026000..079)
+    var DEMO_EXAM = /^EXAM-0(0[1-9]|1[0-2])$/;           // and its demo exams (EXAM-001..012)
+
+    // storage key (or prefix) -> how its records are told apart and merged.
+    // `tombs` names the dashboard's own tombstone collection (syncCollections()
+    // in index.html), so a deletion made on one device travels here too.
+    var RECORD_KEYS = [
+      { key: 'voctrain_students', type: 'students' },
+      { key: 'voctrain_users', type: 'users' },
+      { key: 'voctrain_examResults', type: 'list', studentField: 'studentId',
+        id: function (r) { return r.id != null ? String(r.id) : lower(r.examId) + '|' + lower(r.studentId); },
+        stamps: ['updatedAt', 'gradedAt', 'reviewedAt', 'submittedAt'],
+        accept: function (r) { return !DEMO_EXAM.test(String(r.examId || '')) && !DEMO_STUDENT.test(String(r.studentId || '')); } },
+      // The register, and every quarter's bucket of it (voctrain_attendance_<FY>_Q<n>).
+      { prefix: 'voctrain_attendance', type: 'list', studentField: 'studentId',
+        id: function (r) { return lower(r.studentId) + '|' + lower(r.date); },
+        stamps: ['updatedAt', 'markedAt'],
+        accept: function (r) { return !DEMO_STUDENT.test(String(r.studentId || '')); } },
+      { key: 'voctrain_certDownloadApprovals', type: 'approvals' },
+      { key: 'voctrain_skillAreas', type: 'centres' },
+      { key: 'voctrain_vcSessions', type: 'vcSessions' },
+      { key: 'voctrain_syncTombstones', type: 'tombstones' },
+      { key: 'voctrain_chatMessages', type: 'rooms' },
+      { key: 'voctrain_exams', type: 'list', tombs: 'exams',
+        id: function (r) { return lower(r.title) + '|' + lower(r.course); },
+        accept: function (r) { return !DEMO_EXAM.test(String(r.id || '')); } },
+      { key: 'voctrain_announcements', type: 'list', tombs: 'announcements',
+        id: function (r) { return r.id != null ? String(r.id) : 'title:' + lower(r.title); } },
+      { key: 'voctrain_calendarEvents', type: 'list', tombs: 'calendarEvents',
+        id: function (r) { return lower(r.title) + '|' + lower(r.date); } },
+      { key: 'voctrain_driveResources', type: 'list', tombs: 'driveResources',
+        id: function (r) { return r.driveFileId ? 'drive:' + r.driveFileId : byId(r); } },
+      { key: 'voctrain_chatRooms', type: 'list', tombs: 'chatRooms', id: byId },
+      { key: 'voctrain_classSessions', type: 'list', tombs: 'classSessions', id: byId },
+      { key: 'voctrain_adminMeetings', type: 'list', tombs: 'adminMeetings', id: byId },
+      { key: 'voctrain_assignments', type: 'list', tombs: 'instructorAssignments', id: byId },
+      { key: 'voctrain_submissions', type: 'list', tombs: 'assignmentSubmissions', id: byId },
+      { key: 'voctrain_resources', type: 'list', tombs: 'instructorResources', id: byId },
+      { key: 'voctrain_instructorData', type: 'list', tombs: 'instructorData', id: byId },
+      { key: 'voctrain_adrTasks', type: 'list', tombs: 'adrTasks', id: byId },
+      { key: 'voctrain_support_messages', type: 'list', tombs: 'supportMessages', id: byId },
+      { key: 'voctrain_notifications', type: 'list', tombs: 'notifications', id: byId },
+      { key: 'voctrain_documentHubFiles', type: 'list', tombs: 'documentHubFiles', id: byId },
+      { key: 'voctrain_studentProfiles', type: 'map', tombs: 'studentProfiles' },
+      { key: 'voctrain_instructorProfiles', type: 'map', tombs: 'instructorProfiles' },
+      { key: 'voctrain_adrStaffMeta', type: 'map', tombs: 'adrStaffMeta' },
+      { key: 'voctrain_certTemplates', type: 'map', tombs: 'certTemplates' },
+      { key: 'voctrain_chatProfiles', type: 'map' }
+    ];
+
+    function recordSpec(key) {
+      if (!key) return null;
+      key = String(key);
+      for (var i = 0; i < RECORD_KEYS.length; i++) {
+        var s = RECORD_KEYS[i];
+        if (s.key === key) return s;
+        // 'voctrain_attendance_quartered' is a one-off marker ('1'), not a
+        // bucket; it fails the list parse below and keeps the whole-value rule.
+        if (s.prefix && key.indexOf(s.prefix) === 0) return s;
+      }
+      return null;
+    }
+    /* Is this key merged record by record? */
+    function isRecordKey(key) { return !!recordSpec(key); }
+
+    function parseJson(raw) { try { return JSON.parse(raw); } catch (e) { return undefined; } }
+    function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+    function newestOf(r, fields) {
+      var best = 0;
+      (fields || ['updatedAt', 'lastModified']).forEach(function (f) {
+        var t = Date.parse((r && r[f]) || '');
+        if (!isNaN(t) && t > best) best = t;
+      });
+      return best;
+    }
+    /* Fill the winner's blank fields from the loser: a tie must never drop
+       something that was typed on one side only. */
+    function fillFrom(winner, loser) {
+      var out = {};
+      Object.keys(winner).forEach(function (f) { out[f] = winner[f]; });
+      Object.keys(loser || {}).forEach(function (f) {
+        var w = out[f];
+        if (f === '_plaintextPw') return;
+        if ((w === undefined || w === null || w === '') && loser[f] !== undefined && loser[f] !== null && loser[f] !== '') out[f] = loser[f];
+      });
+      return out;
+    }
+
+    /* Which tombstones apply, read from BOTH sides being merged — a deletion
+       either device has written down stands. */
+    function tombContext(localData, cloudData) {
+      var ids = function (k) {
+        var set = {};
+        [localData[k], cloudData[k]].forEach(function (raw) {
+          Core._parseArr(raw).forEach(function (id) { if (id != null && id !== '') set[String(id)] = true; });
+        });
+        return set;
+      };
+      var sync = {};
+      [localData.voctrain_syncTombstones, cloudData.voctrain_syncTombstones].forEach(function (raw) {
+        var t = parseJson(raw || 'null');
+        if (!isObj(t)) return;
+        Object.keys(t).forEach(function (col) {
+          if (isObj(t[col])) sync[col] = Core.sync.mergeTombstones(sync[col] || {}, t[col]);
+        });
+      });
+      return { students: ids('voctrain_deletedStudentIds'), users: ids('voctrain_deletedUserIds'),
+               centres: ids('voctrain_deletedCentreIds'), sync: sync };
+    }
+
+    /* Union two lists of records by identity, IN THIS DEVICE'S ORDER: the
+       local records first as they stand, then what only the other side has.
+       (Keeping one order whichever side is newer stops a list flipping order
+       on every sync, which would rewrite and re-upload it each time.)
+       pick(localRecord, cloudRecord) decides a record both sides hold.
+       Duplicate identities on one side are kept as duplicates rather than
+       folded, so the merge itself can never shrink a list. */
+    function unionList(local, cloud, idOf, pick, keep) {
+      var out = [], slots = {}, used = {}, i;
+      for (i = 0; i < local.length; i++) {
+        var l = local[i];
+        if (!l || typeof l !== 'object' || !keep(l)) continue;
+        out.push(l);
+        var lid = idOf(l);
+        if (lid !== undefined && lid !== null) (slots[lid] = slots[lid] || []).push(out.length - 1);
+      }
+      for (i = 0; i < cloud.length; i++) {
+        var c = cloud[i];
+        if (!c || typeof c !== 'object' || !keep(c)) continue;
+        var id = idOf(c);
+        var list = (id !== undefined && id !== null) ? slots[id] : null;
+        var n = list ? (used[id] || 0) : 0;
+        if (list && n < list.length) {
+          used[id] = n + 1;
+          out[list[n]] = pick(out[list[n]], c);
+        } else {
+          out.push(c);
+        }
+      }
+      return out;
+    }
+
+    /* Merge one record collection. `preferCloud` says which side wins a tie.
+       Returns the merged value as a string, or null when the values are not
+       the shape this key is registered as (the caller then uses the
+       whole-value rule). */
+    function mergeRecordValue(key, localRaw, cloudRaw, preferCloud, ctx) {
+      var spec = recordSpec(key);
+      if (!spec) return null;
+      var L = parseJson(localRaw), C = parseJson(cloudRaw);
+      var wantMap = spec.type === 'map' || spec.type === 'tombstones' || spec.type === 'rooms';
+      if (wantMap ? !(isObj(L) && isObj(C)) : !(Array.isArray(L) && Array.isArray(C))) return null;
+      ctx = ctx || { students: {}, users: {}, centres: {}, sync: {} };
+      var tombs = spec.tombs ? (ctx.sync[spec.tombs] || {}) : {};
+      var out;
+      // Two copies of one record, dated by `fields`: the newer wins; on a tie
+      // the side that wrote the collection last; and the winner's blanks are
+      // filled from the loser either way.
+      var newer = function (l, c, fields) {
+        var tl = newestOf(l, fields), tc = newestOf(c, fields);
+        return (tc > tl || (tc === tl && preferCloud)) ? fillFrom(c, l) : fillFrom(l, c);
+      };
+
+      if (spec.type === 'tombstones') {
+        out = {};
+        Object.keys(L).forEach(function (col) { out[col] = isObj(L[col]) ? Core.sync.mergeTombstones({}, L[col]) : L[col]; });
+        Object.keys(C).forEach(function (col) {
+          if (isObj(C[col]) && isObj(out[col])) out[col] = Core.sync.mergeTombstones(out[col], C[col]);
+          else if (out[col] === undefined) out[col] = C[col];
+        });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'rooms') {
+        // { roomId: [message, ...] } — every message either side has, by id,
+        // in time order.
+        out = {};
+        Object.keys(L).concat(Object.keys(C)).forEach(function (room) {
+          if (out[room]) return;
+          var a = L[room], b = C[room];
+          if (!Array.isArray(a) || !Array.isArray(b)) { out[room] = a !== undefined ? a : b; return; }
+          var merged = unionList(a, b, byId, function (x, y) { return newer(x, y); }, function () { return true; });
+          merged.sort(function (x, y) { return (Date.parse(x && x.timestamp) || 0) - (Date.parse(y && y.timestamp) || 0); });
+          out[room] = merged;
+        });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'map') {
+        out = {};
+        Object.keys(L).concat(Object.keys(C).filter(function (k) { return !(k in L); })).forEach(function (k) {
+          var a = L[k], b = C[k];
+          var cand;
+          if (a === undefined) cand = b;
+          else if (b === undefined) cand = a;
+          else if (isObj(a) && isObj(b)) cand = newer(a, b);
+          else cand = preferCloud ? b : a;
+          if (isObj(cand) && Core.sync.deletedAfter(tombs, k, cand)) return;
+          out[k] = cand;
+        });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'students') {
+        var dead = ctx.students;
+        var live = function (r) {
+          if (DEMO_STUDENT.test(String(r.id || ''))) return false;
+          return Core.dropTombstonedStudents([r], dead).removed === 0;
+        };
+        // One person is one record however their id was minted: the app moves
+        // trainees onto deterministic ids (Core.stableStudentId), so the same
+        // person can arrive under an old id and a new one. Paired by id, else
+        // by name + programme (the online merge's rule), never across a
+        // "keep separate" marker; the pair keeps the stable id.
+        var natural = function (r) { return r.keepSeparate ? null : (Core.naturalKey(r) || null); };
+        var pair = function (l, c) {
+          // mergeStudentRecords keeps the newer lastModified and fills blanks;
+          // on a tie its first argument stands, so the tie-winner goes first.
+          var m = preferCloud ? Core.mergeStudentRecords(c, l) : Core.mergeStudentRecords(l, c);
+          var stable = Core.stableStudentId(m);
+          if (stable && (l.id === stable || c.id === stable)) m.id = stable;
+          return m;
+        };
+        out = [];
+        var slotById = {}, slotByName = {};
+        L.forEach(function (l) {
+          if (!l || typeof l !== 'object' || !live(l)) return;
+          out.push(l);
+          if (l.id != null && slotById[String(l.id)] === undefined) slotById[String(l.id)] = out.length - 1;
+          var nk = natural(l);
+          if (nk && slotByName[nk] === undefined) slotByName[nk] = out.length - 1;
+        });
+        C.forEach(function (c) {
+          if (!c || typeof c !== 'object' || !live(c)) return;
+          var at = (c.id != null) ? slotById[String(c.id)] : undefined;
+          if (at === undefined) {
+            var nk = natural(c);
+            if (nk && slotByName[nk] !== undefined && natural(out[slotByName[nk]]) === nk) at = slotByName[nk];
+          }
+          // Several copies of one person on the other side all fold into the
+          // one record here.
+          if (at !== undefined) { out[at] = pair(out[at], c); return; }
+          out.push(c);
+          if (c.id != null && slotById[String(c.id)] === undefined) slotById[String(c.id)] = out.length - 1;
+          var nk2 = natural(c);
+          if (nk2 && slotByName[nk2] === undefined) slotByName[nk2] = out.length - 1;
+        });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'users') {
+        var gone = ctx.users;
+        out = unionList(L, C, byId, function (l, c) {
+          // cloudCopyWins is the one rule every account merge follows: the
+          // newer edit, and a real password is never replaced by a default.
+          var w = Core.accountAccess.cloudCopyWins(l, c) ? c : l;
+          var merged = fillFrom(w, w === c ? l : c);
+          delete merged._plaintextPw;
+          return merged;
+        }, function (r) { return !(r.id != null && gone[String(r.id)]); });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'approvals') {
+        out = unionList(L, C, function (r) { return r.studentId != null ? String(r.studentId) : undefined; },
+          function (l, c) {
+            // An approval beats no approval, then the newer; a tie stays with
+            // the tie-winner (bestApproval keeps its first argument).
+            return preferCloud ? Core.cloudMerge.bestApproval(c, l) : Core.cloudMerge.bestApproval(l, c);
+          },
+          function (r) { return !(r.studentId != null && ctx.students[String(r.studentId)]); });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'centres') {
+        // applySkillAreas lets the list it is GIVEN win a centre's name and
+        // description, so the tie-winner is the one applied onto the other;
+        // the result keeps this device's order.
+        var deadCentre = function (id) { return !!ctx.centres[String(id)]; };
+        var alive = function (list) { return JSON.parse(JSON.stringify(list)).filter(function (c) { return !(c && deadCentre(c.id)); }); };
+        var base = alive(preferCloud ? L : C);
+        Core.cloudMerge.applySkillAreas(base, preferCloud ? C : L, deadCentre);
+        var byCentre = {};
+        base.forEach(function (c) { if (c && c.id != null) byCentre[String(c.id)] = c; });
+        out = [];
+        L.concat(C).forEach(function (c) {
+          var id = c && c.id != null ? String(c.id) : null;
+          if (id !== null && byCentre[id]) { out.push(byCentre[id]); delete byCentre[id]; }
+        });
+        base.forEach(function (c) { if (!c || c.id == null || byCentre[String(c.id)]) out.push(c); });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'vcSessions') {
+        return JSON.stringify(Core.vcSessions.mergeSessions(L, C));
+      }
+
+      // A plain list of records.
+      out = unionList(L, C, spec.id, function (l, c) { return newer(l, c, spec.stamps); }, function (r) {
+        if (spec.accept && !spec.accept(r)) return false;
+        if (spec.studentField && r[spec.studentField] != null && ctx.students[String(r[spec.studentField])]) return false;
+        if (spec.tombs && Core.sync.deletedAfter(tombs, spec.id(r), r)) return false;
+        return true;
+      });
+      return JSON.stringify(out);
+    }
+
     /* Merge a cloud backup into this device's copy.
          localData/cloudData   - { storageKey: rawStringValue }
          localStamps/cloudStamps - { storageKey: ISO time last written }
+       opts.firstSync - this device has never synced this file (see below)
+       opts.records   - merge the registered record collections record by
+                        record (RECORD_KEYS above) instead of as one value
+       opts.symmetric - the copies are peers rather than "this device" and "the
+                        cloud": the strictly newer stamp wins, and a value with
+                        no stamp is simply the older one. The Centre's own
+                        server merges every incoming save into what it holds
+                        this way.
        Returns the union plus the keys whose local value must be rewritten. */
     function mergeKeys(localData, localStamps, cloudData, cloudStamps, opts) {
       localData = localData || {}; cloudData = cloudData || {};
       opts = opts || {};
-      var data = {}, stamps = {}, changed = [], rescued = [], k;
+      var data = {}, stamps = {}, changed = [], rescued = [], k, ctx = null;
 
       for (k in localData) {
         if (!Object.prototype.hasOwnProperty.call(localData, k)) continue;
@@ -5576,7 +5927,16 @@
           changed.push(k);
           continue;
         }
-        if (localData[k] === cloudData[k]) continue;      // identical, nothing to do
+        if (localData[k] === cloudData[k]) {              // identical, nothing to do —
+          // except keep the newer of the two stamps. Dropping the cloud's stamp
+          // here left the key UNSTAMPED in what this device pushed next, and a
+          // new device's first sync only adopts a stamped value — so it kept
+          // its own start-up defaults (three built-in logins instead of the
+          // Centre's accounts) and pushed those.
+          var ils = stampOf(localStamps, k), ics = stampOf(cloudStamps, k);
+          if (ics > ils && cloudStamps && cloudStamps[k]) stamps[k] = cloudStamps[k];
+          continue;
+        }
 
         /* A list of DELETIONS is merged by union, never by whose write is
            newer. It only ever grows, so both sides are always right, and one
@@ -5633,6 +5993,25 @@
           data[k] = cloudData[k];
           stamps[k] = cloudStamps[k];
           changed.push(k);
+          continue;
+        }
+        // A collection of records: neither copy replaces the other — see
+        // RECORD_KEYS above. The union carries the newer of the two stamps.
+        if (opts.records && isRecordKey(k)) {
+          if (!ctx) ctx = tombContext(localData, cloudData);
+          var merged = mergeRecordValue(k, localData[k], cloudData[k], ct > lt, ctx);
+          if (merged != null) {
+            if (merged !== localData[k]) { data[k] = merged; changed.push(k); }
+            if (ct > lt && cloudStamps && cloudStamps[k]) stamps[k] = cloudStamps[k];
+            continue;
+          }
+        }
+        if (opts.symmetric) {
+          if (ct > lt) {
+            data[k] = cloudData[k];
+            stamps[k] = cloudStamps[k];
+            changed.push(k);
+          }
           continue;
         }
         if (lt > 0 && ct > lt) {
@@ -5847,7 +6226,7 @@
              sharedSources: sharedSources, isShared: isShared, sourceOf: sourceOf,
              sharedPullPlan: sharedPullPlan, pickShared: pickShared,
              isEmptyValue: isEmptyValue, wouldDiscardRecords: wouldDiscardRecords,
-             guardedSet: guardedSet };
+             guardedSet: guardedSet, isRecordKey: isRecordKey, mergeRecordValue: mergeRecordValue };
   })();
 
   /* --------------------------------------------------------------------------

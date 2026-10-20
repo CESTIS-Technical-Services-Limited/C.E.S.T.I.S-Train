@@ -1,9 +1,13 @@
 {
-  "name": "cestis-train",
+  "name": "cestis-train-offline",
   "version": "1.0.0",
   "private": true,
-  "description": "CESTIS Training LMS — static dashboards backed by a shared data core (cestis-core.js).",
+  "description": "CESTIS Training LMS — Offline System: the whole platform served from one computer on the Centre's own network. Generated from the main build by tools/build-offline.js; only the server, launchers, READMEs and these tests are maintained here.",
+  "engines": {
+    "node": ">=14"
+  },
   "scripts": {
-    "test": "node tests/offline-server-hardening.test.js && node tests/cestis-core.test.js && node tests/transcript-core.test.js && node tests/finance-core.test.js && node tests/staff-appraisals.test.js && node tests/cmc-portal.test.js && node tests/enrolment-core.test.js && node tests/school-fee-programmes.test.js && node tests/system-settings-merge.test.js && node tests/cert-vc-core.test.js && node tests/cert-template-seed.test.js && node tests/vc-sessions.test.js && node tests/account-access.test.js && node tests/admin-staff-access.test.js && node tests/course-end-status.test.js && node tests/transfer-core.test.js && node tests/cloud-merge.test.js && node tests/page-cloud.test.js"
+    "start": "node cestis-offline-server.js",
+    "test": "node tests/offline-server-hardening.test.js && node tests/offline-signalling.test.js && node tests/offline-store.test.js"
   }
 }
