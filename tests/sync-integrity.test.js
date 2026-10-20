@@ -182,7 +182,7 @@ PAGES.forEach(function (page) {
     schoolDashboardGoogleAccessToken: 'tok', voctrain_user_chat: '{}' };
   const store = { get length() { return Object.keys(data).length; }, key: function (i) { return Object.keys(data)[i]; },
     removeItem: function (k) { delete data[k]; }, getItem: function (k) { return data[k] == null ? null : data[k]; } };
-  const sandbox = { CESTISStore: store, console: console, adminStaffAccessDefaults: function () { return {}; },
+  const sandbox = { CESTISStore: store, CESTISCore: page.core, console: console, adminStaffAccessDefaults: function () { return {}; },
     indexedDB: { deleteDatabase: function () {} }, _sessionWiped: false };
   vm.createContext(sandbox);
   vm.runInContext(extractFunction(page.src, 'clearAllSessionData', w) + '\nclearAllSessionData();', sandbox);

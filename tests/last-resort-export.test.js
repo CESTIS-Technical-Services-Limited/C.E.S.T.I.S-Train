@@ -58,6 +58,9 @@ const sb = {
   Blob: function (parts) { blobText = parts.join(''); },
   URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
   document: { createElement: () => ({ click() {} }) },
+  // Export is for a signed-in administrator only (accounts-12); this test is about
+  // WHAT an administrator's export holds, so it runs as one.
+  currentRole: 'admin', currentLoggedInUser: { id: 'USR-001', role: 'admin' },
   showToast() {}, localDateStr: () => '2026-10-20',
   console: { warn() {}, log() {} }, JSON, Object, Date
 };

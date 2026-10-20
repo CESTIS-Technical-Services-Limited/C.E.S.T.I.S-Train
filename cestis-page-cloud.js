@@ -347,7 +347,10 @@
           // storage holds nothing, or the page's own start-up defaults. The
           // Centre's data in the cloud wins that first time.
           var first = Object.keys(known).length === 0;
-          var res = C.mergeKeys(local, known, payload.data, payload.stamps || {}, { firstSync: first });
+          // A page whose keys are collections of records (spec.records) merges
+          // them record by record, so two offices' edits to different records
+          // both stand instead of the later whole list undoing the other's.
+          var res = C.mergeKeys(local, known, payload.data, payload.stamps || {}, { firstSync: first, records: !!self.spec.records });
           // Adopting the cloud's copy is not editing — see the note in watch().
           API._applying = true;
           try {
@@ -390,7 +393,7 @@
       }
       return remote.then(function (cloud) {
         // Local wins only where local is newer; the union goes up.
-        var merged = C.mergeKeys(data, stamps, cloud.data, cloud.stamps);
+        var merged = C.mergeKeys(data, stamps, cloud.data, cloud.stamps, { records: !!self.spec.records });
         var payload = C.buildPayload(self.spec, merged.data, merged.stamps, {
           savedAt: new Date().toISOString(),
           savedBy: (root.currentLoggedInUser && root.currentLoggedInUser.username) || root.currentRole || 'unknown'
@@ -504,9 +507,17 @@
   function lanNow() { return new Date(Date.now() + (lan.offset || 0)).toISOString(); }
 
   /* Keys that describe THIS device, never the Centre: copying them to another
-     machine would sign people in as each other or resume someone else's exam. */
+     machine would sign people in as each other or resume someone else's exam.
+     A trainee's saved exam attempt (cestisExamSession__<trainee>__<exam>) and
+     this PC's queue of not-yet-uploaded submissions hold a trainee's answers;
+     the results themselves travel in voctrain_examResults. Each user's private
+     copy (voctrain_user_<id>_*) holds their direct messages, so it stays on the
+     PC it was written on — the shared collections already carry the Centre's
+     records. */
   function deviceOnly(k) {
     return /^voctrain_session(Expiry|Role|UserId)$/.test(k) || k === 'voctrain_examInProgress' ||
+           k.indexOf('cestisExamSession__') === 0 || k === 'cestisExamOutbox' ||
+           k.indexOf('voctrain_user_') === 0 ||
            /AccessToken$|TokenExpiry$/i.test(k);
   }
   function lanCollect(spec, map) {

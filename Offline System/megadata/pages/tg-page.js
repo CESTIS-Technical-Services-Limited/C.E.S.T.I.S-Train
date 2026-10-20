@@ -35,7 +35,9 @@
 
     MG.pageBoot({
       page: PAGE,
-      actor: { name: 'Transcript Grades', role: 'admin', device: 'dev_browser' },
+      // The signed-in viewer's role (Transcript-Grades.html resolves it from the
+      // session), never a hard-coded 'admin' whoever is looking.
+      actor: { name: 'Transcript Grades', role: (window.VIEWER && window.VIEWER.ok && window.VIEWER.role) || 'none', device: 'dev_browser' },
       allow: ALLOW,
       onChange: function () { if (window.__tgTick) window.__tgTick(); }
     }).then(function (BOOT) {

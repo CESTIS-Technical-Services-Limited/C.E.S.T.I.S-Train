@@ -32,11 +32,19 @@ committed to it. To make that impossible by accident, everything under
 (see `.gitignore`). Real per-user folders created on a machine stay on that
 machine and in the institution's access-controlled Google Drive.
 
-Even where account records *are* stored (locally and in Google Drive), they only
-ever contain the **SHA-256 hash** of the password — never the plaintext. The app
+Even where account records *are* stored (locally and in Google Drive), the
+password is only ever kept **hashed** — PBKDF2 with a per-account salt, or, for
+an account nobody has signed in to since PBKDF2 arrived, the older single-salt
+SHA-256 hash (upgraded automatically at that account's next sign-in). The app
 strips the in-memory plaintext cache before anything is written to disk or Drive.
-Two-step-verification secrets and backup codes are likewise part of the hashed
-account record, kept only in the access-controlled store, never in this repo.
+
+Be clear about what is **not** hashed: the two-step-verification secret and the
+unused backup codes are stored **as they are** inside the account record (the
+app has to read the secret to check a code). They are kept only in the
+access-controlled store and in Google Drive, never in this repo — but anyone
+holding a copy of the account list (an exported backup, a device's storage)
+holds them too. Treat exported backups accordingly; only a signed-in
+administrator can export one.
 
 ## Why this exists (longevity)
 
