@@ -1261,7 +1261,11 @@
                                // does not find locally, so removing one without writing the
                                // removal down means the next sync hands it straight back —
                                // and a login an administrator revoked is live again.
-                               'voctrain_deletedUserIds'];
+                               'voctrain_deletedUserIds',
+                               // School Fee documents and fee-structure programmes
+                               // ("key|when" entries, so a name deleted and later
+                               // created again can live).
+                               'cestiSchoolFeeDeletedDocumentIds', 'cestiSchoolFeeDeletedFeeKeys'];
 
   // Is this key a list of deletions — one that must be merged by union rather
   // than by "the newer write wins"?
