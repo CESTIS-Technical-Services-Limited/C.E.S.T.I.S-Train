@@ -607,7 +607,7 @@ console.log('Staff appraisal roster buttons work for "Dwayne O\'Connor"');
 {
   const libSrc = read('staff-appraisals.js');
   const els = {};
-  const store = { voctrain_userAccounts: JSON.stringify([{ id: 'U1', name: "Dwayne O'Connor", role: 'instructor' }, { id: 'U2', name: 'Kevin <img src=x onerror=__pwn(1)> Brown', role: 'adminstaff' }]) };
+  const store = { voctrain_users: JSON.stringify([{ id: 'U1', name: "Dwayne O'Connor", role: 'instructor' }, { id: 'U2', name: 'Kevin <img src=x onerror=__pwn(1)> Brown', role: 'adminstaff' }]) };
   const sb = {
     console, JSON, Math, Date, Object, Array, String, Number, RegExp, parseInt, parseFloat, isNaN, setTimeout() {}, clearTimeout() {},
     document: { getElementById(id) { if (!els[id]) els[id] = makeEl(id); return els[id]; }, querySelector() { return null; }, querySelectorAll() { return []; }, createElement() { return makeEl(); }, addEventListener() {} },

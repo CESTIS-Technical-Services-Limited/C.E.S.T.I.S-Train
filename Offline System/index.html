@@ -4590,6 +4590,20 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   </div>
 </div>
 
+<!-- IDLE LOCK (accounts-18): the session is covered, not ended, after a spell with no input -->
+<div class="modal-overlay" id="idleLockModal" style="z-index:1250;">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header"><h3>Session Locked</h3></div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">This session was left idle, so it has been locked. Enter the password for <strong id="idleLockWho"></strong> to carry on, or sign out.</p>
+    <div class="form-group"><label>Password</label><input type="password" class="form-control" id="idleLockPassword" autocomplete="current-password" onkeydown="if(event.key==='Enter')idleLockUnlock()"></div>
+    <div id="idleLockError" class="tfa-error" style="display:none;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-secondary" onclick="idleLockSignOut()">Sign Out</button>
+      <button class="btn btn-primary" onclick="idleLockUnlock()">Unlock</button>
+    </div>
+  </div>
+</div>
+
 <!-- TWO-STEP VERIFICATION (TOTP) MODALS -->
 <style>
 /* The login landing page is a fixed layer at z-index 1000 and the forgot-password
@@ -4869,7 +4883,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
         <input type="file" id="editStuPicInput" accept="image/*" style="display:none;" onchange="profilePicPreview(this,'editStuPicPreview','student')">
       </div>
     </div>
-    <div class="form-group"><label>Full Name</label><input type="text" class="form-control" id="editProfileName" placeholder="Your full name" disabled title="Your name prints on your certificate — ask the office to correct it"></div>
+    <div class="form-group"><label>Full Name</label><input type="text" class="form-control" id="editProfileName" placeholder="Your full name" title="Your name prints on your certificate — a change is sent to the office to approve"><small style="color:var(--text-muted);font-size:11px;">A change here is sent to the office to approve before it appears on your certificate.</small></div>
     <div class="form-group"><label>Student ID</label><input type="text" class="form-control" id="editProfileId" disabled></div>
     <div class="edit-profile-status-row">
       <div class="form-group" style="flex:1;"><label>Status</label>
@@ -5413,9 +5427,10 @@ async function hashPassword(password) {
 }
 
 // Passwords published in this (public) repo. The built-in logins are seeded with
-// the first one and KEEP it until somebody changes it — the Centre's decision:
-// cestisadmin signs in with cestisadmin123$ on any device unless its password
-// has been changed, and nothing forces a change at sign-in. An account still on
+// the first one so a brand-new installation has a way in — but the default
+// opens nothing by itself: a sign-in that matches it is refused once the Centre
+// has an administrator with a password of its own, and before that it only
+// leads to "set a new password" (publishedDefaultGate). An account still on
 // a published default carries the marker defaultPassword:true, so the cloud
 // merge knows it holds a seed and not a password somebody set — a seed never
 // replaces a real password (CESTISCore.accountAccess.cloudCopyWins). Every
@@ -5647,20 +5662,25 @@ async function checkPassword(inputPassword, storedPassword, account) {
 // definition, the right one. Most long-standing accounts carry no edit stamp
 // (their passwords predate touchAccount), and the cloud merge settles a tie
 // between two unstamped copies on whichever arrived last — a stale folder, a
-// laptop that had been off for months, a brand-new device's seed. Stamping the
-// copy that just worked makes it the newest, so every other copy yields to it
-// from now on. Only an UNSTAMPED copy is stamped: a real edit's stamp is never
-// moved, and a wrong password never stamps anything. A SEED is never stamped
-// either: signing in with the published default must not make the default the
-// newest copy, or it would replace a real password on the next sync.
+// laptop that had been off for months, a brand-new device's seed. Marking the
+// copy that just worked lets every other copy of the SAME edit stamp yield to
+// it from now on (CESTISCore.accountAccess.cloudCopyWins).
+//
+// The mark is verifiedAt, not updatedAt. Stamping updatedAt here made a stale
+// device's copy NEWER than an edit an administrator made elsewhere before it
+// synced — a trainee disabled on the office PC signed in on her phone, and her
+// phone's 'active' copy then won on every device. A sign-in is not an edit:
+// it only ever breaks a tie. Only an UNSTAMPED copy is marked (a real edit's
+// stamp already decides), a wrong password marks nothing, and a SEED is never
+// marked: the published default must never look like the working password.
 function stampVerifiedAccount(account) {
   try {
     if (!account || account.updatedAt) return;
     if (CESTISCore.accountAccess.isSeededLogin(account)) return;
     var canonical = (typeof userAccounts !== 'undefined' && Array.isArray(userAccounts))
       ? (userAccounts.find(function(u){ return u.id === account.id; }) || account) : account;
-    touchAccount(canonical);
-    if (account !== canonical) account.updatedAt = canonical.updatedAt;
+    canonical.verifiedAt = new Date().toISOString();
+    if (account !== canonical) account.verifiedAt = canonical.verifiedAt;
     if (typeof saveUserAccounts === 'function') saveUserAccounts();
   } catch (e) {}
 }
@@ -5847,10 +5867,12 @@ window.confirm = function(msg) {
 
 // ---------- UX: Keyboard Shortcuts ----------
 document.addEventListener('keydown', function(e) {
-  // Escape closes any active modal
+  // Escape closes any active modal — but not the idle lock or the forced
+  // password change, which must be answered (closing them would walk past them).
   if(e.key === 'Escape') {
     var modals = document.querySelectorAll('.modal-overlay.active');
-    if(modals.length > 0) {
+    var _pinned = document.querySelector('#idleLockModal.active, #forceChangePwModal.active');
+    if(modals.length > 0 && !_pinned) {
       modals[modals.length - 1].classList.remove('active');
       e.preventDefault();
     }
@@ -5884,7 +5906,13 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ---------- DATA: Export/Backup ----------
+// The file holds everything: every account's password hash, two-step secret
+// and backup codes, every trainee's record, the exams with their answers, the
+// fee and payroll books. Ctrl+Shift+E used to produce it for anybody — a
+// trainee signed in on her own laptop, or whoever sat at a shared PC's sign-in
+// page — so it is an administrator's action only.
 function exportDataBackup() {
+  if(currentRole !== 'admin' || !currentLoggedInUser) { showToast('Only a signed-in administrator can export a backup.', 'warning'); return; }
   var backup = {
     version: '2.0',
     exportedAt: new Date().toISOString(),
@@ -5955,6 +5983,7 @@ function exportDataBackup() {
 
 // ---------- DATA: Import/Restore ----------
 function importDataBackup() {
+  if(currentRole !== 'admin' || !currentLoggedInUser) { showToast('Only a signed-in administrator can restore a backup.', 'warning'); return; }
   var input = document.createElement('input');
   input.type = 'file';
   input.accept = '.json';
@@ -5969,17 +5998,21 @@ function importDataBackup() {
           showToast('Invalid backup file format');
           return;
         }
-        if(!_originalConfirm.call(window, 'This will overwrite ALL current data with the backup from ' + (backup.exportedAt || 'unknown date') + '. Are you sure?')) return;
-        Object.keys(backup.data).forEach(function(k) {
-          if(backup.data[k] !== null) {
-            CESTISStore.setItem(k, JSON.stringify(backup.data[k]));
-          }
+        if(!_originalConfirm.call(window, 'Merge the backup from ' + (backup.exportedAt || 'unknown date') + ' into this device?\n\nRecords missing here are added back and older copies fill in blanks; anything edited or deleted here since the backup is kept as it is now.')) return;
+        // Merged, never written over: a backup must not put accounts back on old
+        // passwords or bring back what was deleted since (CESTISCore.backupRestore).
+        var _merged = 0;
+        CESTISCore.backupRestore.restoreOrder(Object.keys(backup.data)).forEach(function(k) {
+          var next = CESTISCore.backupRestore.mergeValue(k, CESTISStore.getItem(k), backup.data[k]);
+          if(next !== null) { CESTISStore.setItem(k, next); _merged++; }
         });
-        // Values that were not JSON travel as they were stored.
+        // Values that were not JSON (a typed bank balance, a logo) travel as
+        // they were stored. Merged like everything else: they only fill a key
+        // this device does not hold, never replace what is here now.
         Object.keys(backup.raw || {}).forEach(function(k) {
-          if(typeof backup.raw[k] === 'string') CESTISStore.setItem(k, backup.raw[k]);
+          if(typeof backup.raw[k] === 'string' && !CESTISStore.getItem(k)) { CESTISStore.setItem(k, backup.raw[k]); _merged++; }
         });
-        showToast('Backup restored! Reloading...');
+        showToast('Backup merged (' + _merged + ' collection(s) updated). Reloading...');
         setTimeout(function(){ location.reload(); }, 1500);
       } catch(err) {
         showToast('Failed to restore backup: ' + err.message);
@@ -6628,7 +6661,11 @@ function lmsChatFlushDriveSyncNow() {
 // (Video-Conference-AdminStaff.html) — a default of off left it missing from
 // the nav on every install where nobody had opened the grid. A grid that HAS
 // been saved wins, so an Administrator who unticks it is respected.
-var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, certificates:false, reports:false, training:false, exams:false, video:true, resources:false, supportmessages:false };
+// 'studentsmanage' is separate from 'students': "View student data" used to
+// hand Admin Staff add / edit / delete / certify / re-id powers in Student
+// Progress. Changing the roll is its own grant, off unless an Administrator
+// ticks it.
+var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, video:true, resources:false, supportmessages:false };
 function adminStaffAccessDefaults() { return Object.assign({}, AS_ACCESS_DEFAULTS); }
 var adminStaffAccessSettings = adminStaffAccessDefaults();
 
@@ -6698,12 +6735,81 @@ function setSessionExpiry() {
   if(currentLoggedInUser) {
     CESTISStore.setItem('voctrain_sessionUserId', currentLoggedInUser.id || '');
   }
+  // The record pages (Student Progress, Transcript / Grades, the request
+  // queue) take the viewer from here, never from their address bar — so a
+  // trainee's own record id travels with the session, and a heartbeat says
+  // the dashboard is still open (CESTISCore.sessionAccess).
+  if(currentRole === 'student' && currentStudent && currentStudent.id) CESTISStore.setItem('voctrain_sessionStudentId', String(currentStudent.id));
+  else CESTISStore.removeItem('voctrain_sessionStudentId');
+  CESTISStore.setItem('voctrain_sessionSeenAt', String(Date.now()));
+  _sessionLastActivity = Date.now();
+  _sessionWarned = false;
+}
+
+// ---- Idle lock, expiry warning, and revocation (accounts-09, accounts-18) ----
+// A session used to last eight hours from sign-in with nothing in between: a
+// lab PC left signed in handed the gradebook to the next person, the forced
+// logout at hour eight landed mid-task without a word, and an account switched
+// off on another device stayed signed in here until then.
+var _sessionLastActivity = 0, _sessionWarned = false, _sessionLocked = false;
+(function() {
+  var mark = function() { if(!_sessionLocked) _sessionLastActivity = Date.now(); };
+  ['mousedown','keydown','touchstart','wheel','scroll'].forEach(function(ev) {
+    try { window.addEventListener(ev, mark, { passive: true, capture: true }); } catch(e) {}
+  });
+})();
+function sessionAccountRevoked() {
+  if(!currentLoggedInUser || !currentLoggedInUser.id) return false;
+  var id = currentLoggedInUser.id;
+  try { if(typeof isUserDeleted === 'function' && isUserDeleted(id)) return true; } catch(e) {}
+  var acct = (userAccounts || []).find(function(u){ return u && u.id === id; });
+  if(!acct) return false;   // merely not on this list right now — never a reason on its own
+  var st = String(acct.status || '').toLowerCase();
+  return st === 'disabled' || st === 'rejected';
+}
+function sessionHeartbeat() {
+  if(!currentRole) return;
+  try { CESTISStore.setItem('voctrain_sessionSeenAt', String(Date.now())); } catch(e) {}
+  if(sessionAccountRevoked()) {
+    showToast('Your account has been switched off by an administrator. You have been signed out.', 'warning');
+    logout();
+    return;
+  }
+  var st = CESTISCore.sessionAccess.state(Date.now(), _sessionLastActivity, Number(CESTISStore.getItem('voctrain_sessionExpiry')) || 0, currentRole);
+  if(st === 'lock' && !_sessionLocked) openIdleLock();
+  else if(st === 'warn' && !_sessionWarned) { _sessionWarned = true; showToast('Your session ends in about two minutes — save your work, then sign in again.', 'warning'); }
+}
+function openIdleLock() {
+  _sessionLocked = true;
+  var pw = document.getElementById('idleLockPassword'), err = document.getElementById('idleLockError');
+  if(pw) pw.value = ''; if(err) err.style.display = 'none';
+  var who = document.getElementById('idleLockWho');
+  if(who) who.textContent = (currentLoggedInUser && (currentLoggedInUser.name || currentLoggedInUser.username)) || '';
+  // The page is covered, not left: whatever was open (an exam, a form) is kept.
+  openModal('idleLockModal');
+  setTimeout(function(){ if(pw) pw.focus(); }, 60);
+}
+async function idleLockUnlock() {
+  var pw = document.getElementById('idleLockPassword'), err = document.getElementById('idleLockError');
+  var acct = currentLoggedInUser && (userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; }) || currentLoggedInUser);
+  var ok = false;
+  try { ok = !!acct && CESTISCore.accountAccess.hasPassword(acct) && await verifyPassword(pw ? pw.value : '', acct.password); } catch(e) { ok = false; }
+  if(!ok) { if(err) { err.textContent = 'That password is not correct.'; err.style.display = 'block'; } if(pw) pw.value = ''; return; }
+  _sessionLocked = false;
+  _sessionLastActivity = Date.now();
+  closeModal('idleLockModal');
+}
+function idleLockSignOut() {
+  _sessionLocked = false;
+  closeModal('idleLockModal');
+  logout();
 }
 
 // Check if session has expired; if so, clear sensitive data and force logout
 function checkSessionExpiry() {
   var expiry = CESTISStore.getItem('voctrain_sessionExpiry');
   if(!expiry) return;
+  if(Date.now() <= Number(expiry)) { try { sessionHeartbeat(); } catch(e) {} }
   if(Date.now() > Number(expiry)) {
     console.log('[Session] Session expired — clearing sensitive data');
     clearSensitiveDataOnExpiry();
@@ -6784,6 +6890,28 @@ function clearSensitiveStudentData() {
     CESTISStore.setItem('voctrain_attendance', JSON.stringify(myAttendance));
   } catch(e) { attendanceRecords = []; CESTISStore.removeItem('voctrain_attendance'); }
 
+  // 5b. Keep only this trainee's transcript grades, requests and transcript
+  // profile. The profiles hold every trainee's date of birth, home address and
+  // national ID, and they stayed on a trainee's device after logout. Direct
+  // writes for the same reason as the results above.
+  try {
+    var _mine = function(r) { return r && studentId && r.studentId === studentId; };
+    ['voctrain_transcriptGrades', 'voctrain_certTranscriptRequests'].forEach(function(k) {
+      var raw = CESTISStore.getItem(k);
+      if(raw == null) return;
+      var arr = JSON.parse(raw);
+      if(Array.isArray(arr)) CESTISStore.setItem(k, JSON.stringify(arr.filter(_mine)));
+    });
+    var _tp = CESTISStore.getItem('voctrain_transcriptProfiles');
+    if(_tp != null) {
+      var tpObj = JSON.parse(_tp) || {}, tpMine = {};
+      if(studentId && tpObj[studentId]) tpMine[studentId] = tpObj[studentId];
+      CESTISStore.setItem('voctrain_transcriptProfiles', JSON.stringify(tpMine));
+    }
+  } catch(e) {
+    CESTISStore.removeItem('voctrain_transcriptProfiles');
+  }
+
   // 6. Remove admin/instructor-only data (localStorage + in-memory)
   CESTISStore.removeItem('voctrain_adminMeetings');
   adminMeetings = [];
@@ -6828,6 +6956,8 @@ function clearSensitiveStudentData() {
   CESTISStore.removeItem('voctrain_sessionExpiry');
   CESTISStore.removeItem('voctrain_sessionRole');
   CESTISStore.removeItem('voctrain_sessionUserId');
+  CESTISStore.removeItem('voctrain_sessionStudentId');
+  CESTISStore.removeItem('voctrain_sessionSeenAt');
 
   // 12. Clear IndexedDB databases (chat images, cert images)
   try { indexedDB.deleteDatabase('CESTIS_ChatImages'); } catch(e) {}
@@ -6869,6 +6999,12 @@ function clearAllSessionData() {
     // administrator logout. They stay, and the newest decision keeps winning.
     if(key === 'voctrain_systemSettings' || key === 'voctrain_maintenanceMode') continue;
     if(key === 'voctrain_syncTombstones') continue; // what was deleted is shared truth, not session data
+    // The same goes for the lists of deleted accounts, trainees and centres.
+    // Wiping them at logout let the next page load re-seed the built-in logins
+    // an administrator had deleted — with the published password — and the
+    // next ledger save publish the shortened list to every other device.
+    if(CESTISCore.isTombstoneKey(key)) continue;
+    if(key === 'voctrain_dataVersion' || key === 'voctrain_adminDefaultReset') continue; // one-time migrations already applied here
     if(key === 'schoolDashboardGoogleAccessToken' || key === 'schoolDashboardGoogleTokenExpiry') continue; // preserve auth tokens for cloud sync
     if(key && key.startsWith('voctrain_user_')) continue; // preserve per-user chat data so messages survive logout/login
     if(key && (key.startsWith('voctrain_') || key.startsWith('schoolDashboard') || key === 'cmcDashboardData' || key === 'cmcHtmlContent')) {
@@ -7727,10 +7863,17 @@ function reconcileStudentsFromAccounts() {
     //
     // One person, one record: if a trainee of that exact name is already on the
     // roll, link the account to them and create nothing.
+    //
+    // ...but only to a namesake whose programme AGREES (spelling variants
+    // still agree) and only when there is exactly one: two real people share
+    // names among 400 trainees, and linking a Plumbing John Brown to the
+    // Welding John Brown handed him that man's grades and certificate. Several
+    // agreeing namesakes is for an administrator to settle — nothing is linked
+    // or created; none at all means a different person, who gets a record.
     if (u.name) {
-      var nameOnlyMatch = students.find(function(s) {
-        return CESTISCore.sameName(s.name, u.name);
-      });
+      var _link = CESTISCore.accountAccess.studentLinkFor(u, students);
+      if (_link.ambiguous) return;
+      var nameOnlyMatch = _link.match || null;
       if (nameOnlyMatch) {
         if (u.studentDataId !== nameOnlyMatch.id) { u.studentDataId = nameOnlyMatch.id; changed = true; }
         // Fill a blank programme from the record we just linked to, so the two
@@ -8001,10 +8144,10 @@ function loadUserAccounts() {
     // default on every load silently undid admin password changes and left a
     // permanent default-credentials backdoor that synced to every device.
     // The default password is only seeded when the account has no password.
-    // The seeded password is PUBLISHED in this (public) repo and the built-in
-    // logins keep it until somebody changes it — the Centre's decision, so the
-    // administrator can always sign in on any device with the default unless
-    // the password has been changed. Seeds carry defaultPassword:true so the
+    // The seeded password is PUBLISHED in this (public) repo, so it opens
+    // nothing by itself: a sign-in with it is refused once the Centre has an
+    // administrator with a real password, and before that it only leads to
+    // "set a new password" (publishedDefaultGate). Seeds carry defaultPassword:true so the
     // cloud merge knows they hold a seed, not a password somebody set; a seed
     // never replaces a real password. A real, admin-set password never carries
     // the marker. (Older versions marked seeds mustChangePassword and forced a
@@ -8054,32 +8197,11 @@ function loadUserAccounts() {
       if(!rec.password) { rec.password = DEFAULT_SEED_PW; rec.defaultPassword = true; }
       console.warn('[Accounts] No administrator could sign in — the built-in recovery login (' + rec.username + ') has been re-enabled.');
     }
-    // The Centre's decision (2 September 2026): the built-in administrator
-    // signs in with the published default on every device. Every copy of that
-    // account in circulation — a default hashed by an older version, a
-    // password set under the forced change those versions imposed, a stale
-    // copy in a folder — is put back to the default ONCE, carrying the stamp
-    // of that decision, so it outranks every copy from before it and yields
-    // to any password the Centre sets after it. Each device applies it once.
-    var ADMIN_DEFAULT_RESET = { version: 1, at: '2026-09-03T05:00:00.000Z' };
-    try {
-      var _resetDone = parseInt(CESTISStore.getItem('voctrain_adminDefaultReset') || '0', 10) || 0;
-      if (_resetDone < ADMIN_DEFAULT_RESET.version) {
-        var adm = userAccounts.find(function(a){ return a && a.id === 'USR-001'; });
-        if (adm && (Date.parse(adm.updatedAt || '') || 0) < Date.parse(ADMIN_DEFAULT_RESET.at)) {
-          adm.password = DEFAULT_SEED_PW;
-          adm.defaultPassword = true;
-          delete adm.mustChangePassword;
-          try { delete adm._plaintextPw; } catch(e) {}
-          adm.role = 'admin';
-          adm.status = 'active';
-          if(!adm.username) adm.username = 'cestisadmin';
-          adm.updatedAt = ADMIN_DEFAULT_RESET.at;
-          console.warn('[Accounts] The built-in administrator is back on the published default password (one-time reset v' + ADMIN_DEFAULT_RESET.version + ').');
-        }
-        CESTISStore.setItem('voctrain_adminDefaultReset', String(ADMIN_DEFAULT_RESET.version));
-      }
-    } catch(e) {}
+    // (A one-time reset used to put the built-in administrator back on the
+    // published default on every device — 'voctrain_adminDefaultReset'. It is
+    // retired: a password printed in a public repository must never be handed
+    // back to the Centre's most powerful login. The stored flag is left alone;
+    // nothing reads it any more.)
     // Mark ANY account still carrying a published default (the literal seeds
     // above start plaintext, before hashing runs) so the cloud merge treats it
     // as a seed. A flag left by an older version meant the same thing and is
@@ -8300,7 +8422,8 @@ async function createUserAccount() {
   if(_chairBox) _chairBox.checked = false;
   // Create linked student/instructor data so the account is immediately usable
   if (role === 'student') {
-    var existingStudent = students.find(function(s) { return s.name === name; });
+    // The trainee of that name ON THE CHOSEN PROGRAMME, not any namesake.
+    var existingStudent = findStudentRecordForAccount(newAccount);
     if (existingStudent) {
       newAccount.studentDataId = existingStudent.id;
     } else {
@@ -8489,6 +8612,12 @@ async function forgotPwLookup() {
     showToast('No recovery email is on file for this account. Please contact an administrator to reset your password.', 'error');
     return;
   }
+  // The built-in logins came with placeholder addresses nobody at the Centre
+  // reads; a code sent there is lost, or read by whoever owns that domain.
+  if(CESTISCore.accountAccess.isPlaceholderRecoveryEmail(recovery)) {
+    showToast('This login has no real recovery email yet. Ask another administrator to reset its password (Settings → Users).', 'error');
+    return;
+  }
   forgotPwState.account = acct;
   document.getElementById('forgotPwEmailHint').textContent = forgotPwMaskEmail(recovery);
   document.getElementById('forgotPwEmail').value = '';
@@ -8551,6 +8680,18 @@ async function forgotPwSubmit() {
   showToast('Password reset successfully. You can now log in with your new password.');
 }
 
+// An account an administrator switches off is marked as such, so it never
+// reads as a placeholder "awaiting review" in Verify Users — where Approve All
+// used to switch it straight back on. Switching it on again clears the mark.
+function markDisabledByPerson(u) {
+  if(!u) return;
+  if(u.status === 'disabled') {
+    u.disabledAt = new Date().toISOString();
+    u.disabledBy = (currentLoggedInUser && (currentLoggedInUser.username || currentLoggedInUser.id)) || 'admin';
+  } else {
+    delete u.disabledAt; delete u.disabledBy;
+  }
+}
 function toggleUserStatus(userId) {
   var user = userAccounts.find(function(u){ return u.id === userId; });
   if(!user) return;
@@ -8573,6 +8714,7 @@ function toggleUserStatus(userId) {
     }
   }
   user.status = was === 'active' ? 'disabled' : 'active';
+  markDisabledByPerson(user);
   touchAccount(user);
   saveUserAccounts();
   renderUserAccountsTable();
@@ -8623,7 +8765,7 @@ function updateBulkBar() {
 function bulkActivate() {
   umSelectedIds.forEach(function(id) {
     var u = userAccounts.find(function(a){ return a.id === id; });
-    if(u) { u.status = 'active'; touchAccount(u); }
+    if(u) { u.status = 'active'; markDisabledByPerson(u); touchAccount(u); }
   });
   saveUserAccounts();
   umSelectedIds = [];
@@ -8642,7 +8784,7 @@ function bulkDeactivate() {
   }
   umSelectedIds.forEach(function(id) {
     var u = userAccounts.find(function(a){ return a.id === id; });
-    if(u) { u.status = 'disabled'; touchAccount(u); }
+    if(u) { u.status = 'disabled'; markDisabledByPerson(u); touchAccount(u); }
   });
   saveUserAccounts();
   umSelectedIds = [];
@@ -8891,23 +9033,37 @@ function initGlobalSearch() {
     dropdown.className = 'search-results';
     input.parentElement.appendChild(dropdown);
   }
+  // Signed in and out several times in one tab, this used to stack one more
+  // set of listeners per sign-in; the box is wired once.
+  if(input._cestisSearchBound) return;
+  input._cestisSearchBound = true;
   input.addEventListener('input', function() {
     const q = this.value.trim().toLowerCase();
     if(q.length < 2) { dropdown.classList.remove('active'); return; }
     let results = [];
-    students.forEach(s => {
-      if(s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q) || s.course.toLowerCase().includes(q)) {
+    const _lc = function(v) { return String(v == null ? '' : v).toLowerCase(); };
+    // Only what this role may look through (CESTISCore.sessionAccess.searchPool).
+    const _pool = CESTISCore.sessionAccess.searchPool(currentRole, {
+      students: students, exams: exams,
+      me: currentRole === 'student' ? currentStudent : null,
+      myCourse: currentRole === 'instructor' && currentInstructor ? currentInstructor.course : '',
+      courseMatch: function(a, b) { try { return instructorCourseMatch(a, b); } catch(e) { return _lc(a).trim() === _lc(b).trim(); } }
+    });
+    _pool.students.forEach(s => {
+      if(!s) return;
+      if(_lc(s.name).includes(q) || _lc(s.id).includes(q) || _lc(s.course).includes(q)) {
         results.push({title:s.name,desc:s.id+' - '+s.course,icon:stageIcons[s.stage],page:currentRole==='admin'?'students':'s-progress',cat:'Student',catClass:'cat-student'});
       }
     });
-    exams.forEach(e => {
-      if(e.title.toLowerCase().includes(q) || e.course.toLowerCase().includes(q)) {
+    _pool.exams.forEach(e => {
+      if(!e) return;
+      if(_lc(e.title).includes(q) || _lc(e.course).includes(q)) {
         results.push({title:e.title,desc:e.course+' - '+e.date,icon:'\uD83D\uDCDD',page:currentRole==='admin'?'exams':'s-exams',cat:'Exam',catClass:''});
       }
     });
     skillAreas.forEach(sk => {
-      if(sk.name.toLowerCase().includes(q)) {
-        results.push({title:sk.name,desc:sk.desc.substring(0,50)+'...',icon:sk.icon,page:'training',cat:'Course',catClass:'cat-course'});
+      if(sk && _lc(sk.name).includes(q)) {
+        results.push({title:sk.name,desc:String(sk.desc || '').substring(0,50)+'...',icon:sk.icon,page:'training',cat:'Course',catClass:'cat-course'});
       }
     });
     results = results.slice(0,8);
@@ -9129,7 +9285,7 @@ async function handleAdminClick() {
     try { console.log('[Login][admin] pwMatch=' + pwMatch); } catch(_) {}
     if(!pwMatch) { recordLoginFailure(uname); alert('Password incorrect for "' + uname + '".'); return; }
     clearLoginFailures(uname);
-    tfaGateLogin(adminUser, function(){ currentLoggedInUser = adminUser; enterApp('admin'); });
+    publishedDefaultGate(adminUser, pw, 'admin', function(){ tfaGateLogin(adminUser, function(){ currentLoggedInUser = adminUser; enterApp('admin'); }); });
   } catch(err) { console.error('handleAdminClick error:', err); alert('Error: ' + err.message); }
 }
 async function handleStudentClick() {
@@ -9171,6 +9327,12 @@ async function handleStudentClick() {
     // record for their own programme when a name is shared.
     var studentMatch = findStudentRecordForAccount(userAccount);
     if(!studentMatch) {
+      // A trainee the Centre deleted does not get a fresh record (and the
+      // whole portal) just by signing in with a login that outlived them.
+      if(studentAccountTombstoned(userAccount)) {
+        alert('This trainee record has been removed by the Centre. Please contact the office.');
+        return;
+      }
       // Genuinely no record for this trainee — create one.
       studentMatch = createStudentDataForAccount(userAccount);
     }
@@ -9185,7 +9347,7 @@ async function handleStudentClick() {
     if(savedStuProfile) {
       if(savedStuProfile.name) { studentMatch.name = savedStuProfile.name; userAccount.name = savedStuProfile.name; }
     }
-    tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('student'); });
+    publishedDefaultGate(userAccount, pw, 'student', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('student'); }); });
   } catch(err) { console.error('handleStudentClick error:', err); alert('Error: ' + err.message); }
 }
 async function handleInstructorClick() {
@@ -9225,7 +9387,7 @@ async function handleInstructorClick() {
       if(savedInsProfile.phone) insMatch.phone = savedInsProfile.phone;
       if(savedInsProfile.specialization) insMatch.specialization = savedInsProfile.specialization;
     }
-    tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('instructor'); });
+    publishedDefaultGate(userAccount, pw, 'instructor', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('instructor'); }); });
   } catch(err) { console.error('handleInstructorClick error:', err); alert('Error: ' + err.message); }
 }
 async function handleAdminStaffClick() {
@@ -9252,7 +9414,7 @@ async function handleAdminStaffClick() {
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
     clearLoginFailures(uname);
-    tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('adminstaff'); });
+    publishedDefaultGate(userAccount, pw, 'adminstaff', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('adminstaff'); }); });
   } catch(err) { console.error('handleAdminStaffClick error:', err); alert('Error: ' + err.message); }
 }
 
@@ -9280,7 +9442,7 @@ async function handleCmcClick() {
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
     clearLoginFailures(uname);
-    tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('cmc'); });
+    publishedDefaultGate(userAccount, pw, 'cmc', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('cmc'); }); });
   } catch(err) { console.error('handleCmcClick error:', err); alert('Error: ' + err.message); }
 }
 
@@ -9325,8 +9487,10 @@ async function sendEmailOtp(account, purpose){
   var code = generateEmailOtp();
   _emailOtp = { code: code, accountId: account.id, purpose: purpose || '', email: email, expiresAt: Date.now() + EMAIL_OTP_TTL_MS, attempts: 0 };
   if(!emailOtpConfigured()){
-    alert('DEMO MODE — verification code for ' + forgotPwMaskEmail(email) + ':\n\n' + code + '\n\n(This would normally be emailed. It expires in 10 minutes.)');
-    return { ok:true, demo:true };
+    // Never shown on screen: blocking the e-mail library in the browser was
+    // enough to have the reset code printed for anybody's account.
+    _emailOtp = null;
+    return { ok:false, reason:'send-failed' };
   }
   try {
     await emailjs.send(window.EMAILJS_SERVICE_ID, window.EMAILJS_TEMPLATE_ID, { email: email, passcode: code, time: '10 minutes' });
@@ -9388,15 +9552,35 @@ function mergeTwoFactorState(localAcct, cloudAcct){
   // has more recently switched two-step OFF: those codes are spent history, and
   // re-seeding them from an older cloud copy left live backup codes sitting on
   // a disabled account.
+  //
+  // Codes are only ADDED from a copy of the same generation (equal stamps).
+  // Regenerating replaces the whole set and stamps it, and the dialog promises
+  // "Existing codes will stop working" — but the union used to add the OLD set
+  // straight back from any older copy, unused, so a leaked printout went on
+  // opening the account. Now: a strictly newer copy's list replaces this one
+  // (its codes are the live set); an older copy only burns codes this device
+  // already holds; either way a code used anywhere stays used.
   var localTwoStepOff = !localAcct.twoFactorSecret && localAcct.twoFactorEnabled !== true;
-  if(Array.isArray(cloudAcct.backupCodes) && !(localTwoStepOff && lt > ct)){
+  var cloudTwoStepOff = !cloudAcct.twoFactorSecret && cloudAcct.twoFactorEnabled !== true;
+  if(ct > lt && cloudAcct.twoFactorUpdatedAt && cloudTwoStepOff && !Array.isArray(cloudAcct.backupCodes)){
+    // Switched off (or cleared by an administrator) more recently elsewhere: the codes went with it.
+    if(Array.isArray(localAcct.backupCodes) && localAcct.backupCodes.length){ localAcct.backupCodes = null; changed = true; }
+  } else if(Array.isArray(cloudAcct.backupCodes) && !(localTwoStepOff && lt > ct)){
     if(!Array.isArray(localAcct.backupCodes)){ localAcct.backupCodes = []; changed = true; }
     var byCode = {};
     localAcct.backupCodes.forEach(function(bc){ if(bc && bc.code) byCode[bc.code] = bc; });
+    var cloudCodes = {};
+    cloudAcct.backupCodes.forEach(function(cbc){ if(cbc && cbc.code) cloudCodes[cbc.code] = cbc; });
+    if(ct > lt && cloudAcct.twoFactorUpdatedAt){
+      // A newer generation: its list is the live one. Drop what it no longer holds.
+      var kept = localAcct.backupCodes.filter(function(bc){ return bc && bc.code && cloudCodes[bc.code]; });
+      if(kept.length !== localAcct.backupCodes.length){ localAcct.backupCodes = kept; changed = true; byCode = {}; kept.forEach(function(bc){ byCode[bc.code] = bc; }); }
+    }
+    var mayAdd = ct >= lt;   // never add codes from an OLDER copy
     cloudAcct.backupCodes.forEach(function(cbc){
       if(!cbc || !cbc.code) return;
       var ex = byCode[cbc.code];
-      if(!ex){ localAcct.backupCodes.push({ code: cbc.code, used: !!cbc.used }); byCode[cbc.code] = localAcct.backupCodes[localAcct.backupCodes.length-1]; changed = true; }
+      if(!ex){ if(!mayAdd) return; localAcct.backupCodes.push({ code: cbc.code, used: !!cbc.used }); byCode[cbc.code] = localAcct.backupCodes[localAcct.backupCodes.length-1]; changed = true; }
       else if(cbc.used && !ex.used){ ex.used = true; changed = true; }
     });
   }
@@ -9555,11 +9739,14 @@ async function tfaBeginEmailLogin(account, proceed){
   // Titled for what it actually is. Calling an emailed sign-in code "Two-Step
   // Verification" made accounts look as though authenticator two-step were on
   // while the manage panel plainly said it was off.
-  tfaOpenVerify(account, { title: 'Email Sign-in Code', subtitle: 'Sending a verification code to your email…', allowBackup: false, allowEmail: false }, proceed);
+  // A backup code is accepted here too, so a failed e-mail is not a lockout.
+  tfaOpenVerify(account, { title: 'Email Sign-in Code', subtitle: 'Sending a verification code to your email…', allowBackup: tfaHasUnusedBackupCodes(tfaAccountRecord(account)), allowEmail: false }, proceed);
   tfaVerifyAccount = account; // ensure still set
   var res = await sendEmailOtp(account, 'login');
   if(!res.ok){
-    tfaShowError(res.reason === 'no-email' ? 'No recovery email is on file — contact an administrator.' : 'Could not email a code — please try again.');
+    tfaShowError(res.reason === 'no-email' ? 'No recovery email is on file — contact an administrator.'
+      : (tfaHasUnusedBackupCodes(tfaAccountRecord(account)) ? 'Could not email a code — use one of your backup codes instead.' : 'Could not email a code — try again, or ask an administrator to turn e-mail codes off for you.'));
+    if(tfaHasUnusedBackupCodes(tfaAccountRecord(account))) tfaShowBackupInput();
     return;
   }
   tfaEmailMode = true;
@@ -9588,7 +9775,10 @@ function tfaGateLogin(account, proceed){
         : 'Enter the 6-digit code from your authenticator app to finish signing in as ' + who + '.',
       allowBackup: true,
       backupOnly: libMissing,
-      allowEmail: true
+      // An emailed code stands in for the authenticator only for accounts that
+      // chose email codes, or when the authenticator cannot be checked here at
+      // all — otherwise whoever controls the inbox skips the second step.
+      allowEmail: !!account.emailOtpLogin || libMissing
     }, proceed);
     return;
   }
@@ -9618,10 +9808,16 @@ function tfaEmailSectionHtml(acct){
     + '</p>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
     + '<input type="email" id="tfaEmailInput" class="form-control" style="flex:1;min-width:200px;" placeholder="you@example.com" value="' + safeEmail + '" onkeydown="if(event.key===\'Enter\')tfaSaveEmail()">'
+    + '<input type="password" id="tfaEmailPassword" class="form-control" style="flex:1;min-width:160px;" placeholder="Your current password" autocomplete="current-password" onkeydown="if(event.key===\'Enter\')tfaSaveEmail()">'
     + '<button class="btn btn-primary" onclick="tfaSaveEmail()">Save email</button>'
     + '</div></div>';
 }
-function tfaSaveEmail(){
+// The recovery email is where password-reset codes go, so changing it is as
+// good as changing the password: anybody with a minute at an unlocked session
+// could point it at themselves and take the account later through "Forgot
+// password". It now takes the current password — and, with two-step on, a
+// fresh authenticator code — exactly like the other account-changing steps.
+async function tfaSaveEmail(){
   var acct = tfaAccountRecord(currentLoggedInUser);
   if(!acct){ showToast('Sign in first to update your email.', 'warning'); return; }
   var input = document.getElementById('tfaEmailInput');
@@ -9630,6 +9826,24 @@ function tfaSaveEmail(){
   if(!email){ showToast('Please enter an email address.', 'warning'); return; }
   var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if(!emailRegex.test(email)){ showToast('Please enter a valid email address.', 'error'); return; }
+  if(String(acct.email || '').trim().toLowerCase() === email.toLowerCase()){ showToast('That is already your recovery email.'); return; }
+  var pwEl = document.getElementById('tfaEmailPassword');
+  var pw = pwEl ? pwEl.value : '';
+  // (An account with no password at all — a Google-only sign-in — has
+  // nothing to re-enter; its two-step code, if any, still applies below.)
+  if(CESTISCore.accountAccess.hasPassword(acct)){
+    if(!pw){ showToast('Enter your current password to change the recovery email.', 'warning'); return; }
+    var pwOk = false;
+    try { pwOk = await verifyPassword(pw, acct.password); } catch(e) { pwOk = false; }
+    if(!pwOk){ if(pwEl) pwEl.value = ''; showToast('That password is not correct.', 'error'); return; }
+  }
+  if(tfaEnabled(acct)){
+    tfaOpenVerify(acct, { title: 'Confirm Email Change', subtitle: 'Enter your current 6-digit code to change the recovery email.', allowBackup: false }, function(){ tfaApplyEmail(acct, email); });
+    return;
+  }
+  tfaApplyEmail(acct, email);
+}
+function tfaApplyEmail(acct, email){
   acct.email = email;
   if(currentLoggedInUser && currentLoggedInUser.id === acct.id) currentLoggedInUser.email = email;
   touchAccount(acct);
@@ -9651,16 +9865,26 @@ function tfaEmailLoginToggleHtml(acct){
     + (on ? '<span style="font-size:12px;color:var(--green);margin-left:10px;">Currently on</span>' : '')
     + '</div>';
 }
+function tfaHasUnusedBackupCodes(acct){
+  return !!(acct && Array.isArray(acct.backupCodes) && acct.backupCodes.some(function(bc){ return bc && bc.code && !bc.used; }));
+}
 function tfaToggleEmailLogin(){
   var acct = tfaAccountRecord(currentLoggedInUser);
   if(!acct){ showToast('Sign in first.', 'warning'); return; }
   if(!acct.emailOtpLogin && !accountRecoveryEmail(acct)){ showToast('Add a recovery email first so codes have somewhere to go.', 'warning'); return; }
   acct.emailOtpLogin = !acct.emailOtpLogin;
   acct.twoFactorUpdatedAt = new Date().toISOString(); // sync this preference newest-wins across devices
+  // E-mail can fail — the free sending quota runs out, or there is no internet
+  // at all on the Offline System — and an account that signs in only with an
+  // e-mailed code was then locked out. Backup codes are the way in when that
+  // happens; an account turning e-mail codes on gets a set if it has none.
+  var _newCodes = null;
+  if(acct.emailOtpLogin && !tfaHasUnusedBackupCodes(acct)) { _newCodes = tfaGenerateBackupCodes(); acct.backupCodes = _newCodes; }
   if(currentLoggedInUser && currentLoggedInUser.id === acct.id) currentLoggedInUser.emailOtpLogin = acct.emailOtpLogin;
   saveUserAccounts();
   showToast(acct.emailOtpLogin ? 'Email sign-in codes turned on.' : 'Email sign-in codes turned off.');
   tfaRenderManage();
+  if(_newCodes) { tfaPendingBackupCodes = _newCodes; tfaShowBackupCodesModal(); }
 }
 function tfaRenderManage(){
   var acct = tfaAccountRecord(currentLoggedInUser);
@@ -9820,9 +10044,10 @@ function adminClearTwoStepApply(userId){
   return true;
 }
 
-var _forceChangePwRole = null;
-function openForceChangePw(role) {
+var _forceChangePwRole = null, _forceChangePwThen = null;
+function openForceChangePw(role, then) {
   _forceChangePwRole = role;
+  _forceChangePwThen = typeof then === 'function' ? then : null;
   var n = document.getElementById('forceChangePwNew');
   var c = document.getElementById('forceChangePwConfirm');
   var e = document.getElementById('forceChangePwError');
@@ -9834,7 +10059,7 @@ function forceChangePwCancel() {
   // Refuse access rather than let a default-password account in.
   closeModal('forceChangePwModal');
   currentLoggedInUser = null;
-  _forceChangePwRole = null;
+  _forceChangePwRole = null; _forceChangePwThen = null;
 }
 async function forceChangePwSubmit() {
   var err = document.getElementById('forceChangePwError');
@@ -9846,7 +10071,7 @@ async function forceChangePwSubmit() {
   if(!np || np.length < 8){ fail('Password must be at least 8 characters.'); return; }
   if(np !== cp){ fail('Passwords do not match.'); return; }
   // Must not keep any known default password.
-  if(np === 'cestisadmin123$' || np === 'admin123' || np.toLowerCase() === 'password'){ fail('Choose a password that is not the default.'); return; }
+  if(KNOWN_DEFAULT_PASSWORDS.indexOf(np) !== -1 || np.toLowerCase() === 'password'){ fail('Choose a password that is not the default.'); return; }
   var canonical = userAccounts.find(function(u){ return u.id === acct.id; }) || acct;
   canonical.password = await hashPassword(np);
   delete canonical.defaultPassword; delete canonical.mustChangePassword;
@@ -9857,14 +10082,36 @@ async function forceChangePwSubmit() {
   saveUserAccounts();
   closeModal('forceChangePwModal');
   showToast('Password updated. Welcome.');
-  var role = _forceChangePwRole; _forceChangePwRole = null;
-  enterApp(role);
+  var role = _forceChangePwRole, then = _forceChangePwThen; _forceChangePwRole = null; _forceChangePwThen = null;
+  if(then) then(); else enterApp(role);
+}
+
+/* A sign-in whose password has just matched one of the PUBLISHED defaults.
+   The default opens nothing by itself (CESTISCore.accountAccess
+   .publishedDefaultLogin): once the Centre has an administrator with a
+   password of its own it is refused outright, and before that — a brand-new
+   installation — it only leads to "set a new password", before any page of
+   the platform opens. Any other password goes straight on to proceed(). */
+function publishedDefaultGate(account, typedPw, role, proceed) {
+  if(!CESTISCore.accountAccess.isPublishedDefault(typedPw)) { proceed(); return; }
+  var res = CESTISCore.accountAccess.publishedDefaultLogin(userAccounts, account);
+  if(!res.allowed) { alert(res.message); return; }
+  currentLoggedInUser = account;
+  openForceChangePw(role, proceed);
 }
 function enterApp(role) {
   try {
-    // The built-in logins keep their published default password until somebody
-    // changes it — the Centre's decision — so nothing forces a change here. (The
-    // force-change modal above is kept only for the Centre to reinstate.)
+    // The portal opened is the one the signed-in account holds. enterApp()
+    // trusted its argument, so one console call opened the Administrator
+    // panel over a trainee's sign-in. (A browser-side check — see accounts-05
+    // in the audit for what only a server can enforce.)
+    if(!currentLoggedInUser || String(currentLoggedInUser.role || '').trim().toLowerCase() !== role) {
+      console.warn('[Session] Refused to open the ' + role + ' portal for an account that does not hold that role.');
+      return;
+    }
+    // A published default password never reaches this point: the sign-in
+    // handlers send it through publishedDefaultGate, which refuses it or makes
+    // the person set a new password first.
     // Maintenance mode check — block all non-admin users
     if(systemSettings.maintenanceMode === true && role !== 'admin') {
       alert('The site is currently under maintenance. Only administrators can access the system at this time. Please try again later.');
@@ -9940,6 +10187,13 @@ function enterApp(role) {
       showPage('s-dashboard');
     }
     initGlobalSearch();
+    // A built-in login still carrying its placeholder recovery address cannot
+    // use "Forgot password" (the code would go nowhere): ask for a real one.
+    try {
+      if(currentLoggedInUser && CESTISCore.accountAccess.isPlaceholderRecoveryEmail(currentLoggedInUser.email)) {
+        setTimeout(function(){ showToast('Set a real recovery email for this login (🛡 two-step settings in the top bar) — the built-in address is a placeholder nobody reads.', 'warning'); }, 1500);
+      }
+    } catch(e) {}
     const bellBtn = document.querySelector('.topbar-btn[title="Notifications"]');
     if(bellBtn) bellBtn.onclick = function(e) { e.stopPropagation(); toggleNotifications(); };
     updateNotificationDot();
@@ -9947,8 +10201,9 @@ function enterApp(role) {
 
     // Notify admin of pending/disabled accounts needing review
     if (role === 'admin') {
-      var pendingCount = userAccounts.filter(function(u) { return u.status === 'pending'; }).length;
-      var disabledCount = userAccounts.filter(function(u) { return u.status === 'disabled' && u.role !== 'admin'; }).length;
+      var _queue = CESTISCore.accountAccess.reviewQueue(userAccounts);
+      var pendingCount = _queue.filter(function(u) { return u.status === 'pending'; }).length;
+      var disabledCount = _queue.filter(function(u) { return u.status === 'disabled'; }).length;
       if (pendingCount > 0 || disabledCount > 0) {
         var msg = '';
         if (pendingCount > 0) msg += pendingCount + ' account(s) awaiting approval';
@@ -10038,6 +10293,7 @@ function handleGmailProfile(profile, role) {
     // Active account — log them in
     if(existing.role === 'student') {
       var studentMatch = findStudentRecordForAccount(existing);
+      if(!studentMatch && studentAccountTombstoned(existing)) { alert('This trainee record has been removed by the Centre. Please contact the office.'); return; }
       if(!studentMatch) studentMatch = createStudentDataForAccount(existing);
       currentStudent = studentMatch;
       // Resolve instructor name if missing
@@ -10111,7 +10367,9 @@ async function submitRegistration() {
   var programme = document.getElementById('regProgramme').value;
   var password = document.getElementById('regPassword').value;
   var passwordConfirm = document.getElementById('regPasswordConfirm').value;
-  var role = document.getElementById('regRole').value;
+  // The form's role travels in a hidden field anybody can edit; a registration
+  // may only ever ask to be a trainee or an instructor.
+  var role = CESTISCore.accountAccess.registrationRole(document.getElementById('regRole').value);
 
   if(!name || name.length < 2) { alert('Please enter your full name.'); return; }
   if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter your FULL name — first name AND last name (e.g. "John Smith").'); return; }
@@ -10135,11 +10393,15 @@ async function submitRegistration() {
   var hashedPassword = await hashPassword(password);
 
   // Create the user account with pending status
+  // A username nobody else holds on this device: kbrown@gmail and kbrown@yahoo
+  // are two people, and a shared 'kbrown' made the sync treat them as one.
+  var _base = email.split('@')[0], _uname = _base, _n = 1;
+  while (userAccounts.some(function(u){ return u && String(u.username || '').toLowerCase() === _uname.toLowerCase(); })) { _n++; _uname = _base + _n; }
   var newUser = {
     id: cestisGenId('USR-'),
     name: name,
     role: role,
-    username: email.split('@')[0],
+    username: _uname,
     password: hashedPassword,
     email: email,
     programme: programme,
@@ -10215,10 +10477,10 @@ function findStudentRecordForAccount(account) {
     if (sid) match = students.find(function(s) { return s.id === sid; });
   }
   if (!match) {
-    var wantName = CESTISCore.normName(account.name);
-    var wantCourse = CESTISCore.normCourse(account.programme || '');
-    var byName = students.filter(function(s) { return wantName && CESTISCore.normName(s.name) === wantName; });
-    match = (wantCourse && byName.find(function(s) { return CESTISCore.normCourse(s.course) === wantCourse; })) || byName[0] || null;
+    // By name only when the programme agrees and the namesake is unique — the
+    // first same-named trainee in ANY programme was someone else's record
+    // (CESTISCore.accountAccess.studentLinkFor).
+    match = CESTISCore.accountAccess.studentLinkFor(account, students).match || null;
   }
   // Repair the link so the next sign-in resolves on the first try.
   if (match && account.studentDataId !== match.id) {
@@ -10228,6 +10490,15 @@ function findStudentRecordForAccount(account) {
   return match;
 }
 
+// Does this student login point at a trainee the Centre deleted — by its link
+// or by the stable id its name and programme give?
+function studentAccountTombstoned(account) {
+  if (!account) return false;
+  try {
+    if (account.studentDataId && isStudentDeleted(account.studentDataId)) return true;
+    return cestisIsStudentTombstoned({ id: '', name: account.name, course: account.programme || '' });
+  } catch (e) { return false; }
+}
 function createStudentDataForAccount(userAccount) {
   var prog = userAccount.programme || 'Welding';
   var matchedInstructor = instructorData.find(function(ins){ return ins.course && instructorCourseMatch(prog, ins.course); });
@@ -10319,9 +10590,11 @@ function createInstructorDataForAccount(userAccount) {
 
 // ----- Verify Users Page (Admin) -----
 function renderVerifyUsersPage() {
-  var pending = userAccounts.filter(function(u) { return u.status === 'pending'; });
-  var disabled = userAccounts.filter(function(u) { return u.status === 'disabled' && u.role !== 'admin'; });
-  var needsReview = pending.concat(disabled);
+  // Only registrations and never-reviewed trainee placeholders: an account a
+  // person switched off is not "awaiting" anything (CESTISCore.accountAccess.reviewQueue).
+  var needsReview = CESTISCore.accountAccess.reviewQueue(userAccounts);
+  var pending = needsReview.filter(function(u) { return u.status === 'pending'; });
+  var disabled = needsReview.filter(function(u) { return u.status === 'disabled'; });
   var recentlyProcessed = userAccounts.filter(function(u) {
     return (u.status === 'active' || u.status === 'rejected') && u.approvedAt;
   }).sort(function(a, b) { return (b.approvedAt || '').localeCompare(a.approvedAt || ''); }).slice(0, 10);
@@ -10396,8 +10669,14 @@ function renderVerifyUsersPage() {
 }
 
 function approveUser(userId) {
+  if(currentRole !== 'admin') return;
   var user = userAccounts.find(function(u) { return u.id === userId; });
   if(!user) return;
+  if(CESTISCore.accountAccess.isPrivilegedSelfRegistration(user)) {
+    alert('"' + user.name + '" registered through the public form but the request says "' + user.role + '".\n\n' +
+      'A registration can only be a trainee or an instructor. Reject it, or approve it and set the role yourself in Settings → Users → Edit.');
+    return;
+  }
   user.status = 'active';
   user.approvedAt = localDateStr();
   user.approvedBy = 'admin';
@@ -10433,6 +10712,7 @@ function approveUser(userId) {
 }
 
 function rejectUser(userId) {
+  if(currentRole !== 'admin') return;
   var user = userAccounts.find(function(u) { return u.id === userId; });
   if(!user) return;
   if(!confirm('Reject the account for "' + user.name + '"? They will not be able to log in.')) return;
@@ -10447,9 +10727,14 @@ function rejectUser(userId) {
 }
 
 function approveAllPending() {
-  var pending = userAccounts.filter(function(u) { return u.status === 'pending' || (u.status === 'disabled' && u.role !== 'admin'); });
-  if(pending.length === 0) { alert('No pending accounts to approve.'); return; }
-  if(!confirm('Activate all ' + pending.length + ' pending/disabled account(s)?')) return;
+  if(currentRole !== 'admin') return;
+  // The review queue only — never an account somebody deliberately switched
+  // off — and never a self-registration asking for a staff role.
+  var queue = CESTISCore.accountAccess.reviewQueue(userAccounts);
+  var skipped = queue.filter(function(u) { return CESTISCore.accountAccess.isPrivilegedSelfRegistration(u); });
+  var pending = queue.filter(function(u) { return !CESTISCore.accountAccess.isPrivilegedSelfRegistration(u); });
+  if(pending.length === 0) { alert('No pending accounts to approve.' + (skipped.length ? '\n\n' + skipped.length + ' registration(s) asking for a staff role must be reviewed one by one.' : '')); return; }
+  if(!confirm('Activate all ' + pending.length + ' pending account(s)?' + (skipped.length ? '\n\n' + skipped.length + ' registration(s) asking for a staff role are left for you to review one by one.' : ''))) return;
   var dateStr = localDateStr();
   pending.forEach(function(u) {
     u.status = 'active';
@@ -10489,7 +10774,8 @@ function approveAllPending() {
 }
 
 function rejectAllPending() {
-  var pending = userAccounts.filter(function(u) { return u.status === 'pending' || (u.status === 'disabled' && u.role !== 'admin'); });
+  if(currentRole !== 'admin') return;
+  var pending = CESTISCore.accountAccess.reviewQueue(userAccounts);
   if(pending.length === 0) { alert('No pending accounts to reject.'); return; }
   if(!confirm('Reject all ' + pending.length + ' pending account(s)?')) return;
   var dateStr = localDateStr();
@@ -10497,6 +10783,9 @@ function rejectAllPending() {
     u.status = 'rejected';
     u.approvedAt = dateStr;
     u.approvedBy = 'admin';
+    // Stamped like a single rejection, so an older 'pending' copy on another
+    // device cannot bring the registration back on the next sync.
+    touchAccount(u);
   });
   saveState();
   renderVerifyUsersPage();
@@ -10541,6 +10830,10 @@ function logout() {
   stopAutoSave();
   if(_debouncedCloudSaveTimer) { clearTimeout(_debouncedCloudSaveTimer); _debouncedCloudSaveTimer = null; }
   stopSessionExpiryCheck();
+  // The record pages stop accepting this session at once, not after the final save.
+  try { CESTISStore.removeItem('voctrain_sessionSeenAt'); CESTISStore.removeItem('voctrain_sessionStudentId'); } catch(e) {}
+  _sessionLocked = false;
+  try { closeModal('idleLockModal'); } catch(e) {}
   // Tear down the realtime chat data-channel peer
   try { if(typeof lmsChatRTStop === 'function') lmsChatRTStop(); } catch(e) {}
   var seq = ++_sessionSeq;
@@ -18302,11 +18595,12 @@ function saveStudentProfile() {
   const s = currentStudent;
   if(!s) return;
 
-  // A trainee's name is the one printed on their certificate, so it is not
-  // theirs to change here (the box is read-only and re-enabling it in the
-  // browser changes nothing): the office corrects it. A self-chosen name was
-  // also how markup got into every admin list that shows trainees.
-  const newName = s.name;
+  // A trainee's name is the one printed on their certificate, so typing a new
+  // one here never changes it: it is recorded as a REQUEST the office approves
+  // (below). Markup is refused outright — a self-chosen name was how script got
+  // into every admin list that shows trainees.
+  const newName = (document.getElementById('editProfileName')?.value || s.name || '').trim();
+  if(/[<>]/.test(newName)) { showToast('A name cannot contain < or >', 'warning'); return; }
   const email = document.getElementById('editProfileEmail')?.value?.trim();
   const phone = document.getElementById('editProfilePhone')?.value?.trim();
   const emergencyName = document.getElementById('editProfileEmergencyName')?.value?.trim();
@@ -18321,19 +18615,31 @@ function saveStudentProfile() {
   if(stu) stu.gender = newGender;
   s.gender = newGender;
 
-  // Update name in student data object, userAccounts, and students array
+  // A trainee cannot change their own legal name — they ASK, and the office
+  // applies it (Student Progress → Edit, which also knows about namesakes).
+  // A trainee's identity is their name plus programme: renaming herself to a
+  // classmate's name used to merge the two of them on the next load — one
+  // certificate, pooled results and attendance, one login deleted — on every
+  // device. The request waits on the profile for an administrator.
   var wasIdentity = null;
+  var nameRequest = null;
+  var _prevProfile = studentProfiles[s.id] || {};
   if(newName !== s.name) {
-    wasIdentity = { id: s.id, name: s.name, course: s.course, schoolFeeId: s.schoolFeeId };
-    s.name = newName;
-    if(currentLoggedInUser) currentLoggedInUser.name = newName;
-    var acct = userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; });
-    if(acct) acct.name = newName;
-    if(stu) { stu.name = newName; stu.lastModified = new Date().toISOString(); }
+    if(currentRole === 'student') {
+      nameRequest = newName;
+    } else {
+      wasIdentity = { id: s.id, name: s.name, course: s.course, schoolFeeId: s.schoolFeeId };
+      s.name = newName;
+      if(currentLoggedInUser) currentLoggedInUser.name = newName;
+      var acct = userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; });
+      if(acct) acct.name = newName;
+      if(stu) { stu.name = newName; stu.lastModified = new Date().toISOString(); }
+    }
   }
 
   studentProfiles[s.id] = {
-    name: newName,
+    name: s.name,
+    requestedName: nameRequest || (_prevProfile.requestedName && _prevProfile.requestedName !== s.name ? _prevProfile.requestedName : undefined),
     email: email,
     phone: phone,
     emergencyName: emergencyName,
@@ -18348,14 +18654,17 @@ function saveStudentProfile() {
   }
 
   // Sync profile pic and status to LMS Chat
-  syncProfileToLmsChat(currentLoggedInUser?.id, newName, 'student', s.course, 'student');
+  syncProfileToLmsChat(currentLoggedInUser?.id, s.name, 'student', s.course, 'student');
 
+  if(nameRequest) {
+    try { addNotification('Name change requested by ' + s.name + ' (' + s.id + '): "' + nameRequest + '" — apply it in Student Progress → Edit if it is correct.', 'info', null, ['admin']); } catch(e) {}
+  }
   saveState();
   closeModal('editStudentProfileModal');
-  showToast('Profile updated successfully');
+  showToast(nameRequest ? 'Profile updated. Your name change has been sent to the office for approval.' : 'Profile updated successfully');
 
   // Update sidebar with name and profile pic
-  updateSidebarAvatar(currentLoggedInUser?.id, newName);
+  updateSidebarAvatar(currentLoggedInUser?.id, s.name);
 
   // Re-render the student profile page to reflect changes
   buildStudentPages();
@@ -19114,8 +19423,51 @@ function adoptStoredCollection(key, current) {
     return current;
   } catch (e) { return current; }   // half-written or corrupt: never mistake it for empty
 }
+/* Is this message from one of OUR embedded pages? The listener below acted on
+   'students-updated' from ANY window — another site's frame, a window that
+   opened this one — and a forged {deleted:{name,course}} removed that
+   trainee's School Fee record and its payments for good. Only the named
+   frames of this dashboard, on this same site, are listened to. */
+function cestisMessageFromFrames(e, frameIds) {
+  if (!e || !e.source) return false;
+  try {
+    if (e.origin && e.origin !== 'null' && location.origin && location.origin !== 'null' && e.origin !== location.origin) return false;
+  } catch (err) { return false; }
+  for (var i = 0; i < frameIds.length; i++) {
+    var f = document.getElementById(frameIds[i]);
+    if (f && f.contentWindow && f.contentWindow === e.source) return true;
+  }
+  return false;
+}
+var STUDENT_PROGRESS_FRAMES = ['studentProgressFrame', 'asStudentProgressFrame'];
+var TRANSCRIPT_FRAMES = ['transcriptGradesFrame', 'asTranscriptGradesFrame', 'sTranscriptGradesFrame', 'iTraineeGradesFrame', 'ctrRequestsFrame', 'asCtrRequestsFrame'];
+/* May this session make the changes Student Progress reports? An Administrator,
+   or Admin Staff granted "Student Progress — manage". */
+function studentProgressManageAllowed() {
+  if (currentRole === 'admin') return true;
+  return currentRole === 'adminstaff' && !!(adminStaffAccessSettings && adminStaffAccessSettings.studentsmanage);
+}
+/* A trainee deleted in Student Progress: their login goes too, written down as
+   deleted so no sync hands it back — the cascade the old in-page delete did,
+   which the frame could never do (it held its own copy of the accounts under a
+   key the sign-in never read). Returns how many logins were removed. */
+function removeAccountsForDeletedStudent(deleted) {
+  if (!deleted || !deleted.id || !Array.isArray(userAccounts)) return 0;
+  var stable = '';
+  try { stable = CESTISCore.stableStudentId({ name: deleted.name, course: deleted.course }) || ''; } catch (err) {}
+  var gone = userAccounts.filter(function(u) {
+    return u && u.role === 'student' && u.studentDataId && (u.studentDataId === deleted.id || (stable && u.studentDataId === stable));
+  });
+  if (!gone.length) return 0;
+  gone.forEach(function(u) { recordDeletedUser(u.id); });
+  var ids = {}; gone.forEach(function(u) { ids[u.id] = true; });
+  userAccounts = userAccounts.filter(function(u) { return !(u && ids[u.id]); });
+  try { saveUserAccounts(); } catch (err) {}
+  return gone.length;
+}
 window.addEventListener('message', function(e) {
   if(e.data && e.data.type === 'students-updated') {
+    if (!cestisMessageFromFrames(e, STUDENT_PROGRESS_FRAMES)) return;
     students = adoptStoredCollection('voctrain_students', students);
     studentProfiles = adoptStoredCollection('voctrain_studentProfiles', studentProfiles);
     attendanceRecords = adoptStoredCollection('voctrain_attendance', attendanceRecords);
@@ -19133,15 +19485,17 @@ window.addEventListener('message', function(e) {
     }
     // A student deleted in the Student Progress frame must lose their School Fee
     // twin as well, tombstoned so no mirror resurrects them.
-    if (e.data.deleted) {
+    if (e.data.deleted && studentProgressManageAllowed()) {
       try { removeFeeTwinForStudent(e.data.deleted); }
       catch(e2) { console.warn('symmetric fee delete failed:', e2); }
+      try { removeAccountsForDeletedStudent(e.data.deleted); }
+      catch(e2) { console.warn('account removal for deleted trainee failed:', e2); }
     }
     // A student edited in the Student Progress frame may have been RENAMED.
     // That moves their stable id and breaks the name match, so the frame hands
     // over the identity they had beforehand — the only way left to find their
     // School Fee record and carry the new name onto it.
-    if (e.data.renamed) {
+    if (e.data.renamed && studentProgressManageAllowed()) {
       try {
         var _r = e.data.renamed;
         var _nrm = function(v){ return (v == null ? '' : String(v)).trim().toLowerCase().replace(/\s+/g, ' '); };
@@ -19162,6 +19516,7 @@ window.addEventListener('message', function(e) {
   // push the change to cloud sync — WITHOUT calling saveState(), which would
   // overwrite the store with this window's (now stale) arrays.
   if(e.data && e.data.type === 'transcript-data-updated') {
+    if (!cestisMessageFromFrames(e, TRANSCRIPT_FRAMES)) return;
     examResults = adoptStoredCollection('voctrain_examResults', examResults);
     updateCtrRequestsBadge();
     try { scheduleDebouncedCloudSave(); } catch(e2) {}
@@ -27783,6 +28138,21 @@ async function saveAccountsLedger() {
   if (typeof _sessionWiped !== 'undefined' && _sessionWiped) return false;
   _accountsLedgerSaving = true;
   try {
+    var fileId = await findAccountsLedgerFile();
+    if (fileId === 'LOOKUP_FAILED') return false;
+    // The ledger is rewritten whole, so a device must never publish FEWER
+    // deletions than the ledger already holds: read what is there and write
+    // down every removal it records before writing the union back.
+    if (fileId) {
+      try {
+        var cur = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: ledgerHeaders() });
+        if (cur.ok) {
+          var curLed = await cur.json();
+          if (curLed && Array.isArray(curLed.deletedUserIds)) curLed.deletedUserIds.forEach(function(id) { if (id && !isUserDeleted(id)) recordDeletedUser(id); });
+          dropDeletedAccounts();
+        }
+      } catch (e) {}
+    }
     var body = JSON.stringify({
       version: 1,
       savedAt: new Date().toISOString(),
@@ -27790,8 +28160,6 @@ async function saveAccountsLedger() {
       accounts: userAccounts,
       deletedUserIds: Object.keys((typeof _getDeletedUserIds === 'function' ? _getDeletedUserIds() : {}) || {})
     }, stripSecretFields);
-    var fileId = await findAccountsLedgerFile();
-    if (fileId === 'LOOKUP_FAILED') return false;
     var resp;
     if (fileId) {
       resp = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
@@ -27855,11 +28223,21 @@ function mergeCloudAccounts(cloudAccounts, opts) {
     if (typeof opts.accept === 'function' && !opts.accept(cloudUser)) return;
     var cloudUsername = String(cloudUser.username || '').trim().toLowerCase();
     var cloudEmail = String(cloudUser.email || '').trim().toLowerCase();
-    var localMatch = userAccounts.find(function(u) {
+    // The same id is the same account, and so is the same e-mail address
+    // (registration refuses a second account on one address). A shared
+    // USERNAME is only taken as the same person when it is safe to: one of
+    // the two copies is a placeholder (no password, or still on a seed) — the
+    // fee roll's and the chat backfill's device-made ids are exactly that.
+    // Usernames are cut from e-mail addresses, so kbrown@gmail and kbrown@yahoo
+    // collided: the second registration never reached Verify Users, or took
+    // over the first person's e-mail, password and status. Neither match is
+    // made between copies pointing at two different trainees.
+    var _real = function(a) { return CESTISCore.accountAccess.hasPassword(a) && !CESTISCore.accountAccess.isSeededLogin(a); };
+    var localMatch = userAccounts.find(function(u) { return u && u.id === cloudUser.id; }) || userAccounts.find(function(u) {
       if (!u) return false;
-      if (u.id === cloudUser.id) return true;
-      if (cloudUsername && u.username && String(u.username).trim().toLowerCase() === cloudUsername) return true;
+      if (u.studentDataId && cloudUser.studentDataId && u.studentDataId !== cloudUser.studentDataId) return false;
       if (cloudEmail && u.email && String(u.email).trim().toLowerCase() === cloudEmail) return true;
+      if (cloudUsername && u.username && String(u.username).trim().toLowerCase() === cloudUsername) return !(_real(u) && _real(cloudUser));
       return false;
     });
     if (!localMatch) {
@@ -27878,6 +28256,11 @@ function mergeCloudAccounts(cloudAccounts, opts) {
         changed++;
       }
       if (cloudUser.status && cloudUser.status !== localMatch.status) { localMatch.status = cloudUser.status; changed++; }
+      if ((cloudUser.disabledAt || '') !== (localMatch.disabledAt || '')) {
+        if (cloudUser.disabledAt) { localMatch.disabledAt = cloudUser.disabledAt; localMatch.disabledBy = cloudUser.disabledBy; }
+        else { delete localMatch.disabledAt; delete localMatch.disabledBy; }
+        changed++;
+      }
       if (cloudUser.name && cloudUser.name !== localMatch.name) { localMatch.name = cloudUser.name; changed++; }
       if (cloudUser.email && cloudUser.email !== localMatch.email) { localMatch.email = cloudUser.email; changed++; }
       if (cloudUser.programme !== undefined && cloudUser.programme !== localMatch.programme) { localMatch.programme = cloudUser.programme; changed++; }
@@ -27889,6 +28272,8 @@ function mergeCloudAccounts(cloudAccounts, opts) {
       if (_cSeed !== !!localMatch.defaultPassword) { if (_cSeed) localMatch.defaultPassword = true; else delete localMatch.defaultPassword; changed++; }
       if (_cu > _lu && cloudUser.updatedAt !== localMatch.updatedAt) { localMatch.updatedAt = cloudUser.updatedAt; changed++; }
     }
+    // The sign-in mark travels on its own, newest wins, whichever copy won above.
+    if (cloudUser.verifiedAt && (Date.parse(cloudUser.verifiedAt) || 0) > (Date.parse(localMatch.verifiedAt || '') || 0)) { localMatch.verifiedAt = cloudUser.verifiedAt; changed++; }
     if (cloudUser.studentDataId && !localMatch.studentDataId) { localMatch.studentDataId = cloudUser.studentDataId; changed++; }
     if (cloudUser.registeredVia && !localMatch.registeredVia) { localMatch.registeredVia = cloudUser.registeredVia; changed++; }
     // Two-step-verification state (secret, enabled flag, backup codes) has its
@@ -34042,6 +34427,7 @@ var asAccessPages = [
   { key:'announcements', label:'Announcements', desc:'View and create announcements' },
   { key:'calendar', label:'Calendar & Schedule', desc:'View and manage calendar events' },
   { key:'students', label:'Student Progress', desc:'View student data and progress' },
+  { key:'studentsmanage', label:'Student Progress — manage', desc:'Add, edit, certify and delete trainees (needs Student Progress too)' },
   { key:'certificates', label:'Certificate Tracking', desc:'View and manage certificates' },
   { key:'reports', label:'Reports & Analytics', desc:'Access reports and charts' },
   { key:'training', label:'Training Centres', desc:'View training centre information' },
@@ -44754,21 +45140,23 @@ function ttUnmount(){
                     alert('OTP sent to your email address');
                 }, function(error) {
                     console.error('Email failed:', error);
-                    // Show error but still allow user to continue with demo OTP
-                    alert('Email sending failed: ' + (error.text || error.message || 'Unknown error') + '\n\nFalling back to demo mode.');
-                    showDemoOTP(otp, email);
+                    otpSendFailed();
                 });
             } else {
-                // Demo mode - show OTP in alert (EmailJS not configured)
-                console.log('EmailJS not configured, using demo mode');
-                showDemoOTP(otp, email);
+                // E-mail is not set up here: the code cannot be delivered, so it is not shown either.
+                otpSendFailed();
             }
         }
 
-        // Show OTP in demo mode
-        function showDemoOTP(otp, email) {
-            showOTPStep(email);
-            alert('DEMO MODE\n\nYour One-Time Password is:\n\n' + otp + '\n\n(In production, this would be sent to your email)\n\nThis code expires in 10 minutes.');
+        // The code is NEVER shown on screen. A "demo mode" used to print it
+        // whenever the e-mail could not be sent — and anyone can make the send
+        // fail (switch the Wi-Fi off, block the e-mail service, use up its free
+        // quota; on the Offline System it always fails), then type the bursar's
+        // or administrator's e-mail and set themselves a new password. Without
+        // the e-mail, a reset is done by an administrator.
+        function otpSendFailed() {
+            currentOTP = null;
+            alert('The reset code could not be sent by e-mail.\n\nPlease contact the administrator to reset your password.');
         }
 
         // Show OTP entry step
@@ -47390,13 +47778,11 @@ function ttUnmount(){
             loadTimeRecords();
 
             // Auto-load user (no login required — page is embedded in authenticated dashboard)
+            // (Never runs — the embedded clock takes the dashboard's signed-in
+            // user in ttInitApp. It no longer falls back to the first Admin
+            // either, should anybody wire it up again.)
             const savedUser = CESTISStore.getItem('cestisCurrentUser');
-            if (savedUser) {
-                ttc_currentUser = JSON.parse(savedUser);
-            } else {
-                ttc_currentUser = staffMembers.find(s => s.role === 'Admin') || staffMembers[0];
-                if (ttc_currentUser) CESTISStore.setItem('cestisCurrentUser', JSON.stringify(ttc_currentUser));
-            }
+            ttc_currentUser = savedUser ? JSON.parse(savedUser) : null;
             if (ttc_currentUser) {
                 document.getElementById('mainDashboard').style.display = 'block';
                 document.getElementById('currentUserDisplay').textContent = `👤 ${ttc_currentUser.fullName} (${ttc_currentUser.workType})`;
@@ -47731,6 +48117,8 @@ function ttRefreshOnShow(){
     try {
       var d = ev && ev.data;
       if (!d || d.type !== 'cestis-fee-students' || !Array.isArray(d.students)) return;
+      // Only the School Fee page embedded here may hand over the fee roll.
+      if (typeof cestisMessageFromFrames === 'function' && !cestisMessageFromFrames(ev, ['feeManagementFrame', 'asFeeManagementFrame'])) return;
       CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(d.students));
       var added = false;
       // Forced: the fee page has just told us its roll changed, so this must not

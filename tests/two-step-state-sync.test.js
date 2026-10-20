@@ -125,10 +125,12 @@ Object.keys(BUILDS).forEach(function (where) {
   assert(r.local.backupCodes[0].used === true,
     where + ': a backup code spent anywhere is burned everywhere, whichever copy is newer');
 
-  // An account still on two-step still gains codes it has not seen.
+  // An account still on two-step still gains codes it has not seen from a
+  // copy of the SAME generation (equal stamps). An older copy's codes are a
+  // replaced set and must not come back — tests/backup-code-generations.test.js.
   r = mergeIn(where,
     { id: 'U1', twoFactorEnabled: true, twoFactorSecret: 'SECRET', backupCodes: [{ code: 'AAAA1111', used: false }], twoFactorUpdatedAt: TODAY },
-    { id: 'U1', twoFactorEnabled: true, twoFactorSecret: 'SECRET', backupCodes: [{ code: 'BBBB2222', used: false }], twoFactorUpdatedAt: YESTERDAY });
+    { id: 'U1', twoFactorEnabled: true, twoFactorSecret: 'SECRET', backupCodes: [{ code: 'BBBB2222', used: false }], twoFactorUpdatedAt: TODAY });
   assert(r.local.backupCodes.length === 2,
     where + ': codes are still unioned while two-step is on');
 });

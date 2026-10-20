@@ -226,12 +226,25 @@ function param(name) {
   try { var v = new URLSearchParams(location.search).get(name); return v ? v : ''; }
   catch (e) { return ''; }
 }
-var ROLE = param('role') || 'admin';
+// WHO is looking comes from the signed-in dashboard session, never from the
+// address: '?role=' used to default to 'admin' (so the bare URL opened the
+// grade editor and every trainee's personal details to anyone on a synced
+// device) and '?studentId=' picked whose grades a trainee saw. The address may
+// only narrow the view; with no live session the page shows nothing
+// (CESTISCore.sessionAccess).
+var VIEWER = (window.CESTISCore && CESTISCore.sessionAccess)
+  ? CESTISCore.sessionAccess.forPage({ allowed: ['admin', 'adminstaff', 'instructor', 'student'] })
+  : { ok: false, message: 'Shared data core failed to load. Please refresh.' };
+var ROLE = VIEWER.ok ? VIEWER.role : '';
 var IS_STAFF = (ROLE === 'admin' || ROLE === 'adminstaff');
-var MY_STUDENT_ID = param('studentId');
-var MY_NAME = param('name');
+var MY_STUDENT_ID = VIEWER.ok ? (VIEWER.studentId || '') : '';
+var _acctName = (VIEWER.ok && VIEWER.account && VIEWER.account.name) || '';
+// A trainee is named by their own account; an instructor's grade sheet keeps
+// the instructor-record name the dashboard hands over (it only chooses which
+// of the Centre's trainees a member of staff sees).
+var MY_NAME = !VIEWER.ok ? '' : (ROLE === 'student' ? _acctName : (param('name') || _acctName));
 var MY_COURSE = param('course');
-var ACTOR = param('actor') || (IS_STAFF ? 'Admin' : MY_NAME || ROLE);
+var ACTOR = (VIEWER.ok && VIEWER.account && VIEWER.account.name) || (IS_STAFF ? 'Admin' : MY_NAME || ROLE);
 
 /* ------------------------------ data access ------------------------------ */
 function readJSON(key, fallback) {
@@ -1014,8 +1027,11 @@ function renderAdmin() {
    STUDENT (TRAINEE) VIEW — live grades + transcript/certificate requests
    ============================================================================ */
 function myStudentRecord() {
+  // The session's own record only — never a name or id typed into the address.
+  // (The name fallback, for a record whose id moved since sign-in, uses the
+  // signed-in account's own name.)
   var s = MY_STUDENT_ID ? studentById(MY_STUDENT_ID) : null;
-  if (s) return s;
+  if (s || !MY_NAME) return s;
   var n = T.normText(MY_NAME), c = T.normText(MY_COURSE);
   return db.students.filter(function (st) {
     return st && T.normText(st.name) === n && (!c || T.normText(st.course) === c);
@@ -1146,6 +1162,10 @@ function insGradeSheet(id) {
    BOOT + LIVE UPDATES
    ============================================================================ */
 function renderForRole() {
+  if (!VIEWER.ok) {
+    document.getElementById('tgApp').innerHTML = '<div class="tg-empty">' + esc(VIEWER.message || 'Please sign in to the C.E.S.T.I.S dashboard first.') + '</div>';
+    return;
+  }
   if (IS_STAFF) renderAdmin();
   else if (ROLE === 'instructor') renderInstructor();
   else renderStudent();
@@ -1178,7 +1198,7 @@ setInterval(function () {
          String(CESTISStore.getItem(T.KEYS.requests) || '').length + '|' +
          String(CESTISStore.getItem('voctrain_students') || '').length;
   } catch (e) {}
-  if (fp !== lastFingerprint) {
+  if (fp !== lastFingerprint && VIEWER.ok) {
     lastFingerprint = fp;
     loadAll();
     renderForRole();
@@ -1190,6 +1210,7 @@ function boot() {
     document.getElementById('tgApp').innerHTML = '<div class="tg-empty">Shared data core failed to load. Please refresh.</div>';
     return;
   }
+  if (!VIEWER.ok) { renderForRole(); return; }   // nothing is read, rendered or written without a session
   loadAll();
   renderForRole();
 }
@@ -1218,14 +1239,27 @@ document.addEventListener('DOMContentLoaded', function () {
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20260802a"></script>
 <script>
-CESTISPageCloud.init({
+// Staff own this page's file: they pull it and push their edits. Anybody else
+// — a trainee, an instructor — only READS the grades and catalogues they are
+// shown, and never the other trainees' transcript profiles; a page opened with
+// no signed-in session moves nothing at all. (A trainee's device keeps only
+// its own transcript data after logout, so a push from it would carry a cut-
+// down list over the Centre's file.)
+var TG_READS = ['voctrain_students', 'voctrain_skillAreas', 'voctrain_deletedCentreIds', 'voctrain_examResults'];
+var _tgStaff = (typeof IS_STAFF !== 'undefined' && IS_STAFF);
+var _tgSignedIn = (typeof VIEWER !== 'undefined' && VIEWER.ok);
+CESTISPageCloud.init(_tgStaff ? {
   page: 'Transcript / Grades',
   file: 'CESTIS_Transcript_Grades.json',
   keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles'],
   // Grades are recorded against the trainee roll and the training centres, both
   // owned elsewhere: pulled from Drive here, never written back.
-  reads: ['voctrain_students', 'voctrain_skillAreas', 'voctrain_deletedCentreIds',
-          'voctrain_examResults']
+  reads: TG_READS
+} : {
+  page: 'Transcript / Grades (reader)',
+  file: 'CESTIS_Transcript_Grades.reader',      // a reader publishes no file of its own
+  readOnly: true,
+  reads: _tgSignedIn ? TG_READS.concat(['voctrain_transcriptGrades', 'voctrain_unitCatalogs']) : []
 });
 </script>
 <script src="megadata/schemas.js?v=1"></script>

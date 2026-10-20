@@ -5721,21 +5721,23 @@
                     alert('OTP sent to your email address');
                 }, function(error) {
                     console.error('Email failed:', error);
-                    // Show error but still allow user to continue with demo OTP
-                    alert('Email sending failed: ' + (error.text || error.message || 'Unknown error') + '\n\nFalling back to demo mode.');
-                    showDemoOTP(otp, email);
+                    otpSendFailed();
                 });
             } else {
-                // Demo mode - show OTP in alert (EmailJS not configured)
-                console.log('EmailJS not configured, using demo mode');
-                showDemoOTP(otp, email);
+                // E-mail is not set up here: the code cannot be delivered, so it is not shown either.
+                otpSendFailed();
             }
         }
 
-        // Show OTP in demo mode
-        function showDemoOTP(otp, email) {
-            showOTPStep(email);
-            alert('DEMO MODE\n\nYour One-Time Password is:\n\n' + otp + '\n\n(In production, this would be sent to your email)\n\nThis code expires in 10 minutes.');
+        // The code is NEVER shown on screen. A "demo mode" used to print it
+        // whenever the e-mail could not be sent — and anyone can make the send
+        // fail (switch the Wi-Fi off, block the e-mail service, use up its free
+        // quota; on the Offline System it always fails), then type the bursar's
+        // or administrator's e-mail and set themselves a new password. Without
+        // the e-mail, a reset is done by an administrator.
+        function otpSendFailed() {
+            currentOTP = null;
+            alert('The reset code could not be sent by e-mail.\n\nPlease contact the administrator to reset your password.');
         }
 
         // Show OTP entry step
@@ -8382,13 +8384,34 @@
             initializeDefaultAdmin();
             loadTimeRecords();
 
-            // Auto-load user (no login required — page is embedded in authenticated dashboard)
-            const savedUser = CESTISStore.getItem('cestisCurrentUser');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
+            // Who is clocking in comes from the signed-in C.E.S.T.I.S dashboard.
+            // This page used to sign whoever opened it in as the FIRST Admin on
+            // the staff list (or as whoever last used it on this device), with
+            // Edit Time Records and Staff Management — which feed payroll. With
+            // no live dashboard session it now opens nobody
+            // (CESTISCore.sessionAccess).
+            const _viewer = (window.CESTISCore && CESTISCore.sessionAccess)
+                ? CESTISCore.sessionAccess.forPage({ allowed: ['admin', 'adminstaff', 'instructor'] })
+                : { ok: false, message: 'Shared data core failed to load. Please refresh.' };
+            currentUser = null;
+            if (_viewer.ok && _viewer.account) {
+                const a = _viewer.account;
+                const want = String(a.username || '').toLowerCase();
+                const listed = staffMembers.find(s => s && (s.id === a.id || (want && String(s.username || '').toLowerCase() === want)));
+                // The time clock's own record when there is one, but never with
+                // more authority than the dashboard gives this person.
+                currentUser = Object.assign({ id: a.id, username: a.username, fullName: a.name || a.username,
+                    workType: a.workType || 'Full-Time', status: 'Active', email: a.email || '' }, listed || {},
+                    { role: a.role === 'admin' ? 'Admin' : ((listed && listed.role === 'Viewer') ? 'Viewer' : 'Staff') });
+                CESTISStore.setItem('cestisCurrentUser', JSON.stringify(currentUser));
             } else {
-                currentUser = staffMembers.find(s => s.role === 'Admin') || staffMembers[0];
-                if (currentUser) CESTISStore.setItem('cestisCurrentUser', JSON.stringify(currentUser));
+                const _md = document.getElementById('mainDashboard');
+                if (_md) _md.style.display = 'none';
+                const _lock = document.createElement('div');
+                _lock.id = 'clockSessionLock';
+                _lock.style.cssText = 'padding:60px 24px;text-align:center;font-family:sans-serif;';
+                _lock.textContent = '🔒 ' + (_viewer.message || 'Please sign in to the C.E.S.T.I.S dashboard first.');
+                document.body.insertBefore(_lock, document.body.firstChild);
             }
             if (currentUser) {
                 document.getElementById('mainDashboard').style.display = 'block';

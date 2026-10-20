@@ -118,7 +118,13 @@
 var T = window.CESTISCore && CESTISCore.Transcript;
 var KEY = T ? T.KEYS.requests : 'voctrain_certTranscriptRequests';
 function param(n) { try { return new URLSearchParams(location.search).get(n) || ''; } catch (e) { return ''; } }
-var ACTOR = param('actor') || 'Admin';
+// Staff only, and only inside a live signed-in session — this queue lists every
+// trainee's requests, and the page used to open for anyone who typed its
+// address (CESTISCore.sessionAccess). The actor is the signed-in account.
+var VIEWER = (window.CESTISCore && CESTISCore.sessionAccess)
+  ? CESTISCore.sessionAccess.forPage({ allowed: ['admin', 'adminstaff'] })
+  : { ok: false, message: 'Shared data core failed to load. Please refresh.' };
+var ACTOR = (VIEWER.ok && VIEWER.account && VIEWER.account.name) || param('actor') || 'Admin';
 var requests = [];
 
 function esc(s) {
@@ -161,6 +167,11 @@ function renderStats() {
 }
 
 function render() {
+  if (!VIEWER.ok) {
+    document.getElementById('crRows').innerHTML = '<tr><td colspan="6"><div class="cr-empty"><div class="big">🔒</div>' +
+      esc(VIEWER.message || 'Please sign in to the C.E.S.T.I.S dashboard first.') + '</div></td></tr>';
+    return;
+  }
   renderStats();
   var q = (document.getElementById('crSearch').value || '').toLowerCase().trim();
   var st = document.getElementById('crStatusFilter').value;
@@ -200,6 +211,7 @@ function render() {
 }
 
 function setStatus(idx, status) {
+  if (!VIEWER.ok) return;
   var r = requests[idx];
   if (!r) return;
   r.status = status;
@@ -213,16 +225,16 @@ function setStatus(idx, status) {
 /* live updates: storage events from other tabs / the trainee's device sync,
    plus a polling safety net for IndexedDB-only writes. */
 window.addEventListener('storage', function (e) {
-  if (e.key === KEY) { load(); render(); }
+  if (e.key === KEY && VIEWER.ok) { load(); render(); }
 });
 var lastLen = -1;
 setInterval(function () {
   var raw = '';
   try { raw = String(CESTISStore.getItem(KEY) || ''); } catch (e) {}
-  if (raw.length !== lastLen) { lastLen = raw.length; load(); render(); }
+  if (VIEWER.ok && raw.length !== lastLen) { lastLen = raw.length; load(); render(); }
 }, 5000);
 
-function boot() { load(); render(); }
+function boot() { if (VIEWER.ok) load(); render(); }
 document.addEventListener('DOMContentLoaded', function () {
   if (window.CESTISStore && typeof CESTISStore.whenReady === 'function') CESTISStore.whenReady(boot);
   else boot();
@@ -249,6 +261,7 @@ document.addEventListener('DOMContentLoaded', function () {
 CESTISPageCloud.init({
   page: 'Certificate / Transcript Requests',
   file: 'CESTIS_Transcript_Requests.json',
+  readOnly: !(typeof VIEWER !== 'undefined' && VIEWER.ok),   // no session, no pushes
   keys: ['voctrain_certTranscriptRequests'],
   // A request is about a trainee on a programme, both owned elsewhere: pulled
   // from Drive here, never written back.

@@ -24,7 +24,7 @@
     var PAGE = 'Student-Progress';
     var ALLOW = [
       'voctrain_students', 'voctrain_skillAreas', 'voctrain_instructorData', 'voctrain_attendance',
-      'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_userAccounts',
+      'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_users',
       'voctrain_studentProfiles', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds',
       'cestiSchoolFeeStudents', 'cestiSchoolFeeDeletedLmsIds', 'cestis_pagecloud_stamps__', 'schoolDashboardGoogle'
     ];
@@ -38,7 +38,8 @@
 
     MG.pageBoot({
       page: PAGE,
-      actor: { name: 'Student Progress', role: 'admin', device: 'dev_browser' },
+      // The signed-in viewer's role (Student-Progress.html resolves it from the session).
+      actor: { name: 'Student Progress', role: (window.SP_VIEWER && window.SP_VIEWER.ok && window.SP_VIEWER.role) || 'none', device: 'dev_browser' },
       allow: ALLOW,
       onChange: function () { if (window.__spTick) window.__spTick(); }
     }).then(function (BOOT) {
