@@ -7545,11 +7545,15 @@ function relinkDependentData(idMap) {
   if (window.CESTISCore && typeof CESTISCore.relinkDependentData === 'function') {
     var _d = { userAccounts: userAccounts, attendanceRecords: attendanceRecords,
                certDownloadApprovals: certDownloadApprovals,
-               examResults: (typeof examResults !== 'undefined' && Array.isArray(examResults)) ? examResults : [] };
+               examResults: (typeof examResults !== 'undefined' && Array.isArray(examResults)) ? examResults : [],
+               studentProfiles: (typeof studentProfiles !== 'undefined' && studentProfiles) ? studentProfiles : {} };
     CESTISCore.relinkDependentData(idMap, _d);
     userAccounts = _d.userAccounts; attendanceRecords = _d.attendanceRecords;
     certDownloadApprovals = _d.certDownloadApprovals;
     if (typeof examResults !== 'undefined' && Array.isArray(examResults)) examResults = _d.examResults;
+    // The trainee's manual grades, transcript header and requests live only in
+    // the shared store; the same relink carries them (CESTISCore).
+    try { if (typeof CESTISCore.relinkStoredDependents === 'function') CESTISCore.relinkStoredDependents(idMap, CESTISStore); } catch (e) {}
     return;
   }
 
@@ -7611,12 +7615,17 @@ function relinkDependentData(idMap) {
 // root-cause fix for the recurring "duplicate student" cascade.
 function cestisStabilizeStudentIds() {
   if (!window.CESTISCore || typeof CESTISCore.migrateToStableIds !== 'function') return false;
+  // Deleted records go first, before anything is merged: a stale copy of a
+  // deleted trainee must never be folded into a NEW enrolment of the same
+  // name (a re-enrolment keeps an id of its own — CESTISCore.isReEnrolment).
+  var _droppedTomb = cestisDropTombstonedStudents();
   var bundle = {
     students: students,
     userAccounts: userAccounts,
     attendanceRecords: attendanceRecords,
     certDownloadApprovals: certDownloadApprovals,
-    examResults: (typeof examResults !== 'undefined' && Array.isArray(examResults)) ? examResults : []
+    examResults: (typeof examResults !== 'undefined' && Array.isArray(examResults)) ? examResults : [],
+    studentProfiles: (typeof studentProfiles !== 'undefined' && studentProfiles) ? studentProfiles : {}
   };
   var res = CESTISCore.migrateToStableIds(bundle);
   students = bundle.students;
@@ -7624,11 +7633,43 @@ function cestisStabilizeStudentIds() {
   attendanceRecords = bundle.attendanceRecords;
   certDownloadApprovals = bundle.certDownloadApprovals;
   if (typeof examResults !== 'undefined' && Array.isArray(examResults)) examResults = bundle.examResults;
+  // A rename moves the stable id. The trainee's manual grades, transcript
+  // header and open requests live only in the store and used to stay behind on
+  // the old id — the transcript then printed blank grades and a blank header.
+  // The same shared relink carries them.
+  var _relinkedStored = [];
+  try {
+    if (res && res.idMap && typeof CESTISCore.relinkStoredDependents === 'function') {
+      _relinkedStored = CESTISCore.relinkStoredDependents(res.idMap, CESTISStore) || [];
+    }
+  } catch (e) {}
+  _droppedTomb += cestisDropTombstonedStudents();
 
-  // Tombstone enforcement: drop any student that was deleted (matched on id OR
-  // stable id) and purge their dependent records. Runs every time, so a deleted
-  // student re-added by ANY path is removed again here. This closes the
-  // account/cloud/fee resurrection vectors at a single chokepoint.
+  // A student's stable id is derived from name+course, so RENAMING one moves
+  // its id. Carry the School Fee twin's back-link across that move, or the fee
+  // record stops being recognised as the same person and the rename lands there
+  // as a duplicate instead of an update.
+  try { cestisRelinkFeeLinks(res && res.idMap); } catch(e) {}
+
+  var _changed = (res && res.changed) || _droppedTomb > 0;
+  if (!_changed) return false;
+  try { saveCollection('voctrain_students', students); } catch(e) {}
+  try { saveCollection('voctrain_attendance', attendanceRecords); } catch(e) {}
+  try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch(e) {}
+  try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e) {}
+  try { if (typeof examResults !== 'undefined' && Array.isArray(examResults)) saveCollection('voctrain_examResults', examResults); } catch(e) {}
+  try { if (typeof studentProfiles !== 'undefined' && studentProfiles) saveCollection('voctrain_studentProfiles', studentProfiles); } catch(e) {}
+  try { if (typeof saveUserAccounts === 'function') saveUserAccounts(); } catch(e) {}
+  try { console.log('[stableId] remapped ' + Object.keys((res&&res.idMap)||{}).length + ' id(s), removed ' + ((res&&res.removed)||0) + ' duplicate(s), ' + _droppedTomb + ' tombstoned' + (_relinkedStored.length ? ', relinked ' + _relinkedStored.join(', ') : '')); } catch(e) {}
+  return true;
+}
+
+// Tombstone enforcement: drop any student that was deleted (matched on id OR
+// stable id) and purge their dependent records. Runs every time, so a deleted
+// student re-added by ANY path is removed again here. This closes the
+// account/cloud/fee resurrection vectors at a single chokepoint. Returns how
+// many records it dropped.
+function cestisDropTombstonedStudents() {
   var _droppedTomb = 0;
   if (typeof CESTISCore.dropTombstonedStudents === 'function') {
     var _del = (typeof _getDeletedStudentIds === 'function') ? _getDeletedStudentIds() : {};
@@ -7645,23 +7686,7 @@ function cestisStabilizeStudentIds() {
       }
     }
   }
-
-  // A student's stable id is derived from name+course, so RENAMING one moves
-  // its id. Carry the School Fee twin's back-link across that move, or the fee
-  // record stops being recognised as the same person and the rename lands there
-  // as a duplicate instead of an update.
-  try { cestisRelinkFeeLinks(res && res.idMap); } catch(e) {}
-
-  var _changed = (res && res.changed) || _droppedTomb > 0;
-  if (!_changed) return false;
-  try { saveCollection('voctrain_students', students); } catch(e) {}
-  try { saveCollection('voctrain_attendance', attendanceRecords); } catch(e) {}
-  try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch(e) {}
-  try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e) {}
-  try { if (typeof examResults !== 'undefined' && Array.isArray(examResults)) saveCollection('voctrain_examResults', examResults); } catch(e) {}
-  try { if (typeof saveUserAccounts === 'function') saveUserAccounts(); } catch(e) {}
-  try { console.log('[stableId] remapped ' + Object.keys((res&&res.idMap)||{}).length + ' id(s), removed ' + ((res&&res.removed)||0) + ' duplicate(s), ' + _droppedTomb + ' tombstoned'); } catch(e) {}
-  return true;
+  return _droppedTomb;
 }
 
 // Re-point the School Fee system's links after dashboard student ids were
@@ -21943,6 +21968,11 @@ function enrolSaveTrainee() {
   var name = g('enrolEditName');
   if (!name) { alert('Name cannot be empty.'); return; }
   var was = { id: s.id, name: s.name, course: s.course, schoolFeeId: s.schoolFeeId };
+  // What the form opened with, so a field the administrator deliberately
+  // emptied is cleared on the fee record too — and only that.
+  var _prevProf = (typeof studentProfiles !== 'undefined' && studentProfiles && studentProfiles[id]) || {};
+  var _before = { dateOfBirth: s.dob, gender: s.gender, address: s.address, nationalId: s.trn,
+                  email: _prevProf.email || s.email, contact: _prevProf.phone || s.phone };
   s.name = name;
   s.dob = g('enrolEditDob');
   s.gender = g('enrolEditGender');
@@ -21958,7 +21988,9 @@ function enrolSaveTrainee() {
   s.lastModified = new Date().toISOString();
   // Two-way sync: overwrite the linked School Fee record before saveState (whose
   // mirror only backfills empty fields).
-  try { enrolPropagateToFee(s, studentProfiles[id], was); } catch (e) { console.warn('[EnrolReg] fee propagate failed', e); }
+  var _after = { dateOfBirth: s.dob, gender: s.gender, address: s.address, nationalId: s.trn, email: email, contact: phone };
+  var _clear = Object.keys(_after).filter(function (f) { return _before[f] != null && String(_before[f]).trim() !== '' && !_after[f]; });
+  try { enrolPropagateToFee(s, studentProfiles[id], was, { clear: _clear }); } catch (e) { console.warn('[EnrolReg] fee propagate failed', e); }
   saveState();
   if (typeof refreshStudentDependentViews === 'function') { try { refreshStudentDependentViews(); } catch (e) {} }
   var modal = document.getElementById('enrolEditTraineeModal'); if (modal) modal.remove();
@@ -21970,8 +22002,13 @@ function enrolSaveTrainee() {
 // `was` is the student's identity BEFORE the edit (id / name / course); without
 // it a rename can no longer find its own fee record, because the name match
 // fails and the stable id has moved with the name.
-function enrolPropagateToFee(student, prof, was) {
+/* opts.clear — fee fields the administrator deliberately emptied in the
+   enrolment register's edit form (they held a value when it opened). Only
+   those are blanked on the fee record; a field the dashboard never held is
+   left alone. */
+function enrolPropagateToFee(student, prof, was, opts) {
   prof = prof || {};
+  opts = opts || {};
   var raw = CESTISStore.getItem('cestiSchoolFeeStudents');
   var fee = []; if (raw) { try { fee = JSON.parse(raw) || []; } catch (e) { fee = []; } }
   if (!Array.isArray(fee)) return;
@@ -21983,17 +22020,35 @@ function enrolPropagateToFee(student, prof, was) {
          (norm(f.name) === norm(student.name) && (!f.skillArea || !student.course || norm(f.skillArea) === norm(student.course))))
   ); });
   if (!rec) return; // no linked fee record yet; saveState's mirror will create one
-  rec.lmsId = student.id;
-  rec.name = student.name || rec.name;
+  /* Only what the dashboard actually HOLDS is carried across. The dashboard
+     record usually has no date of birth, address or phone (those are taken on
+     the fee registration form), and writing its blanks over the fee record —
+     stamped newest — wiped them there and then, by the newer-wins merges, on
+     every device and in Drive. The core twin rule says the same: a field one
+     side simply doesn't hold never wipes the other's copy
+     (CESTISCore.syncTwinFields). The name is always carried: that is the
+     rename this runs for. The record is stamped only when something changed. */
+  var changed = false;
+  var put = function (field, value) {
+    if (value == null || String(value).trim() === '') return;
+    if (rec[field] === value) return;
+    rec[field] = value; changed = true;
+  };
+  if (student.id && rec.lmsId !== student.id) { rec.lmsId = student.id; changed = true; }
+  put('name', student.name);
+  if (student.course && !rec.skillArea) { rec.skillArea = student.course; changed = true; }
+  put('email', prof.email || student.email);
+  put('contact', prof.phone || student.phone);
+  put('gender', student.gender);
+  put('dateOfBirth', student.dob);
+  put('address', student.address);
+  put('nationalId', student.trn);
+  (Array.isArray(opts.clear) ? opts.clear : []).forEach(function (field) {
+    if (rec[field] != null && rec[field] !== '') { rec[field] = ''; changed = true; }
+  });
+  if (!changed) return;
   rec.updatedAt = student.lastModified || new Date().toISOString();
-  if (student.course && !rec.skillArea) rec.skillArea = student.course;
-  rec.email = prof.email || student.email || '';
-  rec.contact = prof.phone || student.phone || '';
-  rec.gender = student.gender || '';
-  rec.dateOfBirth = student.dob || '';
-  rec.address = student.address || '';
-  if (student.trn) rec.nationalId = student.trn;
-  CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(fee));
+  CESTISCore.pageCloud.guardedSet(CESTISStore, 'cestiSchoolFeeStudents', fee);
   if (typeof broadcastStudentsToFeeFrames === 'function') { try { broadcastStudentsToFeeFrames(); } catch (e) {} }
 }
 
@@ -22366,10 +22421,36 @@ function updateCentreCount() {
   if(el) el.textContent = skillAreas.length + ' dedicated skill centres — select a programme to view materials, curriculum, and resources.';
 }
 
+/* A new centre's id is never one a deleted centre had (CESTISCore.catalogue
+   .nextCentreId): deletions are written down by id and merged by union on
+   every device, so a reused id hid the brand-new centre at the next sync and
+   handed it the deleted intake's trainees and chat room until then. The ids
+   of deleted centres' chat rooms are counted too. */
 function getNextCentreId() {
+  var extra = [];
+  try {
+    var _tomb = JSON.parse(CESTISStore.getItem('voctrain_syncTombstones') || '{}') || {};
+    Object.keys(_tomb.chatRooms || {}).forEach(function (rid) {
+      var m = /^chat-class-(\d+)$/.exec(rid);
+      if (m) extra.push(m[1]);
+    });
+  } catch (e) {}
+  if (window.CESTISCore && CESTISCore.catalogue && typeof CESTISCore.catalogue.nextCentreId === 'function') {
+    return CESTISCore.catalogue.nextCentreId(skillAreas, CESTISStore, extra);
+  }
   var maxId = 0;
   skillAreas.forEach(function(c) { if(c.id > maxId) maxId = c.id; });
   return maxId + 1;
+}
+
+/* Intake keys still stamped on trainee or fee records. A new centre must not
+   take one: whoever carries it would be counted on the new centre's roll. */
+function centreKeysInUse() {
+  var keys = {};
+  var take = function (r) { if (r && r.centreKey != null && String(r.centreKey).trim() !== '') keys[String(r.centreKey).trim()] = true; };
+  try { (students || []).forEach(take); } catch (e) {}
+  try { (JSON.parse(CESTISStore.getItem('cestiSchoolFeeStudents') || '[]') || []).forEach(take); } catch (e) {}
+  return Object.keys(keys);
 }
 
 function addTrainingCentre() {
@@ -22380,8 +22461,9 @@ function addTrainingCentre() {
   var desc = document.getElementById('newCentreDesc').value.trim();
   if(!name) { alert('Please enter a centre name.'); return; }
   if(!desc) { alert('Please enter a description.'); return; }
+  // A fresh id, never a deleted centre's — so no old deletion can apply to it
+  // and nothing needs un-deleting (that only ever cleared this device's list).
   var _newCentreId = getNextCentreId();
-  clearDeletedCentre(_newCentreId);   // a deliberate re-add is never suppressed
   // Running a programme again? This is a NEW intake with a key of its own, so
   // the trainees of the one before it stay where they are.
   var _sameName = skillAreas.filter(function(c){
@@ -22409,7 +22491,7 @@ function addTrainingCentre() {
   document.getElementById('newCentreEmojiGrid').style.display = 'none';
   document.getElementById('newCentreColor').value = '#3498db';
   document.getElementById('newCentreDesc').value = '';
-  try { CESTISCore.enrolment.assignCentreKeys(skillAreas); } catch (e) {}
+  try { CESTISCore.enrolment.assignCentreKeys(skillAreas, centreKeysInUse()); } catch (e) {}
   var _newCentre = skillAreas[skillAreas.length - 1];
   var _newLabel = centreDisplayName(_newCentre);
   renderSkills();
@@ -23994,11 +24076,10 @@ function renderCerts(filter,search) {
   if(search) certs=certs.filter(c=>c.name.toLowerCase().includes(search)||(c.certNo||'').toLowerCase().includes(search));
   const tbody = document.getElementById('certTableBody');
   if(!tbody) return;
-  // Row positions and template keys resolved ONCE, not per row: this render
-  // runs twice per reactive refresh, and students.indexOf() per certified row
-  // plus a certTemplates key scan per row made it certified × roster work.
-  var _certPos = new Map();
-  for (var _ci = 0; _ci < students.length; _ci++) if (!_certPos.has(students[_ci])) _certPos.set(students[_ci], _ci);
+  // Template keys resolved ONCE, not per row: this render runs twice per
+  // reactive refresh, and a certTemplates key scan per row made it
+  // certified × roster work. "Mark Collected" carries the trainee's id and is
+  // resolved when clicked (markCollected), never a row position.
   var _tplByCourse = new Map();
   var _tplFor = function (course) {
     if (_tplByCourse.has(course)) return _tplByCourse.get(course);
@@ -24006,10 +24087,17 @@ function renderCerts(filter,search) {
     _tplByCourse.set(course, t);
     return t;
   };
-  tbody.innerHTML = certs.map(s=>`<tr><td><strong>${escapeHtml(s.name)}</strong></td><td style="font-family:monospace;font-size:12px;">${escapeHtml(s.certNo)}</td><td>${escapeHtml(s.course)}</td><td>${escapeHtml(_tplFor(s.course))}</td><td>${escapeHtml(s.certDate)}</td><td>${s.certCollected?'<span class="badge badge-green"><span class="badge-dot"></span>Collected</span>':'<span class="badge badge-amber"><span class="badge-dot"></span>Pending</span>'}</td><td>${!s.certCollected?`<button class="btn btn-sm btn-success" onclick="markCollected(${_certPos.get(s)})">Mark Collected</button>`:'<span style="font-size:12px;color:var(--text-muted);">✓ Done</span>'}</td></tr>`).join('');
+  tbody.innerHTML = certs.map(s=>`<tr><td><strong>${escapeHtml(s.name)}</strong></td><td style="font-family:monospace;font-size:12px;">${escapeHtml(s.certNo)}</td><td>${escapeHtml(s.course)}</td><td>${escapeHtml(_tplFor(s.course))}</td><td>${escapeHtml(s.certDate)}</td><td>${s.certCollected?'<span class="badge badge-green"><span class="badge-dot"></span>Collected</span>':'<span class="badge badge-amber"><span class="badge-dot"></span>Pending</span>'}</td><td>${!s.certCollected?`<button class="btn btn-sm btn-success" onclick="markCollected(${jsArg(s.id)})">Mark Collected</button>`:'<span style="font-size:12px;color:var(--text-muted);">✓ Done</span>'}</td></tr>`).join('');
 }
 function filterCerts() { renderCerts(document.getElementById('certFilter')?.value,document.getElementById('certSearch')?.value?.toLowerCase()); }
-function markCollected(idx) { students[idx].certCollected=true;students[idx].stage='collected';students[idx].progress=100;markStageSetByUser(students[idx]);filterCerts();updatePipelineCounts();renderCertStats();refreshStudentDependentViews();showToast(`Certificate collected: ${students[idx].name}`);addNotification('Certificate collected: ' + students[idx].name + ' — ' + students[idx].course, 'cert', null, ['admin']);saveState(); }
+/* By record id: a row position remembered when the table was drawn named
+   whoever sat there after a background reload of the roll, so the wrong
+   trainee could be marked as having collected a certificate. */
+function markCollected(id) {
+  var idx = -1;
+  for (var _mi = 0; _mi < students.length; _mi++) { if (students[_mi] && String(students[_mi].id) === String(id)) { idx = _mi; break; } }
+  if (idx === -1) { showToast('That trainee\'s record changed — the list has been refreshed. Please try again.', 'warning'); filterCerts(); return; }
+  students[idx].certCollected=true;students[idx].stage='collected';students[idx].progress=100;markStageSetByUser(students[idx]);filterCerts();updatePipelineCounts();renderCertStats();refreshStudentDependentViews();showToast(`Certificate collected: ${students[idx].name}`);addNotification('Certificate collected: ' + students[idx].name + ' — ' + students[idx].course, 'cert', null, ['admin']);saveState(); }
 
 /* The programmes every Reports panel counts, worked out ONCE.
 

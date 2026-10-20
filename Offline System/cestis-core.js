@@ -599,7 +599,11 @@
     // and every sync: if it were dropped, the record it protects would be
     // collapsed into its namesake on the very next launch — the one outcome an
     // admin set it to prevent.
-    'keepSeparate'];
+    'keepSeparate',
+    // A deliberate re-enrolment after the person's earlier record was deleted
+    // (see Core.isReEnrolment). Lose it in a merge and the new enrolment is
+    // dropped as though it were the deleted record coming back.
+    'reEnrolledAt'];
 
   Core.mergeStudentRecords = function (a, b) {
     var aMod = a && a.lastModified ? new Date(a.lastModified).getTime() : 0;
@@ -702,6 +706,37 @@
   // True when an administrator has pinned this record as its own person.
   Core.isKeptSeparate = function (s) {
     return !!(s && (s.keepSeparate === true || s.keepSeparate === 'true'));
+  };
+
+  /* A record minted as a NEW enrolment for a person whose earlier record was
+     deleted (Student Progress "Add Student", when the name + programme it would
+     be filed under is tombstoned).
+
+     Deleting a trainee writes down their stable id, a hash of name + programme
+     that ignores the intake. Without this, nobody of that name could ever be
+     enrolled on that programme again — any intake, any year: the new record got
+     exactly the deleted id and was dropped at the next load, taking its
+     attendance, results and login with it. A re-enrolment therefore carries an
+     id of its own and this marker, and the deleted id goes on blocking only
+     copies of the record that was actually deleted (which never carry it). */
+  Core.isReEnrolment = function (s) {
+    return !!(s && s.reEnrolledAt && String(s.reEnrolledAt).trim() !== '');
+  };
+  /* Does this record keep the id it has, whatever its name and programme hash
+     to? An administrator's "keep separate" pin, or a re-enrolment. */
+  Core.keepsOwnId = function (s) {
+    return Core.isKeptSeparate(s) || Core.isReEnrolment(s);
+  };
+  /* The id a new enrolment should get. Normally the stable id; when that id
+     is tombstoned (the person — or a namesake — was deleted from this
+     programme before), an id of its own plus the re-enrolment marker.
+     `deletedMap` is { id: true }. Returns { id, reEnrolledAt }. */
+  Core.newEnrolmentId = function (student, deletedMap, nowIso) {
+    var stable = Core.stableStudentId(student);
+    if (!stable) return { id: null, reEnrolledAt: '' };
+    if (!deletedMap || deletedMap[stable] !== true) return { id: stable, reEnrolledAt: '' };
+    var at = nowIso || new Date().toISOString();
+    return { id: 'STU-' + Core.hashString(Core.naturalKey(student) + '|enrolled|' + at), reEnrolledAt: at };
   };
 
   // How much real use does this record show? Higher wins.
@@ -854,7 +889,7 @@
 
     list.forEach(function (s, at) {
       if (!s) return;
-      if (Core.isKeptSeparate(s)) return;              // the admin pinned this one
+      if (Core.keepsOwnId(s)) return;                  // the admin pinned this one, or a re-enrolment
       if (!Core.normName(s.name)) return;              // nameless records are left alone
       var slot = slotFor(s);
       slotAt[at] = slot;
@@ -877,7 +912,7 @@
     var emitted = [], out = [];
     list.forEach(function (s, at) {
       if (!s) { out.push(s); return; }
-      if (Core.isKeptSeparate(s)) { out.push(s); return; }   // stands on its own
+      if (Core.keepsOwnId(s)) { out.push(s); return; }       // stands on its own
       var slot = slotAt[at];
       if (!slot) { out.push(s); return; }                    // nameless
       if (emitted.indexOf(slot) !== -1) return;
@@ -920,8 +955,9 @@
     var groups = {};  // name|bare -> { keys: {key -> kept}, unkeyed: kept|null }
     function groupOf(s) {
       // A record the administrator pinned as its own person is exempt from
-      // every dedup, this one included.
-      if (Core.isKeptSeparate(s)) return null;
+      // every dedup, this one included — and so is a re-enrolment, which must
+      // never be folded into a stale copy of the record that was deleted.
+      if (Core.keepsOwnId(s)) return null;
       var n = Core.normName(s.name);
       if (!n) return null;
       var pid = Core.programmeIdentity(s, courseField);
@@ -1023,7 +1059,9 @@
 
   /* --- Relink dependent arrays after ids change (pure-ish; mutates input) -
      `data` is an object with any of: userAccounts, attendanceRecords,
-     certDownloadApprovals, examResults. Every reference to a remapped student
+     certDownloadApprovals, examResults, transcriptGrades,
+     certTranscriptRequests, and the id-keyed maps transcriptProfiles and
+     studentProfiles. Every reference to a remapped student
      id is updated to the kept id, and the obvious duplicates that result are
      collapsed — mirroring relinkDependentData() in index.html. */
   Core.relinkDependentData = function (idMap, data) {
@@ -1091,9 +1129,35 @@
     }
 
     if (Array.isArray(data.transcriptGrades)) {
+      /* A manual grade's id is a hash of (student | qualification | unit), so
+         the record that just followed its trainee to a new id is re-filed under
+         the id that student now gives it. Left on the old id it could not be
+         edited or removed: saving the unit again wrote a SECOND record beside
+         it, and removing the override removed the new one and left the ghost.
+         When the new id is already taken (the unit was graded under both ids),
+         the more recently saved grade stands. */
+      var movedIds = {};
+      var gid = Core.Transcript && Core.Transcript.manualGradeId;
       data.transcriptGrades.forEach(function (g) {
-        if (g && g.studentId && idMap[g.studentId]) g.studentId = idMap[g.studentId];
+        if (!g || !g.studentId || !idMap[g.studentId]) return;
+        g.studentId = idMap[g.studentId];
+        if (gid && g.qualId && g.unitCode && g.id != null) {
+          g.id = gid(g.studentId, g.qualId, g.unitCode);
+          movedIds[g.id] = true;
+        }
       });
+      if (Object.keys(movedIds).length) {
+        var gTime = function (g) { var t = Date.parse((g && g.updatedAt) || ''); return isNaN(t) ? 0 : t; };
+        var bestGrade = {};
+        data.transcriptGrades.forEach(function (g) {
+          if (!g || !movedIds[g.id]) return;
+          var cur = bestGrade[g.id];
+          if (!cur || gTime(g) > gTime(cur)) bestGrade[g.id] = g;
+        });
+        data.transcriptGrades = data.transcriptGrades.filter(function (g) {
+          return !(g && movedIds[g.id]) || bestGrade[g.id] === g;
+        });
+      }
     }
 
     if (Array.isArray(data.certTranscriptRequests)) {
@@ -1102,7 +1166,73 @@
       });
     }
 
+    /* Maps keyed by student id: the transcript header (date of birth, address,
+       ID number) and the trainee's profile (email). Nothing re-keyed them, so a
+       rename — which moves the stable id — left the header printed blank and
+       the email behind on an id no record answers to any more. Moved to the new
+       id; when the new id already holds one, the more recently saved one is
+       filed under the new id and the other is left where it was, never
+       deleted. */
+    var rekeyMap = function (map) {
+      if (!map || typeof map !== 'object' || Array.isArray(map)) return;
+      var has = function (k) { return Object.prototype.hasOwnProperty.call(map, k) && map[k] != null; };
+      var at = function (p) { var t = Date.parse((p && p.updatedAt) || ''); return isNaN(t) ? 0 : t; };
+      Object.keys(idMap).forEach(function (oldId) {
+        var to = idMap[oldId];
+        if (to == null || to === oldId || !has(oldId)) return;
+        var moving = map[oldId];
+        if (!has(to)) { map[to] = moving; delete map[oldId]; return; }
+        if (at(moving) > at(map[to])) { map[oldId] = map[to]; map[to] = moving; }
+      });
+    };
+    rekeyMap(data.transcriptProfiles);
+    rekeyMap(data.studentProfiles);
+
     return data;
+  };
+
+  /* The collections keyed by student id that live only in the shared store —
+     no page holds them in memory except the Transcript page. Every path that
+     moves student ids (the stabilisers on the dashboard and in Student
+     Progress, the duplicate collapse) must carry them too, or a rename orphans
+     the trainee's manual grades, transcript header and open requests. */
+  Core.STORE_RELINK_KEYS = {
+    transcriptGrades: 'voctrain_transcriptGrades',
+    certTranscriptRequests: 'voctrain_certTranscriptRequests',
+    transcriptProfiles: 'voctrain_transcriptProfiles'
+  };
+
+  /* Relink the store-held collections above through `idMap`, reading each
+     fresh from `store` and writing it back only when something moved (and
+     never as an empty value — see pageCloud.guardedSet). Returns the keys
+     written. One function, so every place that re-ids trainees carries the
+     same set of records. */
+  Core.relinkStoredDependents = function (idMap, store) {
+    if (!idMap || !Object.keys(idMap).length || !store) return [];
+    var data = {}, before = {}, k;
+    for (k in Core.STORE_RELINK_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(Core.STORE_RELINK_KEYS, k)) continue;
+      var raw = null;
+      try { raw = store.getItem(Core.STORE_RELINK_KEYS[k]); } catch (e) { raw = null; }
+      if (raw == null || raw === '') continue;
+      var v;
+      try { v = JSON.parse(raw); } catch (e) { continue; }
+      if (v == null || typeof v !== 'object') continue;
+      before[k] = raw;
+      data[k] = v;
+    }
+    Core.relinkDependentData(idMap, data);
+    var wrote = [];
+    Object.keys(before).forEach(function (key) {
+      var next = JSON.stringify(data[key]);
+      if (next === before[key]) return;
+      var storageKey = Core.STORE_RELINK_KEYS[key];
+      var ok = Core.pageCloud && Core.pageCloud.guardedSet
+        ? Core.pageCloud.guardedSet(store, storageKey, next)
+        : (function () { try { store.setItem(storageKey, next); return true; } catch (e) { return false; } })();
+      if (ok) wrote.push(storageKey);
+    });
+    return wrote;
   };
 
   /* --- One-time migration to stable ids (pure-ish; mutates `data`) --------
@@ -1130,7 +1260,9 @@
       // results ran together, deleting one tombstoned both, and the next sync
       // that added anything replaced one of them with a copy of the other. The
       // id they already carry is unique on this device and must not move.
-      if (Core.isKeptSeparate(s) && s.id != null && String(s.id) !== '') return;
+      // A re-enrolment keeps its own id for the same reason: its stable id is
+      // the deleted record's, and moving onto it would drop it as that record.
+      if (Core.keepsOwnId(s) && s.id != null && String(s.id) !== '') return;
       var newId = Core.stableStudentId(s);
       if (!newId) return; // no natural key — leave id alone
       if (s.id !== newId) {
@@ -1196,12 +1328,15 @@
   // recovery, etc.) — because even a copy carrying a different id resolves to
   // the same tombstoned stable id. Returns the kept list + the dropped ids so
   // callers can purge dependent records.
+  // A deliberate re-enrolment (Core.isReEnrolment) is matched on its OWN id
+  // only: its stable id belongs to the record that was deleted, and holding
+  // that against the new enrolment is what used to drop it for good.
   Core.dropTombstonedStudents = function (students, deletedMap) {
     deletedMap = deletedMap || {};
     var dropped = {};
     var kept = (students || []).filter(function (s) {
       if (!s) return false;
-      var sid = Core.stableStudentId(s);
+      var sid = Core.isReEnrolment(s) ? null : Core.stableStudentId(s);
       if (deletedMap[s.id] === true || (sid && deletedMap[sid] === true)) {
         if (s.id != null) dropped[s.id] = true;
         return false;
@@ -2690,7 +2825,12 @@
        devices holding the same centres agree on the keys without having to talk
        to each other. Centres that already carry a key keep it, so nothing
        already stamped on a trainee moves. */
-    function assignCentreKeys(areas) {
+    /* `reservedKeys` (optional) are keys no new centre may take although no
+       live centre carries them: the keys of deleted intakes still stamped on
+       trainee and fee records. Without it, a new centre created after the
+       newest intake was deleted was handed that intake's key — and with it,
+       on day one, every trainee who had been on the deleted intake. */
+    function assignCentreKeys(areas, reservedKeys) {
       if (!Array.isArray(areas)) return 0;
       var taken = {}, n = 0, i;
       for (i = 0; i < areas.length; i++) {
@@ -2698,6 +2838,10 @@
         var k = areas[i].centreKey != null ? padKey(areas[i].centreKey) : '';
         if (k) taken[k] = true;
       }
+      (Array.isArray(reservedKeys) ? reservedKeys : []).forEach(function (rk) {
+        var p = padKey(rk);
+        if (p) taken[p] = true;
+      });
 
       // Everything still unkeyed, in a device-independent order.
       var pending = [];
@@ -3250,9 +3394,35 @@
       };
     }
 
+    /* The id for a NEW training centre: one more than any id this Centre has
+       ever used — live centres AND deleted ones.
+
+       It used to be one more than the highest LIVE id, so deleting the newest
+       intake freed its id and the next centre created took it. The deletion is
+       written down by id and that list is merged by union on every device, so
+       at the next sync the brand-new centre was hidden as "deleted"; until then
+       it inherited the deleted intake's trainees (their records carry its id
+       and key) and its chat room. Ids are never reused now, so a deletion only
+       ever applies to the centre that was deleted. `extraIds` lets a caller add
+       ids known elsewhere (the chat rooms of deleted centres). */
+    function nextCentreId(areas, store, extraIds) {
+      var max = 0;
+      var see = function (v) {
+        var s = String(v == null ? '' : v).trim();
+        if (!/^\d+$/.test(s)) return;
+        var n = Number(s);
+        if (n > max) max = n;
+      };
+      (Array.isArray(areas) ? areas : []).forEach(function (a) { if (a) see(a.id); });
+      deletedIds(store).forEach(see);
+      (Array.isArray(extraIds) ? extraIds : []).forEach(see);
+      return max + 1;
+    }
+
     return {
       DELETED_KEY: DELETED_KEY,
       deletedIds: deletedIds,
+      nextCentreId: nextCentreId,
       recordDeleted: recordDeleted,
       clearDeleted: clearDeleted,
       isDeleted: isDeleted,
@@ -4267,32 +4437,122 @@
     };
 
     /* --- Live-exam matching -------------------------------------------------
-       An exam counts towards a unit when its title carries the unit code, or
-       its title is (or contains / is contained by) the unit name. Length
-       guards stop trivially-short names from matching everything. */
+       An exam counts towards a unit when:
+         - the exam names its units explicitly (exam.unitCodes) and this is one
+           of them — the exact link, used whenever an exam carries it;
+         - otherwise its title carries the unit code;
+         - otherwise its title IS the unit name, or contains it (names of 12+
+           characters, so trivially short ones cannot match everything).
+       A title merely contained IN a unit name no longer counts: "Perform
+       hair shaping" is contained in "Perform hair shaping on excessively curly
+       hair", and every trainee who sat the first exam was being certified in
+       the second unit too. effectiveGrades goes further and, when one title
+       matches several units of a plan by name, credits only the most specific
+       (longest) of them — see unitsForExam. */
+    function codeList(exam) {
+      return (exam && Array.isArray(exam.unitCodes) ? exam.unitCodes : [])
+        .map(function (c) { return T.normText(c); }).filter(Boolean);
+    }
     T.examMatchesUnit = function (exam, unit) {
       if (!exam || !unit) return false;
+      var code = T.normText(unit.code);
+      var explicit = codeList(exam);
+      if (explicit.length) return !!code && explicit.indexOf(code) !== -1;
       var title = T.normText(exam.title);
       if (!title) return false;
-      var code = T.normText(unit.code);
       if (code && title.indexOf(code) !== -1) return true;
       var name = T.normText(unit.name);
       if (!name) return false;
       if (title === name) return true;
       if (name.length >= 12 && title.indexOf(name) !== -1) return true;
-      if (title.length >= 12 && name.indexOf(title) !== -1) return true;
       return false;
     };
 
+    /* The codes of the units in `units` that one exam counts towards. An
+       explicit unitCodes list wins; then units whose code is in the title;
+       then units named by the title — and of those, only the most specific
+       (the longest name the title contains), so one exam is never credited to
+       a unit merely because its name is a longer version of another's. */
+    T.unitsForExam = function (exam, units) {
+      var out = {};
+      if (!exam || !Array.isArray(units)) return out;
+      var explicit = codeList(exam);
+      var title = T.normText(exam.title);
+      var byCode = [], byName = [], exact = [];
+      units.forEach(function (u) {
+        if (!u) return;
+        var code = T.normText(u.code), name = T.normText(u.name);
+        if (explicit.length) { if (code && explicit.indexOf(code) !== -1) out[u.code] = true; return; }
+        if (!title) return;
+        if (code && title.indexOf(code) !== -1) { byCode.push(u); return; }
+        if (!name) return;
+        if (title === name) exact.push(u);
+        else if (name.length >= 12 && title.indexOf(name) !== -1) byName.push(u);
+      });
+      if (explicit.length) return out;
+      var chosen = byCode.length ? byCode : (exact.length ? exact : byName);
+      if (!byCode.length && !exact.length && byName.length > 1) {
+        var longest = 0;
+        byName.forEach(function (u) { longest = Math.max(longest, T.normText(u.name).length); });
+        chosen = byName.filter(function (u) { return T.normText(u.name).length === longest; });
+      }
+      chosen.forEach(function (u) { out[u.code] = true; });
+      return out;
+    };
+
+    /* One pass over the exam results, shared by every trainee and every unit
+       drawn in one render. Grade resolution used to rebuild the exams-by-id map
+       and scan EVERY result for every unit of every trainee, and the instructor
+       view and the 5 s live refresh slowed down year on year as results piled
+       up. Build this once per render and hand it to effectiveGrades as
+       opts.index; effectiveGrades builds one itself when it is not given. */
+    T.gradeIndex = function (exams, examResults, catalogs) {
+      var idx = { examsById: {}, byStudent: {}, catalogs: Array.isArray(catalogs) ? catalogs : null,
+                  units: {}, courseQual: {} };
+      (exams || []).forEach(function (e) { if (e && e.id) idx.examsById[e.id] = e; });
+      (examResults || []).forEach(function (r) {
+        if (!r || !r.studentId || r.archived) return;
+        (idx.byStudent[r.studentId] = idx.byStudent[r.studentId] || []).push(r);
+      });
+      return idx;
+    };
+    // Which units of `qual` this exam counts towards — worked out once per
+    // (qualification, exam) and remembered in the index.
+    function examUnitsFor(idx, qual, exam) {
+      var k = qual.id + '\u0001' + exam.id;
+      if (!idx.units[k]) {
+        var allowed = true;
+        // An exam set for another programme never grades this one: a trainee
+        // who sat a Welding exam is not assessed on an Electrical unit that
+        // happens to share its title. Only applied when the exam names a
+        // programme that resolves to a different qualification.
+        if (idx.catalogs && exam.course) {
+          var ck = T.normText(exam.course);
+          if (!Object.prototype.hasOwnProperty.call(idx.courseQual, ck)) {
+            var q = T.qualForCourse(idx.catalogs, exam.course);
+            idx.courseQual[ck] = q ? q.id : null;
+          }
+          var qid = idx.courseQual[ck];
+          if (qid && qid !== qual.id) allowed = false;
+        }
+        idx.units[k] = allowed ? T.unitsForExam(exam, qual.units) : {};
+      }
+      return idx.units[k];
+    }
+
     // Latest submitted exam result for one student+unit. exams/examResults are
     // the app's canonical arrays. Returns null when the unit has no live score.
+    // A result archived because its exam was deleted is no longer evidence of
+    // anything and is skipped. A result still awaiting manual marking IS
+    // returned: it is the latest attempt, and effectiveGrades shows it as
+    // pending rather than letting an older attempt's grade stand in for it.
     T.latestExamResultForUnit = function (unit, studentId, exams, examResults) {
       if (!unit || !studentId) return null;
       var examsById = {};
       (exams || []).forEach(function (e) { if (e && e.id) examsById[e.id] = e; });
       var best = null, bestTime = -1;
       (examResults || []).forEach(function (r) {
-        if (!r || r.studentId !== studentId) return;
+        if (!r || r.studentId !== studentId || r.archived) return;
         var exam = examsById[r.examId];
         if (!exam || !T.examMatchesUnit(exam, unit)) return;
         var t = r.submittedAt ? new Date(r.submittedAt).getTime() : 0;
@@ -4302,19 +4562,48 @@
       return best;
     };
 
+    // Is this exam result still waiting for its short answers to be marked?
+    // Its score is then only the auto-marked part, not a grade.
+    T.isProvisionalResult = function (r) { return !!(r && r.needsReview && !r.reviewComplete); };
+
     /* --- THE RESOLUTION ALGORITHM -------------------------------------------
        One row per catalogue unit: manual grade wins, else latest live exam
        score, else ungraded. Every page renders from this so admin, trainee
-       and instructor always see the same grades. */
+       and instructor always see the same grades.
+
+       A row resolved from an exam that is still being marked comes back with
+       source 'pending' and NO grade: the provisional score (the auto-marked
+       part only) read as "40" and "Failed" on the transcript and the grade
+       sheet before an instructor had marked anything. An exam row also carries
+       the exam's own pass mark (row.passMark), so its result is judged by the
+       same rule the exam used.
+
+       opts: { qual, studentId, exams, examResults, manualGrades,
+               index (T.gradeIndex, optional), catalogs (optional — lets an
+               exam set for another programme be told apart) } */
     T.effectiveGrades = function (opts) {
       opts = opts || {};
       var qual = opts.qual, studentId = opts.studentId;
       if (!qual || !Array.isArray(qual.units)) return [];
+      var idx = opts.index || T.gradeIndex(opts.exams, opts.examResults, opts.catalogs);
       var manual = {};
       (opts.manualGrades || []).forEach(function (g) {
-        if (g && g.studentId === studentId && g.qualId === qual.id && g.unitCode) {
+        if (g && g.studentId === studentId && g.qualId === qual.id && g.unitCode && !g.supersededBy) {
           manual[g.unitCode] = g;
         }
+      });
+      // The latest result per unit for this trainee, from their own results only.
+      var latest = {};
+      (idx.byStudent[studentId] || []).forEach(function (r) {
+        var exam = idx.examsById[r.examId];
+        if (!exam) return;
+        var hit = examUnitsFor(idx, qual, exam);
+        var t = r.submittedAt ? new Date(r.submittedAt).getTime() : 0;
+        if (isNaN(t)) t = 0;
+        Object.keys(hit).forEach(function (code) {
+          var cur = latest[code];
+          if (!cur || t >= cur.t) latest[code] = { t: t, r: r, exam: exam };
+        });
       });
       return qual.units.map(function (u) {
         var row = {
@@ -4329,27 +4618,105 @@
           row.examResultId = m.examResultId || null;
           return row;
         }
-        var res = T.latestExamResultForUnit(u, studentId, opts.exams, opts.examResults);
-        if (res) {
-          row.grade = res.score;
+        var hit = latest[u.code];
+        if (hit) {
+          var res = hit.r;
+          var pending = T.isProvisionalResult(res);
+          row.grade = pending ? null : res.score;
           row.date = T.formatDateDMY(res.submittedAt);
-          row.source = 'exam';
+          row.source = pending ? 'pending' : 'exam';
           row.examResultId = res.id;
-          var exam = (opts.exams || []).filter(function (e) { return e && e.id === res.examId; })[0];
-          row.examTitle = exam ? exam.title : '';
+          row.examTitle = hit.exam ? hit.exam.title : '';
+          var pm = hit.exam ? Number(hit.exam.passMark) : NaN;
+          if (hit.exam && hit.exam.passMark != null && hit.exam.passMark !== '' && !isNaN(pm)) row.passMark = pm;
         }
         return row;
       });
     };
 
-    T.gradeStats = function (rows) {
+    /* --- One rule for "achieved" ---------------------------------------------
+       The grade sheet hard-coded 60%, exams used their own pass mark, and the
+       official transcript printed no outcome at all — so a 65 on an exam with
+       a pass mark of 70 was NOT PASSED in the LMS and COMPETENT on the sheet.
+       Now every output asks resultFor(): the exam's own pass mark for an exam
+       grade, else the unit's, else the qualification's, else 60. A pass mark
+       of 0 is a pass mark (it used to fall through `|| 60`).
+
+       Competency grades are first-class: an assessor may record "C" /
+       "Competent" or "NYC" / "Not Yet Competent" instead of a percentage. */
+    T.DEFAULT_PASS_MARK = 60;
+    var COMPETENT_WORDS = { c: 1, competent: 1, comp: 1, pass: 1, passed: 1 };
+    var NYC_WORDS = { nyc: 1, 'not yet competent': 1, 'not competent': 1, fail: 1, failed: 1 };
+    T.competencyOf = function (grade) {
+      if (grade == null || grade === '' || typeof grade !== 'string') return null;
+      var w = T.normText(grade);
+      if (COMPETENT_WORDS[w]) return 'competent';
+      if (NYC_WORDS[w]) return 'nyc';
+      return null;
+    };
+    T.isNumericGrade = function (grade) {
+      if (grade == null || typeof grade === 'boolean') return false;
+      var s = String(grade).replace('%', '').trim();
+      return s !== '' && !isNaN(Number(s));
+    };
+    function validMark(v) { return v != null && v !== '' && !isNaN(Number(v)); }
+    // The pass mark that decides one row: the exam's, the unit's, the plan's, 60.
+    T.passMarkFor = function (qual, row) {
+      if (row && validMark(row.passMark)) return Number(row.passMark);
+      if (qual && row && Array.isArray(qual.units)) {
+        var u = qual.units.filter(function (x) { return x && x.code === row.code; })[0];
+        if (u && validMark(u.passMark)) return Number(u.passMark);
+      }
+      if (qual && validMark(qual.passMark)) return Number(qual.passMark);
+      return T.DEFAULT_PASS_MARK;
+    };
+    // 'COMPETENT' | 'NYC' | 'PENDING' for a grade against a pass mark.
+    T.resultFor = function (grade, passMark) {
+      var c = T.competencyOf(grade);
+      if (c === 'competent') return 'COMPETENT';
+      if (c === 'nyc') return 'NYC';
+      if (!T.isNumericGrade(grade)) return 'PENDING';
+      var pm = validMark(passMark) ? Number(passMark) : T.DEFAULT_PASS_MARK;
+      return Number(String(grade).replace('%', '').trim()) >= pm ? 'COMPETENT' : 'NYC';
+    };
+    T.resultForRow = function (row, qual) {
+      if (!row || row.source === 'pending') return 'PENDING';
+      return T.resultFor(row.grade, T.passMarkFor(qual, row));
+    };
+    // How a grade reads on screen and on paper: a percentage, the competency
+    // word written out, or "Awaiting marking" for an exam still being marked.
+    T.displayGrade = function (row) {
+      if (!row) return '';
+      if (row.source === 'pending') return 'Awaiting marking';
+      var c = T.competencyOf(row.grade);
+      if (c === 'competent') return 'Competent';
+      if (c === 'nyc') return 'NYC';
+      return T.formatGrade(row.grade);
+    };
+
+    /* graded counts every unit with a grade of any kind (so completion is
+       unchanged); the AVERAGE is over percentage grades only. A unit recorded
+       "Competent" used to be counted in the divisor as 0 and dragged a
+       competent trainee's average below the pass line. Also counts how many
+       units are achieved / not yet competent by resultFor (pass `qual` so a
+       plan's own pass mark applies), and how many await marking. */
+    T.gradeStats = function (rows, qual) {
       var graded = (rows || []).filter(function (r) { return r && r.grade != null && r.grade !== ''; });
-      var sum = 0;
-      graded.forEach(function (r) { var n = Number(r.grade); if (!isNaN(n)) sum += n; });
+      var sum = 0, numeric = 0, competent = 0, nyc = 0;
+      graded.forEach(function (r) {
+        if (T.isNumericGrade(r.grade)) { sum += Number(String(r.grade).replace('%', '').trim()); numeric++; }
+        var res = T.resultForRow(r, qual);
+        if (res === 'COMPETENT') competent++;
+        else if (res === 'NYC') nyc++;
+      });
       return {
         total: (rows || []).length,
         graded: graded.length,
-        average: graded.length ? Math.round((sum / graded.length) * 10) / 10 : null
+        numeric: numeric,
+        competent: competent,
+        nyc: nyc,
+        pending: (rows || []).filter(function (r) { return r && r.source === 'pending'; }).length,
+        average: numeric ? Math.round((sum / numeric) * 10) / 10 : null
       };
     };
 
@@ -4380,6 +4747,216 @@
     T.removeManualGrade = function (grades, studentId, qualId, unitCode) {
       var id = T.manualGradeId(studentId, qualId, unitCode);
       return (Array.isArray(grades) ? grades : []).filter(function (g) { return !g || g.id !== id; });
+    };
+
+    /* --- The unit catalogue: what an edit must not do ----------------------
+       Grades are filed under a unit's CODE. A unit saved with a blank code
+       could never hold a grade (the save reported "Grade saved" and stored
+       nothing), and two units sharing a code shared one grade. Returns one
+       entry per problem: { index, code, problem: 'blank-code'|'duplicate-code' }. */
+    T.validateCatalogUnits = function (units) {
+      var problems = [], seen = {};
+      (Array.isArray(units) ? units : []).forEach(function (u, i) {
+        var code = String((u && u.code) || '').trim();
+        if (!code) { problems.push({ index: i, code: '', problem: 'blank-code' }); return; }
+        var k = code.toUpperCase();
+        if (seen[k] !== undefined) problems.push({ index: i, code: code, problem: 'duplicate-code', first: seen[k] });
+        else seen[k] = i;
+      });
+      return problems;
+    };
+
+    /* Manual grades recorded for a unit that is no longer in `qual` — its code
+       was edited, or the unit was removed from the plan. They stay stored and
+       are listed (never silently hidden); a grade carried over to a new code
+       (supersededBy) is not listed again. */
+    T.orphanedGrades = function (qual, grades, studentId) {
+      if (!qual) return [];
+      var codes = {};
+      (qual.units || []).forEach(function (u) { if (u && u.code) codes[u.code] = true; });
+      return (grades || []).filter(function (g) {
+        return g && g.qualId === qual.id && g.unitCode && !codes[g.unitCode] && !g.supersededBy &&
+          g.grade != null && g.grade !== '' && (studentId == null || g.studentId === studentId);
+      });
+    };
+
+    /* Carry every manual grade on `oldCode` of one qualification over to
+       `newCode` (the administrator confirmed the unit was re-coded). The old
+       record is kept, marked supersededBy, never deleted; a grade already
+       saved under the new code that is newer than the old one stands.
+       Returns { list, moved }. */
+    T.renameUnitCode = function (grades, qualId, oldCode, newCode, actor, nowIso) {
+      var list = Array.isArray(grades) ? grades.slice() : [];
+      if (!qualId || !oldCode || !newCode || oldCode === newCode) return { list: list, moved: 0 };
+      var now = nowIso || new Date().toISOString();
+      var at = function (g) { var t = Date.parse((g && g.updatedAt) || ''); return isNaN(t) ? 0 : t; };
+      var moved = 0;
+      list.slice().forEach(function (g) {
+        if (!g || g.qualId !== qualId || g.unitCode !== oldCode || g.supersededBy) return;
+        if (g.grade == null || g.grade === '') return;
+        var newId = T.manualGradeId(g.studentId, qualId, newCode);
+        var existing = list.filter(function (x) { return x && x.id === newId; })[0];
+        if (!existing || at(existing) < at(g)) {
+          list = T.upsertManualGrade(list, {
+            studentId: g.studentId, qualId: qualId, unitCode: newCode, grade: g.grade, date: g.date,
+            examResultId: g.examResultId, updatedBy: actor || g.updatedBy || '', updatedAt: now
+          });
+          moved++;
+        }
+        var i = list.indexOf(g);
+        if (i !== -1) list[i] = Object.assign({}, g, { supersededBy: newCode, updatedAt: now, updatedBy: actor || g.updatedBy || '' });
+      });
+      return { list: list, moved: moved };
+    };
+
+    /* --- The catalogue as it was when a transcript was issued ---------------
+       Editing a qualification's units used to rewrite every graduate's
+       transcript retroactively: a unit re-coded or dropped by a revised plan
+       vanished from transcripts already issued, and a re-titled qualification
+       changed the heading on documents employers already held. When a
+       transcript is issued its catalogue is copied onto the trainee's
+       transcript profile (profiles[studentId].issued[qualId]) and every later
+       reprint of that trainee's transcript uses the copy. Additive: an older
+       profile without it behaves as before. */
+    T.snapshotQual = function (qual, nowIso) {
+      if (!qual) return null;
+      return {
+        qualId: qual.id, title: qual.title || '', skillArea: qual.skillArea || '', level: qual.level == null ? null : qual.level,
+        nvqCode: qual.nvqCode || '', centre: qual.centre || '',
+        passMark: qual.passMark == null ? null : qual.passMark,
+        units: (qual.units || []).map(function (u) {
+          var c = { code: u.code, name: u.name, coreElective: u.coreElective || 'Core' };
+          if (u.passMark != null && u.passMark !== '') c.passMark = u.passMark;
+          return c;
+        }),
+        catalogUpdatedAt: qual.updatedAt || '',
+        issuedAt: nowIso || new Date().toISOString()
+      };
+    };
+    // The issued copy as a qualification the renderers can use, or null.
+    T.issuedQualFor = function (profiles, studentId, qualId) {
+      var p = profiles && studentId ? profiles[studentId] : null;
+      var snap = p && p.issued && qualId ? p.issued[qualId] : null;
+      if (!snap || !Array.isArray(snap.units)) return null;
+      return {
+        id: snap.qualId || qualId, title: snap.title, skillArea: snap.skillArea, level: snap.level,
+        nvqCode: snap.nvqCode, centre: snap.centre, passMark: snap.passMark,
+        units: snap.units.slice(), issuedAt: snap.issuedAt, issuedSnapshot: true
+      };
+    };
+    // Record the issue (pure: returns the new profiles map). An existing copy is
+    // kept — a reprint must not quietly move the transcript to today's plan.
+    T.recordIssue = function (profiles, studentId, qual, nowIso) {
+      var out = Object.assign({}, profiles || {});
+      if (!studentId || !qual) return out;
+      var p = Object.assign({}, out[studentId] || {});
+      var issued = Object.assign({}, p.issued || {});
+      if (issued[qual.id]) return out;
+      issued[qual.id] = T.snapshotQual(qual, nowIso);
+      p.issued = issued;
+      p.updatedAt = nowIso || new Date().toISOString();
+      out[studentId] = p;
+      return out;
+    };
+
+    /* --- Which plan a trainee is assessed against ----------------------------
+       Each trainee is graded against THEIR OWN programme's catalogue: a
+       qualification the administrator pinned on the record (qualId) if it
+       still exists, else the one their course resolves to, else the fallback
+       course (an instructor's own). The instructor view used one catalogue for
+       everybody it listed, so its Level 3 trainees were shown — and given grade
+       sheets for — the Level 2 units. */
+    T.qualForTrainee = function (catalogs, student, fallbackCourse) {
+      var list = Array.isArray(catalogs) ? catalogs : [];
+      if (student && student.qualId) {
+        var pinned = list.filter(function (q) { return q && q.id === student.qualId; })[0];
+        if (pinned) return pinned;
+      }
+      return (student && T.qualForCourse(list, student.course)) ||
+        (fallbackCourse ? T.qualForCourse(list, fallbackCourse) : null);
+    };
+
+    /* --- Is this trainee's transcript ready for certification? --------------
+       Pure. Certification (and the course-end "Not Yet Competent" rule) used to
+       ignore the transcript entirely: a trainee with 10 of 46 units graded and
+       two NYC units could be certified without a word. The certificate
+       checklist calls this.
+
+         data: { catalogs, grades, exams, examResults, profiles, index }
+         -> { status: 'ready' | 'incomplete' | 'nyc' | 'no-catalogue',
+              ready, qualId, qualTitle, total, graded, competent, nyc, pending,
+              average, missingCore: [codes], nycUnits: [codes],
+              pendingUnits: [codes], electivesAchieved }
+
+       'ready' means every CORE unit is achieved (by resultFor) and nothing is
+       awaiting marking. Electives are counted but not required — how many a
+       plan demands is not recorded anywhere yet. Any graded unit that is NYC
+       makes the status 'nyc'. Uses the issued catalogue copy when one exists. */
+    T.transcriptReadiness = function (student, data) {
+      data = data || {};
+      var out = { status: 'no-catalogue', ready: false, qualId: null, qualTitle: '', total: 0, graded: 0,
+                  competent: 0, nyc: 0, pending: 0, average: null, missingCore: [], nycUnits: [],
+                  pendingUnits: [], electivesAchieved: 0 };
+      if (!student) return out;
+      var cats = Array.isArray(data.catalogs) ? T.ensureSeeded(data.catalogs) : T.seedCatalogs();
+      var live = T.qualForTrainee(cats, student);
+      var qual = (live && T.issuedQualFor(data.profiles, student.id, live.id)) || live;
+      if (!qual || !Array.isArray(qual.units) || !qual.units.length) return out;
+      var rows = T.effectiveGrades({ qual: qual, studentId: student.id, manualGrades: data.grades || [],
+        exams: data.exams, examResults: data.examResults, catalogs: cats, index: data.index });
+      var stats = T.gradeStats(rows, qual);
+      out.qualId = qual.id; out.qualTitle = qual.title || '';
+      out.total = stats.total; out.graded = stats.graded; out.competent = stats.competent;
+      out.nyc = stats.nyc; out.pending = stats.pending; out.average = stats.average;
+      rows.forEach(function (r) {
+        var res = T.resultForRow(r, qual);
+        var core = String(r.coreElective || 'Core').toLowerCase() !== 'elective';
+        if (r.source === 'pending') out.pendingUnits.push(r.code);
+        if (res === 'NYC') out.nycUnits.push(r.code);
+        if (core && res !== 'COMPETENT') out.missingCore.push(r.code);
+        if (!core && res === 'COMPETENT') out.electivesAchieved++;
+      });
+      if (out.nycUnits.length) out.status = 'nyc';
+      else if (out.missingCore.length || out.pendingUnits.length) out.status = 'incomplete';
+      else out.status = 'ready';
+      out.ready = out.status === 'ready';
+      return out;
+    };
+
+    /* --- One person, several enrolments --------------------------------------
+       A trainee's id is per (name, programme), so someone who went from Level 2
+       to Level 3 has two records, two transcripts and two headers. These are
+       the OTHER records of the same person, for the transcript view to link.
+       `strict` (the trainee's own view) links only on evidence that it is the
+       same human — the same TRN / national ID, or the same date of birth on the
+       transcript header — because a namesake on another programme is somebody
+       else and must never see this person's grades. Without `strict` (staff)
+       a same-name record is offered too, flagged `sameNameOnly`. A record
+       pinned "keep separate" is never linked by name. */
+    T.otherEnrolments = function (student, students, profiles, strict) {
+      if (!student) return [];
+      var n = Core.normName(student.name);
+      if (!n) return [];
+      var idOf = function (s) {
+        var p = (profiles && profiles[s.id]) || {};
+        return String(s.trn || s.TRN || s.nationalId || p.idNo || '').replace(/[^0-9a-z]/gi, '').toLowerCase();
+      };
+      var dobOf = function (s) {
+        var p = (profiles && profiles[s.id]) || {};
+        return String(p.dob || s.dob || '').trim();
+      };
+      var myId = idOf(student), myDob = dobOf(student);
+      var out = [];
+      (students || []).forEach(function (s) {
+        if (!s || s === student || s.id === student.id || Core.normName(s.name) !== n) return;
+        var theirId = idOf(s), theirDob = dobOf(s);
+        if (myId && theirId && myId !== theirId) return;           // two different people
+        if (myDob && theirDob && myDob !== theirDob) return;
+        var strong = !!(myId && theirId && myId === theirId) || !!(myDob && theirDob && myDob === theirDob);
+        if (!strong && (strict || Core.isKeptSeparate(s) || Core.isKeptSeparate(student))) return;
+        out.push({ student: s, sameNameOnly: !strong });
+      });
+      return out;
     };
 
     /* --- Qualification lookup for a trainee's course ----------------------- */
@@ -4452,8 +5029,72 @@
         note: opts.note || '',
         status: 'pending',
         requestedAt: opts.requestedAt || new Date().toISOString(),
+        // When this copy of the request last changed: what decides, request by
+        // request, which device's copy is current (see mergeRequestLists).
+        updatedAt: opts.requestedAt || new Date().toISOString(),
         handledBy: '', handledAt: '', adminNote: ''
       };
+    };
+
+    /* A request queue is merged REQUEST BY REQUEST, never as one list.
+
+       Trainees append requests on their own devices and the administration
+       changes their status on another. Writing the whole list from whatever
+       copy a page loaded a few seconds earlier — or letting the newest whole
+       list win a sync — meant a trainee's new request erased a status change
+       made meanwhile, or the reverse, and a trainee's device, which keeps only
+       its own requests after sign-out, could replace the Centre's whole queue.
+       Every request either side holds survives; when both hold one, the copy
+       changed last (updatedAt, else handledAt, else requestedAt) wins and its
+       blanks are filled from the other. Pure; returns a new list. */
+    T.REQUEST_STAMPS = ['updatedAt', 'handledAt', 'requestedAt'];
+    function requestTime(r) {
+      var best = 0;
+      T.REQUEST_STAMPS.forEach(function (f) {
+        var t = Date.parse((r && r[f]) || '');
+        if (!isNaN(t) && t > best) best = t;
+      });
+      return best;
+    }
+    T.mergeRequestLists = function (a, b) {
+      var out = [], at = {};
+      var take = function (r, fromB) {
+        if (!r || typeof r !== 'object') return;
+        var id = r.id != null ? String(r.id) : null;
+        if (id === null || at[id] === undefined) {
+          if (id !== null) at[id] = out.length;
+          out.push(r);
+          return;
+        }
+        var cur = out[at[id]];
+        var win = requestTime(r) > requestTime(cur) ? r : cur;
+        var lose = win === r ? cur : r;
+        var merged = Object.assign({}, win);
+        Object.keys(lose).forEach(function (f) {
+          if ((merged[f] === undefined || merged[f] === null || merged[f] === '') &&
+              lose[f] !== undefined && lose[f] !== null && lose[f] !== '') merged[f] = lose[f];
+        });
+        out[at[id]] = merged;
+      };
+      (Array.isArray(a) ? a : []).forEach(function (r) { take(r, false); });
+      (Array.isArray(b) ? b : []).forEach(function (r) { take(r, true); });
+      return out;
+    };
+
+    /* Change one request's status, by id, on the CURRENT list (read it from
+       the store just before calling). Returns { list, request } — request is
+       null when no such request exists any more. */
+    T.setRequestStatus = function (requests, id, status, actor, note, nowIso) {
+      var list = Array.isArray(requests) ? requests.slice() : [];
+      var now = nowIso || new Date().toISOString();
+      var hit = null;
+      list = list.map(function (r) {
+        if (!r || r.id !== id) return r;
+        hit = Object.assign({}, r, { status: status, handledBy: actor || '', handledAt: now, updatedAt: now });
+        if (note != null) hit.adminNote = note;
+        return hit;
+      });
+      return { list: list, request: hit };
     };
 
     // A trainee may have at most one OPEN (pending/processing/ready) request
@@ -5998,7 +6639,14 @@
       { key: 'voctrain_instructorProfiles', type: 'map', tombs: 'instructorProfiles' },
       { key: 'voctrain_adrStaffMeta', type: 'map', tombs: 'adrStaffMeta' },
       { key: 'voctrain_certTemplates', type: 'map', tombs: 'certTemplates' },
-      { key: 'voctrain_chatProfiles', type: 'map' }
+      { key: 'voctrain_chatProfiles', type: 'map' },
+      // Trainees' transcript / certificate requests. Merged by request on EVERY
+      // path (`always`), Drive included: trainees append on their own devices
+      // while the administration changes statuses on another, and a trainee's
+      // device keeps only its own requests after sign-out — one whole list
+      // winning would erase the other side's requests or decisions.
+      { key: 'voctrain_certTranscriptRequests', type: 'list', studentField: 'studentId', id: byId,
+        stamps: ['updatedAt', 'handledAt', 'requestedAt'], always: true }
     ];
 
     function recordSpec(key) {
@@ -6015,6 +6663,8 @@
     }
     /* Is this key merged record by record? */
     function isRecordKey(key) { return !!recordSpec(key); }
+    /* ...even when the caller did not ask for record merging (opts.records)? */
+    function isAlwaysRecordKey(key) { var sp = recordSpec(key); return !!(sp && sp.always); }
 
     function parseJson(raw) { try { return JSON.parse(raw); } catch (e) { return undefined; } }
     function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
@@ -6341,6 +6991,18 @@
         }
 
         var lt = stampOf(localStamps, k), ct = stampOf(cloudStamps, k);
+        // A collection registered to merge by record on every path (`always`)
+        // is a union even on a first sync: a device's own unsent records are
+        // never replaced by the cloud's list, and the cloud's never by its.
+        if (isAlwaysRecordKey(k)) {
+          if (!ctx) ctx = tombContext(localData, cloudData);
+          var mergedAlways = mergeRecordValue(k, localData[k], cloudData[k], ct > lt, ctx);
+          if (mergedAlways != null) {
+            if (mergedAlways !== localData[k]) { data[k] = mergedAlways; changed.push(k); }
+            if (ct > lt && cloudStamps && cloudStamps[k]) stamps[k] = cloudStamps[k];
+            continue;
+          }
+        }
         // The cloud only wins when BOTH sides can be dated and it is the newer
         // of the two. Local data with no stamp predates this backup existing;
         // its age cannot be established, so it is never overwritten — it stands
