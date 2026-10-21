@@ -3721,6 +3721,134 @@
   })();
 
   /* ==========================================================================
+     UI RULES — the small decisions the dashboard's accessibility layer makes
+     the same way everywhere.
+
+     Most of the dashboard's controls are <div onclick> and <span onclick>:
+     every sidebar item, every section toggle, the quick-action tiles, the
+     cloud menu. None of them could be reached with the Tab key, so a person
+     who cannot use a mouse (a screen-reader user, an injured wrist, a tablet
+     with a keyboard) could sign in and then go nowhere. Rewriting hundreds of
+     call sites was never going to stay done, so index.html marks them up as
+     they appear; keyboardRoleFor() decides, for one element, whether it is a
+     control and what it should be announced as.
+
+     toastPolicy() and alertKind() decide how long a message stays and how it
+     is announced; liveSessionsFor() is the only thing allowed to light the
+     sidebar's LIVE badge — it used to be printed on every page load whether a
+     class was running or not, so people learned to ignore it.
+     ========================================================================== */
+  Core.ui = (function () {
+    // Already keyboard controls by themselves (or not controls at all).
+    var NATIVE = { BUTTON: 1, INPUT: 1, SELECT: 1, TEXTAREA: 1, OPTION: 1, SUMMARY: 1, LABEL: 1,
+                   IFRAME: 1, VIDEO: 1, AUDIO: 1, BODY: 1, HTML: 1, FORM: 1 };
+    // A clickable table row keeps its table meaning; it only needs to be reachable.
+    var TABLE_PARTS = { TR: 1, TD: 1, TH: 1 };
+    // Roles that already say "this is a control": keep them, add the Tab stop.
+    var CONTROL_ROLES = { button: 1, link: 1, tab: 1, menuitem: 1, option: 1, checkbox: 1, radio: 1,
+                          'switch': 1, treeitem: 1, menuitemradio: 1, menuitemcheckbox: 1 };
+    // Containers and live regions: never turned into buttons.
+    var CONTAINER_ROLES = { presentation: 1, none: 1, dialog: 1, alertdialog: 1, document: 1, application: 1,
+                            region: 1, main: 1, navigation: 1, banner: 1, status: 1, alert: 1, log: 1,
+                            list: 1, listbox: 1, grid: 1, table: 1, menu: 1, menubar: 1, tablist: 1, group: 1 };
+
+    function classTokens(cls) {
+      return String(cls == null ? '' : cls).split(/\s+/).filter(Boolean);
+    }
+
+    /* attrs: the element's attributes as plain strings (onclick, role,
+       tabindex, href, class, contenteditable). Returns null when the element
+       must be left alone, otherwise { tabindex:'0', role, expanded } where
+       role is null when the element's own role or table meaning stands, and
+       expanded is true/false only for a section toggle. */
+    function keyboardRoleFor(tagName, attrs) {
+      var tag = String(tagName || '').toUpperCase();
+      var a = attrs || {};
+      var click = a.onclick == null ? '' : String(a.onclick);
+      if (!click.trim()) return null;
+      if (NATIVE[tag]) return null;
+      if (tag === 'A' && a.href != null) return null;
+      // The page already decided where (or whether) it sits in the Tab order.
+      if (a.tabindex != null && String(a.tabindex) !== '') return null;
+      if (a.contenteditable != null && String(a.contenteditable).toLowerCase() !== 'false') return null;
+      // Only keeps a click inside a dialog from reaching its backdrop.
+      if (/^\s*(?:event|e)\.stopPropagation\(\)\s*;?\s*$/.test(click)) return null;
+      // A backdrop that closes its dialog when clicked beside the box. The
+      // dialog has its own close button; a Tab stop on the backdrop would only
+      // be a trap that closes everything on Enter.
+      if (/(?:event|e)\.target\s*={2,3}\s*this\b/.test(click)) return null;
+      var tokens = classTokens(a['class']);
+      if (tokens.some(function (t) { return /(^|-)(overlay|backdrop)$/.test(t); })) return null;
+      var role = String(a.role == null ? '' : a.role).trim().toLowerCase();
+      if (role && CONTAINER_ROLES[role]) return null;
+      var out = { tabindex: '0', role: null, expanded: null };
+      if (role && CONTROL_ROLES[role]) return out;
+      if (TABLE_PARTS[tag]) return out;
+      if (tokens.indexOf('nav-section-toggle') !== -1) {
+        out.role = 'button';
+        out.expanded = tokens.indexOf('collapsed') === -1;
+        return out;
+      }
+      // Sidebar entries and bare <a onclick> take you somewhere: links.
+      out.role = (tokens.indexOf('nav-item') !== -1 || tag === 'A') ? 'link' : 'button';
+      return out;
+    }
+
+    /* How long a toast stays, and how it is announced. Errors are announced
+       at once (role=alert) and stay long enough to read twice; everything
+       else is a polite status. ms is the time on screen while nobody is
+       pointing at or focused on it (the page pauses the clock meanwhile). */
+    function toastPolicy(type) {
+      switch (type) {
+        case 'error': return { role: 'alert', live: 'assertive', ms: 20000 };
+        case 'warning': return { role: 'status', live: 'polite', ms: 10000 };
+        case 'info': return { role: 'status', live: 'polite', ms: 6000 };
+        default: return { role: 'status', live: 'polite', ms: 4000 };
+      }
+    }
+
+    /* Which icon a styled alert() shows. It used to show the warning sign on
+       every message — "Merge from cloud completed!" included. The messages
+       already say what they are with their first character. */
+    function alertKind(msg) {
+      var s = String(msg == null ? '' : msg).replace(/^\s+/, '');
+      if (/^(?:✅|✔|✓|☑|🎉)/.test(s)) return 'success';      // ✅ ✔ ✓ ☑ 🎉
+      if (/^(?:❌|✗|✘|⛔|🚫|❗)/.test(s)) return 'error';  // ❌ ✗ ✘ ⛔ 🚫 ❗
+      if (/^(?:ℹ|💡)/.test(s)) return 'info';                               // ℹ 💡
+      return 'warning';
+    }
+
+    /* The class sessions that are live today and that this viewer may join.
+       viewer: { role, course, name }. matchCourse(sessionCourse, viewerCourse)
+       is the page's own course comparison (a session for "Welding Level 2"
+       belongs to a trainee on "Welding"); a plain case-insensitive compare is
+       used when none is given. A session left 'live' from an earlier day (the
+       host's tab closed without ending it) is not live. */
+    function liveSessionsFor(sessions, viewer, today, matchCourse) {
+      var v = viewer || {};
+      var same = typeof matchCourse === 'function' ? matchCourse : function (a, b) {
+        return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+      };
+      return (Array.isArray(sessions) ? sessions : []).filter(function (s) {
+        if (!s || s.status !== 'live' || !today || s.date !== today) return false;
+        if (v.role === 'admin' || v.role === 'adminstaff') return true;
+        if (v.role === 'student') return !!v.course && !!same(s.course, v.course);
+        if (v.role === 'instructor') {
+          return (!!v.course && !!same(s.course, v.course)) || (!!v.name && s.createdBy === v.name);
+        }
+        return false;
+      });
+    }
+
+    return {
+      keyboardRoleFor: keyboardRoleFor,
+      toastPolicy: toastPolicy,
+      alertKind: alertKind,
+      liveSessionsFor: liveSessionsFor
+    };
+  })();
+
+  /* ==========================================================================
      CERTIFICATE TEMPLATE RULES
 
      Every certificate must come out looking the same. A template carries two

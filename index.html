@@ -2,14 +2,59 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261021t"></script>
+<script src="cestis-core.js?v=20261021u"></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261021u"></script>
 <script src="staff-appraisals.js?v=20260802a"></script>
 <script src="cmc-portal.js?v=20260802a"></script>
 <script src="cert-template-seed.js?v=20260802b"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Installable, with an icon, and able to open with no connection (sw.js). -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0c1117">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+/* The offline copy. sw.js keeps the pages and scripts this device has loaded
+   and serves them only when the network fails (network first, always), so the
+   dashboard still opens — onto the records already on the device — when the
+   connection or the Centre's server is down. Registered after the page has
+   loaded, so it never competes with the first visit.
+   Kill switch: a file named "sw-disable" next to this page (checked on every
+   load), ?sw=off on the address, or localStorage cestis_sw_disabled = '1' —
+   each removes the worker and its copies. With no network the check cannot
+   run, and whatever is installed stays as it is. See sw.js. */
+(function registerOfflineCopy() {
+  if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
+  var off = false;
+  try { off = /(?:^|&)sw=off(?:&|$)/.test(location.search.slice(1)) || localStorage.getItem('cestis_sw_disabled') === '1'; } catch (e) {}
+  function removeOfflineCopy() {
+    // Tell the running worker first: it keeps serving this page until the
+    // page closes, and would otherwise keep writing copies meanwhile.
+    try { if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage({ cestis: 'sw-disable' }); } catch (e) {}
+    return navigator.serviceWorker.getRegistration().then(function (reg) {
+      return reg && /\/sw\.js(?:\?|$)/.test(((reg.active || reg.waiting || reg.installing) || {}).scriptURL || '') ? reg.unregister() : false;
+    }).then(function () {
+      if (!window.caches) return;
+      return caches.keys().then(function (names) {
+        return Promise.all(names.filter(function (n) { return n.indexOf('cestis-shell-') === 0; }).map(function (n) { return caches.delete(n); }));
+      });
+    }).catch(function () {});
+  }
+  window.addEventListener('load', function () {
+    if (off) { removeOfflineCopy(); return; }
+    fetch('sw-disable', { cache: 'no-store' }).then(function (r) { return r.ok; }, function () { return null; }).then(function (disabled) {
+      if (disabled === true) return removeOfflineCopy();
+      if (disabled === null) return;
+      return navigator.serviceWorker.register('sw.js').catch(function (e) {
+        // A self-signed LAN certificate, a private window: the site works as before.
+        try { console.info('[Offline copy] not available here: ' + (e && e.message)); } catch (_) {}
+      });
+    });
+  });
+})();
+</script>
 <meta name="google-site-verification" content="h1kcrSWbOfqMdqcEuN9crbU73K84WTBd7Qy1lcbcFC4" />
 <title>VocTrain LMS — Vocational Training Management System</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap"></noscript>
@@ -140,28 +185,80 @@
 })();
 </script>
 
-<script src="vendor/pdf-3.11.174.min.js"></script>
-<script>window.pdfjsLib||(window.__cestisPdfjsCdnjs=1,document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js">\x3C/script>'))</script>
-<script>window.pdfjsLib||(window.__cestisPdfjsFallback=1,document.write('<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js">\x3C/script>'))</script>
-<script src="vendor/mammoth-1.6.0.browser.min.js"></script>
-<script>window.mammoth||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js">\x3C/script>'))</script>
-<script>window.mammoth||(document.write('<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js">\x3C/script>'))</script>
-<script src="vendor/chart-4.4.1.umd.min.js"></script>
-<script>window.Chart||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">\x3C/script>'))</script>
-<script>window.Chart||(document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">\x3C/script>'))</script>
+<!-- Libraries the sign-in screen never uses. They used to be loaded, one
+     after another, before the first paint: about 1.6 MB, ~435 KB on the wire,
+     on every cold load — a trainee on a 3G phone waited for the PDF and Word
+     importers, the board's charts and the certificate builder before seeing
+     the sign-in screen at all.
+       - The two-step and e-mailed-passcode libraries are small and can be
+         needed at sign-in: they load with 'defer' (downloaded alongside the
+         page, run before DOMContentLoaded; nothing reads them earlier).
+       - pdf.js and mammoth (exam import), Chart (the board's charts) and jsPDF
+         (certificates, enrolment registers) are fetched the first time they
+         are needed: every place that uses them asks cestisNeedLib() and waits.
+     Each comes from this site first and a CDN only if that fails (a deferred
+     or late script cannot use the old document.write fallback). PeerJS stays
+     as it was: cestis-offline-rtc.js wraps it as it loads. -->
 <!-- TOTP two-step verification libraries (ported from School.Fee.html) -->
-<script src="vendor/otpauth-9.2.2.umd.min.js"></script>
-<script>window.OTPAuth||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.2.2/otpauth.umd.min.js">\x3C/script>'))</script>
-<script>window.OTPAuth||(document.write('<script src="https://cdn.jsdelivr.net/npm/otpauth@9.2.2/dist/otpauth.umd.min.js">\x3C/script>'))</script>
-<script src="vendor/qrcode-1.0.0.min.js"></script>
-<script>window.QRCode||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">\x3C/script>'))</script>
-<script>window.QRCode||(document.write('<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js">\x3C/script>'))</script>
+<script src="vendor/otpauth-9.2.2.umd.min.js" defer></script>
+<script src="vendor/qrcode-1.0.0.min.js" defer></script>
 <!-- EmailJS SDK + config for e-mailed one-time passcodes (same service as the
      Staff Clock-in / School Fee / Payslip pages). Now that the main app does
      verification/2FA, it needs this so OTP e-mails send instead of demo mode. -->
-<script src="vendor/emailjs-4.min.js"></script>
-<script>window.emailjs||(document.write('<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js">\x3C/script>'))</script>
-<script>window.emailjs||(document.write('<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js">\x3C/script>'))</script>
+<script src="vendor/emailjs-4.min.js" defer></script>
+<script>
+(function cestisVendorLoader() {
+  // The global each library defines -> where to get it. local: this site's
+  // copy (absent for the deferred ones, whose tag above already tried it);
+  // cdn: tried in order if the local copy fails; flag: set while trying that
+  // CDN (pdf.js picks its worker from it); ready: run once it has arrived.
+  var LIBS = {
+    pdfjsLib: { local: 'vendor/pdf-3.11.174.min.js',
+      cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', flag: '__cestisPdfjsCdnjs' },
+            { src: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js', flag: '__cestisPdfjsFallback' }],
+      ready: function () { if (typeof window.cestisPdfWorkerSetup === 'function') window.cestisPdfWorkerSetup(); } },
+    mammoth: { local: 'vendor/mammoth-1.6.0.browser.min.js',
+      cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js' }] },
+    Chart: { local: 'vendor/chart-4.4.1.umd.min.js',
+      cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js' }] },
+    jspdf: { local: 'vendor/jspdf-2.5.1.umd.min.js',
+      cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js' }] },
+    OTPAuth: { cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.2.2/otpauth.umd.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/otpauth@9.2.2/dist/otpauth.umd.min.js' }] },
+    QRCode: { cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js' }] },
+    emailjs: { cdn: [{ src: 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js' }, { src: 'https://unpkg.com/@emailjs/browser@4/dist/email.min.js' }],
+      ready: function () { try { window.emailjs.init(window.EMAILJS_PUBLIC_KEY); } catch (e) {} } }
+  };
+  /* A promise of the library, loading it now if this is the first ask. A
+     failure is not remembered, so asking again (after the connection is
+     back) tries again. */
+  window.cestisNeedLib = function (name) {
+    var lib = LIBS[name];
+    if (window[name]) return Promise.resolve(window[name]);
+    if (!lib) return Promise.reject(new Error('Unknown library: ' + name));
+    if (lib.promise) return lib.promise;
+    var tries = (lib.local ? [{ src: lib.local }] : []).concat(lib.cdn);
+    lib.promise = new Promise(function (resolve, reject) {
+      (function next(i) {
+        if (window[name]) { if (lib.ready) { try { lib.ready(); } catch (e) {} } resolve(window[name]); return; }
+        if (i >= tries.length) { lib.promise = null; reject(new Error(name + ' could not be loaded')); return; }
+        if (tries[i].flag) window[tries[i].flag] = 1;
+        var s = document.createElement('script');
+        s.src = tries[i].src;
+        s.async = true;
+        s.onload = function () { next(window[name] ? i : i + 1); };
+        s.onerror = function () { next(i + 1); };
+        (document.head || document.documentElement).appendChild(s);
+      })(0);
+    });
+    return lib.promise;
+  };
+  // The deferred ones have all run by DOMContentLoaded: whatever is missing
+  // then did not load from this site, so fetch it from a CDN straight away.
+  document.addEventListener('DOMContentLoaded', function () {
+    ['OTPAuth', 'QRCode', 'emailjs'].forEach(function (n) { if (!window[n]) window.cestisNeedLib(n).catch(function () {}); });
+  });
+})();
+</script>
 <script>
   window.EMAILJS_PUBLIC_KEY = 'z_6Ya8J_WGJjRIGuX';
   window.EMAILJS_SERVICE_ID = 'service_v49btoq';
@@ -204,7 +301,12 @@
   --teal-dim: rgba(26,188,156,0.15);
   --text-primary: #e8edf3;
   --text-secondary: #8899aa;
-  --text-muted: #556677;
+  /* Helper text, dates, empty states. It was #556677: 2.7:1 on a card, below
+     the 4.5:1 that small text needs, so exam durations, due dates and "not
+     yet approved" hints were unreadable on a phone in daylight. This is 5.0:1
+     on a card and 4.5:1 on a hovered row, and still a step below
+     --text-secondary. tests/ui-accessibility.test.js holds it there. */
+  --text-muted: #8293a7;
   --border: rgba(255,255,255,0.06);
   --border-light: rgba(255,255,255,0.1);
   --shadow: 0 4px 24px rgba(0,0,0,0.3);
@@ -399,12 +501,14 @@ body::-webkit-scrollbar { width:0; display:none; }
   background:linear-gradient(135deg, var(--accent), #d4900a);
   color:#000;
 }
+/* White on the old bright blue/green/teal measured 2.1-3.2:1; these darker
+   shades of the same colours keep the cards' identity at 4.7:1 or better. */
 .student-card .role-enter-btn {
-  background:linear-gradient(135deg, var(--blue), #2980b9);
+  background:linear-gradient(135deg, #2471a3, #1f6391);
   color:#fff;
 }
 .instructor-card .role-enter-btn {
-  background:linear-gradient(135deg, var(--green), #27ae60);
+  background:linear-gradient(135deg, #1e8449, #196f3d);
   color:#fff;
 }
 .adminstaff-card .role-enter-btn {
@@ -415,7 +519,7 @@ body::-webkit-scrollbar { width:0; display:none; }
 .cmc-card::before { background:linear-gradient(135deg, rgba(26,188,156,0.08), transparent); }
 .cmc-card h2 { color:var(--teal); }
 .cmc-card .role-enter-btn {
-  background:linear-gradient(135deg, var(--teal), #16a085);
+  background:linear-gradient(135deg, #117a65, #0e6655);
   color:#fff;
 }
 
@@ -706,6 +810,8 @@ body::-webkit-scrollbar { width:0; display:none; }
   font-size:13px; font-family:'DM Sans',sans-serif; outline:none;
 }
 .role-login input:focus, .role-login select:focus { border-color:var(--accent); }
+/* Under 16px, iOS zooms the whole page every time a sign-in field is tapped. */
+@media (max-width:768px) { .role-login input, .role-login select { font-size:16px; } }
 
 /* ============================== APP SHELL ============================== */
 #appShell { display:none; }
@@ -762,6 +868,7 @@ body::-webkit-scrollbar { width:0; display:none; }
   margin-left:auto; background:var(--red); color:#fff;
   font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;
 }
+.nav-badge[hidden] { display:none; }
 .nav-section-toggle {
   display:flex; align-items:center; justify-content:space-between;
   cursor:pointer; user-select:none; border-radius:var(--radius-sm);
@@ -774,6 +881,9 @@ body::-webkit-scrollbar { width:0; display:none; }
 }
 .nav-section-toggle.collapsed .nav-chevron { transform:rotate(-90deg); }
 .nav-section-group.collapsed { display:none; }
+[data-kb-click]:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+/* The sidebar scrolls, so an outline drawn outside an item is clipped: draw it inside. */
+.nav-item:focus-visible, .nav-section-toggle:focus-visible, .sidebar-user:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
 .nav-item-standalone { margin-top:10px; padding-top:14px; border-top:1px solid var(--border, rgba(255,255,255,0.08)); }
 .sidebar-footer {
   padding:16px;
@@ -2381,9 +2491,12 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 }
 .gmail-btn:hover { background:rgba(255,255,255,0.08); border-color:var(--accent); }
 .gmail-btn img, .gmail-btn svg { width:18px; height:18px; }
+/* A real button (keyboard, screen readers) that still looks like the link it
+   was; the padding makes it a finger-sized target instead of a 14px line. */
 .register-link {
-  display:block; text-align:center; margin-top:10px; font-size:12px;
+  display:block; width:100%; text-align:center; margin-top:4px; padding:8px 0; font-size:12px;
   color:var(--accent); cursor:pointer; text-decoration:underline;
+  background:none; border:0; font-family:inherit; border-radius:var(--radius-sm);
 }
 .register-link:hover { color:var(--text-primary); }
 /* Registration modal */
@@ -2610,8 +2723,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   .role-card p { font-size:12px; margin-bottom:18px; }
   .role-enter-btn { padding:10px 22px; font-size:13px; }
 
-  /* Stats grid: single column, override inline 4-col */
-  .stats-grid, .stats-grid.stats-grid-4 { grid-template-columns:1fr; }
+  /* Stats grid: two compact columns (one card per row made a trainee scroll
+     about four screens of numbers before reaching Today's Schedule or Exams). */
+  .stats-grid, .stats-grid.stats-grid-4 { grid-template-columns:1fr 1fr; gap:10px; }
+  .stat-card { padding:14px; min-width:0; }
+  .stat-card .stat-icon { width:34px; height:34px; font-size:16px; margin-bottom:10px; }
+  .stat-card .stat-value { font-size:22px; }
+  .stat-card .stat-label { font-size:12px; }
   .cert-status-grid { grid-template-columns:1fr; }
 
   /* Quick actions: 2 columns tight */
@@ -3657,27 +3775,41 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 /* ============================== MAJOR IMPROVEMENTS: UX STYLES ============================== */
 
 /* Styled Alert Dialog */
+/* A long message (the backup list, a merge summary) used to be one run-on
+   paragraph centred in a box taller than a phone screen, with the OK button
+   below the bottom edge and no way to scroll to it. The box now fits the
+   screen, the message keeps its line breaks and scrolls inside it, and the
+   OK button is always on screen. */
 .cestis-alert-overlay {
   position:fixed; inset:0; z-index:99999;
   background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
   display:flex; align-items:center; justify-content:center;
   opacity:0; transition:opacity 0.2s ease;
-  padding:20px;
+  padding:20px; overflow-y:auto;
 }
 .cestis-alert-overlay.active { opacity:1; }
 .cestis-alert-box {
   background:var(--bg-card); border:1px solid var(--border-light);
   border-radius:var(--radius-lg); padding:32px;
-  max-width:420px; width:100%; text-align:center;
+  max-width:460px; width:100%; text-align:center;
+  max-height:calc(100vh - 40px); max-height:calc(100dvh - 40px);
+  display:flex; flex-direction:column;
   box-shadow:0 20px 60px rgba(0,0,0,0.5);
   transform:scale(0.9); transition:transform 0.2s ease;
 }
 .cestis-alert-overlay.active .cestis-alert-box { transform:scale(1); }
-.cestis-alert-icon { font-size:40px; margin-bottom:16px; color:var(--accent); }
+.cestis-alert-icon { font-size:40px; margin-bottom:16px; color:var(--accent); flex-shrink:0; }
+.cestis-alert-icon.kind-success { color:var(--green); }
+.cestis-alert-icon.kind-error { color:var(--red); }
+.cestis-alert-icon.kind-info { color:var(--blue); }
 .cestis-alert-msg {
   font-size:14px; line-height:1.6; color:var(--text-primary);
-  margin-bottom:24px; word-wrap:break-word;
+  margin-bottom:24px; overflow-wrap:anywhere; white-space:pre-line;
+  overflow-y:auto; min-height:0; flex:0 1 auto;
 }
+/* Several lines read better left-aligned; a one-liner stays centred. */
+.cestis-alert-msg.multiline { text-align:left; }
+.cestis-alert-ok { flex-shrink:0; align-self:center; }
 .cestis-alert-ok {
   min-width:120px; padding:10px 28px !important;
   font-size:14px !important; font-weight:600 !important;
@@ -3710,10 +3842,43 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 @keyframes toastSlideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
 @keyframes toastSlideOut { from { transform:translateX(0); opacity:1; } to { transform:translateX(100%); opacity:0; } }
 
-/* Toast variants */
-.toast-error { background:var(--red) !important; }
-.toast-warning { background:var(--orange) !important; }
-.toast-info { background:var(--blue) !important; }
+/* Toast stack (showToast). Every toast used to be pinned to the same corner,
+   so two at once sat on top of each other, and each one slid away after 2.7s
+   whatever it said. Now they stack, stay for as long as toastPolicy() says
+   (longer for errors, paused while pointed at or focused), and can be closed. */
+#toastContainer {
+  position:fixed; right:28px; bottom:28px; z-index:100000;
+  display:flex; flex-direction:column; align-items:flex-end; gap:8px;
+  max-width:min(440px, calc(100vw - 24px)); pointer-events:none;
+}
+#toastContainer .toast {
+  position:static; pointer-events:auto; max-width:100%; line-height:1.45;
+  animation:toastSlideIn 0.3s ease;
+}
+#toastContainer .toast.toast-leaving { animation:toastSlideOut 0.3s ease forwards; }
+#toastContainer .toast-icon { flex-shrink:0; }
+#toastContainer .toast-msg { flex:1; min-width:0; white-space:pre-line; overflow-wrap:anywhere; }
+#toastContainer .toast-close {
+  flex-shrink:0; background:none; border:0; color:inherit; opacity:0.85; cursor:pointer;
+  font-size:18px; line-height:1; padding:2px 6px; margin:-4px -8px -4px 2px; border-radius:6px;
+}
+#toastContainer .toast-close:hover, #toastContainer .toast-close:focus-visible { opacity:1; background:rgba(0,0,0,0.15); }
+/* Toast variants. They used to change only the background and keep the green
+   text: green on red, orange and blue measured 1.4-1.8:1, so the messages that
+   matter most (errors) were the hardest to read. Each pair is 6:1 or better. */
+#toastContainer .toast-error { background:#b03a2e !important; border-color:#b03a2e; color:#fff; }
+#toastContainer .toast-warning { background:#e67e22 !important; border-color:#e67e22; color:#0c1117; }
+#toastContainer .toast-info { background:#1f6391 !important; border-color:#1f6391; color:#fff; }
+@media (max-width:768px) {
+  #toastContainer { left:12px; right:12px; bottom:12px; max-width:none; align-items:stretch; }
+}
+
+/* Nothing on the landing page or in a toast needs to move for someone whose
+   device asks for less motion. Spinners keep turning: they say "working". */
+@media (prefers-reduced-motion: reduce) {
+  .landing-bg .orb, .pulse-dot, #toastContainer .toast, .modal, .cestis-alert-box { animation:none !important; }
+  .cestis-alert-overlay, .cestis-alert-box { transition:none !important; }
+}
 
 /* Skip to content link for accessibility */
 .skip-to-content {
@@ -3892,10 +4057,8 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 <script src="cestis-offline-rtc.js?v=20261020a"></script>
 <!-- Google Identity Services for OAuth -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<!-- jsPDF for certificate PDF generation -->
-<script src="vendor/jspdf-2.5.1.umd.min.js"></script>
-<script>window.jspdf||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">\x3C/script>'))</script>
-<script>window.jspdf||(document.write('<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">\x3C/script>'))</script>
+<!-- jsPDF (certificates, enrolment registers) is fetched the first time a PDF
+     is built: see cestisVendorLoader near the top of <head>. -->
 </head>
 <body>
 
@@ -3971,18 +4134,24 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
         <div class="role-icon">🛡️</div>
         <h2>Administrator</h2>
         <p>Manage students, schedule exams, monitor progress, track certifications, and run training centres.</p>
+        <!-- A real form: Enter (or a phone's Go key) signs in, the labels name
+             their fields, and password managers recognise a sign-in. The
+             first press of the button still only reveals the fields, exactly
+             as before; the handler decides, the form only delivers the press. -->
+        <form class="role-login-form" onsubmit="event.preventDefault(); handleAdminClick();" novalidate>
         <div class="role-login" id="adminLogin">
           <div class="form-group">
-            <label>Admin Username</label>
-            <input type="text" placeholder="cestisadmin" id="adminUser">
+            <label for="adminUser">Admin Username</label>
+            <input type="text" placeholder="Your username" id="adminUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false">
           </div>
           <div class="form-group">
-            <label>Password</label>
-            <input type="password" placeholder="••••••••" id="adminPass">
+            <label for="adminPass">Password</label>
+            <input type="password" placeholder="••••••••" id="adminPass" name="password" autocomplete="current-password">
           </div>
-          <span class="register-link" onclick="openForgotPassword('admin')">Forgot password?</span>
+          <button type="button" class="register-link" onclick="openForgotPassword('admin')">Forgot password?</button>
         </div>
-        <button class="role-enter-btn" onclick="handleAdminClick()">Enter as Admin →</button>
+        <button type="submit" class="role-enter-btn">Enter as Admin →</button>
+        </form>
       </div>
 
       <!-- STUDENT CARD -->
@@ -3990,24 +4159,26 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
         <div class="role-icon">🎓</div>
         <h2>Student</h2>
         <p>Access your classes, join live sessions, view progress, download resources, and track your certification.</p>
+        <form class="role-login-form" onsubmit="event.preventDefault(); handleStudentClick();" novalidate>
         <div class="role-login" id="studentLogin">
           <div class="form-group">
-            <label>Email or Username</label>
-            <input type="text" placeholder="your.email@gmail.com" id="studentUser">
+            <label for="studentUser">Email or Username</label>
+            <input type="text" placeholder="your.email@gmail.com" id="studentUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false">
           </div>
           <div class="form-group">
-            <label>Password</label>
-            <input type="password" placeholder="••••••••" id="studentPass">
+            <label for="studentPass">Password</label>
+            <input type="password" placeholder="••••••••" id="studentPass" name="password" autocomplete="current-password">
           </div>
-          <span class="register-link" onclick="openForgotPassword('student')">Forgot password?</span>
+          <button type="button" class="register-link" onclick="openForgotPassword('student')">Forgot password?</button>
           <div class="gmail-divider">or</div>
           <button class="gmail-btn" type="button" onclick="gmailSignIn('student')">
             <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
             Sign in with Google
           </button>
-          <span class="register-link" onclick="openRegistrationModal('student')">New student? Register here</span>
+          <button type="button" class="register-link" onclick="openRegistrationModal('student')">New student? Register here</button>
         </div>
-        <button class="role-enter-btn" onclick="handleStudentClick()">Enter as Student →</button>
+        <button type="submit" class="role-enter-btn">Enter as Student →</button>
+        </form>
       </div>
 
       <!-- INSTRUCTOR CARD -->
@@ -4015,24 +4186,26 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
         <div class="role-icon">📚</div>
         <h2>Instructor</h2>
         <p>Manage your classes, track student progress, mark attendance, grade assignments, and schedule sessions.</p>
+        <form class="role-login-form" onsubmit="event.preventDefault(); handleInstructorClick();" novalidate>
         <div class="role-login" id="instructorLogin">
           <div class="form-group">
-            <label>Email or Username</label>
-            <input type="text" placeholder="your.email@gmail.com" id="instructorUser">
+            <label for="instructorUser">Email or Username</label>
+            <input type="text" placeholder="your.email@gmail.com" id="instructorUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false">
           </div>
           <div class="form-group">
-            <label>Password</label>
-            <input type="password" placeholder="••••••••" id="instructorPass">
+            <label for="instructorPass">Password</label>
+            <input type="password" placeholder="••••••••" id="instructorPass" name="password" autocomplete="current-password">
           </div>
-          <span class="register-link" onclick="openForgotPassword('instructor')">Forgot password?</span>
+          <button type="button" class="register-link" onclick="openForgotPassword('instructor')">Forgot password?</button>
           <div class="gmail-divider">or</div>
           <button class="gmail-btn" type="button" onclick="gmailSignIn('instructor')">
             <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
             Sign in with Google
           </button>
-          <span class="register-link" onclick="openRegistrationModal('instructor')">New instructor? Register here</span>
+          <button type="button" class="register-link" onclick="openRegistrationModal('instructor')">New instructor? Register here</button>
         </div>
-        <button class="role-enter-btn" onclick="handleInstructorClick()">Enter as Instructor →</button>
+        <button type="submit" class="role-enter-btn">Enter as Instructor →</button>
+        </form>
       </div>
 
       <!-- ADMIN STAFF CARD -->
@@ -4040,18 +4213,20 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
         <div class="role-icon">📋</div>
         <h2>Administrative Staff</h2>
         <p>View assigned duties, complete tasks, track your performance, and access permitted administrative functions.</p>
+        <form class="role-login-form" onsubmit="event.preventDefault(); handleAdminStaffClick();" novalidate>
         <div class="role-login" id="adminStaffLogin">
           <div class="form-group">
-            <label>Username</label>
-            <input type="text" placeholder="adminstaff" id="adminStaffUser">
+            <label for="adminStaffUser">Username</label>
+            <input type="text" placeholder="Your username" id="adminStaffUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false">
           </div>
           <div class="form-group">
-            <label>Password</label>
-            <input type="password" placeholder="••••••••" id="adminStaffPass">
+            <label for="adminStaffPass">Password</label>
+            <input type="password" placeholder="••••••••" id="adminStaffPass" name="password" autocomplete="current-password">
           </div>
-          <span class="register-link" onclick="openForgotPassword('adminstaff')">Forgot password?</span>
+          <button type="button" class="register-link" onclick="openForgotPassword('adminstaff')">Forgot password?</button>
         </div>
-        <button class="role-enter-btn" onclick="handleAdminStaffClick()">Enter as Admin Staff →</button>
+        <button type="submit" class="role-enter-btn">Enter as Admin Staff →</button>
+        </form>
       </div>
 
       <!-- CMC (BOARD) CARD -->
@@ -4059,18 +4234,20 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
         <div class="role-icon">🏛️</div>
         <h2>CMC Board</h2>
         <p>Community Management Committee — view-only oversight of enrolment, student progress, finances and centre activity.</p>
+        <form class="role-login-form" onsubmit="event.preventDefault(); handleCmcClick();" novalidate>
         <div class="role-login" id="cmcLogin">
           <div class="form-group">
-            <label>Username</label>
-            <input type="text" placeholder="cmcadmin" id="cmcUser">
+            <label for="cmcUser">Username</label>
+            <input type="text" placeholder="Your username" id="cmcUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false">
           </div>
           <div class="form-group">
-            <label>Password</label>
-            <input type="password" placeholder="••••••••" id="cmcPass">
+            <label for="cmcPass">Password</label>
+            <input type="password" placeholder="••••••••" id="cmcPass" name="password" autocomplete="current-password">
           </div>
-          <span class="register-link" onclick="openForgotPassword('cmc')">Forgot password?</span>
+          <button type="button" class="register-link" onclick="openForgotPassword('cmc')">Forgot password?</button>
         </div>
-        <button class="role-enter-btn" onclick="handleCmcClick()">Enter as CMC Board →</button>
+        <button type="submit" class="role-enter-btn">Enter as CMC Board →</button>
+        </form>
       </div>
 
     </div>
@@ -4254,7 +4431,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 </div>
 
 <!-- ============================== APP SHELL ============================== -->
-<div id="appShell" role="application" aria-label="VocTrain LMS Application">
+<!-- No role="application": it told screen readers to switch off their own
+     reading keys for the whole dashboard, which is made of ordinary pages. -->
+<div id="appShell">
   <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main Navigation">
     <div class="sidebar-header">
       <div class="sidebar-logo">
@@ -4265,7 +4444,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
         </div>
       </div>
     </div>
-    <nav class="sidebar-nav" id="sidebarNav" role="menubar" aria-label="Application Menu"></nav>
+    <nav class="sidebar-nav" id="sidebarNav" aria-label="Sections"></nav>
     <div class="sidebar-footer">
       <div class="sidebar-user" onclick="openAccountProfileEdit()" style="cursor:pointer;" title="Click to edit your profile">
         <div class="sidebar-user-avatar" id="sidebarAvatar" style="background:linear-gradient(135deg,var(--accent),var(--orange));">A</div>
@@ -6015,30 +6194,72 @@ function checkStorageQuota() {
 
 // ---------- UX: Styled Alert Replacement ----------
 var _originalAlert = window.alert;
+/* The message keeps its line breaks (white-space:pre-line), scrolls inside a
+   box that fits the screen, and shows an icon that matches what it says.
+   Keys: Enter / Escape close the TOP alert only — each alert's own key
+   listener is removed when it closes, however it closes (it used to stay
+   attached after a click, and one Enter then closed every stacked alert).
+   Tab stays on the OK button, and focus goes back to wherever it was. */
+var _cestisAlertIcons = { success: '&#10003;', error: '&#10007;', info: '&#8505;', warning: '&#9888;' };
 window.alert = function(msg) {
-  // Replace browser alert with a styled modal dialog
+  var text = msg == null ? '' : String(msg);
+  var kind = (window.CESTISCore && CESTISCore.ui) ? CESTISCore.ui.alertKind(text) : 'warning';
+  var returnFocus = document.activeElement;
   var overlay = document.createElement('div');
   overlay.className = 'cestis-alert-overlay';
   overlay.setAttribute('role', 'alertdialog');
   overlay.setAttribute('aria-modal', 'true');
-  overlay.setAttribute('aria-label', 'Alert');
+  var msgId = 'cestisAlertMsg' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  overlay.setAttribute('aria-describedby', msgId);
+  overlay.setAttribute('aria-label', kind === 'success' ? 'Done' : kind === 'error' ? 'Error' : kind === 'info' ? 'Information' : 'Alert');
   overlay.innerHTML = '<div class="cestis-alert-box">' +
-    '<div class="cestis-alert-icon">&#9888;</div>' +
-    '<div class="cestis-alert-msg">' + sanitizeInput(msg) + '</div>' +
-    '<button class="btn btn-primary cestis-alert-ok" autofocus>OK</button>' +
+    '<div class="cestis-alert-icon kind-' + kind + '" aria-hidden="true">' + _cestisAlertIcons[kind] + '</div>' +
+    '<div class="cestis-alert-msg' + (text.indexOf('\n') !== -1 ? ' multiline' : '') + '" id="' + msgId + '" tabindex="-1">' + sanitizeInput(text) + '</div>' +
+    '<button type="button" class="btn btn-primary cestis-alert-ok">OK</button>' +
     '</div>';
   document.body.appendChild(overlay);
   requestAnimationFrame(function(){ overlay.classList.add('active'); });
   var okBtn = overlay.querySelector('.cestis-alert-ok');
+  var closed = false;
+  function isTop() {
+    var all = document.querySelectorAll('.cestis-alert-overlay');
+    return all[all.length - 1] === overlay;
+  }
   function dismiss() {
+    if (closed) return;
+    closed = true;
+    document.removeEventListener('keydown', onKey, true);
     overlay.classList.remove('active');
     setTimeout(function(){ overlay.remove(); }, 200);
+    // Back to where the person was, unless another alert is still open on top.
+    try {
+      var others = document.querySelectorAll('.cestis-alert-overlay.active');
+      if (others.length) { var ok2 = others[others.length - 1].querySelector('.cestis-alert-ok'); if (ok2) ok2.focus(); }
+      else if (returnFocus && returnFocus.focus && document.contains(returnFocus) && returnFocus !== document.body) returnFocus.focus();
+    } catch(e) {}
+  }
+  function onKey(e) {
+    if (closed || !isTop()) return;
+    // A key still held from whatever raised the alert must not close it unseen.
+    if (e.repeat && e.key === 'Enter') { e.preventDefault(); return; }
+    if (e.key === 'Escape' || e.key === 'Enter') {
+      e.preventDefault(); e.stopPropagation();
+      dismiss();
+    } else if (e.key === 'Tab') {
+      // The only control is OK; the message itself can be scrolled with the arrows once focused.
+      e.preventDefault();
+      if (document.activeElement === okBtn && overlay.querySelector('.cestis-alert-msg').scrollHeight > overlay.querySelector('.cestis-alert-msg').clientHeight + 2) {
+        overlay.querySelector('.cestis-alert-msg').focus();
+      } else {
+        okBtn.focus();
+      }
+    }
   }
   okBtn.addEventListener('click', dismiss);
   overlay.addEventListener('click', function(e){ if(e.target === overlay) dismiss(); });
-  document.addEventListener('keydown', function handler(e){
-    if(e.key === 'Escape' || e.key === 'Enter') { dismiss(); document.removeEventListener('keydown', handler); }
-  });
+  // Capture phase, so the alert answers its keys before the page's own
+  // shortcuts (Escape would otherwise also close the dialog underneath it).
+  document.addEventListener('keydown', onKey, true);
   okBtn.focus();
 };
 
@@ -6059,7 +6280,11 @@ document.addEventListener('keydown', function(e) {
     var modals = document.querySelectorAll('.modal-overlay.active');
     var _pinned = document.querySelector('#idleLockModal.active, #forceChangePwModal.active');
     if(modals.length > 0 && !_pinned) {
-      modals[modals.length - 1].classList.remove('active');
+      // Through closeModal when the dialog has one, so Escape tidies up
+      // exactly like its ✕ button (the exam builder forgets its target).
+      var _top = modals[modals.length - 1];
+      if(_top.id && typeof closeModal === 'function') { try { closeModal(_top.id); } catch(err) { _top.classList.remove('active'); } }
+      else _top.classList.remove('active');
       e.preventDefault();
     }
   }
@@ -6076,20 +6301,199 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ---------- UX: Focus Trap for Modals ----------
+/* The trap used to engage only once focus was already inside the dialog —
+   and nothing ever put it there, so Tab carried on through the page behind
+   the backdrop. It now works on the TOP open dialog, pulls focus in from
+   outside, and skips hidden or disabled controls. */
+function cestisFocusableIn(root) {
+  if(!root) return [];
+  return Array.prototype.filter.call(
+    root.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+    function(el) {
+      if(el.disabled || el.getAttribute('aria-hidden') === 'true') return false;
+      if(el.type === 'hidden') return false;
+      // Rendered (an element inside display:none has no client rects).
+      return el.getClientRects().length > 0;
+    });
+}
+function cestisTopModal() {
+  var open = document.querySelectorAll('.modal-overlay.active');
+  return open.length ? open[open.length - 1] : null;
+}
 document.addEventListener('keydown', function(e) {
   if(e.key !== 'Tab') return;
-  var activeModal = document.querySelector('.modal-overlay.active');
+  var activeModal = cestisTopModal();
   if(!activeModal) return;
-  var focusable = activeModal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  var focusable = cestisFocusableIn(activeModal);
   if(focusable.length === 0) return;
   var first = focusable[0];
   var last = focusable[focusable.length - 1];
+  if(!activeModal.contains(document.activeElement)) { (e.shiftKey ? last : first).focus(); e.preventDefault(); return; }
   if(e.shiftKey) {
     if(document.activeElement === first) { last.focus(); e.preventDefault(); }
   } else {
     if(document.activeElement === last) { first.focus(); e.preventDefault(); }
   }
 });
+
+// ---------- ACCESSIBILITY: dialogs announce themselves and take focus ----------
+/* openModal() only toggled a class: a screen reader was never told a dialog
+   had opened, focus stayed in the page behind it, and closing it left focus
+   nowhere. Whatever opens or closes a .modal-overlay (openModal, a ✕ button,
+   Escape, code that toggles the class itself) passes through here, so every
+   one of the dashboard's dialogs behaves the same:
+     - the box is a dialog (role=dialog, aria-modal, named by its heading);
+     - on open, focus moves to its first field — or to the box itself on a
+       touch screen, where focusing a field would throw up the keyboard over
+       the form — unless the opener already put focus inside;
+     - on close, focus returns to whatever opened it. */
+var _cestisDialogReturn = typeof WeakMap === 'function' ? new WeakMap() : null;
+function cestisDialogBox(overlay) {
+  return overlay.querySelector(':scope > .modal') || overlay.firstElementChild || overlay;
+}
+function cestisMarkDialog(overlay) {
+  var box = cestisDialogBox(overlay);
+  if(!box || box.getAttribute('data-dialog-ready')) return box;
+  box.setAttribute('data-dialog-ready', '1');
+  if(!box.hasAttribute('role')) box.setAttribute('role', 'dialog');
+  box.setAttribute('aria-modal', 'true');
+  if(!box.hasAttribute('aria-labelledby') && !box.hasAttribute('aria-label')) {
+    var h = box.querySelector('h1, h2, h3, h4');
+    if(h) {
+      if(!h.id) h.id = (overlay.id || 'cestisDialog' + Math.random().toString(36).slice(2, 8)) + 'Title';
+      box.setAttribute('aria-labelledby', h.id);
+    }
+  }
+  // Icon-only close buttons ("✕", "×") get a name a screen reader can say.
+  Array.prototype.forEach.call(box.querySelectorAll('.modal-close'), function(b) {
+    if(!b.hasAttribute('aria-label')) b.setAttribute('aria-label', 'Close');
+  });
+  return box;
+}
+function cestisDialogOpened(overlay) {
+  var box = cestisMarkDialog(overlay);
+  var before = document.activeElement;
+  if(_cestisDialogReturn && before && before !== document.body && !overlay.contains(before)) _cestisDialogReturn.set(overlay, before);
+  if(overlay.contains(document.activeElement)) return;   // the opener chose
+  var coarse = false;
+  try { coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches; } catch(e) {}
+  var target = overlay.querySelector('[autofocus]');
+  if(!target && !coarse) {
+    target = cestisFocusableIn(box).filter(function(el) {
+      return /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) && !el.readOnly;
+    })[0] || null;
+  }
+  if(!target) {
+    if(!box.hasAttribute('tabindex')) box.setAttribute('tabindex', '-1');
+    target = box;
+  }
+  try { target.focus({ preventScroll: false }); } catch(e) { try { target.focus(); } catch(e2) {} }
+}
+function cestisDialogClosed(overlay) {
+  var back = _cestisDialogReturn ? _cestisDialogReturn.get(overlay) : null;
+  if(_cestisDialogReturn) _cestisDialogReturn.delete(overlay);
+  var a = document.activeElement;
+  // Only when focus was in the dialog (or lost with it): never steal it from
+  // somewhere the person has since moved to.
+  if(a && a !== document.body && !overlay.contains(a)) return;
+  var next = cestisTopModal();
+  if(next && next !== overlay) { var f = cestisFocusableIn(next)[0]; if(f) { f.focus(); return; } }
+  if(back && document.contains(back) && back.getClientRects().length) { try { back.focus(); } catch(e) {} }
+}
+(function watchDialogs() {
+  if(typeof MutationObserver !== 'function') return;
+  function isOverlay(el) { return el && el.nodeType === 1 && el.classList.contains('modal-overlay'); }
+  function shown(el) { return el.classList.contains('active') || (el.style && el.style.display && el.style.display !== 'none'); }
+  var mo = new MutationObserver(function(records) {
+    records.forEach(function(r) {
+      if(r.type === 'attributes') {
+        if(!isOverlay(r.target)) return;
+        var was = /(^|\s)active(\s|$)/.test(r.oldValue || '');
+        var is = r.target.classList.contains('active');
+        if(is && !was) cestisDialogOpened(r.target);
+        else if(was && !is) cestisDialogClosed(r.target);
+      } else {
+        Array.prototype.forEach.call(r.addedNodes, function(n) {
+          if(isOverlay(n)) { cestisMarkDialog(n); if(shown(n)) cestisDialogOpened(n); }
+        });
+        Array.prototype.forEach.call(r.removedNodes, function(n) {
+          if(isOverlay(n) && _cestisDialogReturn && _cestisDialogReturn.has(n)) cestisDialogClosed(n);
+        });
+      }
+    });
+  });
+  function start() {
+    Array.prototype.forEach.call(document.querySelectorAll('.modal-overlay'), cestisMarkDialog);
+    mo.observe(document.body, { attributes: true, attributeFilter: ['class'], attributeOldValue: true, subtree: true, childList: true });
+  }
+  if(document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
+
+// ---------- ACCESSIBILITY: every clickable thing works from the keyboard ----------
+/* The sidebar, its section toggles, the dashboard's quick-action tiles, the
+   cloud menu and dozens of cards are <div onclick> — not one of them could be
+   reached with Tab, so someone who cannot use a mouse could sign in and then
+   go nowhere (a screen reader was also told the whole app was an
+   "application", which switches its reading keys off). Rather than rewrite
+   hundreds of templates, each such element is given a Tab stop and a role as
+   it appears (CESTISCore.ui.keyboardRoleFor decides which, and which to
+   leave alone — dialog backdrops, table rows' own meaning), and Enter or
+   Space on it does what a click does. */
+(function keyboardClickables() {
+  var decide = window.CESTISCore && CESTISCore.ui && CESTISCore.ui.keyboardRoleFor;
+  if(!decide || typeof MutationObserver !== 'function') return;
+  function enhance(el) {
+    if(el.hasAttribute('data-kb-click')) return;
+    var d = decide(el.tagName, {
+      onclick: el.getAttribute('onclick'), role: el.getAttribute('role'), tabindex: el.getAttribute('tabindex'),
+      href: el.getAttribute('href'), 'class': el.getAttribute('class'), contenteditable: el.getAttribute('contenteditable')
+    });
+    if(!d) return;
+    el.setAttribute('tabindex', d.tabindex);
+    if(d.role) el.setAttribute('role', d.role);
+    if(d.expanded !== null) el.setAttribute('aria-expanded', d.expanded ? 'true' : 'false');
+    el.setAttribute('data-kb-click', '1');
+  }
+  // An icon-only button ("✕", "✎", a bare emoji) is announced by its tooltip,
+  // or as "Close" when it is a ✕/× with none.
+  function nameIconButton(b) {
+    if(b.hasAttribute('aria-label') || b.hasAttribute('aria-labelledby')) return;
+    var text = (b.textContent || '').trim();
+    if(/[A-Za-z0-9]/.test(text)) return;
+    var title = b.getAttribute('title');
+    if(title) b.setAttribute('aria-label', title);
+    else if(/^[×✕✖✗✘xX]$/.test(text)) b.setAttribute('aria-label', 'Close');
+  }
+  function scan(root) {
+    if(!root || root.nodeType !== 1) return;
+    if(root.hasAttribute('onclick')) enhance(root);
+    var list = root.querySelectorAll('[onclick]:not([data-kb-click])');
+    for(var i = 0; i < list.length; i++) enhance(list[i]);
+    if(root.tagName === 'BUTTON') nameIconButton(root);
+    var btns = root.querySelectorAll('button:not([aria-label])');
+    for(var j = 0; j < btns.length; j++) nameIconButton(btns[j]);
+  }
+  var mo = new MutationObserver(function(records) {
+    for(var i = 0; i < records.length; i++) {
+      var added = records[i].addedNodes;
+      for(var j = 0; j < added.length; j++) scan(added[j]);
+    }
+  });
+  function start() {
+    scan(document.body);
+    mo.observe(document.body, { childList: true, subtree: true });
+  }
+  if(document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+  document.addEventListener('keydown', function(e) {
+    if(e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
+    if(e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    var el = e.target;
+    if(!el || el.nodeType !== 1 || !el.hasAttribute('data-kb-click')) return;
+    e.preventDefault();
+    if(e.repeat) return;
+    el.click();
+  });
+})();
 
 // ---------- DATA: Export/Backup ----------
 // The file holds everything: every account's password hash, two-step secret
@@ -7511,8 +7915,19 @@ function saveState() {
     // successful upload; until then no sign-out or expiry clears the device.
     cestisMarkPendingUpload();
   } catch(e) {
-    console.warn('saveState: storage quota exceeded or unavailable');
-    showToast('Warning: Storage quota may be full. Export a backup to free space.', 'warning');
+    // Every exception used to be reported as a full disk — including plain
+    // coding errors, which then hid behind a warning staff had learned to
+    // ignore. A real quota error keeps its message (the store's own
+    // 'Device Storage Is Failing' banner covers the durable copy); anything
+    // else is logged in full and reported as what it is.
+    var _quota = !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014 || /quota/i.test('' + (e.message || '')));
+    if (_quota) {
+      console.warn('saveState: storage quota exceeded or unavailable', e);
+      showToast('Warning: Storage quota may be full. Export a backup to free space.', 'warning');
+    } else {
+      console.error('saveState: a save stopped part-way —', e);
+      showToast('Some changes could not be saved on this device. Please try again; if it keeps happening, export a backup and tell the administrator.', 'error');
+    }
   }
   // Push changes to Google Drive immediately (debounced)
   scheduleDebouncedCloudSave();
@@ -8813,9 +9228,25 @@ initAttendanceQuarters();
   userAccounts = userAccounts.filter(function(u) { return !demoUserIds[u.id]; });
   saveUserAccounts();
 
-  // Save cleaned state and set version flag
+  // Save cleaned state and set version flag.
+  //
+  // Only what this purge changed, NOT saveState(). This runs while the page
+  // is still starting: the Duty Register, the LMS Chat and the signed-in
+  // user's own data are loaded further down, so a full save here writes
+  // their empty start values over what the device holds. It never did only
+  // because it threw first (adrTasks is declared further down), and the
+  // catch-all then told every first-time visitor "Storage quota may be full".
+  // The collections the purge changed are written exactly as saveState()
+  // writes them (stamped first, then through the empty-list guard); the next
+  // ordinary save, once everything is loaded, writes the rest.
   CESTISStore.setItem('voctrain_dataVersion', String(CURRENT_DATA_VERSION));
-  saveState();
+  try { syncStampAll(); } catch(e) {}
+  [['voctrain_students', students], ['voctrain_exams', exams], ['voctrain_announcements', announcements],
+   ['voctrain_calendarEvents', calendarEvents], ['voctrain_attendance', attendanceRecords],
+   ['voctrain_instructorData', instructorData], ['voctrain_examResults', examResults]].forEach(function(kv) {
+    try { saveCollection(kv[0], kv[1]); } catch(e) { console.error('[Migration] could not save ' + kv[0], e); }
+  });
+  try { scheduleDebouncedCloudSave(); } catch(e) {}
   console.log('[Migration] Demo data purge complete. Users: ' + userAccounts.length + ', Students: ' + students.length + ', Exams: ' + exams.length);
 })();
 
@@ -11455,8 +11886,44 @@ function keepUnsyncedDataOnSignOut() {
   console.warn('[Session] Signed out with changes not yet uploaded: the data stays on this device until it is.');
 }
 
+/* The sidebar's LIVE badge (My Classes / Video Conference) shows only while a
+   class this person may join is actually running today. It used to be part
+   of the sidebar template — on for everybody, all day, every day — next to
+   permanent "NEW" badges on features that were not new; people learned to
+   ignore both, including the real "Live Now" on a running class. The rule is
+   CESTISCore.ui.liveSessionsFor; this redraws whenever the sidebar is built
+   and after every save (a session going live on another device arrives as a
+   save). */
+function refreshNavLiveBadges() {
+  var badges = document.querySelectorAll('#sidebarNav .nav-live-badge');
+  if(!badges.length || !window.CESTISCore || !CESTISCore.ui) return;
+  var viewer = { role: currentRole };
+  if(currentRole === 'student' && currentStudent) viewer.course = currentStudent.course;
+  if(currentRole === 'instructor' && currentInstructor) { viewer.course = currentInstructor.course; viewer.name = currentInstructor.name; }
+  var live = [];
+  try {
+    live = CESTISCore.ui.liveSessionsFor(classSessions, viewer, localDateStr(),
+      typeof instructorCourseMatch === 'function' ? instructorCourseMatch : null);
+  } catch(e) { live = []; }
+  Array.prototype.forEach.call(badges, function(b) {
+    b.hidden = live.length === 0;
+    if(live.length) b.title = live.length === 1 ? 'A class is live now' : live.length + ' classes are live now';
+    else b.removeAttribute('title');
+  });
+}
+(function watchNavLiveBadges() {
+  try {
+    if(window.CESTISCore && typeof CESTISCore.on === 'function') CESTISCore.on('cestis:state-saved', function() { try { refreshNavLiveBadges(); } catch(e) {} });
+    var nav = document.getElementById('sidebarNav');
+    if(nav && typeof MutationObserver === 'function') {
+      new MutationObserver(function() { try { refreshNavLiveBadges(); } catch(e) {} }).observe(nav, { childList: true });
+    }
+  } catch(e) {}
+})();
+
 function toggleNavSection(labelEl) {
   var collapsed = labelEl.classList.toggle('collapsed');
+  labelEl.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
   var group = labelEl.nextElementSibling;
   if (group && group.classList.contains('nav-section-group')) {
     group.classList.toggle('collapsed', collapsed);
@@ -11469,9 +11936,9 @@ function buildAdminSidebar() {
     <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</div>
     <div class="nav-item" data-page="lms-chat" onclick="showPage('lms-chat')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>LMS Chat<span class="nav-badge" style="background:var(--green);">NEW</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>LMS Chat</div>
     <div class="nav-item" data-page="video" onclick="showPage('video')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Conference<span class="nav-badge">LIVE</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Conference<span class="nav-badge nav-live-badge" hidden>LIVE</span></div>
     <div class="nav-item" data-page="students" onclick="showPage('students')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Student Progress</div>
     <div class="nav-item" data-page="announcements" onclick="showPage('announcements')">
@@ -11516,7 +11983,7 @@ function buildAdminSidebar() {
     <div class="nav-item" data-page="certificates" onclick="showPage('certificates')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Certificates</div>
     <div class="nav-item" data-page="transcript-grades" onclick="showPage('transcript-grades')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Transcript/Grades<span class="nav-badge" style="background:var(--green);">NEW</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Transcript/Grades</div>
     <div class="nav-item" data-page="cert-transcript-requests" onclick="showPage('cert-transcript-requests')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Cert/Transcript Requests<span class="nav-badge" id="ctrRequestsBadge" style="display:none;background:var(--red);">0</span></div>
     </div>
@@ -11535,15 +12002,15 @@ function buildAdminSidebar() {
     <div class="nav-item" data-page="cashbook" onclick="showPage('cashbook')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Cashbook Management</div>
     <div class="nav-item" data-page="income-expenditure" onclick="showPage('income-expenditure')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>Income and Expenditure Account<span class="nav-badge" style="background:var(--green);">NEW</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>Income and Expenditure Account</div>
     <div class="nav-item" data-page="payments-invoices" onclick="showPage('payments-invoices')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/><line x1="5" y1="15" x2="9" y2="15"/></svg>Payments/Invoices<span class="nav-badge" style="background:var(--green);">NEW</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/><line x1="5" y1="15" x2="9" y2="15"/></svg>Payments/Invoices</div>
     <div class="nav-item" data-page="document-hub" onclick="showPage('document-hub')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>Document Hub</div>
     <div class="nav-item" data-page="megadata-admin" onclick="showPage('megadata-admin')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>MegaData Record Book<span class="nav-badge" style="background:var(--green);">NEW</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>MegaData Record Book</div>
     <div class="nav-item" data-page="megadata-adjq" onclick="showPage('megadata-adjq')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>MegaData Identity Review<span class="nav-badge" style="background:var(--green);">NEW</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>MegaData Identity Review</div>
     </div>
     <div class="nav-section-label nav-section-toggle collapsed" onclick="toggleNavSection(this)">External Systems<svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
     <div class="nav-section-group collapsed">
@@ -11564,9 +12031,9 @@ function buildStudentSidebar() {
     <div class="nav-item active" data-page="s-dashboard" onclick="showPage('s-dashboard')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>My Dashboard</div>
     <div class="nav-item" data-page="s-lms-chat" onclick="showPage('s-lms-chat')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>LMS Chat<span class="nav-badge" style="background:var(--green);">NEW</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>LMS Chat</div>
     <div class="nav-item" data-page="s-video" onclick="showPage('s-video')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>My Classes<span class="nav-badge">LIVE</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>My Classes<span class="nav-badge nav-live-badge" hidden>LIVE</span></div>
     <div class="nav-item" data-page="s-progress" onclick="showPage('s-progress')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>My Progress</div>
     <div class="nav-section-label">Learning</div>
@@ -11579,7 +12046,7 @@ function buildStudentSidebar() {
     <div class="nav-item" data-page="s-exams" onclick="showPage('s-exams')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Exams</div>
     <div class="nav-item" data-page="s-transcript-grades" onclick="showPage('s-transcript-grades')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Transcript/Grades<span class="nav-badge" style="background:var(--green);">NEW</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Transcript/Grades</div>
     <div class="nav-item" data-page="s-certificate" onclick="showPage('s-certificate')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>My Certificate</div>
     <div class="nav-section-label">Account</div>
@@ -11598,9 +12065,9 @@ function buildInstructorSidebar() {
     <div class="nav-item active" data-page="i-dashboard" onclick="showPage('i-dashboard')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</div>
     <div class="nav-item" data-page="i-lms-chat" onclick="showPage('i-lms-chat')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>LMS Chat<span class="nav-badge" style="background:var(--green);">NEW</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>LMS Chat</div>
     <div class="nav-item" data-page="i-classes" onclick="showPage('i-classes')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Conference<span class="nav-badge">LIVE</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Conference<span class="nav-badge nav-live-badge" hidden>LIVE</span></div>
     <div class="nav-item" data-page="i-students" onclick="showPage('i-students')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>My Students</div>
     <div class="nav-section-label">Teaching</div>
@@ -11609,7 +12076,7 @@ function buildInstructorSidebar() {
     <div class="nav-item" data-page="i-gradebook" onclick="showPage('i-gradebook')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Gradebook</div>
     <div class="nav-item" data-page="i-trainee-grades" onclick="showPage('i-trainee-grades')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Trainee Grades<span class="nav-badge" style="background:var(--green);">NEW</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Trainee Grades</div>
     <div class="nav-item" data-page="i-resources" onclick="showPage('i-resources')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Resources</div>
     <div class="nav-item" data-page="i-qual-plan" onclick="showPage('i-qual-plan')">
@@ -12083,15 +12550,16 @@ function showPage(pageId) {
   // than served from whenever the page happened to be built.
   if(pageId === 'reports') { try { refreshReportsAnalytics(); } catch(e) { console.warn('[Reports] render failed', e); } }
   if(pageId === 's-announcements') { try { renderStudentAnnouncements(); } catch(e) {} }
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   const navItem = document.querySelector('.nav-item[data-page="'+pageId+'"]');
   if(navItem) {
     navItem.classList.add('active');
+    navItem.setAttribute('aria-current', 'page');
     const grp = navItem.closest('.nav-section-group');
     if(grp && grp.classList.contains('collapsed')) {
       grp.classList.remove('collapsed');
       const lbl = grp.previousElementSibling;
-      if(lbl && lbl.classList.contains('nav-section-toggle')) lbl.classList.remove('collapsed');
+      if(lbl && lbl.classList.contains('nav-section-toggle')) { lbl.classList.remove('collapsed'); lbl.setAttribute('aria-expanded', 'true'); }
     }
   }
   const titles = {
@@ -23677,12 +24145,11 @@ function generateEnrolmentRegisterPDF(skillAreaId, opts) {
   var sk = skillAreas.find(function(s){ return s.id === skillAreaId; });
   if (!sk) return;
   if (!window.jspdf || !window.jspdf.jsPDF) {
+    // This site's copy first (it works on the Centre's own network with no
+    // internet), a CDN only if that fails — see cestisNeedLib in <head>.
     showToast('Loading PDF library, please wait...');
-    var script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    script.onload = function(){ generateEnrolmentRegisterPDF(skillAreaId, opts); };
-    script.onerror = function(){ showToast('Failed to load PDF library. Check your internet connection.'); };
-    document.head.appendChild(script);
+    cestisNeedLib('jspdf').then(function(){ generateEnrolmentRegisterPDF(skillAreaId, opts); },
+      function(){ showToast('Failed to load PDF library. Check your internet connection.'); });
     return;
   }
   try {
@@ -27718,15 +28185,58 @@ function deleteCalendarEvent(idx) {
 // when closed by any route (✕, Cancel, Publish) — see examBuilderOpening.
 function openModal(id) { if(id === 'createExamModal' && typeof examBuilderOpening === 'function') examBuilderOpening(); document.getElementById(id).classList.add('active'); }
 function closeModal(id) { if(id === 'createExamModal' && typeof examBuilderClosed === 'function') examBuilderClosed(); document.getElementById(id).classList.remove('active'); }
+/* A toast stays for as long as CESTISCore.ui.toastPolicy() says \u2014 errors far
+   longer than the 3s every toast used to get, which was often gone before it
+   was read \u2014 and the clock stops while the pointer or keyboard focus is on
+   it. Each has a close button. Errors are announced at once (role=alert),
+   the rest politely (role=status). The same message twice does not stack:
+   the one on screen restarts its clock. At most five are shown. */
+var CESTIS_TOAST_MAX = 5;
 function showToast(message, type) {
   const c = document.getElementById('toastContainer');
+  if (!c) return;
+  var text = message == null ? '' : String(message);
+  var policy = (window.CESTISCore && CESTISCore.ui) ? CESTISCore.ui.toastPolicy(type)
+    : { role: type === 'error' ? 'alert' : 'status', live: type === 'error' ? 'assertive' : 'polite', ms: type === 'error' ? 20000 : 4000 };
+  var same = Array.prototype.filter.call(c.children, function (el) {
+    return el._cestisToast && el._cestisToast.text === text && el._cestisToast.type === (type || '') && !el._cestisToast.leaving;
+  })[0];
+  if (same) { same._cestisToast.restart(); return; }
   const t = document.createElement('div');
   t.className = 'toast' + (type ? ' toast-' + type : '');
-  t.setAttribute('role', 'alert');
-  t.setAttribute('aria-live', 'polite');
+  t.setAttribute('role', policy.role);
+  t.setAttribute('aria-live', policy.live);
+  t.setAttribute('aria-atomic', 'true');
   var icon = type === 'error' ? '\u2717' : type === 'warning' ? '\u26A0' : type === 'info' ? '\u2139' : '\u2713';
-  t.innerHTML = icon + ' ' + sanitizeInput(message);
-  c.appendChild(t); setTimeout(()=>t.remove(),3500);
+  t.innerHTML = '<span class="toast-icon" aria-hidden="true">' + icon + '</span>' +
+    '<span class="toast-msg">' + sanitizeInput(text) + '</span>' +
+    '<button type="button" class="toast-close" aria-label="Dismiss message">&times;</button>';
+  var timer = null, hovered = false, focused = false;
+  var state = { text: text, type: type || '', leaving: false };
+  function leave() {
+    if (state.leaving) return;
+    state.leaving = true;
+    clearTimeout(timer);
+    t.classList.add('toast-leaving');
+    setTimeout(function () { t.remove(); }, 300);
+  }
+  function arm() {
+    clearTimeout(timer);
+    if (state.leaving || hovered || focused) return;
+    if (policy.ms > 0) timer = setTimeout(leave, policy.ms);
+  }
+  state.restart = arm;
+  t._cestisToast = state;
+  t.addEventListener('mouseenter', function () { hovered = true; clearTimeout(timer); });
+  t.addEventListener('mouseleave', function () { hovered = false; arm(); });
+  t.addEventListener('focusin', function () { focused = true; clearTimeout(timer); });
+  t.addEventListener('focusout', function () { focused = false; arm(); });
+  t.querySelector('.toast-close').addEventListener('click', leave);
+  c.appendChild(t);
+  // Oldest first out when the stack is full.
+  var live = Array.prototype.filter.call(c.children, function (el) { return el._cestisToast && !el._cestisToast.leaving; });
+  while (live.length > CESTIS_TOAST_MAX) { var old = live.shift(); old.classList.add('toast-leaving'); old._cestisToast.leaving = true; (function (o) { setTimeout(function () { o.remove(); }, 300); })(old); }
+  arm();
 }
 
 
@@ -27974,14 +28484,22 @@ var importedQuestions = [];
 var importRawTextContent = '';
 var importSelectedFile = null;
 
-// Initialize PDF.js worker
-if(typeof pdfjsLib !== 'undefined') {
+// Initialize PDF.js worker. pdf.js is fetched the first time an exam is
+// imported from a PDF (it used to load with every page and hold up the first
+// paint), so it is not there while this script runs: the worker is set up
+// when the library arrives (cestisNeedLib's ready hook in the <head>) and
+// again just before it is used. Same worker choice as before.
+function cestisPdfWorkerSetup() {
+  if(typeof pdfjsLib === 'undefined' || !pdfjsLib || !pdfjsLib.GlobalWorkerOptions) return false;
   pdfjsLib.GlobalWorkerOptions.workerSrc = window.__cestisPdfjsFallback
     ? 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'
     : (window.__cestisPdfjsCdnjs
         ? 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
         : 'vendor/pdf.worker-3.11.174.min.js');
+  return true;
 }
+cestisPdfWorkerSetup();
+document.addEventListener('DOMContentLoaded', cestisPdfWorkerSetup);
 
 // Drag & drop setup
 document.addEventListener('DOMContentLoaded', function() {
@@ -28059,6 +28577,15 @@ function hideImportProgress() {
 
 // ---- PDF Text Extraction ----
 function extractTextFromPDF(file) {
+  // pdf.js is fetched the first time it is needed (it used to load with every
+  // page, for everyone): wait for it, then carry on as before.
+  if(typeof pdfjsLib === 'undefined' && typeof cestisNeedLib === 'function') {
+    cestisNeedLib('pdfjsLib').then(function(){ extractTextFromPDF(file); }, function(){
+      hideImportProgress();
+      alert('PDF.js library failed to load. Please check your internet connection and reload.');
+    });
+    return;
+  }
   var reader = new FileReader();
   reader.onload = function(e) {
     var typedArray = new Uint8Array(e.target.result);
@@ -28067,6 +28594,7 @@ function extractTextFromPDF(file) {
       alert('PDF.js library failed to load. Please check your internet connection and reload.');
       return;
     }
+    cestisPdfWorkerSetup();
     pdfjsLib.getDocument({data: typedArray}).promise.then(function(pdf) {
       var totalPages = pdf.numPages;
       var textParts = [];
@@ -28116,6 +28644,14 @@ function extractTextFromPDF(file) {
 
 // ---- DOCX Text Extraction ----
 function extractTextFromDocx(file) {
+  // mammoth is fetched the first time it is needed, like pdf.js above.
+  if(typeof mammoth === 'undefined' && typeof cestisNeedLib === 'function') {
+    cestisNeedLib('mammoth').then(function(){ extractTextFromDocx(file); }, function(){
+      hideImportProgress();
+      alert('Mammoth.js library failed to load. Please check your internet connection and reload.');
+    });
+    return;
+  }
   var reader = new FileReader();
   reader.onload = function(e) {
     if(typeof mammoth === 'undefined') {
@@ -37657,7 +38193,7 @@ function buildAdminStaffSidebar() {
 
   // LMS Chat always visible
   html += '<div class="nav-item" data-page="as-lms-chat" onclick="showPage(\'as-lms-chat\')">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>LMS Chat<span class="nav-badge" style="background:var(--green);">NEW</span></div>';
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>LMS Chat</div>';
 
   // Conditionally show pages based on admin access settings
   var hasAdditional = false;
@@ -37716,7 +38252,7 @@ function buildAdminStaffSidebar() {
   // Transcript/Grades records always visible for admin staff
   html += '<div class="nav-section-label">Records</div>';
   html += '<div class="nav-item" data-page="as-transcript-grades" onclick="showPage(\'as-transcript-grades\')">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Transcript/Grades<span class="nav-badge" style="background:var(--green);">NEW</span></div>';
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Transcript/Grades</div>';
   html += '<div class="nav-item" data-page="as-cert-transcript-requests" onclick="showPage(\'as-cert-transcript-requests\')">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Cert/Transcript Requests<span class="nav-badge" id="asCtrRequestsBadge" style="display:none;background:var(--red);">0</span></div>';
 
@@ -39454,6 +39990,12 @@ function cmcBuildSourceSummary() {
 }
 
 function cmcRenderCharts() {
+  // Chart.js is fetched the first time the board's dashboard is drawn; the
+  // charts are drawn once it has arrived (the numbers around them already are).
+  if(typeof Chart === 'undefined') {
+    if(typeof cestisNeedLib === 'function') cestisNeedLib('Chart').then(function(){ cmcRenderCharts(); }, function(e){ console.warn('[CMC] charts unavailable:', e && e.message); });
+    return;
+  }
   // Destroy existing chart instances
   Object.keys(cmcChartInstances).forEach(function(k) {
     if(cmcChartInstances[k]) { cmcChartInstances[k].destroy(); }
@@ -39465,8 +40007,8 @@ function cmcRenderCharts() {
     maintainAspectRatio: false,
     plugins: { legend: { labels: { color: '#8899aa', font: { family: 'DM Sans', size: 11 } } } },
     scales: {
-      x: { ticks: { color: '#556677', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-      y: { ticks: { color: '#556677', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      x: { ticks: { color: '#8293a7', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+      y: { ticks: { color: '#8293a7', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
     }
   };
 
@@ -41378,11 +41920,9 @@ function generateCertificatePDF(studentId) {
   if(!window.jspdf || !window.jspdf.jsPDF) {
     showToast('Loading PDF library, please wait...');
     _certDownloadStatus('Loading PDF library...', false);
-    var script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    script.onload = function() { generateCertificatePDF(studentId); };
-    script.onerror = function() { showToast('Failed to load PDF library. Check your internet connection.'); _certDownloadStatus('Failed to load PDF library. Check your internet connection.', true); };
-    document.head.appendChild(script);
+    // This site's copy first, a CDN only if that fails — see cestisNeedLib in <head>.
+    cestisNeedLib('jspdf').then(function() { generateCertificatePDF(studentId); },
+      function() { showToast('Failed to load PDF library. Check your internet connection.'); _certDownloadStatus('Failed to load PDF library. Check your internet connection.', true); });
     return;
   }
 
@@ -43373,7 +43913,7 @@ function runAndDisplayIntegrityCheck() {
             --bg-dashboard: linear-gradient(180deg, #ecfeff 0%, #f0fdfa 50%, #f5f3ff 100%);
             --text-primary: #134e4a;
             --text-secondary: #5b7a78;
-            --text-muted: #94a3b8;
+            --text-muted: #617084;   /* 4.6:1 on the lightest panel (was #94a3b8, 2.6:1 on white) */
             --border-color: #99f6e4;
             --border-light: #ccfbf1;
             --danger: #ef4444;
@@ -43420,7 +43960,7 @@ function runAndDisplayIntegrityCheck() {
             --bg-dashboard: linear-gradient(180deg, #0f172a 0%, #1a1a2e 50%, #16213e 100%);
             --text-primary: #e2e8f0;
             --text-secondary: #94a3b8;
-            --text-muted: #64748b;
+            --text-muted: #8b9bb0;   /* 5.2:1 on a dark card (was #64748b, 3.1:1) */
             --border-color: #334155;
             --border-light: #1e293b;
             --soft-blue: #1e3a5f;
@@ -44394,6 +44934,10 @@ function runAndDisplayIntegrityCheck() {
             right: 2rem;
             padding: 1rem 1.5rem;
             background: var(--bg-secondary);
+            /* The dashboard's own .toast is green text; on this white toast
+               it was 2:1. Read like the standalone Clock-in page does. */
+            color: var(--text-primary);
+            border-top: 0; border-right: 0; border-bottom: 0;
             border-radius: 12px;
             box-shadow: var(--shadow-xl);
             display: flex;
