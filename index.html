@@ -5585,7 +5585,7 @@ function syncStampAll() {
   // Centre's own network (no internet, so nothing sets the clocks) that is
   // the Centre server's clock; everywhere else it is this device's, as before.
   var now = (window.CESTISPageCloud && typeof CESTISPageCloud.now === 'function')
-    ? CESTISPageCloud.now() : new Date().toISOString();
+    ? CESTISPageCloud.now() : CESTISCore.sync.nowIso();
   syncCollections().forEach(function(c) {
     try {
       var recs = c.get();
@@ -5688,20 +5688,28 @@ function mergeIncomingTombstoneLists(data) {
    when each was given (CESTISCore.coursework.recordGrade), so the merge keeps
    each trainee's newest grade instead of one whole map replacing the other,
    and the grade history (gradeLog) keeps every entry from both sides
-   (CESTISCore.sync.mergeList perEntry / unionStamps). */
-var ASSIGNMENT_GRADE_MAPS = { grades: 'gradeMeta.gradedAt' };
+   (CESTISCore.sync.mergeList perEntry / unionStamps). The rule itself lives in
+   CESTISCore.sync.RECORD_MAPS.assignments, and each merge asks for it with
+   CESTISCore.sync.mapRules('assignments', ...) — the Centre's network and its
+   server merge assignments by that same definition. */
 
 /* This device's clock against Google's (a Drive response's Date header) and,
    on the Centre's network, the Centre server's. Newest-wins compares clocks,
    so a clock that is minutes or years out decides merges wrongly; the person
-   at this machine is told, once, instead of finding edits reverted. */
+   at this machine is told, once, instead of finding edits reverted.
+   While it is wrong, edits here are dated, and merges judged, by Google's time
+   (CESTISCore.sync.setClockOffset): an edit made on a clock days fast used to
+   be ignored by every other device and then lost on this one too. */
 var _clockWarned = false;
 function cestisNoteServerClock(response, sentMs) {
-  if (_clockWarned || !response || !response.headers || typeof response.headers.get !== 'function') return;
+  if (!response || !response.headers || typeof response.headers.get !== 'function') return;
   var d = response.headers.get('Date');
   if (!d) return;
   var skew = CESTISCore.sync.clockSkew(d, sentMs, Date.now());
-  if (!CESTISCore.sync.clockLooksWrong(skew)) return;
+  if (typeof skew !== 'number') return;
+  var wrong = CESTISCore.sync.clockLooksWrong(skew);
+  try { CESTISCore.sync.setClockOffset(wrong ? -skew : 0); } catch (e) {}
+  if (_clockWarned || !wrong) return;
   _clockWarned = true;
   var mins = Math.round(Math.abs(skew) / 60000);
   var msg = 'This device\'s clock is ' + (mins >= 120 ? Math.round(mins / 60) + ' hours' : mins + ' minutes') + ' ' +
@@ -6187,18 +6195,29 @@ function importDataBackup() {
         window._cestisImporting = true;
         // Merged, never written over: a backup must not put accounts back on old
         // passwords or bring back what was deleted since (CESTISCore.backupRestore).
-        var _merged = 0;
+        // Each key by its own pages' rule — records inside a Cashbook quarter or
+        // the payroll included — and what could not be merged is named, not
+        // passed off as restored.
+        var _merged = 0, _kept = [];
+        var _readHere = function(x) { return CESTISStore.getItem(x); };
         CESTISCore.backupRestore.restoreOrder(Object.keys(backup.data)).forEach(function(k) {
-          var next = CESTISCore.backupRestore.mergeValue(k, CESTISStore.getItem(k), backup.data[k]);
-          if(next !== null) { CESTISStore.setItem(k, next); _merged++; }
+          var res = CESTISCore.backupRestore.mergeKey(k, CESTISStore.getItem(k), backup.data[k], { read: _readHere });
+          if(res.value !== null) { CESTISStore.setItem(k, res.value); _merged++; }
+          if(res.kept) _kept.push(k);
         });
         // Values that were not JSON (a typed bank balance, a logo) travel as
         // they were stored. Merged like everything else: they only fill a key
         // this device does not hold, never replace what is here now.
         Object.keys(backup.raw || {}).forEach(function(k) {
-          if(typeof backup.raw[k] === 'string' && !CESTISStore.getItem(k)) { CESTISStore.setItem(k, backup.raw[k]); _merged++; }
+          if(typeof backup.raw[k] !== 'string') return;
+          var here = CESTISStore.getItem(k);
+          if(!here) { CESTISStore.setItem(k, backup.raw[k]); _merged++; }
+          else if(here !== backup.raw[k]) _kept.push(k);
         });
-        showToast('Backup merged (' + _merged + ' collection(s) updated). Reloading...');
+        if(_kept.length) console.warn('[Import] Kept as they are on this device (the backup differs; not merged): ' + _kept.join(', '));
+        showToast('Backup merged (' + _merged + ' collection(s) updated' +
+          (_kept.length ? '; ' + _kept.length + ' kept as they are on this device: ' + _kept.slice(0, 5).join(', ') + (_kept.length > 5 ? ', …' : '') : '') +
+          '). Reloading...', _kept.length ? 'warning' : undefined);
         setTimeout(function(){ location.reload(); }, 1500);
       } catch(err) {
         showToast('Failed to restore backup: ' + err.message);
@@ -7072,6 +7091,17 @@ function clearSensitiveStudentData() {
     clearAllSessionData();
     return;
   }
+  // A staff member's work on this device that has not reached the cloud yet
+  // (an instructor's sign-out while offline) is the only copy of it, and a
+  // trainee's session never uploads it: the trim below would delete every
+  // other trainee's marks from the dated register for good. Nothing is
+  // trimmed until a staff sign-in has uploaded it (CESTISCore.pendingUpload).
+  var _staffNote = null;
+  try { _staffNote = CESTISStore.getItem('cestisPendingUpload'); } catch(e) { _staffNote = 'unknown|'; }
+  if (_staffNote && CESTISCore.pendingUpload.isStaff(_staffNote)) {
+    keepUnsyncedDataOnSignOut();
+    return;
+  }
 
   var studentId = currentStudent ? currentStudent.id : null;
   var studentName = currentStudent ? currentStudent.name : null;
@@ -7241,6 +7271,7 @@ function clearSensitiveDataOnExpiry() {
   try { if(typeof lmsChatRTStop === 'function') lmsChatRTStop(); } catch(e) {}
   var sessionRole = CESTISStore.getItem('voctrain_sessionRole');
   if(sessionRole === 'student') {
+    // (keeps everything while a staff member's work waits to upload)
     clearSensitiveStudentData();
   } else if(CESTISStore.getItem('cestisPendingUpload')) {
     // An expired session must not take with it work that never reached the
@@ -7279,6 +7310,10 @@ function clearAllSessionData() {
     }
   }
   keysToRemove.forEach(function(k) { CESTISStore.removeItem(k); });
+  // A full wipe runs only once nothing is waiting to upload, so the "pending
+  // upload" note goes with the data: left behind, it would make every later
+  // trainee sign-out here keep the Centre's records (CESTISCore.pendingUpload).
+  try { CESTISStore.removeItem('cestisPendingUpload'); } catch(e) {}
 
   // Clear in-memory arrays to prevent saveState() from restoring data
   students = [];
@@ -11333,11 +11368,13 @@ function logout(forced) {
        until it is safely uploaded; only the session is ended, and the next
        sign-in (any account) uploads it. A trainee's sign-out is unchanged: it
        keeps only that trainee's own records, and results not yet uploaded are
-       held back for upload (the exam outbox). */
+       held back for upload (the exam outbox) — unless a staff member's work
+       on this device is still waiting to upload: a trainee's backup does not
+       carry it, so nothing is trimmed until a staff sign-in has uploaded it
+       (CESTISCore.pendingUpload.keepOnSignOut). */
     var _pending = '';
     try { _pending = String(CESTISStore.getItem('cestisPendingUpload') || ''); } catch(e) { _pending = 'unknown|'; }
-    var _staffPending = !!_pending && _pending.indexOf('student|') !== 0;
-    if (safe !== true && _leavingRole && (_leavingRole !== 'student' ? !!_pending : _staffPending)) {
+    if (_pending && _leavingRole && CESTISCore.pendingUpload.keepOnSignOut(_pending, _leavingRole, safe)) {
       keepUnsyncedDataOnSignOut();
       return;
     }
@@ -11386,7 +11423,12 @@ async function finalLanSaveBeforeLogout() {
     if (!on) return false;
     var sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
     var res = await Promise.race([CESTISPageCloud.saveNow(), sleep(20000).then(function() { return null; })]);
-    return Array.isArray(res) && res.length > 0 && res.every(function(x) { return x === true; });
+    var ok = Array.isArray(res) && res.length > 0 && res.every(function(x) { return x === true; });
+    // The Centre's server now holds what this session could publish: the
+    // "pending upload" note goes when this session's role covers it (a
+    // trainee's device publishes records, never a staff member's settings).
+    if (ok) cestisMarkUploaded();
+    return ok;
   } catch(e) { return false; }
 }
 
@@ -11396,6 +11438,10 @@ async function finalLanSaveBeforeLogout() {
    hold; the next sign-in on this device uploads it. */
 function keepUnsyncedDataOnSignOut() {
   _sessionWiped = true;
+  // A trainee's session cannot upload staff work, so it is a staff sign-in
+  // that clears it (CESTISCore.pendingUpload).
+  var _byTrainee = false;
+  try { _byTrainee = (currentRole || CESTISStore.getItem('voctrain_sessionRole')) === 'student'; } catch(e) {}
   ['voctrain_sessionExpiry', 'voctrain_sessionRole', 'voctrain_sessionUserId',
    'voctrain_sessionStudentId', 'voctrain_sessionSeenAt'].forEach(function(k) {
     try { CESTISStore.removeItem(k); } catch(e) {}
@@ -11403,7 +11449,9 @@ function keepUnsyncedDataOnSignOut() {
   cloudFileId = null;
   lastSyncTime = null;
   try { CESTISStore.setItem('cestisUnsyncedOnSignOut', new Date().toISOString()); } catch(e) {}
-  try { showToast('Some changes have not reached Google Drive yet. They are kept on this device and will upload at the next sign-in — do not clear this browser.', 'warning'); } catch(e) {}
+  try { showToast(_byTrainee
+    ? 'Staff changes made on this computer have not reached Google Drive yet, so it keeps the Centre\'s records until a staff member signs in here — do not clear this browser.'
+    : 'Some changes have not reached Google Drive yet. They are kept on this device and will upload at the next sign-in — do not clear this browser.', 'warning'); } catch(e) {}
   console.warn('[Session] Signed out with changes not yet uploaded: the data stays on this device until it is.');
 }
 
@@ -19132,7 +19180,7 @@ async function syncAssignmentsFromDrive() {
     }
     if (Array.isArray(cloudData.assignments)) {
       var _ia = CESTISCore.sync.mergeList(instructorAssignments, cloudData.assignments.filter(function(a) { return a && a.id; }), syncKeyById,
-        { tombs: syncTombsFor('instructorAssignments'), perEntry: ASSIGNMENT_GRADE_MAPS, unionStamps: ['gradeLog'] });
+        CESTISCore.sync.mapRules('assignments', { tombs: syncTombsFor('instructorAssignments') }));
       if (_ia.added || _ia.updated || _ia.removed) changed = true;
     }
     if (Array.isArray(cloudData.submissions)) {
@@ -31394,7 +31442,7 @@ async function mergeBackupData(backupData) {
     if (Array.isArray(backupData.data.instructorAssignments)) {
       // Grades merge trainee by trainee (gradedAt per trainee): two instructors
       // grading different trainees on one assignment both keep their grade.
-      var _iaOut = CESTISCore.sync.mergeList(instructorAssignments, backupData.data.instructorAssignments, syncKeyById, { tombs: syncTombsFor('instructorAssignments'), perEntry: ASSIGNMENT_GRADE_MAPS, unionStamps: ['gradeLog'] });
+      var _iaOut = CESTISCore.sync.mergeList(instructorAssignments, backupData.data.instructorAssignments, syncKeyById, CESTISCore.sync.mapRules('assignments', { tombs: syncTombsFor('instructorAssignments') }));
       if (_iaOut.added || _iaOut.updated || _iaOut.removed) changed = true;
     }
 
@@ -31487,7 +31535,7 @@ async function mergeBackupData(backupData) {
     if (Array.isArray(backupData.data.notifications)) {
       // Read and cleared are each person's own (readBy / dismissedBy), merged
       // person by person.
-      var _noOut = CESTISCore.sync.mergeList(notifications, backupData.data.notifications, syncKeyById, { tombs: syncTombsFor('notifications'), unionStamps: ['readBy', 'clearedBy'] });
+      var _noOut = CESTISCore.sync.mergeList(notifications, backupData.data.notifications, syncKeyById, CESTISCore.sync.mapRules('notifications', { tombs: syncTombsFor('notifications') }));
       if (_noOut.added || _noOut.updated || _noOut.removed) { changed = true; try { saveNotifications(); } catch(e) {} }
     }
 
@@ -32055,20 +32103,27 @@ var _lastAutoSaveWriteMark = -1;
 var _lastAutoSaveResult = { uploaded: false, reason: 'not-run' };
 /* saveState() has written: this device may now hold work the cloud does
    not. "role|when" — a trainee's own pending work is protected by the exam
-   outbox, so only staff work holds back a trainee's sign-out trim. */
+   outbox, so only staff work holds back a trainee's sign-out trim. The note
+   names the role whose backup reaches furthest (CESTISCore.pendingUpload). */
 function cestisMarkPendingUpload() {
   try {
     var _pm = CESTISStore.getItem('cestisPendingUpload');
-    if (currentRole && (!_pm || (currentRole !== 'student' && String(_pm).indexOf('student|') === 0))) {
-      CESTISStore.setItem('cestisPendingUpload', currentRole + '|' + new Date().toISOString());
-    }
+    var _next = CESTISCore.pendingUpload.mark(_pm, currentRole, new Date().toISOString());
+    if (_next && _next !== _pm) CESTISStore.setItem('cestisPendingUpload', _next);
   } catch(e) {}
 }
-/* Everything this device held is in the cloud: drop the "pending upload"
-   marker saveState() sets, and the notice a sign-out left behind. */
+/* This session's upload reached the cloud: drop the "pending upload" marker
+   saveState() sets, and the notice a sign-out left behind — but only when
+   this session's backup carried what the marked session wrote. A trainee's
+   backup leaves the attendance register out (and a non-administrator's the
+   administrator's settings), so a trainee signing in after an instructor's
+   unsent sign-out used to clear the note with their first upload; their
+   sign-out then trimmed the instructor's marks away (CESTISCore.pendingUpload). */
 function cestisMarkUploaded() {
   try {
-    if (CESTISStore.getItem('cestisPendingUpload')) CESTISStore.removeItem('cestisPendingUpload');
+    var _pm = CESTISStore.getItem('cestisPendingUpload');
+    if (_pm && !CESTISCore.pendingUpload.covers(currentRole, _pm)) return;
+    if (_pm) CESTISStore.removeItem('cestisPendingUpload');
     if (CESTISStore.getItem('cestisUnsyncedOnSignOut')) CESTISStore.removeItem('cestisUnsyncedOnSignOut');
   } catch (e) {}
 }

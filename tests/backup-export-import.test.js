@@ -85,7 +85,9 @@ assertEq(R.mergeValue('voctrain_students', '{not json', [{ id: 'S1' }]), null, '
 assertEq(R.restoreOrder(['voctrain_users', 'voctrain_deletedUserIds', 'voctrain_students']).join(','), 'voctrain_deletedUserIds,voctrain_users,voctrain_students',
   'deletion lists are applied first');
 const imp = extractFunction(SRC, 'importDataBackup');
-assert(/CESTISCore\.backupRestore\.restoreOrder\(Object\.keys\(backup\.data\)\)/.test(imp) && /CESTISCore\.backupRestore\.mergeValue\(k, CESTISStore\.getItem\(k\), backup\.data\[k\]\)/.test(imp),
+// (mergeKey: the same merge as mergeValue, and it says what it could not merge
+// — tests/review-data-loss.test.js.)
+assert(/CESTISCore\.backupRestore\.restoreOrder\(Object\.keys\(backup\.data\)\)/.test(imp) && /CESTISCore\.backupRestore\.mergeKey\(k, CESTISStore\.getItem\(k\), backup\.data\[k\], \{ read: _readHere \}\)/.test(imp),
   'importDataBackup merges each key instead of overwriting it');
 assert(imp.indexOf('CESTISStore.setItem(k, JSON.stringify(backup.data[k]))') === -1, 'the wholesale overwrite is gone');
 
