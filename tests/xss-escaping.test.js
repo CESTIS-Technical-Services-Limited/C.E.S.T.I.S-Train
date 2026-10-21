@@ -405,21 +405,44 @@ console.log('Support Messages (the public form, no account needed)');
   assert(calls.length === 1 && calls[0].args[0] === msgs[0].id, 'Delete still reaches the message by its exact id');
 }
 
-console.log('Attendance registers (admin, instructor, CMC)');
+console.log('Attendance registers (admin, instructor, admin staff, CMC)');
 {
-  const rec = { studentId: 'STU-1"onmouseover="__pwn(6)', studentName: EVIL, course: EVIL, days: { Mon: 'present', Tue: ATTACK.tag } };
+  /* The register is dated now (one mark per trainee per date): the renderers
+     are the real ones, from the register's block of index.html, fed a mark
+     whose every field is an attack as well as an old weekly row. */
+  const A = Core.attendance;
+  const sid = 'STU-1"onmouseover="__pwn(6)';
+  const rec = { studentId: sid, studentName: EVIL, course: EVIL, days: { Mon: 'present', Tue: ATTACK.tag } };
+  const today = A.localDate();
+  const mark = { id: A.recordId(sid, today), studentId: sid, date: today, status: ATTACK.tag, markedAt: new Date().toISOString(),
+    markedBy: EVIL, markedByName: EVIL, studentName: EVIL, course: EVIL, history: [{ status: ATTACK.tag, markedAt: '', markedBy: EVIL }] };
+  const BLOCK_START = SRC.indexOf('/* ============================== ATTENDANCE REGISTER — ONE MARK PER DATE');
+  const BLOCK_END = SRC.indexOf('\nfunction toggleAnnouncementForm(');
+  assert(BLOCK_START > 0 && BLOCK_END > BLOCK_START, 'the dated register block is found in index.html');
+  const block = SRC.slice(BLOCK_START, BLOCK_END);
   const common = {
-    attendanceRecords: [rec], students: [{ id: rec.studentId, name: EVIL, course: EVIL, instructor: 'Ins', stage: ATTACK.tag, gpa: ATTACK.tag, attendance: 90 }],
-    dedupeAttendanceRecords() {}, isRegisterOpenForCourse() { return true; }, renderAttendanceLockBanner() {},
-    renderAttendanceSummary() {}, renderWeeklyAttChart() {}, renderInstructorAttSummary() {}, renderInstructorWeeklyChart() {},
+    attendanceRecords: [rec], vcSessions: [], attnLoadedQuarter: null,
+    attendanceRegister: [mark, Object.assign({}, mark, { id: A.recordId(sid, A.addDays(today, -1)), date: A.addDays(today, -1), status: 'present', history: undefined })],
+    students: [{ id: sid, name: EVIL, course: EVIL, instructor: 'Ins', stage: 'training', gpa: ATTACK.tag, attendance: 90 }],
+    studentCentreRecord() { return null; }, studentCourseStatus() { return 'active'; }, safeJsonParse(v, d) { try { return JSON.parse(v); } catch (e) { return d; } },
+    CESTISStore: { getItem() { return null; }, setItem() {}, removeItem() {} }, saveCollection() { return true; }, currentAttendanceDate: '',
     instructorCourseMatch() { return true; }, currentInstructor: { name: 'Ins', course: EVIL }, currentRole: 'admin'
   };
-  const r = render('renderAttendancePage', ['renderAttendancePage'], common, 'renderAttendancePage()', sb => el(sb, 'attendanceTableBody'));
-  assert(parseTags(r.html).some(t => t.attrs.some(a => a.name === 'data-sid' && a.value === rec.studentId)),
-    'data-sid still decodes to the exact trainee id (updateAttendanceCell finds the row)');
-  render('renderInstructorAttendance', ['renderInstructorAttendance'], common, 'renderInstructorAttendance()', sb => el(sb, 'iAttendanceTableBody'));
-  render('cmcBuildAttendanceDetail', ['cmcBuildAttendanceDetail'], common, 'cmcBuildAttendanceDetail()');
-  render('cmcBuildAttendanceDetail (no records)', ['cmcBuildAttendanceDetail'], Object.assign({}, common, { attendanceRecords: [] }), 'cmcBuildAttendanceDetail()');
+  // The cells' and headers' handlers are written by these, so they are named
+  // for the check that every handler in the markup is one the code writes.
+  const run = (label, names, setup, call, pick) => render(label, ['localDateStr', 'attendanceCellHtml', 'attendanceHeadHtml', 'renderAttendanceGrid'].concat(names), Object.assign({ __block: block }, setup),
+    'eval(__block);' + call, pick);
+  const r = run('renderAttendancePage', ['renderAttendancePage'], common, 'renderAttendancePage()', sb => el(sb, 'attendanceTableBody'));
+  assert(parseTags(r.html).some(t => t.attrs.some(a => a.name === 'data-sid' && a.value === sid)),
+    'data-sid still decodes to the exact trainee id (updateAttendanceCell finds the mark)');
+  run('renderInstructorAttendance', ['renderInstructorAttendance', 'attendanceInstructorFilter'], Object.assign({ _attInstructorCfg: {
+    page: 'instructor', tbody: 'iAttendanceTableBody', head: 'iAttendanceTableHead', count: 'iAttCount', summary: 'iAttendanceSummary',
+    chart: 'iWeeklyAttChart', live: 'iAttendanceLiveClasses', dateInput: 'iAttendanceDate', banner: 'iAttendanceLockBanner', showCourse: false } }, common),
+    'renderInstructorAttendance()', sb => el(sb, 'iAttendanceTableBody'));
+  run('renderAsAttendance', ['renderAsAttendance'], common, 'renderAsAttendance()', sb => el(sb, 'asAttBody'));
+  run('cmcBuildAttendanceDetail', ['cmcBuildAttendanceDetail'], common, 'cmcBuildAttendanceDetail()');
+  run('cmcBuildAttendanceDetail (weekly rows only)', ['cmcBuildAttendanceDetail'], Object.assign({}, common, { attendanceRegister: [] }), 'cmcBuildAttendanceDetail()');
+  run('cmcBuildAttendanceDetail (no records)', ['cmcBuildAttendanceDetail'], Object.assign({}, common, { attendanceRecords: [], attendanceRegister: [] }), 'cmcBuildAttendanceDetail()');
   render('cmcBuildFeesDetail', ['cmcBuildFeesDetail'], common, 'cmcBuildFeesDetail()');
 }
 
@@ -446,10 +469,15 @@ console.log('Certificates: the QR verify link and the admin pages');
     certDownloadApprovals: [{ studentId: s.id, approved: true, downloadCount: 3, name: EVIL, course: EVIL, certNo: EVIL, approvedBy: EVIL, lastDownloaded: '2026-01-01' }],
     isStudentCertified() { return true; }, isStudentPassed() { return true; },
     dedupeCertDownloadApprovals() { return false; }, reconcileCertifiedFromApprovals() {}, populateCertTemplateSkillSelect() {},
-    renderCertSeedStatus() {}, renderCertDlStats() {}, renderCertDlLog() {}
+    renderCertSeedStatus() {}, renderCertDlStats() {}, renderCertDlLog() {},
+    // The eligibility badge (its tooltip carries record text) and the signed
+    // badge, added with the certificate checklist; the panel draws itself.
+    certEligibilityContext() { return {}; },
+    certEligibilityFor() { return { warnings: 1, items: [{ key: 'fees', label: EVIL, state: 'warn', detail: EVIL }] }; },
+    certSignedFields() { return {}; }, renderCertSigningPanel() {}
   };
   render('renderCerts', ['renderCerts'], setup, 'renderCerts()', sb2 => el(sb2, 'certTableBody'));
-  const r = render('renderCertDownloadMgmt', ['renderCertDownloadMgmt'], setup, 'renderCertDownloadMgmt()', sb2 => el(sb2, 'certDlStudentList'));
+  const r = render('renderCertDownloadMgmt', ['renderCertDownloadMgmt', 'certEligibilityText', 'certEligibilityBadge'], setup, 'renderCertDownloadMgmt()', sb2 => el(sb2, 'certDlStudentList'));
   const calls = handlerCalls(r.html).filter(c => /revokeCertDownload|approveCertDownload|certRegisterPrintedNumber/.test(c.name));
   assert(calls.length > 0 && calls.every(c => c.args[0] === s.id), 'the certificate buttons still pass the exact trainee id');
   render('renderCertDlLog', ['renderCertDlLog'], setup, 'renderCertDlLog()', sb2 => el(sb2, 'certDlLogBody'));
@@ -562,7 +590,7 @@ console.log('Video classes: lists, lobby, conference, participants');
     currentStudent: { id: 'S', name: EVIL, course: 'Welding', instructor: EVIL }, instructorCourseMatch() { return true; },
     localDateStr() { return '2026-10-20'; }, instructorResources: [], driveResources: [{ category: 'video', name: EVIL, url: EVIL_URL, course: 'Welding' }]
   };
-  const ac = render('renderAdminClassSessions', ['renderAdminClassSessions'], setup, 'renderAdminClassSessions()', sb => el(sb, 'adminClassSessionsList') + el(sb, 'adminAllSessionsList'));
+  const ac = render('renderAdminClassSessions', ['vcSessionStatusBadge', 'renderAdminClassSessions'], setup, 'renderAdminClassSessions()', sb => el(sb, 'adminClassSessionsList') + el(sb, 'adminAllSessionsList'));
   const joins = handlerCalls(ac.html).filter(c => c.name === 'enterVideoRoom');
   assert(joins.length === 2 && joins.every(c => c.args[0] === EVIL && c.args[2] === cs.roomCode), 'Join passes the exact class name and room code (an apostrophe used to break it)');
   render('renderAdminMeetingsList', ['meetingAccess', 'meetingAccessBadge', 'renderAdminMeetingsList'], setup, 'renderAdminMeetingsList()', sb => el(sb, 'adminMeetingsList') + el(sb, 'asAdminMeetingsList') + el(sb, 'iAdminMeetingsList'));
@@ -573,9 +601,9 @@ console.log('Video classes: lists, lobby, conference, participants');
 
   const vsb = makeSandbox({
     peerNames: { p1: EVIL }, peerRoles: { p1: ATTACK.tag }, mutedPeers: {}, vcCoHosts: {}, isRoomHost: true, rtcPeer: { id: 'me' },
-    vcCurrentUserName: EVIL, vcCurrentRole: 'admin'
+    vcCurrentUserName: EVIL, vcCurrentRole: 'admin', vcIsCoHost: false, currentRoomCode: 'ABC234'
   });
-  load(vsb, ['vcCleanPeerName', 'vcCleanPeerRole', 'vcUpdateParticipants']);
+  load(vsb, ['vcHostPeerId', 'vcCleanPeerName', 'vcCleanPeerRole', 'vcUpdateParticipants']);
   vm.runInContext('vcUpdateParticipants()', vsb);
   const parts = el(vsb, 'vc-part-list');
   assertSafeMarkup(parts, 'vcUpdateParticipants', extractFunction(SRC, 'vcUpdateParticipants'));
@@ -583,7 +611,8 @@ console.log('Video classes: lists, lobby, conference, participants');
   assertEq(vm.runInContext('vcCleanPeerRole("instructor")', vsb), 'instructor', 'a real role is kept');
   const conf = render('vcShowConference', ['vcShowConference'], {
     vcCurrentUserName: EVIL, isRoomHost: true, currentRoomCode: ATTACK.tag, localStream: null,
-    vcUpdateParticipants() {}, vcRestoreChatHistory() {}, videoTimerInterval: null, videoSeconds: 0
+    vcUpdateParticipants() {}, vcRestoreChatHistory() {}, videoTimerInterval: null, videoSeconds: 0,
+    vcReplayStreams() {}, vcRefreshRecordingBanner() {}, vcNatNotice() {}
   }, 'vcShowConference(' + JSON.stringify(EVIL) + ', "admin")', sb => el(sb, 'videoRoom'));
   const send = handlerCalls(conf.html).filter(c => c.name === 'sendChatMsg');
   assert(send.length === 2 && send.every(c => c.args[1] === EVIL), 'Send passes the exact sender name (an apostrophe used to break chat)');

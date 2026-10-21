@@ -180,7 +180,12 @@ PAGES.forEach(function (page) {
   vm.runInContext("systemSettings.maintenanceMode = true; systemSettings.maintenanceUpdatedAt = '" + T3 + "'; var before = systemSettings.updatedAt; syncStampAll(); stampAfterMaint = systemSettings.updatedAt === before;", sandbox);
   assertEq(sandbox.stampAfterMaint, true, w + ': a maintenance decision does not re-stamp the settings (it carries its own stamp)');
   vm.runInContext("syncTombstoneRemoved('exams', exams, exams = exams.filter(function(e){ return e.id !== 'EXAM-2'; }))", sandbox);
-  assert(!!(sandbox.syncTombstones.exams && sandbox.syncTombstones.exams['safety|welding']), w + ': a deliberate deletion is written down under the merge key');
+  // Exams are keyed by id since exams-11 (two same-titled exams collapsed into
+  // one under title|programme). The Offline page follows once it is
+  // regenerated from root; until then it still writes the old key.
+  const examTombs = sandbox.syncTombstones.exams || {};
+  if (w === 'index.html') assert(!!examTombs['EXAM-2'] && !examTombs['safety|welding'], w + ': a deliberate deletion is written down under the merge key (the exam id)');
+  else assert(!!(examTombs['EXAM-2'] || examTombs['safety|welding']), w + ': a deliberate deletion is written down under the merge key');
 });
 
 /* ---------- 3. The write checks the version first, and recovers a write it overtook ---------- */

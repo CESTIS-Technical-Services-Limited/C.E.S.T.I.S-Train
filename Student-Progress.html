@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261020c"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CESTIS - Student Progress</title>
 
@@ -346,7 +346,7 @@
     <div class="form-group"><label>Programme</label><select class="form-control" id="editStudentCourse"></select></div>
     <div class="form-group"><label>Gender</label><select class="form-control" id="editStudentGender"><option value="">— Select —</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
     <div class="form-group"><label>Instructor</label><input type="text" class="form-control" id="editStudentInstructor"></div>
-    <div class="form-group"><label>Attendance (%)</label><input type="number" class="form-control" id="editStudentAttendance" min="0" max="100"></div>
+    <div class="form-group"><label>Attendance (%)</label><input type="number" class="form-control" id="editStudentAttendance" min="0" max="100"><div id="editStudentAttendanceNote" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div></div>
     <div class="form-group"><label>GPA</label><input type="text" class="form-control" id="editStudentGPA"></div>
     <!-- Two real trainees can share a name. The system treats one name as one
          person and collapses the rest on launch; this is how an administrator
@@ -532,6 +532,19 @@ function deduplicateStudents() {
   return { removed: removed, idMap: idMap };
 }
 
+// A trainee's attendance by the register's one rule (CESTISCore.attendance:
+// present + late over the sessions actually held), or null while the register
+// holds no held session for them.
+function spRegisterAttendance(sid) {
+  try {
+    var reg = safeJsonParse(CESTISStore.getItem('voctrain_attendanceRegister'), null);
+    if (!Array.isArray(reg) || !reg.length || !CESTISCore.attendance) return null;
+    var want = {}; want[sid] = true;
+    var r = CESTISCore.attendance.ratesByStudent(reg, { studentIds: want })[sid];
+    return (r && r.pct != null) ? r : null;
+  } catch (e) { return null; }
+}
+
 function relinkDependentData(idMap) {
   if (!idMap || Object.keys(idMap).length === 0) return;
   if (window.CESTISCore && typeof CESTISCore.relinkDependentData === 'function') {
@@ -542,6 +555,16 @@ function relinkDependentData(idMap) {
     userAccounts = _d.userAccounts; attendanceRecords = _d.attendanceRecords;
     certDownloadApprovals = _d.certDownloadApprovals;
     if (Array.isArray(examResults)) examResults = _d.examResults;
+    // The dated attendance register (kept by the main dashboard) names each
+    // trainee by id too: a trainee re-identified here takes their marks along,
+    // folded newest-wins into any mark the new id already has.
+    try {
+      var _reg = safeJsonParse(CESTISStore.getItem('voctrain_attendanceRegister'), null);
+      if (Array.isArray(_reg) && _reg.length && CESTISCore.attendance) {
+        var _rl = CESTISCore.attendance.relink(_reg, idMap);
+        if (_rl.changed) spSaveCollection('voctrain_attendanceRegister', _rl.register);
+      }
+    } catch (e) {}
     return;
   }
   userAccounts.forEach(function(u) {
@@ -948,37 +971,108 @@ function openUpdateStage(idx) {
   if(spRefuseEdit()) return;
   var s = students[idx];
   document.getElementById('updateStageContent').innerHTML =
-    '<p style="margin-bottom:16px;font-size:14px;">Student: <strong>' + sanitizeInput(s.name) + '</strong> (' + sanitizeInput(s.id) + ')<br>Course: ' + sanitizeInput(s.course) + '<br>Current: <span class="badge ' + (stageBadge[s.stage]||'badge-blue') + '">' + sanitizeInput(stageLabels[s.stage]||s.stage) + '</span></p>' +
-    '<div class="form-group"><label>Move to Stage</label><select class="form-control" id="newStage">' +
+    '<p style="margin-bottom:16px;font-size:14px;">Student: <strong>' + sanitizeInput(s.name) + '</strong> (' + sanitizeInput(s.id) + ')<br>Course: ' + sanitizeInput(s.course) + '<br>Current: <span class="badge ' + (stageBadge[s.stage]||'badge-blue') + '">' + sanitizeInput(stageLabels[s.stage]||s.stage) + '</span>' +
+      (s.certNo ? '<br>Certificate: <strong style="font-family:monospace;">' + sanitizeInput(s.certNo) + '</strong>' : '') + '</p>' +
+    '<div class="form-group"><label>Move to Stage</label><select class="form-control" id="newStage" onchange="spRenderCertChecklist(' + idx + ')">' +
       stages.map(function(st){ return '<option value="' + st + '"' + (st===s.stage?' selected':'') + '>' + stageLabels[st] + '</option>'; }).join('') +
     '</select></div>' +
-    '<div class="form-group"><label>Notes</label><textarea class="form-control" placeholder="Add notes..."></textarea></div>' +
+    '<div id="spCertChecklist"></div>' +
+    '<div class="form-group"><label>Notes</label><textarea class="form-control" id="spStageNotes" placeholder="Add notes..."></textarea></div>' +
     '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">' +
       '<button class="btn btn-secondary" onclick="closeModal(\'updateStageModal\')">Cancel</button>' +
       '<button class="btn btn-primary" onclick="updateStudentStage(' + idx + ')">Update</button>' +
     '</div>';
+  spRenderCertChecklist(idx);
   openModal('updateStageModal');
+}
+
+// What the Centre's own records say before a certificate is issued: units
+// competent (transcript) or exams passed, attendance, and fees. It warns; the
+// administrator decides (CESTISCore.certs.eligibility).
+function spCertEligibility(s) {
+  var read = function (k, d) { try { var v = JSON.parse(CESTISStore.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+  var T = CESTISCore.Transcript, qual = null, fee = null;
+  try {
+    var catalogs = read('voctrain_unitCatalogs', []);
+    if (T && T.ensureSeeded) catalogs = T.ensureSeeded(catalogs);
+    qual = T ? T.qualForCourse(catalogs, s.course) : null;
+  } catch (e) { qual = null; }
+  try { fee = CESTISCore.feeTwinIndex(read('cestiSchoolFeeStudents', [])).find(s); } catch (e) { fee = null; }
+  return CESTISCore.certs.eligibility(s, { qual: qual, manualGrades: read('voctrain_transcriptGrades', []),
+    exams: read('voctrain_exams', []), examResults: examResults, feeRecord: fee });
+}
+function spRenderCertChecklist(idx) {
+  var host = document.getElementById('spCertChecklist');
+  var sel = document.getElementById('newStage');
+  if (!host || !sel) return;
+  var s = students[idx];
+  var to = sel.value;
+  if (to === 'certified' && s.stage !== 'certified' && s.stage !== 'collected') {
+    var e = spCertEligibility(s);
+    var icon = { ok: '&#10003;', warn: '&#9888;', unknown: '?' }, colour = { ok: 'var(--green)', warn: 'var(--amber, #e6a23c)', unknown: 'var(--text-muted)' };
+    host.innerHTML = '<div class="form-group" style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px;">' +
+      '<label style="margin-bottom:6px;">Before issuing the certificate</label>' +
+      e.items.map(function (i) {
+        return '<div style="font-size:13px;margin:3px 0;"><span style="color:' + colour[i.state] + ';font-weight:700;display:inline-block;width:18px;">' + icon[i.state] + '</span>' +
+          sanitizeInput(i.label) + ': <span style="color:var(--text-muted);">' + sanitizeInput(i.detail) + '</span></div>';
+      }).join('') +
+      (e.warnings ? '<div style="font-size:12px;margin-top:6px;color:var(--text-muted);">You can still issue it — you will be asked to confirm.</div>' : '') +
+      '</div>';
+  } else if ((s.stage === 'certified' || s.stage === 'collected') && to !== 'certified' && to !== 'collected') {
+    host.innerHTML = '<div class="form-group" style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;">' +
+      'This withdraws certificate <strong style="font-family:monospace;">' + sanitizeInput(s.certNo || '') + '</strong>: it will verify as <strong>revoked</strong>, and its download approval is switched off. The number stays on record and comes back if they are certified again.</div>';
+  } else {
+    host.innerHTML = '';
+  }
+}
+
+// Who is recorded as having issued or withdrawn a certificate: the person
+// signed in on the dashboard this page sits inside.
+function spActorName() {
+  try { var u = window.top && window.top.currentLoggedInUser; if (u && u.name) return String(u.name); } catch (e) {}
+  return 'Admin';
+}
+// A person, not the course-end rule, decided this stage: the sweep must not
+// undo it, and it settles this course ending for them (as the dashboard's
+// markStageSetByUser does).
+function spMarkStageSetByUser(s) {
+  delete s._nycAuto;
+  try {
+    var rec = null;
+    if (s.centreId != null) rec = skillAreas.filter(function (a) { return a && a.id === s.centreId; })[0] || null;
+    if (!rec) rec = CESTISCore.enrolment.findCentre(skillAreas, s.course, { nowMs: Date.now() });
+    if (rec && CESTISCore.courseDuration.status(rec.startDate, rec.endDate) === 'ended') s._nycForCourseEnd = rec.endDate || s.courseEnd || 'ended';
+  } catch (e) {}
+  s.stageSetByUser = true;
 }
 
 function updateStudentStage(idx) {
   if(spRefuseEdit()) return;
   var newStage = document.getElementById('newStage').value;
-  students[idx].stage = newStage;
-  if(newStage === 'certified'){
-    students[idx].progress = 90;
-    students[idx].certNo = students[idx].course.substring(0,2).toUpperCase()+'-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*9000)+1000);
-    students[idx].certDate = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'2-digit'});
+  var s = students[idx];
+  var wasIssued = s.stage === 'certified' || s.stage === 'collected';
+  if (newStage === 'certified' && !wasIssued) {
+    var e = spCertEligibility(s);
+    if (e.warnings && !confirm('Before issuing ' + s.name + '’s certificate:\n\n' +
+        e.items.map(function (i) { return (i.state === 'ok' ? '✓ ' : i.state === 'warn' ? '⚠ ' : '? ') + i.label + ': ' + i.detail; }).join('\n') +
+        '\n\nIssue the certificate anyway?')) return;
   }
-  if(newStage === 'collected'){ students[idx].progress=100; students[idx].certCollected=true; }
-  if(newStage === 'incomplete') students[idx].progress = Math.min(students[idx].progress,40);
-  students[idx].lastModified = new Date().toISOString();
+  var notesEl = document.getElementById('spStageNotes');
+  // The one rule every page uses (CESTISCore.certs.applyStage): a number,
+  // once issued, never changes and is never re-dated — it used to be a fresh
+  // RANDOM number on every save, so a printed certificate stopped verifying;
+  // a re-certification takes back the withdrawn number; and a demotion
+  // withdraws the certificate (kept on record, verifiable as revoked, its
+  // approval switched off) instead of leaving it to be promoted straight back.
+  CESTISCore.certs.applyStage(s, newStage, { roll: students, approvals: certDownloadApprovals, by: spActorName(),
+    reason: notesEl ? String(notesEl.value || '').trim() : '' });
+  spMarkStageSetByUser(s);
   closeModal('updateStageModal');
   filterStudents();
   updatePipelineCounts();
-  showToast(students[idx].name + ' moved to ' + stageLabels[newStage]);
+  showToast(s.name + ' moved to ' + stageLabels[newStage]);
   saveData();
 }
-
 // ============================== EDIT STUDENT ==============================
 function openEditStudent(idx) {
   if(spRefuseEdit()) return;
@@ -990,7 +1084,17 @@ function openEditStudent(idx) {
   document.getElementById('editStudentEmail').value = profile.email || '';
   document.getElementById('editStudentGender').value = s.gender || '';
   document.getElementById('editStudentInstructor').value = s.instructor || '';
-  document.getElementById('editStudentAttendance').value = s.attendance || 0;
+  // Attendance comes from the register once there is one for this trainee: it
+  // is shown, not typed, so a figure typed here can no longer silently stand in
+  // for (or be silently replaced by) what the register says.
+  var _attIn = document.getElementById('editStudentAttendance');
+  var _attNote = document.getElementById('editStudentAttendanceNote');
+  var _reg = spRegisterAttendance(s.id);
+  _attIn.value = _reg ? _reg.pct : (s.attendance || 0);
+  _attIn.readOnly = !!_reg;
+  if (_attNote) _attNote.textContent = _reg
+    ? 'From the attendance register: ' + _reg.attended + ' of ' + _reg.held + ' sessions held (late counts as attended). Change it by marking the register.'
+    : 'No attendance has been marked in the register for this trainee yet, so the figure is entered here.';
   document.getElementById('editStudentGPA').value = s.gpa || '0.0';
   // "Keep separate": show the current setting, and say plainly whether anybody
   // else on the roll actually shares this name — the marker only matters then.
@@ -1108,7 +1212,10 @@ function saveEditStudent() {
   s.gender = document.getElementById('editStudentGender').value || '';
   s.course = document.getElementById('editStudentCourse').value;
   s.instructor = document.getElementById('editStudentInstructor').value.trim();
-  s.attendance = parseInt(document.getElementById('editStudentAttendance').value) || 0;
+  // Typed only while the register holds nothing for this trainee; otherwise the
+  // register's figure stands (see openEditStudent).
+  var _regAtt = spRegisterAttendance(s.id);
+  s.attendance = _regAtt ? _regAtt.pct : (parseInt(document.getElementById('editStudentAttendance').value) || 0);
   // GPA is a number (0 to 5, up to three decimals). Free text here ended up
   // in every leaderboard, so anything else keeps the previous value.
   var _gpaIn = document.getElementById('editStudentGPA').value.trim() || '0.0';
@@ -1126,7 +1233,7 @@ function saveEditStudent() {
     attRec.studentName = s.name;
     attRec.course = s.course;
   } else {
-    attendanceRecords.push({studentId:s.id, studentName:s.name, course:s.course, date:new Date().toISOString().split('T')[0], days:{Mon:'absent',Tue:'absent',Wed:'absent',Thu:'absent',Fri:'absent'}});
+    attendanceRecords.push({studentId:s.id, studentName:s.name, course:s.course, date:CESTISCore.attendance.localDate(), days:{}});
   }
   s.lastModified = new Date().toISOString();
   updateSkillAreaCounts();
@@ -1193,7 +1300,7 @@ async function addStudent() {
   if (!_dec.allowed) { alert(_dec.reason); return; }
   // Ground the trainee in the centre's course duration and fiscal year.
   var _stamp = (window.CESTISCore && CESTISCore.enrolment)
-    ? (CESTISCore.enrolment.enrolmentStamp(_dec.centre, new Date().toISOString().split('T')[0]) || {}) : {};
+    ? (CESTISCore.enrolment.enrolmentStamp(_dec.centre, CESTISCore.attendance.localDate()) || {}) : {};
   var assignedInstructor = (instructorData.find(function(ins){
     if(!ins.course) return false;
     if(ins.course.toLowerCase().trim() === selectedCourse.toLowerCase().trim()) return true;
@@ -1211,7 +1318,7 @@ async function addStudent() {
     certNo:null, certDate:null, certCollected:false,
     attendance:0, assignments:0, assignmentsTotal:8,
     gpa:'0.0', instructor:assignedInstructor, gender:gender,
-    createdAt:new Date().toISOString().split('T')[0],
+    createdAt:CESTISCore.attendance.localDate(),
     lastModified:new Date().toISOString(),
     // Grounded in the training centre's duration and fiscal year
     centreId:_stamp.centreId, centreName:_stamp.centreName,
@@ -1221,7 +1328,7 @@ async function addStudent() {
   // Auto-create attendance record
   var existingAtt = attendanceRecords.find(function(r){ return r.studentId === studentId; });
   if(!existingAtt){
-    attendanceRecords.push({studentId:studentId, studentName:name, course:selectedCourse, date:new Date().toISOString().split('T')[0], days:{Mon:'absent',Tue:'absent',Wed:'absent',Thu:'absent',Fri:'absent'}});
+    attendanceRecords.push({studentId:studentId, studentName:name, course:selectedCourse, date:CESTISCore.attendance.localDate(), days:{}});
   }
   updateSkillAreaCounts();
   // No login is made here. This page used to write one — with a password of
@@ -1366,9 +1473,13 @@ if(document.readyState === 'loading'){
 CESTISPageCloud.init({
   page: 'Student Progress',
   file: 'CESTIS_Student_Progress.json',
+  // 'voctrain_attendance' is not published from here: this file's copy of the
+  // roster was adopted whole by the next device to pull it — over that
+  // device's current quarter. The main dashboard's backup carries attendance
+  // (every dated mark), merged mark by mark.
   // Opened with no signed-in session it shows nothing, so it moves nothing either.
   readOnly: !(typeof SP_VIEWER !== 'undefined' && SP_VIEWER.ok),
-  keys: ['voctrain_students', 'voctrain_attendance', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles'],
+  keys: ['voctrain_students', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles'],
   // The fee roll is read here (trainees the fee page knows about first are
   // mirrored onto this dashboard) but owned by School Fee, so it is pulled from
   // Drive and never written back from this page.

@@ -176,7 +176,7 @@ PAGES.forEach(function (page) {
       currentLoggedInUser: { name: 'Ina' }, currentInstructor: null, currentRole: 'instructor',
       document: { getElementById: () => input }, toasts: [],
       showToast(t) { sb.toasts.push(t); }, saveState() { sb.saved = (sb.saved || 0) + 1; }, scheduleDebouncedCloudSave() {}, saveAssignmentsToDrive() {},
-      addNotification() {}, renderInstructorGradebook() {}, refreshContentDependentViews() {}
+      addNotification(t, ty, ic, roles) { sb.roles = roles; }, renderInstructorGradebook() {}, refreshContentDependentViews() {}
     };
     vm.createContext(sb);
     vm.runInContext(extractFunction(src, 'gradeSubmission', w), sb);
@@ -186,6 +186,7 @@ PAGES.forEach(function (page) {
     assertEq(asg.gradeLog[0].gradedBy, 'Ina', 'the marker is logged');
     assertEq(asg.gradeMeta.S1.resubmittedAt, undefined, 're-marking clears the "resubmitted" flag');
     assert(/was 4/.test(sb.toasts.join()), 'the instructor is told what the mark was');
+    assert(sb.roles && sb.roles.indexOf('student') === -1, "a trainee's mark is not announced to the whole class");
   }
 
   /* ---------- 9. Submitting: one at a time, attempts kept, Drive link instead of bytes ---------- */
