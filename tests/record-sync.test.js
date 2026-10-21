@@ -146,7 +146,10 @@ PAGES.forEach(function (page) {
   assert(extractFunction(src, 'autoSaveToAllFolders', w).indexOf('syncTombstones: syncTombstones') !== -1, w + ': the backup carries them');
   assert(extractFunction(src, 'clearAllSessionData', w).indexOf("'voctrain_syncTombstones'") !== -1, w + ': a logout keeps them');
   const tombSites = (src.match(/syncTombstoneRemoved\('/g) || []).length;
-  assert(tombSites >= 13, w + ': every deliberate deletion writes down what it removed (found ' + tombSites + ')');
+  // 12, not 13: the bell's "Clear all" no longer deletes notices (it deleted
+  // other people's too) — it marks them cleared for the viewer only, so it
+  // has nothing to tombstone (tests/comms-bell-announcements.test.js).
+  assert(tombSites >= 12, w + ': every deliberate deletion writes down what it removed (found ' + tombSites + ')');
   const grid = extractFunction(src, 'applyAdminStaffAccess', w);
   assert(grid.indexOf('nextAt < haveAt') !== -1 && grid.indexOf("k === 'updatedAt'") !== -1, w + ': a stale Admin Staff grid never revokes what was since granted');
 

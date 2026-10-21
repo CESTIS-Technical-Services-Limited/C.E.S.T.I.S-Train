@@ -6740,6 +6740,571 @@
              escKeepCharRefs: escKeepCharRefs, notifIcon: notifIcon, cleanNotification: cleanNotification };
   })();
 
+  // ===================== COURSEWORK: dates, marks, attempts =====================
+  // The assignment pages decided "past due", averages and resubmission inline,
+  // each a little differently. These are the rules, once, so every page (and
+  // the tests) agree.
+  Core.coursework = (function () {
+    var DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+    // 'YYYY-MM-DD' for the device's own calendar day (Jamaica on the Centre's
+    // machines). toISOString() would give the UTC day, which is tomorrow from
+    // 7 PM onwards in Kingston.
+    function localDateStr(d) {
+      d = d instanceof Date ? d : (d == null ? new Date() : new Date(d));
+      if (isNaN(d.getTime())) return '';
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    }
+
+    function isDateOnly(s) {
+      var m = DATE_ONLY.exec(String(s == null ? '' : s).trim());
+      if (!m) return false;
+      var d = new Date(+m[1], +m[2] - 1, +m[3]);
+      return d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3];
+    }
+
+    // A due date typed into <input type=date> is a calendar day, not an
+    // instant. new Date('2026-10-16') reads it as UTC midnight — 7 PM on the
+    // 15th in Jamaica — so work showed "Past Due" from the evening before and
+    // all through the day it was due. Read it on the local calendar instead:
+    // the start of the day, or (endOfDay) its last millisecond.
+    function parseLocalDate(s, endOfDay) {
+      if (s == null || s === '') return null;
+      var str = String(s).trim();
+      if (isDateOnly(str)) {
+        var m = DATE_ONLY.exec(str);
+        return endOfDay ? new Date(+m[1], +m[2] - 1, +m[3], 23, 59, 59, 999) : new Date(+m[1], +m[2] - 1, +m[3]);
+      }
+      var d = new Date(str);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // Due on a day means "by the end of that day, here".
+    function isPastDue(dueDate, now) {
+      if (!dueDate) return false;
+      var d = parseLocalDate(dueDate, true);
+      if (!d) return false;
+      var t = now instanceof Date ? now.getTime() : (now == null ? Date.now() : Number(now));
+      return d.getTime() < t;
+    }
+
+    // Whole calendar days from today (local) to a date: 0 = today, 1 = tomorrow.
+    function daysUntil(dateStr, now) {
+      var d = parseLocalDate(dateStr, false);
+      if (!d) return null;
+      var n = now instanceof Date ? now : (now == null ? new Date() : new Date(now));
+      var today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+      return Math.round((d.getTime() - today.getTime()) / 86400000);
+    }
+
+    // A mark is a number, and 0 is a mark. `parseInt(g) || null` and `!grade`
+    // both read a trainee's legitimate 0 as "not graded yet".
+    function gradeValue(g) {
+      if (g == null || g === '') return null;
+      var n = typeof g === 'number' ? g : Number(String(g).trim());
+      return isFinite(n) ? n : null;
+    }
+
+    function percentOf(points, maxPoints) {
+      var p = gradeValue(points), max = Number(maxPoints);
+      if (p == null || !(max > 0)) return null;
+      return p / max * 100;
+    }
+
+    // The create form's default weight. Exams carry no weight setting, so each
+    // counts as one standard item.
+    var DEFAULT_WEIGHT = 10;
+    function weightOf(w) {
+      var n = Number(w);
+      return isFinite(n) && n > 0 ? n : DEFAULT_WEIGHT;
+    }
+
+    // Mean of percentages, each counted by its weight, over the items that
+    // actually have a mark. null when nothing is marked yet.
+    function weightedAverage(items) {
+      var sum = 0, wsum = 0;
+      (items || []).forEach(function (it) {
+        if (!it || it.pct == null || !isFinite(it.pct)) return;
+        var w = weightOf(it.weight);
+        sum += it.pct * w; wsum += w;
+      });
+      return wsum > 0 ? sum / wsum : null;
+    }
+
+    // The gradebook's own bands (A 80+, B 70+, C 60+, D 50+, F) on a 4-point scale.
+    function gpaFromPercent(p) {
+      if (p == null || !isFinite(p)) return null;
+      var g = p >= 80 ? 4 : p >= 70 ? 3 : p >= 60 ? 2 : p >= 50 ? 1 : 0;
+      return g.toFixed(1);
+    }
+
+    // GPA is hand-edited by administrators; a hand-set figure stands. Only the
+    // untouched seed ('0.0', blank) gives way to the figure the marks produce.
+    function effectiveGpa(stored, computed) {
+      var s = stored == null ? '' : String(stored).trim();
+      var isSeed = s === '' || Number(s) === 0;
+      if (isSeed && computed != null) return computed;
+      return s === '' ? '0.0' : s;
+    }
+
+    // Everything a trainee's dashboard says about coursework, from the marks.
+    // opts: { assignments, examResults, exams } — assignments already filtered
+    // to the trainee's programme.
+    function studentSummary(studentId, opts) {
+      opts = opts || {};
+      var items = [], graded = 0;
+      var assignments = opts.assignments || [];
+      assignments.forEach(function (a) {
+        var g = a && a.grades ? gradeValue(a.grades[studentId]) : null;
+        if (g == null) return;
+        graded++;
+        items.push({ pct: percentOf(g, a.maxPoints), weight: a.weight });
+      });
+      // One result per exam: the latest attempt.
+      var latest = {};
+      (opts.examResults || []).forEach(function (r) {
+        if (!r || r.studentId !== studentId) return;
+        var k = r.examId || r.examTitle || r.id;
+        var t = Date.parse(r.submittedAt || r.date || r.completedAt || '') || 0;
+        if (!latest[k] || t >= latest[k].t) latest[k] = { r: r, t: t };
+      });
+      Object.keys(latest).forEach(function (k) {
+        var s = gradeValue(latest[k].r.score);
+        if (s != null) items.push({ pct: s, weight: DEFAULT_WEIGHT });
+      });
+      var avg = weightedAverage(items);
+      var percent = avg == null ? null : Math.round(avg);
+      return { graded: graded, total: assignments.length, percent: percent, gpa: gpaFromPercent(avg) };
+    }
+
+    // A changed mark is recorded, not just overwritten: who, when, and what it
+    // was before. HEART/NSTA moderation asks exactly that.
+    function recordGrade(assignment, studentId, points, by, nowIso) {
+      if (!assignment || studentId == null) return { changed: false };
+      if (!assignment.grades) assignment.grades = {};
+      var prev = assignment.grades[studentId];
+      var prevVal = gradeValue(prev);
+      var newVal = gradeValue(points);
+      if (newVal == null) return { changed: false };
+      if (prevVal === newVal) return { changed: false, previous: prevVal };
+      var at = nowIso || new Date().toISOString();
+      assignment.grades[studentId] = newVal;
+      if (!Array.isArray(assignment.gradeLog)) assignment.gradeLog = [];
+      assignment.gradeLog.push({ studentId: studentId, points: newVal, previous: prevVal, gradedBy: by || '', gradedAt: at });
+      if (!assignment.gradeMeta || typeof assignment.gradeMeta !== 'object') assignment.gradeMeta = {};
+      assignment.gradeMeta[studentId] = { gradedBy: by || '', gradedAt: at };
+      return { changed: true, previous: prevVal };
+    }
+
+    function pairOf(subs, assignmentId, studentId) {
+      return (subs || []).filter(function (s) { return s && s.assignmentId === assignmentId && s.studentId === studentId; });
+    }
+    function subTime(s) { return Date.parse(s && s.submittedAt || '') || 0; }
+
+    // Every attempt a trainee made at one assignment, oldest first.
+    function submissionHistory(subs, assignmentId, studentId) {
+      return pairOf(subs, assignmentId, studentId).sort(function (a, b) {
+        return subTime(a) - subTime(b) || (a.attempt || 0) - (b.attempt || 0);
+      });
+    }
+    // The attempt that counts: the newest. Older ones stay as history.
+    function latestSubmission(subs, assignmentId, studentId) {
+      var h = submissionHistory(subs, assignmentId, studentId);
+      return h.length ? h[h.length - 1] : null;
+    }
+    // One entry per trainee for an assignment: their latest attempt.
+    function latestPerStudent(subs, assignmentId) {
+      var by = {};
+      (subs || []).forEach(function (s) {
+        if (!s || s.assignmentId !== assignmentId) return;
+        var cur = by[s.studentId];
+        if (!cur || subTime(s) > subTime(cur) || (subTime(s) === subTime(cur) && (s.attempt || 0) > (cur.attempt || 0))) by[s.studentId] = s;
+      });
+      return Object.keys(by).map(function (k) { return by[k]; });
+    }
+
+    // May this trainee upload (again)? Before any submission: when the
+    // assignment asks for one. Before it is marked: yes, as always. After it
+    // is marked: only when the instructor allowed resubmission on it.
+    function canSubmit(assignment, hasSubmission, grade) {
+      if (!assignment) return false;
+      if (!hasSubmission) return assignment.requireSubmission !== false;
+      if (gradeValue(grade) == null) return true;
+      return assignment.allowResubmission === true;
+    }
+
+    // Every file is copied into the Centre's data (and, offline, into one file
+    // on the Centre's server with a 64 MB ceiling), so a single upload has to
+    // stay small. 5 MB covers a phone photo, a scanned page or a PDF report.
+    var MAX_FILE_BYTES = 5 * 1024 * 1024;
+    function oversizeFiles(files, maxBytes) {
+      var max = maxBytes || MAX_FILE_BYTES;
+      var out = [];
+      for (var i = 0; i < (files ? files.length : 0); i++) {
+        var f = files[i];
+        if (f && Number(f.size) > max) out.push(f.name || ('file ' + (i + 1)));
+      }
+      return out;
+    }
+
+    // Resources follow the same programme rule as assignments. 'General' or no
+    // programme means the whole Centre.
+    function resourceVisible(resCourse, studentCourse, sameProgramme) {
+      var rc = Core.normCourse(resCourse);
+      if (!rc || rc === 'general' || rc === 'all' || rc === 'all programmes' || rc === 'all courses') return true;
+      if (!studentCourse) return false;
+      return !!(sameProgramme && sameProgramme(studentCourse, resCourse));
+    }
+
+    return {
+      DEFAULT_WEIGHT: DEFAULT_WEIGHT, MAX_FILE_BYTES: MAX_FILE_BYTES,
+      localDateStr: localDateStr, isDateOnly: isDateOnly, parseLocalDate: parseLocalDate,
+      isPastDue: isPastDue, daysUntil: daysUntil,
+      gradeValue: gradeValue, percentOf: percentOf, weightOf: weightOf, weightedAverage: weightedAverage,
+      gpaFromPercent: gpaFromPercent, effectiveGpa: effectiveGpa, studentSummary: studentSummary,
+      recordGrade: recordGrade, submissionHistory: submissionHistory, latestSubmission: latestSubmission,
+      latestPerStudent: latestPerStudent, canSubmit: canSubmit, oversizeFiles: oversizeFiles,
+      resourceVisible: resourceVisible
+    };
+  })();
+
+  // ===================== COMMUNICATIONS: announcements, agenda, bell =====================
+  Core.comms = (function () {
+    var CW = Core.coursework;
+
+    function stampOf(r) { return Date.parse(r && (r.updatedAt || r.createdAt) || '') || 0; }
+
+    // Newest first: by the announcement's date, then its last edit. Always on a
+    // copy — the shared list's order is what sync and the delete buttons see.
+    function sortAnnouncements(list) {
+      return (list || []).slice().sort(function (a, b) {
+        var da = String(a && a.date || ''), db = String(b && b.date || '');
+        if (da !== db) return da < db ? 1 : -1;
+        var sa = stampOf(a), sb = stampOf(b);
+        if (sa !== sb) return sb - sa;
+        return String(b && b.id || '').localeCompare(String(a && a.id || ''));
+      });
+    }
+
+    var ALL = ['admin', 'instructor', 'student'];
+    // Is this announcement (or calendar event) for this viewer? A record with
+    // no `course` is for every programme, as every record was before the field.
+    function forViewer(rec, role, course, sameProgramme) {
+      if (!rec) return false;
+      var roles = Array.isArray(rec.forRoles) && rec.forRoles.length ? rec.forRoles : ALL;
+      var ok = roles.indexOf(role) !== -1 || (role === 'adminstaff' && roles.indexOf('admin') !== -1);
+      if (!ok) return false;
+      if (role === 'student' && rec.course) {
+        if (!course) return false;
+        return !!(sameProgramme && sameProgramme(course, rec.course));
+      }
+      return true;
+    }
+
+    function excerpt(text, n) {
+      var s = String(text == null ? '' : text);
+      return s.length > n ? s.slice(0, n).replace(/\s+$/, '') + '…' : s;
+    }
+
+    var EVENT_TYPES = ['class', 'exam', 'deadline', 'meeting'];
+    var EVENT_ROLES = ['admin', 'adminstaff', 'instructor', 'student'];
+    function hhmm(t) {
+      var m = /^(\d{1,2}):(\d{2})$/.exec(String(t == null ? '' : t).trim());
+      if (!m || +m[1] > 23 || +m[2] > 59) return null;
+      return pad2(+m[1]) + ':' + m[2];
+    }
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+    // A calendar event the grid can actually show: a real YYYY-MM-DD day, a
+    // known type, an audience. The old prompt() flow stored '20/11/2026' as is,
+    // announced it to everyone, and it never appeared on any calendar.
+    function validateEvent(ev) {
+      var errors = [];
+      ev = ev || {};
+      if (!String(ev.title || '').trim()) errors.push('Enter a title.');
+      if (!CW.isDateOnly(ev.date)) errors.push('Choose a date.');
+      if (ev.time && !hhmm(ev.time)) errors.push('The time must look like 09:30.');
+      if (EVENT_TYPES.indexOf(ev.type) === -1) errors.push('Choose the kind of event.');
+      var roles = (ev.forRoles || []).filter(function (r) { return EVENT_ROLES.indexOf(r) !== -1; });
+      if (!roles.length) errors.push('Choose at least one audience.');
+      return { ok: errors.length === 0, errors: errors };
+    }
+
+    // Everything a trainee has coming up, worked out when the page is drawn
+    // from what is already stored — exams, assignment due dates, class sessions
+    // and calendar events — so nothing is copied and nothing can go stale.
+    // opts: { course, calendarEvents, exams, assignments, classSessions, sameProgramme }
+    function studentAgenda(opts) {
+      opts = opts || {};
+      var course = opts.course, same = opts.sameProgramme || function () { return false; };
+      var mine = function (c) { return !!c && !!course && same(course, c); };
+      var out = [];
+      (opts.calendarEvents || []).forEach(function (e) {
+        if (!e || !CW.isDateOnly(e.date)) return;
+        if (!forViewer(e, 'student', course, same)) return;
+        out.push({ kind: e.type === 'deadline' ? 'deadline' : (e.type || 'event'), type: e.type || 'meeting', date: e.date, time: e.time || '',
+          title: e.title || 'Event', color: e.color || '', source: 'calendar', ref: e });
+      });
+      (opts.exams || []).forEach(function (x) {
+        if (!x || !CW.isDateOnly(x.date) || !mine(x.course)) return;
+        if (x.status === 'draft' || x.status === 'cancelled') return;
+        out.push({ kind: 'exam', type: 'exam', date: x.date, time: x.time || '', title: x.title || 'Exam', color: 'var(--red)', source: 'exam', ref: x });
+      });
+      (opts.assignments || []).forEach(function (a) {
+        if (!a || !CW.isDateOnly(a.dueDate) || !mine(a.course)) return;
+        out.push({ kind: 'deadline', type: 'deadline', date: a.dueDate, time: '', title: (a.title || 'Assignment') + ' due', color: 'var(--accent)', source: 'assignment', ref: a });
+      });
+      (opts.classSessions || []).forEach(function (s) {
+        if (!s || !CW.isDateOnly(s.date) || !mine(s.course)) return;
+        out.push({ kind: 'class', type: 'class', date: s.date, time: s.time || '', title: s.name || s.title || 'Class', color: 'var(--blue)', source: 'class', ref: s });
+      });
+      return out.sort(function (a, b) {
+        return a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.time).localeCompare(String(b.time));
+      });
+    }
+
+    // From today on, soonest first, on a copy.
+    function upcoming(items, today, n) {
+      var t = today || CW.localDateStr(new Date());
+      var list = (items || []).filter(function (e) { return e && CW.isDateOnly(e.date) && e.date >= t; })
+        .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.time || '').localeCompare(String(b.time || '')); });
+      return n == null ? list : list.slice(0, n);
+    }
+
+    // ---- The bell: read and cleared are each person's own ----
+    // The list is shared by everyone. A shared `read` flag meant one person
+    // opening a notice marked it read for all, and "Clear all" deleted the
+    // records — other trainees' personal notices included. Each viewer now
+    // gets their own mark on the record; nothing is deleted.
+    function has(list, id) { return Array.isArray(list) && list.indexOf(id) !== -1; }
+    function isRead(n, uid) {
+      if (!n) return true;
+      // `read: true` is from before per-person marks (nobody knows who read
+      // it) and stays read; new notices start `read: false` and only gain
+      // names in readBy.
+      return n.read === true || has(n.readBy, uid);
+    }
+    function isCleared(n, uid) { return !!n && has(n.clearedBy, uid); }
+    function markRead(n, uid) {
+      if (!n || uid == null) return false;
+      if (!Array.isArray(n.readBy)) n.readBy = [];
+      if (has(n.readBy, uid)) return false;
+      n.readBy.push(uid);
+      return true;
+    }
+    function markCleared(n, uid) {
+      if (!n || uid == null) return false;
+      markRead(n, uid);
+      if (!Array.isArray(n.clearedBy)) n.clearedBy = [];
+      if (has(n.clearedBy, uid)) return false;
+      n.clearedBy.push(uid);
+      return true;
+    }
+
+    // Duty-register reminders get one id per task per hour, so every admin
+    // device that notices the same overdue task produces the SAME record and
+    // the sync collapses them into one.
+    function reminderId(kind, taskId, when) {
+      var d = when instanceof Date ? when : new Date(when == null ? Date.now() : when);
+      return 'ADR-REM-' + kind + '-' + String(taskId) + '-' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + pad2(d.getHours());
+    }
+
+    // A small send budget: at most `perWindow` sends in `windowMs`.
+    function allowSend(history, nowMs, perWindow, windowMs) {
+      var now = nowMs == null ? Date.now() : nowMs;
+      var recent = (history || []).filter(function (t) { return now - t < windowMs; });
+      return { ok: recent.length < perWindow, history: recent };
+    }
+
+    return {
+      sortAnnouncements: sortAnnouncements, forViewer: forViewer, excerpt: excerpt,
+      EVENT_TYPES: EVENT_TYPES, EVENT_ROLES: EVENT_ROLES, validateEvent: validateEvent, normTime: hhmm,
+      studentAgenda: studentAgenda, upcoming: upcoming,
+      isRead: isRead, isCleared: isCleared, markRead: markRead, markCleared: markCleared,
+      reminderId: reminderId, allowSend: allowSend
+    };
+  })();
+
+  // ===================== CHAT: membership, presence, calls, realtime =====================
+  Core.chat = (function () {
+    function ms(v) { var t = Date.parse(v || ''); return isFinite(t) ? t : 0; }
+
+    // Who belongs in a class room now. Staff always; instructors and trainees
+    // while their programme is the room's; anyone an administrator added by
+    // hand; never anyone an administrator removed (until re-added). People
+    // whose programme moved on leave — written down in `leavers`, their
+    // messages untouched.
+    // opts: { accounts, eligible(u), programmeMatches(u) }
+    function classRoomMembers(room, opts) {
+      var removed = (room && room.removed) || {};
+      var manual = (room && room.manualMembers) || {};
+      var byId = {};
+      (opts.accounts || []).forEach(function (u) { if (u && u.id != null) byId[u.id] = u; });
+      var isStaff = function (u) { return u && (u.role === 'admin' || u.role === 'adminstaff'); };
+      var set = {}, order = [], leavers = [];
+      function add(id) { if (!set[id]) { set[id] = true; order.push(id); } }
+      ((room && room.members) || []).forEach(function (id) {
+        if (removed[id]) return;
+        var u = byId[id];
+        if (manual[id] || !u) { add(id); return; }            // hand-added, or an account this device has not got yet
+        if ((u.role === 'student' || u.role === 'instructor') && !u.programme) { add(id); return; } // programme unknown is not "moved on"
+        if (isStaff(u) || ((u.role === 'student' || u.role === 'instructor') && opts.programmeMatches(u))) { add(id); return; }
+        if (u.role !== 'student' && u.role !== 'instructor') { add(id); return; }
+        leavers.push(id);
+      });
+      (opts.accounts || []).forEach(function (u) {
+        if (!u || removed[u.id] || !opts.eligible(u)) return;
+        if (isStaff(u)) add(u.id);
+        else if ((u.role === 'student' || u.role === 'instructor') && opts.programmeMatches(u)) add(u.id);
+      });
+      return { members: order, leavers: leavers };
+    }
+
+    // Presence is a heartbeat, not a flag: 'online' was set on opening the
+    // chat and never unset, so everyone who ever opened it was "online"
+    // forever and every device dialled all of them every 20 seconds.
+    var ONLINE_WINDOW_MS = 10 * 60 * 1000;
+    function isOnline(profile, nowMs) {
+      if (!profile || profile.status === 'offline') return false;
+      var seen = ms(profile.lastSeen);
+      return seen > 0 && (nowMs == null ? Date.now() : nowMs) - seen < ONLINE_WINDOW_MS;
+    }
+
+    // ---- Calls ----
+    // A call's state is written by several devices at once. Each person's
+    // own entry is kept apart (seen = heartbeat, left = when they hung up) so
+    // two people joining together are both kept, a joiner who never got a
+    // microphone is never listed, and a caller who closed the laptop stops
+    // being "in the call" once their heartbeat goes quiet.
+    var CALL_STALE_MS = 90 * 1000;
+    var LEGACY_CALL_MS = 10 * 60 * 1000;
+    function callKey(call) { return call ? String(call.startedAt || '') + '|' + String(call.startedBy || '') : ''; }
+    function liveParticipants(call, nowMs) {
+      if (!call) return [];
+      var now = nowMs == null ? Date.now() : nowMs;
+      var seen = call.seen || {}, left = call.left || {};
+      var ids = Object.keys(seen);
+      if (!ids.length) {
+        // A call written before heartbeats: trust its list for a short while only.
+        return now - ms(call.startedAt) < LEGACY_CALL_MS ? (call.participants || []).slice() : [];
+      }
+      return ids.filter(function (id) {
+        var s = ms(seen[id]);
+        return s > ms(left[id]) && now - s < CALL_STALE_MS;
+      });
+    }
+    function normalise(call, nowMs) {
+      if (!call) return null;
+      var c = {};
+      Object.keys(call).forEach(function (k) { c[k] = call[k]; });
+      c.seen = Object.assign({}, call.seen || {});
+      c.left = Object.assign({}, call.left || {});
+      c.participants = liveParticipants(c, nowMs);
+      return c.participants.length ? c : null;
+    }
+    function newest(a, b) { return ms(a) >= ms(b) ? a : b; }
+    function mergeActiveCall(a, b, nowMs) {
+      if (!a && !b) return null;
+      if (!a || !b) return normalise(a || b, nowMs);
+      if (callKey(a) !== callKey(b)) {
+        // Two different calls: the later one, if anyone is still in it.
+        var first = ms(a.startedAt) >= ms(b.startedAt) ? a : b, second = first === a ? b : a;
+        return normalise(first, nowMs) || normalise(second, nowMs);
+      }
+      var m = {};
+      Object.keys(b).forEach(function (k) { m[k] = b[k]; });
+      Object.keys(a).forEach(function (k) { m[k] = a[k]; });
+      m.seen = {}; m.left = {};
+      [a, b].forEach(function (c) {
+        Object.keys(c.seen || {}).forEach(function (id) { m.seen[id] = m.seen[id] ? newest(m.seen[id], c.seen[id]) : c.seen[id]; });
+        Object.keys(c.left || {}).forEach(function (id) { m.left[id] = m.left[id] ? newest(m.left[id], c.left[id]) : c.left[id]; });
+      });
+      if (!Object.keys(m.seen).length) {
+        var u = {};
+        (a.participants || []).concat(b.participants || []).forEach(function (id) { u[id] = true; });
+        m.participants = Object.keys(u);
+      }
+      return normalise(m, nowMs);
+    }
+    function joinCall(call, uid, nowIso) {
+      if (!call || uid == null) return call;
+      if (!call.seen) call.seen = {};
+      call.seen[uid] = nowIso || new Date().toISOString();
+      if (!Array.isArray(call.participants)) call.participants = [];
+      if (call.participants.indexOf(uid) === -1) call.participants.push(uid);
+      return call;
+    }
+    function leaveCall(call, uid, nowIso) {
+      if (!call || uid == null) return call;
+      if (!call.left) call.left = {};
+      call.left[uid] = nowIso || new Date().toISOString();
+      call.participants = (call.participants || []).filter(function (id) { return id !== uid; });
+      return call;
+    }
+
+    // ---- Realtime fast-lane ----
+    // The realtime channel runs over a public broker, so what arrives on it is
+    // only believed this far: a plain text message, for a room this device
+    // already has, from a member of that room who is the sender it claims to
+    // be. Rooms are never created from it; files, polls and calls arrive only
+    // with the Drive copy.
+    function acceptRealtimeMessage(raw, fromUid, room, myId) {
+      if (!raw || typeof raw !== 'object' || !room || !fromUid) return null;
+      var members = Array.isArray(room.members) ? room.members : (room.dmBetween || []);
+      if (members.indexOf(myId) === -1 || members.indexOf(fromUid) === -1) return null;
+      if (raw.senderId !== fromUid || raw.roomId !== room.id) return null;
+      if ((raw.type || 'text') !== 'text' || typeof raw.text !== 'string' || raw.id == null) return null;
+      var ts = ms(raw.timestamp);
+      return {
+        id: String(raw.id).slice(0, 80), roomId: room.id, senderId: fromUid,
+        senderName: String(raw.senderName == null ? '' : raw.senderName).slice(0, 120),
+        text: raw.text.slice(0, 5000), type: 'text',
+        timestamp: ts ? new Date(ts).toISOString() : new Date().toISOString(),
+        readBy: [fromUid]
+      };
+    }
+
+    // Unread = newer than my last-read mark (kept on my own profile, which only
+    // I write) and not sent by me; the old per-message readBy still counts.
+    function unreadCount(msgs, myId, lastReadIso) {
+      var lr = ms(lastReadIso), n = 0;
+      for (var i = (msgs || []).length - 1; i >= 0; i--) {
+        var m = msgs[i];
+        if (!m) continue;
+        if (m.senderId === myId) break;
+        if (lr && ms(m.timestamp) <= lr) break;
+        if (Array.isArray(m.readBy) && m.readBy.indexOf(myId) !== -1) continue;
+        n++;
+      }
+      return n;
+    }
+
+    // What goes to Drive: an attachment that already has its own Drive copy
+    // travels as that link only. A file whose upload has not happened yet keeps
+    // its bytes — they are the only copy.
+    function stripUploadedBytes(messagesByRoom) {
+      var out = {};
+      Object.keys(messagesByRoom || {}).forEach(function (rid) {
+        out[rid] = (messagesByRoom[rid] || []).map(function (m) {
+          if (!m || !m.driveFileId || (m.fileData == null && m.imageData == null)) return m;
+          var c = {};
+          Object.keys(m).forEach(function (k) { if (k !== 'fileData' && k !== 'imageData') c[k] = m[k]; });
+          return c;
+        });
+      });
+      return out;
+    }
+
+    return {
+      classRoomMembers: classRoomMembers, isOnline: isOnline, ONLINE_WINDOW_MS: ONLINE_WINDOW_MS,
+      CALL_STALE_MS: CALL_STALE_MS, callKey: callKey, liveParticipants: liveParticipants,
+      mergeActiveCall: mergeActiveCall, joinCall: joinCall, leaveCall: leaveCall,
+      acceptRealtimeMessage: acceptRealtimeMessage, unreadCount: unreadCount, stripUploadedBytes: stripUploadedBytes
+    };
+  })();
+
   root.CESTISCore = Core;
 
   if (typeof module !== 'undefined' && module.exports) {

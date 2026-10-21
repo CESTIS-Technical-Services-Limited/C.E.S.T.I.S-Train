@@ -372,7 +372,7 @@ console.log('The notification bell and the realtime channel');
     { id: 'N2', text: '&#128222; ' + EVIL + ' started a call', icon: '&#128222;', type: 'success', time: 'Just now', read: true }
   ];
   const r = render('toggleNotifications', ['toggleNotifications'], {
-    notifications, refreshNotificationTimes() {}, getFilteredNotifications() { return notifications; }
+    notifications, refreshNotificationTimes() {}, getFilteredNotifications() { return notifications; }, notifViewerId() { return 'U1'; }
   }, 'toggleNotifications()', sb => sb.document.querySelector('.topbar-btn[title="Notifications"]').children[0].innerHTML);
   assert(r.html.indexOf('&#128222;') !== -1, 'the bell still shows an emoji stored as &#128222;');
 
@@ -479,7 +479,7 @@ console.log('LMS Chat: messages, file names, rooms, avatars');
   assert(dl.length === 1 && dl[0].args[1] === msgs[1].fileName, 'an attachment named with an apostrophe still downloads by its exact name');
   render('lmsChatRenderRoomList', helpers.concat(['lmsChatRenderRoomList']), setup, 'lmsChatRenderRoomList("admin")', sb => el(sb, 'adminChatList'));
   render('lmsChatRenderInfoPanel', helpers.concat(['lmsChatRenderInfoPanel']), setup, 'lmsChatRenderInfoPanel("admin")', sb => el(sb, 'adminChatInfoBody'));
-  render('lmsChatGetAvatarHTML', helpers.concat(['lmsChatGetAvatarHTML']), setup, 'lmsChatGetAvatarHTML("USR-X", ' + JSON.stringify(EVIL) + ', 40) + "' + H.esc(ATTACK.tag) + '"');
+  render('lmsChatGetAvatarHTML', helpers.concat(['lmsChatPresence', 'lmsChatGetAvatarHTML']), setup, 'lmsChatGetAvatarHTML("USR-X", ' + JSON.stringify(EVIL) + ', 40) + "' + H.esc(ATTACK.tag) + '"');
   const sbCall = render('lmsChatShowIncomingCallNotif', ['lmsChatShowIncomingCallNotif'], setup,
     'lmsChatShowIncomingCallNotif(lmsChatRooms[0], {id:"USR-X", name:' + JSON.stringify(EVIL) + '}, "video", "USR-ME")',
     sb => sb.document.body.children[0] ? sb.document.body.children[0].innerHTML : '');
@@ -490,12 +490,12 @@ console.log('Announcements, calendars and the duty register');
   const ann = { id: "A1');__pwn(2);//", title: EVIL, body: EVIL, author: EVIL, priority: 'urgent" onmouseover="__pwn(6)', date: ATTACK.tag, forRoles: ['admin', 'instructor', ATTACK.tag], targetRoles: ['admin', ATTACK.tag] };
   const setup = {
     announcements: [ann], currentInstructor: { name: EVIL, course: 'X' }, currentRole: 'admin', currentLoggedInUser: { id: 'U1' },
-    calendarEvents: [{ title: EVIL, date: '2026-10-20', time: ATTACK.tag, type: ATTACK.tag, color: 'red;"onmouseover="__pwn(6)', forRoles: [ATTACK.tag] }],
+    calendarEvents: [{ title: EVIL, date: '2099-10-20', time: ATTACK.tag, type: ATTACK.tag, color: 'red;"onmouseover="__pwn(6)', forRoles: [ATTACK.tag] }],
     instructorCourseMatch() { return true; }
   };
   render('renderAnnouncements', ['renderAnnouncements'], setup, 'renderAnnouncements()', sb => el(sb, 'announcementsList'));
   render('renderInstructorAnnouncements', ['renderInstructorAnnouncements'], setup, 'renderInstructorAnnouncements()', sb => el(sb, 'iAnnouncementsList'));
-  render('renderCalendarEventList', ['renderCalendarEventList'], setup, 'renderCalendarEventList()', sb => el(sb, 'calEventList'));
+  render('renderCalendarEventList', ['localDateStr', 'renderCalendarEventList'], setup, 'renderCalendarEventList()', sb => el(sb, 'calEventList'));
 }
 
 console.log('Coursework: assignments, submissions, file names, resource links');
@@ -513,8 +513,8 @@ console.log('Coursework: assignments, submissions, file names, resource links');
     currentInstructor: { name: EVIL, course: 'Welding' }, currentStudent: { id: 'STU-1', name: EVIL, course: 'Welding' },
     instructorCourseMatch() { return true; }, currentRole: 'admin'
   };
-  render('renderInstructorGradebook', ['renderInstructorGradebook'], setup, 'renderInstructorGradebook()', sb => el(sb, 'iCustomAssignmentsList'));
-  const st = render('renderStudentAssignmentsPage', ['renderStudentAssignmentsPage'], setup, 'renderStudentAssignmentsPage()', sb => Object.values(sb.__els).map(e => e.innerHTML).join(''));
+  render('renderInstructorGradebook', ['courseworkFileLink', 'renderInstructorGradebook'], setup, 'renderInstructorGradebook()', sb => el(sb, 'iCustomAssignmentsList'));
+  const st = render('renderStudentAssignmentsPage', ['courseworkFileLink', 'renderStudentAssignmentsPage'], setup, 'renderStudentAssignmentsPage()', sb => Object.values(sb.__els).map(e => e.innerHTML).join(''));
   const opens = handlerCalls(st.html).filter(c => c.name === 'openSubmitAssignment');
   assert(opens.length > 0 && opens.every(c => c.args[0] === a.id && c.args[1] === a.title), 'Upload Submission passes the exact id and title');
 
@@ -591,7 +591,8 @@ console.log('Video classes: lists, lobby, conference, participants');
 
 console.log('Dashboards: Top Performers, Recent Activity, instructor roster, skill areas');
 {
-  render('renderInstructorStudents', ['renderInstructorStudents'], {
+  render('renderInstructorStudents', ['studentCourseworkSummary', 'studentEffectiveGpa', 'renderInstructorStudents'], {
+    instructorAssignments: [], examResults: [],
     students: [{ id: ATTACK.tag, name: EVIL, course: 'W', score: ATTACK.tag, gpa: ATTACK.tag, stage: ATTACK.tag, attendance: '90;"x="', progress: ATTACK.tag, instructor: 'I' }],
     currentInstructor: { name: 'I', course: 'W' }, instructorCourseMatch() { return true; }, stageBadge: {}, stageLabels: {}
   }, 'renderInstructorStudents(students)', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));

@@ -166,6 +166,12 @@
   window.EMAILJS_PUBLIC_KEY = 'z_6Ya8J_WGJjRIGuX';
   window.EMAILJS_SERVICE_ID = 'service_v49btoq';
   window.EMAILJS_TEMPLATE_ID = 'template_80h43gm';
+  // The Support form's e-mail template. Blank until the Centre creates one in
+  // the EmailJS dashboard (a template that e-mails the Centre's own inbox with
+  // {{from_name}}, {{from_email}}, {{phone}}, {{subject}}, {{message}}) and
+  // pastes its id here (or in Settings, systemSettings.supportEmailTemplateId).
+  // While blank the form says plainly that the message was NOT sent.
+  window.EMAILJS_SUPPORT_TEMPLATE_ID = '';
   (function initEmailJS(){
     function go(){ if(typeof emailjs !== 'undefined'){ try{ emailjs.init(window.EMAILJS_PUBLIC_KEY); }catch(e){ console.warn('EmailJS init failed:', e); } } }
     if(typeof emailjs !== 'undefined'){ go(); }
@@ -4741,7 +4747,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     <div class="form-group"><label>Attach Documents (optional)</label>
       <div style="border:2px dashed var(--border);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;" onclick="document.getElementById('assignFileInput').click()">
         <div style="font-size:24px;margin-bottom:4px;">📎</div>
-        <div style="font-size:13px;color:var(--text-muted);">Click to attach PDF, DOC, XLSX, or other files</div>
+        <div style="font-size:13px;color:var(--text-muted);">Click to attach PDF, DOC, XLSX, or other files (up to 5 MB each)</div>
         <input type="file" id="assignFileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.jpg,.png" style="display:none;" onchange="assignFileSelected(this)">
       </div>
       <div id="assignFileList" style="margin-top:8px;"></div>
@@ -4750,6 +4756,10 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" id="assignRequireSubmission" checked>
         <span style="font-size:13px;">Require students to upload a submission</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px;">
+        <input type="checkbox" id="assignAllowResubmission">
+        <span style="font-size:13px;">Allow resubmission after marking (earlier attempts are kept)</span>
       </label>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
@@ -4768,7 +4778,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     <div class="form-group"><label>Upload Your Work</label>
       <div style="border:2px dashed var(--border);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;" onclick="document.getElementById('submitFileInput').click()">
         <div style="font-size:24px;margin-bottom:4px;">📤</div>
-        <div style="font-size:13px;color:var(--text-muted);">Click to upload your completed document(s)</div>
+        <div style="font-size:13px;color:var(--text-muted);">Click to upload your completed document(s) (up to 5 MB each)</div>
         <input type="file" id="submitFileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.jpg,.png" style="display:none;" onchange="submitFileSelected(this)">
       </div>
       <div id="submitFileList" style="margin-top:8px;"></div>
@@ -4776,7 +4786,37 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     <div class="form-group"><label>Comment (optional)</label><textarea class="form-control" id="submitComment" placeholder="Add a note for your instructor..." rows="2"></textarea></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('submitAssignmentModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitStudentAssignment()">Submit</button>
+      <button class="btn btn-primary" id="submitAssignBtn" onclick="submitStudentAssignment()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- CALENDAR EVENT MODAL (add / edit) — replaces five chained prompt() boxes -->
+<div class="modal-overlay" id="calendarEventModal">
+  <div class="modal">
+    <div class="modal-header"><h3 id="calEvtModalTitle">Add Event</h3><button class="modal-close" onclick="closeModal('calendarEventModal')">✕</button></div>
+    <input type="hidden" id="calEvtIdx" value="">
+    <div class="form-group"><label>Title</label><input type="text" class="form-control" id="calEvtTitle" maxlength="140" placeholder="e.g. Graduation rehearsal"></div>
+    <div class="grid-2col" style="gap:12px;">
+      <div class="form-group"><label>Date</label><input type="date" class="form-control" id="calEvtDate"></div>
+      <div class="form-group"><label>Time (optional)</label><input type="time" class="form-control" id="calEvtTime"></div>
+    </div>
+    <div class="grid-2col" style="gap:12px;">
+      <div class="form-group"><label>Kind</label><select class="form-control" id="calEvtType"><option value="meeting">Meeting</option><option value="class">Class</option><option value="exam">Exam</option><option value="deadline">Deadline</option></select></div>
+      <div class="form-group"><label>Programme</label><select class="form-control" id="calEvtCourse"></select></div>
+    </div>
+    <div class="form-group"><label>Who should see it</label>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;">
+        <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="calEvtRoleAdmin" checked> Administrators</label>
+        <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="calEvtRoleAdminStaff" checked> Admin Staff</label>
+        <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="calEvtRoleInstructor" checked> Instructors</label>
+        <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="calEvtRoleStudent" checked> Trainees</label>
+      </div>
+    </div>
+    <div id="calEvtError" style="display:none;color:var(--red);font-size:12px;margin-top:6px;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-secondary" onclick="closeModal('calendarEventModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCalendarEventForm()">Save Event</button>
     </div>
   </div>
 </div>
@@ -5253,11 +5293,15 @@ function shakeNotificationBell() {
   setTimeout(function(){ btn.classList.remove('notif-shake'); }, 700);
 }
 
-function addNotification(text, type, icon, forRoles) {
+// `fixedId` (optional): a deterministic id for a notice several devices may
+// raise at once (duty reminders). A notice with that id already here is not
+// added again, and copies from other devices merge into one by id.
+function addNotification(text, type, icon, forRoles, fixedId) {
+  if(fixedId && notifications.some(function(n) { return n && n.id === fixedId; })) return null;
   type = type || 'info';
   var icons = {success:'\u2705',warning:'\u26A0\uFE0F',info:'\uD83D\uDD14',exam:'\uD83D\uDCDD',student:'\uD83D\uDC64',cert:'\uD83C\uDF93',announce:'\uD83D\uDCE2',calendar:'\uD83D\uDCC5',attendance:'\uD83D\uDCCB',resource:'\uD83D\uDCC1',grade:'\uD83C\uDF1F'};
   var notif = {
-    id: cestisGenId('NOTIF-'),
+    id: fixedId || cestisGenId('NOTIF-'),
     text: text,
     timestamp: Date.now(),
     time: 'Just now',
@@ -5276,12 +5320,23 @@ function addNotification(text, type, icon, forRoles) {
   // announcement/assignment/task lists refresh, and an immediate cloud push so
   // that nudge-pull finds the new data.
   try { cestisRTBroadcastNotification(notif, true); cestisFlushCloudNow(); } catch(e) {}
+  return notif;
+}
+
+// Who is looking at the bell. Read and cleared are kept per person on each
+// notice (CESTISCore.comms), keyed by the signed-in account.
+function notifViewerId() {
+  try { var cu = lmsChatGetCurrentUser(); if (cu && cu.id && cu.id !== 'unknown') return cu.id; } catch(e) {}
+  return currentRole ? 'role:' + currentRole : null;
 }
 
 function getFilteredNotifications() {
   var currentUserId = null;
   try { var cu = lmsChatGetCurrentUser(); currentUserId = cu ? cu.id : null; } catch(e) {}
+  var viewer = notifViewerId();
   return notifications.filter(function(n) {
+    // Cleared by this person: gone from THEIR bell only.
+    if(viewer && CESTISCore.comms.isCleared(n, viewer)) return false;
     // Notifications targeted at specific users
     if(n.forUsers && n.forUsers.length) {
       return currentUserId && n.forUsers.indexOf(currentUserId) !== -1;
@@ -5293,17 +5348,18 @@ function getFilteredNotifications() {
   });
 }
 
-function addNotificationForUser(text, type, icon, userId, role) {
+function addNotificationForUser(text, type, icon, userId, role, fixedId) {
+  if(fixedId && notifications.some(function(n) { return n && n.id === fixedId; })) return null;
   type = type || 'info';
   var icons = {success:'\u2705',warning:'\u26A0\uFE0F',info:'\uD83D\uDD14',dm:'\uD83D\uDCAC',follow:'\uD83D\uDC65'};
   var notif = {
-    id: cestisGenId('NOTIF-'),
+    id: fixedId || cestisGenId('NOTIF-'),
     text: text,
     timestamp: Date.now(),
     time: 'Just now',
     read: false,
     icon: icon || icons[type] || icons.info,
-    type: 'info',
+    type: type === 'warning' ? 'warning' : 'info',
     forUsers: [userId],
     forRoles: role ? [role] : []
   };
@@ -5324,6 +5380,7 @@ function addNotificationForUser(text, type, icon, userId, role) {
       cestisFlushCloudNow();
     }
   } catch(e) {}
+  return notif;
 }
 
 function getRelativeTime(ts) {
@@ -6524,15 +6581,47 @@ function lmsChatEnsureMembership() {
   lmsChatRooms.forEach(function(room) {
     if (room.type === 'dm') return; // DMs are managed separately
 
+    // Class rooms follow the programme, and an administrator's removal sticks
+    // (CESTISCore.chat.classRoomMembers): this pass used to only ever ADD, so
+    // a removed trainee was back within 30 seconds and a trainee who
+    // transferred or graduated read the old programme's room for ever.
+    if (room.type === 'class') {
+      var roomSkillC = room.skillAreaId ? skillAreas.find(function(sk) { return sk.id === room.skillAreaId; }) : null;
+      var roomNameC = String(room.name || '').toLowerCase().trim();
+      var out = CESTISCore.chat.classRoomMembers(room, {
+        accounts: userAccounts,
+        eligible: lmsChatAccountEligible,
+        programmeMatches: function(u) {
+          if (!u.programme) return false;
+          if (u.programme.toLowerCase().trim() === roomNameC) return true;
+          var userSkill = (typeof findSkillAreaForCourse === 'function') ? findSkillAreaForCourse(u.programme) : null;
+          if (roomSkillC && userSkill && userSkill.id && userSkill.id === roomSkillC.id) return true;
+          return !!(userSkill && userSkill.name && userSkill.name.toLowerCase().trim() === roomNameC);
+        }
+      });
+      var before = (room.members || []).join('|');
+      if (out.members.join('|') !== before) {
+        room.members = out.members;
+        if (out.leavers.length) {
+          if (!room.leavers || typeof room.leavers !== 'object') room.leavers = {};
+          var leftAt = new Date().toISOString();
+          out.leavers.forEach(function(id) { if (!room.leavers[id]) room.leavers[id] = leftAt; });
+        }
+        changed = true;
+      }
+      return;
+    }
+
     var currentMembers = room.members || [];
     var memberSet = {};
     currentMembers.forEach(function(id) { memberSet[id] = true; });
     var beforeCount = Object.keys(memberSet).length;
+    var removedMap = room.removed || {};
 
     if (room.type === 'admin' || room.id === 'chat-admin') {
-      // Admin room: all admins and admin staff
+      // Admin room: all admins and admin staff (unless an administrator removed them)
       userAccounts.forEach(function(u) {
-        if (!lmsChatAccountEligible(u)) return;
+        if (!lmsChatAccountEligible(u) || removedMap[u.id]) return;
         if ((u.role === 'admin' || u.role === 'adminstaff') && !memberSet[u.id]) {
           memberSet[u.id] = true;
         }
@@ -6938,9 +7027,16 @@ function clearSensitiveStudentData() {
   CESTISStore.removeItem('voctrain_chatFollows');
   lmsChatFollows = {};
 
-  // 8. Remove support messages
-  CESTISStore.removeItem('voctrain_support_messages');
-  if(typeof supportMessages !== 'undefined') supportMessages = [];
+  // 8. Remove support messages — except ones written on this device that
+  // have not reached the Centre yet (a locked-out trainee's plea for help).
+  // They are the only copy; a staff sign-in here carries them up.
+  try {
+    var _stored = safeJsonParse(CESTISStore.getItem('voctrain_support_messages'), []);
+    var _undelivered = (Array.isArray(_stored) ? _stored : []).filter(function(m) { return m && m.delivered === false; });
+    if (_undelivered.length) CESTISStore.setItem('voctrain_support_messages', JSON.stringify(_undelivered));
+    else CESTISStore.removeItem('voctrain_support_messages');
+    supportMessages = _undelivered;
+  } catch(e) { CESTISStore.removeItem('voctrain_support_messages'); supportMessages = []; }
 
   // 9. Preserve Google Drive tokens so cloud sync can work on next login
   // Only clear session-specific cloud state, keep auth tokens for auto-sync
@@ -7179,7 +7275,17 @@ function savePerUserLocalData() {
   if (!userId) return;
   try {
     var prefix = 'voctrain_user_' + userId + '_';
-    CESTISStore.setItem(prefix + 'chatMessages', JSON.stringify(lmsChatMessages));
+    // Only the rooms this person is in, and no bytes Drive already holds: this
+    // copy used to hold EVERY room's history — other people's DMs included —
+    // under each user's key on a shared PC.
+    var mine = {};
+    try {
+      var myRoomIds = {};
+      lmsChatGetUserRooms().forEach(function(r) { myRoomIds[r.id] = true; });
+      Object.keys(lmsChatMessages).forEach(function(rid) { if (myRoomIds[rid]) mine[rid] = lmsChatMessages[rid]; });
+      mine = CESTISCore.chat.stripUploadedBytes(mine);
+    } catch(e) { mine = null; }
+    if (mine) CESTISStore.setItem(prefix + 'chatMessages', JSON.stringify(mine));
     CESTISStore.setItem(prefix + 'chatProfiles', JSON.stringify(lmsChatProfiles));
     CESTISStore.setItem(prefix + 'chatFollows', JSON.stringify(lmsChatFollows));
     CESTISStore.setItem(prefix + 'chatRooms', JSON.stringify(lmsChatRooms));
@@ -9097,7 +9203,8 @@ function toggleNotifications() {
   if(dropdown.classList.contains('active')) { dropdown.classList.remove('active'); return; }
   refreshNotificationTimes();
   const roleNotifications = getFilteredNotifications();
-  const unreadCount = roleNotifications.filter(n=>!n.read).length;
+  const viewer = notifViewerId();
+  const unreadCount = roleNotifications.filter(n=>!CESTISCore.comms.isRead(n, viewer)).length;
   dropdown.innerHTML = `
     <div class="notif-header"><span>Notifications ${unreadCount>0?'('+unreadCount+')':''}</span><div style="display:flex;gap:8px;"><button class="mark-read" onclick="event.stopPropagation();markAllNotificationsRead()">Mark all read</button>${roleNotifications.length>0?'<button class="mark-read" style="color:var(--red);" onclick="event.stopPropagation();clearAllNotifications()">Clear all</button>':''}</div></div>
     ${roleNotifications.length === 0 ? '<div class="notif-empty">No notifications yet.<br><span style="font-size:11px;color:var(--text-muted);margin-top:4px;display:block;">Notifications will appear here as you use the system.</span></div>' :
@@ -9111,10 +9218,10 @@ function toggleNotifications() {
         const nText = H ? H.escKeepCharRefs(n.text) : escapeHtml(n.text);
         const nIcon = H ? H.notifIcon(n.icon) : escapeHtml(n.icon);
         return `
-        <div class="notif-item ${n.read?'':'unread'}" onclick="event.stopPropagation();markNotificationRead(${realIdx})">
+        <div class="notif-item ${CESTISCore.comms.isRead(n, viewer)?'':'unread'}" onclick="event.stopPropagation();markNotificationRead(${realIdx})">
           <div class="notif-icon" style="background:${n.type==='success'?'var(--green-dim)':n.type==='warning'?'var(--accent-dim)':'var(--blue-dim)'};">${nIcon}</div>
           <div class="notif-content"><div class="notif-text">${nText}</div><div class="notif-time">${escapeHtml(n.time)}</div></div>
-          ${n.read?'':'<div class="notif-dot"></div>'}
+          ${CESTISCore.comms.isRead(n, viewer)?'':'<div class="notif-dot"></div>'}
         </div>
       `}).join('')}
   `;
@@ -9125,7 +9232,10 @@ function toggleNotifications() {
 }
 
 function markNotificationRead(idx) {
-  notifications[idx].read = true;
+  var n = notifications[idx];
+  if(!n) return;
+  // Read for THIS person; everyone else still sees it as new.
+  CESTISCore.comms.markRead(n, notifViewerId());
   updateNotificationDot();
   saveNotifications();
   toggleNotifications();
@@ -9133,23 +9243,24 @@ function markNotificationRead(idx) {
 }
 
 function markAllNotificationsRead() {
-  var roleNotifs = getFilteredNotifications();
-  roleNotifs.forEach(function(n) { n.read = true; });
+  var viewer = notifViewerId();
+  getFilteredNotifications().forEach(function(n) { CESTISCore.comms.markRead(n, viewer); });
   updateNotificationDot();
   saveNotifications();
   toggleNotifications();
   toggleNotifications();
 }
 
+// "Clear all" empties this person's bell — nobody else's. It used to delete
+// (and tombstone everywhere) every notice carrying the viewer's role: one
+// trainee's Clear all wiped other trainees' personal notices (DMs, tasks,
+// calls), notices with no role were wiped by anyone, and for Admin Staff it
+// appeared to do nothing. Each notice now records who cleared it; nothing is
+// deleted, and the shared 50-notice cap still retires old ones.
 function clearAllNotifications() {
-  if(currentRole) {
-    syncTombstoneRemoved('notifications', notifications, notifications = notifications.filter(function(n) {
-      if(!n.forRoles || !n.forRoles.length) return false;
-      return n.forRoles.indexOf(currentRole) === -1;
-    }));
-  } else {
-    notifications = [];
-  }
+  var viewer = notifViewerId();
+  if(!viewer) return;
+  getFilteredNotifications().forEach(function(n) { CESTISCore.comms.markCleared(n, viewer); });
   updateNotificationDot();
   saveNotifications();
   toggleNotifications();
@@ -9161,7 +9272,8 @@ function updateNotificationDot() {
   const dot = btn ? btn.querySelector('.dot') : null;
   if(!dot) return;
   const roleNotifications = getFilteredNotifications();
-  const unread = roleNotifications.filter(n=>!n.read).length;
+  const viewer = notifViewerId();
+  const unread = roleNotifications.filter(n=>!CESTISCore.comms.isRead(n, viewer)).length;
   dot.style.display = unread > 0 ? 'flex' : 'none';
   dot.textContent = unread > 99 ? '99+' : unread;
   if(btn) { if(unread > 0) btn.classList.add('notif-active'); else btn.classList.remove('notif-active'); }
@@ -10822,8 +10934,13 @@ function logout() {
   // time it was serialised — every logout uploaded an EMPTY backup to every
   // Drive folder. The screen changes at once; the wipe follows the save.
   var finalSave = Promise.resolve();
+  // Chat first: offline presence, stop the poll, push what is pending — all
+  // before the wipe. The poll used to keep running after logout and wrote the
+  // whole chat history, everyone's DMs included, back onto the PC.
+  var chatPushed = Promise.resolve(false);
+  try { chatPushed = lmsChatSignOff(); } catch(e) {}
   if(isCloudConnected && googleAccessToken) {
-    finalSave = finalCloudSaveBeforeLogout();
+    finalSave = Promise.all([finalCloudSaveBeforeLogout(), chatPushed]);
     try { saveMasterSnapshot('logout', true); } catch(e) { console.warn('[Logout] Master snapshot failed:', e); }
   }
   // Stop auto-save, debounced cloud save, and session expiry checks
@@ -10858,10 +10975,23 @@ function logout() {
   }
   // Data: wiped once the final save has left, and only if nobody has signed
   // in again in the meantime.
+  var _leavingRole = currentRole, _leavingUserId = currentLoggedInUser ? currentLoggedInUser.id : null;
   finalSave.then(function() {
     if (seq !== _sessionSeq) return;
     // Clear sensitive data from localStorage based on role
     clearSensitiveStudentData();
+    // A trainee's own copy of their chats and notices goes too — once the
+    // chat push above has put them on Drive (otherwise it is the only copy and
+    // stays). Staff PCs keep theirs, as before.
+    return chatPushed.then(function(ok) {
+      if (ok && _leavingRole === 'student' && _leavingUserId) {
+        ['chatMessages','chatRooms','chatProfiles','chatFollows','notifications'].forEach(function(k) {
+          try { CESTISStore.removeItem('voctrain_user_' + _leavingUserId + '_' + k); } catch(e) {}
+        });
+      }
+    });
+  }).then(function() {
+    if (seq !== _sessionSeq) return;
     // Clear in-memory session state
     currentRole = null;
     currentStudent = null;
@@ -11014,6 +11144,8 @@ function buildStudentSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>My Profile</div>
     <div class="nav-item" data-page="s-calendar" onclick="showPage('s-calendar')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>My Calendar</div>
+    <div class="nav-item" data-page="s-announcements" onclick="showPage('s-announcements')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>Announcements</div>
   `;
 }
 
@@ -11507,6 +11639,7 @@ function showPage(pageId) {
   // Reports counts the roll on every panel, so it is drawn on the way in rather
   // than served from whenever the page happened to be built.
   if(pageId === 'reports') { try { refreshReportsAnalytics(); } catch(e) { console.warn('[Reports] render failed', e); } }
+  if(pageId === 's-announcements') { try { renderStudentAnnouncements(); } catch(e) {} }
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const navItem = document.querySelector('.nav-item[data-page="'+pageId+'"]');
   if(navItem) {
@@ -11525,7 +11658,7 @@ function showPage(pageId) {
     attendance:'Attendance Management',announcements:'Announcements',calendar:'Calendar & Schedule',
     's-dashboard':'My Dashboard','s-video':'My Classes','s-progress':'My Progress',
     's-resources':'My Resources','s-assignments':'My Assignments','s-exams':'My Exams','s-certificate':'My Certificate',
-    's-profile':'My Profile','s-calendar':'My Calendar',
+    's-profile':'My Profile','s-calendar':'My Calendar','s-announcements':'Announcements',
     'i-dashboard':'Instructor Dashboard','i-classes':'Video Conference','i-students':'My Students',
     'i-attendance':'Class Attendance','i-gradebook':'Gradebook','i-resources':'Course Resources','i-exams':'Online Exams',
     'i-duties':'My Assigned Tasks','i-announcements':'Announcements','i-calendar':'Calendar','i-profile':'My Profile',
@@ -12502,6 +12635,8 @@ function buildStudentPages() {
   const circumference = 2 * Math.PI * 52;
   const dashoffset = circumference - (s.progress / 100) * circumference;
   const skillColorRGB = hexToRgb(skill.color);
+  const cwSum = studentCourseworkSummary(s);
+  const shownGpa = studentEffectiveGpa(s);
 
   const mc = document.getElementById('mainContent');
   mc.innerHTML = `
@@ -12523,8 +12658,8 @@ function buildStudentPages() {
         </div>
       </div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📊</div><div class="stat-value">${s.attendance}%</div><div class="stat-label">Attendance Rate</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📝</div><div class="stat-value">${s.assignments}/${s.assignmentsTotal}</div><div class="stat-label">Assignments Done</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">⭐</div><div class="stat-value">${escapeHtml(s.gpa)}</div><div class="stat-label">Current GPA</div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📝</div><div class="stat-value">${cwSum.graded}/${cwSum.total}</div><div class="stat-label">Assignments Marked</div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">⭐</div><div class="stat-value">${escapeHtml(shownGpa)}</div><div class="stat-label">Current GPA${cwSum.percent !== null ? ' &bull; ' + cwSum.percent + '% average' : ''}</div></div>
     </div>
 
     <!-- Stage Tracker -->
@@ -12557,7 +12692,7 @@ function buildStudentPages() {
       ${(function(){
         const today = localDateStr();
         const todaySessions = classSessions.filter(cs => (cs.course === s.course || instructorCourseMatch(cs.course, s.course)) && cs.date === today);
-        const todayEvents = calendarEvents.filter(ce => ce.date === today && (ce.forRoles||[]).indexOf('student') !== -1);
+        const todayEvents = calendarEvents.filter(ce => ce.date === today && CESTISCore.comms.forViewer(ce, 'student', s.course, instructorCourseMatch));
         if(todaySessions.length === 0 && todayEvents.length === 0) {
           return '<p style="color:var(--text-muted);padding:16px;text-align:center;">No classes scheduled for today. Check the calendar for upcoming sessions.</p>';
         }
@@ -12576,29 +12711,11 @@ function buildStudentPages() {
     </div>
 
     <div class="grid-2col">
-      <div class="card"><div class="card-header"><h3>Announcements</h3><button class="btn btn-sm btn-secondary" onclick="showPage('s-profile')">View All</button></div>
-        ${announcements.filter(a => { var roles = a.forRoles || ['admin','instructor','student']; return roles.indexOf('student') !== -1; }).slice(0,3).map(a => `
-          <div style="padding:10px 0;border-bottom:1px solid var(--border);">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-              <span class="announcement-badge badge-${annPriorityClass(a.priority)}">${escapeHtml(a.priority)}</span>
-              <span style="font-size:13px;font-weight:600;">${escapeHtml(a.title)}</span>
-            </div>
-            <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(a.body.substring(0,80))}...</div>
-          </div>
-        `).join('')}
+      <div class="card"><div class="card-header"><h3>Announcements</h3><button class="btn btn-sm btn-secondary" onclick="showPage('s-announcements')">View All</button></div>
+        <div id="sDashAnnouncements"></div>
       </div>
-      <div class="card"><div class="card-header"><h3>Upcoming Deadlines</h3></div>
-        ${(function(){
-          const now = new Date();
-          const deadlines = calendarEvents.filter(e => e.type === 'deadline' && (e.forRoles||[]).indexOf('student') !== -1 && new Date(e.date) >= now).sort((a,b) => a.date.localeCompare(b.date)).slice(0,3);
-          if(deadlines.length === 0) return '<p style="color:var(--text-muted);padding:12px;">No upcoming deadlines.</p>';
-          return deadlines.map(d => {
-            const daysLeft = Math.ceil((new Date(d.date) - now) / 86400000);
-            const urgClass = daysLeft <= 5 ? 'dl-warning' : 'dl-normal';
-            const cdClass = daysLeft <= 5 ? 'dl-soon' : 'dl-ok';
-            return '<div class="deadline-item"><div class="dl-indicator '+urgClass+'"></div><div class="dl-info"><div class="dl-title">'+escapeHtml(d.title)+'</div><div class="dl-meta">'+escapeHtml(d.date)+'</div></div><div class="dl-countdown '+cdClass+'"><div class="dl-time">'+daysLeft+'</div><div class="dl-unit">days</div></div></div>';
-          }).join('');
-        })()}
+      <div class="card"><div class="card-header"><h3>Upcoming Deadlines</h3><button class="btn btn-sm btn-secondary" onclick="showPage('s-calendar')">Calendar</button></div>
+        <div id="sDashDeadlines"></div>
       </div>
     </div>
 
@@ -12698,9 +12815,9 @@ function buildStudentPages() {
       <button class="btn btn-secondary" onclick="openEditStudentProfile()">Edit Profile</button>
     </div>
     <div class="stats-grid stats-grid-4">
-      <div class="profile-stat"><div class="ps-value" style="color:var(--green);">${escapeHtml(s.gpa)}</div><div class="ps-label">GPA</div></div>
+      <div class="profile-stat"><div class="ps-value" style="color:var(--green);">${escapeHtml(shownGpa)}</div><div class="ps-label">GPA</div></div>
       <div class="profile-stat"><div class="ps-value" style="color:var(--blue);">${s.attendance}%</div><div class="ps-label">Attendance</div></div>
-      <div class="profile-stat"><div class="ps-value" style="color:var(--accent);">${s.assignments}/${s.assignmentsTotal}</div><div class="ps-label">Assignments</div></div>
+      <div class="profile-stat"><div class="ps-value" style="color:var(--accent);">${cwSum.graded}/${cwSum.total}</div><div class="ps-label">Assignments Marked</div></div>
       <div class="profile-stat"><div class="ps-value" style="color:${s.stage==='certified'||s.stage==='collected'?'var(--green)':'var(--accent)'};">${stageLabels[s.stage]}</div><div class="ps-label">Current Stage</div></div>
     </div>
     <div class="profile-info-grid">
@@ -12725,6 +12842,13 @@ function buildStudentPages() {
     <div class="cestis-mount" data-feature="s-calendar" data-prefix="student"></div>
   </section>
 
+  <!-- STUDENT ANNOUNCEMENTS: every announcement for trainees of this programme, in full, newest first -->
+  <section class="page" id="page-s-announcements">
+    <div class="card"><div class="card-header"><h3>Announcements</h3><span style="font-size:12px;color:var(--text-muted);">Newest first</span></div>
+      <div id="sAnnouncementsList"></div>
+    </div>
+  </section>
+
   <!-- C.E.S.T.I.S LMS CHAT PAGE (STUDENT) -->
   <!-- C.E.S.T.I.S LMS CHAT (STUDENT) — markup lives in LMS-Chat-Member.html -->
   <section class="page" id="page-s-lms-chat">
@@ -12739,6 +12863,82 @@ function buildStudentPages() {
   renderStudentAssignments();
   renderStudentRecordings();
   renderStudentAssignmentsPage();
+  renderStudentAnnouncements();
+  renderStudentDeadlines();
+}
+
+// Announcements a trainee may read: aimed at students, for their programme or
+// for the whole Centre, newest first (sorted on a copy — the shared list keeps
+// its order). The dashboard used to show the first three in storage order —
+// where newly synced ones land LAST — cut at 80 characters, with "View All"
+// opening the Profile, which has no announcements.
+function studentAnnouncementsFor(s) {
+  if (!s) return [];
+  return CESTISCore.comms.sortAnnouncements(announcements).filter(function(a) {
+    return CESTISCore.comms.forViewer(a, 'student', s.course, instructorCourseMatch);
+  });
+}
+function renderStudentAnnouncements() {
+  if (currentRole !== 'student' || !currentStudent) return;
+  var list = studentAnnouncementsFor(currentStudent);
+  var card = document.getElementById('sDashAnnouncements');
+  if (card) {
+    card.innerHTML = list.length === 0 ? '<p style="color:var(--text-muted);padding:12px;">No announcements yet.</p>' :
+      list.slice(0, 3).map(function(a) {
+        return '<div style="padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="showPage(\'s-announcements\')">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+            '<span class="announcement-badge badge-' + annPriorityClass(a.priority) + '">' + escapeHtml(a.priority) + '</span>' +
+            '<span style="font-size:13px;font-weight:600;">' + escapeHtml(a.title) + '</span>' +
+            '<span style="font-size:11px;color:var(--text-muted);margin-left:auto;">' + escapeHtml(a.date) + '</span>' +
+          '</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(CESTISCore.comms.excerpt(a.body, 80)) + '</div>' +
+        '</div>';
+      }).join('');
+  }
+  var page = document.getElementById('sAnnouncementsList');
+  if (page) {
+    page.innerHTML = list.length === 0 ? '<p style="color:var(--text-muted);padding:16px;text-align:center;">No announcements yet.</p>' :
+      list.map(function(a) {
+        return '<div class="announcement-card priority-' + annPriorityClass(a.priority) + '">' +
+          '<div class="ann-header">' +
+            '<span class="announcement-badge badge-' + annPriorityClass(a.priority) + '">' + escapeHtml(a.priority) + '</span>' +
+            '<h4>' + escapeHtml(a.title) + '</h4>' +
+            '<span class="ann-date">' + escapeHtml(a.date) + '</span>' +
+          '</div>' +
+          '<div class="ann-body" style="white-space:pre-wrap;">' + escapeHtml(a.body) + '</div>' +
+          '<div class="ann-footer"><span style="font-size:11px;color:var(--text-muted);">By ' + escapeHtml(a.author) + (a.course ? ' &bull; ' + escapeHtml(a.course) : '') + '</span></div>' +
+        '</div>';
+      }).join('');
+  }
+}
+
+// The trainee's agenda (CESTISCore.comms.studentAgenda): exams, assignment due
+// dates and class sessions of their programme, plus calendar events aimed at
+// them — worked out when drawn, never stored twice.
+function studentAgendaFor(s) {
+  if (!s) return [];
+  return CESTISCore.comms.studentAgenda({
+    course: s.course, sameProgramme: instructorCourseMatch,
+    calendarEvents: calendarEvents, exams: exams, assignments: instructorAssignments, classSessions: classSessions
+  });
+}
+// "Upcoming Deadlines": exams and due dates from today (local day — a
+// deadline due today stays listed all day), soonest first.
+function renderStudentDeadlines() {
+  var el = document.getElementById('sDashDeadlines');
+  if (!el || !currentStudent) return;
+  var today = localDateStr();
+  var due = CESTISCore.comms.upcoming(studentAgendaFor(currentStudent).filter(function(x) {
+    return x.kind === 'deadline' || x.kind === 'exam';
+  }), today, 4);
+  if (due.length === 0) { el.innerHTML = '<p style="color:var(--text-muted);padding:12px;">No upcoming deadlines.</p>'; return; }
+  el.innerHTML = due.map(function(d) {
+    var daysLeft = CESTISCore.coursework.daysUntil(d.date);
+    var urgClass = daysLeft <= 5 ? 'dl-warning' : 'dl-normal';
+    var cdClass = daysLeft <= 5 ? 'dl-soon' : 'dl-ok';
+    var label = daysLeft === 0 ? 'today' : daysLeft === 1 ? 'day' : 'days';
+    return '<div class="deadline-item"><div class="dl-indicator ' + urgClass + '"></div><div class="dl-info"><div class="dl-title">' + (d.kind === 'exam' ? '📝 ' : '') + escapeHtml(d.title) + '</div><div class="dl-meta">' + escapeHtml(d.date) + (d.time ? ' @ ' + escapeHtml(d.time) : '') + '</div></div><div class="dl-countdown ' + cdClass + '"><div class="dl-time">' + (daysLeft === 0 ? '!' : daysLeft) + '</div><div class="dl-unit">' + label + '</div></div></div>';
+  }).join('');
 }
 
 // ============================== BUILD INSTRUCTOR PAGES ==============================
@@ -12751,7 +12951,9 @@ function buildInstructorPages() {
   const myExams = exams.filter(e => instructorCourseMatch(e.course, ins.course));
   const certifiedCount = myStudents.filter(s => s.stage === 'certified' || s.stage === 'collected').length;
   const avgAttendance = myStudents.length ? Math.round(myStudents.reduce((a,s) => a + s.attendance, 0) / myStudents.length) : 0;
-  const avgGpa = myStudents.length ? (myStudents.reduce((a,s) => a + parseFloat(s.gpa), 0) / myStudents.length).toFixed(1) : '0.0';
+  // GPA from the marks (a hand-set GPA still stands) — the same figure the trainee sees.
+  const gpaOf = {}; myStudents.forEach(s => { gpaOf[s.id] = studentEffectiveGpa(s); });
+  const avgGpa = myStudents.length ? (myStudents.reduce((a,s) => a + (parseFloat(gpaOf[s.id]) || 0), 0) / myStudents.length).toFixed(1) : '0.0';
   const lowAttStudents = myStudents.filter(s => s.attendance < 70);
   const upcomingExams = myExams.filter(e => e.status === 'upcoming');
   const skill = findSkillAreaForCourse(ins.course);
@@ -12806,14 +13008,14 @@ function buildInstructorPages() {
         <div class="alert-item alert-info" id="iDashNextClassAlert" style="display:none;"><div class="alert-icon">🔔</div><div class="alert-body"><div class="alert-msg" id="iDashNextClassMsg"></div><div class="alert-time" id="iDashNextClassTime"></div></div></div>
       </div>
       <div class="card"><div class="card-header"><h3>Top Students</h3></div>
-        ${[...myStudents].sort((a,b)=>parseFloat(b.gpa)-parseFloat(a.gpa)).slice(0,5).map((s,i) => {
+        ${[...myStudents].sort((a,b)=>(parseFloat(gpaOf[b.id])||0)-(parseFloat(gpaOf[a.id])||0)).slice(0,5).map((s,i) => {
           const colors = ['linear-gradient(135deg,#f0a500,#d4900a)','linear-gradient(135deg,#bdc3c7,#95a5a6)','linear-gradient(135deg,#e67e22,#d35400)','linear-gradient(135deg,var(--blue),#2980b9)','linear-gradient(135deg,var(--teal),#16a085)'];
           const initials = s.name.split(' ').map(n=>n[0]).join('');
           return `<div class="performer-row">
             <div class="rank ${i<3?'rank-'+(i+1):''}">${i+1}</div>
             <div class="perf-avatar" style="background:${colors[i]};">${escapeHtml(initials)}</div>
             <div class="perf-info"><div class="perf-name">${escapeHtml(s.name)}</div><div class="perf-course">${escapeHtml(s.course)}</div></div>
-            <div class="perf-score"><div class="score-val">${escapeHtml(s.gpa)} GPA</div><div class="score-bar"><div class="score-fill" style="width:${(parseFloat(s.gpa)/4*100).toFixed(0)}%;"></div></div></div>
+            <div class="perf-score"><div class="score-val">${escapeHtml(gpaOf[s.id])} GPA</div><div class="score-bar"><div class="score-fill" style="width:${((parseFloat(gpaOf[s.id])||0)/4*100).toFixed(0)}%;"></div></div></div>
           </div>`;
         }).join('') || '<p style="color:var(--text-muted);padding:16px;">No students assigned yet.</p>'}
       </div>
@@ -12880,46 +13082,52 @@ function buildInstructorPages() {
       <div id="iCustomAssignmentsList"></div>
     </div>
     ${(function(){
-      // Build gradebook dynamically from actual exams and exam results
+      // Build gradebook dynamically from actual exams, exam results and
+      // assignment marks. Every mark is shown as a PERCENTAGE of its own
+      // maximum (8/10 and 80/100 are both 80%, not 8 and 80), a mark of 0 is
+      // a mark, exams and assignments sit side by side, and the average
+      // weights each assignment by its Weight (%) — exams count as one
+      // standard item each (CESTISCore.coursework).
+      var CW = CESTISCore.coursework;
       var courseExams = myExams.slice(0, 7);
-      var myAssignments = (instructorAssignments||[]).filter(function(a){ return instructorCourseMatch(a.course, ins.course); });
-      var gradeCols = courseExams.map(function(ex){ return ex.title || 'Exam'; });
-      if (gradeCols.length === 0 && myAssignments.length > 0) gradeCols = myAssignments.slice(0,7).map(function(a){ return a.title || 'Assignment'; });
-      if (gradeCols.length === 0) gradeCols = ['Test Score'];
+      var myAssignments = (instructorAssignments||[]).filter(function(a){ return instructorCourseMatch(a.course, ins.course); }).slice(0, 7);
+      var gradeCols = courseExams.map(function(ex){ return ex.title || 'Exam'; })
+        .concat(myAssignments.map(function(a){ return (a.title || 'Assignment') + ' (' + CW.weightOf(a.weight) + '%)'; }));
+      var noColumns = gradeCols.length === 0;
+      if (noColumns) gradeCols = ['Test Score'];
 
       var html = '<div class="card"><div class="card-header"><h3>Gradebook &mdash; '+escapeHtml(ins.course)+'</h3></div>';
       html += '<div class="table-wrapper"><table><thead><tr><th>Student</th>';
-      gradeCols.forEach(function(c){ html += '<th>'+c+'</th>'; });
+      gradeCols.forEach(function(c){ html += '<th>'+escapeHtml(c)+'</th>'; });
       html += '<th>Avg</th></tr></thead><tbody id="iGradebookBody">';
 
       var allScores = [];
       myStudents.forEach(function(st) {
         var stuResults = (examResults||[]).filter(function(r){ return r.studentId === st.id; });
-        var grades = [];
-        if (courseExams.length > 0) {
-          grades = courseExams.map(function(ex) {
+        var items = [];
+        if (noColumns) {
+          items = [{ pct: CW.gradeValue(st.score), weight: CW.DEFAULT_WEIGHT }];
+        } else {
+          courseExams.forEach(function(ex) {
             var r = stuResults.find(function(res){ return res.examId === ex.id || res.examTitle === ex.title; });
-            return r ? (typeof r.score === 'number' ? r.score : parseInt(r.score)||null) : null;
+            items.push({ pct: r ? CW.gradeValue(r.score) : null, weight: CW.DEFAULT_WEIGHT });
           });
-        } else if (myAssignments.length > 0) {
-          grades = myAssignments.slice(0,7).map(function(a) {
+          myAssignments.forEach(function(a) {
             // Grades are stored on the assignment (a.grades[studentId]), not on
             // the submission record — read from there so the gradebook fills in.
-            var g = (a.grades && a.grades[st.id] != null) ? a.grades[st.id] : null;
-            return g != null ? parseInt(g)||null : null;
+            items.push({ pct: CW.percentOf(a.grades ? a.grades[st.id] : null, a.maxPoints), weight: a.weight });
           });
-        } else {
-          grades = [parseInt(st.score)||null];
         }
-        var validGrades = grades.filter(function(g){ return g !== null; });
-        var avg = validGrades.length > 0 ? Math.round(validGrades.reduce(function(a,b){return a+b;},0)/validGrades.length) : 0;
-        if (avg > 0) allScores.push(avg);
+        var avgRaw = CW.weightedAverage(items);
+        var avg = avgRaw == null ? null : Math.round(avgRaw);
+        if (avg !== null) allScores.push(avg);
         html += '<tr><td><strong>'+escapeHtml(st.name)+'</strong></td>';
-        grades.forEach(function(g){
+        items.forEach(function(it){
+          var g = it.pct == null ? null : Math.round(it.pct);
           var clr = g !== null ? (g >= 80 ? 'color:var(--green);' : g >= 60 ? 'color:var(--accent);' : '') : 'color:var(--text-muted);';
           html += '<td style="text-align:center;'+clr+'">'+(g !== null ? g+'%' : '\u2014')+'</td>';
         });
-        html += '<td style="text-align:center;font-weight:700;color:'+(avg>=80?'var(--green)':avg>=60?'var(--accent)':'var(--red)')+';">'+avg+'%</td></tr>';
+        html += '<td style="text-align:center;font-weight:700;color:'+(avg === null ? 'var(--text-muted)' : avg>=80?'var(--green)':avg>=60?'var(--accent)':'var(--red)')+';">'+(avg === null ? '\u2014' : avg+'%')+'</td></tr>';
       });
       html += '</tbody></table></div></div>';
 
@@ -12943,8 +13151,11 @@ function buildInstructorPages() {
       // a pending submission awaiting grading.
       var _isMine = function(sid){ return myStudents.some(function(st){return st.id===sid;}); };
       var _assignGrade = function(sub){ var a=(instructorAssignments||[]).find(function(x){return x.id===sub.assignmentId;}); return (a && a.grades && a.grades[sub.studentId] != null) ? a.grades[sub.studentId] : null; };
-      var totalGraded = (assignmentSubmissions||[]).filter(function(s){ return _isMine(s.studentId) && _assignGrade(s) != null; }).length + (examResults||[]).filter(function(r){ return _isMine(r.studentId); }).length;
-      var totalPending = (assignmentSubmissions||[]).filter(function(s){ return _isMine(s.studentId) && _assignGrade(s) == null; }).length;
+      // Latest attempt per trainee only: a resubmission is history, not a second piece of work.
+      var _latestSubs = [];
+      (instructorAssignments||[]).forEach(function(a){ _latestSubs = _latestSubs.concat(CW.latestPerStudent(assignmentSubmissions, a.id)); });
+      var totalGraded = _latestSubs.filter(function(s){ return _isMine(s.studentId) && CW.gradeValue(_assignGrade(s)) != null; }).length + (examResults||[]).filter(function(r){ return _isMine(r.studentId); }).length;
+      var totalPending = _latestSubs.filter(function(s){ return _isMine(s.studentId) && CW.gradeValue(_assignGrade(s)) == null; }).length;
       var highScore = allScores.length > 0 ? Math.max.apply(null, allScores) : 0;
       var lowScore = allScores.length > 0 ? Math.min.apply(null, allScores) : 0;
 
@@ -13128,11 +13339,27 @@ function renderInstructorStudents(data) {
     <tr><td><strong>${escapeHtml(s.name)}</strong></td><td style="font-family:monospace;font-size:12px;color:var(--text-muted);">${escapeHtml(s.id)}</td>
     <td><span class="badge ${stageBadge[s.stage]}"><span class="badge-dot"></span>${escapeHtml(stageLabels[s.stage]||s.stage)}</span></td><td>${escapeHtml(s.score||'\u2014')}</td>
     <td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:60px;"><div class="fill" style="width:${escapeAttr(s.attendance)}%;background:${s.attendance>=80?'var(--green)':s.attendance>=70?'var(--accent)':'var(--red)'};"></div></div><span style="font-size:12px;">${escapeHtml(s.attendance)}%</span></div></td>
-    <td style="font-weight:600;color:${parseFloat(s.gpa)>=3.0?'var(--green)':'var(--accent)'};">${escapeHtml(s.gpa)}</td>
+    <td style="font-weight:600;color:${parseFloat(studentEffectiveGpa(s))>=3.0?'var(--green)':'var(--accent)'};">${escapeHtml(studentEffectiveGpa(s))}</td>
     <td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:80px;"><div class="fill" style="width:${escapeAttr(s.progress)}%;background:${s.progress>=80?'var(--green)':s.progress>=40?'var(--accent)':'var(--red)'};"></div></div><span style="font-size:12px;color:var(--text-muted);">${escapeHtml(s.progress)}%</span></div></td></tr>
   `).join('');
   const sc = document.getElementById('iStudentCount');
   if(sc) sc.textContent = 'Showing ' + data.length + ' students';
+}
+
+// A trainee's coursework, worked out from the marks themselves: the graded
+// assignments of their programme and their exam results. The dashboard's
+// "Assignments Done" and "GPA" tiles used to show the seed values every new
+// trainee is created with (0/10, 0.0) for ever. A GPA an administrator typed
+// in by hand still stands (CESTISCore.coursework.effectiveGpa).
+function studentCourseworkSummary(s) {
+  if (!s) return { graded: 0, total: 0, percent: null, gpa: null };
+  var mine = (instructorAssignments || []).filter(function(a) {
+    return a && a.course && s.course && (a.course === s.course || instructorCourseMatch(s.course, a.course));
+  });
+  return CESTISCore.coursework.studentSummary(s.id, { assignments: mine, examResults: examResults || [] });
+}
+function studentEffectiveGpa(s) {
+  return CESTISCore.coursework.effectiveGpa(s && s.gpa, studentCourseworkSummary(s).gpa);
 }
 
 function instructorCourseMatch(studentCourse, instructorCourse) {
@@ -13277,7 +13504,11 @@ function createInstructorAnnouncement() {
   if(document.getElementById('iAnnRoleAdminStaff')?.checked) targetRoles.push('adminstaff');
   if(targetRoles.length === 0) { alert('Please select at least one target audience'); return; }
   announcements.unshift({
-    id: cestisGenId('ANN-'), title, body, priority, date: localDateStr(), author: currentInstructor.name, forRoles: targetRoles
+    id: cestisGenId('ANN-'), title, body, priority, date: localDateStr(), author: currentInstructor.name, forRoles: targetRoles,
+    // An instructor speaks to their own programme's trainees: Welding students
+    // no longer receive the Plumbing instructor's re-sit list. (Records
+    // without a course — every older one — still reach everyone.)
+    course: currentInstructor.course || ''
   });
   document.getElementById('iAnnTitle').value = '';
   document.getElementById('iAnnBody').value = '';
@@ -13293,7 +13524,7 @@ function renderInstructorAnnouncements() {
   const el = document.getElementById('iAnnouncementsList');
   if(!el) return;
   const filter = document.getElementById('iAnnPriorityFilter')?.value || 'all';
-  let filtered = announcements.filter(function(a) {
+  let filtered = CESTISCore.comms.sortAnnouncements(announcements).filter(function(a) {
     var roles = a.forRoles || ['admin','instructor','student'];
     return roles.indexOf('instructor') !== -1;
   });
@@ -13331,7 +13562,7 @@ function renderInstructorCalendar() {
   renderCalendarGrid(calendarYear, calendarMonth, titleEl, gridEl, 'iCalDayTitle', 'iCalDayEvents', instructorEvents);
   const eventListEl = document.getElementById('iCalEventList');
   if(eventListEl) {
-    eventListEl.innerHTML = instructorEvents.sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8).map(e =>
+    eventListEl.innerHTML = CESTISCore.comms.upcoming(instructorEvents, localDateStr(), 8).map(e =>
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">' +
         '<div style="width:8px;height:8px;border-radius:50%;background:' + escapeAttr(e.color||'var(--blue)') + ';flex-shrink:0;"></div>' +
         '<div><div style="font-size:13px;">' + escapeHtml(e.title) + '</div><div style="font-size:11px;color:var(--text-muted);">' + escapeHtml(e.date) + ' @ ' + escapeHtml(e.time) + '</div></div></div>'
@@ -16471,9 +16702,21 @@ function assignFileSelected(input) {
   var listEl = document.getElementById('assignFileList');
   if (!listEl) return;
   for (var i = 0; i < input.files.length; i++) {
+    if (courseworkFileTooBig(input.files[i])) continue;
     _assignPendingFiles.push(input.files[i]);
   }
   assignRenderFileList();
+}
+
+// Every coursework file is copied into the Centre's shared data, so one large
+// file slowed every save and, on the Centre's own network, could push the
+// dashboard past the server's 64 MB limit and stop ALL syncing. Turn it away
+// at the door with a message that says what to do instead.
+function courseworkFileTooBig(f) {
+  var CW = CESTISCore.coursework;
+  if (!f || !CW.oversizeFiles([f]).length) return false;
+  showToast('"' + f.name + '" is ' + (f.size/1048576).toFixed(1) + ' MB. Files must be ' + (CW.MAX_FILE_BYTES/1048576) + ' MB or smaller — save it as a PDF, reduce the photo size, or split it into parts.', 'warning');
+  return true;
 }
 
 function assignRemovePendingFile(idx) {
@@ -16528,6 +16771,7 @@ function createAssignment() {
   const weight = parseInt(document.getElementById('assignWeight')?.value) || 10;
   const instructions = document.getElementById('assignInstructions')?.value?.trim();
   const requireSubmission = document.getElementById('assignRequireSubmission')?.checked !== false;
+  const allowResubmission = document.getElementById('assignAllowResubmission')?.checked === true;
 
   if(!title) { showToast('Please enter an assignment title'); return; }
   if(!assignCourse) { showToast('Please select a course'); return; }
@@ -16551,6 +16795,7 @@ function createAssignment() {
       instructions: instructions || '',
       attachments: attachments,
       requireSubmission: requireSubmission,
+      allowResubmission: allowResubmission,
       createdBy: creatorName,
       createdAt: new Date().toISOString(),
       grades: {}
@@ -16561,12 +16806,16 @@ function createAssignment() {
 
     // Upload attachment files to Google Drive Assignments folder
     if (_assignPendingFiles.length > 0 && isCloudConnected && googleAccessToken) {
-      _assignPendingFiles.forEach(function(f) {
+      _assignPendingFiles.forEach(function(f, fi) {
         uploadAssignmentFileToDrive(f, assignCourse, title).then(function(result) {
           if (result) {
             // Store Drive link in assignment for cross-device access
             if (!assignment.driveAttachments) assignment.driveAttachments = [];
             assignment.driveAttachments.push({ name: f.name, driveId: result.id, url: result.webViewLink });
+            // Once Drive holds the file, the record carries the link instead
+            // of the bytes — the bytes no longer ride every save and backup.
+            var att = assignment.attachments && assignment.attachments[fi];
+            if (att && att.name === f.name) { att.driveId = result.id; att.webViewLink = result.webViewLink; delete att.dataUrl; }
             saveState();
           }
         });
@@ -16616,8 +16865,9 @@ function renderInstructorGradebook() {
 
   var html = '';
   myAssignments.forEach(function(a) {
-    var subs = assignmentSubmissions.filter(function(sub) { return sub.assignmentId === a.id; });
-    var isPastDue = a.dueDate && new Date(a.dueDate) < new Date();
+    // The latest attempt per trainee; earlier attempts are listed under it.
+    var subs = CESTISCore.coursework.latestPerStudent(assignmentSubmissions, a.id);
+    var isPastDue = CESTISCore.coursework.isPastDue(a.dueDate); // due = by the end of that day, here (not UTC midnight)
     var statusBadge = isPastDue ? '<span class="badge badge-red">Past Due</span>' : '<span class="badge badge-green">Active</span>';
     var attachCount = (a.attachments && a.attachments.length) || 0;
 
@@ -16645,7 +16895,7 @@ function renderInstructorGradebook() {
         var size = att.size < 1024 ? att.size + ' B' : att.size < 1048576 ? (att.size/1024).toFixed(1) + ' KB' : (att.size/1048576).toFixed(1) + ' MB';
         html += '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-input);padding:4px 10px;border-radius:var(--radius-sm);margin:2px 4px 2px 0;font-size:12px;">' +
           '📄 ' + escapeHtml(att.name) + ' <span style="color:var(--text-muted);">(' + size + ')</span>' +
-          '<a href="' + escapeAttr(safeUrl(att.dataUrl, {data:true})) + '" download="' + escapeHtml(att.name) + '" class="btn btn-sm" style="padding:1px 6px;font-size:10px;background:var(--accent-dim);color:var(--accent);border:none;">Download</a></div>';
+          courseworkFileLink(att, 'btn btn-sm', 'padding:1px 6px;font-size:10px;background:var(--accent-dim);color:var(--accent);border:none;', 'Download') + '</div>';
       });
       // Show Drive links for attachments
       if (a.driveFiles && a.driveFiles.length > 0) {
@@ -16665,24 +16915,33 @@ function renderInstructorGradebook() {
         var st = students.find(function(s) { return s.id === sub.studentId; });
         var dateStr = new Date(sub.submittedAt).toLocaleDateString();
         var gradeHtml = '';
-        if (a.grades && a.grades[sub.studentId] !== undefined) {
-          gradeHtml = '<span class="badge badge-green">' + escapeHtml(a.grades[sub.studentId]) + '/' + escapeHtml(a.maxPoints) + '</span>';
+        var curGrade = a.grades ? CESTISCore.coursework.gradeValue(a.grades[sub.studentId]) : null;
+        var meta = (a.gradeMeta && a.gradeMeta[sub.studentId]) || null;
+        // A mark can be changed; the change is recorded (who, when, what it was).
+        var gradeInput = '<input type="number" class="form-control" style="width:60px;height:28px;font-size:12px;display:inline-block;" placeholder="—" min="0" max="' + escapeHtml(a.maxPoints) + '" id="grade-' + escapeHtml(a.id) + '-' + escapeHtml(sub.studentId) + '"' + (curGrade != null ? ' value="' + escapeAttr(curGrade) + '"' : '') + '>' +
+          '<button class="btn btn-sm btn-primary" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick="gradeSubmission('+jsArg(a.id)+','+jsArg(sub.studentId)+')">' + (curGrade != null ? 'Update' : 'Grade') + '</button>';
+        if (curGrade != null) {
+          var resub = meta && meta.resubmittedAt;
+          gradeHtml = '<span class="badge ' + (resub ? 'badge-amber' : 'badge-green') + '" title="' + escapeAttr(meta && meta.gradedAt ? 'Marked ' + new Date(meta.gradedAt).toLocaleString() + (meta.gradedBy ? ' by ' + meta.gradedBy : '') : '') + '">' + escapeHtml(curGrade) + '/' + escapeHtml(a.maxPoints) + (resub ? ' · resubmitted' : '') + '</span> ' + gradeInput;
         } else {
-          gradeHtml = '<input type="number" class="form-control" style="width:60px;height:28px;font-size:12px;display:inline-block;" placeholder="—" min="0" max="' + escapeHtml(a.maxPoints) + '" id="grade-' + escapeHtml(a.id) + '-' + escapeHtml(sub.studentId) + '">' +
-            '<button class="btn btn-sm btn-primary" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick="gradeSubmission('+jsArg(a.id)+','+jsArg(sub.studentId)+')">Grade</button>';
+          gradeHtml = gradeInput;
         }
-        html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">' +
-          '<div style="flex:1;font-size:12px;"><strong>' + escapeHtml(st ? st.name : sub.studentId) + '</strong> &bull; Submitted ' + escapeHtml(dateStr) + '</div>';
-        if (sub.files && sub.files.length > 0) {
-          sub.files.forEach(function(f) {
-            html += '<a href="' + escapeAttr(safeUrl(f.dataUrl, {data:true})) + '" download="' + escapeHtml(f.name) + '" class="btn btn-sm btn-secondary" style="padding:2px 8px;font-size:11px;">📄 ' + escapeHtml(f.name) + '</a>';
-          });
-        }
-        // Show Drive-linked files for instructor access
-        if (sub.driveFiles && sub.driveFiles.length > 0) {
-          sub.driveFiles.forEach(function(df) {
-            html += '<a href="' + escapeAttr(safeUrl(df.webViewLink)) + '" target="_blank" rel="noopener" class="btn btn-sm btn-primary" style="padding:2px 8px;font-size:11px;" title="View on Google Drive">☁️ ' + escapeHtml(df.name) + '</a>';
-          });
+        var earlier = CESTISCore.coursework.submissionHistory(assignmentSubmissions, a.id, sub.studentId).filter(function(x) { return x !== sub; });
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
+          '<div style="flex:1;font-size:12px;"><strong>' + escapeHtml(st ? st.name : sub.studentId) + '</strong> &bull; Submitted ' + escapeHtml(dateStr) + (earlier.length ? ' &bull; attempt ' + (earlier.length + 1) : '') + '</div>';
+        (sub.files || []).forEach(function(f) {
+          html += courseworkFileLink(f, 'btn btn-sm btn-secondary', 'padding:2px 8px;font-size:11px;', '📄 ' + escapeHtml(f.name));
+        });
+        // Drive-kept files open with the Centre's sign-in (no public links).
+        (sub.driveFiles || []).forEach(function(df) {
+          html += courseworkFileLink(df, 'btn btn-sm btn-primary', 'padding:2px 8px;font-size:11px;', '☁️ ' + escapeHtml(df.origName || df.name));
+        });
+        if (earlier.length) {
+          html += '<span style="font-size:11px;color:var(--text-muted);">Earlier: ' + earlier.map(function(x, xi) {
+            var fl = (x.files || []).concat(x.driveFiles || []);
+            return 'attempt ' + (xi + 1) + ' (' + escapeHtml(new Date(x.submittedAt).toLocaleDateString()) + ')' +
+              fl.map(function(f) { return ' ' + courseworkFileLink(f, '', 'color:var(--blue);', '📄'); }).join('');
+          }).join(', ') + '</span>';
         }
         if (sub.comment) {
           html += '<span style="font-size:11px;color:var(--text-muted);" title="' + escapeHtml(sub.comment) + '">💬</span>';
@@ -16703,17 +16962,21 @@ function renderInstructorGradebook() {
 function gradeSubmission(assignmentId, studentId) {
   var input = document.getElementById('grade-' + assignmentId + '-' + studentId);
   if (!input) return;
-  var score = parseInt(input.value);
+  var raw = String(input.value).trim();
+  var score = raw === '' ? NaN : Number(raw);
   var a = instructorAssignments.find(function(a) { return a.id === assignmentId; });
   if (!a) return;
-  if (isNaN(score) || score < 0 || score > a.maxPoints) { showToast('Enter a valid score (0-' + a.maxPoints + ')'); return; }
-  if (!a.grades) a.grades = {};
-  a.grades[studentId] = score;
+  if (!isFinite(score) || score < 0 || score > a.maxPoints) { showToast('Enter a valid score (0-' + a.maxPoints + ')'); return; }
+  var by = (currentLoggedInUser && currentLoggedInUser.name) || (currentInstructor && currentInstructor.name) || (currentRole === 'admin' ? 'Administrator' : 'Instructor');
+  // Recorded, not just overwritten: when, by whom, and what it was before.
+  var res = CESTISCore.coursework.recordGrade(a, studentId, score, by, new Date().toISOString());
+  if (!res.changed) { showToast('That mark is already recorded'); return; }
+  if (a.gradeMeta && a.gradeMeta[studentId]) delete a.gradeMeta[studentId].resubmittedAt;
   saveState();
   if(typeof scheduleDebouncedCloudSave === 'function') scheduleDebouncedCloudSave();
   saveAssignmentsToDrive();
   var st = students.find(function(s) { return s.id === studentId; });
-  showToast('Graded ' + (st ? st.name : studentId) + ': ' + score + '/' + a.maxPoints);
+  showToast((res.previous != null ? 'Mark changed for ' : 'Graded ') + (st ? st.name : studentId) + ': ' + score + '/' + a.maxPoints + (res.previous != null ? ' (was ' + res.previous + ')' : ''));
   addNotification((st ? st.name : 'Student') + ' graded ' + score + '/' + a.maxPoints + ' on "' + a.title + '"', 'grade', null, ['admin','instructor','student']);
   renderInstructorGradebook();
   refreshContentDependentViews();
@@ -16779,14 +17042,16 @@ function renderAdminAssignments() {
     return true;
   });
 
-  // Stats
-  var totalSubs = assignmentSubmissions.length;
+  // Stats — one per trainee per assignment: resubmissions are history, not
+  // extra submissions.
+  var totalSubs = 0;
   var gradedCount = 0;
   var pendingCount = 0;
   instructorAssignments.forEach(function(a) {
-    var subs = assignmentSubmissions.filter(function(s) { return s.assignmentId === a.id; });
+    var subs = CESTISCore.coursework.latestPerStudent(assignmentSubmissions, a.id);
+    totalSubs += subs.length;
     subs.forEach(function(sub) {
-      if (a.grades && a.grades[sub.studentId] !== undefined) gradedCount++;
+      if (a.grades && CESTISCore.coursework.gradeValue(a.grades[sub.studentId]) != null) gradedCount++;
       else pendingCount++;
     });
   });
@@ -16819,9 +17084,9 @@ function renderAdminAssignments() {
       '<div class="card-header"><h3>📚 ' + escapeHtml(courseName) + '</h3><span style="font-size:12px;color:var(--text-muted);">' + items.length + ' assignment' + (items.length !== 1 ? 's' : '') + '</span></div>';
 
     items.forEach(function(a) {
-      var subs = assignmentSubmissions.filter(function(s) { return s.assignmentId === a.id; });
-      var gradedInThis = subs.filter(function(sub) { return a.grades && a.grades[sub.studentId] !== undefined; }).length;
-      var isPastDue = a.dueDate && new Date(a.dueDate) < new Date();
+      var subs = CESTISCore.coursework.latestPerStudent(assignmentSubmissions, a.id);
+      var gradedInThis = subs.filter(function(sub) { return a.grades && CESTISCore.coursework.gradeValue(a.grades[sub.studentId]) != null; }).length;
+      var isPastDue = CESTISCore.coursework.isPastDue(a.dueDate); // due = by the end of that day, here (not UTC midnight)
       var attachCount = (a.attachments && a.attachments.length) || 0;
 
       html += '<div class="material-item" style="flex-wrap:wrap;gap:8px;">' +
@@ -16850,11 +17115,9 @@ function renderAdminAssignments() {
           html += '<div style="display:inline-flex;align-items:center;gap:4px;font-size:11px;background:var(--bg-input);padding:2px 8px;border-radius:10px;margin:2px;">' +
             '<span style="font-weight:600;">' + escapeHtml(st ? st.name : sub.studentId) + '</span>' +
             '<span style="color:' + gradeColor + ';">' + escapeHtml(grade) + '</span>';
-          if (sub.files && sub.files.length > 0) {
-            sub.files.forEach(function(f) {
-              html += '<a href="' + escapeAttr(safeUrl(f.dataUrl, {data:true})) + '" download="' + escapeHtml(f.name) + '" style="color:var(--blue);font-size:10px;" title="Download ' + escapeHtml(f.name) + '">📄</a>';
-            });
-          }
+          (sub.files || []).concat(sub.driveFiles || []).forEach(function(f) {
+            html += courseworkFileLink(f, '', 'color:var(--blue);font-size:10px;', '📄');
+          });
           html += '</div>';
         });
         html += '</div>';
@@ -16892,9 +17155,9 @@ function renderStudentAssignments() {
   var submittedCount = 0;
   var gradedCount = 0;
   myAssignments.forEach(function(a) {
-    var sub = assignmentSubmissions.find(function(sub) { return sub.assignmentId === a.id && sub.studentId === s.id; });
+    var sub = CESTISCore.coursework.latestSubmission(assignmentSubmissions, a.id, s.id);
     if (sub) submittedCount++;
-    if (a.grades && a.grades[s.id] !== undefined) gradedCount++;
+    if (a.grades && CESTISCore.coursework.gradeValue(a.grades[s.id]) != null) gradedCount++;
   });
 
   if (countEl) countEl.textContent = gradedCount + ' graded / ' + submittedCount + ' submitted / ' + myAssignments.length + ' total';
@@ -16909,9 +17172,11 @@ function renderStudentAssignments() {
 
   var html = '';
   myAssignments.forEach(function(a) {
-    var mySub = assignmentSubmissions.find(function(sub) { return sub.assignmentId === a.id && sub.studentId === s.id; });
-    var myGrade = (a.grades && a.grades[s.id] !== undefined) ? a.grades[s.id] : null;
-    var isPastDue = a.dueDate && new Date(a.dueDate) < new Date();
+    var mySub = CESTISCore.coursework.latestSubmission(assignmentSubmissions, a.id, s.id);
+    // 0 is a mark: gradeValue keeps it, where `!myGrade` read it as "not marked".
+    var myGrade = a.grades ? CESTISCore.coursework.gradeValue(a.grades[s.id]) : null;
+    var mayUpload = CESTISCore.coursework.canSubmit(a, !!mySub, myGrade);
+    var isPastDue = CESTISCore.coursework.isPastDue(a.dueDate); // due = by the end of that day, here (not UTC midnight)
     var attachCount = (a.attachments && a.attachments.length) || 0;
 
     var statusBadge = '';
@@ -16939,24 +17204,25 @@ function renderStudentAssignments() {
     if (attachCount > 0) {
       html += '<div style="margin-top:6px;">';
       a.attachments.forEach(function(att) {
-        html += '<a href="' + escapeAttr(safeUrl(att.dataUrl, {data:true})) + '" download="' + escapeHtml(att.name) + '" style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-input);padding:3px 8px;border-radius:var(--radius-sm);margin:2px 4px 2px 0;font-size:11px;color:var(--accent);text-decoration:none;">📄 ' + escapeHtml(att.name) + '</a>';
+        html += courseworkFileLink(att, '', 'display:inline-flex;align-items:center;gap:4px;background:var(--bg-input);padding:3px 8px;border-radius:var(--radius-sm);margin:2px 4px 2px 0;font-size:11px;color:var(--accent);text-decoration:none;', '📄 ' + escapeHtml(att.name));
       });
       html += '</div>';
     }
 
     // Show own submission
-    if (mySub && mySub.files && mySub.files.length > 0) {
+    var myFiles = mySub ? (mySub.files || []).concat(mySub.driveFiles || []) : [];
+    if (myFiles.length > 0) {
       html += '<div style="margin-top:6px;font-size:11px;color:var(--text-muted);">Your submission: ';
-      mySub.files.forEach(function(f) {
-        html += '<a href="' + escapeAttr(safeUrl(f.dataUrl, {data:true})) + '" download="' + escapeHtml(f.name) + '" style="color:var(--blue);margin-right:6px;">📄 ' + escapeHtml(f.name) + '</a>';
+      myFiles.forEach(function(f) {
+        html += courseworkFileLink(f, '', 'color:var(--blue);margin-right:6px;', '📄 ' + escapeHtml(f.origName || f.name));
       });
       html += '</div>';
     }
 
     html += '</div><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">' + statusBadge;
 
-    if (!mySub && a.requireSubmission) {
-      html += '<button class="btn btn-sm btn-primary" onclick="openSubmitAssignment('+jsArg(a.id)+',' + jsArg(a.title) + ')">Upload Submission</button>';
+    if (mayUpload) {
+      html += '<button class="btn btn-sm ' + (mySub ? 'btn-secondary' : 'btn-primary') + '" onclick="openSubmitAssignment('+jsArg(a.id)+',' + jsArg(a.title) + ')">' + (mySub ? 'Resubmit' : 'Upload Submission') + '</button>';
     }
 
     html += '</div></div>';
@@ -16978,6 +17244,7 @@ function openSubmitAssignment(assignmentId, title) {
 
 function submitFileSelected(input) {
   for (var i = 0; i < input.files.length; i++) {
+    if (courseworkFileTooBig(input.files[i])) continue;
     _submitPendingFiles.push(input.files[i]);
   }
   var listEl = document.getElementById('submitFileList');
@@ -16990,7 +17257,11 @@ function submitFileSelected(input) {
   }).join('');
 }
 
+// One submission at a time: a second tap on Submit while the first is still
+// uploading used to create a second record and upload every file twice.
+var _submitInFlight = false;
 function submitStudentAssignment() {
+  if (_submitInFlight) return;
   var assignmentId = document.getElementById('submitAssignId').value;
   var comment = (document.getElementById('submitComment')?.value || '').trim();
   var s = currentStudent;
@@ -16999,16 +17270,21 @@ function submitStudentAssignment() {
 
   var a = instructorAssignments.find(function(a) { return a.id === assignmentId; });
   if (!a) { showToast('Assignment not found'); return; }
+  var CW = CESTISCore.coursework;
+  var prior = CW.latestSubmission(assignmentSubmissions, assignmentId, s.id);
+  if (!CW.canSubmit(a, !!prior, a.grades ? a.grades[s.id] : null)) { showToast('This assignment has been marked and does not accept resubmissions. Ask your instructor if you need to redo it.', 'warning'); return; }
+  if (CW.oversizeFiles(_submitPendingFiles).length) { showToast('One of the files is larger than ' + (CW.MAX_FILE_BYTES/1048576) + ' MB. Remove it and try again.', 'warning'); return; }
 
-  var filePromises = _submitPendingFiles.map(function(f) { return fileToDataUrl(f); });
+  _submitInFlight = true;
+  var btn = document.getElementById('submitAssignBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  var pending = _submitPendingFiles.slice();
+  var done = function() {
+    _submitInFlight = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
+  };
 
-  Promise.all(filePromises).then(async function(files) {
-    // Remove existing submission if re-uploading
-    var existingIdx = assignmentSubmissions.findIndex(function(sub) { return sub.assignmentId === assignmentId && sub.studentId === s.id; });
-    if (existingIdx !== -1) {
-      assignmentSubmissions.splice(existingIdx, 1);
-    }
-
+  return Promise.all(pending.map(function(f) { return fileToDataUrl(f); })).then(async function(files) {
     var submission = {
       id: cestisGenId('SUB-'),
       assignmentId: assignmentId,
@@ -17018,17 +17294,31 @@ function submitStudentAssignment() {
       files: files,
       driveFiles: [],
       comment: comment,
-      submittedAt: new Date().toISOString()
+      submittedAt: new Date().toISOString(),
+      // Earlier attempts are kept, not replaced: a resubmission is a new record
+      // that points back at the one before it.
+      attempt: CW.submissionHistory(assignmentSubmissions, assignmentId, s.id).length + 1
     };
+    if (prior) submission.previousId = prior.id;
 
-    // Upload each file to Drive in parallel
-    if (isCloudConnected && googleAccessToken && _submitPendingFiles.length > 0) {
+    // Upload each file to Drive in parallel. A file Drive now holds is kept as
+    // its Drive link only; a file that could not be uploaded keeps its bytes,
+    // because then they are the only copy.
+    if (isCloudConnected && googleAccessToken && pending.length > 0) {
       try {
-        var driveUploads = _submitPendingFiles.map(function(f) {
+        var driveResults = await Promise.all(pending.map(function(f) {
           return uploadSubmissionFileToDrive(f, s.course, s.name, a.title);
+        }));
+        var keep = [];
+        driveResults.forEach(function(r, i) {
+          if (r) {
+            r.origName = files[i].name; r.size = files[i].size; r.type = files[i].type;
+            submission.driveFiles.push(r);
+          } else {
+            keep.push(files[i]);
+          }
         });
-        var driveResults = await Promise.all(driveUploads);
-        submission.driveFiles = driveResults.filter(function(r) { return r !== null; });
+        submission.files = keep;
         console.log('[AssignmentSync] Uploaded ' + submission.driveFiles.length + ' submission files to Drive');
       } catch(e) {
         console.warn('[AssignmentSync] Error uploading submission files to Drive:', e);
@@ -17036,6 +17326,10 @@ function submitStudentAssignment() {
     }
 
     assignmentSubmissions.push(submission);
+    if (prior && a.gradeMeta && a.gradeMeta[s.id] && a.grades && a.grades[s.id] != null) {
+      // Marked work came back: flag it so the instructor knows to re-mark.
+      a.gradeMeta[s.id].resubmittedAt = submission.submittedAt;
+    }
     saveState();
     // Trigger cloud save so instructors see submission immediately
     if(typeof scheduleDebouncedCloudSave === 'function') scheduleDebouncedCloudSave();
@@ -17043,12 +17337,55 @@ function submitStudentAssignment() {
     saveAssignmentsToDrive();
     closeModal('submitAssignmentModal');
     _submitPendingFiles = [];
-    showToast('Assignment submitted successfully!');
-    addNotification(s.name + ' submitted work for "' + a.title + '"', 'exam', null, ['admin','instructor','student']);
+    showToast(submission.attempt > 1 ? 'Resubmitted — your earlier attempt is kept too.' : 'Assignment submitted successfully!');
+    addNotification(s.name + (submission.attempt > 1 ? ' resubmitted' : ' submitted') + ' work for "' + a.title + '"', 'exam', null, ['admin','instructor','student']);
     renderStudentAssignments();
     renderStudentAssignmentsPage();
     refreshContentDependentViews();
-  });
+  }).catch(function(e) {
+    console.warn('[AssignmentSync] submit failed:', e);
+    showToast('The submission could not be saved. Please try again.', 'error');
+  }).then(done, done);
+}
+
+// Open a file kept on the Centre's Drive. Coursework and chat files are no
+// longer shared with "anyone with the link", so they are fetched with the
+// Centre's sign-in this device already holds and handed over as a download.
+// Without it, the Drive page is opened instead (it asks for the Centre's
+// Google sign-in; older files that were shared publicly still open).
+async function cestisOpenDriveFile(fileId, name, fallbackUrl) {
+  if (fileId && isCloudConnected && googleAccessToken) {
+    try {
+      var r = await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(fileId) + '?alt=media', {
+        headers: { 'Authorization': 'Bearer ' + googleAccessToken }
+      });
+      if (r.ok) {
+        var url = URL.createObjectURL(await r.blob());
+        var link = document.createElement('a');
+        link.href = url; link.download = name || 'download';
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+        return true;
+      }
+    } catch(e) { console.warn('[Drive] file fetch failed:', e); }
+  }
+  var u = safeUrl(fallbackUrl || (fileId ? 'https://drive.google.com/file/d/' + encodeURIComponent(fileId) + '/view' : ''));
+  if (u) { window.open(u, '_blank', 'noopener'); return true; }
+  showToast('This file is kept on the Centre\'s Google Drive. Connect to the cloud to open it.', 'warning');
+  return false;
+}
+
+// One link for a coursework file wherever it is kept: embedded (older work,
+// or a file that could not reach Drive) or on the Centre's Drive.
+function courseworkFileLink(f, cls, style, label) {
+  if (!f) return '';
+  var name = f.origName || f.name || 'file';
+  if (f.dataUrl) {
+    return '<a href="' + escapeAttr(safeUrl(f.dataUrl, {data:true})) + '" download="' + escapeAttr(name) + '" class="' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '">' + label + '</a>';
+  }
+  var id = f.driveId || f.id;
+  if (!id) return '';
+  return '<a href="#" class="' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '" title="Open from the Centre\'s Drive" onclick="event.preventDefault();cestisOpenDriveFile(' + jsArg(id) + ',' + jsArg(name) + ',' + jsArg(f.webViewLink || f.url || '') + ')">' + label + '</a>';
 }
 
 // ============================== STUDENT ASSIGNMENTS PAGE ==============================
@@ -17072,9 +17409,9 @@ function renderStudentAssignmentsPage() {
   var gradedCount = 0;
   var pendingCount = 0;
   myAssignments.forEach(function(a) {
-    var sub = assignmentSubmissions.find(function(sub) { return sub.assignmentId === a.id && sub.studentId === s.id; });
+    var sub = CESTISCore.coursework.latestSubmission(assignmentSubmissions, a.id, s.id);
     if (sub) submittedCount++;
-    if (a.grades && a.grades[s.id] !== undefined) gradedCount++;
+    if (a.grades && CESTISCore.coursework.gradeValue(a.grades[s.id]) != null) gradedCount++;
     else pendingCount++;
   });
 
@@ -17095,9 +17432,11 @@ function renderStudentAssignmentsPage() {
 
   var html = '';
   myAssignments.forEach(function(a) {
-    var mySub = assignmentSubmissions.find(function(sub) { return sub.assignmentId === a.id && sub.studentId === s.id; });
-    var myGrade = (a.grades && a.grades[s.id] !== undefined) ? a.grades[s.id] : null;
-    var isPastDue = a.dueDate && new Date(a.dueDate) < new Date();
+    var mySub = CESTISCore.coursework.latestSubmission(assignmentSubmissions, a.id, s.id);
+    // 0 is a mark: gradeValue keeps it, where `!myGrade` read it as "not marked".
+    var myGrade = a.grades ? CESTISCore.coursework.gradeValue(a.grades[s.id]) : null;
+    var mayUpload = CESTISCore.coursework.canSubmit(a, !!mySub, myGrade);
+    var isPastDue = CESTISCore.coursework.isPastDue(a.dueDate); // due = by the end of that day, here (not UTC midnight)
     var attachCount = (a.attachments && a.attachments.length) || 0;
 
     var statusBadge = '';
@@ -17137,28 +17476,27 @@ function renderStudentAssignmentsPage() {
         var size = att.size < 1024 ? att.size + ' B' : att.size < 1048576 ? (att.size/1024).toFixed(1) + ' KB' : (att.size/1048576).toFixed(1) + ' MB';
         html += '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-input);padding:6px 12px;border-radius:var(--radius-sm);margin:3px 4px 3px 0;font-size:12px;">' +
           '📄 ' + escapeHtml(att.name) + ' <span style="color:var(--text-muted);">(' + size + ')</span>' +
-          '<a href="' + escapeAttr(safeUrl(att.dataUrl, {data:true})) + '" download="' + escapeHtml(att.name) + '" class="btn btn-sm btn-primary" style="padding:2px 10px;font-size:11px;text-decoration:none;">⬇ Download</a></div>';
+          courseworkFileLink(att, 'btn btn-sm btn-primary', 'padding:2px 10px;font-size:11px;text-decoration:none;', '⬇ Download') + '</div>';
       });
       html += '</div>';
     }
 
     // Show own submission files
-    if (mySub && mySub.files && mySub.files.length > 0) {
+    if (mySub && ((mySub.files && mySub.files.length) || (mySub.driveFiles && mySub.driveFiles.length))) {
+      var myAttempts = CESTISCore.coursework.submissionHistory(assignmentSubmissions, a.id, s.id).length;
       html += '<div style="padding:8px 16px;border-bottom:1px solid var(--border);">' +
-        '<div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:4px;">✅ Your Submission (' + new Date(mySub.submittedAt).toLocaleDateString() + ')</div>';
-      mySub.files.forEach(function(f) {
+        '<div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:4px;">✅ Your Submission (' + new Date(mySub.submittedAt).toLocaleDateString() + (myAttempts > 1 ? ' · attempt ' + myAttempts + ', earlier attempts kept' : '') + ')</div>';
+      (mySub.files || []).forEach(function(f) {
         html += '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--green-dim);padding:4px 10px;border-radius:var(--radius-sm);margin:2px 4px 2px 0;font-size:12px;">' +
           '📄 ' + escapeHtml(f.name) +
-          '<a href="' + escapeAttr(safeUrl(f.dataUrl, {data:true})) + '" download="' + escapeHtml(f.name) + '" style="color:var(--green);font-size:11px;text-decoration:none;">Download</a></div>';
+          courseworkFileLink(f, '', 'color:var(--green);font-size:11px;text-decoration:none;', 'Download') + '</div>';
       });
-      // Show Drive-linked files
-      if (mySub.driveFiles && mySub.driveFiles.length > 0) {
-        mySub.driveFiles.forEach(function(df) {
-          html += '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-dim);padding:4px 10px;border-radius:var(--radius-sm);margin:2px 4px 2px 0;font-size:12px;">' +
-            '☁️ ' + escapeHtml(df.name) +
-            '<a href="' + escapeAttr(safeUrl(df.webViewLink)) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:11px;text-decoration:none;">View on Drive</a></div>';
-        });
-      }
+      // Files kept on the Centre's Drive (opened with the Centre's sign-in)
+      (mySub.driveFiles || []).forEach(function(df) {
+        html += '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-dim);padding:4px 10px;border-radius:var(--radius-sm);margin:2px 4px 2px 0;font-size:12px;">' +
+          '☁️ ' + escapeHtml(df.origName || df.name) +
+          courseworkFileLink(df, '', 'color:var(--accent);font-size:11px;text-decoration:none;', 'Open') + '</div>';
+      });
       if (mySub.comment) {
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">💬 ' + escapeHtml(mySub.comment) + '</div>';
       }
@@ -17167,10 +17505,11 @@ function renderStudentAssignmentsPage() {
 
     // Action buttons
     html += '<div style="padding:10px 16px;display:flex;gap:8px;justify-content:flex-end;">';
-    if (!mySub && a.requireSubmission) {
+    if (mayUpload && !mySub) {
       html += '<button class="btn btn-primary" onclick="openSubmitAssignment('+jsArg(a.id)+',' + jsArg(a.title) + ')">📤 Upload Submission</button>';
-    } else if (mySub && !myGrade) {
-      html += '<button class="btn btn-secondary" onclick="openSubmitAssignment('+jsArg(a.id)+',' + jsArg(a.title) + ')">📤 Re-upload Submission</button>';
+    } else if (mayUpload) {
+      // Resubmitting adds a new attempt; the earlier one is kept.
+      html += '<button class="btn btn-secondary" onclick="openSubmitAssignment('+jsArg(a.id)+',' + jsArg(a.title) + ')">📤 ' + (myGrade !== null ? 'Resubmit (marked work)' : 'Re-upload Submission') + '</button>';
     }
     html += '</div></div>';
   });
@@ -17265,14 +17604,11 @@ async function uploadSubmissionFileToDrive(file, courseName, studentName, assign
       if (createResp.ok) {
         var folder = await createResp.json();
         folderId = folder.id;
-        // Make folder accessible
-        try {
-          await fetch('https://www.googleapis.com/drive/v3/files/' + folderId + '/permissions', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'reader', type: 'anyone' })
-          });
-        } catch(e) {}
+        // Deliberately NOT shared with "anyone with the link": trainees' work
+        // carries their names and personal details, and every file in a
+        // link-shared folder inherits the link access. The folder stays
+        // private to the Centre's account; the dashboard opens the files with
+        // the Centre's sign-in (cestisOpenDriveFile).
       }
     }
     if (!folderId) return null;
@@ -17291,15 +17627,8 @@ async function uploadSubmissionFileToDrive(file, courseName, studentName, assign
     });
     if (!resp.ok) return null;
     var result = await resp.json();
-
-    // Make file accessible
-    try {
-      await fetch('https://www.googleapis.com/drive/v3/files/' + result.id + '/permissions', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'reader', type: 'anyone' })
-      });
-    } catch(e) {}
+    // Private to the Centre's Drive (no "anyone with the link" permission).
+    // Files uploaded before this change keep the permission they were given.
 
     console.log('[AssignmentSync] Uploaded submission file to Drive: ' + safeName);
     return { id: result.id, name: result.name, webViewLink: result.webViewLink || ('https://drive.google.com/file/d/' + result.id + '/view') };
@@ -17335,13 +17664,7 @@ async function uploadAssignmentFileToDrive(file, courseName, assignmentTitle) {
       if (createResp.ok) {
         var folder = await createResp.json();
         folderId = folder.id;
-        try {
-          await fetch('https://www.googleapis.com/drive/v3/files/' + folderId + '/permissions', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'reader', type: 'anyone' })
-          });
-        } catch(e) {}
+        // Private to the Centre's account, like the submissions folder.
       }
     }
     if (!folderId) return null;
@@ -17359,13 +17682,8 @@ async function uploadAssignmentFileToDrive(file, courseName, assignmentTitle) {
     });
     if (!resp.ok) return null;
     var result = await resp.json();
-    try {
-      await fetch('https://www.googleapis.com/drive/v3/files/' + result.id + '/permissions', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'reader', type: 'anyone' })
-      });
-    } catch(e) {}
+    // Private to the Centre's Drive; opened in the dashboard with the Centre's
+    // sign-in (cestisOpenDriveFile), not through a public link.
 
     console.log('[AssignmentSync] Uploaded assignment file to Drive: ' + safeName);
     return { id: result.id, name: result.name, webViewLink: result.webViewLink || ('https://drive.google.com/file/d/' + result.id + '/view') };
@@ -17738,7 +18056,10 @@ async function getOrCreateClassFolder(className) {
     body: JSON.stringify({ name: className, mimeType: 'application/vnd.google-apps.folder', parents: [DRIVE_RESOURCES_FOLDER_ID] })
   });
   const folder = await createResp.json();
-  // Make folder publicly viewable
+  // Make folder publicly viewable. Kept on purpose for TEACHING MATERIALS
+  // only: trainees open these as plain Drive links, often on devices without
+  // the Centre's sign-in. Trainees' own work never goes in here — submission
+  // and chat files are private to the Centre's account.
   try {
     await fetch('https://www.googleapis.com/drive/v3/files/' + folder.id + '/permissions', {
       method: 'POST',
@@ -18358,28 +18679,13 @@ function renderStudentDriveResources() {
 
   var searchTerm = (document.getElementById('sResSearch')?.value || '').toLowerCase().trim();
 
-  // Helper to match course names — uses findSkillAreaForCourse to resolve both to skill area
+  // Resources follow the SAME programme rule as assignments (the exact name,
+  // or the same training centre — level included). The old substring and
+  // shared-word matching put "Information Technology" materials in front of
+  // "Solar Energy Tech" trainees and Level 3 materials in front of Level 2.
+  // 'General' (or no programme) is for the whole Centre.
   function courseMatches(resCourse, studentCourse) {
-    if (!resCourse || !studentCourse) return false;
-    var rc = resCourse.toLowerCase().trim();
-    var sc = studentCourse.toLowerCase().trim();
-    // Direct match
-    if (rc === sc) return true;
-    // One contains the other
-    if (rc.indexOf(sc) !== -1 || sc.indexOf(rc) !== -1) return true;
-    // First-word cross-match
-    var rcFirst = rc.split(' ')[0], scFirst = sc.split(' ')[0];
-    if (rcFirst.length > 2 && sc.indexOf(rcFirst) !== -1) return true;
-    if (scFirst.length > 2 && rc.indexOf(scFirst) !== -1) return true;
-    // Word overlap (words > 3 chars)
-    var rcWords = rc.split(/[\s&,\-]+/).filter(function(w){return w.length>3;});
-    var scWords = sc.split(/[\s&,\-]+/).filter(function(w){return w.length>3;});
-    if (rcWords.some(function(rw){return scWords.some(function(sw){return rw.indexOf(sw)!==-1||sw.indexOf(rw)!==-1;});})) return true;
-    // Both resolve to same skill area
-    var resSk = findSkillAreaForCourse(resCourse);
-    var stuSk = findSkillAreaForCourse(studentCourse);
-    if (resSk && stuSk && resSk.id && stuSk.id && resSk.id === stuSk.id) return true;
-    return false;
+    return CESTISCore.coursework.resourceVisible(resCourse, studentCourse, instructorCourseMatch);
   }
 
   // Get admin drive resources for this student's course
@@ -20244,7 +20550,7 @@ function refreshContentDependentViews() {
     'renderExams','renderInstructorExams','renderStudentExams',
     'renderAdminAssignments','renderInstructorGradebook','renderStudentAssignments','renderStudentAssignmentsPage',
     'renderAdminResources','renderInstructorCustomResources','renderStudentDriveResources','renderStudentResourcesPage',
-    'renderAnnouncements','renderInstructorAnnouncements','renderAsAnnouncements',
+    'renderAnnouncements','renderInstructorAnnouncements','renderAsAnnouncements','renderStudentAnnouncements','renderStudentDeadlines',
     'renderCalendar','renderInstructorCalendar','renderStudentCalendar','renderAsCalendar',
     'renderAdminClassSessions','renderInstructorClassSessions','renderStudentClassSessions',
     'renderSkills','updateCentreCount','renderCentreTable',
@@ -21134,6 +21440,17 @@ function renderStudentDurationNotice() {
 
 // Is the given chat room's course ended (register closed)? Non-course rooms
 // (DMs, general/announcement rooms with no skillAreaId) are never gated.
+// The "course ended — read-only" lock, for every way of posting (text, files,
+// polls, votes, calls). Only the text box checked it before. Administrators
+// may still post (to close a room off, or answer a former trainee).
+function lmsChatBlockedByCourseEnd(roomId) {
+  if(!roomId || currentRole === 'admin') return false;
+  if(!lmsChatRoomCourseEnded(roomId)) return false;
+  var r = lmsChatRooms.find(function(x){ return x.id === roomId; });
+  alert('\u201C' + (r ? r.name : 'This course') + '\u201D has ended, so its class chat is now read-only.\n\nAn administrator can extend the course duration to reopen it.');
+  return true;
+}
+
 function lmsChatRoomCourseEnded(roomId) {
   if (typeof lmsChatRooms === 'undefined' || !Array.isArray(lmsChatRooms)) return false;
   var room = lmsChatRooms.find(function(r){ return r.id === roomId; });
@@ -24572,7 +24889,8 @@ function renderAnnouncements() {
   const el = document.getElementById('announcementsList');
   if(!el) return;
   const filter = document.getElementById('annPriorityFilter')?.value || 'all';
-  let filtered = filter === 'all' ? announcements : announcements.filter(a=>a.priority===filter);
+  const sorted = CESTISCore.comms.sortAnnouncements(announcements); // newest first, on a copy
+  let filtered = filter === 'all' ? sorted : sorted.filter(a=>a.priority===filter);
   el.innerHTML = filtered.map(a => {
     var audienceBadges = (a.forRoles || ['admin','instructor','student']).map(function(r) {
       var colors = {admin:'background:var(--accent-dim);color:var(--accent)',instructor:'background:var(--green-dim);color:var(--green)',student:'background:var(--blue-dim);color:var(--blue)'};
@@ -24715,22 +25033,18 @@ function renderStudentCalendar() {
   const titleEl = document.getElementById('sCalTitle');
   const gridEl = document.getElementById('sCalGrid');
   if(!titleEl || !gridEl) return;
-  const studentEvents = currentStudent ? calendarEvents.filter(e => {
-    var roles = e.forRoles || ['admin','instructor','student'];
-    if(roles.indexOf('student') === -1) return false;
-    if(e.type==='class' || e.type==='meeting') return true;
-    const examMatch = exams.find(ex => ex.title === e.title && ex.course === currentStudent.course);
-    if(examMatch) return true;
-    if(e.type === 'deadline') return true;
-    return false;
-  }) : calendarEvents.filter(function(e) { var roles = e.forRoles || ['admin','instructor','student']; return roles.indexOf('student') !== -1; });
+  // Exams, assignment due dates and class sessions of the trainee's own
+  // programme appear by themselves now — an exam used to show only when an
+  // administrator had re-typed it as a calendar event with the exact title.
+  const studentEvents = currentStudent ? studentAgendaFor(currentStudent) : [];
   renderCalendarGrid(calendarYear, calendarMonth, titleEl, gridEl, 'sCalDayTitle', 'sCalDayEvents', studentEvents);
   const eventListEl = document.getElementById('sCalEventList');
   if(eventListEl) {
-    eventListEl.innerHTML = studentEvents.slice(0,6).map(e =>
+    var next = CESTISCore.comms.upcoming(studentEvents, localDateStr(), 6);
+    eventListEl.innerHTML = next.length === 0 ? '<p style="font-size:13px;color:var(--text-muted);">Nothing coming up.</p>' : next.map(e =>
       `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
         <div style="width:8px;height:8px;border-radius:50%;background:${escapeAttr(e.color||'var(--blue)')};flex-shrink:0;"></div>
-        <div><div style="font-size:13px;">${escapeHtml(e.title)}</div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(e.date)} @ ${escapeHtml(e.time)}</div></div>
+        <div><div style="font-size:13px;">${escapeHtml(e.title)}</div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(e.date)}${e.time ? ' @ ' + escapeHtml(e.time) : ''}</div></div>
       </div>`
     ).join('');
   }
@@ -24776,12 +25090,7 @@ function selectCalDay(dateStr, titleId, eventsId, isStudent) {
   if(titleEl) titleEl.textContent = dateStr;
   var events;
   if(isStudent && currentStudent) {
-    events = calendarEvents.filter(function(e) {
-      if(e.date !== dateStr) return false;
-      var roles = e.forRoles || ['admin','instructor','student'];
-      if(roles.indexOf('student') === -1) return false;
-      return e.type==='deadline' || e.type==='meeting' || e.type==='class' || exams.find(function(ex){return ex.title===e.title && ex.course===currentStudent.course;});
-    });
+    events = studentAgendaFor(currentStudent).filter(function(e) { return e.date === dateStr; });
   } else if(currentRole === 'instructor') {
     events = calendarEvents.filter(function(e) {
       if(e.date !== dateStr) return false;
@@ -24795,16 +25104,16 @@ function selectCalDay(dateStr, titleId, eventsId, isStudent) {
     var isAdminView = currentRole === 'admin' || currentRole === 'adminstaff';
     eventsEl.innerHTML = events.length === 0 ? '<p style="font-size:13px;color:var(--text-muted);">No events</p>' :
       events.map(e => {
-        var evtIdx = calendarEvents.indexOf(e);
-        var adminBtns = isAdminView ? '<div style="display:flex;gap:4px;margin-left:auto;flex-shrink:0;"><button class="btn btn-sm btn-secondary" onclick="editCalendarEvent('+evtIdx+')" title="Edit" style="padding:3px 6px;font-size:11px;">&#9998;</button><button class="btn btn-sm btn-secondary" onclick="deleteCalendarEvent('+evtIdx+')" title="Delete" style="padding:3px 6px;font-size:11px;color:var(--red);">&#10005;</button></div>' : '';
+        var evtIdx = calendarEvents.indexOf(e.ref || e);
+        var adminBtns = (currentRole !== 'student' && evtIdx !== -1) && (isAdminView || calCanEditEvent(e)) ? '<div style="display:flex;gap:4px;margin-left:auto;flex-shrink:0;"><button class="btn btn-sm btn-secondary" onclick="editCalendarEvent('+evtIdx+')" title="Edit" style="padding:3px 6px;font-size:11px;">&#9998;</button><button class="btn btn-sm btn-secondary" onclick="deleteCalendarEvent('+evtIdx+')" title="Delete" style="padding:3px 6px;font-size:11px;color:var(--red);">&#10005;</button></div>' : '';
         return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">' +
           '<div style="width:4px;height:32px;border-radius:2px;background:'+escapeAttr(e.color||'var(--blue)')+';flex-shrink:0;"></div>' +
-          '<div style="flex:1;"><div style="font-size:13px;font-weight:600;">'+escapeHtml(e.title)+'</div><div style="font-size:11px;color:var(--text-muted);">'+escapeHtml(e.time)+' \u2022 '+escapeHtml(e.type)+'</div></div>' +
+          '<div style="flex:1;"><div style="font-size:13px;font-weight:600;">'+escapeHtml(e.title)+'</div><div style="font-size:11px;color:var(--text-muted);">'+escapeHtml(e.time||'')+' \u2022 '+escapeHtml(e.type)+'</div></div>' +
           adminBtns +
         '</div>';
       }).join('');
   }
-  if(isStudent) renderStudentCalendar(); else if(currentRole === 'instructor') renderInstructorCalendar(); else renderCalendar();
+  if(isStudent && currentStudent) renderStudentCalendar(); else if(currentRole === 'instructor') renderInstructorCalendar(); else renderCalendar();
 }
 
 function changeCalMonth(delta) {
@@ -24824,7 +25133,12 @@ function renderCalendarEventList() {
     el.innerHTML = '<p style="color:var(--text-muted);padding:16px;text-align:center;">No events scheduled. Click "+ Add Event" to create one.</p>';
     return;
   }
-  el.innerHTML = calendarEvents.sort((a,b)=>a.date.localeCompare(b.date)).map((e, idx) => {
+  // Upcoming events, soonest first — sorted on a copy (the shared list's
+  // order is what the edit/delete buttons index into); past events stay on
+  // the grid but no longer crowd the list.
+  var _upcoming = CESTISCore.comms.upcoming(calendarEvents, localDateStr());
+  if (_upcoming.length === 0) { el.innerHTML = '<p style="color:var(--text-muted);padding:16px;text-align:center;">No upcoming events. Click "+ Add Event" to create one.</p>'; return; }
+  el.innerHTML = _upcoming.map((e, idx) => {
     var roles = e.forRoles || ['admin','instructor','student'];
     var audienceIcons = roles.map(function(r){var c={admin:'var(--accent)',adminstaff:'var(--accent)',instructor:'var(--green)',student:'var(--blue)'};return '<span style="width:6px;height:6px;border-radius:50%;background:'+(c[r]||'var(--text-muted)')+';display:inline-block;" title="'+escapeAttr(r)+'"></span>';}).join('');
     var evtIdx = calendarEvents.indexOf(e);
@@ -24838,57 +25152,120 @@ function renderCalendarEventList() {
   }).join('');
 }
 
-function promptAddEvent() {
-  const title = prompt('Event title:');
-  if(!title) return;
-  const date = prompt('Date (YYYY-MM-DD):', `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-18`);
-  if(!date) return;
-  const time = prompt('Time:', '09:00 AM') || '09:00 AM';
-  const type = prompt('Type (class/exam/deadline/meeting):', 'meeting') || 'meeting';
-  const audienceInput = prompt('Target audience (comma-separated: admin, adminstaff, instructor, student):', 'admin, instructor, student');
-  var targetRoles = (audienceInput || 'admin, instructor, student').split(',').map(function(r){return r.trim().toLowerCase();}).filter(function(r){return ['admin','adminstaff','instructor','student'].indexOf(r)!==-1;});
-  if(targetRoles.length === 0) targetRoles = ['admin','adminstaff','instructor','student'];
-  const colors = {class:'var(--blue)',exam:'var(--red)',deadline:'var(--accent)',meeting:'var(--purple)'};
-  calendarEvents.push({title, date, time, type, color: colors[type] || 'var(--blue)', forRoles: targetRoles});
-  renderCalendar();
+function promptAddEvent() { openCalendarEventModal(null); }
+
+var CAL_EVENT_COLORS = {class:'var(--blue)',exam:'var(--red)',deadline:'var(--accent)',meeting:'var(--purple)'};
+
+// The calendar's add/edit form. A real date picker and a list of kinds instead
+// of free-text prompts: '20/11/2026' typed into a prompt was stored as is, the
+// whole audience was notified, and the event appeared on no calendar day.
+function openCalendarEventModal(idx) {
+  var ev = (idx !== null && idx !== undefined) ? calendarEvents[idx] : null;
+  var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+  var chk = function(id, v) { var el = document.getElementById(id); if (el) el.checked = !!v; };
+  document.getElementById('calEvtModalTitle').textContent = ev ? 'Edit Event' : 'Add Event';
+  set('calEvtIdx', ev ? String(idx) : '');
+  set('calEvtTitle', ev ? ev.title || '' : '');
+  var sel = selectedCalendarDay && CESTISCore.coursework.isDateOnly(selectedCalendarDay) ? selectedCalendarDay : localDateStr();
+  set('calEvtDate', ev && CESTISCore.coursework.isDateOnly(ev.date) ? ev.date : sel);
+  set('calEvtTime', ev ? (CESTISCore.comms.normTime(ev.time) || calTimeTo24h(ev.time) || '') : '09:00');
+  set('calEvtType', ev && CESTISCore.comms.EVENT_TYPES.indexOf(ev.type) !== -1 ? ev.type : 'meeting');
+  var courseSel = document.getElementById('calEvtCourse');
+  if (courseSel) {
+    var courses = (typeof getCourseList === 'function') ? getCourseList() : [];
+    var cur = ev ? (ev.course || '') : (currentRole === 'instructor' && currentInstructor ? (currentInstructor.course || '') : '');
+    if (cur && courses.indexOf(cur) === -1) courses = [cur].concat(courses);
+    courseSel.innerHTML = '<option value="">All programmes</option>' + courses.map(function(c) { return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
+    courseSel.value = cur;
+  }
+  var roles = ev ? (ev.forRoles || ['admin','instructor','student']) : ['admin','adminstaff','instructor','student'];
+  chk('calEvtRoleAdmin', roles.indexOf('admin') !== -1);
+  chk('calEvtRoleAdminStaff', roles.indexOf('adminstaff') !== -1);
+  chk('calEvtRoleInstructor', roles.indexOf('instructor') !== -1);
+  chk('calEvtRoleStudent', roles.indexOf('student') !== -1);
+  var err = document.getElementById('calEvtError'); if (err) err.style.display = 'none';
+  openModal('calendarEventModal');
+}
+
+// '09:00 AM' (how times used to be typed) -> '09:00' for the time picker.
+function calTimeTo24h(t) {
+  var m = /^(\d{1,2}):(\d{2})\s*([AaPp])[Mm]$/.exec(String(t || '').trim());
+  if (!m) return '';
+  var h = (+m[1]) % 12 + (/[Pp]/.test(m[3]) ? 12 : 0);
+  return (h < 10 ? '0' : '') + h + ':' + m[2];
+}
+
+function readCalendarEventForm() {
+  var val = function(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+  var on = function(id) { var el = document.getElementById(id); return !!(el && el.checked); };
+  var roles = [];
+  if (on('calEvtRoleAdmin')) roles.push('admin');
+  if (on('calEvtRoleAdminStaff')) roles.push('adminstaff');
+  if (on('calEvtRoleInstructor')) roles.push('instructor');
+  if (on('calEvtRoleStudent')) roles.push('student');
+  return { title: val('calEvtTitle'), date: val('calEvtDate'), time: val('calEvtTime'), type: val('calEvtType'), course: val('calEvtCourse'), forRoles: roles };
+}
+
+function cestisRenderCalendars() {
+  try { if (currentRole === 'instructor') renderInstructorCalendar(); else if (currentRole === 'student') renderStudentCalendar(); else renderCalendar(); } catch(e) {}
+}
+
+function saveCalendarEventForm() {
+  var form = readCalendarEventForm();
+  var check = CESTISCore.comms.validateEvent(form);
+  var err = document.getElementById('calEvtError');
+  if (!check.ok) { if (err) { err.textContent = check.errors.join(' '); err.style.display = 'block'; } return; }
+  var idxRaw = document.getElementById('calEvtIdx').value;
+  var now = new Date().toISOString();
+  var changes = { title: form.title, date: form.date, time: form.time, type: form.type, color: CAL_EVENT_COLORS[form.type] || 'var(--blue)', forRoles: form.forRoles, course: form.course };
+  if (idxRaw !== '') {
+    var idx = parseInt(idxRaw, 10);
+    var old = calendarEvents[idx];
+    if (!old || !calCanEditEvent(old)) { closeModal('calendarEventModal'); return; }
+    // Never replace a record with a partial one: everything the event already
+    // carried (its id, who made it, sync stamps) stays, the form's fields change.
+    calendarEvents[idx] = Object.assign({}, old, changes, { updatedAt: now });
+    closeModal('calendarEventModal');
+    cestisRenderCalendars();
+    refreshContentDependentViews();
+    saveState();
+    showToast('Event updated!');
+    return;
+  }
+  var me = (currentLoggedInUser && currentLoggedInUser.id) || (currentRole === 'admin' ? 'USR-001' : '');
+  calendarEvents.push(Object.assign({ id: cestisGenId('EVT-') }, changes, {
+    createdById: me, createdBy: (currentLoggedInUser && currentLoggedInUser.name) || (currentInstructor && currentInstructor.name) || '', createdAt: now
+  }));
+  closeModal('calendarEventModal');
+  cestisRenderCalendars();
   refreshContentDependentViews();
   saveState();
   showToast('Event added!');
-  addNotification('New ' + type + ' event: "' + title + '" on ' + date, 'calendar', null, targetRoles);
+  addNotification('New ' + form.type + ' event: "' + form.title + '" on ' + form.date + (form.course ? ' (' + form.course + ')' : ''), 'calendar', null, form.forRoles);
+}
+
+// Administrators edit any event; an instructor edits the events they made.
+function calCanEditEvent(ev) {
+  if (!ev) return false;
+  if (currentRole === 'admin' || currentRole === 'adminstaff') return true;
+  var me = currentLoggedInUser && currentLoggedInUser.id;
+  return currentRole === 'instructor' && !!me && ev.createdById === me;
 }
 
 function editCalendarEvent(idx) {
   var e = calendarEvents[idx];
-  if(!e) return;
-  var title = prompt('Edit event title:', e.title);
-  if(title === null) return;
-  if(!title.trim()) { alert('Title cannot be empty.'); return; }
-  var date = prompt('Edit date (YYYY-MM-DD):', e.date);
-  if(date === null) return;
-  var time = prompt('Edit time:', e.time);
-  if(time === null) return;
-  var type = prompt('Edit type (class/exam/deadline/meeting):', e.type);
-  if(type === null) return;
-  var audienceInput = prompt('Target audience (comma-separated: admin, adminstaff, instructor, student):', (e.forRoles||[]).join(', '));
-  if(audienceInput === null) return;
-  var targetRoles = audienceInput.split(',').map(function(r){return r.trim().toLowerCase();}).filter(function(r){return ['admin','adminstaff','instructor','student'].indexOf(r)!==-1;});
-  if(targetRoles.length === 0) targetRoles = ['admin','adminstaff','instructor','student'];
-  var colors = {class:'var(--blue)',exam:'var(--red)',deadline:'var(--accent)',meeting:'var(--purple)'};
-  calendarEvents[idx] = {title:title.trim(), date:date, time:time, type:type, color:colors[type]||'var(--blue)', forRoles:targetRoles};
-  renderCalendar();
-  refreshContentDependentViews();
-  saveState();
-  showToast('Event updated!');
+  if(!e || !calCanEditEvent(e)) return;
+  openCalendarEventModal(idx);
 }
 
 function deleteCalendarEvent(idx) {
   var e = calendarEvents[idx];
-  if(!e) return;
+  if(!e || !calCanEditEvent(e)) return;
   if(!confirm('Delete event "' + e.title + '" on ' + e.date + '?')) return;
   var _eventsBefore = calendarEvents.slice();
   calendarEvents.splice(idx, 1);
   syncTombstoneRemoved('calendarEvents', _eventsBefore, calendarEvents);
-  renderCalendar();
+  cestisRenderCalendars();
   refreshContentDependentViews();
   saveState();
   showToast('Event deleted');
@@ -24956,26 +25333,77 @@ function submitSupportMessage() {
     timestamp: Date.now(),
     date: localDateStr(),
     read: false,
-    replied: false
+    replied: false,
+    // Not yet known to have reached anyone. Kept on this device (a trainee's
+    // logout no longer wipes it) until a staff sign-in here carries it up.
+    delivered: false
   };
   supportMessages.unshift(msg);
   saveSupportMessages();
 
   addNotification('New support message from ' + name + ': "' + subject + '"', 'info', '\u2709\uFE0F', ['admin','adminstaff']);
 
-  document.getElementById('supportName').value = '';
-  document.getElementById('supportEmail').value = '';
-  document.getElementById('supportPhone').value = '';
-  document.getElementById('supportSubject').value = '';
-  document.getElementById('supportMessage').value = '';
-  document.getElementById('supportSubmitBtn').disabled = true;
-  successEl.textContent = 'Your message has been sent successfully! An administrator will review it and contact you shortly.';
+  var btn = document.getElementById('supportSubmitBtn');
+  btn.disabled = true;
+  successEl.style.background = ''; successEl.style.color = '';
+  successEl.textContent = 'Sending\u2026';
   successEl.style.display = 'block';
-  setTimeout(function(){
-    document.getElementById('supportSubmitBtn').disabled = false;
-    successEl.style.display = 'none';
-    closeModal('supportContactModal');
-  }, 3000);
+  deliverSupportMessage(msg).then(function(channel) {
+    ['supportName','supportEmail','supportPhone','supportSubject','supportMessage'].forEach(function(id) { document.getElementById(id).value = ''; });
+    if (channel) {
+      msg.delivered = true; msg.deliveredVia = channel;
+      saveSupportMessages();
+      successEl.textContent = 'Your message has been sent to the Centre\u2019s administrators. They will contact you at ' + email + '.';
+      setTimeout(function(){ btn.disabled = false; successEl.style.display = 'none'; closeModal('supportContactModal'); }, 4000);
+      return;
+    }
+    // It never said "sent" falsely again: this page has no server of its own,
+    // so without a delivery channel the message is only on this device.
+    var to = supportInboxAddress();
+    var mail = 'mailto:' + to + '?subject=' + encodeURIComponent('[CESTIS Support] ' + subject) +
+      '&body=' + encodeURIComponent(message + '\n\n' + name + '\n' + email + '\n' + phone);
+    successEl.style.background = 'var(--accent-dim)'; successEl.style.color = 'var(--text-primary)';
+    successEl.innerHTML = '<strong>Your message could not be sent from this device.</strong> It is saved here and will reach the Centre the next time a staff member signs in on this device. ' +
+      'If it is urgent, please <a href="' + escapeAttr(mail) + '">e-mail it to ' + escapeHtml(to) + '</a> instead.';
+    btn.disabled = false;
+  });
+}
+
+function supportInboxAddress() {
+  var s = (typeof systemSettings !== 'undefined' && systemSettings && systemSettings.adminEmail) || '';
+  // The stock placeholder is not a real inbox.
+  return (s && s !== 'admin@heartlms.edu.jm') ? s : 'cestisadmn@gmail.com';
+}
+
+// Try the channels that really reach the Centre. Returns the channel used, or
+// null. (1) The Centre's own server on the Offline System — the store is
+// mirrored to it; (2) the Support e-mail template, when one is configured —
+// a small per-device budget keeps a public form from exhausting the e-mail
+// quota the sign-in codes depend on.
+async function deliverSupportMessage(msg) {
+  try {
+    if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) {
+      var res = await CESTISPageCloud.saveNow();
+      if (Array.isArray(res) && res.indexOf(false) === -1) return 'centre-server';
+    }
+  } catch(e) {}
+  var tpl = window.EMAILJS_SUPPORT_TEMPLATE_ID || (typeof systemSettings !== 'undefined' && systemSettings && systemSettings.supportEmailTemplateId) || '';
+  if (tpl && typeof emailjs !== 'undefined' && window.EMAILJS_SERVICE_ID) {
+    var log = [];
+    try { log = JSON.parse(localStorage.getItem('voctrain_supportSendLog') || '[]') || []; } catch(e) {}
+    var budget = CESTISCore.comms.allowSend(log, Date.now(), 3, 3600000);
+    if (!budget.ok) return null;
+    try {
+      await emailjs.send(window.EMAILJS_SERVICE_ID, tpl, {
+        from_name: msg.name, from_email: msg.email, reply_to: msg.email, phone: msg.phone,
+        subject: msg.subject, message: msg.message, to_email: supportInboxAddress()
+      });
+      budget.history.push(Date.now());
+      try { localStorage.setItem('voctrain_supportSendLog', JSON.stringify(budget.history)); } catch(e) {}
+      return 'email';
+    } catch(e) { console.warn('[Support] e-mail send failed:', e); }
+  }
+  return null;
 }
 
 function renderSupportMessagesPage() {
@@ -26745,7 +27173,7 @@ async function saveToCloud() {
         calendarEvents: calendarEvents,
         examResults: examResults,
         chatRooms: lmsChatRooms,
-        chatMessages: lmsChatMessages,
+        chatMessages: CESTISCore.chat.stripUploadedBytes(lmsChatMessages), // attachments Drive already holds travel as their link
         chatProfiles: lmsChatProfiles,
         chatFollows: lmsChatFollows,
         driveResources: driveResources,
@@ -27887,7 +28315,7 @@ async function savePerUserBackup() {
         // User-specific data
         studentProfiles: studentProfiles,
         instructorProfiles: instructorProfiles,
-        chatMessages: lmsChatMessages,
+        chatMessages: CESTISCore.chat.stripUploadedBytes(lmsChatMessages), // attachments Drive already holds travel as their link
         chatProfiles: lmsChatProfiles,
         chatFollows: lmsChatFollows,
         chatRooms: lmsChatRooms,
@@ -29330,7 +29758,7 @@ async function autoSaveToAllFolders() {
         calendarEvents: calendarEvents,
         examResults: examResults,
         chatRooms: lmsChatRooms,
-        chatMessages: lmsChatMessages,
+        chatMessages: CESTISCore.chat.stripUploadedBytes(lmsChatMessages), // attachments Drive already holds travel as their link
         chatProfiles: lmsChatProfiles,
         chatFollows: lmsChatFollows,
         classSessions: classSessions,
@@ -30469,21 +30897,31 @@ async function studentRefreshCertData() {
 // ============================================
 
 function lmsChatGetCurrentUser() {
+  // The signed-in ACCOUNT, for every role. Chat used to find the person by
+  // display name (or, for any administrator, "the first admin account"): two
+  // trainees called John Brown read each other's DMs, a second administrator
+  // posted as USR-001, and everyone whose name did not match exactly shared
+  // one 'unknown' identity and every DM addressed to it.
+  if(currentLoggedInUser && currentLoggedInUser.id && currentRole) {
+    var acc = userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; });
+    if(acc) return acc;
+    var progFallback = currentRole === 'student' && currentStudent ? currentStudent.course : (currentRole === 'instructor' && currentInstructor ? currentInstructor.course : '');
+    return {id:currentLoggedInUser.id, name:currentLoggedInUser.name || 'User', role:currentLoggedInUser.role || currentRole, programme:currentLoggedInUser.programme || progFallback || ''};
+  }
+  // No account on record for this session (older sign-in paths): the name
+  // match is the last resort, and a miss gets an identity of its own — never
+  // a shared one.
   if(currentRole === 'admin') {
     var adm = userAccounts.find(function(u){ return u.role==='admin'; });
     return adm || {id:'USR-001',name:'Administrator',role:'admin',programme:''};
   }
-  if(currentRole === 'adminstaff' && currentLoggedInUser) {
-    var asUser = userAccounts.find(function(u){ return u.id === currentLoggedInUser.id && u.role==='adminstaff'; });
-    return asUser || {id:currentLoggedInUser.id,name:currentLoggedInUser.name,role:'adminstaff',programme:''};
-  }
   if(currentRole === 'instructor' && currentInstructor) {
     var ins = userAccounts.find(function(u){ return u.name === currentInstructor.name && u.role==='instructor'; });
-    return ins || {id:'unknown',name:currentInstructor.name,role:'instructor',programme:currentInstructor.course};
+    return ins || {id:'unknown-ins-' + (currentInstructor.id || currentInstructor.name),name:currentInstructor.name,role:'instructor',programme:currentInstructor.course};
   }
   if(currentRole === 'student' && currentStudent) {
     var stu = userAccounts.find(function(u){ return u.name === currentStudent.name && u.role==='student'; });
-    return stu || {id:'unknown',name:currentStudent.name,role:'student',programme:currentStudent.course};
+    return stu || {id:'unknown-stu-' + (currentStudent.id || currentStudent.name),name:currentStudent.name,role:'student',programme:currentStudent.course};
   }
   return {id:'unknown',name:'Unknown',role:'unknown',programme:''};
 }
@@ -30500,6 +30938,9 @@ function lmsChatGetUserRooms() {
   return lmsChatRooms.filter(function(room) {
     if(room.type === 'dm') return room.members.indexOf(user.id) !== -1; // DM rooms: only participants
     if(currentRole === 'admin' || currentRole === 'adminstaff') return true; // Admin and admin staff see all group rooms
+    // Someone an administrator removed stays out — the programme fallback
+    // below used to let them straight back in.
+    if(room.removed && room.removed[user.id]) return false;
     // Check direct membership
     if(room.members && room.members.indexOf(user.id) !== -1) return true;
     // Fallback: match class rooms by programme/course for students and instructors
@@ -30517,6 +30958,13 @@ function lmsChatGetUserRooms() {
     }
     return false;
   });
+}
+
+// What to show for someone's presence: their chosen status while their
+// heartbeat is fresh, otherwise offline (CESTISCore.chat.isOnline).
+function lmsChatPresence(prof) {
+  if(!prof || !CESTISCore.chat.isOnline(prof)) return 'offline';
+  return prof.status === 'away' ? 'away' : 'online';
 }
 
 function lmsChatGetProfile(userId) {
@@ -30598,7 +31046,7 @@ function lmsChatGetUserInitials(name) {
 function lmsChatGetAvatarHTML(userId, name, size) {
   var profile = lmsChatGetProfile(userId);
   var sz = size || 48;
-  var status = profile.status || 'offline';
+  var status = lmsChatPresence(profile);
   if(profile.profilePic) {
     return '<div class="lms-chat-avatar" style="width:'+sz+'px;height:'+sz+'px;min-width:'+sz+'px;"><img src="'+escapeAttr(safeUrl(profile.profilePic))+'" alt=""><div class="status-dot '+escapeAttr(status)+'"></div></div>';
   }
@@ -30633,7 +31081,7 @@ function lmsChatRenderRoomList(prefix) {
       var otherUser = otherId ? userAccounts.find(function(u){ return u.id === otherId; }) : null;
       var otherProf = otherId ? lmsChatGetProfile(otherId) : {};
       var otherName = otherUser ? otherUser.name : 'Direct Message';
-      var otherStatus = otherProf.status || 'offline';
+      var otherStatus = lmsChatPresence(otherProf);
       var roleColors = {admin:'var(--accent)',adminstaff:'var(--purple)',instructor:'var(--green)',student:'var(--blue)',cmc:'var(--teal)'};
       var rColor = otherUser ? (roleColors[otherUser.role]||'var(--accent)') : 'var(--accent)';
       if(otherProf.profilePic) {
@@ -30658,14 +31106,10 @@ function lmsChatRenderRoomList(prefix) {
 }
 
 function lmsChatCountUnread(roomId) {
-  var msgs = lmsChatMessages[roomId] || [];
   var user = lmsChatGetCurrentUser();
-  var count = 0;
-  for(var i = msgs.length - 1; i >= 0; i--) {
-    if(msgs[i].senderId === user.id) break;
-    if(!msgs[i].readBy || msgs[i].readBy.indexOf(user.id) === -1) count++;
-  }
-  return count;
+  var prof = lmsChatProfiles[user.id] || {};
+  var lastRead = prof.lastRead && prof.lastRead[roomId];
+  return CESTISCore.chat.unreadCount(lmsChatMessages[roomId] || [], user.id, lastRead);
 }
 
 function lmsChatFormatTime(ts) {
@@ -30704,14 +31148,20 @@ function lmsChatOpenRoom(roomId, prefix) {
   var room = lmsChatRooms.find(function(r){ return r.id === roomId; });
   if(!room) return;
 
-  // Mark messages as read
+  // Mark the room read — one time-stamp on MY profile (which only I write),
+  // instead of adding my id to every message in the room: that rewrote, and
+  // re-uploaded, the whole chat history each time anyone opened a room.
   var user = lmsChatGetCurrentUser();
   var msgs = lmsChatMessages[roomId] || [];
-  msgs.forEach(function(m) {
-    if(!m.readBy) m.readBy = [];
-    if(m.readBy.indexOf(user.id) === -1) m.readBy.push(user.id);
-  });
-  saveLmsChatData();
+  var _lastTs = msgs.length ? msgs[msgs.length - 1].timestamp : null;
+  var _prof = lmsChatProfiles[user.id] || (lmsChatProfiles[user.id] = {});
+  if(!_prof.lastRead || typeof _prof.lastRead !== 'object') _prof.lastRead = {};
+  if(_lastTs && _prof.lastRead[roomId] !== _lastTs && CESTISCore.chat.unreadCount(msgs, user.id, _prof.lastRead[roomId]) > 0) {
+    _prof.lastRead[roomId] = _lastTs;
+    saveLmsChatData();
+  } else if(_lastTs && !_prof.lastRead[roomId]) {
+    _prof.lastRead[roomId] = _lastTs;   // nothing new to upload for
+  }
 
   // Show active chat view
   var emptyEl = document.getElementById(prefix+'ChatEmpty');
@@ -30737,7 +31187,7 @@ function lmsChatOpenRoom(roomId, prefix) {
     var dmOtherUser = dmOtherId ? userAccounts.find(function(u){ return u.id === dmOtherId; }) : null;
     var dmOtherProf = dmOtherId ? lmsChatGetProfile(dmOtherId) : {};
     var dmOtherName = dmOtherUser ? dmOtherUser.name : 'Direct Message';
-    var dmStatus = dmOtherProf.status || 'offline';
+    var dmStatus = lmsChatPresence(dmOtherProf);
     var dmRoleColors = {admin:'var(--accent)',adminstaff:'var(--purple)',instructor:'var(--green)',student:'var(--blue)'};
     var dmColor = dmOtherUser ? (dmRoleColors[dmOtherUser.role]||'var(--accent)') : 'var(--accent)';
     if(dmOtherProf.profilePic) {
@@ -30843,7 +31293,7 @@ function lmsChatRenderMessages(prefix) {
       }
     } else if(msg.type === 'file') {
       var fileIcon = lmsChatGetFileIcon(msg.fileName);
-      html += '<div class="msg-file" onclick="lmsChatDownloadFile('+jsArg(msg.fileUrl||'')+','+jsArg(msg.fileName)+')">';
+      html += '<div class="msg-file" onclick="lmsChatDownloadFile('+jsArg(msg.id)+','+jsArg(msg.fileName)+')">';
       html += '<div class="msg-file-icon">'+fileIcon+'</div>';
       html += '<div class="msg-file-info"><div class="msg-file-name">'+lmsChatEscapeHtml(msg.fileName)+'</div>';
       html += '<div class="msg-file-size">'+lmsChatFormatFileSize(msg.fileSize||0)+'</div></div></div>';
@@ -31000,9 +31450,12 @@ function lmsChatDeleteMessage(msgId) {
   var user = lmsChatGetCurrentUser();
   if(msg.senderId !== user.id) return;
 
-  if(!confirm('Delete this message?')) return;
+  // Say what deleting does: the text is hidden from the room, but the Centre
+  // keeps it for safeguarding and administrators can still read it.
+  if(!confirm('Delete this message?\n\nIt will disappear from the chat for everyone. For safeguarding, the Centre\u2019s administrators can still see what it said.')) return;
 
   msg.deleted = true;
+  msg.updatedAt = new Date().toISOString();
   msg.deletedBy = user.name;
   msg.originalText = msg.text;
   msg.text = '';
@@ -31032,6 +31485,7 @@ function lmsChatAttachFile() {
   input.click();
 }
 
+var LMS_CHAT_MAX_FILE_BYTES = 10 * 1024 * 1024;
 function lmsChatHandleFileUpload(event) {
   var file = event.target.files[0];
   if(!file) return;
@@ -31039,6 +31493,13 @@ function lmsChatHandleFileUpload(event) {
   var prefix = lmsChatGetRolePrefix();
   var user = lmsChatGetCurrentUser();
   if(!lmsChatActiveRoom) { alert('Please select a chat first.'); return; }
+  if(lmsChatBlockedByCourseEnd(lmsChatActiveRoom)) { event.target.value = ''; return; }
+  // A chat file is copied to every member's device; a 30 MB video used to add
+  // 40 MB to the chat file and every backup on every save.
+  if(file.size > LMS_CHAT_MAX_FILE_BYTES) {
+    alert('\u201C' + file.name + '\u201D is ' + (file.size/1048576).toFixed(1) + ' MB. Chat files must be 10 MB or smaller \u2014 compress it, or share a link to it instead.');
+    event.target.value = ''; return;
+  }
 
   var reader = new FileReader();
   reader.onload = function(e) {
@@ -31102,14 +31563,10 @@ async function lmsChatUploadFileToDrive(file, msgId) {
 
     if(resp.ok) {
       var result = await resp.json();
-      // Make file publicly accessible so images can be displayed inline
-      try {
-        await fetch('https://www.googleapis.com/drive/v3/files/' + result.id + '/permissions', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ role: 'reader', type: 'anyone' })
-        });
-      } catch(permErr) { console.warn('Could not set public permission on Drive file:', permErr); }
+      // Not shared with "anyone with the link": chat files include DMs (a
+      // scanned TRN, a medical note). Members open them in the dashboard with
+      // the Centre's sign-in (lmsChatDownloadFile -> cestisOpenDriveFile).
+      // Image uploads are refused in chat, so nothing needs a public thumbnail.
       // Update message with Drive link and direct image URL
       var isImage = file.type.startsWith('image/');
       Object.keys(lmsChatMessages).forEach(function(roomId) {
@@ -31133,20 +31590,29 @@ async function lmsChatUploadFileToDrive(file, msgId) {
   }
 }
 
-function lmsChatDownloadFile(url, name) {
-  if(url && url.startsWith('http')) {
-    window.open(url, '_blank');
-  } else {
-    // File is stored locally as base64
-    var msgs = lmsChatMessages[lmsChatActiveRoom] || [];
-    var fileMsg = msgs.find(function(m){ return m.fileName === name && m.fileData; });
-    if(fileMsg && fileMsg.fileData) {
-      var link = document.createElement('a');
-      link.href = fileMsg.fileData;
-      link.download = name;
-      link.click();
-    }
+// Opens the attachment of ONE message, found by its id. It used to look the
+// file up by name, so when two people in a room had each shared
+// "assignment.pdf", either link opened the first one — someone else's file.
+function lmsChatDownloadFile(msgId, name) {
+  var msg = null;
+  var rooms = lmsChatActiveRoom ? [lmsChatActiveRoom] : Object.keys(lmsChatMessages);
+  for (var i = 0; i < rooms.length && !msg; i++) {
+    msg = (lmsChatMessages[rooms[i]] || []).find(function(m){ return m.id === msgId; }) || null;
   }
+  if(!msg) return;
+  var fileName = msg.fileName || name || 'download';
+  if(msg.fileData) {
+    var link = document.createElement('a');
+    link.href = msg.fileData;
+    link.download = fileName;
+    link.click();
+    return;
+  }
+  if(msg.driveFileId || (msg.fileUrl && /^https?:/i.test(msg.fileUrl))) {
+    cestisOpenDriveFile(msg.driveFileId || '', fileName, msg.fileUrl || '');
+    return;
+  }
+  showToast('This file is not available on this device yet.', 'warning');
 }
 
 function lmsChatOpenImage(msgId) {
@@ -31242,6 +31708,7 @@ function lmsChatRemovePollOption(btn) {
 }
 
 function lmsChatSendPoll() {
+  if(lmsChatBlockedByCourseEnd(lmsChatActiveRoom)) return;
   var question = document.getElementById('lmsPollQuestion').value.trim();
   if(!question) { alert('Please enter a question.'); return; }
 
@@ -31292,6 +31759,7 @@ function lmsChatSendPoll() {
 
 function lmsChatVotePoll(msgId, optionIdx) {
   if(!lmsChatActiveRoom) return;
+  if(lmsChatBlockedByCourseEnd(lmsChatActiveRoom)) return;
   var msgs = lmsChatMessages[lmsChatActiveRoom] || [];
   var msg = msgs.find(function(m){ return m.id === msgId; });
   if(!msg || msg.type !== 'poll') return;
@@ -31449,9 +31917,26 @@ function lmsChatHandleProfilePic(event) {
   if(!file) return;
   var reader = new FileReader();
   reader.onload = function(e) {
-    var preview = document.getElementById('lmsChatProfilePreview');
-    if(preview) preview.innerHTML = '<img src="'+e.target.result+'">';
-    lmsChatPendingProfilePic = e.target.result;
+    // Shrunk to 256 px before it is stored: the photo rides in the chat file
+    // every device downloads, and a phone camera's 4 MB original rode there too.
+    var src = e.target.result;
+    var done = function(url) {
+      var preview = document.getElementById('lmsChatProfilePreview');
+      if(preview) preview.innerHTML = '<img src="'+escapeAttr(safeUrl(url, {data:true}))+'">';
+      lmsChatPendingProfilePic = url;
+    };
+    var img = new Image();
+    img.onload = function() {
+      try {
+        var s = Math.min(1, 256 / Math.max(img.width, img.height));
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * s)); c.height = Math.max(1, Math.round(img.height * s));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        done(c.toDataURL('image/jpeg', 0.85));
+      } catch(err) { if(src.length < 400000) done(src); else alert('That photo could not be prepared. Please choose a smaller picture.'); }
+    };
+    img.onerror = function() { alert('That file is not a picture this browser can read.'); };
+    img.src = src;
   };
   reader.readAsDataURL(file);
   event.target.value = '';
@@ -31545,7 +32030,7 @@ function lmsChatRenderFollowersPage() {
       var u = userAccounts.find(function(a){ return a.id === uid; });
       if(!u) return;
       var prof   = lmsChatGetProfile(uid);
-      var status = prof.status || 'offline';
+      var status = lmsChatPresence(prof);
       var rColor = roleColors[u.role] || 'var(--accent)';
       var avatarHtml;
       if(prof.profilePic) {
@@ -31604,7 +32089,7 @@ function lmsChatRenderFollowingPage() {
       var u = userAccounts.find(function(a){ return a.id === uid; });
       if(!u) return;
       var prof   = lmsChatGetProfile(uid);
-      var status = prof.status || 'offline';
+      var status = lmsChatPresence(prof);
       var rColor = roleColors[u.role] || 'var(--accent)';
       var avatarHtml;
       if(prof.profilePic) {
@@ -31708,7 +32193,7 @@ function lmsChatRenderMembersDirectory(filter) {
 
   function buildCard(u) {
     var prof = lmsChatGetProfile(u.id);
-    var status = prof.status || 'offline';
+    var status = lmsChatPresence(prof);
     var roleColor = roleColors[u.role] || 'var(--accent)';
     var avatarHtml;
     if(prof.profilePic) {
@@ -31796,7 +32281,7 @@ function lmsChatViewMemberProfile(userId) {
   var isSelf = (u.id === me.id);
 
   var prof = lmsChatGetProfile(userId);
-  var status = prof.status || 'offline';
+  var status = lmsChatPresence(prof);
   var statusLabels = { online: 'Online', away: 'Away', offline: 'Offline' };
   var roleLabels = { admin: 'Administrator', adminstaff: 'Admin Staff', instructor: 'Instructor', student: 'Student', cmc: 'Board Member' };
   var roleColors = { admin: 'var(--accent)', adminstaff: 'var(--purple)', instructor: 'var(--green)', student: 'var(--blue)', cmc: 'var(--teal)' };
@@ -31975,11 +32460,22 @@ function lmsChatFilterManageUsers(query) {
 function lmsChatToggleMember(roomId, userId, add) {
   var room = lmsChatRooms.find(function(r){ return r.id === roomId; });
   if(!room) return;
-  if(add && room.members.indexOf(userId) === -1) {
-    room.members.push(userId);
-  } else if(!add) {
+  if(!room.members) room.members = [];
+  // Written down on the room, so the membership pass (and every other device)
+  // respects it: a removal sticks until someone re-adds the person, and a
+  // hand-added member stays even outside the room's programme.
+  if(add) {
+    if(room.members.indexOf(userId) === -1) room.members.push(userId);
+    if(room.removed) delete room.removed[userId];
+    if(!room.manualMembers || typeof room.manualMembers !== 'object') room.manualMembers = {};
+    room.manualMembers[userId] = new Date().toISOString();
+  } else {
     room.members = room.members.filter(function(id){ return id !== userId; });
+    if(!room.removed || typeof room.removed !== 'object') room.removed = {};
+    room.removed[userId] = new Date().toISOString();
+    if(room.manualMembers) delete room.manualMembers[userId];
   }
+  room.updatedAt = new Date().toISOString();
   saveLmsChatData();
 }
 
@@ -32274,6 +32770,18 @@ var _lmsChatRTUsedFallbackId = false;
 
 function lmsChatRTPeerId(userId) { return 'lmsrt-' + String(userId).replace(/[^a-zA-Z0-9]/g, ''); }
 
+// Chat (and chat calls) are introduced by the Centre's own conference server
+// when Settings names one, like video conferences — the public PeerJS service
+// only when it does not.
+function lmsChatPeerOptions() {
+  var o = { config: { iceServers: LMS_CHAT_ICE_SERVERS } };
+  try {
+    var c = (typeof vcParseSignallingHost === 'function') ? vcParseSignallingHost((typeof systemSettings !== 'undefined' && systemSettings && systemSettings.vcSignallingHost) || '') : null;
+    if (c) { o.host = c.host; o.port = c.port; o.path = c.path; o.secure = c.secure; }
+  } catch (e) {}
+  return o;
+}
+
 // Map an incoming peer id (lmsrt-<sanitizedId>[-<rand>]) back to a real account id.
 function lmsChatRTUidFromPeerId(peerId) {
   var s = String(peerId).replace(/^lmsrt-/, '').replace(/-.*$/, ''); // strip prefix + any random fallback suffix
@@ -32288,13 +32796,14 @@ function lmsChatRTUidFromPeerId(peerId) {
 function lmsChatRTTargets() {
   var me = lmsChatGetCurrentUser();
   if (!me) return [];
-  var set = {};
+  var set = {}, now = Date.now();
   lmsChatRooms.forEach(function (r) {
     if (!r || !r.members || r.members.indexOf(me.id) === -1) return;
     r.members.forEach(function (uid) {
       if (uid === me.id) return;
-      var prof = lmsChatProfiles[uid];
-      if (prof && prof.status === 'online') set[uid] = true;
+      // Online = heartbeat in the last few minutes, not a flag set once and
+      // never cleared (which had every device dialling everyone, forever).
+      if (CESTISCore.chat.isOnline(lmsChatProfiles[uid], now)) set[uid] = true;
     });
   });
   return Object.keys(set);
@@ -32307,7 +32816,7 @@ function lmsChatRTStart() {
   if (lmsChatRTPeer && !lmsChatRTPeer.destroyed) { lmsChatRTConnectPeers(); return; }
   _lmsChatRTUsedFallbackId = false;
   try {
-    lmsChatRTPeer = new Peer(lmsChatRTPeerId(me.id), { config: { iceServers: LMS_CHAT_ICE_SERVERS } });
+    lmsChatRTPeer = new Peer(lmsChatRTPeerId(me.id), lmsChatPeerOptions());
   } catch (e) { lmsChatRTPeer = null; return; }
   lmsChatRTBindPeerEvents(me);
 
@@ -32330,7 +32839,7 @@ function lmsChatRTBindPeerEvents(me) {
     if (type === 'unavailable-id' && !_lmsChatRTUsedFallbackId) {
       _lmsChatRTUsedFallbackId = true;
       try {
-        lmsChatRTPeer = new Peer(lmsChatRTPeerId(me.id) + '-' + Math.random().toString(36).substr(2, 4), { config: { iceServers: LMS_CHAT_ICE_SERVERS } });
+        lmsChatRTPeer = new Peer(lmsChatRTPeerId(me.id) + '-' + Math.random().toString(36).substr(2, 4), lmsChatPeerOptions());
         lmsChatRTBindPeerEvents(me);
       } catch (e) {}
       return;
@@ -32376,11 +32885,10 @@ function lmsChatRTSend(roomId, msg) {
   // Include a lightweight room descriptor so a recipient who doesn't have this
   // room yet (e.g. a brand-new DM) can materialise it instantly instead of
   // waiting for the Drive sync to deliver the room object.
-  var payload = {
-    type: 'chat-msg',
-    msg: msg,
-    room: { id: room.id, name: room.name, type: room.type, members: room.members, dmBetween: room.dmBetween, icon: room.icon, color: room.color }
-  };
+  // The message only — no room descriptor (it handed every recipient the
+  // room's member list, and let anyone create rooms on other devices).
+  // A brand-new DM reaches the other person with the next chat-file sync.
+  var payload = { type: 'chat-msg', msg: msg };
   members.forEach(function (uid) {
     if (!me || uid === me.id) return;
     var conn = lmsChatRTConns[uid];
@@ -32399,34 +32907,44 @@ function lmsChatRTSend(roomId, msg) {
 }
 
 // A message arrived over a data channel: validate, dedupe, persist and render.
+// Something arrived over a data channel. The channel runs over a broker anyone
+// can reach, so it is believed only this far: the sender must be an account
+// this device knows; a notice is reduced to plain fields (and must target me);
+// a data nudge only asks for a (rate-limited) pull from the cloud; and a chat
+// message is shown only if it is plain text, for a room this device already
+// has, from a member of that room who is the sender it claims to be
+// (CESTISCore.chat.acceptRealtimeMessage). Rooms are never created from it.
+// Anything else waits for the Drive copy, which only signed-in devices reach.
 function lmsChatRTHandleData(data, fromPeer) {
   if (!data || !data.type) return;
+  var fromUid = fromPeer != null ? lmsChatRTUidFromPeerId(fromPeer) : null;
+  var knownSender = fromUid != null && (userAccounts || []).some(function (u) { return u && u.id === fromUid; });
+  if (fromPeer != null && !knownSender) return;
   // App-wide live events (notifications + data nudges) ride the same channel.
   if (data.type === 'notify') { try { cestisRTHandleNotify(data, fromPeer); } catch (e) {} return; }
   if (data.type === 'data-nudge') { try { cestisRTHandleNudge(); } catch (e) {} return; }
   if (data.type !== 'chat-msg' || !data.msg || !data.msg.roomId) return;
-  var msg = data.msg;
-  var roomId = msg.roomId;
   var me = lmsChatGetCurrentUser();
   if (!me) return;
 
-  var room = lmsChatRooms.find(function (r) { return r.id === roomId; });
-  // Materialise an unknown room from the payload only if it's addressed to me.
-  if (!room && data.room && data.room.members && data.room.members.indexOf(me.id) !== -1) {
-    room = data.room;
-    lmsChatRooms.push(room);
+  var room = lmsChatRooms.find(function (r) { return r.id === data.msg.roomId; });
+  if (!room) {
+    // A room this device does not have yet (a new DM): fetch it from Drive soon.
+    try { if (_lmsChatPollTimer) { _lmsChatPollIdle = 0; lmsChatSchedulePoll(800); } } catch (e) {}
+    return;
   }
-  if (!room) return;                                   // not a room I know / belong to
-  if (room.members && room.members.indexOf(me.id) === -1) return; // not a member — ignore
+  var msg = CESTISCore.chat.acceptRealtimeMessage(data.msg, fromUid, room, me.id);
+  if (!msg) return;
+  var roomId = room.id;
 
   if (!lmsChatMessages[roomId]) lmsChatMessages[roomId] = [];
   if (lmsChatMessages[roomId].some(function (m) { return m.id === msg.id; })) return; // duplicate
 
   lmsChatMessages[roomId].push(msg);
   lmsChatMessages[roomId].sort(function (a, b) { return new Date(a.timestamp) - new Date(b.timestamp); });
-  // Persist locally and schedule a debounced Drive sync so offline/other-device
-  // members still receive it (the receiver re-broadcasting to the cloud).
+  // Persist locally (the sender's own device puts it on Drive).
   saveLmsChatData();
+  try { _lmsChatPollIdle = 0; } catch (e) {}
 
   // DM notification when the message isn't for the room I'm currently viewing.
   if (room.type === 'dm' && lmsChatActiveRoom !== roomId && msg.senderId !== me.id) {
@@ -32537,13 +33055,18 @@ function cestisFlushCloudNow() {
 
 // A peer told us data changed: pull + merge + re-render. Debounced so a burst of
 // events (e.g. one announcement notifying 30 students) is one pull per window.
-var _cestisNudgeTimer = null;
+var _cestisNudgeTimer = null, _cestisLastNudgePull = 0;
 function cestisRTHandleNudge() {
   if (_cestisNudgeTimer) return;
+  // At most one full pull every 10 seconds, however many nudges arrive (each
+  // pull downloads the whole backup; a burst — or a flood from the public
+  // broker — used to mean one pull per 1.2 s window, indefinitely).
+  var wait = Math.max(1200, 10000 - (Date.now() - _cestisLastNudgePull));
   _cestisNudgeTimer = setTimeout(function () {
     _cestisNudgeTimer = null;
+    _cestisLastNudgePull = Date.now();
     cestisPullAndRefresh();
-  }, 1200);
+  }, wait);
 }
 
 async function cestisPullAndRefresh() {
@@ -32609,6 +33132,7 @@ function cestisRTHandleNotify(data, fromPeer) {
 // ── Unified call initiation (voice or video) ──
 async function lmsChatInitiateCall(callType) {
   if(!lmsChatActiveRoom) return;
+  if(lmsChatBlockedByCourseEnd(lmsChatActiveRoom)) return;
   var room = lmsChatRooms.find(function(r){ return r.id === lmsChatActiveRoom; });
   if(!room) return;
   var user = lmsChatGetCurrentUser();
@@ -32622,14 +33146,18 @@ async function lmsChatInitiateCall(callType) {
     showToast('Browser has blocked ' + permKind + ' access. Click the lock icon in the address bar to allow it, then try again.');
   }
 
-  // Set active call on the room so other users can see it
+  // Set active call on the room so other users can see it. Each person's
+  // presence in the call is a heartbeat (seen) — see CESTISCore.chat.
+  var _startIso = new Date().toISOString();
   room.activeCall = {
     type: callType,
     startedBy: user.id,
     startedByName: user.name,
-    startedAt: new Date().toISOString(),
-    participants: [user.id]
+    startedAt: _startIso,
+    participants: [user.id],
+    seen: {}, left: {}
   };
+  room.activeCall.seen[user.id] = _startIso;
 
   lmsChatCallSeconds = 0;
   lmsChatCallState = callType;
@@ -32689,10 +33217,11 @@ async function lmsChatInitiateCall(callType) {
     var vid = document.getElementById('lmsLocalVideo');
     if(vid) { vid.srcObject = stream; vid.play().catch(function(){}); }
   }
+  lmsChatStartCallHeartbeat(lmsChatActiveRoom);
 
   // Create PeerJS peer and listen for incoming calls from joiners
   var myPeerId = lmsChatCallPeerId(lmsChatActiveRoom, user.id);
-  lmsChatPeer = new Peer(myPeerId, { config: { iceServers: LMS_CHAT_ICE_SERVERS } });
+  lmsChatPeer = new Peer(myPeerId, lmsChatPeerOptions());
 
   lmsChatPeer.on('open', function() {
     document.getElementById('lmsCallStatus').textContent = (isVideo ? 'LMS Video Call' : 'LMS Voice Call') + ' - Connected';
@@ -32704,7 +33233,7 @@ async function lmsChatInitiateCall(callType) {
     console.warn('LMS Chat PeerJS error:', err.type, err);
     if(err.type === 'unavailable-id') {
       var retryId = myPeerId + '-' + Math.random().toString(36).substr(2,4);
-      lmsChatPeer = new Peer(retryId, { config: { iceServers: LMS_CHAT_ICE_SERVERS } });
+      lmsChatPeer = new Peer(retryId, lmsChatPeerOptions());
       lmsChatPeer.on('call', function(c) { lmsChatHandleIncomingCall(c); });
     }
   });
@@ -32777,6 +33306,7 @@ function lmsChatShowIncomingCallNotif(room, caller, callType, targetUserId) {
   var notif = document.createElement('div');
   notif.id = 'lmsIncomingCallNotif';
   notif.className = 'lms-incoming-call';
+  notif.setAttribute('data-call', room.id + '|' + CESTISCore.chat.callKey(room.activeCall));
 
   var callLabel = callType === 'video' ? 'Video Call' : 'Voice Call';
   var callIcon = callType === 'video' ? '&#128249;' : '&#128222;';
@@ -32790,7 +33320,7 @@ function lmsChatShowIncomingCallNotif(room, caller, callType, targetUserId) {
       '</div>' +
     '</div>' +
     '<div class="ic-actions">' +
-      '<button class="ic-decline" onclick="lmsChatDismissIncomingCall()">Decline</button>' +
+      '<button class="ic-decline" onclick="lmsChatDeclineIncomingCall()">Decline</button>' +
       '<button class="ic-accept" onclick="lmsChatJoinCall('+jsArg(room.id)+','+jsArg(callType)+')">Join</button>' +
     '</div>';
 
@@ -32804,6 +33334,13 @@ function lmsChatDismissIncomingCall() {
   var el = document.getElementById('lmsIncomingCallNotif');
   if(el) el.remove();
 }
+// Decline is remembered for that call on this device, so the popup does not
+// come back on every poll for the next 30 seconds.
+function lmsChatDeclineIncomingCall() {
+  var el = document.getElementById('lmsIncomingCallNotif');
+  if(el && el.getAttribute('data-call')) lmsChatDeclinedCalls[el.getAttribute('data-call')] = true;
+  lmsChatDismissIncomingCall();
+}
 
 // ── Join an active call from the banner ──
 var lmsChatCallRoomId = null;
@@ -32813,13 +33350,11 @@ async function lmsChatJoinCall(roomId, callType) {
 
   var room = lmsChatRooms.find(function(r){ return r.id === roomId; });
   if(!room || !room.activeCall) { showToast('Call has ended'); return; }
+  if(lmsChatBlockedByCourseEnd(roomId)) return;
 
   var user = lmsChatGetCurrentUser();
-
-  // Add self to participants
-  if(room.activeCall.participants.indexOf(user.id) === -1) {
-    room.activeCall.participants.push(user.id);
-  }
+  // Listed as a participant only once the microphone/camera is actually ours
+  // (below) — a join that never got media used to stay listed for ever.
 
   // Open the room first if not already active
   if(lmsChatActiveRoom !== roomId) {
@@ -32892,16 +33427,19 @@ async function lmsChatJoinCall(roomId, callType) {
     var vid = document.getElementById('lmsLocalVideo');
     if(vid) { vid.srcObject = stream; vid.play().catch(function(){}); }
   }
+  if(!room.activeCall) { showToast('Call has ended'); lmsChatEndCall(); return; }
+  CESTISCore.chat.joinCall(room.activeCall, user.id, new Date().toISOString());
+  lmsChatStartCallHeartbeat(roomId);
 
   // Create PeerJS peer and connect to all existing participants
   var myPeerId = lmsChatCallPeerId(roomId, user.id);
-  lmsChatPeer = new Peer(myPeerId, { config: { iceServers: LMS_CHAT_ICE_SERVERS } });
+  lmsChatPeer = new Peer(myPeerId, lmsChatPeerOptions());
 
   lmsChatPeer.on('open', function() {
     document.getElementById('lmsCallStatus').textContent = (isVideo ? 'LMS Video Call' : 'LMS Voice Call') + ' - Connected';
 
-    // Call each existing participant in the call
-    var existingParticipants = room.activeCall.participants.filter(function(pid){ return pid !== user.id; });
+    // Call each participant who is really still in the call
+    var existingParticipants = room.activeCall ? CESTISCore.chat.liveParticipants(room.activeCall, Date.now()).filter(function(pid){ return pid !== user.id; }) : [];
     existingParticipants.forEach(function(participantId) {
       var targetPeerId = lmsChatCallPeerId(roomId, participantId);
       var pName = userAccounts.find(function(u){ return u.id === participantId; });
@@ -32918,9 +33456,9 @@ async function lmsChatJoinCall(roomId, callType) {
     console.warn('LMS Chat PeerJS join error:', err.type, err);
     if(err.type === 'unavailable-id') {
       var retryId = myPeerId + '-' + Math.random().toString(36).substr(2,4);
-      lmsChatPeer = new Peer(retryId, { config: { iceServers: LMS_CHAT_ICE_SERVERS } });
+      lmsChatPeer = new Peer(retryId, lmsChatPeerOptions());
       lmsChatPeer.on('open', function() {
-        var existing = room.activeCall.participants.filter(function(pid){ return pid !== user.id; });
+        var existing = room.activeCall ? CESTISCore.chat.liveParticipants(room.activeCall, Date.now()).filter(function(pid){ return pid !== user.id; }) : [];
         existing.forEach(function(pid) {
           var tId = lmsChatCallPeerId(roomId, pid);
           var pn = userAccounts.find(function(u){ return u.id === pid; });
@@ -33006,7 +33544,22 @@ function lmsChatRenderCallBanner(prefix) {
   }
 }
 
+// While in a call, say so every 30 seconds; a participant whose heartbeat
+// stops (closed laptop, lost network) drops out of the call for everyone.
+var _lmsChatCallBeat = null;
+function lmsChatStartCallHeartbeat(roomId) {
+  if(_lmsChatCallBeat) clearInterval(_lmsChatCallBeat);
+  _lmsChatCallBeat = setInterval(function() {
+    var room = lmsChatRooms.find(function(r){ return r.id === roomId; });
+    var me = lmsChatGetCurrentUser();
+    if(!room || !room.activeCall || !lmsChatCallState || !me) { clearInterval(_lmsChatCallBeat); _lmsChatCallBeat = null; return; }
+    CESTISCore.chat.joinCall(room.activeCall, me.id, new Date().toISOString());
+    saveLmsChatData();
+  }, 30000);
+}
+
 function lmsChatEndCall() {
+  if(_lmsChatCallBeat) { clearInterval(_lmsChatCallBeat); _lmsChatCallBeat = null; }
   if(lmsChatCallTimer) { clearInterval(lmsChatCallTimer); lmsChatCallTimer = null; }
   if(lmsChatLocalStream) { lmsChatLocalStream.getTracks().forEach(function(t){t.stop();}); lmsChatLocalStream = null; }
 
@@ -33034,13 +33587,13 @@ function lmsChatEndCall() {
     if(!lmsChatMessages[callRoomId]) lmsChatMessages[callRoomId] = [];
     lmsChatMessages[callRoomId].push(msg);
 
-    // Remove self from participants
+    // Remove self from participants (recorded as "left", so a copy of the
+    // call merged in from another device does not put us back)
     var room = lmsChatRooms.find(function(r){ return r.id === callRoomId; });
     if(room && room.activeCall) {
-      var idx = room.activeCall.participants.indexOf(user.id);
-      if(idx !== -1) room.activeCall.participants.splice(idx, 1);
+      CESTISCore.chat.leaveCall(room.activeCall, user.id, new Date().toISOString());
       // If no participants left, end the call entirely
-      if(room.activeCall.participants.length === 0) {
+      if(CESTISCore.chat.liveParticipants(room.activeCall, Date.now()).length === 0) {
         delete room.activeCall;
         var endMsg = {
           id:'msg-'+Date.now()+'-end', roomId:callRoomId, senderId:user.id, senderName:user.name,
@@ -33103,10 +33656,12 @@ function lmsChatOnPageShow(prefix) {
   lmsChatActiveRoom = null;
   lmsChatRenderRoomList(prefix);
 
-  // Set my status to online
+  // Set my status to online, with a heartbeat time: "online" means seen in
+  // the last few minutes (CESTISCore.chat.isOnline), not "ever opened chat".
   var user = lmsChatGetCurrentUser();
   if(!lmsChatProfiles[user.id]) lmsChatProfiles[user.id] = {};
   lmsChatProfiles[user.id].status = 'online';
+  lmsChatProfiles[user.id].lastSeen = new Date().toISOString();
 
   // Auto-fetch latest chat data from Google Drive
   if(isCloudConnected && googleAccessToken) {
@@ -33118,37 +33673,15 @@ function lmsChatOnPageShow(prefix) {
     });
   }
 
-  // Fast realtime poll: pull new messages (and incoming calls) every few seconds
-  // so members receive each other's messages almost instantly without having to
-  // press the Cloud sync button. lmsChatSyncFromDrive only re-renders on an actual
-  // change, so this stays cheap and doesn't disturb scrolling. A guard prevents
-  // overlapping fetches if a poll is still in flight.
-  if(lmsChatCallPollInterval) clearInterval(lmsChatCallPollInterval);
-  var _lmsChatPollTick = 0, _lmsChatLastMembership = 0;
-  lmsChatCallPollInterval = setInterval(function() {
-    if(!isCloudConnected || !googleAccessToken) return;
-    if(_lmsChatPollInFlight) return;
-    // A hidden tab polls at quarter speed: nobody is reading, and an incoming
-    // call still rings within ~14 seconds. Full speed used to fetch, merge and
-    // re-check membership every 3.5s in every background tab, forever.
-    _lmsChatPollTick++;
-    if(document.hidden && (_lmsChatPollTick % 4) !== 0) return;
-    _lmsChatPollInFlight = true;
-    lmsChatSyncFromDrive().then(function() {
-      // ensureMembership walks every room × every account × every centre — far
-      // too heavy for every poll tick. New rooms appear when a centre or an
-      // account does, so once every 30 seconds is prompt enough.
-      var now = Date.now();
-      if(now - _lmsChatLastMembership > 30000) {
-        _lmsChatLastMembership = now;
-        var beforeRooms = lmsChatRooms.length;
-        lmsChatEnsureMembership();
-        if(lmsChatRooms.length !== beforeRooms) lmsChatRenderRoomList(prefix);
-      }
-      if(lmsChatActiveRoom) lmsChatRenderCallBanner(prefix);
-      lmsChatCheckForActiveCalls();
-    }).finally(function(){ _lmsChatPollInFlight = false; });
-  }, 3500);
+  // Realtime poll: pull new messages (and incoming calls). It asks Drive only
+  // whether the chat file changed (a few hundred bytes) and downloads it only
+  // when it did; it slows down while nothing arrives, polls rarely when the
+  // chat page is not open or the tab is hidden, backs off after errors, and
+  // stops at logout. It used to download the whole chat file every 3.5
+  // seconds, on every page, for as long as the tab was open.
+  lmsChatPollPrefix = prefix;
+  _lmsChatPollIdle = 0;
+  lmsChatSchedulePoll(1500);
 
   // Save status (but skip the Drive sync timer — we just fetched)
   try {
@@ -33160,7 +33693,95 @@ function lmsChatOnPageShow(prefix) {
   try { lmsChatRTStart(); } catch(e) { console.warn('lmsChat realtime start error', e); }
 }
 
+var lmsChatPollPrefix = null, _lmsChatPollTimer = null, _lmsChatPollIdle = 0, _lmsChatPollErrors = 0;
+var _lmsChatLastMembership = 0, _lmsChatVisHooked = false;
+function lmsChatOnChatPage() {
+  return !!document.querySelector('#page-lms-chat.active, #page-s-lms-chat.active, #page-i-lms-chat.active, #page-as-lms-chat.active');
+}
+function lmsChatPollDelay() {
+  if (_lmsChatPollErrors) return Math.min(120000, 5000 * Math.pow(2, _lmsChatPollErrors - 1));
+  if (document.hidden) return 60000;
+  if (!lmsChatOnChatPage()) return 20000;
+  return Math.min(15000, Math.round(3500 * Math.pow(1.5, Math.min(_lmsChatPollIdle, 4))));
+}
+function lmsChatStopPolling() {
+  if (_lmsChatPollTimer) { clearTimeout(_lmsChatPollTimer); _lmsChatPollTimer = null; }
+  if (lmsChatCallPollInterval) { clearInterval(lmsChatCallPollInterval); lmsChatCallPollInterval = null; }
+}
+function lmsChatSchedulePoll(delay) {
+  if (_lmsChatPollTimer) clearTimeout(_lmsChatPollTimer);
+  if (!_lmsChatVisHooked) {
+    _lmsChatVisHooked = true;
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden && _lmsChatPollTimer && currentRole && !_sessionWiped) { _lmsChatPollIdle = 0; lmsChatSchedulePoll(500); }
+    });
+  }
+  _lmsChatPollTimer = setTimeout(lmsChatPollTick, delay == null ? lmsChatPollDelay() : delay);
+}
+function lmsChatPollTick() {
+  _lmsChatPollTimer = null;
+  if (!currentRole || _sessionWiped) return;               // signed out: the poll ends
+  if (!isCloudConnected || !googleAccessToken || _lmsChatPollInFlight) { lmsChatSchedulePoll(); return; }
+  _lmsChatPollInFlight = true;
+  var prefix = lmsChatPollPrefix || lmsChatGetRolePrefix();
+  lmsChatHeartbeat();
+  lmsChatSyncFromDrive().then(function(res) {
+    if (res && res.ok === false) { _lmsChatPollErrors++; return; }
+    _lmsChatPollErrors = 0;
+    _lmsChatPollIdle = (res && res.changed) ? 0 : _lmsChatPollIdle + 1;
+    // ensureMembership walks every room × every account × every centre — far
+    // too heavy for every poll tick. Once every 30 seconds is prompt enough.
+    var now = Date.now();
+    if(now - _lmsChatLastMembership > 30000) {
+      _lmsChatLastMembership = now;
+      var beforeRooms = lmsChatRooms.length;
+      lmsChatEnsureMembership();
+      if(lmsChatRooms.length !== beforeRooms) lmsChatRenderRoomList(prefix);
+    }
+    if(lmsChatActiveRoom) lmsChatRenderCallBanner(prefix);
+    lmsChatCheckForActiveCalls();
+  }).catch(function() { _lmsChatPollErrors++; })
+    .finally(function(){ _lmsChatPollInFlight = false; if (currentRole && !_sessionWiped) lmsChatSchedulePoll(); });
+}
+// Presence heartbeat: at most every 4 minutes, and only while the chat page is
+// in front of someone. Each write re-uploads the chat file, so it is rationed.
+function lmsChatHeartbeat() {
+  try {
+    if (document.hidden || !lmsChatOnChatPage()) return;
+    var me = lmsChatGetCurrentUser();
+    if (!me || !me.id) return;
+    var p = lmsChatProfiles[me.id] || (lmsChatProfiles[me.id] = {});
+    var last = Date.parse(p.lastSeen || '') || 0;
+    if (Date.now() - last < 4 * 60 * 1000 && p.status !== 'offline') return;
+    p.status = 'online'; p.lastSeen = new Date().toISOString();
+    saveLmsChatData();
+  } catch(e) {}
+}
+
+// Signing out: say so (presence), stop the poll, and push what is pending
+// BEFORE the session is wiped. Returns the push, true when it reached Drive.
+function lmsChatSignOff() {
+  lmsChatStopPolling();
+  var hadPending = !!_lmsChatDriveSyncTimer;
+  if (_lmsChatDriveSyncTimer) { clearTimeout(_lmsChatDriveSyncTimer); _lmsChatDriveSyncTimer = null; }
+  try {
+    var me = lmsChatGetCurrentUser();
+    if (me && me.id && lmsChatProfiles[me.id]) {
+      lmsChatProfiles[me.id].status = 'offline';
+      lmsChatProfiles[me.id].lastSeen = new Date().toISOString();
+      hadPending = true;
+    }
+  } catch(e) {}
+  if (!hadPending || !isCloudConnected || !googleAccessToken) return Promise.resolve(false);
+  // Bounded, like the final save: a dead network never holds the logout.
+  return Promise.race([
+    lmsChatSyncToDrive().catch(function() { return false; }),
+    new Promise(function(r) { setTimeout(function() { r(false); }, 10000); })
+  ]);
+}
+
 // Check if any rooms have active calls and show notification
+var lmsChatDeclinedCalls = {};   // this device only: calls the user said no to
 function lmsChatCheckForActiveCalls() {
   var me = lmsChatGetCurrentUser();
   if(!me) return;
@@ -33168,8 +33789,14 @@ function lmsChatCheckForActiveCalls() {
     if(!room.activeCall) return;
     if(!room.members || room.members.indexOf(me.id) === -1) return;
     // Don't notify if I'm already in the call or started it
-    if(room.activeCall.participants.indexOf(me.id) !== -1) return;
+    var live = CESTISCore.chat.liveParticipants(room.activeCall, Date.now());
+    if(live.indexOf(me.id) !== -1 || room.activeCall.startedBy === me.id) return;
+    if(!live.length) return;          // nobody is actually in it any more
     if(lmsChatCallState) return; // Already in a call
+    var ck = room.id + '|' + CESTISCore.chat.callKey(room.activeCall);
+    if(lmsChatDeclinedCalls[ck]) return;                                // Decline means no
+    var shown = document.getElementById('lmsIncomingCallNotif');
+    if(shown && shown.getAttribute('data-call') === ck) return;         // already ringing
 
     // Check if this call was recently started (within last 30 seconds)
     var callAge = Date.now() - new Date(room.activeCall.startedAt).getTime();
@@ -33211,15 +33838,21 @@ async function lmsChatFindDriveFile() {
   return _lmsChatDriveFileId;
 }
 
+var _lmsChatLastModified = null;   // the chat file's modifiedTime as this device last saw it
 async function lmsChatSyncToDrive() {
-  if(!isCloudConnected || !googleAccessToken) return;
+  if(!isCloudConnected || !googleAccessToken) return false;
+  // A signed-out page has nothing of its own to say: after the wipe its chat
+  // lists are empty, and this push would overwrite the Centre's chat file.
+  if(_sessionWiped || !currentRole) return false;
   try {
     var chatData = {
       version: '1.1',
       timestamp: new Date().toISOString(),
       savedBy: lmsChatGetCurrentUser().name,
       chatRooms: lmsChatRooms,
-      chatMessages: lmsChatMessages,
+      // An attachment Drive already holds travels as its link only — its
+      // bytes used to ride every upload of the chat file for ever.
+      chatMessages: CESTISCore.chat.stripUploadedBytes(lmsChatMessages),
       chatProfiles: lmsChatProfiles,
       chatFollows: lmsChatFollows
     };
@@ -33230,9 +33863,10 @@ async function lmsChatSyncToDrive() {
     var fileId = await lmsChatFindDriveFile();
     var resp;
     if(fileId) {
-      resp = await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media', {
+      resp = await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media&fields=id,modifiedTime', {
         method:'PATCH', headers:{'Authorization':'Bearer '+googleAccessToken,'Content-Type':'application/json'}, body:blob
       });
+      if(resp.ok) { try { var _pm = await resp.clone().json(); if(_pm && _pm.modifiedTime) _lmsChatLastModified = _pm.modifiedTime; } catch(e) {} }
     } else {
       var metadata = {name:'CESTIS_LMS_CHAT.json', parents:[LMS_CHAT_DRIVE_FOLDER], mimeType:'application/json'};
       var formData = new FormData();
@@ -33248,8 +33882,10 @@ async function lmsChatSyncToDrive() {
     }
     if(!resp.ok) throw new Error('Upload failed');
     console.log('Chat data auto-saved to Google Drive');
+    return true;
   } catch(err) {
     console.error('Chat auto-sync to Drive error:', err);
+    return false;
   }
 }
 
@@ -33267,29 +33903,51 @@ function lmsChatMsgSignature() {
 }
 
 async function lmsChatSyncFromDrive() {
-  if(!isCloudConnected || !googleAccessToken) return;
+  if(!isCloudConnected || !googleAccessToken) return { ok: false };
+  // Signed out: pulling now would write every room's history — DMs included —
+  // back onto this (possibly shared) PC after the logout wiped it.
+  if(_sessionWiped || !currentRole) return { ok: false, signedOut: true };
   try {
     var fileId = await lmsChatFindDriveFile();
     if(!fileId) {
       console.log('No chat backup found on Drive — will create on first save');
-      return;
+      return { ok: true, changed: false };
     }
+    // Ask first whether the file changed at all — a few hundred bytes instead
+    // of the whole chat history.
+    var _mt = null;
+    try {
+      var metaResp = await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?fields=modifiedTime', {
+        headers:{'Authorization':'Bearer '+googleAccessToken}
+      });
+      if(metaResp.ok) { _mt = (await metaResp.json()).modifiedTime || null; }
+    } catch(e) {}
+    if(_mt && _mt === _lmsChatLastModified) return { ok: true, changed: false };
     var _beforeSig = lmsChatMsgSignature();
     var resp = await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media', {
       headers:{'Authorization':'Bearer '+googleAccessToken}
     });
     if(!resp.ok) throw new Error('Download failed');
     var data = await resp.json();
+    if(_sessionWiped || !currentRole) return { ok: false, signedOut: true };   // signed out while downloading
 
-    // Merge rooms with cloud version. Cloud is the source of truth for rooms it
-    // knows about, but we must NOT let an empty/stale cloud array wipe the local
-    // room list (which would leave the chat showing "No chats available"). Keep
-    // any local-only rooms (e.g. freshly rebuilt Skill Area rooms or local DMs)
-    // that the cloud copy doesn't have yet.
+    // Merge rooms by the same rule as the main backup: newest edit wins, a
+    // deleted room stays deleted (tombstones), and a local-only room is kept.
+    // The chat file used to replace every room it knew wholesale, whatever was
+    // newer and whatever had been deleted. A room's call state is merged per
+    // person (CESTISCore.chat.mergeActiveCall) so two people joining together
+    // are both kept and a call nobody is in any more ends.
     if(Array.isArray(data.chatRooms) && data.chatRooms.length) {
-      var cloudRoomIds = data.chatRooms.map(function(r){ return r.id; });
-      var localOnlyRooms = lmsChatRooms.filter(function(r){ return cloudRoomIds.indexOf(r.id) === -1; });
-      lmsChatRooms = data.chatRooms.concat(localOnlyRooms);
+      var _localCalls = {}, _cloudCalls = {};
+      lmsChatRooms.forEach(function(r){ if(r && r.activeCall) _localCalls[r.id] = r.activeCall; });
+      data.chatRooms.forEach(function(r){ if(r && r.activeCall) _cloudCalls[r.id] = r.activeCall; });
+      CESTISCore.sync.mergeList(lmsChatRooms, data.chatRooms, syncKeyById, { tombs: syncTombsFor('chatRooms') });
+      var _nowMs = Date.now();
+      lmsChatRooms.forEach(function(r) {
+        if(!r) return;
+        var m = CESTISCore.chat.mergeActiveCall(_localCalls[r.id], _cloudCalls[r.id], _nowMs);
+        if(m) r.activeCall = m; else delete r.activeCall;
+      });
     }
 
     // Merge messages — cloud messages take priority, add any local-only messages
@@ -33367,6 +34025,7 @@ async function lmsChatSyncFromDrive() {
     var _activeChanged = lmsChatActiveRoom &&
       _beforeSig[lmsChatActiveRoom] !== _afterSig[lmsChatActiveRoom];
 
+    if(_mt) _lmsChatLastModified = _mt;
     var prefix = lmsChatGetRolePrefix();
     if(_roomsChanged) lmsChatRenderRoomList(prefix);
     if(_activeChanged) {
@@ -33381,8 +34040,10 @@ async function lmsChatSyncFromDrive() {
         if(_c2) _c2.scrollTop = _c2.scrollHeight;
       }
     }
+    return { ok: true, changed: !!_roomsChanged };
   } catch(err) {
     console.error('Chat fetch from Drive error:', err);
+    return { ok: false };
   }
 }
 
@@ -34277,7 +34938,9 @@ function adrOpenExtendTime(taskId) {
   var task = adrTasks.find(function(t){ return t.id === taskId; });
   if(task) {
     var dl = new Date(task.deadline);
-    document.getElementById('adrExtendDate').value = dl.toISOString().split('T')[0];
+    // The local day, matching the local time beside it: toISOString() gave the
+    // UTC day — tomorrow, for any deadline from 7 PM in Jamaica.
+    document.getElementById('adrExtendDate').value = localDateStr(dl);
     document.getElementById('adrExtendTime').value = dl.toTimeString().substring(0,5);
   }
   document.getElementById('adrExtendReason').value = '';
@@ -34332,8 +34995,20 @@ function adrStartNotificationTimers() {
   setTimeout(adrCheckHourlyReminders, 5000);
 }
 
+// Reminders go to the person who has to act: the assignee by their own account
+// (instructors never saw theirs — they were addressed to administrators), the
+// administrators an "overdue" digest. Every admin device runs this; each
+// reminder has one id per task per hour (CESTISCore.comms.reminderId), so
+// devices raise the SAME notice and the sync keeps one — the shared 50-notice
+// list no longer fills up with copies and pushes trainees' notices out.
+function adrAssigneeRole(task) {
+  var acc = (userAccounts || []).find(function(u) { return u.id === task.assigneeId; });
+  return acc ? acc.role : 'admin';
+}
 function adrCheckHourlyReminders() {
   var now = new Date();
+  var fired = false;
+  var RID = CESTISCore.comms.reminderId;
   adrTasks.forEach(function(task) {
     if(task.status === 'completed' || task.status === 'pending_review') return;
 
@@ -34341,11 +35016,12 @@ function adrCheckHourlyReminders() {
     if(task.taskType === 'daily' && adrIsOverdue(task)) {
       var lastReminder = task._lastHourlyReminder ? new Date(task._lastHourlyReminder) : null;
       if(!lastReminder || (now - lastReminder) >= 3500000) {
-        addNotification('\u23F0 OVERDUE: "' + task.title + '" assigned to ' + task.assigneeName + ' is past deadline!', 'warning', '\u26A0\uFE0F', ['admin']);
-        if(task.assigneeId !== 'USR-001') {
-          addNotification('\u23F0 Reminder: Your task "' + task.title + '" is overdue! Please complete it ASAP.', 'warning', '\u26A0\uFE0F', ['admin']);
+        if(addNotification('⏰ OVERDUE: "' + task.title + '" assigned to ' + task.assigneeName + ' is past deadline!', 'warning', '⚠️', ['admin'], RID('overdue', task.id, now))) fired = true;
+        if(task.assigneeId) {
+          if(addNotificationForUser('⏰ Reminder: Your task "' + task.title + '" is overdue! Please complete it ASAP.', 'warning', '⚠️', task.assigneeId, adrAssigneeRole(task), RID('due', task.id, now))) fired = true;
         }
         task._lastHourlyReminder = now.toISOString();
+        fired = true;
       }
     }
 
@@ -34353,15 +35029,19 @@ function adrCheckHourlyReminders() {
     if(task.taskType === 'weekly' && task.status === 'pending') {
       var lastAckReminder = task._lastAckReminder ? new Date(task._lastAckReminder) : null;
       if(!lastAckReminder || (now - lastAckReminder) >= 3500000) {
-        addNotification('\uD83D\uDD14 Please acknowledge your weekly task: "' + task.title + '"', 'info', '\uD83D\uDD14', ['admin']);
+        if(task.assigneeId) addNotificationForUser('🔔 Please acknowledge your weekly task: "' + task.title + '"', 'info', '🔔', task.assigneeId, adrAssigneeRole(task), RID('ack', task.id, now));
         task._lastAckReminder = now.toISOString();
+        fired = true;
       }
     }
   });
-  adrSaveData();
+  // Saved only when a reminder actually went out — every hourly tick on every
+  // admin device used to re-save (and re-stamp) the whole register.
+  if(fired) adrSaveData();
 }
 
 function adrCheckLoginNotifications() {
+  var _adrLoginFired = false;
   var currentUid = adrGetCurrentUserId();
   var now = new Date();
   var today = localDateStr(now);
@@ -34374,8 +35054,9 @@ function adrCheckLoginNotifications() {
     if(task.taskType === 'monthly') {
       var lastLoginNotif = task._lastLoginNotif || '';
       if(lastLoginNotif !== today) {
-        addNotification('\uD83D\uDCC5 Monthly task reminder: "' + task.title + '" \u2014 Deadline: ' + adrFormatDeadline(task.deadline), 'info', '\uD83D\uDCC5', ['admin']);
+        addNotificationForUser('\uD83D\uDCC5 Monthly task reminder: "' + task.title + '" \u2014 Deadline: ' + adrFormatDeadline(task.deadline), 'info', '\uD83D\uDCC5', currentUid, adrAssigneeRole(task), 'ADR-REM-monthly-' + task.id + '-' + today);
         task._lastLoginNotif = today;
+        _adrLoginFired = true;
       }
     }
 
@@ -34383,12 +35064,13 @@ function adrCheckLoginNotifications() {
     if(task.taskType === 'weekly' && task.status === 'pending') {
       var lastWeekNotif = task._lastWeekLoginNotif || '';
       if(lastWeekNotif !== today) {
-        addNotification('\uD83D\uDD14 You have an unacknowledged weekly task: "' + task.title + '" \u2014 Please acknowledge it.', 'info', '\uD83D\uDD14', ['admin']);
+        addNotificationForUser('\uD83D\uDD14 You have an unacknowledged weekly task: "' + task.title + '" \u2014 Please acknowledge it.', 'info', '\uD83D\uDD14', currentUid, adrAssigneeRole(task), 'ADR-REM-weeklylogin-' + task.id + '-' + today);
         task._lastWeekLoginNotif = today;
+        _adrLoginFired = true;
       }
     }
   });
-  adrSaveData();
+  if(_adrLoginFired) adrSaveData();
 }
 
 function adrUpdateBadge() {
@@ -34614,7 +35296,7 @@ function renderAsAttendance(){
 }
 function renderAsAnnouncements(){
   var el=document.getElementById('asAnnouncementsList'); if(!el) return;
-  el.innerHTML=announcements.filter(function(a){ return !a.forRoles || a.forRoles.indexOf('adminstaff') !== -1 || a.forRoles.indexOf('admin') !== -1; }).map(function(a){ return '<div class="card" style="padding:16px;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>'+escapeHtml(a.title)+'</strong><span class="badge '+(a.priority==='urgent'?'badge-red':a.priority==='info'?'badge-blue':'badge-green')+'">'+escapeHtml(a.priority)+'</span></div><p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">'+escapeHtml(a.body)+'</p><div style="font-size:11px;color:var(--text-muted);">By '+escapeHtml(a.author)+' &bull; '+escapeHtml(a.date)+'</div></div>'; }).join('');
+  el.innerHTML=CESTISCore.comms.sortAnnouncements(announcements).filter(function(a){ return !a.forRoles || a.forRoles.indexOf('adminstaff') !== -1 || a.forRoles.indexOf('admin') !== -1; }).map(function(a){ return '<div class="card" style="padding:16px;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>'+escapeHtml(a.title)+'</strong><span class="badge '+(a.priority==='urgent'?'badge-red':a.priority==='info'?'badge-blue':'badge-green')+'">'+escapeHtml(a.priority)+'</span></div><p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">'+escapeHtml(a.body)+'</p><div style="font-size:11px;color:var(--text-muted);">By '+escapeHtml(a.author)+' &bull; '+escapeHtml(a.date)+'</div></div>'; }).join('');
 }
 function renderAsCalendar(){
   var el=document.getElementById('asCalendarEvents'); if(!el) return;
