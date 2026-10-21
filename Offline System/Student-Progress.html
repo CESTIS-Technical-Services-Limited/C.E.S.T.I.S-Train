@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261021t"></script>
+<script src="cestis-core.js?v=20261021u"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CESTIS - Student Progress</title>
 
@@ -126,7 +126,7 @@
       --teal-dim: rgba(26,188,156,0.15);
       --text-primary: #e8edf3;
       --text-secondary: #8899aa;
-      --text-muted: #556677;
+      --text-muted: #8293a7;   /* 5.0:1 on a card (was #556677, 2.7:1) — as index.html */
       --border: rgba(255,255,255,0.06);
       --border-light: rgba(255,255,255,0.1);
       --radius: 12px;
@@ -258,6 +258,22 @@
     .filter-row .form-control { width:auto; flex:0 0 auto; }
     .filter-row input.form-control { width:220px; }
     .filter-row select.form-control { width:200px; }
+
+    /* ---- Phones ----
+       The page used to pan sideways on a phone (523px of content in a 390px
+       screen): the seven stage tiles and the fixed-width filters would not
+       shrink. The tiles now wrap into rows, the filters take the full width,
+       and the records table scrolls inside its own card. */
+    @media (max-width: 600px) {
+      body { padding: 12px; }
+      .pipeline { flex-wrap: wrap; gap: 4px; }
+      .pipeline-stage { flex: 1 1 calc(33.333% - 4px); min-width: 0; padding: 10px 4px; border-radius: var(--radius-sm) !important; }
+      .filter-row > .btn { flex: 1 1 100%; justify-content: center; }
+      .filter-row .form-control, .filter-row input.form-control, .filter-row select.form-control { width: 100% !important; flex: 1 1 100%; }
+      .card { padding: 14px; }
+      .card-header { flex-wrap: wrap; gap: 8px; }
+      .modal { padding: 18px; width: 94%; }
+    }
   </style>
 </head>
 <body>
@@ -1547,7 +1563,7 @@ if(document.readyState === 'loading'){
 <script src="megadata/pages/sp-page.js?v=1"></script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261021u"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Student Progress',

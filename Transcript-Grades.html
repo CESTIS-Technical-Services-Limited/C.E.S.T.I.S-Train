@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261021t"></script>
+<script src="cestis-core.js?v=20261021u"></script>
 <script src="transcript-assets.js?v=20260711b"></script>
 <script src="vendor/jspdf-2.5.1.umd.min.js"></script>
 <script>window.jspdf||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">\x3C/script>'))</script>
@@ -27,7 +27,7 @@
     --red-dim: rgba(231,76,60,0.15);
     --text-primary: #e8edf3;
     --text-secondary: #8899aa;
-    --text-muted: #556677;
+    --text-muted: #8293a7;   /* 5.0:1 on a card (was #556677, 2.7:1) — as index.html */
     --border: rgba(255,255,255,0.06);
     --border-light: rgba(255,255,255,0.1);
     --radius: 12px;
@@ -85,6 +85,19 @@
   .tg-card-head h2 { font-size:14.5px; font-weight:700; }
   .tg-card-head .sub { font-size:12px; color:var(--text-muted); margin-top:2px; }
   .tg-card-body { padding: 14px 16px; }
+  /* A wide table scrolls inside its card instead of being cut off by it (the
+     card clips its rounded corners): on a phone the trainee's Final Grade
+     column sat past the card's edge where nothing could reach it. Under 600px
+     the fixed column widths also give way, so the unit list fits a phone. */
+  .tg-card-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  @media (max-width: 600px) {
+    body { padding: 10px; }
+    .tg-card-body { padding: 10px; }
+    .tg-table th { width: auto !important; }
+    .tg-table th, .tg-table td { padding: 6px 5px; }
+    .tg-table .unit-code { white-space: normal; overflow-wrap: anywhere; font-size: 10.5px; }
+    .tg-select { min-width: 0; max-width: 100%; width: 100%; }
+  }
 
   .tg-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap:10px; margin-bottom:14px; }
   .tg-stat { background: var(--bg-input); border:1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
@@ -1571,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261021u"></script>
 <script>
 // Staff own this page's file: they pull it and push their edits. Anybody else
 // — a trainee, an instructor — only READS the grades and catalogues they are

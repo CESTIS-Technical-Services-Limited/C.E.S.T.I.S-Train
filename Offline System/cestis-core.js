@@ -3721,6 +3721,134 @@
   })();
 
   /* ==========================================================================
+     UI RULES — the small decisions the dashboard's accessibility layer makes
+     the same way everywhere.
+
+     Most of the dashboard's controls are <div onclick> and <span onclick>:
+     every sidebar item, every section toggle, the quick-action tiles, the
+     cloud menu. None of them could be reached with the Tab key, so a person
+     who cannot use a mouse (a screen-reader user, an injured wrist, a tablet
+     with a keyboard) could sign in and then go nowhere. Rewriting hundreds of
+     call sites was never going to stay done, so index.html marks them up as
+     they appear; keyboardRoleFor() decides, for one element, whether it is a
+     control and what it should be announced as.
+
+     toastPolicy() and alertKind() decide how long a message stays and how it
+     is announced; liveSessionsFor() is the only thing allowed to light the
+     sidebar's LIVE badge — it used to be printed on every page load whether a
+     class was running or not, so people learned to ignore it.
+     ========================================================================== */
+  Core.ui = (function () {
+    // Already keyboard controls by themselves (or not controls at all).
+    var NATIVE = { BUTTON: 1, INPUT: 1, SELECT: 1, TEXTAREA: 1, OPTION: 1, SUMMARY: 1, LABEL: 1,
+                   IFRAME: 1, VIDEO: 1, AUDIO: 1, BODY: 1, HTML: 1, FORM: 1 };
+    // A clickable table row keeps its table meaning; it only needs to be reachable.
+    var TABLE_PARTS = { TR: 1, TD: 1, TH: 1 };
+    // Roles that already say "this is a control": keep them, add the Tab stop.
+    var CONTROL_ROLES = { button: 1, link: 1, tab: 1, menuitem: 1, option: 1, checkbox: 1, radio: 1,
+                          'switch': 1, treeitem: 1, menuitemradio: 1, menuitemcheckbox: 1 };
+    // Containers and live regions: never turned into buttons.
+    var CONTAINER_ROLES = { presentation: 1, none: 1, dialog: 1, alertdialog: 1, document: 1, application: 1,
+                            region: 1, main: 1, navigation: 1, banner: 1, status: 1, alert: 1, log: 1,
+                            list: 1, listbox: 1, grid: 1, table: 1, menu: 1, menubar: 1, tablist: 1, group: 1 };
+
+    function classTokens(cls) {
+      return String(cls == null ? '' : cls).split(/\s+/).filter(Boolean);
+    }
+
+    /* attrs: the element's attributes as plain strings (onclick, role,
+       tabindex, href, class, contenteditable). Returns null when the element
+       must be left alone, otherwise { tabindex:'0', role, expanded } where
+       role is null when the element's own role or table meaning stands, and
+       expanded is true/false only for a section toggle. */
+    function keyboardRoleFor(tagName, attrs) {
+      var tag = String(tagName || '').toUpperCase();
+      var a = attrs || {};
+      var click = a.onclick == null ? '' : String(a.onclick);
+      if (!click.trim()) return null;
+      if (NATIVE[tag]) return null;
+      if (tag === 'A' && a.href != null) return null;
+      // The page already decided where (or whether) it sits in the Tab order.
+      if (a.tabindex != null && String(a.tabindex) !== '') return null;
+      if (a.contenteditable != null && String(a.contenteditable).toLowerCase() !== 'false') return null;
+      // Only keeps a click inside a dialog from reaching its backdrop.
+      if (/^\s*(?:event|e)\.stopPropagation\(\)\s*;?\s*$/.test(click)) return null;
+      // A backdrop that closes its dialog when clicked beside the box. The
+      // dialog has its own close button; a Tab stop on the backdrop would only
+      // be a trap that closes everything on Enter.
+      if (/(?:event|e)\.target\s*={2,3}\s*this\b/.test(click)) return null;
+      var tokens = classTokens(a['class']);
+      if (tokens.some(function (t) { return /(^|-)(overlay|backdrop)$/.test(t); })) return null;
+      var role = String(a.role == null ? '' : a.role).trim().toLowerCase();
+      if (role && CONTAINER_ROLES[role]) return null;
+      var out = { tabindex: '0', role: null, expanded: null };
+      if (role && CONTROL_ROLES[role]) return out;
+      if (TABLE_PARTS[tag]) return out;
+      if (tokens.indexOf('nav-section-toggle') !== -1) {
+        out.role = 'button';
+        out.expanded = tokens.indexOf('collapsed') === -1;
+        return out;
+      }
+      // Sidebar entries and bare <a onclick> take you somewhere: links.
+      out.role = (tokens.indexOf('nav-item') !== -1 || tag === 'A') ? 'link' : 'button';
+      return out;
+    }
+
+    /* How long a toast stays, and how it is announced. Errors are announced
+       at once (role=alert) and stay long enough to read twice; everything
+       else is a polite status. ms is the time on screen while nobody is
+       pointing at or focused on it (the page pauses the clock meanwhile). */
+    function toastPolicy(type) {
+      switch (type) {
+        case 'error': return { role: 'alert', live: 'assertive', ms: 20000 };
+        case 'warning': return { role: 'status', live: 'polite', ms: 10000 };
+        case 'info': return { role: 'status', live: 'polite', ms: 6000 };
+        default: return { role: 'status', live: 'polite', ms: 4000 };
+      }
+    }
+
+    /* Which icon a styled alert() shows. It used to show the warning sign on
+       every message — "Merge from cloud completed!" included. The messages
+       already say what they are with their first character. */
+    function alertKind(msg) {
+      var s = String(msg == null ? '' : msg).replace(/^\s+/, '');
+      if (/^(?:✅|✔|✓|☑|🎉)/.test(s)) return 'success';      // ✅ ✔ ✓ ☑ 🎉
+      if (/^(?:❌|✗|✘|⛔|🚫|❗)/.test(s)) return 'error';  // ❌ ✗ ✘ ⛔ 🚫 ❗
+      if (/^(?:ℹ|💡)/.test(s)) return 'info';                               // ℹ 💡
+      return 'warning';
+    }
+
+    /* The class sessions that are live today and that this viewer may join.
+       viewer: { role, course, name }. matchCourse(sessionCourse, viewerCourse)
+       is the page's own course comparison (a session for "Welding Level 2"
+       belongs to a trainee on "Welding"); a plain case-insensitive compare is
+       used when none is given. A session left 'live' from an earlier day (the
+       host's tab closed without ending it) is not live. */
+    function liveSessionsFor(sessions, viewer, today, matchCourse) {
+      var v = viewer || {};
+      var same = typeof matchCourse === 'function' ? matchCourse : function (a, b) {
+        return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+      };
+      return (Array.isArray(sessions) ? sessions : []).filter(function (s) {
+        if (!s || s.status !== 'live' || !today || s.date !== today) return false;
+        if (v.role === 'admin' || v.role === 'adminstaff') return true;
+        if (v.role === 'student') return !!v.course && !!same(s.course, v.course);
+        if (v.role === 'instructor') {
+          return (!!v.course && !!same(s.course, v.course)) || (!!v.name && s.createdBy === v.name);
+        }
+        return false;
+      });
+    }
+
+    return {
+      keyboardRoleFor: keyboardRoleFor,
+      toastPolicy: toastPolicy,
+      alertKind: alertKind,
+      liveSessionsFor: liveSessionsFor
+    };
+  })();
+
+  /* ==========================================================================
      CERTIFICATE TEMPLATE RULES
 
      Every certificate must come out looking the same. A template carries two
@@ -7902,6 +8030,55 @@
   })();
 
   /* ==========================================================================
+     WORK NOT YET UPLOADED — the dashboard's "pending upload" note
+     ('cestisPendingUpload' = "role|when"), and who may clear it.
+
+     A staff sign-out whose final save did not reach the cloud keeps the
+     Centre's data on the device: "the next sign-in uploads it". On a shared
+     lab PC the next sign-in is usually a TRAINEE. A trainee's backup leaves
+     the dated attendance register out, and a non-administrator's leaves out
+     what only an administrator publishes (it carries the cloud's copy of
+     those forward instead) — yet that session's first successful upload
+     deleted the note, so at the trainee's sign-out the device trimmed the
+     register to the trainee's own marks. The instructor's marks for the rest
+     of the class had never left the PC, and were gone.
+
+     A session may clear the note only when its upload carries everything the
+     session that wrote the note had: a trainee never clears a staff
+     member's note, an instructor never clears an administrator's. Roles are
+     ranked by what their backup carries (Core.sessionAccess.RANK: trainee <
+     instructor / board < admin staff < administrator); an unknown signed-in
+     role counts as staff. While a staff member's note stands, nothing on
+     the device is trimmed or wiped by any session that cannot clear it. */
+  Core.pendingUpload = (function () {
+    var RANK = Core.sessionAccess.RANK;
+    function roleOf(marker) { var s = String(marker || ''); var i = s.indexOf('|'); return i === -1 ? s : s.slice(0, i); }
+    function rank(role) { return role ? (RANK[role] || RANK.instructor) : 0; }
+    /* The note to store after a save by `role`: written when there is none,
+       and raised to `role` when that role's work reaches further. */
+    function mark(marker, role, nowIso) {
+      if (!role) return marker || null;
+      if (!marker || rank(role) > rank(roleOf(marker))) return role + '|' + (nowIso || '');
+      return marker;
+    }
+    /* May a successful upload by a session of `role` clear this note? */
+    function covers(role, marker) { return !!role && (!marker || rank(role) >= rank(roleOf(marker))); }
+    /* Is the note a staff member's (anything but a trainee's own)? */
+    function isStaff(marker) { return !!marker && roleOf(marker) !== 'student'; }
+    /* Must the sign-out (or expiry) of a `role` session keep the device's
+       data? `safe`: its final save reached the cloud. A trainee's own unsent
+       results are kept by the exam outbox, so only a staff note holds back a
+       trainee's trim — and holds it back even when the trainee's save
+       succeeded, because that save did not carry the staff work. */
+    function keepOnSignOut(marker, role, safe) {
+      if (!marker || !role) return false;
+      if (role === 'student') return isStaff(marker);
+      return safe !== true || !covers(role, marker);
+    }
+    return { roleOf: roleOf, mark: mark, covers: covers, isStaff: isStaff, keepOnSignOut: keepOnSignOut };
+  })();
+
+  /* ==========================================================================
      CLOUD MERGE RULES
 
      The main autosave/merge pair converges properly: it merges student records
@@ -8105,39 +8282,126 @@
          holds is kept;
        - nothing empty is ever written over something that is not.
      Returns the value to store for the key, or null to leave it alone. Order
-     the keys with restoreOrder() so the deletions land first. */
+     the keys with restoreOrder() so the deletions land first.
+
+     RECORDS INSIDE ONE STORED VALUE. "A map gains the entries it lacks" was
+     the whole rule for any stored object, and the import said "Backup
+     merged" — but a Cashbook quarter is one object holding every cheque, and
+     the payroll one object holding every employee and payroll run. A quarter
+     the device had re-entered one cheque into kept that one and none of the
+     backup's forty (its opening balance stayed 0 while the backup's date for
+     it was copied); the payroll restored nothing, not even over the page's
+     empty start-up skeleton; and old weekly attendance rows, which carry no
+     `id`, were skipped as records with no identity. Each key is now merged
+     by the rule its own pages use:
+       - a Cashbook quarter (cestis_quarter_*) by Core.cashbook.mergeQuarter,
+         its budget (cestis_budget_<FY>_Q<n>) by mergeBudget;
+       - the payroll by the Payslip page's rule (Core.payroll), and an empty
+         start-up payroll simply takes the backup;
+       - every collection the sync merges record by record (the roll, results,
+         the attendance register and weekly rows, exams, assignments, the
+         virement register, ...) by that same rule (Core.pageCloud
+         .mergeRecordValue), honouring the deletions this device holds;
+       - any other list by id, and a record with no id is added unless this
+         device already holds exactly that record.
+     What still cannot be merged — a setting this device holds with another
+     value, an entry inside some other stored object, a stored value that
+     cannot be read — is kept as it is here and REPORTED (mergeKey().kept),
+     so the import says what it did not restore instead of "merged". */
   Core.backupRestore = (function () {
     function parse(raw) { if (raw == null || raw === '') return null; try { return JSON.parse(raw); } catch (e) { return undefined; } }
     function isEmpty(v) {
       return v == null || v === '' || (Array.isArray(v) && !v.length) ||
         (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
     }
-    function mergeValue(key, storedRaw, incoming) {
-      if (incoming === undefined || incoming === null) return null;
-      if (Core.isTombstoneKey(key)) return Core.unionTombstoneValues(storedRaw, JSON.stringify(incoming));
-      var stored = parse(storedRaw);
-      if (stored === undefined) return null;                    // unreadable here: never mistake it for empty
-      if (isEmpty(stored)) return isEmpty(incoming) ? null : JSON.stringify(incoming);
-      if (Array.isArray(stored) && Array.isArray(incoming)) {
-        var byId = function (r) { return r && r.id != null ? String(r.id) : undefined; };
-        var res = Core.sync.mergeList(stored, incoming, byId, {});
-        return (res.added || res.updated || res.removed) ? JSON.stringify(stored) : null;
-      }
-      if (stored && typeof stored === 'object' && !Array.isArray(stored) &&
-          incoming && typeof incoming === 'object' && !Array.isArray(incoming)) {
-        var added = 0;
-        Object.keys(incoming).forEach(function (k) {
-          if (!(k in stored) && incoming[k] !== undefined) { stored[k] = incoming[k]; added++; }
+    function isPlain(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+    function copy(v) { return JSON.parse(JSON.stringify(v)); }
+    function byId(r) { return r && r.id != null ? String(r.id) : undefined; }
+    var SYNC_TOMBS = 'voctrain_syncTombstones';
+    // Deletions are restored first and then honoured by every record merge.
+    function isDeletionKey(k) { return Core.isTombstoneKey(k) || k === SYNC_TOMBS; }
+    var DELETION_SOURCES = [SYNC_TOMBS, 'voctrain_deletedStudentIds', 'voctrain_deletedUserIds', 'voctrain_deletedCentreIds',
+      'voctrain_deletedStudentAt', 'cesti_virement_deleted_ids'];
+    function deletionsHere(read) {
+      var data = {};
+      if (typeof read === 'function') {
+        DELETION_SOURCES.forEach(function (k) {
+          var v = null;
+          try { v = read(k); } catch (e) { v = null; }
+          if (v != null && v !== '') data[k] = v;
         });
-        return added ? JSON.stringify(stored) : null;
       }
-      return null;                                               // a value the device already holds stands
+      return Core.pageCloud.tombContext(data, {});
     }
+    // A list: by id (Core.sync's rule), then the records with no id that
+    // this device does not already hold exactly.
+    function mergeArray(stored, incoming) {
+      var res = Core.sync.mergeList(stored, incoming, byId, {});
+      var changed = !!(res.added || res.updated || res.removed);
+      var have = {};
+      stored.forEach(function (r) { if (r && typeof r === 'object') have[JSON.stringify(r)] = 1; });
+      incoming.forEach(function (r) {
+        if (!r || typeof r !== 'object' || byId(r) !== undefined) return;
+        var s = JSON.stringify(r);
+        if (have[s]) return;
+        have[s] = 1; stored.push(copy(r)); changed = true;
+      });
+      return changed;
+    }
+    /* opts.read(key) -> this device's stored value of another key (the
+       deletion lists). Returns { value: string to store | null, kept: true
+       when the backup holds something this merge left out }. */
+    function mergeKey(key, storedRaw, incoming, opts) {
+      opts = opts || {};
+      var res = { value: null, kept: false };
+      if (incoming === undefined || incoming === null) return res;
+      if (Core.isTombstoneKey(key)) { res.value = Core.unionTombstoneValues(storedRaw, JSON.stringify(incoming)); return res; }
+      var stored = parse(storedRaw);
+      // Unreadable here: never mistaken for empty, never overwritten.
+      if (stored === undefined) { res.kept = !isEmpty(incoming); return res; }
+      if (isEmpty(incoming)) return res;                          // nothing empty is written over anything
+      if (isEmpty(stored)) { res.value = JSON.stringify(incoming); return res; }
+      var inc = copy(incoming);
+      var done = function (changed) { if (changed) res.value = JSON.stringify(stored); return res; };
+      var quarter = Core.cashbook.parseQuarterKey(key);
+      if (quarter && isPlain(stored) && isPlain(inc)) {
+        return done(String(key).indexOf('cestis_budget_') === 0 ? Core.cashbook.mergeBudget(stored, inc).changed
+          : Core.cashbook.mergeQuarter(stored, inc, quarter.fy, quarter.q).changed);
+      }
+      if (key === 'cestisPayroll' && isPlain(stored) && isPlain(inc)) {
+        if (Core.payroll.isSkeleton(stored)) { res.value = JSON.stringify(inc); return res; }
+        var was = JSON.stringify(stored);
+        Core.payroll.mergeData(stored, inc);
+        return done(JSON.stringify(stored) !== was);
+      }
+      if (Core.pageCloud.isRecordKey(key)) {
+        var merged = Core.pageCloud.mergeRecordValue(key, storedRaw, JSON.stringify(inc), false, deletionsHere(opts.read));
+        if (merged != null) { if (merged !== storedRaw) res.value = merged; return res; }
+      }
+      if (Array.isArray(stored) && Array.isArray(inc)) {
+        var grew = mergeArray(stored, inc);
+        // A plain value (not a record) missing here cannot be told from one
+        // removed here on purpose: reported, not added.
+        res.kept = inc.some(function (v) { return (v === null || typeof v !== 'object') && stored.indexOf(v) === -1; });
+        return done(grew);
+      }
+      if (isPlain(stored) && isPlain(inc)) {
+        var added = 0;
+        Object.keys(inc).forEach(function (k) {
+          if (!(k in stored)) { if (inc[k] !== undefined) { stored[k] = inc[k]; added++; } }
+          else if (JSON.stringify(stored[k]) !== JSON.stringify(inc[k])) res.kept = true;
+        });
+        return done(added > 0);
+      }
+      res.kept = JSON.stringify(stored) !== JSON.stringify(inc);   // a value the device already holds stands
+      return res;
+    }
+    function mergeValue(key, storedRaw, incoming, opts) { return mergeKey(key, storedRaw, incoming, opts).value; }
     function restoreOrder(keys) {
       var list = Array.isArray(keys) ? keys.slice() : [];
-      return list.filter(Core.isTombstoneKey).concat(list.filter(function (k) { return !Core.isTombstoneKey(k); }));
+      return list.filter(isDeletionKey).concat(list.filter(function (k) { return !isDeletionKey(k); }));
     }
-    return { mergeValue: mergeValue, restoreOrder: restoreOrder };
+    return { mergeKey: mergeKey, mergeValue: mergeValue, restoreOrder: restoreOrder };
   })();
 
   /* ==========================================================================
@@ -8211,13 +8475,44 @@
            dated edit or delete anything. A device whose clock had jumped a
            year ahead used to win every merge for a year. Nothing is lost:
            the record is kept, and the page warns that a clock is wrong
-           (clockSkew). */
+           (clockSkew).
+         - but an edit made HERE on a clock that was days fast is this
+           device's own work, not a stranger's claim. It used to be merged
+           away twice: other devices treated it as undated, and once this
+           clock was put right its own copy lost to their older one too — the
+           correction was gone everywhere. A copy this device holds whose
+           stamp is more than a day ahead of the correct time is now re-dated
+           to the correct time (restampOwn), on save and on every merge, so
+           it competes as an edit made now and travels.
+       "The correct time" is this device's clock corrected by the offset last
+       measured against a server (setClockOffset: Google's Date header online,
+       the Centre server's clock on its network) — so a device whose clock is
+       still wrong stamps, and re-dates, by the server's time. */
     var MAX_AHEAD_MS = 24 * 60 * 60 * 1000;
     var SKEW_WARN_MS = 5 * 60 * 1000;
+    var clockOffsetMs = 0;
+    /* ms to add to this device's clock to read the correct time (the
+       negative of clockSkew). 0 when unknown or when the clock is right. */
+    function setClockOffset(ms) { clockOffsetMs = (typeof ms === 'number' && isFinite(ms)) ? Math.round(ms) : 0; }
+    function clockOffset() { return clockOffsetMs; }
+    function now() { return Date.now() + clockOffsetMs; }
+    function nowIso() { return new Date(now()).toISOString(); }
     function trusted(t, nowMs) {
       if (!t) return 0;
-      var now = (typeof nowMs === 'number' && !isNaN(nowMs)) ? nowMs : Date.now();
-      return t > now + MAX_AHEAD_MS ? 0 : t;
+      var at = (typeof nowMs === 'number' && !isNaN(nowMs)) ? nowMs : now();
+      return t > at + MAX_AHEAD_MS ? 0 : t;
+    }
+    /* Re-date THIS device's own copy where a field is more than a day ahead
+       of the correct time (see above). Returns whether anything changed. */
+    function restampOwn(r, fields, nowMs) {
+      if (!r || typeof r !== 'object') return false;
+      var at = (typeof nowMs === 'number' && !isNaN(nowMs)) ? nowMs : now();
+      var changed = false;
+      (fields || [STAMP]).forEach(function (f) {
+        var t = Date.parse(r[f] || '');
+        if (!isNaN(t) && t > at + MAX_AHEAD_MS) { r[f] = new Date(at).toISOString(); changed = true; }
+      });
+      return changed;
     }
     function laterStamp(nowIso, prevIso, nowMs) {
       var p = Date.parse(prevIso || ''), n = Date.parse(nowIso || '');
@@ -8260,6 +8555,7 @@
       var next = {};
       var list = Array.isArray(records) ? records : Object.keys(records || {}).map(function (k) { return records[k]; });
       var keys = Array.isArray(records) ? null : Object.keys(records || {});
+      var nowMs = Date.parse(now || '');
       list.forEach(function (r, i) {
         if (!r || typeof r !== 'object') return;
         var k = keys ? keys[i] : keyOf(r);
@@ -8269,6 +8565,9 @@
           var prev = index[k];
           if (!prev) { if (!r[STAMP]) r[STAMP] = now; }
           else if (prev.fp !== fp && (r[STAMP] || '') === (prev.stamp || '')) { r[STAMP] = laterStamp(now, r[STAMP]); }
+          // A copy dated days ahead of now (a clock that was wrong when it
+          // was edited) is re-dated now, so it can travel (restampOwn).
+          if (!isNaN(nowMs)) restampOwn(r, [STAMP], nowMs);
         }
         next[k] = { fp: fp, stamp: r[STAMP] || '' };
       });
@@ -8379,6 +8678,7 @@
     }
     function reconcileMaps(target, mine, theirs, opts, theirsWon, nowMs) {
       var changed = false;
+      var at = (typeof nowMs === 'number' && !isNaN(nowMs)) ? nowMs : now();
       Object.keys(opts.perEntry || {}).forEach(function (f) {
         var sp = stampSpec(opts.perEntry[f]);
         var A = mine[f], B = theirs[f];
@@ -8389,7 +8689,11 @@
         Object.keys(A).concat(Object.keys(B)).forEach(function (k) {
           if (k in val) return;
           var inA = A[k] !== undefined, inB = B[k] !== undefined;
-          var ta = trusted(entryStamp(mine, sp, k), nowMs), tb = trusted(entryStamp(theirs, sp, k), nowMs);
+          // This device's own entry dated days ahead (a wrong clock) counts
+          // as written now, and is re-dated so (restampOwn) — it is never
+          // simply outvoted by an older entry.
+          var ra = entryStamp(mine, sp, k), ownFuture = ra > 0 && !trusted(ra, at);
+          var ta = ownFuture ? at : trusted(ra, at), tb = trusted(entryStamp(theirs, sp, k), at);
           var useB;
           if (!inA) useB = true;
           else if (!inB) useB = false;
@@ -8397,7 +8701,13 @@
           else useB = theirsWon;
           val[k] = useB ? B[k] : A[k];
           var stamp = useB ? (BS[k] !== undefined ? BS[k] : AS[k]) : (AS[k] !== undefined ? AS[k] : BS[k]);
-          if (stamp !== undefined) st[k] = copyOf(stamp);
+          if (stamp !== undefined) {
+            st[k] = copyOf(stamp);
+            if (!useB && ownFuture) {
+              if (sp.prop && isPlain(st[k])) st[k][sp.prop] = new Date(at).toISOString();
+              else if (!sp.prop) st[k] = new Date(at).toISOString();
+            }
+          }
         });
         // Entries of the stamp map with no value beside them are kept as well.
         Object.keys(AS).concat(Object.keys(BS)).forEach(function (k) {
@@ -8450,7 +8760,13 @@
         if (r && typeof r === 'object' && deletedAfter(tombs, keyOf(r), r, nowMs)) { local.splice(i, 1); out.removed++; }
       }
       var byKey = {};
-      local.forEach(function (r) { if (r && typeof r === 'object') byKey[keyOf(r)] = r; });
+      local.forEach(function (r) {
+        if (!r || typeof r !== 'object') return;
+        byKey[keyOf(r)] = r;
+        // This device's own copy dated days ahead: re-dated now (restampOwn),
+        // so it is not outvoted by an older copy and is believed elsewhere.
+        if (restampOwn(r, [STAMP], nowMs)) out.updated++;
+      });
       (Array.isArray(cloud) ? cloud : []).forEach(function (c) {
         if (!c || typeof c !== 'object') return;
         if (opts.accept && !opts.accept(c)) return;
@@ -8532,7 +8848,12 @@
         if (r.id != null && r.id !== '') byId[String(r.id)] = at;
         if (byAttempt[attemptKey(r)] === undefined) byAttempt[attemptKey(r)] = at;
       };
-      local.forEach(function (r, at) { if (r && typeof r === 'object') index(r, at); });
+      local.forEach(function (r, at) {
+        if (!r || typeof r !== 'object') return;
+        index(r, at);
+        // A mark or review made here on a clock days fast is re-dated now.
+        if (restampOwn(r, EDIT_FIELDS, nowMs)) out.updated++;
+      });
       (Array.isArray(cloud) ? cloud : []).forEach(function (c) {
         if (!c || typeof c !== 'object') return;
         if (opts.accept && !opts.accept(c)) return;
@@ -8558,7 +8879,8 @@
       if (!isPlain(local)) return out;
       var tombs = opts.tombs || {};
       Object.keys(local).forEach(function (k) {
-        if (deletedAfter(tombs, k, local[k], opts.nowMs)) { delete local[k]; out.removed++; }
+        if (deletedAfter(tombs, k, local[k], opts.nowMs)) { delete local[k]; out.removed++; return; }
+        if (isPlain(local[k]) && restampOwn(local[k], [STAMP], opts.nowMs)) out.updated++;
       });
       Object.keys(isPlain(cloud) ? cloud : {}).forEach(function (k) {
         var c = cloud[k];
@@ -8598,11 +8920,38 @@
       });
     }
 
+    /* The maps inside a record that several people write at once, per
+       collection — ONE definition for every path that merges these records:
+       the dashboard's Drive backup and assignments side file
+       (Core.sync.mergeList), and the Centre's network, where each device and
+       the Centre's own server merge the stored collections
+       (Core.pageCloud.mergeRecordValue). The Drive merge kept both
+       instructors' grades while the Centre's network still let the newer
+       whole assignment win, so one grade was erased there.
+         assignments   — grades {trainee: score}, each dated by
+                         gradeMeta[trainee].gradedAt; the grade history kept
+                         whole from both sides.
+         notifications — who has read / cleared it, person by person. */
+    var RECORD_MAPS = {
+      assignments: { perEntry: { grades: 'gradeMeta.gradedAt' }, unionStamps: ['gradeLog'] },
+      notifications: { unionStamps: ['readBy', 'clearedBy'] }
+    };
+    /* mergeList options for one of those collections, plus the caller's own
+       (tombs, accept, ...). */
+    function mapRules(name, extra) {
+      var out = {}, rule = RECORD_MAPS[name] || {};
+      Object.keys(rule).forEach(function (k) { out[k] = copyOf(rule[k]); });
+      Object.keys(extra || {}).forEach(function (k) { out[k] = extra[k]; });
+      return out;
+    }
+
     return { stampOf: stampOf, fingerprint: fingerprint, stampChanges: stampChanges, detectRemovals: detectRemovals,
       mergeTombstones: mergeTombstones, deletedAfter: deletedAfter, mergeList: mergeList, mergeMap: mergeMap,
       MAX_AHEAD_MS: MAX_AHEAD_MS, trusted: trusted, laterStamp: laterStamp, clockSkew: clockSkew,
       clockLooksWrong: clockLooksWrong, examResultKey: examResultKey, mergeExamResults: mergeExamResults,
-      applyTombstones: applyTombstones, emptyIsDeliberate: emptyIsDeliberate };
+      applyTombstones: applyTombstones, emptyIsDeliberate: emptyIsDeliberate,
+      setClockOffset: setClockOffset, clockOffset: clockOffset, now: now, nowIso: nowIso, restampOwn: restampOwn,
+      snapshotMaps: snapshotMaps, reconcileMaps: reconcileMaps, RECORD_MAPS: RECORD_MAPS, mapRules: mapRules };
   })();
 
   /* ==========================================================================
@@ -9018,6 +9367,135 @@
   })();
 
   /* ==========================================================================
+     PAYROLL ('cestisPayroll'): the Staff Payslip page's merge rule, for the
+     merges that run outside that page (Import Backup on the dashboard).
+
+     The payroll is ONE stored object — { settings, employees, payrollRuns,
+     deleted } — so a merge that only looked at its top-level keys restored
+     nothing at all from a backup: every key already existed on the device
+     (even the page's empty start-up skeleton has them), so the employees and
+     every payroll run in the backup were dropped while the import reported
+     success. This is Staff.Payslip.html _mergeDataIntoLocal, unchanged in
+     meaning (a test runs the two side by side): employees by name, runs by
+     date, each run's results by employee; the copy changed later
+     (updatedAt) wins; undated copies keep the local one and fill its
+     blanks; a record deleted (deleted { key: when }) after its last edit
+     stays deleted. Merges IN PLACE; returns a summary. */
+  Core.payroll = (function () {
+    function keyEmp(e) { return 'emp:' + String(e && e.name || '').trim().toLowerCase(); }
+    function keyRun(r) { return 'run:' + String(r && r.date || ''); }
+    function keyRes(run, res) { return 'res:' + String(run && run.date || '') + '|' + String(res && res.empName || '').trim().toLowerCase(); }
+    function stampOf(r) { var t = Date.parse((r && r.updatedAt) || ''); return isNaN(t) ? 0 : t; }
+    function blank(v) { return v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length); }
+    function fold(local, inc, skip) {
+      var cs = stampOf(inc), ls = stampOf(local), changed = false;
+      if (cs > ls) {
+        Object.keys(local).forEach(function (k) { if (!(skip && skip[k]) && !(k in inc)) { delete local[k]; changed = true; } });
+        Object.keys(inc).forEach(function (k) { if (skip && skip[k]) return; if (local[k] !== inc[k]) { local[k] = inc[k]; changed = true; } });
+      } else if (cs === ls) {
+        Object.keys(inc).forEach(function (k) { if (skip && skip[k]) return; if (blank(local[k]) && !blank(inc[k])) { local[k] = inc[k]; changed = true; } });
+      }
+      return changed;
+    }
+    function mergeData(data, incoming) {
+      var summary = { addedEmployees: 0, updatedEmployees: 0, addedRuns: 0, updatedRuns: 0, removed: 0 };
+      if (!data || typeof data !== 'object' || !incoming || typeof incoming !== 'object') return summary;
+      if (!Array.isArray(data.employees)) data.employees = [];
+      if (!Array.isArray(data.payrollRuns)) data.payrollRuns = [];
+      // Deletions, from both sides: the later removal of each key stands.
+      if (!data.deleted || typeof data.deleted !== 'object') data.deleted = {};
+      if (incoming.deleted && typeof incoming.deleted === 'object' && !Array.isArray(incoming.deleted)) {
+        Object.keys(incoming.deleted).forEach(function (k) {
+          var t = Date.parse(incoming.deleted[k] || '') || 0, have = Date.parse(data.deleted[k] || '') || 0;
+          if (t > have) data.deleted[k] = incoming.deleted[k];
+        });
+      }
+      var tombs = data.deleted;
+      var gone = function (k, r) { var t = tombs[k] ? (Date.parse(tombs[k]) || 0) : 0; return t > 0 && t >= stampOf(r); };
+      data.employees = data.employees.filter(function (e) { if (e && e.name && gone(keyEmp(e), e)) { summary.removed++; return false; } return true; });
+      data.payrollRuns = data.payrollRuns.filter(function (run) { if (run && run.date && gone(keyRun(run), run)) { summary.removed++; return false; } return true; });
+      data.payrollRuns.forEach(function (run) {
+        if (!run || !Array.isArray(run.results)) return;
+        run.results = run.results.filter(function (res) { if (res && res.empName && gone(keyRes(run, res), res)) { summary.removed++; return false; } return true; });
+      });
+      // Employees.
+      if (Array.isArray(incoming.employees)) {
+        var byName = {};
+        data.employees.forEach(function (le) { if (le && le.name) byName[keyEmp(le)] = le; });
+        incoming.employees.forEach(function (ie) {
+          if (!ie || !ie.name) return;
+          var key = keyEmp(ie);
+          if (gone(key, ie)) return;
+          var existing = byName[key];
+          if (!existing) {
+            var fresh = Object.assign({}, ie);
+            data.employees.push(fresh); byName[key] = fresh;
+            summary.addedEmployees++;
+          } else if (fold(existing, ie)) {
+            summary.updatedEmployees++;
+          }
+        });
+      }
+      // Payroll runs, and each run's results.
+      if (Array.isArray(incoming.payrollRuns)) {
+        var byDate = {};
+        data.payrollRuns.forEach(function (lr) { if (lr && lr.date) byDate[lr.date] = lr; });
+        incoming.payrollRuns.forEach(function (ir) {
+          if (!ir || !ir.date) return;
+          if (gone(keyRun(ir), ir)) return;
+          var existingRun = byDate[ir.date];
+          if (!existingRun) {
+            var cloned = Object.assign({}, ir);
+            cloned.results = (Array.isArray(ir.results) ? ir.results : []).filter(function (res) { return !(res && res.empName && gone(keyRes(ir, res), res)); })
+              .map(function (res) { return Object.assign({}, res); });
+            data.payrollRuns.push(cloned); byDate[ir.date] = cloned;
+            summary.addedRuns++;
+            return;
+          }
+          if (!Array.isArray(existingRun.results)) existingRun.results = [];
+          var runChanged = false;
+          if (Array.isArray(ir.results)) {
+            var byEmp = {};
+            existingRun.results.forEach(function (lr) { if (lr && lr.empName) byEmp[keyRes(existingRun, lr)] = lr; });
+            ir.results.forEach(function (ires) {
+              if (!ires || !ires.empName) return;
+              var rkey = keyRes(ir, ires);
+              if (gone(rkey, ires)) return;
+              var localRes = byEmp[rkey];
+              if (!localRes) {
+                var r2 = Object.assign({}, ires);
+                existingRun.results.push(r2); byEmp[rkey] = r2;
+                runChanged = true;
+              } else if (fold(localRes, ires)) {
+                runChanged = true;
+              }
+            });
+          }
+          if (fold(existingRun, ir, { results: 1 })) runChanged = true;
+          if (runChanged) summary.updatedRuns++;
+        });
+      }
+      // Settings: the copy changed later wins; undated copies fill blanks.
+      if (incoming.settings && typeof incoming.settings === 'object') {
+        if (!data.settings || typeof data.settings !== 'object') data.settings = Object.assign({}, incoming.settings);
+        else fold(data.settings, incoming.settings);
+      }
+      return summary;
+    }
+    /* The page's empty start-up structure: no employee, no run, no
+       deletion, settings never saved (undated). A backup restored onto it
+       is taken whole — its settings are the Centre's own rates, which the
+       page's defaults must not outvote. */
+    function isSkeleton(d) {
+      if (!d || typeof d !== 'object' || Array.isArray(d)) return false;
+      var none = function (v) { return v == null || (Array.isArray(v) && !v.length); };
+      var del = d.deleted && typeof d.deleted === 'object' ? Object.keys(d.deleted).length : 0;
+      return none(d.employees) && none(d.payrollRuns) && !del && !(d.settings && d.settings.updatedAt);
+    }
+    return { keyEmp: keyEmp, keyRun: keyRun, keyRes: keyRes, mergeData: mergeData, isSkeleton: isSkeleton };
+  })();
+
+  /* ==========================================================================
      STAFF TIME CLOCK: merge a cloud file into this device's lists.
 
      Each staff member's Drive file holds only THAT person — their own staff
@@ -9075,6 +9553,115 @@
     out.staffMembers = staff;
     return out;
   };
+
+  /* ==========================================================================
+     VIREMENT REQUESTS — the Virement page's one merge rule, for the merges
+     that run outside that page.
+
+     The Virement page folds two copies of a request with vrMergeRequest: a
+     ruling only moves between copies that ask for the SAME thing
+     (vrContentRev); when the two copies ask for different things, the one
+     edited later (editedAt) wins whole, and neither side's ruling crosses
+     over. Editing an approved request sends it back to Pending with a new
+     editedAt, because a signature belongs to the figures that were signed.
+
+     The page-cloud merge (Google Drive and the Centre's server) had its own,
+     opposite rule — "a decision beats Pending, whichever was saved later" —
+     so a correction to an approved request (44,288.25 → 39,000) lost to the
+     old Approved copy on Drive and then on the PC that made it: the request
+     was back at the old figures with two signatures nobody gave the new ones.
+
+     These are the page's functions, unchanged in meaning (tests pin the two
+     together), so every path decides a request the same way. Pure. */
+  Core.virements = (function () {
+    function contentRev(r) {
+      if (!r) return '';
+      var sig = JSON.stringify([r.date || '', r.fy || '', r.quarter || '', r.project || '', r.period || '',
+        r.requestedBy || '', r.position || '', Math.round((Number(r.total) || 0) * 100),
+        (Array.isArray(r.lines) ? r.lines : []).map(function (l) {
+          return [l.fromId || '', l.toId || '', Math.round((Number(l.amount) || 0) * 100), !!l.anyLine];
+        }),
+        r.deficitComment || '', r.anyLineComment || '']);
+      var h = 5381;
+      for (var i = 0; i < sig.length; i++) h = ((h << 5) + h + sig.charCodeAt(i)) | 0;
+      return 'v' + (h >>> 0).toString(36) + sig.length.toString(36);
+    }
+    function signatures(r) { return Array.isArray(r && r.signatures) ? r.signatures : []; }
+    function validSignatures(r) {
+      var rev = contentRev(r);
+      return signatures(r).filter(function (s) { return s && (!s.rev || s.rev === rev); });
+    }
+    function edited(r) { return Date.parse((r && r.editedAt) || '') || 0; }
+    /* Fold another copy of the same request into `local` (IN PLACE).
+       Returns whether `local` changed. Virement.Request.html vrMergeRequest. */
+    function mergeRequest(local, cr) {
+      if (!local || !cr || local === cr) return false;
+      if (contentRev(local) !== contentRev(cr)) {
+        if (edited(cr) > edited(local)) {
+          var copy = JSON.parse(JSON.stringify(cr));
+          Object.keys(local).forEach(function (k) { if (!(k in copy)) delete local[k]; });
+          Object.keys(copy).forEach(function (k) { local[k] = copy[k]; });
+          return true;
+        }
+        return false;
+      }
+      var decided = function (st) { return st === 'Approved' || st === 'Rejected' || st === 'Awaiting Second Signature'; };
+      var signing = function (st) { return st === 'Approved' || st === 'Awaiting Second Signature'; };
+      var at = function (r) { return Date.parse(r.approvalAt || r.approvalDate || '') || 0; };
+      if (signing(local.status) && signing(cr.status)) {
+        var seen = {}, sigs = [];
+        validSignatures(local).concat(validSignatures(cr)).forEach(function (sg) {
+          var k = sg.id || sg.name;
+          if (!k || seen[k]) return;
+          seen[k] = 1; sigs.push(sg);
+        });
+        if (!sigs.length || sigs.length === signatures(local).length) return false;
+        sigs.sort(function (a, b) { return (Date.parse(a.at || '') || 0) - (Date.parse(b.at || '') || 0); });
+        local.signatures = sigs;
+        if (sigs.length >= 2) { local.status = 'Approved'; local.approvedBy = sigs.map(function (sg) { return sg.name; }).join(' and '); }
+        else { local.status = 'Awaiting Second Signature'; local.approvedBy = sigs[0].name + ' (awaiting a second signature)'; }
+        local.approvalAt = sigs[sigs.length - 1].at || local.approvalAt;
+        local.approvalDate = String(local.approvalAt || '').split('T')[0];
+        return true;
+      }
+      var cloudDecided = decided(cr.status), localDecided = decided(local.status);
+      if (cloudDecided && (!localDecided || at(cr) > at(local))) {
+        if (local.status === cr.status && local.approvalAt === (cr.approvalAt || cr.approvalDate) &&
+            JSON.stringify(signatures(local)) === JSON.stringify(validSignatures(cr))) return false;
+        local.status = cr.status;
+        local.approvedBy = cr.approvedBy;
+        local.approvalDate = cr.approvalDate;
+        local.approvalAt = cr.approvalAt || cr.approvalDate;
+        local.approvalComment = cr.approvalComment;
+        local.signatures = validSignatures(cr);
+        return true;
+      }
+      if (cloudDecided && localDecided && at(cr) === at(local) && cr.status !== local.status) {
+        // Same instant, different answers: the safe reading of a disagreement
+        // about money is that nothing was agreed.
+        local.status = 'Pending';
+        local.signatures = [];
+        local.approvedBy = '';
+        local.approvalComment = 'Two devices recorded different decisions at the same moment — this needs signing again.';
+        return true;
+      }
+      return false;
+    }
+    /* The record to keep when two copies of one request meet in a merge of
+       whole collections (Core.pageCloud). mergeRequest's rule, except that
+       two DIFFERENT versions neither of which says which was edited later
+       go to the side that wrote its collection last (`preferCloud`) — the
+       page-cloud's tie rule — taken whole, so no ruling crosses over. */
+    function pick(l, c, preferCloud) {
+      if (contentRev(l) !== contentRev(c) && edited(l) === edited(c)) {
+        return JSON.parse(JSON.stringify(preferCloud ? c : l));
+      }
+      var a = JSON.parse(JSON.stringify(l));
+      mergeRequest(a, c);
+      return a;
+    }
+    return { contentRev: contentRev, validSignatures: validSignatures, mergeRequest: mergeRequest, pick: pick };
+  })();
 
   Core.pageCloud = (function () {
 
@@ -9255,13 +9842,16 @@
       { key: 'voctrain_chatRooms', type: 'list', tombs: 'chatRooms', id: byId },
       { key: 'voctrain_classSessions', type: 'list', tombs: 'classSessions', id: byId },
       { key: 'voctrain_adminMeetings', type: 'list', tombs: 'adminMeetings', id: byId },
-      { key: 'voctrain_assignments', type: 'list', tombs: 'instructorAssignments', id: byId },
+      // An assignment carries every trainee's grade inside it: the grades, and
+      // who has read a notice, merge entry by entry (Core.sync.RECORD_MAPS —
+      // the same rule as the Drive backup), not as one whole record.
+      { key: 'voctrain_assignments', type: 'list', tombs: 'instructorAssignments', id: byId, maps: 'assignments' },
       { key: 'voctrain_submissions', type: 'list', tombs: 'assignmentSubmissions', id: byId },
       { key: 'voctrain_resources', type: 'list', tombs: 'instructorResources', id: byId },
       { key: 'voctrain_instructorData', type: 'list', tombs: 'instructorData', id: byId },
       { key: 'voctrain_adrTasks', type: 'list', tombs: 'adrTasks', id: byId },
       { key: 'voctrain_support_messages', type: 'list', tombs: 'supportMessages', id: byId },
-      { key: 'voctrain_notifications', type: 'list', tombs: 'notifications', id: byId },
+      { key: 'voctrain_notifications', type: 'list', tombs: 'notifications', id: byId, maps: 'notifications' },
       { key: 'voctrain_documentHubFiles', type: 'list', tombs: 'documentHubFiles', id: byId },
       { key: 'voctrain_studentProfiles', type: 'map', tombs: 'studentProfiles' },
       { key: 'voctrain_instructorProfiles', type: 'map', tombs: 'instructorProfiles' },
@@ -9407,7 +9997,16 @@
         // A record that must be taken whole (a withdrawn ruling is an entry
         // with NO decision — filling the blank would put the ruling back).
         if (spec.whole) return cloudWins ? c : l;
-        return cloudWins ? fillFrom(c, l) : fillFrom(l, c);
+        var won = cloudWins ? fillFrom(c, l) : fillFrom(l, c);
+        // Maps inside the record that several people write (an assignment's
+        // grades, a notice's readers) are then settled entry by entry, by the
+        // one rule every path uses — the copy that won the record decides
+        // only the entries neither side dated. Without this a trainee's
+        // resubmission, or a second instructor's mark, carried a stale grades
+        // map that erased a mark on the Centre's server and every device.
+        var rule = spec.maps && Core.sync.RECORD_MAPS[spec.maps];
+        if (rule) Core.sync.reconcileMaps(won, l, c, rule, cloudWins);
+        return won;
       };
 
       if (spec.type === 'tombstones') {
@@ -9470,13 +10069,14 @@
 
       if (spec.type === 'virements') {
         var deletedReq = spec.idListTomb ? ctx.ids(spec.idListTomb) : {};
-        var decided = function (v) { return String((v && v.status) || 'Pending') !== 'Pending'; };
         out = unionList(L, C, spec.id, function (l, c) {
-          // A decision is final: it beats a copy still saying Pending,
-          // whichever was saved later (the Board settles; the register
-          // follows). Otherwise the later edit, as for any record.
-          if (decided(l) !== decided(c)) return decided(c) ? fillFrom(c, l) : fillFrom(l, c);
-          return newer(l, c, ['updatedAt', 'lastModified', 'approvalDate']);
+          // The Virement page's own rule (Core.virements): two different
+          // versions of a request — the one edited later wins whole; only
+          // copies asking for the same thing exchange rulings, where a
+          // decision beats Pending. An edited approved request is Pending
+          // again with a newer editedAt, and must not be undone by the old
+          // Approved copy.
+          return Core.virements.pick(l, c, preferCloud);
         }, function (r) { return !(r.id != null && deletedReq[String(r.id)]); });
         return JSON.stringify(out);
       }
@@ -9937,7 +10537,7 @@
              sharedPullPlan: sharedPullPlan, pickShared: pickShared,
              isEmptyValue: isEmptyValue, wouldDiscardRecords: wouldDiscardRecords,
              guardedSet: guardedSet, isRecordKey: isRecordKey, mergeRecordValue: mergeRecordValue,
-             recordSpec: recordSpec, DRIVE_RECORD_KEYS: DRIVE_RECORD_KEYS };
+             recordSpec: recordSpec, DRIVE_RECORD_KEYS: DRIVE_RECORD_KEYS, tombContext: tombContext };
   })();
 
   /* --------------------------------------------------------------------------
@@ -10456,24 +11056,44 @@
     /* Exams used to be merged by title|programme, so the deletions already
        written down are under that key. Carry each one over to the exam's id,
        but only when exactly one exam answers to it — two same-titled exams
-       must never both go because one was deleted. */
+       must never both go because one was deleted.
+
+       Called as (tombs, thisDevicesExams, incomingExams...). A device still
+       running the old code writes that same tombstone when it merely RENAMES
+       an exam (the old title|programme key disappears from its list), and
+       its upload carries the renamed exam under the same id. Read as a
+       deletion, the exam, its question bank and its results' standing went
+       on every new device — and each then wrote an id tombstone the rest
+       obeyed. So a legacy tombstone is carried over only when it can really
+       mean "deleted":
+         - every copy of that exam (here and incoming) still has the title
+           and programme the tombstone names — a copy under another title is
+           a rename, not a deletion; and
+         - the exam is not in what arrived: a device that deleted it sends a
+           list without it, so an incoming copy means it still exists there.
+       A deletion that cannot be told from a rename is not acted on: keeping
+       an exam can be undone, losing it cannot. */
     function translateLegacyTombs(tombs) {
       var out = {};
       Object.keys(tombs || {}).forEach(function (k) { out[k] = tombs[k]; });
-      var ids = {};
-      Array.prototype.slice.call(arguments, 1).forEach(function (list) {
+      var ids = {}, keysOfId = {}, incoming = {};
+      Array.prototype.slice.call(arguments, 1).forEach(function (list, n) {
         (list || []).forEach(function (e) {
           if (!e || e.id == null || e.id === '') return;
-          var lk = legacyKey(e);
-          (ids[lk] = ids[lk] || {})[String(e.id)] = 1;
+          var lk = legacyKey(e), id = String(e.id);
+          (ids[lk] = ids[lk] || {})[id] = 1;
+          (keysOfId[id] = keysOfId[id] || {})[lk] = 1;
+          if (n > 0) incoming[id] = 1;
         });
       });
       Object.keys(tombs || {}).forEach(function (k) {
         if (k.indexOf('|') === -1 || !ids[k]) return;
         var match = Object.keys(ids[k]);
         if (match.length !== 1) return;
-        var t = Date.parse(tombs[k]) || 0, have = Date.parse(out[match[0]] || '') || 0;
-        if (t > have) out[match[0]] = tombs[k];
+        var id = match[0];
+        if (Object.keys(keysOfId[id]).length !== 1 || incoming[id]) return;
+        var t = Date.parse(tombs[k]) || 0, have = Date.parse(out[id] || '') || 0;
+        if (t > have) out[id] = tombs[k];
       });
       return out;
     }

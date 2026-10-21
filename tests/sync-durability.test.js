@@ -627,7 +627,7 @@ console.log('A page never uploads over its Drive file after failing to read it')
         const el = () => ({ classList: { add() {}, remove() {} }, style: {}, innerHTML: '' });
         const sb = {
           console, JSON, Date, Math, Object, Array, String, Promise, setTimeout, clearTimeout,
-          document: { getElementById: el }, window: {},
+          document: { getElementById: el }, window: {}, CESTISCore: core,
           CESTISStore: { getItem: k => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, String(v)), removeItem: k => map.delete(k) },
           currentRole: opts.role, currentStudent: null, currentInstructor: null, currentLoggedInUser: { id: 'U1' },
           isCloudConnected: !!opts.connected, googleAccessToken: opts.connected ? 'tok' : null,
@@ -667,13 +667,18 @@ console.log('A page never uploads over its Drive file after failing to read it')
     {
       const merge = extractFunction(SRC, 'mergeBackupData');
       assert(merge.indexOf('CESTISCore.sync.mergeExamResults(examResults') !== -1, 'exam results merge by the result rule');
-      assert(merge.indexOf('perEntry: ASSIGNMENT_GRADE_MAPS') !== -1, 'assignment grades merge trainee by trainee');
-      assert(merge.indexOf("unionStamps: ['readBy', 'clearedBy']") !== -1, 'notifications merge per person');
+      // The rules come from the core (Core.sync.RECORD_MAPS), the one
+      // definition the Centre's network and its server merge by too.
+      assert(merge.indexOf("CESTISCore.sync.mapRules('assignments'") !== -1, 'assignment grades merge trainee by trainee');
+      assert(merge.indexOf("CESTISCore.sync.mapRules('notifications'") !== -1, 'notifications merge per person');
+      assertEq(JSON.stringify(core.sync.RECORD_MAPS.assignments), JSON.stringify({ perEntry: { grades: 'gradeMeta.gradedAt' }, unionStamps: ['gradeLog'] }),
+        'grades are dated per trainee and the grade history is kept whole');
+      assertEq(JSON.stringify(core.sync.RECORD_MAPS.notifications), JSON.stringify({ unionStamps: ['readBy', 'clearedBy'] }), 'read and cleared per person');
       assert(merge.indexOf('mergeIncomingTombstoneLists(backupData.data)') !== -1, 'the trainee, centre and account deletion lists travel in the backup');
       assert(merge.indexOf('CESTISCore.calendarEventKey') !== -1, 'calendar events by id');
       assert(merge.indexOf('_mergeBackupFailed = true') !== -1, 'a merge that throws is reported, not taken for a merge');
       const side = extractFunction(SRC, 'syncAssignmentsFromDrive');
-      assert(side.indexOf("tombs: syncTombsFor('instructorAssignments')") !== -1 && side.indexOf('perEntry: ASSIGNMENT_GRADE_MAPS') !== -1,
+      assert(side.indexOf("tombs: syncTombsFor('instructorAssignments')") !== -1 && side.indexOf("CESTISCore.sync.mapRules('assignments'") !== -1,
         'the assignments side file follows the same rules, deletions included');
       assert(extractFunction(SRC, 'saveAssignmentsToDrive').indexOf('tombstones:') !== -1, 'and carries the deletions');
       const chatTo = extractFunction(SRC, 'lmsChatSyncToDrive');
@@ -683,7 +688,7 @@ console.log('A page never uploads over its Drive file after failing to read it')
         extractFunction(SRC, 'saveState').indexOf('window._cestisImporting') !== -1, 'a restore cannot be saved over before the reload');
       assert(extractFunction(SRC, 'saveState').indexOf('CESTISStore.isReady()') !== -1, 'nothing saves before the durable store is read in');
       assert(extractFunction(SRC, 'gradeSubmission').indexOf('CESTISCore.coursework.recordGrade(') !== -1 &&
-        /var ASSIGNMENT_GRADE_MAPS = \{ grades: 'gradeMeta\.gradedAt' \}/.test(SRC), 'each grade is dated, and merged by that date');
+        core.sync.RECORD_MAPS.assignments.perEntry.grades === 'gradeMeta.gradedAt', 'each grade is dated, and merged by that date');
       assert(extractFunction(SRC, 'cdRevokePermissions').indexOf('permissionsRevokedAtMs') !== -1, 'a revocation is dated');
       assert(extractFunction(SRC, 'saveCalendarEventForm').indexOf('Object.assign({}, old, changes, { updatedAt: now })') !== -1, 'a calendar edit keeps its id and is dated');
       assert(extractFunction(SRC, 'clearAllNotifications').indexOf('syncTombstoneRemoved') === -1, '"Clear all" no longer deletes for everyone');

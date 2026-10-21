@@ -516,7 +516,17 @@
   var LAN_REFRESH_MS = 30000;
   var lan = { probe: null, on: false, token: '', offset: 0, synced: false, failures: 0, cache: {} };
 
-  function lanNow() { return new Date(Date.now() + (lan.offset || 0)).toISOString(); }
+  /* Off the Centre's network, "now" is this device's clock as corrected by the
+     last server time it measured (CESTISCore.sync.setClockOffset — Google's
+     Date header on the dashboard), so a clock days fast does not date its
+     writes into the future. */
+  function lanNow() {
+    if (!lan.on && !lan.offset) {
+      var S = root.CESTISCore && root.CESTISCore.sync;
+      if (S && typeof S.nowIso === 'function') return S.nowIso();
+    }
+    return new Date(Date.now() + (lan.offset || 0)).toISOString();
+  }
 
   /* Keys that describe THIS device, never the Centre: copying them to another
      machine would sign people in as each other or resume someone else's exam.
@@ -565,7 +575,12 @@
       .then(function (d) {
         if (!(d && d.ok && d.mode === 'offline-lan')) return false;
         var t = Date.parse(d.time || '');
-        if (!isNaN(t)) lan.offset = t - Date.now();
+        if (!isNaN(t)) {
+          lan.offset = t - Date.now();
+          // Merges on this device judge "a day in the future" by the
+          // Centre's clock too, not by this device's (Core.sync.trusted).
+          try { root.CESTISCore.sync.setClockOffset(lan.offset); } catch (e) {}
+        }
         return fetchLanToken().then(function () { lan.on = true; return true; });
       })
       .catch(function () { return false; });

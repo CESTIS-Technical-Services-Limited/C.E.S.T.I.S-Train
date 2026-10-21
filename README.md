@@ -57,6 +57,20 @@ node megadata/bootstrap-cli.js --src tests/fixtures    # migration dry-run over 
    comparators such as `window.__feeReconcile()` / `__cbReconcile()`) until the exit criteria
    in docs/04 §8 are met; the cutover checklist is docs/04 §9.
 
+## The offline copy (service worker) and its kill switch
+
+`sw.js` lets the dashboard open with no connection (and be installed from `manifest.json`).
+It is **network-first**: whenever the network answers, that answer is used, so a deploy is
+never hidden behind an old copy; the copy is used only when a request fails. It never touches
+other sites (Google, Drive, EmailJS, PeerJS, CDNs), the Offline System's `/_cestis/` and
+`/peerjs` calls, or anything but GET. Its rules are pinned by `tests/service-worker.test.js`.
+
+To switch it off everywhere, deploy a file named **`sw-disable`** (any content) next to
+`index.html`: on the next page load each browser unregisters the worker and deletes its copy.
+Delete the file to allow it again. On a single device, open the site with `?sw=off`.
+Changing `sw.js` at all makes every browser pick up the new worker on its next visit; bump
+`CACHE_VERSION` in it to drop every stored copy.
+
 ## Adding a page to MegaData
 
 1. Pick the pattern: **Tier-A** for money/events (see `pages/fee-model.js`,
