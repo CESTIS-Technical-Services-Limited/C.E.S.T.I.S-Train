@@ -6098,6 +6098,10 @@ function exportDataBackup() {
   };
   var keys = ['voctrain_students','voctrain_exams','voctrain_announcements','voctrain_attendance',
     'voctrain_users','voctrain_classSessions','voctrain_adminMeetings','voctrain_assignments',
+    // Who attended each live class and for how long. Named here because the
+    // sweep below uses the snapshot filter, which skips every key with
+    // "session" in it (voctrain_session*) — and so left these out of the file.
+    'voctrain_vcSessions',
     'voctrain_resources','voctrain_driveResources','voctrain_studentProfiles','voctrain_instructorProfiles',
     'voctrain_systemSettings','voctrain_examResults','voctrain_calendarEvents','voctrain_adrTasks',
     'voctrain_adrStaffMeta','voctrain_adminStaffAccess','voctrain_instructorData','voctrain_certDownloadApprovals',
