@@ -568,9 +568,12 @@ BUILDS.forEach(function (B) {
     assert(/mergeIncomingAttendance\(/.test(body), fn + ' merges attendance through mergeIncomingAttendance');
     assert(!/attendanceRecords\.push\(/.test(body), fn + ' no longer pushes rows of its own');
   });
+  // One backup payload now: "Save to Cloud" runs the automatic save
+  // (sync-22), so the register travels in the one payload every save builds.
   const payloads = (B.src.match(/attendanceRegister: currentRole === 'student' \? undefined : attendanceRegister,/g) || []).length;
-  assertEq(payloads, 2, 'both Drive backups carry every dated mark, every quarter (attendance-07)');
-  assertEq((B.src.match(/attendanceQuarter: \(typeof attnLoadedQuarter/g) || []).length, 2, 'and say which quarter their weekly rows are');
+  assert(payloads >= 1 && /await autoSaveToAllFolders\(\)/.test(extractFunction(B.src, 'saveToCloud', B.where)),
+    'every Drive backup carries every dated mark, every quarter (attendance-07)');
+  assert((B.src.match(/attendanceQuarter: \(typeof attnLoadedQuarter/g) || []).length >= 1, 'and says which quarter its weekly rows are');
   assert(/voctrain_attendanceRegister:\s*function\(v\)\{ mergeIncomingAttendance\(\{ attendanceRegister: v \}\); \}/.test(B.src) &&
     /voctrain_attendance:\s*function\(v\)\{ mergeIncomingAttendance\(\{ attendanceRecords: v \}\); \}/.test(B.src),
     'another tab\'s write is merged, not swapped in (attendance-05)');

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261020c"></script>
+<script src="cestis-core.js?v=20261021t"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Certificate / Transcript Requests — C.E.S.T.I.S</title>
 <style>
@@ -143,7 +143,16 @@ function load() {
   try { requests = JSON.parse(CESTISStore.getItem(KEY) || '[]'); } catch (e) { requests = []; }
   if (!Array.isArray(requests)) requests = [];
 }
+/* Write `requests` back — merged, request by request, into the queue as it is
+   stored RIGHT NOW (T.mergeRequestLists). Writing this page's copy of the
+   whole list (loaded up to five seconds earlier, refreshed only when its
+   length changed) dropped any request a trainee raised meanwhile and undid
+   status changes made in another tab. */
 function save() {
+  var stored = [];
+  try { stored = JSON.parse(CESTISStore.getItem(KEY) || '[]'); } catch (e) { stored = []; }
+  if (!Array.isArray(stored)) stored = [];
+  requests = (T && T.mergeRequestLists) ? T.mergeRequestLists(stored, requests) : requests;
   CESTISStore.setItem(KEY, JSON.stringify(requests));
   try { window.top.postMessage({ type: 'transcript-data-updated', requests: true }, '*'); } catch (e) {}
 }
@@ -193,7 +202,6 @@ function render() {
   var statuses = T ? T.REQUEST_STATUSES : ['pending', 'processing', 'ready', 'collected', 'declined'];
   var labels = T ? T.REQUEST_STATUS_LABELS : {};
   tbody.innerHTML = list.map(function (r) {
-    var idx = requests.indexOf(r);
     return '<tr>' +
       '<td style="font-weight:600;">' + esc(r.studentName || r.studentId) + '</td>' +
       '<td style="color:var(--text-secondary);">' + esc(r.course || '—') + '</td>' +
@@ -201,7 +209,7 @@ function render() {
         (r.handledBy ? '<div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">last update: ' + esc(r.handledBy) + '</div>' : '') + '</td>' +
       '<td><span class="cr-badge t-' + esc(r.type) + '">' + esc((T && T.REQUEST_TYPES[r.type]) || r.type) + '</span></td>' +
       '<td><span class="cr-badge b-' + esc(r.status) + '">' + esc(labels[r.status] || r.status) + '</span></td>' +
-      '<td><select class="cr-select sm" onchange="setStatus(' + idx + ', this.value)">' +
+      '<td><select class="cr-select sm" onchange="setStatus(' + crJsArg(r.id) + ', this.value)">' +
         statuses.map(function (s) {
           return '<option value="' + s + '"' + (s === r.status ? ' selected' : '') + '>' + esc(labels[s] || s) + '</option>';
         }).join('') +
@@ -210,10 +218,17 @@ function render() {
   }).join('');
 }
 
-function setStatus(idx, status) {
+// A request is named by its id, never by its position in a list that a
+// background reload can reorder.
+function crJsArg(v) {
+  if (window.CESTISCore && CESTISCore.html) return CESTISCore.html.jsArg(v);
+  return esc(JSON.stringify(String(v == null ? '' : v)));
+}
+function setStatus(id, status) {
   if (!VIEWER.ok) return;
-  var r = requests[idx];
-  if (!r) return;
+  load();                                   // the queue as it is stored now
+  var r = requests.filter(function (x) { return x && x.id === id; })[0];
+  if (!r) { toast('That request is no longer in the queue'); render(); return; }
   r.status = status;
   r.handledBy = ACTOR;
   r.handledAt = new Date().toISOString();
@@ -272,7 +287,9 @@ CESTISPageCloud.init({
   records: true,
   // A request is about a trainee on a programme, both owned elsewhere: pulled
   // from Drive here, never written back.
-  reads: ['voctrain_students', 'voctrain_skillAreas', 'voctrain_deletedCentreIds']
+  reads: ['voctrain_students', 'voctrain_skillAreas', 'voctrain_deletedCentreIds'],
+  // Requests a trainee sent from their own device arrive with a pull: show them.
+  onRestore: function () { try { if (VIEWER.ok) { load(); render(); } } catch (e) {} }
 });
 </script>
 </body>

@@ -155,7 +155,13 @@ function save(opts) {
   return serialise(file, () => {
     fs.mkdirSync(dataDir, { recursive: true });
     let storedText = null;
-    try { storedText = fs.readFileSync(file, 'utf8'); } catch (e) { storedText = null; }
+    // Only a missing file is "nothing stored". A file that exists but could
+    // not be read right now (busy, locked, out of handles) must not be
+    // treated as empty: the save would then write this one device's keys
+    // over the Centre's whole file. Throwing fails this save (500) and the
+    // device tries again.
+    try { storedText = fs.readFileSync(file, 'utf8'); }
+    catch (e) { if (e && e.code === 'ENOENT') storedText = null; else throw e; }
     const merged = mergeIncoming(opts.core, storedText, incoming);
     const text = JSON.stringify(merged);
     const changedByServer = text !== JSON.stringify(incoming);

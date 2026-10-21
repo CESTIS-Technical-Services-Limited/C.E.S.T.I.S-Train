@@ -45,9 +45,31 @@
     var DB_NAME = 'CESTIS_KV', STORE = 'kv', LS = null;
     try { LS = root.localStorage; } catch (e) { LS = null; }
     var cache = {};
-    try { if (LS) { for (var i = 0; i < LS.length; i++) { var k = LS.key(i); cache[k] = LS.getItem(k); } } } catch (e) {}
+    try { if (LS) { for (var i = 0; i < LS.length; i++) { var k = LS.key(i); if (k && k.indexOf('__cestis_idb_only__:') === 0) continue; cache[k] = LS.getItem(k); } } } catch (e) {}
 
     var db = null, ready = false, wq = [];
+    // A key that no longer fits in localStorage lives in IndexedDB only. Its
+    // localStorage copy is removed (see setItem), and every OTHER document of
+    // this origin hears that removal as a 'storage' event with no value — the
+    // same event a real deletion sends. Taken at face value, an embedded page
+    // or another tab dropped the collection from its cache, read it back as
+    // ABSENT, and then wrote its own stale or partial copy over the durable
+    // one. This small marker says "the value is in IndexedDB, not gone", so
+    // that removal is never mistaken for a deletion.
+    var IDB_ONLY = '__cestis_idb_only__:';
+    function markIdbOnly(k, on) {
+      try { if (!LS) return; if (on) LS.setItem(IDB_ONLY + k, '1'); else if (LS.getItem(IDB_ONLY + k) !== null) LS.removeItem(IDB_ONLY + k); } catch (e) {}
+    }
+    function isIdbOnly(k) { try { return !!LS && LS.getItem(IDB_ONLY + k) !== null; } catch (e) { return false; } }
+    // Read one key straight from IndexedDB into the cache (used when another
+    // document has just written a value too large for localStorage).
+    function refreshFromIDB(k) {
+      if (!db) return;
+      try {
+        var rq = db.transaction(STORE, 'readonly').objectStore(STORE).get(k);
+        rq.onsuccess = function () { if (rq.result !== undefined && rq.result !== null) cache[k] = rq.result; };
+      } catch (e) {}
+    }
     // Durable-write failure tracking: quota errors on the IndexedDB transaction
     // fire asynchronously (transaction onerror/onabort), so a plain try/catch
     // never sees them. Record the failure and notify the app so it can warn the
@@ -91,11 +113,25 @@
               ready = true; drainQueue(); try { root.dispatchEvent(new Event('cestis-store-ready')); } catch (_) {}
             }
           };
-          cur.onerror = function () { ready = true; drainQueue(); };
-        } catch (e) { ready = true; drainQueue(); }
+          cur.onerror = function () { ready = true; drainQueue(); announceReady(); };
+        } catch (e) { ready = true; drainQueue(); announceReady(); }
       };
-      req.onerror = function () { db = null; ready = true; };
-    } catch (e) { db = null; ready = true; }
+      // IndexedDB would not open (private window, blocked storage, a broken
+      // profile). Everything that waits for the store must still start — the
+      // page-cloud sync, the dashboard's reload — and the person must be told
+      // their work is held in this browser's small localStorage only. Before,
+      // nothing was announced: whenReady() waited for ever, the queued writes
+      // were silently abandoned, and no warning appeared.
+      req.onerror = function () { idbUnavailable(); };
+    } catch (e) { idbUnavailable(); }
+    function announceReady() { try { root.dispatchEvent(new Event('cestis-store-ready')); } catch (_) {} }
+    function idbUnavailable() {
+      db = null; ready = true; wq = [];
+      announceReady();
+      writeFailCount++;
+      try { root._cestisStoreWriteFailures = writeFailCount; } catch (_) {}
+      try { root.dispatchEvent(new CustomEvent('cestis-store-write-error', { detail: { key: '*', count: writeFailCount, reason: 'idb-unavailable' } })); } catch (_) {}
+    }
 
     var Store = {
       _cache: cache,
@@ -119,6 +155,17 @@
         if (LS) { try { var lv = LS.getItem(k); if (lv !== null) { cache[k] = lv; return lv; } } catch (e) {} }
         return (k in cache) ? cache[k] : null;
       },
+      /* Might this key have a durable copy that has not reached this document
+         yet? True before IndexedDB has been read in (any key might be there),
+         and for a key known to live in IndexedDB only that this document's
+         cache does not hold. A write that would EMPTY such a key must not go
+         ahead: "not loaded yet" is not "nothing stored" (pageCloud.guardedSet). */
+      mayHoldUnloaded: function (k) {
+        k = String(k);
+        if (k in cache) return false;
+        return !ready || isIdbOnly(k);
+      },
+      isReady: function () { return ready; },
       // `writes` counts every mutation made through this store. It lets the
       // periodic cloud save ask "has anything changed since my last upload?"
       // for the price of an integer compare, instead of re-serialising the
@@ -130,14 +177,27 @@
         // it out-votes the truth on every later read (see getItem above), so the
         // stale entry is removed and the read falls through to the cache and
         // IndexedDB, which both hold what was actually written.
-        try { if (LS) LS.setItem(k, v); }
+        //
+        // A full localStorage is not a failure of durable storage: IndexedDB
+        // still holds the value. It used to raise the "Device Storage Is
+        // Failing — recent changes may be lost" alarm on every save once one
+        // collection outgrew the ~5 MB mirror, although nothing was lost. Only
+        // a failure with no IndexedDB behind it is reported now (IndexedDB's
+        // own failures are reported by writeIDB).
+        // (Other documents hear the removal below as a queued 'storage'
+        // event, so the marker set straight after it is there when they do.)
+        var lsOk = false;
+        try { if (LS) { LS.setItem(k, v); lsOk = true; } }
         catch (e) {
           try { if (LS) LS.removeItem(k); } catch (e2) {}
-          reportWriteFailure(k, e);
+          markIdbOnly(k, true);
+          try { console.info('[CESTISStore] "' + k + '" is too large for localStorage; it is kept in IndexedDB.'); } catch (_) {}
+          if (ready && !db) reportWriteFailure(k, e);
         }
+        if (lsOk) markIdbOnly(k, false);
         writeIDB(k, v, false);
       },
-      removeItem: function (k) { k = String(k); Store.writes++; delete cache[k]; try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
+      removeItem: function (k) { k = String(k); Store.writes++; delete cache[k]; markIdbOnly(k, false); try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
       clear: function () {
         for (var k in cache) { if (Object.prototype.hasOwnProperty.call(cache, k)) delete cache[k]; }
         try { if (LS) LS.clear(); } catch (e) {}
@@ -158,7 +218,25 @@
         if (!ev) return;
         if (ev.key === null) { for (var ck in cache) { if (Object.prototype.hasOwnProperty.call(cache, ck)) delete cache[ck]; } return; }
         var sk = String(ev.key);
-        if (ev.newValue === null) { delete cache[sk]; } else { cache[sk] = ev.newValue; }
+        if (sk.indexOf(IDB_ONLY) === 0) {
+          // The marker went: the value is back in localStorage (read through
+          // as usual) — or it was deleted, which localStorage itself could
+          // not announce, since it never held the value.
+          if (ev.newValue === null) {
+            var real = sk.slice(IDB_ONLY.length);
+            var inLS = null;
+            try { inLS = LS ? LS.getItem(real) : null; } catch (e) {}
+            if (inLS === null) delete cache[real];
+          }
+          return;
+        }
+        if (ev.newValue === null) {
+          // The value moved to IndexedDB (too large for localStorage) rather
+          // than being deleted: keep what this document holds and fetch the
+          // new value from IndexedDB, instead of treating the collection as gone.
+          if (isIdbOnly(sk)) { refreshFromIDB(sk); return; }
+          delete cache[sk];
+        } else { cache[sk] = ev.newValue; }
       });
     } catch (e) {}
     root.CESTISStore = Store;
@@ -599,7 +677,11 @@
     // and every sync: if it were dropped, the record it protects would be
     // collapsed into its namesake on the very next launch — the one outcome an
     // admin set it to prevent.
-    'keepSeparate'];
+    'keepSeparate',
+    // A deliberate re-enrolment after the person's earlier record was deleted
+    // (see Core.isReEnrolment). Lose it in a merge and the new enrolment is
+    // dropped as though it were the deleted record coming back.
+    'reEnrolledAt'];
 
   Core.mergeStudentRecords = function (a, b) {
     var aMod = a && a.lastModified ? new Date(a.lastModified).getTime() : 0;
@@ -633,7 +715,27 @@
     // later decision, whichever copy was edited last for other reasons; the
     // newest signature travels too.
     if (Core.certs) Core.certs.mergeLifecycle(base, other || {});
+    // ...and a withdrawn certificate stays withdrawn. The blank-filling above
+    // (and "the first number stands") put the number, date and collected flag
+    // of the OLDER, still-certified copy straight back onto the record that
+    // had just been withdrawn, so the certificate verified again after the
+    // next sync. While the newest decision on either copy is a withdrawal,
+    // the number lives on only as an alias.
+    Core.settleWithdrawnCertificate(base);
     return base;
+  };
+
+  /* A record whose newest certificate decision is a withdrawal carries no
+     live certificate: its number (kept as an alias, so the paper still
+     resolves — as withdrawn), date and collected flag are cleared. Returns
+     true when it changed anything. */
+  Core.settleWithdrawnCertificate = function (rec) {
+    if (!rec || !Core.certs || !Core.certs.isRevoked(rec)) return false;
+    var changed = false;
+    if (rec.certNo) { Core.certs.rememberAlias(rec, rec.certNo); rec.certNo = null; changed = true; }
+    if (rec.certDate) { rec.certDate = null; changed = true; }
+    if (rec.certCollected) { rec.certCollected = false; changed = true; }
+    return changed;
   };
 
   /* --- Which centre does a record's programme point at, for IDENTITY? ------
@@ -706,6 +808,37 @@
   // True when an administrator has pinned this record as its own person.
   Core.isKeptSeparate = function (s) {
     return !!(s && (s.keepSeparate === true || s.keepSeparate === 'true'));
+  };
+
+  /* A record minted as a NEW enrolment for a person whose earlier record was
+     deleted (Student Progress "Add Student", when the name + programme it would
+     be filed under is tombstoned).
+
+     Deleting a trainee writes down their stable id, a hash of name + programme
+     that ignores the intake. Without this, nobody of that name could ever be
+     enrolled on that programme again — any intake, any year: the new record got
+     exactly the deleted id and was dropped at the next load, taking its
+     attendance, results and login with it. A re-enrolment therefore carries an
+     id of its own and this marker, and the deleted id goes on blocking only
+     copies of the record that was actually deleted (which never carry it). */
+  Core.isReEnrolment = function (s) {
+    return !!(s && s.reEnrolledAt && String(s.reEnrolledAt).trim() !== '');
+  };
+  /* Does this record keep the id it has, whatever its name and programme hash
+     to? An administrator's "keep separate" pin, or a re-enrolment. */
+  Core.keepsOwnId = function (s) {
+    return Core.isKeptSeparate(s) || Core.isReEnrolment(s);
+  };
+  /* The id a new enrolment should get. Normally the stable id; when that id
+     is tombstoned (the person — or a namesake — was deleted from this
+     programme before), an id of its own plus the re-enrolment marker.
+     `deletedMap` is { id: true }. Returns { id, reEnrolledAt }. */
+  Core.newEnrolmentId = function (student, deletedMap, nowIso) {
+    var stable = Core.stableStudentId(student);
+    if (!stable) return { id: null, reEnrolledAt: '' };
+    if (!deletedMap || deletedMap[stable] !== true) return { id: stable, reEnrolledAt: '' };
+    var at = nowIso || new Date().toISOString();
+    return { id: 'STU-' + Core.hashString(Core.naturalKey(student) + '|enrolled|' + at), reEnrolledAt: at };
   };
 
   // How much real use does this record show? Higher wins.
@@ -858,7 +991,7 @@
 
     list.forEach(function (s, at) {
       if (!s) return;
-      if (Core.isKeptSeparate(s)) return;              // the admin pinned this one
+      if (Core.keepsOwnId(s)) return;                  // the admin pinned this one, or a re-enrolment
       if (!Core.normName(s.name)) return;              // nameless records are left alone
       var slot = slotFor(s);
       slotAt[at] = slot;
@@ -881,7 +1014,7 @@
     var emitted = [], out = [];
     list.forEach(function (s, at) {
       if (!s) { out.push(s); return; }
-      if (Core.isKeptSeparate(s)) { out.push(s); return; }   // stands on its own
+      if (Core.keepsOwnId(s)) { out.push(s); return; }       // stands on its own
       var slot = slotAt[at];
       if (!slot) { out.push(s); return; }                    // nameless
       if (emitted.indexOf(slot) !== -1) return;
@@ -924,8 +1057,9 @@
     var groups = {};  // name|bare -> { keys: {key -> kept}, unkeyed: kept|null }
     function groupOf(s) {
       // A record the administrator pinned as its own person is exempt from
-      // every dedup, this one included.
-      if (Core.isKeptSeparate(s)) return null;
+      // every dedup, this one included — and so is a re-enrolment, which must
+      // never be folded into a stale copy of the record that was deleted.
+      if (Core.keepsOwnId(s)) return null;
       var n = Core.normName(s.name);
       if (!n) return null;
       var pid = Core.programmeIdentity(s, courseField);
@@ -1027,7 +1161,9 @@
 
   /* --- Relink dependent arrays after ids change (pure-ish; mutates input) -
      `data` is an object with any of: userAccounts, attendanceRecords,
-     certDownloadApprovals, examResults. Every reference to a remapped student
+     certDownloadApprovals, examResults, transcriptGrades,
+     certTranscriptRequests, and the id-keyed maps transcriptProfiles and
+     studentProfiles. Every reference to a remapped student
      id is updated to the kept id, and the obvious duplicates that result are
      collapsed — mirroring relinkDependentData() in index.html. */
   Core.relinkDependentData = function (idMap, data) {
@@ -1101,9 +1237,35 @@
     }
 
     if (Array.isArray(data.transcriptGrades)) {
+      /* A manual grade's id is a hash of (student | qualification | unit), so
+         the record that just followed its trainee to a new id is re-filed under
+         the id that student now gives it. Left on the old id it could not be
+         edited or removed: saving the unit again wrote a SECOND record beside
+         it, and removing the override removed the new one and left the ghost.
+         When the new id is already taken (the unit was graded under both ids),
+         the more recently saved grade stands. */
+      var movedIds = {};
+      var gid = Core.Transcript && Core.Transcript.manualGradeId;
       data.transcriptGrades.forEach(function (g) {
-        if (g && g.studentId && idMap[g.studentId]) g.studentId = idMap[g.studentId];
+        if (!g || !g.studentId || !idMap[g.studentId]) return;
+        g.studentId = idMap[g.studentId];
+        if (gid && g.qualId && g.unitCode && g.id != null) {
+          g.id = gid(g.studentId, g.qualId, g.unitCode);
+          movedIds[g.id] = true;
+        }
       });
+      if (Object.keys(movedIds).length) {
+        var gTime = function (g) { var t = Date.parse((g && g.updatedAt) || ''); return isNaN(t) ? 0 : t; };
+        var bestGrade = {};
+        data.transcriptGrades.forEach(function (g) {
+          if (!g || !movedIds[g.id]) return;
+          var cur = bestGrade[g.id];
+          if (!cur || gTime(g) > gTime(cur)) bestGrade[g.id] = g;
+        });
+        data.transcriptGrades = data.transcriptGrades.filter(function (g) {
+          return !(g && movedIds[g.id]) || bestGrade[g.id] === g;
+        });
+      }
     }
 
     if (Array.isArray(data.certTranscriptRequests)) {
@@ -1112,7 +1274,73 @@
       });
     }
 
+    /* Maps keyed by student id: the transcript header (date of birth, address,
+       ID number) and the trainee's profile (email). Nothing re-keyed them, so a
+       rename — which moves the stable id — left the header printed blank and
+       the email behind on an id no record answers to any more. Moved to the new
+       id; when the new id already holds one, the more recently saved one is
+       filed under the new id and the other is left where it was, never
+       deleted. */
+    var rekeyMap = function (map) {
+      if (!map || typeof map !== 'object' || Array.isArray(map)) return;
+      var has = function (k) { return Object.prototype.hasOwnProperty.call(map, k) && map[k] != null; };
+      var at = function (p) { var t = Date.parse((p && p.updatedAt) || ''); return isNaN(t) ? 0 : t; };
+      Object.keys(idMap).forEach(function (oldId) {
+        var to = idMap[oldId];
+        if (to == null || to === oldId || !has(oldId)) return;
+        var moving = map[oldId];
+        if (!has(to)) { map[to] = moving; delete map[oldId]; return; }
+        if (at(moving) > at(map[to])) { map[oldId] = map[to]; map[to] = moving; }
+      });
+    };
+    rekeyMap(data.transcriptProfiles);
+    rekeyMap(data.studentProfiles);
+
     return data;
+  };
+
+  /* The collections keyed by student id that live only in the shared store —
+     no page holds them in memory except the Transcript page. Every path that
+     moves student ids (the stabilisers on the dashboard and in Student
+     Progress, the duplicate collapse) must carry them too, or a rename orphans
+     the trainee's manual grades, transcript header and open requests. */
+  Core.STORE_RELINK_KEYS = {
+    transcriptGrades: 'voctrain_transcriptGrades',
+    certTranscriptRequests: 'voctrain_certTranscriptRequests',
+    transcriptProfiles: 'voctrain_transcriptProfiles'
+  };
+
+  /* Relink the store-held collections above through `idMap`, reading each
+     fresh from `store` and writing it back only when something moved (and
+     never as an empty value — see pageCloud.guardedSet). Returns the keys
+     written. One function, so every place that re-ids trainees carries the
+     same set of records. */
+  Core.relinkStoredDependents = function (idMap, store) {
+    if (!idMap || !Object.keys(idMap).length || !store) return [];
+    var data = {}, before = {}, k;
+    for (k in Core.STORE_RELINK_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(Core.STORE_RELINK_KEYS, k)) continue;
+      var raw = null;
+      try { raw = store.getItem(Core.STORE_RELINK_KEYS[k]); } catch (e) { raw = null; }
+      if (raw == null || raw === '') continue;
+      var v;
+      try { v = JSON.parse(raw); } catch (e) { continue; }
+      if (v == null || typeof v !== 'object') continue;
+      before[k] = raw;
+      data[k] = v;
+    }
+    Core.relinkDependentData(idMap, data);
+    var wrote = [];
+    Object.keys(before).forEach(function (key) {
+      var next = JSON.stringify(data[key]);
+      if (next === before[key]) return;
+      var storageKey = Core.STORE_RELINK_KEYS[key];
+      var ok = Core.pageCloud && Core.pageCloud.guardedSet
+        ? Core.pageCloud.guardedSet(store, storageKey, next)
+        : (function () { try { store.setItem(storageKey, next); return true; } catch (e) { return false; } })();
+      if (ok) wrote.push(storageKey);
+    });
+    return wrote;
   };
 
   /* --- One-time migration to stable ids (pure-ish; mutates `data`) --------
@@ -1140,7 +1368,9 @@
       // results ran together, deleting one tombstoned both, and the next sync
       // that added anything replaced one of them with a copy of the other. The
       // id they already carry is unique on this device and must not move.
-      if (Core.isKeptSeparate(s) && s.id != null && String(s.id) !== '') return;
+      // A re-enrolment keeps its own id for the same reason: its stable id is
+      // the deleted record's, and moving onto it would drop it as that record.
+      if (Core.keepsOwnId(s) && s.id != null && String(s.id) !== '') return;
       var newId = Core.stableStudentId(s);
       if (!newId) return; // no natural key — leave id alone
       if (s.id !== newId) {
@@ -1189,7 +1419,7 @@
     if (!id) return false;
     return Core.readDeletedIds(store)[id] === true;
   };
-  Core.recordDeletedStudent = function (id, store) {
+  Core.recordDeletedStudent = function (id, store, atIso) {
     if (!id) return;
     store = _store(store);
     try {
@@ -1197,6 +1427,89 @@
       existing[id] = true;
       if (store) store.setItem(Core.TOMBSTONE_KEY, JSON.stringify(Object.keys(existing)));
     } catch (e) {}
+    Core.recordStudentDeletionTime(id, store, atIso);
+  };
+
+  /* --- WHEN a trainee was deleted, so the same person can enrol again ----
+
+     A trainee's id is derived from their name and programme, so a person
+     deleted and later re-enrolled on the same programme gets the SAME id —
+     and the tombstone written by the deletion, which nothing ever removed,
+     silently dropped the new enrolment on every device, together with its
+     login, results and attendance. The id list cannot carry a time without
+     breaking every page that reads it as a list of ids, so the time of each
+     deletion is kept alongside it under voctrain_deletedStudentAt
+     ({ id: deletedAtISO }, unioned like every tombstone, the later time of
+     each id standing).
+
+     A record is hidden by a tombstone unless it was ENROLLED after the
+     deletion: a new enrolment carries enrolledAt, stamped when it is
+     created (markEnrolment). An edit to the old record on a device that had
+     not yet heard of the deletion does not bring it back — only a new
+     enrolment does. A deletion with no recorded time (every one made before
+     this) hides the record as it always did, until somebody re-enrols the
+     person, which writes the time down. */
+  Core.DELETED_AT_KEY = 'voctrain_deletedStudentAt';
+  Core._parseObj = function (raw) {
+    try { var v = JSON.parse(raw || 'null'); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; }
+    catch (e) { return {}; }
+  };
+  Core.readDeletedStudentTimes = function (store) {
+    store = _store(store);
+    try { return Core._parseObj(store && store.getItem(Core.DELETED_AT_KEY)); } catch (e) { return {}; }
+  };
+  Core.recordStudentDeletionTime = function (id, store, atIso) {
+    if (!id) return;
+    store = _store(store);
+    if (!store) return;
+    try {
+      var times = Core.readDeletedStudentTimes(store);
+      var at = atIso || new Date().toISOString();
+      if ((Date.parse(times[id]) || 0) >= (Date.parse(at) || 0)) return;
+      times[id] = at;
+      store.setItem(Core.DELETED_AT_KEY, JSON.stringify(times));
+    } catch (e) {}
+  };
+  /* Is this record hidden by a tombstone? deletedMap is { id: true }
+     (readDeletedIds); times is { id: ISO } (readDeletedStudentTimes) — when
+     omitted it is read from the store, so every caller honours re-enrolment. */
+  Core.isStudentTombstoned = function (s, deletedMap, times) {
+    if (!s) return false;
+    deletedMap = deletedMap || {};
+    var hit = [];
+    if (s.id != null && deletedMap[s.id] === true) hit.push(String(s.id));
+    // A deliberate re-enrolment (Core.isReEnrolment) is matched on its OWN id
+    // only: its stable id belongs to the record that was deleted.
+    var sid = Core.isReEnrolment(s) ? null : Core.stableStudentId(s);
+    if (sid && deletedMap[sid] === true && hit.indexOf(sid) === -1) hit.push(sid);
+    if (!hit.length) return false;
+    var enrolled = Date.parse(s.enrolledAt || '') || 0;
+    if (!enrolled) return true;
+    if (times === undefined) times = Core.readDeletedStudentTimes();
+    times = times || {};
+    return hit.some(function (id) {
+      var t = Date.parse(times[id] || '') || 0;
+      return !t || t >= enrolled;
+    });
+  };
+  /* Stamp a NEW enrolment (a record being created, never an edit), so a
+     tombstone left by an earlier deletion of the same person does not hide
+     it. A deletion that has no time yet is given one just before this
+     enrolment — it still hides every older copy of the record. */
+  Core.markEnrolment = function (student, store, nowIso) {
+    if (!student) return student;
+    var nowMs = Date.parse(nowIso || '') || Date.now();
+    student.enrolledAt = new Date(nowMs).toISOString();
+    store = _store(store);
+    if (!store) return student;
+    var deleted = Core.readDeletedIds(store);
+    var times = Core.readDeletedStudentTimes(store);
+    [student.id, Core.stableStudentId(student)].forEach(function (id) {
+      if (id == null || deleted[id] !== true) return;
+      if (Date.parse(times[id] || '')) return;
+      Core.recordStudentDeletionTime(id, store, new Date(nowMs - 1).toISOString());
+    });
+    return student;
   };
 
   // Drop any student that has been tombstoned (deleted), matching on BOTH the
@@ -1206,19 +1519,26 @@
   // recovery, etc.) — because even a copy carrying a different id resolves to
   // the same tombstoned stable id. Returns the kept list + the dropped ids so
   // callers can purge dependent records.
-  Core.dropTombstonedStudents = function (students, deletedMap) {
+  // A deliberate re-enrolment (Core.isReEnrolment) is matched on its OWN id
+  // only, and a record ENROLLED after the deletion (Core.markEnrolment) is a
+  // new enrolment of the same person and is kept; `times` is the deletion-time
+  // map (read from the store when omitted). An id still held by a kept
+  // record is never reported as dropped, so its dependants stay.
+  Core.dropTombstonedStudents = function (students, deletedMap, times) {
     deletedMap = deletedMap || {};
-    var dropped = {};
+    if (times === undefined) times = Core.readDeletedStudentTimes();
+    var dropped = {}, keptIds = {};
     var kept = (students || []).filter(function (s) {
       if (!s) return false;
-      var sid = Core.stableStudentId(s);
-      if (deletedMap[s.id] === true || (sid && deletedMap[sid] === true)) {
+      if (Core.isStudentTombstoned(s, deletedMap, times || {})) {
         if (s.id != null) dropped[s.id] = true;
         return false;
       }
+      if (s.id != null) keptIds[s.id] = true;
       return true;
     });
-    return { students: kept, droppedIds: Object.keys(dropped), removed: (students ? students.length : 0) - kept.length };
+    return { students: kept, droppedIds: Object.keys(dropped).filter(function (id) { return !keptIds[id]; }),
+      removed: (students ? students.length : 0) - kept.length };
   };
 
   /* --- Lightweight change bus -------------------------------------------
@@ -1291,7 +1611,13 @@
                                'cestisTimeRecordTombstones',
                                // Deleted invoices, quotes and purchase orders (by id).
                                'cestis_finance_invoices_deleted', 'cestis_finance_quotes_deleted',
-                               'cestis_finance_pos_deleted'];
+                               'cestis_finance_pos_deleted',
+                               // WHEN each trainee was deleted ({ id: ISO }), so a person
+                               // re-enrolled after the deletion is not hidden by it
+                               // (Core.isStudentTombstoned). Unioned by the later time.
+                               'voctrain_deletedStudentAt',
+                               // Virement requests deleted on the Virement page (by id).
+                               'cesti_virement_deleted_ids'];
 
   // Is this key a list of deletions — one that must be merged by union rather
   // than by "the newer write wins"?
@@ -1304,6 +1630,23 @@
      hold the same deletions produce the same string and stop rewriting each
      other. Returns null when the union adds nothing to `a`. */
   Core.unionTombstoneValues = function (a, b) {
+    // A map of deletion times ({ id: ISO }): every id either side holds, with
+    // the later time of each.
+    var pa = null, pb = null;
+    try { pa = JSON.parse(a || 'null'); } catch (e) { pa = null; }
+    try { pb = JSON.parse(b || 'null'); } catch (e) { pb = null; }
+    var isMap = function (v) { return !!v && typeof v === 'object' && !Array.isArray(v); };
+    if (isMap(pa) || isMap(pb)) {
+      var out = {}, grew = false;
+      Object.keys(isMap(pa) ? pa : {}).forEach(function (k) { out[k] = pa[k]; });
+      Object.keys(isMap(pb) ? pb : {}).forEach(function (k) {
+        if (out[k] === undefined || (Date.parse(pb[k]) || 0) > (Date.parse(out[k]) || 0)) { out[k] = pb[k]; grew = true; }
+      });
+      if (!grew) return null;
+      var sorted = {};
+      Object.keys(out).sort().forEach(function (k) { sorted[k] = out[k]; });
+      return JSON.stringify(sorted);
+    }
     var set = {}, order = [];
     var take = function (raw) {
       Core._parseArr(raw).forEach(function (id) {
@@ -1332,8 +1675,20 @@
     if (/lastsync/i.test(key)) return false;         // *LastSyncTime
     if (key === 'darkMode') return false;
     if (/examInProgress/i.test(key)) return false;   // volatile exam state
+    // Who is signed in on THIS machine, its own sync bookkeeping and its
+    // one-off dismissals. A master snapshot restored them onto other
+    // devices — the time clock then opened as whoever was signed in on the
+    // machine that wrote the snapshot.
+    if (DEVICE_ONLY_KEYS.indexOf(key) !== -1) return false;
+    if (key.indexOf('cestis_pagecloud_stamps__') === 0) return false;
+    if (key.indexOf('__cestis_idb_only__:') === 0) return false;
     return true;
   };
+  var DEVICE_ONLY_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
+    'cestisAttendanceCurrentUser', 'cestisTimeDarkMode', 'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
+    'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
+    // "this device holds work not yet uploaded" — true of THIS device only.
+    'cestisPendingUpload', 'cestisUnsyncedOnSignOut'];
 
   Core._parseArr = function (raw) {
     try { var v = JSON.parse(raw || 'null'); return Array.isArray(v) ? v : []; }
@@ -1448,6 +1803,43 @@
     var deletedStudents = {};
     Core._parseArr(localStoreMap['voctrain_deletedStudentIds']).forEach(function (id) { if (id) deletedStudents[id] = true; });
     Core._parseArr(snapStore['voctrain_deletedStudentIds']).forEach(function (id) { if (id) deletedStudents[id] = true; });
+    var deletedStudentAt = Core._parseObj(out[Core.DELETED_AT_KEY]);
+
+    /* Every OTHER deletion, too. Only the trainees' tombstones were honoured
+       here, so a payment, an account, an exam, an announcement or a result
+       deleted on any device came back at the next sign-in from whichever
+       snapshot still held it. A snapshot record is not added back when:
+         - its id is on the collection's own deletion list (accounts,
+           payments), or
+         - the record sync's tombstones (voctrain_syncTombstones, this
+           device's and the snapshot's together) say it was deleted after its
+           last edit — the same rule every sync follows. */
+    var idListTombs = {
+      voctrain_users: 'voctrain_deletedUserIds',
+      cestiSchoolFeePayments: 'cestiSchoolFeeDeletedPaymentIds'
+    };
+    var syncT = {};
+    [localStoreMap.voctrain_syncTombstones, snapStore.voctrain_syncTombstones].forEach(function (raw) {
+      var t = Core._parseObj(raw);
+      Object.keys(t).forEach(function (col) {
+        if (t[col] && typeof t[col] === 'object') syncT[col] = Core.sync.mergeTombstones(syncT[col] || {}, t[col]);
+      });
+    });
+    var gone = function (key, r) {
+      if (!r || typeof r !== 'object') return false;
+      var lk = idListTombs[key];
+      if (lk && r.id != null) {
+        var ids = {};
+        Core._parseArr(out[lk]).forEach(function (id) { ids[String(id)] = true; });
+        if (ids[String(r.id)]) return true;
+      }
+      var spec = Core.pageCloud && Core.pageCloud.recordSpec ? Core.pageCloud.recordSpec(key) : null;
+      if (spec && spec.tombs && typeof spec.id === 'function' && syncT[spec.tombs]) {
+        var k = spec.id(r);
+        if (k !== undefined && k !== null && Core.sync.deletedAfter(syncT[spec.tombs], k, r)) return true;
+      }
+      return false;
+    };
 
     // 2) id-keyed array collections: union (add-missing), keep local on id clash.
     var studentIdMap = {};   // oldStudentId -> keptStudentId, from the dedupe below
@@ -1485,14 +1877,15 @@
       var added = 0;
       snapArr.forEach(function (r) {
         if (!r || r.id == null) return;
-        if (isStudents && deletedStudents[r.id]) return; // honor tombstone on add
+        if (isStudents && Core.isStudentTombstoned(r, deletedStudents, deletedStudentAt)) return; // honor tombstone on add
         if (r.id in byId) return;                        // this device already has it
+        if (gone(key, r)) return;                        // deleted since — see above
         byId[r.id] = r; merged.push(r); added++;
       });
       var changedHere = (added > 0);
       if (isStudents) {
         // Drop any student (local OR added) that is now tombstoned, then dedupe.
-        var dropRes = Core.dropTombstonedStudents(merged, deletedStudents);
+        var dropRes = Core.dropTombstonedStudents(merged, deletedStudents, deletedStudentAt);
         if (dropRes.removed > 0) { merged = dropRes.students; result.droppedTombstoned += dropRes.removed; changedHere = true; }
         var dr = Core.dedupeStudents(merged);
         if (dr.removed > 0) changedHere = true;
@@ -1614,10 +2007,23 @@
       if (Core.SNAPSHOT_COUNT_KEYS.indexOf(key) !== -1) return;
       if (Core.TOMBSTONE_UNION_KEYS.indexOf(key) !== -1) return;
       if (key === Core.ATTENDANCE_REGISTER_KEY) return;
+      // Snapshots written before the per-device keys were excluded still
+      // carry them (who was signed in on the writing machine): never restore.
+      if (!Core.isSnapshotableKey(key)) return;
       var local = localStoreMap[key];
       var localEmpty = (local == null || local === '' || local === '[]' || local === '{}');
       if (localEmpty && snapStore[key] != null && snapStore[key] !== '') {
-        out[key] = snapStore[key];
+        var restore = snapStore[key];
+        // A collection emptied by deleting its last record is empty on
+        // purpose: what the tombstones say was deleted is not restored.
+        var arr = null;
+        try { arr = JSON.parse(restore); } catch (e) { arr = null; }
+        if (Array.isArray(arr)) {
+          var keepRecs = arr.filter(function (r) { return !gone(key, r); });
+          if (!keepRecs.length && arr.length) return;
+          if (keepRecs.length !== arr.length) restore = JSON.stringify(keepRecs);
+        }
+        out[key] = restore;
         result.restoredKeys.push(key);
         result.changed = true;
       }
@@ -4577,7 +4983,12 @@
        devices holding the same centres agree on the keys without having to talk
        to each other. Centres that already carry a key keep it, so nothing
        already stamped on a trainee moves. */
-    function assignCentreKeys(areas) {
+    /* `reservedKeys` (optional) are keys no new centre may take although no
+       live centre carries them: the keys of deleted intakes still stamped on
+       trainee and fee records. Without it, a new centre created after the
+       newest intake was deleted was handed that intake's key — and with it,
+       on day one, every trainee who had been on the deleted intake. */
+    function assignCentreKeys(areas, reservedKeys) {
       if (!Array.isArray(areas)) return 0;
       var taken = {}, n = 0, i;
       for (i = 0; i < areas.length; i++) {
@@ -4585,6 +4996,10 @@
         var k = areas[i].centreKey != null ? padKey(areas[i].centreKey) : '';
         if (k) taken[k] = true;
       }
+      (Array.isArray(reservedKeys) ? reservedKeys : []).forEach(function (rk) {
+        var p = padKey(rk);
+        if (p) taken[p] = true;
+      });
 
       // Everything still unkeyed, in a device-independent order.
       var pending = [];
@@ -5137,9 +5552,35 @@
       };
     }
 
+    /* The id for a NEW training centre: one more than any id this Centre has
+       ever used — live centres AND deleted ones.
+
+       It used to be one more than the highest LIVE id, so deleting the newest
+       intake freed its id and the next centre created took it. The deletion is
+       written down by id and that list is merged by union on every device, so
+       at the next sync the brand-new centre was hidden as "deleted"; until then
+       it inherited the deleted intake's trainees (their records carry its id
+       and key) and its chat room. Ids are never reused now, so a deletion only
+       ever applies to the centre that was deleted. `extraIds` lets a caller add
+       ids known elsewhere (the chat rooms of deleted centres). */
+    function nextCentreId(areas, store, extraIds) {
+      var max = 0;
+      var see = function (v) {
+        var s = String(v == null ? '' : v).trim();
+        if (!/^\d+$/.test(s)) return;
+        var n = Number(s);
+        if (n > max) max = n;
+      };
+      (Array.isArray(areas) ? areas : []).forEach(function (a) { if (a) see(a.id); });
+      deletedIds(store).forEach(see);
+      (Array.isArray(extraIds) ? extraIds : []).forEach(see);
+      return max + 1;
+    }
+
     return {
       DELETED_KEY: DELETED_KEY,
       deletedIds: deletedIds,
+      nextCentreId: nextCentreId,
       recordDeleted: recordDeleted,
       clearDeleted: clearDeleted,
       isDeleted: isDeleted,
@@ -6154,22 +6595,108 @@
     };
 
     /* --- Live-exam matching -------------------------------------------------
-       An exam counts towards a unit when its title carries the unit code, or
-       its title is (or contains / is contained by) the unit name. Length
-       guards stop trivially-short names from matching everything. */
+       An exam counts towards a unit when:
+         - the exam names its units explicitly (exam.unitCodes) and this is one
+           of them — the exact link, used whenever an exam carries it;
+         - otherwise its title carries the unit code;
+         - otherwise its title IS the unit name, or contains it (names of 12+
+           characters, so trivially short ones cannot match everything).
+       A title merely contained IN a unit name no longer counts: "Perform
+       hair shaping" is contained in "Perform hair shaping on excessively curly
+       hair", and every trainee who sat the first exam was being certified in
+       the second unit too. effectiveGrades goes further and, when one title
+       matches several units of a plan by name, credits only the most specific
+       (longest) of them — see unitsForExam. */
+    function codeList(exam) {
+      return (exam && Array.isArray(exam.unitCodes) ? exam.unitCodes : [])
+        .map(function (c) { return T.normText(c); }).filter(Boolean);
+    }
     T.examMatchesUnit = function (exam, unit) {
       if (!exam || !unit) return false;
+      var code = T.normText(unit.code);
+      var explicit = codeList(exam);
+      if (explicit.length) return !!code && explicit.indexOf(code) !== -1;
       var title = T.normText(exam.title);
       if (!title) return false;
-      var code = T.normText(unit.code);
       if (code && title.indexOf(code) !== -1) return true;
       var name = T.normText(unit.name);
       if (!name) return false;
       if (title === name) return true;
       if (name.length >= 12 && title.indexOf(name) !== -1) return true;
-      if (title.length >= 12 && name.indexOf(title) !== -1) return true;
       return false;
     };
+
+    /* The codes of the units in `units` that one exam counts towards. An
+       explicit unitCodes list wins; then units whose code is in the title;
+       then units named by the title — and of those, only the most specific
+       (the longest name the title contains), so one exam is never credited to
+       a unit merely because its name is a longer version of another's. */
+    T.unitsForExam = function (exam, units) {
+      var out = {};
+      if (!exam || !Array.isArray(units)) return out;
+      var explicit = codeList(exam);
+      var title = T.normText(exam.title);
+      var byCode = [], byName = [], exact = [];
+      units.forEach(function (u) {
+        if (!u) return;
+        var code = T.normText(u.code), name = T.normText(u.name);
+        if (explicit.length) { if (code && explicit.indexOf(code) !== -1) out[u.code] = true; return; }
+        if (!title) return;
+        if (code && title.indexOf(code) !== -1) { byCode.push(u); return; }
+        if (!name) return;
+        if (title === name) exact.push(u);
+        else if (name.length >= 12 && title.indexOf(name) !== -1) byName.push(u);
+      });
+      if (explicit.length) return out;
+      var chosen = byCode.length ? byCode : (exact.length ? exact : byName);
+      if (!byCode.length && !exact.length && byName.length > 1) {
+        var longest = 0;
+        byName.forEach(function (u) { longest = Math.max(longest, T.normText(u.name).length); });
+        chosen = byName.filter(function (u) { return T.normText(u.name).length === longest; });
+      }
+      chosen.forEach(function (u) { out[u.code] = true; });
+      return out;
+    };
+
+    /* One pass over the exam results, shared by every trainee and every unit
+       drawn in one render. Grade resolution used to rebuild the exams-by-id map
+       and scan EVERY result for every unit of every trainee, and the instructor
+       view and the 5 s live refresh slowed down year on year as results piled
+       up. Build this once per render and hand it to effectiveGrades as
+       opts.index; effectiveGrades builds one itself when it is not given. */
+    T.gradeIndex = function (exams, examResults, catalogs) {
+      var idx = { examsById: {}, byStudent: {}, catalogs: Array.isArray(catalogs) ? catalogs : null,
+                  units: {}, courseQual: {} };
+      (exams || []).forEach(function (e) { if (e && e.id) idx.examsById[e.id] = e; });
+      (examResults || []).forEach(function (r) {
+        if (!r || !r.studentId || r.archived) return;
+        (idx.byStudent[r.studentId] = idx.byStudent[r.studentId] || []).push(r);
+      });
+      return idx;
+    };
+    // Which units of `qual` this exam counts towards — worked out once per
+    // (qualification, exam) and remembered in the index.
+    function examUnitsFor(idx, qual, exam) {
+      var k = qual.id + '\u0001' + exam.id;
+      if (!idx.units[k]) {
+        var allowed = true;
+        // An exam set for another programme never grades this one: a trainee
+        // who sat a Welding exam is not assessed on an Electrical unit that
+        // happens to share its title. Only applied when the exam names a
+        // programme that resolves to a different qualification.
+        if (idx.catalogs && exam.course) {
+          var ck = T.normText(exam.course);
+          if (!Object.prototype.hasOwnProperty.call(idx.courseQual, ck)) {
+            var q = T.qualForCourse(idx.catalogs, exam.course);
+            idx.courseQual[ck] = q ? q.id : null;
+          }
+          var qid = idx.courseQual[ck];
+          if (qid && qid !== qual.id) allowed = false;
+        }
+        idx.units[k] = allowed ? T.unitsForExam(exam, qual.units) : {};
+      }
+      return idx.units[k];
+    }
 
     // Latest submitted exam result for one student+unit. exams/examResults are
     // the app's canonical arrays. Returns null when the unit has no live score.
@@ -6193,19 +6720,48 @@
       return best;
     };
 
+    // Is this exam result still waiting for its short answers to be marked?
+    // Its score is then only the auto-marked part, not a grade.
+    T.isProvisionalResult = function (r) { return !!(r && r.needsReview && !r.reviewComplete); };
+
     /* --- THE RESOLUTION ALGORITHM -------------------------------------------
        One row per catalogue unit: manual grade wins, else latest live exam
        score, else ungraded. Every page renders from this so admin, trainee
-       and instructor always see the same grades. */
+       and instructor always see the same grades.
+
+       A row resolved from an exam that is still being marked comes back with
+       source 'pending' and NO grade: the provisional score (the auto-marked
+       part only) read as "40" and "Failed" on the transcript and the grade
+       sheet before an instructor had marked anything. An exam row also carries
+       the exam's own pass mark (row.passMark), so its result is judged by the
+       same rule the exam used.
+
+       opts: { qual, studentId, exams, examResults, manualGrades,
+               index (T.gradeIndex, optional), catalogs (optional — lets an
+               exam set for another programme be told apart) } */
     T.effectiveGrades = function (opts) {
       opts = opts || {};
       var qual = opts.qual, studentId = opts.studentId;
       if (!qual || !Array.isArray(qual.units)) return [];
+      var idx = opts.index || T.gradeIndex(opts.exams, opts.examResults, opts.catalogs);
       var manual = {};
       (opts.manualGrades || []).forEach(function (g) {
-        if (g && g.studentId === studentId && g.qualId === qual.id && g.unitCode) {
+        if (g && g.studentId === studentId && g.qualId === qual.id && g.unitCode && !g.supersededBy) {
           manual[g.unitCode] = g;
         }
+      });
+      // The latest result per unit for this trainee, from their own results only.
+      var latest = {};
+      (idx.byStudent[studentId] || []).forEach(function (r) {
+        var exam = idx.examsById[r.examId];
+        if (!exam) return;
+        var hit = examUnitsFor(idx, qual, exam);
+        var t = r.submittedAt ? new Date(r.submittedAt).getTime() : 0;
+        if (isNaN(t)) t = 0;
+        Object.keys(hit).forEach(function (code) {
+          var cur = latest[code];
+          if (!cur || t >= cur.t) latest[code] = { t: t, r: r, exam: exam };
+        });
       });
       return qual.units.map(function (u) {
         var row = {
@@ -6220,31 +6776,105 @@
           row.examResultId = m.examResultId || null;
           return row;
         }
-        var res = T.latestExamResultForUnit(u, studentId, opts.exams, opts.examResults);
-        if (res) {
-          // A provisional score (only the auto-marked part, short answers
-          // still unmarked) is not the unit grade: it read as 40 and "Failed"
-          // on the transcript before the instructor had marked anything.
-          var pending = !!(res.needsReview && !res.reviewComplete);
+        var hit = latest[u.code];
+        if (hit) {
+          var res = hit.r;
+          var pending = T.isProvisionalResult(res);
           row.grade = pending ? null : res.score;
           row.date = T.formatDateDMY(res.submittedAt);
           row.source = pending ? 'pending' : 'exam';
           row.examResultId = res.id;
-          var exam = (opts.exams || []).filter(function (e) { return e && e.id === res.examId; })[0];
-          row.examTitle = exam ? exam.title : '';
+          row.examTitle = hit.exam ? hit.exam.title : '';
+          var pm = hit.exam ? Number(hit.exam.passMark) : NaN;
+          if (hit.exam && hit.exam.passMark != null && hit.exam.passMark !== '' && !isNaN(pm)) row.passMark = pm;
         }
         return row;
       });
     };
 
-    T.gradeStats = function (rows) {
+    /* --- One rule for "achieved" ---------------------------------------------
+       The grade sheet hard-coded 60%, exams used their own pass mark, and the
+       official transcript printed no outcome at all — so a 65 on an exam with
+       a pass mark of 70 was NOT PASSED in the LMS and COMPETENT on the sheet.
+       Now every output asks resultFor(): the exam's own pass mark for an exam
+       grade, else the unit's, else the qualification's, else 60. A pass mark
+       of 0 is a pass mark (it used to fall through `|| 60`).
+
+       Competency grades are first-class: an assessor may record "C" /
+       "Competent" or "NYC" / "Not Yet Competent" instead of a percentage. */
+    T.DEFAULT_PASS_MARK = 60;
+    var COMPETENT_WORDS = { c: 1, competent: 1, comp: 1, pass: 1, passed: 1 };
+    var NYC_WORDS = { nyc: 1, 'not yet competent': 1, 'not competent': 1, fail: 1, failed: 1 };
+    T.competencyOf = function (grade) {
+      if (grade == null || grade === '' || typeof grade !== 'string') return null;
+      var w = T.normText(grade);
+      if (COMPETENT_WORDS[w]) return 'competent';
+      if (NYC_WORDS[w]) return 'nyc';
+      return null;
+    };
+    T.isNumericGrade = function (grade) {
+      if (grade == null || typeof grade === 'boolean') return false;
+      var s = String(grade).replace('%', '').trim();
+      return s !== '' && !isNaN(Number(s));
+    };
+    function validMark(v) { return v != null && v !== '' && !isNaN(Number(v)); }
+    // The pass mark that decides one row: the exam's, the unit's, the plan's, 60.
+    T.passMarkFor = function (qual, row) {
+      if (row && validMark(row.passMark)) return Number(row.passMark);
+      if (qual && row && Array.isArray(qual.units)) {
+        var u = qual.units.filter(function (x) { return x && x.code === row.code; })[0];
+        if (u && validMark(u.passMark)) return Number(u.passMark);
+      }
+      if (qual && validMark(qual.passMark)) return Number(qual.passMark);
+      return T.DEFAULT_PASS_MARK;
+    };
+    // 'COMPETENT' | 'NYC' | 'PENDING' for a grade against a pass mark.
+    T.resultFor = function (grade, passMark) {
+      var c = T.competencyOf(grade);
+      if (c === 'competent') return 'COMPETENT';
+      if (c === 'nyc') return 'NYC';
+      if (!T.isNumericGrade(grade)) return 'PENDING';
+      var pm = validMark(passMark) ? Number(passMark) : T.DEFAULT_PASS_MARK;
+      return Number(String(grade).replace('%', '').trim()) >= pm ? 'COMPETENT' : 'NYC';
+    };
+    T.resultForRow = function (row, qual) {
+      if (!row || row.source === 'pending') return 'PENDING';
+      return T.resultFor(row.grade, T.passMarkFor(qual, row));
+    };
+    // How a grade reads on screen and on paper: a percentage, the competency
+    // word written out, or "Awaiting marking" for an exam still being marked.
+    T.displayGrade = function (row) {
+      if (!row) return '';
+      if (row.source === 'pending') return 'Awaiting marking';
+      var c = T.competencyOf(row.grade);
+      if (c === 'competent') return 'Competent';
+      if (c === 'nyc') return 'NYC';
+      return T.formatGrade(row.grade);
+    };
+
+    /* graded counts every unit with a grade of any kind (so completion is
+       unchanged); the AVERAGE is over percentage grades only. A unit recorded
+       "Competent" used to be counted in the divisor as 0 and dragged a
+       competent trainee's average below the pass line. Also counts how many
+       units are achieved / not yet competent by resultFor (pass `qual` so a
+       plan's own pass mark applies), and how many await marking. */
+    T.gradeStats = function (rows, qual) {
       var graded = (rows || []).filter(function (r) { return r && r.grade != null && r.grade !== ''; });
-      var sum = 0;
-      graded.forEach(function (r) { var n = Number(r.grade); if (!isNaN(n)) sum += n; });
+      var sum = 0, numeric = 0, competent = 0, nyc = 0;
+      graded.forEach(function (r) {
+        if (T.isNumericGrade(r.grade)) { sum += Number(String(r.grade).replace('%', '').trim()); numeric++; }
+        var res = T.resultForRow(r, qual);
+        if (res === 'COMPETENT') competent++;
+        else if (res === 'NYC') nyc++;
+      });
       return {
         total: (rows || []).length,
         graded: graded.length,
-        average: graded.length ? Math.round((sum / graded.length) * 10) / 10 : null
+        numeric: numeric,
+        competent: competent,
+        nyc: nyc,
+        pending: (rows || []).filter(function (r) { return r && r.source === 'pending'; }).length,
+        average: numeric ? Math.round((sum / numeric) * 10) / 10 : null
       };
     };
 
@@ -6268,13 +6898,254 @@
       };
       var idx = -1;
       list.forEach(function (g, i) { if (g && g.id === id) idx = i; });
+      // An edit is never dated before the record it replaces (a slow clock).
+      if (idx !== -1 && !rec.updatedAt && list[idx]) stored.updatedAt = laterIso(stored.updatedAt, list[idx].updatedAt);
       if (idx === -1) list.push(stored); else list[idx] = stored;
       return list;
     };
 
-    T.removeManualGrade = function (grades, studentId, qualId, unitCode) {
+    /* Removing an override is written down, not erased: the record stays,
+       marked removed with the time and who did it. A hard delete left no
+       trace, so any other copy (a snapshot, another PC's file) put the old
+       grade straight back — and when it was the last override, the empty
+       list could not even be saved. effectiveGrades ignores a removed record
+       (its grade is null), and the newest record still wins every merge, so
+       re-entering a grade later simply replaces it. */
+    T.removeManualGrade = function (grades, studentId, qualId, unitCode, by, at) {
       var id = T.manualGradeId(studentId, qualId, unitCode);
-      return (Array.isArray(grades) ? grades : []).filter(function (g) { return !g || g.id !== id; });
+      return (Array.isArray(grades) ? grades : []).map(function (g) {
+        if (!g || g.id !== id) return g;
+        var out = {};
+        Object.keys(g).forEach(function (k) { out[k] = g[k]; });
+        out.grade = null;
+        out.removed = true;
+        out.updatedBy = by || g.updatedBy || '';
+        out.updatedAt = laterIso(at || new Date().toISOString(), g.updatedAt);
+        return out;
+      });
+    };
+    function laterIso(now, prev) { return Core.sync ? Core.sync.laterStamp(now, prev) : now; }
+
+    /* --- The unit catalogue: what an edit must not do ----------------------
+       Grades are filed under a unit's CODE. A unit saved with a blank code
+       could never hold a grade (the save reported "Grade saved" and stored
+       nothing), and two units sharing a code shared one grade. Returns one
+       entry per problem: { index, code, problem: 'blank-code'|'duplicate-code' }. */
+    T.validateCatalogUnits = function (units) {
+      var problems = [], seen = {};
+      (Array.isArray(units) ? units : []).forEach(function (u, i) {
+        var code = String((u && u.code) || '').trim();
+        if (!code) { problems.push({ index: i, code: '', problem: 'blank-code' }); return; }
+        var k = code.toUpperCase();
+        if (seen[k] !== undefined) problems.push({ index: i, code: code, problem: 'duplicate-code', first: seen[k] });
+        else seen[k] = i;
+      });
+      return problems;
+    };
+
+    /* Manual grades recorded for a unit that is no longer in `qual` — its code
+       was edited, or the unit was removed from the plan. They stay stored and
+       are listed (never silently hidden); a grade carried over to a new code
+       (supersededBy) is not listed again. */
+    T.orphanedGrades = function (qual, grades, studentId) {
+      if (!qual) return [];
+      var codes = {};
+      (qual.units || []).forEach(function (u) { if (u && u.code) codes[u.code] = true; });
+      return (grades || []).filter(function (g) {
+        return g && g.qualId === qual.id && g.unitCode && !codes[g.unitCode] && !g.supersededBy &&
+          g.grade != null && g.grade !== '' && (studentId == null || g.studentId === studentId);
+      });
+    };
+
+    /* Carry every manual grade on `oldCode` of one qualification over to
+       `newCode` (the administrator confirmed the unit was re-coded). The old
+       record is kept, marked supersededBy, never deleted; a grade already
+       saved under the new code that is newer than the old one stands.
+       Returns { list, moved }. */
+    T.renameUnitCode = function (grades, qualId, oldCode, newCode, actor, nowIso) {
+      var list = Array.isArray(grades) ? grades.slice() : [];
+      if (!qualId || !oldCode || !newCode || oldCode === newCode) return { list: list, moved: 0 };
+      var now = nowIso || new Date().toISOString();
+      var at = function (g) { var t = Date.parse((g && g.updatedAt) || ''); return isNaN(t) ? 0 : t; };
+      var moved = 0;
+      list.slice().forEach(function (g) {
+        if (!g || g.qualId !== qualId || g.unitCode !== oldCode || g.supersededBy) return;
+        if (g.grade == null || g.grade === '') return;
+        var newId = T.manualGradeId(g.studentId, qualId, newCode);
+        var existing = list.filter(function (x) { return x && x.id === newId; })[0];
+        if (!existing || at(existing) < at(g)) {
+          list = T.upsertManualGrade(list, {
+            studentId: g.studentId, qualId: qualId, unitCode: newCode, grade: g.grade, date: g.date,
+            examResultId: g.examResultId, updatedBy: actor || g.updatedBy || '', updatedAt: now
+          });
+          moved++;
+        }
+        var i = list.indexOf(g);
+        if (i !== -1) list[i] = Object.assign({}, g, { supersededBy: newCode, updatedAt: now, updatedBy: actor || g.updatedBy || '' });
+      });
+      return { list: list, moved: moved };
+    };
+
+    /* --- The catalogue as it was when a transcript was issued ---------------
+       Editing a qualification's units used to rewrite every graduate's
+       transcript retroactively: a unit re-coded or dropped by a revised plan
+       vanished from transcripts already issued, and a re-titled qualification
+       changed the heading on documents employers already held. When a
+       transcript is issued its catalogue is copied onto the trainee's
+       transcript profile (profiles[studentId].issued[qualId]) and every later
+       reprint of that trainee's transcript uses the copy. Additive: an older
+       profile without it behaves as before. */
+    T.snapshotQual = function (qual, nowIso) {
+      if (!qual) return null;
+      return {
+        qualId: qual.id, title: qual.title || '', skillArea: qual.skillArea || '', level: qual.level == null ? null : qual.level,
+        nvqCode: qual.nvqCode || '', centre: qual.centre || '',
+        passMark: qual.passMark == null ? null : qual.passMark,
+        units: (qual.units || []).map(function (u) {
+          var c = { code: u.code, name: u.name, coreElective: u.coreElective || 'Core' };
+          if (u.passMark != null && u.passMark !== '') c.passMark = u.passMark;
+          return c;
+        }),
+        catalogUpdatedAt: qual.updatedAt || '',
+        issuedAt: nowIso || new Date().toISOString()
+      };
+    };
+    // The issued copy as a qualification the renderers can use, or null.
+    T.issuedQualFor = function (profiles, studentId, qualId) {
+      var p = profiles && studentId ? profiles[studentId] : null;
+      var snap = p && p.issued && qualId ? p.issued[qualId] : null;
+      if (!snap || !Array.isArray(snap.units)) return null;
+      return {
+        id: snap.qualId || qualId, title: snap.title, skillArea: snap.skillArea, level: snap.level,
+        nvqCode: snap.nvqCode, centre: snap.centre, passMark: snap.passMark,
+        units: snap.units.slice(), issuedAt: snap.issuedAt, issuedSnapshot: true
+      };
+    };
+    // Record the issue (pure: returns the new profiles map). An existing copy is
+    // kept — a reprint must not quietly move the transcript to today's plan.
+    T.recordIssue = function (profiles, studentId, qual, nowIso) {
+      var out = Object.assign({}, profiles || {});
+      if (!studentId || !qual) return out;
+      var p = Object.assign({}, out[studentId] || {});
+      var issued = Object.assign({}, p.issued || {});
+      if (issued[qual.id]) return out;
+      issued[qual.id] = T.snapshotQual(qual, nowIso);
+      p.issued = issued;
+      p.updatedAt = nowIso || new Date().toISOString();
+      out[studentId] = p;
+      return out;
+    };
+
+    /* --- Which plan a trainee is assessed against ----------------------------
+       Each trainee is graded against THEIR OWN programme's catalogue: a
+       qualification the administrator pinned on the record (qualId) if it
+       still exists, else the one their course resolves to, else the fallback
+       course (an instructor's own). The instructor view used one catalogue for
+       everybody it listed, so its Level 3 trainees were shown — and given grade
+       sheets for — the Level 2 units. */
+    T.qualForTrainee = function (catalogs, student, fallbackCourse) {
+      var list = Array.isArray(catalogs) ? catalogs : [];
+      if (student && student.qualId) {
+        var pinned = list.filter(function (q) { return q && q.id === student.qualId; })[0];
+        if (pinned) return pinned;
+      }
+      return (student && T.qualForCourse(list, student.course)) ||
+        (fallbackCourse ? T.qualForCourse(list, fallbackCourse) : null);
+    };
+
+    /* --- Is this trainee's transcript ready for certification? --------------
+       Pure. Certification (and the course-end "Not Yet Competent" rule) used to
+       ignore the transcript entirely: a trainee with 10 of 46 units graded and
+       two NYC units could be certified without a word. The certificate
+       checklist calls this.
+
+         data: { catalogs, grades, exams, examResults, profiles, index }
+         -> { status: 'ready' | 'incomplete' | 'nyc' | 'no-catalogue',
+              ready, qualId, qualTitle, total, graded, competent, nyc, pending,
+              average, missingCore: [codes], nycUnits: [codes],
+              pendingUnits: [codes], electivesAchieved }
+
+       'ready' means every CORE unit is achieved (by resultFor) and nothing is
+       awaiting marking. Electives are counted but not required — how many a
+       plan demands is not recorded anywhere yet. Any graded unit that is NYC
+       makes the status 'nyc'. Uses the issued catalogue copy when one exists. */
+    T.transcriptReadiness = function (student, data) {
+      data = data || {};
+      var out = { status: 'no-catalogue', ready: false, qualId: null, qualTitle: '', total: 0, graded: 0,
+                  competent: 0, nyc: 0, pending: 0, average: null, missingCore: [], nycUnits: [],
+                  pendingUnits: [], electivesAchieved: 0 };
+      if (!student) return out;
+      // The plan: resolved from the catalogues when given (pinned qualId, then
+      // the trainee's course), else the one the caller already resolved
+      // (data.qual); the issued copy of it whenever one exists.
+      var cats = Array.isArray(data.catalogs) ? T.ensureSeeded(data.catalogs) : null;
+      var live = cats ? T.qualForTrainee(cats, student) : (data.qual || null);
+      var qual = (live && T.issuedQualFor(data.profiles, student.id, live.id)) || live;
+      out.known = false;
+      out.detail = 'No unit catalogue for this programme';
+      if (!qual || !Array.isArray(qual.units) || !qual.units.length) return out;
+      var rows = T.effectiveGrades({ qual: qual, studentId: student.id, manualGrades: data.grades || data.manualGrades || [],
+        exams: data.exams, examResults: data.examResults, catalogs: cats, index: data.index });
+      var stats = T.gradeStats(rows, qual);
+      out.qualId = qual.id; out.qualTitle = qual.title || '';
+      out.total = stats.total; out.graded = stats.graded; out.competent = stats.competent;
+      out.nyc = stats.nyc; out.pending = stats.pending; out.average = stats.average;
+      rows.forEach(function (r) {
+        var res = T.resultForRow(r, qual);
+        var core = String(r.coreElective || 'Core').toLowerCase() !== 'elective';
+        if (r.source === 'pending') out.pendingUnits.push(r.code);
+        if (res === 'NYC') out.nycUnits.push(r.code);
+        if (core && res !== 'COMPETENT') out.missingCore.push(r.code);
+        if (!core && res === 'COMPETENT') out.electivesAchieved++;
+      });
+      out.known = true;
+      if (out.nycUnits.length) out.status = 'nyc';
+      else if (out.missingCore.length || out.pendingUnits.length) out.status = 'incomplete';
+      else out.status = 'ready';
+      out.ready = out.status === 'ready';
+      var list = function (codes) { return codes.slice(0, 3).join(', ') + (codes.length > 3 ? '…' : ''); };
+      out.detail = out.competent + ' of ' + out.total + ' units competent' +
+        (out.nycUnits.length ? '; not yet competent: ' + list(out.nycUnits) : '') +
+        (out.pendingUnits.length ? '; awaiting marking: ' + list(out.pendingUnits) : '') +
+        (out.missingCore.length && !out.nycUnits.length ? '; core units not yet achieved: ' + out.missingCore.length : '') +
+        (out.ready ? ' — ready to certify' : '');
+      return out;
+    };
+
+    /* --- One person, several enrolments --------------------------------------
+       A trainee's id is per (name, programme), so someone who went from Level 2
+       to Level 3 has two records, two transcripts and two headers. These are
+       the OTHER records of the same person, for the transcript view to link.
+       `strict` (the trainee's own view) links only on evidence that it is the
+       same human — the same TRN / national ID, or the same date of birth on the
+       transcript header — because a namesake on another programme is somebody
+       else and must never see this person's grades. Without `strict` (staff)
+       a same-name record is offered too, flagged `sameNameOnly`. A record
+       pinned "keep separate" is never linked by name. */
+    T.otherEnrolments = function (student, students, profiles, strict) {
+      if (!student) return [];
+      var n = Core.normName(student.name);
+      if (!n) return [];
+      var idOf = function (s) {
+        var p = (profiles && profiles[s.id]) || {};
+        return String(s.trn || s.TRN || s.nationalId || p.idNo || '').replace(/[^0-9a-z]/gi, '').toLowerCase();
+      };
+      var dobOf = function (s) {
+        var p = (profiles && profiles[s.id]) || {};
+        return String(p.dob || s.dob || '').trim();
+      };
+      var myId = idOf(student), myDob = dobOf(student);
+      var out = [];
+      (students || []).forEach(function (s) {
+        if (!s || s === student || s.id === student.id || Core.normName(s.name) !== n) return;
+        var theirId = idOf(s), theirDob = dobOf(s);
+        if (myId && theirId && myId !== theirId) return;           // two different people
+        if (myDob && theirDob && myDob !== theirDob) return;
+        var strong = !!(myId && theirId && myId === theirId) || !!(myDob && theirDob && myDob === theirDob);
+        if (!strong && (strict || Core.isKeptSeparate(s) || Core.isKeptSeparate(student))) return;
+        out.push({ student: s, sameNameOnly: !strong });
+      });
+      return out;
     };
 
     /* --- Qualification lookup for a trainee's course ----------------------- */
@@ -6347,8 +7218,72 @@
         note: opts.note || '',
         status: 'pending',
         requestedAt: opts.requestedAt || new Date().toISOString(),
+        // When this copy of the request last changed: what decides, request by
+        // request, which device's copy is current (see mergeRequestLists).
+        updatedAt: opts.requestedAt || new Date().toISOString(),
         handledBy: '', handledAt: '', adminNote: ''
       };
+    };
+
+    /* A request queue is merged REQUEST BY REQUEST, never as one list.
+
+       Trainees append requests on their own devices and the administration
+       changes their status on another. Writing the whole list from whatever
+       copy a page loaded a few seconds earlier — or letting the newest whole
+       list win a sync — meant a trainee's new request erased a status change
+       made meanwhile, or the reverse, and a trainee's device, which keeps only
+       its own requests after sign-out, could replace the Centre's whole queue.
+       Every request either side holds survives; when both hold one, the copy
+       changed last (updatedAt, else handledAt, else requestedAt) wins and its
+       blanks are filled from the other. Pure; returns a new list. */
+    T.REQUEST_STAMPS = ['updatedAt', 'handledAt', 'requestedAt'];
+    function requestTime(r) {
+      var best = 0;
+      T.REQUEST_STAMPS.forEach(function (f) {
+        var t = Date.parse((r && r[f]) || '');
+        if (!isNaN(t) && t > best) best = t;
+      });
+      return best;
+    }
+    T.mergeRequestLists = function (a, b) {
+      var out = [], at = {};
+      var take = function (r, fromB) {
+        if (!r || typeof r !== 'object') return;
+        var id = r.id != null ? String(r.id) : null;
+        if (id === null || at[id] === undefined) {
+          if (id !== null) at[id] = out.length;
+          out.push(r);
+          return;
+        }
+        var cur = out[at[id]];
+        var win = requestTime(r) > requestTime(cur) ? r : cur;
+        var lose = win === r ? cur : r;
+        var merged = Object.assign({}, win);
+        Object.keys(lose).forEach(function (f) {
+          if ((merged[f] === undefined || merged[f] === null || merged[f] === '') &&
+              lose[f] !== undefined && lose[f] !== null && lose[f] !== '') merged[f] = lose[f];
+        });
+        out[at[id]] = merged;
+      };
+      (Array.isArray(a) ? a : []).forEach(function (r) { take(r, false); });
+      (Array.isArray(b) ? b : []).forEach(function (r) { take(r, true); });
+      return out;
+    };
+
+    /* Change one request's status, by id, on the CURRENT list (read it from
+       the store just before calling). Returns { list, request } — request is
+       null when no such request exists any more. */
+    T.setRequestStatus = function (requests, id, status, actor, note, nowIso) {
+      var list = Array.isArray(requests) ? requests.slice() : [];
+      var now = nowIso || new Date().toISOString();
+      var hit = null;
+      list = list.map(function (r) {
+        if (!r || r.id !== id) return r;
+        hit = Object.assign({}, r, { status: status, handledBy: actor || '', handledAt: now, updatedAt: now });
+        if (note != null) hit.adminNote = note;
+        return hit;
+      });
+      return { list: list, request: hit };
     };
 
     // A trainee may have at most one OPEN (pending/processing/ready) request
@@ -6367,6 +7302,15 @@
 
     return T;
   })();
+
+  /* Is this trainee's transcript ready for a certificate? (Core.Transcript
+     .transcriptReadiness.) The certificate checklist looks for it here. With
+     no unit catalogue to judge by it answers null, so the checklist falls back
+     to the trainee's exam results instead of reporting "unknown". */
+  Core.transcriptReadiness = function (student, data) {
+    var r = Core.Transcript.transcriptReadiness(student, data);
+    return (r && r.known) ? r : null;
+  };
 
   /* --------------------------------------------------------------------------
      Core.Finance — pure helpers for the Payments/Invoices module.
@@ -7220,10 +8164,21 @@
 
         // A reopen window granted to an instructor is added, never removed:
         // they expire by their own clock, so the union cannot outlast them.
+        // The exception is a REVOCATION (permissionsRevokedAtMs, the later of
+        // the two copies standing): a grant made before it is dropped on both
+        // sides. Without it, "Revoke" emptied the list here and the next sync
+        // refilled it from any copy still holding the grant.
+        var revokedAt = Math.max(+local.permissionsRevokedAtMs || 0, +sa.permissionsRevokedAtMs || 0);
+        if (revokedAt > (+local.permissionsRevokedAtMs || 0)) { local.permissionsRevokedAtMs = revokedAt; out.updated++; }
+        if (revokedAt && Array.isArray(local.instructorPermissions)) {
+          var keptGrants = local.instructorPermissions.filter(function (p) { return !p || grantedAtMs(p) > revokedAt; });
+          if (keptGrants.length !== local.instructorPermissions.length) { local.instructorPermissions = keptGrants; out.updated++; }
+        }
         if (Array.isArray(sa.instructorPermissions) && sa.instructorPermissions.length) {
           if (!Array.isArray(local.instructorPermissions)) local.instructorPermissions = [];
           sa.instructorPermissions.forEach(function (p) {
             if (!p) return;
+            if (revokedAt && grantedAtMs(p) <= revokedAt) return;
             var known = local.instructorPermissions.some(function (lp) {
               return lp && lp.instructor === p.instructor && lp.expiresAtMs === p.expiresAtMs;
             });
@@ -7232,6 +8187,13 @@
         }
       });
       return out;
+    }
+    /* When a reopen window was granted. Grants from before grantedAtMs was
+       recorded are taken as granted one day before they expire (the longest
+       window the page offers). */
+    function grantedAtMs(p) {
+      if (p && +p.grantedAtMs) return +p.grantedAtMs;
+      return (+(p && p.expiresAtMs) || 0) - 24 * 60 * 60 * 1000;
     }
 
     /* Order the copies of a backup so the newest applies LAST — and so wins
@@ -7362,6 +8324,51 @@
     function isBlank(v) { return v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length); }
     function isPlain(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
 
+    /* CLOCKS. "Newest wins" is only as good as the clocks it compares, and
+       every device stamps with its own. Two rules keep one wrong clock from
+       doing damage:
+         - an edit never goes BACKWARDS: a record edited here is stamped one
+           millisecond after the stamp it already carries when this device's
+           clock reads earlier than that (laterStamp). A device whose clock is
+           slow used to stamp its correction EARLIER than the record it
+           corrected, so the correction lost every merge and was reverted
+           everywhere — its own copy included.
+         - a stamp more than a day ahead of the receiving device's clock is
+           not believed (trusted): such a copy is merged as an undated one —
+           it fills blanks and adds what is missing, but cannot overwrite a
+           dated edit or delete anything. A device whose clock had jumped a
+           year ahead used to win every merge for a year. Nothing is lost:
+           the record is kept, and the page warns that a clock is wrong
+           (clockSkew). */
+    var MAX_AHEAD_MS = 24 * 60 * 60 * 1000;
+    var SKEW_WARN_MS = 5 * 60 * 1000;
+    function trusted(t, nowMs) {
+      if (!t) return 0;
+      var now = (typeof nowMs === 'number' && !isNaN(nowMs)) ? nowMs : Date.now();
+      return t > now + MAX_AHEAD_MS ? 0 : t;
+    }
+    function laterStamp(nowIso, prevIso, nowMs) {
+      var p = Date.parse(prevIso || ''), n = Date.parse(nowIso || '');
+      if (isNaN(p) || isNaN(n) || n > p) return nowIso;
+      if (!trusted(p, (typeof nowMs === 'number') ? nowMs : n)) return nowIso;   // never chase a wrong clock
+      return new Date(p + 1).toISOString();
+    }
+    /* How far this device's clock is from a server's (a Drive response's
+       Date header, the Centre server's /health time), in ms; positive when
+       this device is AHEAD. Returns null when the server time is unreadable.
+       `sentMs`/`receivedMs` bracket the request, so its travel time is not
+       counted as skew. */
+    function clockSkew(serverTime, sentMs, receivedMs) {
+      var s = typeof serverTime === 'number' ? serverTime : Date.parse(serverTime || '');
+      if (!s || isNaN(s)) return null;
+      var mid = (typeof sentMs === 'number' && typeof receivedMs === 'number') ? (sentMs + receivedMs) / 2
+        : (typeof receivedMs === 'number' ? receivedMs : Date.now());
+      var off = mid - s;
+      // HTTP dates have one-second resolution; never call that skew.
+      return Math.abs(off) < 2000 ? 0 : Math.round(off);
+    }
+    function clockLooksWrong(skewMs) { return typeof skewMs === 'number' && Math.abs(skewMs) > SKEW_WARN_MS; }
+
     /* The content of a record, stamp excluded — what "changed" means. */
     function fingerprint(r, ignoreKeys) {
       if (!r || typeof r !== 'object') return Core.hashString(String(r));
@@ -7389,7 +8396,7 @@
         if (index) {
           var prev = index[k];
           if (!prev) { if (!r[STAMP]) r[STAMP] = now; }
-          else if (prev.fp !== fp && (r[STAMP] || '') === (prev.stamp || '')) { r[STAMP] = now; }
+          else if (prev.fp !== fp && (r[STAMP] || '') === (prev.stamp || '')) { r[STAMP] = laterStamp(now, r[STAMP]); }
         }
         next[k] = { fp: fp, stamp: r[STAMP] || '' };
       });
@@ -7424,9 +8431,14 @@
       });
       return into;
     }
-    function deletedAfter(tombs, k, r) {
+    /* Was this record deleted after its last edit? A deletion dated more than
+       a day in the future (a wrong clock) is not acted on — keeping a record
+       can be undone, losing it cannot — and neither is an edit so dated
+       allowed to outlive a real deletion. */
+    function deletedAfter(tombs, k, r, nowMs) {
       var t = tombs && tombs[k] ? (Date.parse(tombs[k]) || 0) : 0;
-      return t > 0 && t >= stampOf(r);
+      t = trusted(t, nowMs);
+      return t > 0 && t >= trusted(stampOf(r), nowMs);
     }
 
     /* Replace the local record's content with the cloud copy's, keeping the
@@ -7451,17 +8463,119 @@
       return changed;
     }
 
+    /* MAPS INSIDE A RECORD that several people write at once.
+
+       A whole record wins or loses as one: the newer copy replaces the other.
+       That is wrong for a map whose entries belong to different people — an
+       assignment's grades {trainee: score}, a notice's readBy {user: when}.
+       Two instructors grading two different trainees on the same assignment
+       each produced a newer copy holding only their own grade, and whichever
+       synced last erased the other's grade everywhere. These maps are merged
+       entry by entry instead:
+         perEntry:    { field: stampField } — field is {key: value} and
+                      stampField says when each entry was written: a map
+                      {key: ISO}, or 'meta.prop' for {key: {prop: ISO}}; the
+                      newer entry wins, an entry only one side has is kept,
+                      and with no stamps the copy that won the record decides
+                      (as before).
+         unionStamps: [field] — field is {key: ISO} (every key either side
+                      has is kept, with the later time) or a list (every
+                      element either side has is kept, once). */
+    function copyOf(v) { return (v && typeof v === 'object') ? JSON.parse(JSON.stringify(v)) : v; }
+    /* Where an entry's own time is kept: 'gradedAt' is a map { key: ISO } on
+       the record; 'gradeMeta.gradedAt' is a map { key: { gradedAt: ISO, ... } }. */
+    function stampSpec(sf) {
+      var dot = String(sf).indexOf('.');
+      return dot === -1 ? { field: sf, prop: null } : { field: sf.slice(0, dot), prop: sf.slice(dot + 1) };
+    }
+    function entryStamp(rec, spec, k) {
+      var m = rec[spec.field];
+      if (!isPlain(m) || m[k] == null) return 0;
+      var v = spec.prop ? (isPlain(m[k]) ? m[k][spec.prop] : null) : m[k];
+      var t = Date.parse(v || '');
+      return isNaN(t) ? 0 : t;
+    }
+    function snapshotMaps(r, opts) {
+      var s = {};
+      Object.keys(opts.perEntry || {}).forEach(function (f) {
+        var sp = stampSpec(opts.perEntry[f]);
+        s[f] = copyOf(r[f]);
+        s[sp.field] = copyOf(r[sp.field]);
+      });
+      (opts.unionStamps || []).forEach(function (f) { s[f] = copyOf(r[f]); });
+      return s;
+    }
+    function reconcileMaps(target, mine, theirs, opts, theirsWon, nowMs) {
+      var changed = false;
+      Object.keys(opts.perEntry || {}).forEach(function (f) {
+        var sp = stampSpec(opts.perEntry[f]);
+        var A = mine[f], B = theirs[f];
+        if (!isPlain(A) && !isPlain(B)) return;
+        A = isPlain(A) ? A : {}; B = isPlain(B) ? B : {};
+        var AS = isPlain(mine[sp.field]) ? mine[sp.field] : {}, BS = isPlain(theirs[sp.field]) ? theirs[sp.field] : {};
+        var val = {}, st = {};
+        Object.keys(A).concat(Object.keys(B)).forEach(function (k) {
+          if (k in val) return;
+          var inA = A[k] !== undefined, inB = B[k] !== undefined;
+          var ta = trusted(entryStamp(mine, sp, k), nowMs), tb = trusted(entryStamp(theirs, sp, k), nowMs);
+          var useB;
+          if (!inA) useB = true;
+          else if (!inB) useB = false;
+          else if (ta !== tb) useB = tb > ta;
+          else useB = theirsWon;
+          val[k] = useB ? B[k] : A[k];
+          var stamp = useB ? (BS[k] !== undefined ? BS[k] : AS[k]) : (AS[k] !== undefined ? AS[k] : BS[k]);
+          if (stamp !== undefined) st[k] = copyOf(stamp);
+        });
+        // Entries of the stamp map with no value beside them are kept as well.
+        Object.keys(AS).concat(Object.keys(BS)).forEach(function (k) {
+          if (st[k] === undefined) st[k] = copyOf(BS[k] !== undefined && entryStamp(theirs, sp, k) >= entryStamp(mine, sp, k) ? BS[k] : AS[k]);
+        });
+        if (JSON.stringify(target[f]) !== JSON.stringify(val)) { target[f] = val; changed = true; }
+        if (Object.keys(st).length && JSON.stringify(target[sp.field]) !== JSON.stringify(st)) { target[sp.field] = st; changed = true; }
+      });
+      (opts.unionStamps || []).forEach(function (f) {
+        var A = mine[f], B = theirs[f];
+        if (Array.isArray(A) || Array.isArray(B)) {
+          // A list (who has read it, a grade history): everything either side
+          // holds, once, in this device's order first.
+          var seen = {}, list = [];
+          [A, B].forEach(function (arr) {
+            (Array.isArray(arr) ? arr : []).forEach(function (x) {
+              var key = JSON.stringify(x);
+              if (seen[key]) return;
+              seen[key] = true; list.push(copyOf(x));
+            });
+          });
+          if (JSON.stringify(target[f]) !== JSON.stringify(list)) { target[f] = list; changed = true; }
+          return;
+        }
+        if (!isPlain(A) && !isPlain(B)) return;
+        var u = {};
+        [A, B].forEach(function (m) {
+          if (!isPlain(m)) return;
+          Object.keys(m).forEach(function (k) {
+            if (u[k] === undefined || (Date.parse(m[k]) || 0) > (Date.parse(u[k]) || 0)) u[k] = m[k];
+          });
+        });
+        if (JSON.stringify(target[f]) !== JSON.stringify(u)) { target[f] = u; changed = true; }
+      });
+      return changed;
+    }
+
     /* Merge a cloud list into a local list IN PLACE. opts: { tombs, keep,
-       accept }. Returns { added, updated, removed }. */
+       accept, perEntry, unionStamps, nowMs }. Returns { added, updated, removed }. */
     function mergeList(local, cloud, keyOf, opts) {
       opts = opts || {};
       var out = { added: 0, updated: 0, removed: 0 };
       if (!Array.isArray(local)) return out;
       var tombs = opts.tombs || {};
+      var nowMs = opts.nowMs;
+      var maps = !!(opts.perEntry || opts.unionStamps);
       // Deletions first: a record removed elsewhere after its last edit here.
       for (var i = local.length - 1; i >= 0; i--) {
         var r = local[i];
-        if (r && typeof r === 'object' && deletedAfter(tombs, keyOf(r), r)) { local.splice(i, 1); out.removed++; }
+        if (r && typeof r === 'object' && deletedAfter(tombs, keyOf(r), r, nowMs)) { local.splice(i, 1); out.removed++; }
       }
       var byKey = {};
       local.forEach(function (r) { if (r && typeof r === 'object') byKey[keyOf(r)] = r; });
@@ -7470,15 +8584,97 @@
         if (opts.accept && !opts.accept(c)) return;
         var k = keyOf(c);
         if (k === undefined || k === null) return;
-        if (deletedAfter(tombs, k, c)) return;
+        if (deletedAfter(tombs, k, c, nowMs)) return;
         var l = byKey[k];
         if (!l) {
           var fresh = {}; Object.keys(c).forEach(function (f) { if (!IGNORE[f] || f === STAMP) fresh[f] = c[f]; });
           local.push(fresh); byKey[k] = fresh; out.added++; return;
         }
-        var cs = stampOf(c), ls = stampOf(l);
-        if (cs > ls) { takeOver(l, c, opts.keep); out.updated++; }
-        else if (cs === ls && fillBlanks(l, c)) out.updated++;
+        var mine = maps ? snapshotMaps(l, opts) : null;
+        var cs = trusted(stampOf(c), nowMs), ls = trusted(stampOf(l), nowMs);
+        var touched = false;
+        if (cs > ls) { takeOver(l, c, opts.keep); touched = true; }
+        // Two undated copies — or one whose date cannot be believed (a wrong
+        // clock): keep ours and fill its blanks, so nothing typed is lost.
+        else if ((cs === ls || (!cs && stampOf(c))) && fillBlanks(l, c)) touched = true;
+        if (maps && reconcileMaps(l, mine, c, opts, cs > ls, nowMs)) touched = true;
+        if (touched) out.updated++;
+      });
+      return out;
+    }
+
+    /* EXAM RESULTS — one rule for every path that merges them.
+
+       Results used to be merged by trainee and exam, and a copy replaced
+       another only when it was SUBMITTED later. Marking a short answer,
+       an instructor's review and a transcript override change the score but
+       never the submission time, so the marked copy never travelled: every
+       other device kept "pending review", and its next upload put the
+       unmarked copy back over the instructor's work.
+
+       Now, for one attempt (the same result id; a legacy row without an id
+       is paired by exam and trainee):
+         - a reviewed copy beats one still awaiting review — marking only
+           ever moves forward;
+         - otherwise the later edit wins (updatedAt, gradedAt, reviewedAt,
+           markedAt, overriddenAt);
+         - with nothing to tell them apart, the local copy stands and its
+           blanks are filled.
+       Two DIFFERENT attempts at one exam (a re-sit) are decided as before:
+       the later submission replaces the earlier. A result deleted after its
+       last edit stays deleted (tombs, keyed by examResultKey). */
+    var EDIT_FIELDS = ['updatedAt', 'gradedAt', 'reviewedAt', 'markedAt', 'overriddenAt'];
+    function examResultKey(r) {
+      if (!r) return undefined;
+      return (r.id != null && r.id !== '') ? String(r.id) : String(r.examId) + '|' + String(r.studentId);
+    }
+    function attemptKey(r) { return String(r.examId) + '|' + String(r.studentId); }
+    function editStamp(r, nowMs) {
+      var best = 0;
+      EDIT_FIELDS.forEach(function (f) { var t = Date.parse((r && r[f]) || ''); if (!isNaN(t) && t > best) best = t; });
+      return trusted(best, nowMs);
+    }
+    function reviewed(r) { return !!(r && (r.reviewComplete || !r.needsReview)); }
+    function pickResult(l, c, nowMs) {
+      var sameAttempt = (l.id != null && l.id !== '' && c.id != null && c.id !== '') ? String(l.id) === String(c.id) : true;
+      var ls = Date.parse(l.submittedAt || '') || 0, cs = Date.parse(c.submittedAt || '') || 0;
+      if (!sameAttempt) return cs > ls ? 'replace' : 'keep';
+      if (reviewed(c) !== reviewed(l)) return reviewed(c) ? 'cloud' : 'keep';
+      var te = editStamp(c, nowMs), tl = editStamp(l, nowMs);
+      if (te !== tl) return te > tl ? 'cloud' : 'keep';
+      if (cs !== ls && cs && ls) return cs > ls ? 'cloud' : 'keep';
+      if (l.score === undefined && c.score !== undefined) return 'cloud';
+      return 'tie';
+    }
+    function mergeExamResults(local, cloud, opts) {
+      opts = opts || {};
+      var out = { added: 0, updated: 0, removed: 0 };
+      if (!Array.isArray(local)) return out;
+      var tombs = opts.tombs || {}, nowMs = opts.nowMs;
+      for (var i = local.length - 1; i >= 0; i--) {
+        var r = local[i];
+        if (r && typeof r === 'object' && deletedAfter(tombs, examResultKey(r), r, nowMs)) { local.splice(i, 1); out.removed++; }
+      }
+      var byId = {}, byAttempt = {};
+      var index = function (r, at) {
+        if (r.id != null && r.id !== '') byId[String(r.id)] = at;
+        if (byAttempt[attemptKey(r)] === undefined) byAttempt[attemptKey(r)] = at;
+      };
+      local.forEach(function (r, at) { if (r && typeof r === 'object') index(r, at); });
+      (Array.isArray(cloud) ? cloud : []).forEach(function (c) {
+        if (!c || typeof c !== 'object') return;
+        if (opts.accept && !opts.accept(c)) return;
+        if (deletedAfter(tombs, examResultKey(c), c, nowMs)) return;
+        var at = (c.id != null && c.id !== '' && byId[String(c.id)] !== undefined) ? byId[String(c.id)] : byAttempt[attemptKey(c)];
+        if (at === undefined) {
+          var fresh = JSON.parse(JSON.stringify(c));
+          local.push(fresh); index(fresh, local.length - 1); out.added++; return;
+        }
+        var l = local[at];
+        var how = pickResult(l, c, nowMs);
+        if (how === 'replace') { local[at] = JSON.parse(JSON.stringify(c)); index(local[at], at); out.updated++; }
+        else if (how === 'cloud') { takeOver(l, JSON.parse(JSON.stringify(c)), opts.keep); out.updated++; }
+        else if (how === 'tie' && fillBlanks(l, c)) out.updated++;
       });
       return out;
     }
@@ -7490,23 +8686,51 @@
       if (!isPlain(local)) return out;
       var tombs = opts.tombs || {};
       Object.keys(local).forEach(function (k) {
-        if (deletedAfter(tombs, k, local[k])) { delete local[k]; out.removed++; }
+        if (deletedAfter(tombs, k, local[k], opts.nowMs)) { delete local[k]; out.removed++; }
       });
       Object.keys(isPlain(cloud) ? cloud : {}).forEach(function (k) {
         var c = cloud[k];
         if (!isPlain(c)) { if (local[k] === undefined) { local[k] = c; out.added++; } return; }
-        if (deletedAfter(tombs, k, c)) return;
+        if (deletedAfter(tombs, k, c, opts.nowMs)) return;
         var l = local[k];
         if (!isPlain(l)) { var fresh = {}; Object.keys(c).forEach(function (f) { if (f !== '_plaintextPw') fresh[f] = c[f]; }); local[k] = fresh; out.added++; return; }
-        var cs = stampOf(c), ls = stampOf(l);
+        var cs = trusted(stampOf(c), opts.nowMs), ls = trusted(stampOf(l), opts.nowMs);
         if (cs > ls) { takeOver(l, c, opts.keep); out.updated++; }
-        else if (cs === ls && fillBlanks(l, c)) out.updated++;
+        else if ((cs === ls || (!cs && stampOf(c))) && fillBlanks(l, c)) out.updated++;
       });
       return out;
     }
 
+    /* Remove, IN PLACE, every record a tombstone says was deleted after its
+       last edit. A deletion is written down at once, but the list it came
+       from is only written to storage when that write is allowed — and the
+       anti-wipe guard (rightly) refuses to replace stored records with an
+       empty list, so deleting the LAST record of a collection never reached
+       storage and the record came back on reload. Applying the tombstones on
+       load settles it without weakening that guard. Returns how many went. */
+    function applyTombstones(list, keyOf, tombs, nowMs) {
+      if (Array.isArray(list)) return mergeList(list, [], keyOf, { tombs: tombs, nowMs: nowMs }).removed;
+      if (isPlain(list)) return mergeMap(list, {}, { tombs: tombs, nowMs: nowMs }).removed;
+      return 0;
+    }
+    /* May this list be written as EMPTY over what is stored? Only when every
+       stored record is one a tombstone says was deleted after its last edit:
+       then "[]" is the truth, written down deliberately, and not a page that
+       had not loaded yet. */
+    function emptyIsDeliberate(storedList, keyOf, tombs, nowMs) {
+      if (!Array.isArray(storedList) || !storedList.length) return false;
+      return storedList.every(function (r) {
+        if (!r || typeof r !== 'object') return false;
+        var k = keyOf(r);
+        return k !== undefined && k !== null && deletedAfter(tombs, k, r, nowMs);
+      });
+    }
+
     return { stampOf: stampOf, fingerprint: fingerprint, stampChanges: stampChanges, detectRemovals: detectRemovals,
-      mergeTombstones: mergeTombstones, deletedAfter: deletedAfter, mergeList: mergeList, mergeMap: mergeMap };
+      mergeTombstones: mergeTombstones, deletedAfter: deletedAfter, mergeList: mergeList, mergeMap: mergeMap,
+      MAX_AHEAD_MS: MAX_AHEAD_MS, trusted: trusted, laterStamp: laterStamp, clockSkew: clockSkew,
+      clockLooksWrong: clockLooksWrong, examResultKey: examResultKey, mergeExamResults: mergeExamResults,
+      applyTombstones: applyTombstones, emptyIsDeliberate: emptyIsDeliberate };
   })();
 
   /* ==========================================================================
@@ -7540,6 +8764,236 @@
          same legacy row (one-to-one), so the doubled subvention stops spreading.
      Pure: it mutates and returns the local quarter blob it is given.
      ========================================================================== */
+  /* A calendar event's identity in every merge: its id, and for an event
+     saved before events carried one, its title and date (the key those
+     events have always been merged and tombstoned under). By title and date
+     alone, two different events with one title on one day were folded into
+     one, and renaming an event deleted it. */
+  Core.calendarEventKey = function (r) {
+    if (!r) return undefined;
+    if (r.id != null && r.id !== '') return String(r.id);
+    var lower = function (v) { return String(v == null ? '' : v).trim().toLowerCase(); };
+    return lower(r.title) + '|' + lower(r.date);
+  };
+
+  /* ==========================================================================
+     CHAT — messages, votes and follows merged so nobody's action is undone.
+
+     The chat file was written whole by whichever device saved last, and read
+     back with the cloud copy of every message winning. So a message deleted
+     on one device reappeared the moment a device that had not yet seen the
+     deletion opened a room (opening a room saves); an edit was reverted the
+     same way; twenty trainees voting in one poll each wrote "the poll with my
+     vote", and only the last vote survived; an unfollow came straight back
+     from any device still holding the follow. Now:
+       - a message: the copy changed last wins (updatedAt / editedAt /
+         deletedAt), its blanks are filled from the other (a picture carried by
+         one copy only), and a DELETION is final whichever copy is newer;
+         readBy is the union of both;
+       - a poll: each voter's choice is kept on its own with its time
+         (voteLog), so every voter's latest vote stands; votes recorded before
+         this are kept as they were;
+       - a follow: each (follower, followed) pair keeps its latest
+         follow-or-unfollow with its time (the follow log).
+     ========================================================================== */
+  Core.chatSync = (function () {
+    function t(v) { var x = Date.parse(v || ''); return isNaN(x) ? 0 : x; }
+    function clone(o) { return JSON.parse(JSON.stringify(o)); }
+    function stampOf(m) { return Math.max(t(m && m.updatedAt), t(m && m.editedAt), t(m && m.deletedAt)); }
+    function blank(v) { return v === undefined || v === null || v === ''; }
+
+    function mergeVotes(out, a, b) {
+      var log = {};
+      [a.voteLog, b.voteLog].forEach(function (lg) {
+        if (!lg || typeof lg !== 'object') return;
+        Object.keys(lg).forEach(function (uid) {
+          var e = lg[uid];
+          if (!e) return;
+          if (!log[uid] || t(e.at) > t(log[uid].at)) log[uid] = clone(e);
+        });
+      });
+      if (!Array.isArray(out.pollOptions)) return;
+      var opts = out.pollOptions;
+      var legacy = opts.map(function (o, i) {
+        var set = {};
+        [a, b].forEach(function (m) {
+          var po = m && Array.isArray(m.pollOptions) ? m.pollOptions[i] : null;
+          (po && Array.isArray(po.votes) ? po.votes : []).forEach(function (v) { set[v] = true; });
+        });
+        return set;
+      });
+      opts.forEach(function (o, i) {
+        var votes = [];
+        Object.keys(legacy[i]).forEach(function (v) { if (!log[v]) votes.push(v); });
+        Object.keys(log).forEach(function (uid) {
+          var chosen = Array.isArray(log[uid].opts) ? log[uid].opts : [];
+          if (chosen.indexOf(i) !== -1) votes.push(uid);
+        });
+        o.votes = votes;
+      });
+      if (Object.keys(log).length) out.voteLog = log;
+    }
+
+    /* The merged copy of one message. Never mutates its arguments. */
+    function mergeMessage(l, c) {
+      if (!l) return c ? clone(c) : l;
+      if (!c) return clone(l);
+      var cloudNewer = stampOf(c) > stampOf(l);
+      var base = clone(cloudNewer ? c : l), other = cloudNewer ? l : c;
+      Object.keys(other).forEach(function (k) {
+        if (blank(base[k]) && !blank(other[k]) && !(k === 'text' && (l.deleted || c.deleted))) base[k] = clone(other[k]);
+      });
+      if (l.deleted || c.deleted) {
+        var d = l.deleted && c.deleted ? (t(l.deletedAt) >= t(c.deletedAt) ? l : c) : (l.deleted ? l : c);
+        base.deleted = true;
+        base.text = '';
+        base.deletedAt = d.deletedAt || base.deletedAt;
+        if (d.deletedBy) base.deletedBy = d.deletedBy;
+        if (d.originalText) base.originalText = d.originalText;
+        delete base.imageData; delete base.fileData;
+      }
+      if (Array.isArray(l.readBy) || Array.isArray(c.readBy)) {
+        var rb = [];
+        (l.readBy || []).concat(c.readBy || []).forEach(function (u) { if (rb.indexOf(u) === -1) rb.push(u); });
+        base.readBy = rb;
+      }
+      if (base.type === 'poll' || l.voteLog || c.voteLog) mergeVotes(base, l, c);
+      return base;
+    }
+
+    /* Merge one room's messages from `cloud` into `local` (arrays), returning
+       { list, changed }. Every message either side has is kept, in time order. */
+    function mergeRoom(local, cloud) {
+      local = Array.isArray(local) ? local : [];
+      cloud = Array.isArray(cloud) ? cloud : [];
+      var byId = {}, out = [], changed = false;
+      local.forEach(function (m) { if (!m) return; out.push(m); if (m.id != null) byId[String(m.id)] = out.length - 1; });
+      cloud.forEach(function (c) {
+        if (!c) return;
+        var at = c.id != null ? byId[String(c.id)] : undefined;
+        if (at === undefined) {
+          out.push(clone(c)); changed = true;
+          if (c.id != null) byId[String(c.id)] = out.length - 1;
+          return;
+        }
+        var merged = mergeMessage(out[at], c);
+        if (JSON.stringify(merged) !== JSON.stringify(out[at])) { out[at] = merged; changed = true; }
+      });
+      if (changed) out.sort(function (a, b) { return t(a && a.timestamp) - t(b && b.timestamp); });
+      return { list: out, changed: changed };
+    }
+
+    /* { roomId: [messages] } — merged into `rooms` IN PLACE. Returns true
+       when anything changed. */
+    function mergeRooms(rooms, cloudRooms) {
+      if (!rooms || typeof rooms !== 'object' || !cloudRooms || typeof cloudRooms !== 'object') return false;
+      var changed = false;
+      Object.keys(cloudRooms).forEach(function (roomId) {
+        if (!Array.isArray(cloudRooms[roomId])) return;
+        var res = mergeRoom(rooms[roomId], cloudRooms[roomId]);
+        if (res.changed || !rooms[roomId]) { rooms[roomId] = res.list; changed = changed || res.changed; }
+      });
+      return changed;
+    }
+
+    /* Record this user's vote on a poll message (opts: the chosen option
+       indexes), with its time. The options' vote lists follow from it. */
+    function recordVote(msg, userId, opts, at) {
+      if (!msg || userId == null) return;
+      if (!msg.voteLog || typeof msg.voteLog !== 'object') msg.voteLog = {};
+      msg.voteLog[userId] = { opts: (opts || []).slice(), at: at || new Date().toISOString() };
+      msg.updatedAt = at || new Date().toISOString();
+    }
+
+    /* Follows: follows { uid: [followedId] }, log { uid: { followedId: { on, at } } }. */
+    function recordFollow(follows, log, uid, target, on, at) {
+      if (!follows || !log || uid == null || target == null) return;
+      if (!log[uid] || typeof log[uid] !== 'object') log[uid] = {};
+      log[uid][target] = { on: !!on, at: at || new Date().toISOString() };
+    }
+    function mergeFollows(follows, log, cloudFollows, cloudLog) {
+      if (!follows || typeof follows !== 'object') return false;
+      log = (log && typeof log === 'object') ? log : {};
+      var before = JSON.stringify([follows, log]);
+      if (cloudLog && typeof cloudLog === 'object') {
+        Object.keys(cloudLog).forEach(function (uid) {
+          var cl = cloudLog[uid];
+          if (!cl || typeof cl !== 'object') return;
+          if (!log[uid] || typeof log[uid] !== 'object') log[uid] = {};
+          Object.keys(cl).forEach(function (tg) {
+            if (!cl[tg]) return;
+            if (!log[uid][tg] || t(cl[tg].at) > t(log[uid][tg].at)) log[uid][tg] = clone(cl[tg]);
+          });
+        });
+      }
+      Object.keys(cloudFollows && typeof cloudFollows === 'object' ? cloudFollows : {}).forEach(function (uid) {
+        if (!Array.isArray(cloudFollows[uid])) return;
+        if (!Array.isArray(follows[uid])) follows[uid] = [];
+        cloudFollows[uid].forEach(function (f) { if (follows[uid].indexOf(f) === -1) follows[uid].push(f); });
+      });
+      Object.keys(log).forEach(function (uid) {
+        Object.keys(log[uid] || {}).forEach(function (tg) {
+          var e = log[uid][tg];
+          if (!Array.isArray(follows[uid])) follows[uid] = [];
+          var i = follows[uid].indexOf(tg);
+          if (e.on && i === -1) follows[uid].push(tg);
+          if (!e.on && i !== -1) follows[uid].splice(i, 1);
+        });
+      });
+      return JSON.stringify([follows, log]) !== before;
+    }
+
+    /* A copy of the rooms without the pictures and files messages carry —
+       for every channel but the chat's own file. */
+    function withoutBlobs(rooms) {
+      var out = {};
+      Object.keys(rooms || {}).forEach(function (r) {
+        out[r] = (Array.isArray(rooms[r]) ? rooms[r] : []).map(function (m) {
+          if (!m || (m.imageData === undefined && m.fileData === undefined)) return m;
+          var c = {};
+          Object.keys(m).forEach(function (k) { if (k !== 'imageData' && k !== 'fileData') c[k] = m[k]; });
+          return c;
+        });
+      });
+      return out;
+    }
+
+    return { mergeMessage: mergeMessage, mergeRoom: mergeRoom, mergeRooms: mergeRooms, recordVote: recordVote,
+      recordFollow: recordFollow, mergeFollows: mergeFollows, withoutBlobs: withoutBlobs, stampOf: stampOf };
+  })();
+
+  /* NOTIFICATIONS — trimming the list is housekeeping, never a deletion.
+
+     (Read and cleared are each person's own: readBy / clearedBy, see
+     Core.comms, merged person by person by Core.sync.mergeList unionStamps.)
+
+     The list was cut to the newest 50 for the whole Centre, so one call to an
+     80-member class room pushed out every other notice — and each one cut
+     was written down as a deletion for ever. prune() keeps the newest
+     `perAudience` for each audience (a person, or a set of roles) and never
+     more than `max` in all. */
+  Core.notify = (function () {
+    function audience(n) {
+      if (n && Array.isArray(n.forUsers) && n.forUsers.length) return 'u:' + n.forUsers.slice().sort().join(',');
+      return 'r:' + ((n && Array.isArray(n.forRoles)) ? n.forRoles.slice().sort().join(',') : '');
+    }
+    function prune(list, perAudience, max) {
+      if (!Array.isArray(list)) return list;
+      perAudience = perAudience || 50; max = max || 400;
+      var ordered = list.slice().sort(function (a, b) { return ((b && +b.timestamp) || 0) - ((a && +a.timestamp) || 0); });
+      var seen = {}, keep = [];
+      ordered.forEach(function (n) {
+        if (!n) return;
+        var k = audience(n);
+        seen[k] = (seen[k] || 0) + 1;
+        if (seen[k] <= perAudience && keep.length < max) keep.push(n);
+      });
+      if (keep.length === list.length) return list;
+      return list.filter(function (n) { return n && keep.indexOf(n) !== -1; });
+    }
+    return { prune: prune };
+  })();
+
   Core.cashbook = (function () {
     function str(v) { return v == null ? '' : String(v).trim(); }
     function amt(v) { var n = parseFloat(v); return isNaN(n) ? 0 : Math.round(n * 100) / 100; }
@@ -7805,6 +9259,18 @@
       var next = (typeof value === 'string') ? value : JSON.stringify(value);
       var current = null;
       try { current = store.getItem(key); } catch (e) { current = null; }
+      // Nothing readable here YET is not the same as nothing stored: before
+      // IndexedDB has been read in, or for a collection that lives in
+      // IndexedDB only and has not reached this document, the durable copy
+      // is still out there — and an empty write would replace it.
+      if (current == null && isEmptyValue(next) && typeof store.mayHoldUnloaded === 'function') {
+        var unloaded = false;
+        try { unloaded = !!store.mayHoldUnloaded(key); } catch (e) { unloaded = false; }
+        if (unloaded) {
+          if (typeof onRefuse === 'function') { try { onRefuse(key, null); } catch (e) {} }
+          return false;
+        }
+      }
       if (wouldDiscardRecords(current, next)) {
         if (typeof onRefuse === 'function') { try { onRefuse(key, current); } catch (e) {} }
         return false;
@@ -7858,9 +9324,12 @@
     var RECORD_KEYS = [
       { key: 'voctrain_students', type: 'students' },
       { key: 'voctrain_users', type: 'users' },
-      { key: 'voctrain_examResults', type: 'list', studentField: 'studentId',
-        id: function (r) { return r.id != null ? String(r.id) : lower(r.examId) + '|' + lower(r.studentId); },
-        stamps: ['updatedAt', 'gradedAt', 'reviewedAt', 'submittedAt'],
+      // Exam results follow the one result rule every merge uses
+      // (Core.sync.mergeExamResults): a marked copy beats an unmarked one,
+      // then the later edit — not the later submission, which marking never
+      // changes. Deletions are the dashboard's 'examResults' tombstones.
+      { key: 'voctrain_examResults', type: 'examResults', studentField: 'studentId', tombs: 'examResults',
+        id: function (r) { return Core.sync.examResultKey(r); },
         accept: function (r) { return !DEMO_EXAM.test(String(r.examId || '')) && !DEMO_STUDENT.test(String(r.studentId || '')); } },
       // The dated register: merged mark by mark with the register's own rule
       // (a real mark beats an upgrade estimate; newest mark wins; history kept).
@@ -7874,20 +9343,41 @@
       { key: 'voctrain_certDownloadApprovals', type: 'approvals' },
       // Certificate / transcript requests: each request is its own record, so
       // one office marking REQ-1 Ready and another marking REQ-2 Collected
-      // both stand, instead of the later whole list undoing the other.
-      { key: 'voctrain_certTranscriptRequests', type: 'list', id: byId,
-        stamps: ['updatedAt', 'handledAt', 'requestedAt'] },
+      // both stand, instead of the later whole list undoing the other. Merged
+      // by request on EVERY path (`always`), Drive included and whether or not
+      // the caller asked for record merging: trainees append on their own
+      // devices while the administration changes statuses on another, and a
+      // trainee's device keeps only its own requests after sign-out — one
+      // whole list winning would erase the other side's requests or decisions.
+      { key: 'voctrain_certTranscriptRequests', type: 'list', studentField: 'studentId', id: byId,
+        stamps: ['updatedAt', 'handledAt', 'requestedAt'], always: true },
       { key: 'voctrain_skillAreas', type: 'centres' },
       { key: 'voctrain_vcSessions', type: 'vcSessions' },
       { key: 'voctrain_syncTombstones', type: 'tombstones' },
       { key: 'voctrain_chatMessages', type: 'rooms' },
+      // Exams and calendar events by id, as the dashboard keys them — by
+      // title, two different exams (or two events on one day) with the same
+      // title were folded into one here.
       { key: 'voctrain_exams', type: 'list', tombs: 'exams',
-        id: function (r) { return lower(r.title) + '|' + lower(r.course); },
+        id: function (r) { return Core.exams.syncKey(r); },
         accept: function (r) { return !DEMO_EXAM.test(String(r.id || '')); } },
       { key: 'voctrain_announcements', type: 'list', tombs: 'announcements',
         id: function (r) { return r.id != null ? String(r.id) : 'title:' + lower(r.title); } },
       { key: 'voctrain_calendarEvents', type: 'list', tombs: 'calendarEvents',
-        id: function (r) { return lower(r.title) + '|' + lower(r.date); } },
+        id: function (r) { return Core.calendarEventKey(r); } },
+      // The transcript pages' records. Each manual grade, unit catalogue and
+      // request is its own record: two offices grading two trainees used to
+      // write two whole lists, and the later one erased the other's grade.
+      // Removing a manual grade is a record too (Transcript.removeManualGrade).
+      { key: 'voctrain_transcriptGrades', type: 'list', id: byId, stamps: ['updatedAt'] },
+      { key: 'voctrain_unitCatalogs', type: 'list', id: byId, stamps: ['updatedAt'] },
+      { key: 'voctrain_transcriptProfiles', type: 'map', stamps: ['updatedAt', 'lastModified'] },
+      // The virement register: per request; a decision beats "Pending"; a
+      // request deleted on the Virement page stays deleted (its own list).
+      { key: 'cesti_virements', type: 'virements', id: byId, idListTomb: 'cesti_virement_deleted_ids' },
+      // The CMC Board's minute book { virementId: ruling }: per ruling, the
+      // later ruling, countersignature or withdrawal wins.
+      { key: 'cestis_cmc_rulings', type: 'map', stamps: ['counterAt', 'at', 'withdrawnAt'], whole: true },
       { key: 'voctrain_driveResources', type: 'list', tombs: 'driveResources',
         id: function (r) { return r.driveFileId ? 'drive:' + r.driveFileId : byId(r); } },
       { key: 'voctrain_chatRooms', type: 'list', tombs: 'chatRooms', id: byId },
@@ -7922,6 +9412,18 @@
     }
     /* Is this key merged record by record? */
     function isRecordKey(key) { return !!recordSpec(key); }
+    /* ...even when the caller did not ask for record merging (opts.records)? */
+    function isAlwaysRecordKey(key) { var sp = recordSpec(key); return !!(sp && sp.always); }
+
+    /* The collections the Google Drive page files merge record by record.
+       (On the Centre's own server every registered collection is; on Drive
+       the LMS dashboard's collections have their own record merge in its
+       backup, so only the pages whose whole list was their only path are
+       switched over.) Two offices grading, handling requests or ruling at
+       once each wrote their whole list, and the later upload erased the
+       other's work. */
+    var DRIVE_RECORD_KEYS = ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles',
+      'voctrain_certTranscriptRequests', 'cesti_virements', 'cestis_cmc_rulings'];
 
     function parseJson(raw) { try { return JSON.parse(raw); } catch (e) { return undefined; } }
     function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
@@ -7964,8 +9466,19 @@
           if (isObj(t[col])) sync[col] = Core.sync.mergeTombstones(sync[col] || {}, t[col]);
         });
       });
+      var at = parseJson(Core.unionTombstoneValues(localData[Core.DELETED_AT_KEY] || '{}', cloudData[Core.DELETED_AT_KEY] || '{}') ||
+        localData[Core.DELETED_AT_KEY] || '{}');
       return { students: ids('voctrain_deletedStudentIds'), users: ids('voctrain_deletedUserIds'),
-               centres: ids('voctrain_deletedCentreIds'), sync: sync };
+               centres: ids('voctrain_deletedCentreIds'), sync: sync, studentsAt: isObj(at) ? at : {}, ids: ids };
+    }
+    /* Does this record belong to a deleted trainee? Not when it was written
+       after the deletion by a trainee enrolled again since (a re-enrolment
+       keeps the same id — see Core.isStudentTombstoned). */
+    function ownerDeleted(ctx, id, r) {
+      if (id == null || !ctx.students[String(id)]) return false;
+      var t = Date.parse((ctx.studentsAt || {})[String(id)] || '') || 0;
+      if (!t) return true;
+      return newestOf(r, ['updatedAt', 'submittedAt', 'markedAt', 'requestedAt']) <= t;
     }
 
     /* Union two lists of records by identity, IN THIS DEVICE'S ORDER: the
@@ -8018,7 +9531,11 @@
       // filled from the loser either way.
       var newer = function (l, c, fields) {
         var tl = newestOf(l, fields), tc = newestOf(c, fields);
-        return (tc > tl || (tc === tl && preferCloud)) ? fillFrom(c, l) : fillFrom(l, c);
+        var cloudWins = (tc > tl || (tc === tl && preferCloud));
+        // A record that must be taken whole (a withdrawn ruling is an entry
+        // with NO decision — filling the blank would put the ruling back).
+        if (spec.whole) return cloudWins ? c : l;
+        return cloudWins ? fillFrom(c, l) : fillFrom(l, c);
       };
 
       if (spec.type === 'tombstones') {
@@ -8039,7 +9556,9 @@
           if (out[room]) return;
           var a = L[room], b = C[room];
           if (!Array.isArray(a) || !Array.isArray(b)) { out[room] = a !== undefined ? a : b; return; }
-          var merged = unionList(a, b, byId, function (x, y) { return newer(x, y); }, function () { return true; });
+          // The chat's own rule: the later edit, a deletion always, every
+          // reader and every voter kept (Core.chatSync).
+          var merged = Core.chatSync.mergeRoom(a, b).list;
           merged.sort(function (x, y) { return (Date.parse(x && x.timestamp) || 0) - (Date.parse(y && y.timestamp) || 0); });
           out[room] = merged;
         });
@@ -8053,7 +9572,7 @@
           var cand;
           if (a === undefined) cand = b;
           else if (b === undefined) cand = a;
-          else if (isObj(a) && isObj(b)) cand = newer(a, b);
+          else if (isObj(a) && isObj(b)) cand = newer(a, b, spec.stamps);
           else cand = preferCloud ? b : a;
           if (isObj(cand) && Core.sync.deletedAfter(tombs, k, cand)) return;
           out[k] = cand;
@@ -8061,11 +9580,40 @@
         return JSON.stringify(out);
       }
 
+      if (spec.type === 'examResults') {
+        // Both copies of one attempt, decided by the result rule; a re-sit
+        // under a new id is a record of its own and both are kept.
+        out = unionList(L, C, spec.id, function (l, c) {
+          var a = [JSON.parse(JSON.stringify(l))];
+          Core.sync.mergeExamResults(a, [c], {});
+          return a[0];
+        }, function (r) {
+          if (spec.accept && !spec.accept(r)) return false;
+          if (ownerDeleted(ctx, r[spec.studentField], r)) return false;
+          if (Core.sync.deletedAfter(tombs, spec.id(r), r)) return false;
+          return true;
+        });
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'virements') {
+        var deletedReq = spec.idListTomb ? ctx.ids(spec.idListTomb) : {};
+        var decided = function (v) { return String((v && v.status) || 'Pending') !== 'Pending'; };
+        out = unionList(L, C, spec.id, function (l, c) {
+          // A decision is final: it beats a copy still saying Pending,
+          // whichever was saved later (the Board settles; the register
+          // follows). Otherwise the later edit, as for any record.
+          if (decided(l) !== decided(c)) return decided(c) ? fillFrom(c, l) : fillFrom(l, c);
+          return newer(l, c, ['updatedAt', 'lastModified', 'approvalDate']);
+        }, function (r) { return !(r.id != null && deletedReq[String(r.id)]); });
+        return JSON.stringify(out);
+      }
+
       if (spec.type === 'students') {
         var dead = ctx.students;
         var live = function (r) {
           if (DEMO_STUDENT.test(String(r.id || ''))) return false;
-          return Core.dropTombstonedStudents([r], dead).removed === 0;
+          return Core.dropTombstonedStudents([r], dead, ctx.studentsAt || {}).removed === 0;
         };
         // One person is one record however their id was minted: the app moves
         // trainees onto deterministic ids (Core.stableStudentId), so the same
@@ -8164,7 +9712,7 @@
       // A plain list of records.
       out = unionList(L, C, spec.id, function (l, c) { return newer(l, c, spec.stamps); }, function (r) {
         if (spec.accept && !spec.accept(r)) return false;
-        if (spec.studentField && r[spec.studentField] != null && ctx.students[String(r[spec.studentField])]) return false;
+        if (spec.studentField && ownerDeleted(ctx, r[spec.studentField], r)) return false;
         if (spec.tombs && Core.sync.deletedAfter(tombs, spec.id(r), r)) return false;
         return true;
       });
@@ -8254,6 +9802,18 @@
         }
 
         var lt = stampOf(localStamps, k), ct = stampOf(cloudStamps, k);
+        // A collection registered to merge by record on every path (`always`)
+        // is a union even on a first sync: a device's own unsent records are
+        // never replaced by the cloud's list, and the cloud's never by its.
+        if (isAlwaysRecordKey(k)) {
+          if (!ctx) ctx = tombContext(localData, cloudData);
+          var mergedAlways = mergeRecordValue(k, localData[k], cloudData[k], ct > lt, ctx);
+          if (mergedAlways != null) {
+            if (mergedAlways !== localData[k]) { data[k] = mergedAlways; changed.push(k); }
+            if (ct > lt && cloudStamps && cloudStamps[k]) stamps[k] = cloudStamps[k];
+            continue;
+          }
+        }
         // The cloud only wins when BOTH sides can be dated and it is the newer
         // of the two. Local data with no stamp predates this backup existing;
         // its age cannot be established, so it is never overwritten — it stands
@@ -8273,7 +9833,9 @@
         }
         // A collection of records: neither copy replaces the other — see
         // RECORD_KEYS above. The union carries the newer of the two stamps.
-        if (opts.records && isRecordKey(k)) {
+        // opts.records: true for every registered collection, or a list of
+        // the keys to treat so (the Drive paths opt in key by key).
+        if (opts.records && isRecordKey(k) && (opts.records === true || (Array.isArray(opts.records) && opts.records.indexOf(k) !== -1))) {
           if (!ctx) ctx = tombContext(localData, cloudData);
           var merged = mergeRecordValue(k, localData[k], cloudData[k], ct > lt, ctx);
           if (merged != null) {
@@ -8323,7 +9885,7 @@
         keys: ['voctrain_students', 'voctrain_skillAreas', 'voctrain_studentProfiles',
                'voctrain_instructorData', 'voctrain_attendance', 'voctrain_examResults',
                'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds',
-               'voctrain_deletedCentreIds']
+               'voctrain_deletedCentreIds', 'voctrain_deletedStudentAt']
       },
       {
         file: 'CESTIS_School_Fees.json',
@@ -8367,7 +9929,7 @@
       {
         file: 'CESTIS_Virement_Requests.json',
         page: 'Virement Requests',
-        keys: ['cesti_virements']
+        keys: ['cesti_virements', 'cesti_virement_deleted_ids']
       }
     ];
 
@@ -8502,7 +10064,8 @@
              sharedSources: sharedSources, isShared: isShared, sourceOf: sourceOf,
              sharedPullPlan: sharedPullPlan, pickShared: pickShared,
              isEmptyValue: isEmptyValue, wouldDiscardRecords: wouldDiscardRecords,
-             guardedSet: guardedSet, isRecordKey: isRecordKey, mergeRecordValue: mergeRecordValue };
+             guardedSet: guardedSet, isRecordKey: isRecordKey, mergeRecordValue: mergeRecordValue,
+             recordSpec: recordSpec, DRIVE_RECORD_KEYS: DRIVE_RECORD_KEYS };
   })();
 
   /* --------------------------------------------------------------------------
@@ -9093,6 +10656,571 @@
       legacyKey: legacyKey, syncKey: syncKey, translateLegacyTombs: translateLegacyTombs, csvCell: csvCell,
       DRAFT_PREFIX: DRAFT_PREFIX, draftKey: draftKey,
       outboxAdd: outboxAdd, outboxPending: outboxPending, outboxRestore: outboxRestore
+    };
+  })();
+
+  // ===================== COURSEWORK: dates, marks, attempts =====================
+  // The assignment pages decided "past due", averages and resubmission inline,
+  // each a little differently. These are the rules, once, so every page (and
+  // the tests) agree.
+  Core.coursework = (function () {
+    var DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+    // 'YYYY-MM-DD' for the device's own calendar day (Jamaica on the Centre's
+    // machines). toISOString() would give the UTC day, which is tomorrow from
+    // 7 PM onwards in Kingston.
+    function localDateStr(d) {
+      d = d instanceof Date ? d : (d == null ? new Date() : new Date(d));
+      if (isNaN(d.getTime())) return '';
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    }
+
+    function isDateOnly(s) {
+      var m = DATE_ONLY.exec(String(s == null ? '' : s).trim());
+      if (!m) return false;
+      var d = new Date(+m[1], +m[2] - 1, +m[3]);
+      return d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3];
+    }
+
+    // A due date typed into <input type=date> is a calendar day, not an
+    // instant. new Date('2026-10-16') reads it as UTC midnight — 7 PM on the
+    // 15th in Jamaica — so work showed "Past Due" from the evening before and
+    // all through the day it was due. Read it on the local calendar instead:
+    // the start of the day, or (endOfDay) its last millisecond.
+    function parseLocalDate(s, endOfDay) {
+      if (s == null || s === '') return null;
+      var str = String(s).trim();
+      if (isDateOnly(str)) {
+        var m = DATE_ONLY.exec(str);
+        return endOfDay ? new Date(+m[1], +m[2] - 1, +m[3], 23, 59, 59, 999) : new Date(+m[1], +m[2] - 1, +m[3]);
+      }
+      var d = new Date(str);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // Due on a day means "by the end of that day, here".
+    function isPastDue(dueDate, now) {
+      if (!dueDate) return false;
+      var d = parseLocalDate(dueDate, true);
+      if (!d) return false;
+      var t = now instanceof Date ? now.getTime() : (now == null ? Date.now() : Number(now));
+      return d.getTime() < t;
+    }
+
+    // Whole calendar days from today (local) to a date: 0 = today, 1 = tomorrow.
+    function daysUntil(dateStr, now) {
+      var d = parseLocalDate(dateStr, false);
+      if (!d) return null;
+      var n = now instanceof Date ? now : (now == null ? new Date() : new Date(now));
+      var today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+      return Math.round((d.getTime() - today.getTime()) / 86400000);
+    }
+
+    // A mark is a number, and 0 is a mark. `parseInt(g) || null` and `!grade`
+    // both read a trainee's legitimate 0 as "not graded yet".
+    function gradeValue(g) {
+      if (g == null || g === '') return null;
+      var n = typeof g === 'number' ? g : Number(String(g).trim());
+      return isFinite(n) ? n : null;
+    }
+
+    function percentOf(points, maxPoints) {
+      var p = gradeValue(points), max = Number(maxPoints);
+      if (p == null || !(max > 0)) return null;
+      return p / max * 100;
+    }
+
+    // The create form's default weight. Exams carry no weight setting, so each
+    // counts as one standard item.
+    var DEFAULT_WEIGHT = 10;
+    function weightOf(w) {
+      var n = Number(w);
+      return isFinite(n) && n > 0 ? n : DEFAULT_WEIGHT;
+    }
+
+    // Mean of percentages, each counted by its weight, over the items that
+    // actually have a mark. null when nothing is marked yet.
+    function weightedAverage(items) {
+      var sum = 0, wsum = 0;
+      (items || []).forEach(function (it) {
+        if (!it || it.pct == null || !isFinite(it.pct)) return;
+        var w = weightOf(it.weight);
+        sum += it.pct * w; wsum += w;
+      });
+      return wsum > 0 ? sum / wsum : null;
+    }
+
+    // The gradebook's own bands (A 80+, B 70+, C 60+, D 50+, F) on a 4-point scale.
+    function gpaFromPercent(p) {
+      if (p == null || !isFinite(p)) return null;
+      var g = p >= 80 ? 4 : p >= 70 ? 3 : p >= 60 ? 2 : p >= 50 ? 1 : 0;
+      return g.toFixed(1);
+    }
+
+    // GPA is hand-edited by administrators; a hand-set figure stands. Only the
+    // untouched seed ('0.0', blank) gives way to the figure the marks produce.
+    function effectiveGpa(stored, computed) {
+      var s = stored == null ? '' : String(stored).trim();
+      var isSeed = s === '' || Number(s) === 0;
+      if (isSeed && computed != null) return computed;
+      return s === '' ? '0.0' : s;
+    }
+
+    // Everything a trainee's dashboard says about coursework, from the marks.
+    // opts: { assignments, examResults, exams } — assignments already filtered
+    // to the trainee's programme.
+    function studentSummary(studentId, opts) {
+      opts = opts || {};
+      var items = [], graded = 0;
+      var assignments = opts.assignments || [];
+      assignments.forEach(function (a) {
+        var g = a && a.grades ? gradeValue(a.grades[studentId]) : null;
+        if (g == null) return;
+        graded++;
+        items.push({ pct: percentOf(g, a.maxPoints), weight: a.weight });
+      });
+      // One result per exam: the latest attempt.
+      var latest = {};
+      (opts.examResults || []).forEach(function (r) {
+        if (!r || r.studentId !== studentId) return;
+        var k = r.examId || r.examTitle || r.id;
+        var t = Date.parse(r.submittedAt || r.date || r.completedAt || '') || 0;
+        if (!latest[k] || t >= latest[k].t) latest[k] = { r: r, t: t };
+      });
+      Object.keys(latest).forEach(function (k) {
+        var s = gradeValue(latest[k].r.score);
+        if (s != null) items.push({ pct: s, weight: DEFAULT_WEIGHT });
+      });
+      var avg = weightedAverage(items);
+      var percent = avg == null ? null : Math.round(avg);
+      return { graded: graded, total: assignments.length, percent: percent, gpa: gpaFromPercent(avg) };
+    }
+
+    // A changed mark is recorded, not just overwritten: who, when, and what it
+    // was before. HEART/NSTA moderation asks exactly that.
+    function recordGrade(assignment, studentId, points, by, nowIso) {
+      if (!assignment || studentId == null) return { changed: false };
+      if (!assignment.grades) assignment.grades = {};
+      var prev = assignment.grades[studentId];
+      var prevVal = gradeValue(prev);
+      var newVal = gradeValue(points);
+      if (newVal == null) return { changed: false };
+      if (prevVal === newVal) return { changed: false, previous: prevVal };
+      var at = nowIso || new Date().toISOString();
+      assignment.grades[studentId] = newVal;
+      if (!Array.isArray(assignment.gradeLog)) assignment.gradeLog = [];
+      assignment.gradeLog.push({ studentId: studentId, points: newVal, previous: prevVal, gradedBy: by || '', gradedAt: at });
+      if (!assignment.gradeMeta || typeof assignment.gradeMeta !== 'object') assignment.gradeMeta = {};
+      assignment.gradeMeta[studentId] = { gradedBy: by || '', gradedAt: at };
+      return { changed: true, previous: prevVal };
+    }
+
+    function pairOf(subs, assignmentId, studentId) {
+      return (subs || []).filter(function (s) { return s && s.assignmentId === assignmentId && s.studentId === studentId; });
+    }
+    function subTime(s) { return Date.parse(s && s.submittedAt || '') || 0; }
+
+    // Every attempt a trainee made at one assignment, oldest first.
+    function submissionHistory(subs, assignmentId, studentId) {
+      return pairOf(subs, assignmentId, studentId).sort(function (a, b) {
+        return subTime(a) - subTime(b) || (a.attempt || 0) - (b.attempt || 0);
+      });
+    }
+    // The attempt that counts: the newest. Older ones stay as history.
+    function latestSubmission(subs, assignmentId, studentId) {
+      var h = submissionHistory(subs, assignmentId, studentId);
+      return h.length ? h[h.length - 1] : null;
+    }
+    // One entry per trainee for an assignment: their latest attempt.
+    function latestPerStudent(subs, assignmentId) {
+      var by = {};
+      (subs || []).forEach(function (s) {
+        if (!s || s.assignmentId !== assignmentId) return;
+        var cur = by[s.studentId];
+        if (!cur || subTime(s) > subTime(cur) || (subTime(s) === subTime(cur) && (s.attempt || 0) > (cur.attempt || 0))) by[s.studentId] = s;
+      });
+      return Object.keys(by).map(function (k) { return by[k]; });
+    }
+
+    // May this trainee upload (again)? Before any submission: when the
+    // assignment asks for one. Before it is marked: yes, as always. After it
+    // is marked: only when the instructor allowed resubmission on it.
+    function canSubmit(assignment, hasSubmission, grade) {
+      if (!assignment) return false;
+      if (!hasSubmission) return assignment.requireSubmission !== false;
+      if (gradeValue(grade) == null) return true;
+      return assignment.allowResubmission === true;
+    }
+
+    // Every file is copied into the Centre's data (and, offline, into one file
+    // on the Centre's server with a 64 MB ceiling), so a single upload has to
+    // stay small. 5 MB covers a phone photo, a scanned page or a PDF report.
+    var MAX_FILE_BYTES = 5 * 1024 * 1024;
+    function oversizeFiles(files, maxBytes) {
+      var max = maxBytes || MAX_FILE_BYTES;
+      var out = [];
+      for (var i = 0; i < (files ? files.length : 0); i++) {
+        var f = files[i];
+        if (f && Number(f.size) > max) out.push(f.name || ('file ' + (i + 1)));
+      }
+      return out;
+    }
+
+    // Resources follow the same programme rule as assignments. 'General' or no
+    // programme means the whole Centre.
+    function resourceVisible(resCourse, studentCourse, sameProgramme) {
+      var rc = Core.normCourse(resCourse);
+      if (!rc || rc === 'general' || rc === 'all' || rc === 'all programmes' || rc === 'all courses') return true;
+      if (!studentCourse) return false;
+      return !!(sameProgramme && sameProgramme(studentCourse, resCourse));
+    }
+
+    return {
+      DEFAULT_WEIGHT: DEFAULT_WEIGHT, MAX_FILE_BYTES: MAX_FILE_BYTES,
+      localDateStr: localDateStr, isDateOnly: isDateOnly, parseLocalDate: parseLocalDate,
+      isPastDue: isPastDue, daysUntil: daysUntil,
+      gradeValue: gradeValue, percentOf: percentOf, weightOf: weightOf, weightedAverage: weightedAverage,
+      gpaFromPercent: gpaFromPercent, effectiveGpa: effectiveGpa, studentSummary: studentSummary,
+      recordGrade: recordGrade, submissionHistory: submissionHistory, latestSubmission: latestSubmission,
+      latestPerStudent: latestPerStudent, canSubmit: canSubmit, oversizeFiles: oversizeFiles,
+      resourceVisible: resourceVisible
+    };
+  })();
+
+  // ===================== COMMUNICATIONS: announcements, agenda, bell =====================
+  Core.comms = (function () {
+    var CW = Core.coursework;
+
+    function stampOf(r) { return Date.parse(r && (r.updatedAt || r.createdAt) || '') || 0; }
+
+    // Newest first: by the announcement's date, then its last edit. Always on a
+    // copy — the shared list's order is what sync and the delete buttons see.
+    function sortAnnouncements(list) {
+      return (list || []).slice().sort(function (a, b) {
+        var da = String(a && a.date || ''), db = String(b && b.date || '');
+        if (da !== db) return da < db ? 1 : -1;
+        var sa = stampOf(a), sb = stampOf(b);
+        if (sa !== sb) return sb - sa;
+        return String(b && b.id || '').localeCompare(String(a && a.id || ''));
+      });
+    }
+
+    var ALL = ['admin', 'instructor', 'student'];
+    // Is this announcement (or calendar event) for this viewer? A record with
+    // no `course` is for every programme, as every record was before the field.
+    function forViewer(rec, role, course, sameProgramme) {
+      if (!rec) return false;
+      var roles = Array.isArray(rec.forRoles) && rec.forRoles.length ? rec.forRoles : ALL;
+      var ok = roles.indexOf(role) !== -1 || (role === 'adminstaff' && roles.indexOf('admin') !== -1);
+      if (!ok) return false;
+      if (role === 'student' && rec.course) {
+        if (!course) return false;
+        return !!(sameProgramme && sameProgramme(course, rec.course));
+      }
+      return true;
+    }
+
+    function excerpt(text, n) {
+      var s = String(text == null ? '' : text);
+      return s.length > n ? s.slice(0, n).replace(/\s+$/, '') + '…' : s;
+    }
+
+    var EVENT_TYPES = ['class', 'exam', 'deadline', 'meeting'];
+    var EVENT_ROLES = ['admin', 'adminstaff', 'instructor', 'student'];
+    function hhmm(t) {
+      var m = /^(\d{1,2}):(\d{2})$/.exec(String(t == null ? '' : t).trim());
+      if (!m || +m[1] > 23 || +m[2] > 59) return null;
+      return pad2(+m[1]) + ':' + m[2];
+    }
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+    // A calendar event the grid can actually show: a real YYYY-MM-DD day, a
+    // known type, an audience. The old prompt() flow stored '20/11/2026' as is,
+    // announced it to everyone, and it never appeared on any calendar.
+    function validateEvent(ev) {
+      var errors = [];
+      ev = ev || {};
+      if (!String(ev.title || '').trim()) errors.push('Enter a title.');
+      if (!CW.isDateOnly(ev.date)) errors.push('Choose a date.');
+      if (ev.time && !hhmm(ev.time)) errors.push('The time must look like 09:30.');
+      if (EVENT_TYPES.indexOf(ev.type) === -1) errors.push('Choose the kind of event.');
+      var roles = (ev.forRoles || []).filter(function (r) { return EVENT_ROLES.indexOf(r) !== -1; });
+      if (!roles.length) errors.push('Choose at least one audience.');
+      return { ok: errors.length === 0, errors: errors };
+    }
+
+    // Everything a trainee has coming up, worked out when the page is drawn
+    // from what is already stored — exams, assignment due dates, class sessions
+    // and calendar events — so nothing is copied and nothing can go stale.
+    // opts: { course, calendarEvents, exams, assignments, classSessions, sameProgramme }
+    function studentAgenda(opts) {
+      opts = opts || {};
+      var course = opts.course, same = opts.sameProgramme || function () { return false; };
+      var mine = function (c) { return !!c && !!course && same(course, c); };
+      var out = [];
+      (opts.calendarEvents || []).forEach(function (e) {
+        if (!e || !CW.isDateOnly(e.date)) return;
+        if (!forViewer(e, 'student', course, same)) return;
+        out.push({ kind: e.type === 'deadline' ? 'deadline' : (e.type || 'event'), type: e.type || 'meeting', date: e.date, time: e.time || '',
+          title: e.title || 'Event', color: e.color || '', source: 'calendar', ref: e });
+      });
+      (opts.exams || []).forEach(function (x) {
+        if (!x || !CW.isDateOnly(x.date) || !mine(x.course)) return;
+        if (x.status === 'draft' || x.status === 'cancelled') return;
+        out.push({ kind: 'exam', type: 'exam', date: x.date, time: x.time || '', title: x.title || 'Exam', color: 'var(--red)', source: 'exam', ref: x });
+      });
+      (opts.assignments || []).forEach(function (a) {
+        if (!a || !CW.isDateOnly(a.dueDate) || !mine(a.course)) return;
+        out.push({ kind: 'deadline', type: 'deadline', date: a.dueDate, time: '', title: (a.title || 'Assignment') + ' due', color: 'var(--accent)', source: 'assignment', ref: a });
+      });
+      (opts.classSessions || []).forEach(function (s) {
+        if (!s || !CW.isDateOnly(s.date) || !mine(s.course)) return;
+        out.push({ kind: 'class', type: 'class', date: s.date, time: s.time || '', title: s.name || s.title || 'Class', color: 'var(--blue)', source: 'class', ref: s });
+      });
+      return out.sort(function (a, b) {
+        return a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.time).localeCompare(String(b.time));
+      });
+    }
+
+    // From today on, soonest first, on a copy.
+    function upcoming(items, today, n) {
+      var t = today || CW.localDateStr(new Date());
+      var list = (items || []).filter(function (e) { return e && CW.isDateOnly(e.date) && e.date >= t; })
+        .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.time || '').localeCompare(String(b.time || '')); });
+      return n == null ? list : list.slice(0, n);
+    }
+
+    // ---- The bell: read and cleared are each person's own ----
+    // The list is shared by everyone. A shared `read` flag meant one person
+    // opening a notice marked it read for all, and "Clear all" deleted the
+    // records — other trainees' personal notices included. Each viewer now
+    // gets their own mark on the record; nothing is deleted.
+    function has(list, id) { return Array.isArray(list) && list.indexOf(id) !== -1; }
+    function isRead(n, uid) {
+      if (!n) return true;
+      // `read: true` is from before per-person marks (nobody knows who read
+      // it) and stays read; new notices start `read: false` and only gain
+      // names in readBy.
+      return n.read === true || has(n.readBy, uid);
+    }
+    function isCleared(n, uid) { return !!n && has(n.clearedBy, uid); }
+    function markRead(n, uid) {
+      if (!n || uid == null) return false;
+      if (!Array.isArray(n.readBy)) n.readBy = [];
+      if (has(n.readBy, uid)) return false;
+      n.readBy.push(uid);
+      return true;
+    }
+    function markCleared(n, uid) {
+      if (!n || uid == null) return false;
+      markRead(n, uid);
+      if (!Array.isArray(n.clearedBy)) n.clearedBy = [];
+      if (has(n.clearedBy, uid)) return false;
+      n.clearedBy.push(uid);
+      return true;
+    }
+
+    // Duty-register reminders get one id per task per hour, so every admin
+    // device that notices the same overdue task produces the SAME record and
+    // the sync collapses them into one.
+    function reminderId(kind, taskId, when) {
+      var d = when instanceof Date ? when : new Date(when == null ? Date.now() : when);
+      return 'ADR-REM-' + kind + '-' + String(taskId) + '-' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + pad2(d.getHours());
+    }
+
+    // A small send budget: at most `perWindow` sends in `windowMs`.
+    function allowSend(history, nowMs, perWindow, windowMs) {
+      var now = nowMs == null ? Date.now() : nowMs;
+      var recent = (history || []).filter(function (t) { return now - t < windowMs; });
+      return { ok: recent.length < perWindow, history: recent };
+    }
+
+    return {
+      sortAnnouncements: sortAnnouncements, forViewer: forViewer, excerpt: excerpt,
+      EVENT_TYPES: EVENT_TYPES, EVENT_ROLES: EVENT_ROLES, validateEvent: validateEvent, normTime: hhmm,
+      studentAgenda: studentAgenda, upcoming: upcoming,
+      isRead: isRead, isCleared: isCleared, markRead: markRead, markCleared: markCleared,
+      reminderId: reminderId, allowSend: allowSend
+    };
+  })();
+
+  // ===================== CHAT: membership, presence, calls, realtime =====================
+  Core.chat = (function () {
+    function ms(v) { var t = Date.parse(v || ''); return isFinite(t) ? t : 0; }
+
+    // Who belongs in a class room now. Staff always; instructors and trainees
+    // while their programme is the room's; anyone an administrator added by
+    // hand; never anyone an administrator removed (until re-added). People
+    // whose programme moved on leave — written down in `leavers`, their
+    // messages untouched.
+    // opts: { accounts, eligible(u), programmeMatches(u) }
+    function classRoomMembers(room, opts) {
+      var removed = (room && room.removed) || {};
+      var manual = (room && room.manualMembers) || {};
+      var byId = {};
+      (opts.accounts || []).forEach(function (u) { if (u && u.id != null) byId[u.id] = u; });
+      var isStaff = function (u) { return u && (u.role === 'admin' || u.role === 'adminstaff'); };
+      var set = {}, order = [], leavers = [];
+      function add(id) { if (!set[id]) { set[id] = true; order.push(id); } }
+      ((room && room.members) || []).forEach(function (id) {
+        if (removed[id]) return;
+        var u = byId[id];
+        if (manual[id] || !u) { add(id); return; }            // hand-added, or an account this device has not got yet
+        if ((u.role === 'student' || u.role === 'instructor') && !u.programme) { add(id); return; } // programme unknown is not "moved on"
+        if (isStaff(u) || ((u.role === 'student' || u.role === 'instructor') && opts.programmeMatches(u))) { add(id); return; }
+        if (u.role !== 'student' && u.role !== 'instructor') { add(id); return; }
+        leavers.push(id);
+      });
+      (opts.accounts || []).forEach(function (u) {
+        if (!u || removed[u.id] || !opts.eligible(u)) return;
+        if (isStaff(u)) add(u.id);
+        else if ((u.role === 'student' || u.role === 'instructor') && opts.programmeMatches(u)) add(u.id);
+      });
+      return { members: order, leavers: leavers };
+    }
+
+    // Presence is a heartbeat, not a flag: 'online' was set on opening the
+    // chat and never unset, so everyone who ever opened it was "online"
+    // forever and every device dialled all of them every 20 seconds.
+    var ONLINE_WINDOW_MS = 10 * 60 * 1000;
+    function isOnline(profile, nowMs) {
+      if (!profile || profile.status === 'offline') return false;
+      var seen = ms(profile.lastSeen);
+      return seen > 0 && (nowMs == null ? Date.now() : nowMs) - seen < ONLINE_WINDOW_MS;
+    }
+
+    // ---- Calls ----
+    // A call's state is written by several devices at once. Each person's
+    // own entry is kept apart (seen = heartbeat, left = when they hung up) so
+    // two people joining together are both kept, a joiner who never got a
+    // microphone is never listed, and a caller who closed the laptop stops
+    // being "in the call" once their heartbeat goes quiet.
+    var CALL_STALE_MS = 90 * 1000;
+    var LEGACY_CALL_MS = 10 * 60 * 1000;
+    function callKey(call) { return call ? String(call.startedAt || '') + '|' + String(call.startedBy || '') : ''; }
+    function liveParticipants(call, nowMs) {
+      if (!call) return [];
+      var now = nowMs == null ? Date.now() : nowMs;
+      var seen = call.seen || {}, left = call.left || {};
+      var ids = Object.keys(seen);
+      if (!ids.length) {
+        // A call written before heartbeats: trust its list for a short while only.
+        return now - ms(call.startedAt) < LEGACY_CALL_MS ? (call.participants || []).slice() : [];
+      }
+      return ids.filter(function (id) {
+        var s = ms(seen[id]);
+        return s > ms(left[id]) && now - s < CALL_STALE_MS;
+      });
+    }
+    function normalise(call, nowMs) {
+      if (!call) return null;
+      var c = {};
+      Object.keys(call).forEach(function (k) { c[k] = call[k]; });
+      c.seen = Object.assign({}, call.seen || {});
+      c.left = Object.assign({}, call.left || {});
+      c.participants = liveParticipants(c, nowMs);
+      return c.participants.length ? c : null;
+    }
+    function newest(a, b) { return ms(a) >= ms(b) ? a : b; }
+    function mergeActiveCall(a, b, nowMs) {
+      if (!a && !b) return null;
+      if (!a || !b) return normalise(a || b, nowMs);
+      if (callKey(a) !== callKey(b)) {
+        // Two different calls: the later one, if anyone is still in it.
+        var first = ms(a.startedAt) >= ms(b.startedAt) ? a : b, second = first === a ? b : a;
+        return normalise(first, nowMs) || normalise(second, nowMs);
+      }
+      var m = {};
+      Object.keys(b).forEach(function (k) { m[k] = b[k]; });
+      Object.keys(a).forEach(function (k) { m[k] = a[k]; });
+      m.seen = {}; m.left = {};
+      [a, b].forEach(function (c) {
+        Object.keys(c.seen || {}).forEach(function (id) { m.seen[id] = m.seen[id] ? newest(m.seen[id], c.seen[id]) : c.seen[id]; });
+        Object.keys(c.left || {}).forEach(function (id) { m.left[id] = m.left[id] ? newest(m.left[id], c.left[id]) : c.left[id]; });
+      });
+      if (!Object.keys(m.seen).length) {
+        var u = {};
+        (a.participants || []).concat(b.participants || []).forEach(function (id) { u[id] = true; });
+        m.participants = Object.keys(u);
+      }
+      return normalise(m, nowMs);
+    }
+    function joinCall(call, uid, nowIso) {
+      if (!call || uid == null) return call;
+      if (!call.seen) call.seen = {};
+      call.seen[uid] = nowIso || new Date().toISOString();
+      if (!Array.isArray(call.participants)) call.participants = [];
+      if (call.participants.indexOf(uid) === -1) call.participants.push(uid);
+      return call;
+    }
+    function leaveCall(call, uid, nowIso) {
+      if (!call || uid == null) return call;
+      if (!call.left) call.left = {};
+      call.left[uid] = nowIso || new Date().toISOString();
+      call.participants = (call.participants || []).filter(function (id) { return id !== uid; });
+      return call;
+    }
+
+    // ---- Realtime fast-lane ----
+    // The realtime channel runs over a public broker, so what arrives on it is
+    // only believed this far: a plain text message, for a room this device
+    // already has, from a member of that room who is the sender it claims to
+    // be. Rooms are never created from it; files, polls and calls arrive only
+    // with the Drive copy.
+    function acceptRealtimeMessage(raw, fromUid, room, myId) {
+      if (!raw || typeof raw !== 'object' || !room || !fromUid) return null;
+      var members = Array.isArray(room.members) ? room.members : (room.dmBetween || []);
+      if (members.indexOf(myId) === -1 || members.indexOf(fromUid) === -1) return null;
+      if (raw.senderId !== fromUid || raw.roomId !== room.id) return null;
+      if ((raw.type || 'text') !== 'text' || typeof raw.text !== 'string' || raw.id == null) return null;
+      var ts = ms(raw.timestamp);
+      return {
+        id: String(raw.id).slice(0, 80), roomId: room.id, senderId: fromUid,
+        senderName: String(raw.senderName == null ? '' : raw.senderName).slice(0, 120),
+        text: raw.text.slice(0, 5000), type: 'text',
+        timestamp: ts ? new Date(ts).toISOString() : new Date().toISOString(),
+        readBy: [fromUid]
+      };
+    }
+
+    // Unread = newer than my last-read mark (kept on my own profile, which only
+    // I write) and not sent by me; the old per-message readBy still counts.
+    function unreadCount(msgs, myId, lastReadIso) {
+      var lr = ms(lastReadIso), n = 0;
+      for (var i = (msgs || []).length - 1; i >= 0; i--) {
+        var m = msgs[i];
+        if (!m) continue;
+        if (m.senderId === myId) break;
+        if (lr && ms(m.timestamp) <= lr) break;
+        if (Array.isArray(m.readBy) && m.readBy.indexOf(myId) !== -1) continue;
+        n++;
+      }
+      return n;
+    }
+
+    // What goes to Drive: an attachment that already has its own Drive copy
+    // travels as that link only. A file whose upload has not happened yet keeps
+    // its bytes — they are the only copy.
+    function stripUploadedBytes(messagesByRoom) {
+      var out = {};
+      Object.keys(messagesByRoom || {}).forEach(function (rid) {
+        out[rid] = (messagesByRoom[rid] || []).map(function (m) {
+          if (!m || !m.driveFileId || (m.fileData == null && m.imageData == null)) return m;
+          var c = {};
+          Object.keys(m).forEach(function (k) { if (k !== 'fileData' && k !== 'imageData') c[k] = m[k]; });
+          return c;
+        });
+      });
+      return out;
+    }
+
+    return {
+      classRoomMembers: classRoomMembers, isOnline: isOnline, ONLINE_WINDOW_MS: ONLINE_WINDOW_MS,
+      CALL_STALE_MS: CALL_STALE_MS, callKey: callKey, liveParticipants: liveParticipants,
+      mergeActiveCall: mergeActiveCall, joinCall: joinCall, leaveCall: leaveCall,
+      acceptRealtimeMessage: acceptRealtimeMessage, unreadCount: unreadCount, stripUploadedBytes: stripUploadedBytes
     };
   })();
 

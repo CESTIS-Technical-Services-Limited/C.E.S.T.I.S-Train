@@ -89,7 +89,7 @@ const PAGE_FNS = [
   'examEndSessionForSignOut', 'examOutboxRead', 'examOutboxWrite', 'examOutboxAdd', 'examOutboxRestore', 'examOutboxConfirm', 'examTraineeUserId',
   'startStudentExam', 'startExamTimer', 'updateExamTimerDisplay', 'renderExamTaking', 'selectExamAnswer', 'toggleExamFlag',
   'autoSaveExamProgress', 'submitExam', 'showExamResult', 'viewExamResultDetail', 'renderStudentExams', 'submitGrading', 'closeGradingPanel',
-  'getFilteredNotifications', 'exportExamResults', 'detectQuestionsFromText', 'removeImportOption', 'finalizeImportExam', 'updateImportSummary',
+  'getFilteredNotifications', 'notifViewerId', 'exportExamResults', 'detectQuestionsFromText', 'removeImportOption', 'finalizeImportExam', 'updateImportSummary',
   'clearSensitiveStudentData'
 ];
 const PAGE_CODE = PAGE_FNS.map(n => extractFunction(SRC, n)).join('\n');

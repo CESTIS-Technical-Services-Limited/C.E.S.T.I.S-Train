@@ -153,8 +153,11 @@ PAGES.forEach(function (page) {
   assert(fnBody(src, 'mergeBackupData', w).indexOf('rememberCloudAdminSlices(backupData.data)') !== -1, w + ': as it was last seen in the cloud');
   assert(src.indexOf("if(Array.isArray(parsed) ? !parsed.length : (typeof parsed === 'object' && !Object.keys(parsed).length)) return;") !== -1,
     w + ': another tab\'s empty list is never adopted');
-  assert(fnBody(src, 'confirmDeleteStudent', w).indexOf('recordDeletedUser(u.id)') !== -1, w + ': deleting a trainee tombstones their login');
-  assert(fnBody(src, 'addStudent', w).indexOf('defaultPassword: true') !== -1, w + ': the initial password handed to a new trainee is marked as a seed');
+  // The dashboard's own copies of the Student Progress modal handlers were
+  // unreachable (admin-22) and are gone; the live delete reaches the dashboard
+  // as a 'students-updated' notice, and this is what removes the login.
+  assert(fnBody(src, 'removeAccountsForDeletedStudent', w).indexOf('recordDeletedUser(u.id)') !== -1, w + ': deleting a trainee tombstones their login');
+  assert(src.indexOf('function confirmDeleteStudent(') === -1 && src.indexOf('async function addStudent(') === -1, w + ': the unreachable duplicate student editor is gone');
   assert(src.indexOf('resumeCloudSyncIfLoggedIn();') !== -1 && count(src, 'resumeCloudSyncIfLoggedIn();') >= 2,
     w + ': a refreshed token restarts the pull as well as the push');
 

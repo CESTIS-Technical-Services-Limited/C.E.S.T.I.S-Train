@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261021t"></script>
 <script src="transcript-assets.js?v=20260711b"></script>
 <script src="vendor/jspdf-2.5.1.umd.min.js"></script>
 <script>window.jspdf||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">\x3C/script>'))</script>
@@ -118,6 +118,8 @@
   .tg-src.manual { background: var(--blue-dim); color: var(--blue); }
   .tg-src.none   { background: rgba(255,255,255,0.05); color: var(--text-muted); }
   .tg-src.pending { background: rgba(243,156,18,0.12); color: var(--accent); }
+  tr.tg-dirty td { background: rgba(240,165,0,0.07); }
+  tr.tg-dirty .tg-grade-input { border-color: var(--accent); }
 
   .tg-note { font-size:12px; color:var(--text-secondary); line-height:1.5; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:12px; }
   .tg-note b { color: var(--text-primary); }
@@ -258,6 +260,10 @@ var _acctName = (VIEWER.ok && VIEWER.account && VIEWER.account.name) || '';
 // of the Centre's trainees a member of staff sees).
 var MY_NAME = !VIEWER.ok ? '' : (ROLE === 'student' ? _acctName : (param('name') || _acctName));
 var MY_COURSE = param('course');
+// Every programme an instructor teaches ('|'-separated); MY_COURSE alone when
+// the host passes just the one.
+var MY_COURSES = (param('courses') || MY_COURSE).split('|').map(function (c) { return c.trim(); })
+  .filter(function (c, i, a) { return c && a.indexOf(c) === i; });
 var ACTOR = (VIEWER.ok && VIEWER.account && VIEWER.account.name) || (IS_STAFF ? 'Admin' : MY_NAME || ROLE);
 
 /* ------------------------------ data access ------------------------------ */
@@ -266,6 +272,12 @@ function readJSON(key, fallback) {
   catch (e) { return fallback; }
 }
 function writeJSON(key, val) { CESTISStore.setItem(key, JSON.stringify(val)); }
+/* The list as stored right now, falling back to this page's copy only when
+   nothing readable is stored. */
+function freshList(key, cached) {
+  var v = readJSON(key, null);
+  return Array.isArray(v) ? v : (Array.isArray(cached) ? cached : []);
+}
 
 var db = { students: [], exams: [], examResults: [], catalogs: [], grades: [], requests: [], profiles: {}, instructors: [] };
 
@@ -277,10 +289,15 @@ function loadAll() {
   db.requests = readJSON(T.KEYS.requests, []);
   db.profiles = readJSON(T.KEYS.profiles, {});
   db.instructors = readJSON('voctrain_instructorData', []);
-  var cats = readJSON(T.KEYS.catalogs, []);
-  var seeded = T.ensureSeeded(cats);
-  if (IS_STAFF && seeded.length !== cats.length) { writeJSON(T.KEYS.catalogs, seeded); }
-  db.catalogs = seeded;
+  // The seeded catalogues are added when READ, never written at start-up.
+  // Writing them here stamped pristine seeds "now" before the page's cloud
+  // pull had landed, and after an administrator's logout that newer stamp beat
+  // the catalogues they had edited — in this browser and then in Drive. They
+  // are stored the first time an administrator actually saves a catalogue.
+  db.catalogs = T.ensureSeeded(readJSON(T.KEYS.catalogs, []));
+  // One pass over the results for the whole render (T.gradeIndex): resolving
+  // grades used to scan every result for every unit of every trainee.
+  db.index = T.gradeIndex(db.exams, db.examResults, db.catalogs);
 }
 
 // Tell the host LMS the transcript data changed so it reloads its in-memory
@@ -319,22 +336,51 @@ function studentById(id) {
 }
 function profileFor(id) { return db.profiles[id] || {}; }
 
+/* The transcript header. What was typed on this page wins; otherwise what the
+   Centre already recorded: the roll's TRN (the record stores it as `trn`, which
+   this never looked at, so every header had to be re-keyed), then the School
+   Fee record's national ID; and, for a trainee on a second programme, the
+   header saved on their other enrolment (the same person by TRN or date of
+   birth — T.otherEnrolments). */
+function feeNationalIdFor(student) {
+  try {
+    var fee = readJSON('cestiSchoolFeeStudents', []);
+    var twin = CESTISCore.feeTwinIndex(Array.isArray(fee) ? fee : []).find(student);
+    return (twin && (twin.nationalId || twin.trn)) || '';
+  } catch (e) { return ''; }
+}
 function headerInfo(student) {
   var p = student ? profileFor(student.id) : {};
+  var linked = {};
+  if (student && (!p.dob || !p.address || !p.idNo)) {
+    T.otherEnrolments(student, db.students, db.profiles, true).some(function (o) {
+      var op = profileFor(o.student.id);
+      if (op.dob || op.address || op.idNo) { linked = op; return true; }
+      return false;
+    });
+  }
   return {
     name: (student && student.name) || '',
-    dob: p.dob || (student && student.dob) || '',
-    address: p.address || (student && student.address) || '',
-    idNo: p.idNo || (student && (student.idNo || student.idNumber)) || ''
+    dob: p.dob || (student && student.dob) || linked.dob || '',
+    address: p.address || (student && student.address) || linked.address || '',
+    idNo: p.idNo || (student && (student.trn || student.TRN || student.idNo || student.idNumber || student.nationalId)) ||
+          (student ? feeNationalIdFor(student) : '') || linked.idNo || ''
   };
 }
 
 function qualById(id) { return db.catalogs.filter(function (q) { return q && q.id === id; })[0] || null; }
+// The plan a trainee's transcript is printed from: the copy taken when it was
+// first issued (T.issuedQualFor) — so a later catalogue edit never rewrites a
+// graduate's transcript — else the live catalogue.
+function qualForStudent(studentId, qualId) {
+  return (studentId && qualId && T.issuedQualFor(db.profiles, studentId, qualId)) || qualById(qualId);
+}
 
 function rowsFor(studentId, qual) {
   return T.effectiveGrades({
     qual: qual, studentId: studentId,
-    exams: db.exams, examResults: db.examResults, manualGrades: db.grades
+    exams: db.exams, examResults: db.examResults, manualGrades: db.grades,
+    catalogs: db.catalogs, index: db.index
   });
 }
 
@@ -375,12 +421,17 @@ function trHeaderHTML(info) {
     '</div>';
 }
 
+/* The column headed Core/Elective prints whether the unit is Core or Elective.
+   It printed the assessment DATE under that heading, so every issued
+   transcript showed a date in the Core/Elective column and the seeded
+   Core/Elective data was never printed (the date is on the grade sheet). A
+   unit still being marked reads "Awaiting marking", never a provisional score. */
 function trUnitRowHTML(row) {
   return '<tr>' +
     '<td class="code">' + esc(row.code) + '</td>' +
     '<td class="name">' + esc(row.name) + '</td>' +
-    '<td class="ce">' + esc(row.date || '') + '</td>' +
-    '<td class="grade">' + esc(T.formatGrade(row.grade)) + '</td>' +
+    '<td class="ce">' + esc(row.coreElective || 'Core') + '</td>' +
+    '<td class="grade">' + esc(T.displayGrade(row)) + '</td>' +
   '</tr>';
 }
 
@@ -562,8 +613,8 @@ function generateTranscriptPDF(student, qual) {
     for (var c = 0; c < 4; c++) { doc.rect(x, y, TR_COLW[c], h); x += TR_COLW[c]; }
     doc.text(String(r.code || ''), TR_MARGIN_X + PAD, y + 10);
     doc.text(nameLines, TR_MARGIN_X + TR_COLW[0] + PAD, y + 10);
-    doc.text(String(r.date || ''), TR_MARGIN_X + TR_COLW[0] + TR_COLW[1] + TR_COLW[2] / 2, y + 10, { align: 'center' });
-    doc.text(T.formatGrade(r.grade), TR_MARGIN_X + TR_COLW[0] + TR_COLW[1] + TR_COLW[2] + TR_COLW[3] / 2, y + 10, { align: 'center' });
+    doc.text(String(r.coreElective || 'Core'), TR_MARGIN_X + TR_COLW[0] + TR_COLW[1] + TR_COLW[2] / 2, y + 10, { align: 'center' });
+    doc.text(T.displayGrade(r), TR_MARGIN_X + TR_COLW[0] + TR_COLW[1] + TR_COLW[2] + TR_COLW[3] / 2, y + 10, { align: 'center' });
     y += h;
   });
 
@@ -578,7 +629,7 @@ function generateGradeSheetPDF(student, qual) {
   var M = 46;
   var info = headerInfo(student);
   var rows = rowsFor(student.id, qual);
-  var stats = T.gradeStats(rows);
+  var stats = T.gradeStats(rows, qual);
   var instructor = instructorNameFor(student);
   var GREEN = [11, 122, 62], DARK = [16, 42, 28], GREY = [110, 120, 130];
 
@@ -660,15 +711,18 @@ function generateGradeSheetPDF(student, qual) {
     }
     if (idx % 2 === 1) { doc.setFillColor(245, 248, 246); doc.rect(M, y, W - 2 * M, h, 'F'); }
     var graded = r.grade != null && r.grade !== '';
-    var n = Number(r.grade);
+    // The result by the one rule every output uses (T.resultForRow): the
+    // exam's own pass mark, else the unit's / the plan's, else 60 — and a
+    // recorded "Competent" / "NYC" is a result, not PENDING.
+    var result = T.resultForRow(r, qual);
     doc.setTextColor(0);
     doc.text(String(r.code || ''), M + 6, y + 11);
     doc.text(nameLines, M + cw[0] + 6, y + 11);
     doc.text(String(r.date || '—'), M + cw[0] + cw[1] + cw[2] / 2, y + 11, { align: 'center' });
     setSerif(doc, 'bold', 8.5);
-    doc.text(graded ? T.formatGrade(r.grade) : '—', M + cw[0] + cw[1] + cw[2] + cw[3] / 2, y + 11, { align: 'center' });
-    if (graded && !isNaN(n)) {
-      var pass = n >= 60;
+    doc.text(graded || r.source === 'pending' ? T.displayGrade(r) : '—', M + cw[0] + cw[1] + cw[2] + cw[3] / 2, y + 11, { align: 'center' });
+    if (result !== 'PENDING') {
+      var pass = result === 'COMPETENT';
       doc.setTextColor(pass ? GREEN[0] : 180, pass ? GREEN[1] : 40, pass ? GREEN[2] : 30);
       doc.text(pass ? 'COMPETENT' : 'NYC', M + cw[0] + cw[1] + cw[2] + cw[3] + cw[4] / 2, y + 11, { align: 'center' });
     } else {
@@ -690,9 +744,9 @@ function generateGradeSheetPDF(student, qual) {
   doc.setDrawColor(210, 220, 214);
   doc.roundedRect(M, y, W - 2 * M, 34, 5, 5, 'FD');
   setSerif(doc, 'bold', 9.5);
-  doc.text('Units graded: ' + stats.graded + ' of ' + stats.total, M + 12, y + 21);
-  doc.text('Programme average: ' + (stats.average == null ? '—' : T.formatGrade(stats.average)), W / 2 - 40, y + 21);
-  doc.text('Completion: ' + (stats.total ? Math.round(stats.graded / stats.total * 100) : 0) + '%', W - M - 110, y + 21);
+  doc.text('Units competent: ' + stats.competent + ' of ' + stats.total, M + 12, y + 21);
+  doc.text('Average of % grades: ' + (stats.average == null ? '—' : T.formatGrade(stats.average)), W / 2 - 40, y + 21);
+  doc.text('Units graded: ' + (stats.total ? Math.round(stats.graded / stats.total * 100) : 0) + '%', W - M - 110, y + 21);
   y += 66;
   doc.setDrawColor(120, 130, 125);
   doc.setLineWidth(0.8);
@@ -735,9 +789,9 @@ function adminHTML() {
         '<div class="tg-card-head"><div><h2>Trainee Details (transcript header)</h2><div class="sub">Printed on the transcript exactly as entered.</div></div>' +
         '<button class="tg-btn sm blue" onclick="saveProfile()">Save Details</button></div>' +
         '<div class="tg-card-body"><div class="tg-field-grid">' +
-          '<div class="tg-field"><label>Date of Birth</label><input class="tg-input" id="tgpDob" placeholder="03/11/1996"></div>' +
-          '<div class="tg-field"><label>ID Number</label><input class="tg-input" id="tgpIdNo" placeholder="127-009-850"></div>' +
-          '<div class="tg-field" style="grid-column:1/-1;"><label>Address</label><input class="tg-input" id="tgpAddr" placeholder="Street, District, Parish"></div>' +
+          '<div class="tg-field"><label>Date of Birth</label><input class="tg-input tg-prof" id="tgpDob" placeholder="03/11/1996"></div>' +
+          '<div class="tg-field"><label>ID Number <span class="sub" id="tgpIdSrc"></span></label><input class="tg-input tg-prof" id="tgpIdNo" placeholder="127-009-850"></div>' +
+          '<div class="tg-field" style="grid-column:1/-1;"><label>Address</label><input class="tg-input tg-prof" id="tgpAddr" placeholder="Street, District, Parish"></div>' +
         '</div></div>' +
       '</div>' +
       '<div class="tg-card">' +
@@ -746,9 +800,14 @@ function adminHTML() {
           '<div class="tg-check"><input type="checkbox" id="tgAlsoExam" ' + (sel.alsoUpdateExam ? 'checked' : '') + ' onchange="sel.alsoUpdateExam=this.checked;">' +
             '<span><b>Manual override also updates the live exam record.</b> When a unit\'s grade came from a VocTrain exam, saving a manual grade rewrites that exam result\'s score for this trainee.</span></div>' +
           '<div id="tgStats" class="tg-stats"></div>' +
+          '<div id="tgIssuedNote"></div>' +
           '<div style="max-height:520px;overflow:auto;margin:0 -16px;padding:0 16px;">' +
           '<table class="tg-table"><thead><tr><th style="width:110px;">Unit</th><th>Name</th><th style="width:82px;">Grade %</th><th style="width:120px;">Date</th><th style="width:86px;">Source</th><th style="width:66px;"></th></tr></thead>' +
           '<tbody id="tgGradeRows"></tbody></table></div>' +
+          '<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:10px;">' +
+            '<button class="tg-btn sm blue" onclick="saveAllChangedGrades()" title="Save every row you have typed in">Save all changed rows</button></div>' +
+          '<div id="tgOrphans"></div>' +
+          '<div id="tgOtherEnrolments"></div>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -792,33 +851,76 @@ function fillQualSelect() {
   }).join('');
 }
 
+/* Typed-but-unsaved work survives a redraw. Saving one row, or the page
+   refreshing itself (another device saved, an exam was marked — the 5 s
+   check), rebuilt every input from storage and wiped what had been typed in
+   the other rows and in the header. Values that differ from what is stored are
+   remembered BY UNIT CODE (a catalogue edit can reorder the rows) and put back,
+   and their rows are marked as unsaved. */
+var dirtyGrades = {};      // unit code -> { g, d } for the current trainee + plan
+var dirtyFor = '';         // which trainee|plan the dirty values belong to
+function captureDirtyGrades() {
+  var key = sel.studentId + '|' + sel.qualId;
+  var tbody = document.getElementById('tgGradeRows');
+  if (!tbody) return;
+  if (dirtyFor !== key) { dirtyGrades = {}; dirtyFor = key; }
+  var rows = tbody.querySelectorAll('tr[data-code]');
+  for (var i = 0; i < rows.length; i++) {
+    var code = rows[i].getAttribute('data-code');
+    var g = rows[i].querySelector('.tg-grade-input:not(.tg-date-input)'), d = rows[i].querySelector('.tg-date-input');
+    if (!g || !d) continue;
+    if (g.value !== g.getAttribute('data-stored') || d.value !== d.getAttribute('data-stored')) dirtyGrades[code] = { g: g.value, d: d.value };
+    else delete dirtyGrades[code];
+  }
+}
+function markDirtyRow(el) {
+  var tr = el && el.closest ? el.closest('tr') : null;
+  if (tr) tr.classList.add('tg-dirty');
+}
+
 function onPickStudent(id) {
   sel.studentId = id;
-  /* Re-sync the qualification to the newly picked trainee's skill area.
-     When no catalogue matches their course, clear the selection — never
-     leave the previous trainee's skill area showing. */
+  /* Re-sync the qualification to the newly picked trainee's own plan (a
+     qualification pinned on the record, else their course). When no
+     catalogue matches, clear the selection — never leave the previous
+     trainee's skill area showing. */
   var s = studentById(id);
-  var q = s ? T.qualForCourse(db.catalogs, s.course) : null;
+  var q = s ? T.qualForTrainee(db.catalogs, s) : null;
   sel.qualId = q ? q.id : '';
+  dirtyGrades = {}; dirtyFor = ''; profileDirtyFor = '';
   renderAdmin();
 }
-function onPickQual(id) { sel.qualId = id; renderAdmin(); }
+function onPickQual(id) { sel.qualId = id; dirtyGrades = {}; dirtyFor = ''; renderAdmin(); }
 
+var profileDirtyFor = '';   // the trainee whose header inputs hold unsaved typing
 function renderProfileInputs() {
   var s = studentById(sel.studentId);
-  var info = s ? headerInfo(s) : { dob: '', address: '', idNo: '' };
   var d = document.getElementById('tgpDob'), a = document.getElementById('tgpAddr'), i = document.getElementById('tgpIdNo');
+  // Half-typed header details are not reset by a redraw for the same trainee.
+  if (profileDirtyFor && profileDirtyFor === sel.studentId) return;
+  var info = s ? headerInfo(s) : { dob: '', address: '', idNo: '' };
   if (d) d.value = info.dob; if (a) a.value = info.address; if (i) i.value = info.idNo;
+  var src = document.getElementById('tgpIdSrc');
+  if (src) src.textContent = (s && !profileFor(s.id).idNo && info.idNo) ? '(from the trainee\'s record)' : '';
+  [d, a, i].forEach(function (el) {
+    if (el && !el._tgWired) { el._tgWired = true; el.addEventListener('input', function () { profileDirtyFor = sel.studentId; }); }
+  });
 }
 
 function saveProfile() {
   if (!sel.studentId) { toast('Select a trainee first', 'warn'); return; }
-  db.profiles[sel.studentId] = {
+  // Re-read before writing, and keep what else the profile holds (the issued
+  // catalogue copies); stamped so the newer header wins when two copies meet.
+  db.profiles = readJSON(T.KEYS.profiles, {}) || {};
+  var prev = db.profiles[sel.studentId] || {};
+  db.profiles[sel.studentId] = Object.assign({}, prev, {
     dob: document.getElementById('tgpDob').value.trim(),
     address: document.getElementById('tgpAddr').value.trim(),
-    idNo: document.getElementById('tgpIdNo').value.trim()
-  };
+    idNo: document.getElementById('tgpIdNo').value.trim(),
+    updatedAt: new Date().toISOString()
+  });
   writeJSON(T.KEYS.profiles, db.profiles);
+  profileDirtyFor = '';
   notifyHost();
   refreshPreview();
   toast('Trainee details saved');
@@ -829,7 +931,14 @@ function renderGradeRows() {
   var sub = document.getElementById('tgGradesSub');
   var statsEl = document.getElementById('tgStats');
   if (!tbody) return;
-  var s = studentById(sel.studentId), q = qualById(sel.qualId);
+  captureDirtyGrades();
+  var s = studentById(sel.studentId), q = qualForStudent(sel.studentId, sel.qualId);
+  var issuedEl = document.getElementById('tgIssuedNote');
+  var orphEl = document.getElementById('tgOrphans');
+  var otherEl = document.getElementById('tgOtherEnrolments');
+  if (issuedEl) issuedEl.innerHTML = '';
+  if (orphEl) orphEl.innerHTML = '';
+  if (otherEl) otherEl.innerHTML = '';
   if (!s || !q) {
     tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);padding:22px 8px;text-align:center;">Select a trainee and a qualification to manage grades.</td></tr>';
     if (sub) sub.textContent = '';
@@ -840,19 +949,29 @@ function renderGradeRows() {
     tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);padding:22px 8px;text-align:center;">This qualification has no units yet — add them via “Edit Unit Catalogue”.</td></tr>';
   }
   var rows = rowsFor(s.id, q);
-  var stats = T.gradeStats(rows);
+  var stats = T.gradeStats(rows, q);
   if (sub) sub.textContent = s.name + ' — ' + q.title;
+  /* One set of figures, each saying what it counts: units achieved by the pass
+     rule, the average of the PERCENTAGE grades only (a recorded "Competent" is
+     not a 0), and how many units carry any grade. */
   if (statsEl) statsEl.innerHTML =
-    '<div class="tg-stat"><div class="v">' + stats.graded + '/' + stats.total + '</div><div class="l">Units graded</div></div>' +
-    '<div class="tg-stat"><div class="v">' + (stats.average == null ? '—' : T.formatGrade(stats.average)) + '</div><div class="l">Average</div></div>' +
-    '<div class="tg-stat"><div class="v">' + (stats.total ? Math.round(stats.graded / stats.total * 100) : 0) + '%</div><div class="l">Completion</div></div>';
+    '<div class="tg-stat"><div class="v">' + stats.competent + '/' + stats.total + '</div><div class="l">Units competent</div></div>' +
+    '<div class="tg-stat"><div class="v">' + (stats.average == null ? '—' : T.formatGrade(stats.average)) + '</div><div class="l">Average of % grades</div></div>' +
+    '<div class="tg-stat"><div class="v">' + (stats.total ? Math.round(stats.graded / stats.total * 100) : 0) + '%</div><div class="l">Units graded' + (stats.nyc ? ' · ' + stats.nyc + ' NYC' : '') + (stats.pending ? ' · ' + stats.pending + ' awaiting marking' : '') + '</div></div>';
+  if (issuedEl && q.issuedSnapshot) {
+    issuedEl.innerHTML = '<div class="tg-note">This trainee\'s transcript was issued on <b>' + esc(T.formatDateDMY(q.issuedAt)) +
+      '</b> and is printed from the unit list as it was then, so later catalogue edits do not change it. ' +
+      '<button class="tg-btn sm" onclick="reissueWithCurrentCatalogue()">Use the current catalogue instead</button></div>';
+  }
   tbody.innerHTML = rows.map(function (r, i) {
     var srcLabel = r.source === 'exam' ? 'Live exam' : (r.source === 'manual' ? 'Manual' : (r.source === 'pending' ? 'Awaiting marking' : '—'));
-    return '<tr>' +
+    var storedG = r.grade == null ? '' : String(r.grade), storedD = r.date || '';
+    var dirty = dirtyGrades[r.code];
+    return '<tr data-code="' + escAttr(r.code) + '"' + (dirty ? ' class="tg-dirty"' : '') + '>' +
       '<td class="unit-code">' + esc(r.code) + '</td>' +
-      '<td class="unit-name">' + esc(r.name) + (r.source === 'exam' && r.examTitle ? '<div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">from exam: ' + esc(r.examTitle) + '</div>' : '') + '</td>' +
-      '<td><input class="tg-grade-input" id="tgg-' + i + '" value="' + escAttr(r.grade == null ? '' : r.grade) + '" placeholder="—"></td>' +
-      '<td><input class="tg-grade-input tg-date-input" id="tgd-' + i + '" value="' + escAttr(r.date || '') + '" placeholder="DD/MM/YYYY"></td>' +
+      '<td class="unit-name">' + esc(r.name) + ((r.source === 'exam' || r.source === 'pending') && r.examTitle ? '<div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">from exam: ' + esc(r.examTitle) + '</div>' : '') + '</td>' +
+      '<td><input class="tg-grade-input" id="tgg-' + i + '" data-stored="' + escAttr(storedG) + '" value="' + escAttr(dirty ? dirty.g : storedG) + '" placeholder="' + (r.source === 'pending' ? 'marking' : '—') + '" oninput="markDirtyRow(this)" title="A percentage, or C / Competent / NYC"></td>' +
+      '<td><input class="tg-grade-input tg-date-input" id="tgd-' + i + '" data-stored="' + escAttr(storedD) + '" value="' + escAttr(dirty ? dirty.d : storedD) + '" placeholder="DD/MM/YYYY" oninput="markDirtyRow(this)"></td>' +
       '<td><span class="tg-src ' + r.source + '">' + srcLabel + '</span></td>' +
       '<td style="white-space:nowrap;">' +
         '<button class="tg-btn sm blue" title="Save this grade" onclick="saveUnitGrade(' + i + ')">Save</button> ' +
@@ -860,54 +979,134 @@ function renderGradeRows() {
       '</td>' +
     '</tr>';
   }).join('');
+
+  /* Grades recorded for units that are not in this plan any more (a code was
+     edited, or the unit dropped from a revised plan). They are kept, and
+     shown — a recorded grade is never silently hidden. */
+  var orphans = T.orphanedGrades(q, db.grades, s.id);
+  if (orphEl && orphans.length) {
+    orphEl.innerHTML = '<div class="tg-note" style="margin-top:12px;"><b>Recorded grades for units no longer in this plan</b> — kept on record; re-code the unit in the catalogue to bring them back onto the transcript.' +
+      '<table class="tg-table" style="margin-top:6px;"><tbody>' + orphans.map(function (g) {
+        return '<tr><td class="unit-code">' + esc(g.unitCode) + '</td><td>' + esc(T.displayGrade({ grade: g.grade })) + '</td><td>' + esc(g.date || '') + '</td><td style="color:var(--text-muted);">' + esc(g.updatedBy || '') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+  /* The same person on another programme (Level 2 then Level 3, or two
+     programmes) is another enrolment record with its own transcript. */
+  var others = T.otherEnrolments(s, db.students, db.profiles, false);
+  if (otherEl && others.length) {
+    otherEl.innerHTML = '<div class="tg-note" style="margin-top:12px;"><b>Other enrolments of this trainee</b>: ' + others.map(function (o) {
+      return '<a href="#" onclick="event.preventDefault();onPickStudent(' + jsArg(o.student.id) + ')">' + esc(o.student.course || o.student.id) + '</a>' +
+        (o.sameNameOnly ? ' <span style="color:var(--text-muted);">(same name only — check it is the same person)</span>' : '');
+    }).join(' · ') + '</div>';
+  }
 }
 
-function saveUnitGrade(i) {
-  var s = studentById(sel.studentId), q = qualById(sel.qualId);
-  if (!s || !q) return;
+// Every row typed in and not yet saved, saved in one go.
+function saveAllChangedGrades() {
+  captureDirtyGrades();
+  var q = qualForStudent(sel.studentId, sel.qualId);
+  if (!q) return;
+  var codes = Object.keys(dirtyGrades);
+  if (!codes.length) { toast('No changed rows to save', 'warn'); return; }
+  var saved = 0;
+  codes.forEach(function (code) {
+    var i = -1;
+    q.units.forEach(function (u, k) { if (u.code === code) i = k; });
+    if (i !== -1 && saveUnitGrade(i, { quiet: true })) saved++;
+  });
+  toast(saved + ' of ' + codes.length + ' changed row(s) saved', saved === codes.length ? '' : 'warn');
+}
+
+function saveUnitGrade(i, opts) {
+  opts = opts || {};
+  captureDirtyGrades();
+  var s = studentById(sel.studentId), q = qualForStudent(sel.studentId, sel.qualId);
+  if (!s || !q) return false;
   var unit = q.units[i];
+  if (!unit || !String(unit.code || '').trim()) {
+    // A unit with no code cannot hold a grade (grades are filed by code): say
+    // so, instead of "Grade saved" over nothing being stored.
+    toast('This unit has no unit code — give it one in “Edit Unit Catalogue” before grading it', 'err');
+    return false;
+  }
   var gv = document.getElementById('tgg-' + i).value.trim();
   var dv = document.getElementById('tgd-' + i).value.trim();
-  if (gv === '') { toast('Enter a grade first (or use ✕ to clear an override)', 'warn'); return; }
-  var num = Number(String(gv).replace('%', ''));
-  var gradeVal = isNaN(num) ? gv : num;
-  if (!isNaN(num) && (num < 0 || num > 100)) { toast('Grade must be between 0 and 100', 'warn'); return; }
+  if (gv === '') { if (!opts.quiet) toast('Enter a grade first (or use ✕ to clear an override)', 'warn'); return false; }
+  // A percentage, or a competency result (C / Competent / NYC). Anything else
+  // is refused: it could be neither averaged nor judged competent.
+  var gradeVal;
+  if (T.isNumericGrade(gv)) {
+    var num = Number(String(gv).replace('%', '').trim());
+    if (num < 0 || num > 100) { toast('Grade must be between 0 and 100', 'warn'); return false; }
+    gradeVal = num;
+  } else if (T.competencyOf(gv)) {
+    gradeVal = T.competencyOf(gv) === 'competent' ? 'Competent' : 'NYC';
+  } else {
+    toast('“' + gv + '” is not a grade — enter a percentage, or C / Competent / NYC', 'warn');
+    return false;
+  }
 
   var currentRows = rowsFor(s.id, q);
   var current = currentRows[i];
   var examResultId = current && current.examResultId;
 
+  // Re-read before writing, so a grade another tab or device saved meanwhile
+  // is not overwritten by this page's older copy of the list.
+  db.grades = readJSON(T.KEYS.grades, []) || [];
+  var before = JSON.stringify(db.grades);
   db.grades = T.upsertManualGrade(db.grades, {
     studentId: s.id, qualId: q.id, unitCode: unit.code,
     grade: gradeVal, date: dv || T.formatDateDMY(new Date().toISOString()),
     examResultId: examResultId, updatedBy: ACTOR
   });
+  if (JSON.stringify(db.grades) === before) { toast('The grade could not be saved', 'err'); return false; }
   writeJSON(T.KEYS.grades, db.grades);
+  delete dirtyGrades[unit.code];
+  var num = typeof gradeVal === 'number' ? gradeVal : NaN;
 
   /* Manual override write-back into the live VocTrain exam result. */
   if (sel.alsoUpdateExam && examResultId && !isNaN(num)) {
-    var res = db.examResults.filter(function (r) { return r && r.id === examResultId; })[0];
+    /* Patched into the results as they are stored NOW, one record only.
+       This page wrote its whole cached list back, so a result submitted on
+       the dashboard after the page loaded was erased; the original score was
+       overwritten with no trace; and with no edit stamp the override never
+       reached another device. */
+    var fresh = freshList('voctrain_examResults', db.examResults);
+    var res = fresh.filter(function (r) { return r && r.id === examResultId; })[0];
     if (res) {
       var exam = db.exams.filter(function (e) { return e && e.id === res.examId; })[0];
+      var now = new Date().toISOString();
+      if (res.originalScore === undefined) res.originalScore = res.score;
+      if (!Array.isArray(res.overrideHistory)) res.overrideHistory = [];
+      res.overrideHistory.push({ from: res.score, to: Math.round(num * 10) / 10, by: ACTOR, at: now });
       res.score = Math.round(num * 10) / 10;
-      res.passed = num >= ((exam && exam.passMark) || 60);
+      // A pass mark of 0 is a pass mark: `|| 60` used to replace it.
+      res.passed = num >= ((exam && exam.passMark != null && exam.passMark !== '' && !isNaN(Number(exam.passMark))) ? Number(exam.passMark) : T.DEFAULT_PASS_MARK);
       res.manualOverride = true;
       res.overriddenBy = ACTOR;
-      res.overriddenAt = new Date().toISOString();
-      writeJSON('voctrain_examResults', db.examResults);
+      res.overriddenAt = now;
+      res.updatedAt = (window.CESTISCore && CESTISCore.sync) ? CESTISCore.sync.laterStamp(now, res.updatedAt) : now;
+      db.examResults = fresh;
+      if (window.CESTISCore && CESTISCore.pageCloud) CESTISCore.pageCloud.guardedSet(CESTISStore, 'voctrain_examResults', fresh);
+      else writeJSON('voctrain_examResults', fresh);
     }
   }
   notifyHost();
+  db.index = T.gradeIndex(db.exams, db.examResults, db.catalogs);
   renderGradeRows();
   refreshPreview();
-  toast('Grade saved — ' + unit.code + ' → ' + T.formatGrade(gradeVal));
+  if (!opts.quiet) toast('Grade saved — ' + unit.code + ' → ' + T.displayGrade({ grade: gradeVal }));
+  return true;
 }
 
 function clearUnitGrade(i) {
-  var s = studentById(sel.studentId), q = qualById(sel.qualId);
+  captureDirtyGrades();
+  var s = studentById(sel.studentId), q = qualForStudent(sel.studentId, sel.qualId);
   if (!s || !q) return;
   var unit = q.units[i];
-  db.grades = T.removeManualGrade(db.grades, s.id, q.id, unit.code);
+  // Written down as removed (not erased), so no other copy can put the old
+  // grade back — see CESTISCore.Transcript.removeManualGrade.
+  db.grades = T.removeManualGrade(freshList(T.KEYS.grades, db.grades), s.id, q.id, unit.code, ACTOR);
   writeJSON(T.KEYS.grades, db.grades);
   notifyHost();
   renderGradeRows();
@@ -918,7 +1117,7 @@ function clearUnitGrade(i) {
 function refreshPreview() {
   var host = document.getElementById('tgPreview');
   if (!host) return;
-  host.innerHTML = renderTranscriptPreviewHTML(studentById(sel.studentId), qualById(sel.qualId));
+  host.innerHTML = renderTranscriptPreviewHTML(studentById(sel.studentId), qualForStudent(sel.studentId, sel.qualId));
 }
 
 function applyPreviewZoom(v) {
@@ -928,26 +1127,65 @@ function applyPreviewZoom(v) {
   if (host) { el.style.width = (100 * 100 / v) + '%'; }
 }
 
+/* Issuing the official transcript takes a copy of the plan it was printed
+   from onto the trainee's transcript profile (T.recordIssue), once. Every
+   reprint uses that copy, so a later catalogue edit — a re-coded or dropped
+   unit, a re-titled qualification — never rewrites a transcript already in a
+   graduate's hands. */
+function recordTranscriptIssue(s, q) {
+  if (!s || !q || q.issuedSnapshot || !q.units || !q.units.length) return;
+  db.profiles = readJSON(T.KEYS.profiles, {}) || {};
+  var next = T.recordIssue(db.profiles, s.id, q);
+  if (JSON.stringify(next) === JSON.stringify(db.profiles)) return;
+  db.profiles = next;
+  writeJSON(T.KEYS.profiles, db.profiles);
+  notifyHost();
+}
+function reissueWithCurrentCatalogue() {
+  var s = studentById(sel.studentId), live = qualById(sel.qualId);
+  if (!s || !live) return;
+  if (!confirm('Print ' + s.name + '\'s transcript from the CURRENT unit catalogue from now on?\n\nThe copy taken when it was first issued is replaced by today\'s.')) return;
+  db.profiles = readJSON(T.KEYS.profiles, {}) || {};
+  var p = Object.assign({}, db.profiles[s.id] || {});
+  var issued = Object.assign({}, p.issued || {});
+  issued[live.id] = T.snapshotQual(live);
+  p.issued = issued; p.updatedAt = new Date().toISOString();
+  db.profiles[s.id] = p;
+  writeJSON(T.KEYS.profiles, db.profiles);
+  notifyHost();
+  renderGradeRows(); refreshPreview();
+  toast('The transcript now follows the current catalogue');
+}
 function downloadTranscript() {
-  var s = studentById(sel.studentId), q = qualById(sel.qualId);
+  var s = studentById(sel.studentId), q = qualForStudent(sel.studentId, sel.qualId);
   if (!s || !q) { toast('Select a trainee and qualification first', 'warn'); return; }
-  generateTranscriptPDF(s, q);
+  recordTranscriptIssue(s, q);
+  generateTranscriptPDF(s, qualForStudent(sel.studentId, sel.qualId) || q);
+  renderGradeRows();
 }
 function downloadGradeSheet() {
-  var s = studentById(sel.studentId), q = qualById(sel.qualId);
+  var s = studentById(sel.studentId), q = qualForStudent(sel.studentId, sel.qualId);
   if (!s || !q) { toast('Select a trainee and qualification first', 'warn'); return; }
   generateGradeSheetPDF(s, q);
 }
 
 /* ---- unit catalogue editor (input section for each skill area) ---- */
+/* The editor works on a DRAFT of the catalogue. It used to edit the live
+   qualification in place, so closing it unsaved still changed what the page
+   showed, and a refused save would have left it half-edited. Each draft row
+   remembers the code it had when the editor opened (_was), which is how a
+   re-coded unit is told from a removed one. */
+var catDraft = null;
 function openCatalogEditor() {
   var q = qualById(sel.qualId);
   if (!q) { toast('Select a qualification first', 'warn'); return; }
+  catDraft = JSON.parse(JSON.stringify(q));
+  catDraft.units.forEach(function (u) { u._was = u.code; });
   renderCatalogEditor(q.id);
 }
 
 function renderCatalogEditor(qualId) {
-  var q = qualById(qualId);
+  var q = (catDraft && catDraft.id === qualId) ? catDraft : null;
   var host = document.getElementById('tgCatalogModal');
   if (!q || !host) return;
   host.innerHTML =
@@ -982,18 +1220,22 @@ function renderCatalogEditor(qualId) {
     '</div>' +
   '</div>';
 }
-function closeCatalogEditor() { document.getElementById('tgCatalogModal').innerHTML = ''; }
+function closeCatalogEditor() { catDraft = null; document.getElementById('tgCatalogModal').innerHTML = ''; }
 
 function collectCatalogEdits(q) {
   var rows = document.getElementById('tgcRows');
-  if (!rows) return;
+  if (!rows || !q) return;
   var units = [];
   for (var i = 0; ; i++) {
     var c = document.getElementById('tgcC-' + i);
     if (!c) break;
     var code = c.value.trim(), name = document.getElementById('tgcN-' + i).value.trim();
     if (!code && !name) continue;
-    units.push({ code: code, name: name, coreElective: document.getElementById('tgcE-' + i).value });
+    var u = { code: code, name: name, coreElective: document.getElementById('tgcE-' + i).value };
+    var prev = q.units[i];
+    if (prev && prev._was) u._was = prev._was;
+    if (prev && prev.passMark != null) u.passMark = prev.passMark;
+    units.push(u);
   }
   q.units = units;
   q.title = document.getElementById('tgcTitle').value.trim() || q.title;
@@ -1001,28 +1243,74 @@ function collectCatalogEdits(q) {
   q.centre = document.getElementById('tgcCentre').value.trim();
 }
 function addCatalogUnit(qualId) {
-  var q = qualById(qualId); if (!q) return;
-  collectCatalogEdits(q);
-  q.units.push({ code: '', name: '', coreElective: 'Core' });
+  if (!catDraft || catDraft.id !== qualId) return;
+  collectCatalogEdits(catDraft);
+  catDraft.units.push({ code: '', name: '', coreElective: 'Core' });
   renderCatalogEditor(qualId);
 }
 function removeCatalogUnit(qualId, i) {
-  var q = qualById(qualId); if (!q) return;
-  collectCatalogEdits(q);
-  q.units.splice(i, 1);
+  if (!catDraft || catDraft.id !== qualId) return;
+  collectCatalogEdits(catDraft);
+  catDraft.units.splice(i, 1);
   renderCatalogEditor(qualId);
 }
 function saveCatalog(qualId) {
-  var q = qualById(qualId); if (!q) return;
-  collectCatalogEdits(q);
-  q.updatedAt = new Date().toISOString();
-  writeJSON(T.KEYS.catalogs, db.catalogs);
+  var live = qualById(qualId);
+  if (!live || !catDraft || catDraft.id !== qualId) return;
+  collectCatalogEdits(catDraft);
+  // Every unit needs a code, and codes are unique within a plan: grades are
+  // filed under the code, so a blank one could hold none ("Grade saved" over
+  // nothing stored) and two units sharing one shared one grade.
+  var problems = T.validateCatalogUnits(catDraft.units);
+  if (problems.length) {
+    var p0 = problems[0];
+    toast(p0.problem === 'blank-code'
+      ? 'Unit ' + (p0.index + 1) + ' (' + (catDraft.units[p0.index].name || 'unnamed') + ') has no unit code — every unit needs one'
+      : 'Unit code ' + p0.code + ' is used twice — each unit needs its own code', 'err');
+    renderCatalogEditor(qualId);
+    return;
+  }
+  db.grades = readJSON(T.KEYS.grades, []) || [];
+  var graded = function (code) {
+    return db.grades.some(function (g) { return g && g.qualId === qualId && g.unitCode === code && !g.supersededBy && g.grade != null && g.grade !== ''; });
+  };
+  // A unit whose CODE changed: offer to carry its recorded grades across
+  // (nothing is moved without asking; the old records stay, marked).
+  var recoded = catDraft.units.filter(function (u) { return u._was && u._was !== u.code && graded(u._was); });
+  var gradesChanged = false;
+  recoded.forEach(function (u) {
+    var n = db.grades.filter(function (g) { return g && g.qualId === qualId && g.unitCode === u._was && !g.supersededBy; }).length;
+    if (confirm('Unit ' + u._was + ' is now ' + u.code + '.\n\n' + n + ' recorded grade(s) are filed under ' + u._was +
+                '. Carry them across to ' + u.code + '?\n\n(OK = carry them across; Cancel = leave them under the old code, listed as "no longer in this plan".)')) {
+      var r = T.renameUnitCode(db.grades, qualId, u._was, u.code, ACTOR);
+      db.grades = r.list; gradesChanged = true;
+    }
+  });
+  // A unit removed from the plan: its grades are kept and listed, never deleted.
+  var kept = {};
+  catDraft.units.forEach(function (u) { if (u._was) kept[u._was] = true; });
+  var removedGraded = live.units.filter(function (u) { return !kept[u.code] && graded(u.code); }).map(function (u) { return u.code; });
+  if (removedGraded.length && !confirm('Units ' + removedGraded.join(', ') + ' have recorded grades and are being removed from this plan.\n\n' +
+      'Their grades are kept and listed as "no longer in this plan"; transcripts already issued keep printing them. Save the catalogue?')) return;
+  if (gradesChanged) writeJSON(T.KEYS.grades, db.grades);
+  live.units = catDraft.units.map(function (u) { var c = Object.assign({}, u); delete c._was; return c; });
+  live.title = catDraft.title; live.skillArea = catDraft.skillArea; live.centre = catDraft.centre;
+  live.updatedAt = new Date().toISOString();
+  // Re-read the stored catalogues and replace only this one, so another
+  // qualification saved meanwhile elsewhere is not overwritten.
+  var stored = T.ensureSeeded(readJSON(T.KEYS.catalogs, []));
+  var at = -1;
+  stored.forEach(function (q, k) { if (q && q.id === qualId) at = k; });
+  if (at === -1) stored.push(live); else stored[at] = live;
+  writeJSON(T.KEYS.catalogs, stored);
+  db.catalogs = stored;
+  db.index = T.gradeIndex(db.exams, db.examResults, db.catalogs);
   notifyHost();
   closeCatalogEditor();
   fillQualSelect();
   renderGradeRows();
   refreshPreview();
-  toast('Unit catalogue saved — trainee grade pages update automatically');
+  toast('Unit catalogue saved — trainee grade pages update automatically (transcripts already issued keep their own copy)');
 }
 
 function renderAdmin() {
@@ -1052,16 +1340,28 @@ function myStudentRecord() {
   })[0] || null;
 }
 
+var myEnrolmentId = '';   // which of the trainee's own enrolments is on screen
+var shownEnrolment = null;
+function pickMyEnrolment(id) { myEnrolmentId = id; renderStudent(); }
 function renderStudent() {
   var app = document.getElementById('tgApp');
-  var s = myStudentRecord();
-  if (!s) {
+  var me = myStudentRecord();
+  if (!me) {
     app.innerHTML = '<div class="tg-empty"><div class="big">🎓</div>Your trainee record could not be found yet.<br>Please ask your administrator to enrol you, then reopen this page.</div>';
     return;
   }
-  var q = T.qualForCourse(db.catalogs, s.course);
+  /* A trainee who went from Level 2 to Level 3 (or takes two programmes) has
+     one record per enrolment and used to see only the one their login points
+     at. Their other enrolments are offered here — only those that are provably
+     the same person (same TRN / national ID or date of birth): a namesake on
+     another programme is somebody else. */
+  var mine = [me].concat(T.otherEnrolments(me, db.students, db.profiles, true).map(function (o) { return o.student; }));
+  var s = mine.filter(function (x) { return x.id === myEnrolmentId; })[0] || me;
+  shownEnrolment = s;
+  var live = T.qualForTrainee(db.catalogs, s);
+  var q = live ? qualForStudent(s.id, live.id) : null;
   var rows = q ? rowsFor(s.id, q) : [];
-  var stats = T.gradeStats(rows);
+  var stats = T.gradeStats(rows, q);
   var canTranscript = !T.hasOpenRequest(db.requests, s.id, 'transcript');
   var canCert = !T.hasOpenRequest(db.requests, s.id, 'certificate');
   var myReqs = db.requests.filter(function (r) { return r && r.studentId === s.id; })
@@ -1076,11 +1376,14 @@ function renderStudent() {
       '<button class="tg-btn green" ' + (canCert ? '' : 'disabled') + ' onclick="requestDoc(\'certificate\')">🎖 Request Certificate</button>' +
     '</div>' +
   '</div>' +
+  (mine.length > 1 ? '<div class="tg-controls"><select class="tg-select" onchange="pickMyEnrolment(this.value)">' + mine.map(function (x) {
+      return '<option value="' + escAttr(x.id) + '"' + (x.id === s.id ? ' selected' : '') + '>' + esc(x.course || x.id) + '</option>';
+    }).join('') + '</select></div>' : '') +
   '<div class="tg-stats">' +
     '<div class="tg-stat"><div class="v">' + esc(s.course || '—') + '</div><div class="l">Programme</div></div>' +
-    '<div class="tg-stat"><div class="v">' + stats.graded + '/' + stats.total + '</div><div class="l">Units graded</div></div>' +
-    '<div class="tg-stat"><div class="v">' + (stats.average == null ? '—' : T.formatGrade(stats.average)) + '</div><div class="l">Average</div></div>' +
-    '<div class="tg-stat"><div class="v">' + (stats.total ? Math.round(stats.graded / stats.total * 100) : 0) + '%</div><div class="l">Completion</div></div>' +
+    '<div class="tg-stat"><div class="v">' + stats.competent + '/' + stats.total + '</div><div class="l">Units competent</div></div>' +
+    '<div class="tg-stat"><div class="v">' + (stats.average == null ? '—' : T.formatGrade(stats.average)) + '</div><div class="l">Average of % grades</div></div>' +
+    '<div class="tg-stat"><div class="v">' + (stats.total ? Math.round(stats.graded / stats.total * 100) : 0) + '%</div><div class="l">Units graded</div></div>' +
   '</div>' +
   (myReqs.length ?
     '<div class="tg-card" style="margin-bottom:16px;"><div class="tg-card-head"><h2>My Requests</h2></div><div class="tg-card-body" style="padding-top:6px;">' +
@@ -1099,55 +1402,85 @@ function renderStudent() {
       var graded = r.grade != null && r.grade !== '';
       return '<tr><td class="unit-code">' + esc(r.code) + '</td><td class="unit-name">' + esc(r.name) + '</td>' +
         '<td>' + esc(r.date || '—') + '</td>' +
-        '<td style="font-weight:700;color:' + (graded ? 'var(--green)' : 'var(--text-muted)') + ';">' + (graded ? T.formatGrade(r.grade) : 'Pending') + '</td></tr>';
+        '<td style="font-weight:700;color:' + (graded ? 'var(--green)' : 'var(--text-muted)') + ';">' + esc(graded || r.source === 'pending' ? T.displayGrade(r) : 'Pending') + '</td></tr>';
     }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px;">No units to show yet.</td></tr>') +
     '</tbody></table></div></div>';
 }
 
+/* A request is ADDED to the queue as it stands in the store right now
+   (T.mergeRequestLists), never written as this page's copy of the whole list,
+   and then sent to the Centre's request file (CESTISPageCloud.saveShared),
+   where it is merged request by request with the administration's own. It
+   used to stay in this browser for good: nothing carried it off a trainee's
+   device, while the page said the administration had been told. */
 function requestDoc(type) {
-  var s = myStudentRecord();
+  // The enrolment on screen (the trainee's own record, or another enrolment
+  // of the same person they picked above).
+  var s = shownEnrolment || myStudentRecord();
   if (!s) return;
-  if (T.hasOpenRequest(db.requests, s.id, type)) { toast('You already have an open ' + type + ' request', 'warn'); return; }
-  db.requests.push(T.newRequest({ studentId: s.id, studentName: s.name, course: s.course, type: type }));
+  db.requests = readJSON(T.KEYS.requests, []) || [];
+  if (T.hasOpenRequest(db.requests, s.id, type)) { toast('You already have an open ' + type + ' request', 'warn'); renderStudent(); return; }
+  db.requests = T.mergeRequestLists(db.requests, [T.newRequest({ studentId: s.id, studentName: s.name, course: s.course, type: type })]);
   writeJSON(T.KEYS.requests, db.requests);
   notifyHost({ requests: true });
   renderStudent();
-  toast('Request sent — the administration team has been notified');
+  var sent = null;
+  try { if (window.CESTISPageCloud && CESTISPageCloud.saveShared) sent = CESTISPageCloud.saveShared([T.KEYS.requests]); } catch (e) { sent = null; }
+  if (!sent) { toast('Request saved on this device — it will be sent to the administration when this device is connected', 'warn'); return; }
+  sent.then(function (wrote) {
+    toast(wrote && wrote.length ? 'Request sent — the administration team has been notified'
+      : 'Request saved on this device — it will be sent to the administration when this device is connected', wrote && wrote.length ? '' : 'warn');
+  }, function () { toast('Request saved on this device — it will be sent when this device is connected', 'warn'); });
 }
 
 /* ============================================================================
    INSTRUCTOR VIEW — live grades for the instructor's own trainees
    ============================================================================ */
 var insOpen = {};
+/* The instructor's trainees: those on any programme the instructor teaches —
+   compared the way the rest of the platform compares programmes
+   (CESTISCore.enrolment.programmesAgree: the same programme written two ways,
+   never two levels), not by one name being a substring of the other — plus
+   anyone whose record names this instructor. */
+function sameProgramme(a, b) {
+  if (!a || !b) return false;
+  try { if (CESTISCore.enrolment && CESTISCore.enrolment.programmesAgree) return !!CESTISCore.enrolment.programmesAgree(a, b); } catch (e) {}
+  return T.normText(a) === T.normText(b);
+}
 function instructorStudents() {
-  var c = T.normText(MY_COURSE);
-  if (!c) return [];
+  if (!MY_COURSES.length && !MY_NAME) return [];
   return db.students.filter(function (s) {
     if (!s) return false;
-    var sc = T.normText(s.course);
-    var byCourse = sc && (sc === c || sc.indexOf(c) !== -1 || c.indexOf(sc) !== -1);
+    var byCourse = !!s.course && MY_COURSES.some(function (c) { return sameProgramme(s.course, c); });
     var byName = MY_NAME && s.instructor && T.normText(s.instructor) === T.normText(MY_NAME);
     return byCourse || byName;
   });
+}
+// Each trainee is graded against THEIR OWN programme's plan (a Level 3
+// trainee was shown — and given grade sheets for — the instructor's Level 2
+// units); the instructor's course is only the fallback.
+function insQualFor(s) {
+  var live = T.qualForTrainee(db.catalogs, s, MY_COURSE);
+  return live ? qualForStudent(s.id, live.id) : null;
 }
 
 function renderInstructor() {
   var app = document.getElementById('tgApp');
   var list = instructorStudents();
-  var q = T.qualForCourse(db.catalogs, MY_COURSE);
   app.innerHTML =
   '<div class="tg-header">' +
     '<div><h1>Trainee Grades</h1>' +
-    '<p><span class="tg-live-dot"></span>Live grades for your trainees' + (MY_COURSE ? ' in <b>' + esc(MY_COURSE) + '</b>' : '') + ' — exam results and Admin updates appear instantly. Grade sheets carry your name as instructor.</p></div>' +
+    '<p><span class="tg-live-dot"></span>Live grades for your trainees' + (MY_COURSES.length ? ' in <b>' + esc(MY_COURSES.join(', ')) + '</b>' : '') + ' — exam results and Admin updates appear instantly. Grade sheets carry your name as instructor.</p></div>' +
   '</div>' +
   (!list.length ? '<div class="tg-empty"><div class="big">🧑‍🏫</div>No trainees found for your course yet.</div>' :
     list.map(function (s, i) {
+      var q = insQualFor(s);
       var rows = q ? rowsFor(s.id, q) : [];
-      var stats = T.gradeStats(rows);
+      var stats = T.gradeStats(rows, q);
       var open = !!insOpen[s.id];
       return '<div class="tg-card" style="margin-bottom:12px;">' +
         '<div class="tg-card-head" style="cursor:pointer;" onclick="toggleInsRow(' + jsArg(s.id) + ')">' +
-          '<div><h2>' + esc(s.name) + '</h2><div class="sub">' + esc(s.course || '') + ' • ' + stats.graded + '/' + stats.total + ' units graded • avg ' + (stats.average == null ? '—' : T.formatGrade(stats.average)) + '</div></div>' +
+          '<div><h2>' + esc(s.name) + '</h2><div class="sub">' + esc(s.course || '') + (q ? ' • ' + esc(q.title) : '') + ' • ' + stats.competent + '/' + stats.total + ' units competent • avg of % grades ' + (stats.average == null ? '—' : T.formatGrade(stats.average)) + '</div></div>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
             '<button class="tg-btn sm green" onclick="event.stopPropagation();insGradeSheet(' + jsArg(s.id) + ')">⬇ Grade Sheet</button>' +
             '<span style="color:var(--text-muted);font-size:12px;">' + (open ? '▲' : '▼') + '</span></div>' +
@@ -1157,7 +1490,7 @@ function renderInstructor() {
           (rows.length ? rows.map(function (r) {
             var graded = r.grade != null && r.grade !== '';
             return '<tr><td class="unit-code">' + esc(r.code) + '</td><td class="unit-name">' + esc(r.name) + '</td><td>' + esc(r.date || '—') + '</td>' +
-              '<td style="font-weight:700;color:' + (graded ? 'var(--green)' : 'var(--text-muted)') + ';">' + (graded ? T.formatGrade(r.grade) : 'Pending') + '</td>' +
+              '<td style="font-weight:700;color:' + (graded ? 'var(--green)' : 'var(--text-muted)') + ';">' + esc(graded || r.source === 'pending' ? T.displayGrade(r) : 'Pending') + '</td>' +
               '<td><span class="tg-src ' + r.source + '">' + (r.source === 'exam' ? 'Live exam' : r.source === 'manual' ? 'Manual' : r.source === 'pending' ? 'Awaiting marking' : '—') + '</span></td></tr>';
           }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:18px;">No unit catalogue for this programme yet.</td></tr>') +
           '</tbody></table></div>' : '') +
@@ -1167,7 +1500,7 @@ function renderInstructor() {
 function toggleInsRow(id) { insOpen[id] = !insOpen[id]; renderInstructor(); }
 function insGradeSheet(id) {
   var s = studentById(id);
-  var q = T.qualForCourse(db.catalogs, MY_COURSE) || T.qualForCourse(db.catalogs, s && s.course);
+  var q = s ? insQualFor(s) : null;
   if (!s || !q) { toast('No unit catalogue set up for this programme yet', 'warn'); return; }
   generateGradeSheetPDF(s, q);
 }
@@ -1262,18 +1595,27 @@ document.addEventListener('DOMContentLoaded', function () {
 var TG_READS = ['voctrain_students', 'voctrain_skillAreas', 'voctrain_deletedCentreIds', 'voctrain_examResults'];
 var _tgStaff = (typeof IS_STAFF !== 'undefined' && IS_STAFF);
 var _tgSignedIn = (typeof VIEWER !== 'undefined' && VIEWER.ok);
+var _tgTrainee = _tgSignedIn && (typeof ROLE !== 'undefined' && ROLE === 'student');
 CESTISPageCloud.init(_tgStaff ? {
   page: 'Transcript / Grades',
   file: 'CESTIS_Transcript_Grades.json',
   keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles'],
   // Grades are recorded against the trainee roll and the training centres, both
   // owned elsewhere: pulled from Drive here, never written back.
-  reads: TG_READS
+  reads: TG_READS,
+  onRestore: function () { try { loadAll(); renderForRole(); } catch (e) {} }
 } : {
   page: 'Transcript / Grades (reader)',
   file: 'CESTIS_Transcript_Grades.reader',      // a reader publishes no file of its own
   readOnly: true,
-  reads: _tgSignedIn ? TG_READS.concat(['voctrain_transcriptGrades', 'voctrain_unitCatalogs']) : []
+  reads: _tgSignedIn ? TG_READS.concat(['voctrain_transcriptGrades', 'voctrain_unitCatalogs'])
+    .concat(_tgTrainee ? ['voctrain_certTranscriptRequests'] : []) : [],
+  // A trainee's request is a decision they may put into the request queue the
+  // administration owns (CESTIS_Transcript_Requests.json); it is merged there
+  // request by request, so it can neither replace nor be replaced by the
+  // queue. Status changes come back the same way.
+  writes: _tgTrainee ? ['voctrain_certTranscriptRequests'] : [],
+  onRestore: function () { try { if (_tgSignedIn) { loadAll(); renderForRole(); } } catch (e) {} }
 });
 </script>
 <script src="megadata/schemas.js?v=1"></script>

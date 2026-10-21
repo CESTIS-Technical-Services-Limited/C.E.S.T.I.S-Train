@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261020c"></script>
+<script src="cestis-core.js?v=20261021t"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CESTIS - Student Progress</title>
 
@@ -323,8 +323,11 @@
           <th>ID</th>
           <th>Course</th>
           <th>Stage</th>
-          <th>Test Score</th>
-          <th>Progress</th>
+          <!-- Labelled for what they are: the score of the trainee's most recent
+               exam, and how far along the pipeline their STAGE is. Neither is a
+               grade; the transcript (Transcript/Grades) holds the unit grades. -->
+          <th title="The score of this trainee's most recent exam — not their transcript grade">Last Exam Score</th>
+          <th title="How far along the enrolment pipeline the trainee's stage is">Stage Progress</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -356,14 +359,14 @@
   <div class="modal">
     <div class="modal-header"><h3>Edit Student</h3><button class="modal-close" onclick="closeModal('editStudentModal')">&#x2715;</button></div>
     <input type="hidden" id="editStudentIdx">
-    <div class="form-group"><label>Student ID</label><div style="display:flex;gap:8px;align-items:center;"><input type="text" class="form-control" id="editStudentId" readonly style="flex:1;background:var(--bg-secondary);cursor:default;"><button class="btn btn-sm btn-secondary" id="regenerateIdBtn" onclick="regenerateStudentId()" style="white-space:nowrap;">&#x21BB; Regenerate</button></div></div>
+    <div class="form-group"><label>Student ID</label><div style="display:flex;gap:8px;align-items:center;"><input type="text" class="form-control" id="editStudentId" readonly style="flex:1;background:var(--bg-secondary);cursor:default;"></div></div>
     <div class="form-group"><label>Full Name</label><input type="text" class="form-control" id="editStudentName"></div>
     <div class="form-group"><label>Email</label><input type="email" class="form-control" id="editStudentEmail" placeholder="e.g. john@email.com"></div>
     <div class="form-group"><label>Programme</label><select class="form-control" id="editStudentCourse"></select></div>
     <div class="form-group"><label>Gender</label><select class="form-control" id="editStudentGender"><option value="">— Select —</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
     <div class="form-group"><label>Instructor</label><input type="text" class="form-control" id="editStudentInstructor"></div>
     <div class="form-group"><label>Attendance (%)</label><input type="number" class="form-control" id="editStudentAttendance" min="0" max="100"><div id="editStudentAttendanceNote" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div></div>
-    <div class="form-group"><label>GPA</label><input type="text" class="form-control" id="editStudentGPA"></div>
+    <div class="form-group"><label>GPA <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(entered by hand — the transcript average is on Transcript/Grades)</span></label><input type="text" class="form-control" id="editStudentGPA"></div>
     <!-- Two real trainees can share a name. The system treats one name as one
          person and collapses the rest on launch; this is how an administrator
          says "these are genuinely two people" and exempts a record from that. -->
@@ -566,11 +569,15 @@ function relinkDependentData(idMap) {
   if (window.CESTISCore && typeof CESTISCore.relinkDependentData === 'function') {
     var _d = { userAccounts: userAccounts, attendanceRecords: attendanceRecords,
                certDownloadApprovals: certDownloadApprovals,
-               examResults: (Array.isArray(examResults) ? examResults : []) };
+               examResults: (Array.isArray(examResults) ? examResults : []),
+               studentProfiles: studentProfiles };
     CESTISCore.relinkDependentData(idMap, _d);
     userAccounts = _d.userAccounts; attendanceRecords = _d.attendanceRecords;
     certDownloadApprovals = _d.certDownloadApprovals;
     if (Array.isArray(examResults)) examResults = _d.examResults;
+    // The trainee's manual grades, transcript header and requests live only in
+    // the store; the same shared relink carries them (CESTISCore).
+    if (typeof CESTISCore.relinkStoredDependents === 'function') CESTISCore.relinkStoredDependents(idMap, CESTISStore);
     // The dated attendance register (kept by the main dashboard) names each
     // trainee by id too: a trainee re-identified here takes their marks along,
     // folded newest-wins into any mark the new id already has.
@@ -616,18 +623,36 @@ function relinkDependentData(idMap) {
 // load. Persists through saveData() only when something actually changed.
 function cestisStabilizeStudentIds() {
   if (!window.CESTISCore || typeof CESTISCore.migrateToStableIds !== 'function') return false;
+  // Deleted records go first, before anything is merged: a stale copy of a
+  // deleted trainee must never be folded into a NEW enrolment of the same
+  // name (a re-enrolment keeps an id of its own — CESTISCore.isReEnrolment).
+  var droppedTomb = spDropTombstoned();
   var bundle = {
     students: students, userAccounts: userAccounts,
     attendanceRecords: attendanceRecords, certDownloadApprovals: certDownloadApprovals,
-    examResults: (Array.isArray(examResults) ? examResults : [])
+    examResults: (Array.isArray(examResults) ? examResults : []),
+    studentProfiles: studentProfiles
   };
   var res = CESTISCore.migrateToStableIds(bundle);
   students = bundle.students; userAccounts = bundle.userAccounts;
   attendanceRecords = bundle.attendanceRecords; certDownloadApprovals = bundle.certDownloadApprovals;
   if (Array.isArray(examResults)) examResults = bundle.examResults;
+  // A rename moves the stable id: the trainee's manual grades, transcript
+  // header and requests follow it through the same shared relink as everything
+  // above (they live only in the store).
+  if (res && res.idMap && typeof CESTISCore.relinkStoredDependents === 'function') {
+    CESTISCore.relinkStoredDependents(res.idMap, CESTISStore);
+  }
+  droppedTomb += spDropTombstoned();
 
-  // Tombstone enforcement: remove any deleted student that re-appeared (by id or
-  // stable id) and purge their dependent records — same chokepoint as the dashboard.
+  if (!((res && res.changed) || droppedTomb > 0)) return false;
+  saveData();
+  return true;
+}
+
+// Tombstone enforcement: remove any deleted student that re-appeared (by id or
+// stable id) and purge their dependent records — same chokepoint as the dashboard.
+function spDropTombstoned() {
   var droppedTomb = 0;
   if (typeof CESTISCore.dropTombstonedStudents === 'function') {
     var del = CESTISCore.readDeletedIds(CESTISStore);
@@ -644,10 +669,7 @@ function cestisStabilizeStudentIds() {
       }
     }
   }
-
-  if (!((res && res.changed) || droppedTomb > 0)) return false;
-  saveData();
-  return true;
+  return droppedTomb;
 }
 
 // `detail` rides along on the notification to the parent dashboard. A rename is
@@ -832,6 +854,8 @@ function recordDeletedStudent(id) {
     var existing = _getDeletedStudentIds();
     existing[id] = true;
     CESTISStore.setItem('voctrain_deletedStudentIds', JSON.stringify(Object.keys(existing)));
+    // ...and WHEN, so the same person enrolled again later is not hidden by it.
+    if (window.CESTISCore && CESTISCore.recordStudentDeletionTime) CESTISCore.recordStudentDeletionTime(id, CESTISStore);
   } catch(e) {}
 }
 
@@ -839,6 +863,32 @@ function spEscapeHtml(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+// A value handed to an inline handler as a quoted JavaScript string (the
+// shared toolkit; the fallback covers a stale cached cestis-core.js).
+function spJsArg(s) {
+  if (window.CESTISCore && CESTISCore.html) return CESTISCore.html.jsArg(s);
+  return spEscapeHtml(JSON.stringify(String(s == null ? '' : s)));
+}
+
+/* WHICH trainee a button or a modal acts on: by record id, resolved at the
+   moment of acting — never a row position remembered from when the modal
+   opened. This page reloads the roll whenever another tab, the dashboard or a
+   cloud pull writes it, and a reload can put a different trainee at that
+   position: confirming "Delete Cara Cole" deleted (and permanently
+   tombstoned) whoever sat in her row by then. Returns the current index, or
+   -1 — and says so — when the record is gone or is no longer the person the
+   form was opened for. */
+function spIndexOfId(id, expectName) {
+  if (id == null || id === '') return -1;
+  var idx = -1;
+  for (var i = 0; i < students.length; i++) { if (students[i] && String(students[i].id) === String(id)) { idx = i; break; } }
+  var norm = function (v) { return String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, ' '); };
+  if (idx === -1 || (expectName != null && norm(students[idx].name) !== norm(expectName))) {
+    showToast('This trainee\'s record changed while the form was open (another device or tab saved the roll). Nothing was changed — please open it again.', 'warning');
+    return -1;
+  }
+  return idx;
 }
 
 // ============================== ENROLMENT ELIGIBILITY ==============================
@@ -914,11 +964,9 @@ function renderStudents(data) {
   var tbody = document.getElementById('studentTableBody');
   if(!tbody) return;
   if(!data || !Array.isArray(data)) { data = []; }
-  // Row positions from one index, not students.indexOf() per row.
-  var _rowPos = new Map();
-  for (var _ri = 0; _ri < students.length; _ri++) if (!_rowPos.has(students[_ri])) _rowPos.set(students[_ri], _ri);
   tbody.innerHTML = data.map(function(s){
-    var idx = _rowPos.has(s) ? _rowPos.get(s) : students.indexOf(s);
+    // Buttons carry the record's id, resolved when clicked (spIndexOfId).
+    var rid = spJsArg(s.id);
     var prog = s.progress || 0;
     // A pinned record is visibly pinned: without this the only way to tell why
     // two same-named rows survive is to open both.
@@ -935,9 +983,9 @@ function renderStudents(data) {
       '<td>' + sanitizeInput(s.score||'—') + '</td>' +
       '<td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:80px;"><div class="fill" style="width:' + prog + '%;background:' + (prog>=80?'var(--green)':prog>=40?'var(--accent)':'var(--red)') + ';"></div></div><span style="font-size:12px;color:var(--text-muted);">' + prog + '%</span></div></td>' +
       '<td><div style="display:flex;gap:6px;">' + (spCanManage() ?
-        '<button class="btn btn-sm btn-secondary" onclick="openUpdateStage(' + idx + ')">Update</button>' +
-        '<button class="btn btn-sm btn-secondary" onclick="openEditStudent(' + idx + ')" style="font-size:11px;">&#x270E; Edit</button>' +
-        '<button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:11px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteStudent(' + idx + ')">&#x2715; Delete</button>'
+        '<button class="btn btn-sm btn-secondary" onclick="openUpdateStage(' + rid + ')">Update</button>' +
+        '<button class="btn btn-sm btn-secondary" onclick="openEditStudent(' + rid + ')" style="font-size:11px;">&#x270E; Edit</button>' +
+        '<button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:11px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteStudent(' + rid + ')">&#x2715; Delete</button>'
         : '<span style="font-size:11px;color:var(--text-muted);">View only</span>') +
       '</div></td>' +
     '</tr>';
@@ -983,8 +1031,10 @@ function updatePipelineCounts() {
 }
 
 // ============================== STAGE OPERATIONS ==============================
-function openUpdateStage(idx) {
+function openUpdateStage(id) {
   if(spRefuseEdit()) return;
+  var idx = spIndexOfId(id);
+  if (idx === -1) return;
   var s = students[idx];
   document.getElementById('updateStageContent').innerHTML =
     '<p style="margin-bottom:16px;font-size:14px;">Student: <strong>' + sanitizeInput(s.name) + '</strong> (' + sanitizeInput(s.id) + ')<br>Course: ' + sanitizeInput(s.course) + '<br>Current: <span class="badge ' + (stageBadge[s.stage]||'badge-blue') + '">' + sanitizeInput(stageLabels[s.stage]||s.stage) + '</span>' +
@@ -996,10 +1046,19 @@ function openUpdateStage(idx) {
     '<div class="form-group"><label>Notes</label><textarea class="form-control" id="spStageNotes" placeholder="Add notes..."></textarea></div>' +
     '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">' +
       '<button class="btn btn-secondary" onclick="closeModal(\'updateStageModal\')">Cancel</button>' +
-      '<button class="btn btn-primary" onclick="updateStudentStage(' + idx + ')">Update</button>' +
+      '<button class="btn btn-primary" onclick="spUpdateStageFor(' + spJsArg(s.id) + ',' + spJsArg(s.name) + ')">Update</button>' +
     '</div>';
   spRenderCertChecklist(idx);
   openModal('updateStageModal');
+}
+
+// The Update button: find the trainee the modal was opened for NOW, then
+// apply the stage change to them (updateStudentStage takes a position).
+function spUpdateStageFor(id, name) {
+  if(spRefuseEdit()) return;
+  var idx = spIndexOfId(id, name);
+  if (idx === -1) { closeModal('updateStageModal'); return; }
+  updateStudentStage(idx);
 }
 
 // What the Centre's own records say before a certificate is issued: units
@@ -1090,10 +1149,15 @@ function updateStudentStage(idx) {
   saveData();
 }
 // ============================== EDIT STUDENT ==============================
-function openEditStudent(idx) {
+function openEditStudent(id) {
   if(spRefuseEdit()) return;
+  var idx = spIndexOfId(id);
+  if (idx === -1) return;
   var s = students[idx];
-  document.getElementById('editStudentIdx').value = idx;
+  // The record's id and the name the form was opened for — the save finds the
+  // trainee by these, not by a row position (spIndexOfId).
+  document.getElementById('editStudentIdx').value = s.id;
+  document.getElementById('editStudentIdx').setAttribute('data-name', s.name || '');
   document.getElementById('editStudentId').value = s.id;
   document.getElementById('editStudentName').value = s.name;
   var profile = studentProfiles[s.id] || {};
@@ -1141,12 +1205,11 @@ function generateStudentId() {
   return 'STU-'+Date.now().toString(36).toUpperCase()+Math.random().toString(36).substring(2,6).toUpperCase();
 }
 
-function regenerateStudentId() {
-  if(spRefuseEdit()) return;
-  var newId = generateStudentId();
-  document.getElementById('editStudentId').value = newId;
-  showToast('New ID generated — save to apply');
-}
+/* There is no "Regenerate ID" any more. Ids are derived from the trainee's
+   name and programme and follow them everywhere; a hand-made random id moved
+   only the profile and left the trainee's login, attendance, results,
+   certificate approval and every transcript record on the old one (and for a
+   "keep separate" trainee nothing ever moved them back). */
 
 /* Carry the "keep separate" marker across to this person's School Fee record.
 
@@ -1197,22 +1260,15 @@ function spPropagateKeepSeparate(student, keep) {
 
 function saveEditStudent() {
   if(spRefuseEdit()) return;
-  var idx = parseInt(document.getElementById('editStudentIdx').value);
+  var _idEl = document.getElementById('editStudentIdx');
   var name = document.getElementById('editStudentName').value.trim();
   if(!name){ alert('Please enter a name'); return; }
+  var idx = spIndexOfId(_idEl.value, _idEl.getAttribute('data-name'));
+  if (idx === -1) { closeModal('editStudentModal'); return; }
   var s = students[idx];
   // Identity before the edit, handed to the dashboard below so the School Fee
   // record for this person is renamed too instead of being left on the old name.
   var was = { id: s.id, name: s.name, course: s.course, schoolFeeId: s.schoolFeeId };
-  var newId = document.getElementById('editStudentId').value;
-  if(newId && newId !== s.id){
-    var oldId = s.id;
-    if(studentProfiles[oldId]){
-      studentProfiles[newId] = studentProfiles[oldId];
-      delete studentProfiles[oldId];
-    }
-    s.id = newId;
-  }
   s.name = name;
   // The administrator's "this is genuinely a different person" marker. Stored
   // only when set, so an ordinary record carries no extra field; it travels
@@ -1260,17 +1316,23 @@ function saveEditStudent() {
 }
 
 // ============================== DELETE STUDENT ==============================
-function openDeleteStudent(idx) {
+function openDeleteStudent(id) {
   if(spRefuseEdit()) return;
+  var idx = spIndexOfId(id);
+  if (idx === -1) return;
   var s = students[idx];
-  document.getElementById('deleteStudentIdx').value = idx;
+  // The record's id and the name shown — confirm acts on exactly this trainee.
+  document.getElementById('deleteStudentIdx').value = s.id;
+  document.getElementById('deleteStudentIdx').setAttribute('data-name', s.name || '');
   document.getElementById('deleteStudentName').textContent = s.name + ' (' + s.id + ')';
   openModal('deleteStudentModal');
 }
 
 function confirmDeleteStudent() {
   if(spRefuseEdit()) return;
-  var idx = parseInt(document.getElementById('deleteStudentIdx').value);
+  var _delEl = document.getElementById('deleteStudentIdx');
+  var idx = spIndexOfId(_delEl.value, _delEl.getAttribute('data-name'));
+  if (idx === -1) { closeModal('deleteStudentModal'); return; }
   var s = students[idx];
   var name = s.name;
   var sid = s.id;
@@ -1326,8 +1388,20 @@ async function addStudent() {
   })||{}).name || '';
   var gender = document.getElementById('newStudentGender').value || '';
   var studentId = generateStudentId();
-  if (window.CESTISCore) { var _sid = CESTISCore.stableStudentId({name:name, course:selectedCourse}); if (_sid) studentId = _sid; }
-  students.unshift({
+  var _reEnrolledAt = '';
+  if (window.CESTISCore) {
+    // The stable id — unless that id was deleted before (this person, or a
+    // namesake, was removed from this programme in an earlier intake). Then
+    // the new enrolment gets an id of its own and is marked as one, so the old
+    // deletion goes on blocking only the record that was deleted
+    // (CESTISCore.newEnrolmentId / isReEnrolment).
+    var _ne = (typeof CESTISCore.newEnrolmentId === 'function')
+      ? CESTISCore.newEnrolmentId({name:name, course:selectedCourse}, _getDeletedStudentIds())
+      : { id: CESTISCore.stableStudentId({name:name, course:selectedCourse}), reEnrolledAt: '' };
+    if (_ne.id) studentId = _ne.id;
+    _reEnrolledAt = _ne.reEnrolledAt || '';
+  }
+  var _newRec = {
     id: studentId, name: name,
     stage: document.getElementById('newStudentStage').value,
     course: selectedCourse, score:'', progress:10,
@@ -1336,11 +1410,16 @@ async function addStudent() {
     gpa:'0.0', instructor:assignedInstructor, gender:gender,
     createdAt:CESTISCore.attendance.localDate(),
     lastModified:new Date().toISOString(),
-    // Grounded in the training centre's duration and fiscal year
-    centreId:_stamp.centreId, centreName:_stamp.centreName,
+    // Grounded in the training centre's duration and fiscal year — and its
+    // intake key, which is what binds the trainee to THIS intake (a later
+    // intake of the same name, or a new centre, never claims them).
+    centreId:_stamp.centreId, centreKey:_stamp.centreKey || undefined, centreName:_stamp.centreName,
     courseStart:_stamp.courseStart, courseEnd:_stamp.courseEnd,
     enrolmentDate:_stamp.enrolmentDate, fiscalYear:_stamp.fiscalYear
-  });
+  };
+  if (!_newRec.centreKey) delete _newRec.centreKey;
+  if (_reEnrolledAt) _newRec.reEnrolledAt = _reEnrolledAt;
+  students.unshift(_newRec);
   // Auto-create attendance record
   var existingAtt = attendanceRecords.find(function(r){ return r.studentId === studentId; });
   if(!existingAtt){
@@ -1356,7 +1435,7 @@ async function addStudent() {
   closeModal('addStudentModal');
   filterStudents();
   updatePipelineCounts();
-  showToast(name + ' added. Their login is set up in Verify Users / Settings → Users.');
+  showToast(name + ' added' + (_reEnrolledAt ? ' as a new enrolment (an earlier record of this name on this programme was deleted and stays deleted)' : '') + '. Their login is set up in Verify Users / Settings → Users.');
   document.getElementById('newStudentName').value = '';
   document.getElementById('newStudentGender').value = '';
   document.getElementById('newStudentEmail').value = '';
@@ -1495,7 +1574,7 @@ CESTISPageCloud.init({
   // (every dated mark), merged mark by mark.
   // Opened with no signed-in session it shows nothing, so it moves nothing either.
   readOnly: !(typeof SP_VIEWER !== 'undefined' && SP_VIEWER.ok),
-  keys: ['voctrain_students', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles'],
+  keys: ['voctrain_students', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedStudentAt', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles'],
   // The fee roll is read here (trainees the fee page knows about first are
   // mirrored onto this dashboard) but owned by School Fee, so it is pulled from
   // Drive and never written back from this page.
