@@ -162,7 +162,15 @@ function handleData(req, res, name) {
 
   if (req.method === 'GET') {
     fs.readFile(file, (err, buf) => {
-      if (err) return send(res, 404, '{}', MIME['.json']);
+      // Only a file that is not there is "absent". Any other failure (the
+      // file busy, locked by a virus scan or a backup tool, too many open
+      // files) used to be answered as absent too, and the device then merged
+      // its own keys against nothing and saved that over the Centre's file. A
+      // 5xx makes the device stop and try again instead.
+      if (err) {
+        if (err.code === 'ENOENT') return send(res, 404, '{}', MIME['.json']);
+        return send(res, 503, 'could not read ' + path.basename(file) + ': ' + (err.code || err.message), null, { 'Retry-After': '5' });
+      }
       // A device asking "has it changed since <etag>?" gets a 304 and no body:
       // the half-minute refresh on every device costs next to nothing when
       // nothing moved, instead of the whole file every time.

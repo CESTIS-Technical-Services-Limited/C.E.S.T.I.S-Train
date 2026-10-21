@@ -838,6 +838,8 @@ function recordDeletedStudent(id) {
     var existing = _getDeletedStudentIds();
     existing[id] = true;
     CESTISStore.setItem('voctrain_deletedStudentIds', JSON.stringify(Object.keys(existing)));
+    // ...and WHEN, so the same person enrolled again later is not hidden by it.
+    if (window.CESTISCore && CESTISCore.recordStudentDeletionTime) CESTISCore.recordStudentDeletionTime(id, CESTISStore);
   } catch(e) {}
 }
 
@@ -1556,7 +1558,7 @@ CESTISPageCloud.init({
   // (every dated mark), merged mark by mark.
   // Opened with no signed-in session it shows nothing, so it moves nothing either.
   readOnly: !(typeof SP_VIEWER !== 'undefined' && SP_VIEWER.ok),
-  keys: ['voctrain_students', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles'],
+  keys: ['voctrain_students', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedStudentAt', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles'],
   // The fee roll is read here (trainees the fee page knows about first are
   // mirrored onto this dashboard) but owned by School Fee, so it is pulled from
   // Drive and never written back from this page.

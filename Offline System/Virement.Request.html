@@ -5815,7 +5815,10 @@ function getTimeAgo(date) {
 CESTISPageCloud.init({
   page: 'Virement Requests',
   file: 'CESTIS_Virement_Requests.json',
-  keys: ['cesti_virements', 'cesti_virement_logo']
+  // The deletion list travels with the register: the register is merged
+  // request by request, so a deleted request stays deleted only if every
+  // device knows it was deleted.
+  keys: ['cesti_virements', 'cesti_virement_logo', 'cesti_virement_deleted_ids']
 });
 </script>
 </body>

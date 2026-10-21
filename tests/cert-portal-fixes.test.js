@@ -247,7 +247,11 @@ for (const page of PAGES) {
 const ctr = fs.readFileSync(path.join(ROOT, 'Cert-Transcript-Requests.html'), 'utf8');
 assert(/records: true/.test(ctr) && /r\.updatedAt = r\.handledAt/.test(ctr), 'the request page asks for the record merge and stamps each change');
 const pc = fs.readFileSync(path.join(ROOT, 'cestis-page-cloud.js'), 'utf8');
-assertEq((pc.match(/records: !!self\.spec\.records/g) || []).length, 2, 'the Drive pull and push both honour it');
+// (The Drive merges now go through driveRecords(spec), which answers `true`
+// for a page that asks for the record merge and otherwise names the
+// collections every page merges record by record.)
+assert((pc.match(/records: driveRecords\(self\.spec\)/g) || []).length >= 2 &&
+  /if \(spec && spec\.records\) return true;/.test(pc), 'the Drive pull and push both honour it');
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

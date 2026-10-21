@@ -5324,7 +5324,7 @@ function addNotification(text, type, icon, forRoles, fixedId) {
     forRoles: forRoles || ['admin','instructor','student']
   };
   notifications.unshift(notif);
-  if(notifications.length > 50) notifications = notifications.slice(0, 50);
+  try { notifications = CESTISCore.notify.prune(notifications, 50, 400); } catch(e) {}   // per audience, never a deletion
   updateNotificationDot();
   shakeNotificationBell();
   playNotificationSound();
@@ -5342,6 +5342,7 @@ function notifViewerId() {
   try { var cu = lmsChatGetCurrentUser(); if (cu && cu.id && cu.id !== 'unknown') return cu.id; } catch(e) {}
   return currentRole ? 'role:' + currentRole : null;
 }
+
 
 function getFilteredNotifications() {
   var currentUserId = null;
@@ -5383,7 +5384,7 @@ function addNotificationForUser(text, type, icon, userId, role, fixedId) {
     forRoles: role ? [role] : []
   };
   notifications.unshift(notif);
-  if(notifications.length > 50) notifications = notifications.slice(0, 50);
+  try { notifications = CESTISCore.notify.prune(notifications, 50, 400); } catch(e) {}   // per audience, never a deletion
   updateNotificationDot();
   shakeNotificationBell();
   playNotificationSound();
@@ -5533,21 +5534,40 @@ function syncCollections() {
     // with one title collapsed into one on other devices, and deleting one of
     // them never travelled. Old title|programme deletions are carried over to
     // ids in the merge (translateLegacyTombs).
-    { name: 'exams',                 get: function(){ return exams; },                 key: function(r){ return CESTISCore.exams.syncKey(r); }, removals: true },
-    { name: 'announcements',         get: function(){ return announcements; },         key: function(r){ return r.id != null ? String(r.id) : 'title:' + lower(r.title); }, removals: true },
-    { name: 'calendarEvents',        get: function(){ return calendarEvents; },        key: function(r){ return lower(r.title) + '|' + lower(r.date); }, removals: true },
+    // genIds: the collection's ids are minted fresh for every new record, so
+    // a record that reappears under a deleted id is an old copy coming back,
+    // never a new one (see the chokepoint in syncStampAll).
+    { name: 'exams',                 get: function(){ return exams; },                 key: function(r){ return CESTISCore.exams.syncKey(r); }, removals: true, genIds: true },
+    { name: 'announcements',         get: function(){ return announcements; },         key: function(r){ return r.id != null ? String(r.id) : 'title:' + lower(r.title); }, removals: true, genIds: true },
+    // Calendar events by id (CESTISCore.calendarEventKey); an event saved
+    // before events had ids keeps its old title|date key, so the deletions
+    // already written down under that key still apply to it.
+    { name: 'calendarEvents',        get: function(){ return calendarEvents; },        key: function(r){ return CESTISCore.calendarEventKey(r); }, removals: true, genIds: true },
     { name: 'chatRooms',             get: function(){ return lmsChatRooms; },          key: syncKeyById, removals: true },
     { name: 'driveResources',        get: function(){ return driveResources; },        key: function(r){ return r.driveFileId ? 'drive:' + r.driveFileId : syncKeyById(r); }, removals: true },
-    { name: 'classSessions',         get: function(){ return classSessions; },         key: syncKeyById, removals: true },
-    { name: 'adminMeetings',         get: function(){ return adminMeetings; },         key: syncKeyById, removals: true },
-    { name: 'instructorAssignments', get: function(){ return instructorAssignments; }, key: syncKeyById, removals: true },
-    { name: 'assignmentSubmissions', get: function(){ return assignmentSubmissions; }, key: syncKeyById, removals: true },
-    { name: 'instructorResources',   get: function(){ return instructorResources; },   key: syncKeyById, removals: true },
+    { name: 'classSessions',         get: function(){ return classSessions; },         key: syncKeyById, removals: true, genIds: true },
+    { name: 'adminMeetings',         get: function(){ return adminMeetings; },         key: syncKeyById, removals: true, genIds: true },
+    { name: 'instructorAssignments', get: function(){ return instructorAssignments; }, key: syncKeyById, removals: true, genIds: true },
+    { name: 'assignmentSubmissions', get: function(){ return assignmentSubmissions; }, key: syncKeyById, removals: true, genIds: true },
+    { name: 'instructorResources',   get: function(){ return instructorResources; },   key: syncKeyById, removals: true, genIds: true },
     { name: 'instructorData',        get: function(){ return instructorData; },        key: syncKeyById, removals: true },
-    { name: 'adrTasks',              get: function(){ return adrTasks; },              key: syncKeyById, removals: true },
-    { name: 'supportMessages',       get: function(){ return supportMessages; },       key: syncKeyById, removals: true },
-    { name: 'notifications',         get: function(){ return notifications; },         key: syncKeyById, removals: true },
-    { name: 'documentHubFiles',      get: function(){ return documentHubFiles; },      key: syncKeyById, removals: true },
+    { name: 'adrTasks',              get: function(){ return adrTasks; },              key: syncKeyById, removals: true, genIds: true },
+    { name: 'supportMessages',       get: function(){ return supportMessages; },       key: syncKeyById, removals: true, genIds: true },
+    // Notifications: read and cleared are per person (readBy / dismissedBy),
+    // and trimming the list to its newest entries is housekeeping, not a
+    // deletion — so a shorter list is never written down as one. (Every
+    // trimmed notice used to leave a tombstone for ever, and one person's
+    // "Clear all" deleted the Centre's notices for everybody.)
+    { name: 'notifications',         get: function(){ return notifications; },         key: syncKeyById, removals: false, genIds: true },
+    { name: 'documentHubFiles',      get: function(){ return documentHubFiles; },      key: syncKeyById, removals: true, genIds: true },
+    // Exam results carry their own edit stamp, so a mark, a review or a
+    // transcript override reaches every device (CESTISCore.sync.mergeExamResults).
+    // Removals are only ever written down deliberately: a trainee's device
+    // holds just that trainee's rows, which is not a deletion of the rest.
+    { name: 'examResults',           get: function(){ return examResults; },           key: function(r){ return CESTISCore.sync.examResultKey(r); }, removals: false, genIds: true },
+    // Download approvals, one per trainee: stamped when they change; merged
+    // by the certificate rules (CESTISCore.certs.mergeApprovals).
+    { name: 'certDownloadApprovals', get: function(){ return certDownloadApprovals; }, key: function(r){ return r && r.studentId != null ? String(r.studentId) : undefined; }, removals: false },
     { name: 'studentProfiles',       get: function(){ return studentProfiles; },       map: true, removals: true },
     { name: 'instructorProfiles',    get: function(){ return instructorProfiles; },    map: true, removals: true },
     { name: 'adrStaffMeta',          get: function(){ return adrStaffMeta; },          map: true, removals: true },
@@ -5577,6 +5597,24 @@ function syncStampAll() {
       }
       var keyOf = c.map ? null : c.key;
       var prev = _syncIndex[c.name] || null;
+      // A record that came back under the key of a deletion — re-added by a
+      // path that did not consult the tombstones (a manual merge, a side
+      // file, a per-user copy) — would be stamped "new" right here, and from
+      // then on it is newer than its deletion and lives on every device. In a
+      // collection whose ids are minted fresh it can only be an old copy, so
+      // it goes again instead.
+      if (prev && c.genIds && Array.isArray(recs)) {
+        var _tb = syncTombsFor(c.name);
+        if (Object.keys(_tb).length) {
+          for (var _i = recs.length - 1; _i >= 0; _i--) {
+            var _r = recs[_i];
+            if (!_r || typeof _r !== 'object') continue;
+            var _k = c.key(_r);
+            if (_k == null || prev[_k]) continue;
+            if (CESTISCore.sync.deletedAfter(_tb, _k, _r)) recs.splice(_i, 1);
+          }
+        }
+      }
       if (prev && c.removals) {
         CESTISCore.sync.detectRemovals(recs, keyOf, prev).forEach(function(k) { syncRecordTombstone(c.name, k, now); });
       }
@@ -5617,6 +5655,61 @@ function syncTombstoneRemoved(collection, before, after) {
   } catch (e) {}
 }
 function syncTombsFor(collection) { return (syncTombstones && syncTombstones[collection]) || {}; }
+
+/* The deletion lists that live outside syncTombstones — trainees (and when
+   each was deleted), training centres and accounts — arriving in a backup.
+   Each is unioned into this device's list (CESTISCore.unionTombstoneValues);
+   a list of deletions only ever grows. Returns true when anything was added. */
+function mergeIncomingTombstoneLists(data) {
+  if (!data || !window.CESTISCore) return false;
+  var map = { deletedStudentIds: 'voctrain_deletedStudentIds', deletedStudentAt: 'voctrain_deletedStudentAt',
+              deletedCentreIds: 'voctrain_deletedCentreIds', deletedUserIds: 'voctrain_deletedUserIds' };
+  var grew = false;
+  Object.keys(map).forEach(function(f) {
+    var v = data[f];
+    if (v == null || typeof v !== 'object') return;
+    var key = map[f];
+    var union = CESTISCore.unionTombstoneValues(CESTISStore.getItem(key), JSON.stringify(v));
+    if (union == null) return;
+    CESTISStore.setItem(key, union);
+    grew = true;
+  });
+  if (grew) {
+    _delStudentIdsMemo = null; _delStudentAtMemo = null;
+    // Trainees deleted elsewhere leave this device now, with what hangs off them.
+    try { cestisStabilizeStudentIds(); } catch (e) {}
+    try { if (typeof dropDeletedAccounts === 'function') dropDeletedAccounts(); } catch (e) {}
+  }
+  return grew;
+}
+
+/* Assignment grades are a map { traineeId: score }, written by different
+   instructors at different times; gradeMeta { traineeId: { gradedAt } } says
+   when each was given (CESTISCore.coursework.recordGrade), so the merge keeps
+   each trainee's newest grade instead of one whole map replacing the other,
+   and the grade history (gradeLog) keeps every entry from both sides
+   (CESTISCore.sync.mergeList perEntry / unionStamps). */
+var ASSIGNMENT_GRADE_MAPS = { grades: 'gradeMeta.gradedAt' };
+
+/* This device's clock against Google's (a Drive response's Date header) and,
+   on the Centre's network, the Centre server's. Newest-wins compares clocks,
+   so a clock that is minutes or years out decides merges wrongly; the person
+   at this machine is told, once, instead of finding edits reverted. */
+var _clockWarned = false;
+function cestisNoteServerClock(response, sentMs) {
+  if (_clockWarned || !response || !response.headers || typeof response.headers.get !== 'function') return;
+  var d = response.headers.get('Date');
+  if (!d) return;
+  var skew = CESTISCore.sync.clockSkew(d, sentMs, Date.now());
+  if (!CESTISCore.sync.clockLooksWrong(skew)) return;
+  _clockWarned = true;
+  var mins = Math.round(Math.abs(skew) / 60000);
+  var msg = 'This device\'s clock is ' + (mins >= 120 ? Math.round(mins / 60) + ' hours' : mins + ' minutes') + ' ' +
+    (skew > 0 ? 'ahead of' : 'behind') + ' the correct time. Set the date and time correctly (automatic) — ' +
+    'changes saved from a device with a wrong clock can lose to older ones on other devices.';
+  console.warn('[Sync] ' + msg);
+  try { showToast(msg, 'warning'); } catch (e) {}
+}
 
 // One-time async sweep: keep the marker true to the hash for the privileged
 // accounts. Set it where an ALREADY-HASHED password still verifies against a
@@ -6084,6 +6177,14 @@ function importDataBackup() {
           return;
         }
         if(!_originalConfirm.call(window, 'Merge the backup from ' + (backup.exportedAt || 'unknown date') + ' into this device?\n\nRecords missing here are added back and older copies fill in blanks; anything edited or deleted here since the backup is kept as it is now.')) return;
+        // Nothing may save from this page's memory between the restore and the
+        // reload: the 5-second autosave (or a pending debounced save) used to
+        // land in that window, write the PRE-restore arrays back over every
+        // restored key and upload them — the restore "succeeded" and was gone.
+        try { stopAutoSave(); } catch(e) {}
+        try { if (_debouncedCloudSaveTimer) { clearTimeout(_debouncedCloudSaveTimer); _debouncedCloudSaveTimer = null; } } catch(e) {}
+        _sessionWiped = true;
+        window._cestisImporting = true;
         // Merged, never written over: a backup must not put accounts back on old
         // passwords or bring back what was deleted since (CESTISCore.backupRestore).
         var _merged = 0;
@@ -6101,6 +6202,8 @@ function importDataBackup() {
         setTimeout(function(){ location.reload(); }, 1500);
       } catch(err) {
         showToast('Failed to restore backup: ' + err.message);
+        // Part of it may have been written: reload so memory matches storage.
+        if (window._cestisImporting) setTimeout(function(){ location.reload(); }, 1500);
       }
     };
     reader.readAsText(file);
@@ -6240,6 +6343,10 @@ var lmsChatRooms = [];
 var lmsChatMessages = {};
 var lmsChatProfiles = {};
 var lmsChatFollows = {};   // { userId: [followedUserId, ...] }
+// { userId: { followedUserId: { on, at } } } — when each follow or unfollow was
+// made, so an unfollow is not undone by a device still holding the follow
+// (CESTISCore.chatSync.mergeFollows).
+var lmsChatFollowLog = {};
 var lmsChatDMNotifThrottle = {}; // prevent duplicate rapid DM notifs
 var lmsChatActiveRoom = null;
 var lmsChatCallState = null;
@@ -6424,6 +6531,8 @@ function initLmsChatData() {
     if(cm) lmsChatMessages = JSON.parse(cm);
     if(cp) lmsChatProfiles = JSON.parse(cp);
     if(cf) lmsChatFollows = JSON.parse(cf);
+    var cfl = CESTISStore.getItem('voctrain_chatFollowLog');
+    if(cfl) { var _cfl = JSON.parse(cfl); if(_cfl && typeof _cfl === 'object' && !Array.isArray(_cfl)) lmsChatFollowLog = _cfl; }
   } catch(e) { console.warn('initLmsChatData parse error'); }
 
   // Restore image base64 data from IndexedDB into in-memory messages
@@ -6743,6 +6852,7 @@ function saveLmsChatData() {
     });
     CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(profCopy));
     CESTISStore.setItem('voctrain_chatFollows', JSON.stringify(lmsChatFollows));
+    CESTISStore.setItem('voctrain_chatFollowLog', JSON.stringify(lmsChatFollowLog || {}));
   } catch(e) { console.warn('saveLmsChatData: storage error', e); }
   // Auto-save to Google Drive (debounced)
   lmsChatScheduleDriveSync();
@@ -7081,6 +7191,8 @@ function clearSensitiveStudentData() {
   lmsChatProfiles = {};
   CESTISStore.removeItem('voctrain_chatFollows');
   lmsChatFollows = {};
+  CESTISStore.removeItem('voctrain_chatFollowLog');
+  lmsChatFollowLog = {};
 
   // 8. Remove support messages — except ones written on this device that
   // have not reached the Centre yet (a locked-out trainee's plea for help).
@@ -7130,6 +7242,10 @@ function clearSensitiveDataOnExpiry() {
   var sessionRole = CESTISStore.getItem('voctrain_sessionRole');
   if(sessionRole === 'student') {
     clearSensitiveStudentData();
+  } else if(CESTISStore.getItem('cestisPendingUpload')) {
+    // An expired session must not take with it work that never reached the
+    // cloud (see keepUnsyncedDataOnSignOut): only the session ends.
+    keepUnsyncedDataOnSignOut();
   } else {
     clearAllSessionData();
   }
@@ -7191,6 +7307,7 @@ function clearAllSessionData() {
   lmsChatMessages = {};
   lmsChatProfiles = {};
   lmsChatFollows = {};
+  lmsChatFollowLog = {};
   if(typeof supportMessages !== 'undefined') supportMessages = [];
   if(typeof notifications !== 'undefined') notifications = [];
 
@@ -7217,11 +7334,41 @@ function clearAllSessionData() {
    Emptiness is never an edit. Deleting a trainee writes a tombstone, and those
    paths are untouched. */
 function saveCollection(key, value) {
-  var ok = CESTISCore.pageCloud.guardedSet(CESTISStore, key, value, function (k) {
-    console.error('[VocTrain] Refused to overwrite stored records in "' + k +
+  var refused = false;
+  var ok = CESTISCore.pageCloud.guardedSet(CESTISStore, key, value, function (k) { refused = true; });
+  if (!ok && refused) {
+    // The one empty list that is the truth: every record stored here has
+    // been deleted (a tombstone dated after its last edit). Deleting the LAST
+    // announcement, exam or session used to be refused here, so it came back
+    // on reload and was uploaded again. A page that simply has not loaded yet
+    // never qualifies — its stored records are not tombstoned.
+    if (typeof syncEmptyIsDeliberate === 'function' && syncEmptyIsDeliberate(key, value)) {
+      try { CESTISStore.setItem(key, typeof value === 'string' ? value : JSON.stringify(value)); return true; } catch (e) { return false; }
+    }
+    console.error('[VocTrain] Refused to overwrite stored records in "' + key +
                   '" with an empty list — the stored copy is kept.');
-  });
+  }
   return ok;
+}
+var SYNC_STORAGE_KEYS = {
+  voctrain_exams: 'exams', voctrain_announcements: 'announcements', voctrain_calendarEvents: 'calendarEvents',
+  voctrain_classSessions: 'classSessions', voctrain_adminMeetings: 'adminMeetings', voctrain_assignments: 'instructorAssignments',
+  voctrain_submissions: 'assignmentSubmissions', voctrain_resources: 'instructorResources', voctrain_driveResources: 'driveResources',
+  voctrain_instructorData: 'instructorData', voctrain_documentHubFiles: 'documentHubFiles', voctrain_examResults: 'examResults',
+  voctrain_adrTasks: 'adrTasks', voctrain_notifications: 'notifications', voctrain_support_messages: 'supportMessages',
+  voctrain_chatRooms: 'chatRooms'
+};
+function syncEmptyIsDeliberate(key, value) {
+  try {
+    var col = SYNC_STORAGE_KEYS[key];
+    if (!col || !CESTISCore.sync.emptyIsDeliberate) return false;
+    var next = typeof value === 'string' ? safeJsonParse(value, null) : value;
+    if (!Array.isArray(next) || next.length) return false;
+    var c = syncCollections().find(function(x) { return x.name === col; });
+    if (!c) return false;
+    var stored = safeJsonParse(CESTISStore.getItem(key), null);
+    return CESTISCore.sync.emptyIsDeliberate(stored, c.key, syncTombsFor(col));
+  } catch (e) { return false; }
 }
 
 /* Persist the user accounts — unless doing so would throw every login away.
@@ -7251,6 +7398,19 @@ function persistUserAccounts() {
 }
 
 function saveState() {
+  // Nothing is written before the durable store has been read in. Until
+  // then a collection that lives in IndexedDB only reads as absent, and this
+  // page's arrays hold whatever the small localStorage mirror had — saving
+  // them (a parse-time reconcile did) replaced the durable copy of every
+  // trainee's submitted work. The page reloads its state the moment the
+  // store is ready, and any change worth keeping is made again from that.
+  if (window.CESTISStore && typeof CESTISStore.isReady === 'function' && !CESTISStore.isReady()) {
+    console.warn('[VocTrain] Save skipped: device storage is still loading.');
+    return;
+  }
+  // A backup is being restored and the page is about to reload: what is in
+  // memory is the pre-restore state and must not be written back.
+  if (window._cestisImporting) return;
   try {
     var isAdmin = currentRole === 'admin' || currentRole === 'adminstaff';
     // Stamp every record edited here since the last save, and write down what
@@ -7312,6 +7472,9 @@ function saveState() {
     saveLmsChatData();
     // Save per-user data keyed by user ID
     savePerUserLocalData();
+    // This device now holds work the cloud may not have. Cleared by the next
+    // successful upload; until then no sign-out or expiry clears the device.
+    cestisMarkPendingUpload();
   } catch(e) {
     console.warn('saveState: storage quota exceeded or unavailable');
     showToast('Warning: Storage quota may be full. Export a backup to free space.', 'warning');
@@ -7370,7 +7533,9 @@ function loadPerUserLocalData() {
     if (cm) { Object.keys(cm).forEach(function(k) { if (!lmsChatMessages[k] || lmsChatMessages[k].length === 0) lmsChatMessages[k] = cm[k]; }); }
     if (cp) { Object.keys(cp).forEach(function(k) { if (!lmsChatProfiles[k]) lmsChatProfiles[k] = cp[k]; }); }
     if (cf) { Object.keys(cf).forEach(function(k) { if (!lmsChatFollows[k]) lmsChatFollows[k] = cf[k]; }); }
-    if (cr) { cr.forEach(function(room) { if (!lmsChatRooms.some(function(r) { return r.id === room.id; })) lmsChatRooms.push(room); }); }
+    // (A room or notice deleted since this copy was kept stays deleted.)
+    var _gone = function(col, r) { try { return CESTISCore.sync.deletedAfter(syncTombsFor(col), r && r.id != null ? String(r.id) : '', r); } catch(e) { return false; } };
+    if (cr) { cr.forEach(function(room) { if (room && !_gone('chatRooms', room) && !lmsChatRooms.some(function(r) { return r.id === room.id; })) lmsChatRooms.push(room); }); }
     if (currentRole === 'student') {
       var sp = safeJsonParse(CESTISStore.getItem(prefix + 'studentProfiles'), null);
       if (sp) { Object.keys(sp).forEach(function(k) { if (!studentProfiles[k]) studentProfiles[k] = sp[k]; }); }
@@ -7378,7 +7543,7 @@ function loadPerUserLocalData() {
       var ip = safeJsonParse(CESTISStore.getItem(prefix + 'instructorProfiles'), null);
       if (ip) { Object.keys(ip).forEach(function(k) { if (!instructorProfiles[k]) instructorProfiles[k] = ip[k]; }); }
     }
-    if (nt && Array.isArray(nt)) { nt.forEach(function(n) { if (!notifications.some(function(l) { return l.id === n.id; })) notifications.push(n); }); }
+    if (nt && Array.isArray(nt)) { nt.forEach(function(n) { if (n && !_gone('notifications', n) && !notifications.some(function(l) { return l.id === n.id; })) notifications.push(n); }); }
     console.log('[PerUser] Loaded per-user local data for ' + userId);
   } catch(e) { console.warn('[PerUser] localStorage load error:', e); }
 }
@@ -7547,7 +7712,30 @@ function loadState() {
   // What was deleted, and the content just loaded — the baseline every later
   // save compares against to decide what was edited HERE.
   try { var _tombs = safeJsonParse(CESTISStore.getItem('voctrain_syncTombstones'), null); if (_tombs && typeof _tombs === 'object' && !Array.isArray(_tombs)) syncTombstones = _tombs; } catch(e) {}
+  // ...and what was deleted stays deleted on THIS device too. Deleting the
+  // last record of a collection writes its tombstone, but the empty list
+  // itself is (rightly) refused by the anti-wipe guard, so the stored copy
+  // still held the record and it came back on every reload.
+  try { syncApplyTombstones(); } catch(e) {}
   try { syncRebaselineAll(); } catch(e) {}
+}
+
+/* Remove from every synced collection, in memory, what its tombstones say
+   was deleted after its last edit (CESTISCore.sync.applyTombstones). */
+function syncApplyTombstones() {
+  if (!window.CESTISCore || !CESTISCore.sync || !CESTISCore.sync.applyTombstones) return 0;
+  var gone = 0;
+  syncCollections().forEach(function(c) {
+    if (c.single) return;
+    try {
+      var tb = syncTombsFor(c.name);
+      if (!Object.keys(tb).length) return;
+      var recs = c.get();
+      if (recs == null) return;
+      gone += CESTISCore.sync.applyTombstones(recs, c.map ? null : c.key, tb);
+    } catch (e) {}
+  });
+  return gone;
 }
 
 function mergeStudentRecords(a, b) {
@@ -10752,8 +10940,11 @@ function findStudentRecordForAccount(account) {
 function studentAccountTombstoned(account) {
   if (!account) return false;
   try {
-    if (account.studentDataId && isStudentDeleted(account.studentDataId)) return true;
-    return cestisIsStudentTombstoned({ id: '', name: account.name, course: account.programme || '' });
+    // An account registered (or approved) AFTER the trainee was deleted is a
+    // new enrolment of the same person, not the deleted one coming back.
+    var when = account.approvedAt || account.createdAt || '';
+    if (account.studentDataId && cestisIsStudentTombstoned({ id: account.studentDataId, name: '', course: '', enrolledAt: when })) return true;
+    return cestisIsStudentTombstoned({ id: '', name: account.name, course: account.programme || '', enrolledAt: when });
   } catch (e) { return false; }
 }
 function createStudentDataForAccount(userAccount) {
@@ -10790,6 +10981,9 @@ function createStudentDataForAccount(userAccount) {
     }
   } catch(e) {}
   if (window.CESTISCore) { var _sid = CESTISCore.stableStudentId(newStudent); if (_sid) newStudent.id = _sid; }
+  // A NEW enrolment: an earlier deletion of the same person (same id) must
+  // not hide it (CESTISCore.markEnrolment).
+  try { CESTISCore.markEnrolment(newStudent, CESTISStore); _delStudentAtMemo = null; } catch(e) {}
   students.push(newStudent);
   // Auto-create attendance record so the student appears in attendance pages
   attendanceRecords.push({studentId:newStudent.id, studentName:newStudent.name, course:newStudent.course, date:localDateStr(), days:{Mon:'absent',Tue:'absent',Wed:'absent',Thu:'absent',Fri:'absent'}});
@@ -11081,15 +11275,20 @@ function logout(forced) {
   // the store in the same breath meant the store was already empty by the
   // time it was serialised — every logout uploaded an EMPTY backup to every
   // Drive folder. The screen changes at once; the wipe follows the save.
-  var finalSave = Promise.resolve();
+  // The final save answers one question: is everything this device holds
+  // now safely somewhere else? Only then may the device's copy be cleared.
+  var finalSave = Promise.resolve(false);
   // Chat first: offline presence, stop the poll, push what is pending — all
   // before the wipe. The poll used to keep running after logout and wrote the
   // whole chat history, everyone's DMs included, back onto the PC.
   var chatPushed = Promise.resolve(false);
   try { chatPushed = lmsChatSignOff(); } catch(e) {}
   if(isCloudConnected && googleAccessToken) {
-    finalSave = Promise.all([finalCloudSaveBeforeLogout(), chatPushed]);
+    finalSave = Promise.all([finalCloudSaveBeforeLogout(), chatPushed]).then(function(r) { return r[0]; });
     try { saveMasterSnapshot('logout', true); } catch(e) { console.warn('[Logout] Master snapshot failed:', e); }
+  } else if(window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function') {
+    // The Centre's own network (Offline System): the server is the copy.
+    finalSave = finalLanSaveBeforeLogout();
   }
   // Stop auto-save, debounced cloud save, and session expiry checks
   stopAutoSave();
@@ -11124,8 +11323,24 @@ function logout(forced) {
   // Data: wiped once the final save has left, and only if nobody has signed
   // in again in the meantime.
   var _leavingRole = currentRole, _leavingUserId = currentLoggedInUser ? currentLoggedInUser.id : null;
-  finalSave.then(function() {
+  finalSave.then(function(safe) {
     if (seq !== _sessionSeq) return;
+    /* A staff sign-out used to wipe every record on this device whatever had
+       become of the final save: offline, with an expired Google sign-in, or
+       with a save that failed, everything entered since the last successful
+       upload — results, attendance, grades — was deleted with nothing
+       anywhere else holding it. Now the Centre's data stays on the device
+       until it is safely uploaded; only the session is ended, and the next
+       sign-in (any account) uploads it. A trainee's sign-out is unchanged: it
+       keeps only that trainee's own records, and results not yet uploaded are
+       held back for upload (the exam outbox). */
+    var _pending = '';
+    try { _pending = String(CESTISStore.getItem('cestisPendingUpload') || ''); } catch(e) { _pending = 'unknown|'; }
+    var _staffPending = !!_pending && _pending.indexOf('student|') !== 0;
+    if (safe !== true && _leavingRole && (_leavingRole !== 'student' ? !!_pending : _staffPending)) {
+      keepUnsyncedDataOnSignOut();
+      return;
+    }
     // Clear sensitive data from localStorage based on role
     clearSensitiveStudentData();
     // A trainee's own copy of their chats and notices goes too — once the
@@ -11151,13 +11366,45 @@ function logout(forced) {
 // The final save of a session: wait for a save already in flight, then run one
 // more, bounded so a dead network can never hold the logout.
 var _sessionSeq = 0;
+// Resolves true only when the upload reached Drive (or there was nothing new
+// to upload) — the condition for clearing the device afterwards.
 async function finalCloudSaveBeforeLogout() {
   var sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
   try {
     var waited = 0;
     while (_isAutoSaving && waited < 15000) { await sleep(250); waited += 250; }
-    await Promise.race([autoSaveToAllFolders(), sleep(20000)]);
-  } catch(e) { console.warn('[Logout] Final cloud save failed:', e); }
+    _lastAutoSaveResult = { uploaded: false, reason: 'final-save' };
+    var done = false;
+    await Promise.race([autoSaveToAllFolders().then(function() { done = true; }), sleep(20000)]);
+    return done && !!(_lastAutoSaveResult && _lastAutoSaveResult.uploaded);
+  } catch(e) { console.warn('[Logout] Final cloud save failed:', e); return false; }
+}
+// The same on the Centre's own network: every page file pushed to its server.
+async function finalLanSaveBeforeLogout() {
+  try {
+    var on = await CESTISPageCloud.lan();
+    if (!on) return false;
+    var sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+    var res = await Promise.race([CESTISPageCloud.saveNow(), sleep(20000).then(function() { return null; })]);
+    return Array.isArray(res) && res.length > 0 && res.every(function(x) { return x === true; });
+  } catch(e) { return false; }
+}
+
+/* Sign-out when the device holds work that is not safely uploaded: end the
+   session, keep the Centre's data where it is, and say so. Nothing personal
+   to the person leaving is kept beyond what the Centre's records already
+   hold; the next sign-in on this device uploads it. */
+function keepUnsyncedDataOnSignOut() {
+  _sessionWiped = true;
+  ['voctrain_sessionExpiry', 'voctrain_sessionRole', 'voctrain_sessionUserId',
+   'voctrain_sessionStudentId', 'voctrain_sessionSeenAt'].forEach(function(k) {
+    try { CESTISStore.removeItem(k); } catch(e) {}
+  });
+  cloudFileId = null;
+  lastSyncTime = null;
+  try { CESTISStore.setItem('cestisUnsyncedOnSignOut', new Date().toISOString()); } catch(e) {}
+  try { showToast('Some changes have not reached Google Drive yet. They are kept on this device and will upload at the next sign-in — do not clear this browser.', 'warning'); } catch(e) {}
+  console.warn('[Session] Signed out with changes not yet uploaded: the data stays on this device until it is.');
 }
 
 function toggleNavSection(labelEl) {
@@ -18675,7 +18922,10 @@ async function saveAssignmentsToDrive() {
       timestamp: new Date().toISOString(),
       savedBy: (getCurrentCloudUser() || {}).username || currentRole || 'unknown',
       assignments: instructorAssignments,
-      submissions: assignmentSubmissions
+      submissions: assignmentSubmissions,
+      // The deletions travel with the side file, so a device reading only
+      // this file cannot bring a deleted assignment or submission back.
+      tombstones: { instructorAssignments: syncTombsFor('instructorAssignments'), assignmentSubmissions: syncTombsFor('assignmentSubmissions') }
     };
     var jsonContent = JSON.stringify(data);
     var blob = new Blob([jsonContent], { type: 'application/json' });
@@ -18861,42 +19111,40 @@ async function syncAssignmentsFromDrive() {
     var cloudData = await fileResp.json();
 
     var changed = false;
+    // Anything edited here is stamped first, so the merge below compares it
+    // fairly with the file's copy.
+    try { syncStampAll(); } catch(e) {}
 
-    // Merge assignments
-    if (Array.isArray(cloudData.assignments)) {
-      cloudData.assignments.forEach(function(ca) {
-        if (!ca || !ca.id) return;
-        var existing = instructorAssignments.find(function(la) { return la.id === ca.id; });
-        if (!existing) {
-          instructorAssignments.push(ca);
-          changed = true;
-        } else {
-          // Update grades from cloud if newer
-          if (ca.grades && typeof ca.grades === 'object') {
-            if (!existing.grades) existing.grades = {};
-            Object.keys(ca.grades).forEach(function(sid) {
-              if (existing.grades[sid] === undefined) {
-                existing.grades[sid] = ca.grades[sid];
-                changed = true;
-              }
-            });
-          }
-        }
+    /* The same rules as the main backup's merge. This side file used to be
+       add-only and ignored deletions: an assignment deleted on one device came
+       back from the file another device had written, and a corrected grade
+       never travelled — while filling in a missing grade re-stamped the whole
+       assignment as edited here, so the stale grades it still held then
+       overwrote the correction everywhere. */
+    var _ct = cloudData.tombstones;
+    if (_ct && typeof _ct === 'object') {
+      ['instructorAssignments', 'assignmentSubmissions'].forEach(function(col) {
+        if (!_ct[col] || typeof _ct[col] !== 'object') return;
+        var before = JSON.stringify(syncTombstones[col] || {});
+        syncTombstones[col] = CESTISCore.sync.mergeTombstones(syncTombstones[col] || {}, _ct[col]);
+        if (JSON.stringify(syncTombstones[col]) !== before) changed = true;
       });
     }
-
-    // Merge submissions
+    if (Array.isArray(cloudData.assignments)) {
+      var _ia = CESTISCore.sync.mergeList(instructorAssignments, cloudData.assignments.filter(function(a) { return a && a.id; }), syncKeyById,
+        { tombs: syncTombsFor('instructorAssignments'), perEntry: ASSIGNMENT_GRADE_MAPS, unionStamps: ['gradeLog'] });
+      if (_ia.added || _ia.updated || _ia.removed) changed = true;
+    }
     if (Array.isArray(cloudData.submissions)) {
-      cloudData.submissions.forEach(function(cs) {
-        if (!cs || !cs.id) return;
-        if (!assignmentSubmissions.some(function(ls) { return ls.id === cs.id; })) {
-          assignmentSubmissions.push(cs);
-          changed = true;
-        }
-      });
+      var _sb = CESTISCore.sync.mergeList(assignmentSubmissions, cloudData.submissions.filter(function(x) { return x && x.id; }), syncKeyById,
+        { tombs: syncTombsFor('assignmentSubmissions') });
+      if (_sb.added || _sb.updated || _sb.removed) changed = true;
     }
 
     if (changed) {
+      // What arrived is the file's content, not an edit made here: take the
+      // baseline again so the save does not stamp it as new.
+      try { syncRebaselineAll(); } catch(e) {}
       saveState();
       console.log('[AssignmentSync] Merged assignments from Drive (' + instructorAssignments.length + ' assignments, ' + assignmentSubmissions.length + ' submissions)');
     }
@@ -21693,11 +21941,27 @@ function isStudentDeleted(id) {
   if(!id) return false;
   return _getDeletedStudentIds()[id] === true;
 }
+// When each of those deletions was made (voctrain_deletedStudentAt), memoised
+// the same way.
+var _delStudentAtMemo = null, _delStudentAtAt = 0;
+function _getDeletedStudentTimes() {
+  var now = Date.now();
+  if (_delStudentAtMemo && (now - _delStudentAtAt) < 1000) return _delStudentAtMemo;
+  var t = {};
+  try { t = CESTISCore.readDeletedStudentTimes(CESTISStore) || {}; } catch(e) { t = {}; }
+  _delStudentAtMemo = t; _delStudentAtAt = now;
+  return t;
+}
 // True if this student record is tombstoned, matching on BOTH its current id and
 // its deterministic stable id — so a deleted student carrying a legacy/fee id is
 // still recognised as deleted at every cloud-merge / recovery add site.
+// A trainee ENROLLED after the deletion (same person, same programme, so the
+// same id) is a new enrolment and is not hidden — CESTISCore.isStudentTombstoned.
 function cestisIsStudentTombstoned(stu) {
   if (!stu) return false;
+  if (window.CESTISCore && typeof CESTISCore.isStudentTombstoned === 'function') {
+    return CESTISCore.isStudentTombstoned(stu, _getDeletedStudentIds(), _getDeletedStudentTimes());
+  }
   if (isStudentDeleted(stu.id)) return true;
   if (window.CESTISCore) { var sid = CESTISCore.stableStudentId(stu); if (sid && isStudentDeleted(sid)) return true; }
   return false;
@@ -21799,6 +22063,9 @@ function recordDeletedStudent(id) {
     existing[id] = true;
     CESTISStore.setItem('voctrain_deletedStudentIds', JSON.stringify(Object.keys(existing)));
     _delStudentIdsMemo = null;   // the memo is now stale
+    // ...and WHEN, so the same person enrolled again later is not hidden by it.
+    if (window.CESTISCore && CESTISCore.recordStudentDeletionTime) CESTISCore.recordStudentDeletionTime(id, CESTISStore);
+    _delStudentAtMemo = null;
   } catch(e) { /* ignore */ }
 }
 function updatePipelineCounts() {
@@ -22957,6 +23224,9 @@ function cdRevokePermissions(id) {
   var sk = skillAreas.find(function(s){ return s.id === id; });
   if (!sk) return;
   sk.instructorPermissions = [];
+  // Written down, so every merge drops the grants made before it — an empty
+  // list alone was refilled from the cloud copy on the next sync.
+  sk.permissionsRevokedAtMs = Date.now();
   saveState();
   renderCourseDurationPage();
   showToast(sk.name + ': register permissions revoked.');
@@ -28534,6 +28804,11 @@ var googleTokenClient = null;
 
 // Helper: get current logged-in user info
 function getCurrentCloudUser() {
+  // Each administrator by their own account: every administrator used to be
+  // "admin", so a save by one never warned another that their copy was stale.
+  if ((currentRole === 'admin' || currentRole === 'adminstaff') && currentLoggedInUser && currentLoggedInUser.username) {
+    return { username: currentLoggedInUser.username, name: currentLoggedInUser.name || currentLoggedInUser.username };
+  }
   if (currentRole === 'admin') return { username: 'admin', name: 'Administrator' };
   if (currentRole === 'instructor' && currentInstructor) return { username: currentInstructor.name, name: currentInstructor.name };
   if (currentRole === 'student' && currentStudent) return { username: currentStudent.name, name: currentStudent.name };
@@ -29275,183 +29550,32 @@ async function saveToCloud() {
   const menu = document.getElementById('cloudDropdownMenu');
   menu.classList.remove('show');
 
-  const cloudUser = getCurrentCloudUser();
-
-  // Check for changes by others before saving
-  const cloudInfo = await checkCloudForChanges();
-
-  let confirmMessage = '⚠️ MULTI-USER CLOUD SYNC\n\n';
-  confirmMessage += 'You are about to save to a shared cloud backup.\n\n';
-
-  if (cloudInfo && cloudInfo.savedBy) {
-    const cloudTime = new Date(cloudInfo.timestamp);
-    const timeSinceLastSave = getTimeAgo(cloudTime);
-
-    const hasConflict = lastSyncTime && cloudTime > lastSyncTime;
-
-    if (hasConflict && cloudInfo.savedBy !== cloudUser.username) {
-      confirmMessage += `⚠️ WARNING: ${cloudInfo.savedBy} saved changes ${timeSinceLastSave}!\n`;
-      confirmMessage += `Your local data may not include their changes.\n\n`;
-      confirmMessage += `💡 Recommendation: Click Cancel, then "Sync from Cloud" first.\n\n`;
-    } else {
-      confirmMessage += `Last saved by: ${cloudInfo.savedBy} (${timeSinceLastSave})\n\n`;
-    }
-  }
-
-  confirmMessage += 'This will overwrite the cloud backup. Continue?';
-
-  if (!confirm(confirmMessage)) {
-    return;
-  }
-
+  /* "Save to Cloud" is the automatic save, run now. It used to build a
+     payload of its own and write it over the Main backup without reading it
+     first: no deletions (syncTombstones) in it, the Administrator's settings
+     published from any role, and its "someone else saved" warning never
+     shown between two administrators (both were "admin"). The automatic save
+     reads and merges the cloud copy first, carries every deletion and
+     honours the same role rules. */
   setCloudSyncing(true);
-
   try {
-    // Prepare data for backup — uses actual LMS data model
-    const backupData = {
-      version: '1.0',
-      timestamp: new Date().toISOString(),
-      savedBy: cloudUser.username,
-      data: {
-        userAccounts: userAccounts,
-        students: students,
-        exams: exams,
-        announcements: announcements,
-        attendanceRecords: attendanceRecords,
-        // Which quarter those weekly rows are — a receiver files them there
-        // and nowhere else.
-        attendanceQuarter: (typeof attnLoadedQuarter !== 'undefined' && attnLoadedQuarter) ? attnLoadedQuarter : undefined,
-        // Every dated mark, every quarter: the backup used to carry only the
-        // quarter that happened to be on screen, so past corrections never
-        // left the device that made them. A trainee's device carries none.
-        attendanceRegister: currentRole === 'student' ? undefined : attendanceRegister,
-        vcSessions: vcSessions,
-        calendarEvents: calendarEvents,
-        examResults: examResults,
-        chatRooms: lmsChatRooms,
-        chatMessages: CESTISCore.chat.stripUploadedBytes(lmsChatMessages), // attachments Drive already holds travel as their link
-        chatProfiles: lmsChatProfiles,
-        chatFollows: lmsChatFollows,
-        driveResources: driveResources,
-        classSessions: classSessions,
-        adminMeetings: adminMeetings,
-        instructorAssignments: instructorAssignments,
-        assignmentSubmissions: assignmentSubmissions,
-        instructorResources: instructorResources,
-        studentProfiles: studentProfiles,
-        instructorProfiles: instructorProfiles,
-        instructorData: instructorData,
-        systemSettings: systemSettings,
-        adrTasks: adrTasks,
-        adrStaffMeta: adrStaffMeta,
-        adminStaffAccessSettings: adminStaffAccessSettings,
-        supportMessages: supportMessages,
-        notifications: notifications,
-        skillAreas: skillAreas,
-        documentHubFiles: documentHubFiles,
-        certTemplates: (function() {
-          var clean = {};
-          Object.keys(certTemplates).forEach(function(k) {
-            clean[k] = Object.assign({}, certTemplates[k]);
-            delete clean[k].bgPage1; delete clean[k].bgPage2;
-          });
-          return clean;
-        })(),
-        certDownloadApprovals: certDownloadApprovals,
-        certTemplateCourseMap: certTemplateCourseMap
-      }
-    };
-    // Staff performance appraisals + signatures (stored under cestisStaffAppraisals).
-    try { var _sa = (typeof sappCloudExport === 'function') ? sappCloudExport() : null; if (_sa) backupData.data.staffAppraisals = _sa; } catch(e) {}
-
-    const jsonContent = JSON.stringify(backupData, stripSecretFields, 2);
-    const blob = new Blob([jsonContent], { type: 'application/json' });
-
-    let response;
-
-    if (!cloudFileId) {
-      // Re-verify before creating: a transient lookup failure must not fork
-      // the shared backup file into duplicates that devices read at random.
-      const lookup = await findExistingBackupFile();
-      if (lookup === 'LOOKUP_FAILED') {
-        alert('Could not verify the cloud backup file (network error). Please try again.');
-        setCloudSyncing(false);
-        return;
-      }
-    }
-
-    if (cloudFileId) {
-      // Update existing file
-      response = await fetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${cloudFileId}?uploadType=media&fields=id,version`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${googleAccessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: blob
-        }
-      );
-      if (response.ok) {
-        const pRes = await response.json().catch(() => ({}));
-        if (pRes && pRes.version != null) _lastCloudVersion[GOOGLE_DRIVE_CONFIG.FOLDER_ID] = String(pRes.version);
-      }
-    } else {
-      // Create new file with metadata
-      const metadata = {
-        name: GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME,
-        parents: [GOOGLE_DRIVE_CONFIG.FOLDER_ID],
-        mimeType: 'application/json'
-      };
-
-      const formData = new FormData();
-      formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      formData.append('file', blob);
-
-      response = await fetch(
-        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,version',
-        {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${googleAccessToken}` },
-          body: formData
-        }
-      );
-
-      if (response.ok) {
-        const result = await response.json();
-        cloudFileId = result.id;
-        CESTISStore.setItem('schoolDashboardCloudFileId', cloudFileId);
-        if (result.version != null) _lastCloudVersion[GOOGLE_DRIVE_CONFIG.FOLDER_ID] = String(result.version);
-      }
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || 'Upload failed');
-    }
-
-    lastSyncTime = new Date();
-    CESTISStore.setItem('schoolDashboardLastSyncTime', lastSyncTime.toISOString());
-    updateLastSyncDisplay();
-
-    lastSavedBy = cloudUser.username;
-    cloudFileTimestamp = new Date().toISOString();
-    updateLastSavedByDisplay();
-
+    // Make this tick upload even if nothing was written since the last one.
+    _lastAutoSaveHash = null;
+    var waited = 0;
+    while (_isAutoSaving && waited < 15000) { await new Promise(function(r) { setTimeout(r, 250); }); waited += 250; }
+    await autoSaveToAllFolders();
     setCloudSyncing(false);
-    alert(`✅ Data saved to Google Drive successfully!\n\nSaved by: ${lastSavedBy}\n\n💡 Tip: Let other users know to sync from cloud to get your changes.`);
-
+    if (_lastAutoSaveResult && _lastAutoSaveResult.uploaded) {
+      alert('\u2705 Data saved to Google Drive.\n\nSaved by: ' + (getCurrentCloudUser().username || '') + '\n\nOther devices pick it up within seconds.');
+    } else if (_lastAutoSaveResult && _lastAutoSaveResult.reason === 'pull-failed') {
+      alert('\u26A0\uFE0F The cloud copy could not be read just now, so nothing was written over it. Your data is safe on this device; try again in a moment.');
+    } else {
+      alert('\u274C The save did not reach Google Drive. Your data is safe on this device; check the connection and try again.');
+    }
   } catch (error) {
     console.error('Error saving to cloud:', error);
     setCloudSyncing(false);
-
-    if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-      alert('❌ Your session has expired. Please reconnect to Google Drive.');
-      disconnectFromGoogleDrive();
-    } else {
-      alert(`❌ Failed to save to cloud: ${error.message}`);
-    }
+    alert('\u274C Failed to save to cloud: ' + (error && error.message));
   }
 }
 
@@ -30106,6 +30230,19 @@ async function mergeFromCloud() {
     // Count nobody twice, whichever copy brought them in.
     try { cestisSettleRoster('Merge from Cloud'); } catch(e) {}
 
+    // This merge adds whatever the cloud copy has and this device lacks —
+    // including records deleted since, which the next save would have stamped
+    // as new and so made outlive their deletion everywhere. Take in the
+    // cloud's deletions and apply every deletion known here before saving.
+    try {
+      var _mct = backupData.data.syncTombstones;
+      if (_mct && typeof _mct === 'object' && !Array.isArray(_mct)) {
+        Object.keys(_mct).forEach(function(col) { syncTombstones[col] = CESTISCore.sync.mergeTombstones(syncTombstones[col] || {}, _mct[col]); });
+      }
+      mergeIncomingTombstoneLists(backupData.data);
+      syncApplyTombstones();
+    } catch(e) {}
+
     // Persist all merged data
     saveState();
 
@@ -30273,7 +30410,14 @@ async function saveMasterSnapshot(eventName, force) {
   try {
     try { saveState(); } catch (e) {}
     var cloudUser = getCurrentCloudUser() || {};
-    var snapshot = CESTISCore.buildSnapshot(cestisCollectStoreMap(), {
+    // The master is written whole, with no pull before it. A device that had
+    // not yet heard of a deletion used to write its shorter deletion lists
+    // over the master's, and the deleted records then came back from it at
+    // the next sign-in. The deletions the master held when this device last
+    // read it are carried into what it writes (and kept here too).
+    var _storeMap = cestisCollectStoreMap();
+    try { cestisUnionMasterTombstones(_storeMap); } catch (e) {}
+    var snapshot = CESTISCore.buildSnapshot(_storeMap, {
       event: eventName || 'manual',
       savedBy: cloudUser.username || currentRole || 'unknown',
       savedByRole: currentRole || 'unknown'
@@ -30303,6 +30447,39 @@ async function saveMasterSnapshot(eventName, force) {
   }
 }
 
+/* The deletion lists the master held when this device last read it. */
+var _lastMasterTombs = null;
+function cestisRememberMasterTombstones(store) {
+  if (!store) return;
+  var keep = {};
+  CESTISCore.TOMBSTONE_UNION_KEYS.concat(['voctrain_syncTombstones']).forEach(function (k) { if (store[k] != null) keep[k] = store[k]; });
+  _lastMasterTombs = keep;
+}
+/* Fold those deletions into a store map about to be written as the master,
+   and into this device's own store — a deletion list only ever grows. */
+function cestisUnionMasterTombstones(map) {
+  if (!_lastMasterTombs || !map) return;
+  Object.keys(_lastMasterTombs).forEach(function (k) {
+    if (k === 'voctrain_syncTombstones') {
+      var theirs = safeJsonParse(_lastMasterTombs[k], null);
+      if (!theirs || typeof theirs !== 'object') return;
+      var grew = false;
+      Object.keys(theirs).forEach(function (col) {
+        if (!theirs[col] || typeof theirs[col] !== 'object') return;
+        var before = JSON.stringify(syncTombstones[col] || {});
+        syncTombstones[col] = CESTISCore.sync.mergeTombstones(syncTombstones[col] || {}, theirs[col]);
+        if (JSON.stringify(syncTombstones[col]) !== before) grew = true;
+      });
+      if (grew) { map[k] = JSON.stringify(syncTombstones); try { CESTISStore.setItem(k, map[k]); } catch (e) {} }
+      return;
+    }
+    var u = CESTISCore.unionTombstoneValues(map[k], _lastMasterTombs[k]);
+    if (u == null) return;
+    map[k] = u;
+    try { CESTISStore.setItem(k, u); } catch (e) {}
+  });
+}
+
 async function fetchMasterSnapshot() {
   if (!googleAccessToken) return null;
   try {
@@ -30328,6 +30505,7 @@ async function reconcileWithMasterSnapshot() {
     if (!ver.ok) console.warn('[MasterSnapshot] checksum mismatch — snapshot may be partial; merging cautiously.');
     try { updateMasterBackupInfo(snapshot); } catch (e) {}
     var local = cestisCollectStoreMap();
+    try { cestisRememberMasterTombstones(snapshot.store); } catch (e) {}
     var report = CESTISCore.dataLossReport(snapshot, local);
     var res = CESTISCore.reconcileSnapshot(snapshot, local);
     if (res.changed) {
@@ -30883,34 +31061,64 @@ function carryForwardCloudAdminSlices(data) {
   });
 }
 
+/* How the last pull went: { ok, changed, kind } — kind is 'http', 'network',
+   'garbled' (the file arrived but is not a backup) or 'merge' when not ok.
+   silentMergeFromBackup still RETURNS "did anything change" for its many
+   callers; the autosave asks this before it uploads, because a pull that
+   FAILED is not a pull that found nothing new — uploading after it put this
+   device's copy over another device's write without ever having read it. */
+var _lastPull = { ok: true, changed: false, kind: '' };
+var _pullFailStreak = 0;
 async function silentMergeFromBackup(fileId) {
+  var fail = function(kind) { _lastPull = { ok: false, changed: false, kind: kind }; _pullFailStreak++; return false; };
   try {
+    var _sent = Date.now();
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
     );
+    try { cestisNoteServerClock(response, _sent); } catch (e) {}
     if (!response.ok) {
       // A failed PULL used to be indistinguishable from "nothing changed": no
       // log, and a dead token kept the uploads going while nothing came back.
       console.warn('[AutoSync] Could not download backup ' + fileId + ': HTTP ' + response.status);
       if (response.status === 401) handleCloudAuthExpired();   // 403 is a folder permission or a rate limit, never expiry
-      return false;
+      return fail('http');
     }
-    const backupData = await response.json();
+    var backupData;
+    try { backupData = await response.json(); } catch (e) { console.warn('[AutoSync] Backup ' + fileId + ' did not arrive whole:', e && e.message); return fail('garbled'); }
+    if (!backupData || !backupData.data || typeof backupData.data !== 'object') {
+      console.warn('[AutoSync] Backup ' + fileId + ' has no .data envelope — nothing merged, nothing uploaded over it this time');
+      return fail('garbled');
+    }
     try {
       if (fileId && (fileId === _autoSaveFileIds[GOOGLE_DRIVE_CONFIG.FOLDER_ID] || fileId === cloudFileId)) _mainMergedThisSession = true;
     } catch (e) {}
-    return await mergeBackupData(backupData);
+    var changed = await mergeBackupData(backupData);
+    if (_mergeBackupFailed) return fail('merge');
+    _lastPull = { ok: true, changed: !!changed, kind: '' };
+    _pullFailStreak = 0;
+    return changed;
   } catch (err) {
     console.warn('[AutoSync] Silent merge download error:', err);
-    return false;
+    return fail('network');
   }
+}
+/* May the autosave upload after this pull? Not after a failed download — the
+   next tick tries again. A file that keeps arriving unreadable (not a
+   transient cut-off) is eventually written over with this device's copy, as
+   it always was; Drive keeps the damaged version in the file's history. */
+function pullAllowsUpload() {
+  if (_lastPull.ok) return true;
+  return _lastPull.kind === 'garbled' && _pullFailStreak >= 6;
 }
 
 // Merge one backup object (the .data envelope written by autoSaveToAllFolders)
 // into this device. Every automatic pull and the manual Sync from Cloud come
 // through here, so there is exactly one set of merge rules.
+var _mergeBackupFailed = false;
 async function mergeBackupData(backupData) {
+  _mergeBackupFailed = false;
   try {
     if (!backupData || !backupData.data) {
       console.warn('[AutoSync] Backup file has no .data envelope — skipping merge (file left untouched)');
@@ -30934,6 +31142,12 @@ async function mergeBackupData(backupData) {
         });
       }
     } catch (e) {}
+    // The deletion lists of trainees, centres and accounts, and when each
+    // trainee was deleted. They used to travel only in the master snapshot
+    // and the Student Progress file, so a deletion made on one PC reached the
+    // others late or never, and their next upload brought the record back.
+    // Unioned, never replaced: a list of deletions only grows.
+    try { if (mergeIncomingTombstoneLists(backupData.data)) changed = true; } catch (e) {}
 
 
     // Legacy demo data IDs and titles to exclude from merges
@@ -30952,6 +31166,7 @@ async function mergeBackupData(backupData) {
     // Merge students — timestamp-based update for existing, add new ones
     if (backupData.data.students) {
       backupData.data.students.forEach(cloudStudent => {
+        if (!cloudStudent || typeof cloudStudent !== 'object') return;
         if (cestisIsStudentTombstoned(cloudStudent)) return; // Honor tombstone (id + stable id)
         if (_ds[cloudStudent.id]) return;
         var localMatch = students.find(function(s) {
@@ -30971,9 +31186,15 @@ async function mergeBackupData(backupData) {
           // 'stageSetByUser' travels with the stage: without it the other
           // devices still believe the course-end rule owns this trainee, and
           // would undo the Centre's decision the next time the course reopens.
-          var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes'];
+          // enrolledAt says this record is a NEW enrolment of a person deleted
+          // earlier; without it the copy here would be hidden by the old tombstone.
+          var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes','enrolledAt'];
+          // A certificate withdrawn on either copy (the newest decision) is not
+          // filled back in from the copy that still holds it.
+          var _withdrawn = !!(CESTISCore.certs && CESTISCore.certs.isRevoked(localMatch));
           fieldsToMerge.forEach(function(field) {
             if (field === 'certNo' && localMatch.certNo) return;   // a number, once issued, never changes
+            if (_withdrawn && (field === 'certNo' || field === 'certDate' || field === 'certCollected')) return;
             if (cloudStudent[field] !== undefined && cloudStudent[field] !== null && cloudStudent[field] !== '') {
               if (cloudIsNewer || !localMatch[field] || localMatch[field] === '') {
                 if (localMatch[field] !== cloudStudent[field]) {
@@ -30988,6 +31209,7 @@ async function mergeBackupData(backupData) {
             cloudStudent.skills.forEach(function(sk) { if (localMatch.skills.indexOf(sk) === -1) { localMatch.skills.push(sk); changed = true; } });
           }
           if (cloudIsNewer && cloudStudent.lastModified) localMatch.lastModified = cloudStudent.lastModified;
+          try { if (CESTISCore.settleWithdrawnCertificate(localMatch)) changed = true; } catch (e) {}
         } else {
           students.push(cloudStudent);
           changed = true;
@@ -31062,8 +31284,11 @@ async function mergeBackupData(backupData) {
 
     // Merge calendar events
     if (Array.isArray(backupData.data.calendarEvents)) {
-      var _ceOut = CESTISCore.sync.mergeList(calendarEvents, backupData.data.calendarEvents, function(r){ return String(r.title||'').trim().toLowerCase() + '|' + String(r.date||'').trim().toLowerCase(); },
-        { tombs: syncTombsFor('calendarEvents'), accept: function(c){ return !_dt[c.title]; } });
+      // By id (old events by title|date). The demo titles are refused only on
+      // an old undated event with no id — real events called "Staff Meeting"
+      // or "Final Project Due" used to be thrown away on every merge.
+      var _ceOut = CESTISCore.sync.mergeList(calendarEvents, backupData.data.calendarEvents, CESTISCore.calendarEventKey,
+        { tombs: syncTombsFor('calendarEvents'), accept: function(c){ return !(_dt[c.title] && !c.updatedAt && (c.id == null || c.id === '')); } });
       if (_ceOut.added || _ceOut.updated || _ceOut.removed) changed = true;
     }
 
@@ -31086,27 +31311,17 @@ async function mergeBackupData(backupData) {
       // Results submitted here that the cloud now holds no longer need keeping
       // aside for a shared-PC sign-out (see examOutboxAdd).
       try { examOutboxConfirm(backupData.data.examResults); } catch(e) {}
-      var localResultKeys = examResults.map(function(r) { return r.examId + '|' + r.studentId; });
-      backupData.data.examResults.forEach(cloudResult => {
-        if (_de[cloudResult.examId] || _ds[cloudResult.studentId]) return;
-        var key = cloudResult.examId + '|' + cloudResult.studentId;
-        var keyIdx = localResultKeys.indexOf(key);
-        if (keyIdx === -1) {
-          examResults.push(cloudResult);
-          changed = true;
-        } else {
-          var localResult = examResults[keyIdx];
-          if (localResult && cloudResult.submittedAt && localResult.submittedAt) {
-            if (new Date(cloudResult.submittedAt) > new Date(localResult.submittedAt)) {
-              examResults[keyIdx] = cloudResult;
-              changed = true;
-            }
-          } else if (localResult && cloudResult.score !== undefined && localResult.score === undefined) {
-            examResults[keyIdx] = cloudResult;
-            changed = true;
-          }
-        }
-      });
+      // One rule (CESTISCore.sync.mergeExamResults): a marked copy beats an
+      // unmarked one and then the later edit wins — marking and overrides now
+      // travel, where only a later SUBMISSION ever did; a re-sit still
+      // replaces the earlier attempt; a deleted result stays deleted.
+      if (Array.isArray(backupData.data.examResults)) {
+        var _erOut = CESTISCore.sync.mergeExamResults(examResults, backupData.data.examResults, {
+          tombs: syncTombsFor('examResults'),
+          accept: function(c) { return !_de[c.examId] && !_ds[c.studentId]; }
+        });
+        if (_erOut.added || _erOut.updated || _erOut.removed) changed = true;
+      }
     }
 
     // Merge chat rooms
@@ -31118,17 +31333,9 @@ async function mergeBackupData(backupData) {
 
     // Merge chat messages
     if (backupData.data.chatMessages) {
-      Object.keys(backupData.data.chatMessages).forEach(function(roomId) {
-        if (!lmsChatMessages[roomId]) lmsChatMessages[roomId] = [];
-        var existingIds = lmsChatMessages[roomId].map(function(m) { return m.id; });
-        backupData.data.chatMessages[roomId].forEach(function(m) {
-          if (existingIds.indexOf(m.id) === -1) {
-            lmsChatMessages[roomId].push(m);
-            changed = true;
-          }
-        });
-        lmsChatMessages[roomId].sort(function(a, b) { return new Date(a.timestamp) - new Date(b.timestamp); });
-      });
+      // Message by message: an edit, a deletion, a vote or a "read" made on
+      // either side is kept (CESTISCore.chatSync), not only messages missing here.
+      if (CESTISCore.chatSync.mergeRooms(lmsChatMessages, backupData.data.chatMessages)) changed = true;
       trimLmsChatHistory();
     }
 
@@ -31150,17 +31357,9 @@ async function mergeBackupData(backupData) {
     // Merge chat follows
     if (backupData.data.chatFollows && typeof backupData.data.chatFollows === 'object') {
       try {
-        Object.keys(backupData.data.chatFollows).forEach(function(uid) {
-          if (!lmsChatFollows[uid]) lmsChatFollows[uid] = [];
-          if (Array.isArray(backupData.data.chatFollows[uid])) {
-            backupData.data.chatFollows[uid].forEach(function(followId) {
-              if (lmsChatFollows[uid].indexOf(followId) === -1) {
-                lmsChatFollows[uid].push(followId);
-                changed = true;
-              }
-            });
-          }
-        });
+        // Follows and unfollows by their time (CESTISCore.chatSync.mergeFollows):
+        // an unfollow no longer comes back from a device that still had the follow.
+        if (CESTISCore.chatSync.mergeFollows(lmsChatFollows, lmsChatFollowLog, backupData.data.chatFollows, backupData.data.chatFollowLog)) changed = true;
       } catch(e) { console.warn('[Merge] chatFollows error:', e); }
     }
 
@@ -31193,7 +31392,9 @@ async function mergeBackupData(backupData) {
     // Merge instructor assignments — newest edit wins; on a tie, grades and
     // files fill in from the other copy (a corrected grade now travels).
     if (Array.isArray(backupData.data.instructorAssignments)) {
-      var _iaOut = CESTISCore.sync.mergeList(instructorAssignments, backupData.data.instructorAssignments, syncKeyById, { tombs: syncTombsFor('instructorAssignments') });
+      // Grades merge trainee by trainee (gradedAt per trainee): two instructors
+      // grading different trainees on one assignment both keep their grade.
+      var _iaOut = CESTISCore.sync.mergeList(instructorAssignments, backupData.data.instructorAssignments, syncKeyById, { tombs: syncTombsFor('instructorAssignments'), perEntry: ASSIGNMENT_GRADE_MAPS, unionStamps: ['gradeLog'] });
       if (_iaOut.added || _iaOut.updated || _iaOut.removed) changed = true;
     }
 
@@ -31284,7 +31485,9 @@ async function mergeBackupData(backupData) {
 
     // Merge notifications — a dismissed notification now stays dismissed everywhere
     if (Array.isArray(backupData.data.notifications)) {
-      var _noOut = CESTISCore.sync.mergeList(notifications, backupData.data.notifications, syncKeyById, { tombs: syncTombsFor('notifications') });
+      // Read and cleared are each person's own (readBy / dismissedBy), merged
+      // person by person.
+      var _noOut = CESTISCore.sync.mergeList(notifications, backupData.data.notifications, syncKeyById, { tombs: syncTombsFor('notifications'), unionStamps: ['readBy', 'clearedBy'] });
       if (_noOut.added || _noOut.updated || _noOut.removed) { changed = true; try { saveNotifications(); } catch(e) {} }
     }
 
@@ -31399,7 +31602,14 @@ async function mergeBackupData(backupData) {
 
     return changed;
   } catch (err) {
+    // One bad value used to abort every collection after it, and the device
+    // then uploaded as though the merge had happened. What did merge is kept
+    // (as the cloud's content, not as an edit made here), and the caller is
+    // told the pull failed so it does not upload this tick.
     console.warn('[AutoSync] Silent merge error:', err);
+    _mergeBackupFailed = true;
+    try { syncRebaselineAll(); } catch (e) {}
+    try { saveState(); } catch (e) {}
     return false;
   }
 }
@@ -31547,7 +31757,9 @@ async function autoSyncOnLogin() {
           // Recover instructors
           if (Array.isArray(_backupData.data.instructorData)) {
             _backupData.data.instructorData.forEach(function(ci) {
-              if (!ci.course || ci.course.toLowerCase().trim() !== _courseNameLower) return;
+              if (!ci || !ci.course || ci.course.toLowerCase().trim() !== _courseNameLower) return;
+              // An instructor deleted after this copy was written stays deleted.
+              if (ci.id != null && CESTISCore.sync.deletedAfter(syncTombsFor('instructorData'), String(ci.id), ci)) return;
               var exists = instructorData.some(function(ins) {
                 return ins.id === ci.id || (ins.name === ci.name && ins.course && ins.course.toLowerCase().trim() === _courseNameLower);
               });
@@ -31749,7 +31961,9 @@ async function mainMovedSincePull() {
     if (!ver || ver === baseline) return false;
     console.log('[Sync] The Main backup moved (v' + baseline + ' → v' + ver + ') since this device pulled; merging it before this save.');
     await silentMergeFromBackup(fileId);
-    _lastCloudVersion[folderId] = ver;
+    // A version is "seen" only once it has actually been merged: after a
+    // failed download it stays unseen, so the next tick fetches it again.
+    if (_lastPull.ok) _lastCloudVersion[folderId] = ver;
     return true;
   } catch (e) { return false; }
 }
@@ -31783,11 +31997,15 @@ async function pullMainIfRemoteNewer() {
       fileId = await findBackupFileInFolder(folderId);
       if (!fileId || fileId === 'LOOKUP_FAILED') return false;
     }
+    var _sent = Date.now();
     var metaResp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version', {
       headers: { 'Authorization': 'Bearer ' + googleAccessToken }
     });
+    try { cestisNoteServerClock(metaResp, _sent); } catch (e) {}
     if (!metaResp.ok) {
       if (metaResp.status === 401) handleCloudAuthExpired();   // 403 is a folder permission or a rate limit, never expiry
+      // Whether another device has written is unknown: no upload this tick.
+      _lastPull = { ok: false, changed: false, kind: 'http' };
       return false;
     }
     var meta = await metaResp.json();
@@ -31803,13 +32021,15 @@ async function pullMainIfRemoteNewer() {
       // pulling is how a stale device overwrote everybody else's work.
       if (_mainMergedThisSession) return false;
       var first = await silentMergeFromBackup(fileId);
+      if (!_lastPull.ok) delete _lastCloudVersion[folderId];   // not seen until merged
       if (first) console.log('[Sync] Merged the cloud copy before this device\'s first save.');
       return first;
     }
     if (ver === baseline) return false; // nobody else has written since we last saw it
     // Another device wrote: merge their changes into local before we save ours.
     var merged = await silentMergeFromBackup(fileId);
-    _lastCloudVersion[folderId] = ver;
+    // Marked seen only once merged — a failed download is tried again.
+    if (_lastPull.ok) _lastCloudVersion[folderId] = ver;
     if (merged) console.log('[Sync] Merged newer cloud data (v' + ver + ') before saving.');
     return merged;
   } catch (e) {
@@ -31829,6 +32049,29 @@ async function pullMainIfRemoteNewer() {
 // serialise + write + full re-render is what made the whole dashboard feel
 // slow and the mouse stutter.
 var _lastAutoSaveWriteMark = -1;
+// What the last autosave achieved: { uploaded, reason }. uploaded is true only
+// when the Centre's copy in Drive now holds everything this device had
+// (saved, or nothing new to save). Sign-out reads it before clearing anything.
+var _lastAutoSaveResult = { uploaded: false, reason: 'not-run' };
+/* saveState() has written: this device may now hold work the cloud does
+   not. "role|when" — a trainee's own pending work is protected by the exam
+   outbox, so only staff work holds back a trainee's sign-out trim. */
+function cestisMarkPendingUpload() {
+  try {
+    var _pm = CESTISStore.getItem('cestisPendingUpload');
+    if (currentRole && (!_pm || (currentRole !== 'student' && String(_pm).indexOf('student|') === 0))) {
+      CESTISStore.setItem('cestisPendingUpload', currentRole + '|' + new Date().toISOString());
+    }
+  } catch(e) {}
+}
+/* Everything this device held is in the cloud: drop the "pending upload"
+   marker saveState() sets, and the notice a sign-out left behind. */
+function cestisMarkUploaded() {
+  try {
+    if (CESTISStore.getItem('cestisPendingUpload')) CESTISStore.removeItem('cestisPendingUpload');
+    if (CESTISStore.getItem('cestisUnsyncedOnSignOut')) CESTISStore.removeItem('cestisUnsyncedOnSignOut');
+  } catch (e) {}
+}
 
 async function autoSaveToAllFolders() {
   if (!isCloudConnected || !googleAccessToken || _isAutoSaving) return;
@@ -31838,20 +32081,32 @@ async function autoSaveToAllFolders() {
   if (_sessionWiped || !currentRole) return;
 
   _isAutoSaving = true;
+  _lastAutoSaveResult = { uploaded: false, reason: 'not-run' };
 
   try {
     // Ingest any newer cloud state first so our save writes the union, never a
     // stale overwrite. Also serves as the periodic cross-device pull — this is
     // the cloud→local path, so it runs on every tick regardless of the gate
     // below: another device's work still arrives within seconds.
+    _lastPull = { ok: true, changed: false, kind: '' };
     await pullMainIfRemoteNewer();
     if (_sessionWiped || !currentRole) return;   // the session ended while we were pulling
+    // The cloud copy could not be read this tick. Uploading now would put this
+    // device's copy over whatever another device wrote — unread. Wait for the
+    // next tick; nothing here is lost, the write counter still says "unsaved".
+    if (!pullAllowsUpload()) {
+      _lastAutoSaveResult = { uploaded: false, reason: 'pull-failed' };
+      console.warn('[AutoSave] The cloud copy could not be read (' + (_lastPull.kind || 'unknown') + '); not uploading over it this time.');
+      return;
+    }
 
     // Nothing written since our last completed save: the local copy and the
     // cloud copy are both already what we would produce. Skip the serialise,
     // the saveState and the uploads outright.
     var _writesNow = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -2;
     if (_writesNow === _lastAutoSaveWriteMark && _lastAutoSaveHash) {
+      _lastAutoSaveResult = { uploaded: true, reason: 'nothing-new' };
+      cestisMarkUploaded();
       return; // finally{} clears _isAutoSaving
     }
 
@@ -31905,7 +32160,14 @@ async function autoSaveToAllFolders() {
         notifications: notifications,
         certDownloadApprovals: certDownloadApprovals,
         certTemplateCourseMap: certTemplateCourseMap,
-        syncTombstones: syncTombstones
+        syncTombstones: syncTombstones,
+        // The deletion lists travel with the backup every device pulls, not
+        // only in the master snapshot (mergeIncomingTombstoneLists).
+        deletedStudentIds: safeJsonParse(CESTISStore.getItem('voctrain_deletedStudentIds'), []),
+        deletedStudentAt: safeJsonParse(CESTISStore.getItem('voctrain_deletedStudentAt'), {}),
+        deletedCentreIds: safeJsonParse(CESTISStore.getItem('voctrain_deletedCentreIds'), []),
+        deletedUserIds: safeJsonParse(CESTISStore.getItem('voctrain_deletedUserIds'), []),
+        chatFollowLog: lmsChatFollowLog
       }
     };
     // Admin-managed data: only include if admin OR if non-empty (never upload empty to overwrite real data)
@@ -31949,6 +32211,10 @@ async function autoSaveToAllFolders() {
     // that lands inside it from the version Drive hands back and recovers it
     // from the file's revisions.
     if (await mainMovedSincePull()) { backupData = buildPayload(); }
+    if (!pullAllowsUpload()) {
+      _lastAutoSaveResult = { uploaded: false, reason: 'pull-failed' };
+      return;
+    }
 
     // Dirty-check: skip ALL cloud uploads when nothing changed since the last
     // successful save. Hash only backupData.data — not the timestamp/savedBy,
@@ -31960,6 +32226,8 @@ async function autoSaveToAllFolders() {
       // The writes were bookkeeping only — the data itself is unchanged.
       // Absorb them (including saveState()'s own) so the next tick is free.
       _lastAutoSaveWriteMark = _writesAfterSave;
+      _lastAutoSaveResult = { uploaded: true, reason: 'unchanged' };
+      cestisMarkUploaded();
       return; // unchanged — nothing to push; finally{} clears _isAutoSaving
     }
 
@@ -32012,6 +32280,8 @@ async function autoSaveToAllFolders() {
 
     // Remember this payload only when the canonical folders actually saved, so a
     // failed upload is retried on the next tick instead of being skipped.
+    _lastAutoSaveResult = { uploaded: successCount >= 1, reason: successCount >= 1 ? 'saved' : 'upload-failed' };
+    if (successCount >= 1) cestisMarkUploaded();
     if (successCount >= 1) {
       _lastAutoSaveHash = _curHash;
       // Absorb every write this save itself just made, so an idle next tick
@@ -33124,6 +33394,8 @@ function lmsChatToggleFollow(targetId) {
   if(!lmsChatFollows[me.id]) lmsChatFollows[me.id] = [];
   var list = lmsChatFollows[me.id];
   var idx = list.indexOf(targetId);
+  // Written down with its time, so the choice survives a device that has not heard of it.
+  try { CESTISCore.chatSync.recordFollow(lmsChatFollows, lmsChatFollowLog, me.id, targetId, idx === -1); } catch(e) {}
   if(idx !== -1) {
     list.splice(idx, 1);
     showToast('Unfollowed.');
@@ -33567,6 +33839,7 @@ function lmsChatEditMessage(msgId) {
   msg.text = newText;
   msg.edited = true;
   msg.editedAt = new Date().toISOString();
+  msg.updatedAt = msg.editedAt;   // the newer copy of a message wins every merge
   saveLmsChatData();
 
   var prefix = lmsChatGetRolePrefix();
@@ -33593,6 +33866,7 @@ function lmsChatDeleteMessage(msgId) {
   msg.originalText = msg.text;
   msg.text = '';
   msg.deletedAt = new Date().toISOString();
+  msg.updatedAt = msg.deletedAt;   // and a deletion is final in every merge
   saveLmsChatData();
 
   var prefix = lmsChatGetRolePrefix();
@@ -33915,6 +34189,13 @@ function lmsChatVotePoll(msgId, optionIdx) {
     }
     opt.votes.push(user.id);
   }
+  // This voter's choice, kept on its own with its time: twenty votes cast at
+  // once used to overwrite each other, and only the last device's survived.
+  try {
+    var _mine = [];
+    msg.pollOptions.forEach(function(o, i){ if(o && Array.isArray(o.votes) && o.votes.indexOf(user.id) !== -1) _mine.push(i); });
+    CESTISCore.chatSync.recordVote(msg, user.id, _mine);
+  } catch(e) {}
 
   saveLmsChatData();
   var prefix = lmsChatGetRolePrefix();
@@ -34269,6 +34550,8 @@ function lmsChatToggleFollowInPage(targetId, page) {
   if(!lmsChatFollows[me.id]) lmsChatFollows[me.id] = [];
   var list = lmsChatFollows[me.id];
   var idx = list.indexOf(targetId);
+  // Written down with its time, so the choice survives a device that has not heard of it.
+  try { CESTISCore.chatSync.recordFollow(lmsChatFollows, lmsChatFollowLog, me.id, targetId, idx === -1); } catch(e) {}
   if(idx !== -1) {
     list.splice(idx, 1);
     showToast('Unfollowed.');
@@ -35252,7 +35535,7 @@ function cestisRTHandleNotify(data, fromPeer) {
     ? CESTISCore.html.cleanNotification(data.notif) : null;
   if (n && cestisNotifTargetsMe(n) && !notifications.some(function (x) { return x.id === n.id; })) {
     notifications.unshift(n);
-    if (notifications.length > 50) notifications = notifications.slice(0, 50);
+    try { notifications = CESTISCore.notify.prune(notifications, 50, 400); } catch (e) {}
     updateNotificationDot();
     try { shakeNotificationBell(); } catch (e) {}
     try { playNotificationSound(); } catch (e) {}
@@ -35978,6 +36261,16 @@ async function lmsChatSyncToDrive() {
   // lists are empty, and this push would overwrite the Centre's chat file.
   if(_sessionWiped || !currentRole) return false;
   try {
+    // Read before writing. This file used to be overwritten with whatever
+    // this device held, so a device that had not yet seen a deletion, an
+    // edit, a vote or somebody's new message put its older copy back for
+    // everyone. The file is merged in first (message by message), and if it
+    // cannot be read nothing is written over it.
+    var fileId = await lmsChatFindDriveFile();
+    if(fileId) {
+      var pulled = await lmsChatSyncFromDrive();
+      if(!pulled || !pulled.ok) { console.warn('[Chat] The chat file could not be read; not writing over it this time.'); return false; }
+    }
     var chatData = {
       version: '1.1',
       timestamp: new Date().toISOString(),
@@ -35987,13 +36280,15 @@ async function lmsChatSyncToDrive() {
       // bytes used to ride every upload of the chat file for ever.
       chatMessages: CESTISCore.chat.stripUploadedBytes(lmsChatMessages),
       chatProfiles: lmsChatProfiles,
-      chatFollows: lmsChatFollows
+      chatFollows: lmsChatFollows,
+      chatFollowLog: lmsChatFollowLog,
+      // Deleted rooms stay deleted for a device reading only this file.
+      tombstones: { chatRooms: syncTombsFor('chatRooms') }
     };
 
     var jsonContent = JSON.stringify(chatData);
     var blob = new Blob([jsonContent], {type:'application/json'});
 
-    var fileId = await lmsChatFindDriveFile();
     var resp;
     if(fileId) {
       resp = await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media&fields=id,modifiedTime', {
@@ -36063,6 +36358,12 @@ async function lmsChatSyncFromDrive() {
     if(!resp.ok) throw new Error('Download failed');
     var data = await resp.json();
     if(_sessionWiped || !currentRole) return { ok: false, signedOut: true };   // signed out while downloading
+    var _chatMoved = false;
+    // Deleted rooms written down in the file stay deleted here too.
+    try {
+      var _rt = data.tombstones && data.tombstones.chatRooms;
+      if(_rt && typeof _rt === 'object') syncTombstones.chatRooms = CESTISCore.sync.mergeTombstones(syncTombstones.chatRooms || {}, _rt);
+    } catch(e) {}
 
     // Merge rooms by the same rule as the main backup: newest edit wins, a
     // deleted room stays deleted (tombstones), and a local-only room is kept.
@@ -36083,46 +36384,21 @@ async function lmsChatSyncFromDrive() {
       });
     }
 
-    // Merge messages — cloud messages take priority, add any local-only messages
-    if(data.chatMessages) {
-      var merged = {};
-      // Start with cloud messages
-      Object.keys(data.chatMessages).forEach(function(roomId) {
-        merged[roomId] = data.chatMessages[roomId].slice();
-      });
-      // Add any local messages not in cloud. A Set per room, not indexOf per
-      // message: this merge runs on the 3.5-second chat poll, and the old
-      // cloud×local scan re-walked every message of every room per tick.
-      Object.keys(lmsChatMessages).forEach(function(roomId) {
-        if(!merged[roomId]) merged[roomId] = [];
-        var cloudIds = new Set(merged[roomId].map(function(m){ return m.id; }));
-        var addedLocal = false;
-        lmsChatMessages[roomId].forEach(function(m) {
-          if(!cloudIds.has(m.id)) { merged[roomId].push(m); addedLocal = true; }
-        });
-        // Cloud copies arrive already ordered; only a local addition can
-        // disturb the order, so only then is the sort (and its Date allocation
-        // per comparison) paid.
-        if(addedLocal) merged[roomId].sort(function(a,b){ return new Date(a.timestamp) - new Date(b.timestamp); });
-      });
-      lmsChatMessages = merged;
+    // Messages: every message either copy has; for one both have, the copy
+    // changed last (an edit, a vote), a deletion always — see CESTISCore.chatSync.
+    if(data.chatMessages && typeof data.chatMessages === 'object') {
+      if(CESTISCore.chatSync.mergeRooms(lmsChatMessages, data.chatMessages)) _chatMoved = true;
     }
 
-    // Merge profiles — cloud profiles take priority
-    if(data.chatProfiles) {
-      Object.keys(data.chatProfiles).forEach(function(uid) {
-        lmsChatProfiles[uid] = data.chatProfiles[uid];
-      });
+    // Profiles: the newer edit of each (it used to be whichever the cloud had).
+    if(data.chatProfiles && typeof data.chatProfiles === 'object') {
+      var _cp = CESTISCore.sync.mergeMap(lmsChatProfiles, data.chatProfiles, {});
+      if(_cp.added || _cp.updated) _chatMoved = true;
     }
 
-    // Merge follows — cloud takes priority, union with local
-    if(data.chatFollows) {
-      Object.keys(data.chatFollows).forEach(function(uid) {
-        if(!lmsChatFollows[uid]) lmsChatFollows[uid] = [];
-        data.chatFollows[uid].forEach(function(fid) {
-          if(lmsChatFollows[uid].indexOf(fid) === -1) lmsChatFollows[uid].push(fid);
-        });
-      });
+    // Follows and unfollows by their time.
+    if(data.chatFollows || data.chatFollowLog) {
+      if(CESTISCore.chatSync.mergeFollows(lmsChatFollows, lmsChatFollowLog, data.chatFollows, data.chatFollowLog)) _chatMoved = true;
     }
 
     // Save merged data to localStorage (stripped version) — but ONLY when the
@@ -36131,7 +36407,7 @@ async function lmsChatSyncFromDrive() {
     // tick even when nothing had arrived, forever.
     var _sigNow = lmsChatMsgSignature();
     var _sigKeys = Object.keys(_sigNow), _sigOld = Object.keys(_beforeSig);
-    var _dataMoved = _sigKeys.length !== _sigOld.length ||
+    var _dataMoved = _chatMoved || _sigKeys.length !== _sigOld.length ||
       _sigKeys.some(function(k){ return _beforeSig[k] !== _sigNow[k]; });
     if (_dataMoved) try {
       var msgCopy = {};
@@ -36147,6 +36423,7 @@ async function lmsChatSyncFromDrive() {
       CESTISStore.setItem('voctrain_chatMessages', JSON.stringify(msgCopy));
       CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(lmsChatProfiles));
       CESTISStore.setItem('voctrain_chatFollows', JSON.stringify(lmsChatFollows));
+      CESTISStore.setItem('voctrain_chatFollowLog', JSON.stringify(lmsChatFollowLog || {}));
     } catch(e) {}
 
     // Re-render only what actually changed so a fast poll doesn't flicker the
@@ -36156,7 +36433,7 @@ async function lmsChatSyncFromDrive() {
     var _roomsChanged = _beforeKeys.length !== _afterKeys.length ||
       _afterKeys.some(function(k){ return _beforeSig[k] !== _afterSig[k]; });
     var _activeChanged = lmsChatActiveRoom &&
-      _beforeSig[lmsChatActiveRoom] !== _afterSig[lmsChatActiveRoom];
+      (_chatMoved || _beforeSig[lmsChatActiveRoom] !== _afterSig[lmsChatActiveRoom]);
 
     if(_mt) _lmsChatLastModified = _mt;
     var prefix = lmsChatGetRolePrefix();
@@ -39791,6 +40068,10 @@ function cmcCountersignVirement(id) {
   if(!confirm('Countersign the Chairperson\'s ruling to ' + res.ruling.decision.toLowerCase() + ' ' + cmcMoney(row.amount) +
     (row.project ? ' for "' + row.project + '"' : '') + '?\n\nThis settles the request. Both names are recorded and it cannot be undone.')) return;
 
+  // Only this one request is changed here; on its way to Drive the register
+  // is merged request by request with the copy there (cesti_virements is a
+  // record collection — CESTISCore.pageCloud.DRIVE_RECORD_KEYS), so a request
+  // filed since the board last pulled is no longer dropped by this upload.
   var raw = null;
   try { raw = CESTISStore.getItem('cesti_virements'); } catch(e) {}
   var next = C.cmcApplyVirementDecision(raw, id, res.patch);
@@ -39812,7 +40093,7 @@ function cmcWithdrawVirementRuling(id) {
   var res = C.cmcWithdrawRuling(row, C.cmcRulingFor(book, id), cmcSignerNow());
   if(!res.ok) { showToast(res.reason, 'warning'); return; }
   if(!confirm('Withdraw your ruling? The request goes back to awaiting a decision.')) return;
-  if(cmcSaveRulings(C.cmcApplyRuling(book, id, null), false)) showToast('Ruling withdrawn.', 'success');
+  if(cmcSaveRulings(C.cmcApplyRuling(book, id, null, new Date().toISOString(), cmcSignerNow().username), false)) showToast('Ruling withdrawn.', 'success');
 }
 
 function cmcRenderAcademic() {

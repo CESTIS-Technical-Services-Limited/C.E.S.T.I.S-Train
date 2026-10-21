@@ -176,7 +176,10 @@ PAGES.forEach(function (page) {
   assertEq(sandbox.certTemplates.Welding.updatedAt, undefined, w + ': a template whose only change is its device-held image is not stamped');
   assert(!!sandbox.systemSettings.updatedAt, w + ': changed settings are stamped');
   assert(!!sandbox.adminStaffAccessSettings.updatedAt, w + ': a changed access grid is stamped');
-  assertEq(!!(sandbox.syncTombstones.notifications && sandbox.syncTombstones.notifications['N-2']), true, w + ': a removed notification leaves a tombstone');
+  // A notification dropped from the list is housekeeping (the list keeps the
+  // newest per audience), never a deletion for everyone: no tombstone, which
+  // used to be written for every trimmed notice, for ever (sync-19, comms-07).
+  assertEq(!!(sandbox.syncTombstones.notifications && sandbox.syncTombstones.notifications['N-2']), false, w + ': a notification trimmed from the list leaves no tombstone');
   vm.runInContext("systemSettings.maintenanceMode = true; systemSettings.maintenanceUpdatedAt = '" + T3 + "'; var before = systemSettings.updatedAt; syncStampAll(); stampAfterMaint = systemSettings.updatedAt === before;", sandbox);
   assertEq(sandbox.stampAfterMaint, true, w + ': a maintenance decision does not re-stamp the settings (it carries its own stamp)');
   vm.runInContext("syncTombstoneRemoved('exams', exams, exams = exams.filter(function(e){ return e.id !== 'EXAM-2'; }))", sandbox);

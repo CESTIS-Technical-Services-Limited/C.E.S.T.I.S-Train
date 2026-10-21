@@ -61,6 +61,14 @@
 
   function store() { return root.CESTISStore || root.localStorage; }
   function core() { return root.CESTISCore && root.CESTISCore.pageCloud; }
+  /* Which collections a Drive merge treats record by record: all registered
+     ones for a page that asks (spec.records), otherwise the ones whose whole
+     list was the only copy (CESTISCore.pageCloud.DRIVE_RECORD_KEYS). */
+  function driveRecords(spec) {
+    if (spec && spec.records) return true;
+    var C = core();
+    return (C && C.DRIVE_RECORD_KEYS) || false;
+  }
 
   function token() {
     try {
@@ -169,7 +177,7 @@
               if ((Date.parse(owner[k] || '') || 0) > (Date.parse(judged[k] || '') || 0)) judged[k] = owner[k];
             });
             var first = Object.keys(judged).length === 0;
-            var res = C.mergeKeys(local, judged, cloud, cloudStamps, { firstSync: first });
+            var res = C.mergeKeys(local, judged, cloud, cloudStamps, { firstSync: first, records: driveRecords(self.spec) });
             res.changed.forEach(function (k) {
               try { store().setItem(k, res.data[k]); } catch (e) {}
             });
@@ -240,7 +248,7 @@
             if (!Object.keys(local).length) return [];
             var cloud = C.pickShared(cloudAll, src.keys);
             var cloudStamps = C.pickShared(cloudStampsAll, src.keys);
-            var merged = C.mergeKeys(local, self.stamps(), cloud, cloudStamps);
+            var merged = C.mergeKeys(local, self.stamps(), cloud, cloudStamps, { records: driveRecords(self.spec) });
 
             var wrote = [];
             Object.keys(merged.data).forEach(function (k) {
@@ -350,7 +358,7 @@
           // A page whose keys are collections of records (spec.records) merges
           // them record by record, so two offices' edits to different records
           // both stand instead of the later whole list undoing the other's.
-          var res = C.mergeKeys(local, known, payload.data, payload.stamps || {}, { firstSync: first, records: !!self.spec.records });
+          var res = C.mergeKeys(local, known, payload.data, payload.stamps || {}, { firstSync: first, records: driveRecords(self.spec) });
           // Adopting the cloud's copy is not editing — see the note in watch().
           API._applying = true;
           try {
@@ -388,12 +396,16 @@
         remote = api('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media',
           { headers: { Authorization: 'Bearer ' + tok } })
           .then(function (r) { return r.json(); })
-          .then(function (p) { return { data: (p && p.data) || {}, stamps: (p && p.stamps) || {} }; })
-          .catch(function () { return { data: {}, stamps: {} }; });
+          .then(function (p) { return { data: (p && p.data) || {}, stamps: (p && p.stamps) || {} }; });
+        // A download that FAILED (a network error, a 5xx, a cut-off body) is
+        // not an empty file. It used to be merged as one, and the upload that
+        // followed replaced the Centre's file with this device's keys alone.
+        // Only "no file at all" (find() found none) starts from empty; a
+        // failure stops this push, and the next save or page close retries.
       }
       return remote.then(function (cloud) {
         // Local wins only where local is newer; the union goes up.
-        var merged = C.mergeKeys(data, stamps, cloud.data, cloud.stamps, { records: !!self.spec.records });
+        var merged = C.mergeKeys(data, stamps, cloud.data, cloud.stamps, { records: driveRecords(self.spec) });
         var payload = C.buildPayload(self.spec, merged.data, merged.stamps, {
           savedAt: new Date().toISOString(),
           savedBy: (root.currentLoggedInUser && root.currentLoggedInUser.username) || root.currentRole || 'unknown'
@@ -845,7 +857,9 @@
       'cestisAttendanceCurrentUser', 'darkMode', 'cestisTimeDarkMode',
       // One-off "I have seen this" dismissals.
       'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
-      'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled'
+      'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
+      // This device's own "not yet uploaded" marker.
+      'cestisPendingUpload', 'cestisUnsyncedOnSignOut'
     ],
     // This module's own bookkeeping about what it has already synced.
     excludePrefixes: ['cestis_pagecloud_stamps__'],

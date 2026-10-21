@@ -417,11 +417,18 @@
 
   /* Write a ruling into the Board's minute book (or remove it), returning the
      new book. Pure: the book handed in is never mutated. */
-  function cmcApplyRuling(rulings, id, ruling) {
+  /* A withdrawal given a time (withdrawnAtISO) is written down as an entry
+     with no decision rather than removed: the minute book is merged entry by
+     entry across devices, and a removed entry would come straight back from
+     any copy that still held the ruling. An entry with no decision reads as
+     "nobody has ruled" (cmcVirementStage), and a later ruling replaces it. */
+  function cmcApplyRuling(rulings, id, ruling, withdrawnAtISO, withdrawnBy) {
     var book = (rulings && typeof rulings === 'object' && !Array.isArray(rulings)) ? rulings : {};
     var out = {};
     Object.keys(book).forEach(function (k) { out[k] = book[k]; });
-    if (ruling) out[String(id)] = ruling; else delete out[String(id)];
+    if (ruling) out[String(id)] = ruling;
+    else if (withdrawnAtISO) out[String(id)] = { withdrawnAt: String(withdrawnAtISO), withdrawnBy: String(withdrawnBy || '') };
+    else delete out[String(id)];
     return out;
   }
 

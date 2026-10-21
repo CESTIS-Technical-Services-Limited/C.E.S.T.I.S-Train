@@ -259,6 +259,12 @@ function readJSON(key, fallback) {
   catch (e) { return fallback; }
 }
 function writeJSON(key, val) { CESTISStore.setItem(key, JSON.stringify(val)); }
+/* The list as stored right now, falling back to this page's copy only when
+   nothing readable is stored. */
+function freshList(key, cached) {
+  var v = readJSON(key, null);
+  return Array.isArray(v) ? v : (Array.isArray(cached) ? cached : []);
+}
 
 var db = { students: [], exams: [], examResults: [], catalogs: [], grades: [], requests: [], profiles: {}, instructors: [] };
 
@@ -1047,16 +1053,29 @@ function saveUnitGrade(i, opts) {
 
   /* Manual override write-back into the live VocTrain exam result. */
   if (sel.alsoUpdateExam && examResultId && !isNaN(num)) {
-    var res = db.examResults.filter(function (r) { return r && r.id === examResultId; })[0];
+    /* Patched into the results as they are stored NOW, one record only.
+       This page wrote its whole cached list back, so a result submitted on
+       the dashboard after the page loaded was erased; the original score was
+       overwritten with no trace; and with no edit stamp the override never
+       reached another device. */
+    var fresh = freshList('voctrain_examResults', db.examResults);
+    var res = fresh.filter(function (r) { return r && r.id === examResultId; })[0];
     if (res) {
       var exam = db.exams.filter(function (e) { return e && e.id === res.examId; })[0];
+      var now = new Date().toISOString();
+      if (res.originalScore === undefined) res.originalScore = res.score;
+      if (!Array.isArray(res.overrideHistory)) res.overrideHistory = [];
+      res.overrideHistory.push({ from: res.score, to: Math.round(num * 10) / 10, by: ACTOR, at: now });
       res.score = Math.round(num * 10) / 10;
       // A pass mark of 0 is a pass mark: `|| 60` used to replace it.
       res.passed = num >= ((exam && exam.passMark != null && exam.passMark !== '' && !isNaN(Number(exam.passMark))) ? Number(exam.passMark) : T.DEFAULT_PASS_MARK);
       res.manualOverride = true;
       res.overriddenBy = ACTOR;
-      res.overriddenAt = new Date().toISOString();
-      writeJSON('voctrain_examResults', db.examResults);
+      res.overriddenAt = now;
+      res.updatedAt = (window.CESTISCore && CESTISCore.sync) ? CESTISCore.sync.laterStamp(now, res.updatedAt) : now;
+      db.examResults = fresh;
+      if (window.CESTISCore && CESTISCore.pageCloud) CESTISCore.pageCloud.guardedSet(CESTISStore, 'voctrain_examResults', fresh);
+      else writeJSON('voctrain_examResults', fresh);
     }
   }
   notifyHost();
@@ -1072,8 +1091,9 @@ function clearUnitGrade(i) {
   var s = studentById(sel.studentId), q = qualForStudent(sel.studentId, sel.qualId);
   if (!s || !q) return;
   var unit = q.units[i];
-  db.grades = readJSON(T.KEYS.grades, []) || [];
-  db.grades = T.removeManualGrade(db.grades, s.id, q.id, unit.code);
+  // Written down as removed (not erased), so no other copy can put the old
+  // grade back — see CESTISCore.Transcript.removeManualGrade.
+  db.grades = T.removeManualGrade(freshList(T.KEYS.grades, db.grades), s.id, q.id, unit.code, ACTOR);
   writeJSON(T.KEYS.grades, db.grades);
   notifyHost();
   renderGradeRows();

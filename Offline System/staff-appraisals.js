@@ -680,15 +680,31 @@
     if (local.status === 'completed' || remote.status === 'completed') merged.status = 'completed';
     return merged;
   }
+  /* Deletions are written down ({ 'cycle|staffId': when, 'EXT:id': when })
+     and unioned, the later time of each standing. The merge used to be a
+     plain union of both sides, so an appraisal or an extra staff member
+     deleted on one device came straight back from any device still holding
+     it. An appraisal edited AFTER its deletion is kept (the edit is newer);
+     nothing else returns. Data without the map merges exactly as before. */
+  function sappMergeDeleted(a, b) {
+    var out = {};
+    [a, b].forEach(function (m) {
+      if (!m || typeof m !== 'object') return;
+      Object.keys(m).forEach(function (k) { if (!out[k] || sappTime(m[k]) > sappTime(out[k])) out[k] = m[k]; });
+    });
+    return out;
+  }
   function sappMergeData(local, remote) {
     var L = local && typeof local === 'object' ? local : {};
     var R = remote && typeof remote === 'object' ? remote : {};
+    var deleted = sappMergeDeleted(L.deleted, R.deleted);
     var out = {
       cycles: {},
       assignments: Object.assign({}, L.assignments || {}, R.assignments || {}),
-      extraStaff: (L.extraStaff || []).slice(),
+      extraStaff: (L.extraStaff || []).filter(function (s) { return !(s && s.id && deleted['EXT:' + s.id]); }),
       flags: Object.assign({}, L.flags || {}, R.flags || {})
     };
+    if (Object.keys(deleted).length) out.deleted = deleted;
     var lc = L.cycles || {}, rc = R.cycles || {};
     Object.keys(lc).concat(Object.keys(rc)).forEach(function (ck) {
       if (out.cycles[ck]) return;
@@ -696,13 +712,16 @@
       var lcy = lc[ck] || {}, rcy = rc[ck] || {};
       Object.keys(lcy).concat(Object.keys(rcy)).forEach(function (sid) {
         if (out.cycles[ck][sid]) return;
-        out.cycles[ck][sid] = sappMergeAppraisal(lcy[sid], rcy[sid]);
+        var m = sappMergeAppraisal(lcy[sid], rcy[sid]);
+        var gone = deleted[ck + '|' + sid];
+        if (gone && sappTime(gone) >= sappTime(m && m.updatedAt)) return;
+        out.cycles[ck][sid] = m;
       });
     });
     var seenExtra = {};
     out.extraStaff.forEach(function (s) { if (s && s.id) seenExtra[s.id] = true; });
     (R.extraStaff || []).forEach(function (s) {
-      if (s && s.id && !seenExtra[s.id]) { seenExtra[s.id] = true; out.extraStaff.push(s); }
+      if (s && s.id && !seenExtra[s.id] && !deleted['EXT:' + s.id]) { seenExtra[s.id] = true; out.extraStaff.push(s); }
     });
     return out;
   }
@@ -1230,6 +1249,9 @@
     if (!confirm('Remove this staff member from the appraisal roster?')) return;
     var d = sappData();
     d.extraStaff = d.extraStaff.filter(function (s) { return ('EXT:' + s.id) !== staffId; });
+    // Written down, so the next sync does not bring them back (sappMergeData).
+    if (!d.deleted || typeof d.deleted !== 'object') d.deleted = {};
+    d.deleted[staffId] = new Date().toISOString();
     sappPersist(d);
     sappRenderRoster();
   };
@@ -1237,6 +1259,9 @@
     if (!confirm('Delete this appraisal (all entered scores for this staff member and period)? This cannot be undone.')) return;
     var d = sappData();
     if (d.cycles[sappState.cycleKey]) delete d.cycles[sappState.cycleKey][staffId];
+    // Written down, so the next sync does not bring it back (sappMergeData).
+    if (!d.deleted || typeof d.deleted !== 'object') d.deleted = {};
+    d.deleted[sappState.cycleKey + '|' + staffId] = new Date().toISOString();
     sappPersist(d);
     sappRenderRoster();
   };
@@ -1796,7 +1821,13 @@
     var r = null;
     try { r = root.currentRole; } catch (e) {}
     if (r === 'admin') return 'appraiser';
-    if (r === 'cmc') return 'cmc';
+    // The slot prints as "CMC Chair": only the Chairperson signs it (the same
+    // flag the virement rulings use), not any board member.
+    if (r === 'cmc') {
+      var chair = false;
+      try { chair = !!(root.currentLoggedInUser && root.currentLoggedInUser.cmcChair === true); } catch (e) {}
+      return chair ? 'cmc' : null;
+    }
     if (r === 'instructor' || r === 'adminstaff') return 'appraisee';
     return null;
   }

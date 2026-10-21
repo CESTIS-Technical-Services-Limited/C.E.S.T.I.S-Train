@@ -68,7 +68,13 @@ console.log('A renamed trainee keeps their grades, transcript header, requests a
   assertEq(g[0].id, T.manualGradeId(newId, 'QUAL-COS-L2', 'U2'), 'and is re-filed under the id the new student gives it');
   const rows = T.effectiveGrades({ qual: { id: 'QUAL-COS-L2', units: [{ code: 'U2', name: 'Two' }] }, studentId: newId, manualGrades: g });
   assertEq(rows[0].grade, 88, 'so the transcript still shows it');
-  assertEq(T.removeManualGrade(g, newId, 'QUAL-COS-L2', 'U2').length, 0, 'and removing the override really removes it (no ghost)');
+  // Removal is written down (removed: true, grade null) rather than erased, so
+  // no other copy can put the grade back (transcripts-07): the override is
+  // gone from the transcript and no ghost record is left behind it.
+  const afterRemove = T.removeManualGrade(g, newId, 'QUAL-COS-L2', 'U2');
+  const rowsAfter = T.effectiveGrades({ qual: { id: 'QUAL-COS-L2', units: [{ code: 'U2', name: 'Two' }] }, studentId: newId, manualGrades: afterRemove });
+  assert(afterRemove.length === 1 && afterRemove[0].removed === true && rowsAfter[0].source !== 'manual',
+    'and removing the override really removes it (no ghost)');
   assertEq(JSON.parse(store.data.voctrain_transcriptProfiles)[newId].dob, '01/02/2000', 'the transcript header follows');
   assert(T.hasOpenRequest(JSON.parse(store.data.voctrain_certTranscriptRequests), newId, 'transcript'), 'the open request follows');
   assertEq(bundle.studentProfiles[newId], { email: 'j@x.jm' }, 'the profile email follows');
