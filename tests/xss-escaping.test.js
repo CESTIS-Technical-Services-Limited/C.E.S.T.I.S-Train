@@ -590,7 +590,7 @@ console.log('Video classes: lists, lobby, conference, participants');
     currentStudent: { id: 'S', name: EVIL, course: 'Welding', instructor: EVIL }, instructorCourseMatch() { return true; },
     localDateStr() { return '2026-10-20'; }, instructorResources: [], driveResources: [{ category: 'video', name: EVIL, url: EVIL_URL, course: 'Welding' }]
   };
-  const ac = render('renderAdminClassSessions', ['renderAdminClassSessions'], setup, 'renderAdminClassSessions()', sb => el(sb, 'adminClassSessionsList') + el(sb, 'adminAllSessionsList'));
+  const ac = render('renderAdminClassSessions', ['vcSessionStatusBadge', 'renderAdminClassSessions'], setup, 'renderAdminClassSessions()', sb => el(sb, 'adminClassSessionsList') + el(sb, 'adminAllSessionsList'));
   const joins = handlerCalls(ac.html).filter(c => c.name === 'enterVideoRoom');
   assert(joins.length === 2 && joins.every(c => c.args[0] === EVIL && c.args[2] === cs.roomCode), 'Join passes the exact class name and room code (an apostrophe used to break it)');
   render('renderAdminMeetingsList', ['meetingAccess', 'meetingAccessBadge', 'renderAdminMeetingsList'], setup, 'renderAdminMeetingsList()', sb => el(sb, 'adminMeetingsList') + el(sb, 'asAdminMeetingsList') + el(sb, 'iAdminMeetingsList'));
@@ -601,9 +601,9 @@ console.log('Video classes: lists, lobby, conference, participants');
 
   const vsb = makeSandbox({
     peerNames: { p1: EVIL }, peerRoles: { p1: ATTACK.tag }, mutedPeers: {}, vcCoHosts: {}, isRoomHost: true, rtcPeer: { id: 'me' },
-    vcCurrentUserName: EVIL, vcCurrentRole: 'admin'
+    vcCurrentUserName: EVIL, vcCurrentRole: 'admin', vcIsCoHost: false, currentRoomCode: 'ABC234'
   });
-  load(vsb, ['vcCleanPeerName', 'vcCleanPeerRole', 'vcUpdateParticipants']);
+  load(vsb, ['vcHostPeerId', 'vcCleanPeerName', 'vcCleanPeerRole', 'vcUpdateParticipants']);
   vm.runInContext('vcUpdateParticipants()', vsb);
   const parts = el(vsb, 'vc-part-list');
   assertSafeMarkup(parts, 'vcUpdateParticipants', extractFunction(SRC, 'vcUpdateParticipants'));
@@ -611,7 +611,8 @@ console.log('Video classes: lists, lobby, conference, participants');
   assertEq(vm.runInContext('vcCleanPeerRole("instructor")', vsb), 'instructor', 'a real role is kept');
   const conf = render('vcShowConference', ['vcShowConference'], {
     vcCurrentUserName: EVIL, isRoomHost: true, currentRoomCode: ATTACK.tag, localStream: null,
-    vcUpdateParticipants() {}, vcRestoreChatHistory() {}, videoTimerInterval: null, videoSeconds: 0
+    vcUpdateParticipants() {}, vcRestoreChatHistory() {}, videoTimerInterval: null, videoSeconds: 0,
+    vcReplayStreams() {}, vcRefreshRecordingBanner() {}, vcNatNotice() {}
   }, 'vcShowConference(' + JSON.stringify(EVIL) + ', "admin")', sb => el(sb, 'videoRoom'));
   const send = handlerCalls(conf.html).filter(c => c.name === 'sendChatMsg');
   assert(send.length === 2 && send.every(c => c.args[1] === EVIL), 'Send passes the exact sender name (an apostrophe used to break chat)');

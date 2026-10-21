@@ -11185,29 +11185,37 @@ function buildInstructorSidebar() {
 // Stops camera/mic streams if user navigates away from video pages without
 // using the Back/Leave button. This ensures the browser releases device access.
 function vcCleanupMediaIfNeeded() {
-  if(localStream) { localStream.getTracks().forEach(function(t){t.stop();}); localStream = null; }
-  if(screenStream) { screenStream.getTracks().forEach(function(t){t.stop();}); screenStream = null; }
-  // Stop remote streams
-  Object.keys(peerConnections).forEach(function(pid) {
-    if(peerConnections[pid].stream) peerConnections[pid].stream.getTracks().forEach(function(t){t.stop();});
-    if(peerConnections[pid].media) peerConnections[pid].media.close();
-    if(peerConnections[pid].data) peerConnections[pid].data.close();
-  });
-  peerConnections = {}; dataConnections = {}; peerNames = {};
-  peerRoles = {}; mutedPeers = {}; vcCoHosts = {};
+  // A Large Class runs inside the conference server's frame. Hiding the page
+  // left that frame running — camera and microphone still live to the whole
+  // class while the instructor was on another page — and logout tore it out
+  // without the register ever hearing the host had gone. Leave it properly;
+  // the class itself carries on (the host can Rejoin), and its register
+  // record is saved as it stands.
+  if (vcJitsiApi || vcActiveSession) {
+    vcLargeLeaving = true;
+    try { vcCloseActiveSession(false); } catch(e) {}
+    if (vcJitsiApi) { try { vcJitsiApi.dispose(); } catch(e) {} vcJitsiApi = null; }
+    vcLargeRoomActive = null; vcLargeCutOff = false;
+  }
+  var wasHost = isRoomHost && !!rtcPeer, code = currentRoomCode;
+  vcCloseAllConnections();
   vcHostPermissions = { screenShare: false, recording: false };
-  if(rtcPeer) { rtcPeer.destroy(); rtcPeer = null; }
-  if(vcRecordingAudioCtx) { try { vcRecordingAudioCtx.close(); } catch(e){} vcRecordingAudioCtx = null; }
-  if(vcIsRecording && vcMediaRecorder && vcMediaRecorder.state !== 'inactive') { vcMediaRecorder.stop(); }
-  vcIsRecording = false;
-  if(videoTimerInterval) clearInterval(videoTimerInterval);
-  vcStopHostReconnect();
+  if (wasHost && code) vcMarkClassSession(code, 'completed');
   isRoomHost = false; currentRoomCode = '';
-  // Clear all video element srcObjects across all video room containers
-  ['videoRoom','iVideoRoom','sVideoRoom'].forEach(function(id) {
-    var el = document.getElementById(id);
-    if(el) el.querySelectorAll('video').forEach(function(v){ v.srcObject = null; });
+  // Put every room back to its list, so coming back to the page does not
+  // show a dead "LIVE" room whose timer and connections have stopped.
+  [['videoClassList','videoRoom'],['iVideoContent','iVideoRoom'],['sVideoClassList','sVideoRoom'],['asVideoContent','asVideoRoom']].forEach(function(pair) {
+    var el = document.getElementById(pair[1]);
+    if(!el) return;
+    el.querySelectorAll('video').forEach(function(v){ v.srcObject = null; });
+    if (el.innerHTML || el.style.display !== 'none') {
+      el.innerHTML = '';
+      el.style.display = 'none';
+      var list = document.getElementById(pair[0]);
+      if (list) list.style.display = 'block';
+    }
   });
+  document.body.classList.remove('vc-fullscreen-mode', 'vc-host-only-mode', 'vc-is-host', 'vc-show-sidepanel');
 }
 
 // Track which pages are video-related so we know when the user leaves one
@@ -13427,14 +13435,71 @@ function hexToRgb(hex) {
 // ============================== SHARED FUNCTIONS ==============================
 // ============================== WEBRTC VIDEO CONFERENCING ==============================
 
+// A room code is the only key to a class, so it is drawn from the browser's
+// cryptographic generator and long enough not to be guessed (see
+// CESTISCore.vcRoom). Codes handed out before keep working.
 function generateRoomCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for(let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+  return CESTISCore.vcRoom.generateCode(function (n) {
+    var a = new Uint8Array(n);
+    try { window.crypto.getRandomValues(a); }
+    catch (e) { for (var i = 0; i < n; i++) a[i] = Math.floor(Math.random() * 256); }
+    return a;
+  });
 }
 
 function sanitizePeerId(str) { return str.replace(/[^a-zA-Z0-9-]/g, ''); }
+
+// ── Room state that only the conference code uses ──
+// Who has been let into the room. On the host: a participant is admitted once
+// it has introduced itself and passed the size and access checks; until then
+// its media call is held, not answered. On a participant: the host, plus
+// everybody the host has announced.
+var vcAdmitted = {};
+var vcRefusedPeers = {};     // host: peer ids turned away or removed
+var vcKickedUids = {};       // host: accounts removed from this room, whatever id they come back under
+var vcPendingStreams = {};   // pictures that arrived before the room was drawn (see vcAddVideo)
+var vcDialling = {};         // participants this device has already dialled
+var vcIsCoHost = false;      // this participant was made co-host by the host
+var vcRefusedByHost = false; // this participant was turned away; do not wait for the host to "return"
+var vcRemoteRecorders = {};  // peerId -> name of anyone recording this room
+var vcReconnectTimer = null; // pending reconnect to the introduction service
+
+function vcHostPeerId() { return CESTISCore.vcRoom.hostPeerId(currentRoomCode); }
+
+// Close this device's connection to the introduction service for good, so
+// the room id it held is released at once. (Leaving one registered stopped
+// the instructor starting or rejoining the class — see vcCreatePeer.)
+function vcDestroyPeer() {
+  var p = rtcPeer;
+  rtcPeer = null;
+  if (vcReconnectTimer) { clearTimeout(vcReconnectTimer); vcReconnectTimer = null; }
+  if (p) { p.__vcClosing = true; try { if (!p.destroyed) p.destroy(); } catch (e) {} }
+}
+
+// Forget everything about the room this device was in.
+function vcResetRoomState() {
+  peerConnections = {}; dataConnections = {}; peerNames = {};
+  peerRoles = {}; mutedPeers = {}; vcCoHosts = {};
+  vcAdmitted = {}; vcRefusedPeers = {}; vcKickedUids = {}; vcPendingStreams = {};
+  vcDialling = {}; vcIsCoHost = false; vcRemoteRecorders = {};
+  vcPendingConns = {}; vcPeerUids = {}; vcNatFailed = {};
+}
+
+// Phones send a smaller picture (CESTISCore.vcRoom.videoProfile).
+function vcIsPhone() {
+  try {
+    if (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) return true;
+  } catch (e) {}
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+}
+function vcVideoProfile() {
+  var host = isRoomHost || (vcCurrentRole && vcCurrentRole !== 'student');
+  return CESTISCore.vcRoom.videoProfile({ mobile: vcIsPhone(), host: host, peers: Object.keys(peerNames).length || 1 });
+}
+function vcVideoConstraints() {
+  var p = vcVideoProfile();
+  return { width: { ideal: p.width }, height: { ideal: p.height }, frameRate: { ideal: p.frameRate, max: 30 }, facingMode: 'user' };
+}
 
 function enterVideoRoom(title, role, roomCode) {
   const listId = role==='admin' ? 'videoClassList' : role==='adminstaff' ? 'asVideoContent' : role==='instructor' ? 'iVideoContent' : 'sVideoClassList';
@@ -13478,7 +13543,9 @@ function enterVideoRoom(title, role, roomCode) {
         <div style="text-align:center;background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius);padding:16px;margin-bottom:12px;">
           <div style="font-size:13px;color:var(--accent);margin-bottom:4px;font-weight:600;">You have an active room</div>
           <div style="font-family:monospace;font-size:22px;letter-spacing:4px;margin-bottom:10px;color:var(--accent);">${escapeHtml(activeHostRoom.code)}</div>
-          <button class="btn btn-primary" onclick="vcRejoinRoom(${jsArg(title)},'${role}')">Rejoin Room</button>
+          ${activeHostRoom.large
+            ? `<button class="btn btn-primary" onclick="vcCreateLargeRoom(${jsArg(activeHostRoom.title || title)},'${role}',${jsArg(activeHostRoom.code)})">Rejoin Large Class</button>`
+            : `<button class="btn btn-primary" onclick="vcRejoinRoom(${jsArg(title)},'${role}')">Rejoin Room</button>`}
           <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">or create a new room below</div>
         </div>
       ` : ''}
@@ -13498,20 +13565,51 @@ function enterVideoRoom(title, role, roomCode) {
       <div style="text-align:center;">
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">${role==='student' ? 'Enter the room code from your instructor' : 'Enter room code to join'}</div>
         <div style="display:flex;gap:8px;align-items:center;justify-content:center;">
-          <input type="text" class="form-control" id="vc-join-code" placeholder="ABC123" maxlength="6"
-            style="font-family:monospace;font-size:20px;letter-spacing:4px;text-align:center;text-transform:uppercase;width:200px;"
+          <input type="text" class="form-control" id="vc-join-code" placeholder="ROOM CODE" maxlength="16" autocomplete="off"
+            style="font-family:monospace;font-size:20px;letter-spacing:3px;text-align:center;text-transform:uppercase;width:100%;max-width:280px;"
             ${roomCode && role==='student' ? 'value="'+escapeHtml(roomCode)+'"' : ''}
             onkeyup="this.value=this.value.toUpperCase();if(event.key==='Enter')vcJoinRoom(${jsArg(title)},'${role}')">
           <button class="btn btn-primary" onclick="vcJoinRoom(${jsArg(title)},'${role}')">Join</button>
         </div>
       </div>
     </div>
+    <div id="vc-rec-recovery"></div>
   `;
 
   vcStartCameraPreview();
+  // A recording that was cut off (crash, closed tab) is offered back here.
+  try { vcOfferRecordingRecovery(); } catch (e) {}
 }
 
-async function vcStartCameraPreview() {
+// The camera question (the browser's permission prompt) can still be open
+// when somebody presses Join or Start. Joining then went ahead with nothing
+// to send, and the camera and microphone allowed a moment later never
+// reached anyone. Start/Join wait for the answer (vcWaitForPreview); and a
+// preview that is answered after the person has already left is closed
+// straight away, not left running with the camera light on.
+var vcPreviewPromise = null;
+var vcPreviewGen = 0;
+function vcStartCameraPreview() {
+  var p = vcStartCameraPreviewNow(++vcPreviewGen);
+  vcPreviewPromise = p;
+  p.then(function () { if (vcPreviewPromise === p) vcPreviewPromise = null; },
+         function () { if (vcPreviewPromise === p) vcPreviewPromise = null; });
+  return p;
+}
+async function vcWaitForPreview() {
+  if (!vcPreviewPromise) return;
+  vcUpdateStatus('connecting', 'Waiting for the camera and microphone…');
+  try { await vcPreviewPromise; } catch (e) {}
+}
+function vcPreviewStillWanted(gen, stream) {
+  if (gen === vcPreviewGen) return true;
+  try { if (stream) stream.getTracks().forEach(function(t){ t.stop(); }); } catch(e) {}
+  return false;
+}
+async function vcStartCameraPreviewNow(gen) {
+  // A preview already running (the lobby opened again) is replaced, not left
+  // holding the camera with its light on.
+  if (localStream) { try { localStream.getTracks().forEach(function(t){ t.stop(); }); } catch(e) {} localStream = null; }
   // Say up front why the preview is dead, rather than letting the lobby show an
   // unexplained "Camera not available". Joining stays available either way —
   // without a camera you still see and hear everybody else.
@@ -13530,7 +13628,9 @@ async function vcStartCameraPreview() {
     return;
   }
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'}, audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+    var _got = await navigator.mediaDevices.getUserMedia({video:vcVideoConstraints(), audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+    if (!vcPreviewStillWanted(gen, _got)) return;
+    localStream = _got;
     const vid = document.getElementById('vc-preview');
     if(vid) { vid.srcObject = localStream; vid.muted = true; vid.play().catch(function(){}); }
     const ph = document.getElementById('vc-preview-ph');
@@ -13539,10 +13639,14 @@ async function vcStartCameraPreview() {
     console.warn('Camera not available:', err);
     const ph = document.getElementById('vc-preview-ph');
     if(ph) ph.innerHTML = '<div style="text-align:center;color:var(--text-muted);"><div style="font-size:48px;margin-bottom:8px;">&#x1F6AB;</div><div>Camera not available</div><div style="font-size:11px;margin-top:4px;">You can still join with audio only</div></div>';
-    try { localStream = await navigator.mediaDevices.getUserMedia({video:false, audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}); }
+    try {
+      var _aud = await navigator.mediaDevices.getUserMedia({video:false, audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+      if (!vcPreviewStillWanted(gen, _aud)) return;
+      localStream = _aud;
+    }
     catch(e) {
       console.warn('Audio also not available:', e);
-      localStream = null;
+      if (gen === vcPreviewGen) localStream = null;
     }
   }
 }
@@ -13567,7 +13671,7 @@ function toggleLobbyDevice(kind) {
       if(ph) { ph.style.display = 'flex'; ph.innerHTML = '<div style="text-align:center;color:var(--text-muted);"><div style="font-size:48px;">&#x1F4F7;</div><div>Camera off</div></div>'; }
     } else {
       // Camera is off — re-acquire
-      navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'}}).then(function(vidStream) {
+      navigator.mediaDevices.getUserMedia({video:vcVideoConstraints()}).then(function(vidStream) {
         var newTrack = vidStream.getVideoTracks()[0];
         localStream.addTrack(newTrack);
         if(vid) { vid.srcObject = localStream; vid.style.display = ''; vid.play().catch(function(){}); }
@@ -13631,19 +13735,24 @@ function vcNoServiceStatus() {
 // ---------------------------------------------------------------------------
 
 // STUN tells a browser how it appears from outside; TURN relays the call when
-// two networks cannot reach each other directly. Several of each, because one
-// unreachable server should not decide whether a class happens.
+// two networks cannot reach each other directly.
+//
+// The relays used to be a free public service's shared login, printed here
+// for anyone to use — which that service has since withdrawn, so on the
+// networks that need a relay (many phones on mobile data) calls simply never
+// connected. There is no free relay to replace it with. The Centre can name
+// its own in Settings → Video Conference (vcIceServers); until then the room
+// uses STUN alone and SAYS so when a connection cannot be made (vcWatchIce),
+// instead of sitting on "connecting" for ever.
 var VC_ICE_SERVERS = [
   {urls:'stun:stun.l.google.com:19302'},
   {urls:'stun:stun1.l.google.com:19302'},
-  {urls:'stun:stun2.l.google.com:19302'},
-  {urls:'stun:stun.cloudflare.com:3478'},
-  {urls:'turn:staticauth.openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject'},
-  {urls:'turn:staticauth.openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject'},
-  {urls:'turn:staticauth.openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject'},
-  {urls:'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject'},
-  {urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject'}
+  {urls:'stun:stun.cloudflare.com:3478'}
 ];
+function vcIceServers() {
+  var mine = (typeof systemSettings !== 'undefined' && systemSettings.vcTurnServers) || '';
+  return CESTISCore.vcRoom.iceServers(VC_ICE_SERVERS, mine);
+}
 
 // Does the site serving this page also run the CESTIS introduction service?
 // (The Offline System does. A Centre hosting the online build behind its own
@@ -13722,7 +13831,7 @@ function vcCreatePeer(id, wire, opts) {
 
   function giveUpOn(why) {
     if (timer) { clearTimeout(timer); timer = null; }
-    try { if (peer && !peer.destroyed) peer.destroy(); } catch (e) {}
+    try { if (peer && !peer.destroyed) { peer.__vcClosing = true; peer.destroy(); } } catch (e) {}
     peer = null;
     idx++;
     if (idx < candidates.length) {
@@ -13739,7 +13848,7 @@ function vcCreatePeer(id, wire, opts) {
 
   function attempt() {
     var cand = candidates[idx];
-    var options = { config: { iceServers: VC_ICE_SERVERS } };
+    var options = { config: { iceServers: vcIceServers() } };
     if (cand) { options.host = cand.host; options.port = cand.port; options.path = cand.path; options.secure = cand.secure; }
 
     try { peer = new Peer(id, options); }
@@ -13751,23 +13860,33 @@ function vcCreatePeer(id, wire, opts) {
       if (!opened && !settled) giveUpOn('no answer in ' + Math.round(VC_SIGNALLING_TIMEOUT_MS / 1000) + 's');
     }, VC_SIGNALLING_TIMEOUT_MS);
 
-    peer.on('open', function (pid) {
+    var self = peer;
+    self.on('open', function (pid) {
+      self.__vcAttempts = 0;
+      // The service says "open" again after every reconnect. Only the first
+      // one starts the room; redrawing it then would throw away every picture.
+      if (opened) return;
       opened = true; settled = true;
       if (timer) { clearTimeout(timer); timer = null; }
-      if (typeof opts.onOpen === 'function') opts.onOpen(pid, peer);
+      if (typeof opts.onOpen === 'function') opts.onOpen(pid, self);
     });
 
     // The introduction service dropped us AFTER we were registered. The call
     // itself carries on — the two browsers are already talking directly — but
     // nobody new can join until we are back, so reconnect rather than sit dead.
-    peer.on('disconnected', function () {
-      if (settled && peer && !peer.destroyed) {
-        console.warn('[VideoConference] introduction service dropped; reconnecting.');
-        try { peer.reconnect(); } catch (e) {}
-      }
+    //
+    // destroy() fires this same event BEFORE it marks the peer destroyed, so
+    // reconnecting straight away brought back to life the very peer that Exit,
+    // a page change or logout had just closed — still holding the room's id,
+    // so the instructor could neither rejoin nor restart the class until the
+    // tab was closed. Look again a moment later, and only reconnect a peer
+    // that is still the live one and still really disconnected.
+    self.on('disconnected', function () {
+      if (!opened) return;
+      setTimeout(function () { vcScheduleReconnect(self); }, 0);
     });
 
-    peer.on('error', function (err) {
+    self.on('error', function (err) {
       var t = err && err.type;
       // Could not reach this service at all: that is ours to retry, not the
       // caller's to report as a broken room.
@@ -13775,8 +13894,8 @@ function vcCreatePeer(id, wire, opts) {
         giveUpOn(t);
         return;
       }
-      if (t === 'network' && opened) { try { peer.reconnect(); } catch (e) {} return; }
-      if (typeof opts.onError === 'function') opts.onError(err, peer);
+      if (t === 'network' && opened) { vcScheduleReconnect(self); return; }
+      if (typeof opts.onError === 'function') opts.onError(err, self);
     });
 
     try { wire(peer); } catch (e) { console.warn('[VideoConference] wiring failed:', e); }
@@ -13784,6 +13903,24 @@ function vcCreatePeer(id, wire, opts) {
 
   attempt();
   return peer;
+}
+
+// Reconnect to the introduction service, waiting longer after each failure
+// (1 s, 2 s, 4 s ... 30 s). During an outage every open tab used to retry
+// about three times a second, which keeps a rate-limited service blocking
+// the Centre's address even after it recovers.
+function vcScheduleReconnect(peer) {
+  if (!peer || peer.__vcClosing || peer.destroyed || peer !== rtcPeer || !peer.disconnected) return;
+  if (vcReconnectTimer) return;                      // one wait at a time
+  var n = peer.__vcAttempts || 0;
+  peer.__vcAttempts = n + 1;
+  var delay = CESTISCore.vcRoom.backoffDelay(n, Math.random());
+  console.warn('[VideoConference] introduction service dropped; reconnecting in ' + Math.round(delay / 1000) + 's.');
+  vcReconnectTimer = setTimeout(function () {
+    vcReconnectTimer = null;
+    if (peer.__vcClosing || peer.destroyed || peer !== rtcPeer || !peer.disconnected) return;
+    try { peer.reconnect(); } catch (e) {}
+  }, delay);
 }
 
 // Why the camera and microphone are unavailable here, or '' when they are fine.
@@ -13862,10 +13999,16 @@ var vcJitsiApi = null;
 var vcActiveSession = null;
 var VC_JITSI_API_SCRIPT = 'external_api.js';
 
+// The conference server a Large Class runs on. The Centre sets its own in
+// Settings → Video Conference; the public meet.jit.si is only the fallback,
+// and it no longer supports being embedded for real classes (it asks the host
+// to sign in and cuts embedded calls off after a few minutes).
 function vcLargeRoomBase() {
-  var base = (systemSettings.vcLargeRoomBase || 'https://meet.jit.si/').replace(/\/+$/, '/');
-  if(base.slice(-1) !== '/') base += '/';
-  return base;
+  var chk = CESTISCore.vcRoom.checkLargeRoomBase(systemSettings.vcLargeRoomBase || '');
+  return (chk.ok && chk.base) ? chk.base : 'https://meet.jit.si/';
+}
+function vcLargeRoomIsPublic() {
+  return /^https:\/\/meet\.jit\.si\//i.test(vcLargeRoomBase());
 }
 function vcLargeRoomName(code) {
   return 'CESTIS-' + String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -13911,9 +14054,13 @@ function vcCreateLargeRoom(title, role, scheduledCode) {
   activeHostRoom = { code: code, title: title, role: role, large: true, course: _course };
   vcLargeRoomActive = { code: code, title: title, role: role };
   vcLastLargeTitle = title;
+  vcMarkClassSession(code, 'live');
   vcShowLargeRoom(title, role, code);
+  // The code itself stays out of a notice that goes to every trainee in the
+  // Centre: those in the class reach it from their class session, or from
+  // the instructor.
   try {
-    addNotification('Large class session started: "' + title + '" — room code ' + code, 'calendar', null, ['admin','instructor','student']);
+    addNotification('Large class session started: "' + title + '"', 'calendar', null, ['admin','instructor','student']);
   } catch(e) {}
 }
 function vcJoinLargeRoom(code, title, role) {
@@ -13926,15 +14073,27 @@ function vcShowLargeRoom(title, role, code) {
   var containerId = role==='admin' ? 'videoRoom' : role==='adminstaff' ? 'asVideoRoom' : role==='instructor' ? 'iVideoRoom' : 'sVideoRoom';
   var room = document.getElementById(containerId);
   if(!room) return;
+  // The conference server's frame needs the camera and microphone for
+  // itself: let go of the lobby's preview (on many devices the camera cannot
+  // be open twice).
+  vcPreviewGen++; vcPreviewPromise = null;
+  if (localStream) { try { localStream.getTracks().forEach(function(t){ t.stop(); }); } catch(e) {} localStream = null; }
   // Opens in gallery, like the small rooms.
   document.body.classList.remove('vc-fullscreen-mode');
   vcCurrentViewMode = 'gallery';
   var cap = CESTISCore.vcCapacity.SFU_MAX;
+  // The host can step out and leave the class running, or end it. Only
+  // ending it closes the register — a host whose browser hiccups no longer
+  // ends the attendance record for sixty trainees still in the room.
+  var exitButtons = isRoomHost
+    ? '<button class="btn btn-secondary btn-sm" onclick="exitLargeRoom(\'' + role + '\', false)" title="Leave the room; the class carries on and you can rejoin">&#8592; Leave (class continues)</button>' +
+      '<button class="btn btn-danger btn-sm" onclick="if(confirm(\'End this class for the register?\'))exitLargeRoom(\'' + role + '\', true)">End class</button>'
+    : '<button class="btn btn-secondary btn-sm" onclick="exitLargeRoom(\'' + role + '\', false)">&#8592; Exit Meeting</button>';
   room.innerHTML =
     '<div class="vc-conference-wrapper">' +
       '<div class="vc-conference-header">' +
         '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
-          '<button class="btn btn-secondary btn-sm" onclick="exitLargeRoom(\'' + role + '\')">&#8592; Exit Meeting</button>' +
+          exitButtons +
           '<h3 style="font-family:\'Playfair Display\',serif;font-size:16px;margin:0;">' + escapeHtml(title) + '</h3>' +
           '<span class="badge badge-green" style="font-size:11px;">LARGE CLASS &mdash; up to ' + cap + '</span>' +
           '<span id="vcLargeSecurity" style="font-size:11px;color:var(--text-muted);"></span>' +
@@ -13946,6 +14105,12 @@ function vcShowLargeRoom(title, role, code) {
           '<button class="btn btn-secondary btn-sm" onclick="vcCopyLargeRoomLink(\'' + escapeAttr(code) + '\')">Copy invite link</button>' +
         '</div>' +
       '</div>' +
+      (vcLargeRoomIsPublic()
+        ? '<div id="vcLargePublicNote" style="padding:8px 14px;font-size:12px;line-height:1.5;background:var(--amber-dim, rgba(240,165,0,0.1));color:var(--text-secondary);border-bottom:1px solid var(--border);">' +
+            'This Large Class is using the free public meet.jit.si service, which may ask the host to sign in and can cut an embedded meeting off after a few minutes. ' +
+            'For dependable classes the Centre should set its own conference server in Settings &rarr; Video Conference. ' +
+            'If the meeting stops, use <a href="' + escapeAttr(vcLargeRoomUrl(code)) + '" target="_blank" rel="noopener">Open in a new tab</a>.</div>'
+        : '') +
       '<div id="vcLargeStage" style="width:100%;height:calc(100vh - 120px);background:#111;"></div>' +
     '</div>';
 
@@ -13976,12 +14141,43 @@ function vcStartJitsi(stage, title, role, code) {
   var pw = VS.roomPassword(code, systemSettings.vcRoomPasswordSalt || 'CESTIS');
   var host = isRoomHost;
   var course = (activeHostRoom && activeHostRoom.course) || '';
+  var nowIso = new Date().toISOString();
 
-  vcActiveSession = VS.startSession({
-    code: code, title: title, course: course,
-    hostName: vcCurrentUserName || '', hostRole: role,
-    startedAt: new Date().toISOString(), locked: host, lobby: host
-  });
+  // One class, one register record. Only the HOST's device keeps it: every
+  // trainee's device used to write a record of its own under its own start
+  // time, so one class showed as several, and a phone closed mid-class left
+  // a record "in progress" for ever. The host sees every arrival anyway.
+  // The id is the room code and the day, so a host who steps out and comes
+  // back carries on the same record instead of starting a second one.
+  vcActiveSessionMine = host;
+  if (host) {
+    try { if (VS.closeStale(vcSessions || [], nowIso)) vcSaveSessionsNow(); } catch (e) {}
+    var sid = VS.sessionId(code, nowIso);
+    var prior = (vcSessions || []).filter(function (x) { return x && x.id === sid; })[0];
+    if (prior) {
+      vcActiveSession = VS.reopenSession(prior, nowIso);
+    } else {
+      vcActiveSession = VS.startSession({
+        id: sid, code: code, title: title, course: course,
+        hostName: vcCurrentUserName || '', hostRole: role,
+        startedAt: nowIso, locked: true, lobby: true
+      });
+    }
+    vcSaveActiveSession(true);
+    // Heartbeat: a running class keeps its record fresh, so one that stops
+    // being touched is known to be over (CESTISCore.vcSessions.isLive).
+    if (vcSessionHeartbeat) clearInterval(vcSessionHeartbeat);
+    vcSessionHeartbeat = setInterval(function () {
+      if (!vcActiveSession) return;
+      VS.touch(vcActiveSession, new Date().toISOString());
+      vcSaveActiveSession(true);
+    }, 5 * 60000);
+  } else {
+    vcActiveSession = VS.startSession({ code: code, title: title, course: course, startedAt: nowIso });
+  }
+  var joinedAt = 0;
+  vcLargeLeaving = false;
+  vcLargeCutOff = false;
 
   var api = new JitsiMeetExternalAPI(vcLargeRoomHost(), {
     roomName: vcLargeRoomName(code),
@@ -14011,6 +14207,7 @@ function vcStartJitsi(stage, title, role, code) {
   }
 
   api.addEventListener('videoConferenceJoined', function(ev) {
+    joinedAt = Date.now();
     VS.recordJoin(vcActiveSession, ev.id, ev.displayName || vcCurrentUserName, new Date().toISOString());
     if(host) {
       // Lock the room and turn the lobby on. The password comes from the room
@@ -14049,21 +14246,78 @@ function vcStartJitsi(stage, title, role, code) {
     (vcActiveSession.participants || []).forEach(function(x) { if(x.pid === p.id) x.name = name; });
     vcSaveActiveSession();
   });
+  // Left without anybody here pressing Leave or End: either the person used
+  // the meeting's own hang-up button, or the conference server threw us out.
+  // A server cut-off (the public service ends embedded meetings after a few
+  // minutes) must not quietly close the register at five minutes — say what
+  // happened and offer the ways on.
   api.addEventListener('videoConferenceLeft', function() {
-    vcCloseActiveSession();
+    if (vcLargeLeaving) return;
+    var early = !joinedAt || (Date.now() - joinedAt) < 10 * 60000;
+    if (early) {
+      vcLargeCutOff = true;
+      vcSaveActiveSession(true);
+      vcShowLargeRoomCutOff(stage, title, role, code);
+    }
   });
   api.addEventListener('readyToClose', function() {
-    try { exitLargeRoom(role); } catch(e) {}
+    if (vcLargeCutOff) return;              // keep the explanation on screen
+    try { exitLargeRoom(role, false); } catch(e) {}
   });
 }
 
+/* The hosted meeting ended underneath us. Offer the meeting in its own tab
+   (where the public service still allows it), or a built-in room instead. */
+function vcShowLargeRoomCutOff(stage, title, role, code) {
+  try { if (vcJitsiApi) vcJitsiApi.dispose(); } catch (e) {}
+  vcJitsiApi = null;
+  if (!stage) stage = document.getElementById('vcLargeStage');
+  if (!stage) return;
+  var pub = vcLargeRoomIsPublic();
+  stage.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:16px;">' +
+    '<div style="max-width:520px;text-align:center;color:#ddd;line-height:1.6;">' +
+      '<div style="font-size:40px;margin-bottom:8px;">&#x26A0;&#xFE0F;</div>' +
+      '<div style="font-size:16px;font-weight:600;margin-bottom:8px;">The conference server ended this meeting</div>' +
+      '<div style="font-size:13px;margin-bottom:16px;">' + (pub
+        ? 'The free public meet.jit.si service no longer allows a meeting to run inside another site for more than a few minutes. Open it in its own tab to carry on, or switch to a built-in room. The Centre can set its own conference server in Settings &rarr; Video Conference.'
+        : 'The meeting was closed by the conference server. Open it in its own tab, or switch to a built-in room.') + '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
+        '<a class="btn btn-primary" href="' + escapeAttr(vcLargeRoomUrl(code)) + '" target="_blank" rel="noopener">Open in a new tab</a>' +
+        '<button class="btn btn-secondary" onclick="vcLargeRoomToSmall(' + jsArg(title) + ',\'' + role + '\',' + jsArg(code) + ')">Use a built-in room instead</button>' +
+      '</div>' +
+    '</div></div>';
+}
+
+/* Leave the hosted meeting for a built-in (peer-to-peer) room on the same
+   code. The host ends the large-class record so the code routes trainees to
+   the built-in room. */
+function vcLargeRoomToSmall(title, role, code) {
+  vcLastLargeTitle = title || vcLastLargeTitle;
+  exitLargeRoom(role, isRoomHost, code);
+}
+
+var vcActiveSessionMine = false;   // this device hosts the active Large Class, so it keeps the record
+var vcSessionHeartbeat = null;
+var vcSessionSaveTimer = null;
+var vcLargeLeaving = false;        // we are leaving on purpose (Leave / End / page change)
+var vcLargeCutOff = false;         // the conference server ended the meeting under us
+
 /* Persist the session as it happens, so a browser that closes mid-class still
-   leaves the register with what it saw. */
-function vcSaveActiveSession() {
-  if(!vcActiveSession) return;
-  vcSessions = CESTISCore.vcSessions.mergeSessions(
-    (vcSessions || []).filter(function(s) { return s.id !== vcActiveSession.id; }),
-    [vcActiveSession]);
+   leaves the register with what it saw. A class of 80 sends a join or a leave
+   every few seconds as it fills, so writes are gathered up (at most one every
+   five seconds) and only this one record is replaced — the history is no
+   longer re-merged and deep-copied on every arrival. */
+function vcSaveActiveSession(immediate) {
+  if(!vcActiveSession || !vcActiveSessionMine) return;
+  if(!immediate) {
+    if(!vcSessionSaveTimer) vcSessionSaveTimer = setTimeout(function () { vcSessionSaveTimer = null; vcSaveActiveSession(true); }, 5000);
+    return;
+  }
+  if(vcSessionSaveTimer) { clearTimeout(vcSessionSaveTimer); vcSessionSaveTimer = null; }
+  vcSessions = CESTISCore.vcSessions.upsertSession(vcSessions || [], vcActiveSession);
+  vcSaveSessionsNow();
+}
+function vcSaveSessionsNow() {
   try { saveCollection('voctrain_vcSessions', vcSessions); } catch(e) {}
 }
 
@@ -14102,16 +14356,28 @@ function vcSaveMeshSession() {
   try { saveCollection('voctrain_vcSessions', vcSessions); } catch(e) {}
 }
 
-function vcCloseActiveSession() {
+/* Stop following the active session. end (default true) closes it in the
+   register — the host pressed End class. Otherwise it is saved as it stands
+   and left open: the class carries on without us, and a host who comes back
+   the same day picks the same record up again. */
+function vcCloseActiveSession(end) {
+  if (end === undefined) end = true;
+  if(vcSessionHeartbeat) { clearInterval(vcSessionHeartbeat); vcSessionHeartbeat = null; }
   if(!vcActiveSession) return;
-  CESTISCore.vcSessions.endSession(vcActiveSession, new Date().toISOString());
-  vcSaveActiveSession();
-  try { saveState(); } catch(e) {}
-  var sum = CESTISCore.vcSessions.summary(vcActiveSession);
-  if(sum.participants.length) {
-    showToast('Large class recorded: ' + sum.present + ' present of ' + sum.participants.length + ' who joined');
+  var mine = vcActiveSessionMine;
+  if (mine && end) CESTISCore.vcSessions.endSession(vcActiveSession, new Date().toISOString());
+  vcSaveActiveSession(true);
+  if (mine) {
+    try { saveState(); } catch(e) {}
+    if (end) {
+      var sum = CESTISCore.vcSessions.summary(vcActiveSession);
+      if(sum.participants.length) {
+        showToast('Large class recorded: ' + sum.present + ' present of ' + sum.participants.length + ' who joined');
+      }
+    }
   }
   vcActiveSession = null;
+  vcActiveSessionMine = false;
   try { renderVcSessionAttendance(); } catch(e) {}
 }
 /* The Large Class register. Names typed in the meeting are matched back to the
@@ -14130,17 +14396,23 @@ function renderVcSessionAttendance() {
     return;
   }
   var html = '';
-  list.forEach(function(s) {
+  var nowIso = new Date().toISOString();
+  list.forEach(function(stored) {
+    // An open record nobody has touched for a long while is a class that is
+    // over (a device closed without ending it): show it as it stood then.
+    var open = VS.isLive(stored, nowIso);
+    var unclosed = !open && VS.isOpen(stored);
+    var s = VS.displayView(stored, nowIso);
     var sum = VS.summary(s);
     var rows = VS.matchRoster(s, students);
     var when = s.startedAt ? new Date(s.startedAt).toLocaleString() : '';
-    var open = !s.endedAt;
     html += '<div style="border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px;">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;background:var(--bg-secondary);">' +
         '<div><strong>' + escapeHtml(s.title || 'Large Class') + '</strong>' +
           (s.course && s.course !== s.title ? ' <span style="color:var(--text-muted);font-size:12px;">' + escapeHtml(s.course) + '</span>' : '') +
           '<div style="font-size:11px;color:var(--text-muted);">' + escapeHtml(when) +
-          (open ? ' &middot; <span style="color:var(--green);">in progress</span>' : ' &middot; ' + sum.minutes + ' min') +
+          (open ? ' &middot; <span style="color:var(--green);">in progress</span>' : ' &middot; ' + sum.minutes + ' min' +
+            (unclosed ? ' <span style="color:var(--amber);">(not ended by the host &mdash; counted to the last activity)</span>' : '')) +
           ' &middot; room ' + escapeHtml(s.code) +
           (s.locked ? ' &middot; <span style="color:var(--green);">locked</span>' : '') +
           (s.lobby ? ' &middot; lobby on' : '') + '</div></div>' +
@@ -14175,105 +14447,323 @@ function vcCopyLargeRoomLink(code) {
     showToast('Invite link copied — trainees can also join with room code ' + code);
   } catch(e) { prompt('Copy this invite link:', link); }
 }
-function exitLargeRoom(role) {
+// end=true: the host pressed End class — the register closes and the class
+// session is marked completed. Otherwise the host steps out and the class
+// carries on (Rejoin Large Class brings them back to the same room).
+function exitLargeRoom(role, end, lobbyCode) {
   document.body.classList.remove('vc-fullscreen-mode');
+  vcLargeLeaving = true;
+  var code = vcLargeRoomActive ? vcLargeRoomActive.code : currentRoomCode;
+  var wasHost = isRoomHost && vcActiveSessionMine;
   // Close the register entry BEFORE tearing the conference down, so anyone
-  // still in the room when the host leaves is credited to the end of the class.
-  vcCloseActiveSession();
+  // still in the room when the host ends it is credited to the end of the class.
+  vcCloseActiveSession(!!end);
   if(vcJitsiApi) { try { vcJitsiApi.dispose(); } catch(e) {} vcJitsiApi = null; }
   vcLargeRoomActive = null;
+  vcLargeCutOff = false;
+  if (wasHost && end) {
+    vcMarkClassSession(code, 'completed');
+    activeHostRoom = null;
+  }
+  isRoomHost = false; currentRoomCode = '';
   var containerId = role==='admin' ? 'videoRoom' : role==='adminstaff' ? 'asVideoRoom' : role==='instructor' ? 'iVideoRoom' : 'sVideoRoom';
   var room = document.getElementById(containerId);
   if(room) room.innerHTML = '';
   // Back to the pre-join lobby for this role.
-  try { enterVideoRoom((vcLastLargeTitle || 'Video Conference'), role, ''); } catch(e) {}
+  try { enterVideoRoom((vcLastLargeTitle || 'Video Conference'), role, lobbyCode || ''); } catch(e) {}
 }
 
 // ── Create Room (Host) ──
 async function vcCreateRoom(title, role, scheduledCode) {
   if (vcBlockAndExplain('Cannot start a class from this page address')) return;
-  currentRoomCode = (scheduledCode && scheduledCode.length >= 4) ? scheduledCode : generateRoomCode();
+  await vcWaitForPreview();
+  // A peer left over from an earlier attempt must not keep holding the room id.
+  vcDestroyPeer();
+  vcResetRoomState();
+  var scheduled = CESTISCore.vcRoom.normaliseCode(scheduledCode);
+  currentRoomCode = (scheduled.length >= CESTISCore.vcRoom.CODE_MIN) ? scheduled : generateRoomCode();
   isRoomHost = true;
+  vcRefusedByHost = false;
   activeHostRoom = {code: currentRoomCode, title: title, role: role};
   vcUpdateStatus('connecting', 'Creating room...');
-
-  try {
-    vcCreatePeer('cestis-' + currentRoomCode + '-host', function(peer) {
-      peer.on('call', function(call) {
-        call.answer(localStream || new MediaStream());
-        call.on('stream', function(rs) {
-          var pid = call.peer;
-          if(!peerConnections[pid]) peerConnections[pid] = {};
-          peerConnections[pid].media = call;
-          peerConnections[pid].stream = rs;
-          vcAddVideo(pid, rs, peerNames[pid] || 'Participant');
-        });
-        call.on('close', function() { vcRemoveVideo(call.peer); });
-        call.on('error', function(err) { console.warn('Incoming call error:', err); });
-      });
-      peer.on('connection', function(conn) { vcHandleDataConn(conn); });
-    }, {
-      onOpen: function() { vcShowConference(title, role); },
-      onError: function(err) {
-        console.error('Peer error:', err);
-        if(err.type === 'unavailable-id') vcUpdateStatus('error', 'Room code in use. Try again.');
-        else if(err.type === 'browser-incompatible') vcBlockAndExplain('Cannot start a class from this page address');
-        else vcUpdateStatus('error', 'Connection error: ' + err.type);
-      },
-      onExhausted: function() { vcUpdateStatus('error', vcNoServiceStatus()); }
-    });
-  } catch(err) {
-    vcUpdateStatus('error', 'Failed to create room');
-  }
+  vcStartHostPeer(title, role, false);
 }
 
 // ── Rejoin Room as Host ──
 async function vcRejoinRoom(title, role) {
   if (!activeHostRoom) return;
   if (vcBlockAndExplain('Cannot rejoin from this page address')) return;
+  await vcWaitForPreview();
+  vcDestroyPeer();
+  vcResetRoomState();
   currentRoomCode = activeHostRoom.code;
   isRoomHost = true;
+  vcRefusedByHost = false;
   vcUpdateStatus('connecting', 'Rejoining room ' + currentRoomCode + '...');
+  vcStartHostPeer(title, role, true);
+}
 
+// Register as the room's host and open the room once registered.
+function vcStartHostPeer(title, role, rejoin) {
   try {
-    vcCreatePeer('cestis-' + currentRoomCode + '-host', function(peer) {
-      peer.on('call', function(call) {
-        call.answer(localStream || new MediaStream());
-        call.on('stream', function(rs) {
-          var pid = call.peer;
-          if(!peerConnections[pid]) peerConnections[pid] = {};
-          peerConnections[pid].media = call;
-          peerConnections[pid].stream = rs;
-          vcAddVideo(pid, rs, peerNames[pid] || 'Participant');
-        });
-        call.on('close', function() { vcRemoveVideo(call.peer); });
-        call.on('error', function(err) { console.warn('Incoming call error:', err); });
-      });
+    vcCreatePeer(vcHostPeerId(), function(peer) {
+      peer.on('call', vcOnIncomingCall);
       peer.on('connection', function(conn) { vcHandleDataConn(conn); });
     }, {
       onOpen: function() {
         vcShowConference(title, role);
-        showToast('Rejoined room ' + currentRoomCode + ' as host');
+        vcMarkClassSession(currentRoomCode, 'live');
+        if (rejoin) showToast('Rejoined room ' + currentRoomCode + ' as host');
       },
       onError: function(err) {
         console.error('Peer error:', err);
         if(err.type === 'unavailable-id') {
-          vcUpdateStatus('error', 'Room host ID is still active. Try again in a moment.');
+          vcDestroyPeer();
+          vcUpdateStatus('error', rejoin ? 'Room host ID is still active. Try again in a moment.' : 'Room code in use. Try again.');
         } else if(err.type === 'browser-incompatible') {
-          vcBlockAndExplain('Cannot rejoin from this page address');
-        } else {
+          vcBlockAndExplain(rejoin ? 'Cannot rejoin from this page address' : 'Cannot start a class from this page address');
+        } else if(err.type !== 'peer-unavailable') {
           vcUpdateStatus('error', 'Connection error: ' + err.type);
         }
       },
       onExhausted: function() { vcUpdateStatus('error', vcNoServiceStatus()); }
     });
   } catch(err) {
-    vcUpdateStatus('error', 'Failed to rejoin room');
+    vcUpdateStatus('error', rejoin ? 'Failed to rejoin room' : 'Failed to create room');
   }
+}
+
+// ── Who is in the room ──
+// The scheduled staff meeting a room code belongs to, if it is one.
+function vcMeetingForCode(code) {
+  var c = CESTISCore.vcRoom.normaliseCode(code);
+  if (!c) return null;
+  return (typeof adminMeetings !== 'undefined' && adminMeetings || []).filter(function (m) {
+    return m && CESTISCore.vcRoom.normaliseCode(m.roomCode) === c;
+  })[0] || null;
+}
+function vcCurrentUserId() {
+  try {
+    if (vcCurrentRole === 'student' && currentStudent && currentStudent.id) return String(currentStudent.id);
+    if (vcCurrentRole === 'instructor' && currentInstructor && currentInstructor.id) return String(currentInstructor.id);
+    if (currentLoggedInUser && currentLoggedInUser.id) return String(currentLoggedInUser.id);
+  } catch (e) {}
+  return '';
+}
+// How this device introduces itself to everyone it connects to.
+function vcNameMessage() {
+  return {type:'name', name:vcCurrentUserName, role:vcCurrentRole, uid:vcCurrentUserId()};
+}
+
+// Run ok() once peer pid has been let into the room, or refused() if it is
+// turned away or never introduces itself. A media call that arrives first —
+// it often does, it travels faster than the data connection — is held rather
+// than answered: the host used to answer every call at once, so anyone who
+// knew the code could receive the class's camera and microphone without ever
+// appearing in the participant list.
+function vcWhenAdmitted(pid, ok, refused) {
+  var waited = 0;
+  (function check() {
+    if (vcRefusedPeers[pid]) { if (refused) refused(); return; }
+    if (vcAdmitted[pid]) { ok(); return; }
+    if (!rtcPeer || waited >= 10000) { if (refused) refused(); return; }
+    waited += 200;
+    setTimeout(check, 200);
+  })();
+}
+
+// The host lets a newcomer in once it has introduced itself — or turns it
+// away (room full, a staff meeting it may not attend, removed earlier).
+var vcPendingConns = {};   // host: data connections from people not yet let in
+var vcPeerUids = {};       // host: peerId -> account id the newcomer announced
+function vcAdmitPeer(pid, msg) {
+  var conn = vcPendingConns[pid];
+  if (vcAdmitted[pid] && !conn) return true;
+  if (!conn) return false;
+  // Somebody already in the room coming back over a fresh link (their old
+  // one dropped without the host noticing): the fresh link replaces it.
+  var stale = vcAdmitted[pid] ? dataConnections[pid] : null;
+  delete vcAdmitted[pid];
+  function refuse(type, reason, extra) {
+    vcRefusedPeers[pid] = true;
+    delete vcPendingConns[pid];
+    var out = {type: type, reason: reason};
+    if (extra) Object.keys(extra).forEach(function (k) { out[k] = extra[k]; });
+    try { conn.send(JSON.stringify(out)); } catch(e) {}
+    var m = peerConnections[pid] && peerConnections[pid].media;
+    if (m) { try { m.close(); } catch(e) {} }
+    delete peerConnections[pid];
+    vcRemoveVideo(pid);
+    setTimeout(function(){ try { conn.close(); } catch(e) {} }, 400);
+    return false;
+  }
+  if (msg.uid && vcKickedUids[msg.uid]) return refuse('access-denied', 'You were removed from this meeting by the host.');
+  var access = CESTISCore.vcRoom.canJoinMeeting(vcMeetingForCode(currentRoomCode), msg.role);
+  if (!access.allowed) {
+    showToast((msg.name || 'Someone') + ' was turned away: ' + access.reason, 'warning');
+    return refuse('access-denied', access.reason);
+  }
+  // A peer-to-peer mesh degrades badly past a handful of people (every
+  // participant carries a stream to every other). Refuse the join with a
+  // clear reason instead of letting the whole room fall apart.
+  var cap = CESTISCore.vcCapacity.canJoinMesh(Object.keys(vcAdmitted).length + 1);
+  if (!cap.allowed) {
+    showToast('A participant was turned away — room is at its ' + cap.cap + '-person limit. Use Large Class mode to host more.', 'warning');
+    return refuse('room-full', cap.reason, {cap: cap.cap});
+  }
+
+  vcAdmitted[pid] = true;
+  delete vcPendingConns[pid];
+  if (msg.uid) vcPeerUids[pid] = String(msg.uid).slice(0, 80);
+  if(!peerConnections[pid]) peerConnections[pid] = {};
+  peerConnections[pid].data = conn;
+  dataConnections[pid] = conn;
+  if (stale && stale !== conn) { try { stale.close(); } catch(e) {} }
+  conn.send(JSON.stringify(vcNameMessage()));
+
+  // Who else is here; and tell everyone else about the newcomer.
+  var list = Object.keys(vcAdmitted).filter(function(id){ return id !== pid; }).map(function(id){
+    return {peerId:id, name:peerNames[id]||'Participant', role:peerRoles[id]||'student'};
+  });
+  conn.send(JSON.stringify({type:'peer-list', peers:list}));
+  Object.keys(dataConnections).forEach(function(id) {
+    if(id !== pid && dataConnections[id] && dataConnections[id].open)
+      dataConnections[id].send(JSON.stringify({type:'new-peer', peerId:pid, name:msg.name||'Connecting...'}));
+  });
+  // If the host is currently sharing their screen, immediately inform the new joiner
+  // so their view switches to screen-share mode right away.
+  if(screenStream) {
+    conn.send(JSON.stringify({type:'screen-share-started', peerId: rtcPeer ? rtcPeer.id : '', name: vcCurrentUserName}));
+  }
+  // Send current permissions, co-hosts and anyone recording to the new joiner.
+  if(vcHostPermissions.screenShare) {
+    conn.send(JSON.stringify({type:'permission-update', permission:'screenShare', granted:true}));
+  }
+  if(vcHostPermissions.recording) {
+    conn.send(JSON.stringify({type:'permission-update', permission:'recording', granted:true}));
+  }
+  Object.keys(vcCoHosts).forEach(function (id) {
+    conn.send(JSON.stringify({type:'cohost', peerId:id, on:true}));
+  });
+  if (vcIsRecording) conn.send(JSON.stringify({type:'recording', on:true, by:vcCurrentUserName}));
+  Object.keys(vcRemoteRecorders).forEach(function (id) {
+    conn.send(JSON.stringify({type:'recording', on:true, by:vcRemoteRecorders[id], peerId:id}));
+  });
+  return true;
+}
+
+// ── Media ──
+// What this device sends to a peer, and what it asks to receive back.
+function vcMediaPlanFor(pid) {
+  return CESTISCore.vcRoom.mediaPlan({ amHost: isRoomHost, peerIsHost: pid === vcHostPeerId() });
+}
+function vcOutgoingStream(pid) {
+  var plan = vcMediaPlanFor(pid);
+  var out = new MediaStream();
+  if (localStream) localStream.getAudioTracks().forEach(function (t) { out.addTrack(t); });
+  if (plan.sendVideo) {
+    // Somebody arriving while the host shares their screen gets the screen.
+    var src = (screenStream && screenStream.getVideoTracks()[0]) || (localStream && localStream.getVideoTracks()[0]);
+    if (src) out.addTrack(src);
+  }
+  return out;
+}
+// Ask for the other side's sound (and, where it is shown, picture) whether
+// or not this device has a camera or microphone of its own. An offer only
+// carries the kinds of media it names, so a trainee who joined without a
+// camera — or switched it off in the lobby — used to receive no picture of
+// the instructor at all, and one with neither device received nothing.
+function vcCallOptions(pid) {
+  var plan = vcMediaPlanFor(pid);
+  return { constraints: { offerToReceiveAudio: plan.receiveAudio, offerToReceiveVideo: plan.receiveVideo } };
+}
+
+// Wire a media call: show its picture, play its sound, record it if a
+// recording is running, and say so when the connection cannot be made.
+function vcWireMediaCall(call, pid, fallbackName, onUp) {
+  call.on('stream', function(rs) {
+    if(!peerConnections[pid]) peerConnections[pid] = {};
+    peerConnections[pid].media = call;
+    peerConnections[pid].stream = rs;
+    if (onUp) onUp();
+    vcAddVideo(pid, rs, peerNames[pid] || fallbackName);
+    vcRecordingAddStream(rs);
+  });
+  call.on('close', function() {
+    // A newer call to the same person replaced this one: keep their tile.
+    if (!peerConnections[pid] || peerConnections[pid].media === call) vcRemoveVideo(pid);
+  });
+  call.on('error', function(err) { console.warn('Media call with', pid, 'failed:', err); });
+  vcWatchIce(call, pid, onUp);
+}
+
+// Every incoming media call, on the host and on participants alike.
+function vcOnIncomingCall(call) {
+  var pid = call.peer;
+  vcWhenAdmitted(pid, function () {
+    var prev = peerConnections[pid] && peerConnections[pid].media;
+    call.answer(vcOutgoingStream(pid));
+    if(!peerConnections[pid]) peerConnections[pid] = {};
+    peerConnections[pid].media = call;
+    if (prev && prev !== call) { try { prev.close(); } catch(e) {} }
+    vcWireMediaCall(call, pid, pid === vcHostPeerId() ? 'Host' : 'Participant');
+  }, function () { try { call.close(); } catch(e) {} });
+}
+
+// Watch whether the two devices actually reached each other. Without a
+// relay server some networks (many phones on mobile data) never can; the
+// room used to sit on a blank tile with no word of why.
+var vcNatFailed = {};
+function vcWatchIce(call, pid, onUp) {
+  var pc = vcGetPeerConnection(call);
+  if (!pc || pc.__vcWatched) return;
+  pc.__vcWatched = true;
+  function check() {
+    var st = pc.iceConnectionState;
+    if (st === 'connected' || st === 'completed') {
+      if (onUp) onUp();
+      vcNatNotice(pid, false);
+      vcApplySenderLimits(pc);
+    } else if (st === 'failed') {
+      vcNatNotice(pid, true);
+    }
+  }
+  try { pc.addEventListener('iceconnectionstatechange', check); } catch (e) {}
+  check();
+}
+function vcNatNotice(pid, failed) {
+  if (failed) vcNatFailed[pid] = true; else delete vcNatFailed[pid];
+  var el = document.getElementById('vc-room-notice');
+  if (!el) return;
+  var ids = Object.keys(vcNatFailed);
+  if (!ids.length) { el.style.display = 'none'; el.textContent = ''; return; }
+  var who = ids.map(function (id) { return peerNames[id] || (id === vcHostPeerId() ? 'the host' : 'a participant'); }).join(', ');
+  var relay = CESTISCore.vcRoom.hasRelay((typeof systemSettings !== 'undefined' && systemSettings.vcTurnServers) || '');
+  el.textContent = 'Could not connect to ' + who + '. ' + (relay
+    ? 'The two networks could not reach each other, even through the Centre\'s relay server. Check that the relay server is running, or try another network.'
+    : 'Their network and yours block direct connections, and no relay (TURN) server is set up. Try another network (for example Wi-Fi instead of mobile data), or ask the Centre to add a relay server in Settings → Video Conference.');
+  el.style.display = 'block';
+}
+// Cap how much picture each connection carries (CESTISCore.vcRoom.videoProfile).
+function vcApplySenderLimits(pc) {
+  try {
+    var prof = vcVideoProfile();
+    pc.getSenders().forEach(function (sender) {
+      if (!sender.track || sender.track.kind !== 'video' || !sender.getParameters || !sender.setParameters) return;
+      var p = sender.getParameters();
+      if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+      p.encodings[0].maxBitrate = prof.maxBitrate;
+      var r = sender.setParameters(p);
+      if (r && r.catch) r.catch(function () {});
+    });
+  } catch (e) {}
 }
 
 /* Is this room code a large class that is running right now? Reads the shared
    session list, so it answers the same on every device. */
+// A record left open by a device that never ended it (crash, closed tab) is
+// not a running class: it no longer sends every later joiner of that code
+// into an empty hosted room (see CESTISCore.vcSessions.isLive).
 function vcLiveLargeSession(code) {
   try {
     var want = String(code || '').toUpperCase().trim();
@@ -14283,20 +14773,34 @@ function vcLiveLargeSession(code) {
       var raw = CESTISStore.getItem('voctrain_vcSessions');
       list = raw ? (JSON.parse(raw) || []) : [];
     }
-    var open = list.filter(function (s) {
-      return s && String(s.code || '').toUpperCase() === want && !s.endedAt;
-    });
-    if (!open.length) return null;
-    open.sort(function (a, b) { return String(b.startedAt || '').localeCompare(String(a.startedAt || '')); });
-    return open[0];
+    return CESTISCore.vcSessions.liveFor(list, want, new Date().toISOString());
   } catch (e) { return null; }
+}
+
+// The class session (classSessions) this room code belongs to moves
+// scheduled -> live -> completed, so trainees see "Live Now" while it runs and
+// its recording under Past Recordings afterwards. One record, stamped and
+// saved through the normal newest-edit-wins path.
+function vcMarkClassSession(code, status) {
+  try {
+    var rec = CESTISCore.vcRoom.setSessionStatus(classSessions, code, status, new Date().toISOString(), localDateStr());
+    if (rec) saveState();
+    return rec;
+  } catch (e) { console.warn('[VideoConference] could not update the class session:', e); return null; }
 }
 
 // ── Join Room ──
 async function vcJoinRoom(title, role, codeOverride) {
   if (vcBlockAndExplain('Cannot join a class from this page address')) return;
-  var code = codeOverride ? codeOverride.toUpperCase().trim() : (document.getElementById('vc-join-code')?.value || '').toUpperCase().trim();
-  if(!code || code.length < 4) { vcUpdateStatus('error', 'Please enter a valid room code'); return; }
+  var typed = codeOverride ? codeOverride : (document.getElementById('vc-join-code')?.value || '');
+  var code = CESTISCore.vcRoom.normaliseCode(typed);
+  if(!CESTISCore.vcRoom.isValidCode(code)) { vcUpdateStatus('error', 'Please enter a valid room code'); return; }
+
+  // The room code is a convenience, not a password: it travels in
+  // notifications and backups. A staff meeting is closed to anyone it is not
+  // for, whatever code they hold (the host checks again on its side).
+  var _access = CESTISCore.vcRoom.canJoinMeeting(vcMeetingForCode(code), role);
+  if(!_access.allowed) { vcUpdateStatus('error', _access.reason); return; }
 
   // A large class runs on the hosted conference server, not the peer-to-peer
   // mesh, so send the joiner straight there rather than letting them wait for a
@@ -14313,72 +14817,85 @@ async function vcJoinRoom(title, role, codeOverride) {
     return;
   }
 
+  await vcWaitForPreview();
+  // Each press of Join used to register one more peer that was never closed.
+  vcDestroyPeer();
+  vcResetRoomState();
   currentRoomCode = code;
   isRoomHost = false;
+  vcRefusedByHost = false;
+  var hostId = vcHostPeerId();
+  vcAdmitted[hostId] = true;
   vcUpdateStatus('connecting', 'Joining room ' + code + '...');
+  var joined = false;
 
   try {
     vcCreatePeer('cestis-' + code + '-' + Math.random().toString(36).substr(2,6), function(peer) {
-      peer.on('call', function(call) {
-        call.answer(localStream || new MediaStream());
-        call.on('stream', function(rs) {
-          var pid = call.peer;
-          if(!peerConnections[pid]) peerConnections[pid] = {};
-          peerConnections[pid].media = call;
-          peerConnections[pid].stream = rs;
-          vcAddVideo(pid, rs, peerNames[pid] || 'Participant');
-        });
-        call.on('close', function() { vcRemoveVideo(call.peer); });
-        call.on('error', function(err) { console.warn('Incoming call error:', err); });
-      });
+      peer.on('call', vcOnIncomingCall);
       peer.on('connection', function(conn) { vcHandleDataConn(conn); });
     }, {
       onOpen: function() {
-        var hostId = 'cestis-' + code + '-host';
-
         // Data connection to host
         var conn = rtcPeer.connect(hostId, {reliable:true});
         conn.on('open', function() {
-          if(!peerConnections[hostId]) peerConnections[hostId] = {};
-          peerConnections[hostId].data = conn;
-          dataConnections[hostId] = conn;
-          conn.send(JSON.stringify({type:'name', name:vcCurrentUserName, role:vcCurrentRole}));
-          conn.on('data', function(data) { vcOnData(data, hostId); });
-          conn.on('close', function() {
-            vcRemoveVideo(hostId); delete peerConnections[hostId]; delete dataConnections[hostId]; vcUpdateParticipants();
-            showToast('Host has disconnected. Waiting for host to return...');
-            vcStartHostReconnect(code, hostId);
-          });
+          joined = true;
+          vcAttachHostConnection(conn, code);
           vcShowConference(title, role);
         });
-        conn.on('error', function() { vcUpdateStatus('error', 'Room not found. Check code and try again.'); });
+        conn.on('error', function() { if (!joined) vcUpdateStatus('error', 'Room not found. Check code and try again.'); });
 
-        // Media connection to host — always establish even without camera/mic
-        var mediaStream = localStream || new MediaStream();
-        var call = rtcPeer.call(hostId, mediaStream);
-        if(call) {
-          call.on('stream', function(rs) {
-            if(!peerConnections[hostId]) peerConnections[hostId] = {};
-            peerConnections[hostId].media = call;
-            peerConnections[hostId].stream = rs;
-            vcAddVideo(hostId, rs, peerNames[hostId] || 'Host');
-          });
-          call.on('close', function() { vcRemoveVideo(hostId); });
-          call.on('error', function(err) {
-            console.warn('Media call to host failed:', err);
-          });
-        }
+        // Media connection to host — always established, even without a
+        // camera or microphone (see vcCallOptions).
+        vcCallHost(hostId);
       },
       onError: function(err) {
         console.error('Peer error:', err);
         if(err.type === 'browser-incompatible') { vcBlockAndExplain('Cannot join a class from this page address'); return; }
-        vcUpdateStatus('error', 'Could not connect. Room may not exist.');
+        // Already in the room: a classmate who left before we reached them,
+        // or the host while we wait for it to return. The room carries on.
+        if (joined) return;
+        // Not in the room: release the id rather than leave it registered.
+        vcDestroyPeer();
+        vcUpdateStatus('error', err.type === 'peer-unavailable'
+          ? 'The host has not opened this room yet, or the code is wrong. Try again when the class starts.'
+          : 'Could not connect. Room may not exist.');
       },
       onExhausted: function() { vcUpdateStatus('error', vcNoServiceStatus()); }
     });
   } catch(err) {
     vcUpdateStatus('error', 'Failed to join room');
   }
+}
+
+// The participant's link to the host: introduce ourselves, listen, and wait
+// for the host to come back if it drops — unless we were turned away or are
+// leaving ourselves.
+function vcAttachHostConnection(conn, code) {
+  var hostId = conn.peer;
+  if(!peerConnections[hostId]) peerConnections[hostId] = {};
+  peerConnections[hostId].data = conn;
+  dataConnections[hostId] = conn;
+  conn.send(JSON.stringify(vcNameMessage()));
+  conn.on('data', function(data) { vcOnData(data, hostId); });
+  conn.on('close', function() {
+    if (dataConnections[hostId] !== conn) return;          // already replaced, or we left
+    vcRemoveVideo(hostId); delete peerConnections[hostId]; delete dataConnections[hostId]; vcUpdateParticipants();
+    if (vcRefusedByHost || !rtcPeer || rtcPeer.__vcClosing) return;
+    showToast('Host has disconnected. Waiting for host to return...');
+    vcStartHostReconnect(code, hostId);
+  });
+}
+
+// Media call to the host (replacing any earlier one).
+function vcCallHost(hostId) {
+  if (!rtcPeer || rtcPeer.destroyed) return;
+  var prev = peerConnections[hostId] && peerConnections[hostId].media;
+  var call = rtcPeer.call(hostId, vcOutgoingStream(hostId), vcCallOptions(hostId));
+  if (!call) return;
+  if(!peerConnections[hostId]) peerConnections[hostId] = {};
+  peerConnections[hostId].media = call;
+  if (prev && prev !== call) { try { prev.close(); } catch(e) {} }
+  vcWireMediaCall(call, hostId, 'Host');
 }
 
 // ── Participant reconnect to host ──
@@ -14388,10 +14905,10 @@ function vcStartHostReconnect(code, hostId) {
   var maxAttempts = 30; // try for ~5 minutes (every 10s)
   vcHostReconnectInterval = setInterval(function() {
     attempts++;
-    if(attempts > maxAttempts || !rtcPeer || rtcPeer.destroyed) {
+    if(attempts > maxAttempts || !rtcPeer || rtcPeer.destroyed || vcRefusedByHost) {
       clearInterval(vcHostReconnectInterval);
       vcHostReconnectInterval = null;
-      showToast('Host did not return. You may leave the room.');
+      if (!vcRefusedByHost && rtcPeer) showToast('Host did not return. You may leave the room.');
       return;
     }
     // Try to connect to host
@@ -14399,27 +14916,9 @@ function vcStartHostReconnect(code, hostId) {
     conn.on('open', function() {
       clearInterval(vcHostReconnectInterval);
       vcHostReconnectInterval = null;
-      if(!peerConnections[hostId]) peerConnections[hostId] = {};
-      peerConnections[hostId].data = conn;
-      dataConnections[hostId] = conn;
-      conn.send(JSON.stringify({type:'name', name:vcCurrentUserName, role:vcCurrentRole}));
-      conn.on('data', function(data) { vcOnData(data, hostId); });
-      conn.on('close', function() {
-        vcRemoveVideo(hostId); delete peerConnections[hostId]; delete dataConnections[hostId]; vcUpdateParticipants();
-        showToast('Host has disconnected again. Waiting for host to return...');
-        vcStartHostReconnect(code, hostId);
-      });
+      vcAttachHostConnection(conn, code);
       // Re-establish media connection
-      {
-        var call = rtcPeer.call(hostId, localStream || new MediaStream());
-        call.on('stream', function(rs) {
-          if(!peerConnections[hostId]) peerConnections[hostId] = {};
-          peerConnections[hostId].media = call;
-          peerConnections[hostId].stream = rs;
-          vcAddVideo(hostId, rs, peerNames[hostId] || 'Host');
-        });
-        call.on('close', function() { vcRemoveVideo(hostId); });
-      }
+      vcCallHost(hostId);
       showToast('Host has reconnected!');
     });
     conn.on('error', function() { /* host not back yet, will retry */ });
@@ -14431,63 +14930,64 @@ function vcStopHostReconnect() {
 }
 
 // ── Handle incoming data connection ──
+// The host hears every newcomer out (vcAdmitPeer decides on its 'name');
+// a participant only talks to people the host has let in.
 function vcHandleDataConn(conn) {
-  conn.on('open', function() {
-    var pid = conn.peer;
-    if(!peerConnections[pid]) peerConnections[pid] = {};
-    peerConnections[pid].data = conn;
-    dataConnections[pid] = conn;
-
-    conn.send(JSON.stringify({type:'name', name:vcCurrentUserName, role:vcCurrentRole}));
-
-    // Host sends peer list to new joiner
-    if(isRoomHost) {
-      // A peer-to-peer mesh degrades badly past a handful of people (every
-      // participant carries a stream to every other). Refuse the join with a
-      // clear reason instead of letting the whole room fall apart.
-      var _cap = CESTISCore.vcCapacity.canJoinMesh(Object.keys(peerNames).length + 1);
-      if(!_cap.allowed) {
-        try { conn.send(JSON.stringify({type:'room-full', reason:_cap.reason, cap:_cap.cap})); } catch(e) {}
-        showToast('A participant was turned away — room is at its ' + _cap.cap + '-person limit. Use Large Class mode to host more.', 'warning');
-        setTimeout(function(){ try { conn.close(); } catch(e) {} }, 400);
-        return;
-      }
-      var list = Object.keys(peerConnections).filter(function(id){return id !== pid;}).map(function(id){
-        return {peerId:id, name:peerNames[id]||'Participant'};
-      });
-      conn.send(JSON.stringify({type:'peer-list', peers:list}));
-      // Notify existing peers
-      Object.keys(dataConnections).forEach(function(id) {
-        if(id !== pid && dataConnections[id] && dataConnections[id].open)
-          dataConnections[id].send(JSON.stringify({type:'new-peer', peerId:pid, name:peerNames[pid]||'Connecting...'}));
-      });
-      // If the host is currently sharing their screen, immediately inform the new joiner
-      // so their view switches to screen-share mode right away.
-      if(screenStream) {
-        conn.send(JSON.stringify({type:'screen-share-started', peerId: rtcPeer ? rtcPeer.id : '', name: vcCurrentUserName}));
-      }
-      // Send current permissions to new joiner
-      if(vcHostPermissions.screenShare) {
-        conn.send(JSON.stringify({type:'permission-update', permission:'screenShare', granted:true}));
-      }
-      if(vcHostPermissions.recording) {
-        conn.send(JSON.stringify({type:'permission-update', permission:'recording', granted:true}));
-      }
-    }
-
-    conn.on('data', function(data) { vcOnData(data, pid); });
-    conn.on('close', function() {
-      vcRemoveVideo(pid); delete peerConnections[pid]; delete dataConnections[pid]; delete peerNames[pid]; delete peerRoles[pid]; delete mutedPeers[pid]; delete vcCoHosts[pid];
-      vcUpdateParticipants();
-      if(isRoomHost) {
-        try { vcMeshLogLeave(pid); } catch(e) {}
-        Object.keys(dataConnections).forEach(function(id) {
-          if(dataConnections[id] && dataConnections[id].open)
-            dataConnections[id].send(JSON.stringify({type:'peer-left', peerId:pid}));
-        });
-      }
-    });
+  var pid = conn.peer;
+  if (vcRefusedPeers[pid]) { try { conn.close(); } catch(e) {} return; }
+  var early = [];       // messages that arrive before we have decided
+  conn.on('data', function(data) {
+    if (early) { early.push(data); return; }
+    vcOnData(data, pid);
   });
+  conn.on('open', function() {
+    if (isRoomHost) {
+      vcPendingConns[pid] = conn;
+      conn.on('close', function() { vcOnPeerConnClosed(pid, conn); });
+      var q = early; early = null;
+      q.forEach(function (d) { vcOnData(d, pid); });
+      // Somebody who connects but never says who they are is let go.
+      setTimeout(function () {
+        if (vcPendingConns[pid] === conn) { delete vcPendingConns[pid]; try { conn.close(); } catch(e) {} }
+      }, 15000);
+      return;
+    }
+    vcWhenAdmitted(pid, function () {
+      // Only one of a pair ever dials, so a second link from the same person
+      // means they have given up on the first: the new one replaces it.
+      var old = dataConnections[pid];
+      if(!peerConnections[pid]) peerConnections[pid] = {};
+      peerConnections[pid].data = conn;
+      dataConnections[pid] = conn;
+      if (old && old !== conn) { try { old.close(); } catch(e) {} }
+      conn.send(JSON.stringify(vcNameMessage()));
+      conn.on('close', function() { vcOnPeerConnClosed(pid, conn); });
+      var q = early; early = null;
+      q.forEach(function (d) { vcOnData(d, pid); });
+    }, function () { try { conn.close(); } catch(e) {} });
+  });
+}
+
+// A participant's data link closed.
+function vcOnPeerConnClosed(pid, conn) {
+  if (vcPendingConns[pid] === conn) { delete vcPendingConns[pid]; return; }
+  if (dataConnections[pid] !== conn) return;               // an older link, or we left
+  vcRemoveVideo(pid);
+  delete peerConnections[pid]; delete dataConnections[pid]; delete peerNames[pid]; delete peerRoles[pid];
+  delete mutedPeers[pid]; delete vcCoHosts[pid]; delete vcDialling[pid]; delete vcRemoteRecorders[pid];
+  delete vcNatFailed[pid];
+  if (isRoomHost) {
+    delete vcAdmitted[pid];
+    // Close the participant's stay in the host's join/leave log, which the
+    // attendance register offers to the instructor for confirmation.
+    try { vcMeshLogLeave(pid); } catch(e) {}
+    Object.keys(dataConnections).forEach(function(id) {
+      if(dataConnections[id] && dataConnections[id].open)
+        dataConnections[id].send(JSON.stringify({type:'peer-left', peerId:pid}));
+    });
+  }
+  vcUpdateParticipants();
+  vcRefreshRecordingBanner();
 }
 
 // A conference participant's self-announced name and role.
@@ -14497,12 +14997,25 @@ function vcCleanPeerRole(r) { return ['student','instructor','admin','adminstaff
 // ── Handle incoming data messages ──
 function vcOnData(raw, fromId) {
   try { var msg = JSON.parse(raw); } catch(e) { return; }
+  if (!msg || typeof msg.type !== 'string') return;
+  var hostId = vcHostPeerId();
+  // Instructions that only the host may give are obeyed only when they come
+  // from the host's own connection (CESTISCore.vcRoom.acceptFrom). Any
+  // trainee used to be able to end the class for everyone from the console.
+  if (!CESTISCore.vcRoom.acceptFrom(msg.type, {
+        amHost: isRoomHost, hostId: hostId, fromId: fromId,
+        admitted: !!vcAdmitted[fromId], coHost: !!vcCoHosts[fromId] })) return;
   switch(msg.type) {
     case 'name':
       // Each participant announces its own name and role, so neither is
       // trusted: the role must be a real one and the name is plain text.
       msg.name = vcCleanPeerName(msg.name);
       msg.role = vcCleanPeerRole(msg.role);
+      if (isRoomHost && (!vcAdmitted[fromId] || vcPendingConns[fromId])) {
+        if (!vcAdmitPeer(fromId, msg)) return;
+      } else if (!vcAdmitted[fromId]) {
+        return;
+      }
       peerNames[fromId] = msg.name;
       peerRoles[fromId] = msg.role;
       vcUpdateVideoLabel(fromId, msg.name + (msg.role==='instructor'?' (Instructor)':msg.role==='admin'?' (Admin)':msg.role==='adminstaff'?' (Admin Staff)':''));
@@ -14525,27 +15038,47 @@ function vcOnData(raw, fromId) {
       vcUpdateParticipants();
       break;
     case 'peer-list':
-      (msg.peers||[]).forEach(function(p) { if(p.peerId !== rtcPeer.id) vcConnectToPeer(p.peerId, p.name); });
+      (msg.peers||[]).forEach(function(p) {
+        if(!p || !rtcPeer || p.peerId === rtcPeer.id) return;
+        if (p.role) peerRoles[p.peerId] = vcCleanPeerRole(p.role);
+        vcConnectToPeer(p.peerId, p.name);
+      });
+      vcUpdateParticipants();
       break;
     case 'room-full':
-      vcUpdateStatus('error', 'Room full (' + (msg.cap || '') + ' max)');
-      alert(msg.reason || 'This conference room is full.');
-      try { vcLeaveRoom(); } catch(e) {}
+    case 'access-denied':
+      // Turned away: leave properly instead of waiting for the host to
+      // "return" and being turned away again every ten seconds.
+      vcRefusedByHost = true;
+      vcStopHostReconnect();
+      vcUpdateStatus('error', msg.type === 'room-full' ? 'Room full (' + (msg.cap || '') + ' max)' : 'Not admitted to this meeting');
+      alert(msg.reason || (msg.type === 'room-full' ? 'This conference room is full.' : 'You cannot join this meeting.'));
+      exitVideoRoom(vcCurrentRole);
       break;
     case 'new-peer':
       vcConnectToPeer(msg.peerId, msg.name);
-      break;
-    case 'peer-left':
-      vcRemoveVideo(msg.peerId); delete peerConnections[msg.peerId]; delete dataConnections[msg.peerId]; delete peerNames[msg.peerId]; delete peerRoles[msg.peerId]; delete mutedPeers[msg.peerId]; delete vcCoHosts[msg.peerId];
       vcUpdateParticipants();
       break;
+    case 'peer-left':
+    case 'peer-kicked':
+      var _gone = dataConnections[msg.peerId];
+      vcRemoveVideo(msg.peerId); delete peerConnections[msg.peerId]; delete dataConnections[msg.peerId]; delete peerNames[msg.peerId]; delete peerRoles[msg.peerId]; delete mutedPeers[msg.peerId]; delete vcCoHosts[msg.peerId];
+      delete vcAdmitted[msg.peerId]; delete vcDialling[msg.peerId]; delete vcRemoteRecorders[msg.peerId];
+      if (_gone) { try { _gone.close(); } catch(e) {} }
+      vcUpdateParticipants();
+      vcRefreshRecordingBanner();
+      if (msg.type === 'peer-kicked') showToast(vcCleanPeerName(msg.name || 'A participant') + ' was removed by the host');
+      break;
     case 'chat':
-      vcDisplayChat(msg.sender, msg.text, false);
+      // Shown under the name the sender's device announced when it joined,
+      // not whatever name the message claims.
+      vcDisplayChat(peerNames[fromId] || vcCleanPeerName(msg.sender), String(msg.text == null ? '' : msg.text).slice(0, 4000), false);
       break;
     case 'hand-raise':
-      showToast(msg.name + (msg.raised ? ' raised their hand' : ' lowered their hand'));
+      showToast((peerNames[fromId] || vcCleanPeerName(msg.name)) + (msg.raised ? ' raised their hand' : ' lowered their hand'));
       break;
     case 'end-meeting':
+      vcRefusedByHost = true;
       vcStopHostReconnect();
       alert('The meeting has been ended by the host.');
       exitVideoRoom(vcCurrentRole);
@@ -14553,6 +15086,7 @@ function vcOnData(raw, fromId) {
     // ── Host Control Messages ──
     case 'kick':
       // Participant receives this when they are kicked
+      vcRefusedByHost = true;
       vcStopHostReconnect();
       alert('You have been removed from the meeting by the host.');
       exitVideoRoom(vcCurrentRole);
@@ -14596,24 +15130,29 @@ function vcOnData(raw, fromId) {
       showToast('Your camera has been turned off by the host');
       break;
     case 'promote-host':
-      // This participant is promoted to co-host
-      isRoomHost = true;
-      showToast('You have been given host privileges by ' + (msg.by || 'the host'));
+      // This participant is made co-host. It stays a participant (it does not
+      // start admitting people itself); its controls are carried out by the
+      // host's device (see vcHostAction).
+      vcIsCoHost = true;
+      showToast('You have been given host privileges by ' + vcCleanPeerName(msg.by || 'the host'));
       vcUpdateParticipants();
       vcRefreshHostControls();
       break;
     case 'demote-host':
       // This participant is demoted from co-host
-      isRoomHost = false;
+      vcIsCoHost = false;
       showToast('Your host privileges have been removed');
       vcUpdateParticipants();
       vcRefreshHostControls();
       break;
-    case 'peer-kicked':
-      // Host notifies everyone that a peer was kicked
-      vcRemoveVideo(msg.peerId); delete peerConnections[msg.peerId]; delete dataConnections[msg.peerId]; delete peerNames[msg.peerId]; delete peerRoles[msg.peerId]; delete mutedPeers[msg.peerId];
+    case 'cohost':
+      // The host tells everyone who its co-hosts are.
+      if (msg.on) vcCoHosts[msg.peerId] = true; else delete vcCoHosts[msg.peerId];
       vcUpdateParticipants();
-      showToast((msg.name || 'A participant') + ' was removed by the host');
+      break;
+    case 'cohost-action':
+      // A co-host asks the host's device to act (only accepted from a co-host).
+      vcDoHostAction(msg.action, msg.peerId);
       break;
     case 'peer-muted':
       // Notification that a peer was muted (for UI update)
@@ -14627,25 +15166,31 @@ function vcOnData(raw, fromId) {
       break;
     case 'cam-state':
       // A peer turned their camera on/off — show or hide a "camera off" overlay
-      // on their tile so it doesn't appear frozen on the last frame.
-      vcSetRemoteCamState(msg.peerId, !!msg.on);
+      // on their tile so it doesn't appear frozen on the last frame. A device
+      // speaks only for its own camera.
+      vcSetRemoteCamState(fromId, !!msg.on);
       break;
     case 'screen-share-started':
-      // Highlight the sharing tile for the host; hide all other tiles for participants.
+      // Highlight the sharing tile for the host; participants switch to the
+      // host's screen (and only the host's — see vcEnterScreenShareView).
       if(isRoomHost) {
-        var shareTile = document.getElementById('vc-tile-'+sanitizePeerId(msg.peerId));
+        var shareTile = document.getElementById('vc-tile-'+sanitizePeerId(fromId));
         if(shareTile) { shareTile.classList.add('screen-share'); }
+      } else if (fromId !== hostId) {
+        break;
       }
-      showToast((msg.name || 'A participant') + ' is sharing their screen');
-      vcEnterScreenShareView(msg.peerId);
+      showToast((peerNames[fromId] || 'A participant') + ' is sharing their screen');
+      vcEnterScreenShareView(fromId);
       break;
     case 'screen-share-stopped':
       // Restore the full grid for participants; remove highlight for the host.
       if(isRoomHost) {
-        var unshareTile = document.getElementById('vc-tile-'+sanitizePeerId(msg.peerId));
+        var unshareTile = document.getElementById('vc-tile-'+sanitizePeerId(fromId));
         if(unshareTile) { unshareTile.classList.remove('screen-share'); }
+      } else if (fromId !== hostId) {
+        break;
       }
-      showToast((msg.name || 'Host') + ' stopped sharing their screen');
+      showToast((peerNames[fromId] || 'Host') + ' stopped sharing their screen');
       vcExitScreenShareView();
       break;
     case 'permission-update':
@@ -14662,25 +15207,44 @@ function vcOnData(raw, fromId) {
         showToast(msg.granted ? 'Host enabled recording for participants' : 'Host disabled recording for participants');
       }
       break;
+    case 'recording':
+      // Somebody started or stopped recording the class. Everyone is told.
+      // (The host also passes on, to a late joiner, who is recording.)
+      var _rid = (fromId === hostId && msg.peerId) ? msg.peerId : fromId;
+      if (msg.on) vcRemoteRecorders[_rid] = vcCleanPeerName(peerNames[_rid] || msg.by || 'Someone');
+      else delete vcRemoteRecorders[_rid];
+      vcRefreshRecordingBanner();
+      if (msg.on) showToast(vcRemoteRecorders[_rid] + ' started recording this class');
+      break;
   }
 }
 
 // ── Connect to a peer (mesh) ──
 function vcConnectToPeer(peerId, name) {
-  if((peerConnections[peerId] && peerConnections[peerId].data) || peerId === rtcPeer.id) return;
-  peerNames[peerId] = vcCleanPeerName(name);
+  if(!rtcPeer || !peerId || peerId === rtcPeer.id) return;
+  vcAdmitted[peerId] = true;          // the host announced them
+  if (name) peerNames[peerId] = vcCleanPeerName(name);
+  if (dataConnections[peerId] || vcDialling[peerId]) return;
+  // Exactly one of each pair dials; the other answers (see shouldInitiate).
+  if (!CESTISCore.vcRoom.shouldInitiate(rtcPeer.id, peerId)) return;
+  vcDialling[peerId] = true;
 
   var conn = rtcPeer.connect(peerId, {reliable:true});
   conn.on('open', function() {
+    if (dataConnections[peerId] && dataConnections[peerId] !== conn && dataConnections[peerId].open) {
+      try { conn.close(); } catch(e) {}
+      return;
+    }
     if(!peerConnections[peerId]) peerConnections[peerId] = {};
     peerConnections[peerId].data = conn;
     dataConnections[peerId] = conn;
-    conn.send(JSON.stringify({type:'name', name:vcCurrentUserName, role:vcCurrentRole}));
+    conn.send(JSON.stringify(vcNameMessage()));
     conn.on('data', function(data) { vcOnData(data, peerId); });
-    conn.on('close', function() { vcRemoveVideo(peerId); delete peerConnections[peerId]; delete dataConnections[peerId]; delete peerRoles[peerId]; vcUpdateParticipants(); });
+    conn.on('close', function() { vcOnPeerConnClosed(peerId, conn); });
   });
   conn.on('error', function(err) {
     console.warn('Data connection to', peerId, 'failed:', err);
+    delete vcDialling[peerId];
   });
 
   // Establish media connection with retry logic
@@ -14690,33 +15254,31 @@ function vcConnectToPeer(peerId, name) {
 function vcCallPeerWithRetry(peerId, name, attempt) {
   if(!rtcPeer || rtcPeer.destroyed) return;
   if(attempt > 2) return; // max 3 attempts
+  if(!vcAdmitted[peerId]) return; // they left meanwhile
 
-  var call = rtcPeer.call(peerId, localStream || new MediaStream());
+  var prev = peerConnections[peerId] && peerConnections[peerId].media;
+  var call = rtcPeer.call(peerId, vcOutgoingStream(peerId), vcCallOptions(peerId));
   if(!call) {
     setTimeout(function() { vcCallPeerWithRetry(peerId, name, attempt + 1); }, 2000 * (attempt + 1));
     return;
   }
-  var streamReceived = false;
-  call.on('stream', function(rs) {
-    streamReceived = true;
-    if(!peerConnections[peerId]) peerConnections[peerId] = {};
-    peerConnections[peerId].media = call;
-    peerConnections[peerId].stream = rs;
-    vcAddVideo(peerId, rs, name);
-  });
-  call.on('close', function() { vcRemoveVideo(peerId); });
-  call.on('error', function(err) {
-    console.warn('Media call to', peerId, 'failed:', err);
-    if(!streamReceived && attempt < 2) {
-      setTimeout(function() { vcCallPeerWithRetry(peerId, name, attempt + 1); }, 2000 * (attempt + 1));
-    }
-  });
-  // If no stream received after 5s, retry
-  setTimeout(function() {
-    if(!streamReceived && attempt < 2) {
-      vcCallPeerWithRetry(peerId, name, attempt + 1);
-    }
-  }, 5000 * (attempt + 1));
+  if(!peerConnections[peerId]) peerConnections[peerId] = {};
+  peerConnections[peerId].media = call;
+  // A retry replaces the call it retries; the old one used to be left open.
+  if (prev && prev !== call) { try { prev.close(); } catch(e) {} }
+  var up = false, retried = false;
+  function retry(delay) {
+    if (up || retried || attempt >= 2) return;
+    if (!peerConnections[peerId] || peerConnections[peerId].media !== call) return;
+    retried = true;
+    setTimeout(function() { vcCallPeerWithRetry(peerId, name, attempt + 1); }, delay);
+  }
+  // Connected counts as success even when the other side sends nothing
+  // (no camera, no microphone) — such a call never produces a 'stream', and
+  // used to be dialled again and again.
+  vcWireMediaCall(call, peerId, name, function () { up = true; });
+  call.on('error', function() { retry(2000 * (attempt + 1)); });
+  setTimeout(function() { retry(0); }, 5000 * (attempt + 1));
 }
 
 // ── Show Conference View ──
@@ -14725,6 +15287,7 @@ function vcShowConference(title, role) {
   var room = document.getElementById(containerId);
   var userName = vcCurrentUserName;
   var showHostControls = isRoomHost && (role==='instructor' || role==='admin' || role==='adminstaff');
+  vcCurrentRoomTitle = title;
 
   // Opens in gallery — see vcCurrentViewMode. Full Screen is one click away
   // and takes the whole screen when it is asked for.
@@ -14760,6 +15323,8 @@ function vcShowConference(title, role) {
         <button class="vc-host-btn" id="vc-perm-rec-btn" onclick="vcToggleRecordingPermission()" title="Allow/deny participant recording" style="font-size:10px;">&#x23FA;&#xFE0F; Record: OFF</button>
       </div>
       ` : ''}
+      <div id="vc-rec-banner" style="display:none;padding:6px 16px;font-size:12px;font-weight:600;color:#fff;background:#c0392b;flex-shrink:0;"></div>
+      <div id="vc-room-notice" style="display:none;padding:8px 16px;font-size:12px;line-height:1.5;color:var(--text-primary);background:rgba(231,76,60,0.12);border-bottom:1px solid rgba(231,76,60,0.3);flex-shrink:0;"></div>
       <div class="vc-conference-body">
         <div class="vc-main-video-area">
           <div class="video-grid" id="vc-video-grid">
@@ -14824,6 +15389,14 @@ function vcShowConference(title, role) {
 
   // Initialize participant list
   vcUpdateParticipants();
+
+  // Pictures and sound that arrived before this view existed. The host's
+  // stream usually reaches a trainee BEFORE the data connection that draws
+  // the room — so trainees used to sit in a room with no instructor, neither
+  // seen nor heard (the picture is also where the sound plays).
+  vcReplayStreams();
+  vcRefreshRecordingBanner();
+  vcNatNotice('', false);
 
   // Restore any chat history saved from a previous visit to this room
   vcRestoreChatHistory();
@@ -14988,17 +15561,38 @@ function vcApplyHostOnlyVisibility() {
 }
 
 // ── Video Grid Management ──
+var vcCurrentRoomTitle = '';
+
+// Draw every stream we already hold. Safe to call any number of times:
+// vcAddVideo only ever makes one tile per person.
+function vcReplayStreams() {
+  var pending = vcPendingStreams;
+  vcPendingStreams = {};
+  Object.keys(pending).forEach(function (pid) {
+    if (!peerConnections[pid] || !peerConnections[pid].stream) vcAddVideo(pid, pending[pid].stream, peerNames[pid] || pending[pid].name);
+  });
+  Object.keys(peerConnections).forEach(function (pid) {
+    var pc = peerConnections[pid];
+    if (pc && pc.stream) vcAddVideo(pid, pc.stream, peerNames[pid] || (pid === vcHostPeerId() ? 'Host' : 'Participant'));
+  });
+}
+
 function vcAddVideo(peerId, stream, name) {
   var safeId = sanitizePeerId(peerId);
   var existing = document.getElementById('vc-vid-'+safeId);
   if(existing) {
-    existing.srcObject = stream;
+    if (existing.srcObject !== stream) existing.srcObject = stream;
     existing.play().catch(function(){});
     return;
   }
 
   var grid = document.getElementById('vc-video-grid');
-  if(!grid) return;
+  if(!grid) {
+    // The room is not drawn yet: keep the stream and draw it when it is
+    // (vcShowConference -> vcReplayStreams), rather than dropping it.
+    vcPendingStreams[peerId] = { stream: stream, name: name };
+    return;
+  }
 
   var tile = document.createElement('div');
   tile.className = 'video-tile';
@@ -15047,8 +15641,9 @@ function vcAddVideo(peerId, stream, name) {
   grid.appendChild(tile);
 
   // Host-focus mode: participants only see the host's video + their own local tile.
-  // The host peer ID always ends with '-host'. Non-host peers are hidden.
-  var isPeerHost = peerId.endsWith('-host');
+  // Non-host peers are hidden. (Matched against this room's host id exactly:
+  // anybody can pick an id that merely ENDS in "-host".)
+  var isPeerHost = peerId === vcHostPeerId();
 
   // Always mark host tiles for priority display and host-only view mode
   if (isPeerHost) {
@@ -15133,7 +15728,7 @@ function vcUpdateParticipants() {
   var count = Object.keys(peerNames).length + 1;
   if(title) title.textContent = 'Participants (' + count + ')';
 
-  var canControl = isRoomHost || vcCoHosts[rtcPeer ? rtcPeer.id : ''];
+  var canControl = isRoomHost || vcIsCoHost;
 
   // Build self entry
   var html = '<div class="vc-participant-item" style="border-color:var(--accent);">' +
@@ -15158,8 +15753,9 @@ function vcUpdateParticipants() {
     html += '</span>';
     html += '<span class="p-role">' + escapeHtml(role) + (isMuted ? ' &bull; muted' : '') + '</span>';
 
-    // Show action buttons only if current user can control
-    if(canControl) {
+    // Show action buttons only if current user can control (a co-host has no
+    // buttons against the host)
+    if(canControl && pid !== vcHostPeerId()) {
       html += '<span class="p-actions">';
       // Mute / Unmute mic
       if(isMuted) {
@@ -15169,10 +15765,10 @@ function vcUpdateParticipants() {
       }
       // Turn off camera
       html += '<button class="p-action-btn" onclick="vcTurnOffParticipantCam(' + safePid + ')" title="Turn off camera">&#x1F4F7;</button>';
-      // Promote / Demote co-host
-      if(isCoHost) {
+      // Promote / Demote co-host (the host alone appoints co-hosts)
+      if(isRoomHost && isCoHost) {
         html += '<button class="p-action-btn is-host" onclick="vcDemoteHost(' + safePid + ')" title="Remove host privileges">&#x1F451;</button>';
-      } else {
+      } else if(isRoomHost) {
         html += '<button class="p-action-btn" onclick="vcPromoteToHost(' + safePid + ')" title="Give host privileges">&#x1F451;</button>';
       }
       // Kick
@@ -15194,6 +15790,10 @@ function vcToggleMic() {
       localStream = stream;
       var btn = document.getElementById('vc-mic-btn');
       if(btn) btn.classList.add('active');
+      // The calls were set up without a microphone: call again with it, or
+      // nobody would ever hear this person.
+      vcResendLocalMedia();
+      vcRecordingAddStream(localStream);
       showToast('Microphone connected');
     }).catch(function(err) {
       showToast('Could not access microphone: ' + (err.name === 'NotAllowedError' ? 'Permission denied' : err.message));
@@ -15207,6 +15807,8 @@ function vcToggleMic() {
     navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(audioStream) {
       audioStream.getAudioTracks().forEach(function(t) { localStream.addTrack(t); });
       if(btn) btn.classList.add('active');
+      vcResendLocalMedia();
+      vcRecordingAddStream(localStream);
       showToast('Microphone connected');
     }).catch(function(err) {
       showToast('Could not access microphone');
@@ -15223,10 +15825,12 @@ function vcToggleCam() {
 
   if(!localStream) {
     // Try to acquire video if we don't have a stream yet
-    navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'},audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream) {
+    navigator.mediaDevices.getUserMedia({video:vcVideoConstraints(),audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream) {
       localStream = stream;
       if(lv) { lv.srcObject = localStream; lv.style.opacity = '1'; lv.play().catch(function(){}); }
       if(btn) btn.classList.add('active');
+      vcResendLocalMedia();
+      vcRecordingAddStream(localStream);
       showToast('Camera connected');
     }).catch(function(err) {
       showToast('Could not access camera: ' + (err.name === 'NotAllowedError' ? 'Permission denied' : err.message));
@@ -15251,7 +15855,7 @@ function vcToggleCam() {
     showToast('Camera off');
   } else {
     // Camera is off — re-acquire a new video track
-    navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'}}).then(function(vidStream) {
+    navigator.mediaDevices.getUserMedia({video:vcVideoConstraints()}).then(function(vidStream) {
       var newTrack = vidStream.getVideoTracks()[0];
       localStream.addTrack(newTrack);
       if(!screenStream) {
@@ -15269,7 +15873,7 @@ function vcToggleCam() {
 
 async function vcToggleScreen() {
   // Non-host participants need host permission to screen share
-  if(!isRoomHost && !vcCoHosts[rtcPeer ? rtcPeer.id : ''] && !vcHostPermissions.screenShare && !screenStream) {
+  if(!isRoomHost && !vcIsCoHost && !vcHostPermissions.screenShare && !screenStream) {
     showToast('Screen sharing requires host permission');
     return;
   }
@@ -15304,6 +15908,8 @@ async function vcToggleScreen() {
     btn.classList.add('active');
     var sTrack = screenStream.getVideoTracks()[0];
     vcReplaceVideoTrackForAll(sTrack);
+    // A tab shared with its sound belongs on the recording too.
+    vcRecordingAddStream(screenStream);
     // If the shared surface carries audio (e.g. a video tab), mix it with the
     // microphone and send the combined track so remote participants hear it.
     vcSetupScreenAudioMix();
@@ -15370,14 +15976,30 @@ function vcGetPeerConnection(mc) {
   return (pc && pc.getSenders) ? pc : null;
 }
 
+// The video sender of a connection — including one whose camera was switched
+// off earlier (its track is empty but it is still set up to send), so that
+// switching the camera back on reuses it instead of calling again.
+function vcVideoSender(pc) {
+  var s = pc.getSenders().find(function(x){ return x.track && x.track.kind === 'video'; });
+  if (s || !pc.getTransceivers) return s || null;
+  var t = pc.getTransceivers().find(function (x) {
+    var kind = x.receiver && x.receiver.track && x.receiver.track.kind;
+    var dir = x.currentDirection || x.direction || '';
+    return kind === 'video' && !x.stopped && /send/.test(dir);
+  });
+  return t ? t.sender : null;
+}
+
 // Helper: Replace video track in all peer media connections.
 // Passing null clears the outgoing video (peers see a blank tile instead of a
 // frozen last frame) without tearing down the connection.
 function vcReplaceVideoTrackForAll(newTrack) {
   Object.keys(peerConnections).forEach(function(pid) {
+    // Trainees send their picture to the host only (CESTISCore.vcRoom.mediaPlan).
+    if (!vcMediaPlanFor(pid).sendVideo) return;
     var pc = vcGetPeerConnection(peerConnections[pid].media);
     if(pc) {
-      var sender = pc.getSenders().find(function(s){return s.track && s.track.kind==='video';});
+      var sender = vcVideoSender(pc);
       if(sender) {
         sender.replaceTrack(newTrack).catch(function(err) {
           console.warn('Failed to replace video track for', pid, err);
@@ -15412,31 +16034,33 @@ function vcReplaceAudioTrackForAll(newTrack) {
 
 // Fallback: Close existing media call and re-establish with a stream that includes the new track
 function vcReCallPeerWithScreen(peerId, videoTrack) {
-  if(!rtcPeer || rtcPeer.destroyed) return;
   // Build a stream with the new video track + local audio
   var newStream = new MediaStream();
   newStream.addTrack(videoTrack);
   if(localStream) {
     localStream.getAudioTracks().forEach(function(t) { newStream.addTrack(t); });
   }
-  // Close old media connection
-  if(peerConnections[peerId] && peerConnections[peerId].media) {
-    try { peerConnections[peerId].media.close(); } catch(e) {}
-  }
-  // Re-call the peer with the screen stream
-  var call = rtcPeer.call(peerId, newStream);
+  vcReCallPeer(peerId, newStream);
+}
+
+// Replace the media call with a peer by a new one carrying `stream`.
+function vcReCallPeer(peerId, stream) {
+  if(!rtcPeer || rtcPeer.destroyed) return;
+  var prev = peerConnections[peerId] && peerConnections[peerId].media;
+  var call = rtcPeer.call(peerId, stream, vcCallOptions(peerId));
   if(!call) return;
-  call.on('stream', function(rs) {
-    if(!peerConnections[peerId]) peerConnections[peerId] = {};
-    peerConnections[peerId].media = call;
-    peerConnections[peerId].stream = rs;
-    vcAddVideo(peerId, rs, peerNames[peerId] || 'Participant');
-  });
-  call.on('close', function() { vcRemoveVideo(peerId); });
-  call.on('error', function(err) { console.warn('Re-call to', peerId, 'failed:', err); });
-  // Update local reference
   if(!peerConnections[peerId]) peerConnections[peerId] = {};
   peerConnections[peerId].media = call;
+  if(prev && prev !== call) { try { prev.close(); } catch(e) {} }
+  vcWireMediaCall(call, peerId, peerNames[peerId] || 'Participant');
+}
+
+// A microphone or camera that arrived after the calls were set up: call
+// everyone again with it (a connection set up without it cannot carry it).
+function vcResendLocalMedia() {
+  Object.keys(peerConnections).forEach(function (pid) {
+    if (peerConnections[pid] && peerConnections[pid].media) vcReCallPeer(pid, vcOutgoingStream(pid));
+  });
 }
 
 // Helper: Broadcast data message to all connected peers
@@ -15456,7 +16080,7 @@ function vcEnterScreenShareView(sharingPeerId) {
   // In host-focus mode, participants can only see the host tile. If a non-host
   // participant shares their screen, their tile is hidden anyway — skip the
   // layout change so the host tile remains visible.
-  if (!sharingPeerId.endsWith('-host')) return;
+  if (sharingPeerId !== vcHostPeerId()) return;
   vcScreenSharingPeerId = sharingPeerId;
   var grid = document.getElementById('vc-video-grid');
   if (!grid) return;
@@ -15550,7 +16174,7 @@ function vcGetSupportedMimeType() {
 
 function vcToggleRecord() {
   // Non-host participants need host permission to record
-  if(!isRoomHost && !vcCoHosts[rtcPeer ? rtcPeer.id : ''] && !vcHostPermissions.recording && !vcIsRecording) {
+  if(!isRoomHost && !vcIsCoHost && !vcHostPermissions.recording && !vcIsRecording) {
     showToast('Recording requires host permission');
     return;
   }
@@ -15561,61 +16185,131 @@ function vcToggleRecord() {
   }
 }
 
+// A recording used to be wired up once, at the moment Record was pressed: an
+// instructor still muted then was never heard on it, a trainee who joined
+// later was never heard, and the picture froze on the camera's last frame
+// once the camera was switched off or the slides were shared. Now:
+//   - every voice is mixed in as it arrives (vcRecordingAddStream), muted or
+//     not — a muted microphone is simply silence until it is unmuted;
+//   - the picture is drawn, frame by frame, from whatever is on stage now
+//     (the shared screen, else the camera) into a canvas that is recorded;
+//   - every few seconds what has been recorded so far is also put in this
+//     browser's own storage, so a crash or a closed tab leaves a recording
+//     that can be recovered from the room's lobby (vcOfferRecordingRecovery).
+var vcRecMixDest = null;        // where every voice is mixed for the recording
+var vcRecMixed = {};            // audio track ids already wired in
+var vcRecDrawTimer = null;
+var vcRecId = null;             // this recording's id in the safety store
+var vcRecSeq = 0;
+var vcRecMeta = null;           // { code, title } of the class being recorded
+var vcRecStoreFailed = false;
+
+// Mix every voice in a stream into the running recording (once per track).
+function vcRecordingAddStream(stream) {
+  if (!vcIsRecording || !vcRecordingAudioCtx || !vcRecMixDest || !stream) return;
+  try {
+    stream.getAudioTracks().forEach(function (track) {
+      if (vcRecMixed[track.id]) return;
+      vcRecMixed[track.id] = true;
+      var source = vcRecordingAudioCtx.createMediaStreamSource(new MediaStream([track]));
+      source.connect(vcRecMixDest);
+    });
+  } catch (e) { console.warn('[Recording] could not add a voice:', e); }
+}
+
+// The picture for the recording: whatever the class is looking at now.
+function vcRecordingStageTrack() {
+  function live(s) {
+    var t = s && s.getVideoTracks().filter(function (x) { return x.readyState === 'live' && x.enabled !== false; })[0];
+    return t || null;
+  }
+  return live(screenStream) ||
+    (!isRoomHost && peerConnections[vcHostPeerId()] ? live(peerConnections[vcHostPeerId()].stream) : null) ||
+    live(localStream);
+}
+function vcStartRecordingCanvas() {
+  var canvas = document.createElement('canvas');
+  if (!canvas.captureStream) return null;
+  canvas.width = 1280; canvas.height = 720;
+  var ctx = canvas.getContext('2d');
+  var vid = document.createElement('video');
+  vid.muted = true; vid.playsInline = true; vid.setAttribute('playsinline', '');
+  var current = null;
+  function draw() {
+    var track = vcRecordingStageTrack();
+    if (track !== current) {
+      current = track;
+      vid.srcObject = track ? new MediaStream([track]) : null;
+      if (track) vid.play().catch(function () {});
+    }
+    ctx.fillStyle = '#0c1117';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (track && vid.videoWidth) {
+      var scale = Math.min(canvas.width / vid.videoWidth, canvas.height / vid.videoHeight);
+      var w = vid.videoWidth * scale, h = vid.videoHeight * scale;
+      try { ctx.drawImage(vid, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h); } catch (e) {}
+    } else {
+      ctx.fillStyle = '#e8edf3';
+      ctx.font = '28px DM Sans, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText((vcCurrentRoomTitle || 'Class') + ' — camera off', canvas.width / 2, canvas.height / 2);
+    }
+  }
+  draw();
+  vcRecDrawTimer = setInterval(draw, 1000 / 15);
+  return canvas.captureStream(15);
+}
+
 function vcStartRecording() {
   try {
-    // Create a combined stream: local video + mixed audio from all sources
-    vcRecordingAudioCtx = new AudioContext();
-    var destination = vcRecordingAudioCtx.createMediaStreamDestination();
-
-    // Add local audio
-    if (localStream) {
-      localStream.getAudioTracks().forEach(function(track) {
-        if (track.enabled) {
-          var source = vcRecordingAudioCtx.createMediaStreamSource(new MediaStream([track]));
-          source.connect(destination);
-        }
-      });
-    }
-
-    // Add remote audio from all peers
-    Object.keys(peerConnections).forEach(function(pid) {
-      var stream = peerConnections[pid].stream;
-      if (stream) {
-        stream.getAudioTracks().forEach(function(track) {
-          var source = vcRecordingAudioCtx.createMediaStreamSource(new MediaStream([track]));
-          source.connect(destination);
-        });
-      }
-    });
-
-    // Build combined stream: video from screen share or local camera + mixed audio
-    var videoSource = screenStream || localStream;
-    var combinedStream = new MediaStream();
-
-    if (videoSource) {
-      videoSource.getVideoTracks().forEach(function(t) { combinedStream.addTrack(t); });
-    }
-    destination.stream.getAudioTracks().forEach(function(t) { combinedStream.addTrack(t); });
-
     var mimeType = vcGetSupportedMimeType();
     if (!mimeType) {
       alert('Your browser does not support video recording.');
       return;
     }
+    // Create a combined stream: the stage picture + every voice in the room
+    vcRecordingAudioCtx = new AudioContext();
+    vcRecMixDest = vcRecordingAudioCtx.createMediaStreamDestination();
+    vcRecMixed = {};
+    vcIsRecording = true;
+    if (localStream) vcRecordingAddStream(localStream);
+    if (screenStream) vcRecordingAddStream(screenStream);
+    Object.keys(peerConnections).forEach(function(pid) {
+      if (peerConnections[pid] && peerConnections[pid].stream) vcRecordingAddStream(peerConnections[pid].stream);
+    });
+
+    var combinedStream = new MediaStream();
+    var stage = vcStartRecordingCanvas();
+    if (stage) {
+      stage.getVideoTracks().forEach(function(t) { combinedStream.addTrack(t); });
+    } else {
+      // No canvas recording in this browser: record the camera or screen as before.
+      var videoSource = screenStream || localStream;
+      if (videoSource) videoSource.getVideoTracks().forEach(function(t) { combinedStream.addTrack(t); });
+    }
+    vcRecMixDest.stream.getAudioTracks().forEach(function(t) { combinedStream.addTrack(t); });
 
     vcMediaRecorder = new MediaRecorder(combinedStream, { mimeType: mimeType });
     vcRecordedChunks = [];
+    vcRecMeta = { code: currentRoomCode, title: vcCurrentRoomTitle };
+    vcRecId = 'rec-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+    vcRecSeq = 0;
+    vcRecStoreFailed = false;
+    vcRecStoreBegin({ id: vcRecId, code: currentRoomCode, title: vcCurrentRoomTitle, mimeType: mimeType,
+      startedAt: new Date().toISOString() });
 
     vcMediaRecorder.ondataavailable = function(e) {
-      if (e.data.size > 0) vcRecordedChunks.push(e.data);
+      if (e.data && e.data.size > 0) {
+        vcRecordedChunks.push(e.data);
+        vcRecStoreChunk(vcRecId, vcRecSeq++, e.data);
+      }
     };
 
     vcMediaRecorder.onstop = function() {
       vcOnRecordingComplete();
     };
 
-    vcMediaRecorder.start(1000);
-    vcIsRecording = true;
+    vcMediaRecorder.start(4000);
     vcRecordingStartTime = new Date();
 
     // Update button UI
@@ -15635,9 +16329,15 @@ function vcStartRecording() {
       if (el) el.textContent = 'REC ' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
     }, 1000);
 
+    // Everyone in the room is told they are being recorded — many trainees
+    // are minors, and nobody should be recorded without knowing it.
+    vcBroadcastData({type:'recording', on:true, by:vcCurrentUserName});
+
     showToast('Recording started');
   } catch(err) {
     console.error('Failed to start recording:', err);
+    vcIsRecording = false;
+    if (vcRecDrawTimer) { clearInterval(vcRecDrawTimer); vcRecDrawTimer = null; }
     alert('Failed to start recording: ' + err.message);
   }
 }
@@ -15648,7 +16348,10 @@ function vcStopRecording() {
   }
   vcIsRecording = false;
   if (vcRecTimerInterval) { clearInterval(vcRecTimerInterval); vcRecTimerInterval = null; }
+  if (vcRecDrawTimer) { clearInterval(vcRecDrawTimer); vcRecDrawTimer = null; }
   if (vcRecordingAudioCtx) { try { vcRecordingAudioCtx.close(); } catch(e){} vcRecordingAudioCtx = null; }
+  vcRecMixDest = null; vcRecMixed = {};
+  try { vcBroadcastData({type:'recording', on:false, by:vcCurrentUserName}); } catch(e) {}
 
   // Update button UI
   var btn = document.getElementById('vc-rec-btn');
@@ -15661,6 +16364,22 @@ function vcStopRecording() {
   showToast('Recording stopped — processing...');
 }
 
+// Closing the tab mid-recording loses whatever the safety copy has not caught
+// yet: ask first.
+window.addEventListener('beforeunload', function (e) {
+  if (vcIsRecording) { e.preventDefault(); e.returnValue = ''; return ''; }
+});
+
+// The red "being recorded" strip everyone in the room sees.
+function vcRefreshRecordingBanner() {
+  var el = document.getElementById('vc-rec-banner');
+  if (!el) return;
+  var names = Object.keys(vcRemoteRecorders).map(function (id) { return vcRemoteRecorders[id]; });
+  if (!names.length) { el.style.display = 'none'; el.textContent = ''; return; }
+  el.textContent = '● REC — ' + names.join(', ') + (names.length > 1 ? ' are' : ' is') + ' recording this class';
+  el.style.display = 'block';
+}
+
 function vcOnRecordingComplete() {
   if (vcRecordedChunks.length === 0) return;
 
@@ -15668,12 +16387,125 @@ function vcOnRecordingComplete() {
   var blob = new Blob(vcRecordedChunks, { type: mimeType });
   var ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
   var dateStr = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-  var fileName = 'CESTIS_Recording_' + (currentRoomCode || 'session') + '_' + dateStr + '.' + ext;
+  var code = (vcRecMeta && vcRecMeta.code) || currentRoomCode;
+  var fileName = 'CESTIS_Recording_' + (code || 'session') + '_' + dateStr + '.' + ext;
 
   vcRecordedChunks = [];
 
   // Show save modal
   vcShowRecordingSaveModal(blob, fileName);
+  if (window._vcPendingRecording) {
+    window._vcPendingRecording.recId = vcRecId;
+    window._vcPendingRecording.code = code;
+  }
+  vcRecId = null;
+}
+
+// ── The recording safety store ──
+// Its own small database, apart from the Centre's records: chunks are only
+// ever added while recording, and removed only once the recording has been
+// downloaded, uploaded or deliberately discarded.
+var VC_REC_DB = 'cestis-vc-recordings';
+var vcRecDbPromise = null;
+function vcRecDbOpen() {
+  if (vcRecDbPromise) return vcRecDbPromise;
+  vcRecDbPromise = new Promise(function (resolve, reject) {
+    if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
+    var req = indexedDB.open(VC_REC_DB, 1);
+    req.onupgradeneeded = function () {
+      var db = req.result;
+      if (!db.objectStoreNames.contains('recs')) db.createObjectStore('recs', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('chunks')) db.createObjectStore('chunks', { keyPath: ['rec', 'seq'] });
+    };
+    req.onsuccess = function () { resolve(req.result); };
+    req.onerror = function () { reject(req.error); };
+  });
+  vcRecDbPromise.catch(function () { vcRecDbPromise = null; });
+  return vcRecDbPromise;
+}
+function vcRecTx(stores, mode, work) {
+  return vcRecDbOpen().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(stores, mode);
+      var result = work(tx);
+      tx.oncomplete = function () { resolve(result && result.__value !== undefined ? result.__value : result); };
+      tx.onerror = function () { reject(tx.error); };
+      tx.onabort = function () { reject(tx.error); };
+    });
+  });
+}
+function vcRecStoreBegin(meta) {
+  vcRecTx(['recs'], 'readwrite', function (tx) { tx.objectStore('recs').put(meta); })
+    .catch(function (e) { vcRecStoreFailed = true; console.warn('[Recording] no safety copy on this device:', e); });
+}
+function vcRecStoreChunk(id, seq, blob) {
+  if (!id || vcRecStoreFailed) return;
+  vcRecTx(['chunks'], 'readwrite', function (tx) { tx.objectStore('chunks').put({ rec: id, seq: seq, blob: blob }); })
+    .catch(function (e) {
+      if (vcRecStoreFailed) return;
+      vcRecStoreFailed = true;
+      console.warn('[Recording] safety copy stopped:', e);
+      try { showToast('This device has no room left for a safety copy of the recording — it is still recording; save it when you stop.', 'warning'); } catch (x) {}
+    });
+}
+function vcRecForget(id) {
+  if (!id) return Promise.resolve();
+  return vcRecTx(['recs', 'chunks'], 'readwrite', function (tx) {
+    tx.objectStore('recs').delete(id);
+    tx.objectStore('chunks').delete(IDBKeyRange.bound([id, 0], [id, Infinity]));
+  }).catch(function () {});
+}
+function vcRecList() {
+  return vcRecTx(['recs'], 'readonly', function (tx) {
+    var box = { __value: [] };
+    var req = tx.objectStore('recs').getAll();
+    req.onsuccess = function () { box.__value = req.result || []; };
+    return box;
+  });
+}
+function vcRecAssemble(id) {
+  return vcRecTx(['recs', 'chunks'], 'readonly', function (tx) {
+    var box = { __value: null };
+    var meta = null;
+    tx.objectStore('recs').get(id).onsuccess = function (e) { meta = e.target.result; };
+    var req = tx.objectStore('chunks').getAll(IDBKeyRange.bound([id, 0], [id, Infinity]));
+    req.onsuccess = function () {
+      var rows = (req.result || []).sort(function (a, b) { return a.seq - b.seq; });
+      box.__value = { meta: meta, blob: rows.length ? new Blob(rows.map(function (r) { return r.blob; }), { type: (meta && meta.mimeType) || 'video/webm' }) : null };
+    };
+    return box;
+  });
+}
+
+// Offer back any recording that was cut off before it could be saved.
+function vcOfferRecordingRecovery() {
+  var slot = document.getElementById('vc-rec-recovery');
+  if (!slot || !window.indexedDB) return;
+  vcRecList().then(function (list) {
+    list = (list || []).filter(function (r) { return r && r.id !== vcRecId; });
+    if (!list.length) { slot.innerHTML = ''; return; }
+    slot.innerHTML = list.map(function (r) {
+      var when = r.startedAt ? new Date(r.startedAt).toLocaleString() : '';
+      return '<div style="margin:12px auto;max-width:560px;border:1px solid var(--amber);border-radius:var(--radius);padding:12px;font-size:13px;">' +
+        '<div style="font-weight:600;margin-bottom:4px;">A class recording was not saved</div>' +
+        '<div style="color:var(--text-muted);margin-bottom:8px;">' + escapeHtml((r.title || 'Class') + (r.code ? ' · room ' + r.code : '') + (when ? ' · ' + when : '')) +
+        ' — the page closed while it was recording. What was recorded up to then is kept on this device.</div>' +
+        '<button class="btn btn-primary btn-sm" onclick="vcRecoverRecording(' + jsArg(r.id) + ')">Download it</button> ' +
+        '<button class="btn btn-secondary btn-sm" onclick="if(confirm(\'Delete this unsaved recording for good?\'))vcRecForget(' + jsArg(r.id) + ').then(vcOfferRecordingRecovery)">Discard</button>' +
+        '</div>';
+    }).join('');
+  }).catch(function () {});
+}
+function vcRecoverRecording(id) {
+  vcRecAssemble(id).then(function (got) {
+    if (!got || !got.blob) { showToast('Nothing could be recovered from that recording'); vcRecForget(id).then(vcOfferRecordingRecovery); return; }
+    var meta = got.meta || {};
+    var ext = /mp4/.test(got.blob.type) ? 'mp4' : 'webm';
+    var stamp = (meta.startedAt || new Date().toISOString()).replace(/[:.]/g, '-').substring(0, 19);
+    var fileName = 'CESTIS_Recording_' + (meta.code || 'session') + '_' + stamp + '_recovered.' + ext;
+    vcShowRecordingSaveModal(got.blob, fileName);
+    if (window._vcPendingRecording) { window._vcPendingRecording.recId = id; window._vcPendingRecording.code = meta.code || ''; }
+  }).catch(function (e) { showToast('Could not read the unsaved recording: ' + (e && e.message || e)); });
 }
 
 function vcShowRecordingSaveModal(blob, fileName) {
@@ -15686,7 +16518,7 @@ function vcShowRecordingSaveModal(blob, fileName) {
     '<div style="background:var(--bg-secondary);border-radius:var(--radius);padding:14px;margin-bottom:16px;">' +
     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
     '<span style="font-size:1.5rem;">🎬</span>' +
-    '<div><div style="font-weight:600;font-size:0.9rem;">' + fileName + '</div>' +
+    '<div><div style="font-weight:600;font-size:0.9rem;">' + escapeHtml(fileName) + '</div>' +
     '<div style="font-size:0.8rem;color:var(--text-muted);">Size: ' + sizeMB + ' MB</div></div></div></div>' +
     (cloudAvailable ?
       '<button class="btn btn-primary" onclick="vcUploadRecordingToDrive()" style="width:100%;margin-bottom:8px;padding:10px;">☁️ Save to Google Drive</button>' : '') +
@@ -15700,6 +16532,9 @@ function vcShowRecordingSaveModal(blob, fileName) {
 }
 
 function vcDismissRecording() {
+  var rec = window._vcPendingRecording;
+  // Discard is a deliberate choice: the safety copy goes too.
+  if (rec && rec.recId) vcRecForget(rec.recId);
   window._vcPendingRecording = null;
   var modal = document.getElementById('vcRecSaveModal');
   if (modal) modal.remove();
@@ -15722,6 +16557,52 @@ function vcDownloadRecording() {
   vcDismissRecording();
 }
 
+// Upload to Google Drive in pieces (Drive's "resumable" upload). A class
+// recording is hundreds of megabytes; sent in one request, any hiccup meant
+// starting again from nothing. Each 8 MB piece is retried on its own.
+async function vcDriveResumableUpload(blob, metadata) {
+  var start = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,webViewLink', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + googleAccessToken,
+      'Content-Type': 'application/json; charset=UTF-8',
+      'X-Upload-Content-Type': blob.type || 'video/webm',
+      'X-Upload-Content-Length': String(blob.size)
+    },
+    body: JSON.stringify(metadata)
+  });
+  if (!start.ok) {
+    var e0 = null; try { e0 = await start.json(); } catch (x) {}
+    var err0 = new Error((e0 && e0.error && e0.error.message) || 'Upload failed'); err0.status = start.status; throw err0;
+  }
+  var session = start.headers.get('Location');
+  if (!session) return null;            // the caller falls back to a single request
+  var CHUNK = 8 * 1024 * 1024;          // a multiple of 256 KB, as Drive requires
+  var offset = 0, total = blob.size;
+  while (offset < total) {
+    var end = Math.min(offset + CHUNK, total);
+    var tries = 0, res = null;
+    while (true) {
+      try {
+        res = await fetch(session, { method: 'PUT', headers: { 'Content-Range': 'bytes ' + offset + '-' + (end - 1) + '/' + total }, body: blob.slice(offset, end) });
+      } catch (netErr) { res = null; }
+      if (res && (res.ok || res.status === 308)) break;
+      if (res && res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+        var e1 = null; try { e1 = await res.json(); } catch (x) {}
+        var err1 = new Error((e1 && e1.error && e1.error.message) || 'Upload failed'); err1.status = res.status; throw err1;
+      }
+      if (++tries > 4) throw new Error('The connection kept dropping during the upload');
+      await new Promise(function (r) { setTimeout(r, CESTISCore.vcRoom.backoffDelay(tries, Math.random())); });
+    }
+    if (res.ok) return await res.json();
+    // 308: Drive says how much it has; carry on from there.
+    var range = res.headers.get('Range');
+    var m = range && /bytes=0-(\d+)/.exec(range);
+    offset = m ? Number(m[1]) + 1 : end;
+  }
+  return null;
+}
+
 async function vcUploadRecordingToDrive() {
   var rec = window._vcPendingRecording;
   if (!rec) return;
@@ -15739,30 +16620,44 @@ async function vcUploadRecordingToDrive() {
       mimeType: rec.blob.type || 'video/webm'
     };
 
-    var formData = new FormData();
-    formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    formData.append('file', rec.blob);
+    var result = await vcDriveResumableUpload(rec.blob, metadata);
+    if (!result) {
+      var formData = new FormData();
+      formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      formData.append('file', rec.blob);
 
-    var response = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
-      {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + googleAccessToken },
-        body: formData
+      var response = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+        {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + googleAccessToken },
+          body: formData
+        }
+      );
+
+      if (!response.ok) {
+        var errData = await response.json();
+        var upErr = new Error(errData.error?.message || 'Upload failed');
+        upErr.status = response.status;
+        throw upErr;
       }
-    );
-
-    if (!response.ok) {
-      var errData = await response.json();
-      var upErr = new Error(errData.error?.message || 'Upload failed');
-      upErr.status = response.status;
-      throw upErr;
+      result = await response.json();
     }
 
-    var result = await response.json();
+    // Link it to its class session, so trainees find it under Past
+    // Recordings instead of the link living only in this alert box.
+    var linked = null;
+    if (result.webViewLink && rec.code) {
+      linked = CESTISCore.vcRoom.attachRecording(classSessions, rec.code,
+        { url: result.webViewLink, fileId: result.id, name: result.name },
+        new Date().toISOString(), localDateStr());
+      if (linked) { try { saveState(); } catch(e) {} }
+    }
     alert('✅ Recording uploaded to Google Drive!\n\nFile: ' + result.name +
-      (result.webViewLink ? '\n\n🔗 Share this link with students:\n' + result.webViewLink : ''));
+      (linked ? '\n\nIt is linked to the class "' + (linked.name || linked.course || '') + '" — trainees will find it under Past Recordings once the class has ended.' : '') +
+      (result.webViewLink ? '\n\n🔗 ' + (linked ? 'Link' : 'Share this link with students') + ':\n' + result.webViewLink : ''));
     showToast('Recording saved to Google Drive');
+    if (rec.recId) vcRecForget(rec.recId);
     window._vcPendingRecording = null;
 
   } catch (err) {
@@ -15831,10 +16726,34 @@ function sendChatMsg(role, sender) {
   input.value = '';
 }
 
+// ── Host controls ──
+// Participants obey these only from the host's own connection (vcOnData), so
+// a co-host's button asks the host's device to carry the action out.
+function vcHostAction(action, peerId) {
+  if (isRoomHost) { vcDoHostAction(action, peerId); return; }
+  if (!vcIsCoHost) return;
+  var hc = dataConnections[vcHostPeerId()];
+  if (hc && hc.open) hc.send(JSON.stringify({type:'cohost-action', action:action, peerId:peerId}));
+  showToast('Sent to the host’s device');
+}
+function vcDoHostAction(action, peerId) {
+  if (!isRoomHost) return;
+  if (peerId && (peerId === vcHostPeerId() || (rtcPeer && peerId === rtcPeer.id))) return;   // never at the host itself
+  if (action === 'kick') vcDoKick(peerId);
+  else if (action === 'mute') vcDoMute(peerId);
+  else if (action === 'unmute') vcDoUnmute(peerId);
+  else if (action === 'cam-off') vcDoCamOff(peerId);
+  else if (action === 'mute-all') vcDoMuteAll();
+}
+
 // ── Host Control: Remove Participant (Kick) ──
 function vcKickParticipant(peerId) {
   var name = peerNames[peerId] || 'Participant';
   if(!confirm('Remove ' + name + ' from the meeting?')) return;
+  vcHostAction('kick', peerId);
+}
+function vcDoKick(peerId) {
+  var name = peerNames[peerId] || 'Participant';
   // Send kick message to the target
   if(dataConnections[peerId] && dataConnections[peerId].open) {
     dataConnections[peerId].send(JSON.stringify({type:'kick'}));
@@ -15844,19 +16763,27 @@ function vcKickParticipant(peerId) {
     if(id !== peerId && dataConnections[id] && dataConnections[id].open)
       dataConnections[id].send(JSON.stringify({type:'peer-kicked', peerId:peerId, name:name}));
   });
+  // Removed means removed: the same device, or the same account under a
+  // new connection, is turned away if it tries to come straight back.
+  vcRefusedPeers[peerId] = true;
+  if (vcPeerUids[peerId]) vcKickedUids[vcPeerUids[peerId]] = true;
+  delete vcAdmitted[peerId];
   // Close the connection locally
-  if(peerConnections[peerId]) {
-    if(peerConnections[peerId].media) peerConnections[peerId].media.close();
-    if(peerConnections[peerId].data) peerConnections[peerId].data.close();
+  var pcs = peerConnections[peerId];
+  delete peerConnections[peerId]; delete dataConnections[peerId];
+  if(pcs) {
+    if(pcs.media) { try { pcs.media.close(); } catch(e) {} }
+    if(pcs.data) { var _d = pcs.data; setTimeout(function () { try { _d.close(); } catch(e) {} }, 400); }
   }
   vcRemoveVideo(peerId);
-  delete peerConnections[peerId]; delete dataConnections[peerId]; delete peerNames[peerId]; delete peerRoles[peerId]; delete mutedPeers[peerId]; delete vcCoHosts[peerId];
+  delete peerNames[peerId]; delete peerRoles[peerId]; delete mutedPeers[peerId]; delete vcCoHosts[peerId];
   vcUpdateParticipants();
   showToast(name + ' has been removed from the meeting');
 }
 
 // ── Host Control: Mute Individual Participant ──
-function vcMuteParticipant(peerId) {
+function vcMuteParticipant(peerId) { vcHostAction('mute', peerId); }
+function vcDoMute(peerId) {
   if(dataConnections[peerId] && dataConnections[peerId].open) {
     dataConnections[peerId].send(JSON.stringify({type:'force-mute'}));
   }
@@ -15871,7 +16798,8 @@ function vcMuteParticipant(peerId) {
 }
 
 // ── Host Control: Unmute Individual Participant ──
-function vcUnmuteParticipant(peerId) {
+function vcUnmuteParticipant(peerId) { vcHostAction('unmute', peerId); }
+function vcDoUnmute(peerId) {
   if(dataConnections[peerId] && dataConnections[peerId].open) {
     dataConnections[peerId].send(JSON.stringify({type:'force-unmute'}));
   }
@@ -15886,7 +16814,8 @@ function vcUnmuteParticipant(peerId) {
 }
 
 // ── Host Control: Mute All Participants ──
-function vcMuteAll() {
+function vcMuteAll() { vcHostAction('mute-all', ''); }
+function vcDoMuteAll() {
   Object.keys(dataConnections).forEach(function(pid) {
     if(dataConnections[pid] && dataConnections[pid].open) {
       dataConnections[pid].send(JSON.stringify({type:'mute-all'}));
@@ -15898,7 +16827,8 @@ function vcMuteAll() {
 }
 
 // ── Host Control: Turn Off Participant's Camera ──
-function vcTurnOffParticipantCam(peerId) {
+function vcTurnOffParticipantCam(peerId) { vcHostAction('cam-off', peerId); }
+function vcDoCamOff(peerId) {
   if(dataConnections[peerId] && dataConnections[peerId].open) {
     dataConnections[peerId].send(JSON.stringify({type:'force-cam-off'}));
   }
@@ -15906,24 +16836,29 @@ function vcTurnOffParticipantCam(peerId) {
 }
 
 // ── Host Control: Promote Participant to Co-Host ──
+// Only the host appoints co-hosts, and it tells the whole room who they are.
 function vcPromoteToHost(peerId) {
+  if (!isRoomHost) return;
   var name = peerNames[peerId] || 'Participant';
   if(!confirm('Give host privileges to ' + name + '?')) return;
   vcCoHosts[peerId] = true;
   if(dataConnections[peerId] && dataConnections[peerId].open) {
     dataConnections[peerId].send(JSON.stringify({type:'promote-host', by:vcCurrentUserName}));
   }
+  vcBroadcastData({type:'cohost', peerId:peerId, on:true});
   vcUpdateParticipants();
   showToast(name + ' now has host privileges');
 }
 
 // ── Host Control: Demote Co-Host ──
 function vcDemoteHost(peerId) {
+  if (!isRoomHost) return;
   var name = peerNames[peerId] || 'Participant';
   delete vcCoHosts[peerId];
   if(dataConnections[peerId] && dataConnections[peerId].open) {
     dataConnections[peerId].send(JSON.stringify({type:'demote-host'}));
   }
+  vcBroadcastData({type:'cohost', peerId:peerId, on:false});
   vcUpdateParticipants();
   showToast(name + '\'s host privileges have been removed');
 }
@@ -15935,8 +16870,8 @@ function vcRefreshHostControls() {
   // Add or remove host-only buttons dynamically
   var existingEndAll = controls.querySelector('.vc-end-all-btn');
   var existingHostBar = document.getElementById('vc-host-bar');
-  if(isRoomHost) {
-    if(!existingEndAll) {
+  if(isRoomHost || vcIsCoHost) {
+    if(isRoomHost && !existingEndAll) {
       var endAllBtn = document.createElement('button');
       endAllBtn.className = 'vc-btn danger vc-end-all-btn';
       endAllBtn.onclick = vcEndMeetingForAll;
@@ -15961,12 +16896,15 @@ function vcInsertHostBar() {
   var bar = document.createElement('div');
   bar.id = 'vc-host-bar';
   bar.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;';
+  // Permissions are the host's to grant; a co-host gets the room controls.
   bar.innerHTML =
     '<button class="vc-host-btn warning" onclick="vcMuteAll()" title="Mute all participants">&#x1F507; Mute All</button>' +
     '<button class="vc-host-btn" onclick="vcTakeScreenshot()" title="Take meeting screenshot">&#x1F4F8; Screenshot</button>' +
-    '<span style="font-size:10px;color:var(--text-muted);margin-left:8px;">PERMISSIONS:</span>' +
-    '<button class="vc-host-btn" id="vc-perm-screen-btn" onclick="vcToggleScreenSharePermission()" title="Allow/deny participant screen sharing" style="font-size:10px;">&#x1F5A5;&#xFE0F; Screen: OFF</button>' +
-    '<button class="vc-host-btn" id="vc-perm-rec-btn" onclick="vcToggleRecordingPermission()" title="Allow/deny participant recording" style="font-size:10px;">&#x23FA;&#xFE0F; Record: OFF</button>';
+    (isRoomHost
+      ? '<span style="font-size:10px;color:var(--text-muted);margin-left:8px;">PERMISSIONS:</span>' +
+        '<button class="vc-host-btn" id="vc-perm-screen-btn" onclick="vcToggleScreenSharePermission()" title="Allow/deny participant screen sharing" style="font-size:10px;">&#x1F5A5;&#xFE0F; Screen: OFF</button>' +
+        '<button class="vc-host-btn" id="vc-perm-rec-btn" onclick="vcToggleRecordingPermission()" title="Allow/deny participant recording" style="font-size:10px;">&#x23FA;&#xFE0F; Record: OFF</button>'
+      : '');
   grid.parentElement.insertBefore(bar, grid);
 }
 
@@ -16110,6 +17048,7 @@ function vcCopyScreenshot() {
 
 // ── End Meeting for All Participants (Host only) ──
 function vcEndMeetingForAll() {
+  if (!isRoomHost) return;
   if(!confirm('Are you sure you want to end the meeting for all participants?')) return;
   // Broadcast end-meeting to all participants
   Object.keys(dataConnections).forEach(function(pid) {
@@ -16122,17 +17061,12 @@ function vcEndMeetingForAll() {
   setTimeout(function() { exitVideoRoom(vcCurrentRole); }, 500);
 }
 
-// ── Exit / Cleanup ──
-function exitVideoRoom(role) {
-  // Restore normal layout - exit fullscreen conference mode
-  document.body.classList.remove('vc-fullscreen-mode', 'vc-host-only-mode', 'vc-is-host', 'vc-show-sidepanel');
-  vcCurrentViewMode = 'fullscreen';
-
-  // Stop recording if active
-  if(vcIsRecording && vcMediaRecorder && vcMediaRecorder.state !== 'inactive') {
-    vcMediaRecorder.stop();
-  }
-  vcIsRecording = false;
+// Close every connection this device holds in the room and release the
+// camera and microphone. Shared by Exit and by leaving the page or logging out.
+function vcCloseAllConnections() {
+  vcPreviewGen++;            // a camera prompt still open is answered for nobody
+  vcPreviewPromise = null;
+  if(vcIsRecording) { try { vcStopRecording(); } catch(e) {} }
   if(vcRecordingAudioCtx) { try { vcRecordingAudioCtx.close(); } catch(e){} vcRecordingAudioCtx = null; }
   if(vcScreenAudioCtx) { try { vcScreenAudioCtx.close(); } catch(e){} vcScreenAudioCtx = null; }
   if(videoTimerInterval) clearInterval(videoTimerInterval);
@@ -16142,18 +17076,32 @@ function exitVideoRoom(role) {
   if(localStream) { localStream.getTracks().forEach(function(t){t.stop();}); localStream = null; }
   if(screenStream) { screenStream.getTracks().forEach(function(t){t.stop();}); screenStream = null; }
 
-  // Stop remote streams and close all peer connections
-  Object.keys(peerConnections).forEach(function(pid) {
-    if(peerConnections[pid].stream) {
-      peerConnections[pid].stream.getTracks().forEach(function(t){t.stop();});
-    }
-    if(peerConnections[pid].media) peerConnections[pid].media.close();
-    if(peerConnections[pid].data) peerConnections[pid].data.close();
+  // Stop remote streams and close all peer connections. The maps are emptied
+  // first, so the close events that follow know we left on purpose.
+  var pcs = peerConnections, pending = vcPendingConns;
+  vcResetRoomState();
+  Object.keys(pcs).forEach(function(pid) {
+    var c = pcs[pid] || {};
+    if(c.stream) c.stream.getTracks().forEach(function(t){ t.stop(); });
+    if(c.media) { try { c.media.close(); } catch(e) {} }
+    if(c.data) { try { c.data.close(); } catch(e) {} }
   });
-  peerConnections = {}; dataConnections = {}; peerNames = {};
-  peerRoles = {}; mutedPeers = {}; vcCoHosts = {};
+  Object.keys(pending).forEach(function(pid) { try { pending[pid].close(); } catch(e) {} });
 
-  if(rtcPeer) { rtcPeer.destroy(); rtcPeer = null; }
+  // Release the room id at once, so the host can rejoin or restart the class.
+  vcDestroyPeer();
+}
+
+// ── Exit / Cleanup ──
+function exitVideoRoom(role) {
+  // Restore normal layout - exit fullscreen conference mode
+  document.body.classList.remove('vc-fullscreen-mode', 'vc-host-only-mode', 'vc-is-host', 'vc-show-sidepanel');
+  vcCurrentViewMode = 'fullscreen';
+
+  var wasHost = isRoomHost && !!rtcPeer, code = currentRoomCode;
+  vcCloseAllConnections();
+  // The class is over once its host leaves (Rejoin marks it live again).
+  if (wasHost && code) vcMarkClassSession(code, 'completed');
   // Note: activeHostRoom is intentionally preserved here so instructors can rejoin.
   // It is only cleared when vcEndMeetingForAll() is called.
   isRoomHost = false; currentRoomCode = '';
@@ -16163,6 +17111,8 @@ function exitVideoRoom(role) {
   var container = document.getElementById(containerId);
   if(container) {
     container.querySelectorAll('video').forEach(function(v){ v.srcObject = null; });
+    // Nothing of the old room is left behind for the next one to draw into.
+    container.innerHTML = '';
   }
 
   var listId = role==='admin' ? 'videoClassList' : role==='adminstaff' ? 'asVideoContent' : role==='instructor' ? 'iVideoContent' : 'sVideoClassList';
@@ -16180,6 +17130,13 @@ function watchRecording(title, date, duration) {
 }
 
 // ============================== CLASS SESSION FUNCTIONS ==============================
+// A class session's real state (it used to read "Scheduled" for ever).
+function vcSessionStatusBadge(cs) {
+  var st = cs && cs.status;
+  if (st === 'live') return '<span class="badge badge-red"><span class="live-dot"></span>&nbsp;Live</span>';
+  if (st === 'completed') return '<span class="badge badge-green">Completed</span>' + (cs.recordingUrl ? ' <span class="badge badge-blue">Recorded</span>' : '');
+  return '<span class="badge badge-blue">Scheduled</span>';
+}
 function createClassSession() {
   const name = document.getElementById('csSessionName')?.value?.trim();
   const course = document.getElementById('csCourse')?.value;
@@ -16372,7 +17329,7 @@ function renderAdminClassSessions() {
   } else {
     container.innerHTML = classSessions.map(s => {
       const timeStr = s.time ? new Date('2000-01-01T'+s.time).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}) : s.time;
-      return '<tr><td><strong>' + escapeHtml(s.name) + '</strong></td><td>' + escapeHtml(s.createdBy||'Admin') + '</td><td>' + escapeHtml(s.date) + ' ' + escapeHtml(timeStr) + '</td><td>' + escapeHtml(s.duration) + 'min</td><td><span class="badge badge-blue">Scheduled</span>' + (s.roomCode ? '<div style="font-family:monospace;font-size:10px;color:var(--accent);margin-top:2px;">Room: '+escapeHtml(s.roomCode)+'</div>' : '') + '</td><td><button class="btn btn-sm btn-primary" onclick="enterVideoRoom('+jsArg(s.name)+',\'admin\','+jsArg(s.roomCode||'')+')" style="margin-right:6px;">Join</button><button class="btn btn-sm btn-danger" onclick="deleteClassSession('+jsArg(s.id)+')">Delete</button></td></tr>';
+      return '<tr><td><strong>' + escapeHtml(s.name) + '</strong></td><td>' + escapeHtml(s.createdBy||'Admin') + '</td><td>' + escapeHtml(s.date) + ' ' + escapeHtml(timeStr) + '</td><td>' + escapeHtml(s.duration) + 'min</td><td>' + vcSessionStatusBadge(s) + (s.roomCode ? '<div style="font-family:monospace;font-size:10px;color:var(--accent);margin-top:2px;">Room: '+escapeHtml(s.roomCode)+'</div>' : '') + '</td><td><button class="btn btn-sm btn-primary" onclick="enterVideoRoom('+jsArg(s.name)+',\'admin\','+jsArg(s.roomCode||'')+')" style="margin-right:6px;">Join</button><button class="btn btn-sm btn-danger" onclick="deleteClassSession('+jsArg(s.id)+')">Delete</button></td></tr>';
     }).join('');
   }
 
@@ -16383,7 +17340,7 @@ function renderAdminClassSessions() {
       allList.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">No class sessions scheduled. Create a new session above.</td></tr>';
     } else {
       allList.innerHTML = classSessions.map(function(cs) {
-        return '<tr><td><strong>'+escapeHtml(cs.name)+'</strong></td><td>'+escapeHtml(cs.instructor||cs.createdBy||'—')+'</td><td>'+escapeHtml(cs.time||'—')+' - '+escapeHtml(cs.endTime||'—')+'</td><td>'+escapeHtml(cs.students||'—')+'</td><td><span class="badge badge-blue"><span class="badge-dot"></span>Scheduled</span>'+(cs.roomCode?'<div style="font-family:monospace;font-size:10px;color:var(--accent);margin-top:2px;">Room: '+escapeHtml(cs.roomCode)+'</div>':'')+'</td><td><button class="btn btn-sm btn-primary" onclick="enterVideoRoom('+jsArg(cs.name)+',\'admin\','+jsArg(cs.roomCode||'')+')">Join</button></td></tr>';
+        return '<tr><td><strong>'+escapeHtml(cs.name)+'</strong></td><td>'+escapeHtml(cs.instructor||cs.createdBy||'—')+'</td><td>'+escapeHtml(cs.time||'—')+' - '+escapeHtml(cs.endTime||'—')+'</td><td>'+escapeHtml(cs.students||'—')+'</td><td>'+vcSessionStatusBadge(cs)+(cs.roomCode?'<div style="font-family:monospace;font-size:10px;color:var(--accent);margin-top:2px;">Room: '+escapeHtml(cs.roomCode)+'</div>':'')+'</td><td><button class="btn btn-sm btn-primary" onclick="enterVideoRoom('+jsArg(cs.name)+',\'admin\','+jsArg(cs.roomCode||'')+')">Join</button></td></tr>';
       }).join('');
     }
   }
@@ -16556,8 +17513,8 @@ function deleteAdminMeeting(id) {
 
 // Instructor join-by-code for all-staff conferences (mirrors asJoinMeetingByCode).
 function iJoinMeetingByCode() {
-  var code = (document.getElementById('i-vc-join-code')?.value || '').toUpperCase().trim();
-  if(!code || code.length < 4) { showToast('Please enter a valid room code'); return; }
+  var code = CESTISCore.vcRoom.normaliseCode(document.getElementById('i-vc-join-code')?.value || '');
+  if(!CESTISCore.vcRoom.isValidCode(code)) { showToast('Please enter a valid room code'); return; }
   vcCurrentRole = 'instructor';
   vcCurrentUserName = (typeof currentInstructor !== 'undefined' && currentInstructor && currentInstructor.name) ? currentInstructor.name : (currentLoggedInUser ? currentLoggedInUser.name : 'Instructor');
   var listEl = document.getElementById('iVideoContent');
@@ -16577,9 +17534,10 @@ function iJoinMeetingByCode() {
       '<div id="vc-status" class="vc-status">Ready to connect</div>' +
       '<div style="text-align:center;">' +
         '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Joining room with code:</div>' +
-        '<div style="font-family:monospace;font-size:22px;letter-spacing:4px;color:var(--accent);margin-bottom:16px;">' + code + '</div></div></div>';
-  vcStartCameraPreview();
-  setTimeout(function(){ vcJoinRoom('Staff Conference','instructor', code); }, 500);
+        '<div style="font-family:monospace;font-size:22px;letter-spacing:4px;color:var(--accent);margin-bottom:16px;">' + escapeHtml(code) + '</div></div></div>';
+  // Join once the camera question is answered — a fixed half-second used to
+  // join a phone still showing the permission prompt with nothing to send.
+  vcStartCameraPreview().then(function(){ vcJoinRoom('Staff Conference','instructor', code); });
 }
 
 // ============================== ASSIGNMENT FUNCTIONS ==============================
@@ -18950,8 +19908,13 @@ function fillSystemSettingsForm() {
   set('settInstitution', systemSettings.institutionName);
   set('settAdminEmail', systemSettings.adminEmail);
   set('settAcadYear', systemSettings.academicYear);
-  set('settVcProvider', systemSettings.vcProvider);
+  // Only the built-in provider exists. An older saved choice (Zoom, Teams and
+  // Meet were offered but never did anything) reads as what it always was.
+  set('settVcProvider', 'Built-in (WebRTC)');
   set('settVcSignalling', systemSettings.vcSignallingHost || '');
+  set('settVcTurn', systemSettings.vcTurnServers || '');
+  set('settVcLargeBase', systemSettings.vcLargeRoomBase || '');
+  set('settVcRoomSalt', systemSettings.vcRoomPasswordSalt || '');
 }
 
 function saveSystemSettings() {
@@ -18974,6 +19937,27 @@ function saveSystemSettings() {
     }
     systemSettings.vcSignallingHost = vcSignalling;
   }
+  // Relay servers, the Large Class server and its password phrase. Each is
+  // assigned even when blank (clearing a box means "none"), and only when
+  // its field is on the page, so no other setting is touched.
+  var vcTurnEl = document.getElementById('settVcTurn');
+  if (vcTurnEl) {
+    var turnText = String(vcTurnEl.value || '').trim();
+    var turnChk = CESTISCore.vcRoom.parseIceServers(turnText);
+    if (turnChk.errors.length) {
+      showToast('Relay server line ' + turnChk.errors.join(', ') + ' could not be read. Use e.g. turn:relay.yourcentre.org:3478 username password');
+      return;
+    }
+    systemSettings.vcTurnServers = turnText;
+  }
+  var vcLargeEl = document.getElementById('settVcLargeBase');
+  if (vcLargeEl) {
+    var largeChk = CESTISCore.vcRoom.checkLargeRoomBase(vcLargeEl.value);
+    if (!largeChk.ok) { showToast(largeChk.reason + ' Use e.g. https://meet.yourcentre.org/'); return; }
+    systemSettings.vcLargeRoomBase = largeChk.base;
+  }
+  var vcSaltEl = document.getElementById('settVcRoomSalt');
+  if (vcSaltEl) systemSettings.vcRoomPasswordSalt = String(vcSaltEl.value || '').trim();
 
   saveState();
   showToast('Settings saved successfully');
@@ -36495,8 +37479,8 @@ function renderDocumentHubInstructor() {
 
 // ---- Admin Staff Video Meeting Functions ----
 function asJoinMeetingByCode() {
-  var code = (document.getElementById('as-vc-join-code')?.value || '').toUpperCase().trim();
-  if(!code || code.length < 4) { showToast('Please enter a valid room code'); return; }
+  var code = CESTISCore.vcRoom.normaliseCode(document.getElementById('as-vc-join-code')?.value || '');
+  if(!CESTISCore.vcRoom.isValidCode(code)) { showToast('Please enter a valid room code'); return; }
   vcCurrentRole = 'adminstaff';
   vcCurrentUserName = currentLoggedInUser ? currentLoggedInUser.name : 'Admin Staff';
   var listEl = document.getElementById('asVideoContent');
@@ -36516,10 +37500,18 @@ function asJoinMeetingByCode() {
       '<div id="vc-status" class="vc-status">Ready to connect</div>' +
       '<div style="text-align:center;">' +
         '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Joining room with code:</div>' +
-        '<div style="font-family:monospace;font-size:22px;letter-spacing:4px;color:var(--accent);margin-bottom:16px;">' + code + '</div></div></div>';
-  vcStartCameraPreview();
-  // Pass code directly to vcJoinRoom via codeOverride parameter (no hidden input needed)
-  setTimeout(function(){ vcJoinRoom('Admin Meeting','adminstaff', code); }, 500);
+        '<div style="font-family:monospace;font-size:22px;letter-spacing:4px;color:var(--accent);margin-bottom:16px;">' + escapeHtml(code) + '</div></div></div>';
+  // Pass code directly to vcJoinRoom via codeOverride parameter (no hidden input
+  // needed), once the camera question is answered.
+  vcStartCameraPreview().then(function(){ vcJoinRoom('Admin Meeting','adminstaff', code); });
+}
+
+// A trainee with a room code from the instructor (no scheduled session to
+// click, or the session is on another day): open the lobby on that code.
+function sJoinByCode() {
+  var code = CESTISCore.vcRoom.normaliseCode(document.getElementById('s-vc-join-code')?.value || '');
+  if(!CESTISCore.vcRoom.isValidCode(code)) { showToast('Please enter a valid room code'); return; }
+  enterVideoRoom('Class', 'student', code);
 }
 
 // ---- Admin Staff Duty Page Functions ----
