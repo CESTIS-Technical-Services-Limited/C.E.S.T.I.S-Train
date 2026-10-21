@@ -7358,9 +7358,14 @@
       { key: 'voctrain_certDownloadApprovals', type: 'approvals' },
       // Certificate / transcript requests: each request is its own record, so
       // one office marking REQ-1 Ready and another marking REQ-2 Collected
-      // both stand, instead of the later whole list undoing the other.
-      { key: 'voctrain_certTranscriptRequests', type: 'list', id: byId,
-        stamps: ['updatedAt', 'handledAt', 'requestedAt'] },
+      // both stand, instead of the later whole list undoing the other. Merged
+      // by request on EVERY path (`always`), Drive included and whether or not
+      // the caller asked for record merging: trainees append on their own
+      // devices while the administration changes statuses on another, and a
+      // trainee's device keeps only its own requests after sign-out — one
+      // whole list winning would erase the other side's requests or decisions.
+      { key: 'voctrain_certTranscriptRequests', type: 'list', studentField: 'studentId', id: byId,
+        stamps: ['updatedAt', 'handledAt', 'requestedAt'], always: true },
       { key: 'voctrain_skillAreas', type: 'centres' },
       { key: 'voctrain_vcSessions', type: 'vcSessions' },
       { key: 'voctrain_syncTombstones', type: 'tombstones' },
@@ -7389,14 +7394,7 @@
       { key: 'voctrain_instructorProfiles', type: 'map', tombs: 'instructorProfiles' },
       { key: 'voctrain_adrStaffMeta', type: 'map', tombs: 'adrStaffMeta' },
       { key: 'voctrain_certTemplates', type: 'map', tombs: 'certTemplates' },
-      { key: 'voctrain_chatProfiles', type: 'map' },
-      // Trainees' transcript / certificate requests. Merged by request on EVERY
-      // path (`always`), Drive included: trainees append on their own devices
-      // while the administration changes statuses on another, and a trainee's
-      // device keeps only its own requests after sign-out — one whole list
-      // winning would erase the other side's requests or decisions.
-      { key: 'voctrain_certTranscriptRequests', type: 'list', studentField: 'studentId', id: byId,
-        stamps: ['updatedAt', 'handledAt', 'requestedAt'], always: true }
+      { key: 'voctrain_chatProfiles', type: 'map' }
     ];
 
     function recordSpec(key) {

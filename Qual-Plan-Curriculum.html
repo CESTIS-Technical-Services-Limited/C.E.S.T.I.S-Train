@@ -203,14 +203,43 @@ var QUAL_PLAN_PROGRAMS = [
       { name:"06 Quest Service Practitioner",       folderId:"1axaLeZ6n_AKCIQRrCyLM2EDiX3FqhDOt" },
       { name:"07 Welding Fabrication Technician",   folderId:"1yPnXugHCvuRGqLM5bRekwpyrqE16mYM5" }
     ] },
-  { title:"Beauty Therapy Level 2",                         folderId:"194qSUzi_BSQE_0QHLYQAQn_hX2JbHFvL", skillArea:"Beauty Therapy" },
-  { title:"Cosmetology Level 2",                            folderId:"180HFoONPHB44Dq9hKkyuvvcEaPQG2w3a", skillArea:"Cosmetology" },
-  { title:"Electrical Installation and Maintenance L2",     folderId:"1RTYIrphKDbBbNMlWGUhJ5Cmid6cWEgOA", skillArea:"Electrical Installation" },
-  { title:"Electrical Installation and Maintenance L3",     folderId:"1Xf9GXeOS6bJEXwt1V1Wfr__Jhf6h-cq8", skillArea:"Electrical Installation" },
-  { title:"Hospitality Villa.Properties Services L2",       folderId:"1lmeQLq2h-UKhP06dnsyBwxezwfshW5Ll", skillArea:"Hospitality & Tourism" },
-  { title:"Welding L2",                                     folderId:"1A_X9LAGnVGyL-KWAu2rqKcsLoTQqjXEA", skillArea:"Welding & Fabrication" },
-  { title:"Welding L3",                                     folderId:"1W4I6wpXPJ51grRPNW0EwNqjJ5a3wV1lV", skillArea:"Welding & Fabrication" }
+  // `level` is the NVQ level of the plan, so a Level 2 trainee is shown the
+  // Level 2 plan and not the Level 3 one beside it.
+  { title:"Beauty Therapy Level 2",                         folderId:"194qSUzi_BSQE_0QHLYQAQn_hX2JbHFvL", skillArea:"Beauty Therapy", level:2 },
+  { title:"Cosmetology Level 2",                            folderId:"180HFoONPHB44Dq9hKkyuvvcEaPQG2w3a", skillArea:"Cosmetology", level:2 },
+  { title:"Electrical Installation and Maintenance L2",     folderId:"1RTYIrphKDbBbNMlWGUhJ5Cmid6cWEgOA", skillArea:"Electrical Installation", level:2 },
+  { title:"Electrical Installation and Maintenance L3",     folderId:"1Xf9GXeOS6bJEXwt1V1Wfr__Jhf6h-cq8", skillArea:"Electrical Installation", level:3 },
+  { title:"Hospitality Villa.Properties Services L2",       folderId:"1lmeQLq2h-UKhP06dnsyBwxezwfshW5Ll", skillArea:"Hospitality & Tourism", level:2 },
+  { title:"Welding L2",                                     folderId:"1A_X9LAGnVGyL-KWAu2rqKcsLoTQqjXEA", skillArea:"Welding & Fabrication", level:2 },
+  { title:"Welding L3",                                     folderId:"1W4I6wpXPJ51grRPNW0EwNqjJ5a3wV1lV", skillArea:"Welding & Fabrication", level:3 }
+  // Business Administration (Management) Level 5 has no plan folder yet: add it
+  // here, with its folderId, once the Centre has one. Until then its trainees
+  // are told so plainly (qpRender).
 ];
+
+/* The level a course name states: "WELDING L2", "Welding Level 3",
+   "… lvl 2" -> 2 / 3 / 2; null when it states none. */
+function qpCourseLevel(course) {
+  var m = /(?:^|[^a-z0-9])l(?:vl|evel)?\s*(\d+)(?:[^0-9]|$)/i.exec(String(course || ''));
+  return m ? Number(m[1]) : null;
+}
+
+/* Which programme folders a viewer sees. Staff: every programme (narrowed by
+   the skill-area filter). A trainee or instructor: the general ones plus their
+   own skill area's — at THEIR level when their course names one (a Level 2
+   trainee was shown both the Level 2 and the Level 3 plan). */
+function qpVisiblePrograms(programs, opts) {
+  opts = opts || {};
+  var lvl = opts.course ? qpCourseLevel(opts.course) : null;
+  return (programs || []).filter(function (prog) {
+    if (opts.allowedSkillName && !prog.general) {
+      if (prog.skillArea !== opts.allowedSkillName) return false;
+      if (lvl != null && prog.level != null && Number(prog.level) !== lvl) return false;
+    }
+    if (opts.isStaff && opts.filter && opts.filter !== 'all' && (prog.general || prog.skillArea !== opts.filter)) return false;
+    return true;
+  });
+}
 
 // Skill areas: sourced from the shared cestis-core catalogue so this viewer's
 // course list can never drift from the dashboard. The inline array below is
@@ -511,8 +540,13 @@ function qpRenderListing(prog, result) {
     var openFolder = ' <a href="https://drive.google.com/drive/folders/' + qpEsc((bc0 && bc0.id) || prog.folderId) +
       '" target="_blank" rel="noopener" style="color:var(--accent);">Open this folder in Drive ↗</a>';
     if (result.message === 'no-auth') {
-      host.innerHTML = '<div class="qp-files-msg">Documents can\'t be listed yet — sign in to Google Drive (admin) or add a Drive API key.</div>';
-      qpMaybeShowAuthNotice();
+      // A trainee on their own phone cannot "sign in to Google Drive (admin)":
+      // they are offered the folder itself, which opens in Drive for anyone it
+      // is shared with ("anyone with the link" — the zero-cost route).
+      host.innerHTML = qpIsStaff
+        ? '<div class="qp-files-msg">Documents can\'t be listed yet — sign in to Google Drive on the dashboard (Sync Now).' + openFolder + '</div>'
+        : '<div class="qp-files-msg">The documents for this plan are kept in the Centre\'s Google Drive.' + openFolder + '</div>';
+      if (qpIsStaff) qpMaybeShowAuthNotice();
     } else if (result.message === 'http-401') {
       host.innerHTML = '<div class="qp-files-msg">Your Google session has expired. Use <strong>Sync Now</strong> on the sign-in page to reconnect, then reopen this page.</div>';
     } else if (result.message === 'http-403' || result.message === 'http-404') {
@@ -655,18 +689,20 @@ function qpRender() {
   var filter = document.getElementById('qpFilter').value;
   var allowedSkill = (!qpIsStaff && qpCourse) ? qpSkillMeta(qpCourse) : null;
 
-  var list = QUAL_PLAN_PROGRAMS.filter(function(prog){
-    if (allowedSkill && !prog.general && prog.skillArea !== allowedSkill.name) return false;
-    if (qpIsStaff && filter !== 'all' && (prog.general || prog.skillArea !== filter)) return false;
-    return true;
-  });
+  var list = qpVisiblePrograms(QUAL_PLAN_PROGRAMS, { allowedSkillName: allowedSkill ? allowedSkill.name : '',
+    course: qpCourse, isStaff: qpIsStaff, filter: filter });
 
   if (!list.length) {
     grid.innerHTML = '<div class="qp-empty">No qualification plans available for this skill area yet.</div>';
     return;
   }
+  // A trainee whose own programme has no plan folder (Business Administration
+  // today) is told so, rather than left looking at Short Courses only.
+  var ownPlan = !allowedSkill || list.some(function (prog) { return !prog.general; });
 
-  grid.innerHTML = list.map(qpCard).join('');
+  grid.innerHTML = (ownPlan ? '' : '<div class="qp-empty" style="margin-bottom:14px;">No qualification plan has been published for your programme (' +
+      qpEsc(qpCourse) + ') yet. Ask your instructor or the administration for a copy.</div>') +
+    list.map(qpCard).join('');
   // Load + render each visible programme's current folder (preserves drill-down).
   list.forEach(function(prog){ qpLoadCard(prog); });
 }

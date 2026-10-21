@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261020c"></script>
+<script src="cestis-core.js?v=20261021t"></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
 <script src="cestis-page-cloud.js?v=20260802a"></script>
@@ -4072,7 +4072,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   </div>
 
   <div class="landing-footer">
-    © 2026 C.E.S.T.I.S - LMS v2.0 &nbsp;|&nbsp; <a href="#" onclick="event.preventDefault();openModal('privacyPolicyModal')">Privacy Policy</a> &nbsp;|&nbsp; <a href="#" onclick="event.preventDefault();openModal('supportContactModal')">Support</a>
+    © <span class="cestis-year">2026</span> C.E.S.T.I.S - LMS v2.0 &nbsp;|&nbsp; <a href="#" onclick="event.preventDefault();openModal('privacyPolicyModal')">Privacy Policy</a> &nbsp;|&nbsp; <a href="#" onclick="event.preventDefault();openModal('supportContactModal')">Support</a>
   </div>
 
   <!-- Certificate Portal: Verify / Download. Opened from the QR code printed on
@@ -4377,8 +4377,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     </div>
     <div class="form-group"><label>Colour</label><input type="color" class="form-control" id="editCentreColor" style="height:40px;padding:4px;"></div>
     <div class="form-group"><label>Description</label><textarea class="form-control" id="editCentreDesc" rows="2"></textarea></div>
-    <div class="form-group"><label>Students</label><input type="number" class="form-control" id="editCentreStudents" min="0"></div>
-    <div class="form-group"><label>Materials</label><input type="number" class="form-control" id="editCentreMaterials" min="0"></div>
+    <!-- Counted from the records, so shown read-only: a typed figure was overwritten at the next refresh. -->
+    <div class="form-group"><label>Students <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(counted automatically)</span></label><input type="number" class="form-control" id="editCentreStudents" min="0" readonly tabindex="-1" style="opacity:.7;cursor:default;"></div>
+    <div class="form-group"><label>Materials <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(counted automatically)</span></label><input type="number" class="form-control" id="editCentreMaterials" min="0" readonly tabindex="-1" style="opacity:.7;cursor:default;"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;"><button class="btn btn-secondary" onclick="closeModal('editCentreModal')">Cancel</button><button class="btn btn-primary" onclick="saveTrainingCentre()">Save Changes</button></div>
   </div>
 </div>
@@ -6949,6 +6950,10 @@ function clearSensitiveStudentData() {
   certDownloadApprovals = [];
   CESTISStore.removeItem('voctrain_certTemplates');
   certTemplates = {};
+  // Staff documents (HR, policy) are never a trainee's to keep — the hub has
+  // no audience for trainees at all.
+  CESTISStore.removeItem('voctrain_documentHubFiles');
+  documentHubFiles = [];
 
   // 7. Remove chat messages (may contain sensitive conversations)
   CESTISStore.removeItem('voctrain_chatMessages');
@@ -11710,6 +11715,12 @@ function showPage(pageId) {
       } else if(tgInfo.role === 'instructor' && typeof currentInstructor !== 'undefined' && currentInstructor) {
         var tgCourse = currentInstructor.course || currentInstructor.programme || (currentInstructor.courses && currentInstructor.courses[0]);
         if(tgCourse) tgSrc += '&course=' + encodeURIComponent(tgCourse);
+        // Every programme the instructor teaches, not just the first: the page
+        // lists the trainees of each, each graded against their own plan.
+        var tgAll = [];
+        [currentInstructor.course, currentInstructor.programme].concat(Array.isArray(currentInstructor.courses) ? currentInstructor.courses : [])
+          .forEach(function (c) { c = String(c || '').trim(); if (c && tgAll.indexOf(c) === -1) tgAll.push(c); });
+        if(tgAll.length > 1) tgSrc += '&courses=' + encodeURIComponent(tgAll.join('|'));
         if(currentInstructor.name) tgSrc += '&name=' + encodeURIComponent(currentInstructor.name);
       }
       tgEl.src = tgSrc;
@@ -12563,6 +12574,23 @@ function renderStudentCertificate(){
   el.innerHTML = html;
 }
 
+/* The trainee's own transcript in numbers — the same resolution the
+   Transcript/Grades page uses (CESTISCore.Transcript), so the dashboard and the
+   transcript never disagree. null when the programme has no unit catalogue. */
+function studentTranscriptSummary(s) {
+  try {
+    if (!s || !window.CESTISCore || !CESTISCore.Transcript) return null;
+    var read = function (k, d) { try { var v = JSON.parse(CESTISStore.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+    var r = CESTISCore.Transcript.transcriptReadiness(s, {
+      catalogs: read('voctrain_unitCatalogs', []), grades: read('voctrain_transcriptGrades', []),
+      profiles: read('voctrain_transcriptProfiles', {}),
+      exams: (typeof exams !== 'undefined' ? exams : []), examResults: (typeof examResults !== 'undefined' ? examResults : [])
+    });
+    if (!r || !r.known || !r.total) return null;
+    return { total: r.total, graded: r.graded, average: r.average, completion: Math.round(r.graded / r.total * 100), ready: r.ready };
+  } catch (e) { return null; }
+}
+
 function buildStudentPages() {
   try {
   resolveExamStatuses();
@@ -12578,8 +12606,15 @@ function buildStudentPages() {
   const skill = findSkillAreaForCourse(s.course);
   const stageOrder = ['testing','interview','training','certified','collected'];
   const currentStageIdx = stageOrder.indexOf(s.stage === 'incomplete' ? 'training' : s.stage);
+  // ONE clearly labelled figure for "how far along am I": the transcript's
+  // units graded, when the programme has a unit catalogue (studentTranscriptSummary);
+  // only otherwise the stage figure, labelled as such. The 'Current GPA' card
+  // showed a hand-typed 0.0 beside a transcript saying 65% complete, average 78%.
+  const tsum = studentTranscriptSummary(s);
+  const ringPct = tsum ? tsum.completion : (Number(s.progress) || 0);
+  const ringLabel = tsum ? 'Units graded' : 'Stage progress';
   const circumference = 2 * Math.PI * 52;
-  const dashoffset = circumference - (s.progress / 100) * circumference;
+  const dashoffset = circumference - (ringPct / 100) * circumference;
   const skillColorRGB = hexToRgb(skill.color);
 
   const mc = document.getElementById('mainContent');
@@ -12596,14 +12631,16 @@ function buildStudentPages() {
       <div class="stat-card" style="text-align:center;">
         <div class="progress-ring-container">
           <div class="progress-ring">
-            <svg viewBox="0 0 120 120" width="120" height="120"><circle class="ring-bg" cx="60" cy="60" r="52" fill="none" stroke-width="8"/><circle class="ring-fill" cx="60" cy="60" r="52" fill="none" stroke="${s.progress>=80?'var(--green)':s.progress>=40?'var(--accent)':'var(--red)'}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${dashoffset}"/></svg>
-            <div class="ring-text"><span class="ring-value">${s.progress}%</span><span class="ring-label">Complete</span></div>
+            <svg viewBox="0 0 120 120" width="120" height="120"><circle class="ring-bg" cx="60" cy="60" r="52" fill="none" stroke-width="8"/><circle class="ring-fill" cx="60" cy="60" r="52" fill="none" stroke="${ringPct>=80?'var(--green)':ringPct>=40?'var(--accent)':'var(--red)'}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${dashoffset}"/></svg>
+            <div class="ring-text"><span class="ring-value">${ringPct}%</span><span class="ring-label">${ringLabel}</span></div>
           </div>
         </div>
       </div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📊</div><div class="stat-value">${s.attendance}%</div><div class="stat-label">Attendance Rate</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📝</div><div class="stat-value">${s.assignments}/${s.assignmentsTotal}</div><div class="stat-label">Assignments Done</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">⭐</div><div class="stat-value">${escapeHtml(s.gpa)}</div><div class="stat-label">Current GPA</div></div>
+      ${tsum
+        ? `<div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">⭐</div><div class="stat-value">${tsum.average == null ? '—' : escapeHtml(tsum.average + '%')}</div><div class="stat-label">Transcript average (${tsum.graded}/${tsum.total} units)</div></div>`
+        : `<div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">⭐</div><div class="stat-value">${(s.gpa && parseFloat(s.gpa) > 0) ? escapeHtml(s.gpa) : '—'}</div><div class="stat-label">GPA (recorded by the Centre)</div></div>`}
     </div>
 
     <!-- Stage Tracker -->
@@ -13106,7 +13143,7 @@ function buildInstructorPages() {
         <div class="info-row"><span class="info-label">Programme</span><span class="info-value">${escapeHtml(ins.course)}</span></div>
         <div class="info-row"><span class="info-label">Specialization</span><span class="info-value">${escapeHtml(ins.specialization)}</span></div>
         <div class="info-row"><span class="info-label">Experience</span><span class="info-value">${ins.yearsExp} years</span></div>
-        <div class="info-row"><span class="info-label">Joined</span><span class="info-value">${2026 - ins.yearsExp}</span></div>
+        <div class="info-row"><span class="info-label">Joined</span><span class="info-value">${escapeHtml(ins.joinedYear || (Number(ins.yearsExp) >= 0 ? new Date().getFullYear() - Number(ins.yearsExp) : '—'))}</span></div>
       </div>
     </div>
     ${(instructorProfiles[ins.id]?.bio) ? '<div class="info-section" style="margin-top:20px;"><h4>About</h4><p style="color:var(--text-secondary);line-height:1.6;padding:12px 0;">' + instructorProfiles[ins.id].bio + '</p></div>' : ''}
@@ -17785,6 +17822,11 @@ function handleDriveFileSelect(e) {
 }
 
 // Setup drag & drop
+// The footer's copyright year comes from the clock, not from the year the page
+// was written.
+document.addEventListener('DOMContentLoaded', function() {
+  try { document.querySelectorAll('.cestis-year').forEach(function (el) { el.textContent = String(new Date().getFullYear()); }); } catch (e) {}
+});
 document.addEventListener('DOMContentLoaded', function() {
   setTimeout(function() {
     const dz = document.getElementById('driveFileDropZone');
@@ -18957,21 +18999,24 @@ function saveSystemSettings() {
 // editable by the Administrator in Settings -> External Systems, and the pages
 // are available to the Administrator and to Administrative Staff.
 var EXT_SYSTEM_KEYS = ['tms', 'nqs'];
-// mode: 'embed'  — show the system inside an iframe on the page (the default).
-//       'launch' — skip the frame and offer the system in its own window.
+// mode: 'launch' — offer the system in its own tab/window (the default).
+//       'embed'  — show it inside an iframe on the page (an Administrator may
+//                  still choose this in Settings → External Systems).
 //
-// Both HEART/NSTA systems serve a TLS certificate browsers do not trust
-// (NET::ERR_CERT_AUTHORITY_INVALID). A browser cannot show its certificate
-// warning inside a frame, so the frame stays blank until the viewer approves
-// the certificate once, in a top-level tab, on that device. After that the
-// embed works normally — hence 'embed' stays the default, and the pages carry
-// a "Page blank?" helper that walks the viewer through approving it.
+// Staff type their HEART credentials into these systems, so they open as a
+// top-level tab where the browser's own address bar and certificate checks
+// are in full view. The dashboard used to embed them and tell every member of
+// staff to click through the browser's certificate error ("Proceed …
+// (unsafe)") — which trains people to accept ANY certificate for the site
+// where they type their password, including an attacker's on the Centre
+// Wi-Fi. A certificate error is now something to report, never to accept;
+// and embedded sign-ins also break where browsers block third-party cookies.
 var EXT_SYSTEM_DEFAULTS = {
   tms: {
     label: 'TMS System',
     url: 'https://tms.heart-nta.org/CTI/default.aspx',
     headline: '',
-    mode: 'embed',
+    mode: 'launch',
     urlFieldId: 'settTmsUrl',
     headlineFieldId: 'settTmsHeadline',
     modeFieldId: 'settTmsMode'
@@ -18980,7 +19025,7 @@ var EXT_SYSTEM_DEFAULTS = {
     label: 'NQS System',
     url: 'https://nqs-certification.heart-nta.org/qdocs.aspx',
     headline: '',
-    mode: 'embed',
+    mode: 'launch',
     urlFieldId: 'settNqsUrl',
     headlineFieldId: 'settNqsHeadline',
     modeFieldId: 'settNqsMode'
@@ -19005,7 +19050,10 @@ function getExtSystemConfig(key) {
     label: def.label,
     url: url || def.url,
     headline: typeof saved.headline === 'string' ? saved.headline.trim() : def.headline,
-    mode: (saved.mode === 'embed' || saved.mode === 'launch') ? saved.mode : def.mode
+    // A stored mode counts only when somebody chose it (modeChosen). Saving
+    // these settings used to store the default of the day ('embed') with no
+    // way to choose, so a stored 'embed' is not anybody's decision.
+    mode: (saved.modeChosen === true && (saved.mode === 'embed' || saved.mode === 'launch')) ? saved.mode : def.mode
   };
 }
 
@@ -19033,7 +19081,7 @@ function extSystemPageHtml(pageId) {
         '<div class="ext-sys-url" id="' + info.urlLabelId + '"></div>' +
       '</div>' +
       '<div class="ext-sys-actions">' +
-        '<button class="btn btn-sm ext-sys-help-btn" onclick="openExtSystemHelp(\'' + pageId + '\')" title="The panel is blank or shows an error">Page blank?</button>' +
+        '<button class="btn btn-sm ext-sys-help-btn" onclick="openExtSystemHelp(\'' + pageId + '\')" title="The system does not open, or the browser shows a security warning">Not opening?</button>' +
         '<button class="btn btn-secondary btn-sm" id="' + info.reloadId + '" onclick="reloadExtSystemPage(\'' + pageId + '\')">Reload</button>' +
         '<button class="btn btn-secondary btn-sm" onclick="openExtSystemWindow(\'' + pageId + '\')">Open in Window</button>' +
         '<a class="btn btn-primary btn-sm" id="' + info.linkId + '" href="#" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Open in New Tab &#8599;</a>' +
@@ -19102,31 +19150,17 @@ function openExtSystemHelp(pageId) {
   var cfg = getExtSystemConfig(info.key);
   var host = extSystemHost(cfg.url);
   ensureExtSystemHelpModal();
-  document.getElementById('extSystemHelpTitle').textContent = cfg.label + ' — page blank?';
+  document.getElementById('extSystemHelpTitle').textContent = cfg.label + ' — not opening?';
   document.getElementById('extSystemHelpBody').innerHTML =
-    '<p style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin:0 0 16px;">' +
-      escapeHtml(cfg.label) + ' uses a security certificate your browser does not recognise yet. A browser will not show that certificate warning inside a panel, so the panel stays blank until you approve the certificate once &mdash; on the site itself. <strong>You only do this once on each device.</strong>' +
-    '</p>' +
     '<ol class="ext-sys-steps">' +
-      '<li>Open the system in its own tab:<div style="margin-top:8px;">' +
+      '<li>Open the system in its own tab, where you can see its address and the browser\'s security checks:<div style="margin-top:8px;">' +
         '<a class="btn btn-primary btn-sm" href="' + escapeAttr(cfg.url) + '" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Open ' + escapeHtml(cfg.label) + ' &#8599;</a>' +
       '</div></li>' +
-      '<li>The browser warns <strong>&ldquo;Your connection is not private&rdquo;</strong> (<code>NET::ERR_CERT_AUTHORITY_INVALID</code>).</li>' +
-      '<li>Approve it &mdash; the wording depends on the browser:' +
-        '<ul class="ext-sys-steps-sub">' +
-          '<li><strong>Chrome / Edge</strong> (Windows, Mac, Android): <em>Advanced</em> &rarr; <em>Proceed to ' + escapeHtml(host) + ' (unsafe)</em></li>' +
-          '<li><strong>Safari</strong> (Mac, iPhone, iPad): <em>Show Details</em> &rarr; <em>visit this website</em> &rarr; <em>Visit Website</em></li>' +
-          '<li><strong>Firefox</strong>: <em>Advanced</em> &rarr; <em>Accept the Risk and Continue</em></li>' +
-        '</ul>' +
-      '</li>' +
-      '<li>When the ' + escapeHtml(cfg.label) + ' sign-in page appears, come back to this tab and reload the panel.</li>' +
+      '<li>Check the address bar shows <strong>' + escapeHtml(host) + '</strong> before you type your HEART sign-in details.</li>' +
+      '<li>If the browser warns <strong>&ldquo;Your connection is not private&rdquo;</strong> or any other certificate error, <strong>do not continue past the warning and do not enter your password.</strong> Close the tab and report it to the Administrator and to HEART/NSTA&rsquo;s IT support &mdash; a certificate warning on a sign-in page is exactly what an attacker&rsquo;s fake page looks like.</li>' +
     '</ol>' +
-    '<div style="margin-top:18px;padding:12px;background:var(--accent-dim);border-radius:var(--radius-sm);font-size:12px;color:var(--accent);line-height:1.7;">' +
-      'Everyone does this on their own device the first time &mdash; approving it on one computer does not carry over to another, or to a different browser on the same computer.' +
-    '</div>' +
     '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap;">' +
       '<button class="btn btn-secondary" onclick="closeModal(\'extSystemHelpModal\')">Close</button>' +
-      '<button class="btn btn-primary" onclick="closeModal(\'extSystemHelpModal\');reloadExtSystemPage(\'' + pageId + '\')">I&rsquo;ve done that &mdash; Reload the page</button>' +
     '</div>';
   extSystemHelpSeen(info.key, true);
   openModal('extSystemHelpModal');
@@ -19188,7 +19222,7 @@ function mountExtSystemPage(pageId, loadFrame) {
   var hintEl = document.getElementById(info.hintId);
   if(hintEl) {
     hintEl.innerHTML = embed
-      ? 'Panel blank on this device? The system\'s security certificate has to be approved once per device &mdash; click <strong>Page blank?</strong> above for the steps.'
+      ? 'Panel blank? Use <strong>Open in New Tab</strong> &mdash; and if the browser shows a certificate warning there, do not continue: report it (<strong>Not opening?</strong> above).'
       : '';
   }
 
@@ -19196,10 +19230,7 @@ function mountExtSystemPage(pageId, loadFrame) {
   if(embed && loadFrame && frame && cfg.url && frame.getAttribute('data-ext-src') !== cfg.url) {
     frame.setAttribute('data-ext-src', cfg.url);
     frame.src = cfg.url;
-    // First time this device opens this system, walk the viewer through
-    // approving the certificate — otherwise they just get a blank panel with
-    // no idea why. Shown once per device; the button stays for later.
-    if(!extSystemHelpSeen(info.key)) setTimeout(function(){ openExtSystemHelp(pageId); }, 700);
+    // The help is offered as a button, never opened by itself.
   }
 }
 
@@ -19253,6 +19284,7 @@ function saveExtSystemsSettings() {
     // updatedAt lets a cloud sync tell which side was edited more recently, so
     // the headline typed here is not overwritten by another device's older copy.
     next[key] = { url: url || def.url, headline: headline, mode: mode, updatedAt: new Date().toISOString() };
+    if (modeEl || (current[key] || {}).modeChosen === true) next[key].modeChosen = true;
   });
   systemSettings.extSystems = next;
   saveState();
@@ -20089,16 +20121,14 @@ function filterStudents() {
   renderStudents(filtered);
 }
 
-function openUpdateStage(idx) {
-  const s = students[idx];
-  document.getElementById('updateStageContent').innerHTML = `
-    <p style="margin-bottom:16px;font-size:14px;">Student: <strong>${escapeHtml(s.name)}</strong> (${escapeHtml(s.id)})<br>Course: ${escapeHtml(s.course)}<br>Current: <span class="badge ${stageBadge[s.stage]}">${stageLabels[s.stage]}</span></p>
-    <div class="form-group"><label>Move to Stage</label><select class="form-control" id="newStage">${stages.map(st=>`<option value="${st}" ${st===s.stage?'selected':''}>${stageLabels[st]}</option>`).join('')}</select></div>
-    <div class="form-group"><label>Notes</label><textarea class="form-control" placeholder="Add notes..."></textarea></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;"><button class="btn btn-secondary" onclick="closeModal('updateStageModal')">Cancel</button><button class="btn btn-primary" onclick="updateStudentStage(${idx})">Update</button></div>
-  `;
-  openModal('updateStageModal');
-}
+/* The Student Progress editor lives in Student-Progress.html (shown in an
+   iframe on the Students page). This page's copies of its modal handlers —
+   openUpdateStage, openEditStudent, regenerateStudentId, saveEditStudent,
+   openDeleteStudent, confirmDeleteStudent, addStudent — had no markup left to
+   open them and were removed: fixes kept landing in them and never reached the
+   page administrators use. (updateStudentStage stays below for now: the
+   certificate rules it applies are pinned by tests/certificate-portal.test.js
+   and live on in Student-Progress.html.) */
 function updateStudentStage(idx) {
   const newStage = document.getElementById('newStage').value;
   // One rule for every page that issues or withdraws a certificate
@@ -20136,162 +20166,6 @@ function clearStudentCertification(s, reason) {
   if(!s) return;
   var approvals = (typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) ? certDownloadApprovals : [];
   CESTISCore.certs.revoke(s, approvals, { by: certActorName(), reason: reason || '' });
-}
-function openEditStudent(idx) {
-  var s = students[idx];
-  document.getElementById('editStudentIdx').value = idx;
-  document.getElementById('editStudentId').value = s.id;
-  document.getElementById('editStudentName').value = s.name;
-  var profile = studentProfiles[s.id] || {};
-  document.getElementById('editStudentEmail').value = profile.email || '';
-  document.getElementById('editStudentGender').value = s.gender || '';
-  document.getElementById('editStudentInstructor').value = s.instructor || '';
-  document.getElementById('editStudentAttendance').value = s.attendance || 0;
-  document.getElementById('editStudentGPA').value = s.gpa || '0.0';
-  var regenBtn = document.getElementById('regenerateIdBtn');
-  if(regenBtn) regenBtn.style.display = (currentRole === 'admin') ? '' : 'none';
-  populateCourseDropdowns();
-  var courseSel = document.getElementById('editStudentCourse');
-  if(courseSel) courseSel.value = s.course;
-  openModal('editStudentModal');
-}
-function generateStudentId() {
-  return 'STU-'+Date.now().toString(36).toUpperCase()+Math.random().toString(36).substring(2,6).toUpperCase();
-}
-function regenerateStudentId() {
-  if(currentRole !== 'admin'){showToast('Only administrators can regenerate student IDs');return;}
-  var newId = generateStudentId();
-  document.getElementById('editStudentId').value = newId;
-  showToast('New ID generated — save to apply');
-}
-function saveEditStudent() {
-  var idx = parseInt(document.getElementById('editStudentIdx').value);
-  var name = document.getElementById('editStudentName').value.trim();
-  if(!name){alert('Please enter a name');return;}
-  var s = students[idx];
-  // Identity before the edit — the School Fee twin is matched on it so a rename
-  // updates that record instead of appearing there as a second person.
-  var was = { id: s.id, name: s.name, course: s.course, schoolFeeId: s.schoolFeeId };
-  var newId = document.getElementById('editStudentId').value;
-  if(newId && newId !== s.id) {
-    var oldId = s.id;
-    if(studentProfiles[oldId]) {
-      studentProfiles[newId] = studentProfiles[oldId];
-      delete studentProfiles[oldId];
-    }
-    s.id = newId;
-  }
-  s.name = name;
-  s.gender = document.getElementById('editStudentGender').value || '';
-  var oldCourse = s.course;
-  s.course = document.getElementById('editStudentCourse').value;
-  s.instructor = document.getElementById('editStudentInstructor').value.trim();
-  s.attendance = parseInt(document.getElementById('editStudentAttendance').value) || 0;
-  // GPA is a number (0 to 5, up to three decimals). Free text here ended up
-  // in every leaderboard, so anything else keeps the previous value.
-  var _gpaIn = document.getElementById('editStudentGPA').value.trim() || '0.0';
-  if (/^\d(\.\d{1,3})?$/.test(_gpaIn) && parseFloat(_gpaIn) <= 5) s.gpa = _gpaIn;
-  else if (_gpaIn !== String(s.gpa || '0.0')) showToast('GPA must be a number such as 3.25 — the previous GPA was kept');
-  var email = document.getElementById('editStudentEmail').value.trim();
-  if(email) {
-    if(!studentProfiles[s.id]) studentProfiles[s.id] = {};
-    studentProfiles[s.id].email = email;
-    studentProfiles[s.id].updatedAt = new Date().toISOString();
-  }
-  // Update attendance record if course or name changed
-  var attRec = attendanceRecords.find(function(r){ return r.studentId === s.id; });
-  if(attRec) {
-    attRec.studentName = s.name;
-    attRec.course = s.course;
-  } else {
-    attendanceRecords.push({studentId:s.id, studentName:s.name, course:s.course, date:localDateStr(), days:{Mon:'absent',Tue:'absent',Wed:'absent',Thu:'absent',Fri:'absent'}});
-  }
-  // Keep the parallel certificate-download snapshot consistent with edits to
-  // the student's identity/course so the Cert Download page shows current data.
-  if(typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) {
-    var _ap = certDownloadApprovals.find(function(a){ return a && a.studentId === s.id; });
-    if(_ap) { _ap.name = s.name; _ap.course = s.course; }
-  }
-  s.lastModified = new Date().toISOString();
-  // Push the edit onto the linked School Fee record before saveState(), whose
-  // mirror can only find twins that are still linked.
-  try { enrolPropagateToFee(s, studentProfiles[s.id], was); } catch(e) { console.warn('fee propagate failed', e); }
-  updateSkillAreaCounts();
-  closeModal('editStudentModal');
-  filterStudents();
-  refreshStudentDependentViews();
-  showToast(s.name + ' updated successfully');
-  saveState();
-}
-function openDeleteStudent(idx) {
-  var s = students[idx];
-  document.getElementById('deleteStudentIdx').value = idx;
-  document.getElementById('deleteStudentName').textContent = s.name + ' (' + s.id + ')';
-  openModal('deleteStudentModal');
-}
-function confirmDeleteStudent() {
-  var idx = parseInt(document.getElementById('deleteStudentIdx').value);
-  var s = students[idx];
-  var name = s.name;
-  var sid = s.id;
-  students.splice(idx, 1);
-  if(studentProfiles[sid]) delete studentProfiles[sid];
-  // Cascade-remove derived records so they don't bloat counts (e.g.
-  // Students Tracked) and so cloud-merge does not have stale data to
-  // resurrect.
-  if(Array.isArray(attendanceRecords)) {
-    attendanceRecords = attendanceRecords.filter(function(r){ return r.studentId !== sid; });
-  }
-  if(typeof examResults !== 'undefined' && Array.isArray(examResults)) {
-    examResults = examResults.filter(function(r){ return r.studentId !== sid; });
-  }
-  if(typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) {
-    certDownloadApprovals = certDownloadApprovals.filter(function(a){ return a.studentId !== sid; });
-  }
-  if(typeof userAccounts !== 'undefined' && Array.isArray(userAccounts)) {
-    // Tombstone each login too, or the next sync hands it straight back and
-    // the next launch deletes it again — forever.
-    userAccounts.forEach(function(u){ if(u && u.studentDataId === sid && typeof recordDeletedUser === 'function') recordDeletedUser(u.id); });
-    userAccounts = userAccounts.filter(function(u){ return u.studentDataId !== sid; });
-    if(typeof saveUserAccounts === 'function') saveUserAccounts();
-  }
-  // Tombstone the ID (and its stable id) so cloud-merge / account-reconcile skip
-  // it instead of resurrecting it — even if a copy returns under a different id.
-  recordDeletedStudent(sid);
-  if (window.CESTISCore) { var _stableSid = CESTISCore.stableStudentId(s); if (_stableSid && _stableSid !== sid) recordDeletedStudent(_stableSid); }
-
-  // Symmetric School-Fee delete: remove the linked fee record (matched by explicit
-  // link only) and tombstone its lms id in cestiSchoolFeeDeletedLmsIds so the fee
-  // page neither shows a ghost nor re-mirrors the student back into the dashboard.
-  try {
-    var _feeRaw = CESTISStore.getItem('cestiSchoolFeeStudents');
-    var _fee = _feeRaw ? (JSON.parse(_feeRaw) || []) : [];
-    if (Array.isArray(_fee) && _fee.length) {
-      var _fbefore = _fee.length;
-      var _removedFeeIds = [];
-      _fee = _fee.filter(function(f){
-        var hit = f && ((s.schoolFeeId && f.id === s.schoolFeeId) || f.lmsId === sid || f.id === sid);
-        if (hit) _removedFeeIds.push(f.lmsId || f.id);
-        return !hit;
-      });
-      if (_fee.length !== _fbefore) {
-        CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(_fee));
-        var _ldRaw = CESTISStore.getItem('cestiSchoolFeeDeletedLmsIds');
-        var _ld = _ldRaw ? (JSON.parse(_ldRaw) || []) : [];
-        if (!Array.isArray(_ld)) _ld = [];
-        var _ldset = {}; _ld.forEach(function(id){ if (id) _ldset[id] = true; });
-        [sid].concat(_removedFeeIds).forEach(function(id){ if (id) _ldset[id] = true; });
-        CESTISStore.setItem('cestiSchoolFeeDeletedLmsIds', JSON.stringify(Object.keys(_ldset)));
-      }
-    }
-  } catch(e) { console.warn('symmetric fee delete failed:', e); }
-  closeModal('deleteStudentModal');
-  filterStudents();
-  updatePipelineCounts();
-  refreshStudentDependentViews();
-  showToast(name + ' has been deleted');
-  addNotification('Student removed: ' + name, 'student', null, ['admin']);
-  saveState();
 }
 
 // Re-render every view that displays student data so a deleted student
@@ -20642,70 +20516,6 @@ function refreshDashboardStudentTotals() {
       }
     });
   } catch (e) { /* non-fatal */ }
-}
-async function addStudent() {
-  const name = document.getElementById('newStudentName').value.trim();
-  if(!name){alert('Please enter a name');return;}
-  var email = (document.getElementById('newStudentEmail').value || '').trim();
-  var selectedCourse = document.getElementById('newStudentCourse').value;
-  var _enrolDecision = courseEnrolmentDecision(selectedCourse);
-  if(!_enrolDecision.allowed) { alert(_enrolDecision.reason); return; }
-  // Ground the trainee in the centre's course duration and fiscal year.
-  var _stamp = CESTISCore.enrolment.enrolmentStamp(_enrolDecision.centre, localDateStr()) || {};
-  var assignedInstructor = (instructorData.find(function(ins){
-    if (!ins.course) return false;
-    if (ins.course.toLowerCase().trim() === selectedCourse.toLowerCase().trim()) return true;
-    var insSk = findSkillAreaForCourse(ins.course);
-    var stuSk = findSkillAreaForCourse(selectedCourse);
-    return insSk && stuSk && insSk.id && stuSk.id && insSk.id === stuSk.id;
-  })||{}).name || '';
-  var gender = document.getElementById('newStudentGender').value || '';
-  var studentId = generateStudentId();
-  if (window.CESTISCore) { var _sid = CESTISCore.stableStudentId({name:name, course:selectedCourse}); if (_sid) studentId = _sid; }
-  students.unshift({id:studentId,name,stage:document.getElementById('newStudentStage').value,course:selectedCourse,score:'',progress:10,certNo:null,certDate:null,certCollected:false,attendance:0,assignments:0,assignmentsTotal:8,gpa:'0.0',instructor:assignedInstructor,gender:gender,createdAt:localDateStr(),lastModified:new Date().toISOString(),
-    centreId:_stamp.centreId,centreName:_stamp.centreName,courseStart:_stamp.courseStart,courseEnd:_stamp.courseEnd,enrolmentDate:_stamp.enrolmentDate,fiscalYear:_stamp.fiscalYear});
-  // Auto-create attendance record so the student appears in attendance pages
-  var existingAtt = attendanceRecords.find(function(r){ return r.studentId === studentId; });
-  if(!existingAtt) {
-    attendanceRecords.push({studentId:studentId, studentName:name, course:selectedCourse, date:localDateStr(), days:{Mon:'absent',Tue:'absent',Wed:'absent',Thu:'absent',Fri:'absent'}});
-  }
-  updateSkillAreaCounts();
-
-  // Create a linked disabled user account so the student syncs across the dashboard
-  var username = email ? email.split('@')[0] : name.toLowerCase().replace(/\s+/g, '.');
-  // Check for duplicate email/username before creating account
-  var dupAccount = userAccounts.find(function(u) {
-    if (email && u.email === email) return true;
-    if (u.username === username && u.role === 'student') return true;
-    return false;
-  });
-  if (!dupAccount) {
-    var defaultPw = await hashPassword(name.split(' ')[0].toLowerCase() + '123');
-    var newAccount = {
-      id: cestisGenId('USR-'),
-      name: name,
-      role: 'student',
-      username: username,
-      password: defaultPw,
-      defaultPassword: true,   // an initial password the Centre hands out: a seed, never allowed to replace one the trainee set
-      email: email || '',
-      programme: selectedCourse,
-      status: 'disabled',
-      createdAt: localDateStr(),
-      registeredVia: 'admin-created',
-      studentDataId: studentId,
-      approvedBy: 'admin'
-    };
-    userAccounts.push(newAccount);
-  } else {
-    // Link existing account to this student data
-    dupAccount.studentDataId = studentId;
-  }
-
-  closeModal('addStudentModal');filterStudents();updatePipelineCounts();refreshStudentDependentViews();showToast(`${name} added (account disabled until activated)!`);document.getElementById('newStudentName').value='';document.getElementById('newStudentGender').value='';document.getElementById('newStudentEmail').value='';
-  addNotification('New student enrolled: ' + name + ' — ' + selectedCourse + ' (account disabled — activate in Verify Users)', 'student', null, ['admin','instructor']);
-  saveState();
-
 }
 
 function renderSkills() {
@@ -21561,8 +21371,20 @@ function runTraineeTransfer(only) {
   if (Array.isArray(userAccounts)) {
     userAccounts.forEach(function (u) {
       if (!u || u.role !== 'student') return;
-      var mine = movedIds[String(u.studentDataId)] ||
-        movingLms.some(function (s) { return CESTISCore.normName(s.name) === CESTISCore.normName(u.name); });
+      /* The account linked to a moved trainee moves. A NAME match counts only
+         for an account linked to no live record, whose programme is the one
+         being transferred FROM — matching every account of that name moved an
+         unrelated namesake in another centre (their class chat room and the
+         name-based linking followed). */
+      var linked = u.studentDataId != null && String(u.studentDataId) !== '' &&
+        students.some(function (s) { return s && String(s.id) === String(u.studentDataId); });
+      var mine = !!movedIds[String(u.studentDataId)];
+      if (!mine && !linked) {
+        var fromProg = false;
+        try { fromProg = !!u.programme && CESTISCore.enrolment.programmesAgree(u.programme, from.name || ''); }
+        catch (e) { fromProg = !!u.programme && String(u.programme).toLowerCase().trim() === String(from.name || '').toLowerCase().trim(); }
+        mine = fromProg && movingLms.some(function (s) { return CESTISCore.normName(s.name) === CESTISCore.normName(u.name); });
+      }
       if (!mine) return;
       if (u.programme !== (to.name || '')) { u.programme = to.name || ''; accounts++; }
     });
@@ -22623,15 +22445,19 @@ function saveTrainingCentre() {
   var newName = document.getElementById('editCentreName').value.trim();
   if(!newName) { alert('Please enter a centre name.'); return; }
   var oldName = centre.name;
+  // Another intake running under the same name? Then the rename belongs to
+  // THIS intake's records only — worked out before the name changes, while
+  // they can still be matched to it (see propagateCourseNameChange).
+  var _scope = (oldName !== newName) ? courseRenameScope(centre) : null;
   centre.name = newName;
   centre.icon = document.getElementById('editCentreIcon').value.trim() || centre.icon;
   centre.color = document.getElementById('editCentreColor').value || centre.color;
   centre.desc = document.getElementById('editCentreDesc').value.trim();
-  centre.students = parseInt(document.getElementById('editCentreStudents').value) || 0;
-  centre.materials = parseInt(document.getElementById('editCentreMaterials').value) || 0;
+  // Students / Materials are counted from the records (updateSkillAreaCounts),
+  // not typed: the form shows them read-only and they are not taken from it.
   // Cascade name change to all references if name changed
   if(oldName !== newName) {
-    propagateCourseNameChange(oldName, newName);
+    propagateCourseNameChange(oldName, newName, _scope);
   }
   closeModal('editCentreModal');
   renderSkills();
@@ -22642,26 +22468,78 @@ function saveTrainingCentre() {
   saveState();
 }
 
-// Propagate a course/skill area name change across all data structures
-function propagateCourseNameChange(oldName, newName) {
+/* When another LIVE intake carries the same programme name as `centre`, a
+   rename of this one must reach only this intake's records. Returns null when
+   the name is this centre's alone (the whole-name cascade below is then
+   right), else { centre, studentIds } — the trainees who belong to this
+   intake by its key, id or dated name (CESTISCore.transfer.belongsTo).
+   Same-name intakes are a supported thing (addTrainingCentre says so), and
+   renaming intake 22 to "… Level 3" used to relabel every intake-01 graduate,
+   their exams, results, approvals and the shared certificate template, and
+   move their stable ids. */
+function courseRenameScope(centre) {
+  if (!centre || !window.CESTISCore || !CESTISCore.transfer) return null;
+  var bare = function (n) {
+    try { return CESTISCore.enrolment.parseCentreLabel(n).name.toLowerCase().trim(); }
+    catch (e) { return String(n || '').toLowerCase().trim(); }
+  };
+  var mine = bare(centre.name);
+  var shared = (skillAreas || []).some(function (c) { return c && c !== centre && c.id !== centre.id && bare(c.name) === mine; });
+  if (!shared) return null;
+  var ids = {};
+  (students || []).forEach(function (s) {
+    if (s && s.id != null && CESTISCore.transfer.belongsTo(s, centre, { centres: skillAreas })) ids[String(s.id)] = true;
+  });
+  return { centre: centre, studentIds: ids };
+}
+
+// Propagate a course/skill area name change across all data structures.
+// `scope` (courseRenameScope) limits it to one intake's records when another
+// intake shares the old name: then only records tied to those trainees move,
+// and programme-wide things (exams, templates, resources) are left alone.
+function propagateCourseNameChange(oldName, newName, scope) {
   if(!oldName || !newName || oldName === newName) return;
   var oldLower = oldName.toLowerCase().trim();
   var count = 0;
+  var now = new Date().toISOString();
+  var inScope = function (studentId) { return !scope || !!scope.studentIds[String(studentId)]; };
+  var programmeWide = !scope;
 
-  // 1. Update students
+  // 1. Update students — stamped, so every other device adopts the new name
+  // instead of keeping the old one by newer-wins.
   students.forEach(function(s) {
-    if(s.course && s.course.toLowerCase().trim() === oldLower) { s.course = newName; count++; }
+    if(s.course && s.course.toLowerCase().trim() === oldLower && inScope(s.id)) { s.course = newName; s.lastModified = now; count++; }
   });
 
   // 2. Update user accounts (programme field)
   userAccounts.forEach(function(u) {
-    if(u.programme && u.programme.toLowerCase().trim() === oldLower) { u.programme = newName; count++; }
+    if (scope && !(u.studentDataId && inScope(u.studentDataId))) return;
+    if(u.programme && u.programme.toLowerCase().trim() === oldLower) { u.programme = newName; u.updatedAt = now; count++; }
   });
 
   // 3. Update attendance records
   (attendanceRecords || []).forEach(function(r) {
+    if (scope && !inScope(r.studentId)) return;
     if(r.course && r.course.toLowerCase().trim() === oldLower) { r.course = newName; count++; }
   });
+  if (!programmeWide) {
+    // Another intake still runs under the old name: its exams, resources,
+    // sessions, calendar and certificate template stay as they are. Only this
+    // intake's own results, approvals and chat room follow.
+    (certDownloadApprovals || []).forEach(function(a) {
+      if(inScope(a.studentId) && a.course && a.course.toLowerCase().trim() === oldLower) { a.course = newName; count++; }
+    });
+    (typeof examResults !== 'undefined' ? examResults : []).forEach(function(r) {
+      if(inScope(r.studentId) && r.course && r.course.toLowerCase().trim() === oldLower) { r.course = newName; count++; }
+    });
+    (lmsChatRooms || []).forEach(function(room) {
+      if(room && (room.id === 'chat-class-' + scope.centre.id || room.skillAreaId === scope.centre.id) && room.name && room.name.toLowerCase().trim() === oldLower) { room.name = newName; count++; }
+    });
+    if(typeof saveLmsChatData === 'function') saveLmsChatData();
+    if(typeof saveUserAccounts === 'function') saveUserAccounts();
+    if(count > 0) console.log('Propagated intake rename (one intake of a shared name): "' + oldName + '" → "' + newName + '" — ' + count + ' references updated');
+    return;
+  }
 
   // 4. Update exams
   (exams || []).forEach(function(e) {
@@ -28484,7 +28362,9 @@ async function savePerUserBackup() {
       delete cleanCertTpls[k].bgPage1; delete cleanCertTpls[k].bgPage2;
     });
     if (isAdmin || Object.keys(cleanCertTpls).length > 0) userData.data.certTemplates = cleanCertTpls;
-    if (isAdmin || documentHubFiles.length > 0) userData.data.documentHubFiles = documentHubFiles;
+    // Only the documents this user may see go into THEIR backup file.
+    var _myDocs = docHubFilesForRole(currentRole);
+    if (isAdmin || _myDocs.length > 0) userData.data.documentHubFiles = _myDocs;
     userData.data.certTemplateCourseMap = certTemplateCourseMap;
 
     var blob = new Blob([JSON.stringify(userData, stripSecretFields)], { type: 'application/json' });
@@ -35029,27 +34909,40 @@ function saveAdminStaffAccessToStorage() {
   saveState();
 }
 
+/* The grid edits a DRAFT, applied only by "Save". Ticking a box used to change
+   the live settings at once, and the next save of anything — or the autosave —
+   granted it to every Admin Staff device although nobody pressed Save. The
+   draft is started afresh each time the grid is drawn, so leaving the page
+   discards it. */
+var asAccessDraft = null;
 function renderAdminStaffAccessGrid() {
   var grid = document.getElementById('asAccessGrid');
   if(!grid) return;
+  asAccessDraft = Object.assign({}, adminStaffAccessSettings || {});
   var html = '';
   asAccessPages.forEach(function(pg) {
-    var checked = adminStaffAccessSettings[pg.key] ? 'checked' : '';
+    var checked = asAccessDraft[pg.key] ? 'checked' : '';
+    // The label stops its own default click: inside the clickable row it used
+    // to toggle the box twice (row + synthetic checkbox click), so it looked dead.
     html += '<div class="as-access-item" onclick="toggleAsAccess('+jsArg(pg.key)+',this)">' +
       '<input type="checkbox" id="asAccess_'+pg.key+'" '+checked+' onclick="event.stopPropagation();toggleAsAccess('+jsArg(pg.key)+',this.parentElement)">' +
-      '<div><label for="asAccess_'+pg.key+'">'+pg.label+'</label><div class="as-access-desc">'+pg.desc+'</div></div>' +
+      '<div><label for="asAccess_'+pg.key+'" onclick="event.preventDefault()">'+pg.label+'</label><div class="as-access-desc">'+pg.desc+'</div></div>' +
     '</div>';
   });
   grid.innerHTML = html;
 }
 
 function toggleAsAccess(key, itemEl) {
-  adminStaffAccessSettings[key] = !adminStaffAccessSettings[key];
+  if(!asAccessDraft) asAccessDraft = Object.assign({}, adminStaffAccessSettings || {});
+  asAccessDraft[key] = !asAccessDraft[key];
   var cb = document.getElementById('asAccess_'+key);
-  if(cb) cb.checked = adminStaffAccessSettings[key];
+  if(cb) cb.checked = !!asAccessDraft[key];
 }
 
 function saveAdminStaffAccess() {
+  if(asAccessDraft) {
+    Object.keys(asAccessDraft).forEach(function(k){ adminStaffAccessSettings[k] = asAccessDraft[k]; });
+  }
   saveAdminStaffAccessToStorage();
   // Takes effect at once for anyone signed in as Admin Staff on this device.
   refreshAdminStaffNav();
@@ -35523,6 +35416,24 @@ function toggleDocHubUploadForm(prefix) {
   if(form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
 }
 
+/* The Document Hub keeps each file INSIDE the Centre's data (base64), so every
+   document travels in every backup, every autosave upload and every device's
+   storage. Ten 5 MB PDFs made each backup ~67 MB. Files are therefore kept
+   small, and the hub as a whole has a budget; anything bigger belongs in the
+   Centre's Drive folder, linked from Resources. */
+var DOC_HUB_MAX_FILE = 3 * 1024 * 1024;
+var DOC_HUB_MAX_TOTAL = 25 * 1024 * 1024;
+
+/* The documents a signed-in role may hold. The audience filter used to be on
+   screen only: a staff-only document sat in every user's per-user backup and
+   on every device, a trainee's included. */
+function docHubFilesForRole(role) {
+  var list = Array.isArray(documentHubFiles) ? documentHubFiles : [];
+  if (role === 'admin' || role === 'adminstaff') return list;
+  if (role === 'instructor') return list.filter(function (d) { return d && (d.audience === 'all' || d.audience === 'instructors'); });
+  return [];
+}
+
 function docHubUploadFile(prefix) {
   var p = prefix === 'as' ? 'as' : '';
   var titleEl = document.getElementById((p ? p : '') + 'DocHubTitle') || document.getElementById('docHubTitle');
@@ -35540,7 +35451,9 @@ function docHubUploadFile(prefix) {
   if(!fileEl || !fileEl.files || !fileEl.files[0]) { showToast('Please select a file to upload', 'warning'); return; }
 
   var file = fileEl.files[0];
-  if(file.size > 10 * 1024 * 1024) { showToast('File size must be under 10MB', 'warning'); return; }
+  if(file.size > DOC_HUB_MAX_FILE) { showToast('File size must be under 3 MB — put larger documents in the Centre\'s Drive folder and link them from Resources', 'warning'); return; }
+  var _hubTotal = (documentHubFiles || []).reduce(function (t, d) { return t + (Number(d && d.fileSize) || 0); }, 0);
+  if(_hubTotal + file.size > DOC_HUB_MAX_TOTAL) { showToast('The Document Hub is full (25 MB). Remove an old document, or keep this one in the Centre\'s Drive folder', 'warning'); return; }
 
   var reader = new FileReader();
   reader.onload = function(e) {
@@ -35592,8 +35505,9 @@ function docHubDeleteFile(docId) {
 function docHubDownloadFile(docId) {
   var doc = documentHubFiles.find(function(d) { return d.id === docId; });
   if(!doc) { showToast('Document not found', 'warning'); return; }
+  // Counted, and saved with the next change — a download is not a reason to
+  // re-serialise and upload every document in the hub.
   doc.downloads = (doc.downloads || 0) + 1;
-  saveState();
 
   var link = document.createElement('a');
   link.href = doc.fileData;

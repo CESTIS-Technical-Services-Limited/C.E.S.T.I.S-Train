@@ -106,7 +106,7 @@ assert(/if \(!VIEWER\.ok\) \{ renderForRole\(\); return; \}/.test(TG), 'and with
 assert(/function myStudentRecord\(\) \{[\s\S]*?MY_STUDENT_ID \? studentById\(MY_STUDENT_ID\)/.test(TG) && TG.indexOf("var MY_STUDENT_ID = VIEWER.ok ? (VIEWER.studentId || '') : ''") !== -1,
   'a trainee\'s record comes from the session, not ?studentId=');
 assert(/readOnly: true,\s*\n\s*reads: _tgSignedIn \?/.test(TG), 'only staff push the grade file; anyone else only reads it');
-assert(/forPage\(\{ allowed: \['admin', 'adminstaff'\] \}\)/.test(CTR) && /function setStatus\(idx, status\) \{\s*if \(!VIEWER\.ok\) return;/.test(CTR),
+assert(/forPage\(\{ allowed: \['admin', 'adminstaff'\] \}\)/.test(CTR) && /function setStatus\(id, status\) \{\s*if \(!VIEWER\.ok\) return;/.test(CTR),
   'the request queue is staff-only and changes nothing without a session');
 assert(/forPage\(\{ allowed: \['admin', 'adminstaff'\] \}\)/.test(SP), 'Student Progress is staff-only');
 // (There is no regenerateStudentId any more: a hand-made id orphaned every record
