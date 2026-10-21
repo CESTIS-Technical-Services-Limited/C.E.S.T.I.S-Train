@@ -372,7 +372,7 @@ console.log('The notification bell and the realtime channel');
     { id: 'N2', text: '&#128222; ' + EVIL + ' started a call', icon: '&#128222;', type: 'success', time: 'Just now', read: true }
   ];
   const r = render('toggleNotifications', ['toggleNotifications'], {
-    notifications, refreshNotificationTimes() {}, getFilteredNotifications() { return notifications; }
+    notifications, refreshNotificationTimes() {}, getFilteredNotifications() { return notifications; }, notifViewerId() { return 'U1'; }
   }, 'toggleNotifications()', sb => sb.document.querySelector('.topbar-btn[title="Notifications"]').children[0].innerHTML);
   assert(r.html.indexOf('&#128222;') !== -1, 'the bell still shows an emoji stored as &#128222;');
 
@@ -405,21 +405,44 @@ console.log('Support Messages (the public form, no account needed)');
   assert(calls.length === 1 && calls[0].args[0] === msgs[0].id, 'Delete still reaches the message by its exact id');
 }
 
-console.log('Attendance registers (admin, instructor, CMC)');
+console.log('Attendance registers (admin, instructor, admin staff, CMC)');
 {
-  const rec = { studentId: 'STU-1"onmouseover="__pwn(6)', studentName: EVIL, course: EVIL, days: { Mon: 'present', Tue: ATTACK.tag } };
+  /* The register is dated now (one mark per trainee per date): the renderers
+     are the real ones, from the register's block of index.html, fed a mark
+     whose every field is an attack as well as an old weekly row. */
+  const A = Core.attendance;
+  const sid = 'STU-1"onmouseover="__pwn(6)';
+  const rec = { studentId: sid, studentName: EVIL, course: EVIL, days: { Mon: 'present', Tue: ATTACK.tag } };
+  const today = A.localDate();
+  const mark = { id: A.recordId(sid, today), studentId: sid, date: today, status: ATTACK.tag, markedAt: new Date().toISOString(),
+    markedBy: EVIL, markedByName: EVIL, studentName: EVIL, course: EVIL, history: [{ status: ATTACK.tag, markedAt: '', markedBy: EVIL }] };
+  const BLOCK_START = SRC.indexOf('/* ============================== ATTENDANCE REGISTER — ONE MARK PER DATE');
+  const BLOCK_END = SRC.indexOf('\nfunction toggleAnnouncementForm(');
+  assert(BLOCK_START > 0 && BLOCK_END > BLOCK_START, 'the dated register block is found in index.html');
+  const block = SRC.slice(BLOCK_START, BLOCK_END);
   const common = {
-    attendanceRecords: [rec], students: [{ id: rec.studentId, name: EVIL, course: EVIL, instructor: 'Ins', stage: ATTACK.tag, gpa: ATTACK.tag, attendance: 90 }],
-    dedupeAttendanceRecords() {}, isRegisterOpenForCourse() { return true; }, renderAttendanceLockBanner() {},
-    renderAttendanceSummary() {}, renderWeeklyAttChart() {}, renderInstructorAttSummary() {}, renderInstructorWeeklyChart() {},
+    attendanceRecords: [rec], vcSessions: [], attnLoadedQuarter: null,
+    attendanceRegister: [mark, Object.assign({}, mark, { id: A.recordId(sid, A.addDays(today, -1)), date: A.addDays(today, -1), status: 'present', history: undefined })],
+    students: [{ id: sid, name: EVIL, course: EVIL, instructor: 'Ins', stage: 'training', gpa: ATTACK.tag, attendance: 90 }],
+    studentCentreRecord() { return null; }, studentCourseStatus() { return 'active'; }, safeJsonParse(v, d) { try { return JSON.parse(v); } catch (e) { return d; } },
+    CESTISStore: { getItem() { return null; }, setItem() {}, removeItem() {} }, saveCollection() { return true; }, currentAttendanceDate: '',
     instructorCourseMatch() { return true; }, currentInstructor: { name: 'Ins', course: EVIL }, currentRole: 'admin'
   };
-  const r = render('renderAttendancePage', ['renderAttendancePage'], common, 'renderAttendancePage()', sb => el(sb, 'attendanceTableBody'));
-  assert(parseTags(r.html).some(t => t.attrs.some(a => a.name === 'data-sid' && a.value === rec.studentId)),
-    'data-sid still decodes to the exact trainee id (updateAttendanceCell finds the row)');
-  render('renderInstructorAttendance', ['renderInstructorAttendance'], common, 'renderInstructorAttendance()', sb => el(sb, 'iAttendanceTableBody'));
-  render('cmcBuildAttendanceDetail', ['cmcBuildAttendanceDetail'], common, 'cmcBuildAttendanceDetail()');
-  render('cmcBuildAttendanceDetail (no records)', ['cmcBuildAttendanceDetail'], Object.assign({}, common, { attendanceRecords: [] }), 'cmcBuildAttendanceDetail()');
+  // The cells' and headers' handlers are written by these, so they are named
+  // for the check that every handler in the markup is one the code writes.
+  const run = (label, names, setup, call, pick) => render(label, ['localDateStr', 'attendanceCellHtml', 'attendanceHeadHtml', 'renderAttendanceGrid'].concat(names), Object.assign({ __block: block }, setup),
+    'eval(__block);' + call, pick);
+  const r = run('renderAttendancePage', ['renderAttendancePage'], common, 'renderAttendancePage()', sb => el(sb, 'attendanceTableBody'));
+  assert(parseTags(r.html).some(t => t.attrs.some(a => a.name === 'data-sid' && a.value === sid)),
+    'data-sid still decodes to the exact trainee id (updateAttendanceCell finds the mark)');
+  run('renderInstructorAttendance', ['renderInstructorAttendance', 'attendanceInstructorFilter'], Object.assign({ _attInstructorCfg: {
+    page: 'instructor', tbody: 'iAttendanceTableBody', head: 'iAttendanceTableHead', count: 'iAttCount', summary: 'iAttendanceSummary',
+    chart: 'iWeeklyAttChart', live: 'iAttendanceLiveClasses', dateInput: 'iAttendanceDate', banner: 'iAttendanceLockBanner', showCourse: false } }, common),
+    'renderInstructorAttendance()', sb => el(sb, 'iAttendanceTableBody'));
+  run('renderAsAttendance', ['renderAsAttendance'], common, 'renderAsAttendance()', sb => el(sb, 'asAttBody'));
+  run('cmcBuildAttendanceDetail', ['cmcBuildAttendanceDetail'], common, 'cmcBuildAttendanceDetail()');
+  run('cmcBuildAttendanceDetail (weekly rows only)', ['cmcBuildAttendanceDetail'], Object.assign({}, common, { attendanceRegister: [] }), 'cmcBuildAttendanceDetail()');
+  run('cmcBuildAttendanceDetail (no records)', ['cmcBuildAttendanceDetail'], Object.assign({}, common, { attendanceRecords: [], attendanceRegister: [] }), 'cmcBuildAttendanceDetail()');
   render('cmcBuildFeesDetail', ['cmcBuildFeesDetail'], common, 'cmcBuildFeesDetail()');
 }
 
@@ -484,7 +507,7 @@ console.log('LMS Chat: messages, file names, rooms, avatars');
   assert(dl.length === 1 && dl[0].args[1] === msgs[1].fileName, 'an attachment named with an apostrophe still downloads by its exact name');
   render('lmsChatRenderRoomList', helpers.concat(['lmsChatRenderRoomList']), setup, 'lmsChatRenderRoomList("admin")', sb => el(sb, 'adminChatList'));
   render('lmsChatRenderInfoPanel', helpers.concat(['lmsChatRenderInfoPanel']), setup, 'lmsChatRenderInfoPanel("admin")', sb => el(sb, 'adminChatInfoBody'));
-  render('lmsChatGetAvatarHTML', helpers.concat(['lmsChatGetAvatarHTML']), setup, 'lmsChatGetAvatarHTML("USR-X", ' + JSON.stringify(EVIL) + ', 40) + "' + H.esc(ATTACK.tag) + '"');
+  render('lmsChatGetAvatarHTML', helpers.concat(['lmsChatPresence', 'lmsChatGetAvatarHTML']), setup, 'lmsChatGetAvatarHTML("USR-X", ' + JSON.stringify(EVIL) + ', 40) + "' + H.esc(ATTACK.tag) + '"');
   const sbCall = render('lmsChatShowIncomingCallNotif', ['lmsChatShowIncomingCallNotif'], setup,
     'lmsChatShowIncomingCallNotif(lmsChatRooms[0], {id:"USR-X", name:' + JSON.stringify(EVIL) + '}, "video", "USR-ME")',
     sb => sb.document.body.children[0] ? sb.document.body.children[0].innerHTML : '');
@@ -495,12 +518,12 @@ console.log('Announcements, calendars and the duty register');
   const ann = { id: "A1');__pwn(2);//", title: EVIL, body: EVIL, author: EVIL, priority: 'urgent" onmouseover="__pwn(6)', date: ATTACK.tag, forRoles: ['admin', 'instructor', ATTACK.tag], targetRoles: ['admin', ATTACK.tag] };
   const setup = {
     announcements: [ann], currentInstructor: { name: EVIL, course: 'X' }, currentRole: 'admin', currentLoggedInUser: { id: 'U1' },
-    calendarEvents: [{ title: EVIL, date: '2026-10-20', time: ATTACK.tag, type: ATTACK.tag, color: 'red;"onmouseover="__pwn(6)', forRoles: [ATTACK.tag] }],
+    calendarEvents: [{ title: EVIL, date: '2099-10-20', time: ATTACK.tag, type: ATTACK.tag, color: 'red;"onmouseover="__pwn(6)', forRoles: [ATTACK.tag] }],
     instructorCourseMatch() { return true; }
   };
   render('renderAnnouncements', ['renderAnnouncements'], setup, 'renderAnnouncements()', sb => el(sb, 'announcementsList'));
   render('renderInstructorAnnouncements', ['renderInstructorAnnouncements'], setup, 'renderInstructorAnnouncements()', sb => el(sb, 'iAnnouncementsList'));
-  render('renderCalendarEventList', ['renderCalendarEventList'], setup, 'renderCalendarEventList()', sb => el(sb, 'calEventList'));
+  render('renderCalendarEventList', ['localDateStr', 'renderCalendarEventList'], setup, 'renderCalendarEventList()', sb => el(sb, 'calEventList'));
 }
 
 console.log('Coursework: assignments, submissions, file names, resource links');
@@ -518,8 +541,8 @@ console.log('Coursework: assignments, submissions, file names, resource links');
     currentInstructor: { name: EVIL, course: 'Welding' }, currentStudent: { id: 'STU-1', name: EVIL, course: 'Welding' },
     instructorCourseMatch() { return true; }, currentRole: 'admin'
   };
-  render('renderInstructorGradebook', ['renderInstructorGradebook'], setup, 'renderInstructorGradebook()', sb => el(sb, 'iCustomAssignmentsList'));
-  const st = render('renderStudentAssignmentsPage', ['renderStudentAssignmentsPage'], setup, 'renderStudentAssignmentsPage()', sb => Object.values(sb.__els).map(e => e.innerHTML).join(''));
+  render('renderInstructorGradebook', ['courseworkFileLink', 'renderInstructorGradebook'], setup, 'renderInstructorGradebook()', sb => el(sb, 'iCustomAssignmentsList'));
+  const st = render('renderStudentAssignmentsPage', ['courseworkFileLink', 'renderStudentAssignmentsPage'], setup, 'renderStudentAssignmentsPage()', sb => Object.values(sb.__els).map(e => e.innerHTML).join(''));
   const opens = handlerCalls(st.html).filter(c => c.name === 'openSubmitAssignment');
   assert(opens.length > 0 && opens.every(c => c.args[0] === a.id && c.args[1] === a.title), 'Upload Submission passes the exact id and title');
 
@@ -567,7 +590,7 @@ console.log('Video classes: lists, lobby, conference, participants');
     currentStudent: { id: 'S', name: EVIL, course: 'Welding', instructor: EVIL }, instructorCourseMatch() { return true; },
     localDateStr() { return '2026-10-20'; }, instructorResources: [], driveResources: [{ category: 'video', name: EVIL, url: EVIL_URL, course: 'Welding' }]
   };
-  const ac = render('renderAdminClassSessions', ['renderAdminClassSessions'], setup, 'renderAdminClassSessions()', sb => el(sb, 'adminClassSessionsList') + el(sb, 'adminAllSessionsList'));
+  const ac = render('renderAdminClassSessions', ['vcSessionStatusBadge', 'renderAdminClassSessions'], setup, 'renderAdminClassSessions()', sb => el(sb, 'adminClassSessionsList') + el(sb, 'adminAllSessionsList'));
   const joins = handlerCalls(ac.html).filter(c => c.name === 'enterVideoRoom');
   assert(joins.length === 2 && joins.every(c => c.args[0] === EVIL && c.args[2] === cs.roomCode), 'Join passes the exact class name and room code (an apostrophe used to break it)');
   render('renderAdminMeetingsList', ['meetingAccess', 'meetingAccessBadge', 'renderAdminMeetingsList'], setup, 'renderAdminMeetingsList()', sb => el(sb, 'adminMeetingsList') + el(sb, 'asAdminMeetingsList') + el(sb, 'iAdminMeetingsList'));
@@ -578,9 +601,9 @@ console.log('Video classes: lists, lobby, conference, participants');
 
   const vsb = makeSandbox({
     peerNames: { p1: EVIL }, peerRoles: { p1: ATTACK.tag }, mutedPeers: {}, vcCoHosts: {}, isRoomHost: true, rtcPeer: { id: 'me' },
-    vcCurrentUserName: EVIL, vcCurrentRole: 'admin'
+    vcCurrentUserName: EVIL, vcCurrentRole: 'admin', vcIsCoHost: false, currentRoomCode: 'ABC234'
   });
-  load(vsb, ['vcCleanPeerName', 'vcCleanPeerRole', 'vcUpdateParticipants']);
+  load(vsb, ['vcHostPeerId', 'vcCleanPeerName', 'vcCleanPeerRole', 'vcUpdateParticipants']);
   vm.runInContext('vcUpdateParticipants()', vsb);
   const parts = el(vsb, 'vc-part-list');
   assertSafeMarkup(parts, 'vcUpdateParticipants', extractFunction(SRC, 'vcUpdateParticipants'));
@@ -588,7 +611,8 @@ console.log('Video classes: lists, lobby, conference, participants');
   assertEq(vm.runInContext('vcCleanPeerRole("instructor")', vsb), 'instructor', 'a real role is kept');
   const conf = render('vcShowConference', ['vcShowConference'], {
     vcCurrentUserName: EVIL, isRoomHost: true, currentRoomCode: ATTACK.tag, localStream: null,
-    vcUpdateParticipants() {}, vcRestoreChatHistory() {}, videoTimerInterval: null, videoSeconds: 0
+    vcUpdateParticipants() {}, vcRestoreChatHistory() {}, videoTimerInterval: null, videoSeconds: 0,
+    vcReplayStreams() {}, vcRefreshRecordingBanner() {}, vcNatNotice() {}
   }, 'vcShowConference(' + JSON.stringify(EVIL) + ', "admin")', sb => el(sb, 'videoRoom'));
   const send = handlerCalls(conf.html).filter(c => c.name === 'sendChatMsg');
   assert(send.length === 2 && send.every(c => c.args[1] === EVIL), 'Send passes the exact sender name (an apostrophe used to break chat)');
@@ -596,7 +620,8 @@ console.log('Video classes: lists, lobby, conference, participants');
 
 console.log('Dashboards: Top Performers, Recent Activity, instructor roster, skill areas');
 {
-  render('renderInstructorStudents', ['renderInstructorStudents'], {
+  render('renderInstructorStudents', ['studentCourseworkSummary', 'studentEffectiveGpa', 'renderInstructorStudents'], {
+    instructorAssignments: [], examResults: [],
     students: [{ id: ATTACK.tag, name: EVIL, course: 'W', score: ATTACK.tag, gpa: ATTACK.tag, stage: ATTACK.tag, attendance: '90;"x="', progress: ATTACK.tag, instructor: 'I' }],
     currentInstructor: { name: 'I', course: 'W' }, instructorCourseMatch() { return true; }, stageBadge: {}, stageLabels: {}
   }, 'renderInstructorStudents(students)', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));

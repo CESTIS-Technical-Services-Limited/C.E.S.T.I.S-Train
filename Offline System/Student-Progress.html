@@ -349,7 +349,7 @@
     <div class="form-group"><label>Programme</label><select class="form-control" id="editStudentCourse"></select></div>
     <div class="form-group"><label>Gender</label><select class="form-control" id="editStudentGender"><option value="">— Select —</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
     <div class="form-group"><label>Instructor</label><input type="text" class="form-control" id="editStudentInstructor"></div>
-    <div class="form-group"><label>Attendance (%)</label><input type="number" class="form-control" id="editStudentAttendance" min="0" max="100"></div>
+    <div class="form-group"><label>Attendance (%)</label><input type="number" class="form-control" id="editStudentAttendance" min="0" max="100"><div id="editStudentAttendanceNote" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div></div>
     <div class="form-group"><label>GPA <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(entered by hand — the transcript average is on Transcript/Grades)</span></label><input type="text" class="form-control" id="editStudentGPA"></div>
     <!-- Two real trainees can share a name. The system treats one name as one
          person and collapses the rest on launch; this is how an administrator
@@ -535,6 +535,19 @@ function deduplicateStudents() {
   return { removed: removed, idMap: idMap };
 }
 
+// A trainee's attendance by the register's one rule (CESTISCore.attendance:
+// present + late over the sessions actually held), or null while the register
+// holds no held session for them.
+function spRegisterAttendance(sid) {
+  try {
+    var reg = safeJsonParse(CESTISStore.getItem('voctrain_attendanceRegister'), null);
+    if (!Array.isArray(reg) || !reg.length || !CESTISCore.attendance) return null;
+    var want = {}; want[sid] = true;
+    var r = CESTISCore.attendance.ratesByStudent(reg, { studentIds: want })[sid];
+    return (r && r.pct != null) ? r : null;
+  } catch (e) { return null; }
+}
+
 function relinkDependentData(idMap) {
   if (!idMap || Object.keys(idMap).length === 0) return;
   if (window.CESTISCore && typeof CESTISCore.relinkDependentData === 'function') {
@@ -549,6 +562,16 @@ function relinkDependentData(idMap) {
     // The trainee's manual grades, transcript header and requests live only in
     // the store; the same shared relink carries them (CESTISCore).
     if (typeof CESTISCore.relinkStoredDependents === 'function') CESTISCore.relinkStoredDependents(idMap, CESTISStore);
+    // The dated attendance register (kept by the main dashboard) names each
+    // trainee by id too: a trainee re-identified here takes their marks along,
+    // folded newest-wins into any mark the new id already has.
+    try {
+      var _reg = safeJsonParse(CESTISStore.getItem('voctrain_attendanceRegister'), null);
+      if (Array.isArray(_reg) && _reg.length && CESTISCore.attendance) {
+        var _rl = CESTISCore.attendance.relink(_reg, idMap);
+        if (_rl.changed) spSaveCollection('voctrain_attendanceRegister', _rl.register);
+      }
+    } catch (e) {}
     return;
   }
   userAccounts.forEach(function(u) {
@@ -1123,7 +1146,17 @@ function openEditStudent(id) {
   document.getElementById('editStudentEmail').value = profile.email || '';
   document.getElementById('editStudentGender').value = s.gender || '';
   document.getElementById('editStudentInstructor').value = s.instructor || '';
-  document.getElementById('editStudentAttendance').value = s.attendance || 0;
+  // Attendance comes from the register once there is one for this trainee: it
+  // is shown, not typed, so a figure typed here can no longer silently stand in
+  // for (or be silently replaced by) what the register says.
+  var _attIn = document.getElementById('editStudentAttendance');
+  var _attNote = document.getElementById('editStudentAttendanceNote');
+  var _reg = spRegisterAttendance(s.id);
+  _attIn.value = _reg ? _reg.pct : (s.attendance || 0);
+  _attIn.readOnly = !!_reg;
+  if (_attNote) _attNote.textContent = _reg
+    ? 'From the attendance register: ' + _reg.attended + ' of ' + _reg.held + ' sessions held (late counts as attended). Change it by marking the register.'
+    : 'No attendance has been marked in the register for this trainee yet, so the figure is entered here.';
   document.getElementById('editStudentGPA').value = s.gpa || '0.0';
   // "Keep separate": show the current setting, and say plainly whether anybody
   // else on the roll actually shares this name — the marker only matters then.
@@ -1233,7 +1266,10 @@ function saveEditStudent() {
   s.gender = document.getElementById('editStudentGender').value || '';
   s.course = document.getElementById('editStudentCourse').value;
   s.instructor = document.getElementById('editStudentInstructor').value.trim();
-  s.attendance = parseInt(document.getElementById('editStudentAttendance').value) || 0;
+  // Typed only while the register holds nothing for this trainee; otherwise the
+  // register's figure stands (see openEditStudent).
+  var _regAtt = spRegisterAttendance(s.id);
+  s.attendance = _regAtt ? _regAtt.pct : (parseInt(document.getElementById('editStudentAttendance').value) || 0);
   // GPA is a number (0 to 5, up to three decimals). Free text here ended up
   // in every leaderboard, so anything else keeps the previous value.
   var _gpaIn = document.getElementById('editStudentGPA').value.trim() || '0.0';
@@ -1245,14 +1281,14 @@ function saveEditStudent() {
     studentProfiles[s.id].email = email;
     studentProfiles[s.id].updatedAt = new Date().toISOString();
   }
-  // Update the trainee's attendance rows. A trainee with no row keeps none:
-  // a missing row is not "absent all week", and inventing one recorded five
-  // absences nobody had taken.
-  attendanceRecords.forEach(function(r){
-    if (!r || r.studentId !== s.id) return;
-    r.studentName = s.name;
-    r.course = s.course;
-  });
+  // Update attendance record
+  var attRec = attendanceRecords.find(function(r){ return r.studentId === s.id; });
+  if(attRec){
+    attRec.studentName = s.name;
+    attRec.course = s.course;
+  } else {
+    attendanceRecords.push({studentId:s.id, studentName:s.name, course:s.course, date:CESTISCore.attendance.localDate(), days:{}});
+  }
   s.lastModified = new Date().toISOString();
   updateSkillAreaCounts();
   closeModal('editStudentModal');
@@ -1324,7 +1360,7 @@ async function addStudent() {
   if (!_dec.allowed) { alert(_dec.reason); return; }
   // Ground the trainee in the centre's course duration and fiscal year.
   var _stamp = (window.CESTISCore && CESTISCore.enrolment)
-    ? (CESTISCore.enrolment.enrolmentStamp(_dec.centre, new Date().toISOString().split('T')[0]) || {}) : {};
+    ? (CESTISCore.enrolment.enrolmentStamp(_dec.centre, CESTISCore.attendance.localDate()) || {}) : {};
   var assignedInstructor = (instructorData.find(function(ins){
     if(!ins.course) return false;
     if(ins.course.toLowerCase().trim() === selectedCourse.toLowerCase().trim()) return true;
@@ -1354,7 +1390,7 @@ async function addStudent() {
     certNo:null, certDate:null, certCollected:false,
     attendance:0, assignments:0, assignmentsTotal:8,
     gpa:'0.0', instructor:assignedInstructor, gender:gender,
-    createdAt:new Date().toISOString().split('T')[0],
+    createdAt:CESTISCore.attendance.localDate(),
     lastModified:new Date().toISOString(),
     // Grounded in the training centre's duration and fiscal year — and its
     // intake key, which is what binds the trainee to THIS intake (a later
@@ -1369,7 +1405,7 @@ async function addStudent() {
   // Auto-create attendance record
   var existingAtt = attendanceRecords.find(function(r){ return r.studentId === studentId; });
   if(!existingAtt){
-    attendanceRecords.push({studentId:studentId, studentName:name, course:selectedCourse, date:new Date().toISOString().split('T')[0], days:{Mon:'absent',Tue:'absent',Wed:'absent',Thu:'absent',Fri:'absent'}});
+    attendanceRecords.push({studentId:studentId, studentName:name, course:selectedCourse, date:CESTISCore.attendance.localDate(), days:{}});
   }
   updateSkillAreaCounts();
   // No login is made here. This page used to write one — with a password of
@@ -1514,9 +1550,13 @@ if(document.readyState === 'loading'){
 CESTISPageCloud.init({
   page: 'Student Progress',
   file: 'CESTIS_Student_Progress.json',
+  // 'voctrain_attendance' is not published from here: this file's copy of the
+  // roster was adopted whole by the next device to pull it — over that
+  // device's current quarter. The main dashboard's backup carries attendance
+  // (every dated mark), merged mark by mark.
   // Opened with no signed-in session it shows nothing, so it moves nothing either.
   readOnly: !(typeof SP_VIEWER !== 'undefined' && SP_VIEWER.ok),
-  keys: ['voctrain_students', 'voctrain_attendance', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles'],
+  keys: ['voctrain_students', 'voctrain_examResults', 'voctrain_certDownloadApprovals', 'voctrain_deletedStudentIds', 'voctrain_deletedCentreIds', 'voctrain_instructorData', 'voctrain_skillAreas', 'voctrain_studentProfiles'],
   // The fee roll is read here (trainees the fee page knows about first are
   // mirrored onto this dashboard) but owned by School Fee, so it is pulled from
   // Drive and never written back from this page.
