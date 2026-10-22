@@ -828,7 +828,14 @@ function compareMaps(B, A, label, opts) {
         const grew = Array.isArray(d.from) && Array.isArray(d.to) && d.from.every(x => typeof x !== 'object' && d.to.indexOf(x) !== -1);
         // A stale copy brought up to the newest copy the Centre had.
         const newest = opts.newest && opts.newest[k] && opts.newest[k][rid] && stable(opts.newest[k][rid][d.field]) === stable(d.to);
-        if (PROTECTED.indexOf(d.field) !== -1 && !grew && !newest) rep.changed.push(entry);
+        // A class chat room's members are DERIVED — every dashboard rebuilds
+        // them from the accounts and their programmes
+        // (CESTISCore.chat.classRoomMembers) — so a device that has not yet
+        // run that pass with the Centre's accounts, or a disabled login that
+        // left, is a recomputation, not a lost record. (Checked: the new
+        // device's rooms read 25/27/24 members again at its next sign-in.)
+        const derived = d.field === 'members' && /chatRooms$/.test(k) && ((o && o.type === 'class') || (n && n.type === 'class'));
+        if (PROTECTED.indexOf(d.field) !== -1 && !grew && !newest && !derived) rep.changed.push(entry);
         else rep.recomputed.push(entry);
       });
     });
