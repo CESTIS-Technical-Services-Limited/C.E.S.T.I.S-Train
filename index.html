@@ -2514,6 +2514,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   .qnbox { width:44px; height:52px; font-size:15px; padding-top:5px; }
   .enp-progress { display:inline-block; margin:0 14px 0 0; }
   .enp-finish { display:inline-flex; align-items:center; min-height:44px; margin:0; font-size:15px; }
+  .exam-nav-panel.review { position:static; box-shadow:none; }
   .exam-nav-panel.review .enp-title { position:static; width:auto; height:auto; overflow:visible; clip:auto; font-size:11px; }
   .exam-nav-panel.review .enp-body { display:block; }
   .exam-q { display:block; margin-bottom:18px; scroll-margin-top:76px; }
@@ -2525,14 +2526,17 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   .exam-choice { min-height:48px; align-items:center; padding:10px 12px; font-size:15.5px; }
   .exam-choice input { width:22px; height:22px; margin:0; }
   .exam-match-row { flex-direction:column; align-items:stretch; gap:6px; }
-  .exam-match-select, .r-match-pick { flex-basis:auto; width:100%; min-height:46px; font-size:16px; }
+  .exam-match-prompt { flex:0 0 auto; }
+  .exam-match-select, .r-match-pick { flex:0 0 auto; width:100%; min-height:46px; font-size:16px; }
   .exam-inline-answer { flex-wrap:wrap; }
   .exam-attempt .exam-text-answer { width:100%; flex:1 1 100%; min-height:46px; font-size:16px; }
   .exam-attempt .exam-short-textarea { font-size:16px; }
   .exam-page-nav { position:sticky; bottom:0; z-index:15; margin:8px -12px 0; padding:10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); background:var(--bg-secondary); border-top:1px solid var(--border-light); box-shadow:0 -4px 14px rgba(0,0,0,0.4); }
   .exam-page-nav .btn { min-height:46px; padding:0 18px; font-size:15px; }
   .exam-page-count { font-size:12px; }
+  .exam-summary-table, .exam-review-summary { min-width:0; }
   .exam-summary-table th, .exam-summary-table td { padding:10px; }
+  .sum-flag-badge { display:block; margin:2px 0 0; }
   .exam-summary-q { min-height:40px; min-width:44px; }
   .exam-summary-actions .btn { min-height:46px; width:100%; max-width:360px; }
   .exam-confirm-actions .btn { flex:1; min-height:46px; }
@@ -26626,7 +26630,7 @@ function openGradingPanel(resultId) {
     bodyHtml += '<div class="grade-question-card needs-grade" id="gradeCard-'+idx+'">';
     bodyHtml += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">';
     bodyHtml += '<span style="color:var(--accent);font-weight:700;font-size:12px;">Q'+(idx+1)+'</span>';
-    bodyHtml += '<span class="q-type-badge q-type-'+a.type+'" style="font-size:10px;">'+a.type.toUpperCase()+'</span>';
+    bodyHtml += '<span class="q-type-badge q-type-'+escapeHtml(a.type)+'" style="font-size:10px;">'+escapeHtml(examTypeLabel(a.type))+'</span>';
     bodyHtml += '<span style="font-size:11px;color:var(--text-muted);margin-left:auto;">'+a.points+' pt'+(a.points!==1?'s':'')+'</span>';
     bodyHtml += '</div>';
     bodyHtml += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;">'+escapeHtml(a.questionText)+'</div>';

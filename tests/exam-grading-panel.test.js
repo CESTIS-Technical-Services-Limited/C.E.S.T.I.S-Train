@@ -96,7 +96,7 @@ function setup() {
   ctx.window = ctx;
   vm.createContext(ctx);
   vm.runInContext('var gradingResultId = null;\n' +
-    ['openGradingPanel', 'closeGradingPanel', 'setGradePoints', 'updateGradingPreview', 'submitGrading']
+    ['openGradingPanel', 'closeGradingPanel', 'setGradePoints', 'updateGradingPreview', 'submitGrading', 'examTypeLabel']
       .map(n => extractFunction(INDEX, n)).join('\n'), ctx);
   return { ctx, page };
 }
