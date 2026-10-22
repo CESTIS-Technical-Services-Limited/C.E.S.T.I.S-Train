@@ -11011,7 +11011,7 @@ async function forceChangePwSubmit() {
   if(acct !== canonical){ acct.password = canonical.password; delete acct.defaultPassword; delete acct.mustChangePassword; }
   try { if(canonical.username) clearLoginFailures(canonical.username); if(canonical.email) clearLoginFailures(canonical.email); } catch(_){}
   saveUserAccounts();
-  lanHostTicket(canonical, np);
+  lanHostTicketAfterSave(canonical, np);
   closeModal('forceChangePwModal');
   showToast('Password updated. Welcome.');
   var role = _forceChangePwRole, then = _forceChangePwThen; _forceChangePwRole = null; _forceChangePwThen = null;
@@ -11021,9 +11021,42 @@ async function forceChangePwSubmit() {
 /* On the Centre's own server (Offline System) a class room's host place is
    given only to signed-in staff: the server checks the password itself and
    hands this tab a short-lived host ticket (cestis-offline-rtc.js). Online —
-   GitHub Pages — this does nothing at all. Never blocks the sign-in. */
+   GitHub Pages — this does nothing at all. Never blocks the sign-in.
+
+   Never with a published default: the server refuses one outright, so all it
+   earned was a 403. That is what the first-run sign-in used to send — it goes
+   on, after "set a new password", with the password that was typed to get
+   there. Resolves true when this tab holds a ticket. */
 function lanHostTicket(account, pw) {
-  try { if (typeof window.cestisLanHostTicket === 'function') window.cestisLanHostTicket(account, pw); } catch (e) {}
+  try {
+    if (!pw || CESTISCore.accountAccess.isPublishedDefault(pw)) return Promise.resolve(false);
+    if (typeof window.cestisLanHostTicket === 'function') return window.cestisLanHostTicket(account, pw);
+  } catch (e) {}
+  return Promise.resolve(false);
+}
+
+/* A password set on this device a moment ago. The Centre's server checks a
+   ticket request against the accounts IT holds, and the new password only
+   reaches it with this device's next save of the accounts — the debounced one,
+   a second and a half later. Asked at once, the server still held the old
+   password and refused, and nothing asked again: the administrator who had
+   just set up a brand-new Centre could not host a class. So the save is sent
+   now and the ticket asked for once it has landed — or, when the server could
+   not be reached, once the next save that does reach it has. */
+function lanHostTicketAfterSave(account, pw) {
+  try {
+    if (!window.CESTISPageCloud || typeof CESTISPageCloud.lan !== 'function' ||
+        typeof CESTISPageCloud.whenLanSaved !== 'function') return Promise.resolve(false);
+    return CESTISPageCloud.lan().then(function (on) {
+      if (!on) return false;
+      return CESTISPageCloud.saveNow().then(function (res) {
+        if (Array.isArray(res) && res.some(function (r) { return r === true; })) return lanHostTicket(account, pw);
+        return new Promise(function (resolve) {
+          CESTISPageCloud.whenLanSaved(function () { resolve(lanHostTicket(account, pw)); });
+        });
+      });
+    }).catch(function () { return false; });
+  } catch (e) { return Promise.resolve(false); }
 }
 
 /* A sign-in whose password has just matched one of the PUBLISHED defaults.

@@ -276,6 +276,8 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     await A.fill('#forceChangePwConfirm', ADMIN_PW);
     await A.click('#forceChangePwModal button:has-text("Set Password")');
     ok(await waitFor(A, () => currentRole === 'admin' && document.getElementById('appShell').classList.contains('active')), 'the administrator is in');
+    ok(await waitFor(A, () => { try { const t = JSON.parse(sessionStorage.getItem('cestisLanHostTicket') || 'null'); return !!(t && t.ticket && currentLoggedInUser && t.uid === currentLoggedInUser.id); } catch (e) { return false; } }, null, 15000),
+      'and holds a host ticket: the password they set reached the Centre\'s server first');
     today = await A.evaluate(() => localDateStr());
     weekend = await A.evaluate(d => CESTISCore.attendance.dayName(d) === '', today);
 

@@ -752,6 +752,15 @@
     });
   };
 
+  /* Whoever is waiting for this device's next save to reach the Centre's
+     server (API.whenLanSaved). Each is called once, after a save the server
+     has accepted — or one it already held, which is the same thing. */
+  var lanSaveWaiters = [];
+  function lanSaved() {
+    var due = lanSaveWaiters.splice(0, lanSaveWaiters.length);
+    due.forEach(function (fn) { try { fn(); } catch (e) {} });
+  }
+
   Page.prototype.lanPush = function () {
     var self = this;
     if (self.spec.readOnly) return Promise.resolve(false);
@@ -767,7 +776,7 @@
       // payload's own savedAt is new on every call, which made the old
       // "nothing to upload" test impossible to pass.
       var sig = JSON.stringify([merged.data, merged.stamps]);
-      if (sig === self._lanLastSig && got.same) return true;
+      if (sig === self._lanLastSig && got.same) { lanSaved(); return true; }
       var payload = C.buildPayload(self.spec, merged.data, merged.stamps, {
         savedAt: lanNow(),
         savedBy: (root.currentLoggedInUser && root.currentLoggedInUser.username) || root.currentRole || 'offline'
@@ -779,6 +788,7 @@
         self.state.lastPush = payload.savedAt;
         self.state.keys = payload.keyCount;
         tellPageOfPushMerge(self, writeBackFromPush(self, data, merged, true));
+        lanSaved();
         return true;
       });
     });
@@ -1057,6 +1067,12 @@
     /* True once this page has read the Centre's server successfully in this
        session: the LAN's answer to "has this device synced?". */
     lanSynced: function () { return !!(lan.on && lan.synced); },
+    /* fn() once, after this device's next save has reached the Centre's
+       server — for something that has to wait until the server holds what was
+       just saved here (a host ticket asked for with a password changed a
+       moment ago: the server checks it against the accounts IT holds). Never
+       called anywhere but on the Centre's network. */
+    whenLanSaved: function (fn) { if (typeof fn === 'function') lanSaveWaiters.push(fn); },
     /* The current time by the Centre's server's clock (this device's clock
        anywhere else). */
     now: function () { return lanNow(); },

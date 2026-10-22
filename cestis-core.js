@@ -10256,8 +10256,20 @@
           // cloudCopyWins is the one rule every account merge follows: the
           // newer edit, and a real password is never replaced by a default.
           var w = Core.accountAccess.cloudCopyWins(l, c) ? c : l;
-          var merged = fillFrom(w, w === c ? l : c);
+          var other = w === c ? l : c;
+          var merged = fillFrom(w, other);
           delete merged._plaintextPw;
+          // The seed marker describes a password — the winner's — and travels
+          // with it, as on every other account merge. Filled in from the older
+          // copy, a password somebody had just set went on saying "still the
+          // published default": the Centre's server then refused that
+          // administrator a host ticket, and every device read the account as
+          // a seed.
+          if (w.password && other && other.password !== w.password) {
+            ['defaultPassword', 'mustChangePassword'].forEach(function (f) {
+              if (w[f] === undefined || w[f] === null || w[f] === '') delete merged[f];
+            });
+          }
           return merged;
         }, function (r) { return !(r.id != null && gone[String(r.id)]); });
         return JSON.stringify(out);
