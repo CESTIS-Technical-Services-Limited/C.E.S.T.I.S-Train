@@ -245,6 +245,26 @@ async function seedAccounts(PW) {
       ok(await page.evaluate(() => document.getElementById('syncChipPanel').hidden && document.activeElement.id === 'syncChip'), kind + ': Escape closes it and returns to the chip');
       const writes = await page.evaluate(() => { const w = CESTISStore.writes; for (let i = 0; i < 5; i++) refreshSyncChip(); return CESTISStore.writes - w; });
       ok(writes === 0, kind + ': refreshing the chip writes nothing to the store');
+      if (kind === 'desktop') {
+        // Narrower laptop screens, sidebar still showing: the top bar steps
+        // down (Lock and who to icons, the chip's words into its panel, Sign
+        // Out to an icon, search away) so nothing runs off the edge — with the
+        // widest chip words and the wider "connected" button beside them.
+        for (const w of [1281, 1240, 1180, 1024, 961, 800]) {
+          await page.setViewportSize({ width: w, height: 768 });
+          for (const st of ['attention', 'waiting']) {
+            await page.evaluate(st => {
+              if (st === 'attention') { googleAccessToken = null; isCloudConnected = false; updateCloudUI(false); }
+              else { googleAccessToken = 'simulated'; isCloudConnected = true; updateCloudUI(true); }
+              CESTISStore.setItem('cestisPendingUpload', 'admin|' + new Date(Date.now() - 300000).toISOString());
+            }, st);
+            r = await chipNow();
+            ok(r.clear && r.state === st, 'desktop at ' + w + 'px, ' + st + ': the top bar fits, nothing runs off the edge');
+          }
+        }
+        await page.setViewportSize({ width: 1366, height: 768 });
+        await page.evaluate(() => { CESTISStore.removeItem('cestisPendingUpload'); googleAccessToken = null; isCloudConnected = false; updateCloudUI(false); });
+      }
 
       console.log('Item 5 (' + kind + '): the sibling pages carry the same chip in their headers');
       const sib = await open(ctx, kind === 'desktop' ? 'Virement.Request.html' : 'Income.Expenditure.html', 2500);

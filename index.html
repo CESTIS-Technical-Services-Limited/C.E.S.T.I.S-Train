@@ -2110,7 +2110,28 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 /* With the chip saying the state in words, the Connect button beside it
    keeps only its icon and dot (and its tooltip) and gives the top bar room. */
 .sync-chip-wrap.on ~ #cloudNotConnected #cloudStatusText { display:none; }
-.topbar-search { min-width:150px; }
+.topbar-search { min-width:120px; }
+/* Narrower laptop screens, sidebar still showing: the top bar's right-hand
+   group (chip, Connect, bell, who, Lock, Sign Out) must never run off the
+   edge — at 1180px Sign Out was cut off. It gives way in steps, as the phone
+   layout does: Lock becomes an icon, then who shows as initials, then the
+   chip's words move into its panel (its tooltip keeps them), then Sign Out
+   becomes an icon, and the search box goes where it was crushed anyway. */
+@media (max-width:1280px) {
+  .topbar-lock-btn { padding:7px 8px; }
+  .topbar-lock-label { display:none; }
+}
+@media (max-width:1240px) { .topbar-who-text { display:none; } }
+@media (max-width:1180px) {
+  .sync-chip { padding:7px 9px; }
+  .sync-chip-label { display:none; }
+}
+@media (max-width:1023px) {
+  .topbar-right { gap:8px; }
+  .logout-btn { padding:7px 10px; font-size:0; gap:0; }
+  .logout-btn svg { width:16px; height:16px; }
+}
+@media (max-width:960px) { .topbar-search { display:none; } }
 .cloud-dropdown { position:relative; display:inline-block; }
 .cloud-dropdown-content {
   display:none; position:absolute; right:0; top:100%; background:var(--bg-card); min-width:200px;
@@ -33381,6 +33402,7 @@ function refreshSyncChip() {
   chip.className = 'sync-chip tone-' + h.tone;
   chip.setAttribute('data-state', h.state);
   chip.setAttribute('aria-label', h.label + ' — show details');
+  chip.title = h.label;   // where the chip shows only its icon, hovering still says it
   // A check or circular arrows (fixed markup from the shared core, no input in it).
   var icon = document.getElementById('syncChipIcon');
   if (icon && typeof CESTISCore.ui.syncIcon === 'function' && icon.getAttribute('data-icon') !== h.icon) {
