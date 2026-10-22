@@ -5592,6 +5592,34 @@
     };
   })();
 
+  /* How far one copy of a School Fee record can be trusted against another.
+
+     0 — a PLACEHOLDER: the record the LMS mirror (or the fee page seeding itself
+     from the trainee roll) makes for a trainee it has no fee record for. It is
+     flagged needsFeeDetails and carries nothing a person typed on the fee page:
+     no ID, address, date of birth, guardian or emergency contact, and nothing
+     paid. 1 — anything else.
+
+     A brand-new PC makes a placeholder for every trainee the moment its
+     dashboard has the roll and not yet the fee roll. Those copies are dated
+     NOW, so every merge judged on dates let them beat the Centre's real fee
+     records: on the new PC every trainee's tuition read $0 and their ID,
+     address and guardian were blank (found by the upgrade verifier, Drive
+     scenario). A placeholder never outranks a real record, whatever its date;
+     two copies of the same rank are settled by date as before. */
+  Core.feeRecordRank = function (r) {
+    if (!r || typeof r !== 'object') return 0;
+    if (r.needsFeeDetails !== true) return 1;
+    var typed = ['nationalId', 'address', 'city', 'dateOfBirth', 'parentName', 'parentContact', 'emergencyContact'];
+    for (var i = 0; i < typed.length; i++) {
+      var v = r[typed[i]];
+      if (v != null && String(v).trim() !== '') return 1;
+    }
+    return (parseFloat(r.totalPaid) || 0) > 0 ? 1 : 0;
+  };
+  // What a placeholder never hands on to the real record it loses to.
+  Core.FEE_PLACEHOLDER_FIELDS = ['needsFeeDetails', 'source'];
+
   /* The School Fee record a dashboard student belongs to.
 
      The mirror the other way (lmsMirrorTarget) already refuses to duplicate a
@@ -8781,6 +8809,26 @@
         var mine = maps ? snapshotMaps(l, opts) : null;
         var cs = trusted(stampOf(c), nowMs), ls = trusted(stampOf(l), nowMs);
         var touched = false;
+        // opts.rank(record) -> number: a copy of a higher rank wins whatever the
+        // dates say (a placeholder never beats a real record — see
+        // Core.feeRecordRank); the loser only fills the winner's blanks, minus
+        // the fields named in opts.rankDrop.
+        var rl = opts.rank ? opts.rank(l) : 0, rc = opts.rank ? opts.rank(c) : 0;
+        if (rc !== rl) {
+          var before = JSON.stringify(l);
+          if (rc > rl) {
+            var lost = {};
+            Object.keys(l).forEach(function (f) { if (!opts.rankDrop || opts.rankDrop.indexOf(f) === -1) lost[f] = l[f]; });
+            takeOver(l, c, opts.keep);
+            fillBlanks(l, lost);
+          } else {
+            var theirs = {};
+            Object.keys(c).forEach(function (f) { if (!opts.rankDrop || opts.rankDrop.indexOf(f) === -1) theirs[f] = c[f]; });
+            fillBlanks(l, theirs);
+          }
+          if (JSON.stringify(l) !== before) out.updated++;
+          return;
+        }
         if (cs > ls) { takeOver(l, c, opts.keep); touched = true; }
         // Two undated copies — or one whose date cannot be believed (a wrong
         // clock): keep ours and fill its blanks, so nothing typed is lost.
@@ -9857,7 +9905,16 @@
       { key: 'voctrain_instructorProfiles', type: 'map', tombs: 'instructorProfiles' },
       { key: 'voctrain_adrStaffMeta', type: 'map', tombs: 'adrStaffMeta' },
       { key: 'voctrain_certTemplates', type: 'map', tombs: 'certTemplates' },
-      { key: 'voctrain_chatProfiles', type: 'map' }
+      { key: 'voctrain_chatProfiles', type: 'map' },
+      // The School Fee roll, trainee by trainee. Its whole list used to be one
+      // value, newest write wins — so a new PC whose dashboard had just made a
+      // placeholder for every trainee (dated now) kept its placeholders over the
+      // Centre's priced, detailed records. A placeholder never outranks a real
+      // record (Core.feeRecordRank); a trainee deleted on the fee page (its
+      // cestiSchoolFeeDeletedLmsIds list, which travels in the same file) is not
+      // brought back by the other side's copy.
+      { key: 'cestiSchoolFeeStudents', type: 'feeStudents', id: byId, stamps: ['updatedAt'],
+        rank: function (r) { return Core.feeRecordRank(r); }, rankDrop: Core.FEE_PLACEHOLDER_FIELDS }
     ];
 
     function recordSpec(key) {
@@ -9885,7 +9942,7 @@
        once each wrote their whole list, and the later upload erased the
        other's work. */
     var DRIVE_RECORD_KEYS = ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles',
-      'voctrain_certTranscriptRequests', 'cesti_virements', 'cestis_cmc_rulings'];
+      'voctrain_certTranscriptRequests', 'cesti_virements', 'cestis_cmc_rulings', 'cestiSchoolFeeStudents'];
 
     function parseJson(raw) { try { return JSON.parse(raw); } catch (e) { return undefined; } }
     function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
@@ -9992,6 +10049,17 @@
       // the side that wrote the collection last; and the winner's blanks are
       // filled from the loser either way.
       var newer = function (l, c, fields) {
+        // A copy of a higher rank wins whatever the dates say (spec.rank — a
+        // placeholder never beats a real record); it takes only the loser's
+        // fields it lacks, minus spec.rankDrop.
+        if (spec.rank) {
+          var rl = spec.rank(l), rc = spec.rank(c);
+          if (rl !== rc) {
+            var top = rc > rl ? c : l, low = rc > rl ? l : c, keepLow = {};
+            Object.keys(low).forEach(function (f) { if (!spec.rankDrop || spec.rankDrop.indexOf(f) === -1) keepLow[f] = low[f]; });
+            return fillFrom(top, keepLow);
+          }
+        }
         var tl = newestOf(l, fields), tc = newestOf(c, fields);
         var cloudWins = (tc > tl || (tc === tl && preferCloud));
         // A record that must be taken whole (a withdrawn ruling is an entry
@@ -10179,6 +10247,20 @@
         return JSON.stringify(Core.attendance.mergeRegister(L, C, { accept: function (r) {
           return !(r && r.studentId != null && ctx.students[String(r.studentId)]);
         } }).register);
+      }
+
+      if (spec.type === 'feeStudents') {
+        // The fee page's own deletion list (ids and their LMS links), from both
+        // sides, as dropTombstonedFeeStudents reads it on the page.
+        var feeGone = ctx.ids ? ctx.ids('cestiSchoolFeeDeletedLmsIds') : {};
+        var feeLive = function (r) {
+          return !(feeGone[String(r.id)] || (r.lmsId && feeGone[String(r.lmsId)]) || feeGone['SF-' + r.id]);
+        };
+        out = unionList(L, C, spec.id, function (l, c) { return newer(l, c, spec.stamps); }, feeLive);
+        // A sweep that would leave no trainee at all is a fault, not a
+        // deletion (the page refuses the same sweep): keep the roll as it is.
+        if (!out.length && (L.length || C.length)) return null;
+        return JSON.stringify(out);
       }
 
       // A plain list of records.

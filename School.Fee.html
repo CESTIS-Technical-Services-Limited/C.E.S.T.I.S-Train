@@ -5941,7 +5941,12 @@
             feeSyncStamp();
             const tally = r => { if (r && (r.added || r.updated || r.removed)) out.changed = true; };
             if (want('students') && Array.isArray(data.students)) {
-                tally(S.mergeList(students, data.students, feeSyncKeyById));
+                // A placeholder made here from the trainee roll (no fee details
+                // anyone typed) never beats the Centre's real record, however
+                // new its date — on a new PC it used to blank every trainee's
+                // tuition, ID and address (CESTISCore.feeRecordRank).
+                tally(S.mergeList(students, data.students, feeSyncKeyById,
+                    { rank: CESTISCore.feeRecordRank, rankDrop: CESTISCore.FEE_PLACEHOLDER_FIELDS }));
             }
             if (want('payments') && Array.isArray(data.payments)) {
                 tally(S.mergeList(payments, filterTombstonedPayments(data.payments), feeSyncKeyById));
@@ -8121,6 +8126,11 @@
             if (_keep) student.keepSeparate = true; else delete student.keepSeparate;
             feePropagateKeepSeparate(student, _keep);
             student.balance = newTuitionFee - student.totalPaid;
+            // A person has now reviewed this record: it is no longer a
+            // placeholder from the trainee roll. (The tuition back-fill already
+            // promises to leave an edited record as set, and a merge never lets
+            // a placeholder outrank it — CESTISCore.feeRecordRank.)
+            delete student.needsFeeDetails;
             // Stamp the edit: the name is synced both ways and resolved by which
             // side was edited last, so an undated record would lose every tie.
             student.updatedAt = new Date().toISOString();
