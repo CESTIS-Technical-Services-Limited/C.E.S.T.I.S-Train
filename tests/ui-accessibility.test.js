@@ -173,7 +173,7 @@ const dismissSrc = alertSrc.slice(alertSrc.indexOf('function dismiss()'), alertS
 assert(/removeEventListener\('keydown', onKey, true\)/.test(dismissSrc), 'closing an alert by ANY route removes its key listener (it used to stay after a click)');
 assert(/isTop\(\)/.test(alertSrc) && /returnFocus/.test(alertSrc), 'only the top alert answers Enter/Escape, and focus goes back afterwards');
 const AK = Core.ui.alertKind;
-assert(AK('✅ Merge from cloud completed!') === 'success' && AK('❌ Failed') === 'error' && AK('ℹ Note') === 'info' &&
+assert(AK('✅ Merge completed!') === 'success' && AK('❌ Failed') === 'error' && AK('ℹ Note') === 'info' &&
   AK('Please fill in all fields') === 'warning' && AK('  ✓ Saved') === 'success', 'the icon follows what the message says');
 
 /* ---------- 4. Dialogs (ui-19) ---------- */

@@ -226,7 +226,7 @@ function rgbOf(s) { const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(s || ''); re
     const { page } = await open(ctx, 'index.html');
     await page.evaluate(() => {
       const b = document.createElement('button'); b.id = 'opener'; b.textContent = 'opener'; document.body.appendChild(b); b.focus();
-      const lines = ['✅ Backup Files in Google Drive:']; for (let i = 1; i <= 20; i++) lines.push(i + '. voctrain_backup_2026-10-' + (10 + i) + '.json  Modified: 10/16/2026  Size: 3.42 MB');
+      const lines = ['✅ Backup Files:']; for (let i = 1; i <= 20; i++) lines.push(i + '. voctrain_backup_2026-10-' + (10 + i) + '.json  Modified: 10/16/2026  Size: 3.42 MB');
       alert(lines.join('\n'));
     });
     await page.waitForTimeout(400);

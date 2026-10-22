@@ -7,7 +7,7 @@
    old copy called an undefined saveCollection and kept nothing); another
    device sees the save and adopts it into memory; a trainee's sign-out on one
    device leaves the Centre's records on the server; the Cashbook's
-   "Cloud Sync Required" gate and the certificate download gate accept the
+   "Sync Required" gate (once "Cloud Sync Required") and the certificate download gate accept the
    Centre's server instead of waiting for Google for ever; video is pointed at
    the Centre's server. And on the online build: none of it switches on.
 
@@ -136,7 +136,7 @@ function serveRoot() {
     await C.page.evaluate(() => showMandatorySyncOverlay());
     await C.page.waitForTimeout(1500);
     ok(await C.page.evaluate(() => document.getElementById('mandatorySyncOverlay').classList.contains('hidden')),
-      '"Cloud Sync Required" clears after a sync with the Centre\'s server (it used to wait for Google for ever)');
+      '"Sync Required" clears after a sync with the Centre\'s server (it used to wait for Google for ever)');
     ok(await A.page.evaluate(() => certSyncDone()), 'a certificate download counts as synced on the Centre\'s server');
 
     console.log('Online, none of it switches on');
