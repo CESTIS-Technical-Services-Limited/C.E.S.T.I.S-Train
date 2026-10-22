@@ -88,6 +88,11 @@ const PAGE_FNS = [
   'examShowTakingView', 'examLoadDraft', 'examResumeDraft', 'examHasDraftFor', 'examSaveDraftSoon', 'examSubmitSummaryHtml', 'examUpdateProgress',
   'examEndSessionForSignOut', 'examOutboxRead', 'examOutboxWrite', 'examOutboxAdd', 'examOutboxRestore', 'examOutboxConfirm', 'examTraineeUserId',
   'startStudentExam', 'startExamTimer', 'updateExamTimerDisplay', 'renderExamTaking', 'selectExamAnswer', 'toggleExamFlag',
+  // The Moodle-style attempt page's pieces (exam-platform preview).
+  'examCounts', 'examClock', 'examTakingView', 'examPages', 'examPageOf', 'examStateText', 'examNavBoxClass', 'examNavBoxLabel',
+  'examNavPanelHtml', 'examQuestionHtml', 'examAnswerHtml', 'examCrumbsHtml', 'examSetCurrent', 'examRefreshNavBox', 'examGoTo',
+  'examFocusQuestion', 'examGoPage', 'examToggleNavStrip', 'examShowSummary', 'examToggleMulti', 'examSetMatch', 'examAnswerChanged',
+  'scrollToExamQuestion', 'confirmSubmitExam',
   'autoSaveExamProgress', 'submitExam', 'showExamResult', 'viewExamResultDetail', 'renderStudentExams', 'submitGrading', 'closeGradingPanel',
   'getFilteredNotifications', 'notifViewerId', 'exportExamResults', 'detectQuestionsFromText', 'removeImportOption', 'finalizeImportExam', 'updateImportSummary',
   'clearSensitiveStudentData'

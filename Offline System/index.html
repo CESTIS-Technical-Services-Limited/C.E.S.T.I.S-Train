@@ -2236,6 +2236,82 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .eq-nav-btn.flagged { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
 .eq-nav-btn.current { background:var(--blue); color:#fff; border-color:var(--blue); }
 
+/* ---- The attempt page, laid out like a Moodle quiz (renderExamTaking) ----
+   Left: the navigation panel (a box per question; Finish attempt; time
+   left), kept in view while the questions scroll. Right: each question as a
+   grey information box beside a blue question box. In the Centre's dark
+   colours: the grey box is a step lighter than a card, the blue box is the
+   Centre's blue at low strength. */
+.exam-attempt { max-width:1160px; margin:0 auto; }
+.exam-preview-banner { background:var(--accent-dim); color:var(--accent); padding:10px 16px; border-radius:var(--radius-sm); margin-bottom:12px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.exam-crumbs { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:13px; color:var(--blue); margin-bottom:4px; }
+.exam-crumbs .sep { color:var(--text-muted); font-size:11px; }
+.exam-crumbs .here { color:var(--text-secondary); }
+.exam-attempt-title { font-size:26px; font-weight:700; margin:2px 0 18px; color:var(--text-primary); overflow-wrap:anywhere; }
+.exam-attempt-layout { display:grid; grid-template-columns:230px minmax(0,1fr); gap:24px; align-items:start; }
+.exam-attempt-main { min-width:0; }
+.exam-nav-panel { position:sticky; top:12px; z-index:5; display:flex; flex-direction:column; background:var(--bg-card); border:1px solid var(--border-light); border-radius:var(--radius-sm); padding:16px 16px 18px; }
+.exam-nav-panel .enp-title { order:1; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--text-secondary); margin-bottom:12px; }
+.exam-nav-panel .enp-toggle { display:none; }
+.exam-nav-panel .enp-body { order:2; }
+.exam-nav-panel .enp-timer { order:3; margin-top:14px; font-size:14px; color:var(--text-secondary); border-radius:4px; }
+.enp-timer .timer-value { font-size:15px; font-weight:700; color:var(--text-primary); font-variant-numeric:tabular-nums; letter-spacing:.3px; }
+.enp-timer.low { color:var(--accent); }
+.enp-timer .timer-value.warning { color:var(--accent); }
+.enp-timer .timer-value.danger { color:var(--red); }
+.enp-boxes { display:flex; flex-wrap:wrap; gap:7px; }
+.qnbox { position:relative; width:34px; height:42px; padding:3px 0 0; border:1px solid var(--text-muted); border-radius:3px; background:var(--bg-input); color:var(--text-primary); font:600 13px 'DM Sans',sans-serif; cursor:pointer; display:flex; justify-content:center; align-items:flex-start; overflow:hidden; flex-shrink:0; }
+.qnbox .qn-num { position:relative; z-index:1; }
+.qnbox .qn-fill { position:absolute; left:0; right:0; bottom:0; height:42%; }
+.qnbox.answered .qn-fill { background:#5d7590; }
+.qnbox.partial .qn-fill { background:repeating-linear-gradient(135deg,#5d7590 0 4px,transparent 4px 8px); }
+.qnbox.info .qn-num { font-style:italic; font-family:Georgia,serif; }
+.qnbox.thispage { border-width:2px; border-color:var(--text-primary); }
+.qnbox.current { border-width:3px; border-color:var(--accent); }
+.qnbox .qn-flag { display:none; position:absolute; top:0; right:0; width:0; height:0; border-top:12px solid var(--red); border-left:12px solid transparent; z-index:2; }
+.qnbox.flagged .qn-flag { display:block; }
+.qnbox:hover { border-color:var(--blue); }
+.enp-progress { font-size:12px; color:var(--text-muted); margin-top:12px; }
+.enp-finish { background:none; border:0; padding:0; margin-top:8px; color:var(--blue); font:500 14px 'DM Sans',sans-serif; cursor:pointer; text-align:left; }
+.enp-finish:hover { text-decoration:underline; }
+.exam-q { display:grid; grid-template-columns:150px minmax(0,1fr); gap:12px; margin-bottom:22px; scroll-margin-top:16px; }
+.exam-q-info { background:#222d3c; border:1px solid var(--border-light); border-radius:4px; padding:10px 12px; font-size:12.5px; color:var(--text-secondary); align-self:start; display:flex; flex-direction:column; gap:7px; }
+.exam-q-no { font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; color:var(--text-primary); }
+.exam-q-no span { font-size:19px; }
+.exam-q-no:focus { outline:none; }
+.exam-q-no:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.exam-q-flag { display:inline-flex; align-items:center; gap:6px; background:none; border:0; padding:2px 0; color:var(--text-secondary); font:500 12.5px 'DM Sans',sans-serif; cursor:pointer; text-align:left; }
+.exam-q-flag .flag-ico { font-size:15px; color:var(--text-muted); }
+.exam-q-flag.flagged { color:var(--text-primary); }
+.exam-q-flag.flagged .flag-ico { color:var(--red); }
+.exam-q-flag:hover .flag-txt { text-decoration:underline; }
+.exam-q-content { min-width:0; margin:0; background:rgba(52,152,219,0.10); border:1px solid rgba(52,152,219,0.35); border-radius:4px; padding:16px 20px 18px; color:var(--text-primary); }
+.exam-q-text { font-size:15px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; margin-bottom:14px; }
+.exam-q-prompt { font-size:14px; color:var(--text-secondary); margin-bottom:6px; }
+.exam-choices { display:flex; flex-direction:column; gap:2px; }
+.exam-choice { display:flex; align-items:flex-start; gap:10px; padding:7px 10px; border-radius:4px; cursor:pointer; font-size:14.5px; line-height:1.45; color:var(--text-primary); border:1px solid transparent; }
+.exam-choice input { flex-shrink:0; width:17px; height:17px; margin:2px 0 0; accent-color:var(--blue); cursor:pointer; }
+.exam-choice .ch-letter { min-width:18px; color:var(--text-secondary); }
+.exam-choice .ch-text { min-width:0; overflow-wrap:anywhere; }
+.exam-choice:hover { background:rgba(52,152,219,0.10); }
+.exam-choice.selected { background:rgba(52,152,219,0.18); border-color:rgba(52,152,219,0.45); }
+.exam-choice:focus-within { outline:2px solid var(--accent); outline-offset:1px; }
+.exam-match { display:flex; flex-direction:column; gap:10px; }
+.exam-match-row { display:flex; align-items:center; justify-content:space-between; gap:8px 14px; flex-wrap:wrap; }
+.exam-match-prompt { flex:1 1 200px; font-size:14.5px; overflow-wrap:anywhere; }
+.exam-match-select { flex:0 1 300px; width:300px; min-width:0; max-width:100%; padding:8px 10px; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-light); border-radius:4px; font:14px 'DM Sans',sans-serif; }
+.exam-match-select.chosen { border-color:rgba(52,152,219,0.7); }
+.exam-inline-answer { display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:14.5px; }
+.exam-attempt .exam-text-answer { width:320px; max-width:100%; flex:0 1 320px; min-width:0; padding:8px 12px; border:1px solid var(--border-light); border-radius:4px; font-size:15px; }
+.exam-attempt .exam-text-answer:focus { border-color:var(--blue); }
+.exam-unit { color:var(--text-secondary); }
+.exam-attempt .exam-short-textarea { border-width:1px; min-height:150px; border-radius:4px; }
+.exam-q.is-info .exam-q-infobox { background:var(--bg-card); border-color:var(--border-light); }
+.exam-q.is-info .exam-q-text { margin-bottom:0; }
+.exam-page-nav { display:flex; align-items:center; gap:12px; padding:8px 0 4px; }
+.exam-page-nav .exam-next { margin-left:auto; }
+.exam-page-count { font-size:13px; color:var(--text-muted); }
+
 /* Exam results display */
 .exam-result-card {
   background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);
@@ -25746,10 +25822,7 @@ function previewExam(idx) {
   _isExamPreviewMode = true;
 
   // Build session (same as student: no keys in the session, marked at submit)
-  var questions = CESTISCore.exams.publicQuestions(e.questionData);
-  if (e.shuffleQuestions) {
-    for (var i = questions.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = questions[i]; questions[i] = questions[j]; questions[j] = t; }
-  }
+  var questions = CESTISCore.exams.attemptQuestions(e.questionData, { shuffleQuestions: !!e.shuffleQuestions, shuffleOptions: !!e.shuffleOptions });
 
   var _now = Date.now();
   currentExamSession = {
@@ -25763,7 +25836,9 @@ function previewExam(idx) {
     flagged: new Array(questions.length).fill(false),
     startTime: _now,
     deadline: _now + (parseInt(e.duration) || 90) * 60000,
-    timeRemaining: (parseInt(e.duration) || 90) * 60
+    timeRemaining: (parseInt(e.duration) || 90) * 60,
+    course: e.course || '', perPage: parseInt(e.questionsPerPage) || 0, page: 0, current: 0,
+    allowFlag: e.allowFlag !== false, view: 'attempt'
   };
 
   // Hide exam list/detail views, show preview container
@@ -26110,19 +26185,27 @@ function examLoadDraft(studentId, examId) {
     if (!d || d.examId !== examId || d.studentId !== studentId || !Array.isArray(d.questions) || !Array.isArray(d.answers)) return null;
     if (!Array.isArray(d.flagged)) d.flagged = new Array(d.questions.length).fill(false);
     if (typeof d.deadline !== 'number') d.deadline = (Number(d.startTime) || Date.now()) + (parseInt(d.duration) || 90) * 60000;
+    // Saved before the paged attempt page: everything on one page, as it was
+    // when the attempt began, at its first question.
+    if (typeof d.perPage !== 'number') d.perPage = 0;
+    if (typeof d.page !== 'number') d.page = 0;
+    if (typeof d.current !== 'number') d.current = 0;
     return d;
   } catch (e) { return null; }
 }
-// Pick an attempt back up exactly where it was: the answers as saved and the
-// ORIGINAL deadline. If the time ran out while the trainee was away (power
-// cut, closed tab, signed out), the saved answers are submitted now.
+// Pick an attempt back up exactly where it was: the answers as saved, the
+// page it was on and the ORIGINAL deadline. If the time ran out while the
+// trainee was away (power cut, closed tab, signed out), the saved answers
+// are submitted now.
 function examResumeDraft(d) {
   currentExamSession = {
     examId: d.examId, title: d.title, duration: d.duration, passMark: d.passMark, instructions: d.instructions || '',
     questions: d.questions, answers: d.answers, flagged: d.flagged,
     startTime: d.startTime, deadline: d.deadline,
     timeRemaining: Math.max(0, Math.ceil((d.deadline - Date.now()) / 1000)),
-    studentId: d.studentId, studentName: d.studentName
+    studentId: d.studentId, studentName: d.studentName,
+    course: d.course || '', perPage: d.perPage || 0, page: d.page || 0, current: d.current || 0,
+    allowFlag: d.allowFlag !== false, view: 'attempt'
   };
   if (Date.now() >= d.deadline) {
     alert('Time ran out on "' + d.title + '" while you were away. The answers saved on this computer are being submitted now.');
@@ -26146,11 +26229,28 @@ function examSaveDraftSoon() {
 function examSubmitSummaryHtml(answered, total) {
   return answered + ' of ' + total + ' questions answered' + ((total - answered) > 0 ? ' &mdash; <strong style="color:var(--accent);">' + (total - answered) + ' unanswered</strong>' : '');
 }
+// How much of the attempt is answered, counted the way the navigation boxes
+// show it: information items are not questions, a ticked-nothing "one or
+// more" or a blank answer is not an answer, and a matching question with rows
+// still on "Choose…" is answered only in part (it counts as not answered).
+function examCounts(s) {
+  var c = { total: 0, answered: 0, partial: 0, unanswered: 0, flagged: 0 };
+  (s && s.questions || []).forEach(function(q, i) {
+    var st = CESTISCore.exams.answerState(q, s.answers[i]);
+    if (st === 'info') return;
+    c.total++;
+    if (st === 'complete') c.answered++; else if (st === 'partial') c.partial++;
+    if (s.flagged && s.flagged[i]) c.flagged++;
+  });
+  c.unanswered = c.total - c.answered;
+  return c;
+}
 function examUpdateProgress() {
   var s = currentExamSession;
   if (!s) return;
-  var answered = s.answers.filter(function(a){ return a !== null && a !== ''; }).length;
-  var total = s.questions.length, pct = total ? Math.round(answered / total * 100) : 0;
+  var counts = examCounts(s);
+  var answered = counts.answered;
+  var total = counts.total, pct = total ? Math.round(answered / total * 100) : 0;
   var c = document.getElementById('examProgressCount'); if (c) c.textContent = answered + ' of ' + total + ' answered';
   var p = document.getElementById('examProgressPct'); if (p) p.textContent = pct + '%';
   var f = document.getElementById('examProgressFill'); if (f) f.style.width = pct + '%';
@@ -26248,17 +26348,16 @@ function startStudentExam(examIdx) {
   if(secs < 60) { alert('This exam\'s window has closed.'); return; }
   var full = parseInt(e.duration) || 90;
   var mins = Math.floor(secs / 60);
+  var nQuestions = e.questionData.filter(function(q){ return !(q && q.type === 'info'); }).length;
   if(!confirm('Start "'+e.title+'"?\n\n' + (e.instructions ? 'Instructions: ' + e.instructions + '\n\n' : '') +
     'Time: ' + (mins < full ? mins + ' minutes (the exam window closes then)' : full + ' minutes') +
-    '\nQuestions: '+e.questionData.length+'\nPass Mark: '+e.passMark+'%\n\nThe timer starts immediately and keeps running if you leave or sign out. Are you ready?')) return;
+    '\nQuestions: '+nQuestions+'\nPass Mark: '+e.passMark+'%\n\nThe timer starts immediately and keeps running if you leave or sign out. Are you ready?')) return;
 
   // The trainee's copy of the questions carries no answer keys: the attempt
   // (and the draft saved from it) never holds them. Marking looks the keys up
-  // on the exam itself at submit.
-  var questions = CESTISCore.exams.publicQuestions(e.questionData);
-  if(e.shuffleQuestions) {
-    for(var i=questions.length-1;i>0;i--) { var j=Math.floor(Math.random()*(i+1));var t=questions[i];questions[i]=questions[j];questions[j]=t; }
-  }
+  // on the exam itself at submit. Questions and options are shuffled here
+  // when the exam says so; an option's ORIGINAL position is what is recorded.
+  var questions = CESTISCore.exams.attemptQuestions(e.questionData, { shuffleQuestions: !!e.shuffleQuestions, shuffleOptions: !!e.shuffleOptions });
 
   currentExamSession = {
     examId: e.id,
@@ -26275,7 +26374,14 @@ function startStudentExam(examIdx) {
     // Whose attempt this is, fixed now: the timer may fire after a sign-out,
     // and must never record it under whoever is signed in by then.
     studentId: me.id,
-    studentName: me.name
+    studentName: me.name,
+    // The page layout the exam was set with when the attempt began.
+    course: e.course || '',
+    perPage: parseInt(e.questionsPerPage) || 0,
+    page: 0,
+    current: 0,
+    allowFlag: e.allowFlag !== false,
+    view: 'attempt'
   };
   autoSaveExamProgress();
   examShowTakingView();
@@ -26308,97 +26414,290 @@ function startExamTimer() {
   }, 1000);
 }
 
+// The time left as Moodle shows it: 0:20:09 (hours always shown).
+function examClock(t) {
+  t = Math.max(0, Math.floor(Number(t) || 0));
+  var h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  return h + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+}
+
 function updateExamTimerDisplay() {
   var el = document.getElementById('examTimerValue');
   if(!el || !currentExamSession) return;
-  var t = currentExamSession.timeRemaining;
-  var hrs = Math.floor(t/3600);
-  var mins = Math.floor((t%3600)/60);
-  var secs = t%60;
-  var display = (hrs>0?hrs+':':'') + String(mins).padStart(2,'0')+':'+String(secs).padStart(2,'0');
-  el.textContent = display;
-  el.className = 'timer-value' + (t<=300?' danger':t<=600?' warning':'');
+  var s = currentExamSession, t = s.timeRemaining;
+  el.textContent = examClock(t);
+  // The last five minutes are shown in the warning colour (the last one in
+  // red), and said once — not every second — to a screen reader.
+  el.className = 'timer-value' + (t <= 60 ? ' danger' : t <= 300 ? ' warning' : '');
+  var box = document.getElementById('examTimerBox');
+  if(box && box.classList) { if(t <= 300) box.classList.add('low'); else box.classList.remove('low'); }
+  var say = t <= 60 ? 60 : t <= 300 ? 300 : 0;
+  if(say && t > 0) {
+    s._warned = s._warned || {};
+    if(!s._warned[say]) {
+      s._warned[say] = true;
+      var live = document.getElementById('examTimerAnnounce');
+      if(live) live.textContent = say === 60 ? 'One minute left. Your answers will be submitted automatically when the time runs out.' : 'Five minutes left.';
+    }
+  }
+}
+
+/* ---- The attempt page, laid out like a Moodle quiz attempt -------------
+   A navigation panel (one numbered box per question: answered, not
+   answered, flagged, on this page, the one in focus; "Finish attempt…";
+   the time left) beside the questions of the current page, each a grey
+   information box (number, state, marks, flag) next to the question itself.
+   Answers are saved on every change exactly as before (examSaveDraftSoon);
+   paging only changes what is drawn. */
+function examTakingView() {
+  return _isExamPreviewMode
+    ? (document.getElementById('iAdminExamPreviewView') || document.getElementById('adminExamPreviewView'))
+    : document.getElementById('studentExamTakingView');
+}
+function examPages(s) { return CESTISCore.exams.pagesOf(s.questions, s.perPage); }
+function examPageOf(s, qIdx) {
+  var pages = examPages(s);
+  for(var p = 0; p < pages.length; p++) if(pages[p].indexOf(qIdx) !== -1) return p;
+  return 0;
+}
+// "Answer saved", "Not yet answered" or "Incomplete answer" (a matching
+// question with rows still on "Choose…").
+function examStateText(q, ans) {
+  var st = CESTISCore.exams.answerState(q, ans);
+  return st === 'complete' ? 'Answer saved' : st === 'partial' ? 'Incomplete answer' : st === 'info' ? 'Information' : 'Not yet answered';
+}
+function examNavBoxClass(s, i, onPage) {
+  var q = s.questions[i], st = CESTISCore.exams.answerState(q, s.answers[i]);
+  var cls = 'qnbox';
+  if(st === 'info') cls += ' info';
+  else if(st === 'complete') cls += ' answered';
+  else if(st === 'partial') cls += ' partial';
+  if(s.flagged && s.flagged[i]) cls += ' flagged';
+  if(onPage) cls += ' thispage';
+  if(s.view !== 'summary' && s.current === i) cls += ' current';
+  return cls;
+}
+function examNavBoxLabel(s, i, num) {
+  var q = s.questions[i];
+  if(q && q.type === 'info') return 'Information';
+  return 'Question ' + num + ': ' + examStateText(q, s.answers[i]).toLowerCase() + (s.flagged && s.flagged[i] ? ', flagged' : '');
+}
+function examNavPanelHtml(s, onPage) {
+  var nums = CESTISCore.exams.questionNumbers(s.questions);
+  var counts = examCounts(s);
+  var html = '<aside class="exam-nav-panel' + (s._navOpen ? ' open' : '') + '" id="examNavPanel" aria-labelledby="examNavTitle">';
+  html += '<h2 class="enp-title" id="examNavTitle">Exam navigation</h2>';
+  // On a phone the panel is a strip: this button opens and closes the boxes.
+  html += '<button type="button" class="enp-toggle" id="examNavToggle" aria-controls="examNavBody" aria-expanded="' + (s._navOpen ? 'true' : 'false') + '" onclick="examToggleNavStrip()">'
+    + '<span>Questions</span> <span class="enp-toggle-count" id="examNavToggleCount">' + counts.answered + '/' + counts.total + '</span> <span class="enp-chev" aria-hidden="true">&#9662;</span></button>';
+  html += '<div class="enp-timer" id="examTimerBox" role="timer" aria-label="Time left">Time left <strong class="timer-value" id="examTimerValue">' + examClock(s.timeRemaining) + '</strong></div>';
+  html += '<div class="exam-sr-only" id="examTimerAnnounce" aria-live="assertive"></div>';
+  html += '<div class="enp-body" id="examNavBody">';
+  html += '<div class="enp-boxes" role="group" aria-label="Questions">';
+  s.questions.forEach(function(q, i) {
+    var here = onPage.indexOf(i) !== -1;
+    html += '<button type="button" class="' + examNavBoxClass(s, i, here) + '" id="examNav-' + i + '" onclick="examGoTo(' + i + ')" aria-label="' + escapeAttr(examNavBoxLabel(s, i, nums[i])) + '"'
+      + (s.view !== 'summary' && s.current === i ? ' aria-current="true"' : '') + '>'
+      + '<span class="qn-num">' + escapeHtml(nums[i]) + '</span><span class="qn-fill" aria-hidden="true"></span><span class="qn-flag" aria-hidden="true"></span></button>';
+  });
+  html += '</div>';
+  html += '<div class="enp-progress" id="examProgressCount">' + counts.answered + ' of ' + counts.total + ' answered</div>';
+  html += '<button type="button" class="enp-finish" onclick="examShowSummary()">Finish attempt&hellip;</button>';
+  html += '</div></aside>';
+  return html;
+}
+// One question: the grey information box beside the question itself.
+function examQuestionHtml(s, i, num) {
+  var q = s.questions[i] || {}, ans = s.answers[i];
+  var flagged = !!(s.flagged && s.flagged[i]);
+  if(q.type === 'info') {
+    return '<div class="exam-q is-info" id="examQ-' + i + '">'
+      + '<div class="exam-q-info"><h3 class="exam-q-no" id="examQNo-' + i + '" tabindex="-1">Information</h3></div>'
+      + '<div class="exam-q-content exam-q-infobox"><div class="exam-q-text" id="examQText-' + i + '">' + escapeHtml(q.text) + '</div></div></div>';
+  }
+  var html = '<div class="exam-q type-' + escapeAttr(q.type) + (flagged ? ' flagged' : '') + '" id="examQ-' + i + '" onfocusin="examSetCurrent(' + i + ')">';
+  html += '<div class="exam-q-info">';
+  html += '<h3 class="exam-q-no" id="examQNo-' + i + '" tabindex="-1">Question <span>' + escapeHtml(num) + '</span></h3>';
+  html += '<div class="exam-q-state" id="examQState-' + i + '" aria-live="polite">' + examStateText(q, ans) + '</div>';
+  html += '<div class="exam-q-marks">Marked out of ' + CESTISCore.exams.formatMark(q.points) + '</div>';
+  if(s.allowFlag !== false) {
+    html += '<button type="button" class="exam-q-flag eq-flag' + (flagged ? ' flagged' : '') + '" id="examFlag-' + i + '" onclick="toggleExamFlag(' + i + ')" aria-label="Flag question ' + escapeAttr(num) + ' for review" aria-pressed="' + (flagged ? 'true' : 'false') + '">'
+      + '<span class="flag-ico" aria-hidden="true">&#9873;</span> <span class="flag-txt">' + (flagged ? 'Remove flag' : 'Flag question') + '</span></button>';
+  }
+  html += '</div>';
+  // Each question is a fieldset named by its number and text, so a screen
+  // reader says which question a choice belongs to.
+  html += '<fieldset class="exam-q-content" aria-labelledby="examQNo-' + i + ' examQText-' + i + '"><legend class="exam-sr-only">Question ' + escapeHtml(num) + '</legend>';
+  html += '<div class="exam-q-text" id="examQText-' + i + '">' + escapeHtml(q.text) + '</div>';
+  html += examAnswerHtml(q, i, ans);
+  html += '</fieldset></div>';
+  return html;
+}
+// The answer area. Choices are real radio buttons and checkboxes inside
+// their labels: Tab, the arrow keys and Space work, and screen readers
+// announce them. An option's value is its ORIGINAL position, whatever order
+// it is shown in (optionOrder), so marking never depends on the shuffle.
+function examAnswerHtml(q, i, ans) {
+  var html = '';
+  var order = Array.isArray(q.optionOrder) ? q.optionOrder : (q.options || []).map(function(_, k){ return k; });
+  if(q.type === 'mcq' || q.type === 'multi') {
+    var multi = q.type === 'multi';
+    html += '<div class="exam-q-prompt">' + (multi ? 'Select one or more:' : 'Select one:') + '</div><div class="exam-choices">';
+    order.forEach(function(oi, p) {
+      var opt = (q.options || [])[oi];
+      var on = multi ? (Array.isArray(ans) && ans.indexOf(oi) !== -1) : ans === oi;
+      html += '<label class="exam-choice exam-opt' + (on ? ' selected' : '') + '" data-opt="' + oi + '" data-sel="selected">'
+        + '<input type="' + (multi ? 'checkbox' : 'radio') + '" name="examAns-' + i + '" value="' + oi + '"' + (on ? ' checked' : '')
+        + ' onchange="' + (multi ? 'examToggleMulti(' + i + ',' + oi + ',this.checked)' : 'selectExamAnswer(' + i + ',' + oi + ')') + '">'
+        + '<span class="ch-letter opt-letter" aria-hidden="true">' + 'abcdefghijklmnopqrstuvwxyz'.charAt(p) + '.</span><span class="ch-text">' + escapeHtml(opt) + '</span></label>';
+    });
+    html += '</div>';
+  } else if(q.type === 'tf') {
+    html += '<div class="exam-q-prompt">Select one:</div><div class="exam-choices">';
+    [true, false].forEach(function(v) {
+      var on = ans === v;
+      html += '<label class="exam-choice tf-btn' + (on ? ' selected' : '') + '" data-opt="' + v + '" data-sel="selected">'
+        + '<input type="radio" name="examAns-' + i + '" value="' + v + '"' + (on ? ' checked' : '') + ' onchange="selectExamAnswer(' + i + ',' + v + ')">'
+        + '<span class="ch-text">' + (v ? 'True' : 'False') + '</span></label>';
+    });
+    html += '</div>';
+  } else if(q.type === 'match') {
+    var rows = Array.isArray(q.rows) ? q.rows : [], choices = Array.isArray(q.choices) ? q.choices : [];
+    var got = Array.isArray(ans) ? ans : [];
+    html += '<div class="exam-match">';
+    rows.forEach(function(prompt, r) {
+      var cur = got[r] == null ? '' : String(got[r]);
+      html += '<div class="exam-match-row"><label class="exam-match-prompt" for="examAns-' + i + '-' + r + '">' + escapeHtml(prompt) + '</label>'
+        + '<select class="exam-match-select' + (cur ? ' chosen' : '') + '" id="examAns-' + i + '-' + r + '" onchange="examSetMatch(' + i + ',' + r + ',this.value)">'
+        + '<option value="">Choose&hellip;</option>'
+        + choices.map(function(c) { return '<option value="' + escapeAttr(c) + '"' + (c === cur ? ' selected' : '') + '>' + escapeHtml(c) + '</option>'; }).join('')
+        + '</select></div>';
+    });
+    html += '</div>';
+  } else if(q.type === 'fill' || q.type === 'shortanswer' || q.type === 'numerical') {
+    var num = q.type === 'numerical';
+    html += '<div class="exam-inline-answer"><label for="examAns-' + i + '">Answer:</label> '
+      + '<input type="text" class="exam-text-answer exam-fill-input" id="examAns-' + i + '" value="' + escapeAttr(ans == null ? '' : ans) + '"'
+      + (num ? ' inputmode="decimal"' : '') + ' autocomplete="off" spellcheck="false" aria-describedby="examQText-' + i + '" oninput="selectExamAnswer(' + i + ',this.value)">'
+      + (num && q.unit ? ' <span class="exam-unit">' + escapeHtml(q.unit) + '</span>' : '') + '</div>';
+  } else if(q.type === 'short') {
+    html += '<textarea class="exam-short-textarea" placeholder="Write your answer here..." aria-labelledby="examQNo-' + i + ' examQText-' + i + '" oninput="selectExamAnswer(' + i + ',this.value)">' + escapeHtml(ans || '') + '</textarea>';
+  }
+  return html;
+}
+function examCrumbsHtml(course, title) {
+  return '<nav class="exam-crumbs" aria-label="Breadcrumb"><span>My courses</span><span class="sep" aria-hidden="true">&#9656;</span><span>' + escapeHtml(course || 'Programme') + '</span>'
+    + '<span class="sep" aria-hidden="true">&#9656;</span><span>Exams</span><span class="sep" aria-hidden="true">&#9656;</span><span class="here" aria-current="page">' + escapeHtml(title) + '</span></nav>';
 }
 
 function renderExamTaking() {
   var s = currentExamSession;
   if(!s) return;
-  var takingView = _isExamPreviewMode
-    ? (document.getElementById('iAdminExamPreviewView') || document.getElementById('adminExamPreviewView'))
-    : document.getElementById('studentExamTakingView');
+  var takingView = examTakingView();
   if(!takingView) return;
-  var answered = s.answers.filter(function(a){return a!==null && a!=='';}).length;
-  var pct = s.questions.length ? Math.round(answered/s.questions.length*100) : 0;
+  if(s.view === 'summary' && typeof examSummaryHtml === 'function') { takingView.innerHTML = examSummaryHtml(s); updateExamTimerDisplay(); return; }
+  var pages = examPages(s);
+  if(typeof s.page !== 'number' || s.page < 0 || s.page >= pages.length) s.page = 0;
+  var onPage = pages[s.page] || [];
+  if(typeof s.current !== 'number' || onPage.indexOf(s.current) === -1) s.current = onPage.length ? onPage[0] : 0;
+  var nums = CESTISCore.exams.questionNumbers(s.questions);
 
-  var html = '<div class="exam-taking">';
-  // Preview mode banner
+  var html = '<div class="exam-taking exam-attempt">';
   if(_isExamPreviewMode) {
-    html += '<div style="background:var(--accent-dim);color:var(--accent);padding:10px 16px;border-radius:var(--radius-sm);margin-bottom:12px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;">&#9888;&#65039; PREVIEW MODE — Results will not be saved. <button class="btn btn-sm btn-secondary" onclick="endExamPreview()" style="margin-left:auto;">Exit Preview</button></div>';
+    html += '<div class="exam-preview-banner">&#9888;&#65039; PREVIEW MODE — Results will not be saved. <button class="btn btn-sm btn-secondary" onclick="endExamPreview()" style="margin-left:auto;">Exit Preview</button></div>';
   }
-  // Timer bar
-  html += '<div class="exam-timer-bar"><div style="flex:1;"><h3 style="font-size:16px;margin-bottom:2px;">'+escapeHtml(s.title)+'</h3><div style="font-size:12px;color:var(--text-muted);">'+s.questions.length+' Questions &bull; Pass Mark: '+escapeHtml(s.passMark)+'%</div></div>';
-  html += '<div class="exam-timer" role="timer" aria-label="Time remaining"><span class="timer-icon" aria-hidden="true">⏱</span><span class="timer-value" id="examTimerValue">--:--</span></div></div>';
-
+  html += examCrumbsHtml(s.course, s.title);
+  html += '<h2 class="exam-attempt-title">' + escapeHtml(s.title) + '</h2>';
+  html += '<div class="exam-attempt-layout">';
+  html += examNavPanelHtml(s, onPage);
+  html += '<div class="exam-attempt-main" id="examAttemptMain">';
   // The instructions staff wrote for this exam (they used to reach nobody).
   if(s.instructions) {
-    html += '<details class="exam-instructions" open><summary>Instructions</summary><div class="exam-instructions-body">'+escapeHtml(s.instructions)+'</div></details>';
+    html += '<details class="exam-instructions"' + (s.page === 0 ? ' open' : '') + '><summary>Instructions</summary><div class="exam-instructions-body">' + escapeHtml(s.instructions) + '</div></details>';
   }
-
-  // Progress bar
-  html += '<div style="margin-bottom:16px;"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:6px;"><span id="examProgressCount">'+answered+' of '+s.questions.length+' answered</span><span id="examProgressPct">'+pct+'%</span></div>';
-  html += '<div class="progress-bar progress-bar-lg"><div class="fill" id="examProgressFill" style="width:'+pct+'%;background:var(--green);"></div></div></div>';
-
-  // Question navigator
-  html += '<div class="exam-question-nav">';
-  s.questions.forEach(function(_,i){
-    var cls = 'eq-nav-btn';
-    if(s.answers[i]!==null && s.answers[i]!=='') cls+=' answered';
-    if(s.flagged[i]) cls+=' flagged';
-    html += '<button class="'+cls+'" onclick="scrollToExamQuestion('+i+')" aria-label="Go to question '+(i+1)+'">'+(i+1)+'</button>';
-  });
+  onPage.forEach(function(i) { html += examQuestionHtml(s, i, nums[i]); });
+  // Previous page / Next page; the last page leads to the summary.
+  var last = s.page >= pages.length - 1;
+  html += '<div class="exam-page-nav">';
+  html += s.page > 0 ? '<button type="button" class="btn btn-secondary exam-prev" onclick="examGoPage(' + (s.page - 1) + ')">Previous page</button>' : '<span class="exam-prev-gap"></span>';
+  if(pages.length > 1) html += '<span class="exam-page-count">Page ' + (s.page + 1) + ' of ' + pages.length + '</span>';
+  html += last ? '<button type="button" class="btn btn-primary exam-next" onclick="examShowSummary()">Finish attempt&hellip;</button>'
+               : '<button type="button" class="btn btn-primary exam-next" onclick="examGoPage(' + (s.page + 1) + ')">Next page</button>';
   html += '</div>';
-
-  // Questions
-  s.questions.forEach(function(q,i){
-    var isAnswered = s.answers[i] !== null && s.answers[i] !== '';
-    var isFlagged = s.flagged[i];
-    var typeLabel = {mcq:'Multiple Choice',tf:'True / False',fill:'Fill in Blank',short:'Short Answer'}[q.type];
-    html += '<div class="exam-question-card'+(isAnswered?' answered':'')+(isFlagged?' flagged':'')+'" id="examQ-'+i+'">';
-    html += '<div class="eq-header"><span class="eq-number">Q'+(i+1)+'</span><span class="q-type-badge q-type-'+q.type+'">'+typeLabel+'</span><span style="font-size:11px;color:var(--text-muted);margin-left:auto;">'+escapeHtml(q.points)+' pt'+(q.points!==1?'s':'')+'</span>';
-    html += '<button class="eq-flag'+(isFlagged?' flagged':'')+'" id="examFlag-'+i+'" onclick="toggleExamFlag('+i+')" title="Flag for review" aria-label="Flag question '+(i+1)+' for review" aria-pressed="'+(isFlagged?'true':'false')+'">'+(isFlagged?'🚩':'⚑')+'</button></div>';
-    html += '<div class="eq-text" id="examQText-'+i+'">'+escapeHtml(q.text)+'</div>';
-
-    // Answer area. Choices are real radio buttons inside labels, so they work
-    // with the keyboard (Tab, arrow keys, Space) and are announced by screen
-    // readers; the old clickable list items were reachable by mouse only.
-    if(q.type==='mcq') {
-      html += '<fieldset class="exam-option-list" aria-labelledby="examQText-'+i+'"><legend class="exam-sr-only">Question '+(i+1)+' options</legend>';
-      (q.options||[]).forEach(function(opt,oi){
-        var selected = s.answers[i]===oi;
-        html += '<label class="exam-opt'+(selected?' selected':'')+'" data-opt="'+oi+'" data-sel="selected"><input type="radio" name="examAns-'+i+'" value="'+oi+'"'+(selected?' checked':'')+' onchange="selectExamAnswer('+i+','+oi+')"><span class="opt-letter" aria-hidden="true">'+String.fromCharCode(65+oi)+'</span><span>'+escapeHtml(opt)+'</span></label>';
-      });
-      html += '</fieldset>';
-    } else if(q.type==='tf') {
-      html += '<fieldset class="exam-tf-options" aria-labelledby="examQText-'+i+'"><legend class="exam-sr-only">Question '+(i+1)+': True or False</legend>';
-      html += '<label class="tf-btn'+(s.answers[i]===true?' selected-true':'')+'" data-opt="true" data-sel="selected-true"><input type="radio" name="examAns-'+i+'" value="true"'+(s.answers[i]===true?' checked':'')+' onchange="selectExamAnswer('+i+',true)">True</label>';
-      html += '<label class="tf-btn'+(s.answers[i]===false?' selected-false':'')+'" data-opt="false" data-sel="selected-false"><input type="radio" name="examAns-'+i+'" value="false"'+(s.answers[i]===false?' checked':'')+' onchange="selectExamAnswer('+i+',false)">False</label>';
-      html += '</fieldset>';
-    } else if(q.type==='fill') {
-      html += '<input type="text" class="exam-fill-input" value="'+escapeAttr(s.answers[i]||'')+'" placeholder="Type your answer..." aria-labelledby="examQText-'+i+'" oninput="selectExamAnswer('+i+',this.value)">';
-    } else if(q.type==='short') {
-      html += '<textarea class="exam-short-textarea" placeholder="Write your answer here..." aria-labelledby="examQText-'+i+'" oninput="selectExamAnswer('+i+',this.value)">'+escapeHtml(s.answers[i]||'')+'</textarea>';
-    }
-    html += '</div>';
-  });
-
-  // Submit area
-  html += '<div class="exam-submit-area"><p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;" id="examSubmitSummary">'+examSubmitSummaryHtml(answered, s.questions.length)+'</p>';
-  html += '<button class="btn btn-primary" style="padding:12px 40px;font-size:15px;" onclick="confirmSubmitExam()">Submit Exam</button></div>';
-  html += '</div>';
+  html += '</div></div></div>';
 
   takingView.innerHTML = html;
   updateExamTimerDisplay();
 }
+
+// The question in focus (clicked, typed in, or jumped to) is the "current"
+// box in the navigation panel.
+function examSetCurrent(qIdx) {
+  var s = currentExamSession;
+  if(!s || s.current === qIdx) return;
+  var prev = s.current;
+  s.current = qIdx;
+  [prev, qIdx].forEach(examRefreshNavBox);
+}
+function examRefreshNavBox(i) {
+  var s = currentExamSession;
+  if(!s || typeof i !== 'number') return;
+  var box = document.getElementById('examNav-' + i);
+  if(!box) return;
+  var onPage = (examPages(s)[s.page] || []).indexOf(i) !== -1;
+  box.className = examNavBoxClass(s, i, onPage);
+  box.setAttribute('aria-label', examNavBoxLabel(s, i, CESTISCore.exams.questionNumbers(s.questions)[i]));
+  if(s.current === i && s.view !== 'summary') box.setAttribute('aria-current', 'true'); else if(box.removeAttribute) box.removeAttribute('aria-current');
+}
+// A navigation box: to that question, on whichever page it is.
+function examGoTo(qIdx) {
+  var s = currentExamSession;
+  if(!s || qIdx < 0 || qIdx >= s.questions.length) return;
+  var p = examPageOf(s, qIdx);
+  s.current = qIdx;
+  if(s.view !== 'attempt' || p !== s.page) {
+    s.view = 'attempt';
+    s.page = p;
+    renderExamTaking();
+    examSaveDraftSoon();
+  } else {
+    (examPages(s)[s.page] || []).forEach(examRefreshNavBox);
+  }
+  examFocusQuestion(qIdx);
+}
+function examFocusQuestion(qIdx) {
+  var el = document.getElementById('examQ-' + qIdx);
+  if(el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  var h = document.getElementById('examQNo-' + qIdx);
+  if(h && h.focus) { try { h.focus({ preventScroll: true }); } catch(e) { h.focus(); } }
+}
+// Previous page / Next page.
+function examGoPage(p) {
+  var s = currentExamSession;
+  if(!s) return;
+  var pages = examPages(s);
+  p = Math.max(0, Math.min(pages.length - 1, p));
+  s.view = 'attempt';
+  s.page = p;
+  s.current = (pages[p] || [0])[0];
+  renderExamTaking();
+  examSaveDraftSoon();
+  var view = examTakingView();
+  if(view && view.scrollIntoView) view.scrollIntoView({ block: 'start' });
+  var h = document.getElementById('examQNo-' + s.current);
+  if(h && h.focus) { try { h.focus({ preventScroll: true }); } catch(e) { h.focus(); } }
+}
+// On a phone the navigation panel is a strip that opens and closes.
+function examToggleNavStrip() {
+  var s = currentExamSession;
+  if(!s) return;
+  s._navOpen = !s._navOpen;
+  var panel = document.getElementById('examNavPanel'), btn = document.getElementById('examNavToggle');
+  if(panel && panel.classList) { if(s._navOpen) panel.classList.add('open'); else panel.classList.remove('open'); }
+  if(btn) btn.setAttribute('aria-expanded', s._navOpen ? 'true' : 'false');
+}
+// "Finish attempt…": for now, straight to the submit question.
+function examShowSummary() { confirmSubmitExam(); }
 
 // Coerces first: a number (an exam duration, a count) has no .replace and used
 // to throw straight out of whatever was building the page.
@@ -26438,18 +26737,11 @@ function selectExamAnswer(qIdx,answer) {
   var s = currentExamSession;
   if(!s) return;
   s.answers[qIdx] = answer;
-  var isSet = answer!==null && answer!=='';
   // Only a lightweight update — the exam is never rebuilt for an answer. A
   // rebuild on every choice threw keyboard and screen-reader focus back to
   // the top of the page.
-  var navBtns = document.querySelectorAll('.eq-nav-btn');
-  if(navBtns[qIdx]) {
-    if(isSet) navBtns[qIdx].classList.add('answered');
-    else navBtns[qIdx].classList.remove('answered');
-  }
   var card = document.getElementById('examQ-'+qIdx);
   if(card) {
-    if(isSet) card.classList.add('answered'); else card.classList.remove('answered');
     var q = s.questions[qIdx];
     if(q && (q.type==='mcq' || q.type==='tf') && card.querySelectorAll) {
       var labels = card.querySelectorAll('label[data-opt]');
@@ -26459,6 +26751,52 @@ function selectExamAnswer(qIdx,answer) {
       }
     }
   }
+  examAnswerChanged(qIdx);
+}
+// "Select one or more": the answer is the list of ticked options (by their
+// original position), kept in option order.
+function examToggleMulti(qIdx, optIdx, on) {
+  var s = currentExamSession;
+  if(!s) return;
+  var cur = Array.isArray(s.answers[qIdx]) ? s.answers[qIdx].slice() : [];
+  cur = cur.filter(function(k){ return k !== optIdx; });
+  if(on) cur.push(optIdx);
+  cur.sort(function(a, b){ return a - b; });
+  s.answers[qIdx] = cur.length ? cur : null;
+  var card = document.getElementById('examQ-'+qIdx);
+  if(card && card.querySelectorAll) {
+    var labels = card.querySelectorAll('label[data-opt]');
+    for(var i = 0; i < labels.length; i++) {
+      if(cur.indexOf(Number(labels[i].getAttribute('data-opt'))) !== -1) labels[i].classList.add('selected'); else labels[i].classList.remove('selected');
+    }
+  }
+  examAnswerChanged(qIdx);
+}
+// Matching: the answer is the text chosen in each row (null = "Choose…").
+function examSetMatch(qIdx, row, value) {
+  var s = currentExamSession;
+  if(!s) return;
+  var q = s.questions[qIdx] || {};
+  var n = Array.isArray(q.rows) ? q.rows.length : 0;
+  var cur = Array.isArray(s.answers[qIdx]) ? s.answers[qIdx].slice() : [];
+  while(cur.length < n) cur.push(null);
+  cur[row] = value === '' || value == null ? null : String(value);
+  s.answers[qIdx] = cur.some(function(v){ return v != null; }) ? cur : null;
+  var sel = document.getElementById('examAns-' + qIdx + '-' + row);
+  if(sel && sel.classList) { if(cur[row]) sel.classList.add('chosen'); else sel.classList.remove('chosen'); }
+  examAnswerChanged(qIdx);
+}
+// After any answer: the question's state ("Answer saved"), its navigation
+// box, the counts — and the attempt is saved on this device.
+function examAnswerChanged(qIdx) {
+  var s = currentExamSession;
+  if(!s) return;
+  var st = document.getElementById('examQState-' + qIdx);
+  if(st) st.textContent = examStateText(s.questions[qIdx], s.answers[qIdx]);
+  if(s.current !== qIdx) examSetCurrent(qIdx); else examRefreshNavBox(qIdx);
+  var counts = examCounts(s);
+  var tc = document.getElementById('examNavToggleCount');
+  if(tc) tc.textContent = counts.answered + '/' + counts.total;
   examUpdateProgress();
   examSaveDraftSoon();
 }
@@ -26474,19 +26812,17 @@ function toggleExamFlag(qIdx) {
     if(on) card.classList.add('flagged'); else card.classList.remove('flagged');
     if(on) btn.classList.add('flagged'); else btn.classList.remove('flagged');
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.textContent = on ? '🚩' : '⚑';
-    var navBtns = document.querySelectorAll('.eq-nav-btn');
-    if(navBtns[qIdx]) { if(on) navBtns[qIdx].classList.add('flagged'); else navBtns[qIdx].classList.remove('flagged'); }
+    var txt = btn.querySelector ? btn.querySelector('.flag-txt') : null;
+    if(txt) txt.textContent = on ? 'Remove flag' : 'Flag question';
+    examRefreshNavBox(qIdx);
   } else {
     renderExamTaking();
   }
   examSaveDraftSoon();
 }
 
-function scrollToExamQuestion(qIdx) {
-  var el = document.getElementById('examQ-'+qIdx);
-  if(el) el.scrollIntoView({behavior:'smooth',block:'center'});
-}
+// Kept for anything that still asks to scroll to a question.
+function scrollToExamQuestion(qIdx) { examGoTo(qIdx); }
 
 function autoSaveExamProgress() {
   // Saved on this device, per trainee and exam, so a crash, reload, power cut
@@ -26499,6 +26835,7 @@ function autoSaveExamProgress() {
       examId: s.examId, title: s.title, duration: s.duration, passMark: s.passMark, instructions: s.instructions || '',
       questions: s.questions, answers: s.answers, flagged: s.flagged,
       startTime: s.startTime, deadline: s.deadline, studentId: s.studentId, studentName: s.studentName,
+      course: s.course || '', perPage: s.perPage || 0, page: s.page || 0, current: s.current || 0, allowFlag: s.allowFlag !== false,
       savedAt: new Date().toISOString()
     }));
     // The old single slot held the whole session, answer keys included.
@@ -26508,7 +26845,7 @@ function autoSaveExamProgress() {
 
 function confirmSubmitExam() {
   if(!currentExamSession) return;
-  var unanswered = currentExamSession.answers.filter(function(a){return a===null||a==='';}).length;
+  var unanswered = examCounts(currentExamSession).unanswered;
   var msg = 'Submit your exam?';
   if(unanswered > 0) msg = 'You have '+unanswered+' unanswered question'+(unanswered!==1?'s':'')+'. Submit anyway?';
   if(!confirm(msg)) return;
@@ -26553,7 +26890,8 @@ function submitExam(auto) {
     answers: gradedResults,
     score: score,
     correctCount: correctCount,
-    totalQuestions: s.questions.length,
+    // Questions only: an information item is not one.
+    totalQuestions: s.questions.filter(function(q){ return !(q && q.type === 'info'); }).length,
     totalPoints: totalPoints,
     earnedPoints: earnedPoints,
     passed: passed,
@@ -26561,6 +26899,9 @@ function submitExam(auto) {
     reviewComplete: !needsReview,
     pendingCount: manualCount,
     submittedAt: new Date(now).toISOString(),
+    // When the attempt began, for the review's "Started on" (older results
+    // work it back from timeTaken: CESTISCore.exams.attemptStartMs).
+    startedAt: new Date(s.startTime).toISOString(),
     timeTaken: Math.max(0, Math.floor((Math.min(now, deadline) - s.startTime)/1000))
   };
   if(auto) result.autoSubmitted = true;
