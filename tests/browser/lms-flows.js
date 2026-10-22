@@ -203,6 +203,15 @@ async function signOut(page) {
   return waitFor(page, () => document.getElementById('landingPage').style.display !== 'none' && !document.getElementById('appShell').classList.contains('active'), null, 25000);
 }
 const text = (page, sel) => page.evaluate(s => { const el = document.querySelector(s); return el ? el.innerText : ''; }, sel);
+// "Finish attempt…" → the Summary of attempt → "Submit all and finish" →
+// the on-page "Submit all your answers and finish?" → submit.
+async function finishAndSubmit(page) {
+  await page.click('#studentExamTakingView .enp-finish');
+  await page.waitForSelector('#examSubmitAllBtn', { timeout: 10000 });
+  await page.click('#examSubmitAllBtn');
+  await page.waitForSelector('#examConfirmGo', { timeout: 10000 });
+  await page.click('#examConfirmGo');
+}
 // Going to My Exams opens the list — not the last result reviewed.
 async function examList(page) {
   await nav(page, 's-exams');
@@ -487,6 +496,9 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
   await step('4a', 'Exam: MCQ + true/false + essay, open now; sat by two trainees, one resuming after a refresh', async () => {
     await nav(I, 'i-exams');
     await I.click('#page-i-exams button:has-text("+ Create Exam")');
+    // The settings page opens on General; Expand all shows Timing, Grade,
+    // Layout, Question behaviour and Review options too.
+    await I.click('#examSetExpandAll');
     await I.fill('#examTitle', EXAM);
     const start = await I.evaluate(() => CESTISCore.exams.centreParts(Date.now() - 60000));
     await I.selectOption('#examCourse', PROG);
@@ -497,19 +509,21 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     await I.selectOption('#examAnswersRelease', 'after-close');
     await I.fill('#examInstructions', 'Answer every question. The essay is marked by your instructor.');
     await I.click('#examStep1 button:has-text("Next: Add Questions")');
-    await I.click('.add-question-bar button:has-text("+ Multiple Choice")');
-    const q = n => '#qItem-' + n + ' input[placeholder="Enter your question here..."]';
+    // "+ Add question" asks for the type first ("Choose a question type to add").
+    const addQ = async type => { await I.click('#examAddQuestionBtn'); await I.check('#examTypePicker input[name="examNewType"][value="' + type + '"]'); await I.click('#examTypeAddBtn'); };
+    await addQ('mcq');
+    const q = n => '#qItem-' + n + ' .q-text-input';
     await I.fill(q(0), 'Which colour is the acetylene hose?');
     await I.dispatchEvent(q(0), 'change');
     const opts = I.locator('#qItem-0 .q-option-row input[type=text]');
     const OPTS = ['Blue', 'Red', 'Green', 'Black'];
     for (let i = 0; i < 4; i++) { await opts.nth(i).fill(OPTS[i]); await opts.nth(i).dispatchEvent('change'); }
     await I.locator('#qItem-0 .q-option-row input[type=radio]').nth(1).check();
-    await I.click('.add-question-bar button:has-text("+ True / False")');
+    await addQ('tf');
     await I.fill(q(1), 'A flashback arrestor stops a flame travelling back into the cylinder.');
     await I.dispatchEvent(q(1), 'change');
     await I.locator('#qItem-1 input[type=radio]').first().check();
-    await I.click('.add-question-bar button:has-text("+ Short Answer")');
+    await addQ('short');                                // the essay, marked by the instructor
     await I.fill(q(2), 'Explain why cylinders must be stored upright and chained.');
     await I.dispatchEvent(q(2), 'change');
     await I.fill('#qItem-2 input[type=number]', '4');
@@ -544,8 +558,8 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
       timer: document.getElementById('examTimerValue').textContent }));
     ok(back.deadline === deadline, 'with the original clock — the same deadline, not a fresh timer (' + back.timer + ' left)');
     ok(back.mcq === '1' && back.tf === 'true' && /rocket/.test(back.essay), 'and every answer restored (' + JSON.stringify({ mcq: back.mcq, tf: back.tf }) + ')');
-    await P.click('#studentExamTakingView button:has-text("Submit Exam")');
-    ok(await waitFor(P, () => /PENDING INSTRUCTOR REVIEW/i.test(document.getElementById('studentExamResultView').innerText)), 'submitted: the result is pending instructor review (the essay)');
+    await finishAndSubmit(P);
+    ok(await waitFor(P, () => /Awaiting marking/.test(document.getElementById('studentExamResultView').innerText)), 'submitted: the result is awaiting marking (the essay)');
     const rv = await text(P, '#studentExamResultView');
     ok(!/Correct answer:/.test(rv), 'no correct answers are shown yet');
     await P.click('#studentExamResultView button:has-text("Back to Exams")');
@@ -563,8 +577,8 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     await L.locator('#examQ-1 label.tf-btn', { hasText: 'True' }).click();
     await L.fill('#examQ-2 textarea', "Shanté's answer: they could fall and the valve could break off.");
     await L.waitForTimeout(1000);
-    await L.click('#studentExamTakingView button:has-text("Submit Exam")');
-    ok(await waitFor(L, () => /PENDING INSTRUCTOR REVIEW/i.test(document.getElementById('studentExamResultView').innerText)), 'Shanté\'s result is pending review too');
+    await finishAndSubmit(L);
+    ok(await waitFor(L, () => /Awaiting marking/.test(document.getElementById('studentExamResultView').innerText)), 'Shanté\'s result is awaiting marking too');
     const lv = await text(L, '#studentExamResultView');
     ok(/Correct answers will be shown here once the exam has closed/.test(lv) && !/Correct answer:/.test(lv), 'her wrong answer is marked wrong, but the right one is withheld until the exam closes');
     ok(!!(await serverHas('voctrain_examResults', l => [ids.ama, ids.shante].every(s => l.some(r => r.studentId === s)))), 'both results reach the Centre\'s server');
@@ -634,17 +648,17 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     await refresh(L);
     await examList(L);
     await L.locator('#studentPastExamResults button:has-text("Review")').first().click();
-    ok(await waitFor(L, () => /NOT PASSED/.test(document.getElementById('studentExamResultView').innerText)), 'Shanté sees her final result');
+    ok(await waitFor(L, () => /Not passed/.test(document.getElementById('studentExamResultView').innerText)), 'Shanté sees her final result');
     const sv = await text(L, '#studentExamResultView');
-    ok(/50%/.test(sv) && /Correct answer: B\. Red/.test(sv), 'with her score (50%) and, now released, the correct answer to the question she got wrong');
-    ok(/Your answer: A\. Blue/.test(sv) && !/\(selected\)/.test(sv), 'her own answer reads as the option she chose ("A. Blue"), not "A. (selected)"');
+    ok(/50%/.test(sv) && /Correct answer: b\. Red/.test(sv), 'with her score (50%) and, now released, the correct answer to the question she got wrong');
+    ok(/Your answer: a\. Blue/.test(sv) && !/\(selected\)/.test(sv), 'her own answer reads as the option she chose ("a. Blue"), not "A. (selected)"');
     ok(!/Ama/.test(sv), 'and nothing about Ama');
     await refresh(P);
     await examList(P);
     ok(/Passed/.test(await text(P, '#studentPastExamResults')), 'Ama\'s past results now say Passed');
     await P.locator('#studentPastExamResults button:has-text("Review")').first().click();
     const av = await text(P, '#studentExamResultView');
-    ok(/83%/.test(av) && /PASSED/.test(av) && /Mention the cylinder cap/.test(av), 'Ama sees 83%, PASSED, and her instructor\'s feedback');
+    ok(/83%/.test(av) && /Passed/.test(av) && !/Not passed/.test(av) && /Mention the cylinder cap/.test(av), 'Ama sees 83%, Passed, and her instructor\'s feedback');
   });
 
   /* ================================================================ 5b */
