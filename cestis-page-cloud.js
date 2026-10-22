@@ -96,6 +96,50 @@
     });
   }
 
+  /* A push merges the file's newer records into this device's storage on the
+     way up ("anything the cloud contributed is now local too"). That is news
+     for the page exactly as a pull's changes are, and it used to be written
+     without a word: the records reached storage but never the page's memory,
+     and every later pull then found storage and file alike and reported
+     nothing. On the Centre's network a trainee's device that happened to save
+     just after the instructor set an assignment (or an exam, or a class) kept
+     showing "No assignments yet" until the page was reloaded. */
+  function tellPageOfPushMerge(pg, keys) {
+    if (!pg || !keys || !keys.length || typeof pg.spec.onRestore !== 'function') return;
+    try { pg.spec.onRestore(keys.slice()); } catch (e) {}
+  }
+
+  /* ...and only what nobody changed on this device while the push was on its
+     way. A push reads storage, then waits on the network twice (read the
+     file, write it); an edit saved in that gap — a date typed and saved a
+     moment after the save that started the push — used to be overwritten by
+     the merge of the OLDER reading, its stamp with it. The edit was gone from
+     storage, and once the page adopts what a push brings back (above), from
+     the screen as well. A key edited in the gap is left exactly as it is,
+     with its own newer stamp; its own write has already scheduled the push
+     that carries it. Writes the rest, sets the stamps, and returns the keys
+     it wrote. */
+  function writeBackFromPush(pg, snapshot, merged, quietly) {
+    var wrote = [], kept = [];
+    if (quietly) API._applying = true;
+    try {
+      merged.changed.forEach(function (k) {
+        var now = null;
+        try { now = store().getItem(k); } catch (e) { kept.push(k); return; }
+        var then = Object.prototype.hasOwnProperty.call(snapshot, k) ? snapshot[k] : null;
+        if (now !== then) { kept.push(k); return; }
+        try { store().setItem(k, merged.data[k]); wrote.push(k); } catch (e) {}
+      });
+    } finally { if (quietly) API._applying = false; }
+    var stamps = merged.stamps || {};
+    if (kept.length) {
+      var mine = pg.stamps();
+      kept.forEach(function (k) { if (mine[k]) stamps[k] = mine[k]; });
+    }
+    pg.setStamps(stamps);
+    return wrote;
+  }
+
   function Page(spec) {
     this.spec = spec;
     this.stampsKey = 'cestis_pagecloud_stamps__' + spec.file;
@@ -419,8 +463,7 @@
             self.state.lastPush = payload.savedAt;
             self.state.keys = payload.keyCount;
             // Anything the cloud contributed is now local too.
-            merged.changed.forEach(function (k) { try { store().setItem(k, merged.data[k]); } catch (e) {} });
-            self.setStamps(merged.stamps);
+            tellPageOfPushMerge(self, writeBackFromPush(self, data, merged, false));
           }
           return ok;
         };
@@ -735,11 +778,7 @@
         self._lanLastSig = sig;
         self.state.lastPush = payload.savedAt;
         self.state.keys = payload.keyCount;
-        API._applying = true;
-        try {
-          merged.changed.forEach(function (k) { try { store().setItem(k, merged.data[k]); } catch (e) {} });
-        } finally { API._applying = false; }
-        self.setStamps(merged.stamps);
+        tellPageOfPushMerge(self, writeBackFromPush(self, data, merged, true));
         return true;
       });
     });

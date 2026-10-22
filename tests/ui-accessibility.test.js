@@ -224,7 +224,7 @@ assert(contrast(/--text-muted:(#[0-9a-f]{6})/i.exec(psRoot)[1], /--card:(#[0-9a-
 console.log('The start-up demo purge saves only what it changed, and says nothing false');
 const purgeStart = INDEX.indexOf('(function purgeLegacyDemoData() {');
 const purgeSrc = INDEX.slice(purgeStart, INDEX.indexOf('})();', purgeStart) + 5);
-function runPurge(stored) {
+function runPurge(stored, fresh) {
   const writes = [], saved = [];
   let fullSaves = 0;
   const store = Object.assign({}, stored);
@@ -233,13 +233,15 @@ function runPurge(stored) {
     CESTISStore: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); writes.push(k); } },
     students: [{ id: 'STU-2026001' }, { id: 'STU-real' }], exams: [{ id: 'EXAM-001' }, { id: 'EX-real', title: 'Real' }],
     announcements: [{ id: 3 }, { id: 'A-real' }], calendarEvents: [{ title: 'Staff Meeting' }, { title: 'Real' }],
-    attendanceRecords: [], instructorData: [{ id: 'INS-2026001' }], examResults: [], notifications: [{}],
+    attendanceRecords: [{ studentId: 'STU-2026001' }, { studentId: 'STU-real' }], instructorData: [{ id: 'INS-2026001' }],
+    examResults: [{ examId: 'EXAM-001', studentId: 'STU-real' }, { examId: 'EX-real', studentId: 'STU-real' }], notifications: [{}],
     userAccounts: [{ id: 'USR-001' }, { id: 'USR-002' }],
     saveUserAccounts() { saved.push('users'); },
     saveCollection(k, v) { saved.push(k); return true; },
     syncStampAll() {}, scheduleDebouncedCloudSave() {},
     saveState() { fullSaves++; }
   };
+  if (fresh) ['students', 'exams', 'announcements', 'calendarEvents', 'attendanceRecords', 'instructorData', 'examResults'].forEach(k => { sb[k] = []; });
   vm.createContext(sb);
   vm.runInContext(purgeSrc, sb);
   return { sb, writes, saved, fullSaves, store };
@@ -254,6 +256,13 @@ assert(!run.saved.some(k => /chat|adr|certTemplate|Tombstones/i.test(k)), 'the c
 assert(run.sb.students.length === 1 && run.sb.exams.length === 1, 'the demo records are still removed');
 run = runPurge({ voctrain_dataVersion: '4' });
 assert(run.saved.length === 0 && run.writes.length === 0, 'a device already purged is not touched');
+// A brand-new device: nothing to purge, so no collection is written. Writing
+// the seven empty lists while the store was still loading had the empty-list
+// guard log seven false "Refused to overwrite stored records" errors on every
+// first visit (found by tests/browser/lms-flows.js).
+run = runPurge({}, true);
+assert(run.saved.filter(k => k !== 'users').length === 0, 'a brand-new device writes no collection the purge did not change (saved: ' + run.saved.join(',') + ')');
+assert(run.store.voctrain_dataVersion === '4', 'and is marked purged');
 
 // saveState's catch: a full disk says so; anything else is reported as what it is.
 const saveStateSrc = extractFunction(INDEX, 'saveState');
