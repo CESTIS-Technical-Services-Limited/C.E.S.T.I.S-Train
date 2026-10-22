@@ -52256,6 +52256,16 @@ function ttRefreshOnShow(){
   function adoptLanPull(changed) {
     var any = false;
     (changed || []).forEach(function (k) {
+      // An old weekly register (voctrain_attendance::<FY>_Q<n>) that arrived
+      // from the Centre's server. Its marks belong in the dated register, but
+      // the carry-over only ran when this page loaded — so on a device that
+      // received the old rows afterwards (the first brand-new device to open
+      // an upgraded Centre) every old mark stayed out of the register, and out
+      // of every attendance view, until the page happened to be loaded again.
+      // Carry them over now; the carry-over never repeats a slot already done.
+      if (String(k).indexOf('voctrain_attendance::') === 0 && typeof scheduleAttendanceMigration === 'function') {
+        try { scheduleAttendanceMigration(); } catch (e) {}
+      }
       var set = (typeof CESTIS_SHARED_COLLECTIONS !== 'undefined' && CESTIS_SHARED_COLLECTIONS[k]) || LAN_COLLECTIONS[k];
       if (!set) return;
       try {
