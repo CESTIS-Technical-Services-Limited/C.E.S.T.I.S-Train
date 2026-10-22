@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-core.js?v=20261022a"></script>
+<script src="cestis-form-modal.js?v=20261022b" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
 <script src="cestis-page-cloud.js?v=20261022a"></script>
@@ -34988,9 +34989,19 @@ function lmsChatEditMessage(msgId) {
   var user = lmsChatGetCurrentUser();
   if(msg.senderId !== user.id) return;
 
-  var newText = prompt('Edit message:', msg.text);
-  if(newText === null) return; // cancelled
-  newText = newText.trim();
+  var room = lmsChatActiveRoom;
+  CESTISForm.ask({ title: 'Edit message', submitLabel: 'Save',
+    fields: [{ name: 'text', label: 'Message', type: 'textarea', value: msg.text, required: true }]
+  }).then(function(v) {
+    if(!v) return; // cancelled
+    // Found again: a sync while the form was open may have replaced the list.
+    var msg = (lmsChatMessages[room] || []).find(function(m){ return m.id === msgId; });
+    if(!msg || msg.senderId !== user.id) return;
+    lmsChatApplyEdit(msg, v.text);
+  });
+}
+function lmsChatApplyEdit(msg, newText) {
+  newText = String(newText == null ? '' : newText).trim();
   if(!newText) return;
   if(newText === msg.text) return;
 
@@ -36080,7 +36091,12 @@ function lmsChatCloseManageModal() {
 // Admin: Create new chat room
 function lmsChatCreateRoom() {
   if(currentRole !== 'admin') return;
-  var name = prompt('Enter chat room name:');
+  CESTISForm.ask({ title: 'New chat room', submitLabel: 'Create room',
+    fields: [{ name: 'name', label: 'Room name', required: true, maxlength: 80, placeholder: 'e.g. Welding Level 2 — October intake' }]
+  }).then(function(v) { if(v) lmsChatCreateRoomNamed(v.name); });
+}
+function lmsChatCreateRoomNamed(name) {
+  if(currentRole !== 'admin') return;
   if(!name || !name.trim()) return;
   var room = {
     id: 'chat-custom-'+Date.now(),
@@ -38271,8 +38287,17 @@ function adrToggleComplete(taskId) {
 function adrRejectCompletion(taskId) {
   var task = adrTasks.find(function(t){ return t.id === taskId; });
   if(!task || !adrIsSystemAdmin()) return;
-
-  var reason = prompt('Reason for rejecting this task completion (optional):');
+  // Cancel now cancels: with the old prompt, Cancel still rejected the work.
+  CESTISForm.ask({ title: 'Reject this completion?', submitLabel: 'Reject completion', cancelLabel: 'Keep it', danger: true,
+    intro: '“' + task.title + '” goes back to ' + (task.assigneeName || 'its assignee') + ' to redo and resubmit.',
+    fields: [{ name: 'reason', label: 'Reason (optional)', type: 'textarea', maxlength: 500, hint: 'Shown to the assignee in the task’s comments and notification.' }]
+  }).then(function(v) {
+    if(!v) return;
+    var t2 = adrTasks.find(function(t){ return t.id === taskId; });
+    if(t2 && adrIsSystemAdmin()) adrRejectCompletionWith(t2, v.reason);
+  });
+}
+function adrRejectCompletionWith(task, reason) {
   task.status = task.acknowledged ? 'acknowledged' : 'pending';
   task.completedAt = null;
   task.completedLate = false;
@@ -39445,13 +39470,19 @@ function docHubPrintFile(docId) {
 function docHubEditFile(docId) {
   var doc = documentHubFiles.find(function(d) { return d.id === docId; });
   if(!doc) return;
-  var newTitle = prompt('Edit document title:', doc.title);
-  if(newTitle === null) return;
-  newTitle = newTitle.trim();
-  if(!newTitle) { showToast('Title cannot be empty', 'warning'); return; }
-  doc.title = newTitle;
-  var newDesc = prompt('Edit description:', doc.description || '');
-  if(newDesc !== null) doc.description = newDesc.trim();
+  CESTISForm.ask({ title: 'Edit document', submitLabel: 'Save',
+    fields: [{ name: 'title', label: 'Title', value: doc.title, required: true, maxlength: 200 },
+             { name: 'description', label: 'Description', type: 'textarea', value: doc.description || '', maxlength: 1000 }]
+  }).then(function(v) {
+    if(!v) return;
+    var d2 = documentHubFiles.find(function(d) { return d.id === docId; });
+    if(!d2) return;
+    d2.title = v.title;
+    d2.description = v.description;
+    docHubEditSaved();
+  });
+}
+function docHubEditSaved() {
   saveState();
   showToast('Document updated', 'success');
   renderDocumentHubAdmin();
@@ -44432,8 +44463,22 @@ function bulkApproveCertDownloads() {
 function certRegisterPrintedNumber(studentId) {
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student) return;
-  var no = prompt('Enter the certificate number exactly as printed on ' + student.name + '\u2019s certificate:', '');
-  if(no === null) return;
+  CESTISForm.ask({ title: 'Record a printed certificate number', submitLabel: 'Record number',
+    intro: 'For ' + student.name + ' (' + (student.course || '') + '). Once recorded, this number verifies like the one the system issued.',
+    fields: [{ name: 'no', label: 'Number as printed', required: true, maxlength: 60, placeholder: 'e.g. WF-2026-2905', hint: 'Type it exactly as it appears on the paper certificate.' }],
+    validate: function(v) {
+      if(!certNumberKey(v.no)) return { message: 'No number entered.', field: 'no' };
+      var o = certResolveNumber(v.no);
+      if(o.student && o.student.id !== student.id) return { message: 'That number already belongs to ' + o.student.name + '.', field: 'no' };
+      return '';
+    }
+  }).then(function(v) {
+    if(!v) return;
+    var s2 = students.find(function(s){ return s.id === studentId; });
+    if(s2) certRecordPrintedNumber(s2, v.no);
+  });
+}
+function certRecordPrintedNumber(student, no) {
   no = String(no).trim();
   if(!certNumberKey(no)) { showToast('No number entered.', 'warning'); return; }
   var other = certResolveNumber(no);

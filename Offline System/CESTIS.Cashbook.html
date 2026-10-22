@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-core.js?v=20261022a"></script>
+<script src="cestis-form-modal.js?v=20261022b" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CESTIS Cash Book Dashboard</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
@@ -6235,22 +6236,20 @@ function copyBudgetFromQuarter() {
         return;
     }
 
-    var msg = 'Copy budget categories from which quarter?\n(Only category names will be copied, not amounts.)\n\n';
-    options.forEach(function(o, i) { msg += (i + 1) + '. ' + o.label + '\n'; });
-    msg += '\nEnter the number (1-' + options.length + '):';
-    if (Object.keys(BUDGET).length > 0) {
-        msg += '\n\nWARNING: This will replace all current budget lines for this quarter.';
-    }
-
-    var choice = prompt(msg);
-    if (!choice) return;
-    var idx = parseInt(choice) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= options.length) {
-        alert('Invalid selection.');
-        return;
-    }
-
-    var selected = options[idx];
+    CESTISForm.ask({
+        title: 'Copy budget categories',
+        intro: 'Only the category names are copied, not the amounts.' +
+            (Object.keys(BUDGET).length > 0 ? '\n\nThis replaces all of this quarter\u2019s current budget lines.' : ''),
+        submitLabel: 'Copy categories', danger: Object.keys(BUDGET).length > 0,
+        fields: [{ name: 'idx', label: 'Copy from', type: 'select', value: '0',
+            options: options.map(function(o, i) { return { value: String(i), label: o.label }; }) }]
+    }).then(function(v) {
+        if (!v) return;
+        copyBudgetCategoriesFrom(options[parseInt(v.idx, 10)]);
+    });
+}
+function copyBudgetCategoriesFrom(selected) {
+    if (!selected) { alert('Invalid selection.'); return; }
     var sourceData;
     if (selected.isDefault) {
         sourceData = { budget: JSON.parse(JSON.stringify(DEFAULT_BUDGET)), sections: {} };
@@ -6676,7 +6675,14 @@ function saveCopyBudgetLine() {
 
 // Quick copy a budget line (inline from the table row)
 function quickCopyBudgetLine(key) {
-    var newName = prompt('Enter name for the copied budget line:', key + ' (Copy)');
+    CESTISForm.ask({
+        title: 'Copy budget line', submitLabel: 'Copy line',
+        intro: 'A new line in the same section, with the same amount as \u201c' + key + '\u201d.',
+        fields: [{ name: 'name', label: 'Name of the copy', value: key + ' (Copy)', required: true, maxlength: 120 }],
+        validate: function(v) { return BUDGET.hasOwnProperty(v.name) ? { message: 'A budget line with that name already exists.', field: 'name' } : ''; }
+    }).then(function(v) { if (v) quickCopyBudgetLineNamed(key, v.name); });
+}
+function quickCopyBudgetLineNamed(key, newName) {
     if (!newName) return;
     newName = newName.trim();
     if (!newName) { alert('Please enter a valid name.'); return; }

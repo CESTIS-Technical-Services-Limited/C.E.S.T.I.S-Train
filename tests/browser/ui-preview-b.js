@@ -6,6 +6,12 @@
      - item 4: a sign-in failure is said under the card's own fields (no
        pop-up), the top bar names who is signed in, Lock covers the session
        with the idle lock, and the "sync first" note is there;
+     - item 5: the sync health chip shows each state (simulated from the very
+       values the save code keeps), its panel fits and closes with Escape,
+       refreshing it writes nothing, and the sibling pages carry it too;
+     - item 8: the forms that replaced prompt() boxes take focus, keep Tab
+       inside, refuse a bad entry in place, save exactly what the prompt's
+       answer saved, and no browser prompt box is used;
    Every page is checked for page errors, console errors and sideways
    scrolling on the phone.
    Kept out of the default npm test chain because it needs a browser. */
@@ -223,6 +229,72 @@ async function seedAccounts(PW) {
       ok(!!r && ['saved', 'waiting', 'offline', 'signin'].indexOf(r.state) !== -1, kind + ': the sibling page shows its chip (' + (r && r.label) + ')');
       await sib.click('.cestis-sync-chip');
       ok(await sib.evaluate(() => !document.querySelector('.cestis-sync-chip-panel').hidden), kind + ': and its panel opens');
+      ok(ctx.errors.length === 0, kind + ': no page errors — got: ' + ctx.errors.join(' | '));
+      ok(ctx.consoleErrors.length === 0, kind + ': no console errors — got: ' + ctx.consoleErrors.join(' | '));
+      await ctx.close();
+    }
+
+    /* ------------------------------------------------ item 8: prompt() boxes become forms */
+    for (const kind of ['desktop', 'phone']) {
+      console.log('Item 8 (' + kind + '): the document hub asks with one labelled form');
+      const ctx = await fresh(kind);
+      const page = await seeded(ctx);
+      const asked = [];
+      page.on('dialog', d => asked.push(d.type()));
+      await cardSignIn(page, 'admin', 'mthompson', PW.admin);
+      await page.waitForFunction(() => document.getElementById('appShell').classList.contains('active'), null, { timeout: 15000 }).catch(() => {});
+      await page.evaluate(() => {
+        documentHubFiles.push({ id: 'DOC-T1', title: 'Fire Safety Policy 2026', description: 'Evacuation routes.', category: 'Policies', fileName: 'fire.pdf', fileType: 'application/pdf', fileSize: 1000, fileData: '', uploadedBy: 'Marcia Thompson', uploadedAt: '2026-09-14T10:00:00.000Z' });
+        showPage('document-hub');
+      });
+      await page.waitForTimeout(500);
+      await page.evaluate(() => { window.__back = document.activeElement; docHubEditFile('DOC-T1'); });
+      await page.waitForTimeout(300);
+      let r = await page.evaluate(() => { const o = document.querySelector('.cestis-form-overlay'), a = document.activeElement;
+        return { open: !!o, role: o && o.getAttribute('role'), modal: o && o.getAttribute('aria-modal'), label: a && a.labels && a.labels[0] && a.labels[0].textContent, value: a && a.value,
+          fits: o && o.querySelector('.cestis-form-box').getBoundingClientRect().right <= innerWidth }; });
+      ok(r.open && r.role === 'dialog' && r.modal === 'true', kind + ': a modal dialog opens');
+      ok(r.label === 'Title' && r.value === 'Fire Safety Policy 2026', kind + ': focus is in the labelled Title field, filled in');
+      ok(r.fits && await noSideways(page), kind + ': it fits the screen, no sideways scrolling');
+      for (let i = 0; i < 5; i++) await page.keyboard.press('Tab');
+      ok(await page.evaluate(() => document.querySelector('.cestis-form-overlay').contains(document.activeElement)), kind + ': Tab stays inside the form');
+      await page.fill('.cestis-form-overlay input', '   ');
+      await page.click('.cestis-form-overlay .cf-submit');
+      r = await page.evaluate(() => ({ err: document.querySelector('.cestis-form-error').innerText, invalid: document.querySelector('.cestis-form-overlay input').getAttribute('aria-invalid'),
+        open: !!document.querySelector('.cestis-form-overlay'), title: documentHubFiles.find(d => d.id === 'DOC-T1').title }));
+      ok(r.open && /Please fill in “Title”/.test(r.err) && r.invalid === 'true' && r.title === 'Fire Safety Policy 2026', kind + ': an empty title is refused in place, nothing saved');
+      await page.fill('.cestis-form-overlay input', 'Fire Safety Policy 2026 (revised)');
+      await page.press('.cestis-form-overlay input', 'Enter');
+      await page.waitForTimeout(300);
+      r = await page.evaluate(() => ({ open: !!document.querySelector('.cestis-form-overlay'), doc: documentHubFiles.find(d => d.id === 'DOC-T1'),
+        stored: JSON.parse(CESTISStore.getItem('voctrain_documentHubFiles') || '[]').find(d => d.id === 'DOC-T1') }));
+      ok(!r.open && r.doc.title === 'Fire Safety Policy 2026 (revised)' && r.doc.description === 'Evacuation routes.', kind + ': Enter saves both fields');
+      ok(r.stored && r.stored.title === 'Fire Safety Policy 2026 (revised)', kind + ': and it is in the store, as the old prompt left it');
+      await page.evaluate(() => docHubEditFile('DOC-T1'));
+      await page.waitForTimeout(200);
+      await page.keyboard.press('Escape');
+      ok(await page.evaluate(() => !document.querySelector('.cestis-form-overlay') && documentHubFiles.find(d => d.id === 'DOC-T1').title === 'Fire Safety Policy 2026 (revised)'),
+        kind + ': Escape closes it and changes nothing');
+
+      console.log('Item 8 (' + kind + '): Payroll asks for a corrected gross with an amount field');
+      const pay = await open(ctx, 'Staff.Payslip.html', 2500);
+      pay.on('dialog', d => asked.push(d.type()));
+      await pay.evaluate('(' + fs.readFileSync(path.join(ROOT, 'tests/browser/upgrade-no-data-loss.js'), 'utf8').match(/async function oldPayslip\(\) \{[\s\S]*?\n\}/)[0] + ')()');
+      await pay.evaluate(() => { const a = users.find(u => isAdminRole(u.role)); completeLogin(Object.assign({}, a)); _adminPayrollUnlockedUntil = new Date(Date.now() + 600000); });
+      await pay.waitForTimeout(300);
+      const before = await pay.evaluate(() => { const run = DATA.payrollRuns[DATA.payrollRuns.length - 1]; return { gross: run.results[0].gross, net: run.results[0].netPay }; });
+      await pay.evaluate(() => editPayrollEntry(DATA.payrollRuns.length - 1, 0));
+      await pay.waitForTimeout(300);
+      await pay.fill('.cestis-form-overlay input', '300,000.5x');
+      await pay.press('.cestis-form-overlay input', 'Enter');
+      r = await pay.evaluate(() => ({ err: (document.querySelector('.cestis-form-error') || {}).innerText, gross: DATA.payrollRuns[DATA.payrollRuns.length - 1].results[0].gross }));
+      ok(/must be a number/.test(r.err) && r.gross === before.gross, kind + ': letters in the amount are refused in place');
+      await pay.fill('.cestis-form-overlay input', '300,000.50');
+      await pay.press('.cestis-form-overlay input', 'Enter');
+      await pay.waitForTimeout(400);
+      r = await pay.evaluate(() => { const e = DATA.payrollRuns[DATA.payrollRuns.length - 1].results[0]; return { gross: e.gross, net: e.netPay, open: !!document.querySelector('.cestis-form-overlay') }; });
+      ok(!r.open && r.gross === 300000.5 && r.net !== before.net, kind + ': the new gross is saved and the net pay worked out again');
+      ok(asked.filter(t => t === 'prompt').length === 0, kind + ': no browser prompt box was used');
       ok(ctx.errors.length === 0, kind + ': no page errors — got: ' + ctx.errors.join(' | '));
       ok(ctx.consoleErrors.length === 0, kind + ': no console errors — got: ' + ctx.consoleErrors.join(' | '));
       await ctx.close();
