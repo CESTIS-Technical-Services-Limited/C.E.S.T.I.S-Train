@@ -274,7 +274,18 @@ function qpParam(name) {
   } catch (e) { return ''; }
 }
 
-var qpRole = qpParam('role') || 'admin';
+// The dashboard embeds this page with ?role=…, and the page believed whatever
+// the address said — defaulting to 'admin' when it said nothing. The role is now
+// the signed-in session's (the embedding dashboard's, or the dashboard signed
+// in on this computer); the address may only narrow it, as on the record pages
+// (CESTISCore.sessionAccess). With no session it shows what any visitor may.
+var qpRole = (function () {
+  try {
+    var v = CESTISCore.sessionAccess.forPage({ allowed: ['admin', 'adminstaff', 'instructor', 'student'] });
+    if (v && v.ok) return v.role;
+  } catch (e) {}
+  return 'student';
+})();
 var qpCourse = qpParam('course');
 var qpUserName = qpParam('student');
 var qpIsStaff = (qpRole === 'admin' || qpRole === 'adminstaff');

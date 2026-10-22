@@ -97,6 +97,20 @@
   var $ = function (id) { return document.getElementById(id); };
   function show(el, cls, text) { el.style.display = ''; el.className = 'status ' + cls; el.textContent = text; }
 
+  /* ---- who may use this page ----
+     It exports EVERY key this browser holds — every account's password hash
+     included — and connects the computer to the broker. It opened for anybody:
+     a trainee at a shared PC typed its address and downloaded the lot. It is
+     an Administrator's page now: embedded in an Administrator's dashboard, or
+     with an Administrator signed in to the dashboard on this computer
+     (CESTISCore.sessionAccess). Nothing below runs for anyone else. */
+  var ADMIN_OK = false;
+  function needAdmin() {
+    if (ADMIN_OK) return true;
+    try { CESTISCore.sessionAccess.lockPage('Only an administrator signed in to the C.E.S.T.I.S dashboard can use this page.'); } catch (e) {}
+    return false;
+  }
+
   /* ---- Card 1: status via the SAME pageBoot every real page uses ---- */
   function refreshStatus() {
     $('bootStatus').className = 'status mut'; $('bootStatus').textContent = 'Checking…'; $('bootDetail').textContent = '';
@@ -116,6 +130,7 @@
   /* ---- Card 2: test / save / clear ---- */
   function settingsFromForm() { return { url: $('brokerUrl').value, secret: $('brokerSecret').value }; }
   $('btnTest').onclick = function () {
+    if (!needAdmin()) return;
     var v = MG.validateBrokerSettings(settingsFromForm());
     if (!v.ok) return show($('brokerStatus'), 'bad', v.errors.join('\n'));
     show($('brokerStatus'), 'mut', 'Contacting the broker…');
@@ -127,6 +142,7 @@
     });
   };
   $('btnSave').onclick = function () {
+    if (!needAdmin()) return;
     var v = MG.validateBrokerSettings(settingsFromForm());
     if (!v.ok) return show($('brokerStatus'), 'bad', v.errors.join('\n'));
     MG.writeBrokerConfig(adapter, v).then(function () {
@@ -137,6 +153,7 @@
     }).catch(function (e) { show($('brokerStatus'), 'bad', 'Could not save: ' + e.message); });
   };
   $('btnClear').onclick = function () {
+    if (!needAdmin()) return;
     MG.clearBrokerConfig(adapter).then(function () {
       show($('brokerStatus'), 'mut', 'Removed. This device is back to fully legacy behaviour.');
       refreshStatus();
@@ -152,6 +169,7 @@
   /* ---- Card 3: export ---- */
   /* Build only (no download) — also the browser test's hook. */
   window.__adminExportBuild = function () {
+    if (!ADMIN_OK) throw new Error('Only an administrator signed in to the C.E.S.T.I.S dashboard can export this computer\u2019s data.');
     var store = window.CESTISStore || window.localStorage;
     var map = MG.storeMapFrom(store);
     return window.CESTISCore.buildSnapshot(map, { event: 'admin-export', savedBy: 'MegaData-Admin', savedByRole: 'admin' });
@@ -173,8 +191,14 @@
 
   /* ---- boot ---- */
   function start() {
-    adapter.get('meta', 'deviceLabel').then(function (dl) { if (dl) $('deviceLabel').value = dl; }).catch(function () {});
-    refreshStatus();
+    var SA = window.CESTISCore && CESTISCore.sessionAccess;
+    if (!SA || !SA.guard) { needAdmin(); return; }
+    SA.guard({ allowed: ['admin'] }, function (viewer) {
+      if (!viewer.ok) { SA.lockPage(viewer.message); return; }
+      ADMIN_OK = true;
+      adapter.get('meta', 'deviceLabel').then(function (dl) { if (dl) $('deviceLabel').value = dl; }).catch(function () {});
+      refreshStatus();
+    });
   }
   if (window.CESTISStore && window.CESTISStore.whenReady) window.CESTISStore.whenReady(start); else start();
 })();

@@ -7968,14 +7968,21 @@
     /* The dashboard this page is embedded in, if it is the same site and
        somebody is signed in to it. (A page on another site cannot read it.) */
     function embeddingSession(win) {
-      try {
-        var p = win && win.parent;
-        if (p && p !== win && p.currentRole) {
-          return { role: p.currentRole,
-                   userId: p.currentLoggedInUser ? p.currentLoggedInUser.id : null,
-                   studentId: (p.currentRole === 'student' && p.currentStudent) ? p.currentStudent.id : null };
-        }
-      } catch (e) {}
+      // The dashboard may be one frame further up: Virement and Payroll sit
+      // inside the Cashbook, which sits inside the dashboard.
+      var w = win;
+      for (var depth = 0; depth < 3; depth++) {
+        try {
+          var p = w && w.parent;
+          if (!p || p === w) break;
+          if (p.currentRole) {
+            return { role: p.currentRole,
+                     userId: p.currentLoggedInUser ? p.currentLoggedInUser.id : null,
+                     studentId: (p.currentRole === 'student' && p.currentStudent) ? p.currentStudent.id : null };
+          }
+          w = p;
+        } catch (e) { break; }
+      }
       return null;
     }
     /* resolve() for the page that is running: its own store, its own address,
@@ -7994,6 +8001,60 @@
         urlStudentId: qs ? qs.get('studentId') : '',
         parent: embeddingSession(win)
       });
+    }
+
+    /* The pages with no sign-in of their own that still show the Centre's
+       records — School Fee, the finance documents, MegaData's device setup and
+       export. They trusted whoever opened them: School Fee signed the visitor
+       in as "CESTIS Administrator", and MegaData Admin's "Export local data"
+       downloaded every account's password hash for a trainee at a shared PC.
+       They now open only for a live dashboard session holding one of
+       `allowed` (embedded in the dashboard, or the dashboard signed in on this
+       computer), or for another sign-in the page itself accepts (opts.also —
+       e.g. the Cashbook a page is embedded in). cb(viewer) runs once: at once
+       when the answer is clear, otherwise when this computer's store has
+       finished loading (an account kept only in IndexedDB cannot be read
+       before then, and a refusal must not come from reading too early). */
+    function guard(opts, cb) {
+      opts = opts || {};
+      var store = root.CESTISStore || null;
+      var finished = false;
+      function decide() {
+        var v = forPage(opts);
+        if (!v.ok && typeof opts.also === 'function') {
+          var other = false;
+          try { other = !!opts.also(); } catch (e) { other = false; }
+          if (other) v = { ok: true, reason: 'also', message: '', role: null, sessionRole: null, userId: null, studentId: null, account: null };
+        }
+        return v;
+      }
+      function finish(v) { if (finished) return; finished = true; if (typeof cb === 'function') cb(v); }
+      var first = decide();
+      if (first.ok || !store || typeof store.whenReady !== 'function' || (typeof store.isReady === 'function' && store.isReady())) {
+        finish(first);
+        return first;
+      }
+      store.whenReady(function () { finish(decide()); });
+      return null;
+    }
+    /* Cover a refused page with the reason, hiding (not removing) what is
+       behind it, so the page's own scripts never trip over a missing element. */
+    function lockPage(message) {
+      var doc = typeof document !== 'undefined' ? document : null;
+      if (!doc) return;
+      var put = function () {
+        if (!doc.body || doc.getElementById('cestisSessionLock')) return;
+        var st = doc.createElement('style');
+        st.textContent = 'body > :not(#cestisSessionLock) { display: none !important; }';
+        (doc.head || doc.body).appendChild(st);
+        var note = doc.createElement('div');
+        note.id = 'cestisSessionLock';
+        note.setAttribute('role', 'alert');
+        note.style.cssText = 'padding:60px 24px;text-align:center;font-family:sans-serif;font-size:16px;line-height:1.5;';
+        note.textContent = '🔒 ' + (message || refuse('no-session').message);
+        doc.body.insertBefore(note, doc.body.firstChild);
+      };
+      if (doc.body) put(); else doc.addEventListener('DOMContentLoaded', put);
     }
 
     /* What the top search box may look through. It searched the whole roll
@@ -8026,7 +8087,7 @@
     }
 
     return { resolve: resolve, state: state, idleLimit: idleLimit, RANK: RANK, FRESH_MS: FRESH_MS,
-             embeddingSession: embeddingSession, forPage: forPage, searchPool: searchPool };
+             embeddingSession: embeddingSession, forPage: forPage, guard: guard, lockPage: lockPage, searchPool: searchPool };
   })();
 
   /* ==========================================================================

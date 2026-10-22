@@ -103,8 +103,18 @@
     document.getElementById('cPOs').innerHTML = '<b>' + count('cestis_finance_pos') + '</b> saved';
     document.getElementById('cVouchers').innerHTML = '<b>' + latestQuarterVouchers() + '</b> this quarter';
   }
-  refresh();
-  if (store.whenReady) store.whenReady(refresh);
+  /* Who may open this page. It had no sign-in and showed the Centre's books to
+     whoever typed its address — a trainee at a lab PC included. It opens only
+     for the signed-in dashboard (an Administrator or Admin Staff: embedded, or
+     signed in on this computer — CESTISCore.sessionAccess.guard); anyone
+     else sees "sign in first" and nothing of the page runs. */
+  var SA = window.CESTISCore && CESTISCore.sessionAccess;
+  if (!SA || !SA.guard) return;
+  SA.guard({ allowed: ['admin', 'adminstaff'] }, function (viewer) {
+    if (!viewer.ok) { SA.lockPage(viewer.message); return; }
+    refresh();
+    if (store.whenReady) store.whenReady(refresh);
+  });
 })();
 </script>
 
