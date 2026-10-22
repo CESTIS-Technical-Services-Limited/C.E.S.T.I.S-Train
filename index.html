@@ -921,6 +921,10 @@ body::-webkit-scrollbar { width:0; display:none; }
 }
 .topbar-search input:focus { border-color:var(--accent); }
 .topbar-search svg { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:var(--text-muted); }
+/* Phones have no room for the search box in the bar, so it opens from a
+   button (openPhoneSearch) across the whole bar, with its results below.
+   Neither button exists on a computer's screen. */
+.topbar .topbar-search-toggle, .topbar-search .topbar-search-close { display:none; }
 .topbar-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
 .topbar-btn {
   background:none; border:none; color:var(--text-secondary); cursor:pointer;
@@ -2567,10 +2571,29 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   .sidebar { z-index:101; }
   .sidebar.mobile-open { transform:translateX(0); }
 
-  /* Topbar: hide search on small screens, reduce padding */
+  /* Topbar: the search box is folded into a button on small screens */
   .topbar { padding:0 12px; gap:8px; }
   .topbar-search { display:none; }
   .topbar-title { font-size:16px; }
+  .topbar-right { gap:6px; }
+  .topbar .topbar-search-toggle { display:flex; width:44px; height:44px; }
+  /* Opened: the box covers the bar edge to edge, results fill the screen below. */
+  .topbar.search-open .topbar-search {
+    display:flex; align-items:center; gap:8px; position:absolute; inset:0; z-index:5;
+    max-width:none; margin:0; padding:0 8px 0 12px; background:var(--bg-primary); border-bottom:1px solid var(--border);
+  }
+  .topbar.search-open .topbar-search > svg { left:24px; }
+  .topbar.search-open .topbar-search input { flex:1; min-width:0; height:44px; font-size:16px; }
+  .topbar.search-open .topbar-search .topbar-search-close {
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; width:44px; height:44px;
+    background:none; border:none; border-radius:var(--radius-sm); color:var(--text-secondary); cursor:pointer;
+  }
+  .topbar.search-open .topbar-search .topbar-search-close svg { position:static; transform:none; width:20px; height:20px; color:inherit; }
+  .topbar.search-open .search-results {
+    position:absolute; top:100%; left:0; right:0; margin:0; border-radius:0; border-left:0; border-right:0;
+    max-height:calc(100vh - var(--topbar-h)); max-height:calc(100dvh - var(--topbar-h));
+  }
+  .topbar.search-open .search-result-item { min-height:56px; }
 
   /* Cloud sync button: abbreviate text */
   .cloud-sync-btn { padding:6px 8px; font-size:0.7rem; }
@@ -4462,12 +4485,18 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
     <div class="topbar-title" id="topbarTitle">Dashboard</div>
-    <div class="topbar-search">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" placeholder="Search..." id="globalSearch">
+    <div class="topbar-search" role="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search..." id="globalSearch" aria-label="Search trainees, exams and courses" autocomplete="off">
+      <button type="button" class="topbar-search-close" onclick="closePhoneSearch()" aria-label="Close search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
       <div class="search-results" id="searchResults"></div>
     </div>
     <div class="topbar-right">
+      <button type="button" class="topbar-btn topbar-search-toggle" id="globalSearchToggle" onclick="openPhoneSearch()" title="Search" aria-label="Search" aria-controls="globalSearch" aria-expanded="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
       <!-- Cloud Sync Dropdown -->
       <div id="cloudNotConnected">
         <button class="cloud-sync-btn" onclick="connectToGoogleDrive()">
@@ -10098,7 +10127,7 @@ function initGlobalSearch() {
       dropdown.innerHTML = '<div class="search-empty">No results found</div>';
     } else {
       dropdown.innerHTML = '<div class="search-label">Results</div>' + results.map(r =>
-        `<div class="search-result-item" onclick="showPage('${escapeAttr(r.page)}');document.querySelector('.search-results').classList.remove('active');document.getElementById('globalSearch').value='';">
+        `<div class="search-result-item" onclick="showPage('${escapeAttr(r.page)}');document.querySelector('.search-results').classList.remove('active');document.getElementById('globalSearch').value='';closePhoneSearch(true);">
           <div class="sr-icon">${escapeHtml(r.icon)}</div>
           <div class="sr-text"><div class="sr-title">${escapeHtml(r.title)}</div><div class="sr-desc">${escapeHtml(r.desc)}</div></div>
           <span class="sr-category ${r.catClass}">${escapeHtml(r.cat)}</span>
@@ -10107,9 +10136,41 @@ function initGlobalSearch() {
     }
     dropdown.classList.add('active');
   });
-  input.addEventListener('keydown', function(e) { if(e.key==='Escape') dropdown.classList.remove('active'); });
+  input.addEventListener('keydown', function(e) { if(e.key==='Escape') { dropdown.classList.remove('active'); closePhoneSearch(); } });
   document.addEventListener('click', function(e) { if(!input.parentElement.contains(e.target)) dropdown.classList.remove('active'); });
 }
+
+/* Search on phones. Below 768px the bar has no room for the box, so the
+   magnifier button opens it across the whole bar with its results under it
+   (the same role-scoped results as on a computer — initGlobalSearch). It
+   closes on its ✕, on Escape, on picking a result, and on the phone's Back
+   button: opening adds one history step, so Back folds the search away
+   instead of leaving the dashboard. On a computer nothing here runs. */
+function openPhoneSearch() {
+  var bar = document.querySelector('.topbar');
+  var input = document.getElementById('globalSearch');
+  if(!bar || !input || bar.classList.contains('search-open')) return;
+  bar.classList.add('search-open');
+  var t = document.getElementById('globalSearchToggle');
+  if(t) t.setAttribute('aria-expanded', 'true');
+  try { history.pushState({ cestisPhoneSearch: true }, ''); } catch(e) {}
+  input.focus();
+}
+// picked: a result was chosen (focus goes with the page, not back to the button).
+// fromBack: the Back button already took the history step away.
+function closePhoneSearch(picked, fromBack) {
+  var bar = document.querySelector('.topbar');
+  if(!bar || !bar.classList.contains('search-open')) return;
+  bar.classList.remove('search-open');
+  var dd = document.getElementById('searchResults');
+  if(dd) dd.classList.remove('active');
+  var input = document.getElementById('globalSearch');
+  if(input) input.value = '';
+  var t = document.getElementById('globalSearchToggle');
+  if(t) { t.setAttribute('aria-expanded', 'false'); if(!picked && !fromBack) t.focus(); }
+  if(!fromBack) { try { if(history.state && history.state.cestisPhoneSearch) history.back(); } catch(e) {} }
+}
+window.addEventListener('popstate', function() { closePhoneSearch(false, true); });
 
 function toggleNotifications() {
   const btn = document.querySelector('.topbar-btn[title="Notifications"]');
