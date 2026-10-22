@@ -4322,6 +4322,7 @@ function cbStampBudget() {
     _cbBudgetBase = Object.assign({}, BUDGET);
 }
 function saveQuarterBudget() {
+    if (!cbBooksLoaded) return;   // memory is not the books yet (see cbBooksLoaded)
     var key = getCurrentBudgetQuarterKey();
     cbStampBudget();
     var data = { budget: BUDGET, sections: BUDGET_LINE_SECTIONS };
@@ -6745,7 +6746,19 @@ function cbRecordDeletion(row) {
     else if (deletedTxnIds.indexOf(row.id) === -1) deletedTxnIds.push(row.id);
 }
 
+/* Set when this page has read the books from storage (loadFromStorage — at
+   sign-in). Before that, memory holds the page's start-up values — the opening
+   balance 237948.69, no transactions, a default budget line — not the
+   Centre's. A sync that arrived while the page sat at its sign-in screen
+   (cbOnPageCloudRestore, the cloud merges) folded what arrived into those
+   start-up values and saved them: the active quarter's opening balance was
+   replaced by 237948.69 and a default budget line written into its budget,
+   then pushed to every device. Until the books are loaded, the active
+   quarter is merged in storage like any other, and nothing is saved from
+   memory. */
+var cbBooksLoaded = false;
 function saveToStorage() {
+    if (!cbBooksLoaded) return;   // memory is not the books yet (see cbBooksLoaded)
     const key = getCurrentQuarterKey();
     cbStampActive();
     const data = cbActiveBlob();
@@ -6768,6 +6781,8 @@ function loadFromStorage() {
     // One-time cleanup of all quarterly data in localStorage (fixes prior cross-quarter contamination)
     sanitizeAllQuarterlyStorage();
 
+    // From here memory is read from storage, so it may be saved back.
+    cbBooksLoaded = true;
     loadQuarterData();
 }
 
@@ -9011,7 +9026,7 @@ function cbMergeQuarterKey(key, cloudBlob, stats) {
     var fq = CESTISCore.cashbook.parseQuarterKey(key);
     if (!fq || !cloudBlob || typeof cloudBlob !== 'object') return false;
     var res;
-    if (key === getCurrentQuarterKey()) {
+    if (key === getCurrentQuarterKey() && cbBooksLoaded) {
         cbStampActive();                 // date this device's unsaved edits first
         var local = cbActiveBlob();
         res = CESTISCore.cashbook.mergeQuarter(local, cloudBlob, fq.fy, fq.q);
@@ -9045,7 +9060,7 @@ function cbMergeQuarterKey(key, cloudBlob, stats) {
 /* Merge one cloud budget blob into this device's budget for that quarter. */
 function cbMergeBudgetKey(key, cloudBlob, stats) {
     if (!cloudBlob || typeof cloudBlob !== 'object') return false;
-    if (key === getCurrentBudgetQuarterKey()) {
+    if (key === getCurrentBudgetQuarterKey() && cbBooksLoaded) {
         cbStampBudget();
         var local = { budget: BUDGET, sections: BUDGET_LINE_SECTIONS, budgetAt: BUDGET_AT };
         var res = CESTISCore.cashbook.mergeBudget(local, cloudBlob);
@@ -9142,6 +9157,9 @@ function silentMerge(backupData) {
    by uid, newest wins, nothing held here is dropped — and save the union. */
 function cbOnPageCloudRestore() {
     if (!window.CESTISCore || !CESTISCore.cashbook) return;
+    // At the sign-in screen there is nothing in memory to fold into: storage
+    // already holds what arrived, and sign-in reads it (see cbBooksLoaded).
+    if (!cbBooksLoaded) return;
     var qKey = getCurrentQuarterKey(), bKey = getCurrentBudgetQuarterKey();
     var stored = null, storedB = null;
     try { stored = JSON.parse(CESTISStore.getItem(qKey) || 'null'); } catch(e) {}

@@ -171,6 +171,7 @@ function makePage(store0, fy, q) {
     BUDGET: {}, BUDGET_LINE_SECTIONS: {}, BUDGET_AT: {}, staffMembers: [], timeRecords: [],
     _cbStampIndex: null, _cbStampKey: null, _cbObBase: null, _cbBudgetBase: null, _cbBudgetBaseKey: null,
     _cbUidSalt: 'test', _cbUidSeq: 0, activeFY: fy || '2026/2027', activeQ: q || 3,
+    cbBooksLoaded: true,   // the page as it is once signed in (its books read from storage)
     confirm: () => true, refreshAll() {}, updateQuarterUI() {}, updateBLQuarterUI() {}, updateSubventionStatus() {},
     getBudgetLineSection: c => (/salary/i.test(c) ? 'Salaries' : 'Other'),
     document: { getElementById: id => fields[id] || (fields[id] = { value: '' }) },
