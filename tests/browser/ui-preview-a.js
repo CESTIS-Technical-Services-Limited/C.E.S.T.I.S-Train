@@ -21,7 +21,8 @@
        show no text below 12px at 1366px or 390px, still with no sideways
        page, and the bell's counter (11px) still fits its 16px dot;
      - image descriptions: Chromium's accessibility tree of the sign-in screen
-       no longer reads the "V" tile, the cloud or the role-card emoji and has
+       no longer reads the "V" tile, the sync icon (now plain sync arrows,
+       not a cloud) or the role-card emoji and has
        no unnamed image, while every heading and button keeps its name; a
        profile photo is named after the person on its own (Edit my profile,
        My Chat Profile) and decorative beside the name (sidebar); no <img>
@@ -477,8 +478,10 @@ const DESK = { viewport: { width: 1366, height: 768 } };
     await cdp.send('Accessibility.enable');
     const { nodes } = await cdp.send('Accessibility.getFullAXTree');
     const read = nodes.filter(n => !n.ignored).map(n => ({ role: n.role && n.role.value, name: n.name ? String(n.name.value) : '' }));
-    const emoji = read.filter(n => n.role === 'StaticText' && /^(V|☁️|🛡️|🎓|📚|📋|🏛️)$/.test(n.name.trim()));
-    ok(emoji.length === 0, 'sign-in: the "V" tile, the cloud and the role-card emoji are not read out (' + emoji.map(n => n.name).join(' ') + ')');
+    const emoji = read.filter(n => n.role === 'StaticText' && /^(V|☁️|🔄|🛡️|🎓|📚|📋|🏛️)$/.test(n.name.trim()));
+    ok(emoji.length === 0, 'sign-in: the "V" tile, the sync icon and the role-card emoji are not read out (' + emoji.map(n => n.name).join(' ') + ')');
+    // The sync box shows plain sync arrows, not a cloud: nothing on screen says where the information is kept.
+    ok(await page.$eval('#loginSyncBar .sync-icon', el => el.textContent.trim()) === '🔄', 'sign-in: the sync box shows the sync arrows, not a cloud');
     ok(!read.some(n => n.role === 'image'), 'sign-in: no unnamed image is left in the tree');
     ['VocTrain', 'Administrator', 'Student', 'Instructor', 'Administrative Staff', 'CMC Board'].forEach(h =>
       ok(read.some(n => n.role === 'heading' && n.name === h), 'sign-in: the heading "' + h + '" is still read'));

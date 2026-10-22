@@ -13,7 +13,10 @@
    Now: a photo standing on its own is named after the person (escaped); a
    photo printed right beside the person's name is alt="" (it would be read
    twice); logos and certificate backgrounds say what they are; the sign-in
-   screen's decorative tiles, emoji and icons are aria-hidden.
+   screen's decorative tiles, emoji and icons are aria-hidden, and its sync
+   box shows plain sync arrows instead of a cloud (the Centre's rule: the
+   screen never says where its information is kept or comes from - no
+   description or label written here names a storage place or service).
 
    Pinned here from the real files (Node, no browser); the browser suite
    tests/browser/ui-preview-a.js checks the rendered pages and Chromium's
@@ -84,11 +87,31 @@ console.log('The sign-in screen\'s decorative pictures are hidden from screen re
 {
   const landing = INDEX.slice(INDEX.indexOf('<div id="landingPage"'), INDEX.indexOf('<div class="landing-footer">'));
   assert(/<div class="landing-logo-icon" aria-hidden="true">V<\/div>/.test(landing), 'the "V" tile');
-  assert(/<span class="sync-icon" aria-hidden="true">☁️<\/span>/.test(landing), 'the sync cloud');
+  // The sync box's icon is the plain sync arrows, not a cloud: the screen
+  // never says where the Centre's information is kept or comes from.
+  assert(/<span class="sync-icon" aria-hidden="true">🔄<\/span>/.test(landing), 'the sync icon');
+  assert(!/☁/.test(landing), 'no cloud picture on the sign-in screen');
   const icons = landing.match(/<div class="role-icon"[^>]*>/g) || [];
   assert(icons.length === 5 && icons.every(t => /aria-hidden="true"/.test(t)), 'all five role-card emoji (' + icons.length + ')');
   const svgs = landing.match(/<svg\b[^>]*>/g) || [];
   assert(svgs.length >= 3 && svgs.every(t => /aria-hidden="true"/.test(t) && /focusable="false"/.test(t)), 'every icon graphic on the sign-in screen (' + svgs.length + ')');
+}
+
+// The Centre's rule: nothing on screen says where its information is kept or
+// where it comes from. These are the words this change writes - every
+// picture's description and the phone search's labels - so none of them may
+// name a storage place or a service.
+console.log('No description or label says where the information is kept');
+{
+  const WHERE = /cloud|☁|google|drive|gmail|server|network|\blan\b|offline|internet|emailjs|peerjs|broker|megadata/i;
+  ['index.html', 'School.Fee.html', 'CESTIS.Cashbook.html', 'Virement.Request.html', 'Transcript-Grades.html',
+   'Staff.Clock.in.html', 'Staff.Payslip.html', 'Student-Progress.html', 'Cert-Transcript-Requests.html'].forEach(f => {
+    const bad = imgTags(read(f)).map(t => (t.tag.match(/\balt="([^"]*)"/) || [])[1]).filter(a => a && WHERE.test(a));
+    assert(bad.length === 0, f + ': no picture description names a storage place (' + bad.join(' | ') + ')');
+  });
+  const search = INDEX.slice(INDEX.indexOf('<div class="topbar-search"'), INDEX.indexOf('id="globalSearchToggle"') + 300);
+  const labels = (search.match(/\b(?:aria-label|title|placeholder)="[^"]*"/g) || []);
+  assert(labels.length >= 4 && labels.every(l => !WHERE.test(l)), 'phone search: its labels name no storage place (' + labels.join(' ') + ')');
 }
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
