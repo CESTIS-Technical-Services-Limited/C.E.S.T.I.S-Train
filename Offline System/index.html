@@ -11501,10 +11501,13 @@ function createStudentDataForAccount(userAccount) {
     instructor: assignedInstructor
   };
   // Ground the trainee in their training centre's duration and fiscal year, so
-  // reporting can group students by the intake they actually belong to.
+  // reporting can group students by the intake they actually belong to — the
+  // centre of exactly that name: on a device that has not received it yet a
+  // looser match is a like-named centre, and the stamp would put the trainee
+  // in it for good (see CESTISCore.enrolment.findCentre, opts.exact).
   try {
     var _cs = CESTISCore.enrolment.enrolmentStamp(
-      CESTISCore.enrolment.findCentre(skillAreas, prog), localDateStr());
+      CESTISCore.enrolment.findCentre(skillAreas, prog, { exact: true }), localDateStr());
     if (_cs) {
       newStudent.centreId = _cs.centreId; newStudent.centreName = _cs.centreName;
       newStudent.courseStart = _cs.courseStart; newStudent.courseEnd = _cs.courseEnd;
@@ -23096,7 +23099,12 @@ function backfillStudentFiscalYears() {
     // must resolve to the intake that was running then, not to whichever one
     // happens to be open now — otherwise a trainee from a finished course is
     // stamped onto this year's centre and never reaches Not Yet Competent.
-    var centre = CESTISCore.enrolment.findCentre(skillAreas, s.course, { on: when });
+    //
+    // And only the centre of exactly that name: the stamp is written down and
+    // outranks the name from then on, so a looser match — on a device that has
+    // not received the trainee's own centre yet, a like-named one — would hand
+    // them to another programme on every device (findCentre, opts.exact).
+    var centre = CESTISCore.enrolment.findCentre(skillAreas, s.course, { on: when, exact: true });
     // findCentre answers with the one centre carrying the programme's name, and
     // when the earlier intakes are gone from the roster that is the CURRENT
     // intake — so this used to stamp a trainee from two years ago into the
@@ -23252,6 +23260,23 @@ function markStageSetByUser(s) {
 // When a course has ended, non-certified students become NYC; if a course is
 // later extended (genuinely open again), students WE auto-marked revert to In
 // Training — but a status the Centre set by hand is never touched.
+/* Is this trainee stamped with a training centre this device does not hold —
+   one created on another device that has not arrived here yet, or one since
+   deleted? Their stamp names the centre; whatever this device's like-named
+   centre says about its dates is about some other intake. */
+function studentStampedElsewhere(s) {
+  if (!s || typeof skillAreas === 'undefined' || !Array.isArray(skillAreas)) return false;
+  var hasKey = s.centreKey != null && String(s.centreKey).trim() !== '';
+  if (!hasKey && s.centreId == null) return false;
+  var want = '';
+  try { want = hasKey ? CESTISCore.enrolment.centreKeyOf({ centreKey: s.centreKey }) : ''; } catch (e) { want = ''; }
+  return !skillAreas.some(function(a) {
+    if (!a) return false;
+    if (s.centreId != null && a.id === s.centreId) return true;
+    try { return !!want && CESTISCore.enrolment.centreKeyOf(a) === want; } catch (e) { return false; }
+  });
+}
+
 function applyCourseEndStatuses() {
   if (typeof students === 'undefined' || !Array.isArray(students)) return false;
   var changed = false;
@@ -23262,14 +23287,23 @@ function applyCourseEndStatuses() {
     // this rule actually reads. Requiring a name skipped exactly the records
     // whose programme had since been renamed or removed — and left them sitting
     // in Testing forever.
-    var st = studentCourseStatus(s);
+    //
+    // A trainee stamped with a centre this device does not hold is judged by
+    // the course dates stamped on them alone. Resolved by name instead, a
+    // trainee of a centre created on another device was judged by a like-named
+    // centre here — last year's, already ended — and marked Not Yet Competent,
+    // a stage change every other device then took as the newest edit.
+    var away = studentStampedElsewhere(s);
+    var st = away
+      ? ((s.courseStart || s.courseEnd) ? CESTISCore.courseDuration.status(s.courseStart, s.courseEnd) : 'unknown')
+      : studentCourseStatus(s);
     if (st === 'unknown') return;
-    var rec = studentCentreRecord(s);
+    var rec = away ? null : studentCentreRecord(s);
     if (st === 'ended') {
       // Auto-mark NYC ONCE per course-end. Certified/collected are never
       // overridden, and a student an admin has already handled for this same
       // end date is left alone ("...until updated by Administrator").
-      var endKey = courseEndKeyFor(s, rec);
+      var endKey = away ? (s.courseEnd || 'ended') : courseEndKeyFor(s, rec);
       if (s.stage !== 'certified' && s.stage !== 'collected' && s.stage !== 'nyc'
           && s._nycForCourseEnd !== endKey) {
         s.stage = 'nyc'; s._nycAuto = true; s._nycForCourseEnd = endKey; changed = true;
