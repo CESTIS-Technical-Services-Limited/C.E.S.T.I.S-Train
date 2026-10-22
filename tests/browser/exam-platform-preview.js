@@ -24,7 +24,13 @@
      - staff: the results with a column per question, the grading panel,
        and an exam built on the settings page with the type picker,
        reordered by arrow and by dragging, with paging and a closing time;
-     - no page errors anywhere.
+     - no page errors anywhere;
+     - ALL OF IT TWICE, in the dark theme and in the light one: the page
+       follows the theme, the switch in the exam navigation panel changes it
+       mid-exam without losing an answer or a second, the main text/background
+       pairs on the attempt, summary, review and results read at WCAG AA (as
+       the browser composites them), the time-left warning colours too, and
+       nothing is wider than a 390px phone.
    Kept out of the default npm test chain because it needs a browser. */
 'use strict';
 const http = require('http');
@@ -35,7 +41,8 @@ const { chromium } = require('playwright-core');
 const ROOT = path.join(__dirname, '..', '..');
 const EXE = process.env.CESTIS_CHROME || '/opt/pw-browsers/chromium';
 let passed = 0, failed = 0;
-function ok(cond, msg) { if (cond) passed++; else { failed++; console.log('  ✗ FAIL: ' + msg); } return !!cond; }
+let THEME = 'dark';
+function ok(cond, msg) { if (cond) passed++; else { failed++; console.log('  ✗ FAIL: [' + THEME + '] ' + msg); } return !!cond; }
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 function serve() {
   return new Promise(resolve => {
@@ -83,6 +90,8 @@ const QUESTIONS = [
     const o = phone ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { viewport: { width: 1366, height: 768 } };
     const ctx = await browser.newContext(Object.assign({ timezoneId: 'America/Jamaica' }, o));
     await ctx.route('**/*', r => (r.request().url().startsWith(base) ? r.continue() : r.abort()));
+    // This device chose Light (the <head> applies it before the first paint).
+    if (THEME === 'light') await ctx.addInitScript(() => { try { localStorage.setItem('cestisTheme', 'light'); } catch (e) {} });
     return ctx;
   }
   async function open(ctx, examOver, results) {
@@ -125,11 +134,36 @@ const QUESTIONS = [
   const go = (page, p) => page.evaluate(x => showPage(x), p).then(() => page.waitForTimeout(700));
   const txt = (page, sel) => page.evaluate(s => { const e = document.querySelector(s); return e ? e.innerText : ''; }, sel);
   const cls = (page, sel) => page.evaluate(s => { const e = document.querySelector(s); return e ? e.className : ''; }, sel);
+  // Text against what is really behind it: translucent tints composited down
+  // to the first solid background, the way the browser paints them.
+  async function contrasts(page, sels) {
+    return page.evaluate(sels => {
+      const rgba = s => { const m = /rgba?\(([^)]+)\)/.exec(s || ''); if (!m) return null; const p = m[1].split(',').map(parseFloat); return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]; };
+      const over = (f, b) => [0, 1, 2].map(i => f[i] * f[3] + b[i] * (1 - f[3])).concat(1);
+      const lum = c => { const v = c.slice(0, 3).map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+      return sels.map(sel => {
+        const el = document.querySelector(sel);
+        if (!el) return [sel, null, false];
+        const layers = [];
+        for (let n = el; n; n = n.parentElement) { const c = rgba(getComputedStyle(n).backgroundColor); if (c && c[3] > 0) { layers.push(c); if (c[3] >= 1) break; } }
+        let bg = layers.length && layers[layers.length - 1][3] >= 1 ? layers.pop() : [255, 255, 255, 1];
+        while (layers.length) bg = over(layers.pop(), bg);
+        const cs = getComputedStyle(el), fg = over(rgba(cs.color), bg);
+        const a = lum(fg), b = lum(bg), size = parseFloat(cs.fontSize), bold = parseInt(cs.fontWeight, 10) >= 700;
+        return [sel, (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05), size >= 24 || (bold && size >= 18.66)];
+      });
+    }, sels);
+  }
+  async function readable(page, where, sels) {
+    for (const [sel, r, large] of await contrasts(page, sels)) ok(r !== null && r >= (large ? 3 : 4.5), where + ': ' + sel + ' reads at ' + (r === null ? 'n/a (missing)' : r.toFixed(2) + ':1'));
+  }
   async function section(title, fn) {
-    console.log(title);
+    console.log('[' + THEME + '] ' + title);
     try { await fn(); } catch (e) { ok(false, title + ' — threw: ' + String(e && e.message).split('\n')[0]); }
   }
 
+  for (const theme of ['dark', 'light']) {
+  THEME = theme;
   let deadline = 0;
   await section('The attempt page: breadcrumb, navigation panel, time left, paging, flagging', async () => {
     const ctx = await fresh();
@@ -155,6 +189,26 @@ const QUESTIONS = [
     await page.click('#examFlag-1');
     ok(await page.evaluate(() => document.getElementById('examFlag-1').getAttribute('aria-pressed') === 'true') && /flagged/.test(await cls(page, '#examNav-1')) && /Remove flag/.test(await txt(page, '#examFlag-1')),
       'Flag question: aria-pressed, the box gets its red corner, the button says Remove flag');
+    ok(await page.evaluate(() => document.documentElement.getAttribute('data-theme')) === (THEME === 'light' ? 'light' : null), 'the page is in the ' + THEME + ' theme');
+    ok((await page.getAttribute('#themeToggleBtn', 'aria-label')) === (THEME === 'light' ? 'Switch to dark mode' : 'Switch to light mode'), 'the top bar\'s sun/moon button offers the other theme');
+    await readable(page, 'attempt', ['.exam-attempt-title', '.exam-crumbs span:first-child', '.exam-crumbs .here', '#examQ-0 .exam-q-text', '#examQ-0 .exam-q-prompt', '#examQ-0 .exam-q-no', '#examQState-0', '#examQ-0 .exam-q-marks',
+      '#examQ-0 .exam-choice.selected .ch-text', '#examQ-0 .exam-choice:not(.selected) .ch-text', '#examQ-0 .exam-choice.selected .ch-letter', '#examQ-0 .exam-choice:not(.selected) .ch-letter', '#examFlag-1', '#examFlag-0', '.enp-title', '.enp-progress', '.enp-finish', '.enp-theme', '#examTimerBox', '#examTimerValue', '.exam-page-count']);
+    // The last minutes: the warning colours of the time left read too.
+    for (const c of ['warning', 'danger']) {
+      await page.evaluate(c => { const t = document.getElementById('examTimerValue'); t.classList.remove('warning', 'danger'); t.classList.add(c); }, c);
+      await readable(page, 'time left (' + c + ')', ['#examTimerValue']);
+    }
+    await page.evaluate(() => document.getElementById('examTimerValue').classList.remove('warning', 'danger'));
+    // The switch in the navigation panel: the other theme at once, nothing lost.
+    const before = await page.evaluate(() => ({ a: JSON.stringify(currentExamSession.answers), d: currentExamSession.deadline, f: JSON.stringify(currentExamSession.flagged) }));
+    await page.click('#examNavPanel .enp-theme');
+    const flipped = await page.evaluate(() => ({ t: document.documentElement.getAttribute('data-theme'), k: localStorage.getItem('cestisTheme'), a: JSON.stringify(currentExamSession.answers),
+      d: currentExamSession.deadline, f: JSON.stringify(currentExamSession.flagged), here: !!document.querySelector('#studentExamTakingView .exam-attempt'), lbl: document.querySelector('#examNavPanel .enp-theme').getAttribute('aria-label') }));
+    ok(flipped.t === (THEME === 'light' ? null : 'light') && flipped.k === (THEME === 'light' ? 'dark' : 'light'), 'the panel\'s switch changes the theme mid-exam, and this device remembers it (' + JSON.stringify(flipped) .slice(0, 60) + ')');
+    ok(flipped.here && flipped.a === before.a && flipped.d === before.d && flipped.f === before.f, 'still on the attempt, with every answer, the flag and the same deadline');
+    ok(flipped.lbl === (THEME === 'light' ? 'Switch to light mode' : 'Switch to dark mode'), 'and the switch now offers the way back (' + flipped.lbl + ')');
+    await page.click('#examNavPanel .enp-theme');
+    ok(await page.evaluate(() => document.documentElement.getAttribute('data-theme')) === (THEME === 'light' ? 'light' : null), 'a second press puts it back');
     // "Select one or more": a, b and e ticked (two right, one wrong).
     for (const t of ['Welding helmet', 'Leather gloves', 'Polyester overalls']) await page.locator('#examQ-2 label.exam-choice', { hasText: t }).click();
     ok(await page.evaluate(() => JSON.stringify(currentExamSession.answers[2])) === '[0,1,4]', 'ticked options are recorded by their own positions');
@@ -207,6 +261,8 @@ const QUESTIONS = [
     await page.click('.enp-finish');
     await page.waitForSelector('.exam-summary-table');
     const rows = await page.locator('.exam-summary-table tbody tr').count();
+    await readable(page, 'summary', ['.exam-summary-title', '.exam-summary-table th', '.exam-summary-table tbody tr:nth-child(1) td', '.exam-summary-table tbody tr:nth-child(2) td',
+      '.exam-summary-q', '.exam-summary-table tr.st-none td:nth-child(2)', '.sum-flag-badge', '.exam-summary-time', '.exam-summary-time .timer-value', '.exam-summary-due']);
     ok(rows === 10, 'the summary lists the 10 questions (not the information item): ' + rows);
     const sum = await txt(page, '.exam-summary-table');
     ok(/Answer saved/.test(sum) && /Not yet answered/.test(sum) && /Flagged/.test(sum), 'with Answer saved, Not yet answered and the flag');
@@ -218,6 +274,7 @@ const QUESTIONS = [
     await page.click('#examSubmitAllBtn');
     await page.waitForSelector('#examConfirmOverlay [role="dialog"]');
     const dlg = await txt(page, '#examConfirmOverlay');
+    await readable(page, 'submit dialog', ['.exam-confirm h3', '.exam-confirm p', '.exam-confirm .exam-confirm-warn']);
     ok(/You have 3 unanswered questions/.test(dlg), 'the dialog says how many are unanswered (' + dlg.replace(/\s+/g, ' ').slice(0, 90) + ')');
     ok(await page.evaluate(() => document.activeElement && document.activeElement.id === 'examConfirmCancel'), 'focus starts on Cancel');
     await page.keyboard.press('Escape');
@@ -271,6 +328,8 @@ const QUESTIONS = [
       else ok(!/Correct answer:/.test(v), policy + ': no right answers are shown');
       if (policy === 'after-close') ok(/once the exam has closed/.test(v), 'after-close: the trainee is told they come once it closes');
       if (policy === 'withheld') ok(/not released for this exam/.test(v), 'withheld: the trainee is told they are not released');
+      if (policy === 'released') await readable(p2, 'review', ['.exam-review-summary th', '.exam-review-summary td', '.r-result', '#examR-0 .r-state', '#examR-1 .r-state', '#examR-2 .r-state',
+        '#examR-2 .r-mark', '#examR-0 .exam-q-text', '.r-feedback', '.r-staff-feedback']);
       if (policy === 'released') ok(/Correct answer: Welding fumes → Local exhaust ventilation/.test(v) && /Correct answer: 15 psi/.test(v), 'released: matching pairs and the numerical answer with its unit');
       await c2.close();
     }
@@ -294,6 +353,9 @@ const QUESTIONS = [
     await page.click('#examNavToggle');
     ok(await page.isVisible('#examNavBody') && (await page.getAttribute('#examNavToggle', 'aria-expanded')) === 'true', 'one tap opens the boxes');
     const boxes = await page.evaluate(() => { const b = document.querySelector('.enp-boxes'); return { sw: b.scrollWidth, cw: b.clientWidth }; });
+    ok(await page.isVisible('#examNavPanel .enp-theme'), 'the light/dark switch is in the opened strip');
+    const openWide = await page.evaluate(() => ({ doc: document.documentElement.scrollWidth, main: document.querySelector('.main-content').scrollWidth, w: innerWidth }));
+    ok(openWide.doc <= openWide.w && openWide.main <= openWide.w, 'with the strip open, nothing is wider than the screen (' + JSON.stringify(openWide) + ')');
     ok(boxes.sw > boxes.cw, 'the boxes scroll sideways inside the strip');
     await page.click('#examNav-4');
     await page.waitForTimeout(500);
@@ -323,9 +385,11 @@ const QUESTIONS = [
     await p.locator('#iExamTableBody tr', { hasText: TITLE }).locator('button:has-text("Monitor")').click();
     await p.waitForSelector('.exam-results-table');
     ok((await p.locator('.exam-results-table th.rq-head').count()) === 10, 'a column per question (10)');
+    await readable(p, 'results', ['.exam-results-table th', '.exam-results-table td.rq-incorrect', '.exam-results-table td.rq-pending', '.exam-results-table tr.rq-avg td']);
     ok((await p.locator('.exam-results-table td.rq-pending').count()) === 2 && (await p.locator('.exam-results-table td.rq-incorrect').count()) === 8, 'unanswered questions read wrong; the essay and fill-in wait for marking');
     await p.locator('.exam-results-table tr', { hasText: 'Tameka Richards' }).locator('button:has-text("Grade")').click();
     await p.waitForSelector('#gradingPanel');
+    await readable(p, 'grading panel', ['#gradingPanel .gp-auto-row .gp-m']);
     ok(/Marked automatically/i.test(await txt(p, '#gradingPanel')) && (await p.locator('#gradingPanel .gp-auto-row').count()) === 8, 'the grading panel lists the eight automatically marked questions');
     await p.click('#gradingPanel button:has-text("Cancel")');
     await p.click('#iExamResultsView button:has-text("Back to Exams")');
@@ -384,6 +448,7 @@ const QUESTIONS = [
     await ctx.close();
   });
 
+  } // each theme
   ok(allErrors.length === 0, 'no page errors anywhere — got: ' + allErrors.join(' | '));
   await browser.close();
   srv.close();
