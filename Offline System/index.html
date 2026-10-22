@@ -2086,13 +2086,16 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   background:rgba(255,255,255,0.05); border:1px solid var(--border-light); color:var(--text-primary);
 }
 .sync-chip:hover { background:rgba(255,255,255,0.1); }
-.sync-chip-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; background:var(--text-muted); }
+/* Its icon: a check when all is saved, circular arrows otherwise (never a
+   cloud — CESTISCore.ui.syncIcon), in the tone's colour. */
+.sync-chip-icon { display:flex; width:14px; height:14px; flex-shrink:0; color:var(--text-muted); }
+.sync-chip-icon svg { width:14px; height:14px; display:block; }
 .sync-chip.tone-ok { border-color:rgba(46,204,113,0.35); }
-.sync-chip.tone-ok .sync-chip-dot { background:var(--green); box-shadow:0 0 6px rgba(46,204,113,0.6); }
+.sync-chip.tone-ok .sync-chip-icon { color:var(--green); }
 .sync-chip.tone-warn { border-color:rgba(240,165,0,0.45); }
-.sync-chip.tone-warn .sync-chip-dot { background:var(--accent); }
+.sync-chip.tone-warn .sync-chip-icon { color:var(--accent); }
 .sync-chip.tone-bad { border-color:rgba(231,76,60,0.55); background:rgba(231,76,60,0.1); }
-.sync-chip.tone-bad .sync-chip-dot { background:var(--red); }
+.sync-chip.tone-bad .sync-chip-icon { color:#ff8a7a; }
 .sync-chip-panel {
   position:absolute; right:0; top:calc(100% + 8px); width:300px; max-width:calc(100vw - 24px); z-index:1001;
   background:var(--bg-card); border:1px solid var(--border-light); border-radius:var(--radius-sm);
@@ -2105,7 +2108,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .sync-chip-panel-advice li { margin-top:4px; }
 .sync-chip-panel-advice:empty { display:none; }
 /* With the chip saying the state in words, the Connect button beside it
-   keeps its cloud and dot (and its tooltip) and gives the top bar room. */
+   keeps only its icon and dot (and its tooltip) and gives the top bar room. */
 .sync-chip-wrap.on ~ #cloudNotConnected #cloudStatusText { display:none; }
 .topbar-search { min-width:150px; }
 .cloud-dropdown { position:relative; display:inline-block; }
@@ -2639,8 +2642,8 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   /* Cloud sync button: abbreviate text */
   .cloud-sync-btn { padding:6px 8px; font-size:0.7rem; }
   .cloud-sync-btn span:nth-child(2) { display:none; }
-  /* The sync chip keeps its coloured dot; its words move into the panel and
-     the cloud button's own dot gives way to it. */
+  /* The sync chip keeps its coloured icon; its words move into the panel and
+     the Connect button's own dot gives way to it. */
   .sync-chip { padding:8px 9px; }
   .sync-chip-label { display:none; }
   #cloudStatusDot { display:none; }
@@ -4560,7 +4563,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
            saved and what to do; it never saves or syncs anything itself. -->
       <div class="sync-chip-wrap" id="syncChipWrap">
         <button type="button" class="sync-chip tone-warn" id="syncChip" onclick="toggleSyncChipPanel(event)" aria-expanded="false" aria-controls="syncChipPanel">
-          <span class="sync-chip-dot" aria-hidden="true"></span><span class="sync-chip-label" id="syncChipLabel">Checking…</span>
+          <span class="sync-chip-icon" id="syncChipIcon" aria-hidden="true"></span><span class="sync-chip-label" id="syncChipLabel">Checking…</span>
         </button>
         <div class="sync-chip-panel" id="syncChipPanel" role="dialog" aria-labelledby="syncChipPanelTitle" hidden>
           <div class="sync-chip-panel-title" id="syncChipPanelTitle"></div>
@@ -4571,7 +4574,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       </div>
       <!-- Cloud Sync Dropdown -->
       <div id="cloudNotConnected">
-        <button class="cloud-sync-btn" onclick="connectToGoogleDrive()" title="Connect Google Drive" aria-label="Connect Google Drive">
+        <button class="cloud-sync-btn" onclick="connectToGoogleDrive()" title="Connect this computer for syncing" aria-label="Connect this computer for syncing">
           <span>☁️</span>
           <span id="cloudStatusText">Not connected</span>
           <span id="cloudStatusDot" class="cloud-status-dot"></span>
@@ -33378,7 +33381,13 @@ function refreshSyncChip() {
   chip.className = 'sync-chip tone-' + h.tone;
   chip.setAttribute('data-state', h.state);
   chip.setAttribute('aria-label', h.label + ' — show details');
-  document.getElementById('syncChipLabel').textContent = h.label;
+  // A check or circular arrows (fixed markup from the shared core, no input in it).
+  var icon = document.getElementById('syncChipIcon');
+  if (icon && typeof CESTISCore.ui.syncIcon === 'function' && icon.getAttribute('data-icon') !== h.icon) {
+    icon.innerHTML = CESTISCore.ui.syncIcon(h.icon);
+    icon.setAttribute('data-icon', h.icon);
+  }
+  document.getElementById('syncChipLabel').textContent = h.chip || h.label;
   document.getElementById('syncChipPanelTitle').textContent = h.label;
   document.getElementById('syncChipPanelDetail').textContent = h.detail;
   document.getElementById('syncChipPanelLast').textContent = h.lastSaved;

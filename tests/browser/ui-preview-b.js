@@ -201,31 +201,44 @@ async function seedAccounts(PW) {
       await page.waitForTimeout(800);
       // States are simulated by setting the very values the save code keeps
       // (no Google here: the outside world is cut off).
-      const chipNow = () => page.evaluate(() => { refreshSyncChip(); const c = document.getElementById('syncChip');
-        return { state: c.getAttribute('data-state'), label: document.getElementById('syncChipLabel').textContent, shown: document.getElementById('syncChipWrap').classList.contains('on') }; });
-      let r = await chipNow();
-      ok(r.shown && r.state === 'signin', kind + ': no Google sign-in on this computer — "' + r.label + '"');
+      const chipNow = () => page.evaluate(() => { refreshSyncChip(); const c = document.getElementById('syncChip'), icon = document.getElementById('syncChipIcon');
+        // The top bar's visible items, left to right, must not run into each other.
+        const items = Array.from(document.querySelector('.topbar-right').children).map(e => e.getBoundingClientRect()).filter(b => b.width > 0);
+        const clear = items.every((b, i) => i === 0 || b.left >= items[i - 1].right - 1) && items.every(b => b.right <= innerWidth + 1);
+        return { state: c.getAttribute('data-state'), label: document.getElementById('syncChipLabel').textContent, shown: document.getElementById('syncChipWrap').classList.contains('on'),
+          title: document.getElementById('syncChipPanelTitle').textContent, aria: c.getAttribute('aria-label'),
+          icon: icon.getAttribute('data-icon'), svg: !!icon.querySelector('svg'), clear: clear,
+          words: [c.getAttribute('aria-label'), document.getElementById('syncChipPanel').textContent].join(' | ') }; });
+      const said = [];
+      let r = await chipNow(); said.push(r.words);
+      ok(r.shown && r.state === 'attention' && r.label === 'Sync needs attention' && r.title === 'Sync needs attention — ask the office' &&
+        r.aria === 'Sync needs attention — ask the office — show details', kind + ': not set up to sync on this computer — "' + r.label + '" (panel: "' + r.title + '")');
+      ok(r.icon === 'sync' && r.svg, kind + ': with the circular-arrows icon');
+      ok(r.clear, kind + ': the chip fits the top bar beside its neighbours');
       await page.evaluate(() => { CESTISStore.setItem('cestisPendingUpload', 'admin|' + new Date(Date.now() - 300000).toISOString()); });
-      r = await chipNow();
-      ok(r.state === 'signin' && /tone-bad/.test(await page.getAttribute('#syncChip', 'class')), kind + ': with unsent work it turns red');
+      r = await chipNow(); said.push(r.words);
+      ok(r.state === 'attention' && /tone-bad/.test(await page.getAttribute('#syncChip', 'class')), kind + ': with unsent work it turns red');
       await page.evaluate(() => {
         googleAccessToken = 'simulated'; isCloudConnected = true;
         CESTISStore.setItem('schoolDashboardGoogleTokenExpiry', new Date(Date.now() + 3000e3).toISOString());
       });
-      r = await chipNow();
-      ok(r.state === 'waiting' && r.label === 'Changes waiting', kind + ': connected with unsent work — Changes waiting');
+      r = await chipNow(); said.push(r.words);
+      ok(r.state === 'waiting' && r.label === 'Changes waiting to sync' && r.clear, kind + ': set up, with unsent work — Changes waiting to sync');
       await page.evaluate(() => { CESTISStore.removeItem('cestisPendingUpload'); _lastAutoSaveResult = { uploaded: true, reason: 'nothing-new' }; });
-      r = await chipNow();
-      ok(r.state === 'saved' && r.label === 'All saved', kind + ': nothing waiting — All saved');
+      r = await chipNow(); said.push(r.words);
+      ok(r.state === 'saved' && r.label === 'All saved' && r.icon === 'check' && r.svg, kind + ': nothing waiting — All saved, with a check');
       await ctx.setOffline(true);
       await page.waitForTimeout(300);
-      r = await chipNow();
-      ok(r.state === 'offline' && r.label === 'Offline — saved on this device', kind + ': the connection drops — Offline — saved on this device');
+      r = await chipNow(); said.push(r.words);
+      ok(r.state === 'offline' && r.label === 'Not synced yet' && r.title === 'Not synced yet — your work is kept on this computer' && r.icon === 'sync',
+        kind + ': the connection drops — Not synced yet (panel: "' + r.title + '")');
+      ok(r.clear, kind + ': the longest answer still fits the top bar beside its neighbours');
+      said.forEach(w => ok(!SOURCE_WORDS.test(w), kind + ': the chip and its panel name no place — "' + w + '"'));
       await ctx.setOffline(false);
       await page.click('#syncChip');
       r = await page.evaluate(() => { const p = document.getElementById('syncChipPanel'), b = p.getBoundingClientRect();
         return { open: !p.hidden, expanded: document.getElementById('syncChip').getAttribute('aria-expanded'), text: p.innerText, inView: b.left >= 0 && b.right <= innerWidth + 1 }; });
-      ok(r.open && r.expanded === 'true' && /Last saved|No save recorded/.test(r.text), kind + ': pressing it shows the panel with the last saved time');
+      ok(r.open && r.expanded === 'true' && /Last synced|Not synced since/.test(r.text), kind + ': pressing it shows the panel with the last synced time');
       ok(r.inView, kind + ': the panel fits on screen');
       ok(await noSideways(page), kind + ': no sideways scrolling with the panel open');
       await page.keyboard.press('Escape');
@@ -235,10 +248,13 @@ async function seedAccounts(PW) {
 
       console.log('Item 5 (' + kind + '): the sibling pages carry the same chip in their headers');
       const sib = await open(ctx, kind === 'desktop' ? 'Virement.Request.html' : 'Income.Expenditure.html', 2500);
-      r = await sib.evaluate(() => { const c = document.querySelector('.cestis-sync-chip'); return c ? { state: c.getAttribute('data-state'), label: c.getAttribute('aria-label') } : null; });
-      ok(!!r && ['saved', 'waiting', 'offline', 'signin'].indexOf(r.state) !== -1, kind + ': the sibling page shows its chip (' + (r && r.label) + ')');
+      r = await sib.evaluate(() => { const c = document.querySelector('.cestis-sync-chip'); return c ? { state: c.getAttribute('data-state'), label: c.getAttribute('aria-label'),
+        svg: !!c.querySelector('.cestis-sync-chip-icon svg') } : null; });
+      ok(!!r && ['saved', 'waiting', 'offline', 'attention'].indexOf(r.state) !== -1 && r.svg, kind + ': the sibling page shows its chip, with its icon (' + (r && r.label) + ')');
       await sib.click('.cestis-sync-chip');
-      ok(await sib.evaluate(() => !document.querySelector('.cestis-sync-chip-panel').hidden), kind + ': and its panel opens');
+      r = await sib.evaluate(() => { const p = document.querySelector('.cestis-sync-chip-panel'); return { open: !p.hidden, text: p.innerText, label: document.querySelector('.cestis-sync-chip').getAttribute('aria-label') }; });
+      ok(r.open, kind + ': and its panel opens');
+      ok(!SOURCE_WORDS.test(r.text + ' ' + r.label), kind + ': the sibling chip and panel name no place — "' + r.text.replace(/\n+/g, ' / ') + '"');
       ok(ctx.errors.length === 0, kind + ': no page errors — got: ' + ctx.errors.join(' | '));
       ok(ctx.consoleErrors.length === 0, kind + ': no console errors — got: ' + ctx.consoleErrors.join(' | '));
       await ctx.close();

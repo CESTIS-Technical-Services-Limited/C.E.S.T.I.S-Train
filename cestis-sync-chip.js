@@ -15,10 +15,12 @@
    WHAT IT DOES
    ------------
    Shows one small chip where the page puts <span data-cestis-sync-chip>:
-   "All saved", "Changes waiting", "Offline — saved on this device" or "Sign
-   in to Google to back up" (the dashboard's own chip uses the same words —
-   CESTISCore.ui.syncHealth decides them). Pressing it shows when this page
-   last saved and what to do. It only READS what cestis-page-cloud.js already
+   "All saved", "Changes waiting to sync", "Not synced yet — your work is
+   kept on this computer" or "Sync needs attention — ask the office", with a
+   check or circular arrows (the dashboard's own chip uses the same words
+   and icons — CESTISCore.ui.syncHealth/syncIcon decide them; by the owner's
+   rule they never say where the work syncs to or from). Pressing it shows
+   when this page last synced and what to do. It only READS what cestis-page-cloud.js already
    records (each page's write stamps, its last upload and last error), the
    Google sign-in the pages share, and the browser's online flag. It never
    saves, syncs or retries anything, and changes nothing that is stored.
@@ -93,10 +95,10 @@
     'white-space:nowrap;background:rgba(12,17,23,.55);border:1px solid rgba(255,255,255,.18);color:#e8edf3}' +
     '.cestis-sync-chip:hover{background:rgba(12,17,23,.75)}' +
     '.cestis-sync-chip:focus-visible{outline:2px solid #f0a500;outline-offset:2px}' +
-    '.cestis-sync-chip-dot{width:9px;height:9px;border-radius:50%;background:#8293a7;flex-shrink:0}' +
-    '.cestis-sync-chip.tone-ok{border-color:rgba(46,204,113,.5)}.cestis-sync-chip.tone-ok .cestis-sync-chip-dot{background:#2ecc71;box-shadow:0 0 6px rgba(46,204,113,.6)}' +
-    '.cestis-sync-chip.tone-warn{border-color:rgba(240,165,0,.6)}.cestis-sync-chip.tone-warn .cestis-sync-chip-dot{background:#f0a500}' +
-    '.cestis-sync-chip.tone-bad{border-color:rgba(231,76,60,.7);background:rgba(120,30,20,.6)}.cestis-sync-chip.tone-bad .cestis-sync-chip-dot{background:#e74c3c}' +
+    '.cestis-sync-chip-icon{display:inline-flex;width:14px;height:14px;flex-shrink:0;color:#8293a7}.cestis-sync-chip-icon svg{width:14px;height:14px;display:block}' +
+    '.cestis-sync-chip.tone-ok{border-color:rgba(46,204,113,.5)}.cestis-sync-chip.tone-ok .cestis-sync-chip-icon{color:#2ecc71}' +
+    '.cestis-sync-chip.tone-warn{border-color:rgba(240,165,0,.6)}.cestis-sync-chip.tone-warn .cestis-sync-chip-icon{color:#f0a500}' +
+    '.cestis-sync-chip.tone-bad{border-color:rgba(231,76,60,.7);background:rgba(120,30,20,.6)}.cestis-sync-chip.tone-bad .cestis-sync-chip-icon{color:#ff8a7a}' +
     '.cestis-sync-chip-panel{position:absolute;right:0;top:calc(100% + 8px);width:290px;max-width:calc(100vw - 24px);z-index:100000;text-align:left;' +
     'background:#1a2332;border:1px solid rgba(255,255,255,.12);border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,.45);padding:13px 15px;' +
     'font:400 12.5px/1.45 "DM Sans",system-ui,sans-serif;color:#aab8c8;white-space:normal}' +
@@ -116,9 +118,9 @@
     var chip = el('button', 'cestis-sync-chip tone-warn');
     chip.type = 'button';
     chip.setAttribute('aria-expanded', 'false');
-    var dot = el('span', 'cestis-sync-chip-dot'); dot.setAttribute('aria-hidden', 'true');
+    var icon = el('span', 'cestis-sync-chip-icon'); icon.setAttribute('aria-hidden', 'true');
     var label = el('span', 'cestis-sync-chip-label', 'Checking…');
-    chip.appendChild(dot); chip.appendChild(label);
+    chip.appendChild(icon); chip.appendChild(label);
     var panel = el('div', 'cestis-sync-chip-panel');
     panel.setAttribute('role', 'dialog');
     panel.hidden = true;
@@ -140,7 +142,7 @@
     doc.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !panel.hidden) { panel.hidden = true; chip.setAttribute('aria-expanded', 'false'); chip.focus(); }
     });
-    slot.__chip = { wrap: wrap, chip: chip, label: label, panel: panel, title: title, detail: detail, last: last, list: list };
+    slot.__chip = { wrap: wrap, chip: chip, icon: icon, label: label, panel: panel, title: title, detail: detail, last: last, list: list };
     return slot.__chip;
   }
 
@@ -151,7 +153,12 @@
     c.chip.className = 'cestis-sync-chip tone-' + h.tone;
     c.chip.setAttribute('data-state', h.state);
     c.chip.setAttribute('aria-label', h.label + ' — show details');
-    c.label.textContent = h.label;
+    // A check or circular arrows: fixed markup from the shared core, no input in it.
+    if (typeof C.ui.syncIcon === 'function' && c.icon.getAttribute('data-icon') !== h.icon) {
+      c.icon.innerHTML = C.ui.syncIcon(h.icon);
+      c.icon.setAttribute('data-icon', h.icon);
+    }
+    c.label.textContent = h.chip || h.label;
     c.title.textContent = h.label;
     c.detail.textContent = h.detail;
     c.last.textContent = h.lastSaved;

@@ -3902,8 +3902,12 @@
        health chip). It only READS what the sync code already knows — it
        decides nothing about saving. The chip used to say "Connected" or "Not
        connected", so nobody could tell that their last edits existed only on
-       this computer (an expired Google sign-in, a failing upload, a dropped
+       this computer (an expired sign-in, a failing upload, a dropped
        connection) — exactly when a sign-out or a swapped PC loses work.
+       Every word it returns is neutral, by the owner's rule: it says whether
+       this computer's work has synced and what to do, never where it syncs to
+       or from (no Cloud, Google, Drive, the Centre's server or network) —
+       the lan/connected inputs change which answer is given, not its words.
        s: {
          now            ms
          online         the browser believes it has a network (navigator.onLine)
@@ -3916,9 +3920,12 @@
          failures       uploads that have failed in a row
          lastSavedAt    ms of the last upload that went through (or null)
        }
-       Returns { state: 'saved'|'waiting'|'offline'|'signin', tone:
-       'ok'|'warn'|'bad', label, detail, advice: [] }. Times are written by
-       fmt(ms) — the page passes its own clock format; HH:MM by default. */
+       Returns { state: 'saved'|'waiting'|'offline'|'attention', tone:
+       'ok'|'warn'|'bad', icon: 'check'|'sync', label, chip (the label's
+       words before its dash), detail, lastSaved, advice: [] }. Times are written by fmt(ms) — the page passes its own
+       clock format; HH:MM by default. No count is given for changes waiting:
+       the platform saves whole collections, so the only numbers it has count
+       internal files, not anyone's edits. */
     function syncHealth(s, fmt) {
       s = s || {};
       var now = typeof s.now === 'number' ? s.now : Date.now();
@@ -3935,47 +3942,63 @@
         var days = Math.round(hrs / 24);
         return days + (days === 1 ? ' day ago' : ' days ago');
       }
-      var last = s.lastSavedAt ? ('Last saved ' + hhmm(s.lastSavedAt) + ' (' + ago(s.lastSavedAt) + ')') : 'No save recorded since this page was opened';
+      var last = s.lastSavedAt ? ('Last synced ' + hhmm(s.lastSavedAt) + ' (' + ago(s.lastSavedAt) + ')') : 'Not synced since this page was opened';
       var since = s.pendingSince ? ' since ' + hhmm(s.pendingSince) : '';
-      var where = s.lan ? 'the Centre’s server' : 'the Centre’s Google Drive';
       var keepNote = 'Do not clear this browser’s data until this says All saved.';
       var out;
       if (s.lan ? s.lanTrouble : s.online === false) {
-        out = { state: 'offline', tone: s.pending ? 'bad' : 'warn', label: 'Offline — saved on this device',
-          detail: (s.pending ? 'Your changes' + since + ' are kept on this computer and have not reached ' + where + ' yet.' : 'This computer cannot reach ' + where + ' right now.') ,
-          advice: s.lan
-            ? ['Check the Centre’s server window is still open, then reload this page.', keepNote]
-            : ['Keep working — your changes upload by themselves when the connection is back.', keepNote] };
+        out = { state: 'offline', tone: s.pending ? 'bad' : 'warn', label: 'Not synced yet — your work is kept on this computer',
+          detail: s.pending ? 'Your changes' + since + ' are kept on this computer and have not synced yet.'
+                            : 'This computer cannot sync right now. Anything you change is kept on it.',
+          advice: ['Keep working — your changes sync by themselves as soon as this computer can sync again.',
+                   'If this does not clear in a few minutes, ask the office.', keepNote] };
       } else if (!s.lan && !s.connected) {
-        out = { state: 'signin', tone: s.pending ? 'bad' : 'warn', label: 'Sign in to Google to back up',
-          detail: s.pending ? 'Your changes' + since + ' are only on this computer.' : 'This computer is not backing up to ' + where + '.',
-          advice: ['Press the cloud button (Connect) and sign in with the Centre’s Google account.', keepNote] };
+        out = { state: 'attention', tone: s.pending ? 'bad' : 'warn', label: 'Sync needs attention — ask the office',
+          detail: s.pending ? 'Your changes' + since + ' are kept on this computer only and have not synced.'
+                            : 'This computer is not syncing at the moment.',
+          advice: ['Ask the office to set up syncing on this computer.', keepNote] };
       } else if (s.pending) {
         var failing = (s.failures || 0) >= 1;
-        out = { state: 'waiting', tone: failing ? 'bad' : 'warn', label: 'Changes waiting',
-          detail: failing ? 'The last upload to ' + where + ' did not go through; it is tried again every few seconds.'
-                          : 'Your latest changes' + since + ' are being uploaded to ' + where + '.',
-          advice: failing ? ['If this stays for more than a few minutes, reconnect (cloud button) or check the connection.', keepNote]
-                          : ['Nothing to do — this turns to All saved once the upload finishes.'] };
+        out = { state: 'waiting', tone: failing ? 'bad' : 'warn', label: 'Changes waiting to sync',
+          detail: failing ? 'The last sync did not go through; it is tried again every few seconds.'
+                          : 'Your latest changes' + since + ' are syncing now.',
+          advice: failing ? ['If this stays for more than a few minutes, ask the office.', keepNote]
+                          : ['Nothing to do — this turns to All saved once they have synced.'] };
       } else {
         out = { state: 'saved', tone: 'ok', label: 'All saved',
-          detail: 'Everything on this computer is in ' + where + '.', advice: [] };
+          detail: 'Everything on this computer has synced.', advice: [] };
       }
+      out.icon = out.state === 'saved' ? 'check' : 'sync';
+      // The chip itself shows the words before the dash ("Not synced yet");
+      // the whole sentence heads its panel and is what a screen reader hears.
+      // The full sentences do not all fit a laptop's top bar beside Lock and
+      // Sign Out.
+      out.chip = out.label.split(' — ')[0];
       out.lastSaved = last;
-      // A Google sign-in about to end: say so while there is still time to renew it.
+      // A sign-in about to end: say so while there is still time to renew it.
       if (!s.lan && s.connected && s.tokenExpiresAt && s.tokenExpiresAt - now < 10 * 60000 && s.tokenExpiresAt > now) {
-        out.advice = out.advice.concat(['Your Google sign-in ends at ' + hhmm(s.tokenExpiresAt) + ' — reconnect before then to keep backing up.']);
+        out.advice = out.advice.concat(['Syncing on this computer must be renewed by ' + hhmm(s.tokenExpiresAt) + ' — ask the office before then.']);
         if (out.tone === 'ok') out.tone = 'warn';
       }
       return out;
     }
+
+    /* The chip's icon: a check once everything has synced, circular arrows
+       otherwise — a neutral sign of syncing, never a cloud. Fixed markup (no
+       input reaches it), coloured by the chip's tone through currentColor. */
+    var SYNC_ICONS = {
+      check: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      sync: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>'
+    };
+    function syncIcon(name) { return SYNC_ICONS[name] || SYNC_ICONS.sync; }
 
     return {
       keyboardRoleFor: keyboardRoleFor,
       toastPolicy: toastPolicy,
       alertKind: alertKind,
       liveSessionsFor: liveSessionsFor,
-      syncHealth: syncHealth
+      syncHealth: syncHealth,
+      syncIcon: syncIcon
     };
   })();
 
