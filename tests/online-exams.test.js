@@ -93,7 +93,8 @@ const PAGE_FNS = [
   'examNavPanelHtml', 'examQuestionHtml', 'examAnswerHtml', 'examCrumbsHtml', 'examSetCurrent', 'examRefreshNavBox', 'examGoTo',
   'examFocusQuestion', 'examGoPage', 'examToggleNavStrip', 'examShowSummary', 'examToggleMulti', 'examSetMatch', 'examAnswerChanged',
   'scrollToExamQuestion', 'confirmSubmitExam', 'examReturnToAttempt', 'examCentreDateTime', 'examSummaryHtml', 'examConfirmSubmit',
-  'examCloseConfirm', 'examSubmitConfirmed',
+  'examCloseConfirm', 'examSubmitConfirmed', 'examDurationText', 'examOutcomeLabel', 'examAnswerText', 'examKeyText', 'examReviewAnswerHtml',
+  'examReviewGoTo', 'examOptionText', 'examResultsTableHtml',
   'autoSaveExamProgress', 'submitExam', 'showExamResult', 'viewExamResultDetail', 'renderStudentExams', 'submitGrading', 'closeGradingPanel',
   'getFilteredNotifications', 'notifViewerId', 'exportExamResults', 'detectQuestionsFromText', 'removeImportOption', 'finalizeImportExam', 'updateImportSummary',
   'clearSensitiveStudentData'
@@ -466,11 +467,11 @@ console.log('Marking, results and who sees what (exams-04, exams-12, exams-13, e
   assert(/once the exam has closed/.test(shown), 'the trainee is told when they will be');
   p.__setNow(JM('2026-10-16', '14:30'));
   run(p, "viewExamResultDetail('EXAM-1','STU-A')");
-  assert(/Correct answer: C/.test(p.__els.studentExamResultView.innerHTML), 'after the window closes they are shown');
+  assert(/Correct answer: c\. Green\/Yellow/.test(p.__els.studentExamResultView.innerHTML), 'after the window closes they are shown');
   p.__setNow(JM('2026-10-16', '13:30'));
   p.exams[0].answersRelease = 'released';
   run(p, "viewExamResultDetail('EXAM-1','STU-A')");
-  assert(/Correct answer: C/.test(p.__els.studentExamResultView.innerHTML), 'staff can release them early');
+  assert(/Correct answer: c\. Green\/Yellow/.test(p.__els.studentExamResultView.innerHTML), 'staff can release them early');
   p.__setNow(JM('2026-10-17', '09:00'));
   p.exams[0].answersRelease = 'withheld';
   run(p, "viewExamResultDetail('EXAM-1','STU-A')");

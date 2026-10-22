@@ -221,6 +221,8 @@ console.log('Paging, numbering, answered states, marks');
   assertEq([E.answerState({ type: 'tf' }, false), E.answerState({ type: 'mcq' }, 0)], ['complete', 'complete'], 'False and option A are answers');
   assertEq(E.answerState({ type: 'info' }, null), 'info', 'information is neither');
   assertEq([E.formatMark(1.5), E.formatMark(2), E.formatMark(2 / 3 * 3), E.formatMark('x')], ['1.50', '2.00', '2.00', '0.00'], 'marks are written 1.50');
+  assertEq(E.questionCount({ questionData: [{ type: 'info' }, { type: 'mcq' }, { type: 'short' }], questions: 9 }), 2, 'an exam\'s question count leaves information items out');
+  assertEq(E.questionCount({ questions: 7 }), 7, 'without its question bank, the count it was saved with');
 }
 
 console.log('An exam may set its own closing time; without one nothing changes');

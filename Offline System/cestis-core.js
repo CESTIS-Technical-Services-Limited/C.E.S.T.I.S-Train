@@ -11378,6 +11378,14 @@
       var n = 0;
       return (questions || []).map(function (q) { return q && q.type === 'info' ? 'i' : ++n; });
     }
+    /* How many questions an exam has, for lists and counts: information items
+       are not questions. An exam without its question bank on this device
+       falls back to the count it was saved with. */
+    function questionCount(exam) {
+      var qd = exam && Array.isArray(exam.questionData) ? exam.questionData : null;
+      if (qd && qd.length) return qd.filter(function (q) { return !(q && q.type === 'info'); }).length;
+      return Number(exam && exam.questions) || 0;
+    }
     function round2(x) { return Math.round(x * 100) / 100; }
 
     /* Mark an attempt. `questions` are what the trainee saw (keys stripped),
@@ -11624,7 +11632,7 @@
       outboxAdd: outboxAdd, outboxPending: outboxPending, outboxRestore: outboxRestore,
       markMulti: markMulti, markMatch: markMatch, matchChoices: matchChoices, acceptedAnswers: acceptedAnswers,
       shortAnswerMatches: shortAnswerMatches, parseNumber: parseNumber, numericalMatches: numericalMatches,
-      answerState: answerState, attemptQuestions: attemptQuestions, pagesOf: pagesOf, questionNumbers: questionNumbers,
+      answerState: answerState, attemptQuestions: attemptQuestions, pagesOf: pagesOf, questionNumbers: questionNumbers, questionCount: questionCount,
       validKey: validKey, outcomeOf: outcomeOf, attemptStartMs: attemptStartMs, formatMark: formatMark
     };
   })();

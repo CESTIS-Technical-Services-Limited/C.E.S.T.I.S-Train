@@ -2338,6 +2338,76 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .exam-confirm p { font-size:14px; color:var(--text-secondary); margin-bottom:10px; line-height:1.5; }
 .exam-confirm .exam-confirm-warn { color:var(--accent); }
 .exam-confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; flex-wrap:wrap; }
+/* The review page (showExamResult): summary table, coloured boxes, marks */
+.exam-review-summary { width:100%; max-width:780px; border-collapse:collapse; margin:0 0 16px; background:var(--bg-card); border:1px solid var(--border-light); }
+.exam-review-summary th { width:160px; text-align:right; padding:8px 16px; background:#222d3c; color:var(--text-secondary); font-size:13px; font-weight:600; border-bottom:1px solid var(--border); vertical-align:top; }
+.exam-review-summary td { padding:8px 16px; font-size:14px; color:var(--text-primary); border-bottom:1px solid var(--border); overflow-wrap:anywhere; }
+.r-result { display:inline-block; padding:2px 12px; border-radius:20px; font-weight:700; font-size:13px; }
+.r-result.passed { background:var(--green-dim); color:var(--green); }
+.r-result.failed { background:var(--red-dim); color:var(--red); }
+.r-result.pending { background:var(--accent-dim); color:var(--accent); }
+.r-result-note { font-size:12.5px; color:var(--text-muted); }
+.r-withheld { max-width:780px; margin:0 0 18px; padding:10px 14px; border:1px dashed var(--border-light); border-radius:4px; font-size:13px; color:var(--text-secondary); }
+.exam-nav-panel.review .enp-finish { margin-top:12px; }
+.qnbox.r-correct { border-color:var(--green); }
+.qnbox.r-correct .qn-fill { background:var(--green); }
+.qnbox.r-incorrect { border-color:var(--red); }
+.qnbox.r-incorrect .qn-fill { background:var(--red); }
+.qnbox.r-partial { border-color:var(--accent); }
+.qnbox.r-partial .qn-fill { background:var(--accent); }
+.qnbox.r-pending .qn-fill { background:repeating-linear-gradient(135deg,#5d7590 0 4px,transparent 4px 8px); }
+.r-state { font-weight:700; font-size:13px; display:flex; align-items:center; gap:6px; }
+.r-ico-partial { display:inline-block; width:12px; height:12px; border-radius:50%; border:2px solid var(--accent); background:linear-gradient(90deg,var(--accent) 50%,transparent 50%); }
+.exam-q.r-correct .r-state { color:var(--green); }
+.exam-q.r-incorrect .r-state { color:var(--red); }
+.exam-q.r-partial .r-state { color:var(--accent); }
+.exam-q.r-pending .r-state { color:var(--text-secondary); }
+.r-choice { cursor:default; }
+.r-choice:hover { background:transparent; }
+.r-choice input { cursor:default; }
+.r-choice.chosen { background:rgba(52,152,219,0.16); border-color:rgba(52,152,219,0.4); }
+.r-choice.r-ok { background:var(--green-dim); border-color:rgba(46,204,113,0.5); }
+.r-choice.r-bad { background:var(--red-dim); border-color:rgba(231,76,60,0.5); }
+.r-choice.is-right:not(.chosen) { border:1px dashed rgba(46,204,113,0.55); }
+.r-mark { margin-left:auto; padding-left:10px; font-weight:700; }
+.r-mark.ok { color:var(--green); }
+.r-mark.bad { color:var(--red); }
+.r-match-pick { flex:0 1 300px; width:300px; max-width:100%; display:flex; justify-content:space-between; gap:8px; padding:8px 10px; border:1px solid var(--border-light); border-radius:4px; background:var(--bg-input); font-size:14px; }
+.r-match-pick.r-ok, .r-text-answer.r-ok { border-color:rgba(46,204,113,0.6); }
+.r-match-pick.r-bad, .r-text-answer.r-bad { border-color:rgba(231,76,60,0.6); }
+.r-text-answer { display:inline-flex; gap:12px; align-items:center; padding:6px 12px; border:1px solid var(--border-light); border-radius:4px; background:var(--bg-input); min-width:180px; max-width:100%; overflow-wrap:anywhere; }
+.r-text-answer .r-mark { padding-left:0; }
+.r-essay { white-space:pre-wrap; overflow-wrap:anywhere; background:var(--bg-input); border:1px solid var(--border-light); border-radius:4px; padding:10px 14px; font-size:14px; line-height:1.5; }
+.r-feedback { margin-top:14px; padding:10px 14px; background:rgba(240,165,0,0.07); border:1px solid rgba(240,165,0,0.28); border-radius:4px; font-size:13.5px; display:flex; flex-direction:column; gap:5px; overflow-wrap:anywhere; }
+.r-feedback .er-answer { color:var(--text-secondary); }
+.r-feedback .er-answer strong { color:var(--text-primary); font-weight:600; }
+.r-feedback .er-correct { color:var(--green); }
+.r-staff-feedback { color:#7fc1ee; }
+.r-staff-feedback span { font-weight:700; }
+/* Staff results: a column per question (examResultsTableHtml) */
+.exam-results-table th, .exam-results-table td { padding:10px 7px; }
+.exam-results-table th:first-child, .exam-results-table td:first-child { padding-left:14px; white-space:nowrap; }
+.exam-results-table td.rq-when { font-size:12px; color:var(--text-muted); white-space:nowrap; }
+.exam-results-table td.rq-when span { display:block; font-size:11px; }
+.exam-results-table th.num, .exam-results-table td.num { text-align:right; }
+.exam-results-table th.rq-head span { display:block; font-weight:400; font-size:10.5px; color:var(--text-muted); text-transform:none; letter-spacing:0; }
+.exam-results-table td.rq { font-size:12.5px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.exam-results-table td.rq-correct { color:var(--green); background:rgba(46,204,113,0.09); }
+.exam-results-table td.rq-incorrect { color:var(--red); background:rgba(231,76,60,0.09); }
+.exam-results-table td.rq-partial { color:var(--accent); background:rgba(240,165,0,0.09); }
+.exam-results-table td.rq-pending { color:var(--text-secondary); background:repeating-linear-gradient(135deg,rgba(130,147,167,0.16) 0 5px,transparent 5px 10px); text-align:center; }
+.exam-results-table td.rq-none { color:var(--text-muted); }
+.rq-ico { margin-right:4px; font-size:11px; }
+.rq-ico.r-ico-partial { width:9px; height:9px; vertical-align:-1px; border-width:1.5px; }
+.exam-results-table tr.rq-avg td { font-size:12px; color:var(--text-secondary); font-style:italic; background:rgba(255,255,255,0.02); }
+.rq-legend { display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--text-muted); padding:10px 16px 14px; }
+.gp-auto-list { display:flex; flex-direction:column; gap:4px; }
+.gp-auto-row { display:flex; gap:10px; align-items:baseline; padding:6px 10px; border-radius:var(--radius-sm); background:var(--bg-input); font-size:12.5px; }
+.gp-auto-row .gp-q { font-weight:700; min-width:30px; }
+.gp-auto-row .gp-t { flex:1; min-width:0; color:var(--text-secondary); }
+.gp-auto-row .gp-m { font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.gp-auto-row.rq-correct .gp-m { color:var(--green); } .gp-auto-row.rq-incorrect .gp-m { color:var(--red); } .gp-auto-row.rq-partial .gp-m { color:var(--accent); }
+.rq-legend .rq-correct { color:var(--green); } .rq-legend .rq-incorrect { color:var(--red); } .rq-legend .rq-partial { color:var(--accent); }
 
 /* Exam results display */
 .exam-result-card {
@@ -13741,7 +13811,7 @@ function renderStudentExams(){
       else { badgeHtml = '<span class="badge badge-amber">Upcoming &bull; '+escapeHtml(String(e.date||'').split('-').slice(1).join('/'))+'</span>'; }
       return '<div class="class-schedule-card" style="border-left:3px solid '+(st==='active'?'var(--green)':'var(--accent)')+';">' +
         '<div class="class-time-block"><div class="time" style="font-size:13px;">'+escapeHtml(String(e.date||'').split('-').slice(1).join('/'))+'</div><div class="period">'+escapeHtml(e.time)+'</div></div>' +
-        '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+escapeHtml(e.title)+'</div><div style="font-size:12px;color:var(--text-muted);">'+escapeHtml(e.duration)+' minutes &nbsp;&bull;&nbsp; '+escapeHtml(e.questionData?e.questionData.length:e.questions)+' questions &nbsp;&bull;&nbsp; Pass: '+escapeHtml(e.passMark)+'%</div>' +
+        '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+escapeHtml(e.title)+'</div><div style="font-size:12px;color:var(--text-muted);">'+escapeHtml(e.duration)+' minutes &nbsp;&bull;&nbsp; '+escapeHtml(CESTISCore.exams.questionCount(e))+' questions &nbsp;&bull;&nbsp; Pass: '+escapeHtml(e.passMark)+'%</div>' +
         (e.instructions ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;white-space:pre-wrap;">'+escapeHtml(e.instructions)+'</div>' : '') + '</div>' +
         badgeHtml + '</div>';
     }).join('') || '<p style="color:var(--text-muted);padding:16px;">No upcoming exams for your programme.</p>';
@@ -22294,7 +22364,7 @@ function exportExamResults() {
     var results = examResults.filter(function(r){return r && r.examId===e.id && !r.archived;});
     // Pass rate over fully marked results only; pending ones are not fails.
     var passRate = CESTISCore.exams.passRateOf(results) || (results.length ? 'Pending review' : (e.passRate||'—'));
-    csv += cell(e.title) + ',' + cell(e.course) + ',' + cell(e.date) + ',' + cell(e.time) + ',' + (parseInt(e.duration)||'') + ',' + (((e.questionData?e.questionData.length:e.questions))||'') + ',' + (parseInt(e.passMark)||'') + ',' + cell(e.status) + ',' + results.length + ',' + cell(passRate) + '\n';
+    csv += cell(e.title) + ',' + cell(e.course) + ',' + cell(e.date) + ',' + cell(e.time) + ',' + (parseInt(e.duration)||'') + ',' + (CESTISCore.exams.questionCount(e)||'') + ',' + (parseInt(e.passMark)||'') + ',' + cell(e.status) + ',' + results.length + ',' + cell(passRate) + '\n';
   });
   // Also export individual student results
   var rows = examResults.filter(function(r){
@@ -25202,7 +25272,7 @@ function renderExams(filter) {
   tbody.innerHTML = filtered.map(function(e) {
     // Buttons name the exam by id, not by its position in the list.
     var idx = jsArg(e.id);
-    var qCount = (e.questionData && e.questionData.length > 0) ? e.questionData.length : e.questions;
+    var qCount = CESTISCore.exams.questionCount(e);
     var hasQuestions = e.questionData && e.questionData.length > 0;
     var resultsForExam = (_resultsByExam.get(e.id) || []).filter(function(r){ return !r.archived; });
     var livePass = CESTISCore.exams.passRateOf(resultsForExam) || (resultsForExam.some(CESTISCore.exams.isProvisional) ? 'awaiting marking' : e.passRate);
@@ -25264,7 +25334,7 @@ function renderInstructorExams(filter) {
 
   tbody.innerHTML = filtered.map(function(e) {
     var idx = jsArg(e.id);
-    var qCount = (e.questionData && e.questionData.length > 0) ? e.questionData.length : e.questions;
+    var qCount = CESTISCore.exams.questionCount(e);
     var hasQuestions = e.questionData && e.questionData.length > 0;
     var resultsForExam = examResults.filter(function(r){return r && r.examId===e.id && !r.archived;});
     var livePass = CESTISCore.exams.passRateOf(resultsForExam) || (resultsForExam.some(CESTISCore.exams.isProvisional) ? 'awaiting marking' : e.passRate);
@@ -25715,33 +25785,69 @@ function viewExamResults(idx) {
     '<div class="stat-card"><div class="stat-icon" style="background:var(--purple-dim);color:var(--purple);">🏆</div><div class="stat-value">'+(finals.length ? highScore+'%' : '—')+'</div><div class="stat-label">Highest Score</div></div>' +
     '</div>' +
     '<div class="card"><div class="card-header"><h3>Student Results</h3><span style="font-size:12px;color:var(--text-muted);">Pass Mark: '+escapeHtml(e.passMark)+'%</span></div>' +
-    '<div class="table-wrapper"><table><thead><tr><th>Student</th><th>Score</th><th>Correct</th><th>Status</th><th>Submitted</th><th>Actions</th></tr></thead><tbody>' +
-    (results.length === 0 ? '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">No submissions yet</td></tr>' :
-    results.map(function(r){
-      var student = students.find(function(st){return st.id===r.studentId;});
-      var pendingCount = r.answers ? r.answers.filter(function(a){return a.needsManualGrade && !a.graded;}).length : 0;
-      var hasReviewPending = pendingCount > 0;
-      var statusBadge = '';
-      if(hasReviewPending) {
-        statusBadge = '<span class="badge badge-amber"><span class="badge-dot"></span>Review ('+pendingCount+')</span>';
-      } else if(r.passed) {
-        statusBadge = '<span class="badge badge-green"><span class="badge-dot"></span>Passed</span>';
-      } else {
-        statusBadge = '<span class="badge badge-red"><span class="badge-dot"></span>Failed</span>';
-      }
-      if(r.late) statusBadge += ' <span class="badge badge-amber" title="Submitted after the exam window closed">Late</span>';
-      var scoreColor = hasReviewPending ? 'var(--accent)' : (r.passed ? 'var(--green)' : 'var(--red)');
-      var actionBtn = hasReviewPending
-        ? '<button class="btn btn-sm btn-primary" onclick="openGradingPanel('+jsArg(r.id)+')">Grade</button>'
-        : '<button class="btn btn-sm btn-secondary" onclick="openGradingPanel('+jsArg(r.id)+')">Review</button>';
-      return '<tr><td><strong>'+escapeHtml(student?student.name:r.studentId)+'</strong></td>' +
-        '<td style="font-weight:700;color:'+scoreColor+';">'+escapeHtml(r.score)+'%'+(hasReviewPending?' *':'')+'</td>' +
-        '<td>'+escapeHtml(r.correctCount)+'/'+escapeHtml(r.totalQuestions)+'</td>' +
-        '<td>'+statusBadge+'</td>' +
-        '<td style="font-size:12px;color:var(--text-muted);">'+new Date(r.submittedAt).toLocaleString()+'</td>' +
-        '<td>'+actionBtn+'</td></tr>';
-    }).join('')) +
-    '</tbody></table></div></div>';
+    examResultsTableHtml(e, results) + '</div>';
+}
+
+/* The results as Moodle's grades report lays them out: one row per attempt
+   (completed, time taken, grade) and one column per question with the mark
+   it earned — green when right, red when wrong, amber when partly right, and
+   "needs marking" until staff mark it. Answers are matched to the exam's
+   questions by id, so a shuffled paper lines up; an older result without
+   ids by its place. */
+function examResultsTableHtml(e, results) {
+  var qs = (Array.isArray(e.questionData) ? e.questionData : []).filter(function(q){ return q && q.type !== 'info'; });
+  var colOf = function(r, a, k) {
+    if(a && a.questionId != null) { for(var c = 0; c < qs.length; c++) if(String(qs[c].id) === String(a.questionId)) return c; return -1; }
+    return k < qs.length ? k : -1;
+  };
+  var shortWhen = function(iso) {
+    var ms = Date.parse(iso || '');
+    if(isNaN(ms)) return '—';
+    var p = CESTISCore.exams.centreParts(ms, examCentreOffset()), d = p.date.split('-'), t = p.time.split(':').map(Number);
+    return Number(d[2]) + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(d[1]) - 1] + ', ' + (t[0] % 12 || 12) + ':' + String(t[1]).padStart(2, '0') + ' ' + (t[0] < 12 ? 'AM' : 'PM');
+  };
+  var mins = function(secs) { secs = Math.max(0, Math.round(Number(secs) || 0)); return Math.floor(secs / 60) + ' min ' + (secs % 60) + ' s'; };
+  var sums = qs.map(function(){ return { n: 0, t: 0 }; });
+  var head = '<tr><th>Student</th><th>Completed</th><th class="num">Grade</th>' +
+    qs.map(function(q, c){ return '<th class="num rq-head" title="' + escapeAttr(q.text) + '">Q.' + (c + 1) + '<span>/' + CESTISCore.exams.formatMark(q.points) + '</span></th>'; }).join('') +
+    '<th>Status</th><th>Actions</th></tr>';
+  var rows = results.map(function(r){
+    var student = students.find(function(st){return st.id===r.studentId;});
+    var pendingCount = r.answers ? r.answers.filter(function(a){return a.needsManualGrade && !a.graded;}).length : 0;
+    var hasReviewPending = pendingCount > 0;
+    var statusBadge = '';
+    if(hasReviewPending) {
+      statusBadge = '<span class="badge badge-amber"><span class="badge-dot"></span>Review ('+pendingCount+')</span>';
+    } else if(r.passed) {
+      statusBadge = '<span class="badge badge-green"><span class="badge-dot"></span>Passed</span>';
+    } else {
+      statusBadge = '<span class="badge badge-red"><span class="badge-dot"></span>Failed</span>';
+    }
+    if(r.late) statusBadge += ' <span class="badge badge-amber" title="Submitted after the exam window closed">Late</span>';
+    var scoreColor = hasReviewPending ? 'var(--accent)' : (r.passed ? 'var(--green)' : 'var(--red)');
+    var actionBtn = hasReviewPending
+      ? '<button class="btn btn-sm btn-primary" onclick="openGradingPanel('+jsArg(r.id)+')">Grade</button>'
+      : '<button class="btn btn-sm btn-secondary" onclick="openGradingPanel('+jsArg(r.id)+')">Review</button>';
+    var cells = qs.map(function(){ return '<td class="num rq rq-none">—</td>'; });
+    (r.answers || []).forEach(function(a, k) {
+      var c = colOf(r, a, k);
+      if(c < 0) return;
+      var o = CESTISCore.exams.outcomeOf(a);
+      if(o === 'pending') { cells[c] = '<td class="num rq rq-pending" title="Needs marking"><span aria-hidden="true">&#9203;</span><span class="exam-sr-only">needs marking</span></td>'; return; }
+      sums[c].n++; sums[c].t += Number(a.earnedPoints) || 0;
+      cells[c] = '<td class="num rq rq-' + o + '">' + (o === 'partial' ? '<span class="r-ico-partial rq-ico" aria-hidden="true"></span>' : '<span class="rq-ico" aria-hidden="true">' + (o === 'correct' ? '&#10004;' : '&#10008;') + '</span>') + CESTISCore.exams.formatMark(a.earnedPoints)
+        + '<span class="exam-sr-only"> ' + (o === 'partial' ? 'partly correct' : o) + '</span></td>';
+    });
+    return '<tr><td><strong>'+escapeHtml(student?student.name:(r.studentName||r.studentId))+'</strong></td>' +
+      '<td class="rq-when">'+escapeHtml(shortWhen(r.submittedAt))+'<span>'+escapeHtml(mins(r.timeTaken))+'</span></td>' +
+      '<td class="num" style="font-weight:700;color:'+scoreColor+';">'+escapeHtml(r.score)+'%'+(hasReviewPending?' *':'')+'</td>' +
+      cells.join('') + '<td>'+statusBadge+'</td><td>'+actionBtn+'</td></tr>';
+  });
+  var avgRow = results.length ? '<tr class="rq-avg"><td colspan="3">Average mark per question</td>' + sums.map(function(s){ return '<td class="num">' + (s.n ? CESTISCore.exams.formatMark(s.t / s.n) : '—') + '</td>'; }).join('') + '<td colspan="2"></td></tr>' : '';
+  return '<div class="table-wrapper"><table class="exam-results-table"><thead>' + head + '</thead><tbody>' +
+    (results.length === 0 ? '<tr><td colspan="' + (qs.length + 5) + '" style="text-align:center;color:var(--text-muted);padding:24px;">No submissions yet</td></tr>' : rows.join('') + avgRow) +
+    '</tbody></table></div>' +
+    (results.length ? '<div class="rq-legend"><span class="rq-correct">&#10004; right</span><span class="rq-incorrect">&#10008; wrong</span><span class="rq-partial"><span class="r-ico-partial rq-ico" aria-hidden="true"></span> partly right</span><span class="rq-pending">&#9203; needs marking</span><span>* provisional: still being marked</span></div>' : '');
 }
 
 function backToExamList() {
@@ -25785,7 +25891,7 @@ function viewExamDetail(idx) {
     '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Date & Time</div><div style="font-weight:600;">'+escapeHtml(e.date)+' @ '+escapeHtml(e.time)+'</div></div>' +
     '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Duration</div><div style="font-weight:600;">'+escapeHtml(e.duration)+' minutes</div></div>' +
     '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Pass Mark</div><div style="font-weight:600;">'+escapeHtml(e.passMark)+'%</div></div>' +
-    '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Questions</div><div style="font-weight:600;">'+(hasQuestions?e.questionData.length:'None added')+'</div></div>' +
+    '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Questions</div><div style="font-weight:600;">'+(hasQuestions?CESTISCore.exams.questionCount(e):'None added')+'</div></div>' +
     '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Submissions</div><div style="font-weight:600;">'+resultsForExam.length+'</div></div>' +
     '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Shuffle Questions</div><div style="font-weight:600;">'+(e.shuffleQuestions?'Yes':'No')+'</div></div>' +
     '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Correct Answers Shown</div><div style="font-weight:600;">'+(e.answersRelease==='released'?'Released':e.answersRelease==='withheld'?'Never':'After the exam closes')+'</div></div>' +
@@ -25844,7 +25950,7 @@ function previewExam(idx) {
   if (!e) return;
   if (!e.questionData || e.questionData.length === 0) { alert('This exam has no questions yet.'); return; }
 
-  if (!confirm('Test "' + e.title + '" as a student would see it?\n\nDuration: ' + e.duration + ' minutes\nQuestions: ' + e.questionData.length + '\nPass Mark: ' + e.passMark + '%\n\nResults will NOT be saved — this is a preview only.')) return;
+  if (!confirm('Test "' + e.title + '" as a student would see it?\n\nDuration: ' + e.duration + ' minutes\nQuestions: ' + CESTISCore.exams.questionCount(e) + '\nPass Mark: ' + e.passMark + '%\n\nResults will NOT be saved — this is a preview only.')) return;
 
   _isExamPreviewMode = true;
 
@@ -25957,7 +26063,7 @@ function openGradingPanel(resultId) {
   var headerHtml = '<div class="grading-panel-header">' +
     '<div><h3>Grade: '+escapeHtml(student ? student.name : result.studentId)+'</h3>' +
     '<div style="font-size:12px;color:var(--text-muted);">'+escapeHtml(exam ? exam.title : 'Exam')+' &bull; '+
-    (pendingCount > 0 ? pendingCount+' question'+(pendingCount!==1?'s':'')+' need grading' : 'All questions graded') +
+    (pendingCount > 0 ? pendingCount+' question'+(pendingCount!==1?'s need':' needs')+' grading' : 'All questions graded') +
     '</div></div>' +
     '<button onclick="closeGradingPanel()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:4px;">&times;</button></div>';
 
@@ -25991,7 +26097,8 @@ function openGradingPanel(resultId) {
     // Student answer
     bodyHtml += '<div style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;">';
     bodyHtml += '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:4px;">Student Answer</div>';
-    bodyHtml += '<div style="font-size:13px;color:var(--text-primary);">'+escapeHtml(a.studentAnswer || '(No answer)')+'</div>';
+    var shownAnswer = Array.isArray(a.studentAnswer) ? a.studentAnswer.filter(function(x){ return x != null && x !== ''; }).join(', ') : a.studentAnswer;
+    bodyHtml += '<div style="font-size:13px;color:var(--text-primary);white-space:pre-wrap;">'+escapeHtml(shownAnswer || '(No answer)')+'</div>';
     bodyHtml += '</div>';
 
     // Model/correct answer (if available)
@@ -26043,12 +26150,23 @@ function openGradingPanel(resultId) {
     });
   }
 
-  // Auto-graded summary
+  // Marked automatically: each question with how it came out and its mark
+  // (right, wrong, or the share of the marks a "one or more" or matching
+  // question earned).
   var autoGraded = result.answers.filter(function(a){ return !a.needsManualGrade; });
   if(autoGraded.length > 0) {
     var autoCorrect = autoGraded.filter(function(a){return a.isCorrect;}).length;
-    bodyHtml += '<div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 10px;">Auto-Graded ('+autoCorrect+'/'+autoGraded.length+' correct)</div>';
-    bodyHtml += '<div style="font-size:12px;color:var(--text-muted);padding:8px 12px;background:var(--bg-input);border-radius:var(--radius-sm);">MCQ and True/False questions were graded automatically.</div>';
+    bodyHtml += '<div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 10px;">Marked automatically ('+autoCorrect+'/'+autoGraded.length+' fully right)</div>';
+    bodyHtml += '<div class="gp-auto-list">';
+    result.answers.forEach(function(a, idx) {
+      if(a.needsManualGrade) return;
+      var earned = Number(a.earnedPoints) || 0, pts = Number(a.points) || 0;
+      var o = a.isCorrect ? 'correct' : (earned > 0 && earned < pts ? 'partial' : 'incorrect');
+      var qt = String(a.questionText || '');
+      bodyHtml += '<div class="gp-auto-row rq-' + o + '"><span class="gp-q">Q' + (idx+1) + '</span><span class="gp-t">' + escapeHtml(qt.substring(0,70)) + (qt.length>70?'...':'') + '</span>'
+        + '<span class="gp-m">' + (o === 'correct' ? '&#10004; ' : o === 'incorrect' ? '&#10008; ' : '') + escapeHtml(earned.toFixed(2)) + '/' + escapeHtml(pts.toFixed(2)) + '</span></div>';
+    });
+    bodyHtml += '</div>';
   }
 
   bodyHtml += '</div>';
@@ -27105,15 +27223,132 @@ function submitExam(auto) {
   showExamResult(result, exam);
 }
 
+/* ---- The review page, after Moodle's attempt review -------------------
+   A summary table (started, completed, time taken, marks, grade, result),
+   the navigation panel with each box green / red / amber by how the answer
+   came out, and every question as it was answered: Correct / Incorrect /
+   Partially correct, "Mark 1.50 out of 3.00", the trainee's choice, and —
+   only when the exam's release policy allows (canRevealAnswers) — the right
+   answer. Staff feedback is shown whenever there is some. */
+function examDurationText(secs) {
+  secs = Math.max(0, Math.round(Number(secs) || 0));
+  var h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+  var out = [];
+  if(h) out.push(h + ' hour' + (h !== 1 ? 's' : ''));
+  if(m || h) out.push(m + ' min' + (m !== 1 ? 's' : ''));
+  out.push(s + ' sec' + (s !== 1 ? 's' : ''));
+  return out.join(' ');
+}
+function examOutcomeLabel(a) {
+  var o = CESTISCore.exams.outcomeOf(a);
+  if(o === 'pending') return 'Awaiting marking';
+  if(o === 'correct') return 'Correct';
+  if(o === 'partial') return 'Partially correct';
+  var blank = a.studentAnswer === null || a.studentAnswer === undefined || a.studentAnswer === '' || (Array.isArray(a.studentAnswer) && !a.studentAnswer.some(function(x){ return x != null && x !== ''; }));
+  return blank ? 'Not answered' : 'Incorrect';
+}
+// An option as the trainee saw it: the letter of the place it was shown in
+// (a., b., c. — the attempt's order, shuffled or not) and its own words.
+// Only the letter when the words are not to hand (the question has changed
+// or gone since): never another question's words.
+function examOptionText(q, idx, order) {
+  if(typeof idx !== 'number' || idx < 0 || idx !== Math.floor(idx) || idx > 25) return '';
+  var pos = Array.isArray(order) && order.indexOf(idx) !== -1 ? order.indexOf(idx) : idx;
+  var letter = 'abcdefghijklmnopqrstuvwxyz'.charAt(pos) + '.';
+  var text = q && Array.isArray(q.options) && q.options[idx] != null ? String(q.options[idx]).trim() : '';
+  return text ? letter + ' ' + text : letter;
+}
+// The trainee's answer, in words.
+function examAnswerText(a, q) {
+  var ans = a.studentAnswer;
+  if(a.type === 'mcq') return examOptionText(q, ans, a.optionOrder) || 'Not answered';
+  if(a.type === 'tf') return ans === true ? 'True' : ans === false ? 'False' : 'Not answered';
+  if(a.type === 'multi') return Array.isArray(ans) && ans.length ? ans.map(function(k){ return examOptionText(q, k, a.optionOrder); }).join('; ') : 'Not answered';
+  if(a.type === 'match') {
+    var rows = Array.isArray(a.rows) ? a.rows : [];
+    var got = Array.isArray(ans) ? ans : [];
+    return rows.length && got.some(function(x){ return x != null && x !== ''; })
+      ? rows.map(function(p, r){ return p + ' → ' + (got[r] == null || got[r] === '' ? '(no choice)' : got[r]); }).join('; ') : 'Not answered';
+  }
+  return ans == null || String(ans).trim() === '' ? 'Not answered' : String(ans);
+}
+// The right answer, in words ('' when there is none to show).
+function examKeyText(a, q, key) {
+  if(a.type === 'mcq') return examOptionText(q, key, a.optionOrder);
+  if(a.type === 'tf') return key === true ? 'True' : key === false ? 'False' : '';
+  if(a.type === 'multi') return Array.isArray(key) ? key.map(function(k){ return examOptionText(q, k, a.optionOrder); }).sort().join('; ') : '';
+  if(a.type === 'match') {
+    var rows = Array.isArray(a.rows) ? a.rows : [];
+    return Array.isArray(key) && rows.length ? rows.map(function(p, r){ return p + ' → ' + (key[r] == null ? '' : key[r]); }).join('; ') : '';
+  }
+  if(a.type === 'shortanswer') { var acc = CESTISCore.exams.acceptedAnswers(key); return acc.length ? acc[0] : ''; }
+  if(a.type === 'numerical') {
+    if(key == null || key === '') return '';
+    var tol = Number(a.tolerance) || 0;
+    return String(key) + (tol ? ' (± ' + tol + ')' : '') + (q && q.unit ? ' ' + q.unit : '');
+  }
+  return '';
+}
+// The answer area as it was answered (inputs shown, not usable).
+function examReviewAnswerHtml(a, q, key, reveal, i) {
+  var ans = a.studentAnswer, html = '';
+  var mark = function(ok) { return '<span class="r-mark ' + (ok ? 'ok' : 'bad') + '" aria-label="' + (ok ? 'correct' : 'incorrect') + '">' + (ok ? '&#10004;' : '&#10008;') + '</span>'; };
+  if((a.type === 'mcq' || a.type === 'multi') && q && Array.isArray(q.options)) {
+    var multi = a.type === 'multi';
+    var order = Array.isArray(a.optionOrder) ? a.optionOrder : q.options.map(function(_, k){ return k; });
+    var keyList = multi ? (Array.isArray(key) ? key : []) : [key];
+    html += '<div class="exam-q-prompt">' + (multi ? 'Select one or more:' : 'Select one:') + '</div><div class="exam-choices r-choices">';
+    order.forEach(function(oi, p) {
+      var chosen = multi ? (Array.isArray(ans) && ans.indexOf(oi) !== -1) : ans === oi;
+      var right = keyList.indexOf(oi) !== -1;
+      // A single choice's tick is the question's own result; per-option ticks
+      // on "one or more" (and the right option itself) show only once released.
+      var showMark = chosen && (!multi || reveal);
+      html += '<div class="exam-choice r-choice' + (chosen ? ' chosen' : '') + (reveal && right ? ' is-right' : '') + (showMark ? (right ? ' r-ok' : ' r-bad') : '') + '">'
+        + '<input type="' + (multi ? 'checkbox' : 'radio') + '" disabled' + (chosen ? ' checked' : '') + ' aria-label="' + escapeAttr((q.options[oi] || '') + (chosen ? ', your choice' : '')) + '">'
+        + '<span class="ch-letter" aria-hidden="true">' + 'abcdefghijklmnopqrstuvwxyz'.charAt(p) + '.</span><span class="ch-text">' + escapeHtml(q.options[oi]) + '</span>'
+        + (showMark ? mark(right) : (reveal && right ? '<span class="r-mark ok faint" aria-label="the right answer">&#10004;</span>' : '')) + '</div>';
+    });
+    html += '</div>';
+  } else if(a.type === 'tf') {
+    html += '<div class="exam-q-prompt">Select one:</div><div class="exam-choices r-choices">';
+    [true, false].forEach(function(v) {
+      var chosen = ans === v, right = key === v;
+      html += '<div class="exam-choice r-choice' + (chosen ? ' chosen' : '') + (reveal && right ? ' is-right' : '') + (chosen ? (right ? ' r-ok' : ' r-bad') : '') + '">'
+        + '<input type="radio" disabled' + (chosen ? ' checked' : '') + ' aria-label="' + (v ? 'True' : 'False') + (chosen ? ', your choice' : '') + '"><span class="ch-text">' + (v ? 'True' : 'False') + '</span>'
+        + (chosen && (key === true || key === false) ? mark(right) : (reveal && right ? '<span class="r-mark ok faint" aria-label="the right answer">&#10004;</span>' : '')) + '</div>';
+    });
+    html += '</div>';
+  } else if(a.type === 'match' && Array.isArray(a.rows)) {
+    var got = Array.isArray(ans) ? ans : [];
+    html += '<div class="exam-match r-match">';
+    a.rows.forEach(function(p, r) {
+      var pick = got[r] == null || got[r] === '' ? '' : String(got[r]);
+      var ok = Array.isArray(key) && pick !== '' && String(key[r]).replace(/\s+/g, ' ').trim().toLowerCase() === pick.replace(/\s+/g, ' ').trim().toLowerCase();
+      html += '<div class="exam-match-row"><span class="exam-match-prompt">' + escapeHtml(p) + '</span><span class="r-match-pick' + (reveal ? (ok ? ' r-ok' : ' r-bad') : '') + '">'
+        + (pick ? escapeHtml(pick) : '<em>No choice</em>') + (reveal ? mark(ok) : '') + '</span></div>';
+    });
+    html += '</div>';
+  } else if(a.type === 'short') {
+    html += '<div class="r-essay">' + (ans ? escapeHtml(ans) : '<em>No answer</em>') + '</div>';
+  } else {
+    var o = CESTISCore.exams.outcomeOf(a);
+    html += '<div class="exam-inline-answer"><span>Answer:</span> <span class="r-text-answer' + (o === 'correct' ? ' r-ok' : o === 'pending' ? '' : ' r-bad') + '">' + (ans == null || String(ans) === '' ? '<em>No answer</em>' : escapeHtml(ans))
+      + (o === 'pending' ? '' : mark(o === 'correct')) + '</span>' + (q && q.unit ? ' <span class="exam-unit">' + escapeHtml(q.unit) + '</span>' : '') + '</div>';
+  }
+  return html;
+}
+
 function showExamResult(result, exam) {
   var takingView = document.getElementById('studentExamTakingView');
   if(takingView) takingView.style.display='none';
   var resultView = document.getElementById('studentExamResultView');
   if(!resultView) return;
   resultView.style.display='block';
+  // The review is a page of its own, not a panel under the list.
+  var listView = document.getElementById('studentExamListView');
+  if(listView) listView.style.display = 'none';
 
-  var timeMins = Math.floor((result.timeTaken||0)/60);
-  var timeSecs = (result.timeTaken||0)%60;
   // Correct answers are shown only once the exam has closed (or staff release
   // them). They used to appear the moment the first trainee submitted, while
   // classmates were still answering the same paper.
@@ -27127,84 +27362,86 @@ function showExamResult(result, exam) {
     var q = exam && Array.isArray(exam.questionData) ? exam.questionData[i] : null;
     return (q && q.text === a.questionText) ? q : null;
   };
+  var answers = result.answers || [];
+  var pending = !!(result.needsReview && !result.reviewComplete);
   var withheld = 0;
+  var passMark = exam ? exam.passMark : 60;
 
-  var html = '<div style="max-width:700px;margin:0 auto;">';
-  html += '<div class="exam-result-card">';
+  var html = '<div class="exam-taking exam-attempt exam-review">';
+  html += examCrumbsHtml(exam ? exam.course : '', exam ? exam.title : 'Exam');
+  html += '<h2 class="exam-attempt-title">' + escapeHtml(exam ? exam.title : 'Exam') + '</h2>';
 
-  if(result.needsReview && !result.reviewComplete) {
-    html += '<div class="result-icon">📋</div>';
-    html += '<div class="result-score" style="color:var(--accent);">'+escapeHtml(result.score)+'%</div>';
-    html += '<div class="result-label">'+escapeHtml(result.earnedPoints)+' / '+escapeHtml(result.totalPoints)+' points (provisional)</div>';
-    html += '<div class="result-status" style="color:var(--accent);">PENDING INSTRUCTOR REVIEW</div>';
-    html += '<div style="font-size:13px;color:var(--text-muted);margin-top:8px;">'+escapeHtml(result.pendingCount)+' question'+(result.pendingCount!==1?'s':'')+' require manual grading. Your final score will be updated after review.</div>';
-  } else {
-    html += '<div class="result-icon">'+(result.passed?'🎉':'😔')+'</div>';
-    html += '<div class="result-score" style="color:'+(result.passed?'var(--green)':'var(--red)')+';">'+escapeHtml(result.score)+'%</div>';
-    html += '<div class="result-label">'+escapeHtml(result.earnedPoints)+' / '+escapeHtml(result.totalPoints)+' points &bull; '+escapeHtml(result.correctCount)+' / '+escapeHtml(result.totalQuestions)+' correct</div>';
-    html += '<div class="result-status '+(result.passed?'passed':'failed')+'">'+(result.passed?'PASSED ✓':'NOT PASSED')+'</div>';
-  }
-  html += '<div style="font-size:13px;color:var(--text-muted);margin-top:8px;">Time taken: '+timeMins+'m '+timeSecs+'s &bull; Pass mark: '+escapeHtml(exam?exam.passMark:60)+'%</div>';
-  html += '</div>';
-
-  // Review each question
-  html += '<h3 style="margin-bottom:16px;">Review Your Answers</h3>';
-  (result.answers||[]).forEach(function(a,i){
-    var cls = a.needsManualGrade && !a.graded ? 'pending' : (a.isCorrect ? 'correct' : 'incorrect');
-    html += '<div class="exam-review-item '+cls+'">';
-    html += '<div class="er-question"><span style="color:var(--accent);">Q'+(i+1)+'</span> <span class="q-type-badge q-type-'+escapeHtml(a.type)+'" style="font-size:10px;margin-left:4px;">'+escapeHtml(String(a.type||'').toUpperCase())+'</span> '+escapeHtml(a.questionText)+'</div>';
-
-    // Show student's answer
-    var ansDisplay = '';
-    if(a.type==='mcq') {
-      ansDisplay = CESTISCore.exams.optionLabel(questionFor(a, i), a.studentAnswer) || 'Not answered';
-    } else if(a.type==='tf') {
-      ansDisplay = a.studentAnswer === true ? 'True' : a.studentAnswer === false ? 'False' : 'Not answered';
-    } else {
-      ansDisplay = a.studentAnswer || 'Not answered';
-    }
-
-    var statusHtml = '';
-    if(a.needsManualGrade && !a.graded) {
-      statusHtml = '<span style="color:var(--accent);">⏳ Pending Instructor Review</span>';
-    } else if(a.isCorrect) {
-      statusHtml = '<span style="color:var(--green);">✓ Correct</span>';
-    } else if(a.graded && a.awardedPoints !== null && a.awardedPoints > 0 && a.awardedPoints < a.points) {
-      statusHtml = '<span style="color:var(--accent);">◐ Partial Credit ('+escapeHtml(a.awardedPoints)+'/'+escapeHtml(a.points)+')</span>';
-    } else {
-      statusHtml = '<span style="color:var(--red);">✗ Incorrect</span>';
-    }
-    html += '<div class="er-answer">Your answer: <strong>'+escapeHtml(ansDisplay)+'</strong> '+statusHtml+'</div>';
-
-    // Show correct answer if wrong and graded — once released
-    if(a.graded && !a.isCorrect && !a.needsManualGrade) {
-      if(!reveal) { withheld++; }
-      else {
-        var key = a.correctAnswer;
-        if((key === null || key === undefined) && a.questionId != null) key = keyOf[String(a.questionId)];
-        var correctDisplay = '';
-        if(a.type==='mcq') correctDisplay = CESTISCore.exams.optionLabel(questionFor(a, i), key);
-        else if(a.type==='tf') correctDisplay = key === true ? 'True' : key === false ? 'False' : '';
-        else correctDisplay = key || '';
-        if(correctDisplay) html += '<div class="er-correct">Correct answer: '+escapeHtml(correctDisplay)+'</div>';
-      }
-    }
-    // Show instructor feedback if graded manually
-    if(a.graded && a.gradedBy && a.gradedBy !== 'auto' && a.feedback) {
-      html += '<div style="font-size:12px;color:var(--blue);margin-top:4px;font-style:italic;">Instructor feedback: '+escapeHtml(a.feedback)+'</div>';
-    }
-    html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">'+(a.graded ? escapeHtml(a.earnedPoints) : '?')+' / '+escapeHtml(a.points)+' points</div>';
-    html += '</div>';
-  });
+  // The summary table.
+  var started = CESTISCore.exams.attemptStartMs(result), done = Date.parse(result.submittedAt || '');
+  var row = function(k, v, cls) { return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><th scope="row">' + k + '</th><td>' + v + '</td></tr>'; };
+  var statusCell;
+  if(pending) statusCell = '<span class="r-result pending">Awaiting marking</span> <span class="r-result-note">' + escapeHtml(result.pendingCount) + ' question' + (result.pendingCount !== 1 ? 's are' : ' is') + ' waiting for your instructor. Your final mark is shown here once they are marked.</span>';
+  else statusCell = '<span class="r-result ' + (result.passed ? 'passed' : 'failed') + '">' + (result.passed ? 'Passed' : 'Not passed') + '</span>';
+  html += '<table class="exam-review-summary"><caption class="exam-sr-only">Summary of this attempt</caption><tbody>';
+  if(started != null) html += row('Started on', escapeHtml(examCentreDateTime(started)));
+  html += row('State', 'Finished' + (result.autoSubmitted ? ' <span class="r-result-note">(submitted automatically when the time ran out)</span>' : '') + (result.late ? ' <span class="badge badge-amber">Late</span>' : ''));
+  if(!isNaN(done)) html += row('Completed on', escapeHtml(examCentreDateTime(done)));
+  html += row('Time taken', escapeHtml(examDurationText(result.timeTaken)));
+  html += row('Marks', escapeHtml(CESTISCore.exams.formatMark(result.earnedPoints)) + '/' + escapeHtml(CESTISCore.exams.formatMark(result.totalPoints)) + (pending ? ' <span class="r-result-note">(so far: provisional)</span>' : ''));
+  html += row('Grade', pending ? '<span class="r-result-note">Shown once marking is finished (' + escapeHtml(result.score) + '% so far)</span>'
+    : '<strong>' + escapeHtml(result.score) + '%</strong> <span class="r-result-note">(pass mark ' + escapeHtml(passMark) + '%)</span>');
+  html += row('Result', statusCell, 'r-status-row');
+  html += '</tbody></table>';
+  if(!reveal && answers.some(function(a){ return !a.needsManualGrade; })) withheld = 1;
   if(withheld) {
     var rel = exam && exam.answersRelease;
-    html += '<div style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px;">'+(rel === 'withheld' ? 'Correct answers are not released for this exam. Ask your instructor to go through it with you.' : 'Correct answers will be shown here once the exam has closed.')+'</div>';
+    html += '<div class="r-withheld" role="note">' + (rel === 'withheld' ? 'Correct answers are not released for this exam. Ask your instructor to go through it with you.' : 'Correct answers will be shown here once the exam has closed.') + '</div>';
   }
 
-  html += '<div style="text-align:center;padding:24px;"><button class="btn btn-primary" onclick="backToStudentExamList()">Back to Exams</button></div>';
-  html += '</div>';
+  // The navigation panel: one box per question, coloured by how it came out.
+  html += '<div class="exam-attempt-layout">';
+  html += '<aside class="exam-nav-panel review" id="examNavPanel" aria-labelledby="examNavTitle"><h2 class="enp-title" id="examNavTitle">Exam navigation</h2><div class="enp-body"><div class="enp-boxes" role="group" aria-label="Questions">';
+  answers.forEach(function(a, i) {
+    var o = CESTISCore.exams.outcomeOf(a);
+    html += '<button type="button" class="qnbox r-' + o + '" onclick="examReviewGoTo(' + i + ')" aria-label="Question ' + (i + 1) + ': ' + escapeAttr(examOutcomeLabel(a).toLowerCase()) + '"><span class="qn-num">' + (i + 1) + '</span><span class="qn-fill" aria-hidden="true"></span></button>';
+  });
+  html += '</div><button type="button" class="enp-finish" onclick="backToStudentExamList()">Finish review</button></div></aside>';
+
+  html += '<div class="exam-attempt-main">';
+  answers.forEach(function(a, i) {
+    var q = questionFor(a, i);
+    var o = CESTISCore.exams.outcomeOf(a);
+    var key = a.correctAnswer;
+    if((key === null || key === undefined) && a.questionId != null) key = keyOf[String(a.questionId)];
+    html += '<div class="exam-q r-' + o + '" id="examR-' + i + '">';
+    html += '<div class="exam-q-info"><h3 class="exam-q-no" id="examRNo-' + i + '" tabindex="-1">Question <span>' + (i + 1) + '</span></h3>';
+    html += '<div class="exam-q-state r-state"><span class="r-ico r-ico-' + o + '" aria-hidden="true">' + ({ correct: '&#10004;', incorrect: '&#10008;', partial: '', pending: '&#9203;' })[o] + '</span> ' + examOutcomeLabel(a) + '</div>';
+    html += '<div class="exam-q-marks">' + (o === 'pending' ? 'Marked out of ' + CESTISCore.exams.formatMark(a.points)
+      : 'Mark ' + CESTISCore.exams.formatMark(a.earnedPoints) + ' out of ' + CESTISCore.exams.formatMark(a.points)) + '</div></div>';
+    html += '<div class="exam-q-content" role="group" aria-labelledby="examRNo-' + i + ' examRText-' + i + '">';
+    html += '<div class="exam-q-text" id="examRText-' + i + '">' + escapeHtml(a.questionText) + '</div>';
+    html += examReviewAnswerHtml(a, q, key, reveal, i);
+    // Below the question: what was answered, the right answer (released
+    // only), and the marker's feedback.
+    var fb = '';
+    // A single choice is said in words too ("Your answer: b. Blue"); the
+    // other types show the answer itself above.
+    if(a.type === 'mcq' || a.type === 'tf') fb += '<div class="er-answer">Your answer: <strong>' + escapeHtml(examAnswerText(a, q)) + '</strong></div>';
+    if(reveal && !a.needsManualGrade) {
+      var kt = examKeyText(a, q, key);
+      if(kt) fb += '<div class="er-correct">Correct answer: ' + escapeHtml(kt) + '</div>';
+    }
+    if(a.graded && a.gradedBy && a.gradedBy !== 'auto' && a.feedback) {
+      fb += '<div class="r-staff-feedback"><span>Instructor feedback:</span> ' + escapeHtml(a.feedback) + '</div>';
+    }
+    if(fb) html += '<div class="r-feedback">' + fb + '</div>';
+    html += '</div></div>';
+  });
+  html += '<div class="exam-page-nav"><button class="btn btn-primary exam-next" onclick="backToStudentExamList()">Back to Exams</button></div>';
+  html += '</div></div></div>';
 
   resultView.innerHTML = html;
+}
+function examReviewGoTo(i) {
+  var el = document.getElementById('examR-' + i);
+  if(el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  var h = document.getElementById('examRNo-' + i);
+  if(h && h.focus) { try { h.focus({ preventScroll: true }); } catch(e) { h.focus(); } }
 }
 
 function viewExamResultDetail(examId, studentId) {
