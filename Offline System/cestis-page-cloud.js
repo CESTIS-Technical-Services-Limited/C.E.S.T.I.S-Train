@@ -96,6 +96,19 @@
     });
   }
 
+  /* A push merges the file's newer records into this device's storage on the
+     way up ("anything the cloud contributed is now local too"). That is news
+     for the page exactly as a pull's changes are, and it used to be written
+     without a word: the records reached storage but never the page's memory,
+     and every later pull then found storage and file alike and reported
+     nothing. On the Centre's network a trainee's device that happened to save
+     just after the instructor set an assignment (or an exam, or a class) kept
+     showing "No assignments yet" until the page was reloaded. */
+  function tellPageOfPushMerge(pg, keys) {
+    if (!pg || !keys || !keys.length || typeof pg.spec.onRestore !== 'function') return;
+    try { pg.spec.onRestore(keys.slice()); } catch (e) {}
+  }
+
   function Page(spec) {
     this.spec = spec;
     this.stampsKey = 'cestis_pagecloud_stamps__' + spec.file;
@@ -421,6 +434,7 @@
             // Anything the cloud contributed is now local too.
             merged.changed.forEach(function (k) { try { store().setItem(k, merged.data[k]); } catch (e) {} });
             self.setStamps(merged.stamps);
+            tellPageOfPushMerge(self, merged.changed);
           }
           return ok;
         };
@@ -740,6 +754,7 @@
           merged.changed.forEach(function (k) { try { store().setItem(k, merged.data[k]); } catch (e) {} });
         } finally { API._applying = false; }
         self.setStamps(merged.stamps);
+        tellPageOfPushMerge(self, merged.changed);
         return true;
       });
     });
