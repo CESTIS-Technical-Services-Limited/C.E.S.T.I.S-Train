@@ -592,7 +592,8 @@
      budget, its "seen this help" dismissals and its own copy of a video
      room's chat (each line marked as sent from this device or not). */
   var DEVICE_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser', 'cestisAttendanceCurrentUser',
-    'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisCertDeviceSessionId', 'voctrain_supportSendLog'];
+    'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisCertDeviceSessionId', 'voctrain_supportSendLog',
+    'voctrain_sessionUpgradeCarried'];
   function deviceOnly(k) {
     return /^voctrain_session(Expiry|Role|UserId|StudentId|SeenAt)$/.test(k) || k === 'voctrain_examInProgress' ||
            k.indexOf('cestisExamSession__') === 0 || k === 'cestisExamOutbox' ||

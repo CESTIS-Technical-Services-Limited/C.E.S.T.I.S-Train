@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261021u"></script>
+<script src="cestis-core.js?v=20261022a"></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=20261021u"></script>
-<script src="staff-appraisals.js?v=20260802a"></script>
-<script src="cmc-portal.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261022a"></script>
+<script src="staff-appraisals.js?v=20261022a"></script>
+<script src="cmc-portal.js?v=20261022a"></script>
 <script src="cert-template-seed.js?v=20260802b"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Installable, with an icon, and able to open with no connection (sw.js). -->
@@ -4053,7 +4053,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 <!-- Video on the Centre's own network (the Offline System): introduce calls
      through the Centre's server instead of a public one on the internet.
      Inert everywhere else — it changes nothing unless that server answers. -->
-<script src="cestis-offline-rtc.js?v=20261020a"></script>
+<script src="cestis-offline-rtc.js?v=20261022a"></script>
 <!-- Google Identity Services for OAuth -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <!-- jsPDF (certificates, enrolment registers) is fetched the first time a PDF
@@ -9066,6 +9066,31 @@ try {
 applyGoogleVerificationMeta();
 // Check and apply maintenance mode on page load
 checkMaintenanceOnLoad();
+
+/* Work the version before this upgrade left on this device. That version had
+   no "pending upload" note: a staff member who closed the tab without signing
+   out (the usual way a shared PC is left) kept their session keys, and with
+   them any work that had not reached the cloud — offline, or with an expired
+   Google token. On the first load of this version that session is usually
+   already expired, and the clean-up below would wipe the device with nothing
+   to say the work never left it. So, once per device: if the stored session
+   is a staff member's, the note is written for that role, and the existing
+   rules (CESTISCore.pendingUpload) keep the data until a staff session's
+   upload has carried it. A trainee's stored session needs nothing: the old
+   version already trimmed a trainee's device, and their own unsent results
+   are kept by the exam outbox. */
+function cestisCarryPreUpgradeWork() {
+  try {
+    if (CESTISStore.getItem('voctrain_sessionUpgradeCarried')) return;
+    CESTISStore.setItem('voctrain_sessionUpgradeCarried', new Date().toISOString());
+    var role = CESTISStore.getItem('voctrain_sessionRole');
+    if (!role || role === 'student') return;
+    if (CESTISStore.getItem('cestisPendingUpload')) return;
+    var note = CESTISCore.pendingUpload.mark(null, role, new Date().toISOString());
+    if (note) CESTISStore.setItem('cestisPendingUpload', note);
+  } catch(e) {}
+}
+cestisCarryPreUpgradeWork();
 
 // Check for expired session on page load (e.g. user returns to stale tab)
 (function() {
