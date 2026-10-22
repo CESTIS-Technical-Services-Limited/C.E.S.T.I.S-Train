@@ -19,7 +19,13 @@
      - minimum readable text: the registration form, the dashboard, exams,
        certificates, attendance, announcements and the Student Progress page
        show no text below 12px at 1366px or 390px, still with no sideways
-       page, and the bell's counter (11px) still fits its 16px dot.
+       page, and the bell's counter (11px) still fits its 16px dot;
+     - image descriptions: Chromium's accessibility tree of the sign-in screen
+       no longer reads the "V" tile, the cloud or the role-card emoji and has
+       no unnamed image, while every heading and button keeps its name; a
+       profile photo is named after the person on its own (Edit my profile,
+       My Chat Profile) and decorative beside the name (sidebar); no <img>
+       on the page is left without an alt.
    Every page checked must not pan sideways at 390px and must raise no page
    error. Kept out of the default npm test chain because it needs a browser. */
 'use strict';
@@ -455,6 +461,60 @@ const DESK = { viewport: { width: 1366, height: 768 } };
     const sp = page.frames().find(fr => /Student-Progress/.test(fr.url()));
     s = sp ? await smallText(sp) : ['no frame'];
     ok(s.length === 0, label + ' Student Progress (sibling page): no text under 12px (' + s.slice(0, 5).join(', ') + ')');
+    ok(errors.length === 0, 'no page errors — got: ' + errors.join(' | '));
+    await ctx.close();
+  }
+  }
+
+  /* ---------------- Image descriptions ---------------- */
+  if (want(9)) {
+  console.log('Pictures say what they show; the sign-in screen\'s decoration is not read out');
+  {
+    const ctx = await fresh(DESK);
+    const { page, errors } = await open(ctx);
+    // What Chromium hands a screen reader on the sign-in screen.
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Accessibility.enable');
+    const { nodes } = await cdp.send('Accessibility.getFullAXTree');
+    const read = nodes.filter(n => !n.ignored).map(n => ({ role: n.role && n.role.value, name: n.name ? String(n.name.value) : '' }));
+    const emoji = read.filter(n => n.role === 'StaticText' && /^(V|☁️|🛡️|🎓|📚|📋|🏛️)$/.test(n.name.trim()));
+    ok(emoji.length === 0, 'sign-in: the "V" tile, the cloud and the role-card emoji are not read out (' + emoji.map(n => n.name).join(' ') + ')');
+    ok(!read.some(n => n.role === 'image'), 'sign-in: no unnamed image is left in the tree');
+    ['VocTrain', 'Administrator', 'Student', 'Instructor', 'Administrative Staff', 'CMC Board'].forEach(h =>
+      ok(read.some(n => n.role === 'heading' && n.name === h), 'sign-in: the heading "' + h + '" is still read'));
+    ok(read.some(n => n.role === 'button' && n.name === 'Certificate Portal'), 'sign-in: the Certificate Portal button keeps its name');
+    await seed(page);
+    await signIn(page, 'admin', 'phenry', 'Real-Admin-Pass-1');
+    // A real photo for this administrator, then every place that shows it.
+    const r = await page.evaluate(async () => {
+      const c = document.createElement('canvas'); c.width = c.height = 8; c.getContext('2d').fillRect(0, 0, 8, 8);
+      const pic = c.toDataURL('image/png');
+      const me = currentLoggedInUser;
+      lmsChatProfiles[me.id] = Object.assign({}, lmsChatProfiles[me.id] || {}, { profilePic: pic });
+      updateSidebarAvatar(me.id, me.name);
+      const side = document.querySelector('#sidebarAvatar img');
+      openAccountProfileEdit();
+      await new Promise(res => setTimeout(res, 300));
+      const prev = document.querySelector('#editAcctPicPreview img');
+      const out = { side: side && side.getAttribute('alt'), edit: prev && prev.getAttribute('alt'), name: me.name };
+      document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+      return out;
+    });
+    ok(r.side === '', 'the sidebar photo is decorative — the name is printed beside it (alt="' + r.side + '")');
+    ok(r.edit === r.name, 'Edit my profile: the photo is named after the person (alt="' + r.edit + '")');
+    await showAndWait(page, 'lms-chat');
+    const chat = await page.evaluate(async () => {
+      const c = document.createElement('canvas'); c.width = c.height = 8; c.getContext('2d').fillRect(0, 0, 8, 8);
+      const cu = lmsChatGetCurrentUser();
+      lmsChatProfiles[cu.id] = Object.assign({}, lmsChatProfiles[cu.id] || {}, { profilePic: c.toDataURL('image/png') });
+      lmsChatOpenProfileModal();
+      await new Promise(res => setTimeout(res, 300));
+      const img = document.querySelector('#lmsChatProfilePreview img');
+      return { alt: img && img.getAttribute('alt'), name: cu.name };
+    });
+    ok(chat.alt === chat.name, 'My Chat Profile: the photo is named after the person (alt="' + chat.alt + '")');
+    const bare = await page.evaluate(() => Array.prototype.filter.call(document.querySelectorAll('img'), i => !i.hasAttribute('alt')).map(i => (i.src || '').slice(0, 40)));
+    ok(bare.length === 0, 'no picture on the page is left without an alt (' + bare.join(', ') + ')');
     ok(errors.length === 0, 'no page errors — got: ' + errors.join(' | '));
     await ctx.close();
   }

@@ -9808,7 +9808,7 @@
                             documentPreview = `
                                 <div class="document-preview">
                                     <h3>Document Preview</h3>
-                                    <img src="${fileDataUrl}" alt="${doc.fileName}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <img src="${fileDataUrl}" alt="${feeAttr(doc.fileName)}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
                                 </div>
                             `;
                         } else if (fileExtension === 'pdf') {
@@ -9849,7 +9849,7 @@
                     documentPreview = `
                         <div class="document-preview">
                             <h3>Document Preview</h3>
-                            <img src="${doc.fileData}" alt="${doc.fileName}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
+                            <img src="${doc.fileData}" alt="${feeAttr(doc.fileName)}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
                         </div>
                     `;
                 } else if (fileExtension === 'pdf') {

@@ -2933,7 +2933,7 @@ function buildVirementFormPage(r) {
     var deficitLines = r.lines.filter(function(l){ return !l.anyLine; });
     var anyLines = r.lines.filter(function(l){ return l.anyLine; });
     var displayDate = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }) : '';
-    var logoHtml = virementLogoDataURL ? '<img src="' + virementLogoDataURL + '" class="vlp-logo" alt="Logo">' : '';
+    var logoHtml = virementLogoDataURL ? '<img src="' + virementLogoDataURL + '" class="vlp-logo" alt="Centre logo">' : '';
 
     var deficitRows = '';
     for (var i = 0; i < deficitLines.length; i++) {
