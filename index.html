@@ -13378,7 +13378,6 @@ function buildAdminPages() {
 
   populateCourseDropdowns();
   if(typeof syncStudentsFromLocalFeeSystem === 'function') syncStudentsFromLocalFeeSystem();
-  renderStudents(students);
   renderSkills();
   renderExams('upcoming');
   renderCerts('all','');
@@ -21987,26 +21986,6 @@ function exportExamResults() {
 }
 
 // ============================== ADMIN FUNCTIONS ==============================
-function renderStudents(data) {
-  const tbody = document.getElementById('studentTableBody');
-  if(!tbody) return;
-  if(!data || !Array.isArray(data)) { data = []; }
-  // Row positions resolved from one index rather than students.indexOf() per
-  // row, which walked the whole roster again for every row it drew.
-  var _posOf = new Map();
-  for (var _i = 0; _i < students.length; _i++) if (!_posOf.has(students[_i])) _posOf.set(students[_i], _i);
-  tbody.innerHTML = data.map(s => {
-    var idx = _posOf.has(s) ? _posOf.get(s) : students.indexOf(s);
-    var prog = s.progress || 0;
-    return `<tr><td><strong>${escapeHtml(s.name||'Unknown')}</strong></td><td style="font-family:monospace;font-size:12px;color:var(--text-muted);">${escapeHtml(s.id||'—')}</td><td>${escapeHtml(s.course||'—')}</td>
-    <td><span class="badge ${stageBadge[s.stage]||'badge-blue'}"><span class="badge-dot"></span>${escapeHtml(stageLabels[s.stage]||s.stage||'—')}</span></td><td>${escapeHtml(s.score||'—')}</td>
-    <td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:80px;"><div class="fill" style="width:${prog}%;background:${prog>=80?'var(--green)':prog>=40?'var(--accent)':'var(--red)'};"></div></div><span style="font-size:12px;color:var(--text-muted);">${prog}%</span></div></td>
-    <td><div style="display:flex;gap:6px;"><button class="btn btn-sm btn-secondary" onclick="openUpdateStage(${idx})">Update</button><button class="btn btn-sm btn-secondary" onclick="openEditStudent(${idx})" style="font-size:11px;">✎ Edit</button><button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:11px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteStudent(${idx})">✕ Delete</button></div></td></tr>`;
-  }).join('');
-  const sc = document.getElementById('studentCount');
-  if(sc) sc.textContent = `Showing ${data.length} student${data.length!==1?'s':''}`;
-}
-
 // Pull students from the LOCAL School Fee Management store (cestiSchoolFeeStudents)
 // into the Student Progress list. The fee page runs in an iframe, so its own
 // push may not have fired; this guarantees fee students appear on the dashboard
@@ -22206,41 +22185,9 @@ function filterStudents() {
       if (typeof lmsChatRenderRoomList === 'function' && typeof lmsChatGetRolePrefix === 'function') lmsChatRenderRoomList(lmsChatGetRolePrefix());
     } catch(e){}
   }
-  let filtered = [...students];
-  const stage = document.getElementById('filterStage')?.value;
-  const course = document.getElementById('filterCourse')?.value;
-  const search = (document.getElementById('studentSearch')?.value || '').toLowerCase().trim();
-  if(stage && stage!=='all') filtered = filtered.filter(s => s.stage===stage);
-  if(course && course!=='all') {
-    // Resolved ONCE, not once per row: findSkillAreaForCourse() scans the
-    // training centres and normalises names, and the filter's own course does
-    // not change between rows. Each student's centre is memoised too, since a
-    // roll of hundreds shares a handful of programmes.
-    var _filterCourseLower = course.toLowerCase().trim();
-    var _filterSkill = findSkillAreaForCourse(course);
-    var _skillByCourse = new Map();
-    filtered = filtered.filter(function(s) {
-      if(!s.course) return false;
-      // Exact match first
-      if(s.course === course) return true;
-      // Case-insensitive match
-      if(s.course.toLowerCase().trim() === _filterCourseLower) return true;
-      // Skill area ID match (handles renamed courses)
-      if(!_filterSkill || !_filterSkill.id) return false;
-      var studentSkill;
-      if(_skillByCourse.has(s.course)) studentSkill = _skillByCourse.get(s.course);
-      else { studentSkill = findSkillAreaForCourse(s.course); _skillByCourse.set(s.course, studentSkill); }
-      return !!(studentSkill && studentSkill.id && studentSkill.id === _filterSkill.id);
-    });
-  }
-  if(search) filtered = filtered.filter(function(s) {
-    // Search by name, ID, or course
-    var name = (s.name || '').toLowerCase();
-    var id = (s.id || '').toLowerCase();
-    var sCourse = (s.course || '').toLowerCase();
-    return name.includes(search) || id.includes(search) || sCourse.includes(search);
-  });
-  renderStudents(filtered);
+  // (The roster table itself is Student-Progress.html's. The old in-page copy
+  // drew into a table this page no longer has, with buttons whose handlers
+  // were gone; it was removed with the filtering that only fed it.)
 }
 
 /* The Student Progress editor lives in Student-Progress.html (shown in an
