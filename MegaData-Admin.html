@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MegaData — Device Setup &amp; Data Export | CESTIS</title>
+<title>Record Book — Device Setup &amp; Data Export | CESTIS</title>
 <style>
   :root { --ink:#1c2733; --mut:#5b6b7b; --line:#d9e2ec; --card:#ffffff; --bg:#f2f6fa; --ok:#1c7c43; --warn:#9a6700; --bad:#b3261e; --btn:#1a5fb4; }
   * { box-sizing: border-box; }
@@ -34,25 +34,25 @@
 </head>
 <body>
 <header>
-  <h1>MegaData — Device Setup &amp; Data Export</h1>
-  <p>This admin page does two jobs: connect <em>this computer</em> to the school's data broker (one-time, per device), and export everything stored locally in this browser so the migration can include it. It changes nothing about how the other pages work until the migration is sealed.</p>
+  <h1>Record Book — Device Setup &amp; Data Export</h1>
+  <p>This admin page does two jobs: connect <em>this computer</em> to the school's sync service (one-time, per computer), and export everything this computer holds so the migration can include it. It changes nothing about how the other pages work until the migration is sealed.</p>
   <p><a href="MegaData-Adjudication.html">→ Open the Identity Adjudication Queue</a> (the record-matching questions the migration left for a human)</p>
 </header>
 <main>
 
   <div class="card" id="statusCard">
     <h2>1 · This device right now</h2>
-    <p class="exp">What the CESTIS pages on this computer will do the next time they open. Until a broker is saved <em>and</em> the one-time migration has been run, everything stays exactly as it is today.</p>
+    <p class="exp">What the CESTIS pages on this computer will do the next time they open. Until a sync service is saved <em>and</em> the one-time migration has been run, everything stays exactly as it is today.</p>
     <div class="status mut" id="bootStatus">Checking…</div>
     <div class="kv" id="bootDetail"></div>
     <div class="row"><button class="secondary" id="btnRecheck">Re-check</button></div>
   </div>
 
   <div class="card">
-    <h2>2 · Broker connection (one-time, per device)</h2>
-    <p class="exp">The broker is the school's single gatekeeper for saving data — a small Google&nbsp;Apps&nbsp;Script running in the school's own Google account (see <code>megadata/broker-appsscript/README-DEPLOY.md</code>). Paste its web address and the shared secret that was set when it was deployed. Both are stored <strong>only on this computer</strong> — never in the code, never on GitHub, never inside an export file. Enter them once on each machine the school uses.</p>
-    <label for="brokerUrl">Broker web address (ends in <code>/exec</code>)</label>
-    <input type="url" id="brokerUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+    <h2>2 · Sync service connection (one-time, per computer)</h2>
+    <p class="exp">The sync service is the school's single gatekeeper for saving data (see the deployment guide that came with the migration tools). Paste its web address and the shared secret that was set when it was deployed. Both are stored <strong>only on this computer</strong> — never in the code, never published, never inside an export file. Enter them once on each machine the school uses.</p>
+    <label for="brokerUrl">Sync service web address (ends in <code>/exec</code>)</label>
+    <input type="url" id="brokerUrl" placeholder="https://…/exec" autocomplete="off">
     <label for="brokerSecret">Shared secret</label>
     <input type="password" id="brokerSecret" placeholder="paste the HMAC_SECRET value" autocomplete="new-password">
     <div class="row">
@@ -62,15 +62,15 @@
     </div>
     <div class="row" style="margin-top:10px">
       <button class="secondary" id="btnGenSecret">Make me a strong secret</button>
-      <input type="text" id="genSecretOut" readonly placeholder="a fresh secret appears here — copy it into Apps Script FIRST, then paste it above" style="flex:1;min-width:260px">
+      <input type="text" id="genSecretOut" readonly placeholder="a fresh secret appears here — copy it into the sync service FIRST, then paste it above" style="flex:1;min-width:260px">
     </div>
-    <p class="exp" style="margin-top:8px">Setting up the broker for the first time? Press the button, copy the generated value into the Apps Script <code>HMAC_SECRET</code> Script Property, keep an offline copy somewhere safe, then paste the same value into the secret box above. It is generated on this computer and shown only here.</p>
+    <p class="exp" style="margin-top:8px">Setting up the sync service for the first time? Press the button, copy the generated value into the sync service's <code>HMAC_SECRET</code> Script Property, keep an offline copy somewhere safe, then paste the same value into the secret box above. It is generated on this computer and shown only here.</p>
     <div class="status mut" id="brokerStatus" style="display:none"></div>
   </div>
 
   <div class="card">
     <h2>3 · Export this computer's local data</h2>
-    <p class="exp">Some records may exist <em>only</em> in this browser's storage and in no Drive backup. This button gathers everything CESTIS has stored locally into one file you download and give to the person running the migration (drop it in the migration folder — the tool recognises it by name). Do this once on <strong>every</strong> computer the school uses. Sign-in tokens and session state are deliberately left out, and the broker secret cannot appear in it.</p>
+    <p class="exp">Some records may exist <em>only</em> on this computer and in no backup. This button gathers everything CESTIS holds on this computer into one file you download and give to the person running the migration (drop it in the migration folder — the tool recognises it by name). Do this once on <strong>every</strong> computer the school uses. Sign-in tokens and session state are deliberately left out, and the shared secret cannot appear in it.</p>
     <label for="deviceLabel">Name this computer (shows in the file name)</label>
     <input type="text" id="deviceLabel" placeholder="e.g. front-desk, principal-laptop" autocomplete="off">
     <div class="row"><button id="btnExport">Export local data</button></div>
@@ -120,8 +120,8 @@
       show($('bootStatus'), cls, MG.describeBoot(boot));
       return MG.readBrokerConfig(adapter).then(function (bc) {
         $('bootDetail').innerHTML = bc && bc.url
-          ? 'Saved broker on this device: <b>' + bc.url.replace(/^(https:\/\/[^\/]+\/.{0,24}).*/, '$1…') + '</b> · secret: <b>saved (hidden)</b>'
-          : 'No broker saved on this device yet.';
+          ? 'Saved sync service on this computer: <b>' + bc.url.replace(/^(https:\/\/[^\/]+\/.{0,24}).*/, '$1…') + '</b> · secret: <b>saved (hidden)</b>'
+          : 'No sync service saved on this computer yet.';
         if (boot.sync && boot.sync.stop) boot.sync.stop();
       });
     }).catch(function (e) { show($('bootStatus'), 'bad', 'Status check failed: ' + e.message); });
@@ -133,12 +133,12 @@
     if (!needAdmin()) return;
     var v = MG.validateBrokerSettings(settingsFromForm());
     if (!v.ok) return show($('brokerStatus'), 'bad', v.errors.join('\n'));
-    show($('brokerStatus'), 'mut', 'Contacting the broker…');
+    show($('brokerStatus'), 'mut', 'Contacting the sync service…');
     var client = MG.createBrokerClient({ url: v.url, secret: v.secret, maxRetries: 1 });
     MG.probeBroker(client).then(function (p) {
-      if (!p.ok) return show($('brokerStatus'), 'bad', 'Could not reach the broker: ' + p.error + '\nCheck the address, the deployment ("Anyone" access), and the secret.');
+      if (!p.ok) return show($('brokerStatus'), 'bad', 'Could not reach the sync service: ' + p.error + '\nCheck the address, the deployment ("Anyone" access), and the secret.');
       var extra = v.warnings.length ? '\nNote: ' + v.warnings.join(' ') : '';
-      show($('brokerStatus'), 'ok', 'Connected. The broker answered (log position ' + (p.head && p.head.seq != null ? p.head.seq : '?') + '; migration ' + (p.bootstrap === 'sealed' ? 'SEALED — pages will go live after saving' : 'not run yet — pages stay legacy after saving') + ').' + extra);
+      show($('brokerStatus'), 'ok', 'Connected. The sync service answered (log position ' + (p.head && p.head.seq != null ? p.head.seq : '?') + '; migration ' + (p.bootstrap === 'sealed' ? 'SEALED — pages will go live after saving' : 'not run yet — pages stay legacy after saving') + ').' + extra);
     });
   };
   $('btnSave').onclick = function () {

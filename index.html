@@ -4120,10 +4120,10 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 
     <!-- Pre-login Cloud Sync Bar -->
     <div class="login-sync-bar" id="loginSyncBar">
-      <span class="sync-icon">☁️</span>
+      <span class="sync-icon" aria-hidden="true">🔄</span>
       <div class="sync-text">
-        <strong>Sync from Cloud before logging in</strong>
-        Pull the latest data from the Cloud. <em>All users must sync before logging in.</em>
+        <strong>Sync before signing in</strong>
+        Brings this computer up to date before anyone signs in. <em>Everyone must sync before signing in.</em>
         <div class="login-sync-status" id="loginSyncStatus"></div>
       </div>
       <button class="login-sync-btn" id="loginSyncBtn" onclick="loginPageSync()">Sync Now</button>
@@ -4164,7 +4164,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
         <div class="role-login" id="studentLogin">
           <div class="form-group">
             <label for="studentUser">Email or Username</label>
-            <input type="text" placeholder="your.email@gmail.com" id="studentUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false">
+            <input type="text" placeholder="your.email@example.com" id="studentUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false">
           </div>
           <div class="form-group">
             <label for="studentPass">Password</label>
@@ -4173,8 +4173,8 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           <button type="button" class="register-link" onclick="openForgotPassword('student')">Forgot password?</button>
           <div class="gmail-divider">or</div>
           <button class="gmail-btn" type="button" onclick="gmailSignIn('student')">
-            <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-            Sign in with Google
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+            Sign in with your email account
           </button>
           <button type="button" class="register-link" onclick="openRegistrationModal('student')">New student? Register here</button>
         </div>
@@ -4191,7 +4191,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
         <div class="role-login" id="instructorLogin">
           <div class="form-group">
             <label for="instructorUser">Email or Username</label>
-            <input type="text" placeholder="your.email@gmail.com" id="instructorUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false">
+            <input type="text" placeholder="your.email@example.com" id="instructorUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false">
           </div>
           <div class="form-group">
             <label for="instructorPass">Password</label>
@@ -4200,8 +4200,8 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           <button type="button" class="register-link" onclick="openForgotPassword('instructor')">Forgot password?</button>
           <div class="gmail-divider">or</div>
           <button class="gmail-btn" type="button" onclick="gmailSignIn('instructor')">
-            <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-            Sign in with Google
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+            Sign in with your email account
           </button>
           <button type="button" class="register-link" onclick="openRegistrationModal('instructor')">New instructor? Register here</button>
         </div>
@@ -4279,7 +4279,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 
       <div class="cert-portal-sync" id="certPortalSyncBar">
         <div style="flex:1;min-width:200px;">
-          <div class="state" id="certPortalSyncState">Not synced with the cloud yet.</div>
+          <div class="state" id="certPortalSyncState">Not synced yet.</div>
           <div id="certPortalSyncStatus" style="display:none;margin-top:6px;padding:6px 10px;border-radius:6px;font-size:12px;"></div>
         </div>
         <button id="certPortalSyncBtn" onclick="certPortalSync()">Sync Now</button>
@@ -4315,7 +4315,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       <!-- Download (trainees) -->
       <div class="cert-portal-view" id="certPortalDownload">
         <button class="cert-portal-back" onclick="certPortalShow('home')">&larr; Back</button>
-        <p class="subtitle" style="text-align:left;margin-bottom:12px;">Enter your <strong>Student Number</strong> to see a live preview of your certificate. Sync with the cloud first: the Download button stays off until this device has synced, so every download is recorded.</p>
+        <p class="subtitle" style="text-align:left;margin-bottom:12px;">Enter your <strong>Student Number</strong> to see a live preview of your certificate. Sync first: the Download button stays off until this computer has synced, so every download is recorded.</p>
         <div class="cert-check-input-group">
           <input type="text" id="certPortalStudentInput" placeholder="e.g. STU-2026001" onkeydown="if(event.key==='Enter')certPortalPreview()">
           <button onclick="certPortalPreview()">Show Certificate</button>
@@ -4357,7 +4357,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
         </ul>
 
         <h4 style="color:var(--text-primary);margin:18px 0 8px;">4. Data Storage & Security</h4>
-        <p>Your data is stored locally within your browser using localStorage and IndexedDB technologies. We implement reasonable security measures to protect your personal information from unauthorised access, alteration, or disclosure. Passwords are stored within the system and users are encouraged to use strong, unique passwords.</p>
+        <p>Your data is kept securely and is used only by the Centre. We implement reasonable security measures to protect your personal information from unauthorised access, alteration, or disclosure. Passwords are stored within the system and users are encouraged to use strong, unique passwords.</p>
 
         <h4 style="color:var(--text-primary);margin:18px 0 8px;">5. Data Sharing</h4>
         <p>We do not sell, trade, or rent your personal information to third parties. Your data may be accessed by:</p>
@@ -4473,27 +4473,27 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       <!-- Cloud Sync Dropdown -->
       <div id="cloudNotConnected">
         <button class="cloud-sync-btn" onclick="connectToGoogleDrive()">
-          <span>☁️</span>
-          <span id="cloudStatusText">Not connected</span>
+          <span>🔄</span>
+          <span id="cloudStatusText">Not synced yet</span>
           <span id="cloudStatusDot" class="cloud-status-dot"></span>
         </button>
       </div>
       <div id="cloudConnected" style="display:none;">
         <div class="cloud-dropdown">
           <button class="cloud-sync-btn" onclick="toggleCloudMenu()">
-            <span id="cloudMenuIcon">☁️</span>
-            <span>Cloud</span>
+            <span id="cloudMenuIcon">🔄</span>
+            <span>Sync</span>
             <span style="font-size:0.6rem;">▼</span>
           </button>
           <div class="cloud-dropdown-content" id="cloudDropdownMenu">
             <div class="cloud-dropdown-item" onclick="saveToCloud()">
-              <span>💾</span><span>Save to Cloud</span>
+              <span>💾</span><span>Send My Changes</span>
             </div>
             <div class="cloud-dropdown-item" onclick="syncFromCloud()">
-              <span>🔄</span><span>Sync from Cloud</span>
+              <span>🔄</span><span>Get Latest Changes</span>
             </div>
             <div class="cloud-dropdown-item" onclick="mergeFromCloud()">
-              <span>🔀</span><span>Merge from Cloud</span>
+              <span>🔀</span><span>Merge Latest Changes</span>
             </div>
             <div class="cloud-dropdown-item" onclick="browseBackupFiles()">
               <span>📁</span><span>Browse All Backups</span>
@@ -4749,7 +4749,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     <!-- Step 1: identify the account -->
     <div id="forgotPwStep1">
       <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Enter the username or email on your account. We'll verify your identity with the recovery email on file.</p>
-      <div class="form-group"><label>Username or Email</label><input type="text" class="form-control" id="forgotPwUser" placeholder="e.g. cestisadmin or you@gmail.com" onkeydown="if(event.key==='Enter')forgotPwLookup()"></div>
+      <div class="form-group"><label>Username or Email</label><input type="text" class="form-control" id="forgotPwUser" placeholder="e.g. cestisadmin or you@example.com" onkeydown="if(event.key==='Enter')forgotPwLookup()"></div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
         <button class="btn btn-secondary" onclick="closeModal('forgotPasswordModal')">Cancel</button>
         <button class="btn btn-primary" onclick="forgotPwLookup()">Continue</button>
@@ -4855,7 +4855,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 <div class="modal-overlay" id="tfaSetupModal">
   <div class="modal" style="max-width:440px;">
     <div class="modal-header"><h3>Set Up Two-Step Verification</h3><button class="modal-close" onclick="tfaCancelSetup()">✕</button></div>
-    <p style="font-size:13px;color:var(--text-secondary);">1. Scan this QR code with Google Authenticator (or any TOTP app):</p>
+    <p style="font-size:13px;color:var(--text-secondary);">1. Scan this QR code with an authenticator app (any TOTP app):</p>
     <div class="tfa-qr" id="tfaQRCode"></div>
     <p style="font-size:12px;color:var(--text-muted);text-align:center;">Or enter this key manually:</p>
     <div class="tfa-secret" id="tfaSecretKey"></div>
@@ -5054,7 +5054,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 <!-- DRIVE UPLOAD RESOURCE MODAL -->
 <div class="modal-overlay" id="driveUploadModal">
   <div class="modal" style="max-width:620px;">
-    <div class="modal-header"><h3>Upload Resource to Google Drive</h3><button class="modal-close" onclick="closeModal('driveUploadModal')">✕</button></div>
+    <div class="modal-header"><h3>Upload Resource</h3><button class="modal-close" onclick="closeModal('driveUploadModal')">✕</button></div>
     <div class="form-group"><label>Resource Name *</label><input type="text" class="form-control" id="driveResName" placeholder="e.g. Safety Procedures & PPE Training"></div>
     <div class="grid-2col" style="gap:12px;">
       <div class="form-group"><label>Programme / Class *</label>
@@ -5098,14 +5098,14 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     <div class="form-group"><label>External Link (if no file upload)</label><input type="text" class="form-control" id="driveResUrl" placeholder="https://..."></div>
     <div class="form-group"><label>Description</label><textarea class="form-control" id="driveResDesc" rows="2" placeholder="Brief description of this resource..."></textarea></div>
     <div id="driveUploadProgress" style="display:none;margin-bottom:16px;">
-      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;" id="driveUploadStatus">Uploading to Google Drive...</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;" id="driveUploadStatus">Uploading...</div>
       <div style="height:6px;background:var(--bg-input);border-radius:3px;overflow:hidden;">
         <div id="driveUploadBar" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--orange));border-radius:3px;width:0%;transition:width 0.3s ease;"></div>
       </div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('driveUploadModal')">Cancel</button>
-      <button class="btn btn-primary" id="driveUploadBtn" onclick="uploadResourceToDrive()">Upload to Drive</button>
+      <button class="btn btn-primary" id="driveUploadBtn" onclick="uploadResourceToDrive()">Upload</button>
     </div>
   </div>
 </div>
@@ -10270,7 +10270,7 @@ function requireLoginSync() {
     return u.id !== 'USR-001' && u.id !== 'USR-011' && u.id !== 'USR-021';
   });
   if(hasLocalAccounts) { loginSyncCompleted = true; return false; }
-  alert('Please sync from Cloud first before signing in.\n\nClick the "Sync Now" button at the top of the page to pull the latest data.');
+  alert('Please sync first before signing in.\n\nPress the "Sync Now" button at the top of the page to bring this computer up to date.');
   var bar = document.getElementById('loginSyncBar');
   if(bar) { bar.style.animation = 'none'; bar.offsetHeight; bar.style.animation = 'fadeSlideDown 0.4s ease'; }
   return true;
@@ -10940,7 +10940,7 @@ function tfaRenderManage(){
   } else {
     var hasValidEmail = acct.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(acct.email));
     body.innerHTML = emailSection
-      + '<div class="tfa-status-off"><strong>Two-step verification is OFF</strong><br>Protect your account with Google Authenticator or any TOTP-compatible app. Once on, you will be asked for a 6-digit code when signing in, and password resets will require re-verification.</div>'
+      + '<div class="tfa-status-off"><strong>Two-step verification is OFF</strong><br>Protect your account with an authenticator app (any TOTP-compatible app). Once on, you will be asked for a 6-digit code when signing in, and password resets will require re-verification.</div>'
       + (hasValidEmail ? '' : '<p style="font-size:12px;color:var(--text-secondary);margin:0 0 10px;">Add a recovery email above before turning this on, so a lost authenticator can\'t lock you out.</p>')
       + '<button class="btn btn-primary" onclick="tfaOpenSetup()"' + (hasValidEmail ? '' : ' disabled style="opacity:.55;cursor:not-allowed;"') + '>Turn On Two-Step Verification</button>'
       + tfaEmailLoginToggleHtml(acct);
@@ -11346,24 +11346,24 @@ function gmailSignIn(role) {
   // All roles must sync before login to prevent data loss
   if(requireLoginSync()) return;
   if(typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-    alert('Google Sign-In is not available. Please check your internet connection and reload the page.');
+    alert('Email sign-in is not available. Please check the connection and reload the page.');
     return;
   }
   var client = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_DRIVE_CONFIG.CLIENT_ID,
     scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
     callback: function(tokenResponse) {
-      if(tokenResponse.error) { alert('Google sign-in failed: ' + tokenResponse.error); return; }
+      if(tokenResponse.error) { alert('Email sign-in failed: ' + tokenResponse.error); return; }
       // Fetch user info from Google
       fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { Authorization: 'Bearer ' + tokenResponse.access_token }
       }).then(function(r){ return r.json(); }).then(function(profile) {
         handleGmailProfile(profile, role);
       }).catch(function(err) {
-        alert('Failed to get Google profile: ' + err.message);
+        alert('Could not read your email account: ' + err.message);
       });
     },
-    error_callback: function(err) { alert('Google sign-in error: ' + (err.message || 'Unknown error')); }
+    error_callback: function(err) { alert('Email sign-in error: ' + (err.message || 'Unknown error')); }
   });
   client.requestAccessToken();
 }
@@ -11433,7 +11433,7 @@ function openRegistrationModal(role, prefillName, prefillEmail) {
     '<h3>Register as '+roleLabel+'</h3>' +
     '<div class="reg-subtitle">Create your account. An administrator will review and approve your registration.</div>' +
     '<div class="form-group"><label>Full Name (first &amp; last name required)</label><input type="text" id="regName" placeholder="First and last name, e.g. John Smith" value="'+escapeAttr(prefillName||'')+'"></div>' +
-    '<div class="form-group"><label>Email Address</label><input type="email" id="regEmail" placeholder="your.email@gmail.com" value="'+escapeAttr(prefillEmail||'')+'" '+(prefillEmail?'readonly style="opacity:0.7;"':'')+'></div>' +
+    '<div class="form-group"><label>Email Address</label><input type="email" id="regEmail" placeholder="your.email@example.com" value="'+escapeAttr(prefillEmail||'')+'" '+(prefillEmail?'readonly style="opacity:0.7;"':'')+'></div>' +
     '<div class="form-group"><label>Programme</label><select id="regProgramme"><option value="">— Select Programme —</option>'+programmeOptions+'</select></div>' +
     '<div class="form-group"><label>Password</label><input type="password" id="regPassword" placeholder="Create a password (min 6 characters)"></div>' +
     '<div class="form-group"><label>Confirm Password</label><input type="password" id="regPasswordConfirm" placeholder="Confirm your password"></div>' +
@@ -12062,8 +12062,8 @@ function keepUnsyncedDataOnSignOut() {
   lastSyncTime = null;
   try { CESTISStore.setItem('cestisUnsyncedOnSignOut', new Date().toISOString()); } catch(e) {}
   try { showToast(_byTrainee
-    ? 'Staff changes made on this computer have not reached Google Drive yet, so it keeps the Centre\'s records until a staff member signs in here — do not clear this browser.'
-    : 'Some changes have not reached Google Drive yet. They are kept on this device and will upload at the next sign-in — do not clear this browser.', 'warning'); } catch(e) {}
+    ? 'Staff changes made on this computer have not synced yet, so it keeps the Centre\'s records until a staff member signs in here — do not clear this browser.'
+    : 'Some changes have not synced yet. They are kept on this device and will sync at the next sign-in — do not clear this browser.', 'warning'); } catch(e) {}
   console.warn('[Session] Signed out with changes not yet uploaded: the data stays on this device until it is.');
 }
 
@@ -12189,9 +12189,9 @@ function buildAdminSidebar() {
     <div class="nav-item" data-page="document-hub" onclick="showPage('document-hub')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>Document Hub</div>
     <div class="nav-item" data-page="megadata-admin" onclick="showPage('megadata-admin')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>MegaData Record Book</div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>Record Book Setup</div>
     <div class="nav-item" data-page="megadata-adjq" onclick="showPage('megadata-adjq')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>MegaData Identity Review</div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>Identity Review</div>
     </div>
     <div class="nav-section-label nav-section-toggle collapsed" onclick="toggleNavSection(this)">External Systems<svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
     <div class="nav-section-group collapsed">
@@ -12766,7 +12766,7 @@ function showPage(pageId) {
     'as-training':'Training Centres','as-exams':'Online Exams','as-video':'Video Conference','as-resources':'Resource Manager',
     'timetracking':'Staff Time Tracking','i-timetracking':'Staff Time Tracking','as-timetracking':'Staff Time Tracking',
     'fee-management':'School Fee Management','as-fee-management':'School Fee Management',
-    'cashbook':'Cashbook Management','income-expenditure':'Income and Expenditure Account','megadata-admin':'MegaData Record Book','megadata-adjq':'MegaData Identity Review','payments-invoices':'Payments / Invoices','document-hub':'Document Hub','i-document-hub':'Document Hub','as-document-hub':'Document Hub','pdf-workshop':'PDF Workshop','as-pdf-workshop':'PDF Workshop','i-pdf-workshop':'PDF Workshop',
+    'cashbook':'Cashbook Management','income-expenditure':'Income and Expenditure Account','megadata-admin':'Record Book Setup','megadata-adjq':'Identity Review','payments-invoices':'Payments / Invoices','document-hub':'Document Hub','i-document-hub':'Document Hub','as-document-hub':'Document Hub','pdf-workshop':'PDF Workshop','as-pdf-workshop':'PDF Workshop','i-pdf-workshop':'PDF Workshop',
     'qual-plan':'Qual Plan / Curriculum','s-qual-plan':'Qual Plan / Curriculum','i-qual-plan':'Qual Plan / Curriculum','as-qual-plan':'Qual Plan / Curriculum',
     'transcript-grades':'Transcript / Grades','s-transcript-grades':'Transcript / Grades','as-transcript-grades':'Transcript / Grades','i-trainee-grades':'Trainee Grades',
     'cert-transcript-requests':'Certificate / Transcript Requests','as-cert-transcript-requests':'Certificate / Transcript Requests',
@@ -12952,7 +12952,7 @@ function buildAdminPages() {
         ${awaitingMarking.length ? `<div class="alert-item alert-warning"><div class="alert-icon">\u23F3</div><div class="alert-body"><div class="alert-msg">${awaitingMarking.length} trainee${awaitingMarking.length!==1?'s':''} awaiting marking after their course ended</div><div class="alert-time">Not marked Not Yet Competent until the results are in: ${escapeHtml(someNames(awaitingMarking))}</div></div></div>` : ''}
         <div class="alert-item alert-info"><div class="alert-icon">\uD83C\uDF93</div><div class="alert-body"><div class="alert-msg">${pendingCerts} certificates pending collection</div><div class="alert-time">Notify students</div></div></div>
         <div class="alert-item alert-warning"><div class="alert-icon">\uD83D\uDCCA</div><div class="alert-body"><div class="alert-msg">${incompleteCount} students marked incomplete</div><div class="alert-time">Follow up required</div></div></div>
-        <div class="alert-item alert-info"><div class="alert-icon">\uD83D\uDD04</div><div class="alert-body"><div class="alert-msg">Auto-save to Google Drive is ${isCloudConnected?'active':'inactive'}</div><div class="alert-time">${isCloudConnected?'Every '+(AUTO_SAVE_INTERVAL_MS/1000)+' seconds':'Connect via Cloud button'}</div></div></div>
+        <div class="alert-item alert-info"><div class="alert-icon">\uD83D\uDD04</div><div class="alert-body"><div class="alert-msg">Auto-sync is ${isCloudConnected?'active':'inactive'}</div><div class="alert-time">${isCloudConnected?'Every '+(AUTO_SAVE_INTERVAL_MS/1000)+' seconds':'Turn it on with the Sync button'}</div></div></div>
       </div>
       <div class="card"><div class="card-header"><h3>Top Performers</h3></div>
         ${topPerformers.map((s,i) => {
@@ -13023,7 +13023,7 @@ function buildAdminPages() {
       <div id="trainingAdminControls" style="display:none;margin-bottom:20px;">
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
           <button class="btn btn-primary" onclick="openModal('addCentreModal')">+ Add Training Centre</button>
-          <button class="btn btn-secondary" onclick="recoverAllCourseData()" title="Scan cloud backups to recover students and instructors for all skill areas">🔄 Recover from Cloud</button>
+          <button class="btn btn-secondary" onclick="recoverAllCourseData()" title="Scan backups to recover students and instructors for all skill areas">🔄 Recover from Backups</button>
           <div style="flex:1;"></div>
           <div style="display:flex;gap:8px;">
             <button class="btn btn-secondary" onclick="toggleCentreView('grid')" id="centreViewGrid" title="Grid View" style="padding:8px 12px;">▦</button>
@@ -13724,7 +13724,7 @@ function renderStudentCertificate(){
         '</div>' +
         '<div style="margin-top:8px;">' + dlBlock + '</div>' +
         '<div style="margin-top:16px;">' +
-          '<button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Refresh from Cloud</button>' +
+          '<button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Check for Updates</button>' +
         '</div>' +
       '</div>';
   } else {
@@ -13738,8 +13738,8 @@ function renderStudentCertificate(){
           '<span class="badge '+(stageBadge[s.stage]||'badge-blue')+'"><span class="badge-dot"></span>'+(stageLabels[s.stage]||s.stage)+'</span>' +
         '</div>' +
         '<div style="margin-top:20px;">' +
-          '<button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Check Cloud for Updates</button>' +
-          '<p style="font-size:12px;color:var(--text-muted);margin-top:8px;">If your certificate has been issued, click above to check for updates from the cloud.</p>' +
+          '<button class="btn btn-sm btn-secondary" onclick="studentRefreshCertData()" id="studentCertRefreshBtn">↻ Check for Updates</button>' +
+          '<p style="font-size:12px;color:var(--text-muted);margin-top:8px;">If your certificate has been issued, click above to check for updates.</p>' +
         '</div>' +
       '</div>';
   }
@@ -14819,11 +14819,11 @@ function enterVideoRoom(title, role, roomCode) {
         <div style="text-align:center;">
           <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">${roomCode ? 'Start this scheduled session' : 'Start a new session for this class'}</div>
           <button class="btn btn-primary" onclick="vcCreateRoom(${jsArg(title)},'${role}',${escapedRoomCode})">${roomCode ? 'Start Session (Room: '+escapeHtml(roomCode)+')' : 'Create Room'}</button>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Peer-to-peer &mdash; best for up to ${CESTISCore.vcCapacity.MESH_MAX_VIDEO} people, no server needed.</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Peer-to-peer &mdash; best for up to ${CESTISCore.vcCapacity.MESH_MAX_VIDEO} people, nothing extra to set up.</div>
           <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
             <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Teaching a whole cohort?</div>
             <button class="btn btn-secondary" onclick="vcCreateLargeRoom(${jsArg(title)},'${role}',${escapedRoomCode})">Start Large Class (up to ${CESTISCore.vcCapacity.SFU_MAX})</button>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Runs on a hosted conference server so every device sends one stream instead of one per person. The room is locked with a lobby, and attendance is recorded automatically.</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Runs on the large-class video service so every device sends one stream instead of one per person. The room is locked with a lobby, and attendance is recorded automatically.</div>
           </div>
         </div>
         <div class="vc-divider">or join existing</div>
@@ -14978,8 +14978,8 @@ function vcCanConnect() {
 // Shown when no introduction service could be reached at all. It names the one
 // thing the Centre can act on, because "connection error" tells nobody anything.
 function vcNoServiceStatus() {
-  return 'Could not reach the video service \u2014 check the internet connection, then try again. ' +
-         'If this keeps happening, set your own conference server in Settings \u2192 Video Conference.';
+  return 'Could not reach the video service \u2014 check the connection, then try again. ' +
+         'If this keeps happening, set the Centre’s own video server in Settings \u2192 Video Conference.';
 }
 
 // ---------------------------------------------------------------------------
@@ -15067,7 +15067,7 @@ function vcSignallingCandidates() {
       port: Number(location.port) || (location.protocol === 'https:' ? 443 : 80),
       path: '/peerjs',
       secure: location.protocol === 'https:',
-      label: 'this Centre\'s own server'
+      label: 'the Centre’s own video service'
     });
   }
   out.push(null);   // the public PeerJS service — the library's own default
@@ -15109,7 +15109,7 @@ function vcCreatePeer(id, wire, opts) {
     settled = true;
     console.warn('[VideoConference] no introduction service could be reached (' + why + ')');
     if (typeof opts.onExhausted === 'function') opts.onExhausted(why);
-    else vcUpdateStatus('error', 'Could not reach the video service. Check the internet connection and try again.');
+    else vcUpdateStatus('error', 'Could not reach the video service. Check the connection and try again.');
   }
 
   function attempt() {
@@ -15374,14 +15374,14 @@ function vcShowLargeRoom(title, role, code) {
       (vcLargeRoomIsPublic()
         ? '<div id="vcLargePublicNote" style="padding:8px 14px;font-size:12px;line-height:1.5;background:var(--amber-dim, rgba(240,165,0,0.1));color:var(--text-secondary);border-bottom:1px solid var(--border);">' +
             'This Large Class is using the free public meet.jit.si service, which may ask the host to sign in and can cut an embedded meeting off after a few minutes. ' +
-            'For dependable classes the Centre should set its own conference server in Settings &rarr; Video Conference. ' +
+            'For dependable classes the Centre should set its own video server in Settings &rarr; Video Conference. ' +
             'If the meeting stops, use <a href="' + escapeAttr(vcLargeRoomUrl(code)) + '" target="_blank" rel="noopener">Open in a new tab</a>.</div>'
         : '') +
       '<div id="vcLargeStage" style="width:100%;height:calc(100vh - 120px);background:#111;"></div>' +
     '</div>';
 
   var stage = document.getElementById('vcLargeStage');
-  stage.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#bbb;font-size:14px;">Connecting to the conference server&hellip;</div>';
+  stage.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#bbb;font-size:14px;">Connecting to the video service&hellip;</div>';
 
   vcLoadJitsiApi().then(function(ok) {
     if(!ok) { vcLargeRoomFallback(stage, code); return; }
@@ -15543,10 +15543,10 @@ function vcShowLargeRoomCutOff(stage, title, role, code) {
   stage.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:16px;">' +
     '<div style="max-width:520px;text-align:center;color:#ddd;line-height:1.6;">' +
       '<div style="font-size:40px;margin-bottom:8px;">&#x26A0;&#xFE0F;</div>' +
-      '<div style="font-size:16px;font-weight:600;margin-bottom:8px;">The conference server ended this meeting</div>' +
+      '<div style="font-size:16px;font-weight:600;margin-bottom:8px;">The video service ended this meeting</div>' +
       '<div style="font-size:13px;margin-bottom:16px;">' + (pub
-        ? 'The free public meet.jit.si service no longer allows a meeting to run inside another site for more than a few minutes. Open it in its own tab to carry on, or switch to a built-in room. The Centre can set its own conference server in Settings &rarr; Video Conference.'
-        : 'The meeting was closed by the conference server. Open it in its own tab, or switch to a built-in room.') + '</div>' +
+        ? 'The free public meet.jit.si service no longer allows a meeting to run inside another site for more than a few minutes. Open it in its own tab to carry on, or switch to a built-in room. The Centre can set its own video server in Settings &rarr; Video Conference.'
+        : 'The meeting was closed by the video service. Open it in its own tab, or switch to a built-in room.') + '</div>' +
       '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
         '<a class="btn btn-primary" href="' + escapeAttr(vcLargeRoomUrl(code)) + '" target="_blank" rel="noopener">Open in a new tab</a>' +
         '<button class="btn btn-secondary" onclick="vcLargeRoomToSmall(' + jsArg(title) + ',\'' + role + '\',' + jsArg(code) + ')">Use a built-in room instead</button>' +
@@ -15796,7 +15796,7 @@ function vcStartHostPeer(title, role, rejoin) {
           // The Centre's own server (Offline System) lets only signed-in staff
           // take a room's host place (cestis-offline-signalling.js).
           vcDestroyPeer();
-          vcUpdateStatus('error', 'This Centre’s server only lets signed-in staff open a class room. Sign out, sign in again with your staff account, then start the class.');
+          vcUpdateStatus('error', 'Only signed-in staff can open a class room here. Sign out, sign in again with your staff account, then start the class.');
         } else if(err.type === 'browser-incompatible') {
           vcBlockAndExplain(rejoin ? 'Cannot rejoin from this page address' : 'Cannot start a class from this page address');
         } else if(err.type !== 'peer-unavailable') {
@@ -16018,7 +16018,7 @@ function vcNatNotice(pid, failed) {
   var relay = CESTISCore.vcRoom.hasRelay((typeof systemSettings !== 'undefined' && systemSettings.vcTurnServers) || '');
   el.textContent = 'Could not connect to ' + who + '. ' + (relay
     ? 'The two networks could not reach each other, even through the Centre\'s relay server. Check that the relay server is running, or try another network.'
-    : 'Their network and yours block direct connections, and no relay (TURN) server is set up. Try another network (for example Wi-Fi instead of mobile data), or ask the Centre to add a relay server in Settings → Video Conference.');
+    : 'Their network and yours block direct connections, and no relay server is set up. Try a different network (for example, not mobile data), or ask the Centre to add a relay server in Settings → Video Conference.');
   el.style.display = 'block';
 }
 // Cap how much picture each connection carries (CESTISCore.vcRoom.videoProfile).
@@ -17693,7 +17693,7 @@ var vcRecDbPromise = null;
 function vcRecDbOpen() {
   if (vcRecDbPromise) return vcRecDbPromise;
   vcRecDbPromise = new Promise(function (resolve, reject) {
-    if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
+    if (!window.indexedDB) { reject(new Error('This browser cannot keep recordings')); return; }
     var req = indexedDB.open(VC_REC_DB, 1);
     req.onupgradeneeded = function () {
       var db = req.result;
@@ -17804,7 +17804,7 @@ function vcShowRecordingSaveModal(blob, fileName) {
     '<div><div style="font-weight:600;font-size:0.9rem;">' + escapeHtml(fileName) + '</div>' +
     '<div style="font-size:0.8rem;color:var(--text-muted);">Size: ' + sizeMB + ' MB</div></div></div></div>' +
     (cloudAvailable ?
-      '<button class="btn btn-primary" onclick="vcUploadRecordingToDrive()" style="width:100%;margin-bottom:8px;padding:10px;">☁️ Save to Google Drive</button>' : '') +
+      '<button class="btn btn-primary" onclick="vcUploadRecordingToDrive()" style="width:100%;margin-bottom:8px;padding:10px;">🔄 Save Recording</button>' : '') +
     '<button class="btn btn-secondary" onclick="vcDownloadRecording()" style="width:100%;margin-bottom:8px;padding:10px;">💾 Download to Device</button>' +
     '<button class="btn btn-secondary" onclick="vcDismissRecording()" style="width:100%;padding:10px;color:var(--text-muted);">Discard</button>' +
     '</div></div>';
@@ -17894,7 +17894,7 @@ async function vcUploadRecordingToDrive() {
   var modal = document.getElementById('vcRecSaveModal');
   if (modal) modal.remove();
 
-  showToast('Uploading recording to Google Drive...');
+  showToast('Saving the recording...');
 
   try {
     var metadata = {
@@ -17936,17 +17936,17 @@ async function vcUploadRecordingToDrive() {
         new Date().toISOString(), localDateStr());
       if (linked) { try { saveState(); } catch(e) {} }
     }
-    alert('✅ Recording uploaded to Google Drive!\n\nFile: ' + result.name +
+    alert('✅ Recording saved!\n\nFile: ' + result.name +
       (linked ? '\n\nIt is linked to the class "' + (linked.name || linked.course || '') + '" — trainees will find it under Past Recordings once the class has ended.' : '') +
       (result.webViewLink ? '\n\n🔗 ' + (linked ? 'Link' : 'Share this link with students') + ':\n' + result.webViewLink : ''));
-    showToast('Recording saved to Google Drive');
+    showToast('Recording saved');
     if (rec.recId) vcRecForget(rec.recId);
     window._vcPendingRecording = null;
 
   } catch (err) {
     console.error('Failed to upload recording:', err);
     if (err.message.includes('invalid_token') || err.message.includes('Invalid Credentials')) {
-      alert('❌ Your Google Drive session has expired. The recording will be downloaded instead.');
+      alert('❌ Your sync sign-in has expired. The recording will be downloaded instead.');
     } else {
       alert('❌ Failed to upload: ' + err.message + '\n\nThe recording will be downloaded instead.');
     }
@@ -18525,7 +18525,7 @@ function renderInstructorRecordings() {
   // Get admin drive video resources for this course
   (driveResources || []).forEach(function(r) {
     if (r.category === 'video' && r.course && ins.course && instructorCourseMatch(r.course, ins.course)) {
-      recordings.push({name: r.name || 'Video', date: r.uploadedAt ? r.uploadedAt.split('T')[0] : '', url: r.url || '', source: 'Drive'});
+      recordings.push({name: r.name || 'Video', date: r.uploadedAt ? r.uploadedAt.split('T')[0] : '', url: r.url || '', source: 'Centre Resources'});
     }
   });
 
@@ -19029,8 +19029,8 @@ function renderInstructorGradebook() {
       if (a.driveFiles && a.driveFiles.length > 0) {
         a.driveFiles.forEach(function(df) {
           html += '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-dim);padding:4px 10px;border-radius:var(--radius-sm);margin:2px 4px 2px 0;font-size:12px;">' +
-            '☁️ ' + escapeHtml(df.name) +
-            '<a href="' + escapeAttr(safeUrl(df.webViewLink)) + '" target="_blank" rel="noopener" class="btn btn-sm" style="padding:1px 6px;font-size:10px;background:var(--accent);color:white;border:none;">View on Drive</a></div>';
+            '📄 ' + escapeHtml(df.name) +
+            '<a href="' + escapeAttr(safeUrl(df.webViewLink)) + '" target="_blank" rel="noopener" class="btn btn-sm" style="padding:1px 6px;font-size:10px;background:var(--accent);color:white;border:none;">Open</a></div>';
         });
       }
       html += '</div>';
@@ -19062,7 +19062,7 @@ function renderInstructorGradebook() {
         });
         // Drive-kept files open with the Centre's sign-in (no public links).
         (sub.driveFiles || []).forEach(function(df) {
-          html += courseworkFileLink(df, 'btn btn-sm btn-primary', 'padding:2px 8px;font-size:11px;', '☁️ ' + escapeHtml(df.origName || df.name));
+          html += courseworkFileLink(df, 'btn btn-sm btn-primary', 'padding:2px 8px;font-size:11px;', '📄 ' + escapeHtml(df.origName || df.name));
         });
         if (earlier.length) {
           html += '<span style="font-size:11px;color:var(--text-muted);">Earlier: ' + earlier.map(function(x, xi) {
@@ -19501,7 +19501,7 @@ async function cestisOpenDriveFile(fileId, name, fallbackUrl) {
   }
   var u = safeUrl(fallbackUrl || (fileId ? 'https://drive.google.com/file/d/' + encodeURIComponent(fileId) + '/view' : ''));
   if (u) { window.open(u, '_blank', 'noopener'); return true; }
-  showToast('This file is kept on the Centre\'s Google Drive. Connect to the cloud to open it.', 'warning');
+  showToast('Turn on sync to open this file.', 'warning');
   return false;
 }
 
@@ -19515,7 +19515,7 @@ function courseworkFileLink(f, cls, style, label) {
   }
   var id = f.driveId || f.id;
   if (!id) return '';
-  return '<a href="#" class="' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '" title="Open from the Centre\'s Drive" onclick="event.preventDefault();cestisOpenDriveFile(' + jsArg(id) + ',' + jsArg(name) + ',' + jsArg(f.webViewLink || f.url || '') + ')">' + label + '</a>';
+  return '<a href="#" class="' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '" title="Open this file" onclick="event.preventDefault();cestisOpenDriveFile(' + jsArg(id) + ',' + jsArg(name) + ',' + jsArg(f.webViewLink || f.url || '') + ')">' + label + '</a>';
 }
 
 // ============================== STUDENT ASSIGNMENTS PAGE ==============================
@@ -19624,7 +19624,7 @@ function renderStudentAssignmentsPage() {
       // Files kept on the Centre's Drive (opened with the Centre's sign-in)
       (mySub.driveFiles || []).forEach(function(df) {
         html += '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-dim);padding:4px 10px;border-radius:var(--radius-sm);margin:2px 4px 2px 0;font-size:12px;">' +
-          '☁️ ' + escapeHtml(df.origName || df.name) +
+          '📄 ' + escapeHtml(df.origName || df.name) +
           courseworkFileLink(df, '', 'color:var(--accent);font-size:11px;text-decoration:none;', 'Open') + '</div>';
       });
       if (mySub.comment) {
@@ -20003,7 +20003,7 @@ function renderInstructorCustomResources() {
     html += '<div style="margin-bottom:16px;"><h3 style="font-size:15px;color:var(--text-secondary);margin-bottom:10px;">📚 Admin-Uploaded Resources <span style="font-size:12px;font-weight:400;color:var(--accent);background:var(--accent-dim);padding:2px 10px;border-radius:10px;margin-left:6px;">' + adminResources.length + ' items</span></h3>';
     Object.keys(adminGrouped).forEach(function(cat) {
       html += '<div class="card" style="margin-bottom:12px;border-left:3px solid var(--accent);">' +
-        '<div class="card-header"><h3>' + (adminCatIcons[cat]||'📁') + ' ' + escapeHtml(adminCatLabels[cat]||cat) + ' <span style="font-size:11px;font-weight:400;color:var(--accent);background:var(--accent-dim);padding:2px 8px;border-radius:10px;margin-left:6px;">☁ Drive</span></h3><span style="font-size:12px;color:var(--text-muted);">' + adminGrouped[cat].length + ' items</span></div>' +
+        '<div class="card-header"><h3>' + (adminCatIcons[cat]||'📁') + ' ' + escapeHtml(adminCatLabels[cat]||cat) + ' <span style="font-size:11px;font-weight:400;color:var(--accent);background:var(--accent-dim);padding:2px 8px;border-radius:10px;margin-left:6px;">🔄 Synced</span></h3><span style="font-size:12px;color:var(--text-muted);">' + adminGrouped[cat].length + ' items</span></div>' +
         '<ul class="material-list">';
       adminGrouped[cat].forEach(function(r) {
         var dateStr = r.uploadedAt ? new Date(r.uploadedAt).toLocaleDateString() : 'Recently';
@@ -20176,7 +20176,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function getOrCreateClassFolder(className) {
-  if (!googleAccessToken) throw new Error('Not connected to Google Drive');
+  if (!googleAccessToken) throw new Error('Sync is not turned on');
   // Search for existing class folder
   const query = encodeURIComponent("name='" + className + "' and '" + DRIVE_RESOURCES_FOLDER_ID + "' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false");
   const searchResp = await fetch('https://www.googleapis.com/drive/v3/files?q=' + query + '&fields=files(id,name)', {
@@ -20327,7 +20327,7 @@ async function scanDriveFolderForResources(courseName) {
         driveFileId: file.id,
         driveFileName: file.name,
         classFolderId: folderId,
-        description: 'Recovered from Drive',
+        description: 'Recovered from backups',
         uploadedBy: 'Admin',
         uploadedAt: file.createdTime || new Date().toISOString()
       });
@@ -20383,10 +20383,10 @@ function recategorizeDriveResources() {
 // Scan all skill area Drive folders and recover any untracked resources
 async function scanAllDriveFolders() {
   if (!googleAccessToken) {
-    showToast('Please connect to Google Drive first');
+    showToast('Please turn on sync first');
     return;
   }
-  showToast('Scanning Drive folders for resources...');
+  showToast('Scanning for resources...');
   var totalImported = 0;
   var scannedCourses = [];
   for (var i = 0; i < skillAreas.length; i++) {
@@ -20400,12 +20400,12 @@ async function scanAllDriveFolders() {
   var reCatCount = recategorizeDriveResources();
   if (totalImported > 0 || reCatCount > 0) {
     var msg = '';
-    if (totalImported > 0) msg += totalImported + ' resource(s) recovered from Drive: ' + scannedCourses.join(', ');
+    if (totalImported > 0) msg += totalImported + ' resource(s) recovered: ' + scannedCourses.join(', ');
     if (reCatCount > 0) msg += (msg ? '. ' : '') + reCatCount + ' resource(s) re-categorized.';
     showToast(msg);
     renderAdminResources();
   } else {
-    showToast('All Drive resources are already synced and correctly categorized.');
+    showToast('All resources are already synced and correctly categorized.');
   }
   return totalImported;
 }
@@ -20494,10 +20494,10 @@ async function recoverCourseDataFromCloud(courseName) {
 // Scan all skill areas and recover any students/instructors from cloud
 async function recoverAllCourseData() {
   if (!googleAccessToken) {
-    showToast('Please connect to Google Drive first');
+    showToast('Please turn on sync first');
     return;
   }
-  showToast('Scanning cloud backups for students and instructors...');
+  showToast('Scanning backups for students and instructors...');
   var totalStudents = 0, totalInstructors = 0, totalAccounts = 0;
   for (var i = 0; i < skillAreas.length; i++) {
     var result = await recoverCourseDataFromCloud(skillAreas[i].name);
@@ -20512,7 +20512,7 @@ async function recoverAllCourseData() {
   if (totalInstructors > 0) parts.push(totalInstructors + ' instructor(s)');
   if (totalAccounts > 0) parts.push(totalAccounts + ' user account(s)');
   if (parts.length > 0) {
-    showToast('Recovered from cloud: ' + parts.join(', '));
+    showToast('Recovered: ' + parts.join(', '));
     updateSkillAreaCounts();
     renderSkills();
   } else {
@@ -20536,7 +20536,7 @@ async function uploadResourceToDrive() {
   if (url && !/^https?:\/\//i.test(url)) { showToast('The link must start with http:// or https://'); return; }
 
   if (!googleAccessToken) {
-    showToast('Please connect to Google Drive first (use the Cloud button in the top bar)');
+    showToast('Please turn on sync first (use the Sync button in the top bar)');
     return;
   }
 
@@ -20558,7 +20558,7 @@ async function uploadResourceToDrive() {
     let driveFileName = '';
 
     if (_driveSelectedFile) {
-      statusEl.textContent = 'Uploading ' + _driveSelectedFile.name + ' to Google Drive...';
+      statusEl.textContent = 'Uploading ' + _driveSelectedFile.name + '...';
       barEl.style.width = '40%';
       const result = await uploadFileToDriveFolder(_driveSelectedFile, folderId, resourceId);
       driveFileId = result.id;
@@ -20593,12 +20593,12 @@ async function uploadResourceToDrive() {
     barEl.style.width = '100%';
     statusEl.textContent = 'Upload complete!';
 
-    showToast('Resource "' + name + '" uploaded to Google Drive with ID: ' + resourceId);
+    showToast('Resource "' + name + '" uploaded with ID: ' + resourceId);
     addNotification('New resource uploaded for ' + course + ': "' + name + '" (ID: ' + resourceId + ')', 'resource', null, ['admin','instructor','student']);
 
     setTimeout(function() {
       closeModal('driveUploadModal');
-      btn.disabled = false; btn.textContent = 'Upload to Drive';
+      btn.disabled = false; btn.textContent = 'Upload';
       progressDiv.style.display = 'none'; barEl.style.width = '0%';
       // Reset form
       document.getElementById('driveResName').value = '';
@@ -20616,9 +20616,9 @@ async function uploadResourceToDrive() {
     console.error('Drive upload error:', err);
     statusEl.textContent = 'Upload failed: ' + err.message;
     barEl.style.width = '0%';
-    btn.disabled = false; btn.textContent = 'Upload to Drive';
+    btn.disabled = false; btn.textContent = 'Upload';
     if (err.message && err.message.indexOf('401') !== -1) {
-      showToast('Google Drive session expired. Please reconnect via the Cloud button.');
+      showToast('Sync sign-in expired. Please reconnect with the Sync button.');
     } else {
       showToast('Upload failed: ' + err.message);
     }
@@ -20666,7 +20666,7 @@ function renderAdminResources() {
   el = document.getElementById('arStatWorksheets'); if(el) el.textContent = allRes.filter(r=>r.category==='worksheet').length;
 
   if (filtered.length === 0 && instructorResources.length === 0) {
-    container.innerHTML = '<div class="card" style="text-align:center;padding:40px;"><div style="font-size:48px;opacity:0.3;margin-bottom:12px;">📁</div><h3 style="color:var(--text-muted);margin-bottom:8px;">No Resources Found</h3><p style="color:var(--text-muted);font-size:13px;">Click "+ Upload Resource to Drive" to add your first resource.</p></div>';
+    container.innerHTML = '<div class="card" style="text-align:center;padding:40px;"><div style="font-size:48px;opacity:0.3;margin-bottom:12px;">📁</div><h3 style="color:var(--text-muted);margin-bottom:8px;">No Resources Found</h3><p style="color:var(--text-muted);font-size:13px;">Click "+ Upload Resource" to add your first resource.</p></div>';
     return;
   }
 
@@ -20770,7 +20770,7 @@ function copyResourceId(id) {
 }
 
 function deleteDriveResource(id) {
-  if (!confirm('Are you sure you want to remove this resource? This will remove it from the dashboard but NOT delete the file from Google Drive.')) return;
+  if (!confirm('Are you sure you want to remove this resource? This will remove it from the dashboard but NOT delete the stored file.')) return;
   syncTombstoneRemoved('driveResources', driveResources, driveResources = driveResources.filter(r => r.id !== id));
   saveState();
   showToast('Resource removed');
@@ -20855,7 +20855,7 @@ function renderStudentDriveResources() {
 
     Object.keys(grouped).forEach(function(cat) {
       html += '<div class="card" style="margin-bottom:12px;border-left:3px solid var(--accent);">' +
-        '<div class="card-header"><h3>' + (catIcons[cat]||'📁') + ' ' + escapeHtml(catLabels[cat]||cat) + ' <span style="font-size:12px;font-weight:400;color:var(--accent);background:var(--accent-dim);padding:2px 10px;border-radius:10px;margin-left:6px;">☁ Drive</span></h3><span style="font-size:12px;color:var(--text-muted);">' + grouped[cat].length + ' items</span></div>' +
+        '<div class="card-header"><h3>' + (catIcons[cat]||'📁') + ' ' + escapeHtml(catLabels[cat]||cat) + ' <span style="font-size:12px;font-weight:400;color:var(--accent);background:var(--accent-dim);padding:2px 10px;border-radius:10px;margin-left:6px;">🔄 Synced</span></h3><span style="font-size:12px;color:var(--text-muted);">' + grouped[cat].length + ' items</span></div>' +
         '<ul class="material-list">';
       grouped[cat].forEach(function(r) {
         html += '<li class="material-item">' +
@@ -21298,7 +21298,7 @@ function saveSystemSettings() {
   // "go back to the public service", not "keep whatever was there".
   if (vcSignalling !== undefined) {
     if (vcSignalling && !vcParseSignallingHost(vcSignalling)) {
-      showToast('That conference server address could not be read. Use e.g. conference.yourcentre.org or conference.yourcentre.org:9000');
+      showToast('That video server address could not be read. Use e.g. conference.yourcentre.org or conference.yourcentre.org:9000');
       return;
     }
     systemSettings.vcSignallingHost = vcSignalling;
@@ -21689,7 +21689,7 @@ function saveMaintenanceSettings() {
   // Other devices keep their own copy until the cloud backup is rewritten, and
   // that only happens on a manual Save to Cloud — say so rather than let the
   // administrator assume the whole Centre has followed.
-  var cloudNote = isCloudConnected ? ' Save to Cloud to apply it on other devices.' : '';
+  var cloudNote = isCloudConnected ? ' Use Send My Changes to apply it on other computers.' : '';
   if(isNowActive && !wasActive) {
     showToast('Maintenance mode ACTIVATED — all non-admin users will be blocked.' + cloudNote, 'warning');
   } else if(!isNowActive && wasActive) {
@@ -21762,7 +21762,7 @@ async function maintenanceRecheck(quiet) {
   var btn = document.getElementById('maintRecheckBtn'), st = document.getElementById('maintRecheckStatus');
   _maintRecheckInFlight = true;
   if (btn) btn.disabled = true;
-  if (st) st.textContent = 'Checking with the cloud\u2026';
+  if (st) st.textContent = 'Checking for updates\u2026';
   try {
     if (isLoginPageSync) {
       // The login page's own sync is running: wait for it rather than start another.
@@ -22132,7 +22132,7 @@ function saveGoogleVerification() {
   if(raw.trim()) {
     var sanitized = sanitizeGoogleVerificationHtml(raw);
     if(sanitized === null) {
-      showToast('Invalid input: please paste a valid Google verification meta tag');
+      showToast('Invalid input: please paste a valid site verification meta tag');
       return;
     }
     systemSettings.googleVerificationHtml = sanitized;
@@ -22143,7 +22143,7 @@ function saveGoogleVerification() {
   applyGoogleVerificationMeta();
   saveState();
   loadGoogleVerificationUI();
-  showToast('Google verification tag saved and applied');
+  showToast('Site verification tag saved and applied');
 }
 
 function clearGoogleVerification() {
@@ -22151,7 +22151,7 @@ function clearGoogleVerification() {
   applyGoogleVerificationMeta();
   saveState();
   loadGoogleVerificationUI();
-  showToast('Google verification tag removed');
+  showToast('Site verification tag removed');
 }
 
 // ============================== CERTIFICATE VERIFICATION LINK ==============================
@@ -23821,7 +23821,7 @@ function runTraineeTransfer(only) {
     'User accounts updated: ' + accounts + '\n' +
     'School Fee records moved: ' + feeMoved + '\n' +
     'Payments re-filed: ' + payMoved + '\n\n' +
-    'Saved on this device and queued for the cloud.');
+    'Saved on this computer — it will sync shortly.');
 }
 
 // ---- Course Duration admin page ----
@@ -24392,7 +24392,7 @@ function generateEnrolmentRegisterPDF(skillAreaId, opts) {
     // internet), a CDN only if that fails — see cestisNeedLib in <head>.
     showToast('Loading PDF library, please wait...');
     cestisNeedLib('jspdf').then(function(){ generateEnrolmentRegisterPDF(skillAreaId, opts); },
-      function(){ showToast('Failed to load PDF library. Check your internet connection.'); });
+      function(){ showToast('Failed to load PDF library. Check the connection.'); });
     return;
   }
   try {
@@ -24783,7 +24783,7 @@ function addTrainingCentre() {
     // Recover resources from Drive folder
     scanDriveFolderForResources(name).then(function(result) {
       if (result.imported > 0) {
-        showToast(result.imported + ' existing resource(s) recovered from Drive for ' + name + '!');
+        showToast(result.imported + ' existing resource(s) recovered for ' + name + '!');
         var sk = skillAreas.find(function(s){ return s.name === name; });
         if (sk) { sk.materials = (sk.materials || 0) + result.imported; }
         renderAdminResources();
@@ -24798,7 +24798,7 @@ function addTrainingCentre() {
       if (result.accounts > 0) parts.push(result.accounts + ' user account(s)');
       if (result.attendance > 0) parts.push(result.attendance + ' attendance record(s)');
       if (parts.length > 0) {
-        showToast('Recovered from cloud for ' + name + ': ' + parts.join(', '));
+        showToast('Recovered for ' + name + ': ' + parts.join(', '));
         updateSkillAreaCounts();
         renderSkills();
         if(centreViewMode === 'table') renderCentreTable();
@@ -28154,7 +28154,7 @@ function renderStudentRecordings() {
   // Gather from admin drive resources
   (driveResources || []).forEach(function(r) {
     if (r.category === 'video' && r.course && s.course && instructorCourseMatch(r.course, s.course)) {
-      videoResources.push({name: r.name || 'Video', date: r.uploadedAt ? r.uploadedAt.split('T')[0] : '', url: r.url || '', source: 'Drive'});
+      videoResources.push({name: r.name || 'Video', date: r.uploadedAt ? r.uploadedAt.split('T')[0] : '', url: r.url || '', source: 'Centre Resources'});
     }
   });
 
@@ -28172,7 +28172,7 @@ function renderStudentRecordings() {
     if (r.category === 'video' && r.url) {
       var isDuplicate = videoResources.some(function(v) { return v.url === r.url || v.name === r.name; });
       if (!isDuplicate) {
-        videoResources.push({name: r.name || 'Video', date: r.uploadedAt ? r.uploadedAt.split('T')[0] : '', url: r.url || '', source: 'Drive (All Courses)', shared: true});
+        videoResources.push({name: r.name || 'Video', date: r.uploadedAt ? r.uploadedAt.split('T')[0] : '', url: r.url || '', source: 'Centre Resources (All Courses)', shared: true});
       }
     }
   });
@@ -28850,7 +28850,7 @@ function extractTextFromPDF(file) {
   if(typeof pdfjsLib === 'undefined' && typeof cestisNeedLib === 'function') {
     cestisNeedLib('pdfjsLib').then(function(){ extractTextFromPDF(file); }, function(){
       hideImportProgress();
-      alert('PDF.js library failed to load. Please check your internet connection and reload.');
+      alert('PDF.js library failed to load. Please check the connection and reload.');
     });
     return;
   }
@@ -28859,7 +28859,7 @@ function extractTextFromPDF(file) {
     var typedArray = new Uint8Array(e.target.result);
     if(typeof pdfjsLib === 'undefined') {
       hideImportProgress();
-      alert('PDF.js library failed to load. Please check your internet connection and reload.');
+      alert('PDF.js library failed to load. Please check the connection and reload.');
       return;
     }
     cestisPdfWorkerSetup();
@@ -28916,7 +28916,7 @@ function extractTextFromDocx(file) {
   if(typeof mammoth === 'undefined' && typeof cestisNeedLib === 'function') {
     cestisNeedLib('mammoth').then(function(){ extractTextFromDocx(file); }, function(){
       hideImportProgress();
-      alert('Mammoth.js library failed to load. Please check your internet connection and reload.');
+      alert('Mammoth.js library failed to load. Please check the connection and reload.');
     });
     return;
   }
@@ -28924,7 +28924,7 @@ function extractTextFromDocx(file) {
   reader.onload = function(e) {
     if(typeof mammoth === 'undefined') {
       hideImportProgress();
-      alert('Mammoth.js library failed to load. Please check your internet connection and reload.');
+      alert('Mammoth.js library failed to load. Please check the connection and reload.');
       return;
     }
     mammoth.extractRawText({arrayBuffer: e.target.result}).then(function(result) {
@@ -29708,12 +29708,12 @@ function updateCloudUI(connected) {
     notConnectedDiv.style.display = 'none';
     connectedDiv.style.display = 'block';
     statusDot.className = 'cloud-status-dot connected';
-    statusText.textContent = 'Connected';
+    statusText.textContent = 'Up to date';
   } else {
     notConnectedDiv.style.display = 'block';
     connectedDiv.style.display = 'none';
     statusDot.className = 'cloud-status-dot';
-    statusText.textContent = 'Not connected';
+    statusText.textContent = 'Not synced yet';
   }
 }
 
@@ -29732,7 +29732,7 @@ function showCloudNotification(type, title, message, showConnect, autoDismissSec
   var el = document.createElement('div');
   el.id = 'cloudNotifyPopup';
   el.className = 'cloud-notify ' + type;
-  var icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '☁️';
+  var icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '🔄';
   el.innerHTML =
     '<div class="cloud-notify-bar"></div>' +
     '<div class="cloud-notify-body">' +
@@ -29774,8 +29774,8 @@ window.addEventListener('cestis-store-write-error', function(ev) {
   _storeWriteErrorNotified = true;
   try {
     showCloudNotification('error', 'Device Storage Is Failing',
-      'This device could not save data to local storage (it may be full). Recent changes may be lost when the page closes. ' +
-      'Free up disk space, then use Settings → Export Backup and verify cloud sync is connected.', false, 0);
+      'This computer could not save data (it may be full). Recent changes may be lost when the page closes. ' +
+      'Free up disk space, then use Settings → Export Backup and check that sync is on.', false, 0);
   } catch(e) {
     try { alert('WARNING: This device could not save data locally. Recent changes may be lost. Export a backup now.'); } catch(_) {}
   }
@@ -29824,8 +29824,8 @@ function declareCloudAuthExpired() {
   if (typeof updateCloudUI === 'function') updateCloudUI(false);
   if (wasConnected && !_cloudAuthExpiredNotified) {
     _cloudAuthExpiredNotified = true;
-    showCloudNotification('error', 'Google Session Expired',
-      'Your Google account session has expired and cloud sync has stopped. Your data is safe locally — click Reconnect to resume syncing with Google Drive.',
+    showCloudNotification('error', 'Sync Needs Attention',
+      'Sync has stopped because its sign-in expired. Your work is kept on this computer until it syncs — click Reconnect, or ask the office.',
       true, 0);
   }
 }
@@ -29840,7 +29840,7 @@ function checkCloudAndNotify(reason) {
 
   if (!navigator.onLine) {
     showCloudNotification('error', 'You Are Offline',
-      'Your internet connection is unavailable. Changes are saved locally and will sync once you reconnect.',
+      'You’re offline. Your work is kept on this computer until it syncs.',
       false, 0);
     return;
   }
@@ -29850,17 +29850,17 @@ function checkCloudAndNotify(reason) {
     var lastSync = CESTISStore.getItem('schoolDashboardLastSyncTime');
     var detail;
     if (reason === 'token_expired' || (savedExpiry && new Date(savedExpiry) <= new Date())) {
-      detail = 'Your Google account session has expired.';
+      detail = 'Your sync sign-in has expired.';
     } else if (reason === 'page_load') {
-      detail = 'Google Drive is not connected.';
+      detail = 'Sync is not connected.';
     } else {
-      detail = 'Google Drive connection was lost.';
+      detail = 'The sync connection was lost.';
     }
     if (lastSync) {
       try { detail += ' Last sync: ' + getTimeAgo(new Date(lastSync)) + '.'; } catch (e) {}
     }
-    showCloudNotification('warn', 'Cloud Sync Disconnected',
-      detail + ' Your data is only saved locally. Reconnect to back up and sync with Google Drive.',
+    showCloudNotification('warn', 'Not Synced Yet',
+      detail + ' Your work is kept on this computer until it syncs. Reconnect to sync.',
       true, 0);
   }
 }
@@ -29946,7 +29946,7 @@ function startCloudMonitor() {
 // Browser connectivity events
 window.addEventListener('offline', function() {
   showCloudNotification('error', 'You Are Offline',
-    'Internet connection lost. Changes are saved locally until you reconnect.',
+    'Connection lost. Your work is kept on this computer until it syncs.',
     false, 10);
 });
 window.addEventListener('online', function() {
@@ -29968,8 +29968,8 @@ function setCloudSyncing(syncing) {
     if (menuIcon) menuIcon.innerHTML = '<span class="spinning">🔄</span>';
   } else {
     statusDot.className = 'cloud-status-dot connected';
-    statusText.textContent = 'Connected';
-    if (menuIcon) menuIcon.textContent = '☁️';
+    statusText.textContent = 'Up to date';
+    if (menuIcon) menuIcon.textContent = '🔄';
   }
 }
 
@@ -30026,7 +30026,7 @@ async function reconnectCloudSync() {
       _cloudAuthExpiredNotified = false;
       updateCloudUI(true);
       resumeCloudSyncIfLoggedIn();
-      showToast('Google Drive is connected — sync resumed.');
+      showToast('Connected — sync resumed.');
       return;
     }
   } catch (e) {}
@@ -30039,12 +30039,12 @@ function showGoogleAuthModal() {
     <div id="googleAuthModal" class="google-auth-modal" style="display:flex;">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>☁️ Connect to Google Drive</h2>
+          <h2>🔄 Connect the Centre’s Account</h2>
           <button class="close-btn" onclick="closeGoogleAuthModal()">×</button>
         </div>
         <div style="padding:24px;">
           <p style="margin-bottom:20px;color:var(--text-secondary);">
-            Connect to Google Drive to save and sync your dashboard data across devices. Choose your preferred connection method:
+            Connect the Centre’s account to sync your dashboard data across devices. Choose your preferred connection method:
           </p>
 
           <!-- Option 1: Direct Google Sign-In (Recommended) -->
@@ -30052,15 +30052,15 @@ function showGoogleAuthModal() {
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
               <span style="font-size:1.5rem;">🔐</span>
               <div>
-                <strong style="color:var(--green);font-size:1.1rem;">Direct Google Sign-In</strong>
+                <strong style="color:var(--green);font-size:1.1rem;">Direct Sign-In</strong>
                 <span style="background:var(--green);color:#000;padding:2px 8px;border-radius:var(--radius-sm);font-size:0.7rem;margin-left:8px;font-weight:600;">RECOMMENDED</span>
               </div>
             </div>
             <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px;">
-              A Google popup will appear for you to sign in with your Google account directly.
+              A sign-in window will open for you to sign in with the Centre’s account directly.
             </p>
             <button class="btn btn-success" onclick="triggerDirectGoogleSignIn()" style="width:100%;padding:10px 12px;">
-              Sign in with Google
+              Sign In to Connect
             </button>
           </div>
 
@@ -30082,10 +30082,10 @@ function showGoogleAuthModal() {
               <div style="background:var(--blue-dim);border:1px solid rgba(52,152,219,0.3);border-radius:var(--radius);padding:16px;margin-bottom:16px;">
                 <strong style="color:var(--blue);">How to get your access token:</strong>
                 <ol style="margin-top:8px;margin-left:16px;color:var(--text-secondary);font-size:0.85rem;line-height:1.6;">
-                  <li>Click the link below to open Google OAuth Playground</li>
-                  <li>In Step 1, find and select <strong>"Drive API v3"</strong> → check <strong>"../auth/drive"</strong> (full access to shared files)</li>
+                  <li>Click the button below to open the OAuth Playground</li>
+                  <li>In Step 1, type this permission into the box under the list: <strong>https://www.googleapis.com/auth/drive</strong> (full access to shared files)</li>
                   <li>Click <strong>"Authorize APIs"</strong> (blue button)</li>
-                  <li>Sign in with your Google account</li>
+                  <li>Sign in with the Centre’s account</li>
                   <li>In Step 2, click <strong>"Exchange authorization code for tokens"</strong></li>
                   <li>Copy the <strong>"Access token"</strong> value and paste below</li>
                 </ol>
@@ -30101,7 +30101,7 @@ function showGoogleAuthModal() {
               </div>
 
               <button class="btn btn-success" onclick="submitGoogleToken()" style="width:100%;">
-                ☁️ Connect with Token
+                🔄 Connect with Token
               </button>
             </div>
           </div>
@@ -30133,7 +30133,7 @@ function triggerDirectGoogleSignIn() {
       if (googleTokenClient) {
         googleTokenClient.requestAccessToken();
       } else {
-        alert('Google Sign-In popup is not available. Please use the manual token method.');
+        alert('The sign-in window is not available. Please use the manual token method.');
         showGoogleAuthModal();
         setTimeout(function() { showManualTokenForm(); }, 100);
       }
@@ -30215,7 +30215,7 @@ async function submitGoogleToken() {
       });
     }
 
-    alert(`✅ Connected to Google Drive as ${data.user.displayName || data.user.emailAddress}. Auto-sync enabled.`);
+    alert(`✅ Connected as ${data.user.displayName || data.user.emailAddress}. Auto-sync enabled.`);
 
   } catch (error) {
     console.error('Token verification failed:', error);
@@ -30268,19 +30268,19 @@ async function handleGoogleAuthCallback(tokenResponse) {
     });
   }
 
-  alert('✅ Connected to Google Drive! Auto-sync enabled. Data will save to all Drive folders every ' + (AUTO_SAVE_INTERVAL_MS/1000) + ' seconds.');
+  alert('✅ Connected! Auto-sync enabled. Data will sync every ' + (AUTO_SAVE_INTERVAL_MS/1000) + ' seconds.');
 }
 
 function handleGoogleAuthError(error) {
   console.error('Google auth error:', error);
   if (error.type === 'popup_closed') return;
-  alert('Failed to authenticate with Google. Please try the manual token method.');
+  alert('Could not sign in. Please try the manual token method.');
   showGoogleAuthModal();
 }
 
 // Disconnect from Google Drive
 function disconnectFromGoogleDrive() {
-  if (confirm('Are you sure you want to disconnect from Google Drive? Your local data will remain intact.')) {
+  if (confirm('Turn off sync on this computer? Your work stays on this computer.')) {
     stopAutoSave();
     googleAccessToken = null;
     isCloudConnected = false;
@@ -30295,7 +30295,7 @@ function disconnectFromGoogleDrive() {
     updateCloudUI(false);
     toggleCloudMenu();
 
-    alert('✅ Disconnected from Google Drive');
+    alert('✅ Sync turned off on this computer');
   }
 }
 
@@ -30355,12 +30355,12 @@ async function browseBackupFiles() {
 
   revalidateCloudSync();
   if (!isCloudConnected || !googleAccessToken) {
-    alert('Please connect to Google Drive first to browse backup files.');
+    alert('Please turn on sync first to browse backup files.');
     return;
   }
 
   try {
-    showToast('Loading backup files from Google Drive...');
+    showToast('Loading backup files...');
     const query = encodeURIComponent("'" + GOOGLE_DRIVE_CONFIG.FOLDER_ID + "' in parents and trashed=false");
     const resp = await fetch('https://www.googleapis.com/drive/v3/files?q=' + query + '&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime desc&pageSize=20', {
       headers: { 'Authorization': 'Bearer ' + googleAccessToken }
@@ -30371,11 +30371,11 @@ async function browseBackupFiles() {
     const files = data.files || [];
 
     if (files.length === 0) {
-      alert('No backup files found in your Google Drive folder.');
+      alert('No backup files found yet.');
       return;
     }
 
-    var msg = 'Backup Files in Google Drive:\n\n';
+    var msg = 'Backup Files:\n\n';
     files.forEach(function(f, i) {
       var date = f.modifiedTime ? new Date(f.modifiedTime).toLocaleString() : 'Unknown';
       var sizeMB = f.size ? (parseInt(f.size) / 1024 / 1024).toFixed(2) + ' MB' : 'N/A';
@@ -30395,7 +30395,7 @@ async function saveToCloud() {
   // Revalidate token from localStorage in case page was restored from bfcache or tab was backgrounded
   revalidateCloudSync();
   if (!isCloudConnected || !googleAccessToken) {
-    alert('Please connect to Google Drive first');
+    alert('Please turn on sync first');
     return;
   }
 
@@ -30418,16 +30418,16 @@ async function saveToCloud() {
     await autoSaveToAllFolders();
     setCloudSyncing(false);
     if (_lastAutoSaveResult && _lastAutoSaveResult.uploaded) {
-      alert('\u2705 Data saved to Google Drive.\n\nSaved by: ' + (getCurrentCloudUser().username || '') + '\n\nOther devices pick it up within seconds.');
+      alert('\u2705 Data saved and synced.\n\nSaved by: ' + (getCurrentCloudUser().username || '') + '\n\nOther devices pick it up within seconds.');
     } else if (_lastAutoSaveResult && _lastAutoSaveResult.reason === 'pull-failed') {
-      alert('\u26A0\uFE0F The cloud copy could not be read just now, so nothing was written over it. Your data is safe on this device; try again in a moment.');
+      alert('\u26A0\uFE0F The shared copy could not be read just now, so nothing was written over it. Your work is safe on this computer; try again in a moment.');
     } else {
-      alert('\u274C The save did not reach Google Drive. Your data is safe on this device; check the connection and try again.');
+      alert('\u274C The save did not sync. Your work is safe on this computer; check the connection and try again.');
     }
   } catch (error) {
     console.error('Error saving to cloud:', error);
     setCloudSyncing(false);
-    alert('\u274C Failed to save to cloud: ' + (error && error.message));
+    alert('\u274C Could not sync: ' + (error && error.message));
   }
 }
 
@@ -30438,7 +30438,7 @@ async function syncFromCloud() {
   // Revalidate token from localStorage in case page was restored from bfcache or tab was backgrounded
   revalidateCloudSync();
   if (!isCloudConnected || !googleAccessToken) {
-    alert('Please connect to Google Drive first');
+    alert('Please turn on sync first');
     return;
   }
 
@@ -30450,11 +30450,11 @@ async function syncFromCloud() {
   }
 
   if (!cloudFileId) {
-    alert('📁 No backup file found in Google Drive. Save your data first to create a backup.');
+    alert('📁 No shared copy yet. Save your data first to create one.');
     return;
   }
 
-  if (!confirm('🔀 SYNC FROM CLOUD\n\nThis merges the cloud backup into this device:\n\n• Records missing here are added\n• Where both sides hold a record, the newer edit wins\n• Nothing on this device is deleted\n\nContinue?')) {
+  if (!confirm('🔀 GET LATEST CHANGES\n\nThis merges the shared copy into this computer:\n\n• Records missing here are added\n• Where both sides hold a record, the newer edit wins\n• Nothing on this device is deleted\n\nContinue?')) {
     return;
   }
 
@@ -30518,7 +30518,7 @@ async function syncFromCloud() {
 
     const backupTime = new Date(backupData.timestamp).toLocaleString();
     const savedByInfo = backupData.savedBy ? `\nLast saved by: ${backupData.savedBy}` : '';
-    alert(`✅ Data synced from cloud successfully!\n\nBackup was created: ${backupTime}${savedByInfo}`);
+    alert(`✅ Data synced successfully!\n\nBackup was created: ${backupTime}${savedByInfo}`);
 
     // Rebuild pages in-place but keep the user on the page they're currently on
     // (only stay on the dashboard if that's where they already are).
@@ -30536,10 +30536,10 @@ async function syncFromCloud() {
     setCloudSyncing(false);
 
     if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-      alert('❌ Your session has expired. Please reconnect to Google Drive.');
+      alert('❌ Your sync sign-in has expired. Please reconnect to keep syncing.');
       disconnectFromGoogleDrive();
     } else {
-      alert(`❌ Failed to sync from cloud: ${error.message}`);
+      alert(`❌ Could not sync: ${error.message}`);
     }
   }
 }
@@ -30551,7 +30551,7 @@ async function mergeFromCloud() {
   // Revalidate token from localStorage in case page was restored from bfcache or tab was backgrounded
   revalidateCloudSync();
   if (!isCloudConnected || !googleAccessToken) {
-    alert('Please connect to Google Drive first');
+    alert('Please turn on sync first');
     return;
   }
 
@@ -30563,11 +30563,11 @@ async function mergeFromCloud() {
   }
 
   if (!cloudFileId) {
-    alert('📁 No backup file found in Google Drive. Save your data first to create a backup.');
+    alert('📁 No shared copy yet. Save your data first to create one.');
     return;
   }
 
-  if (!confirm('🔀 MERGE FROM CLOUD\n\nThis will merge cloud data with your local data:\n\n• New items from cloud will be ADDED to your local data\n• Existing items will be kept as-is (local version preserved)\n• No local data will be removed\n\nContinue?')) {
+  if (!confirm('🔀 MERGE LATEST CHANGES\n\nThis will merge the shared data with the data on this computer:\n\n• New items will be ADDED to the data on this computer\n• Existing items will be kept as-is (local version preserved)\n• No local data will be removed\n\nContinue?')) {
     return;
   }
 
@@ -31110,7 +31110,7 @@ async function mergeFromCloud() {
     setCloudSyncing(false);
 
     // Build summary message
-    let summary = '✅ Merge from cloud completed!\n\n';
+    let summary = '✅ Merge completed!\n\n';
     summary += '📊 Merge Summary:\n';
     summary += `• Users added: ${mergeStats.usersAdded}\n`;
     summary += `• Students added/updated: ${mergeStats.studentsAdded + mergeStats.studentsUpdated}\n`;
@@ -31124,12 +31124,12 @@ async function mergeFromCloud() {
 
     const totalAdded = mergeStats.usersAdded + mergeStats.studentsAdded + mergeStats.studentsUpdated + mergeStats.examsAdded + mergeStats.announcementsAdded + mergeStats.eventsAdded + (mergeStats.examResultsAdded||0) + (mergeStats.sessionsAdded||0) + (mergeStats.assignmentsUpdated||0) + (mergeStats.submissionsUpdated||0);
     if (totalAdded === 0) {
-      summary += '\n💡 No new data found — your local data already contains everything from the cloud.';
+      summary += '\n💡 No new data found — this computer already has everything.';
     } else {
-      summary += '\n💡 Tip: Save to Cloud to push the merged data back for other users.';
+      summary += '\n💡 Tip: use Send My Changes to share the merged data with other users.';
     }
 
-    const savedByInfo = backupData.savedBy ? `\nCloud backup was saved by: ${backupData.savedBy}` : '';
+    const savedByInfo = backupData.savedBy ? `\nShared copy was saved by: ${backupData.savedBy}` : '';
     summary += savedByInfo;
 
     alert(summary);
@@ -31152,10 +31152,10 @@ async function mergeFromCloud() {
     setCloudSyncing(false);
 
     if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-      alert('❌ Your session has expired. Please reconnect to Google Drive.');
+      alert('❌ Your sync sign-in has expired. Please reconnect to keep syncing.');
       disconnectFromGoogleDrive();
     } else {
-      alert(`❌ Failed to merge from cloud: ${error.message}`);
+      alert(`❌ Could not merge: ${error.message}`);
     }
   }
 }
@@ -31405,13 +31405,13 @@ function updateMasterBackupInfo(snapshot) {
 // deleted students), but user-initiated with a confirmation and explicit result.
 async function restoreFromMasterBackup() {
   try { if (typeof closeCloudMenu === 'function') closeCloudMenu(); } catch (e) {}
-  if (!isCloudConnected || !googleAccessToken) { showToast('Connect to Google Drive first.', 'warning'); return; }
+  if (!isCloudConnected || !googleAccessToken) { showToast('Turn on sync first.', 'warning'); return; }
   if (!window.CESTISCore || typeof CESTISCore.reconcileSnapshot !== 'function') { showToast('Data core unavailable.', 'warning'); return; }
   if (!confirm('Restore from the master backup?\n\nThis merges back any records missing on this device. It will NOT overwrite newer local edits and will NOT bring back deleted students.')) return;
   showToast('Restoring from master backup…');
   try {
     var snapshot = await fetchMasterSnapshot();
-    if (!snapshot || !snapshot.store) { showToast('No master backup found in Drive.', 'warning'); return; }
+    if (!snapshot || !snapshot.store) { showToast('No master backup found yet.', 'warning'); return; }
     var ver = CESTISCore.verifySnapshot(snapshot);
     var local = cestisCollectStoreMap();
     var report = CESTISCore.dataLossReport(snapshot, local);
@@ -31689,7 +31689,7 @@ async function syncUserLoginFolderToDrive(account) {
 // stay well under Drive rate limits.
 async function syncAllUserLoginFoldersToDrive() {
   if (!isCloudConnected || !googleAccessToken) {
-    if (typeof showToast === 'function') showToast('Connect Google Drive first to build the User Login folders.', 'warning');
+    if (typeof showToast === 'function') showToast('Turn on sync first to build the User Login folders.', 'warning');
     return { ok: 0, fail: 0 };
   }
   var ok = 0, fail = 0;
@@ -33152,7 +33152,7 @@ async function autoSaveToAllFolders() {
     } else {
       _consecutiveCloudSaveFailures = (_consecutiveCloudSaveFailures || 0) + 1;
       if (_consecutiveCloudSaveFailures === 3) {
-        showToast('Cloud save failed. Check your Google Drive connection.', 'warning');
+        showToast('Could not sync. Check the connection and try again.', 'warning');
       }
     }
 
@@ -33293,10 +33293,10 @@ function setLoginSyncBtnState(syncing) {
 // and sign-in opens only once that read has succeeded.
 async function loginPageLanSync() {
   try {
-    updateLoginSyncStatus('Syncing with the Centre’s server...', '');
+    updateLoginSyncStatus('Syncing...', '');
     await CESTISPageCloud.loadNow();
     if (!(typeof CESTISPageCloud.lanSynced === 'function' && CESTISPageCloud.lanSynced())) {
-      updateLoginSyncStatus('Could not reach the Centre’s server. Check the server window is open, then try again.', 'error');
+      updateLoginSyncStatus('Could not sync — try again or ask the office.', 'error');
       return;
     }
     updateLoginSyncStatus('Sync complete! You may now log in.', 'success');
@@ -33322,7 +33322,7 @@ async function loginPageSync() {
   // for good, although it already held the Centre's accounts. The
   // certificate portal's Sync Now already works this way.
   if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) return await loginPageLanSync();
-  updateLoginSyncStatus(isAdmin ? 'Connecting to Cloud...' : 'Syncing...', '');
+  updateLoginSyncStatus(isAdmin ? 'Connecting...' : 'Syncing...', '');
 
   // Step 1: Ensure we have a Google access token
   if (!isCloudConnected || !googleAccessToken) {
@@ -33340,7 +33340,7 @@ async function loginPageSync() {
       try {
         var token = await loginPageGoogleAuth();
         if (!token) {
-          updateLoginSyncStatus('Google sign-in was cancelled or failed. Click Sync Now to try again.', 'error');
+          updateLoginSyncStatus('Sign-in was cancelled or failed. Click Sync Now to try again.', 'error');
           setLoginSyncBtnState(false);
           isLoginPageSync = false;
           return;
@@ -33547,7 +33547,7 @@ function loginPageGoogleAuth() {
           if (err.type === 'popup_closed') {
             resolve(null);
           } else {
-            reject(new Error(err.message || 'Google auth failed'));
+            reject(new Error(err.message || 'Sign-in failed'));
           }
         }
       });
@@ -33578,7 +33578,7 @@ function loginPageGoogleAuth() {
               if (err.type === 'popup_closed') {
                 resolve(null);
               } else {
-                reject(new Error(err.message || 'Google auth failed'));
+                reject(new Error(err.message || 'Sign-in failed'));
               }
             }
           });
@@ -33683,7 +33683,7 @@ function cloudFetchAccountData(interactive) {
   if (Date.now() - _cloudAcctFetchLastAt < 30000) return Promise.resolve(false);
   _cloudAcctFetchPromise = (async function() {
   try {
-    updateLoginSyncStatus('Checking cloud for your account...', '');
+    updateLoginSyncStatus('Checking for your account...', '');
 
     // Step 1: Get a Google access token (use saved or request new)
     var token = googleAccessToken;
@@ -33698,7 +33698,7 @@ function cloudFetchAccountData(interactive) {
     }
 
     if (!token) {
-      updateLoginSyncStatus('Could not connect to cloud. Use the Sync Now button to sign in to Google.', 'error');
+      updateLoginSyncStatus('Could not sync. Use the Sync Now button to sign in.', 'error');
       return false;
     }
 
@@ -33716,13 +33716,13 @@ function cloudFetchAccountData(interactive) {
 
     var searchResp = await fetch(searchUrl, { headers: { Authorization: 'Bearer ' + token } });
     if (!searchResp.ok) {
-      updateLoginSyncStatus('Could not access cloud data. Ask your administrator to share access.', 'error');
+      updateLoginSyncStatus('Could not sync. Ask your administrator to give you access.', 'error');
       return false;
     }
 
     var searchData = await searchResp.json();
     if (!searchData.files || searchData.files.length === 0) {
-      updateLoginSyncStatus('No cloud backup found.', 'error');
+      updateLoginSyncStatus('Nothing to sync yet.', 'error');
       return false;
     }
 
@@ -33732,7 +33732,7 @@ function cloudFetchAccountData(interactive) {
       headers: { Authorization: 'Bearer ' + token }
     });
     if (!downloadResp.ok) {
-      updateLoginSyncStatus('Could not download cloud data.', 'error');
+      updateLoginSyncStatus('Could not get the latest data.', 'error');
       return false;
     }
 
@@ -33800,13 +33800,13 @@ function cloudFetchAccountData(interactive) {
     CESTISCore.cloudMerge.applySkillAreas(skillAreas, _bd.skillAreas || [], isCentreDeleted);
 
     saveState();
-    updateLoginSyncStatus('Account data synced from cloud.', 'success');
+    updateLoginSyncStatus('Account data synced.', 'success');
     console.log('[CloudAccountFetch] Merged ' + cloudAccounts.length + ' accounts, ' + cloudStudents.length + ' students, ' + cloudCertApprovals.length + ' cert approvals from cloud');
     return true;
 
   } catch (err) {
     console.error('[CloudAccountFetch] Error:', err);
-    updateLoginSyncStatus('Could not fetch account data from the cloud: ' + (err.message || 'unknown error'), 'error');
+    updateLoginSyncStatus('Could not sync account data: ' + (err.message || 'unknown error'), 'error');
     return false;
   } finally {
     _cloudAcctFetchLastAt = Date.now();
@@ -34066,7 +34066,7 @@ async function studentRefreshCertData() {
   if (!currentStudent) { showToast('No student session active.'); return; }
 
   var btn = document.getElementById('studentCertRefreshBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '↻ Checking cloud...'; }
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Checking...'; }
 
   try {
     var token = googleAccessToken;
@@ -34081,7 +34081,7 @@ async function studentRefreshCertData() {
     }
 
     if (!token) {
-      showToast('Could not connect to cloud. Please check your internet connection.');
+      showToast('Could not sync. Please check the connection.');
       return;
     }
 
@@ -34093,16 +34093,16 @@ async function studentRefreshCertData() {
       '&fields=files(id,name)&orderBy=modifiedTime desc&pageSize=1';
 
     var searchResp = await fetch(searchUrl, { headers: { Authorization: 'Bearer ' + token } });
-    if (!searchResp.ok) { showToast('Could not access cloud. Contact your administrator.'); return; }
+    if (!searchResp.ok) { showToast('Could not sync. Contact your administrator.'); return; }
 
     var searchData = await searchResp.json();
-    if (!searchData.files || searchData.files.length === 0) { showToast('No cloud backup found.'); return; }
+    if (!searchData.files || searchData.files.length === 0) { showToast('Nothing to sync yet.'); return; }
 
     var fileId = searchData.files[0].id;
     var downloadResp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
       headers: { Authorization: 'Bearer ' + token }
     });
-    if (!downloadResp.ok) { showToast('Could not download cloud data.'); return; }
+    if (!downloadResp.ok) { showToast('Could not get the latest data.'); return; }
 
     var backupData = await downloadResp.json();
     // Every writer of the backup wraps its collections in .data (the
@@ -34111,7 +34111,7 @@ async function studentRefreshCertData() {
     // trainee whose certificate had been issued — while marking the device
     // synced.
     var _bd = (backupData && backupData.data && typeof backupData.data === 'object') ? backupData.data : (backupData || {});
-    if (!Array.isArray(_bd.students)) { showToast('The cloud backup could not be read. Please try again later.'); return; }
+    if (!Array.isArray(_bd.students)) { showToast('The latest data could not be read. Please try again later.'); return; }
     _certDriveLastFetched = Date.now();   // this session has now synced: the Download button may switch on
 
     // Update current student's data from cloud
@@ -34164,7 +34164,7 @@ async function studentRefreshCertData() {
     saveState();
 
     if (updated && currentStudent.certNo) {
-      showToast('Certificate data updated from cloud!');
+      showToast('Certificate data updated!');
     } else if (!currentStudent.certNo) {
       showToast('No certificate issued yet. Check back after your certification is complete.');
     } else {
@@ -34179,7 +34179,7 @@ async function studentRefreshCertData() {
     console.error('[StudentCertRefresh] Error:', err);
     showToast('Error refreshing certificate data: ' + err.message);
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh from Cloud'; }
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Check for Updates'; }
   }
 }
 
@@ -35295,7 +35295,7 @@ function lmsChatSaveProfile() {
 
   saveLmsChatData();
   lmsChatCloseProfileModal();
-  showToast('Profile saved and syncing to cloud...');
+  showToast('Profile saved and syncing...');
 
   // Trigger an immediate Drive sync so other users see the updated profile
   lmsChatSyncToDrive();
@@ -37382,7 +37382,7 @@ var lmsEmojiCategories = {
   'Smileys':  ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','🥲','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🫡','🤐','🤨','😐','😑','😶','🫥','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🥵','🥶','🥴','😵','🤯','🤠','🥳','🥸','😎','🤓','🧐','😕','🫤','😟','🙁','😮','😯','😲','😳','🥺','🥹','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖'],
   'Gestures': ['👍','👎','👋','🤚','🖐️','✋','🖖','🫱','🫲','🫳','🫴','👌','🤌','🤏','✌️','🤞','🫰','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','🫵','✊','👊','🤛','🤜','👏','🙌','🫶','👐','🤲','🤝','🙏','✍️','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄'],
   'People':   ['👶','🧒','👦','👧','🧑','👱','👨','🧔','👩','🧓','👴','👵','🙍','🙎','🙅','🙆','💁','🙋','🧏','🙇','🤦','🤷','👮','🕵️','💂','🥷','👷','🫅','🤴','👸','👳','👲','🧕','🤵','👰','🤰','🫃','🫄','🤱','👼','🎅','🤶','🦸','🦹','🧙','🧚','🧛','🧜','🧝','🧞','🧟','🧌','💆','💇','🚶','🧍','🧎','🏃','💃','🕺','👯','🧖','🧗','🤸','⛹️','🏋️','🚴','🚵','🤼','🤽','🤾','🤺','⛷️','🏂','🏌️','🏇','🏊','🤹'],
-  'Nature':   ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐻‍❄️','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🪱','🐛','🦋','🐌','🐞','🐜','🪰','🪲','🪳','🦟','🦗','🕷️','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🪸','🐊','🐅','🐆','🦓','🦍','🦧','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🦮','🐕‍🦺','🐈','🐈‍⬛','🪶','🐓','🦃','🦤','🦚','🦜','🦢','🦩','🕊️','🐇','🦝','🦨','🦡','🦫','🦦','🦥','🐁','🐀','🐿️','🦔','🐾','🐉','🐲','🌵','🎄','🌲','🌳','🌴','🪵','🌱','🌿','☘️','🍀','🎍','🪴','🎋','🍃','🍂','🍁','🪺','🪹','🍄','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌎','🌍','🌏','🪐','💫','⭐','🌟','✨','⚡','☄️','💥','🔥','🌪️','🌈','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄','🌬️','💨','💧','💦','🫧','☔','☂️','🌊','🌫️'],
+  'Nature':   ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐻‍❄️','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🪱','🐛','🦋','🐌','🐞','🐜','🪰','🪲','🪳','🦟','🦗','🕷️','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🪸','🐊','🐅','🐆','🦓','🦍','🦧','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🦮','🐕‍🦺','🐈','🐈‍⬛','🪶','🐓','🦃','🦤','🦚','🦜','🦢','🦩','🕊️','🐇','🦝','🦨','🦡','🦫','🦦','🦥','🐁','🐀','🐿️','🦔','🐾','🐉','🐲','🌵','🎄','🌲','🌳','🌴','🪵','🌱','🌿','☘️','🍀','🎍','🪴','🎋','🍃','🍂','🍁','🪺','🪹','🍄','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌎','🌍','🌏','🪐','💫','⭐','🌟','✨','⚡','☄️','💥','🔥','🌪️','🌈','☀️','🌤️','⛅','🌥️','🔄','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄','🌬️','💨','💧','💦','🫧','☔','☂️','🌊','🌫️'],
   'Food':     ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶️','🫑','🌽','🥕','🫒','🧄','🧅','🥔','🍠','🫘','🥐','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🦴','🌭','🍔','🍟','🍕','🫓','🥪','🥙','🧆','🌮','🌯','🫔','🥗','🥘','🫕','🥫','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥠','🥮','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','🍼','🫖','☕','🍵','🧃','🥤','🧋','🫙','🍶','🍺','🍻','🥂','🍷','🫗','🥃','🍸','🍹','🧉','🍾','🧊','🥄','🍴','🍽️','🥣','🥡','🥢','🧂'],
   'Activities':['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','🪃','🥅','⛳','🪁','🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛼','🛷','⛸️','🥌','🎿','⛷️','🏂','🪂','🏋️','🤼','🤸','⛹️','🤺','🤾','🏌️','🏇','🧘','🏄','🏊','🤽','🚣','🧗','🚵','🚴','🏆','🥇','🥈','🥉','🏅','🎖️','🏵️','🎗️','🎫','🎟️','🎪','🤹','🎭','🩰','🎨','🎬','🎤','🎧','🎼','🎹','🥁','🪘','🎷','🎺','🪗','🎸','🪕','🎻','🪈','🎲','♟️','🎯','🎳','🎮','🕹️','🧩','🪅','🪩','🪆'],
   'Objects':  ['📱','💻','⌨️','🖥️','🖨️','🖱️','🖲️','💾','💿','📀','📸','📹','🎥','📽️','🎞️','📞','☎️','📟','📠','📺','📻','🎙️','🎚️','🎛️','🧭','⏱️','⏲️','⏰','🕰️','⌛','📡','🔋','🪫','🔌','💡','🔦','🕯️','🪔','🧯','🛢️','💸','💵','💴','💶','💷','🪙','💰','💳','💎','⚖️','🪜','🧰','🪛','🔧','🔨','⚒️','🛠️','⛏️','🪚','🔩','⚙️','🪤','🧱','⛓️','🧲','🔫','💣','🧨','🪓','🔪','🗡️','⚔️','🛡️','🚬','⚰️','🪦','⚱️','🏺','🔮','📿','🧿','🪬','💈','⚗️','🔭','🔬','🕳️','🩹','🩺','🩻','🩼','💊','💉','🩸','🧬','🦠','🧫','🧪','🌡️','🧹','🪠','🧺','🧻','🧼','🪥','🧽','🧴','🛎️','🔑','🗝️','🚪','🪑','🛋️','🛏️','🛌','🧸','🪆','🖼️','🪞','🪟','🛍️','🛒','🎁','🎈','🎏','🎀','🪄','🪅','🎊','🎉','🎎','🏮','🎐','🧧','✉️','📩','📨','📧','💌','📥','📤','📦','🏷️','🪧','📪','📫','📬','📭','📮','📯','📜','📃','📄','📑','🧾','📊','📈','📉','🗒️','🗓️','📆','📅','🗑️','📇','🗃️','🗳️','🗄️','📋','📁','📂','🗂️','🗞️','📰','📓','📔','📒','📕','📗','📘','📙','📚','📖','🔖','🧷','🔗','📎','🖇️','📐','📏','🧮','📌','📍','✂️','🖊️','🖋️','✒️','🖌️','🖍️','📝','✏️','🔍','🔎','🔏','🔐','🔒','🔓'],
@@ -39029,9 +39029,9 @@ function docHubUploadFile(prefix) {
   if(!fileEl || !fileEl.files || !fileEl.files[0]) { showToast('Please select a file to upload', 'warning'); return; }
 
   var file = fileEl.files[0];
-  if(file.size > DOC_HUB_MAX_FILE) { showToast('File size must be under 3 MB — put larger documents in the Centre\'s Drive folder and link them from Resources', 'warning'); return; }
+  if(file.size > DOC_HUB_MAX_FILE) { showToast('File size must be under 3 MB — upload larger documents under Resources instead', 'warning'); return; }
   var _hubTotal = (documentHubFiles || []).reduce(function (t, d) { return t + (Number(d && d.fileSize) || 0); }, 0);
-  if(_hubTotal + file.size > DOC_HUB_MAX_TOTAL) { showToast('The Document Hub is full (25 MB). Remove an old document, or keep this one in the Centre\'s Drive folder', 'warning'); return; }
+  if(_hubTotal + file.size > DOC_HUB_MAX_TOTAL) { showToast('The Document Hub is full (25 MB). Remove an old document, or upload this one under Resources instead', 'warning'); return; }
 
   var reader = new FileReader();
   reader.onload = function(e) {
@@ -41425,8 +41425,8 @@ function certPortalRefreshSyncUi() {
   if (state) {
     state.className = 'state ' + (synced ? 'ok' : 'warn');
     state.textContent = synced
-      ? 'Synced with the cloud' + (_certDriveLastFetched ? ' at ' + new Date(_certDriveLastFetched).toLocaleTimeString() : '') + '.'
-      : 'Not synced with the cloud yet \u2014 press Sync Now to load the latest certificate records.';
+      ? 'Up to date' + (_certDriveLastFetched ? ' at ' + new Date(_certDriveLastFetched).toLocaleTimeString() : '') + '.'
+      : 'Not synced yet \u2014 press Sync Now to load the latest certificate records.';
   }
   if (btn) { btn.disabled = busy; btn.textContent = busy ? 'Syncing\u2026' : (synced ? 'Sync Again' : 'Sync Now'); }
   var dl = document.getElementById('certPublicDownloadBtn');
@@ -41443,7 +41443,7 @@ function certDownloadAllowed(student) {
   if (!student || !student.certNo) return { allowed: false, reason: 'No certificate has been issued yet.' };
   var approval = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function (d) { return d && d.studentId === student.id; });
   if (!(approval && approval.approved)) return { allowed: false, reason: 'Certificate download has not been approved yet. Please contact the administration office.' };
-  if (!certSyncDone()) return { allowed: false, reason: 'Sync with the cloud first \u2014 the Download button switches on once this device has synced.' };
+  if (!certSyncDone()) return { allowed: false, reason: 'Sync first \u2014 the Download button switches on once this computer has synced.' };
   return { allowed: true, reason: '' };
 }
 function certApplyDownloadState(btn, student) {
@@ -41467,10 +41467,10 @@ async function certPortalSync() {
     // The Offline System: sync with the Centre's own server — there is no
     // Google to sign in to, and the button used to wait on it for ever.
     if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) {
-      _certCloudStatus('Syncing with the Centre\u2019s server...', '');
+      _certCloudStatus('Syncing...', '');
       await CESTISPageCloud.loadNow();
-      if (!certSyncDone()) { _certCloudStatus('Could not reach the Centre\u2019s server. Check the server window is open, then try again.', 'error'); return; }
-      _certCloudStatus('Synced with the Centre\u2019s server.', 'ok');
+      if (!certSyncDone()) { _certCloudStatus('Could not sync \u2014 try again or ask the office.', 'error'); return; }
+      _certCloudStatus('Up to date.', 'ok');
       certPortalRerender();
       return;
     }
@@ -41482,7 +41482,7 @@ async function certPortalSync() {
     }
     _certDriveLastFetched = null;   // a fresh pull, not the cached one
     var ok = await fetchCertDataFromDrive();
-    if (!ok) { _certCloudStatus('Could not reach the cloud. Check the connection and try again.', 'error'); return; }
+    if (!ok) { _certCloudStatus('Could not sync. Check the connection and try again.', 'error'); return; }
     try { await certImageLoadAllFromDrive(); } catch (e) {}
     certPortalRerender();
   } catch (e) {
@@ -41500,7 +41500,7 @@ function _certNotFoundCard(query, what) {
       '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(240,165,0,0.15);color:var(--accent);">&#9203;</div>' +
       '<div><div style="font-size:16px;font-weight:700;color:var(--accent);">Sync Required</div>' +
       '<div style="font-size:12px;color:var(--text-muted);">This device has not loaded the certificate records yet</div></div></div>' +
-      '<p style="font-size:13px;color:var(--text-muted);">No record on this device matches &quot;' + _certEsc(query) + '&quot;, but this device has not synced with the cloud. Press <strong>Sync Now</strong> above, then try again.</p></div>';
+      '<p style="font-size:13px;color:var(--text-muted);">No record on this device matches &quot;' + _certEsc(query) + '&quot;, but this computer has not synced yet. Press <strong>Sync Now</strong> above, then try again.</p></div>';
   }
   return '<div class="cert-result-card not-found">' +
     '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(231,76,60,0.15);color:var(--red);">&#10005;</div>' +
@@ -41594,7 +41594,7 @@ function certPortalVerify(recordsOnly) {
     '<div class="cert-detail-item"><div class="label">Date Certified</div><div class="value">' + _certEsc(student.certDate || '—') + '</div></div>' +
     '<div class="cert-detail-item"><div class="label">Collection Status</div><div class="value">' + (student.certCollected ? 'Collected' : 'Awaiting Collection') + '</div></div>' +
     '</div>' +
-    (certSyncDone() ? '' : '<p style="font-size:12px;color:var(--text-muted);margin-top:10px;">Verified against the records held on this device. Press Sync Now for the latest cloud records.</p>') +
+    (certSyncDone() ? '' : '<p style="font-size:12px;color:var(--text-muted);margin-top:10px;">Verified against the records held on this device. Press Sync Now for the latest records.</p>') +
     '</div>';
 }
 
@@ -41866,7 +41866,7 @@ async function fetchCertDataFromDrive() {
   }
 
   _certDriveFetchInProgress = true;
-  _certCloudStatus('Loading latest certificate records from cloud...', '');
+  _certCloudStatus('Loading the latest certificate records...', '');
   var readMain = false, readMaster = false;
 
   try {
@@ -41877,7 +41877,7 @@ async function fetchCertDataFromDrive() {
     var listResp = await fetch('https://www.googleapis.com/drive/v3/files?q=' + query + '&fields=files(id)', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
-    if (!listResp.ok) throw new Error('Drive API error');
+    if (!listResp.ok) throw new Error('Could not read the certificate records');
     var listData = await listResp.json();
     if (!listData.files || listData.files.length === 0) throw new Error('No backup found');
 
@@ -41984,11 +41984,11 @@ async function fetchCertDataFromDrive() {
       // Count nobody twice, whichever copy brought them in.
       try { cestisSettleRoster('the certificate lookup'); } catch (e) {}
       _certDriveLastFetched = Date.now();
-      _certCloudStatus('Certificate records updated from cloud.', 'ok');
+      _certCloudStatus('Certificate records updated.', 'ok');
       setTimeout(function() { _certCloudStatus(''); }, 2500);
       return true;
     }
-    _certCloudStatus('Using cached data. Cloud sync unavailable.', 'error');
+    _certCloudStatus('Showing the records on this computer. Sync is unavailable right now.', 'error');
     setTimeout(function() { _certCloudStatus(''); }, 3000);
     return false;
   } finally {
@@ -42236,19 +42236,19 @@ function generateCertificatePDF(studentId) {
     if(_certHasCloudToken() && !_certDriveFetchInProgress) {
       // We can sync silently — pull the latest, then retry the download.
       if(dlBtnG) dlBtnG.disabled = true;
-      _certDownloadStatus('Syncing with the cloud before download (this records your download)…', false);
+      _certDownloadStatus('Syncing before download (this records your download)…', false);
       _certDriveLastFetched = null; // force a fresh pull
       Promise.resolve(fetchCertDataFromDrive()).then(function(){
         if(dlBtnG) dlBtnG.disabled = false;
         if(certSyncDone()) { generateCertificatePDF(studentId); }
-        else { _certDownloadStatus('Could not sync with the cloud. Please use “Sync Now” at the top of the login page, then try again.', true); }
+        else { _certDownloadStatus('Could not sync. Please use “Sync Now” at the top of the login page, then try again.', true); }
       }).catch(function(){
         if(dlBtnG) dlBtnG.disabled = false;
-        _certDownloadStatus('Could not sync with the cloud. Please use “Sync Now” at the top of the login page, then try again.', true);
+        _certDownloadStatus('Could not sync. Please use “Sync Now” at the top of the login page, then try again.', true);
       });
     } else {
       showToast('Please sync before downloading your certificate.');
-      _certDownloadStatus('Please use “Sync Now” at the top of the login page to sync with the cloud, then download. Syncing ensures every certificate download is recorded.', true);
+      _certDownloadStatus('Please use “Sync Now” at the top of the login page to sync, then download. Syncing ensures every certificate download is recorded.', true);
     }
     return;
   }
@@ -42264,7 +42264,7 @@ function generateCertificatePDF(studentId) {
     _certDownloadStatus('Loading PDF library...', false);
     // This site's copy first, a CDN only if that fails — see cestisNeedLib in <head>.
     cestisNeedLib('jspdf').then(function() { generateCertificatePDF(studentId); },
-      function() { showToast('Failed to load PDF library. Check your internet connection.'); _certDownloadStatus('Failed to load PDF library. Check your internet connection.', true); });
+      function() { showToast('Failed to load PDF library. Check the connection.'); _certDownloadStatus('Failed to load PDF library. Check the connection.', true); });
     return;
   }
 
@@ -42296,8 +42296,8 @@ function generateCertificatePDF(studentId) {
         if(found) { _generateCertPDFInner(studentId); return; }
         // Step 3: Try Google Drive
         if(googleAccessToken) {
-          showToast('Template not found locally. Checking Google Drive...');
-          _certDownloadStatus('Checking Google Drive for template...', false);
+          showToast('Template not on this computer yet. Checking for it...');
+          _certDownloadStatus('Checking for the template...', false);
           certImageLoadFromDrive(certKey, 'bgPage1').then(function(data) {
             if(data) {
               // Also try page 2
@@ -43761,8 +43761,8 @@ function saveCertTemplate() {
   [['bgPage1', bgPage1], ['bgPage2', bgPage2]].forEach(function(pg) {
     if(!pg[1]) return;
     certImageSaveToLan(_certTplEditingCourse, pg[0], pg[1]).then(function(r) {
-      if(r === 'too-large') showToast('The page ' + pg[0].slice(-1) + ' background is too large to share on the Centre\'s network — certificates are built on this PC only. Use a smaller image.', 'warning');
-      else if(r === 'failed') showToast('The certificate design could not be copied to the Centre\'s server — it is saved on this PC. Save it again once the server is reachable.', 'warning');
+      if(r === 'too-large') showToast('The page ' + pg[0].slice(-1) + ' background is too large to share — certificates are built on this PC only. Use a smaller image.', 'warning');
+      else if(r === 'failed') showToast('The certificate design could not be synced — it is saved on this PC. Save it again later.', 'warning');
     });
   });
 
@@ -44064,7 +44064,7 @@ function revokeCertDownload(studentId) {
 var CERT_SIGNING_DB = 'CESTIS_CertSigning';
 function _certSigningStore(mode) {
   return new Promise(function (resolve, reject) {
-    if (typeof indexedDB === 'undefined') { reject(new Error('This browser has no IndexedDB.')); return; }
+    if (typeof indexedDB === 'undefined') { reject(new Error('This browser cannot keep the signing key.')); return; }
     var req = indexedDB.open(CERT_SIGNING_DB, 1);
     req.onupgradeneeded = function (e) { var db = e.target.result; if (!db.objectStoreNames.contains('keys')) db.createObjectStore('keys'); };
     req.onsuccess = function (e) { var db = e.target.result; resolve(db.transaction('keys', mode).objectStore('keys')); };
@@ -44142,7 +44142,7 @@ function certSigningExportBackup() {
         'If that backup is lost, create a new key here and publish it. Certificates signed with this key stay valid while its public key stays published.');
       return;
     }
-    if (!confirm('This file holds the PRIVATE signing key. Anyone who has it can sign certificates in the Centre’s name.\n\nKeep it offline (a USB stick in the safe). Never email it, never put it in Google Drive, never commit it to GitHub.\n\nThis is the only time it can be downloaded: afterwards the key is locked on this device (it keeps signing). Download it now?')) return;
+    if (!confirm('This file holds the PRIVATE signing key. Anyone who has it can sign certificates in the Centre’s name.\n\nKeep it offline (a USB stick in the safe). Never email it, never put it in a shared folder, never publish it anywhere.\n\nThis is the only time it can be downloaded: afterwards the key is locked on this device (it keeps signing). Download it now?')) return;
     _certDownloadJson('CESTIS-certificate-signing-key-PRIVATE-' + key.kid + '.json',
       { _warning: 'PRIVATE KEY. Keep offline. Never share, upload or commit this file.', type: 'cestis-cert-signing-key', kid: key.kid,
         alg: key.alg, label: key.label, createdAt: key.createdAt, publicJwk: key.publicJwk, privateJwk: key.privateJwk });
@@ -44366,10 +44366,10 @@ function refreshStorageUsage() {
   getStorageEstimate().then(function(est){
     if(infoEl) {
       if(est.quotaBytes) {
-        infoEl.innerHTML = 'App data: <strong>' + app.mb + ' MB</strong> &middot; stored durably in IndexedDB (no 5&nbsp;MB limit).<br>' +
+        infoEl.innerHTML = 'App data: <strong>' + app.mb + ' MB</strong> &middot; kept durably on this computer (no 5&nbsp;MB limit).<br>' +
           'Device storage: using <strong>' + formatBytes(est.usedBytes) + '</strong> of <strong>' + formatBytes(est.quotaBytes) + '</strong> available (' + est.percent.toFixed(1) + '%).';
       } else {
-        infoEl.innerHTML = 'App data: <strong>' + app.mb + ' MB</strong> &middot; stored durably in IndexedDB (no 5&nbsp;MB limit).';
+        infoEl.innerHTML = 'App data: <strong>' + app.mb + ' MB</strong> &middot; kept durably on this computer (no 5&nbsp;MB limit).';
       }
     }
     if(barEl) {
@@ -45882,31 +45882,31 @@ function runAndDisplayIntegrityCheck() {
                         <div class="cloud-sync-container" id="cloudSyncContainer">
                             <div class="cloud-status" id="cloudStatus">
                                 <span class="cloud-status-dot" id="tt_cloudStatusDot"></span>
-                                <span id="tt_cloudStatusText">Not connected</span>
+                                <span id="tt_cloudStatusText">Not synced yet</span>
                             </div>
 
                             <div id="tt_cloudNotConnected">
                                 <button class="cloud-sync-btn connect-btn" onclick="ttc_connectToGoogleDrive()">
-                                    <span>☁️</span>
-                                    <span>Connect Drive</span>
+                                    <span>🔄</span>
+                                    <span>Turn On Sync</span>
                                 </button>
                             </div>
 
                             <div id="tt_cloudConnected" style="display: none;">
                                 <div class="cloud-dropdown">
                                     <button class="cloud-sync-btn" onclick="ttc_toggleCloudMenu()">
-                                        <span id="tt_cloudMenuIcon">☁️</span>
-                                        <span>Cloud</span>
+                                        <span id="tt_cloudMenuIcon">🔄</span>
+                                        <span>Sync</span>
                                         <span style="font-size: 0.6rem;">▼</span>
                                     </button>
                                     <div class="cloud-dropdown-content" id="tt_cloudDropdownMenu">
                                         <div class="cloud-dropdown-item" onclick="mergeToCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;">
                                             <span>🔀</span>
-                                            <span>Merge to Cloud</span>
+                                            <span>Merge & Send My Changes</span>
                                         </div>
                                         <div class="cloud-dropdown-item" onclick="ttc_syncFromCloud()">
                                             <span>🔄</span>
-                                            <span>Sync from Cloud</span>
+                                            <span>Get Latest Changes</span>
                                         </div>
                                         <div class="cloud-dropdown-divider"></div>
                                         <div class="cloud-dropdown-item" onclick="ttc_browseBackupFiles()">
@@ -46507,13 +46507,13 @@ function runAndDisplayIntegrityCheck() {
     <div id="smartMergeModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center;">
         <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-secondary); border-radius: 24px; box-shadow: var(--shadow-xl); animation: ttkf-slideUp 0.3s ease;">
             <div class="modal-header" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="color: white; margin: 0; font-weight: 700;">🔀 Smart Merge to Cloud</h2>
+                <h2 style="color: white; margin: 0; font-weight: 700;">🔀 Smart Merge & Send</h2>
                 <button class="close-btn" onclick="closeSmartMergeModal()" style="color: white; background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
             </div>
             <div style="padding: 1.5rem; overflow-y: auto; flex: 1;">
                 <div id="smartMergeLoading" style="text-align: center; padding: 2rem;">
                     <div style="font-size: 2rem; margin-bottom: 1rem;">🔄</div>
-                    <p>Analyzing cloud data and detecting changes...</p>
+                    <p>Comparing the shared data and detecting changes...</p>
                 </div>
                 <div id="smartMergeContent" style="display: none;">
                     <!-- Summary Section -->
@@ -46763,13 +46763,13 @@ function ttUnmount(){
                 notConnectedDiv.style.display = 'none';
                 connectedDiv.style.display = 'block';
                 statusDot.className = 'cloud-status-dot connected';
-                statusText.textContent = 'Connected';
+                statusText.textContent = 'Up to date';
                 cloudAuthExpiredNotified = false;
             } else {
                 notConnectedDiv.style.display = 'block';
                 connectedDiv.style.display = 'none';
                 statusDot.className = 'cloud-status-dot';
-                statusText.textContent = 'Not connected';
+                statusText.textContent = 'Not synced yet';
             }
         }
 
@@ -46785,8 +46785,8 @@ function ttUnmount(){
                 menuIcon.innerHTML = '<span class="spinning">🔄</span>';
             } else {
                 statusDot.className = 'cloud-status-dot connected';
-                statusText.textContent = 'Connected';
-                menuIcon.textContent = '☁️';
+                statusText.textContent = 'Up to date';
+                menuIcon.textContent = '🔄';
             }
         }
 
@@ -46835,12 +46835,12 @@ function ttUnmount(){
                 <div id="googleAuthModal" class="modal" style="display: flex;">
                     <div class="modal-content" style="max-width: 560px;">
                         <div class="modal-header">
-                            <h2>☁️ Connect to Google Drive</h2>
+                            <h2>🔄 Connect the Centre’s Account</h2>
                             <button class="close-btn" onclick="ttc_closeGoogleAuthModal()">×</button>
                         </div>
                         <div style="padding: var(--space-6);">
                             <p style="margin-bottom: var(--space-5); color: var(--text-secondary);">
-                                Connect to Google Drive to save and sync your time tracking data across devices. Choose your preferred connection method:
+                                Connect the Centre’s account to sync your time tracking data across devices. Choose your preferred connection method:
                             </p>
 
                             <!-- Option 1: Direct Google Sign-In (Recommended) -->
@@ -46848,15 +46848,15 @@ function ttUnmount(){
                                 <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3);">
                                     <span style="font-size: 1.5rem;">🔐</span>
                                     <div>
-                                        <strong style="color: var(--success); font-size: 1.1rem;">Direct Google Sign-In</strong>
+                                        <strong style="color: var(--success); font-size: 1.1rem;">Direct Sign-In</strong>
                                         <span style="background: var(--success); color: white; padding: 2px 8px; border-radius: var(--radius-sm); font-size: 0.7rem; margin-left: var(--space-2); font-weight: 600;">RECOMMENDED</span>
                                     </div>
                                 </div>
                                 <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: var(--space-4);">
-                                    A Google popup will appear for you to sign in with your Google account directly.
+                                    A sign-in window will open for you to sign in with the Centre’s account directly.
                                 </p>
                                 <button class="btn btn-success" onclick="ttc_triggerDirectGoogleSignIn()" style="width: 100%; padding: var(--space-3);">
-                                    Sign in with Google
+                                    Sign In to Connect
                                 </button>
                             </div>
 
@@ -46878,10 +46878,10 @@ function ttUnmount(){
                                     <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4);">
                                         <strong style="color: var(--info);">How to get your access token:</strong>
                                         <ol style="margin-top: var(--space-2); margin-left: var(--space-4); color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6;">
-                                            <li>Click the link below to open Google OAuth Playground</li>
-                                            <li>In Step 1, find and select <strong>"Drive API v3"</strong> → check <strong>"../auth/drive"</strong> (full access to shared files)</li>
+                                            <li>Click the button below to open the OAuth Playground</li>
+                                            <li>In Step 1, type this permission into the box under the list: <strong>https://www.googleapis.com/auth/drive</strong> (full access to shared files)</li>
                                             <li>Click <strong>"Authorize APIs"</strong> (blue button)</li>
-                                            <li>Sign in with your Google account</li>
+                                            <li>Sign in with the Centre’s account</li>
                                             <li>In Step 2, click <strong>"Exchange authorization code for tokens"</strong></li>
                                             <li>Copy the <strong>"Access token"</strong> value and paste below</li>
                                         </ol>
@@ -46897,7 +46897,7 @@ function ttUnmount(){
                                     </div>
 
                                     <button class="btn btn-success" onclick="ttc_submitGoogleToken()" style="width: 100%;">
-                                        ☁️ Connect with Token
+                                        🔄 Connect with Token
                                     </button>
                                 </div>
                             </div>
@@ -46924,7 +46924,7 @@ function ttUnmount(){
                     if (ttc_googleTokenClient) {
                         ttc_googleTokenClient.requestAccessToken();
                     } else {
-                        alert('Google Sign-In popup is not available. Please use the manual token method.');
+                        alert('The sign-in window is not available. Please use the manual token method.');
                         ttc_showGoogleAuthModal();
                         // Auto-expand the manual form
                         setTimeout(() => ttc_showManualTokenForm(), 100);
@@ -47028,13 +47028,13 @@ function ttUnmount(){
                 // User closed the popup, don't show error
                 return;
             }
-            alert('Failed to authenticate with Google. Please try the manual token method.');
+            alert('Could not sign in. Please try the manual token method.');
             ttc_showGoogleAuthModal();
         }
 
         // Disconnect from Google Drive
         function ttc_disconnectFromGoogleDrive() {
-            if (confirm('Are you sure you want to disconnect from Google Drive? Your local data will remain intact.')) {
+            if (confirm('Turn off sync on this computer? Your work stays on this computer.')) {
                 ttc_googleAccessToken = null;
                 ttc_isCloudConnected = false;
                 ttc_cloudFileId = null;
@@ -47046,7 +47046,7 @@ function ttUnmount(){
                 ttc_updateCloudUI(false);
                 ttc_toggleCloudMenu();
 
-                alert('✅ Disconnected from Google Drive');
+                alert('✅ Sync turned off on this computer');
             }
         }
 
@@ -47087,7 +47087,7 @@ function ttUnmount(){
         async function ttc_saveToCloud() {
             await resolveUserFileId();
             if (!ttc_isCloudConnected || !ttc_googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -47097,8 +47097,8 @@ function ttUnmount(){
             // Check for changes by others before saving
             const cloudInfo = await ttc_checkCloudForChanges();
 
-            let confirmMessage = '⚠️ MULTI-USER CLOUD SYNC\n\n';
-            confirmMessage += 'You are about to save to a shared cloud backup.\n\n';
+            let confirmMessage = '⚠️ MULTI-USER SYNC\n\n';
+            confirmMessage += 'You are about to replace the shared copy that everyone syncs from.\n\n';
 
             if (cloudInfo && cloudInfo.savedBy) {
                 const cloudTime = new Date(cloudInfo.timestamp);
@@ -47110,13 +47110,13 @@ function ttUnmount(){
                 if (hasConflict && cloudInfo.savedBy !== (ttc_currentUser ? ttc_currentUser.fullName : '')) {
                     confirmMessage += `⚠️ WARNING: ${cloudInfo.savedBy} saved changes ${timeSinceLastSave}!\n`;
                     confirmMessage += `Your local data may not include their changes.\n\n`;
-                    confirmMessage += `💡 Recommendation: Click Cancel, then "Sync from Cloud" first.\n\n`;
+                    confirmMessage += `💡 Recommendation: Click Cancel, then "Get Latest Changes" first.\n\n`;
                 } else {
                     confirmMessage += `Last saved by: ${cloudInfo.savedBy} (${timeSinceLastSave})\n\n`;
                 }
             }
 
-            confirmMessage += 'This will overwrite the cloud backup. Continue?';
+            confirmMessage += 'This will replace the shared copy. Continue?';
 
             if (!confirm(confirmMessage)) {
                 return;
@@ -47210,10 +47210,10 @@ function ttUnmount(){
                 ttc_setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('❌ Your session has expired. Please reconnect to Google Drive.');
+                    alert('❌ Your sync sign-in has expired. Please reconnect to keep syncing.');
                     ttc_disconnectFromGoogleDrive();
                 } else {
-                    alert(`❌ Failed to save to cloud: ${error.message}`);
+                    alert(`❌ Could not sync: ${error.message}`);
                 }
             }
         }
@@ -47221,7 +47221,7 @@ function ttUnmount(){
         // Sync (download) data from Google Drive
         async function ttc_syncFromCloud() {
             if (!ttc_isCloudConnected || !ttc_googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -47234,11 +47234,11 @@ function ttUnmount(){
             }
 
             if (!ttc_cloudFileId) {
-                alert('📁 No backup file found in Google Drive. Save your data first to create a backup.');
+                alert('📁 No shared copy yet. Save your data first to create one.');
                 return;
             }
 
-            if (!confirm('⚠️ This will replace your local data with the cloud backup. Are you sure you want to continue?')) {
+            if (!confirm('⚠️ This will replace the data on this computer with the shared copy. Are you sure you want to continue?')) {
                 return;
             }
 
@@ -47295,17 +47295,17 @@ function ttUnmount(){
 
                 const backupTime = new Date(backupData.timestamp).toLocaleString();
                 const savedByInfo = backupData.savedBy ? `\nLast saved by: ${backupData.savedBy}` : '';
-                alert(`✅ Data synced from cloud successfully!\n\nBackup was created: ${backupTime}${savedByInfo}`);
+                alert(`✅ Data synced successfully!\n\nBackup was created: ${backupTime}${savedByInfo}`);
 
             } catch (error) {
                 console.error('Error syncing from cloud:', error);
                 ttc_setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('❌ Your session has expired. Please reconnect to Google Drive.');
+                    alert('❌ Your sync sign-in has expired. Please reconnect to keep syncing.');
                     ttc_disconnectFromGoogleDrive();
                 } else {
-                    alert(`❌ Failed to sync from cloud: ${error.message}`);
+                    alert(`❌ Could not sync: ${error.message}`);
                 }
             }
         }
@@ -47361,7 +47361,7 @@ function ttUnmount(){
                         </div>
                         <div style="padding: var(--space-6);">
                             <p style="margin-bottom: var(--space-4); color: var(--text-secondary); text-align: center;">
-                                Your data has been saved to Google Drive.
+                                Your data has been saved and synced.
                             </p>
 
                             <div style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4);">
@@ -47380,7 +47380,7 @@ function ttUnmount(){
                             </div>
 
                             <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; margin-bottom: var(--space-4);">
-                                💡 Let other users know to sync from cloud to get your changes.
+                                💡 Let other users know to sync to get your changes.
                             </p>
 
                             <div style="display: flex; flex-direction: column; gap: var(--space-3);">
@@ -47415,7 +47415,7 @@ function ttUnmount(){
         // Main function to initiate merge to cloud
         async function mergeToCloud() {
             if (!ttc_isCloudConnected || !ttc_googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -47485,10 +47485,10 @@ function ttUnmount(){
                 closeSmartMergeModal();
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     ttc_disconnectFromGoogleDrive();
                 } else {
-                    alert(`Failed to load cloud data: ${error.message}`);
+                    alert(`Could not load the shared data: ${error.message}`);
                 }
             }
         }
@@ -47608,7 +47608,7 @@ function ttUnmount(){
             let summaryHtml = `
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
                     <div style="text-align: center; padding: 1rem; background: var(--bg-card); border-radius: 0.5rem;">
-                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Cloud Backup</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Shared Copy</div>
                         <div style="font-size: 0.9rem; margin-top: 0.25rem;">${cloudTime}</div>
                         <div style="font-size: 0.8rem; color: var(--text-secondary);">by ${escapeHtml(savedBy)}</div>
                     </div>
@@ -47618,7 +47618,7 @@ function ttUnmount(){
                     </div>
                     <div style="text-align: center; padding: 1rem; background: #E3F2FD; border-radius: 0.5rem;">
                         <div style="font-size: 2rem; font-weight: bold; color: #2196F3;">${totalNewCloud}</div>
-                        <div style="font-size: 0.85rem; color: #1565C0;">New Cloud Records</div>
+                        <div style="font-size: 0.85rem; color: #1565C0;">New Shared Records</div>
                     </div>
                     <div style="text-align: center; padding: 1rem; background: #FFF3E0; border-radius: 0.5rem;">
                         <div style="font-size: 2rem; font-weight: bold; color: #FF9800;">${totalConflicts}</div>
@@ -47628,7 +47628,7 @@ function ttUnmount(){
                 <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-card); border-radius: 0.5rem;">
                     <strong>Local has:</strong> ${staffMembers.length} staff, ${timeRecords.length} time records
                     <br>
-                    <strong>Cloud has:</strong> ${cloudStaffCount} staff, ${cloudRecordsCount} time records
+                    <strong>Shared copy has:</strong> ${cloudStaffCount} staff, ${cloudRecordsCount} time records
                 </div>`;
 
             document.getElementById('mergeSummary').innerHTML = summaryHtml;
@@ -47693,14 +47693,14 @@ function ttUnmount(){
                     newHtml += `
                         <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
                             <span><strong>Local Staff:</strong> ${escapeHtml(staff.fullName)} (${escapeHtml(staff.role)})</span>
-                            <span style="color: #4CAF50;">Will be added to cloud</span>
+                            <span style="color: #4CAF50;">Will be shared</span>
                         </div>`;
                 });
 
                 analysis.staffMembers.newCloud.forEach(staff => {
                     newHtml += `
                         <div style="background: #E3F2FD; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Cloud Staff:</strong> ${escapeHtml(staff.fullName)} (${escapeHtml(staff.role)})</span>
+                            <span><strong>Shared staff:</strong> ${escapeHtml(staff.fullName)} (${escapeHtml(staff.role)})</span>
                             <span style="color: #2196F3;">Will be added locally</span>
                         </div>`;
                 });
@@ -47709,14 +47709,14 @@ function ttUnmount(){
                     newHtml += `
                         <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
                             <span><strong>Local Record:</strong> ${escapeHtml(record.staffName)} - ${escapeHtml(record.date)}</span>
-                            <span style="color: #4CAF50;">Will be added to cloud</span>
+                            <span style="color: #4CAF50;">Will be shared</span>
                         </div>`;
                 });
 
                 analysis.timeRecords.newCloud.forEach(record => {
                     newHtml += `
                         <div style="background: #E3F2FD; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Cloud Record:</strong> ${escapeHtml(record.staffName)} - ${escapeHtml(record.date)}</span>
+                            <span><strong>Shared record:</strong> ${escapeHtml(record.staffName)} - ${escapeHtml(record.date)}</span>
                             <span style="color: #2196F3;">Will be added locally</span>
                         </div>`;
                 });
@@ -47864,7 +47864,7 @@ function ttUnmount(){
                 saveTimeRecords();
                 await new Promise(resolve => setTimeout(resolve, 200));
 
-                updateMergeProgress('Uploading to cloud...', 70);
+                updateMergeProgress('Sending changes...', 70);
 
                 // Save merged data to cloud
                 const backupData = {
@@ -47965,7 +47965,7 @@ function ttUnmount(){
                 hideMergeProgress();
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     ttc_disconnectFromGoogleDrive();
                 } else {
                     alert(`Failed to merge: ${error.message}`);
@@ -47979,7 +47979,7 @@ function ttUnmount(){
         // Staff: Perform automatic merge without modal
         async function performStaffMerge() {
             // Show progress for staff merge too
-            showMergeProgress('Connecting to cloud...', 0);
+            showMergeProgress('Connecting...', 0);
             ttc_setCloudSyncing(true);
 
             try {
@@ -47988,7 +47988,7 @@ function ttUnmount(){
                     await ttc_findExistingBackupFile();
                 }
 
-                updateMergeProgress('Downloading cloud data...', 20);
+                updateMergeProgress('Getting the latest data...', 20);
 
                 let cloudData = null;
                 let existingStaff = [];
@@ -48095,7 +48095,7 @@ function ttUnmount(){
                     saveTimeRecords();
                 }
 
-                updateMergeProgress('Uploading to cloud...', 75);
+                updateMergeProgress('Sending changes...', 75);
 
                 // Save merged data to cloud
                 const backupData = {
@@ -48195,7 +48195,7 @@ function ttUnmount(){
                 hideMergeProgress();
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     ttc_disconnectFromGoogleDrive();
                 } else {
                     alert(`Merge failed: ${error.message}`);
@@ -48211,15 +48211,15 @@ function ttUnmount(){
                         <div style="font-size: 4rem; margin-bottom: 1rem;">✅</div>
                         <h2 style="background: linear-gradient(135deg, #9C27B0, #E91E63); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 1rem;">Data Merged!</h2>
                         <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
-                            Your data has been synchronized with the cloud.
+                            Your data is in sync.
                         </p>
                         <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; text-align: left;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                <span>Uploaded to cloud:</span>
+                                <span>Sent:</span>
                                 <strong style="color: #4CAF50;">${uploadedCount} record(s)</strong>
                             </div>
                             <div style="display: flex; justify-content: space-between;">
-                                <span>Downloaded from cloud:</span>
+                                <span>Received:</span>
                                 <strong style="color: #2196F3;">${downloadedCount} record(s)</strong>
                             </div>
                         </div>
@@ -48268,11 +48268,11 @@ function ttUnmount(){
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; text-align: center;">
                                 <div>
                                     <div style="font-size: 1.5rem; font-weight: bold; color: #4CAF50;">${localToCloud}</div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Local → Cloud</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">This computer → Shared</div>
                                 </div>
                                 <div>
                                     <div style="font-size: 1.5rem; font-weight: bold; color: #2196F3;">${cloudToLocal}</div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Cloud → Local</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Shared → This computer</div>
                                 </div>
                                 <div>
                                     <div style="font-size: 1.5rem; font-weight: bold; color: #FF9800;">${conflictsResolved}</div>
@@ -48359,16 +48359,16 @@ function ttUnmount(){
                 <div id="connectCloudOnLoginModal" class="modal" style="display: flex;">
                     <div class="modal-content" style="max-width: 450px;">
                         <div class="modal-header">
-                            <h2>☁️ Connect to Cloud Storage?</h2>
+                            <h2>🔄 Turn On Sync?</h2>
                             <button class="close-btn" onclick="closeConnectCloudOnLoginModal(false)">×</button>
                         </div>
                         <div style="padding: var(--space-5);">
                             <div style="text-align: center; margin-bottom: var(--space-5);">
-                                <span style="font-size: 3rem;">☁️</span>
+                                <span style="font-size: 3rem;">🔄</span>
                             </div>
 
                             <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
-                                Connect to Google Drive to sync your time tracking data across devices and with other users.
+                                Turn on sync to share your time tracking data across devices and with other users.
                             </p>
 
                             <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-5);">
@@ -48385,7 +48385,7 @@ function ttUnmount(){
                                     Skip
                                 </button>
                                 <button class="btn btn-primary" onclick="closeConnectCloudOnLoginModal(true)" style="flex: 1;">
-                                    ☁️ Connect Now
+                                    🔄 Connect Now
                                 </button>
                             </div>
                         </div>
@@ -48419,7 +48419,7 @@ function ttUnmount(){
                 <div id="syncOnLoginModal" class="modal" style="display: flex;">
                     <div class="modal-content" style="max-width: 450px;">
                         <div class="modal-header">
-                            <h2>☁️ Sync from Cloud?</h2>
+                            <h2>🔄 Get Latest Changes?</h2>
                             <button class="close-btn" onclick="closeSyncOnLoginModal(false)">×</button>
                         </div>
                         <div style="padding: var(--space-5);">
@@ -48428,7 +48428,7 @@ function ttUnmount(){
                             </div>
 
                             <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
-                                Your Google Drive is connected. Would you like to sync the latest data from the cloud?
+                                Sync is connected. Would you like to get the latest data now?
                             </p>
 
                             <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-5);">
@@ -48476,7 +48476,7 @@ function ttUnmount(){
             }
 
             if (!ttc_isCloudConnected || !ttc_googleAccessToken) {
-                ttc_showToast('Could not connect to Google Drive', 'error');
+                ttc_showToast('Could not connect to sync', 'error');
                 return;
             }
 
@@ -48496,7 +48496,7 @@ function ttUnmount(){
 
                 if (!ttc_cloudFileId) {
                     ttc_setCloudSyncing(false);
-                    ttc_showToast('No backup file found in cloud', 'warning');
+                    ttc_showToast('No shared copy found', 'warning');
                     return;
                 }
 
@@ -48549,14 +48549,14 @@ function ttUnmount(){
                 ttc_setCloudSyncing(false);
 
                 const savedByInfo = backupData.savedBy ? ` (saved by ${backupData.savedBy})` : '';
-                ttc_showToast(`Synced from cloud${savedByInfo}`, 'success');
+                ttc_showToast(`Synced${savedByInfo}`, 'success');
 
             } catch (error) {
                 console.error('Error syncing on login:', error);
                 ttc_setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    ttc_showToast('Google Drive session expired', 'error');
+                    ttc_showToast('Sync sign-in expired', 'error');
                     // Clear invalid token
                     CESTISStore.removeItem('cestisGoogleAccessToken');
                     CESTISStore.removeItem('cestisGoogleTokenExpiry');
@@ -48585,7 +48585,7 @@ function ttUnmount(){
                 <div id="forcedSyncModal" class="modal" style="display: flex;">
                     <div class="modal-content" style="max-width: 450px;">
                         <div class="modal-header" style="background: linear-gradient(135deg, #22c55e, #16a34a); color: white;">
-                            <h2 style="color: white;">✅ Connected to Google Drive!</h2>
+                            <h2 style="color: white;">✅ Connected!</h2>
                         </div>
                         <div style="padding: var(--space-5);">
                             <div style="text-align: center; margin-bottom: var(--space-5);">
@@ -48594,13 +48594,13 @@ function ttUnmount(){
 
                             ${hasBackup ? `
                                 <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
-                                    A cloud backup was found. You must sync your data before continuing to ensure you have the latest information.
+                                    Shared data was found. You must sync your data before continuing to ensure you have the latest information.
                                 </p>
 
                                 <div style="background: var(--warning-bg); border: 1px solid var(--warning); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-5);">
                                     <strong style="color: var(--warning);">⚠️ Important:</strong>
                                     <span style="color: var(--text-secondary); font-size: 0.9rem;">
-                                        This will replace your local data with the cloud backup.
+                                        This will replace the data on this computer with the shared copy.
                                     </span>
                                 </div>
 
@@ -48609,7 +48609,7 @@ function ttUnmount(){
                                 </button>
                             ` : `
                                 <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
-                                    No existing backup was found in the cloud. Would you like to save your current data to the cloud now?
+                                    No shared copy exists yet. Would you like to share your current data now?
                                 </p>
 
                                 <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-5);">
@@ -48624,7 +48624,7 @@ function ttUnmount(){
                                         Skip for Now
                                     </button>
                                     <button class="btn btn-primary" onclick="performForcedSaveAfterConnect()" style="flex: 1;">
-                                        💾 Save to Cloud
+                                        💾 Send My Changes
                                     </button>
                                 </div>
                             `}
@@ -48646,7 +48646,7 @@ function ttUnmount(){
                 content.innerHTML = `
                     <div style="text-align: center; padding: var(--space-5);">
                         <div class="spinning" style="font-size: 3rem; margin-bottom: var(--space-4);">🔄</div>
-                        <p style="color: var(--text-secondary);">Syncing data from cloud...</p>
+                        <p style="color: var(--text-secondary);">Syncing the latest data...</p>
                     </div>
                 `;
             }
@@ -48701,7 +48701,7 @@ function ttUnmount(){
                 closeForcedSyncModal(true);
 
                 const savedByInfo = backupData.savedBy ? ` (saved by ${backupData.savedBy})` : '';
-                ttc_showToast(`Connected and synced from cloud${savedByInfo}`, 'success');
+                ttc_showToast(`Connected and synced${savedByInfo}`, 'success');
 
             } catch (error) {
                 console.error('Error during forced sync:', error);
@@ -48740,7 +48740,7 @@ function ttUnmount(){
                 content.innerHTML = `
                     <div style="text-align: center; padding: var(--space-5);">
                         <div class="spinning" style="font-size: 3rem; margin-bottom: var(--space-4);">💾</div>
-                        <p style="color: var(--text-secondary);">Saving data to cloud...</p>
+                        <p style="color: var(--text-secondary);">Saving and syncing data...</p>
                     </div>
                 `;
             }
@@ -48765,7 +48765,7 @@ function ttUnmount(){
         // Browse all backup files in the shared folder
         async function ttc_browseBackupFiles() {
             if (!ttc_isCloudConnected || !ttc_googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -48789,7 +48789,7 @@ function ttUnmount(){
                 ttc_setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('❌ Your session has expired. Please reconnect to Google Drive.');
+                    alert('❌ Your sync sign-in has expired. Please reconnect to keep syncing.');
                     ttc_disconnectFromGoogleDrive();
                 } else {
                     alert(`❌ Failed to browse files: ${error.message}`);
@@ -49262,11 +49262,11 @@ function ttUnmount(){
             if (!cloudAuthExpiredNotified) {
                 cloudAuthExpiredNotified = true;
                 if (typeof ttc_showCloudNotification === 'function') {
-                    ttc_showCloudNotification('warn', 'Google Drive Session Expired',
-                        'Your cloud connection timed out. Your clock-in is safe locally - click Connect Drive to resume syncing.',
+                    ttc_showCloudNotification('warn', 'Sync Needs Attention',
+                        'Sync timed out. Your clock-in is kept on this computer — click Turn On Sync to resume syncing.',
                         true, 0);
                 } else if (typeof ttc_showToast === 'function') {
-                    ttc_showToast('Google Drive session expired - reconnect to resume cloud sync. Local data is safe.', 'warning');
+                    ttc_showToast('Sync sign-in expired — reconnect to resume syncing. Your work is kept on this computer.', 'warning');
                 }
             }
         }
@@ -49391,7 +49391,7 @@ function ttUnmount(){
                     ttc_updateLastSyncDisplay();
                     ttc_updateLastSavedByDisplay();
                     if (notifyOnSuccess && typeof ttc_showToast === 'function') {
-                        ttc_showToast('☁️ Your recorded time has been uploaded to the cloud.', 'success');
+                        ttc_showToast('🔄 Your recorded time has been synced.', 'success');
                     }
                     console.log('Auto-sync to cloud completed successfully');
                 } else if (response) {
@@ -52087,7 +52087,7 @@ function ttUnmount(){
 
         function initiateLoginPageSync() {
             ttc_isLoginPageSync = true;
-            ttc_updateLoginSyncStatus('Connecting to Google...', true);
+            ttc_updateLoginSyncStatus('Connecting...', true);
             const syncBtn = ttQ('.sync-prompt-btn');
             if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = '<span>⏳</span> Connecting...'; }
             if (ttc_googleTokenClient) { ttc_googleTokenClient.requestAccessToken(); }
@@ -52095,7 +52095,7 @@ function ttUnmount(){
                 ttc_initGoogleAuth();
                 setTimeout(() => {
                     if (ttc_googleTokenClient) { ttc_googleTokenClient.requestAccessToken(); }
-                    else { ttc_isLoginPageSync = false; ttc_updateLoginSyncStatus('Google Sign-In not available.', false, true); resetLoginSyncButton(); }
+                    else { ttc_isLoginPageSync = false; ttc_updateLoginSyncStatus('Sign-in is not available right now.', false, true); resetLoginSyncButton(); }
                 }, 500);
             }
         }
@@ -52150,7 +52150,7 @@ function ttUnmount(){
 
         function resetLoginSyncButton() {
             const syncBtn = ttQ('.sync-prompt-btn');
-            if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '<span>🔄</span> Connect & Sync with Google'; }
+            if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '<span>🔄</span> Connect & Sync'; }
         }
 
         function dismissFirstTimePrompt() { hideFirstTimeSyncPrompt(); sessionStorage.setItem('firstTimeSyncDismissed', 'true'); }
@@ -52193,7 +52193,7 @@ function ttUnmount(){
           const el = document.createElement('div');
           el.id = 'cloudNotifyPopup';
           el.className = 'cloud-notify ' + type;
-          const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '☁️';
+          const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '🔄';
           el.innerHTML =
             '<div class="cloud-notify-bar"></div>' +
             '<div class="cloud-notify-body">' +
@@ -52239,7 +52239,7 @@ function ttUnmount(){
 
           if (!navigator.onLine) {
             ttc_showCloudNotification('error', 'You Are Offline',
-              'Your internet connection is unavailable. Data changes will only be saved locally. Please reconnect to sync with Google Drive.',
+              'You’re offline. Your work is kept on this computer until it syncs.',
               false, 0);
             return;
           }
@@ -52250,21 +52250,21 @@ function ttUnmount(){
             let detail = '';
 
             if (savedExpiry && new Date(savedExpiry) <= new Date()) {
-              detail = 'Your Google Drive session has expired.';
+              detail = 'Your sync sign-in has expired.';
             } else if (reason === 'page_load') {
-              detail = 'Google Drive is not connected.';
+              detail = 'Sync is not connected.';
             } else if (reason === 'token_expired') {
-              detail = 'Your Google Drive session has expired.';
+              detail = 'Your sync sign-in has expired.';
             } else {
-              detail = 'Google Drive connection was lost.';
+              detail = 'The sync connection was lost.';
             }
 
             if (lastSync) {
               detail += ' Last sync: ' + ttc_getTimeAgo(new Date(lastSync)) + '.';
             }
 
-            ttc_showCloudNotification('warn', 'Cloud Sync Disconnected',
-              detail + ' Your data is only saved locally. Connect to Google Drive to back up and sync your data.',
+            ttc_showCloudNotification('warn', 'Not Synced Yet',
+              detail + ' Your work is kept on this computer until it syncs. Reconnect to sync.',
               true, 30);
           }
         }
@@ -52292,7 +52292,7 @@ function ttUnmount(){
         // Listen for browser online/offline events
         window.addEventListener('offline', function(){
           ttc_showCloudNotification('error', 'You Are Offline',
-            'Internet connection lost. Data changes will only be saved locally until you reconnect.',
+            'Connection lost. Your work is kept on this computer until it syncs.',
             false, 0);
         });
 
@@ -52344,7 +52344,7 @@ function ttUnmount(){
             }, 1500);
           } else {
             ttc_showCloudNotification('warn', 'Back Online',
-              'Internet connection restored. Your cloud sync is active.',
+              'Back online. Sync is on.',
               false, 8);
           }
         });

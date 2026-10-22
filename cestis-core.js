@@ -3294,12 +3294,12 @@
       var meshCap = meshLimit(opts.audioOnly);
       if (n <= meshCap) {
         return { mode: 'mesh', limit: meshCap, feasible: true,
-          reason: 'A room of ' + n + ' runs peer-to-peer with no server.' };
+          reason: 'A room of ' + n + ' runs directly between the devices, with nothing extra to set up.' };
       }
       if (n <= SFU_MAX) {
         return { mode: 'sfu', limit: SFU_MAX, feasible: true,
           reason: 'A room of ' + n + ' is beyond what a peer-to-peer mesh can carry (' +
-                  meshCap + ' max), so it runs on a hosted conference server.' };
+                  meshCap + ' max), so it runs on the large-class video service.' };
       }
       return { mode: 'sfu', limit: SFU_MAX, feasible: false,
         reason: 'A single room tops out at about ' + SFU_MAX + ' participants. Split the class into groups.' };
@@ -3885,7 +3885,7 @@
       if (!/^https?:\/\//i.test(raw)) raw = 'https://' + raw;
       var m = /^(https?):\/\/([^\/\s?#]+)(\/[^\s?#]*)?$/i.exec(raw);
       if (!m) return { ok: false, base: '', publicJitsi: false, reason: 'That address could not be read.' };
-      if (m[1].toLowerCase() !== 'https') return { ok: false, base: '', publicJitsi: false, reason: 'The Large Class server must be an https:// address.' };
+      if (m[1].toLowerCase() !== 'https') return { ok: false, base: '', publicJitsi: false, reason: 'The Large Class video server must be an https:// address.' };
       var host = m[2].toLowerCase();
       var path = (m[3] || '/').replace(/\/+$/, '') + '/';
       return { ok: true, base: 'https://' + host + path, publicJitsi: host === 'meet.jit.si', reason: '' };

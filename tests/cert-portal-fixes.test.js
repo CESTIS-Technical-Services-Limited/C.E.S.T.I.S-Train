@@ -78,7 +78,7 @@ for (const page of PAGES) {
   await vm.runInContext('studentRefreshCertData()', sb);
   assert(sb.students[0].stage === 'certified' && sb.students[0].certNo === 'WE-2026-4321', w + ': the trainee\'s issued certificate arrives');
   assert(sb.certDownloadApprovals.length === 1 && sb.certDownloadApprovals[0].approved === true, w + ': and so does the approval');
-  assertEq(toasts[toasts.length - 1], 'Certificate data updated from cloud!', w + ': and the trainee is told so');
+  assertEq(toasts[toasts.length - 1], 'Certificate data updated!', w + ': and the trainee is told so');
   assert(!!sb._certDriveLastFetched, w + ': the device counts as synced after a real read');
   assertEq(sb.certTemplates.Welding.courseFullName, 'NEW NAME', w + ': a newer template on this device is not rolled back to the cloud\'s older copy');
   assertEq(sb.certTemplates.Welding.bgPage1, 'data:x', w + ': and its image stays');

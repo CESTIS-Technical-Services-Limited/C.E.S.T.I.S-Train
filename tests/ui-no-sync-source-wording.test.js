@@ -87,9 +87,12 @@ console.log('The tokenizer is not fooled by regular expressions, division or tem
 console.log('The allow-list is short, explained, and technical values only');
 assert(scan.ALLOW.length <= 12, 'at most a dozen allowed values (' + scan.ALLOW.length + ')');
 scan.ALLOW.forEach(a => {
-  assert(a.file && a.text && a.why, 'every allowed value names its file, its exact text and why: ' + JSON.stringify(a));
-  assert(/^(https?:\/\/\S+|\S+)$/.test(a.text), 'an allowed value is one technical token or a URL, never a sentence: ' + JSON.stringify(a.text));
+  assert(a.token && a.why, 'every allowed value names its exact token and why: ' + JSON.stringify(a));
+  assert(/^\S+$/.test(a.token), 'an allowed value is one technical token (an address, a URL), never a sentence: ' + JSON.stringify(a.token));
 });
+assert(words(js("el.innerHTML = '<input placeholder=\"your.email@gmail.com\">';")) === 'gmail', 'an e-mail example in built HTML is still read');
+assert(js("showToast('Please contact the Centre: cestisadmn@gmail.com');").length === 0, "the Centre's own contact address is excused");
+assert(words(js("showToast('Write to cestisadmn@gmail.com or check Google Drive');")) === 'drive,google', '…but only the address itself, not the rest of the sentence');
 
 /* ---------- 6. Nothing on any screen names the place ---------- */
 console.log('No page, fragment or on-screen message says where information is synced from or kept');

@@ -80,7 +80,10 @@ function page(lan) {
     const p = page({ reachable: false });
     await p.run();
     assert(p.ctx.loginSyncCompleted === false && p.log.enabled === 0, 'nothing is unlocked without a successful read');
-    assert(/^error:.*Centre.*server/.test(p.log.status[p.log.status.length - 1]), 'the bar names the Centre\'s server (' + p.log.status.join(' | ') + ')');
+    // It says what to do, never where the data lives (the owner's rule —
+    // tests/ui-no-sync-source-wording.test.js): "Could not sync — try again or ask the office".
+    assert(/^error:.*Could not sync.*ask the office/.test(p.log.status[p.log.status.length - 1]) &&
+      !/server|network|Centre/i.test(p.log.status.join(' ')), 'the bar says it could not sync and what to do, without naming the server (' + p.log.status.join(' | ') + ')');
     assert(p.log.google === 0, 'still no Google sign-in');
   }
 

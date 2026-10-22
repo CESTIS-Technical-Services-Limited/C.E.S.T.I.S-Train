@@ -7,7 +7,7 @@
    is synced from or stored — "in no shape or form should this be indicated to
    users". People see what happened and what to do ("Sync Now", "Up to date",
    "Saved", "Could not sync — try again or ask the office"), never the place
-   (no cloud, no Google / Drive / Gmail / Apps Script, no "the Centre's server",
+   (no cloud, no Google / Drive / Gmail / GitHub / Apps Script, no "the Centre's server",
    no LAN or Wi-Fi as a source, no "Offline System", no internet as the place
    data lives, no EmailJS / PeerJS / broker / MegaData, no IndexedDB /
    localStorage / "this browser's storage", and no ☁️ used as a sync sign).
@@ -52,6 +52,7 @@ const RULES = [
   { id: 'google', re: /\bgoogle\b/gi },
   { id: 'drive', re: /\bdrive\b/gi },
   { id: 'gmail', re: /\bgmail\b/gi },
+  { id: 'github', re: /\bgithub\b/gi },
   { id: 'apps-script', re: /\bapps?[\s-]*script\b/gi },
   // A video or relay server address is a technical value the administrator
   // types into Settings — the label may say so. Any other server may not.
@@ -78,14 +79,36 @@ const JS_DIRS = ['megadata', 'megadata/pages'];
    a terminal, not a screen anyone signs in to) and vendor code. */
 const SKIP = [
   /^megadata\/bootstrap-/, /^megadata\/drive-fetch\.js$/, /^megadata\/adapters\.js$/,
-  /^megadata\/broker-appsscript\//, /^vendor\//
+  /^megadata\/broker-appsscript\//, /^vendor\//,
+  // The record schemas are also built into the sync service's own server code
+  // (megadata/broker-appsscript/PASTE-ALL-IN-ONE.gs); their one message is a
+  // start-up error for a runtime with no secure random numbers, which no
+  // browser lacks — it never reaches a screen.
+  /^megadata\/schemas\.js$/
 ];
 
 /* The small, explicit list of technical values that may stay. Prose is never
    allowed here: each entry names a file and the exact literal, and says why.
-   (file, text) — the hit is excused only if the literal/visible text equals
-   `text` exactly. */
-const ALLOW = [];
+   Each entry is one technical token (an e-mail address, a permission URL);
+   a hit is excused only when the forbidden word lies inside that token. */
+const ALLOW = [
+  { token: 'cestisadmn@gmail.com', why: "the Centre's own contact address (Privacy Policy, certificate notices, letterheads): an address people write to, not a place their data is kept" },
+  { token: 'hazardstcadmn@gmail.com', why: "the Centre's second contact address in the Privacy Policy (same reason)" },
+  { token: 'https://www.googleapis.com/auth/drive', why: "the permission an administrator types into the provider's token page in the manual \"Connect the Centre's Account\" fallback: a technical value with no other name" },
+  { token: 'https://www.googleapis.com/auth/drive.file', why: 'the same permission value, as the School Fee page has always asked for it' }
+];
+/* Is the hit inside one of the allowed technical values? */
+function allowed(file, text, index, word) {
+  return ALLOW.some(a => {
+    if (a.file && a.file !== file) return false;
+    let at = text.indexOf(a.token);
+    while (at !== -1) {
+      if (index >= at && index + word.length <= at + a.token.length) return true;
+      at = text.indexOf(a.token, at + 1);
+    }
+    return false;
+  });
+}
 
 /* ------------------------------------------------------------- utilities */
 function lineStarts(src) {
@@ -250,6 +273,12 @@ const CODE_CALLS = new Set([
 ]);
 /* Assignment / call sinks that put a single word on screen. */
 const DISPLAY_PROPS = new Set(['textContent', 'innerText', 'innerHTML', 'outerHTML', 'title', 'placeholder', 'alt', 'ariaLabel']);
+/* Calls whose text argument only ever reaches a developer log (named here so
+   the reason is on record: cestisSettleRoster(reason) prints it with
+   console.log and nowhere else). */
+const LOG_ONLY_CALLS = new Set(['cestisSettleRoster']);
+/* Assignments whose value is code: a class list, an id, an address. */
+const CODE_PROPS = new Set(['className', 'id', 'src', 'href', 'type', 'name', 'rel', 'htmlFor', 'key', 'cssText']);
 const DISPLAY_CALLS = new Set(['showToast', 'toast', 'alert', 'confirm', 'prompt', 'notify', 'setStatus', 'showMessage', 'cestisAlert', 'cestisConfirm', 'cestisPrompt', 'styledAlert', 'styledConfirm', 'showBanner', 'setBanner']);
 
 /* Is the 'str'/'tpl' token at index k inside the arguments of console.*(…)? */
@@ -329,6 +358,8 @@ function scanJs(src, base, starts, file, hits) {
     if (call && DISPLAY_CALLS.has(call)) display = true;
     if (prev && prev.v === '=' && toks[k - 2] && toks[k - 2].t === 'id' && DISPLAY_PROPS.has(toks[k - 2].v)) display = true;
     if (!display && call && CODE_CALLS.has(call) && codeLike(raw)) continue;
+    if (call && LOG_ONLY_CALLS.has(call)) continue;
+    if (prev && prev.v === '=' && toks[k - 2] && toks[k - 2].t === 'id' && CODE_PROPS.has(toks[k - 2].v) && !/[<>]/.test(raw)) continue;
     if (prev && (prev.v === '===' || prev.v === '!==' || prev.v === '==' || prev.v === '!=') && codeLike(raw)) continue;
     if (next && (next.v === '===' || next.v === '!==' || next.v === '==' || next.v === '!=') && codeLike(raw)) continue;
     if (tk.t === 'tpl' && prev && prev.t === 'id' && !KEYWORDS_BEFORE_EXPR.has(prev.v) && k > 0 && src[tk.start - base - 1] === '`') {
@@ -338,21 +369,22 @@ function scanJs(src, base, starts, file, hits) {
     if (!display && codeLike(text)) {
       // One bare token is code unless it is plainly a word on screen.
       const word = text.trim();
-      if (!/^[☁]/.test(word) && !/^(Cloud|Google|Drive|Gmail|LAN|MegaData|EmailJS|PeerJS|Broker|IndexedDB|Server|Internet)[\s.:!?…]*$/.test(word)) continue;
+      if (!/^[☁]/.test(word) && !/^(Cloud|Google|Drive|Gmail|GitHub|LAN|MegaData|EmailJS|PeerJS|Broker|IndexedDB|Server|Internet)[\s.:!?…]*$/.test(word)) continue;
     }
     // Inside a string of code-like tokens (a class list, a selector), the
     // pieces with - _ . # / around them are names, not words.
     const words = findWords(text).filter(w => {
       const idx = w.index;
       const before = text[idx - 1] || ' ', after = text[idx + w.word.length] || ' ';
-      if (/[_#.$/@\\]/.test(before) || /[_$/\\]/.test(after)) return false;
-      if (after === '.' && /\w/.test(text[idx + w.word.length + 1] || '')) return false;
+      if (allowed(file, text, idx, w.word)) return false;
+      if (/[_#.$/\\]/.test(before) || /[_$/\\]/.test(after)) return false;
+      // (an e-mail domain — you@gmail.com — is read: it is shown, not called)
+      if (after === '.' && before !== '@' && /\w/.test(text[idx + w.word.length + 1] || '')) return false;
       if ((before === '-' || after === '-') && !/[A-Z]/.test(w.word[0])) return false;
       return true;
     });
     if (!words.length) continue;
     const shown = text.replace(/\s+/g, ' ').trim();
-    if (ALLOW.some(a => a.file === file && (a.text === shown || a.text === raw))) continue;
     words.forEach(w => hits.push({ file, line: lineAt(starts, tk.start), rule: w.rule, word: w.word, text: shown.slice(0, 200), start: tk.start, end: tk.end }));
   }
 }
@@ -379,8 +411,7 @@ function scanHtml(src, file) {
   const report = (offset, text) => {
     const shown = decodeEntities(text).replace(/\s+/g, ' ').trim();
     if (!shown) return;
-    if (ALLOW.some(a => a.file === file && a.text === shown)) return;
-    findWords(shown).forEach(w => hits.push({ file, line: lineAt(starts, offset), rule: w.rule, word: w.word, text: shown.slice(0, 200), start: offset, end: offset + text.length }));
+    findWords(shown).filter(w => !allowed(file, shown, w.index, w.word)).forEach(w => hits.push({ file, line: lineAt(starts, offset), rule: w.rule, word: w.word, text: shown.slice(0, 200), start: offset, end: offset + text.length }));
   };
   let i = 0;
   const n = src.length;
@@ -470,7 +501,7 @@ function scanRepo(root) {
   return all;
 }
 
-module.exports = { RULES, ALLOW, findWords, tokenizeJs, scanHtml, scanJsFile, scanFile, scanRepo, listFiles };
+module.exports = { RULES, ALLOW, allowed, findWords, tokenizeJs, scanHtml, scanJsFile, scanFile, scanRepo, listFiles };
 
 if (require.main === module) {
   const hits = scanRepo(ROOT);

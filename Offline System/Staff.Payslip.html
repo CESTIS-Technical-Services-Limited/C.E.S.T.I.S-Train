@@ -631,7 +631,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
     <div class="login-card" style="position:relative">
       <div class="login-syncing-overlay" id="loginSyncOverlay">
         <div class="login-syncing-spinner"></div>
-        <div class="login-syncing-text" id="loginSyncOverlayText">Syncing from cloud...</div>
+        <div class="login-syncing-text" id="loginSyncOverlayText">Syncing...</div>
         <div class="login-syncing-sub" id="loginSyncOverlaySub">Checking for your account credentials</div>
       </div>
       <div class="login-brand">
@@ -657,7 +657,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
         <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.75rem">
           <a onclick="showForgotPassword()" style="color:var(--primary);cursor:pointer;font-size:.82rem;text-decoration:none">Forgot Password?</a>
-          <a onclick="showFirstTimeSection();sessionStorage.removeItem('firstTimeSyncDismissed')" style="color:var(--primary);cursor:pointer;font-size:.78rem;text-decoration:none">Sync from Cloud</a>
+          <a onclick="showFirstTimeSection();sessionStorage.removeItem('firstTimeSyncDismissed')" style="color:var(--primary);cursor:pointer;font-size:.78rem;text-decoration:none">Sync Now</a>
         </div>
         <div class="login-user-info">
           <span id="loggedInUserName" style="display:none"></span>
@@ -753,13 +753,13 @@ tr:hover td{background:rgba(59,130,246,.04)}
     <div class="first-time-section" id="firstTimeSection">
       <div class="first-time-heading">First Time Here?</div>
       <div class="first-time-card" id="firstTimeCard">
-        <span class="ft-cloud-icon" id="ftCloudIcon">&#9729;</span>
-        <div class="ft-title" id="ftTitle">Sync with Google Cloud</div>
-        <div class="ft-desc" id="ftDesc">Sign in with Google to load your credentials and data directly from the school's Google Drive folder.</div>
+        <span class="ft-cloud-icon" id="ftCloudIcon">&#128260;</span>
+        <div class="ft-title" id="ftTitle">Sync before signing in</div>
+        <div class="ft-desc" id="ftDesc">Sign in to bring this computer up to date with your credentials and the latest payroll data.</div>
         <button class="ft-sync-btn" id="ftSyncBtn" onclick="firstTimeGoogleSync()">
-          <span class="ft-btn-icon">&#9729;</span>
+          <span class="ft-btn-icon">&#128260;</span>
           <span class="ft-btn-spinner"></span>
-          <span class="ft-btn-label" id="ftBtnLabel">Sync with Google Cloud</span>
+          <span class="ft-btn-label" id="ftBtnLabel">Sync Now</span>
         </button>
         <div class="ft-status" id="ftStatus"></div>
         <div id="ftGoogleAccount" class="ft-google-account" style="display:none">
@@ -799,31 +799,31 @@ tr:hover td{background:rgba(59,130,246,.04)}
           <!-- Cloud Sync: Not Connected -->
           <div id="cloudNotConnected">
             <button class="cloud-sync-btn" onclick="connectToGoogleDrive()" style="padding:.3rem .6rem;font-size:.75rem">
-              <span>☁️</span>
-              <span class="nav-text">Not connected</span>
+              <span>🔄</span>
+              <span class="nav-text">Not synced yet</span>
             </button>
           </div>
           <!-- Cloud Sync: Connected -->
           <div id="cloudConnected" style="display:none;">
             <div class="cloud-status-row" style="margin-bottom:0">
               <span id="cloudConnectedDot" class="cloud-status-dot connected"></span>
-              <span class="cloud-status-label connected nav-text" id="cloudConnectedText">Connected</span>
+              <span class="cloud-status-label connected nav-text" id="cloudConnectedText">Up to date</span>
             </div>
             <div class="cloud-dropdown">
               <button class="cloud-sync-btn" onclick="toggleCloudMenu()" style="padding:.3rem .6rem;font-size:.75rem">
-                <span id="cloudMenuIcon">☁️</span>
-                <span class="nav-text">Cloud</span>
+                <span id="cloudMenuIcon">🔄</span>
+                <span class="nav-text">Sync</span>
                 <span class="btn-arrow nav-text">▼</span>
               </button>
               <div class="cloud-dropdown-content" id="cloudDropdownMenu">
                 <div class="cloud-dropdown-item save-cloud" onclick="saveToCloud()">
-                  <span>💾</span><span>Save to Cloud</span>
+                  <span>💾</span><span>Send My Changes</span>
                 </div>
                 <div class="cloud-dropdown-item sync-cloud" onclick="syncFromCloud()">
-                  <span>🔄</span><span>Sync from Cloud</span>
+                  <span>🔄</span><span>Get Latest Changes</span>
                 </div>
                 <div class="cloud-dropdown-item merge-cloud" onclick="mergeFromCloud()">
-                  <span>🔀</span><span>Merge from Cloud</span>
+                  <span>🔀</span><span>Merge Latest Changes</span>
                 </div>
                 <div class="cloud-dropdown-divider"></div>
                 <div class="cloud-dropdown-item browse-cloud" onclick="browseCloudFolder()">
@@ -1273,7 +1273,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
   <div class="twofa-modal">
     <div class="twofa-modal-header">
       <h2>Set Up Two-Factor Authentication</h2>
-      <p>Scan the QR code with Google Authenticator or any TOTP app</p>
+      <p>Scan the QR code with an authenticator app (any TOTP app)</p>
     </div>
     <div class="twofa-qr-container">
       <div id="twofaQRCode"></div>
@@ -3508,11 +3508,11 @@ async function fetchCurrentRates(){
   const sources = [];
   if (GDRIVE_RATES_FILE_ID) {
     sources.push({
-      name: 'Google Drive',
+      name: 'the Centre’s rates file',
       url: 'https://drive.google.com/uc?export=download&id=' + GDRIVE_RATES_FILE_ID
     });
   }
-  sources.push({ name: 'GitHub', url: GITHUB_RATES_URL });
+  sources.push({ name: 'the published rates list', url: GITHUB_RATES_URL });
 
   for (let i = 0; i < sources.length; i++) {
     const src = sources[i];
@@ -3532,7 +3532,7 @@ async function fetchCurrentRates(){
       // All sources exhausted
       statusDiv.style.background = 'rgba(239,68,68,0.1)';
       statusDiv.style.color = 'var(--danger)';
-      statusDiv.textContent = '❌ Failed to fetch rates: ' + err.message + '. Please check your internet connection or update rates manually.';
+      statusDiv.textContent = '❌ Failed to fetch rates: ' + err.message + '. Please check the connection or update rates manually.';
     }
   }
 
@@ -3712,14 +3712,14 @@ function updateCloudUI(connected) {
         notConnectedDiv.style.display = 'none';
         connectedDiv.style.display = 'block';
         if (statusDot) statusDot.className = 'cloud-status-dot connected';
-        if (statusText) statusText.textContent = 'Connected';
+        if (statusText) statusText.textContent = 'Up to date';
         var bfnText = document.getElementById('backupFileNameText');
         if (bfnText) bfnText.textContent = GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME;
     } else {
         notConnectedDiv.style.display = 'block';
         connectedDiv.style.display = 'none';
         if (statusDot) statusDot.className = 'cloud-status-dot';
-        if (statusText) statusText.textContent = 'Not connected';
+        if (statusText) statusText.textContent = 'Not synced yet';
     }
 }
 
@@ -3736,9 +3736,9 @@ function setCloudSyncing(syncing) {
         if (connectedText) { connectedText.textContent = 'Syncing...'; connectedText.className = 'cloud-status-label syncing nav-text'; }
         if (sidebarSync) sidebarSync.textContent = 'Syncing...';
     } else {
-        if (menuIcon) menuIcon.textContent = '☁️';
+        if (menuIcon) menuIcon.textContent = '🔄';
         if (connectedDot) connectedDot.className = 'cloud-status-dot connected';
-        if (connectedText) { connectedText.textContent = 'Connected'; connectedText.className = 'cloud-status-label connected nav-text'; }
+        if (connectedText) { connectedText.textContent = 'Up to date'; connectedText.className = 'cloud-status-label connected nav-text'; }
         updateLastSyncDisplay();
     }
 }
@@ -3784,12 +3784,12 @@ function showGoogleAuthModal() {
         <div id="googleAuthModal" class="google-auth-modal" style="display:flex;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>☁️ Connect to Google Drive</h2>
+                    <h2>🔄 Connect the Centre’s Account</h2>
                     <button class="close-btn" onclick="closeGoogleAuthModal()">×</button>
                 </div>
                 <div style="padding:1.5rem;">
                     <p style="margin-bottom:1.25rem;color:var(--text-dim);">
-                        Connect to Google Drive to save and sync your payroll data across devices. Choose your preferred connection method:
+                        Connect the Centre’s account to sync your payroll data across devices. Choose your preferred connection method:
                     </p>
 
                     <!-- Option 1: Direct Google Sign-In -->
@@ -3797,15 +3797,15 @@ function showGoogleAuthModal() {
                         <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
                             <span style="font-size:1.5rem;">🔐</span>
                             <div>
-                                <strong style="color:var(--green);font-size:1.1rem;">Direct Google Sign-In</strong>
+                                <strong style="color:var(--green);font-size:1.1rem;">Direct Sign-In</strong>
                                 <span style="background:var(--green);color:white;padding:2px 8px;border-radius:4px;font-size:0.7rem;margin-left:0.5rem;font-weight:600;">RECOMMENDED</span>
                             </div>
                         </div>
                         <p style="color:var(--text-dim);font-size:0.9rem;margin-bottom:1rem;">
-                            A Google popup will appear for you to sign in with your Google account directly.
+                            A sign-in window will open for you to sign in with the Centre’s account directly.
                         </p>
                         <button class="btn btn-success" onclick="triggerDirectGoogleSignIn()" style="width:100%;padding:0.75rem;">
-                            Sign in with Google
+                            Sign In to Connect
                         </button>
                     </div>
 
@@ -3826,10 +3826,10 @@ function showGoogleAuthModal() {
                             <div style="background:rgba(59,130,246,0.1);border:1px solid var(--primary);border-radius:6px;padding:1rem;margin-bottom:1rem;">
                                 <strong style="color:var(--primary);">How to get your access token:</strong>
                                 <ol style="margin-top:0.5rem;margin-left:1rem;color:var(--text-dim);font-size:0.85rem;line-height:1.6;">
-                                    <li>Click the link below to open Google OAuth Playground</li>
-                                    <li>In Step 1, find and select <strong>"Drive API v3"</strong> → check <strong>"../auth/drive"</strong></li>
+                                    <li>Click the button below to open the OAuth Playground</li>
+                                    <li>In Step 1, type this permission into the box under the list: <strong>https://www.googleapis.com/auth/drive</strong></li>
                                     <li>Click <strong>"Authorize APIs"</strong></li>
-                                    <li>Sign in with your Google account</li>
+                                    <li>Sign in with the Centre’s account</li>
                                     <li>In Step 2, click <strong>"Exchange authorization code for tokens"</strong></li>
                                     <li>Copy the <strong>"Access token"</strong> value and paste below</li>
                                 </ol>
@@ -3845,7 +3845,7 @@ function showGoogleAuthModal() {
                             </div>
 
                             <button class="btn btn-success" onclick="submitGoogleToken()" style="width:100%;">
-                                ☁️ Connect with Token
+                                🔄 Connect with Token
                             </button>
                         </div>
                     </div>
@@ -3871,7 +3871,7 @@ function triggerDirectGoogleSignIn() {
             if (googleTokenClient) {
                 googleTokenClient.requestAccessToken();
             } else {
-                alert('Google Sign-In popup is not available. Please use the manual token method.');
+                alert('The sign-in window is not available. Please use the manual token method.');
                 showGoogleAuthModal();
                 setTimeout(() => showManualTokenForm(), 100);
             }
@@ -3923,7 +3923,7 @@ async function submitGoogleToken() {
         closeGoogleAuthModal();
         updateCloudUI(true);
 
-        alert('Connected to Google Drive as ' + (data.user.displayName || data.user.emailAddress));
+        alert('Connected as ' + (data.user.displayName || data.user.emailAddress));
 
         await findExistingBackupFile();
 
@@ -3946,19 +3946,19 @@ async function handleGoogleAuthCallback(tokenResponse) {
 
     await findExistingBackupFile();
 
-    alert('Connected to Google Drive successfully! You can now Save, Sync, or Merge your data.');
+    alert('Connected! You can now save, sync or merge your data.');
 }
 
 function handleGoogleAuthError(error) {
     console.error('Google auth error:', error);
     if (error.type === 'popup_closed') return;
-    alert('Failed to authenticate with Google. Please try the manual token method.');
+    alert('Could not sign in. Please try the manual token method.');
     showGoogleAuthModal();
 }
 
 // Disconnect from Google Drive
 function disconnectFromGoogleDrive() {
-    if (confirm('Are you sure you want to disconnect from Google Drive? Your local data will remain intact.')) {
+    if (confirm('Turn off sync on this computer? Your work stays on this computer.')) {
         googleAccessToken = null;
         isCloudConnected = false;
         cloudFileId = null;
@@ -3971,7 +3971,7 @@ function disconnectFromGoogleDrive() {
         const menu = document.getElementById('cloudDropdownMenu');
         if (menu) menu.classList.remove('show');
 
-        alert('Disconnected from Google Drive');
+        alert('Sync turned off on this computer');
     }
 }
 
@@ -4175,7 +4175,7 @@ async function autoSaveUsersToCloud(){
 // ============ SAVE TO CLOUD ============
 async function saveToCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -4184,8 +4184,8 @@ async function saveToCloud() {
 
     const cloudInfo = await checkCloudForChanges();
 
-    let confirmMessage = 'MULTI-USER CLOUD SYNC\n\n';
-    confirmMessage += 'You are about to save to a shared cloud backup.\n\n';
+    let confirmMessage = 'MULTI-USER SYNC\n\n';
+    confirmMessage += 'You are about to replace the shared copy that everyone syncs from.\n\n';
 
     if (cloudInfo && cloudInfo.savedBy) {
         const cloudTime = new Date(cloudInfo.timestamp);
@@ -4196,13 +4196,13 @@ async function saveToCloud() {
         if (hasConflict) {
             confirmMessage += 'WARNING: ' + cloudInfo.savedBy + ' saved changes ' + timeSinceLastSave + '!\n';
             confirmMessage += 'Your local data may not include their changes.\n\n';
-            confirmMessage += 'Recommendation: Click Cancel, then "Sync from Cloud" first.\n\n';
+            confirmMessage += 'Recommendation: Click Cancel, then "Get Latest Changes" first.\n\n';
         } else {
             confirmMessage += 'Last saved by: ' + cloudInfo.savedBy + ' (' + timeSinceLastSave + ')\n\n';
         }
     }
 
-    confirmMessage += 'The cloud copy is merged in first, so nothing saved from another device is lost. Continue?';
+    confirmMessage += 'The shared copy is merged in first, so nothing saved from another computer is lost. Continue?';
 
     if (!confirm(confirmMessage)) return;
 
@@ -4218,7 +4218,7 @@ async function saveToCloud() {
         // device's data, removing every run, employee, account and grant
         // another device had saved since this one last merged.
         if (!(await _peekMergeCloud())) {
-            throw new Error('Could not read the cloud copy to merge it first — nothing was uploaded, so nothing there was lost');
+            throw new Error('Could not read the shared copy to merge it first — nothing was sent, so nothing was lost');
         }
 
         const backupData = {
@@ -4332,17 +4332,17 @@ async function saveToCloud() {
         updateLastSavedByDisplay();
 
         setCloudSyncing(false);
-        alert('Data saved to Google Drive successfully!\n\nTip: Let other users know to sync from cloud to get your changes.');
+        alert('Data saved and synced!\n\nTip: Let other users know to sync to get your changes.');
 
     } catch (error) {
         console.error('Error saving to cloud:', error);
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('Your session has expired. Please reconnect to Google Drive.');
+            alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert('Failed to save to cloud: ' + error.message);
+            alert('Could not sync: ' + error.message);
         }
     }
 }
@@ -4350,7 +4350,7 @@ async function saveToCloud() {
 // ============ SYNC FROM CLOUD ============
 async function syncFromCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -4362,11 +4362,11 @@ async function syncFromCloud() {
     }
 
     if (!cloudFileId) {
-        alert('No backup file found in Google Drive. Save your data first to create a backup.');
+        alert('No shared copy yet. Save your data first to create one.');
         return;
     }
 
-    if (!confirm('This will merge the cloud backup into your local data. Local records are preserved; only new or updated cloud records are added. Continue?')) {
+    if (!confirm('This will merge the shared copy into this computer. Records here are kept; only new or updated shared records are added. Continue?')) {
         return;
     }
 
@@ -4424,17 +4424,17 @@ async function syncFromCloud() {
         const backupTime = new Date(backupData.timestamp).toLocaleString();
         const savedByInfo = backupData.savedBy ? '\nLast saved by: ' + backupData.savedBy : '';
         var mergeInfo='\nMerged: +'+_syncSummary.addedEmployees+' employees, '+_syncSummary.updatedEmployees+' updated; +'+_syncSummary.addedRuns+' payroll runs, '+_syncSummary.updatedRuns+' updated.';
-        alert('Data merged from cloud successfully!\n\nBackup was created: ' + backupTime + savedByInfo + mergeInfo);
+        alert('Data merged successfully!\n\nBackup was created: ' + backupTime + savedByInfo + mergeInfo);
 
     } catch (error) {
         console.error('Error syncing from cloud:', error);
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('Your session has expired. Please reconnect to Google Drive.');
+            alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert('Failed to sync from cloud: ' + error.message);
+            alert('Could not sync: ' + error.message);
         }
     }
 }
@@ -4442,7 +4442,7 @@ async function syncFromCloud() {
 // ============ MERGE FROM CLOUD ============
 async function mergeFromCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -4454,13 +4454,13 @@ async function mergeFromCloud() {
     }
 
     if (!cloudFileId) {
-        alert('No backup file found in Google Drive. Save your data first to create a backup.');
+        alert('No shared copy yet. Save your data first to create one.');
         return;
     }
 
-    if (!confirm('MERGE FROM CLOUD\n\nThis will merge cloud data with your local data:\n\n' +
-        '- New employees from cloud will be ADDED to your local data\n' +
-        '- New payroll runs from cloud will be ADDED\n' +
+    if (!confirm('MERGE LATEST CHANGES\n\nThis will merge the shared data with the data on this computer:\n\n' +
+        '- New employees will be ADDED to the data on this computer\n' +
+        '- New payroll runs will be ADDED\n' +
         '- Existing items will be kept as-is (local version preserved)\n' +
         '- No local data will be removed\n\nContinue?')) {
         return;
@@ -4590,7 +4590,7 @@ async function mergeFromCloud() {
         setCloudSyncing(false);
 
         // Build summary message
-        let summary = 'Merge from cloud completed!\n\n';
+        let summary = 'Merge completed!\n\n';
         summary += 'Merge Summary:\n';
         summary += '- Employees added: ' + mergeStats.employeesAdded + '\n';
         summary += '- Payroll runs added: ' + mergeStats.payrollRunsAdded + '\n';
@@ -4599,12 +4599,12 @@ async function mergeFromCloud() {
 
         const totalAdded = mergeStats.employeesAdded + mergeStats.payrollRunsAdded + (mergeStats.usersAdded||0);
         if (totalAdded === 0 && !mergeStats.settingsMerged) {
-            summary += '\nNo new data found — your local data already contains everything from the cloud.';
+            summary += '\nNo new data found — this computer already has everything.';
         } else {
-            summary += '\nTip: Save to Cloud to push the merged data back for other users.';
+            summary += '\nTip: use Send My Changes to share the merged data with other users.';
         }
 
-        const savedByInfo = backupData.savedBy ? '\nCloud backup was saved by: ' + backupData.savedBy : '';
+        const savedByInfo = backupData.savedBy ? '\nShared copy was saved by: ' + backupData.savedBy : '';
         summary += savedByInfo;
 
         alert(summary);
@@ -4614,10 +4614,10 @@ async function mergeFromCloud() {
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('Your session has expired. Please reconnect to Google Drive.');
+            alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert('Failed to merge from cloud: ' + error.message);
+            alert('Could not merge: ' + error.message);
         }
     }
 }
@@ -4625,7 +4625,7 @@ async function mergeFromCloud() {
 // ============ BROWSE CLOUD FOLDER ============
 async function browseCloudFolder() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -4637,13 +4637,13 @@ async function browseCloudFolder() {
         <div id="browseCloudModal" class="browse-cloud-modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>📂 Cloud Folder — All Backups</h2>
+                    <h2>📂 All Backups</h2>
                     <button class="close-btn" onclick="closeBrowseCloudModal()">&times;</button>
                 </div>
                 <div class="browse-body" id="browseCloudBody">
                     <div class="browse-loading">
-                        <span style="font-size:1.5rem;display:block;margin-bottom:0.5rem;">☁️</span>
-                        Loading files from Google Drive...
+                        <span style="font-size:1.5rem;display:block;margin-bottom:0.5rem;">🔄</span>
+                        Loading backup files...
                     </div>
                 </div>
             </div>
@@ -4661,7 +4661,7 @@ async function browseCloudFolder() {
 
         if (!response.ok) {
             if (response.status === 401) {
-                throw new Error('Session expired. Please reconnect to Google Drive.');
+                throw new Error('Session expired. Please reconnect to keep syncing.');
             }
             throw new Error('Failed to list files (HTTP ' + response.status + ')');
         }
@@ -4673,8 +4673,8 @@ async function browseCloudFolder() {
             body.innerHTML = `
                 <div class="browse-empty">
                     <span style="font-size:2rem;display:block;margin-bottom:0.5rem;">📭</span>
-                    No files found in the cloud folder.<br>
-                    <span style="font-size:0.8rem;color:var(--text-muted);">Use "Save to Cloud" to create your first backup.</span>
+                    No backup files found yet.<br>
+                    <span style="font-size:0.8rem;color:var(--text-muted);">Use "Send My Changes" to create your first backup.</span>
                 </div>`;
             return;
         }
@@ -4707,7 +4707,7 @@ async function browseCloudFolder() {
         listHTML += '</ul>';
 
         listHTML += `<a class="browse-folder-link" href="https://drive.google.com/drive/folders/${GOOGLE_DRIVE_CONFIG.FOLDER_ID}" target="_blank" rel="noopener">
-            🔗 Open folder in Google Drive
+            🔗 Open the backup folder
         </a>`;
 
         body.innerHTML = listHTML;
@@ -4759,7 +4759,7 @@ async function downloadCloudFile(fileId, fileName) {
 }
 
 async function deleteCloudFile(fileId, fileName) {
-    if (!confirm('Delete "' + fileName + '" from cloud?\n\nThis cannot be undone.')) return;
+    if (!confirm('Delete "' + fileName + '" from the backups?\n\nThis cannot be undone.')) return;
 
     try {
         const response = await fetch(
@@ -4834,7 +4834,7 @@ function showCloudNotification(type, title, message, showConnect, autoDismissSec
   const el = document.createElement('div');
   el.id = 'cloudNotifyPopup';
   el.className = 'cloud-notify ' + type;
-  const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '☁️';
+  const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '🔄';
   el.innerHTML =
     '<div class="cloud-notify-bar"></div>' +
     '<div class="cloud-notify-body">' +
@@ -4880,7 +4880,7 @@ function checkCloudAndNotify(reason){
 
   if (!navigator.onLine) {
     showCloudNotification('error', 'You Are Offline',
-      'Your internet connection is unavailable. Data changes will only be saved locally. Please reconnect to sync with Google Drive.',
+      'You’re offline. Your work is kept on this computer until it syncs.',
       false, 0);
     return;
   }
@@ -4891,21 +4891,21 @@ function checkCloudAndNotify(reason){
     let detail = '';
 
     if (savedExpiry && new Date(savedExpiry) <= new Date()) {
-      detail = 'Your Google Drive session has expired.';
+      detail = 'Your sync sign-in has expired.';
     } else if (reason === 'page_load') {
-      detail = 'Google Drive is not connected.';
+      detail = 'Sync is not connected.';
     } else if (reason === 'token_expired') {
-      detail = 'Your Google Drive session has expired.';
+      detail = 'Your sync sign-in has expired.';
     } else {
-      detail = 'Google Drive connection was lost.';
+      detail = 'The sync connection was lost.';
     }
 
     if (lastSync) {
       detail += ' Last sync: ' + getTimeAgo(new Date(lastSync)) + '.';
     }
 
-    showCloudNotification('warn', 'Cloud Sync Disconnected',
-      detail + ' Your data is only saved locally. Connect to Google Drive to back up and sync your data.',
+    showCloudNotification('warn', 'Not Synced Yet',
+      detail + ' Your work is kept on this computer until it syncs. Reconnect to sync.',
       true, 30);
   }
 }
@@ -4933,7 +4933,7 @@ function startCloudMonitor(){
 // Listen for browser online/offline events
 window.addEventListener('offline', function(){
   showCloudNotification('error', 'You Are Offline',
-    'Internet connection lost. Data changes will only be saved locally until you reconnect.',
+    'Connection lost. Your work is kept on this computer until it syncs.',
     false, 0);
 });
 
@@ -4946,7 +4946,7 @@ window.addEventListener('online', function(){
     }, 1500);
   } else {
     showCloudNotification('warn', 'Back Online',
-      'Internet connection restored. Your cloud sync is active.',
+      'Back online. Sync is on.',
       false, 8);
   }
 });
@@ -5194,10 +5194,10 @@ async function handleLogin(event){
     var hasValidToken=savedToken&&savedExpiry&&new Date(savedExpiry)>new Date();
 
     if(hasValidToken){
-      document.getElementById('loginErrorText').textContent='Account not found locally. Syncing from cloud...';
+      document.getElementById('loginErrorText').textContent='Account not found on this computer. Syncing...';
       await autoSyncAndRetryLogin(username,password);
     }else{
-      document.getElementById('loginErrorText').innerHTML='<strong>Account not found</strong>. Please use "Sync from Cloud" to load your account.';
+      document.getElementById('loginErrorText').innerHTML='<strong>Account not found</strong>. Please use "Sync Now" to load your account.';
       showFirstTimeSection();
     }
     loginBtnEl.disabled=false;
@@ -5223,16 +5223,16 @@ async function autoSyncAndRetryLogin(username,password){
       else await findExistingBackupFile();
     }
     if(!cloudFileId){
-      document.getElementById('loginErrorText').textContent='No cloud backup found. Please contact your administrator.';
+      document.getElementById('loginErrorText').textContent='Nothing to sync yet. Please contact your administrator.';
       return;
     }
-    showLoginSyncOverlay('Syncing from cloud...','Checking for your account credentials');
+    showLoginSyncOverlay('Syncing...','Checking for your account credentials');
 
     var response=await fetch(
       'https://www.googleapis.com/drive/v3/files/'+cloudFileId+'?alt=media',
       {headers:{'Authorization':'Bearer '+googleAccessToken}}
     );
-    if(!response.ok)throw new Error('Failed to download from cloud');
+    if(!response.ok)throw new Error('Could not get the latest data');
     var backup=await response.json();
     if(!backup.users&&!backup.data)throw new Error('Invalid backup format');
 
@@ -5276,14 +5276,14 @@ async function autoSyncAndRetryLogin(username,password){
     }else{
       var usernameExistsAfterSync=users.find(function(u){return u.username.toLowerCase()===username.toLowerCase();});
       document.getElementById('loginErrorText').textContent=usernameExistsAfterSync
-        ?'Cloud data synced, but the password is incorrect.'
-        :'Account not found even after syncing from cloud.';
+        ?'Synced, but the password is incorrect.'
+        :'Account not found even after syncing.';
     }
   }catch(error){
     console.error('Auto-sync error:',error);
     hideLoginSyncOverlay();
     if(error.message.includes('invalid_token')||error.message.includes('Invalid Credentials')){
-      document.getElementById('loginErrorText').textContent='Cloud session expired. Please reconnect.';
+      document.getElementById('loginErrorText').textContent='Sync sign-in expired. Please reconnect.';
       CESTISStore.removeItem('schoolDashboardGoogleAccessToken');
       CESTISStore.removeItem('schoolDashboardGoogleTokenExpiry');
     }else{
@@ -5409,10 +5409,10 @@ function showConnectCloudOnLoginModal(){
   modal.id='connectCloudOnLoginModal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10001;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
   modal.innerHTML='<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:2rem;max-width:420px;width:90%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,.5)">'
-    +'<div style="font-size:2rem;margin-bottom:.75rem">☁️</div>'
-    +'<h3 style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:.5rem">Connect to Google Cloud</h3>'
-    +'<p style="font-size:.85rem;color:var(--text-dim);line-height:1.5;margin-bottom:1.25rem">To keep your data synchronized across devices, please connect to Google Drive. This ensures your payroll data is backed up and always available.</p>'
-    +'<button onclick="closeConnectCloudOnLoginModal(true)" style="display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.5rem;background:var(--primary);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(59,130,246,.3)">☁️ Connect & Sync with Google</button>'
+    +'<div style="font-size:2rem;margin-bottom:.75rem">🔄</div>'
+    +'<h3 style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:.5rem">Turn On Sync</h3>'
+    +'<p style="font-size:.85rem;color:var(--text-dim);line-height:1.5;margin-bottom:1.25rem">To keep your data the same on every computer, please turn on sync. Your payroll data is then backed up and always available.</p>'
+    +'<button onclick="closeConnectCloudOnLoginModal(true)" style="display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.5rem;background:var(--primary);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(59,130,246,.3)">🔄 Connect & Sync</button>'
     +'<button onclick="closeConnectCloudOnLoginModal(false)" style="display:block;margin:.75rem auto 0;background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;font-family:inherit">Skip for now</button>'
     +'</div>';
   document.body.appendChild(modal);
@@ -5432,9 +5432,9 @@ function showSyncOnLoginModal(){
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10001;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
   modal.innerHTML='<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:2rem;max-width:420px;width:90%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,.5)">'
     +'<div style="font-size:2rem;margin-bottom:.75rem">🔀</div>'
-    +'<h3 style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:.5rem">Sync from Cloud</h3>'
-    +'<p style="font-size:.85rem;color:var(--text-dim);line-height:1.5;margin-bottom:1.25rem">Merge the latest data from Google Drive to ensure you have the most up-to-date payroll records and user accounts.</p>'
-    +'<button id="syncOnLoginMergeBtn" onclick="closeSyncOnLoginModal(true)" style="display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.5rem;background:var(--primary);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(59,130,246,.3)">🔀 Merge from Cloud</button>'
+    +'<h3 style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:.5rem">Get Latest Changes</h3>'
+    +'<p style="font-size:.85rem;color:var(--text-dim);line-height:1.5;margin-bottom:1.25rem">Merge the latest data so you have the most up-to-date payroll records and user accounts.</p>'
+    +'<button id="syncOnLoginMergeBtn" onclick="closeSyncOnLoginModal(true)" style="display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.5rem;background:var(--primary);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(59,130,246,.3)">🔀 Merge Latest Changes</button>'
     +'<button onclick="closeSyncOnLoginModal(false)" style="display:block;margin:.75rem auto 0;background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;font-family:inherit">Skip for now</button>'
     +'</div>';
   document.body.appendChild(modal);
@@ -5452,7 +5452,7 @@ async function closeSyncOnLoginModal(shouldSync){
     updateLastSyncDisplay();
     if(typeof renderUserManagement==='function'&&currentPageName==='usermanagement')renderUserManagement();
     if(typeof renderPermissions==='function'&&currentPageName==='permissions')renderPermissions();
-    showNotification('Cloud data merged successfully!');
+    showNotification('Latest data merged successfully!');
   }else{
     if(mergeBtn){mergeBtn.disabled=false;mergeBtn.textContent='🔀 Retry Merge';}
   }
@@ -5525,7 +5525,7 @@ function toggleLoginDebug(){
     panel.style.display='block';
     var users=loadUsers();
     if(!users||users.length===0){
-      panel.innerHTML='<div style="color:var(--text-muted)">No accounts stored in browser. Use Sync with Google Cloud below to load accounts.</div>';
+      panel.innerHTML='<div style="color:var(--text-muted)">No accounts on this computer yet. Use Sync Now below to load accounts.</div>';
       return;
     }
     var html='<div style="margin-bottom:.4rem;font-weight:600;color:var(--text)">'+users.length+' stored account(s):</div>';
@@ -5552,7 +5552,7 @@ function formatSyncedUserList(users){
 function showLoginSyncOverlay(text,sub){
   var overlay=document.getElementById('loginSyncOverlay');
   if(!overlay)return;
-  document.getElementById('loginSyncOverlayText').textContent=text||'Syncing from cloud...';
+  document.getElementById('loginSyncOverlayText').textContent=text||'Syncing...';
   document.getElementById('loginSyncOverlaySub').textContent=sub||'';
   overlay.classList.add('show');
   var btn=document.getElementById('loginBtn');if(btn)btn.disabled=true;
@@ -5573,7 +5573,7 @@ function updateLoginCloudBanner(type,message){
   if(type==='synced'){icon.textContent='✅';}
   else if(type==='syncing'){icon.textContent='🔄';}
   else if(type==='error'){icon.textContent='⚠️';}
-  else{icon.textContent='☁️';}
+  else{icon.textContent='🔄';}
   text.innerHTML=message||'';
 }
 
@@ -5605,12 +5605,12 @@ function handleLogout(){
   var ftBtn=document.getElementById('ftSyncBtn');
   if(ftBtn){ftBtn.classList.remove('loading');ftBtn.disabled=false;}
   var ftLabel=document.getElementById('ftBtnLabel');
-  if(ftLabel)ftLabel.textContent='Sync with Google Cloud';
+  if(ftLabel)ftLabel.textContent='Sync Now';
   var ftStatus=document.getElementById('ftStatus');
   if(ftStatus){ftStatus.className='ft-status';ftStatus.textContent='';}
-  document.getElementById('ftCloudIcon').textContent='\u2601';
-  document.getElementById('ftTitle').textContent='Sync with Google Cloud';
-  document.getElementById('ftDesc').textContent='Sign in with Google to load your credentials and data directly from the school\'s Google Drive folder.';
+  document.getElementById('ftCloudIcon').textContent='🔄';
+  document.getElementById('ftTitle').textContent='Sync before signing in';
+  document.getElementById('ftDesc').textContent='Sign in to bring this computer up to date with your credentials and the latest payroll data.';
   document.getElementById('ftGoogleAccount').style.display='none';
   checkFirstTimeSyncPrompt();
 }
@@ -5652,7 +5652,7 @@ async function firstTimeGoogleSync(){
   btn.disabled=true;
   label.textContent='Connecting...';
   status.className='ft-status info';
-  status.textContent='Waiting for Google sign-in...';
+  status.textContent='Waiting for sign-in...';
   card.className='first-time-card connecting';
 
   var token=null;
@@ -5678,18 +5678,18 @@ async function firstTimeGoogleSync(){
     }catch(err){
       btn.classList.remove('loading');
       btn.disabled=false;
-      label.textContent='Sync with Google Cloud';
+      label.textContent='Sync Now';
       status.className='ft-status error';
-      status.textContent='Google sign-in cancelled or failed. Try again.';
+      status.textContent='Sign-in was cancelled or failed. Try again.';
       card.className='first-time-card error';
       return;
     }
   }else{
     btn.classList.remove('loading');
     btn.disabled=false;
-    label.textContent='Sync with Google Cloud';
+    label.textContent='Sync Now';
     status.className='ft-status error';
-    status.textContent='Google API not loaded. Please refresh the page.';
+    status.textContent='Sign-in could not load. Please refresh the page.';
     card.className='first-time-card error';
     return;
   }
@@ -5703,7 +5703,7 @@ async function firstTimeGoogleSync(){
       var aboutData=await aboutResp.json();
       var gUser=aboutData.user;
       if(gUser){
-        var displayName=gUser.displayName||'Google User';
+        var displayName=gUser.displayName||'Signed-in account';
         var email=gUser.emailAddress||'';
         document.getElementById('ftAccountName').textContent=displayName;
         document.getElementById('ftAccountEmail').textContent=email;
@@ -5716,7 +5716,7 @@ async function firstTimeGoogleSync(){
   // Now sync data from Google Drive
   label.textContent='Syncing data...';
   status.className='ft-status info';
-  status.textContent='Searching for backup in Google Drive...';
+  status.textContent='Looking for the latest data...';
   card.className='first-time-card syncing';
 
   try{
@@ -5740,14 +5740,14 @@ async function firstTimeGoogleSync(){
     if(!fileId){
       btn.classList.remove('loading');
       btn.disabled=false;
-      label.textContent='Sync with Google Cloud';
+      label.textContent='Sync Now';
       status.className='ft-status error';
-      status.textContent='No backup file found in Google Drive. Ask your admin to save data to cloud first.';
+      status.textContent='No shared copy yet. Ask your admin to save the data first.';
       card.className='first-time-card error';
       return;
     }
 
-    status.textContent='Downloading data from Google Drive...';
+    status.textContent='Getting the latest data...';
 
     var resp=await fetch(
       'https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',
@@ -5803,14 +5803,14 @@ async function firstTimeGoogleSync(){
       status.textContent=syncedUsers.length+' account(s) loaded. You can now sign in above.';
       card.className='first-time-card synced';
       document.getElementById('ftCloudIcon').textContent='\u2705';
-      document.getElementById('ftTitle').textContent='Cloud Data Loaded';
-      document.getElementById('ftDesc').textContent='Your credentials and payroll data have been synced from Google Drive. Enter your username and password above to sign in.';
-      updateLoginCloudBanner('synced','Cloud synced — '+formatSyncedUserList(syncedUsers)+'. Sign in above.');
+      document.getElementById('ftTitle').textContent='Data Synced';
+      document.getElementById('ftDesc').textContent='Your credentials and payroll data are synced. Enter your username and password above to sign in.';
+      updateLoginCloudBanner('synced','Synced — '+formatSyncedUserList(syncedUsers)+'. Sign in above.');
     }else{
-      label.textContent='Sync with Google Cloud';
+      label.textContent='Sync Now';
       btn.disabled=false;
       status.className='ft-status';
-      status.textContent='Connected to cloud but no user accounts found in backup.';
+      status.textContent='Synced, but no user accounts were found.';
       card.className='first-time-card';
     }
   }catch(err){
@@ -5853,13 +5853,13 @@ async function autoSyncCredentialsOnLoad(){
     // No valid token — show the First Time section unless dismissed
     var hasEverConnected=CESTISStore.getItem('schoolDashboardCloudFileId')||CESTISStore.getItem('schoolDashboardLastSyncTime');
     if(hasEverConnected){
-      updateLoginCloudBanner('error','Cloud session expired. Click <strong>Sync with Google Cloud</strong> below to reconnect.');
+      updateLoginCloudBanner('error','Sync sign-in expired. Click <strong>Sync Now</strong> below to reconnect.');
       // Show first time section with reconnect messaging
       showFirstTimeSection();
       var ftTitleEl=document.getElementById('ftTitle');
       var ftDescEl=document.getElementById('ftDesc');
-      if(ftTitleEl)ftTitleEl.textContent='Reconnect to Google Cloud';
-      if(ftDescEl)ftDescEl.textContent='Your previous session has expired. Sign in with Google again to sync the latest data from the school\'s Drive folder.';
+      if(ftTitleEl)ftTitleEl.textContent='Sync again before signing in';
+      if(ftDescEl)ftDescEl.textContent='Your previous sync sign-in has expired. Sign in again to get the latest data.';
     }else if(!dismissed){
       showFirstTimeSection();
     }else{
@@ -5872,8 +5872,8 @@ async function autoSyncCredentialsOnLoad(){
 
   // Valid token exists — hide First Time section and auto-sync silently
   hideFirstTimeSection();
-  updateLoginCloudBanner('syncing','Auto-syncing credentials from cloud...');
-  if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--text-muted)';statusEl.textContent='Auto-syncing credentials from cloud...';}
+  updateLoginCloudBanner('syncing','Auto-syncing credentials...');
+  if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--text-muted)';statusEl.textContent='Auto-syncing credentials...';}
   try{
     // Always search for the most recent backup file (clear stale cached ID)
     fileId=null;
@@ -5883,7 +5883,7 @@ async function autoSyncCredentialsOnLoad(){
       if(searchResp.ok){var searchData=await searchResp.json();if(searchData.files&&searchData.files.length>0){fileId=searchData.files[0].id;CESTISStore.setItem('schoolDashboardCloudFileId',fileId);}}
     }
     if(!fileId){
-      updateLoginCloudBanner('error','No cloud backup found. Ask your admin to save data to cloud.');
+      updateLoginCloudBanner('error','Nothing to sync yet. Ask your admin to save the data first.');
       showFirstTimeSection();
       if(statusEl){statusEl.textContent='';statusEl.style.display='none';}
       _cloudMergeCompleted=true;
@@ -5891,7 +5891,7 @@ async function autoSyncCredentialsOnLoad(){
     }
     var resp=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',{headers:{'Authorization':'Bearer '+token}});
     if(!resp.ok){
-      updateLoginCloudBanner('error','Could not reach cloud backup. Try syncing again.');
+      updateLoginCloudBanner('error','Could not sync. Try again or ask the office.');
       showFirstTimeSection();
       if(statusEl){statusEl.textContent='';statusEl.style.display='none';}
       // Do NOT release the cloud merge gate: we have a valid token and a known
@@ -5915,8 +5915,8 @@ async function autoSyncCredentialsOnLoad(){
       saveUsers(localUsers);
       usersMerged=true;
       console.log('[AutoSync] Users synced from cloud:',localUsers.length,'user(s),',added,'new');
-      updateLoginCloudBanner('synced','Cloud synced — '+formatSyncedUserList(localUsers));
-      if(statusEl){statusEl.style.color='var(--green)';statusEl.textContent='Cloud synced — '+localUsers.length+' account(s) ready';}
+      updateLoginCloudBanner('synced','Synced — '+formatSyncedUserList(localUsers));
+      if(statusEl){statusEl.style.color='var(--green)';statusEl.textContent='Synced — '+localUsers.length+' account(s) ready';}
     }
 
     // --- PAYROLL DATA MERGE — runs regardless of whether users were present in cloud ---
@@ -5950,7 +5950,7 @@ async function autoSyncCredentialsOnLoad(){
     }
 
     if(!usersMerged){
-      updateLoginCloudBanner('','Cloud connected — no user accounts in backup.');
+      updateLoginCloudBanner('','Synced — no user accounts found.');
       if(statusEl){statusEl.textContent='';statusEl.style.display='none';}
     }
     // Mark cloud merge as complete — cloud autosave is now permitted.
@@ -6049,11 +6049,11 @@ async function saveUser(){
 
   // Auto-push to cloud if connected
   if(isCloudConnected&&googleAccessToken){
-    msg+='\n\nAuto-syncing to cloud so this user can log in on other devices...';
+    msg+='\n\nAuto-syncing so this user can sign in on other computers...';
     alert(msg);
     autoSaveUsersToCloud();
   }else{
-    msg+='\n\nIMPORTANT: Connect to Cloud and Save so this user can log in on other devices.';
+    msg+='\n\nIMPORTANT: Turn on sync and save so this user can sign in on other computers.';
     alert(msg);
   }
 }
@@ -6122,7 +6122,7 @@ function renderUserManagement(){
   }else{
     html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1rem">';
     html+='<strong>Two-Factor Authentication is DISABLED</strong>';
-    html+='<p style="margin-top:.4rem;color:var(--text-dim);font-size:.82rem">Add an extra layer of security using Google Authenticator or any TOTP-compatible app.</p></div>';
+    html+='<p style="margin-top:.4rem;color:var(--text-dim);font-size:.82rem">Add an extra layer of security using an authenticator app (any TOTP-compatible app).</p></div>';
     html+='<button class="btn btn-success btn-sm" onclick="openTwoFASetup()">Enable 2FA</button>';
   }
   html+='</div>';
