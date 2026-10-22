@@ -8541,8 +8541,16 @@
       }
       if (isPlain(stored) && isPlain(inc)) {
         var added = 0;
+        // A part this device holds as an EMPTY list or object is a blank, and
+        // the backup fills it, as it fills an empty key. A page's start-up
+        // shell is exactly that: the staff appraisals write
+        // { cycles: {}, extraStaff: [], flags: {…} } when the administrator
+        // first signs in on a new PC, and restoring the Centre's backup there
+        // then kept the empty shell and left every appraisal out.
+        var hollow = function (v) { return (Array.isArray(v) && !v.length) || (isPlain(v) && !Object.keys(v).length); };
         Object.keys(inc).forEach(function (k) {
           if (!(k in stored)) { if (inc[k] !== undefined) { stored[k] = inc[k]; added++; } }
+          else if (hollow(stored[k]) && !isEmpty(inc[k])) { stored[k] = inc[k]; added++; }
           else if (JSON.stringify(stored[k]) !== JSON.stringify(inc[k])) res.kept = true;
         });
         return done(added > 0);
