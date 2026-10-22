@@ -268,6 +268,9 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     await A.fill('#adminPass', 'cestisadmin123$');
     await A.press('#adminPass', 'Enter');
     ok(await waitFor(A, () => document.getElementById('forceChangePwModal').classList.contains('active')), 'the published first-run password only leads to "set a new password"');
+    // The dialog puts the cursor in "New password" a moment after it opens; on
+    // a busy machine that landed in the middle of typing the confirmation.
+    await waitFor(A, () => document.activeElement && document.activeElement.id === 'forceChangePwNew', null, 5000);
     await A.fill('#forceChangePwNew', ADMIN_PW);
     await A.fill('#forceChangePwConfirm', ADMIN_PW);
     await A.click('#forceChangePwModal button:has-text("Set Password")');
