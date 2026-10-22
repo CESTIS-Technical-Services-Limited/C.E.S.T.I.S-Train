@@ -16175,11 +16175,17 @@ function vcHandleDataConn(conn) {
   var pid = conn.peer;
   if (vcRefusedPeers[pid]) { try { conn.close(); } catch(e) {} return; }
   var early = [];       // messages that arrive before we have decided
+  var opened = false;
   conn.on('data', function(data) {
     if (early) { early.push(data); return; }
     vcOnData(data, pid);
   });
   conn.on('open', function() {
+    // The link is set up once. A second 'open' on the same connection (seen
+    // in the end-to-end run, on the Centre's network) ran all of this again
+    // with the early messages already handed on — and threw.
+    if (opened) return;
+    opened = true;
     if (isRoomHost) {
       vcPendingConns[pid] = conn;
       conn.on('close', function() { vcOnPeerConnClosed(pid, conn); });
