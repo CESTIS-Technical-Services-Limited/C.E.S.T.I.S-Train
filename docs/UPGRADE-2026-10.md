@@ -16,9 +16,51 @@ rely on for years with as little upkeep as possible, without losing one record o
    that runs the page's real code, then each track was merged into one branch and re-tested as
    a whole.
 4. **Final review.** A data-loss reviewer and a security reviewer went over the combined result.
-   Every defect they found was fixed and pinned by a test that fails without the fix. An upgrade
-   test loads a Centre's data written by the old code into the new code in a real browser. An
-   end-to-end test drives a whole training day through the real screens.
+   Every defect they found was fixed and pinned by a test that fails without the fix.
+5. **Proof in a real browser.**
+   - **Upgrade test.** The old version (the code before this upgrade) writes a whole Centre's
+     data through its own pages: 74 stores and 815 records. Trainees, accounts, exams and
+     results, 595 weekly attendance marks, certificates, fees, cashbook, payroll, chat and more.
+     The new version then opens that data, three ways:
+     - on the same PC
+     - through the Offline System's server, with a brand-new device
+     - through Google Drive (emulated), with a brand-new device
+
+     Every record survives or is provably migrated. The attendance marks all reach the new dated
+     register with the same status, and money totals are identical.
+   - **End-to-end test.** A whole training day runs through the real screens on separate devices,
+     with no console errors in any tab:
+     1. Enrol an intake.
+     2. Hold a live class and take attendance from it.
+     3. Set and mark an assignment.
+     4. Hold an exam, with a refresh mid-exam and essay marking.
+     5. Produce the transcript PDF.
+     6. Sign a certificate, let an employer verify it, then withdraw it.
+     7. Publish an announcement and check the trainee's agenda.
+
+   These two tests found and fixed 13 more defects that no reading of the code had shown. One
+   was "Save Grades" never marking an essay. Another was a sync arriving while the Cashbook sat at
+   its sign-in screen rewriting a quarter's opening balance.
+
+**Final test results** (all run on the code as delivered):
+
+| Suite | Result |
+|---|---|
+| `npm test` | 126 suites, 10,651 checks, 0 failed |
+| `npm run test:syntax` | 236 files, 0 failed |
+| End-to-end training day (`test:browser:flows`) | 134, 0 failed |
+| Upgrade from the old version (`test:browser:upgrade`) | website 90, Offline System 77, Drive 42 — 0 failed |
+| Main smoke (`test:browser`) | 101 |
+| Security regressions | 58 |
+| Accessibility | 49 |
+| Sign-in gates | 36 |
+| School Fee | 29 |
+| Video room | 26 |
+| Offline network | 24 |
+| Certificate verification | 18 |
+| Transcripts & admin | 11 |
+
+The browser suites below the first two all passed with 0 failures.
 
 The data rules every change was held to:
 
@@ -321,11 +363,15 @@ The data rules every change was held to:
   npm run build:offline        # regenerate the Offline System (a test fails if you forget)
   NODE_PATH=/opt/node-tools/node_modules npm run test:browser   # and the other test:browser:* suites
   ```
+- **The browser suites** (`npm run test:browser`, `:flows`, `:upgrade`, `:offline`, `:auth`,
+  `:cert`, `:vc`, `:ui`, `:security`, `:transcripts`, `:fee`) need Playwright's Chromium. Set
+  `NODE_PATH` to wherever `playwright-core` is installed.
 - **Never hand-edit a generated file in `Offline System/`.** Change the root file and regenerate.
   Only the server, signalling, store, certificate, launcher and README files there are
   maintained by hand.
-- **When a shared library changes** (`cestis-core.js`, `cestis-page-cloud.js`), bump its `?v=`
-  on every page so browsers fetch the new copy. The service worker always tries the network
+- **When a shared library changes** (`cestis-core.js`, `cestis-page-cloud.js`,
+  `cestis-offline-rtc.js`, `finance-docs.js`, `staff-appraisals.js`, `cmc-portal.js`), bump its
+  `?v=` on every page so browsers fetch the new copy. They are all `?v=20261022a` as delivered. The service worker always tries the network
   first.
 - **New pure logic belongs in `cestis-core.js`** with a Node test, called from the pages. This is
   the pattern the whole upgrade follows.

@@ -26,14 +26,24 @@ migration), `docs/03-VERIFICATION.md` (gate-by-gate proof with actual outputs).
   and remote changes mirror back into legacy storage; in *legacy* mode (no broker configured,
   or migration not sealed) pages behave byte-identically to today.
 
+**October 2026 upgrade:** what changed across the whole platform, what the Centre must do before
+deploying, what is still open, and the UI and feature roadmap are in
+[`docs/UPGRADE-2026-10.md`](docs/UPGRADE-2026-10.md).
+
 ## Running the tests
 
 ```
-npm test                # 48 Node suites — schemas, broker, DAL, bootstrap, every page bridge
-npm run test:browser    # real Chromium over 14 real pages (zero uncaught errors)
-npm run test:syntax     # node --check over every standalone JS file
+npm test                       # 126 Node suites (10,000+ checks), both builds
+npm run test:syntax            # node --check over every standalone JS file
+npm run build:offline          # regenerate "Offline System/" from the root files (a test fails on drift)
+npm run test:browser           # real Chromium over the real pages (zero uncaught errors)
+npm run test:browser:flows     # a whole training day, live class to certificate, through the real screens
+npm run test:browser:upgrade   # a Centre's data written by the previous version, opened by this one
+#   ...and test:browser:offline / :auth / :cert / :vc / :ui / :security / :transcripts / :fee
 node megadata/bootstrap-cli.js --src tests/fixtures    # migration dry-run over the real (anonymised) backup
 ```
+
+The browser suites need Playwright's Chromium (`NODE_PATH` pointing at `playwright-core`).
 
 ## Setting the system up (operator checklist)
 
