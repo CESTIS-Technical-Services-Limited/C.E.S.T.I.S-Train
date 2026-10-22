@@ -833,8 +833,10 @@ function compareMaps(B, A, label, opts) {
         // (CESTISCore.chat.classRoomMembers) — so a device that has not yet
         // run that pass with the Centre's accounts, or a disabled login that
         // left, is a recomputation, not a lost record. (Checked: the new
-        // device's rooms read 25/27/24 members again at its next sign-in.)
-        const derived = d.field === 'members' && /chatRooms$/.test(k) && ((o && o.type === 'class') || (n && n.type === 'class'));
+        // device's rooms read 25/27/24 members again at its next sign-in,
+        // and the staff room its three administrators.)
+        const derivedRoom = r => r && (r.type === 'class' || r.type === 'admin');   // the staff room follows the staff roles the same way
+        const derived = d.field === 'members' && /chatRooms$/.test(k) && (derivedRoom(o) || derivedRoom(n));
         if (PROTECTED.indexOf(d.field) !== -1 && !grew && !newest && !derived) rep.changed.push(entry);
         else rep.recomputed.push(entry);
       });
