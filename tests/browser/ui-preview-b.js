@@ -1,0 +1,180 @@
+/* UI preview B, in a real browser (run manually / CI with a browser):
+     NODE_PATH=/opt/node-tools/node_modules node tests/browser/ui-preview-b.js
+   Drives the real pages in headless Chromium with the outside world cut off,
+   at a desktop size and at a 390-pixel phone, and checks what the owner was
+   shown in the preview screenshots:
+     - item 4: a sign-in failure is said under the card's own fields (no
+       pop-up), the top bar names who is signed in, Lock covers the session
+       with the idle lock, and the "sync first" note is there;
+   Every page is checked for page errors, console errors and sideways
+   scrolling on the phone.
+   Kept out of the default npm test chain because it needs a browser. */
+'use strict';
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const { chromium } = require('playwright-core');
+
+const ROOT = path.join(__dirname, '..', '..');
+const EXE = process.env.CESTIS_CHROME || '/opt/pw-browsers/chromium';
+let passed = 0, failed = 0;
+function ok(cond, msg) { if (cond) passed++; else { failed++; console.log('  ✗ FAIL: ' + msg); } return !!cond; }
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png' };
+function serve() {
+  return new Promise((resolve) => {
+    const srv = http.createServer((req, res) => {
+      const p = decodeURIComponent(req.url.split('?')[0]);
+      const file = path.normalize(path.join(ROOT, p === '/' ? 'index.html' : p));
+      if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('nope'); }
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
+      fs.createReadStream(file).pipe(res);
+    });
+    srv.listen(0, '127.0.0.1', () => resolve(srv));
+  });
+}
+const VIEWPORTS = {
+  desktop: { viewport: { width: 1366, height: 768 } },
+  phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
+};
+const PW = { admin: 'Centre-Office-2026!', staff: 'Staff-Pass-2026!' };
+
+/* A Centre with real accounts (each with a password of its own). */
+async function seedAccounts(PW) {
+  const now = new Date().toISOString();
+  const add = async (u) => {
+    const pw = u.pw; delete u.pw;
+    if (userAccounts.some(x => x.id === u.id)) return;
+    userAccounts.push(Object.assign({ status: 'active', createdAt: '2026-04-02', updatedAt: now }, u, { password: await hashPassword(pw) }));
+  };
+  await add({ id: 'USR-MTH', name: 'Marcia Thompson', role: 'admin', username: 'mthompson', pw: PW.admin });
+  await add({ id: 'USR-KGO', name: 'Kemar Gordon', role: 'instructor', username: 'kgordon', programme: 'Electrical Installation', status: 'disabled', pw: PW.staff });
+  await add({ id: 'USR-SWI', name: 'Shanice Williams', role: 'student', username: 'shanice.w', programme: 'Cosmetology', status: 'pending', pw: PW.staff });
+  saveState();
+  try { persistUserAccounts(); } catch (e) {}
+  await new Promise(r => setTimeout(r, 300));
+}
+
+(async function main() {
+  const srv = await serve();
+  const base = 'http://127.0.0.1:' + srv.address().port;
+  const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
+  async function fresh(kind) {
+    const ctx = await browser.newContext(Object.assign({ timezoneId: 'America/Jamaica' }, VIEWPORTS[kind || 'desktop']));
+    await ctx.route('**/*', r => r.request().url().startsWith(base) ? r.continue() : r.abort());
+    ctx.errors = []; ctx.consoleErrors = [];
+    return ctx;
+  }
+  async function open(ctx, rel, settle) {
+    const page = await ctx.newPage();
+    page.on('pageerror', e => ctx.errors.push(rel + ': ' + String(e.message)));
+    page.on('console', m => {
+      if (m.type() !== 'error') return;
+      const t = m.text(), u = (m.location() || {}).url || '';
+      // The outside world is cut off on purpose (Google, the CDNs, the public
+      // video/chat relay), and the service worker's kill-switch file is absent by design.
+      if (/^Failed to load resource/.test(t) && (!u.startsWith(base) || /sw-disable|_cestis/.test(u))) return;
+      if (/^WebSocket connection to 'wss?:\/\/(?!127\.0\.0\.1)/.test(t)) return;
+      ctx.consoleErrors.push(rel + ': ' + t.slice(0, 200));
+    });
+    page.on('dialog', d => d.dismiss().catch(() => {}));
+    await page.goto(base + '/' + rel, { waitUntil: 'load' });
+    await page.waitForTimeout(settle || 1500);
+    return page;
+  }
+  async function seeded(ctx) {
+    const page = await open(ctx, 'index.html');
+    await page.evaluate(seedAccounts, PW);
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForTimeout(1500);
+    return page;
+  }
+  async function cardSignIn(page, card, user, pass) {
+    if (!(await page.evaluate(c => document.getElementById(c + 'Login').classList.contains('active'), card))) {
+      await page.click('#' + card + 'Card .role-enter-btn');
+      await page.waitForTimeout(200);
+    }
+    await page.fill('#' + card + 'User', user);
+    await page.fill('#' + card + 'Pass', pass);
+    await page.press('#' + card + 'Pass', 'Enter');
+    await page.waitForTimeout(900);
+  }
+  const noSideways = page => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
+  const popups = page => page.evaluate(() => document.querySelectorAll('.cestis-alert-overlay.active').length);
+
+  try {
+    /* ------------------------------------------------ item 4: sign-in feedback */
+    for (const kind of ['desktop', 'phone']) {
+      console.log('Item 4 (' + kind + '): sign-in failures are said under the card');
+      const ctx = await fresh(kind);
+      const page = await seeded(ctx);
+      await cardSignIn(page, 'admin', 'mthompson', 'not-the-password');
+      let r = await page.evaluate(() => ({ text: document.getElementById('adminLoginError').innerText, shown: !document.getElementById('adminLoginError').hidden,
+        role: document.getElementById('adminLoginError').getAttribute('role'), invalid: document.getElementById('adminPass').getAttribute('aria-invalid'),
+        shell: document.getElementById('appShell').classList.contains('active') }));
+      ok(r.shown && r.text === 'Password incorrect for "mthompson".', kind + ': a wrong password is said under the Administrator card (got "' + r.text + '")');
+      ok(r.role === 'alert' && r.invalid === 'true', kind + ': announced (role=alert) and the field is marked invalid');
+      ok(!r.shell && (await popups(page)) === 0, kind + ': no pop-up, and nobody is signed in');
+      ok(await noSideways(page), kind + ': no sideways scrolling on the sign-in screen with the message showing');
+      await page.type('#adminPass', 'x');
+      ok(await page.evaluate(() => document.getElementById('adminLoginError').hidden), kind + ': typing again clears the message');
+      await cardSignIn(page, 'instructor', 'kgordon', PW.staff);
+      ok(/has been disabled/.test(await page.evaluate(() => document.getElementById('instructorLoginError').innerText)), kind + ': a switched-off account is said under its card');
+      await cardSignIn(page, 'student', 'shanice.w', PW.staff);
+      ok(/awaiting approval/.test(await page.evaluate(() => document.getElementById('studentLoginError').innerText)) &&
+        !(await page.evaluate(() => !!document.getElementById('pendingApprovalScreen'))), kind + ': a registration still waiting is said under its card (no "Thank you for registering")');
+      await cardSignIn(page, 'admin', 'cestisadmin', 'cestisadmin123$');
+      ok(/default password published/.test(await page.evaluate(() => document.getElementById('adminLoginError').innerText)), kind + ': the published default, refused, is said under the card');
+      ok((await popups(page)) === 0, kind + ': none of them raised a pop-up');
+
+      console.log('Item 4 (' + kind + '): the top bar names who is signed in; Lock covers the session');
+      await cardSignIn(page, 'admin', 'mthompson', PW.admin);
+      await page.waitForFunction(() => document.getElementById('appShell').classList.contains('active'), null, { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(800);
+      r = await page.evaluate(() => {
+        const box = document.getElementById('topbarWho').getBoundingClientRect(), lock = document.getElementById('topbarLockBtn').getBoundingClientRect();
+        return { name: document.getElementById('topbarWhoName').textContent, role: document.getElementById('topbarWhoRole').textContent,
+          label: document.getElementById('topbarWho').getAttribute('aria-label'), avatar: document.getElementById('topbarWhoAvatar').textContent,
+          inView: box.width > 0 && box.right <= innerWidth && lock.width > 0 && lock.right <= innerWidth, vw: innerWidth };
+      });
+      ok(r.name === 'Marcia Thompson' && r.role === 'Administrator' && r.avatar === 'MT', kind + ': the top bar says Marcia Thompson, Administrator');
+      ok(r.label === 'Signed in as Marcia Thompson (Administrator)', kind + ': and says so to a screen reader');
+      ok(r.inView, kind + ': the who block and Lock are on screen');
+      ok(await noSideways(page), kind + ': no sideways scrolling on the dashboard');
+      await page.click('#topbarLockBtn');
+      await page.waitForTimeout(400);
+      r = await page.evaluate(() => ({ locked: _sessionLocked, open: document.getElementById('idleLockModal').classList.contains('active'),
+        why: document.getElementById('idleLockWhy').textContent, focus: document.activeElement && document.activeElement.id,
+        beat: CESTISStore.getItem('voctrain_sessionSeenAt') }));
+      ok(r.locked && r.open && r.why === 'You locked this session.', kind + ': Lock opens the session lock at once, saying the person locked it');
+      ok(r.focus === 'idleLockPassword' && !r.beat, kind + ': the password box has focus and the session stops lending itself to new tabs');
+      await page.keyboard.press('Escape');
+      ok(await page.evaluate(() => document.getElementById('idleLockModal').classList.contains('active')), kind + ': Escape does not walk past it');
+      await page.fill('#idleLockPassword', PW.admin);
+      await page.press('#idleLockPassword', 'Enter');
+      await page.waitForTimeout(500);
+      ok(await page.evaluate(() => !_sessionLocked && !document.getElementById('idleLockModal').classList.contains('active')), kind + ': the right password opens it again');
+
+      console.log('Item 4 (' + kind + '): a new computer explains "Sync Now"');
+      const ctx2 = await fresh(kind);
+      const p2 = await open(ctx2, 'index.html');
+      r = await p2.evaluate(() => { const d = document.getElementById('loginSyncWhy'); return { there: !!d, closed: d && !d.open, text: d && d.textContent }; });
+      ok(r.there && r.closed && /Offline System/.test(r.text) && /No Google access\?/.test(r.text), kind + ': the closed "why sync first" note is under the sync bar');
+      await p2.click('#loginSyncWhy summary');
+      ok(await p2.evaluate(() => document.getElementById('loginSyncWhy').open), kind + ': and opens when pressed');
+      ok(await noSideways(p2), kind + ': no sideways scrolling with it open');
+      ok(ctx.errors.length + ctx2.errors.length === 0, kind + ': no page errors — got: ' + ctx.errors.concat(ctx2.errors).join(' | '));
+      ok(ctx.consoleErrors.length + ctx2.consoleErrors.length === 0, kind + ': no console errors — got: ' + ctx.consoleErrors.concat(ctx2.consoleErrors).join(' | '));
+      await ctx.close(); await ctx2.close();
+    }
+
+    /* ------------------------------------------------ (later items append here) */
+  } catch (e) {
+    failed++;
+    console.log('  ✗ harness: ' + (e && e.stack || e));
+  } finally {
+    await browser.close();
+    srv.close();
+  }
+  console.log('\n' + passed + ' passed, ' + failed + ' failed');
+  process.exit(failed ? 1 : 0);
+})();

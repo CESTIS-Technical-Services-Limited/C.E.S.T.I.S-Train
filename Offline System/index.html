@@ -790,6 +790,25 @@ body::-webkit-scrollbar { width:0; display:none; }
 }
 .login-sync-status.success { color:var(--green); }
 .login-sync-status.error { color:var(--red); }
+/* "Why sync first?" — a closed note under the sync bar for staff. */
+.login-sync-why {
+  position:relative; z-index:2; max-width:600px; width:100%; margin:-16px auto 26px;
+  font-size:12.5px; color:var(--text-secondary); text-align:left;
+  background:rgba(26,35,50,0.6); border:1px solid var(--border-light); border-radius:var(--radius-sm);
+}
+.login-sync-why summary { cursor:pointer; padding:9px 14px; color:var(--accent); font-weight:600; list-style-position:inside; }
+.login-sync-why summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:var(--radius-sm); }
+.login-sync-why ul { margin:0; padding:0 16px 12px 32px; line-height:1.5; }
+.login-sync-why li { margin-top:6px; }
+.login-sync-why strong { color:var(--text-primary); }
+/* A sign-in message, under the card's own fields (replaces the pop-ups). */
+.role-login-error {
+  margin:2px 0 10px; padding:9px 11px; border-radius:var(--radius-sm);
+  background:var(--red-dim); border:1px solid rgba(231,76,60,0.45); color:#ffb4ab;
+  font-size:12.5px; line-height:1.45; white-space:pre-line; text-align:left;
+}
+.role-login-error[hidden] { display:none; }
+.role-login input[aria-invalid="true"] { border-color:rgba(231,76,60,0.7); }
 
 /* LOGIN FORM ON ROLE CARD */
 .role-login {
@@ -963,6 +982,23 @@ body::-webkit-scrollbar { width:0; display:none; }
   transition:all var(--transition);
 }
 .logout-btn:hover { background:rgba(231,76,60,0.2); }
+/* Who is signed in, and the Lock button beside Sign Out. */
+.topbar-who { display:none; align-items:center; gap:8px; min-width:0; max-width:220px; }
+.topbar-who.on { display:flex; }
+.topbar-who-avatar {
+  width:28px; height:28px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; color:#000; background:linear-gradient(135deg,var(--accent),var(--orange));
+}
+.topbar-who-text { display:flex; flex-direction:column; min-width:0; line-height:1.2; }
+.topbar-who-name { font-size:12.5px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.topbar-who-role { font-size:11px; color:var(--text-muted); white-space:nowrap; }
+.topbar-lock-btn {
+  display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); border:1px solid var(--border-light);
+  color:var(--text-primary); padding:7px 12px; border-radius:var(--radius-sm); font-size:12px; font-weight:600;
+  font-family:'DM Sans',sans-serif; cursor:pointer; transition:all var(--transition);
+}
+.topbar-lock-btn:hover { background:rgba(255,255,255,0.1); border-color:var(--accent); color:var(--accent); }
+@media (max-width:1100px) { .topbar-who-text { display:none; } }
 
 /* MAIN */
 .main-content {
@@ -2579,6 +2615,14 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   /* Logout button: icon only */
   .logout-btn { padding:7px 10px; font-size:0; gap:0; }
   .logout-btn svg { width:16px; height:16px; }
+  /* Lock: icon only; who is signed in shows as initials (the name is in its
+     tooltip and in the menu's own footer). The page title gives way first. */
+  .topbar-lock-btn { padding:7px 8px; }
+  .topbar-lock-label { display:none; }
+  .topbar-title { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .topbar-right { gap:4px; }
+  .topbar .topbar-btn { width:32px; }
+  .topbar-who-avatar { width:26px; height:26px; font-size:10px; }
 
   /* Main content: reduce padding, prevent horizontal overflow */
   .main-content { padding:16px 12px; overflow-x:hidden; }
@@ -4126,6 +4170,17 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       </div>
       <button class="login-sync-btn" id="loginSyncBtn" onclick="loginPageSync()">Sync Now</button>
     </div>
+    <!-- What "Sync Now" is for, in plain words, for staff meeting it on a new
+         or shared computer. Closed by default; nothing here changes the step. -->
+    <details class="login-sync-why" id="loginSyncWhy">
+      <summary>Staff: why “Sync Now” comes first — and what to do without Google</summary>
+      <ul>
+        <li><strong>What it is.</strong> Sync Now copies the Centre’s latest accounts and records onto this computer before anyone signs in.</li>
+        <li><strong>Why.</strong> So you sign in with your current password, and nobody works on an old copy that could overwrite a colleague’s work.</li>
+        <li><strong>On the Centre’s own network</strong> (the Offline System): just press Sync Now. It reads the Centre’s server — no Google account or internet is needed.</li>
+        <li><strong>No Google access?</strong> Ask the office to sign this computer in once with the Centre’s Google account. After that it keeps the accounts, and the sign-in buttons stay on.</li>
+      </ul>
+    </details>
 
     <div class="role-cards sync-pending">
       <!-- ADMIN CARD -->
@@ -4145,8 +4200,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           </div>
           <div class="form-group">
             <label for="adminPass">Password</label>
-            <input type="password" placeholder="••••••••" id="adminPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="adminPass" name="password" autocomplete="current-password" aria-describedby="adminLoginError">
           </div>
+          <div class="role-login-error" id="adminLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('admin')">Forgot password?</button>
         </div>
         <button type="submit" class="role-enter-btn">Enter as Admin →</button>
@@ -4166,8 +4222,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           </div>
           <div class="form-group">
             <label for="studentPass">Password</label>
-            <input type="password" placeholder="••••••••" id="studentPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="studentPass" name="password" autocomplete="current-password" aria-describedby="studentLoginError">
           </div>
+          <div class="role-login-error" id="studentLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('student')">Forgot password?</button>
           <div class="gmail-divider">or</div>
           <button class="gmail-btn" type="button" onclick="gmailSignIn('student')">
@@ -4193,8 +4250,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           </div>
           <div class="form-group">
             <label for="instructorPass">Password</label>
-            <input type="password" placeholder="••••••••" id="instructorPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="instructorPass" name="password" autocomplete="current-password" aria-describedby="instructorLoginError">
           </div>
+          <div class="role-login-error" id="instructorLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('instructor')">Forgot password?</button>
           <div class="gmail-divider">or</div>
           <button class="gmail-btn" type="button" onclick="gmailSignIn('instructor')">
@@ -4220,8 +4278,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           </div>
           <div class="form-group">
             <label for="adminStaffPass">Password</label>
-            <input type="password" placeholder="••••••••" id="adminStaffPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="adminStaffPass" name="password" autocomplete="current-password" aria-describedby="adminStaffLoginError">
           </div>
+          <div class="role-login-error" id="adminStaffLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('adminstaff')">Forgot password?</button>
         </div>
         <button type="submit" class="role-enter-btn">Enter as Admin Staff →</button>
@@ -4241,8 +4300,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           </div>
           <div class="form-group">
             <label for="cmcPass">Password</label>
-            <input type="password" placeholder="••••••••" id="cmcPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="cmcPass" name="password" autocomplete="current-password" aria-describedby="cmcLoginError">
           </div>
+          <div class="role-login-error" id="cmcLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('cmc')">Forgot password?</button>
         </div>
         <button type="submit" class="role-enter-btn">Enter as CMC Board →</button>
@@ -4524,6 +4584,16 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       <button class="topbar-btn" title="Two-Step Verification" onclick="tfaOpenManage()" aria-label="Two-Step Verification">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
       </button>
+      <!-- Who is signed in on this computer, and a Lock that covers the
+           session at once (the same lock the idle timer uses). -->
+      <div class="topbar-who" id="topbarWho" title="Signed in">
+        <span class="topbar-who-avatar" id="topbarWhoAvatar" aria-hidden="true"></span>
+        <span class="topbar-who-text"><span class="topbar-who-name" id="topbarWhoName"></span><span class="topbar-who-role" id="topbarWhoRole"></span></span>
+      </div>
+      <button type="button" class="topbar-lock-btn" id="topbarLockBtn" onclick="lockSessionNow()" aria-label="Lock this computer" title="Lock — cover this session until your password is entered">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span class="topbar-lock-label">Lock</span>
+      </button>
       <button class="logout-btn" onclick="logout()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Sign Out
@@ -4797,7 +4867,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 <div class="modal-overlay" id="idleLockModal" style="z-index:1250;">
   <div class="modal" style="max-width:420px;">
     <div class="modal-header"><h3>Session Locked</h3></div>
-    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">This session was left idle, so it has been locked. Enter the password for <strong id="idleLockWho"></strong> to carry on, or sign out.</p>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;"><span id="idleLockWhy">This session was left idle, so it has been locked.</span> Enter the password for <strong id="idleLockWho"></strong> to carry on, or sign out.</p>
     <div class="form-group"><label>Password</label><input type="password" class="form-control" id="idleLockPassword" autocomplete="current-password" onkeydown="if(event.key==='Enter')idleLockUnlock()"></div>
     <div id="idleLockError" class="tfa-error" style="display:none;"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
@@ -7515,7 +7585,16 @@ function sessionHeartbeat() {
   if(st === 'lock' && !_sessionLocked) openIdleLock();
   else if(st === 'warn' && !_sessionWarned) { _sessionWarned = true; showToast('Your session ends in about two minutes — save your work, then sign in again.', 'warning'); }
 }
-function openIdleLock() {
+/* The top bar's Lock: the same cover the idle timer puts up, at once — for a
+   shared lab PC its owner is stepping away from. Nothing about the lock
+   itself is different; only its first line says why it is there. */
+function lockSessionNow() {
+  if(!currentRole || _sessionLocked) return;
+  openIdleLock(true);
+}
+function openIdleLock(byChoice) {
+  var why = document.getElementById('idleLockWhy');
+  if(why) why.textContent = byChoice ? 'You locked this session.' : 'This session was left idle, so it has been locked.';
   _sessionLocked = true;
   // Withdraw the heartbeat at once: no new tab may borrow this session while
   // it is locked (the record pages refuse without a fresh one).
@@ -10260,15 +10339,52 @@ function switchSettingsTab(tab, which) {
   if(which === 'maintenance') loadMaintenanceModeUI();
 }
 
+/* Sign-in messages appear under the card's own fields, announced to screen
+   readers (role="alert"), instead of a pop-up that covered the very form the
+   person had to correct — and on a phone hid where they were. The words and
+   every check are exactly the ones the pop-ups used; only where they appear
+   has changed. A card that is not on screen (the maintenance page's own
+   administrator access) still gets the pop-up. card: 'admin', 'student',
+   'instructor', 'adminStaff' or 'cmc'. */
+var SIGNIN_CARD_FOR_ROLE = { admin: 'admin', student: 'student', instructor: 'instructor', adminstaff: 'adminStaff', cmc: 'cmc' };
+function signInSay(card, msg) {
+  var box = null, shown = false;
+  try {
+    box = document.getElementById(card + 'LoginError');
+    var panel = document.getElementById(card + 'Login');
+    shown = !!(box && panel && panel.getClientRects && panel.getClientRects().length);
+  } catch(e) { shown = false; }
+  if(!shown) { alert(msg); return; }
+  box.textContent = String(msg == null ? '' : msg);
+  box.hidden = false;
+  try { var pass = document.getElementById(card + 'Pass'); if(pass) pass.setAttribute('aria-invalid', 'true'); } catch(e) {}
+}
+function signInQuiet(card) {
+  try {
+    var box = document.getElementById(card + 'LoginError');
+    if(box) { box.hidden = true; box.textContent = ''; }
+    var pass = document.getElementById(card + 'Pass');
+    if(pass && pass.removeAttribute) pass.removeAttribute('aria-invalid');
+  } catch(e) {}
+}
+// Typing again clears the message that was about the last attempt.
+try {
+  document.addEventListener('input', function(e) {
+    var form = e.target && e.target.closest ? e.target.closest('.role-login') : null;
+    if(form && form.id) signInQuiet(form.id.replace(/Login$/, ''));
+  });
+} catch(e) {}
+
 var adminLoginShown = false, studentLoginShown = false, instructorLoginShown = false, adminStaffLoginShown = false, cmcLoginShown = false;
-function requireLoginSync() {
+function requireLoginSync(card) {
   if(loginSyncCompleted) return false;
   // Allow login if user accounts exist locally (beyond the 3 system defaults)
   var hasLocalAccounts = userAccounts.length > 3 || userAccounts.some(function(u) {
     return u.id !== 'USR-001' && u.id !== 'USR-011' && u.id !== 'USR-021';
   });
   if(hasLocalAccounts) { loginSyncCompleted = true; return false; }
-  alert('Please sync from Cloud first before signing in.\n\nClick the "Sync Now" button at the top of the page to pull the latest data.');
+  var _syncFirst = 'Please sync from Cloud first before signing in.\n\nClick the "Sync Now" button at the top of the page to pull the latest data.';
+  if(card) signInSay(card, _syncFirst); else alert(_syncFirst);
   var bar = document.getElementById('loginSyncBar');
   if(bar) { bar.style.animation = 'none'; bar.offsetHeight; bar.style.animation = 'fadeSlideDown 0.4s ease'; }
   return true;
@@ -10299,13 +10415,14 @@ async function handleAdminClick() {
       document.getElementById('adminUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('admin');
+    if(requireLoginSync('admin')) return;
     var uname = document.getElementById('adminUser').value.trim();
     var pw = document.getElementById('adminPass').value;
-    if(!uname || !pw) { alert('Please enter both username and password.'); return; }
+    if(!uname || !pw) { signInSay('admin', 'Please enter both username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('admin', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var adminUser = await findLoginAccount('admin', uname);
     // Diagnostic (no secrets): helps distinguish "account not loaded" from "wrong
     // password" when investigating login failures. Safe to leave in.
@@ -10314,14 +10431,14 @@ async function handleAdminClick() {
         + ' adminUsernames=' + JSON.stringify(userAccounts.filter(function(u){return u.role==='admin';}).map(function(u){return u.username;}))
         + ' matchedAccount=' + (adminUser?('yes(id='+adminUser.id+', pwFormat='+((adminUser.password||'').indexOf('pbkdf2$')===0?'pbkdf2':(/^[a-f0-9]{64}$/.test(adminUser.password||'')?'legacy-sha256':'plaintext'))+', hasPlainCache='+(!!adminUser._plaintextPw)+')'):'NO'));
     } catch(_) {}
-    if(!adminUser) { recordLoginFailure(uname); alert('No admin account found for "' + uname + '" on this device. Try username: cestisadmin — or use "Sync Now" first to pull accounts.'); return; }
-    if(loginBlocked(adminUser, { contact: 'a system administrator' })) return;
+    if(!adminUser) { recordLoginFailure(uname); signInSay('admin', 'No admin account found for "' + uname + '" on this device. Try username: cestisadmin — or use "Sync Now" first to pull accounts.'); return; }
+    if(loginBlocked(adminUser, { contact: 'a system administrator', card: 'admin' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, adminUser);
     try { console.log('[Login][admin] pwMatch=' + pwMatch); } catch(_) {}
-    if(!pwMatch) { recordLoginFailure(uname); alert('Password incorrect for "' + uname + '".'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('admin', 'Password incorrect for "' + uname + '".'); return; }
     clearLoginFailures(uname);
     publishedDefaultGate(adminUser, pw, 'admin', function(){ tfaGateLogin(adminUser, function(){ currentLoggedInUser = adminUser; lanHostTicket(adminUser, pw); enterApp('admin'); }); });
-  } catch(err) { console.error('handleAdminClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleAdminClick error:', err); signInSay('admin', 'Error: ' + err.message); }
 }
 async function handleStudentClick() {
   try {
@@ -10331,24 +10448,25 @@ async function handleStudentClick() {
       document.getElementById('studentUser').focus();
       return;
     }
+    signInQuiet('student');
     // Students must also sync before login to prevent data loss
-    if(requireLoginSync()) return;
+    if(requireLoginSync('student')) return;
     var uname = (document.getElementById('studentUser').value || '').trim();
     var pw = document.getElementById('studentPass').value;
-    if(!uname || !pw) { alert('Please enter your email/username and password.'); return; }
+    if(!uname || !pw) { signInSay('student', 'Please enter your email/username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('student', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     // Look up in userAccounts — falls back to fetching accounts from Google
     // Drive when the account was created on another device
     var userAccount = await findLoginAccount('student', uname);
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid email/username or password. If you are a new student, please register first.'); return;
+      signInSay('student', 'Invalid email/username or password. If you are a new student, please register first.'); return;
     }
-    if(loginBlocked(userAccount)) return;
+    if(loginBlocked(userAccount, { card: 'student' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid email/username or password. If you are a new student, please register first.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('student', 'Invalid email/username or password. If you are a new student, please register first.'); return; }
     clearLoginFailures(uname);
     // Find matching student data — try studentDataId, then the trainee's stable
     // id, then their name.
@@ -10365,7 +10483,7 @@ async function handleStudentClick() {
       // A trainee the Centre deleted does not get a fresh record (and the
       // whole portal) just by signing in with a login that outlived them.
       if(studentAccountTombstoned(userAccount)) {
-        alert('This trainee record has been removed by the Centre. Please contact the office.');
+        signInSay('student', 'This trainee record has been removed by the Centre. Please contact the office.');
         return;
       }
       // Genuinely no record for this trainee — create one.
@@ -10383,7 +10501,7 @@ async function handleStudentClick() {
       if(savedStuProfile.name) { studentMatch.name = savedStuProfile.name; userAccount.name = savedStuProfile.name; }
     }
     publishedDefaultGate(userAccount, pw, 'student', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('student'); }); });
-  } catch(err) { console.error('handleStudentClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleStudentClick error:', err); signInSay('student', 'Error: ' + err.message); }
 }
 async function handleInstructorClick() {
   try {
@@ -10393,21 +10511,22 @@ async function handleInstructorClick() {
       document.getElementById('instructorUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('instructor');
+    if(requireLoginSync('instructor')) return;
     var uname = (document.getElementById('instructorUser').value || '').trim();
     var pw = document.getElementById('instructorPass').value;
-    if(!uname || !pw) { alert('Please enter your email/username and password.'); return; }
+    if(!uname || !pw) { signInSay('instructor', 'Please enter your email/username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('instructor', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('instructor', uname);
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid email/username or password.'); return;
+      signInSay('instructor', 'Invalid email/username or password.'); return;
     }
-    if(loginBlocked(userAccount)) return;
+    if(loginBlocked(userAccount, { card: 'instructor' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid email/username or password.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('instructor', 'Invalid email/username or password.'); return; }
     clearLoginFailures(uname);
     var insMatch = findInstructorRecordForAccount(userAccount);
     if(!insMatch) {
@@ -10423,7 +10542,7 @@ async function handleInstructorClick() {
       if(savedInsProfile.specialization) insMatch.specialization = savedInsProfile.specialization;
     }
     publishedDefaultGate(userAccount, pw, 'instructor', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; lanHostTicket(userAccount, pw); enterApp('instructor'); }); });
-  } catch(err) { console.error('handleInstructorClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleInstructorClick error:', err); signInSay('instructor', 'Error: ' + err.message); }
 }
 async function handleAdminStaffClick() {
   try {
@@ -10433,24 +10552,25 @@ async function handleAdminStaffClick() {
       document.getElementById('adminStaffUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('adminStaff');
+    if(requireLoginSync('adminStaff')) return;
     var uname = (document.getElementById('adminStaffUser').value || '').trim();
     var pw = document.getElementById('adminStaffPass').value;
-    if(!uname || !pw) { alert('Please enter your username and password.'); return; }
+    if(!uname || !pw) { signInSay('adminStaff', 'Please enter your username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('adminStaff', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('adminstaff', uname);
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid username or password.'); return;
+      signInSay('adminStaff', 'Invalid username or password.'); return;
     }
-    if(loginBlocked(userAccount, { contact: 'the System Administrator' })) return;
+    if(loginBlocked(userAccount, { contact: 'the System Administrator', card: 'adminStaff' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('adminStaff', 'Invalid username or password.'); return; }
     clearLoginFailures(uname);
     publishedDefaultGate(userAccount, pw, 'adminstaff', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; lanHostTicket(userAccount, pw); enterApp('adminstaff'); }); });
-  } catch(err) { console.error('handleAdminStaffClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleAdminStaffClick error:', err); signInSay('adminStaff', 'Error: ' + err.message); }
 }
 
 async function handleCmcClick() {
@@ -10461,24 +10581,25 @@ async function handleCmcClick() {
       document.getElementById('cmcUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('cmc');
+    if(requireLoginSync('cmc')) return;
     var uname = (document.getElementById('cmcUser').value || '').trim();
     var pw = document.getElementById('cmcPass').value;
-    if(!uname || !pw) { alert('Please enter your username and password.'); return; }
+    if(!uname || !pw) { signInSay('cmc', 'Please enter your username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('cmc', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('cmc', uname);
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid username or password.'); return;
+      signInSay('cmc', 'Invalid username or password.'); return;
     }
-    if(loginBlocked(userAccount, { contact: 'the System Administrator' })) return;
+    if(loginBlocked(userAccount, { contact: 'the System Administrator', card: 'cmc' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('cmc', 'Invalid username or password.'); return; }
     clearLoginFailures(uname);
     publishedDefaultGate(userAccount, pw, 'cmc', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('cmc'); }); });
-  } catch(err) { console.error('handleCmcClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleCmcClick error:', err); signInSay('cmc', 'Error: ' + err.message); }
 }
 
 // ============================================================
@@ -11172,9 +11293,35 @@ function lanHostTicketAfterSave(account, pw) {
 function publishedDefaultGate(account, typedPw, role, proceed) {
   if(!CESTISCore.accountAccess.isPublishedDefault(typedPw)) { proceed(); return; }
   var res = CESTISCore.accountAccess.publishedDefaultLogin(userAccounts, account);
-  if(!res.allowed) { alert(res.message); return; }
+  if(!res.allowed) {
+    // Said under the card the person signed in from (see signInSay).
+    var _card = typeof SIGNIN_CARD_FOR_ROLE !== 'undefined' ? SIGNIN_CARD_FOR_ROLE[role] : null;
+    if(_card && typeof signInSay === 'function') signInSay(_card, res.message); else alert(res.message);
+    return;
+  }
   currentLoggedInUser = account;
   openForceChangePw(role, proceed);
+}
+/* "Marcia Thompson · Administrator" in the top bar, beside Lock and Sign Out,
+   so whoever sits down at a shared PC sees at once whose session is open.
+   Read from the sidebar's own name (which profile edits keep current). */
+var TOPBAR_ROLE_NAMES = { admin: 'Administrator', instructor: 'Instructor', adminstaff: 'Admin Staff', cmc: 'CMC Board', student: 'Trainee' };
+function updateTopbarWho() {
+  var box = document.getElementById('topbarWho');
+  if(!box) return;
+  if(!currentRole) { box.classList.remove('on'); return; }
+  var nameEl = document.getElementById('sidebarUserName');
+  var name = (nameEl && nameEl.textContent) || (currentLoggedInUser && currentLoggedInUser.name) || '';
+  var role = TOPBAR_ROLE_NAMES[currentRole] || '';
+  var initials = String(name).split(/\s+/).filter(Boolean).map(function(n){ return n.charAt(0); }).join('').substring(0, 2).toUpperCase();
+  document.getElementById('topbarWhoName').textContent = name;
+  document.getElementById('topbarWhoRole').textContent = role;
+  var av = document.getElementById('topbarWhoAvatar');
+  if(av) { av.textContent = initials || '?'; var sa = document.getElementById('sidebarAvatar'); if(sa && sa.style.background) av.style.background = sa.style.background; }
+  box.title = 'Signed in as ' + name + (role ? ' (' + role + ')' : '');
+  box.setAttribute('aria-label', box.title);
+  box.setAttribute('role', 'note');
+  box.classList.add('on');
 }
 function enterApp(role) {
   try {
@@ -11266,6 +11413,7 @@ function enterApp(role) {
       document.getElementById('sidebarUserRole').textContent = currentStudent.course;
       showPage('s-dashboard');
     }
+    updateTopbarWho();
     initGlobalSearch();
     // A built-in login still carrying its placeholder recovery address cannot
     // use "Forgot password" (the code would go nowhere): ask for a real one.
@@ -20973,6 +21121,7 @@ function syncProfileToLmsChat(userId, name, role, programme, picType) {
 function updateSidebarAvatar(userId, name) {
   var el = document.getElementById('sidebarUserName');
   if(el) el.textContent = name;
+  try { updateTopbarWho(); } catch(e) {}
   var avatar = document.getElementById('sidebarAvatar');
   if(!avatar) return;
   var chatProfile = (typeof lmsChatProfiles !== 'undefined') ? lmsChatProfiles[userId] : null;
@@ -21252,6 +21401,7 @@ function vcUpdateSidebarName(name) {
     var initials = name.split(' ').map(function(n){ return n[0]; }).join('').substring(0,2).toUpperCase();
     avatar.textContent = initials;
   }
+  try { updateTopbarWho(); } catch(e) {}
 }
 
 // ============================== SYSTEM SETTINGS FUNCTIONS ==============================
@@ -33812,8 +33962,16 @@ function loginBlocked(account, opts) {
   // password-less account (fee-sync/backfill created) must not be turned away
   // on that route — that would be a lockout no administrator asked for.
   if (res.reason === 'no-password' && opts.allowNoPassword) return false;
+  // From a sign-in card, the answer appears under that card's fields — a
+  // registration still waiting included: it used to open the "Thank you for
+  // registering" screen, which read as if the person had just registered again.
+  if (res.reason === 'pending' && account && opts.card) {
+    signInSay(opts.card, res.message + '\nYou can sign in once it has been approved.');
+    return true;
+  }
   if (res.reason === 'pending' && account) { showPendingApprovalScreen(account); return true; }
-  alert(res.reason === 'disabled' && opts.contact ? 'This account has been disabled. Contact ' + opts.contact + '.' : res.message);
+  var _blockedMsg = res.reason === 'disabled' && opts.contact ? 'This account has been disabled. Contact ' + opts.contact + '.' : res.message;
+  if (opts.card) signInSay(opts.card, _blockedMsg); else alert(_blockedMsg);
   return true;
 }
 
