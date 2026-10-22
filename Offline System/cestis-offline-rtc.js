@@ -50,7 +50,49 @@
     } catch (e) { return Promise.resolve(false); }
   }
 
-  function localOptions(opts) {
+  /* HOST PLACES. A class room's host is the peer  cestis-<ROOMCODE>-host,
+     and the Centre's server used to give that id to whoever asked first — a
+     trainee who knew the room code could take the class's host place before
+     the instructor arrived. The server now accepts a host id only with a HOST
+     TICKET, which it gives to a member of staff when they sign in (it checks
+     their password itself: /_cestis/host-ticket in cestis-offline-server.js).
+     The ticket is kept for this browser tab only, and only for the person it
+     was issued to. */
+  var TICKET_KEY = 'cestisLanHostTicket';
+  var STAFF = { admin: 1, adminstaff: 1, instructor: 1 };
+  function hostTicketFor(id) {
+    if (!/^cestis-[A-Za-z0-9]+-host$/.test(String(id || ''))) return '';
+    try {
+      var t = JSON.parse(root.sessionStorage.getItem(TICKET_KEY) || 'null');
+      var me = root.currentLoggedInUser;
+      if (t && t.ticket && me && t.uid === me.id && Date.now() < Number(t.exp || 0)) return String(t.ticket);
+    } catch (e) {}
+    return '';
+  }
+  root.cestisLanHostTicket = function (account, password) {
+    if (!account || !password || !STAFF[String(account.role || '').trim().toLowerCase()] || !root.fetch) return Promise.resolve(false);
+    return probe().then(function (on) {
+      if (!on) return false;
+      return root.fetch('/_cestis/token', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.token) return null;
+          return root.fetch('/_cestis/host-ticket', {
+            method: 'POST', cache: 'no-store',
+            headers: { 'Content-Type': 'application/json', 'X-CESTIS-Token': String(d.token) },
+            body: JSON.stringify({ username: account.username || account.email || '', password: String(password) })
+          });
+        })
+        .then(function (r) { return r && r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (!j || !j.ticket) return false;
+          root.sessionStorage.setItem(TICKET_KEY, JSON.stringify({ uid: account.id, ticket: String(j.ticket), exp: Number(j.expires) || 0 }));
+          return true;
+        });
+    }).catch(function () { return false; });
+  };
+
+  function localOptions(opts, id) {
     var out = {};
     // Keep anything the caller set that is not about WHERE to connect.
     Object.keys(opts || {}).forEach(function (k) {
@@ -62,6 +104,10 @@
     out.secure = root.location.protocol === 'https:';
     // Same network: direct addresses only. See the note at the top.
     out.config = { iceServers: [] };
+    // A host id goes with this tab's host ticket (PeerJS sends the "key" with
+    // its first request; the Centre's server reads the ticket from there).
+    var ticket = hostTicketFor(id);
+    if (ticket) out.key = ticket;
     return out;
   }
 
@@ -71,8 +117,8 @@
     var Original = root.Peer;
     function CestisPeer(id, opts) {
       // PeerJS accepts (options) alone as well as (id, options).
-      if (id && typeof id === 'object' && opts === undefined) return new Original(localOptions(id));
-      return new Original(id, localOptions(opts));
+      if (id && typeof id === 'object' && opts === undefined) return new Original(localOptions(id, null));
+      return new Original(id, localOptions(opts, id));
     }
     CestisPeer.prototype = Original.prototype;
     // Anything the library hangs off the constructor stays reachable.

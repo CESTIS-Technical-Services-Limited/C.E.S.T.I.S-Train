@@ -614,6 +614,12 @@ function boot() {
   generate(); renderAll();
   renderSourceNote();
 }
+/* Who may open this page. It had no sign-in and showed the Centre's books to
+   whoever typed its address — a trainee at a lab PC included. It opens only
+   for the signed-in dashboard (an Administrator or Admin Staff: embedded, or
+   signed in on this computer — CESTISCore.sessionAccess.guard); anyone
+   else sees "sign in first" and nothing of the page runs. */
+function pvOpen() {
 boot();
 if (store.whenReady) store.whenReady(function () {
   boot();
@@ -628,6 +634,15 @@ if (store.whenReady) store.whenReady(function () {
     if ((res[0] && res[0].quarters) || res[1]) { boot(); }
   });
 });
+}
+(function () {
+  var SA = window.CESTISCore && CESTISCore.sessionAccess;
+  if (!SA || !SA.guard) { document.body.textContent = 'Shared data core failed to load. Please refresh.'; return; }
+  SA.guard({ allowed: ['admin', 'adminstaff'] }, function (viewer) {
+    if (!viewer.ok) { SA.lockPage(viewer.message); return; }
+    pvOpen();
+  });
+})();
 
 window.PV = PV;
 })();

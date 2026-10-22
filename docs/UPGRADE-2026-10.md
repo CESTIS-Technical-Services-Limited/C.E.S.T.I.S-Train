@@ -41,13 +41,23 @@ The data rules every change was held to:
    Open the LMS once on each finance PC first.
 3. **Admin Staff who edit trainees** need the new tick *Student Progress — manage* (off by
    default) in Settings → Admin Staff access.
-4. **Record pages need a dashboard sign-in.** Transcript-Grades, Student Progress,
-   Cert-Transcript-Requests, Staff Clock-in, School Fee and the MegaData pages now take the viewer
-   from the signed-in dashboard session. Opened directly with no session, they show
-   "sign in first". The web address can only narrow what they show, never widen it.
+4. **Record pages need a dashboard sign-in.** These pages now take the viewer from the signed-in
+   dashboard session:
+   - Transcript-Grades, Student Progress and Cert-Transcript-Requests
+   - Staff Clock-in, School Fee and Virement
+   - Income & Expenditure, Payments & Invoices, Invoice, Quote, Purchase Order and Payment
+     Voucher
+   - the MegaData pages (administrators only)
+
+   Opened directly with no session, they show "sign in first". The web address can only narrow
+   what they show, never widen it. Finance staff should open them from the dashboard, or sign in
+   to the dashboard on that PC first.
 5. **Certificate verification for employers.** Create the Centre's signing key once, back it up,
    and publish its public half (`docs/CERTIFICATE-SIGNING.md`). Until then, certificates verify
    the old way.
+   - The key is kept locked on the administrator's PC: it can sign but cannot be copied out.
+   - Its backup file can be downloaded **once**. Store it somewhere safe and off the website.
+   - A lost backup means creating and publishing a new key.
 6. **Video classes.**
    - The free public relay servers the old code used no longer exist.
    - If trainees on mobile data cannot connect, add a relay (TURN) server in Settings →
@@ -330,9 +340,10 @@ These need a real server, or a decision by the Centre. They are documented, not 
   through the MegaData broker (DECISIONS D6).
 - **The Offline System's access key** can be fetched by any device on the Centre network.
   Real per-user sessions on the local server are the next step.
-- **Video and chat identity** rest on room codes and connection ids. A trainee who knows a room
-  code can still interfere online. On the Centre network the server can enforce host
-  credentials.
+- **Video and chat identity online.** These rest on room codes and connection ids. A trainee who
+  knows a room code can still try to take the host's place online; the instructor is warned and
+  told to start a new code. On the Centre network the server now issues hosting only to staff
+  who sign in, so this cannot happen there.
 - **Files shared publicly by the old code** keep their public links. Nothing was revoked
   automatically.
 - **Clocks.** A device whose clock is wrong by more than a day, with no way to reach Google or

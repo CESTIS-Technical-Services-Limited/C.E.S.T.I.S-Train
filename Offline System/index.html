@@ -6951,6 +6951,7 @@ function initLmsChatData() {
     var cp = CESTISStore.getItem('voctrain_chatProfiles');
     var cf = CESTISStore.getItem('voctrain_chatFollows');
     if(cr) lmsChatRooms = JSON.parse(cr);
+    lmsChatCleanRooms();   // a room's icon and colour are drawn: keep them plain (CESTISCore.chat.cleanRoom)
     if(cm) lmsChatMessages = JSON.parse(cm);
     if(cp) lmsChatProfiles = JSON.parse(cp);
     if(cf) lmsChatFollows = JSON.parse(cf);
@@ -7420,7 +7421,12 @@ function sessionAccountRevoked() {
 }
 function sessionHeartbeat() {
   if(!currentRole) return;
-  try { CESTISStore.setItem('voctrain_sessionSeenAt', String(Date.now())); } catch(e) {}
+  // The heartbeat is what lets the record pages open in another tab
+  // (CESTISCore.sessionAccess). A dashboard covered by the idle lock is not
+  // "still open" for that purpose: it kept beating, so anybody could open
+  // Student Progress, Transcript-Grades or the time clock in a new tab and get
+  // the locked person's session. Locked, it stays silent.
+  if(!_sessionLocked) { try { CESTISStore.setItem('voctrain_sessionSeenAt', String(Date.now())); } catch(e) {} }
   if(sessionAccountRevoked()) {
     showToast('Your account has been switched off by an administrator. You have been signed out.', 'warning');
     logout();
@@ -7432,6 +7438,9 @@ function sessionHeartbeat() {
 }
 function openIdleLock() {
   _sessionLocked = true;
+  // Withdraw the heartbeat at once: no new tab may borrow this session while
+  // it is locked (the record pages refuse without a fresh one).
+  try { CESTISStore.removeItem('voctrain_sessionSeenAt'); } catch(e) {}
   var pw = document.getElementById('idleLockPassword'), err = document.getElementById('idleLockError');
   if(pw) pw.value = ''; if(err) err.style.display = 'none';
   var who = document.getElementById('idleLockWho');
@@ -7448,6 +7457,7 @@ async function idleLockUnlock() {
   if(!ok) { if(err) { err.textContent = 'That password is not correct.'; err.style.display = 'block'; } if(pw) pw.value = ''; return; }
   _sessionLocked = false;
   _sessionLastActivity = Date.now();
+  try { CESTISStore.setItem('voctrain_sessionSeenAt', String(Date.now())); } catch(e) {}   // the owner is back
   closeModal('idleLockModal');
 }
 function idleLockSignOut() {
@@ -10206,7 +10216,7 @@ async function handleAdminClick() {
     try { console.log('[Login][admin] pwMatch=' + pwMatch); } catch(_) {}
     if(!pwMatch) { recordLoginFailure(uname); alert('Password incorrect for "' + uname + '".'); return; }
     clearLoginFailures(uname);
-    publishedDefaultGate(adminUser, pw, 'admin', function(){ tfaGateLogin(adminUser, function(){ currentLoggedInUser = adminUser; enterApp('admin'); }); });
+    publishedDefaultGate(adminUser, pw, 'admin', function(){ tfaGateLogin(adminUser, function(){ currentLoggedInUser = adminUser; lanHostTicket(adminUser, pw); enterApp('admin'); }); });
   } catch(err) { console.error('handleAdminClick error:', err); alert('Error: ' + err.message); }
 }
 async function handleStudentClick() {
@@ -10308,7 +10318,7 @@ async function handleInstructorClick() {
       if(savedInsProfile.phone) insMatch.phone = savedInsProfile.phone;
       if(savedInsProfile.specialization) insMatch.specialization = savedInsProfile.specialization;
     }
-    publishedDefaultGate(userAccount, pw, 'instructor', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('instructor'); }); });
+    publishedDefaultGate(userAccount, pw, 'instructor', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; lanHostTicket(userAccount, pw); enterApp('instructor'); }); });
   } catch(err) { console.error('handleInstructorClick error:', err); alert('Error: ' + err.message); }
 }
 async function handleAdminStaffClick() {
@@ -10335,7 +10345,7 @@ async function handleAdminStaffClick() {
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
     clearLoginFailures(uname);
-    publishedDefaultGate(userAccount, pw, 'adminstaff', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('adminstaff'); }); });
+    publishedDefaultGate(userAccount, pw, 'adminstaff', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; lanHostTicket(userAccount, pw); enterApp('adminstaff'); }); });
   } catch(err) { console.error('handleAdminStaffClick error:', err); alert('Error: ' + err.message); }
 }
 
@@ -11001,10 +11011,19 @@ async function forceChangePwSubmit() {
   if(acct !== canonical){ acct.password = canonical.password; delete acct.defaultPassword; delete acct.mustChangePassword; }
   try { if(canonical.username) clearLoginFailures(canonical.username); if(canonical.email) clearLoginFailures(canonical.email); } catch(_){}
   saveUserAccounts();
+  lanHostTicket(canonical, np);
   closeModal('forceChangePwModal');
   showToast('Password updated. Welcome.');
   var role = _forceChangePwRole, then = _forceChangePwThen; _forceChangePwRole = null; _forceChangePwThen = null;
   if(then) then(); else enterApp(role);
+}
+
+/* On the Centre's own server (Offline System) a class room's host place is
+   given only to signed-in staff: the server checks the password itself and
+   hands this tab a short-lived host ticket (cestis-offline-rtc.js). Online —
+   GitHub Pages — this does nothing at all. Never blocks the sign-in. */
+function lanHostTicket(account, pw) {
+  try { if (typeof window.cestisLanHostTicket === 'function') window.cestisLanHostTicket(account, pw); } catch (e) {}
 }
 
 /* A sign-in whose password has just matched one of the PUBLISHED defaults.
@@ -13391,7 +13410,6 @@ function buildAdminPages() {
 
   populateCourseDropdowns();
   if(typeof syncStudentsFromLocalFeeSystem === 'function') syncStudentsFromLocalFeeSystem();
-  renderStudents(students);
   renderSkills();
   renderExams('upcoming');
   renderCerts('all','');
@@ -13635,7 +13653,7 @@ function buildStudentPages() {
           </div>
         </div>
       </div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📊</div><div class="stat-value">${s.attendance}%</div><div class="stat-label">Attendance Rate</div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📊</div><div class="stat-value">${escapeHtml(s.attendance)}%</div><div class="stat-label">Attendance Rate</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📝</div><div class="stat-value">${cwSum.graded}/${cwSum.total}</div><div class="stat-label">Assignments Marked</div></div>
       ${tsum
         ? `<div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">⭐</div><div class="stat-value">${tsum.average == null ? '—' : escapeHtml(tsum.average + '%')}</div><div class="stat-label">Transcript average (${tsum.graded}/${tsum.total} units)${shownGpa && parseFloat(shownGpa) > 0 ? ' &bull; GPA ' + escapeHtml(shownGpa) : ''}</div></div>`
@@ -13725,7 +13743,7 @@ function buildStudentPages() {
   <section class="page" id="page-s-progress">
     <div class="stats-grid stats-grid-4">
       <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📊</div><div class="stat-value">${s.progress}%</div><div class="stat-label">Overall Progress</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📅</div><div class="stat-value">${s.attendance}%</div><div class="stat-label">Attendance</div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📅</div><div class="stat-value">${escapeHtml(s.attendance)}%</div><div class="stat-label">Attendance</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">✅</div><div class="stat-value">${escapeHtml(s.score || 'N/A')}</div><div class="stat-label">Last Test Score</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--purple-dim);color:var(--purple);">🏷️</div><div class="stat-value" style="font-size:18px;">${stageLabels[s.stage]}</div><div class="stat-label">Current Status</div></div>
     </div>
@@ -13788,7 +13806,7 @@ function buildStudentPages() {
         <h2>${escapeHtml(s.name)}</h2>
         <div class="profile-subtitle">${escapeHtml(s.course)} Programme</div>
         <div class="profile-meta">
-          <span>\uD83C\uDD94 ${s.id}</span>
+          <span>\uD83C\uDD94 ${escapeHtml(s.id)}</span>
           <span>\uD83D\uDC68\u200D\uD83C\uDFEB ${escapeHtml(s.instructor)}</span>
           <span>\uD83D\uDCCD C.E.S.T.I.S LMS</span>
         </div>
@@ -13797,7 +13815,7 @@ function buildStudentPages() {
     </div>
     <div class="stats-grid stats-grid-4">
       <div class="profile-stat"><div class="ps-value" style="color:var(--green);">${escapeHtml(shownGpa)}</div><div class="ps-label">GPA</div></div>
-      <div class="profile-stat"><div class="ps-value" style="color:var(--blue);">${s.attendance}%</div><div class="ps-label">Attendance</div></div>
+      <div class="profile-stat"><div class="ps-value" style="color:var(--blue);">${escapeHtml(s.attendance)}%</div><div class="ps-label">Attendance</div></div>
       <div class="profile-stat"><div class="ps-value" style="color:var(--accent);">${cwSum.graded}/${cwSum.total}</div><div class="ps-label">Assignments Marked</div></div>
       <div class="profile-stat"><div class="ps-value" style="color:${s.stage==='certified'||s.stage==='collected'?'var(--green)':'var(--accent)'};">${stageLabels[s.stage]}</div><div class="ps-label">Current Stage</div></div>
     </div>
@@ -13805,16 +13823,16 @@ function buildStudentPages() {
       <div class="info-section">
         <h4>Personal Information</h4>
         <div class="info-row"><span class="info-label">Full Name</span><span class="info-value">${escapeHtml(s.name)}</span></div>
-        <div class="info-row"><span class="info-label">Student ID</span><span class="info-value">${s.id}</span></div>
+        <div class="info-row"><span class="info-label">Student ID</span><span class="info-value">${escapeHtml(s.id)}</span></div>
         <div class="info-row"><span class="info-label">Email</span><span class="info-value" id="sProfileEmail">${escapeHtml((studentProfiles[s.id]?.email) || (s.name.split(' ')[0].toLowerCase()+'.'+(s.name.split(' ')[1]?s.name.split(' ')[1].toLowerCase():'')+'@student.heartlms.edu.jm'))}</span></div>
-        <div class="info-row"><span class="info-label">Phone</span><span class="info-value" id="sProfilePhone">${(studentProfiles[s.id]?.phone) || 'Not provided — Edit Profile to add'}</span></div>
+        <div class="info-row"><span class="info-label">Phone</span><span class="info-value" id="sProfilePhone">${escapeHtml((studentProfiles[s.id]?.phone) || 'Not provided — Edit Profile to add')}</span></div>
       </div>
       <div class="info-section">
         <h4>Academic Information</h4>
         <div class="info-row"><span class="info-label">Programme</span><span class="info-value">${escapeHtml(s.course)}</span></div>
         <div class="info-row"><span class="info-label">Instructor</span><span class="info-value">${escapeHtml(s.instructor)}</span></div>
-        <div class="info-row"><span class="info-label">Enrolled Since</span><span class="info-value">${s.enrolledDate || 'Sep ' + (new Date().getFullYear() - 1)}</span></div>
-        <div class="info-row"><span class="info-label">Expected Completion</span><span class="info-value">${s.completionDate || 'Jun ' + new Date().getFullYear()}</span></div>
+        <div class="info-row"><span class="info-label">Enrolled Since</span><span class="info-value">${escapeHtml(s.enrolledDate || 'Sep ' + (new Date().getFullYear() - 1))}</span></div>
+        <div class="info-row"><span class="info-label">Expected Completion</span><span class="info-value">${escapeHtml(s.completionDate || 'Jun ' + new Date().getFullYear())}</span></div>
       </div>
     </div>
   </section>
@@ -15593,8 +15611,19 @@ function vcStartHostPeer(title, role, rejoin) {
       onError: function(err) {
         console.error('Peer error:', err);
         if(err.type === 'unavailable-id') {
+          // The host's place in a room is claimed by whoever registers its id
+          // first — and the room code travels in invitations and schedules, so
+          // that may be somebody who is not the host. Say so plainly instead of
+          // "try again": a room somebody else holds must not be used.
           vcDestroyPeer();
-          vcUpdateStatus('error', rejoin ? 'Room host ID is still active. Try again in a moment.' : 'Room code in use. Try again.');
+          var held = 'Someone else is holding this room’s host place — it may be a person who knows the room code. Start the class with a NEW room code, and do not share this one.';
+          vcUpdateStatus('error', rejoin ? 'This room’s host place is still taken. If your previous connection has just dropped, try again in a minute; if it stays taken, ' + held.charAt(0).toLowerCase() + held.slice(1) : held);
+          showToast(held, 'warning');
+        } else if(err.type === 'server-error' && /host/i.test(String(err.message || ''))) {
+          // The Centre's own server (Offline System) lets only signed-in staff
+          // take a room's host place (cestis-offline-signalling.js).
+          vcDestroyPeer();
+          vcUpdateStatus('error', 'This Centre’s server only lets signed-in staff open a class room. Sign out, sign in again with your staff account, then start the class.');
         } else if(err.type === 'browser-incompatible') {
           vcBlockAndExplain(rejoin ? 'Cannot rejoin from this page address' : 'Cannot start a class from this page address');
         } else if(err.type !== 'peer-unavailable') {
@@ -22019,26 +22048,6 @@ function exportExamResults() {
 }
 
 // ============================== ADMIN FUNCTIONS ==============================
-function renderStudents(data) {
-  const tbody = document.getElementById('studentTableBody');
-  if(!tbody) return;
-  if(!data || !Array.isArray(data)) { data = []; }
-  // Row positions resolved from one index rather than students.indexOf() per
-  // row, which walked the whole roster again for every row it drew.
-  var _posOf = new Map();
-  for (var _i = 0; _i < students.length; _i++) if (!_posOf.has(students[_i])) _posOf.set(students[_i], _i);
-  tbody.innerHTML = data.map(s => {
-    var idx = _posOf.has(s) ? _posOf.get(s) : students.indexOf(s);
-    var prog = s.progress || 0;
-    return `<tr><td><strong>${escapeHtml(s.name||'Unknown')}</strong></td><td style="font-family:monospace;font-size:12px;color:var(--text-muted);">${escapeHtml(s.id||'—')}</td><td>${escapeHtml(s.course||'—')}</td>
-    <td><span class="badge ${stageBadge[s.stage]||'badge-blue'}"><span class="badge-dot"></span>${escapeHtml(stageLabels[s.stage]||s.stage||'—')}</span></td><td>${escapeHtml(s.score||'—')}</td>
-    <td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:80px;"><div class="fill" style="width:${prog}%;background:${prog>=80?'var(--green)':prog>=40?'var(--accent)':'var(--red)'};"></div></div><span style="font-size:12px;color:var(--text-muted);">${prog}%</span></div></td>
-    <td><div style="display:flex;gap:6px;"><button class="btn btn-sm btn-secondary" onclick="openUpdateStage(${idx})">Update</button><button class="btn btn-sm btn-secondary" onclick="openEditStudent(${idx})" style="font-size:11px;">✎ Edit</button><button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:11px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteStudent(${idx})">✕ Delete</button></div></td></tr>`;
-  }).join('');
-  const sc = document.getElementById('studentCount');
-  if(sc) sc.textContent = `Showing ${data.length} student${data.length!==1?'s':''}`;
-}
-
 // Pull students from the LOCAL School Fee Management store (cestiSchoolFeeStudents)
 // into the Student Progress list. The fee page runs in an iframe, so its own
 // push may not have fired; this guarantees fee students appear on the dashboard
@@ -22238,41 +22247,9 @@ function filterStudents() {
       if (typeof lmsChatRenderRoomList === 'function' && typeof lmsChatGetRolePrefix === 'function') lmsChatRenderRoomList(lmsChatGetRolePrefix());
     } catch(e){}
   }
-  let filtered = [...students];
-  const stage = document.getElementById('filterStage')?.value;
-  const course = document.getElementById('filterCourse')?.value;
-  const search = (document.getElementById('studentSearch')?.value || '').toLowerCase().trim();
-  if(stage && stage!=='all') filtered = filtered.filter(s => s.stage===stage);
-  if(course && course!=='all') {
-    // Resolved ONCE, not once per row: findSkillAreaForCourse() scans the
-    // training centres and normalises names, and the filter's own course does
-    // not change between rows. Each student's centre is memoised too, since a
-    // roll of hundreds shares a handful of programmes.
-    var _filterCourseLower = course.toLowerCase().trim();
-    var _filterSkill = findSkillAreaForCourse(course);
-    var _skillByCourse = new Map();
-    filtered = filtered.filter(function(s) {
-      if(!s.course) return false;
-      // Exact match first
-      if(s.course === course) return true;
-      // Case-insensitive match
-      if(s.course.toLowerCase().trim() === _filterCourseLower) return true;
-      // Skill area ID match (handles renamed courses)
-      if(!_filterSkill || !_filterSkill.id) return false;
-      var studentSkill;
-      if(_skillByCourse.has(s.course)) studentSkill = _skillByCourse.get(s.course);
-      else { studentSkill = findSkillAreaForCourse(s.course); _skillByCourse.set(s.course, studentSkill); }
-      return !!(studentSkill && studentSkill.id && studentSkill.id === _filterSkill.id);
-    });
-  }
-  if(search) filtered = filtered.filter(function(s) {
-    // Search by name, ID, or course
-    var name = (s.name || '').toLowerCase();
-    var id = (s.id || '').toLowerCase();
-    var sCourse = (s.course || '').toLowerCase();
-    return name.includes(search) || id.includes(search) || sCourse.includes(search);
-  });
-  renderStudents(filtered);
+  // (The roster table itself is Student-Progress.html's. The old in-page copy
+  // drew into a table this page no longer has, with buttons whose handlers
+  // were gone; it was removed with the filtering that only fed it.)
 }
 
 /* The Student Progress editor lives in Student-Progress.html (shown in an
@@ -23664,7 +23641,7 @@ function renderCourseDurationPage() {
     var open = CESTISCore.courseDuration.isRegisterOpen(sk, undefined, Date.now());
     var enrolled = _enrolTally ? _enrolTally.of(sk) : 0;
     return '<tr>'+
-      '<td><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">'+(sk.icon||'📋')+'</span><strong>'+escapeHtml(centreDisplayName(sk))+'</strong></div>'+
+      '<td><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">'+escapeHtml(sk.icon||'📋')+'</span><strong>'+escapeHtml(centreDisplayName(sk))+'</strong></div>'+
         '<div style="font-size:11px;color:var(--text-muted);">'+enrolled+' student'+(enrolled===1?'':'s')+'</div>'+cdPermissionInfo(sk)+'</td>'+
       '<td><input type="text" class="form-control" style="width:60px;padding:4px 6px;" id="cdLevel_'+sk.id+'" value="'+escapeHtml(sk.level||'')+'" placeholder="–"></td>'+
       '<td><input type="text" class="form-control" style="width:160px;padding:4px 6px;" id="cdProject_'+sk.id+'" value="'+escapeHtml(sk.project||'')+'" placeholder="Project / Centre"></td>'+
@@ -23901,7 +23878,7 @@ function renderEnrolmentRegistersPage() {
       : '<span style="color:var(--text-muted);">No dates set</span>';
     var open = _enrolOpenRoster === sk.id;
     var mainRow = '<tr>' +
-      '<td><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">' + (sk.icon || '📋') + '</span><strong>' + escapeHtml(sk.name) + '</strong></div>' +
+      '<td><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">' + escapeHtml(sk.icon || '📋') + '</span><strong>' + escapeHtml(sk.name) + '</strong></div>' +
         (meta.length ? '<div style="font-size:11px;color:var(--text-muted);">' + meta.join(' · ') + '</div>' : '') + '</td>' +
       '<td style="font-size:12px;">' + dates + '</td>' +
       '<td style="text-align:center;">' + enrolled + '</td>' +
@@ -31948,6 +31925,7 @@ async function mergeBackupData(backupData) {
     if (Array.isArray(backupData.data.chatRooms)) {
       var _crOut = CESTISCore.sync.mergeList(lmsChatRooms, backupData.data.chatRooms, syncKeyById, { tombs: syncTombsFor('chatRooms') });
       if (_crOut.added || _crOut.updated || _crOut.removed) changed = true;
+      lmsChatCleanRooms();   // drawn in every member's chat: plain icon, real colour
     }
 
 
@@ -34149,7 +34127,7 @@ function lmsChatRenderRoomList(prefix) {
       html += '<div class="lms-chat-info"><div class="lms-chat-name">'+lmsChatEscapeHtml(otherName)+' <span style="font-size:10px;color:var(--text-muted);">DM</span></div>';
       html += '<div class="lms-chat-last-msg">'+lmsChatEscapeHtml(lastText.substring(0,50))+'</div></div>';
     } else {
-      html += '<div class="lms-chat-avatar" style="background:'+escapeAttr(room.color)+'22;color:'+escapeAttr(room.color)+';font-size:22px;">'+escapeHtml(room.icon)+'</div>';
+      html += '<div class="lms-chat-avatar" style="background:'+escapeAttr(lmsChatRoomColor(room))+'22;color:'+escapeAttr(lmsChatRoomColor(room))+';font-size:22px;">'+escapeHtml(lmsChatRoomIcon(room))+'</div>';
       html += '<div class="lms-chat-info"><div class="lms-chat-name">'+escapeHtml(room.name)+'</div>';
       html += '<div class="lms-chat-last-msg">'+lmsChatEscapeHtml(lastText.substring(0,50))+'</div></div>';
     }
@@ -34198,6 +34176,23 @@ function lmsChatFormatDate(ts) {
 // could close the href the linkifier wrapped round it. The shared escaper
 // encodes quotes too.
 function lmsChatEscapeHtml(str) { return escapeHtml(str); }
+// A room's icon and colour as they may be drawn: rooms arrive from whichever
+// device last wrote the chat file, and the chat header used to put the icon
+// straight into innerHTML — markup there ran in the Administrator's session.
+// CESTISCore.chat keeps an icon to a few plain characters and a colour to a
+// real colour; a stale cached core falls back to the defaults.
+function lmsChatRoomIcon(room) {
+  var C = window.CESTISCore && CESTISCore.chat;
+  return (C && C.roomIcon) ? C.roomIcon(room && room.icon) : '💬';
+}
+function lmsChatRoomColor(room) {
+  var C = window.CESTISCore && CESTISCore.chat;
+  return (C && C.roomColor) ? C.roomColor(room && room.color) : '#6c757d';
+}
+function lmsChatCleanRooms() {
+  try { if (window.CESTISCore && CESTISCore.chat && CESTISCore.chat.cleanRooms) return CESTISCore.chat.cleanRooms(lmsChatRooms); } catch (e) {}
+  return 0;
+}
 
 function lmsChatOpenRoom(roomId, prefix) {
   lmsChatActiveRoom = roomId;
@@ -34258,8 +34253,8 @@ function lmsChatOpenRoom(roomId, prefix) {
     // Click header avatar → open the other user's profile card
     (function(oid){ headerAvatar.onclick = function(){ if(oid) lmsChatOpenProfileCard(oid); }; })(dmOtherId);
   } else {
-    headerAvatar.innerHTML = room.icon;
-    headerAvatar.style.cssText = 'width:42px;height:42px;min-width:42px;background:'+escapeAttr(room.color)+'22;color:'+escapeAttr(room.color)+';font-size:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;';
+    headerAvatar.textContent = lmsChatRoomIcon(room);
+    headerAvatar.style.cssText = 'width:42px;height:42px;min-width:42px;background:'+escapeAttr(lmsChatRoomColor(room))+'22;color:'+escapeAttr(lmsChatRoomColor(room))+';font-size:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;';
     headerAvatar.onclick = function(){ lmsChatOpenMembersDirectory(); };
     if(headerName) headerName.textContent = room.name;
     if(headerStatus) headerStatus.textContent = room.members.length + ' members';
@@ -34823,8 +34818,10 @@ function lmsChatVotePoll(msgId, optionIdx) {
   if(!msg || msg.type !== 'poll') return;
 
   var user = lmsChatGetCurrentUser();
+  if(!user || !Array.isArray(msg.pollOptions)) return;
   var opt = msg.pollOptions[optionIdx];
   if(!opt) return;
+  if(!Array.isArray(opt.votes)) opt.votes = [];
 
   var alreadyVoted = opt.votes.indexOf(user.id) !== -1;
 
@@ -34835,7 +34832,7 @@ function lmsChatVotePoll(msgId, optionIdx) {
     if(!msg.pollMultiSelect) {
       // Single select: remove vote from all other options first
       msg.pollOptions.forEach(function(o) {
-        o.votes = o.votes.filter(function(v){ return v !== user.id; });
+        if(o) o.votes = (Array.isArray(o.votes) ? o.votes : []).filter(function(v){ return v !== user.id; });
       });
     }
     opt.votes.push(user.id);
@@ -34854,22 +34851,29 @@ function lmsChatVotePoll(msgId, optionIdx) {
 }
 
 function lmsChatRenderPoll(msg, currentUser) {
+  // A poll arrives from another device's chat file. One with no options, or an
+  // option with no vote list, threw here — and the throw blanked the whole room
+  // for every member, every poll tick. Missing parts read as empty.
+  var options = Array.isArray(msg.pollOptions) ? msg.pollOptions : [];
+  var votesOf = function(opt) { return (opt && Array.isArray(opt.votes)) ? opt.votes : []; };
+  var me = (currentUser && currentUser.id) || '';
   var totalVoters = [];
-  msg.pollOptions.forEach(function(opt) {
-    opt.votes.forEach(function(v) {
+  options.forEach(function(opt) {
+    votesOf(opt).forEach(function(v) {
       if(totalVoters.indexOf(v) === -1) totalVoters.push(v);
     });
   });
   var totalVotes = totalVoters.length;
-  var userHasVoted = totalVoters.indexOf(currentUser.id) !== -1;
+  var userHasVoted = totalVoters.indexOf(me) !== -1;
 
   var html = '<div class="lms-chat-poll">';
   html += '<div class="lms-chat-poll-question"><span class="lms-chat-poll-icon">&#128202;</span>' + lmsChatEscapeHtml(msg.pollQuestion) + '</div>';
 
-  msg.pollOptions.forEach(function(opt, idx) {
-    var voteCount = opt.votes.length;
+  options.forEach(function(opt, idx) {
+    if(!opt) return;
+    var voteCount = votesOf(opt).length;
     var pct = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-    var isMyVote = opt.votes.indexOf(currentUser.id) !== -1;
+    var isMyVote = votesOf(opt).indexOf(me) !== -1;
 
     html += '<div class="lms-chat-poll-option' + (isMyVote ? ' my-vote' : (userHasVoted ? ' voted' : '')) + '" onclick="lmsChatVotePoll('+jsArg(msg.id)+',' + idx + ')">';
     if(userHasVoted) {
@@ -35311,8 +35315,8 @@ function lmsChatRenderMembersDirectory(filter) {
   function sectionHtml(icon, name, color, members) {
     if(!members.length) return '';
     return '<div style="display:flex;align-items:center;gap:8px;margin:18px 4px 10px;">' +
-        '<span style="font-size:15px;">'+icon+'</span>' +
-        '<span style="font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:'+(color||'var(--text-secondary)')+';">'+lmsChatEscapeHtml(name)+'</span>' +
+        '<span style="font-size:15px;">'+escapeHtml(lmsChatRoomIcon({icon:icon}))+'</span>' +
+        '<span style="font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:'+escapeAttr(color ? lmsChatRoomColor({color:color}) : 'var(--text-secondary)')+';">'+lmsChatEscapeHtml(name)+'</span>' +
         '<span style="font-size:11px;color:var(--text-muted);">('+members.length+')</span>' +
         '<div style="flex:1;height:1px;background:var(--border);"></div>' +
       '</div>' +
@@ -35428,7 +35432,7 @@ function lmsChatRenderInfoPanel(prefix) {
   if(!body) return;
 
   var html = '<div class="info-section"><div style="text-align:center;padding:16px 0;">';
-  html += '<div style="width:80px;height:80px;border-radius:50%;background:'+escapeAttr(room.color)+'22;color:'+escapeAttr(room.color)+';font-size:36px;display:flex;align-items:center;justify-content:center;margin:0 auto;">'+escapeHtml(room.icon)+'</div>';
+  html += '<div style="width:80px;height:80px;border-radius:50%;background:'+escapeAttr(lmsChatRoomColor(room))+'22;color:'+escapeAttr(lmsChatRoomColor(room))+';font-size:36px;display:flex;align-items:center;justify-content:center;margin:0 auto;">'+escapeHtml(lmsChatRoomIcon(room))+'</div>';
   html += '<h4 style="margin-top:12px;">'+escapeHtml(room.name)+'</h4>';
   html += '<p style="font-size:12px;color:var(--text-muted);">'+escapeHtml(room.type)+' chat &bull; '+room.members.length+' members</p>';
   html += '</div></div>';
@@ -36256,7 +36260,7 @@ async function lmsChatInitiateCall(callType) {
       '</div>';
   } else {
     overlay.innerHTML =
-      '<div class="call-avatar" style="background:'+escapeAttr(room.color)+'22;color:'+escapeAttr(room.color)+';">'+escapeHtml(room.icon)+'</div>' +
+      '<div class="call-avatar" style="background:'+escapeAttr(lmsChatRoomColor(room))+'22;color:'+escapeAttr(lmsChatRoomColor(room))+';">'+escapeHtml(lmsChatRoomIcon(room))+'</div>' +
       '<div class="call-name">'+escapeHtml(room.name)+'</div>' +
       '<div class="call-status" id="lmsCallStatus">Requesting microphone access...</div>' +
       '<div class="call-timer" id="lmsCallTimer">00:00</div>' +
@@ -36466,7 +36470,7 @@ async function lmsChatJoinCall(roomId, callType) {
       '</div>';
   } else {
     overlay.innerHTML =
-      '<div class="call-avatar" style="background:'+escapeAttr(room.color)+'22;color:'+escapeAttr(room.color)+';">'+escapeHtml(room.icon)+'</div>' +
+      '<div class="call-avatar" style="background:'+escapeAttr(lmsChatRoomColor(room))+'22;color:'+escapeAttr(lmsChatRoomColor(room))+';">'+escapeHtml(lmsChatRoomIcon(room))+'</div>' +
       '<div class="call-name">'+escapeHtml(room.name)+'</div>' +
       '<div class="call-status" id="lmsCallStatus">Requesting microphone access...</div>' +
       '<div class="call-timer" id="lmsCallTimer">00:00</div>' +
@@ -37027,6 +37031,9 @@ async function lmsChatSyncFromDrive() {
       lmsChatRooms.forEach(function(r){ if(r && r.activeCall) _localCalls[r.id] = r.activeCall; });
       data.chatRooms.forEach(function(r){ if(r && r.activeCall) _cloudCalls[r.id] = r.activeCall; });
       CESTISCore.sync.mergeList(lmsChatRooms, data.chatRooms, syncKeyById, { tombs: syncTombsFor('chatRooms') });
+      // Any device can write this file: what it says a room looks like is
+      // kept to plain characters and a real colour before anything draws it.
+      lmsChatCleanRooms();
       var _nowMs = Date.now();
       lmsChatRooms.forEach(function(r) {
         if(!r) return;
@@ -38821,8 +38828,10 @@ function docHubDownloadFile(docId) {
   // re-serialise and upload every document in the hub.
   doc.downloads = (doc.downloads || 0) + 1;
 
+  var href = docHubFileUrl(doc);
+  if(!href) { showToast('This document\u2019s file cannot be opened here.', 'warning'); return; }
   var link = document.createElement('a');
-  link.href = doc.fileData;
+  link.href = href;
   link.download = doc.fileName;
   document.body.appendChild(link);
   link.click();
@@ -38838,10 +38847,10 @@ function docHubPreviewFile(docId) {
   var previewContent = '';
 
   if(ext === 'pdf') {
-    previewContent = '<iframe src="' + doc.fileData + '#toolbar=0" style="width:100%;height:calc(80vh - 120px);border:none;border-radius:8px;background:#fff;"></iframe>';
+    previewContent = '<iframe src="' + escapeAttr(docHubFileUrl(doc)) + '#toolbar=0" style="width:100%;height:calc(80vh - 120px);border:none;border-radius:8px;background:#fff;"></iframe>';
   } else if(['png','jpg','jpeg','gif','bmp','webp','svg'].indexOf(ext) !== -1) {
     previewContent = '<div style="display:flex;align-items:center;justify-content:center;height:calc(80vh - 120px);overflow:auto;background:var(--bg-tertiary);border-radius:8px;">' +
-      '<img src="' + doc.fileData + '" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px;" alt="' + escapeHtml(doc.title) + '">' +
+      '<img src="' + escapeAttr(docHubFileUrl(doc)) + '" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px;" alt="' + escapeHtml(doc.title) + '">' +
     '</div>';
   } else if(['txt','csv'].indexOf(ext) !== -1) {
     previewContent = '<div id="docHubTextPreview" style="height:calc(80vh - 120px);overflow:auto;background:var(--bg-tertiary);border-radius:8px;padding:20px;font-family:monospace;font-size:13px;white-space:pre-wrap;color:var(--text-primary);"></div>';
@@ -38849,7 +38858,7 @@ function docHubPreviewFile(docId) {
     previewContent = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(80vh - 200px);gap:16px;">' +
       '<div style="font-size:64px;">' + docHubGetFileIcon(doc.fileName).replace(/32px/g, '64px') + '</div>' +
       '<h3 style="color:var(--text-primary);margin:0;">' + escapeHtml(doc.title) + '</h3>' +
-      '<p style="color:var(--text-muted);font-size:13px;margin:0;">Preview is not available for .' + ext.toUpperCase() + ' files</p>' +
+      '<p style="color:var(--text-muted);font-size:13px;margin:0;">Preview is not available for .' + escapeHtml(ext.toUpperCase()) + ' files</p>' +
       '<p style="color:var(--text-muted);font-size:12px;margin:0;">' + escapeHtml(doc.fileName) + ' &bull; ' + docHubFormatFileSize(doc.fileSize) + '</p>' +
     '</div>';
   }
@@ -38869,7 +38878,7 @@ function docHubPreviewFile(docId) {
             '<h3 style="margin:0;font-size:16px;font-family:\'Playfair Display\',serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(doc.title) + '</h3>' +
             '<div style="font-size:11px;color:var(--text-muted);display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">' +
               '<span>' + escapeHtml(doc.fileName) + '</span><span>' + docHubFormatFileSize(doc.fileSize) + '</span>' +
-              '<span class="badge badge-blue" style="font-size:9px;">' + doc.category + '</span>' +
+              '<span class="badge badge-blue" style="font-size:9px;">' + escapeHtml(doc.category) + '</span>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -38909,11 +38918,11 @@ function docHubPrintFile(docId) {
   if(!printWin) { showToast('Pop-up blocked. Please allow pop-ups to print.', 'warning'); return; }
 
   if(ext === 'pdf') {
-    printWin.document.write('<html><head><title>Print — ' + escapeHtml(doc.title) + '</title></head><body style="margin:0;"><embed src="' + doc.fileData + '" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0;"></body></html>');
+    printWin.document.write('<html><head><title>Print — ' + escapeHtml(doc.title) + '</title></head><body style="margin:0;"><embed src="' + escapeAttr(docHubFileUrl(doc)) + '" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0;"></body></html>');
     printWin.document.close();
     printWin.onload = function() { setTimeout(function(){ printWin.print(); }, 500); };
   } else if(['png','jpg','jpeg','gif','bmp','webp','svg'].indexOf(ext) !== -1) {
-    printWin.document.write('<html><head><title>Print — ' + escapeHtml(doc.title) + '</title><style>@media print{body{margin:0;} img{max-width:100%;height:auto;}}</style></head><body style="margin:20px;text-align:center;"><img src="' + doc.fileData + '" onload="setTimeout(function(){window.print();},300)"></body></html>');
+    printWin.document.write('<html><head><title>Print — ' + escapeHtml(doc.title) + '</title><style>@media print{body{margin:0;} img{max-width:100%;height:auto;}}</style></head><body style="margin:20px;text-align:center;"><img src="' + escapeAttr(docHubFileUrl(doc)) + '" onload="setTimeout(function(){window.print();},300)"></body></html>');
     printWin.document.close();
   } else {
     printWin.close();
@@ -38935,6 +38944,15 @@ function docHubEditFile(docId) {
   showToast('Document updated', 'success');
   renderDocumentHubAdmin();
   renderDocumentHubAdmin('as');
+}
+
+// A document's file as a link the page may open. The hub's records come from
+// every device's backup, and the file address went raw into src="…" of the
+// preview frame, the print window and the download link — a quote ended the
+// attribute and a javascript: address ran, in the Administrator's session.
+// Stored files are data: links (or a web/Drive link); nothing else is opened.
+function docHubFileUrl(doc) {
+  return safeUrl(doc && doc.fileData, { data: true });
 }
 
 function docHubFormatFileSize(bytes) {
@@ -38982,10 +39000,10 @@ function renderDocumentHubAdmin(prefix) {
   // Stats
   if(statsEl) {
     var totalDocs = documentHubFiles.length;
-    var totalDownloads = documentHubFiles.reduce(function(a, d) { return a + (d.downloads || 0); }, 0);
+    var totalDownloads = documentHubFiles.reduce(function(a, d) { return a + (Number(d.downloads) || 0); }, 0);
     var categories = {};
     documentHubFiles.forEach(function(d) { categories[d.category] = true; });
-    var totalSize = documentHubFiles.reduce(function(a, d) { return a + (d.fileSize || 0); }, 0);
+    var totalSize = documentHubFiles.reduce(function(a, d) { return a + (Number(d.fileSize) || 0); }, 0);
     statsEl.innerHTML =
       '<div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">&#128196;</div><div class="stat-value" data-count="' + totalDocs + '">0</div><div class="stat-label">Total Documents</div></div>' +
       '<div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">&#11015;</div><div class="stat-value" data-count="' + totalDownloads + '">0</div><div class="stat-label">Total Downloads</div></div>' +
@@ -39007,12 +39025,12 @@ function renderDocumentHubAdmin(prefix) {
     html += '<tr>' +
       '<td style="text-align:center;">' + docHubGetFileIcon(doc.fileName) + '</td>' +
       '<td><strong style="font-size:13px;">' + escapeHtml(doc.title) + '</strong>' + (doc.description ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + escapeHtml(doc.description) + '</div>' : '') + '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + escapeHtml(doc.fileName) + '</div></td>' +
-      '<td><span class="badge badge-blue" style="font-size:10px;">' + doc.category + '</span></td>' +
+      '<td><span class="badge badge-blue" style="font-size:10px;">' + escapeHtml(doc.category) + '</span></td>' +
       '<td><span class="badge ' + audienceBadge + '" style="font-size:10px;">' + audienceLabel + '</span></td>' +
-      '<td style="font-size:12px;">' + doc.uploadedBy + '</td>' +
-      '<td style="font-size:12px;">' + doc.uploadedDate + '</td>' +
+      '<td style="font-size:12px;">' + escapeHtml(doc.uploadedBy) + '</td>' +
+      '<td style="font-size:12px;">' + escapeHtml(doc.uploadedDate) + '</td>' +
       '<td style="font-size:12px;">' + docHubFormatFileSize(doc.fileSize) + '</td>' +
-      '<td style="font-size:12px;font-weight:600;">' + (doc.downloads || 0) + '</td>' +
+      '<td style="font-size:12px;font-weight:600;">' + (Number(doc.downloads) || 0) + '</td>' +
       '<td><div style="display:flex;gap:6px;">' +
         '<button class="btn btn-sm btn-primary" onclick="docHubDownloadFile('+jsArg(doc.id)+')" title="Download" style="padding:4px 8px;">&#11015;</button>' +
         '<button class="btn btn-sm btn-secondary" onclick="docHubEditFile('+jsArg(doc.id)+')" title="Edit" style="padding:4px 8px;">&#9998;</button>' +
@@ -39071,13 +39089,13 @@ function renderDocumentHubInstructor() {
       '<div style="flex:1;min-width:0;">' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">' +
           '<strong style="font-size:14px;">' + escapeHtml(doc.title) + '</strong>' +
-          '<span class="badge badge-blue" style="font-size:10px;">' + doc.category + '</span>' +
+          '<span class="badge badge-blue" style="font-size:10px;">' + escapeHtml(doc.category) + '</span>' +
         '</div>' +
         (doc.description ? '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">' + escapeHtml(doc.description) + '</div>' : '') +
         '<div style="font-size:11px;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap;">' +
           '<span>' + escapeHtml(doc.fileName) + '</span>' +
           '<span>' + docHubFormatFileSize(doc.fileSize) + '</span>' +
-          '<span>Uploaded: ' + doc.uploadedDate + '</span>' +
+          '<span>Uploaded: ' + escapeHtml(doc.uploadedDate) + '</span>' +
           '<span>By: ' + escapeHtml(doc.uploadedBy) + '</span>' +
         '</div>' +
       '</div>' +
@@ -43659,7 +43677,7 @@ function _certSigningStore(mode) {
     req.onerror = function () { reject(req.error || new Error('Could not open the signing key store.')); };
   });
 }
-function certSigningKeyLoad() {
+function _certSigningKeyRead() {
   return _certSigningStore('readonly').then(function (os) {
     return new Promise(function (resolve) {
       var r = os.get('current');
@@ -43667,6 +43685,26 @@ function certSigningKeyLoad() {
       r.onerror = function () { resolve(null); };
     });
   }).catch(function () { return null; });
+}
+/* The key is kept LOCKED: a CryptoKey that signs but whose bytes can never be
+   read back (CESTISCore.certs.sig.lockKey). It used to be kept as a plain JWK,
+   which any script that ever ran in an administrator's session could copy and
+   use to sign certificates for ever. A key stored the old way gains its locked
+   copy here the first time it is loaded — checked to sign for its own public
+   key before it is saved — and keeps its JWK only until the administrator
+   downloads the one backup (certSigningExportBackup), never longer. */
+function certSigningKeyLoad() {
+  return _certSigningKeyRead().then(function (key) {
+    var S = CESTISCore.certs.sig;
+    if (!key || !key.privateJwk || !key.privateJwk.d || !S.lockKey || S.isLockedKey(key.privateKey)) return key;
+    return S.lockKey(key.privateJwk).then(function (locked) {
+      return S.checkKey(locked, key.publicJwk).then(function (ok) {
+        if (!ok) return key;                       // never trade a working key for one that does not sign
+        key.privateKey = locked;
+        return certSigningKeySave(key).then(function () { return key; }, function () { return key; });
+      });
+    }).catch(function () { return key; });
+  });
 }
 function certSigningKeySave(key) {
   return _certSigningStore('readwrite').then(function (os) {
@@ -43690,22 +43728,52 @@ function certSigningCreateKey() {
     if (have && !confirm('This device already has signing key ' + have.kid + '. A new key replaces it here (certificates it signed stay valid while its public key stays published). Continue?')) return null;
     if (!have && !confirm('Create the Centre’s certificate signing key on this device?\n\nThe private key stays on this device only. Afterwards: download the private-key backup and keep it somewhere safe and offline, and publish the public key (cert-keys.json).')) return null;
     return CESTISCore.certs.sig.generateKey('Created by ' + certActorName() + ' on ' + new Date().toLocaleDateString()).then(function (key) {
-      return certSigningKeySave(key).then(function () { return key; });
+      return CESTISCore.certs.sig.lockKey(key.privateJwk).then(function (locked) {
+        key.privateKey = locked;
+        return certSigningKeySave(key).then(function () { return key; });
+      });
     });
   }).then(function (key) {
     if (!key) return;
-    showToast('Signing key ' + key.kid + ' created. Next: back it up, then publish its public key.');
+    showToast('Signing key ' + key.kid + ' created. Next: download its backup (once only — the key is then locked on this device), then publish its public key.');
     renderCertSigningPanel();
   }).catch(function (e) { showToast('Could not create the key: ' + ((e && e.message) || e), 'error'); });
 }
 function certSigningExportBackup() {
   certSigningKeyLoad().then(function (key) {
     if (!key) { showToast('There is no signing key on this device.', 'warning'); return; }
-    if (!confirm('This file holds the PRIVATE signing key. Anyone who has it can sign certificates in the Centre’s name.\n\nKeep it offline (a USB stick in the safe). Never email it, never put it in Google Drive, never commit it to GitHub. Download it now?')) return;
+    if (!key.privateJwk || !key.privateJwk.d) {
+      alert('The signing key on this device is locked: it signs, but it can never be downloaded again' +
+        (key.backedUpAt ? ' (its backup was downloaded on ' + new Date(key.backedUpAt).toLocaleString() + ')' : '') + '.\n\n' +
+        'If that backup is lost, create a new key here and publish it. Certificates signed with this key stay valid while its public key stays published.');
+      return;
+    }
+    if (!confirm('This file holds the PRIVATE signing key. Anyone who has it can sign certificates in the Centre’s name.\n\nKeep it offline (a USB stick in the safe). Never email it, never put it in Google Drive, never commit it to GitHub.\n\nThis is the only time it can be downloaded: afterwards the key is locked on this device (it keeps signing). Download it now?')) return;
     _certDownloadJson('CESTIS-certificate-signing-key-PRIVATE-' + key.kid + '.json',
       { _warning: 'PRIVATE KEY. Keep offline. Never share, upload or commit this file.', type: 'cestis-cert-signing-key', kid: key.kid,
         alg: key.alg, label: key.label, createdAt: key.createdAt, publicJwk: key.publicJwk, privateJwk: key.privateJwk });
+    setTimeout(function () {
+      if (!confirm('Is the backup file saved somewhere safe?\n\nOK — lock the key on this device now (it cannot be downloaded again).\nCancel — keep it downloadable for now and try the download again.')) return;
+      certSigningLockStored(key).then(function (done) {
+        showToast(done ? 'Backup taken. The signing key is now locked on this device.' : 'The key could not be locked on this browser; it is still downloadable.', done ? 'success' : 'warning');
+        renderCertSigningPanel();
+      });
+    }, 600);
   });
+}
+/* Drop the readable copy, keeping only the locked key — and only once the
+   locked key is stored and proven to sign for the published half. */
+function certSigningLockStored(key) {
+  var S = CESTISCore.certs.sig;
+  var locked = S.isLockedKey(key.privateKey) ? Promise.resolve(key.privateKey) : S.lockKey(key.privateJwk);
+  return locked.then(function (pk) {
+    return S.checkKey(pk, key.publicJwk).then(function (ok) {
+      if (!ok) return false;
+      var rec = { kid: key.kid, alg: key.alg, label: key.label, createdAt: key.createdAt, publicJwk: key.publicJwk,
+        privateKey: pk, backedUpAt: new Date().toISOString() };
+      return certSigningKeySave(rec).then(function () { return true; });
+    });
+  }).catch(function () { return false; });
 }
 function certSigningImportBackup(input) {
   var f = input && input.files && input.files[0];
@@ -43717,9 +43785,17 @@ function certSigningImportBackup(input) {
     input.value = '';
     if (!k || !k.privateJwk || !k.privateJwk.d || !k.publicJwk || !k.publicJwk.x) { showToast('That file is not a certificate signing key backup.', 'error'); return; }
     CESTISCore.certs.sig.keyId(k.publicJwk).then(function (kid) {
-      var key = { kid: kid, alg: 'ES256', label: k.label || '', createdAt: k.createdAt || new Date().toISOString(),
-        publicJwk: CESTISCore.certs.sig.publicOnly(k.publicJwk), privateJwk: { kty: 'EC', crv: 'P-256', x: k.privateJwk.x, y: k.privateJwk.y, d: k.privateJwk.d } };
-      return certSigningKeySave(key).then(function () { showToast('Signing key ' + kid + ' restored on this device.'); renderCertSigningPanel(); });
+      var S = CESTISCore.certs.sig;
+      var pub = S.publicOnly(k.publicJwk);
+      // The file is the backup: the device keeps only the locked key.
+      return S.lockKey({ kty: 'EC', crv: 'P-256', x: k.privateJwk.x, y: k.privateJwk.y, d: k.privateJwk.d }).then(function (locked) {
+        return S.checkKey(locked, pub).then(function (ok) {
+          if (!ok) throw new Error('the private key in that file does not match its public key');
+          var key = { kid: kid, alg: 'ES256', label: k.label || '', createdAt: k.createdAt || new Date().toISOString(),
+            publicJwk: pub, privateKey: locked, backedUpAt: new Date().toISOString() };
+          return certSigningKeySave(key).then(function () { showToast('Signing key ' + kid + ' restored on this device.'); renderCertSigningPanel(); });
+        });
+      });
     }).catch(function (e) { showToast('Could not restore the key: ' + ((e && e.message) || e), 'error'); });
   };
   reader.readAsText(f);
@@ -43780,14 +43856,17 @@ function renderCertSigningPanel() {
     var published = !!(key && pub && Array.isArray(pub.keys) && pub.keys.some(function (k) { return k && k.kid === key.kid; }));
     var line = key
       ? 'This device signs with key <strong style="font-family:monospace;">' + escapeHtml(key.kid) + '</strong>' +
-        (published ? ' <span class="badge badge-green">published</span>' : ' <span class="badge badge-amber">not yet published — employers cannot check it until cert-keys.json carries it</span>')
+        (published ? ' <span class="badge badge-green">published</span>' : ' <span class="badge badge-amber">not yet published — employers cannot check it until cert-keys.json carries it</span>') +
+        ((key.privateJwk && key.privateJwk.d)
+          ? ' <span class="badge badge-amber">not backed up yet — download its backup once; the key is then locked on this device</span>'
+          : ' <span class="badge badge-green">locked on this device</span>')
       : 'There is no signing key on this device. Certificates still verify through the Centre’s records, but an employer needs a signed certificate to verify with no sign-in.';
     el.innerHTML = '<p style="font-size:13px;margin-bottom:8px;">' + line + '</p>' +
       '<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">' + signed + ' of ' + approved.length + ' approved certificates carry a current signature. Approving a download signs it automatically on a device that holds the key.</p>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
       (key ? '<button class="btn btn-sm btn-primary" onclick="certSignApproved()">Sign approved certificates</button>' +
              '<button class="btn btn-sm btn-secondary" onclick="certSigningDownloadPublic()">Download cert-keys.json (public)</button>' +
-             '<button class="btn btn-sm btn-secondary" onclick="certSigningExportBackup()">Back up private key</button>'
+             ((key.privateJwk && key.privateJwk.d) ? '<button class="btn btn-sm btn-secondary" onclick="certSigningExportBackup()">Back up private key</button>' : '')
            : '<button class="btn btn-sm btn-primary" onclick="certSigningCreateKey()">Create signing key</button>') +
       '<label class="btn btn-sm btn-secondary" style="cursor:pointer;">Restore key from backup<input type="file" accept="application/json,.json" style="display:none;" onchange="certSigningImportBackup(this)"></label>' +
       (key ? '<button class="btn btn-sm btn-secondary" onclick="certSigningCreateKey()">Replace key</button>' : '') +
@@ -47137,7 +47216,7 @@ function ttUnmount(){
                     <div style="text-align: center; padding: 1rem; background: var(--bg-card); border-radius: 0.5rem;">
                         <div style="font-size: 0.85rem; color: var(--text-secondary);">Cloud Backup</div>
                         <div style="font-size: 0.9rem; margin-top: 0.25rem;">${cloudTime}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-secondary);">by ${savedBy}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">by ${escapeHtml(savedBy)}</div>
                     </div>
                     <div style="text-align: center; padding: 1rem; background: #E8F5E9; border-radius: 0.5rem;">
                         <div style="font-size: 2rem; font-weight: bold; color: #4CAF50;">${totalNewLocal}</div>
@@ -47170,7 +47249,7 @@ function ttUnmount(){
                         <div style="background: #FFF8E1; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid #FF9800;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <strong style="color: #E65100;">Staff:</strong> ${conflict.local.fullName}
+                                    <strong style="color: #E65100;">Staff:</strong> ${escapeHtml(conflict.local.fullName)}
                                     <span style="background: #FFE0B2; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin-left: 0.5rem;">
                                         ${conflict.reasons.length} difference(s)
                                     </span>
@@ -47181,7 +47260,7 @@ function ttUnmount(){
                                 </label>
                             </div>
                             <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                                ${conflict.reasons.slice(0, 2).join(', ')}${conflict.reasons.length > 2 ? '...' : ''}
+                                ${escapeHtml(conflict.reasons.slice(0, 2).join(', '))}${conflict.reasons.length > 2 ? '...' : ''}
                             </div>
                         </div>`;
                 });
@@ -47191,9 +47270,9 @@ function ttUnmount(){
                         <div style="background: #FFF8E1; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid #FF9800;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <strong style="color: #E65100;">Record:</strong> ${conflict.local.staffName} - ${conflict.local.date}
+                                    <strong style="color: #E65100;">Record:</strong> ${escapeHtml(conflict.local.staffName)} - ${escapeHtml(conflict.local.date)}
                                     <span style="background: #FFE0B2; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin-left: 0.5rem;">
-                                        ${conflict.reasons.join(', ')}
+                                        ${escapeHtml(conflict.reasons.join(', '))}
                                     </span>
                                 </div>
                                 <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.85rem;">
@@ -47219,7 +47298,7 @@ function ttUnmount(){
                 analysis.staffMembers.newLocal.forEach(staff => {
                     newHtml += `
                         <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Local Staff:</strong> ${staff.fullName} (${staff.role})</span>
+                            <span><strong>Local Staff:</strong> ${escapeHtml(staff.fullName)} (${escapeHtml(staff.role)})</span>
                             <span style="color: #4CAF50;">Will be added to cloud</span>
                         </div>`;
                 });
@@ -47227,7 +47306,7 @@ function ttUnmount(){
                 analysis.staffMembers.newCloud.forEach(staff => {
                     newHtml += `
                         <div style="background: #E3F2FD; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Cloud Staff:</strong> ${staff.fullName} (${staff.role})</span>
+                            <span><strong>Cloud Staff:</strong> ${escapeHtml(staff.fullName)} (${escapeHtml(staff.role)})</span>
                             <span style="color: #2196F3;">Will be added locally</span>
                         </div>`;
                 });
@@ -47235,7 +47314,7 @@ function ttUnmount(){
                 analysis.timeRecords.newLocal.forEach(record => {
                     newHtml += `
                         <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Local Record:</strong> ${record.staffName} - ${record.date}</span>
+                            <span><strong>Local Record:</strong> ${escapeHtml(record.staffName)} - ${escapeHtml(record.date)}</span>
                             <span style="color: #4CAF50;">Will be added to cloud</span>
                         </div>`;
                 });
@@ -47243,7 +47322,7 @@ function ttUnmount(){
                 analysis.timeRecords.newCloud.forEach(record => {
                     newHtml += `
                         <div style="background: #E3F2FD; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Cloud Record:</strong> ${record.staffName} - ${record.date}</span>
+                            <span><strong>Cloud Record:</strong> ${escapeHtml(record.staffName)} - ${escapeHtml(record.date)}</span>
                             <span style="color: #2196F3;">Will be added locally</span>
                         </div>`;
                 });
@@ -48399,16 +48478,16 @@ function ttUnmount(){
                     : '<span style="background: var(--warning); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px;">Unknown Format</span>';
 
                 return `
-                    <div class="backup-file-item" data-file-id="${file.id}" data-file-name="${file.name.replace(/"/g, '&quot;')}" onclick="selectBackupFile(this.dataset.fileId, this.dataset.fileName)">
+                    <div class="backup-file-item" data-file-id="${escapeAttr(file.id)}" data-file-name="${escapeAttr(file.name)}" onclick="selectBackupFile(this.dataset.fileId, this.dataset.fileName)">
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <span style="font-size: 1.5rem;">📄</span>
                             <div style="flex: 1;">
                                 <div style="font-weight: 600; color: var(--text-primary);">
-                                    ${file.name}${validBadge}
+                                    ${escapeHtml(file.name)}${validBadge}
                                 </div>
                                 <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
                                     <span>📅 ${dateFormatted}</span>
-                                    <span style="margin-left: 16px;">👤 Saved by: ${file.savedBy}</span>
+                                    <span style="margin-left: 16px;">👤 Saved by: ${escapeHtml(file.savedBy)}</span>
                                 </div>
                                 <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
                                     Modified ${timeAgo}

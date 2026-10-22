@@ -110,8 +110,64 @@ const ALIVE_TIMEOUT_MS = 60000;
 const TAKEOVER_SILENCE_MS = 15000;
 const SWEEP_EVERY_MS = 15000;
 
+/* ============================================================================
+   Who may take a room's HOST place.
+
+   A class room's host is the peer named  cestis-<ROOMCODE>-host,  and this
+   server gave every id to whoever asked for it first. The room code travels in
+   invitations and schedules, so a trainee who knew it could register the
+   host's id before the instructor arrived: the instructor was told the room
+   was in use, and the trainee held the class (and, after 15 silent seconds,
+   could take it over again).
+
+   The Centre's server now gives a short-lived HOST TICKET to a member of staff
+   who proves their password to it (/_cestis/host-ticket in
+   cestis-offline-server.js), and — when the server is started with a
+   hostCheck — a -host id is accepted only with a valid ticket in the "key" the
+   PeerJS library sends with its first request.
+
+   What it does not do, plainly: any member of staff can still host any room;
+   a trainee can still JOIN a room whose code they know (the host admits
+   people); and the online build is introduced by the public PeerJS server,
+   which no Centre controls — there the instructor's page only warns when
+   somebody else holds the room's host place.
+   ============================================================================ */
+const TICKET_TTL_MS = 12 * 60 * 60 * 1000;
+function b64u(buf) {
+  return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function ticketMac(secret, body) {
+  return b64u(crypto.createHmac('sha256', String(secret)).update('cestis-host-ticket.' + body).digest());
+}
+/* claims: { u: account id, r: role }. Returns 'v1.<claims>.<mac>'. */
+function makeTicket(secret, claims, nowMs, ttlMs) {
+  const now = typeof nowMs === 'number' ? nowMs : Date.now();
+  const body = b64u(JSON.stringify({ u: String((claims && claims.u) || ''), r: String((claims && claims.r) || ''),
+    exp: now + (ttlMs || TICKET_TTL_MS) }));
+  return 'v1.' + body + '.' + ticketMac(secret, body);
+}
+/* The claims of a ticket this server made and that has not run out, or null. */
+function verifyTicket(secret, ticket, nowMs) {
+  if (!secret || typeof ticket !== 'string' || ticket.length > 600) return null;
+  const parts = ticket.split('.');
+  if (parts.length !== 3 || parts[0] !== 'v1') return null;
+  const want = Buffer.from(ticketMac(secret, parts[1]));
+  const got = Buffer.from(parts[2]);
+  if (want.length !== got.length || !crypto.timingSafeEqual(want, got)) return null;
+  let claims;
+  try { claims = JSON.parse(Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')); }
+  catch (e) { return null; }
+  const now = typeof nowMs === 'number' ? nowMs : Date.now();
+  if (!claims || typeof claims.exp !== 'number' || claims.exp <= now) return null;
+  return claims;
+}
+function isHostId(id) { return /^cestis-[A-Za-z0-9]+-host$/.test(String(id || '')); }
+
 function attach(server, log, options) {
   const opts = options || {};
+  // hostCheck(id, key) -> { ok, msg }. Without one (tests, the video smoke
+  // test's stand-in server) every id is handed out as before.
+  const hostCheck = typeof opts.hostCheck === 'function' ? opts.hostCheck : null;
   const aliveTimeout = opts.aliveTimeoutMs || ALIVE_TIMEOUT_MS;
   const takeoverAfter = opts.takeoverAfterMs || TAKEOVER_SILENCE_MS;
   const now = typeof opts.now === 'function' ? opts.now : Date.now;
@@ -172,6 +228,20 @@ function attach(server, log, options) {
     socket.setNoDelay(true);
     // Let the operating system notice a connection that died without a word.
     try { socket.setKeepAlive(true, 30000); } catch (e) {}
+
+    // A room's host place only with a host ticket (see the note above
+    // makeTicket). Refused with ERROR, which the page reports in plain words.
+    if (hostCheck && isHostId(id)) {
+      let verdict = null;
+      try { verdict = hostCheck(id, params.get('key') || '', req); } catch (e) { verdict = null; }
+      if (!verdict || !verdict.ok) {
+        send(socket, { type: 'ERROR', payload: { msg: (verdict && verdict.msg) ||
+          'Only signed-in staff can host a class on this Centre’s server.' } });
+        try { socket.end(); } catch (e) {}
+        say('[signalling] refused the host place of ' + id + ' (no valid host ticket)');
+        return;
+      }
+    }
 
     // A room host that reloads reclaims its own id; a genuine clash is refused,
     // which is what the library expects to hear — unless the holder has gone
@@ -253,4 +323,5 @@ function attach(server, log, options) {
   };
 }
 
-module.exports = { attach, encodeFrame, decodeFrames, ALIVE_TIMEOUT_MS, TAKEOVER_SILENCE_MS };
+module.exports = { attach, encodeFrame, decodeFrames, ALIVE_TIMEOUT_MS, TAKEOVER_SILENCE_MS,
+  makeTicket, verifyTicket, isHostId, TICKET_TTL_MS };

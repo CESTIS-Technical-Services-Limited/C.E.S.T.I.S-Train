@@ -501,7 +501,7 @@ console.log('LMS Chat: messages, file names, rooms, avatars');
     lmsChatGetUserRooms() { return [room]; }, lmsChatCountUnread() { return 0; },
     lmsChatRenderPoll() { return ''; }
   };
-  const helpers = ['lmsChatFormatDate', 'lmsChatFormatFullTime', 'lmsChatFormatTime', 'lmsChatGetFileIcon', 'lmsChatFormatFileSize', 'lmsChatGetUserInitials'];
+  const helpers = ['lmsChatFormatDate', 'lmsChatFormatFullTime', 'lmsChatFormatTime', 'lmsChatGetFileIcon', 'lmsChatFormatFileSize', 'lmsChatGetUserInitials', 'lmsChatRoomIcon', 'lmsChatRoomColor'];
   const r = render('lmsChatRenderMessages', helpers.concat(['lmsChatRenderMessages']), setup, 'lmsChatRenderMessages("admin")', sb => el(sb, 'adminChatMessages'));
   const dl = handlerCalls(r.html).filter(c => c.name === 'lmsChatDownloadFile');
   assert(dl.length === 1 && dl[0].args[1] === msgs[1].fileName, 'an attachment named with an apostrophe still downloads by its exact name');

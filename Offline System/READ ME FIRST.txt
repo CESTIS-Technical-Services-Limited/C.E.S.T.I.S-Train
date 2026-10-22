@@ -68,6 +68,12 @@ If a device cannot reach it:
     server computer and the problem goes away for good. (When the address does
     change, the server makes a fresh certificate for it, so devices are asked to
     accept it once more.)
+  - the records answer only at the addresses the black window prints (and
+    "localhost" on the server itself). If the Centre reaches the server by a
+    name of its own set up on the router, start it with that name allowed:
+        CESTIS_HOSTNAMES=thatname  node cestis-offline-server.js
+    (This stops a website from pointing its own name at the server to read the
+    records through somebody's browser.)
 
 
 --------------------------------------------------------------------------------
@@ -164,6 +170,14 @@ To see who is currently connected, open ON THE SERVER COMPUTER ITSELF:
       https://localhost:8080/_cestis/rooms
 (Other devices are refused that page: it lists every class's room code, and
 the room code is all it takes to join a class.)
+
+Only STAFF can start a class on this network. When an administrator, a member
+of Admin Staff or an instructor signs in to the dashboard, the server checks
+their password itself and lets that browser tab host classes for twelve hours.
+If a class will not start and the page says only signed-in staff can host,
+sign out and sign in again. (A brand-new Centre whose data folder holds no
+staff login yet can start a class without this.) Before, a trainee who knew a
+room code could take the class's host place before the instructor arrived.
 
 A device that went to sleep, or dropped off the wifi, in the middle of a class
 is let go by the server after about a minute of silence, so its owner can
