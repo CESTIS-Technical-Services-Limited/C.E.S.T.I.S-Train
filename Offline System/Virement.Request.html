@@ -1843,9 +1843,17 @@ document.addEventListener('DOMContentLoaded', function(){
         virOpenPage();
     });
 });
+/* Set once the page has opened for a signed-in viewer and read the store.
+   Until then memory holds nothing of the Centre's: a refused visit (a trainee
+   typing the address, a dashboard session that has ended) never loads the
+   data, yet closing or hiding its tab ran the saves below — and wrote the
+   empty deletion list and the empty cashbook mirror over the real ones.
+   Nothing is saved from a page that never loaded. */
+var virPageOpened = false;
 function virOpenPage(){
     loadAllData();
     loadCloudCache();
+    virPageOpened = true;
     // Populate fiscal year dropdown
     populateFYSelector();
     // Set initial quarter tab as active based on auto-detected quarter
@@ -3516,6 +3524,7 @@ function deduplicateRequests() {
 }
 
 function saveAllData(){
+    if (!virPageOpened) return;   // never loaded: nothing here to save (see virOpenPage)
     try {
         // Merge-save: re-read localStorage first so we never silently
         // discard requests that another tab/session added since our last load.
@@ -3909,6 +3918,7 @@ function loadCloudCache() {
 
 // Save cloud cache to localStorage
 function saveCloudCache() {
+    if (!virPageOpened) return;   // never loaded: nothing here to save (see virOpenPage)
     try {
         CESTISStore.setItem(VIREMENT_CLOUD_CACHE_KEY, JSON.stringify(cloudQuarterCache));
     } catch(e) {

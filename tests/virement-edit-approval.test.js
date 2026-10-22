@@ -65,6 +65,8 @@ function makePage(store0, cloud) {
   const entry = { querySelector: sel => ({ '.vl-from': { value: 'b1' }, '.vl-to': { value: 'b2' }, '.vl-amount': { value: entryAmount } })[sel] };
   const sb = {
     CESTISStore: store, console: { log() {}, warn() {}, error() {} }, alert() {}, confirm: () => true,
+    // The page as it is once opened for a signed-in viewer (virOpenPage ran).
+    virPageOpened: true,
     virementRequests: [], deletedRequestIds: new Set(), DELETED_IDS_KEY: 'cesti_virement_deleted_ids',
     editingVirementIdx: -1, adminUnlocked: false, virementActiveFY: '2026/2027', virementActiveQ: 3,
     budgetData: [{ id: 'b1', name: 'Rent' }, { id: 'b2', name: 'Utilities' }], cloudQuarterCache: {},
