@@ -92,7 +92,8 @@ const PAGE_FNS = [
   'examCounts', 'examClock', 'examTakingView', 'examPages', 'examPageOf', 'examStateText', 'examNavBoxClass', 'examNavBoxLabel',
   'examNavPanelHtml', 'examQuestionHtml', 'examAnswerHtml', 'examCrumbsHtml', 'examSetCurrent', 'examRefreshNavBox', 'examGoTo',
   'examFocusQuestion', 'examGoPage', 'examToggleNavStrip', 'examShowSummary', 'examToggleMulti', 'examSetMatch', 'examAnswerChanged',
-  'scrollToExamQuestion', 'confirmSubmitExam',
+  'scrollToExamQuestion', 'confirmSubmitExam', 'examReturnToAttempt', 'examCentreDateTime', 'examSummaryHtml', 'examConfirmSubmit',
+  'examCloseConfirm', 'examSubmitConfirmed',
   'autoSaveExamProgress', 'submitExam', 'showExamResult', 'viewExamResultDetail', 'renderStudentExams', 'submitGrading', 'closeGradingPanel',
   'getFilteredNotifications', 'notifViewerId', 'exportExamResults', 'detectQuestionsFromText', 'removeImportOption', 'finalizeImportExam', 'updateImportSummary',
   'clearSensitiveStudentData'

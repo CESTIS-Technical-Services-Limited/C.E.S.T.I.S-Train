@@ -2242,7 +2242,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
    grey information box beside a blue question box. In the Centre's dark
    colours: the grey box is a step lighter than a card, the blue box is the
    Centre's blue at low strength. */
-.exam-attempt { max-width:1160px; margin:0 auto; }
+.exam-attempt { max-width:1160px; margin:0 auto; padding-top:6px; }
 .exam-preview-banner { background:var(--accent-dim); color:var(--accent); padding:10px 16px; border-radius:var(--radius-sm); margin-bottom:12px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px; }
 .exam-crumbs { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:13px; color:var(--blue); margin-bottom:4px; }
 .exam-crumbs .sep { color:var(--text-muted); font-size:11px; }
@@ -2311,6 +2311,33 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .exam-page-nav { display:flex; align-items:center; gap:12px; padding:8px 0 4px; }
 .exam-page-nav .exam-next { margin-left:auto; }
 .exam-page-count { font-size:13px; color:var(--text-muted); }
+/* Summary of attempt (examSummaryHtml) and its "Submit all and finish?" dialog */
+.exam-summary-title { font-size:21px; margin:0 0 14px; }
+.exam-summary-title:focus { outline:none; }
+.exam-summary-wrap { border:1px solid var(--border-light); border-radius:4px; }
+.exam-summary-table { width:100%; border-collapse:collapse; background:var(--bg-card); }
+.exam-summary-table th { text-align:left; font-size:12px; letter-spacing:.5px; text-transform:uppercase; color:var(--text-secondary); padding:10px 16px; background:#222d3c; border-bottom:1px solid var(--border-light); }
+.exam-summary-table td { padding:9px 16px; border-bottom:1px solid var(--border); font-size:14px; color:var(--text-primary); }
+.exam-summary-table tr:nth-child(even) td { background:rgba(255,255,255,0.02); }
+.exam-summary-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.exam-summary-table tr.st-none td:nth-child(2), .exam-summary-table tr.st-partial td:nth-child(2) { color:var(--accent); }
+.exam-summary-q { background:none; border:0; padding:2px 4px; color:var(--blue); font:600 14px 'DM Sans',sans-serif; cursor:pointer; min-width:36px; text-align:left; }
+.exam-summary-q:hover { text-decoration:underline; }
+.exam-summary-q .sum-flag { color:var(--red); margin-right:4px; }
+.sum-flag-badge { display:inline-block; margin-left:8px; font-size:12px; color:var(--red); }
+.exam-summary-actions { display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; margin:24px 0 8px; }
+.exam-summary-time { font-size:15px; color:var(--text-secondary); }
+.exam-summary-time .timer-value { color:var(--text-primary); font-variant-numeric:tabular-nums; }
+.exam-summary-time .timer-value.warning { color:var(--accent); }
+.exam-summary-time .timer-value.danger { color:var(--red); }
+.exam-summary-due, .exam-summary-warn { font-size:13.5px; color:var(--text-secondary); max-width:560px; }
+.exam-summary-warn { color:var(--accent); }
+.exam-confirm-overlay { position:fixed; inset:0; z-index:3000; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; padding:16px; }
+.exam-confirm { width:100%; max-width:480px; background:var(--bg-card); border:1px solid var(--border-light); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px 24px; }
+.exam-confirm h3 { font-size:19px; margin-bottom:12px; }
+.exam-confirm p { font-size:14px; color:var(--text-secondary); margin-bottom:10px; line-height:1.5; }
+.exam-confirm .exam-confirm-warn { color:var(--accent); }
+.exam-confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; flex-wrap:wrap; }
 
 /* Exam results display */
 .exam-result-card {
@@ -26426,6 +26453,8 @@ function updateExamTimerDisplay() {
   if(!el || !currentExamSession) return;
   var s = currentExamSession, t = s.timeRemaining;
   el.textContent = examClock(t);
+  var el2 = document.getElementById('examTimerValue2');   // the Summary page's own line
+  if(el2) { el2.textContent = examClock(t); el2.className = 'timer-value' + (t <= 60 ? ' danger' : t <= 300 ? ' warning' : ''); }
   // The last five minutes are shown in the warning colour (the last one in
   // red), and said once — not every second — to a screen reader.
   el.className = 'timer-value' + (t <= 60 ? ' danger' : t <= 300 ? ' warning' : '');
@@ -26696,8 +26725,112 @@ function examToggleNavStrip() {
   if(panel && panel.classList) { if(s._navOpen) panel.classList.add('open'); else panel.classList.remove('open'); }
   if(btn) btn.setAttribute('aria-expanded', s._navOpen ? 'true' : 'false');
 }
-// "Finish attempt…": for now, straight to the submit question.
-function examShowSummary() { confirmSubmitExam(); }
+// "Finish attempt…": the Summary of attempt page — every question and its
+// state, Return to attempt, the time left, and Submit all and finish.
+function examShowSummary() {
+  var s = currentExamSession;
+  if(!s) return;
+  s.view = 'summary';
+  renderExamTaking();
+  var view = examTakingView();
+  if(view && view.scrollIntoView) view.scrollIntoView({ block: 'start' });
+  var h = document.getElementById('examSummaryTitle');
+  if(h && h.focus) { try { h.focus({ preventScroll: true }); } catch(e) { h.focus(); } }
+}
+function examReturnToAttempt() {
+  var s = currentExamSession;
+  if(!s) return;
+  s.view = 'attempt';
+  renderExamTaking();
+  examFocusQuestion(s.current);
+}
+// A moment on the Centre's clock as people say it: "Thursday, 22 October
+// 2026, 10:45 AM".
+function examCentreDateTime(ms) {
+  if(ms == null || isNaN(ms)) return '';
+  var p = CESTISCore.exams.centreParts(ms, examCentreOffset());
+  var d = p.date.split('-').map(Number), t = p.time.split(':').map(Number);
+  var day = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(Date.UTC(d[0], d[1] - 1, d[2])).getUTCDay()];
+  var mon = ['January','February','March','April','May','June','July','August','September','October','November','December'][d[1] - 1];
+  var h12 = t[0] % 12 || 12;
+  return day + ', ' + d[2] + ' ' + mon + ' ' + d[0] + ', ' + h12 + ':' + String(t[1]).padStart(2, '0') + ' ' + (t[0] < 12 ? 'AM' : 'PM');
+}
+function examSummaryHtml(s) {
+  var nums = CESTISCore.exams.questionNumbers(s.questions);
+  var html = '<div class="exam-taking exam-attempt">';
+  if(_isExamPreviewMode) {
+    html += '<div class="exam-preview-banner">&#9888;&#65039; PREVIEW MODE — Results will not be saved. <button class="btn btn-sm btn-secondary" onclick="endExamPreview()" style="margin-left:auto;">Exit Preview</button></div>';
+  }
+  html += examCrumbsHtml(s.course, s.title);
+  html += '<h2 class="exam-attempt-title">' + escapeHtml(s.title) + '</h2>';
+  html += '<div class="exam-attempt-layout">' + examNavPanelHtml(s, []);
+  html += '<div class="exam-attempt-main exam-summary">';
+  html += '<h3 class="exam-summary-title" id="examSummaryTitle" tabindex="-1">Summary of attempt</h3>';
+  html += '<div class="table-wrapper exam-summary-wrap"><table class="exam-summary-table"><caption class="exam-sr-only">Every question and whether it has an answer</caption>'
+    + '<thead><tr><th scope="col">Question</th><th scope="col">Status</th><th scope="col" class="num">Marks</th></tr></thead><tbody>';
+  s.questions.forEach(function(q, i) {
+    if(q && q.type === 'info') return;
+    var st = CESTISCore.exams.answerState(q, s.answers[i]);
+    var flagged = !!(s.flagged && s.flagged[i]);
+    html += '<tr class="st-' + st + '"><td><button type="button" class="exam-summary-q" onclick="examGoTo(' + i + ')" aria-label="Question ' + nums[i] + ': go back to it">'
+      + (flagged ? '<span class="sum-flag" aria-hidden="true">&#9873;</span>' : '') + nums[i] + '</button></td>'
+      + '<td>' + examStateText(q, s.answers[i]) + (flagged ? ' <span class="sum-flag-badge">&#9873; Flagged</span>' : '') + '</td>'
+      + '<td class="num">' + CESTISCore.exams.formatMark(q.points) + '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  var c = examCounts(s);
+  html += '<div class="exam-summary-actions">';
+  html += '<button type="button" class="btn btn-secondary" onclick="examReturnToAttempt()">Return to attempt</button>';
+  html += '<div class="exam-summary-time">Time left <strong class="timer-value" id="examTimerValue2">' + examClock(s.timeRemaining) + '</strong></div>';
+  if(s.deadline) html += '<p class="exam-summary-due">This attempt must be submitted by ' + escapeHtml(examCentreDateTime(s.deadline)) + '. When the time runs out, your answers are submitted automatically.</p>';
+  if(c.unanswered) html += '<p class="exam-summary-warn">' + c.unanswered + ' of ' + c.total + ' question' + (c.total !== 1 ? 's are' : ' is') + ' not answered yet.</p>';
+  html += '<button type="button" class="btn btn-primary exam-submit-all" id="examSubmitAllBtn" onclick="examConfirmSubmit()">Submit all and finish</button>';
+  html += '</div></div></div></div>';
+  return html;
+}
+
+// "Submit all and finish" asks first, on the page (a dialog that can be
+// read, tabbed through and cancelled with Escape), saying how many
+// questions are still unanswered.
+function examConfirmSubmit() {
+  var s = currentExamSession;
+  if(!s) return;
+  examCloseConfirm();
+  var c = examCounts(s);
+  var none = c.unanswered - c.partial;
+  var warn = '';
+  if(none > 0) warn += '<p class="exam-confirm-warn">You have <strong>' + none + ' unanswered question' + (none !== 1 ? 's' : '') + '</strong>.</p>';
+  if(c.partial > 0) warn += '<p class="exam-confirm-warn">' + c.partial + ' question' + (c.partial !== 1 ? 's are' : ' is') + ' only partly answered.</p>';
+  if(!warn) warn = '<p>Every question has an answer.</p>';
+  var overlay = document.createElement('div');
+  overlay.className = 'exam-confirm-overlay';
+  overlay.id = 'examConfirmOverlay';
+  overlay.innerHTML = '<div class="exam-confirm" role="dialog" aria-modal="true" aria-labelledby="examConfirmTitle" aria-describedby="examConfirmBody">'
+    + '<h3 id="examConfirmTitle">Submit all your answers and finish?</h3>'
+    + '<div id="examConfirmBody">' + warn + '<p>Once you submit, you will no longer be able to change your answers for this attempt.</p></div>'
+    + '<div class="exam-confirm-actions"><button type="button" class="btn btn-secondary" id="examConfirmCancel" onclick="examCloseConfirm(true)">Cancel</button>'
+    + '<button type="button" class="btn btn-primary" id="examConfirmGo" onclick="examSubmitConfirmed()">Submit all and finish</button></div></div>';
+  overlay.onkeydown = function(ev) {
+    if(ev.key === 'Escape') { ev.preventDefault(); examCloseConfirm(true); return; }
+    if(ev.key === 'Tab') {   // keep Tab inside the dialog
+      var a = document.getElementById('examConfirmCancel'), b = document.getElementById('examConfirmGo');
+      if(ev.shiftKey && document.activeElement === a) { ev.preventDefault(); b.focus(); }
+      else if(!ev.shiftKey && document.activeElement === b) { ev.preventDefault(); a.focus(); }
+    }
+  };
+  document.body.appendChild(overlay);
+  var cancel = document.getElementById('examConfirmCancel');
+  if(cancel && cancel.focus) cancel.focus();
+}
+function examCloseConfirm(refocus) {
+  var o = document.getElementById('examConfirmOverlay');
+  if(o && o.parentNode) o.parentNode.removeChild(o);
+  if(refocus) { var b = document.getElementById('examSubmitAllBtn'); if(b && b.focus) b.focus(); }
+}
+function examSubmitConfirmed() {
+  examCloseConfirm();
+  submitExam();
+}
 
 // Coerces first: a number (an exam duration, a count) has no .replace and used
 // to throw straight out of whatever was building the page.
@@ -26843,13 +26976,11 @@ function autoSaveExamProgress() {
   } catch(e) {}
 }
 
+// Anything that still asks to submit gets the same on-page question as
+// "Submit all and finish".
 function confirmSubmitExam() {
   if(!currentExamSession) return;
-  var unanswered = examCounts(currentExamSession).unanswered;
-  var msg = 'Submit your exam?';
-  if(unanswered > 0) msg = 'You have '+unanswered+' unanswered question'+(unanswered!==1?'s':'')+'. Submit anyway?';
-  if(!confirm(msg)) return;
-  submitExam();
+  examConfirmSubmit();
 }
 
 function submitExam(auto) {
@@ -26857,6 +26988,8 @@ function submitExam(auto) {
   if(!s) return;
   if(examTimerInterval) { clearInterval(examTimerInterval); examTimerInterval = null; }
   if(_examDraftTimer) { clearTimeout(_examDraftTimer); _examDraftTimer = null; }
+  // The time ran out while "Submit all and finish?" was open: it goes too.
+  examCloseConfirm();
 
   // The attempt belongs to the trainee who started it. If somebody else is
   // signed in now (a shared lab PC), it is never recorded under their name:
