@@ -342,4 +342,77 @@ These need a real server, or a decision by the Centre. They are documented, not 
 
 ## Recommendations
 
-See *UI recommendations not yet implemented* and *Feature roadmap* below.
+### UI improvements not yet made (in priority order)
+
+The UI audit made 159 recommendations, and the ones that could be made safely without touching
+data are done. These are the ones still open, most valuable first.
+
+1. **Search on phones.** The top search box has no phone layout. An expanding search icon is a
+   small, safe change, and the obvious next one.
+2. **Phone layouts for the busiest tables:**
+   - the attendance grid
+   - the finance tables
+   - the certificate pages
+   - chat
+   - the video room
+   - the gradebook
+   - the users table
+
+   Each lives inside its own page's render code, so each needs its own careful pass. The
+   pattern is the one already used for transcripts: the table scrolls inside its card, never
+   the page.
+3. **Minimum readable text size.** About 350 style rules still use 9–11px text. Raising them to
+   12px or more needs a design pass across every page, not a single token change.
+4. **Sign-in feedback.**
+   - Show sign-in errors inline instead of in a pop-up.
+   - Show who is signed in, with a *Lock* button.
+   - Show a short notice explaining the "sync before sign-in" step for staff without a Google
+     account.
+5. **A sync health chip.** One small indicator ("All saved" / "3 changes waiting" / "Offline")
+   on every page. The data is already tracked by the pending-upload marker and the unsynced
+   counters.
+6. **Image descriptions.** 15 images have no alt text. Each needs a human judgement on whether
+   the picture carries information.
+7. **One look across the sibling apps.** School Fee, Cashbook, Payroll and Clock-in each have
+   their own styling. A shared stylesheet would make the platform feel like one product.
+   This is large but low-risk if done page by page.
+8. **Remaining pop-up questions.** The remaining `prompt()`/`confirm()` chains (mostly in the
+   finance apps) should become proper forms with validation, as the calendar now has.
+
+### Feature roadmap (zero-cost, in priority order)
+
+The auditors also proposed 110 features. These are the ones that matter most for a training
+school, in the order they pay back:
+
+1. **Role-scoped data (the biggest remaining gap).** Have the MegaData broker (already built and
+   in shadow mode) serve each device only what its role may see. It closes the "every device
+   holds everything" limit, keeps answer keys off trainee devices and enables staff-side
+   marking. The architecture is in `docs/02-MEGADATA-ARCHITECTURE.md`; cut-over is
+   `docs/04-BOOTSTRAP-AND-CUTOVER.md`.
+2. **Audit trails.** One "who changed what, when, and what it was before" log, visible to
+   administrators, covering:
+   - grades and attendance (both already keep per-record history)
+   - certificates (issue, approve, revoke, collect)
+   - accounts and finance
+
+   This is what an HEART/NSTA moderation visit asks for.
+3. **Question bank and fair exams.**
+   - Random pools per unit and option shuffling.
+   - Attempts and retakes with accommodations (extra time).
+   - Regrading or voiding a question, with item analysis.
+4. **Trainee self check-in.** A rotating code or QR shown by the instructor, confirmed into the
+   register (with the same "instructor confirms" rule as live-class attendance).
+5. **Intake (cohort) management and close-out.**
+   - A first-class intake with its dates, roll, register, exams and results.
+   - An end-of-intake archive that freezes it and keeps the working data small for years.
+6. **Scheduled local backups.** Every week, a full backup to a folder or USB on the office PC,
+   with a merge-restore preview. This removes the last dependency on Google for disaster
+   recovery.
+7. **Calendar export (.ics) and urgent-notice fallback** (an e-mail or WhatsApp link), so
+   trainees get reminders on their own phones.
+8. **Statement of Attainment and batch certificate PDFs.** Partial completions get a record,
+   and a whole cohort's certificates come out in one file.
+9. **Marking rubrics and structured feedback** for assignments, and bulk gradebook CSV
+   export/import that includes the marks.
+10. **Live captions and quick polls in class.** These are accessibility and engagement tools
+    that need no server.
