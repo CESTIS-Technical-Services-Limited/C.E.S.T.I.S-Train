@@ -7421,7 +7421,12 @@ function sessionAccountRevoked() {
 }
 function sessionHeartbeat() {
   if(!currentRole) return;
-  try { CESTISStore.setItem('voctrain_sessionSeenAt', String(Date.now())); } catch(e) {}
+  // The heartbeat is what lets the record pages open in another tab
+  // (CESTISCore.sessionAccess). A dashboard covered by the idle lock is not
+  // "still open" for that purpose: it kept beating, so anybody could open
+  // Student Progress, Transcript-Grades or the time clock in a new tab and get
+  // the locked person's session. Locked, it stays silent.
+  if(!_sessionLocked) { try { CESTISStore.setItem('voctrain_sessionSeenAt', String(Date.now())); } catch(e) {} }
   if(sessionAccountRevoked()) {
     showToast('Your account has been switched off by an administrator. You have been signed out.', 'warning');
     logout();
@@ -7433,6 +7438,9 @@ function sessionHeartbeat() {
 }
 function openIdleLock() {
   _sessionLocked = true;
+  // Withdraw the heartbeat at once: no new tab may borrow this session while
+  // it is locked (the record pages refuse without a fresh one).
+  try { CESTISStore.removeItem('voctrain_sessionSeenAt'); } catch(e) {}
   var pw = document.getElementById('idleLockPassword'), err = document.getElementById('idleLockError');
   if(pw) pw.value = ''; if(err) err.style.display = 'none';
   var who = document.getElementById('idleLockWho');
@@ -7449,6 +7457,7 @@ async function idleLockUnlock() {
   if(!ok) { if(err) { err.textContent = 'That password is not correct.'; err.style.display = 'block'; } if(pw) pw.value = ''; return; }
   _sessionLocked = false;
   _sessionLastActivity = Date.now();
+  try { CESTISStore.setItem('voctrain_sessionSeenAt', String(Date.now())); } catch(e) {}   // the owner is back
   closeModal('idleLockModal');
 }
 function idleLockSignOut() {
