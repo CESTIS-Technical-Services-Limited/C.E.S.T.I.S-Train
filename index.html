@@ -33033,6 +33033,27 @@ function setLoginSyncBtnState(syncing) {
   }
 }
 
+// Pre-login sync on the Centre's own network: one read of the Centre's server
+// (it holds everything the Drive folders and the master backup hold online),
+// and sign-in opens only once that read has succeeded.
+async function loginPageLanSync() {
+  try {
+    updateLoginSyncStatus('Syncing with the Centre’s server...', '');
+    await CESTISPageCloud.loadNow();
+    if (!(typeof CESTISPageCloud.lanSynced === 'function' && CESTISPageCloud.lanSynced())) {
+      updateLoginSyncStatus('Could not reach the Centre’s server. Check the server window is open, then try again.', 'error');
+      return;
+    }
+    updateLoginSyncStatus('Sync complete! You may now log in.', 'success');
+    loginSyncCompleted = true;
+    enableLoginButtons();
+    applyMaintenanceOverlay();
+  } finally {
+    setLoginSyncBtnState(false);
+    isLoginPageSync = false;
+  }
+}
+
 // Pre-login sync: pull data from all Google Drive folders before user logs in
 async function loginPageSync() {
   try {
@@ -33045,24 +33066,7 @@ async function loginPageSync() {
   // trainee's phone, a new lab PC) kept every "Enter as" button switched off
   // for good, although it already held the Centre's accounts. The
   // certificate portal's Sync Now already works this way.
-  if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) {
-    try {
-      updateLoginSyncStatus('Syncing with the Centre’s server...', '');
-      await CESTISPageCloud.loadNow();
-      if (!(typeof CESTISPageCloud.lanSynced === 'function' && CESTISPageCloud.lanSynced())) {
-        updateLoginSyncStatus('Could not reach the Centre’s server. Check the server window is open, then try again.', 'error');
-        return;
-      }
-      updateLoginSyncStatus('Sync complete! You may now log in.', 'success');
-      loginSyncCompleted = true;
-      enableLoginButtons();
-      applyMaintenanceOverlay();
-      return;
-    } finally {
-      setLoginSyncBtnState(false);
-      isLoginPageSync = false;
-    }
-  }
+  if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) return await loginPageLanSync();
   updateLoginSyncStatus(isAdmin ? 'Connecting to Cloud...' : 'Syncing...', '');
 
   // Step 1: Ensure we have a Google access token

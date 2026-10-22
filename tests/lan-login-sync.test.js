@@ -12,8 +12,8 @@
    portal's own Sync Now already used the Centre's server; this one did not.
    Found by the end-to-end flow test (tests/browser/lms-flows.js).
 
-   The real loginPageSync() is taken from index.html and run with the page's
-   helpers stubbed.
+   The real loginPageSync() and loginPageLanSync() are taken from index.html
+   and run with the page's helpers stubbed.
 
    Run: node tests/lan-login-sync.test.js */
 'use strict';
@@ -36,7 +36,7 @@ function extractFunction(src, name) {
   }
   throw new Error('unbalanced braces reading ' + name + '()');
 }
-const SYNC_SRC = 'async ' + extractFunction(INDEX, 'loginPageSync');
+const SYNC_SRC = 'async ' + extractFunction(INDEX, 'loginPageLanSync') + '\nasync ' + extractFunction(INDEX, 'loginPageSync');
 
 function page(lan) {
   const log = { status: [], google: 0, loads: 0, enabled: 0 };
