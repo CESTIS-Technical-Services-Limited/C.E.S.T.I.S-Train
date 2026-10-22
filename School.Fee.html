@@ -1074,6 +1074,46 @@
             }
         }
 
+        /* Phones: the Students and Payments lists showed the date, the receipt
+           number and part of the name, with the amount, the balance and the
+           buttons past the edge. They now scroll sideways inside their own
+           box (never the page) with the trainee's name pinned on the left
+           while the figures slide under it, rows a single line high, and the
+           row buttons at least 44px so a thumb can hit them. Screen only: a
+           printed page can be narrower than 768px too. */
+        .fee-phone-sub { display: none; }
+        @media screen and (max-width: 768px) {
+            #studentsTable th, #studentsTable td,
+            #paymentsTable th, #paymentsTable td { padding: 0.6rem 0.7rem; white-space: nowrap; }
+            /* The ID, skill area, date, receipt number and method move into a
+               line under the name; the money columns sit right beside it. */
+            #studentsTable th:nth-child(2), #studentsTable td:nth-child(2),
+            #studentsTable th:nth-child(4), #studentsTable td:nth-child(4),
+            #studentsTable th:nth-child(5), #studentsTable td:nth-child(5),
+            #studentsTable th:nth-child(9), #studentsTable td:nth-child(9),
+            #paymentsTable th:nth-child(1), #paymentsTable td:nth-child(1),
+            #paymentsTable th:nth-child(2), #paymentsTable td:nth-child(2),
+            #paymentsTable th:nth-child(4), #paymentsTable td:nth-child(4),
+            #paymentsTable th:nth-child(5), #paymentsTable td:nth-child(5),
+            #paymentsTable th:nth-child(7), #paymentsTable td:nth-child(7) { display: none; }
+            .fee-phone-sub { display: block; margin-top: 2px; font-size: 0.8rem; font-weight: 400; color: var(--text-secondary, #5b6b80); }
+            #studentsTable td:nth-child(3), #paymentsTable td:nth-child(3) {
+                position: sticky; left: 0; z-index: 2; background: var(--bg-card);
+                white-space: normal; min-width: 130px; box-shadow: inset -1px 0 0 var(--border-color);
+            }
+            #studentsTable th:nth-child(3), #paymentsTable th:nth-child(3) { left: 0; z-index: 11; }
+            #studentsTable td[colspan], #paymentsTable td[colspan] { display: table-cell; position: static; white-space: normal; }
+            #studentsTable .action-btn, #paymentsTable .action-btn { min-height: 44px; min-width: 44px; padding: 0.5rem 0.7rem; margin: 0 0.15rem; }
+            #studentsTable input[type="checkbox"] { width: 22px; height: 22px; }
+            /* Less frame around the lists, so more of each row is on screen. */
+            body { padding: 0.5rem; }
+            .module { padding: 1rem 0.75rem; }
+            /* The Record Payment form: a long trainee name in the drop-down
+               stretched its column to ~600px and the whole page panned sideways. */
+            .form-grid { grid-template-columns: minmax(0, 1fr); }
+            .form-group input, .form-group select, .form-group textarea { min-width: 0; max-width: 100%; }
+        }
+
         /* ============================================
            LOGIN PAGE STYLES
            ============================================ */
@@ -7385,7 +7425,7 @@
                                style="width: 18px; height: 18px; cursor: pointer;">
                     </td>
                     <td>${student.id}</td>
-                    <td>${student.name}${keptSep}</td>
+                    <td>${student.name}${keptSep}<span class="fee-phone-sub">${feeAttr(student.id)} · ${feeAttr(student.skillArea)}</span></td>
                     <td>${student.skillArea}</td>
                     <td>$${tuition}</td>
                     <td>$${paid}</td>
@@ -9171,7 +9211,7 @@
                 <tr data-search="${feeAttr(search)}" data-date="${feeAttr(payment.date)}">
                     <td>${payment.date}</td>
                     <td>${receipt}</td>
-                    <td>${payment.studentName}</td>
+                    <td>${payment.studentName}<span class="fee-phone-sub">${feeAttr(payment.date)} · ${feeAttr(receipt)} · ${feeAttr(payment.method)}</span></td>
                     <td>${payment.skillArea}</td>
                     <td>${payment.term}</td>
                     <td>$${amount}</td>

@@ -2191,6 +2191,29 @@ body.cmc-view-mode .cmc-view-ribbon {
     .login-container { padding:1rem; }
     .login-card { padding:2rem 1.5rem 1.5rem; }
 }
+/* Phones: the transactions ledger showed the date, the cheque number and
+   half of the details, with the deposit, payment and running balance past
+   the card's edge. It now scrolls sideways inside its own card (never the
+   page) with the payee/details pinned on the left while the amounts slide
+   under it, and the move/edit/delete buttons are at least 44px. The date,
+   cheque number and category move into a line under the details. Screen
+   only: a printed page can be narrower than 768px too. */
+.cb-phone-sub { display:none; }
+@media screen and (max-width:768px) {
+    #page-transactions .table-wrap table { min-width:0; }
+    #page-transactions .table-wrap th:nth-child(1), #page-transactions .table-wrap td:nth-child(1),
+    #page-transactions .table-wrap th:nth-child(2), #page-transactions .table-wrap td:nth-child(2),
+    #page-transactions .table-wrap th:nth-child(4), #page-transactions .table-wrap td:nth-child(4) { display:none; }
+    #page-transactions .cb-phone-sub { display:block; margin-top:2px; font-size:.75rem; color:var(--text3); }
+    #page-transactions .table-wrap tbody td:nth-child(3) {
+        position:sticky; left:0; z-index:1; background:var(--surface);
+        min-width:150px; max-width:190px; white-space:normal; box-shadow:inset -1px 0 0 var(--border);
+    }
+    #page-transactions .table-wrap tbody tr.deposit-row td:nth-child(3) { background:linear-gradient(var(--green-bg),var(--green-bg)),var(--surface); }
+    #page-transactions .table-wrap thead th:nth-child(3) { left:0; z-index:3; box-shadow:inset -1px 0 0 var(--border); }
+    #page-transactions .table-wrap tbody .btn-sm { min-width:44px; min-height:44px; }
+    #page-transactions .table-wrap tbody td.no-print { white-space:nowrap; }
+}
 
 /* First-Time Sync Prompt Styles */
 .first-time-sync-prompt {
@@ -4553,7 +4576,7 @@ function renderTransactions() {
         html += `<tr class="${rowClass}" draggable="true" data-txn-id="${t.id}" ondragstart="txnDragStart(event)" ondragover="txnDragOver(event)" ondrop="txnDrop(event)" ondragend="txnDragEnd(event)">
             <td>${t.date ? t.date.substring(5) : ''}</td>
             <td class="cheque-num">${t.cheque||''}</td>
-            <td>${t.details}</td>
+            <td>${t.details}<span class="cb-phone-sub">${escapeHtml(t.date || '')}${t.cheque ? ' · #' + escapeHtml(t.cheque) : ''} · ${escapeHtml(t.category || '')}</span></td>
             <td><span class="tag ${getCategoryTag(t.category)}">${t.category}</span></td>
             <td class="amount ${t.deposit>0?'positive':''}">${t.deposit>0?fmt(t.deposit):''}</td>
             <td class="amount ${t.payment>0?'negative':''}">${t.payment>0?fmt(t.payment):''}</td>

@@ -4069,6 +4069,110 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .cloud-notify-actions .btn{font-size:.8rem;padding:.45rem .9rem}
 @keyframes notifyCountdown{from{width:100%}to{width:0%}}
 .cloud-notify-timer{height:3px;background:var(--text-muted);opacity:.3;border-radius:0 0 14px 14px}
+
+/* ============================== PHONE LAYOUTS FOR THE BUSIEST SCREENS ==============================
+   On a phone these tables showed two or three columns and left the rest - the
+   day marks, the grades, the status and the buttons - past the card's edge.
+   Now each one (class tbl-phone) scrolls sideways inside its own card, never
+   the page, with the name pinned on the left while the other columns slide
+   under it, and the buttons, marks and boxes in it are at least 44px so a
+   thumb can hit them. Chat shows the room list or the conversation, and the
+   video room stacks its pictures with the call buttons in a bar along the
+   bottom. Everything here is inside max-width:768px: a computer's screen is
+   not affected (the phone-only line under a name is never shown on one),
+   and neither is printing (screen only: a printed page can be under 768px). */
+.att-phone-sub { display:none; }
+@media screen and (max-width:768px) {
+  .tbl-phone th:first-child, .tbl-phone td:first-child,
+  .tbl-phone.tbl-phone-col2 th:nth-child(2), .tbl-phone.tbl-phone-col2 td:nth-child(2) {
+    position:sticky; left:0; z-index:1; background:var(--bg-card);
+    box-shadow:inset -1px 0 0 var(--border-light);
+  }
+  .tbl-phone.tbl-phone-col2 th:first-child, .tbl-phone.tbl-phone-col2 td:first-child { position:static; background:none; box-shadow:none; }
+  .tbl-phone td:first-child { width:136px; min-width:136px; white-space:normal; }
+  .tbl-phone.tbl-phone-col2 td:first-child { width:auto; min-width:0; }
+  .tbl-phone.tbl-phone-col2 td:nth-child(2) { width:170px; min-width:170px; }
+  .tbl-phone td[colspan] { position:static; box-shadow:none; white-space:normal; }
+  .tbl-phone td .btn, .tbl-phone td button { min-height:44px; min-width:44px; }
+  .tbl-phone thead th { white-space:normal; }
+  .tbl-phone thead th + th { min-width:92px; }
+
+  /* Attendance register: ID and course move under the name; the day marks are finger-sized. */
+  .attendance-table { min-width:0; }
+  .attendance-table th, .attendance-table td { padding:8px 6px; }
+  .attendance-table .att-col-id, .attendance-table .att-col-course { display:none; }
+  .attendance-table .att-phone-sub { display:block; margin-top:3px; font-size:12px; font-weight:400; color:var(--text-muted); word-break:break-word; }
+  .attendance-table select.att-cell { width:112px !important; min-height:44px; padding:6px 8px !important; font-size:16px !important; }
+  .attendance-table thead .btn-sm { min-height:44px; padding:0 10px !important; font-size:13px !important; }
+
+  /* Certificate approvals: the name and details on one line, the status and button under them. */
+  .cert-approve-row { flex-wrap:wrap; gap:10px; }
+  .cert-approve-info { flex:1 1 100%; min-width:0; }
+  .cert-approve-actions { flex:1 1 100%; justify-content:flex-end; flex-wrap:wrap; }
+  .cert-approve-actions .btn, .cert-approve-actions button { min-height:44px; }
+  .cert-mgmt-toolbar input, .cert-mgmt-toolbar select { width:100% !important; min-height:44px; font-size:16px; }
+
+  /* Gradebook submissions: name and date on their own line, the mark box and button finger-sized. */
+  .gb-sub-row > div:first-child { flex:1 1 100%; }
+  .gb-sub-row .btn { min-height:44px; }
+  .gb-sub-row .gb-grade-input { width:76px !important; height:44px !important; font-size:16px !important; }
+  .gb-sub-row .gb-grade-btn { padding:0 16px !important; font-size:14px !important; }
+
+  /* Tab rows wrap instead of running past the edge: on Settings the last three of
+     its seven tabs (Data Management, Verification & Links, Maintenance Mode)
+     could not be reached on a phone at all. */
+  .tabs { flex-wrap:wrap; }
+  .tabs .tab { white-space:nowrap; padding:12px 14px; min-height:44px; }
+
+  /* Users table: finger-sized action buttons; the on/off switch keeps its look with a bigger hit area. */
+  .um-actions button { width:44px; height:44px; }
+  .um-toggle::after { content:''; position:absolute; inset:-11px -6px; }
+  .verify-action-btns { flex-wrap:nowrap; }
+
+  /* Chat: room list OR conversation (already), with finger-sized buttons and a one-line header. */
+  .lms-chat-sidebar-actions button, .lms-chat-header-actions button,
+  .lms-chat-main-header-left .back-btn { width:44px; height:44px; min-width:44px; }
+  .lms-chat-main-header { gap:8px; }
+  .lms-chat-main-header-left { flex:1; min-width:0; gap:8px; }
+  .lms-chat-main-header-left .lms-chat-avatar { display:none !important; }
+  .lms-chat-header-info { min-width:0; }
+  .lms-chat-header-info h4 { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lms-chat-header-actions { gap:4px; flex-shrink:0; }
+  .lms-chat-input-area .attach-btn, .lms-chat-input-area .send-btn, .lms-chat-input-area .poll-btn,
+  .lms-chat-input-area button { width:44px; height:44px; min-width:44px; }
+  .lms-chat-input-area .msg-input { min-height:44px; font-size:16px; }
+  /* A phone has its own emoji keyboard: the picker button gives its room to the message box. */
+  .lms-chat-input-area .emoji-btn { display:none; }
+  /* Chat Info opens over the conversation; closed, it no longer leaves an empty strip under the message box. */
+  .lms-chat-container { position:relative; }
+  .lms-chat-info-panel:not(.open) { display:none; }
+  .lms-chat-info-panel.open { position:absolute; inset:0; z-index:5; border-left:0; }
+  .lms-chat-info-panel-header button { width:44px; height:44px; }
+
+  /* Video lobby: finger-sized buttons. */
+  .vc-lobby .btn { min-height:44px; }
+  .vc-lobby .vc-btn { width:48px; height:48px; }
+  /* Video room (gallery view): pictures one under another, the call buttons in a
+     bar fixed along the bottom of the screen, chat and participants a tap away
+     on the 💬 button (they used to sit below everything, and the button did nothing). */
+  body:not(.vc-fullscreen-mode) .vc-conference-wrapper { padding-bottom:76px; }
+  body:not(.vc-fullscreen-mode) .vc-conference-body .video-grid { grid-template-columns:1fr; gap:10px; }
+  body:not(.vc-fullscreen-mode) .vc-conference-body .video-controls {
+    position:fixed; left:0; right:0; bottom:0; z-index:95; flex-wrap:nowrap; justify-content:space-evenly; gap:4px;
+    padding:8px 6px calc(8px + env(safe-area-inset-bottom)); border-radius:0; border-left:0; border-right:0; border-bottom:0;
+    background:rgba(12,17,23,0.96); box-shadow:0 -6px 20px rgba(0,0,0,0.4);
+  }
+  body:not(.vc-fullscreen-mode) .vc-conference-body .video-controls .vc-btn { width:44px; height:44px; flex-shrink:0; }
+  body:not(.vc-fullscreen-mode) .vc-conference-body .video-controls .vc-end-all-btn { height:44px; padding:0 10px !important; flex-shrink:0; }
+  body:not(.vc-fullscreen-mode) .vc-conference-body .vc-side-panel { display:none; }
+  body.vc-show-sidepanel:not(.vc-fullscreen-mode) .vc-conference-body .vc-side-panel {
+    display:flex; flex-direction:column; position:fixed; top:var(--topbar-h); left:0; right:0; bottom:0; z-index:110;
+    background:var(--bg-primary); overflow-y:auto; padding:12px;
+  }
+  body.vc-show-sidepanel:not(.vc-fullscreen-mode) .vc-sidepanel-close { display:block !important; }
+  body.vc-show-sidepanel:not(.vc-fullscreen-mode) .vc-sidepanel-close .btn { min-height:44px; }
+  #vc-host-bar .vc-host-btn { min-height:44px; }
+}
 </style>
 <script src="vendor/peerjs-1.5.4.min.js"></script>
 <script>window.Peer||(document.write('<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js">\x3C/script>'))</script>
@@ -14321,7 +14425,7 @@ function buildInstructorPages() {
       if (noColumns) gradeCols = ['Test Score'];
 
       var html = '<div class="card"><div class="card-header"><h3>Gradebook &mdash; '+escapeHtml(ins.course)+'</h3></div>';
-      html += '<div class="table-wrapper"><table><thead><tr><th>Student</th>';
+      html += '<div class="table-wrapper"><table class="tbl-phone"><thead><tr><th>Student</th>';
       gradeCols.forEach(function(c){ html += '<th>'+escapeHtml(c)+'</th>'; });
       html += '<th>Avg</th></tr></thead><tbody id="iGradebookBody">';
 
@@ -19098,8 +19202,8 @@ function renderInstructorGradebook() {
         var curGrade = a.grades ? CESTISCore.coursework.gradeValue(a.grades[sub.studentId]) : null;
         var meta = (a.gradeMeta && a.gradeMeta[sub.studentId]) || null;
         // A mark can be changed; the change is recorded (who, when, what it was).
-        var gradeInput = '<input type="number" class="form-control" style="width:60px;height:28px;font-size:12px;display:inline-block;" placeholder="—" min="0" max="' + escapeHtml(a.maxPoints) + '" id="grade-' + escapeHtml(a.id) + '-' + escapeHtml(sub.studentId) + '"' + (curGrade != null ? ' value="' + escapeAttr(curGrade) + '"' : '') + '>' +
-          '<button class="btn btn-sm btn-primary" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick="gradeSubmission('+jsArg(a.id)+','+jsArg(sub.studentId)+')">' + (curGrade != null ? 'Update' : 'Grade') + '</button>';
+        var gradeInput = '<input type="number" class="form-control gb-grade-input" style="width:60px;height:28px;font-size:12px;display:inline-block;" placeholder="—" min="0" max="' + escapeHtml(a.maxPoints) + '" id="grade-' + escapeHtml(a.id) + '-' + escapeHtml(sub.studentId) + '"' + (curGrade != null ? ' value="' + escapeAttr(curGrade) + '"' : '') + '>' +
+          '<button class="btn btn-sm btn-primary gb-grade-btn" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick="gradeSubmission('+jsArg(a.id)+','+jsArg(sub.studentId)+')">' + (curGrade != null ? 'Update' : 'Grade') + '</button>';
         if (curGrade != null) {
           var resub = meta && meta.resubmittedAt;
           gradeHtml = '<span class="badge ' + (resub ? 'badge-amber' : 'badge-green') + '" title="' + escapeAttr(meta && meta.gradedAt ? 'Marked ' + new Date(meta.gradedAt).toLocaleString() + (meta.gradedBy ? ' by ' + meta.gradedBy : '') : '') + '">' + escapeHtml(curGrade) + '/' + escapeHtml(a.maxPoints) + (resub ? ' · resubmitted' : '') + '</span> ' + gradeInput;
@@ -19107,7 +19211,7 @@ function renderInstructorGradebook() {
           gradeHtml = gradeInput;
         }
         var earlier = CESTISCore.coursework.submissionHistory(assignmentSubmissions, a.id, sub.studentId).filter(function(x) { return x !== sub; });
-        html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
+        html += '<div class="gb-sub-row" style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
           '<div style="flex:1;font-size:12px;"><strong>' + escapeHtml(st ? st.name : sub.studentId) + '</strong> &bull; Submitted ' + escapeHtml(dateStr) + (earlier.length ? ' &bull; attempt ' + (earlier.length + 1) : '') + '</div>';
         (sub.files || []).forEach(function(f) {
           html += courseworkFileLink(f, 'btn btn-sm btn-secondary', 'padding:2px 8px;font-size:11px;', '📄 ' + escapeHtml(f.name));
@@ -27736,7 +27840,7 @@ function attendanceCellHtml(s, date, open) {
 }
 function attendanceHeadHtml(dates, date, cfg) {
   var A = CESTISCore.attendance;
-  return '<tr><th>Student</th><th>ID</th>' + (cfg.showCourse ? '<th>Course</th>' : '') + dates.map(function (d, i) {
+  return '<tr><th>Student</th><th class="att-col-id">ID</th>' + (cfg.showCourse ? '<th class="att-col-course">Course</th>' : '') + dates.map(function (d, i) {
     var lbl = A.DAYS[i] + ' ' + attendanceShortDate(d);
     var acts = cfg.readOnly ? '' : '<div style="display:flex;gap:4px;margin-top:4px;">' +
       '<button type="button" class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;" title="Mark everyone not yet marked on ' + lbl + ' as present" onclick="attendanceMarkAll(\'' + d + '\',\'present\',\'' + cfg.page + '\')">✓ All</button>' +
@@ -27778,9 +27882,11 @@ function renderAttendanceGrid(cfg) {
     var why = open ? '' : attendanceLockReason(s);
     if (!open) closed[(s.course || 'This course') + (why === 'not started' ? ' (not started yet)' : ' (ended)')] = true;
     var lockBadge = open ? '' : ' <span title="' + (why === 'not started' ? 'Course not started yet — register not open' : 'Course ended — register closed') + '" style="font-size:10px;color:#e74c3c;font-weight:700;">🔒</span>';
-    return '<tr' + (open ? '' : ' style="opacity:.7;"') + '><td><strong>' + escapeHtml(s.name) + '</strong>' + (cfg.showCourse ? '' : lockBadge) + '</td>' +
-      '<td style="font-family:monospace;font-size:12px;">' + escapeHtml(s.id) + '</td>' +
-      (cfg.showCourse ? '<td>' + escapeHtml(s.course) + lockBadge + '</td>' : '') +
+    // On a phone the ID and course columns fold into a line under the name.
+    return '<tr' + (open ? '' : ' style="opacity:.7;"') + '><td><strong>' + escapeHtml(s.name) + '</strong>' + (cfg.showCourse ? '' : lockBadge) +
+      '<span class="att-phone-sub">' + escapeHtml(s.id) + (cfg.showCourse ? ' · ' + escapeHtml(s.course) + lockBadge : '') + '</span></td>' +
+      '<td class="att-col-id" style="font-family:monospace;font-size:12px;">' + escapeHtml(s.id) + '</td>' +
+      (cfg.showCourse ? '<td class="att-col-course">' + escapeHtml(s.course) + lockBadge + '</td>' : '') +
       dates.map(function (d) { return '<td' + (d === date ? ' style="background:var(--accent-dim);"' : '') + '>' + attendanceCellHtml(s, d, open) + '</td>'; }).join('') + '</tr>';
   }).join('') : '<tr><td colspan="' + cols + '" style="text-align:center;color:var(--text-muted);padding:18px;">No trainee\'s course runs this week.' +
       (attendanceShowAll ? '' : ' <a href="#" onclick="attendanceToggleShowAll(true);return false;">Show every trainee</a>') + '</td></tr>';
