@@ -33029,6 +33029,30 @@ async function loginPageSync() {
   isLoginPageSync = true;
   var isAdmin = adminLoginShown;
   setLoginSyncBtnState(true);
+  // The Offline System: the Centre's own server is this device's cloud. The
+  // button used to go to Google, which a Centre network without internet
+  // never reaches, so a device that had not signed in here before (a
+  // trainee's phone, a new lab PC) kept every "Enter as" button switched off
+  // for good, although it already held the Centre's accounts. The
+  // certificate portal's Sync Now already works this way.
+  if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) {
+    try {
+      updateLoginSyncStatus('Syncing with the Centre’s server...', '');
+      await CESTISPageCloud.loadNow();
+      if (!(typeof CESTISPageCloud.lanSynced === 'function' && CESTISPageCloud.lanSynced())) {
+        updateLoginSyncStatus('Could not reach the Centre’s server. Check the server window is open, then try again.', 'error');
+        return;
+      }
+      updateLoginSyncStatus('Sync complete! You may now log in.', 'success');
+      loginSyncCompleted = true;
+      enableLoginButtons();
+      applyMaintenanceOverlay();
+      return;
+    } finally {
+      setLoginSyncBtnState(false);
+      isLoginPageSync = false;
+    }
+  }
   updateLoginSyncStatus(isAdmin ? 'Connecting to Cloud...' : 'Syncing...', '');
 
   // Step 1: Ensure we have a Google access token
