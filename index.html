@@ -43477,6 +43477,27 @@ function renderCertSeedStatus() {
   el.innerHTML = html;
 }
 
+
+/* Show a template's course type in the editor exactly as stored. The
+   qualification-plan templates are seeded as 'Full-time', which is not one of
+   the drop-down's own options ('Short Course' / 'Fulltime Course'): setting
+   .value to it left the box blank, so the next Save fell back to 'Short
+   Course' — page 2 switched from CLUSTERS to MODULES and the footer wording
+   changed, though nobody had touched the field. A stored value the list does
+   not offer is added to it, so opening and saving a template changes nothing. */
+function certSetCourseTypeSelect(sel, value) {
+  if(!sel) return;
+  var v = String(value == null || value === '' ? 'Short Course' : value);
+  var known = false;
+  for(var i = 0; i < sel.options.length; i++) { if(sel.options[i].value === v) { known = true; break; } }
+  if(!known) {
+    var o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    sel.appendChild(o);
+  }
+  sel.value = v;
+}
+
 function openCertTemplateEditor() {
   var course = document.getElementById('certTemplateSkillSelect')?.value;
   if(!course) { showToast('Please select a skill area first'); return; }
@@ -43499,7 +43520,7 @@ function openCertTemplateEditor() {
   // Fill fields
   document.getElementById('ctplCourseFullName').value = tpl.courseFullName || '';
   document.getElementById('ctplProgrammeCode').value = tpl.programmeCode || '';
-  document.getElementById('ctplCourseType').value = tpl.courseType || 'Short Course';
+  certSetCourseTypeSelect(document.getElementById('ctplCourseType'), tpl.courseType || 'Short Course');
   document.getElementById('ctplVersion').value = tpl.version || '1.0';
   document.getElementById('ctplDevelopedDate').value = tpl.developedDate || '';
   document.getElementById('ctplSignatureLeft').value = tpl.signatureLeft || 'Programme Coordinator/ Principal';
