@@ -4982,11 +4982,15 @@ let otpExpiry=null;
 let otpAttempts=0; // brute-force guard for the emailed OTP
 let pendingResetUser=null;
 
-// Default admin user — matching CESTIS-MAIN-DASHBOARD
+// Default admin user — matching CESTIS-MAIN-DASHBOARD. Its password is the one
+// published with the platform, so it opens nothing by itself: a sign-in with
+// it only ever leads to "set a new password" (or is refused) — see
+// pyDefaultPasswordGate. defaultPassword:true marks it as the seed.
 const defaultUsers=[{
   id:'admin_001',
   username:'Cestisadmin',
   password:'cestisadmin123$',
+  defaultPassword:true,
   displayName:'System Administrator',
   email:'admin@cestis.com',
   role:'Administrator',
@@ -5087,6 +5091,63 @@ async function findUserForLogin(list,username,password){
   return null;
 }
 
+/* A sign-in whose password has just matched one PUBLISHED with the platform.
+   Payroll kept its own logins, seeded with that password, and accepted it as
+   Administrator even on a PC where the dashboard refused it — a trainee could
+   open every payslip. The default now opens nothing here either
+   (CESTISCore.accountAccess.toolDefaultLogin): refused outright when another
+   Payroll administrator has a password of their own; otherwise it only leads
+   to "set a new password" — and only for an administrator signed in to the
+   dashboard on this computer, or on a brand-new installation. Resolves true
+   when the sign-in may go on as normal. */
+var pyForcedChange=false;
+async function pyOtherRealAdmin(user){
+  var defaults=['cestisadmin123$','admin123'];
+  var list=loadUsers();
+  for(var i=0;i<list.length;i++){
+    var u=list[i];
+    if(!u||!u.password||u===user||(user&&u.username&&user.username&&u.username.toLowerCase()===user.username.toLowerCase()))continue;
+    if(!(isAdminRole(u.role)||u.isAdmin))continue;
+    var onDefault=false;
+    for(var d=0;d<defaults.length&&!onDefault;d++){try{onDefault=await verifyPassword(defaults[d],u.password);}catch(e){}}
+    if(!onDefault)return true;
+  }
+  return false;
+}
+// The reset step's heading, for a forced change or for a reset by e-mail.
+function pyNewPwHeader(forced){
+  var hdr=document.querySelector('#loginStepNewPassword .forgot-password-header');
+  if(!hdr)return;
+  var h=hdr.querySelector('h3'),p=hdr.querySelector('p');
+  if(!hdr.dataset.resetH3){hdr.dataset.resetH3=h.textContent;hdr.dataset.resetP=p.textContent;}
+  h.textContent=forced?'Set a New Password':hdr.dataset.resetH3;
+  p.textContent=forced?'This login still has the default password published with the platform. Choose a password of its own before Payroll opens.':hdr.dataset.resetP;
+}
+async function pyDefaultPasswordGate(user,typed){
+  var C=window.CESTISCore;
+  if(!C||!C.accountAccess||!C.accountAccess.toolDefaultLogin)return true;   // a stale cached core: as before
+  if(!C.accountAccess.isPublishedDefault(typed))return true;
+  var lmsAccounts=[];
+  try{lmsAccounts=JSON.parse(CESTISStore.getItem('voctrain_users')||'[]');}catch(e){lmsAccounts=[];}
+  var lmsAdmin=false;
+  try{lmsAdmin=!!C.sessionAccess.forPage({allowed:['admin']}).ok;}catch(e){lmsAdmin=false;}
+  var res=C.accountAccess.toolDefaultLogin({otherRealAdmin:await pyOtherRealAdmin(user),lmsAccounts:lmsAccounts,lmsAdminSession:lmsAdmin});
+  if(res.mustChange){
+    // The forced change reuses the reset step: a new password before anything opens.
+    pendingResetUser=user;pyForcedChange=true;
+    pyNewPwHeader(true);
+    document.getElementById('loginError').classList.remove('show');
+    document.getElementById('loginStep1').style.display='none';
+    document.getElementById('loginStepNewPassword').style.display='block';
+    document.getElementById('newPassword').value='';document.getElementById('confirmNewPassword').value='';
+    document.getElementById('newPasswordError').style.display='none';
+    return false;
+  }
+  document.getElementById('loginErrorText').textContent=res.message;
+  document.getElementById('loginError').classList.add('show');
+  return false;
+}
+
 async function handleLogin(event){
   if(event)event.preventDefault();
   var username=document.getElementById('username').value.trim();
@@ -5114,6 +5175,7 @@ async function handleLogin(event){
 
   if(user){
     loginError.classList.remove('show');
+    if(!(await pyDefaultPasswordGate(user,password))){loginBtnEl.disabled=false;return;}
     if(user.twoFactorEnabled&&user.twoFactorSecret){
       // Show 2FA step
       pendingTwoFAUser=user;
@@ -5203,6 +5265,7 @@ async function autoSyncAndRetryLogin(username,password){
     var user=await findUserForLogin(users,username,password);
     if(user){
       loginError.classList.remove('show');
+      if(!(await pyDefaultPasswordGate(user,password)))return;
       if(user.twoFactorEnabled&&user.twoFactorSecret){
         pendingTwoFAUser=user;
         document.getElementById('loginStep1').style.display='none';
@@ -6303,6 +6366,8 @@ function cancelForgotPassword(){
   document.getElementById('loginStepForgotPassword').style.display='none';
   document.getElementById('loginStepOTP').style.display='none';
   document.getElementById('loginStepNewPassword').style.display='none';
+  if(pyForcedChange)pyNewPwHeader(false);
+  pyForcedChange=false;
   document.getElementById('username').value='';
   document.getElementById('password').value='';
   document.getElementById('loginError').classList.remove('show');
@@ -6429,13 +6494,25 @@ async function resetPassword(){
   if(!newPw){showNewPasswordError('Please enter a new password');return;}
   if(newPw.length<6){showNewPasswordError('Password must be at least 6 characters long');return;}
   if(newPw!==confirmPw){showNewPasswordError('Passwords do not match');return;}
+  if(window.CESTISCore&&CESTISCore.accountAccess&&CESTISCore.accountAccess.isPublishedDefault(newPw)){showNewPasswordError('Choose a password that is not the published default');return;}
+  if(pyForcedChange&&newPw.length<8){showNewPasswordError('Password must be at least 8 characters long');return;}
   if(!pendingResetUser){showNewPasswordError('Session expired. Please try again.');cancelForgotPassword();return;}
   var users=loadUsers();
   var userIndex=users.findIndex(function(u){return u.username.toLowerCase()===pendingResetUser.username.toLowerCase();});
   if(userIndex!==-1){
     users[userIndex].password=await hashPassword(newPw);
+    delete users[userIndex].defaultPassword;   // a password somebody chose, not the seed
     saveUsers(users);
     currentOTP=null;otpExpiry=null;pendingResetUser=null;
+    if(pyForcedChange){
+      pyForcedChange=false;
+      pyNewPwHeader(false);
+      document.getElementById('loginStepNewPassword').style.display='none';
+      document.getElementById('loginStep1').style.display='block';
+      if(isCloudConnected&&googleAccessToken)autoSaveUsersToCloud();
+      completeLogin(users[userIndex]);
+      return;
+    }
     alert('Password reset successful! You can now log in with your new password.');
     cancelForgotPassword();
     if(isCloudConnected&&googleAccessToken)autoSaveUsersToCloud();

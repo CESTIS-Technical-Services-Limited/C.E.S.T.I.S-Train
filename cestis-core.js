@@ -7759,6 +7759,38 @@
       return { allowed: true, mustChange: true, message: '' };
     }
 
+    /* The same rule for a finance tool that keeps its OWN list of logins
+       (Payroll). Its built-in administrator was seeded with the published
+       default and nothing ever made anyone change it, so on a lab PC where the
+       dashboard already refused the default, Payroll still opened with it as
+       Administrator. The default now opens nothing there either:
+         - if another administrator of the tool has a password of its own,
+           it is refused outright (that administrator sets a new one);
+         - otherwise it may only be used to set a new password, before
+           anything opens — and only when an administrator is signed in to the
+           dashboard on this computer, or on a brand-new installation whose
+           dashboard has no administrator with a real password yet. A trainee
+           at a lab PC can do neither, and the Centre is never locked out: an
+           administrator signs in to the dashboard, opens Payroll, and sets it.
+       opts: { otherRealAdmin: bool, lmsAccounts: [voctrain_users], lmsAdminSession: bool }
+       Returns { allowed: false, mustChange, message } — the default itself is
+       never "allowed"; mustChange means "ask for a new password now". */
+    function toolDefaultLogin(opts) {
+      opts = opts || {};
+      if (opts.otherRealAdmin) {
+        return { allowed: false, mustChange: false,
+          message: 'This login is still on the default password published with the platform, so it cannot be used to sign in.\n\n' +
+            'Ask another administrator of this page to set a new password for it.' };
+      }
+      var centreReal = usableAdmins(opts.lmsAccounts).filter(function (a) { return !isSeededLogin(a); }).length > 0;
+      if (centreReal && !opts.lmsAdminSession) {
+        return { allowed: false, mustChange: false,
+          message: 'This login is still on the default password published with the platform, so it cannot be used to sign in.\n\n' +
+            'An administrator must sign in to the C.E.S.T.I.S dashboard on this computer first, then open this page and set a new password for it.' };
+      }
+      return { allowed: false, mustChange: true, message: '' };
+    }
+
     /* The recovery e-mail the built-in logins were seeded with. Nobody at the
        Centre reads that domain, so a reset code sent there is lost — or, if
        the domain ever changes hands, read by a stranger. */
@@ -7855,7 +7887,7 @@
       needsRecoveryAdmin: needsRecoveryAdmin,
       deletionBlocked: deletionBlocked, dropDeleted: dropDeleted,
       isSeededLogin: isSeededLogin, cloudCopyWins: cloudCopyWins,
-      isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin,
+      isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin, toolDefaultLogin: toolDefaultLogin,
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor

@@ -8274,6 +8274,18 @@ async function cbFindLoginAccount(user, pass) {
     var acct = admins.find(function (a) {
         return String(a.username || '').toLowerCase() === name || (a.email && String(a.email).toLowerCase() === name);
     });
+    // The dashboard's built-in logins are seeded with the password published
+    // in this repository, and the dashboard refuses it — but this page checked
+    // only that the password matched, so on any PC the dashboard had ever run
+    // on, 'cestisadmin' / 'adminstaff' with the published default opened the
+    // books. A login still on a published default, or one switched off, opens
+    // nothing here; the dashboard is where it gets a password of its own (its
+    // first-run "set a new password" keeps the Centre from being locked out).
+    var AA = window.CESTISCore && CESTISCore.accountAccess;
+    if (acct && AA) {
+        if (AA.isPublishedDefault(pass) || AA.isSeededLogin(acct)) return { seed: true };
+        if (!AA.check(acct).allowed) return null;
+    }
     if (acct && await cbVerifyPassword(pass, acct.password)) return acct;
     return null;
 }
@@ -8453,7 +8465,7 @@ function handleLogin(e) {
     btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
     cbFindLoginAccount(user, pass).then(function(acct) {
-        if (acct && !acct.none) {
+        if (acct && !acct.none && !acct.seed) {
             // Success - store session
             CESTISStore.setItem(AUTH_SESSION_KEY, JSON.stringify({
                 loggedIn: true,
@@ -8466,6 +8478,8 @@ function handleLogin(e) {
             // Failure
             errorMsg.textContent = (acct && acct.none)
                 ? 'No administrator accounts are on this device yet. Open the LMS dashboard on this PC once (it brings the Centre\'s accounts), then sign in here with your LMS administrator username and password.'
+                : (acct && acct.seed)
+                ? 'That login is still on the default password published with the platform, so it cannot open the Cashbook. Sign in to the LMS dashboard to set a password of its own (or ask an administrator to set one), then sign in here with it.'
                 : 'Invalid username or password. Use your LMS administrator or admin-staff account.';
             errorEl.classList.add('visible');
             btn.disabled = false;
