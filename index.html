@@ -21800,10 +21800,29 @@ window.addEventListener('storage', function(e) {
 // holds in memory. Re-read just that collection so the dashboard renders the
 // current version and, crucially, never saves its stale copy back over the edit.
 // This is what makes an edit or delete made on ANY page show up on all of them.
+//
+// The signed-in trainee's and instructor's own records are held as objects
+// taken from those lists (currentStudent / currentInstructor). An adopted list
+// is a NEW array of new objects, so those references used to go stale: a
+// trainee certified on the office PC went on reading "In Training — Certificate
+// Not Yet Available" on their own device, although the roll it had just taken
+// from the Centre's server said Certified. They now follow their record.
+function cestisRepointSessionRecords() {
+  try {
+    if (typeof currentStudent !== 'undefined' && currentStudent && currentStudent.id != null && Array.isArray(students)) {
+      var me = students.find(function(s){ return s && s.id === currentStudent.id; });
+      if (me) currentStudent = me;
+    }
+    if (typeof currentInstructor !== 'undefined' && currentInstructor && currentInstructor.id != null && Array.isArray(instructorData)) {
+      var mi = instructorData.find(function(i){ return i && i.id === currentInstructor.id; });
+      if (mi) currentInstructor = mi;
+    }
+  } catch(e) {}
+}
 var CESTIS_SHARED_COLLECTIONS = {
-  voctrain_students:            function(v){ students = v; },
+  voctrain_students:            function(v){ students = v; cestisRepointSessionRecords(); },
   voctrain_studentProfiles:     function(v){ studentProfiles = v; },
-  voctrain_instructorData:      function(v){ instructorData = v; },
+  voctrain_instructorData:      function(v){ instructorData = v; cestisRepointSessionRecords(); },
   voctrain_instructorProfiles:  function(v){ instructorProfiles = v; },
   // Merged, never adopted wholesale (see mergeIncomingAttendance).
   voctrain_attendance:          function(v){ mergeIncomingAttendance({ attendanceRecords: v }); },
