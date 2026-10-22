@@ -3559,6 +3559,16 @@
         }
 
         // Display merge analysis in the modal
+        // Names, dates and "saved by" in a backup come from whichever device
+        // wrote it, and were drawn into this page as markup; they are text.
+        // (The shared escaper, CESTISCore.html.esc, with a fallback for a stale
+        // cached core.)
+        function escapeHtml(s) {
+            if (window.CESTISCore && CESTISCore.html) return CESTISCore.html.esc(s);
+            return String(s == null ? '' : s).replace(/[&<>"'`]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' })[c]);
+        }
+        function escapeAttr(s) { return escapeHtml(s); }
+
         function displayMergeAnalysis(analysis, cloudData) {
             document.getElementById('smartMergeLoading').style.display = 'none';
             document.getElementById('smartMergeContent').style.display = 'block';
@@ -3584,7 +3594,7 @@
                     <div style="text-align: center; padding: 1rem; background: var(--bg-card); border-radius: 0.5rem;">
                         <div style="font-size: 0.85rem; color: var(--text-secondary);">Cloud Backup</div>
                         <div style="font-size: 0.9rem; margin-top: 0.25rem;">${cloudTime}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-secondary);">by ${savedBy}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">by ${escapeHtml(savedBy)}</div>
                     </div>
                     <div style="text-align: center; padding: 1rem; background: #E8F5E9; border-radius: 0.5rem;">
                         <div style="font-size: 2rem; font-weight: bold; color: #4CAF50;">${totalNewLocal}</div>
@@ -3617,7 +3627,7 @@
                         <div style="background: #FFF8E1; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid #FF9800;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <strong style="color: #E65100;">Staff:</strong> ${conflict.local.fullName}
+                                    <strong style="color: #E65100;">Staff:</strong> ${escapeHtml(conflict.local.fullName)}
                                     <span style="background: #FFE0B2; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin-left: 0.5rem;">
                                         ${conflict.reasons.length} difference(s)
                                     </span>
@@ -3628,7 +3638,7 @@
                                 </label>
                             </div>
                             <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                                ${conflict.reasons.slice(0, 2).join(', ')}${conflict.reasons.length > 2 ? '...' : ''}
+                                ${escapeHtml(conflict.reasons.slice(0, 2).join(', '))}${conflict.reasons.length > 2 ? '...' : ''}
                             </div>
                         </div>`;
                 });
@@ -3638,9 +3648,9 @@
                         <div style="background: #FFF8E1; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid #FF9800;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <strong style="color: #E65100;">Record:</strong> ${conflict.local.staffName} - ${conflict.local.date}
+                                    <strong style="color: #E65100;">Record:</strong> ${escapeHtml(conflict.local.staffName)} - ${escapeHtml(conflict.local.date)}
                                     <span style="background: #FFE0B2; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin-left: 0.5rem;">
-                                        ${conflict.reasons.join(', ')}
+                                        ${escapeHtml(conflict.reasons.join(', '))}
                                     </span>
                                 </div>
                                 <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.85rem;">
@@ -3666,7 +3676,7 @@
                 analysis.staffMembers.newLocal.forEach(staff => {
                     newHtml += `
                         <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Local Staff:</strong> ${staff.fullName} (${staff.role})</span>
+                            <span><strong>Local Staff:</strong> ${escapeHtml(staff.fullName)} (${escapeHtml(staff.role)})</span>
                             <span style="color: #4CAF50;">Will be added to cloud</span>
                         </div>`;
                 });
@@ -3674,7 +3684,7 @@
                 analysis.staffMembers.newCloud.forEach(staff => {
                     newHtml += `
                         <div style="background: #E3F2FD; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Cloud Staff:</strong> ${staff.fullName} (${staff.role})</span>
+                            <span><strong>Cloud Staff:</strong> ${escapeHtml(staff.fullName)} (${escapeHtml(staff.role)})</span>
                             <span style="color: #2196F3;">Will be added locally</span>
                         </div>`;
                 });
@@ -3682,7 +3692,7 @@
                 analysis.timeRecords.newLocal.forEach(record => {
                     newHtml += `
                         <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Local Record:</strong> ${record.staffName} - ${record.date}</span>
+                            <span><strong>Local Record:</strong> ${escapeHtml(record.staffName)} - ${escapeHtml(record.date)}</span>
                             <span style="color: #4CAF50;">Will be added to cloud</span>
                         </div>`;
                 });
@@ -3690,7 +3700,7 @@
                 analysis.timeRecords.newCloud.forEach(record => {
                     newHtml += `
                         <div style="background: #E3F2FD; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Cloud Record:</strong> ${record.staffName} - ${record.date}</span>
+                            <span><strong>Cloud Record:</strong> ${escapeHtml(record.staffName)} - ${escapeHtml(record.date)}</span>
                             <span style="color: #2196F3;">Will be added locally</span>
                         </div>`;
                 });
@@ -4846,16 +4856,16 @@
                     : '<span style="background: var(--warning); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px;">Unknown Format</span>';
 
                 return `
-                    <div class="backup-file-item" data-file-id="${file.id}" data-file-name="${file.name.replace(/"/g, '&quot;')}" onclick="selectBackupFile(this.dataset.fileId, this.dataset.fileName)">
+                    <div class="backup-file-item" data-file-id="${escapeAttr(file.id)}" data-file-name="${escapeAttr(file.name)}" onclick="selectBackupFile(this.dataset.fileId, this.dataset.fileName)">
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <span style="font-size: 1.5rem;">📄</span>
                             <div style="flex: 1;">
                                 <div style="font-weight: 600; color: var(--text-primary);">
-                                    ${file.name}${validBadge}
+                                    ${escapeHtml(file.name)}${validBadge}
                                 </div>
                                 <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
                                     <span>📅 ${dateFormatted}</span>
-                                    <span style="margin-left: 16px;">👤 Saved by: ${file.savedBy}</span>
+                                    <span style="margin-left: 16px;">👤 Saved by: ${escapeHtml(file.savedBy)}</span>
                                 </div>
                                 <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
                                     Modified ${timeAgo}

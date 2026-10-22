@@ -11560,11 +11560,53 @@
       return out;
     }
 
+    // ---- Rooms that arrive from other devices ----
+    // A room's icon and colour are drawn into every member's room list and
+    // chat header — the Administrator's too, the session that holds the
+    // Centre's Drive token. Rooms come from whatever device last wrote the
+    // chat file or the backup, and the header set innerHTML = room.icon, so a
+    // trainee's device could put markup in a room's icon and have it run in the
+    // Administrator's session the moment the room was opened. An icon is a
+    // short run of emoji or plain characters, never markup; a colour is a hex
+    // colour, a theme variable or a colour name — never a way out of a style
+    // attribute. Anything else gets the default.
+    var ROOM_ICON = '💬', ROOM_COLOR = '#6c757d';
+    function roomIcon(icon) {
+      var s = (typeof icon === 'string' || typeof icon === 'number') ? String(icon).trim() : '';
+      if (!s || /[<>&"'`\\\u0000-\u001f]/.test(s)) return ROOM_ICON;
+      var n = typeof Array.from === 'function' ? Array.from(s).length : s.length;
+      return n <= 16 ? s : ROOM_ICON;
+    }
+    function roomColor(color) {
+      var s = typeof color === 'string' ? color.trim() : '';
+      if (/^#[0-9a-f]{3,8}$/i.test(s) || /^var\(--[a-z0-9-]{1,40}\)$/i.test(s) || /^[a-z]{3,20}$/i.test(s) ||
+          /^(?:rgb|rgba|hsl|hsla)\([0-9.,%\s\/]{1,60}\)$/i.test(s)) return s;
+      return ROOM_COLOR;
+    }
+    /* Make a room safe to draw, in place. Only icon and colour are touched,
+       and only when they are not safe already. Returns true if it changed. */
+    function cleanRoom(room) {
+      if (!room || typeof room !== 'object') return false;
+      var changed = false;
+      var icon = roomIcon(room.icon), color = roomColor(room.color);
+      // A field the room does not have is left absent (direct messages carry
+      // no icon), so nothing is added to a record that did not need it.
+      if (room.icon != null && room.icon !== icon) { room.icon = icon; changed = true; }
+      if (room.color != null && room.color !== color) { room.color = color; changed = true; }
+      return changed;
+    }
+    function cleanRooms(rooms) {
+      var n = 0;
+      (Array.isArray(rooms) ? rooms : []).forEach(function (r) { if (cleanRoom(r)) n++; });
+      return n;
+    }
+
     return {
       classRoomMembers: classRoomMembers, isOnline: isOnline, ONLINE_WINDOW_MS: ONLINE_WINDOW_MS,
       CALL_STALE_MS: CALL_STALE_MS, callKey: callKey, liveParticipants: liveParticipants,
       mergeActiveCall: mergeActiveCall, joinCall: joinCall, leaveCall: leaveCall,
-      acceptRealtimeMessage: acceptRealtimeMessage, unreadCount: unreadCount, stripUploadedBytes: stripUploadedBytes
+      acceptRealtimeMessage: acceptRealtimeMessage, unreadCount: unreadCount, stripUploadedBytes: stripUploadedBytes,
+      roomIcon: roomIcon, roomColor: roomColor, cleanRoom: cleanRoom, cleanRooms: cleanRooms
     };
   })();
 
