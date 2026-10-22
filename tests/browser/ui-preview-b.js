@@ -12,6 +12,9 @@
      - item 8: the forms that replaced prompt() boxes take focus, keep Tab
        inside, refuse a bad entry in place, save exactly what the prompt's
        answer saved, and no browser prompt box is used;
+     - item 7: every sibling app loads the shared theme, has the dashboard's
+       background and dark text on its amber buttons, prints without it, and
+       does not scroll sideways on a phone;
    Every page is checked for page errors, console errors and sideways
    scrolling on the phone.
    Kept out of the default npm test chain because it needs a browser. */
@@ -295,6 +298,42 @@ async function seedAccounts(PW) {
       r = await pay.evaluate(() => { const e = DATA.payrollRuns[DATA.payrollRuns.length - 1].results[0]; return { gross: e.gross, net: e.netPay, open: !!document.querySelector('.cestis-form-overlay') }; });
       ok(!r.open && r.gross === 300000.5 && r.net !== before.net, kind + ': the new gross is saved and the net pay worked out again');
       ok(asked.filter(t => t === 'prompt').length === 0, kind + ': no browser prompt box was used');
+      ok(ctx.errors.length === 0, kind + ': no page errors — got: ' + ctx.errors.join(' | '));
+      ok(ctx.consoleErrors.length === 0, kind + ': no console errors — got: ' + ctx.consoleErrors.join(' | '));
+      await ctx.close();
+    }
+
+    /* ------------------------------------------------ item 7: one look across the sibling apps */
+    for (const kind of ['desktop', 'phone']) {
+      console.log('Item 7 (' + kind + '): every sibling app wears the dashboard\'s look on screen, and prints as before');
+      const ctx = await fresh(kind);
+      const page = await seeded(ctx);
+      await cardSignIn(page, 'admin', 'mthompson', PW.admin);
+      await page.waitForFunction(() => document.getElementById('appShell').classList.contains('active'), null, { timeout: 15000 }).catch(() => {});
+      const lms = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+      for (const rel of ['School.Fee.html', 'CESTIS.Cashbook.html', 'Staff.Payslip.html', 'Staff.Clock.in.html', 'Virement.Request.html',
+        'Income.Expenditure.html', 'Payments.Invoices.html', 'Finance.Invoice.html', 'Finance.Payment.Voucher.html']) {
+        if (kind === 'phone' && ['School.Fee.html', 'CESTIS.Cashbook.html', 'Virement.Request.html', 'Staff.Clock.in.html'].indexOf(rel) === -1) continue;
+        const p = await open(ctx, rel, 2200);
+        const r = await p.evaluate(() => {
+          const sheet = [...document.styleSheets].find(s => /cestis-theme\.css/.test(s.href || ''));
+          const prim = document.querySelector('.btn-primary, .btn-gold, .fd-actions > .btn:not(.ghost):not(.green)');
+          return { loaded: !!(sheet && sheet.cssRules.length), bg: getComputedStyle(document.body).backgroundColor,
+            primText: prim ? getComputedStyle(prim).color : null };
+        });
+        ok(r.loaded, kind + ': ' + rel + ' loads the shared theme');
+        ok(r.bg === lms, kind + ': ' + rel + ' has the dashboard\'s background (' + r.bg + ' vs ' + lms + ')');
+        if (r.primText) ok(r.primText === 'rgb(0, 0, 0)', kind + ': ' + rel + ': its primary button carries dark text on the amber');
+        if (kind === 'phone') ok(await noSideways(p), kind + ': ' + rel + ' has no sideways scrolling on a phone');
+        if (kind === 'desktop') {
+          await p.emulateMedia({ media: 'print' });
+          await p.waitForTimeout(500);   // School Fee eases its background over 0.3 s
+          const printBg = await p.evaluate(() => getComputedStyle(document.body).backgroundColor);
+          ok(printBg !== lms, kind + ': ' + rel + ' prints without the theme (' + printBg + ')');
+          await p.emulateMedia({ media: 'screen' });
+        }
+        await p.close();
+      }
       ok(ctx.errors.length === 0, kind + ': no page errors — got: ' + ctx.errors.join(' | '));
       ok(ctx.consoleErrors.length === 0, kind + ': no console errors — got: ' + ctx.consoleErrors.join(' | '));
       await ctx.close();
