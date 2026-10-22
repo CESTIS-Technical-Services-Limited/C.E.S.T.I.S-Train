@@ -250,23 +250,30 @@ async function oldIndexAccountsAndCentres(a) {
   var S = userAccounts.find(function (u) { return u.id === 'USR-011'; });
   S.password = await hashPassword(PW.adminstaff); delete S.defaultPassword;
   S.twoFactorEnabled = true; S.twoFactorSecret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
-  S.backupCodes = ['1111-2222', '3333-4444', '5555-6666']; S.twoFactorUpdatedAt = new Date().toISOString(); touchAccount(S);
+  S.backupCodes = [{ code: 'K7PQ2M4X', used: false }, { code: 'R9TW3HZA', used: true }, { code: 'BN6CE8FD', used: false }];   // the old build's own shape (tfaGenerateBackupCodes) S.twoFactorUpdatedAt = new Date().toISOString(); touchAccount(S);
   var M = userAccounts.find(function (u) { return u.id === 'USR-021'; });
   M.password = await hashPassword(PW.cmc); delete M.defaultPassword; touchAccount(M);
-  userAccounts.push({ id: 'USR-DEPUTY', name: 'Deputy Administrator', role: 'admin', username: 'deputyadmin',
+  // Run again when the old build's own sign-in sync replaced the list under
+  // it (see seedOldCentre), so only what is missing is added.
+  var has = function (f) { return userAccounts.some(f); };
+  if (!has(function (u) { return u.id === 'USR-DEPUTY'; })) userAccounts.push({ id: 'USR-DEPUTY', name: 'Deputy Administrator', role: 'admin', username: 'deputyadmin',
     password: await hashPassword(PW.admin + '-2'), email: 'deputy@centre.example', programme: '', status: 'active', createdAt: '2026-02-01' });
-  userAccounts.push({ id: 'USR-CMC2', name: 'Board Member Two', role: 'cmc', username: 'cmcmember',
+  if (!has(function (u) { return u.id === 'USR-CMC2'; })) userAccounts.push({ id: 'USR-CMC2', name: 'Board Member Two', role: 'cmc', username: 'cmcmember',
     password: await hashPassword(PW.cmc + '-2'), email: 'board2@centre.example', programme: '', status: 'active', createdAt: '2026-02-01' });
   // Instructors register, then the administrator approves them (which creates their instructor record).
   for (var i = 0; i < INSTRUCTORS.length; i++) {
     var I = INSTRUCTORS[i];
+    if (has(function (u) { return u.username === I.username; })) continue;
     var id = cestisGenId('USR-');
     userAccounts.push({ id: id, name: I.name, role: 'instructor', username: I.username, password: await hashPassword(PW.instructor),
       email: I.username + '@centre.example', programme: I.programme, status: 'pending', createdAt: localDateStr(), registeredVia: 'self-registered' });
     approveUser(id);
   }
   saveState();
-  return { users: userAccounts.length, instructors: instructorData.length };
+  var stored = []; try { stored = JSON.parse(CESTISStore.getItem('voctrain_users') || '[]'); } catch (e) {}
+  return { users: userAccounts.length, instructors: instructorData.length,
+    complete: ['USR-DEPUTY', 'USR-CMC2'].every(function (id) { return stored.some(function (u) { return u.id === id; }); }) &&
+      INSTRUCTORS.every(function (x) { return stored.some(function (u) { return u.username === x.username; }); }) };
 }
 
 // Inside the embedded Student Progress frame: its own Add Student form.
@@ -961,6 +968,66 @@ async function exerciseSiblings(env, ctx, origin, label, noSave) {
   }
 }
 
+/* The pages the security work locked (and the ones with a sign-in of their
+   own), visited with NO live dashboard session — a trainee typing the address
+   at a lab PC, or a session that has ended — then hidden and closed. A locked
+   page holds nothing of the Centre's in memory, so nothing it does on the way
+   out may reach the store. Every stored value must read exactly as before. */
+const LOCKED_VISITS = ['School.Fee.html', 'Virement.Request.html', 'Income.Expenditure.html', 'Payments.Invoices.html',
+  'Finance.Invoice.html', 'Finance.Quote.html', 'Finance.Purchase.Order.html', 'Finance.Payment.Voucher.html',
+  'Student-Progress.html', 'Transcript-Grades.html', 'Cert-Transcript-Requests.html', 'MegaData-Admin.html',
+  'MegaData-Adjudication.html', 'CESTIS.Cashbook.html', 'Staff.Payslip.html', 'Staff.Clock.in.html'];
+async function rawRemove(ctx, base, keys) {
+  const page = await ctx.newPage();
+  await page.goto(base + '/__blank.html');
+  await page.evaluate(async (keys) => {
+    keys.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+    await new Promise(resolve => {
+      const req = indexedDB.open('CESTIS_KV');
+      req.onerror = () => resolve();
+      req.onsuccess = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('kv')) { db.close(); return resolve(); }
+        const tx = db.transaction('kv', 'readwrite');
+        keys.forEach(k => tx.objectStore('kv').delete(k));
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); resolve(); };
+      };
+    });
+  }, keys);
+  await page.close();
+}
+async function refusedVisits(env, ctx) {
+  section('A visit with no live session (a locked page) changes nothing');
+  SERVE_ROOT = ROOT;
+  // What the dashboard's sign-out does first: the record pages stop accepting its session.
+  await rawRemove(ctx, env.base, ['voctrain_sessionSeenAt', 'voctrain_sessionStudentId']);
+  const before = (await rawDump(ctx, env.base)).eff;
+  const locked = [];
+  for (const rel of LOCKED_VISITS) {
+    const o = await env.open(ctx, rel, { settle: 2500 });
+    if (await o.page.evaluate(() => !!document.getElementById('cestisSessionLock'))) locked.push(rel);
+    await o.page.evaluate(() => {
+      try { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); } catch (e) {}
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await o.page.waitForTimeout(400);
+    await o.page.close({ runBeforeUnload: true });
+    await wait(400);
+    ok(o.errors.length === 0, 'locked visit: ' + rel + ' opens and closes without errors — got: ' + o.errors.join(' | ').slice(0, 300));
+  }
+  await wait(800);
+  const after = (await rawDump(ctx, env.base)).eff;
+  const changed = Object.keys(Object.assign({}, before, after))
+    .filter(k => !IGNORE_KEY.test(k) && before[k] !== after[k]);
+  console.log('  ' + locked.length + ' of ' + LOCKED_VISITS.length + ' pages showed "sign in first": ' + locked.join(', '));
+  changed.forEach(k => console.log('    CHANGED ' + k + ': ' + short(before[k]) + ' → ' + short(after[k])));
+  const mustLock = ['School.Fee.html', 'Virement.Request.html', 'Income.Expenditure.html', 'Payments.Invoices.html', 'Finance.Invoice.html'];
+  ok(mustLock.every(p => locked.indexOf(p) !== -1), 'the fee and finance pages are locked without a live session (missing: ' +
+    mustLock.filter(p => locked.indexOf(p) === -1).join(', ') + ')');
+  ok(changed.length === 0, 'no stored value changed after the locked visits (' + changed.join(', ') + ')');
+}
+
 async function upgradePhase(env) {
   const { S0, base, open, signIn, newCtx, frameOf, pageErrors, dialogs } = env;
   let ctx = env.ctx;
@@ -1015,6 +1082,7 @@ async function upgradePhase(env) {
   await wait(800);
   const S1 = (await rawDump(ctx, base)).eff;
   fs.writeFileSync(path.join(TMP, 'S1-new.json'), JSON.stringify(S1, null, 1));
+  await refusedVisits(env, ctx);
   await checkUpgrade(S0, S1, backup);
   if (backup) await importOnFreshDevice(env, S1, path.join(TMP, 'backup.json'));
   await checkPeopleSignIn(env, S0, S1);
@@ -1359,7 +1427,7 @@ async function offlinePhase(env) {
     ra.missingKeys = ra.missingKeys.filter(m => !deviceOnly.test(m.key) && !IGNORE_KEY.test(m.key));
     ra.missing = ra.missing.filter(m => !deviceOnly.test(m.key));
     reportCompare(ra);
-    ok(ra.missingKeys.length === 0 && ra.missing.length === 0, 'every record the office PC held before the upgrade is on the server after it');
+    ok(ra.missingKeys.length === 0 && ra.missing.length === 0 && ra.changed.length === 0, 'every record the office PC held before the upgrade is on the server after it');
 
     section('A fresh device on the Centre network sees every record');
     const B = await env.newCtx(origin);
@@ -1376,13 +1444,13 @@ async function offlinePhase(env) {
     rb.missingKeys = rb.missingKeys.filter(m => !deviceOnly.test(m.key));
     rb.missing = rb.missing.filter(m => !deviceOnly.test(m.key));
     reportCompare(rb);
-    ok(rb.missingKeys.length === 0 && rb.missing.length === 0, 'a fresh device has every record the Centre had before the upgrade (' +
+    ok(rb.missingKeys.length === 0 && rb.missing.length === 0 && rb.changed.length === 0, 'a fresh device has every record the Centre had before the upgrade (' +
       rb.missingKeys.length + ' keys, ' + rb.missing.length + ' records missing)');
     const rbs = compareMaps(v0, recordMap(B1), 'old server files → a fresh device after the upgrade', { newest: recordMap(A0) });
     rbs.missingKeys = rbs.missingKeys.filter(m => !deviceOnly.test(m.key));
     rbs.missing = rbs.missing.filter(m => !deviceOnly.test(m.key));
     reportCompare(rbs);
-    ok(rbs.missingKeys.length === 0 && rbs.missing.length === 0, 'and every record the old server held');
+    ok(rbs.missingKeys.length === 0 && rbs.missing.length === 0 && rbs.changed.length === 0, 'and every record the old server held');
     await A.close(); await B.close();
   } finally {
     env.setOfflineBuild(null);
@@ -1562,7 +1630,12 @@ async function drivePhase(env) {
   SERVE_ROOT = OLD;
   env.setOfflineBuild('old-drive');
   await rawRestore(A, env.base, driveTokenSeed());
-  const seededD = await seedOldCentre(env, A, env.base, 'drive', false);
+  // Wait until the page has made no Drive call for three seconds.
+  const driveQuiet = async (page) => {
+    let last = -1, still = 0;
+    for (let i = 0; i < 60 && still < 3; i++) { await page.waitForTimeout(1000); if (drive.calls === last) still++; else { still = 0; last = drive.calls; } }
+  };
+  const seededD = await seedOldCentre(Object.assign({}, env, { driveQuiet }), A, env.base, 'drive', false);
   // The old dashboard's own upload: the autosave, then the master snapshot.
   let { page: I } = await env.open(A, 'index.html', { accept: true, settle: 2500 });
   const oldWho = await signInAnyAdmin(env, I);
@@ -1635,8 +1708,9 @@ async function drivePhase(env) {
   rf.missingKeys = rf.missingKeys.filter(m => !devOnly.test(m.key) && !tokenish.test(m.key));
   rf.missing = rf.missing.filter(m => !devOnly.test(m.key));
   reportCompare(rf);
-  ok(rf.missingKeys.length === 0 && rf.missing.length === 0, 'Drive: a new device has every record the Centre had before the upgrade (' +
-    rf.missingKeys.map(m => m.key + '(' + m.records + ')').join(', ') + (rf.missing.length ? '; ' + rf.missing.length + ' records missing' : '') + ')');
+  ok(rf.missingKeys.length === 0 && rf.missing.length === 0 && rf.changed.length === 0, 'Drive: a new device has every record the Centre had before the upgrade (' +
+    rf.missingKeys.map(m => m.key + '(' + m.records + ')').join(', ') + (rf.missing.length ? '; ' + rf.missing.length + ' records missing' : '') +
+    (rf.changed.length ? '; changed ' + rf.changed.slice(0, 6).map(c => c.key + '/' + c.rid + '.' + c.field).join(', ') : '') + ')');
   await A.close(); await B.close();
   env.setOfflineBuild(null);
   return seededD;
@@ -1676,7 +1750,18 @@ async function seedOldCentre(env, ctx, origin, label, offline) {
       });
     }
     ok(who.role === 'admin' && who.shell, 'old build: the administrator signs in');
+    /* With Google Drive connected the old build's sign-in starts a pull that
+       later REPLACES its account list in memory — accounts added meanwhile
+       are dropped (an old-build race, seen as a missing deputy administrator).
+       Let that pull finish, and add again whatever it still dropped. */
+    if (env.driveQuiet) await env.driveQuiet(I);
     seeded.accounts = await I.evaluate(oldIndexAccountsAndCentres, { PW, INSTRUCTORS });
+    for (let t = 0; t < 3 && !seeded.accounts.complete; t++) {
+      note(label + ' seed (old build): the old build\'s own sign-in sync dropped accounts the seed had just added; adding them again');
+      if (env.driveQuiet) await env.driveQuiet(I); else await I.waitForTimeout(3000);
+      seeded.accounts = await I.evaluate(oldIndexAccountsAndCentres, { PW, INSTRUCTORS });
+    }
+    ok(seeded.accounts.complete, label + ' (old build): every seeded account is stored');
     await I.evaluate(() => showPage('students'));
     const sp = await frameOf(I, /Student-Progress/);
     ok(!!sp, 'old build: the Student Progress frame opens');
