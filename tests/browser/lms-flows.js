@@ -111,12 +111,10 @@ let browser = null;
 const devices = [];
 // Console errors that say nothing about the product: the outside world is
 // cut off on purpose; the service worker's kill-switch file is absent by
-// design (a 404 is the answer "carry on"); a page file the Centre's server has
-// not been sent yet reads 404; and the pages' <meta http-equiv="X-Frame-
-// Options"> is ignored by browsers, which say so as an "error".
+// design (a 404 is the answer "carry on"); and a page file the Centre's server
+// has not been sent yet reads 404.
 function benign(m) {
   const text = m.text(), url = (m.location() || {}).url || '';
-  if (/X-Frame-Options may only be set via an HTTP header/.test(text)) return 'x-frame-options meta';
   if (/^Failed to load resource/.test(text)) {
     if (url && !url.startsWith(base)) return 'outside network (blocked)';
     if (/\/sw-disable(\?|$)/.test(url)) return 'sw kill-switch probe';
@@ -205,13 +203,11 @@ async function signOut(page) {
   return waitFor(page, () => document.getElementById('landingPage').style.display !== 'none' && !document.getElementById('appShell').classList.contains('active'), null, 25000);
 }
 const text = (page, sel) => page.evaluate(s => { const el = document.querySelector(s); return el ? el.innerText : ''; }, sel);
-// My Exams keeps showing the last result reviewed until "Back to Exams".
+// Going to My Exams opens the list — not the last result reviewed.
 async function examList(page) {
   await nav(page, 's-exams');
-  if (await page.isVisible('#studentExamResultView button:has-text("Back to Exams")')) {
-    await page.click('#studentExamResultView button:has-text("Back to Exams")');
-    await page.waitForTimeout(300);
-  }
+  ok(await page.isVisible('#studentExamListView') && !(await page.isVisible('#studentExamResultView')),
+    page.__t.label + ': My Exams opens on the list, not on the last result reviewed');
 }
 async function download(page, click) {
   const wait = page.waitForEvent('download', { timeout: 40000 }).catch(() => null);
@@ -602,6 +598,10 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
   /* ================================================================ 4b */
   await step('4b', 'Exam: the instructor marks the essays, releases the answers; trainees see their final results', async () => {
     await refresh(I);
+    const queue = () => I.evaluate(() => (document.getElementById('iExamReviewQueue') || {}).innerText || '');
+    await nav(I, 'i-gradebook');
+    ok(await waitFor(I, () => { const t = (document.getElementById('iExamReviewQueue') || {}).innerText || ''; return /Exam Submissions Needing Review/.test(t) && /2 pending/.test(t); }),
+      'the Gradebook lists both submissions needing review, though it was built before they arrived (' + (await queue()).replace(/\s+/g, ' ').slice(0, 120) + ')');
     await nav(I, 'i-exams');
     await I.click('#page-i-exams .tab:has-text("Active Now")');
     await I.locator('#iExamTableBody tr', { hasText: EXAM }).locator('button:has-text("Monitor")').click();
@@ -624,13 +624,17 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     ok(await waitFor(I, () => /released to trainees/.test(document.getElementById('iExamResultsView').innerText)), 'the correct answers are released');
     ok(!!(await serverHas('voctrain_exams', l => l.some(e => e.title === EXAM && e.answersRelease === 'released'))) &&
        !!(await serverHas('voctrain_examResults', l => l.filter(r => r.reviewComplete).length >= 2)), 'the marks and the release reach the Centre\'s server');
+    await nav(I, 'i-gradebook');
+    ok(await waitFor(I, () => !/Needing Review/.test((document.getElementById('iExamReviewQueue') || {}).innerText || '')),
+      'and, both marked, the Gradebook no longer lists them (' + (await queue()).replace(/\s+/g, ' ').slice(0, 120) + ')');
 
     await refresh(L);
     await examList(L);
     await L.locator('#studentPastExamResults button:has-text("Review")').first().click();
     ok(await waitFor(L, () => /NOT PASSED/.test(document.getElementById('studentExamResultView').innerText)), 'Shanté sees her final result');
     const sv = await text(L, '#studentExamResultView');
-    ok(/50%/.test(sv) && /Correct answer: B/.test(sv), 'with her score (50%) and, now released, the correct answer to the question she got wrong');
+    ok(/50%/.test(sv) && /Correct answer: B\. Red/.test(sv), 'with her score (50%) and, now released, the correct answer to the question she got wrong');
+    ok(/Your answer: A\. Blue/.test(sv) && !/\(selected\)/.test(sv), 'her own answer reads as the option she chose ("A. Blue"), not "A. (selected)"');
     ok(!/Ama/.test(sv), 'and nothing about Ama');
     await refresh(P);
     await examList(P);

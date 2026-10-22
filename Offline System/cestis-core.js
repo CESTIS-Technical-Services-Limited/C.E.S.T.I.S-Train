@@ -11161,7 +11161,21 @@
       return added;
     }
 
+    /* How a multiple-choice answer reads on a result: its letter and the
+       option's own words — "B. Red" — where the review used to say
+       "A. (selected)", which told the trainee nothing about what they had
+       chosen. The letter alone when the option's words are not to hand, and
+       '' for no answer at all. */
+    function optionLabel(question, index) {
+      if (typeof index !== 'number' || index < 0 || index !== Math.floor(index) || index > 25) return '';
+      var letter = String.fromCharCode(65 + index);
+      var opts = question && Array.isArray(question.options) ? question.options : null;
+      var text = opts && opts[index] != null ? String(opts[index]).trim() : '';
+      return text ? letter + '. ' + text : letter;
+    }
+
     return {
+      optionLabel: optionLabel,
       DEFAULT_OFFSET: DEFAULT_OFFSET, offsetMinutes: offsetMinutes, centreTime: centreTime, centreParts: centreParts,
       defaultStart: defaultStart, windowOf: windowOf, hasQuestions: hasQuestions, statusAt: statusAt,
       sessionDeadline: sessionDeadline, publicQuestions: publicQuestions, mark: mark, keyProblems: keyProblems,

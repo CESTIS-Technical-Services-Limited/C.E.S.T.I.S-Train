@@ -276,7 +276,6 @@
   })();
 </script>
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
-<meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <style>
 :root {
@@ -12701,6 +12700,7 @@ function showPage(pageId) {
   // than served from whenever the page happened to be built.
   if(pageId === 'reports') { try { refreshReportsAnalytics(); } catch(e) { console.warn('[Reports] render failed', e); } }
   if(pageId === 's-announcements') { try { renderStudentAnnouncements(); } catch(e) {} }
+  if(pageId === 's-exams') { try { studentExamsShowList(); } catch(e) {} }
   document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   const navItem = document.querySelector('.nav-item[data-page="'+pageId+'"]');
   if(navItem) {
@@ -14060,6 +14060,38 @@ function renderStudentDeadlines() {
 }
 
 // ============================== BUILD INSTRUCTOR PAGES ==============================
+/* The Gradebook's "Exam Submissions Needing Review" card. It was written into
+   the Gradebook once, at sign-in: a submission that arrived afterwards (from a
+   trainee's device on the Centre's network, say) did not appear, and one just
+   marked stayed listed, until the instructor signed in again. It is redrawn now
+   with every other view that shows results (refreshContentDependentViews). */
+function instructorExamReviewQueueHtml(ins) {
+  if(!ins) return '';
+  var myExamIds = exams.filter(function(e){return e.course===ins.course || instructorCourseMatch(e.course, ins.course);}).map(function(e){return e.id;});
+  var pendingResults = examResults.filter(function(r){
+    return r && !r.archived && myExamIds.indexOf(r.examId) >= 0 && r.answers && r.answers.some(function(a){return a.needsManualGrade && !a.graded;});
+  });
+  if(pendingResults.length === 0) return '';
+  return '<div class="card" style="margin-bottom:18px;border:1px solid rgba(241,196,15,0.3);"><div class="card-header"><h3 style="color:var(--accent);">Exam Submissions Needing Review</h3><span class="badge badge-amber">'+pendingResults.length+' pending</span></div>' +
+    pendingResults.map(function(r){
+      var ex = exams.find(function(e){return e.id===r.examId;}) || {};
+      var st = students.find(function(s){return s.id===r.studentId;});
+      var pending = r.answers.filter(function(a){return a.needsManualGrade && !a.graded;}).length;
+      return '<div class="class-schedule-card" data-pending-result="'+escapeHtml(r.id)+'" style="border-left:3px solid var(--accent);">' +
+        '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+escapeHtml(st?st.name:r.studentId)+'</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">'+escapeHtml(ex.title||'Exam')+' &bull; '+pending+' question'+(pending!==1?'s':'')+' need grading &bull; Current: '+escapeHtml(r.score)+'%</div></div>' +
+        '<button class="btn btn-sm btn-primary" onclick="openGradingPanel('+jsArg(r.id)+')">Grade Now</button></div>';
+    }).join('') + '</div>';
+}
+function renderInstructorExamReviewQueue() {
+  var host = document.getElementById('iExamReviewQueue');
+  if(!host || currentRole !== 'instructor' || !currentInstructor) return;
+  var html = instructorExamReviewQueueHtml(currentInstructor);
+  if(host._cestisHtml === html) return;     // unchanged: leave the card as it is
+  host._cestisHtml = html;
+  host.innerHTML = html;
+}
+
 function buildInstructorPages() {
   try {
   resolveExamStatuses();
@@ -14179,23 +14211,7 @@ function buildInstructorPages() {
       <button class="btn btn-primary" onclick="openInstructorCreateAssignment()">+ New Assignment</button>
       <button class="btn-export" onclick="exportInstructorStudentsCSV()">📄 Export Grades</button>
     </div>
-    ${(function(){
-      var myExamIds = exams.filter(function(e){return e.course===ins.course || instructorCourseMatch(e.course, ins.course);}).map(function(e){return e.id;});
-      var pendingResults = examResults.filter(function(r){
-        return r && !r.archived && myExamIds.indexOf(r.examId) >= 0 && r.answers && r.answers.some(function(a){return a.needsManualGrade && !a.graded;});
-      });
-      if(pendingResults.length === 0) return '';
-      return '<div class="card" style="margin-bottom:18px;border:1px solid rgba(241,196,15,0.3);"><div class="card-header"><h3 style="color:var(--accent);">Exam Submissions Needing Review</h3><span class="badge badge-amber">'+pendingResults.length+' pending</span></div>' +
-        pendingResults.map(function(r){
-          var ex = exams.find(function(e){return e.id===r.examId;}) || {};
-          var st = students.find(function(s){return s.id===r.studentId;});
-          var pending = r.answers.filter(function(a){return a.needsManualGrade && !a.graded;}).length;
-          return '<div class="class-schedule-card" data-pending-result="'+escapeHtml(r.id)+'" style="border-left:3px solid var(--accent);">' +
-            '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+escapeHtml(st?st.name:r.studentId)+'</div>' +
-            '<div style="font-size:12px;color:var(--text-muted);">'+escapeHtml(ex.title||'Exam')+' &bull; '+pending+' question'+(pending!==1?'s':'')+' need grading &bull; Current: '+escapeHtml(r.score)+'%</div></div>' +
-            '<button class="btn btn-sm btn-primary" onclick="openGradingPanel('+jsArg(r.id)+')">Grade Now</button></div>';
-        }).join('') + '</div>';
-    })()}
+    <div id="iExamReviewQueue">${instructorExamReviewQueueHtml(ins)}</div>
     <div class="card" style="margin-bottom:18px;"><div class="card-header"><h3>My Assignments</h3><span style="font-size:12px;color:var(--text-muted);">Created by you</span></div>
       <div id="iCustomAssignmentsList"></div>
     </div>
@@ -22458,7 +22474,7 @@ function refreshStudentDependentViews() {
 function refreshContentDependentViews() {
   var fns = [
     'renderExams','renderInstructorExams','renderStudentExams',
-    'renderAdminAssignments','renderInstructorGradebook','renderStudentAssignments','renderStudentAssignmentsPage',
+    'renderAdminAssignments','renderInstructorGradebook','renderInstructorExamReviewQueue','renderStudentAssignments','renderStudentAssignmentsPage',
     'renderAdminResources','renderInstructorCustomResources','renderStudentDriveResources','renderStudentResourcesPage',
     'renderAnnouncements','renderInstructorAnnouncements','renderAsAnnouncements','renderStudentAnnouncements','renderStudentDeadlines',
     'renderCalendar','renderInstructorCalendar','renderStudentCalendar','renderAsCalendar',
@@ -26593,8 +26609,15 @@ function showExamResult(result, exam) {
   // them). They used to appear the moment the first trainee submitted, while
   // classmates were still answering the same paper.
   var reveal = !!exam && CESTISCore.exams.canRevealAnswers(exam, Date.now(), examCentreOffset());
-  var keyOf = {};
-  if(exam && Array.isArray(exam.questionData)) exam.questionData.forEach(function(q){ if(q && q.id != null) keyOf[String(q.id)] = q.correctAnswer; });
+  var keyOf = {}, questionOf = {};
+  if(exam && Array.isArray(exam.questionData)) exam.questionData.forEach(function(q){ if(q && q.id != null) { keyOf[String(q.id)] = q.correctAnswer; questionOf[String(q.id)] = q; } });
+  // The question an answer was given to — by its id, or (an exam from before
+  // questions had ids) by its place when the wording still matches.
+  var questionFor = function(a, i) {
+    if(a.questionId != null && questionOf[String(a.questionId)]) return questionOf[String(a.questionId)];
+    var q = exam && Array.isArray(exam.questionData) ? exam.questionData[i] : null;
+    return (q && q.text === a.questionText) ? q : null;
+  };
   var withheld = 0;
 
   var html = '<div style="max-width:700px;margin:0 auto;">';
@@ -26625,7 +26648,7 @@ function showExamResult(result, exam) {
     // Show student's answer
     var ansDisplay = '';
     if(a.type==='mcq') {
-      ansDisplay = typeof a.studentAnswer === 'number' ? String.fromCharCode(65+a.studentAnswer)+'. (selected)' : 'Not answered';
+      ansDisplay = CESTISCore.exams.optionLabel(questionFor(a, i), a.studentAnswer) || 'Not answered';
     } else if(a.type==='tf') {
       ansDisplay = a.studentAnswer === true ? 'True' : a.studentAnswer === false ? 'False' : 'Not answered';
     } else {
@@ -26651,7 +26674,7 @@ function showExamResult(result, exam) {
         var key = a.correctAnswer;
         if((key === null || key === undefined) && a.questionId != null) key = keyOf[String(a.questionId)];
         var correctDisplay = '';
-        if(a.type==='mcq') correctDisplay = typeof key === 'number' ? String.fromCharCode(65+key) : '';
+        if(a.type==='mcq') correctDisplay = CESTISCore.exams.optionLabel(questionFor(a, i), key);
         else if(a.type==='tf') correctDisplay = key === true ? 'True' : key === false ? 'False' : '';
         else correctDisplay = key || '';
         if(correctDisplay) html += '<div class="er-correct">Correct answer: '+escapeHtml(correctDisplay)+'</div>';
@@ -26680,6 +26703,20 @@ function viewExamResultDetail(examId, studentId) {
   if(!result) { alert('Result not found'); return; }
   var exam = exams.find(function(e){return e.id===examId;});
   showExamResult(result, exam);
+}
+
+/* Going to My Exams opens the list. The result a trainee last reviewed used to
+   stay on screen — over the list, on every later visit — until they found
+   "Back to Exams". Only a result view is put away: an exam being sat is never
+   closed by the menu. */
+function studentExamsShowList() {
+  var res = document.getElementById('studentExamResultView');
+  if(!res || res.style.display === 'none') return false;
+  res.style.display = 'none';
+  var list = document.getElementById('studentExamListView');
+  if(list) list.style.display = 'block';
+  try { renderStudentExams(); } catch(e) {}
+  return true;
 }
 
 function backToStudentExamList() {
