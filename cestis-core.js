@@ -1647,12 +1647,16 @@
       Object.keys(out).sort().forEach(function (k) { sorted[k] = out[k]; });
       return JSON.stringify(sorted);
     }
+    // Each id is kept exactly as it was written. Ids are compared as text (so
+    // 7 and "7" are one deletion), but a page that wrote numbers checks its
+    // list with ===: the Virement page's deleted requests are numbers, and a
+    // list turned into text no longer stopped a deleted request coming back.
     var set = {}, order = [];
     var take = function (raw) {
       Core._parseArr(raw).forEach(function (id) {
         if (id == null || id === '') return;
         var s = String(id);
-        if (!set[s]) { set[s] = true; order.push(s); }
+        if (!set[s]) { set[s] = true; order.push(id); }
       });
     };
     take(a);
