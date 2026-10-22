@@ -791,16 +791,11 @@ body::-webkit-scrollbar { width:0; display:none; }
 }
 .login-sync-status.success { color:var(--green); }
 .login-sync-status.error { color:var(--red); }
-/* "Why sync first?" — a closed note under the sync bar for staff. */
+/* "Sync first" — one plain line under the sync bar. */
 .login-sync-why {
-  position:relative; z-index:2; max-width:600px; width:100%; margin:-16px auto 26px;
-  font-size:12.5px; color:var(--text-secondary); text-align:left;
-  background:rgba(26,35,50,0.6); border:1px solid var(--border-light); border-radius:var(--radius-sm);
+  position:relative; z-index:2; max-width:600px; width:100%; margin:-16px auto 26px; padding:0 6px;
+  font-size:12.5px; line-height:1.5; color:var(--text-secondary); text-align:left;
 }
-.login-sync-why summary { cursor:pointer; padding:9px 14px; color:var(--accent); font-weight:600; list-style-position:inside; }
-.login-sync-why summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:var(--radius-sm); }
-.login-sync-why ul { margin:0; padding:0 16px 12px 32px; line-height:1.5; }
-.login-sync-why li { margin-top:6px; }
 .login-sync-why strong { color:var(--text-primary); }
 /* A sign-in message, under the card's own fields (replaces the pop-ups). */
 .role-login-error {
@@ -4209,17 +4204,10 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       </div>
       <button class="login-sync-btn" id="loginSyncBtn" onclick="loginPageSync()">Sync Now</button>
     </div>
-    <!-- What "Sync Now" is for, in plain words, for staff meeting it on a new
-         or shared computer. Closed by default; nothing here changes the step. -->
-    <details class="login-sync-why" id="loginSyncWhy">
-      <summary>Staff: why “Sync Now” comes first — and what to do without Google</summary>
-      <ul>
-        <li><strong>What it is.</strong> Sync Now copies the Centre’s latest accounts and records onto this computer before anyone signs in.</li>
-        <li><strong>Why.</strong> So you sign in with your current password, and nobody works on an old copy that could overwrite a colleague’s work.</li>
-        <li><strong>On the Centre’s own network</strong> (the Offline System): just press Sync Now. It reads the Centre’s server — no Google account or internet is needed.</li>
-        <li><strong>No Google access?</strong> Ask the office to sign this computer in once with the Centre’s Google account. After that it keeps the accounts, and the sign-in buttons stay on.</li>
-      </ul>
-    </details>
+    <!-- What "Sync Now" is for, in one plain line, for anyone meeting it on a
+         new or shared computer. By the owner's rule it never says where the
+         records come from or are kept; nothing here changes the step. -->
+    <p class="login-sync-why" id="loginSyncWhy" role="note"><strong>Sync first</strong> — this brings this computer up to date before anyone signs in. If Sync Now does not finish, ask the office for help.</p>
 
     <div class="role-cards sync-pending">
       <!-- ADMIN CARD -->
@@ -10436,7 +10424,7 @@ function requireLoginSync(card) {
     return u.id !== 'USR-001' && u.id !== 'USR-011' && u.id !== 'USR-021';
   });
   if(hasLocalAccounts) { loginSyncCompleted = true; return false; }
-  var _syncFirst = 'Please sync from Cloud first before signing in.\n\nClick the "Sync Now" button at the top of the page to pull the latest data.';
+  var _syncFirst = 'Please sync first before signing in.\n\nPress "Sync Now" at the top of the page to bring this computer up to date.';
   if(card) signInSay(card, _syncFirst); else alert(_syncFirst);
   var bar = document.getElementById('loginSyncBar');
   if(bar) { bar.style.animation = 'none'; bar.offsetHeight; bar.style.animation = 'fadeSlideDown 0.4s ease'; }

@@ -12,7 +12,10 @@
      - nothing in the top bar said whose session was open on a shared PC, and
        the only way to lock it was to wait for the idle timer;
      - a new computer greyed out every card with no word on why "Sync Now"
-       comes first or what to do without a Google account.
+       comes first. (The first note written for that named Google, the
+       Centre's network and its server; by the owner's rule nothing on
+       screen may say where the records come from or are kept, so it is now
+       one neutral line, and that is pinned in section 5.)
 
    The words and the checks are the ones the pop-ups used; only where they
    appear has changed. Pinned here from the real index.html (Node, no
@@ -179,14 +182,37 @@ console.log('A wrong password: the message is under the card, no pop-up, still n
   assert(/updateTopbarWho\(\);\s*initGlobalSearch\(\);/.test(extractFunction(INDEX, 'enterApp')), 'every role\'s sign-in fills the who block');
   assert(/updateTopbarWho\(\)/.test(extractFunction(INDEX, 'updateSidebarAvatar')), 'and a renamed profile updates it');
 
-  /* ---------- 5. Why sync first ---------- */
-  console.log('The "sync first" step is explained in plain words');
-  const why = /<details class="login-sync-why" id="loginSyncWhy">([\s\S]*?)<\/details>/.exec(INDEX);
-  assert(!!why, 'a closed note sits under the sync bar');
-  assert(why && /What it is/.test(why[1]) && /Why/.test(why[1]) && /Offline System/.test(why[1]) && /No Google access\?/.test(why[1]),
-    'it says what it is, why, what to do on the Centre\'s network and without Google');
+  /* ---------- 5. Sync first, in neutral words ---------- */
+  // The owner's rule: nothing on screen says where the Centre's records come
+  // from or are kept — no Cloud, Google, Drive, server, network or the like.
+  const SOURCE_WORDS = /cloud|☁|google|\bdrive\b|gmail|server|network|\blan\b|offline|internet|emailjs|peerjs|broker|megadata/i;
+  console.log('The "sync first" step is one plain line that names no place');
+  const why = /<p class="login-sync-why" id="loginSyncWhy" role="note">([\s\S]*?)<\/p>/.exec(INDEX);
+  assert(!!why, 'one line sits under the sync bar');
+  const whyText = why ? why[1].replace(/<[^>]+>/g, '') : '';
+  assert(whyText === 'Sync first — this brings this computer up to date before anyone signs in. If Sync Now does not finish, ask the office for help.',
+    'it says what Sync Now does and who helps when it does not finish (got "' + whyText + '")');
+  assert(!SOURCE_WORDS.test(whyText), 'it never says where the records come from or are kept');
   assert(INDEX.indexOf('id="loginSyncWhy"') > INDEX.indexOf('id="loginSyncBar"') && INDEX.indexOf('id="loginSyncWhy"') < INDEX.indexOf('<div class="role-cards'),
     'between the sync bar and the cards');
+  assert(!/Staff: why|No Google access|It reads the Centre’s server/.test(INDEX), 'the old note naming Google, the Centre\'s network and its server is gone');
+
+  console.log('Every message this preview puts under a card, and the top bar\'s words, name no place');
+  P = page();
+  P.run('loginSyncCompleted = false');
+  P.run("requireLoginSync('admin')");
+  const syncFirst = P.el('adminLoginError').textContent;
+  assert(/Sync Now/.test(syncFirst) && !SOURCE_WORDS.test(syncFirst), '"sync first" under a card: ' + JSON.stringify(syncFirst));
+  const said = [];
+  INDEX.replace(/signInSay\([^,]+,\s*('(?:[^'\\]|\\.)*')/g, (m, s) => { said.push(s); return m; });
+  assert(said.length >= 20, 'the card messages were found (' + said.length + ')');
+  said.forEach(s => assert(!SOURCE_WORDS.test(s), 'card message names no place: ' + s));
+  const whoLock = topbar.slice(topbar.indexOf('<div class="topbar-who"'), topbar.indexOf('</button>', topbar.indexOf('id="topbarLockBtn"')));
+  assert(whoLock.length > 100 && !SOURCE_WORDS.test(whoLock.replace(/<!--[\s\S]*?-->/g, '')), 'the who block and Lock button (text, tooltip, aria-label) name no place');
+  ['You locked this session.', 'This session was left idle, so it has been locked.'].forEach(s =>
+    assert(INDEX.indexOf(s) !== -1 && !SOURCE_WORDS.test(s), 'the lock\'s first line names no place: ' + s));
+  const whoFn = extractFunction(INDEX, 'updateTopbarWho');
+  assert(/'Signed in as '/.test(whoFn) && !SOURCE_WORDS.test((whoFn.match(/'[^']*'/g) || []).join(' ')), 'the who block\'s tooltip names no place');
 
   console.log('\n' + passed + ' passed, ' + failed + ' failed');
   process.exit(failed ? 1 : 0);

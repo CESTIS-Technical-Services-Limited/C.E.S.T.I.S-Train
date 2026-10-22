@@ -46,6 +46,9 @@ const VIEWPORTS = {
   phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
 };
 const PW = { admin: 'Centre-Office-2026!', staff: 'Staff-Pass-2026!' };
+// The owner's rule: nothing this preview shows says where the Centre's
+// records come from or are kept (no Cloud, Google, Drive, server, network…).
+const SOURCE_WORDS = /cloud|☁|google|\bdrive\b|gmail|server|network|\blan\b|offline|internet|emailjs|peerjs|broker|megadata/i;
 
 /* A Centre with real accounts (each with a password of its own). */
 async function seedAccounts(PW) {
@@ -171,14 +174,18 @@ async function seedAccounts(PW) {
       await page.waitForTimeout(500);
       ok(await page.evaluate(() => !_sessionLocked && !document.getElementById('idleLockModal').classList.contains('active')), kind + ': the right password opens it again');
 
-      console.log('Item 4 (' + kind + '): a new computer explains "Sync Now"');
+      console.log('Item 4 (' + kind + '): a new computer says "Sync first" in neutral words');
       const ctx2 = await fresh(kind);
       const p2 = await open(ctx2, 'index.html');
-      r = await p2.evaluate(() => { const d = document.getElementById('loginSyncWhy'); return { there: !!d, closed: d && !d.open, text: d && d.textContent }; });
-      ok(r.there && r.closed && /Offline System/.test(r.text) && /No Google access\?/.test(r.text), kind + ': the closed "why sync first" note is under the sync bar');
-      await p2.click('#loginSyncWhy summary');
-      ok(await p2.evaluate(() => document.getElementById('loginSyncWhy').open), kind + ': and opens when pressed');
-      ok(await noSideways(p2), kind + ': no sideways scrolling with it open');
+      r = await p2.evaluate(() => { const d = document.getElementById('loginSyncWhy'), b = d && d.getBoundingClientRect();
+        return { there: !!d, text: d && d.innerText, visible: !!b && b.height > 0 && b.right <= innerWidth + 1 }; });
+      ok(r.there && r.visible && /^Sync first — this brings this computer up to date before anyone signs in\./.test(r.text) && /ask the office for help\.$/.test(r.text),
+        kind + ': the one-line "Sync first" note is under the sync bar (got "' + (r && r.text) + '")');
+      ok(!SOURCE_WORDS.test(r.text), kind + ': and it names no place the records come from or are kept');
+      r = await p2.evaluate(() => { document.getElementById('adminLogin').classList.add('active'); requireLoginSync('admin');
+        const e = document.getElementById('adminLoginError'); return { shown: !e.hidden, text: e.innerText }; });
+      ok(r.shown && /Sync Now/.test(r.text) && !SOURCE_WORDS.test(r.text), kind + ': a card pressed before syncing says so under it, naming no place ("' + r.text.replace(/\n+/g, ' ') + '")');
+      ok(await noSideways(p2), kind + ': no sideways scrolling on a new computer\'s sign-in screen');
       ok(ctx.errors.length + ctx2.errors.length === 0, kind + ': no page errors — got: ' + ctx.errors.concat(ctx2.errors).join(' | '));
       ok(ctx.consoleErrors.length + ctx2.consoleErrors.length === 0, kind + ': no console errors — got: ' + ctx.consoleErrors.concat(ctx2.consoleErrors).join(' | '));
       await ctx.close(); await ctx2.close();
