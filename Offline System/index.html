@@ -10203,7 +10203,7 @@ async function handleAdminClick() {
     try { console.log('[Login][admin] pwMatch=' + pwMatch); } catch(_) {}
     if(!pwMatch) { recordLoginFailure(uname); alert('Password incorrect for "' + uname + '".'); return; }
     clearLoginFailures(uname);
-    publishedDefaultGate(adminUser, pw, 'admin', function(){ tfaGateLogin(adminUser, function(){ currentLoggedInUser = adminUser; enterApp('admin'); }); });
+    publishedDefaultGate(adminUser, pw, 'admin', function(){ tfaGateLogin(adminUser, function(){ currentLoggedInUser = adminUser; lanHostTicket(adminUser, pw); enterApp('admin'); }); });
   } catch(err) { console.error('handleAdminClick error:', err); alert('Error: ' + err.message); }
 }
 async function handleStudentClick() {
@@ -10305,7 +10305,7 @@ async function handleInstructorClick() {
       if(savedInsProfile.phone) insMatch.phone = savedInsProfile.phone;
       if(savedInsProfile.specialization) insMatch.specialization = savedInsProfile.specialization;
     }
-    publishedDefaultGate(userAccount, pw, 'instructor', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('instructor'); }); });
+    publishedDefaultGate(userAccount, pw, 'instructor', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; lanHostTicket(userAccount, pw); enterApp('instructor'); }); });
   } catch(err) { console.error('handleInstructorClick error:', err); alert('Error: ' + err.message); }
 }
 async function handleAdminStaffClick() {
@@ -10332,7 +10332,7 @@ async function handleAdminStaffClick() {
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
     clearLoginFailures(uname);
-    publishedDefaultGate(userAccount, pw, 'adminstaff', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('adminstaff'); }); });
+    publishedDefaultGate(userAccount, pw, 'adminstaff', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; lanHostTicket(userAccount, pw); enterApp('adminstaff'); }); });
   } catch(err) { console.error('handleAdminStaffClick error:', err); alert('Error: ' + err.message); }
 }
 
@@ -10998,10 +10998,19 @@ async function forceChangePwSubmit() {
   if(acct !== canonical){ acct.password = canonical.password; delete acct.defaultPassword; delete acct.mustChangePassword; }
   try { if(canonical.username) clearLoginFailures(canonical.username); if(canonical.email) clearLoginFailures(canonical.email); } catch(_){}
   saveUserAccounts();
+  lanHostTicket(canonical, np);
   closeModal('forceChangePwModal');
   showToast('Password updated. Welcome.');
   var role = _forceChangePwRole, then = _forceChangePwThen; _forceChangePwRole = null; _forceChangePwThen = null;
   if(then) then(); else enterApp(role);
+}
+
+/* On the Centre's own server (Offline System) a class room's host place is
+   given only to signed-in staff: the server checks the password itself and
+   hands this tab a short-lived host ticket (cestis-offline-rtc.js). Online —
+   GitHub Pages — this does nothing at all. Never blocks the sign-in. */
+function lanHostTicket(account, pw) {
+  try { if (typeof window.cestisLanHostTicket === 'function') window.cestisLanHostTicket(account, pw); } catch (e) {}
 }
 
 /* A sign-in whose password has just matched one of the PUBLISHED defaults.
@@ -15589,8 +15598,19 @@ function vcStartHostPeer(title, role, rejoin) {
       onError: function(err) {
         console.error('Peer error:', err);
         if(err.type === 'unavailable-id') {
+          // The host's place in a room is claimed by whoever registers its id
+          // first — and the room code travels in invitations and schedules, so
+          // that may be somebody who is not the host. Say so plainly instead of
+          // "try again": a room somebody else holds must not be used.
           vcDestroyPeer();
-          vcUpdateStatus('error', rejoin ? 'Room host ID is still active. Try again in a moment.' : 'Room code in use. Try again.');
+          var held = 'Someone else is holding this room’s host place — it may be a person who knows the room code. Start the class with a NEW room code, and do not share this one.';
+          vcUpdateStatus('error', rejoin ? 'This room’s host place is still taken. If your previous connection has just dropped, try again in a minute; if it stays taken, ' + held.charAt(0).toLowerCase() + held.slice(1) : held);
+          showToast(held, 'warning');
+        } else if(err.type === 'server-error' && /host/i.test(String(err.message || ''))) {
+          // The Centre's own server (Offline System) lets only signed-in staff
+          // take a room's host place (cestis-offline-signalling.js).
+          vcDestroyPeer();
+          vcUpdateStatus('error', 'This Centre’s server only lets signed-in staff open a class room. Sign out, sign in again with your staff account, then start the class.');
         } else if(err.type === 'browser-incompatible') {
           vcBlockAndExplain(rejoin ? 'Cannot rejoin from this page address' : 'Cannot start a class from this page address');
         } else if(err.type !== 'peer-unavailable') {
