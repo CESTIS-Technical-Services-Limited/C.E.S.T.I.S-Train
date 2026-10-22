@@ -4770,6 +4770,197 @@
         pageWidth: pw, pageHeight: ph, x: (pw - w) / 2, y: (ph - h) / 2, w: w, h: h };
     }
 
+    /* --- Page 2: a list laid out in two columns -----------------------------
+       Page 2 prints two lists side by side: the units (clusters/modules) on
+       the left and the Technical Competencies Achieved on the right, each in
+       two columns of its own. The competencies used to be drawn as ONE column
+       that wrapped at the page's right edge and never stopped: a long list ran
+       over the frame on the right and down through the Programme
+       Specifications and off the page, instead of carrying on beside itself
+       the way the units did. The units were split by COUNT, half and half,
+       with nothing to stop a long half running down the page either, and every
+       wrapped line of a bullet got a bullet of its own.
+
+       layoutColumns places a list in a box of equal columns. Each entry is
+       wrapped to the width of its OWN column (with the very font it is drawn
+       in — `measure(text, font)` is the page's canvas), its continuation
+       lines hang under its text rather than under its bullet, and it is never
+       split between two columns; a heading stays with its first entry. The
+       list fills the first column from the top and carries on at the top of
+       the next ('fill'), or shares itself out so the columns end level
+       ('balance'). When it does not fit at the template's size the font comes
+       down a step at a time to `minSize`; at that size what still does not fit
+       is left out and counted (`hidden`) — never drawn outside the box.
+
+         entries  [{ text, style: 'head'|'item', marker? }]
+         box      { x, y: first baseline, width, bottom: lowest baseline,
+                    columns: 2, gap: 10, padRight: 10 }
+         opts     { size, minSize, step: 0.5, mode: 'fill'|'balance',
+                    family, groupGap, styles: { head: {...}, item: {...} } }
+                    a style is { weight, scale, lineHeight, indent, marker, color }
+       Returns { size, fits, hidden, lines: [{ text, x, y, font, color, style,
+       column, entry, first }], columns: [{ x, width }] }. */
+    var LIST_STYLES = {
+      head: { weight: 'bold', scale: 0.85, lineHeight: 1.3, indent: 10, marker: '' },
+      item: { weight: '', scale: 0.77, lineHeight: 1.1, indent: 20, marker: '  \u2022  ' }
+    };
+    function listStyle(opts, name) {
+      var base = LIST_STYLES[name] || LIST_STYLES.item;
+      var own = (opts && opts.styles && opts.styles[name]) || {};
+      var out = {};
+      Object.keys(base).forEach(function (k) { out[k] = base[k]; });
+      Object.keys(own).forEach(function (k) { out[k] = own[k]; });
+      return out;
+    }
+    function listFont(st, size, family) {
+      return (st.weight ? st.weight + ' ' : '') + Math.max(1, Math.round(size * st.scale)) + 'px ' + (family || 'Arial, sans-serif');
+    }
+    /* Words onto lines no wider than maxW; a word wider than the whole line
+       (a long code or address) is broken where it must be, so nothing ever
+       runs past the column's edge. */
+    function wrapWords(text, maxW, measure, font) {
+      var words = String(text == null ? '' : text).replace(/\s+/g, ' ').trim().split(' ');
+      var lines = [], cur = '';
+      function breakWord(word) {
+        var part = '';
+        for (var i = 0; i < word.length; i++) {
+          if (part && measure(part + word.charAt(i), font) > maxW) { lines.push(part); part = ''; }
+          part += word.charAt(i);
+        }
+        return part;
+      }
+      words.forEach(function (word) {
+        if (!word) return;
+        var test = cur ? cur + ' ' + word : word;
+        if (measure(test, font) <= maxW) { cur = test; return; }
+        if (cur) lines.push(cur);
+        cur = measure(word, font) <= maxW ? word : breakWord(word);
+      });
+      if (cur) lines.push(cur);
+      return lines.length ? lines : [''];
+    }
+    function columnsOf(box) {
+      var n = Math.max(1, Math.floor(box.columns || 2));
+      var gap = box.gap == null ? 10 : box.gap;
+      var cw = (box.width - gap * (n - 1)) / n;
+      var cols = [];
+      for (var c = 0; c < n; c++) cols.push({ x: box.x + c * (cw + gap), width: cw });
+      return cols;
+    }
+    /* Every entry wrapped at one size. Every column is the same width, so an
+       entry wraps the same wherever it lands: done once per size. */
+    function wrapAt(entries, measure, box, opts, size) {
+      var cols = columnsOf(box);
+      var padRight = box.padRight == null ? 10 : box.padRight;
+      return entries.map(function (e, i) {
+        var st = listStyle(opts, e.style);
+        var font = listFont(st, size, opts.family);
+        var marker = e.marker != null ? String(e.marker) : (st.marker || '');
+        var markerW = marker ? measure(marker, font) : 0;
+        var avail = Math.max(1, cols[0].width - st.indent - padRight - markerW);
+        var lh = Math.max(1, Math.round(size * st.lineHeight));
+        var texts = wrapWords(e.text, avail, measure, font);
+        return { i: i, st: st, font: font, marker: marker, markerW: markerW, lh: lh, texts: texts,
+          head: e.style === 'head', h: lh * (texts.length - 1) };
+      });
+    }
+    /* Place the wrapped entries, column by column. `limit` is the lowest
+       baseline allowed: the box's bottom, or higher when balancing. Null when
+       the list does not fit (unless truncating, when the rest is counted). */
+    function placeAt(blocks, entries, box, opts, limit, truncate) {
+      var cols = columnsOf(box);
+      var groupGap = opts.groupGap == null ? 6 : opts.groupGap;
+      var lines = [], col = 0, y = box.y, empty = true, hidden = 0;
+      for (var b = 0; b < blocks.length; b++) {
+        var bl = blocks[b];
+        // What must fit together: this entry; for a heading, its first entry
+        // too (no heading left alone at the foot of a column) — or, with
+        // keepGroups, its whole group when the group fits in a column at all.
+        var need = bl.h;
+        if (bl.head) {
+          var j = b + 1, group = bl.h;
+          while (j < blocks.length && !blocks[j].head) { group += blocks[j - 1].lh + blocks[j].h; j++; }
+          var withFirst = (blocks[b + 1] && !blocks[b + 1].head) ? bl.h + bl.lh + blocks[b + 1].h : bl.h;
+          need = (opts.keepGroups && box.y + group <= box.bottom) ? group : withFirst;
+        }
+        var gap = (bl.head && !empty) ? groupGap : 0;
+        if (!empty && y + gap + need > limit) { col++; y = box.y; empty = true; gap = 0; }
+        if (col >= cols.length || y + need > limit) {
+          if (!truncate) return null;
+          hidden = blocks.length - b;
+          break;
+        }
+        y += gap;
+        for (var k = 0; k < bl.texts.length; k++) {
+          lines.push({
+            text: k ? bl.texts[k] : bl.marker + bl.texts[k],
+            // Continuation lines hang under the text, not under the bullet.
+            x: cols[col].x + bl.st.indent + (k ? bl.markerW : 0), y: y,
+            font: bl.font, color: bl.st.color, style: entries[bl.i].style || 'item',
+            column: col, entry: bl.i, first: !k
+          });
+          y += bl.lh;
+        }
+        empty = false;
+      }
+      return { lines: lines, hidden: hidden, columns: cols };
+    }
+    function layoutAt(entries, measure, box, opts, size, truncate) {
+      var blocks = wrapAt(entries, measure, box, opts, size);
+      var full = placeAt(blocks, entries, box, opts, box.bottom, truncate);
+      if (!full || full.hidden || opts.mode !== 'balance' || blocks.length < 2) return full;
+      // Balanced: the highest bottom at which the list still fits, so the
+      // columns end level instead of the first running to the foot of the box.
+      var lo = box.y - 1, hi = box.bottom, best = full;
+      while (hi - lo > 1) {
+        var mid = Math.floor((lo + hi) / 2);
+        var r = placeAt(blocks, entries, box, opts, mid, false);
+        if (r) { best = r; hi = mid; } else lo = mid;
+      }
+      return best;
+    }
+    function layoutColumns(entries, measure, box, opts) {
+      opts = opts || {};
+      entries = Array.isArray(entries) ? entries.filter(function (e) { return e && String(e.text == null ? '' : e.text).trim(); }) : [];
+      var size = +opts.size > 0 ? +opts.size : 13;
+      var minSize = +opts.minSize > 0 ? Math.min(+opts.minSize, size) : size;
+      var step = +opts.step > 0 ? +opts.step : 0.5;
+      var r = null, s = size;
+      for (; s >= minSize - 1e-9; s = Math.round((s - step) * 1000) / 1000) {
+        r = layoutAt(entries, measure, box, opts, s, false);
+        if (r) break;
+      }
+      if (!r) { s = minSize; r = layoutAt(entries, measure, box, opts, s, true); }
+      return { size: s, fits: !r.hidden, hidden: r.hidden, lines: r.lines, columns: r.columns };
+    }
+    /* Several lists on one page, at ONE size: the largest at which every one
+       of them fits (so the two halves of page 2 never print in two different
+       sizes). sets: [{ entries, box, opts }]. */
+    function layoutColumnsShared(sets, measure) {
+      sets = Array.isArray(sets) ? sets : [];
+      var first = sets.map(function (st) { return layoutColumns(st.entries, measure, st.box, st.opts); });
+      var size = Math.min.apply(null, first.map(function (l) { return l.size; }).concat([Infinity]));
+      return sets.map(function (st, i) {
+        if (first[i].size === size) return first[i];
+        var o = {};
+        Object.keys(st.opts || {}).forEach(function (k) { o[k] = st.opts[k]; });
+        o.size = size; o.minSize = size;
+        return layoutColumns(st.entries, measure, st.box, o);
+      });
+    }
+    /* The smallest base size page 2's lists may shrink to: their body text
+       (scale 0.77 of it) no smaller than about 5 pt once the page is fitted to
+       A4 — the size of the small print on a printed form. Never larger than
+       the template's own size: a list that already fits is never touched. */
+    var LIST_MIN_PT = 5;
+    function listMinSize(size, width, height, scale) {
+      var pg = pdfPage(width, height);
+      var mmPerPx = pg.w / (width || 1);
+      var minPx = (LIST_MIN_PT * 25.4 / 72) / mmPerPx;
+      var base = minPx / (scale || LIST_STYLES.item.scale);
+      return Math.min(+size || 13, Math.round(base * 2) / 2);
+    }
+
     /* --- Dashboard figures --------------------------------------------------
        Certificate dates are stored as "October 16, 2026" (older records as ISO
        dates); Date.parse reads both. The chart used to split on '-', which
@@ -4984,6 +5175,8 @@
       decidedAt: decidedAt, mergeApprovals: mergeApprovals, recordDownload: recordDownload,
       eligibility: eligibility, templateKey: templateKey, keepTemplateProvenance: keepTemplateProvenance,
       pdfPage: pdfPage, certTime: certTime, byMonth: byMonth, certifiedInYear: certifiedInYear,
+      layoutColumns: layoutColumns, layoutColumnsShared: layoutColumnsShared, listMinSize: listMinSize,
+      wrapWords: wrapWords, LIST_STYLES: LIST_STYLES,
       sig: {
         VERSION: SIG_VERSION, fields: sigFields, canonical: canonical, b64url: b64url, fromB64url: fromB64url,
         keyId: keyId, generateKey: generateKey, sign: sign, current: sigCurrent, verify: verify,
