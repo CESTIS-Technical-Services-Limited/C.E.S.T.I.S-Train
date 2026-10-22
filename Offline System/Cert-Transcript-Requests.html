@@ -40,7 +40,7 @@
   .cr-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:16px; }
   .cr-stat { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; }
   .cr-stat .v { font-size:21px; font-weight:700; }
-  .cr-stat .l { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; }
+  .cr-stat .l { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; }
   .cr-controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
   .cr-input, .cr-select {
     background:var(--bg-input); border:1px solid var(--border-light); color:var(--text-primary);
@@ -49,11 +49,11 @@
   .cr-input:focus, .cr-select:focus { border-color:var(--accent); }
   .cr-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
   table.cr-table { width:100%; border-collapse:collapse; font-size:13px; }
-  .cr-table th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); padding:11px 14px; border-bottom:1px solid var(--border-light); }
+  .cr-table th { text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); padding:11px 14px; border-bottom:1px solid var(--border-light); }
   .cr-table td { padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
   .cr-table tr:last-child td { border-bottom:none; }
   .cr-table tr:hover td { background:rgba(255,255,255,0.02); }
-  .cr-badge { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.4px; padding:3px 9px; border-radius:20px; text-transform:uppercase; white-space:nowrap; }
+  .cr-badge { display:inline-block; font-size:12px; font-weight:700; letter-spacing:0.4px; padding:3px 9px; border-radius:20px; text-transform:uppercase; white-space:nowrap; }
   .b-pending    { background:var(--accent-dim); color:var(--accent); }
   .b-processing { background:var(--blue-dim); color:var(--blue); }
   .b-ready      { background:var(--green-dim); color:var(--green); }
@@ -69,6 +69,14 @@
   @keyframes crPulse { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
   #crToast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:#0f1820; color:var(--text-primary); border:1px solid var(--border-light); border-left:4px solid var(--green); border-radius:10px; padding:12px 18px; font-size:13px; box-shadow:0 10px 30px rgba(0,0,0,0.5); opacity:0; pointer-events:none; transition:opacity .25s; z-index:99999; }
   #crToast.show { opacity:1; }
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:10.5px"], [style*="font-size: 10.5px"] { font-size:12px !important; }
+}
 </style>
 </head>
 <body>

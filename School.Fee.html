@@ -496,7 +496,7 @@
         /* A fee set automatically from the previous intake, until edited. */
         .fee-carried-tag {
             display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 9px;
-            font-size: 11px; font-weight: 600; color: #0D47A1;
+            font-size: 12px; font-weight: 600; color: #0D47A1;
             background: rgba(13, 71, 161, 0.08); border: 1px solid rgba(13, 71, 161, 0.25);
         }
         .fee-carry-note { margin: -0.25rem 0 0.75rem; font-size: 0.85rem; color: var(--heading-color); min-height: 1em; }
@@ -1735,7 +1735,7 @@
             display: none;
             align-items: center;
             gap: 0.35rem;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             color: #93c5fd;
             padding: 0.15rem 0.5rem;
             background: rgba(59, 130, 246, 0.15);
@@ -1761,7 +1761,7 @@
         }
 
         .auto-sync-countdown {
-            font-size: 0.65rem;
+            font-size: 0.75rem;
             color: #60a5fa;
             font-variant-numeric: tabular-nums;
         }
@@ -2188,7 +2188,18 @@
                 box-shadow: 0 0 22px rgba(255, 23, 23, 1), 0 0 44px rgba(255, 23, 23, 0.8), 0 0 70px rgba(255, 23, 23, 0.5);
             }
         }
-    </style>
+    
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:0.6rem"], [style*="font-size: 0.6rem"], [style*="font-size:0.7rem"],
+  [style*="font-size: 0.7rem"], [style*="font-size:10px"], [style*="font-size: 10px"], [style*="font-size:11px"],
+  [style*="font-size: 11px"] { font-size:12px !important; }
+}
+</style>
 </head>
 <body>
 <script>

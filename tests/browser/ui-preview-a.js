@@ -15,7 +15,11 @@
        to the far end, buttons and marks at least 44px; chat shows the
        conversation with no empty strip and 44px buttons; the video room's
        call buttons sit in a bar along the bottom and the 💬 button opens chat
-       over the room; a computer's attendance register is unchanged.
+       over the room; a computer's attendance register is unchanged;
+     - minimum readable text: the registration form, the dashboard, exams,
+       certificates, attendance, announcements and the Student Progress page
+       show no text below 12px at 1366px or 390px, still with no sideways
+       page, and the bell's counter (11px) still fits its 16px dot.
    Every page checked must not pan sideways at 390px and must raise no page
    error. Kept out of the default npm test chain because it needs a browser. */
 'use strict';
@@ -404,6 +408,56 @@ const DESK = { viewport: { width: 1366, height: 768 } };
     ok(d.id === 'table-cell' && d.sub === 'none' && d.pos === 'static', 'attendance on a computer: ID column shown, no phone line, nothing pinned (' + JSON.stringify(d) + ')');
     ok(errors.length === 0, 'no page errors — got: ' + errors.join(' | '));
     await ctx.close();
+  }
+
+  /* ---------------- Minimum readable text size ---------------- */
+  // Visible text drawn below 12px in this document, except the bell's counter.
+  const smallText = page => page.evaluate(() => {
+    const out = [];
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n;
+    while ((n = w.nextNode())) {
+      const t = n.nodeValue.trim(); if (!t) continue;
+      const el = n.parentElement; const r = el.getBoundingClientRect();
+      if (!r.width || !r.height || r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
+      const cs = getComputedStyle(el);
+      if (cs.visibility === 'hidden' || +cs.opacity === 0) continue;
+      const f = parseFloat(cs.fontSize);
+      if (f > 0 && f < 11.95 && !el.closest('.topbar-btn .dot')) out.push(t.slice(0, 20) + '@' + f);
+    }
+    return out;
+  });
+  if (want(8)) {
+  console.log('Text on screen is at least 12px; the bell\'s counter still fits its dot');
+  for (const opts of [DESK, PHONE]) {
+    const ctx = await fresh(opts);
+    const { page, errors } = await open(ctx);
+    await seed(page);
+    await seedTables(page);
+    const label = opts === PHONE ? 'phone' : 'computer';
+    await page.evaluate(() => openRegistrationModal('student'));
+    await page.waitForTimeout(400);
+    let s = await smallText(page);
+    ok(s.length === 0, label + ': the registration form has no text under 12px (' + s.slice(0, 5).join(', ') + ')');
+    await page.evaluate(() => closeRegistrationModal());
+    await signIn(page, 'admin', 'phenry', 'Real-Admin-Pass-1');
+    for (const id of ['dashboard', 'exams', 'certificates', 'attendance', 'announcements']) {
+      await showAndWait(page, id);
+      s = await smallText(page);
+      ok(s.length === 0, label + ' ' + id + ': no text under 12px (' + s.slice(0, 5).join(', ') + ')');
+      ok(await sideways(page) <= 0, label + ' ' + id + ': still no sideways page');
+    }
+    await page.evaluate(() => addNotification('Twelve trainees awaiting approval', 'warning', null, ['admin']));
+    await page.waitForTimeout(300);
+    const dot = await page.evaluate(() => { const d = document.getElementById('notifDot'); const r = d.getBoundingClientRect(); return { f: parseFloat(getComputedStyle(d).fontSize), fits: d.scrollWidth <= d.clientWidth + 1 && d.scrollHeight <= d.clientHeight + 1, h: r.height }; });
+    ok(dot.f === 11 && dot.fits, label + ': the bell counter is 11px and fits its 16px dot (' + JSON.stringify(dot) + ')');
+    await showAndWait(page, 'students');
+    await page.waitForTimeout(1500);
+    const sp = page.frames().find(fr => /Student-Progress/.test(fr.url()));
+    s = sp ? await smallText(sp) : ['no frame'];
+    ok(s.length === 0, label + ' Student Progress (sibling page): no text under 12px (' + s.slice(0, 5).join(', ') + ')');
+    ok(errors.length === 0, 'no page errors — got: ' + errors.join(' | '));
+    await ctx.close();
+  }
   }
 
   await browser.close();

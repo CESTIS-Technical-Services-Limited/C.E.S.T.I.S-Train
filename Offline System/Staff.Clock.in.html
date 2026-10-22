@@ -1709,7 +1709,16 @@
         .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;border-radius:12px;transition:all var(--transition-normal)}
         .btn-ghost:hover{background:var(--bg-tertiary);color:var(--text-primary)}
 
-    </style>
+    
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:0.6rem"], [style*="font-size: 0.6rem"], [style*="font-size:0.7rem"], [style*="font-size: 0.7rem"] { font-size:12px !important; }
+}
+</style>
     <!-- Google Identity Services -->
     <script>
 /* ============================================================================
