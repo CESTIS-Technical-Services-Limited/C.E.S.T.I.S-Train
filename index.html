@@ -25618,14 +25618,18 @@ var gradingResultId = null;
 function openGradingPanel(resultId) {
   var result = examResults.find(function(r){ return r.id === resultId; });
   if(!result) { alert('Result not found'); return; }
-  gradingResultId = resultId;
 
   var exam = exams.find(function(e){ return e.id === result.examId; });
   var student = students.find(function(s){ return s.id === result.studentId; });
   var pendingCount = result.answers.filter(function(a){ return a.needsManualGrade && !a.graded; }).length;
 
-  // Remove existing panel if open
+  // Remove existing panel if open — BEFORE noting which result this panel is
+  // for. closeGradingPanel() forgets the result it was showing, and it used to
+  // run after the new one was noted, so every panel opened with no result
+  // behind it: "Save Grades" did nothing, and no essay or short answer could
+  // ever be marked, leaving every such exam "awaiting marking" for good.
   closeGradingPanel();
+  gradingResultId = resultId;
 
   var overlay = document.createElement('div');
   overlay.className = 'grading-overlay';
