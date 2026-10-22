@@ -17,6 +17,12 @@
    already pulled, writes a record of its own and pushes; the assignment must
    be handed to its onRestore — the hook the dashboard adopts into memory.
 
+   And a push must not bring back an OLDER copy of a key edited on this device
+   while the push was on the wire: it read storage before going to the network,
+   and writing its merge of that older reading back over a newer edit lost the
+   edit (a centre's dates saved a moment after the centre was created vanished
+   in the flow test once pushes were adopted by the page).
+
    Run: node tests/lan-push-adopt.test.js */
 'use strict';
 
@@ -75,13 +81,18 @@ async function serverFetch(url, opts) {
 function device(role, user) {
   const map = new Map();
   const restored = [];
+  const dev = { duringPut: null };
   const ctx = {
     console, JSON, Date, Math, Promise, Object, Array, String, Number, Boolean, RegExp, Error, Map, Set,
     encodeURIComponent, decodeURIComponent, parseInt, parseFloat, isNaN,
     setTimeout, clearTimeout,
     setInterval: () => 0,                  // the test drives every pull and push itself
     location: { protocol: 'http:', hostname: '127.0.0.1', port: '8080' },
-    fetch: serverFetch,
+    // A hook to act on this device while its write to the server is on the wire.
+    fetch: (u, o) => {
+      if (o && o.method === 'PUT' && typeof dev.duringPut === 'function') { const f = dev.duringPut; dev.duringPut = null; f(); }
+      return serverFetch(u, o);
+    },
     addEventListener: () => {},
     CESTISStore: {
       getItem: k => (map.has(k) ? map.get(k) : null),
@@ -96,12 +107,13 @@ function device(role, user) {
   vm.runInContext(PC_SRC, ctx);
   vm.runInContext('var currentRole = ' + JSON.stringify(role) + ', currentLoggedInUser = ' + JSON.stringify(user) + ';', ctx);
   const api = ctx.CESTISPageCloud;
-  return {
+  return Object.assign(dev, {
     api, map, restored,
     list: k => JSON.parse(map.get(k) || '[]'),
     set: (k, v) => ctx.CESTISStore.setItem(k, JSON.stringify(v)),
-    open: () => api.initLan(Object.assign({}, LMS_SPEC, { onRestore: keys => restored.push.apply(restored, keys) }))
-  };
+    open: () => api.initLan(Object.assign({}, LMS_SPEC, { onRestore: keys => restored.push.apply(restored, keys) })),
+    stamps: () => JSON.parse(map.get('cestis_pagecloud_stamps__' + LMS_SPEC.file) || '{}')
+  });
 }
 
 (async () => {
@@ -140,6 +152,38 @@ function device(role, user) {
     assert(trainee.restored.indexOf('voctrain_assignments') === -1, 'a push that brings nothing new reports nothing for that collection');
     const onServer = JSON.parse(JSON.parse(fs.readFileSync(path.join(DATA, LMS_SPEC.file), 'utf8')).data.voctrain_submissions).map(s => s.id).sort().join(',');
     assert(onServer === 'SUB-1,SUB-2', 'and the trainee\'s own records still reach the server (' + onServer + ')');
+
+    console.log('An edit saved while a push is on its way is not replaced by that push');
+    // The office PC adds a training centre; its push reads storage, and while
+    // it is writing to the server the administrator saves the centre's dates.
+    const office = device('admin', { id: 'U-ADM', username: 'admin' });
+    await office.open();
+    await wait(200);
+    const centre = { id: 21, name: 'Welding & Fabrication', startDate: '', endDate: '', updatedAt: new Date().toISOString() };
+    office.set('voctrain_skillAreas', [centre]);
+    // Another device has meanwhile saved the Centre's other centres and a new
+    // assignment, so the push has something of the server's to bring back —
+    // in the very list being edited, too.
+    instructor.set('voctrain_skillAreas', [{ id: 1, name: 'Welding & Fabrication', startDate: '', endDate: '', updatedAt: new Date().toISOString() }]);
+    instructor.set('voctrain_assignments', instructor.list('voctrain_assignments').concat(
+      [{ id: 'ASN-3', title: 'Third', course: 'Marine', updatedAt: new Date().toISOString() }]));
+    await instructor.api.saveNow();
+    office.restored.length = 0;
+    office.duringPut = () => {
+      office.set('voctrain_skillAreas', [Object.assign({}, centre, { startDate: '2026-09-01', endDate: '2027-03-31', updatedAt: new Date().toISOString() })]);
+    };
+    await office.api.saveNow();
+    const kept = office.list('voctrain_skillAreas').find(c => c.id === 21) || {};
+    assert(kept.startDate === '2026-09-01' && kept.endDate === '2027-03-31',
+      'the dates saved during the push are still in storage (got ' + JSON.stringify([kept.startDate, kept.endDate]) + ')');
+    assert(office.restored.indexOf('voctrain_skillAreas') === -1, 'and the page is not handed the older copy to adopt');
+    assert(office.list('voctrain_assignments').some(a => a.id === 'ASN-3') && office.restored.indexOf('voctrain_assignments') !== -1,
+      'while what the server contributed elsewhere is still brought back and reported');
+    await office.api.saveNow();
+    const srvList = JSON.parse(JSON.parse(fs.readFileSync(path.join(DATA, LMS_SPEC.file), 'utf8')).data.voctrain_skillAreas || '[]');
+    const srvCentre = srvList.find(c => c.id === 21) || {};
+    assert(srvCentre.startDate === '2026-09-01' && srvList.some(c => c.id === 1), 'and the next push carries the dates to the server, beside the other device\'s centre (got ' + JSON.stringify(srvCentre.startDate) + ')');
+    assert(office.list('voctrain_skillAreas').some(c => c.id === 1), 'and brings that centre here');
   } catch (e) {
     failed++;
     console.error(e && e.stack || e);
