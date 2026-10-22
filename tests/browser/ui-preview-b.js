@@ -71,10 +71,18 @@ async function seedAccounts(PW) {
       if (m.type() !== 'error') return;
       const t = m.text(), u = (m.location() || {}).url || '';
       // The outside world is cut off on purpose (Google, the CDNs, the public
-      // video/chat relay), and the service worker's kill-switch file is absent by design.
-      if (/^Failed to load resource/.test(t) && (!u.startsWith(base) || /sw-disable|_cestis/.test(u))) return;
+      // video/chat relay). A missing file of our own is caught by the
+      // response check below instead (the console names the page, not the file).
+      if (/^Failed to load resource/.test(t)) return;
       if (/^WebSocket connection to 'wss?:\/\/(?!127\.0\.0\.1)/.test(t)) return;
       ctx.consoleErrors.push(rel + ': ' + t.slice(0, 200));
+    });
+    // Our own files must all be there. Two answers are 404 by design: the
+    // Centre-server probe (this is not the Offline System) and the service
+    // worker's kill switch.
+    page.on('response', r => {
+      const u = r.url();
+      if (r.status() >= 400 && u.startsWith(base) && !/\/_cestis\/health|\/sw-disable/.test(u)) ctx.consoleErrors.push(rel + ': ' + r.status() + ' ' + u.replace(base, ''));
     });
     page.on('dialog', d => d.dismiss().catch(() => {}));
     await page.goto(base + '/' + rel, { waitUntil: 'load' });
@@ -165,6 +173,59 @@ async function seedAccounts(PW) {
       ok(ctx.errors.length + ctx2.errors.length === 0, kind + ': no page errors — got: ' + ctx.errors.concat(ctx2.errors).join(' | '));
       ok(ctx.consoleErrors.length + ctx2.consoleErrors.length === 0, kind + ': no console errors — got: ' + ctx.consoleErrors.concat(ctx2.consoleErrors).join(' | '));
       await ctx.close(); await ctx2.close();
+    }
+
+    /* ------------------------------------------------ item 5: sync health chip */
+    for (const kind of ['desktop', 'phone']) {
+      console.log('Item 5 (' + kind + '): the top bar\'s chip says whether this computer\'s work is safe');
+      const ctx = await fresh(kind);
+      const page = await seeded(ctx);
+      await cardSignIn(page, 'admin', 'mthompson', PW.admin);
+      await page.waitForFunction(() => document.getElementById('appShell').classList.contains('active'), null, { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(800);
+      // States are simulated by setting the very values the save code keeps
+      // (no Google here: the outside world is cut off).
+      const chipNow = () => page.evaluate(() => { refreshSyncChip(); const c = document.getElementById('syncChip');
+        return { state: c.getAttribute('data-state'), label: document.getElementById('syncChipLabel').textContent, shown: document.getElementById('syncChipWrap').classList.contains('on') }; });
+      let r = await chipNow();
+      ok(r.shown && r.state === 'signin', kind + ': no Google sign-in on this computer — "' + r.label + '"');
+      await page.evaluate(() => { CESTISStore.setItem('cestisPendingUpload', 'admin|' + new Date(Date.now() - 300000).toISOString()); });
+      r = await chipNow();
+      ok(r.state === 'signin' && /tone-bad/.test(await page.getAttribute('#syncChip', 'class')), kind + ': with unsent work it turns red');
+      await page.evaluate(() => {
+        googleAccessToken = 'simulated'; isCloudConnected = true;
+        CESTISStore.setItem('schoolDashboardGoogleTokenExpiry', new Date(Date.now() + 3000e3).toISOString());
+      });
+      r = await chipNow();
+      ok(r.state === 'waiting' && r.label === 'Changes waiting', kind + ': connected with unsent work — Changes waiting');
+      await page.evaluate(() => { CESTISStore.removeItem('cestisPendingUpload'); _lastAutoSaveResult = { uploaded: true, reason: 'nothing-new' }; });
+      r = await chipNow();
+      ok(r.state === 'saved' && r.label === 'All saved', kind + ': nothing waiting — All saved');
+      await ctx.setOffline(true);
+      await page.waitForTimeout(300);
+      r = await chipNow();
+      ok(r.state === 'offline' && r.label === 'Offline — saved on this device', kind + ': the connection drops — Offline — saved on this device');
+      await ctx.setOffline(false);
+      await page.click('#syncChip');
+      r = await page.evaluate(() => { const p = document.getElementById('syncChipPanel'), b = p.getBoundingClientRect();
+        return { open: !p.hidden, expanded: document.getElementById('syncChip').getAttribute('aria-expanded'), text: p.innerText, inView: b.left >= 0 && b.right <= innerWidth + 1 }; });
+      ok(r.open && r.expanded === 'true' && /Last saved|No save recorded/.test(r.text), kind + ': pressing it shows the panel with the last saved time');
+      ok(r.inView, kind + ': the panel fits on screen');
+      ok(await noSideways(page), kind + ': no sideways scrolling with the panel open');
+      await page.keyboard.press('Escape');
+      ok(await page.evaluate(() => document.getElementById('syncChipPanel').hidden && document.activeElement.id === 'syncChip'), kind + ': Escape closes it and returns to the chip');
+      const writes = await page.evaluate(() => { const w = CESTISStore.writes; for (let i = 0; i < 5; i++) refreshSyncChip(); return CESTISStore.writes - w; });
+      ok(writes === 0, kind + ': refreshing the chip writes nothing to the store');
+
+      console.log('Item 5 (' + kind + '): the sibling pages carry the same chip in their headers');
+      const sib = await open(ctx, kind === 'desktop' ? 'Virement.Request.html' : 'Income.Expenditure.html', 2500);
+      r = await sib.evaluate(() => { const c = document.querySelector('.cestis-sync-chip'); return c ? { state: c.getAttribute('data-state'), label: c.getAttribute('aria-label') } : null; });
+      ok(!!r && ['saved', 'waiting', 'offline', 'signin'].indexOf(r.state) !== -1, kind + ': the sibling page shows its chip (' + (r && r.label) + ')');
+      await sib.click('.cestis-sync-chip');
+      ok(await sib.evaluate(() => !document.querySelector('.cestis-sync-chip-panel').hidden), kind + ': and its panel opens');
+      ok(ctx.errors.length === 0, kind + ': no page errors — got: ' + ctx.errors.join(' | '));
+      ok(ctx.consoleErrors.length === 0, kind + ': no console errors — got: ' + ctx.consoleErrors.join(' | '));
+      await ctx.close();
     }
 
     /* ------------------------------------------------ (later items append here) */

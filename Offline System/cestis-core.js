@@ -3898,11 +3898,84 @@
       });
     }
 
+    /* The one small "is my work safe?" answer the top bar shows (the sync
+       health chip). It only READS what the sync code already knows — it
+       decides nothing about saving. The chip used to say "Connected" or "Not
+       connected", so nobody could tell that their last edits existed only on
+       this computer (an expired Google sign-in, a failing upload, a dropped
+       connection) — exactly when a sign-out or a swapped PC loses work.
+       s: {
+         now            ms
+         online         the browser believes it has a network (navigator.onLine)
+         lan            served by the Centre's own server (the Offline System)
+         lanTrouble     on that network, saves are not reaching the server
+         connected      a Google sign-in this device may still use
+         tokenExpiresAt ms when that sign-in ends (or null)
+         pending        work saved on this device that has not been uploaded
+         pendingSince   ms of the first such save (or null)
+         failures       uploads that have failed in a row
+         lastSavedAt    ms of the last upload that went through (or null)
+       }
+       Returns { state: 'saved'|'waiting'|'offline'|'signin', tone:
+       'ok'|'warn'|'bad', label, detail, advice: [] }. Times are written by
+       fmt(ms) — the page passes its own clock format; HH:MM by default. */
+    function syncHealth(s, fmt) {
+      s = s || {};
+      var now = typeof s.now === 'number' ? s.now : Date.now();
+      var hhmm = typeof fmt === 'function' ? fmt : function (ms) {
+        var d = new Date(ms); var h = d.getHours(), m = d.getMinutes();
+        return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+      };
+      function ago(ms) {
+        var mins = Math.max(0, Math.round((now - ms) / 60000));
+        if (mins < 1) return 'just now';
+        if (mins < 60) return mins + ' min ago';
+        var hrs = Math.round(mins / 60);
+        if (hrs < 24) return hrs + (hrs === 1 ? ' hour ago' : ' hours ago');
+        var days = Math.round(hrs / 24);
+        return days + (days === 1 ? ' day ago' : ' days ago');
+      }
+      var last = s.lastSavedAt ? ('Last saved ' + hhmm(s.lastSavedAt) + ' (' + ago(s.lastSavedAt) + ')') : 'No save recorded since this page was opened';
+      var since = s.pendingSince ? ' since ' + hhmm(s.pendingSince) : '';
+      var where = s.lan ? 'the Centre’s server' : 'the Centre’s Google Drive';
+      var keepNote = 'Do not clear this browser’s data until this says All saved.';
+      var out;
+      if (s.lan ? s.lanTrouble : s.online === false) {
+        out = { state: 'offline', tone: s.pending ? 'bad' : 'warn', label: 'Offline — saved on this device',
+          detail: (s.pending ? 'Your changes' + since + ' are kept on this computer and have not reached ' + where + ' yet.' : 'This computer cannot reach ' + where + ' right now.') ,
+          advice: s.lan
+            ? ['Check the Centre’s server window is still open, then reload this page.', keepNote]
+            : ['Keep working — your changes upload by themselves when the connection is back.', keepNote] };
+      } else if (!s.lan && !s.connected) {
+        out = { state: 'signin', tone: s.pending ? 'bad' : 'warn', label: 'Sign in to Google to back up',
+          detail: s.pending ? 'Your changes' + since + ' are only on this computer.' : 'This computer is not backing up to ' + where + '.',
+          advice: ['Press the cloud button (Connect) and sign in with the Centre’s Google account.', keepNote] };
+      } else if (s.pending) {
+        var failing = (s.failures || 0) >= 1;
+        out = { state: 'waiting', tone: failing ? 'bad' : 'warn', label: 'Changes waiting',
+          detail: failing ? 'The last upload to ' + where + ' did not go through; it is tried again every few seconds.'
+                          : 'Your latest changes' + since + ' are being uploaded to ' + where + '.',
+          advice: failing ? ['If this stays for more than a few minutes, reconnect (cloud button) or check the connection.', keepNote]
+                          : ['Nothing to do — this turns to All saved once the upload finishes.'] };
+      } else {
+        out = { state: 'saved', tone: 'ok', label: 'All saved',
+          detail: 'Everything on this computer is in ' + where + '.', advice: [] };
+      }
+      out.lastSaved = last;
+      // A Google sign-in about to end: say so while there is still time to renew it.
+      if (!s.lan && s.connected && s.tokenExpiresAt && s.tokenExpiresAt - now < 10 * 60000 && s.tokenExpiresAt > now) {
+        out.advice = out.advice.concat(['Your Google sign-in ends at ' + hhmm(s.tokenExpiresAt) + ' — reconnect before then to keep backing up.']);
+        if (out.tone === 'ok') out.tone = 'warn';
+      }
+      return out;
+    }
+
     return {
       keyboardRoleFor: keyboardRoleFor,
       toastPolicy: toastPolicy,
       alertKind: alertKind,
-      liveSessionsFor: liveSessionsFor
+      liveSessionsFor: liveSessionsFor,
+      syncHealth: syncHealth
     };
   })();
 

@@ -2080,6 +2080,38 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   font-family:'DM Sans',sans-serif; transition:all var(--transition);
 }
 .cloud-sync-btn:hover { background:rgba(255,255,255,0.1); }
+/* The sync health chip and its small panel. Colour is never the only sign:
+   the words say the state. */
+.sync-chip-wrap { position:relative; display:none; }
+.sync-chip-wrap.on { display:block; }
+.sync-chip {
+  display:flex; align-items:center; gap:7px; padding:6px 11px; border-radius:20px; cursor:pointer;
+  font-size:12px; font-weight:600; font-family:'DM Sans',sans-serif; white-space:nowrap;
+  background:rgba(255,255,255,0.05); border:1px solid var(--border-light); color:var(--text-primary);
+}
+.sync-chip:hover { background:rgba(255,255,255,0.1); }
+.sync-chip-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; background:var(--text-muted); }
+.sync-chip.tone-ok { border-color:rgba(46,204,113,0.35); }
+.sync-chip.tone-ok .sync-chip-dot { background:var(--green); box-shadow:0 0 6px rgba(46,204,113,0.6); }
+.sync-chip.tone-warn { border-color:rgba(240,165,0,0.45); }
+.sync-chip.tone-warn .sync-chip-dot { background:var(--accent); }
+.sync-chip.tone-bad { border-color:rgba(231,76,60,0.55); background:rgba(231,76,60,0.1); }
+.sync-chip.tone-bad .sync-chip-dot { background:var(--red); }
+.sync-chip-panel {
+  position:absolute; right:0; top:calc(100% + 8px); width:300px; max-width:calc(100vw - 24px); z-index:1001;
+  background:var(--bg-card); border:1px solid var(--border-light); border-radius:var(--radius-sm);
+  box-shadow:0 10px 25px rgba(0,0,0,0.45); padding:14px 16px; font-size:12.5px; color:var(--text-secondary); line-height:1.45;
+}
+.sync-chip-panel[hidden] { display:none; }
+.sync-chip-panel-title { font-weight:700; font-size:13.5px; color:var(--text-primary); margin-bottom:4px; }
+.sync-chip-panel-last { margin-top:8px; color:var(--text-primary); font-weight:600; }
+.sync-chip-panel-advice { margin:8px 0 0 16px; padding:0; }
+.sync-chip-panel-advice li { margin-top:4px; }
+.sync-chip-panel-advice:empty { display:none; }
+/* With the chip saying the state in words, the Connect button beside it
+   keeps its cloud and dot (and its tooltip) and gives the top bar room. */
+.sync-chip-wrap.on ~ #cloudNotConnected #cloudStatusText { display:none; }
+.topbar-search { min-width:150px; }
 .cloud-dropdown { position:relative; display:inline-block; }
 .cloud-dropdown-content {
   display:none; position:absolute; right:0; top:100%; background:var(--bg-card); min-width:200px;
@@ -2611,6 +2643,12 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   /* Cloud sync button: abbreviate text */
   .cloud-sync-btn { padding:6px 8px; font-size:0.7rem; }
   .cloud-sync-btn span:nth-child(2) { display:none; }
+  /* The sync chip keeps its coloured dot; its words move into the panel and
+     the cloud button's own dot gives way to it. */
+  .sync-chip { padding:8px 9px; }
+  .sync-chip-label { display:none; }
+  #cloudStatusDot { display:none; }
+  .sync-chip-panel { position:fixed; left:12px; right:12px; top:calc(var(--topbar-h) + 4px); width:auto; max-width:none; }
 
   /* Logout button: icon only */
   .logout-btn { padding:7px 10px; font-size:0; gap:0; }
@@ -4528,9 +4566,23 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       <div class="search-results" id="searchResults"></div>
     </div>
     <div class="topbar-right">
+      <!-- Sync health: one read-only answer to "is my work safe?" — see
+           CESTISCore.ui.syncHealth. Pressing it shows when this computer last
+           saved and what to do; it never saves or syncs anything itself. -->
+      <div class="sync-chip-wrap" id="syncChipWrap">
+        <button type="button" class="sync-chip tone-warn" id="syncChip" onclick="toggleSyncChipPanel(event)" aria-expanded="false" aria-controls="syncChipPanel">
+          <span class="sync-chip-dot" aria-hidden="true"></span><span class="sync-chip-label" id="syncChipLabel">Checking…</span>
+        </button>
+        <div class="sync-chip-panel" id="syncChipPanel" role="dialog" aria-labelledby="syncChipPanelTitle" hidden>
+          <div class="sync-chip-panel-title" id="syncChipPanelTitle"></div>
+          <div class="sync-chip-panel-detail" id="syncChipPanelDetail"></div>
+          <div class="sync-chip-panel-last" id="syncChipPanelLast"></div>
+          <ul class="sync-chip-panel-advice" id="syncChipPanelAdvice"></ul>
+        </div>
+      </div>
       <!-- Cloud Sync Dropdown -->
       <div id="cloudNotConnected">
-        <button class="cloud-sync-btn" onclick="connectToGoogleDrive()">
+        <button class="cloud-sync-btn" onclick="connectToGoogleDrive()" title="Connect Google Drive" aria-label="Connect Google Drive">
           <span>☁️</span>
           <span id="cloudStatusText">Not connected</span>
           <span id="cloudStatusDot" class="cloud-status-dot"></span>
@@ -11459,6 +11511,7 @@ function enterApp(role) {
     // Set session expiry and start periodic check
     setSessionExpiry();
     startSessionExpiryCheck();
+    try { refreshSyncChip(); } catch(e) {}
 
     // Load per-user local data (chat, profiles) for this specific user
     loadPerUserLocalData();
@@ -33289,6 +33342,81 @@ async function autoSaveToAllFolders() {
     _isAutoSaving = false;
   }
 }
+
+/* ---- Sync health chip (top bar) ----
+   Reads what the save code already records — the "not yet uploaded" note
+   (cestisPendingUpload), the last autosave's result and its failure count,
+   the Google sign-in and when it ends, the browser's own online flag, and on
+   the Centre's network the page-cloud's server status — and shows ONE answer
+   (CESTISCore.ui.syncHealth). It never saves, syncs or retries anything. */
+var _syncChipLan = false, _syncChipLastOk = 0, _syncChipTimer = null;
+try { if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function') CESTISPageCloud.lan().then(function(on){ _syncChipLan = !!on; }); } catch(e) {}
+function syncChipInputs() {
+  var now = Date.now();
+  var exp = 0;
+  try { exp = Date.parse(CESTISStore.getItem('schoolDashboardGoogleTokenExpiry') || '') || 0; } catch(e) {}
+  var marker = '';
+  try { marker = String(CESTISStore.getItem('cestisPendingUpload') || ''); } catch(e) {}
+  var since = marker.indexOf('|') !== -1 ? Date.parse(marker.slice(marker.indexOf('|') + 1)) || null : null;
+  var last =_syncChipLastOk || (lastSyncTime ? new Date(lastSyncTime).getTime() : 0) || null;
+  var inp = { now: now, online: navigator.onLine !== false, lan: _syncChipLan, lanTrouble: false,
+    connected: !!(isCloudConnected && googleAccessToken && (!exp || exp > now)), tokenExpiresAt: exp || null,
+    pending: !!marker, pendingSince: since, failures: _consecutiveCloudSaveFailures || 0, lastSavedAt: last };
+  if (_syncChipLan) {
+    // On the Centre's network every edit goes to its server within seconds;
+    // trouble reaching it is what puts work at risk (cestis-page-cloud.js).
+    var st = [];
+    try { st = CESTISPageCloud.status() || []; } catch(e) {}
+    inp.lanTrouble = !!document.getElementById('cestisLanTrouble') || st.some(function(p){ return p.backend === 'offline-server' && !!p.error; });
+    inp.pending = inp.lanTrouble && !!marker;
+    var pushes = st.map(function(p){ return Date.parse(p.lastPush || p.lastPull || '') || 0; });
+    var lp = Math.max.apply(null, [0].concat(pushes));
+    if (lp) inp.lastSavedAt = lp;
+  }
+  return inp;
+}
+function refreshSyncChip() {
+  var wrap = document.getElementById('syncChipWrap');
+  if (!wrap) return;
+  if (!currentRole || !window.CESTISCore || !CESTISCore.ui || typeof CESTISCore.ui.syncHealth !== 'function') { wrap.classList.remove('on'); return; }
+  // While the 5-second autosave is running and its last pass reached Drive
+  // (or found Drive already current) with nothing left unsent, this
+  // computer's work is safe there as of now.
+  if (_autoSaveIntervalId && isCloudConnected && _lastAutoSaveResult && _lastAutoSaveResult.uploaded &&
+      !CESTISStore.getItem('cestisPendingUpload')) _syncChipLastOk = Date.now();
+  var h = CESTISCore.ui.syncHealth(syncChipInputs());
+  var chip = document.getElementById('syncChip');
+  chip.className = 'sync-chip tone-' + h.tone;
+  chip.setAttribute('data-state', h.state);
+  chip.setAttribute('aria-label', h.label + ' — show details');
+  document.getElementById('syncChipLabel').textContent = h.label;
+  document.getElementById('syncChipPanelTitle').textContent = h.label;
+  document.getElementById('syncChipPanelDetail').textContent = h.detail;
+  document.getElementById('syncChipPanelLast').textContent = h.lastSaved;
+  var adv = document.getElementById('syncChipPanelAdvice');
+  adv.innerHTML = h.advice.map(function(a){ return '<li>' + escapeHtml(a) + '</li>'; }).join('');
+  wrap.classList.add('on');
+}
+function toggleSyncChipPanel(e) {
+  if (e) e.stopPropagation();
+  var panel = document.getElementById('syncChipPanel'), chip = document.getElementById('syncChip');
+  if (!panel) return;
+  refreshSyncChip();
+  var open = panel.hidden;
+  panel.hidden = !open;
+  chip.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+document.addEventListener('click', function(e) {
+  var panel = document.getElementById('syncChipPanel');
+  if (panel && !panel.hidden && !e.target.closest('#syncChipWrap')) { panel.hidden = true; document.getElementById('syncChip').setAttribute('aria-expanded', 'false'); }
+});
+document.addEventListener('keydown', function(e) {
+  var panel = document.getElementById('syncChipPanel');
+  if (e.key === 'Escape' && panel && !panel.hidden) { panel.hidden = true; var c = document.getElementById('syncChip'); c.setAttribute('aria-expanded', 'false'); c.focus(); }
+});
+window.addEventListener('online', function(){ try { refreshSyncChip(); } catch(e) {} });
+window.addEventListener('offline', function(){ try { refreshSyncChip(); } catch(e) {} });
+_syncChipTimer = setInterval(function(){ try { refreshSyncChip(); } catch(e) {} }, 3000);
 
 // Start the 5-second auto-save interval
 function startAutoSave() {
