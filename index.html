@@ -1623,6 +1623,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .alert-item.alert-info { border-left-color:var(--blue); }
 .alert-item.alert-warning { border-left-color:var(--accent); }
 .alert-item.alert-danger { border-left-color:var(--red); }
+.alert-item.alert-success { border-left-color:var(--green); }
 .alert-item .alert-icon {
   width:32px; height:32px; border-radius:var(--radius-sm); flex-shrink:0;
   display:flex; align-items:center; justify-content:center; font-size:15px;
@@ -1630,6 +1631,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .alert-item.alert-info .alert-icon { background:var(--blue-dim); color:var(--blue); }
 .alert-item.alert-warning .alert-icon { background:var(--accent-dim); color:var(--accent); }
 .alert-item.alert-danger .alert-icon { background:var(--red-dim); color:var(--red); }
+.alert-item.alert-success .alert-icon { background:var(--green-dim); color:var(--green); }
 .alert-item .alert-body { flex:1; min-width:0; }
 .alert-item .alert-body .alert-msg { font-size:13px; color:var(--text-primary); line-height:1.4; }
 .alert-item .alert-body .alert-time { font-size:11px; color:var(--text-muted); margin-top:4px; }
@@ -12915,6 +12917,11 @@ function buildAdminPages() {
   const lowAttendance = students.filter(s=>s && (s.stage==='testing'||s.stage==='interview'||s.stage==='training') &&
     s.attendance!==undefined && s.attendance!==null && s.attendance!=='' && parseFloat(s.attendance)<70).length;
   const pendingCerts = students.filter(s=>s.stage==='certified'&&!s.certCollected).length;
+  // What the course-end rule found in the transcripts of trainees whose course
+  // has ended: ready to certify, or still waiting for results to be marked.
+  const courseEndOf = (state) => students.filter(s=>{ const f = CESTISCore.courseEnd.flag(s); return f && f.state===state; });
+  const readyToCertify = courseEndOf('ready'), awaitingMarking = courseEndOf('awaiting-marking');
+  const someNames = (list) => list.slice(0,3).map(s=>s.name).join(', ') + (list.length>3 ? ' and ' + (list.length-3) + ' more' : '');
   const nextExam = exams.filter(e=>e.status==='upcoming').sort((a,b)=>a.date.localeCompare(b.date))[0];
   const mc = document.getElementById('mainContent');
   mc.innerHTML = `
@@ -12941,6 +12948,8 @@ function buildAdminPages() {
       <div class="card"><div class="card-header"><h3>System Alerts</h3></div>
         <div class="alert-item alert-danger"><div class="alert-icon">\u26A0\uFE0F</div><div class="alert-body"><div class="alert-msg">${lowAttendance} student${lowAttendance!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs attention</div></div></div>
         <div class="alert-item alert-warning"><div class="alert-icon">\uD83D\uDCDD</div><div class="alert-body"><div class="alert-msg">${upcomingExams} exams scheduled this period</div><div class="alert-time">Review schedule</div></div></div>
+        ${readyToCertify.length ? `<div class="alert-item alert-success"><div class="alert-icon">\u2705</div><div class="alert-body"><div class="alert-msg">${readyToCertify.length} trainee${readyToCertify.length!==1?'s':''} ready to certify</div><div class="alert-time">Course ended, every core unit competent: ${escapeHtml(someNames(readyToCertify))}</div></div></div>` : ''}
+        ${awaitingMarking.length ? `<div class="alert-item alert-warning"><div class="alert-icon">\u23F3</div><div class="alert-body"><div class="alert-msg">${awaitingMarking.length} trainee${awaitingMarking.length!==1?'s':''} awaiting marking after their course ended</div><div class="alert-time">Not marked Not Yet Competent until the results are in: ${escapeHtml(someNames(awaitingMarking))}</div></div></div>` : ''}
         <div class="alert-item alert-info"><div class="alert-icon">\uD83C\uDF93</div><div class="alert-body"><div class="alert-msg">${pendingCerts} certificates pending collection</div><div class="alert-time">Notify students</div></div></div>
         <div class="alert-item alert-warning"><div class="alert-icon">\uD83D\uDCCA</div><div class="alert-body"><div class="alert-msg">${incompleteCount} students marked incomplete</div><div class="alert-time">Follow up required</div></div></div>
         <div class="alert-item alert-info"><div class="alert-icon">\uD83D\uDD04</div><div class="alert-body"><div class="alert-msg">Auto-save to Google Drive is ${isCloudConnected?'active':'inactive'}</div><div class="alert-time">${isCloudConnected?'Every '+(AUTO_SAVE_INTERVAL_MS/1000)+' seconds':'Connect via Cloud button'}</div></div></div>
@@ -13046,7 +13055,7 @@ function buildAdminPages() {
 
   <!-- COURSE / TRAINING CENTRE DURATION -->
   <section class="page" id="page-course-duration">
-    <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;">Set each training centre's start and end date. When a course ends, its attendance register closes automatically and uncertified students are marked <strong>Not Yet Competent (NYC)</strong> until you update them. Extend the end date — or grant an instructor a ½-day / 1-day window — to reopen the register.</p>
+    <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;">Set each training centre's start and end date. When a course ends, its attendance register closes automatically and each uncertified student is judged by their transcript: every core unit competent &rarr; flagged <strong>Ready to certify</strong>; results still being marked &rarr; <strong>Awaiting marking</strong>; otherwise marked <strong>Not Yet Competent (NYC)</strong>, with the units that decided it, until you update them. Extend the end date — or grant an instructor a ½-day / 1-day window — to reopen the register.</p>
     <div id="courseDurationContent"></div>
   </section>
 
@@ -23383,17 +23392,22 @@ function courseEndKeyFor(s, rec) {
 // having dealt with this course ending, so the sweep leaves it alone.
 function markStageSetByUser(s) {
   if (!s) return;
-  delete s._nycAuto;
+  var endKey = null;
   try {
-    if (studentCourseStatus(s) === 'ended') s._nycForCourseEnd = courseEndKeyFor(s, null);
+    if (studentCourseStatus(s) === 'ended') endKey = courseEndKeyFor(s, null);
   } catch (e) {}
-  s.stageSetByUser = true;
+  // The shared rule (CESTISCore.courseEnd) — Student Progress marks it the same way.
+  CESTISCore.courseEnd.markSetByUser(s, endKey);
   s.lastModified = new Date().toISOString();
 }
 
-// When a course has ended, non-certified students become NYC; if a course is
-// later extended (genuinely open again), students WE auto-marked revert to In
-// Training — but a status the Centre set by hand is never touched.
+// When a course has ended, a trainee who is not certified is judged by their
+// transcript (CESTISCore.courseEnd): every core unit competent -> flagged
+// ready to certify, results still being marked -> left until they are, a core
+// unit not yet competent or without a result (or no unit catalogue at all) ->
+// NYC. If a course is later extended (genuinely open again), students WE
+// auto-marked revert to In Training — but a status the Centre set by hand is
+// never touched.
 /* Is this trainee stamped with a training centre this device does not hold —
    one created on another device that has not arrived here yet, or one since
    deleted? Their stamp names the centre; whatever this device's like-named
@@ -23411,9 +23425,30 @@ function studentStampedElsewhere(s) {
   });
 }
 
+/* The transcript records the course-end rule reads, gathered once per sweep
+   and only when some trainee needs them. null while they may still be
+   loading into this page (the durable store is read in after the first
+   sweep): judged on half the records, a trainee whose grades had not arrived
+   yet would be marked Not Yet Competent for good. */
+function courseEndTranscriptData() {
+  var T = CESTISCore.Transcript;
+  if (!T) return null;
+  var store = (typeof CESTISStore !== 'undefined') ? CESTISStore : null;
+  var keys = ['voctrain_unitCatalogs', 'voctrain_transcriptGrades', 'voctrain_transcriptProfiles'];
+  if (store && typeof store.mayHoldUnloaded === 'function' &&
+      keys.some(function (k) { try { return store.mayHoldUnloaded(k); } catch (e) { return false; } })) return null;
+  var read = function (k, d) { try { var v = JSON.parse(store.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+  var catalogs = T.ensureSeeded(read(keys[0], []));
+  var ex = (typeof exams !== 'undefined' && Array.isArray(exams)) ? exams : [];
+  var er = (typeof examResults !== 'undefined' && Array.isArray(examResults)) ? examResults : [];
+  return { catalogs: catalogs, grades: read(keys[1], []), profiles: read(keys[2], {}),
+           exams: ex, examResults: er, index: T.gradeIndex(ex, er, catalogs) };
+}
+
 function applyCourseEndStatuses() {
   if (typeof students === 'undefined' || !Array.isArray(students)) return false;
   var changed = false;
+  var tData, tAsked = false, nowIso = new Date().toISOString();
   students.forEach(function(s){
     if (!s) return;
     // A trainee with no course NAME is still a trainee: their record carries the
@@ -23433,28 +23468,26 @@ function applyCourseEndStatuses() {
       : studentCourseStatus(s);
     if (st === 'unknown') return;
     var rec = away ? null : studentCentreRecord(s);
-    if (st === 'ended') {
-      // Auto-mark NYC ONCE per course-end. Certified/collected are never
-      // overridden, and a student an admin has already handled for this same
-      // end date is left alone ("...until updated by Administrator").
-      var endKey = away ? (s.courseEnd || 'ended') : courseEndKeyFor(s, rec);
-      if (s.stage !== 'certified' && s.stage !== 'collected' && s.stage !== 'nyc'
-          && s._nycForCourseEnd !== endKey) {
-        s.stage = 'nyc'; s._nycAuto = true; s._nycForCourseEnd = endKey; changed = true;
-      }
-    } else if (st === 'active' || st === 'not-started') {
-      // The course is genuinely open again (extended, or not started yet): undo
-      // only what WE auto-applied, and only where a person has not since had
-      // their say. A status somebody set by hand is theirs, not ours.
-      //
-      // 'no-dates' deliberately does nothing. A centre with no dates says
-      // nothing about whether the course has finished, and treating it as
-      // "open" dragged every auto-marked trainee back to In Training on every
-      // single page load — which is what kept undoing the Centre's own edits.
-      if (s.stage === 'nyc' && s._nycAuto && !s.stageSetByUser) {
-        s.stage = 'training'; delete s._nycAuto; delete s._nycForCourseEnd; changed = true;
+    // The decision itself is CESTISCore.courseEnd.decide (shared and tested):
+    // NYC is decided ONCE per course-end; certified/collected are never
+    // overridden; a student an admin has already handled for this same end
+    // date is left alone ("...until updated by Administrator"); and a reopened
+    // course undoes only what the rule applied. 'no-dates' deliberately does
+    // nothing — treating it as "open" dragged every auto-marked trainee back
+    // to In Training on every page load, undoing the Centre's own edits.
+    var endKey = st === 'ended' ? (away ? (s.courseEnd || 'ended') : courseEndKeyFor(s, rec)) : null;
+    var opts = { status: st, endKey: endKey, nowIso: nowIso };
+    // Only a trainee the transcript could still decide needs it read.
+    if (st === 'ended' && s.stage !== 'certified' && s.stage !== 'collected' && s.stage !== 'withdrawn' &&
+        s.stage !== 'nyc' && s._nycForCourseEnd !== endKey) {
+      if (!tAsked) { tAsked = true; try { tData = courseEndTranscriptData(); } catch (e) { tData = null; } }
+      if (!tData) opts.loading = true;
+      else {
+        try { opts.readiness = CESTISCore.Transcript.transcriptReadiness(s, tData); }
+        catch (e) { opts.loading = true; }
       }
     }
+    if (CESTISCore.courseEnd.apply(s, CESTISCore.courseEnd.decide(s, opts))) changed = true;
   });
   return changed;
 }
@@ -23868,7 +23901,7 @@ function renderCourseDurationPage() {
         '<div><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Project (optional)</label><input type="text" class="form-control" style="width:220px;" id="cdBulkProject" placeholder="e.g. Hazard Skills Training Centre"></div>'+
         '<button class="btn btn-primary" onclick="cdBulkApply()">Apply to all centres</button>'+
       '</div>'+
-      '<div style="padding:0 16px 14px;font-size:12px;color:var(--text-muted);">Only the fields you fill are applied; empty fields leave each centre unchanged. Setting an end date in the past closes that centre\'s register and marks its uncertified students as Not&nbsp;Yet&nbsp;Competent.</div>'+
+      '<div style="padding:0 16px 14px;font-size:12px;color:var(--text-muted);">Only the fields you fill are applied; empty fields leave each centre unchanged. Setting an end date in the past closes that centre\'s register and marks its uncertified students as Not&nbsp;Yet&nbsp;Competent unless their transcript shows every core unit competent or results still awaiting marking.</div>'+
     '</div>'+
     '<div class="card">'+
       '<div class="card-header"><h3>Training Centre Durations</h3><span style="font-size:13px;color:var(--text-muted);">'+skillAreas.length+' centres</span></div>'+

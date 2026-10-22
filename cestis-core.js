@@ -2439,6 +2439,180 @@
     };
   })();
 
+  /* ====================== WHAT A COURSE ENDING DECIDES ======================
+     When a course ended, every trainee who was not yet certified became Not
+     Yet Competent — whatever their transcript said. A trainee with every unit
+     marked competent, waiting only for the certificate to be issued, was
+     marked NYC the day the course closed; so was one whose last exam was still
+     being marked. The transcript now decides (Core.Transcript
+     .transcriptReadiness, passed in as `readiness`):
+
+       - every CORE unit competent and nothing awaiting marking: NOT marked
+         NYC. The stage is left as it is and the trainee is flagged ready to
+         certify (readyToCertifyAt), which the dashboard and Student Progress
+         show. Electives are not required — how many a plan demands is not
+         recorded anywhere yet.
+       - any unit still awaiting marking: not marked yet. The trainee shows as
+         "Awaiting marking" and the next sweep looks again.
+       - a core unit not yet competent, or with no result: NYC, as before, with
+         the units written in courseEndReason so staff can see why.
+       - a programme with no unit catalogue: NYC, exactly as before — there is
+         nothing to judge by.
+
+     Certified, collected and withdrawn trainees are never touched, and nor is
+     a stage a PERSON set for this course ending (markSetByUser): the rule acts
+     on an ending once, then leaves it to the Centre. Only a NYC the rule made
+     is final for it; "ready" and "awaiting marking" are looked at again on
+     every sweep, so a grade corrected later still counts.
+
+     decide() is pure — the course status, which ending this is (its end date)
+     and the readiness are passed in — and returns the fields to change; apply()
+     writes them onto the record. The dashboard's sweep and Student Progress
+     both use these, so the two never judge a trainee differently.
+     ========================================================================= */
+  Core.courseEnd = (function () {
+    var FINAL = { certified: 1, collected: 1, withdrawn: 1 };
+    // The fields this rule owns on a trainee record (besides the stage and the
+    // _nycAuto / _nycForCourseEnd markers it always used).
+    var FLAGS = ['courseEndState', 'courseEndReason', 'readyToCertifyAt'];
+    var LABELS = { ready: 'Ready to certify', 'awaiting-marking': 'Awaiting marking', nyc: 'Not Yet Competent' };
+
+    function codes(list, max) {
+      list = list || [];
+      max = max || 5;
+      return list.slice(0, max).join(', ') + (list.length > max ? ' and ' + (list.length - max) + ' more' : '');
+    }
+    function has(r, k) { return !!(r && Array.isArray(r[k]) && r[k].length); }
+    // Does this readiness verdict actually judge the trainee (a catalogue, units)?
+    function known(r) { return !!(r && typeof r === 'object' && r.known !== false && r.status !== 'no-catalogue' && Array.isArray(r.missingCore)); }
+
+    /* Why a trainee is not yet competent, naming the units: the core units
+       graded NYC, then the core units with no result. */
+    function nycReason(r) {
+      var nycCore = (r.missingCore || []).filter(function (c) { return (r.nycUnits || []).indexOf(c) !== -1; });
+      var none = (r.missingCore || []).filter(function (c) { return nycCore.indexOf(c) === -1 && (r.pendingUnits || []).indexOf(c) === -1; });
+      var parts = [];
+      if (nycCore.length) parts.push('Not yet competent: ' + codes(nycCore));
+      if (none.length) parts.push('No result: ' + codes(none));
+      return parts.join('; ') || 'Core units not yet achieved';
+    }
+
+    /* student: the trainee record (read, never changed here).
+       opts: { status   — Core.courseDuration.status of their course
+                          ('ended' | 'active' | 'not-started' | 'no-dates' | 'unknown'),
+               endKey   — which ending this is (the course's end date),
+               readiness — Core.Transcript.transcriptReadiness(student, …); null,
+                          or { known:false }, when the programme has no unit
+                          catalogue,
+               loading  — true while the transcript data has not loaded yet: a
+                          catalogue programme is then left for the next sweep
+                          rather than judged on half the records,
+               nowIso   — the moment, for readyToCertifyAt }
+       -> { outcome, changed, set: { field: value }, unset: [fields], reason }
+       outcome: 'none' | 'final' | 'settled' | 'deferred' | 'nyc' | 'ready' |
+                'awaiting-marking' | 'revert' */
+    function decide(s, opts) {
+      opts = opts || {};
+      var out = { outcome: 'none', changed: false, set: {}, unset: [], reason: '' };
+      if (!s) return out;
+      var set = function (k, v) { if (s[k] !== v) { out.set[k] = v; out.changed = true; } };
+      var unset = function (k) { if (s[k] !== undefined) { out.unset.push(k); out.changed = true; } };
+      var st = opts.status;
+      if (st === 'ended') {
+        var endKey = opts.endKey || 'ended';
+        if (FINAL[s.stage]) {
+          // Certified or done: what the rule last said no longer applies.
+          out.outcome = 'final';
+          FLAGS.forEach(unset);
+          return out;
+        }
+        // This ending has been dealt with: by a person, or by this rule's NYC.
+        if (s._nycForCourseEnd === endKey) { out.outcome = 'settled'; return out; }
+        // Already NYC (set by hand, or arrived so from another device).
+        if (s.stage === 'nyc') return out;
+        var r = opts.readiness;
+        if (!known(r)) {
+          if (opts.loading && r === undefined) { out.outcome = 'deferred'; return out; }
+          // No unit catalogue: today's rule, unchanged.
+          out.outcome = 'nyc';
+          set('stage', 'nyc'); set('_nycAuto', true); set('_nycForCourseEnd', endKey);
+          FLAGS.forEach(unset);
+          return out;
+        }
+        if (has(r, 'pendingUnits')) {
+          out.outcome = 'awaiting-marking';
+          out.reason = 'Awaiting marking: ' + codes(r.pendingUnits);
+          set('courseEndState', 'awaiting-marking'); set('courseEndReason', out.reason); unset('readyToCertifyAt');
+          return out;
+        }
+        if (!has(r, 'missingCore')) {
+          out.outcome = 'ready';
+          out.reason = 'Every core unit competent' + (r.total ? ' (' + (r.competent || 0) + ' of ' + r.total + ' units competent)' : '');
+          set('courseEndState', 'ready'); set('courseEndReason', out.reason);
+          // Stamped once: re-confirming it on every sweep is not a new event.
+          if (!s.readyToCertifyAt || s.courseEndState !== 'ready') set('readyToCertifyAt', opts.nowIso || new Date().toISOString());
+          return out;
+        }
+        out.outcome = 'nyc';
+        out.reason = nycReason(r);
+        set('stage', 'nyc'); set('_nycAuto', true); set('_nycForCourseEnd', endKey);
+        set('courseEndState', 'nyc'); set('courseEndReason', out.reason); unset('readyToCertifyAt');
+        return out;
+      }
+      if (st === 'active' || st === 'not-started') {
+        // The course is genuinely open again (extended, or not started yet):
+        // undo only what THIS rule applied, and only where a person has not
+        // since had their say. 'no-dates' and 'unknown' say nothing about
+        // whether the course has finished, so they undo nothing.
+        if (s.stage === 'nyc' && s._nycAuto && !s.stageSetByUser) {
+          out.outcome = 'revert';
+          set('stage', 'training'); unset('_nycAuto'); unset('_nycForCourseEnd');
+          FLAGS.forEach(unset);
+          return out;
+        }
+        // "Ready" and "awaiting marking" were about the ending; there is none now.
+        if (s.courseEndState === 'ready' || s.courseEndState === 'awaiting-marking') {
+          out.outcome = 'revert';
+          FLAGS.forEach(unset);
+        }
+      }
+      return out;
+    }
+    // Write a decision onto the record. Returns whether anything changed.
+    function apply(s, d) {
+      if (!s || !d || !d.changed) return false;
+      Object.keys(d.set).forEach(function (k) { s[k] = d.set[k]; });
+      d.unset.forEach(function (k) { delete s[k]; });
+      return true;
+    }
+
+    /* A person, not the rule, has just decided this trainee's stage. The rule
+       no longer claims it; when the course has ended (endKey given) it counts
+       as the Centre having dealt with this ending, so the sweep leaves it alone.
+       What the rule had flagged goes with it — unless the person has confirmed
+       the rule's own Not Yet Competent, whose reason still explains it. */
+    function markSetByUser(s, endKey) {
+      if (!s) return;
+      delete s._nycAuto;
+      if (endKey) s._nycForCourseEnd = endKey;
+      s.stageSetByUser = true;
+      if (!(s.stage === 'nyc' && s.courseEndState === 'nyc')) FLAGS.forEach(function (k) { delete s[k]; });
+    }
+
+    /* What to show beside a trainee's stage, or null: { state, label, detail, at }.
+       "Ready" and "awaiting marking" only while the trainee is still
+       uncertified and not NYC; the NYC reason only while they are NYC. */
+    function flag(s) {
+      if (!s || !s.courseEndState || FINAL[s.stage]) return null;
+      var state = s.courseEndState;
+      if (state === 'nyc' ? s.stage !== 'nyc' : (s.stage === 'nyc' || !LABELS[state])) return null;
+      return { state: state, label: LABELS[state], detail: String(s.courseEndReason || ''), at: s.readyToCertifyAt || '' };
+    }
+
+    return { decide: decide, apply: apply, markSetByUser: markSetByUser, flag: flag, nycReason: nycReason,
+             FLAGS: FLAGS, LABELS: LABELS };
+  })();
+
   /* ==========================================================================
      ATTENDANCE REGISTER — one mark per trainee per actual date
 
