@@ -4654,19 +4654,49 @@
         // here, once, with the centre that was running on the day they enrolled,
         // so nothing afterwards can move them. Only blanks are filled: a stamp
         // already on a record is never rewritten.
+        //
+        // The fee record of a DASHBOARD trainee is bound where the dashboard
+        // holds them: the intake stamped on their dashboard record, or — for a
+        // record this page made from theirs — the centre of exactly the name it
+        // copied. The looser reading of a name is for this page's own shorthand
+        // ("WELDING L2"); applied to the dashboard's "Welding" on a device that
+        // had not received that centre yet, it bound the trainee to "Welding &
+        // Fabrication" — and priced and counted them there.
         function feeBindTraineesToIntake() {
             try {
                 if (!Array.isArray(students) || !students.length) return 0;
                 var centres = feeTrainingCentres();
                 if (!centres.length) return 0;
+                var lmsById = null;
+                var lmsTwin = function (s) {
+                    if (s.lmsId == null || s.lmsId === '') return null;
+                    if (!lmsById) {
+                        lmsById = {};
+                        try {
+                            var roll = JSON.parse(CESTISStore.getItem('voctrain_students') || '[]');
+                            if (Array.isArray(roll)) roll.forEach(function (r) { if (r && r.id != null) lmsById[String(r.id)] = r; });
+                        } catch (e) {}
+                    }
+                    return lmsById[String(s.lmsId)] || null;
+                };
                 var n = 0;
                 students.forEach(function (s) {
                     if (!s || !s.skillArea) return;
                     if (s.centreKey) return;                       // already bound
                     var when = s.enrollmentDate || s.enrolmentDate || s.createdAt || '';
                     var centre = null;
-                    try { centre = CESTISCore.enrolment.findCentre(centres, s.skillArea, { on: when }); }
-                    catch (e) { centre = null; }
+                    var twin = lmsTwin(s);
+                    var twinKey = twin && twin.centreKey != null && String(twin.centreKey).trim() !== ''
+                        ? CESTISCore.enrolment.centreKeyOf({ centreKey: twin.centreKey }) : '';
+                    if (twinKey || (twin && twin.centreId != null)) {
+                        // Their intake, or nothing: a centre not on this device yet binds nobody.
+                        centre = centres.filter(function (c) {
+                            return twinKey ? CESTISCore.enrolment.centreKeyOf(c) === twinKey : c.id === twin.centreId;
+                        })[0] || null;
+                    } else {
+                        try { centre = CESTISCore.enrolment.findCentre(centres, s.skillArea, { on: when, exact: s.source === 'lms' }); }
+                        catch (e) { centre = null; }
+                    }
                     if (!centre) return;
                     s.centreKey = CESTISCore.enrolment.centreKeyOf(centre);
                     if (s.centreId == null) s.centreId = (centre.id != null ? centre.id : null);

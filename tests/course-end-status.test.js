@@ -49,7 +49,7 @@ function extractFunction(name) {
 }
 
 const NAMES = ['courseDurationRecord', 'studentCentreRecord', 'studentCourseStatus',
-               'courseEndKeyFor', 'markStageSetByUser', 'applyCourseEndStatuses'];
+               'courseEndKeyFor', 'markStageSetByUser', 'studentStampedElsewhere', 'applyCourseEndStatuses'];
 
 /* Dates relative to a fixed "today" of 2026-08-03 (the tests never call
    Date.now() themselves — courseDuration.status does, against real time). */

@@ -111,12 +111,10 @@ let browser = null;
 const devices = [];
 // Console errors that say nothing about the product: the outside world is
 // cut off on purpose; the service worker's kill-switch file is absent by
-// design (a 404 is the answer "carry on"); a page file the Centre's server has
-// not been sent yet reads 404; and the pages' <meta http-equiv="X-Frame-
-// Options"> is ignored by browsers, which say so as an "error".
+// design (a 404 is the answer "carry on"); and a page file the Centre's server
+// has not been sent yet reads 404.
 function benign(m) {
   const text = m.text(), url = (m.location() || {}).url || '';
-  if (/X-Frame-Options may only be set via an HTTP header/.test(text)) return 'x-frame-options meta';
   if (/^Failed to load resource/.test(text)) {
     if (url && !url.startsWith(base)) return 'outside network (blocked)';
     if (/\/sw-disable(\?|$)/.test(url)) return 'sw kill-switch probe';
@@ -205,13 +203,11 @@ async function signOut(page) {
   return waitFor(page, () => document.getElementById('landingPage').style.display !== 'none' && !document.getElementById('appShell').classList.contains('active'), null, 25000);
 }
 const text = (page, sel) => page.evaluate(s => { const el = document.querySelector(s); return el ? el.innerText : ''; }, sel);
-// My Exams keeps showing the last result reviewed until "Back to Exams".
+// Going to My Exams opens the list — not the last result reviewed.
 async function examList(page) {
   await nav(page, 's-exams');
-  if (await page.isVisible('#studentExamResultView button:has-text("Back to Exams")')) {
-    await page.click('#studentExamResultView button:has-text("Back to Exams")');
-    await page.waitForTimeout(300);
-  }
+  ok(await page.isVisible('#studentExamListView') && !(await page.isVisible('#studentExamResultView')),
+    page.__t.label + ': My Exams opens on the list, not on the last result reviewed');
 }
 async function download(page, click) {
   const wait = page.waitForEvent('download', { timeout: 40000 }).catch(() => null);
@@ -272,10 +268,15 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     await A.fill('#adminPass', 'cestisadmin123$');
     await A.press('#adminPass', 'Enter');
     ok(await waitFor(A, () => document.getElementById('forceChangePwModal').classList.contains('active')), 'the published first-run password only leads to "set a new password"');
+    // The dialog puts the cursor in "New password" a moment after it opens; on
+    // a busy machine that landed in the middle of typing the confirmation.
+    await waitFor(A, () => document.activeElement && document.activeElement.id === 'forceChangePwNew', null, 5000);
     await A.fill('#forceChangePwNew', ADMIN_PW);
     await A.fill('#forceChangePwConfirm', ADMIN_PW);
     await A.click('#forceChangePwModal button:has-text("Set Password")');
     ok(await waitFor(A, () => currentRole === 'admin' && document.getElementById('appShell').classList.contains('active')), 'the administrator is in');
+    ok(await waitFor(A, () => { try { const t = JSON.parse(sessionStorage.getItem('cestisLanHostTicket') || 'null'); return !!(t && t.ticket && currentLoggedInUser && t.uid === currentLoggedInUser.id); } catch (e) { return false; } }, null, 15000),
+      'and holds a host ticket: the password they set reached the Centre\'s server first');
     today = await A.evaluate(() => localDateStr());
     weekend = await A.evaluate(d => CESTISCore.attendance.dayName(d) === '', today);
 
@@ -600,6 +601,10 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
   /* ================================================================ 4b */
   await step('4b', 'Exam: the instructor marks the essays, releases the answers; trainees see their final results', async () => {
     await refresh(I);
+    const queue = () => I.evaluate(() => (document.getElementById('iExamReviewQueue') || {}).innerText || '');
+    await nav(I, 'i-gradebook');
+    ok(await waitFor(I, () => { const t = (document.getElementById('iExamReviewQueue') || {}).innerText || ''; return /Exam Submissions Needing Review/.test(t) && /2 pending/.test(t); }),
+      'the Gradebook lists both submissions needing review, though it was built before they arrived (' + (await queue()).replace(/\s+/g, ' ').slice(0, 120) + ')');
     await nav(I, 'i-exams');
     await I.click('#page-i-exams .tab:has-text("Active Now")');
     await I.locator('#iExamTableBody tr', { hasText: EXAM }).locator('button:has-text("Monitor")').click();
@@ -622,13 +627,17 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     ok(await waitFor(I, () => /released to trainees/.test(document.getElementById('iExamResultsView').innerText)), 'the correct answers are released');
     ok(!!(await serverHas('voctrain_exams', l => l.some(e => e.title === EXAM && e.answersRelease === 'released'))) &&
        !!(await serverHas('voctrain_examResults', l => l.filter(r => r.reviewComplete).length >= 2)), 'the marks and the release reach the Centre\'s server');
+    await nav(I, 'i-gradebook');
+    ok(await waitFor(I, () => !/Needing Review/.test((document.getElementById('iExamReviewQueue') || {}).innerText || '')),
+      'and, both marked, the Gradebook no longer lists them (' + (await queue()).replace(/\s+/g, ' ').slice(0, 120) + ')');
 
     await refresh(L);
     await examList(L);
     await L.locator('#studentPastExamResults button:has-text("Review")').first().click();
     ok(await waitFor(L, () => /NOT PASSED/.test(document.getElementById('studentExamResultView').innerText)), 'Shanté sees her final result');
     const sv = await text(L, '#studentExamResultView');
-    ok(/50%/.test(sv) && /Correct answer: B/.test(sv), 'with her score (50%) and, now released, the correct answer to the question she got wrong');
+    ok(/50%/.test(sv) && /Correct answer: B\. Red/.test(sv), 'with her score (50%) and, now released, the correct answer to the question she got wrong');
+    ok(/Your answer: A\. Blue/.test(sv) && !/\(selected\)/.test(sv), 'her own answer reads as the option she chose ("A. Blue"), not "A. (selected)"');
     ok(!/Ama/.test(sv), 'and nothing about Ama');
     await refresh(P);
     await examList(P);
@@ -702,18 +711,17 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
       (mc.indexOf(certNo) === -1 ? ' — ' + JSON.stringify(await P.evaluate(id => ({ cur: currentStudent && [currentStudent.id, currentStudent.stage, currentStudent.certNo],
         mem: (students.find(s => s.id === id) || {}).stage, same: students.indexOf(currentStudent) !== -1,
         stored: (JSON.parse(CESTISStore.getItem('voctrain_students') || '[]').find(s => s.id === id) || {}).stage }), ids.ama)) : ''));
-    // ...but the design (its background images) lives only on the PC that
-    // uploaded it, and on Google Drive online: on the Centre's network a
-    // trainee's own device cannot build the PDF. Recorded, not asserted.
-    const phoneWait = P.waitForEvent('download', { timeout: 10000 }).catch(() => null);
+    // ...and her phone builds the PDF itself: the design's background images
+    // are on the Centre's server (online they come from Google Drive).
+    const phoneWait = P.waitForEvent('download', { timeout: 20000 }).catch(() => null);
     await P.click('#page-s-certificate button:has-text("Download Certificate")');
     await P.waitForTimeout(1500);
     const phoneSays = (await text(P, '#toastContainer')).replace(/\s+/g, ' ').trim();
     const phonePdf = await phoneWait;
-    if (phonePdf) ok(fs.readFileSync(await phonePdf.path()).slice(0, 5).toString() === '%PDF-', 'the certificate PDF is produced on her phone');
-    else note('GAP (Offline System): the certificate PDF cannot be built on a trainee\'s own device — the design\'s background images stay on the PC that uploaded them (IndexedDB) and travel only through Google Drive. Her phone says: "' + phoneSays.slice(0, 160) + '"');
+    ok(!!phonePdf && fs.readFileSync(await phonePdf.path()).slice(0, 5).toString() === '%PDF-' && phonePdf.suggestedFilename().indexOf(certNo) !== -1,
+      'the certificate PDF is produced on her own phone' + (phonePdf ? '' : ' — her phone says: "' + phoneSays.slice(0, 160) + '"'));
     await ackAlerts(P);
-    // ...so she collects it at the office: the front desk of the office PC.
+    // She can also collect it at the office: the front desk of the office PC.
     const D = await tab(office, 'front-desk-2');
     ok(await signIn(D, 'student', AMA.user, AMA.pass), 'Ama signs in at the office front desk');
     await nav(D, 's-certificate');

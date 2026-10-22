@@ -13,7 +13,12 @@
      - the server restarting gave it a new access token and every open page
        then failed every save, silently, while saying it was connected;
      - who was signed in on a device (voctrain_session*) travelled to every
-       other device with everything else.
+       other device with everything else — and, after that was closed for the
+       role and the user, the session's heartbeat (voctrain_sessionSeenAt) and
+       trainee still did: one device's heartbeat refreshed every other
+       device's, so a lab PC under the idle lock still read as "open" to the
+       record pages. This browser's other markers (work not yet uploaded, its
+       id in the certificate download count) travelled the same way.
 
    What this runs: the real Offline System server (cestis-offline-server.js) on
    a scratch data folder, and several "devices" — each a separate VM context
@@ -164,6 +169,11 @@ const ids = list => (list || []).map(r => r.id).sort().join(',');
     office.set('cestisExamSession__S1__E1', { answers: { q1: 'B' } });
     office.set('cestisExamOutbox', [{ id: 'R9' }]);
     office.set('voctrain_user_U1_chat', { dm: 'private' });
+    const THIS_BROWSER = { voctrain_sessionSeenAt: '1700000000000', voctrain_sessionStudentId: 'S9', voctrain_sessionUserId: 'U-ADMIN',
+      voctrain_sessionExpiry: '1800000000000', cestisPendingUpload: 'true', cestisUnsyncedOnSignOut: '1',
+      cestisCertDeviceSessionId: 'D-office', voctrain_supportSendLog: '[1]', voctrain_extSysCertHelpSeen_tms: '1',
+      vcChatHistory_ROOM1: '[{"text":"hi","isLocal":true}]' };
+    Object.keys(THIS_BROWSER).forEach(k => office.set(k, THIS_BROWSER[k]));
     await office.api.saveNow();
     assertEq(ids(serverList(DASH, 'voctrain_students')), 'S1,S2,S3', 'the dashboard file holds the roll');
     assertEq(ids(serverList(ALL, 'voctrain_examResults')), 'R1,R2,R3', 'and the whole-store mirror holds the results');
@@ -175,6 +185,9 @@ const ids = list => (list || []).map(r => r.id).sort().join(',');
       assert(!(k in onServer(ALL).data) && !(k in dash.data),
         k + ' (a trainee\'s answers, or one user\'s private messages) stays on the PC that wrote it');
     });
+    Object.keys(THIS_BROWSER).forEach(k => {
+      assert(!(k in onServer(ALL).data) && !(k in dash.data), k + ' describes this browser, so it stays on this browser');
+    });
 
     /* ---------- 2. A trainee signs in on a lab PC, then out ---------- */
     console.log('A trainee signs in on a lab PC and out again');
@@ -183,6 +196,27 @@ const ids = list => (list || []).map(r => r.id).sort().join(',');
     await wait(300);
     assertEq(ids(lab.list('voctrain_students')), 'S1,S2,S3', 'the lab PC has the roll after its first pull');
     assertEq(lab.get('voctrain_sessionRole'), null, 'and has NOT been signed in as the office PC\'s administrator');
+    Object.keys(THIS_BROWSER).forEach(k => assertEq(lab.get(k), null, 'nor taken the office PC\'s ' + k));
+    // The lab PC's own session beats; the office PC's goes on beating.
+    lab.set('voctrain_sessionSeenAt', '1700000500000');
+    office.set('voctrain_sessionSeenAt', '1700000999000');
+    await office.api.saveNow(); await lab.api.saveNow();
+    await lab.api.loadNow(); await office.api.loadNow();
+    assertEq(lab.get('voctrain_sessionSeenAt'), '1700000500000', 'one device\'s heartbeat never refreshes another\'s');
+    assertEq(office.get('voctrain_sessionSeenAt'), '1700000999000', 'in either direction');
+    // A server file written by an older version still holds a heartbeat: it is not adopted.
+    {
+      const file = path.join(DATA, DASH), before = fs.readFileSync(file, 'utf8'), p = JSON.parse(before);
+      p.data.voctrain_sessionSeenAt = '1999999999999'; p.stamps.voctrain_sessionSeenAt = '2099-01-01T00:00:00Z';
+      p.data.cestisPendingUpload = 'true'; p.stamps.cestisPendingUpload = '2099-01-01T00:00:00Z';
+      fs.writeFileSync(file, JSON.stringify(p));
+      const fresh = device('fresh', { role: 'student', user: { id: 'U2', username: 'bob' } });
+      await fresh.open();
+      await wait(300);
+      assertEq(fresh.get('voctrain_sessionSeenAt'), null, 'a heartbeat already on the server is never taken by a device');
+      assertEq(fresh.get('cestisPendingUpload'), null, 'nor another device\'s "not yet uploaded" marker');
+      fs.writeFileSync(file, before);                   // the rest of this test reads the server as it was
+    }
     // The trainee's device writes a Centre-wide setting (every saveState does).
     lab.set('voctrain_systemSettings', { institutionName: 'Hacked by a trainee' });
     vm.runInContext('currentStudent = { id: "S1", name: "Ann" };' +

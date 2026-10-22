@@ -69,8 +69,14 @@
     } catch (e) {}
     return '';
   }
+  // The passwords published with the platform. The server refuses them
+  // outright (a 403, logged by the browser as an error), so they are never sent.
+  function publishedDefault(pw) {
+    try { return !!(root.CESTISCore && root.CESTISCore.accountAccess.isPublishedDefault(pw)); } catch (e) { return false; }
+  }
   root.cestisLanHostTicket = function (account, password) {
     if (!account || !password || !STAFF[String(account.role || '').trim().toLowerCase()] || !root.fetch) return Promise.resolve(false);
+    if (publishedDefault(password)) return Promise.resolve(false);
     return probe().then(function (on) {
       if (!on) return false;
       return root.fetch('/_cestis/token', { cache: 'no-store' })

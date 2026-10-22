@@ -578,11 +578,27 @@
      the results themselves travel in voctrain_examResults. Each user's private
      copy (voctrain_user_<id>_*) holds their direct messages, so it stays on the
      PC it was written on — the shared collections already carry the Centre's
-     records. */
+     records.
+
+     Everything that describes THIS browser's session is the device's too:
+     the session's trainee and its heartbeat (voctrain_sessionStudentId,
+     voctrain_sessionSeenAt — the dashboard withdraws the heartbeat when its
+     idle lock closes, and the record pages refuse to open without a fresh
+     one; travelling, one device's heartbeat kept every other device's
+     "still open", so a locked lab PC's session could be borrowed in a new
+     tab), who is signed in for the older pages, this device's "not yet
+     uploaded" markers (cestisPendingUpload must stay where the work is
+     waiting), its id in the certificate download count, its support e-mail
+     budget, its "seen this help" dismissals and its own copy of a video
+     room's chat (each line marked as sent from this device or not). */
+  var DEVICE_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser', 'cestisAttendanceCurrentUser',
+    'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisCertDeviceSessionId', 'voctrain_supportSendLog'];
   function deviceOnly(k) {
-    return /^voctrain_session(Expiry|Role|UserId)$/.test(k) || k === 'voctrain_examInProgress' ||
+    return /^voctrain_session(Expiry|Role|UserId|StudentId|SeenAt)$/.test(k) || k === 'voctrain_examInProgress' ||
            k.indexOf('cestisExamSession__') === 0 || k === 'cestisExamOutbox' ||
            k.indexOf('voctrain_user_') === 0 ||
+           DEVICE_KEYS.indexOf(k) !== -1 ||
+           k.indexOf('voctrain_extSysCertHelpSeen_') === 0 || k.indexOf('vcChatHistory_') === 0 ||
            /AccessToken$|TokenExpiry$/i.test(k);
   }
   function lanCollect(spec, map) {
@@ -752,6 +768,15 @@
     });
   };
 
+  /* Whoever is waiting for this device's next save to reach the Centre's
+     server (API.whenLanSaved). Each is called once, after a save the server
+     has accepted — or one it already held, which is the same thing. */
+  var lanSaveWaiters = [];
+  function lanSaved() {
+    var due = lanSaveWaiters.splice(0, lanSaveWaiters.length);
+    due.forEach(function (fn) { try { fn(); } catch (e) {} });
+  }
+
   Page.prototype.lanPush = function () {
     var self = this;
     if (self.spec.readOnly) return Promise.resolve(false);
@@ -767,7 +792,7 @@
       // payload's own savedAt is new on every call, which made the old
       // "nothing to upload" test impossible to pass.
       var sig = JSON.stringify([merged.data, merged.stamps]);
-      if (sig === self._lanLastSig && got.same) return true;
+      if (sig === self._lanLastSig && got.same) { lanSaved(); return true; }
       var payload = C.buildPayload(self.spec, merged.data, merged.stamps, {
         savedAt: lanNow(),
         savedBy: (root.currentLoggedInUser && root.currentLoggedInUser.username) || root.currentRole || 'offline'
@@ -779,6 +804,7 @@
         self.state.lastPush = payload.savedAt;
         self.state.keys = payload.keyCount;
         tellPageOfPushMerge(self, writeBackFromPush(self, data, merged, true));
+        lanSaved();
         return true;
       });
     });
@@ -1057,6 +1083,47 @@
     /* True once this page has read the Centre's server successfully in this
        session: the LAN's answer to "has this device synced?". */
     lanSynced: function () { return !!(lan.on && lan.synced); },
+    /* Files of the Centre's own on its server that belong to no page's sync —
+       a certificate design's background image, too big to travel with a
+       page's records (index.html, certImageSaveToLan). Each is one payload
+       { data: { key: string }, stamps: { key: ISO time } }, merged by the
+       server into what it holds by the same newest-per-key rule as every page
+       file. All three resolve null / false anywhere but on the Centre's
+       network.
+         lanListFiles()             -> [file names]
+         lanReadFile(name)          -> payload | null
+         lanWriteFile(name, data)   -> true when the server took it */
+    lanListFiles: function () {
+      return detectLocalServer().then(function (on) {
+        if (!on) return null;
+        return lanFetch('', {}).then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) { return d && Array.isArray(d.files) ? d.files.map(function (f) { return String(f.file || ''); }) : null; })
+          .catch(function () { return null; });
+      });
+    },
+    lanReadFile: function (name) {
+      return detectLocalServer().then(function (on) {
+        if (!on || !name) return null;
+        return localGet(String(name)).then(function (got) { return got.ok ? got.payload : null; });
+      });
+    },
+    lanWriteFile: function (name, data) {
+      return detectLocalServer().then(function (on) {
+        if (!on || !name || !data) return false;
+        var now = lanNow(), stamps = {};
+        Object.keys(data).forEach(function (k) { stamps[k] = now; });
+        var payload = core().buildPayload({ page: 'Centre file', file: String(name) }, data, stamps, {
+          savedAt: now, savedBy: (root.currentLoggedInUser && root.currentLoggedInUser.username) || root.currentRole || 'offline'
+        });
+        return localPut(String(name), payload).then(function (put) { return !!put.ok; });
+      });
+    },
+    /* fn() once, after this device's next save has reached the Centre's
+       server — for something that has to wait until the server holds what was
+       just saved here (a host ticket asked for with a password changed a
+       moment ago: the server checks it against the accounts IT holds). Never
+       called anywhere but on the Centre's network. */
+    whenLanSaved: function (fn) { if (typeof fn === 'function') lanSaveWaiters.push(fn); },
     /* The current time by the Centre's server's clock (this device's clock
        anywhere else). */
     now: function () { return lanNow(); },

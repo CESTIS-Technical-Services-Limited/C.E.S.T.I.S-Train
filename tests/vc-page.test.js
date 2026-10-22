@@ -576,5 +576,31 @@ console.log('Settings: relays and the Large Class server are checked before savi
   assert(!/Zoom Integration|Microsoft Teams|Google Meet/.test(adminPage), 'providers that do nothing are no longer offered');
 }
 
+/* ====================================================================== */
+console.log('A data link that reports "open" twice is set up once, without an error');
+// Seen in the end-to-end run on the Centre's network: the second 'open' ran the
+// set-up again with the early messages already handed on, and threw
+// "Cannot read properties of null (reading 'forEach')" on the instructor's page.
+for (const host of [true, false]) {
+  const timers = makeTimers();
+  const heard = [], closes = [];
+  const sb = sandbox({ setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout,
+    vcRefusedPeers: {}, vcPendingConns: {}, dataConnections: {}, peerConnections: {}, isRoomHost: host,
+    vcOnData(d, pid) { heard.push(pid + ':' + d); }, vcOnPeerConnClosed(pid) { closes.push(pid); },
+    vcWhenAdmitted(pid, ok) { ok(); }, vcNameMessage() { return { type: 'name' }; } });
+  load(sb, ['vcHandleDataConn']);
+  const conn = new Emitter();
+  conn.peer = 'cestis-ABC234-p1'; conn.send = () => {}; conn.close = () => {};
+  sb.vcHandleDataConn(conn);
+  conn.emit('data', 'hello');
+  let threw = null;
+  try { conn.emit('open'); conn.emit('open'); } catch (e) { threw = e; }
+  assertEq(threw && threw.message, null, (host ? 'the host' : 'a participant') + ': a second "open" throws nothing');
+  assertEq(heard.join(','), 'cestis-ABC234-p1:hello', (host ? 'the host' : 'a participant') + ': the early message is heard once');
+  conn.emit('data', 'later');
+  assertEq(heard.length, 2, (host ? 'the host' : 'a participant') + ': and later ones as they come');
+  assertEq((conn.h.close || []).length, 1, (host ? 'the host' : 'a participant') + ': one close handler, not two');
+}
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

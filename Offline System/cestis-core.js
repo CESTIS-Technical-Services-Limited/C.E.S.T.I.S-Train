@@ -608,10 +608,19 @@
     // The training centre this fee record's programme answers to, under the
     // centre's own name — so one programme reads as one programme on the
     // dashboard however the fee side spells it.
+    //
+    // A fee record that is the mirror of a dashboard trainee (it carries their
+    // dashboard id, or was made from their record) names the programme the
+    // dashboard's way: a training centre's own name. Only that centre is the
+    // answer. A like-named one means this device has not received that centre
+    // yet — and bringing the trainee over under it put a second record of them
+    // on another programme, which the same-name collapse then folded into the
+    // real one, programme, intake key, stable id and all.
     var centre = null;
     var name = fee.skillArea || fee.course || '';
+    var mirrorOfDashboard = hasId(fee.lmsId) || fee.source === 'lms';
     if (name && typeof opts.findCentre === 'function') {
-      try { centre = opts.findCentre(Array.isArray(centres) ? centres : [], name, { on: opts.on }); }
+      try { centre = opts.findCentre(Array.isArray(centres) ? centres : [], name, { on: opts.on, exact: mirrorOfDashboard }); }
       catch (e) { centre = null; }
     }
     var centreCourse = (centre && centre.name) ? centre.name : '';
@@ -945,13 +954,19 @@
         wi = Core.programmeIdentity(winner, courseField);
         li = Core.programmeIdentity(loser, courseField);
       } catch (e) {}
-      Object.keys(loser).forEach(function (k) {
+      // An intake stamp says which intake ONE spelling of the programme belongs
+      // to, so it crosses only with that spelling (after the programme is
+      // decided, below).
+      var STAMPS = { centreKey: 1, centreId: 1, centreName: 1, centreLabel: 1, courseStart: 1, courseEnd: 1,
+                     fiscalYear: 1, enrolmentFiscalYear: 1 };
+      var fill = function (k) {
         var have = winner[k];
         if (have === undefined || have === null || have === '') {
           var v = loser[k];
           if (v !== undefined && v !== null && v !== '') winner[k] = v;
         }
-      });
+      };
+      Object.keys(loser).forEach(function (k) { if (!STAMPS[k]) fill(k); });
       // A certificate number is never lost in a merge: the loser's, when it
       // differs from the winner's, rides along as an alias (as
       // mergeStudentRecords does), so a certificate printed under it still
@@ -977,11 +992,24 @@
       // vague spelling agreed with the trainee's OTHER level too, so the pass
       // after this one folded two real enrolments into one — the collapse was
       // not idempotent and lost a record on every launch.
-      if (wi && li && !wi.key && li.key && lc) {
+      //
+      // The intake key is taken only with the SAME programme name. Two
+      // different names "agree" whenever one reads as shorthand for the other
+      // ("Welding" for "Welding & Fabrication"), and that is all a copy minted
+      // on a device missing the centre called "Welding" had in common with the
+      // real record: taking its keyed name rewrote the administrator's trainee
+      // onto the other programme and intake, and the stable id — a hash of the
+      // name and the programme — moved with it.
+      if (wi && li && !wi.key && li.key && lc && wi.bare === li.bare) {
         winner[courseField] = lc;
       } else if (lc && !programmeStatesLevel(wc) && programmeStatesLevel(lc)) {
         winner[courseField] = lc;
       }
+      // The loser's intake stamps follow when the survivor now names the same
+      // programme it did (or either names none) — never onto another spelling.
+      var nowBare = null;
+      try { nowBare = Core.programmeIdentity(winner, courseField).bare; } catch (e) { nowBare = null; }
+      if (!li || !nowBare || !li.bare || nowBare === li.bare) Object.keys(STAMPS).forEach(fill);
       return winner;
     }
 
@@ -5232,8 +5260,16 @@
        they were enrolled in when the Centre opens the next one under the same
        name.
 
-       opts: { today, nowMs, on, centreKey } — all optional. 'on' is a date the
-       answer should belong to; without it the answer is about now. */
+       opts: { today, nowMs, on, centreKey, exact } — all optional. 'on' is a
+       date the answer should belong to; without it the answer is about now.
+
+       opts.exact: the intake key and the exact name only (case and spacing
+       aside) — no widening passes. For anything that WRITES the answer onto a
+       stored record. The looser passes read "Welding" as shorthand for
+       "Welding & Fabrication", which is right for the Centre's own shorthand
+       and wrong for a device that simply has not received the centre that IS
+       called "Welding" yet: written down, that guess moved the new centre's
+       trainees onto the other one on every device, and their ids with them. */
     function findCentre(areas, courseName, opts) {
       if (!Array.isArray(areas) || !courseName) return null;
       opts = opts || {};
@@ -5253,7 +5289,7 @@
       for (i = 0; i < areas.length; i++) {
         if (areas[i] && norm(parseCentreLabel(areas[i].name).name) === cn) hit = preferCentre(hit, areas[i], opts);
       }
-      if (hit) return hit;
+      if (hit || opts.exact) return hit;
 
       var qT = tokenise(cn), qL = levelOfTokens(qT), qW = keyWords(qT);
 
@@ -10336,8 +10372,20 @@
           // cloudCopyWins is the one rule every account merge follows: the
           // newer edit, and a real password is never replaced by a default.
           var w = Core.accountAccess.cloudCopyWins(l, c) ? c : l;
-          var merged = fillFrom(w, w === c ? l : c);
+          var other = w === c ? l : c;
+          var merged = fillFrom(w, other);
           delete merged._plaintextPw;
+          // The seed marker describes a password — the winner's — and travels
+          // with it, as on every other account merge. Filled in from the older
+          // copy, a password somebody had just set went on saying "still the
+          // published default": the Centre's server then refused that
+          // administrator a host ticket, and every device read the account as
+          // a seed.
+          if (w.password && other && other.password !== w.password) {
+            ['defaultPassword', 'mustChangePassword'].forEach(function (f) {
+              if (w[f] === undefined || w[f] === null || w[f] === '') delete merged[f];
+            });
+          }
           return merged;
         }, function (r) { return !(r.id != null && gone[String(r.id)]); });
         return JSON.stringify(out);
@@ -11207,7 +11255,21 @@
       return added;
     }
 
+    /* How a multiple-choice answer reads on a result: its letter and the
+       option's own words — "B. Red" — where the review used to say
+       "A. (selected)", which told the trainee nothing about what they had
+       chosen. The letter alone when the option's words are not to hand, and
+       '' for no answer at all. */
+    function optionLabel(question, index) {
+      if (typeof index !== 'number' || index < 0 || index !== Math.floor(index) || index > 25) return '';
+      var letter = String.fromCharCode(65 + index);
+      var opts = question && Array.isArray(question.options) ? question.options : null;
+      var text = opts && opts[index] != null ? String(opts[index]).trim() : '';
+      return text ? letter + '. ' + text : letter;
+    }
+
     return {
+      optionLabel: optionLabel,
       DEFAULT_OFFSET: DEFAULT_OFFSET, offsetMinutes: offsetMinutes, centreTime: centreTime, centreParts: centreParts,
       defaultStart: defaultStart, windowOf: windowOf, hasQuestions: hasQuestions, statusAt: statusAt,
       sessionDeadline: sessionDeadline, publicQuestions: publicQuestions, mark: mark, keyProblems: keyProblems,

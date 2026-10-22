@@ -276,7 +276,6 @@
   })();
 </script>
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
-<meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <style>
 :root {
@@ -6948,6 +6947,82 @@ function certImageLoadAllFromDrive() {
   }).catch(function(e) { console.warn('[CertDrive] Load all error:', e); return []; });
 }
 
+// ---- The Centre's own server (Offline System) for the same images ----
+// On the Centre's network there is no Google Drive, so a design's background
+// images stayed in the IndexedDB of the PC that uploaded them, and a trainee's
+// own device could never build their certificate ("No certificate template
+// found"). There they are kept on the Centre's server as well — one file per
+// page of a design, written by the staff device that uploads it and read by
+// any device that builds a certificate. Only an image is ever written or used
+// (a data: URL of an image type, at most CERT_IMAGE_LAN_MAX characters), and
+// an image the server already holds is not sent again, so its history folder
+// is not filled with copies. Anywhere but on the Centre's network none of this
+// does anything; Drive goes on doing the same job online.
+var CERT_IMAGE_LAN_MAX = 10 * 1024 * 1024;
+function certImageLanFile(course, page) {
+  return 'CESTIS_CertImage_' + CESTISCore.hashString(String(course)) + '_' + page + '.json';
+}
+function certImageLanSafe(data) {
+  return typeof data === 'string' && data.length <= CERT_IMAGE_LAN_MAX &&
+    /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+\/]+=*$/.test(data);
+}
+// The Centre's server's list of files, or null when this is not on its network.
+function certImageLanFiles() {
+  if (!window.CESTISPageCloud || typeof CESTISPageCloud.lanListFiles !== 'function') return Promise.resolve(null);
+  return CESTISPageCloud.lan().then(function(on) { return on ? CESTISPageCloud.lanListFiles() : null; })
+    .catch(function() { return null; });
+}
+// Resolves 'saved' | 'same' | 'too-large' | 'off' | 'failed'.
+function certImageSaveToLan(course, page, data, held) {
+  return (held ? Promise.resolve(held) : certImageLanFiles()).then(function(files) {
+    if (!files || !course || !data) return 'off';
+    if (currentRole !== 'admin' && currentRole !== 'adminstaff') return 'off';
+    if (!certImageLanSafe(data)) return data.length > CERT_IMAGE_LAN_MAX ? 'too-large' : 'failed';
+    var file = certImageLanFile(course, page);
+    var there = files.indexOf(file) !== -1 ? CESTISPageCloud.lanReadFile(file) : Promise.resolve(null);
+    return there.then(function(p) {
+      if (p && p.data && p.data.image === data) return 'same';
+      return CESTISPageCloud.lanWriteFile(file, { image: data }).then(function(ok) { return ok ? 'saved' : 'failed'; });
+    });
+  }).catch(function() { return 'failed'; });
+}
+// Both pages of a design, from the Centre's server into this device (and its
+// IndexedDB, for next time). Resolves true when page 1 is now here.
+function certImageLoadFromLan(course) {
+  return certImageLanFiles().then(function(files) {
+    if (!files || !course || !certTemplates[course]) return false;
+    return Promise.all(['bgPage1', 'bgPage2'].map(function(page) {
+      var file = certImageLanFile(course, page);
+      if (files.indexOf(file) === -1) return false;
+      return CESTISPageCloud.lanReadFile(file).then(function(p) {
+        var img = p && p.data && p.data.image;
+        if (!certImageLanSafe(img)) return false;
+        certTemplates[course][page] = img;
+        certImageSave(course, page, img);
+        return true;
+      }, function() { return false; });
+    })).then(function(got) { return !!got[0]; });
+  }).catch(function() { return false; });
+}
+// A staff device holding designs uploaded before their images were kept on the
+// Centre's server publishes the ones the server does not have yet.
+function certImagesPublishToLan() {
+  if (currentRole !== 'admin' && currentRole !== 'adminstaff') return Promise.resolve(0);
+  return certImageLanFiles().then(function(files) {
+    if (!files) return 0;
+    return ensureCertImagesLoaded().then(function() {
+      var jobs = [];
+      Object.keys(certTemplates || {}).forEach(function(course) {
+        ['bgPage1', 'bgPage2'].forEach(function(page) {
+          var img = certTemplates[course] && certTemplates[course][page];
+          if (img && files.indexOf(certImageLanFile(course, page)) === -1) jobs.push(certImageSaveToLan(course, page, img, files));
+        });
+      });
+      return Promise.all(jobs).then(function(r) { return r.filter(function(x) { return x === 'saved'; }).length; });
+    });
+  }).catch(function() { return 0; });
+}
+
 function initLmsChatData() {
   try {
     var cr = CESTISStore.getItem('voctrain_chatRooms');
@@ -11015,7 +11090,7 @@ async function forceChangePwSubmit() {
   if(acct !== canonical){ acct.password = canonical.password; delete acct.defaultPassword; delete acct.mustChangePassword; }
   try { if(canonical.username) clearLoginFailures(canonical.username); if(canonical.email) clearLoginFailures(canonical.email); } catch(_){}
   saveUserAccounts();
-  lanHostTicket(canonical, np);
+  lanHostTicketAfterSave(canonical, np);
   closeModal('forceChangePwModal');
   showToast('Password updated. Welcome.');
   var role = _forceChangePwRole, then = _forceChangePwThen; _forceChangePwRole = null; _forceChangePwThen = null;
@@ -11025,9 +11100,42 @@ async function forceChangePwSubmit() {
 /* On the Centre's own server (Offline System) a class room's host place is
    given only to signed-in staff: the server checks the password itself and
    hands this tab a short-lived host ticket (cestis-offline-rtc.js). Online —
-   GitHub Pages — this does nothing at all. Never blocks the sign-in. */
+   GitHub Pages — this does nothing at all. Never blocks the sign-in.
+
+   Never with a published default: the server refuses one outright, so all it
+   earned was a 403. That is what the first-run sign-in used to send — it goes
+   on, after "set a new password", with the password that was typed to get
+   there. Resolves true when this tab holds a ticket. */
 function lanHostTicket(account, pw) {
-  try { if (typeof window.cestisLanHostTicket === 'function') window.cestisLanHostTicket(account, pw); } catch (e) {}
+  try {
+    if (!pw || CESTISCore.accountAccess.isPublishedDefault(pw)) return Promise.resolve(false);
+    if (typeof window.cestisLanHostTicket === 'function') return window.cestisLanHostTicket(account, pw);
+  } catch (e) {}
+  return Promise.resolve(false);
+}
+
+/* A password set on this device a moment ago. The Centre's server checks a
+   ticket request against the accounts IT holds, and the new password only
+   reaches it with this device's next save of the accounts — the debounced one,
+   a second and a half later. Asked at once, the server still held the old
+   password and refused, and nothing asked again: the administrator who had
+   just set up a brand-new Centre could not host a class. So the save is sent
+   now and the ticket asked for once it has landed — or, when the server could
+   not be reached, once the next save that does reach it has. */
+function lanHostTicketAfterSave(account, pw) {
+  try {
+    if (!window.CESTISPageCloud || typeof CESTISPageCloud.lan !== 'function' ||
+        typeof CESTISPageCloud.whenLanSaved !== 'function') return Promise.resolve(false);
+    return CESTISPageCloud.lan().then(function (on) {
+      if (!on) return false;
+      return CESTISPageCloud.saveNow().then(function (res) {
+        if (Array.isArray(res) && res.some(function (r) { return r === true; })) return lanHostTicket(account, pw);
+        return new Promise(function (resolve) {
+          CESTISPageCloud.whenLanSaved(function () { resolve(lanHostTicket(account, pw)); });
+        });
+      });
+    }).catch(function () { return false; });
+  } catch (e) { return Promise.resolve(false); }
 }
 
 /* A sign-in whose password has just matched one of the PUBLISHED defaults.
@@ -11145,6 +11253,13 @@ function enterApp(role) {
     if(bellBtn) bellBtn.onclick = function(e) { e.stopPropagation(); toggleNotifications(); };
     updateNotificationDot();
     setTimeout(animateAllCounters, 100);
+
+    // On the Centre's own network: certificate designs this PC holds but its
+    // server does not yet (uploaded before the server kept them) go up, so
+    // trainees' own devices can build their certificates.
+    if (role === 'admin' || role === 'adminstaff') {
+      setTimeout(function(){ try { certImagesPublishToLan(); } catch(e) {} }, 4000);
+    }
 
     // Notify admin of pending/disabled accounts needing review
     if (role === 'admin') {
@@ -11472,10 +11587,13 @@ function createStudentDataForAccount(userAccount) {
     instructor: assignedInstructor
   };
   // Ground the trainee in their training centre's duration and fiscal year, so
-  // reporting can group students by the intake they actually belong to.
+  // reporting can group students by the intake they actually belong to — the
+  // centre of exactly that name: on a device that has not received it yet a
+  // looser match is a like-named centre, and the stamp would put the trainee
+  // in it for good (see CESTISCore.enrolment.findCentre, opts.exact).
   try {
     var _cs = CESTISCore.enrolment.enrolmentStamp(
-      CESTISCore.enrolment.findCentre(skillAreas, prog), localDateStr());
+      CESTISCore.enrolment.findCentre(skillAreas, prog, { exact: true }), localDateStr());
     if (_cs) {
       newStudent.centreId = _cs.centreId; newStudent.centreName = _cs.centreName;
       newStudent.courseStart = _cs.courseStart; newStudent.courseEnd = _cs.courseEnd;
@@ -12586,6 +12704,7 @@ function showPage(pageId) {
   // than served from whenever the page happened to be built.
   if(pageId === 'reports') { try { refreshReportsAnalytics(); } catch(e) { console.warn('[Reports] render failed', e); } }
   if(pageId === 's-announcements') { try { renderStudentAnnouncements(); } catch(e) {} }
+  if(pageId === 's-exams') { try { studentExamsShowList(); } catch(e) {} }
   document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   const navItem = document.querySelector('.nav-item[data-page="'+pageId+'"]');
   if(navItem) {
@@ -13945,6 +14064,38 @@ function renderStudentDeadlines() {
 }
 
 // ============================== BUILD INSTRUCTOR PAGES ==============================
+/* The Gradebook's "Exam Submissions Needing Review" card. It was written into
+   the Gradebook once, at sign-in: a submission that arrived afterwards (from a
+   trainee's device on the Centre's network, say) did not appear, and one just
+   marked stayed listed, until the instructor signed in again. It is redrawn now
+   with every other view that shows results (refreshContentDependentViews). */
+function instructorExamReviewQueueHtml(ins) {
+  if(!ins) return '';
+  var myExamIds = exams.filter(function(e){return e.course===ins.course || instructorCourseMatch(e.course, ins.course);}).map(function(e){return e.id;});
+  var pendingResults = examResults.filter(function(r){
+    return r && !r.archived && myExamIds.indexOf(r.examId) >= 0 && r.answers && r.answers.some(function(a){return a.needsManualGrade && !a.graded;});
+  });
+  if(pendingResults.length === 0) return '';
+  return '<div class="card" style="margin-bottom:18px;border:1px solid rgba(241,196,15,0.3);"><div class="card-header"><h3 style="color:var(--accent);">Exam Submissions Needing Review</h3><span class="badge badge-amber">'+pendingResults.length+' pending</span></div>' +
+    pendingResults.map(function(r){
+      var ex = exams.find(function(e){return e.id===r.examId;}) || {};
+      var st = students.find(function(s){return s.id===r.studentId;});
+      var pending = r.answers.filter(function(a){return a.needsManualGrade && !a.graded;}).length;
+      return '<div class="class-schedule-card" data-pending-result="'+escapeHtml(r.id)+'" style="border-left:3px solid var(--accent);">' +
+        '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+escapeHtml(st?st.name:r.studentId)+'</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">'+escapeHtml(ex.title||'Exam')+' &bull; '+pending+' question'+(pending!==1?'s':'')+' need grading &bull; Current: '+escapeHtml(r.score)+'%</div></div>' +
+        '<button class="btn btn-sm btn-primary" onclick="openGradingPanel('+jsArg(r.id)+')">Grade Now</button></div>';
+    }).join('') + '</div>';
+}
+function renderInstructorExamReviewQueue() {
+  var host = document.getElementById('iExamReviewQueue');
+  if(!host || currentRole !== 'instructor' || !currentInstructor) return;
+  var html = instructorExamReviewQueueHtml(currentInstructor);
+  if(host._cestisHtml === html) return;     // unchanged: leave the card as it is
+  host._cestisHtml = html;
+  host.innerHTML = html;
+}
+
 function buildInstructorPages() {
   try {
   resolveExamStatuses();
@@ -14064,23 +14215,7 @@ function buildInstructorPages() {
       <button class="btn btn-primary" onclick="openInstructorCreateAssignment()">+ New Assignment</button>
       <button class="btn-export" onclick="exportInstructorStudentsCSV()">📄 Export Grades</button>
     </div>
-    ${(function(){
-      var myExamIds = exams.filter(function(e){return e.course===ins.course || instructorCourseMatch(e.course, ins.course);}).map(function(e){return e.id;});
-      var pendingResults = examResults.filter(function(r){
-        return r && !r.archived && myExamIds.indexOf(r.examId) >= 0 && r.answers && r.answers.some(function(a){return a.needsManualGrade && !a.graded;});
-      });
-      if(pendingResults.length === 0) return '';
-      return '<div class="card" style="margin-bottom:18px;border:1px solid rgba(241,196,15,0.3);"><div class="card-header"><h3 style="color:var(--accent);">Exam Submissions Needing Review</h3><span class="badge badge-amber">'+pendingResults.length+' pending</span></div>' +
-        pendingResults.map(function(r){
-          var ex = exams.find(function(e){return e.id===r.examId;}) || {};
-          var st = students.find(function(s){return s.id===r.studentId;});
-          var pending = r.answers.filter(function(a){return a.needsManualGrade && !a.graded;}).length;
-          return '<div class="class-schedule-card" data-pending-result="'+escapeHtml(r.id)+'" style="border-left:3px solid var(--accent);">' +
-            '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">'+escapeHtml(st?st.name:r.studentId)+'</div>' +
-            '<div style="font-size:12px;color:var(--text-muted);">'+escapeHtml(ex.title||'Exam')+' &bull; '+pending+' question'+(pending!==1?'s':'')+' need grading &bull; Current: '+escapeHtml(r.score)+'%</div></div>' +
-            '<button class="btn btn-sm btn-primary" onclick="openGradingPanel('+jsArg(r.id)+')">Grade Now</button></div>';
-        }).join('') + '</div>';
-    })()}
+    <div id="iExamReviewQueue">${instructorExamReviewQueueHtml(ins)}</div>
     <div class="card" style="margin-bottom:18px;"><div class="card-header"><h3>My Assignments</h3><span style="font-size:12px;color:var(--text-muted);">Created by you</span></div>
       <div id="iCustomAssignmentsList"></div>
     </div>
@@ -16044,11 +16179,17 @@ function vcHandleDataConn(conn) {
   var pid = conn.peer;
   if (vcRefusedPeers[pid]) { try { conn.close(); } catch(e) {} return; }
   var early = [];       // messages that arrive before we have decided
+  var opened = false;
   conn.on('data', function(data) {
     if (early) { early.push(data); return; }
     vcOnData(data, pid);
   });
   conn.on('open', function() {
+    // The link is set up once. A second 'open' on the same connection (seen
+    // in the end-to-end run, on the Centre's network) ran all of this again
+    // with the early messages already handed on — and threw.
+    if (opened) return;
+    opened = true;
     if (isRoomHost) {
       vcPendingConns[pid] = conn;
       conn.on('close', function() { vcOnPeerConnClosed(pid, conn); });
@@ -22343,7 +22484,7 @@ function refreshStudentDependentViews() {
 function refreshContentDependentViews() {
   var fns = [
     'renderExams','renderInstructorExams','renderStudentExams',
-    'renderAdminAssignments','renderInstructorGradebook','renderStudentAssignments','renderStudentAssignmentsPage',
+    'renderAdminAssignments','renderInstructorGradebook','renderInstructorExamReviewQueue','renderStudentAssignments','renderStudentAssignmentsPage',
     'renderAdminResources','renderInstructorCustomResources','renderStudentDriveResources','renderStudentResourcesPage',
     'renderAnnouncements','renderInstructorAnnouncements','renderAsAnnouncements','renderStudentAnnouncements','renderStudentDeadlines',
     'renderCalendar','renderInstructorCalendar','renderStudentCalendar','renderAsCalendar',
@@ -23067,7 +23208,12 @@ function backfillStudentFiscalYears() {
     // must resolve to the intake that was running then, not to whichever one
     // happens to be open now — otherwise a trainee from a finished course is
     // stamped onto this year's centre and never reaches Not Yet Competent.
-    var centre = CESTISCore.enrolment.findCentre(skillAreas, s.course, { on: when });
+    //
+    // And only the centre of exactly that name: the stamp is written down and
+    // outranks the name from then on, so a looser match — on a device that has
+    // not received the trainee's own centre yet, a like-named one — would hand
+    // them to another programme on every device (findCentre, opts.exact).
+    var centre = CESTISCore.enrolment.findCentre(skillAreas, s.course, { on: when, exact: true });
     // findCentre answers with the one centre carrying the programme's name, and
     // when the earlier intakes are gone from the roster that is the CURRENT
     // intake — so this used to stamp a trainee from two years ago into the
@@ -23223,6 +23369,23 @@ function markStageSetByUser(s) {
 // When a course has ended, non-certified students become NYC; if a course is
 // later extended (genuinely open again), students WE auto-marked revert to In
 // Training — but a status the Centre set by hand is never touched.
+/* Is this trainee stamped with a training centre this device does not hold —
+   one created on another device that has not arrived here yet, or one since
+   deleted? Their stamp names the centre; whatever this device's like-named
+   centre says about its dates is about some other intake. */
+function studentStampedElsewhere(s) {
+  if (!s || typeof skillAreas === 'undefined' || !Array.isArray(skillAreas)) return false;
+  var hasKey = s.centreKey != null && String(s.centreKey).trim() !== '';
+  if (!hasKey && s.centreId == null) return false;
+  var want = '';
+  try { want = hasKey ? CESTISCore.enrolment.centreKeyOf({ centreKey: s.centreKey }) : ''; } catch (e) { want = ''; }
+  return !skillAreas.some(function(a) {
+    if (!a) return false;
+    if (s.centreId != null && a.id === s.centreId) return true;
+    try { return !!want && CESTISCore.enrolment.centreKeyOf(a) === want; } catch (e) { return false; }
+  });
+}
+
 function applyCourseEndStatuses() {
   if (typeof students === 'undefined' || !Array.isArray(students)) return false;
   var changed = false;
@@ -23233,14 +23396,23 @@ function applyCourseEndStatuses() {
     // this rule actually reads. Requiring a name skipped exactly the records
     // whose programme had since been renamed or removed — and left them sitting
     // in Testing forever.
-    var st = studentCourseStatus(s);
+    //
+    // A trainee stamped with a centre this device does not hold is judged by
+    // the course dates stamped on them alone. Resolved by name instead, a
+    // trainee of a centre created on another device was judged by a like-named
+    // centre here — last year's, already ended — and marked Not Yet Competent,
+    // a stage change every other device then took as the newest edit.
+    var away = studentStampedElsewhere(s);
+    var st = away
+      ? ((s.courseStart || s.courseEnd) ? CESTISCore.courseDuration.status(s.courseStart, s.courseEnd) : 'unknown')
+      : studentCourseStatus(s);
     if (st === 'unknown') return;
-    var rec = studentCentreRecord(s);
+    var rec = away ? null : studentCentreRecord(s);
     if (st === 'ended') {
       // Auto-mark NYC ONCE per course-end. Certified/collected are never
       // overridden, and a student an admin has already handled for this same
       // end date is left alone ("...until updated by Administrator").
-      var endKey = courseEndKeyFor(s, rec);
+      var endKey = away ? (s.courseEnd || 'ended') : courseEndKeyFor(s, rec);
       if (s.stage !== 'certified' && s.stage !== 'collected' && s.stage !== 'nyc'
           && s._nycForCourseEnd !== endKey) {
         s.stage = 'nyc'; s._nycAuto = true; s._nycForCourseEnd = endKey; changed = true;
@@ -26447,8 +26619,15 @@ function showExamResult(result, exam) {
   // them). They used to appear the moment the first trainee submitted, while
   // classmates were still answering the same paper.
   var reveal = !!exam && CESTISCore.exams.canRevealAnswers(exam, Date.now(), examCentreOffset());
-  var keyOf = {};
-  if(exam && Array.isArray(exam.questionData)) exam.questionData.forEach(function(q){ if(q && q.id != null) keyOf[String(q.id)] = q.correctAnswer; });
+  var keyOf = {}, questionOf = {};
+  if(exam && Array.isArray(exam.questionData)) exam.questionData.forEach(function(q){ if(q && q.id != null) { keyOf[String(q.id)] = q.correctAnswer; questionOf[String(q.id)] = q; } });
+  // The question an answer was given to — by its id, or (an exam from before
+  // questions had ids) by its place when the wording still matches.
+  var questionFor = function(a, i) {
+    if(a.questionId != null && questionOf[String(a.questionId)]) return questionOf[String(a.questionId)];
+    var q = exam && Array.isArray(exam.questionData) ? exam.questionData[i] : null;
+    return (q && q.text === a.questionText) ? q : null;
+  };
   var withheld = 0;
 
   var html = '<div style="max-width:700px;margin:0 auto;">';
@@ -26479,7 +26658,7 @@ function showExamResult(result, exam) {
     // Show student's answer
     var ansDisplay = '';
     if(a.type==='mcq') {
-      ansDisplay = typeof a.studentAnswer === 'number' ? String.fromCharCode(65+a.studentAnswer)+'. (selected)' : 'Not answered';
+      ansDisplay = CESTISCore.exams.optionLabel(questionFor(a, i), a.studentAnswer) || 'Not answered';
     } else if(a.type==='tf') {
       ansDisplay = a.studentAnswer === true ? 'True' : a.studentAnswer === false ? 'False' : 'Not answered';
     } else {
@@ -26505,7 +26684,7 @@ function showExamResult(result, exam) {
         var key = a.correctAnswer;
         if((key === null || key === undefined) && a.questionId != null) key = keyOf[String(a.questionId)];
         var correctDisplay = '';
-        if(a.type==='mcq') correctDisplay = typeof key === 'number' ? String.fromCharCode(65+key) : '';
+        if(a.type==='mcq') correctDisplay = CESTISCore.exams.optionLabel(questionFor(a, i), key);
         else if(a.type==='tf') correctDisplay = key === true ? 'True' : key === false ? 'False' : '';
         else correctDisplay = key || '';
         if(correctDisplay) html += '<div class="er-correct">Correct answer: '+escapeHtml(correctDisplay)+'</div>';
@@ -26534,6 +26713,20 @@ function viewExamResultDetail(examId, studentId) {
   if(!result) { alert('Result not found'); return; }
   var exam = exams.find(function(e){return e.id===examId;});
   showExamResult(result, exam);
+}
+
+/* Going to My Exams opens the list. The result a trainee last reviewed used to
+   stay on screen — over the list, on every later visit — until they found
+   "Back to Exams". Only a result view is put away: an exam being sat is never
+   closed by the menu. */
+function studentExamsShowList() {
+  var res = document.getElementById('studentExamResultView');
+  if(!res || res.style.display === 'none') return false;
+  res.style.display = 'none';
+  var list = document.getElementById('studentExamListView');
+  if(list) list.style.display = 'block';
+  try { renderStudentExams(); } catch(e) {}
+  return true;
 }
 
 function backToStudentExamList() {
@@ -41496,6 +41689,11 @@ function certLoadTemplateFor(student) {
   if (have()) return Promise.resolve(have());
   return ensureCertImagesLoaded().then(function () {
     if (have()) return have();
+    // On the Centre's own network, its server (certImageLoadFromLan).
+    return certImageLoadFromLan(certKey);
+  }).then(function (r) {
+    if (r && r.bgPage1) return r;
+    if (have()) return have();
     if (!googleAccessToken) return null;
     return certImageLoadFromDrive(certKey, 'bgPage1').then(function (d) {
       if (!d) return null;
@@ -42033,8 +42231,12 @@ function generateCertificatePDF(studentId) {
       var tpl2 = certTemplates[certKey] || {};
       if(tpl2.bgPage1) {
         _generateCertPDFInner(studentId);
-      } else {
-        // Step 2: Try Google Drive
+        return;
+      }
+      // Step 2: on the Centre's own network, its server (certImageLoadFromLan)
+      return certImageLoadFromLan(certKey).then(function(found) {
+        if(found) { _generateCertPDFInner(studentId); return; }
+        // Step 3: Try Google Drive
         if(googleAccessToken) {
           showToast('Template not found locally. Checking Google Drive...');
           _certDownloadStatus('Checking Google Drive for template...', false);
@@ -42053,7 +42255,7 @@ function generateCertificatePDF(studentId) {
           showToast('No certificate template found for ' + (student.course || 'this course') + '. Please contact administration.');
           _certDownloadStatus('Certificate template not available for ' + (student.course || 'this course') + '. Please contact administration.', true);
         }
-      }
+      });
     }).catch(function() {
       showToast('Error loading certificate template. Please try again.');
       _certDownloadStatus('Error loading certificate template. Please try again.', true);
@@ -43376,9 +43578,18 @@ function saveCertTemplate() {
   var bgPage1 = document.getElementById('ctplBgPage1Preview').getAttribute('data-base64') || existing.bgPage1 || '';
   var bgPage2 = document.getElementById('ctplBgPage2Preview').getAttribute('data-base64') || existing.bgPage2 || '';
 
-  // Save images to IndexedDB (too large for localStorage) and Google Drive
+  // Save images to IndexedDB (too large for localStorage) and Google Drive —
+  // and, on the Centre's own network, to its server, so a trainee's own device
+  // can build the certificate too.
   if(bgPage1) { certImageSave(_certTplEditingCourse, 'bgPage1', bgPage1); certImageSaveToDrive(_certTplEditingCourse, 'bgPage1', bgPage1); }
   if(bgPage2) { certImageSave(_certTplEditingCourse, 'bgPage2', bgPage2); certImageSaveToDrive(_certTplEditingCourse, 'bgPage2', bgPage2); }
+  [['bgPage1', bgPage1], ['bgPage2', bgPage2]].forEach(function(pg) {
+    if(!pg[1]) return;
+    certImageSaveToLan(_certTplEditingCourse, pg[0], pg[1]).then(function(r) {
+      if(r === 'too-large') showToast('The page ' + pg[0].slice(-1) + ' background is too large to share on the Centre\'s network — certificates are built on this PC only. Use a smaller image.', 'warning');
+      else if(r === 'failed') showToast('The certificate design could not be copied to the Centre\'s server — it is saved on this PC. Save it again once the server is reachable.', 'warning');
+    });
+  });
 
   // Start from the template as it stands and overwrite only what the editor
   // edits: the plan it was seeded from, its gender wording and any field the
@@ -52398,7 +52609,24 @@ function ttRefreshOnShow(){
     voctrain_chatRooms:        function (v) { lmsChatRooms = v; },
     voctrain_chatMessages:     function (v) { lmsChatMessages = v; },
     voctrain_vcSessions:       function (v) { vcSessions = v; },
-    voctrain_syncTombstones:   function (v) { syncTombstones = v; }
+    voctrain_syncTombstones:   function (v) { syncTombstones = v; },
+    // The certificate designs. Without this a device that was already open
+    // when the administrator saved a design kept its old list until a reload,
+    // and its trainee was told "No certificate template found". The stored
+    // designs carry no background images (those live in IndexedDB and on the
+    // Centre's server — certImageLoadFromLan), so the ones already in memory
+    // stay on their design.
+    voctrain_certTemplates:    function (v) {
+      var next = {};
+      Object.keys(v).forEach(function (k) {
+        var was = (certTemplates && certTemplates[k]) || {};
+        next[k] = Object.assign({}, v[k]);
+        if (!next[k].bgPage1 && was.bgPage1) next[k].bgPage1 = was.bgPage1;
+        if (!next[k].bgPage2 && was.bgPage2) next[k].bgPage2 = was.bgPage2;
+      });
+      certTemplates = next;
+    },
+    voctrain_certTemplateCourseMap: function (v) { certTemplateCourseMap = v; }
   };
 
   /* Another device's work just arrived in storage: take it into memory and

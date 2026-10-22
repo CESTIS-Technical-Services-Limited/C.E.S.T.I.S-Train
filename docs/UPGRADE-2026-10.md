@@ -284,6 +284,11 @@ The data rules every change was held to:
   - It tells a missing file apart from one it could not read.
 - **Offline gates.** The Cashbook and certificate downloads work offline, with the Centre's
   server acting as the central store.
+- **Certificates on a trainee's own device.** A certificate design's background images are kept
+  on the Centre's server too (one `CESTIS_CertImage_*.json` file per page), sent there by the
+  staff PC that saves the design, and read by any device building a certificate. Only image
+  files up to 10 MB of data are sent or used. A staff PC holding designs saved before this sends
+  the missing ones when staff sign in. Online, Google Drive does the same job, as before.
 
 ### UI, accessibility and speed
 - **Keyboard and focus.**
@@ -339,7 +344,9 @@ These need a real server, or a decision by the Centre. They are documented, not 
   attempt, and correct answers are not shown until released. The full fix is role-scoped reads
   through the MegaData broker (DECISIONS D6).
 - **The Offline System's access key** can be fetched by any device on the Centre network.
-  Real per-user sessions on the local server are the next step.
+  Real per-user sessions on the local server are the next step. Until then any device that has
+  the key could also replace a certificate design's background image on the server (devices
+  only ever use an image from it, and the last 40 versions are kept in `data/.history`).
 - **Video and chat identity online.** These rest on room codes and connection ids. A trainee who
   knows a room code can still try to take the host's place online; the instructor is warned and
   told to start a new code. On the Centre network the server now issues hosting only to staff
