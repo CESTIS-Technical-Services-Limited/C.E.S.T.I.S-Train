@@ -2135,6 +2135,86 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   font-family:'DM Sans',sans-serif;
 }
 .add-q-btn:hover { border-color:var(--accent); background:var(--accent-dim); color:var(--accent); }
+/* ---- Authoring: "Adding a new Exam" as Moodle's settings page, in sections ---- */
+.modal.exam-settings-modal { max-width:980px; width:94%; max-height:92vh; padding:24px 30px 26px; }
+.exam-settings-modal .modal-header { margin-bottom:8px; }
+.exam-settings-modal .modal-header h3 { font-size:24px; overflow-wrap:anywhere; }
+.exam-set-toolbar { display:flex; justify-content:flex-end; margin:0 0 2px; }
+.exam-set-expand { background:none; border:0; color:var(--blue); font:500 14px 'DM Sans',sans-serif; cursor:pointer; padding:4px 0; }
+.exam-set-expand:hover { text-decoration:underline; }
+.exam-set-section { border-bottom:1px solid var(--border-light); }
+.exam-set-section > summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:10px; padding:14px 2px; font:600 19px 'DM Sans',sans-serif; color:var(--blue); }
+.exam-set-section > summary::-webkit-details-marker { display:none; }
+.exam-set-section > summary:hover { color:#5dade2; }
+.exam-set-section > summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.ess-chev { width:0; height:0; border-left:7px solid var(--text-secondary); border-top:5px solid transparent; border-bottom:5px solid transparent; transition:transform .15s; flex-shrink:0; }
+.exam-set-section[open] > summary .ess-chev { transform:rotate(90deg); }
+.ess-body { padding:2px 0 16px 18px; }
+.ess-row { display:grid; grid-template-columns:220px minmax(0,1fr); gap:6px 18px; align-items:start; margin-bottom:14px; }
+.ess-row > label { font-size:14px; color:var(--text-primary); padding-top:9px; font-weight:500; text-transform:none; letter-spacing:0; margin:0; }
+.ess-req { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%; background:var(--red); color:#fff; font-size:11px; font-weight:700; margin-left:6px; vertical-align:1px; }
+.ess-inline { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; }
+.ess-inline .form-control { width:auto; min-width:0; }
+.exam-settings-modal .form-control.ess-num { width:110px; }
+.ess-hint { font-size:12.5px; color:var(--text-muted); margin-top:5px; line-height:1.45; }
+.ess-inline .ess-hint { margin-top:0; }
+.ess-full { flex-basis:100%; }
+.ess-note { border-left:3px solid var(--accent); padding-left:10px; }
+.ess-check { display:inline-flex; align-items:center; gap:6px; font-size:14px; color:var(--text-primary); margin:0; text-transform:none; letter-spacing:0; font-weight:500; }
+.exam-settings-modal select:disabled, .exam-settings-modal input:disabled { opacity:.55; cursor:not-allowed; }
+/* The question list (step 2), after Moodle's "Edit quiz" */
+.exam-q-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.exam-q-toolbar h4 { flex:1; font-size:20px; }
+.exam-q-totals { font-size:13px; color:var(--text-secondary); }
+.exam-qlist .question-item.exam-qrow { padding:0; margin-bottom:8px; border-radius:var(--radius-sm); }
+.exam-qrow-head { display:flex; align-items:center; gap:10px; padding:9px 12px; }
+.exam-qrow .q-number.exam-qrow-no { position:static; min-width:30px; text-align:center; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-light); border-radius:4px; padding:4px 0; font-size:13px; }
+.exam-qrow-grip { cursor:grab; color:var(--text-muted); font-size:16px; padding:0 2px; user-select:none; }
+.exam-qrow .q-type-badge { flex-shrink:0; }
+.exam-qrow-text { flex:1; min-width:0; text-align:left; background:none; border:0; color:var(--text-primary); font:14px 'DM Sans',sans-serif; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:4px 0; }
+.exam-qrow-text:hover { color:var(--accent); }
+.exam-qrow-text em { color:var(--text-muted); }
+.exam-qrow-warn { flex-shrink:0; }
+.exam-qrow-marks { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-muted); margin:0; text-transform:none; letter-spacing:0; flex-shrink:0; }
+.exam-qrow-marks input { width:60px; padding:5px 8px; background:var(--bg-input); border:1px solid var(--border-light); border-radius:4px; color:var(--text-primary); font:13px 'DM Sans',sans-serif; }
+.exam-qrow .q-actions { margin-top:0; flex-shrink:0; }
+.exam-qrow .q-actions button:disabled { opacity:.3; cursor:default; }
+.exam-qrow-editor { padding:6px 16px 16px; border-top:1px solid var(--border-light); }
+.exam-qrow.open { border-color:var(--accent); }
+.exam-qrow.dragging { opacity:.5; }
+.exam-qrow.drop-target { outline:2px dashed var(--blue); outline-offset:2px; }
+.exam-qlist-empty { padding:24px; text-align:center; color:var(--text-muted); border:1px dashed var(--border-light); border-radius:var(--radius-sm); }
+.q-edit-cap { display:block; font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:8px; letter-spacing:.3px; text-transform:uppercase; }
+.q-edit-hint { font-size:12px; color:var(--text-muted); margin-top:8px; line-height:1.45; }
+.q-edit-check { display:flex; gap:8px; align-items:center; margin-top:12px; font-size:13px; color:var(--text-primary); text-transform:none; letter-spacing:0; font-weight:500; }
+.q-opt-letter { min-width:20px; color:var(--text-secondary); font-size:13px; }
+.q-pair-arrow { color:var(--text-muted); }
+.q-num-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.q-num-grid label { display:flex; flex-direction:column; gap:6px; font-size:11px; font-weight:600; color:var(--text-muted); margin:0; }
+.q-tf-pick { display:flex; align-items:center; gap:6px; cursor:pointer; padding:8px 16px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-input); margin:0; text-transform:none; font-size:14px; color:var(--text-primary); }
+.q-tf-pick.on-true { border-color:var(--green); background:var(--green-dim); }
+.q-tf-pick.on-false { border-color:var(--red); background:var(--red-dim); }
+.q-type-multi { background:rgba(0,188,212,0.15); color:#4dd0e1; }
+.q-type-match { background:rgba(230,126,34,0.16); color:#f0a35e; }
+.q-type-shortanswer { background:var(--green-dim); color:var(--green); }
+.q-type-numerical { background:rgba(241,196,15,0.14); color:#f4d03f; }
+.q-type-info { background:rgba(255,255,255,0.08); color:var(--text-secondary); }
+.exam-qrow .q-type-badge, .exam-type-picker .q-type-badge { display:inline-flex; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+/* "Choose a question type to add" */
+.exam-type-picker { position:fixed; inset:0; z-index:400; background:rgba(0,0,0,0.55); align-items:center; justify-content:center; padding:16px; }
+.etp-box { width:100%; max-width:720px; max-height:90vh; overflow-y:auto; background:var(--bg-secondary); border:1px solid var(--border-light); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 22px; }
+.etp-box h4 { font-size:19px; margin-bottom:14px; }
+.etp-body { display:grid; grid-template-columns:250px minmax(0,1fr); gap:18px; min-height:300px; }
+.etp-list { display:flex; flex-direction:column; gap:2px; border-right:1px solid var(--border-light); padding-right:12px; }
+.etp-group { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text-muted); margin:6px 0 4px; }
+.etp-opt { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; font-size:14px; color:var(--text-primary); margin:0; text-transform:none; letter-spacing:0; font-weight:500; }
+.etp-opt:hover { background:rgba(255,255,255,0.04); }
+.etp-opt:has(input:checked) { background:var(--blue-dim); }
+.etp-opt input { accent-color:var(--blue); }
+.etp-ico { width:26px; height:26px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; }
+.etp-desc { font-size:14px; color:var(--text-secondary); line-height:1.55; }
+.etp-desc strong { display:block; font-size:17px; color:var(--text-primary); margin-bottom:8px; }
+.etp-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
 .q-edit-form { margin-top:12px; padding:14px; background:var(--bg-input); border-radius:var(--radius-sm); border:1px solid var(--border-light); }
 .q-edit-form .q-option-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
 .q-edit-form .q-option-row input[type="text"] { flex:1; }
@@ -4761,40 +4841,112 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 
 <!-- addStudentModal moved to Student-Progress.html -->
 <div class="modal-overlay" id="createExamModal">
-  <div class="modal" style="max-width:780px;">
-    <div class="modal-header"><h3 id="createExamModalTitle">Create Online Exam</h3><button class="modal-close" onclick="closeModal('createExamModal');examBuilderQuestions=[];">✕</button></div>
+  <div class="modal exam-settings-modal" role="dialog" aria-modal="true" aria-labelledby="createExamModalTitle">
+    <div class="modal-header"><h3 id="createExamModalTitle">Adding a new Exam</h3><button class="modal-close" aria-label="Close" onclick="closeModal('createExamModal');examBuilderQuestions=[];">✕</button></div>
 
-    <!-- Step 1: Exam Details -->
+    <!-- Step 1: the exam's settings, in collapsible sections like Moodle's
+         "Adding a new Quiz". Every field id below is read by createExam(). -->
     <div id="examStep1">
-      <div class="form-group"><label>Exam Title</label><input type="text" class="form-control" id="examTitle" placeholder="e.g. Welding Level 2 — Final Assessment"></div>
-      <div class="form-group"><label>Programme</label><select class="form-control" id="examCourse"></select></div>
-      <div class="grid-2col" style="gap:12px;"><div class="form-group"><label>Date</label><input type="date" class="form-control" id="examDate" required></div><div class="form-group"><label>Start Time (Centre time)</label><input type="time" class="form-control" id="examTime" required></div></div>
-      <div class="grid-2col" style="gap:12px;"><div class="form-group"><label>Duration (minutes)</label><input type="number" class="form-control" id="examDuration" value="90" min="15" max="300"></div><div class="form-group"><label>Pass Mark (%)</label><input type="number" class="form-control" id="examPassMark" value="60" min="1" max="100"></div></div>
-      <div class="form-group"><label>Shuffle Questions</label><select class="form-control" id="examShuffle"><option value="false">No — Keep original order</option><option value="true">Yes — Randomise order for each student</option></select></div>
-      <div class="form-group"><label>Instructions</label><textarea class="form-control" id="examInstructions" placeholder="Special instructions for students (shown before and during the exam)..."></textarea></div>
-      <div class="form-group"><label>Show trainees the correct answers</label><select class="form-control" id="examAnswersRelease"><option value="after-close">After the exam closes (recommended)</option><option value="released">As soon as they submit</option><option value="withheld">Never: staff go through them in class</option></select></div>
+      <div class="exam-set-toolbar"><button type="button" class="exam-set-expand" id="examSetExpandAll" aria-expanded="false" onclick="examSettingsExpandAll()">&#9656; Expand all</button></div>
+
+      <details class="exam-set-section" id="examSetGeneral" ontoggle="if(window.examSettingsSyncExpand)examSettingsSyncExpand()" open>
+        <summary><span class="ess-chev" aria-hidden="true"></span>General</summary>
+        <div class="ess-body">
+          <div class="ess-row"><label for="examTitle">Name <span class="ess-req" title="Required">!</span></label><div><input type="text" class="form-control" id="examTitle" placeholder="e.g. Welding Level 2 — Final Assessment"></div></div>
+          <div class="ess-row"><label for="examInstructions">Description / instructions</label><div><textarea class="form-control" id="examInstructions" rows="4" placeholder="Special instructions for students (shown before and during the exam)..."></textarea><div class="ess-hint">Shown to trainees before they start and at the top of the exam.</div></div></div>
+          <div class="ess-row"><label for="examCourse">Programme / intake</label><div><select class="form-control" id="examCourse" onchange="examSettingsHeading()"></select></div></div>
+        </div>
+      </details>
+
+      <details class="exam-set-section" id="examSetTiming" ontoggle="if(window.examSettingsSyncExpand)examSettingsSyncExpand()">
+        <summary><span class="ess-chev" aria-hidden="true"></span>Timing</summary>
+        <div class="ess-body">
+          <div class="ess-row"><label for="examDate">Open the exam</label><div class="ess-inline"><input type="date" class="form-control" id="examDate" required aria-label="Opening date"><input type="time" class="form-control" id="examTime" required aria-label="Opening time (Centre time)"><span class="ess-hint">Centre time (Jamaica)</span></div></div>
+          <div class="ess-row"><label for="examCloseEnabled">Close the exam</label><div class="ess-inline"><label class="ess-check"><input type="checkbox" id="examCloseEnabled" onchange="examCloseToggle()"> Enable</label><input type="date" class="form-control" id="examCloseDate" aria-label="Closing date" disabled><input type="time" class="form-control" id="examCloseTime" aria-label="Closing time (Centre time)" disabled>
+            <div class="ess-hint ess-full">Left off, the exam closes when the time limit has passed after it opens (as before). Switched on, trainees can start any time until it closes, each with the full time limit.</div></div></div>
+          <div class="ess-row"><label for="examDuration">Time limit</label><div class="ess-inline"><input type="number" class="form-control ess-num" id="examDuration" value="90" min="15" max="300"><span class="ess-hint">minutes</span></div></div>
+          <div class="ess-row"><label for="examTimeExpiry">When time expires</label><div><select class="form-control" id="examTimeExpiry" disabled><option value="autosubmit">Open attempts are submitted automatically</option></select><div class="ess-hint">Answers are saved as the trainee works, so nothing is lost when the time runs out.</div></div></div>
+        </div>
+      </details>
+
+      <details class="exam-set-section" id="examSetGrade" ontoggle="if(window.examSettingsSyncExpand)examSettingsSyncExpand()">
+        <summary><span class="ess-chev" aria-hidden="true"></span>Grade</summary>
+        <div class="ess-body">
+          <div class="ess-row"><label for="examPassMark">Pass mark</label><div class="ess-inline"><input type="number" class="form-control ess-num" id="examPassMark" value="60" min="1" max="100"><span class="ess-hint">%</span></div></div>
+          <div class="ess-row"><label for="examAttempts">Attempts allowed</label><div><select class="form-control" id="examAttempts" disabled><option value="1">1</option></select></div></div>
+          <div class="ess-row"><label for="examGradeMethod">Grading method</label><div><select class="form-control" id="examGradeMethod" disabled><option value="highest">Highest grade</option></select>
+            <div class="ess-hint ess-note">One attempt per trainee for now. A second attempt is not offered yet because the Centre's sync keeps only the latest attempt of a trainee at an exam, so an earlier attempt could be lost on other computers.</div></div></div>
+        </div>
+      </details>
+
+      <details class="exam-set-section" id="examSetLayout" ontoggle="if(window.examSettingsSyncExpand)examSettingsSyncExpand()">
+        <summary><span class="ess-chev" aria-hidden="true"></span>Layout</summary>
+        <div class="ess-body">
+          <div class="ess-row"><label for="examPerPage">Questions per page</label><div><select class="form-control" id="examPerPage"><option value="0">Every question on one page</option><option value="1">1 question per page</option><option value="2">2 questions per page</option><option value="3">3 questions per page</option><option value="5">5 questions per page</option><option value="10">10 questions per page</option></select></div></div>
+          <div class="ess-row"><label for="examShuffle">Shuffle question order</label><div><select class="form-control" id="examShuffle"><option value="false">No — Keep original order</option><option value="true">Yes — Randomise order for each student</option></select></div></div>
+        </div>
+      </details>
+
+      <details class="exam-set-section" id="examSetBehaviour" ontoggle="if(window.examSettingsSyncExpand)examSettingsSyncExpand()">
+        <summary><span class="ess-chev" aria-hidden="true"></span>Question behaviour</summary>
+        <div class="ess-body">
+          <div class="ess-row"><label for="examShuffleOptions">Shuffle options within questions</label><div><select class="form-control" id="examShuffleOptions"><option value="false">No</option><option value="true">Yes — each trainee sees the options of a multiple-choice question in a different order</option></select></div></div>
+          <div class="ess-row"><label for="examAllowFlag">Allow review of flagged questions</label><div><select class="form-control" id="examAllowFlag"><option value="true">Yes — trainees can flag questions to come back to</option><option value="false">No</option></select></div></div>
+        </div>
+      </details>
+
+      <details class="exam-set-section" id="examSetReview" ontoggle="if(window.examSettingsSyncExpand)examSettingsSyncExpand()">
+        <summary><span class="ess-chev" aria-hidden="true"></span>Review options</summary>
+        <div class="ess-body">
+          <div class="ess-row"><label for="examAnswersRelease">Show trainees the correct answers</label><div><select class="form-control" id="examAnswersRelease"><option value="after-close">After the exam closes (recommended)</option><option value="released">Immediately after the attempt</option><option value="withheld">Never: staff go through them in class</option></select></div></div>
+          <div class="ess-row"><label for="examScoreRelease">Show trainees their marks</label><div><select class="form-control" id="examScoreRelease" disabled><option value="immediately">Immediately after the attempt (or once marked)</option></select>
+            <div class="ess-hint ess-note">Holding marks back until the exam closes is not offered yet: a mark also shows on the trainee's dashboard and transcript, which would have to wait as well.</div></div></div>
+        </div>
+      </details>
+
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
         <button class="btn btn-secondary" onclick="closeModal('createExamModal');examBuilderQuestions=[];">Cancel</button>
         <button class="btn btn-primary" onclick="goToExamStep2()">Next: Add Questions →</button>
       </div>
     </div>
 
-    <!-- Step 2: Question Builder -->
+    <!-- Step 2: the questions — a list like Moodle's "Edit quiz", reordered by
+         dragging or with the arrows, each opened to edit; "Add question"
+         opens the type picker. -->
     <div id="examStep2" style="display:none;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <div class="exam-q-toolbar">
         <button class="btn btn-sm btn-secondary" onclick="goToExamStep1()">← Back</button>
-        <h4 style="flex:1;">Add Questions</h4>
-        <span style="font-size:13px;color:var(--text-muted);" id="examQCount">0 questions</span>
-        <span style="font-size:13px;color:var(--accent);" id="examTotalPoints">0 pts</span>
+        <h4>Questions</h4>
+        <span class="exam-q-totals"><span id="examQCount">0 questions</span> &middot; Total of marks: <span id="examTotalPoints">0 pts</span></span>
       </div>
 
-      <div id="examQuestionsList" class="question-list"></div>
+      <div id="examQuestionsList" class="question-list exam-qlist"></div>
 
       <div class="add-question-bar">
-        <button class="add-q-btn" onclick="addExamQuestion('mcq')">+ Multiple Choice</button>
-        <button class="add-q-btn" onclick="addExamQuestion('tf')">+ True / False</button>
-        <button class="add-q-btn" onclick="addExamQuestion('fill')">+ Fill in Blank</button>
-        <button class="add-q-btn" onclick="addExamQuestion('short')">+ Short Answer</button>
+        <button type="button" class="btn btn-primary exam-add-q" id="examAddQuestionBtn" onclick="examOpenTypePicker()">+ Add question</button>
+      </div>
+
+      <div class="exam-type-picker" id="examTypePicker" role="dialog" aria-modal="true" aria-labelledby="examTypePickerTitle" style="display:none;">
+        <div class="etp-box">
+          <h4 id="examTypePickerTitle">Choose a question type to add</h4>
+          <div class="etp-body">
+            <div class="etp-list" role="radiogroup" aria-labelledby="examTypePickerTitle">
+              <div class="etp-group">Questions</div>
+              <label class="etp-opt"><input type="radio" name="examNewType" value="mcq" checked onchange="examTypePicked(this.value)"><span class="etp-ico q-type-mcq" aria-hidden="true">&#9673;</span>Multiple choice</label>
+              <label class="etp-opt"><input type="radio" name="examNewType" value="multi" onchange="examTypePicked(this.value)"><span class="etp-ico q-type-multi" aria-hidden="true">&#9745;</span>Multiple answers</label>
+              <label class="etp-opt"><input type="radio" name="examNewType" value="tf" onchange="examTypePicked(this.value)"><span class="etp-ico q-type-tf" aria-hidden="true">&#8644;</span>True/False</label>
+              <label class="etp-opt"><input type="radio" name="examNewType" value="match" onchange="examTypePicked(this.value)"><span class="etp-ico q-type-match" aria-hidden="true">&#8801;</span>Matching</label>
+              <label class="etp-opt"><input type="radio" name="examNewType" value="shortanswer" onchange="examTypePicked(this.value)"><span class="etp-ico q-type-shortanswer" aria-hidden="true">Aa</span>Short answer</label>
+              <label class="etp-opt"><input type="radio" name="examNewType" value="numerical" onchange="examTypePicked(this.value)"><span class="etp-ico q-type-numerical" aria-hidden="true">12</span>Numerical</label>
+              <label class="etp-opt"><input type="radio" name="examNewType" value="fill" onchange="examTypePicked(this.value)"><span class="etp-ico q-type-fill" aria-hidden="true">__</span>Fill in the blank</label>
+              <label class="etp-opt"><input type="radio" name="examNewType" value="short" onchange="examTypePicked(this.value)"><span class="etp-ico q-type-short" aria-hidden="true">&#182;</span>Essay</label>
+              <div class="etp-group">Other</div>
+              <label class="etp-opt"><input type="radio" name="examNewType" value="info" onchange="examTypePicked(this.value)"><span class="etp-ico q-type-info" aria-hidden="true">i</span>Information</label>
+            </div>
+            <div class="etp-desc" id="examTypeDesc" aria-live="polite"></div>
+          </div>
+          <div class="etp-actions"><button type="button" class="btn btn-secondary" onclick="examCloseTypePicker()">Cancel</button><button type="button" class="btn btn-primary" id="examTypeAddBtn" onclick="examAddPickedType()">Add</button></div>
+        </div>
       </div>
 
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
@@ -4804,6 +4956,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     </div>
   </div>
 </div>
+
 <!-- updateStageModal, editStudentModal, deleteStudentModal moved to Student-Progress.html -->
 <!-- CREATE USER MODAL -->
 <div class="modal-overlay" id="createUserModal">
@@ -25384,11 +25537,10 @@ var editingExamId = null;   // the exam open in the builder, by id; null = creat
 // exam behind as the target, and "Create" overwrote it. editExam sets
 // editingExamId before opening, so an edit keeps its fields.
 function examBuilderOpening() {
-  var h = document.getElementById('createExamModalTitle');
   var btn = document.getElementById('createExamPublishBtn');
+  examBuilderOpen = {};
   if (editingExamId != null) {
-    var ed = exams.find(function(e){ return e && e.id === editingExamId; });
-    if (h) h.textContent = 'Edit exam: ' + (ed ? ed.title : '');
+    examSettingsHeading();
     if (btn) btn.textContent = 'Save changes';
     return;
   }
@@ -25400,6 +25552,12 @@ function examBuilderOpening() {
   set('examTitle', ''); set('examDate', d.date); set('examTime', d.time);
   set('examDuration', '90'); set('examPassMark', '60'); set('examShuffle', 'false');
   set('examInstructions', ''); set('examAnswersRelease', 'after-close');
+  // The newer settings start where every existing exam is: all questions on
+  // one page, options in order, flagging allowed, no separate closing time.
+  set('examPerPage', '0'); set('examShuffleOptions', 'false'); set('examAllowFlag', 'true');
+  set('examCloseDate', ''); set('examCloseTime', '');
+  var ce = document.getElementById('examCloseEnabled'); if (ce) ce.checked = false;
+  examCloseToggle();
   // An instructor's exam is for their own programme unless they pick another;
   // the first programme in the list used to be taken, and the exam then
   // vanished from their own Exams page.
@@ -25410,7 +25568,8 @@ function examBuilderOpening() {
                opts.find(function(o){ return o.value && instructorCourseMatch(o.value, currentInstructor.course); });
     if (pick) sel.value = pick.value;
   }
-  if (h) h.textContent = 'Create Online Exam';
+  examSettingsHeading();
+  examSettingsReset();
   if (btn) btn.textContent = 'Publish Exam';
   goToExamStep1();
 }
@@ -25461,19 +25620,54 @@ function goToExamStep2() {
   renderExamBuilderQuestions();
 }
 
+/* ---- The question list (step 2), after Moodle's "Edit quiz" page ----
+   One row per question: its number, type, text, marks, ↑ ↓ (or drag the
+   grip), edit and delete. A row opens to edit that question; a new one opens
+   by itself. "Add question" asks for the type first. */
+var examBuilderOpen = {};          // question id -> its editor is open
+// What staff and trainees call each type (the ids are stored and never change).
+function examTypeLabel(type) {
+  return ({ mcq:'Multiple choice', multi:'Multiple answers', tf:'True/False', match:'Matching', shortanswer:'Short answer',
+    numerical:'Numerical', fill:'Fill in the blank', short:'Essay', info:'Information' })[type] || String(type || '');
+}
+var EXAM_TYPE_HELP = {
+  mcq: 'Select one: the trainee picks one option. Marked automatically.',
+  multi: 'Select one or more: several options can be right. Each right option earns its share of the marks and each wrong one takes its share away (never below 0) — or make it all-or-nothing. Marked automatically.',
+  tf: 'A statement the trainee marks True or False. Marked automatically.',
+  match: 'Prompts on the left, each with a drop-down of answers on the right. Each row the trainee gets right earns its share of the marks. Marked automatically.',
+  shortanswer: 'The trainee types a word or short phrase. Marked automatically against the answers you accept: capitals and extra spaces do not matter, and * stands for any letters (arrest* accepts arrestor and arrester).',
+  numerical: 'The trainee types a number. Right when it is within the tolerance you set (± 0 means exactly). Marked automatically.',
+  fill: 'A sentence with a gap. Your expected answer is suggested to the marker, who confirms it.',
+  short: 'An essay or written answer, marked by an instructor. You can add a model answer for the marker.',
+  info: 'Text with no answer and no marks — a scenario, instructions or a heading that introduces the questions after it. Shown as "i" in the navigation.'
+};
+
 function addExamQuestion(type) {
   var q = { id: cestisGenId('Q-')+'-'+Math.random().toString(36).substr(2,4), type:type, text:'', points:1 };
   if(type==='mcq') { q.options=['Option A','Option B','Option C','Option D']; q.correctAnswer=0; }
   else if(type==='tf') { q.correctAnswer=true; }
   else if(type==='fill') { q.correctAnswer=''; }
   else if(type==='short') { q.correctAnswer=''; q.autoGrade=false; }
+  else if(type==='multi') { q.options=['Option A','Option B','Option C','Option D']; q.correctAnswer=[]; q.allOrNothing=false; }
+  else if(type==='match') { q.pairs=[{prompt:'',answer:''},{prompt:'',answer:''},{prompt:'',answer:''}]; q.distractors=[]; }
+  else if(type==='shortanswer') { q.correctAnswer=[]; }
+  else if(type==='numerical') { q.correctAnswer=''; q.tolerance=0; q.unit=''; }
+  else if(type==='info') { q.points=0; }
   examBuilderQuestions.push(q);
+  examBuilderOpen[q.id] = true;
   renderExamBuilderQuestions();
-  // Scroll to new question
-  setTimeout(function(){ var el=document.getElementById('qItem-'+(examBuilderQuestions.length-1)); if(el)el.scrollIntoView({behavior:'smooth',block:'center'}); },100);
+  // Bring the new question into view, its text box ready.
+  setTimeout(function(){
+    var el=document.getElementById('qItem-'+(examBuilderQuestions.length-1));
+    if(el && el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'center'});
+    var t = el && el.querySelector ? el.querySelector('.q-text-input') : null;
+    if(t && t.focus) { try { t.focus({ preventScroll: true }); } catch(e) {} }
+  },100);
 }
 
 function removeExamQuestion(idx) {
+  var q = examBuilderQuestions[idx];
+  if(q && (String(q.text||'').trim() || q.type === 'match') && typeof confirm === 'function' && !confirm('Delete question ' + (idx+1) + (q.text ? ' ("' + String(q.text).slice(0, 60) + '")' : '') + '?')) return;
   examBuilderQuestions.splice(idx,1);
   renderExamBuilderQuestions();
 }
@@ -25485,60 +25679,203 @@ function moveExamQuestion(idx,dir) {
   examBuilderQuestions[idx] = examBuilderQuestions[newIdx];
   examBuilderQuestions[newIdx] = temp;
   renderExamBuilderQuestions();
+  // Keyboard users keep their place: focus follows the question moved.
+  var btn = document.getElementById('qMove-' + newIdx + '-' + (dir < 0 ? 'up' : 'down'));
+  if(btn && btn.focus) btn.focus();
+}
+// Drag a row by its grip and drop it on another row.
+var _examDragFrom = null;
+function examQDragStart(ev, idx) {
+  _examDragFrom = idx;
+  try { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', String(idx)); } catch(e) {}
+  var row = document.getElementById('qItem-' + idx);
+  if(row) row.classList.add('dragging');
+}
+function examQDragOver(ev, idx) {
+  if(_examDragFrom == null) return;
+  ev.preventDefault();
+  if(ev.currentTarget && ev.currentTarget.classList) ev.currentTarget.classList.add('drop-target');
+}
+function examQDragLeave(ev) { if(ev.currentTarget && ev.currentTarget.classList) ev.currentTarget.classList.remove('drop-target'); }
+function examQDrop(ev, idx) {
+  ev.preventDefault();
+  var from = _examDragFrom;
+  _examDragFrom = null;
+  if(from != null && from !== idx && examBuilderQuestions[from]) {
+    var q = examBuilderQuestions.splice(from, 1)[0];
+    examBuilderQuestions.splice(idx, 0, q);
+  }
+  renderExamBuilderQuestions();
+}
+function examQDragEnd() { _examDragFrom = null; renderExamBuilderQuestions(); }
+
+function examToggleQEdit(idx) {
+  var q = examBuilderQuestions[idx];
+  if(!q) return;
+  examBuilderOpen[q.id] = !examBuilderOpen[q.id];
+  renderExamBuilderQuestions();
+  var row = document.getElementById('qItem-' + idx);
+  var t = examBuilderOpen[q.id] && row && row.querySelector ? row.querySelector('.q-text-input') : null;
+  if(t && t.focus) { try { t.focus({ preventScroll: true }); } catch(e) {} }
+}
+// The question's text, kept in step with the row's summary line.
+function examSetQText(idx, v) {
+  var q = examBuilderQuestions[idx];
+  if(!q) return;
+  q.text = v;
+  var prev = document.getElementById('qPrev-' + idx);
+  if(prev) prev.textContent = String(v || '').trim() || 'New question — enter its text';
+}
+// "Select one or more": which options are right.
+function examToggleMultiKey(idx, oi, on) {
+  var q = examBuilderQuestions[idx];
+  if(!q) return;
+  var k = Array.isArray(q.correctAnswer) ? q.correctAnswer.filter(function(x){ return x !== oi; }) : [];
+  if(on) k.push(oi);
+  q.correctAnswer = k.sort(function(a, b){ return a - b; });
+  renderExamBuilderQuestions();
+}
+// Matching pairs.
+function examAddPair(idx) {
+  var q = examBuilderQuestions[idx];
+  if(!q) return;
+  if((q.pairs || []).length >= 12) { alert('Maximum 12 pairs'); return; }
+  (q.pairs = q.pairs || []).push({ prompt: '', answer: '' });
+  renderExamBuilderQuestions();
+}
+function examRemovePair(idx, r) {
+  var q = examBuilderQuestions[idx];
+  if(!q || !q.pairs) return;
+  if(q.pairs.length <= 2) { alert('A matching question needs at least 2 pairs'); return; }
+  q.pairs.splice(r, 1);
+  renderExamBuilderQuestions();
+}
+function examSetPair(idx, r, field, v) {
+  var q = examBuilderQuestions[idx];
+  if(q && q.pairs && q.pairs[r]) q.pairs[r][field] = String(v || '').trim();
+}
+function examSetDistractors(idx, v) {
+  var q = examBuilderQuestions[idx];
+  if(q) q.distractors = String(v || '').split(/\r?\n/).map(function(x){ return x.trim(); }).filter(Boolean);
+}
+// Short answer: one accepted answer per line.
+function examSetAccepted(idx, v) {
+  var q = examBuilderQuestions[idx];
+  if(q) q.correctAnswer = String(v || '').split(/\r?\n/).map(function(x){ return x.trim(); }).filter(Boolean);
+}
+// Numerical: the number (kept as typed until it is one, so a mistake shows).
+function examSetNumber(idx, field, v) {
+  var q = examBuilderQuestions[idx];
+  if(!q) return;
+  var n = CESTISCore.exams.parseNumber(v);
+  if(field === 'tolerance') q.tolerance = n == null ? (String(v).trim() === '' ? 0 : String(v).trim()) : Math.abs(n);
+  else q.correctAnswer = n == null ? String(v).trim() : n;
+  renderExamBuilderQuestions();
+}
+
+// What is wrong with a question's answer key, in words ('' when nothing).
+function examKeyProblemText(q) {
+  if(!q || !CESTISCore.exams.keyProblems([q]).length) return '';
+  if(q.type === 'mcq' || q.type === 'tf') return 'select the correct answer';
+  if(q.type === 'multi') return 'tick the right option(s)';
+  if(q.type === 'match') return 'fill in at least two complete pairs (a prompt and its answer)';
+  if(q.type === 'shortanswer') return 'type at least one accepted answer';
+  if(q.type === 'numerical') return 'enter the correct answer as a number (and a tolerance of 0 or more)';
+  return 'set the correct answer';
 }
 
 function renderExamBuilderQuestions() {
   var container = document.getElementById('examQuestionsList');
   if(!container) return;
-  var totalPts = examBuilderQuestions.reduce(function(a,q){return a+q.points;},0);
-  document.getElementById('examQCount').textContent = examBuilderQuestions.length+' question'+(examBuilderQuestions.length!==1?'s':'');
-  document.getElementById('examTotalPoints').textContent = totalPts+' pts';
+  var nums = CESTISCore.exams.questionNumbers(examBuilderQuestions);
+  var nQ = 0, totalPts = 0;
+  examBuilderQuestions.forEach(function(q){ if(q && q.type !== 'info') { nQ++; totalPts += Number(q.points) || 0; } });
+  document.getElementById('examQCount').textContent = nQ+' question'+(nQ!==1?'s':'');
+  document.getElementById('examTotalPoints').textContent = CESTISCore.exams.formatMark(totalPts);
 
+  if(!examBuilderQuestions.length) {
+    container.innerHTML = '<div class="exam-qlist-empty">No questions yet. Press <strong>+ Add question</strong> and choose a type.</div>';
+    return;
+  }
   container.innerHTML = examBuilderQuestions.map(function(q,idx) {
-    var typeLabel = {mcq:'Multiple Choice',tf:'True / False',fill:'Fill in Blank',short:'Short Answer'}[q.type];
-    var typeCls = 'q-type-'+q.type;
-    var html = '<div class="question-item" id="qItem-'+idx+'">';
-    html += '<div class="q-number">Q'+(idx+1)+'</div>';
-    html += '<div class="q-header"><span class="q-type-badge '+typeCls+'">'+typeLabel+'</span><span class="q-points">'+q.points+' pt'+(q.points!==1?'s':'')+'</span></div>';
-
-    // Question text input
-    html += '<div class="form-group" style="margin-bottom:12px;"><input type="text" class="form-control" value="'+escapeAttr(q.text)+'" placeholder="Enter your question here..." onchange="examBuilderQuestions['+idx+'].text=this.value"></div>';
-
-    // Points input
-    html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;"><label style="font-size:11px;font-weight:600;color:var(--text-muted);margin:0;">Points:</label><input type="number" class="form-control" style="width:70px;padding:6px 10px;" value="'+q.points+'" min="1" max="100" onchange="examBuilderQuestions['+idx+'].points=parseInt(this.value)||1;renderExamBuilderQuestions()"></div>';
-
-    // The answer was removed (or never set): flag it until one is chosen.
-    if((q.type==='mcq' || q.type==='tf') && CESTISCore.exams.keyProblems([q]).length) {
-      html += '<div class="badge badge-amber" style="margin-bottom:8px;">Answer not set: select the correct answer</div>';
-    }
-
-    // Type-specific editing
-    if(q.type==='mcq') {
-      html += '<div class="q-edit-form"><div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">OPTIONS (select the correct answer):</div>';
-      q.options.forEach(function(opt,oi){
-        html += '<div class="q-option-row"><input type="radio" name="qCorrect'+idx+'" '+(q.correctAnswer===oi?'checked':'')+' onchange="examBuilderQuestions['+idx+'].correctAnswer='+oi+';renderExamBuilderQuestions()"><input type="text" class="form-control" value="'+escapeAttr(opt)+'" onchange="examBuilderQuestions['+idx+'].options['+oi+']=this.value"><button class="q-remove-opt" onclick="removeExamOption('+idx+','+oi+')" title="Remove">&times;</button></div>';
-      });
-      html += '<button class="btn btn-sm btn-secondary" style="margin-top:6px;" onclick="addExamOption('+idx+')">+ Add Option</button></div>';
-    } else if(q.type==='tf') {
-      html += '<div class="q-edit-form"><div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">CORRECT ANSWER:</div>';
-      html += '<div style="display:flex;gap:8px;"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 16px;border-radius:var(--radius-sm);border:1px solid '+(q.correctAnswer===true?'var(--green)':'var(--border)')+';background:'+(q.correctAnswer===true?'var(--green-dim)':'var(--bg-input)')+';"><input type="radio" name="tfCorrect'+idx+'" '+(q.correctAnswer===true?'checked':'')+' onchange="examBuilderQuestions['+idx+'].correctAnswer=true;renderExamBuilderQuestions()"> True</label>';
-      html += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 16px;border-radius:var(--radius-sm);border:1px solid '+(q.correctAnswer===false?'var(--red)':'var(--border)')+';background:'+(q.correctAnswer===false?'var(--red-dim)':'var(--bg-input)')+';"><input type="radio" name="tfCorrect'+idx+'" '+(q.correctAnswer===false?'checked':'')+' onchange="examBuilderQuestions['+idx+'].correctAnswer=false;renderExamBuilderQuestions()"> False</label></div></div>';
-    } else if(q.type==='fill') {
-      html += '<div class="q-edit-form"><div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">CORRECT ANSWER (case-insensitive match):</div>';
-      html += '<input type="text" class="form-control" value="'+escapeAttr(q.correctAnswer)+'" placeholder="Type the correct answer..." onchange="examBuilderQuestions['+idx+'].correctAnswer=this.value"></div>';
-    } else if(q.type==='short') {
-      html += '<div class="q-edit-form"><div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">SHORT ANSWER — graded manually by instructor</div>';
-      html += '<input type="text" class="form-control" value="'+escapeAttr(q.correctAnswer)+'" placeholder="(Optional) Model answer for reference..." onchange="examBuilderQuestions['+idx+'].correctAnswer=this.value"></div>';
-    }
-
-    // Action buttons
+    var open = !!examBuilderOpen[q.id];
+    var isInfo = q.type === 'info';
+    var label = examTypeLabel(q.type);
+    var n = nums[idx];
+    var problem = examKeyProblemText(q);
+    var html = '<div class="question-item exam-qrow' + (open ? ' open' : '') + '" id="qItem-'+idx+'" ondragover="examQDragOver(event,'+idx+')" ondragleave="examQDragLeave(event)" ondrop="examQDrop(event,'+idx+')">';
+    html += '<div class="exam-qrow-head">';
+    html += '<span class="exam-qrow-grip" draggable="true" ondragstart="examQDragStart(event,'+idx+')" ondragend="examQDragEnd()" title="Drag to move" aria-hidden="true">&#10303;</span>';
+    html += '<span class="q-number exam-qrow-no">'+escapeHtml(n)+'</span>';
+    html += '<span class="q-type-badge q-type-'+escapeAttr(q.type)+'">'+escapeHtml(label)+'</span>';
+    html += '<button type="button" class="exam-qrow-text" id="qPrev-'+idx+'" onclick="examToggleQEdit('+idx+')" aria-expanded="'+(open?'true':'false')+'" aria-label="'+escapeAttr((isInfo ? 'Information' : 'Question ' + n) + ': ' + (String(q.text||'').trim() || 'no text yet') + (open ? ' (close)' : ' (edit)'))+'">'+(String(q.text||'').trim() ? escapeHtml(q.text) : '<em>New question — enter its text</em>')+'</button>';
+    if(problem) html += '<span class="badge badge-amber exam-qrow-warn" title="'+escapeAttr('Answer not set: ' + problem)+'">Answer not set</span>';
+    if(!isInfo) html += '<label class="exam-qrow-marks">Marks <input type="number" class="q-marks-input" value="'+escapeAttr(q.points)+'" min="1" max="100" aria-label="Marks for question '+escapeAttr(n)+'" onchange="examBuilderQuestions['+idx+'].points=parseInt(this.value)||1;renderExamBuilderQuestions()"></label>';
     html += '<div class="q-actions">';
-    html += '<button onclick="moveExamQuestion('+idx+',-1)" title="Move Up">↑</button>';
-    html += '<button onclick="moveExamQuestion('+idx+',1)" title="Move Down">↓</button>';
-    html += '<button class="q-del" onclick="removeExamQuestion('+idx+')" title="Delete">🗑</button>';
+    html += '<button type="button" id="qMove-'+idx+'-up" onclick="moveExamQuestion('+idx+',-1)" title="Move up" aria-label="Move '+escapeAttr(isInfo ? 'information item' : 'question ' + n)+' up"'+(idx===0?' disabled':'')+'>↑</button>';
+    html += '<button type="button" id="qMove-'+idx+'-down" onclick="moveExamQuestion('+idx+',1)" title="Move down" aria-label="Move '+escapeAttr(isInfo ? 'information item' : 'question ' + n)+' down"'+(idx===examBuilderQuestions.length-1?' disabled':'')+'>↓</button>';
+    html += '<button type="button" class="q-edit" onclick="examToggleQEdit('+idx+')" title="'+(open?'Close':'Edit')+'" aria-label="'+(open?'Close':'Edit')+' '+escapeAttr(isInfo ? 'information item' : 'question ' + n)+'">&#9998;</button>';
+    html += '<button type="button" class="q-del" onclick="removeExamQuestion('+idx+')" title="Delete" aria-label="Delete '+escapeAttr(isInfo ? 'information item' : 'question ' + n)+'">🗑</button>';
     html += '</div></div>';
+    if(open) html += '<div class="exam-qrow-editor">' + examQuestionEditorHtml(q, idx, problem) + '</div>';
+    html += '</div>';
     return html;
   }).join('');
+}
+
+// The editor for one question, by type. Keys follow their options
+// (removeExamOption → fixKeyAfterOptionRemoved), as before.
+function examQuestionEditorHtml(q, idx, problem) {
+  var cap = function(t){ return '<div class="q-edit-cap">' + t + '</div>'; };
+  var html = '<div class="form-group" style="margin-bottom:12px;"><label class="q-edit-cap" for="qText-'+idx+'">'+(q.type==='info'?'Information text':'Question text')+'</label>'
+    + '<textarea class="form-control q-text-input" id="qText-'+idx+'" rows="'+(q.type==='info'?4:2)+'" placeholder="Enter your question here..." onchange="examSetQText('+idx+',this.value)">'+escapeHtml(q.text)+'</textarea></div>';
+  if(problem) html += '<div class="badge badge-amber" style="margin-bottom:8px;">Answer not set: '+escapeHtml(problem)+'</div>';
+  html += '<div class="q-edit-form">';
+  if(q.type==='mcq' || q.type==='multi') {
+    var multi = q.type === 'multi';
+    var key = multi ? (Array.isArray(q.correctAnswer) ? q.correctAnswer : []) : q.correctAnswer;
+    html += cap(multi ? 'OPTIONS (tick every right one):' : 'OPTIONS (select the correct answer):');
+    (q.options||[]).forEach(function(opt,oi){
+      var on = multi ? key.indexOf(oi) !== -1 : key === oi;
+      html += '<div class="q-option-row"><input type="'+(multi?'checkbox':'radio')+'" name="qCorrect'+idx+'" '+(on?'checked':'')+' aria-label="Option '+'abcdefghijklmnopqrstuvwxyz'.charAt(oi)+' is '+(multi?'a right answer':'the correct answer')+'"'
+        + ' onchange="'+(multi ? 'examToggleMultiKey('+idx+','+oi+',this.checked)' : 'examBuilderQuestions['+idx+'].correctAnswer='+oi+';renderExamBuilderQuestions()')+'">'
+        + '<span class="q-opt-letter">'+'abcdefghijklmnopqrstuvwxyz'.charAt(oi)+'.</span><input type="text" class="form-control" value="'+escapeAttr(opt)+'" aria-label="Option '+'abcdefghijklmnopqrstuvwxyz'.charAt(oi)+' text" onchange="examBuilderQuestions['+idx+'].options['+oi+']=this.value"><button type="button" class="q-remove-opt" onclick="removeExamOption('+idx+','+oi+')" title="Remove" aria-label="Remove option '+'abcdefghijklmnopqrstuvwxyz'.charAt(oi)+'">&times;</button></div>';
+    });
+    html += '<button type="button" class="btn btn-sm btn-secondary" style="margin-top:6px;" onclick="addExamOption('+idx+')">+ Add Option</button>';
+    if(multi) html += '<label class="q-edit-check"><input type="checkbox" '+(q.allOrNothing?'checked':'')+' onchange="examBuilderQuestions['+idx+'].allOrNothing=this.checked"> All or nothing (full marks only for exactly the right options)</label>'
+      + '<div class="q-edit-hint">Otherwise each right option earns its share of the marks and each wrong option takes its share away, never below 0.</div>';
+  } else if(q.type==='tf') {
+    html += cap('CORRECT ANSWER:');
+    html += '<div style="display:flex;gap:8px;"><label class="q-tf-pick'+(q.correctAnswer===true?' on-true':'')+'"><input type="radio" name="tfCorrect'+idx+'" '+(q.correctAnswer===true?'checked':'')+' onchange="examBuilderQuestions['+idx+'].correctAnswer=true;renderExamBuilderQuestions()"> True</label>';
+    html += '<label class="q-tf-pick'+(q.correctAnswer===false?' on-false':'')+'"><input type="radio" name="tfCorrect'+idx+'" '+(q.correctAnswer===false?'checked':'')+' onchange="examBuilderQuestions['+idx+'].correctAnswer=false;renderExamBuilderQuestions()"> False</label></div>';
+  } else if(q.type==='match') {
+    html += cap('PAIRS (each prompt and the answer that matches it):');
+    (q.pairs||[]).forEach(function(p, r){
+      html += '<div class="q-option-row q-pair-row"><span class="q-opt-letter">'+(r+1)+'.</span><input type="text" class="form-control" value="'+escapeAttr(p.prompt)+'" placeholder="Prompt, e.g. Welding fumes" aria-label="Pair '+(r+1)+' prompt" onchange="examSetPair('+idx+','+r+',\'prompt\',this.value)"><span class="q-pair-arrow" aria-hidden="true">&rarr;</span>'
+        + '<input type="text" class="form-control" value="'+escapeAttr(p.answer)+'" placeholder="Matching answer" aria-label="Pair '+(r+1)+' answer" onchange="examSetPair('+idx+','+r+',\'answer\',this.value)"><button type="button" class="q-remove-opt" onclick="examRemovePair('+idx+','+r+')" title="Remove" aria-label="Remove pair '+(r+1)+'">&times;</button></div>';
+    });
+    html += '<button type="button" class="btn btn-sm btn-secondary" style="margin-top:6px;" onclick="examAddPair('+idx+')">+ Add pair</button>';
+    html += '<label class="q-edit-cap" for="qDis-'+idx+'" style="margin-top:12px;display:block;">EXTRA WRONG ANSWERS (optional, one per line):</label><textarea class="form-control" id="qDis-'+idx+'" rows="2" onchange="examSetDistractors('+idx+',this.value)">'+escapeHtml((q.distractors||[]).join('\n'))+'</textarea>';
+    html += '<div class="q-edit-hint">Every answer appears in every row\'s drop-down, in alphabetical order. Each row right earns its share of the marks.</div>';
+  } else if(q.type==='shortanswer') {
+    html += '<label class="q-edit-cap" for="qAcc-'+idx+'">ACCEPTED ANSWERS (one per line):</label><textarea class="form-control" id="qAcc-'+idx+'" rows="3" placeholder="flashback arrestor&#10;flashback arrester" onchange="examSetAccepted('+idx+',this.value)">'+escapeHtml((Array.isArray(q.correctAnswer)?q.correctAnswer:[]).join('\n'))+'</textarea>';
+    html += '<div class="q-edit-hint">Capitals and extra spaces do not matter. A * stands for any letters: <em>arrest*</em> accepts arrestor and arrester.</div>';
+  } else if(q.type==='numerical') {
+    html += '<div class="q-num-grid"><label>CORRECT ANSWER<input type="text" inputmode="decimal" class="form-control" value="'+escapeAttr(q.correctAnswer==null?'':q.correctAnswer)+'" onchange="examSetNumber('+idx+',\'key\',this.value)"></label>'
+      + '<label>TOLERANCE (±)<input type="text" inputmode="decimal" class="form-control" value="'+escapeAttr(q.tolerance==null?0:q.tolerance)+'" onchange="examSetNumber('+idx+',\'tolerance\',this.value)"></label>'
+      + '<label>UNIT (shown after the box)<input type="text" class="form-control" value="'+escapeAttr(q.unit||'')+'" placeholder="e.g. psi" onchange="examBuilderQuestions['+idx+'].unit=this.value.trim()"></label></div>';
+    html += '<div class="q-edit-hint">Right when the trainee\'s number is within ± the tolerance of the answer. "1,000" is read as a thousand.</div>';
+  } else if(q.type==='fill') {
+    html += cap('CORRECT ANSWER (suggested to the marker, who confirms it):');
+    html += '<input type="text" class="form-control" value="'+escapeAttr(q.correctAnswer)+'" placeholder="Type the correct answer..." onchange="examBuilderQuestions['+idx+'].correctAnswer=this.value">';
+  } else if(q.type==='short') {
+    html += cap('ESSAY — marked by an instructor. Model answer for the marker (optional):');
+    html += '<textarea class="form-control" rows="2" placeholder="(Optional) Model answer for reference..." onchange="examBuilderQuestions['+idx+'].correctAnswer=this.value">'+escapeHtml(q.correctAnswer)+'</textarea>';
+  } else if(q.type==='info') {
+    html += '<div class="q-edit-hint" style="margin:0;">No answer and no marks. Trainees see it in its place, shown as "i" in the navigation.</div>';
+  }
+  html += '</div>';
+  return html;
 }
 
 // Attribute values use the same escaper as text (see escapeHtml below).
@@ -25561,21 +25898,109 @@ function removeExamOption(qIdx,optIdx) {
   renderExamBuilderQuestions();
 }
 
+// "Add question": the type picker, like Moodle's "Choose a question type to add".
+function examOpenTypePicker() {
+  var p = document.getElementById('examTypePicker');
+  if(!p) return;
+  p.style.display = 'flex';
+  var checked = p.querySelector('input[name="examNewType"]:checked');
+  examTypePicked(checked ? checked.value : 'mcq');
+  if(checked && checked.focus) checked.focus();
+  p.onkeydown = function(ev) {
+    if(ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); examCloseTypePicker(); }
+    else if(ev.key === 'Enter' && ev.target && ev.target.name === 'examNewType') { ev.preventDefault(); examAddPickedType(); }
+  };
+}
+function examTypePicked(type) {
+  var d = document.getElementById('examTypeDesc');
+  if(d) d.innerHTML = '<strong>' + escapeHtml(examTypeLabel(type)) + '</strong><p>' + escapeHtml(EXAM_TYPE_HELP[type] || '') + '</p>';
+}
+function examCloseTypePicker() {
+  var p = document.getElementById('examTypePicker');
+  if(p) p.style.display = 'none';
+  var b = document.getElementById('examAddQuestionBtn');
+  if(b && b.focus) b.focus();
+}
+function examAddPickedType() {
+  var p = document.getElementById('examTypePicker');
+  var checked = p && p.querySelector('input[name="examNewType"]:checked');
+  var type = checked ? checked.value : 'mcq';
+  if(p) p.style.display = 'none';
+  addExamQuestion(type);
+}
+
+// ---- Step 1: settings in sections, like Moodle's "Adding a new Quiz" ----
+function examSettingsSections() { return Array.prototype.slice.call(document.querySelectorAll('#examStep1 .exam-set-section')); }
+function examSettingsSyncExpand() {
+  var secs = examSettingsSections(), b = document.getElementById('examSetExpandAll');
+  if(!b || !secs.length) return;
+  var all = secs.every(function(s){ return s.open; });
+  b.innerHTML = all ? '&#9662; Collapse all' : '&#9656; Expand all';
+  b.setAttribute('aria-expanded', all ? 'true' : 'false');
+}
+function examSettingsExpandAll() {
+  var secs = examSettingsSections();
+  var all = secs.length && secs.every(function(s){ return s.open; });
+  secs.forEach(function(s){ s.open = !all; });
+  examSettingsSyncExpand();
+}
+// General open, the rest folded — how the form opens.
+function examSettingsReset() {
+  examSettingsSections().forEach(function(s){ s.open = s.id === 'examSetGeneral'; });
+  examSettingsSyncExpand();
+}
+// "Adding a new Exam to Welding & Fabrication" / "Updating Exam: …".
+function examSettingsHeading() {
+  var h = document.getElementById('createExamModalTitle');
+  if(!h) return;
+  if(editingExamId != null) {
+    var ed = exams.find(function(e){ return e && e.id === editingExamId; });
+    h.textContent = 'Updating Exam: ' + (ed ? ed.title : '');
+  } else {
+    var c = document.getElementById('examCourse');
+    h.textContent = 'Adding a new Exam' + (c && c.value ? ' to ' + c.value : '');
+  }
+}
+// "Close the exam": the date and time are used only when switched on.
+function examCloseToggle() {
+  var on = document.getElementById('examCloseEnabled'), d = document.getElementById('examCloseDate'), t = document.getElementById('examCloseTime');
+  if(!on || !d || !t) return;
+  d.disabled = t.disabled = !on.checked;
+  if(on.checked && !d.value) {
+    // A week from the opening day, at the end of the working day.
+    var open = document.getElementById('examDate');
+    var base = CESTISCore.exams.centreTime(open && open.value, '17:00', examCentreOffset());
+    if(base != null) d.value = CESTISCore.exams.centreParts(base + 7 * 86400000, examCentreOffset()).date;
+    if(!t.value) t.value = '17:00';
+  }
+}
+
+
 function createExam() {
   var title = document.getElementById('examTitle').value.trim();
   if(!title){alert('Please enter exam title');return;}
   // Validate questions
   var hasInvalid = false;
+  var listed = CESTISCore.exams.questionNumbers(examBuilderQuestions);
   examBuilderQuestions.forEach(function(q,i){
-    if(!String(q.text||'').trim()) { alert('Question '+(i+1)+' has no text'); hasInvalid=true; }
-    if(q.type==='fill' && !String(q.correctAnswer||'').trim()) { alert('Question '+(i+1)+' needs a correct answer'); hasInvalid=true; }
+    var name = q && q.type === 'info' ? 'The information item after question ' + (listed.slice(0, i).filter(function(x){ return x !== 'i'; }).length || 'the start') : 'Question ' + listed[i];
+    if(!String(q.text||'').trim()) { alert(name+' has no text'); hasInvalid=true; }
+    if(q.type==='fill' && !String(q.correctAnswer||'').trim()) { alert(name+' needs a correct answer'); hasInvalid=true; }
   });
   if(hasInvalid) return;
-  // A multiple-choice or true/false question with no answer selected (an
-  // option deleted, an import without a key) must be keyed by the author —
-  // never marked against a guess.
+  // A question with no usable answer key (an option deleted, an import
+  // without a key, a "one or more" with nothing ticked, a matching question
+  // without its pairs, a numerical answer that is not a number) must be
+  // keyed by the author — never marked against a guess.
   var unkeyed = CESTISCore.exams.keyProblems(examBuilderQuestions);
-  if(unkeyed.length) { alert('Select the correct answer for question' + (unkeyed.length > 1 ? 's ' : ' ') + unkeyed.join(', ') + ' before saving.'); return; }
+  if(unkeyed.length) {
+    // Numbered as the list shows them (information items take no number).
+    var shown = CESTISCore.exams.questionNumbers(examBuilderQuestions);
+    var onlySingle = unkeyed.every(function(n){ var q = examBuilderQuestions[n-1]; return q && (q.type === 'mcq' || q.type === 'tf'); });
+    if(onlySingle) alert('Select the correct answer for question' + (unkeyed.length > 1 ? 's ' : ' ') + unkeyed.map(function(n){ return shown[n-1]; }).join(', ') + ' before saving.');
+    else alert('Before saving, set the answers:\n' + unkeyed.map(function(n){ return '- Question ' + shown[n-1] + ': ' + examKeyProblemText(examBuilderQuestions[n-1]); }).join('\n'));
+    return;
+  }
 
   // The exam being edited is found by its id at save time, not by a position
   // remembered when Edit was pressed (a sync in between could move it).
@@ -25592,16 +26017,35 @@ function createExam() {
   var answersRelease = relEl && relEl.value ? relEl.value : 'after-close';
   var dateVal = document.getElementById('examDate').value;
   var timeVal = document.getElementById('examTime').value;
-  var schedChanged = !editing || editing.date !== dateVal || editing.time !== timeVal || (parseInt(editing.duration)||90) !== duration;
+  // The newer settings; a form or a device without them keeps every exam as
+  // it was (all on one page, options in order, flagging on, no closing time).
+  var val = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
+  var questionsPerPage = Math.max(0, parseInt(val('examPerPage')) || 0);
+  var shuffleOptions = val('examShuffleOptions') === 'true';
+  var allowFlag = val('examAllowFlag') !== 'false';
+  var ceEl = document.getElementById('examCloseEnabled');
+  var closeOn = !!(ceEl && ceEl.checked === true);
+  var closeDate = closeOn ? val('examCloseDate') : '', closeTime = closeOn ? (val('examCloseTime') || '23:59') : '';
+  if(closeOn && !closeDate) { alert('Choose the date the exam closes, or switch "Close the exam" off.'); return; }
+  var schedChanged = !editing || editing.date !== dateVal || editing.time !== timeVal || (parseInt(editing.duration)||90) !== duration ||
+    (editing.closeDate || '') !== closeDate || (editing.closeDate ? (editing.closeTime || '23:59') : '') !== closeTime;
   // A blank date or time means "from now" (the next five minutes, Centre
   // time) — it used to mean 09:00 today, so a quiz built in the afternoon
   // was over before it was published.
   var dflt = CESTISCore.exams.defaultStart(Date.now(), off);
   if(!dateVal || !timeVal) { dateVal = dateVal || dflt.date; timeVal = timeVal || dflt.time; schedChanged = true; }
   var startMs = CESTISCore.exams.centreTime(dateVal, timeVal, off);
-  if(schedChanged && startMs != null && startMs + duration*60000 <= Date.now()) {
+  if(closeOn) {
+    var closeMs = CESTISCore.exams.centreTime(closeDate, closeTime, off);
+    if(closeMs == null || startMs == null || closeMs <= startMs) { alert('The exam must close after it opens (' + dateVal + ' ' + timeVal + ').'); return; }
+  }
+  // When this window ends: its own closing time, or `duration` after it opens.
+  var windowEnd = function() { var w = CESTISCore.exams.windowOf({ date: dateVal, time: timeVal, duration: duration, closeDate: closeDate, closeTime: closeTime }, off); return w ? w.end : null; };
+  if(schedChanged && startMs != null && windowEnd() <= Date.now()) {
     if(!confirm('That window (' + dateVal + ' ' + timeVal + ', ' + duration + ' min) has already ended, so trainees could never sit this exam.\n\nOK: open it from ' + dflt.date + ' ' + dflt.time + ' instead.\nCancel: go back and change the date.')) return;
     dateVal = dflt.date; timeVal = dflt.time; startMs = CESTISCore.exams.centreTime(dateVal, timeVal, off);
+    // A closing time now before the new opening would be ignored: drop it.
+    if(closeOn && CESTISCore.exams.centreTime(closeDate, closeTime, off) <= startMs) { closeDate = ''; closeTime = ''; closeOn = false; }
   }
   // Two exams with one title in one programme are easy to mix up.
   var legacy = CESTISCore.exams.legacyKey({ title: title, course: course });
@@ -25611,13 +26055,13 @@ function createExam() {
   if(editing) {
     var results = examResults.filter(function(r){ return r && r.examId === editing.id && !r.archived; });
     if(course !== editing.course && results.length && !confirm('This exam already has ' + results.length + ' result(s). Moving it to ' + course + ' moves those results with it. Continue?')) return;
-    var reopen = editing.status === 'completed' && schedChanged && startMs != null && startMs + duration*60000 > Date.now() &&
+    var reopen = editing.status === 'completed' && schedChanged && startMs != null && windowEnd() > Date.now() &&
       confirm('This exam is completed. Reopen it for ' + dateVal + ' ' + timeVal + '?');
     var finals = results.filter(CESTISCore.exams.isFinal);
     var regrade = (parseInt(editing.passMark)||60) !== passMark && finals.length > 0 &&
       confirm('The pass mark changed from ' + editing.passMark + '% to ' + passMark + '%.\n\nRe-decide Passed / Not passed for the ' + finals.length + ' fully marked result(s)?\n(Cancel keeps their current decision.)');
     editing.questionData = JSON.parse(JSON.stringify(examBuilderQuestions));
-    editing.questions = editing.questionData.length;
+    editing.questions = CESTISCore.exams.questionCount(editing);
     editing.shuffleQuestions = document.getElementById('examShuffle').value === 'true';
     editing.title = title;
     editing.instructions = document.getElementById('examInstructions').value;
@@ -25629,13 +26073,18 @@ function createExam() {
     editing.duration = duration;
     editing.passMark = passMark;
     editing.answersRelease = answersRelease;
+    editing.questionsPerPage = questionsPerPage;
+    editing.shuffleOptions = shuffleOptions;
+    editing.allowFlag = allowFlag;
+    if(closeOn) { editing.closeDate = closeDate; editing.closeTime = closeTime; }
+    else { delete editing.closeDate; delete editing.closeTime; }
     if(reopen) { editing.status = 'upcoming'; delete editing.activatedAt; delete editing.passRate; }
     if(regrade) {
       finals.forEach(function(r){ r.passed = Number(r.score) >= passMark; });
       if(editing.status === 'completed') { var pr = CESTISCore.exams.passRateOf(results); if(pr) editing.passRate = pr; }
     }
-    showToast('Exam updated with '+editing.questionData.length+' questions!');
-    addNotification('Exam updated: "' + editing.title + '" — ' + editing.questionData.length + ' questions', 'exam', null, ['admin','instructor']);
+    showToast('Exam updated with '+editing.questions+' questions!');
+    addNotification('Exam updated: "' + editing.title + '" — ' + editing.questions + ' questions', 'exam', null, ['admin','instructor']);
   } else {
     var creatorId = currentRole === 'instructor' && currentInstructor ? currentInstructor.id : (currentRole === 'admin' ? 'admin' : 'unknown');
     var newExam = {
@@ -25647,18 +26096,22 @@ function createExam() {
       duration: duration,
       students: 0,
       status: 'upcoming',
-      questions: examBuilderQuestions.length || 0,
+      questions: CESTISCore.exams.questionCount({ questionData: examBuilderQuestions }),
       passMark: passMark,
       questionData: JSON.parse(JSON.stringify(examBuilderQuestions)),
       shuffleQuestions: document.getElementById('examShuffle').value === 'true',
       instructions: document.getElementById('examInstructions').value,
       answersRelease: answersRelease,
+      questionsPerPage: questionsPerPage,
+      shuffleOptions: shuffleOptions,
+      allowFlag: allowFlag,
       createdBy: creatorId,
       createdByRole: currentRole || 'admin'
     };
+    if(closeOn) { newExam.closeDate = closeDate; newExam.closeTime = closeTime; }
     exams.unshift(newExam);
-    showToast('Exam "'+title+'" created with '+newExam.questionData.length+' questions!');
-    addNotification('New exam created: "' + title + '" — ' + newExam.questionData.length + ' questions', 'exam', null, ['admin','instructor']);
+    showToast('Exam "'+title+'" created with '+newExam.questions+' questions!');
+    addNotification('New exam created: "' + title + '" — ' + newExam.questions + ' questions', 'exam', null, ['admin','instructor']);
   }
 
   editingExamId = null;
@@ -25894,6 +26347,9 @@ function viewExamDetail(idx) {
     '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Questions</div><div style="font-weight:600;">'+(hasQuestions?CESTISCore.exams.questionCount(e):'None added')+'</div></div>' +
     '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Submissions</div><div style="font-weight:600;">'+resultsForExam.length+'</div></div>' +
     '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Shuffle Questions</div><div style="font-weight:600;">'+(e.shuffleQuestions?'Yes':'No')+'</div></div>' +
+    '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Shuffle Options</div><div style="font-weight:600;">'+(e.shuffleOptions?'Yes':'No')+'</div></div>' +
+    '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Questions per Page</div><div style="font-weight:600;">'+(parseInt(e.questionsPerPage)>0?escapeHtml(parseInt(e.questionsPerPage)):'All on one page')+'</div></div>' +
+    (e.closeDate?'<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Closes</div><div style="font-weight:600;">'+escapeHtml(e.closeDate)+' @ '+escapeHtml(e.closeTime||'23:59')+'</div></div>':'') +
     '<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Correct Answers Shown</div><div style="font-weight:600;">'+(e.answersRelease==='released'?'Released':e.answersRelease==='withheld'?'Never':'After the exam closes')+'</div></div>' +
     (e.passRate?'<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Pass Rate</div><div style="font-weight:600;">'+escapeHtml(e.passRate)+'</div></div>':'') +
     '</div>' +
@@ -25902,10 +26358,9 @@ function viewExamDetail(idx) {
 
   // Questions card
   if(hasQuestions) {
-    var typeLabels = {mcq:'Multiple Choice',tf:'True / False',fill:'Fill in the Blank',short:'Short Answer'};
-    var typeIcons = {mcq:'&#127313;',tf:'&#9989;',fill:'&#9999;&#65039;',short:'&#128221;'};
-    html += '<div class="card"><div class="card-header"><h3>Questions ('+e.questionData.length+')</h3>' +
-      '<span style="font-size:12px;color:var(--text-muted);">Total Points: '+e.questionData.reduce(function(a,q){return a+(q.points||1);},0)+'</span></div>';
+    var nums = CESTISCore.exams.questionNumbers(e.questionData);
+    html += '<div class="card"><div class="card-header"><h3>Questions ('+CESTISCore.exams.questionCount(e)+')</h3>' +
+      '<span style="font-size:12px;color:var(--text-muted);">Total Points: '+e.questionData.reduce(function(a,q){return a+(q && q.type==='info'?0:(q.points||1));},0)+'</span></div>';
     e.questionData.forEach(function(q, qi) {
       var correctDisplay = '';
       if(q.type==='mcq') {
@@ -25914,12 +26369,20 @@ function viewExamDetail(idx) {
         correctDisplay = q.correctAnswer === true ? 'True' : q.correctAnswer === false ? 'False' : 'Not set';
       } else if(q.type==='fill' || q.type==='short') {
         correctDisplay = q.correctAnswer || '(Manual grading)';
+      } else if(q.type==='multi') {
+        correctDisplay = Array.isArray(q.correctAnswer) && q.correctAnswer.length ? q.correctAnswer.map(function(k){ return CESTISCore.exams.optionLabel(q, k); }).join('; ') + (q.allOrNothing ? ' (all or nothing)' : '') : 'Not set';
+      } else if(q.type==='match') {
+        correctDisplay = (q.pairs||[]).map(function(p){ return (p.prompt||'?') + ' → ' + (p.answer||'?'); }).join('; ') + ((q.distractors||[]).length ? ' (extra wrong answers: ' + q.distractors.join(', ') + ')' : '');
+      } else if(q.type==='shortanswer') {
+        correctDisplay = CESTISCore.exams.acceptedAnswers(q.correctAnswer).join(' / ') || 'Not set';
+      } else if(q.type==='numerical') {
+        correctDisplay = q.correctAnswer === '' || q.correctAnswer == null ? 'Not set' : String(q.correctAnswer) + (Number(q.tolerance) ? ' ± ' + q.tolerance : '') + (q.unit ? ' ' + q.unit : '');
       }
       html += '<div style="padding:14px 16px;border-bottom:1px solid var(--border);'+(qi%2===0?'':'background:var(--bg-input);')+'">' +
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
-        '<span style="font-size:12px;font-weight:700;color:var(--accent);min-width:32px;">Q'+(qi+1)+'</span>' +
-        '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--blue-dim);color:var(--blue);">'+escapeHtml(typeLabels[q.type]||q.type)+'</span>' +
-        '<span style="font-size:11px;color:var(--text-muted);margin-left:auto;">'+escapeHtml(q.points||1)+' pt'+(q.points>1?'s':'')+'</span>' +
+        '<span style="font-size:12px;font-weight:700;color:var(--accent);min-width:32px;">'+(q.type==='info'?'i':'Q'+nums[qi])+'</span>' +
+        '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--blue-dim);color:var(--blue);">'+escapeHtml(examTypeLabel(q.type))+'</span>' +
+        (q.type==='info' ? '' : '<span style="font-size:11px;color:var(--text-muted);margin-left:auto;">'+escapeHtml(q.points||1)+' pt'+(q.points>1?'s':'')+'</span>') +
         '</div>' +
         '<div style="font-size:13.5px;margin-bottom:8px;">'+escapeHtml(q.text)+'</div>';
       if(q.type==='mcq' && q.options) {
@@ -25929,7 +26392,7 @@ function viewExamDetail(idx) {
           html += '<div style="font-size:12px;padding:4px 8px;border-radius:4px;'+(isCorrect?'background:var(--green-dim);color:var(--green);font-weight:600;':'color:var(--text-secondary);')+'">'+String.fromCharCode(65+oi)+'. '+escapeHtml(opt)+(isCorrect?' &#10003;':'')+'</div>';
         });
         html += '</div>';
-      } else {
+      } else if(q.type!=='info') {
         html += '<div style="font-size:12px;color:var(--green);"><strong>Answer:</strong> '+escapeHtml(correctDisplay)+'</div>';
       }
       html += '</div>';
@@ -26026,7 +26489,18 @@ function editExam(idx) {
   document.getElementById('examInstructions').value = e.instructions || '';
   var rel = document.getElementById('examAnswersRelease');
   if(rel) rel.value = e.answersRelease || 'after-close';
+  // The newer settings, with the defaults every older exam has.
+  var set = function(id, v) { var el = document.getElementById(id); if(el) el.value = v; };
+  set('examPerPage', String(parseInt(e.questionsPerPage) || 0));
+  set('examShuffleOptions', e.shuffleOptions ? 'true' : 'false');
+  set('examAllowFlag', e.allowFlag === false ? 'false' : 'true');
+  var ce = document.getElementById('examCloseEnabled');
+  if(ce) ce.checked = !!e.closeDate;
+  set('examCloseDate', e.closeDate || '');
+  set('examCloseTime', e.closeDate ? (e.closeTime || '23:59') : '');
+  examCloseToggle();
   openModal('createExamModal');
+  examSettingsReset();
   goToExamStep1();
 }
 
