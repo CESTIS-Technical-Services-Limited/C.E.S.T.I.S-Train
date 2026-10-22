@@ -21,8 +21,12 @@
        record beats a placeholder whatever the dates, keeping the
        placeholder-only trainees and honouring the fee page's deletion list;
      - the fee page's own Drive merge (feeMergeCloudData) does the same;
-     - the dashboard does not mint placeholders into a fee roll this device has
-       never held;
+     - the master snapshot's reconcile lets the real record take the
+       placeholder's place too (it used to keep this device's copy on every
+       id clash), and never the other way round;
+     - the dashboard's placeholders are rank 0, so they never stand against a
+       real record (it still mirrors a trainee into a fee roll this PC does
+       not hold yet — the office PC's first enrolment needs that);
      - editing a record on the fee page makes it a real record.
 
    Run: node tests/fee-placeholder-merge.test.js */
@@ -138,7 +142,21 @@ console.log('The fee page\'s own backup merge (feeMergeCloudData) keeps the real
   assert(rg.tuitionFee === 30000 && rg.nationalId === 'NID5009' && rg.skillArea === 'WELDING L2', 'the Centre\'s record replaces the placeholder (got ' + JSON.stringify(rg) + ')');
 }
 
-console.log('The dashboard mints no placeholders into a fee roll this PC has never held');
+console.log('The master snapshot lets the real record take the placeholder\'s place');
+{
+  const snap = { store: { cestiSchoolFeeStudents: JSON.stringify([REAL, OTHER]) } };
+  let res = Core.reconcileSnapshot(snap, { cestiSchoolFeeStudents: JSON.stringify([PLACEHOLDER, NEW_HERE]) });
+  const roll = JSON.parse(res.store.cestiSchoolFeeStudents);
+  const rg = roll.find(r => r.id === 'STU-rg');
+  assert(rg && rg.tuitionFee === 30000 && rg.nationalId === 'NID5009' && rg.address === '10 Fee Lane',
+    'the Centre\'s record replaces the new PC\'s placeholder (got ' + JSON.stringify(rg) + ')');
+  assertEq(rg && rg.updatedAt, undefined, 'without taking the placeholder\'s date');
+  assert(roll.some(r => r.id === 'STU-ab') && roll.some(r => r.id === 'STU-new'), 'the other real record is added and the placeholder-only trainee kept');
+  res = Core.reconcileSnapshot({ store: { cestiSchoolFeeStudents: JSON.stringify([PLACEHOLDER]) } }, { cestiSchoolFeeStudents: JSON.stringify([REAL]) });
+  assertEq(JSON.parse(res.store.cestiSchoolFeeStudents)[0].tuitionFee, 30000, 'and a placeholder in a snapshot never replaces a real record here');
+}
+
+console.log('The dashboard\'s placeholders are rank 0, and it still mirrors a new trainee');
 {
   const backing = {};
   const store = { getItem: k => (k in backing ? backing[k] : null), setItem: (k, v) => { backing[k] = String(v); } };
@@ -150,10 +168,9 @@ console.log('The dashboard mints no placeholders into a fee roll this PC has nev
   vm.runInContext(['function readArr(key){ try { var r = CESTISStore.getItem(key); var a = r ? JSON.parse(r) : []; return Array.isArray(a) ? a : []; } catch(e){ return []; } }',
     extractFunction(INDEX, 'broadcastStudentsToFeeFrames'), extractFunction(INDEX, 'syncStudentsToSchoolFee')].join('\n'), sb);
   vm.runInContext('syncStudentsToSchoolFee()', sb);
-  assertEq(backing.cestiSchoolFeeStudents, undefined, 'a new PC (no fee roll held yet) writes no placeholder roll');
-  backing.cestiSchoolFeeStudents = '[]';
-  vm.runInContext('syncStudentsToSchoolFee()', sb);
-  assertEq(JSON.parse(backing.cestiSchoolFeeStudents).length, 1, 'a PC that holds the fee roll (even empty) still mirrors the trainee in');
+  const minted = JSON.parse(backing.cestiSchoolFeeStudents || '[]');
+  assertEq(minted.length, 1, 'a PC with no fee roll yet mirrors the trainee in');
+  assertEq(Core.feeRecordRank(minted[0]), 0, 'as a placeholder, which any real record outranks');
   backing.cestiSchoolFeeStudents = JSON.stringify([REAL]);
   vm.runInContext('syncStudentsToSchoolFee()', sb);
   const roll = JSON.parse(backing.cestiSchoolFeeStudents);

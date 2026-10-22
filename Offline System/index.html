@@ -52344,13 +52344,11 @@ function ttRefreshOnShow(){
     try {
       if (typeof students === 'undefined' || !Array.isArray(students)) return;
       var fee = readArr('cestiSchoolFeeStudents');
-      // A fee roll this device has never held (a new PC whose dashboard has the
-      // trainee roll but not yet the fee roll) gets no placeholders: minted now,
-      // they were dated newer than the Centre's real fee records and kept on
-      // this PC instead of them — every tuition $0, every ID and address blank —
-      // and went up in its next master snapshot. The fee page seeds itself from
-      // the roll when it opens, once the real fee roll is here.
-      var feeHeld = CESTISStore.getItem('cestiSchoolFeeStudents') != null;
+      // A record minted here is a PLACEHOLDER (needsFeeDetails, nothing typed,
+      // nothing paid: CESTISCore.feeRecordRank 0). On a new PC that has the
+      // trainee roll before the fee roll it is minted before the Centre's real
+      // record arrives — and every merge (page cloud, the fee page's own, the
+      // master snapshot) lets the real record take its place, whatever the dates.
       var profiles = (typeof studentProfiles !== 'undefined' && studentProfiles) ? studentProfiles : {};
       var tombstones = readArr('cestiSchoolFeeDeletedLmsIds'); // lms ids whose fee twin was deleted in School Fee
       var tombstoned = new Set(tombstones);                    // looked up once per student, not scanned
@@ -52406,7 +52404,6 @@ function ttRefreshOnShow(){
         // Fee/personal fields are left blank for the user to complete there.
         // Added through the index (which appends to `fee` itself) so the rest of
         // this pass sees it and a name listed twice is not mirrored twice.
-        if (!feeHeld) return;
         feeTwins.add({
           id: vs.id,
           lmsId: vs.id,

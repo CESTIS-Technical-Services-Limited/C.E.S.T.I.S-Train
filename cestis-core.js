@@ -1907,10 +1907,36 @@
         if (r.id != null && !(r.id in byId)) byId[r.id] = r;
       });
       var added = 0;
+      /* A collection that ranks its records (the fee roll: Core.feeRecordRank)
+         lets the snapshot's copy take the place of this device's when it ranks
+         higher — a real fee record over the placeholder a new PC minted before
+         the real one arrived. Keeping the local copy on every id clash kept
+         the placeholder (tuition $0, every ID and address blank). The local
+         copy only fills the winner's blanks, never with its placeholder flags. */
+      var rankSpec = Core.pageCloud && Core.pageCloud.recordSpec ? Core.pageCloud.recordSpec(key) : null;
+      var rankOf = rankSpec && typeof rankSpec.rank === 'function' ? rankSpec.rank : null;
+      var outranked = function (r) {
+        var here = byId[r.id];
+        if (!rankOf || !here || rankOf(r) <= rankOf(here)) return false;
+        var win = JSON.parse(JSON.stringify(r)), drop = { updatedAt: true };   // its date is not the winner's
+        (rankSpec.rankDrop || []).forEach(function (f) { drop[f] = true; });
+        Object.keys(here).forEach(function (f) {
+          if (drop[f]) return;
+          var v = win[f];
+          if ((v === undefined || v === null || v === '') && here[f] !== undefined && here[f] !== null && here[f] !== '') win[f] = here[f];
+        });
+        var at = merged.indexOf(here);
+        if (at !== -1) merged[at] = win;
+        byId[r.id] = win;
+        return true;
+      };
       snapArr.forEach(function (r) {
         if (!r || r.id == null) return;
         if (isStudents && Core.isStudentTombstoned(r, deletedStudents, deletedStudentAt)) return; // honor tombstone on add
-        if (r.id in byId) return;                        // this device already has it
+        if (r.id in byId) {                              // this device already has it —
+          if (!gone(key, r) && outranked(r)) added++;    // unless the snapshot's copy outranks it
+          return;
+        }
         if (gone(key, r)) return;                        // deleted since — see above
         byId[r.id] = r; merged.push(r); added++;
       });
