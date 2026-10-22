@@ -1717,7 +1717,7 @@
     return true;
   };
   var DEVICE_ONLY_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
-    'cestisAttendanceCurrentUser', 'cestisTimeDarkMode', 'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
+    'cestisAttendanceCurrentUser', 'cestisTimeDarkMode', 'cestisTheme', 'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
     'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
     // "this device holds work not yet uploaded" — true of THIS device only.
     'cestisPendingUpload', 'cestisUnsyncedOnSignOut'];
