@@ -42635,12 +42635,13 @@ function renderCertPage2OnBg(bgImg, student, tpl) {
   ctx.font = 'bold ' + Math.round(headerSize*0.8) + 'px Georgia, serif';
   ctx.fillText('Programme Code: ' + progCode + ' | Version ' + version + ' | Developed: ' + devDate, headerX, headerY + headerSize*1.4);
 
-  // Two-column content: modules (left) and competencies (right)
-  var colLeft = contentX;
-  var colMid = compHeadX;
-  var colWidth = w * 0.44;
-  var lineH = Math.round(contentSize * 1.3);
-  var subLineH = Math.round(contentSize * 1.1);
+  // The two lists (units on the left, competencies on the right, each in two
+  // columns of their own), laid out by the same rule the template editor previews.
+  var lists = certPage2Lists(ctx, w, h, {
+    modules: modules, competencies: competencies, contentX: contentX, contentSize: contentSize,
+    modHeadY: modHeadY, modHeadSize: modHeadSize, compHeadX: compHeadX, compHeadY: compHeadY, compHeadSize: compHeadSize,
+    specsY: specsY, specsSize: specsSize, footerY: footerY, footerSize: footerSize, tpl: tpl
+  });
 
   ctx.textAlign = 'left';
 
@@ -42656,49 +42657,8 @@ function renderCertPage2OnBg(bgImg, student, tpl) {
   ctx.moveTo(modHeadX + 10, modHeadY + 4);
   ctx.lineTo(modHeadX + 10 + modHeadingWidth, modHeadY + 4);
   ctx.stroke();
-  var yMod = modHeadY + Math.round(modHeadSize * 1.4) + 8;
 
-  var bulletPrefix = '  \u2022  ';
-
-  // Split modules into two sub-columns for better space usage
-  var modSubColGap = 10;
-  var modSubColWidth = Math.floor((colMid - colLeft - modSubColGap) / 2);
-  var modCol1X = colLeft;
-  var modCol2X = colLeft + modSubColWidth + modSubColGap;
-  var modHalf = Math.ceil(modules.length / 2);
-  var modCol1 = modules.slice(0, modHalf);
-  var modCol2 = modules.slice(modHalf);
-
-  // Render a sub-column of modules and return the final Y position
-  function renderModSubCol(mods, startX, startY, maxW) {
-    var y = startY;
-    mods.forEach(function(mod) {
-      ctx.font = 'bold ' + Math.round(contentSize*0.85) + 'px Arial, sans-serif';
-      ctx.fillStyle = '#2A7B88';
-      var modTitle = '\u2611 ' + mod.name + ' ' + (mod.contactHours || '') + ' Contact Hours';
-      var modLines = wrapText(ctx, modTitle, maxW - 20);
-      modLines.forEach(function(line) {
-        ctx.fillText(line, startX + 10, y);
-        y += lineH;
-      });
-      (mod.topics || []).forEach(function(topic) {
-        ctx.font = Math.round(contentSize*0.77) + 'px Arial, sans-serif';
-        ctx.fillStyle = '#333';
-        var bulletW = ctx.measureText(bulletPrefix).width;
-        var topicLines = wrapText(ctx, topic, maxW - 30 - bulletW);
-        topicLines.forEach(function(line) {
-          ctx.fillText(bulletPrefix + line, startX + 20, y);
-          y += subLineH;
-        });
-      });
-      y += 4;
-    });
-    return y;
-  }
-
-  var yModCol1 = renderModSubCol(modCol1, modCol1X, yMod, modSubColWidth);
-  var yModCol2 = renderModSubCol(modCol2, modCol2X, yMod, modSubColWidth);
-  yMod = Math.max(yModCol1, yModCol2);
+  certDrawListLines(ctx, lists.units.lines);
 
   // COMPETENCIES heading (independently positioned)
   ctx.font = 'bold ' + compHeadSize + 'px Arial, sans-serif';
@@ -42712,25 +42672,11 @@ function renderCertPage2OnBg(bgImg, student, tpl) {
   ctx.moveTo(compHeadX + 10, compHeadY + 4);
   ctx.lineTo(compHeadX + 10 + compHeadingWidth, compHeadY + 4);
   ctx.stroke();
-  var yComp = compHeadY + Math.round(compHeadSize * 1.4) + 8;
 
-  competencies.forEach(function(cat) {
-    ctx.font = 'bold ' + Math.round(contentSize*0.85) + 'px Arial, sans-serif';
-    ctx.fillStyle = '#1B2A4A';
-    ctx.fillText(cat.category + ':', colMid + 10, yComp);
-    yComp += lineH;
-    (cat.items || []).forEach(function(item) {
-      ctx.font = Math.round(contentSize*0.77) + 'px Arial, sans-serif';
-      ctx.fillStyle = '#333';
-      var compBulletW = ctx.measureText(bulletPrefix).width;
-      var lines = wrapText(ctx, item, w - colMid - 30 - compBulletW);
-      lines.forEach(function(line) {
-        ctx.fillText(bulletPrefix + line, colMid + 20, yComp);
-        yComp += subLineH;
-      });
-    });
-    yComp += 6;
-  });
+  // The competencies fill their first column and carry on at the top of the
+  // second, beside it — never past the frame or into the specifications.
+  certDrawListLines(ctx, lists.competencies.lines);
+  if (lists.hidden) console.warn('[Cert] page 2: ' + lists.hidden + ' list entr' + (lists.hidden === 1 ? 'y does' : 'ies do') + ' not fit even at the smallest print size — shorten the wording or give the lists more room in the template editor.');
 
   // PROGRAMME SPECIFICATIONS
   ctx.textAlign = 'center';
@@ -42802,6 +42748,98 @@ function wrapText(ctx, text, maxWidth) {
   });
   if(currentLine) lines.push(currentLine);
   return lines.length ? lines : [text];
+}
+
+// Where the background's own frame is, seen from inside: along one row and
+// one column, the first light pixel in from each edge (the frame and the
+// page beyond it are dark; the paper is light). The whole page when the
+// canvas cannot be read or the background has no frame.
+function certPageInnerBox(ctx, w, h, x, y) {
+  var box = { left: 0, right: w, top: 0, bottom: h };
+  try {
+    x = Math.max(0, Math.min(w - 1, Math.round(x))); y = Math.max(0, Math.min(h - 1, Math.round(y)));
+    var light = function (d, i) { return d[i + 3] > 0 && (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) > 170; };
+    var row = ctx.getImageData(0, y, w, 1).data, col = ctx.getImageData(x, 0, 1, h).data;
+    if (!row || !col || row.length !== w * 4 || col.length !== h * 4) return box;
+    var i;
+    for (i = 0; i < w; i++) { if (light(row, i * 4)) { box.left = i; break; } }
+    for (i = w - 1; i >= 0; i--) { if (light(row, i * 4)) { box.right = i + 1; break; } }
+    for (i = 0; i < h; i++) { if (light(col, i * 4)) { box.top = i; break; } }
+    for (i = h - 1; i >= 0; i--) { if (light(col, i * 4)) { box.bottom = i + 1; break; } }
+  } catch (e) {}
+  return box;
+}
+
+// Page 2's two lists, laid out — for the certificate and for the template
+// editor's preview alike, so what the administrator sees is what prints.
+// The units (clusters/modules) share their two columns so both end level, a
+// cluster kept whole; the competencies fill their first column and carry on
+// at the top of the second, beside it. Each column wraps at its OWN right
+// edge; the right-hand list stops as far in from the page's right edge as the
+// units start from its left (and inside the frame); both stop above the
+// Programme Specifications. A list too long for its columns brings BOTH lists
+// down a size at a time, to small print and no further (CESTISCore.certs.
+// layoutColumns). Call it once the background is drawn: it reads the frame.
+function certPage2Lists(ctx, w, h, p) {
+  var size = p.contentSize || 13;
+  var margin = Math.max(6, Math.round(h * 0.01));
+  var top = Math.min(p.modHeadY, p.compHeadY);
+  var under = function (y) { return y > top; };
+  var obstacles = [];
+  if (under(p.specsY - p.specsSize)) obstacles.push(p.specsY - p.specsSize);
+  if (under(p.footerY - p.footerSize)) obstacles.push(p.footerY - p.footerSize);
+  var inner = certPageInnerBox(ctx, w, h, w / 2, (top + Math.min.apply(null, obstacles.concat([h]))) / 2);
+  obstacles.push(inner.bottom - margin);
+  var lowest = Math.min.apply(null, obstacles) - Math.max(4, Math.round(size * 0.6));
+  // Text runs from 10px inside a column's left edge to 10px inside its right.
+  var leftX = Math.max(p.contentX, inner.left + margin - 10);
+  var rightEdge = Math.min(w - leftX, inner.right - margin + 10);
+  var leftBox = { x: leftX, width: Math.max(40, p.compHeadX - leftX), columns: 2, gap: 10, padRight: 10,
+    y: p.modHeadY + Math.round(p.modHeadSize * 1.4) + 8 };
+  var rightBox = { x: p.compHeadX, width: Math.max(40, rightEdge - p.compHeadX), columns: 2, gap: 10, padRight: 10,
+    y: p.compHeadY + Math.round(p.compHeadSize * 1.4) + 8 };
+  // The validation QR square (bottom left) is no place for a unit either.
+  var qrLowest = lowest;
+  try {
+    var qg = certQrGeometry(p.tpl || {}, w, h, null);
+    var qrTop = qg.y - Math.round(qg.size * 0.3);
+    if (qg.x < leftBox.x + leftBox.width && qrTop > leftBox.y) qrLowest = Math.min(lowest, qrTop - Math.max(4, Math.round(size * 0.6)));
+  } catch (e) {}
+  leftBox.bottom = qrLowest; rightBox.bottom = lowest;
+
+  var units = [], comps = [];
+  (p.modules || []).forEach(function (mod) {
+    if (!mod) return;
+    units.push({ text: (mod.name || '') + ' ' + (mod.contactHours || '') + ' Contact Hours', style: 'head', marker: '\u2611 ' });
+    (mod.topics || []).forEach(function (t) { units.push({ text: t, style: 'item' }); });
+  });
+  (p.competencies || []).forEach(function (cat) {
+    if (!cat) return;
+    comps.push({ text: (cat.category || '') + ':', style: 'head' });
+    (cat.items || []).forEach(function (t) { comps.push({ text: t, style: 'item' }); });
+  });
+  var cache = {};
+  var measure = function (text, font) {
+    var k = font + '\u0001' + text;
+    if (!(k in cache)) { ctx.font = font; cache[k] = ctx.measureText(text).width; }
+    return cache[k];
+  };
+  var minSize = CESTISCore.certs.listMinSize(size, w, h);
+  var item = { color: p.color || '#333' };
+  var out = CESTISCore.certs.layoutColumnsShared([
+    { entries: units, box: leftBox, opts: { size: size, minSize: minSize, mode: 'balance', keepGroups: true, groupGap: 4,
+      styles: { head: { color: p.color || '#2A7B88' }, item: item } } },
+    { entries: comps, box: rightBox, opts: { size: size, minSize: minSize, mode: 'fill', groupGap: 6,
+      styles: { head: { color: p.color || '#1B2A4A' }, item: item } } }
+  ], measure);
+  return { units: out[0], competencies: out[1], leftBox: leftBox, rightBox: rightBox, inner: inner,
+    size: out[0].size, hidden: out[0].hidden + out[1].hidden };
+}
+function certDrawListLines(ctx, lines) {
+  ctx.save();
+  ctx.textAlign = 'left';
+  (lines || []).forEach(function (l) { ctx.font = l.font; ctx.fillStyle = l.color || '#333'; ctx.fillText(l.text, l.x, l.y); });
+  ctx.restore();
 }
 
 // ---- Image upload preview helper ----
@@ -42936,6 +42974,30 @@ function updateCertLivePreviewP2() {
   img.src = bgSrc;
 }
 
+// What page 2 would print from the editor as it stands: the units and
+// competencies typed in (competencies derived from the units when none are,
+// as the certificate does), or a sample of each while both are empty.
+function _certEditorPage2Content() {
+  var modules = [], competencies = [];
+  document.querySelectorAll('#ctplModulesContainer .cert-tpl-module').forEach(function(div) {
+    var name = (div.querySelector('.ctpl-mod-name') || {}).value || '';
+    var topics = ((div.querySelector('.ctpl-mod-topics') || {}).value || '').split('\n').map(function(t){ return t.trim(); }).filter(Boolean);
+    if(name.trim()) modules.push({ name: name.trim(), contactHours: parseInt((div.querySelector('.ctpl-mod-hours') || {}).value) || 0, topics: topics });
+  });
+  document.querySelectorAll('#ctplCompetenciesContainer .cert-tpl-comp').forEach(function(div) {
+    var cat = (div.querySelector('.ctpl-comp-cat') || {}).value || '';
+    var items = ((div.querySelector('.ctpl-comp-items') || {}).value || '').split('\n').map(function(t){ return t.trim(); }).filter(Boolean);
+    if(cat.trim()) competencies.push({ category: cat.trim(), items: items });
+  });
+  var courseType = (document.getElementById('ctplCourseType') || {}).value;
+  if(!modules.length && !competencies.length) {
+    modules = [{ name: 'Sample ' + CESTISCore.certTemplate.unitLabel(courseType), contactHours: 20, topics: ['Sample topic 1', 'Sample topic 2'] }];
+    competencies = [{ category: 'Sample Category', items: ['Sample competency item'] }];
+  }
+  var c = CESTISCore.certTemplate.page2Content({ modules: modules, competencies: competencies, courseType: courseType });
+  return { modules: c.modules, competencies: c.competencies };
+}
+
 function _renderCertLivePreviewP2() {
   var canvas = document.getElementById('certLivePreviewCanvasP2');
   if(!canvas || !_certLivePreviewImgP2) return;
@@ -42982,20 +43044,41 @@ function _renderCertLivePreviewP2() {
   ctx.beginPath(); ctx.moveTo(headerX,0); ctx.lineTo(headerX,h); ctx.stroke(); ctx.setLineDash([]);
   canvas._hitZones.push({id:'header', x:headerX, y:headerY, xInput:'ctplP2HeaderX', yInput:'ctplP2HeaderY', r:headerSize*8});
 
-  // --- Content (green) - sample module/competency items ---
+  // --- Content (green) - this template's own units and competencies, laid
+  // out exactly as the certificate lays them out (certPage2Lists), with the
+  // columns outlined so the administrator can see where each list may run.
   ctx.textAlign = 'left';
-  var modContentStartY = modHeadY + Math.round(modHeadSize * 1.4) + 8;
-  ctx.font = 'bold ' + Math.round(contentSize*0.85) + 'px Arial, sans-serif';
-  ctx.fillStyle = 'rgba(80,200,80,0.9)';
-  ctx.fillText('\u2611 Sample ' + CESTISCore.certTemplate.unitLabel((document.getElementById('ctplCourseType')||{}).value) + ' - 20 Contact Hours', contentX + 10, modContentStartY);
-  ctx.font = Math.round(contentSize*0.77) + 'px Arial, sans-serif';
-  ctx.fillText('  \u2022  Sample topic 1', contentX + 20, modContentStartY + contentSize*1.3);
-  ctx.fillText('  \u2022  Sample topic 2', contentX + 20, modContentStartY + contentSize*2.3);
-  var compContentStartY = compHeadY + Math.round(compHeadSize * 1.4) + 8;
-  ctx.font = 'bold ' + Math.round(contentSize*0.85) + 'px Arial, sans-serif';
-  ctx.fillText('Sample Category:', compHeadX + 10, compContentStartY);
-  ctx.font = Math.round(contentSize*0.77) + 'px Arial, sans-serif';
-  ctx.fillText('  \u2022  Sample competency item', compHeadX + 20, compContentStartY + contentSize*1.3);
+  var _ed = _certEditorPage2Content();
+  var _qrTpl = { textPositions: { p2QrX: _cpv('ctplP2QrX',CERT_QR_DEFAULTS.x), p2QrY: _cpv('ctplP2QrY',CERT_QR_DEFAULTS.y), p2QrSize: _cpv('ctplP2QrSize',CERT_QR_DEFAULTS.size) } };
+  var _lists = certPage2Lists(ctx, w, h, {
+    modules: _ed.modules, competencies: _ed.competencies, contentX: contentX, contentSize: contentSize,
+    modHeadY: modHeadY, modHeadSize: modHeadSize, compHeadX: compHeadX, compHeadY: compHeadY, compHeadSize: compHeadSize,
+    specsY: specsY, specsSize: specsSize, footerY: footerY, footerSize: footerSize, tpl: _qrTpl, color: 'rgba(80,200,80,0.9)'
+  });
+  ctx.save();
+  ctx.strokeStyle = 'rgba(80,200,80,0.35)'; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+  [_lists.leftBox, _lists.rightBox].forEach(function(b) {
+    var colW = (b.width - b.gap) / 2, top = b.y - Math.round(contentSize * 0.9);
+    [0, 1].forEach(function(c) { ctx.strokeRect(b.x + c * (colW + b.gap), top, colW, b.bottom - top + Math.round(contentSize * 0.4)); });
+  });
+  ctx.restore();
+  certDrawListLines(ctx, _lists.units.lines);
+  certDrawListLines(ctx, _lists.competencies.lines);
+  if (_lists.hidden || _lists.size < contentSize) {
+    // Say so when the lists had to come down a size, or still do not fit.
+    var _note = _lists.hidden
+      ? _lists.hidden + ' list line(s) do not fit even in small print \u2014 shorten the wording, or give the lists more room'
+      : 'The lists print at ' + (Math.round(_lists.size * 10) / 10) + 'px (not ' + contentSize + 'px) so that they fit their columns';
+    ctx.save();
+    ctx.font = 'bold ' + Math.max(11, Math.round(contentSize * 0.9)) + 'px Arial, sans-serif';
+    var _nw = ctx.measureText(_note).width, _nf = Math.max(11, Math.round(contentSize * 0.9));
+    var _ny = Math.min(modHeadY, compHeadY) - modHeadSize - 10;
+    ctx.fillStyle = 'rgba(20,20,30,0.75)';
+    ctx.fillRect(_lists.leftBox.x + 4, _ny - _nf - 3, _nw + 12, _nf + 8);
+    ctx.fillStyle = _lists.hidden ? 'rgba(255,110,110,1)' : 'rgba(120,230,120,1)';
+    ctx.fillText(_note, _lists.leftBox.x + 10, _ny);
+    ctx.restore();
+  }
   ctx.strokeStyle = 'rgba(80,200,80,0.4)'; ctx.lineWidth = 1; ctx.setLineDash([6,4]);
   ctx.beginPath(); ctx.moveTo(0,contentY); ctx.lineTo(w,contentY); ctx.stroke(); ctx.setLineDash([]);
   canvas._hitZones.push({id:'content', x:contentX, y:contentY, xInput:'ctplP2ContentX', yInput:'ctplP2ContentY', r:contentSize*8});
@@ -43444,7 +43527,10 @@ function openCertTemplateEditor() {
   document.getElementById('ctplP2HeaderX').value = pos.p2HeaderX || 50;
   document.getElementById('ctplP2HeaderY').value = pos.p2HeaderY || 18;
   document.getElementById('ctplP2HeaderSize').value = pos.p2HeaderSize || 14;
-  document.getElementById('ctplP2ContentX').value = pos.p2ContentX || 50;
+  // The units' left edge: 4%, as the certificate itself has always defaulted
+  // to (50 here put the whole units list into a sliver beside the
+  // competencies the first time a template was saved).
+  document.getElementById('ctplP2ContentX').value = pos.p2ContentX || 4;
   document.getElementById('ctplP2ContentY').value = pos.p2ContentY || 25;
   document.getElementById('ctplP2ContentSize').value = pos.p2ContentSize || 11;
   document.getElementById('ctplP2ModHeadX').value = pos.p2ModHeadX || 4;
@@ -43506,9 +43592,17 @@ function addCertTemplateModule(data) {
   div.innerHTML = '<div style="display:flex;gap:12px;margin-bottom:8px;">' +
     '<input type="text" class="ctpl-mod-name" placeholder="Module name" value="' + (data ? (data.name || '').replace(/"/g, '&quot;') : '') + '" style="flex:1;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:13px;">' +
     '<input type="number" class="ctpl-mod-hours" placeholder="Hours" value="' + (data ? data.contactHours || '' : '') + '" style="width:80px;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:13px;">' +
-    '<button class="btn btn-sm" style="background:var(--red);color:#fff;" onclick="document.getElementById(\'ctplMod_' + idx + '\').remove()">X</button></div>' +
+    '<button class="btn btn-sm" style="background:var(--red);color:#fff;" onclick="document.getElementById(\'ctplMod_' + idx + '\').remove();_certP2PreviewSoon()">X</button></div>' +
     '<textarea class="ctpl-mod-topics" placeholder="Topics (one per line)" rows="3" style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:12px;resize:vertical;">' + (data && data.topics ? data.topics.join('\n') : '') + '</textarea>';
   container.appendChild(div);
+  div.addEventListener('input', _certP2PreviewSoon);
+}
+// The page-2 preview draws the units and competencies being typed, so it
+// follows the typing (a moment after it, not on every key).
+var _certP2PreviewTimer = null;
+function _certP2PreviewSoon() {
+  clearTimeout(_certP2PreviewTimer);
+  _certP2PreviewTimer = setTimeout(function() { try { updateCertLivePreviewP2(); } catch(e) {} }, 250);
 }
 
 // Explain, above the competency list, what Page 2 will actually print — and
@@ -43560,6 +43654,7 @@ function fillCertCompetenciesFromUnits() {
   document.getElementById('ctplCompetenciesContainer').innerHTML = '';
   groups.forEach(function(g) { addCertTemplateCompetency(g); });
   renderCertCompetencyHint({ competencies: groups, modules: modules, courseType: courseType });
+  _certP2PreviewSoon();
   showToast('Filled ' + groups.length + ' competency area(s) — reword them as what the graduate can do');
 }
 
@@ -43573,9 +43668,10 @@ function addCertTemplateCompetency(data) {
   div.style.cssText = 'background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;';
   div.innerHTML = '<div style="display:flex;gap:12px;margin-bottom:8px;">' +
     '<input type="text" class="ctpl-comp-cat" placeholder="Category name (e.g. System Knowledge)" value="' + (data ? (data.category || '').replace(/"/g, '&quot;') : '') + '" style="flex:1;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:13px;">' +
-    '<button class="btn btn-sm" style="background:var(--red);color:#fff;" onclick="document.getElementById(\'ctplComp_' + idx + '\').remove()">X</button></div>' +
+    '<button class="btn btn-sm" style="background:var(--red);color:#fff;" onclick="document.getElementById(\'ctplComp_' + idx + '\').remove();_certP2PreviewSoon()">X</button></div>' +
     '<textarea class="ctpl-comp-items" placeholder="Competency items (one per line)" rows="3" style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:12px;resize:vertical;">' + (data && data.items ? data.items.join('\n') : '') + '</textarea>';
   container.appendChild(div);
+  div.addEventListener('input', _certP2PreviewSoon);
 }
 
 function saveCertTemplate() {
