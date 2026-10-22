@@ -43597,7 +43597,7 @@ function _certSigningStore(mode) {
     req.onerror = function () { reject(req.error || new Error('Could not open the signing key store.')); };
   });
 }
-function certSigningKeyLoad() {
+function _certSigningKeyRead() {
   return _certSigningStore('readonly').then(function (os) {
     return new Promise(function (resolve) {
       var r = os.get('current');
@@ -43605,6 +43605,26 @@ function certSigningKeyLoad() {
       r.onerror = function () { resolve(null); };
     });
   }).catch(function () { return null; });
+}
+/* The key is kept LOCKED: a CryptoKey that signs but whose bytes can never be
+   read back (CESTISCore.certs.sig.lockKey). It used to be kept as a plain JWK,
+   which any script that ever ran in an administrator's session could copy and
+   use to sign certificates for ever. A key stored the old way gains its locked
+   copy here the first time it is loaded — checked to sign for its own public
+   key before it is saved — and keeps its JWK only until the administrator
+   downloads the one backup (certSigningExportBackup), never longer. */
+function certSigningKeyLoad() {
+  return _certSigningKeyRead().then(function (key) {
+    var S = CESTISCore.certs.sig;
+    if (!key || !key.privateJwk || !key.privateJwk.d || !S.lockKey || S.isLockedKey(key.privateKey)) return key;
+    return S.lockKey(key.privateJwk).then(function (locked) {
+      return S.checkKey(locked, key.publicJwk).then(function (ok) {
+        if (!ok) return key;                       // never trade a working key for one that does not sign
+        key.privateKey = locked;
+        return certSigningKeySave(key).then(function () { return key; }, function () { return key; });
+      });
+    }).catch(function () { return key; });
+  });
 }
 function certSigningKeySave(key) {
   return _certSigningStore('readwrite').then(function (os) {
@@ -43628,22 +43648,52 @@ function certSigningCreateKey() {
     if (have && !confirm('This device already has signing key ' + have.kid + '. A new key replaces it here (certificates it signed stay valid while its public key stays published). Continue?')) return null;
     if (!have && !confirm('Create the Centre’s certificate signing key on this device?\n\nThe private key stays on this device only. Afterwards: download the private-key backup and keep it somewhere safe and offline, and publish the public key (cert-keys.json).')) return null;
     return CESTISCore.certs.sig.generateKey('Created by ' + certActorName() + ' on ' + new Date().toLocaleDateString()).then(function (key) {
-      return certSigningKeySave(key).then(function () { return key; });
+      return CESTISCore.certs.sig.lockKey(key.privateJwk).then(function (locked) {
+        key.privateKey = locked;
+        return certSigningKeySave(key).then(function () { return key; });
+      });
     });
   }).then(function (key) {
     if (!key) return;
-    showToast('Signing key ' + key.kid + ' created. Next: back it up, then publish its public key.');
+    showToast('Signing key ' + key.kid + ' created. Next: download its backup (once only — the key is then locked on this device), then publish its public key.');
     renderCertSigningPanel();
   }).catch(function (e) { showToast('Could not create the key: ' + ((e && e.message) || e), 'error'); });
 }
 function certSigningExportBackup() {
   certSigningKeyLoad().then(function (key) {
     if (!key) { showToast('There is no signing key on this device.', 'warning'); return; }
-    if (!confirm('This file holds the PRIVATE signing key. Anyone who has it can sign certificates in the Centre’s name.\n\nKeep it offline (a USB stick in the safe). Never email it, never put it in Google Drive, never commit it to GitHub. Download it now?')) return;
+    if (!key.privateJwk || !key.privateJwk.d) {
+      alert('The signing key on this device is locked: it signs, but it can never be downloaded again' +
+        (key.backedUpAt ? ' (its backup was downloaded on ' + new Date(key.backedUpAt).toLocaleString() + ')' : '') + '.\n\n' +
+        'If that backup is lost, create a new key here and publish it. Certificates signed with this key stay valid while its public key stays published.');
+      return;
+    }
+    if (!confirm('This file holds the PRIVATE signing key. Anyone who has it can sign certificates in the Centre’s name.\n\nKeep it offline (a USB stick in the safe). Never email it, never put it in Google Drive, never commit it to GitHub.\n\nThis is the only time it can be downloaded: afterwards the key is locked on this device (it keeps signing). Download it now?')) return;
     _certDownloadJson('CESTIS-certificate-signing-key-PRIVATE-' + key.kid + '.json',
       { _warning: 'PRIVATE KEY. Keep offline. Never share, upload or commit this file.', type: 'cestis-cert-signing-key', kid: key.kid,
         alg: key.alg, label: key.label, createdAt: key.createdAt, publicJwk: key.publicJwk, privateJwk: key.privateJwk });
+    setTimeout(function () {
+      if (!confirm('Is the backup file saved somewhere safe?\n\nOK — lock the key on this device now (it cannot be downloaded again).\nCancel — keep it downloadable for now and try the download again.')) return;
+      certSigningLockStored(key).then(function (done) {
+        showToast(done ? 'Backup taken. The signing key is now locked on this device.' : 'The key could not be locked on this browser; it is still downloadable.', done ? 'success' : 'warning');
+        renderCertSigningPanel();
+      });
+    }, 600);
   });
+}
+/* Drop the readable copy, keeping only the locked key — and only once the
+   locked key is stored and proven to sign for the published half. */
+function certSigningLockStored(key) {
+  var S = CESTISCore.certs.sig;
+  var locked = S.isLockedKey(key.privateKey) ? Promise.resolve(key.privateKey) : S.lockKey(key.privateJwk);
+  return locked.then(function (pk) {
+    return S.checkKey(pk, key.publicJwk).then(function (ok) {
+      if (!ok) return false;
+      var rec = { kid: key.kid, alg: key.alg, label: key.label, createdAt: key.createdAt, publicJwk: key.publicJwk,
+        privateKey: pk, backedUpAt: new Date().toISOString() };
+      return certSigningKeySave(rec).then(function () { return true; });
+    });
+  }).catch(function () { return false; });
 }
 function certSigningImportBackup(input) {
   var f = input && input.files && input.files[0];
@@ -43655,9 +43705,17 @@ function certSigningImportBackup(input) {
     input.value = '';
     if (!k || !k.privateJwk || !k.privateJwk.d || !k.publicJwk || !k.publicJwk.x) { showToast('That file is not a certificate signing key backup.', 'error'); return; }
     CESTISCore.certs.sig.keyId(k.publicJwk).then(function (kid) {
-      var key = { kid: kid, alg: 'ES256', label: k.label || '', createdAt: k.createdAt || new Date().toISOString(),
-        publicJwk: CESTISCore.certs.sig.publicOnly(k.publicJwk), privateJwk: { kty: 'EC', crv: 'P-256', x: k.privateJwk.x, y: k.privateJwk.y, d: k.privateJwk.d } };
-      return certSigningKeySave(key).then(function () { showToast('Signing key ' + kid + ' restored on this device.'); renderCertSigningPanel(); });
+      var S = CESTISCore.certs.sig;
+      var pub = S.publicOnly(k.publicJwk);
+      // The file is the backup: the device keeps only the locked key.
+      return S.lockKey({ kty: 'EC', crv: 'P-256', x: k.privateJwk.x, y: k.privateJwk.y, d: k.privateJwk.d }).then(function (locked) {
+        return S.checkKey(locked, pub).then(function (ok) {
+          if (!ok) throw new Error('the private key in that file does not match its public key');
+          var key = { kid: kid, alg: 'ES256', label: k.label || '', createdAt: k.createdAt || new Date().toISOString(),
+            publicJwk: pub, privateKey: locked, backedUpAt: new Date().toISOString() };
+          return certSigningKeySave(key).then(function () { showToast('Signing key ' + kid + ' restored on this device.'); renderCertSigningPanel(); });
+        });
+      });
     }).catch(function (e) { showToast('Could not restore the key: ' + ((e && e.message) || e), 'error'); });
   };
   reader.readAsText(f);
@@ -43718,14 +43776,17 @@ function renderCertSigningPanel() {
     var published = !!(key && pub && Array.isArray(pub.keys) && pub.keys.some(function (k) { return k && k.kid === key.kid; }));
     var line = key
       ? 'This device signs with key <strong style="font-family:monospace;">' + escapeHtml(key.kid) + '</strong>' +
-        (published ? ' <span class="badge badge-green">published</span>' : ' <span class="badge badge-amber">not yet published — employers cannot check it until cert-keys.json carries it</span>')
+        (published ? ' <span class="badge badge-green">published</span>' : ' <span class="badge badge-amber">not yet published — employers cannot check it until cert-keys.json carries it</span>') +
+        ((key.privateJwk && key.privateJwk.d)
+          ? ' <span class="badge badge-amber">not backed up yet — download its backup once; the key is then locked on this device</span>'
+          : ' <span class="badge badge-green">locked on this device</span>')
       : 'There is no signing key on this device. Certificates still verify through the Centre’s records, but an employer needs a signed certificate to verify with no sign-in.';
     el.innerHTML = '<p style="font-size:13px;margin-bottom:8px;">' + line + '</p>' +
       '<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">' + signed + ' of ' + approved.length + ' approved certificates carry a current signature. Approving a download signs it automatically on a device that holds the key.</p>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
       (key ? '<button class="btn btn-sm btn-primary" onclick="certSignApproved()">Sign approved certificates</button>' +
              '<button class="btn btn-sm btn-secondary" onclick="certSigningDownloadPublic()">Download cert-keys.json (public)</button>' +
-             '<button class="btn btn-sm btn-secondary" onclick="certSigningExportBackup()">Back up private key</button>'
+             ((key.privateJwk && key.privateJwk.d) ? '<button class="btn btn-sm btn-secondary" onclick="certSigningExportBackup()">Back up private key</button>' : '')
            : '<button class="btn btn-sm btn-primary" onclick="certSigningCreateKey()">Create signing key</button>') +
       '<label class="btn btn-sm btn-secondary" style="cursor:pointer;">Restore key from backup<input type="file" accept="application/json,.json" style="display:none;" onchange="certSigningImportBackup(this)"></label>' +
       (key ? '<button class="btn btn-sm btn-secondary" onclick="certSigningCreateKey()">Replace key</button>' : '') +

@@ -4644,11 +4644,39 @@
     }
     /* key: { kid, privateJwk }. Resolves with the signature record kept on
        the trainee's record (certSig). */
+    /* The private key as the device keeps it: a LOCKED CryptoKey — usable to
+       sign, but its bytes can never be read back out. It used to be kept as a
+       plain JWK, so any script that ever ran in an administrator's session
+       could copy it and sign certificates in the Centre's name for ever.
+       (A script running there can still ask the locked key to sign while the
+       page is open; it can no longer carry the key away.) */
+    function isLockedKey(k) {
+      return !!(k && typeof k === 'object' && k.type === 'private' && k.algorithm && k.extractable === false);
+    }
+    function lockKey(privateJwk) {
+      var s = subtle();
+      if (!s) return noCrypto();
+      if (!privateJwk || !privateJwk.d) return Promise.reject(new Error('That is not a private signing key.'));
+      return s.importKey('jwk', Object.assign({ ext: true }, privateJwk), ALG, false, ['sign']);
+    }
+    /* Does this private key really sign for this public key? Checked before a
+       stored JWK copy is ever given up, so the key is never lost. */
+    function checkKey(privateKey, publicJwk) {
+      var s = subtle();
+      if (!s) return noCrypto();
+      var probe = utf8(SIG_VERSION + '\nkey-check\n' + Date.now());
+      return s.sign(SIGN, privateKey, probe).then(function (sig) {
+        return s.importKey('jwk', Object.assign({ ext: true }, publicOnly(publicJwk)), ALG, false, ['verify']).then(function (pk) {
+          return s.verify(SIGN, pk, sig, probe);
+        });
+      }).then(function (ok) { return !!ok; }, function () { return false; });
+    }
     function sign(key, fields, signedAt) {
       var s = subtle();
       if (!s) return noCrypto();
-      if (!key || !key.kid || !key.privateJwk || !key.privateJwk.d) return Promise.reject(new Error('No signing key on this device.'));
-      return s.importKey('jwk', Object.assign({ ext: true }, key.privateJwk), ALG, false, ['sign']).then(function (k) {
+      var locked = key && isLockedKey(key.privateKey);
+      if (!key || !key.kid || (!locked && !(key.privateJwk && key.privateJwk.d))) return Promise.reject(new Error('No signing key on this device.'));
+      return (locked ? Promise.resolve(key.privateKey) : lockKey(key.privateJwk)).then(function (k) {
         return s.sign(SIGN, k, utf8(canonical(fields, key.kid)));
       }).then(function (sig) {
         return { kid: key.kid, sig: b64url(new Uint8Array(sig)), no: fields.no, name: fields.name,
@@ -4727,6 +4755,7 @@
       sig: {
         VERSION: SIG_VERSION, fields: sigFields, canonical: canonical, b64url: b64url, fromB64url: fromB64url,
         keyId: keyId, generateKey: generateKey, sign: sign, current: sigCurrent, verify: verify,
+        lockKey: lockKey, checkKey: checkKey, isLockedKey: isLockedKey,
         url: signedUrl, parse: parseSigned, publishedRevocation: publishedRevocation, publicOnly: publicOnly
       }
     };
