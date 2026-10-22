@@ -38,8 +38,27 @@ function serve() {
   const base = 'http://127.0.0.1:' + srv.address().port;
   const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
 
-  async function openPage(rel) {
+  // School.Fee, the finance documents and the MegaData admin pages open only
+  // for a signed-in dashboard session (CESTISCore.sessionAccess.guard — review
+  // H3/H4: they used to open for anybody who typed their address). They are
+  // smoke-tested as the Centre uses them: with an administrator signed in.
+  async function openPage(rel, opts) {
     const page = await browser.newPage();
+    if (opts && opts.admin) {
+      await page.addInitScript(() => {
+        const now = Date.now();
+        let users = [];
+        try { users = JSON.parse(localStorage.getItem('voctrain_users') || '[]'); } catch (e) { users = []; }
+        if (!users.some(u => u && u.id === 'USR-smoke-admin')) {
+          users.push({ id: 'USR-smoke-admin', name: 'Smoke Admin', role: 'admin', username: 'smokeadmin', status: 'active', password: 'pbkdf2$1000$00$00' });
+          localStorage.setItem('voctrain_users', JSON.stringify(users));
+        }
+        localStorage.setItem('voctrain_sessionRole', 'admin');
+        localStorage.setItem('voctrain_sessionUserId', 'USR-smoke-admin');
+        localStorage.setItem('voctrain_sessionExpiry', String(now + 3600e3));
+        localStorage.setItem('voctrain_sessionSeenAt', String(now));
+      });
+    }
     // The sandbox black-holes external hosts (fonts, CDN fallbacks, Google
     // auth), which would stall the 'load' event forever. Abort them: every
     // page must work from local assets alone — which is also the offline
@@ -80,7 +99,7 @@ function serve() {
 
   section('School.Fee loads clean with the money-bearing bridge stack');
   {
-    const { page, pageErrors } = await openPage('School.Fee.html');
+    const { page, pageErrors } = await openPage('School.Fee.html', { admin: true });
     await page.waitForTimeout(1800); // heavy page: seeds + charts + auto-admin init
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.feeBridgeAll && MegaData.reconcileFees)), 'fee bridge model registered');
@@ -164,7 +183,7 @@ function serve() {
     { file: 'Finance.Purchase.Order.html', page: 'Finance.Purchase.Order' }
   ]) {
     section(fin.page + ' loads clean with the findoc bridge stack');
-    const { page, pageErrors } = await openPage(fin.file);
+    const { page, pageErrors } = await openPage(fin.file, { admin: true });
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.fdPlan && MegaData.findocReconcile && window.FinanceDoc)), 'findoc model + legacy engine registered');
     ok(await page.evaluate(p => window.__cestisShim && window.__cestisShim.page === p, fin.page), 'shim carries the page identity');
@@ -174,7 +193,7 @@ function serve() {
 
   section('Finance.Payment.Voucher loads clean with the docsync stack');
   {
-    const { page, pageErrors } = await openPage('Finance.Payment.Voucher.html');
+    const { page, pageErrors } = await openPage('Finance.Payment.Voucher.html', { admin: true });
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.docSyncPlan)), 'docsync registered');
     ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'Finance.Payment.Voucher'), 'shim carries the page identity');
@@ -391,7 +410,7 @@ function serve() {
 
   section('MegaData-Adjudication: the queue page loads clean and explains itself');
   {
-    const { page, pageErrors } = await openPage('MegaData-Adjudication.html');
+    const { page, pageErrors } = await openPage('MegaData-Adjudication.html', { admin: true });
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | '));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.adjqPending && MegaData.adjqDecide)), 'queue model registered');
     ok(await page.evaluate(() => /record book|migration/i.test(document.getElementById('queueHost').textContent)),
@@ -401,7 +420,7 @@ function serve() {
 
   section('MegaData-Admin: the device-setup page loads clean and does its three jobs');
   {
-    const { page, pageErrors } = await openPage('MegaData-Admin.html');
+    const { page, pageErrors } = await openPage('MegaData-Admin.html', { admin: true });
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | '));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.validateBrokerSettings && MegaData.exportFileName && window.CESTISCore && CESTISCore.buildSnapshot && window.__adminExportBuild)),
       'admin model + legacy snapshot builder both registered');

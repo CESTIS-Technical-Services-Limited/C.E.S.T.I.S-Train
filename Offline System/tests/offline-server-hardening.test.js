@@ -45,6 +45,20 @@
       from /_cestis/token and kept across restarts. (What the token does and
       does not protect is spelt out in READ ME FIRST.)
 
+   7. A WEBSITE COULD STILL REACH THE STORE (review M2). The token went to any
+      page that asked, under any name: a website that pointed its own name at
+      this computer (DNS rebinding) was "same-origin" with the server in the
+      browser's eyes, and could fetch the token and the records. The store now
+      answers only to the server's own names. The token also opened the room
+      list for every device (all can fetch it), and the records listing told
+      anyone the data folder's path.
+
+   8. A TRAINEE COULD TAKE A CLASS'S HOST PLACE (review M3): the signalling
+      server gave cestis-<code>-host to whoever asked first. A -host id now
+      needs a ticket the server gives only to staff whose password it has
+      checked against the Centre's accounts — except on a brand-new Centre with
+      no staff login yet, so a first class can always start.
+
    The server runs on a scratch data folder (CESTIS_DATA_DIR / CESTIS_CERT_DIR),
    so this test never touches the Centre's real records.
 
@@ -164,8 +178,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   if (lanIp) {
     assert((await req('/_cestis/rooms', { host: lanIp })).status === 403,
       'but another device on the network is not shown every class\'s room code');
-    assert((await req('/_cestis/rooms', { host: lanIp, headers: hdr })).status === 200,
-      'unless it is one of our pages carrying the token');
+    // It used to open for any request carrying the token — but every device on
+    // the network can fetch the token, and no page of ours asks for this list.
+    assert((await req('/_cestis/rooms', { host: lanIp, headers: hdr })).status === 403,
+      'and carrying the token (which every device can fetch) no longer opens it');
   } else {
     console.log('  (no network address on this machine — skipping the from-another-device check)');
   }
@@ -245,6 +261,91 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(tail.status === 206, 'a "last N bytes" request is a partial answer');
   assert(tail.body === fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8').slice(-20),
     'and returns the LAST 20 bytes, not the first 20');
+
+  /* ---------- 7. Review M2: the names it answers to, and what it tells ---------- */
+  console.log('The records answer only to this server\'s own names (DNS rebinding)');
+  const rebound = { Host: 'evil.example:' + PORT };
+  assert((await req('/_cestis/token', { headers: rebound })).status === 421,
+    'a page that reached the server under a website\'s name is not handed the token');
+  assert((await req('/_cestis/data', { headers: Object.assign({}, hdr, rebound) })).status === 421,
+    'nor the records, even carrying the token');
+  assert((await req('/_cestis/rooms', { headers: rebound })).status === 421, 'nor the room list');
+  assert((await req('/_cestis/token', { headers: { Host: 'localhost:' + PORT } })).status === 200,
+    'while localhost still gets the token');
+  assert((await req('/_cestis/token')).status === 200, 'and so does this computer\'s address');
+  assert((await req('/_cestis/health', { headers: rebound })).status === 200,
+    'the health check (no secrets in it) still answers, so a page can tell it found a Centre server');
+  if (lanIp) assert((await req('/_cestis/token', { host: lanIp })).status === 200, 'another device using this computer\'s network address gets it');
+
+  console.log('The records listing does not say where the folder is');
+  const listing = await req('/_cestis/data', { headers: hdr });
+  assert(listing.status === 200 && !('folder' in JSON.parse(listing.body || '{}')), 'no "folder" in the listing');
+  assert(listing.body.indexOf(DATA) === -1 && listing.body.indexOf(SCRATCH) === -1, 'and the folder\'s path appears nowhere in it');
+
+  /* ---------- 8. Review M3: a room's host place is for signed-in staff ---------- */
+  console.log('A class room\'s host place: for staff, with a ticket the server checks');
+  const sigMod = require('../cestis-offline-signalling.js');
+  const nodeCrypto = require('crypto');
+  function wsConnect(id, apiKey) {
+    return new Promise(resolve => {
+      const r = http.request({ host: '127.0.0.1', port: PORT, path: '/peerjs/peerjs?key=' + encodeURIComponent(apiKey || 'peerjs') + '&id=' + id + '&token=t' + Math.random().toString(36).slice(2),
+        headers: { Connection: 'Upgrade', Upgrade: 'websocket', 'Sec-WebSocket-Key': nodeCrypto.randomBytes(16).toString('base64'), 'Sec-WebSocket-Version': '13' } });
+      r.on('upgrade', (res, socket, head) => {
+        const c = { socket, messages: [] };
+        let buf = Buffer.alloc(0);
+        const take = d => { buf = Buffer.concat([buf, d]); const o = sigMod.decodeFrames(buf); buf = o.rest; o.frames.forEach(f => { if (f.opcode === 1) c.messages.push(JSON.parse(f.payload.toString('utf8'))); }); };
+        if (head && head.length) take(head);
+        socket.on('data', take); socket.on('error', () => {});
+        setTimeout(() => resolve(c), 150);
+      });
+      r.on('error', () => resolve({ socket: { destroy() {} }, messages: [{ type: 'connect-error' }] }));
+      r.end();
+    });
+  }
+  const firstType = c => (c.messages[0] || {}).type;
+  let ws = await wsConnect('cestis-FIRSTRUN22-host');
+  assert(firstType(ws) === 'OPEN', 'a brand-new Centre (no staff login in its data yet) can still start a class');
+  ws.socket.destroy();
+
+  // The Centre's accounts arrive in the data folder, as the dashboard saves them.
+  const salt = nodeCrypto.randomBytes(16);
+  const insHash = 'pbkdf2$1000$' + salt.toString('hex') + '$' + nodeCrypto.pbkdf2Sync('Teach-Pass-12', salt, 1000, 32, 'sha256').toString('hex');
+  fs.writeFileSync(path.join(DATA, 'CESTIS_LMS_Dashboard.json'), JSON.stringify({ data: { voctrain_users: JSON.stringify([
+    { id: 'USR-ins', role: 'instructor', username: 'teacher', email: 'teacher@example.org', password: insHash, status: 'active' },
+    { id: 'USR-001', role: 'admin', username: 'cestisadmin', password: 'cestisadmin123$', defaultPassword: true, status: 'active' },
+    { id: 'USR-stu', role: 'student', username: 'pupil', password: insHash, status: 'active' },
+    { id: 'USR-off', role: 'instructor', username: 'gone', password: insHash, status: 'disabled' }
+  ]) }, stamps: {} }));
+  const ticketReq = (body, headers) => req('/_cestis/host-ticket', { method: 'POST',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, headers === undefined ? hdr : headers), body: JSON.stringify(body) });
+  assert((await ticketReq({ username: 'teacher', password: 'Teach-Pass-12' }, {})).status === 401, 'asking without the token is refused');
+  assert((await ticketReq({ username: 'teacher', password: 'Teach-Pass-12' }, Object.assign({}, hdr, rebound))).status === 421,
+    'and under a rebound name too');
+  assert((await ticketReq({ username: 'teacher', password: 'wrong' })).status === 403, 'a wrong password gets no ticket');
+  assert((await ticketReq({ username: 'cestisadmin', password: 'cestisadmin123$' })).status === 403, 'the published default gets none');
+  assert((await ticketReq({ username: 'pupil', password: 'Teach-Pass-12' })).status === 403, 'a trainee gets none, even with the right password');
+  assert((await ticketReq({ username: 'gone', password: 'Teach-Pass-12' })).status === 403, 'nor a switched-off member of staff');
+  const okTicket = await ticketReq({ username: 'Teacher@Example.org', password: 'Teach-Pass-12' });
+  const ticket = (JSON.parse(okTicket.body || '{}').ticket) || '';
+  assert(okTicket.status === 200 && !!ticket, 'a member of staff, by username or e-mail, gets a ticket');
+  const secret = fs.readFileSync(path.join(CERT, 'host-secret'), 'utf8').trim();
+  const claims = sigMod.verifyTicket(secret, ticket);
+  assert(claims && claims.u === 'USR-ins' && claims.r === 'instructor', 'signed with the server\'s own secret, for that person');
+  assert(/^[a-f0-9]{64}$/.test(secret), 'the secret is kept with the certificate (cert/host-secret), not in any page');
+
+  ws = await wsConnect('cestis-ROOMCODE33-host');
+  assert(firstType(ws) === 'ERROR', 'now a device with no ticket cannot take a room\'s host place (got ' + firstType(ws) + ')');
+  ws.socket.destroy();
+  ws = await wsConnect('cestis-ROOMCODE33-host', ticket);
+  assert(firstType(ws) === 'OPEN', 'the instructor with the ticket hosts the room');
+  const joiner = await wsConnect('cestis-ROOMCODE33-zz99');
+  assert(firstType(joiner) === 'OPEN', 'and trainees still join as participants');
+  ws.socket.destroy(); joiner.socket.destroy();
+
+  console.log('Guessing passwords for a ticket is slowed down');
+  let last = null;
+  for (let i = 0; i < 11; i++) last = await ticketReq({ username: 'teacher', password: 'guess-' + i });
+  assert(last.status === 429, 'after ten wrong passwords from one device it must wait (got ' + last.status + ')');
 
   server.kill();
   await wait(200);

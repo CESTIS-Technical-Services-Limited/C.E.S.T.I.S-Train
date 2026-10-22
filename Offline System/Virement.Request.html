@@ -1822,7 +1822,28 @@ window.addEventListener('online', function(){
 // ═══════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════
+/* Who may open this page. It had no sign-in and showed the Centre's books to
+   whoever typed its address — a trainee at a lab PC included. It opens only
+   for the signed-in dashboard (an Administrator or Admin Staff: embedded, or
+   signed in on this computer — CESTISCore.sessionAccess.guard), or inside the Cashbook
+   once somebody has signed in to it; anyone
+   else sees "sign in first" and nothing of the page runs. */
+function virInsideSignedInCashbook() {
+    try {
+        var p = window.parent;
+        return !!(p && p !== window && /CESTIS\.Cashbook\.html$/i.test(p.location.pathname) &&
+                  typeof p.isAuthenticated === 'function' && p.isAuthenticated() === true);
+    } catch (e) { return false; }
+}
 document.addEventListener('DOMContentLoaded', function(){
+    var SA = window.CESTISCore && CESTISCore.sessionAccess;
+    if (!SA || !SA.guard) { document.body.textContent = 'Shared data core failed to load. Please refresh.'; return; }
+    SA.guard({ allowed: ['admin', 'adminstaff'], also: virInsideSignedInCashbook }, function (viewer) {
+        if (!viewer.ok) { SA.lockPage(viewer.message); return; }
+        virOpenPage();
+    });
+});
+function virOpenPage(){
     loadAllData();
     loadCloudCache();
     // Populate fiscal year dropdown
@@ -1856,7 +1877,7 @@ document.addEventListener('DOMContentLoaded', function(){
       checkCloudAndNotify('page_load');
       startCloudMonitor();
     }, 2000);
-});
+}
 
 // ═══════════════════════════════════════════════════════════
 //  TAB SWITCHING

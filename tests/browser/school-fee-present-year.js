@@ -53,6 +53,17 @@ const ok = (c, m) => { if (c) { pass++; console.log('  ✓ ' + m); } else { fail
     // The shared year key remembers a PAST year, as it would after someone
     // stepped back to enter arrears. The page must still open on the present.
     localStorage.setItem('cestis_active_quarter', JSON.stringify({ fy: '2024/2025', q: 3 }));
+    // School Fee opens only for the signed-in dashboard (review H4: it signed
+    // anybody in as "CESTIS Administrator"), so an administrator is signed in.
+    const now = Date.now();
+    let users = [];
+    try { users = JSON.parse(localStorage.getItem('voctrain_users') || '[]'); } catch (e) { users = []; }
+    users.push({ id: 'USR-fee-admin', name: 'Fee Admin', role: 'admin', username: 'feeadmin', status: 'active', password: 'pbkdf2$1000$00$00' });
+    localStorage.setItem('voctrain_users', JSON.stringify(users));
+    localStorage.setItem('voctrain_sessionRole', 'admin');
+    localStorage.setItem('voctrain_sessionUserId', 'USR-fee-admin');
+    localStorage.setItem('voctrain_sessionExpiry', String(now + 3600e3));
+    localStorage.setItem('voctrain_sessionSeenAt', String(now));
   }, fixture);
   const page = await ctx.newPage();
   await page.route('**/*', r => r.request().url().startsWith(base) ? r.continue() : r.abort());

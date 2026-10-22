@@ -4648,11 +4648,39 @@
     }
     /* key: { kid, privateJwk }. Resolves with the signature record kept on
        the trainee's record (certSig). */
+    /* The private key as the device keeps it: a LOCKED CryptoKey — usable to
+       sign, but its bytes can never be read back out. It used to be kept as a
+       plain JWK, so any script that ever ran in an administrator's session
+       could copy it and sign certificates in the Centre's name for ever.
+       (A script running there can still ask the locked key to sign while the
+       page is open; it can no longer carry the key away.) */
+    function isLockedKey(k) {
+      return !!(k && typeof k === 'object' && k.type === 'private' && k.algorithm && k.extractable === false);
+    }
+    function lockKey(privateJwk) {
+      var s = subtle();
+      if (!s) return noCrypto();
+      if (!privateJwk || !privateJwk.d) return Promise.reject(new Error('That is not a private signing key.'));
+      return s.importKey('jwk', Object.assign({ ext: true }, privateJwk), ALG, false, ['sign']);
+    }
+    /* Does this private key really sign for this public key? Checked before a
+       stored JWK copy is ever given up, so the key is never lost. */
+    function checkKey(privateKey, publicJwk) {
+      var s = subtle();
+      if (!s) return noCrypto();
+      var probe = utf8(SIG_VERSION + '\nkey-check\n' + Date.now());
+      return s.sign(SIGN, privateKey, probe).then(function (sig) {
+        return s.importKey('jwk', Object.assign({ ext: true }, publicOnly(publicJwk)), ALG, false, ['verify']).then(function (pk) {
+          return s.verify(SIGN, pk, sig, probe);
+        });
+      }).then(function (ok) { return !!ok; }, function () { return false; });
+    }
     function sign(key, fields, signedAt) {
       var s = subtle();
       if (!s) return noCrypto();
-      if (!key || !key.kid || !key.privateJwk || !key.privateJwk.d) return Promise.reject(new Error('No signing key on this device.'));
-      return s.importKey('jwk', Object.assign({ ext: true }, key.privateJwk), ALG, false, ['sign']).then(function (k) {
+      var locked = key && isLockedKey(key.privateKey);
+      if (!key || !key.kid || (!locked && !(key.privateJwk && key.privateJwk.d))) return Promise.reject(new Error('No signing key on this device.'));
+      return (locked ? Promise.resolve(key.privateKey) : lockKey(key.privateJwk)).then(function (k) {
         return s.sign(SIGN, k, utf8(canonical(fields, key.kid)));
       }).then(function (sig) {
         return { kid: key.kid, sig: b64url(new Uint8Array(sig)), no: fields.no, name: fields.name,
@@ -4731,6 +4759,7 @@
       sig: {
         VERSION: SIG_VERSION, fields: sigFields, canonical: canonical, b64url: b64url, fromB64url: fromB64url,
         keyId: keyId, generateKey: generateKey, sign: sign, current: sigCurrent, verify: verify,
+        lockKey: lockKey, checkKey: checkKey, isLockedKey: isLockedKey,
         url: signedUrl, parse: parseSigned, publishedRevocation: publishedRevocation, publicOnly: publicOnly
       }
     };
@@ -7791,6 +7820,38 @@
       return { allowed: true, mustChange: true, message: '' };
     }
 
+    /* The same rule for a finance tool that keeps its OWN list of logins
+       (Payroll). Its built-in administrator was seeded with the published
+       default and nothing ever made anyone change it, so on a lab PC where the
+       dashboard already refused the default, Payroll still opened with it as
+       Administrator. The default now opens nothing there either:
+         - if another administrator of the tool has a password of its own,
+           it is refused outright (that administrator sets a new one);
+         - otherwise it may only be used to set a new password, before
+           anything opens — and only when an administrator is signed in to the
+           dashboard on this computer, or on a brand-new installation whose
+           dashboard has no administrator with a real password yet. A trainee
+           at a lab PC can do neither, and the Centre is never locked out: an
+           administrator signs in to the dashboard, opens Payroll, and sets it.
+       opts: { otherRealAdmin: bool, lmsAccounts: [voctrain_users], lmsAdminSession: bool }
+       Returns { allowed: false, mustChange, message } — the default itself is
+       never "allowed"; mustChange means "ask for a new password now". */
+    function toolDefaultLogin(opts) {
+      opts = opts || {};
+      if (opts.otherRealAdmin) {
+        return { allowed: false, mustChange: false,
+          message: 'This login is still on the default password published with the platform, so it cannot be used to sign in.\n\n' +
+            'Ask another administrator of this page to set a new password for it.' };
+      }
+      var centreReal = usableAdmins(opts.lmsAccounts).filter(function (a) { return !isSeededLogin(a); }).length > 0;
+      if (centreReal && !opts.lmsAdminSession) {
+        return { allowed: false, mustChange: false,
+          message: 'This login is still on the default password published with the platform, so it cannot be used to sign in.\n\n' +
+            'An administrator must sign in to the C.E.S.T.I.S dashboard on this computer first, then open this page and set a new password for it.' };
+      }
+      return { allowed: false, mustChange: true, message: '' };
+    }
+
     /* The recovery e-mail the built-in logins were seeded with. Nobody at the
        Centre reads that domain, so a reset code sent there is lost — or, if
        the domain ever changes hands, read by a stranger. */
@@ -7887,7 +7948,7 @@
       needsRecoveryAdmin: needsRecoveryAdmin,
       deletionBlocked: deletionBlocked, dropDeleted: dropDeleted,
       isSeededLogin: isSeededLogin, cloudCopyWins: cloudCopyWins,
-      isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin,
+      isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin, toolDefaultLogin: toolDefaultLogin,
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor
@@ -8000,14 +8061,21 @@
     /* The dashboard this page is embedded in, if it is the same site and
        somebody is signed in to it. (A page on another site cannot read it.) */
     function embeddingSession(win) {
-      try {
-        var p = win && win.parent;
-        if (p && p !== win && p.currentRole) {
-          return { role: p.currentRole,
-                   userId: p.currentLoggedInUser ? p.currentLoggedInUser.id : null,
-                   studentId: (p.currentRole === 'student' && p.currentStudent) ? p.currentStudent.id : null };
-        }
-      } catch (e) {}
+      // The dashboard may be one frame further up: Virement and Payroll sit
+      // inside the Cashbook, which sits inside the dashboard.
+      var w = win;
+      for (var depth = 0; depth < 3; depth++) {
+        try {
+          var p = w && w.parent;
+          if (!p || p === w) break;
+          if (p.currentRole) {
+            return { role: p.currentRole,
+                     userId: p.currentLoggedInUser ? p.currentLoggedInUser.id : null,
+                     studentId: (p.currentRole === 'student' && p.currentStudent) ? p.currentStudent.id : null };
+          }
+          w = p;
+        } catch (e) { break; }
+      }
       return null;
     }
     /* resolve() for the page that is running: its own store, its own address,
@@ -8026,6 +8094,60 @@
         urlStudentId: qs ? qs.get('studentId') : '',
         parent: embeddingSession(win)
       });
+    }
+
+    /* The pages with no sign-in of their own that still show the Centre's
+       records — School Fee, the finance documents, MegaData's device setup and
+       export. They trusted whoever opened them: School Fee signed the visitor
+       in as "CESTIS Administrator", and MegaData Admin's "Export local data"
+       downloaded every account's password hash for a trainee at a shared PC.
+       They now open only for a live dashboard session holding one of
+       `allowed` (embedded in the dashboard, or the dashboard signed in on this
+       computer), or for another sign-in the page itself accepts (opts.also —
+       e.g. the Cashbook a page is embedded in). cb(viewer) runs once: at once
+       when the answer is clear, otherwise when this computer's store has
+       finished loading (an account kept only in IndexedDB cannot be read
+       before then, and a refusal must not come from reading too early). */
+    function guard(opts, cb) {
+      opts = opts || {};
+      var store = root.CESTISStore || null;
+      var finished = false;
+      function decide() {
+        var v = forPage(opts);
+        if (!v.ok && typeof opts.also === 'function') {
+          var other = false;
+          try { other = !!opts.also(); } catch (e) { other = false; }
+          if (other) v = { ok: true, reason: 'also', message: '', role: null, sessionRole: null, userId: null, studentId: null, account: null };
+        }
+        return v;
+      }
+      function finish(v) { if (finished) return; finished = true; if (typeof cb === 'function') cb(v); }
+      var first = decide();
+      if (first.ok || !store || typeof store.whenReady !== 'function' || (typeof store.isReady === 'function' && store.isReady())) {
+        finish(first);
+        return first;
+      }
+      store.whenReady(function () { finish(decide()); });
+      return null;
+    }
+    /* Cover a refused page with the reason, hiding (not removing) what is
+       behind it, so the page's own scripts never trip over a missing element. */
+    function lockPage(message) {
+      var doc = typeof document !== 'undefined' ? document : null;
+      if (!doc) return;
+      var put = function () {
+        if (!doc.body || doc.getElementById('cestisSessionLock')) return;
+        var st = doc.createElement('style');
+        st.textContent = 'body > :not(#cestisSessionLock) { display: none !important; }';
+        (doc.head || doc.body).appendChild(st);
+        var note = doc.createElement('div');
+        note.id = 'cestisSessionLock';
+        note.setAttribute('role', 'alert');
+        note.style.cssText = 'padding:60px 24px;text-align:center;font-family:sans-serif;font-size:16px;line-height:1.5;';
+        note.textContent = '🔒 ' + (message || refuse('no-session').message);
+        doc.body.insertBefore(note, doc.body.firstChild);
+      };
+      if (doc.body) put(); else doc.addEventListener('DOMContentLoaded', put);
     }
 
     /* What the top search box may look through. It searched the whole roll
@@ -8058,7 +8180,7 @@
     }
 
     return { resolve: resolve, state: state, idleLimit: idleLimit, RANK: RANK, FRESH_MS: FRESH_MS,
-             embeddingSession: embeddingSession, forPage: forPage, searchPool: searchPool };
+             embeddingSession: embeddingSession, forPage: forPage, guard: guard, lockPage: lockPage, searchPool: searchPool };
   })();
 
   /* ==========================================================================
@@ -10775,154 +10897,6 @@
   })();
 
   /* --------------------------------------------------------------------------
-     Core.html — the ONE escaping toolkit every page uses when it builds markup
-     out of strings.
-
-     Why it exists: names, course titles, chat messages, file names, resource
-     links and notification texts are typed by trainees, instructors and even
-     anonymous visitors (the Support form), then shown in the Administrator's
-     browser — the session that holds the Centre's Google Drive token. Anything
-     that reaches innerHTML unescaped there can read or destroy every record.
-     The pages had grown four slightly different escapers, some of which forgot
-     quotes, and inline onclick handlers that "escaped" an apostrophe as &#39; —
-     which the browser decodes straight back before the JavaScript runs. These
-     helpers are the single correct version; the page-level escapeHtml,
-     escapeAttr, _certEsc and lmsChatEscapeHtml now hand their work to them.
-
-       esc(s)        text or a quoted attribute value: & < > " ' ` all encoded.
-       jsArg(s)      a JavaScript string literal that is safe INSIDE a
-                     double-quoted inline handler: onclick="f(' + jsArg(x) + ')".
-                     The literal is JSON-quoted first, then HTML-escaped, so the
-                     browser's attribute decoding gives back exactly x.
-       safeUrl(u)    u if it is an http(s)/mailto/tel/blob/relative link or a
-                     data:image, otherwise '' — so a javascript: link can never
-                     be clicked. { data: true } also allows any data: URL, for
-                     the download links of files stored inline.
-       linkify(t, { style }) escapes plain chat text and turns http(s) links
-                     into anchors built from the escaped address, which can no
-                     longer run past a quote into a new attribute.
-       escKeepCharRefs(s) like esc, but keeps numeric character references
-                     such as &#128222; (some stored notification texts carry
-                     their emoji that way). A numeric reference can only ever
-                     produce one character of text, never markup.
-       notifIcon(icon, fallback) a notification's icon only if it is an
-                     emoji/character reference, otherwise the fallback.
-       cleanNotification(n) a fresh notification object built only from the
-                     known fields of one that arrived from another device.
-     -------------------------------------------------------------------------- */
-  Core.html = (function () {
-    var MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' };
-
-    function esc(s) {
-      return String(s == null ? '' : s).replace(/[&<>"'`]/g, function (c) { return MAP[c]; });
-    }
-
-    function jsArg(s) {
-      var lit = JSON.stringify(String(s == null ? '' : s))
-        .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-      return esc(lit);
-    }
-
-    // Browsers ignore leading/trailing spaces and control characters, and
-    // every tab or newline anywhere, when they read a link's scheme — so
-    // " java\tscript:" is still javascript:. Look at the URL the same way.
-    function schemeOf(u) {
-      var s = String(u == null ? '' : u).replace(/^[\u0000-\u0020]+/, '').replace(/[\t\n\r]/g, '');
-      var m = /^([a-zA-Z][a-zA-Z0-9+.\-]*):/.exec(s);
-      return m ? m[1].toLowerCase() : '';
-    }
-
-    var SAFE_SCHEMES = { http: 1, https: 1, mailto: 1, tel: 1, blob: 1 };
-    // Any picture is fine: an image (even an SVG) shown in <img> runs no script,
-    // and browsers refuse to open a data: URL as a page.
-    var SAFE_DATA_IMAGE = /^data:image\/[a-z0-9.+\-]+[;,]/i;
-
-    function safeUrl(u, opts) {
-      if (u == null) return '';
-      var raw = String(u).trim();
-      if (!raw) return '';
-      var scheme = schemeOf(raw);
-      if (!scheme) return raw;                      // relative link: same site, no script
-      if (SAFE_SCHEMES[scheme]) return raw;
-      if (scheme === 'data') {
-        if (opts && opts.data) return raw;          // inline file download
-        var compact = raw.replace(/[\u0000-\u0020]+/g, '');
-        if (SAFE_DATA_IMAGE.test(compact)) return raw;
-      }
-      return '';
-    }
-
-    // A link inside chat text ends at whitespace or at any character that
-    // could close an attribute or open a tag.
-    var URL_RE = /https?:\/\/[^\s<>"'`]+/gi;
-
-    function linkify(text, opts) {
-      var s = String(text == null ? '' : text);
-      var style = opts && opts.style ? ' style="' + esc(opts.style) + '"' : '';
-      var out = '', last = 0, m;
-      URL_RE.lastIndex = 0;
-      while ((m = URL_RE.exec(s))) {
-        out += esc(s.slice(last, m.index));
-        var url = m[0];
-        out += '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"' + style + '>' + esc(url) + '</a>';
-        last = m.index + url.length;
-      }
-      return out + esc(s.slice(last));
-    }
-
-    function escKeepCharRefs(s) {
-      return esc(s).replace(/&amp;#(\d{1,7}|x[0-9a-fA-F]{1,6});/g, '&#$1;');
-    }
-
-    // An icon is one or two emoji (possibly written as numeric references) —
-    // never letters, never markup. Anything else gets the fallback.
-    function notifIcon(icon, fallback) {
-      var s = String(icon == null ? '' : icon);
-      if (s && s.length <= 24 && /^(?:&#\d{1,7};|[^\x00-\x7F]|\s)+$/.test(s)) return s;
-      return fallback == null ? '\uD83D\uDD14' : String(fallback);
-    }
-
-    var NOTIF_TYPES = { info: 1, success: 1, warning: 1 };
-    var ROLES = { admin: 1, adminstaff: 1, instructor: 1, student: 1, cmc: 1 };
-
-    function strList(a, max, allow) {
-      if (!Array.isArray(a)) return [];
-      var out = [];
-      for (var i = 0; i < a.length && out.length < max; i++) {
-        if (typeof a[i] !== 'string' && typeof a[i] !== 'number') continue;
-        var v = String(a[i]).slice(0, 80);
-        if (allow && !allow[v]) continue;
-        out.push(v);
-      }
-      return out;
-    }
-
-    // Another device (or anyone on the public realtime broker) can send us a
-    // notification. Keep only the fields the bell uses, as plain strings of a
-    // sensible length; everything else is dropped. Returns null for junk.
-    function cleanNotification(n) {
-      if (!n || typeof n !== 'object' || n.id == null || n.text == null) return null;
-      var ts = Number(n.timestamp);
-      var out = {
-        id: String(n.id).slice(0, 80),
-        text: String(n.text).slice(0, 500),
-        timestamp: isFinite(ts) && ts > 0 ? ts : Date.now(),
-        time: 'Just now',
-        read: false,
-        icon: notifIcon(n.icon),
-        type: NOTIF_TYPES[n.type] ? n.type : 'info',
-        forRoles: strList(n.forRoles, 8, ROLES)
-      };
-      var users = strList(n.forUsers, 50);
-      if (users.length) out.forUsers = users;
-      return out;
-    }
-
-    return { esc: esc, attr: esc, jsArg: jsArg, safeUrl: safeUrl, linkify: linkify,
-             escKeepCharRefs: escKeepCharRefs, notifIcon: notifIcon, cleanNotification: cleanNotification };
-  })();
-
-  /* --------------------------------------------------------------------------
      Core.exams — the rules of an online exam that every page must agree on.
 
      Why it exists: each device decided these for itself, and got them wrong
@@ -11794,11 +11768,53 @@
       return out;
     }
 
+    // ---- Rooms that arrive from other devices ----
+    // A room's icon and colour are drawn into every member's room list and
+    // chat header — the Administrator's too, the session that holds the
+    // Centre's Drive token. Rooms come from whatever device last wrote the
+    // chat file or the backup, and the header set innerHTML = room.icon, so a
+    // trainee's device could put markup in a room's icon and have it run in the
+    // Administrator's session the moment the room was opened. An icon is a
+    // short run of emoji or plain characters, never markup; a colour is a hex
+    // colour, a theme variable or a colour name — never a way out of a style
+    // attribute. Anything else gets the default.
+    var ROOM_ICON = '💬', ROOM_COLOR = '#6c757d';
+    function roomIcon(icon) {
+      var s = (typeof icon === 'string' || typeof icon === 'number') ? String(icon).trim() : '';
+      if (!s || /[<>&"'`\\\u0000-\u001f]/.test(s)) return ROOM_ICON;
+      var n = typeof Array.from === 'function' ? Array.from(s).length : s.length;
+      return n <= 16 ? s : ROOM_ICON;
+    }
+    function roomColor(color) {
+      var s = typeof color === 'string' ? color.trim() : '';
+      if (/^#[0-9a-f]{3,8}$/i.test(s) || /^var\(--[a-z0-9-]{1,40}\)$/i.test(s) || /^[a-z]{3,20}$/i.test(s) ||
+          /^(?:rgb|rgba|hsl|hsla)\([0-9.,%\s\/]{1,60}\)$/i.test(s)) return s;
+      return ROOM_COLOR;
+    }
+    /* Make a room safe to draw, in place. Only icon and colour are touched,
+       and only when they are not safe already. Returns true if it changed. */
+    function cleanRoom(room) {
+      if (!room || typeof room !== 'object') return false;
+      var changed = false;
+      var icon = roomIcon(room.icon), color = roomColor(room.color);
+      // A field the room does not have is left absent (direct messages carry
+      // no icon), so nothing is added to a record that did not need it.
+      if (room.icon != null && room.icon !== icon) { room.icon = icon; changed = true; }
+      if (room.color != null && room.color !== color) { room.color = color; changed = true; }
+      return changed;
+    }
+    function cleanRooms(rooms) {
+      var n = 0;
+      (Array.isArray(rooms) ? rooms : []).forEach(function (r) { if (cleanRoom(r)) n++; });
+      return n;
+    }
+
     return {
       classRoomMembers: classRoomMembers, isOnline: isOnline, ONLINE_WINDOW_MS: ONLINE_WINDOW_MS,
       CALL_STALE_MS: CALL_STALE_MS, callKey: callKey, liveParticipants: liveParticipants,
       mergeActiveCall: mergeActiveCall, joinCall: joinCall, leaveCall: leaveCall,
-      acceptRealtimeMessage: acceptRealtimeMessage, unreadCount: unreadCount, stripUploadedBytes: stripUploadedBytes
+      acceptRealtimeMessage: acceptRealtimeMessage, unreadCount: unreadCount, stripUploadedBytes: stripUploadedBytes,
+      roomIcon: roomIcon, roomColor: roomColor, cleanRoom: cleanRoom, cleanRooms: cleanRooms
     };
   })();
 

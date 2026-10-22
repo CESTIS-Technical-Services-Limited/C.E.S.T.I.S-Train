@@ -5553,8 +5553,30 @@
           }
         });
 
-        // Initialize
+        // Who is using this page. It had no sign-in of its own and signed
+        // whoever opened it in as "CESTIS Administrator (Admin)" — so a trainee
+        // at a lab PC typed School.Fee.html and had every trainee's fees, phone
+        // and TRN, and the power to change them. It now opens only for the
+        // signed-in dashboard (CESTISCore.sessionAccess): embedded in an
+        // Administrator's or Admin Staff's dashboard, as the Centre uses it, or
+        // with one of them signed in on this computer. Anyone else sees "sign
+        // in first" and nothing of the page runs.
+        let feeViewer = null;
         document.addEventListener('DOMContentLoaded', function() {
+            const SA = window.CESTISCore && CESTISCore.sessionAccess;
+            if (!SA || !SA.guard) {
+                const md = document.getElementById('mainDashboard');
+                if (md) md.style.display = 'none';
+                return;
+            }
+            SA.guard({ allowed: ['admin', 'adminstaff'] }, function (viewer) {
+                if (!viewer.ok) { feeViewer = null; SA.lockPage(viewer.message); return; }
+                feeViewer = viewer;
+                feeStartPage();
+            });
+        });
+
+        function feeStartPage() {
             // Initialize admin account first
             initializeDefaultAdmin();
 
@@ -5564,25 +5586,25 @@
             // Load fee structure from storage
             loadFeeStructure();
             
-            // Login removed: this page runs embedded in the authenticated LMS
-            // dashboard, so go straight into the app with an Admin session.
-            const savedSession = sessionStorage.getItem('cestiCurrentUser');
-            if (savedSession) {
-                try { currentUser = JSON.parse(savedSession); } catch (e) { currentUser = null; }
-            }
-            if (!currentUser) {
-                // Use the stored admin account, or fall back to a built-in Admin.
-                currentUser = (Array.isArray(users) && users.find(u => u && u.role === 'Admin'))
-                    || (Array.isArray(users) && users[0])
-                    || { id: 'ADMIN001', fullName: 'CESTIS Administrator', username: 'Cestisadmin', role: 'Admin', email: 'admin@cestis.edu', department: 'Administration' };
-                try { sessionStorage.setItem('cestiCurrentUser', JSON.stringify(currentUser)); } catch (e) {}
-            }
+            // The person is the signed-in dashboard account (feeViewer); the
+            // page's own Admin record still carries its local settings (two-step
+            // verification). Admin Staff keep the whole fee tool, as the
+            // dashboard has always given them. (The copy a previous visitor
+            // left in this tab is no longer believed.)
+            const own = (Array.isArray(users) && users.find(u => u && u.role === 'Admin'))
+                || (Array.isArray(users) && users[0])
+                || { id: 'ADMIN001', role: 'Admin', department: 'Administration' };
+            const acct = feeViewer && feeViewer.account;
+            currentUser = Object.assign({}, own,
+                acct ? { fullName: acct.name || acct.username || own.fullName, username: acct.username || acct.email || own.username, email: acct.email || own.email || '' } : {},
+                { role: 'Admin', lmsRole: feeViewer ? feeViewer.sessionRole : null });
+            try { sessionStorage.setItem('cestiCurrentUser', JSON.stringify(currentUser)); } catch (e) {}
             const loginPageEl = document.getElementById('loginPage');
             if (loginPageEl) loginPageEl.style.display = 'none';
             const mainDashEl = document.getElementById('mainDashboard');
             if (mainDashEl) mainDashEl.style.display = 'block';
             const userDisp = document.getElementById('currentUserDisplay');
-            if (userDisp) userDisp.textContent = `👤 ${currentUser.fullName} (${currentUser.role})`;
+            if (userDisp) userDisp.textContent = `👤 ${currentUser.fullName} (${currentUser.lmsRole === 'adminstaff' ? 'Admin Staff' : 'Admin'})`;
             updateUIForUserRole();
             render2FAStatus();
             initializeCloudSync();
@@ -5679,7 +5701,7 @@
                     }
                 });
             }
-        });
+        }
 
         // Dark Mode Toggle
         function toggleDarkMode() {
@@ -6517,7 +6539,7 @@
         // and later saving, a stale copy over someone else's edit.
         let _feeExternalReload = null;
         window.addEventListener('storage', function (ev) {
-            if (!ev || !ev.key) return;
+            if (!ev || !ev.key || !feeViewer) return;   // nothing is drawn for a refused visitor
             // voctrain_skillAreas carries the training centres and their
             // durations. Without watching it this page kept enrolling into a
             // stale roster after the LMS created a centre or ended a course.
@@ -6566,6 +6588,12 @@
             try {
                 const d = ev && ev.data;
                 if (!d) return;
+                // Only the dashboard this page is embedded in may talk to it —
+                // any other window could post a roll here, and the page saved
+                // what it was sent — and only once the page has opened for a
+                // signed-in session.
+                if (!feeViewer || window.parent === window || ev.source !== window.parent) return;
+                try { if (ev.origin && ev.origin !== 'null' && location.origin && location.origin !== 'null' && ev.origin !== location.origin) return; } catch (e) { return; }
                 // Parent dashboard asks us to (re)show the privacy screen when
                 // the user navigates back to this page. The iframe is loaded
                 // once and kept alive, so DOMContentLoaded won't fire again —
@@ -15683,6 +15711,7 @@ CESTISPageCloud.init({
           'voctrain_deletedStudentIds'],
   onRestore: function (changed) {
     try {
+      if (typeof feeViewer !== 'undefined' && !feeViewer) return;   // page not opened for this visitor
       if (typeof feeInvalidateCaches === 'function') feeInvalidateCaches();
       if (typeof refreshLmsStudentCache === 'function') refreshLmsStudentCache();
       if (typeof loadData === 'function') loadData();

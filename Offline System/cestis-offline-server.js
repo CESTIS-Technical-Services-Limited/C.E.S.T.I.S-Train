@@ -131,6 +131,165 @@ function lanAddresses() {
   return out;
 }
 
+/* WHICH NAME WAS USED TO REACH US. A website on the internet can make its own
+   name point at this computer's address (DNS rebinding): the browser then
+   treats this server as part of that website, and its script could fetch the
+   token and read or rewrite the Centre's records. Such a request still says
+   the website's name in its Host header, so the store answers only to the
+   names this server really has: localhost, this computer's own network
+   addresses and its name — plus any listed in CESTIS_HOSTNAMES (comma-
+   separated) for a Centre that reaches it by a name of its own. */
+const EXTRA_HOSTNAMES = String(process.env.CESTIS_HOSTNAMES || '').split(',')
+  .map(h => h.trim().toLowerCase()).filter(Boolean);
+function knownHostnames() {
+  const names = ['localhost', '127.0.0.1', '[::1]'];
+  try {
+    const h = String(os.hostname() || '').toLowerCase();
+    if (h) names.push(h, h + '.local', h.split('.')[0]);
+  } catch (e) {}
+  lanAddresses().forEach(a => names.push(String(a.address).toLowerCase()));
+  return names.concat(EXTRA_HOSTNAMES);
+}
+const refusedHosts = new Set();
+function hostOk(req) {
+  let h = String(req.headers.host || '').trim().toLowerCase();
+  if (!h) return false;
+  h = h.charAt(0) === '[' ? h.slice(0, h.indexOf(']') + 1) : h.replace(/:\d+$/, '');
+  if (knownHostnames().indexOf(h) !== -1) return true;
+  if (!refusedHosts.has(h) && refusedHosts.size < 50) {
+    refusedHosts.add(h);
+    console.log('  Refused the records to a page that reached this server as "' + h + '". If that is this');
+    console.log('  computer\'s own name on your network, start the server with CESTIS_HOSTNAMES=' + h);
+  }
+  return false;
+}
+
+/* ------------------------------------------------------------ host tickets */
+/* A class room's host place is given only to signed-in staff (see the note in
+   cestis-offline-signalling.js). The page sends the password the person has
+   just signed in with; it is checked here against the Centre's accounts in
+   the data folder, and a short-lived ticket comes back. The secret that signs
+   tickets lives in cert/host-secret and never leaves this computer. */
+const HOST_SECRET = (function () {
+  const file = path.join(CERT_DIR, 'host-secret');
+  try {
+    const t = fs.readFileSync(file, 'utf8').trim();
+    if (/^[a-f0-9]{64}$/.test(t)) return t;
+  } catch (e) {}
+  const t = crypto.randomBytes(32).toString('hex');
+  try { fs.mkdirSync(CERT_DIR, { recursive: true }); fs.writeFileSync(file, t + '\n', { mode: 0o600 }); } catch (e) {}
+  return t;
+})();
+const STAFF_ROLES = { admin: 1, adminstaff: 1, instructor: 1 };
+const PUBLISHED_DEFAULTS = ['cestisadmin123$', 'admin123'];
+const ACCOUNT_FILES = ['CESTIS_LMS_Dashboard.json', 'CESTIS_ALL_DATA.json'];
+const accountCache = new Map();   // file -> { stamp, list }
+function accountsIn(file) {
+  const full = path.join(DATA_DIR, file);
+  let st;
+  try { st = fs.statSync(full); } catch (e) { return []; }
+  const stamp = st.mtimeMs + ':' + st.size;
+  const hit = accountCache.get(file);
+  if (hit && hit.stamp === stamp) return hit.list;
+  let list = [];
+  try {
+    const payload = JSON.parse(fs.readFileSync(full, 'utf8'));
+    const v = payload && payload.data && payload.data.voctrain_users;
+    list = typeof v === 'string' ? JSON.parse(v) : v;
+  } catch (e) { list = []; }
+  if (!Array.isArray(list)) list = [];
+  accountCache.set(file, { stamp, list });
+  return list;
+}
+function centreAccounts() {
+  const byId = new Map();
+  ACCOUNT_FILES.forEach(f => accountsIn(f).forEach(a => {
+    if (!a || a.id == null) return;
+    const cur = byId.get(a.id);
+    if (!cur || (Date.parse(a.updatedAt || '') || 0) > (Date.parse(cur.updatedAt || '') || 0)) byId.set(a.id, a);
+  }));
+  return Array.from(byId.values());
+}
+function isStaffLogin(a) {
+  if (!a || !STAFF_ROLES[String(a.role || '').trim().toLowerCase()]) return false;
+  const st = String(a.status || '').trim().toLowerCase();
+  if (st === 'disabled' || st === 'rejected' || st === 'pending') return false;
+  if (typeof a.password !== 'string' || !a.password) return false;
+  if (a.defaultPassword === true || a.mustChangePassword) return false;   // still the published seed
+  return PUBLISHED_DEFAULTS.indexOf(a.password) === -1;
+}
+function verifyStoredPassword(password, stored) {
+  return new Promise(resolve => {
+    const same = (x, y) => { const a = Buffer.from(String(x)), b = Buffer.from(String(y)); return a.length === b.length && crypto.timingSafeEqual(a, b); };
+    try {
+      if (stored.indexOf('pbkdf2$') === 0) {
+        const p = stored.split('$');
+        if (p.length !== 4) return resolve(false);
+        crypto.pbkdf2(String(password), Buffer.from(p[2], 'hex'), parseInt(p[1], 10) || 210000, 32, 'sha256', (err, key) => {
+          resolve(!err && same(key.toString('hex'), p[3]));
+        });
+        return;
+      }
+      if (/^[a-f0-9]{64}$/.test(stored)) {
+        return resolve(same(crypto.createHash('sha256').update(String(password) + '__CESTIS_SALT_2026__').digest('hex'), stored));
+      }
+      resolve(same(password, stored));            // an account the dashboard has not hashed yet
+    } catch (e) { resolve(false); }
+  });
+}
+// Ten wrong passwords from one device in ten minutes and it waits.
+const ticketFailures = new Map();
+function ticketThrottled(req) {
+  const ip = String((req.socket && req.socket.remoteAddress) || '');
+  const f = ticketFailures.get(ip);
+  if (f && Date.now() - f.since > 10 * 60 * 1000) { ticketFailures.delete(ip); return false; }
+  return !!(f && f.count >= 10);
+}
+function ticketFailed(req) {
+  const ip = String((req.socket && req.socket.remoteAddress) || '');
+  const f = ticketFailures.get(ip) || { count: 0, since: Date.now() };
+  f.count++;
+  ticketFailures.set(ip, f);
+}
+function handleHostTicket(req, res) {
+  if (req.method !== 'POST') return send(res, 405, 'method not allowed');
+  if (ticketThrottled(req)) return send(res, 429, JSON.stringify({ ok: false, error: 'too many attempts — wait ten minutes' }), MIME['.json']);
+  const chunks = [];
+  let received = 0, tooBig = false;
+  req.on('data', c => {
+    received += c.length;
+    if (received > 8192) { if (!tooBig) { tooBig = true; send(res, 413, 'too large'); req.destroy(); } return; }
+    chunks.push(c);
+  });
+  req.on('end', () => {
+    if (tooBig) return;
+    let body = null;
+    try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (e) { body = null; }
+    const who = String((body && body.username) || '').trim().toLowerCase();
+    const password = body && typeof body.password === 'string' ? body.password : '';
+    const refuse = () => { ticketFailed(req); send(res, 403, JSON.stringify({ ok: false, error: 'not a member of staff with that password' }), MIME['.json']); };
+    if (!who || !password || PUBLISHED_DEFAULTS.indexOf(password) !== -1) return refuse();
+    const acct = centreAccounts().filter(isStaffLogin).find(a =>
+      String(a.username || '').trim().toLowerCase() === who || String(a.email || '').trim().toLowerCase() === who);
+    if (!acct) return refuse();
+    verifyStoredPassword(password, acct.password).then(ok => {
+      if (!ok) return refuse();
+      const ticket = signalling.makeTicket(HOST_SECRET, { u: acct.id, r: String(acct.role).toLowerCase() });
+      const claims = signalling.verifyTicket(HOST_SECRET, ticket);
+      send(res, 200, JSON.stringify({ ok: true, ticket, expires: claims ? claims.exp : 0 }), MIME['.json']);
+    });
+  });
+}
+/* For the signalling server: may this connection take a room's host place?
+   With a valid ticket, yes. With none, only while the data folder holds no
+   staff login with a password of its own — a brand-new Centre, where there is
+   nothing to check a password against yet. */
+function hostCheck(id, key) {
+  if (signalling.verifyTicket(HOST_SECRET, key)) return { ok: true };
+  if (!centreAccounts().some(isStaffLogin)) return { ok: true };
+  return { ok: false, msg: 'Only signed-in staff can host a class on this Centre’s server: sign out and sign in again with your staff account, then start the class.' };
+}
+
 function send(res, status, body, type, extraHeaders) {
   const headers = Object.assign({
     'Content-Type': type || 'text/plain; charset=utf-8',
@@ -227,7 +386,9 @@ function listData(res) {
       try { const st = fs.statSync(path.join(DATA_DIR, f)); size = st.size; modified = st.mtime.toISOString(); } catch (e) {}
       return { file: f, size, modified };
     });
-    send(res, 200, JSON.stringify({ ok: true, folder: DATA_DIR, files: list }, null, 2), MIME['.json']);
+    // (No folder path: where the records live on this computer is nobody
+    // else's business, and it told anyone holding the token.)
+    send(res, 200, JSON.stringify({ ok: true, files: list }, null, 2), MIME['.json']);
   });
 }
 
@@ -324,15 +485,25 @@ const handler = (req, res) => {
       ok: true, mode: 'offline-lan', version: '1.1', time: new Date().toISOString()
     }), MIME['.json']);
   }
+  // Everything below /_cestis/ except the health check answers only to this
+  // server's own names (see hostOk: a rebound website name gets nothing).
+  if (url.indexOf('/_cestis/') === 0 && !hostOk(req)) {
+    return send(res, 421, JSON.stringify({ ok: false, error: 'This server answers only at its own addresses.' }), MIME['.json']);
+  }
   if (url === '/_cestis/token') {
     return send(res, 200, JSON.stringify({ ok: true, token: ACCESS_TOKEN }), MIME['.json']);
   }
   if (url === '/_cestis/rooms') {
     // Every live class's room code — and the room code is all it takes to
-    // join. Shown on the server computer itself (READ ME FIRST, section 5),
-    // or to one of our pages carrying the token; not to the whole network.
-    if (!isLoopback(req) && !tokenOk(req)) return send(res, 403, 'Open this on the server computer itself.');
+    // join. Shown on the server computer itself only (READ ME FIRST, section
+    // 5). The token no longer opens it: every device on the network can have
+    // the token, and no page of ours asks for this list.
+    if (!isLoopback(req)) return send(res, 403, 'Open this on the server computer itself.');
     return send(res, 200, JSON.stringify({ ok: true, connected: sig.count(), rooms: sig.rooms() }, null, 2), MIME['.json']);
+  }
+  if (url === '/_cestis/host-ticket') {
+    if (!tokenOk(req)) return send(res, 401, JSON.stringify({ ok: false, error: 'not authorised' }), MIME['.json']);
+    return handleHostTicket(req, res);
   }
   // PeerJS asks for a generated id when a page does not supply one. Every page
   // here names its own, but the endpoint has to exist or the library complains.
@@ -365,7 +536,7 @@ const server = tls
 ensureDataDir();
 
 /* Video classes: carry the introductions between browsers on this network. */
-const sig = signalling.attach(server, msg => console.log('  ' + msg));
+const sig = signalling.attach(server, msg => console.log('  ' + msg), { hostCheck });
 
 server.on('error', err => {
   if (err && err.code === 'EADDRINUSE') {

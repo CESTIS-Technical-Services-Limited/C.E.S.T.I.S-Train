@@ -42,16 +42,28 @@
 <script src="finance-logos.js?v=20260713b"></script>
 <script src="finance-docs.js?v=20260713b"></script>
 <script>
-FinanceDoc.init({
-  docType: 'po',
-  storageKey: 'cestis_finance_pos',
-  numberSeed: 1001,
-  dueDays: 14,
-  hasTemplates: false,
-  hasStatus: true,
-  canConvert: false,
-  labels: { title: 'PURCHASE ORDER', docWord: 'purchase order', noLabel: 'PO NO', dateLabel: 'PO DATE', dueLabel: 'DELIVERY DATE' }
-});
+/* Who may open this page. It had no sign-in and showed the Centre's books to
+   whoever typed its address — a trainee at a lab PC included. It opens only
+   for the signed-in dashboard (an Administrator or Admin Staff: embedded, or
+   signed in on this computer — CESTISCore.sessionAccess.guard); anyone
+   else sees "sign in first" and nothing of the page runs. */
+(function () {
+  var SA = window.CESTISCore && CESTISCore.sessionAccess;
+  if (!SA || !SA.guard) { document.body.textContent = 'Shared data core failed to load. Please refresh.'; return; }
+  SA.guard({ allowed: ['admin', 'adminstaff'] }, function (viewer) {
+    if (!viewer.ok) { SA.lockPage(viewer.message); return; }
+    FinanceDoc.init({
+      docType: 'po',
+      storageKey: 'cestis_finance_pos',
+      numberSeed: 1001,
+      dueDays: 14,
+      hasTemplates: false,
+      hasStatus: true,
+      canConvert: false,
+      labels: { title: 'PURCHASE ORDER', docWord: 'purchase order', noLabel: 'PO NO', dateLabel: 'PO DATE', dueLabel: 'DELIVERY DATE' }
+    });
+  });
+})();
 </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->

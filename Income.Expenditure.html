@@ -462,7 +462,7 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
     document.getElementById('pageTitle').textContent =
       v === 'calc' ? 'Income and Expenditure Calculation' : 'Income and Expenditure Account';
   };
-  window.refreshNow = function () { render(true); };
+  window.refreshNow = function () { if (opened) render(true); };
   window.syncCloudNow = function () {
     var btn = document.getElementById('syncBtn');
     btn.disabled = true; btn.textContent = '☁️ Syncing…';
@@ -478,21 +478,34 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
   // the storage event carries it here; re-render on the next frame.
   var pending = null;
   function scheduleRender() {
-    if (pending) return;
+    if (pending || !opened) return;
     pending = setTimeout(function () { pending = null; render(false); }, 150);
   }
   window.addEventListener('storage', function (ev) {
     if (!ev) return;
     if (ev.key === null || String(ev.key).indexOf('cestis_quarter_') === 0 || String(ev.key).indexOf('cestis_budget_') === 0) scheduleRender();
   });
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) render(false); });
-  window.addEventListener('focus', function () { render(false); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && opened) render(false); });
+  window.addEventListener('focus', function () { if (opened) render(false); });
   // Belt-and-braces for writes too large to mirror into localStorage (which
   // fire no storage event): a slow poll that only repaints when data changed.
-  setInterval(function () { render(false); updateCloudBadge(); }, 30000);
+  setInterval(function () { if (!opened) return; render(false); updateCloudBadge(); }, 30000);
 
-  function start() { render(true); updateCloudBadge(); }
-  if (store.whenReady) store.whenReady(start); else start();
+  var opened = false;
+  function start() { if (!opened) return; render(true); updateCloudBadge(); }
+  /* Who may open this page. It had no sign-in and showed the Centre's books to
+     whoever typed its address — a trainee at a lab PC included. It opens only
+     for the signed-in dashboard (an Administrator or Admin Staff: embedded, or
+     signed in on this computer — CESTISCore.sessionAccess.guard); anyone
+     else sees "sign in first" and nothing of the page runs. */
+  var SA = window.CESTISCore && CESTISCore.sessionAccess;
+  if (SA && SA.guard) {
+    SA.guard({ allowed: ['admin', 'adminstaff'] }, function (viewer) {
+      if (!viewer.ok) { SA.lockPage(viewer.message); return; }
+      opened = true;
+      if (store.whenReady) store.whenReady(start); else start();
+    });
+  }
 })();
 </script>
 

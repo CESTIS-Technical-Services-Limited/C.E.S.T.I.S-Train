@@ -196,6 +196,15 @@
     if (e.key === '3') window.__adjDecide('deferred');
   });
 
+  /* Who may use this page: it shows trainees' names, dates of birth, ID
+     numbers, phones and addresses side by side and records merge decisions,
+     so it is an Administrator's — embedded in an Administrator's dashboard,
+     or with one signed in to the dashboard on this computer
+     (CESTISCore.sessionAccess). It opened for anybody who typed its address. */
+  var SA = window.CESTISCore && CESTISCore.sessionAccess;
+  if (!SA || !SA.guard) { $('modeStatus').className = 'status bad'; $('modeStatus').textContent = 'Shared data core failed to load. Please refresh.'; return; }
+  SA.guard({ allowed: ['admin'] }, function (viewer) {
+  if (!viewer.ok) { SA.lockPage(viewer.message); return; }
   MG.pageBoot({ page: 'MegaData-Adjudication', actor: { name: 'Adjudicator', role: 'admin', device: 'dev_adjq' }, onChange: function (m) {
     if (m && m.reason === 'sync-error') { note('warn', 'Sync problem: ' + (m.error || 'unknown') + ' — will retry automatically.'); return; }
     if (m && m.reason === 'broadcast') { catchUp(); return; }  // another tab advanced the shared book
@@ -222,6 +231,7 @@
       });
     })
     .catch(function (e) { $('modeStatus').className = 'status bad'; $('modeStatus').textContent = 'Boot failed: ' + e.message; });
+  });
 })();
 </script>
 </body>
