@@ -9175,6 +9175,11 @@ initAttendanceQuarters();
   if (savedVersion >= CURRENT_DATA_VERSION) return; // Already purged
 
   console.log('[Migration] Purging legacy demo data (v' + savedVersion + ' -> v' + CURRENT_DATA_VERSION + ')');
+  // How many records each collection held before the purge, so only the ones
+  // it actually changed are written back (see the end of this function).
+  var _purgeBefore = { students: students.length, exams: exams.length, announcements: announcements.length,
+    calendarEvents: calendarEvents.length, attendanceRecords: attendanceRecords.length,
+    instructorData: instructorData.length, examResults: examResults.length };
 
   // 1. Remove demo students (generated IDs STU-2026000 through STU-2026079)
   var demoStudentIds = {};
@@ -9239,11 +9244,19 @@ initAttendanceQuarters();
   // The collections the purge changed are written exactly as saveState()
   // writes them (stamped first, then through the empty-list guard); the next
   // ordinary save, once everything is loaded, writes the rest.
+  //
+  // A collection the purge removed nothing from is not written at all. On a
+  // brand-new device every one of them is empty and the store is still loading,
+  // and writing them anyway had the empty-list guard refuse all seven with
+  // "Refused to overwrite stored records ... the stored copy is kept" console
+  // errors — on every first visit of every device, about records that did not
+  // exist.
   CESTISStore.setItem('voctrain_dataVersion', String(CURRENT_DATA_VERSION));
   try { syncStampAll(); } catch(e) {}
-  [['voctrain_students', students], ['voctrain_exams', exams], ['voctrain_announcements', announcements],
-   ['voctrain_calendarEvents', calendarEvents], ['voctrain_attendance', attendanceRecords],
-   ['voctrain_instructorData', instructorData], ['voctrain_examResults', examResults]].forEach(function(kv) {
+  [['voctrain_students', students, 'students'], ['voctrain_exams', exams, 'exams'], ['voctrain_announcements', announcements, 'announcements'],
+   ['voctrain_calendarEvents', calendarEvents, 'calendarEvents'], ['voctrain_attendance', attendanceRecords, 'attendanceRecords'],
+   ['voctrain_instructorData', instructorData, 'instructorData'], ['voctrain_examResults', examResults, 'examResults']].forEach(function(kv) {
+    if (kv[1].length === _purgeBefore[kv[2]]) return;   // nothing purged here
     try { saveCollection(kv[0], kv[1]); } catch(e) { console.error('[Migration] could not save ' + kv[0], e); }
   });
   try { scheduleDebouncedCloudSave(); } catch(e) {}
