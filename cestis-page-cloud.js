@@ -578,11 +578,27 @@
      the results themselves travel in voctrain_examResults. Each user's private
      copy (voctrain_user_<id>_*) holds their direct messages, so it stays on the
      PC it was written on — the shared collections already carry the Centre's
-     records. */
+     records.
+
+     Everything that describes THIS browser's session is the device's too:
+     the session's trainee and its heartbeat (voctrain_sessionStudentId,
+     voctrain_sessionSeenAt — the dashboard withdraws the heartbeat when its
+     idle lock closes, and the record pages refuse to open without a fresh
+     one; travelling, one device's heartbeat kept every other device's
+     "still open", so a locked lab PC's session could be borrowed in a new
+     tab), who is signed in for the older pages, this device's "not yet
+     uploaded" markers (cestisPendingUpload must stay where the work is
+     waiting), its id in the certificate download count, its support e-mail
+     budget, its "seen this help" dismissals and its own copy of a video
+     room's chat (each line marked as sent from this device or not). */
+  var DEVICE_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser', 'cestisAttendanceCurrentUser',
+    'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisCertDeviceSessionId', 'voctrain_supportSendLog'];
   function deviceOnly(k) {
-    return /^voctrain_session(Expiry|Role|UserId)$/.test(k) || k === 'voctrain_examInProgress' ||
+    return /^voctrain_session(Expiry|Role|UserId|StudentId|SeenAt)$/.test(k) || k === 'voctrain_examInProgress' ||
            k.indexOf('cestisExamSession__') === 0 || k === 'cestisExamOutbox' ||
            k.indexOf('voctrain_user_') === 0 ||
+           DEVICE_KEYS.indexOf(k) !== -1 ||
+           k.indexOf('voctrain_extSysCertHelpSeen_') === 0 || k.indexOf('vcChatHistory_') === 0 ||
            /AccessToken$|TokenExpiry$/i.test(k);
   }
   function lanCollect(spec, map) {
