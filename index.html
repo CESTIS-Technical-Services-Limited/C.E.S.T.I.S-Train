@@ -6944,6 +6944,82 @@ function certImageLoadAllFromDrive() {
   }).catch(function(e) { console.warn('[CertDrive] Load all error:', e); return []; });
 }
 
+// ---- The Centre's own server (Offline System) for the same images ----
+// On the Centre's network there is no Google Drive, so a design's background
+// images stayed in the IndexedDB of the PC that uploaded them, and a trainee's
+// own device could never build their certificate ("No certificate template
+// found"). There they are kept on the Centre's server as well — one file per
+// page of a design, written by the staff device that uploads it and read by
+// any device that builds a certificate. Only an image is ever written or used
+// (a data: URL of an image type, at most CERT_IMAGE_LAN_MAX characters), and
+// an image the server already holds is not sent again, so its history folder
+// is not filled with copies. Anywhere but on the Centre's network none of this
+// does anything; Drive goes on doing the same job online.
+var CERT_IMAGE_LAN_MAX = 10 * 1024 * 1024;
+function certImageLanFile(course, page) {
+  return 'CESTIS_CertImage_' + CESTISCore.hashString(String(course)) + '_' + page + '.json';
+}
+function certImageLanSafe(data) {
+  return typeof data === 'string' && data.length <= CERT_IMAGE_LAN_MAX &&
+    /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+\/]+=*$/.test(data);
+}
+// The Centre's server's list of files, or null when this is not on its network.
+function certImageLanFiles() {
+  if (!window.CESTISPageCloud || typeof CESTISPageCloud.lanListFiles !== 'function') return Promise.resolve(null);
+  return CESTISPageCloud.lan().then(function(on) { return on ? CESTISPageCloud.lanListFiles() : null; })
+    .catch(function() { return null; });
+}
+// Resolves 'saved' | 'same' | 'too-large' | 'off' | 'failed'.
+function certImageSaveToLan(course, page, data, held) {
+  return (held ? Promise.resolve(held) : certImageLanFiles()).then(function(files) {
+    if (!files || !course || !data) return 'off';
+    if (currentRole !== 'admin' && currentRole !== 'adminstaff') return 'off';
+    if (!certImageLanSafe(data)) return data.length > CERT_IMAGE_LAN_MAX ? 'too-large' : 'failed';
+    var file = certImageLanFile(course, page);
+    var there = files.indexOf(file) !== -1 ? CESTISPageCloud.lanReadFile(file) : Promise.resolve(null);
+    return there.then(function(p) {
+      if (p && p.data && p.data.image === data) return 'same';
+      return CESTISPageCloud.lanWriteFile(file, { image: data }).then(function(ok) { return ok ? 'saved' : 'failed'; });
+    });
+  }).catch(function() { return 'failed'; });
+}
+// Both pages of a design, from the Centre's server into this device (and its
+// IndexedDB, for next time). Resolves true when page 1 is now here.
+function certImageLoadFromLan(course) {
+  return certImageLanFiles().then(function(files) {
+    if (!files || !course || !certTemplates[course]) return false;
+    return Promise.all(['bgPage1', 'bgPage2'].map(function(page) {
+      var file = certImageLanFile(course, page);
+      if (files.indexOf(file) === -1) return false;
+      return CESTISPageCloud.lanReadFile(file).then(function(p) {
+        var img = p && p.data && p.data.image;
+        if (!certImageLanSafe(img)) return false;
+        certTemplates[course][page] = img;
+        certImageSave(course, page, img);
+        return true;
+      }, function() { return false; });
+    })).then(function(got) { return !!got[0]; });
+  }).catch(function() { return false; });
+}
+// A staff device holding designs uploaded before their images were kept on the
+// Centre's server publishes the ones the server does not have yet.
+function certImagesPublishToLan() {
+  if (currentRole !== 'admin' && currentRole !== 'adminstaff') return Promise.resolve(0);
+  return certImageLanFiles().then(function(files) {
+    if (!files) return 0;
+    return ensureCertImagesLoaded().then(function() {
+      var jobs = [];
+      Object.keys(certTemplates || {}).forEach(function(course) {
+        ['bgPage1', 'bgPage2'].forEach(function(page) {
+          var img = certTemplates[course] && certTemplates[course][page];
+          if (img && files.indexOf(certImageLanFile(course, page)) === -1) jobs.push(certImageSaveToLan(course, page, img, files));
+        });
+      });
+      return Promise.all(jobs).then(function(r) { return r.filter(function(x) { return x === 'saved'; }).length; });
+    });
+  }).catch(function() { return 0; });
+}
+
 function initLmsChatData() {
   try {
     var cr = CESTISStore.getItem('voctrain_chatRooms');
@@ -11174,6 +11250,13 @@ function enterApp(role) {
     if(bellBtn) bellBtn.onclick = function(e) { e.stopPropagation(); toggleNotifications(); };
     updateNotificationDot();
     setTimeout(animateAllCounters, 100);
+
+    // On the Centre's own network: certificate designs this PC holds but its
+    // server does not yet (uploaded before the server kept them) go up, so
+    // trainees' own devices can build their certificates.
+    if (role === 'admin' || role === 'adminstaff') {
+      setTimeout(function(){ try { certImagesPublishToLan(); } catch(e) {} }, 4000);
+    }
 
     // Notify admin of pending/disabled accounts needing review
     if (role === 'admin') {
@@ -41559,6 +41642,11 @@ function certLoadTemplateFor(student) {
   if (have()) return Promise.resolve(have());
   return ensureCertImagesLoaded().then(function () {
     if (have()) return have();
+    // On the Centre's own network, its server (certImageLoadFromLan).
+    return certImageLoadFromLan(certKey);
+  }).then(function (r) {
+    if (r && r.bgPage1) return r;
+    if (have()) return have();
     if (!googleAccessToken) return null;
     return certImageLoadFromDrive(certKey, 'bgPage1').then(function (d) {
       if (!d) return null;
@@ -42096,8 +42184,12 @@ function generateCertificatePDF(studentId) {
       var tpl2 = certTemplates[certKey] || {};
       if(tpl2.bgPage1) {
         _generateCertPDFInner(studentId);
-      } else {
-        // Step 2: Try Google Drive
+        return;
+      }
+      // Step 2: on the Centre's own network, its server (certImageLoadFromLan)
+      return certImageLoadFromLan(certKey).then(function(found) {
+        if(found) { _generateCertPDFInner(studentId); return; }
+        // Step 3: Try Google Drive
         if(googleAccessToken) {
           showToast('Template not found locally. Checking Google Drive...');
           _certDownloadStatus('Checking Google Drive for template...', false);
@@ -42116,7 +42208,7 @@ function generateCertificatePDF(studentId) {
           showToast('No certificate template found for ' + (student.course || 'this course') + '. Please contact administration.');
           _certDownloadStatus('Certificate template not available for ' + (student.course || 'this course') + '. Please contact administration.', true);
         }
-      }
+      });
     }).catch(function() {
       showToast('Error loading certificate template. Please try again.');
       _certDownloadStatus('Error loading certificate template. Please try again.', true);
@@ -43439,9 +43531,18 @@ function saveCertTemplate() {
   var bgPage1 = document.getElementById('ctplBgPage1Preview').getAttribute('data-base64') || existing.bgPage1 || '';
   var bgPage2 = document.getElementById('ctplBgPage2Preview').getAttribute('data-base64') || existing.bgPage2 || '';
 
-  // Save images to IndexedDB (too large for localStorage) and Google Drive
+  // Save images to IndexedDB (too large for localStorage) and Google Drive —
+  // and, on the Centre's own network, to its server, so a trainee's own device
+  // can build the certificate too.
   if(bgPage1) { certImageSave(_certTplEditingCourse, 'bgPage1', bgPage1); certImageSaveToDrive(_certTplEditingCourse, 'bgPage1', bgPage1); }
   if(bgPage2) { certImageSave(_certTplEditingCourse, 'bgPage2', bgPage2); certImageSaveToDrive(_certTplEditingCourse, 'bgPage2', bgPage2); }
+  [['bgPage1', bgPage1], ['bgPage2', bgPage2]].forEach(function(pg) {
+    if(!pg[1]) return;
+    certImageSaveToLan(_certTplEditingCourse, pg[0], pg[1]).then(function(r) {
+      if(r === 'too-large') showToast('The page ' + pg[0].slice(-1) + ' background is too large to share on the Centre\'s network — certificates are built on this PC only. Use a smaller image.', 'warning');
+      else if(r === 'failed') showToast('The certificate design could not be copied to the Centre\'s server — it is saved on this PC. Save it again once the server is reachable.', 'warning');
+    });
+  });
 
   // Start from the template as it stands and overwrite only what the editor
   // edits: the plan it was seeded from, its gender wording and any field the

@@ -1083,6 +1083,41 @@
     /* True once this page has read the Centre's server successfully in this
        session: the LAN's answer to "has this device synced?". */
     lanSynced: function () { return !!(lan.on && lan.synced); },
+    /* Files of the Centre's own on its server that belong to no page's sync —
+       a certificate design's background image, too big to travel with a
+       page's records (index.html, certImageSaveToLan). Each is one payload
+       { data: { key: string }, stamps: { key: ISO time } }, merged by the
+       server into what it holds by the same newest-per-key rule as every page
+       file. All three resolve null / false anywhere but on the Centre's
+       network.
+         lanListFiles()             -> [file names]
+         lanReadFile(name)          -> payload | null
+         lanWriteFile(name, data)   -> true when the server took it */
+    lanListFiles: function () {
+      return detectLocalServer().then(function (on) {
+        if (!on) return null;
+        return lanFetch('', {}).then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) { return d && Array.isArray(d.files) ? d.files.map(function (f) { return String(f.file || ''); }) : null; })
+          .catch(function () { return null; });
+      });
+    },
+    lanReadFile: function (name) {
+      return detectLocalServer().then(function (on) {
+        if (!on || !name) return null;
+        return localGet(String(name)).then(function (got) { return got.ok ? got.payload : null; });
+      });
+    },
+    lanWriteFile: function (name, data) {
+      return detectLocalServer().then(function (on) {
+        if (!on || !name || !data) return false;
+        var now = lanNow(), stamps = {};
+        Object.keys(data).forEach(function (k) { stamps[k] = now; });
+        var payload = core().buildPayload({ page: 'Centre file', file: String(name) }, data, stamps, {
+          savedAt: now, savedBy: (root.currentLoggedInUser && root.currentLoggedInUser.username) || root.currentRole || 'offline'
+        });
+        return localPut(String(name), payload).then(function (put) { return !!put.ok; });
+      });
+    },
     /* fn() once, after this device's next save has reached the Centre's
        server — for something that has to wait until the server holds what was
        just saved here (a host ticket asked for with a password changed a

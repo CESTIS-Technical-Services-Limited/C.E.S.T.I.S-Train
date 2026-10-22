@@ -704,18 +704,17 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
       (mc.indexOf(certNo) === -1 ? ' — ' + JSON.stringify(await P.evaluate(id => ({ cur: currentStudent && [currentStudent.id, currentStudent.stage, currentStudent.certNo],
         mem: (students.find(s => s.id === id) || {}).stage, same: students.indexOf(currentStudent) !== -1,
         stored: (JSON.parse(CESTISStore.getItem('voctrain_students') || '[]').find(s => s.id === id) || {}).stage }), ids.ama)) : ''));
-    // ...but the design (its background images) lives only on the PC that
-    // uploaded it, and on Google Drive online: on the Centre's network a
-    // trainee's own device cannot build the PDF. Recorded, not asserted.
-    const phoneWait = P.waitForEvent('download', { timeout: 10000 }).catch(() => null);
+    // ...and her phone builds the PDF itself: the design's background images
+    // are on the Centre's server (online they come from Google Drive).
+    const phoneWait = P.waitForEvent('download', { timeout: 20000 }).catch(() => null);
     await P.click('#page-s-certificate button:has-text("Download Certificate")');
     await P.waitForTimeout(1500);
     const phoneSays = (await text(P, '#toastContainer')).replace(/\s+/g, ' ').trim();
     const phonePdf = await phoneWait;
-    if (phonePdf) ok(fs.readFileSync(await phonePdf.path()).slice(0, 5).toString() === '%PDF-', 'the certificate PDF is produced on her phone');
-    else note('GAP (Offline System): the certificate PDF cannot be built on a trainee\'s own device — the design\'s background images stay on the PC that uploaded them (IndexedDB) and travel only through Google Drive. Her phone says: "' + phoneSays.slice(0, 160) + '"');
+    ok(!!phonePdf && fs.readFileSync(await phonePdf.path()).slice(0, 5).toString() === '%PDF-' && phonePdf.suggestedFilename().indexOf(certNo) !== -1,
+      'the certificate PDF is produced on her own phone' + (phonePdf ? '' : ' — her phone says: "' + phoneSays.slice(0, 160) + '"'));
     await ackAlerts(P);
-    // ...so she collects it at the office: the front desk of the office PC.
+    // She can also collect it at the office: the front desk of the office PC.
     const D = await tab(office, 'front-desk-2');
     ok(await signIn(D, 'student', AMA.user, AMA.pass), 'Ama signs in at the office front desk');
     await nav(D, 's-certificate');
