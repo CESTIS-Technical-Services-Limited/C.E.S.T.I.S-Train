@@ -11020,6 +11020,31 @@
        csvCell(v)                       a CSV cell, quoted and formula-safe
        draftKey(studentId, examId)      where an attempt in progress is kept
        outboxAdd / outboxPending / outboxRestore  results not yet in the cloud
+
+     The question types (q.type). The ids are stored in every exam and every
+     result, so they never change; the names are what staff and trainees see.
+       mcq          Multiple choice, one answer       key: option index
+       tf           True / False                      key: true | false
+       multi        Multiple answers ("one or more")  key: [option indexes]
+       match        Matching                          key: q.pairs [{prompt, answer}]
+       shortanswer  Short answer, marked by the key   key: [accepted answers]
+       numerical    Numerical                         key: number (± q.tolerance)
+       fill         Fill in the blank (staff confirm) key: expected text
+       short        Essay, marked by staff            key: model answer (optional)
+       info         Information only (no answer, no marks)
+     ('short' is the essay: the id predates the name, and renaming it would
+     strand every stored result. 'shortanswer' is the auto-marked one.)
+
+       markMulti(chosen, key, opts)     share of the marks for a "one or more"
+       markMatch(chosen, pairs)         share of the marks for a matching question
+       shortAnswerMatches(ans, accepted) does a typed answer match the key?
+       numericalMatches(ans, key, tol)  is a typed number within the tolerance?
+       parseNumber(s)                   a typed number, or null
+       matchChoices(q, shuffle)         the answers a matching row offers
+       answerState(q, ans)              'none' | 'partial' | 'complete' | 'info'
+       attemptQuestions(qd, opts)       the trainee's copy: keys stripped, shuffled
+       pagesOf(questions, perPage)      question indexes on each page
+       questionNumbers(questions)       1, 2, 'i', 3 ... (information is not numbered)
      -------------------------------------------------------------------------- */
   Core.exams = (function () {
     var DEFAULT_OFFSET = '-05:00';
@@ -11058,11 +11083,24 @@
     function durationMs(exam) { return (parseInt(exam && exam.duration, 10) || 90) * MIN; }
     function hasQuestions(exam) { return !!(exam && Array.isArray(exam.questionData) && exam.questionData.length); }
 
+    /* An exam may name its own closing moment (closeDate + closeTime, Centre
+       time), like Moodle's "Close the quiz": open from Monday 09:00 to Friday
+       17:00 with a 45-minute limit per attempt. Without one — every exam
+       saved before this existed — it closes `duration` minutes after it
+       opens, as it always has. A closing time at or before the opening is
+       ignored rather than shutting the exam before it starts. */
+    function closeOf(exam, start, offset) {
+      if (!exam || !exam.closeDate) return null;
+      var c = centreTime(exam.closeDate, exam.closeTime || '23:59', offset);
+      return c != null && start != null && c > start ? c : null;
+    }
+
     function windowOf(exam, offset) {
       if (!exam) return null;
       var dur = durationMs(exam);
       var start = centreTime(exam.date, exam.time, offset);
-      var end = start == null ? null : start + dur;
+      var close = closeOf(exam, start, offset);
+      var end = start == null ? null : (close != null ? close : start + dur);
       var act = Date.parse(exam.activatedAt || '');
       if (!isNaN(act)) {
         start = start == null ? act : Math.min(start, act);
@@ -11091,34 +11129,256 @@
       return d;
     }
 
+    /* The trainee's copy of the questions: everything that would give an
+       answer away is left out. A matching question's key IS its pairs, so the
+       trainee gets the prompts (rows) and the list of answers to choose from
+       (choices, in alphabetical order so their order says nothing about which
+       row they belong to); the tolerance of a numerical answer goes too. */
+    var KEY_FIELDS = { correctAnswer: 1, pairs: 1, distractors: 1, tolerance: 1 };
     function publicQuestions(questionData) {
       return (Array.isArray(questionData) ? questionData : []).map(function (q) {
         var c = {};
-        Object.keys(q || {}).forEach(function (k) { if (k !== 'correctAnswer') c[k] = q[k]; });
+        Object.keys(q || {}).forEach(function (k) { if (!KEY_FIELDS[k]) c[k] = q[k]; });
+        if (q && q.type === 'match') {
+          c.rows = matchPairs(q).map(function (p) { return p.prompt; });
+          c.choices = matchChoices(q);
+        }
         return c;
       });
     }
 
+    function isIndex(k, n) { return typeof k === 'number' && k >= 0 && k < n && Math.floor(k) === k; }
+    function matchPairs(q) {
+      return (q && Array.isArray(q.pairs) ? q.pairs : []).filter(function (p) { return p && typeof p === 'object'; });
+    }
     function validKey(q, key) {
       if (!q) return false;
-      if (q.type === 'mcq') return typeof key === 'number' && key >= 0 && key < (q.options || []).length && Math.floor(key) === key;
+      if (q.type === 'mcq') return isIndex(key, (q.options || []).length);
       if (q.type === 'tf') return key === true || key === false;
+      if (q.type === 'multi') {
+        var n = (q.options || []).length, seen = {};
+        return Array.isArray(key) && key.length > 0 && key.every(function (k) {
+          if (!isIndex(k, n) || seen[k]) return false;
+          seen[k] = 1; return true;
+        });
+      }
+      if (q.type === 'match') {
+        var pairs = matchPairs(q);
+        return pairs.length >= 2 && pairs.length === (q.pairs || []).length && pairs.every(function (p) {
+          return String(p.prompt == null ? '' : p.prompt).trim() !== '' && String(p.answer == null ? '' : p.answer).trim() !== '';
+        });
+      }
+      if (q.type === 'shortanswer') return acceptedAnswers(key).length > 0;
+      if (q.type === 'numerical') {
+        var tol = q.tolerance == null || q.tolerance === '' ? 0 : Number(q.tolerance);
+        return parseNumber(key) != null && isFinite(tol) && tol >= 0;
+      }
       return true;
     }
+    /* Question numbers (1-based, as staff number them in the builder) whose
+       answer key is missing or unusable. Fill-in-the-blank, the essay and
+       information items have no key that marking depends on. */
+    var KEYED = { mcq: 1, tf: 1, multi: 1, match: 1, shortanswer: 1, numerical: 1 };
     function keyProblems(questions) {
       var out = [];
       (questions || []).forEach(function (q, i) {
-        if (q && (q.type === 'mcq' || q.type === 'tf') && !validKey(q, q.correctAnswer)) out.push(i + 1);
+        if (q && KEYED[q.type] && !validKey(q, q.correctAnswer)) out.push(i + 1);
       });
       return out;
     }
+    /* An option was deleted in the builder: the key stays on the same option
+       text. For "one or more", the deleted option leaves the key and the rest
+       move up with their options. */
     function fixKeyAfterOptionRemoved(q, optIdx) {
       if (q && typeof q.correctAnswer === 'number') {
         if (q.correctAnswer === optIdx) q.correctAnswer = null;
         else if (q.correctAnswer > optIdx) q.correctAnswer--;
+      } else if (q && Array.isArray(q.correctAnswer)) {
+        q.correctAnswer = q.correctAnswer.filter(function (k) { return k !== optIdx; })
+          .map(function (k) { return typeof k === 'number' && k > optIdx ? k - 1 : k; });
       }
       return q;
     }
+
+    /* ---- Marking the new question types (pure; each returns a share 0..1) ---- */
+
+    /* "Select one or more", the way Moodle recommends it is set up: every
+       right option is worth an equal share of the marks, and every wrong
+       option takes away an equal share — the wrong options together cancel
+       all of it — so ticking every box scores nothing. Never below 0.
+       opts.allOrNothing: full marks only for exactly the right set. */
+    function markMulti(chosen, key, opts) {
+      opts = opts || {};
+      var n = Math.max(0, opts.optionCount | 0);
+      var right = {}, nRight = 0;
+      (Array.isArray(key) ? key : []).forEach(function (k) { if (isIndex(k, n || 1e9) && !right[k]) { right[k] = 1; nRight++; } });
+      if (!nRight) return 0;
+      var nWrong = n ? Math.max(0, n - nRight) : 0;
+      var picked = {}, hit = 0, miss = 0;
+      (Array.isArray(chosen) ? chosen : []).forEach(function (k) {
+        if (typeof k !== 'number' || picked[k]) return;
+        picked[k] = 1;
+        if (right[k]) hit++; else miss++;
+      });
+      if (opts.allOrNothing) return hit === nRight && miss === 0 ? 1 : 0;
+      var f = hit / nRight - (miss ? (nWrong ? miss / nWrong : 1) : 0);
+      return f <= 0 ? 0 : f >= 1 ? 1 : f;
+    }
+
+    function normText(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase(); }
+
+    /* Matching: each row is worth an equal share; a row left on "Choose…" is
+       simply not right. `chosen` holds the answer text picked for each row. */
+    function markMatch(chosen, pairs) {
+      var list = (Array.isArray(pairs) ? pairs : []).filter(function (p) { return p && typeof p === 'object'; });
+      if (!list.length) return 0;
+      var got = Array.isArray(chosen) ? chosen : [];
+      var hit = 0;
+      list.forEach(function (p, i) {
+        var a = got[i];
+        if (a != null && a !== '' && normText(a) === normText(p.answer)) hit++;
+      });
+      return hit / list.length;
+    }
+
+    /* The answers a matching question offers in every row: each pair's answer
+       once, plus any extra wrong answers ("distractors"), alphabetically —
+       or shuffled (random) when the exam shuffles its options. */
+    function matchChoices(q, random) {
+      var seen = {}, out = [];
+      matchPairs(q).map(function (p) { return p.answer; }).concat(Array.isArray(q && q.distractors) ? q.distractors : [])
+        .forEach(function (a) {
+          var t = String(a == null ? '' : a).trim();
+          if (!t || seen[normText(t)]) return;
+          seen[normText(t)] = 1; out.push(t);
+        });
+      if (typeof random === 'function') shuffleInPlace(out, random);
+      else out.sort(function (a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : a.toLowerCase() > b.toLowerCase() ? 1 : 0; });
+      return out;
+    }
+
+    /* Short answer: the key is a list of accepted answers. Capitals and extra
+       spaces never matter ("Flashback  Arrestor" is "flashback arrestor"); a
+       * in an accepted answer stands for any letters ("arrest*" accepts
+       arrestor and arrester). A blank answer matches nothing. */
+    function acceptedAnswers(key) {
+      var list = Array.isArray(key) ? key : (key == null ? [] : String(key).split(/\r?\n|\|/));
+      return list.map(function (a) { return String(a == null ? '' : a).trim(); }).filter(function (a) { return a !== '' && a.replace(/\*/g, '').trim() !== ''; });
+    }
+    function shortAnswerMatches(ans, key) {
+      var a = normText(ans);
+      if (!a) return false;
+      return acceptedAnswers(key).some(function (pat) {
+        var p = normText(pat);
+        if (p.indexOf('*') === -1) return a === p;
+        var re = new RegExp('^' + p.split('*').map(function (part) { return part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'); }).join('.*') + '$');
+        return re.test(a);
+      });
+    }
+
+    /* A number as a trainee types it: "1000", "1,000" (thousands commas),
+       "-2.5", ".5", "1e3". Anything else ("about 1000", "1,5") is not a
+       number and so not the answer. */
+    function parseNumber(s) {
+      if (typeof s === 'number') return isFinite(s) ? s : null;
+      var t = String(s == null ? '' : s).replace(/\s+/g, '');
+      if (!t) return null;
+      if (t.indexOf(',') !== -1) {
+        if (!/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) return null;
+        t = t.replace(/,/g, '');
+      }
+      if (!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(t)) return null;
+      var n = Number(t);
+      return isFinite(n) ? n : null;
+    }
+    /* Right when within ± tolerance of the key (0: exactly the key). A hair of
+       slack absorbs binary rounding (0.1 + 0.2 is 0.3 here). */
+    function numericalMatches(ans, key, tolerance) {
+      var a = parseNumber(ans), k = parseNumber(key);
+      if (a == null || k == null) return false;
+      var tol = Math.abs(Number(tolerance) || 0);
+      return Math.abs(a - k) <= tol + 1e-9 * Math.max(1, Math.abs(k));
+    }
+
+    /* How far a question has been answered: 'none', 'partial' (a matching
+       question with some rows still on "Choose…"), 'complete', or 'info' for
+       an information item. What the navigation boxes, the summary and the
+       "N unanswered" warning count. */
+    function answerState(q, ans) {
+      if (q && q.type === 'info') return 'info';
+      if (ans === null || ans === undefined) return 'none';
+      if (Array.isArray(ans)) {
+        var set = ans.filter(function (a) { return a !== null && a !== undefined && a !== ''; }).length;
+        if (!set) return 'none';
+        if (q && q.type === 'match') {
+          var rows = Array.isArray(q.rows) ? q.rows.length : matchPairs(q).length;
+          return set < rows ? 'partial' : 'complete';
+        }
+        return 'complete';
+      }
+      if (typeof ans === 'string') return ans.trim() === '' ? 'none' : 'complete';
+      return 'complete';
+    }
+
+    function shuffleInPlace(list, random) {
+      for (var i = list.length - 1; i > 0; i--) {
+        var j = Math.floor(random() * (i + 1));
+        var t = list[i]; list[i] = list[j]; list[j] = t;
+      }
+      return list;
+    }
+    /* The trainee's copy of the paper for one attempt: keys stripped
+       (publicQuestions), the questions shuffled when the exam says so
+       (information items stay where staff put them: they introduce what
+       follows), and each multiple-choice question's options shuffled when
+       the exam says so. A shuffled question carries optionOrder — the
+       original option index shown in each place — so answers are always
+       recorded as the ORIGINAL option index and marking never changes. */
+    function attemptQuestions(questionData, opts) {
+      opts = opts || {};
+      var random = typeof opts.random === 'function' ? opts.random : Math.random;
+      var qs = publicQuestions(questionData);
+      if (opts.shuffleQuestions) {
+        var slots = [], movable = [];
+        qs.forEach(function (q, i) { if (!(q && q.type === 'info')) { slots.push(i); movable.push(q); } });
+        shuffleInPlace(movable, random);
+        slots.forEach(function (at, k) { qs[at] = movable[k]; });
+      }
+      if (opts.shuffleOptions) {
+        qs.forEach(function (q, i) {
+          if (!q) return;
+          if ((q.type === 'mcq' || q.type === 'multi') && Array.isArray(q.options) && q.options.length > 1) {
+            q.optionOrder = shuffleInPlace(q.options.map(function (_, k) { return k; }), random);
+          } else if (q.type === 'match') {
+            q.choices = matchChoices((questionData || []).filter(function (x) { return x && x.id === q.id; })[0] || q, random);
+          }
+        });
+      }
+      return qs;
+    }
+
+    /* Which questions are on which page: perPage of them (information items
+       take a place like a question), or all on one page when perPage is 0 /
+       unset — every exam saved before paging existed. */
+    function pagesOf(questions, perPage) {
+      var n = (questions || []).length, per = parseInt(perPage, 10) || 0;
+      var out = [];
+      if (!n) return [[]];
+      if (per <= 0 || per >= n) { var all = []; for (var i = 0; i < n; i++) all.push(i); return [all]; }
+      for (var s = 0; s < n; s += per) {
+        var page = [];
+        for (var k = s; k < Math.min(n, s + per); k++) page.push(k);
+        out.push(page);
+      }
+      return out;
+    }
+    /* The number each item shows: questions 1, 2, 3 ...; an information item
+       shows 'i' and does not take a number. */
+    function questionNumbers(questions) {
+      var n = 0;
+      return (questions || []).map(function (q) { return q && q.type === 'info' ? 'i' : ++n; });
+    }
+    function round2(x) { return Math.round(x * 100) / 100; }
 
     /* Mark an attempt. `questions` are what the trainee saw (keys stripped),
        `keyed` is the exam's own questionData, matched by question id. A
@@ -11129,6 +11389,8 @@
       (keyed || []).forEach(function (k) { if (k && k.id != null) byId[String(k.id)] = k; });
       var out = { gradedResults: [], totalPoints: 0, earnedPoints: 0, correctCount: 0, manualCount: 0 };
       (questions || []).forEach(function (q, i) {
+        // An information item asks nothing and is worth nothing: no entry.
+        if (q && q.type === 'info') return;
         var src = q && q.id != null && byId[String(q.id)] ? byId[String(q.id)] : null;
         var key = src ? src.correctAnswer : (q && 'correctAnswer' in q ? q.correctAnswer : null);
         if (key === undefined) key = null;
@@ -11136,6 +11398,33 @@
         var ans = answers ? answers[i] : null;
         if (ans === undefined) ans = null;
         var isCorrect = false, manual = false, autoMatch = null;
+        if (q.type === 'multi' || q.type === 'match' || q.type === 'shortanswer' || q.type === 'numerical') {
+          // The types that earn part of the marks. Their key is read from the
+          // exam's own question (kq); one that cannot be read goes to staff.
+          var kq = src || q, frac = null, extra = {};
+          if (q.type === 'match') {
+            if (validKey(kq, null)) { frac = markMatch(ans, kq.pairs); key = matchPairs(kq).map(function (p) { return p.answer; }); extra.rows = matchPairs(kq).map(function (p) { return p.prompt; }); }
+          } else if (validKey(kq, key)) {
+            if (q.type === 'multi') frac = markMulti(ans, key, { allOrNothing: !!kq.allOrNothing, optionCount: (kq.options || q.options || []).length });
+            else if (q.type === 'shortanswer') frac = shortAnswerMatches(ans, key) ? 1 : 0;
+            else { frac = numericalMatches(ans, key, kq.tolerance) ? 1 : 0; extra.tolerance = Number(kq.tolerance) || 0; }
+          }
+          out.totalPoints += pts;
+          var entry = { questionId: q.id, questionText: q.text, type: q.type, studentAnswer: ans, correctAnswer: frac == null ? null : key };
+          if (frac == null) {
+            out.manualCount++;
+            Object.assign(entry, { isCorrect: null, needsManualGrade: true, points: pts, earnedPoints: 0, awardedPoints: null, graded: false, gradedBy: null, autoMatch: null });
+          } else {
+            var earned = round2(pts * frac);
+            out.earnedPoints = round2(out.earnedPoints + earned);
+            if (frac === 1) out.correctCount++;
+            Object.assign(entry, { isCorrect: frac === 1, needsManualGrade: false, points: pts, earnedPoints: earned, awardedPoints: earned,
+              graded: true, gradedBy: 'auto', autoMatch: null, fraction: Math.round(frac * 10000) / 10000 }, extra);
+          }
+          if (Array.isArray(q.optionOrder)) entry.optionOrder = q.optionOrder.slice();
+          out.gradedResults.push(entry);
+          return;
+        }
         if (q.type === 'mcq' || q.type === 'tf') {
           if (validKey(q, key)) isCorrect = ans === key;
           else { manual = true; key = null; }
@@ -11148,9 +11437,9 @@
           manual = true;
         }
         out.totalPoints += pts;
-        if (isCorrect && !manual) { out.earnedPoints += pts; out.correctCount++; }
+        if (isCorrect && !manual) { out.earnedPoints = round2(out.earnedPoints + pts); out.correctCount++; }
         if (manual) out.manualCount++;
-        out.gradedResults.push({
+        var row = {
           questionId: q.id,
           questionText: q.text,
           type: q.type,
@@ -11164,7 +11453,11 @@
           graded: !manual,
           gradedBy: manual ? null : 'auto',
           autoMatch: q.type === 'fill' ? autoMatch : null
-        });
+        };
+        // The order the options were shown in, when the exam shuffled them,
+        // so the review shows the paper as the trainee saw it.
+        if (Array.isArray(q.optionOrder)) row.optionOrder = q.optionOrder.slice();
+        out.gradedResults.push(row);
       });
       return out;
     }
@@ -11286,6 +11579,31 @@
        "A. (selected)", which told the trainee nothing about what they had
        chosen. The letter alone when the option's words are not to hand, and
        '' for no answer at all. */
+    /* How one marked answer came out, for the review and the staff results:
+       'pending' (waiting for staff), 'correct', 'partial' (some of the marks,
+       by the automatic share or by the marker) or 'incorrect'. */
+    function outcomeOf(a) {
+      if (!a) return 'incorrect';
+      if (a.needsManualGrade && !a.graded) return 'pending';
+      if (a.isCorrect) return 'correct';
+      var e = Number(a.earnedPoints) || 0, p = Number(a.points) || 0;
+      return e > 0 && e < p ? 'partial' : 'incorrect';
+    }
+    /* When an attempt started. Results saved before startedAt existed carry
+       the time taken, so it is worked back from the submission. */
+    function attemptStartMs(r) {
+      if (!r) return null;
+      var s = Date.parse(r.startedAt || '');
+      if (!isNaN(s)) return s;
+      var sub = Date.parse(r.submittedAt || '');
+      return isNaN(sub) ? null : sub - (Number(r.timeTaken) || 0) * 1000;
+    }
+    /* A mark as Moodle writes it: 1.50, 0.00. */
+    function formatMark(n) {
+      var x = Number(n);
+      return (isFinite(x) ? Math.round(x * 100) / 100 : 0).toFixed(2);
+    }
+
     function optionLabel(question, index) {
       if (typeof index !== 'number' || index < 0 || index !== Math.floor(index) || index > 25) return '';
       var letter = String.fromCharCode(65 + index);
@@ -11303,7 +11621,11 @@
       passRateOf: passRateOf, averageOf: averageOf, canRevealAnswers: canRevealAnswers,
       legacyKey: legacyKey, syncKey: syncKey, translateLegacyTombs: translateLegacyTombs, csvCell: csvCell,
       DRAFT_PREFIX: DRAFT_PREFIX, draftKey: draftKey,
-      outboxAdd: outboxAdd, outboxPending: outboxPending, outboxRestore: outboxRestore
+      outboxAdd: outboxAdd, outboxPending: outboxPending, outboxRestore: outboxRestore,
+      markMulti: markMulti, markMatch: markMatch, matchChoices: matchChoices, acceptedAnswers: acceptedAnswers,
+      shortAnswerMatches: shortAnswerMatches, parseNumber: parseNumber, numericalMatches: numericalMatches,
+      answerState: answerState, attemptQuestions: attemptQuestions, pagesOf: pagesOf, questionNumbers: questionNumbers,
+      validKey: validKey, outcomeOf: outcomeOf, attemptStartMs: attemptStartMs, formatMark: formatMark
     };
   })();
 
