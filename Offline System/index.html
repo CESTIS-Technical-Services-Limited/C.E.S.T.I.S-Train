@@ -25723,13 +25723,13 @@ function addExamQuestion(type) {
   examBuilderQuestions.push(q);
   examBuilderOpen[q.id] = true;
   renderExamBuilderQuestions();
-  // Bring the new question into view, its text box ready.
-  setTimeout(function(){
-    var el=document.getElementById('qItem-'+(examBuilderQuestions.length-1));
-    if(el && el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'center'});
-    var t = el && el.querySelector ? el.querySelector('.q-text-input') : null;
-    if(t && t.focus) { try { t.focus({ preventScroll: true }); } catch(e) {} }
-  },100);
+  // Bring the new question into view, its text box ready — focused now, not
+  // a moment later: a delayed focus pulled the cursor back into the question
+  // text while the author was already typing the first option.
+  var el = document.getElementById('qItem-'+(examBuilderQuestions.length-1));
+  var t = el && el.querySelector ? el.querySelector('.q-text-input') : null;
+  if(t && t.focus) { try { t.focus({ preventScroll: true }); } catch(e) {} }
+  if(el && el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'center'});
 }
 
 function removeExamQuestion(idx) {
