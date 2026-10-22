@@ -22,6 +22,9 @@
      - an image the server already holds is not sent again (no new copy in
        the server's history folder);
      - a PC holding designs uploaded before this publishes the missing ones;
+     - a device that was open when a design was saved takes it up from the
+       Centre's server's next refresh (it kept its old list until a reload,
+       and so still found no template), keeping images already in memory;
      - online (GitHub Pages) none of it makes a single request;
      - the certificate PDF, its preview and the template save all take this
        path (source checks), Drive staying the online path.
@@ -194,7 +197,33 @@ const history = file => { try { return fs.readdirSync(path.join(DATA, '.history'
     assertEq(await online.run('certImagesPublishToLan()'), 0, 'and publishing');
     assertEq(calls, 0, 'with no request at all');
 
-    /* ---------- 7. Every path that needs the design takes this one ---------- */
+    /* ---------- 7. A device already open takes a design saved since ---------- */
+    console.log('A device that was already open takes up a design saved since, keeping its images');
+    {
+      const start = INDEX.indexOf("(function () {\n  if (!window.CESTISPageCloud || typeof CESTISPageCloud.initLan !== 'function') return;");
+      const end = INDEX.indexOf('})();', start);
+      assert(start !== -1 && end !== -1, 'the dashboard\'s Centre-network block is found');
+      const stored = {};
+      let spec = null;
+      const sb = { console: { log() {}, warn() {} }, JSON, Object, Array,
+        CESTISStore: { getItem: k => (k in stored ? stored[k] : null) },
+        CESTISCore: { pageCloud: { isRecordKey: () => true } },
+        CESTISPageCloud: { initLan(sp) { spec = sp; }, setAuthorPolicy() {} },
+        refreshStudentDependentViews() {}, refreshContentDependentViews() {},
+        certTemplates: { [COURSE]: { courseFullName: 'old', bgPage1: PNG } }, certTemplateCourseMap: {} };
+      sb.window = sb;
+      vm.createContext(sb);
+      vm.runInContext(INDEX.slice(start, end + 5), sb);
+      stored.voctrain_certTemplates = JSON.stringify({ [COURSE]: { courseFullName: 'Welding and Fabrication Level 2' }, Cosmetology: { courseFullName: 'Cosmetology Level 2' } });
+      stored.voctrain_certTemplateCourseMap = JSON.stringify({ 'WELDING L2': COURSE });
+      spec.onRestore(['voctrain_certTemplates', 'voctrain_certTemplateCourseMap']);
+      assertEq(sb.certTemplates.Cosmetology && sb.certTemplates.Cosmetology.courseFullName, 'Cosmetology Level 2', 'a design saved on another device is in memory without a reload');
+      assertEq(sb.certTemplates[COURSE].courseFullName, 'Welding and Fabrication Level 2', 'an edited design is taken up');
+      assertEq(sb.certTemplates[COURSE].bgPage1, PNG, 'and keeps the background image already loaded');
+      assertEq(sb.certTemplateCourseMap['WELDING L2'], COURSE, 'and so is the course map');
+    }
+
+    /* ---------- 8. Every path that needs the design takes this one ---------- */
     console.log('The PDF, its preview and the template save all use the Centre\'s server');
     const gen = extractFunction(INDEX, 'generateCertificatePDF');
     assert(gen.indexOf('certImageLoadFromLan(certKey)') !== -1 && gen.indexOf('certImageLoadFromLan(certKey)') < gen.indexOf('certImageLoadFromDrive(certKey'),

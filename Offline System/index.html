@@ -52597,7 +52597,24 @@ function ttRefreshOnShow(){
     voctrain_chatRooms:        function (v) { lmsChatRooms = v; },
     voctrain_chatMessages:     function (v) { lmsChatMessages = v; },
     voctrain_vcSessions:       function (v) { vcSessions = v; },
-    voctrain_syncTombstones:   function (v) { syncTombstones = v; }
+    voctrain_syncTombstones:   function (v) { syncTombstones = v; },
+    // The certificate designs. Without this a device that was already open
+    // when the administrator saved a design kept its old list until a reload,
+    // and its trainee was told "No certificate template found". The stored
+    // designs carry no background images (those live in IndexedDB and on the
+    // Centre's server — certImageLoadFromLan), so the ones already in memory
+    // stay on their design.
+    voctrain_certTemplates:    function (v) {
+      var next = {};
+      Object.keys(v).forEach(function (k) {
+        var was = (certTemplates && certTemplates[k]) || {};
+        next[k] = Object.assign({}, v[k]);
+        if (!next[k].bgPage1 && was.bgPage1) next[k].bgPage1 = was.bgPage1;
+        if (!next[k].bgPage2 && was.bgPage2) next[k].bgPage2 = was.bgPage2;
+      });
+      certTemplates = next;
+    },
+    voctrain_certTemplateCourseMap: function (v) { certTemplateCourseMap = v; }
   };
 
   /* Another device's work just arrived in storage: take it into memory and
