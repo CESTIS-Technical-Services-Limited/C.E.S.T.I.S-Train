@@ -44,6 +44,7 @@ const vm = require('vm');
 const { execFileSync } = require('child_process');
 
 let passed = 0, failed = 0;
+const ASYNC_CHECKS = [];
 function assert(cond, msg) { if (cond) { passed++; } else { failed++; console.error('  ✗ FAIL: ' + msg); } }
 function assertEq(actual, expected, msg) {
   assert(actual === expected, msg + ' — expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
@@ -104,7 +105,7 @@ const PAGE_FNS = [
   'examAttemptsUpsert', 'examAttemptsPersist', 'examAttemptsMergeIncoming', 'examAttemptsRestoreFromDrafts', 'examRetireStaleDrafts',
   'examAttemptsArrived', 'examAdoptAttempt', 'examRedrawKeepingFocus', 'examDismissNote', 'examAttemptEndedElsewhere', 'examListNote',
   'examResultFor', 'examPublishSoon', 'examPublishNow', 'examSaveOnLeaving', 'examPullBeforeStart', 'examCanAskCentre', 'examStartFresh',
-  'examSaveDraftNow', 'examOpenAttemptsFor', 'examSubmitExpiredAttempts', 'examSubmittedHere'
+  'examSaveDraftNow', 'examOpenAttemptsFor', 'examSubmitExpiredAttempts', 'examSubmittedHere', 'examAfterSignIn', 'examOutboxSendOnLan'
 ];
 const PAGE_CODE = PAGE_FNS.map(n => extractFunction(SRC, n)).join('\n');
 
@@ -455,10 +456,57 @@ console.log('Resume after a reload or power cut, with the original clock (exams-
   assertEq(run(w, "examSubmittedHere({ resultId: 'RES-1' }, ['ATT-9'])"), true, 'a result in this PC\'s outbox was submitted here (another window)');
   assertEq(run(w, "examSubmittedHere({ resultId: null }, ['ATT-1'])"), true, '(found by its attempt too)');
   assertEq(run(w, "examSubmittedHere({ resultId: 'RES-2' }, ['ATT-2'])"), false, 'anything else was submitted on another device');
+  // A waiting result is let go once this PC's own upload of the Main copy
+  // carried it (noted as serialised), not only after a later download.
+  const asv = extractFunction(SRC, 'autoSaveToAllFolders');
+  assert(asv.indexOf('examOutboxConfirm(_sentResultIds)') !== -1 && asv.indexOf('_sentResultIds = ') < asv.indexOf('ALL_DRIVE_FOLDERS.map(folder => silentSaveToFolder') &&
+    /f\.id === GOOGLE_DRIVE_CONFIG\.FOLDER_ID && results\[i\]/.test(asv), 'the autosave lets a waiting result go once the Main copy\'s upload carried it');
+  // On the Centre's network: let go once a push to the Centre's server
+  // succeeded (it never downloads the online backup that used to confirm it).
+  ASYNC_CHECKS.push((async () => {
+    const mk = (pushOk) => {
+      const q = makePage({ now: JM('2026-10-16', '15:00'), globals: { currentRole: 'student' } });
+      q.__store.cestisExamOutbox = JSON.stringify([{ id: 'RES-9', examId: 'EXAM-1', studentId: 'STU-A' }]);
+      q.__store.voctrain_examResults = JSON.stringify([{ id: 'RES-9', examId: 'EXAM-1', studentId: 'STU-A' }]);
+      q.CESTISPageCloud = { lan: () => Promise.resolve(true), saveNow: () => Promise.resolve([pushOk]) };
+      return q;
+    };
+    const good = mk(true), bad = mk(false);
+    await run(good, 'examOutboxSendOnLan()');
+    await run(bad, 'examOutboxSendOnLan()');
+    assert(!good.__store.cestisExamOutbox, 'on the Centre\'s network a result is let go once its push succeeded');
+    assert(!!bad.__store.cestisExamOutbox, 'and kept while the push fails');
+    const off = makePage({ now: JM('2026-10-16', '15:00'), globals: { currentRole: 'student' } });
+    off.__store.cestisExamOutbox = JSON.stringify([{ id: 'RES-9' }]);
+    off.CESTISPageCloud = { lan: () => Promise.resolve(false), saveNow: () => Promise.resolve([true]) };
+    await run(off, 'examOutboxSendOnLan()');
+    assert(!!off.__store.cestisExamOutbox, 'online it is left to the online backup');
+  })().catch(e => assert(false, 'examOutboxSendOnLan threw: ' + e.message)));
+  // The top bar's chip hears of a result waiting to be sent (or sent) at once.
+  assert(extractFunction(SRC, 'examOutboxWrite').indexOf('refreshSyncChip()') !== -1, 'the outbox tells the sync chip when it changes');
   // And the result opens at its top, where the note is.
   assert(/scrollTop = 0/.test(extractFunction(SRC, 'showExamResult')), 'the result page opens at its top (on a phone the note was scrolled out of sight)');
   const ea = extractFunction(SRC, 'enterApp');
-  assert(/autoSyncOnLogin\(\)\.then\(function\(\) \{[\s\S]*?_afterLoginSync\(\)/.test(ea) && ea.indexOf('examSubmitExpiredAttempts()') !== -1, 'enterApp runs it once the sign-in sync is done (or failed)');
+  assert(/autoSyncOnLogin\(\)\.then\(function\(\) \{[\s\S]*?_afterLoginSync\(\)/.test(ea) && ea.indexOf('examAfterSignIn()') !== -1, 'enterApp runs it once the sign-in sync is done (or failed)');
+  // "You have a test in progress" is said after that sync too, never from
+  // this PC's own (possibly stale) copy as the pages are built.
+  assert(extractFunction(SRC, 'buildStudentPages').indexOf('You have a test in progress') === -1, 'the pages are built without the in-progress note');
+  const t1 = makePage({ now: JM('2026-10-16', '13:30'), store: JSON.parse(JSON.stringify(p.__store)), globals: { currentRole: 'student' } });
+  t1.CESTISStore.keys = function () { return Object.keys(t1.__store); };
+  t1.currentStudent = Object.assign({}, ANN); t1.exams.push(sampleExam());
+  run(t1, 'examAfterSignIn()');
+  assert(t1.__out.toasts.some(m => /You have a test in progress/.test(m)), 'after the sync, a running test is pointed out');
+  const t2 = makePage({ now: JM('2026-10-16', '13:30'), store: JSON.parse(JSON.stringify(p.__store)), globals: { currentRole: 'student' } });
+  t2.CESTISStore.keys = function () { return Object.keys(t2.__store); };
+  t2.currentStudent = Object.assign({}, ANN); t2.exams.push(sampleExam());
+  t2.examResults.push({ id: 'RES-ELSE', examId: 'EXAM-1', studentId: 'STU-A', submittedAt: '2026-10-16T18:20:00Z', attemptId: 'X' });
+  run(t2, 'examAfterSignIn()');
+  assert(!t2.__out.toasts.some(m => /in progress/.test(m)), 'a test the sync shows was finished elsewhere is not "in progress"');
+  const t3 = makePage({ now: JM('2026-10-16', '15:00'), store: JSON.parse(JSON.stringify(p.__store)), globals: { currentRole: 'student' } });
+  t3.CESTISStore.keys = function () { return Object.keys(t3.__store); };
+  t3.currentStudent = Object.assign({}, ANN); t3.exams.push(sampleExam());
+  run(t3, 'examAfterSignIn()');
+  assert(t3.examResults.length === 1 && !t3.__out.toasts.some(m => /clock is still running/.test(m)), 'one whose time ran out is submitted, without "the clock is still running"');
 }
 
 console.log('Sign-out mid-exam never submits under the next trainee (exams-16, ui-03)');
@@ -760,5 +808,8 @@ console.log('A paged attempt: pages, flagging off, the summary and the on-page s
 console.log('Shared libraries stay identical in both builds');
 assert(fs.readFileSync(path.join(ROOT, 'cestis-core.js'), 'utf8') === fs.readFileSync(path.join(ROOT, 'Offline System', 'cestis-core.js'), 'utf8'), 'cestis-core.js is byte-identical in Offline System/');
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed ? 1 : 0);
+// The checks that wait on a promise (the Centre's network push) finish first.
+Promise.all(ASYNC_CHECKS).then(() => {
+  console.log('\n' + passed + ' passed, ' + failed + ' failed');
+  process.exit(failed ? 1 : 0);
+});

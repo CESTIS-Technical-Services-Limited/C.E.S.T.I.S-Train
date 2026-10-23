@@ -351,7 +351,9 @@ const EXPECT = [0, true, [0, 1, 4], MATCH, 'Flashback arrestor', '1,000', null, 
       if (how === 'crash') await shot(page, '01-pc1-mid-attempt-desktop');
       page = await kill(ctx, page, how);
       ok(!(await signedIn(page)), 'after the ' + how + ' the page is back at the sign-in');
+      await recordToasts(page);
       ok(await signIn(page, 'tameka'), 'she signs in again');
+      ok(await until(async () => /You have a test in progress\. Open My Exams and choose Continue your attempt/.test(await toasts(page)), 8000), how + ': and is pointed to her test in progress');
       const label = await myExams(page);
       leftOk(how, label, before.deadline);
       ok(/In progress\. Your answers are saved\./.test(await txt(page, '#studentUpcomingExams')), how + ': and says "In progress. Your answers are saved."');
@@ -567,6 +569,9 @@ const EXPECT = [0, true, [0, 1, 4], MATCH, 'Flashback arrestor', '1,000', null, 
     const note = await txt(page, '#examResultNote');
     ok(/Your answers are safe on this computer, and your result will be sent to the office when it is back online\./.test(note), 'a calm, true message: "' + note + '"');
     await readable(page, 'offline note', ['#examResultNote .exam-note-text']);
+    const chip = await txt(page, '#syncChip');
+    ok(/Waiting to send/.test(chip), 'the top bar\'s chip agrees at once: "' + chip.trim() + '"');
+    await page.waitForTimeout(800);                           // the offline notice has slid in
     await shot(page, '06-offline-submit-desktop');
     ok((await page.evaluate(() => JSON.parse(CESTISStore.getItem('cestisExamOutbox') || '[]').length)) === 1, 'the result waits on this computer, ready to be sent');
     ok(driveResults(drive, 'tameka').every(l => l.length === 0), 'nothing has reached the shared copy yet');
@@ -577,6 +582,8 @@ const EXPECT = [0, true, [0, 1, 4], MATCH, 'Flashback arrestor', '1,000', null, 
     ok(sent.every(l => l.length <= 1), 'no copy of the shared data holds it twice (' + sent.map(l => l.length).join(',') + ')');
     const r = sent.find(l => l.length)[0];
     ok(sameAnswers(resultAnswers(r), EXPECT_Q), 'with every answer she gave offline (' + JSON.stringify(resultAnswers(r)).slice(0, 160) + ')');
+    ok(await until(() => page.evaluate(() => !CESTISStore.getItem('cestisExamOutbox')), 30000), 'once the shared copy holds it, the computer lets its waiting copy go');
+    ok(await until(async () => /All saved/.test(await txt(page, '#syncChip')), 15000, 1000), 'and the chip says "All saved"');
     ok(!!r.attemptId && r.attemptId === d[0].id, 'from her one attempt');
     ok((await resultsFor(page, 'tameka')).length === 1, 'and this computer holds one result');
     ok(driveAttempts(drive, 'tameka').every(l => !l.some(a => a.status === 'open' && a.id === r.attemptId)), 'the shared copy of the attempt is closed (submitted)');
@@ -685,11 +692,13 @@ const EXPECT = [0, true, [0, 1, 4], MATCH, 'Flashback arrestor', '1,000', null, 
     // PC 1 comes back, holding its old copy of the open attempt.
     p1 = await reopen(pc1, 'PC 1 back');
     ok((await draftOf(p1, 'tameka')).some(d => d.status === 'open'), 'PC 1 still holds its old copy of the attempt');
+    await recordToasts(p1);
     ok(await signIn(p1, 'tameka'), 'PC 1: she signs in there again');
     ok(await until(async () => /Completed/.test(await txt(p1, '#studentUpcomingExams')) || !(await examCard(p1).count()) || (await myExams(p1)) === 'Completed', 30000, 1500), 'PC 1: the test reads as done');
     await go(p1, 's-exams');
     ok(!/Continue your attempt|Take Exam|Submit saved answers/.test(await txt(p1, '#studentUpcomingExams')), 'PC 1 offers nothing to continue, submit or start again');
     ok((await p1.locator('#studentPastExamResults .class-schedule-card').count()) === 1, 'and lists one result');
+    ok(!/in progress/.test(await toasts(p1)), 'PC 1 does not tell her "You have a test in progress" (' + (await toasts(p1)).slice(0, 100) + ')');
     await shot(p1, '05-pc1-back-one-result-desktop');
     const old1 = await draftOf(p1, 'tameka');
     ok(old1.length === 1 && old1[0].status === 'submitted' && !old1[0].answers, 'its old copy is closed (' + old1.map(d => d.status).join() + ')');
@@ -836,6 +845,8 @@ const EXPECT = [0, true, [0, 1, 4], MATCH, 'Flashback arrestor', '1,000', null, 
       const r2 = (await resultsFor(p2, 'tameka'))[0];
       ok(!!r2 && r2.attemptId === before.attemptId && sameAnswers(resultAnswers(r2), EXPECT_Q.slice(0, -1).concat([ESSAY_FULL])), 'PC 2: submitted, as that attempt, with everything');
       ok(await until(() => lan.results('tameka').length === 1, 30000), 'the result reaches the Centre\'s copy');
+      ok(await until(() => p2.evaluate(() => !CESTISStore.getItem('cestisExamOutbox')), 20000), 'PC 2 lets its waiting copy go once the Centre holds it');
+      ok(await until(async () => /All saved/.test(await txt(p2, '#syncChip')), 10000, 1000), 'and its top bar says "All saved" (' + (await txt(p2, '#syncChip')).trim() + ')');
       p1 = await reopen(pc1, 'LAN PC 1 back');
       // On the Centre's network the page has the Centre's latest as it opens,
       // so its old copy is closed before anybody signs in.
