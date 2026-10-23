@@ -44,8 +44,39 @@
     if (typeof indexedDB === 'undefined') return; // Node / non-browser: skip the store, keep the helpers.
     var DB_NAME = 'CESTIS_KV', STORE = 'kv', LS = null;
     try { LS = root.localStorage; } catch (e) { LS = null; }
+    /* gate-ns:begin — THE TRAINEE GATE'S OWN NAMESPACE (docs/trainee-gate/DESIGN.md §7.1).
+       Off unless this browser's localStorage holds cestisGateNs ('g1'). Then this
+       store opens a database of its own (CESTIS_KV__g1) and keeps each of its
+       localStorage keys under 'g1::', so a trainee's gate session never reads,
+       changes or wipes the Centre's records a lab PC holds; keys(), key(),
+       length and the 'storage' events all stay inside the namespace. The main
+       store, for its part, never takes a namespace's keys for its own. Kept
+       identical in cestis-core.js and index.html (tests/store-namespace.test.js). */
+    var GATE_NS = null, NS_KEY = /^g[0-9]{1,3}::/;
+    try { var nsv = LS ? LS.getItem('cestisGateNs') : null; if (typeof nsv === 'string' && /^g[0-9]{1,3}$/.test(nsv)) GATE_NS = nsv; } catch (e) { GATE_NS = null; }
+    if (GATE_NS) { DB_NAME = DB_NAME + '__' + GATE_NS; LS = nsStorage(LS, GATE_NS + '::'); }
+    function nsStorage(ls, p) {
+      function own() { var out = []; for (var i = 0; i < ls.length; i++) { var k = ls.key(i); if (k != null && String(k).indexOf(p) === 0) out.push(String(k).slice(p.length)); } return out; }
+      return {
+        getItem: function (k) { return ls.getItem(p + k); },
+        setItem: function (k, v) { ls.setItem(p + k, v); },
+        removeItem: function (k) { ls.removeItem(p + k); },
+        key: function (i) { var o = own(); return i >= 0 && i < o.length ? o[i] : null; },
+        clear: function () { var o = own(); for (var j = 0; j < o.length; j++) ls.removeItem(p + o[j]); },
+        get length() { return own().length; }
+      };
+    }
+    // A 'storage' event as this store sees it: its own namespace's keys only.
+    function nsEvent(ev) {
+      if (!ev) return null;
+      if (!GATE_NS) return (ev.key != null && NS_KEY.test(String(ev.key))) ? null : ev;
+      if (ev.key === null) return ev;
+      var p = GATE_NS + '::', sk = String(ev.key);
+      return sk.indexOf(p) === 0 ? { key: sk.slice(p.length), newValue: ev.newValue, oldValue: ev.oldValue } : null;
+    }
+    /* gate-ns:end */
     var cache = {};
-    try { if (LS) { for (var i = 0; i < LS.length; i++) { var k = LS.key(i); if (k && k.indexOf('__cestis_idb_only__:') === 0) continue; cache[k] = LS.getItem(k); } } } catch (e) {}
+    try { if (LS) { for (var i = 0; i < LS.length; i++) { var k = LS.key(i); if (k && (k.indexOf('__cestis_idb_only__:') === 0 || (!GATE_NS && NS_KEY.test(k)))) continue; cache[k] = LS.getItem(k); } } } catch (e) {}
 
     var db = null, ready = false, wq = [];
     // A key that no longer fits in localStorage lives in IndexedDB only. Its
@@ -135,6 +166,8 @@
 
     var Store = {
       _cache: cache,
+      // '', or the gate namespace this store opened (gate-ns above).
+      namespace: GATE_NS || '',
       // Read through to localStorage before trusting the cache. Every document
       // (a page, each of its iframes, other tabs) runs its OWN copy of this
       // store, so a key written in one would otherwise still read as this one's
@@ -215,6 +248,7 @@
     // origin — including this page's iframes and the user's other tabs.
     try {
       root.addEventListener('storage', function (ev) {
+        ev = nsEvent(ev);
         if (!ev) return;
         if (ev.key === null) { for (var ck in cache) { if (Object.prototype.hasOwnProperty.call(cache, ck)) delete cache[ck]; } return; }
         var sk = String(ev.key);
