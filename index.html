@@ -15622,12 +15622,11 @@ function studentEffectiveGpa(s) {
   return CESTISCore.coursework.effectiveGpa(s && s.gpa, studentCourseworkSummary(s).gpa);
 }
 
+// The exact name, or the same training centre. The rule itself lives in
+// CESTISCore.enrolment.courseMatch, so the trainee gate decides "this trainee's
+// programme" exactly as this page does (tests/gate-slice.test.js).
 function instructorCourseMatch(studentCourse, instructorCourse) {
-  if (!studentCourse || !instructorCourse) return false;
-  if (studentCourse.toLowerCase().trim() === instructorCourse.toLowerCase().trim()) return true;
-  var stuSk = findSkillAreaForCourse(studentCourse);
-  var insSk = findSkillAreaForCourse(instructorCourse);
-  return stuSk && insSk && stuSk.id && insSk.id && stuSk.id === insSk.id;
+  return CESTISCore.enrolment.courseMatch(studentCourse, instructorCourse, findSkillAreaForCourse);
 }
 function filterInstructorStudents() {
   if(!currentInstructor) return;

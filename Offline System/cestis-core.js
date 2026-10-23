@@ -1714,13 +1714,23 @@
     if (DEVICE_ONLY_KEYS.indexOf(key) !== -1) return false;
     if (key.indexOf('cestis_pagecloud_stamps__') === 0) return false;
     if (key.indexOf('__cestis_idb_only__:') === 0) return false;
+    // A trainee gate session's own records ('g1::…'): that trainee's slice,
+    // kept apart on this device, never the Centre's.
+    if (/^g[0-9]{1,3}::/.test(key)) return false;
     return true;
   };
   var DEVICE_ONLY_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
     'cestisAttendanceCurrentUser', 'cestisTimeDarkMode', 'cestisTheme', 'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
     'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
     // "this device holds work not yet uploaded" — true of THIS device only.
-    'cestisPendingUpload', 'cestisUnsyncedOnSignOut'];
+    'cestisPendingUpload', 'cestisUnsyncedOnSignOut',
+    // The trainee gate's part on THIS device (Core.gate.DEVICE_KEYS): its
+    // switch and address, a gate session's token and sealing key, a staff
+    // device's publishing and collecting bookkeeping, and another trainee's
+    // work held here until they sign in.
+    'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
+    'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
+    'cestisGateUnassigned', 'cestisGateQuarantine'];
 
   Core._parseArr = function (raw) {
     try { var v = JSON.parse(raw || 'null'); return Array.isArray(v) ? v : []; }
@@ -13073,6 +13083,1757 @@
       mergeActiveCall: mergeActiveCall, joinCall: joinCall, leaveCall: leaveCall,
       acceptRealtimeMessage: acceptRealtimeMessage, unreadCount: unreadCount, stripUploadedBytes: stripUploadedBytes,
       roomIcon: roomIcon, roomColor: roomColor, cleanRoom: cleanRoom, cleanRooms: cleanRooms
+    };
+  })();
+
+  /* ==========================================================================
+     THE TRAINEE GATE — the rules (docs/trainee-gate/DESIGN.md, Stage 1)
+
+     The owner's decision: each trainee's own phone or a lab PC gets ONLY that
+     trainee's records. Staff devices publish one "slice" per trainee into a
+     folder named with the trainee's student ID; a small gatekeeper under the
+     Centre's own account hands each trainee's device its own slice and
+     nothing else, takes back what the trainee sends, and marks tests from an
+     answer-key file the trainee's device never sees. The Centre's own machine
+     answers the same questions on its network.
+
+     These are the rules every one of those places runs: pure and
+     synchronous, no storage, no network, no clock of their own (the time is
+     always handed in). Nothing calls them until the gate is set up and
+     switched on — until then the platform behaves exactly as before.
+
+     Cryptography is handed in, so the same rules run in a browser, in Node
+     and in the gatekeeper's own script:
+       crypto.hmacHex(keyBytes, msg)  HMAC-SHA256 of the UTF-8 text msg, as hex
+       crypto.sha256Hex(msg)          SHA-256 of the UTF-8 text msg, as hex
+       crypto.sha1Bytes(bytes)        SHA-1 of a byte array, as 20 bytes
+                                      (two-step codes: HMAC-SHA1 is built on it)
+     A key is always the UTF-8 bytes of its text — a hex secret is used as
+     written, never decoded — so every side derives the same bytes. Building
+     slices, papers and key files needs no cryptography at all, so a staff
+     device publishes with the ordinary page code.
+     ========================================================================== */
+
+  /* The trainee's copy of a published paper, for one attempt.
+
+     A paper (Core.gate.buildPaper) already carries the public questions: no
+     keys, and each matching question's prompts (rows) and answers to choose
+     from (choices), worked out by the publisher. attemptQuestions() cannot be
+     run on it a second time — it works rows and choices out again from the
+     pairs, which a paper does not have, and leaves them empty. This shuffles
+     what the paper carries by the same rules: information items stay where
+     staff put them, a shuffled question records the ORIGINAL index of the
+     option shown in each place (optionOrder), and a matching question's
+     choices are shuffled when the exam shuffles its options. Anything that
+     would give an answer away is dropped even if a paper carried it. */
+  Core.exams.attemptQuestionsFromPaper = function (questions, opts) {
+    opts = opts || {};
+    var random = typeof opts.random === 'function' ? opts.random : Math.random;
+    var KEY = { correctAnswer: 1, pairs: 1, distractors: 1, tolerance: 1 };
+    var shuffle = function (list) {
+      for (var i = list.length - 1; i > 0; i--) {
+        var j = Math.floor(random() * (i + 1));
+        var t = list[i]; list[i] = list[j]; list[j] = t;
+      }
+      return list;
+    };
+    var qs = (Array.isArray(questions) ? questions : []).map(function (q) {
+      var c = {};
+      Object.keys(q && typeof q === 'object' ? q : {}).forEach(function (k) {
+        if (!Object.prototype.hasOwnProperty.call(KEY, k) && q[k] !== undefined) c[k] = JSON.parse(JSON.stringify(q[k]));
+      });
+      return c;
+    });
+    if (opts.shuffleQuestions) {
+      var slots = [], movable = [];
+      qs.forEach(function (q, i) { if (!(q && q.type === 'info')) { slots.push(i); movable.push(q); } });
+      shuffle(movable);
+      slots.forEach(function (at, k) { qs[at] = movable[k]; });
+    }
+    if (opts.shuffleOptions) {
+      qs.forEach(function (q) {
+        if ((q.type === 'mcq' || q.type === 'multi') && Array.isArray(q.options) && q.options.length > 1) {
+          q.optionOrder = shuffle(q.options.map(function (_, k) { return k; }));
+        } else if (q.type === 'match' && Array.isArray(q.choices)) {
+          q.choices = shuffle(q.choices.slice());
+        }
+      });
+    }
+    return qs;
+  };
+
+  /* Do two programmes name the same programme — a trainee's and an
+     instructor's, an assignment's, a class's, an announcement's? The exact
+     name, or the same training centre as findSkill resolves each of them.
+     This is the dashboard's instructorCourseMatch, moved here unchanged so the
+     gate decides "this trainee's programme" exactly as the trainee's own
+     portal does: the dashboard passes its findSkillAreaForCourse, the gate
+     the shared Core.enrolment.findCentre over the Centre's skill areas. The
+     answer is whatever the old function answered (a truthy or falsy value). */
+  Core.enrolment.courseMatch = function (studentCourse, instructorCourse, findSkill) {
+    if (!studentCourse || !instructorCourse) return false;
+    if (studentCourse.toLowerCase().trim() === instructorCourse.toLowerCase().trim()) return true;
+    if (typeof findSkill !== 'function') return false;
+    var stuSk = findSkill(studentCourse);
+    var insSk = findSkill(instructorCourse);
+    return stuSk && insSk && stuSk.id && insSk.id && stuSk.id === insSk.id;
+  };
+
+  Core.gate = (function () {
+    var VERSION = 1;
+    var FORMAT = {
+      slice: 'cestis-trainee-slice', paper: 'cestis-exam-paper', key: 'cestis-exam-key',
+      room: 'cestis-chat-room', inbox: 'cestis-trainee-inbox', result: 'cestis-gate-result'
+    };
+    /* Keys that describe THIS device's part in the gate. None of them may
+       ever reach another device: the master snapshot (Core.isSnapshotableKey)
+       and the Centre network's whole-store mirror (cestis-page-cloud.js
+       DEVICE_KEYS) both leave them out. */
+    var DEVICE_KEYS = [
+      'cestisGateNs',            // which store namespace this browser opens (the switch itself)
+      'cestisGateMode',          // this page is a gate session
+      'cestisGateToken',         // the gate session's token
+      'cestisGateSessionKey',    // the key that seals what the trainee sends
+      'cestisGateAddress',       // the gate's address, from the trainee's link or QR code
+      'cestisDeviceKind',        // 'staff' once a staff member has signed in here
+      'cestisGatePublished',     // what this staff device last published, and where
+      'cestisGatePublishQueue',  // the publisher's writes still to make
+      'cestisGateCollected',     // what this staff device has already collected
+      'cestisGateUnassigned',    // trainee work waiting for an administrator's decision
+      'cestisGateQuarantine'     // another trainee's unsent work, held until they sign in here
+    ];
+    // A key written inside a gate namespace ('g1::voctrain_students').
+    var NS_KEY = /^g[0-9]{1,3}::/;
+    // Anything that would give an answer away. Never in a slice or a paper.
+    var KEY_NAMES = { correctAnswer: 1, pairs: 1, distractors: 1, tolerance: 1 };
+
+    var hasOwn = Object.prototype.hasOwnProperty;
+    function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+    function copy(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }
+    function str(v) { return v == null ? '' : String(v); }
+    function lower(v) { return str(v).trim().toLowerCase(); }
+    function msOf(v) {
+      if (typeof v === 'number') return isFinite(v) && v > 0 ? v : 0;
+      var t = Date.parse(v || '');
+      return isFinite(t) && t > 0 ? t : 0;
+    }
+    function iso(ms) { return new Date(ms).toISOString(); }
+    function dict() { return Object.create(null); }
+    function pick(rec, fields) {
+      var o = {};
+      fields.forEach(function (f) { if (rec && rec[f] !== undefined) o[f] = copy(rec[f]); });
+      return o;
+    }
+    function uniqSorted(list) {
+      var seen = dict(), out = [];
+      (list || []).forEach(function (x) { var s = str(x); if (s && !seen[s]) { seen[s] = 1; out.push(s); } });
+      return out.sort();
+    }
+
+    /* ---- Canonical text: sorted keys, recursively — the same output as
+       MegaData.canon (megadata/schemas.js), so a seal or a hash computed on
+       either side of the gate agrees byte for byte. ---- */
+    function canon(value) {
+      if (value === null) return 'null';
+      var t = typeof value;
+      if (t === 'number') {
+        if (!isFinite(value)) throw new Error('canon: non-finite number');
+        if (Object.is(value, -0)) value = 0;
+        return JSON.stringify(value);
+      }
+      if (t === 'boolean' || t === 'string') return JSON.stringify(value);
+      if (Array.isArray(value)) return '[' + value.map(canon).join(',') + ']';
+      if (t === 'object') {
+        var keys = Object.keys(value).filter(function (k) { return value[k] !== undefined; }).sort();
+        return '{' + keys.map(function (k) { return JSON.stringify(k) + ':' + canon(value[k]); }).join(',') + '}';
+      }
+      throw new Error('canon: unsupported type ' + t);
+    }
+    // The content hash every publisher and reader compares ('h1-…').
+    function hashOf(v) { return 'h1-' + Core.hashString(canon(copy(v))); }
+
+    /* ---- Bytes ---- */
+    function utf8(s) {
+      s = str(s);
+      var out = [];
+      for (var i = 0; i < s.length; i++) {
+        var c = s.charCodeAt(i);
+        if (c >= 0xd800 && c <= 0xdbff) {
+          var d = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+          if (d >= 0xdc00 && d <= 0xdfff) { c = 0x10000 + ((c - 0xd800) << 10) + (d - 0xdc00); i++; }
+          else c = 0xfffd;
+        } else if (c >= 0xdc00 && c <= 0xdfff) c = 0xfffd;
+        if (c < 0x80) out.push(c);
+        else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+        else if (c < 0x10000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+        else out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+      }
+      return out;
+    }
+    function fromUtf8(bytes) {
+      var s = '', i = 0;
+      while (i < bytes.length) {
+        var b = bytes[i++], c;
+        if (b < 0x80) c = b;
+        else if (b >= 0xc0 && b < 0xe0) c = ((b & 31) << 6) | (bytes[i++] & 63);
+        else if (b >= 0xe0 && b < 0xf0) { c = ((b & 15) << 12) | ((bytes[i] & 63) << 6) | (bytes[i + 1] & 63); i += 2; }
+        else { c = ((b & 7) << 18) | ((bytes[i] & 63) << 12) | ((bytes[i + 1] & 63) << 6) | (bytes[i + 2] & 63); i += 3; }
+        if (c > 0xffff) { c -= 0x10000; s += String.fromCharCode(0xd800 + (c >> 10), 0xdc00 + (c & 1023)); }
+        else s += String.fromCharCode(c);
+      }
+      return s;
+    }
+    function utf8Length(s) { return utf8(s).length; }
+    function toHex(bytes) {
+      var h = '';
+      for (var i = 0; i < bytes.length; i++) h += ((bytes[i] & 255) | 256).toString(16).slice(1);
+      return h;
+    }
+    function fromHex(hex) {
+      var s = str(hex), out = [];
+      if (s.length % 2 || /[^0-9a-f]/i.test(s)) return null;
+      for (var i = 0; i < s.length; i += 2) out.push(parseInt(s.substr(i, 2), 16));
+      return out;
+    }
+    var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    function b64url(bytes) {
+      var out = '', i;
+      for (i = 0; i + 2 < bytes.length; i += 3) {
+        var n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+        out += B64.charAt(n >> 18 & 63) + B64.charAt(n >> 12 & 63) + B64.charAt(n >> 6 & 63) + B64.charAt(n & 63);
+      }
+      if (bytes.length - i === 1) {
+        out += B64.charAt(bytes[i] >> 2) + B64.charAt((bytes[i] & 3) << 4);
+      } else if (bytes.length - i === 2) {
+        var m = (bytes[i] << 8) | bytes[i + 1];
+        out += B64.charAt(m >> 10) + B64.charAt(m >> 4 & 63) + B64.charAt((m & 15) << 2);
+      }
+      return out;
+    }
+    function unb64url(s) {
+      s = str(s);
+      if (/[^A-Za-z0-9_-]/.test(s) || s.length % 4 === 1) return null;
+      var out = [], bits = 0, val = 0;
+      for (var i = 0; i < s.length; i++) {
+        val = (val << 6) | B64.indexOf(s.charAt(i)); bits += 6;
+        if (bits >= 8) { bits -= 8; out.push((val >> bits) & 255); val &= (1 << bits) - 1; }
+      }
+      return out;
+    }
+    /* Equal texts, compared in a time that does not depend on where they
+       first differ. */
+    function same(a, b) {
+      a = str(a); b = str(b);
+      var diff = a.length ^ b.length;
+      for (var i = 0; i < Math.max(a.length, b.length); i++) diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+      return diff === 0;
+    }
+    function need(c, fn) {
+      if (!c || typeof c[fn] !== 'function') throw new Error('Core.gate: crypto.' + fn + ' is required');
+      return c;
+    }
+    function hmac(c, key, msg) { return str(need(c, 'hmacHex').hmacHex(utf8(key), str(msg))).toLowerCase(); }
+
+    /* ---- Sessions (§4.4) ------------------------------------------------
+       Token:  v1.<base64url(canon {a, s, sid, iat, exp, cv})>.<HMAC hex>
+       The account (a), its student ID when signed in (s), the session (sid),
+       issued / expires (ms), and cv — the account's credential version: a
+       password reset, a switch-off or a two-step change gives a new cv, and
+       every token carrying the old one stops working within the minute the
+       gatekeeper takes to see the accounts list again. */
+    var TOKEN_TTL_MS = 12 * 3600 * 1000, TOKEN_REFRESH_MS = 4 * 3600 * 1000;
+    function cvOf(account, crypto) {
+      var a = account || {};
+      var basis = [a.password, a.status, a.disabledAt, a.twoFactorUpdatedAt].map(str).join('|');
+      return str(need(crypto, 'sha256Hex').sha256Hex(basis)).toLowerCase().slice(0, 12);
+    }
+    function tokenClaims(o, nowMs) {
+      var iat = Math.floor(typeof o.iat === 'number' ? o.iat : nowMs);
+      return { a: str(o.a), s: str(o.s), sid: str(o.sid), iat: iat,
+        exp: Math.floor(typeof o.exp === 'number' ? o.exp : iat + TOKEN_TTL_MS), cv: str(o.cv) };
+    }
+    function signToken(claims, secret, crypto) {
+      var body = b64url(utf8(canon(tokenClaims(claims || {}, Date.now()))));
+      return 'v1.' + body + '.' + hmac(crypto, secret, 'tok|' + body);
+    }
+    /* opts: { nowMs, cvOf(accountId) → the account's current cv, or null
+       when it may no longer sign in (deleted, not a trainee). } */
+    function verifyToken(tok, secret, crypto, opts) {
+      opts = opts || {};
+      var parts = str(tok).split('.');
+      if (parts.length !== 3 || parts[0] !== 'v1' || !parts[1] || !/^[0-9a-f]{64}$/.test(parts[2])) return { ok: false, reason: 'malformed' };
+      if (!same(hmac(crypto, secret, 'tok|' + parts[1]), parts[2])) return { ok: false, reason: 'bad-signature' };
+      var claims = null;
+      try { var bytes = unb64url(parts[1]); claims = bytes ? JSON.parse(fromUtf8(bytes)) : null; } catch (e) { claims = null; }
+      if (!isObj(claims) || !claims.a || typeof claims.exp !== 'number') return { ok: false, reason: 'malformed' };
+      var now = typeof opts.nowMs === 'number' ? opts.nowMs : Date.now();
+      if (now >= claims.exp) return { ok: false, reason: 'expired', claims: claims };
+      if (typeof opts.cvOf === 'function') {
+        var cur = opts.cvOf(claims.a);
+        if (cur == null) return { ok: false, reason: 'unknown-account', claims: claims };
+        if (!same(cur, claims.cv)) return { ok: false, reason: 'revoked', claims: claims };
+      }
+      return { ok: true, claims: claims, refresh: claims.exp - now < TOKEN_REFRESH_MS };
+    }
+    /* A session id carries its own issue time and a short seal, so its age
+       can be checked without any table of sessions: <iat36>.<rand>.<mac8>. */
+    function makeSid(iatMs, rand, secret, crypto) {
+      var head = Math.floor(iatMs).toString(36) + '.' + str(rand).replace(/[^A-Za-z0-9]/g, '').slice(0, 24);
+      return head + '.' + hmac(crypto, secret, 'sid|' + head).slice(0, 8);
+    }
+    function checkSid(sid, secret, crypto) {
+      var m = /^([0-9a-z]+)\.([A-Za-z0-9]{1,24})\.([0-9a-f]{8})$/.exec(str(sid));
+      if (!m) return { ok: false, reason: 'malformed' };
+      if (!same(hmac(crypto, secret, 'sid|' + m[1] + '.' + m[2]).slice(0, 8), m[3])) return { ok: false, reason: 'bad-signature' };
+      return { ok: true, iat: parseInt(m[1], 36) };
+    }
+    function sessionKey(secret, accountId, sid, crypto) { return hmac(crypto, secret, 'sk|' + str(accountId) + '|' + str(sid)); }
+
+    /* ---- Sealed items (§5.1): every write a trainee makes is sealed with the
+       session key, so it can be delivered later by any session on the device
+       and nobody can forge one after the session ends. ---- */
+    var ITEM_MAX_AGE_MS = 60 * 24 * 3600 * 1000;
+    function sealBasis(item) {
+      var c = {};
+      Object.keys(item || {}).forEach(function (k) { if (k !== 'mac') c[k] = item[k]; });
+      return canon(copy(c));
+    }
+    function seal(item, key, crypto) {
+      var out = copy(item);
+      delete out.mac;
+      out.mac = hmac(crypto, key, sealBasis(out));
+      return out;
+    }
+    function sealOk(item, key, crypto) {
+      if (!isObj(item) || typeof item.mac !== 'string') return false;
+      return same(hmac(crypto, key, sealBasis(item)), item.mac.toLowerCase());
+    }
+
+    /* ---- Password sign-in, as a challenge (§4.1) --------------------------
+       The device works the stored hash out itself (PBKDF2 with the stored
+       salt, or the legacy SHA-256) and answers HMAC(hash, nonce|login); the
+       gatekeeper does one HMAC with the hash it already holds. The password
+       never travels, and a captured answer cannot be used twice (the nonce is
+       spent). A plaintext or empty stored password is never accepted here. */
+    var PBKDF2_ITERATIONS = 210000;
+    var PROOF_PREFIX = 'cestis-gate-v1|';
+    function parseStored(stored) {
+      var s = str(stored);
+      if (s.indexOf('pbkdf2$') === 0) {
+        var p = s.split('$');
+        if (p.length !== 4 || !/^[0-9a-f]+$/i.test(p[2]) || !/^[0-9a-f]+$/i.test(p[3])) return null;
+        return { algo: 'pbkdf2-sha256', iter: parseInt(p[1], 10) || PBKDF2_ITERATIONS, salt: p[2].toLowerCase(), verifier: p[3].toLowerCase() };
+      }
+      if (/^[a-f0-9]{64}$/.test(s)) return { algo: 'sha256-legacy', iter: 0, salt: '', verifier: s };
+      return null;
+    }
+    function proofMessage(nonce, login) { return PROOF_PREFIX + str(nonce) + '|' + lower(login); }
+    /* What the device is told to compute. An unknown login gets a salt that
+       is the same every time it is asked and looks like any other, so the
+       answer does not say whether an account exists. */
+    function proofChallenge(stored, login, secret, crypto) {
+      var p = parseStored(stored);
+      if (p) return { algo: p.algo, iter: p.iter, salt: p.salt };
+      return { algo: 'pbkdf2-sha256', iter: PBKDF2_ITERATIONS, salt: hmac(crypto, secret, 'fake|' + lower(login)).slice(0, 32) };
+    }
+    function proofMake(verifier, nonce, login, crypto) { return hmac(crypto, str(verifier).toLowerCase(), proofMessage(nonce, login)); }
+    function proofExpected(stored, nonce, login, crypto) {
+      var p = parseStored(stored);
+      return p ? proofMake(p.verifier, nonce, login, crypto) : null;
+    }
+    function proofVerify(stored, nonce, login, proof, crypto) {
+      var want = proofExpected(stored, nonce, login, crypto);
+      return !!want && typeof proof === 'string' && same(want, proof.toLowerCase());
+    }
+
+    /* ---- Two-step codes (RFC 6238): SHA-1, 30-second steps, 6 digits, one
+       step either side — what the authenticator apps and the dashboard's own
+       check (OTPAuth) use. ---- */
+    function base32(s) {
+      var A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', clean = str(s).replace(/[\s=-]/g, '').toUpperCase();
+      if (!clean) return null;
+      var out = [], bits = 0, val = 0;
+      for (var i = 0; i < clean.length; i++) {
+        var x = A.indexOf(clean.charAt(i));
+        if (x < 0) return null;
+        val = (val << 5) | x; bits += 5;
+        if (bits >= 8) { bits -= 8; out.push((val >> bits) & 255); val &= (1 << bits) - 1; }
+      }
+      return out;
+    }
+    function hmacSha1(key, msg, crypto) {
+      need(crypto, 'sha1Bytes');
+      var sha1 = function (b) { return Array.prototype.slice.call(crypto.sha1Bytes(b)); };
+      var k = Array.prototype.slice.call(key);
+      if (k.length > 64) k = sha1(k);
+      while (k.length < 64) k.push(0);
+      var ipad = k.map(function (b) { return b ^ 0x36; }), opad = k.map(function (b) { return b ^ 0x5c; });
+      return sha1(opad.concat(sha1(ipad.concat(Array.prototype.slice.call(msg)))));
+    }
+    function hotp(keyBytes, counter, digits, crypto) {
+      var hi = Math.floor(counter / 4294967296), lo = counter % 4294967296;
+      var msg = [hi >>> 24 & 255, hi >>> 16 & 255, hi >>> 8 & 255, hi & 255, lo >>> 24 & 255, lo >>> 16 & 255, lo >>> 8 & 255, lo & 255];
+      var h = hmacSha1(keyBytes, msg, crypto), off = h[19] & 15;
+      var bin = ((h[off] & 127) << 24) | (h[off + 1] << 16) | (h[off + 2] << 8) | h[off + 3];
+      var code = String(bin % Math.pow(10, digits));
+      while (code.length < digits) code = '0' + code;
+      return code;
+    }
+    function totpKey(secret) { return typeof secret === 'string' ? base32(secret) : (secret ? Array.prototype.slice.call(secret) : null); }
+    function totpCode(secret, nowMs, crypto, opts) {
+      opts = opts || {};
+      var key = totpKey(secret);
+      if (!key || !key.length) return null;
+      var step = Math.floor(nowMs / 1000 / (opts.period || 30));
+      return hotp(key, step, opts.digits || 6, crypto);
+    }
+    /* { ok, step } — the step the code belongs to, so the gatekeeper can
+       refuse the same code twice inside it (opts.used(step) → true). */
+    function totpVerify(secret, code, nowMs, crypto, opts) {
+      opts = opts || {};
+      var digits = opts.digits || 6, period = opts.period || 30, win = opts.window == null ? 1 : opts.window;
+      var key = totpKey(secret), c = str(code).replace(/\s+/g, '');
+      if (!key || !key.length || !new RegExp('^\\d{' + digits + '}$').test(c)) return { ok: false };
+      var base = Math.floor(nowMs / 1000 / period);
+      var order = [0];
+      for (var w = 1; w <= win; w++) order.push(-w, w);
+      for (var i = 0; i < order.length; i++) {
+        var step = base + order[i];
+        if (step < 0) continue;
+        if (same(hotp(key, step, digits, crypto), c)) {
+          if (typeof opts.used === 'function' && opts.used(step)) return { ok: false, reason: 'used', step: step };
+          return { ok: true, step: step };
+        }
+      }
+      return { ok: false };
+    }
+    // How a spent backup code is named in a trainee's inbox (never the code itself).
+    function codeHash(code) { return 'h1-' + Core.hashString('bc|' + str(code).trim().toUpperCase()); }
+
+    /* ---- Reading a store map ---- */
+    function reader(storeMap) {
+      var map = storeMap || {}, memo = dict();
+      return function (k, kind) {
+        if (!(k in memo)) {
+          var v = map[k];
+          if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { v = null; } }
+          memo[k] = v;
+        }
+        var val = memo[k];
+        if (kind === 'list') return Array.isArray(val) ? val.filter(isObj) : [];
+        if (kind === 'map') return isObj(val) ? val : {};
+        return val == null ? null : val;
+      };
+    }
+
+    /* Can this account sign in through the gate at all (and so need a
+       slice)? A password that works, or no password yet but an email to sign
+       in with (the email sign-in needs none). Pending, disabled and rejected
+       accounts get nothing until an administrator decides. */
+    function eligible(a) {
+      if (!isObj(a) || lower(a.role) !== 'student' || a.id == null || a.id === '') return false;
+      var c = Core.accountAccess.check(a);
+      return c.allowed || (c.reason === 'no-password' && !!str(a.email).trim());
+    }
+    /* The trainee record a sign-in account belongs to, by the same steps the
+       dashboard's sign-in takes (findStudentRecordForAccount): its own link,
+       then the stable id of its name and programme, then a namesake in an
+       agreeing programme when there is exactly one. Never repairs anything. */
+    function studentFor(account, students) {
+      if (!isObj(account)) return null;
+      var list = Array.isArray(students) ? students : [], m = null, i;
+      if (account.studentDataId != null && account.studentDataId !== '') {
+        for (i = 0; i < list.length && !m; i++) if (list[i] && String(list[i].id) === String(account.studentDataId)) m = list[i];
+      }
+      if (!m) {
+        var sid = Core.stableStudentId({ name: account.name, course: account.programme || '' });
+        for (i = 0; sid && i < list.length && !m; i++) if (list[i] && list[i].id === sid) m = list[i];
+      }
+      if (!m) m = Core.accountAccess.studentLinkFor(account, list).match || null;
+      return m;
+    }
+
+    /* The newest trusted moment a record was written. Stamps more than a day
+       ahead of the time handed in are a wrong clock, not news (Core.sync). */
+    var STAMP_FIELDS = ['updatedAt', 'lastModified', 'submittedAt', 'markedAt', 'gradedAt', 'reviewedAt', 'overriddenAt',
+      'handledAt', 'requestedAt', 'editedAt', 'deletedAt', 'createdAt', 'savedAt', 'timestamp', 'activatedAt',
+      'approvedAt', 'disabledAt', 'twoFactorUpdatedAt', 'maintenanceUpdatedAt', 'startedAt', 'endedAt'];
+    function stampOf(rec, nowMs) {
+      if (!isObj(rec)) return 0;
+      var best = 0;
+      STAMP_FIELDS.forEach(function (f) {
+        var t = Core.sync.trusted(msOf(rec[f]), nowMs);
+        if (t > best) best = t;
+      });
+      if (isObj(rec.gradeMeta)) Object.keys(rec.gradeMeta).forEach(function (k) {
+        var t = Core.sync.trusted(msOf(rec.gradeMeta[k] && rec.gradeMeta[k].gradedAt), nowMs);
+        if (t > best) best = t;
+      });
+      return best;
+    }
+
+    /* Every collection a slice is built from. LIST and MAP say how each is
+       read; the owned ones are indexed by trainee once, so the whole roll is
+       sliced in one pass. */
+    var LISTS = ['voctrain_exams', 'voctrain_examResults', 'voctrain_examAttempts', 'voctrain_attendanceRegister',
+      'voctrain_assignments', 'voctrain_submissions', 'voctrain_announcements', 'voctrain_notifications',
+      'voctrain_calendarEvents', 'voctrain_classSessions', 'voctrain_vcSessions', 'voctrain_resources',
+      'voctrain_driveResources', 'voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_certTranscriptRequests',
+      'voctrain_certDownloadApprovals', 'voctrain_support_messages', 'voctrain_chatRooms', 'voctrain_skillAreas',
+      'voctrain_instructorData'];
+    var MAPS = ['voctrain_transcriptProfiles', 'voctrain_studentProfiles', 'voctrain_certTemplates'];
+    var OWNED = ['voctrain_examResults', 'voctrain_examAttempts', 'voctrain_attendanceRegister', 'voctrain_submissions',
+      'voctrain_transcriptGrades', 'voctrain_certTranscriptRequests', 'voctrain_certDownloadApprovals'];
+    // Deletions a trainee's device may need: those of the shared pools a slice draws on.
+    var PROGRAMME_TOMBS = ['announcements', 'exams', 'calendarEvents', 'classSessions', 'instructorAssignments',
+      'instructorResources', 'driveResources', 'chatRooms', 'notifications', 'certTemplates'];
+    var TOMB_WINDOW_MS = 120 * 24 * 3600 * 1000;
+
+    var USER_FIELDS = ['id', 'name', 'role', 'username', 'email', 'programme', 'status', 'studentDataId', 'createdAt', 'updatedAt'];
+    var EXAM_FIELDS = ['id', 'title', 'course', 'date', 'time', 'closeDate', 'closeTime', 'duration', 'passMark', 'status',
+      'activatedAt', 'questionsPerPage', 'shuffleQuestions', 'shuffleOptions', 'answersRelease', 'allowFlag', 'instructions',
+      'passRate', 'createdAt', 'updatedAt'];
+    var PAPER_FIELDS = ['id', 'title', 'course', 'date', 'time', 'closeDate', 'closeTime', 'duration', 'passMark',
+      'questionsPerPage', 'shuffleQuestions', 'shuffleOptions', 'answersRelease', 'status', 'activatedAt', 'allowFlag', 'instructions'];
+    var VC_FIELDS = ['id', 'code', 'title', 'course', 'hostName', 'hostRole', 'startedAt', 'endedAt', 'locked', 'lobby', 'updatedAt'];
+    var ROOM_FIELDS = ['id', 'name', 'icon', 'type', 'color', 'skillAreaId', 'createdAt', 'updatedAt'];
+    var PER_TRAINEE_MAPS = ['grades', 'gradeMeta', 'feedback', 'comments', 'marks'];
+
+    /* System notices that name a trainee. A trainee sees one only when it
+       names them; the score and mark notices never reach a trainee at all
+       (the bell already hid them: getFilteredNotifications). */
+    var STAFF_ONLY_NOTICES = [/^Grading completed: .+ scored -?\d+% —/, /^.+ scored -?\d+% on .+ — (PASSED|NOT PASSED|pending review)$/,
+      /^.+ graded -?[\d.]+\/\d+ on ".*"$/];
+    var NAMED_NOTICES = [/^Certificate issued: (.+) — /, /^Certificate collected: (.+) — /, /^(.+) (?:resubmitted|submitted) work for "/,
+      /^Name change requested by (.+) \(/, /^Account approved: (.+) \(/, /^(.+) moved to /];
+
+    // The order each list is kept in, so the same records always give the same slice.
+    var ORDER = {
+      voctrain_notifications: function (a, b) { return (msOf(b.timestamp) - msOf(a.timestamp)) || cmpId(a, b); },
+      voctrain_examResults: function (a, b) { return (msOf(a.submittedAt) - msOf(b.submittedAt)) || cmpId(a, b); },
+      voctrain_attendanceRegister: function (a, b) { return str(a.date) < str(b.date) ? -1 : str(a.date) > str(b.date) ? 1 : cmpId(a, b); }
+    };
+    function cmpId(a, b) {
+      var x = a && a.id != null ? str(a.id) : canon(copy(a)), y = b && b.id != null ? str(b.id) : canon(copy(b));
+      if (x === y && a && b && a.id != null && b.id != null) { x = canon(copy(a)); y = canon(copy(b)); }
+      return x < y ? -1 : x > y ? 1 : 0;
+    }
+    function ordered(key, list) { return list.slice().sort(ORDER[key] || cmpId); }
+
+    /* ---- Who is another trainee, for the privacy sweep ---- */
+    function addTo(m, v, norm) { var s = norm ? norm(v) : str(v); if (s) m[s] = 1; }
+    function identityOf(account, student) {
+      var o = { ids: dict(), names: dict(), emails: dict(), secrets: dict() };
+      if (account) {
+        addTo(o.ids, account.id); addTo(o.ids, account.studentDataId);
+        addTo(o.names, account.name, Core.normName); addTo(o.emails, account.email, lower);
+        addTo(o.secrets, account.password); addTo(o.secrets, account.twoFactorSecret);
+        (Array.isArray(account.backupCodes) ? account.backupCodes : []).forEach(function (c) { addTo(o.secrets, c && c.code); });
+      }
+      if (student) {
+        addTo(o.ids, student.id); addTo(o.ids, student.schoolFeeId); addTo(o.ids, Core.stableStudentId(student));
+        addTo(o.names, student.name, Core.normName); addTo(o.emails, student.email, lower);
+      }
+      return o;
+    }
+    function mergeIdentity(into, from) {
+      ['ids', 'names', 'emails', 'secrets'].forEach(function (k) { Object.keys(from[k]).forEach(function (v) { into[k][v] = 1; }); });
+    }
+    var ID_START = /(?:STU|USR|SF)-/g;
+    function foreignText(s, F, own) {
+      if (!s) return false;
+      if (F.ids[s] && !own.ids[s]) return true;
+      if (s.indexOf('-') !== -1) {
+        ID_START.lastIndex = 0;
+        var m;
+        while ((m = ID_START.exec(s))) {
+          for (var j = m.index + m[0].length; j <= s.length; j++) {
+            var ch = s.charAt(j), end = j === s.length || !/[A-Za-z0-9_-]/.test(ch);
+            if (end || ch === '-') { var cand = s.slice(m.index, j); if (F.ids[cand] && !own.ids[cand]) return true; }
+            if (end) break;
+          }
+        }
+      }
+      var n = Core.normName(s);
+      if (n && F.names[n] && !own.names[n]) return true;
+      var e = lower(s);
+      if (e && F.emails[e] && !own.emails[e]) return true;
+      return !!(F.secrets[s] && !own.secrets[s]);
+    }
+    var OWNER_FIELDS = ['studentId', 'accountId', 'userId', 'studentDataId', 'senderId'];
+    /* The last line of defence: whatever the rules above let through, a
+       slice never carries another trainee's id, name, email, password check,
+       two-step secret or backup code, nor anything that gives an answer
+       away. A record about somebody else goes; a field naming them goes.
+       Returns how many were taken out (the rules should leave nothing). */
+    function scrub(node, F, own) {
+      var n = 0;
+      if (Array.isArray(node)) {
+        for (var i = node.length - 1; i >= 0; i--) {
+          var x = node[i];
+          if (typeof x === 'string') { if (foreignText(x, F, own)) { node.splice(i, 1); n++; } }
+          else if (x && typeof x === 'object') {
+            var theirs = !Array.isArray(x) && OWNER_FIELDS.some(function (f) { return typeof x[f] === 'string' && foreignText(x[f], F, own); });
+            if (theirs) { node.splice(i, 1); n++; } else n += scrub(x, F, own);
+          }
+        }
+      } else if (node && typeof node === 'object') {
+        Object.keys(node).forEach(function (k) {
+          var v = node[k];
+          if (hasOwn.call(KEY_NAMES, k) || foreignText(k, F, own) || (typeof v === 'string' && foreignText(v, F, own))) { delete node[k]; n++; return; }
+          if (v && typeof v === 'object') n += scrub(v, F, own);
+        });
+      }
+      return n;
+    }
+
+    /* ---- One pass over the Centre's records (§3.1) ----------------------
+       prepare() reads everything once; sliceFor() then builds one trainee's
+       slice. buildAll() is the two together for the whole roll — a staff
+       device that must stay responsive calls sliceFor() itself and yields
+       between trainees. opts: { builtBy, gateUrl, inboxSeenUntil: {acct: iso},
+       findSkill(course) → training centre (the dashboard passes its own
+       findSkillAreaForCourse; the default is Core.enrolment.findCentre),
+       folds (accounts folded into others: Core.gate.foldMap's input) }. */
+    function prepare(storeMap, nowMs, opts) {
+      opts = opts || {};
+      var now = typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : Date.now();
+      var read = reader(storeMap);
+      var ctx = { now: now, opts: opts, L: {}, M: {} };
+      LISTS.forEach(function (k) { ctx.L[k] = read(k, 'list'); });
+      MAPS.forEach(function (k) { ctx.M[k] = read(k, 'map'); });
+      ctx.settings = read('voctrain_systemSettings', 'map');
+      ctx.offset = str(ctx.settings.centreUtcOffset) || Core.exams.DEFAULT_OFFSET;
+      ctx.tombs = read('voctrain_syncTombstones', 'map');
+
+      var idList = function (k) { var v = read(k); return Array.isArray(v) ? v : []; };
+      var allAccounts = read('voctrain_users', 'list');
+      var delUsers = {};
+      idList('voctrain_deletedUserIds').forEach(function (id) { if (id != null && id !== '') delUsers[id] = true; });
+      ctx.accounts = Core.accountAccess.dropDeleted(allAccounts, delUsers).accounts;
+      var allStudents = read('voctrain_students', 'list');
+      var delStu = {};
+      idList('voctrain_deletedStudentIds').forEach(function (id) { if (id) delStu[id] = true; });
+      ctx.students = Core.dropTombstonedStudents(allStudents, delStu, read('voctrain_deletedStudentAt', 'map')).students;
+
+      var skills = ctx.L.voctrain_skillAreas, skillMemo = dict();
+      var findSkill = typeof opts.findSkill === 'function' ? opts.findSkill
+        : function (c) { return Core.enrolment.findCentre(skills, c, { nowMs: now }); };
+      ctx.findSkill = function (c) {
+        var k = str(c);
+        if (!(k in skillMemo)) skillMemo[k] = findSkill(c);
+        return skillMemo[k];
+      };
+      var memo = dict();
+      ctx.same = function (a, b) {
+        var k = str(a) + '\u0000' + str(b);
+        if (!(k in memo)) {
+          var r = false;
+          try { r = !!Core.enrolment.courseMatch(a, b, ctx.findSkill); } catch (e) { r = false; }
+          memo[k] = r;
+        }
+        return memo[k];
+      };
+
+      // Staff: their ids may stay in a trainee's slice (a teacher in a room).
+      ctx.staffIds = dict();
+      var staffNames = dict();
+      allAccounts.forEach(function (a) {
+        if (lower(a.role) === 'student') return;
+        addTo(ctx.staffIds, a.id); addTo(staffNames, a.name, Core.normName);
+      });
+      ctx.L.voctrain_instructorData.forEach(function (i) { addTo(staffNames, i.name, Core.normName); });
+
+      // Everybody who is a trainee, deleted or not: the privacy sweep's list.
+      ctx.F = { ids: dict(), names: dict(), emails: dict(), secrets: dict() };
+      allAccounts.forEach(function (a) { if (lower(a.role) === 'student') mergeIdentity(ctx.F, identityOf(a, null)); });
+      allStudents.forEach(function (s) { mergeIdentity(ctx.F, identityOf(null, s)); });
+      Object.keys(staffNames).forEach(function (n) { delete ctx.F.names[n]; });
+      Object.keys(ctx.staffIds).forEach(function (id) { delete ctx.F.ids[id]; });
+
+      // Accounts folded into another: their ids are that trainee's own.
+      ctx.foldedInto = dict();
+      var folds = foldMap(opts.folds);
+      Object.keys(folds).forEach(function (stub) {
+        var to = folds[stub], hops = 0;
+        while (folds[to] && hops++ < 10) to = folds[to];
+        (ctx.foldedInto[to] = ctx.foldedInto[to] || []).push(stub);
+      });
+
+      // Owned records, by trainee.
+      ctx.owned = {};
+      OWNED.forEach(function (k) {
+        var by = dict();
+        ctx.L[k].forEach(function (r) { if (r.studentId != null) (by[str(r.studentId)] = by[str(r.studentId)] || []).push(r); });
+        ctx.owned[k] = by;
+      });
+      ctx.support = dict();
+      ctx.L.voctrain_support_messages.forEach(function (m) {
+        [m.accountId, m.studentId].forEach(function (id) { if (id != null && id !== '') (ctx.support[str(id)] = ctx.support[str(id)] || []).push(m); });
+      });
+
+      /* maxStamp (§3.3): the newest trusted stamp over EVERY record this pass
+         examined. Every record of every collection a slice draws on is
+         examined for every trainee — the ones a trainee's slice leaves out
+         included — so a device that has not yet seen an edit anywhere (an
+         announcement moved to another programme, a result moved to another
+         trainee) can never out-rank one that has. */
+      var s = 0;
+      var see = function (r) { var t = stampOf(r, now); if (t > s) s = t; };
+      LISTS.forEach(function (k) { ctx.L[k].forEach(see); });
+      MAPS.forEach(function (k) { Object.keys(ctx.M[k]).forEach(function (mk) { see(ctx.M[k][mk]); }); });
+      allAccounts.forEach(see); allStudents.forEach(see); see(ctx.settings);
+      var seeTimes = function (m) {
+        Object.keys(isObj(m) ? m : {}).forEach(function (k) { var t = Core.sync.trusted(msOf(m[k]), now); if (t > s) s = t; });
+      };
+      Object.keys(ctx.tombs).forEach(function (col) { seeTimes(ctx.tombs[col]); });
+      seeTimes(read('voctrain_deletedStudentAt', 'map'));
+      ctx.maxStamp = s;
+
+      // The shared pools' recent deletions, once.
+      ctx.programmeTombs = {};
+      PROGRAMME_TOMBS.forEach(function (col) {
+        var t = ctx.tombs[col];
+        if (!isObj(t)) return;
+        var keep = {};
+        Object.keys(t).forEach(function (id) { if (msOf(t[id]) && now - msOf(t[id]) <= TOMB_WINDOW_MS) keep[id] = t[id]; });
+        if (Object.keys(keep).length) ctx.programmeTombs[col] = keep;
+      });
+
+      // The trainees who get a slice.
+      ctx.trainees = []; ctx.byAcct = dict(); ctx.unlinked = [];
+      ctx.accounts.forEach(function (a) {
+        if (!eligible(a)) return;
+        var st = studentFor(a, ctx.students);
+        if (!st || st.id == null) { ctx.unlinked.push(str(a.id)); return; }
+        var t = { acct: str(a.id), stu: str(st.id), account: a, student: st, course: str(st.course || a.programme) };
+        ctx.trainees.push(t); ctx.byAcct[t.acct] = t;
+      });
+      return ctx;
+    }
+
+    function cutList(list, own) { return (Array.isArray(list) ? list : []).filter(function (x) { return own[str(x)]; }); }
+    function ownedOf(ctx, key, t) { return (ctx.owned[key][t.stu] || []).map(copy); }
+    function cutReaders(rec, own) {
+      var r = copy(rec);
+      ['readBy', 'clearedBy', 'dismissedBy'].forEach(function (f) { if (Array.isArray(r[f])) r[f] = cutList(r[f], own); });
+      return r;
+    }
+    function examMeta(e) {
+      var m = pick(e, EXAM_FIELDS);
+      m.questions = Core.exams.questionCount(e);
+      m.questionData = [];
+      return m;
+    }
+    function examForTrainee(ctx, e, t) {
+      if (e.id == null || e.id === '' || e.status === 'draft' || e.status === 'cancelled') return false;
+      return !!e.course && (e.course === t.course || ctx.same(e.course, t.course));
+    }
+    function stripKeys(q) {
+      var c = {};
+      Object.keys(isObj(q) ? q : {}).forEach(function (k) { if (!hasOwn.call(KEY_NAMES, k)) c[k] = copy(q[k]); });
+      return c;
+    }
+    function inRoom(ctx, room, t) {
+      var members = (Array.isArray(room.members) ? room.members : []).map(str);
+      if (room.type === 'dm') return members.indexOf(t.acct) !== -1;
+      if (isObj(room.removed) && room.removed[t.acct]) return false;
+      if (members.indexOf(t.acct) !== -1) return true;
+      var prog = str(t.account.programme);
+      if (room.type === 'class' && prog) {
+        var rn = lower(room.name);
+        if (lower(prog) === rn) return true;
+        var us = null, rs = null;
+        try { us = ctx.findSkill(prog); } catch (e) { us = null; }
+        if (room.skillAreaId != null) ctx.L.voctrain_skillAreas.forEach(function (sk) { if (sk.id === room.skillAreaId) rs = sk; });
+        if (us && rs && us.id && rs.id && us.id === rs.id) return true;
+        if (us && us.name && lower(us.name) === rn) return true;
+      }
+      return false;
+    }
+    /* Rooms a trainee belongs to, as their slice lists them: who else is in
+       the room is the staff only (classmates are seen in the room's own
+       history, which only members are served). A direct conversation with
+       another trainee is not listed: its very id names them. */
+    function roomsFor(ctx, t) {
+      var out = [];
+      ctx.L.voctrain_chatRooms.forEach(function (room) {
+        if (room.id == null || !inRoom(ctx, room, t)) return;
+        var members = (Array.isArray(room.members) ? room.members : []).map(str);
+        if (room.type === 'dm' && members.some(function (m) { return m !== t.acct && !ctx.staffIds[m]; })) return;
+        var r = pick(room, ROOM_FIELDS);
+        r.members = members.filter(function (m) { return m === t.acct || ctx.staffIds[m]; }).sort();
+        out.push(r);
+      });
+      return out;
+    }
+    function noticeFor(n, t, ownNames) {
+      if (Array.isArray(n.forUsers) && n.forUsers.length) return n.forUsers.map(str).indexOf(t.acct) !== -1;
+      if (Array.isArray(n.forRoles) && n.forRoles.length && n.forRoles.indexOf('student') === -1) return false;
+      var text = str(n.text);
+      if (STAFF_ONLY_NOTICES.some(function (re) { return re.test(text); })) return false;
+      for (var i = 0; i < NAMED_NOTICES.length; i++) {
+        var m = NAMED_NOTICES[i].exec(text);
+        if (m) return !!ownNames[Core.normName(m[1])];
+      }
+      return true;
+    }
+    function fileIdsOf(node, out, depth) {
+      if (depth > 6 || !node || typeof node !== 'object') return;
+      if (Array.isArray(node)) { node.forEach(function (x) { fileIdsOf(x, out, depth + 1); }); return; }
+      Object.keys(node).forEach(function (k) {
+        if (k === 'driveFileId' && typeof node[k] === 'string' && node[k]) out.push(node[k]);
+        else fileIdsOf(node[k], out, depth + 1);
+      });
+    }
+
+    function sliceFor(ctx, acct) {
+      var t = ctx.byAcct[str(acct)];
+      if (!t) return null;
+      var course = t.course, now = ctx.now, d = {};
+      var own = identityOf(t.account, t.student);
+      (ctx.foldedInto[t.acct] || []).forEach(function (id) { own.ids[id] = 1; });
+      var readers = dict(); readers[t.acct] = 1;
+      var forStudent = function (r) { return Core.comms.forViewer(r, 'student', course, ctx.same); };
+      var sameCourse = function (c) { return !!c && !!course && (c === course || !!ctx.same(course, c)); };
+
+      d.voctrain_students = [copy(t.student)];
+      var card = pick(t.account, USER_FIELDS);
+      card.twoFactorEnabled = !!t.account.twoFactorEnabled;
+      card.emailOtpLogin = !!t.account.emailOtpLogin;
+      d.voctrain_users = [card];
+      d.voctrain_exams = ctx.L.voctrain_exams.filter(function (e) { return examForTrainee(ctx, e, t); }).map(examMeta);
+      d.voctrain_examResults = ownedOf(ctx, 'voctrain_examResults', t).map(function (r) { return redactResult(r, null, now, ctx.offset); });
+      d.voctrain_examAttempts = ownedOf(ctx, 'voctrain_examAttempts', t).map(function (a) {
+        if (Array.isArray(a.questions)) a.questions = a.questions.map(stripKeys);
+        return a;
+      });
+      d.voctrain_attendanceRegister = ownedOf(ctx, 'voctrain_attendanceRegister', t);
+      d.voctrain_assignments = ctx.L.voctrain_assignments.filter(function (a) { return sameCourse(a.course); }).map(function (a) {
+        var r = copy(a);
+        PER_TRAINEE_MAPS.forEach(function (f) {
+          if (!isObj(r[f])) return;
+          var keep = {};
+          if (r[f][t.stu] !== undefined) keep[t.stu] = r[f][t.stu];
+          r[f] = keep;
+        });
+        if (Array.isArray(r.gradeLog)) r.gradeLog = r.gradeLog.filter(function (g) { return g && str(g.studentId) === t.stu; });
+        return r;
+      });
+      d.voctrain_submissions = ownedOf(ctx, 'voctrain_submissions', t);
+      d.voctrain_announcements = ctx.L.voctrain_announcements.filter(forStudent).map(function (a) { return cutReaders(a, readers); });
+      d.voctrain_notifications = ctx.L.voctrain_notifications.filter(function (n) { return noticeFor(n, t, own.names); }).map(function (n) {
+        var r = cutReaders(n, readers);
+        if (Array.isArray(r.forUsers)) r.forUsers = cutList(r.forUsers, readers);
+        return r;
+      });
+      d.voctrain_calendarEvents = ctx.L.voctrain_calendarEvents.filter(forStudent).map(function (e) { return cutReaders(e, readers); });
+      d.voctrain_classSessions = ctx.L.voctrain_classSessions.filter(function (cs) { return sameCourse(cs.course); }).map(function (cs) {
+        var r = copy(cs);
+        if (Array.isArray(r.attendees)) r.attendees = r.attendees.filter(function (x) {
+          if (!isObj(x)) return false;
+          if (x.id != null && x.id !== '') return !!own.ids[str(x.id)];
+          return !!own.names[Core.normName(x.name)];
+        });
+        return r;
+      });
+      d.voctrain_vcSessions = ctx.L.voctrain_vcSessions.filter(function (v) { return sameCourse(v.course); }).map(function (v) { return pick(v, VC_FIELDS); });
+      ['voctrain_resources', 'voctrain_driveResources'].forEach(function (k) {
+        d[k] = ctx.L[k].filter(function (r) { return Core.coursework.resourceVisible(r.course, course, ctx.same); }).map(copy);
+      });
+      d.voctrain_transcriptGrades = ownedOf(ctx, 'voctrain_transcriptGrades', t);
+      var quals = dict();
+      d.voctrain_transcriptGrades.forEach(function (g) { if (g.qualId != null) quals[str(g.qualId)] = 1; });
+      d.voctrain_unitCatalogs = ctx.L.voctrain_unitCatalogs.filter(function (c) {
+        return (c.id != null && quals[str(c.id)]) || sameCourse(c.skillArea || c.centre || c.title);
+      }).map(copy);
+      d.voctrain_certTranscriptRequests = ownedOf(ctx, 'voctrain_certTranscriptRequests', t);
+      d.voctrain_certDownloadApprovals = ownedOf(ctx, 'voctrain_certDownloadApprovals', t);
+      d.voctrain_support_messages = (ctx.support[t.acct] || []).concat(ctx.support[t.stu] || []).filter(function (m, i, all) {
+        return all.indexOf(m) === i;
+      }).map(copy);
+      d.voctrain_chatRooms = roomsFor(ctx, t);
+      var mine = null;
+      try { mine = course ? ctx.findSkill(course) : null; } catch (e) { mine = null; }
+      d.voctrain_skillAreas = ctx.L.voctrain_skillAreas.filter(function (sk) {
+        return (mine && mine.id && sk.id === mine.id) || sameCourse(sk.name);
+      }).map(copy);
+      var seenIns = dict();
+      d.voctrain_instructorData = ctx.L.voctrain_instructorData.filter(function (i) {
+        return (i.name && t.student.instructor && Core.normName(i.name) === Core.normName(t.student.instructor)) || sameCourse(i.course);
+      }).map(function (i) { return { name: str(i.name), course: str(i.course) }; }).filter(function (i) {
+        var k = i.name + '|' + i.course;
+        if (seenIns[k]) return false;
+        seenIns[k] = 1; return true;
+      });
+      var ownMap = function (m, keys) {
+        var o = {};
+        keys.forEach(function (k) { if (k && hasOwn.call(m, k)) o[k] = copy(m[k]); });
+        return o;
+      };
+      d.voctrain_transcriptProfiles = ownMap(ctx.M.voctrain_transcriptProfiles, [t.stu]);
+      d.voctrain_studentProfiles = ownMap(ctx.M.voctrain_studentProfiles, [t.acct, t.stu]);
+      d.voctrain_certTemplates = {};
+      Object.keys(ctx.M.voctrain_certTemplates).forEach(function (k) {
+        if (!(k === course || sameCourse(k))) return;
+        var tpl = copy(ctx.M.voctrain_certTemplates[k]);
+        if (isObj(tpl)) { delete tpl.bgPage1; delete tpl.bgPage2; }
+        d.voctrain_certTemplates[k] = tpl;
+      });
+
+      Object.keys(d).forEach(function (k) { if (Array.isArray(d[k])) d[k] = ordered(k, d[k]); });
+
+      var tombstones = copy(ctx.programmeTombs);
+      // A direct conversation's id names both people: only theirs with staff.
+      if (tombstones.chatRooms) {
+        var mineDm = dict();
+        Object.keys(ctx.staffIds).forEach(function (sid) { mineDm['dm-' + [t.acct, sid].sort().join('-')] = 1; });
+        Object.keys(tombstones.chatRooms).forEach(function (id) { if (id.indexOf('dm-') === 0 && !mineDm[id]) delete tombstones.chatRooms[id]; });
+        if (!Object.keys(tombstones.chatRooms).length) delete tombstones.chatRooms;
+      }
+      var profTombs = isObj(ctx.tombs.studentProfiles) ? ctx.tombs.studentProfiles : {};
+      [t.acct, t.stu].forEach(function (k) {
+        if (hasOwn.call(profTombs, k)) (tombstones.studentProfiles = tombstones.studentProfiles || {})[k] = profTombs[k];
+      });
+
+      var files = [];
+      ['voctrain_resources', 'voctrain_driveResources', 'voctrain_assignments', 'voctrain_submissions'].forEach(function (k) { fileIdsOf(d[k], files, 0); });
+      var access = {
+        papers: uniqSorted(d.voctrain_exams.filter(function (e) { return e.questions > 0; }).map(function (e) { return e.id; })),
+        rooms: uniqSorted(d.voctrain_chatRooms.map(function (r) { return r.id; })),
+        files: uniqSorted(files)
+      };
+      var S = ctx.settings;
+      var settings = {
+        centreName: str(S.institutionName), centreUtcOffset: ctx.offset,
+        maintenanceMode: S.maintenanceMode === true,
+        maintenanceMessage: S.maintenanceMode === true ? str(S.maintenanceMessage) : '',
+        gateUrl: str(ctx.opts.gateUrl || (isObj(S.traineeGate) ? S.traineeGate.url : ''))
+      };
+
+      var body = { data: d, tombstones: tombstones, access: access };
+      var scrubbed = scrub(body, ctx.F, own);
+      var h = hashOf({ version: VERSION, accountId: t.acct, studentId: t.stu, settings: settings, data: body.data,
+        tombstones: body.tombstones, access: body.access });
+      var seen = ctx.opts.inboxSeenUntil && ctx.opts.inboxSeenUntil[t.acct];
+      var slice = {
+        format: FORMAT.slice, version: VERSION, accountId: t.acct, studentId: t.stu,
+        builtAt: iso(now), builtBy: str(ctx.opts.builtBy), hash: h, maxStamp: ctx.maxStamp,
+        inboxSeenUntil: str(seen), settings: settings, access: body.access, data: body.data, tombstones: body.tombstones
+      };
+      return { slice: slice, h: h, s: ctx.maxStamp, scrubbed: scrubbed };
+    }
+
+    /* ---- Papers, keys, rooms ---- */
+    function buildPaper(exam, nowMs) {
+      var meta = pick(exam, PAPER_FIELDS);
+      var questions = Core.exams.publicQuestions(exam && exam.questionData);
+      var h = hashOf({ exam: meta, questions: questions });
+      return { format: FORMAT.paper, version: VERSION, examId: str(exam && exam.id), hash: h,
+        builtAt: iso(typeof nowMs === 'number' ? nowMs : Date.now()), exam: meta, questions: questions };
+    }
+    function buildKey(exam, centreUtcOffset) {
+      var full = copy(exam || {});
+      var off = str(centreUtcOffset) || Core.exams.DEFAULT_OFFSET;
+      return { format: FORMAT.key, version: VERSION, examId: str(full.id), hash: hashOf({ exam: full, centreUtcOffset: off }),
+        exam: full, centreUtcOffset: off };
+    }
+    var ROOM_HISTORY = 300;
+    /* A room's own file (served to its members only): who is in it, and its
+       last 300 messages with attachments as links. */
+    function buildRoom(room, messages, members, nowMs) {
+      var list = (Array.isArray(messages) ? messages : []).filter(isObj).slice()
+        .sort(function (a, b) { return (msOf(a.timestamp) - msOf(b.timestamp)) || cmpId(a, b); });
+      list = list.slice(Math.max(0, list.length - ROOM_HISTORY));
+      var byRoom = {}; byRoom[str(room && room.id)] = list;
+      var msgs = (Core.chat.stripUploadedBytes(byRoom)[str(room && room.id)] || []).map(function (m) {
+        var c = copy(m); delete c.imageData; delete c.fileData; return c;
+      });
+      var who = uniqSorted(members);
+      return { format: FORMAT.room, version: VERSION, roomId: str(room && room.id), hash: hashOf({ room: pick(room, ROOM_FIELDS), members: who, messages: msgs }),
+        builtAt: iso(typeof nowMs === 'number' ? nowMs : Date.now()), room: pick(room, ROOM_FIELDS), members: who, messages: msgs };
+    }
+
+    function buildAll(storeMap, nowMs, opts) {
+      opts = opts || {};
+      var ctx = prepare(storeMap, nowMs, opts);
+      var only = Array.isArray(opts.only) ? opts.only.map(str) : null;
+      var out = { slices: {}, papers: {}, keys: {}, rooms: {}, unlinked: ctx.unlinked.slice(), s: ctx.maxStamp };
+      var papers = dict(), rooms = dict();
+      ctx.trainees.forEach(function (t) {
+        if (only && only.indexOf(t.acct) === -1) return;
+        var r = sliceFor(ctx, t.acct);
+        out.slices[t.acct] = r;
+        r.slice.access.papers.forEach(function (id) { papers[id] = 1; });
+        r.slice.access.rooms.forEach(function (id) { rooms[id] = 1; });
+      });
+      ctx.L.voctrain_exams.forEach(function (e) {
+        if (!papers[str(e.id)] || out.papers[str(e.id)]) return;
+        var p = buildPaper(e, ctx.now), k = buildKey(e, ctx.offset);
+        out.papers[p.examId] = { paper: p, h: p.hash };
+        out.keys[k.examId] = { key: k, h: k.hash };
+      });
+      var allMsgs = reader(storeMap)('voctrain_chatMessages', 'map');
+      ctx.L.voctrain_chatRooms.forEach(function (room) {
+        var id = str(room.id);
+        if (!rooms[id] || out.rooms[id]) return;
+        var members = (Array.isArray(room.members) ? room.members : []).map(str).filter(function (m) { return !(isObj(room.removed) && room.removed[m]); });
+        ctx.trainees.forEach(function (t) { if (inRoom(ctx, room, t)) members.push(t.acct); });
+        var f = buildRoom(room, allMsgs[id], members, ctx.now);
+        out.rooms[id] = { room: f, h: f.hash };
+      });
+      return out;
+    }
+    /* One trainee's slice (the Centre's own machine builds them on request).
+       { slice, h, s, scrubbed } — or { error: 'not-found' | 'unlinked' }. */
+    function buildSlice(storeMap, accountId, nowMs, opts) {
+      var ctx = prepare(storeMap, nowMs, opts);
+      if (ctx.byAcct[str(accountId)]) return sliceFor(ctx, accountId);
+      return { error: ctx.unlinked.indexOf(str(accountId)) !== -1 ? 'unlinked' : 'not-found' };
+    }
+
+    /* Should this device write its copy over the one already published?
+       'skip'   the same content is there;
+       'write'  this device has seen newer records (maxStamp), or the same
+                newest moment and the higher hash — so two devices that agree
+                on the moment settle on one copy and never take turns;
+       'behind' the published copy has seen newer records: wait for this
+                device's own sync to catch up;
+       'keep'   the same newest moment, and the published copy wins the tie. */
+    function publishDecision(local, remote) {
+      if (!remote || !remote.h) return 'write';
+      if (str(local && local.h) === str(remote.h)) return 'skip';
+      var ls = Number(local && local.s) || 0, rs = Number(remote.s) || 0;
+      if (ls > rs) return 'write';
+      if (ls < rs) return 'behind';
+      return str(local && local.h) > str(remote.h) ? 'write' : 'keep';
+    }
+
+    /* How a slice's exam reads now on the trainee's device. A slice never
+       carries the questions, only how many there are, so "has questions"
+       comes from that count (Core.exams.statusAt reads questionData). */
+    function sliceExamStatus(exam, nowMs, offset) {
+      if (!exam) return 'upcoming';
+      var e = copy(exam);
+      e.questionData = (Number(exam.questions) || 0) > 0 ? [{ id: 'q', type: 'info' }] : [];
+      return Core.exams.statusAt(e, nowMs, offset);
+    }
+    // May the paper be served now? Only while the exam is open, by the gatekeeper's clock.
+    function paperOpen(keyFile, nowMs) {
+      if (!isObj(keyFile) || !isObj(keyFile.exam)) return false;
+      return Core.exams.statusAt(keyFile.exam, nowMs, keyFile.centreUtcOffset) === 'active';
+    }
+
+    /* ---- What a trainee may send (§5.2) ---------------------------------
+       validateItem(item, me, slice, opts) → { id, ok, reason? } and, when ok,
+       what to keep: { key, rec, recId } for a record, { op } for an
+       operation, { attempt } for a submission. me = { acct, stu } from the
+       token or the seal. slice: the trainee's current slice — its access
+       lists and own records decide what is theirs; without one (a staff
+       device checking a collected inbox again) only ownership and shape are
+       checked. opts: { papers: { examId: paper } (or paper), ownUploads:
+       [fileId], lane: true when the item came out of a gatekeeper-written
+       inbox }. Every refused item says why: 'not-yours', 'malformed',
+       'too-large', 'not-open', 'unknown-exam', 'unknown-question',
+       'bad-order', 'unknown-assignment', 'not-own-file', 'not-pending',
+       'unknown-room', 'unknown-record', 'inline-file'. */
+    var ITEM_MAX_BYTES = 500 * 1024, TEXT_MAX_BYTES = 4 * 1024, PHOTO_MAX_CHARS = 300 * 1024;
+    var STAFF_SUBMISSION_FIELDS = ['grade', 'feedback', 'gradedBy', 'gradedAt', 'marks'];
+    var PROFILE_FIELDS = ['email', 'phone', 'emergencyName', 'emergencyPhone', 'bio', 'photo', 'profilePic', 'preferences', 'requestedName', 'updatedAt'];
+    var SUPPORT_FIELDS = ['id', 'name', 'email', 'phone', 'subject', 'message', 'timestamp', 'date', 'createdAt'];
+    var CHAT_FIELDS = ['id', 'roomId', 'senderId', 'senderName', 'text', 'type', 'timestamp', 'driveFileId', 'fileName', 'fileSize', 'mimeType', 'replyTo'];
+    function verdict(item, ok, extra) {
+      var out = { id: item && item.id != null ? str(item.id) : '', ok: ok };
+      Object.keys(extra || {}).forEach(function (k) { out[k] = extra[k]; });
+      return out;
+    }
+    function idsOf(list) { var m = dict(); (Array.isArray(list) ? list : []).forEach(function (r) { if (r && r.id != null) m[str(r.id)] = r; }); return m; }
+    function sliceData(slice, key) { return slice && slice.data && Array.isArray(slice.data[key]) ? slice.data[key] : []; }
+    function paperOf(opts, examId) {
+      if (opts.paper && str(opts.paper.examId) === str(examId)) return opts.paper;
+      return opts.papers && isObj(opts.papers[str(examId)]) ? opts.papers[str(examId)] : null;
+    }
+    function isPermutation(order, n) {
+      if (!Array.isArray(order) || order.length !== n) return false;
+      var seen = {};
+      return order.every(function (k) {
+        if (typeof k !== 'number' || k < 0 || k >= n || Math.floor(k) !== k || seen[k]) return false;
+        seen[k] = 1; return true;
+      });
+    }
+    function ownFiles(slice, opts) {
+      var m = dict();
+      (Array.isArray(opts.ownUploads) ? opts.ownUploads : []).forEach(function (id) { if (id) m[str(id)] = 1; });
+      var ids = []; fileIdsOf(sliceData(slice, 'voctrain_submissions'), ids, 0);
+      ids.forEach(function (id) { m[id] = 1; });
+      return m;
+    }
+    function checkAttempt(a, me, slice, opts, submitting) {
+      if (!isObj(a)) return 'malformed';
+      if (str(a.studentId) !== str(me.stu) || (a.accountId != null && str(a.accountId) !== str(me.acct))) return 'not-yours';
+      // Only the gatekeeper retires an attempt: what a trainee sends is open.
+      if (submitting ? (a.status != null && a.status !== 'open') : a.status !== 'open') return 'not-open';
+      if (!Core.exams.attemptIsOpen(a) || a.id == null || a.id === '') return 'malformed';
+      if (a.answers.length > a.questions.length) return 'malformed';
+      if (utf8Length(JSON.stringify(a)) > ITEM_MAX_BYTES) return 'too-large';
+      var paper = paperOf(opts, a.examId);
+      if (slice) {
+        if (!slice.access || (slice.access.papers || []).map(str).indexOf(str(a.examId)) === -1) return 'unknown-exam';
+        if (!paper) return 'unknown-exam';
+      }
+      var byId = null;
+      if (paper) {
+        byId = dict();
+        (paper.questions || []).forEach(function (q) { if (q && q.id != null) byId[str(q.id)] = q; });
+      }
+      for (var i = 0; i < a.questions.length; i++) {
+        var q = a.questions[i];
+        if (!isObj(q) || q.id == null) return 'malformed';
+        var pq = byId ? byId[str(q.id)] : q;
+        if (!pq) return 'unknown-question';
+        if (q.optionOrder !== undefined && !isPermutation(q.optionOrder, (pq.options || []).length)) return 'bad-order';
+      }
+      return null;
+    }
+    function normAttempt(a, me) {
+      var r = copy(a);
+      r.questions = r.questions.map(stripKeys);
+      r.accountId = str(me.acct);
+      r.status = 'open';
+      return r;
+    }
+    function validateRecord(item, me, slice, opts) {
+      var key = str(item.key), rec = item.rec;
+      if (!isObj(rec)) return verdict(item, false, { reason: 'malformed' });
+      var mine = function (f) { return rec[f] == null || str(rec[f]) === (f === 'studentId' ? str(me.stu) : str(me.acct)); };
+      var data = slice && slice.data ? slice.data : null;
+      var ownStudent = sliceData(slice, 'voctrain_students')[0] || null;
+      var ownUser = sliceData(slice, 'voctrain_users')[0] || null;
+
+      if (key === 'voctrain_examAttempts') {
+        var why = checkAttempt(rec, me, slice, opts, false);
+        if (why) return verdict(item, false, { reason: why });
+        return verdict(item, true, { key: key, rec: normAttempt(rec, me) });
+      }
+      if (key === 'voctrain_submissions') {
+        if (str(rec.studentId) !== str(me.stu) || !mine('accountId')) return verdict(item, false, { reason: 'not-yours' });
+        if (rec.id == null || rec.id === '' || rec.assignmentId == null) return verdict(item, false, { reason: 'malformed' });
+        if (data && !idsOf(data.voctrain_assignments)[str(rec.assignmentId)]) return verdict(item, false, { reason: 'unknown-assignment' });
+        var files = []; fileIdsOf(rec, files, 0);
+        if (slice || Array.isArray(opts.ownUploads)) {
+          var allowed = ownFiles(slice, opts);
+          if (files.some(function (f) { return !allowed[f]; })) return verdict(item, false, { reason: 'not-own-file' });
+        }
+        var sub = copy(rec);
+        STAFF_SUBMISSION_FIELDS.forEach(function (f) { delete sub[f]; });
+        sub.accountId = str(me.acct);
+        if (ownStudent) sub.studentName = str(ownStudent.name);
+        return verdict(item, true, { key: key, rec: sub });
+      }
+      if (key === 'voctrain_certTranscriptRequests') {
+        if (str(rec.studentId) !== str(me.stu) || !mine('accountId')) return verdict(item, false, { reason: 'not-yours' });
+        if (rec.id == null || rec.id === '') return verdict(item, false, { reason: 'malformed' });
+        var known = data ? idsOf(data.voctrain_certTranscriptRequests)[str(rec.id)] : null;
+        var out = copy(rec);
+        if (!data) {
+          // Checked again from an inbox: the gatekeeper held the slice then.
+          if (rec.status !== 'pending' && rec.status !== 'cancelled') return verdict(item, false, { reason: 'not-pending' });
+        } else if (known) {
+          // The trainee may only withdraw a request still waiting.
+          if (known.status !== 'pending') return verdict(item, false, { reason: 'not-pending' });
+          if (rec.status !== 'cancelled' && rec.status !== 'pending') return verdict(item, false, { reason: 'not-pending' });
+          out = copy(known);
+          out.status = rec.status;
+          out.updatedAt = str(rec.updatedAt) || out.updatedAt;
+        } else {
+          if (rec.status !== 'pending') return verdict(item, false, { reason: 'not-pending' });
+          ['handledBy', 'handledAt', 'adminNote'].forEach(function (f) { out[f] = ''; });
+          if (['transcript', 'certificate', 'both'].indexOf(out.type) === -1) out.type = 'transcript';
+          if (ownStudent) { out.studentName = str(ownStudent.name); out.course = str(ownStudent.course); }
+        }
+        out.accountId = str(me.acct);
+        return verdict(item, true, { key: key, rec: out });
+      }
+      if (key === 'voctrain_support_messages') {
+        if (!mine('accountId') || !mine('studentId')) return verdict(item, false, { reason: 'not-yours' });
+        if (rec.id == null || rec.id === '') return verdict(item, false, { reason: 'malformed' });
+        var text = [rec.name, rec.email, rec.phone, rec.subject, rec.message].map(str).join('');
+        if (utf8Length(text) > TEXT_MAX_BYTES) return verdict(item, false, { reason: 'too-large' });
+        if (data && idsOf(data.voctrain_support_messages)[str(rec.id)]) return verdict(item, true, { key: key, known: true });
+        var msg = pick(rec, SUPPORT_FIELDS);
+        msg.accountId = str(me.acct); msg.studentId = str(me.stu);
+        msg.read = false; msg.replied = false; msg.delivered = true;
+        return verdict(item, true, { key: key, rec: msg });
+      }
+      if (key === 'voctrain_chatMessages') {
+        if (str(rec.senderId) !== str(me.acct)) return verdict(item, false, { reason: 'not-yours' });
+        if (rec.id == null || rec.id === '' || rec.roomId == null) return verdict(item, false, { reason: 'malformed' });
+        if (slice && (!slice.access || (slice.access.rooms || []).map(str).indexOf(str(rec.roomId)) === -1)) return verdict(item, false, { reason: 'unknown-room' });
+        if (rec.imageData != null || rec.fileData != null) return verdict(item, false, { reason: 'inline-file' });
+        if (utf8Length(str(rec.text)) > TEXT_MAX_BYTES) return verdict(item, false, { reason: 'too-large' });
+        if (rec.driveFileId && (slice || Array.isArray(opts.ownUploads)) && !ownFiles(slice, opts)[str(rec.driveFileId)]) {
+          return verdict(item, false, { reason: 'not-own-file' });
+        }
+        var m = pick(rec, CHAT_FIELDS);
+        if (['text', 'image', 'file'].indexOf(m.type) === -1) m.type = 'text';
+        if (ownUser) m.senderName = str(ownUser.name);
+        m.readBy = [str(me.acct)];
+        return verdict(item, true, { key: key, rec: m });
+      }
+      if (key === 'voctrain_studentProfiles') {
+        var pk = str(item.recId);
+        if (pk !== str(me.acct) && pk !== str(me.stu)) return verdict(item, false, { reason: 'not-yours' });
+        if (rec.photo != null && str(rec.photo).length > PHOTO_MAX_CHARS) return verdict(item, false, { reason: 'too-large' });
+        if (rec.profilePic != null && str(rec.profilePic).length > PHOTO_MAX_CHARS) return verdict(item, false, { reason: 'too-large' });
+        var p = pick(rec, PROFILE_FIELDS);
+        // A name is the office's to change: a different one is a request to them.
+        var ownName = ownStudent ? str(ownStudent.name) : '';
+        if (rec.name != null && ownName && Core.normName(rec.name) !== Core.normName(ownName)) p.requestedName = str(rec.name);
+        if (ownName) p.name = ownName;
+        else if (rec.name != null) p.name = str(rec.name);
+        return verdict(item, true, { key: key, recId: pk, rec: p });
+      }
+      return verdict(item, false, { reason: 'not-yours' });
+    }
+    function validateOp(item, me, slice, opts) {
+      var op = item.op;
+      if (!isObj(op)) return verdict(item, false, { reason: 'malformed' });
+      var out = { id: str(op.id || item.id), kind: str(op.kind), at: str(op.at || item.createdAt) };
+      var data = slice && slice.data ? slice.data : null;
+      if (op.kind === 'read' || op.kind === 'clearNotif') {
+        var key = op.kind === 'clearNotif' ? 'voctrain_notifications' : str(op.key);
+        if (key === 'voctrain_chatMessages' && op.kind === 'read') {
+          if (op.roomId == null) return verdict(item, false, { reason: 'malformed' });
+          if (slice && (slice.access && slice.access.rooms || []).map(str).indexOf(str(op.roomId)) === -1) return verdict(item, false, { reason: 'unknown-room' });
+          out.key = key; out.roomId = str(op.roomId);
+          return verdict(item, true, { op: out });
+        }
+        if (key !== 'voctrain_announcements' && key !== 'voctrain_notifications') return verdict(item, false, { reason: 'not-yours' });
+        if (op.recId == null) return verdict(item, false, { reason: 'malformed' });
+        if (data && !idsOf(data[key])[str(op.recId)]) return verdict(item, false, { reason: 'unknown-record' });
+        out.key = key; out.recId = str(op.recId);
+        return verdict(item, true, { op: out });
+      }
+      if (op.kind === 'chatFollow') {
+        var target = str(op.target);
+        if (!target || target === str(me.acct)) return verdict(item, false, { reason: 'malformed' });
+        if (data) {
+          var people = dict();
+          sliceData(slice, 'voctrain_chatRooms').forEach(function (r) { (r.members || []).forEach(function (m) { people[str(m)] = 1; }); });
+          if (!people[target]) return verdict(item, false, { reason: 'unknown-record' });
+        }
+        out.target = target; out.on = op.on !== false;
+        return verdict(item, true, { op: out });
+      }
+      if (op.kind === 'backupCodeUsed') {
+        // Written into an inbox by the gatekeeper itself when a backup code is
+        // spent at sign-in — never something a trainee's device may send.
+        if (opts.lane !== true || !/^h1-[0-9a-z]+$/.test(str(op.codeHash))) return verdict(item, false, { reason: 'not-yours' });
+        out.codeHash = str(op.codeHash);
+        return verdict(item, true, { op: out });
+      }
+      return verdict(item, false, { reason: 'not-yours' });
+    }
+    function validateItem(item, me, slice, opts) {
+      opts = opts || {};
+      if (!isObj(item) || !isObj(me) || !me.acct || !me.stu) return verdict(item, false, { reason: 'malformed' });
+      if (item.a != null && str(item.a) !== str(me.acct)) return verdict(item, false, { reason: 'not-yours' });
+      var size = 0;
+      try { size = utf8Length(JSON.stringify(item)); } catch (e) { return verdict(item, false, { reason: 'malformed' }); }
+      if (size > ITEM_MAX_BYTES + 4096) return verdict(item, false, { reason: 'too-large' });
+      if (item.kind === 'rec') return validateRecord(item, me, slice, opts);
+      if (item.kind === 'op') return validateOp(item, me, slice, opts);
+      if (item.kind === 'submit') {
+        var why = checkAttempt(item.attempt, me, slice, opts, true);
+        if (why) return verdict(item, false, { reason: why });
+        return verdict(item, true, { attempt: normAttempt(item.attempt, me) });
+      }
+      return verdict(item, false, { reason: 'not-yours' });
+    }
+
+    /* ---- Operations, applied on a staff device (§5.6) --------------------
+       store: the collections the operations touch, by store key —
+       voctrain_announcements, voctrain_notifications, voctrain_chatMessages,
+       voctrain_chatFollows, voctrain_chatFollowLog, voctrain_users. Changed
+       IN PLACE; each operation touches only the trainee's own mark, and
+       applying one twice changes nothing. Returns { applied, skipped,
+       changed: [store keys], touchedAccounts: [ids] } — an account whose
+       backup code was burnt must be stamped (touchAccount) by the page. */
+    function applyOps(store, ops, me) {
+      store = store || {};
+      var res = { applied: 0, skipped: 0, changed: [], touchedAccounts: [] };
+      var changed = function (k) { if (res.changed.indexOf(k) === -1) res.changed.push(k); };
+      var acct = str(me && me.acct);
+      (Array.isArray(ops) ? ops : []).forEach(function (op) {
+        if (!isObj(op) || !acct) { res.skipped++; return; }
+        var did = false;
+        if ((op.kind === 'read' || op.kind === 'clearNotif') && op.recId != null) {
+          var key = op.kind === 'clearNotif' ? 'voctrain_notifications' : op.key;
+          var rec = (Array.isArray(store[key]) ? store[key] : []).filter(function (r) { return r && str(r.id) === str(op.recId); })[0];
+          if (rec) did = op.kind === 'clearNotif' ? Core.comms.markCleared(rec, acct) : Core.comms.markRead(rec, acct);
+          if (did) changed(key);
+        } else if (op.kind === 'read' && op.key === 'voctrain_chatMessages') {
+          var room = isObj(store.voctrain_chatMessages) ? store.voctrain_chatMessages[str(op.roomId)] : null;
+          var upTo = msOf(op.at) || Infinity;
+          (Array.isArray(room) ? room : []).forEach(function (m) {
+            if (!isObj(m) || msOf(m.timestamp) > upTo) return;
+            if (!Array.isArray(m.readBy)) m.readBy = [];
+            if (m.readBy.indexOf(acct) === -1) { m.readBy.push(acct); did = true; }
+          });
+          if (did) changed('voctrain_chatMessages');
+        } else if (op.kind === 'chatFollow' && op.target) {
+          if (!isObj(store.voctrain_chatFollows)) store.voctrain_chatFollows = {};
+          if (!isObj(store.voctrain_chatFollowLog)) store.voctrain_chatFollowLog = {};
+          var lg = {}; lg[acct] = {}; lg[acct][str(op.target)] = { on: op.on !== false, at: str(op.at) || new Date(0).toISOString() };
+          did = Core.chatSync.mergeFollows(store.voctrain_chatFollows, store.voctrain_chatFollowLog, {}, lg);
+          if (did) { changed('voctrain_chatFollows'); changed('voctrain_chatFollowLog'); }
+        } else if (op.kind === 'backupCodeUsed' && op.codeHash) {
+          var account = (Array.isArray(store.voctrain_users) ? store.voctrain_users : []).filter(function (a) { return a && str(a.id) === acct; })[0];
+          (account && Array.isArray(account.backupCodes) ? account.backupCodes : []).forEach(function (c) {
+            if (c && !c.used && codeHash(c.code) === op.codeHash) { c.used = true; did = true; }
+          });
+          if (did) { changed('voctrain_users'); if (res.touchedAccounts.indexOf(acct) === -1) res.touchedAccounts.push(acct); }
+        } else { res.skipped++; return; }
+        if (did) res.applied++;
+      });
+      return res;
+    }
+
+    /* ---- From an inbox to the backup merge (§5.6) ---- */
+    var PAYLOAD_NAMES = { voctrain_examAttempts: 'examAttempts', voctrain_submissions: 'assignmentSubmissions',
+      voctrain_support_messages: 'supportMessages', voctrain_studentProfiles: 'studentProfiles',
+      voctrain_chatMessages: 'chatMessages', voctrain_examResults: 'examResults' };
+    // Merged by the record rules of the Centre's network (Core.pageCloud), not mergeBackupData.
+    var RECORD_ONLY = { voctrain_certTranscriptRequests: 1 };
+    /* A partial backup payload: only the collections present, each under the
+       name mergeBackupData() reads ({version, data}); a partial payload
+       touches nothing else. Collections the backup has no name for go under
+       `records`, by store key. A collection a trainee may not write is not
+       carried at all. */
+    function toPayload(records) {
+      var out = { version: '1.0', data: {}, records: {} };
+      Object.keys(isObj(records) ? records : {}).sort().forEach(function (k) {
+        if (PAYLOAD_NAMES[k]) out.data[PAYLOAD_NAMES[k]] = copy(records[k]);
+        else if (RECORD_ONLY[k]) out.records[k] = copy(records[k]);
+      });
+      return out;
+    }
+
+    /* Accounts folded into others (a provable duplicate stub folded into the
+       trainee's real account): { stubId: intoId }. Accepts the dashboard's
+       log ({ stubId: { mergedInto } }, cestisFoldedAccounts), a plain map, or
+       Core.accountAccess.backfillStubFolds()'s { folds: [{ id, into }] }. */
+    function foldMap(input) {
+      var out = dict();
+      var list = Array.isArray(input) ? input : (isObj(input) && Array.isArray(input.folds) ? input.folds : null);
+      if (list) list.forEach(function (f) { if (isObj(f) && f.id != null && f.into != null) out[str(f.id)] = str(f.into); });
+      else if (isObj(input)) Object.keys(input).forEach(function (k) {
+        var v = input[k], to = isObj(v) ? v.mergedInto : v;
+        if (to != null && to !== '' && typeof to !== 'object') out[str(k)] = str(to);
+      });
+      return out;
+    }
+    /* Whose work is this now? The account named by the trainee's folder,
+       followed through any fold, with the trainee record it belongs to
+       TODAY (a rename or a transfer moves the student ID). { acct, stu,
+       account, student } — or { reason } when it cannot be placed:
+       'account-gone', 'not-a-trainee', 'student-gone', 'ambiguous'. */
+    function resolveOwner(acct, cx) {
+      cx = cx || {};
+      var folds = foldMap(cx.folds), id = str(acct), hops = 0;
+      while (folds[id] && hops++ < 10) id = folds[id];
+      var del = {};
+      (Array.isArray(cx.deletedUserIds) ? cx.deletedUserIds : []).forEach(function (x) { del[x] = true; });
+      var accounts = Core.accountAccess.dropDeleted(Array.isArray(cx.accounts) ? cx.accounts : [], del).accounts;
+      var account = accounts.filter(function (a) { return a && str(a.id) === id; })[0];
+      if (!account) return { reason: 'account-gone' };
+      if (lower(account.role) !== 'student') return { reason: 'not-a-trainee' };
+      var students = Array.isArray(cx.students) ? cx.students : [];
+      var st = studentFor(account, students);
+      if (!st) return { reason: Core.accountAccess.studentLinkFor(account, students).ambiguous ? 'ambiguous' : 'student-gone' };
+      return { acct: id, stu: str(st.id), account: account, student: st, folded: hops > 0 };
+    }
+    /* Rewrite the trainee's ids in what they sent to who they are now: every
+       studentId and accountId (and a chat message's sender) that was theirs
+       when written. Anything else is left exactly as it is. A copy. */
+    function reown(records, from, to) {
+      var oldS = dict(), oldA = dict();
+      [from && from.stu].concat(from && from.stus || []).forEach(function (x) { if (x) oldS[str(x)] = 1; });
+      [from && from.acct].concat(from && from.accts || []).forEach(function (x) { if (x) oldA[str(x)] = 1; });
+      var out = copy(isObj(records) ? records : {});
+      var fix = function (r) {
+        if (!isObj(r)) return;
+        if (r.studentId != null && oldS[str(r.studentId)]) r.studentId = str(to.stu);
+        if (r.accountId != null && oldA[str(r.accountId)]) r.accountId = str(to.acct);
+        if (r.senderId != null && oldA[str(r.senderId)]) r.senderId = str(to.acct);
+        if (Array.isArray(r.readBy)) r.readBy = r.readBy.map(function (x) { return oldA[str(x)] ? str(to.acct) : x; })
+          .filter(function (x, i, all) { return all.indexOf(x) === i; });
+      };
+      Object.keys(out).forEach(function (k) {
+        var v = out[k];
+        if (k === 'voctrain_studentProfiles' && isObj(v)) {
+          var m = {};
+          Object.keys(v).forEach(function (pk) {
+            var nk = oldS[pk] ? str(to.stu) : (oldA[pk] ? str(to.acct) : pk);
+            if (m[nk] && msOf(m[nk].updatedAt) >= msOf(v[pk] && v[pk].updatedAt)) return;
+            m[nk] = v[pk];
+          });
+          out[k] = m;
+        } else if (k === 'voctrain_chatMessages' && isObj(v)) {
+          Object.keys(v).forEach(function (room) { (Array.isArray(v[room]) ? v[room] : []).forEach(fix); });
+        } else if (Array.isArray(v)) v.forEach(fix);
+      });
+      return out;
+    }
+    // Two copies of a record from two inboxes: the attempt rules for attempts,
+    // the first submission for results, otherwise the copy written last.
+    function mergeRecords(acc, recs) {
+      Object.keys(recs || {}).forEach(function (k) {
+        var v = recs[k];
+        if (k === 'voctrain_examAttempts') { acc[k] = Core.exams.mergeAttemptLists(acc[k] || [], v || []).list; return; }
+        if (k === 'voctrain_certTranscriptRequests' && Core.Transcript && Core.Transcript.mergeRequestLists) {
+          acc[k] = Core.Transcript.mergeRequestLists(acc[k] || [], v || []); return;
+        }
+        if (k === 'voctrain_studentProfiles' || k === 'voctrain_chatMessages') {
+          var m = acc[k] || {};
+          Object.keys(isObj(v) ? v : {}).forEach(function (mk) {
+            if (k === 'voctrain_chatMessages') m[mk] = byIdNewest(m[mk] || [], v[mk] || []);
+            else if (!m[mk] || stampOf(v[mk]) >= stampOf(m[mk])) m[mk] = v[mk];
+          });
+          acc[k] = m; return;
+        }
+        acc[k] = byIdNewest(acc[k] || [], v || []);
+        if (k === 'voctrain_examResults') Core.exams.oneResultPerAttempt(acc[k]);
+      });
+      return acc;
+    }
+    function byIdNewest(a, b) {
+      var out = a.slice(), at = dict();
+      out.forEach(function (r, i) { if (r && r.id != null) at[str(r.id)] = i; });
+      (Array.isArray(b) ? b : []).forEach(function (r) {
+        if (!isObj(r)) return;
+        var k = r.id != null ? str(r.id) : null;
+        if (k === null || at[k] === undefined) { if (k !== null) at[k] = out.length; out.push(r); return; }
+        if (stampOf(r) > stampOf(out[at[k]])) out[at[k]] = r;
+      });
+      return out;
+    }
+    /* Everything a staff device's collector does between downloading the
+       inbox files and merging them (§5.6 steps 2–4), as one pure step.
+       files: [{ fileId, version, modifiedTime, folderAcct (from the folder's
+       description — never from the file), json }]. cx: { accounts,
+       deletedUserIds, students, folds, seen: { fileId: version } }. Every
+       record is checked again for ownership and shape. Returns { payload (toPayload of every record, re-owned),
+       ops: [{ me, op }], unassigned: [{ file, accountId, studentId, reason,
+       records, ops }], refused: [{ file, id, reason }], seen, watermark }.
+       A file already collected at its version is skipped, so running it
+       twice merges nothing twice. Work that cannot be placed is never
+       dropped: it is listed as unassigned and NOT marked seen, so it is
+       collected again once an administrator has placed the trainee. */
+    function collect(files, cx) {
+      cx = cx || {};
+      var seen = copy(isObj(cx.seen) ? cx.seen : {});
+      var out = { payload: null, ops: [], unassigned: [], refused: [], seen: seen, watermark: str(cx.watermark), files: 0 };
+      var acc = {};
+      (Array.isArray(files) ? files : []).forEach(function (f) {
+        if (!isObj(f)) return;
+        var tag = str(f.fileId || f.id || f.name), ver = str(f.version != null ? f.version : f.modifiedTime);
+        if (!tag || seen[tag] === ver) return;
+        var j = f.json;
+        if (typeof j === 'string') { try { j = JSON.parse(j); } catch (e) { j = null; } }
+        if (!isObj(j) || (j.format !== FORMAT.inbox && j.format !== FORMAT.result)) {
+          out.refused.push({ file: tag, reason: 'malformed' }); seen[tag] = ver; return;
+        }
+        // A newer format than this device knows: left for a newer device, never read as empty.
+        if (Number(j.version) > VERSION) { out.refused.push({ file: tag, reason: 'newer-version' }); return; }
+        var folderAcct = str(f.folderAcct);
+        var from = { acct: str(j.accountId), stu: str(j.studentId) };
+        var me = { acct: from.acct, stu: from.stu };
+        var recs = {}, ops = [];
+        if (!folderAcct || from.acct !== folderAcct || !from.stu) {
+          out.unassigned.push({ file: tag, accountId: folderAcct, studentId: from.stu, reason: 'owner-mismatch', records: {}, ops: [] });
+          return;
+        }
+        // Checked again for ownership and shape: what the trainee may reach
+        // (their programme's exams, their rooms) was checked by the
+        // gatekeeper when it was sent, and may have moved since (a transfer).
+        var slice = null;
+        if (j.format === FORMAT.result) {
+          var r = j.result;
+          if (!isObj(r) || str(r.studentId) !== from.stu || r.markedBy !== 'gate' || str(r.attemptId) !== str(j.attemptId)) {
+            out.refused.push({ file: tag, id: str(r && r.id), reason: 'not-yours' }); seen[tag] = ver; return;
+          }
+          recs.voctrain_examResults = [copy(r)];
+          if (isObj(j.retired) && str(j.retired.studentId) === from.stu && Core.exams.attemptIsRetired(j.retired)) recs.voctrain_examAttempts = [copy(j.retired)];
+        } else {
+          var R = isObj(j.records) ? j.records : {};
+          Object.keys(R).forEach(function (key) {
+            var v = R[key];
+            var check = function (rec, recId) {
+              var res = validateItem({ id: rec && rec.id, kind: 'rec', key: key, rec: rec, recId: recId }, me, slice, { lane: true });
+              if (!res.ok) { out.refused.push({ file: tag, id: str(rec && rec.id), reason: res.reason }); return null; }
+              return res.rec || null;
+            };
+            if (key === 'voctrain_studentProfiles' && isObj(v)) {
+              Object.keys(v).forEach(function (pk) {
+                var p = check(v[pk], pk);
+                if (p) { recs[key] = recs[key] || {}; recs[key][pk] = p; }
+              });
+            } else if (key === 'voctrain_chatMessages' && isObj(v)) {
+              Object.keys(v).forEach(function (room) {
+                (Array.isArray(v[room]) ? v[room] : []).forEach(function (m) {
+                  var c = check(Object.assign({ roomId: room }, m));
+                  if (c) { recs[key] = recs[key] || {}; (recs[key][room] = recs[key][room] || []).push(c); }
+                });
+              });
+            } else if (Array.isArray(v)) {
+              v.forEach(function (rec) {
+                // (An attempt here is always open: the gatekeeper retires one
+                // in its result file, never in a trainee's inbox.)
+                var c = check(rec);
+                if (c) (recs[key] = recs[key] || []).push(c);
+              });
+            } else out.refused.push({ file: tag, id: key, reason: 'malformed' });
+          });
+          (Array.isArray(j.ops) ? j.ops : []).forEach(function (op) {
+            var res = validateItem({ id: op && op.id, kind: 'op', op: op }, me, slice, { lane: true });
+            if (res.ok) ops.push(res.op); else out.refused.push({ file: tag, id: str(op && op.id), reason: res.reason });
+          });
+        }
+        var owner = resolveOwner(folderAcct, cx);
+        if (!owner.acct) {
+          out.unassigned.push({ file: tag, accountId: folderAcct, studentId: from.stu, reason: owner.reason, records: recs, ops: ops });
+          return;
+        }
+        mergeRecords(acc, reown(recs, from, owner));
+        ops.forEach(function (op) { out.ops.push({ me: { acct: owner.acct, stu: owner.stu }, op: op }); });
+        seen[tag] = ver;
+        out.files++;
+        if (str(f.modifiedTime) > out.watermark) out.watermark = str(f.modifiedTime);
+      });
+      out.payload = toPayload(acc);
+      return out;
+    }
+
+    /* ---- Marking at the gate (§5.3) --------------------------------------
+       The questions are rebuilt FROM THE KEY, by id — their text, type and
+       points — never taken from the trainee's copy, so a copy edited to say
+       a question is worth more, or to leave a hard one out, changes nothing:
+       every question of the key counts (one left out is unanswered), and a
+       question the key does not have is ignored, never guessed. The answers
+       come from the attempt; optionOrder only says how the paper looked.
+       The result's id comes from the attempt's, so two devices submitting
+       the same attempt make the same result. opts: { crypto, receivedAt,
+       firstSeen (when the gatekeeper first saw this attempt), auto,
+       studentName }. Returns { result, retired, file } or { error }. */
+    var LATE_GRACE_MS = 2 * 60 * 1000;
+    function resultId(attemptId, crypto) { return 'RES-G-' + str(need(crypto, 'sha256Hex').sha256Hex(str(attemptId))).toLowerCase().slice(0, 16); }
+    function markAttempt(attempt, keyFile, nowMs, opts) {
+      opts = opts || {};
+      if (!isObj(keyFile) || keyFile.format !== FORMAT.key || !isObj(keyFile.exam)) return { error: 'no-key' };
+      if (Number(keyFile.version) > VERSION) return { error: 'newer-version' };
+      if (!isObj(attempt) || !Array.isArray(attempt.questions) || attempt.id == null) return { error: 'malformed' };
+      var exam = keyFile.exam;
+      if (str(exam.id) !== str(attempt.examId) || str(keyFile.examId) !== str(attempt.examId)) return { error: 'wrong-exam' };
+      var keyed = Array.isArray(exam.questionData) ? exam.questionData : [];
+      var byId = dict();
+      keyed.forEach(function (q) { if (q && q.id != null && !byId[str(q.id)]) byId[str(q.id)] = q; });
+      var used = dict(), qs = [], answers = [], ignored = [];
+      attempt.questions.forEach(function (q, i) {
+        var id = q && q.id != null ? str(q.id) : null;
+        if (id === null || !byId[id]) { if (id !== null) ignored.push(id); return; }
+        if (used[id]) return;
+        used[id] = 1;
+        var pub = Core.exams.publicQuestions([byId[id]])[0];
+        if (Array.isArray(q.optionOrder) && isPermutation(q.optionOrder, (pub.options || []).length)) pub.optionOrder = q.optionOrder.slice();
+        qs.push(pub);
+        answers.push(Array.isArray(attempt.answers) && attempt.answers[i] !== undefined ? copy(attempt.answers[i]) : null);
+      });
+      keyed.forEach(function (q) {
+        if (!q || q.id == null || used[str(q.id)]) return;
+        used[str(q.id)] = 1;
+        qs.push(Core.exams.publicQuestions([q])[0]);
+        answers.push(null);
+      });
+      var m = Core.exams.mark(qs, answers, keyed);
+      var needsReview = m.manualCount > 0;
+      var score = m.totalPoints > 0 ? Math.round(m.earnedPoints / m.totalPoints * 100) : 0;
+      var passMark = Number(exam.passMark);
+      var start = msOf(attempt.startTime) || nowMs;
+      var deadline = Core.exams.sessionDeadline(exam, start, keyFile.centreUtcOffset);
+      if (msOf(attempt.deadline) && msOf(attempt.deadline) < deadline) deadline = msOf(attempt.deadline);
+      var received = msOf(opts.receivedAt) || nowMs;
+      var id = resultId(attempt.id, opts.crypto);
+      var result = {
+        id: id, attemptId: str(attempt.id), examId: str(attempt.examId), studentId: str(attempt.studentId),
+        studentName: str(opts.studentName != null ? opts.studentName : attempt.studentName),
+        answers: m.gradedResults, score: score, correctCount: m.correctCount,
+        totalQuestions: qs.filter(function (q) { return !(q && q.type === 'info'); }).length,
+        totalPoints: m.totalPoints, earnedPoints: m.earnedPoints, passed: needsReview ? false : score >= passMark,
+        needsReview: needsReview, reviewComplete: !needsReview, pendingCount: m.manualCount,
+        submittedAt: iso(received), startedAt: iso(start),
+        timeTaken: Math.max(0, Math.floor((Math.min(received, deadline) - start) / 1000)),
+        markedBy: 'gate', markedAt: iso(nowMs), receivedAt: iso(received)
+      };
+      if (opts.auto) result.autoSubmitted = true;
+      if (ignored.length) result.ignoredQuestionIds = ignored;
+      // Late answers are kept and flagged for staff, never refused.
+      var win = Core.exams.windowOf(exam, keyFile.centreUtcOffset);
+      var first = msOf(opts.firstSeen);
+      var dur = (parseInt(exam.duration, 10) || 90) * 60000;
+      if ((win && win.end != null && received > win.end + LATE_GRACE_MS) || (first && received > first + dur + LATE_GRACE_MS)) result.late = true;
+      var retired = Core.exams.retireAttempt(attempt, id, result.submittedAt);
+      var keyHash = str(keyFile.hash) || hashOf({ exam: exam, centreUtcOffset: str(keyFile.centreUtcOffset) });
+      return { result: result, retired: retired, keyHash: keyHash,
+        file: { format: FORMAT.result, version: VERSION, accountId: str(opts.accountId || attempt.accountId), studentId: result.studentId,
+          attemptId: result.attemptId, keyHash: keyHash, markedAt: result.markedAt, result: result, retired: retired } };
+    }
+    /* A result as a trainee may see it: the right answers only once the
+       exam's release policy allows, on the GIVEN time (the gatekeeper's, never
+       the device's). With no exam to ask, never. A copy. */
+    function redactResult(result, exam, nowMs, offset) {
+      var r = copy(result);
+      if (!isObj(r)) return r;
+      var reveal = !!exam && Core.exams.canRevealAnswers(exam, nowMs, offset);
+      if (Array.isArray(r.answers)) r.answers.forEach(function (a) {
+        if (!isObj(a)) return;
+        delete a.pairs; delete a.distractors;
+        if (!reveal) { delete a.correctAnswer; delete a.tolerance; }
+      });
+      return r;
+    }
+    /* The trainee's attempt at one exam, however many devices and inboxes it
+       is spread over (§5.3 attempt.get): their result if there is one, else
+       'retired' (submitted elsewhere, result not here yet), else the attempt
+       in progress as ONE attempt (Core.exams.attemptFor), else 'none'.
+       src: { lanes: [inbox], results: [result file], slice }. */
+    function resumeAttempt(src, studentId, examId) {
+      src = src || {};
+      var lists = [], results = [];
+      (Array.isArray(src.lanes) ? src.lanes : []).forEach(function (l) {
+        var v = l && isObj(l.records) ? l.records.voctrain_examAttempts : null;
+        if (Array.isArray(v)) lists.push(v);
+      });
+      (Array.isArray(src.results) ? src.results : []).forEach(function (f) {
+        if (f && isObj(f.result)) results.push(f.result);
+        if (f && isObj(f.retired)) lists.push([f.retired]);
+      });
+      if (src.slice) { lists.push(sliceData(src.slice, 'voctrain_examAttempts')); results = results.concat(sliceData(src.slice, 'voctrain_examResults')); }
+      var merged = [];
+      lists.forEach(function (l) { merged = Core.exams.mergeAttemptLists(merged, copy(l)).list; });
+      var pair = function (r) { return r && str(r.studentId) === str(studentId) && str(r.examId) === str(examId); };
+      var when = function (r) { return msOf(r.submittedAt) || Number.MAX_VALUE; };
+      var mine = results.filter(function (r) { return pair(r) && !r.archived; })
+        .sort(function (a, b) { return when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : cmpId(a, b); });
+      if (mine.length) return { state: 'result', result: copy(mine[0]) };
+      var retired = merged.filter(function (a) { return pair(a) && Core.exams.attemptIsRetired(a); })[0];
+      if (retired) return { state: 'retired', retired: copy(retired) };
+      var cur = Core.exams.attemptFor(merged, studentId, examId);
+      if (cur) return { state: 'attempt', attempt: cur.attempt, ids: cur.ids };
+      return { state: 'none' };
+    }
+
+    /* ---- Clearing a device that holds everything (§7.3) -----------------
+       cleanupPlan(storeKeys, markers) → { remove, keep, send, defer }.
+       markers: { gateOn, viaGate (the trainee has just signed in through the
+       gate), deviceKind, pendingUpload (the raw cestisPendingUpload note),
+       unsent: { key: true } — keys holding work not yet sent (the caller
+       reads them), receipts: { key: true } — keys whose unsent work has been
+       delivered (or, for another trainee's, put aside), unreadable: [keys] }.
+       Nothing is removed while anything is unsent; the Centre's records go
+       only once every receipt is in; when anything is unclear, everything is
+       kept and the plan says why (defer), to be tried at the next sign-in.
+       Keys this does not recognise are kept. */
+    var CENTRE_TOKENS = ['schoolDashboardGoogleAccessToken', 'schoolDashboardGoogleTokenExpiry', 'cestisGoogleAccessToken',
+      'cestisGoogleTokenExpiry', 'schoolDashboardCloudFileId', 'cestisCloudFileId', 'cestisCloudFolderId', 'schoolFeeCloudFileId',
+      'cestisUserFilesFolderId', 'dashboardUsers'];
+    var KEEP_KEYS = ['cestisTheme', 'darkMode', 'cestisTimeDarkMode', 'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
+      'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisCertDeviceSessionId', 'voctrain_supportSendLog',
+      'voctrain_sessionUpgradeCarried', 'voctrain_examInProgress', 'cestisExamOutbox', 'isLoggedIn', 'loggedInUser',
+      'cestisCurrentUser', 'cestiCurrentUser', 'cestisAttendanceCurrentUser', 'postLoginSyncCompleted', 'cloudSyncCompleted',
+      'cestisAutoSyncEnabled'];
+    function centreKey(k) {
+      if (CENTRE_TOKENS.indexOf(k) !== -1) return true;
+      if (/^voctrain_session/.test(k) || k.indexOf('voctrain_extSysCertHelpSeen_') === 0) return false;
+      if (k.indexOf('voctrain_') === 0) return true;          // the Centre's record collections, per-user copies included
+      if (/^cesti/.test(k)) {
+        if (k.indexOf('cestisExamSession__') === 0 || k.indexOf('cestis_pagecloud_stamps__') === 0) return false;
+        return true;                                           // fees, payroll, finance, the time clock, quarters
+      }
+      return /LastSyncTime$/.test(k);
+    }
+    function cleanupPlan(storeKeys, markers) {
+      markers = markers || {};
+      var keys = uniqSorted(storeKeys);
+      var unsent = isObj(markers.unsent) ? markers.unsent : {}, receipts = isObj(markers.receipts) ? markers.receipts : {};
+      var plan = { remove: [], keep: keys.slice(), send: [], defer: null };
+      var defer = function (why) { plan.remove = []; plan.keep = keys.slice(); plan.defer = why; return plan; };
+      var has = function (m, k) { return hasOwn.call(m, k) && !!m[k]; };
+      plan.send = keys.filter(function (k) { return has(unsent, k) && !has(receipts, k); });
+      if (!markers.gateOn) return defer('gate-off');
+      if (!markers.viaGate) return defer('not-a-gate-sign-in');
+      if (markers.deviceKind === 'staff') return defer('staff-device');
+      if (markers.pendingUpload && Core.pendingUpload.isStaff(markers.pendingUpload)) return defer('staff-work-not-uploaded');
+      if (Array.isArray(markers.unreadable) && markers.unreadable.length) return defer('unreadable');
+      if (plan.send.length) return defer('unsent-work');
+      var removed = dict();
+      keys.forEach(function (k) {
+        if (DEVICE_KEYS.indexOf(k) !== -1 || NS_KEY.test(k) || k.indexOf('__cestis_idb_only__:') === 0) return;
+        if (has(unsent, k) && has(receipts, k)) { removed[k] = 1; return; }    // delivered: the gate holds it now
+        if (KEEP_KEYS.indexOf(k) !== -1) return;
+        if (centreKey(k)) removed[k] = 1;
+      });
+      // A marker saying "this key lives in IndexedDB only" goes with its key.
+      var IDB_ONLY = '__cestis_idb_only__:';
+      keys.forEach(function (k) { if (k.indexOf(IDB_ONLY) === 0 && removed[k.slice(IDB_ONLY.length)]) removed[k] = 1; });
+      plan.remove = keys.filter(function (k) { return removed[k]; });
+      plan.keep = keys.filter(function (k) { return !removed[k]; });
+      return plan;
+    }
+
+    /* ---- Self-test (§10.3): the known answers, computed by whatever runtime
+       is running this. A runtime that computes any of them differently is
+       not fit to run the gate, and says so. ---- */
+    var SELF_TOKEN = 'v1.eyJhIjoiVVNSLVQiLCJjdiI6IjAxMjM0NTY3ODlhYiIsImV4cCI6MTcwMDA0MzIwMDAwMCwiaWF0IjoxNzAwMDAwMDAwMDAwLCJzIjoiU1RVLVQiLCJzaWQiOiJreC5hYmMuMTIzNDU2NzgifQ.e9f79ad401b4ccc21e58bd5831f4d9bf15be00ecdd1ba2ccad2e57d6c5728d04';
+    function selfTest(crypto) {
+      var checks = [];
+      var check = function (name, fn) {
+        var ok = false;
+        try { ok = fn() === true; } catch (e) { ok = false; }
+        checks.push({ name: name, ok: ok });
+      };
+      check('canon', function () { return canon({ b: [1, 'x', null], a: { d: true, c: -0 } }) === '{"a":{"c":0,"d":true},"b":[1,"x",null]}'; });
+      check('sha256', function () { return crypto.sha256Hex('abc') === 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'; });
+      check('hmac-sha256', function () {
+        return toHex(fromHex(crypto.hmacHex(utf8('Jefe'), 'what do ya want for nothing?'))) === '5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843';
+      });
+      check('totp', function () { return hotp(utf8('12345678901234567890'), 1, 8, crypto) === '94287082' && totpCode('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', 59000, crypto, { digits: 8 }) === '94287082'; });
+      check('token', function () {
+        var tok = signToken({ a: 'USR-T', s: 'STU-T', sid: 'kx.abc.12345678', iat: 1700000000000, exp: 1700043200000, cv: '0123456789ab' }, 'selftest-secret', crypto);
+        return tok === SELF_TOKEN && verifyToken(tok, 'selftest-secret', crypto, { nowMs: 1700000000001 }).ok === true &&
+          verifyToken(tok, 'selftest-secret', crypto, { nowMs: 1700043200000 }).reason === 'expired';
+      });
+      check('proof', function () {
+        return proofMake('ABC123', 'n0', ' Ann@X ', crypto) === hmac(crypto, 'abc123', 'cestis-gate-v1|n0|ann@x');
+      });
+      return { ok: checks.every(function (c) { return c.ok; }), version: VERSION, checks: checks };
+    }
+
+    return {
+      VERSION: VERSION, FORMAT: FORMAT, DEVICE_KEYS: DEVICE_KEYS, NS_KEY: NS_KEY, KEY_NAMES: KEY_NAMES,
+      canon: canon, hashOf: hashOf, utf8: utf8, toHex: toHex, fromHex: fromHex, b64url: b64url, unb64url: unb64url, same: same,
+      prepare: prepare, sliceFor: sliceFor, buildAll: buildAll, buildSlice: buildSlice,
+      buildPaper: buildPaper, buildKey: buildKey, buildRoom: buildRoom, publishDecision: publishDecision,
+      sliceExamStatus: sliceExamStatus, paperOpen: paperOpen, studentFor: studentFor, eligible: eligible,
+      validateItem: validateItem, applyOps: applyOps, toPayload: toPayload, PAYLOAD_NAMES: PAYLOAD_NAMES,
+      foldMap: foldMap, resolveOwner: resolveOwner, reown: reown, collect: collect,
+      markAttempt: markAttempt, resultId: resultId, redactResult: redactResult, resumeAttempt: resumeAttempt,
+      token: { sign: signToken, verify: verifyToken, claims: tokenClaims, TTL_MS: TOKEN_TTL_MS, REFRESH_MS: TOKEN_REFRESH_MS },
+      cv: cvOf, sid: { make: makeSid, check: checkSid }, sessionKey: sessionKey,
+      seal: seal, sealOk: sealOk, ITEM_MAX_AGE_MS: ITEM_MAX_AGE_MS,
+      proof: { challenge: proofChallenge, message: proofMessage, make: proofMake, expected: proofExpected, verify: proofVerify, parse: parseStored },
+      totp: { code: totpCode, verify: totpVerify, hotp: hotp, base32: base32 }, codeHash: codeHash,
+      cleanupPlan: cleanupPlan, selfTest: selfTest
     };
   })();
 
