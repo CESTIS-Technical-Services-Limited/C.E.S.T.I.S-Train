@@ -700,6 +700,10 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
 
     // The trainee's own phone: the certificate is there...
     ok(!!(await serverHas('voctrain_students', l => { const s = l.find(x => x.id === ids.ama); return s && s.stage === 'certified' && s.certNo === certNo; })), 'the certificate reaches the Centre\'s server');
+    // The download approval is saved a moment after the certificate itself (the
+    // record was issued earlier): wait for it too, or the phone can pull the
+    // certificate before its approval and the loop below stops too soon.
+    ok(!!(await serverHas('voctrain_certDownloadApprovals', l => l.some(x => x.studentId === ids.ama && x.approved))), 'and so does its download approval');
     let mc = '';
     for (let i = 0; i < 5; i++) {
       await refresh(P);
