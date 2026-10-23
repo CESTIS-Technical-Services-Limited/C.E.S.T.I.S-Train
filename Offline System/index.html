@@ -10986,10 +10986,7 @@ async function handleInstructorClick() {
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid email/username or password.'); return; }
     clearLoginFailures(uname);
-    var insMatch = findInstructorRecordForAccount(userAccount);
-    if(!insMatch) {
-      insMatch = createInstructorDataForAccount(userAccount);
-    }
+    var insMatch = await instructorRecordForSignIn(userAccount);
     currentInstructor = insMatch;
     // Apply any saved profile edits back to the instructor data object
     var savedInsProfile = instructorProfiles[insMatch.id];
@@ -11979,8 +11976,7 @@ async function handleGmailProfile(profile, role) {
       if(savedSP && savedSP.name) { studentMatch.name = savedSP.name; existing.name = savedSP.name; }
       tfaGateLogin(existing, function(){ currentLoggedInUser = existing; enterApp('student'); });
     } else if(existing.role === 'instructor') {
-      var insMatch = findInstructorRecordForAccount(existing);
-      if(!insMatch) insMatch = createInstructorDataForAccount(existing);
+      var insMatch = await instructorRecordForSignIn(existing);
       currentInstructor = insMatch;
       var savedInsProfile = instructorProfiles[insMatch.id];
       if(savedInsProfile) {
@@ -12281,9 +12277,28 @@ function findInstructorRecordForAccount(account) {
   return null;
 }
 
+/* The instructor's record at sign-in: this device's, else the shared copy's
+   (asked quietly — never a pop-up), else a new one.
+
+   A shared PC is wiped at every staff sign-out, accounts apart, so an
+   instructor's next sign-in there found no record of theirs and made a new
+   one under a new id: three sign-ins on the lab PC put three "Devon Clarke"
+   records in the Centre's copy, each with its own classes and marks. */
+async function instructorRecordForSignIn(account) {
+  var rec = findInstructorRecordForAccount(account);
+  if (!rec && await refreshAccountsQuietly()) rec = findInstructorRecordForAccount(account);
+  return rec || createInstructorDataForAccount(account);
+}
+
 function createInstructorDataForAccount(userAccount) {
+  // One id per account, whichever device has to make the record (offline, it
+  // cannot ask first): two devices making it make the same record, and the
+  // sync keeps one. A random id is used only when there is no account id, or
+  // when that record was deliberately deleted here before.
+  var _insId = userAccount && userAccount.id ? 'INS-' + userAccount.id : '';
+  if (!_insId || syncTombsFor('instructorData')[_insId]) _insId = cestisGenId('INS-');
   var newInstructor = {
-    id: cestisGenId('INS-'),
+    id: _insId,
     name: userAccount.name,
     course: userAccount.programme || 'Welding',
     email: userAccount.email,
@@ -35336,6 +35351,15 @@ function cloudFetchAccountData(interactive) {
     cloudStudents.forEach(function(cs) {
       CESTISCore.cloudMerge.applyStudent(students, cs, cestisIsStudentTombstoned);
     });
+
+    // The instructors' records too, by the same rule as the full sync. An
+    // instructor approved in the office arrived here with an "active" account
+    // but without the record the approval made, so this device made a second
+    // "Devon Clarke" of its own at the sign-in that followed — and the next
+    // sync carried both to every device.
+    if (Array.isArray(_bd.instructorData)) {
+      CESTISCore.sync.mergeList(instructorData, _bd.instructorData, syncKeyById, { tombs: syncTombsFor('instructorData') });
+    }
 
     // Merge certificate-download approvals. Replacing outright let a stale
     // "not approved yet" row switch a granted approval back off, darkening the

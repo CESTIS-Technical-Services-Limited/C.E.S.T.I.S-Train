@@ -14,6 +14,11 @@
      - an approval reached the accounts list every device reads first only on
        the next timed save, and a device writing that list from an older copy
        put "pending" back and dropped accounts created since;
+     - the quick account check brought an approved instructor's account to the
+       lab PC but not the record the approval made, so the PC made a second
+       one of its own — and because a shared PC is wiped at every staff
+       sign-out, every later sign-in there made yet another (three sign-ins,
+       three "Devon Clarke" records in the Centre's copy);
      - "Register" opened a sign-in window for the Centre's own account, which
        a trainee does not have: she chose her own, it was kept on the shared
        PC as if it were the Centre's, and the registration still went nowhere;
@@ -44,6 +49,9 @@
         the master backup (add-only) — and a stale "pending" never undoes it;
      8  the accounts-list write merges what the list holds first: an approval
         made elsewhere stands, an account created elsewhere stays;
+     9  the quick account check brings the instructors' records too, and an
+        instructor's sign-in asks for their record before making one (made
+        under the account's own id, so two devices make the same one);
      10 Sync Now's folder check, and its "nothing was read" outcome.
 
    Run: node tests/email-signin-approval.test.js */
@@ -392,6 +400,68 @@ const REAL = 'pbkdf2$210000$0011$2233';
     assertEq(sb.userAccounts.find(function (a) { return a.id === 'USR-TB'; }).status, 'active', 'the lab PC itself now holds the approval');
   }
 
+  /* ---------- 9. The quick account check brings instructors' records ---------- */
+  console.log('The quick account check brings the instructors\' records, so no second one is made');
+  {
+    const backup = { data: {
+      userAccounts: [{ id: 'USR-DC', role: 'instructor', name: 'Devon Clarke', email: 'devon.clarke@gmail.com', username: 'devon.clarke', status: 'active', password: REAL, updatedAt: '2026-10-20T15:00:00.000Z' }],
+      students: [], certDownloadApprovals: [], certTemplates: {}, skillAreas: [],
+      instructorData: [{ id: 'INS-OFFICE', name: 'Devon Clarke', course: 'Electrical Installation', email: 'devon.clarke@gmail.com' }]
+    } };
+    const urls = [];
+    const sb = { CESTISCore: Core, console: { log: function () {}, warn: function () {}, error: function () {} }, Date: Date,
+      googleAccessToken: 'centre-token', CESTISStore: makeStore({}), GOOGLE_DRIVE_CONFIG: { FOLDER_ID: 'F', BACKUP_FILE_NAME: 'CESTIS_LMS_BACKUP.json' },
+      _cloudAcctFetchPromise: null, _cloudAcctFetchLastAt: 0, _cloudAcctFetchLastOk: false,
+      userAccounts: [{ id: 'USR-DC', role: 'instructor', name: 'Devon Clarke', email: 'devon.clarke@gmail.com', username: 'devon.clarke', status: 'pending', password: REAL, registeredVia: 'registration' }],
+      students: [], instructorData: [], certDownloadApprovals: [], certTemplates: {}, skillAreas: [], syncTombstones: {},
+      updateLoginSyncStatus: function () {}, loadAccountsLedger: async function () { return false; }, loginPageGoogleAuth: async function () { throw new Error('no pop-up'); },
+      cestisIsStudentTombstoned: function () { return false; }, isCentreDeleted: function () { return false; }, saveState: function () {},
+      isUserDeleted: function () { return false; },
+      fetch: async function (url) {
+        urls.push(url);
+        if (/\/files\?q=/.test(url)) return { ok: true, json: async function () { return { files: [{ id: 'BK' }] }; } };
+        return { ok: true, json: async function () { return JSON.parse(JSON.stringify(backup)); } };
+      } };
+    vm.createContext(sb);
+    vm.runInContext(['syncKeyById', 'syncTombsFor', 'mergeCloudAccounts', 'cloudFetchAccountData'].map(function (n) { return extractFunction(SRC, n); }).join('\n'), sb);
+    assertEq(await vm.runInContext('cloudFetchAccountData(false)', sb), true, 'the check reads the shared copy');
+    assertEq(sb.userAccounts[0].status, 'active', 'his approval arrives');
+    assertEq(sb.instructorData.map(function (i) { return i.id; }).join(), 'INS-OFFICE', 'and so does the record the approval made — the sign-in finds it instead of making another');
+    await vm.runInContext('_cloudAcctFetchLastAt = 0; cloudFetchAccountData(false)', sb);
+    assertEq(sb.instructorData.length, 1, 'read twice, still one record');
+  }
+  console.log('An instructor signing in on a wiped shared PC gets their record back, not a new one');
+  {
+    const devon = { id: 'USR-DC', role: 'instructor', name: 'Devon Clarke', email: 'devon.clarke@gmail.com', programme: 'Electrical Installation', status: 'active', password: REAL };
+    function insSandbox(refresh, tombs) {
+      const seen = { refresh: 0, ids: 0 };
+      const sb = { CESTISCore: Core, console: console, instructorData: [], syncTombstones: tombs ? { instructorData: tombs } : {},
+        saveState: function () {}, cestisGenId: function (p) { seen.ids++; return p + 'RANDOM'; },
+        refreshAccountsQuietly: async function () { seen.refresh++; if (refresh) sb.instructorData.push({ id: 'INS-OFFICE', name: 'Devon Clarke', course: 'Electrical Installation' }); return !!refresh; } };
+      vm.createContext(sb);
+      vm.runInContext(['syncTombsFor', 'findInstructorRecordForAccount', 'instructorRecordForSignIn', 'createInstructorDataForAccount'].map(function (n) { return extractFunction(SRC, n); }).join('\n'), sb);
+      sb.acct = devon;
+      return { sb, seen };
+    }
+    let x = insSandbox(true);
+    let rec = await vm.runInContext('instructorRecordForSignIn(acct)', x.sb);
+    assertEq(rec && rec.id, 'INS-OFFICE', 'a device holding no record asks the shared copy and uses the record the office made');
+    assertEq(x.sb.instructorData.length, 1, 'and makes none of its own');
+    rec = await vm.runInContext('instructorRecordForSignIn(acct)', x.sb);
+    assertEq(x.seen.refresh, 1, 'a device that holds the record does not ask again');
+    x = insSandbox(false);
+    rec = await vm.runInContext('instructorRecordForSignIn(acct)', x.sb);
+    assertEq(rec && rec.id, 'INS-USR-DC', 'offline, the record it has to make carries the account\'s own id — the one any other device would make');
+    assertEq(x.seen.ids, 0, 'not a random one');
+    x = insSandbox(false, { 'INS-USR-DC': '2026-10-01T00:00:00.000Z' });
+    rec = await vm.runInContext('instructorRecordForSignIn(acct)', x.sb);
+    assertEq(rec && rec.id, 'INS-RANDOM', 'a record that was deliberately deleted is not made again under its old id');
+    ['handleInstructorClick', 'handleGmailProfile'].forEach(function (fn) {
+      assert(/await instructorRecordForSignIn\(/.test(extractFunction(SRC, fn)) && !/createInstructorDataForAccount\(/.test(extractFunction(SRC, fn)),
+        fn + ' gets the record through instructorRecordForSignIn');
+    });
+  }
+
   /* ---------- 10. Sync Now: was anything of the Centre's read? ---------- */
   console.log('Sync Now asks the Centre\'s folder when nothing was read, and says so honestly');
   {
@@ -419,7 +489,7 @@ const REAL = 'pbkdf2$210000$0011$2233';
 
   /* ---------- the Offline System carries the same page code ---------- */
   const OFF = fs.readFileSync(path.join(ROOT, 'Offline System', 'index.html'), 'utf8');
-  ['recheckAccountBeforeRefusal', 'refreshAccountsQuietly', 'loginBlocked', 'sendRegistration', 'centreFolderAccess'].forEach(function (fn) {
+  ['recheckAccountBeforeRefusal', 'refreshAccountsQuietly', 'loginBlocked', 'sendRegistration', 'centreFolderAccess', 'instructorRecordForSignIn', 'createInstructorDataForAccount'].forEach(function (fn) {
     assertEq(extractFunction(OFF, fn), extractFunction(SRC, fn), 'the Offline System\'s ' + fn + '() is the main build\'s');
   });
 
