@@ -2200,8 +2200,10 @@
   [style*="font-size: 11px"] { font-size:12px !important; }
 }
 </style>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
 <!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
-<link rel="stylesheet" href="cestis-theme.css?v=20261022b">
+<link rel="stylesheet" href="cestis-theme.css?v=20261023a">
 </head>
 <body>
 <script>
@@ -2212,8 +2214,12 @@
    The old toggle stored 'false' for light; that value is deliberately not
    honoured, so every device moves to rich blue once. */
 (function () {
-    var light = false;
-    try { light = CESTISStore.getItem('darkMode') === 'light'; } catch (e) {}
+    // The dashboard's Light mode (chosen on this device with its sun/moon
+    // button; the shared look then draws this page light too) is light here
+    // as well, so the charts are built with dark lettering.
+    var de = document.documentElement;
+    var light = !!(de && de.getAttribute && de.getAttribute('data-theme') === 'light');
+    try { light = light || CESTISStore.getItem('darkMode') === 'light'; } catch (e) {}
     if (!light) document.body.classList.add('dark-mode');
 })();
 </script>
@@ -15781,7 +15787,7 @@
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20261022a"></script>
-<script src="cestis-sync-chip.js?v=20261022b"></script>
+<script src="cestis-sync-chip.js?v=20261023a"></script>
 <script>
 CESTISPageCloud.init({
   page: 'School Fee Management',

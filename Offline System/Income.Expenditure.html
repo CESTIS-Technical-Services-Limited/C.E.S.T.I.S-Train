@@ -153,8 +153,10 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
   .page-header h2, .page-header .subtitle { color:#000; }
 }
 </style>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
 <!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
-<link rel="stylesheet" href="cestis-theme.css?v=20261022b">
+<link rel="stylesheet" href="cestis-theme.css?v=20261023a">
 </head>
 <body>
 
@@ -513,7 +515,7 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
 </script>
 
 <script src="cestis-page-cloud.js?v=20261022a"></script>
-<script src="cestis-sync-chip.js?v=20261022b"></script>
+<script src="cestis-sync-chip.js?v=20261023a"></script>
 <script>
 /* Cloud capture and restore for this page.
    OWNS: its settings and the per-year statement snapshots — they go up into

@@ -24,6 +24,15 @@
    records (each page's write stamps, its last upload and last error), the
    Google sign-in the pages share, and the browser's online flag. It never
    saves, syncs or retries anything, and changes nothing that is stored.
+
+   ONE SYNC CONTROL: the page's own sync control (its Turn On Sync button,
+   its sync menu, Income & Expenditure's Sync Now) used to sit beside the
+   chip — two sync controls, two sync icons, side by side. The chip now takes
+   it into its panel, below the answer: the elements keep their ids and
+   handlers (the page's code shows and hides them as before), only where they
+   sit changes; the menu shows as a list, and the page's own status line,
+   which said what the chip says, gives way to it. In the dashboard's Light
+   theme (html[data-theme="light"]) the chip and panel are light too.
    ============================================================================ */
 (function (root) {
   'use strict';
@@ -86,6 +95,7 @@
     if (doc.getElementById('cestisLanTrouble')) trouble = true;
     var cannotUpload = lanOn ? trouble : (!online || !connected);
     return { now: now, online: online, lan: lanOn, lanTrouble: trouble, connected: connected, tokenExpiresAt: exp || null,
+      signinExpired: !connected && !!tok && !!exp && exp <= now, canConnect: !lanOn && hasConnect,
       pending: (cannotUpload && edited) || (!lanOn && connected && failures > 0),
       pendingSince: cannotUpload && edited ? pendingSince : null, failures: failures, lastSavedAt: last || null };
   }
@@ -106,6 +116,24 @@
     '.cestis-sync-chip-panel b{display:block;color:#e8edf3;font-size:13.5px;margin-bottom:4px}' +
     '.cestis-sync-chip-panel .last{margin-top:8px;color:#e8edf3;font-weight:600}' +
     '.cestis-sync-chip-panel ul{margin:8px 0 0 16px;padding:0}.cestis-sync-chip-panel li{margin-top:4px}' +
+    /* the page's own sync control, in the panel */
+    '.cestis-sync-actions{margin:12px -15px -13px;padding:6px 0;border-top:1px solid rgba(255,255,255,.12);text-align:left}' +
+    '.cestis-sync-actions .cloud-status,.cestis-sync-actions .cloud-status-row,.cestis-sync-actions .cloud-status-label,.cestis-sync-actions .cloud-dropdown>.cloud-sync-btn{display:none!important}' +
+    '.cestis-sync-actions #cloudNotConnected button>:not(.cestis-turn-on){display:none!important}' +
+    '.cestis-sync-actions #cloudNotConnected button,.cestis-sync-actions #syncBtn{display:inline-flex!important;align-items:center;gap:7px;margin:6px 15px 8px!important;min-height:40px;padding:8px 14px!important;font:600 13px "DM Sans",system-ui,sans-serif!important;cursor:pointer}' +
+    '.cestis-sync-actions .cloud-dropdown,.cestis-sync-actions .cloud-sync-wrapper,.cestis-sync-actions #cloudSyncContainer{display:block!important;position:static!important;margin:0!important;padding:0!important;background:none!important;border:0!important}' +
+    '.cestis-sync-actions .cloud-dropdown-content{display:block!important;position:static!important;box-shadow:none!important;border:0!important;border-radius:0!important;margin:0!important;min-width:0!important;width:auto!important;max-height:none!important;background:transparent!important;opacity:1!important;transform:none!important;visibility:visible!important}' +
+    '.cestis-sync-actions .cloud-dropdown-item{min-height:40px;font-size:13px}' +
+    'html.cestis-sync-chip-on #cloudStatus,html.cestis-sync-chip-on .cloud-status-bar{display:none!important}' +
+    /* Light, as chosen on the dashboard */
+    'html[data-theme="light"] .cestis-sync-chip{background:#fff;border-color:#7f8ea2;color:#16233a}html[data-theme="light"] .cestis-sync-chip:hover{background:#f3f6f9}' +
+    'html[data-theme="light"] .cestis-sync-chip-icon{color:#55667c}html[data-theme="light"] .cestis-sync-chip:focus-visible{outline-color:#975700}' +
+    'html[data-theme="light"] .cestis-sync-chip.tone-ok{border-color:#156f39}html[data-theme="light"] .cestis-sync-chip.tone-ok .cestis-sync-chip-icon{color:#156f39}' +
+    'html[data-theme="light"] .cestis-sync-chip.tone-warn{border-color:#975700}html[data-theme="light"] .cestis-sync-chip.tone-warn .cestis-sync-chip-icon{color:#975700}' +
+    'html[data-theme="light"] .cestis-sync-chip.tone-bad{border-color:#c0281c;background:rgba(214,48,36,.10)}html[data-theme="light"] .cestis-sync-chip.tone-bad .cestis-sync-chip-icon{color:#c0281c}' +
+    'html[data-theme="light"] .cestis-sync-chip-panel{background:#fff;border-color:rgba(20,40,70,.17);box-shadow:0 4px 18px rgba(20,40,70,.12);color:#475870}' +
+    'html[data-theme="light"] .cestis-sync-chip-panel b,html[data-theme="light"] .cestis-sync-chip-panel .last{color:#16233a}' +
+    'html[data-theme="light"] .cestis-sync-actions{border-top-color:rgba(20,40,70,.17)}' +
     '@media (max-width:600px){.cestis-sync-chip-label{display:none}.cestis-sync-chip{padding:7px 9px}' +
     '.cestis-sync-chip-panel{position:fixed;left:12px;right:12px;top:64px;width:auto;max-width:none}}' +
     '@media print{.cestis-sync-chip-wrap{display:none!important}}';
@@ -143,7 +171,39 @@
       if (e.key === 'Escape' && !panel.hidden) { panel.hidden = true; chip.setAttribute('aria-expanded', 'false'); chip.focus(); }
     });
     slot.__chip = { wrap: wrap, chip: chip, icon: icon, label: label, panel: panel, title: title, detail: detail, last: last, list: list };
+    absorb(slot.__chip);
     return slot.__chip;
+  }
+
+  /* The page's own sync control moves into the panel (see ONE SYNC CONTROL
+     above). Only the first chip on a page takes it. */
+  var absorbed = false, hasConnect = false;
+  function absorb(c) {
+    if (absorbed) return;
+    var cont = doc.getElementById('cloudSyncContainer');
+    var parts = cont ? [cont] : [doc.getElementById('cloudNotConnected'), doc.getElementById('cloudConnected')];
+    parts.push(doc.getElementById('syncBtn'));   // Income & Expenditure's Sync Now
+    parts = parts.filter(function (p) { return p && !c.wrap.contains(p); });
+    if (!parts.length) return;
+    absorbed = true;
+    var box = el('div', 'cestis-sync-actions');
+    parts.forEach(function (p) { box.appendChild(p); });
+    // Turn On Sync, in the dashboard's words (the button's own spans give way).
+    var nc = box.querySelector('#cloudNotConnected');
+    hasConnect = !!nc;
+    if (nc) Array.prototype.forEach.call(nc.querySelectorAll('button'), function (b) {
+      var t = el('span', 'cestis-turn-on');
+      var ic = el('span', null, '🔄'); ic.setAttribute('aria-hidden', 'true');
+      t.appendChild(ic); t.appendChild(doc.createTextNode(' Turn On Sync'));
+      b.appendChild(t);
+      b.removeAttribute('title'); b.removeAttribute('aria-label');
+    });
+    // An action closes the panel (its own handler has already run).
+    box.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('button, .cloud-dropdown-item')) { c.panel.hidden = true; c.chip.setAttribute('aria-expanded', 'false'); }
+    });
+    c.panel.appendChild(box);
+    doc.documentElement.classList.add('cestis-sync-chip-on');
   }
 
   function render(c) {

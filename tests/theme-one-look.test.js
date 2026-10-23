@@ -79,8 +79,40 @@ const card = tok(CSS, 'cestis-card'), bg = tok(CSS, 'cestis-bg'), input = tok(CS
 });
 assert(contrast(tok(CSS, 'cestis-text'), input) >= 7, 'typed text in a field: ' + contrast(tok(CSS, 'cestis-text'), input).toFixed(2) + ':1');
 assert(contrast('#000000', tok(CSS, 'cestis-accent')) >= 7, 'the primary buttons carry black text on the amber (' + contrast('#000000', tok(CSS, 'cestis-accent')).toFixed(2) + ':1)');
-assert(/:is\(\.btn-primary, \.btn-gold, \.btn-amber, \.login-btn, \.ft-sync-btn[^{]*\{[^}]*color: #000 !important;/.test(body), 'every button drawn in the accent is given dark text (white on amber is 2:1)');
-assert(/\.quarter-tab\.active[^{]*\{[^}]*color: #000 !important;/.test(body), 'and so is every tab drawn in it');
+assert(/:is\(\.btn-primary, \.btn-gold, \.btn-amber, \.login-btn, \.ft-sync-btn[^{]*\{[^}]*color: var\(--cestis-on-accent\) !important;/.test(body) && tok(CSS, 'cestis-on-accent') === null && /--cestis-on-accent: #000;/.test(CSS),
+  'every button drawn in the accent is given the on-accent text: black in Dark (white on amber is 2:1)');
+assert(/\.quarter-tab\.active[^{]*\{[^}]*color: var\(--cestis-on-accent\) !important;/.test(body), 'and so is every tab drawn in it');
+
+/* ---------- 3b. Light, as chosen on the dashboard ---------- */
+// The dashboard now has a Light theme too (its sun/moon button, 'cestisTheme'
+// on this device). Each sibling page applies the same choice before its
+// first paint, and the shared stylesheet gives the Light values.
+console.log('In Light mode the sibling apps are light too, with the dashboard\'s Light values');
+const lightCss = (/html\[data-theme="light"\] \{([^}]*)\}/.exec(body) || ['', ''])[1];
+const lmsLight = INDEX.slice(INDEX.indexOf('html[data-theme="light"] {'), INDEX.indexOf('}', INDEX.indexOf('html[data-theme="light"] {')));
+assert(lightCss.length > 200, 'the stylesheet has a Light token set');
+[['cestis-bg', 'bg-primary'], ['cestis-bg-2', 'bg-secondary'], ['cestis-card', 'bg-card'], ['cestis-card-hover', 'bg-card-hover'], ['cestis-input', 'bg-input'],
+ ['cestis-accent', 'accent'], ['cestis-green', 'green'], ['cestis-red', 'red'], ['cestis-text', 'text-primary'], ['cestis-text-2', 'text-secondary'], ['cestis-muted', 'text-muted'],
+ ['cestis-accent-fill', 'accent-fill'], ['cestis-accent-end', 'accent-end'], ['cestis-input-border', 'input-border']]
+  .forEach(([mine, lms]) => assert(tok(lightCss, mine) && tok(lightCss, mine).toLowerCase() === (tok(lmsLight, lms) || '').toLowerCase(),
+    'Light --' + mine + ' is the dashboard\'s Light --' + lms + ' (' + tok(lightCss, mine) + ')'));
+const L = n => tok(lightCss, n);
+[['cestis-text', 7], ['cestis-text-2', 4.5], ['cestis-muted', 4.5]].forEach(([t, min]) => {
+  assert(contrast(L(t), L('cestis-card')) >= min, 'Light --' + t + ' on a card: ' + contrast(L(t), L('cestis-card')).toFixed(2) + ':1 (at least ' + min + ')');
+  assert(contrast(L(t), L('cestis-bg')) >= min, 'Light --' + t + ' on the page: ' + contrast(L(t), L('cestis-bg')).toFixed(2) + ':1');
+});
+assert(/--cestis-on-accent: #fff;/.test(lightCss) && contrast('#ffffff', L('cestis-accent-fill')) >= 4.5, 'Light: white text on the darker amber buttons (' + contrast('#ffffff', L('cestis-accent-fill')).toFixed(2) + ':1)');
+assert(contrast(L('cestis-input-border'), L('cestis-input')) >= 3, 'Light: a field\'s border shows (' + contrast(L('cestis-input-border'), L('cestis-input')).toFixed(2) + ':1)');
+assert(contrast(L('cestis-red'), L('cestis-card')) >= 4.5 && contrast(L('cestis-accent'), L('cestis-card')) >= 4.5, 'Light: red and amber text read on a card');
+const afterTokens = body.slice(body.indexOf('html:root, html body.dark-mode'));
+assert(!/rgba\(255,\s*255,\s*255/.test(afterTokens) && !/color: #000 !important/.test(afterTokens), 'no rule keeps a Dark-only white overlay or black text: each is a token');
+PAGES.forEach(f => {
+  const src = read(f);
+  const head = src.slice(0, src.indexOf('</head>'));
+  const at = head.indexOf("localStorage.getItem('cestisTheme')==='light'");
+  assert(at !== -1 && at < head.indexOf('<link rel="stylesheet" href="cestis-theme.css') && /setAttribute\('data-theme','light'\)/.test(head) && /addEventListener\('storage'/.test(head),
+    f + ': applies this device\'s Light/Dark choice before the first paint, and follows a change made on the dashboard');
+});
 
 /* ---------- 4. Each page's own variables ---------- */
 console.log('It works through each page\'s own colour variables');

@@ -190,9 +190,21 @@ assert(!/setItem\(|removeItem\(|\.push\(\)|saveNow|loadNow|pull\(|schedulePush/.
 // Its own words (everything else on it comes from the shared core, checked
 // above). Internal names — storage keys, the page-cloud's backend name, the
 // browser's event names — are never shown, so they are set aside.
-const INTERNAL = ['schoolDashboardGoogleAccessToken', 'schoolDashboardGoogleTokenExpiry', 'offline-server', 'offline', 'cestisLanTrouble'];
-const chipLiterals = (CHIP.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '').match(/'(?:[^'\\]|\\.)*'/g) || []).map(s => s.slice(1, -1)).filter(s => INTERNAL.indexOf(s) === -1);
-assert(chipLiterals.indexOf('Checking…') !== -1 && chipLiterals.every(s => !SOURCE_WORDS.test(s)), 'the sibling chip\'s own words name no place: ' + chipLiterals.filter(s => SOURCE_WORDS.test(s)).join(' | '));
+// The page's own sync elements it takes into its panel are found by their
+// ids, and its stylesheet and selectors are code too.
+const INTERNAL = ['schoolDashboardGoogleAccessToken', 'schoolDashboardGoogleTokenExpiry', 'offline-server', 'offline', 'cestisLanTrouble',
+  'cloudSyncContainer', 'cloudNotConnected', 'cloudConnected'];
+const isCode = s => /[{}]/.test(s) || /^[#.]|^(button|html)\b|, ?\./.test(s);
+const chipLiterals = (CHIP.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '').match(/'(?:[^'\\]|\\.)*'/g) || []).map(s => s.slice(1, -1)).filter(s => INTERNAL.indexOf(s) === -1 && !isCode(s));
+assert(chipLiterals.indexOf('Checking…') !== -1 && chipLiterals.indexOf(' Turn On Sync') !== -1 && chipLiterals.every(s => !SOURCE_WORDS.test(s)), 'the sibling chip\'s own words name no place: ' + chipLiterals.filter(s => SOURCE_WORDS.test(s)).join(' | '));
+console.log('On a sibling page the chip is the one sync control: the page\'s own one moves into its panel');
+assert(/function absorb\(c\)/.test(CHIP) && /getElementById\('cloudSyncContainer'\)/.test(CHIP) && /getElementById\('cloudNotConnected'\), doc\.getElementById\('cloudConnected'\)/.test(CHIP) && /getElementById\('syncBtn'\)/.test(CHIP),
+  'it takes the page\'s Turn On Sync / sync menu (and Income & Expenditure\'s Sync Now)');
+assert(/box\.appendChild\(p\)/.test(CHIP) && !/cloneNode|innerHTML\s*=\s*[^;]*cloud/.test(CHIP), 'by moving the elements themselves (ids and handlers kept), not copies');
+assert(/\.cestis-sync-actions \.cloud-dropdown-content\{display:block!important;position:static!important/.test(CHIP) && /\.cestis-sync-actions \.cloud-dropdown>\.cloud-sync-btn\{display:none!important\}/.test(CHIP) || /\.cloud-dropdown>\.cloud-sync-btn\{display:none!important\}/.test(CHIP),
+  'its menu shows as a list in the panel; the menu\'s own toggle button is gone');
+assert(/html\.cestis-sync-chip-on #cloudStatus,html\.cestis-sync-chip-on \.cloud-status-bar\{display:none!important\}/.test(CHIP), 'the page\'s own status line gives way to the chip');
+assert(/html\[data-theme="light"\] \.cestis-sync-chip\{/.test(CHIP) && /html\[data-theme="light"\] \.cestis-sync-chip-panel\{/.test(CHIP), 'and the chip and its panel follow Light mode');
 assert(/C\.ui\.syncIcon\(h\.icon\)/.test(CHIP) && !/cestis-sync-chip-dot/.test(CHIP), 'the sibling chip shows the same icon (no bare dot)');
 
 console.log('The sibling chip reads the page-cloud state the way it means');

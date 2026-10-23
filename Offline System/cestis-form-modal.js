@@ -63,6 +63,20 @@
     '.cestis-form-actions .cf-submit{background:linear-gradient(135deg,#f0a500,#d4900a);color:#000}' +
     '.cestis-form-actions .cf-submit.cf-danger{background:#c0392b;color:#fff}' +
     '.cestis-form-box button:focus-visible,.cestis-form-box input:focus-visible,.cestis-form-box select:focus-visible,.cestis-form-box textarea:focus-visible{outline:2px solid #f0a500;outline-offset:2px}' +
+    /* Light, when this device chose it on the dashboard (its sun/moon button) */
+    'html[data-theme="light"] .cestis-form-overlay{background:rgba(20,40,70,.35)}' +
+    'html[data-theme="light"] .cestis-form-box{background:#fff;color:#16233a;border-color:rgba(20,40,70,.17);box-shadow:0 18px 48px rgba(20,40,70,.2)}' +
+    'html[data-theme="light"] .cestis-form-box h3{color:#16233a}' +
+    'html[data-theme="light"] .cestis-form-intro,html[data-theme="light"] .cestis-form-field label{color:#475870}' +
+    'html[data-theme="light"] .cestis-form-field input,html[data-theme="light"] .cestis-form-field select,html[data-theme="light"] .cestis-form-field textarea{background:#fff;color:#16233a;border-color:#7f8ea2}' +
+    'html[data-theme="light"] .cestis-form-field input:focus,html[data-theme="light"] .cestis-form-field select:focus,html[data-theme="light"] .cestis-form-field textarea:focus{border-color:#975700;box-shadow:0 0 0 2px rgba(200,125,0,.2)}' +
+    'html[data-theme="light"] .cestis-form-field [aria-invalid="true"]{border-color:#c0281c}' +
+    'html[data-theme="light"] .cestis-form-hint{color:#55667c}' +
+    'html[data-theme="light"] .cestis-form-error{background:rgba(214,48,36,.10);border-color:rgba(192,40,28,.45);color:#c0281c}' +
+    'html[data-theme="light"] .cestis-form-actions .cf-cancel{background:rgba(20,40,70,.06);color:#16233a;border-color:rgba(20,40,70,.17)}' +
+    'html[data-theme="light"] .cestis-form-actions .cf-cancel:hover{background:rgba(20,40,70,.1)}' +
+    'html[data-theme="light"] .cestis-form-actions .cf-submit{background:linear-gradient(135deg,#a86300,#975700);color:#fff}' +
+    'html[data-theme="light"] .cestis-form-box :is(button,input,select,textarea):focus-visible{outline-color:#975700}' +
     '@media (max-width:600px){.cestis-form-box{padding:20px 16px 16px}.cestis-form-field input,.cestis-form-field select,.cestis-form-field textarea{font-size:16px}' +
       '.cestis-form-actions button{flex:1 1 0}}';
 
