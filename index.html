@@ -33927,6 +33927,20 @@ var _pullFailStreak = 0;
 async function silentMergeFromBackup(fileId) {
   var fail = function(kind) { _lastPull = { ok: false, changed: false, kind: kind }; _pullFailStreak++; return false; };
   try {
+    // The sign-in merge of the Main backup notes WHICH version it read (taken
+    // before the download, so a write in between is merged again, never
+    // missed), as every later merge does. Without it, the first autosave of
+    // the session took whatever version it then found as already merged: a
+    // change another device uploaded in those first seconds — an answer on
+    // the PC a trainee had just left — was skipped, and this device's own
+    // upload then went over it.
+    var _mainFolder = GOOGLE_DRIVE_CONFIG.FOLDER_ID, _verBefore = null;
+    if (fileId && (fileId === _autoSaveFileIds[_mainFolder] || fileId === cloudFileId) && _lastCloudVersion[_mainFolder] === undefined) {
+      try {
+        var _vr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+        if (_vr && _vr.ok) { var _vj = await _vr.json(); if (_vj && _vj.version != null && String(_vj.version)) _verBefore = String(_vj.version); }
+      } catch (e) {}
+    }
     var _sent = Date.now();
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
@@ -33953,6 +33967,7 @@ async function silentMergeFromBackup(fileId) {
     if (_mergeBackupFailed) return fail('merge');
     _lastPull = { ok: true, changed: !!changed, kind: '' };
     _pullFailStreak = 0;
+    if (_verBefore && _lastCloudVersion[_mainFolder] === undefined) _lastCloudVersion[_mainFolder] = _verBefore;
     return changed;
   } catch (err) {
     console.warn('[AutoSync] Silent merge download error:', err);
