@@ -7663,6 +7663,9 @@ function initLmsChatData() {
 function lmsChatEnsureStudentAccounts() {
   if (typeof students === 'undefined' || !Array.isArray(students)) return false;
   if (typeof userAccounts === 'undefined' || !Array.isArray(userAccounts)) return false;
+  // Not while this device's roll is still the one it was cleared to at
+  // sign-out: its records are not the Centre's yet (rosterAwaitingSync).
+  if (rosterAwaitingSync()) return false;
   var byStudentId = {};
   var byUsername = {};
   userAccounts.forEach(function(u) {
@@ -7684,6 +7687,11 @@ function lmsChatEnsureStudentAccounts() {
       changed = true;
       return;
     }
+    // A trainee who already has an account under another username — linked
+    // to a record this device does not hold, or to a duplicate the roll will
+    // fold away — gets no second one: that second, email-less "Disabled"
+    // account is what Verify Users went on offering to activate.
+    if (CESTISCore.accountAccess.traineeHasAccount(userAccounts, { name: s.name, programme: s.course, email: s.email, ids: [s.id] })) return;
     // Otherwise create a fresh linked account (suffix the username if taken,
     // e.g. two students sharing a name)
     var username = baseUsername, n = 2;
@@ -8982,6 +8990,10 @@ function enforceOnePersonOneRecord() {
    removed; nothing is written when nothing changed. */
 function cestisSettleRoster(reason) {
   if (typeof students === 'undefined' || !Array.isArray(students)) return 0;
+  // Backfill stubs first, with their tombstones — the collapse below would
+  // otherwise drop them here with no record, and the accounts list would hand
+  // them back.
+  try { foldBackfillStubs(reason); } catch (e) {}
   var before = students.length, removed = 0;
   try { cestisStabilizeStudentIds(); } catch (e) {}
   try {
@@ -12371,10 +12383,16 @@ function renderVerifyUsersPage() {
     if(needsReview.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">No pending accounts to review.</td></tr>';
     } else {
+      // Placeholders that may be a second account of somebody who has one but
+      // could not be proven so (CESTISCore.accountAccess.backfillStubFolds):
+      // said, so nobody activates a second login for a person unawares.
+      var _maybeDup = {};
+      try { CESTISCore.accountAccess.backfillStubFolds(userAccounts, students).unsure.forEach(function(id) { _maybeDup[id] = true; }); } catch(e) {}
       tbody.innerHTML = needsReview.map(function(u) {
         var roleBadge = u.role === 'student' ? 'badge-blue' : 'badge-green';
         var statusLabel = u.status === 'pending' ? '<span style="color:var(--accent);font-size:11px;font-weight:600;">Pending</span>' : '<span style="color:var(--red);font-size:11px;font-weight:600;">Disabled</span>';
         var sourceLabel = u.registeredVia === 'admin-created' ? ' <span style="font-size:10px;color:var(--text-muted);">(Admin Created)</span>' : u.registeredVia === 'fee-system' ? ' <span style="font-size:10px;color:var(--text-muted);">(Fee System)</span>' : u.registeredVia === 'registration' ? ' <span style="font-size:10px;color:var(--text-muted);">(Self-Registered)</span>' : '';
+        if (_maybeDup[u.id]) sourceLabel += ' <span style="font-size:10px;color:var(--accent);font-weight:600;">(may be a second account of somebody listed in Settings → Users — check before activating)</span>';
         return '<tr>' +
           '<td><strong>' + escapeHtml(u.name) + '</strong>' + sourceLabel + '</td>' +
           '<td style="font-size:12px;">' + escapeHtml(u.email || '—') + '</td>' +
@@ -22933,6 +22951,11 @@ function invalidateFeeMirrorCache() { _feeMirrorLastRaw = null; _feeMirrorChecke
 function syncStudentsFromLocalFeeSystem(force) {
   try {
     if (!Array.isArray(students)) return false;
+    // A device cleared at sign-out keeps the accounts and the fee roll but not
+    // the roll of trainees: the fee roll's people all look missing. Nothing is
+    // enrolled from it until this device has read the Centre's roll
+    // (rosterAwaitingSync).
+    if (rosterAwaitingSync()) return false;
     // Reading the fee roll is itself expensive — it is one of the biggest
     // values in the store — so on a burst of calls it is read at most once a
     // second unless the caller insists.
@@ -22996,6 +23019,11 @@ function syncStudentsFromLocalFeeSystem(force) {
       if (feeSid && deleted[feeSid]) return;          // tombstoned under its stable id
       if (deleted['SF-' + norm(fee.id)]) return;      // tombstoned under the fee twin id
       if (existingIds[studentId]) return;             // already present by id
+      // A trainee who already has a sign-in account already has a record —
+      // on this device or not yet on it. Enrolling them again made a second
+      // record under a new id, and for it a second, email-less account.
+      if (traineeRecordExistsElsewhere({ name: name, programme: course, email: norm(fee.email),
+                                         ids: [studentId, norm(fee.lmsId), feeSid] })) return;
 
       // The shared rule (see CESTISCore.lmsMirrorTarget). This dashboard's
       // roster belongs to VocTrain: a trainee already here keeps the programme
@@ -23055,7 +23083,7 @@ function syncStudentsFromLocalFeeSystem(force) {
           var feeUsername = name.toLowerCase().replace(/\s+/g, '.');
           var dupAcct = userAccounts.find(function(u){
             return u && ((u.username === feeUsername && u.role === 'student') || u.studentDataId === studentId);
-          });
+          }) || CESTISCore.accountAccess.traineeHasAccount(userAccounts, { name: name, programme: course, email: norm(fee.email), ids: [studentId] });
           if (!dupAcct) {
             userAccounts.push({
               id: 'USR-FEE-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
@@ -23444,6 +23472,85 @@ function dropDeletedAccounts() {
     console.log('[Accounts] Dropped ' + res.removed + ' deleted account(s) that a merge had added back.');
   }
   return res.removed;
+}
+
+/* Has this device read the Centre's roll of trainees in this session? Set
+   by every successful merge of a backup, the quick account check and the
+   Centre's own network (rosterAwaitingSync). */
+var _rosterReadThisSession = false;
+
+/* Is this device's roll still the one it was cleared to at sign-out?
+
+   Signing out of a shared PC clears the trainee records and keeps the
+   accounts (and the fee roll). Until the next sync, every trainee whose
+   account points at a record this device does not hold looks "missing" to
+   the fee-roll mirror and the chat roster — and they enrolled those people
+   again under new ids, with second accounts. They now wait: nothing is made
+   from a roll that has not been read yet. Once anything of the Centre's has
+   been read in this session (or on the Centre's network, once it has
+   answered), they run as before. */
+function rosterAwaitingSync() {
+  if (_rosterReadThisSession) return false;
+  try { if (window.CESTISPageCloud && typeof CESTISPageCloud.lanSynced === 'function' && CESTISPageCloud.lanSynced()) return false; } catch (e) {}
+  if (!Array.isArray(userAccounts) || typeof students === 'undefined' || !Array.isArray(students)) return false;
+  var have = {};
+  students.forEach(function(s) { if (s && s.id != null) have[String(s.id)] = true; });
+  return userAccounts.some(function(u) {
+    if (!u || String(u.role || '').toLowerCase() !== 'student' || u.status === 'pending' || !u.studentDataId) return false;
+    if (have[String(u.studentDataId)]) return false;
+    return !(typeof isStudentDeleted === 'function' && isStudentDeleted(u.studentDataId));
+  });
+}
+
+/* Does this trainee already have a record — known through an account that is
+   linked to one (here or not yet here), or through several accounts of that
+   name? The fee-roll mirrors ask before they enrol anybody. An account with no
+   record yet (a registration awaiting approval) does not count: the Centre's
+   fee roll enrolling that person is how their record is meant to arrive. */
+function traineeRecordExistsElsewhere(cand) {
+  if (typeof userAccounts === 'undefined' || !Array.isArray(userAccounts)) return false;
+  var r = CESTISCore.accountAccess.accountForTrainee(userAccounts, cand);
+  return !!(r.ambiguous || (r.match && r.match.studentDataId));
+}
+
+/* Fold away the backfill stubs of trainees who already have an account.
+
+   Only a stub provably nothing but a stub (CESTISCore.accountAccess
+   .isBackfillStub: made by the fee roll or the chat roster, never activated,
+   edited or signed in to, no password, no email) and provably the same person
+   as exactly one real account (backfillStubFolds). It is removed with a
+   deletion record — the same tombstone an administrator's delete leaves — so
+   no older device, backup or accounts list can bring it back; and the fold is
+   noted (cestisFoldedAccounts: which account it was folded into, when, why).
+   Anything less certain stays, for an administrator to decide in Verify
+   Users. The roll's own clean-up used to drop these on one PC with no record
+   at all, and the accounts list handed them straight back.
+   opts.noLedgerSave: the caller is writing the accounts list itself. */
+function foldBackfillStubs(reason, opts) {
+  opts = opts || {};
+  if (!Array.isArray(userAccounts) || !window.CESTISCore || typeof CESTISCore.accountAccess.backfillStubFolds !== 'function') return 0;
+  var res = CESTISCore.accountAccess.backfillStubFolds(userAccounts, (typeof students !== 'undefined' && Array.isArray(students)) ? students : []);
+  if (!res.folds.length) return 0;
+  var log = {};
+  try { log = JSON.parse(CESTISStore.getItem('cestisFoldedAccounts') || '{}') || {}; } catch (e) { log = {}; }
+  var at = new Date().toISOString(), gone = {};
+  res.folds.forEach(function(f) {
+    var stub = userAccounts.find(function(u) { return u && u.id === f.id; });
+    recordDeletedUser(f.id);
+    gone[f.id] = true;
+    log[f.id] = { mergedInto: f.into, name: (stub && stub.name) || '', by: f.by, at: at, during: reason || '' };
+  });
+  userAccounts = userAccounts.filter(function(u) { return !(u && gone[u.id]); });
+  try {
+    var keys = Object.keys(log);
+    if (keys.length > 2000) keys.sort(function(a, b) { return String(log[a].at).localeCompare(String(log[b].at)); }).slice(0, keys.length - 2000).forEach(function(k) { delete log[k]; });
+    CESTISStore.setItem('cestisFoldedAccounts', JSON.stringify(log));
+  } catch (e) {}
+  try { persistUserAccounts(); } catch (e) {}
+  if (!opts.noLedgerSave) { try { scheduleAccountsLedgerSave(); } catch (e) {} }
+  console.log('[Accounts] Folded ' + res.folds.length + ' backfill stub(s) into the trainees\' own accounts after ' + (reason || 'a merge') + ': ' +
+              res.folds.map(function(f) { return f.id + ' -> ' + f.into; }).join(', '));
+  return res.folds.length;
 }
 
 function recordDeletedStudent(id) {
@@ -31122,6 +31229,9 @@ async function syncStudentsFromFeeSystem() {
       }
 
       if (existingIds[studentId]) return;
+      // Somebody who already has a sign-in account already has a record here
+      // or elsewhere — never a second one (see syncStudentsFromLocalFeeSystem).
+      if (traineeRecordExistsElsewhere({ name: name, programme: course, email: fee.email || fee.Email || '', ids: [studentId] })) return;
 
       // The same rule the fee page's own mirror applies, so the two directions
       // cannot disagree: a trainee this dashboard already carries is left on
@@ -31170,7 +31280,7 @@ async function syncStudentsFromFeeSystem() {
       var feeDupAccount = userAccounts.find(function(u) {
         return (u.username === feeUsername && u.role === 'student') ||
                (u.studentDataId === studentId);
-      });
+      }) || CESTISCore.accountAccess.traineeHasAccount(userAccounts, { name: name, programme: course, ids: [studentId] });
       if (!feeDupAccount) {
         userAccounts.push({
           id: 'USR-FEE-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
@@ -33315,6 +33425,7 @@ async function saveAccountsLedger() {
           var curLed = await cur.json();
           if (curLed && Array.isArray(curLed.deletedUserIds)) curLed.deletedUserIds.forEach(function(id) { if (id && !isUserDeleted(id)) recordDeletedUser(id); });
           try { if (curLed && Array.isArray(curLed.accounts) && mergeCloudAccounts(curLed.accounts)) persistUserAccounts(); } catch (e) {}
+          try { foldBackfillStubs('writing the accounts list', { noLedgerSave: true }); } catch (e) {}
           dropDeletedAccounts();
         }
       } catch (e) {}
@@ -33358,6 +33469,9 @@ async function loadAccountsLedger(token) {
     if (Array.isArray(led.deletedUserIds)) led.deletedUserIds.forEach(function(id) { if (id && !isUserDeleted(id)) recordDeletedUser(id); });
     var changed = mergeCloudAccounts(led.accounts);
     if (changed) { try { persistUserAccounts(); } catch (e) {} }
+    // Stubs an older device put in the list fold away here, and the fold's
+    // tombstone goes back out with the next write of the list.
+    try { foldBackfillStubs('reading the accounts list'); } catch (e) {}
     console.log('[Accounts] Ledger read: ' + led.accounts.length + ' account(s), ' + changed + ' change(s).');
     return true;
   } catch (e) { console.warn('[Accounts] Ledger read failed:', e && e.message); return false; }
@@ -33542,6 +33656,9 @@ async function mergeBackupData(backupData) {
       return false;
     }
     let changed = false;
+    // The Centre's roll is being read: what this device makes from its own
+    // roll from now on is made from the Centre's (rosterAwaitingSync).
+    _rosterReadThisSession = true;
     if (!backupData.version) {
       console.warn('[AutoSync] Backup file missing version field — merging anyway (legacy format)');
     }
@@ -35420,6 +35537,7 @@ function cloudFetchAccountData(interactive) {
     updateLoginSyncStatus('Account data synced.', 'success');
     console.log('[CloudAccountFetch] Merged ' + cloudAccounts.length + ' accounts, ' + cloudStudents.length + ' students, ' + cloudCertApprovals.length + ' cert approvals from cloud');
     _cloudAcctFetchLastOk = true;
+    _rosterReadThisSession = true;
     return true;
 
   } catch (err) {
