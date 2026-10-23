@@ -172,7 +172,9 @@ const ids = list => (list || []).map(r => r.id).sort().join(',');
     const THIS_BROWSER = { voctrain_sessionSeenAt: '1700000000000', voctrain_sessionStudentId: 'S9', voctrain_sessionUserId: 'U-ADMIN',
       voctrain_sessionExpiry: '1800000000000', cestisPendingUpload: 'true', cestisUnsyncedOnSignOut: '1',
       cestisCertDeviceSessionId: 'D-office', voctrain_supportSendLog: '[1]', voctrain_extSysCertHelpSeen_tms: '1',
-      vcChatHistory_ROOM1: '[{"text":"hi","isLocal":true}]' };
+      vcChatHistory_ROOM1: '[{"text":"hi","isLocal":true}]',
+      // This screen's light/dark choice: one person's Light never reaches another PC.
+      cestisTheme: 'light' };
     Object.keys(THIS_BROWSER).forEach(k => office.set(k, THIS_BROWSER[k]));
     await office.api.saveNow();
     assertEq(ids(serverList(DASH, 'voctrain_students')), 'S1,S2,S3', 'the dashboard file holds the roll');

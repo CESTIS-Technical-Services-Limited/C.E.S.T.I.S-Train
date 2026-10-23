@@ -88,6 +88,14 @@ const PAGE_FNS = [
   'examShowTakingView', 'examLoadDraft', 'examResumeDraft', 'examHasDraftFor', 'examSaveDraftSoon', 'examSubmitSummaryHtml', 'examUpdateProgress',
   'examEndSessionForSignOut', 'examOutboxRead', 'examOutboxWrite', 'examOutboxAdd', 'examOutboxRestore', 'examOutboxConfirm', 'examTraineeUserId',
   'startStudentExam', 'startExamTimer', 'updateExamTimerDisplay', 'renderExamTaking', 'selectExamAnswer', 'toggleExamFlag',
+  // The Moodle-style attempt page's pieces (exam-platform preview).
+  'examCounts', 'examClock', 'examTakingView', 'examPages', 'examPageOf', 'examStateText', 'examNavBoxClass', 'examNavBoxLabel',
+  'examNavPanelHtml', 'examQuestionHtml', 'examAnswerHtml', 'examCrumbsHtml', 'examSetCurrent', 'examRefreshNavBox', 'examGoTo',
+  'examFocusQuestion', 'examGoPage', 'examToggleNavStrip', 'examShowSummary', 'examToggleMulti', 'examSetMatch', 'examAnswerChanged',
+  'scrollToExamQuestion', 'confirmSubmitExam', 'examReturnToAttempt', 'examCentreDateTime', 'examSummaryHtml', 'examConfirmSubmit',
+  'examCloseConfirm', 'examSubmitConfirmed', 'examDurationText', 'examOutcomeLabel', 'examAnswerText', 'examKeyText', 'examReviewAnswerHtml',
+  'examReviewGoTo', 'examOptionText', 'examResultsTableHtml', 'examSettingsHeading', 'examSettingsReset', 'examSettingsSections',
+  'examSettingsSyncExpand', 'examCloseToggle', 'examKeyProblemText', 'examTypeLabel',
   'autoSaveExamProgress', 'submitExam', 'showExamResult', 'viewExamResultDetail', 'renderStudentExams', 'submitGrading', 'closeGradingPanel',
   'getFilteredNotifications', 'notifViewerId', 'exportExamResults', 'detectQuestionsFromText', 'removeImportOption', 'finalizeImportExam', 'updateImportSummary',
   'clearSensitiveStudentData'
@@ -460,11 +468,11 @@ console.log('Marking, results and who sees what (exams-04, exams-12, exams-13, e
   assert(/once the exam has closed/.test(shown), 'the trainee is told when they will be');
   p.__setNow(JM('2026-10-16', '14:30'));
   run(p, "viewExamResultDetail('EXAM-1','STU-A')");
-  assert(/Correct answer: C/.test(p.__els.studentExamResultView.innerHTML), 'after the window closes they are shown');
+  assert(/Correct answer: c\. Green\/Yellow/.test(p.__els.studentExamResultView.innerHTML), 'after the window closes they are shown');
   p.__setNow(JM('2026-10-16', '13:30'));
   p.exams[0].answersRelease = 'released';
   run(p, "viewExamResultDetail('EXAM-1','STU-A')");
-  assert(/Correct answer: C/.test(p.__els.studentExamResultView.innerHTML), 'staff can release them early');
+  assert(/Correct answer: c\. Green\/Yellow/.test(p.__els.studentExamResultView.innerHTML), 'staff can release them early');
   p.__setNow(JM('2026-10-17', '09:00'));
   p.exams[0].answersRelease = 'withheld';
   run(p, "viewExamResultDetail('EXAM-1','STU-A')");
@@ -593,6 +601,99 @@ console.log('Instructors, CSV export and Grade Now (exams-21, exams-23, exams-24
   let threw = false;
   try { run(g, "viewExamResults('EXAM-1'); backToExamList()"); } catch (e) { threw = e; }
   assertEq(threw, false, 'opening results where the exams page is not mounted does not throw');
+}
+
+console.log('The Moodle-style settings page saves its new options; an existing exam keeps its old behaviour (exam-platform preview)');
+{
+  const E = Core.exams;
+  const same = (a, b, m) => assertEq(JSON.stringify(a), JSON.stringify(b), m);
+  const fill = (p, v) => Object.keys(v).forEach(k => { p.__els[k].value = v[k]; });
+  const base = { examTitle: 'Unit 4 Quiz', examCourse: 'Electrical', examDate: '2026-10-19', examTime: '09:00', examDuration: '45', examPassMark: '60', examShuffle: 'false' };
+  const p = makePage({ now: JM('2026-10-16', '08:00') });
+  run(p, 'examBuilderOpening()');
+  same([p.__els.examPerPage.value, p.__els.examShuffleOptions.value, p.__els.examAllowFlag.value, p.__els.examCloseEnabled.checked],
+    ['0', 'false', 'true', false], 'a new exam starts as every exam always was: one page, options in order, flagging on, no closing time');
+  fill(p, Object.assign({}, base, { examPerPage: '3', examShuffleOptions: 'true', examAllowFlag: 'false', examCloseDate: '2026-10-23', examCloseTime: '17:00' }));
+  p.__els.examCloseEnabled.checked = true;
+  run(p, "examBuilderQuestions = [{ id:'M1', type:'multi', text:'PPE?', points:3, options:['a','b','c'], correctAnswer:[0,2] }, { id:'I1', type:'info', text:'Section B', points:0 }, { id:'N1', type:'numerical', text:'psi?', points:1, correctAnswer:15, tolerance:0 }]; createExam()");
+  const e = p.exams[0];
+  same([e.questionsPerPage, e.shuffleOptions, e.allowFlag, e.closeDate, e.closeTime, e.questions], [3, true, false, '2026-10-23', '17:00', 2],
+    'every new setting is saved; the information item is not counted as a question');
+  assertEq(E.statusAt(e, JM('2026-10-21', '12:00')), 'active', 'and the exam is open on the Wednesday, until it closes on Friday');
+
+  const q = makePage({ now: JM('2026-10-16', '08:00') });
+  fill(q, base);
+  run(q, "examBuilderQuestions = [{ id:'M1', type:'multi', text:'PPE?', points:3, options:['a','b','c'], correctAnswer:[] }, { id:'T1', type:'match', text:'Match', points:2, pairs:[{prompt:'a',answer:''},{prompt:'b',answer:'B'}] }]; createExam()");
+  assertEq(q.exams.length, 0, 'a "one or more" with nothing ticked, or a matching question missing an answer, cannot be saved');
+  assert(/tick the right option/.test(q.__out.alerts.join(' ')) && /complete pairs/.test(q.__out.alerts.join(' ')), 'the author is told what each one needs');
+  const c = makePage({ now: JM('2026-10-16', '08:00') });
+  fill(c, Object.assign({}, base, { examCloseDate: '2026-10-18', examCloseTime: '09:00' }));
+  c.__els.examCloseEnabled.checked = true;
+  run(c, "examBuilderQuestions = [{ id:'Q1', type:'tf', text:'Q', points:1, correctAnswer:true }]; createExam()");
+  assertEq(c.exams.length, 0, 'a closing time before the opening is refused');
+  assert(/must close after it opens/.test(c.__out.alerts.join(' ')), 'with the reason');
+
+  const o = makePage({ now: JM('2026-10-16', '08:00') });
+  o.exams.push(sampleExam({ status: 'upcoming', date: '2026-10-20' }));
+  run(o, "editExam('EXAM-1')");
+  same([o.__els.examPerPage.value, o.__els.examShuffleOptions.value, o.__els.examAllowFlag.value, o.__els.examCloseEnabled.checked],
+    ['0', 'false', 'true', false], 'an existing exam opens with its old behaviour selected');
+  run(o, 'createExam()');
+  const oe = o.exams[0];
+  assert(!('closeDate' in oe) && !('closeTime' in oe), 'saving it adds no closing time');
+  same([oe.questionsPerPage, oe.shuffleOptions, oe.allowFlag], [0, false, true], 'and keeps all-on-one-page, options in order, flagging on');
+  assertEq(E.windowOf(oe).end - E.windowOf(oe).start, 60 * 60000, 'its window is still its duration');
+}
+
+console.log('A paged attempt: pages, flagging off, the summary and the on-page submit question (exam-platform preview)');
+{
+  const same = (a, b, m) => assertEq(JSON.stringify(a), JSON.stringify(b), m);
+  const store = {};
+  const qd = [
+    { id: 'P1', type: 'multi', text: 'PPE?', points: 3, options: ['Helmet', 'Gloves', 'Sandals'], correctAnswer: [0, 1] },
+    { id: 'P2', type: 'tf', text: 'Flashback arrestor?', points: 1, correctAnswer: true },
+    { id: 'P3', type: 'numerical', text: 'psi?', points: 1, correctAnswer: 15, tolerance: 0, unit: 'psi' }
+  ];
+  const t = makePage({ now: JM('2026-10-16', '13:05'), store, globals: { currentRole: 'student' } });
+  t.currentStudent = Object.assign({}, ANN);
+  t.exams.push(sampleExam({ questionsPerPage: 1, allowFlag: false, questionData: qd }));
+  run(t, "startStudentExam('EXAM-1')");
+  let html = t.__els.studentExamTakingView.innerHTML;
+  assert(/Page 1 of 3/.test(html) && /Next page/.test(html) && !/Previous page/.test(html), 'one question a page: page 1 of 3, Next page');
+  assertEq((html.match(/<div class="exam-q /g) || []).length, 1, 'only this page\'s question is drawn');
+  assert(/Select one or more:/.test(html) && (html.match(/<input type="checkbox" name="examAns-0"/g) || []).length === 3, '"Select one or more" with a real checkbox per option');
+  assert(html.indexOf('examFlag-') === -1, 'flagging switched off: no flag button');
+  assert(/Exam navigation/.test(html) && /id="examNav-2"/.test(html) && /Time left/.test(html), 'the navigation panel has a box for every question and the time left');
+  run(t, 'examToggleMulti(0, 1, true); examToggleMulti(0, 0, true)');
+  assertEq(JSON.stringify(t.currentExamSession.answers[0]), '[0,1]', 'ticked options are the answer, in option order');
+  run(t, 'examGoPage(1)');
+  html = t.__els.studentExamTakingView.innerHTML;
+  assert(/Page 2 of 3/.test(html) && /Previous page/.test(html), 'Next page shows page 2, with Previous page');
+  run(t, 'selectExamAnswer(1, true)');
+  t.__advance(1000);
+  const draft = JSON.parse(t.__store[Core.exams.draftKey('STU-A', 'EXAM-1')]);
+  same([draft.page, draft.perPage, draft.allowFlag], [1, 1, false], 'the saved attempt remembers its page and layout');
+  // Reload: back on page 2 with the answers.
+  const r = makePage({ now: JM('2026-10-16', '13:20'), store: t.__store, globals: { currentRole: 'student' } });
+  r.currentStudent = Object.assign({}, ANN);
+  r.exams.push(sampleExam({ questionsPerPage: 1, questionData: qd }));
+  run(r, "startStudentExam('EXAM-1')");
+  assertEq(r.currentExamSession.page, 1, 'a resumed attempt opens on the page it was on');
+  assert(/Page 2 of 3/.test(r.__els.studentExamTakingView.innerHTML), 'and draws it');
+  run(r, 'examShowSummary()');
+  html = r.__els.studentExamTakingView.innerHTML;
+  assert(/Summary of attempt/.test(html) && /Submit all and finish/.test(html) && /Return to attempt/.test(html), 'Finish attempt shows the Summary of attempt');
+  assertEq((html.match(/Answer saved/g) || []).length, 2, 'two questions show Answer saved');
+  assert(/Not yet answered/.test(html), 'and the third Not yet answered');
+  run(r, 'examConfirmSubmit()');
+  const dlg = r.document.body.children[r.document.body.children.length - 1];
+  assert(/You have <strong>1 unanswered question<\/strong>/.test(dlg.innerHTML) && /role="dialog"/.test(dlg.innerHTML), 'Submit all and finish asks on the page, saying one question is unanswered');
+  assertEq(r.examResults.length, 0, 'nothing is submitted until it is confirmed');
+  run(r, 'examSubmitConfirmed()');
+  assertEq(r.examResults.length, 1, 'confirming submits');
+  assertEq(r.examResults[0].earnedPoints, 4, 'marked against the exam\'s keys: both right options and True (3 + 1)');
+  assertEq(r.examResults[0].totalQuestions, 3, 'three questions');
+  assert(!!r.examResults[0].startedAt, 'the result records when the attempt started');
 }
 
 console.log('Shared libraries stay identical in both builds');

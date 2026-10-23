@@ -593,7 +593,9 @@
      room's chat (each line marked as sent from this device or not). */
   var DEVICE_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser', 'cestisAttendanceCurrentUser',
     'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisCertDeviceSessionId', 'voctrain_supportSendLog',
-    'voctrain_sessionUpgradeCarried'];
+    'voctrain_sessionUpgradeCarried',
+    // This screen's light/dark choice: one person's Light never reaches another device.
+    'cestisTheme'];
   function deviceOnly(k) {
     return /^voctrain_session(Expiry|Role|UserId|StudentId|SeenAt)$/.test(k) || k === 'voctrain_examInProgress' ||
            k.indexOf('cestisExamSession__') === 0 || k === 'cestisExamOutbox' ||
@@ -935,7 +937,7 @@
       // Who is signed in HERE, and this screen's own preferences. Syncing these
       // would sign people in as each other and fight over dark mode.
       'isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
-      'cestisAttendanceCurrentUser', 'darkMode', 'cestisTimeDarkMode',
+      'cestisAttendanceCurrentUser', 'darkMode', 'cestisTimeDarkMode', 'cestisTheme',
       // One-off "I have seen this" dismissals.
       'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
       'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
