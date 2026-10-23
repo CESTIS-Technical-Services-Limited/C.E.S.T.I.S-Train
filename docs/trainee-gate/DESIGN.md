@@ -1,6 +1,7 @@
 # Trainee Gate — each trainee's device gets only that trainee's data
 
-**Status:** Stage 1 (the rules) is built: `Core.gate` in `cestis-core.js`, the store namespace switch, the
+**Status:** Stage 1 (the rules) is built, on top of the cross-device exam resume and the duplicate-stub
+fold: `Core.gate` in `cestis-core.js`, the store namespace switch, the
 gate's device-only keys, and their tests (§12). Nothing calls them yet, and the switch is off. The owner
 questions in §13 are pending. What changed while building is in §14.
 
@@ -1178,8 +1179,8 @@ of the file, beside `Core.gate`, to keep merges clear of the modules they extend
 - **Stage 3 (staff).** Pass the dashboard's `findSkillAreaForCourse` as `opts.findSkill` so slices match
   what the trainee portal shows; yield between `sliceFor` calls. Feed `collect()`'s `payload.data` to
   `mergeBackupData` and `payload.records.voctrain_certTranscriptRequests` through
-  `Core.Transcript.mergeRequestLists`; `examAttempts` is read by `mergeBackupData` only once the
-  exam-resume page work (963e247 and after) is merged. Apply `ops` with `applyOps` and stamp
+  `Core.Transcript.mergeRequestLists` (`mergeBackupData` reads every `data` name, `examAttempts`
+  included since the exam-resume page work). Apply `ops` with `applyOps` and stamp
   `touchedAccounts`. Keep `unassigned` in `cestisGateUnassigned` by file id, and re-fetch those files
   (they fall behind the watermark). Log `scrubbed > 0`. The office request queue must show
   `cancelled`.

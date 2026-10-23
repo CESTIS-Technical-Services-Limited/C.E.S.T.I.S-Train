@@ -73,12 +73,12 @@ console.log('toPayload: the names the dashboard\'s merge already reads');
     records: { voctrain_certTranscriptRequests: [{ id: 'CTR' }] } }, 'each collection under its backup name; requests by store key; nothing else');
   p.data.assignmentSubmissions[0].id = 'changed';
   assertEq(recs.voctrain_submissions[0].id, 'S', 'a copy: the inbox is never changed');
-  // Every name is one mergeBackupData() reads (examAttempts is read once the exam-resume page work is merged).
+  // Every name is one mergeBackupData() reads.
   const INDEX = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const start = INDEX.indexOf('async function mergeBackupData(backupData)');
   const body = INDEX.slice(start, INDEX.indexOf('\n}\n', start));
   const unread = Object.keys(G.PAYLOAD_NAMES).map(k => G.PAYLOAD_NAMES[k]).filter(n => body.indexOf('backupData.data.' + n) === -1);
-  assert(unread.every(n => n === 'examAttempts'), 'mergeBackupData reads every one of them (' + (unread.length ? 'still to come: ' + unread.join(', ') : 'all') + ')');
+  assertEq(unread, [], 'mergeBackupData reads every one of them, attempts included');
 }
 
 /* ---------------------------------------------------- an ordinary run */

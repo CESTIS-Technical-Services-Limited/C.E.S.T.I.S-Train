@@ -84,6 +84,21 @@ console.log('An attempt: theirs, open, at an exam they may sit, from its paper')
   const huge = attempt(); huge.answers[1] = 'x'.repeat(520 * 1024);
   assertEq(reason(item('rec', { key: 'voctrain_examAttempts', rec: huge })), 'too-large', 'over 500 KB');
   assertEq(reason(item('rec', { key: 'voctrain_examAttempts', rec: attempt({ answers: null }) })), 'malformed', 'with no answers list');
+  // The attempt record the dashboard itself saves (examAttemptRecord, index.html) is one the gate takes.
+  const INDEX = require('fs').readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
+  const at = INDEX.indexOf('function examAttemptRecord(');
+  let depth = 0, end = -1;
+  for (let i = INDEX.indexOf('{', at); i < INDEX.length; i++) { if (INDEX[i] === '{') depth++; else if (INDEX[i] === '}') { depth--; if (!depth) { end = i + 1; break; } } }
+  const vm = require('vm'), ctx = { Date };
+  vm.createContext(ctx);
+  vm.runInContext('function examStampNow() { return ' + NOW + '; }\n' + INDEX.slice(at, end), ctx);
+  const a0 = attempt();
+  const s = { attemptId: 'ATT-PAGE', examId: 'EX1', studentId: me.stu, studentName: T.stu.name, title: 'Welding', duration: 90, passMark: 60,
+    questions: a0.questions, answers: a0.answers, flagged: a0.flagged, answeredAt: a0.answeredAt, flaggedAt: a0.flaggedAt,
+    startTime: a0.startTime, deadline: a0.deadline, perPage: 3, page: 1, current: 4, posAt: NOW, allowFlag: true };
+  const pageRec = JSON.parse(JSON.stringify(ctx.examAttemptRecord(s)));
+  const pr = check(item('rec', { key: 'voctrain_examAttempts', rec: pageRec }));
+  assert(pr.ok && pr.rec.id === 'ATT-PAGE' && pr.rec.page === 1 && pr.rec.posAt === NOW, 'the record the dashboard saves for an attempt is taken whole');
   const more = attempt(); more.answers.push('extra');
   assertEq(reason(item('rec', { key: 'voctrain_examAttempts', rec: more })), 'malformed', 'with more answers than questions');
 }
