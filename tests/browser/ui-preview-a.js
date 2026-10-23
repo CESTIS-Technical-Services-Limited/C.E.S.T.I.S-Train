@@ -192,7 +192,7 @@ const DESK = { viewport: { width: 1366, height: 768 } };
   }
 
   if (want(3)) {
-  console.log('A computer keeps its search box as it was');
+  console.log('A computer keeps its search box in the bar');
     const ctx = await fresh(DESK);
     const { page, errors } = await open(ctx);
     await seed(page);
@@ -202,7 +202,9 @@ const DESK = { viewport: { width: 1366, height: 768 } };
       const t = document.getElementById('globalSearchToggle'), c = document.querySelector('.topbar-search-close');
       return { boxW: Math.round(box.width), toggle: t.getClientRects().length, close: c.getClientRects().length };
     });
-    ok(d.boxW === 380 && d.toggle === 0 && d.close === 0, 'the 380px box is in the bar and neither phone button is shown (' + JSON.stringify(d) + ')');
+    // With preview B's chip, who-is-signed-in and Lock beside it, the box
+    // shares the bar (B gives it a 120px floor); it is still a box, not a button.
+    ok(d.boxW >= 120 && d.boxW <= 380 && d.toggle === 0 && d.close === 0, 'the box is in the bar (120-380px) and neither phone button is shown (' + JSON.stringify(d) + ')');
     await page.click('#globalSearch');
     await page.keyboard.type('Romario');
     await page.waitForTimeout(400);
