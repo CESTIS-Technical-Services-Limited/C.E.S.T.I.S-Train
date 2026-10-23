@@ -1,0 +1,250 @@
+/* ============================================================================
+   cestis-sync-chip.js — the "is my work safe?" chip for the sibling pages
+   (School Fee, Cashbook, Payroll, Clock-in, Virement, Income & Expenditure,
+   the finance documents).
+
+   WHY THIS EXISTS
+   ---------------
+   Each of these pages saves its records on the computer at once and sends
+   them to the Centre's Google Drive (or, on the Centre's own network, its
+   server) through cestis-page-cloud.js. Nothing on the page said whether that
+   had happened: an expired Google sign-in, a dropped connection or a failing
+   upload looked exactly like a page that was backed up — which is when a
+   cleared browser or a swapped PC loses work.
+
+   WHAT IT DOES
+   ------------
+   Shows one small chip where the page puts <span data-cestis-sync-chip>:
+   "All saved", "Changes waiting to sync", "Not synced yet — your work is
+   kept on this computer" or "Sync needs attention — ask the office", with a
+   check or circular arrows (the dashboard's own chip uses the same words
+   and icons — CESTISCore.ui.syncHealth/syncIcon decide them; by the owner's
+   rule they never say where the work syncs to or from). Pressing it shows
+   when this page last synced and what to do. It only READS what cestis-page-cloud.js already
+   records (each page's write stamps, its last upload and last error), the
+   Google sign-in the pages share, and the browser's online flag. It never
+   saves, syncs or retries anything, and changes nothing that is stored.
+
+   ONE SYNC CONTROL: the page's own sync control (its Turn On Sync button,
+   its sync menu, Income & Expenditure's Sync Now) used to sit beside the
+   chip — two sync controls, two sync icons, side by side. The chip now takes
+   it into its panel, below the answer: the elements keep their ids and
+   handlers (the page's code shows and hides them as before), only where they
+   sit changes; the menu shows as a list, and the page's own status line,
+   which said what the chip says, gives way to it. In the dashboard's Light
+   theme (html[data-theme="light"]) the chip and panel are light too.
+   ============================================================================ */
+(function (root) {
+  'use strict';
+  var doc = root.document;
+  if (!doc) return;
+  var TOKEN_KEY = 'schoolDashboardGoogleAccessToken';
+  var EXPIRY_KEY = 'schoolDashboardGoogleTokenExpiry';
+  var openedAt = Date.now();
+  var lanOn = false;
+  var errSeen = {};
+
+  function store() { return root.CESTISStore || root.localStorage; }
+  function cloud() { return root.CESTISPageCloud; }
+  // The page-cloud stamps edits on its own clock (corrected towards Google's
+  // or the Centre server's); its Drive uploads are dated by this device's.
+  function clockSkew() {
+    try { var n = Date.parse(cloud().now()); return isNaN(n) ? 0 : n - Date.now(); } catch (e) { return 0; }
+  }
+
+  function inputs() {
+    var now = Date.now(), s = store(), pc = cloud();
+    var tok = null, exp = 0;
+    try { tok = s.getItem(TOKEN_KEY); exp = Date.parse(s.getItem(EXPIRY_KEY) || '') || 0; } catch (e) {}
+    var pages = (pc && pc._pages) || [];
+    var skew = clockSkew();
+    var connected = !!tok && (!exp || exp > now);
+    var online = root.navigator ? root.navigator.onLine !== false : true;
+    var pendingSince = null, edited = false, failures = 0, last = 0, trouble = false;
+    pages.forEach(function (p) {
+      if (!p || !p.spec || p.spec.readOnly) return;
+      var st = p.state || {};
+      // The last moment this page and its file agreed: its last upload, or
+      // its last read of the file.
+      var agreed = Math.max(Date.parse(st.lastPush || '') || 0, Date.parse(st.lastPull || '') || 0);
+      if (agreed > last) last = agreed;
+      // A Drive upload's error stays on the page after a later upload goes
+      // through; it counts only until the next successful one.
+      var memo = errSeen[p.spec.file];
+      if (!st.error) delete errSeen[p.spec.file];
+      else if (!memo || memo.msg !== st.error) memo = errSeen[p.spec.file] = { msg: st.error, push: st.lastPush || '' };
+      if (st.error && (st.backend === 'offline-server' || (st.lastPush || '') === memo.push)) {
+        failures++;
+        if (st.backend === 'offline-server') trouble = true;
+      }
+      // Edits made on this page since it was opened (page-cloud stamps every
+      // one). While it is connected each goes up within seconds, so they only
+      // matter when it cannot upload — and then no pull can stamp anything.
+      var stamps = {};
+      try { stamps = p.stamps() || {}; } catch (e) {}
+      Object.keys(stamps).forEach(function (k) {
+        if (k.charAt(0) === '_') return;
+        var t = Date.parse(stamps[k] || '');
+        if (!isNaN(t) && t > openedAt + skew + 1000) {
+          edited = true;
+          var local = t - skew;
+          if (!pendingSince || local < pendingSince) pendingSince = local;
+        }
+      });
+    });
+    if (doc.getElementById('cestisLanTrouble')) trouble = true;
+    var cannotUpload = lanOn ? trouble : (!online || !connected);
+    return { now: now, online: online, lan: lanOn, lanTrouble: trouble, connected: connected, tokenExpiresAt: exp || null,
+      signinExpired: !connected && !!tok && !!exp && exp <= now, canConnect: !lanOn && hasConnect,
+      pending: (cannotUpload && edited) || (!lanOn && connected && failures > 0),
+      pendingSince: cannotUpload && edited ? pendingSince : null, failures: failures, lastSavedAt: last || null };
+  }
+
+  var CSS = '.cestis-sync-chip-wrap{position:relative;display:inline-block;vertical-align:middle;font-family:"DM Sans",system-ui,sans-serif}' +
+    '.cestis-sync-chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:20px;cursor:pointer;font:600 12px/1.2 "DM Sans",system-ui,sans-serif;' +
+    'white-space:nowrap;background:rgba(12,17,23,.55);border:1px solid rgba(255,255,255,.18);color:#e8edf3}' +
+    '.cestis-sync-chip:hover{background:rgba(12,17,23,.75)}' +
+    '.cestis-sync-chip:focus-visible{outline:2px solid #f0a500;outline-offset:2px}' +
+    '.cestis-sync-chip-icon{display:inline-flex;width:14px;height:14px;flex-shrink:0;color:#8293a7}.cestis-sync-chip-icon svg{width:14px;height:14px;display:block}' +
+    '.cestis-sync-chip.tone-ok{border-color:rgba(46,204,113,.5)}.cestis-sync-chip.tone-ok .cestis-sync-chip-icon{color:#2ecc71}' +
+    '.cestis-sync-chip.tone-warn{border-color:rgba(240,165,0,.6)}.cestis-sync-chip.tone-warn .cestis-sync-chip-icon{color:#f0a500}' +
+    '.cestis-sync-chip.tone-bad{border-color:rgba(231,76,60,.7);background:rgba(120,30,20,.6)}.cestis-sync-chip.tone-bad .cestis-sync-chip-icon{color:#ff8a7a}' +
+    '.cestis-sync-chip-panel{position:absolute;right:0;top:calc(100% + 8px);width:290px;max-width:calc(100vw - 24px);z-index:100000;text-align:left;' +
+    'background:#1a2332;border:1px solid rgba(255,255,255,.12);border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,.45);padding:13px 15px;' +
+    'font:400 12.5px/1.45 "DM Sans",system-ui,sans-serif;color:#aab8c8;white-space:normal}' +
+    '.cestis-sync-chip-panel[hidden]{display:none}' +
+    '.cestis-sync-chip-panel b{display:block;color:#e8edf3;font-size:13.5px;margin-bottom:4px}' +
+    '.cestis-sync-chip-panel .last{margin-top:8px;color:#e8edf3;font-weight:600}' +
+    '.cestis-sync-chip-panel ul{margin:8px 0 0 16px;padding:0}.cestis-sync-chip-panel li{margin-top:4px}' +
+    /* the page's own sync control, in the panel */
+    '.cestis-sync-actions{margin:12px -15px -13px;padding:6px 0;border-top:1px solid rgba(255,255,255,.12);text-align:left}' +
+    '.cestis-sync-actions .cloud-status,.cestis-sync-actions .cloud-status-row,.cestis-sync-actions .cloud-status-label,.cestis-sync-actions .cloud-dropdown>.cloud-sync-btn{display:none!important}' +
+    '.cestis-sync-actions #cloudNotConnected button>:not(.cestis-turn-on){display:none!important}' +
+    '.cestis-sync-actions #cloudNotConnected button,.cestis-sync-actions #syncBtn{display:inline-flex!important;align-items:center;gap:7px;margin:6px 15px 8px!important;min-height:40px;padding:8px 14px!important;font:600 13px "DM Sans",system-ui,sans-serif!important;cursor:pointer}' +
+    '.cestis-sync-actions .cloud-dropdown,.cestis-sync-actions .cloud-sync-wrapper,.cestis-sync-actions #cloudSyncContainer{display:block!important;position:static!important;margin:0!important;padding:0!important;background:none!important;border:0!important}' +
+    '.cestis-sync-actions .cloud-dropdown-content{display:block!important;position:static!important;box-shadow:none!important;border:0!important;border-radius:0!important;margin:0!important;min-width:0!important;width:auto!important;max-height:none!important;background:transparent!important;opacity:1!important;transform:none!important;visibility:visible!important}' +
+    '.cestis-sync-actions .cloud-dropdown-item{min-height:40px;font-size:13px}' +
+    'html.cestis-sync-chip-on #cloudStatus,html.cestis-sync-chip-on .cloud-status-bar{display:none!important}' +
+    /* Light, as chosen on the dashboard */
+    'html[data-theme="light"] .cestis-sync-chip{background:#fff;border-color:#7f8ea2;color:#16233a}html[data-theme="light"] .cestis-sync-chip:hover{background:#f3f6f9}' +
+    'html[data-theme="light"] .cestis-sync-chip-icon{color:#55667c}html[data-theme="light"] .cestis-sync-chip:focus-visible{outline-color:#975700}' +
+    'html[data-theme="light"] .cestis-sync-chip.tone-ok{border-color:#156f39}html[data-theme="light"] .cestis-sync-chip.tone-ok .cestis-sync-chip-icon{color:#156f39}' +
+    'html[data-theme="light"] .cestis-sync-chip.tone-warn{border-color:#975700}html[data-theme="light"] .cestis-sync-chip.tone-warn .cestis-sync-chip-icon{color:#975700}' +
+    'html[data-theme="light"] .cestis-sync-chip.tone-bad{border-color:#c0281c;background:rgba(214,48,36,.10)}html[data-theme="light"] .cestis-sync-chip.tone-bad .cestis-sync-chip-icon{color:#c0281c}' +
+    'html[data-theme="light"] .cestis-sync-chip-panel{background:#fff;border-color:rgba(20,40,70,.17);box-shadow:0 4px 18px rgba(20,40,70,.12);color:#475870}' +
+    'html[data-theme="light"] .cestis-sync-chip-panel b,html[data-theme="light"] .cestis-sync-chip-panel .last{color:#16233a}' +
+    'html[data-theme="light"] .cestis-sync-actions{border-top-color:rgba(20,40,70,.17)}' +
+    '@media (max-width:600px){.cestis-sync-chip-label{display:none}.cestis-sync-chip{padding:7px 9px}' +
+    '.cestis-sync-chip-panel{position:fixed;left:12px;right:12px;top:64px;width:auto;max-width:none}}' +
+    '@media print{.cestis-sync-chip-wrap{display:none!important}}';
+
+  function el(tag, cls, text) { var e = doc.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  function mount(slot) {
+    if (slot.__chip) return slot.__chip;
+    var wrap = el('span', 'cestis-sync-chip-wrap');
+    var chip = el('button', 'cestis-sync-chip tone-warn');
+    chip.type = 'button';
+    chip.setAttribute('aria-expanded', 'false');
+    var icon = el('span', 'cestis-sync-chip-icon'); icon.setAttribute('aria-hidden', 'true');
+    var label = el('span', 'cestis-sync-chip-label', 'Checking…');
+    chip.appendChild(icon); chip.appendChild(label);
+    var panel = el('div', 'cestis-sync-chip-panel');
+    panel.setAttribute('role', 'dialog');
+    panel.hidden = true;
+    var pid = 'cestisSyncChipPanel' + Math.random().toString(36).slice(2, 7);
+    panel.id = pid; chip.setAttribute('aria-controls', pid);
+    var title = el('b'), detail = el('div'), last = el('div', 'last'), list = el('ul');
+    panel.appendChild(title); panel.appendChild(detail); panel.appendChild(last); panel.appendChild(list);
+    wrap.appendChild(chip); wrap.appendChild(panel);
+    slot.appendChild(wrap);
+    chip.addEventListener('click', function (e) {
+      e.stopPropagation();
+      render(slot.__chip);
+      panel.hidden = !panel.hidden;
+      chip.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+    });
+    doc.addEventListener('click', function (e) {
+      if (!panel.hidden && !wrap.contains(e.target)) { panel.hidden = true; chip.setAttribute('aria-expanded', 'false'); }
+    });
+    doc.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !panel.hidden) { panel.hidden = true; chip.setAttribute('aria-expanded', 'false'); chip.focus(); }
+    });
+    slot.__chip = { wrap: wrap, chip: chip, icon: icon, label: label, panel: panel, title: title, detail: detail, last: last, list: list };
+    absorb(slot.__chip);
+    return slot.__chip;
+  }
+
+  /* The page's own sync control moves into the panel (see ONE SYNC CONTROL
+     above). Only the first chip on a page takes it. */
+  var absorbed = false, hasConnect = false;
+  function absorb(c) {
+    if (absorbed) return;
+    var cont = doc.getElementById('cloudSyncContainer');
+    var parts = cont ? [cont] : [doc.getElementById('cloudNotConnected'), doc.getElementById('cloudConnected')];
+    parts.push(doc.getElementById('syncBtn'));   // Income & Expenditure's Sync Now
+    parts = parts.filter(function (p) { return p && !c.wrap.contains(p); });
+    if (!parts.length) return;
+    absorbed = true;
+    var box = el('div', 'cestis-sync-actions');
+    parts.forEach(function (p) { box.appendChild(p); });
+    // Turn On Sync, in the dashboard's words (the button's own spans give way).
+    var nc = box.querySelector('#cloudNotConnected');
+    hasConnect = !!nc;
+    if (nc) Array.prototype.forEach.call(nc.querySelectorAll('button'), function (b) {
+      var t = el('span', 'cestis-turn-on');
+      var ic = el('span', null, '🔄'); ic.setAttribute('aria-hidden', 'true');
+      t.appendChild(ic); t.appendChild(doc.createTextNode(' Turn On Sync'));
+      b.appendChild(t);
+      b.removeAttribute('title'); b.removeAttribute('aria-label');
+    });
+    // An action closes the panel (its own handler has already run).
+    box.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('button, .cloud-dropdown-item')) { c.panel.hidden = true; c.chip.setAttribute('aria-expanded', 'false'); }
+    });
+    c.panel.appendChild(box);
+    doc.documentElement.classList.add('cestis-sync-chip-on');
+  }
+
+  function render(c) {
+    var C = root.CESTISCore;
+    if (!c || !C || !C.ui || typeof C.ui.syncHealth !== 'function' || !cloud()) return;
+    var h = C.ui.syncHealth(inputs());
+    c.chip.className = 'cestis-sync-chip tone-' + h.tone;
+    c.chip.setAttribute('data-state', h.state);
+    c.chip.setAttribute('aria-label', h.label + ' — show details');
+    // A check or circular arrows: fixed markup from the shared core, no input in it.
+    if (typeof C.ui.syncIcon === 'function' && c.icon.getAttribute('data-icon') !== h.icon) {
+      c.icon.innerHTML = C.ui.syncIcon(h.icon);
+      c.icon.setAttribute('data-icon', h.icon);
+    }
+    c.label.textContent = h.chip || h.label;
+    c.title.textContent = h.label;
+    c.detail.textContent = h.detail;
+    c.last.textContent = h.lastSaved;
+    while (c.list.firstChild) c.list.removeChild(c.list.firstChild);
+    h.advice.forEach(function (a) { c.list.appendChild(el('li', null, a)); });
+    c.list.style.display = h.advice.length ? '' : 'none';
+  }
+
+  var chips = [], started = false;
+  function tick() { chips.forEach(function (c) { try { render(c); } catch (e) {} }); }
+  function start() {
+    if (started) return;
+    var slots = doc.querySelectorAll('[data-cestis-sync-chip]');
+    if (!slots.length) return;
+    started = true;
+    if (!doc.getElementById('cestisSyncChipCss')) {
+      var st = el('style'); st.id = 'cestisSyncChipCss'; st.textContent = CSS; (doc.head || doc.body).appendChild(st);
+    }
+    chips = Array.prototype.map.call(slots, mount);
+    try { if (cloud() && typeof cloud().lan === 'function') cloud().lan().then(function (on) { lanOn = !!on; tick(); }); } catch (e) {}
+    tick();
+    setInterval(tick, 3000);
+    root.addEventListener('online', tick);
+    root.addEventListener('offline', tick);
+  }
+
+  root.CESTISSyncChip = { inputs: inputs, refresh: tick };
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', start); else start();
+})(typeof window !== 'undefined' ? window : this);

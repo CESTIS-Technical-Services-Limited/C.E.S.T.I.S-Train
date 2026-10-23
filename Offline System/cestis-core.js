@@ -4072,11 +4072,135 @@
       });
     }
 
+    /* The one small "is my work safe?" answer the top bar shows (the sync
+       health chip). It only READS what the sync code already knows — it
+       decides nothing about saving. The chip used to say "Connected" or "Not
+       connected", so nobody could tell that their last edits existed only on
+       this computer (an expired sign-in, a failing upload, a dropped
+       connection) — exactly when a sign-out or a swapped PC loses work.
+       Every word it returns is neutral, by the owner's rule: it says whether
+       this computer's work has synced and what to do, never where it syncs to
+       or from (no Cloud, Google, Drive, the Centre's server or network) —
+       the lan/connected inputs change which answer is given, not its words.
+       s: {
+         now            ms
+         online         the browser believes it has a network (navigator.onLine)
+         lan            served by the Centre's own server (the Offline System)
+         lanTrouble     on that network, saves are not reaching the server
+         connected      a Google sign-in this device may still use
+         tokenExpiresAt ms when that sign-in ends (or null)
+         pending        work saved on this device that has not been uploaded
+         pendingSince   ms of the first such save (or null)
+         failures       uploads that have failed in a row
+         lastSavedAt    ms of the last upload that went through (or null)
+         staff          false for a role whose devices are not signed in for
+                        syncing (a trainee, the CMC board): not being
+                        connected is normal for them, never a warning
+         ownPending     (staff false) their own work not sent yet — a
+                        trainee's exam result still in the exam outbox
+         signinExpired  (staff) the sync sign-in this computer had has run out
+         canConnect     the panel below the answer holds a Turn On Sync button
+       }
+       Returns { state: 'saved'|'waiting'|'offline'|'attention', tone:
+       'ok'|'warn'|'bad', icon: 'check'|'sync', label, chip (the label's
+       words before its dash), detail, lastSaved, advice: [] }. Times are written by fmt(ms) — the page passes its own
+       clock format; HH:MM by default. No count is given for changes waiting:
+       the platform saves whole collections, so the only numbers it has count
+       internal files, not anyone's edits. */
+    function syncHealth(s, fmt) {
+      s = s || {};
+      var now = typeof s.now === 'number' ? s.now : Date.now();
+      var hhmm = typeof fmt === 'function' ? fmt : function (ms) {
+        var d = new Date(ms); var h = d.getHours(), m = d.getMinutes();
+        return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+      };
+      function ago(ms) {
+        var mins = Math.max(0, Math.round((now - ms) / 60000));
+        if (mins < 1) return 'just now';
+        if (mins < 60) return mins + ' min ago';
+        var hrs = Math.round(mins / 60);
+        if (hrs < 24) return hrs + (hrs === 1 ? ' hour ago' : ' hours ago');
+        var days = Math.round(hrs / 24);
+        return days + (days === 1 ? ' day ago' : ' days ago');
+      }
+      var last = s.lastSavedAt ? ('Last synced ' + hhmm(s.lastSavedAt) + ' (' + ago(s.lastSavedAt) + ')') : 'Not synced since this page was opened';
+      var since = s.pendingSince ? ' since ' + hhmm(s.pendingSince) : '';
+      var keepNote = 'Do not clear this browser’s data until this says All saved.';
+      var out;
+      if (s.staff === false) {
+        /* A trainee's (or a board member's) device is not signed in for
+           syncing, and that is normal: it used to show the same red "needs
+           attention" as an administrator whose sign-in had run out. Only their
+           own unsent work is worth a word — amber, never red. */
+        out = s.ownPending
+          ? { state: 'waiting', tone: 'warn', label: 'Waiting to send — your work is kept on this computer',
+              detail: 'Your latest work is kept on this computer and is sent by itself as soon as it can sync.',
+              advice: ['Nothing to do — keep working; nothing is lost.', 'If this stays for more than a day, ask the office.', keepNote] }
+          : { state: 'saved', tone: 'ok', label: 'All saved', detail: 'Nothing of yours is waiting to be sent.', advice: [] };
+        out.icon = out.state === 'saved' ? 'check' : 'sync';
+        out.chip = out.label.split(' — ')[0];
+        out.lastSaved = '';
+        return out;
+      }
+      if (s.lan ? s.lanTrouble : s.online === false) {
+        // Offline is not a fault: amber, with or without changes waiting.
+        out = { state: 'offline', tone: 'warn', label: 'Not synced yet — your work is kept on this computer',
+          detail: s.pending ? 'Your changes' + since + ' are kept on this computer and have not synced yet.'
+                            : 'This computer cannot sync right now. Anything you change is kept on it.',
+          advice: ['Keep working — your changes sync by themselves as soon as this computer can sync again.',
+                   'If this does not clear in a few minutes, ask the office.', keepNote] };
+      } else if (!s.lan && !s.connected) {
+        // Red only when the sign-in this computer had has run out (or saves
+        // are failing); a computer not yet set up for syncing is amber.
+        out = { state: 'attention', tone: (s.signinExpired || (s.failures || 0) >= 1) ? 'bad' : 'warn', label: 'Sync needs attention — ask the office',
+          detail: (s.signinExpired ? 'The sync sign-in on this computer has expired. ' : '') +
+                  (s.pending ? 'Your changes' + since + ' are kept on this computer only and have not synced.'
+                             : 'This computer is not syncing at the moment.'),
+          advice: [!s.canConnect ? 'Ask the office to set up syncing on this computer.'
+                   : s.signinExpired ? 'Press Turn On Sync below to sign in again, or ask the office.'
+                   : 'Press Turn On Sync below, or ask the office to set up syncing on this computer.', keepNote] };
+      } else if (s.pending) {
+        var failing = (s.failures || 0) >= 1;
+        out = { state: 'waiting', tone: failing ? 'bad' : 'warn', label: 'Changes waiting to sync',
+          detail: failing ? 'The last sync did not go through; it is tried again every few seconds.'
+                          : 'Your latest changes' + since + ' are syncing now.',
+          advice: failing ? ['If this stays for more than a few minutes, ask the office.', keepNote]
+                          : ['Nothing to do — this turns to All saved once they have synced.'] };
+      } else {
+        out = { state: 'saved', tone: 'ok', label: 'All saved',
+          detail: 'Everything on this computer has synced.', advice: [] };
+      }
+      out.icon = out.state === 'saved' ? 'check' : 'sync';
+      // The chip itself shows the words before the dash ("Not synced yet");
+      // the whole sentence heads its panel and is what a screen reader hears.
+      // The full sentences do not all fit a laptop's top bar beside Lock and
+      // Sign Out.
+      out.chip = out.label.split(' — ')[0];
+      out.lastSaved = last;
+      // A sign-in about to end: say so while there is still time to renew it.
+      if (!s.lan && s.connected && s.tokenExpiresAt && s.tokenExpiresAt - now < 10 * 60000 && s.tokenExpiresAt > now) {
+        out.advice = out.advice.concat(['Syncing on this computer must be renewed by ' + hhmm(s.tokenExpiresAt) + ' — ask the office before then.']);
+        if (out.tone === 'ok') out.tone = 'warn';
+      }
+      return out;
+    }
+
+    /* The chip's icon: a check once everything has synced, circular arrows
+       otherwise — a neutral sign of syncing, never a cloud. Fixed markup (no
+       input reaches it), coloured by the chip's tone through currentColor. */
+    var SYNC_ICONS = {
+      check: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      sync: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>'
+    };
+    function syncIcon(name) { return SYNC_ICONS[name] || SYNC_ICONS.sync; }
+
     return {
       keyboardRoleFor: keyboardRoleFor,
       toastPolicy: toastPolicy,
       alertKind: alertKind,
-      liveSessionsFor: liveSessionsFor
+      liveSessionsFor: liveSessionsFor,
+      syncHealth: syncHealth,
+      syncIcon: syncIcon
     };
   })();
 
