@@ -156,6 +156,8 @@ const LIGHT_ONLY = [
   ['a blue badge', 'blue', 'blue-dim', 'bg-card', 4.5],
   ['a purple badge', 'purple', 'purple-dim', 'bg-card', 4.5],
   ['a form field\'s border', 'input-border', 'bg-input', 3],
+  ['a chat message\'s time, on a received bubble', 'chat-meta', 'bg-card', 4.5],
+  ['a chat message on a sent bubble', 'text-primary', '#cde7d5', 4.5],
   ['white on a green button', '#ffffff', 'green', 4.5],
   ['white on a red button', '#ffffff', 'red', 4.5],
   ['white on a blue button', '#ffffff', 'blue', 4.5],
