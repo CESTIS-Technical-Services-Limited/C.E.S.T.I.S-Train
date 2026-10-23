@@ -4093,6 +4093,13 @@
          pendingSince   ms of the first such save (or null)
          failures       uploads that have failed in a row
          lastSavedAt    ms of the last upload that went through (or null)
+         staff          false for a role whose devices are not signed in for
+                        syncing (a trainee, the CMC board): not being
+                        connected is normal for them, never a warning
+         ownPending     (staff false) their own work not sent yet — a
+                        trainee's exam result still in the exam outbox
+         signinExpired  (staff) the sync sign-in this computer had has run out
+         canConnect     the panel below the answer holds a Turn On Sync button
        }
        Returns { state: 'saved'|'waiting'|'offline'|'attention', tone:
        'ok'|'warn'|'bad', icon: 'check'|'sync', label, chip (the label's
@@ -4120,17 +4127,38 @@
       var since = s.pendingSince ? ' since ' + hhmm(s.pendingSince) : '';
       var keepNote = 'Do not clear this browser’s data until this says All saved.';
       var out;
+      if (s.staff === false) {
+        /* A trainee's (or a board member's) device is not signed in for
+           syncing, and that is normal: it used to show the same red "needs
+           attention" as an administrator whose sign-in had run out. Only their
+           own unsent work is worth a word — amber, never red. */
+        out = s.ownPending
+          ? { state: 'waiting', tone: 'warn', label: 'Waiting to send — your work is kept on this computer',
+              detail: 'Your latest work is kept on this computer and is sent by itself as soon as it can sync.',
+              advice: ['Nothing to do — keep working; nothing is lost.', 'If this stays for more than a day, ask the office.', keepNote] }
+          : { state: 'saved', tone: 'ok', label: 'All saved', detail: 'Nothing of yours is waiting to be sent.', advice: [] };
+        out.icon = out.state === 'saved' ? 'check' : 'sync';
+        out.chip = out.label.split(' — ')[0];
+        out.lastSaved = '';
+        return out;
+      }
       if (s.lan ? s.lanTrouble : s.online === false) {
-        out = { state: 'offline', tone: s.pending ? 'bad' : 'warn', label: 'Not synced yet — your work is kept on this computer',
+        // Offline is not a fault: amber, with or without changes waiting.
+        out = { state: 'offline', tone: 'warn', label: 'Not synced yet — your work is kept on this computer',
           detail: s.pending ? 'Your changes' + since + ' are kept on this computer and have not synced yet.'
                             : 'This computer cannot sync right now. Anything you change is kept on it.',
           advice: ['Keep working — your changes sync by themselves as soon as this computer can sync again.',
                    'If this does not clear in a few minutes, ask the office.', keepNote] };
       } else if (!s.lan && !s.connected) {
-        out = { state: 'attention', tone: s.pending ? 'bad' : 'warn', label: 'Sync needs attention — ask the office',
-          detail: s.pending ? 'Your changes' + since + ' are kept on this computer only and have not synced.'
-                            : 'This computer is not syncing at the moment.',
-          advice: ['Ask the office to set up syncing on this computer.', keepNote] };
+        // Red only when the sign-in this computer had has run out (or saves
+        // are failing); a computer not yet set up for syncing is amber.
+        out = { state: 'attention', tone: (s.signinExpired || (s.failures || 0) >= 1) ? 'bad' : 'warn', label: 'Sync needs attention — ask the office',
+          detail: (s.signinExpired ? 'The sync sign-in on this computer has expired. ' : '') +
+                  (s.pending ? 'Your changes' + since + ' are kept on this computer only and have not synced.'
+                             : 'This computer is not syncing at the moment.'),
+          advice: [!s.canConnect ? 'Ask the office to set up syncing on this computer.'
+                   : s.signinExpired ? 'Press Turn On Sync below to sign in again, or ask the office.'
+                   : 'Press Turn On Sync below, or ask the office to set up syncing on this computer.', keepNote] };
       } else if (s.pending) {
         var failing = (s.failures || 0) >= 1;
         out = { state: 'waiting', tone: failing ? 'bad' : 'warn', label: 'Changes waiting to sync',

@@ -61,16 +61,38 @@ assert(/since 14:56/.test(r.detail), 'since when: ' + r.detail);
 r = S({ pending: true, failures: 3 });
 assert(r.state === 'waiting' && r.tone === 'bad' && /did not go through/.test(r.detail) && /ask the office/.test(r.advice[0]), 'syncs failing: still waiting, now red, says why and who helps');
 r = S({ online: false, pending: true, pendingSince: NOW - 12 * 60000 });
-assert(r.state === 'offline' && r.label === 'Not synced yet — your work is kept on this computer' && r.tone === 'bad', 'no connection with unsent work: Not synced yet — your work is kept on this computer');
+assert(r.state === 'offline' && r.label === 'Not synced yet — your work is kept on this computer' && r.tone === 'warn', 'no connection with unsent work: Not synced yet — your work is kept on this computer (amber: offline is not a fault)');
 assert(/sync by themselves/.test(r.advice.join(' ')) && /ask the office/.test(r.advice.join(' ')) && /Do not clear this browser/.test(r.advice.join(' ')),
   'and what to do (keep working; ask the office if it stays; do not clear the browser)');
 r = S({ online: false });
 assert(r.state === 'offline' && r.tone === 'warn', 'cannot sync with nothing waiting is amber, not red');
 r = S({ connected: false, pending: true, pendingSince: NOW - 25 * 60000 });
-assert(r.state === 'attention' && r.label === 'Sync needs attention — ask the office' && r.tone === 'bad', 'not set up to sync, with unsent work: Sync needs attention — ask the office (red)');
+assert(r.state === 'attention' && r.label === 'Sync needs attention — ask the office' && r.tone === 'warn', 'not set up to sync, with unsent work: Sync needs attention — ask the office (amber)');
 assert(/kept on this computer only/.test(r.detail) && /ask the office/i.test(r.advice[0]), 'saying the work is only here, and who sets it up');
 r = S({ connected: false });
 assert(r.state === 'attention' && r.tone === 'warn', 'not set up to sync, nothing waiting: amber');
+r = S({ connected: false, signinExpired: true, pending: true });
+assert(r.state === 'attention' && r.tone === 'bad' && /sign-in on this computer has expired/.test(r.detail), 'a sync sign-in that has run out: red, and it says so');
+assert(S({ connected: false, failures: 2 }).tone === 'bad', 'saves failing while not connected: red');
+assert(/^Ask the office to set up syncing/.test(S({ connected: false }).advice[0]), 'with no Turn On Sync button beside it, the advice is to ask the office');
+assert(/^Press Turn On Sync below, or ask the office/.test(S({ connected: false, canConnect: true }).advice[0]), 'with the button in the panel, it names it');
+assert(/^Press Turn On Sync below to sign in again/.test(S({ connected: false, canConnect: true, signinExpired: true }).advice[0]), 'and, when the sign-in ran out, says to sign in again');
+
+console.log('A trainee\'s or board member\'s device: not being connected is normal');
+// Their devices are not signed in for syncing; the chip used to show them
+// the same red "Sync needs attention" as an administrator whose sign-in ran out.
+[{ connected: false }, { connected: false, pending: true, failures: 3 }, { online: false }, { connected: false, signinExpired: true }, { lan: true, lanTrouble: true }].forEach(o => {
+  r = S(Object.assign({ staff: false }, o));
+  assert(r.state === 'saved' && r.tone === 'ok' && r.label === 'All saved' && r.icon === 'check' && r.advice.length === 0 && r.lastSaved === '',
+    'nothing of their own waiting (' + JSON.stringify(o) + '): All saved, calm, with a check');
+});
+r = S({ staff: false, connected: false, ownPending: true });
+assert(r.state === 'waiting' && r.tone === 'warn' && r.chip === 'Waiting to send' && /kept on this computer/.test(r.detail), 'their own result still to send: Waiting to send, amber');
+[{ online: false }, { failures: 4 }, { signinExpired: true }].forEach(o => assert(S(Object.assign({ staff: false, ownPending: true, connected: false }, o)).tone === 'warn', 'never red for them (' + JSON.stringify(o) + ')'));
+[S({ staff: false }), S({ staff: false, ownPending: true })].forEach(o => {
+  const words = [o.label, o.detail, o.lastSaved].concat(o.advice).join(' ');
+  assert(!/cloud|☁|google|\bdrive\b|gmail|server|network|\blan\b|offline|internet|emailjs|peerjs|broker|megadata/i.test(words), 'their words name no place: ' + o.label);
+});
 
 console.log('On the Centre\'s own network no sign-in is needed (the words do not change)');
 r = S({ lan: true, connected: false });
@@ -120,29 +142,40 @@ assert(Core.ui.syncIcon('anything') === iconSync, 'an unknown name falls back to
 assert(!/cloud|☁|<text|<image|href/i.test(iconCheck + iconSync), 'no cloud, text, image or link inside them');
 
 /* ---------- 2. The dashboard chip reads; it never writes ---------- */
-console.log('The dashboard chip sits in the top bar and only reads');
+console.log('The dashboard has ONE sync control: the answer, and (for staff) the sync actions in its panel');
 const topbar = INDEX.slice(INDEX.indexOf('<header class="topbar">'), INDEX.indexOf('</header>', INDEX.indexOf('<header class="topbar">')));
-assert(/<button type="button" class="sync-chip[^"]*" id="syncChip" onclick="toggleSyncChipPanel\(event\)" aria-expanded="false" aria-controls="syncChipPanel">/.test(topbar), 'a real button that says it opens a panel');
+assert(/<button type="button" class="sync-chip[^"]*" id="syncChip" onclick="toggleSyncChipPanel\(event\)" aria-expanded="false" aria-controls="syncChipPanel" aria-haspopup="dialog">/.test(topbar), 'a real button that says it opens a panel');
 assert(/id="syncChipPanel" role="dialog"[^>]*hidden/.test(topbar), 'the panel is a labelled dialog, closed at first');
-assert(topbar.indexOf('id="syncChip"') < topbar.indexOf('<!-- Cloud Sync Dropdown -->'), 'beside the Connect button');
-const chipHtml = topbar.slice(topbar.indexOf('<div class="sync-chip-wrap"'), topbar.indexOf('<!-- Cloud Sync Dropdown -->')).replace(/<!--[\s\S]*?-->/g, '');
+const panelStart = topbar.indexOf('id="syncChipPanel"');
+const panelEnd = topbar.indexOf('<!-- End Cloud Sync -->');
+const panelHtml = topbar.slice(panelStart, panelEnd);
+const outside = topbar.slice(0, panelStart) + topbar.slice(panelEnd);
+// The old second sync button (its own 🔄 icon and "Not synced yet"/"Sync ▼")
+// sat beside the chip: two sync icons side by side. Its actions now live in
+// the chip's panel; nothing in the bar outside the panel is a sync button.
+assert(!/class="cloud-sync-btn/.test(outside) && !/🔄/.test(outside) && !/toggleCloudMenu\(\)|connectToGoogleDrive\(\)/.test(outside), 'no second sync button or sync icon in the bar');
+assert(/id="cloudNotConnected"/.test(panelHtml) && /id="cloudConnected"/.test(panelHtml) && /id="cloudDropdownMenu"/.test(panelHtml), 'the sync actions (and the ids the sync code drives) are inside the panel');
+['saveToCloud()', 'syncFromCloud()', 'mergeFromCloud()', 'browseBackupFiles()', 'restoreFromMasterBackup()', 'syncAllUserLoginFoldersToDrive()', 'disconnectFromGoogleDrive()', 'connectToGoogleDrive()'].forEach(fn =>
+  assert(new RegExp('<button type="button" class="[^"]*" onclick="closeSyncChipPanel\\(\\); ' + fn.replace(/[()]/g, '\\$&') + '"').test(panelHtml), fn + ' is a button in the panel that closes it first'));
+assert(/>Turn On Sync</.test(panelHtml) && />Send My Changes</.test(panelHtml) && />Get Latest Changes</.test(panelHtml), 'in the neutral words (Turn On Sync, Send My Changes, Get Latest Changes)');
+assert(/function toggleCloudMenu\(\) \{\s*toggleSyncChipPanel\(\);\s*\}/.test(INDEX), '"open the sync menu" opens that one panel');
+assert(/\.sync-panel-actions \{ display:none;/.test(INDEX) && /\.sync-chip-wrap\.staff \.sync-panel-actions \{ display:block; \}/.test(INDEX), 'the actions show for staff only');
+assert(/wrap\.classList\.toggle\('staff', !!inp\.staff\)/.test(extractFunction(INDEX, 'refreshSyncChip')), 'and the control is marked staff from the signed-in role');
+assert(/SYNC_STAFF_ROLES = \{ admin: 1, adminstaff: 1, instructor: 1 \}/.test(INDEX), 'staff: administrators, admin staff and instructors');
+assert(/_syncChipSyncing = !!syncing; refreshSyncChip\(\)/.test(extractFunction(INDEX, 'setCloudSyncing')) && /is-syncing/.test(extractFunction(INDEX, 'refreshSyncChip')), 'a sync in progress turns the control\'s arrows ("Syncing…")');
+const chipHtml = topbar.slice(topbar.indexOf('<div class="sync-chip-wrap"'), panelEnd).replace(/<!--[\s\S]*?-->/g, '');
 assert(/<span class="sync-chip-icon" id="syncChipIcon" aria-hidden="true"><\/span>/.test(chipHtml) && !/sync-chip-dot/.test(chipHtml), 'the chip carries an icon slot (no bare dot)');
-assert(chipHtml.length > 200 && !SOURCE_WORDS.test(chipHtml), 'the chip and its panel markup name no place');
+assert(chipHtml.length > 200 && !SOURCE_WORDS.test(chipHtml.replace(/<[^>]*>/g, ' ')), 'the words of the control and its panel name no place (its class names and ids are code)');
 assert(/icon\.innerHTML = CESTISCore\.ui\.syncIcon\(h\.icon\)/.test(extractFunction(INDEX, 'refreshSyncChip')), 'its icon comes from the shared core (check or arrows)');
-// The one attribute this preview added to the Connect button beside the chip
-// (the button's own icon and words are the wording sweep's, not this preview's).
-const connectBtn = /<button class="cloud-sync-btn" onclick="connectToGoogleDrive\(\)"([^>]*)>/.exec(topbar);
-assert(connectBtn && /title="Connect this computer for syncing" aria-label="Connect this computer for syncing"/.test(connectBtn[1]) && !SOURCE_WORDS.test(connectBtn[1]),
-  'the Connect button\'s tooltip and label name no place');
 assert(!/<span class="sync-chip-dot"|\.sync-chip-dot/.test(INDEX), 'no leftover dot styles');
 ['syncChipInputs', 'refreshSyncChip', 'toggleSyncChipPanel'].forEach(fn => {
   const body = extractFunction(INDEX, fn);
   assert(!/setItem\(|removeItem\(|saveState\(|autoSaveToAllFolders|saveToCloud|syncFromCloud|mergeFromCloud|saveNow\(|loadNow\(/.test(body), fn + '() writes nothing and starts no sync');
 });
-assert(/CESTISCore\.ui\.syncHealth\(syncChipInputs\(\)\)/.test(extractFunction(INDEX, 'refreshSyncChip')), 'the words come from the shared rule');
+assert(/var inp = syncChipInputs\(\);\s*var h = CESTISCore\.ui\.syncHealth\(inp\);/.test(extractFunction(INDEX, 'refreshSyncChip')), 'the words come from the shared rule');
 assert(/typeof CESTISCore\.ui\.syncHealth !== 'function'/.test(extractFunction(INDEX, 'refreshSyncChip')), 'and a cached older cestis-core.js only hides the chip');
 const inputs = extractFunction(INDEX, 'syncChipInputs');
-['cestisPendingUpload', '_consecutiveCloudSaveFailures', 'schoolDashboardGoogleTokenExpiry', 'isCloudConnected', 'navigator.onLine', 'CESTISPageCloud.status()'].forEach(k =>
+['cestisPendingUpload', '_consecutiveCloudSaveFailures', 'schoolDashboardGoogleTokenExpiry', 'isCloudConnected', 'navigator.onLine', 'CESTISPageCloud.status()', 'SYNC_STAFF_ROLES[currentRole]', 'examOutboxRead()'].forEach(k =>
   assert(inputs.indexOf(k) !== -1, 'it reads ' + k));
 
 /* ---------- 3. The sibling chip ---------- */
@@ -183,7 +216,7 @@ const page = (stamps, state) => ({ spec: { file: 'F.json' }, state: Object.assig
 let sb = sibling({ pages: [page({ cesti_virements: later() })] });
 let inp = sb.CESTISSyncChip.inputs();
 assert(!inp.connected && inp.pending && inp.pendingSince, 'not set up to sync and an edit since the page opened: waiting, with since when');
-assert(Core.ui.syncHealth(inp).state === 'attention' && Core.ui.syncHealth(inp).tone === 'bad', '→ Sync needs attention — ask the office, red');
+assert(Core.ui.syncHealth(inp).state === 'attention' && Core.ui.syncHealth(inp).tone === 'warn', '→ Sync needs attention — ask the office, amber (not set up is not a fault)');
 sb = sibling({ pages: [page({ cesti_virements: '2026-01-01T00:00:00.000Z' })] });
 assert(!sb.CESTISSyncChip.inputs().pending, 'an edit from before the page was opened is not counted as this visit\'s');
 const tok = { schoolDashboardGoogleAccessToken: 't', schoolDashboardGoogleTokenExpiry: new Date(Date.now() + 3600e3).toISOString() };

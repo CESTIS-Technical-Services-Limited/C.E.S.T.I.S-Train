@@ -42,9 +42,11 @@ function attrsOf(tag) {
   while ((m = rx.exec(tag))) a[m[1].toLowerCase()] = m[2];
   return a;
 }
-// The body of the first @media(max-width:768px) block that contains `needle`.
+// The body of the first @media(max-width:960px) block that contains `needle`.
+// (The magnifier serves phones and, since the combined preview, the narrow
+// laptops where the top bar has no room left for the box: 960px and below.)
 function mediaBlockWith(needle) {
-  const rx = /@media\s*\(max-width:\s*768px\)\s*\{/g; let m;
+  const rx = /@media\s*\(max-width:\s*960px\)\s*\{/g; let m;
   while ((m = rx.exec(INDEX))) {
     let depth = 0, i = INDEX.indexOf('{', m.index);
     for (; i < INDEX.length; i++) {
@@ -78,8 +80,9 @@ console.log('A computer never shows the phone buttons; a phone does, and the ope
   assert(/\.topbar \.topbar-search-toggle, \.topbar-search \.topbar-search-close \{ display:none; \}/.test(INDEX),
     'outside the phone rules both phone buttons are hidden (and win over .topbar-btn\'s display:flex)');
   const m = mediaBlockWith('.topbar-search-toggle');
-  assert(!!m, 'the phone rules (max-width:768px) mention the toggle');
+  assert(!!m, 'the rules for 960px and below (phones and narrow laptops) mention the toggle');
   assert(/\.topbar \.topbar-search-toggle \{ display:flex; width:44px; height:44px; \}/.test(m), 'on a phone the button shows, 44x44');
+  assert(/\.topbar \.topbar-btn:not\(\.topbar-search-toggle\) \{ width:34px; \}/.test(INDEX), 'the phone\'s narrower top-bar buttons leave the magnifier at 44px');
   assert(/\.topbar-search \{ display:none; \}/.test(m), 'the folded box stays hidden until opened');
   assert(/\.topbar\.search-open \.topbar-search \{[^}]*position:absolute; inset:0;/.test(m), 'opened, the box covers the bar edge to edge');
   assert(/\.topbar\.search-open \.search-results \{[^}]*top:100%; left:0; right:0;/.test(m), 'and the results fill the width below it');

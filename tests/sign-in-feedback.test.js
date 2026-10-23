@@ -166,6 +166,20 @@ console.log('A wrong password: the message is under the card, no pop-up, still n
   assert(/id="topbarWho"/.test(topbar) && /id="topbarWhoName"/.test(topbar) && /id="topbarWhoRole"/.test(topbar), 'the top bar has a who-is-signed-in block');
   assert(/<button type="button" class="topbar-lock-btn" id="topbarLockBtn" onclick="lockSessionNow\(\)" aria-label="[^"]+"/.test(topbar), 'and a labelled Lock button');
   assert(topbar.indexOf('topbarLockBtn') < topbar.indexOf('class="logout-btn"'), 'Lock sits just before Sign Out');
+  // Narrow screens: the who block (initials) opens a menu holding Lock, the
+  // Light/Dark switch, Two-Step Verification and Sign Out, so the page's name
+  // shows in full on a phone (combined preview).
+  assert(/<button type="button" class="topbar-who" id="topbarWho" title="Signed in" onclick="toggleAccountMenu\(event\)" aria-haspopup="menu" aria-expanded="false" aria-controls="topbarAccountMenu">/.test(topbar), 'the who block is a button that opens the account menu');
+  const acct = topbar.slice(topbar.indexOf('id="topbarAccountMenu"'), topbar.indexOf('id="topbarLockBtn"'));
+  assert(/role="menu"/.test(acct) && /hidden>/.test(acct), 'a menu, closed at first');
+  [['lockSessionNow\\(\\)', 'Lock'], ['cestisToggleTheme\\(\\)', 'Light mode'], ['tfaOpenManage\\(\\)', 'Two-Step Verification'], ['logout\\(\\)', 'Sign Out']].forEach(([fn, word]) =>
+    assert(new RegExp('role="menuitem"[^>]*onclick="[^"]*' + fn + '"[\\s\\S]*?' + word).test(acct), 'the menu holds ' + word));
+  assert(/data-theme-toggle onclick="cestisToggleTheme\(\)"/.test(acct), 'its Light/Dark item is kept in step with the theme like the other switches');
+  const narrow = (INDEX.match(/@media \(max-width:960px\) \{[\s\S]*?\n\}/) || [''])[0];
+  assert(/\.topbar-lock-btn, \.topbar \.theme-toggle, \.topbar \.topbar-tfa-btn \{ display:none; \}/.test(narrow), '960px and below: Lock, Light/Dark and Two-Step leave the bar for the menu');
+  assert(/\.topbar \.logout-btn \{ display:none; \}/.test(INDEX), 'on a phone, Sign Out is in the menu too');
+  const tam = extractFunction(INDEX, 'toggleAccountMenu');
+  assert(/closeSyncChipPanel\(\)/.test(tam) && /aria-expanded/.test(tam), 'opening it closes the sync panel and says it is open');
   const lockNow = extractFunction(INDEX, 'lockSessionNow');
   assert(/openIdleLock\(true\)/.test(lockNow) && /!currentRole \|\| _sessionLocked/.test(lockNow), 'Lock opens the existing idle lock, once, only when signed in');
   const sb2 = { document: { getElementById: id => sb2.els[id] || (sb2.els[id] = { textContent: '', value: '', style: {} }) }, els: {}, opened: [],
@@ -212,7 +226,9 @@ console.log('A wrong password: the message is under the card, no pop-up, still n
   INDEX.replace(/signInSay\([^,]+,\s*('(?:[^'\\]|\\.)*')/g, (m, s) => { said.push(s); return m; });
   assert(said.length >= 20, 'the card messages were found (' + said.length + ')');
   said.forEach(s => assert(!SOURCE_WORDS.test(s), 'card message names no place: ' + s));
-  const whoLock = topbar.slice(topbar.indexOf('<div class="topbar-who"'), topbar.indexOf('</button>', topbar.indexOf('id="topbarLockBtn"')));
+  // The who block is now a button that opens the account menu (Lock,
+  // Light/Dark, Two-Step Verification, Sign Out) — all of it is read here.
+  const whoLock = topbar.slice(topbar.indexOf('<div class="topbar-account"'), topbar.indexOf('</button>', topbar.indexOf('id="topbarLockBtn"')));
   assert(whoLock.length > 100 && !SOURCE_WORDS.test(whoLock.replace(/<!--[\s\S]*?-->/g, '')), 'the who block and Lock button (text, tooltip, aria-label) name no place');
   ['You locked this session.', 'This session was left idle, so it has been locked.'].forEach(s =>
     assert(INDEX.indexOf(s) !== -1 && !SOURCE_WORDS.test(s), 'the lock\'s first line names no place: ' + s));

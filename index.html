@@ -1144,22 +1144,37 @@ html[data-theme="light"] .theme-ico-moon, html[data-theme="light"] .theme-to-dar
   transition:all var(--transition);
 }
 .logout-btn:hover { background:rgba(231,76,60,0.2); }
-/* Who is signed in, and the Lock button beside Sign Out. */
-.topbar-who { display:none; align-items:center; gap:8px; min-width:0; max-width:220px; }
+/* Who is signed in (pressed: the account menu), and the Lock button beside Sign Out. */
+.topbar-account { position:relative; }
+.topbar-who { display:none; align-items:center; gap:8px; min-width:0; max-width:220px; padding:2px 6px 2px 2px; margin:0;
+  background:none; border:0; border-radius:22px; color:inherit; font-family:'DM Sans',sans-serif; text-align:left; cursor:pointer; }
 .topbar-who.on { display:flex; }
+.topbar-who:hover { background:var(--w-06); }
 .topbar-who-avatar {
   width:28px; height:28px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
-  font-size:12px; font-weight:700; color:#000; background:linear-gradient(135deg,var(--accent),var(--orange));
+  font-size:12px; font-weight:700; color:var(--on-accent); background:linear-gradient(135deg,var(--accent-fill),var(--accent-end));
 }
 .topbar-who-text { display:flex; flex-direction:column; min-width:0; line-height:1.2; }
 .topbar-who-name { font-size:12.5px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .topbar-who-role { font-size:12px; color:var(--text-muted); white-space:nowrap; }
+.topbar-account-menu {
+  position:absolute; right:0; top:calc(100% + 8px); min-width:240px; z-index:1002; padding:6px 0;
+  background:var(--bg-card); border:1px solid var(--border-light); border-radius:var(--radius-sm); box-shadow:var(--shadow);
+}
+.topbar-account-menu[hidden] { display:none; }
+.tam-who { padding:8px 16px 10px; margin-bottom:4px; border-bottom:1px solid var(--border-light); font-size:14px; font-weight:600; color:var(--text-primary); }
+.tam-who span { display:block; font-size:12px; font-weight:400; color:var(--text-muted); }
+.tam-item { display:flex; align-items:center; gap:12px; width:100%; min-height:44px; padding:0 16px; margin:0;
+  background:none; border:0; color:var(--text-primary); font:500 14px 'DM Sans',sans-serif; text-align:left; cursor:pointer; }
+.tam-item:hover { background:var(--w-06); }
+.tam-item svg { flex-shrink:0; color:var(--text-secondary); }
+.tam-item.tam-signout, .tam-item.tam-signout svg { color:var(--red); }
 .topbar-lock-btn {
-  display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); border:1px solid var(--border-light);
+  display:flex; align-items:center; gap:6px; background:var(--w-06); border:1px solid var(--border-light);
   color:var(--text-primary); padding:7px 12px; border-radius:var(--radius-sm); font-size:12px; font-weight:600;
   font-family:'DM Sans',sans-serif; cursor:pointer; transition:all var(--transition);
 }
-.topbar-lock-btn:hover { background:rgba(255,255,255,0.1); border-color:var(--accent); color:var(--accent); }
+.topbar-lock-btn:hover { background:var(--w-10); border-color:var(--accent); color:var(--accent); }
 @media (max-width:1100px) { .topbar-who-text { display:none; } }
 
 /* MAIN */
@@ -2244,47 +2259,61 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   font-family:'DM Sans',sans-serif; transition:all var(--transition);
 }
 .cloud-sync-btn:hover { background:var(--w-10); }
-/* The sync health chip and its small panel. Colour is never the only sign:
-   the words say the state. */
+/* ONE sync control: the answer (its icon and short words, or the icon alone
+   where the bar is narrow — the words stay in its tooltip and aria-label) and,
+   pressed, one panel with the whole answer, what to do and, for staff, the
+   sync actions that used to sit in a second sync button beside it. Colour is
+   never the only sign. Drawn from the theme tokens, so it reads in Dark and
+   in Light. */
 .sync-chip-wrap { position:relative; display:none; }
 .sync-chip-wrap.on { display:block; }
 .sync-chip {
-  display:flex; align-items:center; gap:7px; padding:6px 11px; border-radius:20px; cursor:pointer;
+  display:flex; align-items:center; gap:7px; min-height:36px; padding:6px 12px; border-radius:20px; cursor:pointer;
   font-size:12px; font-weight:600; font-family:'DM Sans',sans-serif; white-space:nowrap;
-  background:rgba(255,255,255,0.05); border:1px solid var(--border-light); color:var(--text-primary);
+  background:var(--w-05); border:1px solid var(--input-border); color:var(--text-primary);
 }
-.sync-chip:hover { background:rgba(255,255,255,0.1); }
+.sync-chip:hover { background:var(--w-10); }
 /* Its icon: a check when all is saved, circular arrows otherwise (never a
-   cloud — CESTISCore.ui.syncIcon), in the tone's colour. */
-.sync-chip-icon { display:flex; width:14px; height:14px; flex-shrink:0; color:var(--text-muted); }
-.sync-chip-icon svg { width:14px; height:14px; display:block; }
-.sync-chip.tone-ok { border-color:rgba(46,204,113,0.35); }
+   cloud — CESTISCore.ui.syncIcon), in the tone's colour; the arrows turn
+   while a sync is running. */
+.sync-chip-icon { display:flex; width:16px; height:16px; flex-shrink:0; color:var(--text-muted); }
+.sync-chip-icon svg { width:16px; height:16px; display:block; }
+.sync-chip.tone-ok { border-color:var(--green); }
 .sync-chip.tone-ok .sync-chip-icon { color:var(--green); }
-.sync-chip.tone-warn { border-color:rgba(240,165,0,0.45); }
+.sync-chip.tone-warn { border-color:var(--accent); }
 .sync-chip.tone-warn .sync-chip-icon { color:var(--accent); }
-.sync-chip.tone-bad { border-color:rgba(231,76,60,0.55); background:rgba(231,76,60,0.1); }
-.sync-chip.tone-bad .sync-chip-icon { color:#ff8a7a; }
+.sync-chip.tone-bad { border-color:var(--red); background:var(--red-dim); }
+.sync-chip.tone-bad .sync-chip-icon { color:var(--red-text); }
+.sync-chip.is-syncing .sync-chip-icon svg { animation:spin 1s linear infinite; }
 .sync-chip-panel {
-  position:absolute; right:0; top:calc(100% + 8px); width:300px; max-width:calc(100vw - 24px); z-index:1001;
+  position:absolute; right:0; top:calc(100% + 8px); width:320px; max-width:calc(100vw - 24px); z-index:1001;
+  max-height:calc(100vh - var(--topbar-h) - 16px); overflow-y:auto;
   background:var(--bg-card); border:1px solid var(--border-light); border-radius:var(--radius-sm);
-  box-shadow:0 10px 25px rgba(0,0,0,0.45); padding:14px 16px; font-size:12.5px; color:var(--text-secondary); line-height:1.45;
+  box-shadow:var(--shadow); padding:14px 16px; font-size:13px; color:var(--text-secondary); line-height:1.45;
 }
 .sync-chip-panel[hidden] { display:none; }
-.sync-chip-panel-title { font-weight:700; font-size:13.5px; color:var(--text-primary); margin-bottom:4px; }
+.sync-chip-panel-title { font-weight:700; font-size:14px; color:var(--text-primary); margin-bottom:4px; }
 .sync-chip-panel-last { margin-top:8px; color:var(--text-primary); font-weight:600; }
+.sync-chip-panel-last:empty { display:none; }
 .sync-chip-panel-advice { margin:8px 0 0 16px; padding:0; }
 .sync-chip-panel-advice li { margin-top:4px; }
 .sync-chip-panel-advice:empty { display:none; }
-/* With the chip saying the state in words, the Connect button beside it
-   keeps only its icon and dot (and its tooltip) and gives the top bar room. */
-.sync-chip-wrap.on ~ #cloudNotConnected #cloudStatusText { display:none; }
+/* Staff only: the sync actions, in the same panel (a trainee's or board
+   member's device is not signed in for syncing). */
+.sync-panel-actions { display:none; margin:12px -16px -14px; padding:6px 0; border-top:1px solid var(--border-light); }
+.sync-chip-wrap.staff .sync-panel-actions { display:block; }
+.sync-panel-actions [hidden] { display:none !important; }
+.sync-panel-actions .sync-panel-connect { margin:6px 16px 8px; min-height:40px; padding:8px 14px; font-size:13px; font-weight:600; }
+.sync-panel-actions .sync-panel-connect span:nth-child(2) { display:inline; }
+.sync-panel-actions .cloud-dropdown { display:block; }
+.sync-panel-actions .cloud-dropdown-content { display:block; position:static; box-shadow:none; border:0; border-radius:0; margin:0; min-width:0; background:none; overflow:visible; }
+.sync-panel-actions .cloud-dropdown-item { width:100%; min-height:40px; background:none; border:0; text-align:left; font-family:'DM Sans',sans-serif; }
 .topbar-search { min-width:120px; }
 /* Narrower laptop screens, sidebar still showing: the top bar's right-hand
-   group (chip, Connect, bell, who, Lock, Sign Out) must never run off the
-   edge — at 1180px Sign Out was cut off. It gives way in steps, as the phone
-   layout does: Lock becomes an icon, then who shows as initials, then the
-   chip's words move into its panel (its tooltip keeps them), then Sign Out
-   becomes an icon, and the search box goes where it was crushed anyway. */
+   group must never run off the edge — at 1180px Sign Out was cut off. It
+   gives way in steps, as the phone layout does: Lock becomes an icon, then
+   who shows as initials, then the sync control's words move into its
+   tooltip and panel, then Sign Out becomes an icon. */
 @media (max-width:1280px) {
   .topbar-lock-btn { padding:7px 8px; }
   .topbar-lock-label { display:none; }
@@ -2299,7 +2328,33 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   .logout-btn { padding:7px 10px; font-size:0; gap:0; }
   .logout-btn svg { width:16px; height:16px; }
 }
-@media (max-width:960px) { .topbar-search { display:none; } }
+/* 960px and below (laptops with the sidebar showing, and phones): the search
+   box was crushed to nothing here, so the magnifier takes its place and
+   opens the same search across the bar, with its results below — search is
+   reachable at every width. Lock, the Light/Dark switch and Two-Step
+   Verification move into the menu behind the initials. */
+@media (max-width:960px) {
+  .topbar-search { display:none; }
+  .topbar .topbar-search-toggle { display:flex; width:44px; height:44px; }
+  .topbar-lock-btn, .topbar .theme-toggle, .topbar .topbar-tfa-btn { display:none; }
+  /* Opened: the box covers the bar edge to edge, results fill the screen below. */
+  .topbar.search-open .topbar-search {
+    display:flex; align-items:center; gap:8px; position:absolute; inset:0; z-index:5;
+    max-width:none; margin:0; padding:0 8px 0 12px; background:var(--bg-primary); border-bottom:1px solid var(--border);
+  }
+  .topbar.search-open .topbar-search > svg { left:24px; }
+  .topbar.search-open .topbar-search input { flex:1; min-width:0; height:44px; font-size:16px; }
+  .topbar.search-open .topbar-search .topbar-search-close {
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; width:44px; height:44px;
+    background:none; border:none; border-radius:var(--radius-sm); color:var(--text-secondary); cursor:pointer;
+  }
+  .topbar.search-open .topbar-search .topbar-search-close svg { position:static; transform:none; width:20px; height:20px; color:inherit; }
+  .topbar.search-open .search-results {
+    position:absolute; top:100%; left:0; right:0; margin:0; border-radius:0; border-left:0; border-right:0;
+    max-height:calc(100vh - var(--topbar-h)); max-height:calc(100dvh - var(--topbar-h));
+  }
+  .topbar.search-open .search-result-item { min-height:56px; }
+}
 .cloud-dropdown { position:relative; display:inline-block; }
 .cloud-dropdown-content {
   display:none; position:absolute; right:0; top:100%; background:var(--bg-card); min-width:200px;
@@ -3147,51 +3202,30 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   .sidebar { z-index:101; }
   .sidebar.mobile-open { transform:translateX(0); }
 
-  /* Topbar: the search box is folded into a button on small screens */
+  /* Topbar: the search box is a magnifier here (see the 960px rules) */
   .topbar { padding:0 12px; gap:8px; }
-  .topbar-search { display:none; }
   .topbar-title { font-size:16px; }
   .topbar-right { gap:6px; }
-  .topbar .topbar-search-toggle { display:flex; width:44px; height:44px; }
-  /* Opened: the box covers the bar edge to edge, results fill the screen below. */
-  .topbar.search-open .topbar-search {
-    display:flex; align-items:center; gap:8px; position:absolute; inset:0; z-index:5;
-    max-width:none; margin:0; padding:0 8px 0 12px; background:var(--bg-primary); border-bottom:1px solid var(--border);
-  }
-  .topbar.search-open .topbar-search > svg { left:24px; }
-  .topbar.search-open .topbar-search input { flex:1; min-width:0; height:44px; font-size:16px; }
-  .topbar.search-open .topbar-search .topbar-search-close {
-    display:flex; align-items:center; justify-content:center; flex-shrink:0; width:44px; height:44px;
-    background:none; border:none; border-radius:var(--radius-sm); color:var(--text-secondary); cursor:pointer;
-  }
-  .topbar.search-open .topbar-search .topbar-search-close svg { position:static; transform:none; width:20px; height:20px; color:inherit; }
-  .topbar.search-open .search-results {
-    position:absolute; top:100%; left:0; right:0; margin:0; border-radius:0; border-left:0; border-right:0;
-    max-height:calc(100vh - var(--topbar-h)); max-height:calc(100dvh - var(--topbar-h));
-  }
-  .topbar.search-open .search-result-item { min-height:56px; }
 
   /* Cloud sync button: abbreviate text */
   .cloud-sync-btn { padding:6px 8px; font-size:0.75rem; }
   .cloud-sync-btn span:nth-child(2) { display:none; }
-  /* The sync chip keeps its coloured icon; its words move into the panel and
-     the Connect button's own dot gives way to it. */
-  .sync-chip { padding:8px 9px; }
+  /* The sync control keeps its coloured icon; its words move into the panel,
+     which spans the screen. */
+  .sync-chip { padding:8px 10px; }
   .sync-chip-label { display:none; }
-  #cloudStatusDot { display:none; }
-  .sync-chip-panel { position:fixed; left:12px; right:12px; top:calc(var(--topbar-h) + 4px); width:auto; max-width:none; }
+  .sync-chip-panel, .topbar-account-menu { position:fixed; left:12px; right:12px; top:calc(var(--topbar-h) + 4px); width:auto; max-width:none; }
 
-  /* Logout button: icon only */
-  .logout-btn { padding:7px 10px; font-size:0; gap:0; }
-  .logout-btn svg { width:16px; height:16px; }
-  /* Lock: icon only; who is signed in shows as initials (the name is in its
-     tooltip and in the menu's own footer). The page title gives way first. */
-  .topbar-lock-btn { padding:7px 8px; }
-  .topbar-lock-label { display:none; }
+  /* Sign Out: in the account menu (the initials), so the page's name fits. */
+  .topbar .logout-btn { display:none; }
+  /* Who is signed in shows as initials; pressed, they open the menu that
+     holds Lock, Light/Dark, Two-Step Verification and Sign Out, so the
+     page's name shows in full. Only on the narrowest screens does the
+     title ever shorten. */
   .topbar-title { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .topbar-right { gap:4px; }
-  .topbar .topbar-btn:not(.topbar-search-toggle) { width:32px; }   /* the magnifier keeps its 44px: on a phone it is the only way to search */
-  .topbar-who-avatar { width:26px; height:26px; font-size:12px; }
+  .topbar-right { gap:4px; flex-shrink:0; }
+  .topbar .topbar-btn:not(.topbar-search-toggle) { width:34px; }   /* the magnifier keeps its 44px: on a phone it is the only way to search */
+  .topbar-who-avatar { width:30px; height:30px; font-size:12px; }
 
   /* Main content: reduce padding, prevent horizontal overflow */
   .main-content { padding:16px 12px; overflow-x:hidden; }
@@ -5214,11 +5248,15 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
       <button type="button" class="topbar-btn topbar-search-toggle" id="globalSearchToggle" onclick="openPhoneSearch()" title="Search" aria-label="Search" aria-controls="globalSearch" aria-expanded="false">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
-      <!-- Sync health: one read-only answer to "is my work safe?" — see
-           CESTISCore.ui.syncHealth. Pressing it shows when this computer last
-           saved and what to do; it never saves or syncs anything itself. -->
+      <!-- ONE sync control. Its words (or, where the bar is narrow, its icon
+           alone) say whether this computer's work has synced — read-only, see
+           CESTISCore.ui.syncHealth. Pressing it opens one panel: the answer
+           and what to do, and, for staff, the sync actions that used to sit
+           in a second sync button beside it (#cloudNotConnected /
+           #cloudConnected keep their ids, so the sync code drives them as
+           before). -->
       <div class="sync-chip-wrap" id="syncChipWrap">
-        <button type="button" class="sync-chip tone-warn" id="syncChip" onclick="toggleSyncChipPanel(event)" aria-expanded="false" aria-controls="syncChipPanel">
+        <button type="button" class="sync-chip tone-warn" id="syncChip" onclick="toggleSyncChipPanel(event)" aria-expanded="false" aria-controls="syncChipPanel" aria-haspopup="dialog">
           <span class="sync-chip-icon" id="syncChipIcon" aria-hidden="true"></span><span class="sync-chip-label" id="syncChipLabel">Checking…</span>
         </button>
         <div class="sync-chip-panel" id="syncChipPanel" role="dialog" aria-labelledby="syncChipPanelTitle" hidden>
@@ -5226,49 +5264,29 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
           <div class="sync-chip-panel-detail" id="syncChipPanelDetail"></div>
           <div class="sync-chip-panel-last" id="syncChipPanelLast"></div>
           <ul class="sync-chip-panel-advice" id="syncChipPanelAdvice"></ul>
-        </div>
-      </div>
-      <!-- Cloud Sync Dropdown -->
-      <div id="cloudNotConnected">
-        <button class="cloud-sync-btn" onclick="connectToGoogleDrive()" title="Connect this computer for syncing" aria-label="Connect this computer for syncing">
-          <span>🔄</span>
-          <span id="cloudStatusText">Not synced yet</span>
-          <span id="cloudStatusDot" class="cloud-status-dot"></span>
-        </button>
-      </div>
-      <div id="cloudConnected" style="display:none;">
-        <div class="cloud-dropdown">
-          <button class="cloud-sync-btn" onclick="toggleCloudMenu()">
-            <span id="cloudMenuIcon">🔄</span>
-            <span>Sync</span>
-            <span style="font-size:0.6rem;">▼</span>
-          </button>
-          <div class="cloud-dropdown-content" id="cloudDropdownMenu">
-            <div class="cloud-dropdown-item" onclick="saveToCloud()">
-              <span>💾</span><span>Send My Changes</span>
+          <div class="sync-panel-actions" id="syncPanelActions">
+            <div id="cloudNotConnected">
+              <button type="button" class="cloud-sync-btn sync-panel-connect" onclick="closeSyncChipPanel(); connectToGoogleDrive()"><span aria-hidden="true">🔄</span><span>Turn On Sync</span></button>
+              <span id="cloudStatusText" hidden>Not synced yet</span><span id="cloudStatusDot" class="cloud-status-dot" hidden></span>
             </div>
-            <div class="cloud-dropdown-item" onclick="syncFromCloud()">
-              <span>🔄</span><span>Get Latest Changes</span>
-            </div>
-            <div class="cloud-dropdown-item" onclick="mergeFromCloud()">
-              <span>🔀</span><span>Merge Latest Changes</span>
-            </div>
-            <div class="cloud-dropdown-item" onclick="browseBackupFiles()">
-              <span>📁</span><span>Browse All Backups</span>
-            </div>
-            <div class="cloud-dropdown-item" onclick="restoreFromMasterBackup()">
-              <span>🛟</span><span>Restore from Master Backup</span>
-            </div>
-            <div class="cloud-dropdown-item" onclick="syncAllUserLoginFoldersToDrive()">
-              <span>👤</span><span>Build User Login Folders</span>
-            </div>
-            <div class="cloud-dropdown-divider"></div>
-            <div class="last-sync-info" id="lastSyncInfo">Last sync: Never</div>
-            <div class="last-sync-info" id="lastSavedByInfo" style="color:var(--text-muted);font-size:0.7rem;">Last saved by: --</div>
-            <div class="last-sync-info" id="masterBackupInfo" style="color:var(--text-muted);font-size:0.7rem;">Master backup: --</div>
-            <div class="cloud-dropdown-divider"></div>
-            <div class="cloud-dropdown-item danger" onclick="disconnectFromGoogleDrive()">
-              <span>🔌</span><span>Disconnect</span>
+            <div id="cloudConnected" style="display:none;">
+              <div class="cloud-dropdown">
+                <span id="cloudMenuIcon" hidden>🔄</span>
+                <div class="cloud-dropdown-content" id="cloudDropdownMenu" role="group" aria-label="Sync actions">
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); saveToCloud()"><span aria-hidden="true">💾</span><span>Send My Changes</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); syncFromCloud()"><span aria-hidden="true">🔄</span><span>Get Latest Changes</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); mergeFromCloud()"><span aria-hidden="true">🔀</span><span>Merge Latest Changes</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); browseBackupFiles()"><span aria-hidden="true">📁</span><span>Browse All Backups</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); restoreFromMasterBackup()"><span aria-hidden="true">🛟</span><span>Restore from Master Backup</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); syncAllUserLoginFoldersToDrive()"><span aria-hidden="true">👤</span><span>Build User Login Folders</span></button>
+                  <div class="cloud-dropdown-divider"></div>
+                  <div class="last-sync-info" id="lastSyncInfo">Last sync: Never</div>
+                  <div class="last-sync-info" id="lastSavedByInfo">Last saved by: --</div>
+                  <div class="last-sync-info" id="masterBackupInfo">Master backup: --</div>
+                  <div class="cloud-dropdown-divider"></div>
+                  <button type="button" class="cloud-dropdown-item danger" onclick="closeSyncChipPanel(); disconnectFromGoogleDrive()"><span aria-hidden="true">🔌</span><span>Disconnect</span></button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -5285,14 +5303,26 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
         </button>
         <div class="notification-dropdown" id="notifDropdown"></div>
       </div>
-      <button class="topbar-btn" title="Two-Step Verification" onclick="tfaOpenManage()" aria-label="Two-Step Verification">
+      <button class="topbar-btn topbar-tfa-btn" title="Two-Step Verification" onclick="tfaOpenManage()" aria-label="Two-Step Verification">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
       </button>
       <!-- Who is signed in on this computer, and a Lock that covers the
            session at once (the same lock the idle timer uses). -->
-      <div class="topbar-who" id="topbarWho" title="Signed in">
-        <span class="topbar-who-avatar" id="topbarWhoAvatar" aria-hidden="true"></span>
-        <span class="topbar-who-text"><span class="topbar-who-name" id="topbarWhoName"></span><span class="topbar-who-role" id="topbarWhoRole"></span></span>
+      <div class="topbar-account" id="topbarAccount">
+        <button type="button" class="topbar-who" id="topbarWho" title="Signed in" onclick="toggleAccountMenu(event)" aria-haspopup="menu" aria-expanded="false" aria-controls="topbarAccountMenu">
+          <span class="topbar-who-avatar" id="topbarWhoAvatar" aria-hidden="true"></span>
+          <span class="topbar-who-text"><span class="topbar-who-name" id="topbarWhoName"></span><span class="topbar-who-role" id="topbarWhoRole"></span></span>
+        </button>
+        <!-- Where the bar is narrow, Lock, the Light/Dark switch, Two-Step
+             Verification and (on a phone) Sign Out live here, so the page's
+             name always shows in full. -->
+        <div class="topbar-account-menu" id="topbarAccountMenu" role="menu" aria-label="Account" hidden>
+          <div class="tam-who" id="topbarAccountWho"></div>
+          <button type="button" role="menuitem" class="tam-item" onclick="closeAccountMenu(); lockSessionNow()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Lock</span></button>
+          <button type="button" role="menuitem" class="tam-item" data-theme-toggle onclick="cestisToggleTheme()"><svg class="theme-ico-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg><svg class="theme-ico-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span class="theme-to-light">Light mode</span><span class="theme-to-dark">Dark mode</span></button>
+          <button type="button" role="menuitem" class="tam-item" onclick="closeAccountMenu(); tfaOpenManage()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg><span>Two-Step Verification</span></button>
+          <button type="button" role="menuitem" class="tam-item tam-signout" onclick="closeAccountMenu(); logout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Sign Out</span></button>
+        </div>
       </div>
       <button type="button" class="topbar-lock-btn" id="topbarLockBtn" onclick="lockSessionNow()" aria-label="Lock this computer" title="Lock — cover this session until your password is entered">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
@@ -12137,8 +12167,12 @@ function updateTopbarWho() {
   var av = document.getElementById('topbarWhoAvatar');
   if(av) { av.textContent = initials || '?'; var sa = document.getElementById('sidebarAvatar'); if(sa && sa.style.background) av.style.background = sa.style.background; }
   box.title = 'Signed in as ' + name + (role ? ' (' + role + ')' : '');
-  box.setAttribute('aria-label', box.title);
-  box.setAttribute('role', 'note');
+  box.setAttribute('aria-label', box.title + ' — account menu');
+  var head = document.getElementById('topbarAccountWho');
+  if(head) {
+    head.textContent = name;
+    var r = document.createElement('span'); r.textContent = role; head.appendChild(r);
+  }
   box.classList.add('on');
 }
 function enterApp(role) {
@@ -31849,19 +31883,14 @@ function setCloudSyncing(syncing) {
     statusText.textContent = 'Up to date';
     if (menuIcon) menuIcon.textContent = '🔄';
   }
+  // The one sync control shows it: its arrows turn and it says "Syncing…".
+  try { window._syncChipSyncing = !!syncing; refreshSyncChip(); } catch(e) {}
 }
 
-// Toggle cloud dropdown menu
+// The sync actions live in the one sync control's panel (there is no second
+// sync button any more): "open the sync menu" opens that panel.
 function toggleCloudMenu() {
-  const menu = document.getElementById('cloudDropdownMenu');
-  // Remove any existing listener first to prevent accumulation
-  document.removeEventListener('click', closeCloudMenuOnClickOutside);
-  menu.classList.toggle('show');
-  if(menu.classList.contains('show')) {
-    setTimeout(() => {
-      document.addEventListener('click', closeCloudMenuOnClickOutside);
-    }, 0);
-  }
+  toggleSyncChipPanel();
 }
 
 function closeCloudMenuOnClickOutside(e) {
@@ -35057,7 +35086,8 @@ async function autoSaveToAllFolders() {
    the Google sign-in and when it ends, the browser's own online flag, and on
    the Centre's network the page-cloud's server status — and shows ONE answer
    (CESTISCore.ui.syncHealth). It never saves, syncs or retries anything. */
-var _syncChipLan = false, _syncChipLastOk = 0, _syncChipTimer = null;
+var _syncChipLan = false, _syncChipLastOk = 0, _syncChipTimer = null, _syncChipSyncing = false;
+var SYNC_STAFF_ROLES = { admin: 1, adminstaff: 1, instructor: 1 };
 try { if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function') CESTISPageCloud.lan().then(function(on){ _syncChipLan = !!on; }); } catch(e) {}
 function syncChipInputs() {
   var now = Date.now();
@@ -35070,6 +35100,16 @@ function syncChipInputs() {
   var inp = { now: now, online: navigator.onLine !== false, lan: _syncChipLan, lanTrouble: false,
     connected: !!(isCloudConnected && googleAccessToken && (!exp || exp > now)), tokenExpiresAt: exp || null,
     pending: !!marker, pendingSince: since, failures: _consecutiveCloudSaveFailures || 0, lastSavedAt: last };
+  // Staff computers are signed in for syncing; a trainee's or a board
+  // member's is not, and that is normal for them — their own unsent work (an
+  // exam result still in the outbox) is all the control speaks of.
+  inp.staff = !!SYNC_STAFF_ROLES[currentRole];
+  inp.signinExpired = !inp.connected && !!exp && exp <= now;
+  inp.canConnect = inp.staff && !_syncChipLan;
+  if (!inp.staff) {
+    var mine = currentStudent && currentStudent.id != null ? String(currentStudent.id) : null;
+    try { inp.ownPending = examOutboxRead().some(function(r){ return r && (!mine || r.studentId == null || String(r.studentId) === mine); }); } catch(e) { inp.ownPending = false; }
+  }
   if (_syncChipLan) {
     // On the Centre's network every edit goes to its server within seconds;
     // trouble reaching it is what puts work at risk (cestis-page-cloud.js).
@@ -35092,19 +35132,23 @@ function refreshSyncChip() {
   // computer's work is safe there as of now.
   if (_autoSaveIntervalId && isCloudConnected && _lastAutoSaveResult && _lastAutoSaveResult.uploaded &&
       !CESTISStore.getItem('cestisPendingUpload')) _syncChipLastOk = Date.now();
-  var h = CESTISCore.ui.syncHealth(syncChipInputs());
+  var inp = syncChipInputs();
+  var h = CESTISCore.ui.syncHealth(inp);
   var chip = document.getElementById('syncChip');
-  chip.className = 'sync-chip tone-' + h.tone;
+  chip.className = 'sync-chip tone-' + h.tone + (_syncChipSyncing ? ' is-syncing' : '');
   chip.setAttribute('data-state', h.state);
-  chip.setAttribute('aria-label', h.label + ' — show details');
-  chip.title = h.label;   // where the chip shows only its icon, hovering still says it
+  var said = _syncChipSyncing ? 'Syncing…' : h.label;
+  chip.setAttribute('aria-label', said + (inp.staff ? ' — show details and sync' : ' — show details'));
+  chip.title = said;   // where the chip shows only its icon, hovering still says it
+  // The sync actions (Turn On Sync, Send My Changes, …) are for staff only.
+  wrap.classList.toggle('staff', !!inp.staff);
   // A check or circular arrows (fixed markup from the shared core, no input in it).
   var icon = document.getElementById('syncChipIcon');
   if (icon && typeof CESTISCore.ui.syncIcon === 'function' && icon.getAttribute('data-icon') !== h.icon) {
     icon.innerHTML = CESTISCore.ui.syncIcon(h.icon);
     icon.setAttribute('data-icon', h.icon);
   }
-  document.getElementById('syncChipLabel').textContent = h.chip || h.label;
+  document.getElementById('syncChipLabel').textContent = _syncChipSyncing ? 'Syncing…' : (h.chip || h.label);
   document.getElementById('syncChipPanelTitle').textContent = h.label;
   document.getElementById('syncChipPanelDetail').textContent = h.detail;
   document.getElementById('syncChipPanelLast').textContent = h.lastSaved;
@@ -35118,16 +35162,48 @@ function toggleSyncChipPanel(e) {
   if (!panel) return;
   refreshSyncChip();
   var open = panel.hidden;
+  if (open) closeAccountMenu();
   panel.hidden = !open;
   chip.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeSyncChipPanel() {
+  var panel = document.getElementById('syncChipPanel'), chip = document.getElementById('syncChip');
+  if (!panel || panel.hidden) return;
+  panel.hidden = true;
+  if (chip) chip.setAttribute('aria-expanded', 'false');
+}
+/* The account menu behind the who-is-signed-in initials: Lock, Light/Dark,
+   Two-Step Verification and Sign Out (on narrow screens the only place they
+   are, so the page's name has room). */
+function toggleAccountMenu(e) {
+  if (e) e.stopPropagation();
+  var menu = document.getElementById('topbarAccountMenu'), btn = document.getElementById('topbarWho');
+  if (!menu) return;
+  var open = menu.hidden;
+  if (open) closeSyncChipPanel();
+  menu.hidden = !open;
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  // Opened from the keyboard (a click with no pointer), the first item takes focus.
+  if (open && e && e.detail === 0) { var first = menu.querySelector('.tam-item'); if (first) first.focus(); }
+}
+function closeAccountMenu() {
+  var menu = document.getElementById('topbarAccountMenu'), btn = document.getElementById('topbarWho');
+  if (!menu || menu.hidden) return;
+  menu.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
 }
 document.addEventListener('click', function(e) {
   var panel = document.getElementById('syncChipPanel');
   if (panel && !panel.hidden && !e.target.closest('#syncChipWrap')) { panel.hidden = true; document.getElementById('syncChip').setAttribute('aria-expanded', 'false'); }
+  var menu = document.getElementById('topbarAccountMenu');
+  if (menu && !menu.hidden && !e.target.closest('#topbarAccount')) closeAccountMenu();
 });
 document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
   var panel = document.getElementById('syncChipPanel');
-  if (e.key === 'Escape' && panel && !panel.hidden) { panel.hidden = true; var c = document.getElementById('syncChip'); c.setAttribute('aria-expanded', 'false'); c.focus(); }
+  if (panel && !panel.hidden) { panel.hidden = true; var c = document.getElementById('syncChip'); c.setAttribute('aria-expanded', 'false'); c.focus(); }
+  var menu = document.getElementById('topbarAccountMenu');
+  if (menu && !menu.hidden) { closeAccountMenu(); var w = document.getElementById('topbarWho'); if (w) w.focus(); }
 });
 window.addEventListener('online', function(){ try { refreshSyncChip(); } catch(e) {} });
 window.addEventListener('offline', function(){ try { refreshSyncChip(); } catch(e) {} });
