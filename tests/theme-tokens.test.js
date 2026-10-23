@@ -222,6 +222,8 @@ console.log('The switches are where people look, and the time clock keeps its ow
 assert(/<button class="topbar-btn theme-toggle"[^>]*data-theme-toggle[^>]*onclick="cestisToggleTheme\(\)"[^>]*aria-label="Switch to light mode"/.test(INDEX),
   'the top bar has a sun/moon button with a name');
 assert(INDEX.indexOf('<svg class="theme-ico-sun"') !== -1 && INDEX.indexOf('<svg class="theme-ico-moon"') !== -1, 'with a sun and a moon');
+// The sync chip beside it is outlined like a control (3:1 in light; in dark --input-border is the old border).
+assert(/\.cloud-sync-btn \{[^}]*border:1px solid var\(--input-border\)/.test(INDEX), 'the top bar\'s sync chip has a border that shows on a light top bar');
 ['editStu', 'editIns', 'editAcct'].forEach(function (p) {
   ['dark', 'light'].forEach(function (v) {
     assert(new RegExp('name="' + p + 'Theme" value="' + v + '" data-theme-choice[^>]*onchange="cestisSetTheme\\(this\\.value\\)"').test(INDEX),
