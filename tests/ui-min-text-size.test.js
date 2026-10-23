@@ -115,6 +115,16 @@ PAGES.forEach(f => {
   assert(missing.length === 0, f + ': every inline spelling is covered, with and without the space the browser writes back (missing: ' + missing.join(',') + ')');
 });
 
+// The shared look the sibling pages link last (cestis-theme.css) wins over
+// their own table-heading sizes, so it must keep to 12px too.
+if (fs.existsSync(path.join(ROOT, 'cestis-theme.css'))) {
+  console.log('The shared look of the sibling pages keeps text at 12px or more');
+  const css = read('cestis-theme.css').replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const small = []; let m; FS.lastIndex = 0;
+  while ((m = FS.exec(css))) if (m[2] !== 'pt' && px(m[1], m[2]) < 12 - 1e-9) small.push(m[1] + m[2]);
+  assert(small.length === 0, 'cestis-theme.css: no size below 12px (found: ' + small.join(',') + ')');
+}
+
 console.log('Printed documents keep their own sizes');
 {
   const cb = read('CESTIS.Cashbook.html');
