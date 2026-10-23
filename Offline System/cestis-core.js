@@ -8696,6 +8696,23 @@
       if (expiry && expiry - now <= WARN_MS) return 'warn';
       return 'ok';
     }
+    /* A trainee in the middle of a test is not signed out by the clock. The
+       session lasts eight hours from sign-in, so a 90-minute exam started in
+       the afternoon was cut off part-way ("Your session has expired") — the
+       answers were saved, but she had to sign in again with her clock still
+       running. When the session is about to end (within WARN_MS) and she has
+       used the page in the last EXAM_ACTIVE_MS, it is carried on by up to
+       EXAM_STEP_MS at a time, never beyond the test's own deadline plus
+       EXAM_AFTER_MS (to read the result). A PC left idle is not kept signed
+       in: without recent use nothing is extended, and the idle lock is
+       untouched. Returns the expiry to use (the same one when unchanged). */
+    var EXAM_ACTIVE_MS = 10 * 60 * 1000, EXAM_STEP_MS = 15 * 60 * 1000, EXAM_AFTER_MS = 10 * 60 * 1000;
+    function examGrace(now, lastActivity, expiry, deadline) {
+      if (!expiry || !deadline || !(deadline > now)) return expiry;
+      if (expiry - now > WARN_MS) return expiry;
+      if (!lastActivity || now - lastActivity > EXAM_ACTIVE_MS) return expiry;
+      return Math.max(expiry, Math.min(deadline + EXAM_AFTER_MS, now + EXAM_STEP_MS));
+    }
 
     /* The dashboard this page is embedded in, if it is the same site and
        somebody is signed in to it. (A page on another site cannot read it.) */
@@ -8818,7 +8835,7 @@
       return { students: [], exams: [] };
     }
 
-    return { resolve: resolve, state: state, idleLimit: idleLimit, RANK: RANK, FRESH_MS: FRESH_MS,
+    return { resolve: resolve, state: state, idleLimit: idleLimit, RANK: RANK, FRESH_MS: FRESH_MS, examGrace: examGrace,
              embeddingSession: embeddingSession, forPage: forPage, guard: guard, lockPage: lockPage, searchPool: searchPool };
   })();
 
@@ -9647,6 +9664,14 @@
     function pickResult(l, c, nowMs) {
       var sameAttempt = (l.id != null && l.id !== '' && c.id != null && c.id !== '') ? String(l.id) === String(c.id) : true;
       var ls = Date.parse(l.submittedAt || '') || 0, cs = Date.parse(c.submittedAt || '') || 0;
+      // Two results that both came from a travelling attempt (attemptId) are
+      // ONE attempt submitted twice — a PC that was away submitted its own
+      // stale copy later. The first submission stands; "the later replaces
+      // the earlier" would have put the stale copy over the real one.
+      if (!sameAttempt && l.attemptId && c.attemptId) {
+        if (cs && ls && cs !== ls) return cs < ls ? 'replace' : 'keep';
+        return String(c.id) < String(l.id) ? 'replace' : 'keep';
+      }
       if (!sameAttempt) return cs > ls ? 'replace' : 'keep';
       if (reviewed(c) !== reviewed(l)) return reviewed(c) ? 'cloud' : 'keep';
       var te = editStamp(c, nowMs), tl = editStamp(l, nowMs);
@@ -9690,6 +9715,8 @@
         else if (how === 'cloud') { takeOver(l, JSON.parse(JSON.stringify(c)), opts.keep); out.updated++; }
         else if (how === 'tie' && fillBlanks(l, c)) out.updated++;
       });
+      // And a device already holding both copies of one attempt keeps one.
+      if (Core.exams && Core.exams.oneResultPerAttempt) out.removed += Core.exams.oneResultPerAttempt(local).length;
       return out;
     }
 
@@ -10611,6 +10638,10 @@
       { key: 'voctrain_examResults', type: 'examResults', studentField: 'studentId', tombs: 'examResults',
         id: function (r) { return Core.sync.examResultKey(r); },
         accept: function (r) { return !DEMO_EXAM.test(String(r.examId || '')) && !DEMO_STUDENT.test(String(r.studentId || '')); } },
+      // Attempts in progress, so a trainee can carry on at another PC: merged
+      // question by question (Core.exams.mergeAttemptLists). A trainee's
+      // device may publish them (a record key passes the author policy).
+      { key: 'voctrain_examAttempts', type: 'examAttempts', studentField: 'studentId', id: byId },
       // The dated register: merged mark by mark with the register's own rule
       // (a real mark beats an upgrade estimate; newest mark wins; history kept).
       // Listed before the prefix below, which would otherwise claim it.
@@ -10905,6 +10936,17 @@
           if (Core.sync.deletedAfter(tombs, spec.id(r), r)) return false;
           return true;
         });
+        // Two submissions of one travelling attempt (a PC that was away sent
+        // its own copy): the first stands, as on every other path.
+        Core.exams.oneResultPerAttempt(out);
+        return JSON.stringify(out);
+      }
+
+      if (spec.type === 'examAttempts') {
+        // Attempts in progress: question by question, newest answer wins; a
+        // submitted (retired) record beats any open copy (Core.exams).
+        var keepA = function (r) { return !ownerDeleted(ctx, r[spec.studentField], r); };
+        out = Core.exams.mergeAttemptLists(L.filter(keepA), C.filter(keepA)).list;
         return JSON.stringify(out);
       }
 
@@ -12159,6 +12201,216 @@
       return added;
     }
 
+    /* ---- An attempt that follows the trainee --------------------------------
+       The owner's rule: a trainee whose PC dies (a power cut) signs in on
+       another one and carries on with the SAME attempt — never a fresh second
+       one — under its ORIGINAL deadline. So an attempt in progress is also a
+       shared record (voctrain_examAttempts) that travels by the same routes as
+       a submitted result, beside the device-only copy (draftKey), which stays
+       the instant safety net when nothing can be sent.
+
+       An open attempt record is the draft itself — the trainee's copy of the
+       paper (no answer keys), answers[], flagged[], and for each question
+       WHEN its answer and its flag were last changed (answeredAt[],
+       flaggedAt[], ms), the fixed startTime and deadline, the page and
+       question on screen (posAt: when that last moved) and status 'open'.
+       Once submitted anywhere it is replaced by a small retired record — the
+       tombstone — that carries no answers (the result holds them):
+         { id, examId, studentId, status: 'submitted', submittedAt, resultId,
+           startTime, deadline, updatedAt }
+
+       Two devices may each hold an older or newer copy of one attempt (the
+       first PC comes back to life). A whole copy is never put over another:
+         - each question takes its newest answer (answeredAt) and its newest
+           flag (flaggedAt); the page and question come from the copy moved
+           last (posAt);
+         - the deadline only ever moves EARLIER (the first one set stands);
+         - a retired copy beats any open one, so a stale device cannot bring
+           a submitted attempt back; of two retired copies the FIRST
+           submission stands;
+         - two open attempts of one trainee at one exam (a second device
+           started before it heard of the first) are read as ONE: the one
+           started first, with the newest answer to each question from both
+           (attemptFor). Submitting retires them all.
+       An exam allows one attempt (the builder fixes it at 1), so a live
+       result for the trainee and exam settles every open attempt of theirs
+       at it (settleAttempts), and of two results that came from attempts
+       (attemptId set) only the first submission stands (oneResultPerAttempt).
+
+         attemptIsOpen(a) / attemptIsRetired(a)
+         mergeAttempt(a, b)               two copies, question by question
+         mergeAttemptLists(local, other)  record by record -> { list, changed }
+         attemptFor(list, sid, eid)       { attempt, ids } in progress, or null
+         retireAttempt(a, resultId, at)   the small record that stands for it
+         settleAttempts(list, results)    retire what a result already answers
+         oneResultPerAttempt(results)     drop a second submission (in place) */
+    var ATTEMPT_KEEP_MS = 120 * 24 * 3600 * 1000;   // retired records are let go after this
+    function attemptIsRetired(a) { return !!(a && typeof a === 'object' && a.status === 'submitted'); }
+    function attemptIsOpen(a) {
+      return !!(a && typeof a === 'object' && !attemptIsRetired(a) && a.id != null && a.examId != null && a.studentId != null &&
+        Array.isArray(a.questions) && Array.isArray(a.answers));
+    }
+    function hasAnswerValue(v) {
+      if (v === null || v === undefined || v === '') return false;
+      if (Array.isArray(v)) return v.some(function (x) { return x !== null && x !== undefined && x !== ''; });
+      return true;
+    }
+    function copyJson(v) { return v === undefined || v === null ? v : JSON.parse(JSON.stringify(v)); }
+    function msOf(v) { var t = typeof v === 'number' ? v : Date.parse(v || ''); return isFinite(t) && t > 0 ? t : 0; }
+    function laterIso(a, b) { return msOf(b) > msOf(a) ? b : (a || b); }
+    /* When an answer or flag was last changed. A copy saved before answers
+       carried their own time: as old as the save that holds it. */
+    function changedAt(a, field, i, isSet) {
+      var t = Array.isArray(a && a[field]) ? Number(a[field][i]) || 0 : 0;
+      if (!t && isSet) t = msOf(a.savedAt) || msOf(a.updatedAt) || Number(a.startTime) || 0;
+      return t;
+    }
+    function startedFirst(a, b) {
+      var sa = Number(a.startTime) || Infinity, sb = Number(b.startTime) || Infinity;
+      if (sa !== sb) return sa < sb ? a : b;
+      return String(a.id) <= String(b.id) ? a : b;
+    }
+    function sameOrder(a, b) {
+      if (a.questions.length !== b.questions.length) return false;
+      return a.questions.every(function (q, i) { var o = b.questions[i]; return String(q && q.id) === String(o && o.id); });
+    }
+    function retiredOf(a, b) {
+      var ra = attemptIsRetired(a), rb = attemptIsRetired(b);
+      if (ra !== rb) return copyJson(ra ? a : b);
+      var ta = msOf(a.submittedAt) || Infinity, tb = msOf(b.submittedAt) || Infinity;
+      var first = ta !== tb ? (ta < tb ? a : b) : (String(a.resultId || '') <= String(b.resultId || '') ? a : b);
+      var out = copyJson(first);
+      out.updatedAt = laterIso(a.updatedAt, b.updatedAt);
+      return out;
+    }
+    function mergeAttempt(a, b) {
+      var oka = !!(a && typeof a === 'object'), okb = !!(b && typeof b === 'object');
+      if (!oka || !okb) return oka ? copyJson(a) : (okb ? copyJson(b) : null);
+      if (attemptIsRetired(a) || attemptIsRetired(b)) return retiredOf(a, b);
+      if (!attemptIsOpen(a) || !attemptIsOpen(b)) return copyJson(attemptIsOpen(a) ? a : b);
+      var same = String(a.id) === String(b.id);
+      var base = same ? a : startedFirst(a, b), other = base === a ? b : a;
+      var out = copyJson(base);
+      if (!Array.isArray(out.flagged)) out.flagged = [];
+      out.answeredAt = []; out.flaggedAt = [];
+      var at = {};
+      other.questions.forEach(function (q, j) { if (q && q.id != null && at[String(q.id)] === undefined) at[String(q.id)] = j; });
+      for (var i = 0; i < out.questions.length; i++) {
+        var q = out.questions[i];
+        var j = q && q.id != null && at[String(q.id)] !== undefined ? at[String(q.id)] : (same && i < other.questions.length ? i : -1);
+        if (out.answers[i] === undefined) out.answers[i] = null;
+        out.flagged[i] = !!out.flagged[i];
+        var ta = changedAt(base, 'answeredAt', i, hasAnswerValue(out.answers[i]));
+        var fa = changedAt(base, 'flaggedAt', i, out.flagged[i]);
+        out.answeredAt[i] = ta; out.flaggedAt[i] = fa;
+        if (j < 0) continue;
+        var ob = other.answers[j] === undefined ? null : other.answers[j];
+        var tb = changedAt(other, 'answeredAt', j, hasAnswerValue(ob));
+        if (tb > ta || (tb === ta && !hasAnswerValue(out.answers[i]) && hasAnswerValue(ob))) { out.answers[i] = copyJson(ob); out.answeredAt[i] = tb; }
+        var of = !!(other.flagged && other.flagged[j]);
+        var fb = changedAt(other, 'flaggedAt', j, of);
+        if (fb > fa) { out.flagged[i] = of; out.flaggedAt[i] = fb; }
+      }
+      // The clock is the first one set: a copy can never give more time.
+      var da = Number(a.deadline), db = Number(b.deadline);
+      if (isFinite(da) && da > 0 && isFinite(db) && db > 0) out.deadline = Math.min(da, db);
+      var sa = Number(a.startTime), sb = Number(b.startTime);
+      if (isFinite(sa) && sa > 0 && isFinite(sb) && sb > 0) out.startTime = Math.min(sa, sb);
+      if (same || sameOrder(a, b)) {
+        var pa = Number(a.posAt) || 0, pb = Number(b.posAt) || 0, pos = pb > pa ? b : a;
+        out.page = pos.page; out.current = pos.current; out.posAt = Math.max(pa, pb);
+      }
+      out.updatedAt = laterIso(a.updatedAt, b.updatedAt);
+      if (a.savedAt || b.savedAt) out.savedAt = laterIso(a.savedAt, b.savedAt);
+      out.status = 'open';
+      return out;
+    }
+    /* Record by record, by attempt id. A shorter list is never a deletion;
+       only a retired record ends an attempt, and a retired record is let go
+       ATTEMPT_KEEP_MS after its submission (the result it names settles the
+       attempt from then on — settleAttempts). */
+    function mergeAttemptLists(local, other, opts) {
+      var now = opts && typeof opts.nowMs === 'number' ? opts.nowMs : Date.now();
+      var out = [], slot = {}, changed = false;
+      var take = function (r, fromOther) {
+        if (!r || typeof r !== 'object' || r.id == null) return;
+        var k = String(r.id);
+        if (slot[k] === undefined) { slot[k] = out.length; out.push(fromOther ? copyJson(r) : r); if (fromOther) changed = true; return; }
+        var m = mergeAttempt(out[slot[k]], r);
+        if (JSON.stringify(m) !== JSON.stringify(out[slot[k]])) { out[slot[k]] = m; changed = true; }
+      };
+      (Array.isArray(local) ? local : []).forEach(function (r) { take(r, false); });
+      (Array.isArray(other) ? other : []).forEach(function (r) { take(r, true); });
+      var kept = out.filter(function (r) { return !(attemptIsRetired(r) && msOf(r.submittedAt) && now - msOf(r.submittedAt) > ATTEMPT_KEEP_MS); });
+      if (kept.length !== out.length) changed = true;
+      return { list: kept, changed: changed };
+    }
+    function samePair(r, studentId, examId) { return !!r && String(r.studentId) === String(studentId) && String(r.examId) === String(examId); }
+    /* The trainee's attempt in progress at one exam, as ONE attempt however
+       many copies and devices it is spread over: { attempt, ids } (ids: every
+       open record folded into it), or null. */
+    function attemptFor(list, studentId, examId) {
+      var retired = {}, open = [];
+      (Array.isArray(list) ? list : []).forEach(function (r) { if (samePair(r, studentId, examId) && attemptIsRetired(r)) retired[String(r.id)] = 1; });
+      (Array.isArray(list) ? list : []).forEach(function (r) { if (samePair(r, studentId, examId) && attemptIsOpen(r) && !retired[String(r.id)]) open.push(r); });
+      if (!open.length) return null;
+      var acc = open[0];
+      for (var i = 1; i < open.length; i++) acc = mergeAttempt(acc, open[i]);
+      return { attempt: copyJson(acc), ids: open.map(function (r) { return String(r.id); }) };
+    }
+    function retireAttempt(a, resultId, submittedAt) {
+      return { id: a.id, examId: a.examId, studentId: a.studentId, status: 'submitted',
+        submittedAt: submittedAt || new Date().toISOString(), resultId: resultId == null ? null : resultId,
+        startTime: a.startTime, deadline: a.deadline, updatedAt: submittedAt || new Date().toISOString() };
+    }
+    /* One attempt per exam: a live result for the trainee and exam (by
+       whatever route it arrived) means every open attempt of theirs at it is
+       over. Retires them IN PLACE; returns how many. */
+    function settleAttempts(list, results) {
+      if (!Array.isArray(list)) return 0;
+      var live = {};
+      (Array.isArray(results) ? results : []).forEach(function (r) {
+        if (!r || r.archived || r.examId == null || r.studentId == null) return;
+        var k = String(r.studentId) + '|' + String(r.examId);
+        if (!live[k] || msOf(r.submittedAt) < msOf(live[k].submittedAt)) live[k] = r;
+      });
+      var n = 0;
+      for (var i = 0; i < list.length; i++) {
+        var a = list[i];
+        if (!attemptIsOpen(a)) continue;
+        var r = live[String(a.studentId) + '|' + String(a.examId)];
+        if (!r) continue;
+        list[i] = retireAttempt(a, r.id, r.submittedAt);
+        n++;
+      }
+      return n;
+    }
+    /* Two results that came from attempts (attemptId set) for one trainee at
+       one exam are one attempt submitted twice — a device that was away
+       submitted its own copy. The FIRST submission stands; the later is
+       dropped IN PLACE. Results without attemptId (every result saved
+       before attempts travelled) are left to the rules they always had.
+       Returns the dropped results. */
+    function oneResultPerAttempt(results) {
+      if (!Array.isArray(results)) return [];
+      var first = {};
+      results.forEach(function (r, i) {
+        if (!r || !r.attemptId || r.examId == null || r.studentId == null) return;
+        var k = String(r.studentId) + '|' + String(r.examId), f = first[k];
+        if (!f) { first[k] = { r: r, i: i }; return; }
+        var tr = msOf(r.submittedAt) || Infinity, tf = msOf(f.r.submittedAt) || Infinity;
+        if (tr < tf || (tr === tf && String(r.id) < String(f.r.id))) first[k] = { r: r, i: i };
+      });
+      var dropped = [];
+      for (var i = results.length - 1; i >= 0; i--) {
+        var r = results[i];
+        if (!r || !r.attemptId || r.examId == null || r.studentId == null) continue;
+        var f = first[String(r.studentId) + '|' + String(r.examId)];
+        if (f && f.r !== r) { dropped.unshift(r); results.splice(i, 1); }
+      }
+      return dropped;
+    }
+
     /* How a multiple-choice answer reads on a result: its letter and the
        option's own words — "B. Red" — where the review used to say
        "A. (selected)", which told the trainee nothing about what they had
@@ -12207,6 +12459,9 @@
       legacyKey: legacyKey, syncKey: syncKey, translateLegacyTombs: translateLegacyTombs, csvCell: csvCell,
       DRAFT_PREFIX: DRAFT_PREFIX, draftKey: draftKey,
       outboxAdd: outboxAdd, outboxPending: outboxPending, outboxRestore: outboxRestore,
+      attemptIsOpen: attemptIsOpen, attemptIsRetired: attemptIsRetired, mergeAttempt: mergeAttempt,
+      mergeAttemptLists: mergeAttemptLists, attemptFor: attemptFor, retireAttempt: retireAttempt,
+      settleAttempts: settleAttempts, oneResultPerAttempt: oneResultPerAttempt, ATTEMPT_KEEP_MS: ATTEMPT_KEEP_MS,
       markMulti: markMulti, markMatch: markMatch, matchChoices: matchChoices, acceptedAnswers: acceptedAnswers,
       shortAnswerMatches: shortAnswerMatches, parseNumber: parseNumber, numericalMatches: numericalMatches,
       answerState: answerState, attemptQuestions: attemptQuestions, pagesOf: pagesOf, questionNumbers: questionNumbers, questionCount: questionCount,
