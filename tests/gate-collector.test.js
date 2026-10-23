@@ -192,15 +192,21 @@ console.log('Re-owned after the account was folded into the trainee\'s real one'
   const chain = G.resolveOwner('USR-A', cx({ folds: { 'USR-A': { mergedInto: 'USR-B' }, 'USR-B': { mergedInto: T.acct.id } } }));
   assertEq([chain.acct, chain.stu, chain.folded], [T.acct.id, T.stu.id, true], 'a fold of a fold is followed');
   const loop = G.resolveOwner('USR-A', cx({ folds: { 'USR-A': 'USR-B', 'USR-B': 'USR-A' } }));
-  assertEq(loop.reason, 'account-gone', 'a fold that goes round in a circle ends, unplaced');
-  if (typeof Core.accountAccess.backfillStubFolds === 'function') {
-    // The real fold rule, when this build has it: a provable stub folds into the trainee's account.
-    const stub = C.stub;
-    const folds = Core.accountAccess.backfillStubFolds(C.store.voctrain_users, C.store.voctrain_students);
-    const into = G.foldMap(folds)[stub.id];
-    assertEq(into, T.acct.id, 'backfillStubFolds() folds the fee roll\'s stub into the trainee\'s account');
-    assertEq(G.resolveOwner(stub.id, cx({ folds })).acct, T.acct.id, 'and the gate follows it');
-  }
+  assertEq(loop.reason, 'ambiguous', 'folds that go round in a circle end, unplaced, for an administrator');
+  // The real fold rule: the fee roll's stub of trainee 0 is provably the same person.
+  const folds = Core.accountAccess.backfillStubFolds(C.store.voctrain_users, C.store.voctrain_students);
+  assertEq(G.foldMap(folds)[C.stub.id], T.acct.id, 'backfillStubFolds() folds the fee roll\'s stub into the trainee\'s account');
+  assertEq(G.resolveOwner(C.stub.id, cx({ folds })).acct, T.acct.id, 'and the gate follows it');
+  assertEq(G.resolveOwner(C.stub.id, cx()).acct, T.acct.id, 'even before this device has folded it (the gate asks the same rule)');
+  const stubLane = inbox({ acct: { id: C.stub.id }, stu: { id: T.stu.id } }, { voctrain_submissions: [submission(T, { accountId: C.stub.id })] });
+  const viaStub = G.collect([file('F-STUB', C.stub.id, stubLane)], cx());
+  assertEq(viaStub.payload.data.assignmentSubmissions.map(x => x.accountId), [T.acct.id], 'work under the stub is the real account\'s');
+  // Once folded, the stub is deleted: only the dashboard's log still knows where it went.
+  const after = cx({ accounts: C.store.voctrain_users.filter(a => a.id !== C.stub.id), deletedUserIds: [C.stub.id],
+    folds: { [C.stub.id]: { mergedInto: T.acct.id } } });
+  assertEq(G.resolveOwner(C.stub.id, after).acct, T.acct.id, 'after the fold, the log takes the gate to the real account');
+  const slice0 = G.buildAll(C.store, NOW).slices[T.acct.id];
+  assertEq(slice0.scrubbed, 0, 'and a slice treats the stub\'s id as the trainee\'s own');
 }
 
 /* ------------------------------------------------- waiting for a decision */

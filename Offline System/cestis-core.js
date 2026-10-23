@@ -13925,10 +13925,10 @@
 
       // Accounts folded into another: their ids are that trainee's own.
       ctx.foldedInto = dict();
-      var folds = foldMap(opts.folds);
+      var folds = foldsOf(opts.folds, allAccounts, allStudents);
       Object.keys(folds).forEach(function (stub) {
         var to = folds[stub], hops = 0;
-        while (folds[to] && hops++ < 10) to = folds[to];
+        while (folds[to] && hops++ < 10) to = folds[to];   // (a circle of folds ends here, unplaced)
         (ctx.foldedInto[to] = ctx.foldedInto[to] || []).push(stub);
       });
 
@@ -14605,15 +14605,33 @@
       });
       return out;
     }
+    /* Every fold that applies: those the dashboard has already made (its
+       log, cestisFoldedAccounts — a folded stub is deleted, so only the log
+       still knows it) and those the accounts list proves but this device has
+       not made yet (Core.accountAccess.backfillStubFolds). The log wins. */
+    function foldsOf(given, accounts, students) {
+      var out = foldMap(given);
+      if (Core.accountAccess && typeof Core.accountAccess.backfillStubFolds === 'function') {
+        var live = foldMap(Core.accountAccess.backfillStubFolds(Array.isArray(accounts) ? accounts : [], Array.isArray(students) ? students : []));
+        Object.keys(live).forEach(function (k) { if (!out[k]) out[k] = live[k]; });
+      }
+      return out;
+    }
     /* Whose work is this now? The account named by the trainee's folder,
        followed through any fold, with the trainee record it belongs to
        TODAY (a rename or a transfer moves the student ID). { acct, stu,
        account, student } — or { reason } when it cannot be placed:
-       'account-gone', 'not-a-trainee', 'student-gone', 'ambiguous'. */
+       'account-gone', 'not-a-trainee', 'student-gone', 'ambiguous' (two
+       records it could be, or folds that go round in a circle). */
     function resolveOwner(acct, cx) {
       cx = cx || {};
-      var folds = foldMap(cx.folds), id = str(acct), hops = 0;
-      while (folds[id] && hops++ < 10) id = folds[id];
+      var folds = foldsOf(cx.folds, cx.accounts, cx.students), id = str(acct), hops = 0, been = dict();
+      while (folds[id]) {
+        been[id] = 1;
+        id = folds[id];
+        hops++;
+        if (been[id]) return { reason: 'ambiguous' };
+      }
       var del = {};
       (Array.isArray(cx.deletedUserIds) ? cx.deletedUserIds : []).forEach(function (x) { del[x] = true; });
       var accounts = Core.accountAccess.dropDeleted(Array.isArray(cx.accounts) ? cx.accounts : [], del).accounts;

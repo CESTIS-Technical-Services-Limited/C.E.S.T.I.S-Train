@@ -1080,7 +1080,7 @@ of its text: a hex secret is used as written, never decoded, so every side deriv
 | `validateItem(item, me, slice, opts)` | §5.2. `{id, ok, reason?}` plus what to keep (`{key, rec, recId}`, `{op}`, `{attempt}`). `slice` null = ownership and shape only (the collector's re-check). `opts: {papers, paper, ownUploads, lane}`. |
 | `applyOps(store, ops, me)` | Read / clear / follow marks and a spent backup code, in place; idempotent; `{applied, skipped, changed, touchedAccounts}`. |
 | `toPayload(records)` | `{version:'1.0', data:{payloadName:…}, records:{storeKey:…}}` for `mergeBackupData` (+ the request queue's record merge). |
-| `foldMap(input)` / `resolveOwner(acct, cx)` / `reown(records, from, to)` | Account folds (`cestisFoldedAccounts`, a plain map, or `backfillStubFolds()`'s answer); whose work it is now; rewriting their ids. |
+| `foldMap(input)` / `resolveOwner(acct, cx)` / `reown(records, from, to)` | Account folds (`cestisFoldedAccounts`, a plain map, or `backfillStubFolds()`'s answer); whose work it is now — the dashboard's fold log first, then `Core.accountAccess.backfillStubFolds()` for stubs not folded yet (a circle of folds is `'ambiguous'`); rewriting their ids. `prepare` counts a folded stub's id as the trainee's own. |
 | `collect(files, cx)` | The collector's pure step (§5.6 steps 2–4): owner from the folder, re-check, re-own, payload, ops, the unassigned list, files seen, watermark. |
 | `markAttempt(attempt, keyFile, nowMs, opts)` | §5.3: `{result, retired, keyHash, file}` or `{error}`; `resultId(attemptId, crypto)`. |
 | `redactResult(result, exam, nowMs, offset)` | The right answers only when `Core.exams.canRevealAnswers` allows on the given time. |
