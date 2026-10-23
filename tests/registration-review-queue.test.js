@@ -70,10 +70,14 @@ assertEq(AA.registrationRole(' INSTRUCTOR '), 'instructor', 'whatever its case')
     cestisGenId: function (p) { return p + 'NEW'; }, localDateStr: function () { return '2026-10-20'; },
     cachePlaintextPw: function () {}, saveState: function () {},
     studentPushRegistration: function (u) { pushed.push(u); return Promise.resolve(true); },
-    closeRegistrationModal: function () {}, showPendingApprovalScreen: function () {}
+    closeRegistrationModal: function () {}, showPendingApprovalScreen: function () {}, setPendingApprovalState: function () {},
+    window: {}
   };
   vm.createContext(sb);
   vm.runInContext(extractFunction(SRC, 'submitRegistration'), sb);
+  // The registration is sent by the real sendRegistration (off the Centre's
+  // network it goes through studentPushRegistration, stubbed above).
+  vm.runInContext(extractFunction(SRC, 'sendRegistration'), sb);
   await vm.runInContext('submitRegistration()', sb);
   const reg = sb.userAccounts.find(function (u) { return u.id === 'USR-NEW'; });
   assert(!!reg, 'the registration is stored');

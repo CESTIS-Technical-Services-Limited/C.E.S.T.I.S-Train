@@ -10876,6 +10876,8 @@ async function handleAdminClick() {
     var rateCheck = checkLoginRateLimit(uname);
     if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var adminUser = await findLoginAccount('admin', uname);
+    var _recheck = await recheckAccountBeforeRefusal(adminUser, function(){ return CESTISCore.accountAccess.find(userAccounts, 'admin', uname); });
+    adminUser = _recheck.account;
     // Diagnostic (no secrets): helps distinguish "account not loaded" from "wrong
     // password" when investigating login failures. Safe to leave in.
     try {
@@ -10884,7 +10886,7 @@ async function handleAdminClick() {
         + ' matchedAccount=' + (adminUser?('yes(id='+adminUser.id+', pwFormat='+((adminUser.password||'').indexOf('pbkdf2$')===0?'pbkdf2':(/^[a-f0-9]{64}$/.test(adminUser.password||'')?'legacy-sha256':'plaintext'))+', hasPlainCache='+(!!adminUser._plaintextPw)+')'):'NO'));
     } catch(_) {}
     if(!adminUser) { recordLoginFailure(uname); alert('No admin account found for "' + uname + '" on this device. Try username: cestisadmin — or use "Sync Now" first to pull accounts.'); return; }
-    if(loginBlocked(adminUser, { contact: 'a system administrator' })) return;
+    if(loginBlocked(adminUser, { contact: 'a system administrator', checked: _recheck.checked })) return;
     var pwMatch = await checkPasswordWithCloud(pw, adminUser);
     try { console.log('[Login][admin] pwMatch=' + pwMatch); } catch(_) {}
     if(!pwMatch) { recordLoginFailure(uname); alert('Password incorrect for "' + uname + '".'); return; }
@@ -10911,11 +10913,15 @@ async function handleStudentClick() {
     // Look up in userAccounts — falls back to fetching accounts from Google
     // Drive when the account was created on another device
     var userAccount = await findLoginAccount('student', uname);
+    // "Awaiting approval" on this device may already be "approved" in the
+    // office — asked once, quietly, before she is turned away.
+    var _recheck = await recheckAccountBeforeRefusal(userAccount, function(){ return CESTISCore.accountAccess.find(userAccounts, 'student', uname); });
+    userAccount = _recheck.account;
     if(!userAccount) {
       recordLoginFailure(uname);
       alert('Invalid email/username or password. If you are a new student, please register first.'); return;
     }
-    if(loginBlocked(userAccount)) return;
+    if(loginBlocked(userAccount, { checked: _recheck.checked })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid email/username or password. If you are a new student, please register first.'); return; }
     clearLoginFailures(uname);
@@ -10970,11 +10976,13 @@ async function handleInstructorClick() {
     var rateCheck = checkLoginRateLimit(uname);
     if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('instructor', uname);
+    var _recheck = await recheckAccountBeforeRefusal(userAccount, function(){ return CESTISCore.accountAccess.find(userAccounts, 'instructor', uname); });
+    userAccount = _recheck.account;
     if(!userAccount) {
       recordLoginFailure(uname);
       alert('Invalid email/username or password.'); return;
     }
-    if(loginBlocked(userAccount)) return;
+    if(loginBlocked(userAccount, { checked: _recheck.checked })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid email/username or password.'); return; }
     clearLoginFailures(uname);
@@ -11010,11 +11018,13 @@ async function handleAdminStaffClick() {
     var rateCheck = checkLoginRateLimit(uname);
     if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('adminstaff', uname);
+    var _recheck = await recheckAccountBeforeRefusal(userAccount, function(){ return CESTISCore.accountAccess.find(userAccounts, 'adminstaff', uname); });
+    userAccount = _recheck.account;
     if(!userAccount) {
       recordLoginFailure(uname);
       alert('Invalid username or password.'); return;
     }
-    if(loginBlocked(userAccount, { contact: 'the System Administrator' })) return;
+    if(loginBlocked(userAccount, { contact: 'the System Administrator', checked: _recheck.checked })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
     clearLoginFailures(uname);
@@ -11038,11 +11048,13 @@ async function handleCmcClick() {
     var rateCheck = checkLoginRateLimit(uname);
     if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('cmc', uname);
+    var _recheck = await recheckAccountBeforeRefusal(userAccount, function(){ return CESTISCore.accountAccess.find(userAccounts, 'cmc', uname); });
+    userAccount = _recheck.account;
     if(!userAccount) {
       recordLoginFailure(uname);
       alert('Invalid username or password.'); return;
     }
-    if(loginBlocked(userAccount, { contact: 'the System Administrator' })) return;
+    if(loginBlocked(userAccount, { contact: 'the System Administrator', checked: _recheck.checked })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
     if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
     clearLoginFailures(uname);
@@ -11925,7 +11937,7 @@ function gmailSignIn(role) {
       fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { Authorization: 'Bearer ' + tokenResponse.access_token }
       }).then(function(r){ return r.json(); }).then(function(profile) {
-        handleGmailProfile(profile, role);
+        return handleGmailProfile(profile, role);
       }).catch(function(err) {
         alert('Could not read your email account: ' + err.message);
       });
@@ -11935,17 +11947,23 @@ function gmailSignIn(role) {
   client.requestAccessToken();
 }
 
-function handleGmailProfile(profile, role) {
+async function handleGmailProfile(profile, role) {
   var email = profile.email;
   var name = profile.name || email.split('@')[0];
 
   // Check if account already exists (case-insensitive — Google returns the
   // address in its own casing, which need not match how it was registered).
-  var existing = CESTISCore.accountAccess.findAnyRole(userAccounts, email);
+  // What this device holds can be behind the office: an approval given since
+  // it last synced, or an account created there. Before the person is turned
+  // away — or offered a second registration — the shared copy is asked once,
+  // quietly (recheckAccountBeforeRefusal).
+  var findMine = function() { return CESTISCore.accountAccess.findAnyRole(userAccounts, email); };
+  var _recheck = await recheckAccountBeforeRefusal(findMine(), findMine, { ifMissing: true, allowNoPassword: true });
+  var existing = _recheck.account;
   if(existing) {
     // Same gate as the password logins: rejected and password-less accounts are
     // stopped here too, instead of Google sign-in quietly letting them past.
-    if(loginBlocked(existing, { allowNoPassword: true })) return;
+    if(loginBlocked(existing, { allowNoPassword: true, checked: _recheck.checked })) return;
     // Active account — log them in
     if(existing.role === 'student') {
       var studentMatch = findStudentRecordForAccount(existing);
@@ -12070,40 +12088,65 @@ async function submitRegistration() {
   userAccounts.push(newUser);
   saveState();
 
-  // Push the new registration to cloud so admin can see it
-  // This works even without full admin sync — uses lightweight Google auth
-  studentPushRegistration(newUser).then(function(pushed) {
-    if (pushed) {
-      console.log('[Registration] Account pushed to cloud successfully');
-    } else {
-      console.log('[Registration] Account saved locally — will sync to cloud when admin syncs');
-    }
-  }).catch(function(err) {
-    console.warn('[Registration] Cloud push failed (account saved locally):', err);
-  });
-
   closeRegistrationModal();
-  showPendingApprovalScreen(newUser);
+  // The screen says what really happened to the registration: it used to
+  // promise a review straight away, even when it never left this device.
+  showPendingApprovalScreen(newUser, { state: 'sending' });
+  sendRegistration(newUser).then(function(pushed) {
+    console.log(pushed ? '[Registration] Registration reached the shared copy'
+                       : '[Registration] Registration kept on this device only — it has not reached the office');
+    setPendingApprovalState(pushed ? 'sent' : 'not-sent');
+  }).catch(function(err) {
+    console.warn('[Registration] Could not send the registration (kept on this device):', err);
+    setPendingApprovalState('not-sent');
+  });
+}
+
+/* Send a registration to the copy the office reviews, without asking anyone
+   to sign in: the Centre's own network when this page is served there (the
+   device's save carries the new account), else the shared backup with a
+   token this device already holds (studentPushRegistration). Resolves true
+   only when the registration is known to have arrived. */
+async function sendRegistration(account) {
+  try {
+    if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) {
+      var res = await CESTISPageCloud.saveNow();
+      return Array.isArray(res) && res.some(function (r) { return r === true; });
+    }
+  } catch (e) { return false; }
+  return studentPushRegistration(account);
 }
 
 // ----- Pending Approval Screen -----
-function showPendingApprovalScreen(user) {
+// opts.state: see CESTISCore.accountAccess.approvalNotice — what the screen
+// can truthfully say about the registration right now.
+function showPendingApprovalScreen(user, opts) {
+  opts = opts || {};
   // Remove existing
   var existing = document.getElementById('pendingApprovalScreen');
   if(existing) existing.remove();
+  var n = CESTISCore.accountAccess.approvalNotice(opts.state);
 
-  var html = '<div class="pending-screen" id="pendingApprovalScreen">' +
+  var html = '<div class="pending-screen" id="pendingApprovalScreen" data-state="' + escapeAttr(n.state) + '">' +
     '<div class="pending-card">' +
-    '<div class="pending-icon">📋</div>' +
-    '<h2>Thank You for Registering!</h2>' +
-    '<div class="pending-msg">' +
-    'Thank you for registering your account, please note that the system administrators will review your account and approval will be given once you are a verified staff/student.' +
-    '</div>' +
-    '<div class="pending-email">Registered as: <strong>' + escapeHtml(user.email) + '</strong> (' + user.role + ')</div>' +
-    '<div style="font-size:12px;color:var(--text-muted);margin-bottom:24px;">Programme: ' + escapeHtml(user.programme || '—') + ' &bull; Registered: ' + user.createdAt + '</div>' +
+    '<div class="pending-icon" id="pendingApprovalIcon">' + (n.tone === 'warn' ? '⚠️' : '📋') + '</div>' +
+    '<h2 id="pendingApprovalTitle">' + escapeHtml(n.title) + '</h2>' +
+    '<div class="pending-msg" id="pendingApprovalMsg" role="status" aria-live="polite">' + escapeHtml(n.message) + '</div>' +
+    '<div class="pending-email">Registered as: <strong>' + escapeHtml(user.email) + '</strong> (' + escapeHtml(user.role) + ')</div>' +
+    '<div style="font-size:12px;color:var(--text-muted);margin-bottom:24px;">Programme: ' + escapeHtml(user.programme || '—') + ' &bull; Registered: ' + escapeHtml(user.createdAt || '') + '</div>' +
     '<button class="btn btn-primary" onclick="closePendingScreen()" style="padding:12px 32px;">Back to Login</button>' +
     '</div></div>';
   document.body.insertAdjacentHTML('beforeend', html);
+}
+// Bring an open pending screen up to date (the send finished, the check came back).
+function setPendingApprovalState(state) {
+  var el = document.getElementById('pendingApprovalScreen');
+  if (!el) return;
+  var n = CESTISCore.accountAccess.approvalNotice(state);
+  el.setAttribute('data-state', n.state);
+  var t = document.getElementById('pendingApprovalTitle'); if (t) t.textContent = n.title;
+  var m = document.getElementById('pendingApprovalMsg'); if (m) m.textContent = n.message;
+  var i = document.getElementById('pendingApprovalIcon'); if (i) i.textContent = n.tone === 'warn' ? '⚠️' : '📋';
 }
 
 function closePendingScreen() {
@@ -12363,6 +12406,10 @@ function approveUser(userId) {
     }
   }
   saveState();
+  // The accounts ledger too, at once, like every other account change: an
+  // approval only reached the big backup on the next timed save, and the
+  // ledger — read first by every device — kept saying "pending".
+  try { saveUserAccounts(); } catch(e) {}
   renderVerifyUsersPage();
   refreshStudentDependentViews();
   // Accounts created by the fee sync and the chat backfill carry no password, so
@@ -12386,6 +12433,7 @@ function rejectUser(userId) {
   user.approvedBy = 'admin';
   touchAccount(user);
   saveState();
+  try { saveUserAccounts(); } catch(e) {}   // the accounts ledger at once (see approveUser)
   renderVerifyUsersPage();
   showToast('Account rejected: ' + user.name);
   addNotification('Account rejected: ' + user.name, 'warning', null, ['admin']);
@@ -12423,6 +12471,7 @@ function approveAllPending() {
     }
   });
   saveState();
+  try { saveUserAccounts(); } catch(e) {}   // the accounts ledger at once (see approveUser)
   renderVerifyUsersPage();
   refreshStudentDependentViews();
   // Flag the approved accounts that still cannot sign in because no password was
@@ -12453,6 +12502,7 @@ function rejectAllPending() {
     touchAccount(u);
   });
   saveState();
+  try { saveUserAccounts(); } catch(e) {}   // the accounts ledger at once (see approveUser)
   renderVerifyUsersPage();
   showToast(pending.length + ' account(s) rejected.');
   addNotification(pending.length + ' user account(s) rejected', 'warning', null, ['admin']);
@@ -33220,12 +33270,19 @@ async function saveAccountsLedger() {
     // The ledger is rewritten whole, so a device must never publish FEWER
     // deletions than the ledger already holds: read what is there and write
     // down every removal it records before writing the union back.
+    //
+    // Nor fewer accounts, nor older ones. A lab PC that last synced before the
+    // office approved a trainee held her "pending" copy, and its next ledger
+    // write put "pending" back in the ledger and dropped every account created
+    // since. What the ledger holds is merged in first — the one account rule,
+    // newest edit wins — so the write is a union and an approval stands.
     if (fileId) {
       try {
         var cur = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: ledgerHeaders() });
         if (cur.ok) {
           var curLed = await cur.json();
           if (curLed && Array.isArray(curLed.deletedUserIds)) curLed.deletedUserIds.forEach(function(id) { if (id && !isUserDeleted(id)) recordDeletedUser(id); });
+          try { if (curLed && Array.isArray(curLed.accounts) && mergeCloudAccounts(curLed.accounts)) persistUserAccounts(); } catch (e) {}
           dropDeletedAccounts();
         }
       } catch (e) {}
@@ -34785,6 +34842,19 @@ async function loginPageLanSync() {
   }
 }
 
+// Can this sign-in open the Centre's main folder? 'yes', 'no' (not found or
+// not allowed — somebody else's account), 'expired', or 'unknown' (no answer).
+async function centreFolderAccess(token) {
+  if (!token) return 'unknown';
+  try {
+    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + GOOGLE_DRIVE_CONFIG.FOLDER_ID + '?fields=id', { headers: { Authorization: 'Bearer ' + token } });
+    if (r.ok) return 'yes';
+    if (r.status === 401) return 'expired';
+    if (r.status === 403 || r.status === 404) return 'no';
+    return 'unknown';
+  } catch (e) { return 'unknown'; }
+}
+
 // Pre-login sync: pull data from all Google Drive folders before user logs in
 async function loginPageSync() {
   try {
@@ -34845,7 +34915,8 @@ async function loginPageSync() {
 
     // Step 1b: The accounts first — their own small file, so people can sign
     // in even when the big backups are slow, stale or broken.
-    try { updateLoginSyncStatus('Reading the accounts...', ''); await loadAccountsLedger(); } catch (e) {}
+    var _ledgerRead = false;
+    try { updateLoginSyncStatus('Reading the accounts...', ''); _ledgerRead = !!(await loadAccountsLedger()); } catch (e) {}
 
     // Step 2: Sync main backup data from ALL folders. Every folder holds a copy
     // of the same backup, and a copy a failed write left behind is older than
@@ -34883,7 +34954,27 @@ async function loginPageSync() {
 
     // Step 2b: The accounts ledger once more, after the folders, so its copy
     // settles any tie a folder's stale copy would otherwise win.
-    try { await loadAccountsLedger(); } catch (e) {}
+    try { if (await loadAccountsLedger()) _ledgerRead = true; } catch (e) {}
+
+    // Step 2c: Was anything of the Centre's read at all? This said "Sync
+    // complete!" whenever nothing threw — also when the person had signed in
+    // with their OWN email account, which cannot open the Centre's records:
+    // nothing was read, the sign-in buttons opened on a device holding no
+    // accounts, and a registration made next reached nobody. When nothing was
+    // read, the Centre's folder itself is asked: it answers for a brand-new
+    // Centre that has saved nothing yet, and says "not found" to anybody else
+    // (CESTISCore.accountAccess.loginSyncOutcome). A sign-in that cannot open
+    // the Centre's records is not kept on this device as if it were the
+    // Centre's.
+    // A failed sync is handled below, as any other: sign-in stays open only
+    // on a device that already holds the Centre's accounts.
+    var _syncOutcome = CESTISCore.accountAccess.loginSyncOutcome({ ledgerRead: _ledgerRead, copiesFound: _found.length,
+      folderAccess: (_ledgerRead || _found.length) ? 'yes' : await centreFolderAccess(googleAccessToken) });
+    if (_syncOutcome !== 'ok') {
+      var _nothingRead = new Error(_syncOutcome === 'expired' ? 'invalid_token' : 'nothing of the Centre’s could be read');
+      _nothingRead.syncOutcome = _syncOutcome;
+      throw _nothingRead;
+    }
 
     // Step 3: Also sync chat-specific data from chat folder
     try {
@@ -34963,7 +35054,15 @@ async function loginPageSync() {
     console.log('[LoginSync] Pre-login sync complete. Folders synced: ' + foldersSynced + ', Data changed in: ' + totalMerged);
   } catch (err) {
     console.error('[LoginSync] Sync failed:', err);
-    if (err.message && (err.message.includes('invalid_token') || err.message.includes('Invalid Credentials'))) {
+    if (err && err.syncOutcome === 'no-access') {
+      // Somebody else's account: it is not kept here as if it were the Centre's.
+      updateLoginSyncStatus(CESTISCore.accountAccess.NO_ACCESS_SYNC_MESSAGE, 'error');
+      googleAccessToken = null;
+      isCloudConnected = false;
+      CESTISStore.removeItem('schoolDashboardGoogleAccessToken');
+      CESTISStore.removeItem('schoolDashboardGoogleTokenExpiry');
+      try { updateCloudUI(false); } catch (e) {}
+    } else if (err.message && (err.message.includes('invalid_token') || err.message.includes('Invalid Credentials'))) {
       updateLoginSyncStatus(isAdmin ? 'Session expired. Please try again.' : 'Session expired. Try again.', 'error');
       googleAccessToken = null;
       isCloudConnected = false;
@@ -35158,6 +35257,7 @@ function cloudFetchAccountData(interactive) {
   if (_cloudAcctFetchPromise) return _cloudAcctFetchPromise;
   if (Date.now() - _cloudAcctFetchLastAt < 30000) return Promise.resolve(false);
   _cloudAcctFetchPromise = (async function() {
+  _cloudAcctFetchLastOk = false;
   try {
     updateLoginSyncStatus('Checking for your account...', '');
 
@@ -35278,6 +35378,7 @@ function cloudFetchAccountData(interactive) {
     saveState();
     updateLoginSyncStatus('Account data synced.', 'success');
     console.log('[CloudAccountFetch] Merged ' + cloudAccounts.length + ' accounts, ' + cloudStudents.length + ' students, ' + cloudCertApprovals.length + ' cert approvals from cloud');
+    _cloudAcctFetchLastOk = true;
     return true;
 
   } catch (err) {
@@ -35313,6 +35414,8 @@ async function findLoginAccount(role, uname) {
 // Blocking a trainee is an administrator's decision, so the only silent outcome
 // is 'pending' (which has its own screen); everything else says exactly what is
 // wrong and who can fix it.
+// opts.checked: true when the account was just checked against the shared
+// copy, false when this device could not check (recheckAccountBeforeRefusal).
 function loginBlocked(account, opts) {
   opts = opts || {};
   var res = CESTISCore.accountAccess.check(account);
@@ -35321,9 +35424,65 @@ function loginBlocked(account, opts) {
   // password-less account (fee-sync/backfill created) must not be turned away
   // on that route — that would be a lockout no administrator asked for.
   if (res.reason === 'no-password' && opts.allowNoPassword) return false;
-  if (res.reason === 'pending' && account) { showPendingApprovalScreen(account); return true; }
-  alert(res.reason === 'disabled' && opts.contact ? 'This account has been disabled. Contact ' + opts.contact + '.' : res.message);
+  if (res.reason === 'pending' && account) {
+    // Checked and still pending: make sure the office really has the
+    // registration — one made while this device could not send it (an expired
+    // sign-in on a lab PC) goes now, and the screen says which it is.
+    var resend = opts.checked === true && account.registeredVia === 'registration';
+    showPendingApprovalScreen(account, { state: opts.checked === false ? 'unchecked' : (resend ? 'checking' : 'waiting') });
+    if (resend) {
+      sendRegistration(account).then(function(sent) { setPendingApprovalState(sent ? 'waiting' : 'not-sent'); },
+                                      function() { setPendingApprovalState('not-sent'); });
+    }
+    return true;
+  }
+  var msg = res.reason === 'disabled' && opts.contact ? 'This account has been disabled. Contact ' + opts.contact + '.' : res.message;
+  if (opts.checked === false) msg += '\n\n' + CESTISCore.accountAccess.UNCHECKED_REFUSAL_NOTE;
+  alert(msg);
   return true;
+}
+
+/* Bring this device's accounts up to date without asking anyone to sign in:
+   the Centre's own network when the page is served there, otherwise the
+   accounts ledger and the main backup with a token this device already holds
+   (cloudFetchAccountData(false) never opens a pop-up). Resolves true when the
+   shared copy was read — a fetch that succeeded in the last half-minute counts,
+   since that is the copy this device would read again. Offline, or with no
+   usable token, it resolves false and this device's own answer stands. */
+var _cloudAcctFetchLastOk = false;
+async function refreshAccountsQuietly() {
+  try {
+    if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) {
+      await CESTISPageCloud.loadNow();
+      return typeof CESTISPageCloud.lanSynced === 'function' && CESTISPageCloud.lanSynced();
+    }
+    if (!_cloudAcctFetchPromise && Date.now() - _cloudAcctFetchLastAt < 30000) return _cloudAcctFetchLastOk;
+    return !!(await cloudFetchAccountData(false));
+  } catch (e) { return false; }
+}
+
+/* Before a sign-in is turned away on this device's word alone, ask the
+   shared copy once (CESTISCore.accountAccess.recheckBeforeRefusal says when).
+
+   The answer came from this device's own copy only. A device that already
+   holds accounts never syncs before a sign-in, so a trainee who registered on
+   a lab PC kept that PC's "pending" copy: once the administrator had approved
+   her on the office PC she was still told "awaiting approval" on the lab PC —
+   by the email button and by her password alike — until somebody happened to
+   press Sync Now. A stale password is already re-checked the same way
+   (checkPasswordWithCloud). The merge is the one account rule (newest edit
+   wins), so this brings a newer decision here and never an older one.
+   find() looks the account up again: a merge on the Centre's network replaces
+   the list, and an account deleted in the office is simply gone.
+   Resolves { account, checked }: checked true (read the shared copy), false
+   (could not), or null (nothing needed checking). */
+async function recheckAccountBeforeRefusal(account, find, opts) {
+  if (!CESTISCore.accountAccess.recheckBeforeRefusal(account, opts)) return { account: account, checked: null };
+  var read = await refreshAccountsQuietly();
+  if (!read) return { account: account, checked: false };
+  // An account the office deleted is gone here too, not resent as a registration.
+  try { dropDeletedAccounts(); } catch (e) {}
+  return { account: find() || null, checked: true };
 }
 
 // Hash-aware password check that refreshes the account from Google Drive and
@@ -35349,10 +35508,15 @@ async function studentPushRegistration(newUserAccount) {
     var savedExpiry = CESTISStore.getItem('schoolDashboardGoogleTokenExpiry');
     if (savedToken && savedExpiry && new Date(savedExpiry) > new Date()) {
       token = savedToken;
-    } else {
-      // Request Google auth to push registration to cloud
-      try { token = await loginPageGoogleAuth(); } catch(e) { token = null; }
     }
+    // No sign-in window here. It used to open one right after Register,
+    // asking for the Centre's own sign-in, which a trainee does not have: she
+    // signed in with her own account instead, that token was kept on the
+    // (shared) lab PC as if it were the Centre's, and the registration still
+    // went nowhere. Without a token this device already holds, the
+    // registration waits here and the pending screen says it has not been
+    // sent; it is sent when she next tries on this device and it can send it
+    // (loginBlocked).
   }
 
   if (!token) {

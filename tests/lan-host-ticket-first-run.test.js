@@ -155,6 +155,7 @@ function device() {
     'function requireLoginSync() { return false; } function checkLoginRateLimit() { return { allowed: true }; }' +
     'async function findLoginAccount(role, u) { return userAccounts.find(a => a.username === u) || null; }' +
     'function loginBlocked() { return false; } async function checkPasswordWithCloud() { return true; }' +
+    'async function recheckAccountBeforeRefusal(a) { return { account: a, checked: null }; }' +
     'function recordLoginFailure() {} function clearLoginFailures() {} function alert(m) { throw new Error("alert: " + m); }' +
     'function tfaGateLogin(acct, go) { twoStep++; go(); } function enterApp(role) { currentRole = role; entered.push(role); }' +
     'function openModal() {} function closeModal() {} function showToast() {}' +

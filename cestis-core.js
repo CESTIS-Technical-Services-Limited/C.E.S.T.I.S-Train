@@ -8370,6 +8370,89 @@
       return { ambiguous: true };
     }
 
+    /* Should this device ask the shared copy before it turns a sign-in away?
+
+       "Awaiting approval", "not approved", "disabled" and "no password yet"
+       are all lifted by an administrator — on the administrator's own PC. A
+       device that already holds accounts never syncs before a sign-in, so a
+       trainee who registered on a lab PC kept that PC's "pending" copy: after
+       she was approved in the office she was still told "awaiting approval"
+       on the lab PC, by the email button and by her password alike, until
+       somebody happened to press Sync Now. Every refusal of an account this
+       device knows is therefore checked once against the shared copy first;
+       the merge is newest-edit-wins (cloudCopyWins), so the check can only
+       bring a newer decision here, never an older one. With
+       opts.ifMissing, an address this device does not know at all is checked
+       too (the email button: an account the office created since this device
+       last synced is found, instead of a second registration). With
+       opts.allowNoPassword (the email button, which needs no password), an
+       account with no password yet is not a refusal and is not checked. */
+    function recheckBeforeRefusal(account, opts) {
+      opts = opts || {};
+      if (!account) return !!opts.ifMissing;
+      var res = check(account);
+      if (res.allowed) return false;
+      if (res.reason === 'no-password' && opts.allowNoPassword) return false;
+      return true;
+    }
+
+    /* What the "awaiting approval" screen says — by what actually happened.
+
+       It used to say the same thing every time: "the system administrators
+       will review your account". On a trainee's own phone, and on a lab PC
+       whose sign-in had expired, the registration had never left the device,
+       so nobody would ever review it. The screen now says what is true:
+         'sending'   a registration on its way to the office
+         'sent'      it reached the copy the office reviews
+         'not-sent'  it did not reach it
+         'checking'  a returning person: checking their registration
+         'waiting'   a returning person, checked: still awaiting approval
+         'unchecked' a returning person this device could not check just now
+       It names no place and no service — the office, this device. */
+    var APPROVAL_NOTICES = {
+      sending: { title: 'Thank You for Registering!', tone: 'info',
+        message: 'Sending your registration to the office…' },
+      sent: { title: 'Thank You for Registering!', tone: 'good',
+        message: 'Your registration has reached the office. The system administrators will review your account, and approval will be given once you are a verified staff member or student.' },
+      'not-sent': { title: 'Registration Not Sent Yet', tone: 'warn',
+        message: 'Your registration has not reached the office yet, so nobody can approve it. Please tell the office you have registered so they can set up your access.' },
+      checking: { title: 'Awaiting Approval', tone: 'info',
+        message: 'Checking your registration with the office…' },
+      waiting: { title: 'Awaiting Approval', tone: 'info',
+        message: 'Your account is awaiting approval. The system administrators will review your account, and you can sign in once it has been approved.' },
+      unchecked: { title: 'Awaiting Approval', tone: 'warn',
+        message: 'Your account is awaiting approval. This device could not check for a newer answer just now — if the office has already approved you, ask them to press Sync Now on this device, then try again.' }
+    };
+    function approvalNotice(state) {
+      var key = Object.prototype.hasOwnProperty.call(APPROVAL_NOTICES, state) ? state : 'waiting';
+      var n = APPROVAL_NOTICES[key];
+      return { state: key, title: n.title, message: n.message, tone: n.tone };
+    }
+    /* Added to a refusal ("not approved", "disabled") this device could not
+       check against the shared copy just now. */
+    var UNCHECKED_REFUSAL_NOTE = 'This device could not check for a newer answer just now. If this has changed, ask the office to press Sync Now on this device, then try again.';
+
+    /* What a pre-login Sync Now actually achieved.
+
+       It said "Sync complete! You may now log in." whenever nothing threw —
+       including when the person had signed in with their OWN email account,
+       which cannot see any of the Centre's records: nothing was read, the
+       phone held no accounts, and a registration made next never reached
+       anyone. Something was read (the accounts ledger, or any backup copy),
+       or the Centre's folder answered and is simply empty (a brand-new
+       Centre): 'ok'. The folder said "not found" to this sign-in: 'no-access'.
+       The sign-in was refused as expired: 'expired'. Anything else: 'failed'.
+         info: { ledgerRead, copiesFound, folderAccess: 'yes'|'no'|'expired'|'unknown' } */
+    function loginSyncOutcome(info) {
+      info = info || {};
+      if (info.ledgerRead || (info.copiesFound || 0) > 0) return 'ok';
+      if (info.folderAccess === 'yes') return 'ok';
+      if (info.folderAccess === 'no') return 'no-access';
+      if (info.folderAccess === 'expired') return 'expired';
+      return 'failed';
+    }
+    var NO_ACCESS_SYNC_MESSAGE = 'Could not sync — this sign-in cannot open the Centre’s records. Sign in with the Centre’s account, or ask the office.';
+
     return {
       idMatches: idMatches, hasPassword: hasPassword, check: check,
       find: find, findAnyRole: findAnyRole, adminLabel: adminLabel,
@@ -8380,7 +8463,10 @@
       isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin, toolDefaultLogin: toolDefaultLogin,
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
-      reviewQueue: reviewQueue, studentLinkFor: studentLinkFor
+      reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
+      recheckBeforeRefusal: recheckBeforeRefusal, approvalNotice: approvalNotice,
+      UNCHECKED_REFUSAL_NOTE: UNCHECKED_REFUSAL_NOTE,
+      loginSyncOutcome: loginSyncOutcome, NO_ACCESS_SYNC_MESSAGE: NO_ACCESS_SYNC_MESSAGE
     };
 
   })();
