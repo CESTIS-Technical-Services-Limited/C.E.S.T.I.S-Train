@@ -27,6 +27,8 @@
      - Sync Now said "Sync complete! You may now log in." when the person had
        signed in with their own account, which cannot open any of the Centre's
        records: nothing was read, and that account was kept as the Centre's;
+     - on the Centre's own network (no internet) the email button could only
+       answer "check the connection and reload".
 
    What this pins (root index.html and cestis-core.js; the Offline copies are
    generated from them, tests/offline-build.test.js):
@@ -52,7 +54,8 @@
      9  the quick account check brings the instructors' records too, and an
         instructor's sign-in asks for their record before making one (made
         under the account's own id, so two devices make the same one);
-     10 Sync Now's folder check, and its "nothing was read" outcome.
+     10 Sync Now's folder check, and its "nothing was read" outcome;
+     11 the email button is taken away where its sign-in cannot load.
 
    Run: node tests/email-signin-approval.test.js */
 'use strict';
@@ -487,9 +490,24 @@ const REAL = 'pbkdf2$210000$0011$2233';
       'a sign-in that cannot open the Centre\'s records says so and is not kept on the device');
   }
 
+  /* ---------- 11. The email button where its sign-in cannot load ---------- */
+  console.log('The email button is taken away where its sign-in cannot load');
+  {
+    assert(/<script src="https:\/\/accounts\.google\.com\/gsi\/client" async defer onerror="[^"]*markEmailSignInUnavailable/.test(SRC), 'the sign-in script reports when it cannot load');
+    assert(/if \(window\.__cestisEmailSignInOff\) markEmailSignInUnavailable\(\);/.test(SRC), 'and a failure before the page script ran is not missed');
+    const el = (cls, prev) => ({ classList: { contains: c => c === cls }, style: {}, previousElementSibling: prev || null });
+    const orS = el('gmail-divider'), btnS = el('gmail-btn', orS), orI = el('gmail-divider'), btnI = el('gmail-btn', orI);
+    const sb = { document: { querySelectorAll: function (q) { return q === '.role-card .gmail-btn' ? [btnS, btnI] : []; } } };
+    vm.createContext(sb);
+    vm.runInContext(extractFunction(SRC, 'markEmailSignInUnavailable'), sb);
+    vm.runInContext('markEmailSignInUnavailable()', sb);
+    assert(btnS.style.display === 'none' && btnI.style.display === 'none', 'both email buttons are taken away');
+    assert(orS.style.display === 'none' && orI.style.display === 'none', 'with their "or"');
+  }
+
   /* ---------- the Offline System carries the same page code ---------- */
   const OFF = fs.readFileSync(path.join(ROOT, 'Offline System', 'index.html'), 'utf8');
-  ['recheckAccountBeforeRefusal', 'refreshAccountsQuietly', 'loginBlocked', 'sendRegistration', 'centreFolderAccess', 'instructorRecordForSignIn', 'createInstructorDataForAccount'].forEach(function (fn) {
+  ['recheckAccountBeforeRefusal', 'refreshAccountsQuietly', 'loginBlocked', 'sendRegistration', 'markEmailSignInUnavailable', 'centreFolderAccess', 'instructorRecordForSignIn', 'createInstructorDataForAccount'].forEach(function (fn) {
     assertEq(extractFunction(OFF, fn), extractFunction(SRC, fn), 'the Offline System\'s ' + fn + '() is the main build\'s');
   });
 

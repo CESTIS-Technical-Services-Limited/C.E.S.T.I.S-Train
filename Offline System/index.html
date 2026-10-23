@@ -4537,8 +4537,10 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
      through the Centre's server instead of a public one on the internet.
      Inert everywhere else — it changes nothing unless that server answers. -->
 <script src="cestis-offline-rtc.js?v=20261022a"></script>
-<!-- Google Identity Services for OAuth -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- Google Identity Services for OAuth. Where it cannot load (the Centre's own
+     network has no internet by design) the email sign-in buttons are taken
+     away — see markEmailSignInUnavailable. -->
+<script src="https://accounts.google.com/gsi/client" async defer onerror="window.__cestisEmailSignInOff=true;if(typeof window.markEmailSignInUnavailable==='function')window.markEmailSignInUnavailable();"></script>
 <!-- jsPDF (certificates, enrolment registers) is fetched the first time a PDF
      is built: see cestisVendorLoader near the top of <head>. -->
 </head>
@@ -11916,6 +11918,21 @@ function enterApp(role) {
 
 // ============================== GMAIL REGISTRATION & VERIFY USERS ==============================
 var currentLoggedInUser = null;
+
+/* "Sign in with your email account" needs the provider's sign-in script.
+   Where that script could not load — the Centre's own network has no
+   internet by design — the button can never work, and pressing it answered
+   "check the connection and reload the page" to a person who could do
+   neither. It is taken away there, with its "or", leaving the password
+   sign-in; the next page load that reaches the provider brings it back. */
+function markEmailSignInUnavailable() {
+  document.querySelectorAll('.role-card .gmail-btn').forEach(function(btn) {
+    btn.style.display = 'none';
+    var or = btn.previousElementSibling;
+    if (or && or.classList.contains('gmail-divider')) or.style.display = 'none';
+  });
+}
+if (window.__cestisEmailSignInOff) markEmailSignInUnavailable();
 
 // ----- Gmail Sign-In via Google Identity Services -----
 function gmailSignIn(role) {
