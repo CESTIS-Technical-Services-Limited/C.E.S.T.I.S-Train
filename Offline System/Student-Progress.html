@@ -988,7 +988,7 @@ function renderStudents(data) {
       '<td><strong>' + sanitizeInput(s.name||'Unknown') + '</strong>' + keptSeparate + '</td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-muted);">' + sanitizeInput(s.id||'—') + '</td>' +
       '<td>' + sanitizeInput(s.course||'—') + '</td>' +
-      '<td><span class="badge ' + (stageBadge[s.stage]||'badge-blue') + '"><span class="badge-dot"></span>' + sanitizeInput(stageLabels[s.stage]||s.stage||'—') + '</span></td>' +
+      '<td><span class="badge ' + (stageBadge[s.stage]||'badge-blue') + '"><span class="badge-dot"></span>' + sanitizeInput(stageLabels[s.stage]||s.stage||'—') + '</span>' + spCourseEndNote(s) + '</td>' +
       '<td>' + sanitizeInput(s.score||'—') + '</td>' +
       '<td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:80px;"><div class="fill" style="width:' + prog + '%;background:' + (prog>=80?'var(--green)':prog>=40?'var(--accent)':'var(--red)') + ';"></div></div><span style="font-size:12px;color:var(--text-muted);">' + prog + '%</span></div></td>' +
       '<td><div style="display:flex;gap:6px;">' + (spCanManage() ?
@@ -1120,14 +1120,30 @@ function spActorName() {
 // undo it, and it settles this course ending for them (as the dashboard's
 // markStageSetByUser does).
 function spMarkStageSetByUser(s) {
-  delete s._nycAuto;
+  var endKey = null;
   try {
     var rec = null;
     if (s.centreId != null) rec = skillAreas.filter(function (a) { return a && a.id === s.centreId; })[0] || null;
     if (!rec) rec = CESTISCore.enrolment.findCentre(skillAreas, s.course, { nowMs: Date.now() });
-    if (rec && CESTISCore.courseDuration.status(rec.startDate, rec.endDate) === 'ended') s._nycForCourseEnd = rec.endDate || s.courseEnd || 'ended';
+    if (rec && CESTISCore.courseDuration.status(rec.startDate, rec.endDate) === 'ended') endKey = rec.endDate || s.courseEnd || 'ended';
   } catch (e) {}
-  s.stageSetByUser = true;
+  CESTISCore.courseEnd.markSetByUser(s, endKey);
+}
+
+// What the course-end rule found in this trainee's transcript, under their
+// stage (CESTISCore.courseEnd.flag): "Ready to certify", "Awaiting marking",
+// or the units that made them Not Yet Competent.
+function spCourseEndNote(s) {
+  var f = (window.CESTISCore && CESTISCore.courseEnd) ? CESTISCore.courseEnd.flag(s) : null;
+  if (!f) return '';
+  var tone = f.state === 'ready' ? 'background:rgba(46,204,113,.16);color:var(--green);'
+    : f.state === 'awaiting-marking' ? 'background:rgba(230,162,60,.18);color:var(--amber, #e6a23c);' : '';
+  var pill = f.state === 'nyc' ? '' : '<span style="display:inline-block;margin-top:4px;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;white-space:nowrap;' + tone + '">' +
+    (f.state === 'ready' ? '&#10003; ' : '&#9203; ') + sanitizeInput(f.label) + '</span>';
+  // Under the "Awaiting marking" pill the units alone say it; the record keeps the full sentence.
+  var detail = f.state === 'awaiting-marking' ? f.detail.replace(/^Awaiting marking:\s*/, 'Being marked: ') : f.detail;
+  var why = detail ? '<div style="font-size:11px;color:var(--text-muted);margin-top:3px;max-width:260px;white-space:normal;line-height:1.35;">' + sanitizeInput(detail) + '</div>' : '';
+  return '<div>' + pill + why + '</div>';
 }
 
 function updateStudentStage(idx) {

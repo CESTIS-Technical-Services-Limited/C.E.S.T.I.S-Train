@@ -1215,36 +1215,36 @@
         <!-- Cloud Sync Dropdown -->
         <div id="cloudNotConnected">
             <button class="cloud-sync-btn" onclick="connectToGoogleDrive()">
-                <span>☁️</span>
-                <span id="cloudStatusText">Not connected</span>
+                <span>🔄</span>
+                <span id="cloudStatusText">Not synced yet</span>
                 <span id="cloudStatusDot" class="cloud-status-dot"></span>
             </button>
         </div>
         <div id="cloudConnected" style="display: none;">
             <div class="cloud-sync-wrapper">
                 <div class="cloud-status-label connected" id="cloudStatusLabel">
-                    <span>CLOUD SYNC</span>
+                    <span>SYNC</span>
                     <span id="cloudStatusDotConnected" class="cloud-status-dot connected"></span>
-                    <span class="status-text" id="cloudStatusTextConnected">Connected</span>
+                    <span class="status-text" id="cloudStatusTextConnected">Up to date</span>
                 </div>
                 <div class="cloud-dropdown">
                     <button class="cloud-sync-btn" onclick="toggleCloudMenu()">
-                        <span id="cloudMenuIcon">☁️</span>
-                        <span>Cloud</span>
+                        <span id="cloudMenuIcon">🔄</span>
+                        <span>Sync</span>
                         <span style="font-size: 0.6rem;">▼</span>
                     </button>
                     <div class="cloud-dropdown-content" id="cloudDropdownMenu">
                         <div class="cloud-dropdown-item item-save" onclick="saveToCloud()">
                             <span>💾</span>
-                            <span>Save to Cloud</span>
+                            <span>Send My Changes</span>
                         </div>
                         <div class="cloud-dropdown-item item-sync" onclick="syncFromCloud()">
                             <span>🔄</span>
-                            <span>Sync from Cloud</span>
+                            <span>Get Latest Changes</span>
                         </div>
                         <div class="cloud-dropdown-item item-merge" onclick="mergeFromCloud()">
                             <span>🔀</span>
-                            <span>Merge from Cloud</span>
+                            <span>Merge Latest Changes</span>
                         </div>
                         <div class="cloud-dropdown-item item-browse" onclick="browseBackupFiles()">
                             <span>📁</span>
@@ -1313,7 +1313,7 @@
     </div>
     <div id="quarterEmptyBanner" class="quarter-empty-banner" style="display:none;">
         <span class="banner-icon">⚠️</span>
-        <span id="quarterEmptyText"><strong>No Cashbook data available for this quarter.</strong> Use <em>Sync Budget from Cashbook</em> to pull cloud data for all available quarters.</span>
+        <span id="quarterEmptyText"><strong>No Cashbook data available for this quarter.</strong> Use <em>Sync Budget from Cashbook</em> to get the data for all available quarters.</span>
     </div>
     <div class="stat-row" id="statsRow"></div>
     <div class="chart-grid" id="chartArea"></div>
@@ -1712,7 +1712,7 @@ function showCloudNotification(type, title, message, showConnect, autoDismissSec
   const el = document.createElement('div');
   el.id = 'cloudNotifyPopup';
   el.className = 'cloud-notify ' + type;
-  const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '☁️';
+  const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '🔄';
   el.innerHTML =
     '<div class="cloud-notify-bar"></div>' +
     '<div class="cloud-notify-body">' +
@@ -1758,7 +1758,7 @@ function checkCloudAndNotify(reason){
 
   if (!navigator.onLine) {
     showCloudNotification('error', 'You Are Offline',
-      'Your internet connection is unavailable. Data changes will only be saved locally. Please reconnect to sync with Google Drive.',
+      'You’re offline. Your work is kept on this computer until it syncs.',
       false, 0);
     return;
   }
@@ -1769,21 +1769,21 @@ function checkCloudAndNotify(reason){
     let detail = '';
 
     if (savedExpiry && new Date(savedExpiry) <= new Date()) {
-      detail = 'Your Google Drive session has expired.';
+      detail = 'Your sync sign-in has expired.';
     } else if (reason === 'page_load') {
-      detail = 'Google Drive is not connected.';
+      detail = 'Sync is not connected.';
     } else if (reason === 'token_expired') {
-      detail = 'Your Google Drive session has expired.';
+      detail = 'Your sync sign-in has expired.';
     } else {
-      detail = 'Google Drive connection was lost.';
+      detail = 'The sync connection was lost.';
     }
 
     if (lastSync) {
       detail += ' Last sync: ' + getTimeAgo(new Date(lastSync)) + '.';
     }
 
-    showCloudNotification('warn', 'Cloud Sync Disconnected',
-      detail + ' Your data is only saved locally. Connect to Google Drive to back up and sync your data.',
+    showCloudNotification('warn', 'Not Synced Yet',
+      detail + ' Your work is kept on this computer until it syncs. Reconnect to sync.',
       true, 30);
   }
 }
@@ -1811,7 +1811,7 @@ function startCloudMonitor(){
 // Listen for browser online/offline events
 window.addEventListener('offline', function(){
   showCloudNotification('error', 'You Are Offline',
-    'Internet connection lost. Data changes will only be saved locally until you reconnect.',
+    'Connection lost. Your work is kept on this computer until it syncs.',
     false, 0);
 });
 
@@ -1824,7 +1824,7 @@ window.addEventListener('online', function(){
     }, 1500);
   } else {
     showCloudNotification('warn', 'Back Online',
-      'Internet connection restored. Your cloud sync is active.',
+      'Back online. Sync is on.',
       false, 8);
   }
 });
@@ -2087,7 +2087,7 @@ function renderLivePreview() {
             badge.textContent = 'SYNCED FROM CASHBOOK';
             badge.className = 'budget-source-badge synced';
         } else if (budgetDataSource === 'cashbook-cloud') {
-            badge.textContent = cachedCount > 1 ? 'SYNCED (' + cachedCount + ' QUARTERS)' : 'SYNCED FROM CLOUD';
+            badge.textContent = cachedCount > 1 ? 'SYNCED (' + cachedCount + ' QUARTERS)' : 'SYNCED';
             badge.className = 'budget-source-badge cloud';
         } else if (budgetDataSource === 'no-data') {
             badge.textContent = cachedCount > 0 ? 'NO DATA (other quarters available)' : 'NO DATA';
@@ -3570,7 +3570,7 @@ function saveAllData(){
         console.error('saveAllData failed:', e);
         // Surface quota / write errors to the user so data loss doesn't go unnoticed
         if (e.name === 'QuotaExceededError') {
-            alert('⚠️ Storage is full — your data could not be saved. Please free up space or sync to Google Drive.');
+            alert('⚠️ This computer is full — your data could not be saved. Please free up space or sync now.');
         }
     }
 }
@@ -3791,7 +3791,7 @@ function updateQuarterDisplay() {
             badge.textContent = 'SYNCED FROM CASHBOOK';
             badge.className = 'budget-source-badge synced';
         } else if (budgetDataSource === 'cashbook-cloud') {
-            badge.textContent = cachedCount > 1 ? 'SYNCED (' + cachedCount + ' QUARTERS)' : 'SYNCED FROM CLOUD';
+            badge.textContent = cachedCount > 1 ? 'SYNCED (' + cachedCount + ' QUARTERS)' : 'SYNCED';
             badge.className = 'budget-source-badge cloud';
         } else if (budgetDataSource === 'no-data') {
             badge.textContent = cachedCount > 0 ? 'NO DATA (other quarters available)' : 'NO DATA';
@@ -3818,7 +3818,7 @@ function updateQuarterDisplay() {
                     }).join(', ');
                     emptyText.innerHTML = '<strong>No Cashbook data for this quarter.</strong> Data is available for: ' + availableList + '. Switch quarters using the tabs above, or <em>Sync Budget from Cashbook</em> to pull the latest data.';
                 } else {
-                    emptyText.innerHTML = '<strong>No Cashbook data available for this quarter.</strong> Use <em>Sync Budget from Cashbook</em> to pull cloud data for all available quarters.';
+                    emptyText.innerHTML = '<strong>No Cashbook data available for this quarter.</strong> Use <em>Sync Budget from Cashbook</em> to get the data for all available quarters.';
                 }
             }
         }
@@ -4069,7 +4069,7 @@ function loadBudgetForQuarter() {
 // per-quarter cloud cache, then renders the active quarter.
 async function syncBudgetFromCashbook() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first to sync budget data from the Cashbook cloud backup.');
+        alert('Please turn on sync first to get the budget data from the Cashbook.');
         return;
     }
 
@@ -4089,7 +4089,7 @@ async function syncBudgetFromCashbook() {
 
         const searchData = await searchResponse.json();
         if (!searchData.files || searchData.files.length === 0) {
-            throw new Error('No Cashbook Dashboard backup found in the Cashbook Google Drive folder.\nPlease save from the Cashbook Dashboard first.');
+            throw new Error('No Cashbook data has been shared yet.\nPlease save from the Cashbook Dashboard first.');
         }
 
         const cashbookFileId = searchData.files[0].id;
@@ -4378,7 +4378,7 @@ async function syncBudgetFromCashbook() {
             return '  ' + parts[0] + ' ' + qMeta.label + ' (' + txCount + ' transactions)';
         }).join('\n');
 
-        alert('Budget data synced from Cashbook cloud backup!\n\n' +
+        alert('Budget data synced from the Cashbook!\n\n' +
             'Quarters populated: ' + quartersPopulated.length + '\n' +
             quarterSummary + '\n\n' +
             'Active view: ' + getQuarterPeriodLabel(navFY, navQ) + '\n' +
@@ -4390,7 +4390,7 @@ async function syncBudgetFromCashbook() {
     } catch (error) {
         console.error('Error syncing budget from cashbook:', error);
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('Your session has expired. Please reconnect to Google Drive.');
+            alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
             alert('Failed to sync budget: ' + error.message);
@@ -4721,12 +4721,12 @@ function updateCloudUI(connected) {
         notConnectedDiv.style.display = 'none';
         connectedDiv.style.display = 'block';
         statusDot.className = 'cloud-status-dot connected';
-        statusText.textContent = 'Connected';
+        statusText.textContent = 'Up to date';
     } else {
         notConnectedDiv.style.display = 'block';
         connectedDiv.style.display = 'none';
         statusDot.className = 'cloud-status-dot';
-        statusText.textContent = 'Not connected';
+        statusText.textContent = 'Not synced yet';
     }
 }
 
@@ -4748,10 +4748,10 @@ function setCloudSyncing(syncing) {
         if (statusLabel) { statusLabel.className = 'cloud-status-label connected'; }
     } else {
         statusDot.className = 'cloud-status-dot connected';
-        statusText.textContent = 'Connected';
-        menuIcon.textContent = '☁️';
+        statusText.textContent = 'Up to date';
+        menuIcon.textContent = '🔄';
         if (connectedDot) connectedDot.className = 'cloud-status-dot connected';
-        if (connectedText) connectedText.textContent = 'Connected';
+        if (connectedText) connectedText.textContent = 'Up to date';
         if (statusLabel) { statusLabel.className = 'cloud-status-label connected'; }
     }
 }
@@ -4799,12 +4799,12 @@ function showGoogleAuthModal() {
     <div id="googleAuthModal" class="google-auth-modal" style="display: flex;">
         <div class="modal-content" style="max-width: 560px;">
             <div class="modal-header">
-                <h2>☁️ Connect to Google Drive</h2>
+                <h2>🔄 Connect the Centre’s Account</h2>
                 <button class="close-btn" onclick="closeGoogleAuthModal()">×</button>
             </div>
             <div style="padding: var(--space-6);">
                 <p style="margin-bottom: var(--space-5); color: var(--text-secondary);">
-                    Connect to Google Drive to save and sync your dashboard data across devices. Choose your preferred connection method:
+                    Connect the Centre’s account to sync your dashboard data across devices. Choose your preferred connection method:
                 </p>
 
                 <!-- Option 1: Direct Google Sign-In (Recommended) -->
@@ -4812,15 +4812,15 @@ function showGoogleAuthModal() {
                     <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3);">
                         <span style="font-size: 1.5rem;">🔐</span>
                         <div>
-                            <strong style="color: var(--success); font-size: 1.1rem;">Direct Google Sign-In</strong>
+                            <strong style="color: var(--success); font-size: 1.1rem;">Direct Sign-In</strong>
                             <span style="background: var(--success); color: white; padding: 2px 8px; border-radius: var(--radius-sm); font-size: 0.7rem; margin-left: var(--space-2); font-weight: 600;">RECOMMENDED</span>
                         </div>
                     </div>
                     <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: var(--space-4);">
-                        A Google popup will appear for you to sign in with your Google account directly.
+                        A sign-in window will open for you to sign in with the Centre’s account directly.
                     </p>
                     <button class="btn btn-success" onclick="triggerDirectGoogleSignIn()" style="width: 100%; padding: var(--space-3);">
-                        Sign in with Google
+                        Sign In to Connect
                     </button>
                 </div>
 
@@ -4842,10 +4842,10 @@ function showGoogleAuthModal() {
                         <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4);">
                             <strong style="color: var(--info);">How to get your access token:</strong>
                             <ol style="margin-top: var(--space-2); margin-left: var(--space-4); color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6;">
-                                <li>Click the link below to open Google OAuth Playground</li>
-                                <li>In Step 1, find and select <strong>"Drive API v3"</strong> → check <strong>"../auth/drive"</strong> (full access to shared files)</li>
+                                <li>Click the button below to open the OAuth Playground</li>
+                                <li>In Step 1, type this permission into the box under the list: <strong style="word-break:break-all;">https://www.googleapis.com/auth/drive</strong> (full access to shared files)</li>
                                 <li>Click <strong>"Authorize APIs"</strong> (blue button)</li>
-                                <li>Sign in with your Google account</li>
+                                <li>Sign in with the Centre’s account</li>
                                 <li>In Step 2, click <strong>"Exchange authorization code for tokens"</strong></li>
                                 <li>Copy the <strong>"Access token"</strong> value and paste below</li>
                             </ol>
@@ -4861,7 +4861,7 @@ function showGoogleAuthModal() {
                         </div>
 
                         <button class="btn btn-success" onclick="submitGoogleToken()" style="width: 100%;">
-                            ☁️ Connect with Token
+                            🔄 Connect with Token
                         </button>
                     </div>
                 </div>
@@ -4888,7 +4888,7 @@ function triggerDirectGoogleSignIn() {
             if (googleTokenClient) {
                 googleTokenClient.requestAccessToken();
             } else {
-                alert('Google Sign-In popup is not available. Please use the manual token method.');
+                alert('The sign-in window is not available. Please use the manual token method.');
                 showGoogleAuthModal();
                 setTimeout(() => showManualTokenForm(), 100);
             }
@@ -4940,7 +4940,7 @@ async function submitGoogleToken() {
         closeGoogleAuthModal();
         updateCloudUI(true);
 
-        alert(`✅ Connected to Google Drive as ${data.user.displayName || data.user.emailAddress}`);
+        alert(`✅ Connected as ${data.user.displayName || data.user.emailAddress}`);
 
         await findExistingBackupFile();
 
@@ -4993,13 +4993,13 @@ async function autoSyncCashbookOnConnect() {
 function handleGoogleAuthError(error) {
     console.error('Google auth error:', error);
     if (error.type === 'popup_closed') return;
-    alert('Failed to authenticate with Google. Please try the manual token method.');
+    alert('Could not sign in. Please try the manual token method.');
     showGoogleAuthModal();
 }
 
 // Disconnect from Google Drive
 function disconnectFromGoogleDrive() {
-    if (confirm('Are you sure you want to disconnect from Google Drive? Your local data will remain intact.')) {
+    if (confirm('Turn off sync on this computer? Your work stays on this computer.')) {
         googleAccessToken = null;
         isCloudConnected = false;
         cloudFileId = null;
@@ -5011,7 +5011,7 @@ function disconnectFromGoogleDrive() {
         updateCloudUI(false);
         toggleCloudMenu();
 
-        alert('✅ Disconnected from Google Drive');
+        alert('✅ Sync turned off on this computer');
     }
 }
 
@@ -5067,7 +5067,7 @@ async function checkCloudForChanges() {
 // ─── SAVE TO CLOUD ───
 async function saveToCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -5076,8 +5076,8 @@ async function saveToCloud() {
 
     const cloudInfo = await checkCloudForChanges();
 
-    let confirmMessage = '⚠️ MULTI-USER CLOUD SYNC\n\n';
-    confirmMessage += 'You are about to save to a shared cloud backup.\n\n';
+    let confirmMessage = '⚠️ MULTI-USER SYNC\n\n';
+    confirmMessage += 'You are about to replace the shared copy that everyone syncs from.\n\n';
 
     if (cloudInfo && cloudInfo.savedBy) {
         const cloudTime = new Date(cloudInfo.timestamp);
@@ -5088,13 +5088,13 @@ async function saveToCloud() {
         if (hasConflict) {
             confirmMessage += `⚠️ WARNING: ${cloudInfo.savedBy} saved changes ${timeSinceLastSave}!\n`;
             confirmMessage += `Your local data may not include their changes.\n\n`;
-            confirmMessage += `💡 Recommendation: Click Cancel, then "Sync from Cloud" first.\n\n`;
+            confirmMessage += `💡 Recommendation: Click Cancel, then "Get Latest Changes" first.\n\n`;
         } else {
             confirmMessage += `Last saved by: ${cloudInfo.savedBy} (${timeSinceLastSave})\n\n`;
         }
     }
 
-    confirmMessage += 'This will overwrite the cloud backup. Continue?';
+    confirmMessage += 'This will replace the shared copy. Continue?';
 
     if (!confirm(confirmMessage)) return;
 
@@ -5167,7 +5167,7 @@ async function saveToCloud() {
                 // prevent wiping out the cloud backup with nothing
                 if (virementRequests.length === 0) {
                     setCloudSyncing(false);
-                    alert('❌ Cannot save to cloud: your local data is empty and we could not verify the cloud backup.\n\nPlease click "Sync from Cloud" first to restore your data, then try saving again.');
+                    alert('❌ Cannot sync: there is no data on this computer and the shared copy could not be checked.\n\nPlease click "Get Latest Changes" first to restore your data, then try saving again.');
                     return;
                 }
             }
@@ -5176,7 +5176,7 @@ async function saveToCloud() {
         // Final safety check: never overwrite a cloud backup with empty data
         if (virementRequests.length === 0) {
             setCloudSyncing(false);
-            alert('❌ Cannot save to cloud: you have no virement requests locally.\n\nPlease click "Sync from Cloud" first to restore your data, then try saving again.');
+            alert('❌ Cannot sync: this computer has no virement requests.\n\nPlease click "Get Latest Changes" first to restore your data, then try saving again.');
             return;
         }
 
@@ -5299,17 +5299,17 @@ async function saveToCloud() {
         updateLastSavedByDisplay();
 
         setCloudSyncing(false);
-        alert(`✅ Data saved to Google Drive successfully!\n\nSaved by: ${lastSavedBy}\n\n💡 Tip: Let other users know to sync from cloud to get your changes.`);
+        alert(`✅ Data saved and synced!\n\nSaved by: ${lastSavedBy}\n\n💡 Tip: Let other users know to sync to get your changes.`);
 
     } catch (error) {
         console.error('Error saving to cloud:', error);
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('❌ Your session has expired. Please reconnect to Google Drive.');
+            alert('❌ Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert(`❌ Failed to save to cloud: ${error.message}`);
+            alert(`❌ Could not sync: ${error.message}`);
         }
     }
 }
@@ -5317,7 +5317,7 @@ async function saveToCloud() {
 // ─── SYNC FROM CLOUD ───
 async function syncFromCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -5329,11 +5329,11 @@ async function syncFromCloud() {
     }
 
     if (!cloudFileId) {
-        alert('📁 No backup file found in Google Drive. Save your data first to create a backup.');
+        alert('📁 No shared copy yet. Save your data first to create one.');
         return;
     }
 
-    if (!confirm('⚠️ This will sync your local data with the cloud backup.\n\n• Cloud requests & approvals will be applied\n• Local-only requests will be preserved\n• Approval status changes will be merged\n\nContinue?')) {
+    if (!confirm('⚠️ This will sync the data on this computer with the shared copy.\n\n• Shared requests & approvals will be applied\n• Local-only requests will be preserved\n• Approval status changes will be merged\n\nContinue?')) {
         return;
     }
 
@@ -5454,17 +5454,17 @@ async function syncFromCloud() {
         const backupTime = new Date(backupData.timestamp).toLocaleString();
         const savedByInfo = backupData.savedBy ? `\nLast saved by: ${backupData.savedBy}` : '';
         const cacheInfo = backupData.data.cloudQuarterCache ? '\nBudget data: Restored' : '\nBudget data: Not included (sync from Cashbook to load)';
-        alert(`✅ Data synced from cloud successfully!\n\nBackup was created: ${backupTime}${savedByInfo}${cacheInfo}\nVirement requests: ${virementRequests.length}`);
+        alert(`✅ Data synced successfully!\n\nBackup was created: ${backupTime}${savedByInfo}${cacheInfo}\nVirement requests: ${virementRequests.length}`);
 
     } catch (error) {
         console.error('Error syncing from cloud:', error);
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('❌ Your session has expired. Please reconnect to Google Drive.');
+            alert('❌ Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert(`❌ Failed to sync from cloud: ${error.message}`);
+            alert(`❌ Could not sync: ${error.message}`);
         }
     }
 }
@@ -5472,7 +5472,7 @@ async function syncFromCloud() {
 // ─── MERGE FROM CLOUD ───
 async function mergeFromCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -5484,11 +5484,11 @@ async function mergeFromCloud() {
     }
 
     if (!cloudFileId) {
-        alert('📁 No backup file found in Google Drive. Save your data first to create a backup.');
+        alert('📁 No shared copy yet. Save your data first to create one.');
         return;
     }
 
-    if (!confirm('🔀 MERGE FROM CLOUD\n\nThis will merge cloud data with your local data:\n\n• New virement requests from cloud will be ADDED to your local data\n• Existing requests will be kept as-is (local version preserved)\n• No local data will be removed\n\nContinue?')) {
+    if (!confirm('🔀 MERGE LATEST CHANGES\n\nThis will merge the shared data with the data on this computer:\n\n• New virement requests will be ADDED to the data on this computer\n• Existing requests will be kept as-is (local version preserved)\n• No local data will be removed\n\nContinue?')) {
         return;
     }
 
@@ -5577,7 +5577,7 @@ async function mergeFromCloud() {
 
         setCloudSyncing(false);
 
-        let summary = '✅ Merge from cloud completed!\n\n';
+        let summary = '✅ Merge completed!\n\n';
         summary += `📊 Merge Summary:\n`;
         summary += `• Virement requests added: ${mergeStats.requestsAdded}\n`;
         summary += `• Approval statuses updated: ${mergeStats.approvalsUpdated || 0}\n`;
@@ -5585,12 +5585,12 @@ async function mergeFromCloud() {
 
         const totalChanges = mergeStats.requestsAdded + (mergeStats.approvalsUpdated || 0) + mergeStats.quartersAdded;
         if (totalChanges === 0) {
-            summary += '\n💡 No new data found — your local data already contains everything from the cloud.';
+            summary += '\n💡 No new data found — this computer already has everything.';
         } else {
-            summary += `\n💡 Tip: Save to Cloud to push the merged data back for other users.`;
+            summary += `\n💡 Tip: use Send My Changes to share the merged data with other users.`;
         }
 
-        const savedByInfo = backupData.savedBy ? `\nCloud backup was saved by: ${backupData.savedBy}` : '';
+        const savedByInfo = backupData.savedBy ? `\nShared copy was saved by: ${backupData.savedBy}` : '';
         summary += savedByInfo;
 
         alert(summary);
@@ -5600,10 +5600,10 @@ async function mergeFromCloud() {
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('❌ Your session has expired. Please reconnect to Google Drive.');
+            alert('❌ Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert(`❌ Failed to merge from cloud: ${error.message}`);
+            alert(`❌ Could not merge: ${error.message}`);
         }
     }
 }
@@ -5618,7 +5618,7 @@ function syncBudgetFromCloudMenu() {
 // ─── BROWSE ALL BACKUPS ───
 async function browseBackupFiles() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -5669,7 +5669,7 @@ async function browseBackupFiles() {
             fileListHTML = `
                 <div class="folder-browser-empty">
                     <span>📂</span>
-                    <p>No backup files found in either Google Drive folder.</p>
+                    <p>No backup files found yet.</p>
                 </div>`;
         } else {
             allFiles.forEach(file => {
@@ -5709,7 +5709,7 @@ async function browseBackupFiles() {
         <div id="folderBrowserOverlay" class="folder-browser-overlay" onclick="if(event.target===this)closeFolderBrowser()">
             <div class="folder-browser">
                 <div class="folder-browser-header">
-                    <h2>📁 Cloud Folders — All Backups${fileCount > 0 ? ' <span style="font-size:0.75rem;font-weight:500;color:var(--slate);margin-left:0.25rem;">(' + fileCount + ')</span>' : ''}</h2>
+                    <h2>📁 All Backups${fileCount > 0 ? ' <span style="font-size:0.75rem;font-weight:500;color:var(--slate);margin-left:0.25rem;">(' + fileCount + ')</span>' : ''}</h2>
                     <button class="folder-browser-close" onclick="closeFolderBrowser()">×</button>
                 </div>
                 <div class="folder-browser-body">
@@ -5771,7 +5771,7 @@ async function downloadBackupFile(fileId, fileName) {
 }
 
 async function deleteBackupFile(fileId, fileName, btnElement) {
-    if (!confirm(`Delete "${fileName}"?\n\nThis will permanently remove this backup from Google Drive.`)) return;
+    if (!confirm(`Delete "${fileName}"?\n\nThis will permanently remove this backup.`)) return;
     try {
         const response = await fetch(
             `https://www.googleapis.com/drive/v3/files/${fileId}`,

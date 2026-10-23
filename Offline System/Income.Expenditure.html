@@ -170,7 +170,7 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
     <div class="sidebar-footer">
       <div class="badges" style="margin-bottom:.5rem;">
         <span class="badge badge-live" id="liveBadge">LIVE</span>
-        <span class="badge badge-cloud-off" id="cloudBadge">CLOUD: LOCAL ONLY</span>
+        <span class="badge badge-cloud-off" id="cloudBadge">NOT SYNCED YET</span>
       </div>
       <p id="liveInfo">Reading Cashbook data…</p>
       <p style="margin-top:.4rem;">Figures come straight from Cashbook Management. Enter or fix transactions there; this page follows.</p>
@@ -185,7 +185,7 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
       </div>
       <div class="header-actions no-print">
         <button class="btn btn-ghost" onclick="refreshNow()">🔄 Refresh</button>
-        <button class="btn btn-ghost" onclick="syncCloudNow()" id="syncBtn">☁️ Sync Cloud</button>
+        <button class="btn btn-ghost" onclick="syncCloudNow()" id="syncBtn">🔄 Sync Now</button>
         <button class="btn btn-primary" onclick="window.print()">🖨️ Print</button>
       </div>
     </div>
@@ -444,10 +444,10 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
       var mine = st.filter(function (p) { return p.file === 'CESTIS_Income_Expenditure.json'; })[0];
       if (mine && mine.connected) {
         badge.className = 'badge badge-cloud-on';
-        badge.textContent = 'CLOUD: SYNCED';
+        badge.textContent = 'UP TO DATE';
       } else {
         badge.className = 'badge badge-cloud-off';
-        badge.textContent = 'CLOUD: LOCAL ONLY';
+        badge.textContent = 'NOT SYNCED YET';
       }
     } catch (e) {}
   }
@@ -465,8 +465,8 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
   window.refreshNow = function () { if (opened) render(true); };
   window.syncCloudNow = function () {
     var btn = document.getElementById('syncBtn');
-    btn.disabled = true; btn.textContent = '☁️ Syncing…';
-    var done = function () { btn.disabled = false; btn.textContent = '☁️ Sync Cloud'; updateCloudBadge(); render(true); };
+    btn.disabled = true; btn.textContent = '🔄 Syncing…';
+    var done = function () { btn.disabled = false; btn.textContent = '🔄 Sync Now'; updateCloudBadge(); render(true); };
     try {
       if (window.CESTISPageCloud) CESTISPageCloud.loadNow().then(function () { return CESTISPageCloud.saveNow(); }).then(done, done);
       else done();

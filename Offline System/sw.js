@@ -164,7 +164,7 @@ if (typeof self !== 'undefined' && typeof self.addEventListener === 'function' &
       '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
       '<title>Offline</title><body style="font-family:system-ui,sans-serif;background:#0c1117;color:#e8edf3;padding:32px;line-height:1.6">' +
       '<h1 style="font-size:20px">You are offline</h1><p>This page has not been opened on this device before, so there is no copy of it here yet. ' +
-      'Connect to the internet (or to the Centre’s network) and try again.</p>',
+      'Reconnect and try again.</p>',
       { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
   };
 

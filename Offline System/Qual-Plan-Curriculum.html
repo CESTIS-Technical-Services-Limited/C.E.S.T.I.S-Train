@@ -152,12 +152,12 @@
     <div class="qp-modal-head">
       <div class="fic" style="font-size:18px;">📄</div>
       <div class="mt" id="qpModalTitle">Document</div>
-      <a class="qp-modal-close" id="qpModalOpen" href="#" target="_blank" rel="noopener" style="text-decoration:none;">↗ Open in Drive</a>
+      <a class="qp-modal-close" id="qpModalOpen" href="#" target="_blank" rel="noopener" style="text-decoration:none;">↗ Open in new tab</a>
       <button class="qp-modal-close" onclick="qpCloseViewer()">✕ Close</button>
     </div>
     <div class="qp-modal-note" id="qpModalNote">
       This document is taking longer than usual to preview. If it stays blank it may not be shared with your account —
-      use <strong>Open in Drive</strong> above, or ask an administrator to share the folder.
+      use <strong>Open in new tab</strong> above, or ask an administrator to share the folder.
     </div>
     <div class="qp-modal-body"><iframe id="qpModalFrame" title="Document viewer" allow="autoplay" onload="if(window.qpViewerLoaded)qpViewerLoaded()"></iframe></div>
   </div>
@@ -549,19 +549,19 @@ function qpRenderListing(prog, result) {
     // cause and offer the folder itself as a way through.
     var bc0 = (qpNav[prog.folderId] || [])[(qpNav[prog.folderId] || []).length - 1];
     var openFolder = ' <a href="https://drive.google.com/drive/folders/' + qpEsc((bc0 && bc0.id) || prog.folderId) +
-      '" target="_blank" rel="noopener" style="color:var(--accent);">Open this folder in Drive ↗</a>';
+      '" target="_blank" rel="noopener" style="color:var(--accent);">Open this folder ↗</a>';
     if (result.message === 'no-auth') {
       // A trainee on their own phone cannot "sign in to Google Drive (admin)":
       // they are offered the folder itself, which opens in Drive for anyone it
       // is shared with ("anyone with the link" — the zero-cost route).
       host.innerHTML = qpIsStaff
-        ? '<div class="qp-files-msg">Documents can\'t be listed yet — sign in to Google Drive on the dashboard (Sync Now).' + openFolder + '</div>'
-        : '<div class="qp-files-msg">The documents for this plan are kept in the Centre\'s Google Drive.' + openFolder + '</div>';
+        ? '<div class="qp-files-msg">Documents can\'t be listed yet — sign in to sync on the dashboard (Sync Now).' + openFolder + '</div>'
+        : '<div class="qp-files-msg">The documents for this plan open from their folder.' + openFolder + '</div>';
       if (qpIsStaff) qpMaybeShowAuthNotice();
     } else if (result.message === 'http-401') {
-      host.innerHTML = '<div class="qp-files-msg">Your Google session has expired. Use <strong>Sync Now</strong> on the sign-in page to reconnect, then reopen this page.</div>';
+      host.innerHTML = '<div class="qp-files-msg">Your sync sign-in has expired. Use <strong>Sync Now</strong> on the sign-in page to reconnect, then reopen this page.</div>';
     } else if (result.message === 'http-403' || result.message === 'http-404') {
-      host.innerHTML = '<div class="qp-files-msg">This folder isn\'t shared with your Google account, so its documents can\'t be listed. ' +
+      host.innerHTML = '<div class="qp-files-msg">This folder isn\'t shared with your account, so its documents can\'t be listed. ' +
         'Ask an administrator to share it with you (or set it to "anyone with the link").' + openFolder + '</div>';
     } else {
       host.innerHTML = '<div class="qp-files-msg">Couldn\'t load documents for this folder (' + qpEsc(result.message || 'unknown error') + ').' + openFolder + '</div>';
@@ -666,8 +666,8 @@ function qpMaybeShowAuthNotice() {
   if (qpNoticeShown || qpToken() || QP_API_KEY) return;
   qpNoticeShown = true;
   document.getElementById('qpNoticeHost').innerHTML =
-    '<div class="qp-notice">Document previews need Google Drive access. An administrator should ' +
-    'connect Google Drive in the LMS, or a Drive API key can be added so signed-out users ' +
+    '<div class="qp-notice">Document previews need sync to be connected. An administrator should ' +
+    'connect the Centre’s account in the LMS, or a document-viewer key can be added so signed-out users ' +
     '(e.g. students) can view the public folders.</div>';
 }
 
