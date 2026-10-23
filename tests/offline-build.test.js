@@ -40,7 +40,7 @@ const planned = build.plan();
 assert(planned.size > 100, 'it ships the whole platform (' + planned.size + ' shared files)');
 ['index.html', 'cestis-core.js', 'cestis-page-cloud.js', 'cestis-offline-rtc.js', 'Student-Progress.html',
  'CESTIS.Cashbook.html', 'Income.Expenditure.html', 'income-expenditure-core.js', 'MegaData-Admin.html',
- 'megadata/page-boot.js', 'vendor/peerjs-1.5.4.min.js', 'Pages/Administration.html'].forEach(f => {
+ 'megadata/page-boot.js', 'vendor/peerjs-1.5.4.min.js', 'Pages/Administration.html', 'cestis-theme.css'].forEach(f => {
   assert(planned.has(f), 'the offline build ships ' + f);
 });
 ['tests/build-parity.test.js', 'docs/00-INVENTORY.md', 'README.md', 'package.json', 'tools/build-offline.js',

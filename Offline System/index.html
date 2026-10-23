@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-core.js?v=20261022a"></script>
+<script src="cestis-form-modal.js?v=20261023a" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
 <script src="cestis-page-cloud.js?v=20261022a"></script>
@@ -293,6 +294,13 @@
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <style>
+/* Text on screen is never smaller than 12px (the UI audit found ~380 sizes of
+   9-11.5px). Only a handful of labels inside fixed little boxes stay at 11px:
+   the bell's 16px counter, the % inside the 36px attendance ring, the HOST tag
+   in a video tile's name label, the mark in a 22px task tick, the number in
+   a 22px import-step circle and the gauge's min/max under its arc. Sizes set
+   inline in the templates are lifted by the @media screen rule at the end of
+   this stylesheet. Printed documents keep their own sizes. */
 :root {
   --bg-primary: #0c1117;
   --bg-secondary: #141b24;
@@ -669,7 +677,7 @@ html[data-theme="light"] #landingPage {
   padding:20px; position:relative; overflow:hidden; cursor:pointer; transition:all var(--transition);
 }
 .cmc-kpi-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.3); border-color:var(--border-light); }
-.cmc-kpi-card .cmc-kpi-hint { font-size:10px; color:var(--text-muted); margin-top:6px; opacity:0.6; }
+.cmc-kpi-card .cmc-kpi-hint { font-size:12px; color:var(--text-muted); margin-top:6px; opacity:0.6; }
 .cmc-kpi-card:hover .cmc-kpi-hint { opacity:1; }
 .cmc-detail-overlay { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; animation:cmcFadeIn 0.2s ease; }
 @keyframes cmcFadeIn { from { opacity:0; } to { opacity:1; } }
@@ -681,7 +689,7 @@ html[data-theme="light"] #landingPage {
 .cmc-detail-body { padding:24px; overflow-y:auto; flex:1; }
 .cmc-detail-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
 .cmc-detail-stat { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; text-align:center; }
-.cmc-detail-stat .stat-label { font-size:10px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:600; }
+.cmc-detail-stat .stat-label { font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:600; }
 .cmc-detail-stat .stat-value { font-size:20px; font-weight:700; color:var(--text-primary); margin-top:4px; font-family:'Playfair Display',serif; }
 .cmc-kpi-card::before {
   content:''; position:absolute; top:0; left:0; right:0; height:3px;
@@ -693,7 +701,7 @@ html[data-theme="light"] #landingPage {
 .cmc-kpi-card.kpi-attendance::before { background:linear-gradient(90deg, var(--orange), var(--red)); }
 .cmc-kpi-card.kpi-fees::before { background:linear-gradient(90deg, var(--teal), var(--blue)); }
 .cmc-kpi-icon { font-size:28px; margin-bottom:8px; }
-.cmc-kpi-label { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:600; }
+.cmc-kpi-label { font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:600; }
 .cmc-kpi-value { font-size:28px; font-weight:700; color:var(--text-primary); margin:4px 0; font-family:'Playfair Display',serif; }
 .cmc-kpi-sub { font-size:12px; color:var(--text-secondary); }
 .cmc-charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:24px; }
@@ -709,10 +717,10 @@ html[data-theme="light"] #landingPage {
 }
 .cmc-table-card h4 { font-size:15px; margin-bottom:14px; color:var(--text-primary); }
 .cmc-table { width:100%; border-collapse:collapse; font-size:13px; }
-.cmc-table th { text-align:left; padding:10px 12px; color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); }
+.cmc-table th { text-align:left; padding:10px 12px; color:var(--text-muted); font-size:12px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); }
 .cmc-table td { padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text-secondary); }
 .cmc-table tr:hover td { background:var(--w-02); }
-.cmc-status { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+.cmc-status { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
 .cmc-status.good { background:var(--green-dim); color:var(--green); }
 .cmc-status.warning { background:rgba(230,126,34,0.15); color:var(--orange); }
 .cmc-status.critical { background:var(--red-dim); color:var(--red); }
@@ -743,7 +751,7 @@ html[data-theme="light"] #landingPage {
 .ext-sys-headline .ext-sys-headline-icon { flex:none; font-size:15px; line-height:1.5; }
 .ext-sys-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
 .ext-sys-toolbar h3 { font-family:'Playfair Display',serif; margin:0; font-size:18px; }
-.ext-sys-toolbar .ext-sys-url { font-size:11px; color:var(--text-muted); word-break:break-all; margin-top:2px; }
+.ext-sys-toolbar .ext-sys-url { font-size:12px; color:var(--text-muted); word-break:break-all; margin-top:2px; }
 .ext-sys-actions { display:flex; gap:8px; flex-wrap:wrap; }
 .ext-sys-frame {
   width:100%; height:calc(100vh - var(--topbar-h) - 200px); min-height:420px;
@@ -766,7 +774,7 @@ html[data-theme="light"] #landingPage {
 .ext-sys-launch-inner h4 { font-size:17px; margin:0 0 10px; color:var(--text-primary); }
 .ext-sys-launch-inner p { font-size:13px; color:var(--text-secondary); line-height:1.7; margin:0 0 22px; }
 .ext-sys-launch-actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:16px; }
-.ext-sys-launch-url { font-size:11px; color:var(--text-muted); word-break:break-all; }
+.ext-sys-launch-url { font-size:12px; color:var(--text-muted); word-break:break-all; }
 @media (max-width:768px) {
   .ext-sys-launch { height:auto; min-height:320px; padding:24px 18px; }
 }
@@ -814,11 +822,11 @@ html[data-theme="light"] #landingPage {
 .cmc-data-panel-body .mini-stat .value { color:var(--text-primary); font-weight:600; }
 .cmc-cached-badge {
   display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px;
-  font-size:10px; font-weight:600; background:rgba(52,152,219,0.12); color:var(--blue);
+  font-size:12px; font-weight:600; background:rgba(52,152,219,0.12); color:var(--blue);
 }
 .cmc-live-badge {
   display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px;
-  font-size:10px; font-weight:600; background:var(--green-dim); color:var(--green);
+  font-size:12px; font-weight:600; background:var(--green-dim); color:var(--green);
 }
 .cmc-source-summary {
   display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;
@@ -834,9 +842,9 @@ html[data-theme="light"] #landingPage {
 }
 .cmc-source-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.3); border-color:var(--border-light); }
 .cmc-source-card .source-icon { font-size:24px; margin-bottom:8px; }
-.cmc-source-card .source-label { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:600; }
+.cmc-source-card .source-label { font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:600; }
 .cmc-source-card .source-status { font-size:20px; font-weight:700; color:var(--text-primary); margin:4px 0; font-family:'Playfair Display',serif; }
-.cmc-source-card .source-sub { font-size:11px; color:var(--text-secondary); }
+.cmc-source-card .source-sub { font-size:12px; color:var(--text-secondary); }
 .cmc-source-card.synced::before { background:linear-gradient(90deg, var(--green), #27ae60); }
 .cmc-source-card.error::before { background:linear-gradient(90deg, var(--red), #c0392b); }
 @media(max-width:1200px) { .cmc-kpi-grid { grid-template-columns:repeat(2,1fr); } .cmc-source-summary { grid-template-columns:repeat(2,1fr); } .cmc-data-grid { grid-template-columns:1fr; } }
@@ -851,7 +859,7 @@ html[data-theme="light"] #landingPage {
   filter:grayscale(0.5);
 }
 .sync-required-hint {
-  font-size:11px; color:var(--accent); margin-top:6px; text-align:center;
+  font-size:12px; color:var(--accent); margin-top:6px; text-align:center;
   animation:fadeSlideDown 0.3s ease both;
 }
 /* Role cards: grayed out before sync, bright after sync */
@@ -926,10 +934,24 @@ html[data-theme="light"] #landingPage {
 .login-sync-btn .spinning { display:inline-block; animation:spin 1s linear infinite; }
 @keyframes spin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
 .login-sync-status {
-  font-size:11.5px; color:var(--text-muted); margin-top:4px;
+  font-size:12px; color:var(--text-muted); margin-top:4px;
 }
 .login-sync-status.success { color:var(--green); }
 .login-sync-status.error { color:var(--red); }
+/* Why "Sync Now" comes first — one plain line under the sync bar. */
+.login-sync-why {
+  position:relative; z-index:2; max-width:600px; width:100%; margin:-16px auto 26px; padding:0 6px;
+  font-size:12.5px; line-height:1.5; color:var(--text-secondary); text-align:left;
+}
+.login-sync-why strong { color:var(--text-primary); }
+/* A sign-in message, under the card's own fields (replaces the pop-ups). */
+.role-login-error {
+  margin:2px 0 10px; padding:9px 11px; border-radius:var(--radius-sm);
+  background:var(--red-dim); border:1px solid rgba(231,76,60,0.45); color:#ffb4ab;
+  font-size:12.5px; line-height:1.45; white-space:pre-line; text-align:left;
+}
+.role-login-error[hidden] { display:none; }
+.role-login input[aria-invalid="true"] { border-color:rgba(231,76,60,0.7); }
 
 /* LOGIN FORM ON ROLE CARD */
 .role-login {
@@ -942,7 +964,7 @@ html[data-theme="light"] #landingPage {
 }
 .role-login.active { display:block; }
 .role-login .form-group { margin-bottom:12px; }
-.role-login label { font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:5px; display:block; text-transform:uppercase; letter-spacing:0.5px; }
+.role-login label { font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:5px; display:block; text-transform:uppercase; letter-spacing:0.5px; }
 .role-login input, .role-login select {
   width:100%; background:var(--bg-input); border:1px solid var(--input-border);
   color:var(--text-primary); padding:10px 14px; border-radius:var(--radius-sm);
@@ -980,13 +1002,13 @@ html[data-theme="light"] #landingPage {
 }
 .sidebar-logo h2 { font-size:18px; color:var(--accent); }
 .sidebar-logo small {
-  font-size:11px; color:var(--text-muted);
+  font-size:12px; color:var(--text-muted);
   font-family:'DM Sans',sans-serif;
   display:block; margin-top:2px;
 }
 .sidebar-nav { flex:1; overflow-y:auto; padding:12px 10px; }
 .nav-section-label {
-  font-size:10px; font-weight:700; text-transform:uppercase;
+  font-size:12px; font-weight:700; text-transform:uppercase;
   letter-spacing:1.5px; color:var(--text-muted); padding:16px 12px 8px;
 }
 .nav-item {
@@ -1005,7 +1027,7 @@ html[data-theme="light"] #landingPage {
 .nav-item svg { width:18px; height:18px; flex-shrink:0; }
 .nav-badge {
   margin-left:auto; background:var(--red); color:#fff;
-  font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;
+  font-size:12px; font-weight:700; padding:2px 7px; border-radius:10px;
 }
 .nav-badge[hidden] { display:none; }
 .nav-section-toggle {
@@ -1043,7 +1065,7 @@ html[data-theme="light"] #landingPage {
 }
 .sidebar-user-info { flex:1; min-width:0; }
 .sidebar-user-info .name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sidebar-user-info .role { font-size:11px; color:var(--text-muted); }
+.sidebar-user-info .role { font-size:12px; color:var(--text-muted); }
 
 /* TOPBAR */
 .topbar {
@@ -1061,6 +1083,10 @@ html[data-theme="light"] #landingPage {
 }
 .topbar-search input:focus { border-color:var(--accent); }
 .topbar-search svg { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:var(--text-muted); }
+/* Phones have no room for the search box in the bar, so it opens from a
+   button (openPhoneSearch) across the whole bar, with its results below.
+   Neither button exists on a computer's screen. */
+.topbar .topbar-search-toggle, .topbar-search .topbar-search-close { display:none; }
 .topbar-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
 .topbar-btn {
   background:none; border:none; color:var(--text-secondary); cursor:pointer;
@@ -1082,11 +1108,11 @@ html[data-theme="light"] .theme-ico-moon, html[data-theme="light"] .theme-to-dar
 .theme-choice input { accent-color:var(--accent); margin:0; }
 .form-group .theme-choice label:has(input:checked) { background:var(--accent-dim); color:var(--text-primary); }
 .theme-choice label:focus-within { outline:2px solid var(--accent); outline-offset:-2px; }
-.theme-choice-field small { display:block; color:var(--text-muted); font-size:11px; margin-top:6px; }
+.theme-choice-field small { display:block; color:var(--text-muted); font-size:12px; margin-top:6px; }
 .topbar-btn .dot {
   position:absolute; top:2px; right:2px; min-width:16px; height:16px; padding:0 4px;
   background:var(--red); border-radius:8px; border:2px solid var(--bg-primary);
-  font-size:9px; font-weight:700; color:#fff; display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; color:#fff; display:flex; align-items:center; justify-content:center;
   line-height:1; box-sizing:border-box;
 }
 @keyframes bellShake {
@@ -1118,6 +1144,38 @@ html[data-theme="light"] .theme-ico-moon, html[data-theme="light"] .theme-to-dar
   transition:all var(--transition);
 }
 .logout-btn:hover { background:rgba(231,76,60,0.2); }
+/* Who is signed in (pressed: the account menu), and the Lock button beside Sign Out. */
+.topbar-account { position:relative; }
+.topbar-who { display:none; align-items:center; gap:8px; min-width:0; max-width:220px; padding:2px 6px 2px 2px; margin:0;
+  background:none; border:0; border-radius:22px; color:inherit; font-family:'DM Sans',sans-serif; text-align:left; cursor:pointer; }
+.topbar-who.on { display:flex; }
+.topbar-who:hover { background:var(--w-06); }
+.topbar-who-avatar {
+  width:28px; height:28px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; color:var(--on-accent); background:linear-gradient(135deg,var(--accent-fill),var(--accent-end));
+}
+.topbar-who-text { display:flex; flex-direction:column; min-width:0; line-height:1.2; }
+.topbar-who-name { font-size:12.5px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.topbar-who-role { font-size:12px; color:var(--text-muted); white-space:nowrap; }
+.topbar-account-menu {
+  position:absolute; right:0; top:calc(100% + 8px); min-width:240px; z-index:1002; padding:6px 0;
+  background:var(--bg-card); border:1px solid var(--border-light); border-radius:var(--radius-sm); box-shadow:var(--shadow);
+}
+.topbar-account-menu[hidden] { display:none; }
+.tam-who { padding:8px 16px 10px; margin-bottom:4px; border-bottom:1px solid var(--border-light); font-size:14px; font-weight:600; color:var(--text-primary); }
+.tam-who span { display:block; font-size:12px; font-weight:400; color:var(--text-muted); }
+.tam-item { display:flex; align-items:center; gap:12px; width:100%; min-height:44px; padding:0 16px; margin:0;
+  background:none; border:0; color:var(--text-primary); font:500 14px 'DM Sans',sans-serif; text-align:left; cursor:pointer; }
+.tam-item:hover { background:var(--w-06); }
+.tam-item svg { flex-shrink:0; color:var(--text-secondary); }
+.tam-item.tam-signout, .tam-item.tam-signout svg { color:var(--red); }
+.topbar-lock-btn {
+  display:flex; align-items:center; gap:6px; background:var(--w-06); border:1px solid var(--border-light);
+  color:var(--text-primary); padding:7px 12px; border-radius:var(--radius-sm); font-size:12px; font-weight:600;
+  font-family:'DM Sans',sans-serif; cursor:pointer; transition:all var(--transition);
+}
+.topbar-lock-btn:hover { background:var(--w-10); border-color:var(--accent); color:var(--accent); }
+@media (max-width:1100px) { .topbar-who-text { display:none; } }
 
 /* MAIN */
 .main-content {
@@ -1143,7 +1201,7 @@ html[data-theme="light"] .theme-ico-moon, html[data-theme="light"] .theme-to-dar
 }
 .stat-card .stat-value { font-size:28px; font-weight:700; font-family:'Playfair Display',serif; line-height:1; }
 .stat-card .stat-label { font-size:12.5px; color:var(--text-secondary); margin-top:4px; }
-.stat-card .stat-change { font-size:11.5px; margin-top:8px; display:flex; align-items:center; gap:4px; }
+.stat-card .stat-change { font-size:12px; margin-top:8px; display:flex; align-items:center; gap:4px; }
 
 .card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:22px; margin-bottom:18px; }
 .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
@@ -1151,11 +1209,11 @@ html[data-theme="light"] .theme-ico-moon, html[data-theme="light"] .theme-to-dar
 
 table { width:100%; border-collapse:collapse; }
 .table-wrapper { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-thead th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); padding:12px 14px; border-bottom:1px solid var(--border); white-space:nowrap; }
+thead th { text-align:left; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); padding:12px 14px; border-bottom:1px solid var(--border); white-space:nowrap; }
 tbody td { padding:12px 14px; font-size:13.5px; border-bottom:1px solid var(--border); color:var(--text-secondary); }
 tbody tr:hover { background:var(--w-02); }
 
-.badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:11.5px; font-weight:600; }
+.badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; }
 .badge-green { background:var(--green-dim); color:var(--green); }
 .badge-red { background:var(--red-dim); color:var(--red); }
 .badge-blue { background:var(--blue-dim); color:var(--blue); }
@@ -1260,13 +1318,13 @@ textarea.form-control { resize:vertical; min-height:80px; }
 .skill-card .skill-icon { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:14px; }
 .skill-card h4 { font-size:15px; margin-bottom:6px; }
 .skill-card p { font-size:12px; color:var(--text-muted); }
-.skill-card .skill-meta { display:flex; gap:12px; margin-top:12px; font-size:11.5px; color:var(--text-muted); }
+.skill-card .skill-meta { display:flex; gap:12px; margin-top:12px; font-size:12px; color:var(--text-muted); }
 
 .centre-emoji-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:4px; max-height:220px; overflow-y:auto; padding:8px; background:var(--bg-secondary); border-radius:var(--radius-sm); border:1px solid var(--border-light); margin-top:4px; }
 .centre-emoji-grid .emoji-opt { width:38px; height:38px; display:flex; align-items:center; justify-content:center; font-size:20px; border-radius:var(--radius-sm); cursor:pointer; border:2px solid transparent; transition:all 0.15s; background:var(--bg-primary); }
 .centre-emoji-grid .emoji-opt:hover { border-color:var(--accent); background:var(--accent-alpha); transform:scale(1.15); }
 .centre-emoji-grid .emoji-opt.selected { border-color:var(--accent); background:var(--accent-alpha); box-shadow:0 0 0 2px var(--accent); }
-.centre-emoji-grid .emoji-section-label { grid-column:1/-1; font-size:11px; font-weight:600; color:var(--text-muted); padding:6px 2px 2px; text-transform:uppercase; letter-spacing:0.5px; }
+.centre-emoji-grid .emoji-section-label { grid-column:1/-1; font-size:12px; font-weight:600; color:var(--text-muted); padding:6px 2px 2px; text-transform:uppercase; letter-spacing:0.5px; }
 
 .video-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-bottom:20px; }
 .video-grid .video-tile.host-tile { grid-column:1/-1; min-height:340px; border:2px solid var(--blue); }
@@ -1311,7 +1369,7 @@ textarea.form-control { resize:vertical; min-height:80px; }
 }
 .chat-messages { flex:1; overflow-y:auto; margin-bottom:12px; }
 .chat-msg { margin-bottom:10px; }
-.chat-msg .sender { font-size:11px; font-weight:700; color:var(--accent); margin-bottom:2px; }
+.chat-msg .sender { font-size:12px; font-weight:700; color:var(--accent); margin-bottom:2px; }
 .chat-msg .text { font-size:13px; color:var(--text-secondary); background:var(--bg-input); padding:8px 12px; border-radius:8px; display:inline-block; }
 .chat-input-row { display:flex; gap:8px; }
 .chat-input-row input { flex:1; }
@@ -1319,7 +1377,7 @@ textarea.form-control { resize:vertical; min-height:80px; }
 .bar-chart { display:flex; align-items:flex-end; gap:8px; height:160px; padding:10px 0; }
 .bar-chart .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end; }
 .bar-chart .bar { width:100%; max-width:40px; border-radius:4px 4px 0 0; transition:height 0.6s ease; }
-.bar-chart .bar-label { font-size:10px; color:var(--text-muted); text-align:center; }
+.bar-chart .bar-label { font-size:12px; color:var(--text-muted); text-align:center; }
 
 .cert-status-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:24px; }
 .cert-stat { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:18px; text-align:center; }
@@ -1486,7 +1544,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   padding:2px; border:1px solid var(--border);
 }
 .vc-view-btn {
-  padding:5px 10px; border:none; border-radius:4px; font-size:11px; font-weight:600;
+  padding:5px 10px; border:none; border-radius:4px; font-size:12px; font-weight:600;
   color:var(--text-muted); background:transparent; cursor:pointer;
   transition:all var(--transition); white-space:nowrap;
 }
@@ -1522,9 +1580,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     gap:6px !important;
   }
   /* Compact view toggle on small screens */
-  .vc-view-btn { padding:4px 7px; font-size:10px; }
+  .vc-view-btn { padding:4px 7px; font-size:12px; }
   /* Compact host controls */
-  .vc-host-btn { padding:4px 8px; font-size:10px; }
+  .vc-host-btn { padding:4px 8px; font-size:12px; }
   #vc-host-bar { padding:6px 10px !important; gap:6px !important; }
   /* Stack video controls more tightly */
   body.vc-fullscreen-mode .vc-conference-body .video-controls {
@@ -1556,7 +1614,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
     width:40px; height:40px; font-size:15px;
   }
   body.vc-fullscreen-mode .vc-conference-body .video-controls .vc-end-all-btn {
-    font-size:10px !important; padding:6px 10px !important;
+    font-size:12px !important; padding:6px 10px !important;
   }
 }
 
@@ -1604,7 +1662,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   flex-direction:column;
 }
 .progress-ring .ring-value { font-size:28px; font-weight:700; font-family:'Playfair Display',serif; }
-.progress-ring .ring-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; }
+.progress-ring .ring-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; }
 
 .student-stage-tracker {
   display:flex; align-items:center; gap:0; margin:24px 0;
@@ -1624,7 +1682,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .stage-circle.current { border-color:var(--accent); background:var(--accent-dim); box-shadow:0 0 16px var(--accent-glow); animation:pulseGlow 2s infinite; }
 .stage-circle.locked { opacity:0.4; }
 @keyframes pulseGlow { 0%,100%{box-shadow:0 0 8px var(--accent-glow);} 50%{box-shadow:0 0 20px var(--accent-glow);} }
-.stage-label { font-size:11px; font-weight:600; color:var(--text-muted); text-align:center; max-width:70px; }
+.stage-label { font-size:12px; font-weight:600; color:var(--text-muted); text-align:center; max-width:70px; }
 .stage-label.active-label { color:var(--accent); }
 .stage-connector {
   flex:1; height:3px; background:var(--border-light); min-width:20px;
@@ -1644,7 +1702,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   background:var(--bg-input); border-radius:var(--radius-sm);
 }
 .class-time-block .time { font-size:15px; font-weight:700; font-family:'Playfair Display',serif; }
-.class-time-block .period { font-size:10px; color:var(--text-muted); text-transform:uppercase; }
+.class-time-block .period { font-size:12px; color:var(--text-muted); text-transform:uppercase; }
 
 .resource-card {
   background:var(--bg-card); border:1px solid var(--border);
@@ -1669,7 +1727,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   font-size:13px; font-weight:700;
 }
 .notification-dropdown .notif-header .mark-read {
-  font-size:11px; color:var(--accent); cursor:pointer; background:none; border:none;
+  font-size:12px; color:var(--accent); cursor:pointer; background:none; border:none;
   font-family:'DM Sans',sans-serif; font-weight:600;
 }
 .notification-dropdown .notif-header .mark-read:hover { text-decoration:underline; }
@@ -1690,7 +1748,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .notif-item .notif-content { flex:1; min-width:0; }
 .notif-item .notif-content .notif-title { font-size:13px; font-weight:600; color:var(--text-primary); margin-bottom:2px; }
 .notif-item .notif-content .notif-text { font-size:12px; color:var(--text-secondary); line-height:1.4; }
-.notif-item .notif-time { font-size:10px; color:var(--text-muted); margin-top:4px; white-space:nowrap; }
+.notif-item .notif-time { font-size:12px; color:var(--text-muted); margin-top:4px; white-space:nowrap; }
 .notif-dot {
   width:8px; height:8px; border-radius:50%; background:var(--accent);
   position:absolute; top:14px; right:14px; flex-shrink:0;
@@ -1715,7 +1773,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 }
 .search-results.active { display:block; }
 .search-results .search-label {
-  padding:10px 14px 6px; font-size:10px; font-weight:700;
+  padding:10px 14px 6px; font-size:12px; font-weight:700;
   text-transform:uppercase; letter-spacing:1px; color:var(--text-muted);
 }
 .search-result-item {
@@ -1731,9 +1789,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 }
 .search-result-item .sr-text { flex:1; min-width:0; }
 .search-result-item .sr-text .sr-title { font-size:13px; font-weight:600; color:var(--text-primary); }
-.search-result-item .sr-text .sr-desc { font-size:11px; color:var(--text-muted); margin-top:1px; }
+.search-result-item .sr-text .sr-desc { font-size:12px; color:var(--text-muted); margin-top:1px; }
 .search-result-item .sr-category {
-  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+  font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
   padding:3px 8px; border-radius:10px; flex-shrink:0;
   background:var(--accent-dim); color:var(--accent);
 }
@@ -1765,7 +1823,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   display:flex; align-items:center; justify-content:center;
   font-size:20px; background:var(--w-04);
 }
-.quick-action-btn .qa-label { font-size:11.5px; font-weight:600; text-align:center; }
+.quick-action-btn .qa-label { font-size:12px; font-weight:600; text-align:center; }
 
 /* ============================== ALERTS WIDGET ============================== */
 .alert-item {
@@ -1789,7 +1847,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .alert-item.alert-success .alert-icon { background:var(--green-dim); color:var(--green); }
 .alert-item .alert-body { flex:1; min-width:0; }
 .alert-item .alert-body .alert-msg { font-size:13px; color:var(--text-primary); line-height:1.4; }
-.alert-item .alert-body .alert-time { font-size:11px; color:var(--text-muted); margin-top:4px; }
+.alert-item .alert-body .alert-time { font-size:12px; color:var(--text-muted); margin-top:4px; }
 
 /* ============================== TOP PERFORMERS WIDGET ============================== */
 .performer-row {
@@ -1813,7 +1871,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 }
 .performer-row .perf-info { flex:1; min-width:0; }
 .performer-row .perf-info .perf-name { font-size:13px; font-weight:600; color:var(--text-primary); }
-.performer-row .perf-info .perf-course { font-size:11px; color:var(--text-muted); }
+.performer-row .perf-info .perf-course { font-size:12px; color:var(--text-muted); }
 .performer-row .perf-score { width:100px; display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
 .performer-row .perf-score .score-val { font-size:13px; font-weight:700; color:var(--green); }
 .performer-row .perf-score .score-bar { width:100%; height:4px; background:var(--w-06); border-radius:2px; overflow:hidden; }
@@ -1854,7 +1912,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   display:grid; grid-template-columns:repeat(7,1fr); gap:2px;
 }
 .calendar-grid .cal-day-label {
-  text-align:center; font-size:10px; font-weight:700; text-transform:uppercase;
+  text-align:center; font-size:12px; font-weight:700; text-transform:uppercase;
   letter-spacing:1px; color:var(--text-muted); padding:8px 0;
 }
 .cal-day {
@@ -1882,13 +1940,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 
 /* ============================== ATTENDANCE PAGE ============================== */
 .attendance-table { width:100%; border-collapse:collapse; }
-.attendance-table th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); padding:12px 14px; border-bottom:1px solid var(--border); }
+.attendance-table th { text-align:left; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); padding:12px 14px; border-bottom:1px solid var(--border); }
 .attendance-table td { padding:10px 14px; font-size:13px; border-bottom:1px solid var(--border); }
 .attendance-table tr:hover { background:var(--w-02); }
-.attendance-table .status-present { color:var(--green); background:var(--green-dim); padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
-.attendance-table .status-absent { color:var(--red); background:var(--red-dim); padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
-.attendance-table .status-late { color:var(--accent); background:var(--accent-dim); padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
-.attendance-table .status-excused { color:var(--blue); background:var(--blue-dim); padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+.attendance-table .status-present { color:var(--green); background:var(--green-dim); padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+.attendance-table .status-absent { color:var(--red); background:var(--red-dim); padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+.attendance-table .status-late { color:var(--accent); background:var(--accent-dim); padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+.attendance-table .status-excused { color:var(--blue); background:var(--blue-dim); padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
 /* A register cell shows its mark at a glance on a tablet: the border is the colour of the mark. */
 .attendance-table select.att-present { border-color:var(--green); color:var(--green); }
 .attendance-table select.att-late { border-color:var(--accent); color:var(--accent); }
@@ -1903,7 +1961,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .attendance-ring svg { position:absolute; inset:0; transform:rotate(-90deg); }
 .attendance-ring .att-ring-bg { stroke:var(--w-06); fill:none; stroke-width:3; }
 .attendance-ring .att-ring-fill { fill:none; stroke-width:3; stroke-linecap:round; transition:stroke-dashoffset 0.6s ease; }
-.attendance-ring .att-ring-text { font-size:9px; font-weight:700; z-index:1; }
+.attendance-ring .att-ring-text { font-size:11px; font-weight:700; z-index:1; }
 .attendance-summary { display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
 .attendance-summary .att-stat {
   display:flex; align-items:center; gap:8px; padding:10px 16px;
@@ -1911,7 +1969,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 }
 .attendance-summary .att-stat .att-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
 .attendance-summary .att-stat .att-val { font-size:18px; font-weight:700; font-family:'Playfair Display',serif; }
-.attendance-summary .att-stat .att-label { font-size:11px; color:var(--text-muted); }
+.attendance-summary .att-stat .att-label { font-size:12px; color:var(--text-muted); }
 
 /* ============================== ANNOUNCEMENTS ============================== */
 .announcement-card {
@@ -1926,12 +1984,12 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .announcement-card.priority-general { border-left-color:var(--text-muted); }
 .announcement-card .ann-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
 .announcement-card .ann-header h4 { font-size:15px; flex:1; }
-.announcement-card .ann-header .ann-date { font-size:11px; color:var(--text-muted); flex-shrink:0; }
+.announcement-card .ann-header .ann-date { font-size:12px; color:var(--text-muted); flex-shrink:0; }
 .announcement-card .ann-body { font-size:13px; color:var(--text-secondary); line-height:1.6; }
 .announcement-card .ann-footer { display:flex; align-items:center; gap:10px; margin-top:12px; }
 .announcement-badge {
   display:inline-flex; align-items:center; gap:4px;
-  padding:3px 10px; border-radius:12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+  padding:3px 10px; border-radius:12px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
 }
 .announcement-badge.badge-urgent { background:var(--red-dim); color:var(--red); }
 .announcement-badge.badge-info { background:var(--blue-dim); color:var(--blue); }
@@ -2030,7 +2088,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   flex-direction:column;
 }
 .donut-chart .donut-hole .donut-val { font-size:20px; font-weight:700; font-family:'Playfair Display',serif; }
-.donut-chart .donut-hole .donut-label { font-size:10px; color:var(--text-muted); }
+.donut-chart .donut-hole .donut-label { font-size:12px; color:var(--text-muted); }
 .donut-chart .donut-legend { margin-top:16px; display:flex; flex-direction:column; gap:6px; }
 .donut-legend-item { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); }
 .donut-legend-item .donut-color { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
@@ -2049,7 +2107,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .heatmap-grid {
   display:grid; grid-template-columns:repeat(auto-fill,minmax(18px,1fr)); gap:3px;
 }
-.heatmap-label { font-size:10px; color:var(--text-muted); margin-bottom:6px; }
+.heatmap-label { font-size:12px; color:var(--text-muted); margin-bottom:6px; }
 .gauge-chart {
   width:160px; height:80px; position:relative; overflow:hidden;
   margin:0 auto;
@@ -2075,10 +2133,10 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 }
 .gauge-chart .gauge-label {
   position:absolute; bottom:-18px; left:50%; transform:translateX(-50%);
-  font-size:10px; color:var(--text-muted); white-space:nowrap;
+  font-size:12px; color:var(--text-muted); white-space:nowrap;
 }
-.gauge-chart .gauge-min { position:absolute; bottom:-4px; left:0; font-size:9px; color:var(--text-muted); }
-.gauge-chart .gauge-max { position:absolute; bottom:-4px; right:0; font-size:9px; color:var(--text-muted); }
+.gauge-chart .gauge-min { position:absolute; bottom:-4px; left:0; font-size:11px; color:var(--text-muted); }
+.gauge-chart .gauge-max { position:absolute; bottom:-4px; right:0; font-size:11px; color:var(--text-muted); }
 
 /* ============================== CSV EXPORT BUTTON ============================== */
 .btn-export {
@@ -2108,14 +2166,14 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .deadline-item .dl-indicator.dl-normal { background:var(--green); }
 .deadline-item .dl-info { flex:1; min-width:0; }
 .deadline-item .dl-info .dl-title { font-size:13px; font-weight:600; color:var(--text-primary); }
-.deadline-item .dl-info .dl-meta { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.deadline-item .dl-info .dl-meta { font-size:12px; color:var(--text-muted); margin-top:2px; }
 .deadline-item .dl-countdown {
   text-align:right; flex-shrink:0;
 }
 .deadline-item .dl-countdown .dl-time {
   font-size:15px; font-weight:700; font-family:'Playfair Display',serif;
 }
-.deadline-item .dl-countdown .dl-unit { font-size:10px; color:var(--text-muted); }
+.deadline-item .dl-countdown .dl-unit { font-size:12px; color:var(--text-muted); }
 .deadline-item .dl-countdown.dl-overdue .dl-time { color:var(--red); }
 .deadline-item .dl-countdown.dl-soon .dl-time { color:var(--accent); }
 .deadline-item .dl-countdown.dl-ok .dl-time { color:var(--green); }
@@ -2160,16 +2218,16 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .um-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
 .um-stat { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; text-align:center; }
 .um-stat .um-stat-val { font-size:22px; font-weight:700; font-family:'Playfair Display',serif; }
-.um-stat .um-stat-label { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.um-stat .um-stat-label { font-size:12px; color:var(--text-muted); margin-top:2px; }
 .um-table { width:100%; border-collapse:collapse; }
-.um-table thead th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); padding:10px 12px; border-bottom:1px solid var(--border); }
+.um-table thead th { text-align:left; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); padding:10px 12px; border-bottom:1px solid var(--border); }
 .um-table tbody td { padding:10px 12px; font-size:13px; border-bottom:1px solid var(--border); color:var(--text-secondary); }
 .um-table tbody tr:hover { background:var(--w-02); }
 .um-table .um-cb { width:18px; height:18px; accent-color:var(--accent); cursor:pointer; }
 .um-user-cell { display:flex; align-items:center; gap:10px; }
 .um-user-cell .um-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--on-accent); flex-shrink:0; }
 .um-user-cell .um-name { font-weight:600; color:var(--text-primary); }
-.um-user-cell .um-email { font-size:11px; color:var(--text-muted); }
+.um-user-cell .um-email { font-size:12px; color:var(--text-muted); }
 .um-actions { display:flex; gap:6px; }
 .um-actions button { background:none; border:1px solid var(--border); color:var(--text-secondary); width:30px; height:30px; border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:all var(--transition); }
 .um-actions button:hover { background:var(--w-06); color:var(--text-primary); border-color:var(--border-light); }
@@ -2188,7 +2246,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .um-bulk-bar .um-sel-count { font-size:13px; font-weight:600; color:var(--accent); }
 .um-bulk-bar .um-bulk-actions { display:flex; gap:8px; margin-left:auto; }
 .um-form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.um-role-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+.um-role-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
 .um-role-admin { background:var(--accent-dim); color:var(--accent); }
 .um-role-instructor { background:var(--green-dim); color:var(--green); }
 .um-role-student { background:var(--blue-dim); color:var(--blue); }
@@ -2201,6 +2259,102 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   font-family:'DM Sans',sans-serif; transition:all var(--transition);
 }
 .cloud-sync-btn:hover { background:var(--w-10); }
+/* ONE sync control: the answer (its icon and short words, or the icon alone
+   where the bar is narrow — the words stay in its tooltip and aria-label) and,
+   pressed, one panel with the whole answer, what to do and, for staff, the
+   sync actions that used to sit in a second sync button beside it. Colour is
+   never the only sign. Drawn from the theme tokens, so it reads in Dark and
+   in Light. */
+.sync-chip-wrap { position:relative; display:none; }
+.sync-chip-wrap.on { display:block; }
+.sync-chip {
+  display:flex; align-items:center; gap:7px; min-height:36px; padding:6px 12px; border-radius:20px; cursor:pointer;
+  font-size:12px; font-weight:600; font-family:'DM Sans',sans-serif; white-space:nowrap;
+  background:var(--w-05); border:1px solid var(--input-border); color:var(--text-primary);
+}
+.sync-chip:hover { background:var(--w-10); }
+/* Its icon: a check when all is saved, circular arrows otherwise (never a
+   cloud — CESTISCore.ui.syncIcon), in the tone's colour; the arrows turn
+   while a sync is running. */
+.sync-chip-icon { display:flex; width:16px; height:16px; flex-shrink:0; color:var(--text-muted); }
+.sync-chip-icon svg { width:16px; height:16px; display:block; }
+.sync-chip.tone-ok { border-color:var(--green); }
+.sync-chip.tone-ok .sync-chip-icon { color:var(--green); }
+.sync-chip.tone-warn { border-color:var(--accent); }
+.sync-chip.tone-warn .sync-chip-icon { color:var(--accent); }
+.sync-chip.tone-bad { border-color:var(--red); background:var(--red-dim); }
+.sync-chip.tone-bad .sync-chip-icon { color:var(--red-text); }
+.sync-chip.is-syncing .sync-chip-icon svg { animation:spin 1s linear infinite; }
+.sync-chip-panel {
+  position:absolute; right:0; top:calc(100% + 8px); width:320px; max-width:calc(100vw - 24px); z-index:1001;
+  max-height:calc(100vh - var(--topbar-h) - 16px); overflow-y:auto;
+  background:var(--bg-card); border:1px solid var(--border-light); border-radius:var(--radius-sm);
+  box-shadow:var(--shadow); padding:14px 16px; font-size:13px; color:var(--text-secondary); line-height:1.45;
+}
+.sync-chip-panel[hidden] { display:none; }
+.sync-chip-panel-title { font-weight:700; font-size:14px; color:var(--text-primary); margin-bottom:4px; }
+.sync-chip-panel-last { margin-top:8px; color:var(--text-primary); font-weight:600; }
+.sync-chip-panel-last:empty { display:none; }
+.sync-chip-panel-advice { margin:8px 0 0 16px; padding:0; }
+.sync-chip-panel-advice li { margin-top:4px; }
+.sync-chip-panel-advice:empty { display:none; }
+/* Staff only: the sync actions, in the same panel (a trainee's or board
+   member's device is not signed in for syncing). */
+.sync-panel-actions { display:none; margin:12px -16px -14px; padding:6px 0; border-top:1px solid var(--border-light); }
+.sync-chip-wrap.staff .sync-panel-actions { display:block; }
+.sync-panel-actions [hidden] { display:none !important; }
+.sync-panel-actions .sync-panel-connect { margin:6px 16px 8px; min-height:40px; padding:8px 14px; font-size:13px; font-weight:600; }
+.sync-panel-actions .sync-panel-connect span:nth-child(2) { display:inline; }
+.sync-panel-actions .cloud-dropdown { display:block; }
+.sync-panel-actions .cloud-dropdown-content { display:block; position:static; box-shadow:none; border:0; border-radius:0; margin:0; min-width:0; background:none; overflow:visible; }
+.sync-panel-actions .cloud-dropdown-item { width:100%; min-height:40px; background:none; border:0; text-align:left; font-family:'DM Sans',sans-serif; }
+.topbar-search { min-width:120px; }
+/* Narrower laptop screens, sidebar still showing: the top bar's right-hand
+   group must never run off the edge — at 1180px Sign Out was cut off. It
+   gives way in steps, as the phone layout does: Lock becomes an icon, then
+   who shows as initials, then the sync control's words move into its
+   tooltip and panel, then Sign Out becomes an icon. */
+@media (max-width:1280px) {
+  .topbar-lock-btn { padding:7px 8px; }
+  .topbar-lock-label { display:none; }
+}
+@media (max-width:1240px) { .topbar-who-text { display:none; } }
+@media (max-width:1180px) {
+  .sync-chip { padding:7px 9px; }
+  .sync-chip-label { display:none; }
+}
+@media (max-width:1023px) {
+  .topbar-right { gap:8px; }
+  .logout-btn { padding:7px 10px; font-size:0; gap:0; }
+  .logout-btn svg { width:16px; height:16px; }
+}
+/* 960px and below (laptops with the sidebar showing, and phones): the search
+   box was crushed to nothing here, so the magnifier takes its place and
+   opens the same search across the bar, with its results below — search is
+   reachable at every width. Lock, the Light/Dark switch and Two-Step
+   Verification move into the menu behind the initials. */
+@media (max-width:960px) {
+  .topbar-search { display:none; }
+  .topbar .topbar-search-toggle { display:flex; width:44px; height:44px; }
+  .topbar-lock-btn, .topbar .theme-toggle, .topbar .topbar-tfa-btn { display:none; }
+  /* Opened: the box covers the bar edge to edge, results fill the screen below. */
+  .topbar.search-open .topbar-search {
+    display:flex; align-items:center; gap:8px; position:absolute; inset:0; z-index:5;
+    max-width:none; margin:0; padding:0 8px 0 12px; background:var(--bg-primary); border-bottom:1px solid var(--border);
+  }
+  .topbar.search-open .topbar-search > svg { left:24px; }
+  .topbar.search-open .topbar-search input { flex:1; min-width:0; height:44px; font-size:16px; }
+  .topbar.search-open .topbar-search .topbar-search-close {
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; width:44px; height:44px;
+    background:none; border:none; border-radius:var(--radius-sm); color:var(--text-secondary); cursor:pointer;
+  }
+  .topbar.search-open .topbar-search .topbar-search-close svg { position:static; transform:none; width:20px; height:20px; color:inherit; }
+  .topbar.search-open .search-results {
+    position:absolute; top:100%; left:0; right:0; margin:0; border-radius:0; border-left:0; border-right:0;
+    max-height:calc(100vh - var(--topbar-h)); max-height:calc(100dvh - var(--topbar-h));
+  }
+  .topbar.search-open .search-result-item { min-height:56px; }
+}
 .cloud-dropdown { position:relative; display:inline-block; }
 .cloud-dropdown-content {
   display:none; position:absolute; right:0; top:100%; background:var(--bg-card); min-width:200px;
@@ -2252,11 +2406,11 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .question-item:hover { border-color:var(--accent); }
 .question-item .q-number {
   position:absolute; top:-10px; left:16px; background:var(--accent-fill); color:var(--on-accent);
-  font-size:11px; font-weight:700; padding:2px 10px; border-radius:10px;
+  font-size:12px; font-weight:700; padding:2px 10px; border-radius:10px;
 }
 .question-item .q-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
 .question-item .q-type-badge {
-  display:inline-flex; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600;
+  display:inline-flex; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;
 }
 .q-type-mcq { background:var(--blue-dim); color:var(--blue); }
 .q-type-tf { background:var(--purple-dim); color:var(--purple); }
@@ -2279,7 +2433,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 }
 .question-item .q-actions button:hover { background:var(--w-06); color:var(--text-primary); }
 .question-item .q-actions button.q-del:hover { background:var(--red-dim); color:var(--red); border-color:var(--red); }
-.question-item .q-points { font-size:11px; color:var(--text-muted); margin-left:auto; }
+.question-item .q-points { font-size:12px; color:var(--text-muted); margin-left:auto; }
 .add-question-bar {
   display:flex; gap:8px; flex-wrap:wrap; padding:16px; background:var(--bg-input);
   border:2px dashed var(--border-light); border-radius:var(--radius); margin-top:14px;
@@ -2341,13 +2495,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .exam-qrow.dragging { opacity:.5; }
 .exam-qrow.drop-target { outline:2px dashed var(--blue); outline-offset:2px; }
 .exam-qlist-empty { padding:24px; text-align:center; color:var(--text-muted); border:1px dashed var(--border-light); border-radius:var(--radius-sm); }
-.q-edit-cap { display:block; font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:8px; letter-spacing:.3px; text-transform:uppercase; }
+.q-edit-cap { display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; letter-spacing:.3px; text-transform:uppercase; }
 .q-edit-hint { font-size:12px; color:var(--text-muted); margin-top:8px; line-height:1.45; }
 .q-edit-check { display:flex; gap:8px; align-items:center; margin-top:12px; font-size:13px; color:var(--text-primary); text-transform:none; letter-spacing:0; font-weight:500; }
 .q-opt-letter { min-width:20px; color:var(--text-secondary); font-size:13px; }
 .q-pair-arrow { color:var(--text-muted); }
 .q-num-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-.q-num-grid label { display:flex; flex-direction:column; gap:6px; font-size:11px; font-weight:600; color:var(--text-muted); margin:0; }
+.q-num-grid label { display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--text-muted); margin:0; }
 .q-tf-pick { display:flex; align-items:center; gap:6px; cursor:pointer; padding:8px 16px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-input); margin:0; text-transform:none; font-size:14px; color:var(--text-primary); }
 .q-tf-pick.on-true { border-color:var(--green); background:var(--green-dim); }
 .q-tf-pick.on-false { border-color:var(--red); background:var(--red-dim); }
@@ -2356,14 +2510,14 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .q-type-shortanswer { background:var(--green-dim); color:var(--green); }
 .q-type-numerical { background:var(--type-num-bg); color:var(--type-num); }
 .q-type-info { background:var(--w-08); color:var(--text-secondary); }
-.exam-qrow .q-type-badge, .exam-type-picker .q-type-badge { display:inline-flex; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+.exam-qrow .q-type-badge, .exam-type-picker .q-type-badge { display:inline-flex; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
 /* "Choose a question type to add" */
 .exam-type-picker { position:fixed; inset:0; z-index:400; background:rgba(0,0,0,0.55); align-items:center; justify-content:center; padding:16px; }
 .etp-box { width:100%; max-width:720px; max-height:90vh; overflow-y:auto; background:var(--bg-secondary); border:1px solid var(--border-light); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 22px; }
 .etp-box h4 { font-size:19px; margin-bottom:14px; }
 .etp-body { display:grid; grid-template-columns:250px minmax(0,1fr); gap:18px; min-height:300px; }
 .etp-list { display:flex; flex-direction:column; gap:2px; border-right:1px solid var(--border-light); padding-right:12px; }
-.etp-group { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text-muted); margin:6px 0 4px; }
+.etp-group { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text-muted); margin:6px 0 4px; }
 .etp-opt { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; font-size:14px; color:var(--text-primary); margin:0; text-transform:none; letter-spacing:0; font-weight:500; }
 .etp-opt:hover { background:var(--w-04); }
 .etp-opt:has(input:checked) { background:var(--blue-dim); }
@@ -2482,7 +2636,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .exam-attempt { max-width:1160px; margin:0 auto; padding-top:6px; }
 .exam-preview-banner { background:var(--accent-dim); color:var(--accent); padding:10px 16px; border-radius:var(--radius-sm); margin-bottom:12px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px; }
 .exam-crumbs { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:13px; color:var(--blue); margin-bottom:4px; }
-.exam-crumbs .sep { color:var(--text-muted); font-size:11px; }
+.exam-crumbs .sep { color:var(--text-muted); font-size:12px; }
 .exam-crumbs .here { color:var(--text-secondary); }
 .exam-attempt-title { font-size:26px; font-weight:700; margin:2px 0 18px; color:var(--text-primary); overflow-wrap:anywhere; }
 .exam-attempt-layout { display:grid; grid-template-columns:230px minmax(0,1fr); gap:24px; align-items:start; }
@@ -2629,16 +2783,16 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .exam-results-table th, .exam-results-table td { padding:10px 7px; }
 .exam-results-table th:first-child, .exam-results-table td:first-child { padding-left:14px; white-space:nowrap; }
 .exam-results-table td.rq-when { font-size:12px; color:var(--text-muted); white-space:nowrap; }
-.exam-results-table td.rq-when span { display:block; font-size:11px; }
+.exam-results-table td.rq-when span { display:block; font-size:12px; }
 .exam-results-table th.num, .exam-results-table td.num { text-align:right; }
-.exam-results-table th.rq-head span { display:block; font-weight:400; font-size:10.5px; color:var(--text-muted); text-transform:none; letter-spacing:0; }
+.exam-results-table th.rq-head span { display:block; font-weight:400; font-size:12px; color:var(--text-muted); text-transform:none; letter-spacing:0; }
 .exam-results-table td.rq { font-size:12.5px; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .exam-results-table td.rq-correct { color:var(--green); background:rgba(46,204,113,0.09); }
 .exam-results-table td.rq-incorrect { color:var(--red-text); background:rgba(231,76,60,0.09); }
 .exam-results-table td.rq-partial { color:var(--accent); background:rgba(240,165,0,0.09); }
 .exam-results-table td.rq-pending { color:var(--text-secondary); background:repeating-linear-gradient(135deg,rgba(130,147,167,0.16) 0 5px,transparent 5px 10px); text-align:center; }
 .exam-results-table td.rq-none { color:var(--text-muted); }
-.rq-ico { margin-right:4px; font-size:11px; }
+.rq-ico { margin-right:4px; font-size:12px; }
 .rq-ico.r-ico-partial { width:9px; height:9px; vertical-align:-1px; border-width:1.5px; }
 .exam-results-table tr.rq-avg td { font-size:12px; color:var(--text-secondary); font-style:italic; background:var(--w-02); }
 .rq-legend { display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--text-muted); padding:10px 16px 14px; }
@@ -2676,7 +2830,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   .enp-progress { display:inline-block; margin:0 14px 0 0; }
   .enp-finish { display:inline-flex; align-items:center; min-height:44px; margin:0; font-size:15px; }
   .exam-nav-panel.review { position:static; box-shadow:none; }
-  .exam-nav-panel.review .enp-title { position:static; width:auto; height:auto; overflow:visible; clip:auto; font-size:11px; }
+  .exam-nav-panel.review .enp-title { position:static; width:auto; height:auto; overflow:visible; clip:auto; font-size:12px; }
   .exam-nav-panel.review .enp-body { display:block; }
   .exam-q { display:block; margin-bottom:18px; scroll-margin-top:76px; }
   .exam-q-info { flex-direction:row; flex-wrap:wrap; align-items:center; gap:2px 14px; border-radius:4px 4px 0 0; border-bottom:0; padding:6px 12px; }
@@ -2784,7 +2938,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .grade-feedback-input:focus { border-color:var(--accent); outline:none; }
 .grade-quick-btns { display:flex; gap:4px; margin-top:8px; }
 .grade-quick-btns button {
-  padding:4px 10px; font-size:11px; font-weight:600; border-radius:4px;
+  padding:4px 10px; font-size:12px; font-weight:600; border-radius:4px;
   border:1px solid var(--border); background:var(--bg-input);
   color:var(--text-secondary); cursor:pointer;
 }
@@ -2839,7 +2993,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 }
 .import-preview-item .ip-number {
   position:absolute; top:-8px; left:14px; background:var(--accent-fill); color:var(--on-accent);
-  font-size:10px; font-weight:700; padding:2px 8px; border-radius:8px;
+  font-size:12px; font-weight:700; padding:2px 8px; border-radius:8px;
 }
 .import-preview-item .ip-type-select { width:160px; }
 .import-preview-item .ip-header {
@@ -2909,7 +3063,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   display:flex; align-items:center; gap:8px; margin-left:auto;
 }
 .vc-host-btn {
-  padding:6px 12px; border-radius:var(--radius-sm); font-size:11px; font-weight:600;
+  padding:6px 12px; border-radius:var(--radius-sm); font-size:12px; font-weight:600;
   border:1px solid var(--border-light); background:var(--w-06);
   color:var(--text-secondary); cursor:pointer; transition:all var(--transition);
   display:flex; align-items:center; gap:5px; white-space:nowrap;
@@ -2928,7 +3082,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 }
 .vc-participant-item:hover { background:var(--w-03); }
 .vc-participant-item .p-name { flex:1; font-size:12px; font-weight:600; }
-.vc-participant-item .p-role { font-size:10px; color:var(--text-muted); }
+.vc-participant-item .p-role { font-size:12px; color:var(--text-muted); }
 .vc-participant-item .p-actions { display:flex; gap:4px; }
 .vc-participant-item .p-action-btn {
   width:26px; height:26px; border-radius:50%; border:1px solid var(--border);
@@ -2940,7 +3094,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .vc-participant-item .p-action-btn.muted { background:rgba(231,76,60,0.15); color:var(--red); border-color:rgba(231,76,60,0.3); }
 .vc-participant-item .p-action-btn.is-host { background:rgba(240,165,0,0.15); color:var(--accent); border-color:rgba(240,165,0,0.3); }
 .vc-host-badge {
-  font-size:9px; padding:2px 6px; border-radius:4px;
+  font-size:11px; padding:2px 6px; border-radius:4px;
   background:rgba(240,165,0,0.15); color:var(--accent); font-weight:700;
 }
 .vc-screenshot-modal {
@@ -2958,7 +3112,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 /* ============================== GMAIL REGISTRATION & VERIFY USERS ============================== */
 .gmail-divider {
   display:flex; align-items:center; gap:12px; margin:12px 0 8px;
-  font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;
+  font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;
 }
 .gmail-divider::before, .gmail-divider::after {
   content:''; flex:1; height:1px; background:var(--border-light);
@@ -2997,7 +3151,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .reg-modal h3 { font-size:20px; margin-bottom:6px; }
 .reg-modal .reg-subtitle { font-size:13px; color:var(--text-muted); margin-bottom:20px; }
 .reg-modal .form-group { margin-bottom:14px; }
-.reg-modal label { font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:5px; display:block; text-transform:uppercase; letter-spacing:0.5px; }
+.reg-modal label { font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:5px; display:block; text-transform:uppercase; letter-spacing:0.5px; }
 .reg-modal input, .reg-modal select {
   width:100%; padding:10px 14px; border:1px solid var(--border-light);
   border-radius:var(--radius-sm); background:var(--bg-input);
@@ -3048,18 +3202,33 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   .sidebar { z-index:101; }
   .sidebar.mobile-open { transform:translateX(0); }
 
-  /* Topbar: hide search on small screens, reduce padding */
+  /* Topbar: the search box is a magnifier here (see the 960px rules) */
   .topbar { padding:0 12px; gap:8px; }
-  .topbar-search { display:none; }
   .topbar-title { font-size:16px; }
+  .topbar-right { gap:6px; }
 
   /* Cloud sync button: abbreviate text */
-  .cloud-sync-btn { padding:6px 8px; font-size:0.7rem; }
+  .cloud-sync-btn { padding:6px 8px; font-size:0.75rem; }
   .cloud-sync-btn span:nth-child(2) { display:none; }
+  /* The sync control keeps its coloured icon; its words move into the panel,
+     which spans the screen. */
+  .sync-chip { padding:8px 10px; }
+  .sync-chip-label { display:none; }
+  .sync-chip-panel, .topbar-account-menu { position:fixed; left:12px; right:12px; top:calc(var(--topbar-h) + 4px); width:auto; max-width:none; }
 
-  /* Logout button: icon only */
-  .logout-btn { padding:7px 10px; font-size:0; gap:0; }
-  .logout-btn svg { width:16px; height:16px; }
+  /* Sign Out: in the account menu (the initials), so the page's name fits. */
+  .topbar .logout-btn { display:none; }
+  /* Who is signed in shows as initials; pressed, they open the menu that
+     holds Lock, Light/Dark, Two-Step Verification and Sign Out, so the
+     page's name shows in full. Only on the narrowest screens does the
+     title ever shorten. */
+  /* A longer name ("Attendance Management") takes a second line rather than
+     losing its end. */
+  .topbar-title { min-width:0; overflow:hidden; white-space:normal; overflow-wrap:break-word; line-height:1.15;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+  .topbar-right { gap:4px; flex-shrink:0; }
+  .topbar .topbar-btn:not(.topbar-search-toggle) { width:34px; }   /* the magnifier keeps its 44px: on a phone it is the only way to search */
+  .topbar-who-avatar { width:30px; height:30px; font-size:12px; }
 
   /* Main content: reduce padding, prevent horizontal overflow */
   .main-content { padding:16px 12px; overflow-x:hidden; }
@@ -3083,7 +3252,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   .quick-actions { grid-template-columns:repeat(2,1fr); gap:8px; }
   .quick-action-btn { padding:14px 8px; }
   .quick-action-btn .qa-icon { width:36px; height:36px; font-size:18px; }
-  .quick-action-btn .qa-label { font-size:10.5px; }
+  .quick-action-btn .qa-label { font-size:12px; }
 
   /* Stage tracker: allow horizontal scroll */
   .student-stage-tracker { overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:8px; }
@@ -3127,13 +3296,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   }
   /* Hide host bar permission buttons text on mobile to save space */
   #vc-host-bar { flex-wrap:wrap; padding:8px; gap:6px; }
-  #vc-host-bar .vc-host-btn { font-size:10px; padding:4px 8px; }
+  #vc-host-bar .vc-host-btn { font-size:12px; padding:4px 8px; }
 
   /* Modals: slightly larger on mobile */
   .modal { padding:20px 16px; width:95%; max-height:90vh; }
 
   /* Pipeline: full width stages */
-  .pipeline-stage { min-width:calc(50% - 2px); padding:10px 6px; font-size:11px; }
+  .pipeline-stage { min-width:calc(50% - 2px); padding:10px 6px; font-size:12px; }
   .pipeline-stage .count { font-size:18px; }
 
   /* Bar chart */
@@ -3190,11 +3359,11 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   .landing-content { padding:20px 16px; }
   .landing-logo-icon { width:52px; height:52px; font-size:26px; border-radius:14px; }
   .landing-logo-text h1 { font-size:28px; }
-  .landing-logo-text span { font-size:11px; }
+  .landing-logo-text span { font-size:12px; }
   .landing-subtitle { font-size:14px; margin-bottom:28px; }
-  .landing-badge { font-size:10px; padding:6px 12px; margin-bottom:20px; }
+  .landing-badge { font-size:12px; padding:6px 12px; margin-bottom:20px; }
   .landing-logo-group { gap:10px; margin-bottom:14px; }
-  .landing-footer { padding:16px; font-size:11px; }
+  .landing-footer { padding:16px; font-size:12px; }
 
   /* Role cards: full width, compact */
   .role-card { padding:24px 20px; }
@@ -3244,7 +3413,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   /* Welcome banner */
   .student-welcome-banner { padding:16px 12px; }
   .student-welcome-banner h2 { font-size:18px; }
-  .student-welcome-banner p { font-size:11px; }
+  .student-welcome-banner p { font-size:12px; }
 
   /* Class schedule cards: fully stacked */
   .class-schedule-card { flex-direction:column; align-items:flex-start; }
@@ -3324,10 +3493,10 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .lms-chat-name { font-size:14px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .lms-chat-last-msg { font-size:12px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
 .lms-chat-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; min-width:50px; }
-.lms-chat-time { font-size:11px; color:var(--text-muted); }
+.lms-chat-time { font-size:12px; color:var(--text-muted); }
 .lms-chat-unread {
   width:20px; height:20px; border-radius:50%; background:var(--accent-fill); color:var(--on-accent);
-  font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;
 }
 
 /* Chat main area */
@@ -3363,7 +3532,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:4px; min-height:0;
 }
 .lms-chat-date-divider {
-  text-align:center; margin:12px 0; font-size:11px; color:var(--text-muted);
+  text-align:center; margin:12px 0; font-size:12px; color:var(--text-muted);
   position:relative;
 }
 .lms-chat-date-divider span {
@@ -3406,11 +3575,11 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .msg-inline-avatar:hover { transform:scale(1.12); box-shadow:0 3px 10px rgba(0,0,0,0.35); }
 .msg-inline-avatar img  { width:100%; height:100%; object-fit:cover; }
 /* Sender name clickable */
-.msg-sender { font-size:11px; font-weight:700; color:var(--accent); margin-bottom:3px; cursor:pointer; display:inline-block; }
+.msg-sender { font-size:12px; font-weight:700; color:var(--accent); margin-bottom:3px; cursor:pointer; display:inline-block; }
 .msg-sender:hover { text-decoration:underline; }
 .lms-chat-msg .msg-text { font-size:13.5px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; white-space:pre-wrap; }
-.lms-chat-msg .msg-time { font-size:10px; color:var(--chat-meta); text-align:right; margin-top:4px; }
-.lms-chat-msg .msg-edited { font-size:9px; color:rgba(255,255,255,0.35); font-style:italic; }
+.lms-chat-msg .msg-time { font-size:12px; color:var(--chat-meta); text-align:right; margin-top:4px; }
+.lms-chat-msg .msg-edited { font-size:12px; color:rgba(255,255,255,0.35); font-style:italic; }
 .lms-chat-msg .msg-actions {
   display:none; position:absolute; top:4px; gap:2px;
 }
@@ -3432,7 +3601,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .lms-chat-msg .msg-file-icon { font-size:24px; }
 .lms-chat-msg .msg-file-info { flex:1; min-width:0; }
 .lms-chat-msg .msg-file-name { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.lms-chat-msg .msg-file-size { font-size:10px; color:rgba(255,255,255,0.5); }
+.lms-chat-msg .msg-file-size { font-size:12px; color:rgba(255,255,255,0.5); }
 /* On a light page the bubbles are light, so their small print takes the helper colour. */
 html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lms-chat-msg .msg-file-size { color:var(--text-muted); }
 .lms-chat-msg .msg-img { max-width:100%; width:auto; height:auto; border-radius:var(--radius-sm); margin-top:6px; cursor:pointer; display:block; }
@@ -3485,7 +3654,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .lms-chat-poll-option-text { flex:1; font-size:13px; position:relative; z-index:1; }
 .lms-chat-poll-option-check { font-size:14px; color:var(--accent); position:relative; z-index:1; }
 .lms-chat-poll-option-pct { font-size:12px; font-weight:600; color:var(--text-muted); min-width:36px; text-align:right; position:relative; z-index:1; }
-.lms-chat-poll-footer { display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:11px; color:var(--text-muted); }
+.lms-chat-poll-footer { display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:12px; color:var(--text-muted); }
 
 /* Poll creation modal */
 .lms-poll-modal { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; }
@@ -3586,7 +3755,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 }
 .lms-chat-info-body .member-avatar img { width:100%; height:100%; object-fit:cover; }
 .lms-chat-info-body .member-name { font-size:13px; font-weight:500; }
-.lms-chat-info-body .member-role { font-size:11px; color:var(--text-muted); }
+.lms-chat-info-body .member-role { font-size:12px; color:var(--text-muted); }
 .lms-chat-info-body .member-remove {
   margin-left:auto; width:24px; height:24px; border:none; border-radius:50%;
   background:var(--red-dim); color:var(--red); cursor:pointer; font-size:12px;
@@ -3644,7 +3813,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 }
 .lms-active-call-banner .acb-info { flex:1; min-width:0; }
 .lms-active-call-banner .acb-title { font-size:13px; font-weight:600; color:var(--green); }
-.lms-active-call-banner .acb-participants { font-size:11px; color:var(--text-muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lms-active-call-banner .acb-participants { font-size:12px; color:var(--text-muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .lms-active-call-banner .acb-join {
   padding:6px 16px; border:none; border-radius:20px; background:var(--green);
   color:#fff; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;
@@ -3710,7 +3879,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 }
 .pms-stat:hover { background:var(--bg-card-hover); }
 .pms-num { font-size:20px; font-weight:700; color:var(--text-primary); }
-.pms-lbl { font-size:11px; color:var(--text-muted); margin-top:2px; text-transform:uppercase; letter-spacing:0.5px; }
+.pms-lbl { font-size:12px; color:var(--text-muted); margin-top:2px; text-transform:uppercase; letter-spacing:0.5px; }
 .pms-divider { width:1px; height:36px; background:var(--border); flex-shrink:0; }
 
 /* Followers / Following page — list */
@@ -3738,8 +3907,8 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .flw-status-dot.offline { background:var(--text-muted); }
 .flw-info { flex:1; min-width:0; }
 .flw-name { font-size:14px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.flw-meta { font-size:11px; color:var(--text-muted); margin-top:2px; }
-.flw-status-msg { font-size:11px; color:var(--text-secondary); margin-top:3px; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.flw-meta { font-size:12px; color:var(--text-muted); margin-top:2px; }
+.flw-status-msg { font-size:12px; color:var(--text-secondary); margin-top:3px; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .flw-actions { display:flex; flex-direction:column; gap:6px; flex-shrink:0; }
 .flw-btn {
   padding:6px 14px; border-radius:var(--radius-sm); font-size:12px; font-weight:600;
@@ -3817,8 +3986,8 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .lms-member-card .mc-status-dot.away { background:var(--orange); }
 .lms-member-card .mc-status-dot.offline { background:var(--text-muted); }
 .lms-member-card .mc-name { font-size:13px; font-weight:600; margin-bottom:4px; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.lms-member-card .mc-role { font-size:11px; color:var(--text-muted); margin-bottom:6px; }
-.lms-member-card .mc-status-msg { font-size:11px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-style:italic; }
+.lms-member-card .mc-role { font-size:12px; color:var(--text-muted); margin-bottom:6px; }
+.lms-member-card .mc-status-msg { font-size:12px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-style:italic; }
 
 /* Member profile view (inside members overlay) */
 .lms-member-profile-view {
@@ -3865,7 +4034,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 }
 .mpv-stat { display:flex; flex-direction:column; align-items:center; }
 .mpv-stat-num { font-size:18px; font-weight:700; color:var(--text-primary); }
-.mpv-stat-lbl { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.mpv-stat-lbl { font-size:12px; color:var(--text-muted); margin-top:2px; }
 /* Member profile action buttons */
 .mpv-actions {
   display:flex; gap:10px; justify-content:center; margin:14px 0 4px;
@@ -3881,7 +4050,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .mpv-btn-unfollow { background:var(--bg-secondary); color:var(--text-secondary); border:1.5px solid var(--border); }
 .mpv-btn-unfollow:hover { border-color:var(--red); color:var(--red); }
 .lms-members-role-badge {
-  display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600;
+  display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600;
 }
 .lms-members-role-badge.admin { background:var(--accent-dim); color:var(--accent); }
 .lms-members-role-badge.adminstaff { background:var(--purple-dim); color:var(--purple); }
@@ -3971,7 +4140,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .adr-staff-badge-row { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
 .adr-badge {
   display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px;
-  font-size:11px; font-weight:600; border:1px solid transparent;
+  font-size:12px; font-weight:600; border:1px solid transparent;
 }
 .adr-badge-gold { background:rgba(240,165,0,0.15); color:var(--accent); border-color:rgba(240,165,0,0.3); }
 .adr-badge-silver { background:rgba(189,195,199,0.15); color:#bdc3c7; border-color:rgba(189,195,199,0.3); }
@@ -3980,7 +4149,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .adr-staff-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
 .adr-staff-stat { text-align:center; padding:8px 4px; background:var(--bg-input); border-radius:var(--radius-sm); }
 .adr-staff-stat .ss-val { font-size:18px; font-weight:700; }
-.adr-staff-stat .ss-lbl { font-size:10px; color:var(--text-muted); margin-top:2px; }
+.adr-staff-stat .ss-lbl { font-size:12px; color:var(--text-muted); margin-top:2px; }
 .adr-staff-perf-bar { height:6px; background:var(--bg-input); border-radius:3px; margin-top:12px; overflow:hidden; }
 .adr-staff-perf-fill { height:100%; border-radius:3px; transition:width 0.5s ease; }
 
@@ -4014,14 +4183,14 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 }
 .adr-task-check:hover { border-color:var(--green); }
 .adr-task-check.checked { background:var(--green); border-color:var(--green); color:#fff; font-size:12px; }
-.adr-task-check.pending-review { background:var(--orange); border-color:var(--orange); color:#fff; font-size:10px; }
+.adr-task-check.pending-review { background:var(--orange); border-color:var(--orange); color:#fff; font-size:11px; }
 
 .adr-task-body { flex:1; min-width:0; }
 .adr-task-title { font-size:14px; font-weight:600; margin-bottom:4px; }
 .adr-task-meta { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 .adr-task-tag {
   display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:12px;
-  font-size:11px; font-weight:600;
+  font-size:12px; font-weight:600;
 }
 .adr-tag-urgent { background:rgba(231,76,60,0.15); color:var(--red); }
 .adr-tag-high { background:rgba(230,126,34,0.15); color:var(--orange); }
@@ -4030,9 +4199,9 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .adr-tag-daily { background:rgba(155,89,182,0.12); color:var(--purple); }
 .adr-tag-weekly { background:rgba(26,188,156,0.12); color:var(--teal); }
 .adr-tag-monthly { background:rgba(240,165,0,0.12); color:var(--accent); }
-.adr-task-deadline { font-size:11px; color:var(--text-muted); }
+.adr-task-deadline { font-size:12px; color:var(--text-muted); }
 .adr-task-deadline.overdue { color:var(--red); font-weight:600; }
-.adr-task-assignee { font-size:11px; color:var(--text-secondary); }
+.adr-task-assignee { font-size:12px; color:var(--text-secondary); }
 .adr-task-actions { display:flex; gap:6px; flex-shrink:0; align-items:flex-start; }
 .adr-task-actions button {
   background:var(--bg-input); border:1px solid var(--border); color:var(--text-secondary);
@@ -4045,7 +4214,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 /* Task Detail Modal Styles */
 .adr-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
 .adr-detail-item { padding:10px; background:var(--bg-input); border-radius:var(--radius-sm); }
-.adr-detail-label { font-size:11px; color:var(--text-muted); margin-bottom:3px; }
+.adr-detail-label { font-size:12px; color:var(--text-muted); margin-bottom:3px; }
 .adr-detail-val { font-size:14px; font-weight:600; }
 .adr-comments-section { margin-top:18px; }
 .adr-comment {
@@ -4058,7 +4227,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 }
 .adr-comment-body { flex:1; min-width:0; }
 .adr-comment-author { font-size:12px; font-weight:600; }
-.adr-comment-time { font-size:10px; color:var(--text-muted); }
+.adr-comment-time { font-size:12px; color:var(--text-muted); }
 .adr-comment-text { font-size:13px; color:var(--text-secondary); margin-top:4px; line-height:1.5; }
 .adr-comment-input { display:flex; gap:10px; margin-top:12px; }
 .adr-comment-input input { flex:1; }
@@ -4102,7 +4271,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .as-access-item:hover { border-color:var(--purple); background:var(--purple-dim); }
 .as-access-item input[type="checkbox"] { width:18px; height:18px; accent-color:var(--purple); cursor:pointer; }
 .as-access-item label { font-size:13px; cursor:pointer; flex:1; }
-.as-access-item .as-access-desc { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.as-access-item .as-access-desc { font-size:12px; color:var(--text-muted); margin-top:2px; }
 /* Admin Staff Dashboard */
 .as-welcome-banner {
   background:linear-gradient(135deg,rgba(155,89,182,0.12),rgba(142,68,173,0.06));
@@ -4186,7 +4355,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 }
 .cert-result-details { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
 .cert-detail-item { font-size:13px; }
-.cert-detail-item .label { color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:0.5px; }
+.cert-detail-item .label { color:var(--text-muted); font-size:12px; text-transform:uppercase; letter-spacing:0.5px; }
 .cert-detail-item .value { color:var(--text-primary); font-weight:600; margin-top:2px; }
 .cert-download-btn {
   display:inline-flex; align-items:center; gap:8px; padding:10px 24px;
@@ -4225,7 +4394,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .cert-preview-wrap { margin-top:18px; display:grid; gap:14px; }
 .cert-preview-page { background:#fff; border-radius:6px; overflow:hidden; box-shadow:0 6px 24px rgba(0,0,0,0.45); }
 .cert-preview-page canvas, .cert-preview-page img { display:block; width:100%; height:auto; }
-.cert-preview-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin:0 0 6px; }
+.cert-preview-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin:0 0 6px; }
 @media (max-width:560px) { .cert-portal-choices { grid-template-columns:1fr; } .cert-portal-panel { padding:26px 18px; } }
 
 /* Admin Cert Download Management */
@@ -4252,7 +4421,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .cert-approve-name { font-size:14px; font-weight:600; }
 .cert-approve-meta { font-size:12px; color:var(--text-muted); margin-top:2px; }
 .cert-approve-actions { display:flex; gap:8px; align-items:center; }
-.cert-approve-actions .badge { font-size:11px; }
+.cert-approve-actions .badge { font-size:12px; }
 
 /* ============================== MAJOR IMPROVEMENTS: UX STYLES ============================== */
 
@@ -4529,6 +4698,121 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .cloud-notify-actions .btn{font-size:.8rem;padding:.45rem .9rem}
 @keyframes notifyCountdown{from{width:100%}to{width:0%}}
 .cloud-notify-timer{height:3px;background:var(--text-muted);opacity:.3;border-radius:0 0 14px 14px}
+
+/* ============================== PHONE LAYOUTS FOR THE BUSIEST SCREENS ==============================
+   On a phone these tables showed two or three columns and left the rest - the
+   day marks, the grades, the status and the buttons - past the card's edge.
+   Now each one (class tbl-phone) scrolls sideways inside its own card, never
+   the page, with the name pinned on the left while the other columns slide
+   under it, and the buttons, marks and boxes in it are at least 44px so a
+   thumb can hit them. Chat shows the room list or the conversation, and the
+   video room stacks its pictures with the call buttons in a bar along the
+   bottom. Everything here is inside max-width:768px: a computer's screen is
+   not affected (the phone-only line under a name is never shown on one),
+   and neither is printing (screen only: a printed page can be under 768px). */
+.att-phone-sub { display:none; }
+@media screen and (max-width:768px) {
+  .tbl-phone th:first-child, .tbl-phone td:first-child,
+  .tbl-phone.tbl-phone-col2 th:nth-child(2), .tbl-phone.tbl-phone-col2 td:nth-child(2) {
+    position:sticky; left:0; z-index:1; background:var(--bg-card);
+    box-shadow:inset -1px 0 0 var(--border-light);
+  }
+  .tbl-phone.tbl-phone-col2 th:first-child, .tbl-phone.tbl-phone-col2 td:first-child { position:static; background:none; box-shadow:none; }
+  .tbl-phone td:first-child { width:136px; min-width:136px; white-space:normal; }
+  .tbl-phone.tbl-phone-col2 td:first-child { width:auto; min-width:0; }
+  .tbl-phone.tbl-phone-col2 td:nth-child(2) { width:170px; min-width:170px; }
+  .tbl-phone td[colspan] { position:static; box-shadow:none; white-space:normal; }
+  .tbl-phone td .btn, .tbl-phone td button { min-height:44px; min-width:44px; }
+  .tbl-phone thead th { white-space:normal; }
+  .tbl-phone thead th + th { min-width:92px; }
+
+  /* Attendance register: ID and course move under the name; the day marks are finger-sized. */
+  .attendance-table { min-width:0; }
+  .attendance-table th, .attendance-table td { padding:8px 6px; }
+  .attendance-table .att-col-id, .attendance-table .att-col-course { display:none; }
+  .attendance-table .att-phone-sub { display:block; margin-top:3px; font-size:12px; font-weight:400; color:var(--text-muted); word-break:break-word; }
+  .attendance-table select.att-cell { width:112px !important; min-height:44px; padding:6px 8px !important; font-size:16px !important; }
+  .attendance-table thead .btn-sm { min-height:44px; padding:0 10px !important; font-size:13px !important; }
+
+  /* Certificate approvals: the name and details on one line, the status and button under them. */
+  .cert-approve-row { flex-wrap:wrap; gap:10px; }
+  .cert-approve-info { flex:1 1 100%; min-width:0; }
+  .cert-approve-actions { flex:1 1 100%; justify-content:flex-end; flex-wrap:wrap; }
+  .cert-approve-actions .btn, .cert-approve-actions button { min-height:44px; }
+  .cert-mgmt-toolbar input, .cert-mgmt-toolbar select { width:100% !important; min-height:44px; font-size:16px; }
+
+  /* Gradebook submissions: name and date on their own line, the mark box and button finger-sized. */
+  .gb-sub-row > div:first-child { flex:1 1 100%; }
+  .gb-sub-row .btn { min-height:44px; }
+  .gb-sub-row .gb-grade-input { width:76px !important; height:44px !important; font-size:16px !important; }
+  .gb-sub-row .gb-grade-btn { padding:0 16px !important; font-size:14px !important; }
+
+  /* Tab rows wrap instead of running past the edge: on Settings the last three of
+     its seven tabs (Data Management, Verification & Links, Maintenance Mode)
+     could not be reached on a phone at all. */
+  .tabs { flex-wrap:wrap; }
+  .tabs .tab { white-space:nowrap; padding:12px 14px; min-height:44px; }
+
+  /* Users table: finger-sized action buttons; the on/off switch keeps its look with a bigger hit area. */
+  .um-actions button { width:44px; height:44px; }
+  .um-toggle::after { content:''; position:absolute; inset:-11px -6px; }
+  .verify-action-btns { flex-wrap:nowrap; }
+
+  /* Chat: room list OR conversation (already), with finger-sized buttons and a one-line header. */
+  .lms-chat-sidebar-actions button, .lms-chat-header-actions button,
+  .lms-chat-main-header-left .back-btn { width:44px; height:44px; min-width:44px; }
+  .lms-chat-main-header { gap:8px; }
+  .lms-chat-main-header-left { flex:1; min-width:0; gap:8px; }
+  .lms-chat-main-header-left .lms-chat-avatar { display:none !important; }
+  .lms-chat-header-info { min-width:0; }
+  .lms-chat-header-info h4 { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lms-chat-header-actions { gap:4px; flex-shrink:0; }
+  .lms-chat-input-area .attach-btn, .lms-chat-input-area .send-btn, .lms-chat-input-area .poll-btn,
+  .lms-chat-input-area button { width:44px; height:44px; min-width:44px; }
+  .lms-chat-input-area .msg-input { min-height:44px; font-size:16px; }
+  /* A phone has its own emoji keyboard: the picker button gives its room to the message box. */
+  .lms-chat-input-area .emoji-btn { display:none; }
+  /* Chat Info opens over the conversation; closed, it no longer leaves an empty strip under the message box. */
+  .lms-chat-container { position:relative; }
+  .lms-chat-info-panel:not(.open) { display:none; }
+  .lms-chat-info-panel.open { position:absolute; inset:0; z-index:5; border-left:0; }
+  .lms-chat-info-panel-header button { width:44px; height:44px; }
+
+  /* Video lobby: finger-sized buttons. */
+  .vc-lobby .btn { min-height:44px; }
+  .vc-lobby .vc-btn { width:48px; height:48px; }
+  /* Video room (gallery view): pictures one under another, the call buttons in a
+     bar fixed along the bottom of the screen, chat and participants a tap away
+     on the 💬 button (they used to sit below everything, and the button did nothing). */
+  body:not(.vc-fullscreen-mode) .vc-conference-wrapper { padding-bottom:76px; }
+  body:not(.vc-fullscreen-mode) .vc-conference-body .video-grid { grid-template-columns:1fr; gap:10px; }
+  body:not(.vc-fullscreen-mode) .vc-conference-body .video-controls {
+    position:fixed; left:0; right:0; bottom:0; z-index:95; flex-wrap:nowrap; justify-content:space-evenly; gap:4px;
+    padding:8px 6px calc(8px + env(safe-area-inset-bottom)); border-radius:0; border-left:0; border-right:0; border-bottom:0;
+    background:rgba(12,17,23,0.96); box-shadow:0 -6px 20px rgba(0,0,0,0.4);
+  }
+  body:not(.vc-fullscreen-mode) .vc-conference-body .video-controls .vc-btn { width:44px; height:44px; flex-shrink:0; }
+  body:not(.vc-fullscreen-mode) .vc-conference-body .video-controls .vc-end-all-btn { height:44px; padding:0 10px !important; flex-shrink:0; }
+  body:not(.vc-fullscreen-mode) .vc-conference-body .vc-side-panel { display:none; }
+  body.vc-show-sidepanel:not(.vc-fullscreen-mode) .vc-conference-body .vc-side-panel {
+    display:flex; flex-direction:column; position:fixed; top:var(--topbar-h); left:0; right:0; bottom:0; z-index:110;
+    background:var(--bg-primary); overflow-y:auto; padding:12px;
+  }
+  body.vc-show-sidepanel:not(.vc-fullscreen-mode) .vc-sidepanel-close { display:block !important; }
+  body.vc-show-sidepanel:not(.vc-fullscreen-mode) .vc-sidepanel-close .btn { min-height:44px; }
+  #vc-host-bar .vc-host-btn { min-height:44px; }
+}
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:0.6rem"], [style*="font-size: 0.6rem"], [style*="font-size:0.7rem"],
+  [style*="font-size: 0.7rem"], [style*="font-size:9px"], [style*="font-size: 9px"], [style*="font-size:10px"],
+  [style*="font-size: 10px"], [style*="font-size:11px"], [style*="font-size: 11px"], [style*="font-size:11.5px"],
+  [style*="font-size: 11.5px"] { font-size:12px !important; }
+}
 </style>
 <script src="vendor/peerjs-1.5.4.min.js"></script>
 <script>window.Peer||(document.write('<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js">\x3C/script>'))</script>
@@ -4590,7 +4874,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
     </div>
 
     <div class="landing-logo-group">
-      <div class="landing-logo-icon">V</div>
+      <div class="landing-logo-icon" aria-hidden="true">V</div>
       <div class="landing-logo-text">
         <h1>VocTrain</h1>
         <span>Learning Management System</span>
@@ -4611,11 +4895,16 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
       </div>
       <button class="login-sync-btn" id="loginSyncBtn" onclick="loginPageSync()">Sync Now</button>
     </div>
+    <!-- Why "Sync Now" comes first, in one plain line, for anyone meeting it on
+         a new or shared computer. The bar above already says what it does, so
+         this says why and who helps. By the owner's rule it never says where
+         the records come from or are kept; nothing here changes the step. -->
+    <p class="login-sync-why" id="loginSyncWhy" role="note"><strong>Why Sync Now comes first:</strong> it gives this computer the latest accounts and records, so everyone signs in with their current password. If it could not sync, try again or ask the office.</p>
 
     <div class="role-cards sync-pending">
       <!-- ADMIN CARD -->
       <div class="role-card admin-card" id="adminCard">
-        <div class="role-icon">🛡️</div>
+        <div class="role-icon" aria-hidden="true">🛡️</div>
         <h2>Administrator</h2>
         <p>Manage students, schedule exams, monitor progress, track certifications, and run training centres.</p>
         <!-- A real form: Enter (or a phone's Go key) signs in, the labels name
@@ -4630,8 +4919,9 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
           </div>
           <div class="form-group">
             <label for="adminPass">Password</label>
-            <input type="password" placeholder="••••••••" id="adminPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="adminPass" name="password" autocomplete="current-password" aria-describedby="adminLoginError">
           </div>
+          <div class="role-login-error" id="adminLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('admin')">Forgot password?</button>
         </div>
         <button type="submit" class="role-enter-btn">Enter as Admin →</button>
@@ -4640,7 +4930,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 
       <!-- STUDENT CARD -->
       <div class="role-card student-card" id="studentCard">
-        <div class="role-icon">🎓</div>
+        <div class="role-icon" aria-hidden="true">🎓</div>
         <h2>Student</h2>
         <p>Access your classes, join live sessions, view progress, download resources, and track your certification.</p>
         <form class="role-login-form" onsubmit="event.preventDefault(); handleStudentClick();" novalidate>
@@ -4651,12 +4941,13 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
           </div>
           <div class="form-group">
             <label for="studentPass">Password</label>
-            <input type="password" placeholder="••••••••" id="studentPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="studentPass" name="password" autocomplete="current-password" aria-describedby="studentLoginError">
           </div>
+          <div class="role-login-error" id="studentLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('student')">Forgot password?</button>
           <div class="gmail-divider">or</div>
           <button class="gmail-btn" type="button" onclick="gmailSignIn('student')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
             Sign in with your email account
           </button>
           <button type="button" class="register-link" onclick="openRegistrationModal('student')">New student? Register here</button>
@@ -4667,7 +4958,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 
       <!-- INSTRUCTOR CARD -->
       <div class="role-card instructor-card" id="instructorCard">
-        <div class="role-icon">📚</div>
+        <div class="role-icon" aria-hidden="true">📚</div>
         <h2>Instructor</h2>
         <p>Manage your classes, track student progress, mark attendance, grade assignments, and schedule sessions.</p>
         <form class="role-login-form" onsubmit="event.preventDefault(); handleInstructorClick();" novalidate>
@@ -4678,12 +4969,13 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
           </div>
           <div class="form-group">
             <label for="instructorPass">Password</label>
-            <input type="password" placeholder="••••••••" id="instructorPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="instructorPass" name="password" autocomplete="current-password" aria-describedby="instructorLoginError">
           </div>
+          <div class="role-login-error" id="instructorLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('instructor')">Forgot password?</button>
           <div class="gmail-divider">or</div>
           <button class="gmail-btn" type="button" onclick="gmailSignIn('instructor')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
             Sign in with your email account
           </button>
           <button type="button" class="register-link" onclick="openRegistrationModal('instructor')">New instructor? Register here</button>
@@ -4694,7 +4986,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 
       <!-- ADMIN STAFF CARD -->
       <div class="role-card adminstaff-card" id="adminStaffCard">
-        <div class="role-icon">📋</div>
+        <div class="role-icon" aria-hidden="true">📋</div>
         <h2>Administrative Staff</h2>
         <p>View assigned duties, complete tasks, track your performance, and access permitted administrative functions.</p>
         <form class="role-login-form" onsubmit="event.preventDefault(); handleAdminStaffClick();" novalidate>
@@ -4705,8 +4997,9 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
           </div>
           <div class="form-group">
             <label for="adminStaffPass">Password</label>
-            <input type="password" placeholder="••••••••" id="adminStaffPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="adminStaffPass" name="password" autocomplete="current-password" aria-describedby="adminStaffLoginError">
           </div>
+          <div class="role-login-error" id="adminStaffLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('adminstaff')">Forgot password?</button>
         </div>
         <button type="submit" class="role-enter-btn">Enter as Admin Staff →</button>
@@ -4715,7 +5008,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 
       <!-- CMC (BOARD) CARD -->
       <div class="role-card cmc-card" id="cmcCard">
-        <div class="role-icon">🏛️</div>
+        <div class="role-icon" aria-hidden="true">🏛️</div>
         <h2>CMC Board</h2>
         <p>Community Management Committee — view-only oversight of enrolment, student progress, finances and centre activity.</p>
         <form class="role-login-form" onsubmit="event.preventDefault(); handleCmcClick();" novalidate>
@@ -4726,8 +5019,9 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
           </div>
           <div class="form-group">
             <label for="cmcPass">Password</label>
-            <input type="password" placeholder="••••••••" id="cmcPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="cmcPass" name="password" autocomplete="current-password" aria-describedby="cmcLoginError">
           </div>
+          <div class="role-login-error" id="cmcLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('cmc')">Forgot password?</button>
         </div>
         <button type="submit" class="role-enter-btn">Enter as CMC Board →</button>
@@ -4740,7 +5034,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
   <!-- Certificate Check Button -->
   <div style="text-align:center;margin-top:8px;">
     <button class="cert-check-btn" onclick="openCertPortal('home')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
       Certificate Portal
     </button>
   </div>
@@ -4947,53 +5241,57 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
     <div class="topbar-title" id="topbarTitle">Dashboard</div>
-    <div class="topbar-search">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" placeholder="Search..." id="globalSearch">
+    <div class="topbar-search" role="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search..." id="globalSearch" aria-label="Search trainees, exams and courses" autocomplete="off">
+      <button type="button" class="topbar-search-close" onclick="closePhoneSearch()" aria-label="Close search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
       <div class="search-results" id="searchResults"></div>
     </div>
     <div class="topbar-right">
-      <!-- Cloud Sync Dropdown -->
-      <div id="cloudNotConnected">
-        <button class="cloud-sync-btn" onclick="connectToGoogleDrive()">
-          <span>🔄</span>
-          <span id="cloudStatusText">Not synced yet</span>
-          <span id="cloudStatusDot" class="cloud-status-dot"></span>
+      <button type="button" class="topbar-btn topbar-search-toggle" id="globalSearchToggle" onclick="openPhoneSearch()" title="Search" aria-label="Search" aria-controls="globalSearch" aria-expanded="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <!-- ONE sync control. Its words (or, where the bar is narrow, its icon
+           alone) say whether this computer's work has synced — read-only, see
+           CESTISCore.ui.syncHealth. Pressing it opens one panel: the answer
+           and what to do, and, for staff, the sync actions that used to sit
+           in a second sync button beside it (#cloudNotConnected /
+           #cloudConnected keep their ids, so the sync code drives them as
+           before). -->
+      <div class="sync-chip-wrap" id="syncChipWrap">
+        <button type="button" class="sync-chip tone-warn" id="syncChip" onclick="toggleSyncChipPanel(event)" aria-expanded="false" aria-controls="syncChipPanel" aria-haspopup="dialog">
+          <span class="sync-chip-icon" id="syncChipIcon" aria-hidden="true"></span><span class="sync-chip-label" id="syncChipLabel">Checking…</span>
         </button>
-      </div>
-      <div id="cloudConnected" style="display:none;">
-        <div class="cloud-dropdown">
-          <button class="cloud-sync-btn" onclick="toggleCloudMenu()">
-            <span id="cloudMenuIcon">🔄</span>
-            <span>Sync</span>
-            <span style="font-size:0.6rem;">▼</span>
-          </button>
-          <div class="cloud-dropdown-content" id="cloudDropdownMenu">
-            <div class="cloud-dropdown-item" onclick="saveToCloud()">
-              <span>💾</span><span>Send My Changes</span>
+        <div class="sync-chip-panel" id="syncChipPanel" role="dialog" aria-labelledby="syncChipPanelTitle" hidden>
+          <div class="sync-chip-panel-title" id="syncChipPanelTitle"></div>
+          <div class="sync-chip-panel-detail" id="syncChipPanelDetail"></div>
+          <div class="sync-chip-panel-last" id="syncChipPanelLast"></div>
+          <ul class="sync-chip-panel-advice" id="syncChipPanelAdvice"></ul>
+          <div class="sync-panel-actions" id="syncPanelActions">
+            <div id="cloudNotConnected">
+              <button type="button" class="cloud-sync-btn sync-panel-connect" onclick="closeSyncChipPanel(); connectToGoogleDrive()"><span aria-hidden="true">🔄</span><span>Turn On Sync</span></button>
+              <span id="cloudStatusText" hidden>Not synced yet</span><span id="cloudStatusDot" class="cloud-status-dot" hidden></span>
             </div>
-            <div class="cloud-dropdown-item" onclick="syncFromCloud()">
-              <span>🔄</span><span>Get Latest Changes</span>
-            </div>
-            <div class="cloud-dropdown-item" onclick="mergeFromCloud()">
-              <span>🔀</span><span>Merge Latest Changes</span>
-            </div>
-            <div class="cloud-dropdown-item" onclick="browseBackupFiles()">
-              <span>📁</span><span>Browse All Backups</span>
-            </div>
-            <div class="cloud-dropdown-item" onclick="restoreFromMasterBackup()">
-              <span>🛟</span><span>Restore from Master Backup</span>
-            </div>
-            <div class="cloud-dropdown-item" onclick="syncAllUserLoginFoldersToDrive()">
-              <span>👤</span><span>Build User Login Folders</span>
-            </div>
-            <div class="cloud-dropdown-divider"></div>
-            <div class="last-sync-info" id="lastSyncInfo">Last sync: Never</div>
-            <div class="last-sync-info" id="lastSavedByInfo" style="color:var(--text-muted);font-size:0.7rem;">Last saved by: --</div>
-            <div class="last-sync-info" id="masterBackupInfo" style="color:var(--text-muted);font-size:0.7rem;">Master backup: --</div>
-            <div class="cloud-dropdown-divider"></div>
-            <div class="cloud-dropdown-item danger" onclick="disconnectFromGoogleDrive()">
-              <span>🔌</span><span>Disconnect</span>
+            <div id="cloudConnected" style="display:none;">
+              <div class="cloud-dropdown">
+                <span id="cloudMenuIcon" hidden>🔄</span>
+                <div class="cloud-dropdown-content" id="cloudDropdownMenu" role="group" aria-label="Sync actions">
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); saveToCloud()"><span aria-hidden="true">💾</span><span>Send My Changes</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); syncFromCloud()"><span aria-hidden="true">🔄</span><span>Get Latest Changes</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); mergeFromCloud()"><span aria-hidden="true">🔀</span><span>Merge Latest Changes</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); browseBackupFiles()"><span aria-hidden="true">📁</span><span>Browse All Backups</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); restoreFromMasterBackup()"><span aria-hidden="true">🛟</span><span>Restore from Master Backup</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); syncAllUserLoginFoldersToDrive()"><span aria-hidden="true">👤</span><span>Build User Login Folders</span></button>
+                  <div class="cloud-dropdown-divider"></div>
+                  <div class="last-sync-info" id="lastSyncInfo">Last sync: Never</div>
+                  <div class="last-sync-info" id="lastSavedByInfo">Last saved by: --</div>
+                  <div class="last-sync-info" id="masterBackupInfo">Master backup: --</div>
+                  <div class="cloud-dropdown-divider"></div>
+                  <button type="button" class="cloud-dropdown-item danger" onclick="closeSyncChipPanel(); disconnectFromGoogleDrive()"><span aria-hidden="true">🔌</span><span>Disconnect</span></button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -5010,8 +5308,30 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
         </button>
         <div class="notification-dropdown" id="notifDropdown"></div>
       </div>
-      <button class="topbar-btn" title="Two-Step Verification" onclick="tfaOpenManage()" aria-label="Two-Step Verification">
+      <button class="topbar-btn topbar-tfa-btn" title="Two-Step Verification" onclick="tfaOpenManage()" aria-label="Two-Step Verification">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+      </button>
+      <!-- Who is signed in on this computer, and a Lock that covers the
+           session at once (the same lock the idle timer uses). -->
+      <div class="topbar-account" id="topbarAccount">
+        <button type="button" class="topbar-who" id="topbarWho" title="Signed in" onclick="toggleAccountMenu(event)" aria-haspopup="menu" aria-expanded="false" aria-controls="topbarAccountMenu">
+          <span class="topbar-who-avatar" id="topbarWhoAvatar" aria-hidden="true"></span>
+          <span class="topbar-who-text"><span class="topbar-who-name" id="topbarWhoName"></span><span class="topbar-who-role" id="topbarWhoRole"></span></span>
+        </button>
+        <!-- Where the bar is narrow, Lock, the Light/Dark switch, Two-Step
+             Verification and (on a phone) Sign Out live here, so the page's
+             name always shows in full. -->
+        <div class="topbar-account-menu" id="topbarAccountMenu" role="menu" aria-label="Account" hidden>
+          <div class="tam-who" id="topbarAccountWho"></div>
+          <button type="button" role="menuitem" class="tam-item" onclick="closeAccountMenu(); lockSessionNow()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Lock</span></button>
+          <button type="button" role="menuitem" class="tam-item" data-theme-toggle onclick="cestisToggleTheme()"><svg class="theme-ico-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg><svg class="theme-ico-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span class="theme-to-light">Light mode</span><span class="theme-to-dark">Dark mode</span></button>
+          <button type="button" role="menuitem" class="tam-item" onclick="closeAccountMenu(); tfaOpenManage()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg><span>Two-Step Verification</span></button>
+          <button type="button" role="menuitem" class="tam-item tam-signout" onclick="closeAccountMenu(); logout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Sign Out</span></button>
+        </div>
+      </div>
+      <button type="button" class="topbar-lock-btn" id="topbarLockBtn" onclick="lockSessionNow()" aria-label="Lock this computer" title="Lock — cover this session until your password is entered">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span class="topbar-lock-label">Lock</span>
       </button>
       <button class="logout-btn" onclick="logout()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -5359,7 +5679,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 <div class="modal-overlay" id="idleLockModal" style="z-index:1250;">
   <div class="modal" style="max-width:420px;">
     <div class="modal-header"><h3>Session Locked</h3></div>
-    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">This session was left idle, so it has been locked. Enter the password for <strong id="idleLockWho"></strong> to carry on, or sign out.</p>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;"><span id="idleLockWhy">This session was left idle, so it has been locked.</span> Enter the password for <strong id="idleLockWho"></strong> to carry on, or sign out.</p>
     <div class="form-group"><label>Password</label><input type="password" class="form-control" id="idleLockPassword" autocomplete="current-password" onkeydown="if(event.key==='Enter')idleLockUnlock()"></div>
     <div id="idleLockError" class="tfa-error" style="display:none;"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
@@ -8094,7 +8414,16 @@ function sessionHeartbeat() {
   if(st === 'lock' && !_sessionLocked) openIdleLock();
   else if(st === 'warn' && !_sessionWarned) { _sessionWarned = true; showToast('Your session ends in about two minutes — save your work, then sign in again.', 'warning'); }
 }
-function openIdleLock() {
+/* The top bar's Lock: the same cover the idle timer puts up, at once — for a
+   shared lab PC its owner is stepping away from. Nothing about the lock
+   itself is different; only its first line says why it is there. */
+function lockSessionNow() {
+  if(!currentRole || _sessionLocked) return;
+  openIdleLock(true);
+}
+function openIdleLock(byChoice) {
+  var why = document.getElementById('idleLockWhy');
+  if(why) why.textContent = byChoice ? 'You locked this session.' : 'This session was left idle, so it has been locked.';
   _sessionLocked = true;
   // Withdraw the heartbeat at once: no new tab may borrow this session while
   // it is locked (the record pages refuse without a fresh one).
@@ -10681,7 +11010,7 @@ function initGlobalSearch() {
       dropdown.innerHTML = '<div class="search-empty">No results found</div>';
     } else {
       dropdown.innerHTML = '<div class="search-label">Results</div>' + results.map(r =>
-        `<div class="search-result-item" onclick="showPage('${escapeAttr(r.page)}');document.querySelector('.search-results').classList.remove('active');document.getElementById('globalSearch').value='';">
+        `<div class="search-result-item" onclick="showPage('${escapeAttr(r.page)}');document.querySelector('.search-results').classList.remove('active');document.getElementById('globalSearch').value='';closePhoneSearch(true);">
           <div class="sr-icon">${escapeHtml(r.icon)}</div>
           <div class="sr-text"><div class="sr-title">${escapeHtml(r.title)}</div><div class="sr-desc">${escapeHtml(r.desc)}</div></div>
           <span class="sr-category ${r.catClass}">${escapeHtml(r.cat)}</span>
@@ -10690,9 +11019,41 @@ function initGlobalSearch() {
     }
     dropdown.classList.add('active');
   });
-  input.addEventListener('keydown', function(e) { if(e.key==='Escape') dropdown.classList.remove('active'); });
+  input.addEventListener('keydown', function(e) { if(e.key==='Escape') { dropdown.classList.remove('active'); closePhoneSearch(); } });
   document.addEventListener('click', function(e) { if(!input.parentElement.contains(e.target)) dropdown.classList.remove('active'); });
 }
+
+/* Search on phones. Below 768px the bar has no room for the box, so the
+   magnifier button opens it across the whole bar with its results under it
+   (the same role-scoped results as on a computer — initGlobalSearch). It
+   closes on its ✕, on Escape, on picking a result, and on the phone's Back
+   button: opening adds one history step, so Back folds the search away
+   instead of leaving the dashboard. On a computer nothing here runs. */
+function openPhoneSearch() {
+  var bar = document.querySelector('.topbar');
+  var input = document.getElementById('globalSearch');
+  if(!bar || !input || bar.classList.contains('search-open')) return;
+  bar.classList.add('search-open');
+  var t = document.getElementById('globalSearchToggle');
+  if(t) t.setAttribute('aria-expanded', 'true');
+  try { history.pushState({ cestisPhoneSearch: true }, ''); } catch(e) {}
+  input.focus();
+}
+// picked: a result was chosen (focus goes with the page, not back to the button).
+// fromBack: the Back button already took the history step away.
+function closePhoneSearch(picked, fromBack) {
+  var bar = document.querySelector('.topbar');
+  if(!bar || !bar.classList.contains('search-open')) return;
+  bar.classList.remove('search-open');
+  var dd = document.getElementById('searchResults');
+  if(dd) dd.classList.remove('active');
+  var input = document.getElementById('globalSearch');
+  if(input) input.value = '';
+  var t = document.getElementById('globalSearchToggle');
+  if(t) { t.setAttribute('aria-expanded', 'false'); if(!picked && !fromBack) t.focus(); }
+  if(!fromBack) { try { if(history.state && history.state.cestisPhoneSearch) history.back(); } catch(e) {} }
+}
+window.addEventListener('popstate', function() { closePhoneSearch(false, true); });
 
 function toggleNotifications() {
   const btn = document.querySelector('.topbar-btn[title="Notifications"]');
@@ -10843,15 +11204,52 @@ function switchSettingsTab(tab, which) {
   if(which === 'maintenance') loadMaintenanceModeUI();
 }
 
+/* Sign-in messages appear under the card's own fields, announced to screen
+   readers (role="alert"), instead of a pop-up that covered the very form the
+   person had to correct — and on a phone hid where they were. The words and
+   every check are exactly the ones the pop-ups used; only where they appear
+   has changed. A card that is not on screen (the maintenance page's own
+   administrator access) still gets the pop-up. card: 'admin', 'student',
+   'instructor', 'adminStaff' or 'cmc'. */
+var SIGNIN_CARD_FOR_ROLE = { admin: 'admin', student: 'student', instructor: 'instructor', adminstaff: 'adminStaff', cmc: 'cmc' };
+function signInSay(card, msg) {
+  var box = null, shown = false;
+  try {
+    box = document.getElementById(card + 'LoginError');
+    var panel = document.getElementById(card + 'Login');
+    shown = !!(box && panel && panel.getClientRects && panel.getClientRects().length);
+  } catch(e) { shown = false; }
+  if(!shown) { alert(msg); return; }
+  box.textContent = String(msg == null ? '' : msg);
+  box.hidden = false;
+  try { var pass = document.getElementById(card + 'Pass'); if(pass) pass.setAttribute('aria-invalid', 'true'); } catch(e) {}
+}
+function signInQuiet(card) {
+  try {
+    var box = document.getElementById(card + 'LoginError');
+    if(box) { box.hidden = true; box.textContent = ''; }
+    var pass = document.getElementById(card + 'Pass');
+    if(pass && pass.removeAttribute) pass.removeAttribute('aria-invalid');
+  } catch(e) {}
+}
+// Typing again clears the message that was about the last attempt.
+try {
+  document.addEventListener('input', function(e) {
+    var form = e.target && e.target.closest ? e.target.closest('.role-login') : null;
+    if(form && form.id) signInQuiet(form.id.replace(/Login$/, ''));
+  });
+} catch(e) {}
+
 var adminLoginShown = false, studentLoginShown = false, instructorLoginShown = false, adminStaffLoginShown = false, cmcLoginShown = false;
-function requireLoginSync() {
+function requireLoginSync(card) {
   if(loginSyncCompleted) return false;
   // Allow login if user accounts exist locally (beyond the 3 system defaults)
   var hasLocalAccounts = userAccounts.length > 3 || userAccounts.some(function(u) {
     return u.id !== 'USR-001' && u.id !== 'USR-011' && u.id !== 'USR-021';
   });
   if(hasLocalAccounts) { loginSyncCompleted = true; return false; }
-  alert('Please sync first before signing in.\n\nPress the "Sync Now" button at the top of the page to bring this computer up to date.');
+  var _syncFirst = 'Please sync first before signing in.\n\nPress the "Sync Now" button at the top of the page to bring this computer up to date.';
+  if(card) signInSay(card, _syncFirst); else alert(_syncFirst);
   var bar = document.getElementById('loginSyncBar');
   if(bar) { bar.style.animation = 'none'; bar.offsetHeight; bar.style.animation = 'fadeSlideDown 0.4s ease'; }
   return true;
@@ -10882,13 +11280,14 @@ async function handleAdminClick() {
       document.getElementById('adminUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('admin');
+    if(requireLoginSync('admin')) return;
     var uname = document.getElementById('adminUser').value.trim();
     var pw = document.getElementById('adminPass').value;
-    if(!uname || !pw) { alert('Please enter both username and password.'); return; }
+    if(!uname || !pw) { signInSay('admin', 'Please enter both username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('admin', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var adminUser = await findLoginAccount('admin', uname);
     var _recheck = await recheckAccountBeforeRefusal(adminUser, function(){ return CESTISCore.accountAccess.find(userAccounts, 'admin', uname); });
     adminUser = _recheck.account;
@@ -10899,14 +11298,14 @@ async function handleAdminClick() {
         + ' adminUsernames=' + JSON.stringify(userAccounts.filter(function(u){return u.role==='admin';}).map(function(u){return u.username;}))
         + ' matchedAccount=' + (adminUser?('yes(id='+adminUser.id+', pwFormat='+((adminUser.password||'').indexOf('pbkdf2$')===0?'pbkdf2':(/^[a-f0-9]{64}$/.test(adminUser.password||'')?'legacy-sha256':'plaintext'))+', hasPlainCache='+(!!adminUser._plaintextPw)+')'):'NO'));
     } catch(_) {}
-    if(!adminUser) { recordLoginFailure(uname); alert('No admin account found for "' + uname + '" on this device. Try username: cestisadmin — or use "Sync Now" first to pull accounts.'); return; }
-    if(loginBlocked(adminUser, { contact: 'a system administrator', checked: _recheck.checked })) return;
+    if(!adminUser) { recordLoginFailure(uname); signInSay('admin', 'No admin account found for "' + uname + '" on this device. Try username: cestisadmin — or use "Sync Now" first to pull accounts.'); return; }
+    if(loginBlocked(adminUser, { contact: 'a system administrator', checked: _recheck.checked, card: 'admin' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, adminUser);
     try { console.log('[Login][admin] pwMatch=' + pwMatch); } catch(_) {}
-    if(!pwMatch) { recordLoginFailure(uname); alert('Password incorrect for "' + uname + '".'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('admin', 'Password incorrect for "' + uname + '".'); return; }
     clearLoginFailures(uname);
     publishedDefaultGate(adminUser, pw, 'admin', function(){ tfaGateLogin(adminUser, function(){ currentLoggedInUser = adminUser; lanHostTicket(adminUser, pw); enterApp('admin'); }); });
-  } catch(err) { console.error('handleAdminClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleAdminClick error:', err); signInSay('admin', 'Error: ' + err.message); }
 }
 async function handleStudentClick() {
   try {
@@ -10916,14 +11315,15 @@ async function handleStudentClick() {
       document.getElementById('studentUser').focus();
       return;
     }
+    signInQuiet('student');
     // Students must also sync before login to prevent data loss
-    if(requireLoginSync()) return;
+    if(requireLoginSync('student')) return;
     var uname = (document.getElementById('studentUser').value || '').trim();
     var pw = document.getElementById('studentPass').value;
-    if(!uname || !pw) { alert('Please enter your email/username and password.'); return; }
+    if(!uname || !pw) { signInSay('student', 'Please enter your email/username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('student', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     // Look up in userAccounts — falls back to fetching accounts from Google
     // Drive when the account was created on another device
     var userAccount = await findLoginAccount('student', uname);
@@ -10933,11 +11333,11 @@ async function handleStudentClick() {
     userAccount = _recheck.account;
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid email/username or password. If you are a new student, please register first.'); return;
+      signInSay('student', 'Invalid email/username or password. If you are a new student, please register first.'); return;
     }
-    if(loginBlocked(userAccount, { checked: _recheck.checked })) return;
+    if(loginBlocked(userAccount, { checked: _recheck.checked, card: 'student' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid email/username or password. If you are a new student, please register first.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('student', 'Invalid email/username or password. If you are a new student, please register first.'); return; }
     clearLoginFailures(uname);
     // Find matching student data — try studentDataId, then the trainee's stable
     // id, then their name.
@@ -10954,7 +11354,7 @@ async function handleStudentClick() {
       // A trainee the Centre deleted does not get a fresh record (and the
       // whole portal) just by signing in with a login that outlived them.
       if(studentAccountTombstoned(userAccount)) {
-        alert('This trainee record has been removed by the Centre. Please contact the office.');
+        signInSay('student', 'This trainee record has been removed by the Centre. Please contact the office.');
         return;
       }
       // Genuinely no record for this trainee — create one.
@@ -10972,7 +11372,7 @@ async function handleStudentClick() {
       if(savedStuProfile.name) { studentMatch.name = savedStuProfile.name; userAccount.name = savedStuProfile.name; }
     }
     publishedDefaultGate(userAccount, pw, 'student', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('student'); }); });
-  } catch(err) { console.error('handleStudentClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleStudentClick error:', err); signInSay('student', 'Error: ' + err.message); }
 }
 async function handleInstructorClick() {
   try {
@@ -10982,23 +11382,24 @@ async function handleInstructorClick() {
       document.getElementById('instructorUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('instructor');
+    if(requireLoginSync('instructor')) return;
     var uname = (document.getElementById('instructorUser').value || '').trim();
     var pw = document.getElementById('instructorPass').value;
-    if(!uname || !pw) { alert('Please enter your email/username and password.'); return; }
+    if(!uname || !pw) { signInSay('instructor', 'Please enter your email/username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('instructor', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('instructor', uname);
     var _recheck = await recheckAccountBeforeRefusal(userAccount, function(){ return CESTISCore.accountAccess.find(userAccounts, 'instructor', uname); });
     userAccount = _recheck.account;
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid email/username or password.'); return;
+      signInSay('instructor', 'Invalid email/username or password.'); return;
     }
-    if(loginBlocked(userAccount, { checked: _recheck.checked })) return;
+    if(loginBlocked(userAccount, { checked: _recheck.checked, card: 'instructor' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid email/username or password.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('instructor', 'Invalid email/username or password.'); return; }
     clearLoginFailures(uname);
     var insMatch = await instructorRecordForSignIn(userAccount);
     currentInstructor = insMatch;
@@ -11011,7 +11412,7 @@ async function handleInstructorClick() {
       if(savedInsProfile.specialization) insMatch.specialization = savedInsProfile.specialization;
     }
     publishedDefaultGate(userAccount, pw, 'instructor', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; lanHostTicket(userAccount, pw); enterApp('instructor'); }); });
-  } catch(err) { console.error('handleInstructorClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleInstructorClick error:', err); signInSay('instructor', 'Error: ' + err.message); }
 }
 async function handleAdminStaffClick() {
   try {
@@ -11021,26 +11422,27 @@ async function handleAdminStaffClick() {
       document.getElementById('adminStaffUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('adminStaff');
+    if(requireLoginSync('adminStaff')) return;
     var uname = (document.getElementById('adminStaffUser').value || '').trim();
     var pw = document.getElementById('adminStaffPass').value;
-    if(!uname || !pw) { alert('Please enter your username and password.'); return; }
+    if(!uname || !pw) { signInSay('adminStaff', 'Please enter your username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('adminStaff', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('adminstaff', uname);
     var _recheck = await recheckAccountBeforeRefusal(userAccount, function(){ return CESTISCore.accountAccess.find(userAccounts, 'adminstaff', uname); });
     userAccount = _recheck.account;
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid username or password.'); return;
+      signInSay('adminStaff', 'Invalid username or password.'); return;
     }
-    if(loginBlocked(userAccount, { contact: 'the System Administrator', checked: _recheck.checked })) return;
+    if(loginBlocked(userAccount, { contact: 'the System Administrator', checked: _recheck.checked, card: 'adminStaff' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('adminStaff', 'Invalid username or password.'); return; }
     clearLoginFailures(uname);
     publishedDefaultGate(userAccount, pw, 'adminstaff', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; lanHostTicket(userAccount, pw); enterApp('adminstaff'); }); });
-  } catch(err) { console.error('handleAdminStaffClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleAdminStaffClick error:', err); signInSay('adminStaff', 'Error: ' + err.message); }
 }
 
 async function handleCmcClick() {
@@ -11051,26 +11453,27 @@ async function handleCmcClick() {
       document.getElementById('cmcUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('cmc');
+    if(requireLoginSync('cmc')) return;
     var uname = (document.getElementById('cmcUser').value || '').trim();
     var pw = document.getElementById('cmcPass').value;
-    if(!uname || !pw) { alert('Please enter your username and password.'); return; }
+    if(!uname || !pw) { signInSay('cmc', 'Please enter your username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('cmc', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('cmc', uname);
     var _recheck = await recheckAccountBeforeRefusal(userAccount, function(){ return CESTISCore.accountAccess.find(userAccounts, 'cmc', uname); });
     userAccount = _recheck.account;
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid username or password.'); return;
+      signInSay('cmc', 'Invalid username or password.'); return;
     }
-    if(loginBlocked(userAccount, { contact: 'the System Administrator', checked: _recheck.checked })) return;
+    if(loginBlocked(userAccount, { contact: 'the System Administrator', checked: _recheck.checked, card: 'cmc' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('cmc', 'Invalid username or password.'); return; }
     clearLoginFailures(uname);
     publishedDefaultGate(userAccount, pw, 'cmc', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('cmc'); }); });
-  } catch(err) { console.error('handleCmcClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleCmcClick error:', err); signInSay('cmc', 'Error: ' + err.message); }
 }
 
 // ============================================================
@@ -11764,9 +12167,39 @@ function lanHostTicketAfterSave(account, pw) {
 function publishedDefaultGate(account, typedPw, role, proceed) {
   if(!CESTISCore.accountAccess.isPublishedDefault(typedPw)) { proceed(); return; }
   var res = CESTISCore.accountAccess.publishedDefaultLogin(userAccounts, account);
-  if(!res.allowed) { alert(res.message); return; }
+  if(!res.allowed) {
+    // Said under the card the person signed in from (see signInSay).
+    var _card = typeof SIGNIN_CARD_FOR_ROLE !== 'undefined' ? SIGNIN_CARD_FOR_ROLE[role] : null;
+    if(_card && typeof signInSay === 'function') signInSay(_card, res.message); else alert(res.message);
+    return;
+  }
   currentLoggedInUser = account;
   openForceChangePw(role, proceed);
+}
+/* "Marcia Thompson · Administrator" in the top bar, beside Lock and Sign Out,
+   so whoever sits down at a shared PC sees at once whose session is open.
+   Read from the sidebar's own name (which profile edits keep current). */
+var TOPBAR_ROLE_NAMES = { admin: 'Administrator', instructor: 'Instructor', adminstaff: 'Admin Staff', cmc: 'CMC Board', student: 'Trainee' };
+function updateTopbarWho() {
+  var box = document.getElementById('topbarWho');
+  if(!box) return;
+  if(!currentRole) { box.classList.remove('on'); return; }
+  var nameEl = document.getElementById('sidebarUserName');
+  var name = (nameEl && nameEl.textContent) || (currentLoggedInUser && currentLoggedInUser.name) || '';
+  var role = TOPBAR_ROLE_NAMES[currentRole] || '';
+  var initials = String(name).split(/\s+/).filter(Boolean).map(function(n){ return n.charAt(0); }).join('').substring(0, 2).toUpperCase();
+  document.getElementById('topbarWhoName').textContent = name;
+  document.getElementById('topbarWhoRole').textContent = role;
+  var av = document.getElementById('topbarWhoAvatar');
+  if(av) { av.textContent = initials || '?'; var sa = document.getElementById('sidebarAvatar'); if(sa && sa.style.background) av.style.background = sa.style.background; }
+  box.title = 'Signed in as ' + name + (role ? ' (' + role + ')' : '');
+  box.setAttribute('aria-label', box.title + ' — account menu');
+  var head = document.getElementById('topbarAccountWho');
+  if(head) {
+    head.textContent = name;
+    var r = document.createElement('span'); r.textContent = role; head.appendChild(r);
+  }
+  box.classList.add('on');
 }
 function enterApp(role) {
   try {
@@ -11858,6 +12291,7 @@ function enterApp(role) {
       document.getElementById('sidebarUserRole').textContent = currentStudent.course;
       showPage('s-dashboard');
     }
+    updateTopbarWho();
     initGlobalSearch();
     // A built-in login still carrying its placeholder recovery address cannot
     // use "Forgot password" (the code would go nowhere): ask for a real one.
@@ -11896,13 +12330,14 @@ function enterApp(role) {
       var cp = lmsChatProfiles[currentLoggedInUser.id];
       if(cp && cp.profilePic) {
         var sa = document.getElementById('sidebarAvatar');
-        if(sa && safeUrl(cp.profilePic)) { sa.innerHTML = '<img src="'+escapeAttr(safeUrl(cp.profilePic))+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'; sa.style.overflow = 'hidden'; }
+        if(sa && safeUrl(cp.profilePic)) { sa.innerHTML = '<img src="'+escapeAttr(safeUrl(cp.profilePic))+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'; sa.style.overflow = 'hidden'; }
       }
     }
 
     // Set session expiry and start periodic check
     setSessionExpiry();
     startSessionExpiryCheck();
+    try { refreshSyncChip(); } catch(e) {}
 
     // Load per-user local data (chat, profiles) for this specific user
     loadPerUserLocalData();
@@ -14936,7 +15371,7 @@ function buildInstructorPages() {
       if (noColumns) gradeCols = ['Test Score'];
 
       var html = '<div class="card"><div class="card-header"><h3>Gradebook &mdash; '+escapeHtml(ins.course)+'</h3></div>';
-      html += '<div class="table-wrapper"><table><thead><tr><th>Student</th>';
+      html += '<div class="table-wrapper"><table class="tbl-phone"><thead><tr><th>Student</th>';
       gradeCols.forEach(function(c){ html += '<th>'+escapeHtml(c)+'</th>'; });
       html += '<th>Avg</th></tr></thead><tbody id="iGradebookBody">';
 
@@ -19713,8 +20148,8 @@ function renderInstructorGradebook() {
         var curGrade = a.grades ? CESTISCore.coursework.gradeValue(a.grades[sub.studentId]) : null;
         var meta = (a.gradeMeta && a.gradeMeta[sub.studentId]) || null;
         // A mark can be changed; the change is recorded (who, when, what it was).
-        var gradeInput = '<input type="number" class="form-control" style="width:60px;height:28px;font-size:12px;display:inline-block;" placeholder="—" min="0" max="' + escapeHtml(a.maxPoints) + '" id="grade-' + escapeHtml(a.id) + '-' + escapeHtml(sub.studentId) + '"' + (curGrade != null ? ' value="' + escapeAttr(curGrade) + '"' : '') + '>' +
-          '<button class="btn btn-sm btn-primary" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick="gradeSubmission('+jsArg(a.id)+','+jsArg(sub.studentId)+')">' + (curGrade != null ? 'Update' : 'Grade') + '</button>';
+        var gradeInput = '<input type="number" class="form-control gb-grade-input" style="width:60px;height:28px;font-size:12px;display:inline-block;" placeholder="—" min="0" max="' + escapeHtml(a.maxPoints) + '" id="grade-' + escapeHtml(a.id) + '-' + escapeHtml(sub.studentId) + '"' + (curGrade != null ? ' value="' + escapeAttr(curGrade) + '"' : '') + '>' +
+          '<button class="btn btn-sm btn-primary gb-grade-btn" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick="gradeSubmission('+jsArg(a.id)+','+jsArg(sub.studentId)+')">' + (curGrade != null ? 'Update' : 'Grade') + '</button>';
         if (curGrade != null) {
           var resub = meta && meta.resubmittedAt;
           gradeHtml = '<span class="badge ' + (resub ? 'badge-amber' : 'badge-green') + '" title="' + escapeAttr(meta && meta.gradedAt ? 'Marked ' + new Date(meta.gradedAt).toLocaleString() + (meta.gradedBy ? ' by ' + meta.gradedBy : '') : '') + '">' + escapeHtml(curGrade) + '/' + escapeHtml(a.maxPoints) + (resub ? ' · resubmitted' : '') + '</span> ' + gradeInput;
@@ -19722,7 +20157,7 @@ function renderInstructorGradebook() {
           gradeHtml = gradeInput;
         }
         var earlier = CESTISCore.coursework.submissionHistory(assignmentSubmissions, a.id, sub.studentId).filter(function(x) { return x !== sub; });
-        html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
+        html += '<div class="gb-sub-row" style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
           '<div style="flex:1;font-size:12px;"><strong>' + escapeHtml(st ? st.name : sub.studentId) + '</strong> &bull; Submitted ' + escapeHtml(dateStr) + (earlier.length ? ' &bull; attempt ' + (earlier.length + 1) : '') + '</div>';
         (sub.files || []).forEach(function(f) {
           html += courseworkFileLink(f, 'btn btn-sm btn-secondary', 'padding:2px 8px;font-size:11px;', '📄 ' + escapeHtml(f.name));
@@ -21589,7 +22024,7 @@ function profilePicPreview(input, previewId, type) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var preview = document.getElementById(previewId);
-    if(preview) preview.innerHTML = '<img src="'+e.target.result+'">';
+    if(preview) preview.innerHTML = '<img src="'+e.target.result+'" alt="New profile picture (preview)">';
     _pendingProfilePics[type] = e.target.result;
   };
   reader.readAsDataURL(file);
@@ -21607,7 +22042,7 @@ function profilePicLoadPreview(previewId, userId, name) {
   if(!preview) return;
   var chatProfile = (typeof lmsChatProfiles !== 'undefined') ? lmsChatProfiles[userId] : null;
   if(chatProfile && chatProfile.profilePic) {
-    preview.innerHTML = '<img src="'+escapeAttr(safeUrl(chatProfile.profilePic))+'">';
+    preview.innerHTML = '<img src="'+escapeAttr(safeUrl(chatProfile.profilePic))+'" alt="'+escapeAttr(name || 'Profile picture')+'">';
   } else {
     var initials = name ? name.split(' ').map(function(n){ return n[0]; }).join('').substring(0,2).toUpperCase() : '?';
     preview.innerHTML = initials;
@@ -21649,11 +22084,12 @@ function syncProfileToLmsChat(userId, name, role, programme, picType) {
 function updateSidebarAvatar(userId, name) {
   var el = document.getElementById('sidebarUserName');
   if(el) el.textContent = name;
+  try { updateTopbarWho(); } catch(e) {}
   var avatar = document.getElementById('sidebarAvatar');
   if(!avatar) return;
   var chatProfile = (typeof lmsChatProfiles !== 'undefined') ? lmsChatProfiles[userId] : null;
   if(chatProfile && chatProfile.profilePic) {
-    avatar.innerHTML = '<img src="'+escapeAttr(safeUrl(chatProfile.profilePic))+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+    avatar.innerHTML = '<img src="'+escapeAttr(safeUrl(chatProfile.profilePic))+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
     avatar.style.overflow = 'hidden';
   } else {
     var initials = name.split(' ').map(function(n){ return n[0]; }).join('').substring(0,2).toUpperCase();
@@ -21965,6 +22401,7 @@ function vcUpdateSidebarName(name) {
     var initials = name.split(' ').map(function(n){ return n[0]; }).join('').substring(0,2).toUpperCase();
     avatar.textContent = initials;
   }
+  try { updateTopbarWho(); } catch(e) {}
 }
 
 // ============================== SYSTEM SETTINGS FUNCTIONS ==============================
@@ -24886,7 +25323,7 @@ function renderEnrolmentRegistersPage() {
     '<div class="card" style="margin-bottom:16px;"><div class="card-header"><h3>Institution Logo</h3></div>' +
     '<div style="padding:14px 16px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;">' +
       '<div style="width:130px;height:64px;border:1px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden;">' +
-        (logo && logo.dataUrl ? '<img src="' + logo.dataUrl + '" style="max-width:100%;max-height:100%;object-fit:contain;">' : '<span style="font-size:11px;color:#888;">No logo</span>') +
+        (logo && logo.dataUrl ? '<img src="' + logo.dataUrl + '" alt="Institution logo" style="max-width:100%;max-height:100%;object-fit:contain;">' : '<span style="font-size:11px;color:#888;">No logo</span>') +
       '</div>' +
       '<div style="flex:1;min-width:240px;">' +
         '<div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">This logo appears in the header of every enrolment register PDF (replacing the old HEART/NSTA text). PNG or JPG — it is resized automatically.</div>' +
@@ -29373,7 +29810,7 @@ function attendanceCellHtml(s, date, open) {
 }
 function attendanceHeadHtml(dates, date, cfg) {
   var A = CESTISCore.attendance;
-  return '<tr><th>Student</th><th>ID</th>' + (cfg.showCourse ? '<th>Course</th>' : '') + dates.map(function (d, i) {
+  return '<tr><th>Student</th><th class="att-col-id">ID</th>' + (cfg.showCourse ? '<th class="att-col-course">Course</th>' : '') + dates.map(function (d, i) {
     var lbl = A.DAYS[i] + ' ' + attendanceShortDate(d);
     var acts = cfg.readOnly ? '' : '<div style="display:flex;gap:4px;margin-top:4px;">' +
       '<button type="button" class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;" title="Mark everyone not yet marked on ' + lbl + ' as present" onclick="attendanceMarkAll(\'' + d + '\',\'present\',\'' + cfg.page + '\')">✓ All</button>' +
@@ -29415,9 +29852,11 @@ function renderAttendanceGrid(cfg) {
     var why = open ? '' : attendanceLockReason(s);
     if (!open) closed[(s.course || 'This course') + (why === 'not started' ? ' (not started yet)' : ' (ended)')] = true;
     var lockBadge = open ? '' : ' <span title="' + (why === 'not started' ? 'Course not started yet — register not open' : 'Course ended — register closed') + '" style="font-size:10px;color:#e74c3c;font-weight:700;">🔒</span>';
-    return '<tr' + (open ? '' : ' style="opacity:.7;"') + '><td><strong>' + escapeHtml(s.name) + '</strong>' + (cfg.showCourse ? '' : lockBadge) + '</td>' +
-      '<td style="font-family:monospace;font-size:12px;">' + escapeHtml(s.id) + '</td>' +
-      (cfg.showCourse ? '<td>' + escapeHtml(s.course) + lockBadge + '</td>' : '') +
+    // On a phone the ID and course columns fold into a line under the name.
+    return '<tr' + (open ? '' : ' style="opacity:.7;"') + '><td><strong>' + escapeHtml(s.name) + '</strong>' + (cfg.showCourse ? '' : lockBadge) +
+      '<span class="att-phone-sub">' + escapeHtml(s.id) + (cfg.showCourse ? ' · ' + escapeHtml(s.course) + lockBadge : '') + '</span></td>' +
+      '<td class="att-col-id" style="font-family:monospace;font-size:12px;">' + escapeHtml(s.id) + '</td>' +
+      (cfg.showCourse ? '<td class="att-col-course">' + escapeHtml(s.course) + lockBadge + '</td>' : '') +
       dates.map(function (d) { return '<td' + (d === date ? ' style="background:var(--accent-dim);"' : '') + '>' + attendanceCellHtml(s, d, open) + '</td>'; }).join('') + '</tr>';
   }).join('') : '<tr><td colspan="' + cols + '" style="text-align:center;color:var(--text-muted);padding:18px;">No trainee\'s course runs this week.' +
       (attendanceShowAll ? '' : ' <a href="#" onclick="attendanceToggleShowAll(true);return false;">Show every trainee</a>') + '</td></tr>';
@@ -31639,19 +32078,14 @@ function setCloudSyncing(syncing) {
     statusText.textContent = 'Up to date';
     if (menuIcon) menuIcon.textContent = '🔄';
   }
+  // The one sync control shows it: its arrows turn and it says "Syncing…".
+  try { window._syncChipSyncing = !!syncing; refreshSyncChip(); } catch(e) {}
 }
 
-// Toggle cloud dropdown menu
+// The sync actions live in the one sync control's panel (there is no second
+// sync button any more): "open the sync menu" opens that panel.
 function toggleCloudMenu() {
-  const menu = document.getElementById('cloudDropdownMenu');
-  // Remove any existing listener first to prevent accumulation
-  document.removeEventListener('click', closeCloudMenuOnClickOutside);
-  menu.classList.toggle('show');
-  if(menu.classList.contains('show')) {
-    setTimeout(() => {
-      document.addEventListener('click', closeCloudMenuOnClickOutside);
-    }, 0);
-  }
+  toggleSyncChipPanel();
 }
 
 function closeCloudMenuOnClickOutside(e) {
@@ -34870,6 +35304,135 @@ async function autoSaveToAllFolders() {
   }
 }
 
+/* ---- Sync health chip (top bar) ----
+   Reads what the save code already records — the "not yet uploaded" note
+   (cestisPendingUpload), the last autosave's result and its failure count,
+   the Google sign-in and when it ends, the browser's own online flag, and on
+   the Centre's network the page-cloud's server status — and shows ONE answer
+   (CESTISCore.ui.syncHealth). It never saves, syncs or retries anything. */
+var _syncChipLan = false, _syncChipLastOk = 0, _syncChipTimer = null, _syncChipSyncing = false;
+var SYNC_STAFF_ROLES = { admin: 1, adminstaff: 1, instructor: 1 };
+try { if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function') CESTISPageCloud.lan().then(function(on){ _syncChipLan = !!on; }); } catch(e) {}
+function syncChipInputs() {
+  var now = Date.now();
+  var exp = 0;
+  try { exp = Date.parse(CESTISStore.getItem('schoolDashboardGoogleTokenExpiry') || '') || 0; } catch(e) {}
+  var marker = '';
+  try { marker = String(CESTISStore.getItem('cestisPendingUpload') || ''); } catch(e) {}
+  var since = marker.indexOf('|') !== -1 ? Date.parse(marker.slice(marker.indexOf('|') + 1)) || null : null;
+  var last =_syncChipLastOk || (lastSyncTime ? new Date(lastSyncTime).getTime() : 0) || null;
+  var inp = { now: now, online: navigator.onLine !== false, lan: _syncChipLan, lanTrouble: false,
+    connected: !!(isCloudConnected && googleAccessToken && (!exp || exp > now)), tokenExpiresAt: exp || null,
+    pending: !!marker, pendingSince: since, failures: _consecutiveCloudSaveFailures || 0, lastSavedAt: last };
+  // Staff computers are signed in for syncing; a trainee's or a board
+  // member's is not, and that is normal for them — their own unsent work (an
+  // exam result still in the outbox) is all the control speaks of.
+  inp.staff = !!SYNC_STAFF_ROLES[currentRole];
+  inp.signinExpired = !inp.connected && !!exp && exp <= now;
+  inp.canConnect = inp.staff && !_syncChipLan;
+  if (!inp.staff) {
+    var mine = currentStudent && currentStudent.id != null ? String(currentStudent.id) : null;
+    try { inp.ownPending = examOutboxRead().some(function(r){ return r && (!mine || r.studentId == null || String(r.studentId) === mine); }); } catch(e) { inp.ownPending = false; }
+  }
+  if (_syncChipLan) {
+    // On the Centre's network every edit goes to its server within seconds;
+    // trouble reaching it is what puts work at risk (cestis-page-cloud.js).
+    var st = [];
+    try { st = CESTISPageCloud.status() || []; } catch(e) {}
+    inp.lanTrouble = !!document.getElementById('cestisLanTrouble') || st.some(function(p){ return p.backend === 'offline-server' && !!p.error; });
+    inp.pending = inp.lanTrouble && !!marker;
+    var pushes = st.map(function(p){ return Date.parse(p.lastPush || p.lastPull || '') || 0; });
+    var lp = Math.max.apply(null, [0].concat(pushes));
+    if (lp) inp.lastSavedAt = lp;
+  }
+  return inp;
+}
+function refreshSyncChip() {
+  var wrap = document.getElementById('syncChipWrap');
+  if (!wrap) return;
+  if (!currentRole || !window.CESTISCore || !CESTISCore.ui || typeof CESTISCore.ui.syncHealth !== 'function') { wrap.classList.remove('on'); return; }
+  // While the 5-second autosave is running and its last pass reached Drive
+  // (or found Drive already current) with nothing left unsent, this
+  // computer's work is safe there as of now.
+  if (_autoSaveIntervalId && isCloudConnected && _lastAutoSaveResult && _lastAutoSaveResult.uploaded &&
+      !CESTISStore.getItem('cestisPendingUpload')) _syncChipLastOk = Date.now();
+  var inp = syncChipInputs();
+  var h = CESTISCore.ui.syncHealth(inp);
+  var chip = document.getElementById('syncChip');
+  chip.className = 'sync-chip tone-' + h.tone + (_syncChipSyncing ? ' is-syncing' : '');
+  chip.setAttribute('data-state', h.state);
+  var said = _syncChipSyncing ? 'Syncing…' : h.label;
+  chip.setAttribute('aria-label', said + (inp.staff ? ' — show details and sync' : ' — show details'));
+  chip.title = said;   // where the chip shows only its icon, hovering still says it
+  // The sync actions (Turn On Sync, Send My Changes, …) are for staff only.
+  wrap.classList.toggle('staff', !!inp.staff);
+  // A check or circular arrows (fixed markup from the shared core, no input in it).
+  var icon = document.getElementById('syncChipIcon');
+  if (icon && typeof CESTISCore.ui.syncIcon === 'function' && icon.getAttribute('data-icon') !== h.icon) {
+    icon.innerHTML = CESTISCore.ui.syncIcon(h.icon);
+    icon.setAttribute('data-icon', h.icon);
+  }
+  document.getElementById('syncChipLabel').textContent = _syncChipSyncing ? 'Syncing…' : (h.chip || h.label);
+  document.getElementById('syncChipPanelTitle').textContent = h.label;
+  document.getElementById('syncChipPanelDetail').textContent = h.detail;
+  document.getElementById('syncChipPanelLast').textContent = h.lastSaved;
+  var adv = document.getElementById('syncChipPanelAdvice');
+  adv.innerHTML = h.advice.map(function(a){ return '<li>' + escapeHtml(a) + '</li>'; }).join('');
+  wrap.classList.add('on');
+}
+function toggleSyncChipPanel(e) {
+  if (e) e.stopPropagation();
+  var panel = document.getElementById('syncChipPanel'), chip = document.getElementById('syncChip');
+  if (!panel) return;
+  refreshSyncChip();
+  var open = panel.hidden;
+  if (open) closeAccountMenu();
+  panel.hidden = !open;
+  chip.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeSyncChipPanel() {
+  var panel = document.getElementById('syncChipPanel'), chip = document.getElementById('syncChip');
+  if (!panel || panel.hidden) return;
+  panel.hidden = true;
+  if (chip) chip.setAttribute('aria-expanded', 'false');
+}
+/* The account menu behind the who-is-signed-in initials: Lock, Light/Dark,
+   Two-Step Verification and Sign Out (on narrow screens the only place they
+   are, so the page's name has room). */
+function toggleAccountMenu(e) {
+  if (e) e.stopPropagation();
+  var menu = document.getElementById('topbarAccountMenu'), btn = document.getElementById('topbarWho');
+  if (!menu) return;
+  var open = menu.hidden;
+  if (open) closeSyncChipPanel();
+  menu.hidden = !open;
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  // Opened from the keyboard (a click with no pointer), the first item takes focus.
+  if (open && e && e.detail === 0) { var first = menu.querySelector('.tam-item'); if (first) first.focus(); }
+}
+function closeAccountMenu() {
+  var menu = document.getElementById('topbarAccountMenu'), btn = document.getElementById('topbarWho');
+  if (!menu || menu.hidden) return;
+  menu.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', function(e) {
+  var panel = document.getElementById('syncChipPanel');
+  if (panel && !panel.hidden && !e.target.closest('#syncChipWrap')) { panel.hidden = true; document.getElementById('syncChip').setAttribute('aria-expanded', 'false'); }
+  var menu = document.getElementById('topbarAccountMenu');
+  if (menu && !menu.hidden && !e.target.closest('#topbarAccount')) closeAccountMenu();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
+  var panel = document.getElementById('syncChipPanel');
+  if (panel && !panel.hidden) { panel.hidden = true; var c = document.getElementById('syncChip'); c.setAttribute('aria-expanded', 'false'); c.focus(); }
+  var menu = document.getElementById('topbarAccountMenu');
+  if (menu && !menu.hidden) { closeAccountMenu(); var w = document.getElementById('topbarWho'); if (w) w.focus(); }
+});
+window.addEventListener('online', function(){ try { refreshSyncChip(); } catch(e) {} });
+window.addEventListener('offline', function(){ try { refreshSyncChip(); } catch(e) {} });
+_syncChipTimer = setInterval(function(){ try { refreshSyncChip(); } catch(e) {} }, 3000);
+
 // Start the 5-second auto-save interval
 function startAutoSave() {
   stopAutoSave(); // Clear any existing interval
@@ -35598,6 +36161,10 @@ function loginBlocked(account, opts) {
   // password-less account (fee-sync/backfill created) must not be turned away
   // on that route — that would be a lockout no administrator asked for.
   if (res.reason === 'no-password' && opts.allowNoPassword) return false;
+  // A registration still waiting gets the full "Awaiting Approval" screen even
+  // from a sign-in card: it says whether the office has the registration (and
+  // sends one this device could not send before), which a line under the card
+  // cannot. Every other refusal is answered under that card's fields.
   if (res.reason === 'pending' && account) {
     // Checked and still pending: make sure the office really has the
     // registration — one made while this device could not send it (an expired
@@ -35612,7 +36179,7 @@ function loginBlocked(account, opts) {
   }
   var msg = res.reason === 'disabled' && opts.contact ? 'This account has been disabled. Contact ' + opts.contact + '.' : res.message;
   if (opts.checked === false) msg += '\n\n' + CESTISCore.accountAccess.UNCHECKED_REFUSAL_NOTE;
-  alert(msg);
+  if (opts.card) signInSay(opts.card, msg); else alert(msg);
   return true;
 }
 
@@ -36192,7 +36759,7 @@ function lmsChatRenderRoomList(prefix) {
       var roleColors = {admin:'var(--accent)',adminstaff:'var(--purple)',instructor:'var(--green)',student:'var(--blue)',cmc:'var(--teal)'};
       var rColor = otherUser ? (roleColors[otherUser.role]||'var(--accent)') : 'var(--accent)';
       if(otherProf.profilePic) {
-        html += '<div class="lms-chat-avatar" style="background:none;padding:0;overflow:hidden;"><img src="'+escapeAttr(safeUrl(otherProf.profilePic))+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div class="status-dot '+escapeAttr(otherStatus)+'" style="position:absolute;bottom:0;right:0;"></div></div>';
+        html += '<div class="lms-chat-avatar" style="background:none;padding:0;overflow:hidden;"><img src="'+escapeAttr(safeUrl(otherProf.profilePic))+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div class="status-dot '+escapeAttr(otherStatus)+'" style="position:absolute;bottom:0;right:0;"></div></div>';
       } else {
         var initials = lmsChatGetUserInitials(otherName);
         html += '<div class="lms-chat-avatar" style="background:'+rColor+'22;color:'+rColor+';font-size:16px;font-weight:700;">'+lmsChatEscapeHtml(initials)+'<div class="status-dot '+escapeAttr(otherStatus)+'" style="position:absolute;bottom:0;right:0;"></div></div>';
@@ -36315,7 +36882,7 @@ function lmsChatOpenRoom(roomId, prefix) {
     var dmRoleColors = {admin:'var(--accent)',adminstaff:'var(--purple)',instructor:'var(--green)',student:'var(--blue)'};
     var dmColor = dmOtherUser ? (dmRoleColors[dmOtherUser.role]||'var(--accent)') : 'var(--accent)';
     if(dmOtherProf.profilePic) {
-      headerAvatar.innerHTML = '<img src="'+escapeAttr(safeUrl(dmOtherProf.profilePic))+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+      headerAvatar.innerHTML = '<img src="'+escapeAttr(safeUrl(dmOtherProf.profilePic))+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
       headerAvatar.style.cssText = 'width:42px;height:42px;min-width:42px;background:none;overflow:hidden;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;';
     } else {
       headerAvatar.innerHTML = lmsChatEscapeHtml(lmsChatGetUserInitials(dmOtherName));
@@ -36549,9 +37116,19 @@ function lmsChatEditMessage(msgId) {
   var user = lmsChatGetCurrentUser();
   if(msg.senderId !== user.id) return;
 
-  var newText = prompt('Edit message:', msg.text);
-  if(newText === null) return; // cancelled
-  newText = newText.trim();
+  var room = lmsChatActiveRoom;
+  CESTISForm.ask({ title: 'Edit message', submitLabel: 'Save',
+    fields: [{ name: 'text', label: 'Message', type: 'textarea', value: msg.text, required: true }]
+  }).then(function(v) {
+    if(!v) return; // cancelled
+    // Found again: a sync while the form was open may have replaced the list.
+    var msg = (lmsChatMessages[room] || []).find(function(m){ return m.id === msgId; });
+    if(!msg || msg.senderId !== user.id) return;
+    lmsChatApplyEdit(msg, v.text);
+  });
+}
+function lmsChatApplyEdit(msg, newText) {
+  newText = String(newText == null ? '' : newText).trim();
   if(!newText) return;
   if(newText === msg.text) return;
 
@@ -37004,7 +37581,7 @@ function lmsChatOpenProfileModal() {
       '</button>' +
     '</div>' +
     '<div class="profile-preview" id="lmsChatProfilePreview">' +
-      (profile.profilePic ? '<img src="'+escapeAttr(safeUrl(profile.profilePic))+'">' : escapeHtml(lmsChatGetUserInitials(user.name))) +
+      (profile.profilePic ? '<img src="'+escapeAttr(safeUrl(profile.profilePic))+'" alt="'+escapeAttr(user.name)+'">' : escapeHtml(lmsChatGetUserInitials(user.name))) +
     '</div>' +
     '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'lmsChatProfilePicInputGlobal\')?(document.getElementById(\'lmsChatProfilePicInputGlobal\').click()):lmsChatCreatePicInput()" style="margin-bottom:16px;">Change Photo</button>' +
     '<div style="text-align:left;margin-bottom:12px;">' +
@@ -37064,7 +37641,7 @@ function lmsChatHandleProfilePic(event) {
     var src = e.target.result;
     var done = function(url) {
       var preview = document.getElementById('lmsChatProfilePreview');
-      if(preview) preview.innerHTML = '<img src="'+escapeAttr(safeUrl(url, {data:true}))+'">';
+      if(preview) preview.innerHTML = '<img src="'+escapeAttr(safeUrl(url, {data:true}))+'" alt="New profile picture (preview)">';
       lmsChatPendingProfilePic = url;
     };
     var img = new Image();
@@ -37532,7 +38109,7 @@ function lmsChatRenderInfoPanel(prefix) {
     var prof = lmsChatGetProfile(memberId);
     html += '<div class="member-item">';
     if(prof.profilePic) {
-      html += '<div class="member-avatar"><img src="'+escapeAttr(safeUrl(prof.profilePic))+'"></div>';
+      html += '<div class="member-avatar"><img src="'+escapeAttr(safeUrl(prof.profilePic))+'" alt=""></div>';
     } else {
       html += '<div class="member-avatar">'+escapeHtml(lmsChatGetUserInitials(member.name))+'</div>';
     }
@@ -37641,7 +38218,12 @@ function lmsChatCloseManageModal() {
 // Admin: Create new chat room
 function lmsChatCreateRoom() {
   if(currentRole !== 'admin') return;
-  var name = prompt('Enter chat room name:');
+  CESTISForm.ask({ title: 'New chat room', submitLabel: 'Create room',
+    fields: [{ name: 'name', label: 'Room name', required: true, maxlength: 80, placeholder: 'e.g. Welding Level 2 — October intake' }]
+  }).then(function(v) { if(v) lmsChatCreateRoomNamed(v.name); });
+}
+function lmsChatCreateRoomNamed(name) {
+  if(currentRole !== 'admin') return;
   if(!name || !name.trim()) return;
   var room = {
     id: 'chat-custom-'+Date.now(),
@@ -39832,8 +40414,17 @@ function adrToggleComplete(taskId) {
 function adrRejectCompletion(taskId) {
   var task = adrTasks.find(function(t){ return t.id === taskId; });
   if(!task || !adrIsSystemAdmin()) return;
-
-  var reason = prompt('Reason for rejecting this task completion (optional):');
+  // Cancel now cancels: with the old prompt, Cancel still rejected the work.
+  CESTISForm.ask({ title: 'Reject this completion?', submitLabel: 'Reject completion', cancelLabel: 'Keep it', danger: true,
+    intro: '“' + task.title + '” goes back to ' + (task.assigneeName || 'its assignee') + ' to redo and resubmit.',
+    fields: [{ name: 'reason', label: 'Reason (optional)', type: 'textarea', maxlength: 500, hint: 'Shown to the assignee in the task’s comments and notification.' }]
+  }).then(function(v) {
+    if(!v) return;
+    var t2 = adrTasks.find(function(t){ return t.id === taskId; });
+    if(t2 && adrIsSystemAdmin()) adrRejectCompletionWith(t2, v.reason);
+  });
+}
+function adrRejectCompletionWith(task, reason) {
   task.status = task.acknowledged ? 'acknowledged' : 'pending';
   task.completedAt = null;
   task.completedLate = false;
@@ -40995,7 +41586,7 @@ function docHubPrintFile(docId) {
     printWin.document.close();
     printWin.onload = function() { setTimeout(function(){ printWin.print(); }, 500); };
   } else if(['png','jpg','jpeg','gif','bmp','webp','svg'].indexOf(ext) !== -1) {
-    printWin.document.write('<html><head><title>Print — ' + escapeHtml(doc.title) + '</title><style>@media print{body{margin:0;} img{max-width:100%;height:auto;}}</style></head><body style="margin:20px;text-align:center;"><img src="' + escapeAttr(docHubFileUrl(doc)) + '" onload="setTimeout(function(){window.print();},300)"></body></html>');
+    printWin.document.write('<html><head><title>Print — ' + escapeHtml(doc.title) + '</title><style>@media print{body{margin:0;} img{max-width:100%;height:auto;}}</style></head><body style="margin:20px;text-align:center;"><img src="' + escapeAttr(docHubFileUrl(doc)) + '" alt="' + escapeAttr(doc.title) + '" onload="setTimeout(function(){window.print();},300)"></body></html>');
     printWin.document.close();
   } else {
     printWin.close();
@@ -41006,13 +41597,19 @@ function docHubPrintFile(docId) {
 function docHubEditFile(docId) {
   var doc = documentHubFiles.find(function(d) { return d.id === docId; });
   if(!doc) return;
-  var newTitle = prompt('Edit document title:', doc.title);
-  if(newTitle === null) return;
-  newTitle = newTitle.trim();
-  if(!newTitle) { showToast('Title cannot be empty', 'warning'); return; }
-  doc.title = newTitle;
-  var newDesc = prompt('Edit description:', doc.description || '');
-  if(newDesc !== null) doc.description = newDesc.trim();
+  CESTISForm.ask({ title: 'Edit document', submitLabel: 'Save',
+    fields: [{ name: 'title', label: 'Title', value: doc.title, required: true, maxlength: 200 },
+             { name: 'description', label: 'Description', type: 'textarea', value: doc.description || '', maxlength: 1000 }]
+  }).then(function(v) {
+    if(!v) return;
+    var d2 = documentHubFiles.find(function(d) { return d.id === docId; });
+    if(!d2) return;
+    d2.title = v.title;
+    d2.description = v.description;
+    docHubEditSaved();
+  });
+}
+function docHubEditSaved() {
   saveState();
   showToast('Document updated', 'success');
   renderDocumentHubAdmin();
@@ -44696,7 +45293,7 @@ function previewCertBgUpload(input, previewId) {
   if(!input.files || !input.files[0]) return;
   var reader = new FileReader();
   reader.onload = function(e) {
-    preview.innerHTML = '<img src="' + e.target.result + '" style="max-width:100%;max-height:200px;border-radius:4px;">';
+    preview.innerHTML = '<img src="' + e.target.result + '" alt="Certificate page ' + (/2/.test(previewId) ? '2' : '1') + ' background (preview)" style="max-width:100%;max-height:200px;border-radius:4px;">';
     // Store in a temp attribute for later save
     preview.setAttribute('data-base64', e.target.result);
     // Update live preview when background changes
@@ -45361,14 +45958,14 @@ function openCertTemplateEditor() {
   document.getElementById('ctplBgPage1').value = '';
   document.getElementById('ctplBgPage2').value = '';
   if(tpl.bgPage1) {
-    p1Preview.innerHTML = '<img src="' + tpl.bgPage1 + '" style="max-width:100%;max-height:200px;border-radius:4px;">';
+    p1Preview.innerHTML = '<img src="' + tpl.bgPage1 + '" alt="Certificate page 1 background" style="max-width:100%;max-height:200px;border-radius:4px;">';
     p1Preview.setAttribute('data-base64', tpl.bgPage1);
   } else {
     p1Preview.innerHTML = '<span style="font-size:12px;color:var(--text-muted);">No image uploaded</span>';
     p1Preview.removeAttribute('data-base64');
   }
   if(tpl.bgPage2) {
-    p2Preview.innerHTML = '<img src="' + tpl.bgPage2 + '" style="max-width:100%;max-height:200px;border-radius:4px;">';
+    p2Preview.innerHTML = '<img src="' + tpl.bgPage2 + '" alt="Certificate page 2 background" style="max-width:100%;max-height:200px;border-radius:4px;">';
     p2Preview.setAttribute('data-base64', tpl.bgPage2);
   } else {
     p2Preview.innerHTML = '<span style="font-size:12px;color:var(--text-muted);">No image uploaded</span>';
@@ -46110,8 +46707,22 @@ function bulkApproveCertDownloads() {
 function certRegisterPrintedNumber(studentId) {
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student) return;
-  var no = prompt('Enter the certificate number exactly as printed on ' + student.name + '\u2019s certificate:', '');
-  if(no === null) return;
+  CESTISForm.ask({ title: 'Record a printed certificate number', submitLabel: 'Record number',
+    intro: 'For ' + student.name + ' (' + (student.course || '') + '). Once recorded, this number verifies like the one the system issued.',
+    fields: [{ name: 'no', label: 'Number as printed', required: true, maxlength: 60, placeholder: 'e.g. WF-2026-2905', hint: 'Type it exactly as it appears on the paper certificate.' }],
+    validate: function(v) {
+      if(!certNumberKey(v.no)) return { message: 'No number entered.', field: 'no' };
+      var o = certResolveNumber(v.no);
+      if(o.student && o.student.id !== student.id) return { message: 'That number already belongs to ' + o.student.name + '.', field: 'no' };
+      return '';
+    }
+  }).then(function(v) {
+    if(!v) return;
+    var s2 = students.find(function(s){ return s.id === studentId; });
+    if(s2) certRecordPrintedNumber(s2, v.no);
+  });
+}
+function certRecordPrintedNumber(student, no) {
   no = String(no).trim();
   if(!certNumberKey(no)) { showToast('No number entered.', 'warning'); return; }
   var other = certResolveNumber(no);
