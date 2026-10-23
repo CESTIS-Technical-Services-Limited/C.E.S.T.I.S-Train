@@ -8451,7 +8451,8 @@
        An account a person switched off is managed in Settings → Users. */
     var PLACEHOLDER_SOURCES = { 'fee-system': 1, 'student-sync': 1, 'admin-created': 1, 'student-progress': 1 };
     function reviewQueue(accounts) {
-      return (Array.isArray(accounts) ? accounts : []).filter(function (u) {
+      var list = Array.isArray(accounts) ? accounts : [];
+      var queue = list.filter(function (u) {
         if (!u) return false;
         var st = String(u.status || '').trim().toLowerCase();
         if (st === 'pending') return true;
@@ -8461,6 +8462,24 @@
         if (u.disabledAt || u.disabledBy) return false;          // switched off by a person
         var by = String(u.approvedBy || '').trim().toLowerCase();
         return !u.approvedAt || by === '' || by === 'system' || by === 'fee-system';
+      });
+      /* A backfill stub of a trainee who already has an account is nobody to
+         review: "Activate" on it handed a second, password-less login to a
+         person who has one — or, for a rejected registrant, a way round the
+         rejection. It is folded away (backfillStubFolds); until then it is
+         not listed. Stubs that cannot be proven duplicates stay, each person
+         once. */
+      var folded = {};
+      backfillStubFolds(list).folds.forEach(function (f) { folded[f.id] = true; });
+      var seen = {};
+      return queue.filter(function (u) {
+        if (folded[u.id]) return false;
+        if (!isBackfillStub(u)) return true;
+        var key = Core.normName(u.name) + '|' + Core.normCourse(u.programme || '');
+        if (!Core.normName(u.name)) return true;
+        if (seen[key]) return false;
+        seen[key] = true;
+        return true;
       });
     }
 
@@ -8498,6 +8517,123 @@
         if (exact.length === 1) return { match: exact[0] };
       }
       return { ambiguous: true };
+    }
+
+    /* Backfill stubs: the sign-in accounts the fee roll ('fee-system') and the
+       chat roster ('student-sync') make for a trainee record that seems to have
+       none — disabled, no password, no email, approved by nobody.
+
+       An administrator's PC is cleared at sign-out: the trainee records go,
+       the accounts and the fee roll stay. On the next page load the fee-roll
+       mirror saw Kemar Williams, Rushane Grant and Kadian Morgan in the fee
+       roll and nowhere in the (empty) roll, and enrolled them again under new
+       ids; the chat roster then gave the new records accounts of their own.
+       Each person now had a second, email-less "Disabled" account; it went
+       into the shared accounts list and Verify Users offered to activate it —
+       for Rushane, a registration the office had rejected. The roll's own
+       clean-up later dropped the stubs on that PC, but without a record of
+       having done so, so the accounts list handed them straight back.
+
+       isBackfillStub: provably nothing but a stub — made by a backfill, never
+       activated, approved, disabled, edited or signed in to by anybody, with
+       no password and no email. Anything a person may have touched is not. */
+    var BACKFILL_SOURCES = { 'fee-system': 1, 'student-sync': 1 };
+    function isBackfillStub(a) {
+      if (!a || typeof a !== 'object') return false;
+      if (String(a.role || '').trim().toLowerCase() !== 'student') return false;
+      if (!BACKFILL_SOURCES[a.registeredVia]) return false;
+      if (String(a.status || '').trim().toLowerCase() !== 'disabled') return false;
+      if (hasPassword(a) || a._plaintextPw || a.defaultPassword || a.mustChangePassword) return false;
+      if (String(a.email || '').trim()) return false;
+      var by = String(a.approvedBy || '').trim().toLowerCase();
+      if (by && by !== 'system' && by !== 'fee-system') return false;        // a person decided on it
+      if (a.disabledAt || a.disabledBy) return false;                        // a person switched it off
+      if (a.updatedAt) return false;                                         // a person edited it (every edit is stamped)
+      if (a.verifiedAt || a.lastLoginAt || a.lastLogin) return false;        // somebody signed in with it
+      if (a.twoFactorEnabled || a.twoFactorSecret || a.emailOtpLogin) return false;
+      return true;
+    }
+    function programmesAgree(a, b) {
+      if (!a || !b) return true;
+      var E = Core.enrolment;
+      if (E && typeof E.programmesAgree === 'function') { try { return E.programmesAgree(a, b); } catch (e) {} }
+      return Core.normCourse(a) === Core.normCourse(b);
+    }
+
+    /* Does a trainee already have a sign-in account? candidate:
+       { name, programme, email, ids: [record ids it may be linked under] }.
+       In order: an account linked to one of those records; the same email;
+       the same name in an agreeing programme (the one-person-one-record rule
+       the roll itself follows). opts.skip(account) leaves accounts out.
+         { match, by: 'link'|'email'|'name' }  - that account
+         { ambiguous: true }                   - several: a person decides
+         {}                                    - nobody: a new person */
+    function accountForTrainee(accounts, cand, opts) {
+      opts = opts || {};
+      cand = cand || {};
+      var list = (Array.isArray(accounts) ? accounts : []).filter(function (a) {
+        return a && String(a.role || '').trim().toLowerCase() === 'student' && !(opts.skip && opts.skip(a));
+      });
+      var ids = (cand.ids || []).filter(function (x) { return x != null && x !== ''; }).map(String);
+      if (ids.length) {
+        var linked = list.filter(function (a) { return a.studentDataId != null && ids.indexOf(String(a.studentDataId)) !== -1; });
+        if (linked.length === 1) return { match: linked[0], by: 'link' };
+        if (linked.length > 1) return { ambiguous: true };
+      }
+      var em = String(cand.email || '').trim().toLowerCase();
+      if (em) {
+        var byEmail = list.filter(function (a) { return String(a.email || '').trim().toLowerCase() === em; });
+        if (byEmail.length === 1) return { match: byEmail[0], by: 'email' };
+        if (byEmail.length > 1) return { ambiguous: true };
+      }
+      var want = Core.normName(cand.name);
+      if (!want) return {};
+      var same = list.filter(function (a) { return Core.normName(a.name) === want && programmesAgree(a.programme, cand.programme); });
+      if (same.length === 1) return { match: same[0], by: 'name' };
+      if (!same.length) return {};
+      if (cand.programme) {
+        var exact = same.filter(function (a) { return a.programme && Core.normCourse(a.programme) === Core.normCourse(cand.programme); });
+        if (exact.length === 1) return { match: exact[0], by: 'name' };
+      }
+      return { ambiguous: true };
+    }
+    /* "Does this trainee have an account?" for a backfill about to make one:
+       a match or several candidates both mean yes — never invent another. */
+    function traineeHasAccount(accounts, cand) {
+      var r = accountForTrainee(accounts, cand);
+      return !!(r.match || r.ambiguous);
+    }
+
+    /* Which stubs fold into the account of the same person, and which cannot
+       be proven duplicates. A stub folds only into exactly one account that is
+       not itself a stub, of the same normalised name, found by its record link
+       or by name in an agreeing programme. records (optional): the trainee
+       records this device holds — a stub whose own record here belongs to
+       somebody of another name is not folded. Returns
+         { folds: [{ id, into, by }], unsure: [id] }
+       unsure: stubs with a namesake account that could not be told apart
+       (several, or a disagreeing record) — left for an administrator. */
+    function backfillStubFolds(accounts, records) {
+      var list = Array.isArray(accounts) ? accounts : [];
+      var recs = {};
+      (Array.isArray(records) ? records : []).forEach(function (r) { if (r && r.id != null) recs[String(r.id)] = r; });
+      var folds = [], unsure = [];
+      list.forEach(function (stub) {
+        if (!isBackfillStub(stub)) return;
+        var nm = Core.normName(stub.name);
+        if (!nm) return;
+        var own = stub.studentDataId != null ? recs[String(stub.studentDataId)] : null;
+        if (own && own.name && Core.normName(own.name) !== nm) { unsure.push(stub.id); return; }
+        var r = accountForTrainee(list, { name: stub.name, programme: stub.programme,
+                                          ids: stub.studentDataId != null ? [stub.studentDataId] : [] },
+          { skip: function (a) { return a === stub || isBackfillStub(a); } });
+        if (r.match && Core.normName(r.match.name) === nm && r.match.id !== stub.id) {
+          folds.push({ id: stub.id, into: r.match.id, by: r.by });
+        } else if (r.ambiguous || r.match) {
+          unsure.push(stub.id);
+        }
+      });
+      return { folds: folds, unsure: unsure };
     }
 
     /* Should this device ask the shared copy before it turns a sign-in away?
@@ -8594,6 +8730,8 @@
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
+      isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
+      backfillStubFolds: backfillStubFolds,
       recheckBeforeRefusal: recheckBeforeRefusal, approvalNotice: approvalNotice,
       UNCHECKED_REFUSAL_NOTE: UNCHECKED_REFUSAL_NOTE,
       loginSyncOutcome: loginSyncOutcome, NO_ACCESS_SYNC_MESSAGE: NO_ACCESS_SYNC_MESSAGE

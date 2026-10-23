@@ -90,14 +90,14 @@ function dashboard(centres, opts) {
     window: null,
     skillAreas: clone(centres), students: clone(opts.students || []), userAccounts: clone(opts.accounts || []),
     instructorData: [], attendanceRecords: [], studentProfiles: {}, _delStudentAtMemo: null,
-    _feeMirrorLastRaw: null, _feeMirrorCheckedAt: 0, FEE_MIRROR_MIN_INTERVAL_MS: 1000,
+    _feeMirrorLastRaw: null, _feeMirrorCheckedAt: 0, FEE_MIRROR_MIN_INTERVAL_MS: 1000, _rosterReadThisSession: false,
     saveState() {}, updateSkillAreaCounts() {}, broadcastStudentsToFeeFrames() {},
     localDateStr: () => '2026-10-22'
   };
   sb.window = sb;
   vm.createContext(sb);
   vm.runInContext(['cestisGenId', 'findSkillAreaForCourse', 'instructorCourseMatch', 'createStudentDataForAccount',
-    'syncStudentsFromLocalFeeSystem', 'backfillStudentFiscalYears', 'courseDurationRecord', 'studentCentreRecord',
+    'syncStudentsFromLocalFeeSystem', 'rosterAwaitingSync', 'traineeRecordExistsElsewhere', 'backfillStudentFiscalYears', 'courseDurationRecord', 'studentCentreRecord',
     'studentCourseStatus', 'courseEndKeyFor', 'studentStampedElsewhere', 'courseEndTranscriptData', 'applyCourseEndStatuses', 'readArr', 'syncStudentsToSchoolFee']
     .map(n => extractFunction(INDEX, n)).join('\n\n'), sb);
   return sb;
