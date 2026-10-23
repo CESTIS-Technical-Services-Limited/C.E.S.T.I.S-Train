@@ -190,8 +190,13 @@ console.log('A wrong password: the message is under the card, no pop-up, still n
   const why = /<p class="login-sync-why" id="loginSyncWhy" role="note">([\s\S]*?)<\/p>/.exec(INDEX);
   assert(!!why, 'one line sits under the sync bar');
   const whyText = why ? why[1].replace(/<[^>]+>/g, '') : '';
-  assert(whyText === 'Sync first — this brings this computer up to date before anyone signs in. If Sync Now does not finish, ask the office for help.',
-    'it says what Sync Now does and who helps when it does not finish (got "' + whyText + '")');
+  assert(whyText === 'Why Sync Now comes first: it gives this computer the latest accounts and records, so everyone signs in with their current password. If it could not sync, try again or ask the office.',
+    'it says why Sync Now comes first and who helps when it could not sync (got "' + whyText + '")');
+  // The sync bar right above it says what Sync Now does ("Brings this computer
+  // up to date before anyone signs in"); the line must not say it again.
+  const bar = /<div class="login-sync-bar" id="loginSyncBar">([\s\S]*?)<button/.exec(INDEX);
+  assert(!!bar && /Brings this computer up to date before anyone signs in\./.test(bar[1]) && whyText.indexOf('up to date before anyone signs in') === -1,
+    'it does not repeat the sync bar\'s own sentence');
   assert(!SOURCE_WORDS.test(whyText), 'it never says where the records come from or are kept');
   assert(INDEX.indexOf('id="loginSyncWhy"') > INDEX.indexOf('id="loginSyncBar"') && INDEX.indexOf('id="loginSyncWhy"') < INDEX.indexOf('<div class="role-cards'),
     'between the sync bar and the cards');

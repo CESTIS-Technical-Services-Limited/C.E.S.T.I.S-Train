@@ -174,13 +174,13 @@ async function seedAccounts(PW) {
       await page.waitForTimeout(500);
       ok(await page.evaluate(() => !_sessionLocked && !document.getElementById('idleLockModal').classList.contains('active')), kind + ': the right password opens it again');
 
-      console.log('Item 4 (' + kind + '): a new computer says "Sync first" in neutral words');
+      console.log('Item 4 (' + kind + '): a new computer says why Sync Now comes first, in neutral words');
       const ctx2 = await fresh(kind);
       const p2 = await open(ctx2, 'index.html');
       r = await p2.evaluate(() => { const d = document.getElementById('loginSyncWhy'), b = d && d.getBoundingClientRect();
         return { there: !!d, text: d && d.innerText, visible: !!b && b.height > 0 && b.right <= innerWidth + 1 }; });
-      ok(r.there && r.visible && /^Sync first — this brings this computer up to date before anyone signs in\./.test(r.text) && /ask the office for help\.$/.test(r.text),
-        kind + ': the one-line "Sync first" note is under the sync bar (got "' + (r && r.text) + '")');
+      ok(r.there && r.visible && /^Why Sync Now comes first: it gives this computer the latest accounts and records/.test(r.text) && /try again or ask the office\.$/.test(r.text),
+        kind + ': the one-line "why Sync Now comes first" note is under the sync bar (got "' + (r && r.text) + '")');
       ok(!SOURCE_WORDS.test(r.text), kind + ': and it names no place the records come from or are kept');
       r = await p2.evaluate(() => { document.getElementById('adminLogin').classList.add('active'); requireLoginSync('admin');
         const e = document.getElementById('adminLoginError'); return { shown: !e.hidden, text: e.innerText }; });

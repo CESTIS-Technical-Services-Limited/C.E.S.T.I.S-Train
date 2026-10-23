@@ -791,7 +791,7 @@ body::-webkit-scrollbar { width:0; display:none; }
 }
 .login-sync-status.success { color:var(--green); }
 .login-sync-status.error { color:var(--red); }
-/* "Sync first" — one plain line under the sync bar. */
+/* Why "Sync Now" comes first — one plain line under the sync bar. */
 .login-sync-why {
   position:relative; z-index:2; max-width:600px; width:100%; margin:-16px auto 26px; padding:0 6px;
   font-size:12.5px; line-height:1.5; color:var(--text-secondary); text-align:left;
@@ -4230,10 +4230,11 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       </div>
       <button class="login-sync-btn" id="loginSyncBtn" onclick="loginPageSync()">Sync Now</button>
     </div>
-    <!-- What "Sync Now" is for, in one plain line, for anyone meeting it on a
-         new or shared computer. By the owner's rule it never says where the
-         records come from or are kept; nothing here changes the step. -->
-    <p class="login-sync-why" id="loginSyncWhy" role="note"><strong>Sync first</strong> — this brings this computer up to date before anyone signs in. If Sync Now does not finish, ask the office for help.</p>
+    <!-- Why "Sync Now" comes first, in one plain line, for anyone meeting it on
+         a new or shared computer. The bar above already says what it does, so
+         this says why and who helps. By the owner's rule it never says where
+         the records come from or are kept; nothing here changes the step. -->
+    <p class="login-sync-why" id="loginSyncWhy" role="note"><strong>Why Sync Now comes first:</strong> it gives this computer the latest accounts and records, so everyone signs in with their current password. If it could not sync, try again or ask the office.</p>
 
     <div class="role-cards sync-pending">
       <!-- ADMIN CARD -->
