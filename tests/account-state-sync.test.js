@@ -99,7 +99,9 @@ function extractFunction(src, name) {
   assertEq(revoked({ id: 'U1' }, [{ id: 'U1', status: 'active' }]), false, 'active → stays');
   assertEq(revoked({ id: 'U1' }, []), false, 'merely missing from the list for a moment is never a reason on its own');
   const hb = extractFunction(SRC, 'sessionHeartbeat');
-  assert(/if\(sessionAccountRevoked\(\)\) \{[\s\S]*?logout\(\);/.test(hb), 'the heartbeat logs such a session out');
+  // Forced (logout(true)): a plain logout() asks "Sign out now?" during a
+  // test, and a switched-off account could press Cancel and stay signed in.
+  assert(/if\(sessionAccountRevoked\(\)\) \{[\s\S]*?logout\(true\);/.test(hb), 'the heartbeat logs such a session out, without asking');
   assert(/try \{ sessionHeartbeat\(\); \} catch\(e\) \{\}/.test(extractFunction(SRC, 'checkSessionExpiry')), 'and runs with the minute-by-minute session check');
 
   /* ---------- 3. Idle lock and warning ---------- */

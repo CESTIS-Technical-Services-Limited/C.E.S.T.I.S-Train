@@ -1,0 +1,154 @@
+/* An in-memory stand-in for the shared copy the online build syncs through
+   (the Google Drive v3 calls the pages make: list by query, read,
+   create/update by multipart or media upload, metadata, delete), for the
+   browser suites that need two "PCs" to share one copy without the browser
+   ever leaving the machine. Copied from the emulation inside
+   tests/browser/upgrade-no-data-loss.js (that suite keeps its own copy).
+
+     const { FakeDrive, driveTokenSeed } = require('./fake-drive');
+     const drive = new FakeDrive();
+     await ctx.route(/^https:\/\/(www\.googleapis\.com|oauth2\.googleapis\.com)\//, r => drive.handle(r));
+     // and put driveTokenSeed() into the device's storage so it syncs */
+'use strict';
+function parse(v) { try { return JSON.parse(v); } catch (e) { return undefined; } }
+function FakeDrive() { this.files = {}; this.seq = 0; this.calls = 0; this.errors = []; }
+FakeDrive.prototype.list = function (q) {
+  const clauses = String(q || '').split(/\s+and\s+/i).map(c => c.trim()).filter(Boolean);
+  const unq = s => s.replace(/^'|'$/g, '').replace(/\\'/g, "'");
+  return Object.values(this.files).filter(f => clauses.every(c => {
+    let m;
+    if ((m = /^name\s*=\s*('(?:[^'\\]|\\.)*')$/.exec(c))) return f.name === unq(m[1]);
+    if ((m = /^name\s+contains\s+('(?:[^'\\]|\\.)*')$/.exec(c))) return f.name.indexOf(unq(m[1])) !== -1;
+    if ((m = /^('(?:[^'\\]|\\.)*')\s+in\s+parents$/.exec(c))) return f.parents.indexOf(unq(m[1])) !== -1;
+    if ((m = /^trashed\s*=\s*(true|false)$/.exec(c))) return String(!!f.trashed) === m[1];
+    if ((m = /^mimeType\s*=\s*('(?:[^'\\]|\\.)*')$/.exec(c))) return f.mimeType === unq(m[1]);
+    if ((m = /^mimeType\s*!=\s*('(?:[^'\\]|\\.)*')$/.exec(c))) return f.mimeType !== unq(m[1]);
+    return true;   // a clause this emulation does not model narrows nothing
+  }));
+};
+FakeDrive.prototype.meta = function (f) {
+  return { id: f.id, name: f.name, mimeType: f.mimeType, parents: f.parents, modifiedTime: f.modifiedTime, createdTime: f.createdTime,
+    version: String(f.version), size: String(Buffer.byteLength(f.content || '')), webViewLink: 'https://drive.example/' + f.id,
+    webContentLink: 'https://drive.example/dl/' + f.id, md5Checksum: require('crypto').createHash('md5').update(f.content || '').digest('hex') };
+};
+FakeDrive.prototype.put = function (id, meta, content) {
+  const now = new Date(Date.now() + (this.seq++)).toISOString();
+  let f = id ? this.files[id] : null;
+  if (!f) {
+    id = id || ('fake' + (++this.seq) + 'x' + Math.random().toString(36).slice(2, 8));
+    f = this.files[id] = { id, name: 'Untitled', mimeType: 'application/json', parents: [], createdTime: now, version: 0, content: '' };
+  }
+  if (meta) {
+    if (meta.name) f.name = meta.name;
+    if (meta.mimeType) f.mimeType = meta.mimeType;
+    if (Array.isArray(meta.parents)) f.parents = meta.parents.slice();
+    if (meta.trashed != null) f.trashed = !!meta.trashed;
+  }
+  if (content != null) f.content = content;
+  f.version++; f.modifiedTime = now;
+  return f;
+};
+function parseMultipart(buf, ctype) {
+  const m = /boundary=("?)([^";]+)\1/i.exec(ctype || '');
+  if (!m) return null;
+  const s = buf.toString('latin1'), parts = s.split('--' + m[2]).slice(1).filter(p => !/^--/.test(p));
+  const out = { meta: null, content: null };
+  parts.forEach(p => {
+    const i = p.indexOf('\r\n\r\n');
+    if (i === -1) return;
+    const head = p.slice(0, i), body = Buffer.from(p.slice(i + 4).replace(/\r\n$/, ''), 'latin1').toString('utf8');
+    if (!out.meta && (/name="metadata"/i.test(head) || (/application\/json/i.test(head) && /^\s*\{/.test(body) && /"(name|parents|mimeType)"/.test(body) && body.length < 4000 && out.content === null && !/name="file"/i.test(head)))) {
+      try { out.meta = JSON.parse(body); return; } catch (e) {}
+    }
+    out.content = body;
+  });
+  return out;
+}
+FakeDrive.prototype.handle = async function (route) {
+  const req = route.request(), url = new URL(req.url()), method = req.method(), p = url.pathname;
+  this.calls++;
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,POST,PATCH,PUT,DELETE,OPTIONS',
+    'Access-Control-Expose-Headers': 'Date, ETag, Location', Date: new Date().toUTCString() };
+  const json = (obj, status) => route.fulfill({ status: status || 200, contentType: 'application/json', headers: cors, body: JSON.stringify(obj) });
+  try {
+    if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    if (/\/oauth2\/v\d\/userinfo$/.test(p)) return json({ email: 'centre@example.org', name: 'Centre Drive' });
+    if (/\/drive\/v3\/about$/.test(p)) return json({ user: { displayName: 'Centre Drive', emailAddress: 'centre@example.org' }, storageQuota: { limit: '16106127360', usage: '1024' } });
+    let m;
+    const body = req.postDataBuffer() || Buffer.alloc(0);
+    const ctype = (await req.allHeaders())['content-type'] || '';
+    if (/^\/upload\/drive\/v3\/files\/?$/.test(p) && method === 'POST') {
+      const type = url.searchParams.get('uploadType');
+      if (type === 'resumable') {
+        let meta = {}; try { meta = JSON.parse(body.toString('utf8') || '{}'); } catch (e) {}
+        const f = this.put(null, meta, '');
+        return route.fulfill({ status: 200, headers: Object.assign({ Location: 'https://www.googleapis.com/upload/drive/v3/files/' + f.id + '?uploadType=resumable-put' }, cors), body: '' });
+      }
+      const mp = parseMultipart(body, ctype) || { meta: null, content: body.toString('utf8') };
+      return json(this.meta(this.put(null, mp.meta || {}, mp.content == null ? '' : mp.content)));
+    }
+    if ((m = /^\/upload\/drive\/v3\/files\/([^/]+)$/.exec(p)) && (method === 'PATCH' || method === 'PUT')) {
+      if (!this.files[m[1]]) return json({ error: { code: 404, message: 'File not found' } }, 404);
+      const type = url.searchParams.get('uploadType');
+      if (type === 'multipart') { const mp = parseMultipart(body, ctype) || {}; return json(this.meta(this.put(m[1], mp.meta, mp.content))); }
+      return json(this.meta(this.put(m[1], null, body.toString('utf8'))));
+    }
+    if (/^\/drive\/v3\/files\/?$/.test(p)) {
+      if (method === 'GET') {
+        let files = this.list(url.searchParams.get('q')).map(f => this.meta(f));
+        if (/modifiedTime desc/.test(url.searchParams.get('orderBy') || '')) files.sort((a, b) => b.modifiedTime.localeCompare(a.modifiedTime));
+        return json({ files });
+      }
+      if (method === 'POST') { let meta = {}; try { meta = JSON.parse(body.toString('utf8') || '{}'); } catch (e) {} return json(this.meta(this.put(null, meta, ''))); }
+    }
+    if ((m = /^\/drive\/v3\/files\/([^/]+)(\/permissions)?$/.exec(p))) {
+      const f = this.files[m[1]];
+      if (m[2]) return json({ id: 'perm1', role: 'reader', type: 'anyone' });
+      if (!f) return json({ error: { code: 404, message: 'File not found: ' + m[1] } }, 404);
+      if (method === 'GET') {
+        if (url.searchParams.get('alt') === 'media') return route.fulfill({ status: 200, contentType: 'application/json', headers: Object.assign({ ETag: '"' + f.version + '"' }, cors), body: f.content || '' });
+        return json(this.meta(f));
+      }
+      if (method === 'PATCH') {
+        let meta = {}; try { meta = JSON.parse(body.toString('utf8') || '{}'); } catch (e) {}
+        const add = url.searchParams.get('addParents'), rem = url.searchParams.get('removeParents');
+        if (add) meta.parents = (meta.parents || f.parents).concat(add.split(','));
+        if (rem) meta.parents = (meta.parents || f.parents).filter(x => rem.split(',').indexOf(x) === -1);
+        return json(this.meta(this.put(m[1], meta, null)));
+      }
+      if (method === 'DELETE') { delete this.files[m[1]]; return route.fulfill({ status: 204, headers: cors, body: '' }); }
+    }
+    this.errors.push(method + ' ' + p + url.search);
+    return json({ error: { code: 400, message: 'not emulated: ' + method + ' ' + p } }, 400);
+  } catch (e) {
+    this.errors.push('handler: ' + e.message);
+    return json({ error: { code: 500, message: e.message } }, 500);
+  }
+};
+// Every Drive file as a { key: string } dump, by file name: a page's own file
+// and the whole-store files carry storage keys (data / store); the
+// dashboard's main backup carries its collections by name ("main:<name>").
+FakeDrive.prototype.dumps = function () {
+  const out = {};
+  Object.values(this.files).forEach(f => {
+    const v = parse(f.content);
+    if (!v || typeof v !== 'object') return;
+    let dump = {};
+    const strMap = o => o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length && Object.keys(o).every(k => typeof o[k] === 'string');
+    if (strMap(v.store)) dump = v.store;
+    else if (strMap(v.data)) dump = v.data;
+    else if (v.data && typeof v.data === 'object') Object.keys(v.data).forEach(k => { dump['main:' + k] = JSON.stringify(v.data[k]); });
+    else Object.keys(v).forEach(k => { dump['file:' + k] = JSON.stringify(v[k]); });
+    const name = f.name + (out[f.name] ? '#' + f.id : '');
+    out[name] = dump;
+  });
+  return out;
+};
+const DRIVE_TOKEN_KEYS = ['schoolDashboardGoogleAccessToken', 'cestisGoogleAccessToken'];
+function driveTokenSeed() {
+  const exp = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
+  const seed = {};
+  DRIVE_TOKEN_KEYS.forEach(k => { seed[k] = 'ya29.fake-centre-token'; seed[k.replace('AccessToken', 'TokenExpiry')] = exp; });
+  return seed;
+}
+module.exports = { FakeDrive, driveTokenSeed };

@@ -44,6 +44,7 @@ const vm = require('vm');
 const { execFileSync } = require('child_process');
 
 let passed = 0, failed = 0;
+const ASYNC_CHECKS = [];
 function assert(cond, msg) { if (cond) { passed++; } else { failed++; console.error('  ✗ FAIL: ' + msg); } }
 function assertEq(actual, expected, msg) {
   assert(actual === expected, msg + ' — expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
@@ -98,7 +99,13 @@ const PAGE_FNS = [
   'examSettingsSyncExpand', 'examCloseToggle', 'examKeyProblemText', 'examTypeLabel',
   'autoSaveExamProgress', 'submitExam', 'showExamResult', 'viewExamResultDetail', 'renderStudentExams', 'submitGrading', 'closeGradingPanel',
   'getFilteredNotifications', 'notifViewerId', 'exportExamResults', 'detectQuestionsFromText', 'removeImportOption', 'finalizeImportExam', 'updateImportSummary',
-  'clearSensitiveStudentData'
+  'clearSensitiveStudentData',
+  // A test in progress that follows the trainee (CESTISCore.exams attempts).
+  'safeJsonParse', 'examStampNow', 'examReadDraftRaw', 'examCurrentAttempt', 'examRetireLocalDraft', 'examAttemptRecord',
+  'examAttemptsUpsert', 'examAttemptsPersist', 'examAttemptsMergeIncoming', 'examAttemptsRestoreFromDrafts', 'examRetireStaleDrafts',
+  'examAttemptsArrived', 'examAdoptAttempt', 'examRedrawKeepingFocus', 'examDismissNote', 'examAttemptEndedElsewhere', 'examListNote',
+  'examResultFor', 'examPublishSoon', 'examPublishNow', 'examSaveOnLeaving', 'examPullBeforeStart', 'examCanAskCentre', 'examStartFresh',
+  'examSaveDraftNow', 'examOpenAttemptsFor', 'examSubmitExpiredAttempts', 'examSubmittedHere', 'examAfterSignIn', 'examOutboxSendOnLan'
 ];
 const PAGE_CODE = PAGE_FNS.map(n => extractFunction(SRC, n)).join('\n');
 
@@ -119,7 +126,7 @@ function makePage(opts) {
     Date: FakeDate, CESTISCore: Core,
     document: {
       getElementById(id) { if (opts.missing && opts.missing.indexOf(id) !== -1) return null; return els[id]; },
-      querySelectorAll() { return []; }, createElement() { return makeEl(); }, body: makeEl('body')
+      querySelectorAll() { return []; }, createElement() { return makeEl(); }, body: makeEl('body'), activeElement: null
     },
     CESTISStore: {
       getItem(k) { return k in store ? store[k] : null; }, setItem(k, v) { store[k] = String(v); }, removeItem(k) { delete store[k]; },
@@ -147,6 +154,7 @@ function makePage(opts) {
     currentExamSession: null, examTimerInterval: null, _isExamPreviewMode: false, _examDraftTimer: null,
     examBuilderQuestions: [], editingExamId: null, importedQuestions: [], importRawTextContent: '', importSelectedFile: null,
     EXAM_OUTBOX_KEY: 'cestisExamOutbox', _sessionWiped: false,
+    examAttempts: [], EXAM_PUBLISH_MS: 30000, _examPublishTimer: null, _examLastPublish: 0, _examDraftFirstAt: 0, scheduleDebouncedCloudSave() {},
     studentProfiles: {}, attendanceRecords: [], adminMeetings: [], adrTasks: [], adrStaffMeta: {}, adminStaffAccessSettings: {},
     instructorData: [], instructorProfiles: {}, certDownloadApprovals: [], certTemplates: {}, lmsChatMessages: {}, lmsChatProfiles: {},
     lmsChatFollows: {}, cloudFileId: null, lastSyncTime: null, loginSyncCompleted: false,
@@ -397,7 +405,108 @@ console.log('Resume after a reload or power cut, with the original clock (exams-
   run(z, "startStudentExam('EXAM-1')");
   assertEq(z.examResults.length, 1, 'an expired attempt is submitted with its saved answers');
   assertEq(z.examResults[0].score, 100, 'and marked against the exam\'s keys (both saved answers were right)');
-  assert(!z.__store[key], 'the saved attempt is cleared once submitted');
+  // Not removed: replaced by the small retired record (no answers), so a
+  // second window still open on the attempt cannot write it back or submit
+  // it again (CESTISCore.exams.retireAttempt).
+  assert(E.attemptIsRetired(JSON.parse(z.__store[key] || 'null')) && z.__store[key].indexOf('"answers"') === -1, 'the saved attempt is retired once submitted');
+  run(z, "startStudentExam('EXAM-1')");
+  assertEq(z.examResults.length, 1, 'and opening the exam again never submits it a second time');
+
+  // ...and she need not press anything: after the sign-in sync, a test whose
+  // time ran out while she was away is submitted by itself, once, with the
+  // note — it used to wait as "Submit saved answers" for a press that a
+  // trainee who never came back to My Exams never gave (no result at all).
+  const awayStore = JSON.parse(JSON.stringify(p.__store));
+  const a = makePage({ now: JM('2026-10-16', '15:00'), store: awayStore, globals: { currentRole: 'student' } });
+  a.CESTISStore.keys = function () { return Object.keys(a.__store); };
+  a.currentStudent = Object.assign({}, ANN);
+  a.exams.push(sampleExam());
+  assertEq(run(a, 'examHasDraftFor("STU-A", true)'), false, 'a test whose time ran out is not "in progress, the clock is still running" at sign-in');
+  assertEq(run(a, 'examHasDraftFor("STU-A")'), true, '(though its saved answers are still waiting)');
+  assertEq(run(a, 'examSubmitExpiredAttempts()'), 1, 'after the sign-in sync it is submitted by itself');
+  assertEq(a.examResults.length, 1, 'one result');
+  assert(a.examResults[0].autoSubmitted === true && a.examResults[0].score === 100, 'marked as submitted automatically, with her saved answers (score ' + a.examResults[0].score + ')');
+  assert(!!a.examResults[0].attemptId, 'and the attempt it came from');
+  assertEq(run(a, 'examSubmitExpiredAttempts()'), 0, 'a second sign-in submits nothing more');
+  assertEq(a.examResults.length, 1, 'still one result');
+  // A test still running is left for her to continue.
+  const b = makePage({ now: JM('2026-10-16', '13:30'), store: JSON.parse(JSON.stringify(p.__store)), globals: { currentRole: 'student' } });
+  b.CESTISStore.keys = function () { return Object.keys(b.__store); };
+  b.currentStudent = Object.assign({}, ANN);
+  b.exams.push(sampleExam());
+  assertEq(run(b, 'examSubmitExpiredAttempts()'), 0, 'a test whose clock is still running is not submitted at sign-in');
+  assertEq(b.examResults.length + (b.currentExamSession ? 1 : 0), 0, 'nor opened behind her back');
+  assertEq(run(b, 'examHasDraftFor("STU-A", true)'), true, 'and the sign-in points her to it');
+  // Another trainee signed in: her expired test is not his to submit.
+  const c2 = makePage({ now: JM('2026-10-16', '15:00'), store: JSON.parse(JSON.stringify(p.__store)), globals: { currentRole: 'student' } });
+  c2.CESTISStore.keys = function () { return Object.keys(c2.__store); };
+  c2.currentStudent = Object.assign({}, BEN, { course: 'Electrical' });
+  c2.exams.push(sampleExam());
+  assertEq(run(c2, 'examSubmitExpiredAttempts()'), 0, 'another trainee\'s sign-in never submits her test');
+  // The result is stored before the attempt is closed: another window that
+  // hears the close looks for the result (it said "will show here as soon as
+  // it reaches this computer" while the result sat unsaved a moment longer).
+  const se = extractFunction(SRC, 'submitExam');
+  assert(se.indexOf("saveCollection('voctrain_examResults', examResults)") !== -1 && se.indexOf("saveCollection('voctrain_examResults', examResults)") < se.indexOf('X.retireAttempt('),
+    'submitExam stores the result before it closes the attempt');
+  // Submitted in another window of this PC (its result waits in this PC's
+  // outbox) or on another device: the note says which.
+  const w = makePage({ now: JM('2026-10-16', '15:00'), globals: { currentRole: 'student' } });
+  w.__store.cestisExamOutbox = JSON.stringify([{ id: 'RES-1', examId: 'EXAM-1', studentId: 'STU-A', attemptId: 'ATT-1' }]);
+  assertEq(run(w, "examSubmittedHere({ resultId: 'RES-1' }, ['ATT-9'])"), true, 'a result in this PC\'s outbox was submitted here (another window)');
+  assertEq(run(w, "examSubmittedHere({ resultId: null }, ['ATT-1'])"), true, '(found by its attempt too)');
+  assertEq(run(w, "examSubmittedHere({ resultId: 'RES-2' }, ['ATT-2'])"), false, 'anything else was submitted on another device');
+  // A waiting result is let go once this PC's own upload of the Main copy
+  // carried it (noted as serialised), not only after a later download.
+  const asv = extractFunction(SRC, 'autoSaveToAllFolders');
+  assert(asv.indexOf('examOutboxConfirm(_sentResultIds)') !== -1 && asv.indexOf('_sentResultIds = ') < asv.indexOf('ALL_DRIVE_FOLDERS.map(folder => silentSaveToFolder') &&
+    /f\.id === GOOGLE_DRIVE_CONFIG\.FOLDER_ID && results\[i\]/.test(asv), 'the autosave lets a waiting result go once the Main copy\'s upload carried it');
+  // On the Centre's network: let go once a push to the Centre's server
+  // succeeded (it never downloads the online backup that used to confirm it).
+  ASYNC_CHECKS.push((async () => {
+    const mk = (pushOk) => {
+      const q = makePage({ now: JM('2026-10-16', '15:00'), globals: { currentRole: 'student' } });
+      q.__store.cestisExamOutbox = JSON.stringify([{ id: 'RES-9', examId: 'EXAM-1', studentId: 'STU-A' }]);
+      q.__store.voctrain_examResults = JSON.stringify([{ id: 'RES-9', examId: 'EXAM-1', studentId: 'STU-A' }]);
+      q.CESTISPageCloud = { lan: () => Promise.resolve(true), saveNow: () => Promise.resolve([pushOk]) };
+      return q;
+    };
+    const good = mk(true), bad = mk(false);
+    await run(good, 'examOutboxSendOnLan()');
+    await run(bad, 'examOutboxSendOnLan()');
+    assert(!good.__store.cestisExamOutbox, 'on the Centre\'s network a result is let go once its push succeeded');
+    assert(!!bad.__store.cestisExamOutbox, 'and kept while the push fails');
+    const off = makePage({ now: JM('2026-10-16', '15:00'), globals: { currentRole: 'student' } });
+    off.__store.cestisExamOutbox = JSON.stringify([{ id: 'RES-9' }]);
+    off.CESTISPageCloud = { lan: () => Promise.resolve(false), saveNow: () => Promise.resolve([true]) };
+    await run(off, 'examOutboxSendOnLan()');
+    assert(!!off.__store.cestisExamOutbox, 'online it is left to the online backup');
+  })().catch(e => assert(false, 'examOutboxSendOnLan threw: ' + e.message)));
+  // The top bar's chip hears of a result waiting to be sent (or sent) at once.
+  assert(extractFunction(SRC, 'examOutboxWrite').indexOf('refreshSyncChip()') !== -1, 'the outbox tells the sync chip when it changes');
+  // And the result opens at its top, where the note is.
+  assert(/scrollTop = 0/.test(extractFunction(SRC, 'showExamResult')), 'the result page opens at its top (on a phone the note was scrolled out of sight)');
+  const ea = extractFunction(SRC, 'enterApp');
+  assert(/autoSyncOnLogin\(\)\.then\(function\(\) \{[\s\S]*?_afterLoginSync\(\)/.test(ea) && ea.indexOf('examAfterSignIn()') !== -1, 'enterApp runs it once the sign-in sync is done (or failed)');
+  // "You have a test in progress" is said after that sync too, never from
+  // this PC's own (possibly stale) copy as the pages are built.
+  assert(extractFunction(SRC, 'buildStudentPages').indexOf('You have a test in progress') === -1, 'the pages are built without the in-progress note');
+  const t1 = makePage({ now: JM('2026-10-16', '13:30'), store: JSON.parse(JSON.stringify(p.__store)), globals: { currentRole: 'student' } });
+  t1.CESTISStore.keys = function () { return Object.keys(t1.__store); };
+  t1.currentStudent = Object.assign({}, ANN); t1.exams.push(sampleExam());
+  run(t1, 'examAfterSignIn()');
+  assert(t1.__out.toasts.some(m => /You have a test in progress/.test(m)), 'after the sync, a running test is pointed out');
+  const t2 = makePage({ now: JM('2026-10-16', '13:30'), store: JSON.parse(JSON.stringify(p.__store)), globals: { currentRole: 'student' } });
+  t2.CESTISStore.keys = function () { return Object.keys(t2.__store); };
+  t2.currentStudent = Object.assign({}, ANN); t2.exams.push(sampleExam());
+  t2.examResults.push({ id: 'RES-ELSE', examId: 'EXAM-1', studentId: 'STU-A', submittedAt: '2026-10-16T18:20:00Z', attemptId: 'X' });
+  run(t2, 'examAfterSignIn()');
+  assert(!t2.__out.toasts.some(m => /in progress/.test(m)), 'a test the sync shows was finished elsewhere is not "in progress"');
+  const t3 = makePage({ now: JM('2026-10-16', '15:00'), store: JSON.parse(JSON.stringify(p.__store)), globals: { currentRole: 'student' } });
+  t3.CESTISStore.keys = function () { return Object.keys(t3.__store); };
+  t3.currentStudent = Object.assign({}, ANN); t3.exams.push(sampleExam());
+  run(t3, 'examAfterSignIn()');
+  assert(t3.examResults.length === 1 && !t3.__out.toasts.some(m => /clock is still running/.test(m)), 'one whose time ran out is submitted, without "the clock is still running"');
 }
 
 console.log('Sign-out mid-exam never submits under the next trainee (exams-16, ui-03)');
@@ -699,5 +808,8 @@ console.log('A paged attempt: pages, flagging off, the summary and the on-page s
 console.log('Shared libraries stay identical in both builds');
 assert(fs.readFileSync(path.join(ROOT, 'cestis-core.js'), 'utf8') === fs.readFileSync(path.join(ROOT, 'Offline System', 'cestis-core.js'), 'utf8'), 'cestis-core.js is byte-identical in Offline System/');
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed ? 1 : 0);
+// The checks that wait on a promise (the Centre's network push) finish first.
+Promise.all(ASYNC_CHECKS).then(() => {
+  console.log('\n' + passed + ' passed, ' + failed + ' failed');
+  process.exit(failed ? 1 : 0);
+});

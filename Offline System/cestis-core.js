@@ -1297,6 +1297,12 @@
         if (r && r.studentId && idMap[r.studentId]) r.studentId = idMap[r.studentId];
       });
     }
+    // A test in progress follows its trainee to the new id too (Core.exams).
+    if (Array.isArray(data.examAttempts)) {
+      data.examAttempts.forEach(function (a) {
+        if (a && a.studentId && idMap[a.studentId]) a.studentId = idMap[a.studentId];
+      });
+    }
 
     if (Array.isArray(data.transcriptGrades)) {
       /* A manual grade's id is a hash of (student | qualification | unit), so

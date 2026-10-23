@@ -2608,6 +2608,15 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .exam-instructions { background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:16px; font-size:13px; }
 .exam-instructions summary { cursor:pointer; font-weight:600; color:var(--accent); }
 .exam-instructions-body { margin-top:8px; white-space:pre-wrap; color:var(--text-secondary); }
+/* A calm note on the attempt, review and My Exams pages: the test was
+   continued on another device or window, submitted elsewhere, or will be
+   sent once this computer is back online. The theme's own text and input
+   colours, so it reads in Light and Dark alike. */
+.exam-note { max-width:780px; margin:0 0 16px; padding:10px 14px; border:1px solid var(--border); border-left:4px solid var(--blue); border-radius:4px; background:var(--bg-input); color:var(--text-primary); font-size:13px; line-height:1.5; display:flex; gap:12px; align-items:flex-start; }
+.exam-note .exam-note-text { flex:1; }
+.exam-note .btn { flex:none; }
+.exam-continue { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+.exam-continue-note { font-size:12px; color:var(--text-secondary); text-align:right; }
 .exam-option-list li, .exam-option-list label {
   display:flex; align-items:center; gap:12px; padding:12px 16px; margin-bottom:6px;
   border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border);
@@ -6531,6 +6540,11 @@ function loadNotifications() {
 }
 
 var examResults = [];
+// Tests in progress, shared so a trainee can carry on at another PC
+// (CESTISCore.exams: merged question by question; a submitted attempt is a
+// small retired record). The device's own copy of an attempt stays under
+// CESTISCore.exams.draftKey, which never leaves the PC.
+var examAttempts = [];
 
 var calendarEvents = [];
 
@@ -7439,7 +7453,7 @@ function exportDataBackup() {
     // "session" in it (voctrain_session*) — and so left these out of the file.
     'voctrain_vcSessions',
     'voctrain_resources','voctrain_driveResources','voctrain_studentProfiles','voctrain_instructorProfiles',
-    'voctrain_systemSettings','voctrain_examResults','voctrain_calendarEvents','voctrain_adrTasks',
+    'voctrain_systemSettings','voctrain_examResults','voctrain_examAttempts','voctrain_calendarEvents','voctrain_adrTasks',
     'voctrain_adrStaffMeta','voctrain_adminStaffAccess','voctrain_instructorData','voctrain_certDownloadApprovals',
     'voctrain_skillAreas','voctrain_certTemplates','voctrain_chatRooms','voctrain_chatMessages',
     'voctrain_chatProfiles','voctrain_chatFollows',
@@ -8440,9 +8454,22 @@ function sessionHeartbeat() {
   // the locked person's session. Locked, it stays silent.
   if(!_sessionLocked) { try { CESTISStore.setItem('voctrain_sessionSeenAt', String(Date.now())); } catch(e) {} }
   if(sessionAccountRevoked()) {
-    showToast('Your account has been switched off by an administrator. You have been signed out.', 'warning');
-    logout();
+    // Signed out without a question: "Sign out now?" used to let a switched-off
+    // account press Cancel in the middle of a test and stay signed in. The
+    // test's answers are saved first (examEndSessionForSignOut).
+    var inTest = !!(currentExamSession && !_isExamPreviewMode);
+    showToast('Your account has been switched off by an administrator. You have been signed out.' + (inTest ? ' Your test answers are saved.' : ''), 'warning');
+    logout(true);
     return;
+  }
+  // A trainee working on a test is not signed out by the session clock part-
+  // way through it; a PC left idle still is (CESTISCore.sessionAccess.examGrace).
+  if(currentRole === 'student' && currentExamSession && !_isExamPreviewMode && !_sessionLocked) {
+    try {
+      var _exp = Number(CESTISStore.getItem('voctrain_sessionExpiry')) || 0;
+      var _more = CESTISCore.sessionAccess.examGrace(Date.now(), _sessionLastActivity, _exp, Number(currentExamSession.deadline) || 0);
+      if(_more > _exp) CESTISStore.setItem('voctrain_sessionExpiry', String(_more));
+    } catch(e) {}
   }
   var st = CESTISCore.sessionAccess.state(Date.now(), _sessionLastActivity, Number(CESTISStore.getItem('voctrain_sessionExpiry')) || 0, currentRole);
   if(st === 'lock' && !_sessionLocked) openIdleLock();
@@ -8571,6 +8598,20 @@ function clearSensitiveStudentData() {
     // the anti-wipe guard must not stand in the way.
     CESTISStore.setItem('voctrain_examResults', JSON.stringify(myResults));
   } catch(e) { examResults = []; CESTISStore.removeItem('voctrain_examResults'); }
+
+  // 3b. Tests in progress: this trainee's own, plus every submitted
+  // (retired) record — those carry no answers and are what stops a stale
+  // copy coming back. Another trainee's open attempt leaves the shared list
+  // here, but nothing of it is lost: its device copy (draftKey) stays on the
+  // PC and is put back into the list at the next sign-in, to be sent then
+  // (examAttemptsRestoreFromDrafts).
+  try {
+    var myAttempts = (Array.isArray(examAttempts) ? examAttempts : []).filter(function(a) {
+      return a && (CESTISCore.exams.attemptIsRetired(a) || (studentId && a.studentId === studentId));
+    });
+    examAttempts = myAttempts;
+    CESTISStore.setItem('voctrain_examAttempts', JSON.stringify(myAttempts));
+  } catch(e) {}
 
   // 4. Keep only this student's profile
   try {
@@ -8757,6 +8798,7 @@ function clearAllSessionData() {
   attendanceRecords = [];
   attendanceRegister = [];
   examResults = [];
+  examAttempts = [];
   calendarEvents = [];
   classSessions = [];
   adminMeetings = [];
@@ -8910,6 +8952,7 @@ function saveState() {
     saveCollection('voctrain_instructorProfiles', instructorProfiles);
     CESTISStore.setItem('voctrain_systemSettings', JSON.stringify(systemSettings));
     saveCollection('voctrain_examResults', examResults);
+    try { examAttemptsPersist(); } catch(e) {}
     saveCollection('voctrain_calendarEvents', calendarEvents);
     saveCollection('voctrain_instructorData', instructorData);
     saveCollection('voctrain_certDownloadApprovals', certDownloadApprovals);
@@ -9075,6 +9118,8 @@ function loadState() {
     // extSystems) keep that field instead of losing it on load.
     if(ss) systemSettings = CESTISCore.mergeSystemSettings(systemSettings, ss);
     if(Array.isArray(er)) examResults = er;
+    var eat = safeJsonParse(CESTISStore.getItem('voctrain_examAttempts'), null);
+    if(Array.isArray(eat)) examAttempts = eat;
     if(ce) { var _cc={class:'var(--blue)',exam:'var(--red)',deadline:'var(--accent)',meeting:'var(--purple)'}; calendarEvents = ce.map(function(e){if(!e.color){e.color=_cc[e.type]||'var(--blue)';}return e;}); }
     var adrT = safeJsonParse(CESTISStore.getItem('voctrain_adrTasks'), null);
     var adrM = safeJsonParse(CESTISStore.getItem('voctrain_adrStaffMeta'), null);
@@ -9391,6 +9436,7 @@ function relinkDependentData(idMap) {
                attendanceRegister: attendanceRegister,
                certDownloadApprovals: certDownloadApprovals,
                examResults: (typeof examResults !== 'undefined' && Array.isArray(examResults)) ? examResults : [],
+               examAttempts: (typeof examAttempts !== 'undefined' && Array.isArray(examAttempts)) ? examAttempts : [],
                studentProfiles: (typeof studentProfiles !== 'undefined' && studentProfiles) ? studentProfiles : {} };
     CESTISCore.relinkDependentData(idMap, _d);
     userAccounts = _d.userAccounts; attendanceRecords = _d.attendanceRecords;
@@ -9472,6 +9518,7 @@ function cestisStabilizeStudentIds() {
     attendanceRegister: attendanceRegister,
     certDownloadApprovals: certDownloadApprovals,
     examResults: (typeof examResults !== 'undefined' && Array.isArray(examResults)) ? examResults : [],
+    examAttempts: (typeof examAttempts !== 'undefined' && Array.isArray(examAttempts)) ? examAttempts : [],
     studentProfiles: (typeof studentProfiles !== 'undefined' && studentProfiles) ? studentProfiles : {}
   };
   var res = CESTISCore.migrateToStableIds(bundle);
@@ -9507,6 +9554,7 @@ function cestisStabilizeStudentIds() {
   try { if (typeof mirrorActiveAttendance === 'function') mirrorActiveAttendance(); } catch(e) {}
   try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e) {}
   try { if (typeof examResults !== 'undefined' && Array.isArray(examResults)) saveCollection('voctrain_examResults', examResults); } catch(e) {}
+  try { if (typeof examAttempts !== 'undefined' && Array.isArray(examAttempts) && examAttempts.length) saveCollection('voctrain_examAttempts', examAttempts); } catch(e) {}
   try { if (typeof studentProfiles !== 'undefined' && studentProfiles) saveCollection('voctrain_studentProfiles', studentProfiles); } catch(e) {}
   try { if (typeof saveUserAccounts === 'function') saveUserAccounts(); } catch(e) {}
   try { console.log('[stableId] remapped ' + Object.keys((res&&res.idMap)||{}).length + ' id(s), removed ' + ((res&&res.removed)||0) + ' duplicate(s), ' + _droppedTomb + ' tombstoned' + (_relinkedStored.length ? ', relinked ' + _relinkedStored.join(', ') : '')); } catch(e) {}
@@ -12267,6 +12315,9 @@ function enterApp(role) {
     // Exam results submitted on this PC but not yet uploaded come back into
     // the list a previous sign-out trimmed, so this session uploads them.
     try { if(typeof examOutboxRestore === 'function') examOutboxRestore(); } catch(e) {}
+    // ...and so do tests in progress saved on this PC (by anyone), so that
+    // whoever signs in here next sends them on.
+    try { if(typeof examAttemptsRestoreFromDrafts === 'function') examAttemptsRestoreFromDrafts(); } catch(e) {}
     // Ensure all student user accounts have corresponding student records
     // Ensure all student user accounts have corresponding student records,
     // then settle the roll BEFORE a single count is taken from it.
@@ -12391,13 +12442,20 @@ function enterApp(role) {
     try { if(typeof lmsChatRTStart === 'function') lmsChatRTStart(); } catch(e) {}
 
     // Auto-sync from all Google Drive folders on login, then start 5s auto-save
+    // — and, for a trainee, see to a test she left in progress, now that this
+    // PC holds the latest of it (examAfterSignIn).
+    var _afterLoginSync = function() {
+      try { if(currentRole === 'student' && typeof examAfterSignIn === 'function') examAfterSignIn(); } catch(e) {}
+    };
     setTimeout(function() {
       autoSyncOnLogin().then(function() {
         startAutoSave();
+        _afterLoginSync();
       }).catch(function(err) {
         console.error('Auto-sync on login failed:', err);
         // Start auto-save anyway even if initial sync fails
         startAutoSave();
+        _afterLoginSync();
       });
     }, 500);
   } catch(err) {
@@ -13733,6 +13791,12 @@ var cestisFeatureConfig = {
     file: 'Pages/Student-Exams.html',
     onMount: function() {
       cestisSafe('renderStudentExams');
+      // A result submitted before this page was first drawn is shown now.
+      try {
+        var p = (typeof _examResultToShow !== 'undefined') ? _examResultToShow : null;
+        if(p && currentStudent && p.result && p.result.studentId === currentStudent.id) showExamResult(p.result, p.exam, p.note);
+        _examResultToShow = null;
+      } catch(e) {}
     }
   },
   's-certificate': {
@@ -14769,14 +14833,16 @@ function renderStudentExams(){
     up.innerHTML = exams.filter(function(e){
       if(!mine(e)) return false;
       var st = examStatusNow(e);
-      // An attempt saved on this device stays listed until it is submitted,
-      // even if the window has closed meanwhile.
-      return st === 'upcoming' || st === 'active' || !!examLoadDraft(s.id, e.id);
+      // An attempt in progress (saved on this PC or shared from another)
+      // stays listed until it is submitted, even if the window has closed
+      // meanwhile.
+      return st === 'upcoming' || st === 'active' || !!examCurrentAttempt(s.id, e.id);
     }).map(function(e){
       var st = examStatusNow(e);
       var hasQuestions = e.questionData && e.questionData.length > 0;
       var alreadyTaken = (examResults||[]).some(function(r){ return r && !r.archived && r.examId === e.id && r.studentId === s.id; });
-      var draft = alreadyTaken ? null : examLoadDraft(s.id, e.id);
+      var cur = alreadyTaken ? null : examCurrentAttempt(s.id, e.id);
+      var draft = cur ? cur.attempt : null;
       var examStart = parseExamDateTime(e.date, e.time);
       var examNow = new Date();
       var isTimePassed = examStart && examNow >= examStart;
@@ -14784,7 +14850,10 @@ function renderStudentExams(){
       if(alreadyTaken){ badgeHtml = '<span class="badge badge-green"><span class="badge-dot"></span>Completed</span>'; }
       else if(draft){
         var left = Math.max(0, Math.floor((draft.deadline - Date.now())/1000));
-        badgeHtml = '<button class="btn btn-sm btn-primary" onclick="startStudentExam('+jsArg(e.id)+')">'+(left > 0 ? 'Resume ('+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' left)' : 'Submit saved answers')+'</button>';
+        // "Continue your attempt", on whichever PC she signs in at: the same
+        // attempt, its answers and its original clock — never a second one.
+        badgeHtml = '<div class="exam-continue"><button class="btn btn-sm btn-primary" onclick="startStudentExam('+jsArg(e.id)+')">'+(left > 0 ? 'Continue your attempt ('+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' left)' : 'Submit saved answers')+'</button>'
+          + '<div class="exam-continue-note">' + (left > 0 ? 'In progress. Your answers are saved.' : 'The time ran out. Your saved answers are ready to submit.') + '</div></div>';
       }
       else if(st === 'active' && hasQuestions){ badgeHtml = '<button class="btn btn-sm btn-primary" onclick="startStudentExam('+jsArg(e.id)+')">Take Exam</button>'; }
       else if(isTimePassed && !hasQuestions){ badgeHtml = '<span class="badge badge-amber">Awaiting Questions</span>'; }
@@ -14912,9 +14981,8 @@ function buildStudentPages() {
   try {
   resolveExamStatuses();
   const s = currentStudent;
-  // An exam left in progress on this PC (a reload, a power cut, a sign-out):
-  // point the trainee back to it while its clock is still running.
-  try { if(s && !currentExamSession && examHasDraftFor(s.id)) showToast('You have an exam in progress. Open Exams to resume it: the clock is still running.', 'warning'); } catch(e) {}
+  // (A test left in progress is pointed out after the sign-in sync, when
+  // this PC knows whether it was finished elsewhere: examAfterSignIn.)
   // Resolve instructor name if missing — look up by course match in instructorData
   if (!s.instructor && s.course) {
     var matchedIns = instructorData.find(function(ins) { return ins.course && instructorCourseMatch(s.course, ins.course); });
@@ -23020,7 +23088,7 @@ window.addEventListener('storage', function(e) {
       applyMaintenanceOverlay();
       // If maintenance just activated and current user is not admin, force them out
       if(val.active === true && currentRole && currentRole !== 'admin') {
-        showToast('Site has been placed in maintenance mode. You will be logged out.', 'warning');
+        showToast('Site has been placed in maintenance mode. You will be logged out.' + (currentExamSession && !_isExamPreviewMode ? ' Your test answers are saved: carry on when the site is back.' : ''), 'warning');
         setTimeout(function() { logout(true); applyMaintenanceOverlay(); }, 2000);
       }
     }
@@ -23218,7 +23286,10 @@ var CESTIS_SHARED_COLLECTIONS = {
   // Merged, never adopted wholesale (see mergeIncomingAttendance).
   voctrain_attendance:          function(v){ mergeIncomingAttendance({ attendanceRecords: v }); },
   voctrain_attendanceRegister:  function(v){ mergeIncomingAttendance({ attendanceRegister: v }); },
-  voctrain_examResults:         function(v){ examResults = v; },
+  voctrain_examResults:         function(v){ examResults = v; try { examAttemptsArrived('elsewhere'); } catch(e) {} },
+  // Merged, never adopted wholesale: another tab or the Centre's network may
+  // hold an older copy of the attempt open here (examAttemptsMergeIncoming).
+  voctrain_examAttempts:        function(v){ examAttemptsMergeIncoming(v); },
   voctrain_certDownloadApprovals: function(v){ certDownloadApprovals = v; },
   voctrain_skillAreas:          function(v){ skillAreas = CESTISCore.catalogue.liveCentres(v, CESTISStore); },
   voctrain_users:               function(v){ userAccounts = v; },
@@ -27767,6 +27838,12 @@ var currentExamSession = null;
 var examTimerInterval = null;
 
 // ---- An attempt in progress: kept on this device until it is submitted ----
+// ...and, since the owner asked for it, shared too, so a trainee whose PC dies
+// can sign in at another one and carry on with the SAME attempt (the rules
+// are CESTISCore.exams: question by question, newest answer wins). The copy
+// on this device (draftKey) is written on every change and never leaves the
+// PC; the shared record (examAttempts) follows within EXAM_PUBLISH_MS of a
+// change, and at once on leaving the page, signing out and submitting.
 var _examDraftTimer = null;
 function examShowTakingView() {
   var list = document.getElementById('studentExamListView');
@@ -27776,11 +27853,27 @@ function examShowTakingView() {
   if (res) res.style.display = 'none';
   if (take) take.style.display = 'block';
 }
+// When an answer or flag changed, on the clock every device agrees on: the
+// Centre's own clock on its network, else this device's clock as corrected
+// by its last sync. (Which device's answer is newest depends on it.)
+function examStampNow() {
+  try { if (window.CESTISPageCloud && typeof CESTISPageCloud.now === 'function') { var t = Date.parse(CESTISPageCloud.now()); if (isFinite(t) && t > 0) return t; } } catch (e) {}
+  try { if (CESTISCore.sync && typeof CESTISCore.sync.now === 'function') return CESTISCore.sync.now(); } catch (e) {}
+  return Date.now();
+}
+// This device's copy as stored: an attempt in progress, or the small retired
+// record a submission leaves in its place (so a second window cannot write
+// the submitted attempt back).
+function examReadDraftRaw(studentId, examId) {
+  if (!studentId || !examId) return null;
+  try { var d = JSON.parse(CESTISStore.getItem(CESTISCore.exams.draftKey(studentId, examId)) || 'null'); return d && typeof d === 'object' ? d : null; } catch (e) { return null; }
+}
 function examLoadDraft(studentId, examId) {
   if (!studentId || !examId) return null;
   try {
-    var d = JSON.parse(CESTISStore.getItem(CESTISCore.exams.draftKey(studentId, examId)) || 'null');
-    if (!d || d.examId !== examId || d.studentId !== studentId || !Array.isArray(d.questions) || !Array.isArray(d.answers)) return null;
+    var d = examReadDraftRaw(studentId, examId);
+    if (!d || CESTISCore.exams.attemptIsRetired(d)) return null;
+    if (d.examId !== examId || d.studentId !== studentId || !Array.isArray(d.questions) || !Array.isArray(d.answers)) return null;
     if (!Array.isArray(d.flagged)) d.flagged = new Array(d.questions.length).fill(false);
     if (typeof d.deadline !== 'number') d.deadline = (Number(d.startTime) || Date.now()) + (parseInt(d.duration) || 90) * 60000;
     // Saved before the paged attempt page: everything on one page, as it was
@@ -27788,41 +27881,353 @@ function examLoadDraft(studentId, examId) {
     if (typeof d.perPage !== 'number') d.perPage = 0;
     if (typeof d.page !== 'number') d.page = 0;
     if (typeof d.current !== 'number') d.current = 0;
+    // Saved before attempts travelled: an id of its own (the same in every
+    // window), and its answers dated by the save that holds them.
+    if (!d.id) d.id = 'ATT-' + String(d.studentId) + '-' + String(d.examId) + '-' + String(d.startTime || 0);
+    if (!d.status) d.status = 'open';
+    if (!Array.isArray(d.answeredAt) || !Array.isArray(d.flaggedAt)) d = CESTISCore.exams.mergeAttempt(d, d);
     return d;
   } catch (e) { return null; }
 }
-// Pick an attempt back up exactly where it was: the answers as saved, the
-// page it was on and the ORIGINAL deadline. If the time ran out while the
-// trainee was away (power cut, closed tab, signed out), the saved answers
-// are submitted now.
-function examResumeDraft(d) {
+// The trainee's attempt at one exam, wherever it was last saved — this PC's
+// copy and the shared one, as ONE attempt ({ attempt, ids }) — or null when
+// none is in progress. Submitted anywhere: this PC's copy is retired too, so
+// it is never offered again.
+function examCurrentAttempt(studentId, examId) {
+  if (!studentId || !examId) return null;
+  var X = CESTISCore.exams;
+  var local = examLoadDraft(studentId, examId);
+  var list = X.mergeAttemptLists(Array.isArray(examAttempts) ? examAttempts : [], local ? [local] : []).list;
+  try { X.settleAttempts(list, examResults); } catch (e) {}
+  var found = X.attemptFor(list, studentId, examId);
+  if (!found && local) examRetireLocalDraft(local, list);
+  return found;
+}
+function examRetireLocalDraft(d, list) {
+  var X = CESTISCore.exams;
+  var stub = (list || []).find(function(a) { return a && String(a.id) === String(d.id) && X.attemptIsRetired(a); }) || X.retireAttempt(d, null);
+  try { CESTISStore.setItem(X.draftKey(d.studentId, d.examId), JSON.stringify(stub)); } catch (e) {}
+}
+// The attempt as a record: what is saved here and shared.
+function examAttemptRecord(s) {
+  var at = new Date(examStampNow()).toISOString();
+  return {
+    id: s.attemptId, examId: s.examId, studentId: s.studentId, studentName: s.studentName,
+    title: s.title, duration: s.duration, passMark: s.passMark, instructions: s.instructions || '', course: s.course || '',
+    questions: s.questions, answers: s.answers, flagged: s.flagged, answeredAt: s.answeredAt, flaggedAt: s.flaggedAt,
+    startTime: s.startTime, deadline: s.deadline, perPage: s.perPage || 0, page: s.page || 0, current: s.current || 0,
+    posAt: s.posAt || 0, allowFlag: s.allowFlag !== false, status: 'open', updatedAt: at, savedAt: at
+  };
+}
+// Put attempt records into the shared list: read from the store first (another
+// window may have written since), merged record by record, never replaced.
+function examAttemptsUpsert(recs) {
+  var X = CESTISCore.exams;
+  var stored = safeJsonParse(CESTISStore.getItem('voctrain_examAttempts'), null);
+  var out = X.mergeAttemptLists(Array.isArray(stored) ? stored : [], Array.isArray(examAttempts) ? examAttempts : []).list;
+  if (recs && recs.length) out = X.mergeAttemptLists(out, recs).list;
+  examAttempts = out;
+  if ((stored || out.length) && JSON.stringify(out) !== CESTISStore.getItem('voctrain_examAttempts')) { try { saveCollection('voctrain_examAttempts', out); } catch (e) {} }
+}
+function examAttemptsPersist() { examAttemptsUpsert([]); }
+// Attempts that arrived from another device or window (a sync, the Centre's
+// network, another tab): merged in, settled by any result that arrived, and
+// the attempt on this screen follows.
+function examAttemptsMergeIncoming(incoming) {
+  if (!Array.isArray(incoming) || !window.CESTISCore || !CESTISCore.exams) return false;
+  var X = CESTISCore.exams;
+  var r = X.mergeAttemptLists(Array.isArray(examAttempts) ? examAttempts : [], incoming);
+  examAttempts = r.list;
+  var settled = 0;
+  try { settled = X.settleAttempts(examAttempts, examResults); } catch (e) {}
+  if (r.changed || settled) { try { saveCollection('voctrain_examAttempts', examAttempts); } catch (e) {} }
+  try { examAttemptsArrived('device'); } catch (e) {}
+  return !!(r.changed || settled);
+}
+// At sign-in: every attempt saved on this PC (anyone's — a power cut, a
+// sign-out, a kick-out) goes back into the shared list, so whoever signs in
+// here next sends it on. The PC's own copies are what a sign-out never trims.
+function examAttemptsRestoreFromDrafts() {
+  var X = CESTISCore.exams, recs = [];
+  (CESTISStore.keys ? CESTISStore.keys() : []).forEach(function(k) {
+    if (String(k).indexOf(X.DRAFT_PREFIX) !== 0) return;
+    var raw = safeJsonParse(CESTISStore.getItem(k), null);
+    if (!raw || X.attemptIsRetired(raw)) return;
+    var d = examLoadDraft(raw.studentId, raw.examId);
+    if (d) recs.push(d);
+  });
+  if (recs.length) examAttemptsUpsert(recs);
+  try { examAttemptsArrived('device'); } catch (e) {}
+}
+// This PC's copies of attempts that are over (submitted here or anywhere, or
+// settled by a result) are retired, so nobody is ever offered them again.
+function examRetireStaleDrafts() {
+  var X = CESTISCore.exams;
+  (CESTISStore.keys ? CESTISStore.keys() : []).forEach(function(k) {
+    if (String(k).indexOf(X.DRAFT_PREFIX) !== 0) return;
+    var raw = safeJsonParse(CESTISStore.getItem(k), null);
+    if (!raw || X.attemptIsRetired(raw) || !raw.studentId || !raw.examId) return;
+    var d = examLoadDraft(raw.studentId, raw.examId);
+    if (!d) return;
+    var list = X.mergeAttemptLists(Array.isArray(examAttempts) ? examAttempts : [], [d]).list;
+    try { X.settleAttempts(list, examResults); } catch (e) {}
+    var mine = list.find(function(a) { return a && String(a.id) === String(d.id); });
+    if (mine && X.attemptIsRetired(mine)) { try { CESTISStore.setItem(k, JSON.stringify(mine)); } catch (e) {} }
+  });
+}
+// Something about the attempts changed elsewhere: retire what is over, and
+// bring the attempt on this screen up to date (or close it, if it was
+// submitted on another device or in another window).
+function examAttemptsArrived(where) {
+  if (!window.CESTISCore || !CESTISCore.exams) return;
+  var X = CESTISCore.exams;
+  try { if (X.settleAttempts(examAttempts, examResults)) saveCollection('voctrain_examAttempts', examAttempts); } catch (e) {}
+  try { examRetireStaleDrafts(); } catch (e) {}
+  var s = currentExamSession;
+  if (!s || _isExamPreviewMode || !s.attemptId) return;
+  var ids = s.alsoIds || [String(s.attemptId)];
+  var gone = (examAttempts || []).find(function(a) { return a && ids.indexOf(String(a.id)) !== -1 && X.attemptIsRetired(a); });
+  var stub = examReadDraftRaw(s.studentId, s.examId);
+  if (!gone && stub && X.attemptIsRetired(stub) && ids.indexOf(String(stub.id)) !== -1) gone = stub;
+  if (gone) { examAttemptEndedElsewhere(gone, examSubmittedHere(gone, ids) ? 'window' : where); return; }
+  var found = X.attemptFor(X.mergeAttemptLists(examAttempts || [], [examAttemptRecord(s)]).list, s.studentId, s.examId);
+  if (found && examAdoptAttempt(found.attempt, found.ids, where)) autoSaveExamProgress();
+}
+// Was the attempt submitted on THIS computer (in another window)? Its result
+// then waits in this PC's outbox until the shared copy is seen to hold it.
+// (The result reaches the other window before the attempt's closing does.)
+function examSubmittedHere(stub, ids) {
+  var rid = stub && stub.resultId;
+  try {
+    return examOutboxRead().some(function(r) {
+      return !!r && ((rid != null && r.id === rid) || (r.attemptId != null && (ids || []).indexOf(String(r.attemptId)) !== -1));
+    });
+  } catch (e) { return false; }
+}
+// Answers that reached this attempt from elsewhere are put on the screen
+// (the trainee's own newer answers stay: the merge keeps the newest of each).
+// Returns true when anything changed.
+function examAdoptAttempt(rec, ids, where) {
+  var s = currentExamSession;
+  if (!s || !rec || !Array.isArray(rec.answers)) return false;
+  var other = String(rec.id) !== String(s.attemptId) ||
+    rec.questions.length !== s.questions.length || rec.questions.some(function(q, i) { return String(q && q.id) !== String(s.questions[i] && s.questions[i].id); });
+  var changed = other;
+  if (!other) {
+    for (var i = 0; i < rec.answers.length && !changed; i++) {
+      if (JSON.stringify(rec.answers[i] === undefined ? null : rec.answers[i]) !== JSON.stringify(s.answers[i] === undefined ? null : s.answers[i])) changed = true;
+      else if (!!(rec.flagged && rec.flagged[i]) !== !!(s.flagged && s.flagged[i])) changed = true;
+    }
+  }
+  var earlier = Number(rec.deadline) > 0 && Number(rec.deadline) < Number(s.deadline);
+  s.alsoIds = s.alsoIds || [String(s.attemptId)];
+  (ids || []).forEach(function(id) { if (s.alsoIds.indexOf(String(id)) === -1) s.alsoIds.push(String(id)); });
+  if (!changed && !earlier) return false;
+  if (other) {
+    // Two PCs had each started this test: it is one attempt now — the one
+    // started first, with the newest answer to each question from both.
+    s.attemptId = rec.id; s.questions = rec.questions; s.startTime = rec.startTime;
+    s.page = rec.page || 0; s.current = rec.current || 0; s.posAt = rec.posAt || 0;
+    if (s.alsoIds.indexOf(String(rec.id)) === -1) s.alsoIds.push(String(rec.id));
+  }
+  s.answers = rec.answers.slice(); s.flagged = (rec.flagged || []).slice();
+  s.answeredAt = (rec.answeredAt || []).slice(); s.flaggedAt = (rec.flaggedAt || []).slice();
+  if (earlier) { s.deadline = Number(rec.deadline); s.timeRemaining = Math.max(0, Math.ceil((s.deadline - Date.now()) / 1000)); }
+  if (changed) {
+    s._note = where === 'window'
+      ? 'This test is also open in another window. Your answers are kept: the newest answer to each question is used.'
+      : 'This test was continued on another device. Your answers are kept: the newest answer to each question is used.';
+    if (s.view !== 'summary') examRedrawKeepingFocus(); else renderExamTaking();
+  }
+  return true;
+}
+// Redraw the attempt without losing the trainee's place in what they are typing.
+function examRedrawKeepingFocus() {
+  var a = document.activeElement, id = a && a.id, st = null, en = null;
+  try { if (a && typeof a.selectionStart === 'number') { st = a.selectionStart; en = a.selectionEnd; } } catch (e) {}
+  renderExamTaking();
+  if (!id) return;
+  var b = document.getElementById(id);
+  if (!b || !b.focus) return;
+  try { b.focus({ preventScroll: true }); } catch (e) { b.focus(); }
+  try { if (st != null && typeof b.setSelectionRange === 'function') b.setSelectionRange(st, en); } catch (e) {}
+}
+function examDismissNote() {
+  var s = currentExamSession;
+  if (s) s._note = null;
+  var n = document.getElementById('examElsewhereNote');
+  if (n && n.parentNode) n.parentNode.removeChild(n);
+}
+// The attempt on this screen was submitted on another device or in another
+// window: this one stops, says so, and shows that one result.
+function examAttemptEndedElsewhere(stub, where) {
+  var s = currentExamSession;
+  if (!s) return;
+  if (examTimerInterval) { clearInterval(examTimerInterval); examTimerInterval = null; }
+  if (_examDraftTimer) { clearTimeout(_examDraftTimer); _examDraftTimer = null; }
+  if (_examPublishTimer) { clearTimeout(_examPublishTimer); _examPublishTimer = null; }
+  examCloseConfirm();
+  currentExamSession = null;
+  var X = CESTISCore.exams;
+  var retired = X.attemptIsRetired(stub) ? stub : X.retireAttempt({ id: s.attemptId, examId: s.examId, studentId: s.studentId, startTime: s.startTime, deadline: s.deadline }, stub && stub.resultId, stub && stub.submittedAt);
+  try { CESTISStore.setItem(X.draftKey(s.studentId, s.examId), JSON.stringify(retired)); } catch (e) {}
+  var text = where === 'window'
+    ? 'This test was submitted in another window. Your answers are kept with the result.'
+    : 'This test was submitted on another device. Your answers are kept with the result.';
+  var result = examResultFor(s.studentId, s.examId);
+  var exam = (exams || []).find(function(x) { return x && x.id === s.examId; }) || null;
+  if (result && currentStudent && currentStudent.id === s.studentId) { showExamResult(result, exam, text); return; }
+  var take = document.getElementById('studentExamTakingView');
+  if (take) take.style.display = 'none';
+  var list = document.getElementById('studentExamListView');
+  if (list) list.style.display = 'block';
+  try { renderStudentExams(); } catch (e) {}
+  examListNote(text + ' The result will show here as soon as it reaches this computer.');
+}
+// A note at the top of My Exams.
+function examListNote(text) {
+  var list = document.getElementById('studentExamListView');
+  if (!list) return;
+  var old = document.getElementById('examListNote');
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+  if (!text) return;
+  var d = document.createElement('div');
+  d.className = 'exam-note'; d.id = 'examListNote'; d.setAttribute('role', 'status');
+  d.innerHTML = '<span class="exam-note-text">' + escapeHtml(text) + '</span>';
+  list.insertBefore(d, list.firstChild);
+}
+// The trainee's live result for an exam, from this page or (another window
+// may have just written it) the store.
+function examResultFor(studentId, examId) {
+  var live = function(r) { return r && !r.archived && r.examId === examId && r.studentId === studentId; };
+  var r = (examResults || []).find(live);
+  if (r) return r;
+  var stored = safeJsonParse(CESTISStore.getItem('voctrain_examResults'), []);
+  r = Array.isArray(stored) ? stored.find(live) : null;
+  if (r && Array.isArray(examResults)) examResults.push(r);
+  return r || null;
+}
+// Pick an attempt back up exactly where it was: the answers as saved (on this
+// PC or another), the page it was on and the ORIGINAL deadline. If the time
+// ran out while the trainee was away (power cut, closed tab, signed out), the
+// saved answers are submitted now — once — and the result says so.
+function examResumeDraft(d, ids) {
+  var n = d.questions.length;
   currentExamSession = {
+    attemptId: d.id, alsoIds: (ids && ids.length ? ids : [d.id]).map(String),
     examId: d.examId, title: d.title, duration: d.duration, passMark: d.passMark, instructions: d.instructions || '',
     questions: d.questions, answers: d.answers, flagged: d.flagged,
+    answeredAt: Array.isArray(d.answeredAt) ? d.answeredAt.slice() : new Array(n).fill(0),
+    flaggedAt: Array.isArray(d.flaggedAt) ? d.flaggedAt.slice() : new Array(n).fill(0),
     startTime: d.startTime, deadline: d.deadline,
     timeRemaining: Math.max(0, Math.ceil((d.deadline - Date.now()) / 1000)),
     studentId: d.studentId, studentName: d.studentName,
-    course: d.course || '', perPage: d.perPage || 0, page: d.page || 0, current: d.current || 0,
+    course: d.course || '', perPage: d.perPage || 0, page: d.page || 0, current: d.current || 0, posAt: d.posAt || 0,
     allowFlag: d.allowFlag !== false, view: 'attempt'
   };
   if (Date.now() >= d.deadline) {
-    alert('Time ran out on "' + d.title + '" while you were away. The answers saved on this computer are being submitted now.');
-    submitExam(true);
+    submitExam(true, { away: true });
     return;
   }
+  // This PC's own copy was older than the shared one: she carried on
+  // elsewhere. Say so, calmly — nothing she answered here is lost.
+  var mine = examLoadDraft(d.studentId, d.examId);
+  if (mine && (JSON.stringify(mine.answers) !== JSON.stringify(d.answers) || JSON.stringify(mine.flagged) !== JSON.stringify(d.flagged))) {
+    currentExamSession._note = 'This test was continued on another device. Your answers are kept: the newest answer to each question is used.';
+  }
+  autoSaveExamProgress();
+  examPublishNow();
   examShowTakingView();
   renderExamTaking();
   startExamTimer();
   showToast('Exam resumed: your answers were restored. The clock kept running while you were away.');
 }
-function examHasDraftFor(studentId) {
-  var prefix = CESTISCore.exams.DRAFT_PREFIX + String(studentId) + '__';
-  for (var i = 0; i < CESTISStore.length; i++) { var k = CESTISStore.key(i); if (k && k.indexOf(prefix) === 0) return true; }
-  return false;
+// The trainee's tests in progress, on this PC or shared: one entry per exam
+// ({ attempt, ids } as examCurrentAttempt gives it).
+function examOpenAttemptsFor(studentId) {
+  var X = CESTISCore.exams, prefix = X.DRAFT_PREFIX + String(studentId) + '__', pairs = {};
+  (CESTISStore.keys ? CESTISStore.keys() : []).forEach(function(k) {
+    if (String(k).indexOf(prefix) !== 0) return;
+    var raw = safeJsonParse(CESTISStore.getItem(k), null);
+    if (raw && X.attemptIsOpen(raw)) pairs[raw.examId] = 1;
+  });
+  (examAttempts || []).forEach(function(a) { if (a && String(a.studentId) === String(studentId) && X.attemptIsOpen(a)) pairs[a.examId] = 1; });
+  return Object.keys(pairs).map(function(examId) { return examCurrentAttempt(studentId, examId); }).filter(Boolean);
 }
+// Is a test in progress for this trainee, on this PC or shared? running:
+// only one whose clock has not run out yet.
+function examHasDraftFor(studentId, running) {
+  return examOpenAttemptsFor(studentId).some(function(cur) { return !running || Number(cur.attempt.deadline) > Date.now(); });
+}
+// After the sign-in sync: a test whose time ran out while the trainee was
+// away (a power cut, a closed tab, a sign-out, a session that ran out) is
+// submitted now — once, with the answers saved for her — and she is shown
+// the result with a note saying so. It used to wait on My Exams as "Submit
+// saved answers" until she pressed it: a trainee who never did had no
+// result at all, and the sign-in told her "the clock is still running".
+// At the trainee's sign-in, once the sign-in sync is done: a test whose time
+// ran out is submitted; one still running is pointed out. This used to be
+// said as the pages were built, from this PC's own copy, before the sync: a
+// PC coming back after she had finished the test elsewhere told her "You
+// have a test in progress ... the clock is still running" over a My Exams
+// that said Completed a moment later.
+function examAfterSignIn() {
+  var s = currentStudent;
+  if (!s || currentRole !== 'student' || currentExamSession) return;
+  try { examOutboxSendOnLan(); } catch (e) {}   // a result left waiting by an earlier session
+  if (examSubmitExpiredAttempts()) return;
+  if (examHasDraftFor(s.id, true)) showToast('You have a test in progress. Open My Exams and choose Continue your attempt: the clock is still running.', 'warning');
+}
+function examSubmitExpiredAttempts() {
+  var me = currentStudent;
+  if (!me || currentRole !== 'student' || currentExamSession || _isExamPreviewMode) return 0;
+  var due = examOpenAttemptsFor(me.id).filter(function(cur) { var t = Number(cur.attempt.deadline); return t > 0 && Date.now() >= t; });
+  if (!due.length) return 0;
+  try { showPage('s-exams'); } catch (e) {}
+  var n = 0;
+  due.forEach(function(cur) {
+    if (currentExamSession || !currentStudent || currentStudent.id !== me.id) return;
+    examResumeDraft(cur.attempt, cur.ids);   // the deadline has passed: submitted, with the note
+    n++;
+  });
+  return n;
+}
+// Moving between pages is saved a moment later (0.3 s, and at least every
+// 1.5 s while it goes on); an answer — a choice or a key typed — at once
+// (examSaveDraftNow). Answers used to wait for a 0.8 s pause, so a trainee
+// typing an essay without pausing was saved only by the 15-second clock, and
+// a browser crash lost what she had typed since.
+var _examDraftFirstAt = 0;
 function examSaveDraftSoon() {
-  if (_examDraftTimer) clearTimeout(_examDraftTimer);
-  _examDraftTimer = setTimeout(function() { _examDraftTimer = null; autoSaveExamProgress(); }, 800);
+  var now = Date.now();
+  if (_examDraftTimer) clearTimeout(_examDraftTimer); else _examDraftFirstAt = now;
+  var wait = Math.max(0, Math.min(300, 1500 - (now - _examDraftFirstAt)));
+  _examDraftTimer = setTimeout(function() { _examDraftTimer = null; autoSaveExamProgress(); }, wait);
+}
+function examSaveDraftNow() {
+  if (_examDraftTimer) { clearTimeout(_examDraftTimer); _examDraftTimer = null; }
+  autoSaveExamProgress();
+}
+// The shared copy: within EXAM_PUBLISH_MS of a change (the first change at
+// once), and immediately on leaving the page, signing out and submitting.
+var EXAM_PUBLISH_MS = 30000, _examPublishTimer = null, _examLastPublish = 0;
+function examPublishSoon() {
+  if (_examPublishTimer) return;
+  var wait = Math.max(0, EXAM_PUBLISH_MS - (Date.now() - _examLastPublish));
+  if (!wait) { examPublishNow(); return; }
+  _examPublishTimer = setTimeout(function() { _examPublishTimer = null; examPublishNow(); }, wait);
+}
+function examPublishNow() {
+  if (_examPublishTimer) { clearTimeout(_examPublishTimer); _examPublishTimer = null; }
+  var s = currentExamSession;
+  if (!s || _isExamPreviewMode || !s.studentId || !s.attemptId) return;
+  _examLastPublish = Date.now();
+  var rec = examLoadDraft(s.studentId, s.examId);
+  if (!rec) return;
+  try { examAttemptsUpsert([rec]); } catch (e) {}
+  // Sent with the next sync (online); on the Centre's network the store
+  // write itself is sent on.
+  try { scheduleDebouncedCloudSave(); } catch (e) {}
 }
 function examSubmitSummaryHtml(answered, total) {
   return answered + ' of ' + total + ' questions answered' + ((total - answered) > 0 ? ' &mdash; <strong style="color:var(--accent);">' + (total - answered) + ' unanswered</strong>' : '');
@@ -27866,22 +28271,46 @@ function examEndSessionForSignOut(askFirst) {
     currentExamSession = null;
     return true;
   }
-  if (askFirst && !confirm('You are in the middle of an exam. Your answers are saved on this computer and the exam clock keeps running.\n\nSign in again before the time runs out to carry on. Sign out now?')) return false;
+  if (askFirst && !confirm('You are in the middle of an exam. Your answers are saved, and will follow you if you sign in on another computer. The exam clock keeps running.\n\nSign in again before the time runs out to carry on. Sign out now?')) return false;
   autoSaveExamProgress();
+  examPublishNow();
   if (examTimerInterval) { clearInterval(examTimerInterval); examTimerInterval = null; }
   if (_examDraftTimer) { clearTimeout(_examDraftTimer); _examDraftTimer = null; }
+  if (_examPublishTimer) { clearTimeout(_examPublishTimer); _examPublishTimer = null; }
   currentExamSession = null;
   return true;
 }
-// A reload, a closed tab or a phone killing the page: save first, and ask.
-window.addEventListener('beforeunload', function(ev) {
+// A reload, a closed tab or a phone killing the page: save first (here and
+// shared), and ask.
+function examSaveOnLeaving() {
   if (!currentExamSession || _isExamPreviewMode) return;
   autoSaveExamProgress();
+  examPublishNow();
+}
+window.addEventListener('beforeunload', function(ev) {
+  if (!currentExamSession || _isExamPreviewMode) return;
+  examSaveOnLeaving();
   ev.preventDefault();
   ev.returnValue = '';
 });
-window.addEventListener('pagehide', function() { if (currentExamSession && !_isExamPreviewMode) autoSaveExamProgress(); });
-document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'hidden' && currentExamSession && !_isExamPreviewMode) autoSaveExamProgress(); });
+window.addEventListener('pagehide', examSaveOnLeaving);
+document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'hidden') examSaveOnLeaving(); });
+// The same attempt open in a second window (a second tab, the page opened
+// twice): every save there is seen here at once, so this window shows the
+// newest answers and never writes an older copy back over them — and a
+// submission there closes the attempt here instead of submitting it twice.
+window.addEventListener('storage', function(e) {
+  var s = currentExamSession;
+  if (!e || !e.key || !s || _isExamPreviewMode || !s.studentId) return;
+  if (e.key !== CESTISCore.exams.draftKey(s.studentId, s.examId)) return;
+  var d = safeJsonParse(e.newValue, null);
+  if (!d || typeof d !== 'object') return;
+  var X = CESTISCore.exams, ids = s.alsoIds || [String(s.attemptId)];
+  if (X.attemptIsRetired(d)) { if (ids.indexOf(String(d.id)) !== -1) examAttemptEndedElsewhere(d, 'window'); return; }
+  if (!X.attemptIsOpen(d) || d.studentId !== s.studentId || d.examId !== s.examId) return;
+  var merged = X.mergeAttempt(examAttemptRecord(s), d);
+  examAdoptAttempt(merged, [String(d.id)], 'window');
+});
 
 // ---- Submitted results this device has not yet seen in the cloud ----
 // A trainee's sign-out keeps only that trainee's rows on the PC, and a staff
@@ -27894,6 +28323,10 @@ function examOutboxRead() {
 }
 function examOutboxWrite(list) {
   try { if (list.length) CESTISStore.setItem(EXAM_OUTBOX_KEY, JSON.stringify(list)); else CESTISStore.removeItem(EXAM_OUTBOX_KEY); } catch (e) {}
+  // The top bar's chip says at once whether her result is waiting to be sent
+  // (it refreshes every 3 seconds, and said "All saved" beside the note
+  // "your result will be sent ... when it is back online").
+  try { if (typeof refreshSyncChip === 'function') refreshSyncChip(); } catch (e) {}
 }
 function examOutboxAdd(result) { examOutboxWrite(CESTISCore.exams.outboxAdd(examOutboxRead(), result)); }
 // Put any not-yet-uploaded result back into the list after a sign-out trimmed it.
@@ -27901,6 +28334,26 @@ function examOutboxRestore() {
   var list = examOutboxRead();
   if (!list.length || !Array.isArray(examResults)) return 0;
   return CESTISCore.exams.outboxRestore(examResults, list);
+}
+// On the Centre's own network: send now, and once the Centre's server holds
+// this PC's waiting results, let them go (the top bar then says All saved).
+// They used to wait for a download of the online backup, which never comes
+// on that network, so a trainee's top bar said "Waiting to send" after every
+// test. The results are noted from the store before the push collects it.
+function examOutboxSendOnLan() {
+  try {
+    if (!window.CESTISPageCloud || typeof CESTISPageCloud.lan !== 'function' || !examOutboxRead().length) return Promise.resolve(false);
+  } catch (e) { return Promise.resolve(false); }
+  return CESTISPageCloud.lan().then(function(on) {
+    if (!on) return false;
+    var stored = safeJsonParse(CESTISStore.getItem('voctrain_examResults'), []);
+    var ids = (Array.isArray(stored) ? stored : []).filter(function(r) { return r && r.id != null; }).map(function(r) { return { id: r.id }; });
+    return CESTISPageCloud.saveNow().then(function(res) {
+      var ok = Array.isArray(res) && res.length > 0 && res.every(function(x) { return x === true; });
+      if (ok) examOutboxConfirm(ids);
+      return ok;
+    });
+  }).catch(function() { return false; });
 }
 // The cloud copy holds them now: safe to let them go.
 function examOutboxConfirm(cloudResults) {
@@ -27915,15 +28368,42 @@ function examTraineeUserId(studentId) {
   return u ? u.id : null;
 }
 
+// Before a FRESH attempt, the latest from the Centre (a few seconds at most):
+// this trainee may have started this test on another PC that has since died.
+async function examPullBeforeStart() {
+  var job = (async function() {
+    if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) { await CESTISPageCloud.loadNow(); return; }
+    if (isCloudConnected && googleAccessToken && navigator.onLine !== false) await pullMainIfRemoteNewer();
+  })().catch(function() {});
+  await Promise.race([job, new Promise(function(r) { setTimeout(r, 8000); })]);
+}
+// Can this page ask the Centre for the latest at all (the Centre's network,
+// or a connected sync)? Where it cannot, a fresh attempt starts at once.
+function examCanAskCentre() {
+  if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function') return true;
+  return typeof isCloudConnected !== 'undefined' && !!isCloudConnected && typeof googleAccessToken !== 'undefined' && !!googleAccessToken;
+}
 function startStudentExam(examIdx) {
   var e = examFind(examIdx);
   if(!e) { alert('Exam not found.'); return; }
   var me = currentStudent;
   if(!me) return;
-  // An attempt already under way on this device is RESUMED — its answers and
-  // its original clock — never restarted with a fresh full timer.
-  var draft = examLoadDraft(me.id, e.id);
-  if(draft) { examResumeDraft(draft); return; }
+  // An attempt already under way — on this PC or, shared, on another — is
+  // CONTINUED: its answers and its original clock, never a fresh second
+  // attempt with a full new timer.
+  var cur = examCurrentAttempt(me.id, e.id);
+  if(cur) { examResumeDraft(cur.attempt, cur.ids); return; }
+  if(examResultFor(me.id, e.id)) { alert('You have already taken this exam.'); return; }
+  if(!examCanAskCentre()) return examStartFresh(e, me);
+  return examPullBeforeStart().then(function() {
+    if(currentStudent !== me || currentExamSession) return;
+    var again = examCurrentAttempt(me.id, e.id);
+    if(again) { examResumeDraft(again.attempt, again.ids); return; }
+    examStartFresh(e, me);
+  });
+}
+// A new attempt: the exam's checks, the trainee's go-ahead, and a clock.
+function examStartFresh(e, me) {
   if(!e.questionData || e.questionData.length === 0) { alert('This exam has no questions yet.'); return; }
   if(!(e.course === me.course || instructorCourseMatch(e.course, me.course))) { alert('This exam is not part of your programme.'); return; }
   if(examStatusNow(e) !== 'active') { alert('This exam is not open right now.'); return; }
@@ -27949,7 +28429,8 @@ function startStudentExam(examIdx) {
   var nQuestions = e.questionData.filter(function(q){ return !(q && q.type === 'info'); }).length;
   if(!confirm('Start "'+e.title+'"?\n\n' + (e.instructions ? 'Instructions: ' + e.instructions + '\n\n' : '') +
     'Time: ' + (mins < full ? mins + ' minutes (the exam window closes then)' : full + ' minutes') +
-    '\nQuestions: '+nQuestions+'\nPass Mark: '+e.passMark+'%\n\nThe timer starts immediately and keeps running if you leave or sign out. Are you ready?')) return;
+    '\nQuestions: '+nQuestions+'\nPass Mark: '+e.passMark+'%\n\nThe timer starts immediately and keeps running if you leave or sign out. Your answers are saved as you go, and will follow you if you sign in on another computer. Are you ready?')) return;
+  if(currentExamSession) return;
 
   // The trainee's copy of the questions carries no answer keys: the attempt
   // (and the draft saved from it) never holds them. Marking looks the keys up
@@ -27957,7 +28438,11 @@ function startStudentExam(examIdx) {
   // when the exam says so; an option's ORIGINAL position is what is recorded.
   var questions = CESTISCore.exams.attemptQuestions(e.questionData, { shuffleQuestions: !!e.shuffleQuestions, shuffleOptions: !!e.shuffleOptions });
 
+  var attemptId = cestisGenId('ATT-');
   currentExamSession = {
+    // The attempt's own id: every copy of it, on any PC, is this attempt.
+    attemptId: attemptId,
+    alsoIds: [attemptId],
     examId: e.id,
     title: e.title,
     duration: e.duration,
@@ -27966,6 +28451,11 @@ function startStudentExam(examIdx) {
     questions: questions,
     answers: new Array(questions.length).fill(null),
     flagged: new Array(questions.length).fill(false),
+    // When each answer and flag last changed: two copies of the attempt are
+    // merged question by question, the newest winning.
+    answeredAt: new Array(questions.length).fill(0),
+    flaggedAt: new Array(questions.length).fill(0),
+    posAt: 0,
     startTime: now,
     deadline: deadline,
     timeRemaining: secs,
@@ -27982,6 +28472,7 @@ function startStudentExam(examIdx) {
     view: 'attempt'
   };
   autoSaveExamProgress();
+  examPublishNow();   // shared at once: another PC must never start a second attempt
   examShowTakingView();
   renderExamTaking();
   startExamTimer();
@@ -28187,7 +28678,7 @@ function examAnswerHtml(q, i, ans) {
       + (num ? ' inputmode="decimal"' : '') + ' autocomplete="off" spellcheck="false" aria-describedby="examQText-' + i + '" oninput="selectExamAnswer(' + i + ',this.value)">'
       + (num && q.unit ? ' <span class="exam-unit">' + escapeHtml(q.unit) + '</span>' : '') + '</div>';
   } else if(q.type === 'short') {
-    html += '<textarea class="exam-short-textarea" placeholder="Write your answer here..." aria-labelledby="examQNo-' + i + ' examQText-' + i + '" oninput="selectExamAnswer(' + i + ',this.value)">' + escapeHtml(ans || '') + '</textarea>';
+    html += '<textarea class="exam-short-textarea" id="examAns-' + i + '" placeholder="Write your answer here..." aria-labelledby="examQNo-' + i + ' examQText-' + i + '" oninput="selectExamAnswer(' + i + ',this.value)">' + escapeHtml(ans || '') + '</textarea>';
   }
   return html;
 }
@@ -28217,6 +28708,8 @@ function renderExamTaking() {
   html += '<div class="exam-attempt-layout">';
   html += examNavPanelHtml(s, onPage);
   html += '<div class="exam-attempt-main" id="examAttemptMain">';
+  // This test was continued on another device or in another window.
+  if(s._note) html += '<div class="exam-note" id="examElsewhereNote" role="status"><span class="exam-note-text">' + escapeHtml(s._note) + '</span><button type="button" class="btn btn-sm btn-secondary" onclick="examDismissNote()">OK</button></div>';
   // The instructions staff wrote for this exam (they used to reach nobody).
   if(s.instructions) {
     html += '<details class="exam-instructions"' + (s.page === 0 ? ' open' : '') + '><summary>Instructions</summary><div class="exam-instructions-body">' + escapeHtml(s.instructions) + '</div></details>';
@@ -28243,6 +28736,7 @@ function examSetCurrent(qIdx) {
   if(!s || s.current === qIdx) return;
   var prev = s.current;
   s.current = qIdx;
+  s.posAt = examStampNow();   // where the trainee is: another device opens here
   [prev, qIdx].forEach(examRefreshNavBox);
 }
 function examRefreshNavBox(i) {
@@ -28261,6 +28755,7 @@ function examGoTo(qIdx) {
   if(!s || qIdx < 0 || qIdx >= s.questions.length) return;
   var p = examPageOf(s, qIdx);
   s.current = qIdx;
+  s.posAt = examStampNow();
   // On a phone the strip folds away again, so the question is in view.
   if(s._navOpen && typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width:760px)').matches) {
     s._navOpen = false;
@@ -28293,6 +28788,7 @@ function examGoPage(p) {
   s.view = 'attempt';
   s.page = p;
   s.current = (pages[p] || [0])[0];
+  s.posAt = examStampNow();
   renderExamTaking();
   examSaveDraftSoon();
   var view = examTakingView();
@@ -28508,6 +29004,8 @@ function examSetMatch(qIdx, row, value) {
 function examAnswerChanged(qIdx) {
   var s = currentExamSession;
   if(!s) return;
+  // When this answer changed: two copies of the attempt keep the newest.
+  if(Array.isArray(s.answeredAt)) s.answeredAt[qIdx] = examStampNow();
   var st = document.getElementById('examQState-' + qIdx);
   if(st) st.textContent = examStateText(s.questions[qIdx], s.answers[qIdx]);
   if(s.current !== qIdx) examSetCurrent(qIdx); else examRefreshNavBox(qIdx);
@@ -28515,13 +29013,16 @@ function examAnswerChanged(qIdx) {
   var tc = document.getElementById('examNavToggleCount');
   if(tc) tc.textContent = counts.answered + '/' + counts.total;
   examUpdateProgress();
-  examSaveDraftSoon();
+  // Saved on this computer at once — a choice and every key typed — so a
+  // crash or a power cut loses nothing that was answered.
+  examSaveDraftNow();
 }
 
 function toggleExamFlag(qIdx) {
   var s = currentExamSession;
   if(!s) return;
   s.flagged[qIdx] = !s.flagged[qIdx];
+  if(Array.isArray(s.flaggedAt)) s.flaggedAt[qIdx] = examStampNow();
   var on = s.flagged[qIdx];
   var card = document.getElementById('examQ-'+qIdx);
   var btn = document.getElementById('examFlag-'+qIdx);
@@ -28535,7 +29036,7 @@ function toggleExamFlag(qIdx) {
   } else {
     renderExamTaking();
   }
-  examSaveDraftSoon();
+  examSaveDraftNow();
 }
 
 // Kept for anything that still asks to scroll to a question.
@@ -28547,17 +29048,26 @@ function autoSaveExamProgress() {
   // attempt holds no answer keys, so neither does what is saved.
   var s = currentExamSession;
   if(!s || _isExamPreviewMode || !s.studentId) return;
+  if(!s.attemptId) s.attemptId = 'ATT-' + String(s.studentId) + '-' + String(s.examId) + '-' + String(s.startTime || 0);
+  var X = CESTISCore.exams;
   try {
-    CESTISStore.setItem(CESTISCore.exams.draftKey(s.studentId, s.examId), JSON.stringify({
-      examId: s.examId, title: s.title, duration: s.duration, passMark: s.passMark, instructions: s.instructions || '',
-      questions: s.questions, answers: s.answers, flagged: s.flagged,
-      startTime: s.startTime, deadline: s.deadline, studentId: s.studentId, studentName: s.studentName,
-      course: s.course || '', perPage: s.perPage || 0, page: s.page || 0, current: s.current || 0, allowFlag: s.allowFlag !== false,
-      savedAt: new Date().toISOString()
-    }));
+    // What is stored may be newer than this window: another window saved
+    // since, or the attempt was submitted there. A submitted attempt is never
+    // written back; another window's newer answers are kept, question by
+    // question — this window's older copy used to replace them whole.
+    var stored = examReadDraftRaw(s.studentId, s.examId);
+    var ids = s.alsoIds || [String(s.attemptId)];
+    if(stored && X.attemptIsRetired(stored) && ids.indexOf(String(stored.id)) !== -1) { examAttemptEndedElsewhere(stored, 'window'); return; }
+    var rec = examAttemptRecord(s);
+    if(stored && X.attemptIsOpen(stored) && stored.studentId === s.studentId && stored.examId === s.examId) {
+      rec = X.mergeAttempt(rec, stored);
+      if(examAdoptAttempt(rec, [String(stored.id)], 'window')) rec = X.mergeAttempt(examAttemptRecord(currentExamSession), rec);
+    }
+    CESTISStore.setItem(X.draftKey(s.studentId, s.examId), JSON.stringify(rec));
     // The old single slot held the whole session, answer keys included.
     CESTISStore.removeItem('voctrain_examInProgress');
   } catch(e) {}
+  examPublishSoon();
 }
 
 // Anything that still asks to submit gets the same on-page question as
@@ -28567,11 +29077,15 @@ function confirmSubmitExam() {
   examConfirmSubmit();
 }
 
-function submitExam(auto) {
+// opts.away: the time ran out while the trainee was away; the saved answers
+// are submitted on their return, and the result says so.
+function submitExam(auto, opts) {
+  opts = opts || {};
   var s = currentExamSession;
   if(!s) return;
   if(examTimerInterval) { clearInterval(examTimerInterval); examTimerInterval = null; }
   if(_examDraftTimer) { clearTimeout(_examDraftTimer); _examDraftTimer = null; }
+  if(_examPublishTimer) { clearTimeout(_examPublishTimer); _examPublishTimer = null; }
   // The time ran out while "Submit all and finish?" was open: it goes too.
   examCloseConfirm();
 
@@ -28582,6 +29096,21 @@ function submitExam(auto) {
     autoSaveExamProgress();
     currentExamSession = null;
     return;
+  }
+
+  if(!_isExamPreviewMode) {
+    // Everything this attempt holds — this window, another window, another
+    // PC — goes into the result (the save merges it in). Submitted there
+    // already, the save closes the attempt here instead.
+    autoSaveExamProgress();
+    if(currentExamSession !== s) return;
+    // One result per attempt: a second window, or a PC that was away, never
+    // submits it again.
+    if(examResultFor(s.studentId, s.examId)) {
+      var done = examResultFor(s.studentId, s.examId);
+      examAttemptEndedElsewhere(CESTISCore.exams.retireAttempt({ id: s.attemptId, examId: s.examId, studentId: s.studentId, startTime: s.startTime, deadline: s.deadline }, done.id, done.submittedAt), 'window');
+      return;
+    }
   }
 
   var exam = exams.find(function(x){ return x && x.id === s.examId; }) || null;
@@ -28621,6 +29150,10 @@ function submitExam(auto) {
     startedAt: new Date(s.startTime).toISOString(),
     timeTaken: Math.max(0, Math.floor((Math.min(now, deadline) - s.startTime)/1000))
   };
+  // The attempt it came from: two submissions of one attempt (a PC that was
+  // away) are recognised everywhere and the first stands
+  // (CESTISCore.exams.oneResultPerAttempt).
+  if(s.attemptId && !_isExamPreviewMode) result.attemptId = s.attemptId;
   if(auto) result.autoSubmitted = true;
   // Submitted well after the window closed (an attempt resumed late): kept,
   // but marked so staff can decide.
@@ -28667,6 +29200,9 @@ function submitExam(auto) {
   // Kept aside until the cloud is seen to hold it, so the next trainee's (or a
   // staff member's) sign-out on this PC cannot delete it before it is uploaded.
   examOutboxAdd(result);
+  // Stored before the attempt is closed below: another window that hears the
+  // attempt close looks for the result, and used to find it not there yet.
+  try { saveCollection('voctrain_examResults', examResults); } catch(e) {}
 
   // A provisional score is not the trainee's score yet.
   if(!needsReview && currentStudent) currentStudent.score = score + '%';
@@ -28677,7 +29213,13 @@ function submitExam(auto) {
     exam.students = examResults.filter(function(r){return r && r.examId===s.examId && !r.archived;}).length;
   }
 
-  try { CESTISStore.removeItem(CESTISCore.exams.draftKey(s.studentId, s.examId)); } catch(e) {}
+  // The attempt is over everywhere: this PC's copy becomes the small retired
+  // record (a second window cannot write it back), and so does the shared
+  // one — on every PC, a stale copy can no longer be continued or submitted.
+  var X = CESTISCore.exams;
+  var retired = X.retireAttempt({ id: s.attemptId, examId: s.examId, studentId: s.studentId, startTime: s.startTime, deadline: s.deadline }, result.id, result.submittedAt);
+  try { CESTISStore.setItem(X.draftKey(s.studentId, s.examId), JSON.stringify(retired)); } catch(e) {}
+  try { examAttemptsUpsert((s.alsoIds && s.alsoIds.length ? s.alsoIds : [s.attemptId]).map(function(id) { return Object.assign({}, retired, { id: id }); })); } catch(e) {}
   CESTISStore.removeItem('voctrain_examInProgress');
   currentExamSession = null;
   // Staff hear about every submission; the trainee sees their own result on
@@ -28685,8 +29227,14 @@ function submitExam(auto) {
   addNotification(result.studentName + ' scored ' + result.score + '% on ' + (exam ? exam.title : 'exam') + (result.passed ? ' — PASSED' : result.needsReview ? ' — pending review' : ' — NOT PASSED'), result.passed ? 'grade' : result.needsReview ? 'info' : 'warning', null, ['admin','instructor']);
   saveState();
 
-  // Show results
-  showExamResult(result, exam);
+  // Show results — with a word on how it was sent when that is not obvious:
+  // the time ran out while she was away, or this computer is offline (the
+  // result waits here, safe, and goes when it is back online).
+  var note = '';
+  if(opts.away) note = 'Time ran out on this test while you were away. The answers saved for you were submitted automatically on ' + examCentreDateTime(now) + '.';
+  if(typeof navigator !== 'undefined' && navigator.onLine === false) note = (note ? note + ' ' : 'Submitted. ') + 'Your answers are safe on this computer, and your result will be sent to the office when it is back online.';
+  showExamResult(result, exam, note);
+  try { examOutboxSendOnLan(); } catch(e) {}
 }
 
 /* ---- The review page, after Moodle's attempt review -------------------
@@ -28805,11 +29353,16 @@ function examReviewAnswerHtml(a, q, key, reveal, i) {
   return html;
 }
 
-function showExamResult(result, exam) {
+// A result submitted before My Exams was first drawn on this screen (a test
+// whose time ran out while the trainee was away, submitted at sign-in): the
+// page is fetched on first use, so the result is shown once it is there.
+var _examResultToShow = null;
+function showExamResult(result, exam, note) {
   var takingView = document.getElementById('studentExamTakingView');
   if(takingView) takingView.style.display='none';
   var resultView = document.getElementById('studentExamResultView');
-  if(!resultView) return;
+  if(!resultView) { _examResultToShow = { result: result, exam: exam, note: note }; return; }
+  _examResultToShow = null;
   resultView.style.display='block';
   // The review is a page of its own, not a panel under the list.
   var listView = document.getElementById('studentExamListView');
@@ -28836,6 +29389,7 @@ function showExamResult(result, exam) {
   var html = '<div class="exam-taking exam-attempt exam-review">';
   html += examCrumbsHtml(exam ? exam.course : '', exam ? exam.title : 'Exam');
   html += '<h2 class="exam-attempt-title">' + escapeHtml(exam ? exam.title : 'Exam') + '</h2>';
+  if(note) html += '<div class="exam-note" id="examResultNote" role="status"><span class="exam-note-text">' + escapeHtml(note) + '</span></div>';
 
   // The summary table.
   var started = CESTISCore.exams.attemptStartMs(result), done = Date.parse(result.submittedAt || '');
@@ -28902,6 +29456,11 @@ function showExamResult(result, exam) {
   html += '</div></div></div>';
 
   resultView.innerHTML = html;
+  // The result opens at its top, where the summary and any note are: it used
+  // to open wherever the attempt had been scrolled to, so on a phone the
+  // trainee landed half-way down the review and never saw the note saying
+  // her result was waiting to be sent, or had been submitted elsewhere.
+  try { var mc = document.querySelector('.main-content'); if(mc) mc.scrollTop = 0; if(typeof window.scrollTo === 'function') window.scrollTo(0, 0); } catch(e) {}
 }
 function examReviewGoTo(i) {
   var el = document.getElementById('examR-' + i);
@@ -32897,6 +33456,8 @@ async function mergeFromCloud() {
         }
       });
     }
+    // Tests in progress: the same merge every sync uses.
+    try { if (typeof examAttemptsMergeIncoming === 'function') examAttemptsMergeIncoming(backupData.data.examAttempts); } catch(e) {}
 
     // Merge chat data from cloud backup
     if (backupData.data.chatRooms) {
@@ -33640,6 +34201,7 @@ async function savePerUserBackup() {
         students: students,
         exams: exams,
         examResults: examResults,
+        examAttempts: (typeof examAttempts !== 'undefined' && Array.isArray(examAttempts)) ? examAttempts : [],
         announcements: announcements,
         attendanceRecords: attendanceRecords,
         vcSessions: vcSessions,
@@ -34092,6 +34654,20 @@ var _pullFailStreak = 0;
 async function silentMergeFromBackup(fileId) {
   var fail = function(kind) { _lastPull = { ok: false, changed: false, kind: kind }; _pullFailStreak++; return false; };
   try {
+    // The sign-in merge of the Main backup notes WHICH version it read (taken
+    // before the download, so a write in between is merged again, never
+    // missed), as every later merge does. Without it, the first autosave of
+    // the session took whatever version it then found as already merged: a
+    // change another device uploaded in those first seconds — an answer on
+    // the PC a trainee had just left — was skipped, and this device's own
+    // upload then went over it.
+    var _mainFolder = GOOGLE_DRIVE_CONFIG.FOLDER_ID, _verBefore = null;
+    if (fileId && (fileId === _autoSaveFileIds[_mainFolder] || fileId === cloudFileId) && _lastCloudVersion[_mainFolder] === undefined) {
+      try {
+        var _vr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+        if (_vr && _vr.ok) { var _vj = await _vr.json(); if (_vj && _vj.version != null && String(_vj.version)) _verBefore = String(_vj.version); }
+      } catch (e) {}
+    }
     var _sent = Date.now();
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
@@ -34118,6 +34694,7 @@ async function silentMergeFromBackup(fileId) {
     if (_mergeBackupFailed) return fail('merge');
     _lastPull = { ok: true, changed: !!changed, kind: '' };
     _pullFailStreak = 0;
+    if (_verBefore && _lastCloudVersion[_mainFolder] === undefined) _lastCloudVersion[_mainFolder] = _verBefore;
     return changed;
   } catch (err) {
     console.warn('[AutoSync] Silent merge download error:', err);
@@ -34346,6 +34923,11 @@ async function mergeBackupData(backupData) {
         if (_erOut.added || _erOut.updated || _erOut.removed) changed = true;
       }
     }
+
+    // Tests in progress (CESTISCore.exams): question by question, a submitted
+    // attempt is never brought back, and a result that arrived settles its
+    // attempt. The attempt open on this screen follows (examAttemptsArrived).
+    if (typeof examAttemptsMergeIncoming === 'function' && examAttemptsMergeIncoming(backupData.data.examAttempts)) changed = true;
 
     // Merge chat rooms
     if (Array.isArray(backupData.data.chatRooms)) {
@@ -35173,6 +35755,8 @@ async function autoSaveToAllFolders() {
         vcSessions: vcSessions,
         calendarEvents: calendarEvents,
         examResults: examResults,
+        // Tests in progress travel the same way as the results they become.
+        examAttempts: (typeof examAttempts !== 'undefined' && Array.isArray(examAttempts)) ? examAttempts : [],
         chatRooms: lmsChatRooms,
         chatMessages: CESTISCore.chat.stripUploadedBytes(lmsChatMessages), // attachments Drive already holds travel as their link
         chatProfiles: lmsChatProfiles,
@@ -35266,6 +35850,10 @@ async function autoSaveToAllFolders() {
 
     const jsonContent = JSON.stringify(backupData, stripSecretFields);
     const blob = new Blob([jsonContent], { type: 'application/json' });
+    // The results this upload carries (noted now, as serialised): once the
+    // Main copy has them, this PC's waiting copies of them can go (below).
+    var _sentResultIds = null;
+    try { if (examOutboxRead().length) _sentResultIds = (backupData.data.examResults || []).filter(function(r){ return r && r.id != null; }).map(function(r){ return { id: r.id }; }); } catch (e) {}
 
     // Save to ALL Google Drive folders in parallel
     const results = await Promise.allSettled(
@@ -35315,6 +35903,14 @@ async function autoSaveToAllFolders() {
     // failed upload is retried on the next tick instead of being skipped.
     _lastAutoSaveResult = { uploaded: successCount >= 1, reason: successCount >= 1 ? 'saved' : 'upload-failed' };
     if (successCount >= 1) cestisMarkUploaded();
+    // A submitted result waiting on this PC (the exam outbox) used to be let
+    // go only when a later DOWNLOAD showed the shared copy holding it — on a
+    // PC alone that could be the next sign-in, and the top bar said "Waiting
+    // to send" all the while. The Main copy now holding it is the same proof.
+    if (_sentResultIds) {
+      var _mainSaved = ALL_DRIVE_FOLDERS.some(function(f, i) { return f.id === GOOGLE_DRIVE_CONFIG.FOLDER_ID && results[i] && results[i].status === 'fulfilled' && results[i].value === true; });
+      if (_mainSaved) { try { examOutboxConfirm(_sentResultIds); } catch (e) {} }
+    }
     if (successCount >= 1) {
       _lastAutoSaveHash = _curHash;
       // Absorb every write this save itself just made, so an idle next tick
