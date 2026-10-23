@@ -574,9 +574,9 @@ console.log('Exams: lists, questions, results');
     adminExamFilter: 'upcoming', resolveExamStatuses() {}
   };
   render('renderExams', ['renderExams'], setup, 'renderExams()', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));
-  const d = render('viewExamDetail', ['viewExamDetail'], setup, 'viewExamDetail(0)', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));
+  const d = render('viewExamDetail', ['viewExamDetail', 'examTypeLabel'], setup, 'viewExamDetail(0)', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));
   assert(d.html.indexOf('A. &lt;p&gt;') !== -1 || d.html.indexOf('&lt;p&gt;') !== -1, 'an option written "<p>" is shown, not swallowed as markup');
-  const vr = render('viewExamResults', ['viewExamResults'], setup, 'viewExamResults(0)', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));
+  const vr = render('viewExamResults', ['viewExamResults', 'examResultsTableHtml', 'examCentreOffset'], setup, 'viewExamResults(0)', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));
   const g = handlerCalls(vr.html).filter(c => c.name === 'openGradingPanel');
   assert(g.length === 1 && g[0].args[0] === "R1');__pwn(2);//", 'Grade/Review still passes the exact result id');
 }
@@ -677,7 +677,10 @@ console.log('No raw user field is concatenated into the fixed renderers again');
     'showSkillDetail', 'renderAsResources', 'renderExams', 'renderInstructorExams', 'viewExamDetail', 'viewExamResults',
     'renderStudentExams', 'renderInstructorStudents', 'renderAdminClassSessions', 'renderAdminMeetingsList',
     'renderInstructorClassSessions', 'renderStudentClassSessions', 'renderStudentRecordings', 'renderInstructorRecordings',
-    'enterVideoRoom', 'vcShowConference', 'vcUpdateParticipants', 'renderSkills', 'renderCentreTable'];
+    'enterVideoRoom', 'vcShowConference', 'vcUpdateParticipants', 'renderSkills', 'renderCentreTable',
+    // the exam platform's attempt, summary, review, results and builder pages
+    'renderExamTaking', 'examNavPanelHtml', 'examQuestionHtml', 'examAnswerHtml', 'examCrumbsHtml', 'examSummaryHtml', 'examConfirmSubmit',
+    'showExamResult', 'examReviewAnswerHtml', 'examResultsTableHtml', 'renderExamBuilderQuestions', 'examQuestionEditorHtml', 'openGradingPanel'];
   RENDERERS.forEach(fn => {
     const body = extractFunction(SRC, fn).split('\n')
       .filter(l => !/addNotification|showToast\(|confirm\(|alert\(|textContent|console\.|^\s*\/\//.test(l)).join('\n');

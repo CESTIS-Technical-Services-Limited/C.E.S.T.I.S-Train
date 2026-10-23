@@ -57,6 +57,8 @@ function page(globals) {
   sb.renderStudentExams = () => { sb.renders++; };
   vm.createContext(sb);
   vm.runInContext(['escapeHtml', 'escapeAttr', 'jsArg', 'examCentreOffset', 'showExamResult', 'studentExamsShowList',
+    // the review page's pieces (exam-platform preview)
+    'examCrumbsHtml', 'examCentreDateTime', 'examDurationText', 'examOutcomeLabel', 'examAnswerText', 'examKeyText', 'examReviewAnswerHtml', 'examReviewGoTo', 'examOptionText',
     'instructorExamReviewQueueHtml', 'renderInstructorExamReviewQueue'].map(n => extractFunction(INDEX, n)).join('\n\n'), sb);
   sb.el = el;
   return sb;
@@ -82,9 +84,10 @@ const result = { id: 'R1', examId: 'E1', studentId: 'S1', score: 0, earnedPoints
 let p = page();
 p.showExamResult(result, exam);
 let html = p.el('studentExamResultView').innerHTML;
-assert(/Your answer: <strong>A\. Blue<\/strong>/.test(html), 'her answer reads "A. Blue"');
+// Letters follow the attempt page: a., b., c. in the order the options were shown.
+assert(/Your answer: <strong>a\. Blue<\/strong>/.test(html), 'her answer reads "a. Blue"');
 assert(html.indexOf('(selected)') === -1, 'never "A. (selected)"');
-assert(/Correct answer: B\. Red/.test(html), 'and, released, the correct answer reads "B. Red"');
+assert(/Correct answer: b\. Red/.test(html), 'and, released, the correct answer reads "b. Red"');
 assert(html.indexOf('Oxygen &lt;script&gt;') !== -1 && html.indexOf('<script>') === -1, 'an option\'s words are escaped');
 
 // An exam from before questions carried ids: matched by place while the wording agrees.
@@ -93,10 +96,10 @@ const legacyResult = Object.assign({}, result, { examId: 'E2', answers: [
   { type: 'mcq', questionText: 'Old question', studentAnswer: 1, correctAnswer: 0, isCorrect: false, graded: true, needsManualGrade: false, points: 1, earnedPoints: 0 }] });
 p = page();
 p.showExamResult(legacyResult, legacy);
-assert(/Your answer: <strong>B\. No<\/strong>/.test(p.el('studentExamResultView').innerHTML), 'an older exam reads the same, by the question\'s place');
+assert(/Your answer: <strong>b\. No<\/strong>/.test(p.el('studentExamResultView').innerHTML), 'an older exam reads the same, by the question\'s place');
 legacy.questionData[0].text = 'A different question since';
 p.showExamResult(legacyResult, legacy);
-assert(/Your answer: <strong>B<\/strong>/.test(p.el('studentExamResultView').innerHTML), 'but never borrows the words of a question that has changed');
+assert(/Your answer: <strong>b\.<\/strong>/.test(p.el('studentExamResultView').innerHTML), 'but never borrows the words of a question that has changed');
 
 /* ---------- 2. My Exams opens on the list ---------- */
 console.log('Going to My Exams puts the last reviewed result away');

@@ -9,7 +9,8 @@
 
    Now, in every screen stylesheet of those pages, a size below 12px is
    raised to 12px (0.75rem). Only these stay at 11px, because 12px would not
-   fit their fixed little box: the bell's 16px counter, the % in the 36px
+   fit their fixed little box: the bell's 16px counter, the exam builder's 16px
+   "required" dot, the % in the 36px
    attendance ring, the HOST tag in a video tile's label, the mark in a 22px
    task tick, the number in a 22px import-step circle and the gauge's
    min/max under its arc. Sizes the templates set inline are lifted by one
@@ -35,7 +36,7 @@ const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const PAGES = ['index.html', 'Transcript-Grades.html', 'Student-Progress.html', 'Cert-Transcript-Requests.html',
   'Qual-Plan-Curriculum.html', 'School.Fee.html', 'CESTIS.Cashbook.html', 'Staff.Clock.in.html', 'Staff.Payslip.html',
   'Virement.Request.html', 'Income.Expenditure.html', 'PDF.Workshop.html'];
-const ELEVEN = ['.topbar-btn .dot', '.attendance-ring .att-ring-text', '.vc-host-badge', '.adr-task-check.pending-review',
+const ELEVEN = ['.topbar-btn .dot', '.ess-req', '.attendance-ring .att-ring-text', '.vc-host-badge', '.adr-task-check.pending-review',
   '.import-step .step-num', '.gauge-chart .gauge-min', '.gauge-chart .gauge-max'];
 const DOC = /payslip-print|payslip-preview|print-|(^|[\s.,])lp-|vlp-|report-sheet|rdoc-|fdoc-|report-footer/;
 const FS = /font-size\s*:\s*([0-9]*\.?[0-9]+)\s*(px|rem|em|pt)/g;
