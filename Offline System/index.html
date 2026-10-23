@@ -33384,6 +33384,14 @@ var ACCOUNTS_LEDGER_FILE = 'CESTIS_ACCOUNTS.json';
 var _accountsLedgerFileId = null;
 var _accountsLedgerTimer = null;
 var _accountsLedgerSaving = false;
+/* A write of the accounts list that was asked for but could not run yet —
+   the saved sign-in not reconnected in the first seconds after the page
+   opened, or another write still on its way. Both used to be dropped: an
+   account an administrator created straight after signing in, or the
+   deletion records of a fold, reached the list only at the next account
+   change. It now runs as soon as it can (saveAccountsLedger's finally, and
+   autoSyncOnLogin once the sign-in is back). */
+var _accountsLedgerWanted = false;
 function ledgerHeaders(token) { return { 'Authorization': 'Bearer ' + (token || googleAccessToken) }; }
 async function findAccountsLedgerFile(token) {
   if (_accountsLedgerFileId) return _accountsLedgerFileId;
@@ -33397,12 +33405,13 @@ async function findAccountsLedgerFile(token) {
   } catch (e) { return 'LOOKUP_FAILED'; }
 }
 function scheduleAccountsLedgerSave() {
-  if (!isCloudConnected || !googleAccessToken) return;
+  if (!isCloudConnected || !googleAccessToken) { _accountsLedgerWanted = true; return; }
   if (_accountsLedgerTimer) clearTimeout(_accountsLedgerTimer);
   _accountsLedgerTimer = setTimeout(function() { _accountsLedgerTimer = null; saveAccountsLedger(); }, 800);
 }
 async function saveAccountsLedger() {
-  if (!isCloudConnected || !googleAccessToken || _accountsLedgerSaving) return false;
+  if (!isCloudConnected || !googleAccessToken || _accountsLedgerSaving) { _accountsLedgerWanted = true; return false; }
+  _accountsLedgerWanted = false;
   if (!Array.isArray(userAccounts) || !userAccounts.length) return false;   // an empty ledger is never published
   if (typeof _sessionWiped !== 'undefined' && _sessionWiped) return false;
   _accountsLedgerSaving = true;
@@ -33453,7 +33462,11 @@ async function saveAccountsLedger() {
     if (!resp.ok) { if (resp.status === 401) handleCloudAuthExpired(); else console.warn('[Accounts] Ledger write refused: HTTP ' + resp.status); return false; }
     return true;
   } catch (e) { console.warn('[Accounts] Ledger save failed:', e && e.message); return false; }
-  finally { _accountsLedgerSaving = false; }
+  finally {
+    _accountsLedgerSaving = false;
+    // Asked for again while this write was on its way: it follows now.
+    if (_accountsLedgerWanted) { _accountsLedgerWanted = false; try { scheduleAccountsLedgerSave(); } catch (e) {} }
+  }
 }
 /* Read the ledger and merge it through the one account rule. Returns true
    when a ledger was read, whether or not anything changed. */
@@ -34170,6 +34183,8 @@ async function autoSyncOnLogin() {
     // coming later. Locate them all first and merge the OLDEST first, so the
     // newest copy applies last and wins every tie the record rules leave open.
     try { await loadAccountsLedger(); } catch (e) {}   // the accounts first
+    // A write of the list asked for before the sign-in was back goes now.
+    if (_accountsLedgerWanted) { try { scheduleAccountsLedgerSave(); } catch (e) {} }
     var _copies = [];
     for (const folder of ALL_DRIVE_FOLDERS) {
       try {

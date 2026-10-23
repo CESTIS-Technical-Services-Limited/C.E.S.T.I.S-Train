@@ -294,6 +294,44 @@ const centre = () => clone([KEMAR, RUSHANE, KADIAN, FEE_KEMAR, CHAT_RUSHANE, CHA
   const vu = extractFunction(SRC, 'renderVerifyUsersPage');
   assert(/backfillStubFolds\(userAccounts, students\)\.unsure/.test(vu) && /may be a second account/.test(vu), 'Verify Users marks a placeholder that may be a second account');
 
+  /* ---------- 9. A write of the accounts list is never dropped ---------- */
+  console.log('A write of the accounts list asked for too early, or during another, is not lost');
+  {
+    const sent = [], timers = [];
+    let release;
+    const gate = new Promise(res => { release = res; });
+    const sb = { CESTISStore: store({}), CESTISCore: Core, console: quiet, isCloudConnected: false, googleAccessToken: null,
+      _accountsLedgerSaving: false, _accountsLedgerWanted: false, _accountsLedgerTimer: null, _sessionWiped: false, _accountsLedgerFileId: 'LEDGER',
+      ACCOUNTS_LEDGER_FILE: 'CESTIS_ACCOUNTS.json', GOOGLE_DRIVE_CONFIG: { FOLDER_ID: 'F' }, currentLoggedInUser: null, _delUserIdsMemo: null, _delUserIdsAt: 0,
+      students: [], userAccounts: clone([KEMAR]),
+      stripSecretFields: (k, v) => (k === '_plaintextPw' ? undefined : v), handleCloudAuthExpired() {},
+      setTimeout: (fn) => { timers.push(fn); return timers.length; }, clearTimeout() {},
+      fetch: async function (url, opts) {
+        if (!opts || !opts.method) { await gate; return { ok: true, json: async () => ({ accounts: [], deletedUserIds: [] }) }; }
+        sent.push(JSON.parse(opts.body));
+        return { ok: true, json: async () => ({}) };
+      } };
+    sb.window = sb;
+    vm.createContext(sb);
+    vm.runInContext(['ledgerHeaders', 'findAccountsLedgerFile', 'foldBackfillStubs', '_getDeletedUserIds', 'isUserDeleted', 'recordDeletedUser', 'dropDeletedAccounts',
+      'mergeCloudAccounts', 'persistUserAccounts', 'scheduleAccountsLedgerSave', 'saveAccountsLedger'].map(n => extractFunction(SRC, n)).join('\n'), sb);
+    vm.runInContext('scheduleAccountsLedgerSave()', sb);
+    assert(sb._accountsLedgerWanted === true && timers.length === 0, 'asked for before the sign-in is back: remembered, not dropped');
+    sb.isCloudConnected = true; sb.googleAccessToken = 'tok';
+    const first = vm.runInContext('saveAccountsLedger()', sb);
+    sb.userAccounts.push(clone(RUSHANE));
+    assertEq(await vm.runInContext('saveAccountsLedger()', sb), false, 'a second write while the first is on its way does not run at once');
+    release();
+    await first;
+    assertEq(timers.length, 1, 'but follows as soon as the first has finished');
+    timers.shift()();
+    for (let i = 0; i < 20 && sent.length < 2; i++) await new Promise(r => setImmediate(r));
+    assertEq(sent.length, 2, 'two writes reach the list');
+    assert((sent[1].accounts || []).some(a => a.id === 'USR-RGR'), 'and the second carries the account added meanwhile');
+    assert(/if \(_accountsLedgerWanted\) \{ try \{ scheduleAccountsLedgerSave\(\); \} catch \(e\) \{\} \}/.test(extractFunction(SRC, 'autoSyncOnLogin')),
+      'the sign-in\'s sync sends a write that was asked for before the sign-in was back');
+  }
+
   /* ---------- the Offline System carries the same page code ---------- */
   const OFF = fs.readFileSync(path.join(ROOT, 'Offline System', 'index.html'), 'utf8');
   ['foldBackfillStubs', 'rosterAwaitingSync', 'traineeRecordExistsElsewhere', 'syncStudentsFromLocalFeeSystem', 'lmsChatEnsureStudentAccounts', 'cestisSettleRoster'].forEach(function (fn) {
