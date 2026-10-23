@@ -39,6 +39,8 @@ const { execSync, spawn } = require('child_process');
 const { chromium } = require('playwright-core');
 
 const ROOT = path.join(__dirname, '..', '..');
+// The shared account rules, to check a folded backfill stub (explainAbsence).
+const AccountRules = require(path.join(ROOT, 'cestis-core.js')).accountAccess;
 const OLD_REF = process.env.CESTIS_OLD_REF || '3fc154a';
 const EXE = process.env.CESTIS_CHROME ||
   (fs.existsSync('/opt/pw-browsers/chromium-1194/chrome-linux/chrome') ? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' : '/opt/pw-browsers/chromium');
@@ -758,11 +760,12 @@ function fieldDiffs(a, b) {
 const short = v => { const s = JSON.stringify(v); return s && s.length > 140 ? s.slice(0, 140) + '…' : s; };
 /* What happened to every record in `before` once it got to `after`. */
 /* Why a record of `before` may legitimately be absent from `after`, or null.
-   Only two reasons are accepted, and both are reported: the trainee it
+   Only three reasons are accepted, and all are reported: the trainee it
    belongs to was deleted (tombstoned) — an old copy that still carried them
    is not a loss — or the trainee was re-identified (the same person on the
    same programme now under another id, as the old build's own id
-   stabilisation does). */
+   stabilisation does), or the record is a backfill stub folded into the same
+   person's own account (below). */
 function deadIdsOf(maps) {
   const dead = {};
   const t = maps.voctrain_deletedStudentIds || {};
@@ -777,6 +780,20 @@ function explainAbsence(key, rec, afterMaps, dead) {
   if (key === 'voctrain_students' && afterMaps[key]) {
     const same = Object.keys(afterMaps[key]).map(r => afterMaps[key][r]).find(x => x && x.name === rec.name && x.course === rec.course);
     if (same) return 're-identified as ' + same.id + ' (same name and programme)';
+  }
+  // A sign-in account the old build's chat roster or fee-roll mirror made for
+  // a trainee who also had their own account: the new build folds it into
+  // that account (CESTISCore.accountAccess.backfillStubFolds) and records the
+  // deletion. Accepted only when, checked here with the same rules, it is
+  // provably nothing but a stub (no password, no email, never activated,
+  // edited or signed in to), the same person's own account is still there,
+  // and the deletion record is there too.
+  if (/^(voctrain_users|voctrain_userAccounts|file:accounts|main:userAccounts)$/.test(key) && afterMaps[key] && AccountRules.isBackfillStub(rec)) {
+    const accts = Object.keys(afterMaps[key]).map(r => afterMaps[key][r]).filter(x => x && x.id !== rec.id).concat([rec]);
+    const fold = AccountRules.backfillStubFolds(accts).folds.find(x => x.id === rec.id);
+    const tomb = ['voctrain_deletedUserIds', 'file:deletedUserIds', 'main:deletedUserIds']
+      .some(k => afterMaps[k] && afterMaps[k]['val:' + JSON.stringify(rec.id)]);
+    if (fold && tomb) return 'a backfill stub folded into ' + fold.into + ' (the same person\'s own account; its deletion recorded)';
   }
   return null;
 }

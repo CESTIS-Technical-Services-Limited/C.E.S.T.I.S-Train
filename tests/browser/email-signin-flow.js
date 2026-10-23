@@ -108,6 +108,16 @@ const PEOPLE = {
 PEOPLE.centre = CENTRE;
 const PW = { admin: 'Marcia-Admin-2026!', kemar: 'Kemar-Weld-2026', tashana: 'Tashana2026', devon: 'Devon-Wire-2026', tamika: 'Tamika2026x', shanique: 'Shanique2026', jhanelle: 'Jhanelle2026', shamar: 'Shamar-Plumb-2026' };
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
+// The stubs an earlier version left in the shared copy (see the setup).
+const OLD_STUBS = [
+  { id: 'USR-FEE-1792000000001-401', name: 'Kemar Williams', role: 'student', username: 'kemar.williams', password: '', email: '', programme: 'Welding & Fabrication',
+    status: 'disabled', createdAt: '2026-10-15', registeredVia: 'fee-system', studentDataId: 'STU-OLDSTUBKW01', approvedBy: 'system' },
+  { id: 'USR-STU-STU-OLDSTUBRG01', name: 'Rushane Grant', role: 'student', username: 'rushane.grant2', password: '', email: '', programme: 'Auto Mechanics',
+    status: 'disabled', createdAt: '2026-10-15', registeredVia: 'student-sync', studentDataId: 'STU-OLDSTUBRG01', approvedBy: 'system' },
+  { id: 'USR-STU-STU-OLDSTUBKM01', name: 'Kadian Morgan', role: 'student', username: 'kadian.morgan2', password: '', email: '', programme: 'Cosmetology',
+    status: 'disabled', createdAt: '2026-10-15', registeredVia: 'student-sync', studentDataId: 'STU-OLDSTUBKM01', approvedBy: 'system' }
+];
+const STUB_PEOPLE = ['Kemar Williams', 'Rushane Grant', 'Kadian Morgan'];
 
 /* ================================================= the provider (emulated) */
 function FakeGoogle() {
@@ -309,6 +319,19 @@ FakeGoogle.prototype.accountsIn = function (name) {
   });
 };
 FakeGoogle.prototype.backups = function () { return this.accountsIn('CESTIS_LMS_BACKUP.json'); };
+// Put accounts into the shared accounts list and the main backup, as an older
+// version of the dashboard left them there.
+FakeGoogle.prototype.injectAccounts = function (mainFolder, list) {
+  Object.values(this.files).forEach(f => {
+    if (f.trashed) return;
+    let v = null; try { v = JSON.parse(f.content); } catch (e) { return; }
+    if (!v) return;
+    if (f.name === 'CESTIS_ACCOUNTS.json' && Array.isArray(v.accounts)) { v.accounts = v.accounts.concat(list); this.put(f.id, null, JSON.stringify(v)); }
+    if (f.name === 'CESTIS_LMS_BACKUP.json' && (f.parents || []).indexOf(mainFolder) !== -1 && v.data && Array.isArray(v.data.userAccounts)) {
+      v.data.userAccounts = v.data.userAccounts.concat(list); this.put(f.id, null, JSON.stringify(v));
+    }
+  });
+};
 FakeGoogle.prototype.ledger = function () { return this.accountsIn('CESTIS_ACCOUNTS.json')[0] || null; };
 FakeGoogle.prototype.mainBackup = function (mainFolder) { return this.backups().find(b => (b.parents || []).indexOf(mainFolder) !== -1) || null; };
 function byEmail(list, email) { return (list || []).filter(a => a && String(a.email || '').toLowerCase() === email); }
@@ -484,6 +507,13 @@ async function signOut(d) {
   // The final save and the device's tidy-up run after the screen changes.
   await d.page.waitForTimeout(3000);
 }
+// A clean sign-out on a staff PC once its work has been uploaded: the trainee
+// records go, the accounts and the School Fee roll stay (clearAllSessionData).
+async function clearedSignOut(d) {
+  await signOut(d);
+  await d.page.evaluate(() => { try { if (Array.isArray(students) && students.length) clearAllSessionData(); } catch (e) {} });
+  await d.page.waitForTimeout(500);
+}
 async function localAccounts(d, email) {
   return d.page.evaluate(e => ({
     accounts: userAccounts.filter(u => u && String(u.email || '').toLowerCase() === e).map(u => ({ id: u.id, status: u.status, role: u.role, studentDataId: u.studentDataId, updatedAt: u.updatedAt })),
@@ -553,7 +583,15 @@ async function pushSettled(page) {
     const pub = await waitDrive(() => { const b = fake.mainBackup(MAIN_FOLDER); const l = fake.ledger(); return b && b.accounts && byEmail(b.accounts, 'kemar.williams@gmail.com').length && l && l.accounts ? b : null; }, 45000);
     ok(!!pub, 'the office PC published the Centre (main backup and accounts ledger) to the shared copy');
     note('shared copy holds: ' + Object.values(fake.files).map(f => f.name).join(', '));
-    await signOut(office);
+    // What an earlier version left in the shared copy: the email-less
+    // "Disabled" stubs a cleared office PC made of three trainees who already
+    // had accounts (the fee roll's for Kemar, the chat roster's for the others).
+    fake.injectAccounts(MAIN_FOLDER, OLD_STUBS);
+    // The office PC is cleared at sign-out, as every staff PC is once its work
+    // is uploaded: its trainee records go; its accounts and fee roll stay.
+    await clearedSignOut(office);
+    ok(await page.evaluate(() => students.length === 0 && userAccounts.some(u => u.id === 'USR-KWI') && !!CESTISStore.getItem('cestiSchoolFeeStudents')),
+      'the office PC signed out clean: no trainee records, its accounts and fee roll kept');
 
     /* ----------------------------------------------- scenario 1: the lab PC */
     section('1  Lab PC at the Centre: a new trainee registers through "Sign in with your email account"');
@@ -647,6 +685,30 @@ async function pushSettled(page) {
     page = await open(office);
     s = await syncNow(office);
     note('office PC Sync Now: "' + s + '"');
+
+    section('3a The office PC was cleared at sign-out: no new duplicate accounts, and the old stubs fold away');
+    const people = await page.evaluate(names => names.map(n => ({ n,
+      accts: userAccounts.filter(u => u && u.name === n).map(u => u.id + ':' + u.status + ':' + (u.registeredVia || '') + ':' + (u.password ? 'pw' : 'nopw') + ':' + (u.email || '')),
+      recs: students.filter(x => x && x.name === n).length })), STUB_PEOPLE);
+    note('3a office PC after Sync Now: ' + JSON.stringify(people));
+    people.forEach(x => ok(x.accts.length === 1, '3a: ' + x.n + ' has exactly one account on the office PC — got ' + JSON.stringify(x.accts)));
+    people.forEach(x => ok(x.recs === 1, '3a: and exactly one trainee record — got ' + x.recs));
+    const realKept = await page.evaluate(() => {
+      const g = id => userAccounts.find(u => u.id === id) || {};
+      return g('USR-KWI').status === 'active' && !!g('USR-KWI').password && /gmail/i.test(g('USR-KWI').email || '') &&
+             g('USR-RGR').status === 'rejected' && !!g('USR-RGR').password && g('USR-KMO').status === 'disabled' && g('USR-KMO').disabledBy === 'Marcia Thompson';
+    });
+    ok(realKept, '3a: the real accounts are untouched (Kemar active with his password and email, Rushane rejected, Kadian disabled by Marcia Thompson)');
+    ok(await page.evaluate(ids => ids.every(id => isUserDeleted(id) && !userAccounts.some(u => u.id === id)), OLD_STUBS.map(x => x.id)),
+      '3a: the old stubs are folded away, each with a deletion record');
+    const ledgerClean = await waitDrive(() => {
+      const l = fake.ledger(); if (!l || !l.accounts) return null;
+      const raw = JSON.parse(Object.values(fake.files).find(f => f.name === 'CESTIS_ACCOUNTS.json').content);
+      const dels = raw.deletedUserIds || [];
+      return STUB_PEOPLE.every(n => l.accounts.filter(a => a.name === n).length === 1) && OLD_STUBS.every(x => dels.indexOf(x.id) !== -1);
+    }, 30000);
+    ok(!!ledgerClean, '3a: the shared accounts list holds one account per person, and carries the fold to every other device');
+
     st = await passwordSignIn(office, 'admin', 'mthompson', PW.admin);
     ok(st.shell && st.role === 'admin', 'the administrator signs in');
     const notif = await page.evaluate(() => (notifications || []).filter(n => /awaiting approval/.test(n.text || '')).map(n => n.text));
@@ -660,6 +722,8 @@ async function pushSettled(page) {
     const listed = await page.evaluate(() => (document.getElementById('verifyUsersTableBody') || {}).innerText || '');
     ok(/Tashana Brown/.test(listed) && /Welding & Fabrication/.test(listed), 'Verify Users lists Tashana Brown, Welding & Fabrication');
     await shot(page, '04b-verify-users-pending-desktop');
+    ok(!STUB_PEOPLE.some(n => listed.indexOf(n) !== -1), '3a: Verify Users lists none of the trainees who already have accounts — got ' + JSON.stringify(listed.replace(/\s+/g, ' ').slice(0, 300)));
+    await shot(page, '14-duplicate-stubs-desktop', { el: '#page-verify-users' });
     await page.click('button[onclick="approveUser(\'' + tashanaId + '\')"]');
     await page.waitForTimeout(1200);
     const approved = await page.evaluate(id => {
