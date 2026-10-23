@@ -550,7 +550,7 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     ok(await signIn(P, 'student', AMA.user, AMA.pass), 'after the refresh Ama signs in again');
     await nav(P, 's-exams');
     const resume = await P.locator('#studentUpcomingExams .class-schedule-card', { hasText: EXAM }).locator('button').innerText();
-    ok(/Resume \(\d+:\d\d left\)/.test(resume), 'My Exams offers to resume, with the time left (' + resume + ')');
+    ok(/Continue your attempt \(\d+:\d\d left\)/.test(resume), 'My Exams offers to continue the attempt, with the time left (' + resume + ')');
     await P.locator('#studentUpcomingExams .class-schedule-card', { hasText: EXAM }).locator('button').click();
     ok(await waitFor(P, () => !!document.querySelector('#studentExamTakingView .exam-taking')), 'the exam opens again');
     const back = await P.evaluate(() => ({ deadline: currentExamSession.deadline, mcq: (document.querySelector('#examQ-0 input:checked') || {}).value,

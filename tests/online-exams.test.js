@@ -103,7 +103,8 @@ const PAGE_FNS = [
   'safeJsonParse', 'examStampNow', 'examReadDraftRaw', 'examCurrentAttempt', 'examRetireLocalDraft', 'examAttemptRecord',
   'examAttemptsUpsert', 'examAttemptsPersist', 'examAttemptsMergeIncoming', 'examAttemptsRestoreFromDrafts', 'examRetireStaleDrafts',
   'examAttemptsArrived', 'examAdoptAttempt', 'examRedrawKeepingFocus', 'examDismissNote', 'examAttemptEndedElsewhere', 'examListNote',
-  'examResultFor', 'examPublishSoon', 'examPublishNow', 'examSaveOnLeaving', 'examPullBeforeStart', 'examCanAskCentre', 'examStartFresh'
+  'examResultFor', 'examPublishSoon', 'examPublishNow', 'examSaveOnLeaving', 'examPullBeforeStart', 'examCanAskCentre', 'examStartFresh',
+  'examSaveDraftNow', 'examOpenAttemptsFor', 'examSubmitExpiredAttempts', 'examSubmittedHere'
 ];
 const PAGE_CODE = PAGE_FNS.map(n => extractFunction(SRC, n)).join('\n');
 
@@ -152,7 +153,7 @@ function makePage(opts) {
     currentExamSession: null, examTimerInterval: null, _isExamPreviewMode: false, _examDraftTimer: null,
     examBuilderQuestions: [], editingExamId: null, importedQuestions: [], importRawTextContent: '', importSelectedFile: null,
     EXAM_OUTBOX_KEY: 'cestisExamOutbox', _sessionWiped: false,
-    examAttempts: [], EXAM_PUBLISH_MS: 30000, _examPublishTimer: null, _examLastPublish: 0, scheduleDebouncedCloudSave() {},
+    examAttempts: [], EXAM_PUBLISH_MS: 30000, _examPublishTimer: null, _examLastPublish: 0, _examDraftFirstAt: 0, scheduleDebouncedCloudSave() {},
     studentProfiles: {}, attendanceRecords: [], adminMeetings: [], adrTasks: [], adrStaffMeta: {}, adminStaffAccessSettings: {},
     instructorData: [], instructorProfiles: {}, certDownloadApprovals: [], certTemplates: {}, lmsChatMessages: {}, lmsChatProfiles: {},
     lmsChatFollows: {}, cloudFileId: null, lastSyncTime: null, loginSyncCompleted: false,
@@ -409,6 +410,55 @@ console.log('Resume after a reload or power cut, with the original clock (exams-
   assert(E.attemptIsRetired(JSON.parse(z.__store[key] || 'null')) && z.__store[key].indexOf('"answers"') === -1, 'the saved attempt is retired once submitted');
   run(z, "startStudentExam('EXAM-1')");
   assertEq(z.examResults.length, 1, 'and opening the exam again never submits it a second time');
+
+  // ...and she need not press anything: after the sign-in sync, a test whose
+  // time ran out while she was away is submitted by itself, once, with the
+  // note — it used to wait as "Submit saved answers" for a press that a
+  // trainee who never came back to My Exams never gave (no result at all).
+  const awayStore = JSON.parse(JSON.stringify(p.__store));
+  const a = makePage({ now: JM('2026-10-16', '15:00'), store: awayStore, globals: { currentRole: 'student' } });
+  a.CESTISStore.keys = function () { return Object.keys(a.__store); };
+  a.currentStudent = Object.assign({}, ANN);
+  a.exams.push(sampleExam());
+  assertEq(run(a, 'examHasDraftFor("STU-A", true)'), false, 'a test whose time ran out is not "in progress, the clock is still running" at sign-in');
+  assertEq(run(a, 'examHasDraftFor("STU-A")'), true, '(though its saved answers are still waiting)');
+  assertEq(run(a, 'examSubmitExpiredAttempts()'), 1, 'after the sign-in sync it is submitted by itself');
+  assertEq(a.examResults.length, 1, 'one result');
+  assert(a.examResults[0].autoSubmitted === true && a.examResults[0].score === 100, 'marked as submitted automatically, with her saved answers (score ' + a.examResults[0].score + ')');
+  assert(!!a.examResults[0].attemptId, 'and the attempt it came from');
+  assertEq(run(a, 'examSubmitExpiredAttempts()'), 0, 'a second sign-in submits nothing more');
+  assertEq(a.examResults.length, 1, 'still one result');
+  // A test still running is left for her to continue.
+  const b = makePage({ now: JM('2026-10-16', '13:30'), store: JSON.parse(JSON.stringify(p.__store)), globals: { currentRole: 'student' } });
+  b.CESTISStore.keys = function () { return Object.keys(b.__store); };
+  b.currentStudent = Object.assign({}, ANN);
+  b.exams.push(sampleExam());
+  assertEq(run(b, 'examSubmitExpiredAttempts()'), 0, 'a test whose clock is still running is not submitted at sign-in');
+  assertEq(b.examResults.length + (b.currentExamSession ? 1 : 0), 0, 'nor opened behind her back');
+  assertEq(run(b, 'examHasDraftFor("STU-A", true)'), true, 'and the sign-in points her to it');
+  // Another trainee signed in: her expired test is not his to submit.
+  const c2 = makePage({ now: JM('2026-10-16', '15:00'), store: JSON.parse(JSON.stringify(p.__store)), globals: { currentRole: 'student' } });
+  c2.CESTISStore.keys = function () { return Object.keys(c2.__store); };
+  c2.currentStudent = Object.assign({}, BEN, { course: 'Electrical' });
+  c2.exams.push(sampleExam());
+  assertEq(run(c2, 'examSubmitExpiredAttempts()'), 0, 'another trainee\'s sign-in never submits her test');
+  // The result is stored before the attempt is closed: another window that
+  // hears the close looks for the result (it said "will show here as soon as
+  // it reaches this computer" while the result sat unsaved a moment longer).
+  const se = extractFunction(SRC, 'submitExam');
+  assert(se.indexOf("saveCollection('voctrain_examResults', examResults)") !== -1 && se.indexOf("saveCollection('voctrain_examResults', examResults)") < se.indexOf('X.retireAttempt('),
+    'submitExam stores the result before it closes the attempt');
+  // Submitted in another window of this PC (its result waits in this PC's
+  // outbox) or on another device: the note says which.
+  const w = makePage({ now: JM('2026-10-16', '15:00'), globals: { currentRole: 'student' } });
+  w.__store.cestisExamOutbox = JSON.stringify([{ id: 'RES-1', examId: 'EXAM-1', studentId: 'STU-A', attemptId: 'ATT-1' }]);
+  assertEq(run(w, "examSubmittedHere({ resultId: 'RES-1' }, ['ATT-9'])"), true, 'a result in this PC\'s outbox was submitted here (another window)');
+  assertEq(run(w, "examSubmittedHere({ resultId: null }, ['ATT-1'])"), true, '(found by its attempt too)');
+  assertEq(run(w, "examSubmittedHere({ resultId: 'RES-2' }, ['ATT-2'])"), false, 'anything else was submitted on another device');
+  // And the result opens at its top, where the note is.
+  assert(/scrollTop = 0/.test(extractFunction(SRC, 'showExamResult')), 'the result page opens at its top (on a phone the note was scrolled out of sight)');
+  const ea = extractFunction(SRC, 'enterApp');
+  assert(/autoSyncOnLogin\(\)\.then\(function\(\) \{[\s\S]*?_afterLoginSync\(\)/.test(ea) && ea.indexOf('examSubmitExpiredAttempts()') !== -1, 'enterApp runs it once the sign-in sync is done (or failed)');
 }
 
 console.log('Sign-out mid-exam never submits under the next trainee (exams-16, ui-03)');

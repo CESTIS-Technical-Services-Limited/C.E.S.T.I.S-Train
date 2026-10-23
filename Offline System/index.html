@@ -11941,13 +11941,20 @@ function enterApp(role) {
     try { if(typeof lmsChatRTStart === 'function') lmsChatRTStart(); } catch(e) {}
 
     // Auto-sync from all Google Drive folders on login, then start 5s auto-save
+    // — and, for a trainee, submit a test whose time ran out while she was
+    // away, now that this PC holds the latest of it (examSubmitExpiredAttempts).
+    var _afterLoginSync = function() {
+      try { if(currentRole === 'student' && typeof examSubmitExpiredAttempts === 'function') examSubmitExpiredAttempts(); } catch(e) {}
+    };
     setTimeout(function() {
       autoSyncOnLogin().then(function() {
         startAutoSave();
+        _afterLoginSync();
       }).catch(function(err) {
         console.error('Auto-sync on login failed:', err);
         // Start auto-save anyway even if initial sync fails
         startAutoSave();
+        _afterLoginSync();
       });
     }, 500);
   } catch(err) {
@@ -13206,6 +13213,12 @@ var cestisFeatureConfig = {
     file: 'Pages/Student-Exams.html',
     onMount: function() {
       cestisSafe('renderStudentExams');
+      // A result submitted before this page was first drawn is shown now.
+      try {
+        var p = (typeof _examResultToShow !== 'undefined') ? _examResultToShow : null;
+        if(p && currentStudent && p.result && p.result.studentId === currentStudent.id) showExamResult(p.result, p.exam, p.note);
+        _examResultToShow = null;
+      } catch(e) {}
     }
   },
   's-certificate': {
@@ -14392,7 +14405,9 @@ function buildStudentPages() {
   const s = currentStudent;
   // An exam left in progress on this PC (a reload, a power cut, a sign-out):
   // point the trainee back to it while its clock is still running.
-  try { if(s && !currentExamSession && examHasDraftFor(s.id)) showToast('You have a test in progress. Open My Exams and choose Continue your attempt: the clock is still running.', 'warning'); } catch(e) {}
+  // (One whose time ran out meanwhile is submitted after the sign-in sync:
+  // examSubmitExpiredAttempts.)
+  try { if(s && !currentExamSession && examHasDraftFor(s.id, true)) showToast('You have a test in progress. Open My Exams and choose Continue your attempt: the clock is still running.', 'warning'); } catch(e) {}
   // Resolve instructor name if missing — look up by course match in instructorData
   if (!s.instructor && s.course) {
     var matchedIns = instructorData.find(function(ins) { return ins.course && instructorCourseMatch(s.course, ins.course); });
@@ -27309,9 +27324,20 @@ function examAttemptsArrived(where) {
   var gone = (examAttempts || []).find(function(a) { return a && ids.indexOf(String(a.id)) !== -1 && X.attemptIsRetired(a); });
   var stub = examReadDraftRaw(s.studentId, s.examId);
   if (!gone && stub && X.attemptIsRetired(stub) && ids.indexOf(String(stub.id)) !== -1) gone = stub;
-  if (gone) { examAttemptEndedElsewhere(gone, where); return; }
+  if (gone) { examAttemptEndedElsewhere(gone, examSubmittedHere(gone, ids) ? 'window' : where); return; }
   var found = X.attemptFor(X.mergeAttemptLists(examAttempts || [], [examAttemptRecord(s)]).list, s.studentId, s.examId);
   if (found && examAdoptAttempt(found.attempt, found.ids, where)) autoSaveExamProgress();
+}
+// Was the attempt submitted on THIS computer (in another window)? Its result
+// then waits in this PC's outbox until the shared copy is seen to hold it.
+// (The result reaches the other window before the attempt's closing does.)
+function examSubmittedHere(stub, ids) {
+  var rid = stub && stub.resultId;
+  try {
+    return examOutboxRead().some(function(r) {
+      return !!r && ((rid != null && r.id === rid) || (r.attemptId != null && (ids || []).indexOf(String(r.attemptId)) !== -1));
+    });
+  } catch (e) { return false; }
 }
 // Answers that reached this attempt from elsewhere are put on the screen
 // (the trainee's own newer answers stay: the merge keeps the newest of each).
@@ -27438,6 +27464,12 @@ function examResumeDraft(d, ids) {
     submitExam(true, { away: true });
     return;
   }
+  // This PC's own copy was older than the shared one: she carried on
+  // elsewhere. Say so, calmly — nothing she answered here is lost.
+  var mine = examLoadDraft(d.studentId, d.examId);
+  if (mine && (JSON.stringify(mine.answers) !== JSON.stringify(d.answers) || JSON.stringify(mine.flagged) !== JSON.stringify(d.flagged))) {
+    currentExamSession._note = 'This test was continued on another device. Your answers are kept: the newest answer to each question is used.';
+  }
   autoSaveExamProgress();
   examPublishNow();
   examShowTakingView();
@@ -27445,8 +27477,9 @@ function examResumeDraft(d, ids) {
   startExamTimer();
   showToast('Exam resumed: your answers were restored. The clock kept running while you were away.');
 }
-// Is a test in progress for this trainee, on this PC or shared?
-function examHasDraftFor(studentId) {
+// The trainee's tests in progress, on this PC or shared: one entry per exam
+// ({ attempt, ids } as examCurrentAttempt gives it).
+function examOpenAttemptsFor(studentId) {
   var X = CESTISCore.exams, prefix = X.DRAFT_PREFIX + String(studentId) + '__', pairs = {};
   (CESTISStore.keys ? CESTISStore.keys() : []).forEach(function(k) {
     if (String(k).indexOf(prefix) !== 0) return;
@@ -27454,11 +27487,48 @@ function examHasDraftFor(studentId) {
     if (raw && X.attemptIsOpen(raw)) pairs[raw.examId] = 1;
   });
   (examAttempts || []).forEach(function(a) { if (a && String(a.studentId) === String(studentId) && X.attemptIsOpen(a)) pairs[a.examId] = 1; });
-  return Object.keys(pairs).some(function(examId) { return !!examCurrentAttempt(studentId, examId); });
+  return Object.keys(pairs).map(function(examId) { return examCurrentAttempt(studentId, examId); }).filter(Boolean);
 }
+// Is a test in progress for this trainee, on this PC or shared? running:
+// only one whose clock has not run out yet.
+function examHasDraftFor(studentId, running) {
+  return examOpenAttemptsFor(studentId).some(function(cur) { return !running || Number(cur.attempt.deadline) > Date.now(); });
+}
+// After the sign-in sync: a test whose time ran out while the trainee was
+// away (a power cut, a closed tab, a sign-out, a session that ran out) is
+// submitted now — once, with the answers saved for her — and she is shown
+// the result with a note saying so. It used to wait on My Exams as "Submit
+// saved answers" until she pressed it: a trainee who never did had no
+// result at all, and the sign-in told her "the clock is still running".
+function examSubmitExpiredAttempts() {
+  var me = currentStudent;
+  if (!me || currentRole !== 'student' || currentExamSession || _isExamPreviewMode) return 0;
+  var due = examOpenAttemptsFor(me.id).filter(function(cur) { var t = Number(cur.attempt.deadline); return t > 0 && Date.now() >= t; });
+  if (!due.length) return 0;
+  try { showPage('s-exams'); } catch (e) {}
+  var n = 0;
+  due.forEach(function(cur) {
+    if (currentExamSession || !currentStudent || currentStudent.id !== me.id) return;
+    examResumeDraft(cur.attempt, cur.ids);   // the deadline has passed: submitted, with the note
+    n++;
+  });
+  return n;
+}
+// Moving between pages is saved a moment later (0.3 s, and at least every
+// 1.5 s while it goes on); an answer — a choice or a key typed — at once
+// (examSaveDraftNow). Answers used to wait for a 0.8 s pause, so a trainee
+// typing an essay without pausing was saved only by the 15-second clock, and
+// a browser crash lost what she had typed since.
+var _examDraftFirstAt = 0;
 function examSaveDraftSoon() {
-  if (_examDraftTimer) clearTimeout(_examDraftTimer);
-  _examDraftTimer = setTimeout(function() { _examDraftTimer = null; autoSaveExamProgress(); }, 800);
+  var now = Date.now();
+  if (_examDraftTimer) clearTimeout(_examDraftTimer); else _examDraftFirstAt = now;
+  var wait = Math.max(0, Math.min(300, 1500 - (now - _examDraftFirstAt)));
+  _examDraftTimer = setTimeout(function() { _examDraftTimer = null; autoSaveExamProgress(); }, wait);
+}
+function examSaveDraftNow() {
+  if (_examDraftTimer) { clearTimeout(_examDraftTimer); _examDraftTimer = null; }
+  autoSaveExamProgress();
 }
 // The shared copy: within EXAM_PUBLISH_MS of a change (the first change at
 // once), and immediately on leaving the page, signing out and submitting.
@@ -28241,7 +28311,9 @@ function examAnswerChanged(qIdx) {
   var tc = document.getElementById('examNavToggleCount');
   if(tc) tc.textContent = counts.answered + '/' + counts.total;
   examUpdateProgress();
-  examSaveDraftSoon();
+  // Saved on this computer at once — a choice and every key typed — so a
+  // crash or a power cut loses nothing that was answered.
+  examSaveDraftNow();
 }
 
 function toggleExamFlag(qIdx) {
@@ -28262,7 +28334,7 @@ function toggleExamFlag(qIdx) {
   } else {
     renderExamTaking();
   }
-  examSaveDraftSoon();
+  examSaveDraftNow();
 }
 
 // Kept for anything that still asks to scroll to a question.
@@ -28426,6 +28498,9 @@ function submitExam(auto, opts) {
   // Kept aside until the cloud is seen to hold it, so the next trainee's (or a
   // staff member's) sign-out on this PC cannot delete it before it is uploaded.
   examOutboxAdd(result);
+  // Stored before the attempt is closed below: another window that hears the
+  // attempt close looks for the result, and used to find it not there yet.
+  try { saveCollection('voctrain_examResults', examResults); } catch(e) {}
 
   // A provisional score is not the trainee's score yet.
   if(!needsReview && currentStudent) currentStudent.score = score + '%';
@@ -28575,11 +28650,16 @@ function examReviewAnswerHtml(a, q, key, reveal, i) {
   return html;
 }
 
+// A result submitted before My Exams was first drawn on this screen (a test
+// whose time ran out while the trainee was away, submitted at sign-in): the
+// page is fetched on first use, so the result is shown once it is there.
+var _examResultToShow = null;
 function showExamResult(result, exam, note) {
   var takingView = document.getElementById('studentExamTakingView');
   if(takingView) takingView.style.display='none';
   var resultView = document.getElementById('studentExamResultView');
-  if(!resultView) return;
+  if(!resultView) { _examResultToShow = { result: result, exam: exam, note: note }; return; }
+  _examResultToShow = null;
   resultView.style.display='block';
   // The review is a page of its own, not a panel under the list.
   var listView = document.getElementById('studentExamListView');
@@ -28673,6 +28753,11 @@ function showExamResult(result, exam, note) {
   html += '</div></div></div>';
 
   resultView.innerHTML = html;
+  // The result opens at its top, where the summary and any note are: it used
+  // to open wherever the attempt had been scrolled to, so on a phone the
+  // trainee landed half-way down the review and never saw the note saying
+  // her result was waiting to be sent, or had been submitted elsewhere.
+  try { var mc = document.querySelector('.main-content'); if(mc) mc.scrollTop = 0; if(typeof window.scrollTo === 'function') window.scrollTo(0, 0); } catch(e) {}
 }
 function examReviewGoTo(i) {
   var el = document.getElementById('examR-' + i);
