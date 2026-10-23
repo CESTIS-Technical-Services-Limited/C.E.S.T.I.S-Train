@@ -37,7 +37,7 @@
             if (res.status === 429 || res.status >= 500) { var e = new Error('HTTP ' + res.status); e.retryable = true; throw e; }
             return res.text().then(function (t) {
               var parsed;
-              try { parsed = JSON.parse(t); } catch (e2) { throw new Error('broker returned non-JSON (' + res.status + '): ' + t.slice(0, 120)); }
+              try { parsed = JSON.parse(t); } catch (e2) { throw new Error('the sync service sent an unreadable reply (' + res.status + '): ' + t.slice(0, 120)); }
               if (parsed && parsed.error) { var be = new Error('broker: ' + parsed.error); be.broker = true; throw be; }
               return parsed;
             });

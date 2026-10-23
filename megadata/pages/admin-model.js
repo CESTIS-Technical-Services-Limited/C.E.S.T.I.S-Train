@@ -25,15 +25,15 @@
     var url = String(input.url || '').trim();
     var secret = String(input.secret || '').trim();
     var errors = [], warnings = [];
-    if (!url) errors.push('The broker web address is required.');
+    if (!url) errors.push('The sync service web address is required.');
     else {
       var m = /^(https?):\/\/([^\/]+)/i.exec(url);
-      if (!m) errors.push('The broker address must be a full web address starting with https://');
-      else if (m[1].toLowerCase() !== 'https') errors.push('The broker address must use https:// (never plain http).');
+      if (!m) errors.push('The sync service address must be a full web address starting with https://');
+      else if (m[1].toLowerCase() !== 'https') errors.push('The sync service address must use https:// (never plain http).');
       else if (!/(^|\.)script\.google\.com$|(^|\.)googleusercontent\.com$/i.test(m[2]))
-        warnings.push('That address is not a script.google.com / googleusercontent.com address — an Apps Script deployment URL is expected (see the deploy guide).');
+        warnings.push('That is not the kind of address the sync service uses — check it against the deployment guide.');
     }
-    if (!secret) errors.push('The shared secret is required (set when the broker was deployed — Script Properties, HMAC_SECRET).');
+    if (!secret) errors.push('The shared secret is required (set when the sync service was deployed — its HMAC_SECRET setting).');
     else if (secret.length < 16) warnings.push('That secret is short (' + secret.length + ' characters). The deploy guide generates 32+ — double-check you pasted the whole value.');
     return { ok: errors.length === 0, errors: errors, warnings: warnings, url: url, secret: secret };
   }
@@ -92,11 +92,11 @@
   /* Operator-facing one-liner for what this device would do right now. */
   function describeBoot(boot) {
     if (!boot) return 'Status unknown — the check did not run.';
-    if (boot.mode === 'enforced') return 'ENFORCED — this device runs fully on MegaData; legacy storage is closed.';
-    if (boot.mode === 'shadow') return 'SHADOW — MegaData is live on this device and the legacy pages are being mirrored and compared.';
-    if (boot.reason && /not sealed/i.test(boot.reason)) return 'LEGACY — connected to the broker, but the one-time data migration has not been run yet, so pages stay exactly as today.';
-    if (boot.reason) return 'LEGACY — broker configured but not reachable right now (' + boot.reason + '). Pages stay exactly as today.';
-    return 'LEGACY — no broker set up on this device yet. Pages behave exactly as they always have.';
+    if (boot.mode === 'enforced') return 'ENFORCED — this computer runs fully on the record book; the older way of saving is closed.';
+    if (boot.mode === 'shadow') return 'SHADOW — the record book is live on this computer and the older pages are being mirrored and compared.';
+    if (boot.reason && /not sealed/i.test(boot.reason)) return 'LEGACY — connected to the sync service, but the one-time data migration has not been run yet, so pages stay exactly as today.';
+    if (boot.reason) return 'LEGACY — sync service set up but not reachable right now (' + boot.reason + '). Pages stay exactly as today.';
+    return 'LEGACY — no sync service set up on this computer yet. Pages behave exactly as they always have.';
   }
 
   return {

@@ -310,7 +310,7 @@ console.log('The Qualification Plan viewer shows a trainee their own level\'s pl
     'a course stating no level still sees both levels');
   assertEq(vm.runInContext("qpVisiblePrograms(programs, { isStaff: true, filter: 'all' }).length", sb), 4, 'staff see everything');
   assert(/No qualification plan has been published for your programme/.test(QP), 'a programme with no plan folder is told so');
-  assert(/The documents for this plan are kept in the Centre\\'s Google Drive/.test(QP), 'a trainee without the Centre\'s Drive token is offered the folder, not an admin sign-in');
+  assert(/The documents for this plan open from their folder\.' \+ openFolder/.test(QP), 'a trainee without the Centre\'s sync sign-in is offered the folder, not an admin sign-in (and is not told where it is kept)');
 }
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

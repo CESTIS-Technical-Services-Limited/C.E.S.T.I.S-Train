@@ -325,7 +325,7 @@ PAGES.forEach(function (page) {
   vm.createContext(sb2);
   vm.runInContext(extractFunction(src, 'certDownloadAllowed', w), sb2);
   let v = vm.runInContext("certDownloadAllowed({ id: 'STU-1', certNo: 'PH-1' })", sb2);
-  assert(v.allowed === false && /Sync with the cloud first/.test(v.reason), w + ': approved but not synced — greyed out, and it says why');
+  assert(v.allowed === false && /Sync first/.test(v.reason) && !/cloud/i.test(v.reason), w + ': approved but not synced — greyed out, and it says why');
   sb2._synced = true;
   v = vm.runInContext("certDownloadAllowed({ id: 'STU-1', certNo: 'PH-1' })", sb2);
   assert(v.allowed === true, w + ': approved and synced — allowed');

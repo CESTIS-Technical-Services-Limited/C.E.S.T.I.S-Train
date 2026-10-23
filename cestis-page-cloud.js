@@ -720,9 +720,9 @@
         'box-shadow:0 4px 18px rgba(0,0,0,.35);';
       doc.body.appendChild(el);
     }
-    el.textContent = 'Not reaching the Centre’s server — your work is saved on this device only. ' +
+    el.textContent = 'Not synced — your work is kept on this computer until it syncs. ' +
       (why === 'auth' ? 'Reload this page. ' : '') +
-      'If this stays, check the server window is still open.';
+      'If this stays, ask the office.';
   }
   function lanResult(page, ok, status) {
     if (ok) {

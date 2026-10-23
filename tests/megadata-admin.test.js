@@ -30,7 +30,8 @@ function section(t) { console.log(t); }
     const short = AM.validateBrokerSettings({ url: 'https://script.google.com/x', secret: 'tiny' });
     ok(short.ok && short.warnings.length === 1, 'a suspiciously short secret still saves but WARNS');
     const oddHost = AM.validateBrokerSettings({ url: 'https://example.com/hook', secret: 'x'.repeat(20) });
-    ok(oddHost.ok && oddHost.warnings.some(w => /script\.google\.com/.test(w)), 'a non-Google host warns (typo protection), does not block');
+    ok(oddHost.ok && oddHost.warnings.some(w => /not the kind of address the sync service uses/.test(w) && !/google|apps script/i.test(w)),
+      'a host the sync service never uses warns (typo protection), does not block — and the warning names no provider');
   }
 
   section('Export filename: the CLI recognises every in-app export by name alone');
@@ -120,7 +121,7 @@ function section(t) { console.log(t); }
 
   section('Operator-facing status lines');
   {
-    ok(/no broker set up/i.test(AM.describeBoot({ mode: 'legacy' })), 'unconfigured device: plain-language legacy line');
+    ok(/no sync service set up/i.test(AM.describeBoot({ mode: 'legacy' })), 'unconfigured device: plain-language legacy line');
     ok(/migration has not been run/i.test(AM.describeBoot({ mode: 'legacy', reason: 'bootstrap not sealed' })), 'configured-but-unsealed names the migration as the missing step');
     ok(/not reachable/i.test(AM.describeBoot({ mode: 'legacy', reason: 'broker unreachable: HTTP 500' })), 'unreachable broker is named, with the reason');
     ok(/SHADOW/.test(AM.describeBoot({ mode: 'shadow' })), 'shadow mode is named');

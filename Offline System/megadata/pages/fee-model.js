@@ -252,7 +252,7 @@
           newPays.push({
             id: legacyId, studentId: item.rec.id, studentName: item.rec.name || '', skillArea: item.rec.skillArea || '',
             amount: e.amountMinor / 100, date: e.date, method: e.method || 'other', term: '',
-            receiptNumber: e.receiptNo || e.legacyReceiptNo || '', notes: 'Mirrored from MegaData',
+            receiptNumber: e.receiptNo || e.legacyReceiptNo || '', notes: 'Mirrored from the record book',
             createdAt: (e.date || '2024-04-01') + 'T00:00:00.000Z', megaEventId: e.eventId
           });
         });

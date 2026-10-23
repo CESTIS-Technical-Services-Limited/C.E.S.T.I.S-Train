@@ -2439,6 +2439,180 @@
     };
   })();
 
+  /* ====================== WHAT A COURSE ENDING DECIDES ======================
+     When a course ended, every trainee who was not yet certified became Not
+     Yet Competent — whatever their transcript said. A trainee with every unit
+     marked competent, waiting only for the certificate to be issued, was
+     marked NYC the day the course closed; so was one whose last exam was still
+     being marked. The transcript now decides (Core.Transcript
+     .transcriptReadiness, passed in as `readiness`):
+
+       - every CORE unit competent and nothing awaiting marking: NOT marked
+         NYC. The stage is left as it is and the trainee is flagged ready to
+         certify (readyToCertifyAt), which the dashboard and Student Progress
+         show. Electives are not required — how many a plan demands is not
+         recorded anywhere yet.
+       - any unit still awaiting marking: not marked yet. The trainee shows as
+         "Awaiting marking" and the next sweep looks again.
+       - a core unit not yet competent, or with no result: NYC, as before, with
+         the units written in courseEndReason so staff can see why.
+       - a programme with no unit catalogue: NYC, exactly as before — there is
+         nothing to judge by.
+
+     Certified, collected and withdrawn trainees are never touched, and nor is
+     a stage a PERSON set for this course ending (markSetByUser): the rule acts
+     on an ending once, then leaves it to the Centre. Only a NYC the rule made
+     is final for it; "ready" and "awaiting marking" are looked at again on
+     every sweep, so a grade corrected later still counts.
+
+     decide() is pure — the course status, which ending this is (its end date)
+     and the readiness are passed in — and returns the fields to change; apply()
+     writes them onto the record. The dashboard's sweep and Student Progress
+     both use these, so the two never judge a trainee differently.
+     ========================================================================= */
+  Core.courseEnd = (function () {
+    var FINAL = { certified: 1, collected: 1, withdrawn: 1 };
+    // The fields this rule owns on a trainee record (besides the stage and the
+    // _nycAuto / _nycForCourseEnd markers it always used).
+    var FLAGS = ['courseEndState', 'courseEndReason', 'readyToCertifyAt'];
+    var LABELS = { ready: 'Ready to certify', 'awaiting-marking': 'Awaiting marking', nyc: 'Not Yet Competent' };
+
+    function codes(list, max) {
+      list = list || [];
+      max = max || 5;
+      return list.slice(0, max).join(', ') + (list.length > max ? ' and ' + (list.length - max) + ' more' : '');
+    }
+    function has(r, k) { return !!(r && Array.isArray(r[k]) && r[k].length); }
+    // Does this readiness verdict actually judge the trainee (a catalogue, units)?
+    function known(r) { return !!(r && typeof r === 'object' && r.known !== false && r.status !== 'no-catalogue' && Array.isArray(r.missingCore)); }
+
+    /* Why a trainee is not yet competent, naming the units: the core units
+       graded NYC, then the core units with no result. */
+    function nycReason(r) {
+      var nycCore = (r.missingCore || []).filter(function (c) { return (r.nycUnits || []).indexOf(c) !== -1; });
+      var none = (r.missingCore || []).filter(function (c) { return nycCore.indexOf(c) === -1 && (r.pendingUnits || []).indexOf(c) === -1; });
+      var parts = [];
+      if (nycCore.length) parts.push('Not yet competent: ' + codes(nycCore));
+      if (none.length) parts.push('No result: ' + codes(none));
+      return parts.join('; ') || 'Core units not yet achieved';
+    }
+
+    /* student: the trainee record (read, never changed here).
+       opts: { status   — Core.courseDuration.status of their course
+                          ('ended' | 'active' | 'not-started' | 'no-dates' | 'unknown'),
+               endKey   — which ending this is (the course's end date),
+               readiness — Core.Transcript.transcriptReadiness(student, …); null,
+                          or { known:false }, when the programme has no unit
+                          catalogue,
+               loading  — true while the transcript data has not loaded yet: a
+                          catalogue programme is then left for the next sweep
+                          rather than judged on half the records,
+               nowIso   — the moment, for readyToCertifyAt }
+       -> { outcome, changed, set: { field: value }, unset: [fields], reason }
+       outcome: 'none' | 'final' | 'settled' | 'deferred' | 'nyc' | 'ready' |
+                'awaiting-marking' | 'revert' */
+    function decide(s, opts) {
+      opts = opts || {};
+      var out = { outcome: 'none', changed: false, set: {}, unset: [], reason: '' };
+      if (!s) return out;
+      var set = function (k, v) { if (s[k] !== v) { out.set[k] = v; out.changed = true; } };
+      var unset = function (k) { if (s[k] !== undefined) { out.unset.push(k); out.changed = true; } };
+      var st = opts.status;
+      if (st === 'ended') {
+        var endKey = opts.endKey || 'ended';
+        if (FINAL[s.stage]) {
+          // Certified or done: what the rule last said no longer applies.
+          out.outcome = 'final';
+          FLAGS.forEach(unset);
+          return out;
+        }
+        // This ending has been dealt with: by a person, or by this rule's NYC.
+        if (s._nycForCourseEnd === endKey) { out.outcome = 'settled'; return out; }
+        // Already NYC (set by hand, or arrived so from another device).
+        if (s.stage === 'nyc') return out;
+        var r = opts.readiness;
+        if (!known(r)) {
+          if (opts.loading && r === undefined) { out.outcome = 'deferred'; return out; }
+          // No unit catalogue: today's rule, unchanged.
+          out.outcome = 'nyc';
+          set('stage', 'nyc'); set('_nycAuto', true); set('_nycForCourseEnd', endKey);
+          FLAGS.forEach(unset);
+          return out;
+        }
+        if (has(r, 'pendingUnits')) {
+          out.outcome = 'awaiting-marking';
+          out.reason = 'Awaiting marking: ' + codes(r.pendingUnits);
+          set('courseEndState', 'awaiting-marking'); set('courseEndReason', out.reason); unset('readyToCertifyAt');
+          return out;
+        }
+        if (!has(r, 'missingCore')) {
+          out.outcome = 'ready';
+          out.reason = 'Every core unit competent' + (r.total ? ' (' + (r.competent || 0) + ' of ' + r.total + ' units competent)' : '');
+          set('courseEndState', 'ready'); set('courseEndReason', out.reason);
+          // Stamped once: re-confirming it on every sweep is not a new event.
+          if (!s.readyToCertifyAt || s.courseEndState !== 'ready') set('readyToCertifyAt', opts.nowIso || new Date().toISOString());
+          return out;
+        }
+        out.outcome = 'nyc';
+        out.reason = nycReason(r);
+        set('stage', 'nyc'); set('_nycAuto', true); set('_nycForCourseEnd', endKey);
+        set('courseEndState', 'nyc'); set('courseEndReason', out.reason); unset('readyToCertifyAt');
+        return out;
+      }
+      if (st === 'active' || st === 'not-started') {
+        // The course is genuinely open again (extended, or not started yet):
+        // undo only what THIS rule applied, and only where a person has not
+        // since had their say. 'no-dates' and 'unknown' say nothing about
+        // whether the course has finished, so they undo nothing.
+        if (s.stage === 'nyc' && s._nycAuto && !s.stageSetByUser) {
+          out.outcome = 'revert';
+          set('stage', 'training'); unset('_nycAuto'); unset('_nycForCourseEnd');
+          FLAGS.forEach(unset);
+          return out;
+        }
+        // "Ready" and "awaiting marking" were about the ending; there is none now.
+        if (s.courseEndState === 'ready' || s.courseEndState === 'awaiting-marking') {
+          out.outcome = 'revert';
+          FLAGS.forEach(unset);
+        }
+      }
+      return out;
+    }
+    // Write a decision onto the record. Returns whether anything changed.
+    function apply(s, d) {
+      if (!s || !d || !d.changed) return false;
+      Object.keys(d.set).forEach(function (k) { s[k] = d.set[k]; });
+      d.unset.forEach(function (k) { delete s[k]; });
+      return true;
+    }
+
+    /* A person, not the rule, has just decided this trainee's stage. The rule
+       no longer claims it; when the course has ended (endKey given) it counts
+       as the Centre having dealt with this ending, so the sweep leaves it alone.
+       What the rule had flagged goes with it — unless the person has confirmed
+       the rule's own Not Yet Competent, whose reason still explains it. */
+    function markSetByUser(s, endKey) {
+      if (!s) return;
+      delete s._nycAuto;
+      if (endKey) s._nycForCourseEnd = endKey;
+      s.stageSetByUser = true;
+      if (!(s.stage === 'nyc' && s.courseEndState === 'nyc')) FLAGS.forEach(function (k) { delete s[k]; });
+    }
+
+    /* What to show beside a trainee's stage, or null: { state, label, detail, at }.
+       "Ready" and "awaiting marking" only while the trainee is still
+       uncertified and not NYC; the NYC reason only while they are NYC. */
+    function flag(s) {
+      if (!s || !s.courseEndState || FINAL[s.stage]) return null;
+      var state = s.courseEndState;
+      if (state === 'nyc' ? s.stage !== 'nyc' : (s.stage === 'nyc' || !LABELS[state])) return null;
+      return { state: state, label: LABELS[state], detail: String(s.courseEndReason || ''), at: s.readyToCertifyAt || '' };
+    }
+
+    return { decide: decide, apply: apply, markSetByUser: markSetByUser, flag: flag, nycReason: nycReason,
+             FLAGS: FLAGS, LABELS: LABELS };
+  })();
+
   /* ==========================================================================
      ATTENDANCE REGISTER — one mark per trainee per actual date
 
@@ -3120,12 +3294,12 @@
       var meshCap = meshLimit(opts.audioOnly);
       if (n <= meshCap) {
         return { mode: 'mesh', limit: meshCap, feasible: true,
-          reason: 'A room of ' + n + ' runs peer-to-peer with no server.' };
+          reason: 'A room of ' + n + ' runs directly between the devices, with nothing extra to set up.' };
       }
       if (n <= SFU_MAX) {
         return { mode: 'sfu', limit: SFU_MAX, feasible: true,
           reason: 'A room of ' + n + ' is beyond what a peer-to-peer mesh can carry (' +
-                  meshCap + ' max), so it runs on a hosted conference server.' };
+                  meshCap + ' max), so it runs on the large-class video service.' };
       }
       return { mode: 'sfu', limit: SFU_MAX, feasible: false,
         reason: 'A single room tops out at about ' + SFU_MAX + ' participants. Split the class into groups.' };
@@ -3711,7 +3885,7 @@
       if (!/^https?:\/\//i.test(raw)) raw = 'https://' + raw;
       var m = /^(https?):\/\/([^\/\s?#]+)(\/[^\s?#]*)?$/i.exec(raw);
       if (!m) return { ok: false, base: '', publicJitsi: false, reason: 'That address could not be read.' };
-      if (m[1].toLowerCase() !== 'https') return { ok: false, base: '', publicJitsi: false, reason: 'The Large Class server must be an https:// address.' };
+      if (m[1].toLowerCase() !== 'https') return { ok: false, base: '', publicJitsi: false, reason: 'The Large Class video server must be an https:// address.' };
       var host = m[2].toLowerCase();
       var path = (m[3] || '/').replace(/\/+$/, '') + '/';
       return { ok: true, base: 'https://' + host + path, publicJitsi: host === 'meet.jit.si', reason: '' };
@@ -4596,6 +4770,197 @@
         pageWidth: pw, pageHeight: ph, x: (pw - w) / 2, y: (ph - h) / 2, w: w, h: h };
     }
 
+    /* --- Page 2: a list laid out in two columns -----------------------------
+       Page 2 prints two lists side by side: the units (clusters/modules) on
+       the left and the Technical Competencies Achieved on the right, each in
+       two columns of its own. The competencies used to be drawn as ONE column
+       that wrapped at the page's right edge and never stopped: a long list ran
+       over the frame on the right and down through the Programme
+       Specifications and off the page, instead of carrying on beside itself
+       the way the units did. The units were split by COUNT, half and half,
+       with nothing to stop a long half running down the page either, and every
+       wrapped line of a bullet got a bullet of its own.
+
+       layoutColumns places a list in a box of equal columns. Each entry is
+       wrapped to the width of its OWN column (with the very font it is drawn
+       in — `measure(text, font)` is the page's canvas), its continuation
+       lines hang under its text rather than under its bullet, and it is never
+       split between two columns; a heading stays with its first entry. The
+       list fills the first column from the top and carries on at the top of
+       the next ('fill'), or shares itself out so the columns end level
+       ('balance'). When it does not fit at the template's size the font comes
+       down a step at a time to `minSize`; at that size what still does not fit
+       is left out and counted (`hidden`) — never drawn outside the box.
+
+         entries  [{ text, style: 'head'|'item', marker? }]
+         box      { x, y: first baseline, width, bottom: lowest baseline,
+                    columns: 2, gap: 10, padRight: 10 }
+         opts     { size, minSize, step: 0.5, mode: 'fill'|'balance',
+                    family, groupGap, styles: { head: {...}, item: {...} } }
+                    a style is { weight, scale, lineHeight, indent, marker, color }
+       Returns { size, fits, hidden, lines: [{ text, x, y, font, color, style,
+       column, entry, first }], columns: [{ x, width }] }. */
+    var LIST_STYLES = {
+      head: { weight: 'bold', scale: 0.85, lineHeight: 1.3, indent: 10, marker: '' },
+      item: { weight: '', scale: 0.77, lineHeight: 1.1, indent: 20, marker: '  \u2022  ' }
+    };
+    function listStyle(opts, name) {
+      var base = LIST_STYLES[name] || LIST_STYLES.item;
+      var own = (opts && opts.styles && opts.styles[name]) || {};
+      var out = {};
+      Object.keys(base).forEach(function (k) { out[k] = base[k]; });
+      Object.keys(own).forEach(function (k) { out[k] = own[k]; });
+      return out;
+    }
+    function listFont(st, size, family) {
+      return (st.weight ? st.weight + ' ' : '') + Math.max(1, Math.round(size * st.scale)) + 'px ' + (family || 'Arial, sans-serif');
+    }
+    /* Words onto lines no wider than maxW; a word wider than the whole line
+       (a long code or address) is broken where it must be, so nothing ever
+       runs past the column's edge. */
+    function wrapWords(text, maxW, measure, font) {
+      var words = String(text == null ? '' : text).replace(/\s+/g, ' ').trim().split(' ');
+      var lines = [], cur = '';
+      function breakWord(word) {
+        var part = '';
+        for (var i = 0; i < word.length; i++) {
+          if (part && measure(part + word.charAt(i), font) > maxW) { lines.push(part); part = ''; }
+          part += word.charAt(i);
+        }
+        return part;
+      }
+      words.forEach(function (word) {
+        if (!word) return;
+        var test = cur ? cur + ' ' + word : word;
+        if (measure(test, font) <= maxW) { cur = test; return; }
+        if (cur) lines.push(cur);
+        cur = measure(word, font) <= maxW ? word : breakWord(word);
+      });
+      if (cur) lines.push(cur);
+      return lines.length ? lines : [''];
+    }
+    function columnsOf(box) {
+      var n = Math.max(1, Math.floor(box.columns || 2));
+      var gap = box.gap == null ? 10 : box.gap;
+      var cw = (box.width - gap * (n - 1)) / n;
+      var cols = [];
+      for (var c = 0; c < n; c++) cols.push({ x: box.x + c * (cw + gap), width: cw });
+      return cols;
+    }
+    /* Every entry wrapped at one size. Every column is the same width, so an
+       entry wraps the same wherever it lands: done once per size. */
+    function wrapAt(entries, measure, box, opts, size) {
+      var cols = columnsOf(box);
+      var padRight = box.padRight == null ? 10 : box.padRight;
+      return entries.map(function (e, i) {
+        var st = listStyle(opts, e.style);
+        var font = listFont(st, size, opts.family);
+        var marker = e.marker != null ? String(e.marker) : (st.marker || '');
+        var markerW = marker ? measure(marker, font) : 0;
+        var avail = Math.max(1, cols[0].width - st.indent - padRight - markerW);
+        var lh = Math.max(1, Math.round(size * st.lineHeight));
+        var texts = wrapWords(e.text, avail, measure, font);
+        return { i: i, st: st, font: font, marker: marker, markerW: markerW, lh: lh, texts: texts,
+          head: e.style === 'head', h: lh * (texts.length - 1) };
+      });
+    }
+    /* Place the wrapped entries, column by column. `limit` is the lowest
+       baseline allowed: the box's bottom, or higher when balancing. Null when
+       the list does not fit (unless truncating, when the rest is counted). */
+    function placeAt(blocks, entries, box, opts, limit, truncate) {
+      var cols = columnsOf(box);
+      var groupGap = opts.groupGap == null ? 6 : opts.groupGap;
+      var lines = [], col = 0, y = box.y, empty = true, hidden = 0;
+      for (var b = 0; b < blocks.length; b++) {
+        var bl = blocks[b];
+        // What must fit together: this entry; for a heading, its first entry
+        // too (no heading left alone at the foot of a column) — or, with
+        // keepGroups, its whole group when the group fits in a column at all.
+        var need = bl.h;
+        if (bl.head) {
+          var j = b + 1, group = bl.h;
+          while (j < blocks.length && !blocks[j].head) { group += blocks[j - 1].lh + blocks[j].h; j++; }
+          var withFirst = (blocks[b + 1] && !blocks[b + 1].head) ? bl.h + bl.lh + blocks[b + 1].h : bl.h;
+          need = (opts.keepGroups && box.y + group <= box.bottom) ? group : withFirst;
+        }
+        var gap = (bl.head && !empty) ? groupGap : 0;
+        if (!empty && y + gap + need > limit) { col++; y = box.y; empty = true; gap = 0; }
+        if (col >= cols.length || y + need > limit) {
+          if (!truncate) return null;
+          hidden = blocks.length - b;
+          break;
+        }
+        y += gap;
+        for (var k = 0; k < bl.texts.length; k++) {
+          lines.push({
+            text: k ? bl.texts[k] : bl.marker + bl.texts[k],
+            // Continuation lines hang under the text, not under the bullet.
+            x: cols[col].x + bl.st.indent + (k ? bl.markerW : 0), y: y,
+            font: bl.font, color: bl.st.color, style: entries[bl.i].style || 'item',
+            column: col, entry: bl.i, first: !k
+          });
+          y += bl.lh;
+        }
+        empty = false;
+      }
+      return { lines: lines, hidden: hidden, columns: cols };
+    }
+    function layoutAt(entries, measure, box, opts, size, truncate) {
+      var blocks = wrapAt(entries, measure, box, opts, size);
+      var full = placeAt(blocks, entries, box, opts, box.bottom, truncate);
+      if (!full || full.hidden || opts.mode !== 'balance' || blocks.length < 2) return full;
+      // Balanced: the highest bottom at which the list still fits, so the
+      // columns end level instead of the first running to the foot of the box.
+      var lo = box.y - 1, hi = box.bottom, best = full;
+      while (hi - lo > 1) {
+        var mid = Math.floor((lo + hi) / 2);
+        var r = placeAt(blocks, entries, box, opts, mid, false);
+        if (r) { best = r; hi = mid; } else lo = mid;
+      }
+      return best;
+    }
+    function layoutColumns(entries, measure, box, opts) {
+      opts = opts || {};
+      entries = Array.isArray(entries) ? entries.filter(function (e) { return e && String(e.text == null ? '' : e.text).trim(); }) : [];
+      var size = +opts.size > 0 ? +opts.size : 13;
+      var minSize = +opts.minSize > 0 ? Math.min(+opts.minSize, size) : size;
+      var step = +opts.step > 0 ? +opts.step : 0.5;
+      var r = null, s = size;
+      for (; s >= minSize - 1e-9; s = Math.round((s - step) * 1000) / 1000) {
+        r = layoutAt(entries, measure, box, opts, s, false);
+        if (r) break;
+      }
+      if (!r) { s = minSize; r = layoutAt(entries, measure, box, opts, s, true); }
+      return { size: s, fits: !r.hidden, hidden: r.hidden, lines: r.lines, columns: r.columns };
+    }
+    /* Several lists on one page, at ONE size: the largest at which every one
+       of them fits (so the two halves of page 2 never print in two different
+       sizes). sets: [{ entries, box, opts }]. */
+    function layoutColumnsShared(sets, measure) {
+      sets = Array.isArray(sets) ? sets : [];
+      var first = sets.map(function (st) { return layoutColumns(st.entries, measure, st.box, st.opts); });
+      var size = Math.min.apply(null, first.map(function (l) { return l.size; }).concat([Infinity]));
+      return sets.map(function (st, i) {
+        if (first[i].size === size) return first[i];
+        var o = {};
+        Object.keys(st.opts || {}).forEach(function (k) { o[k] = st.opts[k]; });
+        o.size = size; o.minSize = size;
+        return layoutColumns(st.entries, measure, st.box, o);
+      });
+    }
+    /* The smallest base size page 2's lists may shrink to: their body text
+       (scale 0.77 of it) no smaller than about 5 pt once the page is fitted to
+       A4 — the size of the small print on a printed form. Never larger than
+       the template's own size: a list that already fits is never touched. */
+    var LIST_MIN_PT = 5;
+    function listMinSize(size, width, height, scale) {
+      var pg = pdfPage(width, height);
+      var mmPerPx = pg.w / (width || 1);
+      var minPx = (LIST_MIN_PT * 25.4 / 72) / mmPerPx;
+      var base = minPx / (scale || LIST_STYLES.item.scale);
+      return Math.min(+size || 13, Math.round(base * 2) / 2);
+    }
+
     /* --- Dashboard figures --------------------------------------------------
        Certificate dates are stored as "October 16, 2026" (older records as ISO
        dates); Date.parse reads both. The chart used to split on '-', which
@@ -4810,6 +5175,8 @@
       decidedAt: decidedAt, mergeApprovals: mergeApprovals, recordDownload: recordDownload,
       eligibility: eligibility, templateKey: templateKey, keepTemplateProvenance: keepTemplateProvenance,
       pdfPage: pdfPage, certTime: certTime, byMonth: byMonth, certifiedInYear: certifiedInYear,
+      layoutColumns: layoutColumns, layoutColumnsShared: layoutColumnsShared, listMinSize: listMinSize,
+      wrapWords: wrapWords, LIST_STYLES: LIST_STYLES,
       sig: {
         VERSION: SIG_VERSION, fields: sigFields, canonical: canonical, b64url: b64url, fromB64url: fromB64url,
         keyId: keyId, generateKey: generateKey, sign: sign, current: sigCurrent, verify: verify,
