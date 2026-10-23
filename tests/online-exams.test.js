@@ -98,7 +98,12 @@ const PAGE_FNS = [
   'examSettingsSyncExpand', 'examCloseToggle', 'examKeyProblemText', 'examTypeLabel',
   'autoSaveExamProgress', 'submitExam', 'showExamResult', 'viewExamResultDetail', 'renderStudentExams', 'submitGrading', 'closeGradingPanel',
   'getFilteredNotifications', 'notifViewerId', 'exportExamResults', 'detectQuestionsFromText', 'removeImportOption', 'finalizeImportExam', 'updateImportSummary',
-  'clearSensitiveStudentData'
+  'clearSensitiveStudentData',
+  // A test in progress that follows the trainee (CESTISCore.exams attempts).
+  'safeJsonParse', 'examStampNow', 'examReadDraftRaw', 'examCurrentAttempt', 'examRetireLocalDraft', 'examAttemptRecord',
+  'examAttemptsUpsert', 'examAttemptsPersist', 'examAttemptsMergeIncoming', 'examAttemptsRestoreFromDrafts', 'examRetireStaleDrafts',
+  'examAttemptsArrived', 'examAdoptAttempt', 'examRedrawKeepingFocus', 'examDismissNote', 'examAttemptEndedElsewhere', 'examListNote',
+  'examResultFor', 'examPublishSoon', 'examPublishNow', 'examSaveOnLeaving', 'examPullBeforeStart', 'examCanAskCentre', 'examStartFresh'
 ];
 const PAGE_CODE = PAGE_FNS.map(n => extractFunction(SRC, n)).join('\n');
 
@@ -119,7 +124,7 @@ function makePage(opts) {
     Date: FakeDate, CESTISCore: Core,
     document: {
       getElementById(id) { if (opts.missing && opts.missing.indexOf(id) !== -1) return null; return els[id]; },
-      querySelectorAll() { return []; }, createElement() { return makeEl(); }, body: makeEl('body')
+      querySelectorAll() { return []; }, createElement() { return makeEl(); }, body: makeEl('body'), activeElement: null
     },
     CESTISStore: {
       getItem(k) { return k in store ? store[k] : null; }, setItem(k, v) { store[k] = String(v); }, removeItem(k) { delete store[k]; },
@@ -147,6 +152,7 @@ function makePage(opts) {
     currentExamSession: null, examTimerInterval: null, _isExamPreviewMode: false, _examDraftTimer: null,
     examBuilderQuestions: [], editingExamId: null, importedQuestions: [], importRawTextContent: '', importSelectedFile: null,
     EXAM_OUTBOX_KEY: 'cestisExamOutbox', _sessionWiped: false,
+    examAttempts: [], EXAM_PUBLISH_MS: 30000, _examPublishTimer: null, _examLastPublish: 0, scheduleDebouncedCloudSave() {},
     studentProfiles: {}, attendanceRecords: [], adminMeetings: [], adrTasks: [], adrStaffMeta: {}, adminStaffAccessSettings: {},
     instructorData: [], instructorProfiles: {}, certDownloadApprovals: [], certTemplates: {}, lmsChatMessages: {}, lmsChatProfiles: {},
     lmsChatFollows: {}, cloudFileId: null, lastSyncTime: null, loginSyncCompleted: false,
@@ -397,7 +403,12 @@ console.log('Resume after a reload or power cut, with the original clock (exams-
   run(z, "startStudentExam('EXAM-1')");
   assertEq(z.examResults.length, 1, 'an expired attempt is submitted with its saved answers');
   assertEq(z.examResults[0].score, 100, 'and marked against the exam\'s keys (both saved answers were right)');
-  assert(!z.__store[key], 'the saved attempt is cleared once submitted');
+  // Not removed: replaced by the small retired record (no answers), so a
+  // second window still open on the attempt cannot write it back or submit
+  // it again (CESTISCore.exams.retireAttempt).
+  assert(E.attemptIsRetired(JSON.parse(z.__store[key] || 'null')) && z.__store[key].indexOf('"answers"') === -1, 'the saved attempt is retired once submitted');
+  run(z, "startStudentExam('EXAM-1')");
+  assertEq(z.examResults.length, 1, 'and opening the exam again never submits it a second time');
 }
 
 console.log('Sign-out mid-exam never submits under the next trainee (exams-16, ui-03)');

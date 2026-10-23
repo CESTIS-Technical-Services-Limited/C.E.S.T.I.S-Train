@@ -243,7 +243,7 @@ const QUESTIONS = [
     ok(await signIn(page, 'tameka'), 'signed in again after the reload');
     await go(page, 's-exams');
     const btn = page.locator('#studentUpcomingExams .class-schedule-card', { hasText: TITLE }).locator('button');
-    ok(/Resume \(\d+:\d\d left\)/.test(await btn.innerText()), 'My Exams offers Resume with the time left');
+    ok(/Continue your attempt \(\d+:\d\d left\)/.test(await btn.innerText()), 'My Exams offers "Continue your attempt" with the time left');
     await btn.click();
     await page.waitForSelector('#studentExamTakingView .exam-attempt');
     const back = await page.evaluate(() => ({ page: currentExamSession.page, deadline: currentExamSession.deadline, flagged: currentExamSession.flagged[1], a: currentExamSession.answers }));
