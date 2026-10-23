@@ -198,7 +198,7 @@ console.log('The accounts ledger save writes down the ledger\'s deletions first'
       return { ok: true, json: async function () { return {}; } };
     } };
   vm.createContext(sb);
-  vm.runInContext(['ledgerHeaders', 'findAccountsLedgerFile', '_getDeletedUserIds', 'isUserDeleted', 'recordDeletedUser', 'dropDeletedAccounts', 'saveAccountsLedger']
+  vm.runInContext(['ledgerHeaders', 'findAccountsLedgerFile', '_getDeletedUserIds', 'isUserDeleted', 'recordDeletedUser', 'dropDeletedAccounts', 'mergeCloudAccounts', 'persistUserAccounts', 'saveAccountsLedger']
     .map(function (n) { return extractFunction(SRC, n); }).join('\n'), sb);
   const ok = await vm.runInContext('saveAccountsLedger()', sb);
   assertEq(ok, true, 'the ledger is written');

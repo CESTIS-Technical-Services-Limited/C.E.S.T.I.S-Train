@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-core.js?v=20261022a"></script>
+<script src="cestis-form-modal.js?v=20261023a" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C.E.S.T.I.S - Payroll Management System</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
@@ -159,14 +160,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sidebar-top-row{display:flex;align-items:center;padding:.6rem 1.5rem;border-bottom:1px solid var(--border);gap:1rem}
 .sidebar-brand{padding:0;border-bottom:none;margin-bottom:0;display:flex;align-items:center;gap:.75rem;flex-shrink:0}
 .sidebar-brand h1{font-size:.85rem;font-weight:700;color:var(--accent);letter-spacing:2px;text-transform:uppercase}
-.sidebar-brand p{font-size:.7rem;color:var(--text-dim);margin-top:0;letter-spacing:.5px}
+.sidebar-brand p{font-size:0.75rem;color:var(--text-dim);margin-top:0;letter-spacing:.5px}
 .sidebar-top-right{display:flex;align-items:center;gap:.75rem;margin-left:auto}
 .sidebar-nav{flex:none;padding:.25rem 1rem;display:flex;align-items:center;gap:.25rem;overflow-x:auto}
 .nav-item{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;border-radius:8px;cursor:pointer;color:var(--text-dim);font-size:.82rem;font-weight:500;transition:all .2s;margin-bottom:0;white-space:nowrap}
 .nav-item:hover{background:var(--primary-glow);color:var(--text)}
 .nav-item.active{background:transparent;color:var(--primary);box-shadow:none;border-bottom:2px solid var(--primary);border-radius:0}
 .nav-item .icon{font-size:1rem;width:18px;text-align:center}
-.sidebar-footer{padding:.4rem .75rem;border-top:none;border-left:1px solid var(--border);font-size:.7rem;color:var(--text-muted);display:flex;align-items:center;gap:.5rem;flex-shrink:0}
+.sidebar-footer{padding:.4rem .75rem;border-top:none;border-left:1px solid var(--border);font-size:0.75rem;color:var(--text-muted);display:flex;align-items:center;gap:.5rem;flex-shrink:0}
 
 /* Main Content */
 .main{margin-left:0;flex:1;padding:1.5rem 2rem;padding-top:0}
@@ -186,9 +187,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .stat-card.gold::before{background:var(--gold)}
 .stat-card.green::before{background:var(--green)}
 .stat-card.red::before{background:var(--red)}
-.stat-card .label{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.stat-card .label{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
 .stat-card .value{font-size:1.5rem;font-weight:700;margin-top:.35rem;font-family:'JetBrains Mono',monospace}
-.stat-card .sub{font-size:.7rem;color:var(--text-dim);margin-top:.25rem}
+.stat-card .sub{font-size:0.75rem;color:var(--text-dim);margin-top:.25rem}
 
 /* Panels */
 .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:1.5rem;overflow:hidden}
@@ -212,13 +213,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* Tables */
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
-th{text-align:left;padding:.65rem .75rem;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);white-space:nowrap}
+th{text-align:left;padding:.65rem .75rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);white-space:nowrap}
 td{padding:.6rem .75rem;font-size:.82rem;border-bottom:1px solid rgba(37,51,84,.5);white-space:nowrap}
 tr:hover td{background:rgba(59,130,246,.04)}
 .mono{font-family:'JetBrains Mono',monospace;font-size:.78rem}
 .text-right{text-align:right}
 .text-center{text-align:center}
-.tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600}
+.tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:0.75rem;font-weight:600}
 .tag-ft{background:rgba(59,130,246,.15);color:#60a5fa}
 .tag-pt{background:rgba(245,158,11,.15);color:#fbbf24}
 
@@ -311,7 +312,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .quarter-tab:not(:last-child){border-right:1px solid var(--border)}
 .quarter-tab:hover{background:var(--primary-glow);color:var(--text)}
 .quarter-tab.active{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.3)}
-.quarter-tab .q-sub{font-weight:400;opacity:.7;margin-left:.3rem;font-size:.72rem}
+.quarter-tab .q-sub{font-weight:400;opacity:.7;margin-left:.3rem;font-size:0.75rem}
 .quarter-tab.active .q-sub{opacity:.85}
 .qtr-nav-btns{display:flex;gap:.4rem;margin-left:auto}
 .qtr-nav-btn{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:.45rem .85rem;color:var(--text-dim);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
@@ -325,14 +326,14 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .month-card.completed{border-color:var(--green)}
 .month-card.completed::after{content:'';position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green)}
 .month-card .month-name{font-size:.85rem;font-weight:600;color:var(--text)}
-.month-card .month-status{font-size:.7rem;color:var(--text-muted);margin-top:.2rem}
+.month-card .month-status{font-size:0.75rem;color:var(--text-muted);margin-top:.2rem}
 .month-card.completed .month-status{color:var(--green)}
 .month-card.active .month-name{color:var(--primary)}
 
 /* Quarter Summary Stats */
 .quarter-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;margin-bottom:1.25rem}
 .quarter-stat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;text-align:center}
-.quarter-stat .qs-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:600}
+.quarter-stat .qs-label{font-size:0.75rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:600}
 .quarter-stat .qs-value{font-size:1.1rem;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:.2rem}
 
 /* Quarter History */
@@ -376,7 +377,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .login-syncing-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .login-syncing-text{color:var(--text-dim);font-size:.82rem;font-weight:600;text-align:center}
-.login-syncing-sub{color:var(--text-muted);font-size:.72rem;text-align:center;max-width:260px}
+.login-syncing-sub{color:var(--text-muted);font-size:0.75rem;text-align:center;max-width:260px}
 .login-cloud-banner{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;font-size:.75rem;transition:all .3s}
 .login-cloud-banner.synced{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.06)}
 .login-cloud-banner.syncing{border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.06)}
@@ -416,14 +417,14 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .ft-google-account .ft-avatar{width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;flex-shrink:0}
 .ft-google-account .ft-account-info{flex:1;min-width:0}
 .ft-google-account .ft-account-name{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ft-google-account .ft-account-email{color:var(--text-muted);font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ft-google-account .ft-account-email{color:var(--text-muted);font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* User badge in sidebar */
 .sidebar-user{padding:.4rem .75rem;margin:0;background:transparent;border-radius:8px;display:flex;align-items:center;gap:.6rem;cursor:default;border-left:1px solid var(--border)}
 .sidebar-user .user-avatar{width:28px;height:28px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0}
 .sidebar-user .user-details{flex:1;min-width:0}
 .sidebar-user .user-name{font-size:.78rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sidebar-user .user-role{font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+.sidebar-user .user-role{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
 .sidebar-user .logout-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.9rem;padding:.15rem;transition:color .15s}
 .sidebar-user .logout-btn:hover{color:var(--danger)}
 
@@ -440,9 +441,9 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .perm-request-card:hover{border-color:var(--primary)}
 .perm-request-card .req-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
 .perm-request-card .req-user{font-weight:600;color:var(--text);font-size:.9rem}
-.perm-request-card .req-time{font-size:.72rem;color:var(--text-muted)}
+.perm-request-card .req-time{font-size:0.75rem;color:var(--text-muted)}
 .perm-request-card .req-reason{font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem;line-height:1.4}
-.perm-request-card .req-status{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.perm-request-card .req-status{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
 .perm-request-card .req-status.pending{background:rgba(245,158,11,.15);color:#fbbf24}
 .perm-request-card .req-status.approved{background:rgba(16,185,129,.15);color:#34d399}
 .perm-request-card .req-status.denied{background:rgba(239,68,68,.15);color:#f87171}
@@ -450,13 +451,13 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .perm-request-card .req-actions{display:flex;gap:.5rem;margin-top:.75rem}
 
 /* Role tags */
-.role-tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.role-tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
 .role-tag.admin{background:rgba(239,68,68,.15);color:#f87171}
 .role-tag.user{background:rgba(59,130,246,.15);color:#60a5fa}
 .role-tag.viewer{background:rgba(100,116,139,.15);color:#94a3b8}
 
 /* Notification badge */
-.notif-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:.6rem;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1}
+.notif-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:0.75rem;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1}
 .nav-item{position:relative}
 
 /* Responsive */
@@ -465,7 +466,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
   .sidebar-nav{overflow-x:auto;padding:.25rem .5rem}
   .sidebar .nav-text{display:none}
   .sidebar-brand p{display:none}
-  .sidebar-brand h1{font-size:.6rem}
+  .sidebar-brand h1{font-size:0.75rem}
   .main{margin-left:0;padding:1rem;padding-top:0}
   .nav-item{padding:.5rem .6rem}
   .stats-row{grid-template-columns:1fr 1fr}
@@ -473,7 +474,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 }
 
 /* Cloud Sync Section */
-.cloud-section-label{font-size:.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:.5rem}
+.cloud-section-label{font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:.5rem}
 .cloud-status-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;padding:.35rem .5rem;background:var(--surface);border-radius:6px}
 .cloud-status-dot{width:10px;height:10px;border-radius:50%;background:var(--text-muted);display:inline-block;flex-shrink:0}
 .cloud-status-dot.disconnected{background:var(--red)}
@@ -490,10 +491,10 @@ tr:hover td{background:rgba(59,130,246,.04)}
 /* Cloud Sync Button */
 .cloud-sync-btn{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-family:inherit;font-size:0.75rem;font-weight:500;transition:all 0.2s;width:100%}
 .cloud-sync-btn:hover{background:var(--primary-glow);border-color:var(--primary)}
-.cloud-sync-btn .btn-arrow{margin-left:auto;font-size:0.6rem;color:var(--text-muted)}
+.cloud-sync-btn .btn-arrow{margin-left:auto;font-size:0.75rem;color:var(--text-muted)}
 
 /* Cloud Sync Info below button */
-.cloud-sync-meta{font-size:.65rem;color:var(--text-muted);margin-top:.4rem;padding:0 .25rem;line-height:1.4}
+.cloud-sync-meta{font-size:0.75rem;color:var(--text-muted);margin-top:.4rem;padding:0 .25rem;line-height:1.4}
 
 /* Cloud Dropdown */
 .cloud-dropdown{position:relative;display:block;width:100%}
@@ -509,7 +510,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .cloud-dropdown-item.danger{background:none;color:var(--danger);font-weight:500}
 .cloud-dropdown-item.danger:hover{background:rgba(239,68,68,0.1)}
 .cloud-dropdown-divider{height:1px;background:var(--border);margin:2px 0}
-.last-sync-info{padding:6px 14px;font-size:0.7rem;color:var(--text-muted)}
+.last-sync-info{padding:6px 14px;font-size:0.75rem;color:var(--text-muted)}
 
 /* Google Auth Modal */
 .google-auth-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;backdrop-filter:blur(4px)}
@@ -539,9 +540,9 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .browse-file-icon{font-size:1.3rem;flex-shrink:0}
 .browse-file-details{min-width:0}
 .browse-file-name{font-size:0.85rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.browse-file-meta{font-size:0.7rem;color:var(--text-muted);margin-top:2px}
+.browse-file-meta{font-size:0.75rem;color:var(--text-muted);margin-top:2px}
 .browse-file-actions{display:flex;gap:6px;flex-shrink:0}
-.browse-file-actions button{padding:5px 10px;font-size:0.7rem;font-weight:600;border-radius:6px;border:none;cursor:pointer;font-family:inherit;transition:all 0.15s}
+.browse-file-actions button{padding:5px 10px;font-size:0.75rem;font-weight:600;border-radius:6px;border:none;cursor:pointer;font-family:inherit;transition:all 0.15s}
 .btn-browse-open{background:var(--primary);color:#fff}
 .btn-browse-open:hover{filter:brightness(1.15)}
 .btn-browse-download{background:var(--surface);color:var(--text-dim);border:1px solid var(--border) !important}
@@ -583,7 +584,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .twofa-qr-container{display:flex;flex-direction:column;align-items:center;margin:1.5rem 0;padding:1.5rem;background:var(--surface);border-radius:12px;border:1px solid var(--border)}
 .twofa-qr-container canvas,.twofa-qr-container img{border-radius:8px;margin-bottom:1rem}
 .twofa-secret-key{font-family:'JetBrains Mono',monospace;background:var(--bg);padding:.6rem .8rem;border-radius:6px;font-size:.82rem;letter-spacing:2px;color:var(--text);border:1px dashed var(--border);word-break:break-all;text-align:center}
-.twofa-secret-label{font-size:.72rem;color:var(--text-muted);margin-bottom:.5rem}
+.twofa-secret-label{font-size:0.75rem;color:var(--text-muted);margin-bottom:.5rem}
 .twofa-single-input{width:100%;padding:.85rem;text-align:center;font-size:1.75rem;font-weight:600;letter-spacing:8px;border:2px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:'JetBrains Mono',monospace;transition:all .2s}
 .twofa-single-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow)}
 .twofa-actions{display:flex;gap:.75rem;justify-content:center;margin-top:1.5rem}
@@ -604,7 +605,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .twofa-use-backup{margin-top:1rem;font-size:.82rem;color:var(--text-muted)}
 .twofa-use-backup a{color:var(--primary);cursor:pointer;text-decoration:underline}
 .twofa-use-backup a:hover{color:#60a5fa}
-.twofa-status-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.15rem .5rem;border-radius:9999px;font-size:.7rem;font-weight:600}
+.twofa-status-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.15rem .5rem;border-radius:9999px;font-size:0.75rem;font-weight:600}
 .twofa-status-badge.enabled{background:rgba(16,185,129,.15);color:var(--green)}
 .twofa-status-badge.disabled{background:rgba(100,116,139,.15);color:var(--text-muted)}
 
@@ -621,7 +622,21 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .otp-resend{text-align:center;margin-top:.75rem;font-size:.82rem;color:var(--text-muted)}
 .otp-resend a{color:var(--primary);cursor:pointer;text-decoration:none}
 .otp-resend a:hover{color:#60a5fa;text-decoration:underline}
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:0.65rem"], [style*="font-size: 0.65rem"], [style*="font-size:.65rem"],
+  [style*="font-size: .65rem"], [style*="font-size:0.7rem"], [style*="font-size: 0.7rem"],
+  [style*="font-size:.7rem"], [style*="font-size: .7rem"], [style*="font-size:.72rem"], [style*="font-size: .72rem"] { font-size:12px !important; }
+}
 </style>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261023a">
 </head>
 <body>
 
@@ -795,6 +810,8 @@ tr:hover td{background:rgba(59,130,246,.04)}
         <button class="logout-btn" onclick="handleLogout()" title="Sign Out">🚪</button>
       </div>
       <div class="sidebar-top-right">
+        <!-- Saved / waiting / offline: cestis-sync-chip.js -->
+        <span data-cestis-sync-chip></span>
         <div class="sidebar-footer">
           <!-- Cloud Sync: Not Connected -->
           <div id="cloudNotConnected">
@@ -2453,8 +2470,20 @@ function editPayrollEntry(runIdx,entryIdx){
   const run=DATA.payrollRuns[runIdx];
   if(!run||!run.results[entryIdx])return;
   const r=run.results[entryIdx];
-  const newGross=prompt('Edit gross earnings for '+r.empName+':\n\nCurrent gross: $'+fmt(r.gross)+'\n\nEnter new gross amount:',r.gross.toFixed(2));
-  if(newGross===null)return;
+  CESTISForm.ask({title:'Edit gross earnings',submitLabel:'Recalculate & save',
+    intro:r.empName+' — payroll dated '+run.date+'\nCurrent gross: '+fmt(r.gross)+'. Deductions and net pay are worked out again from the new amount.',
+    fields:[{name:'gross',label:'New gross amount ($)',type:'number',min:0,required:true,value:r.gross.toFixed(2)}]
+  }).then(function(v){
+    if(!v)return;
+    // The same run and line as when the form opened (a sync may have moved them).
+    if(DATA.payrollRuns[runIdx]!==run||run.results[entryIdx]!==r){alert('This payroll changed while the form was open. Please open it again.');return;}
+    editPayrollEntryGross(runIdx,entryIdx,v.gross.replace(/,/g,''));
+  });
+}
+function editPayrollEntryGross(runIdx,entryIdx,newGross){
+  const run=DATA.payrollRuns[runIdx];
+  if(!run||!run.results[entryIdx])return;
+  const r=run.results[entryIdx];
   const gross=parseFloat(newGross);
   if(isNaN(gross)||gross<0){alert('Invalid amount');return;}
   // Recalculate this employee's deductions with new gross
@@ -6828,6 +6857,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20261022a"></script>
+<script src="cestis-sync-chip.js?v=20261023a"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Staff Payslips',

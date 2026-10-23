@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-core.js?v=20261022a"></script>
+<script src="cestis-form-modal.js?v=20261023a" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CESTIS Cash Book Dashboard</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
@@ -167,9 +168,9 @@ input, select, button, textarea { font-family: var(--sans); }
 }
 .logo { padding:0 1.25rem 1.5rem; border-bottom:1px solid var(--border); margin-bottom:1rem; }
 .logo h1 { font-size:.85rem; font-weight:700; color:var(--accent2); letter-spacing:1px; text-transform:uppercase; }
-.logo p { font-size:.7rem; color:var(--text3); margin-top:.25rem; }
+.logo p { font-size:0.75rem; color:var(--text3); margin-top:.25rem; }
 .nav-section { padding:0 .75rem; margin-bottom:.5rem; }
-.nav-label { font-size:.6rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; padding:.5rem .5rem; }
+.nav-label { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; padding:.5rem .5rem; }
 .nav-item {
     display:flex; align-items:center; gap:.625rem;
     padding:.625rem .75rem; border-radius:8px; cursor:pointer;
@@ -180,7 +181,7 @@ input, select, button, textarea { font-family: var(--sans); }
 .nav-item.active { background:rgba(59,130,246,0.12); color:var(--accent2); }
 .nav-item .icon { font-size:1rem; width:1.25rem; text-align:center; }
 .sidebar-footer { margin-top:auto; padding:1rem 1.25rem; border-top:1px solid var(--border); }
-.sidebar-footer p { font-size:.65rem; color:var(--text3); }
+.sidebar-footer p { font-size:0.75rem; color:var(--text3); }
 
 /* Main */
 .main { padding:1.5rem 2rem; overflow-y:auto; }
@@ -211,7 +212,7 @@ input, select, button, textarea { font-family: var(--sans); }
 .btn-sm { padding:.375rem .625rem; font-size:.75rem; }
 
 /* Transaction move buttons */
-.txn-move-btn { padding:0.2rem 0.4rem !important; font-size:0.65rem !important; line-height:1; min-width:0; }
+.txn-move-btn { padding:0.2rem 0.4rem !important; font-size:0.75rem !important; line-height:1; min-width:0; }
 .txn-move-btn:disabled { opacity:0.3; cursor:not-allowed; }
 tr[draggable="true"] { cursor:grab; }
 tr[draggable="true"]:active { cursor:grabbing; }
@@ -233,9 +234,9 @@ tr[draggable="true"]:active { cursor:grabbing; }
 .stat-card.red::before { background:var(--red); }
 .stat-card.amber::before { background:var(--amber); }
 .stat-card.purple::before { background:var(--purple); }
-.stat-card .label { font-size:.6875rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.75px; }
+.stat-card .label { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.75px; }
 .stat-card .value { font-size:1.5rem; font-weight:700; font-family:var(--mono); margin:.375rem 0 .125rem; }
-.stat-card .change { font-size:.6875rem; color:var(--text3); }
+.stat-card .change { font-size:0.75rem; color:var(--text3); }
 .stat-card .value.green-text { color:var(--green); }
 .stat-card .value.red-text { color:var(--red); }
 .stat-card .value.amber-text { color:var(--amber); }
@@ -247,7 +248,7 @@ tr[draggable="true"]:active { cursor:grabbing; }
 }
 .card-title { font-size:.9375rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:.5rem; }
 .card-title .badge {
-    font-size:.625rem; padding:.125rem .5rem; border-radius:10px; font-weight:600;
+    font-size:0.75rem; padding:.125rem .5rem; border-radius:10px; font-weight:600;
     background:rgba(59,130,246,0.15); color:var(--accent2);
 }
 
@@ -255,7 +256,7 @@ tr[draggable="true"]:active { cursor:grabbing; }
 .table-wrap { overflow-x:auto; }
 table { width:100%; border-collapse:collapse; font-size:.8125rem; }
 thead th {
-    background:var(--surface2); color:var(--text2); font-weight:600; font-size:.6875rem;
+    background:var(--surface2); color:var(--text2); font-weight:600; font-size:0.75rem;
     text-transform:uppercase; letter-spacing:.5px; padding:.625rem .75rem;
     text-align:left; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:2;
 }
@@ -273,7 +274,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .cheque-num { font-family:var(--mono); color:var(--purple); font-weight:500; }
 .tag {
     display:inline-block; padding:.125rem .5rem; border-radius:4px;
-    font-size:.6875rem; font-weight:600;
+    font-size:0.75rem; font-weight:600;
 }
 .tag-salary { background:rgba(59,130,246,0.12); color:var(--accent2); }
 .tag-statutory { background:rgba(168,85,247,0.12); color:var(--purple); }
@@ -295,7 +296,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .budget-vs-actual-wrap { overflow-x:auto; }
 .budget-vs-actual-table { width:100%; border-collapse:collapse; font-size:.8125rem; }
 .budget-vs-actual-table thead th {
-    background:var(--surface2); color:var(--text2); font-weight:600; font-size:.6875rem;
+    background:var(--surface2); color:var(--text2); font-weight:600; font-size:0.75rem;
     text-transform:uppercase; letter-spacing:.5px; padding:.625rem .75rem;
     text-align:left; border-bottom:1px solid var(--border); white-space:nowrap;
 }
@@ -339,7 +340,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 /* Financial Summary */
 .fin-summary { display:grid; grid-template-columns:1fr auto 1fr; gap:1rem; align-items:stretch; margin-bottom:1.5rem; }
 .fin-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; }
-.fin-box h4 { font-size:.6875rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:.75rem; }
+.fin-box h4 { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:.75rem; }
 .fin-line { display:flex; justify-content:space-between; padding:.375rem 0; font-size:.8125rem; border-bottom:1px dashed var(--border); }
 .fin-line:last-child { border-bottom:none; }
 .fin-line.total { font-weight:700; font-size:.9375rem; border-top:2px solid var(--border); border-bottom:none; padding-top:.625rem; margin-top:.375rem; }
@@ -373,7 +374,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
     margin:1.5rem 0 .75rem; padding-bottom:.5rem; border-bottom:1px solid var(--border);
     display:flex; align-items:center; gap:.5rem;
 }
-.recon-quarter-label .badge { font-size:.625rem; letter-spacing:0; text-transform:none; }
+.recon-quarter-label .badge { font-size:0.75rem; letter-spacing:0; text-transform:none; }
 .recon-month-card {
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
     margin-bottom:1rem; overflow:hidden;
@@ -390,7 +391,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .recon-month-stats {
     display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; margin-bottom:1.25rem;
 }
-.recon-month-stat .stat-label { font-size:.6875rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:.25rem; }
+.recon-month-stat .stat-label { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:.25rem; }
 .recon-month-stat .stat-value { font-size:1.125rem; font-weight:700; font-family:var(--mono); }
 .recon-month-bank {
     display:flex; align-items:center; gap:1rem; padding:1rem; background:var(--surface2);
@@ -403,7 +404,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 }
 .recon-month-bank input[type="number"]:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(59,130,246,0.2); }
 .recon-month-bank .recon-diff { font-family:var(--mono); font-weight:700; font-size:.875rem; margin-left:auto; }
-.recon-status { display:inline-block; padding:.25rem .625rem; border-radius:4px; font-size:.6875rem; font-weight:600; }
+.recon-status { display:inline-block; padding:.25rem .625rem; border-radius:4px; font-size:0.75rem; font-weight:600; }
 .recon-status.matched { background:var(--green-bg); color:var(--green); }
 .recon-status.unmatched { background:var(--red-bg); color:var(--red); }
 .recon-status.pending { background:var(--amber-bg); color:var(--amber); }
@@ -414,7 +415,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
     background:var(--surface2); border:1px solid var(--border); border-radius:8px;
     padding:1rem; text-align:center;
 }
-.recon-summary-item .label { font-size:.6875rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:.375rem; }
+.recon-summary-item .label { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:.375rem; }
 .recon-summary-item .value { font-size:1.25rem; font-weight:700; font-family:var(--mono); }
 
 /* Enhanced Recon Card Details */
@@ -439,7 +440,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 }
 .recon-cheques-list.open { max-height:300px; overflow-y:auto; }
 .recon-cheques-list table { font-size:.75rem; }
-.recon-cheques-list th { background:var(--surface2); color:var(--text3); font-size:.625rem; padding:.375rem .5rem; }
+.recon-cheques-list th { background:var(--surface2); color:var(--text3); font-size:0.75rem; padding:.375rem .5rem; }
 .recon-cheques-list td { padding:.25rem .5rem; border-bottom:1px solid var(--border); }
 
 /* Uncleared cheque checkbox */
@@ -455,10 +456,10 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
     border:1px solid var(--border); border-left:3px solid var(--amber); border-radius:6px;
 }
 .recon-bf-title { font-size:.75rem; font-weight:700; color:var(--amber); margin-bottom:.125rem; }
-.recon-bf-hint { font-size:.6875rem; color:var(--text3); margin-bottom:.375rem; }
+.recon-bf-hint { font-size:0.75rem; color:var(--text3); margin-bottom:.375rem; }
 .recon-bf-block table { font-size:.75rem; width:100%; border-collapse:collapse; }
 .recon-bf-block th {
-    background:var(--surface2); color:var(--text3); font-size:.625rem;
+    background:var(--surface2); color:var(--text3); font-size:0.75rem;
     padding:.375rem .5rem; text-align:left;
 }
 .recon-bf-block td { padding:.25rem .5rem; border-bottom:1px solid var(--border); }
@@ -466,7 +467,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .recon-bf-block tr.cheque-uncleared { background:rgba(245,158,11,0.08); }
 .recon-bf-block tr.cheque-uncleared td { color:var(--amber); }
 .recon-bf-block tr.bf-cleared td { color:var(--text3); }
-.recon-bf-block td.bf-src { color:var(--text3); font-size:.6875rem; white-space:nowrap; }
+.recon-bf-block td.bf-src { color:var(--text3); font-size:0.75rem; white-space:nowrap; }
 .recon-bf-block td.amount { text-align:right; font-family:var(--mono); }
 
 /* Reconciliation hint: what would close the remaining difference */
@@ -490,7 +491,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .recon-hint-items .hint-amt { font-family:var(--mono); font-weight:600; color:var(--amber); }
 .recon-hint-apply {
     flex-shrink:0; background:var(--accent); color:#fff; border:none; border-radius:6px;
-    padding:.375rem .75rem; font-size:.6875rem; font-weight:700; cursor:pointer;
+    padding:.375rem .75rem; font-size:0.75rem; font-weight:700; cursor:pointer;
 }
 .recon-hint-apply:hover { filter:brightness(1.15); }
 
@@ -923,7 +924,7 @@ body.cmc-view-mode .mandatory-sync-overlay,
 body.cmc-view-mode .first-time-sync-prompt { display: none !important; }
 body.cmc-view-mode .cmc-view-ribbon {
     background: rgba(26,188,156,0.14); color: #1abc9c; font-weight: 700;
-    font-size: 0.72rem; letter-spacing: .04em; text-align: center;
+    font-size: 0.75rem; letter-spacing: .04em; text-align: center;
     padding: 6px 10px; border-radius: 8px; margin: 10px;
 }
 
@@ -1177,7 +1178,7 @@ body.cmc-view-mode .cmc-view-ribbon {
 .budget-summary-card.card-amber::before { background:var(--amber); }
 .budget-summary-card.card-purple::before { background:var(--purple); }
 .budget-summary-label {
-    font-size:.6875rem;
+    font-size:0.75rem;
     font-weight:600;
     color:var(--text3);
     text-transform:uppercase;
@@ -1190,7 +1191,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     margin:.375rem 0 .125rem;
 }
 .budget-summary-sub {
-    font-size:.6875rem;
+    font-size:0.75rem;
     color:var(--text3);
 }
 .budget-form-section {
@@ -1217,7 +1218,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     background:var(--surface2);
     color:var(--text2);
     font-weight:600;
-    font-size:.6875rem;
+    font-size:0.75rem;
     text-transform:uppercase;
     letter-spacing:.5px;
     padding:.625rem .75rem;
@@ -1269,7 +1270,7 @@ body.cmc-view-mode .cmc-view-ribbon {
 }
 .budget-usage-cell .mini-bar { flex:1; min-width:50px; }
 .budget-usage-cell .pct-label {
-    font-size:.7rem;
+    font-size:0.75rem;
     color:var(--text3);
     min-width:38px;
     text-align:right;
@@ -1436,7 +1437,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     box-shadow:0 0 0 2px rgba(34,197,94,.15);
 }
 .subvention-status {
-    font-size:.7rem;
+    font-size:0.75rem;
     font-family:var(--mono);
     padding:.25rem .5rem;
     border-radius:4px;
@@ -1538,7 +1539,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     font-weight:600;
 }
 .void-count-badge {
-    font-size:.625rem;
+    font-size:0.75rem;
     padding:.125rem .5rem;
     border-radius:10px;
     font-weight:600;
@@ -1630,7 +1631,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     flex-wrap:wrap;
 }
 .section-filter-label {
-    font-size:.6875rem;
+    font-size:0.75rem;
     font-weight:600;
     color:var(--text3);
     text-transform:uppercase;
@@ -1641,7 +1642,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     padding:.375rem .75rem;
     border-radius:6px;
     cursor:pointer;
-    font-size:.7rem;
+    font-size:0.75rem;
     font-weight:600;
     background:var(--surface2);
     color:var(--text3);
@@ -1659,7 +1660,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     display:inline-block;
     background:var(--surface3);
     color:var(--text3);
-    font-size:.6rem;
+    font-size:0.75rem;
     padding:1px 5px;
     border-radius:8px;
     margin-left:4px;
@@ -1672,7 +1673,7 @@ body.cmc-view-mode .cmc-view-ribbon {
 /* Section badge in table */
 .budget-section-badge {
     display:inline-block;
-    font-size:.6rem;
+    font-size:0.75rem;
     font-weight:600;
     text-transform:uppercase;
     letter-spacing:.5px;
@@ -1827,7 +1828,7 @@ body.cmc-view-mode .cmc-view-ribbon {
 .login-form { display:flex; flex-direction:column; gap:1.25rem; }
 .login-field { position:relative; }
 .login-field label {
-    display:block; font-size:.6875rem; font-weight:600;
+    display:block; font-size:0.75rem; font-weight:600;
     color:var(--text3); text-transform:uppercase; letter-spacing:.75px;
     margin-bottom:.5rem;
 }
@@ -1904,14 +1905,14 @@ body.cmc-view-mode .cmc-view-ribbon {
 }
 .login-footer {
     text-align:center; margin-top:1.5rem;
-    font-size:.65rem; color:var(--text3);
+    font-size:0.75rem; color:var(--text3);
     line-height:1.6;
 }
 .login-footer span { color:var(--accent); }
 .login-session-info {
     display:flex; align-items:center; justify-content:center;
     gap:.375rem; margin-top:.75rem;
-    font-size:.65rem; color:var(--text3);
+    font-size:0.75rem; color:var(--text3);
 }
 .login-session-info .dot {
     width:5px; height:5px; border-radius:50%;
@@ -1945,7 +1946,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     margin-top: 0.25rem;
 }
 .cloud-section .nav-label {
-    font-size: .65rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: .05em;
     color: var(--text3);
@@ -2023,7 +2024,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     color: #2196F3;
 }
 .cloud-sync-info {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--text3);
     padding: 0.25rem 0.75rem;
     line-height: 1.4;
@@ -2071,7 +2072,7 @@ body.cmc-view-mode .cmc-view-ribbon {
 }
 .last-sync-info {
     padding: 6px 16px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--text3, #94a3b8);
 }
 .cloud-sync-btn {
@@ -2163,7 +2164,7 @@ body.cmc-view-mode .cmc-view-ribbon {
         padding:.6rem .75rem; font-size:.85rem; font-weight:600;
         cursor:pointer; font-family:inherit; text-align:left;
     }
-    .cb-mobile-nav-caret { margin-left:auto; font-size:.7rem; color:var(--text3); transition:transform .15s; }
+    .cb-mobile-nav-caret { margin-left:auto; font-size:0.75rem; color:var(--text3); transition:transform .15s; }
     .app.mobile-nav-open .cb-mobile-nav-caret { transform:rotate(180deg); }
     /* Sidebar collapses into a dropdown panel under the mobile nav bar */
     .sidebar { display:none; }
@@ -2190,6 +2191,29 @@ body.cmc-view-mode .cmc-view-ribbon {
     }
     .login-container { padding:1rem; }
     .login-card { padding:2rem 1.5rem 1.5rem; }
+}
+/* Phones: the transactions ledger showed the date, the cheque number and
+   half of the details, with the deposit, payment and running balance past
+   the card's edge. It now scrolls sideways inside its own card (never the
+   page) with the payee/details pinned on the left while the amounts slide
+   under it, and the move/edit/delete buttons are at least 44px. The date,
+   cheque number and category move into a line under the details. Screen
+   only: a printed page can be narrower than 768px too. */
+.cb-phone-sub { display:none; }
+@media screen and (max-width:768px) {
+    #page-transactions .table-wrap table { min-width:0; }
+    #page-transactions .table-wrap th:nth-child(1), #page-transactions .table-wrap td:nth-child(1),
+    #page-transactions .table-wrap th:nth-child(2), #page-transactions .table-wrap td:nth-child(2),
+    #page-transactions .table-wrap th:nth-child(4), #page-transactions .table-wrap td:nth-child(4) { display:none; }
+    #page-transactions .cb-phone-sub { display:block; margin-top:2px; font-size:.75rem; color:var(--text3); }
+    #page-transactions .table-wrap tbody td:nth-child(3) {
+        position:sticky; left:0; z-index:1; background:var(--surface);
+        min-width:150px; max-width:190px; white-space:normal; box-shadow:inset -1px 0 0 var(--border);
+    }
+    #page-transactions .table-wrap tbody tr.deposit-row td:nth-child(3) { background:linear-gradient(var(--green-bg),var(--green-bg)),var(--surface); }
+    #page-transactions .table-wrap thead th:nth-child(3) { left:0; z-index:3; box-shadow:inset -1px 0 0 var(--border); }
+    #page-transactions .table-wrap tbody .btn-sm { min-width:44px; min-height:44px; }
+    #page-transactions .table-wrap tbody td.no-print { white-space:nowrap; }
 }
 
 /* First-Time Sync Prompt Styles */
@@ -2336,7 +2360,21 @@ body.cmc-view-mode .cmc-view-ribbon {
 @keyframes notifyCountdown{from{width:100%}to{width:0%}}
 .cloud-notify-timer{height:3px;background:var(--text3);opacity:.3;border-radius:0 0 14px 14px}
 
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:0.6rem"], [style*="font-size: 0.6rem"], [style*="font-size:.65rem"],
+  [style*="font-size: .65rem"], [style*="font-size:0.65rem"], [style*="font-size: 0.65rem"],
+  [style*="font-size:0.7rem"], [style*="font-size: 0.7rem"], [style*="font-size:.7rem"], [style*="font-size: .7rem"] { font-size:12px !important; }
+}
 </style>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261023a">
 </head>
 <body>
 
@@ -2516,6 +2554,8 @@ body.cmc-view-mode .cmc-view-ribbon {
                 <span class="cloud-status-dot" id="cloudStatusDot"></span>
                 <span id="cloudStatusText">Not synced yet</span>
             </div>
+            <!-- Saved / waiting / offline: cestis-sync-chip.js -->
+            <div style="margin:0 0 .5rem;"><span data-cestis-sync-chip></span></div>
             <div id="cloudNotConnected">
                 <button class="cloud-connect-btn" onclick="connectToGoogleDrive()">
                     <span>🔄</span>
@@ -4553,7 +4593,7 @@ function renderTransactions() {
         html += `<tr class="${rowClass}" draggable="true" data-txn-id="${t.id}" ondragstart="txnDragStart(event)" ondragover="txnDragOver(event)" ondrop="txnDrop(event)" ondragend="txnDragEnd(event)">
             <td>${t.date ? t.date.substring(5) : ''}</td>
             <td class="cheque-num">${t.cheque||''}</td>
-            <td>${t.details}</td>
+            <td>${t.details}<span class="cb-phone-sub">${escapeHtml(t.date || '')}${t.cheque ? ' · #' + escapeHtml(t.cheque) : ''} · ${escapeHtml(t.category || '')}</span></td>
             <td><span class="tag ${getCategoryTag(t.category)}">${t.category}</span></td>
             <td class="amount ${t.deposit>0?'positive':''}">${t.deposit>0?fmt(t.deposit):''}</td>
             <td class="amount ${t.payment>0?'negative':''}">${t.payment>0?fmt(t.payment):''}</td>
@@ -6233,22 +6273,20 @@ function copyBudgetFromQuarter() {
         return;
     }
 
-    var msg = 'Copy budget categories from which quarter?\n(Only category names will be copied, not amounts.)\n\n';
-    options.forEach(function(o, i) { msg += (i + 1) + '. ' + o.label + '\n'; });
-    msg += '\nEnter the number (1-' + options.length + '):';
-    if (Object.keys(BUDGET).length > 0) {
-        msg += '\n\nWARNING: This will replace all current budget lines for this quarter.';
-    }
-
-    var choice = prompt(msg);
-    if (!choice) return;
-    var idx = parseInt(choice) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= options.length) {
-        alert('Invalid selection.');
-        return;
-    }
-
-    var selected = options[idx];
+    CESTISForm.ask({
+        title: 'Copy budget categories',
+        intro: 'Only the category names are copied, not the amounts.' +
+            (Object.keys(BUDGET).length > 0 ? '\n\nThis replaces all of this quarter\u2019s current budget lines.' : ''),
+        submitLabel: 'Copy categories', danger: Object.keys(BUDGET).length > 0,
+        fields: [{ name: 'idx', label: 'Copy from', type: 'select', value: '0',
+            options: options.map(function(o, i) { return { value: String(i), label: o.label }; }) }]
+    }).then(function(v) {
+        if (!v) return;
+        copyBudgetCategoriesFrom(options[parseInt(v.idx, 10)]);
+    });
+}
+function copyBudgetCategoriesFrom(selected) {
+    if (!selected) { alert('Invalid selection.'); return; }
     var sourceData;
     if (selected.isDefault) {
         sourceData = { budget: JSON.parse(JSON.stringify(DEFAULT_BUDGET)), sections: {} };
@@ -6674,7 +6712,14 @@ function saveCopyBudgetLine() {
 
 // Quick copy a budget line (inline from the table row)
 function quickCopyBudgetLine(key) {
-    var newName = prompt('Enter name for the copied budget line:', key + ' (Copy)');
+    CESTISForm.ask({
+        title: 'Copy budget line', submitLabel: 'Copy line',
+        intro: 'A new line in the same section, with the same amount as \u201c' + key + '\u201d.',
+        fields: [{ name: 'name', label: 'Name of the copy', value: key + ' (Copy)', required: true, maxlength: 120 }],
+        validate: function(v) { return BUDGET.hasOwnProperty(v.name) ? { message: 'A budget line with that name already exists.', field: 'name' } : ''; }
+    }).then(function(v) { if (v) quickCopyBudgetLineNamed(key, v.name); });
+}
+function quickCopyBudgetLineNamed(key, newName) {
     if (!newName) return;
     newName = newName.trim();
     if (!newName) { alert('Please enter a valid name.'); return; }
@@ -7812,7 +7857,7 @@ function generateReconDocPage(fy, q, mKey, monthName, monthNum) {
     h += '<div class="rdoc-header">';
     h += '<div class="rdoc-logo">';
     if (logo) {
-        h += '<img src="' + logo + '" alt="Logo">';
+        h += '<img src="' + logo + '" alt="Centre logo">';
     } else {
         h += '<div class="rdoc-logo-placeholder" onclick="document.getElementById(\'reconLogoInput\').click()">Click to<br>upload<br>logo</div>';
     }
@@ -8070,7 +8115,7 @@ function generateFinDocPage1(q) {
     h += '<div class="rdoc-header">';
     h += '<div class="rdoc-logo">';
     if (logo) {
-        h += '<img src="' + logo + '" alt="Logo">';
+        h += '<img src="' + logo + '" alt="Centre logo">';
     } else {
         h += '<div class="rdoc-logo-placeholder" onclick="document.getElementById(\'finLogoInput\').click()">Click to<br>upload<br>logo</div>';
     }
@@ -8143,7 +8188,7 @@ function generateFinDocPage2(q) {
     h += '<div class="rdoc-header">';
     h += '<div class="rdoc-logo">';
     if (logo) {
-        h += '<img src="' + logo + '" alt="Logo">';
+        h += '<img src="' + logo + '" alt="Centre logo">';
     } else {
         h += '<div class="rdoc-logo-placeholder" onclick="document.getElementById(\'finLogoInput\').click()">Click to<br>upload<br>logo</div>';
     }
@@ -9358,6 +9403,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20261022a"></script>
+<script src="cestis-sync-chip.js?v=20261023a"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Cashbook',

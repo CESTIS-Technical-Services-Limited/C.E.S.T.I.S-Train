@@ -496,7 +496,7 @@
         /* A fee set automatically from the previous intake, until edited. */
         .fee-carried-tag {
             display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 9px;
-            font-size: 11px; font-weight: 600; color: #0D47A1;
+            font-size: 12px; font-weight: 600; color: #0D47A1;
             background: rgba(13, 71, 161, 0.08); border: 1px solid rgba(13, 71, 161, 0.25);
         }
         .fee-carry-note { margin: -0.25rem 0 0.75rem; font-size: 0.85rem; color: var(--heading-color); min-height: 1em; }
@@ -1072,6 +1072,46 @@
             .nav-tab {
                 width: 100%;
             }
+        }
+
+        /* Phones: the Students and Payments lists showed the date, the receipt
+           number and part of the name, with the amount, the balance and the
+           buttons past the edge. They now scroll sideways inside their own
+           box (never the page) with the trainee's name pinned on the left
+           while the figures slide under it, rows a single line high, and the
+           row buttons at least 44px so a thumb can hit them. Screen only: a
+           printed page can be narrower than 768px too. */
+        .fee-phone-sub { display: none; }
+        @media screen and (max-width: 768px) {
+            #studentsTable th, #studentsTable td,
+            #paymentsTable th, #paymentsTable td { padding: 0.6rem 0.7rem; white-space: nowrap; }
+            /* The ID, skill area, date, receipt number and method move into a
+               line under the name; the money columns sit right beside it. */
+            #studentsTable th:nth-child(2), #studentsTable td:nth-child(2),
+            #studentsTable th:nth-child(4), #studentsTable td:nth-child(4),
+            #studentsTable th:nth-child(5), #studentsTable td:nth-child(5),
+            #studentsTable th:nth-child(9), #studentsTable td:nth-child(9),
+            #paymentsTable th:nth-child(1), #paymentsTable td:nth-child(1),
+            #paymentsTable th:nth-child(2), #paymentsTable td:nth-child(2),
+            #paymentsTable th:nth-child(4), #paymentsTable td:nth-child(4),
+            #paymentsTable th:nth-child(5), #paymentsTable td:nth-child(5),
+            #paymentsTable th:nth-child(7), #paymentsTable td:nth-child(7) { display: none; }
+            .fee-phone-sub { display: block; margin-top: 2px; font-size: 0.8rem; font-weight: 400; color: var(--text-secondary, #5b6b80); }
+            #studentsTable td:nth-child(3), #paymentsTable td:nth-child(3) {
+                position: sticky; left: 0; z-index: 2; background: var(--bg-card);
+                white-space: normal; min-width: 130px; box-shadow: inset -1px 0 0 var(--border-color);
+            }
+            #studentsTable th:nth-child(3), #paymentsTable th:nth-child(3) { left: 0; z-index: 11; }
+            #studentsTable td[colspan], #paymentsTable td[colspan] { display: table-cell; position: static; white-space: normal; }
+            #studentsTable .action-btn, #paymentsTable .action-btn { min-height: 44px; min-width: 44px; padding: 0.5rem 0.7rem; margin: 0 0.15rem; }
+            #studentsTable input[type="checkbox"] { width: 22px; height: 22px; }
+            /* Less frame around the lists, so more of each row is on screen. */
+            body { padding: 0.5rem; }
+            .module { padding: 1rem 0.75rem; }
+            /* The Record Payment form: a long trainee name in the drop-down
+               stretched its column to ~600px and the whole page panned sideways. */
+            .form-grid { grid-template-columns: minmax(0, 1fr); }
+            .form-group input, .form-group select, .form-group textarea { min-width: 0; max-width: 100%; }
         }
 
         /* ============================================
@@ -1695,7 +1735,7 @@
             display: none;
             align-items: center;
             gap: 0.35rem;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             color: #93c5fd;
             padding: 0.15rem 0.5rem;
             background: rgba(59, 130, 246, 0.15);
@@ -1721,7 +1761,7 @@
         }
 
         .auto-sync-countdown {
-            font-size: 0.65rem;
+            font-size: 0.75rem;
             color: #60a5fa;
             font-variant-numeric: tabular-nums;
         }
@@ -2148,7 +2188,22 @@
                 box-shadow: 0 0 22px rgba(255, 23, 23, 1), 0 0 44px rgba(255, 23, 23, 0.8), 0 0 70px rgba(255, 23, 23, 0.5);
             }
         }
-    </style>
+    
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:0.6rem"], [style*="font-size: 0.6rem"], [style*="font-size:0.7rem"],
+  [style*="font-size: 0.7rem"], [style*="font-size:10px"], [style*="font-size: 10px"], [style*="font-size:11px"],
+  [style*="font-size: 11px"] { font-size:12px !important; }
+}
+</style>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261023a">
 </head>
 <body>
 <script>
@@ -2159,8 +2214,12 @@
    The old toggle stored 'false' for light; that value is deliberately not
    honoured, so every device moves to rich blue once. */
 (function () {
-    var light = false;
-    try { light = CESTISStore.getItem('darkMode') === 'light'; } catch (e) {}
+    // The dashboard's Light mode (chosen on this device with its sun/moon
+    // button; the shared look then draws this page light too) is light here
+    // as well, so the charts are built with dark lettering.
+    var de = document.documentElement;
+    var light = !!(de && de.getAttribute && de.getAttribute('data-theme') === 'light');
+    try { light = light || CESTISStore.getItem('darkMode') === 'light'; } catch (e) {}
     if (!light) document.body.classList.add('dark-mode');
 })();
 </script>
@@ -2176,6 +2235,9 @@
             <div class="header-controls">
                 <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: flex-end;">
                     <span id="currentUserDisplay" style="font-size: 0.9rem; color: #ffffff; font-weight: 600;"></span>
+
+                    <!-- Saved / waiting / offline: cestis-sync-chip.js -->
+                    <span data-cestis-sync-chip></span>
 
                     <!-- Cloud Sync Controls -->
                     <div class="cloud-sync-container" id="cloudSyncContainer">
@@ -7385,7 +7447,7 @@
                                style="width: 18px; height: 18px; cursor: pointer;">
                     </td>
                     <td>${student.id}</td>
-                    <td>${student.name}${keptSep}</td>
+                    <td>${student.name}${keptSep}<span class="fee-phone-sub">${feeAttr(student.id)} · ${feeAttr(student.skillArea)}</span></td>
                     <td>${student.skillArea}</td>
                     <td>$${tuition}</td>
                     <td>$${paid}</td>
@@ -9171,7 +9233,7 @@
                 <tr data-search="${feeAttr(search)}" data-date="${feeAttr(payment.date)}">
                     <td>${payment.date}</td>
                     <td>${receipt}</td>
-                    <td>${payment.studentName}</td>
+                    <td>${payment.studentName}<span class="fee-phone-sub">${feeAttr(payment.date)} · ${feeAttr(receipt)} · ${feeAttr(payment.method)}</span></td>
                     <td>${payment.skillArea}</td>
                     <td>${payment.term}</td>
                     <td>$${amount}</td>
@@ -9757,7 +9819,7 @@
                             documentPreview = `
                                 <div class="document-preview">
                                     <h3>Document Preview</h3>
-                                    <img src="${fileDataUrl}" alt="${doc.fileName}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <img src="${fileDataUrl}" alt="${feeAttr(doc.fileName)}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
                                 </div>
                             `;
                         } else if (fileExtension === 'pdf') {
@@ -9798,7 +9860,7 @@
                     documentPreview = `
                         <div class="document-preview">
                             <h3>Document Preview</h3>
-                            <img src="${doc.fileData}" alt="${doc.fileName}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
+                            <img src="${doc.fileData}" alt="${feeAttr(doc.fileName)}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
                         </div>
                     `;
                 } else if (fileExtension === 'pdf') {
@@ -15725,6 +15787,7 @@
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20261022a"></script>
+<script src="cestis-sync-chip.js?v=20261023a"></script>
 <script>
 CESTISPageCloud.init({
   page: 'School Fee Management',

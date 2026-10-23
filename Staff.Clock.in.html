@@ -1709,7 +1709,16 @@
         .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;border-radius:12px;transition:all var(--transition-normal)}
         .btn-ghost:hover{background:var(--bg-tertiary);color:var(--text-primary)}
 
-    </style>
+    
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:0.6rem"], [style*="font-size: 0.6rem"], [style*="font-size:0.7rem"], [style*="font-size: 0.7rem"] { font-size:12px !important; }
+}
+</style>
     <!-- Google Identity Services -->
     <script>
 /* ============================================================================
@@ -1843,6 +1852,10 @@
             }
         })();
     </script>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261023a">
 </head>
 <body>
     <!-- Main Dashboard -->
@@ -1864,6 +1877,9 @@
 
                     <div style="display: flex; align-items: center; gap: 1rem;">
                         <span id="currentUserDisplay" style="font-weight: 600; color: var(--primary-blue);"></span>
+
+                        <!-- Saved / waiting / offline: cestis-sync-chip.js -->
+                        <span data-cestis-sync-chip></span>
 
                         <!-- Cloud Sync Controls -->
                         <div class="cloud-sync-container" id="cloudSyncContainer">
@@ -8509,6 +8525,7 @@
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20261022a"></script>
+<script src="cestis-sync-chip.js?v=20261023a"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Staff Time Clock',
