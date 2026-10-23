@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Identity Adjudication Queue | CESTIS MegaData</title>
+<title>Identity Adjudication Queue | CESTIS Record Book</title>
 <style>
   :root { --ink:#1c2733; --mut:#5b6b7b; --line:#d9e2ec; --card:#fff; --bg:#f2f6fa; --ok:#1c7c43; --warn:#9a6700; --bad:#b3261e; --btn:#1a5fb4; --hl:#fff3cd; }
   * { box-sizing:border-box; }
@@ -151,7 +151,7 @@
     if (pulling || !dal) return Promise.resolve();
     pulling = true;
     return dal.sync.now()
-      .catch(function (e) { note('warn', 'Could not reach the broker just now (' + e.message + ') — will keep retrying.'); })
+      .catch(function (e) { note('warn', 'Could not reach the sync service just now (' + e.message + ') — will keep retrying.'); })
       .then(function () { pulling = false; return reload(); });
   }
 
@@ -181,7 +181,7 @@
       return dal.sync.now().then(function () {
         note('ok', 'Decision synced to the record book.', true);
       }).catch(function (e) {
-        note('warn', 'Decision saved on this device; the broker was unreachable (' + e.message + ') — it sends automatically on the next sync.');
+        note('warn', 'Decision saved on this computer; the sync service was unreachable (' + e.message + ') — it sends automatically on the next sync.');
       });
     }).catch(function (e) {
       busy = false; setButtonsDisabled(false);
@@ -214,7 +214,7 @@
       if (BOOT.mode === 'legacy') {
         $('modeStatus').textContent = MG.describeBoot ? MG.describeBoot(BOOT) : 'Not connected.';
         $('modeStatus').className = 'status mut';
-        $('queueHost').innerHTML = '<div class="card"><div class="status mut">The queue lives in the shared record book — set up this device on the MegaData Admin page and run the migration first.</div></div>';
+        $('queueHost').innerHTML = '<div class="card"><div class="status mut">The queue lives in the shared record book — set up this computer on the Record Book Setup page and run the migration first.</div></div>';
         return;
       }
       dal = BOOT.dal;

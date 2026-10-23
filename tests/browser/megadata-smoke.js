@@ -424,7 +424,7 @@ function serve() {
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | '));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.validateBrokerSettings && MegaData.exportFileName && window.CESTISCore && CESTISCore.buildSnapshot && window.__adminExportBuild)),
       'admin model + legacy snapshot builder both registered');
-    ok(await page.evaluate(() => /LEGACY/.test(document.getElementById('bootStatus').textContent) && /no broker set up/i.test(document.getElementById('bootStatus').textContent)),
+    ok(await page.evaluate(() => /LEGACY/.test(document.getElementById('bootStatus').textContent) && /no sync service set up/i.test(document.getElementById('bootStatus').textContent) && !/broker|MegaData/i.test(document.getElementById('bootStatus').textContent)),
       'status card reports plain-language LEGACY on an unconfigured device');
     const exp = await page.evaluate(async () => {
       CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify([{ id: 'SF-smk', name: 'Smoke Export', skillArea: 'WELDING L2', tuitionFee: 100 }]));

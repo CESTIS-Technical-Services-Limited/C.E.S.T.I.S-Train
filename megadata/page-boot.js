@@ -41,7 +41,7 @@
       }).catch(function (e) {
         // Broker unreachable: pages that already hold a replica could open
         // offline-first; the PILOT keeps it simple — legacy mode + a note.
-        return { mode: 'legacy', reason: 'broker unreachable: ' + e.message, shim: shim, adapter: adapter, saveBrokerConfig: saveCfg };
+        return { mode: 'legacy', reason: 'sync service unreachable: ' + e.message, shim: shim, adapter: adapter, saveBrokerConfig: saveCfg };
       });
       function saveCfg(next) { return adapter.put('meta', 'brokerConfig', next); }
     });

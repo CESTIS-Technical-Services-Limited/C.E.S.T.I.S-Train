@@ -98,7 +98,7 @@ function dashboard(centres, opts) {
   vm.createContext(sb);
   vm.runInContext(['cestisGenId', 'findSkillAreaForCourse', 'instructorCourseMatch', 'createStudentDataForAccount',
     'syncStudentsFromLocalFeeSystem', 'backfillStudentFiscalYears', 'courseDurationRecord', 'studentCentreRecord',
-    'studentCourseStatus', 'courseEndKeyFor', 'studentStampedElsewhere', 'applyCourseEndStatuses', 'readArr', 'syncStudentsToSchoolFee']
+    'studentCourseStatus', 'courseEndKeyFor', 'studentStampedElsewhere', 'courseEndTranscriptData', 'applyCourseEndStatuses', 'readArr', 'syncStudentsToSchoolFee']
     .map(n => extractFunction(INDEX, n)).join('\n\n'), sb);
   return sb;
 }
