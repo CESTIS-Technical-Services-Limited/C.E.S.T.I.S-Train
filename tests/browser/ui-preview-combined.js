@@ -10,7 +10,8 @@
         "All saved" (never the red "needs attention"), and an amber "Waiting
         to send" only when an exam result of hers is still to be sent;
      3. on a phone (320-414px) nothing runs off the edge and the page's name
-        shows in full from 360px; Lock, Light/Dark, Two-Step Verification and
+        shows in full from 360px (a long one, "Attendance Management", on two
+        lines); Lock, Light/Dark, Two-Step Verification and
         Sign Out are in the menu behind the initials;
      4. from 769 to 960px the magnifier stands in for the hidden search box
         and opens the search; from 769 to 1366px nothing overlaps or runs off.
@@ -98,7 +99,7 @@ const SOURCE_WORDS = /cloud|☁|google|\bdrive\b|gmail|server|network|\blan\b|of
     const panel = document.getElementById('syncChipPanel');
     const outside = Array.from(document.querySelectorAll('.topbar .cloud-sync-btn, .topbar .cloud-dropdown > button')).filter(e => !panel.contains(e) && e.getClientRects().length);
     const mag = document.getElementById('globalSearchToggle').getBoundingClientRect();
-    return { title: t.textContent, full: t.scrollWidth <= t.clientWidth + 1, sideways: document.documentElement.scrollWidth - innerWidth,
+    return { title: t.textContent, full: t.scrollWidth <= t.clientWidth + 1 && t.scrollHeight <= t.clientHeight + 1, sideways: document.documentElement.scrollWidth - innerWidth,
       offEdge: Math.max.apply(null, boxes.map(b => b.r.right)) - innerWidth, overlap: overlap.join(','), extraSync: outside.length,
       mag: mag.width ? [Math.round(mag.width), Math.round(mag.height)] : null, box: getComputedStyle(document.querySelector('.topbar-search')).display,
       lock: !!document.getElementById('topbarLockBtn').getClientRects().length, signOut: !!document.querySelector('.topbar .logout-btn').getClientRects().length };
@@ -112,7 +113,7 @@ const SOURCE_WORDS = /cloud|☁|google|\bdrive\b|gmail|server|network|\blan\b|of
       console.log('The top bar at every width (' + who + ')');
       for (const vp of WIDTHS) {
         const { ctx, page, errors } = await session(vp, vp.w === 390 || vp.w === 900 ? 'light' : 'dark', who);
-        for (const pg of who === 'admin' ? ['dashboard', 'exams'] : ['s-dashboard', 's-exams']) {
+        for (const pg of who === 'admin' ? ['dashboard', 'exams', 'attendance'] : ['s-dashboard', 's-exams']) {
           await page.evaluate(p => showPage(p), pg); await page.waitForTimeout(300);
           const r = await bar(page);
           const at = who + ' ' + vp.w + 'px ' + pg;

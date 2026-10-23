@@ -3222,7 +3222,10 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
      holds Lock, Light/Dark, Two-Step Verification and Sign Out, so the
      page's name shows in full. Only on the narrowest screens does the
      title ever shorten. */
-  .topbar-title { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* A longer name ("Attendance Management") takes a second line rather than
+     losing its end. */
+  .topbar-title { min-width:0; overflow:hidden; white-space:normal; overflow-wrap:break-word; line-height:1.15;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
   .topbar-right { gap:4px; flex-shrink:0; }
   .topbar .topbar-btn:not(.topbar-search-toggle) { width:34px; }   /* the magnifier keeps its 44px: on a phone it is the only way to search */
   .topbar-who-avatar { width:30px; height:30px; font-size:12px; }

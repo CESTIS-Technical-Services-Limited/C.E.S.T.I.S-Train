@@ -106,6 +106,7 @@ assert(contrast(L('cestis-input-border'), L('cestis-input')) >= 3, 'Light: a fie
 assert(contrast(L('cestis-red'), L('cestis-card')) >= 4.5 && contrast(L('cestis-accent'), L('cestis-card')) >= 4.5, 'Light: red and amber text read on a card');
 const afterTokens = body.slice(body.indexOf('html:root, html body.dark-mode'));
 assert(!/rgba\(255,\s*255,\s*255/.test(afterTokens) && !/color: #000 !important/.test(afterTokens), 'no rule keeps a Dark-only white overlay or black text: each is a token');
+assert(/html body \.theme-toggle-btn \{ display: none !important; \}/.test(body), 'School Fee\'s and Clock-in\'s own Light/Dark switch gives way to the dashboard\'s choice');
 PAGES.forEach(f => {
   const src = read(f);
   const head = src.slice(0, src.indexOf('</head>'));
