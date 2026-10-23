@@ -154,13 +154,21 @@ async function seedAccounts(PW) {
         const box = document.getElementById('topbarWho').getBoundingClientRect(), lock = document.getElementById('topbarLockBtn').getBoundingClientRect();
         return { name: document.getElementById('topbarWhoName').textContent, role: document.getElementById('topbarWhoRole').textContent,
           label: document.getElementById('topbarWho').getAttribute('aria-label'), avatar: document.getElementById('topbarWhoAvatar').textContent,
-          inView: box.width > 0 && box.right <= innerWidth && lock.width > 0 && lock.right <= innerWidth, vw: innerWidth };
+          // 960px and below, Lock lives in the account menu behind the initials (combined preview).
+          inView: box.width > 0 && box.right <= innerWidth && (innerWidth <= 960 || (lock.width > 0 && lock.right <= innerWidth)), vw: innerWidth };
       });
       ok(r.name === 'Marcia Thompson' && r.role === 'Administrator' && r.avatar === 'MT', kind + ': the top bar says Marcia Thompson, Administrator');
-      ok(r.label === 'Signed in as Marcia Thompson (Administrator)', kind + ': and says so to a screen reader');
-      ok(r.inView, kind + ': the who block and Lock are on screen');
+      ok(r.label === 'Signed in as Marcia Thompson (Administrator) — account menu', kind + ': and says so to a screen reader (the initials open the account menu)');
+      ok(r.inView, kind + ': the who block and Lock are on screen (on a phone, Lock is in the account menu)');
       ok(await noSideways(page), kind + ': no sideways scrolling on the dashboard');
-      await page.click('#topbarLockBtn');
+      if (r.vw <= 960) {
+        await page.click('#topbarWho');
+        await page.waitForTimeout(200);
+        ok(await page.evaluate(() => !document.getElementById('topbarAccountMenu').hidden && document.getElementById('topbarWho').getAttribute('aria-expanded') === 'true'), kind + ': the initials open the account menu');
+        await page.click('#topbarAccountMenu .tam-item:has-text("Lock")');
+      } else {
+        await page.click('#topbarLockBtn');
+      }
       await page.waitForTimeout(400);
       r = await page.evaluate(() => ({ locked: _sessionLocked, open: document.getElementById('idleLockModal').classList.contains('active'),
         why: document.getElementById('idleLockWhy').textContent, focus: document.activeElement && document.activeElement.id,
@@ -212,12 +220,15 @@ async function seedAccounts(PW) {
       const said = [];
       let r = await chipNow(); said.push(r.words);
       ok(r.shown && r.state === 'attention' && r.label === 'Sync needs attention' && r.title === 'Sync needs attention — ask the office' &&
-        r.aria === 'Sync needs attention — ask the office — show details', kind + ': not set up to sync on this computer — "' + r.label + '" (panel: "' + r.title + '")');
+        r.aria === 'Sync needs attention — ask the office — show details and sync', kind + ': not set up to sync on this computer — "' + r.label + '" (panel: "' + r.title + '")');
       ok(r.icon === 'sync' && r.svg, kind + ': with the circular-arrows icon');
       ok(r.clear, kind + ': the chip fits the top bar beside its neighbours');
       await page.evaluate(() => { CESTISStore.setItem('cestisPendingUpload', 'admin|' + new Date(Date.now() - 300000).toISOString()); });
       r = await chipNow(); said.push(r.words);
-      ok(r.state === 'attention' && /tone-bad/.test(await page.getAttribute('#syncChip', 'class')), kind + ': with unsent work it turns red');
+      ok(r.state === 'attention' && /tone-warn/.test(await page.getAttribute('#syncChip', 'class')), kind + ': with unsent work it stays amber (not set up is not a fault)');
+      await page.evaluate(() => { CESTISStore.setItem('schoolDashboardGoogleTokenExpiry', new Date(Date.now() - 600000).toISOString()); refreshSyncChip(); });
+      ok(/tone-bad/.test(await page.getAttribute('#syncChip', 'class')) && /has expired/.test(await page.textContent('#syncChipPanelDetail')), kind + ': a sync sign-in that has run out turns it red, and says so');
+      await page.evaluate(() => { CESTISStore.removeItem('schoolDashboardGoogleTokenExpiry'); refreshSyncChip(); });
       await page.evaluate(() => {
         googleAccessToken = 'simulated'; isCloudConnected = true;
         CESTISStore.setItem('schoolDashboardGoogleTokenExpiry', new Date(Date.now() + 3000e3).toISOString());
