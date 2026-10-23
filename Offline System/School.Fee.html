@@ -2200,6 +2200,8 @@
   [style*="font-size: 11px"] { font-size:12px !important; }
 }
 </style>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261022b">
 </head>
 <body>
 <script>
@@ -2227,6 +2229,9 @@
             <div class="header-controls">
                 <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: flex-end;">
                     <span id="currentUserDisplay" style="font-size: 0.9rem; color: #ffffff; font-weight: 600;"></span>
+
+                    <!-- Saved / waiting / offline: cestis-sync-chip.js -->
+                    <span data-cestis-sync-chip></span>
 
                     <!-- Cloud Sync Controls -->
                     <div class="cloud-sync-container" id="cloudSyncContainer">
@@ -15776,6 +15781,7 @@
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20261022a"></script>
+<script src="cestis-sync-chip.js?v=20261022b"></script>
 <script>
 CESTISPageCloud.init({
   page: 'School Fee Management',

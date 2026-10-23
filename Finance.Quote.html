@@ -7,6 +7,8 @@
 <title>C.E.S.T.I.S — Quote</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap"></noscript>
 <link rel="stylesheet" href="finance-docs.css?v=20260713b">
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261022b">
 </head>
 <body>
 
@@ -18,6 +20,7 @@
       <div class="sub">Prepare job quotations — set a deposit requirement, then convert an accepted quote straight to an invoice</div>
     </div>
     <div class="fd-actions">
+      <span data-cestis-sync-chip></span>
       <button class="btn ghost" onclick="FinanceDoc.newDoc()">+ New Quote</button>
       <button class="btn green" onclick="FinanceDoc.saveDoc()">💾 Save</button>
       <button class="btn ghost" onclick="FinanceDoc.convertToInvoice()">→ Convert to Invoice</button>
@@ -69,6 +72,7 @@
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20261022a"></script>
+<script src="cestis-sync-chip.js?v=20261022b"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Quotation',

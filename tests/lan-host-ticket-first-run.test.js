@@ -82,7 +82,7 @@ const LMS_SPEC = (function () {
 })();
 const PAGE_FNS = ['_bufToHex', 'hashPasswordLegacy', '_pbkdf2Hex', 'hashPassword', 'cachePlaintextPw', 'stripSecretFields',
   'touchAccount', 'persistUserAccounts', 'saveUserAccounts', 'publishedDefaultGate', 'openForceChangePw',
-  'forceChangePwSubmit', 'lanHostTicket', 'lanHostTicketAfterSave', 'handleAdminClick']
+  'forceChangePwSubmit', 'lanHostTicket', 'lanHostTicketAfterSave', 'signInSay', 'signInQuiet', 'handleAdminClick']
   .map(n => extractFunction(INDEX, n)).join('\n');
 
 /* ------------------------------------------------------------ the server */

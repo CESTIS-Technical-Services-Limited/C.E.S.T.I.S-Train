@@ -1,0 +1,284 @@
+/* ============================================================================
+   cestis-theme.css — one look for the sibling apps: the LMS dashboard's.
+
+   WHY THIS EXISTS
+   ---------------
+   School Fee, Cashbook, Payroll, Clock-in, Virement, Income & Expenditure
+   and the finance documents each grew their own colours, fonts and button
+   shapes — light teal, rich blue, slate, navy-and-gold. Opened inside the
+   dark LMS (they are its iframes) the Centre's tools looked like several
+   different products, and the bright pages were jarring at night.
+
+   WHAT IT DOES
+   ------------
+   Each of those pages links this file last in its <head>. It changes the
+   OUTER CHROME only — the page background, the header bar or side menu,
+   cards, buttons, form fields and tables — to the dashboard's design tokens
+   (the :root block of index.html: colours, DM Sans / Playfair Display,
+   radius, spacing). It works by
+     1. giving each page's OWN colour variables the dashboard's values
+        (every page already draws itself from a handful of variables:
+        --bg / --surface / --accent, --navy / --gold, --bg-primary / ...);
+     2. a few rules for the pieces that are not drawn from variables
+        (header gradients, primary buttons, table headings).
+   It touches no page structure and no script, and nothing that prints:
+   every rule is inside @media screen, and the "paper" previews of printed
+   documents (invoices, vouchers, payslips, the virement form) are left as
+   they are. Remove the <link> and a page is exactly as it was.
+
+   Fonts: DM Sans and Playfair Display are what the dashboard asks for; a
+   page that does not load them falls back to the system's sans-serif and
+   Georgia (nothing is fetched from here, so an offline Centre never waits).
+   ============================================================================ */
+
+:root {
+  --cestis-bg: #0c1117;
+  --cestis-bg-2: #141b24;
+  --cestis-card: #1a2332;
+  --cestis-card-hover: #1f2b3d;
+  --cestis-input: #0f1820;
+  --cestis-accent: #f0a500;
+  --cestis-accent-2: #d4900a;
+  --cestis-accent-dim: rgba(240,165,0,0.15);
+  --cestis-green: #2ecc71;
+  --cestis-green-dim: rgba(46,204,113,0.15);
+  --cestis-red: #e74c3c;
+  --cestis-red-dim: rgba(231,76,60,0.15);
+  --cestis-blue: #3498db;
+  --cestis-text: #e8edf3;
+  --cestis-text-2: #8899aa;
+  --cestis-muted: #8293a7;
+  --cestis-border: rgba(255,255,255,0.08);
+  --cestis-border-2: rgba(255,255,255,0.12);
+  --cestis-radius: 12px;
+  --cestis-radius-sm: 8px;
+  --cestis-font: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --cestis-head: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --cestis-shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+
+@media screen {
+
+  /* ---------------------------------------------- 1. each page's own tokens */
+  /* html:root outranks a page's :root; html body.dark-mode outranks the
+     School Fee / Clock-in dark sets, so both of their themes take the look. */
+  html:root, html body.dark-mode {
+    /* Cashbook, Income & Expenditure, Payroll */
+    --bg: var(--cestis-bg);
+    --surface: var(--cestis-bg-2);
+    --surface2: var(--cestis-card);
+    --surface3: var(--cestis-card-hover);
+    --card: var(--cestis-card);
+    --border: var(--cestis-border);
+    --text: var(--cestis-text);
+    --text2: var(--cestis-text-2);
+    --text3: var(--cestis-muted);
+    --text-dim: var(--cestis-text-2);
+    --accent: var(--cestis-accent);
+    --accent2: #f5b833;
+    --primary: var(--cestis-accent);
+    --primary-glow: var(--cestis-accent-dim);
+    --sans: var(--cestis-font);
+    --radius: var(--cestis-radius);
+    --shadow: 0 4px 24px rgba(0,0,0,0.3);
+    /* Virement and the finance documents */
+    --navy: var(--cestis-bg);
+    --navy-mid: var(--cestis-bg-2);
+    --navy-light: var(--cestis-card-hover);
+    --gold: var(--cestis-accent);
+    --gold-dim: var(--cestis-accent-2);
+    --gold-bright: #f5b833;
+    --slate: var(--cestis-text-2);
+    --slate-dim: var(--cestis-muted);
+    --border-light: var(--cestis-border-2);
+  }
+  /* Clock-in (light by default) and School Fee's default (dark) theme. */
+  html:root, html body.dark-mode {
+    --bg-primary: var(--cestis-bg);
+    --bg-secondary: var(--cestis-card);
+    --bg-tertiary: var(--cestis-bg-2);
+    --bg-card: var(--cestis-card);
+    --bg-dashboard: var(--cestis-bg);
+    --text-primary: var(--cestis-text);
+    --text-secondary: var(--cestis-text-2);
+    --text-muted: var(--cestis-muted);
+    --heading-color: var(--cestis-text);
+    --border-color: var(--cestis-border-2);
+    --table-hover: rgba(255,255,255,0.04);
+    --soft-blue: rgba(255,255,255,0.05);
+    --glass-bg: var(--cestis-card);
+    --glass-border: var(--cestis-border);
+    --primary-blue: var(--cestis-accent);
+    --light-blue: #f5b833;
+    --primary-teal: var(--cestis-accent);
+    --primary-teal-light: #f5b833;
+    --primary-teal-dark: var(--cestis-accent-2);
+    --dark-green: var(--cestis-green);   /* figures written in it sat on pale panels */
+    --header-gradient: linear-gradient(0deg, var(--cestis-bg-2), var(--cestis-bg-2));
+    --header-gradient-hover: linear-gradient(0deg, var(--cestis-card), var(--cestis-card));
+    --shadow-header: none;
+    --shadow-glow: none;
+    color-scheme: dark;
+  }
+
+  /* ---------------------------------------------- 2. page and type */
+  html body {
+    background: var(--cestis-bg) !important;
+    color: var(--cestis-text);
+    font-family: var(--cestis-font);
+  }
+  html body :is(button, input, select, textarea) { font-family: inherit; }
+  html body :is(h1, h2):not(:is(.paper, .fd-paper-wrap, .payslip-preview, .payslip-print, .print-page, .print-frame, .document-preview) *) {
+    font-family: var(--cestis-head);
+    letter-spacing: 0;
+  }
+  html body ::-webkit-scrollbar { width: 8px; height: 8px; }
+  html body ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+  html body ::-webkit-scrollbar-thumb { background: var(--cestis-muted); border-radius: 4px; }
+  html body :focus-visible { outline: 2px solid var(--cestis-accent); outline-offset: 2px; }
+
+  /* ---------------------------------------------- 3. header bars and menus */
+  /* School Fee and Clock-in: the big gradient banner becomes the dashboard's
+     quiet bar. */
+  html body .container > .header,
+  html body.dark-mode .header {
+    background: var(--cestis-bg-2) !important;
+    background-image: none !important;
+    animation: none !important;
+    border: 1px solid var(--cestis-border) !important;
+    border-radius: var(--cestis-radius) !important;
+    box-shadow: none !important;
+  }
+  html body .container > .header::before, html body .container > .header::after { display: none !important; }
+  html body .container > .header :is(h1, .header-title, .company-name) { color: var(--cestis-text) !important; text-shadow: none !important; }
+  /* Their capitalised, letter-spaced banner titles stay in the sans face (the
+     serif is for page titles, as on the dashboard). */
+  html body .container > .header :is(h1, h2) { font-family: var(--cestis-font) !important; }
+  /* The cloud / theme buttons in those bars: the dashboard's quiet button. */
+  html body :is(.cloud-sync-btn, .theme-toggle-btn, .theme-toggle) {
+    background: rgba(255,255,255,0.06) !important;
+    color: var(--cestis-text) !important;
+    border: 1px solid var(--cestis-border-2) !important;
+    border-radius: var(--cestis-radius-sm) !important;
+    box-shadow: none !important;
+  }
+  /* Virement: the bar's buttons keep to one line and wrap as a row. */
+  html body .topbar-actions { flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
+  html body .topbar-actions > * { white-space: nowrap; }
+  /* Payroll's top menu: a little tighter, so the last item is not cut off. */
+  html body .sidebar .nav-item { padding-left: .7rem; padding-right: .7rem; }
+  /* Cashbook / Income & Expenditure side menu, Payroll's top menu */
+  html body .sidebar { background: var(--cestis-bg-2) !important; border-color: var(--cestis-border) !important; }
+  html body .nav-item.active {
+    background: var(--cestis-accent-dim) !important;
+    color: var(--cestis-accent) !important;
+  }
+  html body .nav-item:hover:not(.active) { background: rgba(255,255,255,0.05); }
+  /* Virement's bar and tabs */
+  html body .topbar { background: var(--cestis-bg-2) !important; border-bottom: 1px solid var(--cestis-border) !important; box-shadow: none !important; }
+  html body .tab-nav { background: var(--cestis-bg) !important; border-bottom: 1px solid var(--cestis-border) !important; }
+  /* Clock-in's tabs */
+  html body .nav-tabs { background: var(--cestis-card) !important; border: 1px solid var(--cestis-border) !important; box-shadow: none !important; }
+  html body .nav-tab.active { background: var(--cestis-accent-dim) !important; color: var(--cestis-accent) !important; box-shadow: none !important; }
+  /* Finance documents */
+  html body .hub-hero h1, html body .fd-header h1 { color: var(--cestis-text) !important; }
+
+  /* ---------------------------------------------- 4. cards */
+  html body :is(.card, .stat-card, .status-card, .hub-card, .budget-summary-card, .section-card, .form-section):not(:is(.paper, .fd-paper-wrap, .payslip-preview, .print-page) *) {
+    background: var(--cestis-card) !important;
+    border: 1px solid var(--cestis-border) !important;
+    border-radius: var(--cestis-radius) !important;
+    box-shadow: none;
+  }
+  html body :is(.card, .stat-card, .hub-card):hover { border-color: var(--cestis-border-2) !important; }
+  /* Clock-in's status tiles and log cards were pale panels. */
+  html body .status-item { background: var(--cestis-bg-2) !important; border: 1px solid var(--cestis-border) !important; border-radius: var(--cestis-radius-sm) !important; }
+  html body .status-card::before { background: var(--cestis-accent) !important; }
+
+  /* ---------------------------------------------- 5. buttons */
+  html body :is(.btn-primary, .btn-gold, .btn-amber, .login-btn, .ft-sync-btn, .fd-actions > .btn:not(.ghost):not(.green), .hub-card .btn) {
+    background: linear-gradient(135deg, var(--cestis-accent), var(--cestis-accent-2)) !important;
+    color: #000 !important;
+    border: none !important;
+    border-radius: var(--cestis-radius-sm) !important;
+    font-weight: 600;
+    box-shadow: none !important;
+  }
+  html body :is(.btn-primary, .btn-gold, .btn-amber):hover { box-shadow: 0 4px 16px rgba(240,165,0,0.3) !important; }
+  html body :is(.btn-ghost, .btn-secondary, .btn-outline, .btn.ghost, .btn-nav) {
+    background: rgba(255,255,255,0.06) !important;
+    color: var(--cestis-text) !important;
+    border: 1px solid var(--cestis-border-2) !important;
+    border-radius: var(--cestis-radius-sm) !important;
+    box-shadow: none !important;
+  }
+  html body :is(.btn-ghost, .btn-secondary, .btn-outline, .btn.ghost, .btn-nav):hover { background: rgba(255,255,255,0.1) !important; }
+  html body :is(.btn-success, .btn-emerald, .btn.green) {
+    background: var(--cestis-green-dim) !important;
+    color: var(--cestis-green) !important;
+    border: 1px solid rgba(46,204,113,0.35) !important;
+    border-radius: var(--cestis-radius-sm) !important;
+    box-shadow: none !important;
+  }
+  html body .btn-warning {
+    background: var(--cestis-accent-dim) !important;
+    color: var(--cestis-accent) !important;
+    border: 1px solid rgba(240,165,0,0.35) !important;
+    border-radius: var(--cestis-radius-sm) !important;
+    box-shadow: none !important;
+  }
+  html body :is(.btn-danger, .btn-rose) {
+    background: var(--cestis-red-dim) !important;
+    color: #ff8a80 !important;
+    border: 1px solid rgba(231,76,60,0.35) !important;
+    border-radius: var(--cestis-radius-sm) !important;
+    box-shadow: none !important;
+  }
+  html body .btn:not(.paper *) { border-radius: var(--cestis-radius-sm); font-family: var(--cestis-font); }
+
+  /* Active pills: quarter / year tabs drawn in the accent carry dark text. */
+  html body :is(.quarter-tab.active, .quarter-tab-btn.active, .fee-qtab.active, .fee-yb-all.active, .fy-tab.active, .qtr-tab.active) {
+    background: var(--cestis-accent) !important;
+    border-color: var(--cestis-accent) !important;
+    color: #000 !important;
+  }
+
+  /* ---------------------------------------------- 6. form fields */
+  html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]), select, textarea):not(:is(.paper, .fd-paper-wrap, .payslip-preview, .payslip-print, .print-page, .document-preview, .cestis-form-box) *) {
+    background-color: var(--cestis-input) !important;
+    color: var(--cestis-text) !important;
+    border: 1px solid var(--cestis-border-2) !important;
+    border-radius: var(--cestis-radius-sm) !important;
+  }
+  html body :is(input, select, textarea):focus:not(:is(.paper, .fd-paper-wrap, .payslip-preview) *) { border-color: var(--cestis-accent) !important; outline: none; box-shadow: 0 0 0 2px rgba(240,165,0,0.18) !important; }
+  html body ::placeholder { color: var(--cestis-muted); opacity: 1; }
+  html body :is(label, .form-group label):not(:is(.paper, .fd-paper-wrap, .payslip-preview, .print-page) *) { color: var(--cestis-text-2); }
+
+  /* ---------------------------------------------- 7. tables */
+  html body table:not(:is(.paper, .fd-paper-wrap, .payslip-preview, .payslip-print, .print-page, .print-frame, .document-preview, .print-table) table):not(.print-table) th {
+    background: rgba(255,255,255,0.03) !important;
+    color: var(--cestis-text-2) !important;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--cestis-border-2) !important;
+  }
+  html body table:not(:is(.paper, .fd-paper-wrap, .payslip-preview, .payslip-print, .print-page, .print-frame, .document-preview) table):not(.print-table) td {
+    border-color: var(--cestis-border) !important;
+  }
+  html body table:not(:is(.paper, .fd-paper-wrap, .payslip-preview, .print-page) table) tbody tr:hover > td { background: rgba(255,255,255,0.03); }
+
+  /* ---------------------------------------------- 8. phones */
+  /* Virement's tab strip, quarter tabs and budget table pushed the whole page
+     sideways on a phone: each now scrolls (or wraps) inside itself. */
+  @media (max-width: 600px) {
+    html body .tab-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    html body .tab-nav > .tab-btn { flex: 0 0 auto; }
+    html body .quarter-tabs { flex-wrap: wrap; }
+    html body .table-wrap { max-width: 100%; overflow-x: auto !important; }
+  }
+
+  /* ---------------------------------------------- 9. notices and badges */
+  html body .notification-toast, html body #fdToast { border-radius: var(--cestis-radius-sm); font-family: var(--cestis-font); }
+}

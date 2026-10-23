@@ -1234,7 +1234,22 @@
   };
 
   root.sappAddStaffPrompt = function () {
-    var name = prompt('Staff member’s FULL name (first name and last name, e.g. "Rashard Bennett"):');
+    // A labelled form where the page has one (cestis-form-modal.js); the
+    // browser's prompt otherwise. Either way the name goes through the same
+    // check and the same save below.
+    if (root.CESTISForm && typeof root.CESTISForm.ask === 'function') {
+      root.CESTISForm.ask({ title: 'Add a staff member', submitLabel: 'Add to roster',
+        intro: 'The full name links the appraisal to the Staff Payslip employee record.',
+        fields: [{ name: 'name', label: 'Full name (first and last)', required: true, maxlength: 120, placeholder: 'e.g. Rashard Bennett' }],
+        validate: function (v) {
+          return sappIsFullName(v.name) ? '' : { message: 'Please enter both a first name and a last name. The full name is required to link the appraisal to the Staff Payslip employee record.', field: 'name' };
+        }
+      }).then(function (v) { if (v) sappAddStaffNamed(v.name); });
+      return;
+    }
+    sappAddStaffNamed(prompt('Staff member’s FULL name (first name and last name, e.g. "Rashard Bennett"):'));
+  };
+  function sappAddStaffNamed(name) {
     if (!name || !name.trim()) return;
     if (!sappIsFullName(name)) {
       alert('Please enter both a first name and a last name. The full name is required to link the appraisal to the Staff Payslip employee record.');
@@ -1244,7 +1259,7 @@
     d.extraStaff.push({ id: 'X' + Date.now(), name: name.trim(), role: 'extra' });
     sappPersist(d);
     sappRenderRoster();
-  };
+  }
   root.sappRemoveExtraStaff = function (staffId) {
     if (!confirm('Remove this staff member from the appraisal roster?')) return;
     var d = sappData();

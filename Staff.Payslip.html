@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-core.js?v=20261022a"></script>
+<script src="cestis-form-modal.js?v=20261022b" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C.E.S.T.I.S - Payroll Management System</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
@@ -632,6 +633,8 @@ tr:hover td{background:rgba(59,130,246,.04)}
   [style*="font-size:.7rem"], [style*="font-size: .7rem"], [style*="font-size:.72rem"], [style*="font-size: .72rem"] { font-size:12px !important; }
 }
 </style>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261022b">
 </head>
 <body>
 
@@ -805,6 +808,8 @@ tr:hover td{background:rgba(59,130,246,.04)}
         <button class="logout-btn" onclick="handleLogout()" title="Sign Out">🚪</button>
       </div>
       <div class="sidebar-top-right">
+        <!-- Saved / waiting / offline: cestis-sync-chip.js -->
+        <span data-cestis-sync-chip></span>
         <div class="sidebar-footer">
           <!-- Cloud Sync: Not Connected -->
           <div id="cloudNotConnected">
@@ -2463,8 +2468,20 @@ function editPayrollEntry(runIdx,entryIdx){
   const run=DATA.payrollRuns[runIdx];
   if(!run||!run.results[entryIdx])return;
   const r=run.results[entryIdx];
-  const newGross=prompt('Edit gross earnings for '+r.empName+':\n\nCurrent gross: $'+fmt(r.gross)+'\n\nEnter new gross amount:',r.gross.toFixed(2));
-  if(newGross===null)return;
+  CESTISForm.ask({title:'Edit gross earnings',submitLabel:'Recalculate & save',
+    intro:r.empName+' — payroll dated '+run.date+'\nCurrent gross: '+fmt(r.gross)+'. Deductions and net pay are worked out again from the new amount.',
+    fields:[{name:'gross',label:'New gross amount ($)',type:'number',min:0,required:true,value:r.gross.toFixed(2)}]
+  }).then(function(v){
+    if(!v)return;
+    // The same run and line as when the form opened (a sync may have moved them).
+    if(DATA.payrollRuns[runIdx]!==run||run.results[entryIdx]!==r){alert('This payroll changed while the form was open. Please open it again.');return;}
+    editPayrollEntryGross(runIdx,entryIdx,v.gross.replace(/,/g,''));
+  });
+}
+function editPayrollEntryGross(runIdx,entryIdx,newGross){
+  const run=DATA.payrollRuns[runIdx];
+  if(!run||!run.results[entryIdx])return;
+  const r=run.results[entryIdx];
   const gross=parseFloat(newGross);
   if(isNaN(gross)||gross<0){alert('Invalid amount');return;}
   // Recalculate this employee's deductions with new gross
@@ -6838,6 +6855,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
 <script src="cestis-page-cloud.js?v=20261022a"></script>
+<script src="cestis-sync-chip.js?v=20261022b"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Staff Payslips',

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-core.js?v=20261022a"></script>
+<script src="cestis-form-modal.js?v=20261022b" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
 <script src="cestis-page-cloud.js?v=20261022a"></script>
@@ -797,6 +798,20 @@ body::-webkit-scrollbar { width:0; display:none; }
 }
 .login-sync-status.success { color:var(--green); }
 .login-sync-status.error { color:var(--red); }
+/* Why "Sync Now" comes first — one plain line under the sync bar. */
+.login-sync-why {
+  position:relative; z-index:2; max-width:600px; width:100%; margin:-16px auto 26px; padding:0 6px;
+  font-size:12.5px; line-height:1.5; color:var(--text-secondary); text-align:left;
+}
+.login-sync-why strong { color:var(--text-primary); }
+/* A sign-in message, under the card's own fields (replaces the pop-ups). */
+.role-login-error {
+  margin:2px 0 10px; padding:9px 11px; border-radius:var(--radius-sm);
+  background:var(--red-dim); border:1px solid rgba(231,76,60,0.45); color:#ffb4ab;
+  font-size:12.5px; line-height:1.45; white-space:pre-line; text-align:left;
+}
+.role-login-error[hidden] { display:none; }
+.role-login input[aria-invalid="true"] { border-color:rgba(231,76,60,0.7); }
 
 /* LOGIN FORM ON ROLE CARD */
 .role-login {
@@ -974,6 +989,23 @@ body::-webkit-scrollbar { width:0; display:none; }
   transition:all var(--transition);
 }
 .logout-btn:hover { background:rgba(231,76,60,0.2); }
+/* Who is signed in, and the Lock button beside Sign Out. */
+.topbar-who { display:none; align-items:center; gap:8px; min-width:0; max-width:220px; }
+.topbar-who.on { display:flex; }
+.topbar-who-avatar {
+  width:28px; height:28px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; color:#000; background:linear-gradient(135deg,var(--accent),var(--orange));
+}
+.topbar-who-text { display:flex; flex-direction:column; min-width:0; line-height:1.2; }
+.topbar-who-name { font-size:12.5px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.topbar-who-role { font-size:11px; color:var(--text-muted); white-space:nowrap; }
+.topbar-lock-btn {
+  display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); border:1px solid var(--border-light);
+  color:var(--text-primary); padding:7px 12px; border-radius:var(--radius-sm); font-size:12px; font-weight:600;
+  font-family:'DM Sans',sans-serif; cursor:pointer; transition:all var(--transition);
+}
+.topbar-lock-btn:hover { background:rgba(255,255,255,0.1); border-color:var(--accent); color:var(--accent); }
+@media (max-width:1100px) { .topbar-who-text { display:none; } }
 
 /* MAIN */
 .main-content {
@@ -2057,6 +2089,62 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   font-family:'DM Sans',sans-serif; transition:all var(--transition);
 }
 .cloud-sync-btn:hover { background:rgba(255,255,255,0.1); }
+/* The sync health chip and its small panel. Colour is never the only sign:
+   the words say the state. */
+.sync-chip-wrap { position:relative; display:none; }
+.sync-chip-wrap.on { display:block; }
+.sync-chip {
+  display:flex; align-items:center; gap:7px; padding:6px 11px; border-radius:20px; cursor:pointer;
+  font-size:12px; font-weight:600; font-family:'DM Sans',sans-serif; white-space:nowrap;
+  background:rgba(255,255,255,0.05); border:1px solid var(--border-light); color:var(--text-primary);
+}
+.sync-chip:hover { background:rgba(255,255,255,0.1); }
+/* Its icon: a check when all is saved, circular arrows otherwise (never a
+   cloud — CESTISCore.ui.syncIcon), in the tone's colour. */
+.sync-chip-icon { display:flex; width:14px; height:14px; flex-shrink:0; color:var(--text-muted); }
+.sync-chip-icon svg { width:14px; height:14px; display:block; }
+.sync-chip.tone-ok { border-color:rgba(46,204,113,0.35); }
+.sync-chip.tone-ok .sync-chip-icon { color:var(--green); }
+.sync-chip.tone-warn { border-color:rgba(240,165,0,0.45); }
+.sync-chip.tone-warn .sync-chip-icon { color:var(--accent); }
+.sync-chip.tone-bad { border-color:rgba(231,76,60,0.55); background:rgba(231,76,60,0.1); }
+.sync-chip.tone-bad .sync-chip-icon { color:#ff8a7a; }
+.sync-chip-panel {
+  position:absolute; right:0; top:calc(100% + 8px); width:300px; max-width:calc(100vw - 24px); z-index:1001;
+  background:var(--bg-card); border:1px solid var(--border-light); border-radius:var(--radius-sm);
+  box-shadow:0 10px 25px rgba(0,0,0,0.45); padding:14px 16px; font-size:12.5px; color:var(--text-secondary); line-height:1.45;
+}
+.sync-chip-panel[hidden] { display:none; }
+.sync-chip-panel-title { font-weight:700; font-size:13.5px; color:var(--text-primary); margin-bottom:4px; }
+.sync-chip-panel-last { margin-top:8px; color:var(--text-primary); font-weight:600; }
+.sync-chip-panel-advice { margin:8px 0 0 16px; padding:0; }
+.sync-chip-panel-advice li { margin-top:4px; }
+.sync-chip-panel-advice:empty { display:none; }
+/* With the chip saying the state in words, the Connect button beside it
+   keeps only its icon and dot (and its tooltip) and gives the top bar room. */
+.sync-chip-wrap.on ~ #cloudNotConnected #cloudStatusText { display:none; }
+.topbar-search { min-width:120px; }
+/* Narrower laptop screens, sidebar still showing: the top bar's right-hand
+   group (chip, Connect, bell, who, Lock, Sign Out) must never run off the
+   edge — at 1180px Sign Out was cut off. It gives way in steps, as the phone
+   layout does: Lock becomes an icon, then who shows as initials, then the
+   chip's words move into its panel (its tooltip keeps them), then Sign Out
+   becomes an icon, and the search box goes where it was crushed anyway. */
+@media (max-width:1280px) {
+  .topbar-lock-btn { padding:7px 8px; }
+  .topbar-lock-label { display:none; }
+}
+@media (max-width:1240px) { .topbar-who-text { display:none; } }
+@media (max-width:1180px) {
+  .sync-chip { padding:7px 9px; }
+  .sync-chip-label { display:none; }
+}
+@media (max-width:1023px) {
+  .topbar-right { gap:8px; }
+  .logout-btn { padding:7px 10px; font-size:0; gap:0; }
+  .logout-btn svg { width:16px; height:16px; }
+}
+@media (max-width:960px) { .topbar-search { display:none; } }
 .cloud-dropdown { position:relative; display:inline-block; }
 .cloud-dropdown-content {
   display:none; position:absolute; right:0; top:100%; background:var(--bg-card); min-width:200px;
@@ -2607,10 +2695,24 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   /* Cloud sync button: abbreviate text */
   .cloud-sync-btn { padding:6px 8px; font-size:0.75rem; }
   .cloud-sync-btn span:nth-child(2) { display:none; }
+  /* The sync chip keeps its coloured icon; its words move into the panel and
+     the Connect button's own dot gives way to it. */
+  .sync-chip { padding:8px 9px; }
+  .sync-chip-label { display:none; }
+  #cloudStatusDot { display:none; }
+  .sync-chip-panel { position:fixed; left:12px; right:12px; top:calc(var(--topbar-h) + 4px); width:auto; max-width:none; }
 
   /* Logout button: icon only */
   .logout-btn { padding:7px 10px; font-size:0; gap:0; }
   .logout-btn svg { width:16px; height:16px; }
+  /* Lock: icon only; who is signed in shows as initials (the name is in its
+     tooltip and in the menu's own footer). The page title gives way first. */
+  .topbar-lock-btn { padding:7px 8px; }
+  .topbar-lock-label { display:none; }
+  .topbar-title { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .topbar-right { gap:4px; }
+  .topbar .topbar-btn { width:32px; }
+  .topbar-who-avatar { width:26px; height:26px; font-size:10px; }
 
   /* Main content: reduce padding, prevent horizontal overflow */
   .main-content { padding:16px 12px; overflow-x:hidden; }
@@ -4273,6 +4375,11 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       </div>
       <button class="login-sync-btn" id="loginSyncBtn" onclick="loginPageSync()">Sync Now</button>
     </div>
+    <!-- Why "Sync Now" comes first, in one plain line, for anyone meeting it on
+         a new or shared computer. The bar above already says what it does, so
+         this says why and who helps. By the owner's rule it never says where
+         the records come from or are kept; nothing here changes the step. -->
+    <p class="login-sync-why" id="loginSyncWhy" role="note"><strong>Why Sync Now comes first:</strong> it gives this computer the latest accounts and records, so everyone signs in with their current password. If it could not sync, try again or ask the office.</p>
 
     <div class="role-cards sync-pending">
       <!-- ADMIN CARD -->
@@ -4292,8 +4399,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           </div>
           <div class="form-group">
             <label for="adminPass">Password</label>
-            <input type="password" placeholder="••••••••" id="adminPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="adminPass" name="password" autocomplete="current-password" aria-describedby="adminLoginError">
           </div>
+          <div class="role-login-error" id="adminLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('admin')">Forgot password?</button>
         </div>
         <button type="submit" class="role-enter-btn">Enter as Admin →</button>
@@ -4313,8 +4421,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           </div>
           <div class="form-group">
             <label for="studentPass">Password</label>
-            <input type="password" placeholder="••••••••" id="studentPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="studentPass" name="password" autocomplete="current-password" aria-describedby="studentLoginError">
           </div>
+          <div class="role-login-error" id="studentLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('student')">Forgot password?</button>
           <div class="gmail-divider">or</div>
           <button class="gmail-btn" type="button" onclick="gmailSignIn('student')">
@@ -4340,8 +4449,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           </div>
           <div class="form-group">
             <label for="instructorPass">Password</label>
-            <input type="password" placeholder="••••••••" id="instructorPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="instructorPass" name="password" autocomplete="current-password" aria-describedby="instructorLoginError">
           </div>
+          <div class="role-login-error" id="instructorLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('instructor')">Forgot password?</button>
           <div class="gmail-divider">or</div>
           <button class="gmail-btn" type="button" onclick="gmailSignIn('instructor')">
@@ -4367,8 +4477,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           </div>
           <div class="form-group">
             <label for="adminStaffPass">Password</label>
-            <input type="password" placeholder="••••••••" id="adminStaffPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="adminStaffPass" name="password" autocomplete="current-password" aria-describedby="adminStaffLoginError">
           </div>
+          <div class="role-login-error" id="adminStaffLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('adminstaff')">Forgot password?</button>
         </div>
         <button type="submit" class="role-enter-btn">Enter as Admin Staff →</button>
@@ -4388,8 +4499,9 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
           </div>
           <div class="form-group">
             <label for="cmcPass">Password</label>
-            <input type="password" placeholder="••••••••" id="cmcPass" name="password" autocomplete="current-password">
+            <input type="password" placeholder="••••••••" id="cmcPass" name="password" autocomplete="current-password" aria-describedby="cmcLoginError">
           </div>
+          <div class="role-login-error" id="cmcLoginError" role="alert" hidden></div>
           <button type="button" class="register-link" onclick="openForgotPassword('cmc')">Forgot password?</button>
         </div>
         <button type="submit" class="role-enter-btn">Enter as CMC Board →</button>
@@ -4621,9 +4733,23 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       <button type="button" class="topbar-btn topbar-search-toggle" id="globalSearchToggle" onclick="openPhoneSearch()" title="Search" aria-label="Search" aria-controls="globalSearch" aria-expanded="false">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
+      <!-- Sync health: one read-only answer to "is my work safe?" — see
+           CESTISCore.ui.syncHealth. Pressing it shows when this computer last
+           saved and what to do; it never saves or syncs anything itself. -->
+      <div class="sync-chip-wrap" id="syncChipWrap">
+        <button type="button" class="sync-chip tone-warn" id="syncChip" onclick="toggleSyncChipPanel(event)" aria-expanded="false" aria-controls="syncChipPanel">
+          <span class="sync-chip-icon" id="syncChipIcon" aria-hidden="true"></span><span class="sync-chip-label" id="syncChipLabel">Checking…</span>
+        </button>
+        <div class="sync-chip-panel" id="syncChipPanel" role="dialog" aria-labelledby="syncChipPanelTitle" hidden>
+          <div class="sync-chip-panel-title" id="syncChipPanelTitle"></div>
+          <div class="sync-chip-panel-detail" id="syncChipPanelDetail"></div>
+          <div class="sync-chip-panel-last" id="syncChipPanelLast"></div>
+          <ul class="sync-chip-panel-advice" id="syncChipPanelAdvice"></ul>
+        </div>
+      </div>
       <!-- Cloud Sync Dropdown -->
       <div id="cloudNotConnected">
-        <button class="cloud-sync-btn" onclick="connectToGoogleDrive()">
+        <button class="cloud-sync-btn" onclick="connectToGoogleDrive()" title="Connect this computer for syncing" aria-label="Connect this computer for syncing">
           <span>🔄</span>
           <span id="cloudStatusText">Not synced yet</span>
           <span id="cloudStatusDot" class="cloud-status-dot"></span>
@@ -4676,6 +4802,16 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
       </div>
       <button class="topbar-btn" title="Two-Step Verification" onclick="tfaOpenManage()" aria-label="Two-Step Verification">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+      </button>
+      <!-- Who is signed in on this computer, and a Lock that covers the
+           session at once (the same lock the idle timer uses). -->
+      <div class="topbar-who" id="topbarWho" title="Signed in">
+        <span class="topbar-who-avatar" id="topbarWhoAvatar" aria-hidden="true"></span>
+        <span class="topbar-who-text"><span class="topbar-who-name" id="topbarWhoName"></span><span class="topbar-who-role" id="topbarWhoRole"></span></span>
+      </div>
+      <button type="button" class="topbar-lock-btn" id="topbarLockBtn" onclick="lockSessionNow()" aria-label="Lock this computer" title="Lock — cover this session until your password is entered">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span class="topbar-lock-label">Lock</span>
       </button>
       <button class="logout-btn" onclick="logout()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -4950,7 +5086,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 <div class="modal-overlay" id="idleLockModal" style="z-index:1250;">
   <div class="modal" style="max-width:420px;">
     <div class="modal-header"><h3>Session Locked</h3></div>
-    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">This session was left idle, so it has been locked. Enter the password for <strong id="idleLockWho"></strong> to carry on, or sign out.</p>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;"><span id="idleLockWhy">This session was left idle, so it has been locked.</span> Enter the password for <strong id="idleLockWho"></strong> to carry on, or sign out.</p>
     <div class="form-group"><label>Password</label><input type="password" class="form-control" id="idleLockPassword" autocomplete="current-password" onkeydown="if(event.key==='Enter')idleLockUnlock()"></div>
     <div id="idleLockError" class="tfa-error" style="display:none;"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
@@ -7668,7 +7804,16 @@ function sessionHeartbeat() {
   if(st === 'lock' && !_sessionLocked) openIdleLock();
   else if(st === 'warn' && !_sessionWarned) { _sessionWarned = true; showToast('Your session ends in about two minutes — save your work, then sign in again.', 'warning'); }
 }
-function openIdleLock() {
+/* The top bar's Lock: the same cover the idle timer puts up, at once — for a
+   shared lab PC its owner is stepping away from. Nothing about the lock
+   itself is different; only its first line says why it is there. */
+function lockSessionNow() {
+  if(!currentRole || _sessionLocked) return;
+  openIdleLock(true);
+}
+function openIdleLock(byChoice) {
+  var why = document.getElementById('idleLockWhy');
+  if(why) why.textContent = byChoice ? 'You locked this session.' : 'This session was left idle, so it has been locked.';
   _sessionLocked = true;
   // Withdraw the heartbeat at once: no new tab may borrow this session while
   // it is locked (the record pages refuse without a fresh one).
@@ -10445,15 +10590,52 @@ function switchSettingsTab(tab, which) {
   if(which === 'maintenance') loadMaintenanceModeUI();
 }
 
+/* Sign-in messages appear under the card's own fields, announced to screen
+   readers (role="alert"), instead of a pop-up that covered the very form the
+   person had to correct — and on a phone hid where they were. The words and
+   every check are exactly the ones the pop-ups used; only where they appear
+   has changed. A card that is not on screen (the maintenance page's own
+   administrator access) still gets the pop-up. card: 'admin', 'student',
+   'instructor', 'adminStaff' or 'cmc'. */
+var SIGNIN_CARD_FOR_ROLE = { admin: 'admin', student: 'student', instructor: 'instructor', adminstaff: 'adminStaff', cmc: 'cmc' };
+function signInSay(card, msg) {
+  var box = null, shown = false;
+  try {
+    box = document.getElementById(card + 'LoginError');
+    var panel = document.getElementById(card + 'Login');
+    shown = !!(box && panel && panel.getClientRects && panel.getClientRects().length);
+  } catch(e) { shown = false; }
+  if(!shown) { alert(msg); return; }
+  box.textContent = String(msg == null ? '' : msg);
+  box.hidden = false;
+  try { var pass = document.getElementById(card + 'Pass'); if(pass) pass.setAttribute('aria-invalid', 'true'); } catch(e) {}
+}
+function signInQuiet(card) {
+  try {
+    var box = document.getElementById(card + 'LoginError');
+    if(box) { box.hidden = true; box.textContent = ''; }
+    var pass = document.getElementById(card + 'Pass');
+    if(pass && pass.removeAttribute) pass.removeAttribute('aria-invalid');
+  } catch(e) {}
+}
+// Typing again clears the message that was about the last attempt.
+try {
+  document.addEventListener('input', function(e) {
+    var form = e.target && e.target.closest ? e.target.closest('.role-login') : null;
+    if(form && form.id) signInQuiet(form.id.replace(/Login$/, ''));
+  });
+} catch(e) {}
+
 var adminLoginShown = false, studentLoginShown = false, instructorLoginShown = false, adminStaffLoginShown = false, cmcLoginShown = false;
-function requireLoginSync() {
+function requireLoginSync(card) {
   if(loginSyncCompleted) return false;
   // Allow login if user accounts exist locally (beyond the 3 system defaults)
   var hasLocalAccounts = userAccounts.length > 3 || userAccounts.some(function(u) {
     return u.id !== 'USR-001' && u.id !== 'USR-011' && u.id !== 'USR-021';
   });
   if(hasLocalAccounts) { loginSyncCompleted = true; return false; }
-  alert('Please sync first before signing in.\n\nPress the "Sync Now" button at the top of the page to bring this computer up to date.');
+  var _syncFirst = 'Please sync first before signing in.\n\nPress the "Sync Now" button at the top of the page to bring this computer up to date.';
+  if(card) signInSay(card, _syncFirst); else alert(_syncFirst);
   var bar = document.getElementById('loginSyncBar');
   if(bar) { bar.style.animation = 'none'; bar.offsetHeight; bar.style.animation = 'fadeSlideDown 0.4s ease'; }
   return true;
@@ -10484,13 +10666,14 @@ async function handleAdminClick() {
       document.getElementById('adminUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('admin');
+    if(requireLoginSync('admin')) return;
     var uname = document.getElementById('adminUser').value.trim();
     var pw = document.getElementById('adminPass').value;
-    if(!uname || !pw) { alert('Please enter both username and password.'); return; }
+    if(!uname || !pw) { signInSay('admin', 'Please enter both username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('admin', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var adminUser = await findLoginAccount('admin', uname);
     // Diagnostic (no secrets): helps distinguish "account not loaded" from "wrong
     // password" when investigating login failures. Safe to leave in.
@@ -10499,14 +10682,14 @@ async function handleAdminClick() {
         + ' adminUsernames=' + JSON.stringify(userAccounts.filter(function(u){return u.role==='admin';}).map(function(u){return u.username;}))
         + ' matchedAccount=' + (adminUser?('yes(id='+adminUser.id+', pwFormat='+((adminUser.password||'').indexOf('pbkdf2$')===0?'pbkdf2':(/^[a-f0-9]{64}$/.test(adminUser.password||'')?'legacy-sha256':'plaintext'))+', hasPlainCache='+(!!adminUser._plaintextPw)+')'):'NO'));
     } catch(_) {}
-    if(!adminUser) { recordLoginFailure(uname); alert('No admin account found for "' + uname + '" on this device. Try username: cestisadmin — or use "Sync Now" first to pull accounts.'); return; }
-    if(loginBlocked(adminUser, { contact: 'a system administrator' })) return;
+    if(!adminUser) { recordLoginFailure(uname); signInSay('admin', 'No admin account found for "' + uname + '" on this device. Try username: cestisadmin — or use "Sync Now" first to pull accounts.'); return; }
+    if(loginBlocked(adminUser, { contact: 'a system administrator', card: 'admin' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, adminUser);
     try { console.log('[Login][admin] pwMatch=' + pwMatch); } catch(_) {}
-    if(!pwMatch) { recordLoginFailure(uname); alert('Password incorrect for "' + uname + '".'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('admin', 'Password incorrect for "' + uname + '".'); return; }
     clearLoginFailures(uname);
     publishedDefaultGate(adminUser, pw, 'admin', function(){ tfaGateLogin(adminUser, function(){ currentLoggedInUser = adminUser; lanHostTicket(adminUser, pw); enterApp('admin'); }); });
-  } catch(err) { console.error('handleAdminClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleAdminClick error:', err); signInSay('admin', 'Error: ' + err.message); }
 }
 async function handleStudentClick() {
   try {
@@ -10516,24 +10699,25 @@ async function handleStudentClick() {
       document.getElementById('studentUser').focus();
       return;
     }
+    signInQuiet('student');
     // Students must also sync before login to prevent data loss
-    if(requireLoginSync()) return;
+    if(requireLoginSync('student')) return;
     var uname = (document.getElementById('studentUser').value || '').trim();
     var pw = document.getElementById('studentPass').value;
-    if(!uname || !pw) { alert('Please enter your email/username and password.'); return; }
+    if(!uname || !pw) { signInSay('student', 'Please enter your email/username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('student', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     // Look up in userAccounts — falls back to fetching accounts from Google
     // Drive when the account was created on another device
     var userAccount = await findLoginAccount('student', uname);
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid email/username or password. If you are a new student, please register first.'); return;
+      signInSay('student', 'Invalid email/username or password. If you are a new student, please register first.'); return;
     }
-    if(loginBlocked(userAccount)) return;
+    if(loginBlocked(userAccount, { card: 'student' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid email/username or password. If you are a new student, please register first.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('student', 'Invalid email/username or password. If you are a new student, please register first.'); return; }
     clearLoginFailures(uname);
     // Find matching student data — try studentDataId, then the trainee's stable
     // id, then their name.
@@ -10550,7 +10734,7 @@ async function handleStudentClick() {
       // A trainee the Centre deleted does not get a fresh record (and the
       // whole portal) just by signing in with a login that outlived them.
       if(studentAccountTombstoned(userAccount)) {
-        alert('This trainee record has been removed by the Centre. Please contact the office.');
+        signInSay('student', 'This trainee record has been removed by the Centre. Please contact the office.');
         return;
       }
       // Genuinely no record for this trainee — create one.
@@ -10568,7 +10752,7 @@ async function handleStudentClick() {
       if(savedStuProfile.name) { studentMatch.name = savedStuProfile.name; userAccount.name = savedStuProfile.name; }
     }
     publishedDefaultGate(userAccount, pw, 'student', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('student'); }); });
-  } catch(err) { console.error('handleStudentClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleStudentClick error:', err); signInSay('student', 'Error: ' + err.message); }
 }
 async function handleInstructorClick() {
   try {
@@ -10578,21 +10762,22 @@ async function handleInstructorClick() {
       document.getElementById('instructorUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('instructor');
+    if(requireLoginSync('instructor')) return;
     var uname = (document.getElementById('instructorUser').value || '').trim();
     var pw = document.getElementById('instructorPass').value;
-    if(!uname || !pw) { alert('Please enter your email/username and password.'); return; }
+    if(!uname || !pw) { signInSay('instructor', 'Please enter your email/username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('instructor', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('instructor', uname);
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid email/username or password.'); return;
+      signInSay('instructor', 'Invalid email/username or password.'); return;
     }
-    if(loginBlocked(userAccount)) return;
+    if(loginBlocked(userAccount, { card: 'instructor' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid email/username or password.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('instructor', 'Invalid email/username or password.'); return; }
     clearLoginFailures(uname);
     var insMatch = findInstructorRecordForAccount(userAccount);
     if(!insMatch) {
@@ -10608,7 +10793,7 @@ async function handleInstructorClick() {
       if(savedInsProfile.specialization) insMatch.specialization = savedInsProfile.specialization;
     }
     publishedDefaultGate(userAccount, pw, 'instructor', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; lanHostTicket(userAccount, pw); enterApp('instructor'); }); });
-  } catch(err) { console.error('handleInstructorClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleInstructorClick error:', err); signInSay('instructor', 'Error: ' + err.message); }
 }
 async function handleAdminStaffClick() {
   try {
@@ -10618,24 +10803,25 @@ async function handleAdminStaffClick() {
       document.getElementById('adminStaffUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('adminStaff');
+    if(requireLoginSync('adminStaff')) return;
     var uname = (document.getElementById('adminStaffUser').value || '').trim();
     var pw = document.getElementById('adminStaffPass').value;
-    if(!uname || !pw) { alert('Please enter your username and password.'); return; }
+    if(!uname || !pw) { signInSay('adminStaff', 'Please enter your username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('adminStaff', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('adminstaff', uname);
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid username or password.'); return;
+      signInSay('adminStaff', 'Invalid username or password.'); return;
     }
-    if(loginBlocked(userAccount, { contact: 'the System Administrator' })) return;
+    if(loginBlocked(userAccount, { contact: 'the System Administrator', card: 'adminStaff' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('adminStaff', 'Invalid username or password.'); return; }
     clearLoginFailures(uname);
     publishedDefaultGate(userAccount, pw, 'adminstaff', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; lanHostTicket(userAccount, pw); enterApp('adminstaff'); }); });
-  } catch(err) { console.error('handleAdminStaffClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleAdminStaffClick error:', err); signInSay('adminStaff', 'Error: ' + err.message); }
 }
 
 async function handleCmcClick() {
@@ -10646,24 +10832,25 @@ async function handleCmcClick() {
       document.getElementById('cmcUser').focus();
       return;
     }
-    if(requireLoginSync()) return;
+    signInQuiet('cmc');
+    if(requireLoginSync('cmc')) return;
     var uname = (document.getElementById('cmcUser').value || '').trim();
     var pw = document.getElementById('cmcPass').value;
-    if(!uname || !pw) { alert('Please enter your username and password.'); return; }
+    if(!uname || !pw) { signInSay('cmc', 'Please enter your username and password.'); return; }
     // Rate limiting check
     var rateCheck = checkLoginRateLimit(uname);
-    if(!rateCheck.allowed) { alert('Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
+    if(!rateCheck.allowed) { signInSay('cmc', 'Too many failed attempts. Please wait ' + rateCheck.remainSeconds + ' seconds before trying again.'); return; }
     var userAccount = await findLoginAccount('cmc', uname);
     if(!userAccount) {
       recordLoginFailure(uname);
-      alert('Invalid username or password.'); return;
+      signInSay('cmc', 'Invalid username or password.'); return;
     }
-    if(loginBlocked(userAccount, { contact: 'the System Administrator' })) return;
+    if(loginBlocked(userAccount, { contact: 'the System Administrator', card: 'cmc' })) return;
     var pwMatch = await checkPasswordWithCloud(pw, userAccount);
-    if(!pwMatch) { recordLoginFailure(uname); alert('Invalid username or password.'); return; }
+    if(!pwMatch) { recordLoginFailure(uname); signInSay('cmc', 'Invalid username or password.'); return; }
     clearLoginFailures(uname);
     publishedDefaultGate(userAccount, pw, 'cmc', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('cmc'); }); });
-  } catch(err) { console.error('handleCmcClick error:', err); alert('Error: ' + err.message); }
+  } catch(err) { console.error('handleCmcClick error:', err); signInSay('cmc', 'Error: ' + err.message); }
 }
 
 // ============================================================
@@ -11357,9 +11544,35 @@ function lanHostTicketAfterSave(account, pw) {
 function publishedDefaultGate(account, typedPw, role, proceed) {
   if(!CESTISCore.accountAccess.isPublishedDefault(typedPw)) { proceed(); return; }
   var res = CESTISCore.accountAccess.publishedDefaultLogin(userAccounts, account);
-  if(!res.allowed) { alert(res.message); return; }
+  if(!res.allowed) {
+    // Said under the card the person signed in from (see signInSay).
+    var _card = typeof SIGNIN_CARD_FOR_ROLE !== 'undefined' ? SIGNIN_CARD_FOR_ROLE[role] : null;
+    if(_card && typeof signInSay === 'function') signInSay(_card, res.message); else alert(res.message);
+    return;
+  }
   currentLoggedInUser = account;
   openForceChangePw(role, proceed);
+}
+/* "Marcia Thompson · Administrator" in the top bar, beside Lock and Sign Out,
+   so whoever sits down at a shared PC sees at once whose session is open.
+   Read from the sidebar's own name (which profile edits keep current). */
+var TOPBAR_ROLE_NAMES = { admin: 'Administrator', instructor: 'Instructor', adminstaff: 'Admin Staff', cmc: 'CMC Board', student: 'Trainee' };
+function updateTopbarWho() {
+  var box = document.getElementById('topbarWho');
+  if(!box) return;
+  if(!currentRole) { box.classList.remove('on'); return; }
+  var nameEl = document.getElementById('sidebarUserName');
+  var name = (nameEl && nameEl.textContent) || (currentLoggedInUser && currentLoggedInUser.name) || '';
+  var role = TOPBAR_ROLE_NAMES[currentRole] || '';
+  var initials = String(name).split(/\s+/).filter(Boolean).map(function(n){ return n.charAt(0); }).join('').substring(0, 2).toUpperCase();
+  document.getElementById('topbarWhoName').textContent = name;
+  document.getElementById('topbarWhoRole').textContent = role;
+  var av = document.getElementById('topbarWhoAvatar');
+  if(av) { av.textContent = initials || '?'; var sa = document.getElementById('sidebarAvatar'); if(sa && sa.style.background) av.style.background = sa.style.background; }
+  box.title = 'Signed in as ' + name + (role ? ' (' + role + ')' : '');
+  box.setAttribute('aria-label', box.title);
+  box.setAttribute('role', 'note');
+  box.classList.add('on');
 }
 function enterApp(role) {
   try {
@@ -11451,6 +11664,7 @@ function enterApp(role) {
       document.getElementById('sidebarUserRole').textContent = currentStudent.course;
       showPage('s-dashboard');
     }
+    updateTopbarWho();
     initGlobalSearch();
     // A built-in login still carrying its placeholder recovery address cannot
     // use "Forgot password" (the code would go nowhere): ask for a real one.
@@ -11496,6 +11710,7 @@ function enterApp(role) {
     // Set session expiry and start periodic check
     setSessionExpiry();
     startSessionExpiryCheck();
+    try { refreshSyncChip(); } catch(e) {}
 
     // Load per-user local data (chat, profiles) for this specific user
     loadPerUserLocalData();
@@ -21165,6 +21380,7 @@ function syncProfileToLmsChat(userId, name, role, programme, picType) {
 function updateSidebarAvatar(userId, name) {
   var el = document.getElementById('sidebarUserName');
   if(el) el.textContent = name;
+  try { updateTopbarWho(); } catch(e) {}
   var avatar = document.getElementById('sidebarAvatar');
   if(!avatar) return;
   var chatProfile = (typeof lmsChatProfiles !== 'undefined') ? lmsChatProfiles[userId] : null;
@@ -21444,6 +21660,7 @@ function vcUpdateSidebarName(name) {
     var initials = name.split(' ').map(function(n){ return n[0]; }).join('').substring(0,2).toUpperCase();
     avatar.textContent = initials;
   }
+  try { updateTopbarWho(); } catch(e) {}
 }
 
 // ============================== SYSTEM SETTINGS FUNCTIONS ==============================
@@ -33358,6 +33575,88 @@ async function autoSaveToAllFolders() {
   }
 }
 
+/* ---- Sync health chip (top bar) ----
+   Reads what the save code already records — the "not yet uploaded" note
+   (cestisPendingUpload), the last autosave's result and its failure count,
+   the Google sign-in and when it ends, the browser's own online flag, and on
+   the Centre's network the page-cloud's server status — and shows ONE answer
+   (CESTISCore.ui.syncHealth). It never saves, syncs or retries anything. */
+var _syncChipLan = false, _syncChipLastOk = 0, _syncChipTimer = null;
+try { if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function') CESTISPageCloud.lan().then(function(on){ _syncChipLan = !!on; }); } catch(e) {}
+function syncChipInputs() {
+  var now = Date.now();
+  var exp = 0;
+  try { exp = Date.parse(CESTISStore.getItem('schoolDashboardGoogleTokenExpiry') || '') || 0; } catch(e) {}
+  var marker = '';
+  try { marker = String(CESTISStore.getItem('cestisPendingUpload') || ''); } catch(e) {}
+  var since = marker.indexOf('|') !== -1 ? Date.parse(marker.slice(marker.indexOf('|') + 1)) || null : null;
+  var last =_syncChipLastOk || (lastSyncTime ? new Date(lastSyncTime).getTime() : 0) || null;
+  var inp = { now: now, online: navigator.onLine !== false, lan: _syncChipLan, lanTrouble: false,
+    connected: !!(isCloudConnected && googleAccessToken && (!exp || exp > now)), tokenExpiresAt: exp || null,
+    pending: !!marker, pendingSince: since, failures: _consecutiveCloudSaveFailures || 0, lastSavedAt: last };
+  if (_syncChipLan) {
+    // On the Centre's network every edit goes to its server within seconds;
+    // trouble reaching it is what puts work at risk (cestis-page-cloud.js).
+    var st = [];
+    try { st = CESTISPageCloud.status() || []; } catch(e) {}
+    inp.lanTrouble = !!document.getElementById('cestisLanTrouble') || st.some(function(p){ return p.backend === 'offline-server' && !!p.error; });
+    inp.pending = inp.lanTrouble && !!marker;
+    var pushes = st.map(function(p){ return Date.parse(p.lastPush || p.lastPull || '') || 0; });
+    var lp = Math.max.apply(null, [0].concat(pushes));
+    if (lp) inp.lastSavedAt = lp;
+  }
+  return inp;
+}
+function refreshSyncChip() {
+  var wrap = document.getElementById('syncChipWrap');
+  if (!wrap) return;
+  if (!currentRole || !window.CESTISCore || !CESTISCore.ui || typeof CESTISCore.ui.syncHealth !== 'function') { wrap.classList.remove('on'); return; }
+  // While the 5-second autosave is running and its last pass reached Drive
+  // (or found Drive already current) with nothing left unsent, this
+  // computer's work is safe there as of now.
+  if (_autoSaveIntervalId && isCloudConnected && _lastAutoSaveResult && _lastAutoSaveResult.uploaded &&
+      !CESTISStore.getItem('cestisPendingUpload')) _syncChipLastOk = Date.now();
+  var h = CESTISCore.ui.syncHealth(syncChipInputs());
+  var chip = document.getElementById('syncChip');
+  chip.className = 'sync-chip tone-' + h.tone;
+  chip.setAttribute('data-state', h.state);
+  chip.setAttribute('aria-label', h.label + ' — show details');
+  chip.title = h.label;   // where the chip shows only its icon, hovering still says it
+  // A check or circular arrows (fixed markup from the shared core, no input in it).
+  var icon = document.getElementById('syncChipIcon');
+  if (icon && typeof CESTISCore.ui.syncIcon === 'function' && icon.getAttribute('data-icon') !== h.icon) {
+    icon.innerHTML = CESTISCore.ui.syncIcon(h.icon);
+    icon.setAttribute('data-icon', h.icon);
+  }
+  document.getElementById('syncChipLabel').textContent = h.chip || h.label;
+  document.getElementById('syncChipPanelTitle').textContent = h.label;
+  document.getElementById('syncChipPanelDetail').textContent = h.detail;
+  document.getElementById('syncChipPanelLast').textContent = h.lastSaved;
+  var adv = document.getElementById('syncChipPanelAdvice');
+  adv.innerHTML = h.advice.map(function(a){ return '<li>' + escapeHtml(a) + '</li>'; }).join('');
+  wrap.classList.add('on');
+}
+function toggleSyncChipPanel(e) {
+  if (e) e.stopPropagation();
+  var panel = document.getElementById('syncChipPanel'), chip = document.getElementById('syncChip');
+  if (!panel) return;
+  refreshSyncChip();
+  var open = panel.hidden;
+  panel.hidden = !open;
+  chip.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+document.addEventListener('click', function(e) {
+  var panel = document.getElementById('syncChipPanel');
+  if (panel && !panel.hidden && !e.target.closest('#syncChipWrap')) { panel.hidden = true; document.getElementById('syncChip').setAttribute('aria-expanded', 'false'); }
+});
+document.addEventListener('keydown', function(e) {
+  var panel = document.getElementById('syncChipPanel');
+  if (e.key === 'Escape' && panel && !panel.hidden) { panel.hidden = true; var c = document.getElementById('syncChip'); c.setAttribute('aria-expanded', 'false'); c.focus(); }
+});
+window.addEventListener('online', function(){ try { refreshSyncChip(); } catch(e) {} });
+window.addEventListener('offline', function(){ try { refreshSyncChip(); } catch(e) {} });
+_syncChipTimer = setInterval(function(){ try { refreshSyncChip(); } catch(e) {} }, 3000);
+
 // Start the 5-second auto-save interval
 function startAutoSave() {
   stopAutoSave(); // Clear any existing interval
@@ -34030,8 +34329,16 @@ function loginBlocked(account, opts) {
   // password-less account (fee-sync/backfill created) must not be turned away
   // on that route — that would be a lockout no administrator asked for.
   if (res.reason === 'no-password' && opts.allowNoPassword) return false;
+  // From a sign-in card, the answer appears under that card's fields — a
+  // registration still waiting included: it used to open the "Thank you for
+  // registering" screen, which read as if the person had just registered again.
+  if (res.reason === 'pending' && account && opts.card) {
+    signInSay(opts.card, res.message + '\nYou can sign in once it has been approved.');
+    return true;
+  }
   if (res.reason === 'pending' && account) { showPendingApprovalScreen(account); return true; }
-  alert(res.reason === 'disabled' && opts.contact ? 'This account has been disabled. Contact ' + opts.contact + '.' : res.message);
+  var _blockedMsg = res.reason === 'disabled' && opts.contact ? 'This account has been disabled. Contact ' + opts.contact + '.' : res.message;
+  if (opts.card) signInSay(opts.card, _blockedMsg); else alert(_blockedMsg);
   return true;
 }
 
@@ -34920,9 +35227,19 @@ function lmsChatEditMessage(msgId) {
   var user = lmsChatGetCurrentUser();
   if(msg.senderId !== user.id) return;
 
-  var newText = prompt('Edit message:', msg.text);
-  if(newText === null) return; // cancelled
-  newText = newText.trim();
+  var room = lmsChatActiveRoom;
+  CESTISForm.ask({ title: 'Edit message', submitLabel: 'Save',
+    fields: [{ name: 'text', label: 'Message', type: 'textarea', value: msg.text, required: true }]
+  }).then(function(v) {
+    if(!v) return; // cancelled
+    // Found again: a sync while the form was open may have replaced the list.
+    var msg = (lmsChatMessages[room] || []).find(function(m){ return m.id === msgId; });
+    if(!msg || msg.senderId !== user.id) return;
+    lmsChatApplyEdit(msg, v.text);
+  });
+}
+function lmsChatApplyEdit(msg, newText) {
+  newText = String(newText == null ? '' : newText).trim();
   if(!newText) return;
   if(newText === msg.text) return;
 
@@ -36012,7 +36329,12 @@ function lmsChatCloseManageModal() {
 // Admin: Create new chat room
 function lmsChatCreateRoom() {
   if(currentRole !== 'admin') return;
-  var name = prompt('Enter chat room name:');
+  CESTISForm.ask({ title: 'New chat room', submitLabel: 'Create room',
+    fields: [{ name: 'name', label: 'Room name', required: true, maxlength: 80, placeholder: 'e.g. Welding Level 2 — October intake' }]
+  }).then(function(v) { if(v) lmsChatCreateRoomNamed(v.name); });
+}
+function lmsChatCreateRoomNamed(name) {
+  if(currentRole !== 'admin') return;
   if(!name || !name.trim()) return;
   var room = {
     id: 'chat-custom-'+Date.now(),
@@ -38203,8 +38525,17 @@ function adrToggleComplete(taskId) {
 function adrRejectCompletion(taskId) {
   var task = adrTasks.find(function(t){ return t.id === taskId; });
   if(!task || !adrIsSystemAdmin()) return;
-
-  var reason = prompt('Reason for rejecting this task completion (optional):');
+  // Cancel now cancels: with the old prompt, Cancel still rejected the work.
+  CESTISForm.ask({ title: 'Reject this completion?', submitLabel: 'Reject completion', cancelLabel: 'Keep it', danger: true,
+    intro: '“' + task.title + '” goes back to ' + (task.assigneeName || 'its assignee') + ' to redo and resubmit.',
+    fields: [{ name: 'reason', label: 'Reason (optional)', type: 'textarea', maxlength: 500, hint: 'Shown to the assignee in the task’s comments and notification.' }]
+  }).then(function(v) {
+    if(!v) return;
+    var t2 = adrTasks.find(function(t){ return t.id === taskId; });
+    if(t2 && adrIsSystemAdmin()) adrRejectCompletionWith(t2, v.reason);
+  });
+}
+function adrRejectCompletionWith(task, reason) {
   task.status = task.acknowledged ? 'acknowledged' : 'pending';
   task.completedAt = null;
   task.completedLate = false;
@@ -39377,13 +39708,19 @@ function docHubPrintFile(docId) {
 function docHubEditFile(docId) {
   var doc = documentHubFiles.find(function(d) { return d.id === docId; });
   if(!doc) return;
-  var newTitle = prompt('Edit document title:', doc.title);
-  if(newTitle === null) return;
-  newTitle = newTitle.trim();
-  if(!newTitle) { showToast('Title cannot be empty', 'warning'); return; }
-  doc.title = newTitle;
-  var newDesc = prompt('Edit description:', doc.description || '');
-  if(newDesc !== null) doc.description = newDesc.trim();
+  CESTISForm.ask({ title: 'Edit document', submitLabel: 'Save',
+    fields: [{ name: 'title', label: 'Title', value: doc.title, required: true, maxlength: 200 },
+             { name: 'description', label: 'Description', type: 'textarea', value: doc.description || '', maxlength: 1000 }]
+  }).then(function(v) {
+    if(!v) return;
+    var d2 = documentHubFiles.find(function(d) { return d.id === docId; });
+    if(!d2) return;
+    d2.title = v.title;
+    d2.description = v.description;
+    docHubEditSaved();
+  });
+}
+function docHubEditSaved() {
   saveState();
   showToast('Document updated', 'success');
   renderDocumentHubAdmin();
@@ -44481,8 +44818,22 @@ function bulkApproveCertDownloads() {
 function certRegisterPrintedNumber(studentId) {
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student) return;
-  var no = prompt('Enter the certificate number exactly as printed on ' + student.name + '\u2019s certificate:', '');
-  if(no === null) return;
+  CESTISForm.ask({ title: 'Record a printed certificate number', submitLabel: 'Record number',
+    intro: 'For ' + student.name + ' (' + (student.course || '') + '). Once recorded, this number verifies like the one the system issued.',
+    fields: [{ name: 'no', label: 'Number as printed', required: true, maxlength: 60, placeholder: 'e.g. WF-2026-2905', hint: 'Type it exactly as it appears on the paper certificate.' }],
+    validate: function(v) {
+      if(!certNumberKey(v.no)) return { message: 'No number entered.', field: 'no' };
+      var o = certResolveNumber(v.no);
+      if(o.student && o.student.id !== student.id) return { message: 'That number already belongs to ' + o.student.name + '.', field: 'no' };
+      return '';
+    }
+  }).then(function(v) {
+    if(!v) return;
+    var s2 = students.find(function(s){ return s.id === studentId; });
+    if(s2) certRecordPrintedNumber(s2, v.no);
+  });
+}
+function certRecordPrintedNumber(student, no) {
   no = String(no).trim();
   if(!certNumberKey(no)) { showToast('No number entered.', 'warning'); return; }
   var other = certResolveNumber(no);
