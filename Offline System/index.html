@@ -12083,7 +12083,16 @@ function openForceChangePw(role, then) {
   var e = document.getElementById('forceChangePwError');
   if(n) n.value = ''; if(c) c.value = ''; if(e) e.style.display = 'none';
   openModal('forceChangePwModal');
-  setTimeout(function(){ if(n) n.focus(); }, 60);
+  // The dialog watcher (cestisDialogOpened) already puts the cursor in "New
+  // password" as the dialog opens. This later nudge, from before it, then
+  // pulled the cursor back from "Confirm password" if somebody had moved on
+  // within the moment: the confirmation went into the first field and the
+  // dialog said "Passwords do not match". It only acts now when the cursor
+  // is not in the dialog at all.
+  setTimeout(function(){
+    var m = document.getElementById('forceChangePwModal');
+    if(n && !(m && m.contains && m.contains(document.activeElement))) n.focus();
+  }, 60);
 }
 function forceChangePwCancel() {
   // Refuse access rather than let a default-password account in.
