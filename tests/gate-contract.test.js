@@ -21,7 +21,10 @@
    credential version in its session id, the slice's hash (the two build
    byte-for-byte the same records), the paper's questions, every receipt,
    the result's id, score and late flag, review's "revealed", the room's
-   hash, sign-out, and revocation after a password change. And, first, that
+   hash, sign-out, and revocation after a password change; and review of a
+   result that reached the trainee only in their slice (marked on a lab PC,
+   redacted there): withheld, or released — the same result, its right
+   answers put back from the key, from both. And, first, that
    the rules the two share (the accounts index, the login lookup, refusals,
    two-step methods and ticket, the credential version in a session id) are
    Core.gate's in both — neither gate carries a copy of its own any more.
@@ -44,7 +47,7 @@ const os = require('os');
 const path = require('path');
 const nodeCrypto = require('crypto');
 const Core = require('../cestis-core.js');
-const { makeCentre, crypto, pbkdf2, NOW, MIN, iso } = require('./gate-fixture.js');
+const { makeCentre, questionBank, crypto, pbkdf2, NOW, MIN, DAY, iso } = require('./gate-fixture.js');
 
 const ROOT = path.join(__dirname, '..');
 const OFF = path.join(ROOT, 'Offline System');
@@ -86,6 +89,23 @@ T(5).acct.defaultPassword = true;                           // still on a publis
 C.lone = { id: 'USR-LONE', name: 'Lonely Unlinked', role: 'student', username: 'lone01', email: 'lone@mail.test', status: 'active',
   programme: C.PROGRAMMES[0].name, password: pbkdf2('lone-pw', '0f0f0f0f0f0f0f0f', 1000) };
 C.store.voctrain_users.push(C.lone);
+/* Two tests of his marked on a lab PC: they reach his device only in his
+   slice, where every result is redacted. Staff hold back the answers of one
+   and released the other's — kept on the Centre without its right answers
+   (an older copy) — so both gates must put them back from the key alike. */
+function labResult(exam, t, strip) {
+  const qs = Core.exams.attemptQuestions(exam.questionData, {});
+  const m = Core.exams.mark(qs, qs.map(q => (q.type === 'info' ? null : J(RIGHT[q.type]))), exam.questionData);
+  const r = { id: 'RES-LAB-' + exam.id, examId: exam.id, studentId: t.stu.id, studentName: t.stu.name, answers: m.gradedResults,
+    score: 90, totalPoints: m.totalPoints, earnedPoints: m.earnedPoints, passed: true, submittedAt: iso(NOW - 12 * DAY) };
+  if (strip) r.answers.forEach(a => { delete a.correctAnswer; delete a.tolerance; });
+  return r;
+}
+const labExam = (id, release) => ({ id, title: 'Quiz ' + id, course: T(1).p.name, date: '2026-10-15', time: '09:00', duration: 30, passMark: 50,
+  status: 'completed', answersRelease: release, questionData: questionBank(id.replace(/-/g, '')), questions: 8, updatedAt: iso(NOW - 12 * DAY) });
+const WITHHELD = labExam('EX2-W', 'withheld'), RELEASED = labExam('EX2-R', 'released');
+C.store.voctrain_exams.push(WITHHELD, RELEASED);
+C.store.voctrain_examResults.push(labResult(WITHHELD, T(1), false), labResult(RELEASED, T(1), true));
 
 /* ---------------------------------------------------------- online */
 const w = fakes.makeWorld({ now: NOW - 30 * MIN, seed: 'gate-contract' });
@@ -172,7 +192,8 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
       const calls = (src, f) => new RegExp('\\b(?:G\\.gate|g|G)\\.' + f + '\\(').test(src);
       same('the sign-in rules each gate calls', SHARED.filter(f => calls(gs, f)), SHARED.filter(f => calls(lan, f)));
       assertEq(SHARED.filter(f => !calls(gs, f)), [], 'the online gate calls every one of them');
-      assertEq(['laneMerge', 'laneFirstSeen', 'firstSeenOf'].filter(f => !calls(gs, f)), [], 'and the lane rules');
+      assertEq(['laneMerge', 'laneFirstSeen', 'firstSeenOf', 'fillAnswers'].filter(f => !calls(gs, f)), [], 'and the lane rules and fillAnswers');
+      assert(calls(lan, 'fillAnswers'), 'the Centre server\'s review puts right answers back the same way');
       const COPIES = ['gateLookup', 'gateSidCv', 'gateTicketMake', 'gateBytesText', 'gateRecStamp', 'gateLaneMerge', 'gateFirstSeen'];
       assertEq(COPIES.filter(f => new RegExp('function ' + f + '\\(').test(gs)), [], 'Gate.gs defines none of its old copies');
       assert(!/TODO\(core\)/.test(lan) && !('rules' in lanGate), 'nor does the Centre server\'s gate');
@@ -281,8 +302,17 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
       r => [r.ok, keys(r), r.revealed, r.result.id, KEYS.some(k => JSON.stringify(r.result).indexOf('"' + k + '"') !== -1)]);
     same('review: a result that is not his', await online({ op: 'review', token: S1.token, resultId: 'RES-' + T(3).acct.id }),
       await centre({ op: 'review', token: S2.token, resultId: 'RES-' + T(3).acct.id }));
-    same('review: his earlier test, long closed — released', await online({ op: 'review', token: S1.token, resultId: 'RES-' + K.acct.id }),
-      await centre({ op: 'review', token: S2.token, resultId: 'RES-' + K.acct.id }), r => [r.ok, r.revealed, r.result.id]);
+    const review = id => Promise.all([online({ op: 'review', token: S1.token, resultId: id }), centre({ op: 'review', token: S2.token, resultId: id })]);
+    const shown = r => r.result.answers.filter(a => 'correctAnswer' in a).length;
+    const [e1, e2] = await review('RES-' + K.acct.id);
+    same('review: his earlier test (marked on a lab PC, in his slice without its right answers), long closed — released, the SAME result field for field',
+      e1, e2, r => [r.ok, r.revealed, r.result]);
+    assertEq([shown(e1), shown(e2)], [8, 8], '— the right answers shown by both (online, put back from the key file)');
+    const [h1r, h2r] = await review('RES-LAB-EX2-W');
+    same('review: one whose answers staff hold back — none, from either', h1r, h2r, r => [r.ok, r.revealed, KEYS.some(k => JSON.stringify(r.result).indexOf('"' + k + '"') !== -1)]);
+    const [rl1, rl2] = await review('RES-LAB-EX2-R');
+    same('review: one whose answers staff released, kept without them — both put them back, the same', rl1, rl2, r => [r.ok, r.revealed, r.result]);
+    assertEq([rl1.revealed, shown(rl1)], [true, 8], '— all eight');
 
     console.log('Sign-out and revocation');
     same('sign-out', await online({ op: 'signOut', token: A1.token }), await centre({ op: 'signOut', token: A2.token }));

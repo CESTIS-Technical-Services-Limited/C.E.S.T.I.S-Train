@@ -15074,6 +15074,44 @@
       });
       return r;
     }
+    /* The right answers put back into a result, from the exam's key file.
+
+       Every result in a slice is redacted (a slice never carries a key), so
+       a test marked on a lab PC reaches the trainee's own device without its
+       right answers — and the online gatekeeper, answering `review` from
+       that copy, said "released" and showed none, while the Centre's server,
+       which holds the result whole, showed them. Before redactResult decides
+       (on the gatekeeper's clock) whether they may be shown, each answer's
+       right answer is worked out from the key's own question exactly as
+       marking shows it (Core.exams.mark). An answer that already carries one
+       keeps it (a result the gate marked, the Centre's own copy); one whose
+       question the key no longer has stays without; a key file of another
+       exam fills nothing. Each answer keeps marking's own order of fields,
+       so the copy reads byte for byte as the whole one. A copy. */
+    function fillAnswers(result, keyFile) {
+      var r = copy(result);
+      if (!isObj(r) || !Array.isArray(r.answers)) return r;
+      if (!isObj(keyFile) || keyFile.format !== FORMAT.key || !isObj(keyFile.exam) || str(keyFile.exam.id) !== str(r.examId)) return r;
+      var byId = dict();
+      (Array.isArray(keyFile.exam.questionData) ? keyFile.exam.questionData : []).forEach(function (q) {
+        if (q && q.id != null && !byId[str(q.id)]) byId[str(q.id)] = q;
+      });
+      r.answers.forEach(function (a, i) {
+        if (!isObj(a) || a.questionId == null || hasOwn.call(a, 'correctAnswer')) return;
+        var kq = byId[str(a.questionId)];
+        if (!kq || kq.type === 'info') return;
+        var row = Core.exams.mark(Core.exams.publicQuestions([kq]), [null], [kq]).gradedResults[0];
+        if (!row) return;
+        var put = { correctAnswer: copy(row.correctAnswer) };
+        if (row.tolerance !== undefined && !hasOwn.call(a, 'tolerance')) put.tolerance = row.tolerance;
+        var out = {};
+        Object.keys(row).forEach(function (k) { if (hasOwn.call(a, k)) out[k] = a[k]; else if (hasOwn.call(put, k)) out[k] = put[k]; });
+        Object.keys(a).forEach(function (k) { if (!hasOwn.call(out, k)) out[k] = a[k]; });
+        Object.keys(put).forEach(function (k) { if (!hasOwn.call(out, k)) out[k] = put[k]; });
+        r.answers[i] = out;
+      });
+      return r;
+    }
     /* The trainee's attempt at one exam, however many devices and inboxes it
        is spread over (§5.3 attempt.get): their result if there is one, else
        'retired' (submitted elsewhere, result not here yet), else the attempt
@@ -15195,6 +15233,7 @@
       indexAccounts: indexAccounts, lookupLogin: lookupLogin, credentialRefusal: credentialRefusal, twoStep: twoStep,
       ticketMake: ticketMake, ticketRead: ticketRead, sidRand: sidRand, sidCv: sidCv,
       laneStamp: laneStamp, laneMerge: laneMerge, laneFirstSeen: laneFirstSeen, firstSeenOf: firstSeenOf,
+      fillAnswers: fillAnswers,
       VERSION: VERSION, FORMAT: FORMAT, DEVICE_KEYS: DEVICE_KEYS, NS_KEY: NS_KEY, KEY_NAMES: KEY_NAMES,
       canon: canon, hashOf: hashOf, utf8: utf8, toHex: toHex, fromHex: fromHex, b64url: b64url, unb64url: unb64url, same: same,
       prepare: prepare, sliceFor: sliceFor, buildAll: buildAll, buildSlice: buildSlice,

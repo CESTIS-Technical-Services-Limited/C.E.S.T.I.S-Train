@@ -464,14 +464,18 @@ function create(opts) {
     return out;
   }
 
-  // review: a marked test of their own, the right answers only when the exam's release allows — on THIS clock.
+  /* review: a marked test of their own, the right answers only when the
+     exam's release allows — on THIS clock. The Centre holds results whole;
+     any answer stored without its right answer has it put back from the
+     exam's key first (Core.gate.fillAnswers), as the online gate does. */
   function review(req, t) {
     const s = session(req, t), id = str(req.resultId);
     if (!id) fail('bad-request');
     const found = s.c.list('voctrain_examResults').filter(r => str(r.id) === id && str(r.studentId) === s.me.stu)[0];
     if (!found) return { ok: false, error: 'not-found' };
     const exam = safeId(found.examId) ? s.c.exam(found.examId) : null, offset = s.slice.settings.centreUtcOffset;
-    return { ok: true, result: G.redactResult(found, exam, t, offset), revealed: !!exam && Core.exams.canRevealAnswers(exam, t, offset) };
+    const key = exam ? G.buildKey(exam, offset) : null;
+    return { ok: true, result: G.redactResult(G.fillAnswers(found, key), exam, t, offset), revealed: !!exam && Core.exams.canRevealAnswers(exam, t, offset) };
   }
 
   // room.get: a room's history (the online gate's room file, built now), to its members only.

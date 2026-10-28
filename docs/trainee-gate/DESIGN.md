@@ -1085,6 +1085,7 @@ of its text: a hex secret is used as written, never decoded, so every side deriv
 | `collect(files, cx)` | The collector's pure step (§5.6 steps 2–4): owner from the folder, re-check, re-own, payload, ops, the unassigned list, files seen, watermark. |
 | `markAttempt(attempt, keyFile, nowMs, opts)` | §5.3: `{result, retired, keyHash, file}` or `{error}`; `resultId(attemptId, crypto)`. |
 | `redactResult(result, exam, nowMs, offset)` | The right answers only when `Core.exams.canRevealAnswers` allows on the given time. |
+| `fillAnswers(result, keyFile)` | The right answers put back into a result from the exam's key file, each as `Core.exams.mark` gives it from the key's own question, in marking's field order (§14.4). An answer that has one keeps it; a question the key no longer has stays without; another exam's key, a paper or nothing fills nothing. A copy. `review` runs `redactResult(fillAnswers(result, key), …)` on both gates. |
 | `resumeAttempt({lanes, results, slice}, stu, examId)` | `attempt.get`: `{state:'result'\|'retired'\|'attempt'\|'none', …}`. |
 | `token.sign/verify/claims`, `cv`, `sid.make/check`, `sessionKey` | §4.4. |
 | `seal(item, key, crypto)` / `sealOk(item, key, crypto)` | §5.1. |
@@ -1179,7 +1180,8 @@ of the file, beside `Core.gate`, to keep merges clear of the modules they extend
 - **Stage 2 (gatekeeper).** Pass `crypto` from `Utilities` (`computeHmacSha256Signature`,
   `computeDigest` SHA-256 and SHA-1; convert signed bytes to 0–255). Run `selfTest` on `selfcheck`. Before
   `markAttempt`, merge the trainee's lanes and slice with `resumeAttempt` and pass `receivedAt` and
-  `firstSeen`. Answer `review` with `redactResult(result, key.exam, serverNow, key.centreUtcOffset)`.
+  `firstSeen`. Answer `review` with `redactResult(fillAnswers(result, key), key.exam, serverNow, key.centreUtcOffset)`
+  (built: §14.4).
   Refuse items older than `ITEM_MAX_AGE_MS` by `sid.check(...).iat`.
 - **Stage 3 (staff).** Pass the dashboard's `findSkillAreaForCourse` as `opts.findSkill` so slices match
   what the trainee portal shows; yield between `sliceFor` calls. Feed `collect()`'s `payload.data` to
@@ -1214,3 +1216,11 @@ defines a copy any more).
   on the attempt.
 - The allowlist paste carries all of `Core.gate`, so nothing new is needed in it; the new rules touch only
   `Core.accountAccess`, `Core.accountLoginScore` and `Core.exams`, which it already carries.
+- **`review` of a result that came only in the slice.** A test marked on a lab PC reaches the trainee's
+  device only through their slice, and every result there is redacted. Gate.gs answered `review` from
+  that copy: `revealed: true` and no right answers, where the Centre's server, holding the result whole,
+  showed them. `fillAnswers(result, keyFile)` now puts them back from the key file before `redactResult`
+  decides on the gatekeeper's clock; the Centre's server calls it too (a no-op on its whole copies, and the
+  same repair for one stored without them). One difference remains by construction: if staff change a
+  question's key after a result was marked, the online review shows the key as it is now, the Centre's
+  server the one stored at marking.

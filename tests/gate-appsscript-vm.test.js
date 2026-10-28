@@ -38,8 +38,11 @@
        idempotent, two devices submitting at the same moment get ONE result
        (one file kept, the younger in the bin), a second attempt at the
        same exam gets the first result, late answers kept and flagged;
-     - review: no right answers before the exam closes, then right answers;
-       a paper only while the exam is open by the gate's clock;
+     - review: no right answers before the exam closes, then right answers —
+       for a result that came only in the slice (marked on a lab PC, its
+       copy redacted) too, put back from the key file (Core.gate.fillAnswers)
+       exactly as the Centre's whole copy has them; a paper only while the
+       exam is open by the gate's clock;
      - uploads: kinds, 5 MB, 50 a day, 100 MB a day — and a lost cache never
        lifts a limit; files only from the trainee's list or own uploads;
      - rooms to members only; sign-out stops reads (even with the cache
@@ -661,6 +664,9 @@ function sExams(src) {
   const slr = sliceOf(env, K.acct.id).data.voctrain_examResults[0];
   const rv3 = w.post({ op: 'review', token: sK.token, resultId: slr.id });
   assertEq([rv3.ok, rv3.result.id], [true, slr.id], 'a result that came in the slice (marked on a lab PC) is served for review too');
+  const whole = C.store.voctrain_examResults.filter(r => r.id === slr.id)[0];
+  assertEq([rv3.revealed, hasKey(slr), hasKey(whole)], [true, false, true], '(its exam closed long ago; the slice\'s copy has no right answers, the Centre\'s has)');
+  assertEq(rv3.result.answers, whole.answers, 'released: the right answers are put back from the key file, exactly as the Centre\'s whole copy has them');
 }
 
 /* ============================================================== uploads */

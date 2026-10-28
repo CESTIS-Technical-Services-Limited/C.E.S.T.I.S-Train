@@ -883,7 +883,11 @@ function gateAttemptGet(G, req) {
   if (r.state === 'attempt') { out.attempt = r.attempt; out.ids = r.ids; }
   return out;
 }
-// review: a marked test, with the right answers only when the exam's release allows — on THIS clock.
+/* review: a marked test, with the right answers only when the exam's
+   release allows — on THIS clock. A result that reached the trainee only in
+   their slice (marked on a lab PC) has had its right answers taken out
+   there; they are put back from the key file first (Core.gate.fillAnswers),
+   so the trainee sees them once released, as on the Centre's server. */
 function gateReview(G, req) {
   var s = gateSession(G, req), id = gateStr(req.resultId);
   if (!id) gateFail('bad-request');
@@ -894,7 +898,7 @@ function gateReview(G, req) {
   }
   if (!found) return { ok: false, error: 'not-found' };
   var examId = gateSafeId(found.examId), key = examId ? gateKeyFile(G, examId) : null;
-  return { ok: true, result: gateRedact(G, found, key), revealed: !!key && G.core.exams.canRevealAnswers(key.exam, G.now, key.centreUtcOffset) };
+  return { ok: true, result: gateRedact(G, G.gate.fillAnswers(found, key), key), revealed: !!key && G.core.exams.canRevealAnswers(key.exam, G.now, key.centreUtcOffset) };
 }
 // room.get: a room's own file, to its members only.
 function gateRoomGet(G, req) {

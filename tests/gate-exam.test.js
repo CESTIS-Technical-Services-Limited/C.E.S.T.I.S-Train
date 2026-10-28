@@ -21,7 +21,9 @@
        the gatekeeper first saw the attempt plus its duration plus two
        minutes — kept and flagged for staff, never refused;
      - the right answers are shown only when the exam's release allows, on
-       the GIVEN time (the gatekeeper's), and never in a slice;
+       the GIVEN time (the gatekeeper's), and never in a slice; a result that
+       came in the slice gets them back from the key file (fillAnswers)
+       exactly as marking gave them, before that decision;
      - an attempt spread over several devices' inboxes resumes as ONE
        attempt with the newest answer to each question and the first
        deadline; a submitted one, or a result, ends it;
@@ -178,6 +180,44 @@ console.log('The right answers: only when the release allows, by the gatekeeper\
   assertEq(has(G.redactResult(r, Object.assign({}, exam, { answersRelease: 'withheld' }), NOW + 300 * DAY, '-05:00')), 0, 'withheld: never');
   assertEq(has(G.redactResult(r, null, NOW + 300 * DAY, '-05:00')), 0, 'with no exam to ask: never');
   assertEq(has(r), 8, 'and the result itself is never changed');
+}
+
+/* A test marked on a lab PC reaches the trainee's device only in their slice,
+   and every result in a slice has its right answers taken out. The online
+   gatekeeper answered `review` from that copy: "released", and no right
+   answers — where the Centre's server, holding the result whole, showed
+   them. fillAnswers puts them back from the key file, as marking shows them. */
+console.log('A result that came in the slice: the right answers put back from the key, then released or not');
+{
+  const sliceOf = acct => G.buildSlice(C.store, acct, NOW).slice;
+  const old = C.examById['EX1-OLD'], oldKey = G.buildKey(old, '-05:00');
+  const stored = C.store.voctrain_examResults.find(r => r.id === 'RES-' + T.acct.id);
+  const copy = sliceOf(T.acct.id).data.voctrain_examResults.find(r => r.id === stored.id);
+  const has = res => res.answers.filter(e => 'correctAnswer' in e).length;
+  assertEq(has(copy), 0, '(the slice\'s copy has no right answers)');
+  const filled = G.fillAnswers(copy, oldKey);
+  assertEq(filled.answers.map(a => [a.questionId, a.correctAnswer, a.tolerance]), stored.answers.map(a => [a.questionId, a.correctAnswer, a.tolerance]),
+    'every answer gets the right answer marking gave it (the tolerance too)');
+  assertEq(G.redactResult(filled, old, NOW, '-05:00'), G.redactResult(stored, old, NOW, '-05:00'),
+    'released (long closed): what the trainee sees is what the Centre\'s whole copy shows, field for field');
+  assertEq(has(copy), 0, 'the slice\'s copy itself is not changed');
+  const open = C.examById.EX1, aq = X.attemptQuestions(open.questionData, {});
+  const lab = X.mark(aq, aq.map(q => (q.type === 'info' ? null : rightAnswer(q))), open.questionData);
+  const labResult = { id: 'RES-LAB', examId: 'EX1', studentId: T.stu.id, answers: lab.gradedResults, score: 90 };
+  const labCopy = G.redactResult(labResult, null, NOW);
+  assertEq(G.fillAnswers(labCopy, keyFile).answers, labResult.answers, 'a lab PC\'s marking of the open exam: put back exactly');
+  assertEq(has(G.redactResult(G.fillAnswers(labCopy, keyFile), open, NOW, '-05:00')), 0, 'and while the exam is open, taken out again: none shown');
+  assertEq(has(G.redactResult(G.fillAnswers(labCopy, keyFile), Object.assign({}, open, { answersRelease: 'withheld' }), NOW + 300 * DAY, '-05:00')), 0,
+    'withheld: never');
+  const gateMarked = mark(attempt()).result;
+  assertEq(G.fillAnswers(gateMarked, keyFile), gateMarked, 'a result that has its right answers keeps them as they are');
+  assertEq(G.fillAnswers(copy, keyFile), copy, 'the key file of another exam fills nothing');
+  assertEq(G.fillAnswers(copy, G.buildPaper(old, NOW)), copy, 'nor does a paper (it has no key)');
+  assertEq([G.fillAnswers(copy, null), G.fillAnswers(null, oldKey)], [copy, null], 'nor nothing');
+  const fewer = J(oldKey);
+  fewer.exam.questionData = fewer.exam.questionData.filter(q => q.type !== 'mcq');
+  const part = G.fillAnswers(copy, fewer);
+  assertEq([has(part), 'correctAnswer' in part.answers.find(a => a.type === 'mcq')], [7, false], 'a question the key no longer has stays without');
 }
 
 /* ---------------------------------------------------------- resume */
