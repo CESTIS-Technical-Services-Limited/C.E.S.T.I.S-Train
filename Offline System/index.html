@@ -36039,7 +36039,7 @@ var GATE_STORE_KEYS = ['voctrain_users', 'voctrain_deletedUserIds', 'voctrain_st
 // This page's own state for the gate (never stored: it is rebuilt after a reload).
 var _gateRun = { publishing: false, collecting: false, cfg: null, cfgAt: 0, cfgMissing: false, built: null, builtAt: 0,
   buildWrites: -1, buildMs: 0, remoteAt: 0, collectAt: 0, refetchAt: 0, healthAt: 0, drive: 0, killed: undefined,
-  decisions: null, lastError: '', lastCollect: null };
+  decisions: null, lastError: '', lastCollect: null, offPending: '', offBusy: false };
 
 /* ---- This PC's own notes (CESTISCore.gate.DEVICE_KEYS) ----
    Written straight into this browser's own copy, not through the store: they
@@ -36084,8 +36084,17 @@ function gateCollectedState(raw) {
 // description, which never does (DESIGN §1.2).
 function gateFolderDescription(acct) { return 'cestis-trainee acct=' + acct + ' v=1'; }
 function gateFolderAcct(description) {
-  var m = /(?:^|\s)acct=(\S+)/.exec(String(description || ''));
+  var d = String(description || '');
+  if (!/^cestis-trainee\s/.test(d)) return '';
+  var m = /(?:^|\s)acct=(\S+)/.exec(d);
   return m ? m[1] : '';
+}
+// Of two copies, the older — by creation time to the millisecond, then the
+// lower id: the rule the gate itself uses (trainee-gate/Gate.gs), so every
+// reader settles on the same one.
+function gateOlder(a, b) {
+  var ta = Date.parse(a.created || a.createdTime || '') || 0, tb = Date.parse(b.created || b.createdTime || '') || 0;
+  return ta !== tb ? ta < tb : String(a.id) < String(b.id);
 }
 function gateFileName(kind, key) {
   if (kind === 'slice') return 'from-centre.json';
@@ -36107,10 +36116,7 @@ function gateFileProps(kind, item) {
    folder is never emptied or trashed by anything. full: this listing is
    everything there is, so what it does not hold is gone. */
 function gateIndexListing(st, files, cfg, full) {
-  var older = function(a, b) {
-    var ta = String(a.created || ''), tb = String(b.created || '');
-    return ta !== tb ? ta < tb : String(a.id) < String(b.id);
-  };
+  var older = gateOlder;
   var list = (Array.isArray(files) ? files : []).filter(function(f) { return f && f.id && f.appProperties && f.appProperties.cestisGate === '1'; });
   if (full) { st.files = {}; st.folders = {}; }
   list.forEach(function(f) {
@@ -36359,20 +36365,24 @@ async function gatePublishRun(env) {
 }
 
 /* ---- Where the gate's folders are (CESTIS_GATE.json, written by the gate
-   at its first check). null when it is not there yet; a newer format than
-   this page knows is not read as anything. ---- */
+   at its first check, beside the accounts list CESTIS_ACCOUNTS.json — the
+   Centre's main folder). Of several, the oldest (the copy the gate keeps
+   up to date). Looked for elsewhere only when the main folder has none.
+   null when it is not there yet; a newer format than this page knows is
+   not read as anything. ---- */
 async function gateReadConfig(drive, mainFolderId) {
-  var list = await drive.list("name = '" + GATE_CONFIG_FILE + "' and '" + mainFolderId + "' in parents and trashed = false",
-    'id,name,modifiedTime,createdTime', { pageSize: 10 });
+  var fields = 'id,name,parents,modifiedTime,createdTime';
+  var list = await drive.list("name = '" + GATE_CONFIG_FILE + "' and '" + mainFolderId + "' in parents and trashed = false", fields, { pageSize: 10 });
+  if (!list.length) list = await drive.list("name = '" + GATE_CONFIG_FILE + "' and trashed = false", fields, { pageSize: 10 });
   if (!list.length) return null;
-  list.sort(function(a, b) { return String(b.modifiedTime || '').localeCompare(String(a.modifiedTime || '')); });
+  list.sort(function(a, b) { return gateOlder(a, b) ? -1 : gateOlder(b, a) ? 1 : 0; });
   var j = null;
   try { j = JSON.parse(await drive.media(list[0].id)); } catch (e) { j = null; }
   if (!j || typeof j !== 'object') return null;
   if (Number(j.version) > 1) return { tooNew: true };
   if (!j.traineesId || !j.keysId || !j.papersId) return null;
   return { traineesId: String(j.traineesId), keysId: String(j.keysId), papersId: String(j.papersId), roomsId: String(j.roomsId || ''),
-    rootId: String(j.rootId || ''), gateVersion: Number(j.gateVersion) || 0, fileId: list[0].id };
+    rootId: String(j.rootId || ''), gateFolderId: String(j.gateFolderId || ''), gateVersion: Number(j.gateVersion) || 0, fileId: list[0].id };
 }
 
 /* ---- Whose folder a file sits in: the account in the folder's own
@@ -36381,7 +36391,7 @@ async function gateReadConfig(drive, mainFolderId) {
 async function gateFolderAcctOf(parents, env) {
   var st = env.st, cfg = env.cfg;
   var id = Array.isArray(parents) && parents.length ? String(parents[0]) : '';
-  if (!id) return '';
+  if (!id || (cfg.gateFolderId && id === cfg.gateFolderId) || id === cfg.rootId) return '';
   var accts = Object.keys(st.folders);
   for (var i = 0; i < accts.length; i++) if (st.folders[accts[i]].id === id) return accts[i];
   if (st.dups[id] && st.dups[id].kind === 'folder') return String(st.dups[id].acct);
@@ -36523,6 +36533,18 @@ function gatePause() {
     catch (e) { setTimeout(res, 0); }
   });
 }
+/* What every trainee's records already show of what they sent: everything
+   this PC had collected up to its mark, less the 10 minutes a search may lag
+   behind. The gate then reads only what came in since (the overlay), not
+   every file a trainee ever sent. Nothing collected yet: '' (the gate reads
+   them all). */
+function gateSeenUntil(collected, accounts, overlapMs) {
+  var w = Date.parse((collected && collected.watermark) || '') || 0, out = {};
+  if (!w) return out;
+  var at = new Date(w - (overlapMs || 0)).toISOString();
+  (Array.isArray(accounts) ? accounts : []).forEach(function(a) { if (a && a.id != null && String(a.role || '').toLowerCase() === 'student') out[String(a.id)] = at; });
+  return out;
+}
 function gateStoreMap() {
   var map = {};
   GATE_STORE_KEYS.forEach(function(k) { try { var v = CESTISStore.getItem(k); if (v != null) map[k] = v; } catch (e) {} });
@@ -36583,7 +36605,8 @@ function gatePageEnv(drive, cfg) {
     storeMap: gateStoreMap,
     opts: function(st) {
       var g = systemSettings.traineeGate || {};
-      return { builtBy: st.device, gateUrl: String(g.url || ''), inboxSeenUntil: gateCollectedState(gateDevRead('cestisGateCollected', null)).byAcct,
+      return { builtBy: st.device, gateUrl: String(g.url || ''),
+        inboxSeenUntil: gateSeenUntil(gateCollectedState(gateDevRead('cestisGateCollected', null)), typeof userAccounts !== 'undefined' ? userAccounts : [], GATE_LIMITS.overlapMs),
         findSkill: function(c) { try { return findSkillAreaForCourse(c); } catch (e) { return null; } }, folds: gateFoldLog() };
     },
     persist: function() { gateDevWrite('cestisGatePublished', env.st); gateDevWrite('cestisGatePublishQueue', env.queue); },
@@ -36679,8 +36702,36 @@ function gateApplyOps(list) {
   if (applied) saveState();
   return applied;
 }
+/* Turn off / Turn on also tell the gate itself: a file named gate-off in its
+   folder stops it answering trainees within a minute; Turn on puts it in the
+   bin (trainee-gate/Gate.gs). Only ever on the administrator's own click; if
+   it cannot be done at once, it is tried again beside the next saves. */
+async function gateSetOffFile(drive, cfg, off) {
+  if (!cfg || !cfg.rootId) return false;
+  var have = await drive.list("name = 'gate-off' and '" + cfg.rootId + "' in parents and trashed = false", 'id,name', { pageSize: 10 });
+  if (off) {
+    if (!have.length) await drive.create({ name: 'gate-off', mimeType: 'text/plain', parents: [cfg.rootId] }, 'Trainee sign-in turned off from the dashboard.');
+  } else {
+    for (var i = 0; i < have.length; i++) await drive.update(have[i].id, { trashed: true }, null);
+  }
+  return true;
+}
+function gateApplyOffFile(off) {
+  _gateRun.offPending = off ? 'off' : 'on';
+  if (!isCloudConnected || !googleAccessToken) return Promise.resolve(false);
+  var drive = gateDriveApi(function() { return googleAccessToken; });
+  return gateConfigLoad(drive).then(function(cfg) {
+    if (!cfg) return false;
+    return gateSetOffFile(drive, cfg, off).then(function(done) { if (done && _gateRun.offPending === (off ? 'off' : 'on')) _gateRun.offPending = ''; return done; });
+  }).catch(function(e) { console.warn('[TraineeGate] could not ' + (off ? 'switch the gate off' : 'switch the gate on') + ' yet:', e); return false; });
+}
 // Beside every 5-second save, after a pull that could be read.
 function gateStaffTick() {
+  // An administrator's Turn off / Turn on that could not reach the gate yet.
+  if (_gateRun.offPending && currentRole === 'admin' && !_gateRun.offBusy) {
+    _gateRun.offBusy = true;
+    gateApplyOffFile(_gateRun.offPending === 'off').then(function() { _gateRun.offBusy = false; });
+  }
   if (!gateStaffOn()) return;
   gatePublishTick();
   if (!_gateRun.collectAt || Date.now() - _gateRun.collectAt >= GATE_LIMITS.collectMs) gateCollectTick();
@@ -36701,10 +36752,11 @@ function gateStaffTick() {
 // The address's own answer to "are you ready?" (§10.3), as one verdict.
 function gateHealthVerdict(j, expectVersion) {
   if (!j || typeof j !== 'object') return { ok: false, reason: 'no-answer' };
+  if (j.ok === false && j.error && !j.service) return { ok: false, reason: 'not-ready', error: String(j.error).slice(0, 40) };
   if (j.service !== 'cestis-trainee-gate') return { ok: false, reason: 'not-gate' };
   var ready = j.ready && typeof j.ready === 'object' ? j.ready : {};
   var v = Number(j.version) || 0;
-  var out = { ok: false, version: v, trainees: typeof ready.trainees === 'number' ? ready.trainees : null };
+  var out = { ok: false, version: v, trainees: typeof ready.trainees === 'number' ? ready.trainees : null, accepting: j.accepting !== false };
   if (Array.isArray(j.protocol) && j.protocol.indexOf(1) === -1) { out.reason = 'too-new'; return out; }
   if (!ready.secret || !ready.folders) { out.reason = 'not-ready'; return out; }
   if (!ready.ledger) { out.reason = 'no-accounts'; return out; }
@@ -36823,6 +36875,7 @@ function gateToggle() {
   _gateRun.cfg = null; _gateRun.cfgAt = 0; _gateRun.killed = undefined; _gateRun.lastError = '';
   gateCardRefresh();
   showToast(turnOn ? 'Trainee sign-in from anywhere is on.' : 'Trainee sign-in from anywhere is off. Trainees sign in as before.', 'success');
+  gateApplyOffFile(!turnOn);
 }
 async function gateCopyText(text) {
   try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); return true; } } catch (e) {}

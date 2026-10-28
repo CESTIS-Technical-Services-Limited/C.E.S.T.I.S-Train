@@ -99,7 +99,8 @@ const FUNCS = ['gateDevRead', 'gateDevWrite', 'gatePublishedState', 'gateCollect
   'gateFileName', 'gateFileProps', 'gateIndexListing', 'gateBuild', 'gatePlan', 'gateDoOp', 'gateRunQueue', 'gatePublishRun',
   'gateReadConfig', 'gateFolderAcctOf', 'gateCollectRun', 'gateDriveApi', 'gatePause', 'gateStoreMap', 'gateFoldLog', 'gateStaffOn',
   'gateKillSwitch', 'gateWithLock', 'gateConfigLoad', 'gatePageEnv', 'gatePublishTick', 'gateCollectTick', 'gateMergeRequests',
-  'gateApplyOps', 'gateStaffTick', 'gateHealthVerdict', 'gateStatusText', 'gateSignInLink', 'gateCheckHealth'];
+  'gateApplyOps', 'gateStaffTick', 'gateHealthVerdict', 'gateStatusText', 'gateSignInLink', 'gateCheckHealth', 'gateOlder', 'gateSeenUntil',
+  'gateSetOffFile', 'gateApplyOffFile'];
 const PAGE_CODE = VARS.map(n => extractVar(SRC, n)).concat(FUNCS.map(n => extractFunction(SRC, n))).join('\n');
 
 const GATE_URL = 'https://script.google.com/macros/s/FAKE-GATE/exec';
@@ -215,17 +216,24 @@ function computer(name, drive, data, opts) {
   return dev;
 }
 
-// The Centre's shared files as the gate leaves them at its first check.
-function gateDrive() {
+// The Centre's shared files as the gate leaves them at its first check
+// (trainee-gate/Gate.gs gateSetupRun / gateWriteConfigFile): its folders,
+// its live-check files in _gate, and CESTIS_GATE.json beside the accounts list.
+function gateDrive(where) {
   const drive = new FakeDrive();
   drive.clock = clock;
   const F = 'application/vnd.google-apps.folder';
   const root = drive.put(null, { name: 'CESTIS Trainee Gate', mimeType: F, parents: ['root'] }, '');
   const mk = n => drive.put(null, { name: n, mimeType: F, parents: [root.id] }, '').id;
-  const cfg = { format: 'cestis-gate-config', version: 1, rootId: root.id, traineesId: mk('Trainees'), keysId: mk('Exam keys'),
-    papersId: mk('Papers'), roomsId: mk('Rooms'), gateVersion: 1 };
-  drive.put(null, { name: 'CESTIS_GATE.json', parents: [MAIN_FOLDER] }, JSON.stringify(cfg));
-  return { drive, cfg };
+  const gateFolderId = mk('_gate');
+  const cfg = { format: 'cestis-gate-config', version: 1, gateVersion: 1, protocol: [1], rootId: root.id, gateFolderId, traineesId: mk('Trainees'),
+    keysId: mk('Exam keys'), papersId: mk('Papers'), roomsId: mk('Rooms'), registrationsId: mk('Registrations'), writtenAt: new Date(clock()).toISOString() };
+  drive.put(null, { name: 'CESTIS_ACCOUNTS.json', parents: [where || MAIN_FOLDER] }, '{"accounts":[]}');
+  drive.put(null, { name: 'CESTIS_GATE.json', parents: [where || MAIN_FOLDER] }, JSON.stringify(cfg));
+  // The gate's own live checks (SETUP.md 5 and 7): never anybody's inbox.
+  drive.put(null, { name: 'CESTISSMOKE.name-check.json', parents: [gateFolderId] }, '{"check":"name"}');
+  const smoke = drive.put(null, { name: 'smoke-description-check', mimeType: F, parents: [gateFolderId], description: 'cestis-smoke acct=USR-SMOKECHECK v=1' }, '');
+  return { drive, cfg, smokeFolder: smoke.id };
 }
 const filesIn = (drive, parent) => Object.values(drive.files).filter(f => f.parents.indexOf(parent) !== -1);
 const ON = { traineeGate: { url: GATE_URL, enabled: true } };
@@ -279,7 +287,11 @@ function bigCentre(n) {
     const autosave = extractFunction(SRC, 'autoSaveToAllFolders');
     const at = autosave.indexOf("try { if (typeof gateStaffTick === 'function') gateStaffTick(); } catch (e)"), pullCheck = autosave.indexOf("reason: 'pull-failed'");
     assert(at !== -1 && pullCheck !== -1 && at > pullCheck && at < autosave.indexOf('_writesNow'), 'autoSaveToAllFolders calls gateStaffTick() after the pull check, before the "nothing new" shortcut, and nothing it does can stop the save');
-    assert(/^function gateStaffTick\(\) \{\n  if \(!gateStaffOn\(\)\) return;/.test(extractFunction(SRC, 'gateStaffTick')), 'gateStaffTick() returns at once when the gate is off');
+    const tickSrc = extractFunction(SRC, 'gateStaffTick');
+    const beforeOff = tickSrc.slice(0, tickSrc.indexOf('if (!gateStaffOn()) return;'));
+    assert(tickSrc.indexOf('if (!gateStaffOn()) return;') !== -1 && /^function gateStaffTick\(\) \{\n(  \/\/[^\n]*\n)*  if \(_gateRun\.offPending && currentRole === 'admin' && !_gateRun\.offBusy\) \{\n/.test(beforeOff) &&
+      !/gatePublishTick|gateCollectTick|gateCheckHealth|fetch/.test(beforeOff),
+      'gateStaffTick() returns at once when the gate is off (before that, only an administrator\'s own Turn off/on still to be done: ' + beforeOff.length + ' chars)');
     assert(!/gateStaffTick|gatePublishTick|gateCollectTick/.test(SRC.slice(0, SRC.indexOf('async function autoSaveToAllFolders'))), 'nothing before the save loop starts the gate');
   }
 
@@ -625,6 +637,81 @@ function bigCentre(n) {
     await A.collect();
     assertEq(A.merges.length, n0, 'a stray inbox outside the trainees\' folders is never merged');
     assert(JSON.parse(A.ls.get('cestisGateCollected')).seen[stray.id], 'and is not read again');
+  }
+
+  /* ------------------------------------------------ the gate's own rules (trainee-gate/Gate.gs) */
+  console.log('The same rules as the gate: its note of its folders, the oldest copy, its live checks, gate-off');
+  {
+    // CESTIS_GATE.json: of two, the oldest (the copy the gate keeps up to date).
+    const g = gateDrive();
+    const newer = Object.assign({}, g.cfg, { traineesId: 'STALE' });
+    g.drive.put(null, { name: 'CESTIS_GATE.json', parents: [MAIN_FOLDER] }, JSON.stringify(newer));
+    const dev = computer('cfg', g.drive, C.asStrings, { settings: ON });
+    const api = dev.sb.gateDriveApi(() => 'ya29.fake');
+    let cfg = await dev.sb.gateReadConfig(api, MAIN_FOLDER);
+    assert(cfg && cfg.traineesId === g.cfg.traineesId && cfg.gateFolderId === g.cfg.gateFolderId && cfg.rootId === g.cfg.rootId, 'of two notes, the oldest is read, with the gate\'s own folder');
+    // Beside an accounts list that is not in the main folder: found there.
+    const g2 = gateDrive('ELSEWHERE');
+    const dev2 = computer('cfg2', g2.drive, C.asStrings, { settings: ON });
+    cfg = await dev2.sb.gateReadConfig(dev2.sb.gateDriveApi(() => 'x'), MAIN_FOLDER);
+    assert(cfg && cfg.traineesId === g2.cfg.traineesId, 'a note beside an accounts list kept elsewhere is found too');
+    assertEq((await dev2.sb.gateReadConfig(dev2.sb.gateDriveApi(() => 'x'), 'NOWHERE')).traineesId, g2.cfg.traineesId, '(by its name, when the main folder has none)');
+    const g3 = gateDrive();
+    Object.values(g3.drive.files).filter(f => f.name === 'CESTIS_GATE.json').forEach(f => { f.content = JSON.stringify(Object.assign(JSON.parse(f.content), { version: 2 })); });
+    const dev3 = computer('cfg3', g3.drive, C.asStrings, { settings: ON });
+    assert((await dev3.sb.gateReadConfig(dev3.sb.gateDriveApi(() => 'x'), MAIN_FOLDER)).tooNew, 'a note of a newer format is not read as anything');
+    // Two copies made in the same millisecond: the lower id, as the gate decides.
+    const older = dev.sb.gateOlder;
+    assert(older({ id: 'a1', created: '2026-11-02T10:00:00.000Z' }, { id: 'a2', created: '2026-11-02T10:00:00.000Z' }) &&
+      !older({ id: 'a2', created: '2026-11-02T10:00:00.000Z' }, { id: 'a1', created: '2026-11-02T10:00:00.000Z' }), 'the same millisecond: the lower id is the older');
+    assert(older({ id: 'z', created: '2026-11-02T10:00:00.000Z' }, { id: 'a', created: '2026-11-02T10:00:00.001Z' }), 'otherwise the earlier creation time, to the millisecond');
+    assertEq(dev.sb.gateFolderAcct('cestis-smoke acct=USR-SMOKECHECK v=1'), '', 'the gate\'s test folder is never taken for a trainee\'s');
+    // The live-check files in _gate, and an inbox-named file put there, are never collected.
+    const P = computer('smoke', g.drive, C.asStrings, { settings: ON });
+    await P.tick();
+    g.drive.put(null, { name: 'CESTISINBOX.L-smoke.json', parents: [g.cfg.gateFolderId] }, JSON.stringify({ format: 'cestis-trainee-inbox', version: 1, accountId: 'USR-SMOKECHECK', studentId: 'STU-X', records: {}, ops: [] }));
+    g.drive.put(null, { name: 'CESTISINBOX.L-smoke2.json', parents: [g.smokeFolder] }, JSON.stringify({ format: 'cestis-trainee-inbox', version: 1, accountId: 'USR-SMOKECHECK', studentId: 'STU-X', records: {}, ops: [] }));
+    const r0 = P.requests.length;
+    const res = await P.collect();
+    assert(res && res.files === 0 && res.unassigned === 0 && P.merges.length === 0, 'the gate\'s own folder and its test folder hold nobody\'s inbox');
+    assert(!P.requests.slice(r0).some(r => r.url.indexOf('/files/' + g.cfg.gateFolderId) !== -1), 'the gate\'s folder is not even looked up');
+    // inboxSeenUntil: from the collector's mark, less the 10 minutes' overlap.
+    assert(Object.values(P.sb._gateRun.built.items).filter(i => i.kind === 'slice').every(i => i.body.inboxSeenUntil === ''), 'nothing collected yet: the records say so (the gate reads every inbox)');
+    const folder = filesIn(g.drive, g.cfg.traineesId)[0];
+    const acct = P.sb.gateFolderAcct(folder.description), t = C.trainees.find(x => x.acct.id === acct);
+    g.drive.put(null, { name: 'CESTISINBOX.L-seen.json', parents: [folder.id] }, JSON.stringify({ format: 'cestis-trainee-inbox', version: 1, accountId: acct, studentId: t.stu.id,
+      lane: 'L-seen', records: { voctrain_support_messages: [{ id: 'SUP-SEEN', accountId: acct, studentId: t.stu.id, name: t.stu.name, subject: 's', message: 'm', timestamp: clock() }] }, ops: [] }));
+    await P.collect();
+    const W = JSON.parse(P.ls.get('cestisGateCollected')).watermark;
+    P.forceBuild();
+    await P.tick();
+    const want = new Date(Date.parse(W) - 10 * 60000).toISOString();
+    const slices = Object.values(P.sb._gateRun.built.items).filter(i => i.kind === 'slice');
+    assert(W && slices.length === 40 && slices.every(i => i.body.inboxSeenUntil === want), 'every trainee\'s records carry inboxSeenUntil = the mark less 10 minutes (' + want + ')');
+    // gate-off: Turn off writes it in the gate's folder, once; Turn on bins it.
+    const api2 = P.sb.gateDriveApi(() => 'x');
+    await P.sb.gateSetOffFile(api2, g.cfg, true);
+    await P.sb.gateSetOffFile(api2, g.cfg, true);
+    let off = Object.values(g.drive.files).filter(f => f.name === 'gate-off' && f.parents.indexOf(g.cfg.rootId) !== -1);
+    assert(off.length === 1 && !off[0].trashed, 'Turn off: one "gate-off" in the gate\'s folder');
+    await P.sb.gateSetOffFile(api2, g.cfg, false);
+    off = Object.values(g.drive.files).filter(f => f.name === 'gate-off');
+    assert(off.length === 1 && off[0].trashed, 'Turn on: it goes in the bin (never deleted)');
+    // A Turn off that could not reach the gate is tried again beside the next saves — then nothing more.
+    const Q = computer('offline-admin', g.drive, C.asStrings, { settings: { traineeGate: { url: GATE_URL, enabled: false } } });
+    Q.driveDown = true;
+    await Q.sb.gateApplyOffFile(true);
+    assertEq(Q.sb._gateRun.offPending, 'off', 'Turn off with no connection: noted to be done');
+    Q.driveDown = false;
+    Q.sb.gateStaffTick();
+    for (let i = 0; i < 20 && Q.sb._gateRun.offBusy; i++) await new Promise(r => setImmediate(r));
+    await new Promise(r => setTimeout(r, 50));
+    off = Object.values(g.drive.files).filter(f => f.name === 'gate-off' && !f.trashed);
+    assert(off.length === 1 && Q.sb._gateRun.offPending === '', 'done beside the next save');
+    const n0 = Q.requests.length;
+    for (let i = 0; i < 3; i++) Q.sb.gateStaffTick();
+    await new Promise(r => setTimeout(r, 50));
+    assertEq(Q.requests.length - n0, 0, 'and with the gate off, nothing more after that');
   }
 
   /* ------------------------------------------------ the card */
