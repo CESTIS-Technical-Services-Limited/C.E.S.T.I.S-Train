@@ -205,7 +205,21 @@
       // whole dataset every tick to find out the answer is no.
       writes: 0,
       setItem: function (k, v) {
-        k = String(k); v = String(v); Store.writes++; cache[k] = v;
+        k = String(k); v = String(v);
+        // Before IndexedDB has been read in, a key that lives there only (too
+        // large for localStorage) and that this document has not read is not
+        // written. Whoever writes it cannot have seen what it holds — it reads
+        // as absent until then — so the write is built without it: the chat
+        // saved as "{}" over a year of messages, the fee roll as a list of
+        // blank placeholders. And a value written now would also stop the
+        // stored one being read in at all (the cache is not filled over a key
+        // already written). The page reads its collections again once the
+        // store is ready, and saves from there.
+        if (!ready && !(k in cache) && isIdbOnly(k)) {
+          try { console.warn('[CESTISStore] Not writing "' + k + '" before the stored copy has been read.'); } catch (_) {}
+          return;
+        }
+        Store.writes++; cache[k] = v;
         // A failed localStorage write leaves the OLD value in place. Left there,
         // it out-votes the truth on every later read (see getItem above), so the
         // stale entry is removed and the read falls through to the cache and
@@ -14173,12 +14187,67 @@
       return n;
     }
 
+    /* ---- Never save fewer rooms of history than the device holds ----
+       The rooms whose messages `stored` (this device's saved chat, an object
+       or its JSON) holds and `next` (what is about to be saved) does not: the
+       room is missing from `next`, or there as an empty list.
+
+       Nothing in the app removes a room's whole history on purpose. Deleting
+       a message keeps it (marked deleted), deleting a programme leaves its
+       room's messages alone, and the sign-out clean-up removes the stored copy
+       itself before anything is saved again. So a save that would drop a whole
+       room is a page that has not loaded that room yet — as when the chat was
+       read before the browser's database had been opened, came back empty, and
+       the next save wrote "{}" over a year of messages. The caller puts these
+       rooms back before saving. */
+    function roomsDropped(stored, next) {
+      var s = stored;
+      if (typeof s === 'string') { try { s = JSON.parse(s); } catch (e) { s = null; } }
+      if (!s || typeof s !== 'object' || Array.isArray(s)) return [];
+      var n = (next && typeof next === 'object' && !Array.isArray(next)) ? next : {};
+      return Object.keys(s).filter(function (rid) {
+        if (!Array.isArray(s[rid]) || !s[rid].length) return false;
+        return !Array.isArray(n[rid]) || !n[rid].length;
+      });
+    }
+
+    /* ---- A fingerprint of the chat file's content ----
+       The same rooms, messages, profiles, follows and deletions give the same
+       string — whenever the file was written, by whom, and in whatever order
+       the lists happen to be held (records with an id are compared by id).
+       The chat push compares this with what the shared chat file holds and
+       uploads only when they differ: the file used to be uploaded whole on
+       every save, every 2.6 seconds on an idle PC. */
+    var SIG_FIELDS = ['chatRooms', 'chatMessages', 'chatProfiles', 'chatFollows', 'chatFollowLog', 'tombstones'];
+    function canon(v) {
+      if (v === undefined || typeof v === 'function') return undefined;
+      if (v === null || typeof v !== 'object') return v;
+      if (Array.isArray(v)) {
+        var arr = v.map(function (x) { var c = canon(x); return c === undefined ? null : c; });
+        var byId = arr.length > 1 && arr.every(function (x) { return x && typeof x === 'object' && !Array.isArray(x) && x.id != null; });
+        if (byId) arr = arr.map(function (x, i) { return { k: String(x.id), i: i, x: x }; })
+          .sort(function (a, b) { return a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i; })
+          .map(function (e) { return e.x; });
+        return arr;
+      }
+      var out = {};
+      Object.keys(v).sort().forEach(function (k) { var c = canon(v[k]); if (c !== undefined) out[k] = c; });
+      return out;
+    }
+    function contentSig(file) {
+      var f = (file && typeof file === 'object') ? file : {};
+      var pick = {};
+      SIG_FIELDS.forEach(function (k) { if (f[k] !== undefined && f[k] !== null) pick[k] = f[k]; });
+      return JSON.stringify(canon(pick));
+    }
+
     return {
       classRoomMembers: classRoomMembers, isOnline: isOnline, ONLINE_WINDOW_MS: ONLINE_WINDOW_MS,
       CALL_STALE_MS: CALL_STALE_MS, callKey: callKey, liveParticipants: liveParticipants,
       mergeActiveCall: mergeActiveCall, joinCall: joinCall, leaveCall: leaveCall,
       acceptRealtimeMessage: acceptRealtimeMessage, unreadCount: unreadCount, stripUploadedBytes: stripUploadedBytes,
-      roomIcon: roomIcon, roomColor: roomColor, cleanRoom: cleanRoom, cleanRooms: cleanRooms
+      roomIcon: roomIcon, roomColor: roomColor, cleanRoom: cleanRoom, cleanRooms: cleanRooms,
+      roomsDropped: roomsDropped, contentSig: contentSig
     };
   })();
 

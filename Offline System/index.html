@@ -6793,6 +6793,9 @@ function refreshNotificationTimes() {
 }
 
 function saveNotifications() {
+  // Not before the durable store has been read: the list in memory may be the
+  // start-up one, read while the stored list was still out of reach.
+  if (window.CESTISStore && typeof CESTISStore.isReady === 'function' && !CESTISStore.isReady()) return;
   try { CESTISStore.setItem('voctrain_notifications', JSON.stringify(notifications)); } catch(e) {}
 }
 
@@ -6801,6 +6804,19 @@ function loadNotifications() {
     var saved = CESTISStore.getItem('voctrain_notifications');
     if(saved) { notifications = JSON.parse(saved); refreshNotificationTimes(); }
   } catch(e) {}
+}
+
+// The stored list, merged into memory once the durable store is read in (the
+// start-up read above may have come before it). Merged record by record, as
+// another device's list is: nothing in memory is dropped.
+function reloadNotificationsFromStore() {
+  var stored = safeJsonParse(CESTISStore.getItem('voctrain_notifications'), null);
+  if (!Array.isArray(stored) || !stored.length) return;
+  var out = CESTISCore.sync.mergeList(notifications, stored, syncKeyById, CESTISCore.sync.mapRules('notifications', { tombs: syncTombsFor('notifications') }));
+  if (out && (out.added || out.updated || out.removed)) {
+    refreshNotificationTimes();
+    try { updateNotificationDot(); } catch (e) {}
+  }
 }
 
 var examResults = [];
@@ -8288,6 +8304,68 @@ function initLmsChatData() {
   }
 }
 
+/* The chat as the durable store holds it, once IndexedDB has been read in.
+   At start-up initLmsChatData() can only see what fitted in localStorage: a
+   history that outgrew it (a busy Centre's, within the school year) read as
+   absent, the page started with an empty chat, and its next save wrote "{}"
+   over the stored history. Here the stored rooms, messages, profiles and
+   follows are MERGED into memory — anything memory gained meanwhile (a
+   message, a pull) is kept — and only then is membership worked out and the
+   result saved. */
+function lmsChatReloadFromStore() {
+  var cr = safeJsonParse(CESTISStore.getItem('voctrain_chatRooms'), null);
+  var cm = safeJsonParse(CESTISStore.getItem('voctrain_chatMessages'), null);
+  var cp = safeJsonParse(CESTISStore.getItem('voctrain_chatProfiles'), null);
+  var cf = safeJsonParse(CESTISStore.getItem('voctrain_chatFollows'), null);
+  var cfl = safeJsonParse(CESTISStore.getItem('voctrain_chatFollowLog'), null);
+  var _gone = function(r) { try { return CESTISCore.sync.deletedAfter(syncTombsFor('chatRooms'), r && r.id != null ? String(r.id) : '', r); } catch (e) { return false; } };
+  var moved = false;
+  if (Array.isArray(cr) && cr.length) {
+    // The stored rooms, then any room only this page holds (one made before
+    // the store was read is made again below if it is still wanted).
+    var have = {};
+    var next = cr.filter(function(r) { return r && r.id != null && !_gone(r); });
+    next.forEach(function(r) { have[String(r.id)] = true; });
+    (lmsChatRooms || []).forEach(function(r) { if (r && r.id != null && !have[String(r.id)] && !_gone(r)) next.push(r); });
+    lmsChatRooms = next;
+    lmsChatCleanRooms();
+    moved = true;
+  }
+  if (cm && typeof cm === 'object' && !Array.isArray(cm)) {
+    if (CESTISCore.chatSync.mergeRooms(lmsChatMessages, cm)) moved = true;
+  }
+  if (cp && typeof cp === 'object') {
+    var _cp = CESTISCore.sync.mergeMap(lmsChatProfiles, cp, {});
+    if (_cp && (_cp.added || _cp.updated)) moved = true;
+  }
+  if (cf || cfl) {
+    if (!lmsChatFollowLog || typeof lmsChatFollowLog !== 'object') lmsChatFollowLog = {};
+    if (CESTISCore.chatSync.mergeFollows(lmsChatFollows, lmsChatFollowLog, cf || {}, (cfl && typeof cfl === 'object' && !Array.isArray(cfl)) ? cfl : {})) moved = true;
+  }
+  // Pictures are kept apart (IndexedDB 'CESTIS_ChatImages'): put them back
+  // on the messages that just arrived.
+  if (moved) {
+    try {
+      lmsChatLoadImagesFromDB().then(function(images) {
+        if (!images || !images.length) return;
+        var imageMap = {};
+        images.forEach(function(img) { imageMap[img.id] = img.data; });
+        Object.keys(lmsChatMessages).forEach(function(roomId) {
+          (lmsChatMessages[roomId] || []).forEach(function(m) { if (m && m.type === 'image' && !m.imageData && imageMap[m.id]) m.imageData = imageMap[m.id]; });
+        });
+      }).catch(function() {});
+    } catch (e) {}
+  }
+  // Membership from the whole list, then saved (which keeps every stored room).
+  lmsChatEnsureMembership();
+  if (moved) {
+    var prefix = null;
+    try { prefix = lmsChatGetRolePrefix(); } catch (e) { prefix = null; }
+    if (prefix) { try { lmsChatRenderRoomList(prefix); } catch (e) {} }
+  }
+  return moved;
+}
+
 // Ensure all users are members of their appropriate chat rooms.
 // Called on chat page show and after cloud sync to keep membership current.
 // NOTE: This must NOT bail out when lmsChatRooms is empty — a cloud sync (e.g.
@@ -8552,10 +8630,44 @@ function trimLmsChatHistory() {
   } catch(e) {}
 }
 
+/* Is the durable store read in yet? Until it is, a chat history that has
+   outgrown the browser's small localStorage reads as absent — and saving the
+   page's empty start values then wrote "{}" over it (saveState has the same
+   rule). The chat is read again the moment the store is ready (see
+   lmsChatReloadFromStore), and saved from there. */
+function lmsChatStoreReady() {
+  return !(window.CESTISStore && typeof CESTISStore.isReady === 'function' && !CESTISStore.isReady());
+}
+
+/* Put back, into memory, every room whose stored history this save would
+   otherwise drop (CESTISCore.chat.roomsDropped): the page has simply not
+   loaded it. Returns how many rooms came back. */
+function lmsChatKeepStoredRooms() {
+  var raw = null;
+  try { raw = CESTISStore.getItem('voctrain_chatMessages'); } catch (e) { raw = null; }
+  if (!raw) return 0;
+  var dropped = CESTISCore.chat.roomsDropped(raw, lmsChatMessages);
+  if (!dropped.length) return 0;
+  var stored = safeJsonParse(raw, {});
+  dropped.forEach(function(rid) {
+    // Whatever this page holds for the room (an empty list) is merged with
+    // the stored history, never in place of it.
+    var mine = Array.isArray(lmsChatMessages[rid]) ? lmsChatMessages[rid] : [];
+    lmsChatMessages[rid] = CESTISCore.chatSync.mergeRoom(stored[rid], mine).list;
+  });
+  console.warn('[LMSChat] Kept the stored history of ' + dropped.length + ' room(s) this page had not loaded yet.');
+  return dropped.length;
+}
+
 function saveLmsChatData() {
+  if (!lmsChatStoreReady()) return;
   trimLmsChatHistory();
   try {
-    CESTISStore.setItem('voctrain_chatRooms', JSON.stringify(lmsChatRooms));
+    // Never fewer rooms of history than this device holds (EF-7).
+    try { lmsChatKeepStoredRooms(); } catch (e) { console.warn('[LMSChat] stored-history check failed:', e); }
+    // The room list goes through the guard every collection uses: an empty
+    // list never replaces stored rooms unless every one was deleted.
+    saveCollection('voctrain_chatRooms', lmsChatRooms);
     // Strip large base64 data before saving to localStorage to avoid quota issues
     var msgCopy = {};
     Object.keys(lmsChatMessages).forEach(function(roomId) {
@@ -9317,6 +9429,11 @@ function savePerUserLocalData() {
       Object.keys(lmsChatMessages).forEach(function(rid) { if (myRoomIds[rid]) mine[rid] = lmsChatMessages[rid]; });
       mine = CESTISCore.chat.stripUploadedBytes(mine);
     } catch(e) { mine = null; }
+    // An empty copy never replaces one that holds messages (the page's own
+    // list not loaded yet is not "no messages").
+    if (mine && !Object.keys(mine).some(function(r) { return Array.isArray(mine[r]) && mine[r].length; })) {
+      if (CESTISCore.chat.roomsDropped(CESTISStore.getItem(prefix + 'chatMessages'), mine).length) mine = null;
+    }
     if (mine) CESTISStore.setItem(prefix + 'chatMessages', JSON.stringify(mine));
     CESTISStore.setItem(prefix + 'chatProfiles', JSON.stringify(lmsChatProfiles));
     CESTISStore.setItem(prefix + 'chatFollows', JSON.stringify(lmsChatFollows));
@@ -10688,7 +10805,21 @@ initAttendanceQuarters();
 loadNotifications();
 updateNotificationDot();
 initLmsChatData();
-lmsChatEnsureMembership();
+// Membership is saved with the chat: only once the durable store has been
+// read (below), never from the half a chat the localStorage mirror held.
+if (lmsChatStoreReady()) lmsChatEnsureMembership();
+/* The notifications and the chat, read again once IndexedDB has been read in
+   — as loadState() and the accounts are above. Both were read only here, at
+   start-up, when a list that has outgrown the browser's small localStorage
+   reads as absent: the chat then started empty, and the next save wrote "{}"
+   over the device's whole chat history (a year's 2 MB of it, measured). What
+   the store holds is merged into memory, never the other way round. */
+try {
+  CESTISStore.whenReady(function() {
+    try { reloadNotificationsFromStore(); } catch (e) { console.warn('[Notifications] post-IndexedDB reload failed:', e && e.message); }
+    try { lmsChatReloadFromStore(); } catch (e) { console.warn('[LMSChat] post-IndexedDB reload failed:', e && e.message); }
+  });
+} catch (e) {}
 
 function getNextUserId() {
   // Collision-resistant across devices. The old sequential "USR-<max+1>" scheme
@@ -59118,7 +59249,25 @@ function ttRefreshOnShow(){
   function norm(v){ return (v==null?'':String(v)).trim().toLowerCase().replace(/\s+/g,' '); }
 
   // Mirror Student Progress students into School Fee Management.
+  //
+  // Not before the durable store has been read in. This first ran from
+  // DOMContentLoaded, before IndexedDB had been read: a School Fee roll that
+  // had outgrown localStorage read as EMPTY, every trainee was minted again as
+  // a blank placeholder, and that list of placeholders was written over the
+  // stored fee roll (measured on a month-1 Centre). It runs again — once —
+  // the moment the store is ready, from the whole roll and the whole list.
+  var _feeMirrorWaiting = false;
+  function storeNotReady(){
+    return !!(window.CESTISStore && typeof CESTISStore.isReady === 'function' && !CESTISStore.isReady());
+  }
   function syncStudentsToSchoolFee(){
+    if (storeNotReady()) {
+      if (!_feeMirrorWaiting && typeof CESTISStore.whenReady === 'function') {
+        _feeMirrorWaiting = true;
+        CESTISStore.whenReady(function(){ _feeMirrorWaiting = false; try { syncStudentsToSchoolFee(); } catch(e){} });
+      }
+      return;
+    }
     try {
       if (typeof students === 'undefined' || !Array.isArray(students)) return;
       var fee = readArr('cestiSchoolFeeStudents');
@@ -59304,7 +59453,11 @@ function ttRefreshOnShow(){
       if (!d || d.type !== 'cestis-fee-students' || !Array.isArray(d.students)) return;
       // Only the School Fee page embedded here may hand over the fee roll.
       if (typeof cestisMessageFromFrames === 'function' && !cestisMessageFromFrames(ev, ['feeManagementFrame', 'asFeeManagementFrame'])) return;
-      CESTISStore.setItem('cestiSchoolFeeStudents', JSON.stringify(d.students));
+      // Not into a store that has not been read in yet, and never an empty
+      // roll over a stored one (the fee page announces itself as it loads,
+      // possibly before its own records have arrived).
+      if (storeNotReady()) return;
+      CESTISCore.pageCloud.guardedSet(CESTISStore, 'cestiSchoolFeeStudents', JSON.stringify(d.students));
       var added = false;
       // Forced: the fee page has just told us its roll changed, so this must not
       // be held back by the mirror's rate limit.
