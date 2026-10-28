@@ -6,13 +6,14 @@
    Through the "trainee gate" (docs/trainee-gate/DESIGN.md in the main
    repository) a trainee's device is given ONLY that trainee's own records,
    and everything the trainee sends back is checked before it joins the
-   Centre's. Online the gate is a small Google script. This file is the same
-   gate for devices on the Centre's own network: the same requests, the same
-   answers, and the same rules — CESTISCore.gate in cestis-core.js, the very
-   file every page loads — so a device has one way of talking to either.
-   cestis-offline-server.js serves it at
+   Centre's. Online the gate is a small Google script (trainee-gate/Gate.gs).
+   This file is the same gate for devices on the Centre's own network: the
+   SAME requests and the SAME answers, field for field, by the same rules —
+   CESTISCore.gate in cestis-core.js, the very file every page loads — so one
+   client talks to either. cestis-offline-server.js serves it at
 
-       POST /_cestis/gate        { op, ... }  → { ok, ... }   (JSON both ways)
+       POST /_cestis/gate        { op, v?, client?, ... } → { ok:true, ... }
+                                 or { ok:false, error, retry?, retryAfter?, why? }
        GET  /_cestis/gate        the health answer;  ?op=selfcheck  a small
                                  page for the administrator (counts only)
 
@@ -22,12 +23,15 @@
      records, so a trainee's own records (their "slice") are BUILT WHEN THEY
      ASK, from data/CESTIS_LMS_Dashboard.json (Core.gate.prepare / sliceFor),
      read again only when that file changes. Papers and answer keys come
-     from the same file; an answer key never leaves this computer.
+     from the same file (Core.gate.buildPaper / buildKey); a key never leaves
+     this computer.
    - What a trainee sends (sealed "items") is checked with
      Core.gate.validateItem and merged STRAIGHT INTO that file by the store's
-     own record rules (cestis-offline-store.js) — this server is the single
-     writer, every device then sees it on its next refresh, and the previous
-     version is kept in data/.history like every other save.
+     own record rules (cestis-offline-store.js) — no lanes: this server is the
+     single writer, every device sees it on its next refresh, and the
+     previous version is kept in data/.history like every other save. So a
+     pull's "overlay" (what was sent but is not in the slice yet) is always
+     empty here: it is already in the slice.
    - Tests are marked here, from the exam's own key (Core.gate.markAttempt):
      points come from the key, never from the trainee's copy; one result per
      attempt; answers that arrive late are kept and flagged, never refused.
@@ -35,31 +39,29 @@
      first run (like cert/host-secret), never served, never in the
      repository, never shown. A password reset, a switch-off or a two-step
      change ends every session of that account at its next request.
-   - The device proves its password the same way it does online (a
-     challenge; the password itself never travels): one way for the client
-     to work, wherever it is.
    - What needs the internet or Google Drive — signing in with an email
      account, emailed codes, uploading and fetching files — answers
-     { ok: false, error: 'unavailable' } here.
+     { ok:false, error:'not-available' } here.
 
-   THE REQUESTS (op)
-   -----------------
-     health                → { ok, service, version, protocol, time, ready, accepting, staffOnly }
-     auth.start  {login}   → { ok, nonce, algo, iter, salt }
-     auth.password {login, nonce, proof}
-                           → { ok, token, sessionKey, sid, accountId, studentId, exp }
-                             | { ok, need2fa, ticket, methods } | { ok:false, error }
-     auth.2fa {ticket, code}            → the same as a password sign-in
-     pull {token, hash?}   → { ok, slice, token? }  ({ ok, same, hash } when unchanged)
-     deliver {items}       → { ok, results: [{ id, ok, reason?, known?, result?, state? }] }
-     attempt.get {token, examId}        → { ok, state, result? | retired? | attempt?, ids? }
-     paper.get {token, examId}          → { ok, paper } | { ok:false, error:'not-open' }
-     review {token, resultId}           → { ok, result }  (right answers only once released)
-     room.get {token, roomId, sinceEtag?} → { ok, room, etag } | { ok, same, etag }
-     auth.email, auth.2fa.send, upload, file.get → { ok:false, error:'unavailable' }
-   Every answer also carries `time`, this server's clock. A request the gate
-   cannot read is a 400; every answer to a request it could read is a 200,
-   as online (a script there cannot answer with anything else).
+   THE REQUESTS (as trainee-gate/Gate.gs answers them)
+   ---------------------------------------------------
+     health                     → {service, version, protocol, time, ready, accepting, staffOnly}
+     auth.start {login}         → {nonce, algo, iter, salt}
+     auth.password {login, nonce, proof}            → SESSION | NEED2FA
+     auth.2fa {ticket, method:'totp'|'backup', code} → SESSION
+       SESSION = {token, sessionKey, sid, lane, exp, account:{id, studentId}, serverTime}
+       NEED2FA = {need2fa:true, ticket, methods:[…], email}
+     pull {token, have?}        → {h, slice | same, overlay:{lanes, results, truncated}, token?, exp?, serverTime}
+     paper {token, examId}      → {paper, centreUtcOffset, serverTime} | {error:'not-open', status, serverTime}
+     attempt.get {token, examId} → {state, attempt | result | retired, ids?, serverTime}
+     review {token, resultId}   → {result, revealed}
+     room.get {token, roomId, have?} → {room, h} | {same, h}
+     signOut {token}            → {}
+     deliver {items, lane?}     → {receipts:[{id, ok, reason?, retry?, dup?, already?, result?, retired?}]}
+                                  (no token: each item carries its own seal)
+     auth.email, auth.2fa.send, upload, file.get → {ok:false, error:'not-available'}
+   A request that is not JSON is a 400; every answer to one that is, is a
+   200, as online (a script there cannot answer with anything else).
    ============================================================================ */
 'use strict';
 
@@ -69,16 +71,19 @@ const nodeCrypto = require('crypto');
 
 const GATE_VERSION = 1;
 const PROTOCOL = [1];
+const SERVICE = 'cestis-trainee-gate';
 const LMS_FILE = 'CESTIS_LMS_Dashboard.json';
-const BODY_MAX = 8 * 1024 * 1024;            // a request (DESIGN.md §3.4: ≤ 8 MB)
-const MAX_ITEMS = 200;                         // items in one delivery
-const CTX_MS = 30 * 1000;                      // a built pass is reused this long while nothing changes
-const NONCE_MS = 120 * 1000;                   // a password challenge is good for two minutes, once
-const TICKET_MS = 5 * 60 * 1000;               // the two-step ticket
-const LOCK_FAILS = 5, LOCK_MS = 15 * 60 * 1000; // five wrong answers: that login waits 15 minutes
-const START_MAX = 20;                          // challenges asked for one login in 15 minutes
-const BUSY_PER_MIN = 60;                       // wrong passwords a minute, across every login
-const MAP_CAP = 20000;                         // bookkeeping never grows without bound
+const LIMITS = {
+  BODY_MAX: 8 * 1024 * 1024,          // a request (DESIGN.md §3.4: ≤ 8 MB)
+  DELIVER_MAX_ITEMS: 200,
+  CTX_MS: 30 * 1000,                  // a built pass is reused this long while nothing changes
+  NONCE_MS: 120 * 1000,               // a password challenge lasts two minutes, once
+  LOCK_FAILS: 5, LOCK_S: 15 * 60,     // five wrong tries on one login: locked for 15 minutes
+  START_MAX: 20,                      // more than 20 challenges for one login in 15 minutes: locked
+  BUSY_FAILS_PER_MIN: 60,             // more than 60 wrong passwords a minute, all logins: busy
+  TICKET_MS: 5 * 60 * 1000, TICKET_TRIES: 5,
+  MAP_CAP: 20000                      // bookkeeping never grows without bound
+};
 
 /* ---- Node's cryptography in the shape Core.gate asks for. A key is the
    UTF-8 bytes of its text (Core.gate passes them in already). ---- */
@@ -112,11 +117,108 @@ function parseValue(v) {
   try { return JSON.parse(v); } catch (e) { return null; }
 }
 function isPage(p) { return isObj(p) && isObj(p.data); }
-function prune(map, now) {
-  if (map.size < MAP_CAP) return;
-  map.forEach((v, k) => { if (!v || (typeof v.exp === 'number' && v.exp < now) || (typeof v === 'number' && v < now)) map.delete(k); });
-  if (map.size >= MAP_CAP) map.clear();
-}
+function randomHex(n) { return nodeCrypto.randomBytes(Math.ceil(n / 2)).toString('hex').slice(0, n); }
+// Ids that name an exam, a room, a file: plain characters only (as the online gate takes them).
+function safeId(s, max) { s = str(s); return new RegExp('^[A-Za-z0-9._-]{1,' + (max || 100) + '}$').test(s) && !/^\.+$/.test(s) ? s : null; }
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function maskEmail(email) { const m = /^([^@]{0,1})[^@]*(@.*)$/.exec(str(email)); return m ? m[1] + '•••' + m[2] : ''; }
+
+/* ============================================================================
+   RULES BOTH GATES MUST KEEP ALIKE
+   TODO(core): move to Core.gate. These are the decisions trainee-gate/Gate.gs
+   makes too (written the same way, answer for answer); until they live in
+   cestis-core.js each gate carries them, and tests/gate-lan.test.js pins
+   this copy. Pure: no files, no clock of their own, cryptography handed in.
+   ============================================================================ */
+const rules = {
+  /* The accounts index: trainee accounts only, deleted ones dropped
+     (Core.accountAccess.dropDeleted), one entry per account id (of two
+     copies, the one that can sign in: Core.accountLoginScore), with what
+     sign-in needs — the credential version (Core.gate.cv), whether it may
+     sign in (Core.accountAccess.check's reason), its password check, whether
+     it is still a published default (isSeededLogin), its two-step secret,
+     email codes, unused backup codes (trimmed, upper case) — and who answers
+     to each username and email. */
+  indexAccounts(Core, accounts, deletedUserIds, cryptoImpl) {
+    const A = Core.accountAccess, del = {};
+    (Array.isArray(deletedUserIds) ? deletedUserIds : []).forEach(id => { if (id != null && id !== '') del[id] = true; });
+    const list = A.dropDeleted(Array.isArray(accounts) ? accounts : [], del).accounts;
+    const idx = { n: 0, a: {}, user: {}, mail: {} }, score = {};
+    list.forEach(acc => {
+      if (!isObj(acc) || acc.id == null || acc.id === '' || lower(acc.role) !== 'student') return;
+      const id = String(acc.id), sc = Core.accountLoginScore(acc);
+      if (idx.a[id] && score[id] >= sc) return;
+      if (!idx.a[id]) idx.n++;
+      score[id] = sc;
+      const email = str(acc.email).trim();
+      idx.a[id] = {
+        cv: Core.gate.cv(acc, cryptoImpl), st: A.check(acc).reason, pw: typeof acc.password === 'string' ? acc.password : '',
+        sd: A.isSeededLogin(acc) ? 1 : 0,
+        tf: acc.twoFactorEnabled && acc.twoFactorSecret ? str(acc.twoFactorSecret) : '',
+        eo: acc.emailOtpLogin && EMAIL_RE.test(email) ? 1 : 0, em: email,
+        bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(c => c && c.code && !c.used).map(c => str(c.code).trim().toUpperCase()),
+        sdi: acc.studentDataId != null ? str(acc.studentDataId) : ''
+      };
+      const add = (map, v) => { v = lower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
+      add(idx.user, acc.username); add(idx.mail, acc.email);
+    });
+    return idx;
+  },
+  /* Which trainee account a login names (a username or an email, any case).
+     Two answer to it: the single one that can sign in, else the office must
+     sort it out. → { none } | { id, e } | { ambiguous } */
+  lookupLogin(idx, login, opts) {
+    opts = opts || {};
+    const l = lower(login), ids = [];
+    (opts.emailOnly ? [idx.mail] : [idx.user, idx.mail]).forEach(m => { (m[l] || []).forEach(id => { if (ids.indexOf(id) === -1) ids.push(id); }); });
+    if (!ids.length) return { none: true };
+    if (ids.length === 1) return { id: ids[0], e: idx.a[ids[0]] };
+    const usable = ids.filter(id => { const s = idx.a[id].st; return s === 'ok' || (opts.allowNoPassword && s === 'no-password'); });
+    if (usable.length === 1) return { id: usable[0], e: idx.a[usable[0]] };
+    return { ambiguous: true };
+  },
+  /* The credential is right: may the account go on? null, or the refusal
+     ({error, why?}) — the dashboard's loginBlocked as the gate sees it. */
+  credentialRefusal(e, via) {
+    if (e.st === 'pending' || e.st === 'disabled' || e.st === 'rejected') return { error: e.st };
+    if (e.st !== 'ok' && !(via === 'email' && e.st === 'no-password')) return { error: e.st || 'no-match' };
+    // A login still on a password published with the platform opens nothing here.
+    if (via === 'password' && e.sd) return { error: 'ask-office', why: 'default-password' };
+    return null;
+  },
+  /* Which second steps an account is offered: its authenticator, its unused
+     backup codes, an emailed code (only where email can be sent). An empty
+     list for an account that has a second step means it cannot finish here. */
+  twoStep(e, unusedCodes, canEmail) {
+    const needed = !!(e.tf || e.eo), methods = [];
+    if (e.tf) methods.push('totp');
+    if (unusedCodes.length) methods.push('backup');
+    if (e.eo && canEmail) methods.push('email');
+    return { needed, methods };
+  },
+  /* The two-step ticket: t2.<base64url(canon {a, cv, exp, m, via, n})>.<HMAC hex>;
+     its first 32 hex characters of mac name it (used once, tries counted). */
+  ticketMake(G, secret, cryptoImpl, claims) {
+    const body = G.b64url(G.utf8(G.canon({ a: str(claims.a), cv: str(claims.cv), exp: claims.exp, m: claims.m, via: str(claims.via), n: str(claims.n) })));
+    return 't2.' + body + '.' + cryptoImpl.hmacHex(G.utf8(secret), 't2|' + body);
+  },
+  ticketRead(G, secret, cryptoImpl, ticket, nowMs) {
+    const parts = str(ticket).split('.');
+    if (parts.length !== 3 || parts[0] !== 't2' || !/^[0-9a-f]{64}$/.test(parts[2])) return { error: 'bad-ticket' };
+    if (!G.same(cryptoImpl.hmacHex(G.utf8(secret), 't2|' + parts[1]), parts[2])) return { error: 'bad-ticket' };
+    let c = null;
+    try { const bytes = G.unb64url(parts[1]); c = bytes ? JSON.parse(Buffer.from(bytes).toString('utf8')) : null; } catch (e) { c = null; }
+    if (!isObj(c) || !c.a || typeof c.exp !== 'number') return { error: 'bad-ticket' };
+    if (nowMs >= c.exp) return { error: 'expired' };
+    c.mac = parts[2].slice(0, 32);
+    return c;
+  },
+  /* A session id's random part begins with the account's credential version
+     (sealed by the gate's secret with the rest), so an item from a session
+     whose password has since changed is known as revoked with no table. */
+  sidRand(cv, randHex12) { return str(cv).slice(0, 12) + str(randHex12); },
+  sidCv(sid) { const m = /^[0-9a-z]+\.([A-Za-z0-9]{12})[A-Za-z0-9]*\.[0-9a-f]{8}$/.exec(str(sid)); return m ? m[1] : ''; }
+};
 
 /* opts: {
      core      the CESTISCore the server loaded (cestis-core.js)
@@ -134,13 +236,13 @@ function create(opts) {
   const G = Core && Core.gate ? Core.gate : null;
   const store = opts.store;
   const dataDir = opts.dataDir, rootDir = opts.rootDir || __dirname;
+  const certDir = opts.certDir || path.join(rootDir, 'cert');
   const LMS = path.join(dataDir, LMS_FILE);
   const now = typeof opts.now === 'function' ? opts.now : () => Date.now();
   const log = typeof opts.log === 'function' ? opts.log : () => {};
   const accounts = typeof opts.accounts === 'function' ? opts.accounts : () => [];
   const staffOnly = typeof opts.staffOnly === 'function' ? opts.staffOnly : () => false;
-  const SECRET = loadOrCreateSecret(opts.certDir || path.join(rootDir, 'cert'));
-  const hmac = msg => crypto.hmacHex(G.utf8(SECRET), msg);
+  const SECRET = loadOrCreateSecret(certDir);
 
   // A runtime that computes the known answers differently must not run the gate.
   let selfOk = false;
@@ -150,6 +252,8 @@ function create(opts) {
   // The administrator's kill switch (DESIGN.md §10.5): a file named gate-off beside index.html.
   const killed = () => { try { return fs.existsSync(path.join(rootDir, 'gate-off')); } catch (e) { return false; } };
 
+  function fail(code, extra) { const e = new Error(code); e.gateError = code; e.gateExtra = extra || null; throw e; }
+
   /* ---------------------------------------------------------- the records */
   function statStamp(file) {
     try { const st = fs.statSync(file); return st.mtimeMs + ':' + st.size; }
@@ -158,7 +262,7 @@ function create(opts) {
   function parsePage(text) {
     if (text == null) return null;
     let p;
-    try { p = JSON.parse(text); } catch (e) { throw new Error('the records file could not be read'); }
+    try { p = JSON.parse(text); } catch (e) { fail('busy'); }
     return isPage(p) ? p : null;
   }
   let lms = { stamp: null, payload: null };
@@ -182,7 +286,7 @@ function create(opts) {
   let cache = { key: null };
   function context(t, storedText) {
     const lmsStamp = statStamp(LMS);
-    const key = lmsStamp + '|' + Math.floor(t / CTX_MS);
+    const key = lmsStamp + '|' + Math.floor(t / LIMITS.CTX_MS);
     if (cache.key === key) return cache;
     const payload = storedText !== undefined ? parsePage(storedText) : readLms(lmsStamp);
     const map = Object.assign({}, payload ? payload.data : {});
@@ -193,27 +297,28 @@ function create(opts) {
     const read = k => { if (!(k in memo)) memo[k] = parseValue(map[k]); return memo[k]; };
     const list = k => { const v = read(k); return Array.isArray(v) ? v.filter(isObj) : []; };
     const mapOf = k => { const v = read(k); return isObj(v) ? v : {}; };
-    // The trainee accounts, as sign-in sees them: deleted accounts are gone.
-    const delIds = read('voctrain_deletedUserIds'), del = {};
-    (Array.isArray(delIds) ? delIds : []).forEach(id => { if (id != null && id !== '') del[id] = true; });
-    const users = Array.isArray(map.voctrain_users) ? map.voctrain_users : [];
-    const trainees = Core.accountAccess.dropDeleted(users, del).accounts.filter(a => isObj(a) && lower(a.role) === 'student' && a.id != null);
-    const byId = {};
-    trainees.forEach(a => { byId[str(a.id)] = a; });
+    const idx = rules.indexAccounts(Core, map.voctrain_users, read('voctrain_deletedUserIds'), crypto);
     cache = {
-      key, ctx, payload, map, list, mapOf, trainees, byId,
-      cvOf: id => (byId[str(id)] ? G.cv(byId[str(id)], crypto) : null),
+      key, ctx, payload, map, list, mapOf, idx,
+      updated: payload ? (() => { try { return fs.statSync(LMS).mtime.toISOString(); } catch (e) { return null; } })() : null,
       exam: id => list('voctrain_exams').filter(e => str(e.id) === str(id) && e.status !== 'draft' && e.status !== 'cancelled')[0] || null,
       slices: {}
     };
     return cache;
   }
-  // A trainee's own records, built now (once per pass and account).
-  function sliceOf(c, acct) {
+  // Before anything else: are there records to answer from at all?
+  function ready(t, storedText) {
+    const c = context(t, storedText);
+    if (!c.payload) fail('not-set-up');
+    return c;
+  }
+  // A trainee's own records, built now (once per pass and account), or { error: 'not-ready' }.
+  function place(c, acct) {
     const k = str(acct);
     if (!(k in c.slices)) { const r = G.sliceFor(c.ctx, k); c.slices[k] = r ? r.slice : null; }
-    return c.slices[k] ? copy(c.slices[k]) : null;
+    return c.slices[k] ? { slice: copy(c.slices[k]) } : { error: 'not-ready' };
   }
+  const accessHas = (slice, list, id) => !!(slice.access && Array.isArray(slice.access[list]) && slice.access[list].map(String).indexOf(String(id)) !== -1);
 
   /* What to merge into the records file: the stored copy says what it is
      (page, file, version — kept as they are), and only the collections this
@@ -235,255 +340,247 @@ function create(opts) {
     return store.save({ file: LMS, dataDir, core: Core, incoming: build });
   }
 
+  /* ------------------------------------------------- counters and memory */
+  // A counter that lives LOCK_S (or `ms`) from its last change, as the online gate's cache counters do.
+  const counters = new Map();
+  function count(key, ms, t) {
+    const c = counters.get(key);
+    const n = (c && c.exp > t ? c.n : 0) + 1;
+    counters.set(key, { n, exp: t + ms });
+    if (counters.size > LIMITS.MAP_CAP) counters.forEach((v, k) => { if (v.exp <= t) counters.delete(k); });
+    return n;
+  }
+  function countOf(key, t) { const c = counters.get(key); return c && c.exp > t ? c.n : 0; }
+  const nonces = new Map();       // nonce → { l, exp }
+  const usedSteps = new Map();    // account:step → exp (an authenticator code once only)
+  const usedTickets = new Map();  // ticket mac → exp
+  const spent = new Map();        // account → [codeHash] spent here (until the records show them used)
+  function remember(map, key, value, t) {
+    map.set(key, value);
+    if (map.size > LIMITS.MAP_CAP) map.forEach((v, k) => { if ((typeof v === 'number' ? v : v && v.exp) <= t) map.delete(k); });
+  }
+  /* Signed-out sessions, until their token would have run out anyway. Kept
+     in cert/ beside the secret, so a restart does not bring one back. */
+  const OUT_FILE = path.join(certDir, 'gate-signed-out.json');
+  let signedOut = {};
+  try { const v = JSON.parse(fs.readFileSync(OUT_FILE, 'utf8')); if (isObj(v)) signedOut = v; } catch (e) {}
+  function signOutSid(sid, exp, t) {
+    signedOut[sid] = exp;
+    Object.keys(signedOut).forEach(k => { if (!(Number(signedOut[k]) > t)) delete signedOut[k]; });
+    try {
+      fs.mkdirSync(certDir, { recursive: true });
+      const tmp = OUT_FILE + '.' + process.pid + '.' + randomHex(12) + '.tmp';
+      fs.writeFileSync(tmp, JSON.stringify(signedOut), { mode: 0o600 });
+      fs.renameSync(tmp, OUT_FILE);
+    } catch (e) { log('A sign-out could not be written down (it holds until the server restarts): ' + (e && e.message)); }
+  }
+  const isSignedOut = (sid, t) => Number(signedOut[sid]) > t;
+
   /* ------------------------------------------------------------ sign-in */
-  const nonces = new Map();     // nonce → { login, exp }
-  const fails = new Map();      // who → { n, since, until }
-  const starts = new Map();     // who → { n, since }
-  const usedSteps = new Map();  // account|step → exp (a two-step code once only)
-  const usedTickets = new Map();// ticket → exp
-  const spent = new Map();      // account → Set of spent backup codes (until the file has them)
-  let recentFails = [];
+  const triesKey = (look, login) => (look && look.id ? 'acct|' + look.id : 'login|' + lower(login));
+  const locked = (key, t) => countOf('f:' + key, t) >= LIMITS.LOCK_FAILS || countOf('s:' + key, t) > LIMITS.START_MAX;
+  const minute = t => Math.floor(t / 60000);
+  function failed(key, t) { count('f:' + key, LIMITS.LOCK_S * 1000, t); count('fm:' + minute(t), 120000, t); }
+  const busy = t => countOf('fm:' + minute(t), t) > LIMITS.BUSY_FAILS_PER_MIN;
+  const LOCKED = () => ({ ok: false, error: 'locked', retryAfter: LIMITS.LOCK_S });
 
-  const whoKey = (account, login) => (account ? 'a:' + str(account.id) : 'l:' + lower(login));
-  const lockedNow = (who, t) => { const f = fails.get(who); return !!(f && f.until > t); };
-  function failed(who, t) {
-    let f = fails.get(who);
-    if (!f || t - f.since > LOCK_MS) f = { n: 0, since: t, until: 0 };
-    f.n++;
-    if (f.n >= LOCK_FAILS) f.until = t + LOCK_MS;
-    fails.set(who, f);
-    prune(fails, t);
-    recentFails.push(t);
-    return f.until > t;
-  }
-  function busy(t) {
-    recentFails = recentFails.filter(x => t - x < 60000);
-    return recentFails.length > BUSY_PER_MIN;
-  }
-
-  /* Which trainee account a typed login names. Two usable accounts behind
-     one email or username: the office has to sort that out. */
-  function findLogin(c, login) {
-    const want = lower(login);
-    const hits = c.trainees.filter(a => lower(a.username) === want || lower(a.email) === want);
-    if (hits.length <= 1) return { account: hits[0] || null };
-    const usable = hits.filter(a => Core.accountAccess.check(a).allowed);
-    if (usable.length > 1) return { ambiguous: true, account: null };
-    return { account: usable[0] || Core.accountAccess.find(hits, 'student', want) };
-  }
-
-  function authStart(body, t) {
-    const login = lower(body.login);
-    if (!login || login.length > 254) return { ok: false, error: 'bad-request' };
-    const c = context(t);
-    const f = findLogin(c, login);
-    const who = whoKey(f.account, login);
-    if (lockedNow(who, t)) return { ok: false, error: 'locked' };
-    let s = starts.get(who);
-    if (!s || t - s.since > LOCK_MS) s = { n: 0, since: t };
-    s.n++;
-    starts.set(who, s);
-    prune(starts, t);
-    if (s.n > START_MAX) {
-      fails.set(who, { n: LOCK_FAILS, since: t, until: t + LOCK_MS });
-      return { ok: false, error: 'locked' };
-    }
-    // An unknown login is given a salt that looks like any other and is the
-    // same every time, so the answer never says whether the account exists.
-    const ch = G.proof.challenge(f.account && !f.ambiguous ? f.account.password : null, login, SECRET, crypto);
-    const nonce = nodeCrypto.randomBytes(16).toString('hex');
-    nonces.set(nonce, { login, exp: t + NONCE_MS });
-    prune(nonces, t);
+  function authStart(req, t) {
+    const login = str(req.login).trim();
+    if (!login || login.length > 200) fail('bad-request');
+    const c = ready(t);
+    const look = rules.lookupLogin(c.idx, login), key = triesKey(look, login);
+    if (locked(key, t)) return LOCKED();
+    if (busy(t)) return { ok: false, error: 'busy', retry: true };
+    if (count('s:' + key, LIMITS.LOCK_S * 1000, t) > LIMITS.START_MAX) return LOCKED();
+    if (look.ambiguous) return { ok: false, error: 'ask-office', why: 'ambiguous' };
+    const nonce = randomHex(32);
+    remember(nonces, nonce, { l: lower(login), exp: t + LIMITS.NONCE_MS }, t);
+    // An unknown login is given a believable challenge (Core.gate.proof.challenge).
+    const ch = G.proof.challenge(look.e ? look.e.pw : null, login, SECRET, crypto);
     return { ok: true, nonce, algo: ch.algo, iter: ch.iter, salt: ch.salt };
   }
 
-  function authPassword(body, t) {
-    const login = lower(body.login), nonce = str(body.nonce);
-    if (!login || !nonce || typeof body.proof !== 'string') return { ok: false, error: 'bad-request' };
-    if (busy(t)) return { ok: false, error: 'busy' };
-    const c = context(t);
-    const f = findLogin(c, login);
-    const who = whoKey(f.account, login);
-    if (lockedNow(who, t)) return { ok: false, error: 'locked' };
-    const n = nonces.get(nonce);
-    nonces.delete(nonce);                               // a challenge answers once
-    if (!n || n.exp < t || n.login !== login) return { ok: false, error: 'expired-challenge' };
-    if (f.ambiguous) return { ok: false, error: 'ask-office' };
-    const a = f.account;
-    if (!a || !G.proof.verify(a.password, nonce, login, body.proof, crypto)) {
-      return { ok: false, error: failed(who, t) ? 'locked' : 'wrong-password' };
+  function authPassword(req, t) {
+    const login = str(req.login).trim(), nonce = str(req.nonce);
+    if (!login || !/^[0-9a-f]{32}$/.test(nonce)) fail('bad-request');
+    const c = ready(t);
+    const look = rules.lookupLogin(c.idx, login), key = triesKey(look, login);
+    if (locked(key, t)) return LOCKED();
+    if (busy(t)) return { ok: false, error: 'busy', retry: true };
+    const held = nonces.get(nonce);
+    nonces.delete(nonce);                               // a challenge is answered once
+    if (!held || held.exp <= t || held.l !== lower(login)) return { ok: false, error: 'bad-nonce' };
+    if (look.ambiguous) return { ok: false, error: 'ask-office', why: 'ambiguous' };
+    if (!look.e || !G.proof.verify(look.e.pw, nonce, login, str(req.proof), crypto)) {
+      failed(key, t);
+      return { ok: false, error: 'no-match' };
     }
-    fails.delete(who);
-    return admit(c, a, t);
+    counters.delete('f:' + key);
+    return afterCredential(c, look.id, look.e, 'password', t);
   }
 
-  /* The password (or email) is right: may this account come in, and does it
-     need its second step? The office's own reasons come back by name. */
-  function admit(c, a, t) {
-    const check = Core.accountAccess.check(a);
-    if (!check.allowed) return { ok: false, error: check.reason };
-    // A password the office set to be changed at first sign-in, or one the
-    // platform shipped with, cannot be changed through the gate.
-    if (a.defaultPassword === true || Core.accountAccess.isPublishedDefault(a.password)) return { ok: false, error: 'default-password' };
-    if (a.mustChangePassword) return { ok: false, error: 'must-change-password' };
-    if (!sliceOf(c, a.id)) return { ok: false, error: 'not-ready' };
-    const totpOn = !!(a.twoFactorEnabled && a.twoFactorSecret);
-    const emailOn = !!a.emailOtpLogin && !!str(a.email).trim();
-    if (!totpOn && !emailOn) return session(c, a, t);
-    const methods = [];
-    if (totpOn) methods.push('totp');
-    // Emailed codes need the internet; backup codes stand in for them here.
-    if (unusedBackupCodes(a).length) methods.push('backup');
-    if (!methods.length) return { ok: false, error: 'two-step-unavailable' };
-    return { ok: true, need2fa: true, ticket: makeTicket(a, methods, t), methods };
+  function afterCredential(c, acct, e, via, t) {
+    const refusal = rules.credentialRefusal(e, via);
+    if (refusal) return Object.assign({ ok: false }, refusal);
+    const p = place(c, acct);
+    if (p.error) return { ok: false, error: p.error };
+    const two = rules.twoStep(e, unusedCodes(acct, e), false);
+    if (two.needed) {
+      // Emailed codes need the internet; here only the authenticator and backup codes can finish it.
+      if (!two.methods.length) return { ok: false, error: 'not-available', why: 'email-code' };
+      const ticket = rules.ticketMake(G, SECRET, crypto, { a: acct, cv: e.cv, exp: t + LIMITS.TICKET_MS, m: two.methods, via, n: randomHex(8) });
+      return { ok: true, need2fa: true, ticket, methods: two.methods, email: e.eo ? maskEmail(e.em) : '' };
+    }
+    return issue(acct, e, p.slice, t);
   }
-  function unusedBackupCodes(a) {
-    const gone = spent.get(str(a.id));
-    return (Array.isArray(a.backupCodes) ? a.backupCodes : []).filter(b => b && b.code && !b.used && !(gone && gone.has(G.codeHash(b.code))));
+  const unusedCodes = (acct, e) => { const gone = spent.get(acct) || []; return (e.bc || []).filter(code => gone.indexOf(G.codeHash(code)) === -1); };
+
+  /* A session (DESIGN.md §4.4): the token (12 hours) and the key the device
+     seals what it sends with; its lane is named as online, though here what
+     it sends goes straight into the Centre's records. */
+  function issue(acct, e, slice, t) {
+    const sid = G.sid.make(t, rules.sidRand(e.cv, randomHex(12)), SECRET, crypto);
+    const exp = t + G.token.TTL_MS;
+    const token = G.token.sign({ a: acct, s: slice.studentId, sid, iat: t, exp, cv: e.cv }, SECRET, crypto);
+    return { ok: true, token, sessionKey: G.sessionKey(SECRET, acct, sid, crypto), sid, lane: 'L-' + sid,
+      exp, account: { id: acct, studentId: slice.studentId }, serverTime: iso(t) };
   }
 
-  /* The two-step ticket: t2.<base64url(canon {a, cv, exp, m})>.<HMAC hex>. */
-  function makeTicket(a, methods, t) {
-    const body = G.b64url(G.utf8(G.canon({ a: str(a.id), cv: G.cv(a, crypto), exp: t + TICKET_MS, m: methods })));
-    return 't2.' + body + '.' + hmac('t2|' + body);
-  }
-  function readTicket(ticket, t) {
-    const p = str(ticket).split('.');
-    if (p.length !== 3 || p[0] !== 't2' || !/^[0-9a-f]{64}$/.test(p[2]) || !G.same(hmac('t2|' + p[1]), p[2])) return null;
-    let claims = null;
-    try { const bytes = G.unb64url(p[1]); claims = bytes ? JSON.parse(Buffer.from(bytes).toString('utf8')) : null; } catch (e) { claims = null; }
-    if (!isObj(claims) || typeof claims.exp !== 'number' || claims.exp <= t || !claims.a || !Array.isArray(claims.m)) return null;
-    return claims;
-  }
-
-  function authTwoStep(body, t) {
-    const ticket = str(body.ticket), code = str(body.code).replace(/\s+/g, '');
-    if (!ticket || !code) return { ok: false, error: 'bad-request' };
-    const tk = readTicket(ticket, t);
-    if (!tk || usedTickets.has(ticket)) return { ok: false, error: 'expired-challenge' };
-    const c = context(t);
-    const a = c.byId[str(tk.a)];
-    if (!a || !G.same(G.cv(a, crypto), tk.cv)) return { ok: false, error: 'revoked' };
-    const who = whoKey(a);
-    if (lockedNow(who, t)) return { ok: false, error: 'locked' };
-    let ok = false, backup = null;
-    if (tk.m.indexOf('totp') !== -1 && /^\d{6}$/.test(code)) {
-      const v = G.totp.verify(a.twoFactorSecret, code, t, crypto, { used: step => usedSteps.has(str(a.id) + '|' + step) });
-      if (v.ok) { ok = true; usedSteps.set(str(a.id) + '|' + v.step, t + 5 * 60 * 1000); prune(usedSteps, t); }
+  function authTwoStep(req, t) {
+    const c = ready(t);
+    const tk = rules.ticketRead(G, SECRET, crypto, req.ticket, t);
+    if (tk.error) return { ok: false, error: tk.error };
+    if (usedTickets.has(tk.mac) || countOf('tf:' + tk.mac, t) >= LIMITS.TICKET_TRIES) return { ok: false, error: 'bad-ticket' };
+    const e = c.idx.a[tk.a];
+    if (!e || e.cv !== tk.cv) return { ok: false, error: 'revoked' };
+    const akey = 'acct|' + tk.a;
+    if (locked(akey, t)) return LOCKED();
+    const method = str(req.method), code = str(req.code).replace(/\s+/g, '');
+    const methods = Array.isArray(tk.m) ? tk.m : [];
+    if (methods.indexOf(method) === -1) return { ok: false, error: 'not-allowed' };
+    let ok = false, why = 'bad-code', backup = null;
+    if (method === 'totp') {
+      const v = G.totp.verify(e.tf, code, t, crypto, { used: step => usedSteps.get(tk.a + ':' + step) > t });
+      if (v.ok) { ok = true; remember(usedSteps, tk.a + ':' + v.step, t + 120000, t); }
+      else if (v.reason === 'used') why = 'code-used';
+    } else if (method === 'backup') {
+      const want = code.toUpperCase();
+      if (want && unusedCodes(tk.a, e).indexOf(want) !== -1) { ok = true; backup = want; }
     }
-    if (!ok && tk.m.indexOf('backup') !== -1) {
-      backup = unusedBackupCodes(a).filter(b => G.same(str(b.code).trim().toUpperCase(), code.toUpperCase()))[0] || null;
-      ok = !!backup;
+    if (!ok) {
+      const tries = count('tf:' + tk.mac, LIMITS.TICKET_MS, t);
+      failed(akey, t);
+      return { ok: false, error: why, triesLeft: Math.max(0, LIMITS.TICKET_TRIES - tries) };
     }
-    if (!ok) return { ok: false, error: failed(who, t) ? 'locked' : 'wrong-code' };
-    fails.delete(who);
-    usedTickets.set(ticket, tk.exp);
-    prune(usedTickets, t);
-    if (backup) spendBackupCode(a, backup.code, t);
-    return session(c, a, t);
+    remember(usedTickets, tk.mac, tk.exp, t);
+    counters.delete('f:' + akey);
+    if (backup) spendBackupCode(tk.a, backup, t);
+    const p = place(c, tk.a);
+    if (p.error) return { ok: false, error: p.error };
+    return issue(tk.a, e, p.slice, t);
   }
 
   /* A backup code used here is spent at once (in memory), and written into
      the account in the records file — marked used, the account stamped, as
      the dashboard's own sign-in does (touchAccount) — so every device burns
      it too. The account's newest copy (from either file) is the one written,
-     so nothing newer is undone. */
-  function spendBackupCode(a, code, t) {
-    const h = G.codeHash(code), id = str(a.id);
-    if (!spent.has(id)) spent.set(id, new Set());
-    spent.get(id).add(h);
+     so nothing newer is undone. (Online it is noted in the trainee's lane for
+     a staff device to burn; here this server is that staff device.) */
+  function spendBackupCode(acct, code, t) {
+    const h = G.codeHash(code);
+    const list = (spent.get(acct) || []).concat([h]);
+    spent.set(acct, list);
     saveRecords(storedText => {
       const c = context(t, storedText);
-      const acct = c.byId[id];
-      if (!c.payload || !acct) return null;
-      const S = { voctrain_users: [copy(acct)] };
-      if (!G.applyOps(S, [{ kind: 'backupCodeUsed', codeHash: h }], { acct: id }).applied) return null;
+      const account = (Array.isArray(c.map.voctrain_users) ? c.map.voctrain_users : []).filter(a => a && str(a.id) === acct)[0];
+      if (!c.payload || !account) return null;
+      const S = { voctrain_users: [copy(account)] };
+      if (!G.applyOps(S, [{ kind: 'backupCodeUsed', codeHash: h }], { acct }).applied) return null;
       S.voctrain_users[0].updatedAt = iso(t);
       return payloadWith(c.payload, { voctrain_users: S.voctrain_users }, t);
-    }).catch(e => log('A spent backup code could not be written to the records yet (it stays spent): ' + (e && e.message)));
+    }).catch(err => log('A spent backup code could not be written to the records yet (it stays spent): ' + (err && err.message)));
   }
 
-  /* A session: the token (12 hours), and the key the device seals what it
-     sends with. The session id carries its own issue time and the account's
-     credential version (the first 12 characters after the time), sealed, so
-     a delivery can be refused as "revoked" without any table of sessions. */
-  function session(c, a, t) {
-    const slice = sliceOf(c, a.id);
-    if (!slice) return { ok: false, error: 'not-ready' };
-    const cv = G.cv(a, crypto);
-    const sid = G.sid.make(t, cv + nodeCrypto.randomBytes(6).toString('hex'), SECRET, crypto);
-    const token = G.token.sign({ a: str(a.id), s: slice.studentId, sid, iat: t, cv }, SECRET, crypto);
-    return { ok: true, token, sessionKey: G.sessionKey(SECRET, str(a.id), sid, crypto), sid,
-      accountId: str(a.id), studentId: slice.studentId, exp: t + G.token.TTL_MS };
-  }
-  const sidCv = sid => (str(sid).split('.')[1] || '').slice(0, 12);
-
-  /* Who is asking, from their token: { c, me, slice, claims, refresh } or { error }. */
-  function signedIn(body, t) {
-    const c = context(t);
-    const v = G.token.verify(body.token, SECRET, crypto, { nowMs: t, cvOf: c.cvOf });
-    if (!v.ok) return { error: v.reason === 'expired' ? 'expired' : (v.reason === 'revoked' || v.reason === 'unknown-account') ? 'revoked' : 'bad-token' };
-    const slice = sliceOf(c, v.claims.a);
-    if (!slice) return { error: 'not-ready' };
-    return { c, slice, claims: v.claims, refresh: v.refresh, me: { acct: str(v.claims.a), stu: slice.studentId } };
+  /* Who is asking: the token checked against the accounts as they are now
+     (a password reset, a switch-off or a two-step change revokes it), not
+     signed out, and their records. */
+  function session(req, t) {
+    const c = ready(t);
+    const v = G.token.verify(str(req.token), SECRET, crypto, { nowMs: t, cvOf: a => (c.idx.a[a] ? c.idx.a[a].cv : null) });
+    if (!v.ok) fail(v.reason === 'expired' ? 'expired' : (v.reason === 'revoked' || v.reason === 'unknown-account') ? 'revoked' : 'bad-token');
+    const claims = v.claims, e = c.idx.a[claims.a];
+    if (isSignedOut(claims.sid, t)) fail('signed-out');
+    if (e.st !== 'ok' && e.st !== 'no-password') fail('revoked');
+    const p = place(c, claims.a);
+    if (p.error) fail(p.error);
+    return { c, claims, entry: e, slice: p.slice, refresh: v.refresh, me: { acct: str(claims.a), stu: str(p.slice.studentId) } };
   }
 
   /* ---------------------------------------------------------- reading */
-  function pull(body, t) {
-    const s = signedIn(body, t);
-    if (s.error) return { ok: false, error: s.error };
-    const out = { ok: true };
-    if (body.hash && str(body.hash) === s.slice.hash) { out.same = true; out.hash = s.slice.hash; }
-    else out.slice = s.slice;
-    // Less than four hours left, and the account still in good standing.
-    if (s.refresh) out.token = G.token.sign({ a: s.me.acct, s: s.me.stu, sid: s.claims.sid, iat: t, cv: s.claims.cv }, SECRET, crypto);
+  function pull(req, t) {
+    const s = session(req, t), out = { ok: true, h: s.slice.hash, serverTime: iso(t) };
+    if (req.have && str(req.have) === str(s.slice.hash)) out.same = true; else out.slice = s.slice;
+    // What was sent is already in the Centre's records here, so in the slice.
+    out.overlay = { lanes: [], results: [], truncated: false };
+    if (s.refresh) {
+      const exp = t + G.token.TTL_MS;
+      out.token = G.token.sign({ a: s.me.acct, s: s.me.stu, sid: s.claims.sid, iat: t, exp, cv: s.claims.cv }, SECRET, crypto);
+      out.exp = exp;
+    }
     return out;
   }
 
-  function attemptGet(body, t) {
-    const s = signedIn(body, t);
-    if (s.error) return { ok: false, error: s.error };
-    if (body.examId == null || body.examId === '') return { ok: false, error: 'bad-request' };
-    const r = G.resumeAttempt({ slice: s.slice }, s.me.stu, str(body.examId));
-    const out = { ok: true, state: r.state };
-    if (r.result) out.result = G.redactResult(r.result, null, t);
-    if (r.retired) out.retired = r.retired;
-    if (r.attempt) { out.attempt = r.attempt; out.ids = r.ids; }
+  // paper: only an exam on the trainee's list, and only while it is open by THIS clock.
+  function paper(req, t) {
+    const s = session(req, t), examId = safeId(req.examId);
+    if (!examId || !accessHas(s.slice, 'papers', examId)) return { ok: false, error: 'unknown-exam' };
+    const exam = s.c.exam(examId), offset = s.slice.settings.centreUtcOffset;
+    const key = exam ? G.buildKey(exam, offset) : null;
+    if (!key || !G.paperOpen(key, t)) {
+      return { ok: false, error: 'not-open', status: key ? Core.exams.statusAt(key.exam, t, key.centreUtcOffset) : 'upcoming', serverTime: iso(t) };
+    }
+    return { ok: true, paper: G.buildPaper(exam, t), centreUtcOffset: key.centreUtcOffset, serverTime: iso(t) };
+  }
+
+  // attempt.get: the attempt in progress (one, however many devices), a result, or nothing.
+  function attemptGet(req, t) {
+    const s = session(req, t), examId = safeId(req.examId);
+    if (!examId || !accessHas(s.slice, 'papers', examId)) return { ok: false, error: 'unknown-exam' };
+    const r = G.resumeAttempt({ slice: s.slice }, s.me.stu, examId);
+    const out = { ok: true, state: r.state, serverTime: iso(t) };
+    if (r.state === 'result') out.result = G.redactResult(r.result, null, t);
+    if (r.state === 'retired') out.retired = r.retired;
+    if (r.state === 'attempt') { out.attempt = r.attempt; out.ids = r.ids; }
     return out;
   }
 
-  // The questions, only for an exam of the trainee's own, only while it is open — on this server's clock.
-  function paperGet(body, t) {
-    const s = signedIn(body, t);
-    if (s.error) return { ok: false, error: s.error };
-    const examId = str(body.examId);
-    if (!examId || s.slice.access.papers.indexOf(examId) === -1) return { ok: false, error: 'unknown-exam' };
-    const exam = s.c.exam(examId);
-    if (!exam) return { ok: false, error: 'unknown-exam' };
-    if (!G.paperOpen(G.buildKey(exam, s.slice.settings.centreUtcOffset), t)) return { ok: false, error: 'not-open' };
-    return { ok: true, paper: G.buildPaper(exam, t) };
+  // review: a marked test of their own, the right answers only when the exam's release allows — on THIS clock.
+  function review(req, t) {
+    const s = session(req, t), id = str(req.resultId);
+    if (!id) fail('bad-request');
+    const found = s.c.list('voctrain_examResults').filter(r => str(r.id) === id && str(r.studentId) === s.me.stu)[0];
+    if (!found) return { ok: false, error: 'not-found' };
+    const exam = safeId(found.examId) ? s.c.exam(found.examId) : null, offset = s.slice.settings.centreUtcOffset;
+    return { ok: true, result: G.redactResult(found, exam, t, offset), revealed: !!exam && Core.exams.canRevealAnswers(exam, t, offset) };
   }
 
-  // A marked test of the trainee's own, with the right answers only once the exam releases them.
-  function review(body, t) {
-    const s = signedIn(body, t);
-    if (s.error) return { ok: false, error: s.error };
-    const id = str(body.resultId);
-    const r = s.c.list('voctrain_examResults').filter(x => str(x.id) === id && str(x.studentId) === s.me.stu)[0];
-    if (!id || !r) return { ok: false, error: 'unknown-result' };
-    return { ok: true, result: G.redactResult(r, s.c.exam(r.examId), t, s.slice.settings.centreUtcOffset) };
-  }
-
-  // A chat room's history, for its members only.
-  function roomGet(body, t) {
-    const s = signedIn(body, t);
-    if (s.error) return { ok: false, error: s.error };
-    const roomId = str(body.roomId);
-    if (!roomId || s.slice.access.rooms.indexOf(roomId) === -1) return { ok: false, error: 'unknown-room' };
+  // room.get: a room's history (the online gate's room file, built now), to its members only.
+  function roomGet(req, t) {
+    const s = session(req, t), roomId = safeId(req.roomId, 200);
+    if (!roomId || !accessHas(s.slice, 'rooms', roomId)) return { ok: false, error: 'unknown-room' };
     const built = G.buildAll(s.c.map, t, { builtBy: 'centre-server', only: [s.me.acct] }).rooms[roomId];
-    if (!built) return { ok: false, error: 'unknown-room' };
-    if (body.sinceEtag && str(body.sinceEtag) === built.h) return { ok: true, same: true, etag: built.h };
-    return { ok: true, room: built.room, etag: built.h };
+    if (!built) return { ok: false, error: 'not-ready', retry: true };
+    const room = built.room;
+    if (!Array.isArray(room.members) || room.members.map(String).indexOf(s.me.acct) === -1) return { ok: false, error: 'unknown-room' };
+    if (req.have && str(req.have) === str(room.hash)) return { ok: true, same: true, h: room.hash };
+    return { ok: true, room, h: room.hash };
+  }
+
+  // signOut: this token reads nothing more; what the session already sealed is still delivered.
+  function signOutOp(req, t) {
+    const v = G.token.verify(str(req.token), SECRET, crypto, { nowMs: t });
+    if (v.ok) signOutSid(v.claims.sid, v.claims.exp, t);
+    return { ok: true };
   }
 
   /* ---------------------------------------------------------- delivering */
@@ -570,11 +667,13 @@ function create(opts) {
   /* A submitted test: the attempt as the Centre holds it with what was just
      sent folded in (Core.gate.resumeAttempt), marked from the key. Already
      submitted — from this device or another — the result already made is
-     the answer, and nothing is marked twice. */
+     the answer ("already"), and nothing is marked twice. */
   Work.prototype.submit = function (item, attempt, me, slice) {
-    const id = str(item.id), t = this.t;
+    const t = this.t, offset = slice.settings.centreUtcOffset;
+    if (!safeId(attempt.id) || !safeId(attempt.examId)) return { ok: false, reason: 'malformed' };
     const exam = this.c.exam(attempt.examId);
-    if (!exam) return { id, ok: false, reason: 'unknown-exam' };
+    const key = exam ? G.buildKey(exam, offset) : null;
+    if (!key) return { ok: false, reason: 'not-ready', retry: true };
     const m = this.mineOf(me, slice);
     const att = copy(attempt);
     this.firstSeen(att, m);
@@ -585,20 +684,23 @@ function create(opts) {
     // open one in every merge, and nothing the trainee typed is thrown away.
     // (One already submitted here needs no second write.)
     const done = m.attempts.some(a => str(a.id) === str(att.id) && Core.exams.attemptIsRetired(a));
-    if (!done) {
+    const writes = !done;
+    if (writes) {
       this.add('voctrain_examAttempts', att);
       m.attempts = Core.exams.mergeAttemptLists(m.attempts, [att]).list;
     }
-    if (state.state === 'result') return { id, ok: true, result: G.redactResult(state.result, null, t), writes: !done };
-    if (state.state === 'retired') return { id, ok: true, state: 'retired', writes: !done };
-    if (state.state !== 'attempt') return { id, ok: false, reason: 'malformed' };
+    if (state.state === 'result') {
+      const full = this.c.list('voctrain_examResults').filter(r => str(r.id) === str(state.result.id))[0] || state.result;
+      return { ok: true, already: true, result: G.redactResult(full, key.exam, t, key.centreUtcOffset), writes };
+    }
+    if (state.state === 'retired') return { ok: true, already: true, retired: state.retired, writes };
+    if (state.state !== 'attempt') return { ok: false, reason: 'malformed' };
     const cur = state.attempt;
     const seen = m.attempts.filter(a => state.ids.indexOf(str(a.id)) !== -1).map(a => Date.parse(a.gateFirstSeen || '') || 0).filter(Boolean);
-    const offset = slice.settings.centreUtcOffset;
-    const marked = G.markAttempt(cur, G.buildKey(exam, offset), t, { crypto, receivedAt: t,
+    const marked = G.markAttempt(cur, key, t, { crypto, receivedAt: t,
       firstSeen: seen.length ? Math.min.apply(null, seen) : t, auto: item.auto === true,
-      studentName: str((slice.data.voctrain_students[0] || {}).name), accountId: me.acct });
-    if (marked.error) return { id, ok: false, reason: marked.error };
+      studentName: (slice.data.voctrain_students[0] || {}).name, accountId: me.acct });
+    if (marked.error) return { ok: false, reason: marked.error, retry: marked.error === 'no-key' };
     this.add('voctrain_examResults', marked.result);
     m.results.push(marked.result);
     // Every open copy folded into this attempt is over now.
@@ -607,7 +709,7 @@ function create(opts) {
         marked.result.id, marked.result.submittedAt)));
     retired.forEach(r => this.add('voctrain_examAttempts', r));
     m.attempts = Core.exams.mergeAttemptLists(m.attempts, retired).list;
-    return { id, ok: true, result: G.redactResult(marked.result, null, t) };
+    return { ok: true, result: G.redactResult(marked.result, key.exam, t, key.centreUtcOffset), writes: true };
   };
   Work.prototype.values = function () {
     const v = {};
@@ -626,80 +728,94 @@ function create(opts) {
     return v;
   };
 
-  /* One item: sealed by a session of this server, not too old, from an
-     account still in good standing — then the shared rules decide. */
-  function deliverOne(item, c, w, t) {
-    const id = isObj(item) && item.id != null ? str(item.id) : '';
-    const no = reason => ({ receipt: { id, ok: false, reason } });
-    if (!isObj(item) || typeof item.mac !== 'string' || !item.a || !item.sid) return no('malformed');
-    const sid = G.sid.check(item.sid, SECRET, crypto);
-    if (!sid.ok) return no('bad-seal');
-    if (t - sid.iat > G.ITEM_MAX_AGE_MS) return no('expired');
-    if (!G.sealOk(item, G.sessionKey(SECRET, str(item.a), str(item.sid), crypto), crypto)) return no('bad-seal');
-    // A password reset, switch-off or two-step change since that session: the
-    // device keeps the item and seals it again at the next sign-in.
-    const cv = c.cvOf(item.a);
-    if (cv == null || !G.same(cv, sidCv(item.sid))) return no('revoked');
-    const slice = sliceOf(c, item.a);
-    if (!slice) return no('not-ready');
-    const me = { acct: str(item.a), stu: slice.studentId };
-    const v = G.validateItem(item, me, slice, { papers: w.papers(slice) });
-    if (!v.ok) return no(v.reason);
-    if (v.known) return { receipt: { id, ok: true, known: true } };
-    if (v.op) { const did = w.op(v.op, me); return { receipt: { id, ok: true }, writes: did }; }
-    if (v.attempt) {
-      const r = w.submit(item, v.attempt, me, slice);
-      const writes = r.writes !== undefined ? r.writes : r.ok;
-      delete r.writes;
-      return { receipt: r, writes };
-    }
-    w.record(v.key, v.rec, v.recId, me, slice);
-    return { receipt: { id, ok: true }, writes: true };
+  /* One session's items (as the online gate takes them): its id must be one
+     this gate made (else 'revoked': sign in and seal again), young enough,
+     its account still with the same credentials, each item's seal good —
+     then the shared rules decide. Fills `out` (receipts by position) and
+     `writing` (positions that depend on the save). */
+  function deliverSession(c, w, acct, sid, group, out, writing, t) {
+    const all = reason => group.forEach(x => { out[x.i] = { id: str(x.item.id), ok: false, reason }; });
+    const sc = G.sid.check(sid, SECRET, crypto);
+    if (!sc.ok) return all('revoked');
+    if (t - sc.iat > G.ITEM_MAX_AGE_MS) return all('expired');
+    const e = c.idx.a[acct];
+    if (!e) return all('unknown-account');
+    if (rules.sidCv(sid) !== str(e.cv).slice(0, 12)) return all('revoked');
+    const key = G.sessionKey(SECRET, acct, sid, crypto);
+    const good = group.filter(x => {
+      const no = reason => { out[x.i] = { id: str(x.item.id), ok: false, reason }; return false; };
+      if (str(x.item.a) !== acct || str(x.item.sid) !== sid) return no('malformed');
+      if (!G.sealOk(x.item, key, crypto)) return no('bad-seal');
+      return true;
+    });
+    if (!good.length) return;
+    const p = place(c, acct);
+    if (p.error) { good.forEach(x => { out[x.i] = { id: str(x.item.id), ok: false, reason: p.error, retry: true }; }); return; }
+    const slice = p.slice, me = { acct, stu: str(slice.studentId) };
+    good.forEach(x => {
+      const it = x.item, id = str(it.id);
+      const v = G.validateItem(it, me, slice, { papers: w.papers(slice) });
+      if (!v.ok) { out[x.i] = { id, ok: false, reason: v.reason || 'not-yours' }; return; }
+      if (it.kind === 'submit') {
+        const r = w.submit(it, v.attempt, me, slice);
+        if (r.writes) writing.push(x.i);
+        delete r.writes;
+        out[x.i] = Object.assign({ id }, r);
+        return;
+      }
+      if (v.known) { out[x.i] = { id, ok: true, dup: true }; return; }   // already in the Centre's records
+      if (it.kind === 'op') { if (w.op(v.op, me)) writing.push(x.i); }
+      else { w.record(v.key, v.rec, v.recId, me, slice); writing.push(x.i); }
+      out[x.i] = { id, ok: true };
+    });
   }
 
-  function deliver(body, t) {
-    const items = body.items;
-    if (!Array.isArray(items) || !items.length) return Promise.resolve({ ok: false, error: 'bad-request' });
-    if (items.length > MAX_ITEMS) return Promise.resolve({ ok: false, error: 'too-many' });
-    const receipts = items.map(it => ({ id: isObj(it) && it.id != null ? str(it.id) : '', ok: false, reason: 'busy' }));
+  function deliver(req, t) {
+    const items = req.items;
+    if (!Array.isArray(items) || !items.length || items.length > LIMITS.DELIVER_MAX_ITEMS) fail('bad-request');
+    const suffix = req.lane != null && req.lane !== '' ? str(req.lane) : '';
+    if (suffix && !/^[A-Za-z0-9]{1,12}$/.test(suffix)) fail('bad-request');
+    ready(t);
+    const out = new Array(items.length);
     let writing = [], decided = false;
     return saveRecords(storedText => {
       writing = []; decided = false;
-      const c = context(t, storedText);
-      const w = new Work(c, t);
-      items.forEach((item, i) => {
-        if (!c.payload) { receipts[i] = { id: receipts[i].id, ok: false, reason: 'not-ready' }; return; }
-        const r = deliverOne(item, c, w, t);
-        receipts[i] = r.receipt;
-        if (r.writes) writing.push(i);
+      const c = ready(t, storedText);
+      const w = new Work(c, t), groups = {}, order = [];
+      items.forEach((it, i) => {
+        if (!isObj(it) || it.id == null || !it.a || !it.sid) { out[i] = { id: isObj(it) && it.id != null ? str(it.id) : '', ok: false, reason: 'malformed' }; return; }
+        const k = str(it.a) + '\u0000' + str(it.sid);
+        if (!groups[k]) { groups[k] = []; order.push(k); }
+        groups[k].push({ i, item: it });
       });
+      order.forEach(k => { const g = groups[k]; deliverSession(c, w, str(g[0].item.a), str(g[0].item.sid), g, out, writing, t); });
       decided = true;
       const values = w.values();
       return Object.keys(values).length ? payloadWith(c.payload, values, t) : null;
-    }).then(() => ({ ok: true, results: receipts }), err => {
+    }).then(() => ({ ok: true, receipts: out }), err => {
+      if (err && err.gateError && !decided) throw err;
       // Nothing was written: every item that was to be written is answered
-      // "busy", stays on the device and is sent again.
+      // "retry", stays on the device and is sent again.
       log('A trainee\'s work could not be saved just now (their device will send it again): ' + (err && err.message));
-      (decided ? writing : items.map((_, i) => i)).forEach(i => { receipts[i] = { id: receipts[i].id, ok: false, reason: 'busy' }; });
-      return { ok: true, results: receipts };
+      (decided ? writing : items.map((_, i) => i)).forEach(i => { out[i] = { id: out[i] ? out[i].id : str(items[i] && items[i].id), ok: false, reason: 'retry', retry: true }; });
+      return { ok: true, receipts: out };
     });
   }
 
   /* ---------------------------------------------------------- health */
   function health(t) {
-    const ready = { secret: !!SECRET, folders: true, ledger: false, ledgerUpdated: '', trainees: 0 };
+    const r = { secret: !!SECRET, folders: true, ledger: false, ledgerUpdated: null, trainees: null };
     if (G) {
       try {
         const c = context(t);
-        ready.ledger = !!c.payload;
-        try { ready.ledgerUpdated = c.payload ? fs.statSync(LMS).mtime.toISOString() : ''; } catch (e) {}
-        ready.trainees = c.trainees.length;
-      } catch (e) {}
+        r.ledger = !!c.payload;
+        if (c.payload) { r.ledgerUpdated = c.updated; r.trainees = c.idx.n; }
+      } catch (e) { r.ledger = false; }
     }
-    // staffOnly: whether this server keeps the records for staff devices only
-    // (cestis-offline-server.js) — then a trainee's device signs in here.
-    return { ok: true, service: 'cestis-trainee-gate', version: GATE_VERSION, protocol: PROTOCOL.slice(), time: iso(t),
-      ready, accepting: !!G && selfOk && !killed(), staffOnly: !!staffOnly() };
+    // staffOnly (this server only): whether its records are kept for staff
+    // devices (cestis-offline-server.js) — then a trainee's device signs in here.
+    return { ok: true, service: SERVICE, version: GATE_VERSION, protocol: PROTOCOL.slice(), time: iso(t), ready: r,
+      accepting: !!G && selfOk && !killed(), staffOnly: !!staffOnly() };
   }
   // The administrator's page: ✓ / ✗ lines, counts only — no names, no ids.
   function selfcheckPage(t) {
@@ -708,49 +824,59 @@ function create(opts) {
     try {
       const c = context(t);
       exams = c.list('voctrain_exams').filter(e => e.status !== 'draft' && e.status !== 'cancelled' && Core.exams.questionCount(e) > 0).length;
-      linked = c.trainees.filter(a => !!sliceOf(c, a.id)).length;
+      linked = Object.keys(c.idx.a).filter(id => !place(c, id).error).length;
     } catch (e) {}
     const st = G ? G.selfTest(crypto) : { ok: false, checks: [] };
     const line = (ok, text) => '<li>' + (ok ? '✓ ' : '✗ ') + text.replace(/[&<>]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch])) + '</li>';
     return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
       '<title>Trainee sign-in check</title><style>body{font:16px/1.5 system-ui,sans-serif;margin:24px;color:#111;background:#fff}' +
       'li{list-style:none;margin:4px 0}</style></head><body><h1>Trainee sign-in check</h1><ul>' +
-      line(true, 'Version ' + GATE_VERSION) +
+      line(true, 'Version ' + GATE_VERSION + ' (protocol ' + PROTOCOL.join(', ') + ')') +
+      line(h.accepting, h.accepting ? 'Answering trainees' : 'Switched off — trainees use today\'s sign-in') +
       line(h.ready.secret, 'Session secret present') +
-      line(h.ready.ledger, 'Accounts found: ' + h.ready.trainees + ' trainee accounts' + (h.ready.ledgerUpdated ? ', records updated ' + h.ready.ledgerUpdated : '')) +
-      line(linked > 0 || h.ready.trainees === 0, 'Records ready for ' + linked + ' of ' + h.ready.trainees + ' trainee accounts (built when they ask)') +
+      line(h.ready.ledger, h.ready.ledger ? 'Accounts found: ' + h.ready.trainees + ' trainee accounts, records updated ' + h.ready.ledgerUpdated : 'No records yet') +
+      line(linked > 0 || !h.ready.trainees, 'Records ready for ' + linked + ' of ' + (h.ready.trainees || 0) + ' trainee accounts (built when they ask)') +
       line(true, 'Answer keys: ' + exams + ' exams') +
       st.checks.map(ch => line(ch.ok, 'Self-test: ' + ch.name)).join('') +
-      line(h.accepting, h.accepting ? 'Accepting sign-ins' : 'Not accepting sign-ins') +
       '</ul></body></html>';
   }
 
   /* ---------------------------------------------------------- dispatch */
-  const UNAVAILABLE = { 'auth.email': 1, 'auth.2fa.send': 1, upload: 1, 'file.get': 1 };
-  function run(body, t) {
+  const OPS = {
+    'health': (req, t) => health(t),
+    'auth.start': authStart, 'auth.password': authPassword, 'auth.2fa': authTwoStep,
+    'pull': pull, 'paper': paper, 'attempt.get': attemptGet, 'review': review, 'room.get': roomGet,
+    'signOut': signOutOp, 'deliver': deliver,
+    // Need the internet or Google Drive: not on the Centre's own network.
+    'auth.email': () => ({ ok: false, error: 'not-available' }), 'auth.2fa.send': () => ({ ok: false, error: 'not-available' }),
+    'upload': () => ({ ok: false, error: 'not-available' }), 'file.get': () => ({ ok: false, error: 'not-available' })
+  };
+  function errCode(err) {
+    if (err && err.gateError) return err.gateError;
+    const msg = String(err && err.message || err);
+    if (/EBUSY|EPERM|EACCES|EMFILE|ENFILE|EAGAIN|busy/i.test(msg)) return 'busy';
+    return 'internal';
+  }
+  function run(req, t) {
     if (typeof t !== 'number') t = now();
+    const op = str(req && req.op);
+    const fn = Object.prototype.hasOwnProperty.call(OPS, op) ? OPS[op] : null;
+    if (!fn) return Promise.resolve({ ok: false, error: 'unknown-op' });
     return Promise.resolve().then(() => {
-      const op = str(body && body.op);
-      if (op === 'health') return health(t);
-      if (!G || !selfOk || killed()) return { ok: false, error: 'off' };
-      if (body.v != null && body.v !== 1) return { ok: false, error: Number(body.v) < 1 ? 'client-too-old' : 'unsupported', protocol: PROTOCOL.slice() };
-      if (UNAVAILABLE[op]) return { ok: false, error: 'unavailable' };
-      switch (op) {
-        case 'auth.start': return authStart(body, t);
-        case 'auth.password': return authPassword(body, t);
-        case 'auth.2fa': return authTwoStep(body, t);
-        case 'pull': return pull(body, t);
-        case 'deliver': return deliver(body, t);
-        case 'attempt.get': return attemptGet(body, t);
-        case 'paper.get': return paperGet(body, t);
-        case 'review': return review(body, t);
-        case 'room.get': return roomGet(body, t);
-        default: return { ok: false, error: 'unknown-op' };
-      }
-    }).catch(e => {
-      log('A trainee sign-in request failed (the system is still running): ' + (e && e.message));
-      return { ok: false, error: 'busy' };
-    }).then(out => { out.time = iso(t); return out; });
+      if (req.v != null && PROTOCOL.indexOf(Number(req.v)) === -1) return { ok: false, error: 'client-too-old' };
+      if (op !== 'health' && (!G || !selfOk || killed())) return { ok: false, error: 'off' };
+      return fn(req, t);
+    }).then(out => {
+      if (out && out.ok === undefined) out.ok = true;
+      return out;
+    }, err => {
+      const code = errCode(err);
+      if (!(err && err.gateError)) log('A trainee sign-in request failed (the system is still running): ' + (err && err.stack || err));
+      const res = { ok: false, error: code };
+      if (code === 'busy' || code === 'internal') res.retry = true;
+      if (err && err.gateExtra) Object.keys(err.gateExtra).forEach(k => { res[k] = err.gateExtra[k]; });
+      return res;
+    });
   }
 
   function reply(res, status, obj) { opts.send(res, status, JSON.stringify(obj), 'application/json; charset=utf-8'); }
@@ -760,15 +886,14 @@ function create(opts) {
       const q = new URLSearchParams(url.indexOf('?') === -1 ? '' : url.slice(url.indexOf('?') + 1));
       const op = q.get('op') || 'health';
       if (op === 'selfcheck') return opts.send(res, 200, selfcheckPage(now()), 'text/html; charset=utf-8');
-      if (op === 'health') return reply(res, 200, health(now()));
-      return reply(res, 200, { ok: false, error: 'unknown-op', time: iso(now()) });
+      return run({ op }).then(out => reply(res, 200, out));
     }
-    if (req.method !== 'POST') return reply(res, 405, { ok: false, error: 'method-not-allowed' });
+    if (req.method !== 'POST') return reply(res, 405, { ok: false, error: 'bad-request' });
     const chunks = [];
     let received = 0, over = false;
     req.on('data', ch => {
       received += ch.length;
-      if (received > BODY_MAX) { if (!over) { over = true; reply(res, 413, { ok: false, error: 'too-large' }); req.destroy(); } return; }
+      if (received > LIMITS.BODY_MAX) { if (!over) { over = true; reply(res, 413, { ok: false, error: 'too-large' }); req.destroy(); } return; }
       chunks.push(ch);
     });
     req.on('end', () => {
@@ -780,7 +905,7 @@ function create(opts) {
     });
   }
 
-  return { handle, run, health, GATE_VERSION, secretFile: path.join(opts.certDir || path.join(rootDir, 'cert'), 'gate-secret') };
+  return { handle, run, health, GATE_VERSION };
 }
 
-module.exports = { create, loadOrCreateSecret, crypto, GATE_VERSION, PROTOCOL, LMS_FILE };
+module.exports = { create, rules, loadOrCreateSecret, crypto, GATE_VERSION, PROTOCOL, LIMITS, LMS_FILE };

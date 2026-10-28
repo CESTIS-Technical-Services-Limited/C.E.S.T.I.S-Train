@@ -22,7 +22,13 @@
        used in the records); pull (own records only, no answer keys); the
        paper only while the exam is open, only for the trainee's own
        programme; attempt.get; deliver; review (right answers only once
-       released); room.get; and 'unavailable' for what needs the internet;
+       released); room.get; sign-out; and 'not-available' for what needs the
+       internet — every answer in the shapes the online gate
+       (trainee-gate/Gate.gs) gives, so one client talks to both;
+     - the rules both gates must keep alike (the accounts index, which
+       account a login names, when a right password still may not sign in,
+       the two-step methods and ticket, the credential version inside a
+       session id), as pure functions;
      - a delivery is MERGED into the data file by the record rules, with the
        previous version kept in data/.history, a device's save at the same
        moment kept too, and nothing else in the file touched;
@@ -222,9 +228,9 @@ async function signIn(login, password) {
 }
 let seq = 0;
 function item(sess, fields) {
-  return G.seal(Object.assign({ id: 'IT-' + (++seq), a: sess.accountId, sid: sess.sid, createdAt: new Date().toISOString() }, fields), sess.sessionKey, crypto);
+  return G.seal(Object.assign({ id: 'IT-' + (++seq), a: sess.account.id, sid: sess.sid, createdAt: new Date().toISOString() }, fields), sess.sessionKey, crypto);
 }
-const deliver = items => gate({ op: 'deliver', items }).then(r => r.results || r);
+const deliver = items => gate({ op: 'deliver', items }).then(r => r.receipts || r);
 function attemptFrom(paper, id, answered) {
   const qs = X.attemptQuestionsFromPaper(paper.questions, { shuffleQuestions: true, shuffleOptions: true });
   const now = Date.now();
@@ -237,6 +243,46 @@ const NAMES = [TM, R, SH].map(t => [t.acct.id, t.stu.id, t.stu.name, t.stu.email
 const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
 
 (async () => {
+  /* ---------------------------------------------------------- the shared rules
+     (cestis-offline-gate.js `rules`: what trainee-gate/Gate.gs decides the
+     same way, and Core.gate should hold for both — see its TODO(core).) */
+  console.log('The rules both gates keep alike');
+  {
+    const rules = require(path.join(OFF, 'cestis-offline-gate.js')).rules;
+    const twin = Object.assign({}, K.acct, { password: '', status: 'disabled', updatedAt: iso(T0 - 99 * DAY) });   // a copy that cannot sign in
+    const idx = rules.indexAccounts(Core, [admin, K.acct, twin, TM.acct, pending, Object.assign({}, R.acct, { username: 'shared' }),
+      Object.assign({}, SH.acct, { username: 'shared' }), Object.assign({}, OD.acct, { id: 'USR-GONE' })], ['USR-GONE'], crypto);
+    assertEq([idx.n, Object.keys(idx.a).sort()], [5, [K.acct.id, TM.acct.id, R.acct.id, SH.acct.id, 'USR-PEND'].sort()],
+      'the index: trainee accounts only, deleted ones dropped, one per account id');
+    assertEq([idx.a[K.acct.id].st, idx.a[K.acct.id].pw, idx.a[K.acct.id].cv], ['ok', K.acct.password, G.cv(K.acct, crypto)],
+      'of two copies of one account, the one that can sign in');
+    assertEq([idx.a[TM.acct.id].tf, idx.a[TM.acct.id].bc, idx.a['USR-PEND'].st], ['JBSWY3DPEHPK3PXP', ['BCK-ONE', 'BCK-TWO'], 'pending'],
+      'with its two-step secret, its unused backup codes, and why it may not sign in');
+    assertEq(rules.lookupLogin(idx, ' KEMAR01 ').id, K.acct.id, 'a login is a username, any case');
+    assertEq(rules.lookupLogin(idx, TM.acct.email.toUpperCase()).id, TM.acct.id, 'or an email');
+    assertEq(rules.lookupLogin(idx, 'nobody'), { none: true }, 'nobody: none');
+    const both = rules.lookupLogin(idx, 'shared');
+    assertEq(both, { ambiguous: true }, 'two accounts that can both sign in behind one login: the office must sort it out');
+    const idx2 = rules.indexAccounts(Core, [Object.assign({}, R.acct, { username: 'shared' }), Object.assign({}, SH.acct, { username: 'shared', status: 'disabled' })], [], crypto);
+    assertEq(rules.lookupLogin(idx2, 'shared').id, R.acct.id, '— but when only one of them can, that one');
+    assertEq(rules.credentialRefusal({ st: 'pending' }, 'password'), { error: 'pending' }, 'a right password still: pending is refused as pending');
+    assertEq(rules.credentialRefusal({ st: 'ok', sd: 1 }, 'password'), { error: 'ask-office', why: 'default-password' }, 'a published default: ask the office');
+    assertEq(rules.credentialRefusal({ st: 'no-password' }, 'email'), null, 'an account with no password may use its email account');
+    assertEq(rules.credentialRefusal({ st: 'ok', sd: 0 }, 'password'), null, 'an ordinary account goes on');
+    assertEq(rules.twoStep({ tf: 'X', eo: 1 }, ['C1'], true), { needed: true, methods: ['totp', 'backup', 'email'] }, 'two-step: authenticator, backup codes, email');
+    assertEq(rules.twoStep({ tf: '', eo: 1 }, [], false), { needed: true, methods: [] }, 'email codes where none can be sent: nothing to finish with');
+    assertEq(rules.twoStep({ tf: '', eo: 0 }, ['C1'], true), { needed: false, methods: ['backup'] }, 'backup codes alone do not ask for a second step');
+    const secret = 'ab'.repeat(32);
+    const tk = rules.ticketMake(G, secret, crypto, { a: 'USR-X', cv: 'cv1', exp: T0 + 60000, m: ['totp'], via: 'password', n: 'n1' });
+    assert(/^t2\.[A-Za-z0-9_-]+\.[0-9a-f]{64}$/.test(tk), 'a ticket is t2.<claims>.<HMAC hex>');
+    const back = rules.ticketRead(G, secret, crypto, tk, T0);
+    assertEq([back.a, back.cv, back.m, back.via, back.mac], ['USR-X', 'cv1', ['totp'], 'password', tk.split('.')[2].slice(0, 32)], 'and reads back, named by its mac');
+    assertEq(rules.ticketRead(G, secret, crypto, tk, T0 + 60000).error, 'expired', 'until it runs out');
+    assertEq(rules.ticketRead(G, 'cd'.repeat(32), crypto, tk, T0).error, 'bad-ticket', 'and only with the secret that made it');
+    const sid = G.sid.make(T0, rules.sidRand('0123456789ab', 'feedfacecafe'), secret, crypto);
+    assertEq([rules.sidCv(sid), rules.sidCv('nonsense')], ['0123456789ab', ''], 'a session id carries the credential version, sealed');
+  }
+
   writeCentre(LMS, STORE);
   await start();
   try {
@@ -261,9 +307,9 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
       'the gate answers only at the server\'s own names, like the rest of /_cestis/');
     assert((await req('/_cestis/gate', { method: 'POST', body: '{nope' })).status === 400, 'a request it cannot read is a 400');
     assertEq((await gate({ op: 'frobnicate' })).error, 'unknown-op', 'an unknown request is named as such');
-    assertEq((await gate({ op: 'auth.start', login: 'x', v: 2 })).error, 'unsupported', 'a newer protocol than it speaks is refused');
+    assertEq((await gate({ op: 'auth.start', login: 'x', v: 2 })).error, 'client-too-old', 'a protocol it does not speak: client-too-old (as online)');
     for (const op of ['auth.email', 'auth.2fa.send', 'upload', 'file.get']) {
-      assertEq((await gate({ op })).error, 'unavailable', op + ' needs the internet: unavailable here');
+      assertEq((await gate({ op })).error, 'not-available', op + ' needs the internet: not-available here');
     }
 
     /* ---------------------------------------------------------- sign-in */
@@ -278,38 +324,48 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     assert(u1.algo === 'pbkdf2-sha256' && /^[0-9a-f]{32}$/.test(u1.salt) && u1.salt === u2.salt,
       'an unknown login gets a salt like any other, the same every time — no telling whether an account exists');
     const wrong = await gate({ op: 'auth.password', login: K.login, nonce: ch.nonce, proof: 'f'.repeat(64) });
-    assertEq(wrong.error, 'wrong-password', 'a wrong answer: "do not match"');
+    assertEq(wrong.error, 'no-match', 'a wrong answer: "do not match"');
     const reuse = await gate({ op: 'auth.password', login: K.login, nonce: ch.nonce, proof: 'f'.repeat(64) });
-    assertEq(reuse.error, 'expired-challenge', 'and the challenge cannot be answered twice');
+    assertEq(reuse.error, 'bad-nonce', 'and the challenge cannot be answered twice');
     const KS = await signIn(K.login, K.pw);
-    assert(KS.ok && /^v1\./.test(KS.token) && /^[0-9a-f]{64}$/.test(KS.sessionKey) && KS.accountId === K.acct.id && KS.studentId === K.stu.id,
+    assert(KS.ok && /^v1\./.test(KS.token) && /^[0-9a-f]{64}$/.test(KS.sessionKey) && KS.account.id === K.acct.id && KS.account.studentId === K.stu.id,
       'the right password: a token, a key to seal with, the account and the student ID');
+    assert(KS.lane === 'L-' + KS.sid && Math.abs(Date.parse(KS.serverTime) - Date.now()) < 60000, 'its lane named as online, and the server\'s time');
+    assertEq(G.sid.check(KS.sid, fs.readFileSync(path.join(CERT, 'gate-secret'), 'utf8').trim(), crypto).ok, true, 'a session id this gate made');
+    assertEq(KS.sid.split('.')[1].slice(0, 12), G.cv(K.acct, crypto), 'carrying the credential version');
     assert(KS.exp - Date.now() > 11 * 3600 * 1000, 'for twelve hours');
     assertEq((await signIn(TM.acct.email.toUpperCase(), 'pw-tameka')).need2fa, true, 'by email, any case, with the older hash too');
     assertEq((await signIn('pend', 'pw-pend')).error, 'pending', 'an account awaiting approval is told so (after its password is proved)');
-    assertEq((await signIn('pend', 'not-it')).error, 'wrong-password', '— and with the wrong password learns nothing');
-    assertEq((await signIn(OD.login, OD.pw)).error, 'default-password', 'a password still to be changed cannot be used through the gate');
+    assertEq((await signIn('pend', 'not-it')).error, 'no-match', '— and with the wrong password learns nothing');
+    const od = await signIn(OD.login, OD.pw);
+    assertEq([od.error, od.why], ['ask-office', 'default-password'], 'a password still to be changed cannot be used through the gate');
     assertEq((await signIn('lost', 'pw-lost')).error, 'not-ready', 'an account not yet linked to a trainee record: "being prepared"');
-    for (let i = 0; i < 4; i++) await signIn(SH.login, 'guess-' + i);
-    assertEq((await signIn(SH.login, 'guess-5')).error, 'locked', 'five wrong passwords and the login is locked');
-    assertEq((await signIn(SH.login, SH.pw)).error, 'locked', 'even to the right one, for fifteen minutes');
+    const guesses = [];
+    for (let i = 0; i < 5; i++) guesses.push((await signIn(SH.login, 'guess-' + i)).error);
+    assertEq(guesses, ['no-match', 'no-match', 'no-match', 'no-match', 'no-match'], 'five wrong passwords');
+    const lk = await signIn(SH.login, SH.pw);
+    assertEq([lk.error, lk.retryAfter], ['locked', 900], 'and the login is locked, even to the right one, for fifteen minutes');
     let lastStart = null;
     for (let i = 0; i < 21; i++) lastStart = await gate({ op: 'auth.start', login: 'flood@nowhere.test' });
     assertEq(lastStart.error, 'locked', 'and a login asked for over twenty times in fifteen minutes waits too');
 
     console.log('Two-step codes, each once');
     const t1 = await signIn(TM.login, 'pw-tameka');
-    assertEq([t1.need2fa, t1.methods], [true, ['totp', 'backup']], 'an account with two-step needs its code: authenticator or backup code');
+    assertEq([t1.need2fa, t1.methods, t1.email], [true, ['totp', 'backup'], ''], 'an account with two-step needs its code: authenticator or backup code');
     assert(!t1.token && !t1.sessionKey, 'and gets no session before it');
-    assertEq((await gate({ op: 'auth.2fa', ticket: t1.ticket, code: '000000' })).error, 'wrong-code', 'a wrong code is refused');
+    const bad = await gate({ op: 'auth.2fa', ticket: t1.ticket, method: 'totp', code: '000000' });
+    assertEq([bad.error, bad.triesLeft], ['bad-code', 4], 'a wrong code is refused, the tries left said');
+    assertEq((await gate({ op: 'auth.2fa', ticket: t1.ticket, method: 'email', code: '123456' })).error, 'not-allowed', 'a way not offered is not allowed');
+    const forged = t1.ticket.slice(0, -1) + (t1.ticket.slice(-1) === '0' ? '1' : '0');
+    assertEq((await gate({ op: 'auth.2fa', ticket: forged, method: 'totp', code: '000000' })).error, 'bad-ticket', 'a tampered ticket is refused');
     const code = G.totp.code(TM.acct.twoFactorSecret, Date.now(), crypto);
-    const TS = await gate({ op: 'auth.2fa', ticket: t1.ticket, code });
-    assert(TS.ok && TS.accountId === TM.acct.id && TS.studentId === TM.stu.id, 'the authenticator\'s code signs her in');
-    assertEq((await gate({ op: 'auth.2fa', ticket: t1.ticket, code })).error, 'expired-challenge', 'a ticket is used once');
+    const TS = await gate({ op: 'auth.2fa', ticket: t1.ticket, method: 'totp', code });
+    assert(TS.ok && TS.account.id === TM.acct.id && TS.account.studentId === TM.stu.id, 'the authenticator\'s code signs her in');
+    assertEq((await gate({ op: 'auth.2fa', ticket: t1.ticket, method: 'totp', code })).error, 'bad-ticket', 'a ticket is used once');
     const t2 = await signIn(TM.login, 'pw-tameka');
-    assertEq((await gate({ op: 'auth.2fa', ticket: t2.ticket, code })).error, 'wrong-code', 'the same code cannot be used twice');
-    const TB = await gate({ op: 'auth.2fa', ticket: t2.ticket, code: ' bck-one ' });
-    assert(TB.ok && TB.accountId === TM.acct.id, 'a backup code signs her in (case and spaces do not matter)');
+    assertEq((await gate({ op: 'auth.2fa', ticket: t2.ticket, method: 'totp', code })).error, 'code-used', 'the same code cannot be used twice');
+    const TB = await gate({ op: 'auth.2fa', ticket: t2.ticket, method: 'backup', code: ' bck-one ' });
+    assert(TB.ok && TB.account.id === TM.acct.id, 'a backup code signs her in (case and spaces do not matter)');
     await wait(400);
     const tmAcct = col('voctrain_users').find(a => a.id === TM.acct.id);
     assert(tmAcct.backupCodes.find(c => c.code === 'BCK-ONE').used === true && tmAcct.backupCodes.find(c => c.code === 'BCK-TWO').used === false,
@@ -317,12 +373,14 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     assert(tmAcct.password === TM.acct.password && Date.parse(tmAcct.updatedAt) > Date.parse(TM.acct.updatedAt),
       'the account stamped as the dashboard stamps it, its password untouched');
     const t3 = await signIn(TM.login, 'pw-tameka');
-    assertEq((await gate({ op: 'auth.2fa', ticket: t3.ticket, code: 'BCK-ONE' })).error, 'wrong-code', 'and that backup code is spent');
+    assertEq((await gate({ op: 'auth.2fa', ticket: t3.ticket, method: 'backup', code: 'BCK-ONE' })).error, 'bad-code', 'and that backup code is spent');
 
     /* ---------------------------------------------------------- reading */
     console.log('Pull: the trainee\'s own records, built on request');
     const p1 = await gate({ op: 'pull', token: KS.token });
     const sl = p1.slice;
+    assertEq([p1.h, p1.overlay, Math.abs(Date.parse(p1.serverTime) - Date.now()) < 60000], [sl && sl.hash, { lanes: [], results: [], truncated: false }, true],
+      'with its hash, an empty overlay (what was sent is in the records already) and the server\'s time');
     assert(p1.ok && sl && sl.format === 'cestis-trainee-slice' && sl.accountId === K.acct.id && sl.studentId === K.stu.id, 'a slice for Kemar');
     assertEq(sl.data.voctrain_students.map(s => s.id), [K.stu.id], 'his trainee record only');
     assertEq(sl.access.papers, ['EX-CLOSED', 'EX-OLD', 'EX-OPEN', 'EX-SOON'], 'his programme\'s exams');
@@ -331,17 +389,21 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     assert(NAMES.every(n => sj.indexOf(n) === -1), 'no other trainee\'s id, name or email anywhere in it');
     assert(KEYS.every(k => sj.indexOf('"' + k + '"') === -1), 'and no answer key anywhere in it');
     assert(sj.indexOf('pbkdf2$') === -1 && sj.indexOf('JBSWY3DP') === -1 && sj.indexOf('BCK-') === -1, 'nor any password check, secret or backup code');
-    const same = await gate({ op: 'pull', token: KS.token, hash: sl.hash });
-    assertEq([same.ok, same.same, same.hash, !!same.slice], [true, true, sl.hash, false], 'asked again with its hash: "the same", nothing resent');
+    const same = await gate({ op: 'pull', token: KS.token, have: sl.hash });
+    assertEq([same.ok, same.same, same.h, !!same.slice], [true, true, sl.hash, false], 'asked again with its hash: "the same", nothing resent');
     assertEq((await gate({ op: 'pull', token: KS.token.slice(0, -2) + '00' })).error, 'bad-token', 'a token that was tampered with is refused');
 
     console.log('The paper: own programme, only while open, never a key');
-    const pg = await gate({ op: 'paper.get', token: KS.token, examId: 'EX-OPEN' });
+    const pg = await gate({ op: 'paper', token: KS.token, examId: 'EX-OPEN' });
+    assertEq(pg.centreUtcOffset, OFFSET, 'with the Centre\'s time zone');
     assert(pg.ok && pg.paper && pg.paper.format === 'cestis-exam-paper' && pg.paper.questions.length === 9, 'the open exam\'s paper');
     assert(KEYS.every(k => JSON.stringify(pg.paper).indexOf('"' + k + '"') === -1), 'with no answer key in it');
-    assertEq((await gate({ op: 'paper.get', token: KS.token, examId: 'EX-SOON' })).error, 'not-open', 'an exam not open yet: not-open (by the server\'s clock)');
-    assertEq((await gate({ op: 'paper.get', token: KS.token, examId: 'EX-CLOSED' })).error, 'not-open', 'nor a closed one');
-    assertEq((await gate({ op: 'paper.get', token: KS.token, examId: 'EX-ELEC' })).error, 'unknown-exam', 'another programme\'s exam: unknown');
+    const soon = await gate({ op: 'paper', token: KS.token, examId: 'EX-SOON' });
+    assertEq([soon.error, soon.status], ['not-open', 'upcoming'], 'an exam not open yet: not-open (by the server\'s clock)');
+    const shut = await gate({ op: 'paper', token: KS.token, examId: 'EX-CLOSED' });
+    assertEq([shut.error, shut.status], ['not-open', 'completed'], 'nor a closed one');
+    assertEq((await gate({ op: 'paper', token: KS.token, examId: 'EX-ELEC' })).error, 'unknown-exam', 'another programme\'s exam: unknown');
+    assertEq((await gate({ op: 'attempt.get', token: KS.token, examId: 'EX-ELEC' })).error, 'unknown-exam', 'and its attempts are not asked about');
     assertEq((await gate({ op: 'attempt.get', token: KS.token, examId: 'EX-OPEN' })).state, 'none', 'no attempt yet');
     assertEq((await gate({ op: 'attempt.get', token: KS.token, examId: 'EX-CLOSED' })).state, 'attempt', 'the closed exam\'s saved attempt is found');
 
@@ -396,7 +458,7 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     assertEq([after.page, after.file, after.version], ['LMS Dashboard', 'CESTIS_LMS_Dashboard.json', '1.0'], 'and the file still says what it is');
     assert(historyCount() >= hist0 + 2, 'the versions it replaced are kept in data/.history (' + hist0 + ' → ' + historyCount() + ')');
     const again = await deliver([sent[2]]);
-    assertEq([again[0].ok, again[0].known], [true, true], 'the same support message delivered again is acknowledged, not taken twice');
+    assertEq([again[0].ok, again[0].dup], [true, true], 'the same support message delivered again is acknowledged, not taken twice');
     assertEq(col('voctrain_support_messages').filter(m => m.id === 'SUP-K-1').length, 1, '— still one');
     const resumed = await gate({ op: 'attempt.get', token: KS.token, examId: 'EX-OPEN' });
     assert(resumed.state === 'attempt' && resumed.attempt.id === 'ATT-K-OPEN' && resumed.attempt.answers.filter(a => a !== null).length === 4,
@@ -411,8 +473,8 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
       Object.assign(item(KS, { kind: 'rec', key: 'voctrain_support_messages', rec: { id: 'SUP-TAMPER', message: 'x' } }), { kind: 'rec', key: 'voctrain_users' }),
       item(KS, { kind: 'op', op: { id: 'OP-BC', kind: 'backupCodeUsed', codeHash: G.codeHash('BCK-TWO') } })
     ]);
-    assertEq(foreign.map(r => r.reason), ['not-yours', 'not-yours', 'not-yours', 'bad-seal', 'bad-seal', 'not-yours'],
-      'another trainee\'s student ID, a result, their attempt, another account\'s seal, a tampered item, a spent-code claim');
+    assertEq(foreign.map(r => r.reason), ['not-yours', 'not-yours', 'not-yours', 'revoked', 'bad-seal', 'not-yours'],
+      'another trainee\'s student ID, a result, their attempt, another account under this session, a tampered item, a spent-code claim');
     assert(!col('voctrain_submissions').some(s => s.id === 'SUB-X') && !col('voctrain_examResults').some(r => r.id === 'RES-FAKE'),
       'and none of them reached the records');
     // An item from a session sixty-one days old (sealed as that session would have sealed it).
@@ -450,13 +512,14 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
       'an exam still open: no right answers yet');
     const rvOld = await gate({ op: 'review', token: KS.token, resultId: 'RES-OLD-K' });
     assert(rvOld.ok && rvOld.result.answers.some(a => a.correctAnswer !== undefined), 'a closed exam: the right answers are shown');
-    assertEq((await gate({ op: 'review', token: KS.token, resultId: 'RES-OLD-R' })).error, 'unknown-result', 'another trainee\'s result: unknown');
+    assertEq((await gate({ op: 'review', token: KS.token, resultId: 'RES-OLD-R' })).error, 'not-found', 'another trainee\'s result: not found');
+    assertEq([rvNow.revealed, rvOld.revealed], [false, true], 'and each says whether the answers were released');
 
     console.log('A chat room\'s history, for its members');
     const rm = await gate({ op: 'room.get', token: KS.token, roomId: CHAT });
     assert(rm.ok && rm.room.format === 'cestis-chat-room' && rm.room.messages.some(m => m.id === 'msg-k-1') && rm.room.messages.some(m => m.id === 'msg-1'),
       'his class room, with his message and the class\'s');
-    assertEq((await gate({ op: 'room.get', token: KS.token, roomId: CHAT, sinceEtag: rm.etag })).same, true, 'unchanged since: "the same"');
+    assertEq((await gate({ op: 'room.get', token: KS.token, roomId: CHAT, have: rm.h })).same, true, 'unchanged since: "the same"');
     assertEq((await gate({ op: 'room.get', token: KS.token, roomId: DM_PEER })).error, 'unknown-room', 'a conversation he is not served: unknown');
 
     console.log('A password change ends the old session');
@@ -470,13 +533,21 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     fs.writeFileSync(LMS, JSON.stringify(file));          // as the office's save would land it
     assertEq((await gate({ op: 'pull', token: KS.token })).error, 'revoked', 'the old token is answered "revoked"');
     assertEq((await deliver([oldItem]))[0].reason, 'revoked', 'and so is an item sealed in that session — kept on the device, to be sealed again');
-    assertEq((await signIn(K.login, K.pw)).error, 'wrong-password', 'the old password no longer signs in');
+    assertEq((await signIn(K.login, K.pw)).error, 'no-match', 'the old password no longer signs in');
     const KS2 = await signIn(K.login, 'pw-kemar-NEW');
     assert(KS2.ok && KS2.sid !== KS.sid, 'the new one does, as a new session');
     const resealed = G.seal(Object.assign({}, oldItem, { sid: KS2.sid, mac: undefined }), KS2.sessionKey, crypto);
     assert((await deliver([resealed]))[0].ok && col('voctrain_support_messages').some(m => m.id === 'SUP-K-2'),
       'the item sealed again in the new session is delivered');
     assertEq((await gate({ op: 'pull', token: TS.token })).ok, true, 'and nobody else\'s session was touched');
+
+    console.log('Sign-out: the token reads nothing more, what was sealed is still delivered');
+    const sealedBefore = item(TS, { kind: 'rec', key: 'voctrain_support_messages', rec: { id: 'SUP-T-OUT', message: 'sent after sign-out' } });
+    assertEq(await gate({ op: 'signOut', token: TS.token }), { ok: true }, 'signOut answers {ok:true}');
+    assertEq((await gate({ op: 'pull', token: TS.token })).error, 'signed-out', 'the token is "signed-out" from then on');
+    assert((await deliver([sealedBefore]))[0].ok && col('voctrain_support_messages').some(m => m.id === 'SUP-T-OUT'),
+      'an item sealed in that session is still delivered');
+    assertEq(await gate({ op: 'signOut', token: 'nonsense' }), { ok: true }, 'signing out a token that is no good answers the same');
 
     /* ---------------------------------------------------------- the switch */
     console.log('The staff-only switch, off: the records token exactly as before');
@@ -542,6 +613,7 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     assert((await req('/_cestis/token')).status === 403, 'the token still refused to anyone who asks');
     assert((await req('/_cestis/data', { headers: { 'X-CESTIS-Token': TOKEN2 } })).status === 200, 'and the staff token still works');
     assert((await gate({ op: 'pull', token: KS2.token })).ok, 'as does the trainee\'s session');
+    assertEq((await gate({ op: 'pull', token: TS.token })).error, 'signed-out', 'and a signed-out session stays signed out');
 
     console.log('Off again: the token replaced, and open to every device as before');
     const offR = await flip({ username: 'admin1', password: 'Admin-Pass-1', on: false }, TOKEN2);

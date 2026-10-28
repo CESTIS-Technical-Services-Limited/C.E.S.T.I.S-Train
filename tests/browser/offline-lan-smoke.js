@@ -235,11 +235,11 @@ function serveRoot() {
       if (!s.ok) return { error: s.error };
       const p = await post({ op: 'pull', token: s.token });
       // A support message, sealed here as any trainee's device seals it.
-      const item = { id: 'IT-BROWSER-1', a: s.accountId, sid: s.sid, kind: 'rec', key: 'voctrain_support_messages',
+      const item = { id: 'IT-BROWSER-1', a: s.account.id, sid: s.sid, kind: 'rec', key: 'voctrain_support_messages',
         rec: { id: 'SUP-BROWSER-1', subject: 'Hello', message: 'Sent through the gate', timestamp: Date.now() }, createdAt: new Date().toISOString() };
       item.mac = await hmac(s.sessionKey, CESTISCore.gate.canon(item));
       const d = await post({ op: 'deliver', items: [item] });
-      return { stu: s.studentId, slice: JSON.stringify(p.slice || null), receipt: d.results && d.results[0] };
+      return { stu: s.account.studentId, slice: JSON.stringify(p.slice || null), receipt: d.receipts && d.receipts[0] };
     });
     // The dashboard has moved both trainees onto their stable ids since they were added.
     const ME = dashList('voctrain_students').find(s => s.name === 'Lan Trainee One') || {};
