@@ -8794,12 +8794,44 @@ function openIdleLock(byChoice) {
   openModal('idleLockModal');
   setTimeout(function(){ if(pw) pw.focus(); }, 60);
 }
+/* A trainee signed in at home (a gate session) has no password check on the
+   device — by design, the gate keeps it — so the lock compared her correct
+   password with nothing and said "That password is not correct.": the only
+   way out was Sign Out, which dropped her out of a live class. In a gate
+   session the gate checks the password, exactly as at sign-in (and its limit
+   on wrong tries still applies). A correct password unlocks — a second step,
+   if the account has one, is not asked for here, as it is not on any other
+   device. When the gate cannot be asked, the trainee is told that, never
+   that the password is wrong. → { ok } | { ok:false, text } */
+function idleLockGateVerdict(res) {
+  if(res && res.ok && (res.token || res.need2fa)) return { ok: true };
+  var code = (res && res.error) || 'unreachable';
+  if(code === 'no-match') return { ok: false, text: 'That password is not correct.' };
+  if(code === 'locked' || code === 'disabled' || code === 'rejected' || code === 'ask-office') return { ok: false, text: gateSay(code) };
+  return { ok: false, text: 'Can\'t check your password right now — check your connection and try again.' };
+}
+var _idleLockChecking = false;
 async function idleLockUnlock() {
   var pw = document.getElementById('idleLockPassword'), err = document.getElementById('idleLockError');
-  var acct = currentLoggedInUser && (userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; }) || currentLoggedInUser);
-  var ok = false;
-  try { ok = !!acct && CESTISCore.accountAccess.hasPassword(acct) && await verifyPassword(pw ? pw.value : '', acct.password); } catch(e) { ok = false; }
-  if(!ok) { if(err) { err.textContent = 'That password is not correct.'; err.style.display = 'block'; } if(pw) pw.value = ''; return; }
+  var ok = false, why = 'That password is not correct.';
+  if(typeof cestisGateSession === 'function' && cestisGateSession()) {
+    if(_idleLockChecking) return;
+    var me = currentLoggedInUser || {};
+    var login = String(me.username || me.email || '').trim();
+    _idleLockChecking = true;
+    if(err) { err.textContent = 'Checking your password…'; err.style.display = 'block'; }
+    var res = null;
+    try { res = (login && window.CESTISGate) ? await CESTISGate.signIn({ login: login, password: pw ? pw.value : '' }) : { ok: false, error: 'unreachable' }; }
+    catch(e) { res = { ok: false, error: 'unreachable' }; }
+    _idleLockChecking = false;
+    var v = idleLockGateVerdict(res);
+    ok = v.ok; if(!ok) why = v.text;
+  } else {
+    var acct = currentLoggedInUser && (userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; }) || currentLoggedInUser);
+    try { ok = !!acct && CESTISCore.accountAccess.hasPassword(acct) && await verifyPassword(pw ? pw.value : '', acct.password); } catch(e) { ok = false; }
+  }
+  if(!ok) { if(err) { err.textContent = why; err.style.display = 'block'; } if(pw) pw.value = ''; return; }
+  if(err) { err.textContent = ''; err.style.display = 'none'; }
   _sessionLocked = false;
   _sessionLastActivity = Date.now();
   try { CESTISStore.setItem('voctrain_sessionSeenAt', String(Date.now())); } catch(e) {}   // the owner is back

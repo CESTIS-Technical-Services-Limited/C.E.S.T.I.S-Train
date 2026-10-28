@@ -321,6 +321,30 @@ const GSI_STUB = `(function(){
     ok(/Welding Safety/.test(exams) && /Take Exam/.test(exams), 'My Exams lists her open test, ready to take (' + exams.replace(/\s+/g, ' ').slice(0, 120) + ')');
     await shotAll(page, '04-my-exams');
     ok(ctx._touched.length === 0, 'the phone never asked for the shared files (' + ctx._touched.length + ')');
+    // The idle lock at home. The phone holds no password check (by design),
+    // and the lock used to compare her CORRECT password with nothing: "That
+    // password is not correct.", Sign Out the only way out. The gate checks it.
+    {
+      const lockText = () => page.evaluate(() => ({ locked: document.getElementById('idleLockModal').classList.contains('active'), say: document.getElementById('idleLockError').textContent }));
+      const unlockWith = async (pw, until) => {
+        await page.fill('#idleLockPassword', pw);
+        await page.click('#idleLockModal button:has-text("Unlock")');
+        await page.waitForFunction(re => { const m = document.getElementById('idleLockModal'); const t = document.getElementById('idleLockError').textContent; return re ? new RegExp(re).test(t) : !m.classList.contains('active'); }, until, { timeout: 30000 }).catch(() => {});
+        return lockText();
+      };
+      await page.evaluate(() => lockSessionNow());
+      ok((await lockText()).locked, 'the lock covers her portal');
+      let l = await unlockWith('Not-Her-Pass-9', 'not correct');
+      ok(l.locked && l.say === 'That password is not correct.', 'a wrong password: "That password is not correct." (' + JSON.stringify(l) + ')');
+      ctx._line.down = true;
+      l = await unlockWith(TRAINEE_PASS, 'check your connection');
+      ok(l.locked && /^Can't check your password right now — check your connection and try again\.$/.test(l.say), 'the gate out of reach: she is told it cannot be checked, not that it is wrong (' + JSON.stringify(l) + ')');
+      await shotAll(page, '03b-idle-lock-offline');
+      ctx._line.down = false;
+      l = await unlockWith(TRAINEE_PASS, null);
+      ok(!l.locked, 'her correct password unlocks the session (' + JSON.stringify(l) + ')');
+      ok(await page.evaluate(() => CESTISStore.namespace === 'g1' && currentStudent && currentStudent.name === 'Tameka Richards'), 'and she is still in her own portal, never signed out');
+    }
     shared.tameka = { ctx, page };
     const d1 = await dumpDevice(page);
     const leak1 = privacyScan(d1, T.tameka, shared.accounts);
