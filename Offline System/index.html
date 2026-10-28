@@ -56953,7 +56953,11 @@ function ttRefreshOnShow(){
       });
       certTemplates = next;
     },
-    voctrain_certTemplateCourseMap: function (v) { certTemplateCourseMap = v; }
+    voctrain_certTemplateCourseMap: function (v) { certTemplateCourseMap = v; },
+    // The Administrator's Admin Staff access grid (an "Exam invigilation"
+    // tick, say): on a staff PC already open it applies at once, as it does
+    // after an online sync — applyAdminStaffAccess ignores an older copy.
+    voctrain_adminStaffAccess: function (v) { applyAdminStaffAccess(v); }
   };
 
   /* Another device's work just arrived in storage: take it into memory and
