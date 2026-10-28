@@ -71,6 +71,39 @@ The data rules every change was held to:
 
 ---
 
+## The owner's review round (23–28 October 2026)
+
+After the upgrade above, the Centre's owner reviewed it screen by screen. Everything below was
+shown to the owner in screenshots first, and merged only once approved or decided by them.
+
+| Change | What it does | Where to look |
+|---|---|---|
+| **"Not Yet Competent" considers transcripts** | A trainee whose transcript is complete is no longer marked Not Yet Competent when the course ends. | `Core.courseEnd`, `tests/course-end-transcript.test.js` |
+| **Certificate page 2** | The second column continues beside the first instead of running off the page. A seeded template opened in the editor keeps its "Full-time" course type. | `tests/cert-page2-columns.test.js`, `tests/cert-course-type-editor.test.js` |
+| **The new test platform (Moodle-style)** | Question navigation panel, pages, flags, a summary before submitting, review with marks, question types (multiple choice, multiple answer, true/false, matching, short answer, numerical, essay), an instructor's results table with a column per question. | `tests/browser/exam-platform-preview.js` |
+| **Light and Dark mode** | A sun/moon switch, a Theme choice in Edit Profile, and a switch in the test's navigation panel. Chosen per device; Dark stays the default. Every text colour is measured for contrast in both. | `tests/theme-tokens.test.js` |
+| **No screen says where information is kept** | 1,270 places that named Google, Drive, the cloud, the Centre's server or the "broker" now use neutral words ("Sync Now", "Up to date", "Not synced yet", "Could not sync — try again or ask the office"). A scanner fails the tests if such wording comes back. | `node tools/scan-ui-wording.js`, `tests/ui-no-sync-source-wording.test.js` |
+| **The eight UI improvements** | Search on phones; phone tables that keep the trainee's name in view; no text under 12px; picture descriptions; sign-in answers under the card, the signed-in person and a Lock in the top bar (an account menu on phones); one sync control (a calm "All saved" for trainees); labelled forms instead of `prompt()` boxes; the sibling apps in the dashboard's look, in Light and Dark. | `tests/browser/ui-preview-combined.js`, `ui-preview-a.js`, `ui-preview-b.js` |
+| **Email sign-in and approval** | A trainee approved in the office can sign in on the PC they registered on (it used to say "awaiting approval" until someone pressed Sync Now). The registration screen says truthfully whether it reached the office. Instructors keep one record on shared PCs. The email button is hidden where it cannot work. | `tests/email-signin-approval.test.js`, `tests/browser/email-signin-flow.js` |
+| **Duplicate "Disabled" accounts** | A cleared office PC no longer creates second and third accounts from the fee roll and chat roster. Provable leftovers fold into the real account, with a deletion record so they cannot come back; anything unsure stays for the administrator. | `tests/backfill-stub-fold.test.js` |
+| **"Set a new password"** | The cursor no longer jumps back from "Confirm password" (an intermittent "Passwords do not match" for a first administrator). | `tests/force-change-pw-focus.test.js` |
+| **A test that follows the trainee** | Answers are saved on the device and in the shared copy. Kicked out, crashed or disconnected, the trainee signs in and presses "Continue your attempt"; at another Centre PC too. The original clock stands, the newest answer per question wins, a submitted test cannot be reopened, and there is exactly one result per attempt. A trainee taking a test is not signed out part-way; a test whose time ran out is submitted at the next sign-in. | `tests/exam-attempt-travel.test.js`, `tests/browser/exam-resume.js` |
+| **Shared files' version tags** | Every page asks for the current shared code files (`?v=20261028a`). | — |
+
+**Decisions the owner made in this round:**
+- Trainees register at the Centre (or the office creates their account). A trainee's own phone
+  away from the Centre cannot sync today; it now says so honestly instead of claiming success.
+- Test answers are kept on the device **and** in the shared copy.
+- Each trainee's device should get only that trainee's own data, through a free "gatekeeper"
+  under the Centre's Google account, with a folder per trainee named with their student ID. This
+  is being built in stages; the design is `docs/trainee-gate/DESIGN.md` (added with Stage 1).
+  Until it is set up and switched on, everything works as described here.
+
+**Still waiting on the owner:** the transcript's Date column (built on branch
+`worktree-agent-a2dc79b6e1ddcefed`, commit 8f9f29c, shown in screenshots, not merged).
+
+---
+
 ## Before you deploy — the Centre's checklist
 
 1. **Sign-in passwords.**
@@ -112,12 +145,15 @@ The data rules every change was held to:
    - For the Support form to deliver online, create a support template and set its id
      (`systemSettings.supportEmailTemplateId`). Until then the form offers an e-mail link instead
      of claiming "sent".
-8. **Two decisions only the Centre can make:**
-   - **Core/Elective column.** The official transcript's *Core/Elective* column now prints
-     Core/Elective. It used to print the assessment date. Confirm this matches the approved
-     paper layout.
-   - **Automatic NYC.** The course-end "Not Yet Competent" status still ignores transcript
-     results. Decide whether it should consider them.
+8. **Two decisions only the Centre could make** (both now made, see the review round above):
+   - **Core/Elective column.** The official transcript's *Core/Elective* column prints
+     Core/Elective. The owner asked for a separate Date column as well; it is built and waiting
+     for the owner's confirmation from screenshots.
+   - **Automatic NYC.** Decided: the course-end "Not Yet Competent" status now considers
+     transcript results.
+9. **Light and Dark mode** are chosen per device. Nothing to set up; Dark is the default.
+10. **Trainees taking tests** can continue on another Centre PC. Tell invigilators: a trainee
+    whose PC fails should sign in at another PC and press *Continue your attempt*.
 
 ---
 
@@ -364,14 +400,18 @@ The data rules every change was held to:
   NODE_PATH=/opt/node-tools/node_modules npm run test:browser   # and the other test:browser:* suites
   ```
 - **The browser suites** (`npm run test:browser`, `:flows`, `:upgrade`, `:offline`, `:auth`,
-  `:cert`, `:vc`, `:ui`, `:security`, `:transcripts`, `:fee`) need Playwright's Chromium. Set
-  `NODE_PATH` to wherever `playwright-core` is installed.
+  `:cert`, `:vc`, `:ui`, `:security`, `:transcripts`, `:fee`, `:exams`, `:email`, `:uib`,
+  `:combined`, `:resume`) need Playwright's Chromium. Set `NODE_PATH` to wherever
+  `playwright-core` is installed. Run them one at a time: `:upgrade` and `:resume` each take
+  more than ten minutes (`:resume` can be split with `EXAM_RESUME_ONLY='^[1-4]'` and `'^[5-7]'`).
+- **Before publishing, also run** `node tools/scan-ui-wording.js`. It must report 0: no screen
+  may say where the Centre's information is synced from or kept (the owner's rule).
 - **Never hand-edit a generated file in `Offline System/`.** Change the root file and regenerate.
   Only the server, signalling, store, certificate, launcher and README files there are
   maintained by hand.
 - **When a shared library changes** (`cestis-core.js`, `cestis-page-cloud.js`,
   `cestis-offline-rtc.js`, `finance-docs.js`, `staff-appraisals.js`, `cmc-portal.js`), bump its
-  `?v=` on every page so browsers fetch the new copy. They are all `?v=20261022a` as delivered. The service worker always tries the network
+  `?v=` on every page so browsers fetch the new copy. They are all `?v=20261028a` as delivered. The service worker always tries the network
   first.
 - **New pure logic belongs in `cestis-core.js`** with a Node test, called from the pages. This is
   the pattern the whole upgrade follows.
@@ -387,8 +427,17 @@ These need a real server, or a decision by the Centre. They are documented, not 
 - **Every signed-in device holds the whole Centre dataset.** Access control is enforced in the
   browser. A determined trainee with developer tools can read other people's records on their
   own device. Answer keys travel to trainee devices too: they are no longer in the trainee's
-  attempt, and correct answers are not shown until released. The full fix is role-scoped reads
-  through the MegaData broker (DECISIONS D6).
+  attempt, and correct answers are not shown until released. After a trainee signs out, the
+  device still keeps the account list (with password checks) and the tests. The owner approved
+  the fix, the "trainee gate" (`docs/trainee-gate/DESIGN.md`), which is being built in stages.
+- **Lab PCs keep the Centre's Google account signed in** to the browser after staff press Sync
+  Now, so anyone at that PC could open the Centre's files in another tab. Until the trainee
+  gate's "shared computer" setting arrives, staff should sign that account out of the browser
+  after use.
+- **A trainee's own phone away from the Centre** cannot sync (the owner chose registration at
+  the Centre for now). The trainee gate is what will let trainees sign in from home.
+- **A test moving between devices:** a PC that loses power suddenly may hold up to its last
+  30 seconds of answers that another PC cannot see yet. They are not lost; they stay on that PC.
 - **The Offline System's access key** can be fetched by any device on the Centre network.
   Real per-user sessions on the local server are the next step. Until then any device that has
   the key could also replace a certificate design's background image on the server (devices
@@ -406,10 +455,12 @@ These need a real server, or a decision by the Centre. They are documented, not 
 
 ## Recommendations
 
-### UI improvements not yet made (in priority order)
+### UI improvements (all eight now made)
 
 The UI audit made 159 recommendations, and the ones that could be made safely without touching
-data are done. These are the ones still open, most valuable first.
+data were done in the upgrade. The eight below were left open; **the owner approved all eight in
+the review round and they are now built** (see the table above). They are kept here as the
+record of what each one was for.
 
 1. **Search on phones.** The top search box has no phone layout. An expanding search icon is a
    small, safe change, and the obvious next one.
@@ -448,11 +499,13 @@ data are done. These are the ones still open, most valuable first.
 The auditors also proposed 110 features. These are the ones that matter most for a training
 school, in the order they pay back:
 
-1. **Role-scoped data (the biggest remaining gap).** Have the MegaData broker (already built and
-   in shadow mode) serve each device only what its role may see. It closes the "every device
-   holds everything" limit, keeps answer keys off trainee devices and enables staff-side
-   marking. The architecture is in `docs/02-MEGADATA-ARCHITECTURE.md`; cut-over is
-   `docs/04-BOOTSTRAP-AND-CUTOVER.md`.
+1. **Role-scoped data (the biggest remaining gap) — approved and being built.** For trainees
+   this is the "trainee gate" (`docs/trainee-gate/DESIGN.md`): a free gatekeeper under the
+   Centre's Google account gives each trainee's device only that trainee's records, from a
+   folder named with their student ID; tests reach trainee devices without answer keys and are
+   marked by the gatekeeper; the Centre's own server does the same on its network. Staff devices
+   are unchanged. (The MegaData broker's role-scoped reads, `docs/02-MEGADATA-ARCHITECTURE.md`,
+   remain the longer-term path for staff roles.)
 2. **Audit trails.** One "who changed what, when, and what it was before" log, visible to
    administrators, covering:
    - grades and attendance (both already keep per-record history)
