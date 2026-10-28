@@ -5,7 +5,7 @@
    docs/trainee-gate/DESIGN.md Stage 3. Once an administrator has set up
    "Trainee sign-in from anywhere" and turned it on, every staff computer
    signed in for syncing publishes, beside its 5-second save, the trainees'
-   records (one file per trainee, in a folder named with their student ID
+   records (one file per trainee, in a folder named "<Name> (<student ID>)"
    and found by their account), the papers and answer keys of their exams,
    and their chat rooms; and every minute collects what trainees sent.
 
@@ -20,8 +20,8 @@
      - the build, done a trainee at a time with a pause every 25, gives
        exactly CESTISCore.gate.buildAll's records, papers, keys and rooms, and
        reads nothing outside GATE_STORE_KEYS;
-     - the first publish: every trainee gets a folder named with their
-       student ID, found by the account in its description, holding their
+     - the first publish: every trainee gets a folder named with their name
+       and student ID, found by the account in its description, holding their
        records; answer keys are written before papers, papers before
        trainees' records, those before rooms; every file says what it is and
        what it holds (appProperties: kind, account or exam, hash, stamp);
@@ -34,7 +34,8 @@
        has seen more; two PCs that differ at the same moment settle on one
        copy and never take turns;
      - a trainee renamed (a new student ID): their folder is renamed and
-       their records updated in place — no second folder;
+       their records updated in place — no second folder; a folder still
+       named as before (the student ID alone) is renamed to the new pattern;
      - two PCs making the same trainee's folder at once: the oldest is the
        one, on both; the younger is marked, never deleted or trashed, and
        what a trainee sent into it is still collected;
@@ -44,7 +45,16 @@
        for an account that is gone waits for a decision and is collected
        once the account is back, and a stray file is ignored;
      - the card's wording and the trainees' sign-in link (#gate=…), and the
-       office request queue shows a withdrawn request.
+       office request queue shows a withdrawn request;
+     - registrations from home (§17): one query, collected once into the
+       accounts list as a pending, email-verified trainee account carrying
+       the gate's folder; never over an account the office has, never back
+       after a deletion, never a second account on an address; the folder
+       the gate made is taken on (never a second one) and kept marked while
+       it waits, standard once approved (the records written into it), and
+       marked "rejected" — not deleted — when turned down; the programmes
+       taking trainees are published for the form; an account the office
+       just made is published at once (gatePublishSoon).
 
    Run: node tests/gate-publisher.test.js */
 'use strict';
@@ -53,7 +63,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const Core = require('../cestis-core.js');
-const { makeCentre, NOW, DAY, iso } = require('./gate-fixture.js');
+const { makeCentre, NOW, DAY, iso, crypto: gcrypto } = require('./gate-fixture.js');
 const { FakeDrive } = require('./browser/fake-drive.js');
 
 let passed = 0, failed = 0;
@@ -100,7 +110,7 @@ const FUNCS = ['gateDevRead', 'gateDevWrite', 'gatePublishedState', 'gateCollect
   'gateReadConfig', 'gateFolderAcctOf', 'gateCollectRun', 'gateDriveApi', 'gatePause', 'gateStoreMap', 'gateFoldLog', 'gateIdMoves', 'gateStaffOn',
   'gateKillSwitch', 'gateWithLock', 'gateConfigLoad', 'gatePageEnv', 'gatePublishTick', 'gateCollectTick', 'gateMergeRequests',
   'gateApplyOps', 'gateStaffTick', 'gateHealthVerdict', 'gateStatusText', 'gateSignInLink', 'gateCheckHealth', 'gateOlder', 'gateSeenUntil',
-  'gateSetOffFile', 'gateApplyOffFile'];
+  'gateSetOffFile', 'gateApplyOffFile', 'gateCollectRegistrations', 'gateAddRegistrations', 'gatePublishSoon'];
 const PAGE_CODE = VARS.map(n => extractVar(SRC, n)).concat(FUNCS.map(n => extractFunction(SRC, n))).join('\n');
 
 const GATE_URL = 'https://script.google.com/macros/s/FAKE-GATE/exec';
@@ -143,7 +153,7 @@ function fakeFetch(drive, dev) {
 /* ---------- One staff computer: its own storage and page state ---------- */
 function computer(name, drive, data, opts) {
   opts = opts || {};
-  const dev = { name, requests: [], events: [], merges: [], mergeFail: false, gateDown: false, driveDown: false, health: null };
+  const dev = { name, requests: [], events: [], merges: [], mergeFail: false, gateDown: false, driveDown: false, health: null, notes: [] };
   const ls = new Map(), cache = Object.assign({}, data);
   const localStorage = {
     getItem: k => (ls.has(k) ? ls.get(k) : null),
@@ -191,7 +201,13 @@ function computer(name, drive, data, opts) {
       });
       return true;
     },
-    findSkillAreaForCourse: c => Core.enrolment.findCentre(parse('voctrain_skillAreas') || [], c, { nowMs: Date.now() })
+    findSkillAreaForCourse: c => Core.enrolment.findCentre(parse('voctrain_skillAreas') || [], c, { nowMs: Date.now() }),
+    // Registrations from home (§17): the page's own list of programmes taking
+    // trainees, and the one account rule (here: added by id, once).
+    officeEnrollingProgrammes: () => (opts.programmes || []).slice(),
+    mergeCloudAccounts: list => { let n = 0; list.forEach(a => { if (!sb.userAccounts.some(u => u.id === a.id)) { sb.userAccounts.push(Object.assign({}, a)); n++; } }); return n; },
+    addNotification: (text, type, icon, roles, id) => { dev.notes.push({ text, id }); }, renderVerifyUsersPage: () => {},
+    localDateStr: d => (d instanceof Date ? d : new Date()).toISOString().slice(0, 10)
   };
   // Timers: a pause or a wait is noted and then let go at once (the turn
   // still waits for it, so the order of events is the real one).
@@ -347,7 +363,7 @@ function bigCentre(n) {
     assertEq(folders.length, 40, '40 trainee folders');
     const byAcct = {};
     folders.forEach(f => { byAcct[A.sb.gateFolderAcct(f.description)] = f; });
-    assert(C.trainees.every(t => byAcct[t.acct.id] && byAcct[t.acct.id].name === t.stu.id), 'each named with the trainee\'s student ID and found by the account in its description');
+    assert(C.trainees.every(t => byAcct[t.acct.id] && byAcct[t.acct.id].name === t.stu.name + ' (' + t.stu.id + ')'), 'each named "<Name> (<student ID>)" and found by the account in its description');
     assert(folders.every(f => /^cestis-trainee acct=USR-T\d\d v=1$/.test(f.description) && f.appProperties.cestisKind === 'folder' && f.appProperties.cestisGate === '1'), 'descriptions read "cestis-trainee acct=… v=1"');
     const slices = C.trainees.map(t => filesIn(drive, byAcct[t.acct.id].id).filter(f => f.name === 'from-centre.json'));
     assert(slices.every(l => l.length === 1), 'each folder holds the trainee\'s records once (from-centre.json)');
@@ -524,7 +540,7 @@ function bigCentre(n) {
     await A.tick();
     const renames = A.requests.slice(r0).filter(r => r.method === 'PATCH' && r.url.indexOf('/drive/v3/files/' + folder.id) !== -1);
     assertEq(renames.length, 1, 'one rename of that folder');
-    assertEq(drive.files[folder.id].name, newId, 'the folder now carries the new student ID');
+    assertEq(drive.files[folder.id].name, 'Dwayne Thompson-Campbell (' + newId + ')', 'the folder now carries the new name and student ID');
     assertEq(filesIn(drive, cfg.traineesId).length, before, 'no second folder');
     const inside = filesIn(drive, folder.id).filter(f => f.name === 'from-centre.json');
     assert(inside.length === 1 && JSON.parse(inside[0].content).studentId === newId, 'the records in it say the new student ID, in place');
@@ -532,8 +548,16 @@ function bigCentre(n) {
     // B, behind, does not rename it back.
     B.forceBuild(); B.forceLook();
     await B.tick();
-    assertEq(drive.files[folder.id].name, newId, 'a PC that has not seen the rename does not rename it back');
+    assertEq(drive.files[folder.id].name, 'Dwayne Thompson-Campbell (' + newId + ')', 'a PC that has not seen the rename does not rename it back');
     B.cache.voctrain_users = A.cache.voctrain_users; B.cache.voctrain_students = A.cache.voctrain_students;
+    // A folder still named the way it was before (the student ID alone) is brought to the new name, once.
+    const t7 = C.trainees[6], f7 = filesIn(drive, cfg.traineesId).find(f => A.sb.gateFolderAcct(f.description) === t7.acct.id);
+    drive.put(f7.id, { name: t7.stu.id }, null);
+    A.forceBuild(); A.forceLook();
+    const r1 = A.requests.length;
+    await A.tick();
+    assertEq(drive.files[f7.id].name, t7.stu.name + ' (' + t7.stu.id + ')', 'a folder named with the student ID alone is renamed "<Name> (<student ID>)"');
+    assertEq(A.requests.slice(r1).filter(r => r.method === 'PATCH' && r.url.indexOf('/drive/v3/files/' + f7.id) !== -1).length, 1, 'with one rename, nothing else');
   }
 
   /* ------------------------------------------------ duplicate folders */
@@ -721,6 +745,116 @@ function bigCentre(n) {
     for (let i = 0; i < 3; i++) Q.sb.gateStaffTick();
     await new Promise(r => setTimeout(r, 50));
     assertEq(Q.requests.length - n0, 0, 'and with the gate off, nothing more after that');
+  }
+
+  /* ------------------------------------------------ registrations from home (§17) */
+  console.log('Registrations from home: collected once as pending accounts; the gate\'s folder taken on (never a second), marked while waiting, rejected kept and marked');
+  {
+    const g = gateDrive(), F = 'application/vnd.google-apps.folder', P0 = C.PROGRAMMES[0].name, P2 = C.PROGRAMMES[2].name;
+    const R = computer('R', g.drive, Object.assign({}, C.asStrings), { settings: ON, programmes: [P2, P0] });
+    const secret = 'ab'.repeat(32);
+    // What the gate leaves for one registration: the folder, then the file.
+    const asGate = (name, email, programme, phone) => {
+      const acct = Core.gate.reg.accountId(email, secret, gcrypto);
+      const value = Core.gate.reg.check({ name, programme, phone, password: 'pbkdf2$210000$' + '0a'.repeat(16) + '$' + '1b'.repeat(32) }, [P0, P2]).value;
+      const fold = g.drive.put(null, { name: Core.gate.folderName(value.name, Core.gate.reg.studentId(value.name, value.programme)), mimeType: F,
+        parents: [g.cfg.traineesId], description: Core.gate.folderDescription(acct, 'pending') }, '');
+      const file = g.drive.put(null, { name: Core.gate.reg.fileName(acct), parents: [g.cfg.registrationsId] },
+        JSON.stringify(Core.gate.reg.build({ acct, email, value, folder: { id: fold.id, name: fold.name }, nowMs: clock() })));
+      return { acct, fold, file, stu: Core.gate.reg.studentId(value.name, value.programme) };
+    };
+    const T = asGate('Shantelle Barrett', 'shantelle.barrett@mail.test', P0, '876-555-0101');
+    const K = asGate('Kevaughn Blake', 'kevaughn.blake@mail.test', P2, '');
+    // Not registrations: another name, and one already the office's.
+    g.drive.put(null, { name: 'CESTISREG.notes.txt', parents: [g.cfg.registrationsId] }, 'not one');
+    const dupEmail = C.trainees[3].acct.email;
+    const D = asGate('Dupli Cate', dupEmail, P0, '');
+    const n0 = R.requests.length;
+    let res = await R.collect();
+    const regLooks = R.requests.slice(n0).filter(r => r.method === 'GET' && /CESTISREG/.test(decodeURIComponent(r.url)) && /files\?q=/.test(r.url));
+    assertEq(regLooks.length, 1, 'one query for the registrations');
+    const a = R.sb.userAccounts.find(u => u.id === T.acct);
+    assert(!!a && a.status === 'pending' && a.role === 'student' && a.registeredVia === 'home-registration' && a.googleVerified === true, 'a registration becomes a PENDING trainee account, its address verified');
+    assert(!!a && a.gateFolderId === T.fold.id && a.phone === '876-555-0101' && a.programme === P0 && a.name === 'Shantelle Barrett' && /^pbkdf2\$/.test(a.password),
+      'with the folder the gate made, the phone, the programme and the password check (never the password)');
+    assert(!!a && a.username === 'shantelle.barrett' && !a.studentDataId, 'a username from the address; no trainee record until the office approves');
+    assertEq((res.registrations.added || []).sort(), [T.acct, K.acct].sort(), 'both registrations collected');
+    assert(!R.sb.userAccounts.some(u => u.id === D.acct), 'an address another account already has is not made a second account');
+    assertEq(R.notes.filter(n => n.id === 'NOTIF-reg-' + T.acct).length, 1, 'the office is told, once (its notice is named by the account)');
+    res = await R.collect();
+    assertEq([R.sb.userAccounts.filter(u => u.id === T.acct).length, res.registrations.files], [1, 0], 'a second turn reads nothing again and adds nothing');
+    // A newer version of the same file (sent again: the gate never does — a person editing it might): the office's copy stands.
+    g.drive.put(T.file.id, null, JSON.stringify(Object.assign(JSON.parse(g.drive.files[T.file.id].content), { name: 'Tampered Name' })));
+    await R.collect();
+    assertEq(R.sb.userAccounts.find(u => u.id === T.acct).name, 'Shantelle Barrett', 'an account already here is never overwritten by a registration file');
+    // A registration whose account the office deleted is not brought back.
+    const Z = asGate('Zara Deleted', 'zara@mail.test', P0, '');
+    R.cache.voctrain_deletedUserIds = JSON.stringify([Z.acct]);
+    R.sb.safeJsonParse = (s, f) => { try { return s ? JSON.parse(s) : f; } catch (e) { return f; } };
+    await R.collect();
+    assert(!R.sb.userAccounts.some(u => u.id === Z.acct), 'a registration the office deleted is never brought back');
+
+    // The publisher: the folders the gate made are taken on, never a second one.
+    R.forceBuild(); R.forceLook();
+    for (let i = 0; i < 2; i++) await R.tick();
+    const mine = acct => filesIn(g.drive, g.cfg.traineesId).filter(f => (f.description || '').indexOf('acct=' + acct) !== -1);
+    assertEq([mine(T.acct).length, mine(K.acct).length], [1, 1], 'no second folder for a registration');
+    const tf = g.drive.files[T.fold.id];
+    assert(tf.appProperties.cestisGate === '1' && tf.appProperties.acct === T.acct, 'the gate\'s folder is taken on as the trainee\'s (every PC\'s listing sees it now)');
+    assertEq([tf.name, tf.description], ['Shantelle Barrett (' + T.stu + ')', Core.gate.folderDescription(T.acct, 'pending')], 'named "<Name> (<student ID>)", still marked waiting');
+    assert(!filesIn(g.drive, T.fold.id).some(f => f.name === 'from-centre.json'), 'and nothing is published for a registration still waiting');
+    const cat = filesIn(g.drive, g.cfg.registrationsId).filter(f => f.name === 'catalogue.json');
+    assert(cat.length === 1 && JSON.stringify(Core.gate.reg.catalogueNames(JSON.parse(cat[0].content))) === JSON.stringify([P2, P0].sort()) &&
+      cat[0].appProperties.cestisKind === 'catalogue', 'the programmes taking trainees are published for the registration form (catalogue.json)');
+
+    // Approved: the trainee's record is made, and the records go into THAT folder.
+    const ua = R.sb.userAccounts.find(u => u.id === T.acct);
+    ua.status = 'active'; ua.approvedAt = '2026-11-02'; ua.approvedBy = 'admin'; ua.studentDataId = T.stu; ua.updatedAt = new Date(clock() + 1000).toISOString();
+    const studs = JSON.parse(R.cache.voctrain_students);
+    studs.push({ id: T.stu, name: 'Shantelle Barrett', course: P0, stage: 'training', email: 'shantelle.barrett@mail.test', lastModified: ua.updatedAt });
+    R.cache.voctrain_students = JSON.stringify(studs); R.sb.students = studs;
+    // Rejected: the other one.
+    const uk = R.sb.userAccounts.find(u => u.id === K.acct);
+    uk.status = 'rejected'; uk.approvedAt = '2026-11-02'; uk.approvedBy = 'admin'; uk.updatedAt = ua.updatedAt;
+    R.sb.saveUserAccounts();
+    R.sb.gatePublishSoon();
+    for (let i = 0; i < 40 && (R.sb._gateRun.publishing || R.sb._gateRun.buildNow); i++) await new Promise(r => setTimeout(r, 20));
+    await R.tick();
+    assertEq([mine(T.acct).length, mine(K.acct).length], [1, 1], 'approved or rejected: still one folder each');
+    assertEq(g.drive.files[T.fold.id].description, Core.gate.folderDescription(T.acct, ''), 'approved: the waiting mark goes');
+    const rec = filesIn(g.drive, T.fold.id).filter(f => f.name === 'from-centre.json');
+    assert(rec.length === 1 && JSON.parse(rec[0].content).accountId === T.acct && JSON.parse(rec[0].content).studentId === T.stu, 'and the trainee\'s records are written into the folder the gate made');
+    const kf = g.drive.files[K.fold.id];
+    assert(kf && !kf.trashed && kf.description === Core.gate.folderDescription(K.acct, 'rejected'), 'rejected: the folder is kept, marked "registration=rejected"');
+    assert(Object.values(g.drive.files).every(f => !f.trashed) && R.requests.every(r => r.method !== 'DELETE'), 'nothing deleted or binned');
+    // A folder the gate made that has gone (moved away): this PC makes one instead.
+    const W = asGate('Wesley Moved', 'wesley@mail.test', P2, '');
+    await R.collect();
+    g.drive.put(W.fold.id, { parents: ['somewhere-else'] }, null);
+    const uw = R.sb.userAccounts.find(u => u.id === W.acct);
+    const wstu = Core.gate.reg.studentId('Wesley Moved', P2);
+    uw.status = 'active'; uw.studentDataId = wstu; uw.updatedAt = new Date(clock() + 3000).toISOString();
+    const st2 = JSON.parse(R.cache.voctrain_students); st2.push({ id: wstu, name: 'Wesley Moved', course: P2, stage: 'training', lastModified: uw.updatedAt });
+    R.cache.voctrain_students = JSON.stringify(st2); R.sb.saveUserAccounts();
+    for (let i = 0; i < 3; i++) { R.forceBuild(); R.forceLook(); await R.tick(); }
+    const wnew = mine(W.acct).filter(f => f.parents.indexOf(g.cfg.traineesId) !== -1);
+    assert(wnew.length === 1 && wnew[0].id !== W.fold.id && wnew[0].name === 'Wesley Moved (' + wstu + ')' && filesIn(g.drive, wnew[0].id).some(f => f.name === 'from-centre.json'),
+      'a gate folder that is no longer in Trainees/ is not used: a new one is made, with the records');
+
+    // The office makes an account: published at once (gatePublishSoon), even right after a build.
+    const nstu = Core.stableStudentId({ name: 'Marlon Samuda', course: P2 });
+    R.sb.userAccounts.push({ id: 'USR-office1', name: 'Marlon Samuda', role: 'student', username: 'marlon.samuda', email: 'marlon.samuda@mail.test', programme: P2, status: 'active',
+      studentDataId: nstu, password: 'pbkdf2$210000$' + '0a'.repeat(16) + '$' + '1b'.repeat(32), registeredVia: 'admin-created', createdByRole: 'adminstaff' });
+    const st3 = JSON.parse(R.cache.voctrain_students); st3.push({ id: nstu, name: 'Marlon Samuda', course: P2, stage: 'training', lastModified: new Date(clock()).toISOString() });
+    R.cache.voctrain_students = JSON.stringify(st3); R.sb.saveUserAccounts();
+    assert(R.sb._gateRun.builtAt && Date.now() - 0 >= 0, 'a build was made a moment ago');
+    assertEq(R.sb.gatePublishSoon(), true, 'the office\'s new account asks for a turn now');
+    for (let i = 0; i < 100 && (R.sb._gateRun.publishing || R.sb._gateRun.buildNow || R.sb._gateRun.again); i++) await new Promise(r => setTimeout(r, 20));
+    const of = mine('USR-office1');
+    assert(of.length === 1 && of[0].name === 'Marlon Samuda (' + nstu + ')' && filesIn(g.drive, of[0].id).some(f => f.name === 'from-centre.json'),
+      'her folder "Marlon Samuda (' + nstu + ')" is made, with her records, in the same moment');
+    const off = computer('off2', g.drive, Object.assign({}, C.asStrings), { settings: { traineeGate: { url: GATE_URL, enabled: false } } });
+    assertEq([off.sb.gatePublishSoon(), off.requests.length], [false, 0], 'with the gate off: nothing at all');
   }
 
   /* ------------------------------------------------ the card */

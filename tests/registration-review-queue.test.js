@@ -105,9 +105,13 @@ assertEq(AA.registrationRole(' INSTRUCTOR '), 'instructor', 'whatever its case')
 
   /* ---------- 3. Approve All / Approve / Reject All ---------- */
   console.log('Approve All, Approve and Reject All act on that queue only');
-  function bulk(fn, list, role) {
+  function bulk(fn, list, role, access) {
     const notes = [];
+    // (Admin Staff may now decide on trainees' accounts — accountReviewAllowed;
+    // a decision also asks the publisher to run: gatePublishSoon.)
     const sb2 = { CESTISCore: Core, console: console, userAccounts: list, currentRole: role || 'admin',
+      adminStaffAccessSettings: Object.assign({ traineeaccounts: true }, access || {}), currentLoggedInUser: { name: 'Marcia Thompson', username: 'mthompson' },
+      gatePublishSoon: function () {}, saveUserAccounts: function () {},
       confirm: function () { return true; }, alert: function (m) { notes.push(m); },
       localDateStr: function () { return '2026-10-20'; },
       touchAccount: function (a) { a.updatedAt = '2026-10-20T10:00:00.000Z'; },
@@ -116,7 +120,7 @@ assertEq(AA.registrationRole(' INSTRUCTOR '), 'instructor', 'whatever its case')
       saveState: function () {}, renderVerifyUsersPage: function () {}, refreshStudentDependentViews: function () {},
       showToast: function () {}, addNotification: function () {}, openResetPassword: function () {} };
     vm.createContext(sb2);
-    vm.runInContext(['approveAllPending', 'rejectAllPending', 'approveUser'].map(function (n) { return extractFunction(SRC, n); }).join('\n'), sb2);
+    vm.runInContext(['approveAllPending', 'rejectAllPending', 'approveUser', 'accountReviewAllowed', 'stampReviewer'].map(function (n) { return extractFunction(SRC, n); }).join('\n'), sb2);
     vm.runInContext(fn, sb2);
     return { list: sb2.userAccounts, notes: notes };
   }
@@ -132,7 +136,19 @@ assertEq(AA.registrationRole(' INSTRUCTOR '), 'instructor', 'whatever its case')
   assertEq(r.list.find(function (u) { return u.id === 'P2'; }).status, 'pending', 'a single Approve refuses a staff-role self-registration too');
   assert(r.notes.length === 1, 'and says why');
   r = bulk('approveAllPending()', clone(), 'student');
-  assertEq(r.list.find(function (u) { return u.id === 'P1'; }).status, 'pending', 'nobody but an administrator can approve');
+  assertEq(r.list.find(function (u) { return u.id === 'P1'; }).status, 'pending', 'nobody but the office can approve');
+  r = bulk('approveAllPending()', clone(), 'instructor');
+  assertEq(r.list.find(function (u) { return u.id === 'P1'; }).status, 'pending', 'not an instructor either');
+  // The owner: the office approves what trainees register — Admin Staff are the office too.
+  r = bulk('approveAllPending()', clone().concat([{ id: 'I1', role: 'instructor', status: 'pending', registeredVia: 'registration' }]), 'adminstaff');
+  const st2 = {}; r.list.forEach(function (u) { st2[u.id] = u.status + '/' + (u.approvedBy || ''); });
+  assertEq([st2.P1, st2.F1, st2.P2, st2.I1].join(' '), ['active/adminstaff', 'active/adminstaff', 'pending/', 'pending/'].join(' '),
+    'Admin Staff approve the trainees\' accounts in the queue — never a staff role, never an instructor\'s');
+  r = bulk('approveAllPending()', clone(), 'adminstaff', { traineeaccounts: false });
+  assertEq(r.list.find(function (u) { return u.id === 'P1'; }).status, 'pending', 'and nothing when the Administrator switched it off');
+  r = bulk("approveUser('P1')", clone(), 'adminstaff');
+  const p1a = r.list.find(function (u) { return u.id === 'P1'; });
+  assertEq([p1a.status, p1a.approvedBy, p1a.approvedByName].join('|'), 'active|adminstaff|Marcia Thompson', 'one approval says who made it');
 
   r = bulk('rejectAllPending()', clone());
   const p1 = r.list.find(function (u) { return u.id === 'P1'; });

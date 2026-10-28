@@ -8476,9 +8476,90 @@
        role — tampered, or from a version before the rule above. Approving it
        must never be one click. */
     function isPrivilegedSelfRegistration(account) {
-      if (!account || account.registeredVia !== 'registration') return false;
+      if (!account || (account.registeredVia !== 'registration' && account.registeredVia !== 'home-registration')) return false;
       var r = String(account.role || '').trim().toLowerCase();
-      return r !== 'student' && r !== 'instructor';
+      // A registration from home is a trainee's, always (the trainee gate files nothing else).
+      return account.registeredVia === 'home-registration' ? r !== 'student' : (r !== 'student' && r !== 'instructor');
+    }
+
+    /* Is this a person's full name — a first name AND a last name? Two or
+       more words of two letters or more, titles (Mr, Mrs, Dr …) not counted.
+       It is the rule every account form already applies (Staff Appraisals'
+       sappIsFullName in staff-appraisals.js, kept equal to this by
+       tests/office-trainee-accounts.test.js); it is here as well so the
+       trainee gate, which has no page of its own, applies the same one. */
+    var NAME_TITLES = { mr: 1, mrs: 1, ms: 1, miss: 1, dr: 1, prof: 1, hon: 1, rev: 1 };
+    function isFullName(name) {
+      var toks = String(name == null ? '' : name).toLowerCase().replace(/[-_.,'’]/g, ' ').split(/\s+/)
+        .filter(function (t) { return t && !NAME_TITLES[t] && t.length >= 2; });
+      return toks.length >= 2;
+    }
+
+    /* May the office create this account? (The owner: "both the office admin
+       staff and administrators can create accounts for students".)
+
+       An administrator may create any role. Admin Staff may create TRAINEE
+       accounts only — never an administrator, admin staff, instructor or
+       board login — and only while the Administrator leaves "Trainee
+       accounts" ticked in Admin Staff access (actor.allowed). Every account
+       answers to the rules each sign-up form already follows: a full name, no
+       markup in a name or address, a username nobody holds (in any case), a
+       password of six characters or more, a programme for anybody who is not
+       office staff. A trainee account also needs an email address nobody
+       holds (in any case, any role — the registration form's rule, so email
+       sign-in can never name two people; left blank, it is not checked) and
+       a programme that is taking trainees now (opts.enrolBlock: the page's
+       courseEnrolmentBlockReason() for it).
+         actor: { role, allowed }   draft: { role, name, username, email, programme, password }
+       → null when it may be created, else { code, message }. */
+    var STAFF_ROLES = { admin: 1, adminstaff: 1, cmc: 1 };
+    // A phone number as people write one: digits, spaces, + - . ( ), 7–20 long.
+    var PHONE_RE = /^(?=(?:\D*\d){7})[0-9+()\-.\s]{7,20}$/;
+    function officeCreateRefusal(actor, draft, accounts, opts) {
+      opts = opts || {};
+      actor = actor || {};
+      draft = draft || {};
+      var who = String(actor.role || '').trim().toLowerCase();
+      var role = String(draft.role || '').trim().toLowerCase();
+      var no = function (code, message) { return { code: code, message: message }; };
+      if (who !== 'admin' && who !== 'adminstaff') return no('not-allowed', 'Only the office can create accounts.');
+      if (who === 'adminstaff' && actor.allowed === false) {
+        return no('not-allowed', 'Creating trainee accounts has been switched off for Admin Staff by the Administrator.');
+      }
+      if (who === 'adminstaff' && role !== 'student') return no('role', 'Admin Staff can create trainee accounts only.');
+      if (!role) return no('missing', 'Please choose a role.');
+      var name = String(draft.name == null ? '' : draft.name).trim();
+      var username = String(draft.username == null ? '' : draft.username).trim();
+      var email = String(draft.email == null ? '' : draft.email).trim();
+      var password = String(draft.password == null ? '' : draft.password);
+      if (!name || !username || !password) return no('missing', 'Please fill in Name, Username, and Password.');
+      if (!isFullName(name)) {
+        return no('full-name', role === 'student'
+          ? 'Please enter the trainee\'s FULL name — first name AND last name (e.g. "John Smith").'
+          : 'Please enter the user\'s FULL name — first name AND last name (e.g. "John Smith").\n\nThe full name is required to link staff to their Payslip employee record.');
+      }
+      if (/[<>]/.test(name) || /[<>"]/.test(email) || /[<>"]/.test(username)) {
+        return no('markup', 'Names, usernames and email addresses cannot contain < > or " characters.');
+      }
+      if (password.length < 6) return no('password', 'Password must be at least 6 characters.');
+      if (draft.phone != null && String(draft.phone).trim() && !PHONE_RE.test(String(draft.phone).trim())) {
+        return no('phone', 'Please enter the phone number with digits only (spaces and + - ( ) are fine), or leave it blank.');
+      }
+      var list = Array.isArray(accounts) ? accounts : [];
+      var un = username.toLowerCase();
+      if (list.some(function (u) { return u && String(u.username || '').trim().toLowerCase() === un; })) return no('username-taken', 'Username already exists.');
+      if (!STAFF_ROLES[role] && !String(draft.programme == null ? '' : draft.programme).trim()) return no('programme', 'Please select a programme.');
+      if (role === 'student') {
+        if (email) {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return no('email', 'Please enter a valid email address, or leave it blank.');
+          var em = email.toLowerCase();
+          if (list.some(function (u) { return u && String(u.email || '').trim().toLowerCase() === em; })) {
+            return no('email-taken', 'An account with this email already exists. Find it in the accounts list instead of creating a second one.');
+          }
+        }
+        if (opts.enrolBlock) return no('enrol', String(opts.enrolBlock));
+      }
+      return null;
     }
 
     /* What Verify Users lists, and what Approve All / Reject All act on.
@@ -8773,6 +8854,7 @@
       isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin, toolDefaultLogin: toolDefaultLogin,
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
+      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
       isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
       backfillStubFolds: backfillStubFolds,
@@ -14197,7 +14279,8 @@
     var VERSION = 1;
     var FORMAT = {
       slice: 'cestis-trainee-slice', paper: 'cestis-exam-paper', key: 'cestis-exam-key',
-      room: 'cestis-chat-room', inbox: 'cestis-trainee-inbox', result: 'cestis-gate-result'
+      room: 'cestis-chat-room', inbox: 'cestis-trainee-inbox', result: 'cestis-gate-result',
+      registration: 'cestis-registration', catalogue: 'cestis-programme-catalogue'
     };
     /* Keys that describe THIS device's part in the gate. None of them may
        ever reach another device: the master snapshot (Core.isSnapshotableKey)
@@ -14539,9 +14622,11 @@
        it may not (st: Core.accountAccess.check's reason), its password check
        (pw), whether it is still a published default (sd), its two-step
        secret (tf), whether it signs in with emailed codes (eo) and to which
-       address (em), its unused backup codes, trimmed and upper case (bc), and
-       its record link (sdi). Then who answers to each username (user) and
-       each email (mail), in lower case. → { n, a: { id: entry }, user, mail } */
+       address (em), its unused backup codes, trimmed and upper case (bc), its record link
+       (sdi) and its name (nm: the gate finds a folder named "<Name> (<student
+       ID>)" by that name without a search, §17). Then who answers to each
+       username (user) and each email (mail), in lower case.
+       → { n, a: { id: entry }, user, mail } */
     function indexAccounts(accounts, deletedUserIds, crypto) {
       var A = Core.accountAccess, del = {};
       (Array.isArray(deletedUserIds) ? deletedUserIds : []).forEach(function (id) { if (id != null && id !== '') del[id] = true; });
@@ -14561,7 +14646,8 @@
           eo: acc.emailOtpLogin && EMAIL_RE.test(email) ? 1 : 0, em: email,
           bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(function (c) { return c && c.code && !c.used; })
             .map(function (c) { return str(c.code).trim().toUpperCase(); }),
-          sdi: acc.studentDataId != null ? str(acc.studentDataId) : ''
+          sdi: acc.studentDataId != null ? str(acc.studentDataId) : '',
+          nm: str(acc.name).trim()
         };
         var add = function (map, v) { v = lower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
         add(idx.user, acc.username); add(idx.mail, acc.email);
@@ -16237,7 +16323,173 @@
       return { ok: checks.every(function (c) { return c.ok; }), version: VERSION, checks: checks };
     }
 
+    /* ---- A trainee's folder: its name and its description (DESIGN.md §17)
+       A trainee's folder in Trainees/ is named "<Full Name> (<student ID>)",
+       e.g. "Tameka Richards (STU-3wfiayryzq)": the owner asked first for the
+       student ID, then for the trainee's name, and this keeps both, so the
+       office finds a folder by either. It is still FOUND by the account in
+       its description ("cestis-trainee acct=USR-… v=1"), never by its name,
+       because names and student IDs change; the oldest folder naming an
+       account is that account's (every reader's rule). A registration from
+       home adds one word to the description while it waits
+       ("registration=pending"), another if the office turns it down
+       ("registration=rejected"). No folder is ever deleted or binned. */
+    var FOLDER_NAME_MAX = 100;
+    function folderName(name, stu) {
+      var n = str(name).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/[\\/]/g, '-').replace(/\s+/g, ' ').trim();
+      if (n.length > FOLDER_NAME_MAX) n = n.slice(0, FOLDER_NAME_MAX).trim();
+      var s = str(stu).trim();
+      if (!n) return s;
+      return s ? n + ' (' + s + ')' : n;
+    }
+    var FOLDER_MARKS = { pending: 1, rejected: 1 };
+    function folderDescription(acct, mark) {
+      return 'cestis-trainee acct=' + str(acct) + ' v=1' + (FOLDER_MARKS[mark] ? ' registration=' + mark : '');
+    }
+    function folderMark(description) {
+      var m = /(?:^|\s)registration=(pending|rejected)(?:\s|$)/.exec(str(description));
+      return m ? m[1] : '';
+    }
+    // The mark an account's folder carries: a registration still waiting, or one the office turned down.
+    function folderMarkFor(account) {
+      var st = lower(account && account.status);
+      return st === 'pending' ? 'pending' : st === 'rejected' ? 'rejected' : '';
+    }
+
+    /* ---- Registration from home (DESIGN.md §17) ---------------------------
+       The owner: trainees register at home, for the office to approve; they
+       must use their own email account (a Google one) to sign in, so the
+       account that reaches the office is theirs. The gate takes a
+       registration only with a sign-in token Google gave the dashboard
+       (aud), for a verified address, and then — in the same request — keeps
+       the registration in Registrations/ and makes the trainee's own folder
+       in Trainees/. The rules for both are here (pure); the gate does the
+       reading and writing; the staff collector (index.html) brings each
+       registration into the accounts list as 'pending', for Verify Users.
+
+       One account per address, however often it is sent: the account id is
+       worked out from the address with the gate's own secret
+       (regAccountId), so the same person always gets the same id, the same
+       file (CESTISREG.<id>.json) and the same folder — never two. */
+    var REG_FILE_PREFIX = 'CESTISREG.';
+    var REG_ID_PREFIX = 'USR-home-';
+    var STORED_PW_RE = /^pbkdf2\$(\d{5,7})\$([0-9a-f]{32})\$([0-9a-f]{64})$/;
+    var REG_NAME_MAX = 80;
+    function regAccountId(email, secret, crypto) { return REG_ID_PREFIX + hmac(crypto, secret, 'reg|' + lower(email)).slice(0, 20); }
+    function regFileName(acct) { return REG_FILE_PREFIX + str(acct) + '.json'; }
+    function isRegFileName(name) { return /^CESTISREG\.USR-home-[0-9a-f]{20}\.json$/.test(str(name)); }
+    // The student ID the dashboard will give this trainee — its own function, so the two always agree.
+    function regStudentId(name, programme) { return Core.stableStudentId({ name: str(name), course: str(programme) }) || ''; }
+    function cleanName(name) { return str(name).replace(/\s+/g, ' ').trim(); }
+
+    /* The programmes a trainee may register for: the ones taking trainees
+       now, which staff devices publish (Registrations/catalogue.json) — the
+       same list the office's own "Add Trainee Account" offers. */
+    function buildCatalogue(programmes, nowMs) {
+      var seen = dict(), names = [];
+      (Array.isArray(programmes) ? programmes : []).forEach(function (p) {
+        var n = str(isObj(p) ? p.name : p).trim();
+        if (n && !seen[n]) { seen[n] = 1; names.push(n); }
+      });
+      names.sort(function (a, b) { return a < b ? -1 : a > b ? 1 : 0; });
+      var body = { format: FORMAT.catalogue, version: VERSION, programmes: names.map(function (n) { return { name: n }; }) };
+      body.hash = hashOf({ programmes: body.programmes });
+      body.builtAt = iso(nowMs);
+      return body;
+    }
+    // The programme names a published catalogue offers ([] for anything that is not one).
+    function catalogueNames(cat) {
+      if (!isObj(cat) || cat.format !== FORMAT.catalogue || Number(cat.version) > VERSION || !Array.isArray(cat.programmes)) return [];
+      return cat.programmes.map(function (p) { return str(isObj(p) ? p.name : p).trim(); }).filter(Boolean);
+    }
+
+    /* What the registration form sends, checked: the full name (first and
+       last — Core.accountAccess.isFullName, the rule of every account form),
+       a programme from the catalogue, an optional phone, and the password as
+       the dashboard stores one (pbkdf2$<iterations>$<salt>$<hash>, worked out
+       on the trainee's device with a fresh salt — the password itself never
+       travels). → { ok, value } | { ok: false, field } */
+    function checkRegistration(form, programmes) {
+      form = isObj(form) ? form : {};
+      var name = cleanName(form.name);
+      if (!name || name.length > REG_NAME_MAX || /[<>"\u0000-\u001f]/.test(name) || !Core.accountAccess.isFullName(name)) return { ok: false, field: 'name' };
+      var programme = str(form.programme).trim();
+      if (!programme || (Array.isArray(programmes) ? programmes : []).indexOf(programme) === -1) return { ok: false, field: 'programme' };
+      var phone = str(form.phone).trim();
+      if (phone && !Core.accountAccess.PHONE_RE.test(phone)) return { ok: false, field: 'phone' };
+      var pw = str(form.password), m = STORED_PW_RE.exec(pw);
+      if (!m || Number(m[1]) < 100000 || Number(m[1]) > 1000000) return { ok: false, field: 'password' };
+      return { ok: true, value: { name: name, programme: programme, phone: phone, password: pw } };
+    }
+    /* The registration file (Registrations/CESTISREG.<id>.json). o: { acct,
+       email, value (checkRegistration's), folder: { id, name }, nowMs }. */
+    function buildRegistration(o) {
+      o = o || {};
+      var v = o.value || {};
+      var out = { format: FORMAT.registration, version: VERSION, accountId: str(o.acct), studentId: regStudentId(v.name, v.programme),
+        name: str(v.name), email: str(o.email).trim(), programme: str(v.programme), password: str(v.password),
+        googleVerified: true, registeredVia: 'home-registration', status: 'pending', createdAt: iso(o.nowMs) };
+      if (v.phone) out.phone = str(v.phone);
+      if (o.folder && o.folder.id) { out.folderId = str(o.folder.id); out.folderName = str(o.folder.name); }
+      return out;
+    }
+    /* A registration file read back — by the gate (is one waiting?) and by
+       the staff collector. → { reg } | { error: 'not-registration' |
+       'newer-version' | 'malformed' } */
+    function readRegistration(json) {
+      var r = json;
+      if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) { r = null; } }
+      if (!isObj(r) || r.format !== FORMAT.registration) return { error: 'not-registration' };
+      if (Number(r.version) > VERSION) return { error: 'newer-version' };
+      var ok = str(r.accountId).indexOf(REG_ID_PREFIX) === 0 && EMAIL_RE.test(str(r.email).trim()) && Core.accountAccess.isFullName(r.name) &&
+        !/[<>"]/.test(str(r.name) + str(r.email)) && !!str(r.programme).trim() && STORED_PW_RE.test(str(r.password)) && !!msOf(r.createdAt);
+      return ok ? { reg: r } : { error: 'malformed' };
+    }
+    /* What a staff device does with a registration it has collected: add it
+       to the accounts list as a 'pending' trainee account for Verify Users
+       (the gate's account id, so the folder made for it is already theirs) —
+       once. An account of that id already there (collected before, approved,
+       rejected): left as the office has it. An id the office deleted: never
+       brought back. An address another account already has: not a second
+       account (the gate refuses those; this covers an account the office
+       made at the same time). opts.dateOf(iso) → the account's createdAt
+       day as the dashboard writes it (local), else the date in the ISO text.
+       → { action: 'add', account } | { action: 'have', id } |
+         { action: 'skip', reason } | { action: 'hold', reason } */
+    function importRegistration(json, accounts, deletedUserIds, opts) {
+      opts = opts || {};
+      var rd = readRegistration(json);
+      if (rd.error === 'newer-version') return { action: 'hold', reason: rd.error };
+      if (rd.error) return { action: 'skip', reason: rd.error };
+      var r = rd.reg, id = str(r.accountId), list = Array.isArray(accounts) ? accounts : [];
+      if ((Array.isArray(deletedUserIds) ? deletedUserIds : []).map(str).indexOf(id) !== -1) return { action: 'skip', reason: 'deleted' };
+      if (list.some(function (a) { return a && str(a.id) === id; })) return { action: 'have', id: id };
+      var em = lower(r.email);
+      if (list.some(function (a) { return a && lower(a.email) === em; })) return { action: 'skip', reason: 'email-taken' };
+      var base = lower(str(r.email).split('@')[0]).replace(/[^a-z0-9._-]/g, '') || 'trainee', un = base, n = 1;
+      var taken = function (u) { return list.some(function (a) { return a && lower(a.username) === u; }); };
+      while (taken(un)) { n++; un = base + n; }
+      var day = typeof opts.dateOf === 'function' ? str(opts.dateOf(r.createdAt)) : '';
+      var acct = { id: id, name: cleanName(r.name), role: 'student', username: un, password: str(r.password), email: str(r.email).trim(),
+        programme: str(r.programme).trim(), status: 'pending', createdAt: day || str(r.createdAt).slice(0, 10), registeredVia: 'home-registration',
+        googleVerified: true, registeredAt: str(r.createdAt), updatedAt: str(r.createdAt) };
+      if (r.phone && Core.accountAccess.PHONE_RE.test(str(r.phone).trim())) acct.phone = str(r.phone).trim();
+      if (r.folderId) acct.gateFolderId = str(r.folderId);
+      return { action: 'add', account: acct };
+    }
+    /* What the gate tells somebody registering whose address already has a
+       trainee account: sign in ('has-account'), or the account's own state. */
+    function regExisting(entry) {
+      var st = entry && entry.st;
+      if (st === 'pending' || st === 'rejected' || st === 'disabled') return st;
+      return 'has-account';
+    }
+
     return {
+      folderName: folderName, folderDescription: folderDescription, folderMark: folderMark, folderMarkFor: folderMarkFor,
+      reg: { accountId: regAccountId, fileName: regFileName, isFileName: isRegFileName, studentId: regStudentId, buildCatalogue: buildCatalogue,
+        catalogueNames: catalogueNames, check: checkRegistration, build: buildRegistration, read: readRegistration, importOne: importRegistration,
+        existing: regExisting, FILE_PREFIX: REG_FILE_PREFIX, ID_PREFIX: REG_ID_PREFIX, STORED_PW_RE: STORED_PW_RE },
       indexAccounts: indexAccounts, lookupLogin: lookupLogin, credentialRefusal: credentialRefusal, twoStep: twoStep,
       ticketMake: ticketMake, ticketRead: ticketRead, sidRand: sidRand, sidCv: sidCv,
       laneStamp: laneStamp, laneMerge: laneMerge, laneFirstSeen: laneFirstSeen, firstSeenOf: firstSeenOf,

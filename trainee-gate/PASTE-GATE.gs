@@ -132,6 +132,41 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
   Core.normName = function (s) { return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' '); };
   Core.normCourse = function (s) { return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' '); };
 
+  /* ---- from cestis-core.js: Core.naturalKey ---- */
+  Core.naturalKey = function (student) {
+    if (!student) return '';
+    var n = Core.normName(student.name);
+    if (!n) return ''; // no usable identity — caller should keep the existing id
+    var c;
+    try { c = Core.programmeIdentity(student, 'course').bare; }
+    catch (e) { c = Core.normCourse(student.course); }
+    return n + '|' + c;
+  };
+
+  /* ---- from cestis-core.js: Core.stableStudentId ---- */
+  Core.stableStudentId = function (student) {
+    var key = Core.naturalKey(student);
+    if (!key) return null;
+    return 'STU-' + Core.hashString(key);
+  };
+
+  /* ---- from cestis-core.js: Core.programmeIdentity ---- */
+  Core.programmeIdentity = function (rec, courseField) {
+    var out = { key: '', bare: '' };
+    if (!rec) return out;
+    var E = Core.enrolment;
+    var written = rec[courseField || 'course'];
+    if (written == null || written === '') written = rec.course != null ? rec.course : rec.skillArea;
+    var parsed = E ? E.parseCentreLabel(written) : { key: '', name: String(written == null ? '' : written) };
+    out.bare = Core.normCourse(parsed.name);
+    if (rec.centreKey != null && String(rec.centreKey).trim() !== '' && E) {
+      out.key = E.centreKeyOf({ centreKey: rec.centreKey });
+    } else {
+      out.key = parsed.key || '';
+    }
+    return out;
+  };
+
   /* ---- from cestis-core.js: Core.accountLoginScore ---- */
   Core.accountLoginScore = function (u) {
     if (!u) return -1;
@@ -480,9 +515,90 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
        role — tampered, or from a version before the rule above. Approving it
        must never be one click. */
     function isPrivilegedSelfRegistration(account) {
-      if (!account || account.registeredVia !== 'registration') return false;
+      if (!account || (account.registeredVia !== 'registration' && account.registeredVia !== 'home-registration')) return false;
       var r = String(account.role || '').trim().toLowerCase();
-      return r !== 'student' && r !== 'instructor';
+      // A registration from home is a trainee's, always (the trainee gate files nothing else).
+      return account.registeredVia === 'home-registration' ? r !== 'student' : (r !== 'student' && r !== 'instructor');
+    }
+
+    /* Is this a person's full name — a first name AND a last name? Two or
+       more words of two letters or more, titles (Mr, Mrs, Dr …) not counted.
+       It is the rule every account form already applies (Staff Appraisals'
+       sappIsFullName in staff-appraisals.js, kept equal to this by
+       tests/office-trainee-accounts.test.js); it is here as well so the
+       trainee gate, which has no page of its own, applies the same one. */
+    var NAME_TITLES = { mr: 1, mrs: 1, ms: 1, miss: 1, dr: 1, prof: 1, hon: 1, rev: 1 };
+    function isFullName(name) {
+      var toks = String(name == null ? '' : name).toLowerCase().replace(/[-_.,'’]/g, ' ').split(/\s+/)
+        .filter(function (t) { return t && !NAME_TITLES[t] && t.length >= 2; });
+      return toks.length >= 2;
+    }
+
+    /* May the office create this account? (The owner: "both the office admin
+       staff and administrators can create accounts for students".)
+
+       An administrator may create any role. Admin Staff may create TRAINEE
+       accounts only — never an administrator, admin staff, instructor or
+       board login — and only while the Administrator leaves "Trainee
+       accounts" ticked in Admin Staff access (actor.allowed). Every account
+       answers to the rules each sign-up form already follows: a full name, no
+       markup in a name or address, a username nobody holds (in any case), a
+       password of six characters or more, a programme for anybody who is not
+       office staff. A trainee account also needs an email address nobody
+       holds (in any case, any role — the registration form's rule, so email
+       sign-in can never name two people; left blank, it is not checked) and
+       a programme that is taking trainees now (opts.enrolBlock: the page's
+       courseEnrolmentBlockReason() for it).
+         actor: { role, allowed }   draft: { role, name, username, email, programme, password }
+       → null when it may be created, else { code, message }. */
+    var STAFF_ROLES = { admin: 1, adminstaff: 1, cmc: 1 };
+    // A phone number as people write one: digits, spaces, + - . ( ), 7–20 long.
+    var PHONE_RE = /^(?=(?:\D*\d){7})[0-9+()\-.\s]{7,20}$/;
+    function officeCreateRefusal(actor, draft, accounts, opts) {
+      opts = opts || {};
+      actor = actor || {};
+      draft = draft || {};
+      var who = String(actor.role || '').trim().toLowerCase();
+      var role = String(draft.role || '').trim().toLowerCase();
+      var no = function (code, message) { return { code: code, message: message }; };
+      if (who !== 'admin' && who !== 'adminstaff') return no('not-allowed', 'Only the office can create accounts.');
+      if (who === 'adminstaff' && actor.allowed === false) {
+        return no('not-allowed', 'Creating trainee accounts has been switched off for Admin Staff by the Administrator.');
+      }
+      if (who === 'adminstaff' && role !== 'student') return no('role', 'Admin Staff can create trainee accounts only.');
+      if (!role) return no('missing', 'Please choose a role.');
+      var name = String(draft.name == null ? '' : draft.name).trim();
+      var username = String(draft.username == null ? '' : draft.username).trim();
+      var email = String(draft.email == null ? '' : draft.email).trim();
+      var password = String(draft.password == null ? '' : draft.password);
+      if (!name || !username || !password) return no('missing', 'Please fill in Name, Username, and Password.');
+      if (!isFullName(name)) {
+        return no('full-name', role === 'student'
+          ? 'Please enter the trainee\'s FULL name — first name AND last name (e.g. "John Smith").'
+          : 'Please enter the user\'s FULL name — first name AND last name (e.g. "John Smith").\n\nThe full name is required to link staff to their Payslip employee record.');
+      }
+      if (/[<>]/.test(name) || /[<>"]/.test(email) || /[<>"]/.test(username)) {
+        return no('markup', 'Names, usernames and email addresses cannot contain < > or " characters.');
+      }
+      if (password.length < 6) return no('password', 'Password must be at least 6 characters.');
+      if (draft.phone != null && String(draft.phone).trim() && !PHONE_RE.test(String(draft.phone).trim())) {
+        return no('phone', 'Please enter the phone number with digits only (spaces and + - ( ) are fine), or leave it blank.');
+      }
+      var list = Array.isArray(accounts) ? accounts : [];
+      var un = username.toLowerCase();
+      if (list.some(function (u) { return u && String(u.username || '').trim().toLowerCase() === un; })) return no('username-taken', 'Username already exists.');
+      if (!STAFF_ROLES[role] && !String(draft.programme == null ? '' : draft.programme).trim()) return no('programme', 'Please select a programme.');
+      if (role === 'student') {
+        if (email) {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return no('email', 'Please enter a valid email address, or leave it blank.');
+          var em = email.toLowerCase();
+          if (list.some(function (u) { return u && String(u.email || '').trim().toLowerCase() === em; })) {
+            return no('email-taken', 'An account with this email already exists. Find it in the accounts list instead of creating a second one.');
+          }
+        }
+        if (opts.enrolBlock) return no('enrol', String(opts.enrolBlock));
+      }
+      return null;
     }
 
     /* What Verify Users lists, and what Approve All / Reject All act on.
@@ -777,6 +893,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin, toolDefaultLogin: toolDefaultLogin,
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
+      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
       isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
       backfillStubFolds: backfillStubFolds,
@@ -1945,12 +2062,583 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
     };
   })();
 
+  /* ---- from cestis-core.js: Core.enrolment ---- */
+  Core.enrolment = (function () {
+    function norm(s) { return String(s == null ? '' : s).toLowerCase().trim().replace(/\s+/g, ' '); }
+
+    /* --- The intake key ---------------------------------------------------
+       A programme the Centre runs more than once has one training centre per
+       intake, and they share a name. Matching on the name alone therefore
+       swept last year's trainees into this year's centre the moment it was
+       created — the very thing the course-end rule exists to prevent.
+
+       Every centre carries a key of its own: '01', '02', '03', … taken from
+       the centre's id, so it is unique, never reused, and stable on every
+       device. A centre's full name is written with it in front —
+       "01. Welding and Fabrication", then "02. Welding and Fabrication" for
+       the next intake — and that is the name the fee side prices and enrols
+       under. A name carrying a key resolves to THAT centre and no other, so a
+       trainee stays with the intake they were enrolled in for good. */
+
+    function padKey(v) {
+      var s = String(v == null ? '' : v).trim();
+      if (!s) return '';
+      if (/^\d+$/.test(s)) return s.length < 2 ? ('0' + s) : s;
+      return s;
+    }
+
+    // A key is a NUMBER: '01', '02', '03'. An id that is not one (some centres
+    // carry a generated string id) gives no key — the centre is allotted the
+    // next free number instead, so what the Centre reads is always a count.
+    function numericKey(v) {
+      var s = String(v == null ? '' : v).trim();
+      return /^\d+$/.test(s) ? padKey(s) : '';
+    }
+
+    /* The key a centre answers to: its own if it carries one, otherwise the
+       one its id gives it. '' when the centre has neither. */
+    function centreKeyOf(centre) {
+      if (!centre) return '';
+      if (centre.centreKey != null && String(centre.centreKey).trim() !== '') return padKey(centre.centreKey);
+      if (centre.id != null) return numericKey(centre.id);
+      return '';
+    }
+
+    /* What tells this centre apart from every other one — for COUNTING, never
+       for display.
+
+       centreKeyOf() answers '' for a centre that carries no key and whose id is
+       not a number, which is every centre made with "+ Add Training Centre"
+       until assignCentreKeys() has run over it. Two things went wrong with that
+       empty answer, and between them they are the drift the Centre was seeing:
+
+         - tally() bucketed by the key, and an empty key is falsy, so those
+           trainees were counted under NO centre at all. Every card on the
+           Training Centres page read 0 and the dashboard pipeline emptied.
+         - belongsTo() compared the trainee's centre to the card's with `!==`,
+           and '' !== '' is false — so a trainee "belonged to" EVERY unkeyed
+           centre at once. The Transfer page offered the same person under
+           three programmes, and the registers listed them three times.
+
+       So the same roll read as empty on one screen and as triple on another,
+       and opening Course Duration — the one page that calls assignCentreKeys()
+       — handed every centre a key and made both screens right again. That is
+       the "it corrects itself when I come back from Course Duration".
+
+       An identity is therefore never empty for a centre that exists. The key
+       when it has one (so every trainee already stamped with '01' still finds
+       centre 01), and its id otherwise — which is unique, already on the
+       record, and identical on every device without anything having to be
+       assigned first. It is never shown to anybody: centreLabel() still reads
+       "01. Welding & Fabrication". */
+    function centreIdentity(centre) {
+      if (!centre) return '';
+      var k = centreKeyOf(centre);
+      if (k) return k;
+      var id = centre.id == null ? '' : String(centre.id).trim();
+      return id ? ('#' + id) : '';
+    }
+
+    /* Split a written programme name into the key it states and the rest.
+         '02. Welding and Fabrication' -> { key: '02', name: 'Welding and Fabrication' }
+         'WELDING L2'                  -> { key: '',   name: 'WELDING L2' }
+       Only a leading run of digits followed by a dot counts, so a name that
+       merely begins with a number ("2 Day Induction") is left alone. */
+    function parseCentreLabel(label) {
+      var s = String(label == null ? '' : label).trim();
+      var m = /^(\d{1,4})\s*[.)]\s*(.+)$/.exec(s);
+      if (!m) return { key: '', name: s };
+      return { key: padKey(m[1]), name: m[2].trim() };
+    }
+
+    /* A centre's full name, key first. This is what the Centre reads on the
+       page and what the fee side prices, so two intakes of one programme are
+       two plainly different things. */
+    function centreLabel(centre) {
+      if (!centre || !centre.name) return '';
+      var k = centreKeyOf(centre);
+      var bare = parseCentreLabel(centre.name).name;   // never double-prefix
+      return k ? (k + '. ' + bare) : bare;
+    }
+
+    /* Give every centre that has no key one of its own, in place. Safe to run
+       on every load: a centre that already has a key is left alone. Returns
+       how many were stamped.
+
+       The allocation must not depend on the ORDER the centres happen to sit in.
+       It used to: the leftovers were numbered by walking the array, so the same
+       two centres came out '01','02' on a device that held them one way round
+       and '02','01' on a device that held them the other. Roster order really
+       does differ between devices — reconcileSnapshot keeps the local order and
+       appends whatever the snapshot had on the end, and syncFromCloud pushes
+       cloud-only centres onto the end too — so this quietly handed the same
+       trainee's centreKey stamp to a DIFFERENT programme on each machine. Every
+       sync then swapped the rolls back and forth between two centres, which is
+       the drift the Centre was watching.
+
+       Leftovers are therefore numbered in a fixed order — by their id, which is
+       the one thing about a centre that is the same everywhere — so any two
+       devices holding the same centres agree on the keys without having to talk
+       to each other. Centres that already carry a key keep it, so nothing
+       already stamped on a trainee moves. */
+    /* `reservedKeys` (optional) are keys no new centre may take although no
+       live centre carries them: the keys of deleted intakes still stamped on
+       trainee and fee records. Without it, a new centre created after the
+       newest intake was deleted was handed that intake's key — and with it,
+       on day one, every trainee who had been on the deleted intake. */
+    function assignCentreKeys(areas, reservedKeys) {
+      if (!Array.isArray(areas)) return 0;
+      var taken = {}, n = 0, i;
+      for (i = 0; i < areas.length; i++) {
+        if (!areas[i]) continue;
+        var k = areas[i].centreKey != null ? padKey(areas[i].centreKey) : '';
+        if (k) taken[k] = true;
+      }
+      (Array.isArray(reservedKeys) ? reservedKeys : []).forEach(function (rk) {
+        var p = padKey(rk);
+        if (p) taken[p] = true;
+      });
+
+      // Everything still unkeyed, in a device-independent order.
+      var pending = [];
+      for (i = 0; i < areas.length; i++) {
+        var a = areas[i];
+        if (!a || (a.centreKey != null && String(a.centreKey).trim() !== '')) continue;
+        pending.push(a);
+      }
+      pending.sort(function (x, y) {
+        var xi = x.id == null ? '' : String(x.id), yi = y.id == null ? '' : String(y.id);
+        // Numeric ids sort as numbers so 2 comes before 10, not after it.
+        var xn = /^\d+$/.test(xi), yn = /^\d+$/.test(yi);
+        if (xn && yn) return Number(xi) - Number(yi);
+        if (xn !== yn) return xn ? -1 : 1;            // numbered centres first
+        return xi < yi ? -1 : (xi > yi ? 1 : 0);
+      });
+
+      var next = 1;
+      var free = function () {
+        while (taken[padKey(next)]) next++;
+        var k = padKey(next);
+        taken[k] = true;
+        return k;
+      };
+      for (i = 0; i < pending.length; i++) {
+        var c = pending[i];
+        // The id is the centre's identity already, so it gives a key that is
+        // unique and the same on every device — but never one already taken.
+        var fromId = c.id != null ? numericKey(c.id) : '';
+        c.centreKey = (fromId && !taken[fromId]) ? (taken[fromId] = true, fromId) : free();
+        n++;
+      }
+      return n;
+    }
+
+    // Joining words that carry no meaning when two course names are compared.
+    var STOP_WORDS = { and: 1, the: 1, of: 1, for: 1, with: 1, amp: 1 };
+
+    /* Split a course name into the words worth comparing. The Centre writes the
+       same programme two ways — "WELDING L2" on the fee side, "Welding and
+       Fabrication Level 2" on the LMS side — so the level shorthand (L2 / Lvl 2)
+       is expanded to "level 2" before anything is compared. */
+    function tokenise(name) {
+      return norm(name)
+        .replace(/[&/,+.\-–—()'"]+/g, ' ')
+        .replace(/\b(?:l|lvl|lev)\s*([1-9])\b/g, 'level $1')
+        .replace(/\s+/g, ' ').trim()
+        .split(' ').filter(Boolean);
+    }
+
+    /* The NVQ level a name states, or null when it states none. Two programmes
+       at different levels are never the same centre, however alike they read. */
+    function levelOfTokens(toks) {
+      for (var i = 0; i < toks.length - 1; i++) {
+        if (toks[i] === 'level' && /^[1-9]$/.test(toks[i + 1])) return toks[i + 1];
+      }
+      return null;
+    }
+
+    /* The distinguishing words of a name: no level marker, no bare numbers, no
+       joining words, nothing shorter than three letters. */
+    function keyWords(toks) {
+      var out = [], seen = {};
+      for (var i = 0; i < toks.length; i++) {
+        var t = toks[i];
+        if (t === 'level' || STOP_WORDS[t] || t.length < 3 || /^[0-9]+$/.test(t)) continue;
+        if (!seen[t]) { seen[t] = 1; out.push(t); }
+      }
+      return out;
+    }
+
+    /* Two words naming the same thing: identical, or one the shortened form of
+       the other ("admin" / "administration", "commi" / "commis"). The shortened
+       form must be at least four letters, so a chance three-letter opening does
+       not join two unrelated programmes. */
+    function sameWord(a, b) {
+      if (a === b) return true;
+      var short = a.length < b.length ? a : b, long = a.length < b.length ? b : a;
+      return short.length >= 4 && long.indexOf(short) === 0;
+    }
+
+    /* Can these two written programmes be two spellings of ONE enrolment?
+
+       The Centre writes a programme several ways — 'Welding & Fabrication',
+       'WELDING L2', '02. Welding & Fabrication' — and the same trainee could
+       end up recorded once under each. Those are one enrolment.
+
+       But the Centre also runs the SAME subject at two NVQ levels, and a
+       trainee who did Welding L2 and went on to Welding L3 has two enrolments,
+       each with its own tuition, attendance and certificate. And two different
+       people genuinely share a name. Treating every same-named pair as one
+       record is what took the roll from 447 to 220.
+
+       So: agree when nothing contradicts, disagree when something does —
+         - a record naming no programme contradicts nothing;
+         - two DIFFERENT intake keys are two intakes ('01' vs '02');
+         - two DIFFERENT stated levels are two programmes (L2 vs L3);
+         - distinguishing words that do not line up are two programmes
+           (Welding vs Cosmetology).
+       Level shorthand is expanded first, so 'WELDING L2' and 'Welding and
+       Fabrication Level 2' still agree. */
+    /* The NVQ level a written programme states, or null. Exported because the
+       level is what tells one enrolment of a subject from the next, so anything
+       deciding "same enrolment?" has to be able to see it. */
+    function programmeLevel(written) {
+      return levelOfTokens(tokenise(parseCentreLabel(written).name));
+    }
+
+    function programmesAgree(a, b) {
+      var pa = parseCentreLabel(a), pb = parseCentreLabel(b);
+      if (pa.key && pb.key && pa.key !== pb.key) return false;
+      var an = norm(pa.name), bn = norm(pb.name);
+      if (!an || !bn) return true;
+      if (an === bn) return true;
+      var at = tokenise(pa.name), bt = tokenise(pb.name);
+      var al = levelOfTokens(at), bl = levelOfTokens(bt);
+      if (al && bl && al !== bl) return false;
+      var aw = keyWords(at), bw = keyWords(bt);
+      if (!aw.length || !bw.length) return true;
+      // The shorter list must be found in the longer one: 'WELDING L2' (welding)
+      // is the shorthand for 'Welding & Fabrication' (welding, fabrication).
+      var few = aw.length <= bw.length ? aw : bw;
+      var many = aw.length <= bw.length ? bw : aw;
+      for (var i = 0; i < few.length; i++) {
+        var found = false;
+        for (var j = 0; j < many.length; j++) {
+          if (sameWord(few[i], many[j])) { found = true; break; }
+        }
+        if (!found) return false;
+      }
+      return true;
+    }
+
+    function registerOpen(centre, today, nowMs) {
+      if (!centre) return false;
+      return Core.courseDuration.isRegisterOpen(centre, today, nowMs);
+    }
+
+    function coversDate(centre, on) {
+      var s = Core.courseDuration.normDate(centre.startDate);
+      var e = Core.courseDuration.normDate(centre.endDate);
+      return (!s || on >= s) && (!e || on <= e);
+    }
+
+    /* A programme that has been run more than once has several centres with the
+       same (or an equivalent) name — last year's finished intake and this year's
+       new one. Which of them is meant depends on what is being asked:
+
+         • Enrolling somebody now (the default): the centre that can still take
+           trainees and, among those, the most recent. Without this the
+           dashboards resolved a repeat programme to the finished centre and
+           reported "course ended" even though a new centre had been created.
+
+         • Grounding a record in time (opts.on = the date it belongs to): the
+           intake that was actually running on that date, falling back to the
+           most recent one that had already begun. A trainee who enrolled in
+           2024 belongs to the 2024 intake, not to whatever opened since. */
+    function preferCentre(a, b, opts) {
+      if (!a) return b || null;
+      if (!b) return a;
+      opts = opts || {};
+      var as = Core.courseDuration.normDate(a.startDate) || '';
+      var bs = Core.courseDuration.normDate(b.startDate) || '';
+      var on = opts.on ? Core.courseDuration.normDate(opts.on) : '';
+
+      if (on) {
+        var ac = coversDate(a, on), bc = coversDate(b, on);
+        if (ac !== bc) return ac ? a : b;
+        var ab = !!as && as <= on, bb = !!bs && bs <= on;   // had already begun
+        if (ab !== bb) return ab ? a : b;
+        if (ab && bb) return as > bs ? a : b;               // the most recent one that had
+        if (as !== bs) return as < bs ? a : b;              // both still ahead: the soonest
+        return a;
+      }
+
+      var ao = registerOpen(a, opts.today, opts.nowMs), bo = registerOpen(b, opts.today, opts.nowMs);
+      if (ao !== bo) return ao ? a : b;
+      if (as !== bs) return as > bs ? a : b;
+      return a;
+    }
+
+    /* Resolve a centre by name against a roster of skill areas / training
+       centres, in three widening passes:
+         1. the exact name (case/space-insensitive);
+         2. one name starting the other, so "Welding" finds "Welding & Fabrication";
+         3. the same programme written two ways — every distinguishing word of
+            the shorter name appearing in the longer one at the same NVQ level,
+            so "WELDING L2" finds "Welding and Fabrication Level 2" but never
+            "… Level 3".
+       Between equally good matches the choice is made by preferCentre, and a
+       later pass only runs when the earlier ones found nothing.
+
+       An intake KEY settles it outright. A name written "02. Welding and
+       Fabrication", or an explicit opts.centreKey, names one centre and one
+       only: if that centre is not in the roster the answer is nothing at all,
+       never a like-named intake. This is what keeps a trainee with the intake
+       they were enrolled in when the Centre opens the next one under the same
+       name.
+
+       opts: { today, nowMs, on, centreKey, exact } — all optional. 'on' is a
+       date the answer should belong to; without it the answer is about now.
+
+       opts.exact: the intake key and the exact name only (case and spacing
+       aside) — no widening passes. For anything that WRITES the answer onto a
+       stored record. The looser passes read "Welding" as shorthand for
+       "Welding & Fabrication", which is right for the Centre's own shorthand
+       and wrong for a device that simply has not received the centre that IS
+       called "Welding" yet: written down, that guess moved the new centre's
+       trainees onto the other one on every device, and their ids with them. */
+    function findCentre(areas, courseName, opts) {
+      if (!Array.isArray(areas) || !courseName) return null;
+      opts = opts || {};
+      var parsed = parseCentreLabel(courseName);
+      var wantKey = padKey(opts.centreKey || parsed.key);
+      var cn = norm(wantKey ? parsed.name : courseName);
+      var hit = null, i, n;
+
+      if (wantKey) {
+        for (i = 0; i < areas.length; i++) {
+          if (areas[i] && centreKeyOf(areas[i]) === wantKey) return areas[i];
+        }
+        return null;                 // that intake is not here — never another one
+      }
+      if (!cn) return null;
+
+      for (i = 0; i < areas.length; i++) {
+        if (areas[i] && norm(parseCentreLabel(areas[i].name).name) === cn) hit = preferCentre(hit, areas[i], opts);
+      }
+      if (hit || opts.exact) return hit;
+
+      var qT = tokenise(cn), qL = levelOfTokens(qT), qW = keyWords(qT);
+
+      /* One name starting the other — and here too the level decides first.
+
+         Every programme name is a prefix of its own Level 2: "Electrical
+         Installation" starts "Electrical Installation Level 2", and a bare
+         "ELECTRICAL" starts both. This pass had no level test at all, so both
+         intakes matched and preferCentre picked between them by whose register
+         was OPEN — which handed the trainees of a finished programme to the new
+         Level 2 intake the moment it opened, and moved them again whenever that
+         changed. Same rule as the word-matching pass below: a centre stating
+         the level being asked for is preferred outright, and the looser reading
+         is used only when none does. */
+      function prefixScan(exact) {
+        var found = null;
+        for (var i3 = 0; i3 < areas.length; i3++) {
+          var a3 = areas[i3];
+          if (!a3) continue;
+          var bare = parseCentreLabel(a3.name).name;
+          var nn = norm(bare);
+          if (!nn) continue;
+          if (nn.indexOf(cn) !== 0 && cn.indexOf(nn) !== 0) continue;
+          if (exact && levelOfTokens(tokenise(bare)) !== qL) continue;
+          found = preferCentre(found, a3, opts);
+        }
+        return found;
+      }
+      hit = prefixScan(true) || prefixScan(false);
+      if (hit) return hit;
+
+      if (!qW.length) return null;
+
+      /* Score the roster on shared words. `exact` restricts it to centres
+         stating the SAME level as the query — where stating none counts as a
+         level of its own.
+
+         Run strictly FIRST, because the two are not equally good answers. The
+         Centre writes its programmes both ways: some centres carry the level in
+         their name ("Electrical Installation Level 2") and some do not
+         ("Welding and Fabrication", run twice), while the fee side writes the
+         level either way ("ELECTRICAL L2"). Matching loosely — the old rule,
+         which only rejected a candidate when BOTH sides named a level — meant a
+         Level 2 query matched an unlevelled centre on one shared word, so
+         "ELECTRICAL L2" trainees were counted in the Level 1 intake and a plain
+         "Electrical Installation" could reach the Level 2 centre. That is the
+         two electrical programmes taking trainees from each other.
+
+         Matching ONLY strictly is wrong too: where a programme's centres carry
+         no level at all, "WELDING L2" has no exact-level centre to find and
+         must still resolve to the intake open now. So the loose pass remains,
+         as the fallback it always should have been — used only when nothing
+         states the level being asked for. */
+      function scan(exact) {
+        var best = null, bestScore = 0;
+        for (var i2 = 0; i2 < areas.length; i2++) {
+          var area = areas[i2];
+          if (!area || !area.name) continue;
+          var aT = tokenise(parseCentreLabel(area.name).name), aL = levelOfTokens(aT), aW = keyWords(aT);
+          if (!aW.length) continue;
+          if (exact) { if (aL !== qL) continue; }              // same level, or both unlevelled
+          else if (qL && aL && qL !== aL) continue;            // Level 2 is never Level 3
+          var shared = 0;
+          for (var k = 0; k < qW.length; k++) {
+            for (var m = 0; m < aW.length; m++) {
+              if (sameWord(qW[k], aW[m])) { shared++; break; }
+            }
+          }
+          // Every distinguishing word of the shorter name must appear in the
+          // longer one — an overlap of merely one word out of several is a
+          // different programme, not an abbreviation of this one.
+          if (!shared || shared < Math.min(qW.length, aW.length)) continue;
+          if (shared > bestScore) { bestScore = shared; best = area; }
+          else if (shared === bestScore) { best = preferCentre(best, area, opts); }
+        }
+        return best;
+      }
+      return scan(true) || scan(false);
+    }
+
+    /* Fiscal year (Apr–Mar) that a date belongs to, e.g. '2025/2026'. */
+    function fiscalYearOf(dateStr) {
+      var dq = Core.deriveQuarter(dateStr);
+      return dq ? dq.fy : null;
+    }
+
+    /* The FY a centre's intake belongs to — taken from its start date, falling
+       back to its end date when only that is set. */
+    function centreFiscalYear(centre) {
+      if (!centre) return null;
+      return fiscalYearOf(centre.startDate) || fiscalYearOf(centre.endDate) || null;
+    }
+
+    /* canEnrol(areas, courseName, opts) -> decision
+         opts.today      'YYYY-MM-DD' (defaults to the real today)
+         opts.enrolDate  the intended enrolment date, if one was entered
+         opts.nowMs      for instructor reopen permissions
+       decision = { allowed, code, reason, centre, status, fy }
+       codes: 'ok' | 'no-course' | 'no-roster' | 'no-centre' | 'ended'
+              | 'enrol-after-end' */
+    function canEnrol(areas, courseName, opts) {
+      opts = opts || {};
+      var today = Core.courseDuration.todayStr(opts.today);
+
+      if (!courseName) {
+        return { allowed: false, code: 'no-course', centre: null, status: null, fy: null,
+          reason: 'Select the training centre / course the trainee is being enrolled into.' };
+      }
+      if (!Array.isArray(areas) || !areas.length) {
+        return { allowed: false, code: 'no-roster', centre: null, status: null, fy: null,
+          reason: 'The list of training centres could not be read, so this enrolment cannot be verified.\n\n' +
+                  'Open the LMS (or sync it) so the training centres and their durations are available, then try again.' };
+      }
+      var centre = findCentre(areas, courseName, { today: today, nowMs: opts.nowMs });
+      if (!centre) {
+        return { allowed: false, code: 'no-centre', centre: null, status: null, fy: null,
+          reason: 'There is no training centre named "' + courseName + '".\n\n' +
+                  'Create the training centre (with its start and end dates) before enrolling trainees into it.' };
+      }
+
+      var status = Core.courseDuration.status(centre.startDate, centre.endDate, today);
+      var fy = centreFiscalYear(centre);
+
+      // Course finished — a new intake needs a NEW centre with a fresh duration.
+      if (status === 'ended' && !Core.courseDuration.permissionActiveAt(centre.instructorPermissions, opts.nowMs)) {
+        return { allowed: false, code: 'ended', centre: centre, status: status, fy: fy,
+          reason: 'The course "' + centre.name + '" ENDED' + (centre.endDate ? ' on ' + centre.endDate : '') +
+                  ', so new trainees can no longer be enrolled into it.\n\n' +
+                  'Create a NEW training centre with a new duration (and fiscal year) before adding new trainees.' };
+      }
+
+      // An enrolment cannot be dated after the centre's course has finished:
+      // that would ground the trainee outside the centre's duration/fiscal year.
+      var ed = Core.courseDuration.normDate(opts.enrolDate);
+      var endD = Core.courseDuration.normDate(centre.endDate);
+      if (ed && endD && ed > endD) {
+        return { allowed: false, code: 'enrol-after-end', centre: centre, status: status, fy: fy,
+          reason: 'The enrolment date ' + ed + ' falls after "' + centre.name + '" ends (' + endD + ').\n\n' +
+                  'Enrol the trainee within the course duration, or create a new training centre for the next intake.' };
+      }
+
+      return { allowed: true, code: 'ok', centre: centre, status: status, fy: fy, reason: '' };
+    }
+
+    /* The stamp written onto a student record so their data is grounded in the
+       course duration and fiscal year they actually belong to. */
+    function enrolmentStamp(centre, enrolDate) {
+      if (!centre) return null;
+      var ed = Core.courseDuration.normDate(enrolDate) || Core.courseDuration.todayStr();
+      return {
+        centreId: centre.id != null ? centre.id : null,
+        // The intake key is stamped alongside the id: it is what binds this
+        // trainee to THIS intake, so the next one opened under the same name
+        // never claims them.
+        centreKey: centreKeyOf(centre),
+        centreName: centre.name || '',
+        centreLabel: centreLabel(centre),
+        courseStart: Core.courseDuration.normDate(centre.startDate) || '',
+        courseEnd: Core.courseDuration.normDate(centre.endDate) || '',
+        enrolmentDate: ed,
+        // The intake's FY (from the centre) is what reporting groups by; the
+        // enrolment's own FY is kept too so a mid-year transfer stays visible.
+        fiscalYear: centreFiscalYear(centre) || fiscalYearOf(ed) || null,
+        enrolmentFiscalYear: fiscalYearOf(ed) || null
+      };
+    }
+
+    /* Does an already-enrolled student belong to the given fiscal year?
+       Falls back to their enrolment/creation date for legacy records that were
+       saved before enrolments were stamped. */
+    function studentInFiscalYear(student, fy) {
+      if (!student || !fy) return false;
+      if (student.fiscalYear) return student.fiscalYear === fy;
+      var d = student.enrolmentDate || student.enrollmentDate || student.createdAt;
+      return fiscalYearOf(d) === fy;
+    }
+
+    /* Centres that may currently take new trainees — used to build the course
+       dropdowns so ended centres are never offered in the first place. */
+    function openCentres(areas, today, nowMs) {
+      if (!Array.isArray(areas)) return [];
+      return areas.filter(function (a) {
+        if (!a || !a.name) return false;
+        return canEnrol(areas, a.name, { today: today, nowMs: nowMs }).allowed;
+      });
+    }
+
+    return {
+      findCentre: findCentre,
+      centreKeyOf: centreKeyOf,
+      centreIdentity: centreIdentity,
+      centreLabel: centreLabel,
+      parseCentreLabel: parseCentreLabel,
+      assignCentreKeys: assignCentreKeys,
+      fiscalYearOf: fiscalYearOf,
+      centreFiscalYear: centreFiscalYear,
+      canEnrol: canEnrol,
+      enrolmentStamp: enrolmentStamp,
+      studentInFiscalYear: studentInFiscalYear,
+      openCentres: openCentres,
+      programmesAgree: programmesAgree,
+      programmeLevel: programmeLevel
+    };
+  })();
+
   /* ---- from cestis-core.js: Core.gate ---- */
   Core.gate = (function () {
     var VERSION = 1;
     var FORMAT = {
       slice: 'cestis-trainee-slice', paper: 'cestis-exam-paper', key: 'cestis-exam-key',
-      room: 'cestis-chat-room', inbox: 'cestis-trainee-inbox', result: 'cestis-gate-result'
+      room: 'cestis-chat-room', inbox: 'cestis-trainee-inbox', result: 'cestis-gate-result',
+      registration: 'cestis-registration', catalogue: 'cestis-programme-catalogue'
     };
     /* Keys that describe THIS device's part in the gate. None of them may
        ever reach another device: the master snapshot (Core.isSnapshotableKey)
@@ -2292,9 +2980,11 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
        it may not (st: Core.accountAccess.check's reason), its password check
        (pw), whether it is still a published default (sd), its two-step
        secret (tf), whether it signs in with emailed codes (eo) and to which
-       address (em), its unused backup codes, trimmed and upper case (bc), and
-       its record link (sdi). Then who answers to each username (user) and
-       each email (mail), in lower case. → { n, a: { id: entry }, user, mail } */
+       address (em), its unused backup codes, trimmed and upper case (bc), its record link
+       (sdi) and its name (nm: the gate finds a folder named "<Name> (<student
+       ID>)" by that name without a search, §17). Then who answers to each
+       username (user) and each email (mail), in lower case.
+       → { n, a: { id: entry }, user, mail } */
     function indexAccounts(accounts, deletedUserIds, crypto) {
       var A = Core.accountAccess, del = {};
       (Array.isArray(deletedUserIds) ? deletedUserIds : []).forEach(function (id) { if (id != null && id !== '') del[id] = true; });
@@ -2314,7 +3004,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
           eo: acc.emailOtpLogin && EMAIL_RE.test(email) ? 1 : 0, em: email,
           bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(function (c) { return c && c.code && !c.used; })
             .map(function (c) { return str(c.code).trim().toUpperCase(); }),
-          sdi: acc.studentDataId != null ? str(acc.studentDataId) : ''
+          sdi: acc.studentDataId != null ? str(acc.studentDataId) : '',
+          nm: str(acc.name).trim()
         };
         var add = function (map, v) { v = lower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
         add(idx.user, acc.username); add(idx.mail, acc.email);
@@ -3990,7 +4681,173 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       return { ok: checks.every(function (c) { return c.ok; }), version: VERSION, checks: checks };
     }
 
+    /* ---- A trainee's folder: its name and its description (DESIGN.md §17)
+       A trainee's folder in Trainees/ is named "<Full Name> (<student ID>)",
+       e.g. "Tameka Richards (STU-3wfiayryzq)": the owner asked first for the
+       student ID, then for the trainee's name, and this keeps both, so the
+       office finds a folder by either. It is still FOUND by the account in
+       its description ("cestis-trainee acct=USR-… v=1"), never by its name,
+       because names and student IDs change; the oldest folder naming an
+       account is that account's (every reader's rule). A registration from
+       home adds one word to the description while it waits
+       ("registration=pending"), another if the office turns it down
+       ("registration=rejected"). No folder is ever deleted or binned. */
+    var FOLDER_NAME_MAX = 100;
+    function folderName(name, stu) {
+      var n = str(name).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/[\\/]/g, '-').replace(/\s+/g, ' ').trim();
+      if (n.length > FOLDER_NAME_MAX) n = n.slice(0, FOLDER_NAME_MAX).trim();
+      var s = str(stu).trim();
+      if (!n) return s;
+      return s ? n + ' (' + s + ')' : n;
+    }
+    var FOLDER_MARKS = { pending: 1, rejected: 1 };
+    function folderDescription(acct, mark) {
+      return 'cestis-trainee acct=' + str(acct) + ' v=1' + (FOLDER_MARKS[mark] ? ' registration=' + mark : '');
+    }
+    function folderMark(description) {
+      var m = /(?:^|\s)registration=(pending|rejected)(?:\s|$)/.exec(str(description));
+      return m ? m[1] : '';
+    }
+    // The mark an account's folder carries: a registration still waiting, or one the office turned down.
+    function folderMarkFor(account) {
+      var st = lower(account && account.status);
+      return st === 'pending' ? 'pending' : st === 'rejected' ? 'rejected' : '';
+    }
+
+    /* ---- Registration from home (DESIGN.md §17) ---------------------------
+       The owner: trainees register at home, for the office to approve; they
+       must use their own email account (a Google one) to sign in, so the
+       account that reaches the office is theirs. The gate takes a
+       registration only with a sign-in token Google gave the dashboard
+       (aud), for a verified address, and then — in the same request — keeps
+       the registration in Registrations/ and makes the trainee's own folder
+       in Trainees/. The rules for both are here (pure); the gate does the
+       reading and writing; the staff collector (index.html) brings each
+       registration into the accounts list as 'pending', for Verify Users.
+
+       One account per address, however often it is sent: the account id is
+       worked out from the address with the gate's own secret
+       (regAccountId), so the same person always gets the same id, the same
+       file (CESTISREG.<id>.json) and the same folder — never two. */
+    var REG_FILE_PREFIX = 'CESTISREG.';
+    var REG_ID_PREFIX = 'USR-home-';
+    var STORED_PW_RE = /^pbkdf2\$(\d{5,7})\$([0-9a-f]{32})\$([0-9a-f]{64})$/;
+    var REG_NAME_MAX = 80;
+    function regAccountId(email, secret, crypto) { return REG_ID_PREFIX + hmac(crypto, secret, 'reg|' + lower(email)).slice(0, 20); }
+    function regFileName(acct) { return REG_FILE_PREFIX + str(acct) + '.json'; }
+    function isRegFileName(name) { return /^CESTISREG\.USR-home-[0-9a-f]{20}\.json$/.test(str(name)); }
+    // The student ID the dashboard will give this trainee — its own function, so the two always agree.
+    function regStudentId(name, programme) { return Core.stableStudentId({ name: str(name), course: str(programme) }) || ''; }
+    function cleanName(name) { return str(name).replace(/\s+/g, ' ').trim(); }
+
+    /* The programmes a trainee may register for: the ones taking trainees
+       now, which staff devices publish (Registrations/catalogue.json) — the
+       same list the office's own "Add Trainee Account" offers. */
+    function buildCatalogue(programmes, nowMs) {
+      var seen = dict(), names = [];
+      (Array.isArray(programmes) ? programmes : []).forEach(function (p) {
+        var n = str(isObj(p) ? p.name : p).trim();
+        if (n && !seen[n]) { seen[n] = 1; names.push(n); }
+      });
+      names.sort(function (a, b) { return a < b ? -1 : a > b ? 1 : 0; });
+      var body = { format: FORMAT.catalogue, version: VERSION, programmes: names.map(function (n) { return { name: n }; }) };
+      body.hash = hashOf({ programmes: body.programmes });
+      body.builtAt = iso(nowMs);
+      return body;
+    }
+    // The programme names a published catalogue offers ([] for anything that is not one).
+    function catalogueNames(cat) {
+      if (!isObj(cat) || cat.format !== FORMAT.catalogue || Number(cat.version) > VERSION || !Array.isArray(cat.programmes)) return [];
+      return cat.programmes.map(function (p) { return str(isObj(p) ? p.name : p).trim(); }).filter(Boolean);
+    }
+
+    /* What the registration form sends, checked: the full name (first and
+       last — Core.accountAccess.isFullName, the rule of every account form),
+       a programme from the catalogue, an optional phone, and the password as
+       the dashboard stores one (pbkdf2$<iterations>$<salt>$<hash>, worked out
+       on the trainee's device with a fresh salt — the password itself never
+       travels). → { ok, value } | { ok: false, field } */
+    function checkRegistration(form, programmes) {
+      form = isObj(form) ? form : {};
+      var name = cleanName(form.name);
+      if (!name || name.length > REG_NAME_MAX || /[<>"\u0000-\u001f]/.test(name) || !Core.accountAccess.isFullName(name)) return { ok: false, field: 'name' };
+      var programme = str(form.programme).trim();
+      if (!programme || (Array.isArray(programmes) ? programmes : []).indexOf(programme) === -1) return { ok: false, field: 'programme' };
+      var phone = str(form.phone).trim();
+      if (phone && !Core.accountAccess.PHONE_RE.test(phone)) return { ok: false, field: 'phone' };
+      var pw = str(form.password), m = STORED_PW_RE.exec(pw);
+      if (!m || Number(m[1]) < 100000 || Number(m[1]) > 1000000) return { ok: false, field: 'password' };
+      return { ok: true, value: { name: name, programme: programme, phone: phone, password: pw } };
+    }
+    /* The registration file (Registrations/CESTISREG.<id>.json). o: { acct,
+       email, value (checkRegistration's), folder: { id, name }, nowMs }. */
+    function buildRegistration(o) {
+      o = o || {};
+      var v = o.value || {};
+      var out = { format: FORMAT.registration, version: VERSION, accountId: str(o.acct), studentId: regStudentId(v.name, v.programme),
+        name: str(v.name), email: str(o.email).trim(), programme: str(v.programme), password: str(v.password),
+        googleVerified: true, registeredVia: 'home-registration', status: 'pending', createdAt: iso(o.nowMs) };
+      if (v.phone) out.phone = str(v.phone);
+      if (o.folder && o.folder.id) { out.folderId = str(o.folder.id); out.folderName = str(o.folder.name); }
+      return out;
+    }
+    /* A registration file read back — by the gate (is one waiting?) and by
+       the staff collector. → { reg } | { error: 'not-registration' |
+       'newer-version' | 'malformed' } */
+    function readRegistration(json) {
+      var r = json;
+      if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) { r = null; } }
+      if (!isObj(r) || r.format !== FORMAT.registration) return { error: 'not-registration' };
+      if (Number(r.version) > VERSION) return { error: 'newer-version' };
+      var ok = str(r.accountId).indexOf(REG_ID_PREFIX) === 0 && EMAIL_RE.test(str(r.email).trim()) && Core.accountAccess.isFullName(r.name) &&
+        !/[<>"]/.test(str(r.name) + str(r.email)) && !!str(r.programme).trim() && STORED_PW_RE.test(str(r.password)) && !!msOf(r.createdAt);
+      return ok ? { reg: r } : { error: 'malformed' };
+    }
+    /* What a staff device does with a registration it has collected: add it
+       to the accounts list as a 'pending' trainee account for Verify Users
+       (the gate's account id, so the folder made for it is already theirs) —
+       once. An account of that id already there (collected before, approved,
+       rejected): left as the office has it. An id the office deleted: never
+       brought back. An address another account already has: not a second
+       account (the gate refuses those; this covers an account the office
+       made at the same time). opts.dateOf(iso) → the account's createdAt
+       day as the dashboard writes it (local), else the date in the ISO text.
+       → { action: 'add', account } | { action: 'have', id } |
+         { action: 'skip', reason } | { action: 'hold', reason } */
+    function importRegistration(json, accounts, deletedUserIds, opts) {
+      opts = opts || {};
+      var rd = readRegistration(json);
+      if (rd.error === 'newer-version') return { action: 'hold', reason: rd.error };
+      if (rd.error) return { action: 'skip', reason: rd.error };
+      var r = rd.reg, id = str(r.accountId), list = Array.isArray(accounts) ? accounts : [];
+      if ((Array.isArray(deletedUserIds) ? deletedUserIds : []).map(str).indexOf(id) !== -1) return { action: 'skip', reason: 'deleted' };
+      if (list.some(function (a) { return a && str(a.id) === id; })) return { action: 'have', id: id };
+      var em = lower(r.email);
+      if (list.some(function (a) { return a && lower(a.email) === em; })) return { action: 'skip', reason: 'email-taken' };
+      var base = lower(str(r.email).split('@')[0]).replace(/[^a-z0-9._-]/g, '') || 'trainee', un = base, n = 1;
+      var taken = function (u) { return list.some(function (a) { return a && lower(a.username) === u; }); };
+      while (taken(un)) { n++; un = base + n; }
+      var day = typeof opts.dateOf === 'function' ? str(opts.dateOf(r.createdAt)) : '';
+      var acct = { id: id, name: cleanName(r.name), role: 'student', username: un, password: str(r.password), email: str(r.email).trim(),
+        programme: str(r.programme).trim(), status: 'pending', createdAt: day || str(r.createdAt).slice(0, 10), registeredVia: 'home-registration',
+        googleVerified: true, registeredAt: str(r.createdAt), updatedAt: str(r.createdAt) };
+      if (r.phone && Core.accountAccess.PHONE_RE.test(str(r.phone).trim())) acct.phone = str(r.phone).trim();
+      if (r.folderId) acct.gateFolderId = str(r.folderId);
+      return { action: 'add', account: acct };
+    }
+    /* What the gate tells somebody registering whose address already has a
+       trainee account: sign in ('has-account'), or the account's own state. */
+    function regExisting(entry) {
+      var st = entry && entry.st;
+      if (st === 'pending' || st === 'rejected' || st === 'disabled') return st;
+      return 'has-account';
+    }
+
     return {
+      folderName: folderName, folderDescription: folderDescription, folderMark: folderMark, folderMarkFor: folderMarkFor,
+      reg: { accountId: regAccountId, fileName: regFileName, isFileName: isRegFileName, studentId: regStudentId, buildCatalogue: buildCatalogue,
+        catalogueNames: catalogueNames, check: checkRegistration, build: buildRegistration, read: readRegistration, importOne: importRegistration,
+        existing: regExisting, FILE_PREFIX: REG_FILE_PREFIX, ID_PREFIX: REG_ID_PREFIX, STORED_PW_RE: STORED_PW_RE },
       indexAccounts: indexAccounts, lookupLogin: lookupLogin, credentialRefusal: credentialRefusal, twoStep: twoStep,
       ticketMake: ticketMake, ticketRead: ticketRead, sidRand: sidRand, sidCv: sidCv,
       laneStamp: laneStamp, laneMerge: laneMerge, laneFirstSeen: laneFirstSeen, firstSeenOf: firstSeenOf,
@@ -4016,7 +4873,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
      The rules above name them only on the staff side (building slices,
      collecting inboxes), which the gate never runs. Touching one throws,
      so a rule that starts to need it fails loudly instead of quietly. */
-  ["Transcript","chat","chatSync","comms","coursework","dropTombstonedStudents","enrolment","isSnapshotableKey","keepsOwnId","migrateToStableIds","pageCloud","pendingUpload","relinkDependentData","stableStudentId","sync"].forEach(function (name) {
+  ["Transcript","chat","chatSync","comms","courseDuration","coursework","deriveQuarter","dropTombstonedStudents","isSnapshotableKey","keepsOwnId","migrateToStableIds","pageCloud","pendingUpload","relinkDependentData","sync"].forEach(function (name) {
     Object.defineProperty(Core, name, { configurable: true, enumerable: false, get: function () {
       throw new Error('Core.' + name + ' is not in the gate\'s paste: rebuild it with node trainee-gate/build-paste.js --full');
     } });
@@ -4053,12 +4910,13 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
        Exam keys/key.<examId>.json        read at marking and review; NEVER served
        Papers/paper.<examId>.json         served only while the exam is open
        Rooms/room.<roomId>.json           served to the room's members
-       Trainees/<student ID>/             one per trainee account, found by the
+       Trainees/<Name> (<student ID>)/    one per trainee account, found by the
          from-centre.json                   account id in its description
          CESTISINBOX.L-<lane>.json        what one session sent (one writer each)
          CESTISINBOX.result.<id>.json     a test this script marked
          files/                           the trainee's uploads
-       Registrations/                     reserved
+       Registrations/                     registrations from home (CESTISREG.<id>.json),
+         catalogue.json                     and the programmes taking trainees (staff publish it)
      <the folder holding CESTIS_ACCOUNTS.json>/CESTIS_GATE.json
                                           written here, so staff devices find the folders
 
@@ -4095,6 +4953,12 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
      upload                     {token, name, mime, base64, purpose, refId} → {fileId, size, name}
      file.get                   {token, fileId} → {fileId, name, mime, size, base64}
      signOut                    {token} → {}
+     catalogue                  {} → {programmes:[name]}           (no sign-in: what a new trainee may register for)
+     register.start             {accessToken} → {state:'new', email, programmes} | {state:'submitted', email, programme, submittedAt}
+     register.submit            {accessToken, name, programme, phone?, password:'pbkdf2$…'} → {state:'submitted', …}
+                                (registration from home, DESIGN.md §17: an email-account token
+                                 only; refused: has-account | pending | rejected | disabled |
+                                 not-open | bad-form {field} | too-many | ask-office)
      deliver                    {items:[sealed item], lane?} → {receipts:[{id, ok, reason?, retry?, dup?, result?, retired?}]}
                                 (no token: each item carries its own seal; saving an
                                  attempt is a sealed record, submitting it a sealed
@@ -4105,7 +4969,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
 /* global CESTISCore, DriveApp, CacheService, PropertiesService, UrlFetchApp, MailApp, Utilities, LockService,
    ContentService, HtmlService, Logger */
 
-var GATE_VERSION = 1;
+// 2: registration from home (catalogue, register.start, register.submit), folders named "<Name> (<student ID>)".
+var GATE_VERSION = 2;
 var GATE_PROTOCOL = [1];
 var GATE_SERVICE = 'cestis-trainee-gate';
 // The dashboard's own sign-in client (index.html GOOGLE_DRIVE_CONFIG.CLIENT_ID) — public by nature.
@@ -4169,6 +5034,7 @@ var GATE_OPS = {
   'auth.2fa': gateAuthTwoStep, 'auth.2fa.send': gateAuthTwoStepSend,
   'pull': gatePull, 'paper': gatePaper, 'attempt.get': gateAttemptGet, 'review': gateReview, 'room.get': gateRoomGet,
   'upload': gateUpload, 'file.get': gateFileGet, 'signOut': gateSignOut, 'deliver': gateDeliver,
+  'catalogue': gateCatalogue, 'register.start': gateRegisterStart, 'register.submit': gateRegisterSubmit,
   'diag.echo': gateDiagEcho, 'diag.tokeninfo': gateDiagTokenInfo
 };
 // Answered even when the gate is switched off (a check must still say so).
@@ -4525,7 +5391,8 @@ function gateBuildIndex(G, led, updated, ledgerId) {
 /* --------------------------------------------- a trainee's folder, files
    Found by the account id in its description, never by its name (student
    IDs move: DESIGN.md §1.2): remembered, else by the name the account's
-   link gives, else by a search of the descriptions — and of several, the
+   name and link give ("<Name> (<student ID>)", or the student ID alone as
+   before), else by a search of the descriptions — and of several, the
    oldest. Every use checks the folder still names the account. */
 function gateDescribes(folder, acct) {
   return new RegExp('(^|\\s)acct=' + gateReEsc(acct) + '(\\s|$)').test(gateStr(folder.getDescription()));
@@ -4557,7 +5424,12 @@ function gateTraineeFolder(G, acct, entry) {
       }
       return best;
     };
-    if (entry && entry.sdi) f = pickOldest(trainees.getFoldersByName(entry.sdi));
+    // By its name (no search, no lag): "<Name> (<student ID>)" as folders are named now (§17), or the
+    // student ID alone as they were named before the office PCs renamed them.
+    if (entry && entry.sdi) {
+      if (entry.nm) f = pickOldest(trainees.getFoldersByName(G.gate.folderName(entry.nm, entry.sdi)));
+      if (!f) f = pickOldest(trainees.getFoldersByName(entry.sdi));
+    }
     var found = pickOldest(trainees.searchFolders("fullText contains 'acct=" + gateQ(acct) + "' and trashed = false"));
     if (found && (!f || older(found, f))) f = found;
     if (!f) { G.cache.put(key, '-', 60); return null; }
@@ -4693,21 +5565,136 @@ function gateTokenInfo(token) {
   if (resp.getResponseCode() !== 200) return null;
   try { return JSON.parse(resp.getContentText()); } catch (e) { return null; }
 }
-function gateAuthEmail(G, req) {
+/* Google's word on an access token: given to THIS dashboard (aud), for a
+   verified address, not expired, with the email scope. Email sign-in and
+   registration from home both rest on it. → { info } | { out: refusal } */
+function gateEmailToken(G, req) {
   var token = gateStr(req.accessToken);
   if (!/^[A-Za-z0-9._~+\/-]{10,4096}=*$/.test(token)) gateFail('bad-request');
   var cfg = gateReady(G);
-  if (gateCount(G, 'em:' + gateMinute(G), 120) > GATE_LIMITS.EMAIL_SIGNINS_PER_MIN) return { ok: false, error: 'busy', retry: true };
+  if (gateCount(G, 'em:' + gateMinute(G), 120) > GATE_LIMITS.EMAIL_SIGNINS_PER_MIN) return { out: { ok: false, error: 'busy', retry: true } };
   var info = gateTokenInfo(token);
-  if (!info) return { ok: false, error: 'bad-token' };
-  if (!(gateStr(info.aud) === cfg.clientId || (!info.aud && gateStr(info.azp) === cfg.clientId))) return { ok: false, error: 'wrong-app' };
-  if (gateStr(info.email_verified) !== 'true') return { ok: false, error: 'unverified-email' };
-  if (!(Number(info.expires_in) > 0)) return { ok: false, error: 'bad-token' };
-  if (!/(^|\s)(https:\/\/www\.googleapis\.com\/auth\/userinfo\.email|email)(\s|$)/.test(gateStr(info.scope))) return { ok: false, error: 'bad-token' };
+  if (!info) return { out: { ok: false, error: 'bad-token' } };
+  if (!(gateStr(info.aud) === cfg.clientId || (!info.aud && gateStr(info.azp) === cfg.clientId))) return { out: { ok: false, error: 'wrong-app' } };
+  if (gateStr(info.email_verified) !== 'true') return { out: { ok: false, error: 'unverified-email' } };
+  if (!(Number(info.expires_in) > 0)) return { out: { ok: false, error: 'bad-token' } };
+  if (!/(^|\s)(https:\/\/www\.googleapis\.com\/auth\/userinfo\.email|email)(\s|$)/.test(gateStr(info.scope))) return { out: { ok: false, error: 'bad-token' } };
+  return { info: info };
+}
+function gateAuthEmail(G, req) {
+  var t = gateEmailToken(G, req);
+  if (t.out) return t.out;
+  var info = t.info;
   var look = G.gate.lookupLogin(gateIndex(G), info.email, { emailOnly: true, allowNoPassword: true });
   if (look.ambiguous) return { ok: false, error: 'ask-office', why: 'ambiguous' };
   if (!look.e) return { ok: false, error: 'not-found' };
   return gateAfterCredential(G, look.id, look.e, 'email');
+}
+
+/* ------------------------------------------- registration from home (§17)
+   A new trainee registers from home, signed in with their own email
+   account: the owner's rule, and the only way to register from outside the
+   Centre — Google must vouch for the token (gateEmailToken). In the same
+   request the gate then:
+     - keeps the registration: Registrations/CESTISREG.<account id>.json
+       (Core.gate.reg.build: name, address, programme, phone, the password
+       as the dashboard stores one — worked out on the trainee's device);
+     - makes the trainee's own folder: Trainees/"<Name> (<student ID>)",
+       described "cestis-trainee acct=<account id> v=1 registration=pending"
+       (the student ID the dashboard will give them: Core.gate.reg.studentId).
+   The office's computers bring the registration into Verify Users
+   (index.html, the collector). The account id comes from the address and
+   the gate's secret (Core.gate.reg.accountId): the same person sending it
+   twice finds their registration, never makes a second one. An address
+   that already has a trainee account is told to sign in (or how its
+   registration stands). Limits: 5 tries an hour for one address, 60
+   registrations an hour and 200 in six hours for everybody (each makes a
+   folder). The one lock in the gate besides setup is taken here, briefly:
+   registrations are rare, and two taps of Register must not make two
+   folders. */
+var GATE_REG = { CATALOGUE: 'catalogue.json', PER_ADDRESS_PER_HOUR: 5, PER_HOUR: 60, PER_6H: 200, CATALOGUE_S: 60, LOCK_MS: 10000 };
+function gateRegFolder(G) {
+  var f = gateFolderById(gateReady(G).regId);
+  if (!f) gateFail('not-set-up');
+  return f;
+}
+// The programmes taking trainees, as staff devices last published them (remembered a minute).
+function gateCatalogueNames(G) {
+  var hit = gateCacheJson(G, 'cat');
+  if (hit && Array.isArray(hit.p)) return hit.p;
+  var f = gateNewest(gateRegFolder(G).getFilesByName(GATE_REG.CATALOGUE));
+  var names = f ? G.gate.reg.catalogueNames(gateReadJsonFile(f)) : [];
+  gateCachePut(G, 'cat', { p: names }, GATE_REG.CATALOGUE_S);
+  return names;
+}
+function gateCatalogue(G) { return { ok: true, programmes: gateCatalogueNames(G) }; }
+// A registration already kept for this account id (by its exact name: no search, no lag).
+function gateRegFileOf(G, acct) {
+  var f = gateOldest(gateRegFolder(G).getFilesByName(G.gate.reg.fileName(acct)));
+  if (!f) return null;
+  var r = G.gate.reg.read(gateReadJsonFile(f));
+  return r.reg || { unreadable: true };
+}
+function gateRegSubmitted(email, reg) {
+  return { ok: true, state: 'submitted', email: email, programme: gateStr(reg.programme), submittedAt: gateStr(reg.createdAt) };
+}
+/* Who is registering: Google's word on the token; then whether the address
+   already has a trainee account (→ sign in, or how it stands) or a
+   registration waiting (→ "it has reached the office"). */
+function gateRegWho(G, req) {
+  var t = gateEmailToken(G, req);
+  if (t.out) return { out: t.out };
+  var email = gateStr(t.info.email).trim();
+  if (!GATE_EMAIL_RE.test(email)) return { out: { ok: false, error: 'bad-token' } };
+  var look = G.gate.lookupLogin(gateIndex(G), email, { emailOnly: true, allowNoPassword: true });
+  if (look.ambiguous) return { out: { ok: false, error: 'ask-office', why: 'ambiguous' } };
+  if (look.e) return { out: { ok: false, error: G.gate.reg.existing(look.e) } };
+  var acct = G.gate.reg.accountId(email, gateCfg(G).secret, G.crypto);
+  var reg = gateRegFileOf(G, acct);
+  if (reg) return { out: gateRegSubmitted(email, reg) };
+  return { email: email, acct: acct };
+}
+function gateRegisterStart(G, req) {
+  var w = gateRegWho(G, req);
+  if (w.out) return w.out;
+  var programmes = gateCatalogueNames(G);
+  if (!programmes.length) return { ok: false, error: 'not-open' };
+  return { ok: true, state: 'new', email: w.email, programmes: programmes };
+}
+function gateRegisterSubmit(G, req) {
+  var w = gateRegWho(G, req);
+  if (w.out) { if (w.out.state === 'submitted') w.out.already = true; return w.out; }
+  var programmes = gateCatalogueNames(G);
+  if (!programmes.length) return { ok: false, error: 'not-open' };
+  var chk = G.gate.reg.check({ name: req.name, programme: req.programme, phone: req.phone, password: req.password }, programmes);
+  if (!chk.ok) return { ok: false, error: 'bad-form', field: chk.field };
+  var akey = 'rga:' + gateAcctKey(G, w.acct), hkey = 'rgh:' + Math.floor(G.now / 3600000), skey = 'rg6:' + Math.floor(G.now / 21600000);
+  if (gateCountOf(G, akey) >= GATE_REG.PER_ADDRESS_PER_HOUR || gateCountOf(G, hkey) >= GATE_REG.PER_HOUR || gateCountOf(G, skey) >= GATE_REG.PER_6H) {
+    return { ok: false, error: 'too-many', retryAfter: 3600 };
+  }
+  gateCount(G, akey, 3600); gateCount(G, hkey, 3600); gateCount(G, skey, 21600);
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(GATE_REG.LOCK_MS)) gateFail('busy');
+  try {
+    var again = gateRegFileOf(G, w.acct);
+    if (again) { var a = gateRegSubmitted(w.email, again); a.already = true; return a; }
+    var v = chk.value, cfg = gateCfg(G);
+    // A folder made by an earlier try that could not finish is that same folder (never a second).
+    var folder = gateTraineeFolder(G, w.acct, null);
+    if (!folder) {
+      var trainees = gateFolderById(cfg.traineesId);
+      if (!trainees) gateFail('not-set-up');
+      folder = trainees.createFolder(G.gate.folderName(v.name, G.gate.reg.studentId(v.name, v.programme)));
+      folder.setDescription(G.gate.folderDescription(w.acct, 'pending'));
+    }
+    G.props.setProperty('fold:' + w.acct, folder.getId());
+    G.cache.put('fd:' + w.acct, folder.getId(), GATE_LIMITS.CACHE_MAX_S);
+    var body = G.gate.reg.build({ acct: w.acct, email: w.email, value: v, folder: { id: folder.getId(), name: folder.getName() }, nowMs: G.now });
+    gateRegFolder(G).createFile(G.gate.reg.fileName(w.acct), JSON.stringify(body), 'application/json');
+    return gateRegSubmitted(w.email, body);
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* The credential is right: may this account go on, and does it need its

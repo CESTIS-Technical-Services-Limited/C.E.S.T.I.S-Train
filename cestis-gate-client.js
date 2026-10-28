@@ -14,6 +14,8 @@
      CESTISGate.configure({...})        what the page hands in (hashing, callbacks)
      CESTISGate.base()                  which gate this device talks to (by origin)
      CESTISGate.signIn / signInEmail / twoStep / twoStepSend
+     CESTISGate.registerStart / registerSubmit / catalogue
+                                        a new trainee registering from home (§17)
      CESTISGate.enter(session)          into the gate's own store namespace (then reload)
      CESTISGate.pull / applyPull        the trainee's records, into that namespace
      CESTISGate.paper / attempt / review / upload / fileGet / roomGet
@@ -693,6 +695,45 @@
     });
   }
 
+  /* ---- Registering from home (DESIGN.md §17) ----
+     Only with the trainee's own email account — its access token, exactly
+     as for email sign-in: register.start says whether to show the form (and
+     which programmes are taking trainees), or that the address already has
+     an account or a registration waiting; register.submit sends the form.
+     The password goes as the dashboard stores one (pbkdf2$…, a fresh salt,
+     worked out here: the password itself never leaves the device), so the
+     trainee can later sign in with it as well. Never on the Centre's own
+     network, where there is no email-account sign-in: the office creates
+     the account there. */
+  function storedPassword(password) {
+    if (typeof cfg.hashPassword === 'function') return Promise.resolve(cfg.hashPassword(str(password)));
+    var salt = new Uint8Array(16);
+    root.crypto.getRandomValues(salt);
+    var saltHex = hex(salt);
+    return pbkdf2Hex(str(password), saltHex, 210000).then(function (h) { return 'pbkdf2$210000$' + saltHex + '$' + h; });
+  }
+  function catalogue() {
+    return withBase(function (b) { return b.kind === 'lan' ? { ok: false, error: 'not-available' } : call(b, 'catalogue', {}); });
+  }
+  // → {state:'new', email, programmes} | {state:'submitted', email, programme, submittedAt} | {ok:false, error}
+  function registerStart(accessToken) {
+    return withBase(function (b) {
+      if (b.kind === 'lan') return { ok: false, error: 'not-available' };
+      return call(b, 'register.start', { accessToken: str(accessToken) });
+    });
+  }
+  // o: { accessToken, name, programme, phone, password } → {state:'submitted', …} | {ok:false, error, field?}
+  function registerSubmit(o) {
+    o = o || {};
+    return withBase(function (b) {
+      if (b.kind === 'lan') return { ok: false, error: 'not-available' };
+      return storedPassword(o.password).then(function (pw) {
+        if (!/^pbkdf2\$/.test(str(pw))) return { ok: false, error: 'bad-form', field: 'password' };
+        return call(b, 'register.submit', { accessToken: str(o.accessToken), name: str(o.name), programme: str(o.programme), phone: str(o.phone), password: pw });
+      });
+    });
+  }
+
   /* ---- Into the namespace, and out (§7.1) ----
      enter(): written into the namespace's own keys straight in localStorage
      (this page still has the main store open), then the page reloads into it.
@@ -1088,6 +1129,7 @@
     PROTOCOL: PROTOCOL, NS: NS, LAN_PATH: LAN_PATH, OUTBOX_DB: OUTBOX_DB,
     configure: configure, base: base, takeLink: takeLink, probeLan: probeLan, hasWork: hasWork,
     signIn: signIn, signInEmail: signInEmail, twoStep: twoStep, twoStepSend: twoStepSend,
+    catalogue: catalogue, registerStart: registerStart, registerSubmit: registerSubmit,
     enter: enter, leave: leave, tidy: tidy, session: session, inSession: function () { return !!session(); },
     now: function () { return gateNow(session()); },
     pull: pull, applyPull: function (res) { applying = true; return applyPull(res).then(function (r) { applying = false; return r; }, function (e) { applying = false; throw e; }); },

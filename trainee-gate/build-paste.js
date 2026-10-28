@@ -10,9 +10,12 @@
 
    WHY THERE ARE TWO MODES
    The whole of cestis-core.js is about 0.8 MB, and the gate runs a small
-   part of it: Core.gate and the three modules its rules call while it
-   answers a request (Core.exams, Core.accountAccess, Core.accountLoginScore)
-   plus the few helpers at the top of the file. Every request re-reads the
+   part of it: Core.gate and the modules its rules call while it answers a
+   request (Core.exams, Core.accountAccess, Core.accountLoginScore — and,
+   for a registration from home, the dashboard's own student ID:
+   Core.stableStudentId with Core.naturalKey, Core.programmeIdentity and
+   the intake-key reader in Core.enrolment) plus the few helpers at the top
+   of the file. Every request re-reads the
    whole paste, and whether the Apps Script editor accepts a paste that size
    cannot be checked from here (SETUP.md, live check 1). So by default the
    builder copies ONLY those parts, each one byte for byte from
@@ -48,9 +51,14 @@ const GATE = 'trainee-gate/Gate.gs';
 const CHUNKS = [
   { name: 'the helpers at the top (Core, hashString, normName, normCourse)',
     start: '  var Core = {};', endPrefix: '  Core.normCourse = function' },
+  // A registration's student ID is the dashboard's own (Core.gate.reg.studentId).
+  { name: 'Core.naturalKey', start: '  Core.naturalKey = function (student) {', end: '  };' },
+  { name: 'Core.stableStudentId', start: '  Core.stableStudentId = function (student) {', end: '  };' },
+  { name: 'Core.programmeIdentity', start: '  Core.programmeIdentity = function (rec, courseField) {', end: '  };' },
   { name: 'Core.accountLoginScore', start: '  Core.accountLoginScore = function (u) {', end: '  };' },
   { name: 'Core.accountAccess', start: '  Core.accountAccess = (function () {', end: '  })();' },
   { name: 'Core.exams', start: '  Core.exams = (function () {', end: '  })();' },
+  { name: 'Core.enrolment', start: '  Core.enrolment = (function () {', end: '  })();' },
   { name: 'Core.gate', start: '  Core.gate = (function () {', end: '  })();' }
 ];
 

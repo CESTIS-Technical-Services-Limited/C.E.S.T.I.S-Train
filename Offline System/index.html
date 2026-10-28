@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261028e"></script>
+<script src="cestis-core.js?v=20261029a"></script>
 <script src="cestis-form-modal.js?v=20261028d" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
 <script src="cestis-page-cloud.js?v=20261028e"></script>
-<script src="cestis-gate-client.js?v=20261028e" defer></script>
+<script src="cestis-gate-client.js?v=20261029a" defer></script>
 <script src="staff-appraisals.js?v=20261028d"></script>
 <script src="cmc-portal.js?v=20261028d"></script>
 <script src="cert-template-seed.js?v=20260802b"></script>
@@ -909,6 +909,21 @@ html[data-theme="light"] #landingPage {
    no Sync Now, and a trainee's own device is not asked to sync at all. */
 body.gate-trainee .role-cards.sync-pending #studentCard { opacity:1; filter:none; pointer-events:auto; transform:none; }
 body.gate-trainee-only #loginSyncBar, body.gate-trainee-only #loginSyncWhy { display:none; }
+/* Registering, with the gate on: only with the trainee's own email account
+   (DESIGN.md §17) — today's "Register here" form is not offered; on the
+   Centre's own network (no email-account sign-in there) the office creates
+   the account. */
+.gate-register-link, .gate-register-note { display:none; }
+body.gate-trainee .gate-register-link { display:block; }
+body.gate-trainee #studentCard .today-register-link { display:none; }
+body.gate-trainee.gate-lan .gate-register-link { display:none; }
+body.gate-trainee.gate-lan .gate-register-note { display:block; }
+.gate-register-note { font-size:12px; color:var(--text-muted); text-align:center; margin:8px 0 0; }
+.reg-modal.gate-reg-modal { max-height:calc(100vh - 32px); overflow-y:auto; }
+.gate-reg-modal .gate-reg-email { font-size:13px; color:var(--text-secondary); padding:10px 14px; border:1px dashed var(--border-light); border-radius:var(--radius-sm); word-break:break-all; }
+.gate-reg-modal .gate-reg-say { min-height:18px; font-size:13px; margin-top:8px; color:var(--red); }
+.gate-reg-modal .gate-reg-say.is-status { color:var(--text-secondary); }
+.gate-reg-modal .gate-reg-hint { font-size:12px; color:var(--text-muted); margin-top:4px; }
 html.gate-ns #landingPage { display:none; }
 .role-login-error.is-status { color:var(--text-secondary); background:transparent; border-color:transparent; }
 .gate-boot { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; padding:16px; background:var(--bg-primary); }
@@ -5181,7 +5196,9 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
             Sign in with your email account
           </button>
-          <button type="button" class="register-link" onclick="openRegistrationModal('student')">New student? Register here</button>
+          <button type="button" class="register-link today-register-link" onclick="openRegistrationModal('student')">New student? Register here</button>
+          <button type="button" class="register-link gate-register-link" onclick="gateRegisterStart()">New trainee? Register with your email account</button>
+          <p class="gate-register-note">New trainee? Ask the office to create your account.</p>
         </div>
         <button type="submit" class="role-enter-btn">Enter as Student →</button>
         </form>
@@ -5770,6 +5787,29 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('createUserModal')">Cancel</button>
       <button class="btn btn-primary" onclick="createUserAccount()">Create User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TRAINEE ACCOUNT MODAL (Verify Users / Admin Staff: Trainee Accounts) -->
+<div class="modal-overlay" id="addTraineeModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTraineeTitle">
+    <div class="modal-header"><h3 id="addTraineeTitle">Add Trainee Account</h3><button class="modal-close" onclick="closeModal('addTraineeModal')" aria-label="Close">✕</button></div>
+    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;">The account is active at once. Give the trainee their username and password. With their email address entered, they can also sign in with their email account.</p>
+    <div class="form-group"><label for="atName">Full Name (first &amp; last name required)</label><input type="text" class="form-control" id="atName" placeholder="First and last name, e.g. Tameka Richards" autocomplete="off"></div>
+    <div class="um-form-row">
+      <div class="form-group"><label for="atEmail">Email</label><input type="email" class="form-control" id="atEmail" placeholder="trainee@example.com" autocomplete="off"></div>
+      <div class="form-group"><label for="atPhone">Phone (optional)</label><input type="tel" class="form-control" id="atPhone" placeholder="876-555-0123" autocomplete="off"></div>
+    </div>
+    <div class="form-group"><label for="atProgramme">Programme</label><select class="form-control" id="atProgramme"><option value="">— Select Programme —</option></select></div>
+    <div class="um-form-row">
+      <div class="form-group"><label for="atUsername">Username</label><input type="text" class="form-control" id="atUsername" placeholder="Left blank: made from the email" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+      <div class="form-group"><label for="atPassword">Password</label><input type="password" class="form-control" id="atPassword" placeholder="Minimum 6 characters" autocomplete="new-password"></div>
+    </div>
+    <div class="role-login-error" id="atSaid" role="alert" hidden></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-secondary" onclick="closeModal('addTraineeModal')">Cancel</button>
+      <button class="btn btn-primary" id="atCreateBtn" onclick="createTraineeAccount()">Create Account</button>
     </div>
   </div>
 </div>
@@ -8578,7 +8618,12 @@ function lmsChatFlushDriveSyncNow() {
 // ticks it.
 // 'invigilation' (the Exam Invigilator page: live board and sitting
 // registers) is off until an Administrator ticks it.
-var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false };
+// 'traineeaccounts' (Trainee Accounts: add a trainee's account in the office,
+// and approve or reject the registrations trainees send from home) is ON
+// unless an Administrator turns it off — the owner: "both the office admin
+// staff and administrators can create accounts for students". Trainee
+// accounts only: Admin Staff can never create or approve a staff login.
+var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false, traineeaccounts:true };
 function adminStaffAccessDefaults() { return Object.assign({}, AS_ACCESS_DEFAULTS); }
 var adminStaffAccessSettings = adminStaffAccessDefaults();
 
@@ -10688,17 +10733,16 @@ async function createUserAccount() {
   var password = document.getElementById('newUserPassword').value;
   var email = document.getElementById('newUserEmail').value.trim();
   var programme = document.getElementById('newUserProgramme').value;
-  if(!name || !username || !password) { alert('Please fill in Name, Username, and Password.'); return; }
-  if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter the user\'s FULL name — first name AND last name (e.g. "John Smith").\n\nThe full name is required to link staff to their Payslip employee record.'); return; }
-  if(password.length < 6) { alert('Password must be at least 6 characters.'); return; }
-  // Case-insensitive: login matching ignores case, so "JSmith" and "jsmith"
-  // are the same login and must not both exist.
-  if(userAccounts.find(function(u){ return u && String(u.username||'').toLowerCase() === username.toLowerCase(); })) { alert('Username already exists.'); return; }
-  if(role !== 'admin' && role !== 'adminstaff' && role !== 'cmc' && !programme) { alert('Please select a programme.'); return; }
-  if(role === 'student') { var _enrolBlk = courseEnrolmentBlockReason(programme); if(_enrolBlk) { alert(_enrolBlk); return; } }
+  // The office's one rule for a new account (who may create which role, the
+  // full name, a username nobody holds in any case, a trainee's email nobody
+  // holds, a programme taking trainees now): CESTISCore.accountAccess.officeCreateRefusal.
+  var _refusal = CESTISCore.accountAccess.officeCreateRefusal({ role: currentRole }, { role: role, name: name, username: username, email: email, programme: programme, password: password },
+    userAccounts, { enrolBlock: role === 'student' ? courseEnrolmentBlockReason(programme) : '' });
+  if(_refusal) { alert(_refusal.message); return; }
   var now = new Date(); var dateStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
   var hashedPw = await hashPassword(password);
   var newAccount = {id:getNextUserId(),name:name,role:role,username:username,password:hashedPw,email:email,programme:(role==='admin'||role==='adminstaff'||role==='cmc')?'':programme,status:'active',createdAt:dateStr,registeredVia:'admin-created'};
+  officeStampCreator(newAccount, dateStr);
   cachePlaintextPw(newAccount, password);
   // Ids are random, so this is defensive — but an id that ever did land on a
   // deleted one would see the new account swept away again the moment it saved.
@@ -10736,6 +10780,85 @@ async function createUserAccount() {
   renderUserAccountsTable();
   showToast('User account created successfully!');
   addNotification('New user account created: ' + name + ' (' + role + ')', 'student', null, ['admin']);
+  if(role === 'student') { try { gatePublishSoon(); } catch(e) {} }
+}
+
+/* Who made an account in the office, on the account itself. A trainee's
+   account made by the office is approved by the office in the same act (it
+   has seen the trainee), so it is active at once and says who approved it. */
+function officeStampCreator(acct, dateStr) {
+  var me = currentLoggedInUser || {};
+  acct.createdBy = String(me.username || me.name || currentRole || '');
+  acct.createdByRole = String(currentRole || '');
+  if(acct.role === 'student') { acct.approvedAt = dateStr; stampReviewer(acct); }
+}
+
+/* ---- Add a trainee's account in the office (Verify Users; Admin Staff:
+   Trainee Accounts) ----
+   Administrators and Admin Staff alike — the owner: "both the office admin
+   staff and administrators can create accounts for students". A trainee
+   account only, under the same rule as Settings → Users
+   (CESTISCore.accountAccess.officeCreateRefusal). It is active at once. With
+   trainee sign-in from anywhere on, the trainee's own folder is made in the
+   same moment (gatePublishSoon); with it off, the first publishing turn
+   after it is turned on makes it. */
+function officeMayAddTrainee() {
+  return currentRole === 'admin' || (currentRole === 'adminstaff' && !!(adminStaffAccessSettings && adminStaffAccessSettings.traineeaccounts));
+}
+// Programmes a trainee can be put on now (the centres taking trainees today).
+function officeEnrollingProgrammes() {
+  return getCourseList().filter(function(p) { return !courseEnrolmentBlockReason(p); });
+}
+// A username nobody holds yet, from the email address or else the name.
+function officeSuggestUsername(name, email) {
+  var base = String(email || '').split('@')[0] || String(name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, '');
+  base = String(base || 'trainee').toLowerCase().replace(/[^a-z0-9._-]/g, '') || 'trainee';
+  var u = base, n = 1;
+  while (userAccounts.some(function(a) { return a && String(a.username || '').trim().toLowerCase() === u; })) { n++; u = base + n; }
+  return u;
+}
+function openAddTraineeAccount() {
+  if(!officeMayAddTrainee()) { showToast('Adding trainee accounts has not been enabled for Admin Staff by the Administrator.', 'warning'); return; }
+  var sel = document.getElementById('atProgramme');
+  if(sel) sel.innerHTML = '<option value="">— Select Programme —</option>' + officeEnrollingProgrammes().map(function(p) { return '<option value="' + escapeAttr(p) + '">' + escapeHtml(p) + '</option>'; }).join('');
+  ['atName', 'atEmail', 'atPhone', 'atUsername', 'atPassword'].forEach(function(id) { var el = document.getElementById(id); if(el) el.value = ''; });
+  var said = document.getElementById('atSaid'); if(said) { said.hidden = true; said.textContent = ''; }
+  openModal('addTraineeModal');
+}
+async function createTraineeAccount() {
+  if(!officeMayAddTrainee()) return;
+  var v = function(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; };
+  var name = v('atName').trim().replace(/\s+/g, ' '), email = v('atEmail').trim(), phone = v('atPhone').trim();
+  var programme = v('atProgramme'), password = v('atPassword');
+  var username = v('atUsername').trim() || officeSuggestUsername(name, email);
+  var draft = { role: 'student', name: name, username: username, email: email, programme: programme, password: password, phone: phone };
+  var refusal = CESTISCore.accountAccess.officeCreateRefusal({ role: currentRole, allowed: officeMayAddTrainee() }, draft, userAccounts,
+    { enrolBlock: programme ? courseEnrolmentBlockReason(programme) : '' });
+  var said = document.getElementById('atSaid');
+  if(refusal) { if(said) { said.hidden = false; said.textContent = refusal.message; } else alert(refusal.message); return; }
+  var btn = document.getElementById('atCreateBtn'); if(btn) btn.disabled = true;
+  try {
+    var dateStr = localDateStr();
+    var acct = { id: getNextUserId(), name: name, role: 'student', username: username, password: await hashPassword(password), email: email,
+      programme: programme, status: 'active', createdAt: dateStr, registeredVia: 'admin-created' };
+    if(phone) acct.phone = phone;
+    officeStampCreator(acct, dateStr);
+    cachePlaintextPw(acct, password);
+    clearDeletedUser(acct.id);
+    userAccounts.push(acct);
+    // Their trainee record: the one of that name on that programme, or a new one.
+    var existingStudent = findStudentRecordForAccount(acct);
+    if(existingStudent) acct.studentDataId = existingStudent.id;
+    else createStudentDataForAccount(acct);
+    saveUserAccounts();
+    saveState();
+    closeModal('addTraineeModal');
+    try { renderVerifyUsersPage(); } catch(e) {}
+    try { refreshStudentDependentViews(); } catch(e) {}
+    showToast('Trainee account created: ' + name + ' (username ' + username + ')');
+    addNotification('New trainee account created: ' + name, 'student', null, ['admin']);
+    try { gatePublishSoon(); } catch(e) {}
+  } finally { if(btn) btn.disabled = false; }
 }
 
 function openEditUser(userId) {
@@ -12852,12 +12975,17 @@ async function handleGmailProfile(profile, role) {
     return;
   }
 
-  // New account — register with pending status
-  openRegistrationModal(role, name, email);
+  // New account — register with pending status (today's form: this is today's
+  // sign-in; with the gate on, a trainee's own device never comes here).
+  openRegistrationModal(role, name, email, { today: true });
 }
 
 // ----- Registration Modal -----
-function openRegistrationModal(role, prefillName, prefillEmail) {
+function openRegistrationModal(role, prefillName, prefillEmail, opts) {
+  // With trainee sign-in from anywhere on, a trainee registers only with
+  // their own email account, through it (gateRegisterStart): this form, which
+  // never leaves a trainee's own device, is not for them (the owner's rule).
+  if(role === 'student' && !(opts && opts.today) && typeof _gateT !== 'undefined' && _gateT.base) { gateRegisterStart(); return; }
   // All roles must sync before registration to prevent data loss
   if(requireLoginSync()) return;
   // Remove any existing modal
@@ -13170,19 +13298,36 @@ function createInstructorDataForAccount(userAccount) {
   return newInstructor;
 }
 
-// ----- Verify Users Page (Admin) -----
+// ----- Verify Users Page (Admin) — and Trainee Accounts (Admin Staff) -----
+/* Who may decide on an account here. An administrator: any account. Admin
+   Staff, while "Trainee Accounts" is ticked in Admin Staff access: a
+   TRAINEE's account only — never a staff role, and never a registration
+   asking for one (the owner: the office approves what trainees register
+   from home, and both administrators and admin staff are the office). */
+function accountReviewAllowed(u) {
+  if (currentRole === 'admin') return true;
+  if (currentRole !== 'adminstaff' || !(adminStaffAccessSettings && adminStaffAccessSettings.traineeaccounts)) return false;
+  return !!u && String(u.role || '').trim().toLowerCase() === 'student' && !CESTISCore.accountAccess.isPrivilegedSelfRegistration(u);
+}
+// Who decided, on the account itself: the role (as the field always held) and the person.
+function stampReviewer(u) {
+  u.approvedBy = currentRole === 'adminstaff' ? 'adminstaff' : 'admin';
+  var me = currentLoggedInUser && (currentLoggedInUser.name || currentLoggedInUser.username);
+  if (me) u.approvedByName = String(me);
+}
 function renderVerifyUsersPage() {
   // Only registrations and never-reviewed trainee placeholders: an account a
   // person switched off is not "awaiting" anything (CESTISCore.accountAccess.reviewQueue).
-  var needsReview = CESTISCore.accountAccess.reviewQueue(userAccounts);
+  // Admin Staff see the trainees' among them only.
+  var needsReview = CESTISCore.accountAccess.reviewQueue(userAccounts).filter(accountReviewAllowed);
   var pending = needsReview.filter(function(u) { return u.status === 'pending'; });
   var disabled = needsReview.filter(function(u) { return u.status === 'disabled'; });
   var recentlyProcessed = userAccounts.filter(function(u) {
-    return (u.status === 'active' || u.status === 'rejected') && u.approvedAt;
+    return (u.status === 'active' || u.status === 'rejected') && u.approvedAt && (currentRole === 'admin' || u.role === 'student');
   }).sort(function(a, b) { return (b.approvedAt || '').localeCompare(a.approvedAt || ''); }).slice(0, 10);
 
   // Update badge — show count of both pending and disabled accounts needing review
-  var badge = document.getElementById('pendingUsersBadge');
+  var badge = document.getElementById(currentRole === 'adminstaff' ? 'asPendingUsersBadge' : 'pendingUsersBadge');
   if(badge) {
     if(needsReview.length > 0) {
       badge.style.display = 'inline';
@@ -13218,14 +13363,26 @@ function renderVerifyUsersPage() {
       // said, so nobody activates a second login for a person unawares.
       var _maybeDup = {};
       try { CESTISCore.accountAccess.backfillStubFolds(userAccounts, students).unsure.forEach(function(id) { _maybeDup[id] = true; }); } catch(e) {}
+      // A registration from home by somebody who already has an account (one
+      // the office made without their email, say) gets the same warning.
+      needsReview.forEach(function(u) {
+        if (u.registeredVia !== 'home-registration') return;
+        try {
+          var r = CESTISCore.accountAccess.accountForTrainee(userAccounts, { name: u.name, programme: u.programme, email: u.email }, { skip: function(a) { return a === u || a.id === u.id; } });
+          if (r.match || r.ambiguous) _maybeDup[u.id] = true;
+        } catch(e) {}
+      });
       tbody.innerHTML = needsReview.map(function(u) {
         var roleBadge = u.role === 'student' ? 'badge-blue' : 'badge-green';
         var statusLabel = u.status === 'pending' ? '<span style="color:var(--accent);font-size:11px;font-weight:600;">Pending</span>' : '<span style="color:var(--red);font-size:11px;font-weight:600;">Disabled</span>';
         var sourceLabel = u.registeredVia === 'admin-created' ? ' <span style="font-size:10px;color:var(--text-muted);">(Admin Created)</span>' : u.registeredVia === 'fee-system' ? ' <span style="font-size:10px;color:var(--text-muted);">(Fee System)</span>' : u.registeredVia === 'registration' ? ' <span style="font-size:10px;color:var(--text-muted);">(Self-Registered)</span>' : '';
-        if (_maybeDup[u.id]) sourceLabel += ' <span style="font-size:10px;color:var(--accent);font-weight:600;">(may be a second account of somebody listed in Settings → Users — check before activating)</span>';
+        // Sent by the trainee from home, signed in with their own email account
+        // (the address was checked as theirs before the registration was taken).
+        if (u.registeredVia === 'home-registration') sourceLabel = ' <span class="vu-home-note" style="display:block;font-size:12px;color:var(--green);font-weight:600;">Registered from home · email account verified</span>';
+        if (_maybeDup[u.id]) sourceLabel += ' <span style="font-size:10px;color:var(--accent);font-weight:600;">(may be a second account of somebody who already has one — check the accounts list before activating)</span>';
         return '<tr>' +
           '<td><strong>' + escapeHtml(u.name) + '</strong>' + sourceLabel + '</td>' +
-          '<td style="font-size:12px;">' + escapeHtml(u.email || '—') + '</td>' +
+          '<td style="font-size:12px;">' + escapeHtml(u.email || '—') + (u.phone ? '<br><span style="color:var(--text-muted);">' + escapeHtml(u.phone) + '</span>' : '') + '</td>' +
           '<td><span class="badge ' + roleBadge + '"><span class="badge-dot"></span>' + u.role.charAt(0).toUpperCase() + u.role.slice(1) + '</span> ' + statusLabel + '</td>' +
           '<td>' + escapeHtml(u.programme || '—') + '</td>' +
           '<td style="font-size:12px;color:var(--text-muted);">' + u.createdAt + '</td>' +
@@ -13257,9 +13414,8 @@ function renderVerifyUsersPage() {
 }
 
 function approveUser(userId) {
-  if(currentRole !== 'admin') return;
   var user = userAccounts.find(function(u) { return u.id === userId; });
-  if(!user) return;
+  if(!user || !accountReviewAllowed(user)) return;
   if(CESTISCore.accountAccess.isPrivilegedSelfRegistration(user)) {
     alert('"' + user.name + '" registered through the public form but the request says "' + user.role + '".\n\n' +
       'A registration can only be a trainee or an instructor. Reject it, or approve it and set the role yourself in Settings → Users → Edit.');
@@ -13267,7 +13423,7 @@ function approveUser(userId) {
   }
   user.status = 'active';
   user.approvedAt = localDateStr();
-  user.approvedBy = 'admin';
+  stampReviewer(user);
   touchAccount(user);
   // Ensure student data is created and linked when approving a student account
   if (user.role === 'student' && !user.studentDataId) {
@@ -13301,29 +13457,33 @@ function approveUser(userId) {
   }
   showToast('Account approved: ' + user.name + ' (' + user.role + ')');
   addNotification('Account approved: ' + user.name + ' (' + user.role + ')', 'success', null, ['admin']);
+  // A trainee who signs in from home: their records are sent at once.
+  try { gatePublishSoon(); } catch(e) {}
 }
 
 function rejectUser(userId) {
-  if(currentRole !== 'admin') return;
   var user = userAccounts.find(function(u) { return u.id === userId; });
-  if(!user) return;
+  if(!user || !accountReviewAllowed(user)) return;
   if(!confirm('Reject the account for "' + user.name + '"? They will not be able to log in.')) return;
   user.status = 'rejected';
   user.approvedAt = localDateStr();
-  user.approvedBy = 'admin';
+  stampReviewer(user);
   touchAccount(user);
   saveState();
   try { saveUserAccounts(); } catch(e) {}   // the accounts ledger at once (see approveUser)
   renderVerifyUsersPage();
   showToast('Account rejected: ' + user.name);
   addNotification('Account rejected: ' + user.name, 'warning', null, ['admin']);
+  // A registration from home keeps its folder; it is marked as not approved.
+  try { gatePublishSoon(); } catch(e) {}
 }
 
 function approveAllPending() {
-  if(currentRole !== 'admin') return;
+  if(currentRole !== 'admin' && currentRole !== 'adminstaff') return;
   // The review queue only — never an account somebody deliberately switched
-  // off — and never a self-registration asking for a staff role.
-  var queue = CESTISCore.accountAccess.reviewQueue(userAccounts);
+  // off — and never a self-registration asking for a staff role. Admin
+  // Staff: the trainees' only (accountReviewAllowed).
+  var queue = CESTISCore.accountAccess.reviewQueue(userAccounts).filter(accountReviewAllowed);
   var skipped = queue.filter(function(u) { return CESTISCore.accountAccess.isPrivilegedSelfRegistration(u); });
   var pending = queue.filter(function(u) { return !CESTISCore.accountAccess.isPrivilegedSelfRegistration(u); });
   if(pending.length === 0) { alert('No pending accounts to approve.' + (skipped.length ? '\n\n' + skipped.length + ' registration(s) asking for a staff role must be reviewed one by one.' : '')); return; }
@@ -13332,7 +13492,7 @@ function approveAllPending() {
   pending.forEach(function(u) {
     u.status = 'active';
     u.approvedAt = dateStr;
-    u.approvedBy = 'admin';
+    stampReviewer(u);
     touchAccount(u);
     // Create linked student/instructor data on approval
     if (u.role === 'student' && !u.studentDataId) {
@@ -13365,18 +13525,19 @@ function approveAllPending() {
       '\n\nSet a password for each in Settings → Users (🔑 Reset Password).');
   }
   addNotification(pending.length + ' user account(s) approved' + (noPw.length ? ' — ' + noPw.length + ' still need a password' : ''), 'success', null, ['admin']);
+  try { gatePublishSoon(); } catch(e) {}
 }
 
 function rejectAllPending() {
-  if(currentRole !== 'admin') return;
-  var pending = CESTISCore.accountAccess.reviewQueue(userAccounts);
+  if(currentRole !== 'admin' && currentRole !== 'adminstaff') return;
+  var pending = CESTISCore.accountAccess.reviewQueue(userAccounts).filter(accountReviewAllowed);
   if(pending.length === 0) { alert('No pending accounts to reject.'); return; }
   if(!confirm('Reject all ' + pending.length + ' pending account(s)?')) return;
   var dateStr = localDateStr();
   pending.forEach(function(u) {
     u.status = 'rejected';
     u.approvedAt = dateStr;
-    u.approvedBy = 'admin';
+    stampReviewer(u);
     // Stamped like a single rejection, so an older 'pending' copy on another
     // device cannot bring the registration back on the next sync.
     touchAccount(u);
@@ -13386,6 +13547,7 @@ function rejectAllPending() {
   renderVerifyUsersPage();
   showToast(pending.length + ' account(s) rejected.');
   addNotification(pending.length + ' user account(s) rejected', 'warning', null, ['admin']);
+  try { gatePublishSoon(); } catch(e) {}
 }
 
 /* ============================== MOBILE SIDEBAR TOGGLE ============================== */
@@ -14213,7 +14375,8 @@ var AS_PAGE_PERMISSION = {
   'as-students': 'students', 'as-certificates': 'certificates', 'as-reports': 'reports',
   'as-training': 'training', 'as-exams': 'exams', 'as-invigilator': 'invigilation', 'as-video': 'video',
   'as-resources': 'resources', 'as-support-messages': 'supportmessages',
-  'as-attendance': 'attendance', 'as-announcements': 'announcements', 'as-calendar': 'calendar'
+  'as-attendance': 'attendance', 'as-announcements': 'announcements', 'as-calendar': 'calendar',
+  'as-trainee-accounts': 'traineeaccounts'
 };
 
 // Is this page allowed for whoever is signed in? The Admin Staff access grid
@@ -14283,6 +14446,7 @@ function showPage(pageId) {
     'as-attendance':'Attendance Management','as-announcements':'Announcements','as-calendar':'Calendar & Schedule',
     'as-students':'Student Progress','as-certificates':'Certificate Tracking','as-reports':'Reports & Analytics',
     'as-training':'Training Centres','as-exams':'Online Exams','as-video':'Video Conference','as-resources':'Resource Manager',
+    'as-trainee-accounts':'Trainee Accounts',
     'timetracking':'Staff Time Tracking','i-timetracking':'Staff Time Tracking','as-timetracking':'Staff Time Tracking',
     'fee-management':'School Fee Management','as-fee-management':'School Fee Management',
     'cashbook':'Cashbook Management','income-expenditure':'Income and Expenditure Account','megadata-admin':'Record Book Setup','megadata-adjq':'Identity Review','payments-invoices':'Payments / Invoices','document-hub':'Document Hub','i-document-hub':'Document Hub','as-document-hub':'Document Hub','pdf-workshop':'PDF Workshop','as-pdf-workshop':'PDF Workshop','i-pdf-workshop':'PDF Workshop',
@@ -37334,7 +37498,7 @@ var GATE_STORE_KEYS = ['voctrain_users', 'voctrain_deletedUserIds', 'voctrain_st
 // This page's own state for the gate (never stored: it is rebuilt after a reload).
 var _gateRun = { publishing: false, collecting: false, cfg: null, cfgAt: 0, cfgMissing: false, built: null, builtAt: 0,
   buildWrites: -1, buildMs: 0, remoteAt: 0, collectAt: 0, refetchAt: 0, healthAt: 0, drive: 0, killed: undefined,
-  decisions: null, lastError: '', lastCollect: null, offPending: '', offBusy: false };
+  decisions: null, lastError: '', lastCollect: null, offPending: '', offBusy: false, buildNow: false, again: false };
 
 /* ---- This PC's own notes (CESTISCore.gate.DEVICE_KEYS) ----
    Written straight into this browser's own copy, not through the store: they
@@ -37361,22 +37525,26 @@ function gateDevWrite(k, v) {
 // What this PC knows is published, and where (cestisGatePublished).
 function gatePublishedState(raw) {
   var st = raw && typeof raw === 'object' && !Array.isArray(raw) && raw.v === 1 ? raw : { v: 1 };
-  ['files', 'folders', 'dups'].forEach(function(k) { if (!st[k] || typeof st[k] !== 'object' || Array.isArray(st[k])) st[k] = {}; });
+  ['files', 'folders', 'dups', 'adoptFailed'].forEach(function(k) { if (!st[k] || typeof st[k] !== 'object' || Array.isArray(st[k])) st[k] = {}; });
   if (!st.device) st.device = 'dev-' + Math.random().toString(36).slice(2, 10);
   return st;
 }
-// What this PC has collected (cestisGateCollected).
+// What this PC has collected (cestisGateCollected). reg: the registrations from home (§17).
 function gateCollectedState(raw) {
   var c = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
   ['seen', 'byAcct', 'held'].forEach(function(k) { if (!c[k] || typeof c[k] !== 'object' || Array.isArray(c[k])) c[k] = {}; });
   if (typeof c.watermark !== 'string') c.watermark = '';
+  if (!c.reg || typeof c.reg !== 'object' || Array.isArray(c.reg)) c.reg = {};
+  if (!c.reg.seen || typeof c.reg.seen !== 'object' || Array.isArray(c.reg.seen)) c.reg.seen = {};
+  if (typeof c.reg.watermark !== 'string') c.reg.watermark = '';
   return c;
 }
 
 /* ---- Names on the gate's folders ---- */
-// A trainee's folder is named with their student ID, which changes on a
-// rename or a transfer; it is FOUND by the account written in its
-// description, which never does (DESIGN §1.2).
+// A trainee's folder is named "<Full Name> (<student ID>)" (the owner asked
+// for both: CESTISCore.gate.folderName), and both change on a rename or a
+// transfer; it is FOUND by the account written in its description, which
+// never does (DESIGN §1.2, §17).
 function gateFolderDescription(acct) { return 'cestis-trainee acct=' + acct + ' v=1'; }
 function gateFolderAcct(description) {
   var d = String(description || '');
@@ -37393,12 +37561,14 @@ function gateOlder(a, b) {
 }
 function gateFileName(kind, key) {
   if (kind === 'slice') return 'from-centre.json';
+  if (kind === 'catalogue') return 'catalogue.json';
   return kind + '.' + key + '.json';
 }
 function gateFileProps(kind, item) {
   var p = { cestisGate: '1', cestisKind: kind, h: String(item.h), s: String(item.s || 0) };
   if (kind === 'slice') p.acct = item.acct;
   else if (kind === 'room') p.roomId = item.key;
+  else if (kind === 'catalogue') p.catalogue = item.key;
   else p.examId = item.key;
   return p;
 }
@@ -37420,7 +37590,7 @@ function gateIndexListing(st, files, cfg, full) {
     var acct = String(p.acct || gateFolderAcct(f.description) || '');
     if (!acct) return;
     if (cfg && cfg.traineesId && Array.isArray(f.parents) && f.parents.indexOf(cfg.traineesId) === -1) return;
-    var cand = { id: f.id, name: String(f.name || ''), created: String(f.createdTime || '') };
+    var cand = { id: f.id, name: String(f.name || ''), created: String(f.createdTime || ''), desc: String(f.description || '') };
     var cur = st.folders[acct];
     if (!cur || cur.id === f.id) { st.folders[acct] = cand; delete st.dups[f.id]; return; }
     if (st.dups[f.id] && st.dups[f.id].of === cur.id) return;
@@ -37431,7 +37601,7 @@ function gateIndexListing(st, files, cfg, full) {
   });
   list.forEach(function(f) {
     var p = f.appProperties, kind = p.cestisKind;
-    var key = kind === 'slice' ? p.acct : (kind === 'room' ? p.roomId : (kind === 'paper' || kind === 'key' ? p.examId : ''));
+    var key = kind === 'slice' ? p.acct : (kind === 'room' ? p.roomId : (kind === 'paper' || kind === 'key' ? p.examId : (kind === 'catalogue' ? p.catalogue : '')));
     if (!key) return;
     var path = kind + ':' + key;
     var parent = Array.isArray(f.parents) && f.parents.length ? String(f.parents[0]) : '';
@@ -37463,7 +37633,8 @@ async function gateBuild(storeMap, nowMs, opts, pause, every) {
     var t = ctx.trainees[i], r = G.sliceFor(ctx, t.acct);
     if (!r) continue;
     out.scrubbed += r.scrubbed || 0;
-    out.items['slice:' + t.acct] = { kind: 'slice', key: t.acct, acct: t.acct, stu: r.slice.studentId, h: r.h, s: r.s, body: r.slice };
+    var own = (r.slice.data && r.slice.data.voctrain_students && r.slice.data.voctrain_students[0]) || {};
+    out.items['slice:' + t.acct] = { kind: 'slice', key: t.acct, acct: t.acct, stu: r.slice.studentId, name: String(own.name || ''), h: r.h, s: r.s, body: r.slice };
     r.slice.access.papers.forEach(function(id) { papers[id] = 1; });
     r.slice.access.rooms.forEach(function(id) { rooms[id] = 1; (inRooms[id] = inRooms[id] || []).push(t.acct); });
     if (pause && (i + 1) % every === 0) await pause();
@@ -37486,6 +37657,26 @@ async function gateBuild(storeMap, nowMs, opts, pause, every) {
     var f = G.buildRoom(room, msgs[id], members, ctx.now);
     out.items['room:' + id] = { kind: 'room', key: id, h: f.hash, s: ctx.maxStamp, body: f };
   });
+  /* The programmes a new trainee may register for from home (§17): those
+     taking trainees today (opts.catalogue, the page's own list). It turns on
+     the date as well as on the records, so its moment is at least the start
+     of today: tomorrow's turn republishes a programme that ended tonight. */
+  if (opts && Array.isArray(opts.catalogue)) {
+    var cat = G.reg.buildCatalogue(opts.catalogue, ctx.now);
+    out.items['catalogue:programmes'] = { kind: 'catalogue', key: 'programmes', h: cat.hash, s: Math.max(ctx.maxStamp, Math.floor(ctx.now / 86400000) * 86400000), body: cat };
+  }
+  /* Folders the gate made for registrations from home (the account carries
+     the folder's id): taken on as that trainee's folder rather than a second
+     one made (adopt); while the account is not one that gets records yet —
+     waiting, turned down — its name and its mark kept in step. */
+  out.adopt = {}; out.regFolders = [];
+  ctx.accounts.forEach(function(a) {
+    if (!a || a.id == null || !a.gateFolderId || String(a.role || '').trim().toLowerCase() !== 'student') return;
+    var acct = String(a.id);
+    out.adopt[acct] = String(a.gateFolderId);
+    if (out.items['slice:' + acct]) return;
+    out.regFolders.push({ acct: acct, id: String(a.gateFolderId), name: G.folderName(a.name, G.reg.studentId(a.name, a.programme)), mark: G.folderMarkFor(a) });
+  });
   return out;
 }
 
@@ -37501,20 +37692,31 @@ async function gateBuild(storeMap, nowMs, opts, pause, every) {
 function gatePlan(built, st) {
   var G = CESTISCore.gate, ops = [], seen = { skip: 0, write: 0, behind: 0, keep: 0 };
   var paths = Object.keys((built && built.items) || {});
-  ['key', 'paper', 'slice', 'room'].forEach(function(kind) {
+  var adopt = (built && built.adopt) || {}, failed = st.adoptFailed || {};
+  // A trainee's folder: made, taken on (a folder the gate made at their
+  // registration), or brought to its name and description.
+  var folderOp = function(acct, want, mayMake) {
+    var fold = st.folders[acct] || null;
+    if (!fold) {
+      if (adopt[acct] && failed[acct] !== adopt[acct]) ops.push({ op: 'adopt', path: 'folder:' + acct, acct: acct, id: adopt[acct], name: want.name, desc: want.desc });
+      else if (mayMake) ops.push({ op: 'folder', path: 'folder:' + acct, acct: acct, name: want.name, desc: want.desc });
+    } else if (fold.name !== want.name || (fold.desc != null && fold.desc !== want.desc)) {
+      ops.push({ op: 'rename', path: 'folder:' + acct, acct: acct, name: want.name, desc: want.desc });
+    }
+  };
+  ['key', 'paper', 'slice', 'room', 'catalogue'].forEach(function(kind) {
     paths.filter(function(p) { return p.indexOf(kind + ':') === 0; }).sort().forEach(function(path) {
       var it = built.items[path], cur = st.files[path] || null;
       var fold = kind === 'slice' ? (st.folders[it.acct] || null) : null;
       if (kind === 'slice' && cur && (!fold || cur.parent !== fold.id)) cur = null;
       var d = G.publishDecision({ h: it.h, s: it.s }, cur ? { h: cur.h, s: cur.s } : null);
       seen[d] = (seen[d] || 0) + 1;
-      if (kind === 'slice' && (d === 'write' || d === 'skip')) {
-        if (!fold) ops.push({ op: 'folder', path: 'folder:' + it.acct, acct: it.acct, name: it.stu });
-        else if (fold.name !== it.stu) ops.push({ op: 'rename', path: 'folder:' + it.acct, acct: it.acct, name: it.stu });
-      }
+      if (kind === 'slice' && (d === 'write' || d === 'skip')) folderOp(it.acct, { name: G.folderName(it.name, it.stu), desc: G.folderDescription(it.acct, '') }, true);
       if (d === 'write') ops.push({ op: 'put', path: path, kind: kind, key: it.key, acct: it.acct || '', h: it.h, s: it.s });
     });
   });
+  // Registrations from home not taking records yet: their folder's name and mark.
+  ((built && built.regFolders) || []).forEach(function(r) { folderOp(r.acct, { name: r.name, desc: G.folderDescription(r.acct, r.mark) }, false); });
   Object.keys(st.dups).sort().forEach(function(id) {
     var d = st.dups[id];
     if (d && !d.marked) ops.push({ op: 'dup', path: 'dup:' + id, id: id });
@@ -37532,16 +37734,38 @@ async function gateDoOp(op, env) {
   try {
     if (op.op === 'folder') {
       if (st.folders[op.acct]) return 'skip';
-      var fm = await drive.create({ name: op.name, mimeType: GATE_FOLDER_MIME, parents: [cfg.traineesId], description: gateFolderDescription(op.acct),
+      var desc = op.desc || gateFolderDescription(op.acct);
+      var fm = await drive.create({ name: op.name, mimeType: GATE_FOLDER_MIME, parents: [cfg.traineesId], description: desc,
         appProperties: { cestisGate: '1', cestisKind: 'folder', acct: op.acct } }, null);
-      st.folders[op.acct] = { id: fm.id, name: op.name, created: String(fm.createdTime || new Date(now).toISOString()) };
+      st.folders[op.acct] = { id: fm.id, name: op.name, created: String(fm.createdTime || new Date(now).toISOString()), desc: desc };
+      return 'done';
+    }
+    if (op.op === 'adopt') {
+      // The folder the gate made when the trainee registered from home: it is
+      // theirs if it is still in Trainees/, not in the bin, and names their
+      // account; then it is marked as the publisher's own (so every PC's
+      // listing sees it) and brought to its name. Otherwise this PC makes one
+      // next turn — the gate finds that one by its description.
+      if (st.folders[op.acct]) return 'skip';
+      var meta;
+      try { meta = await drive.get(op.id, 'id,name,description,parents,createdTime,trashed'); }
+      catch (e) { if (e && e.status === 404) { st.adoptFailed[op.acct] = op.id; return 'fail'; } throw e; }
+      if (!meta || meta.trashed || !Array.isArray(meta.parents) || meta.parents.indexOf(cfg.traineesId) === -1 || gateFolderAcct(meta.description) !== op.acct) {
+        st.adoptFailed[op.acct] = op.id;
+        return 'fail';
+      }
+      await drive.update(op.id, { name: op.name, description: op.desc, appProperties: { cestisGate: '1', cestisKind: 'folder', acct: op.acct } }, null);
+      st.folders[op.acct] = { id: op.id, name: op.name, created: String(meta.createdTime || ''), desc: op.desc };
       return 'done';
     }
     if (op.op === 'rename') {
       var fo = st.folders[op.acct];
-      if (!fo || fo.name === op.name) return 'skip';
-      await drive.update(fo.id, { name: op.name }, null);
+      if (!fo || (fo.name === op.name && (op.desc == null || fo.desc === op.desc))) return 'skip';
+      var change = { name: op.name };
+      if (op.desc != null) change.description = op.desc;
+      await drive.update(fo.id, change, null);
       fo.name = op.name;
+      if (op.desc != null) fo.desc = op.desc;
       return 'done';
     }
     if (op.op === 'dup') {
@@ -37562,7 +37786,7 @@ async function gateDoOp(op, env) {
       var f2 = st.folders[op.acct];
       if (!f2) return 'wait';
       parent = f2.id;
-    } else parent = cfg[{ key: 'keysId', paper: 'papersId', room: 'roomsId' }[op.kind]] || '';
+    } else parent = cfg[{ key: 'keysId', paper: 'papersId', room: 'roomsId', catalogue: 'registrationsId' }[op.kind]] || '';
     if (!parent) return 'wait';
     var cur = st.files[op.path] || null;
     if (cur && cur.parent && cur.parent !== parent) cur = null;
@@ -37634,9 +37858,12 @@ async function gatePublishRun(env) {
     listed = true;
   }
   var writes = env.writes();
-  var due = !R.built || !R.builtAt || now - R.builtAt >= L.buildMaxMs ||
+  // R.buildNow: something a trainee needs at once (an account the office just
+  // made or approved) — built now, not at the next minute (gatePublishSoon).
+  var due = !!R.buildNow || !R.built || !R.builtAt || now - R.builtAt >= L.buildMaxMs ||
     ((writes !== R.buildWrites || env.pullChanged()) && now - R.builtAt >= L.buildMinMs);
   if (due) {
+    R.buildNow = false;
     var t0 = env.clock();
     R.built = await gateBuild(env.storeMap(), now, env.opts(st), env.pause, L.yieldEvery);
     R.buildMs = Math.round(env.clock() - t0);
@@ -37677,6 +37904,7 @@ async function gateReadConfig(drive, mainFolderId) {
   if (Number(j.version) > 1) return { tooNew: true };
   if (!j.traineesId || !j.keysId || !j.papersId) return null;
   return { traineesId: String(j.traineesId), keysId: String(j.keysId), papersId: String(j.papersId), roomsId: String(j.roomsId || ''),
+    registrationsId: String(j.registrationsId || ''),
     rootId: String(j.rootId || ''), gateFolderId: String(j.gateFolderId || ''), gateVersion: Number(j.gateVersion) || 0, fileId: list[0].id };
 }
 
@@ -37708,9 +37936,51 @@ async function gateFolderAcctOf(parents, env) {
    the requests through the request queue's, and the read marks and spent
    codes through CESTISCore.gate.applyOps. If the merge fails, nothing is
    noted as collected and the mark stays where it was. */
+/* ---- Registrations from home (§17) ----
+   One query for the registration files written since this PC last looked
+   (10 minutes' overlap, a mark of its own), each read once per version and
+   brought into the accounts list as a 'pending' trainee account for Verify
+   Users (CESTISCore.gate.reg.importOne: the gate's account id, so the folder
+   it made is already theirs; never twice; never over an account the office
+   has, never back after a deletion, never a second account on an address).
+   A file in a newer format is left unread, and not marked. If the accounts
+   could not be added, nothing is marked and the mark stays where it was. */
+async function gateCollectRegistrations(env) {
+  var C = env.collected, cfg = env.cfg, L = env.limits, now = env.now(), R = C.reg;
+  if (!cfg || !cfg.registrationsId || typeof env.addAccounts !== 'function') return null;
+  var verOf = function(f) { return String(f.version != null ? f.version : f.modifiedTime); };
+  var q = "name contains 'CESTISREG' and '" + cfg.registrationsId + "' in parents and trashed = false";
+  if (R.watermark) q += " and modifiedTime > '" + new Date((Date.parse(R.watermark) || now) - L.overlapMs).toISOString() + "'";
+  var listed = await env.drive.list(q, 'id,name,parents,modifiedTime,version', { orderBy: 'modifiedTime', pageSize: 200 });
+  var files = listed.filter(function(f) { return f && f.id && CESTISCore.gate.reg.isFileName(f.name); })
+    .sort(function(x, y) { return String(x.modifiedTime).localeCompare(String(y.modifiedTime)); });
+  var add = [], marks = {}, mark = R.watermark, failed = false, held = 0, skipped = 0;
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    if (R.seen[f.id] === verOf(f)) { if (String(f.modifiedTime) > mark) mark = String(f.modifiedTime); continue; }
+    var text;
+    try { text = await env.drive.media(f.id); } catch (e) { failed = true; continue; }
+    var r = CESTISCore.gate.reg.importOne(text, env.accounts().concat(add), env.deletedUserIds(), { dateOf: env.dateOf });
+    if (r.action === 'hold') { held++; failed = true; continue; }
+    if (r.action === 'add') add.push(r.account);
+    if (r.action === 'skip') { skipped++; env.log('warn', 'a registration from home was not added (' + r.reason + ')'); }
+    marks[f.id] = verOf(f);
+    if (String(f.modifiedTime) > mark) mark = String(f.modifiedTime);
+  }
+  if (add.length && !(await env.addAccounts(add))) { env.log('warn', 'registrations from home could not be added this time; they are read again next time'); return { error: 'add', files: 0 }; }
+  Object.keys(marks).forEach(function(id) { R.seen[id] = marks[id]; });
+  if (!failed && mark) R.watermark = mark;
+  R.at = new Date(now).toISOString();
+  return { files: Object.keys(marks).length, added: add.map(function(a) { return a.id; }), skipped: skipped, held: held };
+}
+
 async function gateCollectRun(env) {
   var G = CESTISCore.gate, C = env.collected, U = env.unassigned, L = env.limits, now = env.now();
   var verOf = function(f) { return String(f.version != null ? f.version : f.modifiedTime); };
+  // Registrations from home first, on their own: nothing in them waits for the inboxes, nor the other way round.
+  var regs = null;
+  try { regs = await gateCollectRegistrations(env); } catch (e) { env.log('warn', 'registrations from home could not be read this time: ' + (e && e.message)); }
+  if (regs) env.persist();
   var q = "name contains 'CESTISINBOX' and trashed = false";
   if (C.watermark) q += " and modifiedTime > '" + new Date((Date.parse(C.watermark) || now) - L.overlapMs).toISOString() + "'";
   var listed = await env.drive.list(q, 'id,name,parents,modifiedTime,version', { orderBy: 'modifiedTime', pageSize: 500 });
@@ -37769,7 +38039,7 @@ async function gateCollectRun(env) {
   });
   C.at = new Date(now).toISOString();
   env.persist();
-  return { files: out.files, unassigned: out.unassigned.length, refused: out.refused.length, merged: merged, failed: failed };
+  return { files: out.files, unassigned: out.unassigned.length, refused: out.refused.length, merged: merged, failed: failed, registrations: regs };
 }
 
 /* ---- The page's side ---- */
@@ -37910,9 +38180,12 @@ function gatePageEnv(drive, cfg) {
     storeMap: gateStoreMap,
     opts: function(st) {
       var g = systemSettings.traineeGate || {};
-      return { builtBy: st.device, gateUrl: String(g.url || ''),
+      var o = { builtBy: st.device, gateUrl: String(g.url || ''),
         inboxSeenUntil: gateSeenUntil(gateCollectedState(gateDevRead('cestisGateCollected', null)), typeof userAccounts !== 'undefined' ? userAccounts : [], GATE_LIMITS.overlapMs),
         findSkill: function(c) { try { return findSkillAreaForCourse(c); } catch (e) { return null; } }, folds: gateFoldLog(), relinked: gateIdMoves() };
+      // What a new trainee may register for from home: what the office's own form offers.
+      if (cfg && cfg.registrationsId) { try { o.catalogue = officeEnrollingProgrammes(); } catch (e) {} }
+      return o;
     },
     persist: function() { gateDevWrite('cestisGatePublished', env.st); gateDevWrite('cestisGatePublishQueue', env.queue); },
     log: function(level, msg) { (level === 'warn' ? console.warn : console.log)('[TraineeGate] ' + msg); }
@@ -37938,7 +38211,25 @@ function gatePublishTick() {
     _gateRun.lastError = String(e && e.message || e);
     console.warn('[TraineeGate] publishing turn failed:', e);
     return null;
-  }).then(function(res) { _gateRun.publishing = false; try { gateCardRefresh(); } catch (e) {} return res; });
+  }).then(function(res) {
+    _gateRun.publishing = false;
+    try { gateCardRefresh(); } catch (e) {}
+    // Asked for again while this turn ran (gatePublishSoon): one more turn now.
+    if (_gateRun.again) { _gateRun.again = false; setTimeout(function() { gatePublishTick(); }, 0); }
+    return res;
+  });
+}
+/* The office has just made a trainee's account (or approved or rejected a
+   registration): with trainee sign-in from anywhere on, the publishing turn
+   runs now and builds at once, so the trainee's own folder is made — and
+   their records sent — in the same moment, not at the next minute. With it
+   off: nothing at all (the first turn after it is turned on does it). */
+function gatePublishSoon() {
+  if (!gateStaffOn()) return false;
+  _gateRun.buildNow = true;
+  if (_gateRun.publishing) { _gateRun.again = true; return true; }
+  gatePublishTick();
+  return true;
 }
 function gateCollectTick(opts) {
   if (!gateStaffOn() || _gateRun.collecting) return Promise.resolve(null);
@@ -37960,6 +38251,8 @@ function gateCollectTick(opts) {
       env.deletedUserIds = function() { return safeJsonParse(CESTISStore.getItem('voctrain_deletedUserIds'), []); };
       env.folds = gateFoldLog;
       env.mergePayload = async function(payload) { await mergeBackupData(payload); return !_mergeBackupFailed; };
+      env.addAccounts = gateAddRegistrations;
+      env.dateOf = function(iso) { var d = new Date(iso); return isNaN(d.getTime()) ? '' : localDateStr(d); };
       env.mergeRequests = gateMergeRequests;
       env.applyOps = gateApplyOps;
       env.persist = function() {
@@ -37982,6 +38275,23 @@ function gateCollectForBoard(manual) {
   if (!gateStaffOn()) return null;
   if (!manual && _gateRun.collectAt && Date.now() - _gateRun.collectAt < INVIG_GATE_MS) return null;
   return gateCollectTick();
+}
+/* Registrations collected from home: into the accounts list through the one
+   account rule every copy of an account goes through (mergeCloudAccounts),
+   written at once (the accounts list, so the gate tells the trainee "waiting
+   for approval"), and said to the office — one notice per registration,
+   whichever PC collects it first (the notice's id is the account's). */
+function gateAddRegistrations(list) {
+  var fresh = (list || []).filter(function(a) { return a && !userAccounts.some(function(u) { return u && u.id === a.id; }); });
+  if (!fresh.length) return true;
+  mergeCloudAccounts(fresh);
+  saveUserAccounts();
+  fresh.forEach(function(a) {
+    try { addNotification('New registration from home: ' + a.name + ' (' + (a.programme || 'trainee') + ') — waiting in Verify Users', 'student', null, ['admin', 'adminstaff'], 'NOTIF-reg-' + a.id); } catch (e) {}
+  });
+  try { saveState(); } catch (e) {}
+  try { renderVerifyUsersPage(); } catch (e) {}
+  return true;
 }
 // The request queue's own rule: request by request, the copy changed last
 // wins (a trainee withdrawing a request arrives as status 'cancelled').
@@ -38405,6 +38715,7 @@ function gateTraineeDecide() {
 function gateTraineeCard() {
   var on = !!_gateT.base;
   document.body.classList.toggle('gate-trainee', on);
+  document.body.classList.toggle('gate-lan', on && _gateT.base.kind === 'lan');
   if (!on) return;
   var card = document.getElementById('studentCard');
   if (card) {
@@ -38480,8 +38791,162 @@ function gateTraineeAnswer(res, ctx) {
     showPendingApprovalScreen({ email: /@/.test(who) ? who : (who || ''), role: 'student', programme: '', createdAt: '' }, { state: 'waiting' });
     return;
   }
+  // Signed in with an email account no trainee account uses: they may be new —
+  // the registration form, with that same account (nothing to sign in to twice).
+  if (code === 'not-found' && ctx.via === 'email' && ctx.accessToken) { gateRegisterWithToken(ctx.accessToken, { notFound: true }); return; }
   if (code === 'locked' && res && res.retryAfter) console.log('[TraineeGate] locked for ' + res.retryAfter + ' s');
   signInSay('student', gateSay(code));
+}
+
+/* ---- A new trainee registers from home (DESIGN.md §17) ----
+   The owner: trainees register at home for the office to approve, and must
+   use their own email account (a Google one) so the account that reaches
+   the office is theirs. "New trainee? Register with your email account":
+   the email account's own sign-in window opens (the same one, and the same
+   permissions — name and address only — as "Sign in with your email
+   account"); the gate checks the address is theirs and has no account yet;
+   the form asks for the full name, the programme (those taking trainees
+   now), a phone number and a password (worked out here into the form the
+   dashboard stores, so they can also sign in with it later). Sent: the
+   registration and the trainee's own folder are made at once, and the
+   pending screen says it has reached the office. There is no other way to
+   register from home: today's form is not offered while the gate is on. */
+var _gateReg = null;    // { token, email, programmes, notFound }
+var GATE_REG_SAY = {
+  'has-account': 'You already have an account — sign in with your email account or your password.',
+  'not-open': 'Registration is not open just now. Please ask the office.',
+  'too-many': 'Too many registrations just now. Please try again in an hour, or ask the office.',
+  'not-available': 'Registering is not available here. Please ask the office to create your account.',
+  'email-failed': 'That email account could not be used to register. Use one whose address is confirmed, or ask the office.',
+  'token-ended': 'Your email account sign-in has ended. Close this, press Register again and choose your account.',
+  'unreachable': 'Could not register right now. Check your connection and try again.',
+  'rejected': 'An earlier registration with this email account was not approved. Please contact the office.',
+  'disabled': 'This account has been switched off. Please contact the office.',
+  'ask-office': 'This email account needs the office. Please ask them to help you.'
+};
+var GATE_REG_FIELD = {
+  name: 'Please enter your FULL name — first name AND last name (e.g. "Tameka Richards").',
+  programme: 'Please choose your programme.',
+  phone: 'Please enter your phone number with digits only (spaces and + - ( ) are fine), or leave it blank.',
+  password: 'Your password must be at least 6 characters, with at least one capital letter and one number.',
+  confirm: 'The two passwords do not match.'
+};
+function gateRegSay(code) {
+  var c = String(code || 'unreachable');
+  if (GATE_REG_SAY[c]) return GATE_REG_SAY[c];
+  if (c === 'wrong-app' || c === 'unverified-email' || c === 'bad-token') return GATE_REG_SAY['email-failed'];
+  if (c === 'off' || c === 'not-set-up' || c === 'unknown-op' || c === 'no-gate') return GATE_REG_SAY['not-open'];
+  if (c === 'busy' || c === 'internal' || c === 'bad-answer') return GATE_REG_SAY.unreachable;
+  return GATE_SAY[c] || GATE_REG_SAY.unreachable;
+}
+function gateRegisterStart() {
+  if (_gateReg && _gateReg.busy) return;
+  var b = _gateT.base;
+  if (!b) { signInSay('student', gateRegSay('not-open')); return; }
+  if (b.kind === 'lan') { signInSay('student', gateRegSay('not-available')); return; }
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) { signInSay('student', gateRegSay('email-failed')); return; }
+  gateCardWorking(true, 'Waiting for your email account…');
+  var client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_DRIVE_CONFIG.CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+    callback: function(tr) {
+      if (!tr || tr.error || !tr.access_token) { gateCardWorking(false); signInSay('student', gateRegSay('email-failed')); return; }
+      gateRegisterWithToken(tr.access_token);
+    },
+    error_callback: function() { gateCardWorking(false); signInSay('student', gateRegSay('email-failed')); }
+  });
+  client.requestAccessToken();
+}
+function gateRegisterWithToken(token, opts) {
+  opts = opts || {};
+  gateCardWorking(true, 'Checking your email account…');
+  // The name for the form, from the account itself (the call email sign-in makes too).
+  var profile = fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + token } })
+    .then(function(r) { return r.ok ? r.json() : {}; }).catch(function() { return {}; });
+  return Promise.all([CESTISGate.registerStart(token), profile]).then(function(pair) {
+    gateCardWorking(false);
+    gateRegisterAnswer(pair[0], { token: token, profile: pair[1] || {}, notFound: !!opts.notFound });
+  }, function() { gateCardWorking(false); signInSay('student', gateRegSay('unreachable')); });
+}
+function gateRegisterAnswer(res, ctx) {
+  ctx = ctx || {};
+  if (res && res.ok && res.state === 'new') { gateRegisterForm(res, ctx); return; }
+  if (res && res.ok && res.state === 'submitted') { gateRegisterReached(res); return; }
+  var code = (res && res.error) || 'unreachable';
+  if (code === 'pending') {
+    showPendingApprovalScreen({ email: (ctx.profile && ctx.profile.email) || '', role: 'student', programme: '', createdAt: '' }, { state: 'waiting' });
+    return;
+  }
+  signInSay('student', gateRegSay(code));
+}
+// The registration has reached the office: the pending screen, which says so.
+function gateRegisterReached(res) {
+  gateRegisterClose();
+  var day = String(res.submittedAt || '').slice(0, 10);
+  showPendingApprovalScreen({ email: res.email || '', role: 'student', programme: res.programme || '', createdAt: day || localDateStr() }, { state: 'sent' });
+}
+function gateRegisterClose() {
+  var m = document.getElementById('gateRegModal');
+  if (m) m.remove();
+  if (_gateReg) _gateReg.busy = false;
+}
+function gateRegisterForm(res, ctx) {
+  gateRegisterClose();
+  _gateReg = { token: ctx.token, email: String(res.email || ''), programmes: Array.isArray(res.programmes) ? res.programmes : [], busy: false };
+  var p = ctx.profile || {};
+  var name = String(p.name || [p.given_name, p.family_name].filter(Boolean).join(' ') || '').trim();
+  var opts = _gateReg.programmes.map(function(n) { return '<option value="' + escapeAttr(n) + '">' + escapeHtml(n) + '</option>'; }).join('');
+  var html = '<div class="reg-modal-overlay" id="gateRegModal">' +
+    '<div class="reg-modal gate-reg-modal" role="dialog" aria-modal="true" aria-labelledby="gateRegTitle">' +
+    '<h3 id="gateRegTitle">Register as a Trainee</h3>' +
+    '<div class="reg-subtitle">' + (ctx.notFound ? 'No trainee account uses this email account yet. ' : '') +
+      'Fill this in and send it. The office will review your registration; you can sign in once it has been approved.</div>' +
+    '<div class="form-group"><label>Your email account</label><div class="gate-reg-email" id="grEmail">' + escapeHtml(_gateReg.email) + '</div></div>' +
+    '<div class="form-group"><label for="grName">Full name (first &amp; last name)</label><input type="text" id="grName" autocomplete="name" value="' + escapeAttr(name) + '" placeholder="First and last name, e.g. Tameka Richards"></div>' +
+    '<div class="form-group"><label for="grProgramme">Programme</label><select id="grProgramme"><option value="">— Choose your programme —</option>' + opts + '</select></div>' +
+    '<div class="form-group"><label for="grPhone">Phone (optional)</label><input type="tel" id="grPhone" autocomplete="tel" placeholder="e.g. 876-555-0123"></div>' +
+    '<div class="form-group"><label for="grPassword">Password</label><input type="password" id="grPassword" autocomplete="new-password" placeholder="At least 6 characters">' +
+      '<div class="gate-reg-hint">With a capital letter and a number. You can sign in with it, or with your email account.</div></div>' +
+    '<div class="form-group"><label for="grPassword2">Confirm password</label><input type="password" id="grPassword2" autocomplete="new-password" placeholder="Type it again"></div>' +
+    '<div class="gate-reg-say" id="grSay" role="alert" aria-live="polite"></div>' +
+    '<div class="reg-actions">' +
+    '<button type="button" class="btn btn-secondary" onclick="gateRegisterClose()">Cancel</button>' +
+    '<button type="button" class="btn btn-primary" id="grSend" onclick="gateRegisterSubmit()">Register</button>' +
+    '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+  try { document.getElementById(name ? 'grProgramme' : 'grName').focus(); } catch (e) {}
+}
+function gateRegFormSay(text, status) {
+  var el = document.getElementById('grSay');
+  if (!el) { if (text) alert(text); return; }
+  el.textContent = text || '';
+  el.classList.toggle('is-status', !!status);
+}
+async function gateRegisterSubmit() {
+  if (!_gateReg || _gateReg.busy) return;
+  var v = function(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; };
+  var name = v('grName').replace(/\s+/g, ' ').trim(), programme = v('grProgramme'), phone = v('grPhone').trim();
+  var pw = v('grPassword'), pw2 = v('grPassword2');
+  // The rules the gate keeps too (CESTISCore.gate.reg.check), said here first.
+  if (!CESTISCore.accountAccess.isFullName(name) || /[<>"]/.test(name)) { gateRegFormSay(GATE_REG_FIELD.name); return; }
+  if (!programme) { gateRegFormSay(GATE_REG_FIELD.programme); return; }
+  if (phone && !CESTISCore.accountAccess.PHONE_RE.test(phone)) { gateRegFormSay(GATE_REG_FIELD.phone); return; }
+  if (pw.length < 6 || !/[A-Z]/.test(pw) || !/[0-9]/.test(pw)) { gateRegFormSay(GATE_REG_FIELD.password); return; }
+  if (pw !== pw2) { gateRegFormSay(GATE_REG_FIELD.confirm); return; }
+  _gateReg.busy = true;
+  var btn = document.getElementById('grSend'); if (btn) btn.disabled = true;
+  gateRegFormSay('Sending your registration to the office…', true);
+  var res = null;
+  try { res = await CESTISGate.registerSubmit({ accessToken: _gateReg.token, name: name, programme: programme, phone: phone, password: pw }); }
+  catch (e) { res = { ok: false, error: 'unreachable' }; }
+  _gateReg.busy = false;
+  if (btn) btn.disabled = false;
+  if (res && res.ok && res.state === 'submitted') { gateRegisterReached(res); return; }
+  var code = (res && res.error) || 'unreachable';
+  if (code === 'bad-form') { gateRegFormSay(GATE_REG_FIELD[res.field] || gateRegSay('unreachable')); return; }
+  if (code === 'pending') { gateRegisterClose(); showPendingApprovalScreen({ email: _gateReg.email, role: 'student', programme: programme, createdAt: '' }, { state: 'waiting' }); return; }
+  if (code === 'bad-token') { gateRegFormSay(GATE_REG_SAY['token-ended']); return; }
+  gateRegFormSay(gateRegSay(code));
 }
 // Today's sign-in, for this one try (the gate was off, or out of reach on a lab PC).
 function gateTodaysSignIn(ctx) {
@@ -38618,6 +39083,7 @@ function gateClientHooks() {
   return {
     pbkdf2: function(pw, saltHex, iter) { return _pbkdf2Hex(pw, _hexToBuf(saltHex), iter); },
     legacy: function(pw) { return hashPasswordLegacy(pw); },
+    hashPassword: function(pw) { return hashPassword(pw); },
     onResult: function(result) { if (cestisGateSession() && gateStoreResult(result)) gateResultArrived(result); },
     onRetired: function() { try { examAttemptsArrived('device'); } catch (e) {} },
     onChange: function(st) { _gateT.status = st; try { refreshSyncChip(); } catch (e) {} },
@@ -44541,7 +45007,8 @@ var asAccessPages = [
   { key:'invigilation', label:'Exam invigilation', desc:'Watch tests live and keep their registers' },
   { key:'video', label:'Video Conference', desc:'Join and manage video sessions' },
   { key:'resources', label:'Resource Manager', desc:'Access shared resources' },
-  { key:'supportmessages', label:'Support Messages', desc:'Send and receive support messages' }
+  { key:'supportmessages', label:'Support Messages', desc:'Send and receive support messages' },
+  { key:'traineeaccounts', label:'Trainee Accounts', desc:'Add trainee accounts, and approve or reject trainees\' registrations (trainees only)' }
 ];
 
 function loadAdminStaffAccess() {
@@ -44647,6 +45114,10 @@ function buildAdminStaffSidebar() {
   }
 
   var hasMgmt = false;
+  if(adminStaffAccessSettings.traineeaccounts) {
+    if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
+    html += '<div class="nav-item" data-page="as-trainee-accounts" onclick="showPage(\'as-trainee-accounts\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>Trainee Accounts<span class="nav-badge" id="asPendingUsersBadge" style="display:none;background:var(--red);">0</span></div>';
+  }
   if(adminStaffAccessSettings.attendance) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
     html += '<div class="nav-item" data-page="as-attendance" onclick="showPage(\'as-attendance\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>Attendance</div>';
@@ -44712,6 +45183,8 @@ function buildAdminStaffSidebar() {
 
   nav.innerHTML = html;
   setTimeout(updateCtrRequestsBadge, 200);
+  // The count of trainees' registrations waiting, on "Trainee Accounts" (renderVerifyUsersPage sets it).
+  if(adminStaffAccessSettings.traineeaccounts) setTimeout(function() { try { renderVerifyUsersPage(); } catch(e) {} }, 250);
 }
 
 // ============================== BUILD ADMIN STAFF PAGES ==============================
@@ -44910,6 +45383,12 @@ function buildAdminStaffPages() {
   // Student Progress
   html += '<section class="page" id="page-as-students">' +
     '<iframe id="asStudentProgressFrame" style="width:100%;height:calc(100vh - var(--topbar-h) - 56px);border:none;border-radius:12px;"></iframe>' +
+  '</section>';
+
+  // Trainee Accounts: add a trainee's account; the registrations trainees sent
+  // from home (the Administrator's Verify Users page, trainees only).
+  html += '<section class="page" id="page-as-trainee-accounts">' +
+    '<div class="cestis-mount" data-feature="verify-users" data-prefix="adminstaff"></div>' +
   '</section>';
 
   // Training Centres

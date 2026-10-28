@@ -25,12 +25,13 @@
        Exam keys/key.<examId>.json        read at marking and review; NEVER served
        Papers/paper.<examId>.json         served only while the exam is open
        Rooms/room.<roomId>.json           served to the room's members
-       Trainees/<student ID>/             one per trainee account, found by the
+       Trainees/<Name> (<student ID>)/    one per trainee account, found by the
          from-centre.json                   account id in its description
          CESTISINBOX.L-<lane>.json        what one session sent (one writer each)
          CESTISINBOX.result.<id>.json     a test this script marked
          files/                           the trainee's uploads
-       Registrations/                     reserved
+       Registrations/                     registrations from home (CESTISREG.<id>.json),
+         catalogue.json                     and the programmes taking trainees (staff publish it)
      <the folder holding CESTIS_ACCOUNTS.json>/CESTIS_GATE.json
                                           written here, so staff devices find the folders
 
@@ -67,6 +68,12 @@
      upload                     {token, name, mime, base64, purpose, refId} → {fileId, size, name}
      file.get                   {token, fileId} → {fileId, name, mime, size, base64}
      signOut                    {token} → {}
+     catalogue                  {} → {programmes:[name]}           (no sign-in: what a new trainee may register for)
+     register.start             {accessToken} → {state:'new', email, programmes} | {state:'submitted', email, programme, submittedAt}
+     register.submit            {accessToken, name, programme, phone?, password:'pbkdf2$…'} → {state:'submitted', …}
+                                (registration from home, DESIGN.md §17: an email-account token
+                                 only; refused: has-account | pending | rejected | disabled |
+                                 not-open | bad-form {field} | too-many | ask-office)
      deliver                    {items:[sealed item], lane?} → {receipts:[{id, ok, reason?, retry?, dup?, result?, retired?}]}
                                 (no token: each item carries its own seal; saving an
                                  attempt is a sealed record, submitting it a sealed
@@ -77,7 +84,8 @@
 /* global CESTISCore, DriveApp, CacheService, PropertiesService, UrlFetchApp, MailApp, Utilities, LockService,
    ContentService, HtmlService, Logger */
 
-var GATE_VERSION = 1;
+// 2: registration from home (catalogue, register.start, register.submit), folders named "<Name> (<student ID>)".
+var GATE_VERSION = 2;
 var GATE_PROTOCOL = [1];
 var GATE_SERVICE = 'cestis-trainee-gate';
 // The dashboard's own sign-in client (index.html GOOGLE_DRIVE_CONFIG.CLIENT_ID) — public by nature.
@@ -141,6 +149,7 @@ var GATE_OPS = {
   'auth.2fa': gateAuthTwoStep, 'auth.2fa.send': gateAuthTwoStepSend,
   'pull': gatePull, 'paper': gatePaper, 'attempt.get': gateAttemptGet, 'review': gateReview, 'room.get': gateRoomGet,
   'upload': gateUpload, 'file.get': gateFileGet, 'signOut': gateSignOut, 'deliver': gateDeliver,
+  'catalogue': gateCatalogue, 'register.start': gateRegisterStart, 'register.submit': gateRegisterSubmit,
   'diag.echo': gateDiagEcho, 'diag.tokeninfo': gateDiagTokenInfo
 };
 // Answered even when the gate is switched off (a check must still say so).
@@ -497,7 +506,8 @@ function gateBuildIndex(G, led, updated, ledgerId) {
 /* --------------------------------------------- a trainee's folder, files
    Found by the account id in its description, never by its name (student
    IDs move: DESIGN.md §1.2): remembered, else by the name the account's
-   link gives, else by a search of the descriptions — and of several, the
+   name and link give ("<Name> (<student ID>)", or the student ID alone as
+   before), else by a search of the descriptions — and of several, the
    oldest. Every use checks the folder still names the account. */
 function gateDescribes(folder, acct) {
   return new RegExp('(^|\\s)acct=' + gateReEsc(acct) + '(\\s|$)').test(gateStr(folder.getDescription()));
@@ -529,7 +539,12 @@ function gateTraineeFolder(G, acct, entry) {
       }
       return best;
     };
-    if (entry && entry.sdi) f = pickOldest(trainees.getFoldersByName(entry.sdi));
+    // By its name (no search, no lag): "<Name> (<student ID>)" as folders are named now (§17), or the
+    // student ID alone as they were named before the office PCs renamed them.
+    if (entry && entry.sdi) {
+      if (entry.nm) f = pickOldest(trainees.getFoldersByName(G.gate.folderName(entry.nm, entry.sdi)));
+      if (!f) f = pickOldest(trainees.getFoldersByName(entry.sdi));
+    }
     var found = pickOldest(trainees.searchFolders("fullText contains 'acct=" + gateQ(acct) + "' and trashed = false"));
     if (found && (!f || older(found, f))) f = found;
     if (!f) { G.cache.put(key, '-', 60); return null; }
@@ -665,21 +680,136 @@ function gateTokenInfo(token) {
   if (resp.getResponseCode() !== 200) return null;
   try { return JSON.parse(resp.getContentText()); } catch (e) { return null; }
 }
-function gateAuthEmail(G, req) {
+/* Google's word on an access token: given to THIS dashboard (aud), for a
+   verified address, not expired, with the email scope. Email sign-in and
+   registration from home both rest on it. → { info } | { out: refusal } */
+function gateEmailToken(G, req) {
   var token = gateStr(req.accessToken);
   if (!/^[A-Za-z0-9._~+\/-]{10,4096}=*$/.test(token)) gateFail('bad-request');
   var cfg = gateReady(G);
-  if (gateCount(G, 'em:' + gateMinute(G), 120) > GATE_LIMITS.EMAIL_SIGNINS_PER_MIN) return { ok: false, error: 'busy', retry: true };
+  if (gateCount(G, 'em:' + gateMinute(G), 120) > GATE_LIMITS.EMAIL_SIGNINS_PER_MIN) return { out: { ok: false, error: 'busy', retry: true } };
   var info = gateTokenInfo(token);
-  if (!info) return { ok: false, error: 'bad-token' };
-  if (!(gateStr(info.aud) === cfg.clientId || (!info.aud && gateStr(info.azp) === cfg.clientId))) return { ok: false, error: 'wrong-app' };
-  if (gateStr(info.email_verified) !== 'true') return { ok: false, error: 'unverified-email' };
-  if (!(Number(info.expires_in) > 0)) return { ok: false, error: 'bad-token' };
-  if (!/(^|\s)(https:\/\/www\.googleapis\.com\/auth\/userinfo\.email|email)(\s|$)/.test(gateStr(info.scope))) return { ok: false, error: 'bad-token' };
+  if (!info) return { out: { ok: false, error: 'bad-token' } };
+  if (!(gateStr(info.aud) === cfg.clientId || (!info.aud && gateStr(info.azp) === cfg.clientId))) return { out: { ok: false, error: 'wrong-app' } };
+  if (gateStr(info.email_verified) !== 'true') return { out: { ok: false, error: 'unverified-email' } };
+  if (!(Number(info.expires_in) > 0)) return { out: { ok: false, error: 'bad-token' } };
+  if (!/(^|\s)(https:\/\/www\.googleapis\.com\/auth\/userinfo\.email|email)(\s|$)/.test(gateStr(info.scope))) return { out: { ok: false, error: 'bad-token' } };
+  return { info: info };
+}
+function gateAuthEmail(G, req) {
+  var t = gateEmailToken(G, req);
+  if (t.out) return t.out;
+  var info = t.info;
   var look = G.gate.lookupLogin(gateIndex(G), info.email, { emailOnly: true, allowNoPassword: true });
   if (look.ambiguous) return { ok: false, error: 'ask-office', why: 'ambiguous' };
   if (!look.e) return { ok: false, error: 'not-found' };
   return gateAfterCredential(G, look.id, look.e, 'email');
+}
+
+/* ------------------------------------------- registration from home (§17)
+   A new trainee registers from home, signed in with their own email
+   account: the owner's rule, and the only way to register from outside the
+   Centre — Google must vouch for the token (gateEmailToken). In the same
+   request the gate then:
+     - keeps the registration: Registrations/CESTISREG.<account id>.json
+       (Core.gate.reg.build: name, address, programme, phone, the password
+       as the dashboard stores one — worked out on the trainee's device);
+     - makes the trainee's own folder: Trainees/"<Name> (<student ID>)",
+       described "cestis-trainee acct=<account id> v=1 registration=pending"
+       (the student ID the dashboard will give them: Core.gate.reg.studentId).
+   The office's computers bring the registration into Verify Users
+   (index.html, the collector). The account id comes from the address and
+   the gate's secret (Core.gate.reg.accountId): the same person sending it
+   twice finds their registration, never makes a second one. An address
+   that already has a trainee account is told to sign in (or how its
+   registration stands). Limits: 5 tries an hour for one address, 60
+   registrations an hour and 200 in six hours for everybody (each makes a
+   folder). The one lock in the gate besides setup is taken here, briefly:
+   registrations are rare, and two taps of Register must not make two
+   folders. */
+var GATE_REG = { CATALOGUE: 'catalogue.json', PER_ADDRESS_PER_HOUR: 5, PER_HOUR: 60, PER_6H: 200, CATALOGUE_S: 60, LOCK_MS: 10000 };
+function gateRegFolder(G) {
+  var f = gateFolderById(gateReady(G).regId);
+  if (!f) gateFail('not-set-up');
+  return f;
+}
+// The programmes taking trainees, as staff devices last published them (remembered a minute).
+function gateCatalogueNames(G) {
+  var hit = gateCacheJson(G, 'cat');
+  if (hit && Array.isArray(hit.p)) return hit.p;
+  var f = gateNewest(gateRegFolder(G).getFilesByName(GATE_REG.CATALOGUE));
+  var names = f ? G.gate.reg.catalogueNames(gateReadJsonFile(f)) : [];
+  gateCachePut(G, 'cat', { p: names }, GATE_REG.CATALOGUE_S);
+  return names;
+}
+function gateCatalogue(G) { return { ok: true, programmes: gateCatalogueNames(G) }; }
+// A registration already kept for this account id (by its exact name: no search, no lag).
+function gateRegFileOf(G, acct) {
+  var f = gateOldest(gateRegFolder(G).getFilesByName(G.gate.reg.fileName(acct)));
+  if (!f) return null;
+  var r = G.gate.reg.read(gateReadJsonFile(f));
+  return r.reg || { unreadable: true };
+}
+function gateRegSubmitted(email, reg) {
+  return { ok: true, state: 'submitted', email: email, programme: gateStr(reg.programme), submittedAt: gateStr(reg.createdAt) };
+}
+/* Who is registering: Google's word on the token; then whether the address
+   already has a trainee account (→ sign in, or how it stands) or a
+   registration waiting (→ "it has reached the office"). */
+function gateRegWho(G, req) {
+  var t = gateEmailToken(G, req);
+  if (t.out) return { out: t.out };
+  var email = gateStr(t.info.email).trim();
+  if (!GATE_EMAIL_RE.test(email)) return { out: { ok: false, error: 'bad-token' } };
+  var look = G.gate.lookupLogin(gateIndex(G), email, { emailOnly: true, allowNoPassword: true });
+  if (look.ambiguous) return { out: { ok: false, error: 'ask-office', why: 'ambiguous' } };
+  if (look.e) return { out: { ok: false, error: G.gate.reg.existing(look.e) } };
+  var acct = G.gate.reg.accountId(email, gateCfg(G).secret, G.crypto);
+  var reg = gateRegFileOf(G, acct);
+  if (reg) return { out: gateRegSubmitted(email, reg) };
+  return { email: email, acct: acct };
+}
+function gateRegisterStart(G, req) {
+  var w = gateRegWho(G, req);
+  if (w.out) return w.out;
+  var programmes = gateCatalogueNames(G);
+  if (!programmes.length) return { ok: false, error: 'not-open' };
+  return { ok: true, state: 'new', email: w.email, programmes: programmes };
+}
+function gateRegisterSubmit(G, req) {
+  var w = gateRegWho(G, req);
+  if (w.out) { if (w.out.state === 'submitted') w.out.already = true; return w.out; }
+  var programmes = gateCatalogueNames(G);
+  if (!programmes.length) return { ok: false, error: 'not-open' };
+  var chk = G.gate.reg.check({ name: req.name, programme: req.programme, phone: req.phone, password: req.password }, programmes);
+  if (!chk.ok) return { ok: false, error: 'bad-form', field: chk.field };
+  var akey = 'rga:' + gateAcctKey(G, w.acct), hkey = 'rgh:' + Math.floor(G.now / 3600000), skey = 'rg6:' + Math.floor(G.now / 21600000);
+  if (gateCountOf(G, akey) >= GATE_REG.PER_ADDRESS_PER_HOUR || gateCountOf(G, hkey) >= GATE_REG.PER_HOUR || gateCountOf(G, skey) >= GATE_REG.PER_6H) {
+    return { ok: false, error: 'too-many', retryAfter: 3600 };
+  }
+  gateCount(G, akey, 3600); gateCount(G, hkey, 3600); gateCount(G, skey, 21600);
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(GATE_REG.LOCK_MS)) gateFail('busy');
+  try {
+    var again = gateRegFileOf(G, w.acct);
+    if (again) { var a = gateRegSubmitted(w.email, again); a.already = true; return a; }
+    var v = chk.value, cfg = gateCfg(G);
+    // A folder made by an earlier try that could not finish is that same folder (never a second).
+    var folder = gateTraineeFolder(G, w.acct, null);
+    if (!folder) {
+      var trainees = gateFolderById(cfg.traineesId);
+      if (!trainees) gateFail('not-set-up');
+      folder = trainees.createFolder(G.gate.folderName(v.name, G.gate.reg.studentId(v.name, v.programme)));
+      folder.setDescription(G.gate.folderDescription(w.acct, 'pending'));
+    }
+    G.props.setProperty('fold:' + w.acct, folder.getId());
+    G.cache.put('fd:' + w.acct, folder.getId(), GATE_LIMITS.CACHE_MAX_S);
+    var body = G.gate.reg.build({ acct: w.acct, email: w.email, value: v, folder: { id: folder.getId(), name: folder.getName() }, nowMs: G.now });
+    gateRegFolder(G).createFile(G.gate.reg.fileName(w.acct), JSON.stringify(body), 'application/json');
+    return gateRegSubmitted(w.email, body);
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* The credential is right: may this account go on, and does it need its
