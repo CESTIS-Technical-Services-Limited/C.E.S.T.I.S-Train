@@ -30456,7 +30456,7 @@ function invigDownloadPdf() {
      'Expected ' + (c.expected || 0) + ' - Present ' + (c.present || 0) + ' (completed ' + (c.completed || 0) + ', did not finish ' + (c.unfinished || 0) + ') - Absent ' + (c.absent || 0),
      V.isSigned(reg) ? 'Signed off by ' + V.signedText(reg, off) : 'Not signed off yet'].forEach(function(l) { doc.text(plain(l), x0, y); y += 5.2; });
     y += 3;
-    var cols = [['#', 8], ['Trainee', 46], ['Student ID', 28], ['Status', 46], ['Started', 18], ['Submitted', 20], ['Time spent', 22], ['Notes', W - 2 * x0 - 188]];
+    var cols = [['#', 8], ['Trainee', 44], ['Student ID', 34], ['Status', 42], ['Started', 18], ['Submitted', 20], ['Time spent', 22], ['Notes', W - 2 * x0 - 188]];
     var head = function() {
       doc.setFillColor(235, 235, 235); doc.rect(x0, y - 4.5, W - 2 * x0, 7, 'F');
       doc.setFont('helvetica', 'bold'); var x = x0 + 1.5;
@@ -42569,7 +42569,7 @@ var asAccessPages = [
   { key:'reports', label:'Reports & Analytics', desc:'Access reports and charts' },
   { key:'training', label:'Training Centres', desc:'View training centre information' },
   { key:'exams', label:'Online Exams', desc:'View and manage exams' },
-  { key:'invigilation', label:'Exam invigilation', desc:'Watch exam sittings as they happen and keep their attendance registers' },
+  { key:'invigilation', label:'Exam invigilation', desc:'Watch tests live and keep their registers' },
   { key:'video', label:'Video Conference', desc:'Join and manage video sessions' },
   { key:'resources', label:'Resource Manager', desc:'Access shared resources' },
   { key:'supportmessages', label:'Support Messages', desc:'Send and receive support messages' }
