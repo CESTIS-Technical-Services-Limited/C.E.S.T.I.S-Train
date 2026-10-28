@@ -1341,6 +1341,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
        tombstone — that carries no answers (the result holds them):
          { id, examId, studentId, status: 'submitted', submittedAt, resultId,
            startTime, deadline, updatedAt }
+       (and the attempt's `activity`, below — WHEN things happened, never an
+       answer — so the invigilator's timeline outlives the submission).
 
        Two devices may each hold an older or newer copy of one attempt (the
        first PC comes back to life). A whole copy is never put over another:
@@ -1398,29 +1400,40 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       return a.questions.every(function (q, i) { var o = b.questions[i]; return String(q && q.id) === String(o && o.id); });
     }
     function retiredOf(a, b) {
-      var ra = attemptIsRetired(a), rb = attemptIsRetired(b);
-      if (ra !== rb) return copyJson(ra ? a : b);
-      var ta = msOf(a.submittedAt) || Infinity, tb = msOf(b.submittedAt) || Infinity;
-      var first = ta !== tb ? (ta < tb ? a : b) : (String(a.resultId || '') <= String(b.resultId || '') ? a : b);
-      var out = copyJson(first);
-      out.updatedAt = laterIso(a.updatedAt, b.updatedAt);
+      var ra = attemptIsRetired(a), rb = attemptIsRetired(b), out;
+      if (ra !== rb) out = copyJson(ra ? a : b);
+      else {
+        var ta = msOf(a.submittedAt) || Infinity, tb = msOf(b.submittedAt) || Infinity;
+        var first = ta !== tb ? (ta < tb ? a : b) : (String(a.resultId || '') <= String(b.resultId || '') ? a : b);
+        out = copyJson(first);
+        out.updatedAt = laterIso(a.updatedAt, b.updatedAt);
+      }
+      // What happened during the attempt, from both copies: the copy that was
+      // away may hold moments the submitted one never heard of.
+      var act = mergeActivity(a.activity, b.activity, null, true);
+      if (act) out.activity = act;
       return out;
     }
     function mergeAttempt(a, b) {
       var oka = !!(a && typeof a === 'object'), okb = !!(b && typeof b === 'object');
       if (!oka || !okb) return oka ? copyJson(a) : (okb ? copyJson(b) : null);
       if (attemptIsRetired(a) || attemptIsRetired(b)) return retiredOf(a, b);
-      if (!attemptIsOpen(a) || !attemptIsOpen(b)) return copyJson(attemptIsOpen(a) ? a : b);
+      if (!attemptIsOpen(a) || !attemptIsOpen(b)) {
+        var kept = copyJson(attemptIsOpen(a) ? a : b), act0 = mergeActivity(a.activity, b.activity, null, true);
+        if (act0) kept.activity = act0;
+        return kept;
+      }
       var same = String(a.id) === String(b.id);
       var base = same ? a : startedFirst(a, b), other = base === a ? b : a;
       var out = copyJson(base);
       if (!Array.isArray(out.flagged)) out.flagged = [];
       out.answeredAt = []; out.flaggedAt = [];
-      var at = {};
+      var at = {}, qmap = [];
       other.questions.forEach(function (q, j) { if (q && q.id != null && at[String(q.id)] === undefined) at[String(q.id)] = j; });
       for (var i = 0; i < out.questions.length; i++) {
         var q = out.questions[i];
         var j = q && q.id != null && at[String(q.id)] !== undefined ? at[String(q.id)] : (same && i < other.questions.length ? i : -1);
+        qmap[i] = j;
         if (out.answers[i] === undefined) out.answers[i] = null;
         out.flagged[i] = !!out.flagged[i];
         var ta = changedAt(base, 'answeredAt', i, hasAnswerValue(out.answers[i]));
@@ -1439,10 +1452,15 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       if (isFinite(da) && da > 0 && isFinite(db) && db > 0) out.deadline = Math.min(da, db);
       var sa = Number(a.startTime), sb = Number(b.startTime);
       if (isFinite(sa) && sa > 0 && isFinite(sb) && sb > 0) out.startTime = Math.min(sa, sb);
-      if (same || sameOrder(a, b)) {
+      var aligned = same || sameOrder(a, b);
+      if (aligned) {
         var pa = Number(a.posAt) || 0, pb = Number(b.posAt) || 0, pos = pb > pa ? b : a;
         out.page = pos.page; out.current = pos.current; out.posAt = Math.max(pa, pb);
       }
+      // When each page and question was first reached and first answered,
+      // and every moment either copy holds (the invigilator's record).
+      var act = mergeActivity(base.activity, other.activity, qmap, aligned && (Number(a.perPage) || 0) === (Number(b.perPage) || 0));
+      if (act) out.activity = act; else delete out.activity;
       out.updatedAt = laterIso(a.updatedAt, b.updatedAt);
       if (a.savedAt || b.savedAt) out.savedAt = laterIso(a.savedAt, b.savedAt);
       out.status = 'open';
@@ -1466,6 +1484,18 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       (Array.isArray(other) ? other : []).forEach(function (r) { take(r, true); });
       var kept = out.filter(function (r) { return !(attemptIsRetired(r) && msOf(r.submittedAt) && now - msOf(r.submittedAt) > ATTEMPT_KEEP_MS); });
       if (kept.length !== out.length) changed = true;
+      // A submitted attempt keeps its full activity for ACTIVITY_KEEP_MS (the
+      // sitting's register keeps its own summary for good), then only the
+      // counts, so months of retired records do not weigh down every save.
+      for (var c = 0; c < kept.length; c++) {
+        var r = kept[c];
+        if (!attemptIsRetired(r) || !r.activity || !activityIsFull(r.activity)) continue;
+        if (!(msOf(r.submittedAt) && now - msOf(r.submittedAt) > ACTIVITY_KEEP_MS)) continue;
+        var small = copyJson(r);
+        small.activity = compactActivity(r.activity);
+        kept[c] = small;
+        changed = true;
+      }
       return { list: kept, changed: changed };
     }
     function samePair(r, studentId, examId) { return !!r && String(r.studentId) === String(studentId) && String(r.examId) === String(examId); }
@@ -1482,9 +1512,14 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       return { attempt: copyJson(acc), ids: open.map(function (r) { return String(r.id); }) };
     }
     function retireAttempt(a, resultId, submittedAt) {
-      return { id: a.id, examId: a.examId, studentId: a.studentId, status: 'submitted',
+      var out = { id: a.id, examId: a.examId, studentId: a.studentId, status: 'submitted',
         submittedAt: submittedAt || new Date().toISOString(), resultId: resultId == null ? null : resultId,
         startTime: a.startTime, deadline: a.deadline, updatedAt: submittedAt || new Date().toISOString() };
+      // The moments of the attempt (no answers) stay with it for the
+      // invigilator's timeline and the sitting's register.
+      var act = a.activity ? activityOf(a.activity) : null;
+      if (act) out.activity = act;
+      return out;
     }
     /* One attempt per exam: a live result for the trainee and exam (by
        whatever route it arrived) means every open attempt of theirs at it is
@@ -1532,6 +1567,321 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         if (f && f.r !== r) { dropped.unshift(r); results.splice(i, 1); }
       }
       return dropped;
+    }
+
+    /* ---- What the invigilator sees: the attempt's activity ------------------
+       The owner asked for an invigilator page: office staff follow, as it
+       happens, when each trainee starts a test, opens each page and begins
+       each question, and when each one finishes — and the sitting gives a
+       register of attendance. The attempt record above already reaches every
+       staff PC by every route a result takes (and will through the trainee
+       gate, which collects these same records), so what happened rides inside
+       it as `activity`, and the invigilator page reads nothing else. It holds
+       only WHEN things happened — never an answer.
+
+         activity = {
+           v: 1,
+           lay:   { n, per, info: [i] }  the paper's shape (how many items, how
+                                         many to a page, which are information
+                                         items): a submitted attempt no longer
+                                         holds the paper, and its timeline must
+                                         still say "question 12"
+           pages: [ms]   when each page was first opened (by page index)
+           seen:  [ms]   when each item first became the one in hand (by index)
+           first: [ms]   when each question was first answered (by index)
+           ev:    [{ id, k, t, ... }] the moments, oldest first. An id starts
+                  with the code of the device that wrote it ("7KQ2.3.mgx1"):
+                    start {d}  resume {d}         d names the device ("Computer · 7KQ2")
+                    left {why: 'hidden'|'blur'}   back {of, ms}     the test window
+                    offline                       online {of, ms}   the connection
+                    flag {q, on}
+                    submit {how: 'trainee'|'time'|'away', late}
+           more:  { device: { left, away, offline, offMs, flag } } — counted,
+                  not listed, once a device has listed ACT_EACH_MAX of a kind
+           sum:   the counts a submitted attempt keeps once ACTIVITY_KEEP_MS
+                  has passed (compactActivity)
+         }
+
+       Two copies merge without losing a moment: each page's and question's
+       first time is the earliest either copy saw (questions lined up by id,
+       as their answers are, so two shuffled copies agree); the moments are
+       the union of both, by id; the counts take the larger. It stays small:
+       a device lists at most ACT_EACH_MAX of each repeatable kind and then
+       only counts them, the times are one number per page and per question,
+       and ACT_LOG_MAX is a last guard — a 100-question test cannot swell its
+       record.
+
+         activityOf(a)                      a clean copy, or null
+         activityLayout(questions, per)     the paper's shape, for `lay`
+         activityNote(act, ev)              a moment added (listed or counted)
+         activityMark(act, field, i, t)     the first time of a page / question
+         mergeActivity(a, b, qmap, pages)   two copies as one
+         activitySummary(attempt)           the counts the board shows
+         compactActivity(act)               the counts only */
+    var ACTIVITY_KEEP_MS = 14 * 24 * 3600 * 1000;
+    var ACT_EACH_MAX = 20, ACT_LOG_MAX = 600, ACT_INDEX_MAX = 2000;
+    var ACT_KINDS = { start: 1, resume: 1, left: 1, back: 1, offline: 1, online: 1, flag: 1, submit: 1 };
+    var ACT_COUNTED = { left: 1, offline: 1, flag: 1 };   // a device stops listing these after ACT_EACH_MAX
+    var ACT_KEPT = { start: 1, resume: 1, submit: 1 };    // never let go, even past ACT_LOG_MAX
+    var SUM_STRINGS = { dev: 1, how: 1 };
+    function actStamps(v) {
+      if (!Array.isArray(v)) return [];
+      var out = v.slice(0, ACT_INDEX_MAX).map(function (x) { var n = Number(x); return isFinite(n) && n > 0 ? Math.round(n) : 0; });
+      while (out.length && !out[out.length - 1]) out.pop();
+      return out;
+    }
+    function actEvent(e) {
+      if (!e || typeof e !== 'object' || e.id == null || !ACT_KINDS[e.k]) return null;
+      var t = Number(e.t);
+      if (!isFinite(t) || t <= 0) return null;
+      var out = { id: String(e.id).slice(0, 48), k: e.k, t: Math.round(t) };
+      ['d', 'why', 'how', 'of'].forEach(function (f) { if (typeof e[f] === 'string' && e[f]) out[f] = e[f].slice(0, 48); });
+      ['ms', 'q'].forEach(function (f) { var n = Number(e[f]); if (e[f] != null && e[f] !== '' && isFinite(n) && n >= 0) out[f] = Math.round(n); });
+      if (e.on === true || e.on === false) out.on = e.on;
+      if (e.late === true) out.late = true;
+      return out;
+    }
+    function actByTime(x, y) { return (x.t - y.t) || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0); }
+    function actDevice(e) { return String(e && e.id || '').split('.')[0]; }
+    /* Every moment either list holds, once (the same moment twice keeps one
+       copy, whichever way round), oldest first; past ACT_LOG_MAX the oldest
+       repeatable moments give way, never a start, a resume or a submission. */
+    function actUnion(x, y) {
+      var by = {};
+      (Array.isArray(x) ? x : []).concat(Array.isArray(y) ? y : []).forEach(function (raw) {
+        var e = actEvent(raw);
+        if (!e) return;
+        var c = by[e.id];
+        if (!c || JSON.stringify(e) > JSON.stringify(c)) by[e.id] = e;
+      });
+      var list = Object.keys(by).map(function (k) { return by[k]; }).sort(actByTime);
+      if (list.length > ACT_LOG_MAX) {
+        var keep = list.filter(function (e) { return ACT_KEPT[e.k]; });
+        var rest = list.filter(function (e) { return !ACT_KEPT[e.k]; });
+        rest = rest.slice(Math.max(0, rest.length - Math.max(0, ACT_LOG_MAX - keep.length)));
+        list = keep.concat(rest).sort(actByTime);
+      }
+      return list;
+    }
+    function actCounts(m, strings) {
+      var out = {}, any = false;
+      Object.keys(m && typeof m === 'object' ? m : {}).forEach(function (f) {
+        var v = m[f];
+        if (strings && strings[f]) { if (typeof v === 'string' && v) { out[f] = v.slice(0, 48); any = true; } return; }
+        var n = Number(v);
+        if (isFinite(n) && n > 0) { out[f] = Math.round(n); any = true; }
+      });
+      return any ? out : null;
+    }
+    function actLay(l) {
+      if (!l || typeof l !== 'object') return null;
+      var n = Math.min(ACT_INDEX_MAX, Math.max(0, Math.round(Number(l.n) || 0)));
+      if (!n) return null;
+      var info = (Array.isArray(l.info) ? l.info : []).map(Number).filter(function (i) { return isFinite(i) && i >= 0 && i < n && i === Math.floor(i); });
+      return { n: n, per: Math.max(0, Math.round(Number(l.per) || 0)), info: info };
+    }
+    /* A clean copy of an attempt's activity (unknown fields and malformed
+       moments left out), or null when there is none. */
+    function activityOf(a) {
+      if (!a || typeof a !== 'object') return null;
+      var out = { v: 1 };
+      var lay = actLay(a.lay);
+      if (lay) out.lay = lay;
+      ['pages', 'seen', 'first'].forEach(function (f) { var l = actStamps(a[f]); if (l.length) out[f] = l; });
+      var ev = actUnion(a.ev, null);
+      if (ev.length) out.ev = ev;
+      if (a.more && typeof a.more === 'object') {
+        var more = {};
+        Object.keys(a.more).slice(0, 20).forEach(function (d) { var c = actCounts(a.more[d]); if (c) more[String(d).slice(0, 16)] = c; });
+        if (Object.keys(more).length) out.more = more;
+      }
+      var sum = actCounts(a.sum, SUM_STRINGS);
+      if (sum) out.sum = sum;
+      return out;
+    }
+    /* The paper's shape, for an activity started on it: how many items, how
+       many to a page, and which are information items. */
+    function activityLayout(questions, perPage) {
+      var qs = Array.isArray(questions) ? questions : [];
+      var info = [];
+      qs.forEach(function (q, i) { if (q && q.type === 'info') info.push(i); });
+      return actLay({ n: qs.length, per: parseInt(perPage, 10) || 0, info: info });
+    }
+    /* A moment added on the device it happened on. A repeatable kind (the
+       test window left, the connection lost, a flag) is listed until this
+       device has listed ACT_EACH_MAX of it, then only counted; a return is
+       listed when the leaving it answers is (so the two always pair up). */
+    function activityNote(act, ev) {
+      var a = activityOf(act) || { v: 1 };
+      var e = actEvent(ev);
+      if (!e) return a;
+      var list = a.ev || [];
+      if (list.some(function (x) { return x.id === e.id; })) return a;
+      var dev = actDevice(e), listed = true;
+      if (ACT_COUNTED[e.k]) {
+        listed = list.filter(function (x) { return x.k === e.k && actDevice(x) === dev; }).length < ACT_EACH_MAX;
+      } else if ((e.k === 'back' || e.k === 'online') && e.of) {
+        listed = list.some(function (x) { return x.id === e.of; });
+      }
+      if (listed) { a.ev = actUnion(list, [e]); return a; }
+      var more = a.more = a.more || {};
+      var c = more[dev] = more[dev] || {};
+      var add = function (f, n) { c[f] = (c[f] || 0) + n; };
+      if (e.k === 'left') add('left', 1);
+      else if (e.k === 'back') add('away', e.ms || 0);
+      else if (e.k === 'offline') add('offline', 1);
+      else if (e.k === 'online') add('offMs', e.ms || 0);
+      else if (e.k === 'flag') add('flag', 1);
+      return a;
+    }
+    /* The first time a page was opened, or a question reached ('seen') or
+       answered ('first'). A later time never replaces it. */
+    function activityMark(act, field, i, t) {
+      var a = activityOf(act) || { v: 1 };
+      i = Number(i); t = Number(t);
+      if ((field !== 'pages' && field !== 'seen' && field !== 'first') || !(i >= 0) || i !== Math.floor(i) || i >= ACT_INDEX_MAX || !(t > 0)) return a;
+      var l = a[field] ? a[field].slice() : [];
+      while (l.length <= i) l.push(0);
+      if (!l[i]) l[i] = Math.round(t);
+      a[field] = l;
+      return a;
+    }
+    function earliestOf(x, y) { return x && y ? Math.min(x, y) : (x || y || 0); }
+    /* Two copies of an attempt's activity as one. qmap[i] is where the
+       first copy's item i sits in the second (-1: not there; no qmap: the
+       same place, as for two copies of one attempt); samePages: the page
+       numbers mean the same pages in both. Returns undefined when neither
+       copy has any. */
+    function mergeActivity(A, B, qmap, samePages) {
+      var a = activityOf(A), b = activityOf(B);
+      if (!a && !b) return undefined;
+      a = a || { v: 1 }; b = b || { v: 1 };
+      var out = { v: 1 };
+      var lay = a.lay || (!qmap ? b.lay : null);
+      if (lay) out.lay = copyJson(lay);
+      ['seen', 'first'].forEach(function (f) {
+        var la = a[f] || [], lb = b[f] || [], r = [];
+        var n = qmap ? qmap.length : Math.max(la.length, lb.length);
+        for (var i = 0; i < n; i++) {
+          var j = qmap ? qmap[i] : i;
+          r.push(earliestOf(la[i] || 0, j != null && j >= 0 ? (lb[j] || 0) : 0));
+        }
+        r = actStamps(r);
+        if (r.length) out[f] = r;
+      });
+      var pa = a.pages || [], pb = samePages ? (b.pages || []) : [], rp = [];
+      for (var p = 0; p < Math.max(pa.length, pb.length); p++) rp.push(earliestOf(pa[p] || 0, pb[p] || 0));
+      rp = actStamps(rp);
+      if (rp.length) out.pages = rp;
+      var ev = actUnion(a.ev, b.ev);
+      if (ev.length) out.ev = ev;
+      var more = {};
+      [a.more, b.more].forEach(function (m) {
+        Object.keys(m || {}).forEach(function (d) {
+          var c = more[d] = more[d] || {};
+          Object.keys(m[d]).forEach(function (f) { c[f] = Math.max(c[f] || 0, m[d][f] || 0); });
+        });
+      });
+      if (Object.keys(more).length) out.more = more;
+      if (a.sum || b.sum) {
+        var sum = {}, sa = a.sum || {}, sb = b.sum || {};
+        Object.keys(sa).concat(Object.keys(sb)).forEach(function (f) {
+          if (f in sum) return;
+          if (SUM_STRINGS[f]) {
+            var x = sa[f] || '', y = sb[f] || '';
+            sum[f] = x && y ? (x <= y ? x : y) : (x || y);
+          } else sum[f] = Math.max(Number(sa[f]) || 0, Number(sb[f]) || 0);
+        });
+        var cs = actCounts(sum, SUM_STRINGS);
+        if (cs) out.sum = cs;
+      }
+      return out;
+    }
+    /* What the board shows of one attempt (attempt: { activity, startTime,
+       answeredAt, flaggedAt, posAt, status }):
+         { startedAt, device, devices, moved, resumes,
+           left, awayMs, awaySince,          the test window (awaySince: away now)
+           offline, offlineMs, offlineSince, the connection
+           flags, pages, seen, firstAnswered, submit: { t, how, late } | null,
+           lastAt }                          the trainee's last moment, as known */
+    function activitySummary(att) {
+      var act = activityOf(att && att.activity) || { v: 1 };
+      var ev = act.ev || [], sum = act.sum || {};
+      var s = { startedAt: 0, device: '', devices: [], moved: false, resumes: 0, left: 0, awayMs: 0, awaySince: 0,
+        offline: 0, offlineMs: 0, offlineSince: 0, flags: 0, pages: 0, seen: 0, firstAnswered: 0, submit: null, lastAt: 0 };
+      var openLeft = null, openOff = null;
+      var addDev = function (d) { if (d && s.devices.indexOf(d) === -1) s.devices.push(d); };
+      var closeAway = function (t) { if (openLeft) { s.awayMs += Math.max(0, t - openLeft.t); openLeft = null; } };
+      ev.forEach(function (e) {
+        s.lastAt = Math.max(s.lastAt, e.t);
+        if (e.k === 'start') {
+          if (!s.startedAt || e.t < s.startedAt) s.startedAt = e.t;
+          if (e.d && !s.device) s.device = e.d;
+          addDev(e.d);
+        } else if (e.k === 'resume') {
+          s.resumes++; addDev(e.d);
+          // Carried on (on this device or another): back in a test window.
+          closeAway(e.t);
+        } else if (e.k === 'left') { if (!openLeft) { s.left++; openLeft = e; } }
+        else if (e.k === 'back') {
+          if (openLeft) { s.awayMs += e.ms != null ? e.ms : Math.max(0, e.t - openLeft.t); openLeft = null; }
+          else if (e.ms) s.awayMs += e.ms;
+        } else if (e.k === 'offline') { if (!openOff) { s.offline++; openOff = e; } }
+        else if (e.k === 'online') {
+          if (openOff) { s.offlineMs += e.ms != null ? e.ms : Math.max(0, e.t - openOff.t); openOff = null; }
+          else if (e.ms) s.offlineMs += e.ms;
+        } else if (e.k === 'flag') { if (e.on !== false) s.flags++; }
+        else if (e.k === 'submit') {
+          if (!s.submit || e.t < s.submit.t) s.submit = { t: e.t, how: e.how || '', late: !!e.late };
+          closeAway(e.t);
+          if (openOff) { s.offlineMs += Math.max(0, e.t - openOff.t); openOff = null; }
+        }
+      });
+      var done = attemptIsRetired(att) || !!s.submit;
+      if (openLeft && !done) s.awaySince = openLeft.t;
+      if (openOff && !done) s.offlineSince = openOff.t;
+      Object.keys(act.more || {}).forEach(function (d) {
+        var c = act.more[d];
+        s.left += c.left || 0; s.awayMs += c.away || 0; s.offline += c.offline || 0; s.offlineMs += c.offMs || 0; s.flags += c.flag || 0;
+      });
+      var count = function (l) { return (l || []).filter(Boolean).length; };
+      s.pages = count(act.pages); s.seen = count(act.seen); s.firstAnswered = count(act.first);
+      // A submitted attempt past ACTIVITY_KEEP_MS keeps only its counts.
+      s.left = Math.max(s.left, sum.left || 0); s.awayMs = Math.max(s.awayMs, sum.away || 0);
+      s.offline = Math.max(s.offline, sum.offline || 0); s.offlineMs = Math.max(s.offlineMs, sum.offMs || 0);
+      s.flags = Math.max(s.flags, sum.flags || 0); s.pages = Math.max(s.pages, sum.pages || 0);
+      s.seen = Math.max(s.seen, sum.seen || 0); s.firstAnswered = Math.max(s.firstAnswered, sum.first || 0);
+      s.resumes = Math.max(s.resumes, sum.resumes || 0);
+      if (!s.device && sum.dev) { s.device = sum.dev; addDev(sum.dev); }
+      if (!s.submit && sum.how) s.submit = { t: sum.at || 0, how: sum.how, late: !!sum.late };
+      if (!s.startedAt) s.startedAt = sum.start || Number(att && att.startTime) || 0;
+      s.moved = s.devices.length > 1 || !!sum.moved;
+      [act.pages, act.seen, act.first, att && att.answeredAt, att && att.flaggedAt].forEach(function (l) {
+        (Array.isArray(l) ? l : []).forEach(function (t) { var n = Number(t); if (isFinite(n) && n > s.lastAt) s.lastAt = n; });
+      });
+      var pos = Number(att && att.posAt);
+      if (isFinite(pos) && pos > s.lastAt) s.lastAt = pos;
+      if (!s.lastAt) s.lastAt = s.startedAt;
+      return s;
+    }
+    function activityIsFull(act) {
+      return !!(act && typeof act === 'object' && ((Array.isArray(act.ev) && act.ev.length) || (Array.isArray(act.pages) && act.pages.length) ||
+        (Array.isArray(act.seen) && act.seen.length) || (Array.isArray(act.first) && act.first.length) || (act.more && Object.keys(act.more).length)));
+    }
+    /* The counts only — what a submitted attempt keeps of its activity after
+       ACTIVITY_KEEP_MS (the sitting's register keeps its own copy for good). */
+    function compactActivity(act) {
+      var a = activityOf(act) || { v: 1 };
+      var s = activitySummary({ activity: a, status: 'submitted' });
+      var sum = { left: s.left, away: s.awayMs, offline: s.offline, offMs: s.offlineMs, flags: s.flags, pages: s.pages,
+        seen: s.seen, first: s.firstAnswered, resumes: s.resumes, start: s.startedAt, dev: s.device };
+      if (s.submit) { sum.how = s.submit.how; sum.at = s.submit.t; if (s.submit.late) sum.late = 1; }
+      if (s.moved) sum.moved = 1;
+      var out = { v: 1 };
+      if (a.lay) out.lay = a.lay;
+      var cs = actCounts(sum, SUM_STRINGS);
+      if (cs) out.sum = cs;
+      return out;
     }
 
     /* How a multiple-choice answer reads on a result: its letter and the
@@ -1585,6 +1935,9 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       attemptIsOpen: attemptIsOpen, attemptIsRetired: attemptIsRetired, mergeAttempt: mergeAttempt,
       mergeAttemptLists: mergeAttemptLists, attemptFor: attemptFor, retireAttempt: retireAttempt,
       settleAttempts: settleAttempts, oneResultPerAttempt: oneResultPerAttempt, ATTEMPT_KEEP_MS: ATTEMPT_KEEP_MS,
+      activityOf: activityOf, activityLayout: activityLayout, activityNote: activityNote, activityMark: activityMark,
+      mergeActivity: mergeActivity, activitySummary: activitySummary, compactActivity: compactActivity, activityIsFull: activityIsFull,
+      hasAnswerValue: hasAnswerValue, ACTIVITY_KEEP_MS: ACTIVITY_KEEP_MS, ACTIVITY_EACH_MAX: ACT_EACH_MAX, ACTIVITY_LOG_MAX: ACT_LOG_MAX,
       markMulti: markMulti, markMatch: markMatch, matchChoices: matchChoices, acceptedAnswers: acceptedAnswers,
       shortAnswerMatches: shortAnswerMatches, parseNumber: parseNumber, numericalMatches: numericalMatches,
       answerState: answerState, attemptQuestions: attemptQuestions, pagesOf: pagesOf, questionNumbers: questionNumbers, questionCount: questionCount,
