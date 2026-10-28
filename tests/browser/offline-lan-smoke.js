@@ -11,6 +11,15 @@
    Centre's server instead of waiting for Google for ever; video is pointed at
    the Centre's server. And on the online build: none of it switches on.
 
+   Then the staff-only switch (the trainee gate, Stage 6a). Off, every device
+   is given the token as before. On, a trainee's device can get neither the
+   token nor any /_cestis/data/* file, and a device that first opens the
+   system then receives none of the Centre's records; the trainee signs in
+   through /_cestis/gate with a PBKDF2 proof the browser works out itself and
+   sends an item sealed in the browser; an administrator's sign-in, checked
+   by the server, still gets the token (and a host ticket). Off again, the
+   office PC fetches the new token by itself and its saves land.
+
    Every non-local request is aborted, as on a Centre network with no
    internet. Uses the environment's Chromium via playwright-core; kept out of
    the default npm test chain because it needs a browser. */
@@ -154,6 +163,122 @@ function serveRoot() {
     await RC.page.waitForTimeout(800);
     ok(!(await RC.page.evaluate(() => document.getElementById('mandatorySyncOverlay').classList.contains('hidden'))),
       'and the online Cashbook still insists on its Google sync');
+
+    /* ---- The staff-only switch (trainee gate, Stage 6a) ---- */
+    console.log('The staff-only switch, off: a trainee\'s device gets the token as it always has');
+    const traineePc = await device(base);
+    const TD = await traineePc.open('index.html');
+    const TOKEN1 = (await (await fetch(base + '/_cestis/token')).json()).token;
+    ok(await TD.page.evaluate(() => fetch('/_cestis/token').then(r => r.json()).then(d => d.token)) === TOKEN1,
+      'with the switch off, any device on the network is given the token');
+    // The Centre's records gain a staff login with a password of its own, and
+    // a sign-in for the first LAN trainee — as the office's save would bring them.
+    const nodeCrypto = require('crypto');
+    const hashPw = (pw, salt) => 'pbkdf2$1000$' + salt + '$' + nodeCrypto.pbkdf2Sync(pw, Buffer.from(salt, 'hex'), 1000, 32, 'sha256').toString('hex');
+    const nowIso = new Date().toISOString();
+    // (The dashboard has moved the LAN trainees onto their stable ids by now.)
+    const ONE = require(path.join(ROOT, 'cestis-core.js')).stableStudentId({ name: 'Lan Trainee One', course: 'Welding' });
+    const put = await fetch(base + '/_cestis/data/CESTIS_LMS_Dashboard.json', { method: 'PUT',
+      headers: { 'X-CESTIS-Token': TOKEN1, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version: '1.0', page: 'LMS Dashboard', file: 'CESTIS_LMS_Dashboard.json',
+        stamps: { voctrain_users: nowIso, voctrain_examResults: nowIso },
+        data: { voctrain_examResults: JSON.stringify([{ id: 'RES-LAN-GATE', examId: 'EX-LAN', studentId: ONE, studentName: 'Lan Trainee One',
+          score: 75, submittedAt: nowIso }]),
+        voctrain_users: JSON.stringify([
+          { id: 'USR-LAN-ADMIN', name: 'Lan Administrator', role: 'admin', username: 'lanadmin', email: 'lanadmin@centre.test', status: 'active',
+            password: hashPw('Lan-Admin-Pass-1', '00112233445566778899aabbccddeeff'), updatedAt: nowIso },
+          { id: 'USR-LAN-T1', name: 'Lan Trainee One', role: 'student', username: 'lan1', email: 'lan1@mail.test', status: 'active',
+            programme: 'Welding', studentDataId: 'STU-LAN-1', password: hashPw('Lan-Trainee-Pass', 'a1b2c3d4e5f60718'), updatedAt: nowIso }]) } }) });
+    ok(put.ok, 'the accounts reach the Centre\'s records');
+
+    console.log('An administrator turns it on, with a password the server checks');
+    const flip = (on, tok) => A.page.evaluate(([on, tok]) => fetch('/_cestis/staff-only', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CESTIS-Token': tok },
+      body: JSON.stringify({ username: 'lanadmin', password: 'Lan-Admin-Pass-1', on }) }).then(r => r.json().then(j => ({ status: r.status, j }))), [on, tok]);
+    const onR = await flip(true, TOKEN1);
+    ok(onR.status === 200 && onR.j.on === true && onR.j.token && onR.j.token !== TOKEN1, 'switched on, and the token replaced');
+    const TOKEN2 = onR.j.token;
+
+    console.log('On: a trainee\'s device can get neither the token nor the records');
+    const refused = await TD.page.evaluate(old => Promise.all([
+      fetch('/_cestis/token').then(r => r.status),
+      fetch('/_cestis/token', { method: 'POST', body: JSON.stringify({ username: 'lan1', password: 'Lan-Trainee-Pass' }) }).then(r => r.status),
+      fetch('/_cestis/data', { headers: { 'X-CESTIS-Token': old } }).then(r => r.status),
+      fetch('/_cestis/data/CESTIS_LMS_Dashboard.json', { headers: { 'X-CESTIS-Token': old } }).then(r => r.status),
+      fetch('/_cestis/data/CESTIS_ALL_DATA.json').then(r => r.status)
+    ]), TOKEN1);
+    ok(JSON.stringify(refused) === '[403,403,401,401,401]',
+      'GET /_cestis/token, a trainee\'s own password, and /_cestis/data/* with the old token or none are all refused — got ' + refused);
+    // A device that first opens the system now (the one above already took a
+    // copy while the switch was off — READ ME FIRST: kept until cleared).
+    const freshPc = await device(base);
+    const TD2 = await freshPc.open('index.html');
+    ok(TD2.errors.length === 0, 'the dashboard still opens on a new device, with no page errors — got: ' + TD2.errors.join(' | '));
+    await TD2.page.waitForTimeout(1500);
+    const leaked = await TD2.page.evaluate(() => ['voctrain_users', 'voctrain_students', 'voctrain_examResults', 'voctrain_announcements']
+      .filter(k => /lanadmin|Lan Trainee|ANN-LAN|RES-LAN/.test(String(CESTISStore.getItem(k) || ''))));
+    ok(leaked.length === 0, 'and none of the Centre\'s records reach its storage — found in: ' + leaked.join(', '));
+
+    console.log('On: the trainee signs in through the gate, in the browser, and gets only their own records');
+    const viaGate = await TD2.page.evaluate(async () => {
+      const enc = new TextEncoder();
+      const hex = buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const hmac = async (keyText, msg) => hex(await crypto.subtle.sign('HMAC',
+        await crypto.subtle.importKey('raw', enc.encode(keyText), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']), enc.encode(msg)));
+      const post = b => fetch('/_cestis/gate', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(b) }).then(r => r.json());
+      const login = 'lan1';
+      const ch = await post({ op: 'auth.start', login });
+      const base = await crypto.subtle.importKey('raw', enc.encode('Lan-Trainee-Pass'), 'PBKDF2', false, ['deriveBits']);
+      const salt = new Uint8Array(ch.salt.match(/../g).map(h => parseInt(h, 16)));
+      const V = hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: ch.iter }, base, 256));
+      const s = await post({ op: 'auth.password', login, nonce: ch.nonce, proof: await hmac(V, 'cestis-gate-v1|' + ch.nonce + '|' + login) });
+      if (!s.ok) return { error: s.error };
+      const p = await post({ op: 'pull', token: s.token });
+      // A support message, sealed here as any trainee's device seals it.
+      const item = { id: 'IT-BROWSER-1', a: s.accountId, sid: s.sid, kind: 'rec', key: 'voctrain_support_messages',
+        rec: { id: 'SUP-BROWSER-1', subject: 'Hello', message: 'Sent through the gate', timestamp: Date.now() }, createdAt: new Date().toISOString() };
+      item.mac = await hmac(s.sessionKey, CESTISCore.gate.canon(item));
+      const d = await post({ op: 'deliver', items: [item] });
+      return { stu: s.studentId, slice: JSON.stringify(p.slice || null), receipt: d.results && d.results[0] };
+    });
+    // The dashboard has moved both trainees onto their stable ids since they were added.
+    const ME = dashList('voctrain_students').find(s => s.name === 'Lan Trainee One') || {};
+    const OTHER = dashList('voctrain_students').find(s => s.name === 'Lan Trainee Two') || {};
+    ok(!!ME.id && viaGate.stu === ME.id, 'signed in by a PBKDF2 proof the browser worked out itself, as the trainee record the Centre holds — ' +
+      JSON.stringify(viaGate.error || [viaGate.stu, ME.id]));
+    const mineRes = dashList('voctrain_examResults').filter(r => r.studentId === ME.id).map(r => r.id);
+    // (Their first result still names the id they were added under; it is theirs either way.)
+    const theirs = dashList('voctrain_examResults').filter(r => r.studentId !== ME.id && r.studentId !== 'STU-LAN-1').map(r => r.id);
+    const notMine = [OTHER.id, 'STU-LAN-2', 'Lan Trainee Two', 'lanadmin', 'pbkdf2$'].concat(theirs).filter(x => x && viaGate.slice.indexOf(x) !== -1);
+    ok(/Lan Trainee One/.test(viaGate.slice) && mineRes.length > 0 && mineRes.every(id => viaGate.slice.indexOf(id) !== -1) && notMine.length === 0,
+      'the slice holds their own record and results (' + mineRes.join(', ') + ') and nothing of the other trainee\'s or the accounts\' — found: ' + notMine.join(', '));
+    ok(viaGate.receipt && viaGate.receipt.ok === true, 'a support message sealed in the browser is accepted — ' + JSON.stringify(viaGate.receipt));
+    ok(dashList('voctrain_support_messages').some(m => m.id === 'SUP-BROWSER-1' && m.studentId === ME.id && m.accountId === 'USR-LAN-T1'),
+      'and is in the Centre\'s records, as theirs');
+
+    console.log('On: staff sign-in is checked by the server, and gets the token');
+    const staff = await A.page.evaluate(async () => {
+      const r = await fetch('/_cestis/token', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'lanadmin', password: 'Lan-Admin-Pass-1' }) });
+      const j = await r.json();
+      const data = await fetch('/_cestis/data/CESTIS_LMS_Dashboard.json', { headers: { 'X-CESTIS-Token': j.token || '' } });
+      const ticket = await fetch('/_cestis/host-ticket', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CESTIS-Token': j.token || '' },
+        body: JSON.stringify({ username: 'lanadmin', password: 'Lan-Admin-Pass-1' }) });
+      return { status: r.status, token: j.token, data: data.status, ticket: ticket.status };
+    });
+    ok(staff.status === 200 && staff.token === TOKEN2 && staff.data === 200, 'the administrator\'s sign-in gets the new token, which reads the records');
+    ok(staff.ticket === 200, 'and can still be given a class host ticket');
+    ok(await A.page.evaluate(() => fetch('/_cestis/health').then(r => r.json()).then(h => h.staffOnly === true)), 'the health answer says the records are for staff');
+
+    console.log('Off again: as before, for every device');
+    const offR = await flip(false, TOKEN2);
+    ok(offR.status === 200 && offR.j.on === false && offR.j.token !== TOKEN2, 'switched off, the token replaced once more');
+    ok(await TD2.page.evaluate(() => fetch('/_cestis/token').then(r => r.status)) === 200, 'the trainee\'s device is given the token again');
+    ok(await A.page.evaluate(() => fetch('/_cestis/health').then(r => r.json()).then(h => !('staffOnly' in h))), 'the health answer is as before');
+    await A.page.evaluate(() => { announcements.push({ id: 'ANN-LAN-3', title: 'After the switch', body: 'z', date: '2026-10-21', author: 'Admin' }); saveState(); });
+    await A.page.waitForTimeout(3000);
+    ok(dashList('voctrain_announcements').some(a => a.id === 'ANN-LAN-3'),
+      'and the office PC, holding a token from before, fetches the new one by itself and its saves land again');
   } catch (e) {
     failed++;
     console.log(e && e.stack || e);
