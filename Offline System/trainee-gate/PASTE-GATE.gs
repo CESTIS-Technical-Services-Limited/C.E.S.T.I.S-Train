@@ -2340,11 +2340,153 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         var t = { acct: str(a.id), stu: str(st.id), account: a, student: st, course: str(st.course || a.programme) };
         ctx.trainees.push(t); ctx.byAcct[t.acct] = t;
       });
+      // The student IDs they had before — a rename, a transfer, a folded duplicate (formerIdsOf).
+      formerIdsOf(ctx, allAccounts, delStu, opts.relinked);
       return ctx;
     }
 
+    /* ---- A trainee's former student IDs ----------------------------------
+       A student ID is a hash of the name and the programme, so a rename or a
+       transfer moves it (Core.stableStudentId). The dashboard moves the
+       records it holds at that moment (Core.relinkDependentData) — but a
+       result marked since on a lab PC that still knew the old ID, an
+       assignment grade (which no relink carries), and the records of a
+       duplicate the fee roll made and a fold later removed, stay under the
+       old ID, and a slice built by student ID alone left them out.
+
+       Each trainee's former IDs are taken from what the records themselves
+       say, where they say it:
+         - a stub account folded into theirs (the fold log, opts.folds, or
+           Core.accountAccess.backfillStubFolds): the record it linked to —
+           from the stub's own copy, deleted or not, or the ID a
+           deterministic stub id (USR-SYNC-…, USR-STU-…) is made of;
+         - the dashboard's own identity rule (Core.migrateToStableIds, run
+           on a copy of the roll): a duplicate of their record, or the ID
+           their record is about to move to;
+         - a move the caller kept: opts.relinked { oldId: newId } (the
+           stabiliser's idMaps; chains are followed);
+         - a record of theirs that names their account (accountId) under
+           another student ID.
+       The privacy back-check, before any ID is taken: never another
+       trainee's current student ID; never a record another account links
+       to; never a deleted trainee's ID; never a record the office pinned as
+       its own person; a live record only on the dashboard's own decisions
+       (the identity rule, a kept move), never on a fold or an account alone;
+       and an ID two trainees could both claim goes to neither (formerUnsure).
+       ctx.formerIds: { acct: [ids] }; ctx.formerNames: { acct: [the names
+       of live records taken] } (theirs too, for the sweep). */
+    function formerIdsOf(ctx, allAccounts, deleted, relinked) {
+      var claims = dict(), current = dict(), live = dict(), mine = dict(), linkedBy = dict();
+      deleted = deleted || {};
+      ctx.trainees.forEach(function (t) {
+        current[t.stu] = t.acct;
+        mine[t.acct] = t.acct;
+        (ctx.foldedInto[t.acct] || []).forEach(function (s) { mine[str(s)] = t.acct; });
+      });
+      ctx.students.forEach(function (s) { if (s.id != null && s.id !== '') live[str(s.id)] = s; });
+      ctx.accounts.forEach(function (a) {
+        if (a.studentDataId != null && a.studentDataId !== '') (linkedBy[str(a.studentDataId)] = linkedBy[str(a.studentDataId)] || []).push(str(a.id));
+      });
+      var claim = function (id, t, strong) {
+        id = str(id);
+        if (!id || id === t.stu || deleted[id] === true || current[id] !== undefined) return;
+        if ((linkedBy[id] || []).some(function (a) { return mine[a] !== t.acct; })) return;
+        var rec = live[id];
+        if (rec && (!strong || Core.keepsOwnId(rec))) return;
+        (claims[id] = claims[id] || dict())[t.acct] = 1;
+      };
+      // Where a map leads an id, following its chain (a circle leads nowhere).
+      var end = function (m, id) {
+        var seen = dict(), hops = 0;
+        id = str(id);
+        while (hasOwn.call(m, id) && str(m[id]) !== id) {
+          if (seen[id] || hops++ > 50) return '';
+          seen[id] = 1;
+          id = str(m[id]);
+        }
+        return id;
+      };
+
+      // A stub folded into theirs: the record it linked to.
+      var copiesOf = dict();
+      allAccounts.forEach(function (a) { if (a.id != null) (copiesOf[str(a.id)] = copiesOf[str(a.id)] || []).push(a); });
+      ctx.trainees.forEach(function (t) {
+        (ctx.foldedInto[t.acct] || []).forEach(function (stub) {
+          (copiesOf[str(stub)] || []).forEach(function (a) { claim(a.studentDataId, t, false); });
+          var m = /^USR-(?:SYNC|STU)-(STU.+)$/.exec(str(stub));
+          if (m) claim(m[1], t, false);
+        });
+      });
+
+      // The dashboard's own identity rule, on a copy of the roll.
+      var idMap = {};
+      try { idMap = Core.migrateToStableIds({ students: copy(ctx.students) }).idMap || {}; } catch (e) { idMap = {}; }
+      var groups = dict();
+      Object.keys(idMap).concat(Object.keys(live)).forEach(function (id) {
+        var to = end(idMap, id);
+        if (to) (groups[to] = groups[to] || []).push(id);
+      });
+      var byEnd = dict();
+      ctx.trainees.forEach(function (t) {
+        var to = end(idMap, t.stu);
+        if (!to) return;
+        (byEnd[to] = byEnd[to] || []).push(t);
+        [to].concat(groups[to] || []).forEach(function (id) { claim(id, t, true); });
+      });
+
+      // A move the caller kept.
+      var kept = isObj(relinked) ? relinked : {};
+      Object.keys(kept).forEach(function (old) {
+        var to = end(kept, old);
+        if (!to) return;
+        var whose = current[to] !== undefined ? [ctx.byAcct[current[to]]] : (byEnd[end(idMap, to)] || []);
+        var chain = [], id = str(old), hops = 0;
+        while (id && id !== to && hops++ < 50) { chain.push(id); id = str(kept[id]); }
+        whose.forEach(function (t) { chain.concat([to]).forEach(function (x) { claim(x, t, true); }); });
+      });
+
+      // A record of theirs that names their account under another student ID.
+      OWNED.forEach(function (k) {
+        ctx.L[k].forEach(function (r) {
+          if (r.studentId == null || r.accountId == null) return;
+          var t = mine[str(r.accountId)] ? ctx.byAcct[mine[str(r.accountId)]] : null;
+          if (t && str(r.studentId) !== t.stu) claim(r.studentId, t, false);
+        });
+      });
+
+      ctx.formerIds = dict(); ctx.formerNames = dict(); ctx.formerUnsure = [];
+      Object.keys(claims).sort().forEach(function (id) {
+        var who = Object.keys(claims[id]);
+        if (who.length !== 1) { ctx.formerUnsure.push(id); return; }
+        (ctx.formerIds[who[0]] = ctx.formerIds[who[0]] || []).push(id);
+        if (live[id] && Core.normName(live[id].name)) (ctx.formerNames[who[0]] = ctx.formerNames[who[0]] || []).push(Core.normName(live[id].name));
+      });
+    }
+    /* A trainee's records still filed under a former student ID, as theirs
+       today: copies with the student ID (and a folded stub's account id)
+       rewritten (reown). A record whose id the current ID already holds is
+       the one kept; a record with no id (a download approval) comes only
+       when the current ID holds none of that kind. */
+    function formerOwned(ctx, key, t) {
+      var former = (ctx.formerIds && ctx.formerIds[t.acct]) || [];
+      if (!former.length) return [];
+      var now = ctx.owned[key][t.stu] || [], have = dict(), out = [];
+      now.forEach(function (r) { if (r.id != null) have[str(r.id)] = 1; });
+      former.forEach(function (id) {
+        (ctx.owned[key][id] || []).forEach(function (r) {
+          if (r.id == null) { if (!now.length) out.push(r); return; }
+          if (have[str(r.id)]) return;
+          have[str(r.id)] = 1;
+          out.push(r);
+        });
+      });
+      if (!out.length) return out;
+      var recs = {}; recs[key] = out;
+      return reown(recs, { stus: former, accts: ctx.foldedInto[t.acct] || [] }, { stu: t.stu, acct: t.acct })[key];
+    }
+
     function cutList(list, own) { return (Array.isArray(list) ? list : []).filter(function (x) { return own[str(x)]; }); }
-    function ownedOf(ctx, key, t) { return (ctx.owned[key][t.stu] || []).map(copy); }
+    function ownedOf(ctx, key, t) { return (ctx.owned[key][t.stu] || []).map(copy).concat(formerOwned(ctx, key, t)); }
     function cutReaders(rec, own) {
       var r = copy(rec);
       ['readBy', 'clearedBy', 'dismissedBy'].forEach(function (f) { if (Array.isArray(r[f])) r[f] = cutList(r[f], own); });
@@ -2424,6 +2566,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       var course = t.course, now = ctx.now, d = {};
       var own = identityOf(t.account, t.student);
       (ctx.foldedInto[t.acct] || []).forEach(function (id) { own.ids[id] = 1; });
+      // Student IDs this trainee had before are theirs too (formerIdsOf).
+      var former = (ctx.formerIds && ctx.formerIds[t.acct]) || [], wasMine = dict();
+      former.forEach(function (id) { own.ids[id] = 1; wasMine[id] = 1; });
+      ((ctx.formerNames && ctx.formerNames[t.acct]) || []).forEach(function (n) { own.names[n] = 1; });
       var readers = dict(); readers[t.acct] = 1;
       var forStudent = function (r) { return Core.comms.forViewer(r, 'student', course, ctx.same); };
       var sameCourse = function (c) { return !!c && !!course && (c === course || !!ctx.same(course, c)); };
@@ -2446,9 +2592,14 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
           if (!isObj(r[f])) return;
           var keep = {};
           if (r[f][t.stu] !== undefined) keep[t.stu] = r[f][t.stu];
+          // A grade still under a former student ID (no relink carries these maps) is theirs, under today's.
+          else former.some(function (x) { if (hasOwn.call(r[f], x) && r[f][x] !== undefined) { keep[t.stu] = r[f][x]; return true; } return false; });
           r[f] = keep;
         });
         if (Array.isArray(r.gradeLog)) r.gradeLog = r.gradeLog.filter(function (g) { return g && str(g.studentId) === t.stu; });
+        if (Array.isArray(a.gradeLog) && former.length) a.gradeLog.forEach(function (g) {
+          if (g && wasMine[str(g.studentId)]) { var c = copy(g); c.studentId = t.stu; r.gradeLog.push(c); }
+        });
         return r;
       });
       d.voctrain_submissions = ownedOf(ctx, 'voctrain_submissions', t);
@@ -2483,6 +2634,13 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       d.voctrain_support_messages = (ctx.support[t.acct] || []).concat(ctx.support[t.stu] || []).filter(function (m, i, all) {
         return all.indexOf(m) === i;
       }).map(copy);
+      if (former.length) {
+        var sent = dict();
+        d.voctrain_support_messages.forEach(function (m) { if (m.id != null) sent[str(m.id)] = 1; });
+        var earlier = [];
+        former.forEach(function (id) { (ctx.support[id] || []).forEach(function (m) { if (m.id == null || !sent[str(m.id)]) { if (m.id != null) sent[str(m.id)] = 1; earlier.push(m); } }); });
+        d.voctrain_support_messages = d.voctrain_support_messages.concat(reown({ s: earlier }, { stus: former }, t).s);
+      }
       d.voctrain_chatRooms = roomsFor(ctx, t);
       var mine = null;
       try { mine = course ? ctx.findSkill(course) : null; } catch (e) { mine = null; }
@@ -2504,6 +2662,12 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       };
       d.voctrain_transcriptProfiles = ownMap(ctx.M.voctrain_transcriptProfiles, [t.stu]);
       d.voctrain_studentProfiles = ownMap(ctx.M.voctrain_studentProfiles, [t.acct, t.stu]);
+      // A profile still under a former ID, where today's has none, under today's (as the relink files it).
+      former.forEach(function (x) {
+        ['voctrain_transcriptProfiles', 'voctrain_studentProfiles'].forEach(function (k) {
+          if (!hasOwn.call(d[k], t.stu) && hasOwn.call(ctx.M[k], x)) d[k][t.stu] = copy(ctx.M[k][x]);
+        });
+      });
       d.voctrain_certTemplates = {};
       Object.keys(ctx.M.voctrain_certTemplates).forEach(function (k) {
         if (!(k === course || sameCourse(k))) return;
@@ -3491,7 +3655,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
      The rules above name them only on the staff side (building slices,
      collecting inboxes), which the gate never runs. Touching one throws,
      so a rule that starts to need it fails loudly instead of quietly. */
-  ["Transcript","chat","chatSync","comms","coursework","dropTombstonedStudents","enrolment","isSnapshotableKey","pageCloud","pendingUpload","stableStudentId","sync"].forEach(function (name) {
+  ["Transcript","chat","chatSync","comms","coursework","dropTombstonedStudents","enrolment","isSnapshotableKey","keepsOwnId","migrateToStableIds","pageCloud","pendingUpload","relinkDependentData","stableStudentId","sync"].forEach(function (name) {
     Object.defineProperty(Core, name, { configurable: true, enumerable: false, get: function () {
       throw new Error('Core.' + name + ' is not in the gate\'s paste: rebuild it with node trainee-gate/build-paste.js --full');
     } });
