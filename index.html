@@ -37487,8 +37487,7 @@ function gateClientHooks() {
 function gateEnterPortal() {
   var sess = CESTISGate.session();
   if (!sess) { gateLeaveToLanding(false); return; }
-  try { loadUserAccounts(); } catch (e) {}
-  try { loadState(); } catch (e) {}
+  gateReloadMemory();
   try { _syncIndex = {}; } catch (e) {}
   var slice = safeJsonParse(CESTISStore.getItem('cestisGateSlice'), null) || {};
   var data = slice.data || {};
@@ -37541,9 +37540,7 @@ function gateAfterApply(r) {
   if (!r || !r.changed && !(r.plan && r.plan.writes)) return;
   try { _syncIndex = {}; } catch (e) {}
   var sid = currentStudent && currentStudent.id, uid = currentLoggedInUser && currentLoggedInUser.id;
-  try { loadUserAccounts(); } catch (e) {}
-  try { loadState(); } catch (e) {}
-  try { loadLmsChatFromStore(); } catch (e) {}
+  gateReloadMemory();
   var stu = (students || []).find(function(s) { return s && s.id === sid; });
   if (stu) currentStudent = stu;
   var acct = (userAccounts || []).find(function(u) { return u && u.id === uid; });
@@ -37553,6 +37550,14 @@ function gateAfterApply(r) {
   try { if (typeof renderStudentDashboard === 'function') renderStudentDashboard(); } catch (e) {}
   try { updateNotificationDot(); } catch (e) {}
   try { refreshSyncChip(); } catch (e) {}
+}
+// Everything the page holds in memory, read again from the namespace.
+function gateReloadMemory() {
+  try { loadUserAccounts(); } catch (e) {}
+  try { loadState(); } catch (e) {}
+  try { loadNotifications(); } catch (e) {}
+  try { loadSupportMessages(); } catch (e) {}
+  try { loadLmsChatFromStore(); } catch (e) {}
 }
 // The chat, from the store (the gate's room files land there).
 function loadLmsChatFromStore() {

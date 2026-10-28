@@ -204,6 +204,13 @@ const GSI_STUB = `(function(){
       Object.assign(ws, { date: p.date, time: p.time, duration: 60, shuffleOptions: true, updatedAt: new Date().toISOString() });
       // And the electrical quiz too (section 8).
       Object.assign(exams.find(e => e.id === 'EXAM-EI2'), { date: p.date, time: p.time, duration: 45, updatedAt: new Date().toISOString() });
+      // A notice for every trainee, and the welding class's chat room with a message from the office.
+      CESTISStore.setItem('voctrain_notifications', JSON.stringify([{ id: 'NOTIF-WF-1', text: 'The workshop is closed on Friday for maintenance.', timestamp: Date.now() - 3600000,
+        time: '1 hour ago', read: false, icon: '🔔', type: 'info', forRoles: ['student'] }]));
+      const now = new Date().toISOString();
+      CESTISStore.setItem('voctrain_chatRooms', JSON.stringify([{ id: 'ROOM-WF', name: 'Welding & Fabrication', icon: '🔥', type: 'class', members: ['USR-mthompson'], createdAt: now, updatedAt: now }]));
+      CESTISStore.setItem('voctrain_chatMessages', JSON.stringify({ 'ROOM-WF': [{ id: 'msg-office-1', roomId: 'ROOM-WF', senderId: 'USR-mthompson', senderName: 'Marcia Thompson',
+        text: 'Welcome to the welding class room. Ask your questions here.', type: 'text', timestamp: new Date(Date.now() - 600000).toISOString(), readBy: ['USR-mthompson'] }] }));
       CESTISStore.setItem('voctrain_exams', JSON.stringify(exams));
     }, mutateArg: { TOTP_SECRET, BACKUP } });
     // The accounts list reaches the shared files; the gate's first check then sets it up beside it.
@@ -286,14 +293,12 @@ const GSI_STUB = `(function(){
     ok(/authenticator app/.test(tfa.sub) && /backup code/.test(tfa.other), 'two-step asks for the authenticator code, with a backup code as the way out (' + tfa.sub + ' | ' + tfa.other.replace(/\n/g, ' / ') + ')');
     await shot(p3, '06-two-step-phone');
     await p3.fill('#gateTfaCode', '000000');
-    if (process.env.GATE_FLOWS_DEBUG) console.log(await p3.evaluate(() => { const b = document.getElementById('gateTfaVerifyBtn').getBoundingClientRect(); const e = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2); const m = document.getElementById('gateTfaModal'); return JSON.stringify({ b, top: e && (e.id || e.className || e.tagName), par: e && e.parentElement && (e.parentElement.id || e.parentElement.className), dis: document.getElementById('gateTfaVerifyBtn').disabled, h: innerHeight, mz: getComputedStyle(m).zIndex, md: getComputedStyle(m).display }); }));
     await p3.click('#gateTfaVerifyBtn');
     await p3.waitForFunction(() => getComputedStyle(document.getElementById('gateTfaError')).display !== 'none', null, { timeout: 15000 });
     ok(/That code is not right/.test(await p3.evaluate(() => document.getElementById('gateTfaError').textContent)), 'a wrong code: "That code is not right. Check it and try again."');
     await shot(p3, '07-two-step-wrong-code-phone');
     const code = Core.gate.totp.code(TOTP_SECRET, Date.now(), NODE_CRYPTO);
     await p3.fill('#gateTfaCode', code);
-    if (process.env.GATE_FLOWS_DEBUG) console.log(await p3.evaluate(() => { const b = document.getElementById('gateTfaVerifyBtn').getBoundingClientRect(); const e = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2); return JSON.stringify({ b, top: e && (e.id || e.className), dis: document.getElementById('gateTfaVerifyBtn').disabled, h: innerHeight }); }));
     await p3.click('#gateTfaVerifyBtn');
     await inPortal(p3);
     ok(await p3.evaluate(() => CESTISStore.namespace === 'g1' && currentStudent.name === 'Kemar Johnson'), 'the authenticator\'s code lets Kemar in');
@@ -359,11 +364,6 @@ const GSI_STUB = `(function(){
     let inLane = false;
     for (let i = 0; i < 40 && !inLane; i++) { await wait(500); inLane = laneHas(a => a.answers.some(x => x === 0)); }
     await page.waitForFunction(() => CESTISGate.outbox().then(l => l.length === 0), null, { timeout: 15000, polling: 300 }).catch(() => {});
-    if (process.env.GATE_FLOWS_DEBUG) {
-      console.log('    deliveries:', gate.ops('deliver'), 'lane:', JSON.stringify(Object.values(drive.files).filter(f => /^CESTISINBOX\.L-/.test(f.name)).map(f => JSON.parse(f.content)).filter(l => l.accountId === T.tameka.id).map(l => (l.records.voctrain_examAttempts || []).map(a => a.answers))));
-      console.log('    phone:', await page.evaluate(() => JSON.stringify({ store: JSON.parse(CESTISStore.getItem('voctrain_examAttempts') || '[]').map(a => [a.answers, a.answeredAt, a.status]), mem: (examAttempts || []).map(a => a.answers), sess: currentExamSession && [currentExamSession.answers, currentExamSession.answeredAt],
-        draft: (() => { const d = JSON.parse(CESTISStore.getItem(CESTISCore.exams.draftKey(currentStudent.id, 'EXAM-WS3')) || 'null'); return d && [d.answers, d.answeredAt, d.status]; })(), now: examStampNow(), dn: Date.now() })));
-    }
     const st1 = await page.evaluate(() => CESTISGate.outbox().then(l => l.map(e => e.state + ':' + e.kind + ':' + (e.item && e.item.key) + ':' + (e.reason || ''))));
     ok(inLane && !st1.length, 'the first answer reaches the gate, sealed, into her session\'s own lane (' + st1.join(', ') + ')');
     // The phone's connection to the gate drops.
@@ -413,6 +413,83 @@ const GSI_STUB = `(function(){
     await ctx2.close();
   });
 
+  /* ------------------------------------------------------------------ 4b */
+  section('4b. Her other work reaches the office: a notice read, her profile, a support message, coursework, a request, chat', async () => {
+    const { ctx, page } = shared.tameka;
+    // The bell: "Mark all read".
+    await page.evaluate(() => gatePullAndApply().then(r => { if (r && r.applied) gateAfterApply(r.applied); }));
+    const bell = await page.evaluate(() => (getFilteredNotifications() || []).map(n => n.id));
+    ok(bell.indexOf('NOTIF-WF-1') !== -1, 'the office\'s notice is in her bell (' + bell.join() + ' | mem ' + await page.evaluate(() => JSON.stringify((notifications || []).map(n => n.id))) +
+      ' | slice ' + await page.evaluate(() => JSON.stringify(((JSON.parse(CESTISStore.getItem('cestisGateSlice') || '{}').data || {}).voctrain_notifications || []).map(n => n.id))) +
+      ' | office ' + await shared.officePage.evaluate(() => JSON.stringify((notifications || []).map(n => n.id))) + ')');
+    await page.evaluate(() => markAllNotificationsRead());
+    // Her profile: a new phone number.
+    await page.evaluate(() => { showPage('s-profile'); openEditStudentProfile(); });
+    await page.waitForSelector('#editProfilePhone', { state: 'visible', timeout: 10000 });
+    await page.fill('#editProfilePhone', '876-555-0142');
+    await page.evaluate(() => saveStudentProfile());
+    // A support message, through the support form's own code (the form itself is on the sign-in page).
+    await page.evaluate(() => {
+      document.getElementById('supportName').value = 'Tameka Richards';
+      document.getElementById('supportEmail').value = 'tameka.richards@example.com';
+      document.getElementById('supportPhone').value = '876-555-0142';
+      const s = document.getElementById('supportSubject'); s.value = s.options[1] ? s.options[1].value : 'Other';
+      document.getElementById('supportMessage').value = 'Is the welding practical still on Friday?';
+      submitSupportMessage();
+    });
+    await page.waitForFunction(() => /sent to the Centre/.test((document.getElementById('supportFormSuccess') || {}).textContent || ''), null, { timeout: 20000 }).catch(() => {});
+    ok(/sent to the Centre/.test(await page.evaluate(() => document.getElementById('supportFormSuccess').textContent)), 'the support message is sent ("' + (await page.evaluate(() => document.getElementById('supportFormSuccess').textContent)).slice(0, 60) + '")');
+    await page.evaluate(() => closeModal('supportContactModal'));
+    // Coursework: a photo of her butt joint, sent first, then the submission.
+    await page.evaluate(() => { showPage('s-assignments'); openSubmitAssignment('ASG-WF-1', 'Butt joint practice piece'); });
+    await page.setInputFiles('#submitFileInput', { name: 'butt-joint.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n% butt joint photos\n') });
+    await page.evaluate(() => { document.getElementById('submitComment').value = 'My butt joint, front and back.'; return submitStudentAssignment(); });
+    const sub = await page.evaluate(() => assignmentSubmissions.filter(s => s.assignmentId === 'ASG-WF-1').map(s => ({ files: s.files.length, drive: (s.driveFiles || []).map(f => f.driveFileId) })));
+    ok(sub.length === 1 && sub[0].files === 0 && sub[0].drive.length === 1 && !!sub[0].drive[0], 'coursework: the file is sent through the gate first, and the submission names it (' + JSON.stringify(sub) + ')');
+    const upFile = Object.values(drive.files).find(f => f.id === (sub[0] && sub[0].drive[0]));
+    ok(!!upFile && /butt-joint\.pdf$/.test(upFile.name) && /acct=USR-trichards/.test(upFile.description || ''), 'into her own folder, private (' + (upFile && upFile.name) + ')');
+    // A certificate request, from the embedded Transcript / Grades page (another document in the same namespace).
+    await page.evaluate(() => showPage('s-transcript-grades'));
+    // As a person would: wait for her own view, then press "Request Certificate".
+    const tg = page.frameLocator('#sTranscriptGradesFrame');
+    const certBtn = tg.locator('button', { hasText: 'Request Certificate' });
+    await certBtn.waitFor({ state: 'visible', timeout: 20000 });
+    await certBtn.click();
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('g1::voctrain_certTranscriptRequests') || '[]').some(r => r.type === 'certificate'), null, { timeout: 10000 }).catch(() => {});
+    const inFrame = await page.evaluate(() => { const w = document.getElementById('sTranscriptGradesFrame').contentWindow; return { ns: w.CESTISStore && w.CESTISStore.namespace,
+      reqs: JSON.parse(localStorage.getItem('g1::voctrain_certTranscriptRequests') || '[]').map(r => r.type + ':' + r.status),
+      main: localStorage.getItem('voctrain_certTranscriptRequests') }; });
+    ok(inFrame.ns === 'g1' && inFrame.reqs.some(r => /^certificate:pending/.test(r)) && inFrame.main === null, 'the embedded page works in her namespace and keeps the request there (' + inFrame.reqs.join(', ') + ')');
+    // Chat: the class room's history comes from the gate, and her reply goes back.
+    await page.evaluate(() => showPage('s-lms-chat'));
+    await page.waitForFunction(() => (lmsChatMessages['ROOM-WF'] || []).some(m => m.id === 'msg-office-1'), null, { timeout: 30000 }).catch(() => {});
+    ok(await page.evaluate(() => (lmsChatMessages['ROOM-WF'] || []).some(m => m.id === 'msg-office-1')), 'chat: the class room\'s history arrives from the gate');
+    await page.evaluate(() => { lmsChatOpenRoom('ROOM-WF', 'student'); });
+    await page.waitForTimeout(300);
+    await page.fill('#studentChatInput', 'Thank you, Miss. See you Friday.');
+    await page.evaluate(() => lmsChatSendMessage('student'));
+    // All of it sealed and delivered…
+    await page.waitForFunction(() => CESTISGate.capture().then(() => CESTISGate.deliver({ force: true })).then(() => CESTISGate.status()).then(s => s.waiting === 0), null, { timeout: 40000, polling: 1500 });
+    const refusedHere = await page.evaluate(() => CESTISGate.outbox().then(l => l.filter(e => e.state === 'refused').map(e => (e.item.key || e.item.kind) + ':' + e.reason)));
+    ok(refusedHere.length === 0, 'nothing she sent was refused (' + refusedHere.join(', ') + ')');
+    // …and the staff PC's collector takes it in.
+    await collect(1);
+    const office = await shared.officePage.evaluate(sid => ({
+      read: ((notifications || []).find(n => n.id === 'NOTIF-WF-1') || {}).readBy || [],
+      phone: (studentProfiles[sid] || {}).phone,
+      support: (supportMessages || []).filter(m => /welding practical/.test(m.message || '')).map(m => m.accountId),
+      subs: (assignmentSubmissions || []).filter(s => s.studentId === sid && s.assignmentId === 'ASG-WF-1').map(s => ((s.driveFiles || [])[0] || {}).driveFileId),
+      reqs: JSON.parse(CESTISStore.getItem('voctrain_certTranscriptRequests') || '[]').filter(r => r.studentId === sid).map(r => r.type + ':' + r.status),
+      chat: ((lmsChatMessages || {})['ROOM-WF'] || []).filter(m => m.senderId === 'USR-trichards').map(m => m.text)
+    }), T.tameka.sid);
+    ok(office.read.indexOf('USR-trichards') !== -1, 'the office sees the notice read by her (' + office.read.join() + ')');
+    ok(office.phone === '876-555-0142', 'her new phone number (' + office.phone + ')');
+    ok(office.support.length === 1 && office.support[0] === 'USR-trichards', 'her support message, as hers (' + office.support.join() + ')');
+    ok(office.subs.length === 1 && office.subs[0] === sub[0].drive[0], 'her coursework, naming the file she sent');
+    ok(office.reqs.indexOf('certificate:pending') !== -1, 'her certificate request, from the embedded page (' + office.reqs.join(', ') + ')');
+    ok(office.chat.indexOf('Thank you, Miss. See you Friday.') !== -1, 'and her chat reply (' + office.chat.join(' | ') + ')');
+  });
+
   /* ------------------------------------------------------------------ 5, 6 */
   section('5. A lab PC holding the Centre\'s records: a gate session leaves them byte for byte; 6. gate out of reach: the lab PC falls back, the phone refuses', async () => {
     // A lab PC: the Centre's records as the office holds them (after Sync Now).
@@ -459,9 +536,7 @@ const GSI_STUB = `(function(){
     line.down = true;
     await traineeSignIn(page, T.rushane.user, TRAINEE_PASS);
     await page.waitForFunction(() => typeof currentRole !== 'undefined' && currentRole === 'student', null, { timeout: 30000 }).catch(() => {});
-    const fb = await page.evaluate(() => ({ role: currentRole, ns: CESTISStore.namespace, who: currentStudent && currentStudent.name, say: document.getElementById('studentLoginError').textContent,
-      accts: userAccounts.filter(u => /rushane|rgrant/i.test(JSON.stringify(u))).map(u => [u.id, u.username, u.email, u.status, u.role]),
-      stored: JSON.parse(CESTISStore.getItem('voctrain_users') || '[]').map(u => u.id + ':' + u.status), mem: userAccounts.map(u => u.id + ':' + u.status) }));
+    const fb = await page.evaluate(() => ({ role: currentRole, ns: CESTISStore.namespace, who: currentStudent && currentStudent.name, say: document.getElementById('studentLoginError').textContent }));
     ok(fb.role === 'student' && fb.ns === '' && fb.who === 'Rushane Grant', '6. the gate out of reach: the lab PC, which holds the Centre\'s records, signs him in today\'s way (' + JSON.stringify(fb) + ')');
     await page.close();
     // A phone with the gate out of reach: refused, with today's words.
