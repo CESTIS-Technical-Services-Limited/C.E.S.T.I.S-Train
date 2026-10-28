@@ -60,6 +60,9 @@
      deliver {items, lane?}     → {receipts:[{id, ok, reason?, retry?, dup?, already?, result?, retired?}]}
                                   (no token: each item carries its own seal)
      auth.email, auth.2fa.send, upload, file.get → {ok:false, error:'not-available'}
+     catalogue, register.start, register.submit → {ok:false, error:'not-available'}
+       (registration from home needs the trainee's own email account, signed
+        in with Google: never here — the office creates the account instead)
    A request that is not JSON is a 400; every answer to one that is, is a
    200, as online (a script there cannot answer with anything else).
    ============================================================================ */
@@ -69,7 +72,8 @@ const fs = require('fs');
 const path = require('path');
 const nodeCrypto = require('crypto');
 
-const GATE_VERSION = 1;
+// 2 with the online gate: registration from home (answered 'not-available' here).
+const GATE_VERSION = 2;
 const PROTOCOL = [1];
 const SERVICE = 'cestis-trainee-gate';
 const LMS_FILE = 'CESTIS_LMS_Dashboard.json';
@@ -763,7 +767,10 @@ function create(opts) {
     'signOut': signOutOp, 'deliver': deliver,
     // Need the internet or Google Drive: not on the Centre's own network.
     'auth.email': () => ({ ok: false, error: 'not-available' }), 'auth.2fa.send': () => ({ ok: false, error: 'not-available' }),
-    'upload': () => ({ ok: false, error: 'not-available' }), 'file.get': () => ({ ok: false, error: 'not-available' })
+    'upload': () => ({ ok: false, error: 'not-available' }), 'file.get': () => ({ ok: false, error: 'not-available' }),
+    // Registration from home needs the trainee's own email account: never on the Centre's own network.
+    'catalogue': () => ({ ok: false, error: 'not-available' }), 'register.start': () => ({ ok: false, error: 'not-available' }),
+    'register.submit': () => ({ ok: false, error: 'not-available' })
   };
   function errCode(err) {
     if (err && err.gateError) return err.gateError;

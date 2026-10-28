@@ -334,9 +334,13 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     const [N1, N2] = await signIn(K.acct.username, 'a-new-password');
     same('the new one: a session', N1, N2, s => [s.ok, s.account, s.sid.split('.')[1].slice(0, 12)]);
 
-    console.log('Left out on purpose (the Centre\'s network has no internet): auth.email, auth.2fa.send, upload, file.get');
-    for (const op of ['auth.email', 'auth.2fa.send', 'upload', 'file.get']) {
+    console.log('Left out on purpose (the Centre\'s network has no internet): auth.email, auth.2fa.send, upload, file.get, and registering from home');
+    for (const op of ['auth.email', 'auth.2fa.send', 'upload', 'file.get', 'catalogue', 'register.start', 'register.submit']) {
       assert((await centre({ op, token: N2.token })).error === 'not-available', op + ' is not-available on the Centre\'s server');
+    }
+    // Online, the same three are real requests (tests/gate-appsscript-vm.test.js walks them through).
+    for (const op of ['catalogue', 'register.start', 'register.submit']) {
+      assert((await online({ op })).error !== 'unknown-op', op + ' is a request the online gate knows');
     }
   } catch (e) {
     failed++;

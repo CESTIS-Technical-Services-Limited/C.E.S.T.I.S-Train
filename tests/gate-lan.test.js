@@ -299,7 +299,7 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     /* ---------------------------------------------------------- health */
     console.log('The gate answers on the Centre\'s server, and says what it is');
     const h = (await req('/_cestis/gate')).json || {};
-    assertEq([h.ok, h.service, h.version, h.protocol, h.accepting, h.staffOnly], [true, 'cestis-trainee-gate', 1, [1], true, false],
+    assertEq([h.ok, h.service, h.version, h.protocol, h.accepting, h.staffOnly], [true, 'cestis-trainee-gate', 2, [1], true, false],
       'GET /_cestis/gate is the gate\'s health answer, accepting, switch off');
     assertEq([h.ready.secret, h.ready.ledger, h.ready.trainees], [true, true, 7], 'with its secret, the records found and 7 trainee accounts');
     assert(Math.abs(Date.parse(h.time) - Date.now()) < 60000, 'and the server\'s clock');
@@ -320,6 +320,11 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     assertEq((await gate({ op: 'auth.start', login: 'x', v: 2 })).error, 'client-too-old', 'a protocol it does not speak: client-too-old (as online)');
     for (const op of ['auth.email', 'auth.2fa.send', 'upload', 'file.get']) {
       assertEq((await gate({ op })).error, 'not-available', op + ' needs the internet: not-available here');
+    }
+    // Registration from home needs the trainee's own email account (DESIGN.md §17): never here — the office creates the account.
+    for (const op of ['catalogue', 'register.start', 'register.submit']) {
+      assertEq((await gate({ op, accessToken: 'ya29.anything', name: 'Shantelle Barrett', programme: 'Welding', password: 'pbkdf2$210000$' + '0'.repeat(32) + '$' + '0'.repeat(64) })).error,
+        'not-available', op + ': registering from home is not available on the Centre\'s network');
     }
 
     /* ---------------------------------------------------------- sign-in */

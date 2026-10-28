@@ -45,6 +45,20 @@
        exam is open by the gate's clock;
      - uploads: kinds, 5 MB, 50 a day, 100 MB a day — and a lost cache never
        lifts a limit; files only from the trainee's list or own uploads;
+     - registration from home (DESIGN.md §17): an email-account token only
+       (another app's, an unverified address, an unknown token refused); an
+       address that has an account is told to sign in (or how it stands); the
+       catalogue staff publish is read without signing in, and nothing is
+       open without one; the form is checked (full name, a programme from the
+       catalogue, phone, the password as the dashboard stores one); in ONE
+       request the registration is kept in Registrations/ AND the trainee's
+       folder is made in Trainees/, named "<Name> (<student ID>)" (the
+       dashboard's own ID) and described "cestis-trainee acct=<id> v=1
+       registration=pending"; sent again — same token or another for the same
+       address — it is the same registration, never a second, nor a second
+       folder (even after a write that failed half-way); the limits for one
+       address and for everybody; once the office approves and publishes,
+       the trainee signs in with that account and with the password;
      - rooms to members only; sign-out stops reads (even with the cache
        lost) but still delivers what was sealed; the switch-off property
        and file; old clients; the live-check calls; the check page names no
@@ -192,7 +206,7 @@ const hasKey = v => JSON.stringify(v).indexOf('"correctAnswer"') !== -1;
 function sSetup(src) {
   section('The pasted file runs in a simulated Apps Script runtime; its first request makes the secret, the folders and CESTIS_GATE.json');
   const env = gateWorld(src, { publish: false }), w = env.w, h = env.health;
-  assertEq([h.ok, h.service, h.version, h.protocol, h.accepting], [true, 'cestis-trainee-gate', 1, [1], true], 'health answers who it is');
+  assertEq([h.ok, h.service, h.version, h.protocol, h.accepting], [true, 'cestis-trainee-gate', 2, [1], true], 'health answers who it is (version 2: registration from home)');
   const led = w.drive.json(env.ledger.id);
   assertEq(h.ready, { secret: true, folders: true, ledger: true, ledgerUpdated: iso(w.clock.now), trainees: expectedTrainees(led) },
     'ready: secret, folders, the accounts list and its trainee accounts');
@@ -208,7 +222,7 @@ function sSetup(src) {
   assert(/^[0-9a-f]{64}$/.test(env.secret()), 'a 64-hex secret is made and kept in Script Properties');
   assert(JSON.stringify(h).indexOf(env.secret()) === -1 && w.drive.read(env.cfgFile().id).indexOf(env.secret()) === -1, 'and never shown or written to a file');
   const state = w.drive.json(w.drive.child(sub('_gate').id, 'gate-state.json', 'file').id);
-  assertEq([state.format, state.gateVersion, state.ledgerFileId, state.upgrades.map(u => u.version)], ['cestis-gate-state', 1, env.ledger.id, [1]], 'gate-state.json records the version and the list used');
+  assertEq([state.format, state.gateVersion, state.ledgerFileId, state.upgrades.map(u => u.version)], ['cestis-gate-state', 2, env.ledger.id, [2]], 'gate-state.json records the version and the list used');
   assertEq(w.props.store.LEDGER_FOUND_ID, env.ledger.id, 'of two accounts lists, the one beside the main backup is used');
   assert(/2 copies/.test(w.props.store.LEDGER_NOTE), 'and the check page can say so');
 
@@ -801,20 +815,140 @@ function sPaste() {
   const coreText = fs.readFileSync(path.join(__dirname, '..', 'cestis-core.js'), 'utf8');
   const al = paste.allowlistCore(coreText);
   assert(al.chunks.every(c => coreText.indexOf(c.text) !== -1), 'every allowlisted part is a verbatim run of cestis-core.js');
-  assertEq(al.chunks.map(c => c.name.split(' ')[0]), ['the', 'Core.accountLoginScore', 'Core.accountAccess', 'Core.exams', 'Core.gate'], 'the parts: the helpers, accountLoginScore, accountAccess, exams, gate');
+  assertEq(al.chunks.map(c => c.name.split(' ')[0]), ['the', 'Core.naturalKey', 'Core.stableStudentId', 'Core.programmeIdentity', 'Core.accountLoginScore', 'Core.accountAccess', 'Core.exams', 'Core.enrolment', 'Core.gate'],
+    'the parts: the helpers, the student ID (naturalKey, stableStudentId, programmeIdentity, enrolment), accountLoginScore, accountAccess, exams, gate');
   const gs = fs.readFileSync(path.join(__dirname, '..', 'trainee-gate', 'Gate.gs'), 'utf8');
   const used = new Set();
   for (const m of gs.matchAll(/\b(?:G\.core|CESTISCore)\.([A-Za-z_$][\w$]*)/g)) used.add(m[1]);
-  const carried = new Set(['hashString', 'normName', 'normCourse', 'accountLoginScore', 'accountAccess', 'exams', 'gate']);
+  const carried = new Set(['hashString', 'normName', 'normCourse', 'naturalKey', 'stableStudentId', 'programmeIdentity', 'accountLoginScore', 'accountAccess', 'exams', 'enrolment', 'gate']);
   assertEq([...used].filter(u => !carried.has(u)), [], 'Gate.gs uses only modules the allowlist paste carries');
   const sizes = { allowlist: Buffer.byteLength(paste.build('allowlist')), full: Buffer.byteLength(paste.build('full')) };
   console.log('  paste size: allowlist ' + sizes.allowlist + ' bytes, full ' + sizes.full + ' bytes; left out: ' + al.missing.join(', '));
   return sizes;
 }
 
+/* ======================================== registration from home (§17) */
+// The password as the dashboard stores one, worked out once (PBKDF2, 210 000 rounds).
+const REG_PW = 'Shantelle-2026';
+const REG_STORED = pbkdf2(REG_PW, '00112233445566778899aabbccddeeff', 210000);
+function sRegister(src) {
+  section('Registration from home: only with an email-account token; the registration AND the trainee\'s folder in one request; once per address');
+  const env = gateWorld(src), w = env.w, C = env.C, cfg = env.cfg;
+  const P = C.PROGRAMMES.map(p => p.name);
+  const info = (email, over) => Object.assign({ aud: CLIENT, azp: CLIENT, email, email_verified: 'true', expires_in: '3599',
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid' }, over || {});
+  const EMAIL = 'shantelle.barrett@mail.test';
+  w.tokeninfo['tok-reg-new1'] = info(EMAIL);
+  w.tokeninfo['tok-reg-new2'] = info(EMAIL.toUpperCase());
+  w.tokeninfo['tok-reg-wrong'] = info(EMAIL, { aud: 'someone-else.apps.googleusercontent.com', azp: 'someone-else.apps.googleusercontent.com' });
+  w.tokeninfo['tok-reg-unver'] = info(EMAIL, { email_verified: 'false' });
+  w.tokeninfo['tok-reg-has01'] = info(C.trainees[2].acct.email);
+  w.tokeninfo['tok-reg-pend1'] = info(C.pending.email);
+  const submit = over => w.post(Object.assign({ op: 'register.submit', accessToken: 'tok-reg-new1', name: 'Shantelle  Barrett', programme: P[0], phone: '876-555-0101', password: REG_STORED }, over || {}));
+  const regFolder = () => w.drive.children(cfg.registrationsId, 'file').filter(f => /^CESTISREG\./.test(f.name));
+  const traineeFolders = () => w.drive.children(cfg.traineesId, 'folder');
+
+  assertEq(w.post({ op: 'register.start', accessToken: 'tok-reg-new1' }).error, 'not-open', 'before staff publish the programmes: not open');
+  assertEq(w.post({ op: 'catalogue' }), { ok: true, programmes: [] }, 'the catalogue answers without signing in — empty');
+  w.drive.put(cfg.registrationsId, 'catalogue.json', G.reg.buildCatalogue([P[2], P[0]], w.clock.now));
+  w.advance(61 * 1000);                                  // the gate remembers the catalogue for a minute
+  assertEq(w.post({ op: 'catalogue' }), { ok: true, programmes: [P[2], P[0]].sort() }, 'the programmes taking trainees, as staff published them');
+
+  section('Only a token Google gave this dashboard, for a verified address');
+  assertEq(w.post({ op: 'register.start', accessToken: 'tok-reg-wrong' }).error, 'wrong-app', 'a token made for another app is refused');
+  assertEq(w.post({ op: 'register.start', accessToken: 'tok-reg-unver' }).error, 'unverified-email', 'an unverified address is refused');
+  assertEq(w.post({ op: 'register.start', accessToken: 'tok-made-up-1' }).error, 'bad-token', 'a token Google does not know is refused');
+  assertEq(submit({ accessToken: 'tok-reg-wrong' }).error, 'wrong-app', 'and the same when sending the form');
+  assertEq(w.post({ op: 'register.start', accessToken: 'tok-reg-has01' }).error, 'has-account', 'an address that has an account: sign in');
+  assertEq(submit({ accessToken: 'tok-reg-has01' }).error, 'has-account', 'and it cannot register a second one');
+  assertEq(w.post({ op: 'register.start', accessToken: 'tok-reg-pend1' }).error, 'pending', 'an account awaiting approval: says so');
+  updateLedger(env, led => { account(led, C.trainees[4].acct.id).status = 'rejected'; });
+  w.advance(61 * 1000);
+  w.tokeninfo['tok-reg-rej01'] = info(C.trainees[4].acct.email);
+  assertEq(w.post({ op: 'register.start', accessToken: 'tok-reg-rej01' }).error, 'rejected', 'a registration the office turned down: says so (no second try around it)');
+
+  section('The form is checked: a full name, a programme on the list, a phone, the password as the dashboard stores it');
+  const st = w.post({ op: 'register.start', accessToken: 'tok-reg-new1' });
+  assertEq([st.ok, st.state, st.email, st.programmes], [true, 'new', EMAIL, [P[2], P[0]].sort()], 'a new address: the form, with the programmes');
+  assertEq(submit({ name: 'Shantelle' }).field, 'name', 'a first name alone');
+  assertEq(submit({ name: 'Shantelle <b>Barrett</b>' }).field, 'name', 'markup in a name');
+  assertEq(submit({ programme: P[1] }).field, 'programme', 'a programme not taking trainees');
+  assertEq(submit({ phone: 'call me' }).field, 'phone', 'a phone that is not one');
+  assertEq(submit({ password: 'Shantelle-2026' }).field, 'password', 'a password as typed — never taken (it must arrive as its check)');
+  assertEq(submit({ password: pbkdf2(REG_PW, '00112233445566778899aabbccddeeff', 1000) }).field, 'password', 'a check of too few rounds');
+  assertEq([regFolder().length, traineeFolders().length], [0, 40], 'nothing made for a form that was refused');
+
+  section('Sent: the registration and the trainee\'s folder, in the same request');
+  const acct = G.reg.accountId(EMAIL, env.secret(), crypto), stu = Core.stableStudentId({ name: 'Shantelle Barrett', course: P[0] });
+  const okr = submit();
+  assertEq([okr.ok, okr.state, okr.email, okr.programme, !!okr.already], [true, 'submitted', EMAIL, P[0], false], 'it reaches the office');
+  const files = regFolder();
+  assertEq(files.map(f => f.name), [G.reg.fileName(acct)], 'Registrations/CESTISREG.<account id>.json');
+  const reg = w.drive.json(files[0].id);
+  assertEq([reg.format, reg.accountId, reg.studentId, reg.name, reg.email, reg.programme, reg.phone, reg.password, reg.googleVerified, reg.registeredVia, reg.status],
+    ['cestis-registration', acct, stu, 'Shantelle Barrett', EMAIL, P[0], '876-555-0101', REG_STORED, true, 'home-registration', 'pending'], 'holding what the office needs — the password only as its check');
+  assert(JSON.stringify(reg).indexOf(REG_PW) === -1, 'never the password itself');
+  const mine = traineeFolders().filter(f => new RegExp('(^|\\s)acct=' + acct + '(\\s|$)').test(f.description));
+  assertEq(mine.map(f => [f.name, f.description]), [['Shantelle Barrett (' + stu + ')', 'cestis-trainee acct=' + acct + ' v=1 registration=pending']],
+    'and her own folder in Trainees/, named "<Name> (<student ID>)" — the dashboard\'s own student ID — and marked waiting');
+  assertEq([reg.folderId, reg.folderName], [mine[0].id, mine[0].name], 'the registration names its folder');
+  assertEq(G.reg.importOne(reg, C.store.voctrain_users, []).account.gateFolderId, mine[0].id, 'which the office\'s collector carries onto the account');
+
+  section('Sent again — the same registration, never a second');
+  const again = submit();
+  assertEq([again.ok, again.state, again.already], [true, 'submitted', true], 'the same token again: "it has reached the office"');
+  const again2 = submit({ accessToken: 'tok-reg-new2', name: 'Someone Else' });
+  assertEq([again2.state, again2.already, again2.programme], ['submitted', true, P[0]], 'another sign-in for the same address (another case): the same registration, unchanged');
+  assertEq(w.post({ op: 'register.start', accessToken: 'tok-reg-new2' }).state, 'submitted', 'and starting again says it was sent');
+  assertEq([regFolder().length, traineeFolders().length], [1, 41], 'still one registration and one folder');
+
+  section('A write that fails half-way is finished by the next try — with the same folder');
+  const E2 = 'kevaughn.blake@mail.test';
+  w.tokeninfo['tok-reg-kev01'] = info(E2);
+  w.drive.state.onCreateFile = () => { w.drive.state.failWrites = 1; };   // the registration file's write is refused
+  const half = submit({ accessToken: 'tok-reg-kev01', name: 'Kevaughn Blake', programme: P[2], phone: '' });
+  assertEq([half.ok, half.error, half.retry], [false, 'busy', true], 'a refused write: try again (nothing is said to have arrived)');
+  assertEq([regFolder().length, traineeFolders().length], [1, 42], 'its folder was made, its registration not yet');
+  const done = submit({ accessToken: 'tok-reg-kev01', name: 'Kevaughn Blake', programme: P[2], phone: '' });
+  assertEq([done.ok, done.state, regFolder().length, traineeFolders().length], [true, 'submitted', 2, 42], 'the next try keeps it — in the folder already made, not a second');
+  assertEq(w.drive.json(regFolder().filter(f => f.name.indexOf(G.reg.accountId(E2, env.secret(), crypto)) !== -1)[0].id).folderName,
+    'Kevaughn Blake (' + Core.stableStudentId({ name: 'Kevaughn Blake', course: P[2] }) + ')', 'and names it');
+
+  section('Limits: a few tries an hour for one address; a ceiling for everybody');
+  w.tokeninfo['tok-reg-lim01'] = info('limit@mail.test');
+  const tries = [];
+  for (let i = 0; i < 6; i++) { w.drive.state.failWrites = 1; tries.push(submit({ accessToken: 'tok-reg-lim01', name: 'Lim Ited' }).error); }
+  assertEq(tries, ['busy', 'busy', 'busy', 'busy', 'busy', 'too-many'], 'five tries an hour for one address, then "too many"');
+  w.drive.state.failWrites = 0;
+  w.tokeninfo['tok-reg-cap01'] = info('cap@mail.test');
+  w.cache.put('rgh:' + Math.floor(w.clock.now / 3600000), '60', 3600);
+  assertEq(submit({ accessToken: 'tok-reg-cap01', name: 'Cap Reached' }).error, 'too-many', 'sixty registrations an hour for everybody (each makes a folder)');
+
+  section('Approved and published: she signs in with that account, and with her password');
+  updateLedger(env, led => {
+    led.accounts.push({ id: acct, name: 'Shantelle Barrett', role: 'student', username: 'shantelle.barrett', email: EMAIL, programme: P[0], status: 'pending',
+      password: REG_STORED, registeredVia: 'home-registration', googleVerified: true, gateFolderId: mine[0].id });
+  });
+  w.advance(61 * 1000);
+  assertEq(w.post({ op: 'auth.email', accessToken: 'tok-reg-new1' }).error, 'pending', 'collected, not yet approved: "awaiting approval"');
+  assertEq(w.post({ op: 'register.start', accessToken: 'tok-reg-new1' }).error, 'pending', 'and registering again says the same');
+  C.store.voctrain_students.push({ id: stu, name: 'Shantelle Barrett', course: P[0], stage: 'training', email: EMAIL, lastModified: iso(w.clock.now) });
+  C.store.voctrain_users.push({ id: acct, name: 'Shantelle Barrett', role: 'student', username: 'shantelle.barrett', email: EMAIL, programme: P[0], status: 'active',
+    password: REG_STORED, studentDataId: stu, registeredVia: 'home-registration', gateFolderId: mine[0].id });
+  updateLedger(env, led => { const a = account(led, acct); a.status = 'active'; a.studentDataId = stu; a.approvedAt = '2026-11-02'; });
+  w.advance(61 * 1000);
+  env.publish();
+  assertEq(traineeFolders().length, 42, 'the office publishes into the folder made at her registration (no second one)');
+  const em = w.post({ op: 'auth.email', accessToken: 'tok-reg-new1' });
+  assertEq([em.ok, em.account && em.account.id, em.account && em.account.studentId], [true, acct, stu], 'signed in with her email account');
+  const pw = signIn(env, EMAIL, REG_PW);
+  assertEq([pw.ok, pw.account && pw.account.id], [true, acct], 'and with the password she chose at home');
+  assertEq(w.post({ op: 'pull', token: pw.token }).slice.studentId, stu, 'her own records');
+}
+
 function runAll(src) {
   TRANSCRIPT = []; itemSeq = 0;
-  sSetup(src); sPassword(src); sEmail(src); sTwoStep(src); sLockout(src); sPull(src); sFolders(src); sDeliver(src); sExams(src); sUploads(src); sMisc(src);
+  sSetup(src); sPassword(src); sEmail(src); sTwoStep(src); sLockout(src); sPull(src); sFolders(src); sDeliver(src); sExams(src); sUploads(src); sMisc(src); sRegister(src);
   return TRANSCRIPT;
 }
 
