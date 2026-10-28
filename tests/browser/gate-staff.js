@@ -137,6 +137,8 @@ function fakeGate(drive, opts) {
       return r.abort();
     });
     await ctx.addInitScript(t => { try { localStorage.setItem('cestis_sw_disabled', '1'); if (t === 'light') localStorage.setItem('cestisTheme', 'light'); } catch (e) {} }, opts.theme || 'dark');
+    // Turn on waits for the trainee side (Stage 4). Stand it in unless a check asks to see the card without it.
+    if (!o.noTraineeClient) await ctx.addInitScript(() => { if (!window.CESTISGate) window.CESTISGate = { signIn: function () {}, stub: true }; });
     return ctx;
   }
   function watch(page, label) {

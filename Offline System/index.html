@@ -36862,10 +36862,19 @@ async function gateCheckNow() {
   if (btn) { btn.disabled = false; btn.textContent = 'Check'; }
   showToast(v.ok ? 'Ready. You can turn it on.' : 'Needs attention: ' + (GATE_REASON_TEXT[v.reason] || GATE_REASON_TEXT['no-answer']), v.ok ? 'success' : 'warning');
 }
+/* Trainees can only sign in through the gate once the trainee side (Stage 4,
+   cestis-gate-client.js → window.CESTISGate) is part of the site. Until then
+   setup and Check work, so the one-time setup and its live checks can be done
+   early, but Turn on stays unavailable: a printed sign-in code would lead
+   trainees to a sign-in that cannot use it yet. Off is always allowed. */
+function gateTraineeSignInReady() {
+  return typeof window !== 'undefined' && !!window.CESTISGate && typeof window.CESTISGate.signIn === 'function';
+}
 function gateToggle() {
   if (!gateAdminOnly()) return;
   var tg = Object.assign({}, systemSettings.traineeGate || {});
   var turnOn = tg.enabled !== true;
+  if (turnOn && !gateTraineeSignInReady()) { showToast('Trainees can use this after the next update. You can set it up and press Check now.', 'info'); return; }
   if (turnOn) {
     var h = gatePublishedState(gateDevRead('cestisGatePublished', null)).health;
     if (!tg.url || !h || h.url !== tg.url || !h.ok) { showToast('Press Check first. The address has to answer before trainees can use it.', 'warning'); return; }
@@ -36946,7 +36955,10 @@ function gateCardRefresh() {
   var addr = document.getElementById('gateAddress');
   if (addr && document.activeElement !== addr && !addr.dataset.touched) addr.value = tg.url || '';
   var btn = document.getElementById('gateToggleBtn');
-  if (btn) { btn.textContent = on ? 'Turn off' : 'Turn on'; btn.className = 'btn ' + (on ? 'btn-secondary' : 'btn-primary'); btn.disabled = !on && !tg.url; }
+  var ready = gateTraineeSignInReady();
+  if (btn) { btn.textContent = on ? 'Turn off' : 'Turn on'; btn.className = 'btn ' + (on ? 'btn-secondary' : 'btn-primary'); btn.disabled = !on && (!tg.url || !ready); }
+  var soon = document.getElementById('gateNotReadyNote');
+  if (soon) soon.hidden = ready || on;
   var box = document.getElementById('gateLinkBox');
   if (box) {
     var link = on ? gateSignInLink(tg.url, gateSiteBase()) : '';
