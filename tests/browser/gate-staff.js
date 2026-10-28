@@ -53,8 +53,8 @@ function serve() {
   return new Promise(resolve => {
     const srv = http.createServer((req, res) => {
       const p = decodeURIComponent(req.url.split('?')[0]);
-      // The setup code, once the site serves it (Stage 2 builds it).
-      if (p === '/trainee-gate/PASTE-GATE.gs' && SERVE_PASTE) { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('/* CESTIS Trainee Gate — the setup code */\nfunction doGet(e) {}\n'); }
+      // A site that does not serve the setup code yet (as before Stage 2 was published).
+      if (p === '/trainee-gate/PASTE-GATE.gs' && !SERVE_PASTE) { res.writeHead(404); return res.end('nope'); }
       const file = path.normalize(path.join(ROOT, p === '/' ? 'index.html' : p));
       if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('nope'); }
       res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
@@ -295,7 +295,9 @@ function fakeGate(drive, opts) {
     await page.click('#gateCopyCodeBtn');
     await page.waitForTimeout(600);
     const clip = await page.evaluate(() => navigator.clipboard.readText().catch(() => ''));
-    ok(/CESTIS Trainee Gate — the setup code/.test(clip), 'once the site serves it, the setup code is copied whole');
+    const paste = fs.readFileSync(path.join(ROOT, 'trainee-gate', 'PASTE-GATE.gs'), 'utf8');
+    ok(clip.length > 1000 && clip === paste, 'once the site serves it, trainee-gate/PASTE-GATE.gs is copied whole (' + clip.length + ' characters)');
+    ok(await page.evaluate(() => fetch('trainee-gate/SETUP.md').then(r => r.ok)), 'and the setup sheet is there to open');
     SERVE_PASTE = false;
     // The address, checked.
     await page.fill('#gateAddress', 'not an address');
