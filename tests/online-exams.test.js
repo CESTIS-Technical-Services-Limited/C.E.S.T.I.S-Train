@@ -105,7 +105,10 @@ const PAGE_FNS = [
   'examAttemptsUpsert', 'examAttemptsPersist', 'examAttemptsMergeIncoming', 'examAttemptsRestoreFromDrafts', 'examRetireStaleDrafts',
   'examAttemptsArrived', 'examAdoptAttempt', 'examRedrawKeepingFocus', 'examDismissNote', 'examAttemptEndedElsewhere', 'examListNote',
   'examResultFor', 'examPublishSoon', 'examPublishNow', 'examSaveOnLeaving', 'examPullBeforeStart', 'examCanAskCentre', 'examStartFresh',
-  'examSaveDraftNow', 'examOpenAttemptsFor', 'examSubmitExpiredAttempts', 'examSubmittedHere', 'examAfterSignIn', 'examOutboxSendOnLan'
+  'examSaveDraftNow', 'examOpenAttemptsFor', 'examSubmitExpiredAttempts', 'examSubmittedHere', 'examAfterSignIn', 'examOutboxSendOnLan',
+  // What the invigilator sees of the attempt (CESTISCore.exams activity).
+  'examActivityReady', 'examDeviceCode', 'examDeviceLabel', 'examActivityEvent', 'examActivityNote', 'examActivityMark', 'examWindowLeft', 'examWindowBack',
+  'examPageSwitched', 'examNetBack', 'examActivityNetAtStart', 'examLiveWatched', 'examLiveTargets', 'examLivePulseBody', 'examLivePulse', 'examLivePulseDone'
 ];
 const PAGE_CODE = PAGE_FNS.map(n => extractFunction(SRC, n)).join('\n');
 
@@ -155,6 +158,7 @@ function makePage(opts) {
     examBuilderQuestions: [], editingExamId: null, importedQuestions: [], importRawTextContent: '', importSelectedFile: null,
     EXAM_OUTBOX_KEY: 'cestisExamOutbox', _sessionWiped: false,
     examAttempts: [], EXAM_PUBLISH_MS: 30000, _examPublishTimer: null, _examLastPublish: 0, _examDraftFirstAt: 0, scheduleDebouncedCloudSave() {},
+    _examEventSeq: 0, _examLeft: null, _examBlurTimer: null, _examOffline: null, _examWatchers: {}, EXAM_WATCH_MS: 75000, _examPulseAt: 0, _examPulseTimer: null, lmsChatRTReady: false,
     studentProfiles: {}, attendanceRecords: [], adminMeetings: [], adrTasks: [], adrStaffMeta: {}, adminStaffAccessSettings: {},
     instructorData: [], instructorProfiles: {}, certDownloadApprovals: [], certTemplates: {}, lmsChatMessages: {}, lmsChatProfiles: {},
     lmsChatFollows: {}, cloudFileId: null, lastSyncTime: null, loginSyncCompleted: false,
