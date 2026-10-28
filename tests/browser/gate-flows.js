@@ -92,8 +92,12 @@ const GSI_STUB = `(function(){
 
   /* Each device's own line to the gate, which can be cut (requests aborted). */
   function lineTo() {
-    const l = { down: false, calls: [] };
-    l.handle = r => { l.calls.push(r.request().method()); return l.down ? r.abort('internetdisconnected') : gate.handle(r); };
+    const l = { down: false, calls: [], delay: 0 };
+    l.handle = async r => {
+      l.calls.push(r.request().method());
+      if (l.delay) await wait(l.delay);     // a slow connection, to see what is on screen meanwhile
+      return l.down ? r.abort('internetdisconnected') : gate.handle(r);
+    };
     return l;
   }
   // A trainee's own phone: nothing of the Centre's, never the shared files.
@@ -131,6 +135,12 @@ const GSI_STUB = `(function(){
     await page.waitForFunction(() => typeof currentRole !== 'undefined' && currentRole === 'student' && document.getElementById('appShell').classList.contains('active'), null, { timeout: timeout || 45000 });
     await page.waitForTimeout(800);
   }
+  // Signed out, back on the sign-in page (which reloads on the way: nothing is
+  // read until the new page and its scripts are all there).
+  const onLandingSignedOut = () => {
+    const l = document.getElementById('landingPage');
+    return document.readyState === 'complete' && !!l && l.style.display !== 'none' && !!window.CESTISGate && !(window.CESTISStore && CESTISStore.namespace);
+  };
   const say = page => page.evaluate(() => { const b = document.getElementById('studentLoginError'); return b && !b.hidden ? b.textContent : ''; });
   async function shot(page, name, sel) {
     if (!SHOTS) return;
@@ -140,6 +150,27 @@ const GSI_STUB = `(function(){
       if (sel) await page.locator(sel).first().screenshot({ path: file });
       else await page.screenshot({ path: file });
     } catch (e) { console.log('  (screenshot ' + name + ' not taken: ' + String(e.message).split('\n')[0] + ')'); }
+  }
+  /* A screen in all four ways a trainee may see it: a phone (390×844 @2x)
+     and a desktop (1366×768), Dark and Light — the same page, resized and
+     re-themed, then put back as it was (the device's own theme setting too).
+     sel: scrolled into view first. */
+  async function shotAll(page, name, sel) {
+    if (!SHOTS) return;
+    const vp = page.viewportSize();
+    const theme0 = await page.evaluate(() => { try { return { v: localStorage.getItem('cestisTheme'), light: cestisThemeIsLight() }; } catch (e) { return { v: null, light: false }; } });
+    for (const theme of ['dark', 'light']) {
+      await page.evaluate(t => cestisSetTheme(t), theme);
+      for (const form of ['phone', 'desktop']) {
+        await page.setViewportSize(form === 'phone' ? { width: 390, height: 844 } : { width: 1366, height: 768 });
+        await page.waitForTimeout(300);
+        if (sel) await page.evaluate(q => { const e = document.querySelector(q); if (e) e.scrollIntoView({ block: 'center' }); }, sel);
+        await shot(page, name + '-' + form + '-' + theme);
+      }
+    }
+    await page.setViewportSize(vp);
+    await page.evaluate(t => { cestisSetTheme(t.light ? 'light' : 'dark'); try { if (t.v == null) localStorage.removeItem('cestisTheme'); else localStorage.setItem('cestisTheme', t.v); } catch (e) {} }, theme0);
+    await page.waitForTimeout(150);
   }
   // Everything a device keeps: every localStorage key, every IndexedDB database.
   const dumpDevice = page => page.evaluate(async () => {
@@ -166,22 +197,38 @@ const GSI_STUB = `(function(){
     }
     return out;
   });
-  const dumpText = d => JSON.stringify(d);
+  // Every key a device keeps, with where it is: 'ls:<key>' or 'idb:<database>/<store>/<key>'.
+  function dumpEntries(dump) {
+    const out = [];
+    Object.keys(dump.ls || {}).forEach(k => out.push(['ls:' + k, k + '=' + dump.ls[k]]));
+    Object.keys(dump.idb || {}).forEach(db => Object.keys(dump.idb[db] || {}).forEach(st => {
+      const o = dump.idb[db][st];
+      if (o && typeof o === 'object') Object.keys(o).forEach(k => out.push(['idb:' + db + '/' + st + '/' + k, k + '=' + o[k]]));
+      else out.push(['idb:' + db + '/' + st, String(o)]);
+    }));
+    return out;
+  }
   // What a device must never hold of anyone but the trainee signed in on it.
-  function privacyScan(dump, me, accounts) {
-    const text = dumpText(dump);
+  // opts.allowMain: keys of the main namespace that today's page keeps on any
+  // device that opens it (the built-in first-run logins), outside the gate's.
+  function privacyScan(dump, me, accounts, opts) {
+    opts = opts || {};
     const found = [];
-    TRAINEES.filter(t => t.id !== me.id).forEach(t => {
-      [t.id, t.sid, t.name, t.user + '@example.com', t.user].forEach(x => { if (text.indexOf(x) !== -1) found.push(t.name + ': ' + x); });
+    dumpEntries(dump).forEach(([where, text]) => {
+      if (opts.allowMain && opts.allowMain.test(where)) return;
+      const hit = what => found.push(what + ' in ' + where);
+      TRAINEES.filter(t => t.id !== me.id).forEach(t => {
+        [t.id, t.sid, t.name, t.user + '@example.com', t.user].forEach(x => { if (text.indexOf(x) !== -1) hit(t.name + ': ' + x); });
+      });
+      // (A staff member's name and account id may appear — she wrote the notice the
+      // trainee reads, she is in the class's room — never her email or her password check.)
+      ['mthompson@example.com'].forEach(x => { if (text.indexOf(x) !== -1) hit('staff account: ' + x); });
+      (accounts || []).forEach(a => { if (a.password && text.indexOf(String(a.password).split('$').pop()) !== -1) hit('password check of ' + a.id); });
+      if (/pbkdf2\$|\\"password\\":\\"[0-9a-f]{64}|"password":"[0-9a-f]{64}/.test(text)) hit('a stored password check');
+      if (text.indexOf(TOTP_SECRET) !== -1) hit('a two-step secret');
+      if (text.indexOf(BACKUP) !== -1) hit('a backup code');
+      ['correctAnswer', '"pairs"', '\\"pairs\\"', 'distractors', 'tolerance', 'acceptedAnswers'].forEach(x => { if (text.indexOf(x) !== -1) hit('an answer key (' + x + ')'); });
     });
-    // (A staff member's name and account id may appear — she wrote the notice the
-    // trainee reads, she is in the class's room — never her email or her password check.)
-    ['mthompson@example.com'].forEach(x => { if (text.indexOf(x) !== -1) found.push('staff account: ' + x); });
-    (accounts || []).forEach(a => { if (a.password && text.indexOf(String(a.password).split('$').pop()) !== -1) found.push('password check of ' + a.id); });
-    if (/pbkdf2\$|\\"password\\":\\"[0-9a-f]{64}|"password":"[0-9a-f]{64}/.test(text)) found.push('a stored password check');
-    if (text.indexOf(TOTP_SECRET) !== -1) found.push('a two-step secret');
-    if (text.indexOf(BACKUP) !== -1) found.push('a backup code');
-    ['correctAnswer', '"pairs"', '\\"pairs\\"', 'distractors', 'tolerance', 'acceptedAnswers'].forEach(x => { if (text.indexOf(x) !== -1) found.push('an answer key (' + x + ')'); });
     return found;
   }
 
@@ -241,27 +288,38 @@ const GSI_STUB = `(function(){
     ok(card.gate && card.enter, 'the trainee card signs in through the gate, no Sync Now needed (' + JSON.stringify(card) + ')');
     ok(card.only && card.syncBar === 'none', 'a trainee\'s own phone is not asked to "Sync before signing in"');
     ok(card.address === GATE_URL && card.hash === '', 'the link\'s address is kept on the phone and taken out of the address bar');
-    await shot(page, '01-link-opened-phone');
+    await page.evaluate(() => document.querySelector('#studentCard .role-enter-btn').click());   // "Enter as Student"
+    await page.waitForTimeout(300);
+    await shotAll(page, '01-link-opened', '#studentCard');
+    // A slow connection, so what she sees meanwhile can be checked (and pictured).
+    ctx._line.delay = SHOTS ? 5000 : 600;
     await traineeSignIn(page, T.tameka.user, TRAINEE_PASS);
-    // "Signing in…" then, after the reload into its own namespace, "Getting your records…".
-    const seen = await page.waitForFunction(() => {
+    const onScreen = () => {
       const b = document.getElementById('gateBootScreen');
       const t = b && !b.hidden ? document.getElementById('gateBootText').textContent : '';
       const s = document.getElementById('studentLoginError');
       return t || (s && !s.hidden ? s.textContent : '') || '';
-    }, null, { timeout: 15000, polling: 20 }).then(h => h.jsonValue()).catch(() => '');
-    ok(/Signing in…|Getting your records…/.test(seen), 'the trainee sees "' + seen + '"');
+    };
+    const s1 = await page.waitForFunction(f => { const t = (0, eval)('(' + f + ')')(); return /Signing in…/.test(t) ? t : ''; }, onScreen.toString(), { timeout: 15000, polling: 20 }).then(h => h.jsonValue()).catch(() => '');
+    ok(s1 === 'Signing in…', 'the trainee sees "Signing in…" (' + s1 + ')');
+    await shotAll(page, '02-signing-in', '#studentCard');
+    // Then, after the reload into her own namespace, the first time only:
+    await page.waitForFunction(() => document.readyState === 'complete' && !!(window.CESTISStore && CESTISStore.namespace), null, { timeout: 30000 }).catch(() => {});
+    const s2 = await page.waitForFunction(f => { const t = (0, eval)('(' + f + ')')(); return /Getting your records…/.test(t) ? t : ''; }, onScreen.toString(), { timeout: 20000, polling: 20 }).then(h => h.jsonValue()).catch(() => '');
+    ok(s2 === 'Getting your records…', 'then "Getting your records…" (' + s2 + ')');
+    await shotAll(page, '02b-getting-your-records');
+    ctx._line.delay = 0;
     await inPortal(page);
     const p = await page.evaluate(() => ({ ns: CESTISStore.namespace, who: document.getElementById('sidebarUserName').textContent,
       role: document.getElementById('sidebarUserRole').textContent, autosave: !!_autoSaveIntervalId, students: students.length, users: userAccounts.length }));
     ok(p.ns === 'g1' && p.who === 'Tameka Richards' && /Welding/.test(p.role), 'she is in her own portal, in the gate\'s namespace (' + JSON.stringify(p) + ')');
     ok(!p.autosave && p.students === 1 && p.users === 1, 'no 5-second save; one trainee, one account on the phone');
-    await shot(page, '03-dashboard-phone');
+    await shotAll(page, '03-dashboard');
     await page.evaluate(() => showPage('s-exams'));
     await page.waitForTimeout(1200);
     const exams = await page.evaluate(() => (document.getElementById('studentUpcomingExams') || {}).innerText || '');
     ok(/Welding Safety/.test(exams) && /Take Exam/.test(exams), 'My Exams lists her open test, ready to take (' + exams.replace(/\s+/g, ' ').slice(0, 120) + ')');
-    await shot(page, '04-my-exams-phone');
+    await shotAll(page, '04-my-exams');
     ok(ctx._touched.length === 0, 'the phone never asked for the shared files (' + ctx._touched.length + ')');
     shared.tameka = { ctx, page };
     const d1 = await dumpDevice(page);
@@ -291,12 +349,12 @@ const GSI_STUB = `(function(){
     await p3.waitForFunction(() => document.getElementById('gateTfaModal').classList.contains('active'), null, { timeout: 20000 });
     const tfa = await p3.evaluate(() => ({ sub: document.getElementById('gateTfaSubtitle').textContent, other: document.getElementById('gateTfaOther').innerText }));
     ok(/authenticator app/.test(tfa.sub) && /backup code/.test(tfa.other), 'two-step asks for the authenticator code, with a backup code as the way out (' + tfa.sub + ' | ' + tfa.other.replace(/\n/g, ' / ') + ')');
-    await shot(p3, '06-two-step-phone');
+    await shotAll(p3, '06-two-step');
     await p3.fill('#gateTfaCode', '000000');
     await p3.click('#gateTfaVerifyBtn');
     await p3.waitForFunction(() => getComputedStyle(document.getElementById('gateTfaError')).display !== 'none', null, { timeout: 15000 });
     ok(/That code is not right/.test(await p3.evaluate(() => document.getElementById('gateTfaError').textContent)), 'a wrong code: "That code is not right. Check it and try again."');
-    await shot(p3, '07-two-step-wrong-code-phone');
+    await shotAll(p3, '07-two-step-wrong-code');
     const code = Core.gate.totp.code(TOTP_SECRET, Date.now(), NODE_CRYPTO);
     await p3.fill('#gateTfaCode', code);
     await p3.click('#gateTfaVerifyBtn');
@@ -355,7 +413,7 @@ const GSI_STUB = `(function(){
     ok(s1.qs === 'Q1,Q2,Q3' && !s1.keys && !s1.paper, 'three questions, and no right answer anywhere on the phone (' + s1.qs + ')');
     ok(Math.abs(s1.deadline - (Date.now() + 55 * 60000)) < 2 * 60000, 'the deadline is the window\'s, on the gate\'s clock (' + Math.round((s1.deadline - Date.now()) / 60000) + ' min left)');
     await answer(page, 'Q1', { opt: 0 });
-    await shot(page, '05-taking-a-test-phone');
+    await shotAll(page, '05-taking-a-test');
     // Saved on the phone at once; the shared copy follows within 30 seconds of
     // a change, and at once when the page is hidden — as here.
     await page.evaluate(() => examPublishNow());
@@ -392,6 +450,8 @@ const GSI_STUB = `(function(){
     await p2.waitForFunction(() => { const v = document.getElementById('studentExamResultView'); return v && v.style.display === 'block' && /Passed|Not passed|Awaiting/.test(v.innerText); }, null, { timeout: 30000 });
     const r2 = await p2.evaluate(() => ({ text: document.getElementById('studentExamResultView').innerText, results: examResults.map(r => r.id) }));
     ok(/100%/.test(r2.text) && /Passed/.test(r2.text) && r2.results.length === 1 && /^RES-G-/.test(r2.results[0]), 'one submit: the gate marks it and the result shows at once (' + r2.results.join() + ')');
+    ok(await p2.evaluate(() => document.querySelectorAll('#studentExamResultView .r-mark.bad').length === 0 && document.querySelectorAll('#studentExamResultView .r-mark.ok').length >= 2),
+      'her right answers are ticked, never crossed, though the key is not on the device');
     ok(/Correct answers will be shown here once the exam has closed/.test(r2.text) && !/flashback arrestor\b.*Correct answer/i.test(r2.text), 'the right answers wait for the test to close');
     await collect(1);
     let res = await officeResults(T.tameka.sid, 'EXAM-WS3');
@@ -521,7 +581,7 @@ const GSI_STUB = `(function(){
     const during2 = await mainOf(page);
     ok(before === during && during === during2, '5. the lab PC\'s own storage is byte for byte as it was, all through her session (' + before.length + ' bytes)');
     await page.evaluate(() => logout());
-    await page.waitForFunction(() => !(window.CESTISStore && CESTISStore.namespace) && document.getElementById('landingPage').style.display !== 'none', null, { timeout: 30000 });
+    await page.waitForFunction(onLandingSignedOut, null, { timeout: 30000 });
     await page.waitForTimeout(1500);
     const after = await mainOf(page);
     const B = JSON.parse(before), A = JSON.parse(after);
@@ -547,7 +607,7 @@ const GSI_STUB = `(function(){
     await pp.waitForFunction(() => { const b = document.getElementById('studentLoginError'); return b && !b.hidden && !b.classList.contains('is-status') && b.textContent; }, null, { timeout: 30000 });
     ok(await say(pp) === 'Could not sign in right now. Check your connection and try again.', '   the phone, which holds nothing to fall back on, says "' + await say(pp) + '"');
     ok(await pp.evaluate(() => !(window.CESTISStore && CESTISStore.namespace) && !localStorage.getItem('cestisGateNs')), '   and stays signed out');
-    await shot(pp, '20-error-unreachable-phone', '#studentCard');
+    await shotAll(pp, '13-error-unreachable', '#studentCard');
     shared.phoneP = { ctx: ctxP, page: pp };
     await lab.close();
   });
@@ -615,12 +675,13 @@ const GSI_STUB = `(function(){
     const chip = await page.evaluate(() => ({ label: document.getElementById('syncChipPanelTitle').textContent, chip: document.getElementById('syncChipLabel').textContent }));
     ok(/^Saved here — will be sent when you're back online \(\d+ waiting\)$/.test(chip.label), 'the top bar: "' + chip.label + '"');
     ok(await page.evaluate(() => /Submitted — waiting to send/.test(document.getElementById('studentUpcomingExams').innerText)), 'My Exams: "Submitted — waiting to send", never offered again');
-    await shot(page, '08-offline-submit-phone');
+    await page.evaluate(() => { try { dismissCloudNotification(); } catch (e) {} });   // (the browser's own "You are offline" notice, as she closes it)
+    await shotAll(page, '08-offline-submit');
     // Signed out with the gate still out of reach (the site itself is there again).
     await ctx.setOffline(false);
     ctx._line.down = true;
     await page.evaluate(() => logout());
-    await page.waitForFunction(() => !(window.CESTISStore && CESTISStore.namespace) && document.getElementById('landingPage').style.display !== 'none', null, { timeout: 40000 });
+    await page.waitForFunction(onLandingSignedOut, null, { timeout: 40000 });
     const left = await page.evaluate(() => ({ ns: localStorage.getItem('cestisGateNs'), keys: Object.keys(localStorage).filter(k => /^g1::/.test(k)).length, token: localStorage.getItem('g1::cestisGateToken'), key: localStorage.getItem('g1::cestisGateSessionKey') }));
     ok(!left.ns && left.keys > 0 && !left.token && !left.key, 'signed out: his records stay on the phone while his test waits, but the session\'s token and key are gone (' + JSON.stringify(left) + ')');
     ok(await outboxWaiting(page) >= 1, 'the sealed submit still waits in the outbox');
@@ -636,6 +697,157 @@ const GSI_STUB = `(function(){
     await page.reload({ waitUntil: 'load' });
     await page.waitForTimeout(2500);
     ok(await page.evaluate(() => !Object.keys(localStorage).some(k => /^g1::/.test(k))), 'and once nothing of his waits, his records go from the phone');
+    await ctx.close();
+  });
+
+  /* ------------------------------------------------------------------ 9 */
+  section('9. The same on the Centre\'s own server (/_cestis/gate, staff-only on): password sign-in, a test, one result', async () => {
+    const OFF = path.join(ROOT, 'Offline System');
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cestis-gate-flows-lan-'));
+    const DATA = path.join(tmp, 'data');
+    const PORT = 9300 + Math.floor(Math.random() * 600);
+    const lan = 'http://127.0.0.1:' + PORT;
+    // The Centre's records on its server: the office's own, as its 5-second save leaves them.
+    const now = new Date().toISOString();
+    const pb = (pw, salt) => 'pbkdf2$1000$' + salt + '$' + nodeCrypto.pbkdf2Sync(pw, Buffer.from(salt, 'hex'), 1000, 32, 'sha256').toString('hex');
+    const users = [{ id: kit.ADMIN.id, name: kit.ADMIN.name, role: 'admin', username: kit.ADMIN.user, email: 'mthompson@example.com', status: 'active',
+      password: pb(kit.ADMIN.pass, '00112233445566778899aabbccddeeff'), updatedAt: now }];
+    const studs = [];
+    TRAINEES.forEach((t, i) => {
+      users.push({ id: t.id, name: t.name, role: 'student', username: t.user, email: t.user + '@example.com', programme: t.prog, studentDataId: t.sid,
+        password: pb(TRAINEE_PASS, nodeCrypto.createHash('md5').update('lan' + i).digest('hex')), status: 'active', updatedAt: now });
+      studs.push({ id: t.sid, name: t.name, course: t.prog, stage: 'training', email: t.user + '@example.com', updatedAt: now });
+    });
+    const p = Core.exams.centreParts(Date.now() - 5 * 60000);
+    const store = {
+      voctrain_users: users, voctrain_students: studs,
+      voctrain_exams: [{ id: 'EXAM-WS3', title: 'Welding Safety — Unit 3 Assessment', course: 'Welding & Fabrication', date: p.date, time: p.time, duration: 60,
+        status: 'upcoming', passMark: 60, questions: 3, questionData: QUESTIONS, answersRelease: 'after-close', questionsPerPage: 3, shuffleOptions: true, updatedAt: now }],
+      voctrain_examResults: [], voctrain_examAttempts: [],
+      voctrain_systemSettings: { institutionName: 'C.E.S.T.I.S Training Centre', maintenanceMode: false }
+    };
+    const data = {}, stamps = {};
+    Object.keys(store).forEach(k => { data[k] = JSON.stringify(store[k]); stamps[k] = now; });
+    fs.mkdirSync(DATA, { recursive: true });
+    fs.writeFileSync(path.join(DATA, 'CESTIS_LMS_Dashboard.json'), JSON.stringify({ version: '1.0', page: 'LMS Dashboard', file: 'CESTIS_LMS_Dashboard.json',
+      savedAt: now, savedBy: 'office-pc', keyCount: Object.keys(data).length, stamps, data }));
+    const dashList = k => { try { return JSON.parse(JSON.parse(fs.readFileSync(path.join(DATA, 'CESTIS_LMS_Dashboard.json'), 'utf8')).data[k] || '[]'); } catch (e) { return null; } };
+    const server = spawn(process.execPath, ['cestis-offline-server.js'], { cwd: OFF, stdio: 'ignore',
+      env: Object.assign({}, process.env, { CESTIS_HTTP: '1', CESTIS_PORT: String(PORT), CESTIS_DATA_DIR: DATA, CESTIS_CERT_DIR: path.join(tmp, 'cert') }) });
+    try {
+      for (let i = 0; i < 80; i++) { await wait(100); try { if ((await fetch(lan + '/_cestis/health')).ok) break; } catch (e) {} }
+      // An administrator turns "trainee devices get only their own records" on, with a password the server checks.
+      const tok = (await (await fetch(lan + '/_cestis/token')).json()).token;
+      const flip = await fetch(lan + '/_cestis/staff-only', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CESTIS-Token': tok },
+        body: JSON.stringify({ username: kit.ADMIN.user, password: kit.ADMIN.pass, on: true }) }).then(r => r.json());
+      ok(flip.on === true, 'the Centre\'s server: the records are for staff only (' + JSON.stringify({ on: flip.on }) + ')');
+      // Tameka's phone on the Centre's network: nothing outside it answers.
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, timezoneId: 'America/Jamaica' });
+      const asked = [];
+      await ctx.route('**/*', r => { const u = r.request().url(); if (!u.startsWith(lan)) return r.abort(); asked.push(r.request().method() + ' ' + u.slice(lan.length).split('?')[0]); return r.continue(); });
+      const answered = [];
+      ctx.on('response', r => { const u = r.url(); if (u.startsWith(lan)) answered.push(r.request().method() + ' ' + u.slice(lan.length).split('?')[0] + ' ' + r.status()); });
+      await ctx.addInitScript(() => { try { localStorage.setItem('cestis_sw_disabled', '1'); } catch (e) {} });
+      const page = K.watch(await ctx.newPage(), 'tameka-lan');
+      await page.goto(lan + '/index.html', { waitUntil: 'load' });
+      await page.waitForFunction(() => typeof _gateT !== 'undefined' && _gateT.decided, null, { timeout: 20000 });
+      await page.evaluate(() => { const l = document.getElementById('studentLogin'); if (!l.classList.contains('active')) document.querySelector('#studentCard .role-enter-btn').click(); });
+      await page.waitForTimeout(300);
+      const card = await page.evaluate(() => ({ base: _gateT.base && _gateT.base.kind, url: _gateT.base && _gateT.base.url, email: !!document.querySelector('#studentCard .gmail-btn') && getComputedStyle(document.querySelector('#studentCard .gmail-btn')).display,
+        only: document.body.classList.contains('gate-trainee-only') }));
+      ok(card.base === 'lan' && card.url === lan + '/_cestis/gate', 'the trainee card signs in through the Centre\'s server (' + JSON.stringify(card) + ')');
+      ok(card.email === 'none' && card.only, 'without the email-account button, which needs the internet, and without "Sync before signing in"');
+      await shotAll(page, '09-centre-network-card', '#studentCard');
+      await traineeSignIn(page, T.tameka.user, TRAINEE_PASS);
+      await inPortal(page);
+      ok(await page.evaluate(() => CESTISStore.namespace === 'g1' && currentStudent.name === 'Tameka Richards' && students.length === 1 && userAccounts.length === 1),
+        'signed in by a PBKDF2 proof, into her own portal, with only her own records');
+      // The test.
+      await page.evaluate(() => showPage('s-exams'));
+      await page.waitForTimeout(800);
+      await page.click('#studentUpcomingExams button:has-text("Take Exam")');
+      await page.waitForFunction(() => !!currentExamSession && document.getElementById('studentExamTakingView').style.display === 'block', null, { timeout: 25000 });
+      await answer(page, 'Q1', { opt: 0 });
+      await answer(page, 'Q2', { opt: 'true' });
+      await answer(page, 'Q3', { text: 'flashback arrestor' });
+      await submitAll(page);
+      await page.waitForFunction(() => /100%/.test((document.getElementById('studentExamResultView') || {}).innerText || ''), null, { timeout: 30000 }).catch(() => {});
+      const shown = await page.evaluate(() => (document.getElementById('studentExamResultView') || {}).innerText || '');
+      ok(/100%/.test(shown) && /Passed/.test(shown), 'submitted: the server marks it and the result shows at once');
+      ok(await page.evaluate(() => document.querySelectorAll('#studentExamResultView .r-mark.bad').length === 0), '   her right answers ticked, never crossed');
+      await shotAll(page, '09-centre-network-result');
+      // Sent again, as a device does when it is not sure the first went: still one.
+      await page.evaluate(() => CESTISGate.deliver({ force: true }));
+      ok(await outboxWaiting(page) === 0, 'nothing is left waiting on the phone');
+      const res = (dashList('voctrain_examResults') || []).filter(r => r.studentId === T.tameka.sid && r.examId === 'EXAM-WS3');
+      ok(res.length === 1 && res[0].score === 100, 'the Centre\'s records hold exactly one result, hers, 100 (' + JSON.stringify(res.map(r => [r.id, r.score])) + ')');
+      // What the phone asked for, and what it keeps.
+      const given = answered.filter(a => /\/_cestis\/(data|token)/.test(a) && / 200$/.test(a));
+      ok(asked.some(a => /^POST \/_cestis\/gate$/.test(a)) && given.length === 0, 'it spoke to /_cestis/gate, and was given neither the records token nor any of the records\' files (' + given.join(', ') + ')');
+      // (Its own storage, outside the gate's, holds what today's page keeps on
+      // any device that opens it: the three built-in first-run logins, whose
+      // published default opens nothing once the Centre has an administrator.)
+      const dumpL = await dumpDevice(page);
+      const seeds = JSON.parse(dumpL.ls.voctrain_users || '[]');
+      ok(seeds.every(u => ['USR-001', 'USR-011', 'USR-021'].indexOf(u.id) !== -1 && u.defaultPassword === true), '   (outside the gate\'s storage: only the built-in first-run logins — ' + seeds.map(u => u.id).join(', ') + ')');
+      const leak = privacyScan(dumpL, T.tameka, users, { allowMain: /^(ls:voctrain_users|idb:CESTIS_KV\/kv\/voctrain_users)$/ });
+      ok(leak.length === 0, '3. the phone holds nobody else\'s records, no password check, no answer key — found: ' + leak.join('; '));
+      // Signing out leaves nothing of hers.
+      await page.evaluate(() => logout());
+      await page.waitForFunction(onLandingSignedOut, null, { timeout: 40000 });
+      await page.waitForTimeout(800);
+      ok(await page.evaluate(() => !localStorage.getItem('cestisGateNs') && !Object.keys(localStorage).some(k => /^g1::/.test(k))), 'signed out, nothing of hers stays on the phone');
+      await ctx.close();
+    } finally {
+      server.kill();
+      await wait(200);
+      try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) {}
+    }
+  });
+
+  /* ------------------------------------------------------------------ 10 */
+  section('10. What a trainee is told: each refusal in the gate\'s own words', async () => {
+    // The office switches one trainee off, a registration is still waiting, and
+    // a new account's records have not been sent to the gate yet.
+    await shared.officePage.evaluate(async PASS => {
+      const now = new Date().toISOString(), hash = await hashPassword(PASS);
+      const sh = userAccounts.find(u => u.id === 'USR-scampbell');
+      sh.status = 'disabled'; sh.updatedAt = now;
+      userAccounts.push({ id: 'USR-pwaiting', name: 'Pendleton Waitingly', role: 'student', username: 'pendleton.waitingly', email: 'pendleton.waitingly@example.com',
+        programme: 'Plumbing', password: hash, status: 'pending', createdAt: now, updatedAt: now });
+      userAccounts.push({ id: 'USR-nnewly', name: 'Nadine Newly', role: 'student', username: 'nadine.newly', email: 'nadine.newly@example.com',
+        programme: 'Plumbing', studentDataId: 'STU-NOT-YET', password: hash, status: 'active', createdAt: now, updatedAt: now });
+      persistUserAccounts();
+      await saveAccountsLedger();
+    }, TRAINEE_PASS);
+    gate.world.cache.remove('ix:c');     // (the gate reads the accounts list again at once, not within the minute)
+    const ctx = await phone({});
+    const page = await open(ctx, 'phone-refusals');
+    async function tryOnce(login, pass) {
+      await page.evaluate(() => { closePendingScreen(); const b = document.getElementById('studentLoginError'); if (b) { b.hidden = true; b.textContent = ''; b.classList.remove('is-status'); } });
+      await traineeSignIn(page, login, pass);
+      await page.waitForFunction(() => { const b = document.getElementById('studentLoginError'); return !!document.getElementById('pendingApprovalScreen') || !!(b && !b.hidden && !b.classList.contains('is-status') && b.textContent); }, null, { timeout: 30000 });
+      return say(page);
+    }
+    let said = await tryOnce(T.kemar.user, 'Not-His-Password-1');
+    ok(said === 'That email/username and password do not match.', 'a wrong password: "' + said + '"');
+    await shotAll(page, '10-error-wrong-password', '#studentCard');
+    for (let i = 0; i < 5; i++) said = await tryOnce(T.odalys.user, 'Wrong-' + i);
+    said = await tryOnce(T.odalys.user, TRAINEE_PASS);
+    ok(said === 'Too many tries. Wait 15 minutes, or ask the office.', 'five wrong tries, then even the right password: "' + said + '"');
+    await shotAll(page, '11-error-locked', '#studentCard');
+    said = await tryOnce(T.shanique.user, TRAINEE_PASS);
+    ok(said === 'This account has been switched off. Please contact the office.', 'an account the office switched off: "' + said + '"');
+    await shotAll(page, '12-error-switched-off', '#studentCard');
+    said = await tryOnce('nadine.newly', TRAINEE_PASS);
+    ok(said === 'Your records are being prepared. Try again in a few minutes, or ask the office.', 'records not sent to the gate yet: "' + said + '"');
+    await shotAll(page, '14-error-not-ready', '#studentCard');
+    await tryOnce('pendleton.waitingly', TRAINEE_PASS);
+    const pend = await page.evaluate(() => { const p = document.getElementById('pendingApprovalScreen'); return p ? document.getElementById('pendingApprovalTitle').textContent : ''; });
+    ok(/Awaiting Approval/i.test(pend), 'a registration still waiting: today\'s "Awaiting Approval" screen (' + pend + ')');
+    await shotAll(page, '15-pending-approval');
+    ok(await page.evaluate(() => !(window.CESTISStore && CESTISStore.namespace) && !localStorage.getItem('cestisGateNs') && !Object.keys(localStorage).some(k => /^g1::/.test(k))),
+      'none of them leaves anything of a session on the phone');
     await ctx.close();
   });
 

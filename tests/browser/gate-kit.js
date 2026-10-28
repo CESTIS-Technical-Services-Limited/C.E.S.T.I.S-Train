@@ -86,7 +86,7 @@ function make(env) {
     return ctx;
   }
   function watch(page, label) {
-    page.on('pageerror', e => errors.push((label || '') + ' ' + String(e.message).slice(0, 200)));
+    page.on('pageerror', e => { errors.push((label || '') + ' ' + String(e.message).slice(0, 200)); if (process.env.GATE_STACKS) console.log('    [' + label + '] ' + String(e.stack).split('\n').slice(0, 5).join(' / ')); });
     page.on('dialog', d => d.accept().catch(() => {}));
     if (process.env.GATE_DEBUG) page.on('console', m => { if (new RegExp(process.env.GATE_DEBUG, 'i').test(m.text())) console.log('    [' + label + '] ' + m.text().slice(0, 300)); });
     return page;

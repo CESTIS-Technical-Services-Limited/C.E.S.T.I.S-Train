@@ -152,5 +152,27 @@ assertEq(carrying.join(', '), '', 'none of ' + pages.length + ' pages');
 const flows = fs.readFileSync(path.join(ROOT, 'tests', 'browser', 'lms-flows.js'), 'utf8');
 assert(!/X-Frame-Options/.test(flows), 'and the flow test no longer excuses its console error');
 
+/* ---------- 5. A review with no answer key on the device ---------- */
+// A trainee signed in through the trainee gate holds the paper, never the
+// key: until the right answers are released the review drew her correct
+// single choice with a cross (her option was compared with a key that is not there).
+console.log('Without the key on the device, a single choice is marked by the question\'s own result');
+const paperOnly = { id: 'E3', title: 'Welding safety', passMark: 60, answersRelease: 'after-close', course: 'Welding', _gateReveal: false,
+  questionData: [{ id: 'q1', type: 'mcq', text: Q.text, options: Q.options }, { id: 'q2', type: 'mcq', text: 'Which gas?', options: ['Oxygen', 'Argon'] },
+    { id: 'q3', type: 'multi', text: 'Choose the PPE.', options: ['Gloves', 'Sandals', 'Helmet'] }] };
+const withheldResult = { id: 'R3', examId: 'E3', studentId: 'S1', score: 50, earnedPoints: 1, totalPoints: 3, passed: false, timeTaken: 40, answers: [
+  { questionId: 'q1', type: 'mcq', questionText: Q.text, studentAnswer: 1, isCorrect: true, graded: true, needsManualGrade: false, points: 1, earnedPoints: 1 },
+  { questionId: 'q2', type: 'mcq', questionText: 'Which gas?', studentAnswer: 0, isCorrect: false, graded: true, needsManualGrade: false, points: 1, earnedPoints: 0 },
+  { questionId: 'q3', type: 'multi', questionText: 'Choose the PPE.', studentAnswer: [0, 2], isCorrect: true, graded: true, needsManualGrade: false, points: 1, earnedPoints: 1 }] };
+p = page();
+p.showExamResult(withheldResult, paperOnly);
+html = p.el('studentExamResultView').innerHTML;
+const block = i => html.slice(html.indexOf('id="examR-' + i + '"'), i < 2 ? html.indexOf('id="examR-' + (i + 1) + '"') : html.length);
+assert(/r-choice chosen r-ok/.test(block(0)) && /aria-label="correct"/.test(block(0)) && !/aria-label="incorrect"/.test(block(0)), 'her right answer is ticked, not crossed');
+assert(/r-choice chosen r-bad/.test(block(1)) && /aria-label="incorrect"/.test(block(1)), 'her wrong answer is crossed');
+assert(!/is-right/.test(html) && !/Correct answer:/.test(html), 'and nothing says which option was right');
+assert(!/r-ok|r-bad/.test(block(2).split('r-feedback')[0].replace(/class="exam-q r-[a-z]+"/, '')), '"one or more" options stay unmarked until released');
+assert(/Correct answers will be shown here once the exam has closed/.test(html), 'with the note that they come once the exam has closed');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

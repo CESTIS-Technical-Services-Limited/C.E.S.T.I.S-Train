@@ -340,6 +340,23 @@ Gate.configure({ outboxBackend: backend, store: null, client: 'test' });
     eq(load('', null, '#gate=abc').length, 0, 'a phone opened from the trainees\' link is not seeded with the built-in logins');
     eq(load('', null, '', GATE_URL).length, 0, '(nor once the link\'s address is kept)');
     eq(load('', null).map(a => a.id).sort(), ['USR-001', 'USR-011', 'USR-021'], 'a brand-new device is seeded as before');
+
+    // "Awaiting Approval" through the gate: the gate says only "pending", so
+    // the programme and registration date are not there to show — the line is
+    // left out, never "Programme: — • Registered: " with nothing in it.
+    const pendingHtml = user => {
+      let html = '';
+      const box = { CESTISCore: Core, document: { getElementById: () => null, body: { insertAdjacentHTML: (w, h) => { html = h; } } } };
+      vm.createContext(box);
+      vm.runInContext([fn('escapeHtml'), fn('escapeAttr'), fn('showPendingApprovalScreen')].join('\n'), box);
+      box.showPendingApprovalScreen(user, { state: 'waiting' });
+      return html;
+    };
+    const viaGate = pendingHtml({ email: 'pendleton.waitingly', role: 'student', programme: '', createdAt: '' });
+    assert(/Awaiting Approval|awaiting approval/i.test(viaGate) && /pendleton\.waitingly/.test(viaGate) && !/Registered: </.test(viaGate) && !/Programme:/.test(viaGate),
+      'the pending screen through the gate leaves out the empty programme / registered line');
+    assert(/Programme: Plumbing &bull; Registered: 2026-10-01/.test(pendingHtml({ email: 'p@x.test', role: 'student', programme: 'Plumbing', createdAt: '2026-10-01' })),
+      'and shows it as before when the device knows them');
   }
 
   console.log('\n' + passed + ' passed, ' + failed + ' failed');

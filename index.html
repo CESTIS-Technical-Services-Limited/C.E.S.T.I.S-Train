@@ -12827,7 +12827,9 @@ function showPendingApprovalScreen(user, opts) {
     '<h2 id="pendingApprovalTitle">' + escapeHtml(n.title) + '</h2>' +
     '<div class="pending-msg" id="pendingApprovalMsg" role="status" aria-live="polite">' + escapeHtml(n.message) + '</div>' +
     '<div class="pending-email">Registered as: <strong>' + escapeHtml(user.email) + '</strong> (' + escapeHtml(user.role) + ')</div>' +
-    '<div style="font-size:12px;color:var(--text-muted);margin-bottom:24px;">Programme: ' + escapeHtml(user.programme || '—') + ' &bull; Registered: ' + escapeHtml(user.createdAt || '') + '</div>' +
+    // (Through the trainee gate the device is told only "waiting": the line is
+    // left out rather than shown with nothing in it.)
+    ((user.programme || user.createdAt) ? '<div style="font-size:12px;color:var(--text-muted);margin-bottom:24px;">Programme: ' + escapeHtml(user.programme || '—') + ' &bull; Registered: ' + escapeHtml(user.createdAt || '') + '</div>' : '<div style="margin-bottom:24px;"></div>') +
     '<button class="btn btn-primary" onclick="closePendingScreen()" style="padding:12px 32px;">Back to Login</button>' +
     '</div></div>';
   document.body.insertAdjacentHTML('beforeend', html);
@@ -29482,10 +29484,13 @@ function examReviewAnswerHtml(a, q, key, reveal, i) {
     var multi = a.type === 'multi';
     var order = Array.isArray(a.optionOrder) ? a.optionOrder : q.options.map(function(_, k){ return k; });
     var keyList = multi ? (Array.isArray(key) ? key : []) : [key];
+    // A device may not hold the key at all (a trainee signed in through the
+    // trainee gate: the right answers reach it only once released).
+    var keyKnown = multi ? Array.isArray(key) : !(key === null || key === undefined || key === '');
     html += '<div class="exam-q-prompt">' + (multi ? 'Select one or more:' : 'Select one:') + '</div><div class="exam-choices r-choices">';
     order.forEach(function(oi, p) {
       var chosen = multi ? (Array.isArray(ans) && ans.indexOf(oi) !== -1) : ans === oi;
-      var right = keyList.indexOf(oi) !== -1;
+      var right = keyKnown ? keyList.indexOf(oi) !== -1 : (!multi && chosen && CESTISCore.exams.outcomeOf(a) === 'correct');
       // A single choice's tick is the question's own result; per-option ticks
       // on "one or more" (and the right option itself) show only once released.
       var showMark = chosen && (!multi || reveal);
