@@ -53,7 +53,7 @@ assert(!Array.from(planned.keys()).some(f => /^Offline System\//.test(f) || /^\.
 /* ---------- 2. The offline build's own files are its own ---------- */
 console.log('The offline build keeps its own server, launchers and READMEs');
 ['cestis-offline-server.js', 'cestis-offline-signalling.js', 'cestis-offline-cert.js', 'cestis-offline-store.js',
- 'START-WINDOWS.bat', 'START-MAC.command', 'START-LINUX.sh', 'READ ME FIRST.txt',
+ 'cestis-offline-gate.js', 'START-WINDOWS.bat', 'START-MAC.command', 'START-LINUX.sh', 'READ ME FIRST.txt',
  "data/READ ME - THIS IS THE CENTRE'S DATA.txt", 'package.json', '.gitignore',
  'tests/offline-server-hardening.test.js'].forEach(f => {
   assert(fs.existsSync(path.join(ROOT, 'Offline System', f)), f + ' exists in "Offline System/"');
