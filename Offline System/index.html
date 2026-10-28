@@ -6,7 +6,8 @@
 <script src="cestis-form-modal.js?v=20261028c" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=20261028c"></script>
+<script src="cestis-page-cloud.js?v=20261028d"></script>
+<script src="cestis-gate-client.js?v=20261028d" defer></script>
 <script src="staff-appraisals.js?v=20261028c"></script>
 <script src="cmc-portal.js?v=20261028c"></script>
 <script src="cert-template-seed.js?v=20260802b"></script>
@@ -234,6 +235,7 @@
   window.CESTISStore = Store;
 })();
 </script>
+<script>try { if (window.CESTISStore && CESTISStore.namespace) document.documentElement.classList.add('gate-ns'); } catch (e) {}</script>
 
 <!-- Libraries the sign-in screen never uses. They used to be loaded, one
      after another, before the first paint: about 1.6 MB, ~435 KB on the wire,
@@ -903,6 +905,26 @@ html[data-theme="light"] #landingPage {
   pointer-events:none;
   transform:scale(0.97);
 }
+/* Trainee sign-in from anywhere (the trainee gate): the trainee card needs
+   no Sync Now, and a trainee's own device is not asked to sync at all. */
+body.gate-trainee .role-cards.sync-pending #studentCard { opacity:1; filter:none; pointer-events:auto; transform:none; }
+body.gate-trainee-only #loginSyncBar, body.gate-trainee-only #loginSyncWhy { display:none; }
+html.gate-ns #landingPage { display:none; }
+.role-login-error.is-status { color:var(--text-secondary); background:transparent; border-color:transparent; }
+.gate-boot { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; padding:16px; background:var(--bg-primary); }
+.gate-boot[hidden] { display:none; }
+.gate-boot-card { width:100%; max-width:380px; text-align:center; background:var(--bg-card); color:var(--text-primary); border:1px solid var(--border); border-radius:var(--radius-lg, 16px); padding:30px 22px; box-shadow:0 10px 40px rgba(0,0,0,0.25); }
+.gate-boot-spin { width:40px; height:40px; margin:0 auto 16px; border-radius:50%; border:4px solid var(--border); border-top-color:var(--accent); animation:gateSpin 0.9s linear infinite; }
+.gate-boot.has-actions .gate-boot-spin { display:none; }
+.gate-boot-card p { font-size:17px; line-height:1.5; margin:0; }
+.gate-boot-actions { display:flex; flex-direction:column; gap:10px; margin-top:18px; }
+.gate-boot-actions:empty { display:none; }
+.gate-boot-actions .btn { min-height:44px; width:100%; justify-content:center; }
+@keyframes gateSpin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .gate-boot-spin { animation:none; } }
+#gateTfaModal { z-index:1300; }
+#gateTfaModal .tfa-code-input { letter-spacing:0.2em; }
+#gateTfaOther a { color:var(--accent); display:inline-block; padding:6px 0; }
 /* All cards (including student) are disabled until sync completes */
 .role-cards.sync-complete .role-card {
   opacity:1;
@@ -5797,6 +5819,31 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
   </div>
 </div>
 
+<!-- Two-step at sign-in through the trainee gate (gateTfaOpen): the code is
+     checked by the gate, never on this device. -->
+<div class="modal-overlay" id="gateTfaModal" role="dialog" aria-modal="true" aria-labelledby="gateTfaTitle">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header"><h3 id="gateTfaTitle">Two-Step Verification</h3><button class="modal-close" onclick="gateTfaCancel()" aria-label="Close">✕</button></div>
+    <p id="gateTfaSubtitle" style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">Enter the 6-digit code from your authenticator app to finish signing in.</p>
+    <div class="form-group"><label for="gateTfaCode" id="gateTfaLabel">Code</label><input type="text" maxlength="6" inputmode="numeric" autocomplete="one-time-code" class="form-control tfa-code-input" id="gateTfaCode" placeholder="••••••" onkeydown="if(event.key==='Enter')gateTfaSubmit()"></div>
+    <div id="gateTfaError" class="tfa-error" role="alert"></div>
+    <p id="gateTfaOther" style="font-size:13px;margin-top:10px;"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="gateTfaCancel()">Cancel</button>
+      <button class="btn btn-primary" id="gateTfaVerifyBtn" onclick="gateTfaSubmit()">Verify</button>
+    </div>
+  </div>
+</div>
+<!-- "Getting your records…": a trainee's first sign-in through the gate on
+     this device, and signing out (gateBootScreen). -->
+<div class="gate-boot" id="gateBootScreen" hidden>
+  <div class="gate-boot-card" role="status" aria-live="polite">
+    <div class="gate-boot-spin" aria-hidden="true"></div>
+    <p id="gateBootText">Getting your records…</p>
+    <div class="gate-boot-actions" id="gateBootActions"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="tfaManageModal">
   <div class="modal" style="max-width:480px;">
     <div class="modal-header"><h3>🔐 Two-Step Verification</h3><button class="modal-close" onclick="closeModal('tfaManageModal')">✕</button></div>
@@ -6179,6 +6226,16 @@ var GOOGLE_DRIVE_CONFIG = {
   BACKUP_FILE_NAME: 'CESTIS_LMS_BACKUP.json',
   SCOPES: 'https://www.googleapis.com/auth/drive'
 };
+/* Is this page a trainee's session through the trainee gate? Then the store
+   opened the gate's own namespace (cestisGateNs, DESIGN.md §7.1): it holds
+   that trainee's records only, and nothing here may seed accounts into it,
+   sync it, or reach for the Centre's records (cestis-gate-client.js). */
+function cestisGateSession() { return !!(window.CESTISStore && CESTISStore.namespace); }
+// Was this device given the trainee sign-in link (index.html#gate=…)?
+function cestisTraineeOnlyDevice() {
+  try { if (localStorage.getItem('cestisGateAddress') || /(?:^#|[#&])gate=/.test(location.hash || '')) return true; } catch (e) {}
+  return false;
+}
 var LMS_CHAT_DRIVE_FOLDER = '1ashmmL0ZS7mW6XrwoxMuamf7yjtVWHyO';
 var VC_RECORDINGS_FOLDER_ID = '1Yp9aLXGGjhojF1J04QxoNG-9yEgaiS-A';
 var ASSIGNMENTS_DRIVE_FOLDER_ID = '1SEjU_-8XOPM-C2q-Vo-EZUgBz3PMg5Ma';
@@ -10126,6 +10183,8 @@ cestisCarryPreUpgradeWork();
 
 // Check for expired session on page load (e.g. user returns to stale tab)
 (function() {
+  // (A trainee's gate session ends through the gate: gateBoot.)
+  if ((typeof cestisGateSession === 'function' && cestisGateSession())) return;
   var expiry = CESTISStore.getItem('voctrain_sessionExpiry');
   if(expiry && Date.now() > Number(expiry)) {
     console.log('[Session] Expired session detected on page load — clearing sensitive data');
@@ -10140,10 +10199,11 @@ cestisCarryPreUpgradeWork();
    stable-id migration saves and it must not write the seeds over a Centre's
    real logins. This line runs after that read, so writing the seeds here
    unconditionally put them straight back — undoing it. Whatever was loaded
-   stands; the seeds are the fallback for a device starting from nothing. */
-var userAccounts = (typeof userAccounts !== 'undefined' && Array.isArray(userAccounts) && userAccounts.length)
+   stands; the seeds are the fallback for a device starting from nothing.
+   (Never in a trainee's gate session: it holds no logins but the trainee's.) */
+var userAccounts = (typeof userAccounts !== 'undefined' && Array.isArray(userAccounts) && (userAccounts.length || (typeof cestisGateSession === 'function' && cestisGateSession()) || (typeof cestisTraineeOnlyDevice === 'function' && cestisTraineeOnlyDevice())))
   ? userAccounts
-  : [
+  : ((typeof cestisGateSession === 'function' && cestisGateSession()) || (typeof cestisTraineeOnlyDevice === 'function' && cestisTraineeOnlyDevice())) ? [] : [
   {id:'USR-001',name:'Administrator',role:'admin',username:'cestisadmin',password:'cestisadmin123$',email:'admin@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-01'},
   {id:'USR-011',name:'Admin Staff',role:'adminstaff',username:'adminstaff',password:'cestisadmin123$',email:'adminstaff@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-15'},
   {id:'USR-021',name:'Board Chair',role:'cmc',username:'cmcadmin',password:'cestisadmin123$',email:'cmc@heartlms.edu.jm',programme:'',status:'active',createdAt:'2026-01-01'}
@@ -10169,6 +10229,13 @@ function loadUserAccounts() {
     var u = CESTISStore.getItem('voctrain_users');
     if(u) userAccounts = JSON.parse(u);
     if(!Array.isArray(userAccounts)) userAccounts = [];
+    // A trainee's gate session holds that trainee's own account card and
+    // nothing else: no built-in logins, no password of anyone's.
+    if(typeof cestisGateSession === 'function' && cestisGateSession()) {
+      if(!u) userAccounts = [];
+      userAccounts = userAccounts.filter(function(a){ return a && a.role === 'student'; });
+      return;
+    }
     // Guarantee the built-in admin recovery login ALWAYS exists and stays
     // active — but NEVER reset its password: force-resetting to the published
     // default on every load silently undid admin password changes and left a
@@ -10201,6 +10268,11 @@ function loadUserAccounts() {
     try { if (typeof dropDeletedAccounts === 'function') dropDeletedAccounts(); } catch(e) {}
     var _delUsers = (typeof _getDeletedUserIds === 'function') ? _getDeletedUserIds() : {};
 
+    // A trainee's own device, opened from the trainee sign-in link and holding
+    // no logins of the Centre's: it is no new installation, so it is given no
+    // built-in logins either (they would be the only accounts it ever held).
+    var _traineeOnly = typeof cestisTraineeOnlyDevice === 'function' && cestisTraineeOnlyDevice() && !userAccounts.some(function(a){ return a && a.id !== 'USR-001' && a.id !== 'USR-011' && a.id !== 'USR-021'; });
+    if(_traineeOnly) { userAccounts = userAccounts.filter(function(a){ return a && !a.defaultPassword && a.password !== DEFAULT_SEED_PW; }); return; }
     [defAdmin, defAS, defCMC].forEach(function(def) {
       var acct = userAccounts.find(function(a){ return a && a.id === def.id; });
       if(!acct) { if(!_delUsers[def.id]) userAccounts.push(def); return; }
@@ -11366,6 +11438,8 @@ try {
 var adminLoginShown = false, studentLoginShown = false, instructorLoginShown = false, adminStaffLoginShown = false, cmcLoginShown = false;
 function requireLoginSync(card) {
   if(loginSyncCompleted) return false;
+  // (A trainee's own device hides the bar for trainees; staff still need it.)
+  try { document.body.classList.remove('gate-trainee-only'); } catch(e) {}
   // Allow login if user accounts exist locally (beyond the 3 system defaults)
   var hasLocalAccounts = userAccounts.length > 3 || userAccounts.some(function(u) {
     return u.id !== 'USR-001' && u.id !== 'USR-011' && u.id !== 'USR-021';
@@ -11386,10 +11460,14 @@ function enableLoginButtons() {
 }
 function disableLoginButtons() {
   // Disable ALL login buttons until cloud sync completes — prevents data loss and login issues
+  // (except the trainee card's when it signs in through the trainee gate).
+  var _viaGate = function(btn) { return typeof _gateT !== 'undefined' && _gateT && _gateT.base && btn.closest && btn.closest('#studentCard'); };
   document.querySelectorAll('.role-enter-btn').forEach(function(btn){
+    if(_viaGate(btn)) return;
     btn.disabled = true;
   });
   document.querySelectorAll('.role-card .gmail-btn').forEach(function(btn){
+    if(_viaGate(btn)) return;
     btn.disabled = true;
   });
   var rc = document.querySelector('.role-cards');
@@ -11430,7 +11508,7 @@ async function handleAdminClick() {
     publishedDefaultGate(adminUser, pw, 'admin', function(){ tfaGateLogin(adminUser, function(){ currentLoggedInUser = adminUser; lanHostTicket(adminUser, pw); enterApp('admin'); }); });
   } catch(err) { console.error('handleAdminClick error:', err); signInSay('admin', 'Error: ' + err.message); }
 }
-async function handleStudentClick() {
+async function handleStudentClick(opts) {
   try {
     if(!studentLoginShown) {
       document.getElementById('studentLogin').classList.add('active');
@@ -11439,6 +11517,9 @@ async function handleStudentClick() {
       return;
     }
     signInQuiet('student');
+    // Trainee sign-in from anywhere, when the Centre has turned it on: the
+    // gate checks the password, and no Sync Now is needed (gateTraineeSignIn).
+    if(!(opts && opts.local) && typeof gateTraineeWanted === 'function' && await gateTraineeWanted()) { await gateTraineeSignIn(); return; }
     // Students must also sync before login to prevent data loss
     if(requireLoginSync('student')) return;
     var uname = (document.getElementById('studentUser').value || '').trim();
@@ -12488,6 +12569,10 @@ function enterApp(role) {
     var _afterLoginSync = function() {
       try { if(currentRole === 'student' && typeof examAfterSignIn === 'function') examAfterSignIn(); } catch(e) {}
     };
+    // A trainee's gate session neither syncs nor saves to the Centre's
+    // records: the gate gives it the trainee's own and takes back what the
+    // trainee sends (gateSessionStart).
+    if((typeof cestisGateSession === 'function' && cestisGateSession())) { setTimeout(function() { try { gateSessionStart(); } catch(e) { console.warn('[TraineeGate] start failed:', e); } }, 300); return; }
     setTimeout(function() {
       autoSyncOnLogin().then(function() {
         startAutoSave();
@@ -12524,7 +12609,14 @@ function markEmailSignInUnavailable() {
 if (window.__cestisEmailSignInOff) markEmailSignInUnavailable();
 
 // ----- Gmail Sign-In via Google Identity Services -----
-function gmailSignIn(role) {
+function gmailSignIn(role, opts) {
+  // A trainee's email account, through the gate when it is on (no Sync Now).
+  // (Decided as the page loaded, so the sign-in window opens from the click
+  // itself — a window opened later is blocked by the browser.)
+  if(role === 'student' && !(opts && opts.today) && window.CESTISGate && typeof _gateT !== 'undefined' && !(typeof cestisGateSession === 'function' && cestisGateSession())) {
+    if(!_gateT.decided) { gateTraineeWanted().then(function(on) { if(on) gateTraineeEmail(); else gmailSignIn(role, { today: true }); }); return; }
+    if(_gateT.base) { gateTraineeEmail(); return; }
+  }
   // All roles must sync before login to prevent data loss
   if(requireLoginSync()) return;
   if(typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
@@ -13157,6 +13249,9 @@ function logout(forced) {
   // An exam in progress: saved for its own trainee, clock stopped on this page
   // (a person pressing Sign Out is asked first and may stay).
   if(typeof examEndSessionForSignOut === 'function' && !examEndSessionForSignOut(forced !== true)) return;
+  // A trainee's gate session ends through the gate: what is unsent is sent if
+  // it can be, and this device's copy of their records goes once nothing waits.
+  if((typeof cestisGateSession === 'function' && cestisGateSession())) { try { closeMobileSidebar(); } catch(e) {} try { vcCleanupMediaIfNeeded(); } catch(e) {} gateSignOutFlow({ forced: forced === true }); return; }
   closeMobileSidebar();
   // Release all camera/mic permissions and cleanup WebRTC
   vcCleanupMediaIfNeeded();
@@ -14880,8 +14975,11 @@ function renderStudentExams(){
       return st === 'upcoming' || st === 'active' || !!examCurrentAttempt(s.id, e.id);
     }).map(function(e){
       var st = examStatusNow(e);
-      var hasQuestions = e.questionData && e.questionData.length > 0;
+      var hasQuestions = typeof gateExamHasQuestions === 'function' ? gateExamHasQuestions(e) : (e.questionData && e.questionData.length > 0);
       var alreadyTaken = (examResults||[]).some(function(r){ return r && !r.archived && r.examId === e.id && r.studentId === s.id; });
+      // Submitted on this device, through the gate, with the connection gone:
+      // waiting to be sent, never offered again.
+      var sentLater = !alreadyTaken && (typeof cestisGateSession === 'function' && cestisGateSession()) && (function(){ var d = examReadDraftRaw(s.id, e.id); return !!(d && CESTISCore.exams.attemptIsRetired(d) && !d.resultId); })();
       var cur = alreadyTaken ? null : examCurrentAttempt(s.id, e.id);
       var draft = cur ? cur.attempt : null;
       var examStart = parseExamDateTime(e.date, e.time);
@@ -14889,6 +14987,7 @@ function renderStudentExams(){
       var isTimePassed = examStart && examNow >= examStart;
       var badgeHtml = '';
       if(alreadyTaken){ badgeHtml = '<span class="badge badge-green"><span class="badge-dot"></span>Completed</span>'; }
+      else if(sentLater){ badgeHtml = '<span class="badge badge-amber"><span class="badge-dot"></span>Submitted — waiting to send</span>'; }
       else if(draft){
         var left = Math.max(0, Math.floor((draft.deadline - Date.now())/1000));
         // "Continue your attempt", on whichever PC she signs in at: the same
@@ -20684,6 +20783,14 @@ function submitStudentAssignment() {
     };
     if (prior) submission.previousId = prior.id;
 
+    // Through the trainee gate: every file is sent first (the gate checks its
+    // kind and size), and the submission names them. Nothing is saved until
+    // they have gone — the files stay chosen, to try again.
+    if ((typeof cestisGateSession === 'function' && cestisGateSession())) {
+      var up = await gateUploadFiles(pending, files, submission.id);
+      if (!up.ok) { showToast(up.message, 'warning'); return; }
+      if (!up.inline) { submission.driveFiles = up.files; submission.files = []; }
+    } else
     // Upload each file to Drive in parallel. A file Drive now holds is kept as
     // its Drive link only; a file that could not be uploaded keeps its bytes,
     // because then they are the only copy.
@@ -20737,6 +20844,8 @@ function submitStudentAssignment() {
 // Without it, the Drive page is opened instead (it asks for the Centre's
 // Google sign-in; older files that were shared publicly still open).
 async function cestisOpenDriveFile(fileId, name, fallbackUrl) {
+  // A trainee's gate session: their own files come through the gate.
+  if (fileId && (typeof cestisGateSession === 'function' && cestisGateSession()) && window.CESTISGate) return gateOpenFile(fileId, name);
   if (fileId && isCloudConnected && googleAccessToken) {
     try {
       var r = await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(fileId) + '?alt=media', {
@@ -26437,7 +26546,12 @@ function confirmDeleteCentre() {
 function examCentreOffset() {
   return (typeof systemSettings !== 'undefined' && systemSettings && systemSettings.centreUtcOffset) || CESTISCore.exams.DEFAULT_OFFSET;
 }
-function examStatusNow(e) { return CESTISCore.exams.statusAt(e, Date.now(), examCentreOffset()); }
+function examStatusNow(e) {
+  // A trainee's gate session holds the exam's details but never its questions:
+  // its status is read on the gate's clock (CESTISCore.gate.sliceExamStatus).
+  if ((typeof cestisGateSession === 'function' && cestisGateSession()) && typeof window !== 'undefined' && window.CESTISGate) return CESTISCore.gate.sliceExamStatus(e, CESTISGate.now(), examCentreOffset());
+  return CESTISCore.exams.statusAt(e, Date.now(), examCentreOffset());
+}
 function examIsStaffSession() { return currentRole === 'admin' || currentRole === 'instructor' || currentRole === 'adminstaff'; }
 // Exam buttons pass the exam's id. A position in the array (what they passed
 // before) still works, but a sync that removed an exam in between used to
@@ -28412,6 +28526,7 @@ function examTraineeUserId(studentId) {
 // Before a FRESH attempt, the latest from the Centre (a few seconds at most):
 // this trainee may have started this test on another PC that has since died.
 async function examPullBeforeStart() {
+  if ((typeof cestisGateSession === 'function' && cestisGateSession())) return;           // (the gate's attempt.get answers this: gateExamStart)
   var job = (async function() {
     if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) { await CESTISPageCloud.loadNow(); return; }
     if (isCloudConnected && googleAccessToken && navigator.onLine !== false) await pullMainIfRemoteNewer();
@@ -28435,6 +28550,8 @@ function startStudentExam(examIdx) {
   var cur = examCurrentAttempt(me.id, e.id);
   if(cur) { examResumeDraft(cur.attempt, cur.ids); return; }
   if(examResultFor(me.id, e.id)) { alert('You have already taken this exam.'); return; }
+  // Through the trainee gate: the paper comes from the gate, once, online.
+  if((typeof cestisGateSession === 'function' && cestisGateSession())) return gateExamStart(e, me);
   if(!examCanAskCentre()) return examStartFresh(e, me);
   return examPullBeforeStart().then(function() {
     if(currentStudent !== me || currentExamSession) return;
@@ -28444,10 +28561,16 @@ function startStudentExam(examIdx) {
   });
 }
 // A new attempt: the exam's checks, the trainee's go-ahead, and a clock.
-function examStartFresh(e, me) {
-  if(!e.questionData || e.questionData.length === 0) { alert('This exam has no questions yet.'); return; }
+// fromGate: the gate's answer to "paper" — {paper, centreUtcOffset,
+// serverTime} — in a trainee's gate session, where the exam itself carries
+// no questions: the paper's are shuffled here, and the clock is the gate's.
+function examStartFresh(e, me, fromGate) {
+  var paperQs = fromGate && fromGate.paper && Array.isArray(fromGate.paper.questions) ? fromGate.paper.questions : null;
+  var pex = fromGate && fromGate.paper && fromGate.paper.exam ? fromGate.paper.exam : e;
+  var bank = paperQs || e.questionData;
+  if(!bank || bank.length === 0) { alert('This exam has no questions yet.'); return; }
   if(!(e.course === me.course || instructorCourseMatch(e.course, me.course))) { alert('This exam is not part of your programme.'); return; }
-  if(examStatusNow(e) !== 'active') { alert('This exam is not open right now.'); return; }
+  if(!paperQs && examStatusNow(e) !== 'active') { alert('This exam is not open right now.'); return; }
   // Tests are tied to the course duration: once a course has ended (and has not
   // been extended / temporarily reopened) its exams can no longer be taken.
   if(typeof isRegisterOpenForCourse === 'function' && e.course && !isRegisterOpenForCourse(e.course)) {
@@ -28462,12 +28585,12 @@ function examStartFresh(e, me) {
   // exam window closes — a trainee starting at 10:29 for a window that closes
   // at 10:30 used to get the full 90 minutes.
   var now = Date.now();
-  var deadline = CESTISCore.exams.sessionDeadline(e, now, examCentreOffset());
+  var deadline = paperQs ? gateExamDeadline(fromGate) : CESTISCore.exams.sessionDeadline(e, now, examCentreOffset());
   var secs = Math.floor((deadline - now) / 1000);
   if(secs < 60) { alert('This exam\'s window has closed.'); return; }
-  var full = parseInt(e.duration) || 90;
+  var full = parseInt(pex.duration) || 90;
   var mins = Math.floor(secs / 60);
-  var nQuestions = e.questionData.filter(function(q){ return !(q && q.type === 'info'); }).length;
+  var nQuestions = bank.filter(function(q){ return !(q && q.type === 'info'); }).length;
   if(!confirm('Start "'+e.title+'"?\n\n' + (e.instructions ? 'Instructions: ' + e.instructions + '\n\n' : '') +
     'Time: ' + (mins < full ? mins + ' minutes (the exam window closes then)' : full + ' minutes') +
     '\nQuestions: '+nQuestions+'\nPass Mark: '+e.passMark+'%\n\nThe timer starts immediately and keeps running if you leave or sign out. Your answers are saved as you go, and will follow you if you sign in on another computer. Are you ready?')) return;
@@ -28477,7 +28600,11 @@ function examStartFresh(e, me) {
   // (and the draft saved from it) never holds them. Marking looks the keys up
   // on the exam itself at submit. Questions and options are shuffled here
   // when the exam says so; an option's ORIGINAL position is what is recorded.
-  var questions = CESTISCore.exams.attemptQuestions(e.questionData, { shuffleQuestions: !!e.shuffleQuestions, shuffleOptions: !!e.shuffleOptions });
+  // (A paper from the gate is already public: CESTISCore.exams
+  // .attemptQuestionsFromPaper shuffles what it carries.)
+  var questions = paperQs
+    ? CESTISCore.exams.attemptQuestionsFromPaper(paperQs, { shuffleQuestions: !!pex.shuffleQuestions, shuffleOptions: !!pex.shuffleOptions })
+    : CESTISCore.exams.attemptQuestions(e.questionData, { shuffleQuestions: !!e.shuffleQuestions, shuffleOptions: !!e.shuffleOptions });
 
   var attemptId = cestisGenId('ATT-');
   currentExamSession = {
@@ -29155,6 +29282,9 @@ function submitExam(auto, opts) {
   }
 
   var exam = exams.find(function(x){ return x && x.id === s.examId; }) || null;
+  // Through the trainee gate: marked by the gate from the answer key only it
+  // holds; offline, submitted here and sent when the device is back online.
+  if(!_isExamPreviewMode && (typeof cestisGateSession === 'function' && cestisGateSession())) { gateSubmitExam(s, auto, opts); return; }
   // Marked against the exam's own keys, looked up by question id. A question
   // whose key is missing is sent for manual marking — never guessed.
   var m = CESTISCore.exams.mark(s.questions, s.answers, exam ? exam.questionData : null);
@@ -29412,7 +29542,8 @@ function showExamResult(result, exam, note) {
   // Correct answers are shown only once the exam has closed (or staff release
   // them). They used to appear the moment the first trainee submitted, while
   // classmates were still answering the same paper.
-  var reveal = !!exam && CESTISCore.exams.canRevealAnswers(exam, Date.now(), examCentreOffset());
+  // (Through the trainee gate, the gate decides on its own clock: _gateReveal.)
+  var reveal = !!exam && (exam._gateReveal != null ? !!exam._gateReveal : CESTISCore.exams.canRevealAnswers(exam, Date.now(), examCentreOffset()));
   var keyOf = {}, questionOf = {};
   if(exam && Array.isArray(exam.questionData)) exam.questionData.forEach(function(q){ if(q && q.id != null) { keyOf[String(q.id)] = q.correctAnswer; questionOf[String(q.id)] = q; } });
   // The question an answer was given to — by its id, or (an exam from before
@@ -29514,6 +29645,7 @@ function viewExamResultDetail(examId, studentId) {
   var result = examResults.find(function(r){return r && !r.archived && r.examId===examId && r.studentId===studentId;});
   if(!result) { alert('Result not found'); return; }
   var exam = exams.find(function(e){return e.id===examId;});
+  if((typeof cestisGateSession === 'function' && cestisGateSession())) { gateReviewResult(result, exam); return; }
   showExamResult(result, exam);
 }
 
@@ -31328,6 +31460,12 @@ function submitSupportMessage() {
     }
     // It never said "sent" falsely again: this page has no server of its own,
     // so without a delivery channel the message is only on this device.
+    if ((typeof cestisGateSession === 'function' && cestisGateSession())) {
+      successEl.style.background = 'var(--accent-dim)'; successEl.style.color = 'var(--text-primary)';
+      successEl.textContent = 'Your message is saved here and will be sent to the office when you\'re back online.';
+      btn.disabled = false;
+      return;
+    }
     var to = supportInboxAddress();
     var mail = 'mailto:' + to + '?subject=' + encodeURIComponent('[CESTIS Support] ' + subject) +
       '&body=' + encodeURIComponent(message + '\n\n' + name + '\n' + email + '\n' + phone);
@@ -31350,6 +31488,17 @@ function supportInboxAddress() {
 // a small per-device budget keeps a public form from exhausting the e-mail
 // quota the sign-in codes depend on.
 async function deliverSupportMessage(msg) {
+  // A trainee's gate session: the message goes to the office through the
+  // gate (sealed, from the outbox) — sent now when it can be, else later.
+  if ((typeof cestisGateSession === 'function' && cestisGateSession()) && window.CESTISGate) {
+    try {
+      await CESTISGate.capture();
+      await Promise.race([CESTISGate.deliver({ force: true }), new Promise(function(r) { setTimeout(r, 10000); })]);
+      var left = await CESTISGate.pending();
+      var waiting = left.some(function(e) { return e.item && e.item.key === 'voctrain_support_messages' && e.item.rec && e.item.rec.id === msg.id; });
+      return waiting ? null : 'trainee-gate';
+    } catch(e) { return null; }
+  }
   try {
     if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function' && await CESTISPageCloud.lan()) {
       var res = await CESTISPageCloud.saveNow();
@@ -37014,6 +37163,670 @@ function gateCardOpen() {
   gateCardRefresh();
 }
 
+/* ============================================================================
+   TRAINEE SIGN-IN FROM ANYWHERE — the trainee's side
+   (the trainee gate, docs/trainee-gate/DESIGN.md Stage 4; the conversation
+   itself is cestis-gate-client.js, window.CESTISGate).
+
+   Once the Centre has set it up and turned it on, the trainee card signs in
+   through the gate: no "Sync Now" first, nothing of the Centre's needed on
+   the device, and nothing of it touched. The page then reloads into the
+   gate's own store namespace (CESTISStore.namespace 'g1'), which holds that
+   trainee's own records only, and the trainee portal runs on them as it
+   always has. What the trainee does is kept on the device first and sent
+   back sealed (CESTISGate's outbox): a test sat at home with the connection
+   gone is submitted here and sent when the device is back online.
+
+   Off — not set up, turned off on this device's settings, the gate-off file,
+   or the gate itself answering that it is off — the trainee card works
+   exactly as before. A lab PC that already holds the Centre's records may
+   fall back to today's sign-in when the gate cannot be reached
+   (traineeGate.strict turns that off); a trainee's own device never does.
+   Every word here says what happened and what to do, never where anything is
+   kept (tools/scan-ui-wording.js).
+   ============================================================================ */
+var _gateT = { base: null, decided: false, deciding: null, busy: false, tfa: null, pullTimer: null, status: null,
+  examBusy: false, roomAt: 0, started: false, reloading: false };
+var GATE_SAY = {
+  'no-match': 'That email/username and password do not match.',
+  'locked': 'Too many tries. Wait 15 minutes, or ask the office.',
+  'disabled': 'This account has been switched off. Please contact the office.',
+  'rejected': 'This registration was not approved. Please contact the office.',
+  'not-ready': 'Your records are being prepared. Try again in a few minutes, or ask the office.',
+  'unreachable': 'Could not sign in right now. Check your connection and try again.',
+  'busy': 'Could not sign in right now. Try again in a minute, or ask the office.',
+  'ask-office': 'This sign-in needs the office. Please ask them to help you sign in.',
+  'no-password': 'This account has no password yet. Sign in with your email account, or ask the office.',
+  'not-found': 'No trainee account uses that email address. If you are new, please register first.',
+  'email-failed': 'Could not sign in with that email account. Try again, or use your password.',
+  'bad-code': 'That code is not right. Check it and try again.',
+  'code-used': 'That code was just used. Wait for the next one and try again.',
+  'ticket': 'That took too long. Please sign in again.',
+  'too-soon': 'A code was sent a moment ago. Check your email, or wait a minute and try again.',
+  'no-mail': 'A code could not be emailed just now. Use your authenticator app or a backup code, or ask the office.',
+  'reload': 'This page needs to be reloaded. Please reload it and sign in again.',
+  'not-available': 'That is not available here. Sign in with your password.'
+};
+var GATE_SAY_CODE = {
+  'unknown-account': 'no-match', 'bad-nonce': 'unreachable', 'bad-request': 'unreachable', 'bad-answer': 'unreachable', 'no-gate': 'unreachable',
+  'internal': 'busy', 'not-set-up': 'not-ready', 'unlinked': 'not-ready', 'newer-version': 'reload', 'client-too-old': 'reload',
+  'wrong-app': 'email-failed', 'unverified-email': 'email-failed', 'bad-token': 'email-failed',
+  'expired': 'ticket', 'bad-ticket': 'ticket', 'revoked': 'ticket', 'not-allowed': 'ticket',
+  'mail-quota': 'no-mail', 'mail-failed': 'no-mail', 'no-email': 'no-mail'
+};
+function gateSay(code) {
+  var c = String(code || 'unreachable');
+  return GATE_SAY[c] || GATE_SAY[GATE_SAY_CODE[c]] || GATE_SAY.unreachable;
+}
+// The answers that mean "the gate could not be asked", not "the gate said no".
+function gateUnreachable(res) {
+  var c = res && res.error;
+  return !res || res.unreachable === true || c === 'unreachable' || c === 'busy' || c === 'internal' || c === 'no-gate' || c === 'bad-answer';
+}
+// Does this device hold the Centre's records (a lab PC, an office PC)? Only
+// such a device may fall back to today's sign-in when the gate cannot be
+// reached; a trainee's own phone has nothing to fall back on.
+function gateDeviceHoldsCentre() {
+  var kind = '';
+  try { kind = String(localStorage.getItem('cestisDeviceKind') || ''); } catch (e) {}
+  if (kind === 'staff') return true;
+  return Array.isArray(userAccounts) && userAccounts.some(function(u) { return u && u.id !== 'USR-001' && u.id !== 'USR-011' && u.id !== 'USR-021'; });
+}
+function gateFallbackAllowed() {
+  var tg = (typeof systemSettings !== 'undefined' && systemSettings && systemSettings.traineeGate) || {};
+  return tg.strict !== true && gateDeviceHoldsCentre();
+}
+
+/* ---- The landing page (this device's main namespace) ---- */
+// Does the trainee card sign in through the gate? Decided once a page load.
+function gateTraineeDecide() {
+  if (_gateT.deciding) return _gateT.deciding;
+  if (!window.CESTISGate || cestisGateSession()) { _gateT.decided = true; return (_gateT.deciding = Promise.resolve(null)); }
+  _gateT.deciding = CESTISGate.base({ settings: systemSettings }).then(function(b) {
+    if (!b) return null;
+    // The site's own switch (a gate-off file next to this page) wins over everything.
+    return gateKillSwitch().then(function(killed) { return killed ? null : b; });
+  }).then(function(b) {
+    _gateT.base = b || null;
+    _gateT.decided = true;
+    gateTraineeCard();
+    if (_gateT.base) CESTISGate.wire();
+    return _gateT.base;
+  }, function() { _gateT.decided = true; _gateT.base = null; return null; });
+  return _gateT.deciding;
+}
+// The trainee card when it signs in through the gate: usable without Sync Now;
+// on the Centre's own network, without the email-account button (not there).
+function gateTraineeCard() {
+  var on = !!_gateT.base;
+  document.body.classList.toggle('gate-trainee', on);
+  if (!on) return;
+  var card = document.getElementById('studentCard');
+  if (card) {
+    card.querySelectorAll('.role-enter-btn, .gmail-btn').forEach(function(b) { b.disabled = false; });
+    var hint = card.querySelector('.sync-required-hint');
+    if (hint) hint.remove();
+    if (_gateT.base.kind === 'lan') {
+      card.querySelectorAll('.gmail-btn').forEach(function(b) { b.style.display = 'none'; var or = b.previousElementSibling; if (or && or.classList.contains('gmail-divider')) or.style.display = 'none'; });
+    }
+  }
+  // A device holding none of the Centre's records (a trainee's own phone):
+  // "Sync before signing in" is not for them.
+  if (!gateDeviceHoldsCentre()) document.body.classList.add('gate-trainee-only');
+}
+function gateCardWorking(on, text) {
+  var card = document.getElementById('studentCard');
+  if (!card) return;
+  card.querySelectorAll('.role-enter-btn, .gmail-btn').forEach(function(b) { b.disabled = !!on; });
+  var box = document.getElementById('studentLoginError');
+  if (on && box) { box.hidden = false; box.classList.add('is-status'); box.textContent = text || 'Signing in…'; }
+  else if (box && box.classList.contains('is-status')) { box.classList.remove('is-status'); box.hidden = true; box.textContent = ''; }
+}
+async function gateTraineeWanted() {
+  if (!window.CESTISGate || cestisGateSession()) return false;
+  await gateTraineeDecide();
+  return !!_gateT.base;
+}
+// The trainee card's Sign in, through the gate.
+async function gateTraineeSignIn() {
+  var uname = (document.getElementById('studentUser').value || '').trim();
+  var pw = document.getElementById('studentPass').value;
+  if (!uname || !pw) { signInSay('student', 'Please enter your email/username and password.'); return; }
+  if (_gateT.busy) return;
+  _gateT.busy = true;
+  gateCardWorking(true, 'Signing in…');
+  var res = null;
+  try { res = await CESTISGate.signIn({ login: uname, password: pw }); } catch (e) { res = { ok: false, error: 'unreachable' }; }
+  _gateT.busy = false;
+  gateCardWorking(false);
+  gateTraineeAnswer(res, { login: uname, via: 'password' });
+}
+// "Sign in with your email account", through the gate (not on the Centre's own network).
+function gateTraineeEmail() {
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) { signInSay('student', gateSay('email-failed')); return; }
+  var client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_DRIVE_CONFIG.CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+    callback: function(tokenResponse) {
+      if (!tokenResponse || tokenResponse.error || !tokenResponse.access_token) { signInSay('student', gateSay('email-failed')); return; }
+      gateCardWorking(true, 'Signing in…');
+      CESTISGate.signInEmail(tokenResponse.access_token).then(function(res) {
+        gateCardWorking(false);
+        gateTraineeAnswer(res, { via: 'email', accessToken: tokenResponse.access_token });
+      }, function() { gateCardWorking(false); gateTraineeAnswer({ ok: false, error: 'unreachable' }, { via: 'email', accessToken: tokenResponse.access_token }); });
+    },
+    error_callback: function() { signInSay('student', gateSay('email-failed')); }
+  });
+  client.requestAccessToken();
+}
+function gateTraineeAnswer(res, ctx) {
+  ctx = ctx || {};
+  if (res && res.ok && res.need2fa) { gateTfaOpen(res, ctx); return; }
+  if (res && res.ok && res.token) { gateTraineeEnter(res); return; }
+  var code = (res && res.error) || 'unreachable';
+  // The Centre turned it off: today's sign-in, on every device.
+  if (code === 'off') { _gateT.base = null; document.body.classList.remove('gate-trainee', 'gate-trainee-only'); return gateTodaysSignIn(ctx); }
+  if (gateUnreachable(res) && gateFallbackAllowed()) {
+    console.warn('[TraineeGate] could not be reached (' + code + '): this PC holds the Centre\'s records, so today\'s sign-in is used.');
+    return gateTodaysSignIn(ctx);
+  }
+  if (code === 'pending') {
+    var who = ctx.login || '';
+    showPendingApprovalScreen({ email: /@/.test(who) ? who : (who || ''), role: 'student', programme: '', createdAt: '' }, { state: 'waiting' });
+    return;
+  }
+  if (code === 'locked' && res && res.retryAfter) console.log('[TraineeGate] locked for ' + res.retryAfter + ' s');
+  signInSay('student', gateSay(code));
+}
+// Today's sign-in, for this one try (the gate was off, or out of reach on a lab PC).
+function gateTodaysSignIn(ctx) {
+  if (ctx && ctx.via === 'email' && ctx.accessToken) {
+    return fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + ctx.accessToken } })
+      .then(function(r) { return r.json(); }).then(function(profile) { return handleGmailProfile(profile, 'student'); })
+      .catch(function() { signInSay('student', gateSay('email-failed')); });
+  }
+  return handleStudentClick({ local: true });
+}
+// Signed in: into the gate's own namespace (this device's Centre records,
+// if any, stay exactly as they are), then the page reloads into it.
+function gateTraineeEnter(sess) {
+  gateBootScreen('Signing in…');
+  CESTISGate.enter(sess).then(function(ok) {
+    if (!ok) { gateBootScreenHide(); signInSay('student', gateSay('unreachable')); return; }
+    _gateT.reloading = true;
+    location.reload();
+  }, function() { gateBootScreenHide(); signInSay('student', gateSay('unreachable')); });
+}
+
+/* ---- Two-step, through the gate: an authenticator code, a backup code, or
+   (online) a code emailed to the trainee. ---- */
+function gateTfaOpen(res, ctx) {
+  var methods = Array.isArray(res.methods) ? res.methods.slice() : [];
+  var lan = !!(_gateT.base && _gateT.base.kind === 'lan');
+  if (lan) methods = methods.filter(function(m) { return m !== 'email'; });
+  _gateT.tfa = { ticket: res.ticket, methods: methods, email: res.email || '', ctx: ctx || {}, method: methods[0] || 'totp', sent: false };
+  gateTfaShow(_gateT.tfa.method);
+  openModal('gateTfaModal');
+  // Email codes only: the code is sent at once.
+  if (_gateT.tfa.method === 'email') gateTfaSend();
+}
+function gateTfaShow(method) {
+  var t = _gateT.tfa;
+  if (!t) return;
+  t.method = method;
+  var sub = document.getElementById('gateTfaSubtitle'), lab = document.getElementById('gateTfaLabel'), inp = document.getElementById('gateTfaCode');
+  var err = document.getElementById('gateTfaError');
+  if (err) { err.style.display = 'none'; err.textContent = ''; }
+  if (method === 'backup') { sub.textContent = 'Enter one of your backup codes. Each one works once.'; lab.textContent = 'Backup code'; inp.maxLength = 12; inp.inputMode = 'text'; inp.placeholder = 'XXXXXXXX'; }
+  else if (method === 'email') { sub.textContent = t.sent ? 'Enter the 6-digit code we emailed to ' + (t.email || 'you') + '. It works for 10 minutes.' : 'We will email a 6-digit code to ' + (t.email || 'you') + '.'; lab.textContent = 'Emailed code'; inp.maxLength = 6; inp.inputMode = 'numeric'; inp.placeholder = '••••••'; }
+  else { sub.textContent = 'Enter the 6-digit code from your authenticator app to finish signing in.'; lab.textContent = 'Code'; inp.maxLength = 6; inp.inputMode = 'numeric'; inp.placeholder = '••••••'; }
+  inp.value = '';
+  var other = document.getElementById('gateTfaOther');
+  var links = [];
+  if (method !== 'totp' && t.methods.indexOf('totp') !== -1) links.push('<a href="#" onclick="gateTfaShow(\'totp\');return false;">Use your authenticator app</a>');
+  if (method !== 'backup' && t.methods.indexOf('backup') !== -1) links.push('<a href="#" onclick="gateTfaShow(\'backup\');return false;">Lost your device? Use a backup code</a>');
+  if (method !== 'email' && t.methods.indexOf('email') !== -1) links.push('<a href="#" onclick="gateTfaShow(\'email\');gateTfaSend();return false;">Email me a code instead</a>');
+  if (method === 'email' && t.sent) links.push('<a href="#" onclick="gateTfaSend();return false;">Send the code again</a>');
+  other.innerHTML = links.join('<br>');
+  setTimeout(function() { try { inp.focus(); } catch (e) {} }, 60);
+}
+function gateTfaSay(text) {
+  var err = document.getElementById('gateTfaError');
+  if (!err) return;
+  err.textContent = text; err.style.display = text ? 'block' : 'none';
+}
+function gateTfaSend() {
+  var t = _gateT.tfa;
+  if (!t) return;
+  CESTISGate.twoStepSend(t.ticket).then(function(res) {
+    if (res && res.ok) { t.sent = true; if (res.to) t.email = res.to; gateTfaShow('email'); return; }
+    gateTfaSay(gateSay(res && res.error));
+  });
+}
+function gateTfaSubmit() {
+  var t = _gateT.tfa;
+  if (!t || t.busy) return;
+  var code = (document.getElementById('gateTfaCode').value || '').replace(/\s+/g, '');
+  if (!code) { gateTfaSay(t.method === 'backup' ? 'Enter a backup code.' : 'Enter the 6-digit code.'); return; }
+  t.busy = true;
+  var btn = document.getElementById('gateTfaVerifyBtn');
+  if (btn) btn.disabled = true;
+  CESTISGate.twoStep({ ticket: t.ticket, method: t.method, code: code }).then(function(res) {
+    t.busy = false;
+    if (btn) btn.disabled = false;
+    if (res && res.ok && res.token) { closeModal('gateTfaModal'); _gateT.tfa = null; gateTraineeEnter(res); return; }
+    var c = res && res.error;
+    if (c === 'locked') { closeModal('gateTfaModal'); _gateT.tfa = null; signInSay('student', gateSay('locked')); return; }
+    if (c === 'expired' || c === 'bad-ticket' || c === 'revoked') { closeModal('gateTfaModal'); _gateT.tfa = null; signInSay('student', gateSay('ticket')); return; }
+    gateTfaSay(gateSay(c));
+    var inp = document.getElementById('gateTfaCode'); if (inp) { inp.value = ''; inp.focus(); }
+  });
+}
+function gateTfaCancel() { closeModal('gateTfaModal'); _gateT.tfa = null; }
+
+/* ---- "Getting your records…" ---- */
+function gateBootScreen(text, actions) {
+  var el = document.getElementById('gateBootScreen');
+  if (!el) return;
+  document.getElementById('gateBootText').textContent = text || 'Getting your records…';
+  var box = document.getElementById('gateBootActions');
+  box.innerHTML = '';
+  (actions || []).forEach(function(a) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn ' + (a.primary ? 'btn-primary' : 'btn-secondary'); b.textContent = a.label;
+    b.addEventListener('click', a.run);
+    box.appendChild(b);
+  });
+  el.classList.toggle('has-actions', !!(actions && actions.length));
+  el.hidden = false;
+}
+function gateBootScreenHide() { var el = document.getElementById('gateBootScreen'); if (el) el.hidden = true; }
+
+/* ---- In the gate's namespace: this page is the trainee's own ---- */
+// Runs once the store has read itself in. Returns true when this is a gate session.
+function gateBoot() {
+  if (!cestisGateSession() || !window.CESTISGate) return false;
+  var lp = document.getElementById('landingPage');
+  if (lp) lp.style.display = 'none';
+  var sess = CESTISGate.session();
+  if (!sess || !sess.sessionKey) { gateLeaveToLanding(false); return true; }
+  CESTISGate.configure(gateClientHooks());
+  var hasSlice = !!CESTISStore.getItem('cestisGateSlice');
+  var exp = Number(CESTISStore.getItem('voctrain_sessionExpiry')) || 0;
+  if (exp && Date.now() > exp) { gateSignOutFlow({ quiet: true }); return true; }
+  if (!hasSlice) gateBootScreen('Getting your records…');
+  var go = function() {
+    if (hasSlice) { gateEnterPortal(); gatePullSoon(1500); return; }
+    gatePullAndApply().then(function(r) {
+      if (r && r.ok) { gateEnterPortal(); return; }
+      var code = r && r.error;
+      gateBootScreen(code === 'not-ready' || code === 'unlinked' ? gateSay('not-ready') : gateSay(gateUnreachable(r) ? 'unreachable' : code),
+        [{ label: 'Try again', primary: true, run: function() { gateBootScreen('Getting your records…'); go(); } },
+         { label: 'Back to sign-in', run: function() { gateLeaveToLanding(true); } }]);
+    });
+  };
+  if (CESTISStore.whenReady) CESTISStore.whenReady(go); else go();
+  return true;
+}
+// What the client tells this page.
+function gateClientHooks() {
+  return {
+    pbkdf2: function(pw, saltHex, iter) { return _pbkdf2Hex(pw, _hexToBuf(saltHex), iter); },
+    legacy: function(pw) { return hashPasswordLegacy(pw); },
+    onResult: function(result) { if (cestisGateSession() && gateStoreResult(result)) gateResultArrived(result); },
+    onRetired: function() { try { examAttemptsArrived('device'); } catch (e) {} },
+    onChange: function(st) { _gateT.status = st; try { refreshSyncChip(); } catch (e) {} },
+    onSession: function(code) {
+      _gateT.readable = false;
+      try { refreshSyncChip(); } catch (e) {}
+      if (!_gateT.saidSignIn) { _gateT.saidSignIn = true; showToast('Your work is saved here. Sign in again to see your latest records.', 'warning'); }
+    }
+  };
+}
+// The trainee portal, on the records this namespace holds.
+function gateEnterPortal() {
+  var sess = CESTISGate.session();
+  if (!sess) { gateLeaveToLanding(false); return; }
+  try { loadUserAccounts(); } catch (e) {}
+  try { loadState(); } catch (e) {}
+  try { _syncIndex = {}; } catch (e) {}
+  var slice = safeJsonParse(CESTISStore.getItem('cestisGateSlice'), null) || {};
+  var data = slice.data || {};
+  var stu = (students || []).find(function(s) { return s && s.id === sess.stu; }) || (data.voctrain_students || [])[0];
+  var acct = (userAccounts || []).find(function(u) { return u && u.id === sess.acct; }) || (data.voctrain_users || [])[0];
+  if (!stu || !acct) { gateBootScreen(gateSay('not-ready'), [{ label: 'Back to sign-in', primary: true, run: function() { gateLeaveToLanding(true); } }]); return; }
+  if (!(students || []).some(function(s) { return s && s.id === stu.id; })) students.push(stu);
+  if (!(userAccounts || []).some(function(u) { return u && u.id === acct.id; })) userAccounts.push(acct);
+  acct.role = 'student';
+  currentStudent = stu;
+  if (!stu.instructor && stu.course) {
+    var ins = (instructorData || []).find(function(i) { return i.course && instructorCourseMatch(stu.course, i.course); });
+    if (ins) stu.instructor = ins.name;
+  }
+  var sp = studentProfiles[stu.id];
+  if (sp && sp.name) { stu.name = sp.name; acct.name = sp.name; }
+  currentLoggedInUser = acct;
+  loginSyncCompleted = true;
+  gateBootScreenHide();
+  enterApp('student');
+}
+// After enterApp: the gate does what the 5-second save and the sign-in sync do for staff.
+function gateSessionStart() {
+  if (_gateT.started) return;
+  _gateT.started = true;
+  CESTISGate.wire({ onVisible: function() { if (Date.now() - (_gateT.pulledAt || 0) > 60 * 1000) gatePullSoon(0); } });
+  if (_gateT.pullTimer) clearInterval(_gateT.pullTimer);
+  _gateT.pullTimer = setInterval(function() { if (document.visibilityState !== 'hidden') gatePullSoon(0); }, CESTISGate.PULL_EVERY_MS);
+  CESTISGate.capture().then(function() { CESTISGate.deliver(); });
+  CESTISGate.status().then(function(st) { _gateT.status = st; try { refreshSyncChip(); } catch (e) {} });
+  try { examAfterSignIn(); } catch (e) {}
+}
+var _gatePulling = null;
+function gatePullAndApply() {
+  if (_gatePulling) return _gatePulling;
+  _gatePulling = CESTISGate.pull().then(function(res) {
+    if (!res || res.ok !== true) return { ok: false, error: (res && res.error) || 'unreachable', unreachable: gateUnreachable(res) };
+    return CESTISGate.applyPull(res).then(function(r) { _gateT.pulledAt = Date.now(); _gateT.readable = true; return { ok: true, applied: r }; });
+  }).catch(function() { return { ok: false, error: 'unreachable', unreachable: true }; }).then(function(r) { _gatePulling = null; return r; });
+  return _gatePulling;
+}
+function gatePullSoon(ms) {
+  setTimeout(function() {
+    if (!cestisGateSession() || !currentRole) return;
+    gatePullAndApply().then(function(r) { if (r && r.ok && r.applied) gateAfterApply(r.applied); });
+  }, ms || 0);
+}
+// New records arrived: the page takes them into memory and redraws.
+function gateAfterApply(r) {
+  if (!r || !r.changed && !(r.plan && r.plan.writes)) return;
+  try { _syncIndex = {}; } catch (e) {}
+  var sid = currentStudent && currentStudent.id, uid = currentLoggedInUser && currentLoggedInUser.id;
+  try { loadUserAccounts(); } catch (e) {}
+  try { loadState(); } catch (e) {}
+  try { loadLmsChatFromStore(); } catch (e) {}
+  var stu = (students || []).find(function(s) { return s && s.id === sid; });
+  if (stu) currentStudent = stu;
+  var acct = (userAccounts || []).find(function(u) { return u && u.id === uid; });
+  if (acct) { acct.role = 'student'; currentLoggedInUser = acct; }
+  try { examAttemptsArrived('device'); } catch (e) {}
+  try { refreshContentDependentViews(); } catch (e) {}
+  try { if (typeof renderStudentDashboard === 'function') renderStudentDashboard(); } catch (e) {}
+  try { updateNotificationDot(); } catch (e) {}
+  try { refreshSyncChip(); } catch (e) {}
+}
+// The chat, from the store (the gate's room files land there).
+function loadLmsChatFromStore() {
+  var cm = safeJsonParse(CESTISStore.getItem('voctrain_chatMessages'), null);
+  if (cm && typeof cm === 'object') {
+    Object.keys(cm).forEach(function(k) {
+      var keep = (lmsChatMessages[k] || []).filter(function(m) { return m && (m.imageData || m.fileData); });
+      var byId = {};
+      keep.forEach(function(m) { byId[m.id] = m; });
+      lmsChatMessages[k] = (cm[k] || []).map(function(m) { return byId[m.id] ? Object.assign({}, m, { imageData: byId[m.id].imageData, fileData: byId[m.id].fileData }) : m; });
+    });
+  }
+  var cr = safeJsonParse(CESTISStore.getItem('voctrain_chatRooms'), null);
+  if (Array.isArray(cr) && cr.length) lmsChatRooms = cr;
+}
+// Out of the gate's namespace, back to the sign-in page (records kept or not).
+function gateLeaveToLanding(drop) {
+  if (_gateT.reloading) return;
+  _gateT.reloading = true;
+  CESTISGate.leave({ keepData: !drop }).then(function() { location.reload(); }, function() { location.reload(); });
+}
+/* Sign-out (the button, the idle lock's end, an expired session): what is
+   unsent is sent if it can be; the session ends at the gate; the namespace
+   goes once nothing of this trainee waits, else it stays until it has gone. */
+async function gateSignOutFlow(opts) {
+  opts = opts || {};
+  if (_gateT.reloading) return;
+  var sess = CESTISGate.session();
+  try { stopSessionExpiryCheck(); } catch (e) {}
+  try { if (typeof lmsChatRTStop === 'function') lmsChatRTStop(); } catch (e) {}
+  try { lmsChatStopPolling(); } catch (e) {}
+  if (_gateT.pullTimer) { clearInterval(_gateT.pullTimer); _gateT.pullTimer = null; }
+  gateBootScreen('Signing out…');
+  var sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+  try { await CESTISGate.capture(); } catch (e) {}
+  try { await Promise.race([CESTISGate.deliver({ force: true }), sleep(8000)]); } catch (e) {}
+  var waiting = [];
+  try { waiting = sess ? await CESTISGate.pending(sess.acct) : []; } catch (e) { waiting = [1]; }
+  try { await Promise.race([CESTISGate.signOut(), sleep(5000)]); } catch (e) {}
+  _gateT.reloading = true;
+  try { await CESTISGate.leave({ keepData: waiting.length > 0 }); } catch (e) {}
+  if (waiting.length && !opts.quiet) { try { CESTISStore.removeItem('voctrain_sessionExpiry'); } catch (e) {} }
+  setTimeout(function() { location.reload(); }, 250);
+}
+
+/* ---- Tests through the gate (§5.3) ----
+   The paper is fetched once, online, at the start; the attempt then runs
+   with no connection at all (saved here at every answer, sealed and sent
+   when it can be); the submit goes to the gate, which marks it from the
+   answer key it alone holds and answers with the result. Offline, the test
+   is submitted here and sent when the device is back online. */
+function gateExamHasQuestions(e) { return !!e && ((Array.isArray(e.questionData) && e.questionData.length > 0) || (cestisGateSession() && (Number(e.questions) || 0) > 0)); }
+// The deadline on this device's clock, worked out on the gate's (the paper's
+// window, the Centre's time zone, the gate's own time).
+function gateExamDeadline(p) {
+  var serverNow = Date.parse(p.serverTime || '') || Date.now();
+  var end = CESTISCore.exams.sessionDeadline(p.paper.exam, serverNow, p.centreUtcOffset || examCentreOffset());
+  return Date.now() + Math.max(0, end - serverNow);
+}
+async function gateExamStart(e, me) {
+  if (_gateT.examBusy) return;
+  _gateT.examBusy = true;
+  try {
+    var stub = examReadDraftRaw(me.id, e.id);
+    if (stub && CESTISCore.exams.attemptIsRetired(stub) && !stub.resultId) { examListNote(GATE_EXAM_OFFLINE_NOTE); return; }
+    showToast('Opening the test…');
+    var got = await CESTISGate.attempt(e.id);
+    if (got && got.ok) {
+      if (got.state === 'result' && got.result) { gateStoreResult(got.result); showExamResult(got.result, gateExamForDisplay(e, got.result), ''); return; }
+      if (got.state === 'retired') { examListNote('This test was submitted on another device. Your result will show here as soon as it reaches this device.'); gatePullSoon(0); return; }
+      if (got.state === 'attempt' && got.attempt) {
+        // Begun on another device: the same attempt, its answers and its clock.
+        try { examAttemptsMergeIncoming([got.attempt]); } catch (x) {}
+        var again = examCurrentAttempt(me.id, e.id);
+        if (again) { examResumeDraft(again.attempt, again.ids); return; }
+      }
+    } else if (gateUnreachable(got)) { alert('Could not open the test right now. Check your connection and try again.'); return; }
+    if (currentExamSession) return;
+    var p = await CESTISGate.paper(e.id);
+    if (!p || p.ok !== true || !p.paper) {
+      alert(gateUnreachable(p) ? 'Could not open the test right now. Check your connection and try again.' : 'This exam is not open right now.');
+      return;
+    }
+    if (currentStudent !== me || currentExamSession) return;
+    examStartFresh(e, me, p);
+  } finally { _gateT.examBusy = false; }
+}
+var GATE_EXAM_OFFLINE_NOTE = 'Your test is submitted here and will be sent to the office when you\'re back online.';
+// The exam as the review page draws it: the paper's questions (no answers in
+// them); the right answers come in the result itself, when they are released.
+function gateExamForDisplay(exam, result) {
+  var e = Object.assign({}, exam || {});
+  var paper = exam && CESTISGate.storedPaper(exam.id);
+  var qs = paper && Array.isArray(paper.questions) ? paper.questions : null;
+  if (!qs) {
+    var a = (examAttempts || []).find(function(x) { return x && result && String(x.studentId) === String(result.studentId) && x.examId === (exam && exam.id) && Array.isArray(x.questions) && x.questions.length; });
+    qs = a ? a.questions : [];
+  }
+  e.questionData = qs.map(function(q) { var c = Object.assign({}, q); delete c.correctAnswer; return c; });
+  e._gateReveal = !!(result && Array.isArray(result.answers) && result.answers.some(function(x) { return x && !x.needsManualGrade && x.correctAnswer !== undefined && x.correctAnswer !== null; }));
+  return e;
+}
+// A result the gate marked, kept with the trainee's records (once).
+function gateStoreResult(r) {
+  if (!r || r.id == null) return false;
+  var have = (examResults || []).some(function(x) { return x && (x.id === r.id || (r.attemptId != null && x.attemptId === r.attemptId)); });
+  if (!have) {
+    examResults.push(r);
+    try { saveCollection('voctrain_examResults', examResults); } catch (e) {}
+  }
+  var X = CESTISCore.exams, stub = examReadDraftRaw(r.studentId, r.examId);
+  if (stub && X.attemptIsRetired(stub) && !stub.resultId) { stub.resultId = r.id; try { CESTISStore.setItem(X.draftKey(r.studentId, r.examId), JSON.stringify(stub)); } catch (e) {} }
+  return !have;
+}
+// A result that came back later (the device was offline at the submit).
+function gateResultArrived(r) {
+  try { renderStudentExams(); } catch (e) {}
+  var ex = (exams || []).find(function(x) { return x && x.id === r.examId; });
+  showToast('Your result for ' + ((ex && ex.title) || 'your test') + ' is here: ' + r.score + '%.');
+}
+function gateSubmitExam(s, auto, opts) {
+  opts = opts || {};
+  var X = CESTISCore.exams;
+  var attempt = examAttemptRecord(s);
+  var exam = (exams || []).find(function(x) { return x && x.id === s.examId; }) || null;
+  var ids = (s.alsoIds && s.alsoIds.length ? s.alsoIds : [s.attemptId]);
+  // Closed here, at once: the clock stops, and this device never offers it again.
+  var retired = X.retireAttempt({ id: s.attemptId, examId: s.examId, studentId: s.studentId, startTime: s.startTime, deadline: s.deadline }, null, new Date().toISOString());
+  try { CESTISStore.setItem(X.draftKey(s.studentId, s.examId), JSON.stringify(retired)); } catch (e) {}
+  try { examAttemptsUpsert(ids.map(function(id) { return Object.assign({}, retired, { id: id }); })); } catch (e) {}
+  CESTISStore.removeItem('voctrain_examInProgress');
+  currentExamSession = null;
+  var away = opts.away ? 'Time ran out on this test while you were away. The answers saved for you were submitted automatically on ' + examCentreDateTime(Date.now()) + '.' : '';
+  var take = document.getElementById('studentExamTakingView');
+  if (take) take.style.display = 'none';
+  examListNote('Sending your test…');
+  var list = document.getElementById('studentExamListView'); if (list) list.style.display = 'block';
+  var sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+  CESTISGate.queue('submit', { attempt: attempt, auto: !!auto }, { noCoalesce: true, noKick: true }).then(function() {
+    return Promise.race([CESTISGate.deliverNow(), sleep(20000)]);
+  }).catch(function() {}).then(function() {
+    var result = examResultFor(s.studentId, s.examId);
+    if (result) { examListNote(''); showExamResult(result, gateExamForDisplay(exam, result), away); return; }
+    try { renderStudentExams(); } catch (e) {}
+    examListNote((away ? away + ' ' : '') + GATE_EXAM_OFFLINE_NOTE);
+    try { refreshSyncChip(); } catch (e) {}
+  });
+}
+// Review: the right answers come from the gate, and only once they are released.
+async function gateReviewResult(result, exam) {
+  var shown = gateExamForDisplay(exam, result);
+  var res = null;
+  try { res = await Promise.race([CESTISGate.review(result.id), new Promise(function(r) { setTimeout(r, 12000); })]); } catch (e) { res = null; }
+  if (res && res.ok && res.result) { shown._gateReveal = !!res.revealed; showExamResult(res.result, shown); return; }
+  shown._gateReveal = false;
+  showExamResult(result, shown);
+}
+
+/* ---- Coursework through the gate (§5.4): each file sent first (the
+   allowed kinds, 5 MB each); the submission then names them. On the Centre's
+   own network small files travel inside the submission, as they do there
+   today. ---- */
+var GATE_UPLOAD_SAY = {
+  'type-not-allowed': 'This kind of file cannot be sent. Use a PDF, a picture, an office document, a text file or a zip file.',
+  'too-large': 'A file is larger than 5 MB. Make it smaller and try again.',
+  'quota': 'You have sent as many files as allowed today. Try again tomorrow, or ask your instructor.',
+  'not-available': 'These files are too big to send from here. Hand your work to your instructor.',
+  'unreachable': 'Could not send your work right now. Check your connection and try again.'
+};
+async function gateUploadFiles(pending, files, refId) {
+  var sess = CESTISGate.session();
+  if (sess && sess.base && sess.base.kind === 'lan') {
+    var total = files.reduce(function(n, f) { return n + String(f.dataUrl || '').length; }, 0);
+    return total <= 350 * 1024 ? { ok: true, inline: true, files: files } : { ok: false, message: GATE_UPLOAD_SAY['not-available'] };
+  }
+  var out = [];
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    var res = await CESTISGate.upload({ name: f.name, mime: f.type, base64: f.dataUrl, purpose: 'submission', refId: refId });
+    if (!res || res.ok !== true) return { ok: false, message: GATE_UPLOAD_SAY[res && res.error] || GATE_UPLOAD_SAY[gateUnreachable(res) ? 'unreachable' : 'type-not-allowed'] };
+    out.push({ id: res.fileId, driveFileId: res.fileId, name: res.name || f.name, origName: f.name, size: f.size, type: f.type });
+  }
+  return { ok: true, files: out };
+}
+// Opening a file of the trainee's (their coursework, a resource) through the gate.
+async function gateOpenFile(fileId, name) {
+  var res = await CESTISGate.fileGet(fileId);
+  if (!res || res.ok !== true || !res.base64) { showToast(res && res.error === 'too-large' ? 'This file is too big to open here. Ask your instructor for a copy.' : 'This file cannot be opened right now. Try again later.', 'warning'); return false; }
+  var bin = atob(res.base64), bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  var url = URL.createObjectURL(new Blob([bytes], { type: res.mime || 'application/octet-stream' }));
+  var link = document.createElement('a');
+  link.href = url; link.download = name || res.name || 'download';
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+  return true;
+}
+
+/* ---- Chat (§5.5): a room's history from its own file, to its members; live
+   class chat still goes over the realtime channel. Away from a live class a
+   message takes a minute or two to arrive. ---- */
+function gateChatPoll() {
+  if (!cestisGateSession() || !window.CESTISGate) return Promise.resolve(false);
+  var now = Date.now();
+  var due = lmsChatOnChatPage() ? 45000 : 150000;
+  if (now - _gateT.roomAt < due) return Promise.resolve(false);
+  _gateT.roomAt = now;
+  var slice = safeJsonParse(CESTISStore.getItem('cestisGateSlice'), null);
+  var rooms = (slice && slice.access && Array.isArray(slice.access.rooms)) ? slice.access.rooms : [];
+  var meta = safeJsonParse(CESTISStore.getItem('cestisGateRooms'), {}) || {};
+  var changed = false;
+  return rooms.reduce(function(p, id) {
+    return p.then(function() {
+      return CESTISGate.roomGet(id, meta[id] && meta[id].h).then(function(res) {
+        if (res && res.ok && res.room) return CESTISGate.applyRoom(res).then(function(ok) { if (ok) changed = true; });
+      });
+    });
+  }, Promise.resolve()).then(function() {
+    if (!changed) return false;
+    loadLmsChatFromStore();
+    try { var px = lmsChatPollPrefix || lmsChatGetRolePrefix(); lmsChatRenderRoomList(px); if (lmsChatActiveRoom) lmsChatRenderMessages(px); } catch (e) {}
+    return true;
+  }).catch(function() { return false; });
+}
+
+/* ---- The top bar's chip, in a gate session: what of the trainee's waits ---- */
+function gateSyncHealth(st) {
+  st = st || {};
+  var meta = safeJsonParse(CESTISStore.getItem('cestisGateSliceMeta'), null);
+  var at = meta && Date.parse(meta.pulledAt || '');
+  var hhmm = function(ms) { var d = new Date(ms); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  var last = at ? 'Last updated ' + hhmm(at) : '';
+  var n = st.waiting || 0, out;
+  if (n && (st.online === false || st.failing)) {
+    out = { state: 'offline', tone: 'warn', label: 'Saved here — will be sent when you\'re back online (' + n + ' waiting)',
+      detail: 'Your work is kept on this device and is sent by itself when the connection is back.',
+      advice: ['Keep working — nothing is lost.', 'If this stays for more than a day, ask the office.'] };
+  } else if (n) {
+    out = { state: 'waiting', tone: 'warn', label: 'Sending your work (' + n + ' waiting)', detail: 'Your latest work is being sent now.', advice: [] };
+  } else if (st.readable === false || _gateT.readable === false) {
+    out = { state: 'attention', tone: 'warn', label: 'Sign in again to see your latest records', detail: 'Your work is saved and sent. Sign out and sign in again to see what is new.', advice: [] };
+  } else {
+    out = { state: 'saved', tone: 'ok', label: 'All saved', detail: 'Nothing of yours is waiting to be sent.', advice: [] };
+  }
+  if (st.refused) out.advice = out.advice.concat(['Something you sent could not be taken. The office can see it — ask them if anything is missing.']);
+  out.icon = out.state === 'saved' ? 'check' : 'sync';
+  out.chip = out.state === 'offline' ? 'Saved here' : out.label.split(' (')[0];
+  out.lastSaved = last;
+  return out;
+}
+
+/* ---- Wired at load ---- */
+function gateTraineeInit() {
+  if (!window.CESTISGate) return;
+  try {
+    CESTISGate.configure(gateClientHooks());
+    // The trainee's link (index.html#gate=…): the address is this device's own.
+    CESTISGate.takeLink();
+    if (gateBoot()) return;
+    // Work a trainee sealed on this device, waiting for the gate: sent by any
+    // session, or none — and a namespace that has nothing left to send goes.
+    // (A device that never used the gate: nothing is opened or written.)
+    CESTISGate.hasWork().then(function(any) {
+      if (!any) return;
+      CESTISGate.tidy();
+      CESTISGate.wire();
+      CESTISGate.deliver();
+    });
+    gateTraineeDecide();
+  } catch (e) { console.warn('[TraineeGate] start failed:', e && e.message); }
+}
+// After every script of the page has run (the trainee portal's own included).
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', gateTraineeInit); else setTimeout(gateTraineeInit, 0);
+
 /* ---- Sync health chip (top bar) ----
    Reads what the save code already records — the "not yet uploaded" note
    (cestisPendingUpload), the last autosave's result and its failure count,
@@ -37068,6 +37881,8 @@ function refreshSyncChip() {
       !CESTISStore.getItem('cestisPendingUpload')) _syncChipLastOk = Date.now();
   var inp = syncChipInputs();
   var h = CESTISCore.ui.syncHealth(inp);
+  // A trainee's gate session: what of theirs waits to be sent (gateSyncHealth).
+  if ((typeof cestisGateSession === 'function' && cestisGateSession())) { h = gateSyncHealth(_gateT.status); inp.staff = false; }
   var chip = document.getElementById('syncChip');
   chip.className = 'sync-chip tone-' + h.tone + (_syncChipSyncing ? ' is-syncing' : '');
   chip.setAttribute('data-state', h.state);
@@ -41157,6 +41972,13 @@ function lmsChatSchedulePoll(delay) {
 function lmsChatPollTick() {
   _lmsChatPollTimer = null;
   if (!currentRole || _sessionWiped) return;               // signed out: the poll ends
+  // A trainee's gate session: each room's history comes from the gate (a minute or two behind).
+  if ((typeof cestisGateSession === 'function' && cestisGateSession())) {
+    if (_lmsChatPollInFlight) { lmsChatSchedulePoll(); return; }
+    _lmsChatPollInFlight = true;
+    gateChatPoll().finally(function(){ _lmsChatPollInFlight = false; if (currentRole && !_sessionWiped) lmsChatSchedulePoll(); });
+    return;
+  }
   if (!isCloudConnected || !googleAccessToken || _lmsChatPollInFlight) { lmsChatSchedulePoll(); return; }
   _lmsChatPollInFlight = true;
   var prefix = lmsChatPollPrefix || lmsChatGetRolePrefix();
@@ -56897,6 +57719,8 @@ function ttRefreshOnShow(){
 <script>
 (function () {
   if (!window.CESTISPageCloud || typeof CESTISPageCloud.initLan !== 'function') return;
+  // A trainee's gate session has only that trainee's records, from the gate.
+  if (window.CESTISStore && CESTISStore.namespace) return;
 
   // Collections this page holds in memory besides the shared ones adopted by
   // CESTIS_SHARED_COLLECTIONS (the roll, accounts, attendance, results...).

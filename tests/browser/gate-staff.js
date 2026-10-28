@@ -47,46 +47,12 @@ const ONLY = process.env.GATE_STAFF_ONLY ? new RegExp(process.env.GATE_STAFF_ONL
 let passed = 0, failed = 0;
 function ok(cond, msg) { if (cond) passed++; else { failed++; console.log('  ✗ FAIL: ' + msg); } return !!cond; }
 const wait = ms => new Promise(r => setTimeout(r, ms));
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.gs': 'text/plain', '.md': 'text/plain' };
-let SERVE_PASTE = false;
-function serve() {
-  return new Promise(resolve => {
-    const srv = http.createServer((req, res) => {
-      const p = decodeURIComponent(req.url.split('?')[0]);
-      // A site that does not serve the setup code yet (as before Stage 2 was published).
-      if (p === '/trainee-gate/PASTE-GATE.gs' && !SERVE_PASTE) { res.writeHead(404); return res.end('nope'); }
-      const file = path.normalize(path.join(ROOT, p === '/' ? 'index.html' : p));
-      if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('nope'); }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
-      fs.createReadStream(file).pipe(res);
-    });
-    srv.listen(0, '127.0.0.1', () => resolve(srv));
-  });
-}
-
-const MAIN_FOLDER = '1lNpI00Et1BN5c4eaV5WfQwuQVhCMBtv8';   // GOOGLE_DRIVE_CONFIG.FOLDER_ID
+const kit = require('./gate-kit');
+const { MAIN_FOLDER, ADMIN, TRAINEES, QUESTIONS } = kit;
 const GATE = 'https://script.google.com/macros/s/FAKE-GATE-DEPLOYMENT/exec';
-const ADMIN = { id: 'USR-mthompson', name: 'Marcia Thompson', user: 'mthompson', pass: 'Centre-Admin-2026!' };
-// Their student IDs are the dashboard's own stable ones (name + programme).
-const TRAINEES = [
-  { id: 'USR-trichards', name: 'Tameka Richards', user: 'tameka.richards', prog: 'Welding & Fabrication' },
-  { id: 'USR-kjohnson', name: 'Kemar Johnson', user: 'kemar.johnson', prog: 'Welding & Fabrication' },
-  { id: 'USR-rgrant', name: 'Rushane Grant', user: 'rushane.grant', prog: 'Electrical Installation' },
-  { id: 'USR-dthompson', name: 'Dwayne Thompson', user: 'dwayne.thompson', prog: 'Electrical Installation' },
-  { id: 'USR-scampbell', name: 'Shanique Campbell', user: 'shanique.campbell', prog: 'Cosmetology' },
-  { id: 'USR-ofacey', name: 'Odalys Facey', user: 'odalys.facey', prog: 'Cosmetology' }
-].map(t => Object.assign(t, { sid: Core.stableStudentId({ name: t.name, course: t.prog }) }));
 const SID = {};
 TRAINEES.forEach(t => { SID[t.id] = t.sid; });
-const QUESTIONS = [
-  { id: 'Q1', type: 'mcq', points: 1, text: 'Which colour is the acetylene hose?', options: ['Red', 'Blue', 'Green', 'Black'], correctAnswer: 0 },
-  { id: 'Q2', type: 'tf', points: 1, text: 'A flashback arrestor stops a flame travelling back into the cylinder.', correctAnswer: true },
-  { id: 'Q3', type: 'shortanswer', points: 1, text: 'Name the device that stops a flame travelling back up the hose.', correctAnswer: ['flashback arrestor'] }
-];
 
-/* The trainee sign-in address, as the real one answers it. Its first check
-   sets up its folders and its note of them (CESTIS_GATE.json) in the
-   Centre's main folder, as the real one does. */
 function fakeGate(drive, opts) {
   opts = opts || {};
   const F = 'application/vnd.google-apps.folder';
@@ -116,98 +82,17 @@ function fakeGate(drive, opts) {
 }
 
 (async function main() {
-  const srv = await serve();
+  const srv = await kit.serve();
   const base = 'http://127.0.0.1:' + srv.address().port;
   const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
   const allErrors = [];
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   const report = {};
 
-  /* A staff computer: its own browser storage, the Centre's shared files,
-     and (when given) the trainee sign-in address. */
-  async function computer(opts) {
-    const o = opts.phone ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { viewport: { width: 1366, height: 768 } };
-    const ctx = await browser.newContext(Object.assign({ timezoneId: 'America/Jamaica' }, o));
-    ctx._drive = opts.drive; ctx._gate = opts.gate; ctx._log = [];
-    await ctx.route('**/*', r => {
-      const u = r.request().url();
-      if (u.startsWith(base)) return r.continue();
-      if (/^https:\/\/(www\.googleapis\.com|oauth2\.googleapis\.com)\//.test(u)) { ctx._log.push(r.request().method() + ' ' + u); return opts.drive.handle(r); }
-      if (opts.gate && u.indexOf(GATE) === 0) { ctx._log.push('GATE ' + u); return opts.gate.handle(r); }
-      return r.abort();
-    });
-    await ctx.addInitScript(t => { try { localStorage.setItem('cestis_sw_disabled', '1'); if (t === 'light') localStorage.setItem('cestisTheme', 'light'); } catch (e) {} }, opts.theme || 'dark');
-    // Turn on waits for the trainee side (Stage 4). Stand it in unless a check asks to see the card without it.
-    if (!o.noTraineeClient) await ctx.addInitScript(() => { if (!window.CESTISGate) window.CESTISGate = { signIn: function () {}, stub: true }; });
-    return ctx;
-  }
-  function watch(page, label) {
-    page.on('pageerror', e => allErrors.push((label || '') + ' ' + String(e.message).slice(0, 200)));
-    page.on('dialog', d => d.accept().catch(() => {}));
-    if (process.env.GATE_STAFF_DEBUG) page.on('console', m => { if (new RegExp(process.env.GATE_STAFF_DEBUG, 'i').test(m.text())) console.log('    [' + label + '] ' + m.text().slice(0, 300)); });
-    return page;
-  }
-  // The Centre's records on this PC, then the administrator signed in.
-  async function adminSignedIn(ctx, opts) {
-    opts = opts || {};
-    const page = watch(await ctx.newPage(), opts.label || 'admin');
-    await page.goto(base + '/index.html', { waitUntil: 'load' });
-    await page.waitForTimeout(1200);
-    await page.evaluate(async ({ ADMIN, TRAINEES, QUESTIONS, extra, gateOn, GATE, token }) => {
-      const now = new Date().toISOString();
-      const hash = await hashPassword('Trainee-Pass-2026');
-      const users = [{ id: ADMIN.id, name: ADMIN.name, role: 'admin', username: ADMIN.user, email: 'mthompson@example.com', password: await hashPassword(ADMIN.pass), status: 'active', updatedAt: now }];
-      const studs = [];
-      const list = TRAINEES.concat(extra ? Array.from({ length: extra }, (_, i) => {
-        const F = ['Akeem', 'Brianna', 'Chevaughn', 'Dalvia', 'Everton', 'Fabian', 'Gaynelle', 'Horace', 'Imani', 'Jovaun', 'Kerry-Ann', 'Leroy', 'Mikhail', 'Nordia', 'Oneil', 'Petagaye', 'Rohan', 'Sashana', 'Tyrone', 'Venessa'];
-        const L = ['Williams', 'Grant', 'Morgan', 'Richards', 'Campbell', 'Thompson', 'Lindo', 'Facey', 'Bailey', 'Gordon', 'Henry', 'Lewis', 'Reid', 'Wright', 'Mullings', 'Palmer', 'Spence', 'Bryan', 'Clarke', 'Daley'];
-        const P = ['Welding & Fabrication', 'Electrical Installation', 'Cosmetology', 'Commercial Cooking', 'Plumbing'];
-        const name = F[i % 20] + ' ' + L[Math.floor(i / 20) % 20] + (i >= 400 ? ' ' + i : '');
-        return { id: 'USR-gen' + i, sid: CESTISCore.stableStudentId({ name, course: P[i % 5] }), name, user: 'trainee' + i, prog: P[i % 5] };
-      }) : []);
-      list.forEach(t => {
-        users.push({ id: t.id, name: t.name, role: 'student', username: t.user, email: t.user + '@example.com', programme: t.prog, studentDataId: t.sid, password: hash, status: 'active', updatedAt: now });
-        studs.push({ id: t.sid, name: t.name, course: t.prog, stage: 'training', email: t.user + '@example.com', gender: 'Female', progress: 40, updatedAt: now });
-      });
-      CESTISStore.setItem('voctrain_users', JSON.stringify(users));
-      CESTISStore.setItem('voctrain_students', JSON.stringify(studs));
-      const st = CESTISCore.exams.centreParts(Date.now() + 2 * 86400000);
-      CESTISStore.setItem('voctrain_exams', JSON.stringify([
-        { id: 'EXAM-WS3', title: 'Welding Safety — Unit 3 Assessment', course: 'Welding & Fabrication', date: st.date, time: '09:00', duration: 60, status: 'upcoming', passMark: 60,
-          questions: 3, questionData: QUESTIONS, answersRelease: 'after-close', questionsPerPage: 3, createdBy: 'admin', updatedAt: now },
-        { id: 'EXAM-EI2', title: 'Electrical Installation — Circuits Quiz', course: 'Electrical Installation', date: st.date, time: '13:00', duration: 45, status: 'upcoming', passMark: 50,
-          questions: 2, questionData: QUESTIONS.slice(0, 2), answersRelease: 'after-close', createdBy: 'admin', updatedAt: now },
-        { id: 'EXAM-DRAFT', title: 'Not ready yet', course: 'Cosmetology', date: st.date, time: '10:00', duration: 30, status: 'draft', passMark: 50,
-          questions: 1, questionData: QUESTIONS.slice(0, 1), createdBy: 'admin', updatedAt: now }]));
-      CESTISStore.setItem('voctrain_assignments', JSON.stringify([{ id: 'ASG-WF-1', title: 'Butt joint practice piece', course: 'Welding & Fabrication', dueDate: '2026-11-20', maxPoints: 10, grades: {}, updatedAt: now }]));
-      CESTISStore.setItem('voctrain_announcements', JSON.stringify([{ id: 'AN-WF-1', title: 'Welding safety week', body: 'Bring your goggles and gloves on Monday.', course: 'Welding & Fabrication',
-        forRoles: ['student'], date: now.slice(0, 10), priority: 'normal', author: ADMIN.name, readBy: [], updatedAt: now }]));
-      CESTISStore.setItem('voctrain_certTranscriptRequests', JSON.stringify([CESTISCore.Transcript.newRequest({ studentId: TRAINEES[0].sid, studentName: 'Tameka Richards',
-        course: 'Welding & Fabrication', type: 'transcript', requestedAt: new Date(Date.now() - 86400000).toISOString() })]));
-      const ss = JSON.parse(CESTISStore.getItem('voctrain_systemSettings') || '{}');
-      if (gateOn) ss.traineeGate = { url: GATE, enabled: true, setAt: now, setBy: 'mthompson' };
-      CESTISStore.setItem('voctrain_systemSettings', JSON.stringify(ss));
-      Object.keys(token).forEach(k => CESTISStore.setItem(k, token[k]));
-    }, { ADMIN, TRAINEES, QUESTIONS, extra: opts.extra || 0, gateOn: !!opts.gateOn, GATE, token: driveTokenSeed() });
-    await page.reload({ waitUntil: 'load' });
-    await page.waitForTimeout(1300);
-    if (opts.beforeSignIn) await page.evaluate(opts.beforeSignIn);
-    await page.evaluate(() => { if (!loginSyncCompleted) { loginSyncCompleted = true; enableLoginButtons(); } const l = document.getElementById('adminLogin'); if (!l.classList.contains('active')) document.querySelector('#adminCard .role-enter-btn').click(); });
-    await page.waitForTimeout(200);
-    await page.fill('#adminUser', ADMIN.user);
-    await page.fill('#adminPass', ADMIN.pass);
-    await page.press('#adminPass', 'Enter');
-    await page.waitForFunction(() => document.getElementById('appShell').classList.contains('active') && currentRole === 'admin', null, { timeout: 30000 });
-    await page.waitForTimeout(1500);
-    // Signed in for syncing (the seeded sign-in), the 5-second save running.
-    await page.evaluate(() => {
-      document.querySelectorAll('.cestis-alert-overlay').forEach(m => m.remove());
-      document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
-      if (!isCloudConnected || !googleAccessToken) { googleAccessToken = CESTISStore.getItem('schoolDashboardGoogleAccessToken'); isCloudConnected = true; updateCloudUI(true); }
-      if (!_autoSaveIntervalId) startAutoSave();
-    });
-    return page;
-  }
+  const K = kit.make({ browser, base, errors: allErrors, gateUrl: GATE });
+  // Turn on waits for the trainee side; stand it in where a page has none.
+  const computer = opts => K.computer(Object.assign({ stubTraineeClient: true }, opts));
+  const watch = K.watch, adminSignedIn = K.adminSignedIn;
   async function openCard(page) {
     await page.evaluate(() => showPage('settings'));
     await page.waitForSelector('#page-settings .tab');
@@ -293,14 +178,14 @@ function fakeGate(drive, opts) {
     await page.waitForTimeout(500);
     ok(await page.evaluate(() => /isn.t available yet/.test(document.body.innerText)), 'Copy the setup code: "The setup code isn\'t available yet."');
     await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: base });
-    SERVE_PASTE = true;
+    srv.servePaste(true);
     await page.click('#gateCopyCodeBtn');
     await page.waitForTimeout(600);
     const clip = await page.evaluate(() => navigator.clipboard.readText().catch(() => ''));
     const paste = fs.readFileSync(path.join(ROOT, 'trainee-gate', 'PASTE-GATE.gs'), 'utf8');
     ok(clip.length > 1000 && clip === paste, 'once the site serves it, trainee-gate/PASTE-GATE.gs is copied whole (' + clip.length + ' characters)');
     ok(await page.evaluate(() => fetch('trainee-gate/SETUP.md').then(r => r.ok)), 'and the setup sheet is there to open');
-    SERVE_PASTE = false;
+    srv.servePaste(false);
     // The address, checked.
     await page.fill('#gateAddress', 'not an address');
     await page.click('#gateCheckBtn');

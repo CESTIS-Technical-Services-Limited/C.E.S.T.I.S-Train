@@ -628,9 +628,21 @@
       .catch(function () { return false; });
   }
 
+  /* A trainee's session through the trainee gate (docs/trainee-gate/DESIGN.md
+     §7.1): the store opened the gate's own namespace, which holds that
+     trainee's records only and is filled by the gate alone. Nothing here may
+     pull the Centre's files into it, or push from it — not online, and not on
+     the Centre's network either (where the records token may still be
+     handed to any device). Every call below is a no-op in such a session. */
+  function gateSession() {
+    var s = root.CESTISStore;
+    return !!(s && s.namespace);
+  }
+
   /* Is this page being served by the Centre's own server? Asked once. */
   function detectLocalServer() {
     if (lan.probe) return lan.probe;
+    if (gateSession()) { lan.probe = Promise.resolve(false); return lan.probe; }
     var loc = root.location;
     // GitHub Pages is never the Centre's server, and a page opened straight
     // off the disk cannot fetch anything — do not even ask.
@@ -971,6 +983,7 @@
     init: function (spec) {
       if (!spec || !spec.file) throw new Error('CESTISPageCloud.init needs a file name');
       if (!core()) { try { console.warn('[PageCloud] cestis-core.js must load first'); } catch (e) {} return null; }
+      if (gateSession()) return null;
       var existing = API._pages.filter(function (p) { return p.spec.file === spec.file; })[0];
       if (existing) return existing;
       var pg = new Page(spec);
@@ -1185,6 +1198,7 @@
     /* Register the whole-store mirror. Safe to call repeatedly. */
     initWholeStore: function () {
       if (API._all) return API._all;
+      if (gateSession()) return null;
       var pg = new Page(ALL_SPEC);
       API._all = pg;
       API._pages.push(pg);
