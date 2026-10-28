@@ -300,7 +300,7 @@ const DESK = { viewport: { width: 1366, height: 768 } };
 
     await showAndWait(page, 'settings');
     const tabs = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll('#page-settings .tabs .tab'), t => { const r = t.getBoundingClientRect(); return r.right <= innerWidth && r.left >= 0 && r.height >= 44; }));
-    ok(tabs.length === 7 && tabs.every(Boolean), 'settings: all seven tabs are on screen and 44px tall (' + tabs.join(',') + ')');
+    ok(tabs.length === 8 && tabs.every(Boolean), 'settings: all eight tabs (Trainee Sign-in included) are on screen and 44px tall (' + tabs.join(',') + ')');
     await page.evaluate(() => { const t = Array.prototype.find.call(document.querySelectorAll('#page-settings .tab'), x => /User Accounts/.test(x.textContent)); t.click(); });
     await page.waitForTimeout(800);
     f = await tableFacts(page, '#umTableBody', 2);

@@ -37471,7 +37471,9 @@ async function autoSaveToAllFolders() {
 var GATE_STAFF_ROLES = { admin: 1, adminstaff: 1, instructor: 1 };
 var GATE_CONFIG_FILE = 'CESTIS_GATE.json';
 var GATE_FOLDER_MIME = 'application/vnd.google-apps.folder';
-var GATE_EXPECTED_VERSION = 1;
+// Must equal GATE_VERSION in trainee-gate/Gate.gs (tests/gate-card-ready.test.js checks it):
+// a gate older than this shows "A newer version is available" on the Settings card.
+var GATE_EXPECTED_VERSION = 2;
 var GATE_LIMITS = {
   gapMs: 500,                 // at most 2 writes a second
   perTick: 120,               // and 120 in one turn
