@@ -410,7 +410,7 @@
       /* One receipt applied to its entry: the change to make. now: ms. */
       settle: function (entry, receipt, now) {
         var act = receiptAction(receipt);
-        if (act === 'done') return backend.del(entry.id).then(function () { return act; });
+        if (act === 'done') return Promise.resolve(backend.del(entry.id)).then(function () { return act; });
         var e = copy(entry);
         e.last = receipt ? copy(receipt) : null;
         if (act === 'reseal') { e.state = 'revoked'; e.nextAt = 0; }
@@ -505,12 +505,12 @@
   function ls() { try { return root.localStorage; } catch (e) { return null; } }
   function lsGet(k) { var l = ls(); try { return l ? l.getItem(k) : null; } catch (e) { return null; } }
   function lsSet(k, v) { var l = ls(); try { if (l) { if (v == null) l.removeItem(k); else l.setItem(k, v); } return true; } catch (e) { return false; } }
-  function inNamespace() { var s = root.CESTISStore; return !!(s && s.namespace); }
   function store() { return cfg.store || root.CESTISStore || null; }
+  function inNamespace() { var s = store(); return !!(s && s.namespace); }
   function getOutbox() {
     if (outbox) return outbox;
-    var be = null;
-    try { if (root.indexedDB) be = idbBackend(); } catch (e) { be = null; }
+    var be = cfg.outboxBackend || null;
+    try { if (!be && root.indexedDB && typeof root.indexedDB.open === 'function') be = idbBackend(); } catch (e) { be = null; }
     outbox = makeOutbox(be || memoryBackend());
     return outbox;
   }
