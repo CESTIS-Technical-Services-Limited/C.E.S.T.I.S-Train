@@ -1396,3 +1396,135 @@ exams): the build 0.1–0.3 s, the longest stretch without a pause ~30 ms; 609 w
   here for the staff side only.
 - Requests a trainee withdraws arrive as `status:'cancelled'` and are shown; the delay in §15.5 (last
   point) applies to them as to any request made on a staff PC.
+
+## 16. Stage 4 as built — the trainee side
+
+The owner, during the build: *there is no lab computer at the moment — trainees sign in at home and
+sit their assessments there.* Signing in and sitting tests from home through the gate is therefore
+the main path; the lab-PC fallback (§16.6) is secondary.
+
+`cestis-gate-client.js` (new, `window.CESTISGate`, loaded `defer` by `index.html`, precached by
+`sw.js` through its script tag), the trainee block of `index.html` (after the staff block), small
+guards elsewhere in `index.html`, `cestis-page-cloud.js` (inert in a gate session) and one additive
+line in `Core.gate` (§16.5). Tests: `tests/gate-client.test.js` (Node, in `npm test`, against the
+real `PASTE-GATE.gs` in the simulated Apps Script runtime) and `tests/browser/gate-flows.js`
+(`npm run test:browser:gate`, the real `PASTE-GATE.gs` in `vm` over the same `FakeDrive` the staff PC
+writes through, plus the Offline System's own server for §16.7). With the gate off, nothing of this
+runs: no request, no new storage (`hasWork()` asks `indexedDB.databases()` without opening anything).
+
+### 16.1 Which gate, and the trainee card
+
+- `CESTISGate.base()`: on the Centre's own server (`CESTISPageCloud.lan()` and `GET /_cestis/gate`
+  answering `cestis-trainee-gate`) its `/_cestis/gate`, when its records are for staff only or the
+  settings turned the gate on; else the address from the trainees' link (`#gate=…`, https only, kept
+  in the device-only `cestisGateAddress` and taken out of the address bar); else
+  `systemSettings.traineeGate` when enabled. The `gate-off` file next to the page wins over all of
+  them, and a gate answering `off` gives today's sign-in.
+- The card (`gateTraineeDecide`, once a page load): usable without Sync Now; on a device holding none
+  of the Centre's records (`gate-trainee-only`) "Sync before signing in" is hidden; on the Centre's
+  network the email-account button is hidden (as are emailed codes, upload and `file.get`).
+- Sign-in: the PBKDF2 (or older) proof is worked out on the device with the page's own hashing; the
+  email account by its token (`auth.email`); two-step in its own dialog (authenticator, backup code,
+  an emailed code online only). "Signing in…", then — after `enter()` and the reload into the
+  namespace — "Getting your records…" the first time. Refusals use §9's words; `pending` opens today's
+  "Awaiting Approval" screen (without the programme/registration line, which the gate does not give).
+
+### 16.2 The namespace, and what the device keeps
+
+- `enter(session)` drops another account's namespace first (and refuses if it cannot), writes the
+  session into `g1::` keys and `cestisGateNs = g1`, re-seals that same trainee's revoked outbox
+  entries, and the page reloads into `CESTIS_KV__g1` / `g1::`.
+- `pull` (with the slice hash) and `applyPull`: read-only keys replaced; the trainee's own lists and
+  maps merged with what the device has not sent yet (`planApply`; base hashes in `cestisGateBase`), a
+  retired attempt winning, results the gate marked kept. `gateReloadMemory()` reads the accounts,
+  records, notices, support messages and chat back into the page.
+- In a gate session: no 5-second save, no Sync Now, no page-cloud pull or push (`cestis-page-cloud.js`
+  does nothing, on the Centre's network too), and no built-in login is seeded — not in the namespace
+  and not on a phone opened from the link. Dumps of each phone's storage hold no other trainee, no
+  password check, no two-step secret or backup code and no answer key (gate-flows §3 and §9).
+
+### 16.3 Sending: the watcher and the outbox
+
+- The watcher (`capture`, on every store write to a watched key, every 15 s while visible, on
+  visibility and `online`) diffs the trainee's own records against the base: an open attempt, a
+  submission, a request, a support message, the profile, own chat messages; read and cleared marks as
+  operations; never another trainee's record, a retired attempt or a picture's bytes.
+- Items are sealed (`HMAC(sessionKey, Core.gate.canon(item))`, WebCrypto) into `CESTIS_GATE_OUTBOX`
+  (IndexedDB, outside both namespaces). A newer unsent save of a record replaces the waiting one —
+  never a refused one, another trainee's or a submit. Delivery: one tab at a time (Web Lock
+  `cestis-gate-lane`), batches of 50, backoff 2 s → 5 min. Receipts: done → removed; `revoked` → kept
+  and sealed again at that trainee's next sign-in; `retry` → sent again; anything else stays, marked
+  refused, with why.
+- The top bar chip in a gate session: "Saved here — will be sent when you're back online (N waiting)".
+
+### 16.4 Tests through the gate
+
+- My Exams uses `Core.gate.sliceExamStatus` on the gate's clock (`serverTime` and the Centre's
+  offset). The paper is fetched once, online (`paper`, kept as `cestisGatePaper__<id>`); the attempt
+  is built with `Core.exams.attemptQuestionsFromPaper` and then runs offline. The deadline comes from
+  `paper.exam` + `centreUtcOffset` + `serverTime`, mapped onto the device clock at the start.
+  A second device continues the same attempt (`attempt.get`) with the same deadline.
+- Saves are sealed items; Submit queues a `submit` item and shows the gate's result at once when
+  online. Offline: "Your test is submitted here and will be sent to the office when you're back
+  online.", "Submitted — waiting to send" in My Exams, the attempt retired on the device. Review
+  through `review` (the right answers only once released, on the gate's clock).
+- The attempt's activity log (`Core.exams` activity: start/resume and device, pages and questions
+  reached and answered, the window left and come back to, the connection lost and back, the
+  submission — never an answer) is kept on the device exactly as on any other; a submission through
+  the gate notes how it was submitted and keeps the log in the retired record.
+
+### 16.5 The activity log end to end, and the invigilator board
+
+- `Core.gate.validateItem` (so the gate, its lanes and the staff collector, which checks lanes again)
+  keeps an attempt's `activity` as `Core.exams.activityOf`'s clean copy (additive, in `normAttempt`).
+  The lane merge, the gate's marking (`retireAttempt`) and the collector already merge and keep it.
+- The Exam Invigilator board on a staff PC collects what trainees sent every 20 s while it is open
+  (`gateCollectForBoard`, `INVIG_GATE_MS`) and at once on "Check now"; "last checked" is the last
+  collection, never "just now" when nothing was collected; each row says how old its copy is.
+- gate-flows §11: a trainee at home starts a test while the office has the board open; the board
+  shows him in progress on his page and question, "Left the test window 1×", and his timeline; then
+  "Submitted … by the trainee" and the whole timeline.
+
+### 16.6 Coursework, chat and the rest; sign-out; the lab PC
+
+- Coursework: each file through `upload` first (the allowed kinds, 5 MB), the submission naming it;
+  files opened through `file.get`. On the Centre's network, small files (≤ 350 KB in all) travel
+  inside the submission as they do there today; larger: "hand your work to your instructor".
+- Chat: the class rooms' history from `room.get` (every 45 s on the chat page, 2½ minutes elsewhere);
+  her messages sealed. Pictures are not sent through the gate (their bytes are stripped); trainee ↔
+  trainee direct messages are not in slices.
+- Notices read, profile edits, certificate/transcript requests (the embedded Transcript / Grades page
+  works in the same namespace), support messages: all sealed and collected as hers.
+- Sign-out: sends what it can; the session's token and key go at once; the namespace goes once
+  nothing of hers waits, otherwise it stays and the next load (signed in or not) sends it and then
+  clears it.
+- A device holding the Centre's records (a lab PC) may fall back to today's sign-in when the gate
+  cannot be reached (not with `traineeGate.strict`); its own storage is left byte for byte by a gate
+  session. A trainee's own device never falls back.
+
+### 16.7 The Centre's own server
+
+The same client against `/_cestis/gate` with "records for staff only" on: password sign-in, the
+test, exactly one result in the Centre's records, the phone given neither the records token nor any
+records file (gate-flows §9).
+
+### 16.8 Changes and deviations during build
+
+- Deadlines run on the device clock, mapped from the gate's `serverTime` at the start (the device's
+  own clock is never trusted for when the test opens or closes).
+- The support form stays on the sign-in page; in a gate session a message is sealed as hers.
+- The review keeps today's wording ("Correct answers will be shown here once the exam has closed.").
+  With no key on the device, a single choice is ticked or crossed by the question's own result.
+- On the Centre's network with staff-only on, a device that is not signed in as staff still shows
+  the page cloud's "Not synced … Reload this page" notice on the sign-in page (its pulls are refused
+  — today's Stage 6a behaviour), and its own storage gets today's three built-in first-run logins
+  (published defaults); nothing of the Centre's. Left for Stage 6.
+- The shared-computer mode (`sessionStorage` token) and `cestisDeviceKind` are not set here: Stage 5.
+
+### 16.9 For Stage 5
+
+- A namespace is kept while anything of that trainee waits; `CESTISGate.tidy()` (main namespace) clears
+  one left with nothing to send. `Core.gate.cleanupPlan` is not wired yet; `upgrade-no-data-loss.js`
+  passes unchanged.
+- `gateDeviceHoldsCentre()` reads `cestisDeviceKind === 'staff'` when Stage 5 sets it; until then it
+  looks for any account beyond the three built-in logins.
