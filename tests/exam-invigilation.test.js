@@ -349,6 +349,20 @@ console.log('\nThe page: the tick is off by default, and the page needs it');
   assert(box.AS_PAGE_PERMISSION['as-invigilator'] === 'invigilation', 'and the Admin Staff invigilator page is refused without it (showPage checks it)');
   assert(/function invigAllowed\(\)[\s\S]{0,400}CESTISCore\.invigilation\.canOpen\(currentRole/.test(PAGE), 'every role\'s page asks the one rule (CESTISCore.invigilation.canOpen)');
   assert(!/answers/.test(grab('function examLivePulseBody(', '\n}')), 'the live word a trainee\'s computer sends never names the answers');
+  // A browser that still holds an older copy of the shared code beside the new
+  // page records nothing new — and the test still starts and saves.
+  const fnSrc = name => { const i = PAGE.indexOf('function ' + name + '('); let d = 0; for (let j = PAGE.indexOf('{', i); j < PAGE.length; j++) { if (PAGE[j] === '{') d++; else if (PAGE[j] === '}' && !--d) return PAGE.slice(i, j + 1); } return ''; };
+  const old = { console, Object, JSON, Math, Date, Array, String, Number, examStampNow: () => 1793196000000, examLivePulse: () => {}, _isExamPreviewMode: false,
+    localStorage: { getItem: () => 'AB12', setItem: () => {} }, navigator: { userAgent: 'x' },
+    currentExamSession: { studentId: 'S1', examId: 'E1', activity: undefined } };
+  old.window = old;
+  old.CESTISCore = { exams: { mergeAttempt: () => null } };   // an older cestis-core.js: no activity rules
+  vm.createContext(old);
+  vm.runInContext(['examActivityReady', 'examDeviceCode', 'examDeviceLabel', 'examActivityEvent', 'examActivityNote', 'examActivityMark'].map(fnSrc).join('\n') + '\nvar _examEventSeq = 0;', old);
+  let threw = null;
+  try { vm.runInContext("examActivityNote('left', { why: 'hidden' }); examActivityMark('seen', 2);", old); } catch (e) { threw = e; }
+  assert(!threw && old.currentExamSession.activity === undefined, 'with an older copy of the shared code, noting a moment does nothing and throws nothing (' + threw + ')');
+  assert(/activity: examActivityReady\(\) \? CESTISCore\.exams\.activityNote\(/.test(PAGE), 'and a fresh attempt starts without activity rather than failing');
   assert(/<strong>Online Test Activity:<\/strong> While you sit an online test, the times you start it, open each page, first reach and first answer each question, leave and return to the test window, lose and regain your connection, and submit it are recorded/.test(PAGE) &&
     /Your answers are not part of this record\./.test(PAGE), 'the Privacy Policy says which test activity times are recorded, and that answers are not');
 }

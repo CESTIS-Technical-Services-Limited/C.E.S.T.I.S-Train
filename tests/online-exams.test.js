@@ -107,7 +107,7 @@ const PAGE_FNS = [
   'examResultFor', 'examPublishSoon', 'examPublishNow', 'examSaveOnLeaving', 'examPullBeforeStart', 'examCanAskCentre', 'examStartFresh',
   'examSaveDraftNow', 'examOpenAttemptsFor', 'examSubmitExpiredAttempts', 'examSubmittedHere', 'examAfterSignIn', 'examOutboxSendOnLan',
   // What the invigilator sees of the attempt (CESTISCore.exams activity).
-  'examDeviceCode', 'examDeviceLabel', 'examActivityEvent', 'examActivityNote', 'examActivityMark', 'examWindowLeft', 'examWindowBack',
+  'examActivityReady', 'examDeviceCode', 'examDeviceLabel', 'examActivityEvent', 'examActivityNote', 'examActivityMark', 'examWindowLeft', 'examWindowBack',
   'examPageSwitched', 'examNetBack', 'examActivityNetAtStart', 'examLiveWatched', 'examLiveTargets', 'examLivePulseBody', 'examLivePulse', 'examLivePulseDone'
 ];
 const PAGE_CODE = PAGE_FNS.map(n => extractFunction(SRC, n)).join('\n');

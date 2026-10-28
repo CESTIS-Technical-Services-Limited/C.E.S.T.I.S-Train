@@ -28038,6 +28038,12 @@ function examDeviceLabel() {
   var kind = /iPad|Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua)) ? 'Tablet' : (/Mobi|iPhone|Android/i.test(ua) ? 'Phone' : 'Computer');
   return kind + ' · ' + examDeviceCode();
 }
+// Whether this page's shared code knows the activity rules. A browser that
+// still holds an older copy of cestis-core.js beside this page simply records
+// nothing new: a trainee's test must never fail to start or save over it.
+function examActivityReady() {
+  return !!(window.CESTISCore && CESTISCore.exams && typeof CESTISCore.exams.activityNote === 'function' && typeof CESTISCore.exams.mergeActivity === 'function');
+}
 var _examEventSeq = 0;
 function examActivityEvent(k, extra) {
   var t = examStampNow();
@@ -28047,7 +28053,7 @@ function examActivityEvent(k, extra) {
 // return with its leaving).
 function examActivityNote(k, extra) {
   var s = currentExamSession;
-  if (!s || _isExamPreviewMode || !s.studentId) return null;
+  if (!s || _isExamPreviewMode || !s.studentId || !examActivityReady()) return null;
   var e = examActivityEvent(k, extra);
   s.activity = CESTISCore.exams.activityNote(s.activity, e);
   examLivePulse();
@@ -28057,7 +28063,7 @@ function examActivityNote(k, extra) {
 // answered ('first'). A later time never replaces it.
 function examActivityMark(field, i) {
   var s = currentExamSession;
-  if (!s || _isExamPreviewMode || !s.studentId || typeof i !== 'number' || i < 0) return;
+  if (!s || _isExamPreviewMode || !s.studentId || typeof i !== 'number' || i < 0 || !examActivityReady()) return;
   if (s.activity && Array.isArray(s.activity[field]) && s.activity[field][i]) return;
   s.activity = CESTISCore.exams.activityMark(s.activity, field, i, examStampNow());
   examLivePulse();
@@ -28235,7 +28241,7 @@ function examAdoptAttempt(rec, ids, where) {
   }
   s.answers = rec.answers.slice(); s.flagged = (rec.flagged || []).slice();
   s.answeredAt = (rec.answeredAt || []).slice(); s.flaggedAt = (rec.flaggedAt || []).slice();
-  if(rec.activity) s.activity = CESTISCore.exams.mergeActivity(s.activity, rec.activity, null, true);
+  if(rec.activity && examActivityReady()) s.activity = CESTISCore.exams.mergeActivity(s.activity, rec.activity, null, true);
   if (earlier) { s.deadline = Number(rec.deadline); s.timeRemaining = Math.max(0, Math.ceil((s.deadline - Date.now()) / 1000)); }
   if (changed) {
     s._note = where === 'window'
@@ -28330,9 +28336,9 @@ function examResumeDraft(d, ids) {
     allowFlag: d.allowFlag !== false, view: 'attempt',
     // What happened so far (an attempt saved before this has none: it starts
     // here, with the paper's shape).
-    activity: CESTISCore.exams.activityOf(d.activity) || { v: 1 }
+    activity: examActivityReady() ? (CESTISCore.exams.activityOf(d.activity) || { v: 1 }) : d.activity
   };
-  if (!currentExamSession.activity.lay) currentExamSession.activity.lay = CESTISCore.exams.activityLayout(d.questions, d.perPage);
+  if (examActivityReady() && !currentExamSession.activity.lay) currentExamSession.activity.lay = CESTISCore.exams.activityLayout(d.questions, d.perPage);
   if (Date.now() >= d.deadline) {
     submitExam(true, { away: true });
     return;
@@ -28600,7 +28606,7 @@ function examLivePulseBody(s) {
 }
 function examLivePulse(now) {
   var s = currentExamSession;
-  if (!s || _isExamPreviewMode || !s.studentId || typeof cestisRTBroadcast !== 'function' || typeof lmsChatRTReady === 'undefined' || !lmsChatRTReady) return;
+  if (!s || _isExamPreviewMode || !s.studentId || typeof cestisRTBroadcast !== 'function' || typeof lmsChatRTReady === 'undefined' || !lmsChatRTReady || !examActivityReady()) return;
   var to = examLiveTargets(s.examId);
   if (!to.length) return;
   // At most one every two seconds; the last change is never left unsent.
@@ -28614,7 +28620,7 @@ function examLivePulse(now) {
 }
 // The last pulse: submitted.
 function examLivePulseDone(s, result) {
-  if (!s || _isExamPreviewMode || typeof cestisRTBroadcast !== 'function' || typeof lmsChatRTReady === 'undefined' || !lmsChatRTReady) return;
+  if (!s || _isExamPreviewMode || typeof cestisRTBroadcast !== 'function' || typeof lmsChatRTReady === 'undefined' || !lmsChatRTReady || !examActivityReady()) return;
   var to = examLiveTargets(s.examId);
   if (!to.length) return;
   var p = examLivePulseBody(s);
@@ -28797,8 +28803,8 @@ function examStartFresh(e, me) {
     allowFlag: e.allowFlag !== false,
     view: 'attempt',
     // When it started and on which device, for the invigilator.
-    activity: CESTISCore.exams.activityNote({ v: 1, lay: CESTISCore.exams.activityLayout(questions, parseInt(e.questionsPerPage) || 0) },
-      examActivityEvent('start', { d: examDeviceLabel() }))
+    activity: examActivityReady() ? CESTISCore.exams.activityNote({ v: 1, lay: CESTISCore.exams.activityLayout(questions, parseInt(e.questionsPerPage) || 0) },
+      examActivityEvent('start', { d: examDeviceLabel() })) : undefined
   };
   examActivityNetAtStart();
   autoSaveExamProgress();
@@ -29342,7 +29348,7 @@ function examAnswerChanged(qIdx) {
   // When this answer changed: two copies of the attempt keep the newest.
   if(Array.isArray(s.answeredAt)) s.answeredAt[qIdx] = examStampNow();
   // ...and, for the invigilator, when it was first answered (not what).
-  if(CESTISCore.exams.hasAnswerValue(s.answers[qIdx])) examActivityMark('first', qIdx);
+  if(examActivityReady() && CESTISCore.exams.hasAnswerValue(s.answers[qIdx])) examActivityMark('first', qIdx);
   var st = document.getElementById('examQState-' + qIdx);
   if(st) st.textContent = examStateText(s.questions[qIdx], s.answers[qIdx]);
   if(s.current !== qIdx) examSetCurrent(qIdx); else examRefreshNavBox(qIdx);
@@ -29879,7 +29885,7 @@ var _INVIG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 var _INVIG_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function invigAllowed() {
-  return !!(window.CESTISCore && CESTISCore.invigilation && CESTISCore.invigilation.canOpen(currentRole, adminStaffAccessSettings));
+  return !!(window.CESTISCore && CESTISCore.invigilation && examActivityReady() && CESTISCore.invigilation.canOpen(currentRole, adminStaffAccessSettings));
 }
 function invigPageActive() {
   return !!document.querySelector('#page-invigilator.active, #page-i-invigilator.active, #page-as-invigilator.active');
