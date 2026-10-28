@@ -36583,6 +36583,9 @@ function gateWithLock(name, fn) {
 async function gateConfigLoad(drive) {
   var now = Date.now();
   if (_gateRun.cfg && now - _gateRun.cfgAt < GATE_LIMITS.configMs) return _gateRun.cfg;
+  // Not there yet (the address has not been checked once): looked for again
+  // a minute later, not at every 5-second save.
+  if (!_gateRun.cfg && _gateRun.cfgAt && now - _gateRun.cfgAt < 60 * 1000) return null;
   var cfg = await gateReadConfig(drive, GOOGLE_DRIVE_CONFIG.FOLDER_ID);
   _gateRun.cfgAt = now;
   _gateRun.cfgMissing = !cfg || !!cfg.tooNew;

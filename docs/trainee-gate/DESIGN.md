@@ -1190,3 +1190,153 @@ of the file, beside `Core.gate`, to keep merges clear of the modules they extend
   conversation is not in slices yet.
 - **Release.** `index.html`'s `instructorCourseMatch` now needs the new `cestis-core.js`; bump the
   `?v=` stamp of `cestis-core.js` and `cestis-page-cloud.js` (and `sw.js`'s list) when this is merged.
+
+---
+
+## 15. Stage 3 as built — the staff side (publish, collect, the card)
+
+All in `index.html` (one block after `autoSaveToAllFolders`, the card's functions beside it), the
+Settings fragment `Pages/Administration.html`, the request queue `Cert-Transcript-Requests.html`, and the
+broker's `OWN_FILES`. Tests: `tests/gate-publisher.test.js` (Node: the real page functions, one sandbox per
+"computer", all writing through `gateDriveApi`'s fetch to one `tests/browser/fake-drive.js`) and
+`tests/browser/gate-staff.js` (`npm run test:browser:gate-staff`).
+
+### 15.1 When it runs, and when it does not
+
+- `autoSaveToAllFolders` calls `gateStaffTick()` after a pull `pullAllowsUpload()` accepts, before the
+  "nothing new" shortcut, inside a `try` (nothing the gate does can stop the save). Its first act is
+  `gateStaffOn()`: `systemSettings.traineeGate.enabled === true` with an address, a staff role (admin,
+  admin staff, instructor), the Centre's sign-in, not wiped, not a gate namespace, not killed. Off ⇒ it
+  returns: no request, nothing written (pinned in both suites, with a request counter `_gateRun.drive`).
+  The one exception is an administrator's own **Turn off / Turn on** that could not reach the gate yet
+  (§15.5): retried beside the next saves until done, then nothing more.
+- `gatePublishTick()` and, at most once a minute, `gateCollectTick()` run on their own (not awaited), one
+  tab per PC (`navigator.locks`, `ifAvailable`). The administrator's PC also checks the address once a
+  day while the gate is on.
+- The site kill switch: a `gate-off` file next to `index.html` (like `sw-disable`) is looked for once a
+  page load, only when the gate is on; present ⇒ the staff side idles.
+
+### 15.2 Publish
+
+- **Where:** `CESTIS_GATE.json` beside the accounts list (the main folder; by name anywhere only when the
+  main folder has none); of several, the oldest (the gate's own rule). Re-read every 6 hours and after
+  every Check.
+- **What is published** is noted in `cestisGatePublished`:
+  `{v:1, device:'dev-…', files:{path:{id,h,s,parent,created,modified}}, folders:{acct:{id,name,created}},
+  dups:{id:{kind,acct|path,of,name,marked}}, remoteAt, inventoryAt, syncedAt, health}` with paths
+  `key:<examId>`, `paper:<examId>`, `slice:<acct>`, `room:<roomId>`. It is refreshed by **one listing**,
+  `appProperties has { key='cestisGate' and value='1' } and trashed = false` (+ `modifiedTime >` the last
+  look − 10 min), on the first turn of every page load and every 5 minutes after; the whole listing once
+  a day, or after a write found its file gone (404).
+- **Every file the publisher writes** carries `appProperties {cestisGate:'1', cestisKind, acct|examId|roomId,
+  h, s}` — folders too (`cestisKind:'folder', acct`), besides their description `cestis-trainee acct=… v=1`.
+  Names: `from-centre.json` (in the trainee's folder, named with their student ID), `key.<examId>.json`,
+  `paper.<examId>.json`, `room.<roomId>.json`.
+- **Build:** `gateBuild` = `prepare` + `sliceFor` per trainee with a `MessageChannel` pause every 25 (timers
+  are slowed in a background tab), then `buildPaper`/`buildKey` for every exam in someone's
+  `access.papers` and `buildRoom` for every room in someone's `access.rooms` (members: the room's own,
+  not removed, plus the trainees whose slice lists it) — the same hashes as `buildAll` (tested). The store
+  map is `GATE_STORE_KEYS` read through `CESTISStore` (tested to cover every key `Core.gate` reads).
+  `opts`: `findSkill: findSkillAreaForCourse`, `folds: cestisFoldedAccounts`, `builtBy`, `gateUrl`,
+  `inboxSeenUntil` (§15.3). It builds when the store's write count moved or the pull changed something
+  — **at most once a minute** — and at least every 10 minutes. `scrubbed > 0` is logged.
+- **Plan** (`gatePlan`, pure): keys → papers → (folder create / rename) + slices → rooms → duplicate marks,
+  each decided by `publishDecision` against the listing. A folder is made or renamed only alongside a
+  slice decision of `write` or `skip`, so a PC that is `behind` never renames a folder back.
+- **Write** (`gateRunQueue`): ≤ 120 a turn, ≥ 500 ms apart; update = `PATCH …/upload…?uploadType=multipart`
+  (content + `appProperties` in one write); create = multipart `POST`; folder = `POST files`; rename and
+  marks = metadata `PATCH`. 401/403/429/5xx or no connection stop the turn; a 404 forgets the file and
+  makes the next look a full one.
+- **Duplicates:** oldest `createdTime` to the millisecond, then the lower id (`gateOlder`, the gate's rule).
+  A younger folder gets ` duplicate-of=<id>` added to its description and `cestisGate:'dup'`; a younger
+  file of the same path is renamed `duplicate-of-<id>.<name>` with `cestisGate:'dup'`. Nothing is ever
+  deleted or binned; a younger folder's inbox files are still collected (the `dups` map, or the folder's
+  own description).
+- **`cestisGatePublishQueue`** holds the last turn's plan (op, path, kind, h, s — never content): the
+  card's "N waiting". Each turn rebuilds the plan from the build and the listing, so a reloaded tab
+  writes only what is still missing; the notes are saved after every write, and the first listing after
+  a reload catches a write whose note was lost (tested: nothing written twice, nothing doubled).
+- **This PC's notes** (`cestisGatePublished`, `…Queue`, `cestisGateCollected`, `cestisGateUnassigned`)
+  are written straight to `localStorage` (read through `CESTISStore`, which reads it first), so they
+  never count as a change to the Centre's records and never wake the 5-second save.
+
+### 15.3 Collect
+
+- One listing: `name contains 'CESTISINBOX' and trashed = false` (+ `modifiedTime >` mark − 10 min),
+  `orderBy=modifiedTime`, `pageSize=500`; only names starting `CESTISINBOX.` (lanes and result files);
+  files already read at this `version` are skipped. Files waiting for a decision, and files of a newer
+  format, are looked at again by id every 10 minutes (the mark has passed them).
+- Owner: the parent folder — a known trainee folder or duplicate, else its metadata (it must sit in
+  `Trainees/` and its description must start `cestis-trainee `). The gate's own folder (`_gate`, with its
+  live checks `CESTISSMOKE.name-check.json` and `smoke-description-check/`) and the root are never read.
+  A stray inbox file outside the trainees' folders is noted as read and ignored.
+- `Core.gate.collect` → `mergeBackupData({version:'1.0', data})`; `_mergeBackupFailed` ⇒ nothing is
+  noted and the mark stays (tested). Requests → `Core.Transcript.mergeRequestLists` into
+  `voctrain_certTranscriptRequests`. Ops → `Core.gate.applyOps` on the page's own arrays, then
+  `touchAccount` + `saveUserAccounts` for a spent backup code, `saveNotifications`, `saveState`.
+- `cestisGateCollected = {watermark, seen:{fileId:version}, byAcct:{acct:iso}, held:{fileId}, at}`;
+  `cestisGateUnassigned = {fileId:{file, accountId, studentId, reason, items, since}}`.
+- **`inboxSeenUntil`** in every slice = the collector's mark − 10 minutes (for every trainee account; `''`
+  until anything is collected), so the gate's pull reads only the inbox files since. It is outside the
+  slice hash, so a moving mark does not republish slices; a stale value only makes the gate read a few
+  more files, never fewer.
+
+### 15.4 The card (Settings → "Trainee Sign-in from Anywhere", administrator)
+
+Status line (`gateStatusText`): **Not set up** · **Ready — version N · M trainee accounts** (+ "A newer
+version is available" when the gate is older than `GATE_EXPECTED_VERSION`) · **Needs attention: …** (not
+checked yet; no answer; not the trainee sign-in; not finished; accounts list not found; the page is older
+than the gate; records could not be sent just now). The last check is kept in
+`cestisGatePublished.health`. Steps: *Copy the setup code* (fetches `trainee-gate/PASTE-GATE.gs`; "The setup
+code isn't available yet." when the site does not serve it), *Setup sheet* (`trainee-gate/SETUP.md`),
+*Address* + *Check* (saves the address in `systemSettings.traineeGate`, still off, then `?op=health`),
+*Turn on / Turn off* (Turn on needs a passing check of that address). When on: the trainees' sign-in link
+`<site>/index.html#gate=<base64url(address)>` — the site is "Public address of this site"
+(`certVerifyUrl`) when set, else this page's address — its QR code (the bundled `qrcode.js`, via
+`certMakeQrCanvas`), *Copy link*, *Print* (a page with the code, "Sign in on your own phone: scan this
+code." and the link). "Records sent to trainees: N min ago (K waiting)" and "Trainee work waiting for a
+decision: N" with whose and why. The office request queue shows a withdrawn request (`cancelled`) as
+"Withdrawn by the trainee", in its filter and its status menu.
+
+### 15.5 Changes during build
+
+- **Turn off / Turn on also tell the gate** (Stage 2's contract): Turn off writes `gate-off` in the gate's
+  folder (it stops answering trainees within a minute); Turn on bins it. Retried beside the next saves
+  when it cannot be done at once.
+- **The remote check lists every gate file** (`cestisGate='1'`, folders included), not only slices, so
+  keys, papers, rooms and folders made by another PC are seen in the same one query; and it runs on the
+  first turn after every page load (otherwise a reloaded PC could make a second copy of what it had just
+  written).
+- **Duplicate files**, not only folders, are settled by the same oldest rule (renamed, never deleted).
+- **The persisted queue holds references, not content** (300 slices would not fit in `localStorage`);
+  content is rebuilt on the first turn.
+- **Builds are at most one a minute** while records keep changing (an office typing would otherwise
+  rebuild every 5 s).
+- **`inboxSeenUntil`** is the collector's mark less its overlap, for every trainee, not each trainee's own
+  newest collected file (§15.3).
+- **A tie on the newest moment** (`publishDecision`'s `'keep'`) can hold an older copy when records change
+  without a newer stamp (a record learnt late with an old stamp; a deletion older than 120 days dropping
+  out). It settles at the next stamped edit and never ping-pongs (tested).
+- **Transcript requests** collected on a staff PC are in that PC's store at once and in the office queue
+  there; they reach the shared requests file when the Requests or Transcript/Grades page next syncs on a
+  staff PC (the dashboard itself has no page-cloud push for that key).
+
+### 15.6 Measured (headless Chromium on the build machine)
+
+Six trainees: from *Turn on* to everything sent, ~11 s. **300 generated trainees** (5 programmes, two
+exams): the build 0.1–0.3 s, the longest stretch without a pause ~30 ms; 609 writes in all (300 folders,
+300 records, 2 papers, 2 keys, 5 rooms) = 6 turns; the first turn 61 s for 120 writes at the real
+2-a-second pace, so about 5–6 minutes for a whole first publish; afterwards a turn with nothing new is a
+~0.1 s build and no write. An old office PC will build several times slower; the pauses keep it usable.
+
+### 15.7 For Stage 4
+
+- The browser suite's `fakeGate` only answers `health` and sets up folders and `CESTIS_GATE.json`; Stage 4's
+  fake-gate (the real `PASTE-GATE.gs` in `vm` over the same `FakeDrive`) can reuse `tests/browser/gate-staff.js`'s
+  `computer()` / `adminSignedIn()` to have a staff PC publish first. `FakeDrive` now models `appProperties`,
+  descriptions, `modifiedTime` filters, `multipart/related` uploads and an optional clock.
+- The trainee link is `index.html#gate=<base64url(address)>` (`Core.gate.b64url(Core.gate.utf8(url))`); the
+  trainee side parses it into `cestisGateAddress`. The `gate-off` file next to `index.html` is checked
+  here for the staff side only.
+- Requests a trainee withdraws arrive as `status:'cancelled'` and are shown; the delay in §15.5 (last
+  point) applies to them as to any request made on a staff PC.

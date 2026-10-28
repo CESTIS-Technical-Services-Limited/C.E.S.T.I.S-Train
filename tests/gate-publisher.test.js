@@ -282,6 +282,15 @@ function bigCentre(n) {
       assertEq(dev.sb._gateRun.drive, 0, label + ': the gate\'s request counter is still nought');
     }
     assert(JSON.stringify(drive.files) === before, 'and the shared files are exactly as they were');
+    // Turned on before the address made its folders (no CESTIS_GATE.json yet):
+    // looked for once, then again a minute later — not at every save.
+    {
+      const empty = new FakeDrive();
+      const early = computer('early', empty, C.asStrings, { settings: ON });
+      for (let i = 0; i < 4; i++) { await early.sb.gatePublishTick(); await early.sb.gateCollectTick(); }
+      const looks = early.requests.filter(r => /CESTIS_GATE/.test(decodeURIComponent(r.url)));
+      assert(looks.length >= 1 && looks.length <= 2 && early.writes().length === 0 && early.sb._gateRun.cfgMissing, 'on before the setup is finished: ' + looks.length + ' look(s) for its note in eight turns, nothing written, the card says so');
+    }
     // Where it is called from: beside the 5-second save, after a pull that
     // could be read, and its first act is the off check.
     const autosave = extractFunction(SRC, 'autoSaveToAllFolders');
