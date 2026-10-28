@@ -325,7 +325,7 @@ PAGES.forEach(function (page) {
   vm.createContext(sb2);
   vm.runInContext(extractFunction(src, 'certDownloadAllowed', w), sb2);
   let v = vm.runInContext("certDownloadAllowed({ id: 'STU-1', certNo: 'PH-1' })", sb2);
-  assert(v.allowed === false && /Sync with the cloud first/.test(v.reason), w + ': approved but not synced — greyed out, and it says why');
+  assert(v.allowed === false && /Sync first/.test(v.reason) && !/cloud/i.test(v.reason), w + ': approved but not synced — greyed out, and it says why');
   sb2._synced = true;
   v = vm.runInContext("certDownloadAllowed({ id: 'STU-1', certNo: 'PH-1' })", sb2);
   assert(v.allowed === true, w + ': approved and synced — allowed');
@@ -356,7 +356,7 @@ function numbersHarness(page, roll, approvals) {
     CESTISCore: page.core, students: JSON.parse(JSON.stringify(roll)), certDownloadApprovals: JSON.parse(JSON.stringify(approvals || [])),
     saved: 0, saveState: function () { sb.saved++; } };
   vm.createContext(sb);
-  vm.runInContext(['certNumberKey', 'certNumberPrefix', 'certRememberAlias', 'certPreviousNumber', 'certStudentHasNumber', 'certMergeNumberAliases', '_certApprovalOf', 'certApprovedNumber',
+  vm.runInContext(['_certApprovalList', '_certRoll', 'certNumberKey', 'certNumberPrefix', 'certRememberAlias', 'certPreviousNumber', 'certStudentHasNumber', 'certMergeNumberAliases', '_certApprovalOf', 'certApprovedNumber',
     'certAlignNumberWithApproval', 'certResolveNumber', 'certNumberSeed', 'generateUniqueCertNo', 'backfillCertificateNumbers', 'reconcileCertifiedFromApprovals']
     .map(function (n) { return extractFunction(src, n, w); }).join('\n'), sb);
   return sb;
@@ -371,7 +371,9 @@ PAGES.forEach(function (page) {
   vm.runInContext('backfillCertificateNumbers()', d1); vm.runInContext('backfillCertificateNumbers()', d2);
   const n1 = d1.students.map(function (s) { return s.id + '=' + s.certNo; }).sort().join(' '), n2 = d2.students.map(function (s) { return s.id + '=' + s.certNo; }).sort().join(' ');
   assertEq(n1, n2, w + ': two devices derive identical numbers for the same trainees');
-  assert(/^PH-2026-\d{4}$/.test(d1.students[0].certNo), w + ': the number is PREFIX-YEAR-NNNN from the course initials and the certificate year: ' + d1.students[0].certNo);
+  // PREFIX-YEAR-NNNN-XX since certs-06: four digits alone (9000 numbers) gave
+  // two trainees of one cohort the same number about one time in five.
+  assert(/^PH-2026-\d{4}-[A-HJ-NP-Z]{2}$/.test(d1.students[0].certNo), w + ': the number is PREFIX-YEAR-NNNN-XX from the course initials and the certificate year: ' + d1.students[0].certNo);
   assert(d1.students[0].certNo !== d1.students[1].certNo, w + ': two trainees get two numbers');
   assertEq(vm.runInContext("generateUniqueCertNo('PH', students[0])", d1), d1.students[0].certNo, w + ': re-deriving a trainee\'s number gives the same number back');
   assertEq(vm.runInContext("certNumberPrefix('02. Electrical Installation')", d1), 'EL', w + ': an intake key never becomes the prefix');
@@ -410,7 +412,7 @@ PAGES.forEach(function (page) {
   assertEq(JSON.stringify(mergedLater.certNoAliases), JSON.stringify(['PH-2026-2222']), w + ': with the later copy\'s number as an alias');
 
   // Every path that could disagree now agrees.
-  assert(extractFunction(src, 'updateStudentStage', w).indexOf('generateUniqueCertNo(certNumberPrefix(students[idx].course), students[idx])') !== -1, w + ': Update Stage derives the number from the trainee');
+  assert(extractFunction(src, 'updateStudentStage', w).indexOf('CESTISCore.certs.applyStage(students[idx], newStage') !== -1, w + ': Update Stage issues through the one shared rule, which derives the number from the trainee');
   assert(extractFunction(src, '_generateCertPDFInner', w).indexOf('certAlignNumberWithApproval(student, approval)') !== -1, w + ': the PDF records the printed number on the approval');
   assert(extractFunction(src, 'mergeBackupData', w).indexOf('certMergeNumberAliases(localMatch, cloudStudent)') !== -1, w + ': the cloud merge keeps displaced numbers');
   assert(extractFunction(src, 'fetchCertDataFromDrive', w).indexOf('certMergeNumberAliases(existing, cloudStudent)') !== -1, w + ': so does the certificate lookup\'s pull');
@@ -425,8 +427,10 @@ console.log('A certificate number, once issued, never changes');
 PAGES.forEach(function (page) {
   const w = page.where, src = page.src;
   const us = extractFunction(src, 'updateStudentStage', w);
-  assert(us.indexOf('if(!students[idx].certNo)students[idx].certNo=certPreviousNumber(students[idx])||certApprovedNumber(students[idx])||generateUniqueCertNo(') !== -1, w + ': Update Stage never re-mints a number a trainee already has, and reuses a withdrawn one');
-  assert(us.indexOf('if(!students[idx].certDate)students[idx].certDate=') !== -1, w + ': nor re-dates a certificate');
+  // The rule itself (never re-mint, never re-date, reuse a withdrawn number)
+  // lives in CESTISCore.certs.applyStage and is pinned by tests/cert-issuance.test.js;
+  // here: the dashboard's Update Stage goes through it.
+  assert(us.indexOf('CESTISCore.certs.applyStage(students[idx], newStage, { roll: students, approvals: certDownloadApprovals') !== -1, w + ': Update Stage never re-mints a number a trainee already has, and reuses a withdrawn one (the shared rule)');
   assert(count(extractFunction(src, 'mergeBackupData', w), "if (field === 'certNo' && localMatch.certNo) return;") === 1
       && count(extractFunction(src, 'mergeFromCloud', w), "if (field === 'certNo' && localMatch.certNo) return;") === 1, w + ': no cloud merge overwrites a number this device holds');
   assert(extractFunction(src, 'fetchCertDataFromDrive', w).indexOf('if (cloudStudent.certNo && !existing.certNo) existing.certNo = cloudStudent.certNo;') !== -1, w + ': nor does the certificate lookup\'s pull');
@@ -445,10 +449,12 @@ PAGES.forEach(function (page) {
 
   // Withdrawn, then re-certified: the same number comes back.
   const sb2 = numbersHarness(page, [Object.assign({}, DW, { certNo: 'PH-2026-4242' })], [{ studentId: 'STU-a', certNo: 'PH-2026-4242', approved: true }]);
-  vm.runInContext(extractFunction(src, 'clearStudentCertification', w) + '\nclearStudentCertification(students[0]); students[0].stage = "certified";', sb2);
+  vm.runInContext(extractFunction(src, 'certActorName', w) + '\n' + extractFunction(src, 'clearStudentCertification', w) + '\nclearStudentCertification(students[0]); students[0].stage = "certified";', sb2);
   assert(sb2.students[0].certNo === null && sb2.students[0].certNoAliases.indexOf('PH-2026-4242') !== -1, w + ': withdrawing keeps the number on record');
   assertEq(sb2.certDownloadApprovals[0].approved, false, w + ': and the download approval is switched off');
-  vm.runInContext('backfillCertificateNumbers()', sb2);
+  // Re-certified the way the Centre does it (Update Stage's shared rule): a
+  // bare stage written over a withdrawn record is a stale copy, not a decision.
+  vm.runInContext('CESTISCore.certs.applyStage(students[0], "certified", { roll: students, approvals: certDownloadApprovals }); backfillCertificateNumbers()', sb2);
   assertEq(sb2.students[0].certNo, 'PH-2026-4242', w + ': re-certified, the trainee gets the same number back');
 
   // The same-name collapse in cestis-core keeps the loser\'s number too.

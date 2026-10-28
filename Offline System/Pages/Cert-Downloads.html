@@ -65,10 +65,18 @@
   </div>
   <div id="certDlStudentList"></div>
 </div>
+
+<!-- Certificate signing: verification by employers with no sign-in -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><h3>Certificate Signing (Public Verification)</h3></div>
+  <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">A signed certificate's QR code carries its number, holder, programme and date together with the Centre's digital signature, so an employer can confirm it on their own phone with no sign-in and no access to the Centre's records.
+  The private key never leaves this device; its public half is published in <strong>cert-keys.json</strong> on the website. Withdrawn certificates that were signed are listed there too.</p>
+  <div id="certSigningPanel"></div>
+</div>
 <div class="card">
   <div class="card-header"><h3>Download Activity Log</h3></div>
   <div class="table-wrapper">
-    <table>
+    <table class="tbl-phone">
       <thead><tr><th>Student</th><th>Certificate No.</th><th>Programme</th><th>Downloads</th><th>Last Downloaded</th><th>Approved By</th></tr></thead>
       <tbody id="certDlLogBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">No download activity yet</td></tr></tbody>
     </table>

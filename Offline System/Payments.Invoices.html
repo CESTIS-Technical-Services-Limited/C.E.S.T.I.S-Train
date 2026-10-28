@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261028e"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C.E.S.T.I.S — Payments / Invoices</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap"></noscript>
@@ -27,11 +27,16 @@
 .hub-card .go { position:absolute; top:22px; right:20px; color:var(--gold); font-size:1.1rem; }
 .hub-note { max-width:1100px; margin:26px auto 0; }
 </style>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261028d">
 </head>
 <body>
 
 <div class="hub-hero">
   <h1>💳 Payments / Invoices</h1>
+  <div style="margin-top:10px;"><span data-cestis-sync-chip></span></div>
   <p>The financial documents centre for CESTIS – Hazard STC: generate payment vouchers straight from the Cashbook, and prepare invoices, quotes and purchase orders for the school.</p>
 </div>
 
@@ -71,7 +76,7 @@
   <div style="font-size:.83rem;color:var(--text-dim);line-height:1.7;">
     <b style="color:var(--text);">Cashbook → Payment Vouchers.</b> Enter transactions on the Cashbook page as usual; every payment automatically gets a voucher here. A transaction <i>with</i> a cheque number produces a <b>Cheque Payment Voucher</b>; one <i>without</i> a cheque number is treated as a bank transfer and produces a <b>Bank Transfer Voucher</b>. Deposits and cancelled cheques are skipped.<br>
     <b style="color:var(--text);">Quote → Invoice.</b> When a client accepts a quote, open it and press “Convert to Invoice”.<br>
-    All documents are numbered automatically, saved on this device (and included in cloud backups of browser data), and print on letter/A4 paper ready for signatures and the office stamp.
+    All documents are numbered automatically, saved on this computer (and included in the Centre’s backups), and print on letter/A4 paper ready for signatures and the office stamp.
   </div>
 </div>
 
@@ -103,13 +108,24 @@
     document.getElementById('cPOs').innerHTML = '<b>' + count('cestis_finance_pos') + '</b> saved';
     document.getElementById('cVouchers').innerHTML = '<b>' + latestQuarterVouchers() + '</b> this quarter';
   }
-  refresh();
-  if (store.whenReady) store.whenReady(refresh);
+  /* Who may open this page. It had no sign-in and showed the Centre's books to
+     whoever typed its address — a trainee at a lab PC included. It opens only
+     for the signed-in dashboard (an Administrator or Admin Staff: embedded, or
+     signed in on this computer — CESTISCore.sessionAccess.guard); anyone
+     else sees "sign in first" and nothing of the page runs. */
+  var SA = window.CESTISCore && CESTISCore.sessionAccess;
+  if (!SA || !SA.guard) return;
+  SA.guard({ allowed: ['admin', 'adminstaff'] }, function (viewer) {
+    if (!viewer.ok) { SA.lockPage(viewer.message); return; }
+    refresh();
+    if (store.whenReady) store.whenReady(refresh);
+  });
 })();
 </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261028e"></script>
+<script src="cestis-sync-chip.js?v=20261028d"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Payments / Invoices',

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261028e"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CESTIS - Staff Time Tracking System</title>
     <style>
@@ -35,7 +35,7 @@
             --bg-dashboard: linear-gradient(180deg, #ecfeff 0%, #f0fdfa 50%, #f5f3ff 100%);
             --text-primary: #134e4a;
             --text-secondary: #5b7a78;
-            --text-muted: #94a3b8;
+            --text-muted: #617084;   /* 4.6:1 on the lightest panel (was #94a3b8, 2.6:1 on white) */
             --border-color: #99f6e4;
             --border-light: #ccfbf1;
             --danger: #ef4444;
@@ -85,7 +85,7 @@
             --bg-dashboard: linear-gradient(180deg, #0f172a 0%, #1a1a2e 50%, #16213e 100%);
             --text-primary: #e2e8f0;
             --text-secondary: #94a3b8;
-            --text-muted: #64748b;
+            --text-muted: #8b9bb0;   /* 5.2:1 on a dark card (was #64748b, 3.1:1) */
             --border-color: #334155;
             --border-light: #1e293b;
             --soft-blue: #1e3a5f;
@@ -1709,7 +1709,16 @@
         .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;border-radius:12px;transition:all var(--transition-normal)}
         .btn-ghost:hover{background:var(--bg-tertiary);color:var(--text-primary)}
 
-    </style>
+    
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:0.6rem"], [style*="font-size: 0.6rem"], [style*="font-size:0.7rem"], [style*="font-size: 0.7rem"] { font-size:12px !important; }
+}
+</style>
     <!-- Google Identity Services -->
     <script>
 /* ============================================================================
@@ -1843,6 +1852,10 @@
             }
         })();
     </script>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261028d">
 </head>
 <body>
     <!-- Main Dashboard -->
@@ -1865,35 +1878,38 @@
                     <div style="display: flex; align-items: center; gap: 1rem;">
                         <span id="currentUserDisplay" style="font-weight: 600; color: var(--primary-blue);"></span>
 
+                        <!-- Saved / waiting / offline: cestis-sync-chip.js -->
+                        <span data-cestis-sync-chip></span>
+
                         <!-- Cloud Sync Controls -->
                         <div class="cloud-sync-container" id="cloudSyncContainer">
                             <div class="cloud-status" id="cloudStatus">
                                 <span class="cloud-status-dot" id="cloudStatusDot"></span>
-                                <span id="cloudStatusText">Not connected</span>
+                                <span id="cloudStatusText">Not synced yet</span>
                             </div>
 
                             <div id="cloudNotConnected">
                                 <button class="cloud-sync-btn connect-btn" onclick="connectToGoogleDrive()">
-                                    <span>☁️</span>
-                                    <span>Connect Drive</span>
+                                    <span>🔄</span>
+                                    <span>Turn On Sync</span>
                                 </button>
                             </div>
 
                             <div id="cloudConnected" style="display: none;">
                                 <div class="cloud-dropdown">
                                     <button class="cloud-sync-btn" onclick="toggleCloudMenu()">
-                                        <span id="cloudMenuIcon">☁️</span>
-                                        <span>Cloud</span>
+                                        <span id="cloudMenuIcon">🔄</span>
+                                        <span>Sync</span>
                                         <span style="font-size: 0.6rem;">▼</span>
                                     </button>
                                     <div class="cloud-dropdown-content" id="cloudDropdownMenu">
                                         <div class="cloud-dropdown-item" onclick="mergeToCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;">
                                             <span>🔀</span>
-                                            <span>Merge to Cloud</span>
+                                            <span>Merge & Send My Changes</span>
                                         </div>
                                         <div class="cloud-dropdown-item" onclick="syncFromCloud()">
                                             <span>🔄</span>
-                                            <span>Sync from Cloud</span>
+                                            <span>Get Latest Changes</span>
                                         </div>
                                         <div class="cloud-dropdown-divider"></div>
                                         <div class="cloud-dropdown-item" onclick="browseBackupFiles()">
@@ -2497,13 +2513,13 @@
     <div id="smartMergeModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center;">
         <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-secondary); border-radius: 24px; box-shadow: var(--shadow-xl); animation: slideUp 0.3s ease;">
             <div class="modal-header" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="color: white; margin: 0; font-weight: 700;">🔀 Smart Merge to Cloud</h2>
+                <h2 style="color: white; margin: 0; font-weight: 700;">🔀 Smart Merge & Send</h2>
                 <button class="close-btn" onclick="closeSmartMergeModal()" style="color: white; background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
             </div>
             <div style="padding: 1.5rem; overflow-y: auto; flex: 1;">
                 <div id="smartMergeLoading" style="text-align: center; padding: 2rem;">
                     <div style="font-size: 2rem; margin-bottom: 1rem;">🔄</div>
-                    <p>Analyzing cloud data and detecting changes...</p>
+                    <p>Comparing the shared data and detecting changes...</p>
                 </div>
                 <div id="smartMergeContent" style="display: none;">
                     <!-- Summary Section -->
@@ -2668,10 +2684,10 @@
                         var fd = await fr.json();
                         var recs = (fd && fd.data && Array.isArray(fd.data.timeRecords)) ? fd.data.timeRecords : [];
                         staffCount++;
-                        for (var j = 0; j < recs.length; j++) {
-                            var r = recs[j];
-                            if (!timeRecords.find(function(x){ return x.id === r.id; })) { timeRecords.push(r); newRecords++; }
-                        }
+                        // Merged like every other path: a session an administrator
+                        // deleted is not brought back from its owner's file.
+                        var _res = ttApplyCloudSlice({ timeRecords: recs, deletedTimeRecordIds: fd.data && fd.data.deletedTimeRecordIds }, { timeRecords: true });
+                        if (_res) newRecords += _res.added;
                     } catch (e) {}
                 }
                 saveTimeRecords();
@@ -2737,13 +2753,13 @@
                 notConnectedDiv.style.display = 'none';
                 connectedDiv.style.display = 'block';
                 statusDot.className = 'cloud-status-dot connected';
-                statusText.textContent = 'Connected';
+                statusText.textContent = 'Up to date';
                 cloudAuthExpiredNotified = false;
             } else {
                 notConnectedDiv.style.display = 'block';
                 connectedDiv.style.display = 'none';
                 statusDot.className = 'cloud-status-dot';
-                statusText.textContent = 'Not connected';
+                statusText.textContent = 'Not synced yet';
             }
         }
 
@@ -2759,8 +2775,8 @@
                 menuIcon.innerHTML = '<span class="spinning">🔄</span>';
             } else {
                 statusDot.className = 'cloud-status-dot connected';
-                statusText.textContent = 'Connected';
-                menuIcon.textContent = '☁️';
+                statusText.textContent = 'Up to date';
+                menuIcon.textContent = '🔄';
             }
         }
 
@@ -2809,12 +2825,12 @@
                 <div id="googleAuthModal" class="modal" style="display: flex;">
                     <div class="modal-content" style="max-width: 560px;">
                         <div class="modal-header">
-                            <h2>☁️ Connect to Google Drive</h2>
+                            <h2>🔄 Connect the Centre’s Account</h2>
                             <button class="close-btn" onclick="closeGoogleAuthModal()">×</button>
                         </div>
                         <div style="padding: var(--space-6);">
                             <p style="margin-bottom: var(--space-5); color: var(--text-secondary);">
-                                Connect to Google Drive to save and sync your time tracking data across devices. Choose your preferred connection method:
+                                Connect the Centre’s account to sync your time tracking data across devices. Choose your preferred connection method:
                             </p>
 
                             <!-- Option 1: Direct Google Sign-In (Recommended) -->
@@ -2822,15 +2838,15 @@
                                 <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3);">
                                     <span style="font-size: 1.5rem;">🔐</span>
                                     <div>
-                                        <strong style="color: var(--success); font-size: 1.1rem;">Direct Google Sign-In</strong>
+                                        <strong style="color: var(--success); font-size: 1.1rem;">Direct Sign-In</strong>
                                         <span style="background: var(--success); color: white; padding: 2px 8px; border-radius: var(--radius-sm); font-size: 0.7rem; margin-left: var(--space-2); font-weight: 600;">RECOMMENDED</span>
                                     </div>
                                 </div>
                                 <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: var(--space-4);">
-                                    A Google popup will appear for you to sign in with your Google account directly.
+                                    A sign-in window will open for you to sign in with the Centre’s account directly.
                                 </p>
                                 <button class="btn btn-success" onclick="triggerDirectGoogleSignIn()" style="width: 100%; padding: var(--space-3);">
-                                    Sign in with Google
+                                    Sign In to Connect
                                 </button>
                             </div>
 
@@ -2852,10 +2868,10 @@
                                     <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4);">
                                         <strong style="color: var(--info);">How to get your access token:</strong>
                                         <ol style="margin-top: var(--space-2); margin-left: var(--space-4); color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6;">
-                                            <li>Click the link below to open Google OAuth Playground</li>
-                                            <li>In Step 1, find and select <strong>"Drive API v3"</strong> → check <strong>"../auth/drive"</strong> (full access to shared files)</li>
+                                            <li>Click the button below to open the OAuth Playground</li>
+                                            <li>In Step 1, type this permission into the box under the list: <strong style="word-break:break-all;">https://www.googleapis.com/auth/drive</strong> (full access to shared files)</li>
                                             <li>Click <strong>"Authorize APIs"</strong> (blue button)</li>
-                                            <li>Sign in with your Google account</li>
+                                            <li>Sign in with the Centre’s account</li>
                                             <li>In Step 2, click <strong>"Exchange authorization code for tokens"</strong></li>
                                             <li>Copy the <strong>"Access token"</strong> value and paste below</li>
                                         </ol>
@@ -2871,7 +2887,7 @@
                                     </div>
 
                                     <button class="btn btn-success" onclick="submitGoogleToken()" style="width: 100%;">
-                                        ☁️ Connect with Token
+                                        🔄 Connect with Token
                                     </button>
                                 </div>
                             </div>
@@ -2898,7 +2914,7 @@
                     if (googleTokenClient) {
                         googleTokenClient.requestAccessToken();
                     } else {
-                        alert('Google Sign-In popup is not available. Please use the manual token method.');
+                        alert('The sign-in window is not available. Please use the manual token method.');
                         showGoogleAuthModal();
                         // Auto-expand the manual form
                         setTimeout(() => showManualTokenForm(), 100);
@@ -3002,13 +3018,13 @@
                 // User closed the popup, don't show error
                 return;
             }
-            alert('Failed to authenticate with Google. Please try the manual token method.');
+            alert('Could not sign in. Please try the manual token method.');
             showGoogleAuthModal();
         }
 
         // Disconnect from Google Drive
         function disconnectFromGoogleDrive() {
-            if (confirm('Are you sure you want to disconnect from Google Drive? Your local data will remain intact.')) {
+            if (confirm('Turn off sync on this computer? Your work stays on this computer.')) {
                 googleAccessToken = null;
                 isCloudConnected = false;
                 cloudFileId = null;
@@ -3020,7 +3036,7 @@
                 updateCloudUI(false);
                 toggleCloudMenu();
 
-                alert('✅ Disconnected from Google Drive');
+                alert('✅ Sync turned off on this computer');
             }
         }
 
@@ -3061,7 +3077,7 @@
         async function saveToCloud() {
             await resolveUserFileId();
             if (!isCloudConnected || !googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -3071,8 +3087,8 @@
             // Check for changes by others before saving
             const cloudInfo = await checkCloudForChanges();
 
-            let confirmMessage = '⚠️ MULTI-USER CLOUD SYNC\n\n';
-            confirmMessage += 'You are about to save to a shared cloud backup.\n\n';
+            let confirmMessage = '⚠️ MULTI-USER SYNC\n\n';
+            confirmMessage += 'You are about to replace the shared copy that everyone syncs from.\n\n';
 
             if (cloudInfo && cloudInfo.savedBy) {
                 const cloudTime = new Date(cloudInfo.timestamp);
@@ -3084,13 +3100,13 @@
                 if (hasConflict && cloudInfo.savedBy !== (currentUser ? currentUser.fullName : '')) {
                     confirmMessage += `⚠️ WARNING: ${cloudInfo.savedBy} saved changes ${timeSinceLastSave}!\n`;
                     confirmMessage += `Your local data may not include their changes.\n\n`;
-                    confirmMessage += `💡 Recommendation: Click Cancel, then "Sync from Cloud" first.\n\n`;
+                    confirmMessage += `💡 Recommendation: Click Cancel, then "Get Latest Changes" first.\n\n`;
                 } else {
                     confirmMessage += `Last saved by: ${cloudInfo.savedBy} (${timeSinceLastSave})\n\n`;
                 }
             }
 
-            confirmMessage += 'This will overwrite the cloud backup. Continue?';
+            confirmMessage += 'This will replace the shared copy. Continue?';
 
             if (!confirm(confirmMessage)) {
                 return;
@@ -3184,10 +3200,10 @@
                 setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('❌ Your session has expired. Please reconnect to Google Drive.');
+                    alert('❌ Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
-                    alert(`❌ Failed to save to cloud: ${error.message}`);
+                    alert(`❌ Could not sync: ${error.message}`);
                 }
             }
         }
@@ -3195,7 +3211,7 @@
         // Sync (download) data from Google Drive
         async function syncFromCloud() {
             if (!isCloudConnected || !googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -3208,11 +3224,11 @@
             }
 
             if (!cloudFileId) {
-                alert('📁 No backup file found in Google Drive. Save your data first to create a backup.');
+                alert('📁 No shared copy yet. Save your data first to create one.');
                 return;
             }
 
-            if (!confirm('⚠️ This will replace your local data with the cloud backup. Are you sure you want to continue?')) {
+            if (!confirm('⚠️ This will replace the data on this computer with the shared copy. Are you sure you want to continue?')) {
                 return;
             }
 
@@ -3241,22 +3257,9 @@
                 }
 
                 // Restore data (using this app's data structure)
-                if (backupData.data.staffMembers) {
-                    staffMembers = backupData.data.staffMembers;
-                    saveStaffMembers();
-                }
-
-                if (backupData.data.timeRecords) {
-                    // Preserve current user's active session if one exists
-                    if (currentSession && currentSession.status !== 'completed') {
-                        const cloudRecords = backupData.data.timeRecords.filter(r => r.id !== currentSession.id);
-                        timeRecords = cloudRecords;
-                        timeRecords.push(currentSession);
-                    } else {
-                        timeRecords = backupData.data.timeRecords;
-                    }
-                    saveTimeRecords();
-                }
+                // A per-user file is a one-person slice: merge it, never assign it
+                // over the whole staff list and everybody's hours (ttApplyCloudSlice).
+                ttApplyCloudSlice(backupData.data);
 
                 // Update last sync time
                 lastSyncTime = new Date();
@@ -3282,17 +3285,17 @@
 
                 const backupTime = new Date(backupData.timestamp).toLocaleString();
                 const savedByInfo = backupData.savedBy ? `\nLast saved by: ${backupData.savedBy}` : '';
-                alert(`✅ Data synced from cloud successfully!\n\nBackup was created: ${backupTime}${savedByInfo}`);
+                alert(`✅ Data synced successfully!\n\nBackup was created: ${backupTime}${savedByInfo}`);
 
             } catch (error) {
                 console.error('Error syncing from cloud:', error);
                 setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('❌ Your session has expired. Please reconnect to Google Drive.');
+                    alert('❌ Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
-                    alert(`❌ Failed to sync from cloud: ${error.message}`);
+                    alert(`❌ Could not sync: ${error.message}`);
                 }
             }
         }
@@ -3348,7 +3351,7 @@
                         </div>
                         <div style="padding: var(--space-6);">
                             <p style="margin-bottom: var(--space-4); color: var(--text-secondary); text-align: center;">
-                                Your data has been saved to Google Drive.
+                                Your data has been saved and synced.
                             </p>
 
                             <div style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4);">
@@ -3367,7 +3370,7 @@
                             </div>
 
                             <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; margin-bottom: var(--space-4);">
-                                💡 Let other users know to sync from cloud to get your changes.
+                                💡 Let other users know to sync to get your changes.
                             </p>
 
                             <div style="display: flex; flex-direction: column; gap: var(--space-3);">
@@ -3402,7 +3405,7 @@
         // Main function to initiate merge to cloud
         async function mergeToCloud() {
             if (!isCloudConnected || !googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -3472,10 +3475,10 @@
                 closeSmartMergeModal();
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
-                    alert(`Failed to load cloud data: ${error.message}`);
+                    alert(`Could not load the shared data: ${error.message}`);
                 }
             }
         }
@@ -3572,6 +3575,16 @@
         }
 
         // Display merge analysis in the modal
+        // Names, dates and "saved by" in a backup come from whichever device
+        // wrote it, and were drawn into this page as markup; they are text.
+        // (The shared escaper, CESTISCore.html.esc, with a fallback for a stale
+        // cached core.)
+        function escapeHtml(s) {
+            if (window.CESTISCore && CESTISCore.html) return CESTISCore.html.esc(s);
+            return String(s == null ? '' : s).replace(/[&<>"'`]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' })[c]);
+        }
+        function escapeAttr(s) { return escapeHtml(s); }
+
         function displayMergeAnalysis(analysis, cloudData) {
             document.getElementById('smartMergeLoading').style.display = 'none';
             document.getElementById('smartMergeContent').style.display = 'block';
@@ -3595,9 +3608,9 @@
             let summaryHtml = `
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
                     <div style="text-align: center; padding: 1rem; background: var(--bg-card); border-radius: 0.5rem;">
-                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Cloud Backup</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Shared Copy</div>
                         <div style="font-size: 0.9rem; margin-top: 0.25rem;">${cloudTime}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-secondary);">by ${savedBy}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">by ${escapeHtml(savedBy)}</div>
                     </div>
                     <div style="text-align: center; padding: 1rem; background: #E8F5E9; border-radius: 0.5rem;">
                         <div style="font-size: 2rem; font-weight: bold; color: #4CAF50;">${totalNewLocal}</div>
@@ -3605,7 +3618,7 @@
                     </div>
                     <div style="text-align: center; padding: 1rem; background: #E3F2FD; border-radius: 0.5rem;">
                         <div style="font-size: 2rem; font-weight: bold; color: #2196F3;">${totalNewCloud}</div>
-                        <div style="font-size: 0.85rem; color: #1565C0;">New Cloud Records</div>
+                        <div style="font-size: 0.85rem; color: #1565C0;">New Shared Records</div>
                     </div>
                     <div style="text-align: center; padding: 1rem; background: #FFF3E0; border-radius: 0.5rem;">
                         <div style="font-size: 2rem; font-weight: bold; color: #FF9800;">${totalConflicts}</div>
@@ -3615,7 +3628,7 @@
                 <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-card); border-radius: 0.5rem;">
                     <strong>Local has:</strong> ${staffMembers.length} staff, ${timeRecords.length} time records
                     <br>
-                    <strong>Cloud has:</strong> ${cloudStaffCount} staff, ${cloudRecordsCount} time records
+                    <strong>Shared copy has:</strong> ${cloudStaffCount} staff, ${cloudRecordsCount} time records
                 </div>`;
 
             document.getElementById('mergeSummary').innerHTML = summaryHtml;
@@ -3630,7 +3643,7 @@
                         <div style="background: #FFF8E1; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid #FF9800;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <strong style="color: #E65100;">Staff:</strong> ${conflict.local.fullName}
+                                    <strong style="color: #E65100;">Staff:</strong> ${escapeHtml(conflict.local.fullName)}
                                     <span style="background: #FFE0B2; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin-left: 0.5rem;">
                                         ${conflict.reasons.length} difference(s)
                                     </span>
@@ -3641,7 +3654,7 @@
                                 </label>
                             </div>
                             <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                                ${conflict.reasons.slice(0, 2).join(', ')}${conflict.reasons.length > 2 ? '...' : ''}
+                                ${escapeHtml(conflict.reasons.slice(0, 2).join(', '))}${conflict.reasons.length > 2 ? '...' : ''}
                             </div>
                         </div>`;
                 });
@@ -3651,9 +3664,9 @@
                         <div style="background: #FFF8E1; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid #FF9800;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <strong style="color: #E65100;">Record:</strong> ${conflict.local.staffName} - ${conflict.local.date}
+                                    <strong style="color: #E65100;">Record:</strong> ${escapeHtml(conflict.local.staffName)} - ${escapeHtml(conflict.local.date)}
                                     <span style="background: #FFE0B2; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin-left: 0.5rem;">
-                                        ${conflict.reasons.join(', ')}
+                                        ${escapeHtml(conflict.reasons.join(', '))}
                                     </span>
                                 </div>
                                 <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.85rem;">
@@ -3679,15 +3692,15 @@
                 analysis.staffMembers.newLocal.forEach(staff => {
                     newHtml += `
                         <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Local Staff:</strong> ${staff.fullName} (${staff.role})</span>
-                            <span style="color: #4CAF50;">Will be added to cloud</span>
+                            <span><strong>Local Staff:</strong> ${escapeHtml(staff.fullName)} (${escapeHtml(staff.role)})</span>
+                            <span style="color: #4CAF50;">Will be shared</span>
                         </div>`;
                 });
 
                 analysis.staffMembers.newCloud.forEach(staff => {
                     newHtml += `
                         <div style="background: #E3F2FD; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Cloud Staff:</strong> ${staff.fullName} (${staff.role})</span>
+                            <span><strong>Shared staff:</strong> ${escapeHtml(staff.fullName)} (${escapeHtml(staff.role)})</span>
                             <span style="color: #2196F3;">Will be added locally</span>
                         </div>`;
                 });
@@ -3695,15 +3708,15 @@
                 analysis.timeRecords.newLocal.forEach(record => {
                     newHtml += `
                         <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Local Record:</strong> ${record.staffName} - ${record.date}</span>
-                            <span style="color: #4CAF50;">Will be added to cloud</span>
+                            <span><strong>Local Record:</strong> ${escapeHtml(record.staffName)} - ${escapeHtml(record.date)}</span>
+                            <span style="color: #4CAF50;">Will be shared</span>
                         </div>`;
                 });
 
                 analysis.timeRecords.newCloud.forEach(record => {
                     newHtml += `
                         <div style="background: #E3F2FD; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Cloud Record:</strong> ${record.staffName} - ${record.date}</span>
+                            <span><strong>Shared record:</strong> ${escapeHtml(record.staffName)} - ${escapeHtml(record.date)}</span>
                             <span style="color: #2196F3;">Will be added locally</span>
                         </div>`;
                 });
@@ -3851,7 +3864,7 @@
                 saveTimeRecords();
                 await new Promise(resolve => setTimeout(resolve, 200));
 
-                updateMergeProgress('Uploading to cloud...', 70);
+                updateMergeProgress('Sending changes...', 70);
 
                 // Save merged data to cloud
                 const backupData = {
@@ -3862,7 +3875,8 @@
                     mergedBy: currentUser ? currentUser.fullName : 'Unknown',
                     data: {
                         staffMembers: mergedStaff.filter(function(s){ return currentUser && s.id === currentUser.id; }),
-                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; })
+                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; }),
+                        deletedTimeRecordIds: ttTimeTombs()
                     }
                 };
 
@@ -3951,7 +3965,7 @@
                 hideMergeProgress();
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
                     alert(`Failed to merge: ${error.message}`);
@@ -3965,7 +3979,7 @@
         // Staff: Perform automatic merge without modal
         async function performStaffMerge() {
             // Show progress for staff merge too
-            showMergeProgress('Connecting to cloud...', 0);
+            showMergeProgress('Connecting...', 0);
             setCloudSyncing(true);
 
             try {
@@ -3974,7 +3988,7 @@
                     await findExistingBackupFile();
                 }
 
-                updateMergeProgress('Downloading cloud data...', 20);
+                updateMergeProgress('Getting the latest data...', 20);
 
                 let cloudData = null;
                 let existingStaff = [];
@@ -4081,7 +4095,7 @@
                     saveTimeRecords();
                 }
 
-                updateMergeProgress('Uploading to cloud...', 75);
+                updateMergeProgress('Sending changes...', 75);
 
                 // Save merged data to cloud
                 const backupData = {
@@ -4092,7 +4106,8 @@
                     mergedBy: currentUser ? currentUser.fullName : 'Unknown',
                     data: {
                         staffMembers: mergedStaff.filter(function(s){ return currentUser && s.id === currentUser.id; }),
-                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; })
+                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; }),
+                        deletedTimeRecordIds: ttTimeTombs()
                     }
                 };
 
@@ -4180,7 +4195,7 @@
                 hideMergeProgress();
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
                     alert(`Merge failed: ${error.message}`);
@@ -4196,15 +4211,15 @@
                         <div style="font-size: 4rem; margin-bottom: 1rem;">✅</div>
                         <h2 style="background: linear-gradient(135deg, #9C27B0, #E91E63); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 1rem;">Data Merged!</h2>
                         <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
-                            Your data has been synchronized with the cloud.
+                            Your data is in sync.
                         </p>
                         <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; text-align: left;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                <span>Uploaded to cloud:</span>
+                                <span>Sent:</span>
                                 <strong style="color: #4CAF50;">${uploadedCount} record(s)</strong>
                             </div>
                             <div style="display: flex; justify-content: space-between;">
-                                <span>Downloaded from cloud:</span>
+                                <span>Received:</span>
                                 <strong style="color: #2196F3;">${downloadedCount} record(s)</strong>
                             </div>
                         </div>
@@ -4253,11 +4268,11 @@
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; text-align: center;">
                                 <div>
                                     <div style="font-size: 1.5rem; font-weight: bold; color: #4CAF50;">${localToCloud}</div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Local → Cloud</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">This computer → Shared</div>
                                 </div>
                                 <div>
                                     <div style="font-size: 1.5rem; font-weight: bold; color: #2196F3;">${cloudToLocal}</div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Cloud → Local</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Shared → This computer</div>
                                 </div>
                                 <div>
                                     <div style="font-size: 1.5rem; font-weight: bold; color: #FF9800;">${conflictsResolved}</div>
@@ -4344,16 +4359,16 @@
                 <div id="connectCloudOnLoginModal" class="modal" style="display: flex;">
                     <div class="modal-content" style="max-width: 450px;">
                         <div class="modal-header">
-                            <h2>☁️ Connect to Cloud Storage?</h2>
+                            <h2>🔄 Turn On Sync?</h2>
                             <button class="close-btn" onclick="closeConnectCloudOnLoginModal(false)">×</button>
                         </div>
                         <div style="padding: var(--space-5);">
                             <div style="text-align: center; margin-bottom: var(--space-5);">
-                                <span style="font-size: 3rem;">☁️</span>
+                                <span style="font-size: 3rem;">🔄</span>
                             </div>
 
                             <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
-                                Connect to Google Drive to sync your time tracking data across devices and with other users.
+                                Turn on sync to share your time tracking data across devices and with other users.
                             </p>
 
                             <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-5);">
@@ -4370,7 +4385,7 @@
                                     Skip
                                 </button>
                                 <button class="btn btn-primary" onclick="closeConnectCloudOnLoginModal(true)" style="flex: 1;">
-                                    ☁️ Connect Now
+                                    🔄 Connect Now
                                 </button>
                             </div>
                         </div>
@@ -4404,7 +4419,7 @@
                 <div id="syncOnLoginModal" class="modal" style="display: flex;">
                     <div class="modal-content" style="max-width: 450px;">
                         <div class="modal-header">
-                            <h2>☁️ Sync from Cloud?</h2>
+                            <h2>🔄 Get Latest Changes?</h2>
                             <button class="close-btn" onclick="closeSyncOnLoginModal(false)">×</button>
                         </div>
                         <div style="padding: var(--space-5);">
@@ -4413,7 +4428,7 @@
                             </div>
 
                             <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
-                                Your Google Drive is connected. Would you like to sync the latest data from the cloud?
+                                Sync is connected. Would you like to get the latest data now?
                             </p>
 
                             <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-5);">
@@ -4461,7 +4476,7 @@
             }
 
             if (!isCloudConnected || !googleAccessToken) {
-                showToast('Could not connect to Google Drive', 'error');
+                showToast('Could not connect to sync', 'error');
                 return;
             }
 
@@ -4481,7 +4496,7 @@
 
                 if (!cloudFileId) {
                     setCloudSyncing(false);
-                    showToast('No backup file found in cloud', 'warning');
+                    showToast('No shared copy found', 'warning');
                     return;
                 }
 
@@ -4507,22 +4522,9 @@
                 }
 
                 // Restore all data
-                if (backupData.data.staffMembers) {
-                    staffMembers = backupData.data.staffMembers;
-                    saveStaffMembers();
-                }
-
-                if (backupData.data.timeRecords) {
-                    // Preserve current user's active session if one exists
-                    if (currentSession && currentSession.status !== 'completed') {
-                        const cloudRecords = backupData.data.timeRecords.filter(r => r.id !== currentSession.id);
-                        timeRecords = cloudRecords;
-                        timeRecords.push(currentSession);
-                    } else {
-                        timeRecords = backupData.data.timeRecords;
-                    }
-                    saveTimeRecords();
-                }
+                // A per-user file is a one-person slice: merge it, never assign it
+                // over the whole staff list and everybody's hours (ttApplyCloudSlice).
+                ttApplyCloudSlice(backupData.data);
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -4547,14 +4549,14 @@
                 setCloudSyncing(false);
 
                 const savedByInfo = backupData.savedBy ? ` (saved by ${backupData.savedBy})` : '';
-                showToast(`Synced from cloud${savedByInfo}`, 'success');
+                showToast(`Synced${savedByInfo}`, 'success');
 
             } catch (error) {
                 console.error('Error syncing on login:', error);
                 setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    showToast('Google Drive session expired', 'error');
+                    showToast('Sync sign-in expired', 'error');
                     // Clear invalid token
                     CESTISStore.removeItem('cestisGoogleAccessToken');
                     CESTISStore.removeItem('cestisGoogleTokenExpiry');
@@ -4583,7 +4585,7 @@
                 <div id="forcedSyncModal" class="modal" style="display: flex;">
                     <div class="modal-content" style="max-width: 450px;">
                         <div class="modal-header" style="background: linear-gradient(135deg, #22c55e, #16a34a); color: white;">
-                            <h2 style="color: white;">✅ Connected to Google Drive!</h2>
+                            <h2 style="color: white;">✅ Connected!</h2>
                         </div>
                         <div style="padding: var(--space-5);">
                             <div style="text-align: center; margin-bottom: var(--space-5);">
@@ -4592,13 +4594,13 @@
 
                             ${hasBackup ? `
                                 <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
-                                    A cloud backup was found. You must sync your data before continuing to ensure you have the latest information.
+                                    Shared data was found. You must sync your data before continuing to ensure you have the latest information.
                                 </p>
 
                                 <div style="background: var(--warning-bg); border: 1px solid var(--warning); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-5);">
                                     <strong style="color: var(--warning);">⚠️ Important:</strong>
                                     <span style="color: var(--text-secondary); font-size: 0.9rem;">
-                                        This will replace your local data with the cloud backup.
+                                        This will replace the data on this computer with the shared copy.
                                     </span>
                                 </div>
 
@@ -4607,7 +4609,7 @@
                                 </button>
                             ` : `
                                 <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
-                                    No existing backup was found in the cloud. Would you like to save your current data to the cloud now?
+                                    No shared copy exists yet. Would you like to share your current data now?
                                 </p>
 
                                 <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-5);">
@@ -4622,7 +4624,7 @@
                                         Skip for Now
                                     </button>
                                     <button class="btn btn-primary" onclick="performForcedSaveAfterConnect()" style="flex: 1;">
-                                        💾 Save to Cloud
+                                        💾 Send My Changes
                                     </button>
                                 </div>
                             `}
@@ -4644,7 +4646,7 @@
                 content.innerHTML = `
                     <div style="text-align: center; padding: var(--space-5);">
                         <div class="spinning" style="font-size: 3rem; margin-bottom: var(--space-4);">🔄</div>
-                        <p style="color: var(--text-secondary);">Syncing data from cloud...</p>
+                        <p style="color: var(--text-secondary);">Syncing the latest data...</p>
                     </div>
                 `;
             }
@@ -4674,15 +4676,9 @@
                 }
 
                 // Restore data
-                if (backupData.data.staffMembers) {
-                    staffMembers = backupData.data.staffMembers;
-                    saveStaffMembers();
-                }
-
-                if (backupData.data.timeRecords) {
-                    timeRecords = backupData.data.timeRecords;
-                    saveTimeRecords();
-                }
+                // A per-user file is a one-person slice: merge it, never assign it
+                // over the whole staff list and everybody's hours (ttApplyCloudSlice).
+                ttApplyCloudSlice(backupData.data);
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -4705,7 +4701,7 @@
                 closeForcedSyncModal(true);
 
                 const savedByInfo = backupData.savedBy ? ` (saved by ${backupData.savedBy})` : '';
-                showToast(`Connected and synced from cloud${savedByInfo}`, 'success');
+                showToast(`Connected and synced${savedByInfo}`, 'success');
 
             } catch (error) {
                 console.error('Error during forced sync:', error);
@@ -4744,7 +4740,7 @@
                 content.innerHTML = `
                     <div style="text-align: center; padding: var(--space-5);">
                         <div class="spinning" style="font-size: 3rem; margin-bottom: var(--space-4);">💾</div>
-                        <p style="color: var(--text-secondary);">Saving data to cloud...</p>
+                        <p style="color: var(--text-secondary);">Saving and syncing data...</p>
                     </div>
                 `;
             }
@@ -4769,7 +4765,7 @@
         // Browse all backup files in the shared folder
         async function browseBackupFiles() {
             if (!isCloudConnected || !googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -4793,7 +4789,7 @@
                 setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('❌ Your session has expired. Please reconnect to Google Drive.');
+                    alert('❌ Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
                     alert(`❌ Failed to browse files: ${error.message}`);
@@ -4876,16 +4872,16 @@
                     : '<span style="background: var(--warning); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px;">Unknown Format</span>';
 
                 return `
-                    <div class="backup-file-item" data-file-id="${file.id}" data-file-name="${file.name.replace(/"/g, '&quot;')}" onclick="selectBackupFile(this.dataset.fileId, this.dataset.fileName)">
+                    <div class="backup-file-item" data-file-id="${escapeAttr(file.id)}" data-file-name="${escapeAttr(file.name)}" onclick="selectBackupFile(this.dataset.fileId, this.dataset.fileName)">
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <span style="font-size: 1.5rem;">📄</span>
                             <div style="flex: 1;">
                                 <div style="font-weight: 600; color: var(--text-primary);">
-                                    ${file.name}${validBadge}
+                                    ${escapeHtml(file.name)}${validBadge}
                                 </div>
                                 <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
                                     <span>📅 ${dateFormatted}</span>
-                                    <span style="margin-left: 16px;">👤 Saved by: ${file.savedBy}</span>
+                                    <span style="margin-left: 16px;">👤 Saved by: ${escapeHtml(file.savedBy)}</span>
                                 </div>
                                 <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
                                     Modified ${timeAgo}
@@ -5129,15 +5125,9 @@
 
             try {
                 // Perform selective restore
-                if (syncStaffMembers && backupData.data.staffMembers) {
-                    staffMembers = backupData.data.staffMembers;
-                    saveStaffMembers();
-                }
-
-                if (syncTimeRecords && backupData.data.timeRecords) {
-                    timeRecords = backupData.data.timeRecords;
-                    saveTimeRecords();
-                }
+                // A per-user file is a one-person slice: merge it, never assign it
+                // over the whole staff list and everybody's hours (ttApplyCloudSlice).
+                ttApplyCloudSlice(backupData.data, { staffMembers: syncStaffMembers, timeRecords: syncTimeRecords });
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -5201,6 +5191,46 @@
             CESTISStore.setItem('cestisTimeRecords', JSON.stringify(timeRecords));
         }
 
+        /* Time-clock merge for every sync path — see CESTISCore.mergeTimeClock.
+           Sessions an administrator deleted are written down in
+           cestisTimeRecordTombstones (a union tombstone list) so no file brings
+           them back. */
+        function ttTimeTombs() {
+            try { const v = JSON.parse(CESTISStore.getItem('cestisTimeRecordTombstones') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+        }
+        function ttRecordTimeTomb(id) {
+            if (id === undefined || id === null || id === '') return;
+            const t = ttTimeTombs();
+            if (t.indexOf(id) === -1) { t.push(id); CESTISStore.setItem('cestisTimeRecordTombstones', JSON.stringify(t)); }
+        }
+        function ttUnionTimeTombs(ids) {
+            if (!Array.isArray(ids) || !ids.length) return;
+            const t = ttTimeTombs();
+            let changed = false;
+            ids.forEach(id => { if (id != null && id !== '' && t.indexOf(id) === -1) { t.push(id); changed = true; } });
+            if (changed) CESTISStore.setItem('cestisTimeRecordTombstones', JSON.stringify(t));
+        }
+        // Merge a cloud file's staff and sessions into this device's, and save.
+        // `only` limits it to { staffMembers, timeRecords } (the selective sync).
+        function ttApplyCloudSlice(data, only) {
+            if (!data || !window.CESTISCore || typeof CESTISCore.mergeTimeClock !== 'function') return null;
+            ttUnionTimeTombs(data.deletedTimeRecordIds);
+            const want = n => !only || only[n];
+            const res = CESTISCore.mergeTimeClock(
+                { staffMembers: staffMembers, timeRecords: timeRecords },
+                { staffMembers: want('staffMembers') ? data.staffMembers : [],
+                  timeRecords: want('timeRecords') ? data.timeRecords : [] },
+                { activeSessionId: (currentSession && currentSession.status !== 'completed') ? currentSession.id : null,
+                  deletedIds: ttTimeTombs() });
+            staffMembers = res.staffMembers;
+            timeRecords = res.timeRecords;
+            // Saved only when something moved, so an unchanged merge is not
+            // stamped as an edit and pushed again.
+            if (res.staffAdded) saveStaffMembers();
+            if (res.added || res.updated || res.removed) saveTimeRecords();
+            return res;
+        }
+
         function loadTimeRecords() {
             const saved = CESTISStore.getItem('cestisTimeRecords');
             if (saved) {
@@ -5232,11 +5262,11 @@
             if (!cloudAuthExpiredNotified) {
                 cloudAuthExpiredNotified = true;
                 if (typeof showCloudNotification === 'function') {
-                    showCloudNotification('warn', 'Google Drive Session Expired',
-                        'Your cloud connection timed out. Your clock-in is safe locally - click Connect Drive to resume syncing.',
+                    showCloudNotification('warn', 'Sync Needs Attention',
+                        'Sync timed out. Your clock-in is kept on this computer — click Turn On Sync to resume syncing.',
                         true, 0);
                 } else if (typeof showToast === 'function') {
-                    showToast('Google Drive session expired - reconnect to resume cloud sync. Local data is safe.', 'warning');
+                    showToast('Sync sign-in expired — reconnect to resume syncing. Your work is kept on this computer.', 'warning');
                 }
             }
         }
@@ -5280,39 +5310,11 @@
                                 const cloudRecords = Array.isArray(cloudData.data.timeRecords) ? cloudData.data.timeRecords : [];
                                 const cloudStaff = Array.isArray(cloudData.data.staffMembers) ? cloudData.data.staffMembers : [];
 
-                                // Merge time records using lastModified timestamps
-                                mergedRecords = [...timeRecords];
-                                cloudRecords.forEach(cloudRecord => {
-                                    const localIdx = mergedRecords.findIndex(r => r.id === cloudRecord.id);
-                                    if (localIdx === -1) {
-                                        // Cloud-only record - pull it in
-                                        mergedRecords.push({ ...cloudRecord });
-                                    } else {
-                                        // Exists in both - keep the most recently modified
-                                        const localMod = mergedRecords[localIdx].lastModified ? new Date(mergedRecords[localIdx].lastModified) : new Date(0);
-                                        const cloudMod = cloudRecord.lastModified ? new Date(cloudRecord.lastModified) : new Date(0);
-                                        // Don't overwrite current user's active session
-                                        if (currentSession && currentSession.id === cloudRecord.id && currentSession.status !== 'completed') {
-                                            // Keep local active session
-                                        } else if (cloudMod > localMod) {
-                                            mergedRecords[localIdx] = { ...cloudRecord };
-                                        }
-                                    }
-                                });
-
-                                // Merge staff members
-                                mergedStaff = [...staffMembers];
-                                cloudStaff.forEach(cs => {
-                                    if (!mergedStaff.find(s => s.id === cs.id || s.username === cs.username)) {
-                                        mergedStaff.push({ ...cs });
-                                    }
-                                });
-
-                                // Update local data with merged results
-                                timeRecords = mergedRecords;
-                                staffMembers = mergedStaff;
-                                saveTimeRecords();
-                                saveStaffMembers();
+                                // The shared slice merge: newest lastModified wins, the
+                                // live session is kept, deleted sessions stay deleted.
+                                ttApplyCloudSlice(cloudData.data);
+                                mergedRecords = timeRecords;
+                                mergedStaff = staffMembers;
                             }
                         }
                     } catch (downloadErr) {
@@ -5329,7 +5331,8 @@
                     username: currentUser ? (currentUser.username || currentUser.fullName) : 'unknown',
                     data: {
                         staffMembers: mergedStaff.filter(function(s){ return currentUser && s.id === currentUser.id; }),
-                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; })
+                        timeRecords: mergedRecords.filter(function(r){ return currentUser && r.staffId === currentUser.id; }),
+                        deletedTimeRecordIds: ttTimeTombs()
                     }
                 };
 
@@ -5388,7 +5391,7 @@
                     updateLastSyncDisplay();
                     updateLastSavedByDisplay();
                     if (notifyOnSuccess && typeof showToast === 'function') {
-                        showToast('☁️ Your recorded time has been uploaded to the cloud.', 'success');
+                        showToast('🔄 Your recorded time has been synced.', 'success');
                     }
                     console.log('Auto-sync to cloud completed successfully');
                 } else if (response) {
@@ -5744,21 +5747,23 @@
                     alert('OTP sent to your email address');
                 }, function(error) {
                     console.error('Email failed:', error);
-                    // Show error but still allow user to continue with demo OTP
-                    alert('Email sending failed: ' + (error.text || error.message || 'Unknown error') + '\n\nFalling back to demo mode.');
-                    showDemoOTP(otp, email);
+                    otpSendFailed();
                 });
             } else {
-                // Demo mode - show OTP in alert (EmailJS not configured)
-                console.log('EmailJS not configured, using demo mode');
-                showDemoOTP(otp, email);
+                // E-mail is not set up here: the code cannot be delivered, so it is not shown either.
+                otpSendFailed();
             }
         }
 
-        // Show OTP in demo mode
-        function showDemoOTP(otp, email) {
-            showOTPStep(email);
-            alert('DEMO MODE\n\nYour One-Time Password is:\n\n' + otp + '\n\n(In production, this would be sent to your email)\n\nThis code expires in 10 minutes.');
+        // The code is NEVER shown on screen. A "demo mode" used to print it
+        // whenever the e-mail could not be sent — and anyone can make the send
+        // fail (switch the Wi-Fi off, block the e-mail service, use up its free
+        // quota; on the Offline System it always fails), then type the bursar's
+        // or administrator's e-mail and set themselves a new password. Without
+        // the e-mail, a reset is done by an administrator.
+        function otpSendFailed() {
+            currentOTP = null;
+            alert('The reset code could not be sent by e-mail.\n\nPlease contact the administrator to reset your password.');
         }
 
         // Show OTP entry step
@@ -5968,7 +5973,7 @@
                 staffId: currentUser.id,
                 staffName: currentUser.fullName,
                 workType: currentUser.workType,
-                date: now.toISOString().split('T')[0],
+                date: clockLocalDate(now),
                 clockIn: now.toISOString(),
                 clockOut: null,
                 status: 'working',
@@ -6192,9 +6197,19 @@
             document.getElementById('totalBreakTime').textContent = formatSecondsToHoursMinutes(breakSeconds);
         }
 
+        // The calendar date on this computer's clock (the Centre's own day).
+        // toISOString() is UTC: in Jamaica (UTC-5) a session started after
+        // 7 pm was dated tomorrow — the wrong pay day, and on the last day of
+        // a quarter the wrong quarter. The dashboard's copy of this page
+        // already dates sessions this way, so the shared records now agree.
+        function clockLocalDate(d) {
+            const n = d instanceof Date ? d : new Date();
+            return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+        }
+
         // Load Today's Session
         function loadTodaysSession() {
-            const today = new Date().toISOString().split('T')[0];
+            const today = clockLocalDate();
             // Find any in-progress session for this user (regardless of date) so
             // sessions that crossed midnight or were left open before a computer
             // restart still resume instead of being orphaned in CESTISStore.
@@ -6238,7 +6253,7 @@
 
         // Render Today's Log
         function renderTodayLog() {
-            const today = new Date().toISOString().split('T')[0];
+            const today = clockLocalDate();
             const todayRecords = timeRecords.filter(r => r.staffId === currentUser.id && r.date === today);
 
             const tbody = document.getElementById('todayLogTable');
@@ -7301,6 +7316,10 @@
             }
             
             record.breaks = newBreaks;
+            // Dated, or every merge keeps the uncorrected copy (it compares
+            // lastModified) and the correction never leaves this PC.
+            record.lastModified = new Date().toISOString();
+            record.editedBy = currentUser ? (currentUser.username || currentUser.fullName || '') : '';
 
             saveTimeRecords();
             closeEditTimeModal();
@@ -7325,6 +7344,8 @@
 
             if (confirm(`Are you sure you want to delete this time record?\n\nEmployee: ${record.staffName}\nDate: ${new Date(record.date).toLocaleDateString()}\nClock In: ${new Date(record.clockIn).toLocaleTimeString()}`)) {
                 timeRecords.splice(index, 1);
+                // Written down, or "Refresh all staff" and the next sync bring it back.
+                ttRecordTimeTomb(record.id);
                 saveTimeRecords();
                 loadEditableRecords();
 
@@ -8132,7 +8153,7 @@
 
         function initiateLoginPageSync() {
             isLoginPageSync = true;
-            updateLoginSyncStatus('Connecting to Google...', true);
+            updateLoginSyncStatus('Connecting...', true);
             const syncBtn = document.querySelector('.sync-prompt-btn');
             if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = '<span>⏳</span> Connecting...'; }
             if (googleTokenClient) { googleTokenClient.requestAccessToken(); }
@@ -8140,7 +8161,7 @@
                 initGoogleAuth();
                 setTimeout(() => {
                     if (googleTokenClient) { googleTokenClient.requestAccessToken(); }
-                    else { isLoginPageSync = false; updateLoginSyncStatus('Google Sign-In not available.', false, true); resetLoginSyncButton(); }
+                    else { isLoginPageSync = false; updateLoginSyncStatus('Sign-in is not available right now.', false, true); resetLoginSyncButton(); }
                 }, 500);
             }
         }
@@ -8167,17 +8188,8 @@
                 const backup = await response.json();
                 if (!backup.version || !backup.data) throw new Error('Invalid backup format');
 
-                // Restore staff members (required for login)
-                if (backup.data.staffMembers) {
-                    staffMembers = backup.data.staffMembers;
-                    CESTISStore.setItem('cestisStaffMembers', JSON.stringify(staffMembers));
-                }
-
-                // Restore time records
-                if (backup.data.timeRecords) {
-                    timeRecords = backup.data.timeRecords;
-                    CESTISStore.setItem('cestisTimeRecords', JSON.stringify(timeRecords));
-                }
+                // Staff members (required for login) and time records: merged, never replaced.
+                ttApplyCloudSlice(backup.data);
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -8204,7 +8216,7 @@
 
         function resetLoginSyncButton() {
             const syncBtn = document.querySelector('.sync-prompt-btn');
-            if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '<span>🔄</span> Connect & Sync with Google'; }
+            if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '<span>🔄</span> Connect & Sync'; }
         }
 
         function dismissFirstTimePrompt() { hideFirstTimeSyncPrompt(); sessionStorage.setItem('firstTimeSyncDismissed', 'true'); }
@@ -8247,7 +8259,7 @@
           const el = document.createElement('div');
           el.id = 'cloudNotifyPopup';
           el.className = 'cloud-notify ' + type;
-          const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '☁️';
+          const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '🔄';
           el.innerHTML =
             '<div class="cloud-notify-bar"></div>' +
             '<div class="cloud-notify-body">' +
@@ -8293,7 +8305,7 @@
 
           if (!navigator.onLine) {
             showCloudNotification('error', 'You Are Offline',
-              'Your internet connection is unavailable. Data changes will only be saved locally. Please reconnect to sync with Google Drive.',
+              'You’re offline. Your work is kept on this computer until it syncs.',
               false, 0);
             return;
           }
@@ -8304,21 +8316,21 @@
             let detail = '';
 
             if (savedExpiry && new Date(savedExpiry) <= new Date()) {
-              detail = 'Your Google Drive session has expired.';
+              detail = 'Your sync sign-in has expired.';
             } else if (reason === 'page_load') {
-              detail = 'Google Drive is not connected.';
+              detail = 'Sync is not connected.';
             } else if (reason === 'token_expired') {
-              detail = 'Your Google Drive session has expired.';
+              detail = 'Your sync sign-in has expired.';
             } else {
-              detail = 'Google Drive connection was lost.';
+              detail = 'The sync connection was lost.';
             }
 
             if (lastSync) {
               detail += ' Last sync: ' + getTimeAgo(new Date(lastSync)) + '.';
             }
 
-            showCloudNotification('warn', 'Cloud Sync Disconnected',
-              detail + ' Your data is only saved locally. Connect to Google Drive to back up and sync your data.',
+            showCloudNotification('warn', 'Not Synced Yet',
+              detail + ' Your work is kept on this computer until it syncs. Reconnect to sync.',
               true, 30);
           }
         }
@@ -8346,7 +8358,7 @@
         // Listen for browser online/offline events
         window.addEventListener('offline', function(){
           showCloudNotification('error', 'You Are Offline',
-            'Internet connection lost. Data changes will only be saved locally until you reconnect.',
+            'Connection lost. Your work is kept on this computer until it syncs.',
             false, 0);
         });
 
@@ -8398,7 +8410,7 @@
             }, 1500);
           } else {
             showCloudNotification('warn', 'Back Online',
-              'Internet connection restored. Your cloud sync is active.',
+              'Back online. Sync is on.',
               false, 8);
           }
         });
@@ -8408,13 +8420,34 @@
             initializeDefaultAdmin();
             loadTimeRecords();
 
-            // Auto-load user (no login required — page is embedded in authenticated dashboard)
-            const savedUser = CESTISStore.getItem('cestisCurrentUser');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
+            // Who is clocking in comes from the signed-in C.E.S.T.I.S dashboard.
+            // This page used to sign whoever opened it in as the FIRST Admin on
+            // the staff list (or as whoever last used it on this device), with
+            // Edit Time Records and Staff Management — which feed payroll. With
+            // no live dashboard session it now opens nobody
+            // (CESTISCore.sessionAccess).
+            const _viewer = (window.CESTISCore && CESTISCore.sessionAccess)
+                ? CESTISCore.sessionAccess.forPage({ allowed: ['admin', 'adminstaff', 'instructor'] })
+                : { ok: false, message: 'Shared data core failed to load. Please refresh.' };
+            currentUser = null;
+            if (_viewer.ok && _viewer.account) {
+                const a = _viewer.account;
+                const want = String(a.username || '').toLowerCase();
+                const listed = staffMembers.find(s => s && (s.id === a.id || (want && String(s.username || '').toLowerCase() === want)));
+                // The time clock's own record when there is one, but never with
+                // more authority than the dashboard gives this person.
+                currentUser = Object.assign({ id: a.id, username: a.username, fullName: a.name || a.username,
+                    workType: a.workType || 'Full-Time', status: 'Active', email: a.email || '' }, listed || {},
+                    { role: a.role === 'admin' ? 'Admin' : ((listed && listed.role === 'Viewer') ? 'Viewer' : 'Staff') });
+                CESTISStore.setItem('cestisCurrentUser', JSON.stringify(currentUser));
             } else {
-                currentUser = staffMembers.find(s => s.role === 'Admin') || staffMembers[0];
-                if (currentUser) CESTISStore.setItem('cestisCurrentUser', JSON.stringify(currentUser));
+                const _md = document.getElementById('mainDashboard');
+                if (_md) _md.style.display = 'none';
+                const _lock = document.createElement('div');
+                _lock.id = 'clockSessionLock';
+                _lock.style.cssText = 'padding:60px 24px;text-align:center;font-family:sans-serif;';
+                _lock.textContent = '🔒 ' + (_viewer.message || 'Please sign in to the C.E.S.T.I.S dashboard first.');
+                document.body.insertBefore(_lock, document.body.firstChild);
             }
             if (currentUser) {
                 document.getElementById('mainDashboard').style.display = 'block';
@@ -8433,16 +8466,16 @@
             checkFirstTimeSyncPrompt();
 
             // Set dates
-            const today = new Date().toISOString().split('T')[0];
+            const today = clockLocalDate();
             document.getElementById('historyToDate').value = today;
             document.getElementById('reportToDate').value = today;
             document.getElementById('editToDate').value = today;
             
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
-            document.getElementById('historyFromDate').value = weekAgo.toISOString().split('T')[0];
-            document.getElementById('reportFromDate').value = weekAgo.toISOString().split('T')[0];
-            document.getElementById('editFromDate').value = weekAgo.toISOString().split('T')[0];
+            document.getElementById('historyFromDate').value = clockLocalDate(weekAgo);
+            document.getElementById('reportFromDate').value = clockLocalDate(weekAgo);
+            document.getElementById('editFromDate').value = clockLocalDate(weekAgo);
 
             // Dark mode
             const isDark = CESTISStore.getItem('cestisTimeDarkMode') === 'true';
@@ -8491,12 +8524,25 @@
     </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261028e"></script>
+<script src="cestis-sync-chip.js?v=20261028d"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Staff Time Clock',
   file: 'CESTIS_Staff_TimeClock.json',
-  keys: ['cestisStaffMembers', 'cestisTimeRecords']
+  keys: ['cestisStaffMembers', 'cestisTimeRecords', 'cestisTimeRecordTombstones'],
+  // A pull writes the cloud lists into storage while this page still holds its
+  // own in memory; without this the next clock-out saved the stale memory over
+  // what was pulled. Merge what arrived into memory instead (newest wins,
+  // nothing this page holds is dropped) and save the union.
+  onRestore: function () {
+    try {
+      var read = function (k) { try { var v = JSON.parse(CESTISStore.getItem(k) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
+      if (typeof ttApplyCloudSlice === 'function') {
+        ttApplyCloudSlice({ staffMembers: read('cestisStaffMembers'), timeRecords: read('cestisTimeRecords') });
+      }
+    } catch (e) { console.warn('[PageCloud] Time clock restore merge failed:', e); }
+  }
 });
 </script>
 <script src="megadata/schemas.js?v=1"></script>

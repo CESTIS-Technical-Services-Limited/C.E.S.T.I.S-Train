@@ -417,11 +417,18 @@
 
   /* Write a ruling into the Board's minute book (or remove it), returning the
      new book. Pure: the book handed in is never mutated. */
-  function cmcApplyRuling(rulings, id, ruling) {
+  /* A withdrawal given a time (withdrawnAtISO) is written down as an entry
+     with no decision rather than removed: the minute book is merged entry by
+     entry across devices, and a removed entry would come straight back from
+     any copy that still held the ruling. An entry with no decision reads as
+     "nobody has ruled" (cmcVirementStage), and a later ruling replaces it. */
+  function cmcApplyRuling(rulings, id, ruling, withdrawnAtISO, withdrawnBy) {
     var book = (rulings && typeof rulings === 'object' && !Array.isArray(rulings)) ? rulings : {};
     var out = {};
     Object.keys(book).forEach(function (k) { out[k] = book[k]; });
-    if (ruling) out[String(id)] = ruling; else delete out[String(id)];
+    if (ruling) out[String(id)] = ruling;
+    else if (withdrawnAtISO) out[String(id)] = { withdrawnAt: String(withdrawnAtISO), withdrawnBy: String(withdrawnBy || '') };
+    else delete out[String(id)];
     return out;
   }
 
@@ -515,6 +522,12 @@
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  /* A value handed to an inline handler. esc() inside onclick="fn('...')" is
+     undone by the browser decoding the attribute before the JavaScript runs,
+     so a room id with an apostrophe broke the button (and could run code). */
+  function jsq(s) {
+    return esc(JSON.stringify(String(s == null ? '' : s)));
   }
   function arr(name) {
     try { var v = root[name]; return Array.isArray(v) ? v : []; } catch (e) { return []; }
@@ -735,7 +748,7 @@
     }
     var roomList = rooms.map(function (r) {
       var n = (msgs[r.id] || []).length;
-      return '<div class="cmcp-room' + (r.id === cmcpState.room ? ' active' : '') + '" onclick="cmcPortalSetRoom(\'' + esc(r.id) + '\')">' +
+      return '<div class="cmcp-room' + (r.id === cmcpState.room ? ' active' : '') + '" onclick="cmcPortalSetRoom(' + jsq(r.id) + ')">' +
         (r.icon ? esc(r.icon) + ' ' : '') + esc(r.name) +
         '<span style="float:right;font-size:11px;color:var(--text-muted);">' + n + '</span></div>';
     }).join('');

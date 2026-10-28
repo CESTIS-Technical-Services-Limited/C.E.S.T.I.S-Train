@@ -724,8 +724,10 @@ function doPost(e) {
     // any folders the operator names: a backup dropped next to
     // broker-state.json is found even under a name nobody predicted. The
     // broker's own artifacts (state, head, seg-*) are never offered as legacy
-    // sources, and only .json files are.
-    var OWN_FILES = /^(broker-state\.json|head\.json|seg-\d.*)$/i;
+    // sources, and only .json files are. Nor is CESTIS_GATE.json: it is the
+    // trainee gate's note of where its folders are (docs/trainee-gate), not
+    // anybody's records.
+    var OWN_FILES = /^(broker-state\.json|head\.json|seg-\d.*|CESTIS_GATE\.json)$/i;
     var walked = 0;
     function walkFolder(fld2, label, depth) {
       if (walked >= 40 || depth > 3) return;

@@ -21,35 +21,84 @@
    what would have worked immediately — the call takes far longer to start, or
    gives up.
 
-   If the offline server is not answering (someone opened these pages straight
-   off a memory stick), the original behaviour is left completely alone, so the
-   same folder still works normally on a machine that is online.
+   This file is loaded by BOTH builds. It changes nothing at all unless the
+   page was served by the Centre's own server (the Offline System answers
+   /_cestis/health): only then is the constructor wrapped. Online — GitHub
+   Pages, or these pages opened straight off a memory stick — window.Peer is
+   left exactly as the library made it. Connections are only ever made on a
+   deliberate action (Start Class, Join, a chat call), long after the answer
+   has come back, so the wrap is always in place before it is needed.
    ============================================================================ */
 (function (root) {
   'use strict';
 
-  if (!root.Peer) return;                       // library missing; nothing to wrap
   if (root.__cestisRtcWrapped) return;          // only ever wrap once
-  root.__cestisRtcWrapped = true;
 
-  var Original = root.Peer;
-  var offline = false;                          // decided by the probe below
+  /* Ask whether this is the Centre's server. The page-cloud module asks the
+     same question for the shared store, so reuse its answer when it is here. */
+  function probe() {
+    try {
+      if (root.CESTISPageCloud && typeof root.CESTISPageCloud.lan === 'function') return root.CESTISPageCloud.lan();
+      var loc = root.location;
+      if (!root.fetch || !loc || !/^https?:$/.test(loc.protocol || '') || /\.github\.io$/i.test(loc.hostname || '')) {
+        return Promise.resolve(false);
+      }
+      return root.fetch('/_cestis/health', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { return !!(d && d.ok && d.mode === 'offline-lan'); })
+        .catch(function () { return false; });
+    } catch (e) { return Promise.resolve(false); }
+  }
 
-  /* Ask the server whether it is ours. Runs once, at load, long before anybody
-     clicks "Start Class" — connections are only made on a deliberate action. */
-  try {
-    root.fetch('/_cestis/health', { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        offline = !!(d && d.ok && d.mode === 'offline-lan');
-        if (offline && root.console) {
-          console.log('[CESTIS] Video classes will be introduced by this Centre\'s own server — no internet needed.');
-        }
-      })
-      .catch(function () { offline = false; });
-  } catch (e) { offline = false; }
+  /* HOST PLACES. A class room's host is the peer  cestis-<ROOMCODE>-host,
+     and the Centre's server used to give that id to whoever asked first — a
+     trainee who knew the room code could take the class's host place before
+     the instructor arrived. The server now accepts a host id only with a HOST
+     TICKET, which it gives to a member of staff when they sign in (it checks
+     their password itself: /_cestis/host-ticket in cestis-offline-server.js).
+     The ticket is kept for this browser tab only, and only for the person it
+     was issued to. */
+  var TICKET_KEY = 'cestisLanHostTicket';
+  var STAFF = { admin: 1, adminstaff: 1, instructor: 1 };
+  function hostTicketFor(id) {
+    if (!/^cestis-[A-Za-z0-9]+-host$/.test(String(id || ''))) return '';
+    try {
+      var t = JSON.parse(root.sessionStorage.getItem(TICKET_KEY) || 'null');
+      var me = root.currentLoggedInUser;
+      if (t && t.ticket && me && t.uid === me.id && Date.now() < Number(t.exp || 0)) return String(t.ticket);
+    } catch (e) {}
+    return '';
+  }
+  // The passwords published with the platform. The server refuses them
+  // outright (a 403, logged by the browser as an error), so they are never sent.
+  function publishedDefault(pw) {
+    try { return !!(root.CESTISCore && root.CESTISCore.accountAccess.isPublishedDefault(pw)); } catch (e) { return false; }
+  }
+  root.cestisLanHostTicket = function (account, password) {
+    if (!account || !password || !STAFF[String(account.role || '').trim().toLowerCase()] || !root.fetch) return Promise.resolve(false);
+    if (publishedDefault(password)) return Promise.resolve(false);
+    return probe().then(function (on) {
+      if (!on) return false;
+      return root.fetch('/_cestis/token', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.token) return null;
+          return root.fetch('/_cestis/host-ticket', {
+            method: 'POST', cache: 'no-store',
+            headers: { 'Content-Type': 'application/json', 'X-CESTIS-Token': String(d.token) },
+            body: JSON.stringify({ username: account.username || account.email || '', password: String(password) })
+          });
+        })
+        .then(function (r) { return r && r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (!j || !j.ticket) return false;
+          root.sessionStorage.setItem(TICKET_KEY, JSON.stringify({ uid: account.id, ticket: String(j.ticket), exp: Number(j.expires) || 0 }));
+          return true;
+        });
+    }).catch(function () { return false; });
+  };
 
-  function localOptions(opts) {
+  function localOptions(opts, id) {
     var out = {};
     // Keep anything the caller set that is not about WHERE to connect.
     Object.keys(opts || {}).forEach(function (k) {
@@ -61,21 +110,34 @@
     out.secure = root.location.protocol === 'https:';
     // Same network: direct addresses only. See the note at the top.
     out.config = { iceServers: [] };
+    // A host id goes with this tab's host ticket (PeerJS sends the "key" with
+    // its first request; the Centre's server reads the ticket from there).
+    var ticket = hostTicketFor(id);
+    if (ticket) out.key = ticket;
     return out;
   }
 
-  function CestisPeer(id, opts) {
-    if (!offline) return new Original(id, opts);
-    return new Original(id, localOptions(opts));
+  function wrap() {
+    if (!root.Peer || root.__cestisRtcWrapped) return;   // library missing, or done already
+    root.__cestisRtcWrapped = true;
+    var Original = root.Peer;
+    function CestisPeer(id, opts) {
+      // PeerJS accepts (options) alone as well as (id, options).
+      if (id && typeof id === 'object' && opts === undefined) return new Original(localOptions(id, null));
+      return new Original(id, localOptions(opts, id));
+    }
+    CestisPeer.prototype = Original.prototype;
+    // Anything the library hangs off the constructor stays reachable.
+    Object.keys(Original).forEach(function (k) {
+      try { CestisPeer[k] = Original[k]; } catch (e) {}
+    });
+    root.Peer = CestisPeer;
+    root.__cestisPeerOriginal = Original;
+    if (root.console) console.log('[CESTIS] Video classes will be introduced by this Centre\'s own server \u2014 no internet needed.');
   }
-  CestisPeer.prototype = Original.prototype;
-  // Anything the library hangs off the constructor stays reachable.
-  Object.keys(Original).forEach(function (k) {
-    try { CestisPeer[k] = Original[k]; } catch (e) {}
-  });
 
-  root.Peer = CestisPeer;
-  root.__cestisPeerOriginal = Original;
+  var offline = false;
   root.__cestisRtcIsOffline = function () { return offline; };
+  probe().then(function (on) { offline = !!on; if (offline) wrap(); }, function () {});
 
 })(typeof window !== 'undefined' ? window : this);

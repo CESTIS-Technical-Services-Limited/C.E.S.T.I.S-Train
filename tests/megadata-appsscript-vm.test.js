@@ -136,6 +136,8 @@ function post(ctx, e) { return JSON.parse(ctx.doPost(e).getContent()); }
 
   section('Own-folder walk: a backup dropped next to broker-state.json is found by NO name at all');
   folder.createFile('cestis-master-snapshot.json', '{"store":{}}');
+  // The trainee gate's note of where its folders are: nobody's records.
+  folder.createFile('CESTIS_GATE.json', '{"format":"cestis-gate-config","traineesId":"F1"}');
   const sub = { _files: [], getName: () => 'Old exports', getFiles() { return { hasNext: () => this._files.length > this._i, next: () => this._files[this._i++] }; }, _i: 0, getFolders: () => ({ hasNext: () => false, next: () => null }) };
   sub._files.push({ getId: () => 'file_sub1', getName: () => 'Some_Odd_Backup_Name.json', getSize: () => 2, isTrashed: () => false, getLastUpdated: () => new Date('2026-08-01T10:00:00Z'), getBlob: () => ({ getDataAsString: () => '{}' }) });
   folder._subfolders.push(sub);
@@ -143,6 +145,7 @@ function post(ctx, e) { return JSON.parse(ctx.doPost(e).getContent()); }
   eq(ls2.files.filter(f => f.name === 'cestis-master-snapshot.json').length, 1, 'own-folder walk finds the snapshot');
   eq(ls2.files.filter(f => f.name === 'Some_Odd_Backup_Name.json').length, 1, 'and walks SUBFOLDERS too');
   eq(ls2.files.filter(f => f.name && /^(broker-state\.json|head\.json|seg-)/.test(f.name)).length, 0, 'the broker never offers its own artifacts');
+  eq(ls2.files.filter(f => f.name === 'CESTIS_GATE.json').length, 0, 'nor the trainee gate\'s note of its folders (CESTIS_GATE.json)');
   const ls3 = post(ctx, await signed('listLegacy', { names: ['CESTIS_School_Fees.json'], prefixes: [], folderIds: [] }));
   eq(ls3.files.filter(f => f.name === 'CESTIS_School_Fees.json').length, 1, 'a file reached by name AND folder walk is offered ONCE');
 

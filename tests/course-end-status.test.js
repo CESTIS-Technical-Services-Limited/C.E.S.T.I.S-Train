@@ -14,6 +14,15 @@
        dragged back to In Training on every page load — taking any status a
        person had set since with it.
 
+   Since then the rule also reads the trainee's transcript
+   (CESTISCore.courseEnd — see tests/course-end-transcript.test.js): every core
+   unit competent -> "Ready to certify", not NYC; results still being marked
+   -> "Awaiting marking", not NYC yet. The trainees here have no transcript
+   results at all, so on a programme with a unit catalogue they are still
+   marked NYC — now with the reason ("No result: ...") written on the record —
+   and on one without a catalogue exactly as before. This file used to say
+   that EVERY uncertified trainee becomes NYC; that is no longer the rule.
+
    The functions are read straight out of index.html — the LMS keeps its logic
    inline — and run against a stubbed page.
 
@@ -49,7 +58,8 @@ function extractFunction(name) {
 }
 
 const NAMES = ['courseDurationRecord', 'studentCentreRecord', 'studentCourseStatus',
-               'courseEndKeyFor', 'markStageSetByUser', 'applyCourseEndStatuses'];
+               'courseEndKeyFor', 'markStageSetByUser', 'studentStampedElsewhere', 'courseEndTranscriptData',
+               'applyCourseEndStatuses'];
 
 /* Dates relative to a fixed "today" of 2026-08-03 (the tests never call
    Date.now() themselves — courseDuration.status does, against real time). */
@@ -75,12 +85,13 @@ function centre(over) { return Object.assign({ id: 'C1', name: 'Welding and Fabr
 function trainee(over) { return Object.assign({ id: 'S1', name: 'Ann Brown', course: 'Welding and Fabrication Level 2', stage: 'training' }, over); }
 
 /* ---------- 1. A course that has ended marks its trainees ---------- */
-console.log('Trainees of a course that has ended become Not Yet Competent');
+console.log('Trainees of a course that has ended, with no transcript results, become Not Yet Competent');
 
 let page = makePage([centre(ENDED)], [trainee(), trainee({ id: 'S2', stage: 'testing' })]);
 assertEq(page.applyCourseEndStatuses(), true, 'the sweep reports a change');
 assertEq(page.students[0].stage, 'nyc', 'the trainee in training is marked');
 assertEq(page.students[1].stage, 'nyc', 'and so is the one still in testing');
+assert(/^No result: /.test(page.students[0].courseEndReason || ''), 'and the record says why: no result for the core units');
 
 console.log('Certified trainees are never demoted');
 

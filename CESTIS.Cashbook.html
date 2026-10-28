@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261028e"></script>
+<script src="cestis-form-modal.js?v=20261028d" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CESTIS Cash Book Dashboard</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
@@ -167,9 +168,9 @@ input, select, button, textarea { font-family: var(--sans); }
 }
 .logo { padding:0 1.25rem 1.5rem; border-bottom:1px solid var(--border); margin-bottom:1rem; }
 .logo h1 { font-size:.85rem; font-weight:700; color:var(--accent2); letter-spacing:1px; text-transform:uppercase; }
-.logo p { font-size:.7rem; color:var(--text3); margin-top:.25rem; }
+.logo p { font-size:0.75rem; color:var(--text3); margin-top:.25rem; }
 .nav-section { padding:0 .75rem; margin-bottom:.5rem; }
-.nav-label { font-size:.6rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; padding:.5rem .5rem; }
+.nav-label { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; padding:.5rem .5rem; }
 .nav-item {
     display:flex; align-items:center; gap:.625rem;
     padding:.625rem .75rem; border-radius:8px; cursor:pointer;
@@ -180,7 +181,7 @@ input, select, button, textarea { font-family: var(--sans); }
 .nav-item.active { background:rgba(59,130,246,0.12); color:var(--accent2); }
 .nav-item .icon { font-size:1rem; width:1.25rem; text-align:center; }
 .sidebar-footer { margin-top:auto; padding:1rem 1.25rem; border-top:1px solid var(--border); }
-.sidebar-footer p { font-size:.65rem; color:var(--text3); }
+.sidebar-footer p { font-size:0.75rem; color:var(--text3); }
 
 /* Main */
 .main { padding:1.5rem 2rem; overflow-y:auto; }
@@ -211,7 +212,7 @@ input, select, button, textarea { font-family: var(--sans); }
 .btn-sm { padding:.375rem .625rem; font-size:.75rem; }
 
 /* Transaction move buttons */
-.txn-move-btn { padding:0.2rem 0.4rem !important; font-size:0.65rem !important; line-height:1; min-width:0; }
+.txn-move-btn { padding:0.2rem 0.4rem !important; font-size:0.75rem !important; line-height:1; min-width:0; }
 .txn-move-btn:disabled { opacity:0.3; cursor:not-allowed; }
 tr[draggable="true"] { cursor:grab; }
 tr[draggable="true"]:active { cursor:grabbing; }
@@ -233,9 +234,9 @@ tr[draggable="true"]:active { cursor:grabbing; }
 .stat-card.red::before { background:var(--red); }
 .stat-card.amber::before { background:var(--amber); }
 .stat-card.purple::before { background:var(--purple); }
-.stat-card .label { font-size:.6875rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.75px; }
+.stat-card .label { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.75px; }
 .stat-card .value { font-size:1.5rem; font-weight:700; font-family:var(--mono); margin:.375rem 0 .125rem; }
-.stat-card .change { font-size:.6875rem; color:var(--text3); }
+.stat-card .change { font-size:0.75rem; color:var(--text3); }
 .stat-card .value.green-text { color:var(--green); }
 .stat-card .value.red-text { color:var(--red); }
 .stat-card .value.amber-text { color:var(--amber); }
@@ -247,7 +248,7 @@ tr[draggable="true"]:active { cursor:grabbing; }
 }
 .card-title { font-size:.9375rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:.5rem; }
 .card-title .badge {
-    font-size:.625rem; padding:.125rem .5rem; border-radius:10px; font-weight:600;
+    font-size:0.75rem; padding:.125rem .5rem; border-radius:10px; font-weight:600;
     background:rgba(59,130,246,0.15); color:var(--accent2);
 }
 
@@ -255,7 +256,7 @@ tr[draggable="true"]:active { cursor:grabbing; }
 .table-wrap { overflow-x:auto; }
 table { width:100%; border-collapse:collapse; font-size:.8125rem; }
 thead th {
-    background:var(--surface2); color:var(--text2); font-weight:600; font-size:.6875rem;
+    background:var(--surface2); color:var(--text2); font-weight:600; font-size:0.75rem;
     text-transform:uppercase; letter-spacing:.5px; padding:.625rem .75rem;
     text-align:left; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:2;
 }
@@ -273,7 +274,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .cheque-num { font-family:var(--mono); color:var(--purple); font-weight:500; }
 .tag {
     display:inline-block; padding:.125rem .5rem; border-radius:4px;
-    font-size:.6875rem; font-weight:600;
+    font-size:0.75rem; font-weight:600;
 }
 .tag-salary { background:rgba(59,130,246,0.12); color:var(--accent2); }
 .tag-statutory { background:rgba(168,85,247,0.12); color:var(--purple); }
@@ -295,7 +296,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .budget-vs-actual-wrap { overflow-x:auto; }
 .budget-vs-actual-table { width:100%; border-collapse:collapse; font-size:.8125rem; }
 .budget-vs-actual-table thead th {
-    background:var(--surface2); color:var(--text2); font-weight:600; font-size:.6875rem;
+    background:var(--surface2); color:var(--text2); font-weight:600; font-size:0.75rem;
     text-transform:uppercase; letter-spacing:.5px; padding:.625rem .75rem;
     text-align:left; border-bottom:1px solid var(--border); white-space:nowrap;
 }
@@ -339,7 +340,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 /* Financial Summary */
 .fin-summary { display:grid; grid-template-columns:1fr auto 1fr; gap:1rem; align-items:stretch; margin-bottom:1.5rem; }
 .fin-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; }
-.fin-box h4 { font-size:.6875rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:.75rem; }
+.fin-box h4 { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:.75rem; }
 .fin-line { display:flex; justify-content:space-between; padding:.375rem 0; font-size:.8125rem; border-bottom:1px dashed var(--border); }
 .fin-line:last-child { border-bottom:none; }
 .fin-line.total { font-weight:700; font-size:.9375rem; border-top:2px solid var(--border); border-bottom:none; padding-top:.625rem; margin-top:.375rem; }
@@ -373,7 +374,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
     margin:1.5rem 0 .75rem; padding-bottom:.5rem; border-bottom:1px solid var(--border);
     display:flex; align-items:center; gap:.5rem;
 }
-.recon-quarter-label .badge { font-size:.625rem; letter-spacing:0; text-transform:none; }
+.recon-quarter-label .badge { font-size:0.75rem; letter-spacing:0; text-transform:none; }
 .recon-month-card {
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
     margin-bottom:1rem; overflow:hidden;
@@ -390,7 +391,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .recon-month-stats {
     display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; margin-bottom:1.25rem;
 }
-.recon-month-stat .stat-label { font-size:.6875rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:.25rem; }
+.recon-month-stat .stat-label { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:.25rem; }
 .recon-month-stat .stat-value { font-size:1.125rem; font-weight:700; font-family:var(--mono); }
 .recon-month-bank {
     display:flex; align-items:center; gap:1rem; padding:1rem; background:var(--surface2);
@@ -403,7 +404,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 }
 .recon-month-bank input[type="number"]:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(59,130,246,0.2); }
 .recon-month-bank .recon-diff { font-family:var(--mono); font-weight:700; font-size:.875rem; margin-left:auto; }
-.recon-status { display:inline-block; padding:.25rem .625rem; border-radius:4px; font-size:.6875rem; font-weight:600; }
+.recon-status { display:inline-block; padding:.25rem .625rem; border-radius:4px; font-size:0.75rem; font-weight:600; }
 .recon-status.matched { background:var(--green-bg); color:var(--green); }
 .recon-status.unmatched { background:var(--red-bg); color:var(--red); }
 .recon-status.pending { background:var(--amber-bg); color:var(--amber); }
@@ -414,7 +415,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
     background:var(--surface2); border:1px solid var(--border); border-radius:8px;
     padding:1rem; text-align:center;
 }
-.recon-summary-item .label { font-size:.6875rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:.375rem; }
+.recon-summary-item .label { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:.375rem; }
 .recon-summary-item .value { font-size:1.25rem; font-weight:700; font-family:var(--mono); }
 
 /* Enhanced Recon Card Details */
@@ -439,7 +440,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 }
 .recon-cheques-list.open { max-height:300px; overflow-y:auto; }
 .recon-cheques-list table { font-size:.75rem; }
-.recon-cheques-list th { background:var(--surface2); color:var(--text3); font-size:.625rem; padding:.375rem .5rem; }
+.recon-cheques-list th { background:var(--surface2); color:var(--text3); font-size:0.75rem; padding:.375rem .5rem; }
 .recon-cheques-list td { padding:.25rem .5rem; border-bottom:1px solid var(--border); }
 
 /* Uncleared cheque checkbox */
@@ -455,10 +456,10 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
     border:1px solid var(--border); border-left:3px solid var(--amber); border-radius:6px;
 }
 .recon-bf-title { font-size:.75rem; font-weight:700; color:var(--amber); margin-bottom:.125rem; }
-.recon-bf-hint { font-size:.6875rem; color:var(--text3); margin-bottom:.375rem; }
+.recon-bf-hint { font-size:0.75rem; color:var(--text3); margin-bottom:.375rem; }
 .recon-bf-block table { font-size:.75rem; width:100%; border-collapse:collapse; }
 .recon-bf-block th {
-    background:var(--surface2); color:var(--text3); font-size:.625rem;
+    background:var(--surface2); color:var(--text3); font-size:0.75rem;
     padding:.375rem .5rem; text-align:left;
 }
 .recon-bf-block td { padding:.25rem .5rem; border-bottom:1px solid var(--border); }
@@ -466,7 +467,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .recon-bf-block tr.cheque-uncleared { background:rgba(245,158,11,0.08); }
 .recon-bf-block tr.cheque-uncleared td { color:var(--amber); }
 .recon-bf-block tr.bf-cleared td { color:var(--text3); }
-.recon-bf-block td.bf-src { color:var(--text3); font-size:.6875rem; white-space:nowrap; }
+.recon-bf-block td.bf-src { color:var(--text3); font-size:0.75rem; white-space:nowrap; }
 .recon-bf-block td.amount { text-align:right; font-family:var(--mono); }
 
 /* Reconciliation hint: what would close the remaining difference */
@@ -490,7 +491,7 @@ tbody tr.bank-charge { color:var(--text3); font-style:italic; }
 .recon-hint-items .hint-amt { font-family:var(--mono); font-weight:600; color:var(--amber); }
 .recon-hint-apply {
     flex-shrink:0; background:var(--accent); color:#fff; border:none; border-radius:6px;
-    padding:.375rem .75rem; font-size:.6875rem; font-weight:700; cursor:pointer;
+    padding:.375rem .75rem; font-size:0.75rem; font-weight:700; cursor:pointer;
 }
 .recon-hint-apply:hover { filter:brightness(1.15); }
 
@@ -923,7 +924,7 @@ body.cmc-view-mode .mandatory-sync-overlay,
 body.cmc-view-mode .first-time-sync-prompt { display: none !important; }
 body.cmc-view-mode .cmc-view-ribbon {
     background: rgba(26,188,156,0.14); color: #1abc9c; font-weight: 700;
-    font-size: 0.72rem; letter-spacing: .04em; text-align: center;
+    font-size: 0.75rem; letter-spacing: .04em; text-align: center;
     padding: 6px 10px; border-radius: 8px; margin: 10px;
 }
 
@@ -1177,7 +1178,7 @@ body.cmc-view-mode .cmc-view-ribbon {
 .budget-summary-card.card-amber::before { background:var(--amber); }
 .budget-summary-card.card-purple::before { background:var(--purple); }
 .budget-summary-label {
-    font-size:.6875rem;
+    font-size:0.75rem;
     font-weight:600;
     color:var(--text3);
     text-transform:uppercase;
@@ -1190,7 +1191,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     margin:.375rem 0 .125rem;
 }
 .budget-summary-sub {
-    font-size:.6875rem;
+    font-size:0.75rem;
     color:var(--text3);
 }
 .budget-form-section {
@@ -1217,7 +1218,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     background:var(--surface2);
     color:var(--text2);
     font-weight:600;
-    font-size:.6875rem;
+    font-size:0.75rem;
     text-transform:uppercase;
     letter-spacing:.5px;
     padding:.625rem .75rem;
@@ -1269,7 +1270,7 @@ body.cmc-view-mode .cmc-view-ribbon {
 }
 .budget-usage-cell .mini-bar { flex:1; min-width:50px; }
 .budget-usage-cell .pct-label {
-    font-size:.7rem;
+    font-size:0.75rem;
     color:var(--text3);
     min-width:38px;
     text-align:right;
@@ -1436,7 +1437,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     box-shadow:0 0 0 2px rgba(34,197,94,.15);
 }
 .subvention-status {
-    font-size:.7rem;
+    font-size:0.75rem;
     font-family:var(--mono);
     padding:.25rem .5rem;
     border-radius:4px;
@@ -1538,7 +1539,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     font-weight:600;
 }
 .void-count-badge {
-    font-size:.625rem;
+    font-size:0.75rem;
     padding:.125rem .5rem;
     border-radius:10px;
     font-weight:600;
@@ -1630,7 +1631,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     flex-wrap:wrap;
 }
 .section-filter-label {
-    font-size:.6875rem;
+    font-size:0.75rem;
     font-weight:600;
     color:var(--text3);
     text-transform:uppercase;
@@ -1641,7 +1642,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     padding:.375rem .75rem;
     border-radius:6px;
     cursor:pointer;
-    font-size:.7rem;
+    font-size:0.75rem;
     font-weight:600;
     background:var(--surface2);
     color:var(--text3);
@@ -1659,7 +1660,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     display:inline-block;
     background:var(--surface3);
     color:var(--text3);
-    font-size:.6rem;
+    font-size:0.75rem;
     padding:1px 5px;
     border-radius:8px;
     margin-left:4px;
@@ -1672,7 +1673,7 @@ body.cmc-view-mode .cmc-view-ribbon {
 /* Section badge in table */
 .budget-section-badge {
     display:inline-block;
-    font-size:.6rem;
+    font-size:0.75rem;
     font-weight:600;
     text-transform:uppercase;
     letter-spacing:.5px;
@@ -1827,7 +1828,7 @@ body.cmc-view-mode .cmc-view-ribbon {
 .login-form { display:flex; flex-direction:column; gap:1.25rem; }
 .login-field { position:relative; }
 .login-field label {
-    display:block; font-size:.6875rem; font-weight:600;
+    display:block; font-size:0.75rem; font-weight:600;
     color:var(--text3); text-transform:uppercase; letter-spacing:.75px;
     margin-bottom:.5rem;
 }
@@ -1904,14 +1905,14 @@ body.cmc-view-mode .cmc-view-ribbon {
 }
 .login-footer {
     text-align:center; margin-top:1.5rem;
-    font-size:.65rem; color:var(--text3);
+    font-size:0.75rem; color:var(--text3);
     line-height:1.6;
 }
 .login-footer span { color:var(--accent); }
 .login-session-info {
     display:flex; align-items:center; justify-content:center;
     gap:.375rem; margin-top:.75rem;
-    font-size:.65rem; color:var(--text3);
+    font-size:0.75rem; color:var(--text3);
 }
 .login-session-info .dot {
     width:5px; height:5px; border-radius:50%;
@@ -1945,7 +1946,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     margin-top: 0.25rem;
 }
 .cloud-section .nav-label {
-    font-size: .65rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: .05em;
     color: var(--text3);
@@ -2023,7 +2024,7 @@ body.cmc-view-mode .cmc-view-ribbon {
     color: #2196F3;
 }
 .cloud-sync-info {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--text3);
     padding: 0.25rem 0.75rem;
     line-height: 1.4;
@@ -2071,7 +2072,7 @@ body.cmc-view-mode .cmc-view-ribbon {
 }
 .last-sync-info {
     padding: 6px 16px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--text3, #94a3b8);
 }
 .cloud-sync-btn {
@@ -2163,7 +2164,7 @@ body.cmc-view-mode .cmc-view-ribbon {
         padding:.6rem .75rem; font-size:.85rem; font-weight:600;
         cursor:pointer; font-family:inherit; text-align:left;
     }
-    .cb-mobile-nav-caret { margin-left:auto; font-size:.7rem; color:var(--text3); transition:transform .15s; }
+    .cb-mobile-nav-caret { margin-left:auto; font-size:0.75rem; color:var(--text3); transition:transform .15s; }
     .app.mobile-nav-open .cb-mobile-nav-caret { transform:rotate(180deg); }
     /* Sidebar collapses into a dropdown panel under the mobile nav bar */
     .sidebar { display:none; }
@@ -2190,6 +2191,29 @@ body.cmc-view-mode .cmc-view-ribbon {
     }
     .login-container { padding:1rem; }
     .login-card { padding:2rem 1.5rem 1.5rem; }
+}
+/* Phones: the transactions ledger showed the date, the cheque number and
+   half of the details, with the deposit, payment and running balance past
+   the card's edge. It now scrolls sideways inside its own card (never the
+   page) with the payee/details pinned on the left while the amounts slide
+   under it, and the move/edit/delete buttons are at least 44px. The date,
+   cheque number and category move into a line under the details. Screen
+   only: a printed page can be narrower than 768px too. */
+.cb-phone-sub { display:none; }
+@media screen and (max-width:768px) {
+    #page-transactions .table-wrap table { min-width:0; }
+    #page-transactions .table-wrap th:nth-child(1), #page-transactions .table-wrap td:nth-child(1),
+    #page-transactions .table-wrap th:nth-child(2), #page-transactions .table-wrap td:nth-child(2),
+    #page-transactions .table-wrap th:nth-child(4), #page-transactions .table-wrap td:nth-child(4) { display:none; }
+    #page-transactions .cb-phone-sub { display:block; margin-top:2px; font-size:.75rem; color:var(--text3); }
+    #page-transactions .table-wrap tbody td:nth-child(3) {
+        position:sticky; left:0; z-index:1; background:var(--surface);
+        min-width:150px; max-width:190px; white-space:normal; box-shadow:inset -1px 0 0 var(--border);
+    }
+    #page-transactions .table-wrap tbody tr.deposit-row td:nth-child(3) { background:linear-gradient(var(--green-bg),var(--green-bg)),var(--surface); }
+    #page-transactions .table-wrap thead th:nth-child(3) { left:0; z-index:3; box-shadow:inset -1px 0 0 var(--border); }
+    #page-transactions .table-wrap tbody .btn-sm { min-width:44px; min-height:44px; }
+    #page-transactions .table-wrap tbody td.no-print { white-space:nowrap; }
 }
 
 /* First-Time Sync Prompt Styles */
@@ -2336,7 +2360,21 @@ body.cmc-view-mode .cmc-view-ribbon {
 @keyframes notifyCountdown{from{width:100%}to{width:0%}}
 .cloud-notify-timer{height:3px;background:var(--text3);opacity:.3;border-radius:0 0 14px 14px}
 
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:0.6rem"], [style*="font-size: 0.6rem"], [style*="font-size:.65rem"],
+  [style*="font-size: .65rem"], [style*="font-size:0.65rem"], [style*="font-size: 0.65rem"],
+  [style*="font-size:0.7rem"], [style*="font-size: 0.7rem"], [style*="font-size:.7rem"], [style*="font-size: .7rem"] { font-size:12px !important; }
+}
 </style>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261028d">
 </head>
 <body>
 
@@ -2429,11 +2467,11 @@ body.cmc-view-mode .cmc-view-ribbon {
         </div>
         <!-- First-Time User Sync Prompt -->
         <div class="first-time-sync-prompt" id="firstTimeSyncPrompt">
-            <div class="sync-prompt-icon">☁️</div>
+            <div class="sync-prompt-icon">🔄</div>
             <h3>First Time Here?</h3>
-            <p>If you're logging in for the first time or on a new device, please sync with Google Cloud first to get your account data.</p>
+            <p>If you're logging in for the first time or on a new device, please sync first to get your account data.</p>
             <button type="button" class="sync-prompt-btn" onclick="initiateLoginPageSync()">
-                <span>🔄</span> Connect & Sync with Google
+                <span>🔄</span> Connect & Sync
             </button>
             <div class="sync-prompt-dismiss">
                 <a onclick="dismissFirstTimePrompt()">I already have local data - skip this</a>
@@ -2452,11 +2490,11 @@ body.cmc-view-mode .cmc-view-ribbon {
 <!-- ============================================================ -->
 <div class="mandatory-sync-overlay hidden" id="mandatorySyncOverlay">
     <div class="mandatory-sync-card">
-        <div class="mandatory-sync-icon">☁️</div>
-        <h2>Cloud Sync Required</h2>
-        <p>Before you can use the dashboard, you must sync your data with Google Cloud. This ensures you have the latest account data and settings.</p>
+        <div class="mandatory-sync-icon">🔄</div>
+        <h2>Sync Required</h2>
+        <p>Before you can use the dashboard, you must sync. This brings this computer up to date with the latest account data and settings.</p>
         <button type="button" class="mandatory-sync-btn" id="mandatorySyncBtn" onclick="initiateMandatorySync()">
-            <span>🔄</span> Connect & Sync with Google
+            <span>🔄</span> Connect & Sync
         </button>
         <div class="mandatory-sync-status hidden" id="mandatorySyncStatus">
             <span class="sync-status-icon">⏳</span>
@@ -2511,36 +2549,38 @@ body.cmc-view-mode .cmc-view-ribbon {
         </div>
         <!-- Cloud Sync Section -->
         <div class="cloud-section">
-            <div class="nav-label">Cloud Sync</div>
+            <div class="nav-label">Sync</div>
             <div class="cloud-status-bar">
                 <span class="cloud-status-dot" id="cloudStatusDot"></span>
-                <span id="cloudStatusText">Not connected</span>
+                <span id="cloudStatusText">Not synced yet</span>
             </div>
+            <!-- Saved / waiting / offline: cestis-sync-chip.js -->
+            <div style="margin:0 0 .5rem;"><span data-cestis-sync-chip></span></div>
             <div id="cloudNotConnected">
                 <button class="cloud-connect-btn" onclick="connectToGoogleDrive()">
-                    <span>☁️</span>
-                    <span>Connect to Google Drive</span>
+                    <span>🔄</span>
+                    <span>Turn On Sync</span>
                 </button>
             </div>
             <div id="cloudConnected" style="display: none;">
                 <div class="cloud-dropdown">
                     <button class="cloud-sync-btn" onclick="toggleCloudMenu()">
-                        <span id="cloudMenuIcon">☁️</span>
-                        <span>Cloud</span>
+                        <span id="cloudMenuIcon">🔄</span>
+                        <span>Sync</span>
                         <span style="font-size: 0.6rem;">&#9660;</span>
                     </button>
                     <div class="cloud-dropdown-content" id="cloudDropdownMenu">
                         <div class="cloud-dropdown-item" onclick="saveToCloud()" style="background: linear-gradient(135deg, #2196F3 0%, #00BCD4 100%); color: white;">
                             <span>💾</span>
-                            <span>Save to Cloud</span>
+                            <span>Send My Changes</span>
                         </div>
                         <div class="cloud-dropdown-item" onclick="syncFromCloud()" style="background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%); color: white;">
                             <span>🔄</span>
-                            <span>Sync from Cloud</span>
+                            <span>Get Latest Changes</span>
                         </div>
                         <div class="cloud-dropdown-item" onclick="mergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;">
                             <span>🔀</span>
-                            <span>Merge from Cloud</span>
+                            <span>Merge Latest Changes</span>
                         </div>
                         <div class="cloud-dropdown-item" onclick="browseBackupFiles()" style="background: var(--surface2); color: var(--text);">
                             <span>📁</span>
@@ -3350,8 +3390,8 @@ function setCloudSyncing(syncing) {
         if (menuIcon) menuIcon.innerHTML = '<span class="spinning">🔄</span>';
     } else {
         if (dot) dot.className = 'cloud-status-dot' + (isCloudConnected ? ' connected' : '');
-        if (text && isCloudConnected) text.textContent = 'Connected';
-        if (menuIcon) menuIcon.textContent = '☁️';
+        if (text && isCloudConnected) text.textContent = 'Up to date';
+        if (menuIcon) menuIcon.textContent = '🔄';
     }
 }
 
@@ -3367,13 +3407,13 @@ function updateCloudUI(connected) {
         if (notConnectedDiv) notConnectedDiv.style.display = 'none';
         if (connectedDiv) connectedDiv.style.display = 'block';
         if (statusDot) statusDot.className = 'cloud-status-dot connected';
-        if (statusText) statusText.textContent = 'Connected';
+        if (statusText) statusText.textContent = 'Up to date';
         startAutoSync();
     } else {
         if (notConnectedDiv) notConnectedDiv.style.display = 'block';
         if (connectedDiv) connectedDiv.style.display = 'none';
         if (statusDot) statusDot.className = 'cloud-status-dot';
-        if (statusText) statusText.textContent = 'Not connected';
+        if (statusText) statusText.textContent = 'Not synced yet';
         stopAutoSync();
     }
     updateLastSyncDisplay();
@@ -3501,23 +3541,23 @@ function showGoogleAuthModal() {
     var modalHTML = '<div id="googleAuthModal" class="google-auth-modal" style="display: flex;">' +
         '<div class="modal-content" style="max-width: 560px;">' +
             '<div class="modal-header">' +
-                '<h2>☁️ Connect to Google Drive</h2>' +
+                '<h2>🔄 Connect the Centre’s Account</h2>' +
                 '<button class="close-btn" onclick="closeGoogleAuthModal()">&times;</button>' +
             '</div>' +
             '<div style="padding: 1.5rem;">' +
-                '<p style="margin-bottom: 1.25rem; color: var(--text2);">Connect to Google Drive to save and sync your dashboard data across devices. Choose your preferred connection method:</p>' +
+                '<p style="margin-bottom: 1.25rem; color: var(--text2);">Connect the Centre’s account to sync your dashboard data across devices. Choose your preferred connection method:</p>' +
 
                 '<!-- Option 1: Direct Google Sign-In -->' +
                 '<div style="background: rgba(76, 175, 80, 0.1); border: 2px solid #4CAF50; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;">' +
                     '<div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">' +
                         '<span style="font-size: 1.5rem;">🔐</span>' +
                         '<div>' +
-                            '<strong style="color: #4CAF50; font-size: 1.1rem;">Direct Google Sign-In</strong>' +
+                            '<strong style="color: #4CAF50; font-size: 1.1rem;">Direct Sign-In</strong>' +
                             '<span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem; font-weight: 600;">RECOMMENDED</span>' +
                         '</div>' +
                     '</div>' +
-                    '<p style="color: var(--text2); font-size: 0.9rem; margin-bottom: 1rem;">A Google popup will appear for you to sign in with your Google account directly.</p>' +
-                    '<button onclick="triggerDirectGoogleSignIn()" style="width: 100%; padding: 0.75rem; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">Sign in with Google</button>' +
+                    '<p style="color: var(--text2); font-size: 0.9rem; margin-bottom: 1rem;">A sign-in window will open for you to sign in with the Centre’s account directly.</p>' +
+                    '<button onclick="triggerDirectGoogleSignIn()" style="width: 100%; padding: 0.75rem; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">Sign In to Connect</button>' +
                 '</div>' +
 
                 '<!-- Option 2: Manual Token Method -->' +
@@ -3533,10 +3573,10 @@ function showGoogleAuthModal() {
                         '<div style="background: rgba(33, 150, 243, 0.1); border: 1px solid rgba(33, 150, 243, 0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">' +
                             '<strong style="color: #2196F3;">How to get your access token:</strong>' +
                             '<ol style="margin-top: 0.5rem; margin-left: 1rem; color: var(--text2); font-size: 0.85rem; line-height: 1.6;">' +
-                                '<li>Click the link below to open Google OAuth Playground</li>' +
-                                '<li>In Step 1, find and select <strong>"Drive API v3"</strong> → check <strong>"../auth/drive"</strong></li>' +
+                                '<li>Click the button below to open the OAuth Playground</li>' +
+                                '<li>In Step 1, type this permission into the box under the list: <strong style="word-break:break-all;">https://www.googleapis.com/auth/drive</strong></li>' +
                                 '<li>Click <strong>"Authorize APIs"</strong></li>' +
-                                '<li>Sign in with your Google account</li>' +
+                                '<li>Sign in with the Centre’s account</li>' +
                                 '<li>In Step 2, click <strong>"Exchange authorization code for tokens"</strong></li>' +
                                 '<li>Copy the <strong>"Access token"</strong> value and paste below</li>' +
                             '</ol>' +
@@ -3546,7 +3586,7 @@ function showGoogleAuthModal() {
                             '<label style="font-weight: 600; color: var(--text);">Access Token</label>' +
                             '<textarea id="googleAccessTokenInput" rows="4" style="width: 100%; padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; font-family: var(--mono); font-size: 0.75rem; resize: vertical; margin-top: 0.5rem; background: var(--surface); color: var(--text);" placeholder="Paste your access token here..."></textarea>' +
                         '</div>' +
-                        '<button onclick="submitGoogleToken()" style="width: 100%; padding: 0.75rem; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">☁️ Connect with Token</button>' +
+                        '<button onclick="submitGoogleToken()" style="width: 100%; padding: 0.75rem; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🔄 Connect with Token</button>' +
                     '</div>' +
                 '</div>' +
 
@@ -3570,7 +3610,7 @@ function triggerDirectGoogleSignIn() {
             if (googleTokenClient) {
                 googleTokenClient.requestAccessToken();
             } else {
-                alert('Google Sign-In popup is not available. Please use the manual token method.');
+                alert('The sign-in window is not available. Please use the manual token method.');
                 showGoogleAuthModal();
                 setTimeout(function() { showManualTokenForm(); }, 100);
             }
@@ -3621,7 +3661,7 @@ async function submitGoogleToken() {
         closeGoogleAuthModal();
         updateCloudUI(true);
 
-        alert('Connected to Google Drive as ' + (data.user.displayName || data.user.emailAddress));
+        alert('Connected as ' + (data.user.displayName || data.user.emailAddress));
         await findExistingBackupFile();
 
     } catch (error) {
@@ -3670,12 +3710,12 @@ function handleGoogleAuthError(error) {
         return;
     }
     if (error.type === 'popup_closed') return;
-    alert('Failed to authenticate with Google. Please try the manual token method.');
+    alert('Could not sign in. Please try the manual token method.');
     showGoogleAuthModal();
 }
 
 function disconnectFromGoogleDrive() {
-    if (confirm('Are you sure you want to disconnect from Google Drive? Your local data will remain intact.')) {
+    if (confirm('Turn off sync on this computer? Your work stays on this computer.')) {
         googleAccessToken = null;
         isCloudConnected = false;
         cloudFileId = null;
@@ -3689,7 +3729,7 @@ function disconnectFromGoogleDrive() {
         var menu = document.getElementById('cloudDropdownMenu');
         if (menu) menu.classList.remove('show');
 
-        alert('Disconnected from Google Drive');
+        alert('Sync turned off on this computer');
     }
 }
 
@@ -3773,7 +3813,7 @@ function prepareBackupData() {
         }
     }
     // Include current in-memory budget for active quarter
-    quarterlyBudgets[getCurrentBudgetQuarterKey()] = { budget: BUDGET, sections: BUDGET_LINE_SECTIONS };
+    quarterlyBudgets[getCurrentBudgetQuarterKey()] = { budget: BUDGET, sections: BUDGET_LINE_SECTIONS, budgetAt: BUDGET_AT };
 
     // Collect all quarterly transaction data from localStorage (ensures ALL quarters are backed up)
     var quarterlyTransactions = {};
@@ -3788,7 +3828,7 @@ function prepareBackupData() {
         }
     }
     // Include current in-memory transaction data for active quarter
-    quarterlyTransactions[getCurrentQuarterKey()] = { openingBalance: OPENING_BALANCE, transactions: transactions, deletedTxnIds: deletedTxnIds };
+    quarterlyTransactions[getCurrentQuarterKey()] = cbActiveBlob();
 
     return {
         version: '2.0',
@@ -3805,93 +3845,26 @@ function prepareBackupData() {
             quarterlyBudgets: quarterlyBudgets,
             quarterlyTransactions: quarterlyTransactions,
             deletedBudgetKeys: typeof deletedBudgetKeys !== 'undefined' ? deletedBudgetKeys.slice() : [],
-            staffMembers: staffMembers,
-            timeRecords: timeRecords
+            // Read fresh: they belong to the time clock, and this page's own
+            // copy is a snapshot from when it loaded.
+            staffMembers: cbReadStore('cestisStaffMembers'),
+            timeRecords: cbReadStore('cestisTimeRecords')
         }
     };
 }
 
+/* Bring a cloud backup in. This used to REPLACE every quarter, the budgets and
+   the active quarter with the cloud copy — and it is what the mandatory
+   "Cloud Sync Required" step after every sign-in runs. Uploads stop when the
+   Google token expires, so a cheque entered or a void made in that window
+   existed only here, and the next sign-in erased it (page-cloud then pushed
+   the erasure to CESTIS_Cashbook.json). It is now the same record-by-record
+   merge as the 15-second sync, and this device stays on its own quarter. */
 function restoreBackupData(backupData) {
     if (!backupData || !backupData.data) return;
-    var d = backupData.data;
-
-    if (d.activeFY) activeFY = d.activeFY;
-    if (d.activeQ) activeQ = d.activeQ;
-    if (typeof d.openingBalance === 'number') OPENING_BALANCE = d.openingBalance;
-    if (Array.isArray(d.transactions)) {
-        transactions = d.transactions;
-        nextId = transactions.reduce(function(max, t) { return Math.max(max, t.id + 1); }, 100);
-    }
-    if (Array.isArray(d.deletedTxnIds)) {
-        deletedTxnIds = d.deletedTxnIds;
-    } else {
-        deletedTxnIds = [];
-    }
-    // Restore per-quarter budget data if available
-    if (d.quarterlyBudgets && typeof d.quarterlyBudgets === 'object') {
-        Object.keys(d.quarterlyBudgets).forEach(function(key) {
-            try { CESTISStore.setItem(key, JSON.stringify(d.quarterlyBudgets[key])); } catch(e) {}
-        });
-    }
-    // Restore per-quarter transaction data if available (ensures ALL quarters are restored)
-    if (d.quarterlyTransactions && typeof d.quarterlyTransactions === 'object') {
-        Object.keys(d.quarterlyTransactions).forEach(function(key) {
-            try { CESTISStore.setItem(key, JSON.stringify(d.quarterlyTransactions[key])); } catch(e) {}
-        });
-        // Reload the active quarter's transactions from localStorage to ensure consistency
-        var activeKey = getQuarterKey(activeFY, activeQ);
-        var activeData = CESTISStore.getItem(activeKey);
-        if (activeData) {
-            try {
-                var parsed = JSON.parse(activeData);
-                if (typeof parsed.openingBalance === 'number') OPENING_BALANCE = parsed.openingBalance;
-                if (Array.isArray(parsed.transactions)) {
-                    transactions = parsed.transactions;
-                    nextId = transactions.reduce(function(max, t) { return Math.max(max, t.id + 1); }, 100);
-                }
-            } catch(e) {}
-        }
-    }
-    // Restore current quarter budget
-    if (d.budget && typeof d.budget === 'object') {
-        BUDGET = d.budget;
-        BUDGET_LINE_SECTIONS = (d.budgetSections && typeof d.budgetSections === 'object') ? d.budgetSections : {};
-        saveQuarterBudget();
-    }
-    if (Array.isArray(d.deletedBudgetKeys)) {
-        deletedBudgetKeys = d.deletedBudgetKeys;
-    }
-    // Staff members and time records are OWNED by the Clock-in system and only
-    // embedded in cashbook backups as a convenience copy. Merge missing records
-    // instead of replacing wholesale — a wholesale restore from an old cashbook
-    // backup used to erase newer clock-in/payroll attendance records.
-    if (Array.isArray(d.staffMembers)) {
-        var _staffKeys = new Set(staffMembers.map(function(st) { return st.id || st.username || (st.fullName || st.name || '').toLowerCase(); }));
-        d.staffMembers.forEach(function(bs) {
-            var sk = bs.id || bs.username || (bs.fullName || bs.name || '').toLowerCase();
-            if (!_staffKeys.has(sk)) { staffMembers.push(bs); _staffKeys.add(sk); }
-        });
-        saveStaffMembers();
-    }
-    if (Array.isArray(d.timeRecords)) {
-        var _recKeys = new Set(timeRecords.map(function(r) {
-            return r.id || ((r.date || '') + '|' + (r.staffId || '') + '|' + (r.clockIn || ''));
-        }));
-        d.timeRecords.forEach(function(br) {
-            var rk = br.id || ((br.date || '') + '|' + (br.staffId || '') + '|' + (br.clockIn || ''));
-            if (!_recKeys.has(rk)) { timeRecords.push(br); _recKeys.add(rk); }
-        });
-        saveTimeRecords();
-    }
-
-    // Sanitize: remove any transactions that don't belong to the active quarter
-    sanitizeTransactionsForQuarter();
-
-    // Save to localStorage
+    silentMerge(backupData);
     saveToStorage();
-    try { CESTISStore.setItem('cestis_active_quarter', JSON.stringify({ fy: activeFY, q: activeQ })); } catch(e) {}
-
-    // Refresh UI
+    saveQuarterBudget();
     updateQuarterUI();
     updateBLQuarterUI();
     refreshAll();
@@ -3903,7 +3876,7 @@ function restoreBackupData(backupData) {
 
 async function saveToCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -3913,8 +3886,8 @@ async function saveToCloud() {
     // Check for changes by others before saving
     var cloudInfo = await checkCloudForChanges();
 
-    var confirmMessage = 'MULTI-USER CLOUD SYNC\n\n';
-    confirmMessage += 'You are about to save to a shared cloud backup.\n\n';
+    var confirmMessage = 'MULTI-USER SYNC\n\n';
+    confirmMessage += 'You are about to replace the shared copy that everyone syncs from.\n\n';
 
     if (cloudInfo && cloudInfo.savedBy) {
         var cloudTime = new Date(cloudInfo.timestamp);
@@ -3925,13 +3898,13 @@ async function saveToCloud() {
         if (hasConflict && cloudInfo.savedBy !== (currentUser ? currentUser.username : '')) {
             confirmMessage += 'WARNING: ' + cloudInfo.savedBy + ' saved changes ' + timeSinceLastSave + '!\n';
             confirmMessage += 'Your local data may not include their changes.\n\n';
-            confirmMessage += 'Recommendation: Click Cancel, then "Sync from Cloud" first.\n\n';
+            confirmMessage += 'Recommendation: Click Cancel, then "Get Latest Changes" first.\n\n';
         } else {
             confirmMessage += 'Last saved by: ' + cloudInfo.savedBy + ' (' + timeSinceLastSave + ')\n\n';
         }
     }
 
-    confirmMessage += 'This will overwrite the cloud backup. Continue?';
+    confirmMessage += 'This will replace the shared copy. Continue?';
 
     if (!confirm(confirmMessage)) return;
 
@@ -4002,17 +3975,17 @@ async function saveToCloud() {
         updateLastSavedByDisplay();
 
         setCloudSyncing(false);
-        alert('Data saved to Google Drive successfully!\n\nSaved by: ' + lastSavedBy + '\n\nTip: Let other users know to sync from cloud to get your changes.');
+        alert('Data saved and synced!\n\nSaved by: ' + lastSavedBy + '\n\nTip: Let other users know to sync to get your changes.');
 
     } catch (error) {
         console.error('Error saving to cloud:', error);
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('Your session has expired. Please reconnect to Google Drive.');
+            alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert('Failed to save to cloud: ' + error.message);
+            alert('Could not sync: ' + error.message);
         }
     }
 }
@@ -4023,7 +3996,7 @@ async function saveToCloud() {
 
 async function syncFromCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -4035,11 +4008,11 @@ async function syncFromCloud() {
     }
 
     if (!cloudFileId) {
-        alert('No backup file found in Google Drive. Save your data first to create a backup.');
+        alert('No shared copy yet. Save your data first to create one.');
         return;
     }
 
-    if (!confirm('This will REPLACE your local data with the cloud backup. Are you sure you want to continue?')) {
+    if (!confirm('This will merge the shared copy into this computer: newer entries, voids and edits are brought in, and entries only this computer holds are kept. Continue?')) {
         return;
     }
 
@@ -4075,17 +4048,17 @@ async function syncFromCloud() {
 
         var backupTime = new Date(backupData.timestamp).toLocaleString();
         var savedByInfo = backupData.savedBy ? '\nLast saved by: ' + backupData.savedBy : '';
-        alert('Data synced from cloud successfully!\n\nBackup was created: ' + backupTime + savedByInfo);
+        alert('Data synced successfully!\n\nBackup was created: ' + backupTime + savedByInfo);
 
     } catch (error) {
         console.error('Error syncing from cloud:', error);
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('Your session has expired. Please reconnect to Google Drive.');
+            alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert('Failed to sync from cloud: ' + error.message);
+            alert('Could not sync: ' + error.message);
         }
     }
 }
@@ -4096,7 +4069,7 @@ async function syncFromCloud() {
 
 async function mergeFromCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -4108,16 +4081,15 @@ async function mergeFromCloud() {
     }
 
     if (!cloudFileId) {
-        alert('No backup file found in Google Drive. Save your data first to create a backup.');
+        alert('No shared copy yet. Save your data first to create one.');
         return;
     }
 
-    if (!confirm('MERGE FROM CLOUD\n\nThis will merge cloud data with your local data:\n\n' +
-        '- New transactions from cloud will be ADDED\n' +
-        '- New budget amounts from cloud will be ADDED\n' +
-        '- New staff members from cloud will be ADDED\n' +
-        '- Existing local items are preserved\n' +
-        '- No local data will be removed\n\nContinue?')) {
+    if (!confirm('MERGE LATEST CHANGES\n\nThis will merge the shared data with the data on this computer:\n\n' +
+        '- New transactions and budget lines will be ADDED\n' +
+        '- Newer edits and voids replace older copies here\n' +
+        '- Entries deleted on another device are removed here too\n' +
+        '- Entries only this device holds are kept\n\nContinue?')) {
         return;
     }
 
@@ -4137,137 +4109,9 @@ async function mergeFromCloud() {
             throw new Error('Invalid backup file format');
         }
 
-        var d = backupData.data;
-        var mergeStats = { transactionsAdded: 0, budgetAmountsAdded: 0, staffAdded: 0, timeRecordsAdded: 0 };
-
-        // Merge transactions — only merge into in-memory if cloud's active quarter matches local
-        // Respect locally deleted transaction IDs to prevent re-adding deleted items
-        if (Array.isArray(d.transactions)) {
-            var cloudFY = d.activeFY || activeFY;
-            var cloudQ = d.activeQ || activeQ;
-            if (cloudFY === activeFY && cloudQ === activeQ) {
-                // Same quarter — merge into in-memory transactions, skip deleted
-                var localTxnIds = new Set(transactions.map(function(t) { return t.id; }));
-                var localUidsM = new Set(transactions.map(function(t) { return t && t.uid; }).filter(Boolean));
-                var mergeDelSet = new Set(deletedTxnIds);
-                d.transactions.forEach(function(cloudTxn) {
-                    // Judged by uid where both sides have one: a matching id between
-                    // two devices means nothing, and treating it as "already have
-                    // it" silently threw the other device's entry away.
-                    if (cloudTxn && cloudTxn.uid) {
-                        if (!localUidsM.has(cloudTxn.uid) && !mergeDelSet.has(cloudTxn.id)) {
-                            var ad1 = cbAdoptTransaction(cloudTxn);
-                            if (ad1) { localUidsM.add(ad1.uid); localTxnIds.add(ad1.id); mergeStats.transactionsAdded++; }
-                        }
-                        return;
-                    }
-                    if (!localTxnIds.has(cloudTxn.id) && !mergeDelSet.has(cloudTxn.id)) {
-                        var ad1b = cbAdoptTransaction(cloudTxn);
-                        if (ad1b) { localUidsM.add(ad1b.uid); localTxnIds.add(ad1b.id); mergeStats.transactionsAdded++; }
-                    }
-                });
-                if (mergeStats.transactionsAdded > 0) {
-                    nextId = transactions.reduce(function(max, t) { return Math.max(max, t.id + 1); }, 100);
-                    saveToStorage();
-                }
-            } else {
-                // Different quarter — merge into the correct localStorage key, skip deleted
-                var cloudKey = getQuarterKey(cloudFY, cloudQ);
-                var localRaw = CESTISStore.getItem(cloudKey);
-                try {
-                    var localData = localRaw ? JSON.parse(localRaw) : { openingBalance: d.openingBalance || 0, transactions: [], deletedTxnIds: [] };
-                    if (!Array.isArray(localData.transactions)) localData.transactions = [];
-                    var existingIds = new Set(localData.transactions.map(function(t) { return t.id; }));
-                    var mergeDelIds = new Set(Array.isArray(localData.deletedTxnIds) ? localData.deletedTxnIds : []);
-                    d.transactions.forEach(function(cloudTxn) {
-                        if (!existingIds.has(cloudTxn.id) && !mergeDelIds.has(cloudTxn.id)) {
-                            localData.transactions.push(cloudTxn);
-                            mergeStats.transactionsAdded++;
-                        }
-                    });
-                    if (mergeStats.transactionsAdded > 0) {
-                        CESTISStore.setItem(cloudKey, JSON.stringify(localData));
-                    }
-                } catch(e) {}
-            }
-        }
-
-        // Merge budget amounts — add cloud budget categories not present locally
-        if (d.budget && typeof d.budget === 'object') {
-            Object.keys(d.budget).forEach(function(cat) {
-                if (BUDGET[cat] === undefined) {
-                    BUDGET[cat] = d.budget[cat];
-                    mergeStats.budgetAmountsAdded++;
-                }
-            });
-            if (d.budgetSections && typeof d.budgetSections === 'object') {
-                Object.keys(d.budgetSections).forEach(function(cat) {
-                    if (!BUDGET_LINE_SECTIONS[cat]) {
-                        BUDGET_LINE_SECTIONS[cat] = d.budgetSections[cat];
-                    }
-                });
-            }
-            if (mergeStats.budgetAmountsAdded > 0) {
-                saveQuarterBudget();
-            }
-        }
-        // Merge quarterly budget data from cloud
-        if (d.quarterlyBudgets && typeof d.quarterlyBudgets === 'object') {
-            Object.keys(d.quarterlyBudgets).forEach(function(key) {
-                if (!CESTISStore.getItem(key)) {
-                    try { CESTISStore.setItem(key, JSON.stringify(d.quarterlyBudgets[key])); } catch(e) {}
-                }
-            });
-        }
-        // Merge quarterly transaction data from cloud (adds data for quarters not present locally)
-        if (d.quarterlyTransactions && typeof d.quarterlyTransactions === 'object') {
-            var currentQKeyMerge = getCurrentQuarterKey();
-            Object.keys(d.quarterlyTransactions).forEach(function(key) {
-                if (key === currentQKeyMerge) return; // Current quarter handled via in-memory merge above
-                if (!CESTISStore.getItem(key)) {
-                    try { CESTISStore.setItem(key, JSON.stringify(d.quarterlyTransactions[key])); } catch(e) {}
-                }
-            });
-        }
-
-        // Merge staff members — dedup by stable identity (id → username → name).
-        // Staff records use `fullName`, never `name`, so the old `s.name` key collapsed
-        // every record to '' and either dropped all incoming cloud staff (local non-empty)
-        // or duplicated them (local empty). Match the id/username dedup Clock-in & index.html use.
-        if (Array.isArray(d.staffMembers)) {
-            var localStaffKeys = new Set(staffMembers.map(function(s) { return s.id || s.username || (s.fullName || s.name || '').toLowerCase(); }));
-            d.staffMembers.forEach(function(cloudStaff) {
-                var ck = cloudStaff.id || cloudStaff.username || (cloudStaff.fullName || cloudStaff.name || '').toLowerCase();
-                if (!localStaffKeys.has(ck)) {
-                    staffMembers.push(cloudStaff);
-                    localStaffKeys.add(ck);
-                    mergeStats.staffAdded++;
-                }
-            });
-            if (mergeStats.staffAdded > 0) {
-                saveStaffMembers();
-            }
-        }
-
-        // Merge time records — dedup by unique session id (Clock-in writes id:'SESSION_<ts>').
-        // The old `date|staffId` key collapsed multiple same-day clock-in sessions for one
-        // person into a single record, dropping later sessions and undercounting hours.
-        if (Array.isArray(d.timeRecords)) {
-            var localRecordKeys = new Set(timeRecords.map(function(r) {
-                return r.id || ((r.date || '') + '|' + (r.staffId || '') + '|' + (r.clockIn || ''));
-            }));
-            d.timeRecords.forEach(function(cloudRecord) {
-                var key = cloudRecord.id || ((cloudRecord.date || '') + '|' + (cloudRecord.staffId || '') + '|' + (cloudRecord.clockIn || ''));
-                if (!localRecordKeys.has(key)) {
-                    timeRecords.push(cloudRecord);
-                    localRecordKeys.add(key);
-                    mergeStats.timeRecordsAdded++;
-                }
-            });
-            if (mergeStats.timeRecordsAdded > 0) {
-                saveTimeRecords();
-            }
-        }
+        // The same merge as the 15-second sync (silentMerge): every quarter
+        // by uid, newest edit wins, deletions kept, nothing local dropped.
+        var mergeStats = silentMerge(backupData);
 
         // Update sync info
         lastSyncTime = new Date();
@@ -4287,21 +4131,21 @@ async function mergeFromCloud() {
         setCloudSyncing(false);
 
         // Build summary message
-        var summary = 'Merge from cloud completed!\n\n';
+        var summary = 'Merge completed!\n\n';
         summary += 'Merge Summary:\n';
         summary += '- Transactions added: ' + mergeStats.transactionsAdded + '\n';
         summary += '- Budget amounts added: ' + mergeStats.budgetAmountsAdded + '\n';
-        summary += '- Staff members added: ' + mergeStats.staffAdded + '\n';
-        summary += '- Time records added: ' + mergeStats.timeRecordsAdded + '\n';
+        summary += '- Transactions updated (newer edit or void): ' + mergeStats.transactionsUpdated + '\n';
+        summary += '- Transactions removed (deleted elsewhere): ' + mergeStats.transactionsRemoved + '\n';
 
-        var totalAdded = mergeStats.transactionsAdded + mergeStats.budgetAmountsAdded + mergeStats.staffAdded + mergeStats.timeRecordsAdded;
+        var totalAdded = mergeStats.transactionsAdded + mergeStats.budgetAmountsAdded + mergeStats.transactionsUpdated + mergeStats.transactionsRemoved;
         if (totalAdded === 0) {
-            summary += '\nNo new data found — your local data already contains everything from the cloud.';
+            summary += '\nNo new data found — this computer already has everything.';
         } else {
-            summary += '\nTip: Save to Cloud to push the merged data back for other users.';
+            summary += '\nTip: use Send My Changes to share the merged data with other users.';
         }
 
-        var savedByInfo = backupData.savedBy ? '\nCloud backup was saved by: ' + backupData.savedBy : '';
+        var savedByInfo = backupData.savedBy ? '\nShared copy was saved by: ' + backupData.savedBy : '';
         summary += savedByInfo;
 
         alert(summary);
@@ -4311,10 +4155,10 @@ async function mergeFromCloud() {
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('Your session has expired. Please reconnect to Google Drive.');
+            alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert('Failed to merge from cloud: ' + error.message);
+            alert('Could not merge: ' + error.message);
         }
     }
 }
@@ -4345,8 +4189,12 @@ const QUARTER_META = [
 ];
 
 // Active quarter state
-let activeFY = '2025/2026';
-let activeQ = 3;
+// The quarter the Cashbook opens on when this device has never chosen one is
+// TODAY's (Jamaica FY April-March). It used to be a hardcoded FY 2025/2026 Q3,
+// so a new PC opened a year in the past and a cheque entered today went
+// through the "falls in another quarter" dialog. A stored choice still wins.
+let activeFY = (function () { try { return CESTISCore.currentQuarter().fy; } catch (e) { return '2025/2026'; } })();
+let activeQ = (function () { try { return CESTISCore.currentQuarter().q; } catch (e) { return 3; } })();
 
 function getQuarterMeta(q) { return QUARTER_META.find(m => m.q === q); }
 function getQuarterKey(fy, q) { return 'cestis_quarter_' + fy + '_Q' + q; }
@@ -4385,7 +4233,9 @@ function sanitizeAllQuarterlyStorage() {
                     var m = getMonth(t.date);
                     return !m || validMonths.has(m);
                 });
-                if (data.transactions.length !== before) {
+                // Rows from before uids get their derived uid (CESTISCore.cashbook).
+                var uidsGiven = (window.CESTISCore && CESTISCore.cashbook) ? CESTISCore.cashbook.ensureUids(data, fyStr, q) : 0;
+                if (data.transactions.length !== before || uidsGiven) {
                     CESTISStore.setItem(key, JSON.stringify(data));
                 }
             } catch(e) {}
@@ -4498,9 +4348,25 @@ function getCurrentBudgetQuarterKey() {
 }
 
 // Save per-quarter budget to localStorage
+/* Budget lines are dated on save too, so a budget amount changed on one device
+   reaches the others (it used to be merged only when the line was missing). */
+var BUDGET_AT = {}, _cbBudgetBase = null, _cbBudgetBaseKey = null;
+function cbRebaselineBudget() {
+    _cbBudgetBaseKey = getCurrentBudgetQuarterKey();
+    _cbBudgetBase = Object.assign({}, BUDGET);
+}
+function cbStampBudget() {
+    if (_cbBudgetBaseKey !== getCurrentBudgetQuarterKey() || !_cbBudgetBase) { cbRebaselineBudget(); return; }
+    var now = new Date().toISOString();
+    Object.keys(BUDGET).forEach(function (cat) { if (_cbBudgetBase[cat] !== BUDGET[cat]) BUDGET_AT[cat] = now; });
+    _cbBudgetBase = Object.assign({}, BUDGET);
+}
 function saveQuarterBudget() {
+    if (!cbBooksLoaded) return;   // memory is not the books yet (see cbBooksLoaded)
     var key = getCurrentBudgetQuarterKey();
+    cbStampBudget();
     var data = { budget: BUDGET, sections: BUDGET_LINE_SECTIONS };
+    if (Object.keys(BUDGET_AT).length) data.budgetAt = BUDGET_AT;
     try { CESTISStore.setItem(key, JSON.stringify(data)); } catch(e) {}
 }
 
@@ -4513,9 +4379,12 @@ function loadQuarterBudget() {
             var data = JSON.parse(saved);
             BUDGET = data.budget || {};
             BUDGET_LINE_SECTIONS = data.sections || {};
+            BUDGET_AT = (data.budgetAt && typeof data.budgetAt === 'object') ? data.budgetAt : {};
+            cbRebaselineBudget();
             return;
         }
     } catch(e) {}
+    BUDGET_AT = {};
 
     // No saved data for this quarter
     if (activeFY === '2025/2026' && activeQ === 3) {
@@ -4539,6 +4408,7 @@ function loadQuarterBudget() {
         BUDGET = {};
         BUDGET_LINE_SECTIONS = {};
     }
+    cbRebaselineBudget();
 };
 
 // Sync budget amounts from transaction categories
@@ -4570,6 +4440,11 @@ const DEFAULT_TRANSACTIONS_Q3 = []; // Q3 FY2025/26 seed transactions were remov
 let transactions = [];
 let deletedTxnIds = []; // Track deleted transaction IDs to prevent re-sync from cloud
 let nextId = 100;
+// Deletions by uid — the only kind another device can apply safely, because an
+// id names a different cheque on each device (see CESTISCore.cashbook).
+let deletedTxnUids = [];
+// When the Balance B/F was last changed here, so the newer one wins a merge.
+let OPENING_BALANCE_AT = '';
 let currentFilter = 'all';
 let chartInstances = {};
 let editingTxnId = null;
@@ -4718,7 +4593,7 @@ function renderTransactions() {
         html += `<tr class="${rowClass}" draggable="true" data-txn-id="${t.id}" ondragstart="txnDragStart(event)" ondragover="txnDragOver(event)" ondrop="txnDrop(event)" ondragend="txnDragEnd(event)">
             <td>${t.date ? t.date.substring(5) : ''}</td>
             <td class="cheque-num">${t.cheque||''}</td>
-            <td>${t.details}</td>
+            <td>${t.details}<span class="cb-phone-sub">${escapeHtml(t.date || '')}${t.cheque ? ' · #' + escapeHtml(t.cheque) : ''} · ${escapeHtml(t.category || '')}</span></td>
             <td><span class="tag ${getCategoryTag(t.category)}">${t.category}</span></td>
             <td class="amount ${t.deposit>0?'positive':''}">${t.deposit>0?fmt(t.deposit):''}</td>
             <td class="amount ${t.payment>0?'negative':''}">${t.payment>0?fmt(t.payment):''}</td>
@@ -5095,10 +4970,13 @@ function saveTxnToQuarter(fy, q, data) {
     var qd = null;
     try { var raw = CESTISStore.getItem(key); qd = raw ? JSON.parse(raw) : null; } catch(e) { qd = null; }
     if (!qd || typeof qd !== 'object') {
-        // Mirror loadQuarterData(): Q3 FY 2025/2026 seeds default data on first
-        // load, so pre-seed it here or the seed would be skipped later.
-        if (fy === '2025/2026' && q === 3) {
-            qd = { openingBalance: 237948.69, transactions: JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS_Q3)), deletedTxnIds: [] };
+        // Mirror loadQuarterData(): only the original device's legacy FY
+        // 2025/2026 Q3 cashbook is migrated; nothing is seeded from constants.
+        var legacyRaw = (fy === '2025/2026' && q === 3) ? CESTISStore.getItem('cesti_cashbook_data') : null;
+        var legacyRows = null;
+        try { legacyRows = legacyRaw ? JSON.parse(legacyRaw) : null; } catch(e) { legacyRows = null; }
+        if (Array.isArray(legacyRows)) {
+            qd = { openingBalance: 237948.69, transactions: legacyRows, deletedTxnIds: [] };
         } else {
             qd = { openingBalance: 0, transactions: [], deletedTxnIds: [] };
         }
@@ -5108,6 +4986,10 @@ function saveTxnToQuarter(fy, q, data) {
     var tid = qd.transactions.reduce(function(max, t) { return Math.max(max, (t.id || 0) + 1); }, 100);
     while (qd.deletedTxnIds.indexOf(tid) !== -1) tid++;
     data.id = tid;
+    // A uid, and dated: this is a deliberate entry or edit, so it must win the
+    // merge on every device (a uid-less row was duplicated across devices).
+    if (!data.uid) data.uid = cbNewUid();
+    data.updatedAt = new Date().toISOString();
     qd.transactions.push(data);
     try { CESTISStore.setItem(key, JSON.stringify(qd)); } catch(e) {}
     return data;
@@ -5146,7 +5028,7 @@ function saveTransaction() {
                 // doesn't resurrect the stale copy here.
                 unsyncSalaryFromPayslip(old);
                 transactions.splice(idx, 1);
-                if (deletedTxnIds.indexOf(old.id) === -1) deletedTxnIds.push(old.id);
+                cbRecordDeletion(old);
                 moved = saveTxnToQuarter(target.fy, target.q, Object.assign({}, old, data));
             }
         } else {
@@ -5164,6 +5046,9 @@ function saveTransaction() {
     if (editingTxnId !== null) {
         const idx = transactions.findIndex(t => t.id === editingTxnId);
         if (idx !== -1) {
+            // The payroll link of the row as it was — an edit can move it to
+            // another month, and the old month's entry must be unwound.
+            unsyncSalaryFromPayslip(transactions[idx]);
             transactions[idx] = Object.assign({}, transactions[idx], data);
             savedTxn = transactions[idx];
         }
@@ -5195,8 +5080,28 @@ function saveTransaction() {
     refreshAll();
 }
 
+/* The name of a cashbook transaction inside the payroll's link map: its
+   quarter and uid. The link used to be keyed by the bare id — and ids restart
+   at 100 in every quarter and differ between devices — so editing, deleting or
+   voiding ANY transaction zeroed whichever month's salary happened to share
+   its number. */
+function cbPayrollKey(txn) {
+    var tq = getQuarterForDate(txn && txn.date);
+    return (tq ? tq.fy + '|Q' + tq.q + '|' : '') + (txn && txn.uid ? txn.uid : String(txn && txn.id));
+}
+function cbMonthOf(date) { return String(date || '').slice(0, 7); }
+
 // Salary/Instructor categories auto-sync to cestisPayroll so the payslip
 // page is pre-populated without manual re-entry.
+//
+// The payroll page dates its runs at month end; this used to file the cheque
+// under a SECOND run dated the 1st, so the month showed a zero-deduction
+// "run" in place of the computed payroll, and it created an employee from
+// whatever the cheque's details said ("Mary Grant - Oct salary (Advance
+// Taken)"), who was then listed and pre-filled on every future payroll. Now:
+// the month's existing run is used, whatever day it is dated; no employee is
+// ever created from cheque text; and a computed payroll entry keeps its own
+// gross and net — the cashbook's total sits beside it as cbPaid.
 function syncSalaryToPayslip(txn) {
     if (!txn || !txn.payment || txn.payment <= 0) return;
     if (!txn.details || !txn.date) return;
@@ -5214,35 +5119,29 @@ function syncSalaryToPayslip(txn) {
         if (!Array.isArray(pd.payrollRuns)) pd.payrollRuns = [];
 
         const empName = txn.details.trim();
+        const now = new Date().toISOString();
+        const emp = pd.employees.find(function(e) { return (e.name || '').trim().toLowerCase() === empName.toLowerCase(); }) || null;
 
-        // Find or create employee record
-        let emp = pd.employees.find(function(e) { return (e.name || '').trim().toLowerCase() === empName.toLowerCase(); });
-        if (!emp) {
-            emp = { name: empName, designation: txn.category, type: 'FT', mobile: '', dob: '', trn: '', nis: '', startDate: txn.date, salary: txn.payment };
-            pd.employees.push(emp);
-        }
-
-        // Group by month — use first day of the transaction's month as the run date
-        const parts = txn.date.split('-');
-        const runDate = parts[0] + '-' + parts[1] + '-01';
-
-        // Find or create the payroll run for this month
-        let run = pd.payrollRuns.find(function(r) { return r.date === runDate; });
+        // The month's run — the computed one when there is one.
+        const ym = cbMonthOf(txn.date);
+        const inMonth = pd.payrollRuns.filter(function(r) { return r && cbMonthOf(r.date) === ym; });
+        let run = inMonth.find(function(r) { return !r.cashbookSynced; }) || inMonth[0] || null;
         if (!run) {
-            run = { date: runDate, results: [], cashbookSynced: true };
+            run = { date: ym + '-01', results: [], cashbookSynced: true, updatedAt: now };
             pd.payrollRuns.push(run);
         }
+        if (!Array.isArray(run.results)) run.results = [];
 
         // Find or update result entry for this employee in this run
         const emkLow = empName.toLowerCase();
         let res = run.results.find(function(r) { return (r.empName || '').trim().toLowerCase() === emkLow; });
         if (!res) {
             res = {
-                empName: empName,
-                empType: emp.type,
-                designation: emp.designation || txn.category,
-                trn: emp.trn || '',
-                nis: emp.nis || '',
+                empName: emp ? emp.name : empName,
+                empType: emp ? emp.type : 'FT',
+                designation: (emp && emp.designation) || txn.category,
+                trn: (emp && emp.trn) || '',
+                nis: (emp && emp.nis) || '',
                 gross: 0,
                 netPay: 0,
                 nisEmp: 0, nisEr: 0,
@@ -5256,16 +5155,23 @@ function syncSalaryToPayslip(txn) {
             };
             run.results.push(res);
         }
-        // Track each contributing cashbook transaction by id so re-saves/edits are
-        // idempotent and multiple payments in the same month accumulate correctly.
+        // Track each contributing cashbook transaction so re-saves/edits are
+        // idempotent and multiple payments in the same month accumulate.
         if (!res.cashbookTxns || typeof res.cashbookTxns !== 'object') res.cashbookTxns = {};
-        res.cashbookTxns[txn.id] = txn.payment;
+        delete res.cashbookTxns[String(txn.id)];          // the old bare-id link, if this month held one
+        res.cashbookTxns[cbPayrollKey(txn)] = txn.payment;
         const cbTotal = Object.keys(res.cashbookTxns).reduce(function(s, id) { return s + (res.cashbookTxns[id] || 0); }, 0);
-        res.gross = cbTotal;
-        res.netPay = cbTotal;
-        res.designation = emp.designation || txn.category;
-        res.cashbookSynced = true;
-        res.cashbookTxnId = txn.id; // last-contributing id (kept for backward compat)
+        if (res.cashbookSynced) {
+            // An entry the cashbook made: the cheques ARE its figures.
+            res.gross = cbTotal;
+            res.netPay = cbTotal;
+            res.designation = (emp && emp.designation) || txn.category;
+            res.cashbookTxnId = txn.id; // last-contributing id (kept for backward compat)
+        } else {
+            // A computed payroll entry keeps its own gross, deductions and net.
+            res.cbPaid = cbTotal;
+        }
+        res.updatedAt = now;
 
         CESTISStore.setItem(PAYSLIP_KEY, JSON.stringify(pd));
     } catch(e) {
@@ -5277,8 +5183,9 @@ function deleteTxn(id) {
     if (!confirm('Delete this transaction?')) return;
     const removed = transactions.find(function(t){ return t.id === id; });
     transactions = transactions.filter(t=>t.id!==id);
-    // Track deleted ID so cloud sync doesn't re-add it
-    if (deletedTxnIds.indexOf(id) === -1) deletedTxnIds.push(id);
+    // Written down by uid so cloud sync doesn't re-add it — an id tombstone
+    // deleted whichever DIFFERENT cheque held that id on the next device.
+    if (removed) cbRecordDeletion(removed); else if (deletedTxnIds.indexOf(id) === -1) deletedTxnIds.push(id);
     if (removed) unsyncSalaryFromPayslip(removed);
     saveToStorage();
     refreshAll();
@@ -5286,25 +5193,34 @@ function deleteTxn(id) {
 
 // Reverse a previously-synced salary/instructor contribution from cestisPayroll
 // when its source transaction is deleted, so the payslip gross stays accurate.
+// Only THIS transaction's link is touched: its quarter-and-uid key anywhere,
+// or — for links written before that key existed — its bare id, and then only
+// in the run for the transaction's own month.
 function unsyncSalaryFromPayslip(txn) {
-    if (!txn || !txn.id) return;
+    if (!txn || (!txn.id && !txn.uid)) return;
     try {
         const PAYSLIP_KEY = 'cestisPayroll';
         const raw = CESTISStore.getItem(PAYSLIP_KEY);
         if (!raw) return;
         const pd = JSON.parse(raw);
         if (!pd || !Array.isArray(pd.payrollRuns)) return;
+        const key = cbPayrollKey(txn), legacyKey = String(txn.id), ym = cbMonthOf(txn.date);
+        const now = new Date().toISOString();
         let changed = false;
         pd.payrollRuns.forEach(function(run) {
             if (!Array.isArray(run.results)) return;
             run.results.forEach(function(res) {
-                if (res.cashbookTxns && Object.prototype.hasOwnProperty.call(res.cashbookTxns, txn.id)) {
-                    delete res.cashbookTxns[txn.id];
-                    const cbTotal = Object.keys(res.cashbookTxns).reduce(function(s, k) { return s + (res.cashbookTxns[k] || 0); }, 0);
-                    res.gross = cbTotal;
-                    res.netPay = cbTotal;
-                    changed = true;
-                }
+                if (!res.cashbookTxns || typeof res.cashbookTxns !== 'object') return;
+                const has = function(k) { return Object.prototype.hasOwnProperty.call(res.cashbookTxns, k); };
+                let hit = false;
+                if (has(key)) { delete res.cashbookTxns[key]; hit = true; }
+                if (ym && cbMonthOf(run.date) === ym && has(legacyKey)) { delete res.cashbookTxns[legacyKey]; hit = true; }
+                if (!hit) return;
+                const cbTotal = Object.keys(res.cashbookTxns).reduce(function(s, k) { return s + (res.cashbookTxns[k] || 0); }, 0);
+                if (res.cashbookSynced) { res.gross = cbTotal; res.netPay = cbTotal; }
+                else res.cbPaid = cbTotal;
+                res.updatedAt = now;
+                changed = true;
             });
         });
         if (changed) CESTISStore.setItem(PAYSLIP_KEY, JSON.stringify(pd));
@@ -5484,7 +5400,9 @@ function cbNewUid() {
 function cbAdoptTransaction(cloudTxn) {
     if (!cloudTxn) return null;
     var row = Object.assign({}, cloudTxn);
-    if (!row.uid) row.uid = cbNewUid();
+    // A row from before uids gets the uid every device DERIVES for it — a random
+    // one made the originating device adopt it again as a second row.
+    if (!row.uid) row.uid = (window.CESTISCore && CESTISCore.cashbook) ? CESTISCore.cashbook.legacyUid(activeFY, activeQ, row) : cbNewUid();
     var taken = transactions.some(function (t) { return t && t.id === row.id; });
     if (taken) {
         var maxId = transactions.reduce(function (m, t) { return Math.max(m, Number(t && t.id) || 0); }, 99);
@@ -6355,22 +6273,20 @@ function copyBudgetFromQuarter() {
         return;
     }
 
-    var msg = 'Copy budget categories from which quarter?\n(Only category names will be copied, not amounts.)\n\n';
-    options.forEach(function(o, i) { msg += (i + 1) + '. ' + o.label + '\n'; });
-    msg += '\nEnter the number (1-' + options.length + '):';
-    if (Object.keys(BUDGET).length > 0) {
-        msg += '\n\nWARNING: This will replace all current budget lines for this quarter.';
-    }
-
-    var choice = prompt(msg);
-    if (!choice) return;
-    var idx = parseInt(choice) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= options.length) {
-        alert('Invalid selection.');
-        return;
-    }
-
-    var selected = options[idx];
+    CESTISForm.ask({
+        title: 'Copy budget categories',
+        intro: 'Only the category names are copied, not the amounts.' +
+            (Object.keys(BUDGET).length > 0 ? '\n\nThis replaces all of this quarter\u2019s current budget lines.' : ''),
+        submitLabel: 'Copy categories', danger: Object.keys(BUDGET).length > 0,
+        fields: [{ name: 'idx', label: 'Copy from', type: 'select', value: '0',
+            options: options.map(function(o, i) { return { value: String(i), label: o.label }; }) }]
+    }).then(function(v) {
+        if (!v) return;
+        copyBudgetCategoriesFrom(options[parseInt(v.idx, 10)]);
+    });
+}
+function copyBudgetCategoriesFrom(selected) {
+    if (!selected) { alert('Invalid selection.'); return; }
     var sourceData;
     if (selected.isDefault) {
         sourceData = { budget: JSON.parse(JSON.stringify(DEFAULT_BUDGET)), sections: {} };
@@ -6796,7 +6712,14 @@ function saveCopyBudgetLine() {
 
 // Quick copy a budget line (inline from the table row)
 function quickCopyBudgetLine(key) {
-    var newName = prompt('Enter name for the copied budget line:', key + ' (Copy)');
+    CESTISForm.ask({
+        title: 'Copy budget line', submitLabel: 'Copy line',
+        intro: 'A new line in the same section, with the same amount as \u201c' + key + '\u201d.',
+        fields: [{ name: 'name', label: 'Name of the copy', value: key + ' (Copy)', required: true, maxlength: 120 }],
+        validate: function(v) { return BUDGET.hasOwnProperty(v.name) ? { message: 'A budget line with that name already exists.', field: 'name' } : ''; }
+    }).then(function(v) { if (v) quickCopyBudgetLineNamed(key, v.name); });
+}
+function quickCopyBudgetLineNamed(key, newName) {
     if (!newName) return;
     newName = newName.trim();
     if (!newName) { alert('Please enter a valid name.'); return; }
@@ -6832,9 +6755,58 @@ function exportCSV() {
     a.click();
 }
 
+/* Every row is dated when it is SAVED: its content is compared with how it
+   looked at the last save or load (CESTISCore.sync), so an edit or a void —
+   made at any of the many places that change a row in place — carries
+   updatedAt and wins the merge on every other device. Without it a void or an
+   amount correction never left this PC, and the next push from a device that
+   had not seen it put the cheque back. */
+var _cbStampIndex = null, _cbStampKey = null, _cbObBase = null;
+function cbRebaselineActive() {
+    if (!window.CESTISCore || !CESTISCore.sync) return;
+    _cbStampKey = getCurrentQuarterKey();
+    _cbStampIndex = CESTISCore.sync.stampChanges(transactions, function (t) { return t && t.uid; }, null, '');
+    _cbObBase = OPENING_BALANCE;
+}
+function cbStampActive() {
+    if (!window.CESTISCore || !CESTISCore.sync || !CESTISCore.cashbook) return;
+    CESTISCore.cashbook.ensureUids({ transactions: transactions }, activeFY, activeQ);
+    if (_cbStampKey !== getCurrentQuarterKey()) { cbRebaselineActive(); return; }
+    var now = new Date().toISOString();
+    _cbStampIndex = CESTISCore.sync.stampChanges(transactions, function (t) { return t && t.uid; }, _cbStampIndex, now);
+    if (_cbObBase !== null && OPENING_BALANCE !== _cbObBase) OPENING_BALANCE_AT = now;
+    _cbObBase = OPENING_BALANCE;
+}
+// The active quarter as it is stored.
+function cbActiveBlob() {
+    var data = { openingBalance: OPENING_BALANCE, transactions: transactions, deletedTxnIds: deletedTxnIds };
+    if (deletedTxnUids.length) data.deletedTxnUids = deletedTxnUids;
+    if (OPENING_BALANCE_AT) data.openingBalanceAt = OPENING_BALANCE_AT;
+    return data;
+}
+// Write a deletion down by uid (by id only for a row that has none).
+function cbRecordDeletion(row) {
+    if (!row) return;
+    if (row.uid) { if (deletedTxnUids.indexOf(row.uid) === -1) deletedTxnUids.push(row.uid); }
+    else if (deletedTxnIds.indexOf(row.id) === -1) deletedTxnIds.push(row.id);
+}
+
+/* Set when this page has read the books from storage (loadFromStorage — at
+   sign-in). Before that, memory holds the page's start-up values — the opening
+   balance 237948.69, no transactions, a default budget line — not the
+   Centre's. A sync that arrived while the page sat at its sign-in screen
+   (cbOnPageCloudRestore, the cloud merges) folded what arrived into those
+   start-up values and saved them: the active quarter's opening balance was
+   replaced by 237948.69 and a default budget line written into its budget,
+   then pushed to every device. Until the books are loaded, the active
+   quarter is merged in storage like any other, and nothing is saved from
+   memory. */
+var cbBooksLoaded = false;
 function saveToStorage() {
+    if (!cbBooksLoaded) return;   // memory is not the books yet (see cbBooksLoaded)
     const key = getCurrentQuarterKey();
-    const data = { openingBalance: OPENING_BALANCE, transactions: transactions, deletedTxnIds: deletedTxnIds };
+    cbStampActive();
+    const data = cbActiveBlob();
     try { CESTISStore.setItem(key, JSON.stringify(data)); } catch(e) {}
     // Also save active quarter preference
     try { CESTISStore.setItem('cestis_active_quarter', JSON.stringify({ fy: activeFY, q: activeQ })); } catch(e) {}
@@ -6854,32 +6826,38 @@ function loadFromStorage() {
     // One-time cleanup of all quarterly data in localStorage (fixes prior cross-quarter contamination)
     sanitizeAllQuarterlyStorage();
 
+    // From here memory is read from storage, so it may be saved back.
+    cbBooksLoaded = true;
     loadQuarterData();
 }
 
 function loadQuarterData() {
     const key = getCurrentQuarterKey();
+    let hadSaved = false;
+    deletedTxnUids = [];
+    OPENING_BALANCE_AT = '';
     try {
         const saved = CESTISStore.getItem(key);
+        const legacy = (activeFY === '2025/2026' && activeQ === 3) ? CESTISStore.getItem('cesti_cashbook_data') : null;
         if (saved) {
+            hadSaved = true;
             const data = JSON.parse(saved);
             OPENING_BALANCE = data.openingBalance || 0;
             transactions = data.transactions || [];
             deletedTxnIds = Array.isArray(data.deletedTxnIds) ? data.deletedTxnIds : [];
+            deletedTxnUids = Array.isArray(data.deletedTxnUids) ? data.deletedTxnUids : [];
+            OPENING_BALANCE_AT = data.openingBalanceAt || '';
             // Recalculate nextId
             nextId = transactions.reduce((max, t) => Math.max(max, t.id + 1), 100);
-        } else if (activeFY === '2025/2026' && activeQ === 3) {
-            // Load default data for Q3 FY 2025/2026
+        } else if (legacy) {
+            // The original device's pre-quarter cashbook (FY 2025/2026 Q3) is
+            // migrated, with its B/F. A device without it no longer has that
+            // quarter's figures and B/F seeded from constants: they arrive from
+            // the cloud, and a constant written here could be pushed over them.
             OPENING_BALANCE = 237948.69;
-            transactions = JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS_Q3));
+            transactions = JSON.parse(legacy);
             deletedTxnIds = [];
-            nextId = 100;
-            // Also migrate old localStorage data if it exists
-            const oldData = CESTISStore.getItem('cesti_cashbook_data');
-            if (oldData) {
-                transactions = JSON.parse(oldData);
-                nextId = transactions.reduce((max, t) => Math.max(max, t.id + 1), 100);
-            }
+            nextId = transactions.reduce((max, t) => Math.max(max, t.id + 1), 100);
         } else {
             // Empty quarter
             OPENING_BALANCE = 0;
@@ -6895,6 +6873,13 @@ function loadQuarterData() {
     }
     // Remove any transactions that don't belong to this quarter (cross-quarter contamination cleanup)
     sanitizeTransactionsForQuarter();
+    // Every row gets its uid (derived for rows from before uids, so every
+    // device names them alike); written back with the same rows, never fewer.
+    if (window.CESTISCore && CESTISCore.cashbook &&
+        CESTISCore.cashbook.ensureUids({ transactions: transactions }, activeFY, activeQ) && hadSaved) {
+        try { CESTISStore.setItem(key, JSON.stringify(cbActiveBlob())); } catch(e) {}
+    }
+    cbRebaselineActive();
 }
 
 function saveQuarterAndSwitch(newFY, newQ) {
@@ -7032,6 +7017,8 @@ function updateSubvention() {
         const existing = getSubventionTransaction();
         if (existing) {
             transactions = transactions.filter(t => t !== existing);
+            // Written down, or the next sync tick brings the deposit back.
+            cbRecordDeletion(existing);
         }
         updateSubventionStatus(0);
         saveToStorage();
@@ -7074,6 +7061,9 @@ function updateSubvention() {
         while (deletedTxnIds.indexOf(nextId) !== -1) { nextId++; }
         transactions.push({
             id: nextId++,
+            // A uid like every other new row — without one, each device that
+            // adopted it invented its own and the subvention came back doubled.
+            uid: cbNewUid(),
             date: subDate,
             cheque: '',
             details: 'SUBVENTION',
@@ -7122,7 +7112,7 @@ function populateSubventionFields() {
 // ============================================================
 // MONTHLY BANK RECONCILIATION
 // ============================================================
-let reconFY = '2025/2026';
+let reconFY = activeFY;
 
 function showPageDirect(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -7172,11 +7162,11 @@ function loadQuarterDataForRecon(fy, q) {
             const data = JSON.parse(saved);
             return { openingBalance: data.openingBalance || 0, transactions: data.transactions || [] };
         } else if (fy === '2025/2026' && q === 3) {
+            // Same rule as loadQuarterData(): the legacy cashbook only, no constants.
             const oldData = CESTISStore.getItem('cesti_cashbook_data');
             if (oldData) {
                 return { openingBalance: 237948.69, transactions: JSON.parse(oldData) };
             }
-            return { openingBalance: 237948.69, transactions: JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS_Q3)) };
         }
     } catch(e) {}
     return { openingBalance: 0, transactions: [] };
@@ -7867,7 +7857,7 @@ function generateReconDocPage(fy, q, mKey, monthName, monthNum) {
     h += '<div class="rdoc-header">';
     h += '<div class="rdoc-logo">';
     if (logo) {
-        h += '<img src="' + logo + '" alt="Logo">';
+        h += '<img src="' + logo + '" alt="Centre logo">';
     } else {
         h += '<div class="rdoc-logo-placeholder" onclick="document.getElementById(\'reconLogoInput\').click()">Click to<br>upload<br>logo</div>';
     }
@@ -8125,7 +8115,7 @@ function generateFinDocPage1(q) {
     h += '<div class="rdoc-header">';
     h += '<div class="rdoc-logo">';
     if (logo) {
-        h += '<img src="' + logo + '" alt="Logo">';
+        h += '<img src="' + logo + '" alt="Centre logo">';
     } else {
         h += '<div class="rdoc-logo-placeholder" onclick="document.getElementById(\'finLogoInput\').click()">Click to<br>upload<br>logo</div>';
     }
@@ -8198,7 +8188,7 @@ function generateFinDocPage2(q) {
     h += '<div class="rdoc-header">';
     h += '<div class="rdoc-logo">';
     if (logo) {
-        h += '<img src="' + logo + '" alt="Logo">';
+        h += '<img src="' + logo + '" alt="Centre logo">';
     } else {
         h += '<div class="rdoc-logo-placeholder" onclick="document.getElementById(\'finLogoInput\').click()">Click to<br>upload<br>logo</div>';
     }
@@ -8299,11 +8289,66 @@ function printFinPreview() {
 // ============================================================
 // AUTHENTICATION
 // ============================================================
-const AUTH_CREDENTIALS = {
-    username: 'cestisadmin',
-    password: 'cestisadmin123$'
-};
+/* Who may sign in: an administrator or admin-staff account of the Centre's
+   LMS, with that account's own password. The Cashbook used to accept one
+   username and password written into this page — and this page is published in
+   a public repository, so anybody who read it could sign in at a Centre PC and
+   alter cheques, which the cloud sync then pushed everywhere. Nobody could
+   change it, either. The LMS accounts live on this device in voctrain_users
+   (hashed; the LMS forces the published default password to be changed). */
 const AUTH_SESSION_KEY = 'cestis_auth_session';
+const CB_LOGIN_ROLES = ['admin', 'adminstaff'];
+function cbHex(buf) { return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join(''); }
+async function cbVerifyPassword(password, stored) {
+    if (typeof stored !== 'string' || !stored) return false;
+    try {
+        var computed = null, expected = null;
+        if (stored.indexOf('pbkdf2$') === 0) {
+            var parts = stored.split('$');
+            if (parts.length !== 4) return false;
+            var salt = new Uint8Array((parts[2].match(/../g) || []).map(function (h) { return parseInt(h, 16); }));
+            var key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(password)), { name: 'PBKDF2' }, false, ['deriveBits']);
+            computed = cbHex(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: salt, iterations: parseInt(parts[1], 10) || 210000, hash: 'SHA-256' }, key, 256));
+            expected = parts[3];
+        } else if (/^[a-f0-9]{64}$/.test(stored)) {
+            computed = cbHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password + '__CESTIS_SALT_2026__')));
+            expected = stored;
+        } else {
+            return password === stored;   // an account not yet migrated by the LMS
+        }
+        if (computed.length !== expected.length) return false;
+        var diff = 0;
+        for (var i = 0; i < computed.length; i++) diff |= computed.charCodeAt(i) ^ expected.charCodeAt(i);
+        return diff === 0;
+    } catch (e) { return false; }
+}
+// Resolves the matching LMS account, or null; { none: true } when this device
+// holds no LMS administrator accounts at all.
+async function cbFindLoginAccount(user, pass) {
+    var list = [];
+    try { list = JSON.parse(CESTISStore.getItem('voctrain_users') || '[]'); } catch (e) { list = []; }
+    if (!Array.isArray(list)) list = [];
+    var admins = list.filter(function (a) { return a && CB_LOGIN_ROLES.indexOf(a.role) !== -1 && a.status !== 'inactive'; });
+    if (!admins.length) return { none: true };
+    var name = String(user || '').trim().toLowerCase();
+    var acct = admins.find(function (a) {
+        return String(a.username || '').toLowerCase() === name || (a.email && String(a.email).toLowerCase() === name);
+    });
+    // The dashboard's built-in logins are seeded with the password published
+    // in this repository, and the dashboard refuses it — but this page checked
+    // only that the password matched, so on any PC the dashboard had ever run
+    // on, 'cestisadmin' / 'adminstaff' with the published default opened the
+    // books. A login still on a published default, or one switched off, opens
+    // nothing here; the dashboard is where it gets a password of its own (its
+    // first-run "set a new password" keeps the Centre from being locked out).
+    var AA = window.CESTISCore && CESTISCore.accountAccess;
+    if (acct && AA) {
+        if (AA.isPublishedDefault(pass) || AA.isSeededLogin(acct)) return { seed: true };
+        if (!AA.check(acct).allowed) return null;
+    }
+    if (acct && await cbVerifyPassword(pass, acct.password)) return acct;
+    return null;
+}
 
 function isAuthenticated() {
     try {
@@ -8479,26 +8524,30 @@ function handleLogin(e) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
-    // Simulate brief network delay for realistic feel
-    setTimeout(function() {
-        if (user === AUTH_CREDENTIALS.username && pass === AUTH_CREDENTIALS.password) {
+    cbFindLoginAccount(user, pass).then(function(acct) {
+        if (acct && !acct.none && !acct.seed) {
             // Success - store session
             CESTISStore.setItem(AUTH_SESSION_KEY, JSON.stringify({
                 loggedIn: true,
-                user: user,
+                user: acct.username || user,
+                role: acct.role,
                 timestamp: Date.now()
             }));
             showApp();
         } else {
             // Failure
-            errorMsg.textContent = 'Invalid username or password';
+            errorMsg.textContent = (acct && acct.none)
+                ? 'No administrator accounts are on this device yet. Open the LMS dashboard on this PC once (it brings the Centre\'s accounts), then sign in here with your LMS administrator username and password.'
+                : (acct && acct.seed)
+                ? 'That login is still on the default password published with the platform, so it cannot open the Cashbook. Sign in to the LMS dashboard to set a password of its own (or ask an administrator to set one), then sign in here with it.'
+                : 'Invalid username or password. Use your LMS administrator or admin-staff account.';
             errorEl.classList.add('visible');
             btn.disabled = false;
             btn.innerHTML = 'Sign In';
             document.getElementById('loginPass').value = '';
             document.getElementById('loginPass').focus();
         }
-    }, 600);
+    });
 }
 
 function handleLogout() {
@@ -8558,7 +8607,7 @@ let isLoginPageSync = false;
 
 function initiateLoginPageSync() {
     isLoginPageSync = true;
-    updateLoginSyncStatus('Connecting to Google...', true);
+    updateLoginSyncStatus('Connecting...', true);
     const syncBtn = document.querySelector('.sync-prompt-btn');
     if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = '<span>⏳</span> Connecting...'; }
     if (googleTokenClient) { googleTokenClient.requestAccessToken(); }
@@ -8566,7 +8615,7 @@ function initiateLoginPageSync() {
         initGoogleAuth();
         setTimeout(() => {
             if (googleTokenClient) { googleTokenClient.requestAccessToken(); }
-            else { isLoginPageSync = false; updateLoginSyncStatus('Google Sign-In not available.', false, true); resetLoginSyncButton(); }
+            else { isLoginPageSync = false; updateLoginSyncStatus('Sign-in is not available right now.', false, true); resetLoginSyncButton(); }
         }, 500);
     }
 }
@@ -8616,7 +8665,7 @@ function updateLoginSyncStatus(message, isLoading, isError = false, isSuccess = 
 
 function resetLoginSyncButton() {
     const syncBtn = document.querySelector('.sync-prompt-btn');
-    if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '<span>🔄</span> Connect & Sync with Google'; }
+    if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '<span>🔄</span> Connect & Sync'; }
 }
 
 function dismissFirstTimePrompt() { hideFirstTimeSyncPrompt(); sessionStorage.setItem('firstTimeSyncDismissed', 'true'); }
@@ -8638,6 +8687,21 @@ let isMandatorySync = false;
 function showMandatorySyncOverlay() {
     const overlay = document.getElementById('mandatorySyncOverlay');
     if (overlay) overlay.classList.remove('hidden');
+    // On the Centre's own network (the Offline System) there is no Google to
+    // sign in to: the Centre's server is the central store, so the sync this
+    // gate insists on is a pull from THAT server. Without this the bursar was
+    // stuck on "Cloud Sync Required" for ever. Online this does nothing.
+    if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function') {
+        CESTISPageCloud.lan().then(function (onLan) {
+            if (!onLan) return;
+            updateMandatorySyncStatus('Syncing...', true);
+            return CESTISPageCloud.loadNow().then(function () {
+                hideMandatorySyncOverlay();
+                loadFromStorage();
+                refreshAll();
+            });
+        }).catch(function () {});
+    }
 }
 
 function hideMandatorySyncOverlay() {
@@ -8647,7 +8711,7 @@ function hideMandatorySyncOverlay() {
 
 function initiateMandatorySync() {
     isMandatorySync = true;
-    updateMandatorySyncStatus('Connecting to Google...', true);
+    updateMandatorySyncStatus('Connecting...', true);
     const syncBtn = document.getElementById('mandatorySyncBtn');
     if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = '<span>⏳</span> Connecting...'; }
     if (googleTokenClient) { googleTokenClient.requestAccessToken(); }
@@ -8655,7 +8719,7 @@ function initiateMandatorySync() {
         initGoogleAuth();
         setTimeout(() => {
             if (googleTokenClient) { googleTokenClient.requestAccessToken(); }
-            else { isMandatorySync = false; updateMandatorySyncStatus('Google Sign-In not available. Please try again.', false, true); resetMandatorySyncButton(); }
+            else { isMandatorySync = false; updateMandatorySyncStatus('Sign-in is not available right now. Please try again.', false, true); resetMandatorySyncButton(); }
         }, 500);
     }
 }
@@ -8713,7 +8777,7 @@ function updateMandatorySyncStatus(message, isLoading, isError = false, isSucces
 
 function resetMandatorySyncButton() {
     const syncBtn = document.getElementById('mandatorySyncBtn');
-    if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '<span>🔄</span> Connect & Sync with Google'; }
+    if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '<span>🔄</span> Connect & Sync'; }
 }
 
 // ==================== END CLOUD SYNC ====================
@@ -8729,7 +8793,7 @@ function showCloudNotification(type, title, message, showConnect, autoDismissSec
   const el = document.createElement('div');
   el.id = 'cloudNotifyPopup';
   el.className = 'cloud-notify ' + type;
-  const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '☁️';
+  const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '🔄';
   el.innerHTML =
     '<div class="cloud-notify-bar"></div>' +
     '<div class="cloud-notify-body">' +
@@ -8775,7 +8839,7 @@ function checkCloudAndNotify(reason){
 
   if (!navigator.onLine) {
     showCloudNotification('error', 'You Are Offline',
-      'Your internet connection is unavailable. Data changes will only be saved locally. Please reconnect to sync with Google Drive.',
+      'You’re offline. Your work is kept on this computer until it syncs.',
       false, 0);
     return;
   }
@@ -8786,21 +8850,21 @@ function checkCloudAndNotify(reason){
     let detail = '';
 
     if (savedExpiry && new Date(savedExpiry) <= new Date()) {
-      detail = 'Your Google Drive session has expired.';
+      detail = 'Your sync sign-in has expired.';
     } else if (reason === 'page_load') {
-      detail = 'Google Drive is not connected.';
+      detail = 'Sync is not connected.';
     } else if (reason === 'token_expired') {
-      detail = 'Your Google Drive session has expired.';
+      detail = 'Your sync sign-in has expired.';
     } else {
-      detail = 'Google Drive connection was lost.';
+      detail = 'The sync connection was lost.';
     }
 
     if (lastSync) {
       detail += ' Last sync: ' + getTimeAgo(new Date(lastSync)) + '.';
     }
 
-    showCloudNotification('warn', 'Cloud Sync Disconnected',
-      detail + ' Your data is only saved locally. Connect to Google Drive to back up and sync your data.',
+    showCloudNotification('warn', 'Not Synced Yet',
+      detail + ' Your work is kept on this computer until it syncs. Reconnect to sync.',
       true, 30);
   }
 }
@@ -8835,8 +8899,8 @@ function startCloudMonitor(){
         tokenExpiryWarningShown = true;
         var minsLeft = Math.ceil(msRemaining / 60000);
         showCloudNotification('warn', 'Session Expiring Soon',
-          'Your Google Drive session expires in ' + minsLeft + ' minute' + (minsLeft > 1 ? 's' : '') + '. ' +
-          'Reconnect now to avoid losing cloud sync.',
+          'Your sync sign-in expires in ' + minsLeft + ' minute' + (minsLeft > 1 ? 's' : '') + '. ' +
+          'Reconnect now so syncing does not stop.',
           true, 0);
       }
     }
@@ -8986,12 +9050,12 @@ async function autoMergeAndSave() {
             googleAccessToken = null;
             isCloudConnected = false;
             updateCloudUI(false);
-            showCloudNotification('error', 'Cloud Disconnected',
-                'Your Google Drive session has expired. Auto-sync has stopped. Please reconnect to resume cloud backup.',
+            showCloudNotification('error', 'Sync Stopped',
+                'Your sync sign-in has expired and auto-sync has stopped. Your work is kept on this computer until it syncs — please reconnect.',
                 true, 0);
         } else if (!navigator.onLine) {
-            showCloudNotification('error', 'Cloud Sync Failed',
-                'You are offline. Auto-sync will resume when your internet connection is restored.',
+            showCloudNotification('error', 'Sync Failed',
+                'You are offline. Auto-sync will resume when the connection is back.',
                 false, 15);
         }
     } finally {
@@ -9001,229 +9065,162 @@ async function autoMergeAndSave() {
 }
 
 // Silent merge: adds new items from cloud without UI prompts
+/* Merge one cloud quarter blob into this device's copy of that quarter —
+   in memory for the active quarter, in storage for every other one. */
+function cbMergeQuarterKey(key, cloudBlob, stats) {
+    var fq = CESTISCore.cashbook.parseQuarterKey(key);
+    if (!fq || !cloudBlob || typeof cloudBlob !== 'object') return false;
+    var res;
+    if (key === getCurrentQuarterKey() && cbBooksLoaded) {
+        cbStampActive();                 // date this device's unsaved edits first
+        var local = cbActiveBlob();
+        res = CESTISCore.cashbook.mergeQuarter(local, cloudBlob, fq.fy, fq.q);
+        if (res.changed) {
+            transactions = local.transactions;
+            OPENING_BALANCE = local.openingBalance || 0;
+            OPENING_BALANCE_AT = local.openingBalanceAt || '';
+            deletedTxnUids = Array.isArray(local.deletedTxnUids) ? local.deletedTxnUids : [];
+            nextId = transactions.reduce(function(max, t) { return Math.max(max, (Number(t.id) || 0) + 1); }, 100);
+            cbRebaselineActive();        // what arrived is not an edit made here
+            saveToStorage();
+        }
+    } else {
+        var raw = CESTISStore.getItem(key), local2 = null;
+        try { local2 = raw ? JSON.parse(raw) : null; } catch(e) { local2 = null; }
+        if (!local2 || typeof local2 !== 'object') {
+            local2 = { openingBalance: typeof cloudBlob.openingBalance === 'number' ? cloudBlob.openingBalance : 0,
+                       transactions: [], deletedTxnIds: [] };
+            if (cloudBlob.openingBalanceAt) local2.openingBalanceAt = cloudBlob.openingBalanceAt;
+        }
+        res = CESTISCore.cashbook.mergeQuarter(local2, cloudBlob, fq.fy, fq.q);
+        if (res.changed || !raw) {
+            try { CESTISStore.setItem(key, JSON.stringify(local2)); } catch(e) {}
+        }
+        if (!raw) res.changed = true;
+    }
+    if (stats) { stats.transactionsAdded += res.added; stats.transactionsUpdated += res.updated; stats.transactionsRemoved += res.removed; }
+    return res.changed;
+}
+
+/* Merge one cloud budget blob into this device's budget for that quarter. */
+function cbMergeBudgetKey(key, cloudBlob, stats) {
+    if (!cloudBlob || typeof cloudBlob !== 'object') return false;
+    if (key === getCurrentBudgetQuarterKey() && cbBooksLoaded) {
+        cbStampBudget();
+        var local = { budget: BUDGET, sections: BUDGET_LINE_SECTIONS, budgetAt: BUDGET_AT };
+        var res = CESTISCore.cashbook.mergeBudget(local, cloudBlob);
+        if (res.changed) {
+            BUDGET = local.budget; BUDGET_LINE_SECTIONS = local.sections; BUDGET_AT = local.budgetAt || {};
+            cbRebaselineBudget();
+            saveQuarterBudget();
+            if (stats) stats.budgetAmountsAdded++;
+        }
+        return res.changed;
+    }
+    var raw = CESTISStore.getItem(key), local2 = null;
+    try { local2 = raw ? JSON.parse(raw) : null; } catch(e) { local2 = null; }
+    if (!local2 || typeof local2 !== 'object') local2 = { budget: {}, sections: {} };
+    var res2 = CESTISCore.cashbook.mergeBudget(local2, cloudBlob);
+    if (res2.changed || !raw) { try { CESTISStore.setItem(key, JSON.stringify(local2)); } catch(e) {} }
+    return res2.changed || !raw;
+}
+
+function cbReadStore(k) {
+    try { var v = JSON.parse(CESTISStore.getItem(k) || '[]'); return Array.isArray(v) ? v : []; } catch(e) { return []; }
+}
+/* Staff accounts and time records belong to the time clock. Cashbook backups
+   carry a copy, so a record only such a backup still holds is folded into what
+   storage holds NOW — this page's own copy is a snapshot from when it loaded,
+   and writing it back every 15 seconds erased sessions clocked and accounts
+   created since. Written only when something was actually added or newer. */
+function cbMergeHrIntoStore(d) {
+    if (!window.CESTISCore || typeof CESTISCore.mergeTimeClock !== 'function') return;
+    if (!Array.isArray(d.staffMembers) && !Array.isArray(d.timeRecords)) return;
+    var res = CESTISCore.mergeTimeClock(
+        { staffMembers: cbReadStore('cestisStaffMembers'), timeRecords: cbReadStore('cestisTimeRecords') },
+        { staffMembers: d.staffMembers, timeRecords: d.timeRecords },
+        { deletedIds: cbReadStore('cestisTimeRecordTombstones') });
+    try {
+        if (res.staffAdded) CESTISStore.setItem('cestisStaffMembers', JSON.stringify(res.staffMembers));
+        if (res.added || res.updated || res.removed) CESTISStore.setItem('cestisTimeRecords', JSON.stringify(res.timeRecords));
+    } catch(e) {}
+    staffMembers = res.staffMembers;
+    timeRecords = res.timeRecords;
+}
+
+/* Silent merge: brings another device's work in, record by record, for every
+   quarter — see CESTISCore.cashbook. Returns what it did. */
 function silentMerge(backupData) {
+    var stats = { transactionsAdded: 0, transactionsUpdated: 0, transactionsRemoved: 0, budgetAmountsAdded: 0 };
+    if (!backupData || !backupData.data || !window.CESTISCore || !CESTISCore.cashbook) return stats;
     var d = backupData.data;
     var changed = false;
 
-    // Merge cloud's deletedTxnIds — only if cloud's active quarter matches local
-    // This prevents deletions from one quarter polluting another quarter's data
-    var cloudActiveFY = d.activeFY || activeFY;
-    var cloudActiveQ = d.activeQ || activeQ;
-    if (Array.isArray(d.deletedTxnIds) && cloudActiveFY === activeFY && cloudActiveQ === activeQ) {
-        var localDelSet = new Set(deletedTxnIds);
-        d.deletedTxnIds.forEach(function(id) {
-            if (!localDelSet.has(id)) {
-                deletedTxnIds.push(id);
-                localDelSet.add(id);
-            }
-        });
-        // Remove any in-memory transactions that the cloud says are deleted
-        var beforeLen = transactions.length;
-        transactions = transactions.filter(function(t) { return !localDelSet.has(t.id); });
-        if (transactions.length !== beforeLen) {
-            changed = true;
-            nextId = transactions.reduce(function(max, t) { return Math.max(max, t.id + 1); }, 100);
-            saveToStorage();
-        }
-    }
-
-    // Merge quarterly transaction data
-    var currentQKey = getCurrentQuarterKey();
+    var blobs = {};
     if (d.quarterlyTransactions && typeof d.quarterlyTransactions === 'object') {
-        Object.keys(d.quarterlyTransactions).forEach(function(key) {
-            var cloudData = d.quarterlyTransactions[key];
-            // Skip the current active quarter key — it will be handled via in-memory merge below
-            if (key === currentQKey) return;
-            var localRaw = CESTISStore.getItem(key);
-            if (!localRaw) {
-                // Quarter not present locally — add it entirely, but respect any cloud deletedTxnIds
-                try {
-                    if (Array.isArray(cloudData.deletedTxnIds) && cloudData.deletedTxnIds.length > 0 && Array.isArray(cloudData.transactions)) {
-                        var delSet = new Set(cloudData.deletedTxnIds);
-                        cloudData.transactions = cloudData.transactions.filter(function(t) { return !delSet.has(t.id); });
-                    }
-                    CESTISStore.setItem(key, JSON.stringify(cloudData)); changed = true;
-                } catch(e) {}
-            } else {
-                // Merge individual transactions by id, respecting deletedTxnIds from both sides
-                try {
-                    var localData = JSON.parse(localRaw);
-                    if (!Array.isArray(localData.deletedTxnIds)) localData.deletedTxnIds = [];
-                    // Merge cloud's deletedTxnIds into local
-                    var mergedDel = new Set(localData.deletedTxnIds);
-                    if (Array.isArray(cloudData.deletedTxnIds)) {
-                        cloudData.deletedTxnIds.forEach(function(id) { mergedDel.add(id); });
-                        localData.deletedTxnIds = Array.from(mergedDel);
-                    }
-                    // Remove locally-stored transactions that cloud deleted
-                    if (Array.isArray(localData.transactions)) {
-                        var beforeDel = localData.transactions.length;
-                        localData.transactions = localData.transactions.filter(function(t) { return !mergedDel.has(t.id); });
-                        if (localData.transactions.length !== beforeDel) changed = true;
-                    }
-                    if (Array.isArray(cloudData.transactions) && Array.isArray(localData.transactions)) {
-                        var localIds = new Set(localData.transactions.map(function(t) { return t.id; }));
-                        var added = 0;
-                        cloudData.transactions.forEach(function(ct) {
-                            if (!localIds.has(ct.id) && !mergedDel.has(ct.id)) {
-                                localData.transactions.push(ct);
-                                added++;
-                            }
-                        });
-                        if (added > 0) changed = true;
-                    }
-                    if (changed) {
-                        CESTISStore.setItem(key, JSON.stringify(localData));
-                    }
-                } catch(e) {}
-            }
-        });
-        // Also merge current quarter's data from quarterlyTransactions into in-memory
-        var currentQData = d.quarterlyTransactions[currentQKey];
-        if (currentQData && Array.isArray(currentQData.transactions)) {
-            var localTxnIdsQ = new Set(transactions.map(function(t) { return t.id; }));
-            var localUidsQ = new Set(transactions.map(function(t) { return t && t.uid; }).filter(Boolean));
-            var localDelIdsQ = new Set(deletedTxnIds);
-            currentQData.transactions.forEach(function(ct) {
-                // Same rule as the other merge paths — see cbNewUid().
-                if (ct && ct.uid) {
-                    if (!localUidsQ.has(ct.uid) && !localDelIdsQ.has(ct.id)) {
-                        var adQ = cbAdoptTransaction(ct);
-                        if (adQ) { localUidsQ.add(adQ.uid); localTxnIdsQ.add(adQ.id); changed = true; }
-                    }
-                    return;
-                }
-                if (!localTxnIdsQ.has(ct.id) && !localDelIdsQ.has(ct.id)) {
-                    var adQ2 = cbAdoptTransaction(ct);
-                    if (adQ2) { localUidsQ.add(adQ2.uid); localTxnIdsQ.add(adQ2.id); changed = true; }
-                }
-            });
-            if (changed) {
-                nextId = transactions.reduce(function(max, t) { return Math.max(max, t.id + 1); }, 100);
-                saveToStorage();
-            }
-        }
+        Object.keys(d.quarterlyTransactions).forEach(function(k) { blobs[k] = d.quarterlyTransactions[k]; });
     }
-
-    // Merge active in-memory transactions only if cloud's active quarter matches local
-    if (Array.isArray(d.transactions)) {
-        var cloudFY = d.activeFY || activeFY;
-        var cloudQ = d.activeQ || activeQ;
-        if (cloudFY === activeFY && cloudQ === activeQ) {
-            // Same quarter — merge into in-memory transactions, skip locally deleted
-            var localTxnIds = new Set(transactions.map(function(t) { return t.id; }));
-            var localUids = new Set(transactions.map(function(t) { return t && t.uid; }).filter(Boolean));
-            var localDelSet = new Set(deletedTxnIds);
-            d.transactions.forEach(function(cloudTxn) {
-                // Already here? Judged by uid where both sides have one, because a
-                // matching id between two devices means nothing (see cbNewUid).
-                if (cloudTxn && cloudTxn.uid) {
-                    if (!localUids.has(cloudTxn.uid) && !localDelSet.has(cloudTxn.id)) {
-                        var adopted = cbAdoptTransaction(cloudTxn);
-                        if (adopted) { localUids.add(adopted.uid); localTxnIds.add(adopted.id); mergeStats.transactionsAdded++; }
-                    }
-                    return;
-                }
-                if (!localTxnIds.has(cloudTxn.id) && !localDelSet.has(cloudTxn.id)) {
-                    transactions.push(cloudTxn);
-                    changed = true;
-                }
-            });
-            if (changed) {
-                nextId = transactions.reduce(function(max, t) { return Math.max(max, t.id + 1); }, 100);
-                saveToStorage();
-            }
-        } else {
-            // Different quarter — merge into the correct localStorage key, respecting deletedTxnIds
-            var cloudKey = getQuarterKey(cloudFY, cloudQ);
-            var localRaw = CESTISStore.getItem(cloudKey);
-            try {
-                var localData = localRaw ? JSON.parse(localRaw) : { openingBalance: d.openingBalance || 0, transactions: [], deletedTxnIds: [] };
-                if (!Array.isArray(localData.transactions)) localData.transactions = [];
-                var existingIds = new Set(localData.transactions.map(function(t) { return t.id; }));
-                var localDelIds2 = new Set(Array.isArray(localData.deletedTxnIds) ? localData.deletedTxnIds : []);
-                var added = 0;
-                d.transactions.forEach(function(ct) {
-                    if (!existingIds.has(ct.id) && !localDelIds2.has(ct.id)) {
-                        localData.transactions.push(ct);
-                        added++;
-                    }
-                });
-                if (added > 0) {
-                    CESTISStore.setItem(cloudKey, JSON.stringify(localData));
-                    changed = true;
-                }
-            } catch(e) {}
-        }
+    // Older backups carried only the pushing device's active quarter.
+    if (Array.isArray(d.transactions) && d.activeFY && d.activeQ) {
+        var topKey = getQuarterKey(d.activeFY, d.activeQ);
+        if (!blobs[topKey]) blobs[topKey] = { openingBalance: d.openingBalance, transactions: d.transactions, deletedTxnIds: d.deletedTxnIds };
     }
+    Object.keys(blobs).forEach(function(key) {
+        try { if (cbMergeQuarterKey(key, blobs[key], stats)) changed = true; } catch(e) { console.warn('[Cashbook] merge of ' + key + ' failed:', e); }
+    });
 
-    // Merge quarterly budgets
+    var budgets = {};
     if (d.quarterlyBudgets && typeof d.quarterlyBudgets === 'object') {
-        Object.keys(d.quarterlyBudgets).forEach(function(key) {
-            if (!CESTISStore.getItem(key)) {
-                try { CESTISStore.setItem(key, JSON.stringify(d.quarterlyBudgets[key])); } catch(e) {}
-            }
-        });
+        Object.keys(d.quarterlyBudgets).forEach(function(k) { budgets[k] = d.quarterlyBudgets[k]; });
     }
+    // The top-level budget is the pushing device's ACTIVE quarter's — only
+    // ever merged into that same quarter (it used to fill this year's empty
+    // budget with last year's lines), and only when the per-quarter copy is absent.
+    if (d.budget && typeof d.budget === 'object' && d.activeFY && d.activeQ) {
+        var bKey = getBudgetQuarterKey(d.activeFY, d.activeQ);
+        if (!budgets[bKey]) budgets[bKey] = { budget: d.budget, sections: d.budgetSections || {} };
+    }
+    Object.keys(budgets).forEach(function(key) {
+        if (!/^cestis_budget_\d{4}\/\d{4}_Q[1-4]$/.test(key)) return;
+        try { if (cbMergeBudgetKey(key, budgets[key], stats)) changed = true; } catch(e) {}
+    });
 
-    // Merge budget for active quarter
-    if (d.budget && typeof d.budget === 'object') {
-        Object.keys(d.budget).forEach(function(cat) {
-            if (BUDGET[cat] === undefined) {
-                BUDGET[cat] = d.budget[cat];
-                changed = true;
-            }
-        });
-        if (d.budgetSections && typeof d.budgetSections === 'object') {
-            Object.keys(d.budgetSections).forEach(function(cat) {
-                if (!BUDGET_LINE_SECTIONS[cat]) {
-                    BUDGET_LINE_SECTIONS[cat] = d.budgetSections[cat];
-                }
-            });
-        }
-    }
-
-    // Merge staff members — dedup by stable identity (id → username → name); see note above.
-    if (Array.isArray(d.staffMembers)) {
-        var localStaffKeys = new Set(staffMembers.map(function(s) { return s.id || s.username || (s.fullName || s.name || '').toLowerCase(); }));
-        d.staffMembers.forEach(function(cloudStaff) {
-            var ck = cloudStaff.id || cloudStaff.username || (cloudStaff.fullName || cloudStaff.name || '').toLowerCase();
-            if (!localStaffKeys.has(ck)) {
-                staffMembers.push(cloudStaff);
-                localStaffKeys.add(ck);
-                changed = true;
-            }
-        });
-        if (changed) {
-            try { CESTISStore.setItem('cestisStaffMembers', JSON.stringify(staffMembers)); } catch(e) {}
-        }
-    }
-
-    // Merge time records — dedup by unique session id; see note above.
-    if (Array.isArray(d.timeRecords)) {
-        var localRecordKeys = new Set(timeRecords.map(function(r) {
-            return r.id || ((r.date || '') + '|' + (r.staffId || '') + '|' + (r.clockIn || ''));
-        }));
-        d.timeRecords.forEach(function(cloudRecord) {
-            var key = cloudRecord.id || ((cloudRecord.date || '') + '|' + (cloudRecord.staffId || '') + '|' + (cloudRecord.clockIn || ''));
-            if (!localRecordKeys.has(key)) {
-                timeRecords.push(cloudRecord);
-                localRecordKeys.add(key);
-            }
-        });
-        try { CESTISStore.setItem('cestisTimeRecords', JSON.stringify(timeRecords)); } catch(e) {}
-    }
+    cbMergeHrIntoStore(d);
 
     if (changed) {
         sanitizeTransactionsForQuarter();
         refreshAll();
     }
+    stats.changed = changed;
+    return stats;
+}
+
+/* Page-cloud has just written CESTIS_Cashbook.json's copy of this page's keys
+   into storage, while this page holds its own active quarter and budget in
+   memory. Without this the next save wrote the stale memory over what was
+   pulled (and pushed the "deletion"). Fold what arrived into memory instead —
+   by uid, newest wins, nothing held here is dropped — and save the union. */
+function cbOnPageCloudRestore() {
+    if (!window.CESTISCore || !CESTISCore.cashbook) return;
+    // At the sign-in screen there is nothing in memory to fold into: storage
+    // already holds what arrived, and sign-in reads it (see cbBooksLoaded).
+    if (!cbBooksLoaded) return;
+    var qKey = getCurrentQuarterKey(), bKey = getCurrentBudgetQuarterKey();
+    var stored = null, storedB = null;
+    try { stored = JSON.parse(CESTISStore.getItem(qKey) || 'null'); } catch(e) {}
+    try { storedB = JSON.parse(CESTISStore.getItem(bKey) || 'null'); } catch(e) {}
+    if (stored) cbMergeQuarterKey(qKey, stored, null);
+    if (storedB) cbMergeBudgetKey(bKey, storedB, null);
+    saveToStorage();
+    saveQuarterBudget();
+    sanitizeTransactionsForQuarter();
+    refreshAll();
 }
 
 // Listen for browser online/offline events
 window.addEventListener('offline', function(){
   showCloudNotification('error', 'You Are Offline',
-    'Internet connection lost. Data changes will only be saved locally until you reconnect.',
+    'Connection lost. Your work is kept on this computer until it syncs.',
     false, 0);
 });
 
@@ -9236,7 +9233,7 @@ window.addEventListener('online', function(){
     }, 1500);
   } else {
     showCloudNotification('warn', 'Back Online',
-      'Internet connection restored. Your cloud sync is active.',
+      'Back online. Sync is on.',
       false, 8);
   }
 });
@@ -9256,8 +9253,25 @@ window.addEventListener('online', function(){
      - navigation to any other page is refused
      - every create/edit/delete control is hidden and its handler blocked
    ============================================================ */
+/* ?view=cmc skips this page's own sign-in, so it is honoured only inside the
+   LMS (same-origin parent) for a signed-in, unexpired CMC session. Before, the
+   URL alone (it is in the public repository) opened the books — named salary
+   cheques included — and the edit/delete handlers stayed callable from the
+   console. Anyone else gets the normal sign-in. */
+function cbCmcSessionValid() {
+    try {
+        if (!window.parent || window.parent === window) return false;
+        var role = null;
+        try { role = window.parent.currentRole; } catch (e) { return false; }   // not the LMS
+        if (!role) {
+            var exp = Number(CESTISStore.getItem('voctrain_sessionExpiry') || 0);
+            if (exp > Date.now()) role = CESTISStore.getItem('voctrain_sessionRole');
+        }
+        return role === 'cmc';
+    } catch (e) { return false; }
+}
 const CMC_VIEW = (function(){
-    try { return new URLSearchParams(window.location.search).get('view') === 'cmc'; }
+    try { return new URLSearchParams(window.location.search).get('view') === 'cmc' && cbCmcSessionValid(); }
     catch(e) { return false; }
 })();
 const CMC_ALLOWED_PAGES = ['dashboard', 'transactions'];
@@ -9388,13 +9402,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261028e"></script>
+<script src="cestis-sync-chip.js?v=20261028d"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Cashbook',
   file: 'CESTIS_Cashbook.json',
   keys: ['cesti_cashbook_data', 'cestis_active_quarter', 'cestis_budget_overrides', 'cestis_budget_deleted'],
-  prefixes: ['cestis_quarter_', 'cestis_budget_']
+  prefixes: ['cestis_quarter_', 'cestis_budget_'],
+  onRestore: function () {
+    try { if (typeof cbOnPageCloudRestore === 'function') cbOnPageCloudRestore(); }
+    catch (e) { console.warn('[PageCloud] Cashbook restore merge failed:', e); }
+  }
 });
 </script>
 <script src="megadata/schemas.js?v=1"></script>

@@ -24,6 +24,20 @@
    just downloaded was stamped "now" and pushed straight back, and two devices
    could trade the same value between them indefinitely.
 
+   Then it happened again, worse: the offline dashboard's saveState() called a
+   saveCollection() its copy did not define (it had been hand-ported without
+   its helper), so on the offline build NOTHING the dashboard saved was kept —
+   every save showed "storage quota may be full" — and its Reports page threw
+   on every admin sign-in (centreRollTally, likewise missing). This test was
+   green throughout, because it only compared seven libraries.
+
+   The offline folder is now GENERATED from the main build
+   (tools/build-offline.js; tests/offline-build.test.js fails on any byte of
+   drift). This test pins the properties that make that safe: every shared file
+   is identical, the main build carries the switches the offline build needs,
+   and no page in either build calls a function or links a file its own build
+   does not have.
+
    Run: node tests/build-parity.test.js */
 'use strict';
 
@@ -54,24 +68,85 @@ console.log('Both builds run the same shared libraries');
     lib + ' is identical in both builds — a fix in one now reaches the other');
 });
 
-/* cestis-page-cloud.js is deliberately NOT identical: the offline copy talks to
-   the Centre's own server and mirrors the whole store. What must match is the
-   behaviour that protects data. */
-console.log('The two page-cloud copies differ only where they must');
+/* cestis-page-cloud.js used to be two different files: the offline copy talked
+   to the Centre's own server and had fallen hundreds of lines behind the main
+   one (no readers, no onRestore on refresh, no shared writes). It is now ONE
+   file that finds the Centre's server at run time and is inert without it. */
+console.log('Both builds run ONE page-cloud, which finds the Centre\'s server by itself');
 
 const rootPC = read('cestis-page-cloud.js');
 const offPC = read('Offline System/cestis-page-cloud.js');
 
-assert(/_applying/.test(rootPC) && /_applying/.test(offPC),
-  'both know that a pull writing the cloud\'s copy back is not an edit made here');
+assert(rootPC === offPC, 'cestis-page-cloud.js is identical in both builds');
 assert(/if \(API\._applying\) return r;/.test(rootPC),
-  'the main build no longer re-uploads the value it just downloaded — two devices used to trade it for ever');
+  'a pull writing the cloud\'s copy back is not an edit made here — two devices used to trade it for ever');
 assert(/API\._applying = true;/.test(rootPC) && /API\._applying = false;/.test(rootPC),
-  'and sets the flag around the merge, not just declares it');
-assert(/_refreshWired/.test(rootPC) && /_refreshWired/.test(offPC),
-  'both keep pulling after the page opens, rather than once at start-up');
-assert(/LOCAL_BASE/.test(offPC) && !/LOCAL_BASE/.test(rootPC),
-  'the offline copy alone talks to the Centre\'s own server (this difference is deliberate)');
+  'and the flag is set around the merge, not just declared');
+assert(/_refreshWired/.test(rootPC), 'it keeps pulling after the page opens, rather than once at start-up');
+assert(/'\/_cestis\/health'/.test(rootPC) && /LOCAL_BASE/.test(rootPC),
+  'it can talk to the Centre\'s own server');
+assert(/github\\\.io/.test(rootPC),
+  'and does not even ask for it on GitHub Pages, so the online build is untouched');
+assert(/records: true/.test(rootPC), 'on the Centre\'s server, record collections merge record by record');
+
+/* ---------- 1b. Every shared file, not just the libraries ---------- */
+console.log('Every file the two builds share is byte-identical');
+(function () {
+  const build = require('../tools/build-offline.js');
+  const planned = build.plan();
+  let same = 0, differ = [];
+  planned.forEach((buf, rel) => {
+    let off = null;
+    try { off = fs.readFileSync(path.join(ROOT, 'Offline System', rel)); } catch (e) {}
+    if (off && buf.equals(off)) same++; else differ.push(rel);
+  });
+  assert(differ.length === 0, 'all ' + planned.size + ' shared files are identical in "Offline System/" (differ: ' +
+    differ.slice(0, 8).join(', ') + ') — run `node tools/build-offline.js`');
+  assert(build.ADAPTATIONS.length === 0,
+    'and none of them is patched on the way: the main build carries the offline switches itself');
+  ['index.html', 'Student-Progress.html', 'CESTIS.Cashbook.html', 'Staff.Payslip.html', 'Staff.Clock.in.html',
+   'Virement.Request.html', 'School.Fee.html', 'Income.Expenditure.html', 'income-expenditure-core.js'].forEach(f => {
+    assert(planned.has(f), f + ' ships in the offline build');
+  });
+})();
+
+/* ---------- 1c. A page never calls a function its own build lacks ---------- */
+console.log('The dashboard defines every helper its saves depend on, in both builds');
+['index.html', 'Offline System/index.html'].forEach(where => {
+  const src = read(where);
+  ['saveCollection', 'centreRollTally', 'persistUserAccounts', 'mirrorActiveAttendance', 'syncStampAll'].forEach(fn => {
+    assert(new RegExp('function ' + fn + '\\s*\\(').test(src),
+      where + ' defines ' + fn + '() — the offline copy once called saveCollection() 21 times and defined it nowhere');
+  });
+  // Every bare call inside saveState() resolves to a definition in this file.
+  const body = (src.match(/\nfunction saveState\(\) \{[\s\S]*?\n\}\n/) || [''])[0];
+  // Code only: comments mention things like refreshXView() that are not calls.
+  const code = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  assert(body.length > 0, where + ': saveState() found');
+  const called = {};
+  code.replace(/(?:^|[^.\w$])([A-Za-z_$][\w$]*)\s*\(/g, (m, name) => { called[name] = true; return m; });
+  const KEYWORDS = { function: 1, if: 1, for: 1, while: 1, catch: 1, switch: 1, return: 1, typeof: 1, saveState: 1 };
+  Object.keys(called).filter(n => !KEYWORDS[n]).forEach(n => {
+    const defined = new RegExp('function ' + n.replace(/\$/g, '\\$') + '\\s*\\(').test(src) ||
+                    new RegExp('(var|let|const) ' + n + '\\s*=').test(src);
+    assert(defined, where + ': saveState() calls ' + n + '(), which this file defines');
+  });
+});
+
+/* ---------- 1d. The offline switches stay in the main build ---------- */
+console.log('The main build carries the offline switches, inert online');
+const rootIdx = read('index.html');
+assert(rootIdx.indexOf('<script src="cestis-offline-rtc.js') !== -1,
+  'the dashboard loads the video shim, which changes nothing unless the Centre\'s server answers');
+assert(/CESTISPageCloud\.initLan\(\{[\s\S]*?file: 'CESTIS_LMS_Dashboard\.json'/.test(rootIdx),
+  'the dashboard registers its shared store ONLY on the Centre\'s network (initLan), never online');
+assert(!/CESTISPageCloud\.init\(\{\s*page: 'LMS Dashboard'/.test(rootIdx),
+  'and never through plain init(), which would sync the whole dashboard to Drive online');
+assert(/function syncStampAll\(\) \{[\s\S]{0,600}CESTISPageCloud\.now\(\)/.test(rootIdx),
+  'records are stamped by the Centre server\'s clock on its network (device clocks there are unset); by this device\'s elsewhere');
+const rtc = read('cestis-offline-rtc.js');
+assert(/probe\(\)\.then\(function \(on\) \{ offline = !!on; if \(offline\) wrap\(\); \}/.test(rtc),
+  'the video shim wraps PeerJS only after the Centre\'s server has answered — online window.Peer is left alone');
 
 /* ---------- 2. The guards the offline build was missing ---------- */
 console.log('Every page that owns records guards its writes, in both builds');
@@ -120,13 +195,26 @@ function walkHtml(dir, acc) {
   return acc;
 }
 const offlinePages = walkHtml('Offline System', []);
-const rootOnly = ['Income.Expenditure.html', 'income-expenditure-core.js',
-                  'MegaData-Admin.html', 'MegaData-Adjudication.html'];
-rootOnly.forEach(missing => {
-  const referrers = offlinePages.filter(pg => read(pg).indexOf(missing) !== -1);
-  assert(referrers.length === 0,
-    'no offline page links to ' + missing + ', which that build does not ship (would be a dead link)');
+// Every local script, stylesheet and embedded page an offline page names must
+// be in the offline folder — Income & Expenditure used to be linked from the
+// main build only, and the offline build simply did not have it.
+let checkedRefs = 0;
+offlinePages.forEach(pg => {
+  const src = read(pg);
+  const dir = path.dirname(pg);
+  const refs = [];
+  src.replace(/<script[^>]+src="([^"]+)"/g, (m, u) => { refs.push(u); return m; });
+  src.replace(/<link[^>]+href="([^"]+\.css[^"]*)"/g, (m, u) => { refs.push(u); return m; });
+  src.replace(/\bsrc:\s*'([^'"]+\.html)[^']*'/g, (m, u) => { refs.push(u); return m; });
+  refs.forEach(u => {
+    if (/^(https?:|data:|\/\/|#|javascript:)/i.test(u)) return;
+    const file = decodeURIComponent(u.split('?')[0].split('#')[0]);
+    if (!file) return;
+    checkedRefs++;
+    assert(fs.existsSync(path.join(ROOT, dir, file)), pg + ' refers to ' + file + ', which the offline build ships');
+  });
 });
+assert(checkedRefs > 50, 'the link check actually looked at the pages (' + checkedRefs + ' references)');
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

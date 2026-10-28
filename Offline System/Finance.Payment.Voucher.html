@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261028e"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C.E.S.T.I.S — Payment Vouchers</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap"></noscript>
@@ -38,6 +38,10 @@
 body.print-solo .v-wrap:not(.solo) { display:none; }
 @media print { .v-toolbar { display:none !important; } }
 </style>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261028d">
 </head>
 <body>
 
@@ -49,6 +53,7 @@ body.print-solo .v-wrap:not(.solo) { display:none; }
       <div class="sub">Vouchers are generated automatically from the Cashbook — cheque payments get a HEART/NSTA <b>Cheque Payment Voucher</b>, payments without a cheque number are transfers and get a CESTIS <b>Bank Transfer Voucher</b></div>
     </div>
     <div class="fd-actions">
+      <span data-cestis-sync-chip></span>
       <button class="btn ghost" onclick="PV.printFiltered('cheque')">🖨 Print Cheque Vouchers</button>
       <button class="btn ghost" onclick="PV.printFiltered('transfer')">🖨 Print Transfer Vouchers</button>
       <button class="btn" onclick="PV.printFiltered('')">🖨 Print All Shown</button>
@@ -127,7 +132,12 @@ function discoverQuarters() {
     if (m) quarters.push({ fy: m[1], q: +m[2] });
   });
   quarters.sort(function (a, b) { return a.fy === b.fy ? a.q - b.q : a.fy.localeCompare(b.fy); });
-  if (!quarters.length) quarters.push({ fy: '2025/2026', q: 3 }); // cashbook's starting quarter
+  // Nothing stored yet: today's quarter (Jamaica FY April-March), not a
+  // hardcoded year.
+  if (!quarters.length) {
+    var today = (window.CESTISCore && CESTISCore.currentQuarter) ? CESTISCore.currentQuarter() : { fy: '2025/2026', q: 3 };
+    quarters.push({ fy: today.fy, q: today.q });
+  }
 }
 
 function loadOverrides() {
@@ -196,21 +206,27 @@ function pullCashbookQuarters() {
             if (!/^cestis_quarter_.+_Q[1-4]$/.test(key)) return;
             var qd = qt[key];
             if (!qd || !Array.isArray(qd.transactions)) return;
-            // Never overwrite a quarter this device has locally with fewer
-            // transactions than it already holds — the Cashbook here may be
-            // ahead of the last cloud save.
+            // A quarter this device holds is MERGED with the cloud's, by the
+            // Cashbook's own rule (CESTISCore.cashbook: by uid, newest edit
+            // wins, deletions kept). The old test only compared row counts, so
+            // an equal-length cloud copy replaced the local quarter — un-voiding
+            // a cheque voided here and deleting one entered here.
             var existing = null;
             try { existing = JSON.parse(store.getItem(key) || 'null'); } catch (e) {}
-            if (existing && Array.isArray(existing.transactions) &&
-                existing.transactions.length > qd.transactions.length) return;
+            if (existing && typeof existing === 'object') {
+              var fq = CESTISCore.cashbook.parseQuarterKey(key);
+              if (!fq) return;
+              if (CESTISCore.cashbook.mergeQuarter(existing, qd, fq.fy, fq.q).changed) {
+                store.setItem(key, JSON.stringify(existing));
+                written++;
+              }
+              return;
+            }
             store.setItem(key, JSON.stringify(qd));
             written++;
           });
-          // The active quarter the Cashbook was last on, so this page opens on
-          // the same one rather than guessing.
-          if (backup.data.activeFY && backup.data.activeQ) {
-            try { store.setItem('cestis_active_quarter', JSON.stringify({ fy: backup.data.activeFY, q: backup.data.activeQ })); } catch (e) {}
-          }
+          // The Cashbook's active quarter is the Cashbook's to choose; this
+          // page no longer moves it (it opens on the latest quarter anyway).
           return { ok: true, quarters: written };
         });
     })
@@ -298,7 +314,15 @@ function pullOverridesFromCloud() {
     })
     .catch(function () { return false; });
 }
-function ovKey(v) { return activeFY + '|Q' + activeQ + '|' + v.txnId; }
+/* A voucher's saved edits are keyed by its transaction's uid. They used to be
+   keyed by the transaction id, which names a different cheque on each device,
+   so a payee or amount edited on one PC appeared on whatever cheque held that
+   number on the next. Edits saved under the old key are still read on this
+   device (they were written against this device's own rows) and move to the
+   uid key the next time the voucher is edited. */
+function ovKey(v) { return activeFY + '|Q' + activeQ + '|' + (v.txnUid ? 'u:' + v.txnUid : v.txnId); }
+function ovLegacyKey(v) { return activeFY + '|Q' + activeQ + '|' + v.txnId; }
+function ovGet(v) { return overrides[ovKey(v)] || overrides[ovLegacyKey(v)] || null; }
 
 function guessPayee(details) {
   var m = /^([^(]+)\(/.exec(String(details || ''));
@@ -314,7 +338,7 @@ function parseAmt(x) {
 /* Merge the cashbook-generated voucher with any saved user edits into the
    full set of printable fields. */
 function voucherFields(v) {
-  var o = overrides[ovKey(v)] || {};
+  var o = ovGet(v) || {};
   var rows = [];
   for (var i = 0; i < ROWS; i++) {
     var or = (o.rows && o.rows[i]) || {};
@@ -388,12 +412,12 @@ function renderList() {
         '. Transactions are entered on the <b>Cashbook</b> page — once saved there, their vouchers appear here automatically. ' +
         '(Deposits and cancelled cheques never get vouchers.)</div>'
       : '<div class="fd-empty">No Cashbook data has reached this device yet, so there are no vouchers to generate. ' +
-        'Use <b>⟳ Sync from Cashbook</b> above to pull the quarters from the cloud backup, or open the ' +
+        'Use <b>⟳ Sync from Cashbook</b> above to get the quarters, or open the ' +
         '<b>Cashbook</b> page on this device once.</div>';
     return;
   }
   var rows = list.map(function (v) {
-    var edited = !!overrides[ovKey(v)];
+    var edited = !!ovGet(v);
     return '<tr onclick="PV.jumpTo(' + v.txnId + ')"><td>' + esc(fmtDate(v.date)) + '</td>' +
       '<td><span class="type-badge ' + v.type + '">' + (v.type === 'cheque' ? 'CHEQUE #' + esc(v.chequeNo) : 'BANK TRANSFER') + '</span></td>' +
       '<td>' + esc(v.payee) + (edited ? ' <span class="edited-dot" title="This voucher has saved edits">●</span>' : '') + '</td>' +
@@ -489,6 +513,9 @@ PV.edit = function (input) {
   var v = vouchers.find(function (x) { return x.txnId === txnId; });
   if (!v) return;
   var key = ovKey(v);
+  if (!overrides[key] && overrides[ovLegacyKey(v)]) {
+    overrides[key] = JSON.parse(JSON.stringify(overrides[ovLegacyKey(v)]));   // move the old edits over
+  }
   var o = overrides[key] || (overrides[key] = {});
   var m = /^row\.(detail|account|amount)\.(\d+)$/.exec(field);
   if (m) {
@@ -521,6 +548,7 @@ PV.resetOne = function (txnId) {
   if (!v) return;
   if (!confirm('Reset this voucher back to the cashbook values? Your edits will be lost.')) return;
   delete overrides[ovKey(v)];
+  delete overrides[ovLegacyKey(v)];
   persistOverrides();
   renderList(); renderSheets();
   PV.jumpTo(txnId);
@@ -559,7 +587,7 @@ function renderSourceNote(extra) {
     .filter(function (k) { return /^cestis_quarter_.+_Q[1-4]$/.test(k); }).length;
   var online = !!driveToken();
   el.innerHTML = (n ? n + ' Cashbook quarter' + (n === 1 ? '' : 's') + ' available on this device' : 'No Cashbook quarters on this device') +
-    ' · ' + (online ? 'Google Drive connected' : 'Drive not connected — sign in on the dashboard to sync') +
+    ' · ' + (online ? 'Sync connected' : 'Sync not connected — sign in on the dashboard to sync') +
     (extra ? ' · ' + esc(extra) : '');
 }
 
@@ -570,15 +598,15 @@ PV.syncFromCashbook = function () {
     var r = res[0];
     if (btn) { btn.disabled = false; btn.textContent = '⟳ Sync from Cashbook'; }
     if (!r.ok) {
-      var why = r.reason === 'offline' ? 'Google Drive is not connected on this device — sign in from the dashboard first.'
-              : r.reason === 'no-backup' ? 'No Cashbook backup was found in the Cashbook Drive folder. Save from the Cashbook page once.'
+      var why = r.reason === 'offline' ? 'Sync is not connected on this computer — sign in from the dashboard first.'
+              : r.reason === 'no-backup' ? 'No Cashbook data has been shared yet. Save from the Cashbook page once.'
               : 'Could not read the Cashbook backup (' + r.reason + ').';
       toast('Sync failed'); renderSourceNote(why);
       return;
     }
     boot();
     toast(r.quarters ? ('Synced ' + r.quarters + ' quarter' + (r.quarters === 1 ? '' : 's') + ' from the Cashbook') : 'Already up to date');
-    renderSourceNote(r.quarters ? 'Last synced just now' : 'Nothing newer in the cloud');
+    renderSourceNote(r.quarters ? 'Last synced just now' : 'Nothing newer to sync');
   });
 };
 
@@ -591,6 +619,12 @@ function boot() {
   generate(); renderAll();
   renderSourceNote();
 }
+/* Who may open this page. It had no sign-in and showed the Centre's books to
+   whoever typed its address — a trainee at a lab PC included. It opens only
+   for the signed-in dashboard (an Administrator or Admin Staff: embedded, or
+   signed in on this computer — CESTISCore.sessionAccess.guard); anyone
+   else sees "sign in first" and nothing of the page runs. */
+function pvOpen() {
 boot();
 if (store.whenReady) store.whenReady(function () {
   boot();
@@ -605,13 +639,23 @@ if (store.whenReady) store.whenReady(function () {
     if ((res[0] && res[0].quarters) || res[1]) { boot(); }
   });
 });
+}
+(function () {
+  var SA = window.CESTISCore && CESTISCore.sessionAccess;
+  if (!SA || !SA.guard) { document.body.textContent = 'Shared data core failed to load. Please refresh.'; return; }
+  SA.guard({ allowed: ['admin', 'adminstaff'] }, function (viewer) {
+    if (!viewer.ok) { SA.lockPage(viewer.message); return; }
+    pvOpen();
+  });
+})();
 
 window.PV = PV;
 })();
 </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261028e"></script>
+<script src="cestis-sync-chip.js?v=20261028d"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Payment Vouchers',
@@ -619,5 +663,16 @@ CESTISPageCloud.init({
   keys: ['cestis_finance_voucher_overrides', 'cestis_active_quarter']
 });
 </script>
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/docsync-model.js?v=1"></script>
+<script src="megadata/pages/voucher-page.js?v=1"></script>
 </body>
 </html>

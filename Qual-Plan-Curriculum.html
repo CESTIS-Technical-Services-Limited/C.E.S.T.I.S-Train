@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261028e"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Qual Plan / Curriculum — C.E.S.T.I.S</title>
 <style>
@@ -20,7 +20,7 @@
     --red: #e74c3c;
     --text-primary: #e8edf3;
     --text-secondary: #8899aa;
-    --text-muted: #556677;
+    --text-muted: #8293a7;   /* 5.0:1 on a card (was #556677, 2.7:1) — as index.html */
     --border: rgba(255,255,255,0.06);
     --border-light: rgba(255,255,255,0.1);
     --radius: 12px;
@@ -70,7 +70,7 @@
   .qp-card-head { display:flex; align-items:center; gap:12px; padding:16px 18px; border-bottom:1px solid var(--border); }
   .qp-card-head .ic { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
   .qp-card-head .nm { font-size:15px; font-weight:600; line-height:1.3; }
-  .qp-badge { display:inline-block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; padding:2px 8px; border-radius:20px; margin-top:5px; }
+  .qp-badge { display:inline-block; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; padding:2px 8px; border-radius:20px; margin-top:5px; }
   .qp-crumbs { display:none; flex-wrap:wrap; align-items:center; gap:4px; padding:9px 18px; border-bottom:1px solid var(--border); font-size:12px; background:var(--bg-input); }
   .qp-crumbs.show { display:flex; }
   .qp-crumb { color:var(--text-secondary); cursor:pointer; }
@@ -90,7 +90,7 @@
   .qp-file:hover { background: var(--bg-card-hover); }
   .qp-file .fic { width:30px; height:30px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
   .qp-file .fnm { flex:1; min-width:0; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .qp-file .fgo { font-size:11px; color:var(--text-muted); }
+  .qp-file .fgo { font-size:12px; color:var(--text-muted); }
   .qp-file:hover .fgo { color: var(--accent); }
   .qp-files-msg { padding:16px 18px; font-size:12px; color:var(--text-muted); }
   .qp-spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border-light); border-top-color:var(--accent); border-radius:50%; animation:qpspin .7s linear infinite; vertical-align:-2px; margin-right:8px; }
@@ -152,12 +152,12 @@
     <div class="qp-modal-head">
       <div class="fic" style="font-size:18px;">📄</div>
       <div class="mt" id="qpModalTitle">Document</div>
-      <a class="qp-modal-close" id="qpModalOpen" href="#" target="_blank" rel="noopener" style="text-decoration:none;">↗ Open in Drive</a>
+      <a class="qp-modal-close" id="qpModalOpen" href="#" target="_blank" rel="noopener" style="text-decoration:none;">↗ Open in new tab</a>
       <button class="qp-modal-close" onclick="qpCloseViewer()">✕ Close</button>
     </div>
     <div class="qp-modal-note" id="qpModalNote">
       This document is taking longer than usual to preview. If it stays blank it may not be shared with your account —
-      use <strong>Open in Drive</strong> above, or ask an administrator to share the folder.
+      use <strong>Open in new tab</strong> above, or ask an administrator to share the folder.
     </div>
     <div class="qp-modal-body"><iframe id="qpModalFrame" title="Document viewer" allow="autoplay" onload="if(window.qpViewerLoaded)qpViewerLoaded()"></iframe></div>
   </div>
@@ -203,14 +203,43 @@ var QUAL_PLAN_PROGRAMS = [
       { name:"06 Quest Service Practitioner",       folderId:"1axaLeZ6n_AKCIQRrCyLM2EDiX3FqhDOt" },
       { name:"07 Welding Fabrication Technician",   folderId:"1yPnXugHCvuRGqLM5bRekwpyrqE16mYM5" }
     ] },
-  { title:"Beauty Therapy Level 2",                         folderId:"194qSUzi_BSQE_0QHLYQAQn_hX2JbHFvL", skillArea:"Beauty Therapy" },
-  { title:"Cosmetology Level 2",                            folderId:"180HFoONPHB44Dq9hKkyuvvcEaPQG2w3a", skillArea:"Cosmetology" },
-  { title:"Electrical Installation and Maintenance L2",     folderId:"1RTYIrphKDbBbNMlWGUhJ5Cmid6cWEgOA", skillArea:"Electrical Installation" },
-  { title:"Electrical Installation and Maintenance L3",     folderId:"1Xf9GXeOS6bJEXwt1V1Wfr__Jhf6h-cq8", skillArea:"Electrical Installation" },
-  { title:"Hospitality Villa.Properties Services L2",       folderId:"1lmeQLq2h-UKhP06dnsyBwxezwfshW5Ll", skillArea:"Hospitality & Tourism" },
-  { title:"Welding L2",                                     folderId:"1A_X9LAGnVGyL-KWAu2rqKcsLoTQqjXEA", skillArea:"Welding & Fabrication" },
-  { title:"Welding L3",                                     folderId:"1W4I6wpXPJ51grRPNW0EwNqjJ5a3wV1lV", skillArea:"Welding & Fabrication" }
+  // `level` is the NVQ level of the plan, so a Level 2 trainee is shown the
+  // Level 2 plan and not the Level 3 one beside it.
+  { title:"Beauty Therapy Level 2",                         folderId:"194qSUzi_BSQE_0QHLYQAQn_hX2JbHFvL", skillArea:"Beauty Therapy", level:2 },
+  { title:"Cosmetology Level 2",                            folderId:"180HFoONPHB44Dq9hKkyuvvcEaPQG2w3a", skillArea:"Cosmetology", level:2 },
+  { title:"Electrical Installation and Maintenance L2",     folderId:"1RTYIrphKDbBbNMlWGUhJ5Cmid6cWEgOA", skillArea:"Electrical Installation", level:2 },
+  { title:"Electrical Installation and Maintenance L3",     folderId:"1Xf9GXeOS6bJEXwt1V1Wfr__Jhf6h-cq8", skillArea:"Electrical Installation", level:3 },
+  { title:"Hospitality Villa.Properties Services L2",       folderId:"1lmeQLq2h-UKhP06dnsyBwxezwfshW5Ll", skillArea:"Hospitality & Tourism", level:2 },
+  { title:"Welding L2",                                     folderId:"1A_X9LAGnVGyL-KWAu2rqKcsLoTQqjXEA", skillArea:"Welding & Fabrication", level:2 },
+  { title:"Welding L3",                                     folderId:"1W4I6wpXPJ51grRPNW0EwNqjJ5a3wV1lV", skillArea:"Welding & Fabrication", level:3 }
+  // Business Administration (Management) Level 5 has no plan folder yet: add it
+  // here, with its folderId, once the Centre has one. Until then its trainees
+  // are told so plainly (qpRender).
 ];
+
+/* The level a course name states: "WELDING L2", "Welding Level 3",
+   "… lvl 2" -> 2 / 3 / 2; null when it states none. */
+function qpCourseLevel(course) {
+  var m = /(?:^|[^a-z0-9])l(?:vl|evel)?\s*(\d+)(?:[^0-9]|$)/i.exec(String(course || ''));
+  return m ? Number(m[1]) : null;
+}
+
+/* Which programme folders a viewer sees. Staff: every programme (narrowed by
+   the skill-area filter). A trainee or instructor: the general ones plus their
+   own skill area's — at THEIR level when their course names one (a Level 2
+   trainee was shown both the Level 2 and the Level 3 plan). */
+function qpVisiblePrograms(programs, opts) {
+  opts = opts || {};
+  var lvl = opts.course ? qpCourseLevel(opts.course) : null;
+  return (programs || []).filter(function (prog) {
+    if (opts.allowedSkillName && !prog.general) {
+      if (prog.skillArea !== opts.allowedSkillName) return false;
+      if (lvl != null && prog.level != null && Number(prog.level) !== lvl) return false;
+    }
+    if (opts.isStaff && opts.filter && opts.filter !== 'all' && (prog.general || prog.skillArea !== opts.filter)) return false;
+    return true;
+  });
+}
 
 // Skill areas: sourced from the shared cestis-core catalogue so this viewer's
 // course list can never drift from the dashboard. The inline array below is
@@ -245,7 +274,18 @@ function qpParam(name) {
   } catch (e) { return ''; }
 }
 
-var qpRole = qpParam('role') || 'admin';
+// The dashboard embeds this page with ?role=…, and the page believed whatever
+// the address said — defaulting to 'admin' when it said nothing. The role is now
+// the signed-in session's (the embedding dashboard's, or the dashboard signed
+// in on this computer); the address may only narrow it, as on the record pages
+// (CESTISCore.sessionAccess). With no session it shows what any visitor may.
+var qpRole = (function () {
+  try {
+    var v = CESTISCore.sessionAccess.forPage({ allowed: ['admin', 'adminstaff', 'instructor', 'student'] });
+    if (v && v.ok) return v.role;
+  } catch (e) {}
+  return 'student';
+})();
 var qpCourse = qpParam('course');
 var qpUserName = qpParam('student');
 var qpIsStaff = (qpRole === 'admin' || qpRole === 'adminstaff');
@@ -301,6 +341,13 @@ function qpEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
   });
+}
+// A value handed to an inline handler: a quoted JavaScript string that
+// survives the browser decoding the attribute first. Shared toolkit, with a
+// fallback for a stale cached cestis-core.js.
+function qpJsArg(s) {
+  if (window.CESTISCore && CESTISCore.html) return CESTISCore.html.jsArg(s);
+  return qpEsc(JSON.stringify(String(s == null ? '' : s)));
 }
 
 function qpFileIcon(mime) {
@@ -484,7 +531,7 @@ function qpRenderCrumbs(prog) {
     var label = i === 0 ? '🏠 Home' : qpEsc(c.name);
     var seg = last
       ? '<span class="qp-crumb current">' + label + '</span>'
-      : '<span class="qp-crumb" onclick="qpNavTo(\'' + prog.folderId + '\',' + i + ')">' + label + '</span>';
+      : '<span class="qp-crumb" onclick="qpNavTo(' + qpJsArg(prog.folderId) + ',' + i + ')">' + label + '</span>';
     return (i ? '<span class="qp-crumb-sep">›</span>' : '') + seg;
   }).join('');
 }
@@ -502,14 +549,19 @@ function qpRenderListing(prog, result) {
     // cause and offer the folder itself as a way through.
     var bc0 = (qpNav[prog.folderId] || [])[(qpNav[prog.folderId] || []).length - 1];
     var openFolder = ' <a href="https://drive.google.com/drive/folders/' + qpEsc((bc0 && bc0.id) || prog.folderId) +
-      '" target="_blank" rel="noopener" style="color:var(--accent);">Open this folder in Drive ↗</a>';
+      '" target="_blank" rel="noopener" style="color:var(--accent);">Open this folder ↗</a>';
     if (result.message === 'no-auth') {
-      host.innerHTML = '<div class="qp-files-msg">Documents can\'t be listed yet — sign in to Google Drive (admin) or add a Drive API key.</div>';
-      qpMaybeShowAuthNotice();
+      // A trainee on their own phone cannot "sign in to Google Drive (admin)":
+      // they are offered the folder itself, which opens in Drive for anyone it
+      // is shared with ("anyone with the link" — the zero-cost route).
+      host.innerHTML = qpIsStaff
+        ? '<div class="qp-files-msg">Documents can\'t be listed yet — sign in to sync on the dashboard (Sync Now).' + openFolder + '</div>'
+        : '<div class="qp-files-msg">The documents for this plan open from their folder.' + openFolder + '</div>';
+      if (qpIsStaff) qpMaybeShowAuthNotice();
     } else if (result.message === 'http-401') {
-      host.innerHTML = '<div class="qp-files-msg">Your Google session has expired. Use <strong>Sync Now</strong> on the sign-in page to reconnect, then reopen this page.</div>';
+      host.innerHTML = '<div class="qp-files-msg">Your sync sign-in has expired. Use <strong>Sync Now</strong> on the sign-in page to reconnect, then reopen this page.</div>';
     } else if (result.message === 'http-403' || result.message === 'http-404') {
-      host.innerHTML = '<div class="qp-files-msg">This folder isn\'t shared with your Google account, so its documents can\'t be listed. ' +
+      host.innerHTML = '<div class="qp-files-msg">This folder isn\'t shared with your account, so its documents can\'t be listed. ' +
         'Ask an administrator to share it with you (or set it to "anyone with the link").' + openFolder + '</div>';
     } else {
       host.innerHTML = '<div class="qp-files-msg">Couldn\'t load documents for this folder (' + qpEsc(result.message || 'unknown error') + ').' + openFolder + '</div>';
@@ -528,13 +580,13 @@ function qpRenderListing(prog, result) {
     return;
   }
   var rows = folders.map(function(f){
-    return '<div class="qp-file is-folder" onclick="qpNavInto(\'' + prog.folderId + '\',\'' + qpEsc(f.id) + '\')">' +
+    return '<div class="qp-file is-folder" onclick="qpNavInto(' + qpJsArg(prog.folderId) + ',' + qpJsArg(f.id) + ')">' +
       '<div class="fic">📁</div>' +
       '<div class="fnm" title="' + qpEsc(f.name) + '">' + qpEsc(f.name) + '</div>' +
       '<div class="fgo">Open ▸</div>' +
     '</div>';
   }).concat(files.map(function(f){
-    return '<div class="qp-file" onclick="qpOpenViewer(\'' + qpEsc(f.id) + '\',\'' + qpEsc(f.mimeType || '') + '\')">' +
+    return '<div class="qp-file" onclick="qpOpenViewer(' + qpJsArg(f.id) + ',' + qpJsArg(f.mimeType || '') + ')">' +
       '<div class="fic" style="background:rgba(240,165,0,0.12);">' + qpFileIcon(f.mimeType) + '</div>' +
       '<div class="fnm" title="' + qpEsc(f.name) + '">' + qpEsc(f.name) + '</div>' +
       '<div class="fgo">View ▸</div>' +
@@ -614,8 +666,8 @@ function qpMaybeShowAuthNotice() {
   if (qpNoticeShown || qpToken() || QP_API_KEY) return;
   qpNoticeShown = true;
   document.getElementById('qpNoticeHost').innerHTML =
-    '<div class="qp-notice">Document previews need Google Drive access. An administrator should ' +
-    'connect Google Drive in the LMS, or a Drive API key can be added so signed-out users ' +
+    '<div class="qp-notice">Document previews need sync to be connected. An administrator should ' +
+    'connect the Centre’s account in the LMS, or a document-viewer key can be added so signed-out users ' +
     '(e.g. students) can view the public folders.</div>';
 }
 
@@ -628,14 +680,14 @@ function qpCard(prog) {
   return '' +
     '<div class="qp-card">' +
       '<div class="qp-card-head">' +
-        '<div class="ic" style="background:rgba(' + rgb + ',0.18);color:' + meta.color + ';">' + meta.icon + '</div>' +
+        '<div class="ic" style="background:rgba(' + rgb + ',0.18);color:' + qpEsc(meta.color) + ';">' + qpEsc(meta.icon) + '</div>' +
         '<div>' +
           '<div class="nm">' + qpEsc(prog.title) + '</div>' +
-          '<span class="qp-badge" style="background:rgba(' + rgb + ',0.18);color:' + meta.color + ';">' + qpEsc(badgeLabel) + '</span>' +
+          '<span class="qp-badge" style="background:rgba(' + rgb + ',0.18);color:' + qpEsc(meta.color) + ';">' + qpEsc(badgeLabel) + '</span>' +
         '</div>' +
       '</div>' +
-      '<div class="qp-crumbs" id="qpCrumbs-' + prog.folderId + '"></div>' +
-      '<div class="qp-files" id="qpFiles-' + prog.folderId + '">' +
+      '<div class="qp-crumbs" id="qpCrumbs-' + qpEsc(prog.folderId) + '"></div>' +
+      '<div class="qp-files" id="qpFiles-' + qpEsc(prog.folderId) + '">' +
         '<div class="qp-files-msg"><span class="qp-spinner"></span>Loading documents…</div>' +
       '</div>' +
     '</div>';
@@ -648,18 +700,20 @@ function qpRender() {
   var filter = document.getElementById('qpFilter').value;
   var allowedSkill = (!qpIsStaff && qpCourse) ? qpSkillMeta(qpCourse) : null;
 
-  var list = QUAL_PLAN_PROGRAMS.filter(function(prog){
-    if (allowedSkill && !prog.general && prog.skillArea !== allowedSkill.name) return false;
-    if (qpIsStaff && filter !== 'all' && (prog.general || prog.skillArea !== filter)) return false;
-    return true;
-  });
+  var list = qpVisiblePrograms(QUAL_PLAN_PROGRAMS, { allowedSkillName: allowedSkill ? allowedSkill.name : '',
+    course: qpCourse, isStaff: qpIsStaff, filter: filter });
 
   if (!list.length) {
     grid.innerHTML = '<div class="qp-empty">No qualification plans available for this skill area yet.</div>';
     return;
   }
+  // A trainee whose own programme has no plan folder (Business Administration
+  // today) is told so, rather than left looking at Short Courses only.
+  var ownPlan = !allowedSkill || list.some(function (prog) { return !prog.general; });
 
-  grid.innerHTML = list.map(qpCard).join('');
+  grid.innerHTML = (ownPlan ? '' : '<div class="qp-empty" style="margin-bottom:14px;">No qualification plan has been published for your programme (' +
+      qpEsc(qpCourse) + ') yet. Ask your instructor or the administration for a copy.</div>') +
+    list.map(qpCard).join('');
   // Load + render each visible programme's current folder (preserves drill-down).
   list.forEach(function(prog){ qpLoadCard(prog); });
 }
@@ -687,7 +741,7 @@ function qpInit() {
       var rgb = qpHexToRgb(skill.color);
       document.getElementById('qpBannerHost').innerHTML =
         '<div class="qp-banner" style="background:linear-gradient(135deg,rgba(' + rgb + ',0.16),rgba(52,152,219,0.05));">' +
-          '<div class="ic" style="background:' + skill.color + '33;color:' + skill.color + ';">' + skill.icon + '</div>' +
+          '<div class="ic" style="background:' + qpEsc(skill.color) + '33;color:' + qpEsc(skill.color) + ';">' + qpEsc(skill.icon) + '</div>' +
           '<div>' +
             '<h2>' + qpEsc(skill.name) + '</h2>' +
             '<span class="sub">' +

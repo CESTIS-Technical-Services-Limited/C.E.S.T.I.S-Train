@@ -4,19 +4,27 @@
   ----------------------------------------------------------------------------
   Fetched by index.html and injected into the mount slot
   (<div class="cestis-mount" data-feature="i-attendance" data-prefix="instructor">).
-  Rendered on mount by: cestisInitIAttendance() (in index.html).
+  Rendered on mount by: cestisInitIAttendance() (in index.html): the WEEK of the
+  picked date, one mark per trainee per date, plus any live class held that
+  week offered for the instructor to add to the register.
   All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
   ============================================================================
 -->
+    <!-- The week strip (previous / this / next week) is drawn into this slot. -->
     <div id="iAttendanceQuarterBar"></div>
     <div class="attendance-summary" id="iAttendanceSummary"></div>
-    <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
-      <label style="font-size:13px;font-weight:600;">Date:</label>
-      <input type="date" class="form-control" style="width:180px;" id="iAttendanceDate">
+    <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
+      <label style="font-size:13px;font-weight:600;" for="iAttendanceDate">Date:</label>
+      <input type="date" class="form-control" style="width:180px;" id="iAttendanceDate" onchange="onAttendanceDateChange(this.value)">
+      <button class="btn btn-success" onclick="attendanceMarkAllToday('instructor')" title="Every trainee listed who is not yet marked on the picked date is marked present">✓ Mark all present (picked date)</button>
       <button class="btn btn-primary" onclick="saveInstructorAttendance()">Save Attendance</button>
+      <button class="btn-export" onclick="exportAttendanceRegisterCSV('instructor')">📄 Export register (CSV)</button>
+      <label style="font-size:12px;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="iAttendanceShowAll" onchange="attendanceToggleShowAll(this.checked)"> Show every trainee</label>
+      <span id="iAttendanceSaveState" style="font-size:12px;"></span>
     </div>
+    <div id="iAttendanceLiveClasses"></div>
     <div class="card"><div class="card-header"><h3>Class Attendance <span id="iAttCourseLabel"></span></h3><span style="font-size:13px;color:var(--text-muted);" id="iAttCount"></span></div>
-      <div class="table-wrapper"><table class="attendance-table"><thead><tr><th>Student</th><th>ID</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></thead><tbody id="iAttendanceTableBody"></tbody></table></div>
+      <div class="table-wrapper"><table class="attendance-table tbl-phone"><thead id="iAttendanceTableHead"><tr><th>Student</th><th>ID</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></thead><tbody id="iAttendanceTableBody"></tbody></table></div>
     </div>
     <div class="card"><div class="card-header"><h3>Attendance Overview</h3></div>
       <div class="bar-chart" id="iWeeklyAttChart"></div>

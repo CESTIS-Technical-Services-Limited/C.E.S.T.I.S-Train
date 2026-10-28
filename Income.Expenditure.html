@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261028e"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CESTIS — Income and Expenditure Account</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
@@ -45,16 +45,16 @@ input, select, button, textarea { font-family:var(--sans); }
     display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto; }
 .logo { padding:0 1.25rem 1.5rem; border-bottom:1px solid var(--border); margin-bottom:1rem; }
 .logo h1 { font-size:.85rem; font-weight:700; color:var(--accent2); letter-spacing:1px; text-transform:uppercase; }
-.logo p { font-size:.7rem; color:var(--text3); margin-top:.25rem; }
+.logo p { font-size:0.75rem; color:var(--text3); margin-top:.25rem; }
 .nav-section { padding:0 .75rem; margin-bottom:.5rem; }
-.nav-label { font-size:.6rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; padding:.5rem .5rem; }
+.nav-label { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; padding:.5rem .5rem; }
 .nav-item { display:flex; align-items:center; gap:.625rem; padding:.625rem .75rem; border-radius:8px; cursor:pointer;
     color:var(--text2); font-size:.8125rem; font-weight:500; transition:all .15s; }
 .nav-item:hover { background:var(--surface2); color:var(--text); }
 .nav-item.active { background:rgba(59,130,246,0.12); color:var(--accent2); }
 .nav-item .icon { font-size:1rem; width:1.25rem; text-align:center; }
 .sidebar-footer { margin-top:auto; padding:1rem 1.25rem; border-top:1px solid var(--border); }
-.sidebar-footer p { font-size:.65rem; color:var(--text3); line-height:1.6; }
+.sidebar-footer p { font-size:0.75rem; color:var(--text3); line-height:1.6; }
 
 .main { padding:1.5rem 2rem; overflow-y:auto; }
 .page { display:none; }
@@ -86,20 +86,20 @@ input, select, button, textarea { font-family:var(--sans); }
 .stat-card.green::before { background:var(--green); }
 .stat-card.red::before { background:var(--red); }
 .stat-card.amber::before { background:var(--amber); }
-.stat-card .label { font-size:.68rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1px; }
+.stat-card .label { font-size:0.75rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1px; }
 .stat-card .value { font-family:var(--mono); font-size:1.35rem; font-weight:600; margin-top:.4rem; }
-.stat-card .sub { font-size:.7rem; color:var(--text3); margin-top:.3rem; }
+.stat-card .sub { font-size:0.75rem; color:var(--text3); margin-top:.3rem; }
 
 .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem 1.5rem; margin-bottom:1.5rem; }
 .card h3 { font-size:.9rem; font-weight:700; color:var(--accent2); margin-bottom:.9rem; text-transform:uppercase; letter-spacing:.5px; }
 
 table.ie { width:100%; border-collapse:collapse; font-size:.8125rem; }
 table.ie th, table.ie td { padding:.5rem .65rem; border-bottom:1px solid var(--border); text-align:right; white-space:nowrap; }
-table.ie th { color:var(--text3); font-size:.68rem; text-transform:uppercase; letter-spacing:1px; }
+table.ie th { color:var(--text3); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; }
 table.ie th:first-child, table.ie td:first-child { text-align:left; }
 table.ie td.cat { color:var(--text2); }
 table.ie td.num { font-family:var(--mono); }
-table.ie tr.sect td { color:var(--accent2); font-weight:700; font-size:.7rem; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid var(--border); padding-top:.9rem; }
+table.ie tr.sect td { color:var(--accent2); font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid var(--border); padding-top:.9rem; }
 table.ie tr.subtotal td { font-weight:700; background:var(--surface2); }
 table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.85rem; }
 .tbl-scroll { overflow-x:auto; }
@@ -109,7 +109,7 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
 
 /* Live/cloud badges */
 .badges { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
-.badge { font-size:.65rem; font-weight:700; letter-spacing:.5px; padding:.25rem .6rem; border-radius:999px; }
+.badge { font-size:0.75rem; font-weight:700; letter-spacing:.5px; padding:.25rem .6rem; border-radius:999px; }
 .badge-live { background:var(--green-bg); color:var(--green); }
 .badge-cloud-on { background:rgba(59,130,246,.12); color:var(--accent2); }
 .badge-cloud-off { background:var(--amber-bg); color:var(--amber); }
@@ -153,6 +153,10 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
   .page-header h2, .page-header .subtitle { color:#000; }
 }
 </style>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261028d">
 </head>
 <body>
 
@@ -170,7 +174,7 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
     <div class="sidebar-footer">
       <div class="badges" style="margin-bottom:.5rem;">
         <span class="badge badge-live" id="liveBadge">LIVE</span>
-        <span class="badge badge-cloud-off" id="cloudBadge">CLOUD: LOCAL ONLY</span>
+        <span class="badge badge-cloud-off" id="cloudBadge">NOT SYNCED YET</span>
       </div>
       <p id="liveInfo">Reading Cashbook data…</p>
       <p style="margin-top:.4rem;">Figures come straight from Cashbook Management. Enter or fix transactions there; this page follows.</p>
@@ -184,8 +188,9 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
         <div class="subtitle" id="pageSubtitle">Financial year April – March</div>
       </div>
       <div class="header-actions no-print">
+        <span data-cestis-sync-chip></span>
         <button class="btn btn-ghost" onclick="refreshNow()">🔄 Refresh</button>
-        <button class="btn btn-ghost" onclick="syncCloudNow()" id="syncBtn">☁️ Sync Cloud</button>
+        <button class="btn btn-ghost" onclick="syncCloudNow()" id="syncBtn">🔄 Sync Now</button>
         <button class="btn btn-primary" onclick="window.print()">🖨️ Print</button>
       </div>
     </div>
@@ -444,10 +449,10 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
       var mine = st.filter(function (p) { return p.file === 'CESTIS_Income_Expenditure.json'; })[0];
       if (mine && mine.connected) {
         badge.className = 'badge badge-cloud-on';
-        badge.textContent = 'CLOUD: SYNCED';
+        badge.textContent = 'UP TO DATE';
       } else {
         badge.className = 'badge badge-cloud-off';
-        badge.textContent = 'CLOUD: LOCAL ONLY';
+        badge.textContent = 'NOT SYNCED YET';
       }
     } catch (e) {}
   }
@@ -462,11 +467,11 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
     document.getElementById('pageTitle').textContent =
       v === 'calc' ? 'Income and Expenditure Calculation' : 'Income and Expenditure Account';
   };
-  window.refreshNow = function () { render(true); };
+  window.refreshNow = function () { if (opened) render(true); };
   window.syncCloudNow = function () {
     var btn = document.getElementById('syncBtn');
-    btn.disabled = true; btn.textContent = '☁️ Syncing…';
-    var done = function () { btn.disabled = false; btn.textContent = '☁️ Sync Cloud'; updateCloudBadge(); render(true); };
+    btn.disabled = true; btn.textContent = '🔄 Syncing…';
+    var done = function () { btn.disabled = false; btn.textContent = '🔄 Sync Now'; updateCloudBadge(); render(true); };
     try {
       if (window.CESTISPageCloud) CESTISPageCloud.loadNow().then(function () { return CESTISPageCloud.saveNow(); }).then(done, done);
       else done();
@@ -478,25 +483,39 @@ table.ie tr.grand td { font-weight:700; background:var(--surface3); font-size:.8
   // the storage event carries it here; re-render on the next frame.
   var pending = null;
   function scheduleRender() {
-    if (pending) return;
+    if (pending || !opened) return;
     pending = setTimeout(function () { pending = null; render(false); }, 150);
   }
   window.addEventListener('storage', function (ev) {
     if (!ev) return;
     if (ev.key === null || String(ev.key).indexOf('cestis_quarter_') === 0 || String(ev.key).indexOf('cestis_budget_') === 0) scheduleRender();
   });
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) render(false); });
-  window.addEventListener('focus', function () { render(false); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && opened) render(false); });
+  window.addEventListener('focus', function () { if (opened) render(false); });
   // Belt-and-braces for writes too large to mirror into localStorage (which
   // fire no storage event): a slow poll that only repaints when data changed.
-  setInterval(function () { render(false); updateCloudBadge(); }, 30000);
+  setInterval(function () { if (!opened) return; render(false); updateCloudBadge(); }, 30000);
 
-  function start() { render(true); updateCloudBadge(); }
-  if (store.whenReady) store.whenReady(start); else start();
+  var opened = false;
+  function start() { if (!opened) return; render(true); updateCloudBadge(); }
+  /* Who may open this page. It had no sign-in and showed the Centre's books to
+     whoever typed its address — a trainee at a lab PC included. It opens only
+     for the signed-in dashboard (an Administrator or Admin Staff: embedded, or
+     signed in on this computer — CESTISCore.sessionAccess.guard); anyone
+     else sees "sign in first" and nothing of the page runs. */
+  var SA = window.CESTISCore && CESTISCore.sessionAccess;
+  if (SA && SA.guard) {
+    SA.guard({ allowed: ['admin', 'adminstaff'] }, function (viewer) {
+      if (!viewer.ok) { SA.lockPage(viewer.message); return; }
+      opened = true;
+      if (store.whenReady) store.whenReady(start); else start();
+    });
+  }
 })();
 </script>
 
-<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261028e"></script>
+<script src="cestis-sync-chip.js?v=20261028d"></script>
 <script>
 /* Cloud capture and restore for this page.
    OWNS: its settings and the per-year statement snapshots — they go up into

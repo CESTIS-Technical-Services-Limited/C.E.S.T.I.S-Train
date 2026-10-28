@@ -680,15 +680,31 @@
     if (local.status === 'completed' || remote.status === 'completed') merged.status = 'completed';
     return merged;
   }
+  /* Deletions are written down ({ 'cycle|staffId': when, 'EXT:id': when })
+     and unioned, the later time of each standing. The merge used to be a
+     plain union of both sides, so an appraisal or an extra staff member
+     deleted on one device came straight back from any device still holding
+     it. An appraisal edited AFTER its deletion is kept (the edit is newer);
+     nothing else returns. Data without the map merges exactly as before. */
+  function sappMergeDeleted(a, b) {
+    var out = {};
+    [a, b].forEach(function (m) {
+      if (!m || typeof m !== 'object') return;
+      Object.keys(m).forEach(function (k) { if (!out[k] || sappTime(m[k]) > sappTime(out[k])) out[k] = m[k]; });
+    });
+    return out;
+  }
   function sappMergeData(local, remote) {
     var L = local && typeof local === 'object' ? local : {};
     var R = remote && typeof remote === 'object' ? remote : {};
+    var deleted = sappMergeDeleted(L.deleted, R.deleted);
     var out = {
       cycles: {},
       assignments: Object.assign({}, L.assignments || {}, R.assignments || {}),
-      extraStaff: (L.extraStaff || []).slice(),
+      extraStaff: (L.extraStaff || []).filter(function (s) { return !(s && s.id && deleted['EXT:' + s.id]); }),
       flags: Object.assign({}, L.flags || {}, R.flags || {})
     };
+    if (Object.keys(deleted).length) out.deleted = deleted;
     var lc = L.cycles || {}, rc = R.cycles || {};
     Object.keys(lc).concat(Object.keys(rc)).forEach(function (ck) {
       if (out.cycles[ck]) return;
@@ -696,13 +712,16 @@
       var lcy = lc[ck] || {}, rcy = rc[ck] || {};
       Object.keys(lcy).concat(Object.keys(rcy)).forEach(function (sid) {
         if (out.cycles[ck][sid]) return;
-        out.cycles[ck][sid] = sappMergeAppraisal(lcy[sid], rcy[sid]);
+        var m = sappMergeAppraisal(lcy[sid], rcy[sid]);
+        var gone = deleted[ck + '|' + sid];
+        if (gone && sappTime(gone) >= sappTime(m && m.updatedAt)) return;
+        out.cycles[ck][sid] = m;
       });
     });
     var seenExtra = {};
     out.extraStaff.forEach(function (s) { if (s && s.id) seenExtra[s.id] = true; });
     (R.extraStaff || []).forEach(function (s) {
-      if (s && s.id && !seenExtra[s.id]) { seenExtra[s.id] = true; out.extraStaff.push(s); }
+      if (s && s.id && !seenExtra[s.id] && !deleted['EXT:' + s.id]) { seenExtra[s.id] = true; out.extraStaff.push(s); }
     });
     return out;
   }
@@ -760,6 +779,16 @@
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  /* A value handed to an inline handler: onclick="fn(' + jsq(x) + ')".
+     esc() alone inside onclick="fn('...')" did not work: the browser decodes
+     &#39; back to ' before the JavaScript runs, so "Dwayne O'Connor" (whose
+     roster id is PAY:Dwayne O'Connor) broke every button on his row, and a
+     crafted payroll name ran as code. A JSON-quoted string, then escaped for
+     the attribute, decodes back to exactly the value. */
+  function jsq(s) {
+    return esc(JSON.stringify(String(s == null ? '' : s)));
   }
 
   /* ----------------------- cloud sync bridge -----------------------
@@ -856,7 +885,9 @@
     var accounts = [];
     try { accounts = (root.userAccounts || []).slice(); } catch (e) {}
     if (!accounts.length) {
-      try { accounts = JSON.parse(store().getItem('voctrain_userAccounts') || '[]'); } catch (e) {}
+      // The accounts live under 'voctrain_users' ('voctrain_userAccounts' was a key
+      // nothing ever wrote — admin-02 in the audit).
+      try { accounts = JSON.parse(store().getItem('voctrain_users') || '[]'); } catch (e) {}
     }
     accounts.forEach(function (u) {
       if (!u || u.status === 'inactive') return;
@@ -1147,7 +1178,7 @@
       else if (a) { status = 'In progress'; sColor = 'var(--accent)'; }
       else { status = 'Not started'; sColor = 'var(--text-muted)'; }
       var score = (a && a.status === 'completed' && calc) ? ('<strong style="color:' + (calc.finalPct >= 80 ? 'var(--green)' : calc.finalPct >= 60 ? 'var(--orange)' : 'var(--red)') + ';">' + calc.finalPct + '%</strong> <span style="font-size:11px;color:var(--text-muted);">' + esc(calc.category) + '</span>') : '<span style="color:var(--text-muted);">—</span>';
-      var tplSelect = '<select class="form-control" style="width:100%;max-width:260px;font-size:12px;"' + (a ? ' disabled title="Template locked once grading has started (delete the appraisal to change it)"' : '') + ' onchange="sappAssignTemplate(\'' + esc(s.id) + '\', this.value)">' +
+      var tplSelect = '<select class="form-control" style="width:100%;max-width:260px;font-size:12px;"' + (a ? ' disabled title="Template locked once grading has started (delete the appraisal to change it)"' : '') + ' onchange="sappAssignTemplate(' + jsq(s.id) + ', this.value)">' +
         Object.keys(SAPP_TEMPLATES).map(function (k) {
           return '<option value="' + k + '"' + (k === tplKey ? ' selected' : '') + '>' + esc(SAPP_TEMPLATES[k].label) + '</option>';
         }).join('') + '</select>';
@@ -1169,11 +1200,11 @@
         '<td><span style="color:' + sColor + ';font-weight:600;">' + status + '</span></td>' +
         '<td>' + score + '</td>' +
         '<td style="white-space:nowrap;">' +
-          '<button class="btn btn-primary btn-sm" onclick="sappOpenEditor(\'' + esc(s.id) + '\')">' + (a ? 'Open' : 'Grade') + '</button> ' +
-          '<button class="btn btn-secondary btn-sm" onclick="sappOpenPreview(\'' + esc(s.id) + '\')">Preview</button> ' +
-          '<button class="btn btn-secondary btn-sm" onclick="sappPrint(\'' + esc(s.id) + '\')">Print PDF</button>' +
-          (a ? ' <button class="btn btn-danger btn-sm" onclick="sappDeleteAppraisal(\'' + esc(s.id) + '\')">✕</button>' : '') +
-          (s.extra ? ' <button class="btn btn-danger btn-sm" title="Remove staff member" onclick="sappRemoveExtraStaff(\'' + esc(s.id) + '\')">Remove</button>' : '') +
+          '<button class="btn btn-primary btn-sm" onclick="sappOpenEditor(' + jsq(s.id) + ')">' + (a ? 'Open' : 'Grade') + '</button> ' +
+          '<button class="btn btn-secondary btn-sm" onclick="sappOpenPreview(' + jsq(s.id) + ')">Preview</button> ' +
+          '<button class="btn btn-secondary btn-sm" onclick="sappPrint(' + jsq(s.id) + ')">Print PDF</button>' +
+          (a ? ' <button class="btn btn-danger btn-sm" onclick="sappDeleteAppraisal(' + jsq(s.id) + ')">✕</button>' : '') +
+          (s.extra ? ' <button class="btn btn-danger btn-sm" title="Remove staff member" onclick="sappRemoveExtraStaff(' + jsq(s.id) + ')">Remove</button>' : '') +
         '</td>' +
       '</tr>';
     }).join('');
@@ -1203,7 +1234,22 @@
   };
 
   root.sappAddStaffPrompt = function () {
-    var name = prompt('Staff member’s FULL name (first name and last name, e.g. "Rashard Bennett"):');
+    // A labelled form where the page has one (cestis-form-modal.js); the
+    // browser's prompt otherwise. Either way the name goes through the same
+    // check and the same save below.
+    if (root.CESTISForm && typeof root.CESTISForm.ask === 'function') {
+      root.CESTISForm.ask({ title: 'Add a staff member', submitLabel: 'Add to roster',
+        intro: 'The full name links the appraisal to the Staff Payslip employee record.',
+        fields: [{ name: 'name', label: 'Full name (first and last)', required: true, maxlength: 120, placeholder: 'e.g. Rashard Bennett' }],
+        validate: function (v) {
+          return sappIsFullName(v.name) ? '' : { message: 'Please enter both a first name and a last name. The full name is required to link the appraisal to the Staff Payslip employee record.', field: 'name' };
+        }
+      }).then(function (v) { if (v) sappAddStaffNamed(v.name); });
+      return;
+    }
+    sappAddStaffNamed(prompt('Staff member’s FULL name (first name and last name, e.g. "Rashard Bennett"):'));
+  };
+  function sappAddStaffNamed(name) {
     if (!name || !name.trim()) return;
     if (!sappIsFullName(name)) {
       alert('Please enter both a first name and a last name. The full name is required to link the appraisal to the Staff Payslip employee record.');
@@ -1213,11 +1259,14 @@
     d.extraStaff.push({ id: 'X' + Date.now(), name: name.trim(), role: 'extra' });
     sappPersist(d);
     sappRenderRoster();
-  };
+  }
   root.sappRemoveExtraStaff = function (staffId) {
     if (!confirm('Remove this staff member from the appraisal roster?')) return;
     var d = sappData();
     d.extraStaff = d.extraStaff.filter(function (s) { return ('EXT:' + s.id) !== staffId; });
+    // Written down, so the next sync does not bring them back (sappMergeData).
+    if (!d.deleted || typeof d.deleted !== 'object') d.deleted = {};
+    d.deleted[staffId] = new Date().toISOString();
     sappPersist(d);
     sappRenderRoster();
   };
@@ -1225,6 +1274,9 @@
     if (!confirm('Delete this appraisal (all entered scores for this staff member and period)? This cannot be undone.')) return;
     var d = sappData();
     if (d.cycles[sappState.cycleKey]) delete d.cycles[sappState.cycleKey][staffId];
+    // Written down, so the next sync does not bring it back (sappMergeData).
+    if (!d.deleted || typeof d.deleted !== 'object') d.deleted = {};
+    d.deleted[sappState.cycleKey + '|' + staffId] = new Date().toISOString();
     sappPersist(d);
     sappRenderRoster();
   };
@@ -1270,8 +1322,8 @@
     html += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;">' +
       '<button class="btn btn-secondary" onclick="sappCloseEditor()">← Back to roster</button>' +
       '<h3 style="margin:0;flex:1;">Grading: ' + esc(a.staffName) + ' — ' + esc(tpl.label) + '</h3>' +
-      '<button class="btn btn-secondary" onclick="sappOpenPreview(\'' + esc(a.staffId) + '\')">Live Preview</button>' +
-      '<button class="btn btn-secondary" onclick="sappPrint(\'' + esc(a.staffId) + '\')">Print PDF</button>' +
+      '<button class="btn btn-secondary" onclick="sappOpenPreview(' + jsq(a.staffId) + ')">Live Preview</button>' +
+      '<button class="btn btn-secondary" onclick="sappPrint(' + jsq(a.staffId) + ')">Print PDF</button>' +
       '<button class="btn btn-primary" onclick="sappSaveDraft()">Save</button>' +
       '<button class="btn btn-primary" id="sappCompleteBtn" onclick="sappMarkCompleted()">Mark Completed</button>' +
       '</div>';
@@ -1784,7 +1836,13 @@
     var r = null;
     try { r = root.currentRole; } catch (e) {}
     if (r === 'admin') return 'appraiser';
-    if (r === 'cmc') return 'cmc';
+    // The slot prints as "CMC Chair": only the Chairperson signs it (the same
+    // flag the virement rulings use), not any board member.
+    if (r === 'cmc') {
+      var chair = false;
+      try { chair = !!(root.currentLoggedInUser && root.currentLoggedInUser.cmcChair === true); } catch (e) {}
+      return chair ? 'cmc' : null;
+    }
     if (r === 'instructor' || r === 'adminstaff') return 'appraisee';
     return null;
   }
@@ -1874,7 +1932,7 @@
       }
       var chips = chip('Appraisee', st.appraisee, role === 'appraisee') + chip('Appraiser', st.appraiser, role === 'appraiser') + chip('CMC', st.cmc, role === 'cmc');
       var mineDone = st[role];
-      var btn = '<button class="btn ' + (mineDone ? 'btn-secondary' : 'btn-primary') + ' btn-sm" onclick="sappMyOpenSign(\'' + esc(prefix) + '\',\'' + esc(a.cycle) + '\',\'' + esc(a.staffId) + '\')">' + (mineDone ? 'View' : 'View & Sign') + '</button>';
+      var btn = '<button class="btn ' + (mineDone ? 'btn-secondary' : 'btn-primary') + ' btn-sm" onclick="sappMyOpenSign(' + jsq(prefix) + ',' + jsq(a.cycle) + ',' + jsq(a.staffId) + ')">' + (mineDone ? 'View' : 'View & Sign') + '</button>';
       return '<tr>' +
         '<td><div style="font-weight:600;">' + esc(a.staffName) + '</div><div style="font-size:11px;color:var(--text-muted);">' + esc((SAPP_TEMPLATES[a.template] || {}).label || a.template) + '</div></td>' +
         '<td>' + esc(a.period || a.cycle) + '</td>' +
@@ -1917,9 +1975,9 @@
     var mine = (a.signatures || {})[role];
 
     var html = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">' +
-      '<button class="btn btn-secondary" onclick="sappMyBack(\'' + esc(prefix) + '\')">← Back</button>' +
+      '<button class="btn btn-secondary" onclick="sappMyBack(' + jsq(prefix) + ')">← Back</button>' +
       '<h3 style="margin:0;flex:1;">Appraisal Instrument — ' + esc(a.staffName) + ' (' + esc(a.period || a.cycle) + ')</h3>' +
-      '<button class="btn btn-secondary" onclick="sappMyPrint(\'' + esc(prefix) + '\')">🖨 Print / Save as PDF</button></div>';
+      '<button class="btn btn-secondary" onclick="sappMyPrint(' + jsq(prefix) + ')">🖨 Print / Save as PDF</button></div>';
 
     // Signing panel
     html += '<div class="card" style="margin-bottom:16px;">' +
@@ -1929,22 +1987,22 @@
     html += '<div class="sapp-sign-tabs">' +
       ['typed', 'drawn', 'upload'].map(function (m) {
         var lbl = m === 'typed' ? '⌨ Type your name' : m === 'drawn' ? '✍ Sign digitally' : '🖼 Upload signature PNG';
-        return '<div class="sapp-sign-tab' + (st.method === m ? ' active' : '') + '" onclick="sappMySetMethod(\'' + esc(prefix) + '\',\'' + m + '\')">' + lbl + '</div>';
+        return '<div class="sapp-sign-tab' + (st.method === m ? ' active' : '') + '" onclick="sappMySetMethod(' + jsq(prefix) + ',\'' + m + '\')">' + lbl + '</div>';
       }).join('') + '</div>';
 
     if (st.method === 'typed') {
       html += '<div class="form-group"><label>Type your full name as your signature</label>' +
-        '<input class="form-control" id="' + prefix + 'SappSigTyped" value="' + esc((mine && mine.type === 'typed' ? mine.data : '') || sappSignerName()) + '" oninput="sappMyTypedPreview(\'' + esc(prefix) + '\')" style="max-width:380px;"></div>' +
+        '<input class="form-control" id="' + prefix + 'SappSigTyped" value="' + esc((mine && mine.type === 'typed' ? mine.data : '') || sappSignerName()) + '" oninput="sappMyTypedPreview(' + jsq(prefix) + ')" style="max-width:380px;"></div>' +
         '<div class="sapp-sig-preview-typed" id="' + prefix + 'SappSigTypedPreview" style="max-width:380px;"></div>';
     } else if (st.method === 'drawn') {
       html += '<div style="max-width:520px;">' +
         '<canvas id="' + prefix + 'SappSigCanvas" class="sapp-sign-canvas" width="500" height="150" style="width:100%;"></canvas>' +
         '<div style="margin-top:8px;display:flex;gap:8px;">' +
-        '<button class="btn btn-secondary btn-sm" onclick="sappMyClearCanvas(\'' + esc(prefix) + '\')">Clear</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="sappMyClearCanvas(' + jsq(prefix) + ')">Clear</button>' +
         '<span style="font-size:12px;color:var(--text-muted);align-self:center;">Sign inside the box with your mouse or finger.</span></div></div>';
     } else {
       html += '<div class="form-group"><label>Upload your signature image (PNG, transparent background recommended)</label>' +
-        '<input type="file" accept="image/png,image/jpeg" id="' + prefix + 'SappSigFile" class="form-control" style="max-width:380px;" onchange="sappMyUploadChange(\'' + esc(prefix) + '\')"></div>' +
+        '<input type="file" accept="image/png,image/jpeg" id="' + prefix + 'SappSigFile" class="form-control" style="max-width:380px;" onchange="sappMyUploadChange(' + jsq(prefix) + ')"></div>' +
         '<div id="' + prefix + 'SappSigUploadPreview" style="background:#fff;border-radius:8px;padding:8px;max-width:380px;min-height:52px;">' +
         (st.uploadData ? '<img src="' + st.uploadData + '" style="height:44px;">' : '<span style="color:#888;font-size:12px;">No image selected' + (mine && mine.type === 'upload' ? ' — current signature on file will be kept unless you choose a new image.' : '') + '</span>') + '</div>';
     }
@@ -1963,7 +2021,7 @@
     }
 
     html += '<div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
-      '<button class="btn btn-primary" onclick="sappMyApplySignature(\'' + esc(prefix) + '\')">' + (mine && mine.data ? 'Update Signature' : 'Apply Signature') + '</button>' +
+      '<button class="btn btn-primary" onclick="sappMyApplySignature(' + jsq(prefix) + ')">' + (mine && mine.data ? 'Update Signature' : 'Apply Signature') + '</button>' +
       '<span style="font-size:12px;color:var(--text-muted);">Signing as ' + esc(sappSignerName()) + ' • Date: ' + sappTodayStr() + '</span></div>';
     html += '</div>';
 

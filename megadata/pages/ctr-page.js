@@ -66,8 +66,11 @@
         window.requests = MG.ctrFromDocs(docs());
       };
       window.save = function () { mirrorLegacy(); };
-      window.setStatus = function (idx, status) {
-        var r = window.requests[idx];
+      window.setStatus = function (idOrIdx, status) {
+        // The page names a request by its id (a position could point at a
+        // different request after a reload); a number is still accepted.
+        var r = (typeof idOrIdx === 'number') ? window.requests[idOrIdx]
+          : (window.requests || []).filter(function (x) { return x && x.id === idOrIdx; })[0];
         if (!r) return;
         MG.ctrEntityId(r.id).then(function (docId) {
           return dal.upsertDoc(MG.CTR_KIND, docId,

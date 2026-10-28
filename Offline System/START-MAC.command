@@ -8,24 +8,28 @@ echo "   C.E.S.T.I.S  -  Starting the offline system"
 echo " ================================================================"
 echo
 
-if command -v node >/dev/null 2>&1; then
-  node cestis-offline-server.js
-else
+# There used to be a Python fallback here. It served the records folder and
+# the server's private key to every device on the network and shared nothing
+# between devices, so it is gone: the system needs Node.js 14 or newer.
+if ! command -v node >/dev/null 2>&1; then
   echo "  Node.js was not found on this Mac."
+  NEED_NODE=1
+elif ! node -e "process.exit(parseInt(process.versions.node,10)>=14?0:1)"; then
+  echo "  The Node.js on this Mac ($(node -v)) is too old for the offline system."
+  NEED_NODE=1
+fi
+
+if [ -n "$NEED_NODE" ]; then
   echo
-  echo "  Trying Python instead. The pages will work, but devices on the"
-  echo "  network will NOT share data without Node.js."
+  echo "  The offline system needs Node.js 14 or newer:"
+  echo "    1. On a computer WITH internet, download the \"LTS\" installer"
+  echo "       from https://nodejs.org and copy it onto a memory stick."
+  echo "    2. Run the installer on THIS Mac."
+  echo "    3. Double-click this file again."
+  echo "  After that this folder never needs the internet again."
   echo
-  if command -v python3 >/dev/null 2>&1; then
-    echo "  Open http://localhost:8080/index.html when it starts."
-    python3 -m http.server 8080
-  else
-    echo "  Python was not found either."
-    echo
-    echo "  Install Node.js from https://nodejs.org (do this once, on a"
-    echo "  computer that has internet, then this folder works offline)."
-    echo
-  fi
+else
+  node cestis-offline-server.js
 fi
 
 echo

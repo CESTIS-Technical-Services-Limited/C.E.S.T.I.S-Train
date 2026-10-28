@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261028e"></script>
+<script src="cestis-form-modal.js?v=20261028d" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C.E.S.T.I.S - Payroll Management System</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
@@ -148,7 +149,7 @@
 --bg:#0c1220;--surface:#141c2e;--card:#1a2540;--border:#253354;
 --primary:#3b82f6;--primary-glow:rgba(59,130,246,.15);
 --accent:#f59e0b;--accent2:#10b981;--danger:#ef4444;
---text:#e2e8f0;--text-dim:#94a3b8;--text-muted:#64748b;
+--text:#e2e8f0;--text-dim:#94a3b8;--text-muted:#8a9ab0;/* 5.3:1 on a card; #64748b was 3.2:1 */
 --gold:#f59e0b;--green:#10b981;--red:#ef4444;
 }
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
@@ -159,14 +160,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sidebar-top-row{display:flex;align-items:center;padding:.6rem 1.5rem;border-bottom:1px solid var(--border);gap:1rem}
 .sidebar-brand{padding:0;border-bottom:none;margin-bottom:0;display:flex;align-items:center;gap:.75rem;flex-shrink:0}
 .sidebar-brand h1{font-size:.85rem;font-weight:700;color:var(--accent);letter-spacing:2px;text-transform:uppercase}
-.sidebar-brand p{font-size:.7rem;color:var(--text-dim);margin-top:0;letter-spacing:.5px}
+.sidebar-brand p{font-size:0.75rem;color:var(--text-dim);margin-top:0;letter-spacing:.5px}
 .sidebar-top-right{display:flex;align-items:center;gap:.75rem;margin-left:auto}
 .sidebar-nav{flex:none;padding:.25rem 1rem;display:flex;align-items:center;gap:.25rem;overflow-x:auto}
 .nav-item{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;border-radius:8px;cursor:pointer;color:var(--text-dim);font-size:.82rem;font-weight:500;transition:all .2s;margin-bottom:0;white-space:nowrap}
 .nav-item:hover{background:var(--primary-glow);color:var(--text)}
 .nav-item.active{background:transparent;color:var(--primary);box-shadow:none;border-bottom:2px solid var(--primary);border-radius:0}
 .nav-item .icon{font-size:1rem;width:18px;text-align:center}
-.sidebar-footer{padding:.4rem .75rem;border-top:none;border-left:1px solid var(--border);font-size:.7rem;color:var(--text-muted);display:flex;align-items:center;gap:.5rem;flex-shrink:0}
+.sidebar-footer{padding:.4rem .75rem;border-top:none;border-left:1px solid var(--border);font-size:0.75rem;color:var(--text-muted);display:flex;align-items:center;gap:.5rem;flex-shrink:0}
 
 /* Main Content */
 .main{margin-left:0;flex:1;padding:1.5rem 2rem;padding-top:0}
@@ -186,9 +187,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .stat-card.gold::before{background:var(--gold)}
 .stat-card.green::before{background:var(--green)}
 .stat-card.red::before{background:var(--red)}
-.stat-card .label{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.stat-card .label{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
 .stat-card .value{font-size:1.5rem;font-weight:700;margin-top:.35rem;font-family:'JetBrains Mono',monospace}
-.stat-card .sub{font-size:.7rem;color:var(--text-dim);margin-top:.25rem}
+.stat-card .sub{font-size:0.75rem;color:var(--text-dim);margin-top:.25rem}
 
 /* Panels */
 .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:1.5rem;overflow:hidden}
@@ -212,13 +213,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* Tables */
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
-th{text-align:left;padding:.65rem .75rem;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);white-space:nowrap}
+th{text-align:left;padding:.65rem .75rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);white-space:nowrap}
 td{padding:.6rem .75rem;font-size:.82rem;border-bottom:1px solid rgba(37,51,84,.5);white-space:nowrap}
 tr:hover td{background:rgba(59,130,246,.04)}
 .mono{font-family:'JetBrains Mono',monospace;font-size:.78rem}
 .text-right{text-align:right}
 .text-center{text-align:center}
-.tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600}
+.tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:0.75rem;font-weight:600}
 .tag-ft{background:rgba(59,130,246,.15);color:#60a5fa}
 .tag-pt{background:rgba(245,158,11,.15);color:#fbbf24}
 
@@ -311,7 +312,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .quarter-tab:not(:last-child){border-right:1px solid var(--border)}
 .quarter-tab:hover{background:var(--primary-glow);color:var(--text)}
 .quarter-tab.active{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.3)}
-.quarter-tab .q-sub{font-weight:400;opacity:.7;margin-left:.3rem;font-size:.72rem}
+.quarter-tab .q-sub{font-weight:400;opacity:.7;margin-left:.3rem;font-size:0.75rem}
 .quarter-tab.active .q-sub{opacity:.85}
 .qtr-nav-btns{display:flex;gap:.4rem;margin-left:auto}
 .qtr-nav-btn{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:.45rem .85rem;color:var(--text-dim);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
@@ -325,14 +326,14 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .month-card.completed{border-color:var(--green)}
 .month-card.completed::after{content:'';position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green)}
 .month-card .month-name{font-size:.85rem;font-weight:600;color:var(--text)}
-.month-card .month-status{font-size:.7rem;color:var(--text-muted);margin-top:.2rem}
+.month-card .month-status{font-size:0.75rem;color:var(--text-muted);margin-top:.2rem}
 .month-card.completed .month-status{color:var(--green)}
 .month-card.active .month-name{color:var(--primary)}
 
 /* Quarter Summary Stats */
 .quarter-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;margin-bottom:1.25rem}
 .quarter-stat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;text-align:center}
-.quarter-stat .qs-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:600}
+.quarter-stat .qs-label{font-size:0.75rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:600}
 .quarter-stat .qs-value{font-size:1.1rem;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:.2rem}
 
 /* Quarter History */
@@ -376,7 +377,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .login-syncing-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .login-syncing-text{color:var(--text-dim);font-size:.82rem;font-weight:600;text-align:center}
-.login-syncing-sub{color:var(--text-muted);font-size:.72rem;text-align:center;max-width:260px}
+.login-syncing-sub{color:var(--text-muted);font-size:0.75rem;text-align:center;max-width:260px}
 .login-cloud-banner{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;font-size:.75rem;transition:all .3s}
 .login-cloud-banner.synced{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.06)}
 .login-cloud-banner.syncing{border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.06)}
@@ -416,14 +417,14 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .ft-google-account .ft-avatar{width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;flex-shrink:0}
 .ft-google-account .ft-account-info{flex:1;min-width:0}
 .ft-google-account .ft-account-name{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ft-google-account .ft-account-email{color:var(--text-muted);font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ft-google-account .ft-account-email{color:var(--text-muted);font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* User badge in sidebar */
 .sidebar-user{padding:.4rem .75rem;margin:0;background:transparent;border-radius:8px;display:flex;align-items:center;gap:.6rem;cursor:default;border-left:1px solid var(--border)}
 .sidebar-user .user-avatar{width:28px;height:28px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0}
 .sidebar-user .user-details{flex:1;min-width:0}
 .sidebar-user .user-name{font-size:.78rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sidebar-user .user-role{font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+.sidebar-user .user-role{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
 .sidebar-user .logout-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.9rem;padding:.15rem;transition:color .15s}
 .sidebar-user .logout-btn:hover{color:var(--danger)}
 
@@ -440,9 +441,9 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .perm-request-card:hover{border-color:var(--primary)}
 .perm-request-card .req-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
 .perm-request-card .req-user{font-weight:600;color:var(--text);font-size:.9rem}
-.perm-request-card .req-time{font-size:.72rem;color:var(--text-muted)}
+.perm-request-card .req-time{font-size:0.75rem;color:var(--text-muted)}
 .perm-request-card .req-reason{font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem;line-height:1.4}
-.perm-request-card .req-status{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.perm-request-card .req-status{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
 .perm-request-card .req-status.pending{background:rgba(245,158,11,.15);color:#fbbf24}
 .perm-request-card .req-status.approved{background:rgba(16,185,129,.15);color:#34d399}
 .perm-request-card .req-status.denied{background:rgba(239,68,68,.15);color:#f87171}
@@ -450,13 +451,13 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .perm-request-card .req-actions{display:flex;gap:.5rem;margin-top:.75rem}
 
 /* Role tags */
-.role-tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.role-tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
 .role-tag.admin{background:rgba(239,68,68,.15);color:#f87171}
 .role-tag.user{background:rgba(59,130,246,.15);color:#60a5fa}
 .role-tag.viewer{background:rgba(100,116,139,.15);color:#94a3b8}
 
 /* Notification badge */
-.notif-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:.6rem;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1}
+.notif-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:0.75rem;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1}
 .nav-item{position:relative}
 
 /* Responsive */
@@ -465,7 +466,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
   .sidebar-nav{overflow-x:auto;padding:.25rem .5rem}
   .sidebar .nav-text{display:none}
   .sidebar-brand p{display:none}
-  .sidebar-brand h1{font-size:.6rem}
+  .sidebar-brand h1{font-size:0.75rem}
   .main{margin-left:0;padding:1rem;padding-top:0}
   .nav-item{padding:.5rem .6rem}
   .stats-row{grid-template-columns:1fr 1fr}
@@ -473,7 +474,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 }
 
 /* Cloud Sync Section */
-.cloud-section-label{font-size:.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:.5rem}
+.cloud-section-label{font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:.5rem}
 .cloud-status-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;padding:.35rem .5rem;background:var(--surface);border-radius:6px}
 .cloud-status-dot{width:10px;height:10px;border-radius:50%;background:var(--text-muted);display:inline-block;flex-shrink:0}
 .cloud-status-dot.disconnected{background:var(--red)}
@@ -490,10 +491,10 @@ tr:hover td{background:rgba(59,130,246,.04)}
 /* Cloud Sync Button */
 .cloud-sync-btn{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-family:inherit;font-size:0.75rem;font-weight:500;transition:all 0.2s;width:100%}
 .cloud-sync-btn:hover{background:var(--primary-glow);border-color:var(--primary)}
-.cloud-sync-btn .btn-arrow{margin-left:auto;font-size:0.6rem;color:var(--text-muted)}
+.cloud-sync-btn .btn-arrow{margin-left:auto;font-size:0.75rem;color:var(--text-muted)}
 
 /* Cloud Sync Info below button */
-.cloud-sync-meta{font-size:.65rem;color:var(--text-muted);margin-top:.4rem;padding:0 .25rem;line-height:1.4}
+.cloud-sync-meta{font-size:0.75rem;color:var(--text-muted);margin-top:.4rem;padding:0 .25rem;line-height:1.4}
 
 /* Cloud Dropdown */
 .cloud-dropdown{position:relative;display:block;width:100%}
@@ -509,7 +510,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .cloud-dropdown-item.danger{background:none;color:var(--danger);font-weight:500}
 .cloud-dropdown-item.danger:hover{background:rgba(239,68,68,0.1)}
 .cloud-dropdown-divider{height:1px;background:var(--border);margin:2px 0}
-.last-sync-info{padding:6px 14px;font-size:0.7rem;color:var(--text-muted)}
+.last-sync-info{padding:6px 14px;font-size:0.75rem;color:var(--text-muted)}
 
 /* Google Auth Modal */
 .google-auth-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;backdrop-filter:blur(4px)}
@@ -539,9 +540,9 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .browse-file-icon{font-size:1.3rem;flex-shrink:0}
 .browse-file-details{min-width:0}
 .browse-file-name{font-size:0.85rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.browse-file-meta{font-size:0.7rem;color:var(--text-muted);margin-top:2px}
+.browse-file-meta{font-size:0.75rem;color:var(--text-muted);margin-top:2px}
 .browse-file-actions{display:flex;gap:6px;flex-shrink:0}
-.browse-file-actions button{padding:5px 10px;font-size:0.7rem;font-weight:600;border-radius:6px;border:none;cursor:pointer;font-family:inherit;transition:all 0.15s}
+.browse-file-actions button{padding:5px 10px;font-size:0.75rem;font-weight:600;border-radius:6px;border:none;cursor:pointer;font-family:inherit;transition:all 0.15s}
 .btn-browse-open{background:var(--primary);color:#fff}
 .btn-browse-open:hover{filter:brightness(1.15)}
 .btn-browse-download{background:var(--surface);color:var(--text-dim);border:1px solid var(--border) !important}
@@ -583,7 +584,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .twofa-qr-container{display:flex;flex-direction:column;align-items:center;margin:1.5rem 0;padding:1.5rem;background:var(--surface);border-radius:12px;border:1px solid var(--border)}
 .twofa-qr-container canvas,.twofa-qr-container img{border-radius:8px;margin-bottom:1rem}
 .twofa-secret-key{font-family:'JetBrains Mono',monospace;background:var(--bg);padding:.6rem .8rem;border-radius:6px;font-size:.82rem;letter-spacing:2px;color:var(--text);border:1px dashed var(--border);word-break:break-all;text-align:center}
-.twofa-secret-label{font-size:.72rem;color:var(--text-muted);margin-bottom:.5rem}
+.twofa-secret-label{font-size:0.75rem;color:var(--text-muted);margin-bottom:.5rem}
 .twofa-single-input{width:100%;padding:.85rem;text-align:center;font-size:1.75rem;font-weight:600;letter-spacing:8px;border:2px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:'JetBrains Mono',monospace;transition:all .2s}
 .twofa-single-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow)}
 .twofa-actions{display:flex;gap:.75rem;justify-content:center;margin-top:1.5rem}
@@ -604,7 +605,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .twofa-use-backup{margin-top:1rem;font-size:.82rem;color:var(--text-muted)}
 .twofa-use-backup a{color:var(--primary);cursor:pointer;text-decoration:underline}
 .twofa-use-backup a:hover{color:#60a5fa}
-.twofa-status-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.15rem .5rem;border-radius:9999px;font-size:.7rem;font-weight:600}
+.twofa-status-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.15rem .5rem;border-radius:9999px;font-size:0.75rem;font-weight:600}
 .twofa-status-badge.enabled{background:rgba(16,185,129,.15);color:var(--green)}
 .twofa-status-badge.disabled{background:rgba(100,116,139,.15);color:var(--text-muted)}
 
@@ -621,7 +622,21 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .otp-resend{text-align:center;margin-top:.75rem;font-size:.82rem;color:var(--text-muted)}
 .otp-resend a{color:var(--primary);cursor:pointer;text-decoration:none}
 .otp-resend a:hover{color:#60a5fa;text-decoration:underline}
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:0.65rem"], [style*="font-size: 0.65rem"], [style*="font-size:.65rem"],
+  [style*="font-size: .65rem"], [style*="font-size:0.7rem"], [style*="font-size: 0.7rem"],
+  [style*="font-size:.7rem"], [style*="font-size: .7rem"], [style*="font-size:.72rem"], [style*="font-size: .72rem"] { font-size:12px !important; }
+}
 </style>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261028d">
 </head>
 <body>
 
@@ -631,7 +646,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
     <div class="login-card" style="position:relative">
       <div class="login-syncing-overlay" id="loginSyncOverlay">
         <div class="login-syncing-spinner"></div>
-        <div class="login-syncing-text" id="loginSyncOverlayText">Syncing from cloud...</div>
+        <div class="login-syncing-text" id="loginSyncOverlayText">Syncing...</div>
         <div class="login-syncing-sub" id="loginSyncOverlaySub">Checking for your account credentials</div>
       </div>
       <div class="login-brand">
@@ -657,7 +672,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
         <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.75rem">
           <a onclick="showForgotPassword()" style="color:var(--primary);cursor:pointer;font-size:.82rem;text-decoration:none">Forgot Password?</a>
-          <a onclick="showFirstTimeSection();sessionStorage.removeItem('firstTimeSyncDismissed')" style="color:var(--primary);cursor:pointer;font-size:.78rem;text-decoration:none">Sync from Cloud</a>
+          <a onclick="showFirstTimeSection();sessionStorage.removeItem('firstTimeSyncDismissed')" style="color:var(--primary);cursor:pointer;font-size:.78rem;text-decoration:none">Sync Now</a>
         </div>
         <div class="login-user-info">
           <span id="loggedInUserName" style="display:none"></span>
@@ -753,13 +768,13 @@ tr:hover td{background:rgba(59,130,246,.04)}
     <div class="first-time-section" id="firstTimeSection">
       <div class="first-time-heading">First Time Here?</div>
       <div class="first-time-card" id="firstTimeCard">
-        <span class="ft-cloud-icon" id="ftCloudIcon">&#9729;</span>
-        <div class="ft-title" id="ftTitle">Sync with Google Cloud</div>
-        <div class="ft-desc" id="ftDesc">Sign in with Google to load your credentials and data directly from the school's Google Drive folder.</div>
+        <span class="ft-cloud-icon" id="ftCloudIcon">&#128260;</span>
+        <div class="ft-title" id="ftTitle">Sync before signing in</div>
+        <div class="ft-desc" id="ftDesc">Sign in to bring this computer up to date with your credentials and the latest payroll data.</div>
         <button class="ft-sync-btn" id="ftSyncBtn" onclick="firstTimeGoogleSync()">
-          <span class="ft-btn-icon">&#9729;</span>
+          <span class="ft-btn-icon">&#128260;</span>
           <span class="ft-btn-spinner"></span>
-          <span class="ft-btn-label" id="ftBtnLabel">Sync with Google Cloud</span>
+          <span class="ft-btn-label" id="ftBtnLabel">Sync Now</span>
         </button>
         <div class="ft-status" id="ftStatus"></div>
         <div id="ftGoogleAccount" class="ft-google-account" style="display:none">
@@ -795,35 +810,37 @@ tr:hover td{background:rgba(59,130,246,.04)}
         <button class="logout-btn" onclick="handleLogout()" title="Sign Out">🚪</button>
       </div>
       <div class="sidebar-top-right">
+        <!-- Saved / waiting / offline: cestis-sync-chip.js -->
+        <span data-cestis-sync-chip></span>
         <div class="sidebar-footer">
           <!-- Cloud Sync: Not Connected -->
           <div id="cloudNotConnected">
             <button class="cloud-sync-btn" onclick="connectToGoogleDrive()" style="padding:.3rem .6rem;font-size:.75rem">
-              <span>☁️</span>
-              <span class="nav-text">Not connected</span>
+              <span>🔄</span>
+              <span class="nav-text">Not synced yet</span>
             </button>
           </div>
           <!-- Cloud Sync: Connected -->
           <div id="cloudConnected" style="display:none;">
             <div class="cloud-status-row" style="margin-bottom:0">
               <span id="cloudConnectedDot" class="cloud-status-dot connected"></span>
-              <span class="cloud-status-label connected nav-text" id="cloudConnectedText">Connected</span>
+              <span class="cloud-status-label connected nav-text" id="cloudConnectedText">Up to date</span>
             </div>
             <div class="cloud-dropdown">
               <button class="cloud-sync-btn" onclick="toggleCloudMenu()" style="padding:.3rem .6rem;font-size:.75rem">
-                <span id="cloudMenuIcon">☁️</span>
-                <span class="nav-text">Cloud</span>
+                <span id="cloudMenuIcon">🔄</span>
+                <span class="nav-text">Sync</span>
                 <span class="btn-arrow nav-text">▼</span>
               </button>
               <div class="cloud-dropdown-content" id="cloudDropdownMenu">
                 <div class="cloud-dropdown-item save-cloud" onclick="saveToCloud()">
-                  <span>💾</span><span>Save to Cloud</span>
+                  <span>💾</span><span>Send My Changes</span>
                 </div>
                 <div class="cloud-dropdown-item sync-cloud" onclick="syncFromCloud()">
-                  <span>🔄</span><span>Sync from Cloud</span>
+                  <span>🔄</span><span>Get Latest Changes</span>
                 </div>
                 <div class="cloud-dropdown-item merge-cloud" onclick="mergeFromCloud()">
-                  <span>🔀</span><span>Merge from Cloud</span>
+                  <span>🔀</span><span>Merge Latest Changes</span>
                 </div>
                 <div class="cloud-dropdown-divider"></div>
                 <div class="cloud-dropdown-item browse-cloud" onclick="browseCloudFolder()">
@@ -1273,7 +1290,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
   <div class="twofa-modal">
     <div class="twofa-modal-header">
       <h2>Set Up Two-Factor Authentication</h2>
-      <p>Scan the QR code with Google Authenticator or any TOTP app</p>
+      <p>Scan the QR code with an authenticator app (any TOTP app)</p>
     </div>
     <div class="twofa-qr-container">
       <div id="twofaQRCode"></div>
@@ -1363,6 +1380,8 @@ const STORAGE_KEY = 'cestisPayroll';
 const BACKUP_STORAGE_KEY = 'cestisPayroll_backup';
 const HIGH_WATER_KEY = 'cestisDataHighWater';
 let DATA = loadStore();
+// The baseline later edits are dated against (see _psStamp).
+try{setTimeout(function(){if(typeof _psStamp==='function'&&!_psSyncIndex)_psStamp(true);},0);}catch(e){}
 // Seed the high-water mark from whatever was in localStorage at boot. If this
 // device already has real data stored locally, any future attempt to save an
 // empty DATA will be blocked by _isSuspiciousDataLoss().
@@ -1462,11 +1481,16 @@ function _mergeFromLocalStorage(){
               var local=existingRun.results.find(function(lr){return (lr.empName||'').trim().toLowerCase()===key;});
               if(!local){
                 existingRun.results.push(Object.assign({},sr));
+              } else if(!sr.cashbookSynced && sr.cbPaid!==undefined && sr.cbPaid!==local.cbPaid){
+                // The cashbook's total beside a computed entry (never its gross).
+                local.cbPaid=sr.cbPaid;
+                if(sr.cashbookTxns)local.cashbookTxns=sr.cashbookTxns;
+                if(sr.updatedAt)local.updatedAt=sr.updatedAt;
               } else if(sr.cashbookSynced && (!local.cashbookSynced || local.gross!==sr.gross || local.netPay!==sr.netPay)){
                 // Cashbook is the source of truth for auto-synced salary/instructor
                 // pay. Propagate first-time syncs AND later edits/deletes (the gross
                 // changes when a source transaction is added, edited, or removed).
-                ['gross','netPay','designation','empType','trn','nis','cashbookSynced','cashbookTxnId','cashbookTxns'].forEach(function(k){
+                ['gross','netPay','designation','empType','trn','nis','cashbookSynced','cashbookTxnId','cashbookTxns','updatedAt'].forEach(function(k){
                   if(sr[k]!==undefined&&sr[k]!==null&&sr[k]!=='')local[k]=sr[k];
                 });
               }
@@ -1484,97 +1508,158 @@ function markDataDirty(){_dataDirty=true;}
 // The core invariant for this app: data should NEVER be replaced, only merged.
 // This helper takes any incoming payroll payload (from cloud, import, backup,
 // preset, etc.) and folds it into the in-memory DATA without removing anything
-// that already exists locally.
+// that already exists locally — except what was deliberately deleted.
 //
-// Rules:
-//   - Employees: matched by case-insensitive trimmed name. An incoming employee
-//     with a name we already have is treated as an UPDATE: any field the
-//     incoming record has a non-empty value for overwrites the local field;
-//     fields the incoming record lacks are preserved from local. Locally-only
-//     employees are always kept.
-//   - Payroll runs: matched by `date`. New dates are added. Existing dates
-//     have their `results` array merged by employee name — local results are
-//     preserved, new ones are added, and matching ones have their numeric
-//     fields updated from the incoming record if present.
-//   - Settings: shallow-merged (incoming keys override, local keys preserved).
+// It used to let the INCOMING copy win every non-blank field. The 60-second
+// cloud tick runs this on the cloud copy before every upload, and the cloud
+// only holds what the previous tick pushed — so a salary corrected from
+// 120,000 to 135,000 was put back to 120,000 within a minute and the old
+// figure uploaded, and an employee or payroll entry deleted here was re-added
+// from the cloud copy. The rule is now the shared one (CESTISCore.sync):
 //
-// Returns a summary {addedEmployees, updatedEmployees, addedRuns, updatedRuns}.
+//   - Employees (by name), payroll runs (by date), each run's results (by
+//     employee name) and the settings carry updatedAt, set when they are SAVED
+//     (_psStamp in saveStore), so no edit screen had to change.
+//   - The copy changed later wins. Two copies from before records were dated
+//     keep the local one and only fill its blanks.
+//   - A record only one side holds is kept, unless it was deleted (DATA.deleted,
+//     { key: when }, which travels with the payroll data) after its last edit.
+//
+// Returns a summary {addedEmployees, updatedEmployees, addedRuns, updatedRuns, removed}.
+function _psKeyEmp(e){return 'emp:'+String(e&&e.name||'').trim().toLowerCase();}
+function _psKeyRun(r){return 'run:'+String(r&&r.date||'');}
+function _psKeyRes(run,res){return 'res:'+String(run&&run.date||'')+'|'+String(res&&res.empName||'').trim().toLowerCase();}
+var _psSyncIndex=null;
+// Date every record whose content changed here since the last save or load.
+// rebaseline: take the baseline afresh without dating anything (after a load
+// or a merge, when nothing that differs from it was edited here).
+function _psStamp(rebaseline){
+  if(typeof window==='undefined'||!window.CESTISCore||!CESTISCore.sync)return;
+  var S=CESTISCore.sync,now=rebaseline?'':new Date().toISOString(),prev=rebaseline?null:_psSyncIndex;
+  var resKey=new Map(),results=[];
+  (DATA.payrollRuns||[]).forEach(function(run){
+    if(!run||!run.date)return;
+    (run.results||[]).forEach(function(res){if(res&&res.empName){resKey.set(res,_psKeyRes(run,res));results.push(res);}});
+  });
+  _psSyncIndex={
+    emp:S.stampChanges(DATA.employees||[],_psKeyEmp,prev&&prev.emp,now),
+    run:S.stampChanges(DATA.payrollRuns||[],_psKeyRun,prev&&prev.run,now,{results:1}),
+    res:S.stampChanges(results,function(r){return resKey.get(r);},prev&&prev.res,now),
+    set:S.stampChanges(DATA.settings?[DATA.settings]:[],function(){return 'settings';},prev&&prev.set,now)
+  };
+}
+// Write a deletion down so no merge brings the record back.
+function _psRecordDeleted(key){
+  if(!DATA.deleted||typeof DATA.deleted!=='object')DATA.deleted={};
+  DATA.deleted[key]=new Date().toISOString();
+}
+function _psStampOf(r){var t=Date.parse((r&&r.updatedAt)||'');return isNaN(t)?0:t;}
+function _psBlank(v){return v===undefined||v===null||v===''||(Array.isArray(v)&&!v.length);}
+// Fold one incoming record into the local one by the newest-wins rule.
+// skip: fields this record does not own (a run's results merge separately).
+function _psFold(local,inc,skip){
+  var cs=_psStampOf(inc),ls=_psStampOf(local),changed=false;
+  if(cs>ls){
+    Object.keys(local).forEach(function(k){if(!(skip&&skip[k])&&!(k in inc)){delete local[k];changed=true;}});
+    Object.keys(inc).forEach(function(k){if(skip&&skip[k])return;if(local[k]!==inc[k]){local[k]=inc[k];changed=true;}});
+  }else if(cs===ls){
+    Object.keys(inc).forEach(function(k){if(skip&&skip[k])return;if(_psBlank(local[k])&&!_psBlank(inc[k])){local[k]=inc[k];changed=true;}});
+  }
+  return changed;
+}
 function _mergeDataIntoLocal(incoming){
-  var summary={addedEmployees:0,updatedEmployees:0,addedRuns:0,updatedRuns:0};
+  var summary={addedEmployees:0,updatedEmployees:0,addedRuns:0,updatedRuns:0,removed:0};
   if(!incoming||typeof incoming!=='object')return summary;
   if(!Array.isArray(DATA.employees))DATA.employees=[];
   if(!Array.isArray(DATA.payrollRuns))DATA.payrollRuns=[];
+  // Date anything edited here and not yet saved, so it competes fairly.
+  _psStamp(false);
+
+  // --- Deletions, from both sides: the later removal of each key stands ---
+  if(!DATA.deleted||typeof DATA.deleted!=='object')DATA.deleted={};
+  if(incoming.deleted&&typeof incoming.deleted==='object'&&!Array.isArray(incoming.deleted)){
+    Object.keys(incoming.deleted).forEach(function(k){
+      var t=Date.parse(incoming.deleted[k]||'')||0,have=Date.parse(DATA.deleted[k]||'')||0;
+      if(t>have)DATA.deleted[k]=incoming.deleted[k];
+    });
+  }
+  var tombs=DATA.deleted;
+  var gone=function(k,r){var t=tombs[k]?(Date.parse(tombs[k])||0):0;return t>0&&t>=_psStampOf(r);};
+  DATA.employees=DATA.employees.filter(function(e){if(e&&e.name&&gone(_psKeyEmp(e),e)){summary.removed++;return false;}return true;});
+  DATA.payrollRuns=DATA.payrollRuns.filter(function(run){if(run&&run.date&&gone(_psKeyRun(run),run)){summary.removed++;return false;}return true;});
+  DATA.payrollRuns.forEach(function(run){
+    if(!run||!Array.isArray(run.results))return;
+    run.results=run.results.filter(function(res){if(res&&res.empName&&gone(_psKeyRes(run,res),res)){summary.removed++;return false;}return true;});
+  });
 
   // --- Employees ---
   if(Array.isArray(incoming.employees)){
+    var byName={};
+    DATA.employees.forEach(function(le){if(le&&le.name)byName[_psKeyEmp(le)]=le;});
     incoming.employees.forEach(function(ie){
       if(!ie||!ie.name)return;
-      var key=ie.name.trim().toLowerCase();
-      var existing=DATA.employees.find(function(le){return (le.name||'').trim().toLowerCase()===key;});
+      var key=_psKeyEmp(ie);
+      if(gone(key,ie))return;
+      var existing=byName[key];
       if(!existing){
-        DATA.employees.push(Object.assign({},ie));
+        var fresh=Object.assign({},ie);
+        DATA.employees.push(fresh);byName[key]=fresh;
         summary.addedEmployees++;
-      }else{
-        // Additive field update: only overwrite with non-empty incoming values.
-        var changed=false;
-        Object.keys(ie).forEach(function(k){
-          var v=ie[k];
-          if(v===undefined||v===null||v==='')return;
-          if(existing[k]!==v){existing[k]=v;changed=true;}
-        });
-        if(changed)summary.updatedEmployees++;
+      }else if(_psFold(existing,ie)){
+        summary.updatedEmployees++;
       }
     });
   }
 
   // --- Payroll runs ---
   if(Array.isArray(incoming.payrollRuns)){
+    var byDate={};
+    DATA.payrollRuns.forEach(function(lr){if(lr&&lr.date)byDate[lr.date]=lr;});
     incoming.payrollRuns.forEach(function(ir){
       if(!ir||!ir.date)return;
-      var existingRun=DATA.payrollRuns.find(function(lr){return lr.date===ir.date;});
+      if(gone(_psKeyRun(ir),ir))return;
+      var existingRun=byDate[ir.date];
       if(!existingRun){
         var cloned=Object.assign({},ir);
-        if(!Array.isArray(cloned.results))cloned.results=[];
-        DATA.payrollRuns.push(cloned);
+        cloned.results=(Array.isArray(ir.results)?ir.results:[]).filter(function(res){return !(res&&res.empName&&gone(_psKeyRes(ir,res),res));})
+          .map(function(res){return Object.assign({},res);});
+        DATA.payrollRuns.push(cloned);byDate[ir.date]=cloned;
         summary.addedRuns++;
         return;
       }
-      // Same date exists — merge results additively by employee name.
       if(!Array.isArray(existingRun.results))existingRun.results=[];
       var runChanged=false;
       if(Array.isArray(ir.results)){
+        var byEmp={};
+        existingRun.results.forEach(function(lr){if(lr&&lr.empName)byEmp[_psKeyRes(existingRun,lr)]=lr;});
         ir.results.forEach(function(ires){
           if(!ires||!ires.empName)return;
-          var rkey=ires.empName.trim().toLowerCase();
-          var localRes=existingRun.results.find(function(lr){return (lr.empName||'').trim().toLowerCase()===rkey;});
+          var rkey=_psKeyRes(ir,ires);
+          if(gone(rkey,ires))return;
+          var localRes=byEmp[rkey];
           if(!localRes){
-            existingRun.results.push(Object.assign({},ires));
+            var r2=Object.assign({},ires);
+            existingRun.results.push(r2);byEmp[rkey]=r2;
             runChanged=true;
-          }else{
-            Object.keys(ires).forEach(function(k){
-              var v=ires[k];
-              if(v===undefined||v===null||v==='')return;
-              if(localRes[k]!==v){localRes[k]=v;runChanged=true;}
-            });
+          }else if(_psFold(localRes,ires)){
+            runChanged=true;
           }
         });
       }
-      // Preserve top-level run metadata additively (don't overwrite with blanks).
-      Object.keys(ir).forEach(function(k){
-        if(k==='results')return;
-        var v=ir[k];
-        if(v===undefined||v===null||v==='')return;
-        if(existingRun[k]!==v){existingRun[k]=v;runChanged=true;}
-      });
+      // Run details (not its results, merged above) by the same rule.
+      if(_psFold(existingRun,ir,{results:1}))runChanged=true;
       if(runChanged)summary.updatedRuns++;
     });
   }
 
-  // --- Settings: shallow merge, incoming wins for keys it defines ---
+  // --- Settings: the copy changed later wins; undated copies fill blanks ---
   if(incoming.settings&&typeof incoming.settings==='object'){
-    DATA.settings=Object.assign({},DATA.settings||{},incoming.settings);
+    if(!DATA.settings||typeof DATA.settings!=='object')DATA.settings=Object.assign({},incoming.settings);
+    else _psFold(DATA.settings,incoming.settings);
   }
 
+  // What the merge produced is the new baseline: nothing in it was edited here.
+  _psStamp(true);
   return summary;
 }
 
@@ -1646,6 +1731,9 @@ function saveStore(){
       return;
     }
   }
+  // Date what was edited here since the last save, so a merge on another
+  // device knows this copy is the newer one.
+  _psStamp(false);
   _backupBeforeSave();
   CESTISStore.setItem(STORAGE_KEY,JSON.stringify(DATA));
   _updateHighWaterMark();
@@ -1765,26 +1853,11 @@ window.addEventListener('beforeunload',function(e){
     var isDirty=_dataDirty||currentHash!==_lastSaveHash;
     if(isDirty){ saveStore(); }
 
-    // Best-effort cloud push on close. Uses sendBeacon so it fires even as
-    // the page tears down. Only runs if cloud is connected, the initial merge
-    // has completed (so we never push empty data), and data is not suspicious.
-    if(isDirty && _cloudMergeCompleted && !_isSuspiciousDataLoss()
-        && typeof isCloudConnected!=='undefined' && isCloudConnected
-        && typeof googleAccessToken!=='undefined' && googleAccessToken
-        && typeof GOOGLE_DRIVE_CONFIG!=='undefined' && cloudFileId){
-      try{
-        var payload=JSON.stringify({
-          version:'1.1',
-          timestamp:new Date().toISOString(),
-          savedBy:(typeof currentUser!=='undefined'&&currentUser)?currentUser.displayName:'Dashboard User',
-          data:DATA
-        });
-        // Drive v3 update endpoint — sendBeacon fires the request as the page closes
-        var url='https://www.googleapis.com/upload/drive/v3/files/'+cloudFileId+'?uploadType=media';
-        var blob=new Blob([payload],{type:'application/json'});
-        navigator.sendBeacon(url+'&access_token='+encodeURIComponent(googleAccessToken),blob);
-      }catch(_){}
-    }
+    // No last-second cloud push here. It used navigator.sendBeacon, which can
+    // only POST — Drive updates a file with PATCH — so it never saved anything,
+    // only gave the impression it had, and it put the Google token in a URL
+    // where proxies and server logs keep it. saveStore() above has the edit
+    // safely on this device; the next session's merge-then-push uploads it.
 
     // Warn if SO1 table has unsaved data
     if(typeof so1Rows!=='undefined' && so1Rows.length>0){
@@ -2001,12 +2074,17 @@ function deleteEmployee(i){
   if(currentUser&&currentUser.role==='viewer'){alert('View-only access: You cannot delete employees.');return;}
   if(!confirm('Delete '+DATA.employees[i].name+'?\n\nThis will also remove all their payroll records.'))return;
   const deletedName=DATA.employees[i].name;
+  // Written down, or the next cloud merge hands the employee and their
+  // payroll entries straight back.
+  _psRecordDeleted(_psKeyEmp(DATA.employees[i]));
   DATA.employees.splice(i,1);
   // Remove deleted employee from all payroll runs
   DATA.payrollRuns.forEach(run=>{
+    (run.results||[]).forEach(r=>{if(r&&r.empName===deletedName)_psRecordDeleted(_psKeyRes(run,r));});
     run.results=(run.results||[]).filter(r=>r.empName!==deletedName);
   });
   // Remove empty payroll runs (no results left)
+  DATA.payrollRuns.forEach(run=>{if((run.results||[]).length===0)_psRecordDeleted(_psKeyRun(run));});
   DATA.payrollRuns=DATA.payrollRuns.filter(run=>(run.results||[]).length>0);
   markDataDirty();saveStore();renderEmployees();refreshActiveSections();
 }
@@ -2049,7 +2127,9 @@ function getQuarterRunsByMonth(fyStart,qDef,qi){
     if(d.getFullYear()!==calYear)return;
     const m=d.getMonth();
     const idx=qDef.months.indexOf(m);
-    if(idx>=0)result[idx]=run;
+    // A month can hold the computed payroll AND an older pseudo-run the
+    // cashbook filed on the 1st; the computed one is the payroll.
+    if(idx>=0&&!(result[idx]&&!result[idx].cashbookSynced&&run.cashbookSynced))result[idx]=run;
   });
   return result;
 }
@@ -2390,8 +2470,20 @@ function editPayrollEntry(runIdx,entryIdx){
   const run=DATA.payrollRuns[runIdx];
   if(!run||!run.results[entryIdx])return;
   const r=run.results[entryIdx];
-  const newGross=prompt('Edit gross earnings for '+r.empName+':\n\nCurrent gross: $'+fmt(r.gross)+'\n\nEnter new gross amount:',r.gross.toFixed(2));
-  if(newGross===null)return;
+  CESTISForm.ask({title:'Edit gross earnings',submitLabel:'Recalculate & save',
+    intro:r.empName+' — payroll dated '+run.date+'\nCurrent gross: '+fmt(r.gross)+'. Deductions and net pay are worked out again from the new amount.',
+    fields:[{name:'gross',label:'New gross amount ($)',type:'number',min:0,required:true,value:r.gross.toFixed(2)}]
+  }).then(function(v){
+    if(!v)return;
+    // The same run and line as when the form opened (a sync may have moved them).
+    if(DATA.payrollRuns[runIdx]!==run||run.results[entryIdx]!==r){alert('This payroll changed while the form was open. Please open it again.');return;}
+    editPayrollEntryGross(runIdx,entryIdx,v.gross.replace(/,/g,''));
+  });
+}
+function editPayrollEntryGross(runIdx,entryIdx,newGross){
+  const run=DATA.payrollRuns[runIdx];
+  if(!run||!run.results[entryIdx])return;
+  const r=run.results[entryIdx];
   const gross=parseFloat(newGross);
   if(isNaN(gross)||gross<0){alert('Invalid amount');return;}
   // Recalculate this employee's deductions with new gross
@@ -2445,9 +2537,11 @@ function deletePayrollEntry(runIdx,entryIdx){
   if(!run||!run.results[entryIdx])return;
   const r=run.results[entryIdx];
   if(!confirm('Delete payroll entry for '+r.empName+'?\n\nGross: $'+fmt(r.gross)+' | Net: $'+fmt(r.netPay)+'\n\nThis action cannot be undone.'))return;
+  _psRecordDeleted(_psKeyRes(run,r));
   run.results.splice(entryIdx,1);
   // If no results left, remove entire run
   if(run.results.length===0){
+    _psRecordDeleted(_psKeyRun(run));
     DATA.payrollRuns.splice(runIdx,1);
   }
   markDataDirty();saveStore();
@@ -2461,6 +2555,8 @@ function deleteEntirePayrollRun(runIdx){
   if(!run)return;
   const d=parseLocalDate(run.date);
   if(!confirm('DELETE ENTIRE PAYROLL RUN\n\n'+MONTH_NAMES[d.getMonth()]+' '+d.getFullYear()+'\n\n'+run.results.length+' employee records will be permanently deleted.\n\nThis action cannot be undone. Continue?'))return;
+  _psRecordDeleted(_psKeyRun(run));
+  (run.results||[]).forEach(function(r){if(r&&r.empName)_psRecordDeleted(_psKeyRes(run,r));});
   DATA.payrollRuns.splice(runIdx,1);
   markDataDirty();saveStore();
   renderPayrollInput();
@@ -3010,7 +3106,10 @@ function getMonthlyData(year){
         if(nameLookup[normalized]){key=nameLookup[normalized];}
         else return; // Skip employees not in current list (deleted)
       }
-      monthly[key][m]={gross:r.gross,netPay:r.netPay,nisEmp:r.nisEmp,nisEr:r.nisEr,edTaxEmp:r.edTaxEmp,edTaxEr:r.edTaxEr,nhtEmp:r.nhtEmp,nhtEr:r.nhtEr,heartEr:r.heartEr||0,incomeTax:r.incomeTax,totalEmpDeductions:r.totalEmpDeductions,totalErContributions:r.totalErContributions};
+      // A computed entry is not overwritten by a cashbook-only one for the
+      // same month (the cashbook's pseudo-run has no deductions).
+      if(monthly[key][m]&&monthly[key][m]._computed&&r.cashbookSynced)return;
+      monthly[key][m]={_computed:!r.cashbookSynced,gross:r.gross,netPay:r.netPay,nisEmp:r.nisEmp,nisEr:r.nisEr,edTaxEmp:r.edTaxEmp,edTaxEr:r.edTaxEr,nhtEmp:r.nhtEmp,nhtEr:r.nhtEr,heartEr:r.heartEr||0,incomeTax:r.incomeTax,totalEmpDeductions:r.totalEmpDeductions,totalErContributions:r.totalErContributions};
     });
   });
   return monthly;
@@ -3438,11 +3537,11 @@ async function fetchCurrentRates(){
   const sources = [];
   if (GDRIVE_RATES_FILE_ID) {
     sources.push({
-      name: 'Google Drive',
+      name: 'the Centre’s rates file',
       url: 'https://drive.google.com/uc?export=download&id=' + GDRIVE_RATES_FILE_ID
     });
   }
-  sources.push({ name: 'GitHub', url: GITHUB_RATES_URL });
+  sources.push({ name: 'the published rates list', url: GITHUB_RATES_URL });
 
   for (let i = 0; i < sources.length; i++) {
     const src = sources[i];
@@ -3462,7 +3561,7 @@ async function fetchCurrentRates(){
       // All sources exhausted
       statusDiv.style.background = 'rgba(239,68,68,0.1)';
       statusDiv.style.color = 'var(--danger)';
-      statusDiv.textContent = '❌ Failed to fetch rates: ' + err.message + '. Please check your internet connection or update rates manually.';
+      statusDiv.textContent = '❌ Failed to fetch rates: ' + err.message + '. Please check the connection or update rates manually.';
     }
   }
 
@@ -3642,14 +3741,14 @@ function updateCloudUI(connected) {
         notConnectedDiv.style.display = 'none';
         connectedDiv.style.display = 'block';
         if (statusDot) statusDot.className = 'cloud-status-dot connected';
-        if (statusText) statusText.textContent = 'Connected';
+        if (statusText) statusText.textContent = 'Up to date';
         var bfnText = document.getElementById('backupFileNameText');
         if (bfnText) bfnText.textContent = GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME;
     } else {
         notConnectedDiv.style.display = 'block';
         connectedDiv.style.display = 'none';
         if (statusDot) statusDot.className = 'cloud-status-dot';
-        if (statusText) statusText.textContent = 'Not connected';
+        if (statusText) statusText.textContent = 'Not synced yet';
     }
 }
 
@@ -3666,9 +3765,9 @@ function setCloudSyncing(syncing) {
         if (connectedText) { connectedText.textContent = 'Syncing...'; connectedText.className = 'cloud-status-label syncing nav-text'; }
         if (sidebarSync) sidebarSync.textContent = 'Syncing...';
     } else {
-        if (menuIcon) menuIcon.textContent = '☁️';
+        if (menuIcon) menuIcon.textContent = '🔄';
         if (connectedDot) connectedDot.className = 'cloud-status-dot connected';
-        if (connectedText) { connectedText.textContent = 'Connected'; connectedText.className = 'cloud-status-label connected nav-text'; }
+        if (connectedText) { connectedText.textContent = 'Up to date'; connectedText.className = 'cloud-status-label connected nav-text'; }
         updateLastSyncDisplay();
     }
 }
@@ -3714,12 +3813,12 @@ function showGoogleAuthModal() {
         <div id="googleAuthModal" class="google-auth-modal" style="display:flex;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>☁️ Connect to Google Drive</h2>
+                    <h2>🔄 Connect the Centre’s Account</h2>
                     <button class="close-btn" onclick="closeGoogleAuthModal()">×</button>
                 </div>
                 <div style="padding:1.5rem;">
                     <p style="margin-bottom:1.25rem;color:var(--text-dim);">
-                        Connect to Google Drive to save and sync your payroll data across devices. Choose your preferred connection method:
+                        Connect the Centre’s account to sync your payroll data across devices. Choose your preferred connection method:
                     </p>
 
                     <!-- Option 1: Direct Google Sign-In -->
@@ -3727,15 +3826,15 @@ function showGoogleAuthModal() {
                         <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
                             <span style="font-size:1.5rem;">🔐</span>
                             <div>
-                                <strong style="color:var(--green);font-size:1.1rem;">Direct Google Sign-In</strong>
+                                <strong style="color:var(--green);font-size:1.1rem;">Direct Sign-In</strong>
                                 <span style="background:var(--green);color:white;padding:2px 8px;border-radius:4px;font-size:0.7rem;margin-left:0.5rem;font-weight:600;">RECOMMENDED</span>
                             </div>
                         </div>
                         <p style="color:var(--text-dim);font-size:0.9rem;margin-bottom:1rem;">
-                            A Google popup will appear for you to sign in with your Google account directly.
+                            A sign-in window will open for you to sign in with the Centre’s account directly.
                         </p>
                         <button class="btn btn-success" onclick="triggerDirectGoogleSignIn()" style="width:100%;padding:0.75rem;">
-                            Sign in with Google
+                            Sign In to Connect
                         </button>
                     </div>
 
@@ -3756,10 +3855,10 @@ function showGoogleAuthModal() {
                             <div style="background:rgba(59,130,246,0.1);border:1px solid var(--primary);border-radius:6px;padding:1rem;margin-bottom:1rem;">
                                 <strong style="color:var(--primary);">How to get your access token:</strong>
                                 <ol style="margin-top:0.5rem;margin-left:1rem;color:var(--text-dim);font-size:0.85rem;line-height:1.6;">
-                                    <li>Click the link below to open Google OAuth Playground</li>
-                                    <li>In Step 1, find and select <strong>"Drive API v3"</strong> → check <strong>"../auth/drive"</strong></li>
+                                    <li>Click the button below to open the OAuth Playground</li>
+                                    <li>In Step 1, type this permission into the box under the list: <strong style="word-break:break-all;">https://www.googleapis.com/auth/drive</strong></li>
                                     <li>Click <strong>"Authorize APIs"</strong></li>
-                                    <li>Sign in with your Google account</li>
+                                    <li>Sign in with the Centre’s account</li>
                                     <li>In Step 2, click <strong>"Exchange authorization code for tokens"</strong></li>
                                     <li>Copy the <strong>"Access token"</strong> value and paste below</li>
                                 </ol>
@@ -3775,7 +3874,7 @@ function showGoogleAuthModal() {
                             </div>
 
                             <button class="btn btn-success" onclick="submitGoogleToken()" style="width:100%;">
-                                ☁️ Connect with Token
+                                🔄 Connect with Token
                             </button>
                         </div>
                     </div>
@@ -3801,7 +3900,7 @@ function triggerDirectGoogleSignIn() {
             if (googleTokenClient) {
                 googleTokenClient.requestAccessToken();
             } else {
-                alert('Google Sign-In popup is not available. Please use the manual token method.');
+                alert('The sign-in window is not available. Please use the manual token method.');
                 showGoogleAuthModal();
                 setTimeout(() => showManualTokenForm(), 100);
             }
@@ -3853,7 +3952,7 @@ async function submitGoogleToken() {
         closeGoogleAuthModal();
         updateCloudUI(true);
 
-        alert('Connected to Google Drive as ' + (data.user.displayName || data.user.emailAddress));
+        alert('Connected as ' + (data.user.displayName || data.user.emailAddress));
 
         await findExistingBackupFile();
 
@@ -3876,19 +3975,19 @@ async function handleGoogleAuthCallback(tokenResponse) {
 
     await findExistingBackupFile();
 
-    alert('Connected to Google Drive successfully! You can now Save, Sync, or Merge your data.');
+    alert('Connected! You can now save, sync or merge your data.');
 }
 
 function handleGoogleAuthError(error) {
     console.error('Google auth error:', error);
     if (error.type === 'popup_closed') return;
-    alert('Failed to authenticate with Google. Please try the manual token method.');
+    alert('Could not sign in. Please try the manual token method.');
     showGoogleAuthModal();
 }
 
 // Disconnect from Google Drive
 function disconnectFromGoogleDrive() {
-    if (confirm('Are you sure you want to disconnect from Google Drive? Your local data will remain intact.')) {
+    if (confirm('Turn off sync on this computer? Your work stays on this computer.')) {
         googleAccessToken = null;
         isCloudConnected = false;
         cloudFileId = null;
@@ -3901,7 +4000,7 @@ function disconnectFromGoogleDrive() {
         const menu = document.getElementById('cloudDropdownMenu');
         if (menu) menu.classList.remove('show');
 
-        alert('Disconnected from Google Drive');
+        alert('Sync turned off on this computer');
     }
 }
 
@@ -3955,6 +4054,75 @@ async function checkCloudForChanges() {
 }
 
 // Auto-save users to cloud (called when admin creates/edits/deletes a user)
+
+/* Fold a cloud backup's accounts and permission grants into this device's.
+   addOnly (the automatic pre-push peek): only add what is missing — changing
+   an existing account from an older cloud copy every minute would revert a
+   role or password changed here. Otherwise (an explicit Sync from Cloud):
+   also take the cloud's name, role and two-step state, keeping a local
+   password. Accounts and grants only this device holds are always kept, and
+   the default administrator always exists. */
+function _mergeCloudUsersAndPerms(backup,addOnly){
+  var out={usersAdded:0,permsAdded:0};
+  if(!backup)return out;
+  if(Array.isArray(backup.users)){
+    var localUsers=loadUsers();
+    backup.users.forEach(function(cu){
+      if(!cu||!cu.username)return;
+      var existing=localUsers.find(function(u){return String(u.username||'').toLowerCase()===String(cu.username).toLowerCase();});
+      if(!existing){localUsers.push(cu);out.usersAdded++;return;}
+      if(addOnly)return;
+      if(cu.displayName)existing.displayName=cu.displayName;
+      if(cu.role)existing.role=cu.role;
+      if(!existing.password&&cu.password)existing.password=cu.password;
+      pyMergeUser2FA(existing,cu);
+    });
+    if(!localUsers.some(function(u){return String(u.username||'').toLowerCase()==='cestisadmin';})){
+      localUsers.push(getDefaultUsers()[0]);
+    }
+    saveUsers(localUsers);
+  }
+  if(Array.isArray(backup.permissions)){
+    var localPerms=loadPermissions();
+    backup.permissions.forEach(function(cp){
+      if(cp&&!localPerms.some(function(p){return p.id===cp.id;})){localPerms.push(cp);out.permsAdded++;}
+    });
+    savePermissions(localPerms);
+  }
+  return out;
+}
+
+/* Fold the cloud copy into this device's data BEFORE any upload, so the upload
+   is always a superset of what the cloud holds and never erases another
+   device's runs, employees, accounts or grants. Returns false when the cloud
+   could not be read (the caller must not upload then). */
+async function _peekMergeCloud(){
+  if(!cloudFileId)return true;
+  try{
+    var peekResp=await fetch('https://www.googleapis.com/drive/v3/files/'+cloudFileId+'?alt=media',{headers:{'Authorization':'Bearer '+googleAccessToken}});
+    if(!peekResp.ok)return peekResp.status===404;
+    var cloudBackup=await peekResp.json();
+    if(cloudBackup&&cloudBackup.data){
+      var peekSummary=_mergeDataIntoLocal(cloudBackup.data);
+      DATA.payrollRuns.forEach(function(r){if(!Array.isArray(r.results))r.results=[];});
+      var moved=peekSummary.addedEmployees||peekSummary.updatedEmployees||peekSummary.addedRuns||peekSummary.updatedRuns||peekSummary.removed;
+      if(moved){
+        console.log('[CloudPush] Pre-push merge from cloud:',peekSummary);
+        saveStore();
+        try{if(typeof renderDashboard==='function'&&typeof currentUser!=='undefined'&&currentUser)renderDashboard();}catch(e){}
+      }
+    }
+    if(cloudBackup)_mergeCloudUsersAndPerms(cloudBackup,true);
+    return true;
+  }catch(peekErr){
+    console.warn('[CloudPush] Safety peek failed, not uploading to avoid data loss:',peekErr.message);
+    return false;
+  }
+}
+// What was last uploaded by the automatic push: an idle minute uploads nothing.
+var _psLastCloudPushHash=null;
+function _psCloudContentHash(){return _dataHash({d:DATA,u:loadUsers(),p:loadPermissions()});}
+
 async function autoSaveUsersToCloud(){
   if(!isCloudConnected||!googleAccessToken){
     console.log('[AutoCloudPush] Not connected to cloud, skipping');
@@ -3964,30 +4132,18 @@ async function autoSaveUsersToCloud(){
   try{
     await findExistingBackupFile();
 
-    // SAFETY PEEK: before writing to cloud, fetch the existing backup and fold
-    // it into local DATA via _mergeDataIntoLocal (non-destructive). This
-    // guarantees the payload we upload is a SUPERSET of what's already in
-    // cloud — we can never erase another device's work by pushing.
-    if(cloudFileId){
-      try{
-        var peekResp=await fetch('https://www.googleapis.com/drive/v3/files/'+cloudFileId+'?alt=media',{headers:{'Authorization':'Bearer '+googleAccessToken}});
-        if(peekResp.ok){
-          var cloudBackup=await peekResp.json();
-          if(cloudBackup&&cloudBackup.data){
-            var peekSummary=_mergeDataIntoLocal(cloudBackup.data);
-            if(peekSummary.addedEmployees||peekSummary.updatedEmployees||peekSummary.addedRuns||peekSummary.updatedRuns){
-              console.log('[AutoCloudPush] Pre-push merge from cloud:',peekSummary);
-            }
-            DATA.payrollRuns.forEach(function(r){if(!Array.isArray(r.results))r.results=[];});
-            saveStore();
-            try{if(typeof renderDashboard==='function'&&typeof currentUser!=='undefined'&&currentUser)renderDashboard();}catch(e){}
-          }
-        }
-      }catch(peekErr){
-        console.warn('[AutoCloudPush] Safety peek failed, aborting push to avoid potential data loss:',peekErr.message);
-        setCloudSyncing(false);
-        return;
-      }
+    // Nothing changed here since the last automatic upload: other devices'
+    // work arrives through the page's own Drive file, so there is nothing to
+    // download, merge, re-render and re-upload every minute.
+    if(_psLastCloudPushHash!==null&&_psCloudContentHash()===_psLastCloudPushHash){
+      setCloudSyncing(false);
+      return;
+    }
+    // SAFETY PEEK: fold the cloud copy in first (newest-wins, deletions kept),
+    // so the upload is a superset of what the cloud holds.
+    if(!(await _peekMergeCloud())){
+      setCloudSyncing(false);
+      return;
     }
 
     var backupData={
@@ -3998,7 +4154,9 @@ async function autoSaveUsersToCloud(){
       users:loadUsers(),
       permissions:loadPermissions()
     };
-    var jsonContent=JSON.stringify(backupData,null,2);
+    // Compact: this goes up every time something changes.
+    var jsonContent=JSON.stringify(backupData);
+    var pushedHash=_psCloudContentHash();
     var response;
     if(cloudFileId){
       var boundary='boundary_'+Date.now();
@@ -4032,6 +4190,7 @@ async function autoSaveUsersToCloud(){
       updateLastSyncDisplay();
       lastSavedBy=currentUser?currentUser.displayName:'Dashboard User';
       cloudFileTimestamp=new Date().toISOString();
+      _psLastCloudPushHash=pushedHash;
       console.log('[AutoCloudPush] User data auto-saved to cloud');
     }else{
       console.log('[AutoCloudPush] Cloud save failed');
@@ -4045,7 +4204,7 @@ async function autoSaveUsersToCloud(){
 // ============ SAVE TO CLOUD ============
 async function saveToCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -4054,8 +4213,8 @@ async function saveToCloud() {
 
     const cloudInfo = await checkCloudForChanges();
 
-    let confirmMessage = 'MULTI-USER CLOUD SYNC\n\n';
-    confirmMessage += 'You are about to save to a shared cloud backup.\n\n';
+    let confirmMessage = 'MULTI-USER SYNC\n\n';
+    confirmMessage += 'You are about to replace the shared copy that everyone syncs from.\n\n';
 
     if (cloudInfo && cloudInfo.savedBy) {
         const cloudTime = new Date(cloudInfo.timestamp);
@@ -4066,13 +4225,13 @@ async function saveToCloud() {
         if (hasConflict) {
             confirmMessage += 'WARNING: ' + cloudInfo.savedBy + ' saved changes ' + timeSinceLastSave + '!\n';
             confirmMessage += 'Your local data may not include their changes.\n\n';
-            confirmMessage += 'Recommendation: Click Cancel, then "Sync from Cloud" first.\n\n';
+            confirmMessage += 'Recommendation: Click Cancel, then "Get Latest Changes" first.\n\n';
         } else {
             confirmMessage += 'Last saved by: ' + cloudInfo.savedBy + ' (' + timeSinceLastSave + ')\n\n';
         }
     }
 
-    confirmMessage += 'This will overwrite the cloud backup. Continue?';
+    confirmMessage += 'The shared copy is merged in first, so nothing saved from another computer is lost. Continue?';
 
     if (!confirm(confirmMessage)) return;
 
@@ -4082,6 +4241,14 @@ async function saveToCloud() {
         // Always search the correct folder so a stale cloudFileId from an
         // old/different folder is replaced with the right one.
         await findExistingBackupFile();
+
+        // Merge the cloud copy in before uploading, exactly as the automatic
+        // push does. Without it this button replaced the cloud file with this
+        // device's data, removing every run, employee, account and grant
+        // another device had saved since this one last merged.
+        if (!(await _peekMergeCloud())) {
+            throw new Error('Could not read the shared copy to merge it first — nothing was sent, so nothing was lost');
+        }
 
         const backupData = {
             version: '1.1',
@@ -4194,17 +4361,17 @@ async function saveToCloud() {
         updateLastSavedByDisplay();
 
         setCloudSyncing(false);
-        alert('Data saved to Google Drive successfully!\n\nTip: Let other users know to sync from cloud to get your changes.');
+        alert('Data saved and synced!\n\nTip: Let other users know to sync to get your changes.');
 
     } catch (error) {
         console.error('Error saving to cloud:', error);
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('Your session has expired. Please reconnect to Google Drive.');
+            alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert('Failed to save to cloud: ' + error.message);
+            alert('Could not sync: ' + error.message);
         }
     }
 }
@@ -4212,7 +4379,7 @@ async function saveToCloud() {
 // ============ SYNC FROM CLOUD ============
 async function syncFromCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -4224,11 +4391,11 @@ async function syncFromCloud() {
     }
 
     if (!cloudFileId) {
-        alert('No backup file found in Google Drive. Save your data first to create a backup.');
+        alert('No shared copy yet. Save your data first to create one.');
         return;
     }
 
-    if (!confirm('This will merge the cloud backup into your local data. Local records are preserved; only new or updated cloud records are added. Continue?')) {
+    if (!confirm('This will merge the shared copy into this computer. Records here are kept; only new or updated shared records are added. Continue?')) {
         return;
     }
 
@@ -4262,18 +4429,10 @@ async function syncFromCloud() {
         _cloudMergeCompleted = true;
         console.log('[SyncFromCloud] Merged cloud → local:',_syncSummary);
 
-        // Restore users and permissions from cloud if available
-        if(backupData.users&&Array.isArray(backupData.users)&&backupData.users.length>0){
-          // Ensure default admin always exists
-          var cloudUsers=backupData.users;
-          if(!cloudUsers.some(function(u){return u.username.toLowerCase()==='cestisadmin';})){
-            cloudUsers.push(getDefaultUsers()[0]);
-          }
-          saveUsers(cloudUsers);
-        }
-        if(backupData.permissions&&Array.isArray(backupData.permissions)){
-          savePermissions(backupData.permissions);
-        }
+        // Accounts and permission grants are merged, as the confirmation
+        // promises: they used to be REPLACED, which erased an account or grant
+        // made here and reverted a password changed here.
+        _mergeCloudUsersAndPerms(backupData,false);
 
         // Update last sync time
         lastSyncTime = new Date();
@@ -4294,17 +4453,17 @@ async function syncFromCloud() {
         const backupTime = new Date(backupData.timestamp).toLocaleString();
         const savedByInfo = backupData.savedBy ? '\nLast saved by: ' + backupData.savedBy : '';
         var mergeInfo='\nMerged: +'+_syncSummary.addedEmployees+' employees, '+_syncSummary.updatedEmployees+' updated; +'+_syncSummary.addedRuns+' payroll runs, '+_syncSummary.updatedRuns+' updated.';
-        alert('Data merged from cloud successfully!\n\nBackup was created: ' + backupTime + savedByInfo + mergeInfo);
+        alert('Data merged successfully!\n\nBackup was created: ' + backupTime + savedByInfo + mergeInfo);
 
     } catch (error) {
         console.error('Error syncing from cloud:', error);
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('Your session has expired. Please reconnect to Google Drive.');
+            alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert('Failed to sync from cloud: ' + error.message);
+            alert('Could not sync: ' + error.message);
         }
     }
 }
@@ -4312,7 +4471,7 @@ async function syncFromCloud() {
 // ============ MERGE FROM CLOUD ============
 async function mergeFromCloud() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -4324,13 +4483,13 @@ async function mergeFromCloud() {
     }
 
     if (!cloudFileId) {
-        alert('No backup file found in Google Drive. Save your data first to create a backup.');
+        alert('No shared copy yet. Save your data first to create one.');
         return;
     }
 
-    if (!confirm('MERGE FROM CLOUD\n\nThis will merge cloud data with your local data:\n\n' +
-        '- New employees from cloud will be ADDED to your local data\n' +
-        '- New payroll runs from cloud will be ADDED\n' +
+    if (!confirm('MERGE LATEST CHANGES\n\nThis will merge the shared data with the data on this computer:\n\n' +
+        '- New employees will be ADDED to the data on this computer\n' +
+        '- New payroll runs will be ADDED\n' +
         '- Existing items will be kept as-is (local version preserved)\n' +
         '- No local data will be removed\n\nContinue?')) {
         return;
@@ -4460,7 +4619,7 @@ async function mergeFromCloud() {
         setCloudSyncing(false);
 
         // Build summary message
-        let summary = 'Merge from cloud completed!\n\n';
+        let summary = 'Merge completed!\n\n';
         summary += 'Merge Summary:\n';
         summary += '- Employees added: ' + mergeStats.employeesAdded + '\n';
         summary += '- Payroll runs added: ' + mergeStats.payrollRunsAdded + '\n';
@@ -4469,12 +4628,12 @@ async function mergeFromCloud() {
 
         const totalAdded = mergeStats.employeesAdded + mergeStats.payrollRunsAdded + (mergeStats.usersAdded||0);
         if (totalAdded === 0 && !mergeStats.settingsMerged) {
-            summary += '\nNo new data found — your local data already contains everything from the cloud.';
+            summary += '\nNo new data found — this computer already has everything.';
         } else {
-            summary += '\nTip: Save to Cloud to push the merged data back for other users.';
+            summary += '\nTip: use Send My Changes to share the merged data with other users.';
         }
 
-        const savedByInfo = backupData.savedBy ? '\nCloud backup was saved by: ' + backupData.savedBy : '';
+        const savedByInfo = backupData.savedBy ? '\nShared copy was saved by: ' + backupData.savedBy : '';
         summary += savedByInfo;
 
         alert(summary);
@@ -4484,10 +4643,10 @@ async function mergeFromCloud() {
         setCloudSyncing(false);
 
         if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-            alert('Your session has expired. Please reconnect to Google Drive.');
+            alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
             disconnectFromGoogleDrive();
         } else {
-            alert('Failed to merge from cloud: ' + error.message);
+            alert('Could not merge: ' + error.message);
         }
     }
 }
@@ -4495,7 +4654,7 @@ async function mergeFromCloud() {
 // ============ BROWSE CLOUD FOLDER ============
 async function browseCloudFolder() {
     if (!isCloudConnected || !googleAccessToken) {
-        alert('Please connect to Google Drive first');
+        alert('Please turn on sync first');
         return;
     }
 
@@ -4507,13 +4666,13 @@ async function browseCloudFolder() {
         <div id="browseCloudModal" class="browse-cloud-modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>📂 Cloud Folder — All Backups</h2>
+                    <h2>📂 All Backups</h2>
                     <button class="close-btn" onclick="closeBrowseCloudModal()">&times;</button>
                 </div>
                 <div class="browse-body" id="browseCloudBody">
                     <div class="browse-loading">
-                        <span style="font-size:1.5rem;display:block;margin-bottom:0.5rem;">☁️</span>
-                        Loading files from Google Drive...
+                        <span style="font-size:1.5rem;display:block;margin-bottom:0.5rem;">🔄</span>
+                        Loading backup files...
                     </div>
                 </div>
             </div>
@@ -4531,7 +4690,7 @@ async function browseCloudFolder() {
 
         if (!response.ok) {
             if (response.status === 401) {
-                throw new Error('Session expired. Please reconnect to Google Drive.');
+                throw new Error('Session expired. Please reconnect to keep syncing.');
             }
             throw new Error('Failed to list files (HTTP ' + response.status + ')');
         }
@@ -4543,8 +4702,8 @@ async function browseCloudFolder() {
             body.innerHTML = `
                 <div class="browse-empty">
                     <span style="font-size:2rem;display:block;margin-bottom:0.5rem;">📭</span>
-                    No files found in the cloud folder.<br>
-                    <span style="font-size:0.8rem;color:var(--text-muted);">Use "Save to Cloud" to create your first backup.</span>
+                    No backup files found yet.<br>
+                    <span style="font-size:0.8rem;color:var(--text-muted);">Use "Send My Changes" to create your first backup.</span>
                 </div>`;
             return;
         }
@@ -4577,7 +4736,7 @@ async function browseCloudFolder() {
         listHTML += '</ul>';
 
         listHTML += `<a class="browse-folder-link" href="https://drive.google.com/drive/folders/${GOOGLE_DRIVE_CONFIG.FOLDER_ID}" target="_blank" rel="noopener">
-            🔗 Open folder in Google Drive
+            🔗 Open the backup folder
         </a>`;
 
         body.innerHTML = listHTML;
@@ -4629,7 +4788,7 @@ async function downloadCloudFile(fileId, fileName) {
 }
 
 async function deleteCloudFile(fileId, fileName) {
-    if (!confirm('Delete "' + fileName + '" from cloud?\n\nThis cannot be undone.')) return;
+    if (!confirm('Delete "' + fileName + '" from the backups?\n\nThis cannot be undone.')) return;
 
     try {
         const response = await fetch(
@@ -4704,7 +4863,7 @@ function showCloudNotification(type, title, message, showConnect, autoDismissSec
   const el = document.createElement('div');
   el.id = 'cloudNotifyPopup';
   el.className = 'cloud-notify ' + type;
-  const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '☁️';
+  const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '🔄';
   el.innerHTML =
     '<div class="cloud-notify-bar"></div>' +
     '<div class="cloud-notify-body">' +
@@ -4750,7 +4909,7 @@ function checkCloudAndNotify(reason){
 
   if (!navigator.onLine) {
     showCloudNotification('error', 'You Are Offline',
-      'Your internet connection is unavailable. Data changes will only be saved locally. Please reconnect to sync with Google Drive.',
+      'You’re offline. Your work is kept on this computer until it syncs.',
       false, 0);
     return;
   }
@@ -4761,21 +4920,21 @@ function checkCloudAndNotify(reason){
     let detail = '';
 
     if (savedExpiry && new Date(savedExpiry) <= new Date()) {
-      detail = 'Your Google Drive session has expired.';
+      detail = 'Your sync sign-in has expired.';
     } else if (reason === 'page_load') {
-      detail = 'Google Drive is not connected.';
+      detail = 'Sync is not connected.';
     } else if (reason === 'token_expired') {
-      detail = 'Your Google Drive session has expired.';
+      detail = 'Your sync sign-in has expired.';
     } else {
-      detail = 'Google Drive connection was lost.';
+      detail = 'The sync connection was lost.';
     }
 
     if (lastSync) {
       detail += ' Last sync: ' + getTimeAgo(new Date(lastSync)) + '.';
     }
 
-    showCloudNotification('warn', 'Cloud Sync Disconnected',
-      detail + ' Your data is only saved locally. Connect to Google Drive to back up and sync your data.',
+    showCloudNotification('warn', 'Not Synced Yet',
+      detail + ' Your work is kept on this computer until it syncs. Reconnect to sync.',
       true, 30);
   }
 }
@@ -4803,7 +4962,7 @@ function startCloudMonitor(){
 // Listen for browser online/offline events
 window.addEventListener('offline', function(){
   showCloudNotification('error', 'You Are Offline',
-    'Internet connection lost. Data changes will only be saved locally until you reconnect.',
+    'Connection lost. Your work is kept on this computer until it syncs.',
     false, 0);
 });
 
@@ -4816,7 +4975,7 @@ window.addEventListener('online', function(){
     }, 1500);
   } else {
     showCloudNotification('warn', 'Back Online',
-      'Internet connection restored. Your cloud sync is active.',
+      'Back online. Sync is on.',
       false, 8);
   }
 });
@@ -4852,11 +5011,15 @@ let otpExpiry=null;
 let otpAttempts=0; // brute-force guard for the emailed OTP
 let pendingResetUser=null;
 
-// Default admin user — matching CESTIS-MAIN-DASHBOARD
+// Default admin user — matching CESTIS-MAIN-DASHBOARD. Its password is the one
+// published with the platform, so it opens nothing by itself: a sign-in with
+// it only ever leads to "set a new password" (or is refused) — see
+// pyDefaultPasswordGate. defaultPassword:true marks it as the seed.
 const defaultUsers=[{
   id:'admin_001',
   username:'Cestisadmin',
   password:'cestisadmin123$',
+  defaultPassword:true,
   displayName:'System Administrator',
   email:'admin@cestis.com',
   role:'Administrator',
@@ -4957,6 +5120,63 @@ async function findUserForLogin(list,username,password){
   return null;
 }
 
+/* A sign-in whose password has just matched one PUBLISHED with the platform.
+   Payroll kept its own logins, seeded with that password, and accepted it as
+   Administrator even on a PC where the dashboard refused it — a trainee could
+   open every payslip. The default now opens nothing here either
+   (CESTISCore.accountAccess.toolDefaultLogin): refused outright when another
+   Payroll administrator has a password of their own; otherwise it only leads
+   to "set a new password" — and only for an administrator signed in to the
+   dashboard on this computer, or on a brand-new installation. Resolves true
+   when the sign-in may go on as normal. */
+var pyForcedChange=false;
+async function pyOtherRealAdmin(user){
+  var defaults=['cestisadmin123$','admin123'];
+  var list=loadUsers();
+  for(var i=0;i<list.length;i++){
+    var u=list[i];
+    if(!u||!u.password||u===user||(user&&u.username&&user.username&&u.username.toLowerCase()===user.username.toLowerCase()))continue;
+    if(!(isAdminRole(u.role)||u.isAdmin))continue;
+    var onDefault=false;
+    for(var d=0;d<defaults.length&&!onDefault;d++){try{onDefault=await verifyPassword(defaults[d],u.password);}catch(e){}}
+    if(!onDefault)return true;
+  }
+  return false;
+}
+// The reset step's heading, for a forced change or for a reset by e-mail.
+function pyNewPwHeader(forced){
+  var hdr=document.querySelector('#loginStepNewPassword .forgot-password-header');
+  if(!hdr)return;
+  var h=hdr.querySelector('h3'),p=hdr.querySelector('p');
+  if(!hdr.dataset.resetH3){hdr.dataset.resetH3=h.textContent;hdr.dataset.resetP=p.textContent;}
+  h.textContent=forced?'Set a New Password':hdr.dataset.resetH3;
+  p.textContent=forced?'This login still has the default password published with the platform. Choose a password of its own before Payroll opens.':hdr.dataset.resetP;
+}
+async function pyDefaultPasswordGate(user,typed){
+  var C=window.CESTISCore;
+  if(!C||!C.accountAccess||!C.accountAccess.toolDefaultLogin)return true;   // a stale cached core: as before
+  if(!C.accountAccess.isPublishedDefault(typed))return true;
+  var lmsAccounts=[];
+  try{lmsAccounts=JSON.parse(CESTISStore.getItem('voctrain_users')||'[]');}catch(e){lmsAccounts=[];}
+  var lmsAdmin=false;
+  try{lmsAdmin=!!C.sessionAccess.forPage({allowed:['admin']}).ok;}catch(e){lmsAdmin=false;}
+  var res=C.accountAccess.toolDefaultLogin({otherRealAdmin:await pyOtherRealAdmin(user),lmsAccounts:lmsAccounts,lmsAdminSession:lmsAdmin});
+  if(res.mustChange){
+    // The forced change reuses the reset step: a new password before anything opens.
+    pendingResetUser=user;pyForcedChange=true;
+    pyNewPwHeader(true);
+    document.getElementById('loginError').classList.remove('show');
+    document.getElementById('loginStep1').style.display='none';
+    document.getElementById('loginStepNewPassword').style.display='block';
+    document.getElementById('newPassword').value='';document.getElementById('confirmNewPassword').value='';
+    document.getElementById('newPasswordError').style.display='none';
+    return false;
+  }
+  document.getElementById('loginErrorText').textContent=res.message;
+  document.getElementById('loginError').classList.add('show');
+  return false;
+}
+
 async function handleLogin(event){
   if(event)event.preventDefault();
   var username=document.getElementById('username').value.trim();
@@ -4984,6 +5204,7 @@ async function handleLogin(event){
 
   if(user){
     loginError.classList.remove('show');
+    if(!(await pyDefaultPasswordGate(user,password))){loginBtnEl.disabled=false;return;}
     if(user.twoFactorEnabled&&user.twoFactorSecret){
       // Show 2FA step
       pendingTwoFAUser=user;
@@ -5002,10 +5223,10 @@ async function handleLogin(event){
     var hasValidToken=savedToken&&savedExpiry&&new Date(savedExpiry)>new Date();
 
     if(hasValidToken){
-      document.getElementById('loginErrorText').textContent='Account not found locally. Syncing from cloud...';
+      document.getElementById('loginErrorText').textContent='Account not found on this computer. Syncing...';
       await autoSyncAndRetryLogin(username,password);
     }else{
-      document.getElementById('loginErrorText').innerHTML='<strong>Account not found</strong>. Please use "Sync from Cloud" to load your account.';
+      document.getElementById('loginErrorText').innerHTML='<strong>Account not found</strong>. Please use "Sync Now" to load your account.';
       showFirstTimeSection();
     }
     loginBtnEl.disabled=false;
@@ -5031,16 +5252,16 @@ async function autoSyncAndRetryLogin(username,password){
       else await findExistingBackupFile();
     }
     if(!cloudFileId){
-      document.getElementById('loginErrorText').textContent='No cloud backup found. Please contact your administrator.';
+      document.getElementById('loginErrorText').textContent='Nothing to sync yet. Please contact your administrator.';
       return;
     }
-    showLoginSyncOverlay('Syncing from cloud...','Checking for your account credentials');
+    showLoginSyncOverlay('Syncing...','Checking for your account credentials');
 
     var response=await fetch(
       'https://www.googleapis.com/drive/v3/files/'+cloudFileId+'?alt=media',
       {headers:{'Authorization':'Bearer '+googleAccessToken}}
     );
-    if(!response.ok)throw new Error('Failed to download from cloud');
+    if(!response.ok)throw new Error('Could not get the latest data');
     var backup=await response.json();
     if(!backup.users&&!backup.data)throw new Error('Invalid backup format');
 
@@ -5073,6 +5294,7 @@ async function autoSyncAndRetryLogin(username,password){
     var user=await findUserForLogin(users,username,password);
     if(user){
       loginError.classList.remove('show');
+      if(!(await pyDefaultPasswordGate(user,password)))return;
       if(user.twoFactorEnabled&&user.twoFactorSecret){
         pendingTwoFAUser=user;
         document.getElementById('loginStep1').style.display='none';
@@ -5083,14 +5305,14 @@ async function autoSyncAndRetryLogin(username,password){
     }else{
       var usernameExistsAfterSync=users.find(function(u){return u.username.toLowerCase()===username.toLowerCase();});
       document.getElementById('loginErrorText').textContent=usernameExistsAfterSync
-        ?'Cloud data synced, but the password is incorrect.'
-        :'Account not found even after syncing from cloud.';
+        ?'Synced, but the password is incorrect.'
+        :'Account not found even after syncing.';
     }
   }catch(error){
     console.error('Auto-sync error:',error);
     hideLoginSyncOverlay();
     if(error.message.includes('invalid_token')||error.message.includes('Invalid Credentials')){
-      document.getElementById('loginErrorText').textContent='Cloud session expired. Please reconnect.';
+      document.getElementById('loginErrorText').textContent='Sync sign-in expired. Please reconnect.';
       CESTISStore.removeItem('schoolDashboardGoogleAccessToken');
       CESTISStore.removeItem('schoolDashboardGoogleTokenExpiry');
     }else{
@@ -5216,10 +5438,10 @@ function showConnectCloudOnLoginModal(){
   modal.id='connectCloudOnLoginModal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10001;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
   modal.innerHTML='<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:2rem;max-width:420px;width:90%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,.5)">'
-    +'<div style="font-size:2rem;margin-bottom:.75rem">☁️</div>'
-    +'<h3 style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:.5rem">Connect to Google Cloud</h3>'
-    +'<p style="font-size:.85rem;color:var(--text-dim);line-height:1.5;margin-bottom:1.25rem">To keep your data synchronized across devices, please connect to Google Drive. This ensures your payroll data is backed up and always available.</p>'
-    +'<button onclick="closeConnectCloudOnLoginModal(true)" style="display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.5rem;background:var(--primary);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(59,130,246,.3)">☁️ Connect & Sync with Google</button>'
+    +'<div style="font-size:2rem;margin-bottom:.75rem">🔄</div>'
+    +'<h3 style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:.5rem">Turn On Sync</h3>'
+    +'<p style="font-size:.85rem;color:var(--text-dim);line-height:1.5;margin-bottom:1.25rem">To keep your data the same on every computer, please turn on sync. Your payroll data is then backed up and always available.</p>'
+    +'<button onclick="closeConnectCloudOnLoginModal(true)" style="display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.5rem;background:var(--primary);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(59,130,246,.3)">🔄 Connect & Sync</button>'
     +'<button onclick="closeConnectCloudOnLoginModal(false)" style="display:block;margin:.75rem auto 0;background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;font-family:inherit">Skip for now</button>'
     +'</div>';
   document.body.appendChild(modal);
@@ -5239,9 +5461,9 @@ function showSyncOnLoginModal(){
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10001;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
   modal.innerHTML='<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:2rem;max-width:420px;width:90%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,.5)">'
     +'<div style="font-size:2rem;margin-bottom:.75rem">🔀</div>'
-    +'<h3 style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:.5rem">Sync from Cloud</h3>'
-    +'<p style="font-size:.85rem;color:var(--text-dim);line-height:1.5;margin-bottom:1.25rem">Merge the latest data from Google Drive to ensure you have the most up-to-date payroll records and user accounts.</p>'
-    +'<button id="syncOnLoginMergeBtn" onclick="closeSyncOnLoginModal(true)" style="display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.5rem;background:var(--primary);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(59,130,246,.3)">🔀 Merge from Cloud</button>'
+    +'<h3 style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:.5rem">Get Latest Changes</h3>'
+    +'<p style="font-size:.85rem;color:var(--text-dim);line-height:1.5;margin-bottom:1.25rem">Merge the latest data so you have the most up-to-date payroll records and user accounts.</p>'
+    +'<button id="syncOnLoginMergeBtn" onclick="closeSyncOnLoginModal(true)" style="display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.5rem;background:var(--primary);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(59,130,246,.3)">🔀 Merge Latest Changes</button>'
     +'<button onclick="closeSyncOnLoginModal(false)" style="display:block;margin:.75rem auto 0;background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;font-family:inherit">Skip for now</button>'
     +'</div>';
   document.body.appendChild(modal);
@@ -5259,7 +5481,7 @@ async function closeSyncOnLoginModal(shouldSync){
     updateLastSyncDisplay();
     if(typeof renderUserManagement==='function'&&currentPageName==='usermanagement')renderUserManagement();
     if(typeof renderPermissions==='function'&&currentPageName==='permissions')renderPermissions();
-    showNotification('Cloud data merged successfully!');
+    showNotification('Latest data merged successfully!');
   }else{
     if(mergeBtn){mergeBtn.disabled=false;mergeBtn.textContent='🔀 Retry Merge';}
   }
@@ -5332,7 +5554,7 @@ function toggleLoginDebug(){
     panel.style.display='block';
     var users=loadUsers();
     if(!users||users.length===0){
-      panel.innerHTML='<div style="color:var(--text-muted)">No accounts stored in browser. Use Sync with Google Cloud below to load accounts.</div>';
+      panel.innerHTML='<div style="color:var(--text-muted)">No accounts on this computer yet. Use Sync Now below to load accounts.</div>';
       return;
     }
     var html='<div style="margin-bottom:.4rem;font-weight:600;color:var(--text)">'+users.length+' stored account(s):</div>';
@@ -5359,7 +5581,7 @@ function formatSyncedUserList(users){
 function showLoginSyncOverlay(text,sub){
   var overlay=document.getElementById('loginSyncOverlay');
   if(!overlay)return;
-  document.getElementById('loginSyncOverlayText').textContent=text||'Syncing from cloud...';
+  document.getElementById('loginSyncOverlayText').textContent=text||'Syncing...';
   document.getElementById('loginSyncOverlaySub').textContent=sub||'';
   overlay.classList.add('show');
   var btn=document.getElementById('loginBtn');if(btn)btn.disabled=true;
@@ -5380,7 +5602,7 @@ function updateLoginCloudBanner(type,message){
   if(type==='synced'){icon.textContent='✅';}
   else if(type==='syncing'){icon.textContent='🔄';}
   else if(type==='error'){icon.textContent='⚠️';}
-  else{icon.textContent='☁️';}
+  else{icon.textContent='🔄';}
   text.innerHTML=message||'';
 }
 
@@ -5412,12 +5634,12 @@ function handleLogout(){
   var ftBtn=document.getElementById('ftSyncBtn');
   if(ftBtn){ftBtn.classList.remove('loading');ftBtn.disabled=false;}
   var ftLabel=document.getElementById('ftBtnLabel');
-  if(ftLabel)ftLabel.textContent='Sync with Google Cloud';
+  if(ftLabel)ftLabel.textContent='Sync Now';
   var ftStatus=document.getElementById('ftStatus');
   if(ftStatus){ftStatus.className='ft-status';ftStatus.textContent='';}
-  document.getElementById('ftCloudIcon').textContent='\u2601';
-  document.getElementById('ftTitle').textContent='Sync with Google Cloud';
-  document.getElementById('ftDesc').textContent='Sign in with Google to load your credentials and data directly from the school\'s Google Drive folder.';
+  document.getElementById('ftCloudIcon').textContent='🔄';
+  document.getElementById('ftTitle').textContent='Sync before signing in';
+  document.getElementById('ftDesc').textContent='Sign in to bring this computer up to date with your credentials and the latest payroll data.';
   document.getElementById('ftGoogleAccount').style.display='none';
   checkFirstTimeSyncPrompt();
 }
@@ -5459,7 +5681,7 @@ async function firstTimeGoogleSync(){
   btn.disabled=true;
   label.textContent='Connecting...';
   status.className='ft-status info';
-  status.textContent='Waiting for Google sign-in...';
+  status.textContent='Waiting for sign-in...';
   card.className='first-time-card connecting';
 
   var token=null;
@@ -5485,18 +5707,18 @@ async function firstTimeGoogleSync(){
     }catch(err){
       btn.classList.remove('loading');
       btn.disabled=false;
-      label.textContent='Sync with Google Cloud';
+      label.textContent='Sync Now';
       status.className='ft-status error';
-      status.textContent='Google sign-in cancelled or failed. Try again.';
+      status.textContent='Sign-in was cancelled or failed. Try again.';
       card.className='first-time-card error';
       return;
     }
   }else{
     btn.classList.remove('loading');
     btn.disabled=false;
-    label.textContent='Sync with Google Cloud';
+    label.textContent='Sync Now';
     status.className='ft-status error';
-    status.textContent='Google API not loaded. Please refresh the page.';
+    status.textContent='Sign-in could not load. Please refresh the page.';
     card.className='first-time-card error';
     return;
   }
@@ -5510,7 +5732,7 @@ async function firstTimeGoogleSync(){
       var aboutData=await aboutResp.json();
       var gUser=aboutData.user;
       if(gUser){
-        var displayName=gUser.displayName||'Google User';
+        var displayName=gUser.displayName||'Signed-in account';
         var email=gUser.emailAddress||'';
         document.getElementById('ftAccountName').textContent=displayName;
         document.getElementById('ftAccountEmail').textContent=email;
@@ -5523,7 +5745,7 @@ async function firstTimeGoogleSync(){
   // Now sync data from Google Drive
   label.textContent='Syncing data...';
   status.className='ft-status info';
-  status.textContent='Searching for backup in Google Drive...';
+  status.textContent='Looking for the latest data...';
   card.className='first-time-card syncing';
 
   try{
@@ -5547,14 +5769,14 @@ async function firstTimeGoogleSync(){
     if(!fileId){
       btn.classList.remove('loading');
       btn.disabled=false;
-      label.textContent='Sync with Google Cloud';
+      label.textContent='Sync Now';
       status.className='ft-status error';
-      status.textContent='No backup file found in Google Drive. Ask your admin to save data to cloud first.';
+      status.textContent='No shared copy yet. Ask your admin to save the data first.';
       card.className='first-time-card error';
       return;
     }
 
-    status.textContent='Downloading data from Google Drive...';
+    status.textContent='Getting the latest data...';
 
     var resp=await fetch(
       'https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',
@@ -5610,14 +5832,14 @@ async function firstTimeGoogleSync(){
       status.textContent=syncedUsers.length+' account(s) loaded. You can now sign in above.';
       card.className='first-time-card synced';
       document.getElementById('ftCloudIcon').textContent='\u2705';
-      document.getElementById('ftTitle').textContent='Cloud Data Loaded';
-      document.getElementById('ftDesc').textContent='Your credentials and payroll data have been synced from Google Drive. Enter your username and password above to sign in.';
-      updateLoginCloudBanner('synced','Cloud synced — '+formatSyncedUserList(syncedUsers)+'. Sign in above.');
+      document.getElementById('ftTitle').textContent='Data Synced';
+      document.getElementById('ftDesc').textContent='Your credentials and payroll data are synced. Enter your username and password above to sign in.';
+      updateLoginCloudBanner('synced','Synced — '+formatSyncedUserList(syncedUsers)+'. Sign in above.');
     }else{
-      label.textContent='Sync with Google Cloud';
+      label.textContent='Sync Now';
       btn.disabled=false;
       status.className='ft-status';
-      status.textContent='Connected to cloud but no user accounts found in backup.';
+      status.textContent='Synced, but no user accounts were found.';
       card.className='first-time-card';
     }
   }catch(err){
@@ -5660,13 +5882,13 @@ async function autoSyncCredentialsOnLoad(){
     // No valid token — show the First Time section unless dismissed
     var hasEverConnected=CESTISStore.getItem('schoolDashboardCloudFileId')||CESTISStore.getItem('schoolDashboardLastSyncTime');
     if(hasEverConnected){
-      updateLoginCloudBanner('error','Cloud session expired. Click <strong>Sync with Google Cloud</strong> below to reconnect.');
+      updateLoginCloudBanner('error','Sync sign-in expired. Click <strong>Sync Now</strong> below to reconnect.');
       // Show first time section with reconnect messaging
       showFirstTimeSection();
       var ftTitleEl=document.getElementById('ftTitle');
       var ftDescEl=document.getElementById('ftDesc');
-      if(ftTitleEl)ftTitleEl.textContent='Reconnect to Google Cloud';
-      if(ftDescEl)ftDescEl.textContent='Your previous session has expired. Sign in with Google again to sync the latest data from the school\'s Drive folder.';
+      if(ftTitleEl)ftTitleEl.textContent='Sync again before signing in';
+      if(ftDescEl)ftDescEl.textContent='Your previous sync sign-in has expired. Sign in again to get the latest data.';
     }else if(!dismissed){
       showFirstTimeSection();
     }else{
@@ -5679,8 +5901,8 @@ async function autoSyncCredentialsOnLoad(){
 
   // Valid token exists — hide First Time section and auto-sync silently
   hideFirstTimeSection();
-  updateLoginCloudBanner('syncing','Auto-syncing credentials from cloud...');
-  if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--text-muted)';statusEl.textContent='Auto-syncing credentials from cloud...';}
+  updateLoginCloudBanner('syncing','Auto-syncing credentials...');
+  if(statusEl){statusEl.style.display='block';statusEl.style.color='var(--text-muted)';statusEl.textContent='Auto-syncing credentials...';}
   try{
     // Always search for the most recent backup file (clear stale cached ID)
     fileId=null;
@@ -5690,7 +5912,7 @@ async function autoSyncCredentialsOnLoad(){
       if(searchResp.ok){var searchData=await searchResp.json();if(searchData.files&&searchData.files.length>0){fileId=searchData.files[0].id;CESTISStore.setItem('schoolDashboardCloudFileId',fileId);}}
     }
     if(!fileId){
-      updateLoginCloudBanner('error','No cloud backup found. Ask your admin to save data to cloud.');
+      updateLoginCloudBanner('error','Nothing to sync yet. Ask your admin to save the data first.');
       showFirstTimeSection();
       if(statusEl){statusEl.textContent='';statusEl.style.display='none';}
       _cloudMergeCompleted=true;
@@ -5698,7 +5920,7 @@ async function autoSyncCredentialsOnLoad(){
     }
     var resp=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',{headers:{'Authorization':'Bearer '+token}});
     if(!resp.ok){
-      updateLoginCloudBanner('error','Could not reach cloud backup. Try syncing again.');
+      updateLoginCloudBanner('error','Could not sync. Try again or ask the office.');
       showFirstTimeSection();
       if(statusEl){statusEl.textContent='';statusEl.style.display='none';}
       // Do NOT release the cloud merge gate: we have a valid token and a known
@@ -5722,8 +5944,8 @@ async function autoSyncCredentialsOnLoad(){
       saveUsers(localUsers);
       usersMerged=true;
       console.log('[AutoSync] Users synced from cloud:',localUsers.length,'user(s),',added,'new');
-      updateLoginCloudBanner('synced','Cloud synced — '+formatSyncedUserList(localUsers));
-      if(statusEl){statusEl.style.color='var(--green)';statusEl.textContent='Cloud synced — '+localUsers.length+' account(s) ready';}
+      updateLoginCloudBanner('synced','Synced — '+formatSyncedUserList(localUsers));
+      if(statusEl){statusEl.style.color='var(--green)';statusEl.textContent='Synced — '+localUsers.length+' account(s) ready';}
     }
 
     // --- PAYROLL DATA MERGE — runs regardless of whether users were present in cloud ---
@@ -5757,7 +5979,7 @@ async function autoSyncCredentialsOnLoad(){
     }
 
     if(!usersMerged){
-      updateLoginCloudBanner('','Cloud connected — no user accounts in backup.');
+      updateLoginCloudBanner('','Synced — no user accounts found.');
       if(statusEl){statusEl.textContent='';statusEl.style.display='none';}
     }
     // Mark cloud merge as complete — cloud autosave is now permitted.
@@ -5856,11 +6078,11 @@ async function saveUser(){
 
   // Auto-push to cloud if connected
   if(isCloudConnected&&googleAccessToken){
-    msg+='\n\nAuto-syncing to cloud so this user can log in on other devices...';
+    msg+='\n\nAuto-syncing so this user can sign in on other computers...';
     alert(msg);
     autoSaveUsersToCloud();
   }else{
-    msg+='\n\nIMPORTANT: Connect to Cloud and Save so this user can log in on other devices.';
+    msg+='\n\nIMPORTANT: Turn on sync and save so this user can sign in on other computers.';
     alert(msg);
   }
 }
@@ -5929,7 +6151,7 @@ function renderUserManagement(){
   }else{
     html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1rem">';
     html+='<strong>Two-Factor Authentication is DISABLED</strong>';
-    html+='<p style="margin-top:.4rem;color:var(--text-dim);font-size:.82rem">Add an extra layer of security using Google Authenticator or any TOTP-compatible app.</p></div>';
+    html+='<p style="margin-top:.4rem;color:var(--text-dim);font-size:.82rem">Add an extra layer of security using an authenticator app (any TOTP-compatible app).</p></div>';
     html+='<button class="btn btn-success btn-sm" onclick="openTwoFASetup()">Enable 2FA</button>';
   }
   html+='</div>';
@@ -6173,6 +6395,8 @@ function cancelForgotPassword(){
   document.getElementById('loginStepForgotPassword').style.display='none';
   document.getElementById('loginStepOTP').style.display='none';
   document.getElementById('loginStepNewPassword').style.display='none';
+  if(pyForcedChange)pyNewPwHeader(false);
+  pyForcedChange=false;
   document.getElementById('username').value='';
   document.getElementById('password').value='';
   document.getElementById('loginError').classList.remove('show');
@@ -6229,19 +6453,21 @@ function sendOTPViaEmail(email,otp,userName){
       alert('OTP sent to your email address');
     },function(error){
       console.error('Email failed:',error);
-      alert('Email sending failed: '+(error.text||error.message||'Unknown error')+'\n\nFalling back to demo mode.');
-      showDemoOTP(otp);
+      otpSendFailed();
     });
   }else{
-    console.log('EmailJS not configured, using demo mode');
-    showDemoOTP(otp);
+    // E-mail is not set up here: the code cannot be delivered, so it is not shown either.
+    otpSendFailed();
   }
 }
 
-// Show OTP in demo mode
-function showDemoOTP(otp){
-  showOTPStep();
-  alert('DEMO MODE\n\nYour One-Time Password is:\n\n'+otp+'\n\n(In production, this would be sent to your email)\n\nThis code expires in 10 minutes.');
+// The code is NEVER shown on screen. A "demo mode" used to print it whenever
+// the e-mail could not be sent — and anyone can make the send fail (Wi-Fi off,
+// the e-mail service blocked, its free quota used up; offline it always fails),
+// then reset a payroll login. Without the e-mail, an administrator resets it.
+function otpSendFailed(){
+  currentOTP=null;
+  alert('The reset code could not be sent by e-mail.\n\nPlease contact the administrator to reset your password.');
 }
 
 // Show OTP entry step
@@ -6297,13 +6523,25 @@ async function resetPassword(){
   if(!newPw){showNewPasswordError('Please enter a new password');return;}
   if(newPw.length<6){showNewPasswordError('Password must be at least 6 characters long');return;}
   if(newPw!==confirmPw){showNewPasswordError('Passwords do not match');return;}
+  if(window.CESTISCore&&CESTISCore.accountAccess&&CESTISCore.accountAccess.isPublishedDefault(newPw)){showNewPasswordError('Choose a password that is not the published default');return;}
+  if(pyForcedChange&&newPw.length<8){showNewPasswordError('Password must be at least 8 characters long');return;}
   if(!pendingResetUser){showNewPasswordError('Session expired. Please try again.');cancelForgotPassword();return;}
   var users=loadUsers();
   var userIndex=users.findIndex(function(u){return u.username.toLowerCase()===pendingResetUser.username.toLowerCase();});
   if(userIndex!==-1){
     users[userIndex].password=await hashPassword(newPw);
+    delete users[userIndex].defaultPassword;   // a password somebody chose, not the seed
     saveUsers(users);
     currentOTP=null;otpExpiry=null;pendingResetUser=null;
+    if(pyForcedChange){
+      pyForcedChange=false;
+      pyNewPwHeader(false);
+      document.getElementById('loginStepNewPassword').style.display='none';
+      document.getElementById('loginStep1').style.display='block';
+      if(isCloudConnected&&googleAccessToken)autoSaveUsersToCloud();
+      completeLogin(users[userIndex]);
+      return;
+    }
     alert('Password reset successful! You can now log in with your new password.');
     cancelForgotPassword();
     if(isCloudConnected&&googleAccessToken)autoSaveUsersToCloud();
@@ -6618,7 +6856,8 @@ document.addEventListener('DOMContentLoaded',function(){
 </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261028e"></script>
+<script src="cestis-sync-chip.js?v=20261028d"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Staff Payslips',

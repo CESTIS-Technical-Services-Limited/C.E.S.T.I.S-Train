@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261028e"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Certificate / Transcript Requests — C.E.S.T.I.S</title>
 <style>
@@ -22,7 +22,7 @@
     --red-dim: rgba(231,76,60,0.15);
     --text-primary: #e8edf3;
     --text-secondary: #8899aa;
-    --text-muted: #556677;
+    --text-muted: #8293a7;   /* 5.0:1 on a card (was #556677, 2.7:1) — as index.html */
     --border: rgba(255,255,255,0.06);
     --border-light: rgba(255,255,255,0.1);
     --radius: 12px;
@@ -40,7 +40,7 @@
   .cr-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:16px; }
   .cr-stat { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; }
   .cr-stat .v { font-size:21px; font-weight:700; }
-  .cr-stat .l { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; }
+  .cr-stat .l { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; }
   .cr-controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
   .cr-input, .cr-select {
     background:var(--bg-input); border:1px solid var(--border-light); color:var(--text-primary);
@@ -49,16 +49,17 @@
   .cr-input:focus, .cr-select:focus { border-color:var(--accent); }
   .cr-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
   table.cr-table { width:100%; border-collapse:collapse; font-size:13px; }
-  .cr-table th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); padding:11px 14px; border-bottom:1px solid var(--border-light); }
+  .cr-table th { text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); padding:11px 14px; border-bottom:1px solid var(--border-light); }
   .cr-table td { padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
   .cr-table tr:last-child td { border-bottom:none; }
   .cr-table tr:hover td { background:rgba(255,255,255,0.02); }
-  .cr-badge { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.4px; padding:3px 9px; border-radius:20px; text-transform:uppercase; white-space:nowrap; }
+  .cr-badge { display:inline-block; font-size:12px; font-weight:700; letter-spacing:0.4px; padding:3px 9px; border-radius:20px; text-transform:uppercase; white-space:nowrap; }
   .b-pending    { background:var(--accent-dim); color:var(--accent); }
   .b-processing { background:var(--blue-dim); color:var(--blue); }
   .b-ready      { background:var(--green-dim); color:var(--green); }
   .b-collected  { background:rgba(255,255,255,0.07); color:var(--text-secondary); }
   .b-declined   { background:var(--red-dim); color:var(--red); }
+  .b-cancelled  { background:rgba(255,255,255,0.07); color:var(--text-secondary); }
   .t-transcript   { background:var(--blue-dim); color:var(--blue); }
   .t-certificate  { background:var(--purple); background:rgba(155,89,182,0.15); color:#c39bd3; }
   .t-both         { background:var(--accent-dim); color:var(--accent); }
@@ -69,6 +70,14 @@
   @keyframes crPulse { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
   #crToast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:#0f1820; color:var(--text-primary); border:1px solid var(--border-light); border-left:4px solid var(--green); border-radius:10px; padding:12px 18px; font-size:13px; box-shadow:0 10px 30px rgba(0,0,0,0.5); opacity:0; pointer-events:none; transition:opacity .25s; z-index:99999; }
   #crToast.show { opacity:1; }
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:10.5px"], [style*="font-size: 10.5px"] { font-size:12px !important; }
+}
 </style>
 </head>
 <body>
@@ -93,6 +102,7 @@
     <option value="ready">Ready for Collection</option>
     <option value="collected">Collected</option>
     <option value="declined">Declined</option>
+    <option value="cancelled">Withdrawn by the trainee</option>
   </select>
   <select class="cr-select" id="crTypeFilter" onchange="render()">
     <option value="all">All types</option>
@@ -118,7 +128,13 @@
 var T = window.CESTISCore && CESTISCore.Transcript;
 var KEY = T ? T.KEYS.requests : 'voctrain_certTranscriptRequests';
 function param(n) { try { return new URLSearchParams(location.search).get(n) || ''; } catch (e) { return ''; } }
-var ACTOR = param('actor') || 'Admin';
+// Staff only, and only inside a live signed-in session — this queue lists every
+// trainee's requests, and the page used to open for anyone who typed its
+// address (CESTISCore.sessionAccess). The actor is the signed-in account.
+var VIEWER = (window.CESTISCore && CESTISCore.sessionAccess)
+  ? CESTISCore.sessionAccess.forPage({ allowed: ['admin', 'adminstaff'] })
+  : { ok: false, message: 'Shared data core failed to load. Please refresh.' };
+var ACTOR = (VIEWER.ok && VIEWER.account && VIEWER.account.name) || param('actor') || 'Admin';
 var requests = [];
 
 function esc(s) {
@@ -137,7 +153,16 @@ function load() {
   try { requests = JSON.parse(CESTISStore.getItem(KEY) || '[]'); } catch (e) { requests = []; }
   if (!Array.isArray(requests)) requests = [];
 }
+/* Write `requests` back — merged, request by request, into the queue as it is
+   stored RIGHT NOW (T.mergeRequestLists). Writing this page's copy of the
+   whole list (loaded up to five seconds earlier, refreshed only when its
+   length changed) dropped any request a trainee raised meanwhile and undid
+   status changes made in another tab. */
 function save() {
+  var stored = [];
+  try { stored = JSON.parse(CESTISStore.getItem(KEY) || '[]'); } catch (e) { stored = []; }
+  if (!Array.isArray(stored)) stored = [];
+  requests = (T && T.mergeRequestLists) ? T.mergeRequestLists(stored, requests) : requests;
   CESTISStore.setItem(KEY, JSON.stringify(requests));
   try { window.top.postMessage({ type: 'transcript-data-updated', requests: true }, '*'); } catch (e) {}
 }
@@ -161,6 +186,11 @@ function renderStats() {
 }
 
 function render() {
+  if (!VIEWER.ok) {
+    document.getElementById('crRows').innerHTML = '<tr><td colspan="6"><div class="cr-empty"><div class="big">🔒</div>' +
+      esc(VIEWER.message || 'Please sign in to the C.E.S.T.I.S dashboard first.') + '</div></td></tr>';
+    return;
+  }
   renderStats();
   var q = (document.getElementById('crSearch').value || '').toLowerCase().trim();
   var st = document.getElementById('crStatusFilter').value;
@@ -180,9 +210,11 @@ function render() {
     return;
   }
   var statuses = T ? T.REQUEST_STATUSES : ['pending', 'processing', 'ready', 'collected', 'declined'];
-  var labels = T ? T.REQUEST_STATUS_LABELS : {};
+  // A trainee may withdraw a request of their own that is still pending
+  // ('cancelled', sent from their own device): it is shown as what it is, and
+  // the office can still move it on.
+  var labels = Object.assign({ cancelled: 'Withdrawn by the trainee' }, T ? T.REQUEST_STATUS_LABELS : {});
   tbody.innerHTML = list.map(function (r) {
-    var idx = requests.indexOf(r);
     return '<tr>' +
       '<td style="font-weight:600;">' + esc(r.studentName || r.studentId) + '</td>' +
       '<td style="color:var(--text-secondary);">' + esc(r.course || '—') + '</td>' +
@@ -190,8 +222,8 @@ function render() {
         (r.handledBy ? '<div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">last update: ' + esc(r.handledBy) + '</div>' : '') + '</td>' +
       '<td><span class="cr-badge t-' + esc(r.type) + '">' + esc((T && T.REQUEST_TYPES[r.type]) || r.type) + '</span></td>' +
       '<td><span class="cr-badge b-' + esc(r.status) + '">' + esc(labels[r.status] || r.status) + '</span></td>' +
-      '<td><select class="cr-select sm" onchange="setStatus(' + idx + ', this.value)">' +
-        statuses.map(function (s) {
+      '<td><select class="cr-select sm" onchange="setStatus(' + crJsArg(r.id) + ', this.value)">' +
+        (statuses.indexOf(r.status) === -1 && r.status === 'cancelled' ? statuses.concat(['cancelled']) : statuses).map(function (s) {
           return '<option value="' + s + '"' + (s === r.status ? ' selected' : '') + '>' + esc(labels[s] || s) + '</option>';
         }).join('') +
       '</select></td>' +
@@ -199,12 +231,24 @@ function render() {
   }).join('');
 }
 
-function setStatus(idx, status) {
-  var r = requests[idx];
-  if (!r) return;
+// A request is named by its id, never by its position in a list that a
+// background reload can reorder.
+function crJsArg(v) {
+  if (window.CESTISCore && CESTISCore.html) return CESTISCore.html.jsArg(v);
+  return esc(JSON.stringify(String(v == null ? '' : v)));
+}
+function setStatus(id, status) {
+  if (!VIEWER.ok) return;
+  load();                                   // the queue as it is stored now
+  var r = requests.filter(function (x) { return x && x.id === id; })[0];
+  if (!r) { toast('That request is no longer in the queue'); render(); return; }
   r.status = status;
   r.handledBy = ACTOR;
   r.handledAt = new Date().toISOString();
+  // Each request carries its own edit time: the sync merges requests one by
+  // one, newest edit winning, so this change and another office's change to a
+  // different request both survive.
+  r.updatedAt = r.handledAt;
   save();
   render();
   toast((r.studentName || 'Request') + ' → ' + ((T && T.REQUEST_STATUS_LABELS[status]) || status));
@@ -213,29 +257,52 @@ function setStatus(idx, status) {
 /* live updates: storage events from other tabs / the trainee's device sync,
    plus a polling safety net for IndexedDB-only writes. */
 window.addEventListener('storage', function (e) {
-  if (e.key === KEY) { load(); render(); }
+  if (e.key === KEY && VIEWER.ok) { load(); render(); }
 });
 var lastLen = -1;
 setInterval(function () {
   var raw = '';
   try { raw = String(CESTISStore.getItem(KEY) || ''); } catch (e) {}
-  if (raw.length !== lastLen) { lastLen = raw.length; load(); render(); }
+  if (VIEWER.ok && raw.length !== lastLen) { lastLen = raw.length; load(); render(); }
 }, 5000);
 
-function boot() { load(); render(); }
+function boot() { if (VIEWER.ok) load(); render(); }
 document.addEventListener('DOMContentLoaded', function () {
   if (window.CESTISStore && typeof CESTISStore.whenReady === 'function') CESTISStore.whenReady(boot);
   else boot();
 });
 </script>
 
+<!-- MegaData (pilot page): shim telemetry in legacy mode; DAL primary with a
+     legacy mirror once the broker is configured and bootstrap is sealed.
+     docs/02-MEGADATA-ARCHITECTURE.md §12/§14, docs/04 §8. -->
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/ctr-model.js?v=1"></script>
+<script src="megadata/pages/ctr-page.js?v=1"></script>
+
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261028e"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Certificate / Transcript Requests',
   file: 'CESTIS_Transcript_Requests.json',
-  keys: ['voctrain_certTranscriptRequests']
+  readOnly: !(typeof VIEWER !== 'undefined' && VIEWER.ok),   // no session, no pushes
+  keys: ['voctrain_certTranscriptRequests'],
+  // Merged request by request (CESTISCore.pageCloud RECORD_KEYS), not as one
+  // list where the later save wins whole.
+  records: true,
+  // A request is about a trainee on a programme, both owned elsewhere: pulled
+  // from Drive here, never written back.
+  reads: ['voctrain_students', 'voctrain_skillAreas', 'voctrain_deletedCentreIds'],
+  // Requests a trainee sent from their own device arrive with a pull: show them.
+  onRestore: function () { try { if (VIEWER.ok) { load(); render(); } } catch (e) {} }
 });
 </script>
 </body>

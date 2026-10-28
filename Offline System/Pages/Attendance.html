@@ -4,24 +4,33 @@
   ----------------------------------------------------------------------------
   Fetched by index.html and injected into the mount slot
   (<div class="cestis-mount" data-feature="attendance" data-prefix="admin">).
-  On mount, index.html sets #attendanceDate to today, populates the
-  #attendanceCourseFilter options (populateCourseDropdowns), and fills the table
-  (renderAttendancePage). Keep ids attendanceSummary / attendanceDate /
-  attendanceCourseFilter / attendanceTableBody / attCount / weeklyAttChart.
+  On mount, index.html sets #attendanceDate to today (or the date last picked),
+  populates the #attendanceCourseFilter options (populateCourseDropdowns), draws
+  the week strip and fills the table (renderAttendancePage) with the WEEK of the
+  picked date — one mark per trainee per date. Keep ids attendanceSummary /
+  attendanceDate / attendanceCourseFilter / attendanceTableHead /
+  attendanceTableBody / attCount / weeklyAttChart / attendanceLiveClasses /
+  attendanceSaveState / attendanceShowAll.
   All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
   ============================================================================
 -->
+<!-- The week strip (previous / this / next week) is drawn into this slot. -->
 <div id="attendanceQuarterBar"></div>
 <div class="attendance-summary" id="attendanceSummary"></div>
-<div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
-  <label style="font-size:13px;font-weight:600;">Date:</label>
+<div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
+  <label style="font-size:13px;font-weight:600;" for="attendanceDate">Date:</label>
   <input type="date" class="form-control" style="width:180px;" id="attendanceDate" onchange="onAttendanceDateChange(this.value)">
   <select class="form-control" style="width:200px;" id="attendanceCourseFilter" onchange="renderAttendancePage()"><option value="all">All Courses</option></select>
+  <button class="btn btn-success" onclick="attendanceMarkAllToday('admin')" title="Every trainee listed who is not yet marked on the picked date is marked present">✓ Mark all present (picked date)</button>
   <button class="btn btn-primary" onclick="saveAttendance()">Save Attendance</button>
-  <button class="btn-export" onclick="exportStudentsCSV()">📄 Export</button>
+  <button class="btn-export" onclick="exportAttendanceRegisterCSV('admin')">📄 Export register (CSV)</button>
+  <button class="btn-export" onclick="exportStudentsCSV()">📄 Export trainee list</button>
+  <label style="font-size:12px;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="attendanceShowAll" onchange="attendanceToggleShowAll(this.checked)"> Show every trainee</label>
+  <span id="attendanceSaveState" style="font-size:12px;"></span>
 </div>
+<div id="attendanceLiveClasses"></div>
 <div class="card"><div class="card-header"><h3>Daily Attendance</h3><span style="font-size:13px;color:var(--text-muted);" id="attCount"></span></div>
-  <div class="table-wrapper"><table class="attendance-table"><thead><tr><th>Student</th><th>ID</th><th>Course</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></thead><tbody id="attendanceTableBody"></tbody></table></div>
+  <div class="table-wrapper"><table class="attendance-table tbl-phone"><thead id="attendanceTableHead"><tr><th>Student</th><th>ID</th><th>Course</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></thead><tbody id="attendanceTableBody"></tbody></table></div>
 </div>
 <div class="card"><div class="card-header"><h3>Weekly Attendance Chart</h3></div>
   <div class="bar-chart" id="weeklyAttChart"></div>

@@ -20,6 +20,7 @@
   <div class="tab" onclick="switchSettingsTab(this,'staffaccess')">Admin Staff Access</div>
   <div class="tab" onclick="switchSettingsTab(this,'datamanagement')">Data Management</div>
   <div class="tab" onclick="switchSettingsTab(this,'googleverification')">Verification &amp; Links</div>
+  <div class="tab" onclick="switchSettingsTab(this,'traineegate')">Trainee Sign-in from Anywhere</div>
   <div class="tab" onclick="switchSettingsTab(this,'maintenance')">Maintenance Mode</div>
 </div>
 
@@ -29,16 +30,49 @@
     <div class="form-group"><label>Institution Name</label><input type="text" class="form-control" id="settInstitution" value="C.E.S.T.I.S LMS - Community Training Intervention"></div>
     <div class="form-group"><label>Administrator Email</label><input type="email" class="form-control" id="settAdminEmail" value="admin@heartlms.edu.jm"></div>
     <div class="form-group"><label>Academic Year</label><select class="form-control" id="settAcadYear"><option>2025/2026</option><option>2024/2025</option></select></div>
-    <div class="form-group"><label>Video Conference Provider</label><select class="form-control" id="settVcProvider"><option>Built-in (WebRTC)</option><option>Zoom Integration</option><option>Microsoft Teams</option><option>Google Meet</option></select></div>
+    <div class="form-group"><label>Video Conference Provider</label><select class="form-control" id="settVcProvider"><option>Built-in (WebRTC)</option></select>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+        Classes and meetings run in the built-in conference room; a Large Class runs on the video server named below.
+      </p>
+    </div>
     <div class="form-group">
-      <label>Conference Server (optional)</label>
+      <label>Video server address (optional)</label>
       <input type="text" class="form-control" id="settVcSignalling" placeholder="conference.yourcentre.org">
       <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
         Before a class can start, the two browsers have to be introduced to each other, and that is
-        done by a server. Left blank, the Centre uses a free public one — which means every class,
+        done by a video server. Left blank, the Centre uses a free public one — which means every class,
         staff meeting and all-staff conference stops if that public service is busy or unreachable.
-        Name your own server here and it is tried first, with the public one kept as a fallback.
+        Name the Centre's own video server here and it is tried first, with the public one kept as a fallback.
         Accepts <code>host</code>, <code>host:port</code> or a full address.
+      </p>
+    </div>
+    <div class="form-group">
+      <label>Relay servers (TURN, optional)</label>
+      <textarea class="form-control" id="settVcTurn" rows="3" spellcheck="false" style="font-family:monospace;font-size:12px;" placeholder="turn:relay.yourcentre.org:3478 username password"></textarea>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+        Some networks &mdash; many phones on mobile data &mdash; cannot be reached directly, and a call to them only
+        connects through a relay server. There is no longer a free public one, so without a relay of the Centre's own
+        those calls fail (the room says so when it happens). One per line:
+        <code>turn:host:port username password</code> (or <code>turns:</code>). A free, self-hosted
+        <em>coturn</em> relay server is enough. Stored with the Centre's settings, never in the
+        published code.
+      </p>
+    </div>
+    <div class="form-group">
+      <label>Large Class video server address (optional)</label>
+      <input type="text" class="form-control" id="settVcLargeBase" placeholder="https://meet.yourcentre.org/">
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+        A Large Class runs on a Jitsi video server. Left blank it uses the free public <code>meet.jit.si</code>,
+        which no longer supports meetings embedded in another site: it can ask the host to sign in and end the
+        meeting after a few minutes. Name the Centre's own Jitsi video server here (an <code>https://</code> address).
+      </p>
+    </div>
+    <div class="form-group">
+      <label>Large Class room password phrase (optional)</label>
+      <input type="text" class="form-control" id="settVcRoomSalt" autocomplete="off" placeholder="Any phrase only this Centre knows">
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+        Mixed into each Large Class room's password, so a room cannot be entered by someone who only guesses its
+        address. Change it only between classes: every device must hold the same phrase.
       </p>
     </div>
     <button class="btn btn-primary" onclick="saveSystemSettings()">Save Changes</button>
@@ -151,7 +185,7 @@
   <div class="card">
     <div class="card-header"><h3>User Accounts</h3><span style="font-size:13px;color:var(--text-muted);" id="umCount">Showing 0 users</span></div>
     <div class="table-wrapper">
-      <table class="um-table">
+      <table class="um-table tbl-phone tbl-phone-col2">
         <thead><tr>
           <th style="width:40px;"><input type="checkbox" class="um-cb" id="umSelectAllCb" onchange="toggleUmSelectAll(this.checked)"></th>
           <th>User</th><th>Role</th><th>Username</th><th>Programme</th><th>Status</th><th>Actions</th>
@@ -209,14 +243,14 @@
 
 <div id="settingsTabGoogleVerification" style="display:none;">
   <div class="card" style="max-width:700px;">
-    <div class="card-header"><h3>Google Site Verification</h3></div>
+    <div class="card-header"><h3>Search Engine Site Verification</h3></div>
     <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
-      Add your Google site verification meta tag to verify ownership of this site with Google Search Console.
-      Paste the full meta tag provided by Google (e.g. <code style="background:var(--bg-input);padding:2px 6px;border-radius:4px;">&lt;meta name="google-site-verification" content="..." /&gt;</code>).
+      Add the site verification meta tag your search engine gives you, to prove this site belongs to the Centre.
+      Paste the full meta tag exactly as you were given it (e.g. <code style="background:var(--bg-input);padding:2px 6px;border-radius:4px;">&lt;meta name="…-site-verification" content="…" /&gt;</code>).
     </p>
     <div class="form-group">
-      <label>Google Verification Meta Tag</label>
-      <textarea class="form-control" id="settGoogleVerificationHtml" rows="4" placeholder='<meta name="google-site-verification" content="your-verification-code" />' style="font-family:monospace;font-size:13px;resize:vertical;"></textarea>
+      <label>Site Verification Meta Tag</label>
+      <textarea class="form-control" id="settGoogleVerificationHtml" rows="4" placeholder='<meta name="…-site-verification" content="your-verification-code" />' style="font-family:monospace;font-size:13px;resize:vertical;"></textarea>
     </div>
     <div id="gvPreview" style="display:none;margin-bottom:16px;padding:12px;border-radius:8px;background:var(--bg-input);border:1px solid var(--accent-dim);">
       <div style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:6px;">ACTIVE VERIFICATION TAG</div>
@@ -232,17 +266,78 @@
     <div class="card-header"><h3>Certificate Verification Link</h3></div>
     <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
       Every certificate carries a QR code that opens this site's <strong>Verify / Download Certificate</strong> page for that certificate.
-      Leave this blank to use the address of the page the certificate is made from. Set it when certificates are produced away from the public site
-      — on the offline system, or from a local copy — so the code still points at the public address.
+      Leave this blank to use the address of the page the certificate is made from. Set it when certificates are produced from another copy of the site,
+      so the code still points at the public address.
     </p>
     <div class="form-group">
       <label>Public address of this site</label>
-      <input type="text" class="form-control" id="settCertVerifyUrl" placeholder="https://your-site.github.io/C.E.S.T.I.S-Train/index.html">
+      <input type="text" class="form-control" id="settCertVerifyUrl" placeholder="https://your-centre-site.example/index.html">
     </div>
     <div id="certVerifyUrlPreview" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;word-break:break-all;"></div>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-primary" onclick="saveCertVerifyUrl()">Save</button>
       <button class="btn btn-secondary" onclick="clearCertVerifyUrl()">Use This Page's Address</button>
+    </div>
+  </div>
+</div>
+
+<div id="settingsTabTraineeGate" style="display:none;">
+  <div class="card gate-card" id="gateCard" style="max-width:760px;">
+    <div class="card-header"><h3>Trainee sign-in from anywhere</h3><span class="badge badge-blue" id="gateOnBadge">Off</span></div>
+    <p class="gate-lead">Trainees sign in on their own phone or computer, wherever they are, and see only their own records and tests. Set it up once, then turn it on.</p>
+    <div class="gate-status gate-tone-muted" id="gateStatusLine" role="status" aria-live="polite">Not set up</div>
+    <div class="gate-step">
+      <div class="gate-step-n" aria-hidden="true">1</div>
+      <div class="gate-step-body">
+        <h4>Copy the setup code</h4>
+        <p>Then follow the setup sheet. It takes about ten minutes, once.</p>
+        <div class="gate-actions">
+          <button class="btn btn-secondary" id="gateCopyCodeBtn" onclick="gateCopySetupCode()">Copy the setup code</button>
+          <a class="btn btn-secondary" id="gateSetupSheet" href="trainee-gate/SETUP.md" target="_blank" rel="noopener noreferrer">Setup sheet</a>
+        </div>
+      </div>
+    </div>
+    <div class="gate-step">
+      <div class="gate-step-n" aria-hidden="true">2</div>
+      <div class="gate-step-body">
+        <h4>Paste the address, then check it</h4>
+        <p>The last step of the setup sheet gives you the address.</p>
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="gateAddress">Address</label>
+          <div class="gate-address-row">
+            <input type="url" class="form-control" id="gateAddress" placeholder="https://…/exec" autocomplete="off" spellcheck="false">
+            <button class="btn btn-primary" id="gateCheckBtn" onclick="gateCheckNow()">Check</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="gate-step">
+      <div class="gate-step-n" aria-hidden="true">3</div>
+      <div class="gate-step-body">
+        <h4>Turn it on</h4>
+        <p>While it is off, trainees sign in exactly as before.</p>
+        <p class="gate-note" id="gateNotReadyNote">Trainees can use this after the next update. You can do the setup and press Check now.</p>
+        <button class="btn btn-primary" id="gateToggleBtn" onclick="gateToggle()">Turn on</button>
+      </div>
+    </div>
+    <div class="gate-linkbox" id="gateLinkBox" hidden>
+      <h4 class="gate-h4">Trainees&rsquo; sign-in link</h4>
+      <div class="gate-link">
+        <img id="gateQrImg" alt="Sign-in code for trainees" width="180" height="180" hidden>
+        <div class="gate-link-body">
+          <p class="gate-qr-caption">Sign in on your own phone: scan this code.</p>
+          <input type="text" class="form-control" id="gateLinkText" readonly aria-label="Trainees&rsquo; sign-in link">
+          <div class="gate-actions" style="margin-top:10px;">
+            <button class="btn btn-secondary" onclick="gateCopyLink()">Copy link</button>
+            <button class="btn btn-secondary" id="gatePrintBtn" onclick="gatePrintQr()">Print</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="gate-facts">
+      <div id="gatePublishLine">Records sent to trainees: &mdash;</div>
+      <div id="gateWaitingLine">Trainee work waiting for a decision: 0</div>
+      <div id="gateWaitingList" hidden></div>
     </div>
   </div>
 </div>

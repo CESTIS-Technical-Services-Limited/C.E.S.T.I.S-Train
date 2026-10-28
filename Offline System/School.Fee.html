@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-<script src="cestis-core.js?v=20260802a"></script>
+<script src="cestis-core.js?v=20261028e"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CESTIS - School Fee Management System</title>
     
@@ -496,7 +496,7 @@
         /* A fee set automatically from the previous intake, until edited. */
         .fee-carried-tag {
             display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 9px;
-            font-size: 11px; font-weight: 600; color: #0D47A1;
+            font-size: 12px; font-weight: 600; color: #0D47A1;
             background: rgba(13, 71, 161, 0.08); border: 1px solid rgba(13, 71, 161, 0.25);
         }
         .fee-carry-note { margin: -0.25rem 0 0.75rem; font-size: 0.85rem; color: var(--heading-color); min-height: 1em; }
@@ -1072,6 +1072,46 @@
             .nav-tab {
                 width: 100%;
             }
+        }
+
+        /* Phones: the Students and Payments lists showed the date, the receipt
+           number and part of the name, with the amount, the balance and the
+           buttons past the edge. They now scroll sideways inside their own
+           box (never the page) with the trainee's name pinned on the left
+           while the figures slide under it, rows a single line high, and the
+           row buttons at least 44px so a thumb can hit them. Screen only: a
+           printed page can be narrower than 768px too. */
+        .fee-phone-sub { display: none; }
+        @media screen and (max-width: 768px) {
+            #studentsTable th, #studentsTable td,
+            #paymentsTable th, #paymentsTable td { padding: 0.6rem 0.7rem; white-space: nowrap; }
+            /* The ID, skill area, date, receipt number and method move into a
+               line under the name; the money columns sit right beside it. */
+            #studentsTable th:nth-child(2), #studentsTable td:nth-child(2),
+            #studentsTable th:nth-child(4), #studentsTable td:nth-child(4),
+            #studentsTable th:nth-child(5), #studentsTable td:nth-child(5),
+            #studentsTable th:nth-child(9), #studentsTable td:nth-child(9),
+            #paymentsTable th:nth-child(1), #paymentsTable td:nth-child(1),
+            #paymentsTable th:nth-child(2), #paymentsTable td:nth-child(2),
+            #paymentsTable th:nth-child(4), #paymentsTable td:nth-child(4),
+            #paymentsTable th:nth-child(5), #paymentsTable td:nth-child(5),
+            #paymentsTable th:nth-child(7), #paymentsTable td:nth-child(7) { display: none; }
+            .fee-phone-sub { display: block; margin-top: 2px; font-size: 0.8rem; font-weight: 400; color: var(--text-secondary, #5b6b80); }
+            #studentsTable td:nth-child(3), #paymentsTable td:nth-child(3) {
+                position: sticky; left: 0; z-index: 2; background: var(--bg-card);
+                white-space: normal; min-width: 130px; box-shadow: inset -1px 0 0 var(--border-color);
+            }
+            #studentsTable th:nth-child(3), #paymentsTable th:nth-child(3) { left: 0; z-index: 11; }
+            #studentsTable td[colspan], #paymentsTable td[colspan] { display: table-cell; position: static; white-space: normal; }
+            #studentsTable .action-btn, #paymentsTable .action-btn { min-height: 44px; min-width: 44px; padding: 0.5rem 0.7rem; margin: 0 0.15rem; }
+            #studentsTable input[type="checkbox"] { width: 22px; height: 22px; }
+            /* Less frame around the lists, so more of each row is on screen. */
+            body { padding: 0.5rem; }
+            .module { padding: 1rem 0.75rem; }
+            /* The Record Payment form: a long trainee name in the drop-down
+               stretched its column to ~600px and the whole page panned sideways. */
+            .form-grid { grid-template-columns: minmax(0, 1fr); }
+            .form-group input, .form-group select, .form-group textarea { min-width: 0; max-width: 100%; }
         }
 
         /* ============================================
@@ -1695,7 +1735,7 @@
             display: none;
             align-items: center;
             gap: 0.35rem;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             color: #93c5fd;
             padding: 0.15rem 0.5rem;
             background: rgba(59, 130, 246, 0.15);
@@ -1721,7 +1761,7 @@
         }
 
         .auto-sync-countdown {
-            font-size: 0.65rem;
+            font-size: 0.75rem;
             color: #60a5fa;
             font-variant-numeric: tabular-nums;
         }
@@ -2148,7 +2188,22 @@
                 box-shadow: 0 0 22px rgba(255, 23, 23, 1), 0 0 44px rgba(255, 23, 23, 0.8), 0 0 70px rgba(255, 23, 23, 0.5);
             }
         }
-    </style>
+    
+
+/* Minimum readable text (12px). Many sizes in this page's templates are set
+   inline (style="font-size:11px"), where no stylesheet rule reaches them:
+   this lifts each of those spellings to 12px. Screen only - a printed
+   page, and every printed document (its own window), keeps its sizes. */
+@media screen {
+  [style*="font-size:0.6rem"], [style*="font-size: 0.6rem"], [style*="font-size:0.7rem"],
+  [style*="font-size: 0.7rem"], [style*="font-size:10px"], [style*="font-size: 10px"], [style*="font-size:11px"],
+  [style*="font-size: 11px"] { font-size:12px !important; }
+}
+</style>
+<!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
+<script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
+<!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
+<link rel="stylesheet" href="cestis-theme.css?v=20261028d">
 </head>
 <body>
 <script>
@@ -2159,8 +2214,12 @@
    The old toggle stored 'false' for light; that value is deliberately not
    honoured, so every device moves to rich blue once. */
 (function () {
-    var light = false;
-    try { light = CESTISStore.getItem('darkMode') === 'light'; } catch (e) {}
+    // The dashboard's Light mode (chosen on this device with its sun/moon
+    // button; the shared look then draws this page light too) is light here
+    // as well, so the charts are built with dark lettering.
+    var de = document.documentElement;
+    var light = !!(de && de.getAttribute && de.getAttribute('data-theme') === 'light');
+    try { light = light || CESTISStore.getItem('darkMode') === 'light'; } catch (e) {}
     if (!light) document.body.classList.add('dark-mode');
 })();
 </script>
@@ -2177,39 +2236,42 @@
                 <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: flex-end;">
                     <span id="currentUserDisplay" style="font-size: 0.9rem; color: #ffffff; font-weight: 600;"></span>
 
+                    <!-- Saved / waiting / offline: cestis-sync-chip.js -->
+                    <span data-cestis-sync-chip></span>
+
                     <!-- Cloud Sync Controls -->
                     <div class="cloud-sync-container" id="cloudSyncContainer">
                         <div class="cloud-status" id="cloudStatus">
                             <span class="cloud-status-dot" id="cloudStatusDot"></span>
-                            <span id="cloudStatusText">Not connected</span>
+                            <span id="cloudStatusText">Not synced yet</span>
                         </div>
 
                         <div id="cloudNotConnected">
                             <button class="cloud-sync-btn connect-btn" onclick="connectToGoogleDrive()">
-                                <span>☁️</span>
-                                <span>Cloud</span>
+                                <span>🔄</span>
+                                <span>Sync</span>
                             </button>
                         </div>
 
                         <div id="cloudConnected" style="display: none;">
                             <div class="cloud-dropdown">
                                 <button class="cloud-sync-btn" onclick="toggleCloudMenu()">
-                                    <span id="cloudMenuIcon">☁️</span>
-                                    <span>Cloud</span>
+                                    <span id="cloudMenuIcon">🔄</span>
+                                    <span>Sync</span>
                                     <span style="font-size: 0.6rem;">▼</span>
                                 </button>
                                 <div class="cloud-dropdown-content" id="cloudDropdownMenu">
                                     <div class="cloud-dropdown-item" onclick="mergeToCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;">
                                         <span>🔀</span>
-                                        <span>Merge to Cloud</span>
+                                        <span>Merge & Send My Changes</span>
                                     </div>
                                     <div class="cloud-dropdown-item" onclick="syncFromCloud()">
                                         <span>🔄</span>
-                                        <span>Sync from Cloud (Replace)</span>
+                                        <span>Get Latest (Replace Mine)</span>
                                     </div>
                                     <div class="cloud-dropdown-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;">
                                         <span>🔀</span>
-                                        <span>Smart Merge from Cloud</span>
+                                        <span>Smart Merge Latest Changes</span>
                                     </div>
                                     <div class="cloud-dropdown-item" onclick="browseBackupFiles()">
                                         <span>📁</span>
@@ -2217,7 +2279,7 @@
                                     </div>
                                     <div class="cloud-dropdown-item" onclick="restoreFeeRecordsFromDrive()" style="background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%); color: white;">
                                         <span>♻️</span>
-                                        <span>Restore Fee Records from Drive</span>
+                                        <span>Restore Fee Records from Backup</span>
                                     </div>
                                     <div class="cloud-dropdown-divider"></div>
                                     <div class="last-sync-info" id="lastSyncInfo">
@@ -2874,7 +2936,7 @@
             <!-- 2FA Settings Section for Current User -->
             <div class="twofa-settings-section">
                 <h3>🔐 Your Two-Factor Authentication</h3>
-                <p>Protect your account with Google Authenticator or any TOTP-compatible app.</p>
+                <p>Protect your account with an authenticator app (any TOTP-compatible app).</p>
                 <div id="current2FAStatus">
                     <!-- 2FA status will be rendered here by JavaScript -->
                 </div>
@@ -3126,13 +3188,13 @@
     <div id="smartMergeModal" class="modal">
         <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
             <div class="modal-header" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%);">
-                <h2 style="color: white;">Smart Merge from Cloud</h2>
+                <h2 style="color: white;">Smart Merge Latest Changes</h2>
                 <button class="close-btn" onclick="closeModal('smartMergeModal')" style="color: white;">&times;</button>
             </div>
             <div style="padding: 1.5rem; overflow-y: auto; flex: 1;">
                 <div id="smartMergeLoading" style="text-align: center; padding: 2rem;">
                     <div style="font-size: 2rem; margin-bottom: 1rem;">🔄</div>
-                    <p>Analyzing cloud data and detecting duplicates...</p>
+                    <p>Comparing the shared data and detecting duplicates...</p>
                 </div>
                 <div id="smartMergeContent" style="display: none;">
                     <!-- Summary Section -->
@@ -3166,13 +3228,13 @@
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                                 <input type="checkbox" id="mergeUpdateExisting" style="width: 18px; height: 18px;">
-                                <span>Update existing records with newer cloud data (if timestamps available)</span>
+                                <span>Update existing records with newer shared data (if timestamps available)</span>
                             </label>
                         </div>
                         <div class="form-group">
                             <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                                 <input type="checkbox" id="mergeAddNewOnly" checked style="width: 18px; height: 18px;">
-                                <span>Add new unique records from cloud</span>
+                                <span>Add new unique shared records</span>
                             </label>
                         </div>
                     </div>
@@ -3425,7 +3487,7 @@
         <div class="twofa-modal">
             <div class="twofa-modal-header">
                 <h2>Set Up Two-Factor Authentication</h2>
-                <p>Scan the QR code with Google Authenticator or any TOTP app</p>
+                <p>Scan the QR code with an authenticator app (any TOTP app)</p>
             </div>
 
             <div class="twofa-qr-container">
@@ -3551,10 +3613,13 @@
             } else {
                 users = JSON.parse(savedUsers);
             }
+            if (typeof feeSyncRebaseline === 'function') feeSyncRebaseline(['users']);
         }
 
         // Save users to localStorage
         function saveUsers() {
+            // Date what changed, so the newer copy of an account wins a merge.
+            if (typeof feeSyncStamp === 'function') feeSyncStamp(['users']);
             CESTISStore.setItem('cestiUsers', JSON.stringify(users));
         }
 
@@ -3926,21 +3991,23 @@
                     alert('OTP sent to your email address');
                 }, function(error) {
                     console.error('Email failed:', error);
-                    // Show error but still allow user to continue with demo OTP
-                    alert('Email sending failed: ' + (error.text || error.message || 'Unknown error') + '\n\nFalling back to demo mode.');
-                    showDemoOTP(otp);
+                    otpSendFailed();
                 });
             } else {
-                // Demo mode - show OTP in alert (EmailJS not configured)
-                console.log('EmailJS not configured, using demo mode');
-                showDemoOTP(otp);
+                // E-mail is not set up here: the code cannot be delivered, so it is not shown either.
+                otpSendFailed();
             }
         }
 
-        // Show OTP in demo mode
-        function showDemoOTP(otp) {
-            showOTPStep();
-            alert('DEMO MODE\n\nYour One-Time Password is:\n\n' + otp + '\n\n(In production, this would be sent to your email)\n\nThis code expires in 10 minutes.');
+        // The code is NEVER shown on screen. A "demo mode" used to print it
+        // whenever the e-mail could not be sent — and anyone can make the send
+        // fail (switch the Wi-Fi off, block the e-mail service, use up its free
+        // quota; on the Offline System it always fails), then type the bursar's
+        // or administrator's e-mail and set themselves a new password. Without
+        // the e-mail, a reset is done by an administrator.
+        function otpSendFailed() {
+            currentOTP = null;
+            alert('The reset code could not be sent by e-mail.\n\nPlease contact the administrator to reset your password.');
         }
 
         // Show OTP entry step
@@ -4364,9 +4431,11 @@
             if (saved) {
                 feeStructure = JSON.parse(saved);
             }
+            if (typeof feeSyncRebaseline === 'function') feeSyncRebaseline(['feeStructure']);
         }
 
         function saveFeeStructure() {
+            if (typeof feeSyncStamp === 'function') feeSyncStamp(['feeStructure']);
             CESTISStore.setItem('cestiFeeStructure', JSON.stringify(feeStructure));
         }
 
@@ -4647,19 +4716,49 @@
         // here, once, with the centre that was running on the day they enrolled,
         // so nothing afterwards can move them. Only blanks are filled: a stamp
         // already on a record is never rewritten.
+        //
+        // The fee record of a DASHBOARD trainee is bound where the dashboard
+        // holds them: the intake stamped on their dashboard record, or — for a
+        // record this page made from theirs — the centre of exactly the name it
+        // copied. The looser reading of a name is for this page's own shorthand
+        // ("WELDING L2"); applied to the dashboard's "Welding" on a device that
+        // had not received that centre yet, it bound the trainee to "Welding &
+        // Fabrication" — and priced and counted them there.
         function feeBindTraineesToIntake() {
             try {
                 if (!Array.isArray(students) || !students.length) return 0;
                 var centres = feeTrainingCentres();
                 if (!centres.length) return 0;
+                var lmsById = null;
+                var lmsTwin = function (s) {
+                    if (s.lmsId == null || s.lmsId === '') return null;
+                    if (!lmsById) {
+                        lmsById = {};
+                        try {
+                            var roll = JSON.parse(CESTISStore.getItem('voctrain_students') || '[]');
+                            if (Array.isArray(roll)) roll.forEach(function (r) { if (r && r.id != null) lmsById[String(r.id)] = r; });
+                        } catch (e) {}
+                    }
+                    return lmsById[String(s.lmsId)] || null;
+                };
                 var n = 0;
                 students.forEach(function (s) {
                     if (!s || !s.skillArea) return;
                     if (s.centreKey) return;                       // already bound
                     var when = s.enrollmentDate || s.enrolmentDate || s.createdAt || '';
                     var centre = null;
-                    try { centre = CESTISCore.enrolment.findCentre(centres, s.skillArea, { on: when }); }
-                    catch (e) { centre = null; }
+                    var twin = lmsTwin(s);
+                    var twinKey = twin && twin.centreKey != null && String(twin.centreKey).trim() !== ''
+                        ? CESTISCore.enrolment.centreKeyOf({ centreKey: twin.centreKey }) : '';
+                    if (twinKey || (twin && twin.centreId != null)) {
+                        // Their intake, or nothing: a centre not on this device yet binds nobody.
+                        centre = centres.filter(function (c) {
+                            return twinKey ? CESTISCore.enrolment.centreKeyOf(c) === twinKey : c.id === twin.centreId;
+                        })[0] || null;
+                    } else {
+                        try { centre = CESTISCore.enrolment.findCentre(centres, s.skillArea, { on: when, exact: s.source === 'lms' }); }
+                        catch (e) { centre = null; }
+                    }
                     if (!centre) return;
                     s.centreKey = CESTISCore.enrolment.centreKeyOf(centre);
                     if (s.centreId == null) s.centreId = (centre.id != null ? centre.id : null);
@@ -5222,6 +5321,9 @@
                 // label, do not let the carry-over price that label again.
                 delete feeStructure[editingFeeSkillArea];
                 feeDeclineCarry(editingFeeSkillArea);
+                // Written down, or the next sync brings the old name back as a
+                // second programme from the cloud copy.
+                feeRecordTimedTomb(FEE_DELETED_KEYS, editingFeeSkillArea);
             }
             
             feeStructure[newName] = { total: fee, terms: terms };
@@ -5261,6 +5363,8 @@
                 // A new intake's fee is carried over automatically; one the
                 // user deletes stays deleted.
                 feeDeclineCarry(skillArea);
+                // Written down so the cloud copy cannot bring it back.
+                feeRecordTimedTomb(FEE_DELETED_KEYS, skillArea);
                 saveFeeStructure();
                 renderFeeStructure();
                 updateSkillAreaOptions();
@@ -5424,7 +5528,7 @@
           const el = document.createElement('div');
           el.id = 'cloudNotifyPopup';
           el.className = 'cloud-notify ' + type;
-          const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '☁️';
+          const icon = type === 'error' ? '⚠️' : type === 'warn' ? '🔌' : '🔄';
           el.innerHTML =
             '<div class="cloud-notify-bar"></div>' +
             '<div class="cloud-notify-body">' +
@@ -5470,7 +5574,7 @@
 
           if (!navigator.onLine) {
             showCloudNotification('error', 'You Are Offline',
-              'Your internet connection is unavailable. Data changes will only be saved locally. Please reconnect to sync with Google Drive.',
+              'You’re offline. Your work is kept on this computer until it syncs.',
               false, 0);
             return;
           }
@@ -5481,21 +5585,21 @@
             let detail = '';
 
             if (savedExpiry && new Date(savedExpiry) <= new Date()) {
-              detail = 'Your Google Drive session has expired.';
+              detail = 'Your sync sign-in has expired.';
             } else if (reason === 'page_load') {
-              detail = 'Google Drive is not connected.';
+              detail = 'Sync is not connected.';
             } else if (reason === 'token_expired') {
-              detail = 'Your Google Drive session has expired.';
+              detail = 'Your sync sign-in has expired.';
             } else {
-              detail = 'Google Drive connection was lost.';
+              detail = 'The sync connection was lost.';
             }
 
             if (lastSync) {
               detail += ' Last sync: ' + getTimeAgo(new Date(lastSync)) + '.';
             }
 
-            showCloudNotification('warn', 'Cloud Sync Disconnected',
-              detail + ' Your data is only saved locally. Connect to Google Drive to back up and sync your data.',
+            showCloudNotification('warn', 'Not Synced Yet',
+              detail + ' Your work is kept on this computer until it syncs. Reconnect to sync.',
               true, 30);
           }
         }
@@ -5523,7 +5627,7 @@
         // Listen for browser online/offline events
         window.addEventListener('offline', function(){
           showCloudNotification('error', 'You Are Offline',
-            'Internet connection lost. Data changes will only be saved locally until you reconnect.',
+            'Connection lost. Your work is kept on this computer until it syncs.',
             false, 0);
         });
 
@@ -5536,13 +5640,35 @@
             }, 1500);
           } else {
             showCloudNotification('warn', 'Back Online',
-              'Internet connection restored. Your cloud sync is active.',
+              'Back online. Sync is on.',
               false, 8);
           }
         });
 
-        // Initialize
+        // Who is using this page. It had no sign-in of its own and signed
+        // whoever opened it in as "CESTIS Administrator (Admin)" — so a trainee
+        // at a lab PC typed School.Fee.html and had every trainee's fees, phone
+        // and TRN, and the power to change them. It now opens only for the
+        // signed-in dashboard (CESTISCore.sessionAccess): embedded in an
+        // Administrator's or Admin Staff's dashboard, as the Centre uses it, or
+        // with one of them signed in on this computer. Anyone else sees "sign
+        // in first" and nothing of the page runs.
+        let feeViewer = null;
         document.addEventListener('DOMContentLoaded', function() {
+            const SA = window.CESTISCore && CESTISCore.sessionAccess;
+            if (!SA || !SA.guard) {
+                const md = document.getElementById('mainDashboard');
+                if (md) md.style.display = 'none';
+                return;
+            }
+            SA.guard({ allowed: ['admin', 'adminstaff'] }, function (viewer) {
+                if (!viewer.ok) { feeViewer = null; SA.lockPage(viewer.message); return; }
+                feeViewer = viewer;
+                feeStartPage();
+            });
+        });
+
+        function feeStartPage() {
             // Initialize admin account first
             initializeDefaultAdmin();
 
@@ -5552,25 +5678,25 @@
             // Load fee structure from storage
             loadFeeStructure();
             
-            // Login removed: this page runs embedded in the authenticated LMS
-            // dashboard, so go straight into the app with an Admin session.
-            const savedSession = sessionStorage.getItem('cestiCurrentUser');
-            if (savedSession) {
-                try { currentUser = JSON.parse(savedSession); } catch (e) { currentUser = null; }
-            }
-            if (!currentUser) {
-                // Use the stored admin account, or fall back to a built-in Admin.
-                currentUser = (Array.isArray(users) && users.find(u => u && u.role === 'Admin'))
-                    || (Array.isArray(users) && users[0])
-                    || { id: 'ADMIN001', fullName: 'CESTIS Administrator', username: 'Cestisadmin', role: 'Admin', email: 'admin@cestis.edu', department: 'Administration' };
-                try { sessionStorage.setItem('cestiCurrentUser', JSON.stringify(currentUser)); } catch (e) {}
-            }
+            // The person is the signed-in dashboard account (feeViewer); the
+            // page's own Admin record still carries its local settings (two-step
+            // verification). Admin Staff keep the whole fee tool, as the
+            // dashboard has always given them. (The copy a previous visitor
+            // left in this tab is no longer believed.)
+            const own = (Array.isArray(users) && users.find(u => u && u.role === 'Admin'))
+                || (Array.isArray(users) && users[0])
+                || { id: 'ADMIN001', role: 'Admin', department: 'Administration' };
+            const acct = feeViewer && feeViewer.account;
+            currentUser = Object.assign({}, own,
+                acct ? { fullName: acct.name || acct.username || own.fullName, username: acct.username || acct.email || own.username, email: acct.email || own.email || '' } : {},
+                { role: 'Admin', lmsRole: feeViewer ? feeViewer.sessionRole : null });
+            try { sessionStorage.setItem('cestiCurrentUser', JSON.stringify(currentUser)); } catch (e) {}
             const loginPageEl = document.getElementById('loginPage');
             if (loginPageEl) loginPageEl.style.display = 'none';
             const mainDashEl = document.getElementById('mainDashboard');
             if (mainDashEl) mainDashEl.style.display = 'block';
             const userDisp = document.getElementById('currentUserDisplay');
-            if (userDisp) userDisp.textContent = `👤 ${currentUser.fullName} (${currentUser.role})`;
+            if (userDisp) userDisp.textContent = `👤 ${currentUser.fullName} (${currentUser.lmsRole === 'adminstaff' ? 'Admin Staff' : 'Admin'})`;
             updateUIForUserRole();
             render2FAStatus();
             initializeCloudSync();
@@ -5667,7 +5793,7 @@
                     }
                 });
             }
-        });
+        }
 
         // Dark Mode Toggle
         function toggleDarkMode() {
@@ -5736,6 +5862,8 @@
             // If embedded in the LMS dashboard, push the live list to the parent
             // so it can refresh the Student Progress page immediately.
             broadcastStudentsToParent();
+            // What was just read is the baseline later edits are dated against.
+            feeSyncRebaseline(['students', 'payments', 'documents']);
         }
 
         // Remove fee students that have been tombstoned — either here (their id/lmsId is
@@ -5800,6 +5928,174 @@
             const t = getDeletedPaymentIds();
             if (!t.length) return arr;
             return arr.filter(p => !p || t.indexOf(p.id) === -1);
+        }
+
+        /* ==================== ONE MERGE FOR EVERY CLOUD PATH ====================
+           Connect to Drive, the "Sync Now" offered at sign-in, Sync from Cloud and
+           the selective sync used to REPLACE the trainees, payments, documents,
+           fee structure and accounts with whatever the cloud file held. The cloud
+           only holds what was last uploaded, and uploading stops whenever the
+           Google token expires — so a payment taken in that window was erased the
+           moment somebody pressed Sync, while the trainee held a printed receipt
+           for it and their balance went back up. And the 15-second auto-sync let
+           THIS device's copy of every record win, so a payment corrected on one
+           PC was put back to its old amount by any PC that had not caught up, for
+           ever, every 15 seconds.
+
+           Now every one of those paths merges record by record, by the shared
+           rule (CESTISCore.sync): the copy changed later wins, wherever it was
+           changed; a record only one side holds is kept; two copies from before
+           records were dated keep this device's and only fill its blanks; and a
+           deletion written down on either side stands. Records are dated when
+           they are SAVED (saveData, saveUsers, saveFeeStructure) by comparing
+           them with how they looked at the last save or load, so none of the
+           many edit screens had to change. */
+        var _feeSyncIndex = {};
+        var FEE_DELETED_DOCS = 'cestiSchoolFeeDeletedDocumentIds';
+        var FEE_DELETED_KEYS = 'cestiSchoolFeeDeletedFeeKeys';
+        function feeSyncKeyById(r) { return r && r.id != null && r.id !== '' ? String(r.id) : undefined; }
+        // An account is the same account on every device by its username.
+        function feeUserKey(u) {
+            if (!u) return undefined;
+            const n = String(u.username || '').trim().toLowerCase();
+            return n ? 'u:' + n : (u.id != null ? 'id:' + u.id : undefined);
+        }
+        function feeSyncSets() {
+            return [
+                // A trainee's paid / balance / status are worked out from the
+                // payments, so they are not an edit to the trainee.
+                { name: 'students',     get: () => students,     key: feeSyncKeyById, ignore: { totalPaid: 1, balance: 1, status: 1 } },
+                { name: 'payments',     get: () => payments,     key: feeSyncKeyById },
+                { name: 'documents',    get: () => documents,    key: feeSyncKeyById },
+                { name: 'users',        get: () => users,        key: feeUserKey },
+                { name: 'feeStructure', get: () => feeStructure, map: true }
+            ];
+        }
+        // Date every record that changed here since the last save or load.
+        function feeSyncStamp(names) {
+            if (!window.CESTISCore || !CESTISCore.sync) return;
+            const now = new Date().toISOString();
+            feeSyncSets().forEach(c => {
+                if (names && names.indexOf(c.name) === -1) return;
+                try {
+                    const recs = c.get();
+                    if (recs == null) return;
+                    _feeSyncIndex[c.name] = CESTISCore.sync.stampChanges(recs, c.map ? null : c.key,
+                        _feeSyncIndex[c.name] || null, now, c.ignore);
+                } catch (e) {}
+            });
+        }
+        // Take the baseline afresh — after a load or a merge, when nothing that
+        // differs from it was edited here.
+        function feeSyncRebaseline(names) {
+            if (!window.CESTISCore || !CESTISCore.sync) return;
+            feeSyncSets().forEach(c => {
+                if (names && names.indexOf(c.name) === -1) return;
+                try {
+                    const recs = c.get();
+                    if (recs == null) return;
+                    _feeSyncIndex[c.name] = CESTISCore.sync.stampChanges(recs, c.map ? null : c.key, null, '', c.ignore);
+                } catch (e) {}
+            });
+        }
+
+        /* Dated deletions for documents and fee-structure programmes. Stored as
+           "key|when" strings so the list unions like every other tombstone list
+           (CESTISCore.TOMBSTONE_UNION_KEYS) and still says WHEN — a programme
+           deleted and later created again under the same name must live. */
+        function feeTimedTombList(storeKey) {
+            try { const v = JSON.parse(CESTISStore.getItem(storeKey) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+        }
+        function feeTimedTombs(storeKey) {
+            const map = {};
+            feeTimedTombList(storeKey).forEach(entry => {
+                const s = String(entry || ''), at = s.lastIndexOf('|');
+                if (at <= 0) return;
+                const k = s.slice(0, at), t = s.slice(at + 1);
+                if (!map[k] || (Date.parse(t) || 0) > (Date.parse(map[k]) || 0)) map[k] = t;
+            });
+            return map;
+        }
+        function feeRecordTimedTomb(storeKey, key) {
+            if (key === undefined || key === null || key === '') return;
+            const list = feeTimedTombList(storeKey);
+            list.push(String(key) + '|' + new Date().toISOString());
+            CESTISStore.setItem(storeKey, JSON.stringify(list));
+        }
+        function feeUnionTimedTombs(storeKey, incoming) {
+            if (!Array.isArray(incoming) || !incoming.length) return;
+            const list = feeTimedTombList(storeKey);
+            let changed = false;
+            incoming.forEach(e => { if (typeof e === 'string' && e.indexOf('|') > 0 && list.indexOf(e) === -1) { list.push(e); changed = true; } });
+            if (changed) CESTISStore.setItem(storeKey, JSON.stringify(list));
+        }
+        // Every deletion list this page sends with its backup.
+        function feeTombstonePayload() {
+            return {
+                deletedPaymentIds: getDeletedPaymentIds(),
+                deletedDocumentIds: feeTimedTombList(FEE_DELETED_DOCS),
+                deletedFeeKeys: feeTimedTombList(FEE_DELETED_KEYS)
+            };
+        }
+
+        /* Merge a cloud backup's data into this device's records, in memory.
+           `only` (optional) limits it to some collections — the selective sync.
+           Returns { changed } — whether anything here moved. Nothing is saved
+           here: feeApplyCloudBackup() does that. */
+        function feeMergeCloudData(data, only) {
+            const out = { changed: false };
+            if (!data || typeof data !== 'object' || !window.CESTISCore || !CESTISCore.sync) return out;
+            const want = name => !only || only[name];
+            const S = CESTISCore.sync;
+            // Deletions first, from both sides.
+            unionDeletedPaymentIds(data.deletedPaymentIds);
+            feeUnionTimedTombs(FEE_DELETED_DOCS, data.deletedDocumentIds);
+            feeUnionTimedTombs(FEE_DELETED_KEYS, data.deletedFeeKeys);
+            // Date whatever was edited here and not yet saved, so it competes fairly.
+            feeSyncStamp();
+            const tally = r => { if (r && (r.added || r.updated || r.removed)) out.changed = true; };
+            if (want('students') && Array.isArray(data.students)) {
+                // A placeholder made here from the trainee roll (no fee details
+                // anyone typed) never beats the Centre's real record, however
+                // new its date — on a new PC it used to blank every trainee's
+                // tuition, ID and address (CESTISCore.feeRecordRank).
+                tally(S.mergeList(students, data.students, feeSyncKeyById,
+                    { rank: CESTISCore.feeRecordRank, rankDrop: CESTISCore.FEE_PLACEHOLDER_FIELDS }));
+            }
+            if (want('payments') && Array.isArray(data.payments)) {
+                tally(S.mergeList(payments, filterTombstonedPayments(data.payments), feeSyncKeyById));
+            }
+            if (want('documents') && Array.isArray(data.documents)) {
+                tally(S.mergeList(documents, data.documents, feeSyncKeyById, { tombs: feeTimedTombs(FEE_DELETED_DOCS) }));
+            }
+            if (want('users') && Array.isArray(data.users)) {
+                tally(S.mergeList(users, data.users, feeUserKey));
+            }
+            if (want('feeStructure') && data.feeStructure && typeof data.feeStructure === 'object' && !Array.isArray(data.feeStructure)) {
+                tally(S.mergeMap(feeStructure, data.feeStructure, { tombs: feeTimedTombs(FEE_DELETED_KEYS) }));
+            }
+            // Deletions held on this device apply to what just arrived too.
+            const pBefore = payments.length;
+            payments = filterTombstonedPayments(payments);
+            if (payments.length !== pBefore) out.changed = true;
+            if (dropTombstonedFeeStudents()) out.changed = true;
+            feeSyncRebaseline();
+            return out;
+        }
+
+        /* Merge a cloud backup in and save the result — what every "sync from the
+           cloud" path now does instead of replacing. */
+        function feeApplyCloudBackup(data, only) {
+            const res = feeMergeCloudData(data, only);
+            saveUsers();
+            saveFeeStructure();
+            // Two devices can name the same programme differently, and one
+            // intake can arrive under two names; fold them back into one entry.
+            dedupeFeeStructure();
+            collapseFeeIntakes();
+            recalculateStudentTotals();
+            saveData();
+            return res;
         }
 
         /* ==================== RENDER PERFORMANCE LAYER ======================
@@ -6335,7 +6631,7 @@
         // and later saving, a stale copy over someone else's edit.
         let _feeExternalReload = null;
         window.addEventListener('storage', function (ev) {
-            if (!ev || !ev.key) return;
+            if (!ev || !ev.key || !feeViewer) return;   // nothing is drawn for a refused visitor
             // voctrain_skillAreas carries the training centres and their
             // durations. Without watching it this page kept enrolling into a
             // stale roster after the LMS created a centre or ended a course.
@@ -6384,6 +6680,12 @@
             try {
                 const d = ev && ev.data;
                 if (!d) return;
+                // Only the dashboard this page is embedded in may talk to it —
+                // any other window could post a roll here, and the page saved
+                // what it was sent — and only once the page has opened for a
+                // signed-in session.
+                if (!feeViewer || window.parent === window || ev.source !== window.parent) return;
+                try { if (ev.origin && ev.origin !== 'null' && location.origin && location.origin !== 'null' && ev.origin !== location.origin) return; } catch (e) { return; }
                 // Parent dashboard asks us to (re)show the privacy screen when
                 // the user navigates back to this page. The iframe is loaded
                 // once and kept alive, so DOMContentLoaded won't fire again —
@@ -6719,7 +7021,7 @@
             if (menu) menu.classList.remove('show');
 
             if (typeof CESTISPageCloud === 'undefined' || !CESTISPageCloud.loadNow) {
-                alert('The Drive backup module is not loaded on this page.');
+                alert('The backup module is not loaded on this page.');
                 return;
             }
             const before = { students: students.length, payments: payments.length, documents: documents.length };
@@ -6740,7 +7042,7 @@
 
                 const after = { students: students.length, payments: payments.length, documents: documents.length };
                 if (!changed.length && after.students === before.students && after.payments === before.payments) {
-                    alert('Drive backup checked — nothing to restore.\n\n' +
+                    alert('Backup checked — nothing to restore.\n\n' +
                           'This device already holds everything the backup contains:\n' +
                           `  • ${after.students} trainee record(s)\n` +
                           `  • ${after.payments} payment(s)\n\n` +
@@ -6748,7 +7050,7 @@
                           'buttons above the table — the figures follow the period selected there.');
                     return;
                 }
-                alert('Restored from the Drive backup.\n\n' +
+                alert('Restored from the backup.\n\n' +
                       `  • Trainees: ${before.students} → ${after.students}\n` +
                       `  • Payments: ${before.payments} → ${after.payments}\n` +
                       `  • Documents: ${before.documents} → ${after.documents}\n\n` +
@@ -6756,8 +7058,8 @@
                       'quarter selected in the filter bar.');
             } catch (e) {
                 console.error('[SchoolFee] restore from Drive failed:', e);
-                alert('Could not read the Drive backup: ' + ((e && e.message) || e) +
-                      '\n\nCheck that you are connected to Google Drive, then try again. ' +
+                alert('Could not read the backup: ' + ((e && e.message) || e) +
+                      '\n\nCheck that sync is turned on, then try again. ' +
                       'Nothing on this device was changed.');
             }
         }
@@ -6769,8 +7071,8 @@
         function feeCheckRollNotEmpty() {
             if (students.length || payments.length) return;
             feeShowBanner('This device is showing no fee records. They are most likely still in ' +
-                'your Google Drive backup — open the Cloud menu and choose ' +
-                '“Restore Fee Records from Drive”. Nothing has been deleted.');
+                'the backup — open the Sync menu and choose ' +
+                '“Restore Fee Records from Backup”. Nothing has been deleted.');
         }
 
         /* A non-blocking success note. The hot actions — recording a payment,
@@ -6851,6 +7153,9 @@
             const _pBefore = payments.length;
             payments = filterTombstonedPayments(payments);
             if (payments.length !== _pBefore) recalculateStudentTotals();
+            // Date every record edited here since the last save, so a merge on
+            // another device knows this copy is the newer one.
+            feeSyncStamp(['students', 'payments', 'documents']);
             // Anything derived from the store may have just moved under us.
             feeInvalidateCaches();
             feePersist('cestiSchoolFeeStudents', students);
@@ -7142,7 +7447,7 @@
                                style="width: 18px; height: 18px; cursor: pointer;">
                     </td>
                     <td>${student.id}</td>
-                    <td>${student.name}${keptSep}</td>
+                    <td>${student.name}${keptSep}<span class="fee-phone-sub">${feeAttr(student.id)} · ${feeAttr(student.skillArea)}</span></td>
                     <td>${student.skillArea}</td>
                     <td>$${tuition}</td>
                     <td>$${paid}</td>
@@ -7728,6 +8033,11 @@
                     }
                 } catch (e) {}
 
+                // Write down the payments and documents that go with the trainee.
+                // Without this the next sync handed them straight back from the
+                // cloud copy — orphan receipts inflating "Total collected".
+                payments.forEach(p => { if (p && p.studentId === studentId) recordDeletedPaymentId(p.id); });
+                documents.forEach(d => { if (d && d.studentId === studentId) feeRecordTimedTomb(FEE_DELETED_DOCS, d.id); });
                 payments = payments.filter(p => p.studentId !== studentId);
                 documents = documents.filter(d => d.studentId !== studentId);
                 
@@ -7936,6 +8246,11 @@
             if (_keep) student.keepSeparate = true; else delete student.keepSeparate;
             feePropagateKeepSeparate(student, _keep);
             student.balance = newTuitionFee - student.totalPaid;
+            // A person has now reviewed this record: it is no longer a
+            // placeholder from the trainee roll. (The tuition back-fill already
+            // promises to leave an edited record as set, and a merge never lets
+            // a placeholder outrank it — CESTISCore.feeRecordRank.)
+            delete student.needsFeeDetails;
             // Stamp the edit: the name is synced both ways and resolved by which
             // side was edited last, so an undated record would lose every tie.
             student.updatedAt = new Date().toISOString();
@@ -8918,7 +9233,7 @@
                 <tr data-search="${feeAttr(search)}" data-date="${feeAttr(payment.date)}">
                     <td>${payment.date}</td>
                     <td>${receipt}</td>
-                    <td>${payment.studentName}</td>
+                    <td>${payment.studentName}<span class="fee-phone-sub">${feeAttr(payment.date)} · ${feeAttr(receipt)} · ${feeAttr(payment.method)}</span></td>
                     <td>${payment.skillArea}</td>
                     <td>${payment.term}</td>
                     <td>$${amount}</td>
@@ -9198,7 +9513,7 @@
 
             // Check if connected to Google Drive
             if (!isCloudConnected || !googleAccessToken) {
-                alert('⚠️ Please connect to Google Drive first to upload documents.\n\nClick the cloud icon (☁️) in the top right corner to connect.');
+                alert('⚠️ Please turn on sync first to upload documents.\n\nPress the sync button (🔄) in the top right corner to connect.');
                 return;
             }
 
@@ -9207,7 +9522,7 @@
             const originalBtnText = uploadBtn ? uploadBtn.innerHTML : '';
             if (uploadBtn) {
                 uploadBtn.disabled = true;
-                uploadBtn.innerHTML = '⏳ Uploading to Google Drive...';
+                uploadBtn.innerHTML = '⏳ Uploading...';
             }
 
             let uploadedCount = 0;
@@ -9267,7 +9582,7 @@
             if (failedCount > 0) {
                 alert(`⚠️ Upload completed with errors:\n\n✅ ${uploadedCount} document(s) uploaded successfully\n❌ ${failedCount} document(s) failed\n\nErrors:\n${errors.join('\n')}`);
             } else {
-                alert(`✅ ${uploadedCount} document(s) uploaded successfully to Google Drive!`);
+                alert(`✅ ${uploadedCount} document(s) uploaded successfully!`);
             }
         }
 
@@ -9379,13 +9694,13 @@
 
             // Check if document has Google Drive file ID
             if (!doc.googleDriveFileId) {
-                alert('⚠️ This document was uploaded before Google Drive integration.\nNo file data available for download.');
+                alert('⚠️ This document was uploaded before file syncing was added.\nNo file data available for download.');
                 return;
             }
 
             // Check if connected to Google Drive
             if (!isCloudConnected || !googleAccessToken) {
-                alert('⚠️ Please connect to Google Drive first to download documents.\n\nClick the cloud icon (☁️) in the top right corner to connect.');
+                alert('⚠️ Please turn on sync first to download documents.\n\nPress the sync button (🔄) in the top right corner to connect.');
                 return;
             }
 
@@ -9423,7 +9738,7 @@
                 }
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
                     alert(`Failed to download document: ${error.message}`);
@@ -9441,7 +9756,7 @@
             const hasGoogleDriveFile = doc.googleDriveFileId;
             let confirmMessage = 'Are you sure you want to delete this document?';
             if (hasGoogleDriveFile) {
-                confirmMessage += '\n\nThis will also delete the file from Google Drive.';
+                confirmMessage += '\n\nThis will also delete the stored file.';
             }
 
             if (confirm(confirmMessage)) {
@@ -9457,6 +9772,7 @@
 
                 const index = documents.findIndex(d => d.id === docId);
                 documents.splice(index, 1);
+                feeRecordTimedTomb(FEE_DELETED_DOCS, docId);
                 saveData();
                 renderDocumentsTable();
                 updateDocumentTypeFilter();
@@ -9485,11 +9801,11 @@
                         <div class="document-preview">
                             <h3>Document Preview</h3>
                             <p style="color: #e74c3c; padding: 20px; background: #fdf2f2; border-radius: 5px; border: 1px solid #e74c3c;">
-                                ⚠️ Please connect to Google Drive to view this document.<br>
-                                Click the cloud icon (☁️) in the main dashboard to connect.
+                                ⚠️ Please turn on sync to view this document.<br>
+                                Press the sync button (🔄) on the main dashboard to connect.
                             </p>
                             <button onclick="window.close()" style="margin-top: 15px; padding: 10px 20px; background: #0D47A1; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                Close & Connect to Google Drive
+                                Close & Turn On Sync
                             </button>
                         </div>
                     `;
@@ -9503,7 +9819,7 @@
                             documentPreview = `
                                 <div class="document-preview">
                                     <h3>Document Preview</h3>
-                                    <img src="${fileDataUrl}" alt="${doc.fileName}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <img src="${fileDataUrl}" alt="${feeAttr(doc.fileName)}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
                                 </div>
                             `;
                         } else if (fileExtension === 'pdf') {
@@ -9530,9 +9846,9 @@
                             <div class="document-preview">
                                 <h3>Document Preview</h3>
                                 <p style="color: #e74c3c; padding: 20px; background: #fdf2f2; border-radius: 5px; border: 1px solid #e74c3c;">
-                                    ❌ Failed to load document from Google Drive.<br>
+                                    ❌ Could not load the document.<br>
                                     Error: ${error.message}<br><br>
-                                    Please try reconnecting to Google Drive or use the Download button.
+                                    Please reconnect sync, or use the Download button.
                                 </p>
                             </div>
                         `;
@@ -9544,7 +9860,7 @@
                     documentPreview = `
                         <div class="document-preview">
                             <h3>Document Preview</h3>
-                            <img src="${doc.fileData}" alt="${doc.fileName}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
+                            <img src="${doc.fileData}" alt="${feeAttr(doc.fileName)}" style="max-width: 100%; max-height: 600px; border: 1px solid #ddd; border-radius: 5px;">
                         </div>
                     `;
                 } else if (fileExtension === 'pdf') {
@@ -9570,7 +9886,7 @@
                     <div class="document-preview">
                         <h3>Document Preview</h3>
                         <p style="color: #666; padding: 20px; background: #f5f5f5; border-radius: 5px;">
-                            Document was uploaded before Google Drive integration.<br>
+                            Document was uploaded before file syncing was added.<br>
                             No file data available for preview.
                         </p>
                     </div>
@@ -11415,7 +11731,7 @@
                 container.innerHTML = `
                     <div class="twofa-success">
                         <strong>Two-Factor Authentication is ENABLED</strong>
-                        <p style="margin-top: 0.5rem;">Your account is protected with Google Authenticator.</p>
+                        <p style="margin-top: 0.5rem;">Your account is protected with an authenticator app.</p>
                         <p style="margin-top: 0.25rem; font-size: 0.85rem;">Backup codes remaining: ${unusedCodes}/8</p>
                     </div>
                     <div style="display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap;">
@@ -11428,7 +11744,7 @@
                 container.innerHTML = `
                     <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
                         <strong>Two-Factor Authentication is DISABLED</strong>
-                        <p style="margin-top: 0.5rem; color: var(--text-secondary);">Add an extra layer of security to your account using Google Authenticator or any TOTP-compatible app.</p>
+                        <p style="margin-top: 0.5rem; color: var(--text-secondary);">Add an extra layer of security to your account using an authenticator app (any TOTP-compatible app).</p>
                     </div>
                     <button class="btn" style="background: #10b981;" onclick="openTwoFASetup()">Enable 2FA</button>
                 `;
@@ -11827,12 +12143,12 @@
                 notConnectedDiv.style.display = 'none';
                 connectedDiv.style.display = 'block';
                 statusDot.className = 'cloud-status-dot connected';
-                statusText.textContent = 'Connected';
+                statusText.textContent = 'Up to date';
             } else {
                 notConnectedDiv.style.display = 'block';
                 connectedDiv.style.display = 'none';
                 statusDot.className = 'cloud-status-dot';
-                statusText.textContent = 'Not connected';
+                statusText.textContent = 'Not synced yet';
             }
         }
 
@@ -11848,8 +12164,8 @@
                 menuIcon.innerHTML = '<span class="spinning">🔄</span>';
             } else {
                 statusDot.className = 'cloud-status-dot connected';
-                statusText.textContent = 'Connected';
-                menuIcon.textContent = '☁️';
+                statusText.textContent = 'Up to date';
+                menuIcon.textContent = '🔄';
             }
         }
 
@@ -11898,12 +12214,12 @@
                 <div id="googleAuthModal" class="modal active" style="display: flex;">
                     <div class="modal-content" style="max-width: 560px;">
                         <div class="modal-header">
-                            <h2>Connect to Google Drive</h2>
+                            <h2>Connect the Centre’s Account</h2>
                             <button class="close-btn" onclick="closeGoogleAuthModal()">&times;</button>
                         </div>
                         <div style="padding: 1.5rem;">
                             <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">
-                                Connect to Google Drive to save and sync your school fee data across devices. Choose your preferred connection method:
+                                Connect the Centre’s account to sync your school fee data across devices. Choose your preferred connection method:
                             </p>
 
                             <!-- Option 1: Direct Google Sign-In (Recommended) -->
@@ -11911,15 +12227,15 @@
                                 <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
                                     <span style="font-size: 1.5rem;">🔐</span>
                                     <div>
-                                        <strong style="color: #10b981; font-size: 1.1rem;">Direct Google Sign-In</strong>
+                                        <strong style="color: #10b981; font-size: 1.1rem;">Direct Sign-In</strong>
                                         <span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 0.25rem; font-size: 0.7rem; margin-left: 0.5rem; font-weight: 600;">RECOMMENDED</span>
                                     </div>
                                 </div>
                                 <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
-                                    A Google popup will appear for you to sign in with your Google account directly.
+                                    A sign-in window will open for you to sign in with the Centre’s account directly.
                                 </p>
                                 <button class="btn" style="width: 100%; padding: 0.75rem; background: #10b981;" onclick="triggerDirectGoogleSignIn()">
-                                    Sign in with Google
+                                    Sign In to Connect
                                 </button>
                             </div>
 
@@ -11941,10 +12257,10 @@
                                     <div style="background: #e0f2fe; border: 1px solid #0ea5e9; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
                                         <strong style="color: #0369a1;">How to get your access token:</strong>
                                         <ol style="margin-top: 0.5rem; margin-left: 1rem; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6;">
-                                            <li>Click the link below to open Google OAuth Playground</li>
-                                            <li>In Step 1, find and select <strong>"Drive API v3"</strong> then check <strong>"drive.file"</strong></li>
+                                            <li>Click the button below to open the OAuth Playground</li>
+                                            <li>In Step 1, type this permission into the box under the list: <strong style="word-break:break-all;">https://www.googleapis.com/auth/drive.file</strong></li>
                                             <li>Click <strong>"Authorize APIs"</strong> (blue button)</li>
-                                            <li>Sign in with your Google account</li>
+                                            <li>Sign in with the Centre’s account</li>
                                             <li>In Step 2, click <strong>"Exchange authorization code for tokens"</strong></li>
                                             <li>Copy the <strong>"Access token"</strong> value and paste below</li>
                                         </ol>
@@ -11987,7 +12303,7 @@
                     if (googleTokenClient) {
                         googleTokenClient.requestAccessToken();
                     } else {
-                        alert('Google Sign-In popup is not available. Please use the manual token method.');
+                        alert('The sign-in window is not available. Please use the manual token method.');
                         showGoogleAuthModal();
                         // Auto-expand the manual form
                         setTimeout(() => showManualTokenForm(), 100);
@@ -12047,7 +12363,7 @@
                 closeGoogleAuthModal();
                 updateCloudUI(true);
 
-                alert(`Connected to Google Drive as ${data.user.displayName || data.user.emailAddress}`);
+                alert(`Connected as ${data.user.displayName || data.user.emailAddress}`);
 
                 // Try to find existing backup file
                 await findExistingBackupFile();
@@ -12088,13 +12404,13 @@
                 // User closed the popup, don't show error
                 return;
             }
-            alert('Failed to authenticate with Google. Please try the manual token method.');
+            alert('Could not sign in. Please try the manual token method.');
             showGoogleAuthModal();
         }
 
         // Disconnect from Google Drive
         function disconnectFromGoogleDrive() {
-            if (confirm('Are you sure you want to disconnect from Google Drive? Your local data will remain intact.')) {
+            if (confirm('Turn off sync on this computer? Your work stays on this computer.')) {
                 stopAutoSync();
                 googleAccessToken = null;
                 isCloudConnected = false;
@@ -12107,7 +12423,7 @@
                 updateCloudUI(false);
                 toggleCloudMenu();
 
-                alert('Disconnected from Google Drive');
+                alert('Sync turned off on this computer');
             }
         }
 
@@ -12176,7 +12492,7 @@
         // Main function to initiate merge to cloud
         async function mergeToCloud() {
             if (!isCloudConnected || !googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -12246,10 +12562,10 @@
                 closeMergeToCloudModal();
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
-                    alert(`Failed to load cloud data: ${error.message}`);
+                    alert(`Could not load the shared data: ${error.message}`);
                 }
             }
         }
@@ -12423,7 +12739,7 @@
             let summaryHtml = `
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
                     <div style="text-align: center; padding: 1rem; background: var(--bg-card); border-radius: 0.5rem;">
-                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Cloud Backup</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Shared Copy</div>
                         <div style="font-size: 0.9rem; margin-top: 0.25rem;">${cloudTime}</div>
                         <div style="font-size: 0.8rem; color: var(--text-secondary);">by ${savedBy}</div>
                     </div>
@@ -12433,7 +12749,7 @@
                     </div>
                     <div style="text-align: center; padding: 1rem; background: #E3F2FD; border-radius: 0.5rem;">
                         <div style="font-size: 2rem; font-weight: bold; color: #2196F3;">${totalNewCloud}</div>
-                        <div style="font-size: 0.85rem; color: #1565C0;">New Cloud Records</div>
+                        <div style="font-size: 0.85rem; color: #1565C0;">New Shared Records</div>
                     </div>
                     <div style="text-align: center; padding: 1rem; background: #FFF3E0; border-radius: 0.5rem;">
                         <div style="font-size: 2rem; font-weight: bold; color: #FF9800;">${totalConflicts}</div>
@@ -12443,7 +12759,7 @@
                 <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-card); border-radius: 0.5rem;">
                     <strong>Local has:</strong> ${users.length} users, ${students.length} students, ${payments.length} payments, ${documents.length} documents
                     <br>
-                    <strong>Cloud has:</strong> ${cloudUsersCount} users, ${cloudStudentsCount} students, ${cloudPaymentsCount} payments, ${cloudDocsCount} documents
+                    <strong>Shared copy has:</strong> ${cloudUsersCount} users, ${cloudStudentsCount} students, ${cloudPaymentsCount} payments, ${cloudDocsCount} documents
                 </div>`;
 
             document.getElementById('mergeToCloudSummary').innerHTML = summaryHtml;
@@ -12526,14 +12842,14 @@
                     newHtml += `
                         <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
                             <span><strong>Local User:</strong> ${user.fullName || user.username} (${user.role})</span>
-                            <span style="color: #4CAF50;">Will be added to cloud</span>
+                            <span style="color: #4CAF50;">Will be shared</span>
                         </div>`;
                 });
 
                 analysis.users.newCloud.forEach(user => {
                     newHtml += `
                         <div style="background: #E3F2FD; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Cloud User:</strong> ${user.fullName || user.username} (${user.role})</span>
+                            <span><strong>Shared user:</strong> ${user.fullName || user.username} (${user.role})</span>
                             <span style="color: #2196F3;">Will be added locally</span>
                         </div>`;
                 });
@@ -12542,14 +12858,14 @@
                     newHtml += `
                         <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
                             <span><strong>Local Student:</strong> ${student.name} - ${student.grade}</span>
-                            <span style="color: #4CAF50;">Will be added to cloud</span>
+                            <span style="color: #4CAF50;">Will be shared</span>
                         </div>`;
                 });
 
                 analysis.students.newCloud.forEach(student => {
                     newHtml += `
                         <div style="background: #E3F2FD; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Cloud Student:</strong> ${student.name} - ${student.grade}</span>
+                            <span><strong>Shared student:</strong> ${student.name} - ${student.grade}</span>
                             <span style="color: #2196F3;">Will be added locally</span>
                         </div>`;
                 });
@@ -12558,14 +12874,14 @@
                     newHtml += `
                         <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
                             <span><strong>Local Payment:</strong> ${payment.studentName || payment.id}</span>
-                            <span style="color: #4CAF50;">Will be added to cloud</span>
+                            <span style="color: #4CAF50;">Will be shared</span>
                         </div>`;
                 });
 
                 analysis.payments.newCloud.forEach(payment => {
                     newHtml += `
                         <div style="background: #E3F2FD; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
-                            <span><strong>Cloud Payment:</strong> ${payment.studentName || payment.id}</span>
+                            <span><strong>Shared payment:</strong> ${payment.studentName || payment.id}</span>
                             <span style="color: #2196F3;">Will be added locally</span>
                         </div>`;
                 });
@@ -12710,7 +13026,7 @@
                 saveData();
                 await new Promise(resolve => setTimeout(resolve, 200));
 
-                updateMergeProgress('Uploading to cloud...', 70);
+                updateMergeProgress('Sending changes...', 70);
 
                 // Save merged data to cloud
                 const backupData = {
@@ -12722,7 +13038,7 @@
                         users: mergedUsers,
                         students: mergedStudents,
                         payments: filterTombstonedPayments(mergedPayments),
-                        deletedPaymentIds: getDeletedPaymentIds(),
+                        ...feeTombstonePayload(),
                         documents: mergedDocuments,
                         feeStructure: feeStructure
                     }
@@ -12812,7 +13128,7 @@
                 hideMergeProgress();
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
                     alert(`Failed to merge: ${error.message}`);
@@ -12826,7 +13142,7 @@
         // Staff: Perform automatic merge without modal
         async function performStaffMerge() {
             // Show progress for staff merge too
-            showMergeProgress('Connecting to cloud...', 0);
+            showMergeProgress('Connecting...', 0);
             setCloudSyncing(true);
 
             try {
@@ -12835,7 +13151,7 @@
                     await findExistingBackupFile();
                 }
 
-                updateMergeProgress('Downloading cloud data...', 20);
+                updateMergeProgress('Getting the latest data...', 20);
 
                 let cloudData = null;
                 let existingUsers = [];
@@ -12968,7 +13284,7 @@
                     saveData();
                 }
 
-                updateMergeProgress('Uploading to cloud...', 75);
+                updateMergeProgress('Sending changes...', 75);
 
                 // Save merged data to cloud
                 const backupData = {
@@ -12980,7 +13296,7 @@
                         users: mergedUsers,
                         students: mergedStudents,
                         payments: filterTombstonedPayments(mergedPayments),
-                        deletedPaymentIds: getDeletedPaymentIds(),
+                        ...feeTombstonePayload(),
                         documents: mergedDocuments,
                         feeStructure: feeStructure
                     }
@@ -13069,7 +13385,7 @@
                 hideMergeProgress();
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
                     alert(`Merge failed: ${error.message}`);
@@ -13085,15 +13401,15 @@
                         <div style="font-size: 4rem; margin-bottom: 1rem;">✅</div>
                         <h2 style="background: linear-gradient(135deg, #9C27B0, #E91E63); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 1rem;">Data Merged!</h2>
                         <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
-                            Your data has been synchronized with the cloud.
+                            Your data is in sync.
                         </p>
                         <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; text-align: left;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                <span>Uploaded to cloud:</span>
+                                <span>Sent:</span>
                                 <strong style="color: #4CAF50;">${uploadedCount} record(s)</strong>
                             </div>
                             <div style="display: flex; justify-content: space-between;">
-                                <span>Downloaded from cloud:</span>
+                                <span>Received:</span>
                                 <strong style="color: #2196F3;">${downloadedCount} record(s)</strong>
                             </div>
                         </div>
@@ -13148,11 +13464,11 @@
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; text-align: center;">
                                 <div>
                                     <div style="font-size: 1.5rem; font-weight: bold; color: #4CAF50;">${localToCloud}</div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Local → Cloud</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">This computer → Shared</div>
                                 </div>
                                 <div>
                                     <div style="font-size: 1.5rem; font-weight: bold; color: #2196F3;">${cloudToLocal}</div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Cloud → Local</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Shared → This computer</div>
                                 </div>
                                 <div>
                                     <div style="font-size: 1.5rem; font-weight: bold; color: #FF9800;">${conflictsResolved}</div>
@@ -13202,7 +13518,7 @@
         // Sync (download) data from Google Drive
         async function syncFromCloud() {
             if (!isCloudConnected || !googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -13215,11 +13531,11 @@
             }
 
             if (!cloudFileId) {
-                alert('No backup file found in Google Drive. Save your data first to create a backup.');
+                alert('No shared copy yet. Save your data first to create one.');
                 return;
             }
 
-            if (!confirm('This will replace your local data with the cloud backup. Are you sure you want to continue?')) {
+            if (!confirm('This will merge the shared copy into this computer: newer records are brought in, and records only this computer holds are kept. Continue?')) {
                 return;
             }
 
@@ -13248,35 +13564,10 @@
                 }
 
                 // Restore data
-                if (backupData.data.users) {
-                    users = backupData.data.users;
-                    saveUsers();
-                }
-
-                if (backupData.data.students) {
-                    students = backupData.data.students;
-                    feePersist('cestiSchoolFeeStudents', students);
-                }
-
-                if (backupData.data.payments) {
-                    payments = backupData.data.payments;
-                    feePersist('cestiSchoolFeePayments', payments);
-                }
-
-                if (backupData.data.documents) {
-                    documents = backupData.data.documents;
-                    feePersist('cestiSchoolFeeDocuments', documents);
-                }
-
-                if (backupData.data.feeStructure) {
-                    feeStructure = backupData.data.feeStructure;
-                    saveFeeStructure();
-                    // A restored fee structure can carry the same programme under
-                    // two spellings, and the same intake under two names; fold
-                    // both back into one entry.
-                    dedupeFeeStructure();
-                    collapseFeeIntakes();
-                }
+                // Merge, never replace: what was recorded here since the last
+                // upload (a payment taken while the token had expired) stays,
+                // and the newer copy of each record wins. See feeMergeCloudData.
+                feeApplyCloudBackup(backupData.data);
 
                 // Update last sync time
                 lastSyncTime = new Date();
@@ -13306,17 +13597,17 @@
 
                 const backupTime = new Date(backupData.timestamp).toLocaleString();
                 const savedByInfo = backupData.savedBy ? `\nLast saved by: ${backupData.savedBy}` : '';
-                alert(`Data synced from cloud successfully!\n\nBackup was created: ${backupTime}${savedByInfo}`);
+                alert(`Data synced successfully!\n\nBackup was created: ${backupTime}${savedByInfo}`);
 
             } catch (error) {
                 console.error('Error syncing from cloud:', error);
                 setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
-                    alert(`Failed to sync from cloud: ${error.message}`);
+                    alert(`Could not sync: ${error.message}`);
                 }
             }
         }
@@ -13330,7 +13621,7 @@
         // Smart merge from cloud - intelligent duplicate detection
         async function smartMergeFromCloud() {
             if (!isCloudConnected || !googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -13343,7 +13634,7 @@
             }
 
             if (!cloudFileId) {
-                alert('No backup file found in Google Drive. Save your data first to create a backup.');
+                alert('No shared copy yet. Save your data first to create one.');
                 return;
             }
 
@@ -13388,10 +13679,10 @@
                 closeModal('smartMergeModal');
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
-                    alert(`Failed to load cloud data: ${error.message}`);
+                    alert(`Could not load the shared data: ${error.message}`);
                 }
             }
         }
@@ -13563,7 +13854,7 @@
             let summaryHtml = `
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                     <div style="text-align: center; padding: 1rem; background: var(--bg-card); border-radius: 0.5rem;">
-                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Cloud Backup</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Shared Copy</div>
                         <div style="font-size: 0.9rem; margin-top: 0.25rem;">${backupTime}</div>
                         <div style="font-size: 0.8rem; color: var(--text-secondary);">by ${savedBy}</div>
                     </div>
@@ -13581,7 +13872,7 @@
                     </div>
                 </div>
                 <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-card); border-radius: 0.5rem;">
-                    <strong>Cloud contains:</strong>
+                    <strong>Shared copy contains:</strong>
                     ${analysis.students.total} students,
                     ${analysis.payments.total} payments,
                     ${analysis.documents.total} documents
@@ -13620,7 +13911,7 @@
                                 </label>
                             </div>
                             <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                                Cloud: ${dup.cloud.skillArea}, Paid: $${(dup.cloud.totalPaid || 0).toFixed(2)} |
+                                Shared: ${dup.cloud.skillArea}, Paid: $${(dup.cloud.totalPaid || 0).toFixed(2)} |
                                 Local: ${dup.local.skillArea}, Paid: $${(dup.local.totalPaid || 0).toFixed(2)}
                             </div>
                         </div>`;
@@ -13855,7 +14146,7 @@
         // Upload a single file to Google Drive Documents folder
         async function uploadFileToGoogleDrive(file, customFileName) {
             if (!isCloudConnected || !googleAccessToken) {
-                throw new Error('Not connected to Google Drive. Please connect first.');
+                throw new Error('Sync is not turned on. Please connect first.');
             }
 
             const fileName = customFileName || file.name;
@@ -13882,7 +14173,7 @@
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error?.message || 'Failed to upload file to Google Drive');
+                throw new Error(errorData.error?.message || 'Could not upload the file');
             }
 
             return await response.json();
@@ -13891,7 +14182,7 @@
         // Download a file from Google Drive by file ID
         async function downloadFileFromGoogleDrive(fileId) {
             if (!isCloudConnected || !googleAccessToken) {
-                throw new Error('Not connected to Google Drive. Please connect first.');
+                throw new Error('Sync is not turned on. Please connect first.');
             }
 
             const response = await fetch(
@@ -13904,7 +14195,7 @@
             );
 
             if (!response.ok) {
-                throw new Error('Failed to download file from Google Drive');
+                throw new Error('Could not download the file');
             }
 
             return await response.blob();
@@ -13913,7 +14204,7 @@
         // Get file metadata from Google Drive
         async function getFileMetadataFromGoogleDrive(fileId) {
             if (!isCloudConnected || !googleAccessToken) {
-                throw new Error('Not connected to Google Drive. Please connect first.');
+                throw new Error('Sync is not turned on. Please connect first.');
             }
 
             const response = await fetch(
@@ -13926,7 +14217,7 @@
             );
 
             if (!response.ok) {
-                throw new Error('Failed to get file metadata from Google Drive');
+                throw new Error('Could not read the file details');
             }
 
             return await response.json();
@@ -13935,7 +14226,7 @@
         // Delete a file from Google Drive
         async function deleteFileFromGoogleDrive(fileId) {
             if (!isCloudConnected || !googleAccessToken) {
-                throw new Error('Not connected to Google Drive. Please connect first.');
+                throw new Error('Sync is not turned on. Please connect first.');
             }
 
             const response = await fetch(
@@ -13949,7 +14240,7 @@
             );
 
             if (!response.ok && response.status !== 204) {
-                throw new Error('Failed to delete file from Google Drive');
+                throw new Error('Could not delete the file');
             }
 
             return true;
@@ -14033,16 +14324,16 @@
                 <div id="connectCloudOnLoginModal" class="cloud-auth-modal" style="display: flex;">
                     <div class="modal-content" style="max-width: 450px;">
                         <div class="modal-header">
-                            <h2>Connect to Cloud Storage?</h2>
+                            <h2>Turn On Sync?</h2>
                             <button class="close-btn" onclick="closeConnectCloudOnLoginModal(false)">&times;</button>
                         </div>
                         <div style="padding: 1.25rem;">
                             <div style="text-align: center; margin-bottom: 1.25rem;">
-                                <span style="font-size: 3rem;">☁️</span>
+                                <span style="font-size: 3rem;">🔄</span>
                             </div>
 
                             <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                                Connect to Google Drive to sync your dashboard data across devices and with other users.
+                                Turn on sync to share your dashboard data across devices and with other users.
                             </p>
 
                             <div style="background: #e0f2fe; border: 1px solid #0ea5e9; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1.25rem;">
@@ -14093,7 +14384,7 @@
                 <div id="syncOnLoginModal" class="cloud-auth-modal" style="display: flex;">
                     <div class="modal-content" style="max-width: 450px;">
                         <div class="modal-header">
-                            <h2>Sync from Cloud?</h2>
+                            <h2>Get Latest Changes?</h2>
                             <button class="close-btn" onclick="closeSyncOnLoginModal(false)">&times;</button>
                         </div>
                         <div style="padding: 1.25rem;">
@@ -14102,7 +14393,7 @@
                             </div>
 
                             <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                                Your Google Drive is connected. Would you like to sync the latest data from the cloud?
+                                Sync is connected. Would you like to get the latest data now?
                             </p>
 
                             <div style="background: #e0f2fe; border: 1px solid #0ea5e9; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1.25rem;">
@@ -14150,7 +14441,7 @@
             }
 
             if (!isCloudConnected || !googleAccessToken) {
-                showNotification('Could not connect to Google Drive', 'error');
+                showNotification('Could not connect to sync', 'error');
                 return;
             }
 
@@ -14170,7 +14461,7 @@
 
                 if (!cloudFileId) {
                     setCloudSyncing(false);
-                    showNotification('No backup file found in cloud', 'warning');
+                    showNotification('No shared copy found', 'warning');
                     return;
                 }
 
@@ -14196,35 +14487,10 @@
                 }
 
                 // Restore all data
-                if (backupData.data.users) {
-                    users = backupData.data.users;
-                    saveUsers();
-                }
-
-                if (backupData.data.students) {
-                    students = backupData.data.students;
-                    feePersist('cestiSchoolFeeStudents', students);
-                }
-
-                if (backupData.data.payments) {
-                    payments = backupData.data.payments;
-                    feePersist('cestiSchoolFeePayments', payments);
-                }
-
-                if (backupData.data.documents) {
-                    documents = backupData.data.documents;
-                    feePersist('cestiSchoolFeeDocuments', documents);
-                }
-
-                if (backupData.data.feeStructure) {
-                    feeStructure = backupData.data.feeStructure;
-                    saveFeeStructure();
-                    // A restored fee structure can carry the same programme under
-                    // two spellings, and the same intake under two names; fold
-                    // both back into one entry.
-                    dedupeFeeStructure();
-                    collapseFeeIntakes();
-                }
+                // Merge, never replace: what was recorded here since the last
+                // upload (a payment taken while the token had expired) stays,
+                // and the newer copy of each record wins. See feeMergeCloudData.
+                feeApplyCloudBackup(backupData.data);
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -14253,14 +14519,14 @@
                 setCloudSyncing(false);
 
                 const savedByInfo = backupData.savedBy ? ` (saved by ${backupData.savedBy})` : '';
-                showNotification(`Synced from cloud${savedByInfo}`, 'success');
+                showNotification(`Synced${savedByInfo}`, 'success');
 
             } catch (error) {
                 console.error('Error syncing on login:', error);
                 setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    showNotification('Google Drive session expired', 'error');
+                    showNotification('Sync sign-in expired', 'error');
                     // Clear invalid token
                     CESTISStore.removeItem('cestisGoogleAccessToken');
                     CESTISStore.removeItem('cestisGoogleTokenExpiry');
@@ -14352,7 +14618,7 @@
                 showNotification('Auto-sync disabled', 'info');
             } else {
                 if (!isCloudConnected || !googleAccessToken) {
-                    showNotification('Connect to Google Drive first to enable auto-sync', 'warning');
+                    showNotification('Turn on sync first to enable auto-sync', 'warning');
                     return;
                 }
                 startAutoSync();
@@ -14419,7 +14685,7 @@
             if (!isCloudConnected || !googleAccessToken) {
                 console.log('Auto-sync: not connected, pausing');
                 stopAutoSync();
-                showNotification('Auto-sync paused: not connected to cloud', 'warning');
+                showNotification('Auto-sync paused: sync is not connected', 'warning');
                 return;
             }
 
@@ -14466,7 +14732,7 @@
                         if (response.status === 401 || response.status === 403) {
                             throw new Error('invalid_token');
                         }
-                        throw new Error(`Cloud download failed (${response.status})`);
+                        throw new Error(`Could not get the latest data (${response.status})`);
                     }
 
                     cloudData = await response.json();
@@ -14481,135 +14747,28 @@
                     }
                 }
 
-                // --- STEP 2: Full bidirectional auto-merge (local <-> cloud) ---
-                // Merges all records: adds new, updates existing with most recent data
-                let changesMade = false;
+                // --- STEP 2: Merge the cloud copy in, record by record ---
+                // This used to let THIS device's copy of every record win, so a
+                // device that had not caught up put a corrected payment back to
+                // its old amount every 15 seconds, and started from the cloud's
+                // trainee list, so a trainee deleted here came back. Now the
+                // newer copy of each record wins and deletions stand
+                // (feeMergeCloudData).
+                const cloudSide = cloudData && cloudData.data ? cloudData.data : null;
+                const mergeRes = cloudSide ? feeMergeCloudData(cloudSide) : { changed: false };
+                const localNeedsUpdate = mergeRes.changed;
 
-                // Auto-merge users: start with cloud as base, overlay local on top,
-                // then add cloud-only records back (local edits win on conflict)
-                const mergedUsers = [...existingUsers];
-                users.forEach(localUser => {
-                    const cloudIdx = mergedUsers.findIndex(u => u.id === localUser.id || u.username === localUser.username);
-                    if (cloudIdx >= 0) {
-                        // Record exists in both — use local version (local wins)
-                        const cloudUser = mergedUsers[cloudIdx];
-                        if (JSON.stringify(cloudUser) !== JSON.stringify(localUser)) {
-                            mergedUsers[cloudIdx] = { ...localUser };
-                            changesMade = true;
-                        }
-                    } else {
-                        // Local-only record — add to merged
-                        mergedUsers.push({ ...localUser });
-                        changesMade = true;
-                    }
-                });
-                // Detect cloud-only users (already in merged from cloud base spread)
-                existingUsers.forEach(cloudUser => {
-                    if (!users.find(u => u.id === cloudUser.id || u.username === cloudUser.username)) {
-                        // Cloud-only record — already in mergedUsers from spread, just flag change
-                        changesMade = true;
-                    }
-                });
-
-                // Auto-merge students: update existing + add new from both sides
-                const mergedStudents = [...existingStudents];
-                students.forEach(localStudent => {
-                    const cloudIdx = mergedStudents.findIndex(s => s.id === localStudent.id);
-                    if (cloudIdx >= 0) {
-                        const cloudStudent = mergedStudents[cloudIdx];
-                        if (JSON.stringify(cloudStudent) !== JSON.stringify(localStudent)) {
-                            mergedStudents[cloudIdx] = { ...localStudent };
-                            changesMade = true;
-                        }
-                    } else {
-                        mergedStudents.push({ ...localStudent });
-                        changesMade = true;
-                    }
-                });
-                existingStudents.forEach(cloudStudent => {
-                    if (!students.find(s => s.id === cloudStudent.id)) {
-                        changesMade = true;
-                    }
-                });
-
-                // Auto-merge payments: update existing + add new from both sides
-                const mergedPayments = [...existingPayments];
-                payments.forEach(localPayment => {
-                    const cloudIdx = mergedPayments.findIndex(p => p.id === localPayment.id);
-                    if (cloudIdx >= 0) {
-                        const cloudPayment = mergedPayments[cloudIdx];
-                        if (JSON.stringify(cloudPayment) !== JSON.stringify(localPayment)) {
-                            mergedPayments[cloudIdx] = { ...localPayment };
-                            changesMade = true;
-                        }
-                    } else {
-                        mergedPayments.push({ ...localPayment });
-                        changesMade = true;
-                    }
-                });
-                existingPayments.forEach(cloudPayment => {
-                    if (!payments.find(p => p.id === cloudPayment.id)) {
-                        changesMade = true;
-                    }
-                });
-
-                // Auto-merge documents: update existing + add new from both sides
-                const mergedDocuments = [...existingDocuments];
-                documents.forEach(localDoc => {
-                    const cloudIdx = mergedDocuments.findIndex(d => d.id === localDoc.id);
-                    if (cloudIdx >= 0) {
-                        const cloudDoc = mergedDocuments[cloudIdx];
-                        if (JSON.stringify(cloudDoc) !== JSON.stringify(localDoc)) {
-                            mergedDocuments[cloudIdx] = { ...localDoc };
-                            changesMade = true;
-                        }
-                    } else {
-                        mergedDocuments.push({ ...localDoc });
-                        changesMade = true;
-                    }
-                });
-                existingDocuments.forEach(cloudDoc => {
-                    if (!documents.find(d => d.id === cloudDoc.id)) {
-                        changesMade = true;
-                    }
-                });
-
-                // Auto-merge fee structure: merge term-level changes
-                let mergedFeeStructure = { ...feeStructure };
-                if (existingFeeStructure) {
-                    Object.keys(existingFeeStructure).forEach(key => {
-                        if (!mergedFeeStructure[key]) {
-                            // Cloud has a fee structure entry local doesn't
-                            mergedFeeStructure[key] = { ...existingFeeStructure[key] };
-                            changesMade = true;
-                        }
-                    });
-                    // Local entries always preserved (local wins)
-                }
-
-                // --- STEP 3: Update local data with full merged set ---
-                const localNeedsUpdate = changesMade ||
-                    mergedUsers.length !== users.length ||
-                    mergedStudents.length !== students.length ||
-                    mergedPayments.length !== payments.length ||
-                    mergedDocuments.length !== documents.length;
-
+                // --- STEP 3: Save what the merge changed here ---
                 if (localNeedsUpdate) {
-                    users = mergedUsers;
-                    students = mergedStudents;
-                    payments = mergedPayments;
-                    documents = mergedDocuments;
-                    feeStructure = mergedFeeStructure;
-
-                    recalculateStudentTotals();
                     saveUsers();
-                    saveData();
                     saveFeeStructure();
                     // Two devices can name the same programme differently, and
                     // one intake can arrive under two names; the merge keeps
                     // both, so fold them back into one entry here.
                     dedupeFeeStructure();
                     collapseFeeIntakes();
+                    recalculateStudentTotals();
+                    saveData();
 
                     // Refresh UI
                     renderFeeStructure();
@@ -14623,6 +14782,34 @@
                     updateDashboard();
                 }
 
+                const mergedUsers = users;
+                const mergedStudents = students;
+                const mergedPayments = payments;
+                const mergedDocuments = documents;
+                const mergedFeeStructure = feeStructure;
+                // Upload only when the cloud copy is behind what this device now
+                // holds (a record or a deletion it does not have).
+                // Compared without regard to order, so two devices that list the
+                // same records differently do not re-upload to each other forever.
+                const fp = x => (x && typeof x === 'object' && window.CESTISCore && CESTISCore.sync)
+                    ? CESTISCore.sync.fingerprint(x) : JSON.stringify(x === undefined ? null : x);
+                const canon = v => {
+                    if (Array.isArray(v)) return v.map(fp).sort().join('\n');
+                    if (v && typeof v === 'object') return Object.keys(v).sort().map(k => k + '=' + fp(v[k])).join('\n');
+                    return JSON.stringify(v == null ? null : v);
+                };
+                const sameAsCloud = (a, b) => canon(a) === canon(b);
+                const tombs = feeTombstonePayload();
+                const changesMade = !cloudSide ||
+                    !sameAsCloud(mergedUsers, cloudSide.users) ||
+                    !sameAsCloud(mergedStudents, cloudSide.students) ||
+                    !sameAsCloud(mergedPayments, cloudSide.payments) ||
+                    !sameAsCloud(mergedDocuments, cloudSide.documents) ||
+                    !sameAsCloud(mergedFeeStructure, cloudSide.feeStructure) ||
+                    !sameAsCloud(tombs.deletedPaymentIds, cloudSide.deletedPaymentIds || []) ||
+                    !sameAsCloud(tombs.deletedDocumentIds, cloudSide.deletedDocumentIds || []) ||
+                    !sameAsCloud(tombs.deletedFeeKeys, cloudSide.deletedFeeKeys || []);
+
                 // --- STEP 4: Upload fully merged data to cloud ---
                 if (changesMade || localNeedsUpdate) {
                     const backupData = {
@@ -14634,7 +14821,7 @@
                             users: mergedUsers,
                             students: mergedStudents,
                             payments: filterTombstonedPayments(mergedPayments),
-                        deletedPaymentIds: getDeletedPaymentIds(),
+                        ...feeTombstonePayload(),
                             documents: mergedDocuments,
                             feeStructure: mergedFeeStructure
                         }
@@ -14716,7 +14903,7 @@
                 console.error('Auto-sync error:', error);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    showNotification('Auto-sync stopped: Google Drive session expired', 'error');
+                    showNotification('Auto-sync stopped: the sync sign-in expired', 'error');
                     CESTISStore.removeItem('cestisGoogleAccessToken');
                     CESTISStore.removeItem('cestisGoogleTokenExpiry');
                     updateCloudUI(false);
@@ -14751,7 +14938,7 @@
                 <div id="forcedSyncModal" class="cloud-auth-modal" style="display: flex;">
                     <div class="modal-content" style="max-width: 450px;">
                         <div class="modal-header">
-                            <h2>Connected to Google Drive!</h2>
+                            <h2>Connected!</h2>
                         </div>
                         <div style="padding: 1.25rem;">
                             <div style="text-align: center; margin-bottom: 1.25rem;">
@@ -14760,13 +14947,13 @@
 
                             ${hasBackup ? `
                                 <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                                    A cloud backup was found. You must sync your data before continuing to ensure you have the latest information.
+                                    Shared data was found. You must sync your data before continuing to ensure you have the latest information.
                                 </p>
 
                                 <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1.25rem;">
                                     <strong style="color: #d97706;">Important:</strong>
                                     <span style="color: var(--text-secondary); font-size: 0.9rem;">
-                                        This will replace your local data with the cloud backup.
+                                        The shared copy is merged with this computer’s data. Records only this computer holds are kept.
                                     </span>
                                 </div>
 
@@ -14775,7 +14962,7 @@
                                 </button>
                             ` : `
                                 <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                                    No existing backup was found in the cloud. Would you like to save your current data to the cloud now?
+                                    No shared copy exists yet. Would you like to share your current data now?
                                 </p>
 
                                 <div style="background: #e0f2fe; border: 1px solid #0ea5e9; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1.25rem;">
@@ -14790,7 +14977,7 @@
                                         Skip for Now
                                     </button>
                                     <button class="btn" onclick="performForcedSaveAfterConnect()" style="flex: 1;">
-                                        Merge to Cloud
+                                        Merge & Send My Changes
                                     </button>
                                 </div>
                             `}
@@ -14812,7 +14999,7 @@
                 content.innerHTML = `
                     <div style="text-align: center; padding: 1.25rem;">
                         <div class="spinning" style="font-size: 3rem; margin-bottom: 1rem;">🔄</div>
-                        <p style="color: var(--text-secondary);">Syncing data from cloud...</p>
+                        <p style="color: var(--text-secondary);">Syncing the latest data...</p>
                     </div>
                 `;
             }
@@ -14842,35 +15029,10 @@
                 }
 
                 // Restore data
-                if (backupData.data.users) {
-                    users = backupData.data.users;
-                    saveUsers();
-                }
-
-                if (backupData.data.students) {
-                    students = backupData.data.students;
-                    feePersist('cestiSchoolFeeStudents', students);
-                }
-
-                if (backupData.data.payments) {
-                    payments = backupData.data.payments;
-                    feePersist('cestiSchoolFeePayments', payments);
-                }
-
-                if (backupData.data.documents) {
-                    documents = backupData.data.documents;
-                    feePersist('cestiSchoolFeeDocuments', documents);
-                }
-
-                if (backupData.data.feeStructure) {
-                    feeStructure = backupData.data.feeStructure;
-                    saveFeeStructure();
-                    // A restored fee structure can carry the same programme under
-                    // two spellings, and the same intake under two names; fold
-                    // both back into one entry.
-                    dedupeFeeStructure();
-                    collapseFeeIntakes();
-                }
+                // Merge, never replace: what was recorded here since the last
+                // upload (a payment taken while the token had expired) stays,
+                // and the newer copy of each record wins. See feeMergeCloudData.
+                feeApplyCloudBackup(backupData.data);
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -14900,7 +15062,7 @@
                 closeForcedSyncModal(true);
 
                 const savedByInfo = backupData.savedBy ? ` (saved by ${backupData.savedBy})` : '';
-                showNotification(`Connected and synced from cloud${savedByInfo}`, 'success');
+                showNotification(`Connected and synced${savedByInfo}`, 'success');
 
             } catch (error) {
                 console.error('Error during forced sync:', error);
@@ -14939,7 +15101,7 @@
                 content.innerHTML = `
                     <div style="text-align: center; padding: 1.25rem;">
                         <div class="spinning" style="font-size: 3rem; margin-bottom: 1rem;">💾</div>
-                        <p style="color: var(--text-secondary);">Saving data to cloud...</p>
+                        <p style="color: var(--text-secondary);">Saving and syncing data...</p>
                     </div>
                 `;
             }
@@ -14970,7 +15132,7 @@
         // Browse all backup files in the shared folder
         async function browseBackupFiles() {
             if (!isCloudConnected || !googleAccessToken) {
-                alert('Please connect to Google Drive first');
+                alert('Please turn on sync first');
                 return;
             }
 
@@ -14994,7 +15156,7 @@
                 setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    alert('Your sync sign-in has expired. Please reconnect to keep syncing.');
                     disconnectFromGoogleDrive();
                 } else {
                     alert(`Failed to browse files: ${error.message}`);
@@ -15335,7 +15497,7 @@
             if (syncDocuments) selectedItems.push('Documents');
             if (syncFeeStructure) selectedItems.push('Fee Structure');
 
-            if (!confirm(`You are about to sync the following data:\n\n• ${selectedItems.join('\n• ')}\n\nThis will replace your current local data. Continue?`)) {
+            if (!confirm(`You are about to sync the following data:\n\n• ${selectedItems.join('\n• ')}\n\nNewer shared records are merged in; records only this computer holds are kept. Continue?`)) {
                 return;
             }
 
@@ -15344,35 +15506,12 @@
 
             try {
                 // Perform selective restore
-                if (syncUsers && backupData.data.users) {
-                    users = backupData.data.users;
-                    saveUsers();
-                }
-
-                if (syncStudents && backupData.data.students) {
-                    students = backupData.data.students;
-                    feePersist('cestiSchoolFeeStudents', students);
-                }
-
-                if (syncPayments && backupData.data.payments) {
-                    payments = backupData.data.payments;
-                    feePersist('cestiSchoolFeePayments', payments);
-                }
-
-                if (syncDocuments && backupData.data.documents) {
-                    documents = backupData.data.documents;
-                    feePersist('cestiSchoolFeeDocuments', documents);
-                }
-
-                if (syncFeeStructure && backupData.data.feeStructure) {
-                    feeStructure = backupData.data.feeStructure;
-                    saveFeeStructure();
-                    // A restored fee structure can carry the same programme under
-                    // two spellings, and the same intake under two names; fold
-                    // both back into one entry.
-                    dedupeFeeStructure();
-                    collapseFeeIntakes();
-                }
+                // Merge the chosen collections in, never replace them — the
+                // same record-by-record rule as every other sync path.
+                feeApplyCloudBackup(backupData.data, {
+                    users: syncUsers, students: syncStudents, payments: syncPayments,
+                    documents: syncDocuments, feeStructure: syncFeeStructure
+                });
 
                 // Update sync tracking
                 lastSyncTime = new Date();
@@ -15422,7 +15561,7 @@
 
         function initiateLoginPageSync() {
             isLoginPageSync = true;
-            updateLoginSyncStatus('Connecting to Google...', true);
+            updateLoginSyncStatus('Connecting...', true);
             const syncBtn = document.querySelector('.sync-prompt-btn');
             if (syncBtn) {
                 syncBtn.disabled = true;
@@ -15437,7 +15576,7 @@
                         googleTokenClient.requestAccessToken();
                     } else {
                         isLoginPageSync = false;
-                        updateLoginSyncStatus('Google Sign-In not available.', false, true);
+                        updateLoginSyncStatus('Sign-in is not available right now.', false, true);
                         resetLoginSyncButton();
                     }
                 }, 500);
@@ -15479,8 +15618,10 @@
                 const backup = await response.json();
                 if (!backup.version || !backup.data) throw new Error('Invalid backup format');
                 if (backup.data.users) {
-                    users = backup.data.users;
-                    CESTISStore.setItem('cestiUsers', JSON.stringify(users));
+                    // Merged by username, newest wins — an account or password
+                    // changed here and not yet uploaded is not thrown away.
+                    feeMergeCloudData({ users: backup.data.users }, { users: true });
+                    saveUsers();
                 }
                 if (backup.data.quickLinks) {
                     quickLinks = backup.data.quickLinks;
@@ -15531,7 +15672,7 @@
             const syncBtn = document.querySelector('.sync-prompt-btn');
             if (syncBtn) {
                 syncBtn.disabled = false;
-                syncBtn.innerHTML = '<span>🔄</span> Connect & Sync with Google';
+                syncBtn.innerHTML = '<span>🔄</span> Connect & Sync';
             }
         }
 
@@ -15567,13 +15708,13 @@
 <div id="mergeToCloudModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center;">
     <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-secondary); border-radius: 24px; box-shadow: var(--shadow-xl); animation: slideUp 0.3s ease;">
         <div class="modal-header" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
-            <h2 style="color: white; margin: 0; font-weight: 700;">🔀 Smart Merge to Cloud</h2>
+            <h2 style="color: white; margin: 0; font-weight: 700;">🔀 Smart Merge & Send</h2>
             <button class="close-btn" onclick="closeMergeToCloudModal()" style="color: white; background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
         </div>
         <div style="padding: 1.5rem; overflow-y: auto; flex: 1;">
             <div id="mergeToCloudLoading" style="text-align: center; padding: 2rem;">
                 <div style="font-size: 2rem; margin-bottom: 1rem;">🔄</div>
-                <p>Analyzing cloud data and detecting changes...</p>
+                <p>Comparing the shared data and detecting changes...</p>
             </div>
             <div id="mergeToCloudContent" style="display: none;">
                 <!-- Summary Section -->
@@ -15632,9 +15773,21 @@
 <!-- MegaData bridge (stage 1): in shadow mode the legacy fee keys become real
      ledger events and window.__feeReconcile() runs the shadow comparator.
      docs/02 §14, docs/04 §8. -->
+<script src="megadata/schemas.js?v=1"></script>
+<script src="megadata/projections.js?v=1"></script>
+<script src="megadata/dal.js?v=1"></script>
+<script src="megadata/adapter-idb.js?v=1"></script>
+<script src="megadata/broker-client.js?v=1"></script>
+<script src="megadata/enforcement-shim.js?v=1"></script>
+<script src="megadata/browser-sync.js?v=1"></script>
+<script src="megadata/page-boot.js?v=1"></script>
+<script src="megadata/pages/roster-model.js?v=1"></script>
+<script src="megadata/pages/fee-model.js?v=1"></script>
+<script src="megadata/pages/fee-page.js?v=1"></script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20260802a"></script>
+<script src="cestis-page-cloud.js?v=20261028e"></script>
+<script src="cestis-sync-chip.js?v=20261028d"></script>
 <script>
 CESTISPageCloud.init({
   page: 'School Fee Management',
@@ -15651,6 +15804,7 @@ CESTISPageCloud.init({
           'voctrain_deletedStudentIds'],
   onRestore: function (changed) {
     try {
+      if (typeof feeViewer !== 'undefined' && !feeViewer) return;   // page not opened for this visitor
       if (typeof feeInvalidateCaches === 'function') feeInvalidateCaches();
       if (typeof refreshLmsStudentCache === 'function') refreshLmsStudentCache();
       if (typeof loadData === 'function') loadData();

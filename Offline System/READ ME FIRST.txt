@@ -68,6 +68,12 @@ If a device cannot reach it:
     server computer and the problem goes away for good. (When the address does
     change, the server makes a fresh certificate for it, so devices are asked to
     accept it once more.)
+  - the records answer only at the addresses the black window prints (and
+    "localhost" on the server itself). If the Centre reaches the server by a
+    name of its own set up on the router, start it with that name allowed:
+        CESTIS_HOSTNAMES=thatname  node cestis-offline-server.js
+    (This stops a website from pointing its own name at the server to read the
+    records through somebody's browser.)
 
 
 --------------------------------------------------------------------------------
@@ -92,6 +98,23 @@ Read that folder's own note for the full list.
 BACK IT UP. Copy the "data" folder to a memory stick on a schedule somebody is
 responsible for. It is the Centre's records, and it lives on one computer.
 
+EVERY SAVE KEEPS THE PREVIOUS VERSION. Inside "data" there is a hidden folder
+called ".history" with one folder per file, holding the last 40 versions of it,
+named by date and time. If a file is ever damaged or a bad save gets through,
+stop the server, copy the version you want from data/.history/<file>/ back over
+data/<file>, and start the server again. (On Windows, turn on "Hidden items"
+in File Explorer's View menu to see the folder.)
+
+HOW SAVES ARE COMBINED. Several devices saving at once is normal in a class.
+The server merges every save into what it already holds, by the same rules
+every device uses: lists of records (trainees, exam results, attendance,
+submissions, chat, announcements...) are combined record by record, so a save
+from a device that holds fewer records — a trainee's PC after they sign out, a
+tablet that has not caught up yet — never removes anybody else's. Records are
+only ever removed by an actual deletion in the system, which every device then
+honours. Who is signed in on a screen, and an exam half-way through, are never
+shared between devices.
+
 
 --------------------------------------------------------------------------------
   4.  WHAT WORKS OFFLINE, AND WHAT CANNOT
@@ -104,6 +127,7 @@ WORKS, completely offline:
       payment vouchers, virements, payslips and the time clock
     Every user account, sign-in and role
     Video classes and LMS Chat calls between devices on this network
+    Income & Expenditure statements, and the Board's (CMC) view of the books
     Sharing all of the above across the Centre's own network
 
 DOES NOT WORK without internet, by nature:
@@ -113,9 +137,12 @@ DOES NOT WORK without internet, by nature:
       passwords directly instead (Settings > Users > Reset Password)
     Qualification Plan / Curriculum documents, which are held in Google Drive.
       Copy the PDFs into this folder if you need them offline.
+    MegaData (the migration tool): its pages are here, but it needs its
+      online broker, so offline they simply stay in their normal mode.
 
 Nothing else changes. The pages, the roles and the records are identical to the
-online version.
+online version — the pages in this folder are generated from the online ones
+(see "FOR WHOEVER MAINTAINS THIS FOLDER" at the end).
 
 
 --------------------------------------------------------------------------------
@@ -139,8 +166,22 @@ What to expect:
   - the class is limited by the devices themselves, not by this software. Small
     groups are comfortable; a large class on old tablets will not be.
 
-To see who is currently connected, open on the server computer:
+To see who is currently connected, open ON THE SERVER COMPUTER ITSELF:
       https://localhost:8080/_cestis/rooms
+(Other devices are refused that page: it lists every class's room code, and
+the room code is all it takes to join a class.)
+
+Only STAFF can start a class on this network. When an administrator, a member
+of Admin Staff or an instructor signs in to the dashboard, the server checks
+their password itself and lets that browser tab host classes for twelve hours.
+If a class will not start and the page says only signed-in staff can host,
+sign out and sign in again. (A brand-new Centre whose data folder holds no
+staff login yet can start a class without this.) Before, a trainee who knew a
+room code could take the class's host place before the instructor arrived.
+
+A device that went to sleep, or dropped off the wifi, in the middle of a class
+is let go by the server after about a minute of silence, so its owner can
+reload and start or rejoin the class again.
 
 If a call will not connect:
   - check both devices are on the same wifi, not one on mobile data;
@@ -171,7 +212,85 @@ stands.
 
 
 --------------------------------------------------------------------------------
-  7.  IF SOMETHING IS WRONG
+  7.  WHO CAN SEE THE RECORDS — PLEASE READ
+--------------------------------------------------------------------------------
+
+Be clear about what protects the Centre's records on this network, and what
+does not.
+
+WHAT IS PROTECTED
+  - Other websites. A web page open in somebody's browser cannot read or change
+    the records: every request to the records must carry the server's access
+    token, and browsers do not let other websites read it.
+  - The records folder, the server's private key and the "User Login" folder
+    are never served as files.
+  - Saves cannot take records away (section 3), and the last 40 versions of
+    every file are kept, so damage can be undone.
+
+WHAT IS NOT PROTECTED (unless the switch below is on)
+  - A person on the Centre's network who can open the system. Any device that
+    can load the pages can obtain the access token the same way the pages do,
+    and with some technical knowledge read the whole records store — including
+    every account's password hash and two-step secret, payslips, and exam
+    answer keys — or send it changes. A trainee's device that opens the system
+    also holds a copy of the whole store in its browser storage.
+
+THE SWITCH: "TRAINEE DEVICES GET ONLY THEIR OWN RECORDS"
+  It is OFF unless an administrator turns it on, and while it is off
+  everything works exactly as described above.
+
+  When it is ON:
+  - the access token is replaced, so every device that already had it loses
+    it at its next save;
+  - the new token is given only to a member of staff — an administrator,
+    Admin Staff or an instructor — who signs in on that device with their own
+    password, which the server checks itself (the passwords the system first
+    shipped with never count);
+  - a trainee signs in through the server's own trainee sign-in instead, and
+    their device is given only that trainee's records: their results,
+    attendance, assignments, notices and exams — never anybody else's, and
+    never an exam's answers. What they send back (test answers, work handed
+    in, messages, requests) is checked by the server and added to the
+    Centre's records, with the previous version kept in data/.history like
+    every other save. Tests taken this way are marked by the server, from the
+    answer key the server keeps.
+
+  Turning it OFF replaces the token once more, and every device can be given
+  it again as before.
+
+  Only an administrator can turn it on or off: the request carries their
+  username and password, and the server checks them. The setting is kept in
+  the data folder (data/.server/staff-only.json), so a restart does not change
+  it, and it goes with the data folder when that is backed up or moved.
+
+  IF NOBODY CAN SIGN IN TO TURN IT OFF: stop the server, delete the file
+  data/.server/staff-only.json, and start the server again. It is off.
+  (The switch also does nothing while the data folder holds no staff login
+  with a password of its own, so a Centre whose data folder was replaced is
+  never locked out of its own records.)
+
+  What it does not change: staff devices still hold the whole store, as they
+  must to run the Centre; and a trainee's device that already holds a copy
+  from before keeps it until it is cleared.
+
+WHAT TO DO ABOUT IT
+  - Run the system on a network that only Centre devices join. Keep the wifi
+    password away from personal phones and visitors; if trainees must use
+    their own devices, give them a separate guest network that cannot reach
+    the server computer, and use Centre-owned devices for exams.
+  - Use strong passwords for every staff and administrator account (a weak
+    password's hash can be guessed offline).
+  - Treat the server computer as the Centre's safe: lock it, and do not share
+    the "Offline System" folder, the "cert" folder or copies of "data".
+
+The access token is kept in the "cert" folder, so restarting the server does
+not interrupt pages that are already open. To change it (for example after a
+staff member leaves), stop the server, delete cert/lan-token, and start it
+again; open pages pick up the new one by themselves.
+
+
+--------------------------------------------------------------------------------
+  8.  IF SOMETHING IS WRONG
 --------------------------------------------------------------------------------
 
 "Port 8080 is already being used"
@@ -179,12 +298,21 @@ stands.
         node cestis-offline-server.js 8090
     and use :8090 in the address on every device.
 
-"Node.js was not found"
-    Install Node.js once, from https://nodejs.org, on a computer that has
-    internet. After that this folder never needs the internet again. The
-    launchers fall back to Python, which serves the pages but does NOT share
-    data between devices and does NOT carry video classes — treat that as a
-    temporary measure, not a way to run the Centre.
+"Node.js was not found" / "too old"
+    The system needs Node.js 14 or newer. On a computer that has internet,
+    download the "LTS" installer from https://nodejs.org, copy it onto a memory
+    stick, and run it on the server computer. After that this folder never
+    needs the internet again. (The package lists of some older Linux versions
+    offer a Node.js that is too old; use the one from nodejs.org.)
+    There is deliberately no fallback any more: the old Python fallback shared
+    nothing between devices and handed the records folder and the private key
+    to anyone on the network.
+
+"Not reaching the Centre's server" (a red bar at the bottom of a page)
+    That device's saves are not reaching the server, so its work is only on
+    that device for now. Check the black window is still open on the server
+    computer and the device is on the same network. The bar goes away by
+    itself at the next successful save; reload the page if it asks you to.
 
 A page is blank
     Refresh once. If it stays blank, stop the server window and start it again.
@@ -193,6 +321,32 @@ Somebody's work is missing
     Check the data folder has the file for that part of the system, and that
     their device is pointed at the server's address rather than a copy of the
     pages opened straight off a memory stick.
+
+
+--------------------------------------------------------------------------------
+  FOR WHOEVER MAINTAINS THIS FOLDER
+--------------------------------------------------------------------------------
+
+The pages and scripts in this folder are GENERATED from the online build by
+tools/build-offline.js in the main repository — do not edit them here; edit
+the online file and run  npm run build:offline  (the test suite fails until
+you do). Only these belong to this folder alone and are edited here:
+    cestis-offline-server.js, cestis-offline-signalling.js,
+    cestis-offline-cert.js, cestis-offline-store.js, cestis-offline-gate.js,
+    START-WINDOWS.bat, START-MAC.command, START-LINUX.sh,
+    READ ME FIRST.txt, data/READ ME - THIS IS THE CENTRE'S DATA.txt,
+    package.json, .gitignore and the tests/ folder.
+
+The trainee sign-in (cestis-offline-gate.js) answers POST /_cestis/gate with
+the same requests and rules as the online trainee sign-in (cestis-core.js,
+CESTISCore.gate; docs/trainee-gate/DESIGN.md in the main repository). Its
+sessions are signed with cert/gate-secret, made on first run. The staff-only
+switch (section 7) is changed with POST /_cestis/staff-only carrying the
+records token and { username, password, on }; GET /_cestis/staff-only says
+whether it is on. While it is on, staff pages must get the token by sending
+the signed-in person's username and password to POST /_cestis/token, and
+trainees' pages must sign in at /_cestis/gate: pages that do neither cannot
+save to the server until it is turned off again.
 
 ================================================================================
   Start the server, open the address, and use the system exactly as before.
