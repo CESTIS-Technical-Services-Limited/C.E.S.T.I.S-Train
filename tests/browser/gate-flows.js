@@ -500,6 +500,21 @@ const GSI_STUB = `(function(){
   /* ------------------------------------------------------------------ 4b */
   section('4b. Her other work reaches the office: a notice read, her profile, a support message, coursework, a request, chat', async () => {
     const { ctx, page } = shared.tameka;
+    // The office starts her programme's class: the sidebar's LIVE badge used
+    // to light only after a save, which a trainee at home never makes, so it
+    // stayed dark all lesson. It lights when the records arrive.
+    const badgeBefore = await page.evaluate(() => { const b = document.querySelector('#sidebarNav .nav-live-badge'); return b ? b.hidden : 'no badge'; });
+    await shared.officePage.evaluate(() => {
+      const t = new Date().toISOString();
+      classSessions.push({ id: 'CS-LIVE-WF', name: 'Welding Theory — live now', course: currentStudentCourseForTest(), date: localDateStr(), time: '09:00', duration: 60,
+        type: 'virtual', location: 'Virtual-01', roomCode: 'WELDLIVE12', status: 'live', createdBy: 'Marcia Thompson', createdAt: t, updatedAt: t });
+      function currentStudentCourseForTest() { const s = students.find(x => x.name === 'Tameka Richards'); return s ? s.course : 'Welding & Fabrication'; }
+      saveState();
+    });
+    for (let i = 0; i < 120 && !Object.values(drive.files).some(f => f.name === 'from-centre.json' && /CS-LIVE-WF/.test(f.content || f.data || '')); i++) await wait(500);
+    await page.evaluate(() => gatePullAndApply().then(r => { if (r && r.applied) gateAfterApply(r.applied); }));
+    const badgeAfter = await page.evaluate(() => { const b = document.querySelector('#sidebarNav .nav-live-badge'); return b ? b.hidden : 'no badge'; });
+    ok(badgeBefore === true && badgeAfter === false, 'her class going live at the office lights the LIVE badge in her sidebar (hidden before: ' + badgeBefore + ', after: ' + badgeAfter + ')');
     // The bell: "Mark all read".
     await page.evaluate(() => gatePullAndApply().then(r => { if (r && r.applied) gateAfterApply(r.applied); }));
     const bell = await page.evaluate(() => (getFilteredNotifications() || []).map(n => n.id));

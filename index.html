@@ -39210,6 +39210,10 @@ function gateAfterApply(r) {
   try { if (typeof renderStudentDashboard === 'function') renderStudentDashboard(); } catch (e) {}
   try { updateNotificationDot(); } catch (e) {}
   try { refreshSyncChip(); } catch (e) {}
+  // The sidebar's LIVE badge redraws after a save; a trainee at home never
+  // saves the class list, so a class going live reached her records but the
+  // badge never lit. It is redrawn whenever new records arrive.
+  try { refreshNavLiveBadges(); } catch (e) {}
 }
 // Everything the page holds in memory, read again from the namespace.
 function gateReloadMemory() {
