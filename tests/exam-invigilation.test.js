@@ -349,6 +349,8 @@ console.log('\nThe page: the tick is off by default, and the page needs it');
   assert(box.AS_PAGE_PERMISSION['as-invigilator'] === 'invigilation', 'and the Admin Staff invigilator page is refused without it (showPage checks it)');
   assert(/function invigAllowed\(\)[\s\S]{0,400}CESTISCore\.invigilation\.canOpen\(currentRole/.test(PAGE), 'every role\'s page asks the one rule (CESTISCore.invigilation.canOpen)');
   assert(!/answers/.test(grab('function examLivePulseBody(', '\n}')), 'the live word a trainee\'s computer sends never names the answers');
+  assert(/<strong>Online Test Activity:<\/strong> While you sit an online test, the times you start it, open each page, first reach and first answer each question, leave and return to the test window, lose and regain your connection, and submit it are recorded/.test(PAGE) &&
+    /Your answers are not part of this record\./.test(PAGE), 'the Privacy Policy says which test activity times are recorded, and that answers are not');
 }
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
