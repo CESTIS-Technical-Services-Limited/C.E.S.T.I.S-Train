@@ -64,6 +64,20 @@ function loadOrCreateToken(certDir) {
   } catch (e) {}
   return t;
 }
+/* A NEW token in place of the old one, for the staff-only switch
+   (cestis-offline-server.js): every device still holding the old token is
+   refused until it asks again, and only staff are given the new one. It must
+   reach the disk — a token changed only in memory would be the old one again
+   after a restart — so a failure throws and the switch is not changed. */
+function rotateToken(certDir) {
+  const file = path.join(certDir, 'lan-token');
+  const t = crypto.randomBytes(24).toString('hex');
+  fs.mkdirSync(certDir, { recursive: true });
+  const tmp = file + '.' + process.pid + '.' + crypto.randomBytes(6).toString('hex') + '.tmp';
+  fs.writeFileSync(tmp, t + '\n', { mode: 0o600 });
+  try { fs.renameSync(tmp, file); } catch (e) { try { fs.unlinkSync(tmp); } catch (e2) {} throw e; }
+  return t;
+}
 
 /* ------------------------------------------------------------------- etag */
 function etagOf(buf) {
@@ -149,9 +163,18 @@ function mergeIncoming(Core, storedText, incoming) {
   return out;
 }
 
-/* Save one page file. Resolves { bytes, etag, changedByServer, history }. */
+/* Save one page file. Resolves { bytes, etag, changedByServer, history }.
+
+   opts.incoming is what to merge in — or a FUNCTION, called inside this
+   file's queue with the stored text (null when there is no file yet), that
+   returns it, or returns null when there is nothing to save after all
+   (resolves { skipped: true }). The trainee gate (cestis-offline-gate.js)
+   saves this way: it reads what the Centre holds, checks what a trainee
+   sent against it and writes the result in one step, so no other save can
+   land between its read and its write. Whatever it throws fails the save
+   and nothing is written. */
 function save(opts) {
-  const file = opts.file, dataDir = opts.dataDir, incoming = opts.incoming;
+  const file = opts.file, dataDir = opts.dataDir;
   return serialise(file, () => {
     fs.mkdirSync(dataDir, { recursive: true });
     let storedText = null;
@@ -162,6 +185,11 @@ function save(opts) {
     // device tries again.
     try { storedText = fs.readFileSync(file, 'utf8'); }
     catch (e) { if (e && e.code === 'ENOENT') storedText = null; else throw e; }
+    const incoming = typeof opts.incoming === 'function' ? opts.incoming(storedText) : opts.incoming;
+    if (incoming == null && typeof opts.incoming === 'function') {
+      const buf = Buffer.from(storedText == null ? '' : storedText);
+      return { skipped: true, bytes: buf.length, etag: storedText == null ? null : etagOf(buf), changedByServer: false, history: null };
+    }
     const merged = mergeIncoming(opts.core, storedText, incoming);
     const text = JSON.stringify(merged);
     const changedByServer = text !== JSON.stringify(incoming);
@@ -174,5 +202,5 @@ function save(opts) {
   });
 }
 
-module.exports = { nodeTooOld, MIN_NODE_MAJOR, loadOrCreateToken, etagOf, serialise, writeDurable,
+module.exports = { nodeTooOld, MIN_NODE_MAJOR, loadOrCreateToken, rotateToken, etagOf, serialise, writeDurable,
   keepHistory, historyDir, mergeIncoming, save, HISTORY_KEEP };

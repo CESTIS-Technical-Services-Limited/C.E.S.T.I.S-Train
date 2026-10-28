@@ -66,7 +66,7 @@ const EXCLUDE = [
 /* Files that exist only in the offline build. The generator never writes,
    compares or deletes these — they are maintained in "Offline System/". */
 const OFFLINE_OWNED = [
-  /^cestis-offline-(server|signalling|cert|store)\.js$/,
+  /^cestis-offline-(server|signalling|cert|store|gate)\.js$/,
   /^START-(WINDOWS\.bat|MAC\.command|LINUX\.sh)$/,
   /^READ ME FIRST\.txt$/,
   /^data\/READ ME - THIS IS THE CENTRE'S DATA\.txt$/,

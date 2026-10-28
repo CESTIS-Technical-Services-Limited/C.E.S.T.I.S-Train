@@ -31,6 +31,10 @@
       That is what lets the Coordinator's laptop, the office desktop and an
       instructor's tablet see the same trainees, fees and vouchers with no
       internet at all.
+   4. Runs the TRAINEE GATE (cestis-offline-gate.js, at /_cestis/gate): a
+      trainee's device can sign in there and be given that trainee's own
+      records only. With the staff-only switch on (see "the staff-only
+      switch" below) the shared store above is then for staff devices only.
 
    HOW TO RUN IT
    -------------
@@ -108,8 +112,13 @@ function ensureDataDir() {
 
    It is kept in cert/lan-token so it survives a restart: it used to change
    every time the server started, and every page already open then failed
-   every save, silently, until somebody reloaded it. */
-const ACCESS_TOKEN = store.loadOrCreateToken(CERT_DIR);
+   every save, silently, until somebody reloaded it.
+
+   With the STAFF-ONLY switch on (below) that changes: the token is replaced,
+   and the new one is given only to a member of staff whose password this
+   server has checked. A trainee's device then signs in through the trainee
+   gate (/_cestis/gate) and is given its own records only. */
+let ACCESS_TOKEN = store.loadOrCreateToken(CERT_DIR);
 function tokenOk(req) {
   const given = req.headers['x-cestis-token'];
   if (typeof given !== 'string' || given.length !== ACCESS_TOKEN.length) return false;
@@ -251,8 +260,12 @@ function ticketFailed(req) {
   f.count++;
   ticketFailures.set(ip, f);
 }
-function handleHostTicket(req, res) {
-  if (req.method !== 'POST') return send(res, 405, 'method not allowed');
+/* A member of staff proving who they are with the password they have just
+   signed in with, checked here against the Centre's accounts. The host
+   ticket below asks this way; so do the records token while the staff-only
+   switch is on, and (administrators only) the switch itself. `roles` says
+   who counts; done(acct, body) runs once the password is right. */
+function withStaffPassword(req, res, roles, refusal, done) {
   if (ticketThrottled(req)) return send(res, 429, JSON.stringify({ ok: false, error: 'too many attempts — wait ten minutes' }), MIME['.json']);
   const chunks = [];
   let received = 0, tooBig = false;
@@ -267,17 +280,90 @@ function handleHostTicket(req, res) {
     try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (e) { body = null; }
     const who = String((body && body.username) || '').trim().toLowerCase();
     const password = body && typeof body.password === 'string' ? body.password : '';
-    const refuse = () => { ticketFailed(req); send(res, 403, JSON.stringify({ ok: false, error: 'not a member of staff with that password' }), MIME['.json']); };
+    const refuse = () => { ticketFailed(req); send(res, 403, JSON.stringify({ ok: false, error: refusal }), MIME['.json']); };
     if (!who || !password || PUBLISHED_DEFAULTS.indexOf(password) !== -1) return refuse();
-    const acct = centreAccounts().filter(isStaffLogin).find(a =>
+    const acct = centreAccounts().filter(a => isStaffLogin(a) && roles[String(a.role || '').trim().toLowerCase()]).find(a =>
       String(a.username || '').trim().toLowerCase() === who || String(a.email || '').trim().toLowerCase() === who);
     if (!acct) return refuse();
     verifyStoredPassword(password, acct.password).then(ok => {
       if (!ok) return refuse();
-      const ticket = signalling.makeTicket(HOST_SECRET, { u: acct.id, r: String(acct.role).toLowerCase() });
-      const claims = signalling.verifyTicket(HOST_SECRET, ticket);
-      send(res, 200, JSON.stringify({ ok: true, ticket, expires: claims ? claims.exp : 0 }), MIME['.json']);
+      done(acct, body);
     });
+  });
+}
+function handleHostTicket(req, res) {
+  if (req.method !== 'POST') return send(res, 405, 'method not allowed');
+  withStaffPassword(req, res, STAFF_ROLES, 'not a member of staff with that password', acct => {
+    const ticket = signalling.makeTicket(HOST_SECRET, { u: acct.id, r: String(acct.role).toLowerCase() });
+    const claims = signalling.verifyTicket(HOST_SECRET, ticket);
+    send(res, 200, JSON.stringify({ ok: true, ticket, expires: claims ? claims.exp : 0 }), MIME['.json']);
+  });
+}
+
+/* ------------------------------------------------- the staff-only switch */
+/* "Trainee devices on the Centre network get only their own records"
+   (docs/trainee-gate/DESIGN.md §6). OFF unless an administrator turns it on,
+   and while it is off everything here works exactly as before.
+
+   Off, any device that opens the system can ask /_cestis/token for the
+   records token (see the note at ACCESS_TOKEN and READ ME FIRST section 7).
+   ON:
+     - the token is REPLACED (cert/lan-token), so every device that already
+       had it is refused at its next request;
+     - /_cestis/token gives the new one only to a POST of the username and
+       password of a member of staff, checked here (as for host tickets);
+     - so /_cestis/data/* answers staff devices only, and a trainee's device
+       signs in through the trainee gate (/_cestis/gate), which gives it that
+       trainee's own records and checks everything it sends back.
+   Turning it off replaces the token again and opens /_cestis/token as before.
+
+   The setting lives in the records folder, data/.server/staff-only.json —
+   a sub-folder, which /_cestis/data/ cannot reach (it never serves a path).
+   Only an administrator can change it, with their password checked here.
+   It counts only while the folder holds a staff login with a password of
+   its own — a Centre whose data folder was replaced must not be locked out
+   of its own records. To turn it off from the server computer itself, stop
+   the server, delete that file and start it again (READ ME FIRST). */
+const SWITCH_FILE = path.join(DATA_DIR, '.server', 'staff-only.json');
+let switchCache = { stamp: null, on: false, setAt: '' };
+function staffOnlySetting() {
+  let st;
+  try { st = fs.statSync(SWITCH_FILE); } catch (e) { return { on: false, setAt: '' }; }
+  const stamp = st.mtimeMs + ':' + st.size;
+  if (switchCache.stamp === stamp) return switchCache;
+  let v = null;
+  try { v = JSON.parse(fs.readFileSync(SWITCH_FILE, 'utf8')); } catch (e) { v = null; }
+  // A setting that cannot be read is OFF — today's behaviour — and said so.
+  if (!v) console.log('  The staff-only setting (data/.server/staff-only.json) could not be read, so it is treated as off.');
+  switchCache = { stamp, on: !!(v && v.on === true), setAt: String((v && v.setAt) || '') };
+  return switchCache;
+}
+function staffOnly() {
+  return staffOnlySetting().on && centreAccounts().some(isStaffLogin);
+}
+function handleStaffToken(req, res) {
+  withStaffPassword(req, res, STAFF_ROLES, 'not a member of staff with that password', () => {
+    send(res, 200, JSON.stringify({ ok: true, token: ACCESS_TOKEN, staffOnly: true }), MIME['.json']);
+  });
+}
+function handleStaffOnlySwitch(req, res) {
+  withStaffPassword(req, res, { admin: 1 }, 'not an administrator with that password', (acct, body) => {
+    if (typeof body.on !== 'boolean') return send(res, 400, JSON.stringify({ ok: false, error: 'say on: true or on: false' }), MIME['.json']);
+    try {
+      if (staffOnlySetting().on !== body.on) {
+        // The new token reaches the disk first: a switch that said "on" over
+        // the old token would leave every trainee device holding it.
+        ACCESS_TOKEN = store.rotateToken(CERT_DIR);
+        fs.mkdirSync(path.dirname(SWITCH_FILE), { recursive: true });
+        store.writeDurable(SWITCH_FILE, JSON.stringify({ format: 'cestis-server-setting', version: 1, on: body.on,
+          setAt: new Date().toISOString(), setBy: String(acct.id) }, null, 2));
+        console.log('  ' + (body.on ? 'Trainee devices now get only their own records (switched on by an administrator).'
+          : 'Every device can be given the records again (switched off by an administrator).'));
+      }
+    } catch (e) {
+      return send(res, 500, JSON.stringify({ ok: false, error: 'the setting could not be saved: ' + (e && e.message) }), MIME['.json']);
+    }
+    send(res, 200, JSON.stringify({ ok: true, on: staffOnly(), token: ACCESS_TOKEN }), MIME['.json']);
   });
 }
 /* For the signalling server: may this connection take a room's host place?
@@ -473,6 +559,21 @@ function isLoopback(req) {
 const tls = FORCE_HTTP ? null : lanCert.ensure(CERT_DIR, msg => console.log('  ' + msg));
 const SCHEME = tls ? 'https' : 'http';
 
+/* The trainee gate (cestis-offline-gate.js): a trainee's device signs in
+   there and is given that trainee's own records only, built from the data
+   folder by the same rules (cestis-core.js) the online gate uses. Nothing
+   calls it until a page is set to; with no cestis-core.js it stays off. */
+let gate = null;
+try {
+  if (Core && Core.gate) {
+    gate = require('./cestis-offline-gate.js').create({ core: Core, store, dataDir: DATA_DIR, certDir: CERT_DIR, rootDir: ROOT,
+      accounts: centreAccounts, staffOnly, send, log: msg => console.log('  ' + msg) });
+  }
+} catch (e) {
+  gate = null;
+  console.log('  Trainee sign-in through this server is off: ' + (e && e.message));
+}
+
 const handler = (req, res) => {
   if (req.method === 'OPTIONS') return send(res, 204, '');
 
@@ -481,9 +582,11 @@ const handler = (req, res) => {
   if (url === '/_cestis/health') {
     // Just enough for a page to know this is the Centre's server and to set
     // its clock by — no folder paths or machine names for anyone who asks.
-    return send(res, 200, JSON.stringify({
-      ok: true, mode: 'offline-lan', version: '1.1', time: new Date().toISOString()
-    }), MIME['.json']);
+    // (With the staff-only switch on it also says so, so a page knows the
+    // records token needs a staff sign-in; off, the answer is as it always was.)
+    const h = { ok: true, mode: 'offline-lan', version: '1.1', time: new Date().toISOString() };
+    if (staffOnly()) h.staffOnly = true;
+    return send(res, 200, JSON.stringify(h), MIME['.json']);
   }
   // Everything below /_cestis/ except the health check answers only to this
   // server's own names (see hostOk: a rebound website name gets nothing).
@@ -491,7 +594,28 @@ const handler = (req, res) => {
     return send(res, 421, JSON.stringify({ ok: false, error: 'This server answers only at its own addresses.' }), MIME['.json']);
   }
   if (url === '/_cestis/token') {
-    return send(res, 200, JSON.stringify({ ok: true, token: ACCESS_TOKEN }), MIME['.json']);
+    if (!staffOnly()) return send(res, 200, JSON.stringify({ ok: true, token: ACCESS_TOKEN }), MIME['.json']);
+    // The staff-only switch is on: the token is for a checked staff sign-in.
+    if (req.method !== 'POST') {
+      return send(res, 403, JSON.stringify({ ok: false, staffOnly: true, error: 'a member of staff must sign in on this device' }), MIME['.json']);
+    }
+    return handleStaffToken(req, res);
+  }
+  if (url === '/_cestis/staff-only') {
+    // Whether it is on is no secret (a page needs to know); changing it is
+    // for an administrator, from a page of this server's (it carries the token).
+    if (req.method === 'GET') {
+      return send(res, 200, JSON.stringify({ ok: true, on: staffOnly(), setAt: staffOnlySetting().setAt }), MIME['.json']);
+    }
+    if (req.method !== 'POST') return send(res, 405, 'method not allowed');
+    if (!tokenOk(req)) return send(res, 401, JSON.stringify({ ok: false, error: 'not authorised' }), MIME['.json']);
+    return handleStaffOnlySwitch(req, res);
+  }
+  if (url === '/_cestis/gate' || url.indexOf('/_cestis/gate?') === 0) {
+    // The trainee gate: needs no records token — it signs trainees in itself
+    // and gives each only their own records (cestis-offline-gate.js).
+    if (!gate) return send(res, 503, JSON.stringify({ ok: false, error: 'off' }), MIME['.json']);
+    return gate.handle(req, res);
   }
   if (url === '/_cestis/rooms') {
     // Every live class's room code — and the room code is all it takes to

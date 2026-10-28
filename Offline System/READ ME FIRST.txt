@@ -227,15 +227,51 @@ WHAT IS PROTECTED
   - Saves cannot take records away (section 3), and the last 40 versions of
     every file are kept, so damage can be undone.
 
-WHAT IS NOT PROTECTED
+WHAT IS NOT PROTECTED (unless the switch below is on)
   - A person on the Centre's network who can open the system. Any device that
     can load the pages can obtain the access token the same way the pages do,
     and with some technical knowledge read the whole records store — including
     every account's password hash and two-step secret, payslips, and exam
     answer keys — or send it changes. A trainee's device that opens the system
     also holds a copy of the whole store in its browser storage.
-    Proper per-person sign-in on the server (so each device receives only what
-    its user may see) is not built yet.
+
+THE SWITCH: "TRAINEE DEVICES GET ONLY THEIR OWN RECORDS"
+  It is OFF unless an administrator turns it on, and while it is off
+  everything works exactly as described above.
+
+  When it is ON:
+  - the access token is replaced, so every device that already had it loses
+    it at its next save;
+  - the new token is given only to a member of staff — an administrator,
+    Admin Staff or an instructor — who signs in on that device with their own
+    password, which the server checks itself (the passwords the system first
+    shipped with never count);
+  - a trainee signs in through the server's own trainee sign-in instead, and
+    their device is given only that trainee's records: their results,
+    attendance, assignments, notices and exams — never anybody else's, and
+    never an exam's answers. What they send back (test answers, work handed
+    in, messages, requests) is checked by the server and added to the
+    Centre's records, with the previous version kept in data/.history like
+    every other save. Tests taken this way are marked by the server, from the
+    answer key the server keeps.
+
+  Turning it OFF replaces the token once more, and every device can be given
+  it again as before.
+
+  Only an administrator can turn it on or off: the request carries their
+  username and password, and the server checks them. The setting is kept in
+  the data folder (data/.server/staff-only.json), so a restart does not change
+  it, and it goes with the data folder when that is backed up or moved.
+
+  IF NOBODY CAN SIGN IN TO TURN IT OFF: stop the server, delete the file
+  data/.server/staff-only.json, and start the server again. It is off.
+  (The switch also does nothing while the data folder holds no staff login
+  with a password of its own, so a Centre whose data folder was replaced is
+  never locked out of its own records.)
+
+  What it does not change: staff devices still hold the whole store, as they
+  must to run the Centre; and a trainee's device that already holds a copy
+  from before keeps it until it is cleared.
 
 WHAT TO DO ABOUT IT
   - Run the system on a network that only Centre devices join. Keep the wifi
@@ -296,10 +332,21 @@ tools/build-offline.js in the main repository — do not edit them here; edit
 the online file and run  npm run build:offline  (the test suite fails until
 you do). Only these belong to this folder alone and are edited here:
     cestis-offline-server.js, cestis-offline-signalling.js,
-    cestis-offline-cert.js, cestis-offline-store.js,
+    cestis-offline-cert.js, cestis-offline-store.js, cestis-offline-gate.js,
     START-WINDOWS.bat, START-MAC.command, START-LINUX.sh,
     READ ME FIRST.txt, data/READ ME - THIS IS THE CENTRE'S DATA.txt,
     package.json, .gitignore and the tests/ folder.
+
+The trainee sign-in (cestis-offline-gate.js) answers POST /_cestis/gate with
+the same requests and rules as the online trainee sign-in (cestis-core.js,
+CESTISCore.gate; docs/trainee-gate/DESIGN.md in the main repository). Its
+sessions are signed with cert/gate-secret, made on first run. The staff-only
+switch (section 7) is changed with POST /_cestis/staff-only carrying the
+records token and { username, password, on }; GET /_cestis/staff-only says
+whether it is on. While it is on, staff pages must get the token by sending
+the signed-in person's username and password to POST /_cestis/token, and
+trainees' pages must sign in at /_cestis/gate: pages that do neither cannot
+save to the server until it is turned off again.
 
 ================================================================================
   Start the server, open the address, and use the system exactly as before.
