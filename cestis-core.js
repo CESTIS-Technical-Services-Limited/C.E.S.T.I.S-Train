@@ -3558,12 +3558,16 @@
       return (n - last) < (staleMs || STALE_MS);
     }
 
-    /* The running Large Class for a room code, or null. */
+    /* The running Large Class for a room code, or null. A small room's host
+       keeps its join log in this same list (mode 'mesh'), and that log is
+       open while the class runs: it is NOT a Large Class. Counting it sent
+       every trainee after the first one into an empty hosted room, while the
+       instructor waited in the small room for them. */
     function liveFor(list, code, now, staleMs) {
       var want = String(code || '').toUpperCase().trim();
       if (!want) return null;
       var open = (list || []).filter(function (s) {
-        return s && String(s.code || '').toUpperCase() === want && isLive(s, now, staleMs);
+        return s && s.mode !== 'mesh' && String(s.code || '').toUpperCase() === want && isLive(s, now, staleMs);
       });
       if (!open.length) return null;
       open.sort(function (a, b) { return String(b.startedAt || '').localeCompare(String(a.startedAt || '')); });
