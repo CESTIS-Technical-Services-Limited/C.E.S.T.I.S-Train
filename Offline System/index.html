@@ -8725,8 +8725,25 @@ function sessionAccountRevoked() {
   var st = String(acct.status || '').toLowerCase();
   return st === 'disabled' || st === 'rejected';
 }
+/* Is this PC teaching or watching something that is still going on — in a
+   running live class (host or trainee, small room or Large Class), or on the
+   Exam Invigilator with a sitting that is open? Nobody presses a key while
+   they teach or watch, and the idle lock used to cover the class
+   (CESTISCore.sessionAccess.keepsAwake). */
+function sessionKeptAwake() {
+  var live = false, board = null;
+  try {
+    live = !!currentRoomCode && (!!vcLargeRoomActive || (!!rtcPeer && !!document.getElementById('vc-video-grid')));
+  } catch(e) { live = false; }
+  try {
+    if(typeof invigPageActive === 'function' && invigPageActive() && invigState && invigState.board) board = invigState.board;
+  } catch(e) { board = null; }
+  try { return CESTISCore.sessionAccess.keepsAwake({ inLiveRoom: live, invigilatorBoard: board }); } catch(e) { return false; }
+}
 function sessionHeartbeat() {
   if(!currentRole) return;
+  // A live class or an open sitting on screen counts as use of the PC.
+  if(!_sessionLocked && sessionKeptAwake()) _sessionLastActivity = Date.now();
   // The heartbeat is what lets the record pages open in another tab
   // (CESTISCore.sessionAccess). A dashboard covered by the idle lock is not
   // "still open" for that purpose: it kept beating, so anybody could open

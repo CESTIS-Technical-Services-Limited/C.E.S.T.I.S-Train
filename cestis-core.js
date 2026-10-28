@@ -8987,6 +8987,30 @@
       if (!lastActivity || now - lastActivity > EXAM_ACTIVE_MS) return expiry;
       return Math.max(expiry, Math.min(deadline + EXAM_AFTER_MS, now + EXAM_STEP_MS));
     }
+    /* Teaching a live class, or watching a sitting on the Exam Invigilator,
+       is using the PC even when nobody touches the keyboard: the instructor
+       is talking to the camera, the invigilator is watching the board. Only
+       key presses and clicks used to count, so an instructor was locked out
+       21 minutes into a lesson, a trainee at minute 61 of one, and an
+       invigilator part-way through a sitting. The dashboard asks this every
+       minute and, while it says yes, counts the minute as activity.
+         info.inLiveRoom        this device is in a running class (small room
+                                or Large Class), as host or as a trainee
+         info.invigilatorBoard  the board on screen, if any (Core.invigilation
+                                .board): it keeps the PC awake while its
+                                sitting is open now, or somebody is still
+                                writing (time not yet up) after it closed
+       A PC with nothing of the kind open still locks exactly as before; a
+       board left on a sitting that has not opened yet, or is over with
+       everyone finished (or their time up), does not keep it awake. */
+    function keepsAwake(info) {
+      info = info || {};
+      if (info.inLiveRoom) return true;
+      var b = info.invigilatorBoard;
+      if (!b) return false;
+      if (b.status === 'active') return true;
+      return (Array.isArray(b.rows) ? b.rows : []).some(function (r) { return r && r.status === 'in-progress' && !r.timeUp; });
+    }
 
     /* The dashboard this page is embedded in, if it is the same site and
        somebody is signed in to it. (A page on another site cannot read it.) */
@@ -9109,7 +9133,7 @@
       return { students: [], exams: [] };
     }
 
-    return { resolve: resolve, state: state, idleLimit: idleLimit, RANK: RANK, FRESH_MS: FRESH_MS, examGrace: examGrace,
+    return { resolve: resolve, state: state, idleLimit: idleLimit, RANK: RANK, FRESH_MS: FRESH_MS, examGrace: examGrace, keepsAwake: keepsAwake,
              embeddingSession: embeddingSession, forPage: forPage, guard: guard, lockPage: lockPage, searchPool: searchPool };
   })();
 

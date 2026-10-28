@@ -20,7 +20,9 @@
      - Exit left the room id registered, so the instructor could not rejoin;
      - in a small-room class only the FIRST trainee reached the instructor:
        once the host's join log reached a device, Join read it as a running
-       Large Class and sent every later trainee to an empty hosted room.
+       Large Class and sent every later trainee to an empty hosted room;
+     - the idle lock covered a running class (nobody presses a key while
+       teaching or following a lesson).
    Kept OUT of the default npm test chain because it needs a browser. */
 'use strict';
 const http = require('http');
@@ -322,8 +324,16 @@ function serve() {
     }, names);
     ok(proposal.joined.length === 3 && proposal.absent.length === 0,
       'all three are in the class register proposal, none suggested absent (' + JSON.stringify(proposal) + ')');
+    // Teaching to the camera and following the lesson press no key: the idle
+    // lock (20 minutes for staff, 60 for a trainee) used to cover the class.
+    const idleHost = await host2.evaluate(() => { currentRole = 'instructor'; _sessionLastActivity = Date.now() - 21 * 60000; sessionHeartbeat(); return !!document.querySelector('#idleLockModal.active'); });
+    const idleT = await pages[0].evaluate(() => { currentRole = 'student'; _sessionLastActivity = Date.now() - 61 * 60000; sessionHeartbeat(); return !!document.querySelector('#idleLockModal.active'); });
+    ok(!idleHost, 'the instructor is not locked 21 minutes into the class without a click');
+    ok(!idleT, 'a trainee is not locked at minute 61 of the class');
     await host2.evaluate(() => vcEndMeetingForAll());
     await host2.waitForTimeout(1500);
+    const idleAfter = await host2.evaluate(() => { _sessionLastActivity = Date.now() - 21 * 60000; sessionHeartbeat(); return !!document.querySelector('#idleLockModal.active'); });
+    ok(idleAfter, 'once the class is over, the idle PC locks as before');
     for (const p of pages.concat([host2])) { try { await p.context().close(); } catch (e) {} }
   }
 
