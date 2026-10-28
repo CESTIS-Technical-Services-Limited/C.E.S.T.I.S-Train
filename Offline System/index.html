@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261028e"></script>
+<script src="cestis-core.js?v=20261029a"></script>
 <script src="cestis-form-modal.js?v=20261028d" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
 <script src="cestis-page-cloud.js?v=20261028e"></script>
-<script src="cestis-gate-client.js?v=20261028e" defer></script>
+<script src="cestis-gate-client.js?v=20261029a" defer></script>
 <script src="staff-appraisals.js?v=20261028d"></script>
 <script src="cmc-portal.js?v=20261028d"></script>
 <script src="cert-template-seed.js?v=20260802b"></script>
@@ -45183,6 +45183,8 @@ function buildAdminStaffSidebar() {
 
   nav.innerHTML = html;
   setTimeout(updateCtrRequestsBadge, 200);
+  // The count of trainees' registrations waiting, on "Trainee Accounts" (renderVerifyUsersPage sets it).
+  if(adminStaffAccessSettings.traineeaccounts) setTimeout(function() { try { renderVerifyUsersPage(); } catch(e) {} }, 250);
 }
 
 // ============================== BUILD ADMIN STAFF PAGES ==============================

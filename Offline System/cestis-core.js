@@ -14622,9 +14622,11 @@
        it may not (st: Core.accountAccess.check's reason), its password check
        (pw), whether it is still a published default (sd), its two-step
        secret (tf), whether it signs in with emailed codes (eo) and to which
-       address (em), its unused backup codes, trimmed and upper case (bc), and
-       its record link (sdi). Then who answers to each username (user) and
-       each email (mail), in lower case. → { n, a: { id: entry }, user, mail } */
+       address (em), its unused backup codes, trimmed and upper case (bc), its record link
+       (sdi) and its name (nm: the gate finds a folder named "<Name> (<student
+       ID>)" by that name without a search, §17). Then who answers to each
+       username (user) and each email (mail), in lower case.
+       → { n, a: { id: entry }, user, mail } */
     function indexAccounts(accounts, deletedUserIds, crypto) {
       var A = Core.accountAccess, del = {};
       (Array.isArray(deletedUserIds) ? deletedUserIds : []).forEach(function (id) { if (id != null && id !== '') del[id] = true; });
@@ -14644,7 +14646,8 @@
           eo: acc.emailOtpLogin && EMAIL_RE.test(email) ? 1 : 0, em: email,
           bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(function (c) { return c && c.code && !c.used; })
             .map(function (c) { return str(c.code).trim().toUpperCase(); }),
-          sdi: acc.studentDataId != null ? str(acc.studentDataId) : ''
+          sdi: acc.studentDataId != null ? str(acc.studentDataId) : '',
+          nm: str(acc.name).trim()
         };
         var add = function (map, v) { v = lower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
         add(idx.user, acc.username); add(idx.mail, acc.email);

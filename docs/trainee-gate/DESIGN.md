@@ -1,6 +1,10 @@
 # Trainee Gate — each trainee's device gets only that trainee's data
 
-**Status:** Stage 1 (the rules) is built, on top of the cross-device exam resume and the duplicate-stub
+**Status (October 2026):** Stages 1–4 and 6a are built (§14–§16); registration from home and trainee
+accounts made in the office (Admin Staff too) are built (§17, gate version 2). The text below §13 is the
+original design; where it differs from what was built, §14–§17 say so.
+
+**Status at Stage 1:** Stage 1 (the rules) is built, on top of the cross-device exam resume and the duplicate-stub
 fold: `Core.gate` in `cestis-core.js`, the store namespace switch, the
 gate's device-only keys, and their tests (§12). Nothing calls them yet, and the switch is off. The owner
 questions in §13 are pending. What changed while building is in §14.
@@ -120,12 +124,12 @@ My Drive/
     Papers/        paper.<examId>.json       ← staff publisher writes; served only while the exam is open
     Rooms/         room.<roomId>.json        ← staff publisher writes; served only to members (Stage 4/7)
     Trainees/
-      STU-1a2b3c4d/                          ← one per trainee account; description "cestis-trainee acct=USR-123 v=1"
+      Tameka Richards (STU-3wfiayryzq)/      ← one per trainee account (built: "<Name> (<student ID>)", §17); description "cestis-trainee acct=USR-123 v=1"
         from-centre.json                     ← the trainee's slice (staff publisher)
         CESTISINBOX.L-<lane>.json            ← what the trainee sent, one file per session ("lane")
         CESTISINBOX.result.<attemptId>.json  ← the gate's marked result + retired attempt
         files/                               ← assignment / chat uploads (≤ 5 MB each)
-    Registrations/                           ← reserved for "register from home" (later)
+    Registrations/                           ← registrations from home, CESTISREG.<USR-home-…>.json, and catalogue.json (§17)
 Main folder (existing, GOOGLE_DRIVE_CONFIG.FOLDER_ID)
   CESTIS_ACCOUNTS.json                       ← existing accounts list; the gate reads it, never writes it
   CESTIS_GATE.json                           ← written by the gate at setup: {format, rootId, traineesId,
@@ -579,8 +583,9 @@ uploads, ≤ 10 MB. Larger resources must already be shared by link, as today.
   (owner question 3). One room file per room means a message does not trigger a rewrite of 25
   slices.
 - **Profile edits and read marks** are covered by §5.2.
-- **Registering from home** is reserved, not built: `register` would write to `Registrations/`, and
-  staff would pick it up as `sendRegistration` does now. The owner chose registration at the Centre.
+- **Registering from home** was reserved here (the owner first chose registration at the Centre). The
+  owner has since decided it: built in §17 (`register.start` / `register.submit`, an email-account token
+  only, the registration and the trainee's folder made in one request).
 
 ### 5.6 How staff PCs pick these up (`gateCollectTick()`, every 60 s, staff sessions)
 
@@ -766,6 +771,10 @@ The owner rule applies: no screen names a place. `tools/scan-ui-wording.js` must
 | Correct answers not yet released | Today's review, without the right answers, and "Correct answers are shown once the test has closed." |
 | Admin Settings card | **"Trainee sign-in from anywhere"**. Status ("Not set up", "Ready — version 1", "Needs attention: …"). Buttons: *Copy the setup code*, *Setup sheet* (opens `trainee-gate/SETUP.md`), an *Address* field, *Check*, *Turn on / Turn off*, *Shared computer* (per PC). "Trainees' sign-in link" with a QR and *Print*. "Records sent to trainees: 2 min ago (0 waiting)". "Trainee work waiting for a decision: 0". |
 | QR caption | "Sign in on your own phone: scan this code." |
+| Trainee card, gate on (§17) | "New trainee? Register with your email account" (today's "Register here" is not offered); on the Centre's network: "New trainee? Ask the office to create your account." |
+| Registering (§17) | "Waiting for your email account…", "Checking your email account…", the form "Register as a Trainee", "Sending your registration to the office…", then the pending screen: "Your registration has reached the office…" |
+| Registering refused (§17) | "You already have an account — sign in with your email account or your password." · "Registration is not open just now. Please ask the office." · "Too many registrations just now…" · "Registering is not available here. Please ask the office to create your account." |
+| Verify Users (§17) | "Registered from home · email account verified"; Admin Staff: the page "Trainee Accounts"; both: "+ Add Trainee Account" |
 
 ---
 
@@ -1528,3 +1537,158 @@ records file (gate-flows §9).
   passes unchanged.
 - `gateDeviceHoldsCentre()` reads `cestisDeviceKind === 'staff'` when Stage 5 sets it; until then it
   looks for any account beyond the three built-in logins.
+
+## 17. Registration from home, and trainee accounts made in the office (as built)
+
+The owner decided (October 2026): *"Both the office admin staff and administrators can create account
+for students, while trainees register the account at home, for office approval (on registering a folder
+by trainee name should be generated same time and uploaded to drive, trainees must use a google account
+for authentication in order for account to reach system."* There are no lab PCs at the Centre now:
+trainees sign in and sit tests at home through the gate.
+
+**The gate is version 2** (`GATE_VERSION`, and `GATE_EXPECTED_VERSION` in `index.html`): the
+administrator pastes `PASTE-GATE.gs` again (SETUP.md §2). Until then the card says "A newer version is
+available", sign-in works as before, and registering answers "Registration is not open just now". The
+Centre's server's gate is version 2 as well (it answers the new requests `not-available`).
+
+### 17.1 Office creation (administrators and Admin Staff)
+
+- **One rule** for a new account, `Core.accountAccess.officeCreateRefusal(actor, draft, accounts,
+  {enrolBlock})`: an administrator may create any role; **Admin Staff trainee accounts only** (never
+  admin, admin staff, instructor or board), and only while *Trainee Accounts* is ticked; a full name
+  (`isFullName`, equal to Staff Appraisals' `sappIsFullName`, tested); no markup; a username nobody holds
+  in any case; for a trainee, an email nobody holds in any case (any role; blank allowed) and a programme
+  taking trainees now (`courseEnrolmentBlockReason`); a phone (`PHONE_RE`). Settings → Users' *Create
+  User* now goes through it too.
+- **"+ Add Trainee Account"** (`createTraineeAccount`, on Verify Users — so on Admin Staff's *Trainee
+  Accounts* page too): an **active** trainee account (the office has seen the trainee), `registeredVia
+  'admin-created'`, `createdBy` / `createdByRole`, `approvedAt` / `approvedBy` (the role, as the field
+  always held) / `approvedByName` (the person); the trainee record linked or made; the accounts list
+  written at once; then `gatePublishSoon()`: with the gate on, the publishing turn runs **now** and
+  builds at once (`_gateRun.buildNow`; a turn already running is followed by another), so the trainee's
+  folder `"<Name> (<student ID>)"` and records appear in seconds (measured in the browser suite: 1–2 s).
+  With the gate off: nothing (the first turn after *Turn on* makes it).
+- **Admin Staff access:** a new key `traineeaccounts`, **on by default** (the owner said they can), in
+  the Administrator's grid ("Trainee Accounts — trainees only") so it can be switched off. It opens the
+  page `as-trainee-accounts` (the Verify Users fragment) and lets Admin Staff approve or reject
+  **trainees'** registrations only (`accountReviewAllowed`: never a staff role, never a registration
+  asking for one). Every approval or rejection now records who (`approvedByName`).
+
+### 17.2 Registering from home, through the gate
+
+```
+phone (link #gate=…)                               gate (as the Centre's account)            shared files
+"New trainee? Register with your email account"
+  initTokenClient (userinfo.email + profile, as email sign-in)
+  ── register.start {accessToken} ───────────────▶ tokeninfo: aud = the dashboard's client,
+                                                    email_verified, not expired, email scope
+                                                    (gateEmailToken — email sign-in's own check)
+                                                    address has a trainee account? → has-account |
+                                                      pending | rejected | disabled
+                                                    CESTISREG.<id>.json exists? → submitted
+                                                    no catalogue → not-open
+  ◀─ {state:'new', email, programmes} ────────────
+  form: full name (from the account, editable), programme, phone?, password ×2
+  password → pbkdf2$210000$<fresh salt>$<hash> on the device (hashPassword); never sent as typed
+  ── register.submit {accessToken, name, programme, phone, password} ─▶ same checks; reg.check(form, catalogue)
+                                                    limits (5/h per address, 60/h, 200/6h overall)
+                                                    script lock (10 s), then, in ONE request:
+                                                     Trainees/"<Name> (<student ID>)"  desc "cestis-trainee acct=<id> v=1 registration=pending"
+                                                     Registrations/CESTISREG.<id>.json (folderId, folderName)
+  ◀─ {state:'submitted', email, programme, submittedAt}
+  pending screen 'sent': "Your registration has reached the office…"
+```
+
+- **One registration per address.** The account id is `USR-home-` + `HMAC(GK_SECRET, 'reg|' +
+  lower(email))[0..20]` (`Core.gate.reg.accountId`): the same Google account, from any device, in any
+  case, always gets the same id, file and folder. A re-submit returns `{state:'submitted', already:true}`
+  and changes nothing. If the folder was made but the file's write failed, the next try finds the folder
+  (`fold:<id>` Script Property, set at once) and writes the file: never a second folder.
+- **The student ID** in the folder's name is the dashboard's own (`Core.gate.reg.studentId` =
+  `Core.stableStudentId({name, course: programme})`); the paste now carries `Core.naturalKey`,
+  `Core.stableStudentId`, `Core.programmeIdentity` and `Core.enrolment` for it (allowlist ~363 KB).
+- **No other way from home:** with the gate on, the trainee card hides today's "Register here";
+  `openRegistrationModal('student')` goes to `gateRegisterStart()`; an email sign-in that finds no
+  account goes straight on to the form with the same token. Today's form stays for the instructors' card
+  and for a lab PC that falls back to today's sign-in.
+- **The catalogue** (`catalogue`, no sign-in; remembered a minute): `Registrations/catalogue.json`,
+  written by the staff publisher (`Core.gate.reg.buildCatalogue`) from `officeEnrollingProgrammes()` —
+  the same list "+ Add Trainee Account" offers. Its moment is at least the start of today, so a
+  programme that ends tonight is withdrawn by tomorrow's first turn.
+- **The Centre's own network** (`Offline System/cestis-offline-gate.js`): `catalogue`, `register.start`,
+  `register.submit` → `not-available`; the client answers `not-available` there without asking; the card
+  shows "New trainee? Ask the office to create your account."
+
+### 17.3 Folder naming everywhere
+
+`Core.gate.folderName(name, stu)` → `"Tameka Richards (STU-3wfiayryzq)"` (whitespace tidied, no slashes
+or control characters, the name cut at 100 characters, the ID kept). `folderDescription(acct, mark)` →
+`cestis-trainee acct=<id> v=1` plus ` registration=pending|rejected`. The publisher names every folder so
+(the trainee record's name and ID from the slice), renames folders still named with the ID alone (one
+metadata PATCH each, once), and keeps name and description in step (`rename` now also writes the
+description). Folders are still **found by the account in the description**; oldest-wins is unchanged;
+nothing is deleted or binned. The gate's own lookup (`gateTraineeFolder`) keeps its exact-name fallback
+for folders not renamed yet, then the description search, and remembers what it found.
+
+### 17.4 The staff side
+
+- **Collector** (`gateCollectRegistrations`, at the start of every collecting turn, independent of the
+  inboxes): one query `name contains 'CESTISREG' and '<registrationsId>' in parents and trashed = false
+  [and modifiedTime > mark − 10 min]`, its own watermark in `cestisGateCollected.reg`, each file read once
+  per version. `Core.gate.reg.importOne` → `add` (a `pending` trainee account: `registeredVia
+  'home-registration'`, `googleVerified: true`, the gate's id, `gateFolderId`, phone, the password check,
+  a username from the address, `createdAt` the local day, `updatedAt` the registration's moment) |
+  `have` (the office's copy stands — a later edit of the file never overwrites it) | `skip` (deleted by
+  the office; an address another account has) | `hold` (a newer format: not marked, read again). Added
+  through `mergeCloudAccounts` (the one account rule), the accounts list written at once (so the gate
+  answers "awaiting approval"), one notice for the office per registration (its id is the account's, so
+  two PCs collecting it make one).
+- **Verify Users:** "Registered from home · email account verified", the phone under the address, and
+  the "may be a second account" warning when `accountForTrainee` finds another account of the person.
+  Approving works as before (the record is made — its ID is the folder's — and `gatePublishSoon()`).
+- **Publisher:** for an account carrying `gateFolderId` and no folder known yet, `adopt` instead of
+  `folder`: the folder is checked (in `Trainees/`, not binned, its description naming the account),
+  given the publisher's `appProperties` (so every PC's listing sees it), its name and description; if the
+  check fails (moved, binned) the PC notes `adoptFailed` and makes a folder of its own next turn (the gate
+  finds that by its description). While the account waits or was turned down (`regFolders`), the folder
+  keeps the matching mark; once approved, the slice is written into it and the mark goes.
+- **Duplicate-account protections:** a home registration is never a backfill stub (it has an email and a
+  password); a fee-roll stub of the same person folds **into** it (`backfillStubFolds`), so no backfill
+  makes a second account beside it (`traineeHasAccount`); `reviewQueue` lists it; a home registration
+  asking for any role but trainee is a "privileged self-registration" (never one click).
+
+### 17.5 Tests
+
+`tests/home-registration.test.js` (rules in both builds, the duplicate protections, the client against
+the real paste: the password leaves only as its check, a fresh salt each time; LAN not-available without
+a request; the screen words), `tests/office-trainee-accounts.test.js` (the office rule in both builds, the
+real page code: Admin Staff create trainees only, admins any role, active at once, who made it, publish
+at once; review permissions), `tests/gate-appsscript-vm.test.js` §register (good token, wrong aud,
+unverified, unknown, existing / pending / rejected address, catalogue, form checks, the registration AND
+the folder in one request, re-submit idempotent from two tokens, a half-failed write finished with the
+same folder, both limits, then approval and sign-in by email and by password — on both paste modes),
+`tests/gate-publisher.test.js` (collect once, adopt, marks, catalogue, rename of old names,
+publish-soon), `tests/gate-lan.test.js` / `tests/gate-contract.test.js` (not-available; version 2 on
+both), and in browsers `tests/browser/home-registration.js` (`npm run test:browser:home-registration`):
+Admin Staff create a trainee in the office (her folder in 1–2 s, she signs in at home); a trainee
+registers at home (her registration and folder made together), the office collects, Verify Users shows
+it, the administrator approves, she signs in with her email account and then her password.
+
+### 17.6 Decisions and limits
+
+- **Wording.** The owner's rule forbids naming where records are kept; `tools/scan-ui-wording.js` flags
+  the word "Google" anywhere on screen. The button therefore says "Register with your email account" and
+  Verify Users "email account verified", the words the platform already uses for the same sign-in ("Sign
+  in with your email account"). Google's own window names itself. If the owner wants the word on the
+  button, it needs a narrow, deliberate exception in the scanner (e.g. the phrase "your Google account")
+  — not added.
+- **Admin Staff approve trainees' registrations** (under the same tick as creating trainee accounts): the
+  owner named the office admin staff as part of "the office" that approves. Instructor registrations
+  and anything else stay with administrators.
+- **No password at the gate in plain text, ever:** the device sends the stored-format check; the gate
+  checks only its shape (PBKDF2, 100 000–1 000 000 rounds, 16-byte salt). The device enforces the
+  strength rule (6+ characters, a capital letter and a number), as today's form does.
+- **A registration file is never changed by the gate** once written (a re-submit with other details
+  changes nothing); the office corrects details in Settings → Users after approving.
+- **Not built:** emailing the trainee when they are approved; registering for a programme not in the
+  catalogue; an instructor registering from home.

@@ -506,7 +506,8 @@ function gateBuildIndex(G, led, updated, ledgerId) {
 /* --------------------------------------------- a trainee's folder, files
    Found by the account id in its description, never by its name (student
    IDs move: DESIGN.md §1.2): remembered, else by the name the account's
-   link gives, else by a search of the descriptions — and of several, the
+   name and link give ("<Name> (<student ID>)", or the student ID alone as
+   before), else by a search of the descriptions — and of several, the
    oldest. Every use checks the folder still names the account. */
 function gateDescribes(folder, acct) {
   return new RegExp('(^|\\s)acct=' + gateReEsc(acct) + '(\\s|$)').test(gateStr(folder.getDescription()));
@@ -538,7 +539,12 @@ function gateTraineeFolder(G, acct, entry) {
       }
       return best;
     };
-    if (entry && entry.sdi) f = pickOldest(trainees.getFoldersByName(entry.sdi));
+    // By its name (no search, no lag): "<Name> (<student ID>)" as folders are named now (§17), or the
+    // student ID alone as they were named before the office PCs renamed them.
+    if (entry && entry.sdi) {
+      if (entry.nm) f = pickOldest(trainees.getFoldersByName(G.gate.folderName(entry.nm, entry.sdi)));
+      if (!f) f = pickOldest(trainees.getFoldersByName(entry.sdi));
+    }
     var found = pickOldest(trainees.searchFolders("fullText contains 'acct=" + gateQ(acct) + "' and trashed = false"));
     if (found && (!f || older(found, f))) f = found;
     if (!f) { G.cache.put(key, '-', 60); return null; }

@@ -481,6 +481,10 @@ function sFolders(src) {
   assertEq(sl.error, 'not-ready', 'a folder the search cannot see yet (and not under the account\'s student ID): not ready…');
   w.advance(11 * MIN);
   assertEq(signIn(env, late.acct.username, late.pw).ok, true, '…and found once the search has caught up');
+  const named = C.trainees[27], fnm = folderOf(env, named.acct.id);
+  fnm.name = G.folderName(named.stu.name, named.stu.id); fnm.updated = w.clock.now;   // named as the office PCs name folders now (§17), just now
+  delete w.props.store['fold:' + named.acct.id]; w.cache.clear();
+  assertEq(signIn(env, named.acct.username, named.pw).ok, true, 'a folder named "<Name> (<student ID>)" just now is found by that name at once — no search needed');
   w.drive.state.searchLagMs = 0;
 
   section('A file of a newer version than the gate reads is never read as empty');

@@ -1,8 +1,10 @@
 # Trainee sign-in from anywhere — setup sheet
 
 This sheet is for the Centre's administrator. It sets up the small program that lets each
-trainee sign in from their own phone, or any lab PC, and see **only their own records**. It runs
-inside the Centre's own Google account, costs nothing, and takes about 10 minutes once.
+trainee sign in from their own phone, or any lab PC, and see **only their own records** — and lets
+a new trainee **register from home** with their own Google account, for the office to approve
+(section 7). It runs inside the Centre's own Google account, costs nothing, and takes about
+10 minutes once.
 
 **Until you finish step 9 and press *Turn on*, nothing changes for anybody.** You can stop at any
 step and come back later.
@@ -50,7 +52,7 @@ What you need:
    - *Send email as you* — for emailed sign-in codes (at most 100 a day; backup codes always work).
 7. Copy the **Web app URL** (it ends in `/exec`) and click **Done**.
 8. Back in the dashboard card, paste it into **Address** and press **Check**. The first check makes
-   the program create its folders, its secret and `CESTIS_GATE.json`. Expect **"Ready — version 1"**
+   the program create its folders, its secret and `CESTIS_GATE.json`. Expect **"Ready — version 2"**
    and the number of trainee accounts.
    - *If the card is not there yet:* paste the address into a new browser tab and add `?op=selfcheck`
      to the end. You should see a page of ✓ lines: *Secret made*, *Folders present*, *Accounts list
@@ -67,6 +69,12 @@ Now run the **live checks** (section 3) once.
 ---
 
 ## 2. Upgrading to a new version (the address stays the same)
+
+> **Version 2 (October 2026) must be pasted again.** It adds registration from home (section 7)
+> and names each trainee's folder with their name and student ID. Until it is pasted, the
+> dashboard card says *"A newer version is available"*, trainees can still sign in as before, and
+> the "Register with your email account" button answers *"Registration is not open just now"*.
+> Follow the five steps below; the address does not change.
 
 1. Copy the program again (step 1 above).
 2. Open **https://script.google.com** (signed in as the Centre) → click **CESTIS Trainee Gate**.
@@ -155,7 +163,8 @@ open the dashboard's own site in Chrome, press **F12**, click **Console**, paste
 - **If `audIsOurs` is false:** the program checks against the dashboard's own sign-in client. If the
   site uses another one, add it in the editor: **Project Settings (⚙) → Script properties → Add
   script property** → `GOOGLE_CLIENT_ID` = the client id → **Save**. If `aud` is not in `fields` at
-  all, tell the maintainer (email sign-in through this program stays off; password sign-in works).
+  all, tell the maintainer (email sign-in and registration from home through this program stay
+  off; password sign-in works).
 
 ### Live check 5 — a file is found by the start of its name
 
@@ -184,9 +193,10 @@ open the dashboard's own site in Chrome, press **F12**, click **Console**, paste
 - **Do:** open the address with `?op=selfcheck` and find the *Description search* line.
 - **Expect:** *✓ Description search finds a folder by its description*. Just after setup it may say
   "not found yet (made N min ago)" — look again after 10 minutes.
-- **If it still says ✗ after 30 minutes:** the program still finds each trainee's folder by the
-  student ID it is named with, which covers every trainee whose account is linked to their record.
-  Tell the maintainer; trainees whose student ID changes may wait a little longer for their records.
+- **If it still says ✗ after 30 minutes:** the program still finds a folder it made itself, or one
+  it found once before (it remembers them), and a folder still named with the student ID alone.
+  Tell the maintainer; a trainee whose folder was renamed to "Name (student ID)" before the
+  program first looked for it may wait a little longer for their records.
 
 ---
 
@@ -226,8 +236,10 @@ CESTIS Trainee Gate/
   Exam keys/        answer keys — read for marking, never handed out
   Papers/           test papers — handed out only while a test is open
   Rooms/            chat rooms' history — to their members only
-  Trainees/         one folder per trainee account, named with their student ID
-  Registrations/    reserved
+  Trainees/         one folder per trainee account, named "Name (student ID)",
+                    e.g. "Tameka Richards (STU-3wfiayryzq)"
+  Registrations/    registrations sent from home (CESTISREG.<account>.json), and
+                    catalogue.json — the programmes taking trainees (the office PCs write it)
 CESTIS_GATE.json    beside the accounts list, so the office PCs find the folders
 ```
 
@@ -240,3 +252,45 @@ Script properties you may add: `GATE_OFF` (above), `GOOGLE_CLIENT_ID` (live chec
 chose the wrong one), `MIN_CLIENT` (only if the maintainer asks).
 
 The *Executions* page (⏱ in the editor's left bar) is its only log. It shows errors, never names.
+
+A trainee's folder is **found by the account written in its description** (`cestis-trainee
+acct=USR-… v=1`), never by its name, so renaming a trainee never loses their folder: the office PCs
+rename the folder to match. A folder made by a registration from home says
+`registration=pending` at the end of its description while it waits, and `registration=rejected`
+if the office turns it down. **No folder is ever deleted or put in the bin** — not by the program,
+not by the office PCs.
+
+---
+
+## 7. Registration from home, and accounts made in the office
+
+**The office makes an account** (Administrators, and Admin Staff unless an Administrator unticks
+*Trainee Accounts* in **Settings → Admin Staff Access**): *Verify Users* (Admin Staff: *Trainee
+Accounts*) → **+ Add Trainee Account**. The account works at once. With trainee sign-in from
+anywhere turned on, the trainee's folder appears within seconds; with it off, it is made the first
+time it is turned on. Admin Staff can make **trainee accounts only**.
+
+**A trainee registers from home** (the program must be version 2):
+
+1. On their phone, from the trainees' link or QR code: **New trainee? Register with your email
+   account**. Google's own sign-in window opens; they choose their Google account. Only a Google
+   account whose address Google has confirmed is accepted — there is no other way to register from
+   home.
+2. The form asks for their full name (first and last), their programme (those taking trainees now),
+   a phone number (optional) and a password. They press **Register**.
+3. At that moment the program keeps the registration in `Registrations/` **and** makes their folder
+   in `Trainees/`, named "Name (student ID)". The phone says *"Your registration has reached the
+   office."* Registering again with the same Google account finds the same registration — never a
+   second one, never a second folder.
+4. Within a minute, the office PCs bring it into **Verify Users** (Admin Staff: *Trainee Accounts*),
+   marked *"Registered from home · email account verified"*. **Activate** approves it (the trainee's
+   record is made and their records go into the folder made in step 3); **Reject** turns it down
+   (the folder is kept and marked).
+5. Once approved, the trainee signs in at home with their Google account **or** with the password
+   they chose in step 2.
+
+On the Centre's own network (the Offline System) registering from home is not available: the office
+creates the account there.
+
+Limits, so nobody can fill the Centre's Drive: five tries an hour for one address; 60
+registrations an hour and 200 in six hours for everybody.

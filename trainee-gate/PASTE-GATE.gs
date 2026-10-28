@@ -2980,9 +2980,11 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
        it may not (st: Core.accountAccess.check's reason), its password check
        (pw), whether it is still a published default (sd), its two-step
        secret (tf), whether it signs in with emailed codes (eo) and to which
-       address (em), its unused backup codes, trimmed and upper case (bc), and
-       its record link (sdi). Then who answers to each username (user) and
-       each email (mail), in lower case. → { n, a: { id: entry }, user, mail } */
+       address (em), its unused backup codes, trimmed and upper case (bc), its record link
+       (sdi) and its name (nm: the gate finds a folder named "<Name> (<student
+       ID>)" by that name without a search, §17). Then who answers to each
+       username (user) and each email (mail), in lower case.
+       → { n, a: { id: entry }, user, mail } */
     function indexAccounts(accounts, deletedUserIds, crypto) {
       var A = Core.accountAccess, del = {};
       (Array.isArray(deletedUserIds) ? deletedUserIds : []).forEach(function (id) { if (id != null && id !== '') del[id] = true; });
@@ -3002,7 +3004,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
           eo: acc.emailOtpLogin && EMAIL_RE.test(email) ? 1 : 0, em: email,
           bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(function (c) { return c && c.code && !c.used; })
             .map(function (c) { return str(c.code).trim().toUpperCase(); }),
-          sdi: acc.studentDataId != null ? str(acc.studentDataId) : ''
+          sdi: acc.studentDataId != null ? str(acc.studentDataId) : '',
+          nm: str(acc.name).trim()
         };
         var add = function (map, v) { v = lower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
         add(idx.user, acc.username); add(idx.mail, acc.email);
@@ -5388,7 +5391,8 @@ function gateBuildIndex(G, led, updated, ledgerId) {
 /* --------------------------------------------- a trainee's folder, files
    Found by the account id in its description, never by its name (student
    IDs move: DESIGN.md §1.2): remembered, else by the name the account's
-   link gives, else by a search of the descriptions — and of several, the
+   name and link give ("<Name> (<student ID>)", or the student ID alone as
+   before), else by a search of the descriptions — and of several, the
    oldest. Every use checks the folder still names the account. */
 function gateDescribes(folder, acct) {
   return new RegExp('(^|\\s)acct=' + gateReEsc(acct) + '(\\s|$)').test(gateStr(folder.getDescription()));
@@ -5420,7 +5424,12 @@ function gateTraineeFolder(G, acct, entry) {
       }
       return best;
     };
-    if (entry && entry.sdi) f = pickOldest(trainees.getFoldersByName(entry.sdi));
+    // By its name (no search, no lag): "<Name> (<student ID>)" as folders are named now (§17), or the
+    // student ID alone as they were named before the office PCs renamed them.
+    if (entry && entry.sdi) {
+      if (entry.nm) f = pickOldest(trainees.getFoldersByName(G.gate.folderName(entry.nm, entry.sdi)));
+      if (!f) f = pickOldest(trainees.getFoldersByName(entry.sdi));
+    }
     var found = pickOldest(trainees.searchFolders("fullText contains 'acct=" + gateQ(acct) + "' and trashed = false"));
     if (found && (!f || older(found, f))) f = found;
     if (!f) { G.cache.put(key, '-', 60); return null; }
