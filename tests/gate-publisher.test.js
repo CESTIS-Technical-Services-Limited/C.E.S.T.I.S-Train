@@ -97,7 +97,7 @@ function extractVar(src, name) {
 const VARS = ['GATE_STAFF_ROLES', 'GATE_CONFIG_FILE', 'GATE_FOLDER_MIME', 'GATE_EXPECTED_VERSION', 'GATE_LIMITS', 'GATE_STORE_KEYS', '_gateRun', 'GATE_REASON_TEXT'];
 const FUNCS = ['gateDevRead', 'gateDevWrite', 'gatePublishedState', 'gateCollectedState', 'gateFolderDescription', 'gateFolderAcct',
   'gateFileName', 'gateFileProps', 'gateIndexListing', 'gateBuild', 'gatePlan', 'gateDoOp', 'gateRunQueue', 'gatePublishRun',
-  'gateReadConfig', 'gateFolderAcctOf', 'gateCollectRun', 'gateDriveApi', 'gatePause', 'gateStoreMap', 'gateFoldLog', 'gateStaffOn',
+  'gateReadConfig', 'gateFolderAcctOf', 'gateCollectRun', 'gateDriveApi', 'gatePause', 'gateStoreMap', 'gateFoldLog', 'gateIdMoves', 'gateStaffOn',
   'gateKillSwitch', 'gateWithLock', 'gateConfigLoad', 'gatePageEnv', 'gatePublishTick', 'gateCollectTick', 'gateMergeRequests',
   'gateApplyOps', 'gateStaffTick', 'gateHealthVerdict', 'gateStatusText', 'gateSignInLink', 'gateCheckHealth', 'gateOlder', 'gateSeenUntil',
   'gateSetOffFile', 'gateApplyOffFile'];

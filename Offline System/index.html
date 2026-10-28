@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261028b"></script>
-<script src="cestis-form-modal.js?v=20261028b" defer></script>
+<script src="cestis-core.js?v=20261028c"></script>
+<script src="cestis-form-modal.js?v=20261028c" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=20261028b"></script>
-<script src="staff-appraisals.js?v=20261028b"></script>
-<script src="cmc-portal.js?v=20261028b"></script>
+<script src="cestis-page-cloud.js?v=20261028c"></script>
+<script src="staff-appraisals.js?v=20261028c"></script>
+<script src="cmc-portal.js?v=20261028c"></script>
 <script src="cert-template-seed.js?v=20260802b"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Installable, with an icon, and able to open with no connection (sw.js). -->
@@ -4892,7 +4892,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 <!-- Video on the Centre's own network (the Offline System): introduce calls
      through the Centre's server instead of a public one on the internet.
      Inert everywhere else — it changes nothing unless that server answers. -->
-<script src="cestis-offline-rtc.js?v=20261028b"></script>
+<script src="cestis-offline-rtc.js?v=20261028c"></script>
 <!-- Google Identity Services for OAuth. Where it cannot load (the Centre's own
      network has no internet by design) the email sign-in buttons are taken
      away — see markEmailSignInUnavailable. -->
@@ -9562,6 +9562,15 @@ function cestisStabilizeStudentIds() {
   // header and open requests live only in the store and used to stay behind on
   // the old id — the transcript then printed blank grades and a blank header.
   // The same shared relink carries them.
+  // Keep the moves on this device, so the trainee gate can still place
+  // records that arrive later under a trainee's old ID (gateIdMoves below).
+  try {
+    if (res && res.idMap && Object.keys(res.idMap).length && CESTISCore.studentIdMoves) {
+      var _mv = CESTISCore.studentIdMoves;
+      var _prev = null; try { _prev = JSON.parse(CESTISStore.getItem(_mv.KEY) || 'null'); } catch (e) { _prev = null; }
+      CESTISStore.setItem(_mv.KEY, JSON.stringify(_mv.record(_prev, res.idMap, Date.now())));
+    }
+  } catch (e) {}
   var _relinkedStored = [];
   try {
     if (res && res.idMap && typeof CESTISCore.relinkStoredDependents === 'function') {
@@ -36550,6 +36559,13 @@ function gateStoreMap() {
   GATE_STORE_KEYS.forEach(function(k) { try { var v = CESTISStore.getItem(k); if (v != null) map[k] = v; } catch (e) {} });
   return map;
 }
+// Student IDs this device saw move ({ oldId: currentId }), for the slices.
+function gateIdMoves() {
+  try {
+    var mv = window.CESTISCore && CESTISCore.studentIdMoves;
+    return mv ? mv.toMap(JSON.parse(CESTISStore.getItem(mv.KEY) || 'null')) : {};
+  } catch (e) { return {}; }
+}
 function gateFoldLog() {
   try { var l = JSON.parse(CESTISStore.getItem('cestisFoldedAccounts') || '{}'); return l && typeof l === 'object' ? l : {}; } catch (e) { return {}; }
 }
@@ -36610,7 +36626,7 @@ function gatePageEnv(drive, cfg) {
       var g = systemSettings.traineeGate || {};
       return { builtBy: st.device, gateUrl: String(g.url || ''),
         inboxSeenUntil: gateSeenUntil(gateCollectedState(gateDevRead('cestisGateCollected', null)), typeof userAccounts !== 'undefined' ? userAccounts : [], GATE_LIMITS.overlapMs),
-        findSkill: function(c) { try { return findSkillAreaForCourse(c); } catch (e) { return null; } }, folds: gateFoldLog() };
+        findSkill: function(c) { try { return findSkillAreaForCourse(c); } catch (e) { return null; } }, folds: gateFoldLog(), relinked: gateIdMoves() };
     },
     persist: function() { gateDevWrite('cestisGatePublished', env.st); gateDevWrite('cestisGatePublishQueue', env.queue); },
     log: function(level, msg) { (level === 'warn' ? console.warn : console.log)('[TraineeGate] ' + msg); }

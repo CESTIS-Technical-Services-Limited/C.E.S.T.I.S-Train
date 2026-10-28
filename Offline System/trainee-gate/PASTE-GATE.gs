@@ -1614,7 +1614,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       'cestisGatePublishQueue',  // the publisher's writes still to make
       'cestisGateCollected',     // what this staff device has already collected
       'cestisGateUnassigned',    // trainee work waiting for an administrator's decision
-      'cestisGateQuarantine'     // another trainee's unsent work, held until they sign in here
+      'cestisGateQuarantine',    // another trainee's unsent work, held until they sign in here
+      'cestisStudentIdMoves'     // student IDs this device saw move (rename/transfer): old → current
     ];
     // A key written inside a gate namespace ('g1::voctrain_students').
     var NS_KEY = /^g[0-9]{1,3}::/;

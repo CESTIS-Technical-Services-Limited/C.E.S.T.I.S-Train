@@ -599,7 +599,7 @@
     // The trainee gate's part on this device (CESTISCore.gate.DEVICE_KEYS).
     'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
     'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
-    'cestisGateUnassigned', 'cestisGateQuarantine'];
+    'cestisGateUnassigned', 'cestisGateQuarantine', 'cestisStudentIdMoves'];
   function deviceOnly(k) {
     // A trainee gate session's own records ('g1::…') stay in that session's namespace.
     if (/^g[0-9]{1,3}::/.test(k)) return true;
@@ -952,7 +952,7 @@
       // The trainee gate's part on this device (see DEVICE_KEYS).
       'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
       'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
-      'cestisGateUnassigned', 'cestisGateQuarantine'
+      'cestisGateUnassigned', 'cestisGateQuarantine', 'cestisStudentIdMoves'
     ],
     // This module's own bookkeeping about what it has already synced.
     excludePrefixes: ['cestis_pagecloud_stamps__'],

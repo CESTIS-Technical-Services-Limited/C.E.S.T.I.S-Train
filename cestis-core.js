@@ -1770,7 +1770,7 @@
     // work held here until they sign in.
     'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
     'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
-    'cestisGateUnassigned', 'cestisGateQuarantine'];
+    'cestisGateUnassigned', 'cestisGateQuarantine', 'cestisStudentIdMoves'];
 
   Core._parseArr = function (raw) {
     try { var v = JSON.parse(raw || 'null'); return Array.isArray(v) ? v : []; }
@@ -13378,7 +13378,8 @@
       'cestisGatePublishQueue',  // the publisher's writes still to make
       'cestisGateCollected',     // what this staff device has already collected
       'cestisGateUnassigned',    // trainee work waiting for an administrator's decision
-      'cestisGateQuarantine'     // another trainee's unsent work, held until they sign in here
+      'cestisGateQuarantine',    // another trainee's unsent work, held until they sign in here
+      'cestisStudentIdMoves'     // student IDs this device saw move (rename/transfer): old → current
     ];
     // A key written inside a gate namespace ('g1::voctrain_students').
     var NS_KEY = /^g[0-9]{1,3}::/;
@@ -15413,6 +15414,48 @@
       totp: { code: totpCode, verify: totpVerify, hotp: hotp, base32: base32 }, codeHash: codeHash,
       cleanupPlan: cleanupPlan, selfTest: selfTest
     };
+  })();
+
+  /* Student IDs that moved, kept by the device that saw the move.
+
+     A trainee's stable ID comes from name + programme, so a rename or a
+     transfer moves it (Core.migrateToStableIds returns the move as idMap).
+     The dashboard used to throw that map away, so the trainee gate could not
+     tell that records arriving later under the old ID are this trainee's
+     (Core.gate.prepare's opts.relinked { oldId: newId }). This keeps the
+     moves: a later move of the new ID carries the older ones along (A→B then
+     B→C keeps A→C and B→C), a move back to an old ID drops that entry, and
+     the log is capped to the newest `cap` entries so it never grows without
+     end. Pure; the page stores the log on this device only. */
+  Core.studentIdMoves = (function () {
+    function record(log, idMap, nowMs, cap) {
+      var out = {};
+      var src = (log && typeof log === 'object' && !Array.isArray(log)) ? log : {};
+      Object.keys(src).forEach(function (k) { var e = src[k]; if (e && typeof e.to === 'string' && e.to && e.to !== k) out[k] = { to: e.to, at: Number(e.at) || 0 }; });
+      var map = (idMap && typeof idMap === 'object') ? idMap : {};
+      var at = Number(nowMs) || 0;
+      Object.keys(map).forEach(function (from) {
+        var to = map[from];
+        if (typeof to !== 'string' || !to || to === from) return;
+        Object.keys(out).forEach(function (k) { if (out[k].to === from) out[k] = { to: to, at: at }; });
+        out[from] = { to: to, at: at };
+        if (out[to]) delete out[to];
+      });
+      Object.keys(out).forEach(function (k) { if (out[k].to === k) delete out[k]; });
+      var keys = Object.keys(out);
+      var max = Math.max(1, Number(cap) || 2000);
+      if (keys.length > max) {
+        keys.sort(function (a, b) { return (out[b].at - out[a].at) || (a < b ? -1 : a > b ? 1 : 0); });
+        keys.slice(max).forEach(function (k) { delete out[k]; });
+      }
+      return out;
+    }
+    function toMap(log) {
+      var m = {};
+      if (log && typeof log === 'object') Object.keys(log).forEach(function (k) { var e = log[k]; if (e && typeof e.to === 'string' && e.to && e.to !== k) m[k] = e.to; });
+      return m;
+    }
+    return { record: record, toMap: toMap, KEY: 'cestisStudentIdMoves' };
   })();
 
   root.CESTISCore = Core;
