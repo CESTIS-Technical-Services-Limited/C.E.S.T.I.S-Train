@@ -35,6 +35,10 @@
         invigilation" (off by default) — then it appears and works;
      8. Light and Dark: the board's text reads at WCAG AA; on a phone
         (390x844) nothing is wider than the screen;
+     9. online (the shared copy in an in-memory stand-in, tests/browser/
+        fake-drive.js): the same board from the online backup — a trainee
+        starting and submitting reaches it, and the register travels in the
+        staff's backup;
      and the trainee's test shows nothing new. No page errors anywhere.
    Kept out of the default npm test chain because it needs a browser.
    INVIG_SHOTS=<dir> saves screenshots of the board along the way. */
@@ -43,7 +47,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
+const http = require('http');
 const { chromium } = require('playwright-core');
+const { FakeDrive, driveTokenSeed } = require('./fake-drive');
 
 const ROOT = process.env.CESTIS_ROOT ? path.resolve(process.env.CESTIS_ROOT) : path.join(__dirname, '..', '..');
 const OFF = path.join(ROOT, 'Offline System');
@@ -95,15 +101,21 @@ const QUESTIONS = [
   const errors = [];
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 
-  /* A computer: its own browser storage. */
+  /* A computer: its own browser storage. opts.base (another site than the
+     Centre's server) and opts.drive (a FakeDrive it syncs through). */
   async function computer(opts) {
     opts = opts || {};
     const o = opts.phone ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { viewport: { width: 1366, height: 768 } };
     const ctx = await browser.newContext(Object.assign({ timezoneId: 'America/Jamaica', acceptDownloads: true }, o));
+    const base = opts.base || origin;
     await ctx.route('**/*', r => {
+      const u = r.request().url();
       if (ctx._offline) return r.abort('internetdisconnected');
-      return r.request().url().startsWith(origin) ? r.continue() : r.abort();
+      if (u.startsWith(base)) return r.continue();
+      if (opts.drive && /^https:\/\/(www\.googleapis\.com|oauth2\.googleapis\.com)\//.test(u)) return opts.drive.handle(r);
+      return r.abort();
     });
+    ctx._origin = base; ctx._opts = opts;
     return ctx;
   }
   async function offline(ctx, on) { ctx._offline = on; await ctx.setOffline(on); }
@@ -115,9 +127,9 @@ const QUESTIONS = [
   // The Centre's records on this computer, then the page as it opens with them.
   async function open(ctx, label) {
     const page = watch(await ctx.newPage(), label);
-    await page.goto(origin + '/index.html', { waitUntil: 'load' });
+    await page.goto(ctx._origin + '/index.html', { waitUntil: 'load' });
     await page.waitForTimeout(1200);
-    await page.evaluate(async ({ PEOPLE, PROG, TITLE, QUESTIONS }) => {
+    await page.evaluate(async ({ PEOPLE, PROG, TITLE, QUESTIONS, token }) => {
       const users = [];
       for (const k of Object.keys(PEOPLE)) {
         const p = PEOPLE[k];
@@ -133,7 +145,8 @@ const QUESTIONS = [
         passMark: 60, questions: 10, questionData: QUESTIONS, shuffleQuestions: false, answersRelease: 'after-close', questionsPerPage: 3, allowFlag: true,
         createdBy: 'admin', createdByRole: 'admin', instructions: 'Answer every question.', updatedAt: '2026-10-01T12:00:00.000Z' }]));
       if (!CESTISStore.getItem('voctrain_examResults')) CESTISStore.setItem('voctrain_examResults', '[]');
-    }, { PEOPLE, PROG, TITLE, QUESTIONS });
+      if (token) Object.keys(token).forEach(k => CESTISStore.setItem(k, token[k]));
+    }, { PEOPLE, PROG, TITLE, QUESTIONS, token: ctx._opts.drive ? driveTokenSeed() : null });
     await page.reload({ waitUntil: 'load' });
     await page.waitForTimeout(1300);
     return page;
@@ -481,6 +494,50 @@ const QUESTIONS = [
       ok(await P.evaluate(() => getComputedStyle(document.querySelector('#invigTable thead')).display === 'none'), 'each trainee is a card');
       await shot(P, 'phone-board');
       await phone.close();
+    });
+
+    await section('9. Online: the same board from the online backup; the register travels in the staff\'s backup', async () => {
+      const site = await new Promise(resolve => {
+        const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
+        const srv = http.createServer((req, res) => {
+          const p = decodeURIComponent(req.url.split('?')[0]);
+          const file = path.normalize(path.join(ROOT, p === '/' ? 'index.html' : p));
+          if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('nope'); }
+          res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
+          fs.createReadStream(file).pipe(res);
+        });
+        srv.listen(0, '127.0.0.1', () => resolve(srv));
+      });
+      const base = 'http://127.0.0.1:' + site.address().port;
+      const drive = new FakeDrive();
+      const copies = () => Object.values(drive.files).filter(f => f.name === 'CESTIS_LMS_BACKUP.json' && !f.trashed).map(f => { try { return JSON.parse(f.content || '{}').data || {}; } catch (e) { return {}; } });
+      const desk = await computer({ base, drive }), lab = await computer({ base, drive });
+      try {
+        const W = await open(desk, 'online office');
+        ok(!(await W.evaluate(() => CESTISPageCloud.lan())), 'this office PC is not on the Centre\'s network');
+        ok(await signIn(W, 'marcia'), 'Marcia signs in');
+        ok(await until(() => copies().length > 0, 40000), 'her PC has synced');
+        await go(W, 'invigilator');
+        ok(await until(() => W.evaluate(() => !!invigState.board && invigState.board.rows.length === 3), 15000), 'the board lists the three trainees');
+        const T = await open(lab, 'online lab PC');
+        ok(await signIn(T, 'shanice'), 'Shanice signs in at a lab PC');
+        await startFresh(T);
+        await T.locator('#examQ-0 label.exam-choice', { hasText: 'Green' }).click();
+        await T.evaluate(async () => { examPublishNow(); for (let i = 0; i < 60 && _isAutoSaving; i++) await new Promise(r => setTimeout(r, 250)); await autoSaveToAllFolders(); });
+        const t0 = Date.now();
+        ok(await until(async () => { const r = await row(W, 'shanice'); return r && r.status === 'in-progress' && r.answered === 1; }, 60000, 1000),
+          'her start and first answer reach the office board through the online backup (' + Math.round((Date.now() - t0) / 1000) + ' s, by its own sync)');
+        await submitAll(T);
+        await T.evaluate(async () => { for (let i = 0; i < 60 && _isAutoSaving; i++) await new Promise(r => setTimeout(r, 250)); await autoSaveToAllFolders(); });
+        ok(await until(async () => { const r = await row(W, 'shanice'); return r && r.status === 'submitted' && r.how === 'trainee'; }, 60000, 1000), 'and her submission: Submitted, by the trainee');
+        await W.click('#invigRegisterBtn');
+        await W.waitForTimeout(500);
+        ok(/Shanice Brown/.test(await txt(W, '#invigRegisterView')), 'the register is produced');
+        await W.evaluate(async () => { for (let i = 0; i < 60 && _isAutoSaving; i++) await new Promise(r => setTimeout(r, 250)); await autoSaveToAllFolders(); });
+        ok(await until(() => copies().some(d => Array.isArray(d.examRegisters) && d.examRegisters.some(r => r.rows && r.rows.some(x => x.name === 'Shanice Brown' && x.status === 'completed'))), 30000),
+          'and travels in the staff\'s online backup');
+        ok(copies().every(d => !(d.examRegisters && d.savedByRole === 'student')), 'a trainee\'s upload carries no register');
+      } finally { await desk.close(); await lab.close(); site.close(); }
     });
 
     ok(errors.length === 0, 'no page errors anywhere (' + errors.join(' | ').slice(0, 400) + ')');
