@@ -31,6 +31,14 @@
        seen an edit never out-ranks one that has (publishDecision);
      - papers carry no keys; key files carry them; a draft exam has neither;
      - who gets a slice: an account that can sign in, linked to its record;
+     - records still under a student ID the trainee had before reach their
+       slice, under today's ID: after a rename (the move the dashboard kept,
+       or a record naming their account), and a duplicate's once its stub is
+       folded (a live duplicate by the dashboard's identity rule, the fold
+       log, a stub's own id) — and, the privacy back-check, never another
+       person's: not a namesake on another programme, not one the office
+       pinned, not a result moved to someone else, not an ID two could
+       claim, a deleted trainee's, or one another account links to;
      - the programme rule is the dashboard's own: index.html's
        instructorCourseMatch is now a wrapper of Core.enrolment.courseMatch
        and answers exactly as the function it replaced.
@@ -327,6 +335,143 @@ console.log('The programme rule is the dashboard\'s own (instructorCourseMatch i
   assertEq(differ.slice(0, 3), [], 'the wrapper answers exactly as the function it replaced, value for value (' + same + ' pairs)');
   assertEq(Core.enrolment.courseMatch('Welding', 'welding ', null), true, 'the exact name needs no training centres');
   assertEq(Core.enrolment.courseMatch('Welding', 'Plumbing', null), false, 'and without a way to find them, different names do not match');
+}
+
+/* ------------------------------------------------ former student IDs */
+/* A student ID is a hash of the name and the programme: a rename or a
+   transfer moves it. The dashboard moves the records it holds then, but a
+   result marked since on a lab PC that still knew the old ID, an assignment
+   grade (no relink carries those), and a duplicate's records once the fee
+   roll's stub is folded away, stayed under the old ID — and the slice, built
+   by student ID alone, left them out. Each case is checked with the privacy
+   back-check: never another person's records. */
+console.log('Records under a student ID the trainee had before reach them — and never anybody else\'s');
+{
+  const st = JSON.parse(JSON.stringify(C.store));
+  const P0 = C.PROGRAMMES[0].name, P1 = C.PROGRAMMES[1].name;
+  const OWNED = ['voctrain_examResults', 'voctrain_examAttempts', 'voctrain_attendanceRegister', 'voctrain_submissions', 'voctrain_transcriptGrades',
+    'voctrain_certTranscriptRequests', 'voctrain_certDownloadApprovals'];
+  const ids = (s, k) => s.data[k].map(r => r.id).sort();
+
+  // A rename: the office renamed Odalys; her record and account moved to the new ID there.
+  const RN = C.trainees[6], oldRN = RN.stu.id, newName = 'Odalys Lindo-Brown';
+  const recRN = st.voctrain_students.find(s => s.id === oldRN);
+  recRN.name = newName; recRN.id = Core.stableStudentId(recRN);
+  const newRN = recRN.id;
+  Object.assign(st.voctrain_users.find(u => u.id === RN.acct.id), { name: newName, studentDataId: newRN });
+  const blind = G.buildSlice(st, RN.acct.id, NOW).slice;
+  assertEq([blind.studentId, blind.data.voctrain_examResults.length, blind.data.voctrain_attendanceRegister.length], [newRN, 0, 0],
+    'a rename: with nothing to say where her old ID went, her old records stay out (never guessed)');
+  const moved = { [oldRN]: newRN };
+  const r1 = G.buildSlice(st, RN.acct.id, NOW, { relinked: moved }), s1 = r1.slice, d1 = s1.data;
+  assertEq([ids(s1, 'voctrain_examResults'), ids(s1, 'voctrain_examAttempts'), ids(s1, 'voctrain_submissions'), ids(s1, 'voctrain_transcriptGrades'),
+    d1.voctrain_attendanceRegister.length, d1.voctrain_certTranscriptRequests.length, d1.voctrain_certDownloadApprovals.length],
+  [['RES-' + RN.acct.id], ['ATT-' + RN.acct.id], ['SUB-' + RN.acct.id], ['TG-' + RN.acct.id], 3, 1, 1],
+  'with the move the dashboard made (opts.relinked): her result, attempt, submission, grades, register, request and approval');
+  assert(OWNED.every(k => d1[k].every(r => r.studentId === newRN)), '— each under the ID she has today');
+  const asg = d1.voctrain_assignments[0];
+  assertEq([Object.keys(asg.grades), Object.keys(asg.feedback), asg.gradeLog.map(g => g.studentId)], [[newRN], [newRN], [newRN]],
+    'her assignment grade, its feedback and history, which no relink carries');
+  assertEq([Object.keys(d1.voctrain_transcriptProfiles), Object.keys(d1.voctrain_studentProfiles).sort()], [[newRN], [RN.acct.id, newRN].sort()],
+    'her transcript header and profile, under today\'s ID');
+  assertEq(r1.scrubbed, 0, 'the rules alone place them (the sweep takes nothing)');
+  const st2 = JSON.parse(JSON.stringify(st));
+  st2.voctrain_examAttempts.find(a => a.id === 'ATT-' + RN.acct.id).accountId = RN.acct.id;   // as an attempt made through the gate carries it
+  assertEq(ids(G.buildSlice(st2, RN.acct.id, NOW).slice, 'voctrain_examResults'), ['RES-' + RN.acct.id],
+    'or, with no move kept, a record of hers naming her account under the old ID says the old ID was hers');
+
+  // A duplicate the fee roll made: a second record for Akeem and a stub account for it.
+  const FD = C.trainees[12], dupId = 'STU1761000000123';
+  st.voctrain_students.push({ id: dupId, name: FD.stu.name, course: P0, stage: 'training', schoolFeeId: 'SF-DUP-1' });
+  st.voctrain_users.push({ id: 'USR-FEE-1761000000-1', name: FD.stu.name, role: 'student', username: 'akeem.henry', password: '', email: '',
+    programme: P0, status: 'disabled', registeredVia: 'fee-system', studentDataId: dupId, approvedBy: 'system', createdAt: '2026-10-01' });
+  st.voctrain_attendanceRegister.push({ id: 'REG-DUP-1', studentId: dupId, studentName: FD.stu.name, course: P0, date: '2026-10-28', status: 'present' });
+  st.voctrain_transcriptGrades.push({ id: 'TG-DUP-1', studentId: dupId, qualId: 'CAT-1', unitCode: 'U2', grade: 'B', updatedAt: iso(NOW - DAY) });
+  // …and one whose record the roll has already dropped, folded on this PC: its copy deleted, the fold log kept.
+  const gone = 'STU-' + 'g0n3dup';
+  st.voctrain_users.push({ id: 'USR-FEE-1761000000-2', name: FD.stu.name, role: 'student', username: 'akeem.henry2', password: '', email: '',
+    programme: P0, status: 'disabled', registeredVia: 'fee-system', studentDataId: gone, approvedBy: 'system' });
+  st.voctrain_deletedUserIds.push('USR-FEE-1761000000-2');
+  st.voctrain_attendanceRegister.push({ id: 'REG-DUP-2', studentId: gone, studentName: FD.stu.name, course: P0, date: '2026-10-29', status: 'present' });
+  // …and a chat-roster stub nothing holds any more: only the fold log and its own id say whose record it linked.
+  const gone3 = 'STU-' + 'g0n3dup3';
+  st.voctrain_attendanceRegister.push({ id: 'REG-DUP-3', studentId: gone3, studentName: FD.stu.name, course: P0, date: '2026-10-30', status: 'present' });
+  const folds = { 'USR-FEE-1761000000-2': { mergedInto: FD.acct.id }, ['USR-SYNC-' + gone3]: { mergedInto: FD.acct.id } };
+
+  // Near misses — different people, who must NOT be merged:
+  //  another Akeem Henry, on another programme, with his own account, records and fee stub;
+  const AH = { id: Core.stableStudentId({ name: FD.stu.name, course: P1 }), name: FD.stu.name, course: P1, stage: 'training', email: 'akeem.two@mail.test' };
+  st.voctrain_students.push(AH);
+  st.voctrain_users.push({ id: 'USR-AH2', name: AH.name, role: 'student', username: 'akeem2', email: AH.email, programme: P1, status: 'active',
+    studentDataId: AH.id, password: C.trainees[1].acct.password });
+  st.voctrain_users.push({ id: 'USR-FEE-1761000000-3', name: AH.name, role: 'student', username: 'akeem.henry3', password: '', email: '',
+    programme: P1, status: 'disabled', registeredVia: 'fee-system', studentDataId: 'STU1761000000999', approvedBy: 'system' });
+  st.voctrain_attendanceRegister.push({ id: 'REG-AH2', studentId: AH.id, studentName: AH.name, course: P1, date: '2026-10-28', status: 'present' });
+  st.voctrain_attendanceRegister.push({ id: 'REG-AH2-STUB', studentId: 'STU1761000000999', studentName: AH.name, course: P1, date: '2026-10-29', status: 'present' });
+  //  a namesake of Fabian on his own programme, pinned by the office as his own person (no account yet);
+  const FP = C.trainees[15];
+  st.voctrain_students.push({ id: 'STU-PIN-FP', name: FP.stu.name, course: P0, keepSeparate: true, stage: 'training', email: 'fabian.two@mail.test' });
+  st.voctrain_attendanceRegister.push({ id: 'REG-PIN', studentId: 'STU-PIN-FP', studentName: FP.stu.name, course: P0, date: '2026-10-28', status: 'absent' });
+  //  a result staff moved from one trainee to another, still naming the first's account;
+  const A18 = C.trainees[18], B21 = C.trainees[21];
+  st.voctrain_examResults.push({ id: 'RES-MOVED', examId: 'EX1-OLD', studentId: B21.stu.id, accountId: A18.acct.id, score: 70, submittedAt: iso(NOW - 9 * DAY) });
+  //  an old ID two trainees could each claim; a deleted trainee's; one another account links to.
+  const T24 = C.trainees[24], T27 = C.trainees[27], T30 = C.trainees[30], T33 = C.trainees[33];
+  st.voctrain_examAttempts.push({ id: 'ATT-ORPH', examId: 'EX1', studentId: 'STU-ORPHAN-X', accountId: T27.acct.id, status: 'submitted', updatedAt: iso(NOW - DAY) });
+  st.voctrain_attendanceRegister.push({ id: 'REG-ORPH', studentId: 'STU-ORPHAN-X', course: P0, date: '2026-10-28', status: 'present' });
+  st.voctrain_deletedStudentIds.push('STU-GONE-1');
+  st.voctrain_attendanceRegister.push({ id: 'REG-GONE', studentId: 'STU-GONE-1', course: P0, date: '2026-10-28', status: 'present' });
+  st.voctrain_users.find(u => u.id === C.pending.id).studentDataId = 'STU-PEND-1';
+  st.voctrain_attendanceRegister.push({ id: 'REG-PEND', studentId: 'STU-PEND-1', course: P0, date: '2026-10-28', status: 'present' });
+  Object.assign(moved, { 'STU-ORPHAN-X': T24.stu.id, 'STU-GONE-1': T30.stu.id, 'STU-PEND-1': T33.stu.id, [B21.stu.id]: A18.stu.id });
+  // (the namesakes' certificate and score notices name both of them; they are not what this checks)
+  st.voctrain_notifications = st.voctrain_notifications.filter(n => [FD, FP].every(t => n.id.indexOf(t.acct.id) === -1));
+
+  const opts = { relinked: moved, folds };
+  const ctx = G.prepare(st, NOW, opts);
+  const all = G.buildAll(st, NOW, opts);
+  const sl = acct => all.slices[acct].slice;
+  const reg = acct => sl(acct).data.voctrain_attendanceRegister.map(r => r.id).sort();
+  assertEq(reg(FD.acct.id), ['REG-' + FD.acct.id + '-1', 'REG-' + FD.acct.id + '-2', 'REG-' + FD.acct.id + '-3', 'REG-DUP-1', 'REG-DUP-2', 'REG-DUP-3'].sort(),
+    'a fold: the duplicate\'s marks reach Akeem — a live duplicate (the dashboard\'s identity rule, its stub folded into him), one whose stub was folded here (the fold log), and one only a stub\'s id still names');
+  assertEq(ids(sl(FD.acct.id), 'voctrain_transcriptGrades'), ['TG-' + FD.acct.id, 'TG-DUP-1'].sort(), 'with the duplicate\'s grades');
+  assert(sl(FD.acct.id).data.voctrain_attendanceRegister.every(r => r.studentId === FD.stu.id), '— each under his ID today');
+  assertEq(reg('USR-AH2'), ['REG-AH2', 'REG-AH2-STUB'], 'near miss: the other Akeem Henry (another programme) keeps his own, his own stub\'s included');
+  assert(reg(FD.acct.id).indexOf('REG-AH2') === -1 && reg(FD.acct.id).indexOf('REG-AH2-STUB') === -1, '— and nothing of his reaches the first Akeem');
+  assert(reg(FP.acct.id).indexOf('REG-PIN') === -1, 'near miss: a namesake the office pinned as his own person is never merged in, on his programme or not');
+  // (Stage 1's last-line sweep takes it out of B's slice too, as it names another trainee's account: counted below.)
+  assertEq(ids(sl(A18.acct.id), 'voctrain_examResults').indexOf('RES-MOVED'), -1,
+    'near miss: a result staff moved to another trainee never comes back to the first, though it still names the first one\'s account');
+  assert(reg(B21.acct.id).every(r => r.indexOf(A18.acct.id) === -1) && reg(A18.acct.id).every(r => r.indexOf(B21.acct.id) === -1),
+    '— and a move that names another trainee\'s ID today is not taken at all');
+  assert([T24, T27].every(t => reg(t.acct.id).indexOf('REG-ORPH') === -1), 'near miss: an old ID two trainees could each claim goes to neither');
+  assert(ctx.formerUnsure.indexOf('STU-ORPHAN-X') !== -1, '— and is listed as unsure');
+  assert(reg(T30.acct.id).indexOf('REG-GONE') === -1, 'a deleted trainee\'s ID is never taken');
+  assert(reg(T33.acct.id).indexOf('REG-PEND') === -1, 'nor a record another account links to');
+  assertEq(ctx.formerIds[RN.acct.id], [oldRN], 'the rename\'s old ID, and nothing more, is Odalys\'s');
+
+  // The privacy property, again, over every slice of this Centre.
+  const people = C.trainees.map(t => ({ acct: t.acct.id, stu: t === RN ? newRN : t.stu.id, name: t === RN ? newName : t.stu.name, email: t.stu.email }))
+    .concat([{ acct: 'USR-AH2', stu: AH.id, name: AH.name, email: AH.email }, { acct: '', stu: 'STU-PIN-FP', name: FP.stu.name, email: 'fabian.two@mail.test' }]);
+  const outsiders = ['STU-ORPHAN-X', 'REG-ORPH', 'STU-GONE-1', 'REG-GONE', 'STU-PEND-1', 'REG-PEND', 'REG-PIN'];
+  let leaks = [], scrubbed = 0, wrongOwner = [];
+  Object.keys(all.slices).forEach(acct => {
+    const s = all.slices[acct].slice, text = JSON.stringify(s), me = people.find(p => p.acct === acct);
+    scrubbed += acct === B21.acct.id ? all.slices[acct].scrubbed - 1 : all.slices[acct].scrubbed;
+    people.forEach(o => {
+      if (o === me) return;
+      [o.acct, o.stu, o.email].concat(o.name !== me.name ? [o.name] : []).forEach(v => { if (v && text.indexOf(v) !== -1) leaks.push(acct + ' holds ' + v); });
+    });
+    outsiders.forEach(v => { if (text.indexOf(v) !== -1) leaks.push(acct + ' holds ' + v); });
+    if (acct !== RN.acct.id && text.indexOf(oldRN) !== -1) leaks.push(acct + ' holds Odalys\'s old ID');
+    if (acct !== FD.acct.id && [dupId, gone, gone3, 'REG-DUP'].some(v => text.indexOf(v) !== -1)) leaks.push(acct + ' holds the duplicate\'s');
+    OWNED.forEach(k => s.data[k].forEach(r => { if (r.studentId !== s.studentId) wrongOwner.push(acct + ' ' + k + ' ' + r.id); }));
+  });
+  assertEq(leaks.slice(0, 5), [], 'no slice holds another person\'s id, name, email or records — the renamed, the folded and the near misses included');
+  assertEq(wrongOwner.slice(0, 5), [], 'every record a slice holds is filed under that slice\'s own student ID');
+  assertEq([scrubbed, all.slices[B21.acct.id].scrubbed], [0, 1], 'and the rules alone keep it so (the sweep takes nothing but the moved result naming another account)');
+  const plain = G.buildAll(C.store, NOW, opts);
+  assert(accts.every(a => plain.slices[a].h === built.slices[a].h), 'on the Centre with none of this, the same slices as before, byte for byte');
 }
 
 /* ------------------------------------------------------ both builds */

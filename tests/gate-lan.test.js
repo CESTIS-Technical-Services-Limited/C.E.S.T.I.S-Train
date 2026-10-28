@@ -28,7 +28,8 @@
      - the rules both gates must keep alike (the accounts index, which
        account a login names, when a right password still may not sign in,
        the two-step methods and ticket, the credential version inside a
-       session id), as pure functions;
+       session id): Core.gate's pure functions, which this server's gate
+       calls — it no longer carries a copy of its own;
      - a delivery is MERGED into the data file by the record rules, with the
        previous version kept in data/.history, a device's save at the same
        moment kept too, and nothing else in the file touched;
@@ -244,13 +245,18 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
 
 (async () => {
   /* ---------------------------------------------------------- the shared rules
-     (cestis-offline-gate.js `rules`: what trainee-gate/Gate.gs decides the
-     same way, and Core.gate should hold for both — see its TODO(core).) */
-  console.log('The rules both gates keep alike');
+     (Core.gate: what trainee-gate/Gate.gs decides too. The server's module
+     used to carry its own copy of them; now both gates call these.) */
+  console.log('The rules both gates keep alike (Core.gate, called by both)');
   {
-    const rules = require(path.join(OFF, 'cestis-offline-gate.js')).rules;
+    const lanSrc = fs.readFileSync(path.join(OFF, 'cestis-offline-gate.js'), 'utf8');
+    assert(!('rules' in require(path.join(OFF, 'cestis-offline-gate.js'))) && !/TODO\(core\)/.test(lanSrc),
+      'the server\'s gate carries no copy of its own any more');
+    assert(['indexAccounts', 'lookupLogin', 'credentialRefusal', 'twoStep', 'ticketMake', 'ticketRead', 'sidRand', 'sidCv']
+      .every(f => new RegExp('\\bG\\.' + f + '\\(').test(lanSrc)), 'it calls Core.gate\'s');
+    const rules = G;
     const twin = Object.assign({}, K.acct, { password: '', status: 'disabled', updatedAt: iso(T0 - 99 * DAY) });   // a copy that cannot sign in
-    const idx = rules.indexAccounts(Core, [admin, K.acct, twin, TM.acct, pending, Object.assign({}, R.acct, { username: 'shared' }),
+    const idx = rules.indexAccounts([admin, K.acct, twin, TM.acct, pending, Object.assign({}, R.acct, { username: 'shared' }),
       Object.assign({}, SH.acct, { username: 'shared' }), Object.assign({}, OD.acct, { id: 'USR-GONE' })], ['USR-GONE'], crypto);
     assertEq([idx.n, Object.keys(idx.a).sort()], [5, [K.acct.id, TM.acct.id, R.acct.id, SH.acct.id, 'USR-PEND'].sort()],
       'the index: trainee accounts only, deleted ones dropped, one per account id');
@@ -263,7 +269,7 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     assertEq(rules.lookupLogin(idx, 'nobody'), { none: true }, 'nobody: none');
     const both = rules.lookupLogin(idx, 'shared');
     assertEq(both, { ambiguous: true }, 'two accounts that can both sign in behind one login: the office must sort it out');
-    const idx2 = rules.indexAccounts(Core, [Object.assign({}, R.acct, { username: 'shared' }), Object.assign({}, SH.acct, { username: 'shared', status: 'disabled' })], [], crypto);
+    const idx2 = rules.indexAccounts([Object.assign({}, R.acct, { username: 'shared' }), Object.assign({}, SH.acct, { username: 'shared', status: 'disabled' })], [], crypto);
     assertEq(rules.lookupLogin(idx2, 'shared').id, R.acct.id, '— but when only one of them can, that one');
     assertEq(rules.credentialRefusal({ st: 'pending' }, 'password'), { error: 'pending' }, 'a right password still: pending is refused as pending');
     assertEq(rules.credentialRefusal({ st: 'ok', sd: 1 }, 'password'), { error: 'ask-office', why: 'default-password' }, 'a published default: ask the office');
@@ -272,13 +278,17 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     assertEq(rules.twoStep({ tf: 'X', eo: 1 }, ['C1'], true), { needed: true, methods: ['totp', 'backup', 'email'] }, 'two-step: authenticator, backup codes, email');
     assertEq(rules.twoStep({ tf: '', eo: 1 }, [], false), { needed: true, methods: [] }, 'email codes where none can be sent: nothing to finish with');
     assertEq(rules.twoStep({ tf: '', eo: 0 }, ['C1'], true), { needed: false, methods: ['backup'] }, 'backup codes alone do not ask for a second step');
+    let asked = 0;
+    const codes = () => { asked++; return ['C1']; };
+    assertEq([rules.twoStep({ tf: '', eo: 0 }, codes, true).needed, asked], [false, 0], 'the spent codes are not even read when no second step is needed');
+    assertEq([rules.twoStep({ tf: 'X', eo: 0 }, codes, true).methods, asked], [['totp', 'backup'], 1], 'and read once when one is');
     const secret = 'ab'.repeat(32);
-    const tk = rules.ticketMake(G, secret, crypto, { a: 'USR-X', cv: 'cv1', exp: T0 + 60000, m: ['totp'], via: 'password', n: 'n1' });
+    const tk = rules.ticketMake({ a: 'USR-X', cv: 'cv1', exp: T0 + 60000, m: ['totp'], via: 'password', n: 'n1' }, secret, crypto);
     assert(/^t2\.[A-Za-z0-9_-]+\.[0-9a-f]{64}$/.test(tk), 'a ticket is t2.<claims>.<HMAC hex>');
-    const back = rules.ticketRead(G, secret, crypto, tk, T0);
+    const back = rules.ticketRead(tk, secret, crypto, T0);
     assertEq([back.a, back.cv, back.m, back.via, back.mac], ['USR-X', 'cv1', ['totp'], 'password', tk.split('.')[2].slice(0, 32)], 'and reads back, named by its mac');
-    assertEq(rules.ticketRead(G, secret, crypto, tk, T0 + 60000).error, 'expired', 'until it runs out');
-    assertEq(rules.ticketRead(G, 'cd'.repeat(32), crypto, tk, T0).error, 'bad-ticket', 'and only with the secret that made it');
+    assertEq(rules.ticketRead(tk, secret, crypto, T0 + 60000).error, 'expired', 'until it runs out');
+    assertEq(rules.ticketRead(tk, 'cd'.repeat(32), crypto, T0).error, 'bad-ticket', 'and only with the secret that made it');
     const sid = G.sid.make(T0, rules.sidRand('0123456789ab', 'feedfacecafe'), secret, crypto);
     assertEq([rules.sidCv(sid), rules.sidCv('nonsense')], ['0123456789ab', ''], 'a session id carries the credential version, sealed');
   }

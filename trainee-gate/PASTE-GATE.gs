@@ -1924,6 +1924,123 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
     // How a spent backup code is named in a trainee's inbox (never the code itself).
     function codeHash(code) { return 'h1-' + Core.hashString('bc|' + str(code).trim().toUpperCase()); }
 
+    /* ---- Who a login names, and whether they may go on (§4.1–§4.5) -------
+       The decisions both gatekeepers make — the online one (trainee-gate/
+       Gate.gs) and the Centre server's (Offline System/cestis-offline-
+       gate.js) — written once, so the two answer every sign-in alike. Each
+       of them used to carry its own copy, kept equal by a test. Pure: the
+       cache, the lock-out counters and the clock stay with the gatekeeper. */
+    var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    /* The accounts index: trainee accounts only, deleted ones dropped
+       (Core.accountAccess.dropDeleted), one entry per account id — of two
+       copies, the one that can sign in (Core.accountLoginScore) — with what
+       sign-in needs: the credential version (cv), why it may not sign in, if
+       it may not (st: Core.accountAccess.check's reason), its password check
+       (pw), whether it is still a published default (sd), its two-step
+       secret (tf), whether it signs in with emailed codes (eo) and to which
+       address (em), its unused backup codes, trimmed and upper case (bc), and
+       its record link (sdi). Then who answers to each username (user) and
+       each email (mail), in lower case. → { n, a: { id: entry }, user, mail } */
+    function indexAccounts(accounts, deletedUserIds, crypto) {
+      var A = Core.accountAccess, del = {};
+      (Array.isArray(deletedUserIds) ? deletedUserIds : []).forEach(function (id) { if (id != null && id !== '') del[id] = true; });
+      var list = A.dropDeleted(Array.isArray(accounts) ? accounts : [], del).accounts;
+      var idx = { n: 0, a: {}, user: {}, mail: {} }, score = {};
+      list.forEach(function (acc) {
+        if (!isObj(acc) || acc.id == null || acc.id === '' || lower(acc.role) !== 'student') return;
+        var id = String(acc.id), sc = Core.accountLoginScore(acc);
+        if (idx.a[id] && score[id] >= sc) return;          // the same id twice: the copy that can sign in
+        if (!idx.a[id]) idx.n++;
+        score[id] = sc;
+        var email = str(acc.email).trim();
+        idx.a[id] = {
+          cv: cvOf(acc, crypto), st: A.check(acc).reason, pw: typeof acc.password === 'string' ? acc.password : '',
+          sd: A.isSeededLogin(acc) ? 1 : 0,
+          tf: acc.twoFactorEnabled && acc.twoFactorSecret ? str(acc.twoFactorSecret) : '',
+          eo: acc.emailOtpLogin && EMAIL_RE.test(email) ? 1 : 0, em: email,
+          bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(function (c) { return c && c.code && !c.used; })
+            .map(function (c) { return str(c.code).trim().toUpperCase(); }),
+          sdi: acc.studentDataId != null ? str(acc.studentDataId) : ''
+        };
+        var add = function (map, v) { v = lower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
+        add(idx.user, acc.username); add(idx.mail, acc.email);
+      });
+      return idx;
+    }
+    /* Which trainee account a login names: a username or an email, any case
+       (opts.emailOnly: an email only). When two trainee accounts answer to it
+       and exactly one of them can sign in, that one (as Core.accountAccess
+       .find prefers the usable copy; opts.allowNoPassword counts an account
+       with no password yet as usable — the email sign-in); otherwise the
+       office must sort it out. → { none } | { id, e } | { ambiguous } */
+    function lookupLogin(idx, login, opts) {
+      opts = opts || {};
+      var l = lower(login), ids = [];
+      (opts.emailOnly ? [idx.mail] : [idx.user, idx.mail]).forEach(function (m) {
+        (m[l] || []).forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
+      });
+      if (!ids.length) return { none: true };
+      if (ids.length === 1) return { id: ids[0], e: idx.a[ids[0]] };
+      var usable = ids.filter(function (id) { var s = idx.a[id].st; return s === 'ok' || (opts.allowNoPassword && s === 'no-password'); });
+      if (usable.length === 1) return { id: usable[0], e: idx.a[usable[0]] };
+      return { ambiguous: true };
+    }
+    /* The credential is right: may the account go on? (The dashboard's
+       loginBlocked, as a gatekeeper sees it.) null, or the refusal
+       { error, why? }. via: 'password' | 'email' — an account with no
+       password yet may still use its email account; a login still on a
+       password published with the platform opens nothing. */
+    function credentialRefusal(entry, via) {
+      var e = entry || {};
+      if (e.st === 'pending' || e.st === 'disabled' || e.st === 'rejected') return { error: e.st };
+      if (e.st !== 'ok' && !(via === 'email' && e.st === 'no-password')) return { error: e.st || 'no-match' };
+      if (via === 'password' && e.sd) return { error: 'ask-office', why: 'default-password' };
+      return null;
+    }
+    /* Which second steps an account is offered: its authenticator, its
+       unused backup codes, an emailed code (only where email can be sent).
+       unusedCodes: the backup codes still good, or a function giving them —
+       asked only when a second step is needed (it may cost a read). An empty
+       list for an account that needs a second step: it cannot finish here.
+       Backup codes alone never ask for one. → { needed, methods } */
+    function twoStep(entry, unusedCodes, canEmail) {
+      var e = entry || {}, needed = !!(e.tf || e.eo), methods = [];
+      var codes = typeof unusedCodes === 'function' ? (needed ? unusedCodes() : []) : unusedCodes;
+      if (e.tf) methods.push('totp');
+      if (Array.isArray(codes) && codes.length) methods.push('backup');
+      if (e.eo && canEmail) methods.push('email');
+      return { needed: needed, methods: methods };
+    }
+    /* The two-step ticket (§4.3): t2.<base64url(canon {a, cv, exp, m, via, n})>.<HMAC hex>.
+       claims: { a (account), cv (its credential version), exp (ms), m
+       (methods offered), via, n (a random nonce) }. Read back: the claims and
+       `mac`, the first 32 hex characters of its seal — the name a gatekeeper
+       counts tries and single use under — or { error: 'bad-ticket' |
+       'expired' }. */
+    function ticketMake(claims, secret, crypto) {
+      var c = claims || {};
+      var body = b64url(utf8(canon({ a: str(c.a), cv: str(c.cv), exp: c.exp, m: c.m, via: str(c.via), n: str(c.n) })));
+      return 't2.' + body + '.' + hmac(crypto, secret, 't2|' + body);
+    }
+    function ticketRead(ticket, secret, crypto, nowMs) {
+      var parts = str(ticket).split('.');
+      if (parts.length !== 3 || parts[0] !== 't2' || !/^[0-9a-f]{64}$/.test(parts[2])) return { error: 'bad-ticket' };
+      if (!same(hmac(crypto, secret, 't2|' + parts[1]), parts[2])) return { error: 'bad-ticket' };
+      var c = null;
+      try { var bytes = unb64url(parts[1]); c = bytes ? JSON.parse(fromUtf8(bytes)) : null; } catch (e) { c = null; }
+      if (!isObj(c) || !c.a || typeof c.exp !== 'number') return { error: 'bad-ticket' };
+      if (nowMs >= c.exp) return { error: 'expired' };
+      c.mac = parts[2].slice(0, 32);
+      return c;
+    }
+    /* A session id's random part begins with the account's credential
+       version (sealed by the gatekeeper's secret with the rest: sid.make), so
+       an item sealed in a session whose password, status or two-step has
+       changed since is known as revoked with no table of sessions. sidCv
+       reads it back ('' when the id is not one of these). */
+    function sidRand(cv, randHex12) { return str(cv).slice(0, 12) + str(randHex12); }
+    function sidCv(sid) { var m = /^[0-9a-z]+\.([A-Za-z0-9]{12})[A-Za-z0-9]*\.[0-9a-f]{8}$/.exec(str(sid)); return m ? m[1] : ''; }
+
     /* ---- Reading a store map ---- */
     function reader(storeMap) {
       var map = storeMap || {}, memo = dict();
@@ -2223,11 +2340,153 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         var t = { acct: str(a.id), stu: str(st.id), account: a, student: st, course: str(st.course || a.programme) };
         ctx.trainees.push(t); ctx.byAcct[t.acct] = t;
       });
+      // The student IDs they had before — a rename, a transfer, a folded duplicate (formerIdsOf).
+      formerIdsOf(ctx, allAccounts, delStu, opts.relinked);
       return ctx;
     }
 
+    /* ---- A trainee's former student IDs ----------------------------------
+       A student ID is a hash of the name and the programme, so a rename or a
+       transfer moves it (Core.stableStudentId). The dashboard moves the
+       records it holds at that moment (Core.relinkDependentData) — but a
+       result marked since on a lab PC that still knew the old ID, an
+       assignment grade (which no relink carries), and the records of a
+       duplicate the fee roll made and a fold later removed, stay under the
+       old ID, and a slice built by student ID alone left them out.
+
+       Each trainee's former IDs are taken from what the records themselves
+       say, where they say it:
+         - a stub account folded into theirs (the fold log, opts.folds, or
+           Core.accountAccess.backfillStubFolds): the record it linked to —
+           from the stub's own copy, deleted or not, or the ID a
+           deterministic stub id (USR-SYNC-…, USR-STU-…) is made of;
+         - the dashboard's own identity rule (Core.migrateToStableIds, run
+           on a copy of the roll): a duplicate of their record, or the ID
+           their record is about to move to;
+         - a move the caller kept: opts.relinked { oldId: newId } (the
+           stabiliser's idMaps; chains are followed);
+         - a record of theirs that names their account (accountId) under
+           another student ID.
+       The privacy back-check, before any ID is taken: never another
+       trainee's current student ID; never a record another account links
+       to; never a deleted trainee's ID; never a record the office pinned as
+       its own person; a live record only on the dashboard's own decisions
+       (the identity rule, a kept move), never on a fold or an account alone;
+       and an ID two trainees could both claim goes to neither (formerUnsure).
+       ctx.formerIds: { acct: [ids] }; ctx.formerNames: { acct: [the names
+       of live records taken] } (theirs too, for the sweep). */
+    function formerIdsOf(ctx, allAccounts, deleted, relinked) {
+      var claims = dict(), current = dict(), live = dict(), mine = dict(), linkedBy = dict();
+      deleted = deleted || {};
+      ctx.trainees.forEach(function (t) {
+        current[t.stu] = t.acct;
+        mine[t.acct] = t.acct;
+        (ctx.foldedInto[t.acct] || []).forEach(function (s) { mine[str(s)] = t.acct; });
+      });
+      ctx.students.forEach(function (s) { if (s.id != null && s.id !== '') live[str(s.id)] = s; });
+      ctx.accounts.forEach(function (a) {
+        if (a.studentDataId != null && a.studentDataId !== '') (linkedBy[str(a.studentDataId)] = linkedBy[str(a.studentDataId)] || []).push(str(a.id));
+      });
+      var claim = function (id, t, strong) {
+        id = str(id);
+        if (!id || id === t.stu || deleted[id] === true || current[id] !== undefined) return;
+        if ((linkedBy[id] || []).some(function (a) { return mine[a] !== t.acct; })) return;
+        var rec = live[id];
+        if (rec && (!strong || Core.keepsOwnId(rec))) return;
+        (claims[id] = claims[id] || dict())[t.acct] = 1;
+      };
+      // Where a map leads an id, following its chain (a circle leads nowhere).
+      var end = function (m, id) {
+        var seen = dict(), hops = 0;
+        id = str(id);
+        while (hasOwn.call(m, id) && str(m[id]) !== id) {
+          if (seen[id] || hops++ > 50) return '';
+          seen[id] = 1;
+          id = str(m[id]);
+        }
+        return id;
+      };
+
+      // A stub folded into theirs: the record it linked to.
+      var copiesOf = dict();
+      allAccounts.forEach(function (a) { if (a.id != null) (copiesOf[str(a.id)] = copiesOf[str(a.id)] || []).push(a); });
+      ctx.trainees.forEach(function (t) {
+        (ctx.foldedInto[t.acct] || []).forEach(function (stub) {
+          (copiesOf[str(stub)] || []).forEach(function (a) { claim(a.studentDataId, t, false); });
+          var m = /^USR-(?:SYNC|STU)-(STU.+)$/.exec(str(stub));
+          if (m) claim(m[1], t, false);
+        });
+      });
+
+      // The dashboard's own identity rule, on a copy of the roll.
+      var idMap = {};
+      try { idMap = Core.migrateToStableIds({ students: copy(ctx.students) }).idMap || {}; } catch (e) { idMap = {}; }
+      var groups = dict();
+      Object.keys(idMap).concat(Object.keys(live)).forEach(function (id) {
+        var to = end(idMap, id);
+        if (to) (groups[to] = groups[to] || []).push(id);
+      });
+      var byEnd = dict();
+      ctx.trainees.forEach(function (t) {
+        var to = end(idMap, t.stu);
+        if (!to) return;
+        (byEnd[to] = byEnd[to] || []).push(t);
+        [to].concat(groups[to] || []).forEach(function (id) { claim(id, t, true); });
+      });
+
+      // A move the caller kept.
+      var kept = isObj(relinked) ? relinked : {};
+      Object.keys(kept).forEach(function (old) {
+        var to = end(kept, old);
+        if (!to) return;
+        var whose = current[to] !== undefined ? [ctx.byAcct[current[to]]] : (byEnd[end(idMap, to)] || []);
+        var chain = [], id = str(old), hops = 0;
+        while (id && id !== to && hops++ < 50) { chain.push(id); id = str(kept[id]); }
+        whose.forEach(function (t) { chain.concat([to]).forEach(function (x) { claim(x, t, true); }); });
+      });
+
+      // A record of theirs that names their account under another student ID.
+      OWNED.forEach(function (k) {
+        ctx.L[k].forEach(function (r) {
+          if (r.studentId == null || r.accountId == null) return;
+          var t = mine[str(r.accountId)] ? ctx.byAcct[mine[str(r.accountId)]] : null;
+          if (t && str(r.studentId) !== t.stu) claim(r.studentId, t, false);
+        });
+      });
+
+      ctx.formerIds = dict(); ctx.formerNames = dict(); ctx.formerUnsure = [];
+      Object.keys(claims).sort().forEach(function (id) {
+        var who = Object.keys(claims[id]);
+        if (who.length !== 1) { ctx.formerUnsure.push(id); return; }
+        (ctx.formerIds[who[0]] = ctx.formerIds[who[0]] || []).push(id);
+        if (live[id] && Core.normName(live[id].name)) (ctx.formerNames[who[0]] = ctx.formerNames[who[0]] || []).push(Core.normName(live[id].name));
+      });
+    }
+    /* A trainee's records still filed under a former student ID, as theirs
+       today: copies with the student ID (and a folded stub's account id)
+       rewritten (reown). A record whose id the current ID already holds is
+       the one kept; a record with no id (a download approval) comes only
+       when the current ID holds none of that kind. */
+    function formerOwned(ctx, key, t) {
+      var former = (ctx.formerIds && ctx.formerIds[t.acct]) || [];
+      if (!former.length) return [];
+      var now = ctx.owned[key][t.stu] || [], have = dict(), out = [];
+      now.forEach(function (r) { if (r.id != null) have[str(r.id)] = 1; });
+      former.forEach(function (id) {
+        (ctx.owned[key][id] || []).forEach(function (r) {
+          if (r.id == null) { if (!now.length) out.push(r); return; }
+          if (have[str(r.id)]) return;
+          have[str(r.id)] = 1;
+          out.push(r);
+        });
+      });
+      if (!out.length) return out;
+      var recs = {}; recs[key] = out;
+      return reown(recs, { stus: former, accts: ctx.foldedInto[t.acct] || [] }, { stu: t.stu, acct: t.acct })[key];
+    }
+
     function cutList(list, own) { return (Array.isArray(list) ? list : []).filter(function (x) { return own[str(x)]; }); }
-    function ownedOf(ctx, key, t) { return (ctx.owned[key][t.stu] || []).map(copy); }
+    function ownedOf(ctx, key, t) { return (ctx.owned[key][t.stu] || []).map(copy).concat(formerOwned(ctx, key, t)); }
     function cutReaders(rec, own) {
       var r = copy(rec);
       ['readBy', 'clearedBy', 'dismissedBy'].forEach(function (f) { if (Array.isArray(r[f])) r[f] = cutList(r[f], own); });
@@ -2307,6 +2566,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       var course = t.course, now = ctx.now, d = {};
       var own = identityOf(t.account, t.student);
       (ctx.foldedInto[t.acct] || []).forEach(function (id) { own.ids[id] = 1; });
+      // Student IDs this trainee had before are theirs too (formerIdsOf).
+      var former = (ctx.formerIds && ctx.formerIds[t.acct]) || [], wasMine = dict();
+      former.forEach(function (id) { own.ids[id] = 1; wasMine[id] = 1; });
+      ((ctx.formerNames && ctx.formerNames[t.acct]) || []).forEach(function (n) { own.names[n] = 1; });
       var readers = dict(); readers[t.acct] = 1;
       var forStudent = function (r) { return Core.comms.forViewer(r, 'student', course, ctx.same); };
       var sameCourse = function (c) { return !!c && !!course && (c === course || !!ctx.same(course, c)); };
@@ -2329,9 +2592,14 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
           if (!isObj(r[f])) return;
           var keep = {};
           if (r[f][t.stu] !== undefined) keep[t.stu] = r[f][t.stu];
+          // A grade still under a former student ID (no relink carries these maps) is theirs, under today's.
+          else former.some(function (x) { if (hasOwn.call(r[f], x) && r[f][x] !== undefined) { keep[t.stu] = r[f][x]; return true; } return false; });
           r[f] = keep;
         });
         if (Array.isArray(r.gradeLog)) r.gradeLog = r.gradeLog.filter(function (g) { return g && str(g.studentId) === t.stu; });
+        if (Array.isArray(a.gradeLog) && former.length) a.gradeLog.forEach(function (g) {
+          if (g && wasMine[str(g.studentId)]) { var c = copy(g); c.studentId = t.stu; r.gradeLog.push(c); }
+        });
         return r;
       });
       d.voctrain_submissions = ownedOf(ctx, 'voctrain_submissions', t);
@@ -2366,6 +2634,13 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       d.voctrain_support_messages = (ctx.support[t.acct] || []).concat(ctx.support[t.stu] || []).filter(function (m, i, all) {
         return all.indexOf(m) === i;
       }).map(copy);
+      if (former.length) {
+        var sent = dict();
+        d.voctrain_support_messages.forEach(function (m) { if (m.id != null) sent[str(m.id)] = 1; });
+        var earlier = [];
+        former.forEach(function (id) { (ctx.support[id] || []).forEach(function (m) { if (m.id == null || !sent[str(m.id)]) { if (m.id != null) sent[str(m.id)] = 1; earlier.push(m); } }); });
+        d.voctrain_support_messages = d.voctrain_support_messages.concat(reown({ s: earlier }, { stus: former }, t).s);
+      }
       d.voctrain_chatRooms = roomsFor(ctx, t);
       var mine = null;
       try { mine = course ? ctx.findSkill(course) : null; } catch (e) { mine = null; }
@@ -2387,6 +2662,12 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       };
       d.voctrain_transcriptProfiles = ownMap(ctx.M.voctrain_transcriptProfiles, [t.stu]);
       d.voctrain_studentProfiles = ownMap(ctx.M.voctrain_studentProfiles, [t.acct, t.stu]);
+      // A profile still under a former ID, where today's has none, under today's (as the relink files it).
+      former.forEach(function (x) {
+        ['voctrain_transcriptProfiles', 'voctrain_studentProfiles'].forEach(function (k) {
+          if (!hasOwn.call(d[k], t.stu) && hasOwn.call(ctx.M[k], x)) d[k][t.stu] = copy(ctx.M[k][x]);
+        });
+      });
       d.voctrain_certTemplates = {};
       Object.keys(ctx.M.voctrain_certTemplates).forEach(function (k) {
         if (!(k === course || sameCourse(k))) return;
@@ -2950,6 +3231,65 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       });
       return out;
     }
+
+    /* ---- A session's lane (§5.1) ----------------------------------------
+       What one session sent, in its own inbox file (one writer, so no lock):
+       an attempt merged question by question (Core.exams.mergeAttemptLists),
+       a profile kept by its key, a chat message by its id within its room,
+       anything else by its id — the copy stamped last wins, and on a tie the
+       one just sent. laneStamp is that stamp: the newest of updatedAt,
+       timestamp, submittedAt, requestedAt and createdAt, as written (only the
+       session's own copies are compared). laneMerge(lane, v, nowMs) takes
+       what validateItem kept (v: { key, rec, recId }) and changes the lane
+       in place. */
+    function laneStamp(r) {
+      if (!isObj(r)) return 0;
+      return Math.max(msOf(r.updatedAt), msOf(r.timestamp), msOf(r.submittedAt), msOf(r.requestedAt), msOf(r.createdAt));
+    }
+    function laneMerge(lane, v, nowMs) {
+      var R = lane.records || (lane.records = {}), k = v.key, rec = v.rec;
+      var byId = function (list, r) {
+        list = Array.isArray(list) ? list : [];
+        for (var i = 0; i < list.length; i++) {
+          if (list[i] && str(list[i].id) === str(r.id)) { if (laneStamp(r) >= laneStamp(list[i])) list[i] = r; return list; }
+        }
+        list.push(r);
+        return list;
+      };
+      if (k === 'voctrain_examAttempts') { R[k] = Core.exams.mergeAttemptLists(R[k] || [], [rec], { nowMs: nowMs }).list; return; }
+      if (k === 'voctrain_studentProfiles') {
+        var m = isObj(R[k]) ? R[k] : {};
+        if (!m[v.recId] || laneStamp(rec) >= laneStamp(m[v.recId])) m[v.recId] = rec;
+        R[k] = m; return;
+      }
+      if (k === 'voctrain_chatMessages') {
+        var rooms = isObj(R[k]) ? R[k] : {};
+        var room = str(rec.roomId), msg = {};
+        Object.keys(rec).forEach(function (f) { if (f !== 'roomId') msg[f] = rec[f]; });
+        rooms[room] = byId(rooms[room], msg);
+        R[k] = rooms; return;
+      }
+      R[k] = byId(R[k], rec);
+    }
+    /* When the gatekeeper first saw an attempt — for the late flag only
+       (§5.3): written once into the lane's firstSeen; true when this call
+       wrote it. firstSeenOf: the earliest of those times, over every lane, of
+       any of the attempt's ids (several devices' copies of one attempt), or
+       nowMs when none has one. */
+    function laneFirstSeen(lane, attemptId, nowMs) {
+      if (!isObj(lane.firstSeen)) lane.firstSeen = {};
+      var k = str(attemptId);
+      if (lane.firstSeen[k]) return false;
+      lane.firstSeen[k] = iso(nowMs);
+      return true;
+    }
+    function firstSeenOf(lanes, ids, nowMs) {
+      var first = nowMs;
+      (Array.isArray(lanes) ? lanes : []).forEach(function (l) {
+        (Array.isArray(ids) ? ids : []).forEach(function (id) { var t = msOf(l && l.firstSeen && l.firstSeen[id]); if (t && t < first) first = t; });
+      });
+      return first;
+    }
     /* Everything a staff device's collector does between downloading the
        inbox files and merging them (§5.6 steps 2–4), as one pure step.
        files: [{ fileId, version, modifiedTime, folderAcct (from the folder's
@@ -3134,6 +3474,44 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       });
       return r;
     }
+    /* The right answers put back into a result, from the exam's key file.
+
+       Every result in a slice is redacted (a slice never carries a key), so
+       a test marked on a lab PC reaches the trainee's own device without its
+       right answers — and the online gatekeeper, answering `review` from
+       that copy, said "released" and showed none, while the Centre's server,
+       which holds the result whole, showed them. Before redactResult decides
+       (on the gatekeeper's clock) whether they may be shown, each answer's
+       right answer is worked out from the key's own question exactly as
+       marking shows it (Core.exams.mark). An answer that already carries one
+       keeps it (a result the gate marked, the Centre's own copy); one whose
+       question the key no longer has stays without; a key file of another
+       exam fills nothing. Each answer keeps marking's own order of fields,
+       so the copy reads byte for byte as the whole one. A copy. */
+    function fillAnswers(result, keyFile) {
+      var r = copy(result);
+      if (!isObj(r) || !Array.isArray(r.answers)) return r;
+      if (!isObj(keyFile) || keyFile.format !== FORMAT.key || !isObj(keyFile.exam) || str(keyFile.exam.id) !== str(r.examId)) return r;
+      var byId = dict();
+      (Array.isArray(keyFile.exam.questionData) ? keyFile.exam.questionData : []).forEach(function (q) {
+        if (q && q.id != null && !byId[str(q.id)]) byId[str(q.id)] = q;
+      });
+      r.answers.forEach(function (a, i) {
+        if (!isObj(a) || a.questionId == null || hasOwn.call(a, 'correctAnswer')) return;
+        var kq = byId[str(a.questionId)];
+        if (!kq || kq.type === 'info') return;
+        var row = Core.exams.mark(Core.exams.publicQuestions([kq]), [null], [kq]).gradedResults[0];
+        if (!row) return;
+        var put = { correctAnswer: copy(row.correctAnswer) };
+        if (row.tolerance !== undefined && !hasOwn.call(a, 'tolerance')) put.tolerance = row.tolerance;
+        var out = {};
+        Object.keys(row).forEach(function (k) { if (hasOwn.call(a, k)) out[k] = a[k]; else if (hasOwn.call(put, k)) out[k] = put[k]; });
+        Object.keys(a).forEach(function (k) { if (!hasOwn.call(out, k)) out[k] = a[k]; });
+        Object.keys(put).forEach(function (k) { if (!hasOwn.call(out, k)) out[k] = put[k]; });
+        r.answers[i] = out;
+      });
+      return r;
+    }
     /* The trainee's attempt at one exam, however many devices and inboxes it
        is spread over (§5.3 attempt.get): their result if there is one, else
        'retired' (submitted elsewhere, result not here yet), else the attempt
@@ -3252,6 +3630,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
     }
 
     return {
+      indexAccounts: indexAccounts, lookupLogin: lookupLogin, credentialRefusal: credentialRefusal, twoStep: twoStep,
+      ticketMake: ticketMake, ticketRead: ticketRead, sidRand: sidRand, sidCv: sidCv,
+      laneStamp: laneStamp, laneMerge: laneMerge, laneFirstSeen: laneFirstSeen, firstSeenOf: firstSeenOf,
+      fillAnswers: fillAnswers,
       VERSION: VERSION, FORMAT: FORMAT, DEVICE_KEYS: DEVICE_KEYS, NS_KEY: NS_KEY, KEY_NAMES: KEY_NAMES,
       canon: canon, hashOf: hashOf, utf8: utf8, toHex: toHex, fromHex: fromHex, b64url: b64url, unb64url: unb64url, same: same,
       prepare: prepare, sliceFor: sliceFor, buildAll: buildAll, buildSlice: buildSlice,
@@ -3273,7 +3655,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
      The rules above name them only on the staff side (building slices,
      collecting inboxes), which the gate never runs. Touching one throws,
      so a rule that starts to need it fails loudly instead of quietly. */
-  ["Transcript","chat","chatSync","comms","coursework","dropTombstonedStudents","enrolment","isSnapshotableKey","pageCloud","pendingUpload","stableStudentId","sync"].forEach(function (name) {
+  ["Transcript","chat","chatSync","comms","coursework","dropTombstonedStudents","enrolment","isSnapshotableKey","keepsOwnId","migrateToStableIds","pageCloud","pendingUpload","relinkDependentData","stableStudentId","sync"].forEach(function (name) {
     Object.defineProperty(Core, name, { configurable: true, enumerable: false, get: function () {
       throw new Error('Core.' + name + ' is not in the gate\'s paste: rebuild it with node trainee-gate/build-paste.js --full');
     } });
@@ -3724,9 +4106,9 @@ function gateIsOff(G) {
 /* -------------------------------------------------------- accounts index
    The accounts list staff already publish (CESTIS_ACCOUNTS.json), read at
    most once a minute and only when it changed, cut down to trainee accounts
-   and remembered in the cache in pieces (DESIGN.md §4.5). Deleted accounts
-   are dropped (Core.accountAccess.dropDeleted); whether an account may sign
-   in is Core.accountAccess.check; its credential version is Core.gate.cv. */
+   and remembered in the cache in pieces (DESIGN.md §4.5). What the index
+   holds, and which account a login names, are Core.gate.indexAccounts and
+   Core.gate.lookupLogin — the Centre server's gate uses the same two. */
 function gateIndex(G) {
   if (G.idx) return G.idx;
   var cfg = gateReady(G);
@@ -3774,47 +4156,9 @@ function gateIndexChunks(G, meta) {
   try { return JSON.parse(text); } catch (e) { return null; }
 }
 function gateBuildIndex(G, led, updated, ledgerId) {
-  var A = G.core.accountAccess, del = {};
-  (Array.isArray(led.deletedUserIds) ? led.deletedUserIds : []).forEach(function (id) { if (id != null && id !== '') del[id] = true; });
-  var accounts = A.dropDeleted(led.accounts, del).accounts;
-  var idx = { v: 1, ledgerId: ledgerId, updated: updated, n: 0, a: {}, user: {}, mail: {} };
-  var score = {};
-  accounts.forEach(function (acc) {
-    if (!acc || typeof acc !== 'object' || acc.id == null || acc.id === '' || gateLower(acc.role) !== 'student') return;
-    var id = String(acc.id), sc = G.core.accountLoginScore(acc);
-    if (idx.a[id] && score[id] >= sc) return;          // the same id twice: the copy that can sign in
-    if (!idx.a[id]) idx.n++;
-    score[id] = sc;
-    var email = gateStr(acc.email).trim();
-    idx.a[id] = {
-      cv: G.gate.cv(acc, G.crypto), st: A.check(acc).reason, pw: typeof acc.password === 'string' ? acc.password : '',
-      sd: A.isSeededLogin(acc) ? 1 : 0,
-      tf: acc.twoFactorEnabled && acc.twoFactorSecret ? gateStr(acc.twoFactorSecret) : '',
-      eo: acc.emailOtpLogin && GATE_EMAIL_RE.test(email) ? 1 : 0, em: email,
-      bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(function (c) { return c && c.code && !c.used; })
-        .map(function (c) { return gateStr(c.code).trim().toUpperCase(); }),
-      sdi: acc.studentDataId != null ? gateStr(acc.studentDataId) : ''
-    };
-    var add = function (map, v) { v = gateLower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
-    add(idx.user, acc.username); add(idx.mail, acc.email);
-  });
+  var idx = G.gate.indexAccounts(led.accounts, led.deletedUserIds, G.crypto);
+  idx.v = 1; idx.ledgerId = ledgerId; idx.updated = updated;
   return idx;
-}
-/* Which trainee account a login names: a username or an email
-   (Core.accountAccess.idMatches). When two trainee accounts answer to it
-   and exactly one of them can sign in, that one (as Core.accountAccess.find
-   prefers the usable copy); otherwise the office must sort it out. */
-function gateLookup(idx, login, opts) {
-  opts = opts || {};
-  var l = gateLower(login), ids = [];
-  (opts.emailOnly ? [idx.mail] : [idx.user, idx.mail]).forEach(function (m) {
-    (m[l] || []).forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
-  });
-  if (!ids.length) return { none: true };
-  if (ids.length === 1) return { id: ids[0], e: idx.a[ids[0]] };
-  var usable = ids.filter(function (id) { var s = idx.a[id].st; return s === 'ok' || (opts.allowNoPassword && s === 'no-password'); });
-  if (usable.length === 1) return { id: usable[0], e: idx.a[usable[0]] };
-  return { ambiguous: true };
 }
 
 /* --------------------------------------------- a trainee's folder, files
@@ -3949,7 +4293,7 @@ function gateAuthStart(G, req) {
   var login = gateStr(req.login).trim();
   if (!login || login.length > 200) gateFail('bad-request');
   gateReady(G);
-  var look = gateLookup(gateIndex(G), login), key = gateTriesKey(G, look, login);
+  var look = G.gate.lookupLogin(gateIndex(G), login), key = gateTriesKey(G, look, login);
   if (gateLocked(G, key)) return { ok: false, error: 'locked', retryAfter: GATE_LIMITS.LOCK_S };
   if (gateBusy(G)) return { ok: false, error: 'busy', retry: true };
   if (gateCount(G, 's:' + key, GATE_LIMITS.LOCK_S) > GATE_LIMITS.START_MAX) return { ok: false, error: 'locked', retryAfter: GATE_LIMITS.LOCK_S };
@@ -3965,7 +4309,7 @@ function gateAuthPassword(G, req) {
   var login = gateStr(req.login).trim(), nonce = gateStr(req.nonce);
   if (!login || !/^[0-9a-f]{32}$/.test(nonce)) gateFail('bad-request');
   gateReady(G);
-  var look = gateLookup(gateIndex(G), login), key = gateTriesKey(G, look, login);
+  var look = G.gate.lookupLogin(gateIndex(G), login), key = gateTriesKey(G, look, login);
   if (gateLocked(G, key)) return { ok: false, error: 'locked', retryAfter: GATE_LIMITS.LOCK_S };
   if (gateBusy(G)) return { ok: false, error: 'busy', retry: true };
   var held = gateCacheJson(G, 'n:' + nonce);
@@ -3999,7 +4343,7 @@ function gateAuthEmail(G, req) {
   if (gateStr(info.email_verified) !== 'true') return { ok: false, error: 'unverified-email' };
   if (!(Number(info.expires_in) > 0)) return { ok: false, error: 'bad-token' };
   if (!/(^|\s)(https:\/\/www\.googleapis\.com\/auth\/userinfo\.email|email)(\s|$)/.test(gateStr(info.scope))) return { ok: false, error: 'bad-token' };
-  var look = gateLookup(gateIndex(G), info.email, { emailOnly: true, allowNoPassword: true });
+  var look = G.gate.lookupLogin(gateIndex(G), info.email, { emailOnly: true, allowNoPassword: true });
   if (look.ambiguous) return { ok: false, error: 'ask-office', why: 'ambiguous' };
   if (!look.e) return { ok: false, error: 'not-found' };
   return gateAfterCredential(G, look.id, look.e, 'email');
@@ -4007,31 +4351,28 @@ function gateAuthEmail(G, req) {
 
 /* The credential is right: may this account go on, and does it need its
    second step? (The dashboard's loginBlocked and tfaGateLogin, as the gate
-   sees them.) */
+   sees them: Core.gate.credentialRefusal and Core.gate.twoStep.) */
 function gateAfterCredential(G, acct, e, via) {
-  if (e.st === 'pending' || e.st === 'disabled' || e.st === 'rejected') return { ok: false, error: e.st };
-  if (e.st !== 'ok' && !(via === 'email' && e.st === 'no-password')) return { ok: false, error: e.st || 'no-match' };
-  // A login still on the default password published with the platform opens nothing here.
-  if (via === 'password' && e.sd) return { ok: false, error: 'ask-office', why: 'default-password' };
+  var refusal = G.gate.credentialRefusal(e, via);
+  if (refusal) return Object.assign({ ok: false }, refusal);
   var place = gatePlace(G, acct, e);
   if (place.error) return { ok: false, error: place.error };
-  if (e.tf || e.eo) {
-    var methods = [];
-    if (e.tf) methods.push('totp');
-    if (gateUnusedCodes(G, acct, e).length) methods.push('backup');
-    if (e.eo) methods.push('email');
-    return { ok: true, need2fa: true, ticket: gateTicketMake(G, acct, e, methods, via), methods: methods, email: e.eo ? gateMask(e.em) : '' };
+  // Emailed codes can be sent from here. The spent codes are read only when a second step is needed.
+  var two = G.gate.twoStep(e, function () { return gateUnusedCodes(G, acct, e); }, true);
+  if (two.needed) {
+    var ticket = G.gate.ticketMake({ a: acct, cv: e.cv, exp: G.now + GATE_LIMITS.TICKET_MS, m: two.methods, via: via, n: gateRandomHex(8) },
+      gateCfg(G).secret, G.crypto);
+    return { ok: true, need2fa: true, ticket: ticket, methods: two.methods, email: e.eo ? gateMask(e.em) : '' };
   }
   return gateIssue(G, acct, e, place, []);
 }
 /* A session (DESIGN.md §4.4). The session id carries its credential
-   version in its random part — sealed by the gate's own secret — so an
-   item sealed in a session whose password has since been reset is known
-   for what it is (revoked) without any table of sessions. */
+   version in its random part (Core.gate.sidRand) — sealed by the gate's own
+   secret — so an item sealed in a session whose password has since been
+   reset is known for what it is (revoked) without any table of sessions. */
 function gateIssue(G, acct, e, place, ops) {
   var cfg = gateCfg(G);
-  var rand = gateStr(e.cv).slice(0, 12) + gateRandomHex(12);
-  var sid = G.gate.sid.make(G.now, rand, cfg.secret, G.crypto);
+  var sid = G.gate.sid.make(G.now, G.gate.sidRand(e.cv, gateRandomHex(12)), cfg.secret, G.crypto);
   var exp = G.now + G.gate.token.TTL_MS;
   var token = G.gate.token.sign({ a: acct, s: place.slice.studentId, sid: sid, iat: G.now, exp: exp, cv: e.cv }, cfg.secret, G.crypto);
   if (ops && ops.length) {
@@ -4044,28 +4385,16 @@ function gateIssue(G, acct, e, place, ops) {
   return { ok: true, token: token, sessionKey: G.gate.sessionKey(cfg.secret, acct, sid, G.crypto), sid: sid, lane: 'L-' + sid,
     exp: exp, account: { id: acct, studentId: place.slice.studentId }, serverTime: gateIso(G.now) };
 }
-function gateSidCv(sid) { var m = /^[0-9a-z]+\.([A-Za-z0-9]{12})[A-Za-z0-9]*\.[0-9a-f]{8}$/.exec(gateStr(sid)); return m ? m[1] : ''; }
 
-/* Two-step (DESIGN.md §4.3). The ticket: t2.<base64url(canon claims)>.<HMAC hex>. */
-function gateTicketMake(G, acct, e, methods, via) {
-  var cfg = gateCfg(G), g = G.gate;
-  var body = g.b64url(g.utf8(g.canon({ a: acct, cv: e.cv, exp: G.now + GATE_LIMITS.TICKET_MS, m: methods, via: via, n: gateRandomHex(8) })));
-  return 't2.' + body + '.' + G.crypto.hmacHex(g.utf8(cfg.secret), 't2|' + body);
-}
+/* Two-step (DESIGN.md §4.3). The ticket is Core.gate.ticketMake's; here it
+   is also refused once used, or after too many wrong codes. */
 function gateTicketRead(G, ticket) {
-  var g = G.gate, parts = gateStr(ticket).split('.');
-  if (parts.length !== 3 || parts[0] !== 't2' || !/^[0-9a-f]{64}$/.test(parts[2])) return { error: 'bad-ticket' };
-  if (!g.same(G.crypto.hmacHex(g.utf8(gateCfg(G).secret), 't2|' + parts[1]), parts[2])) return { error: 'bad-ticket' };
-  var c = null;
-  try { var bytes = g.unb64url(parts[1]); c = bytes ? JSON.parse(gateBytesText(bytes)) : null; } catch (err) { c = null; }
-  if (!c || !c.a || typeof c.exp !== 'number') return { error: 'bad-ticket' };
-  if (G.now >= c.exp) return { error: 'expired' };
-  c.mac = parts[2].slice(0, 32);
+  var c = G.gate.ticketRead(ticket, gateCfg(G).secret, G.crypto, G.now);
+  if (c.error) return c;
   if (G.cache.get('tu:' + c.mac)) return { error: 'bad-ticket' };
   if (gateCountOf(G, 'tf:' + c.mac) >= GATE_LIMITS.TICKET_TRIES) return { error: 'bad-ticket' };
   return c;
 }
-function gateBytesText(bytes) { return Utilities.newBlob(gateSigned(bytes)).getDataAsString('UTF-8'); }
 // Backup codes still good here: unused in the accounts list and not spent at the gate since.
 function gateUnusedCodes(G, acct, e) {
   var spent = gateSpent(G, acct);
@@ -4221,7 +4550,11 @@ function gateAttemptGet(G, req) {
   if (r.state === 'attempt') { out.attempt = r.attempt; out.ids = r.ids; }
   return out;
 }
-// review: a marked test, with the right answers only when the exam's release allows — on THIS clock.
+/* review: a marked test, with the right answers only when the exam's
+   release allows — on THIS clock. A result that reached the trainee only in
+   their slice (marked on a lab PC) has had its right answers taken out
+   there; they are put back from the key file first (Core.gate.fillAnswers),
+   so the trainee sees them once released, as on the Centre's server. */
 function gateReview(G, req) {
   var s = gateSession(G, req), id = gateStr(req.resultId);
   if (!id) gateFail('bad-request');
@@ -4232,7 +4565,7 @@ function gateReview(G, req) {
   }
   if (!found) return { ok: false, error: 'not-found' };
   var examId = gateSafeId(found.examId), key = examId ? gateKeyFile(G, examId) : null;
-  return { ok: true, result: gateRedact(G, found, key), revealed: !!key && G.core.exams.canRevealAnswers(key.exam, G.now, key.centreUtcOffset) };
+  return { ok: true, result: gateRedact(G, G.gate.fillAnswers(found, key), key), revealed: !!key && G.core.exams.canRevealAnswers(key.exam, G.now, key.centreUtcOffset) };
 }
 // room.get: a room's own file, to its members only.
 function gateRoomGet(G, req) {
@@ -4373,7 +4706,7 @@ function gateDeliverSession(G, acct, sid, items, suffix) {
   if (G.now - sc.iat > g.ITEM_MAX_AGE_MS) return all({ reason: 'expired' });
   var e = gateIndex(G).a[acct];
   if (!e) return all({ reason: 'unknown-account' });
-  if (gateSidCv(sid) !== gateStr(e.cv).slice(0, 12)) return all({ reason: 'revoked' });
+  if (g.sidCv(sid) !== gateStr(e.cv).slice(0, 12)) return all({ reason: 'revoked' });
   var key = g.sessionKey(cfg.secret, acct, sid, G.crypto);
   var out = items.map(function (it) { return { id: gateStr(it.id), ok: false }; });
   var good = [];
@@ -4410,12 +4743,12 @@ function gateDeliverSession(G, acct, sid, items, suffix) {
     var v = g.validateItem(it, me, slice, opts);
     if (!v.ok) { out[j].reason = v.reason || 'not-yours'; return; }
     if (it.kind === 'submit') {
-      gateFirstSeen(lane, v.attempt.id, G.now) && (changed = true);
+      g.laneFirstSeen(lane, v.attempt.id, G.now) && (changed = true);
       submits.push({ j: j, item: it, attempt: v.attempt });
       return;
     }
-    if (it.kind === 'rec' && !v.known) gateLaneMerge(G, lane, v);
-    if (it.kind === 'rec' && v.key === 'voctrain_examAttempts') gateFirstSeen(lane, v.rec.id, G.now);
+    if (it.kind === 'rec' && !v.known) g.laneMerge(lane, v, G.now);
+    if (it.kind === 'rec' && v.key === 'voctrain_examAttempts') g.laneFirstSeen(lane, v.rec.id, G.now);
     if (it.kind === 'op' && !lane.ops.some(function (o) { return o && o.id === v.op.id; })) lane.ops.push(v.op);
     lane.received[gateStr(it.id)] = gateIso(G.now);
     changed = true;
@@ -4450,45 +4783,8 @@ function gateLaneWrite(G, folder, laneId, file, lane) {
   if (file) file.setContent(text);
   else folder.createFile(GATE_NAMES.inbox + '.' + laneId + '.json', text, 'application/json');
 }
-// When the gate first saw an attempt — for the late flag only (DESIGN.md §5.3).
-function gateFirstSeen(lane, attemptId, now) {
-  if (!lane.firstSeen || typeof lane.firstSeen !== 'object') lane.firstSeen = {};
-  var k = gateStr(attemptId);
-  if (lane.firstSeen[k]) return false;
-  lane.firstSeen[k] = gateIso(now);
-  return true;
-}
-/* One session's records, kept by id: an attempt question by question
-   (Core.exams.mergeAttemptLists), anything else the copy written last. */
-function gateRecStamp(r) {
-  if (!r || typeof r !== 'object') return 0;
-  return Math.max(gateMs(r.updatedAt), gateMs(r.timestamp), gateMs(r.submittedAt), gateMs(r.requestedAt), gateMs(r.createdAt));
-}
-function gateLaneMerge(G, lane, v) {
-  var R = lane.records || (lane.records = {}), k = v.key, rec = v.rec;
-  var byId = function (list, r) {
-    list = Array.isArray(list) ? list : [];
-    for (var i = 0; i < list.length; i++) {
-      if (list[i] && gateStr(list[i].id) === gateStr(r.id)) { if (gateRecStamp(r) >= gateRecStamp(list[i])) list[i] = r; return list; }
-    }
-    list.push(r);
-    return list;
-  };
-  if (k === 'voctrain_examAttempts') { R[k] = G.core.exams.mergeAttemptLists(R[k] || [], [rec], { nowMs: G.now }).list; return; }
-  if (k === 'voctrain_studentProfiles') {
-    var m = R[k] && typeof R[k] === 'object' && !Array.isArray(R[k]) ? R[k] : {};
-    if (!m[v.recId] || gateRecStamp(rec) >= gateRecStamp(m[v.recId])) m[v.recId] = rec;
-    R[k] = m; return;
-  }
-  if (k === 'voctrain_chatMessages') {
-    var rooms = R[k] && typeof R[k] === 'object' && !Array.isArray(R[k]) ? R[k] : {};
-    var room = gateStr(rec.roomId), msg = {};
-    Object.keys(rec).forEach(function (f) { if (f !== 'roomId') msg[f] = rec[f]; });
-    rooms[room] = byId(rooms[room], msg);
-    R[k] = rooms; return;
-  }
-  R[k] = byId(R[k], rec);
-}
+/* What goes into a lane, and when an attempt was first seen there (the
+   late flag only), are Core.gate.laneMerge and Core.gate.laneFirstSeen. */
 
 /* A submitted test (DESIGN.md §5.3): marked from the key file by
    Core.gate.markAttempt, after the attempt is put together from every
@@ -4529,10 +4825,7 @@ function gateSubmit(G, place, me, lane, item, attempt) {
     var other = gateResultFile(G, folder, tid);
     if (other) { var oj = gateJsonOf(G, other, 'rf:' + other.getId()); if (oj && oj.result) return answer(oj, true); }
   }
-  var first = G.now;
-  lanes.forEach(function (l) {
-    (r.ids || [aid]).forEach(function (id) { var t = gateMs(l.firstSeen && l.firstSeen[id]); if (t && t < first) first = t; });
-  });
+  var first = g.firstSeenOf(lanes, r.ids || [aid], G.now);
   var students = (place.slice.data && place.slice.data.voctrain_students) || [];
   var m = g.markAttempt(target, key, G.now, { crypto: G.crypto, receivedAt: G.now, firstSeen: first, auto: item.auto === true,
     studentName: students[0] ? students[0].name : undefined, accountId: me.acct });

@@ -13688,6 +13688,123 @@
     // How a spent backup code is named in a trainee's inbox (never the code itself).
     function codeHash(code) { return 'h1-' + Core.hashString('bc|' + str(code).trim().toUpperCase()); }
 
+    /* ---- Who a login names, and whether they may go on (§4.1–§4.5) -------
+       The decisions both gatekeepers make — the online one (trainee-gate/
+       Gate.gs) and the Centre server's (Offline System/cestis-offline-
+       gate.js) — written once, so the two answer every sign-in alike. Each
+       of them used to carry its own copy, kept equal by a test. Pure: the
+       cache, the lock-out counters and the clock stay with the gatekeeper. */
+    var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    /* The accounts index: trainee accounts only, deleted ones dropped
+       (Core.accountAccess.dropDeleted), one entry per account id — of two
+       copies, the one that can sign in (Core.accountLoginScore) — with what
+       sign-in needs: the credential version (cv), why it may not sign in, if
+       it may not (st: Core.accountAccess.check's reason), its password check
+       (pw), whether it is still a published default (sd), its two-step
+       secret (tf), whether it signs in with emailed codes (eo) and to which
+       address (em), its unused backup codes, trimmed and upper case (bc), and
+       its record link (sdi). Then who answers to each username (user) and
+       each email (mail), in lower case. → { n, a: { id: entry }, user, mail } */
+    function indexAccounts(accounts, deletedUserIds, crypto) {
+      var A = Core.accountAccess, del = {};
+      (Array.isArray(deletedUserIds) ? deletedUserIds : []).forEach(function (id) { if (id != null && id !== '') del[id] = true; });
+      var list = A.dropDeleted(Array.isArray(accounts) ? accounts : [], del).accounts;
+      var idx = { n: 0, a: {}, user: {}, mail: {} }, score = {};
+      list.forEach(function (acc) {
+        if (!isObj(acc) || acc.id == null || acc.id === '' || lower(acc.role) !== 'student') return;
+        var id = String(acc.id), sc = Core.accountLoginScore(acc);
+        if (idx.a[id] && score[id] >= sc) return;          // the same id twice: the copy that can sign in
+        if (!idx.a[id]) idx.n++;
+        score[id] = sc;
+        var email = str(acc.email).trim();
+        idx.a[id] = {
+          cv: cvOf(acc, crypto), st: A.check(acc).reason, pw: typeof acc.password === 'string' ? acc.password : '',
+          sd: A.isSeededLogin(acc) ? 1 : 0,
+          tf: acc.twoFactorEnabled && acc.twoFactorSecret ? str(acc.twoFactorSecret) : '',
+          eo: acc.emailOtpLogin && EMAIL_RE.test(email) ? 1 : 0, em: email,
+          bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(function (c) { return c && c.code && !c.used; })
+            .map(function (c) { return str(c.code).trim().toUpperCase(); }),
+          sdi: acc.studentDataId != null ? str(acc.studentDataId) : ''
+        };
+        var add = function (map, v) { v = lower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
+        add(idx.user, acc.username); add(idx.mail, acc.email);
+      });
+      return idx;
+    }
+    /* Which trainee account a login names: a username or an email, any case
+       (opts.emailOnly: an email only). When two trainee accounts answer to it
+       and exactly one of them can sign in, that one (as Core.accountAccess
+       .find prefers the usable copy; opts.allowNoPassword counts an account
+       with no password yet as usable — the email sign-in); otherwise the
+       office must sort it out. → { none } | { id, e } | { ambiguous } */
+    function lookupLogin(idx, login, opts) {
+      opts = opts || {};
+      var l = lower(login), ids = [];
+      (opts.emailOnly ? [idx.mail] : [idx.user, idx.mail]).forEach(function (m) {
+        (m[l] || []).forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
+      });
+      if (!ids.length) return { none: true };
+      if (ids.length === 1) return { id: ids[0], e: idx.a[ids[0]] };
+      var usable = ids.filter(function (id) { var s = idx.a[id].st; return s === 'ok' || (opts.allowNoPassword && s === 'no-password'); });
+      if (usable.length === 1) return { id: usable[0], e: idx.a[usable[0]] };
+      return { ambiguous: true };
+    }
+    /* The credential is right: may the account go on? (The dashboard's
+       loginBlocked, as a gatekeeper sees it.) null, or the refusal
+       { error, why? }. via: 'password' | 'email' — an account with no
+       password yet may still use its email account; a login still on a
+       password published with the platform opens nothing. */
+    function credentialRefusal(entry, via) {
+      var e = entry || {};
+      if (e.st === 'pending' || e.st === 'disabled' || e.st === 'rejected') return { error: e.st };
+      if (e.st !== 'ok' && !(via === 'email' && e.st === 'no-password')) return { error: e.st || 'no-match' };
+      if (via === 'password' && e.sd) return { error: 'ask-office', why: 'default-password' };
+      return null;
+    }
+    /* Which second steps an account is offered: its authenticator, its
+       unused backup codes, an emailed code (only where email can be sent).
+       unusedCodes: the backup codes still good, or a function giving them —
+       asked only when a second step is needed (it may cost a read). An empty
+       list for an account that needs a second step: it cannot finish here.
+       Backup codes alone never ask for one. → { needed, methods } */
+    function twoStep(entry, unusedCodes, canEmail) {
+      var e = entry || {}, needed = !!(e.tf || e.eo), methods = [];
+      var codes = typeof unusedCodes === 'function' ? (needed ? unusedCodes() : []) : unusedCodes;
+      if (e.tf) methods.push('totp');
+      if (Array.isArray(codes) && codes.length) methods.push('backup');
+      if (e.eo && canEmail) methods.push('email');
+      return { needed: needed, methods: methods };
+    }
+    /* The two-step ticket (§4.3): t2.<base64url(canon {a, cv, exp, m, via, n})>.<HMAC hex>.
+       claims: { a (account), cv (its credential version), exp (ms), m
+       (methods offered), via, n (a random nonce) }. Read back: the claims and
+       `mac`, the first 32 hex characters of its seal — the name a gatekeeper
+       counts tries and single use under — or { error: 'bad-ticket' |
+       'expired' }. */
+    function ticketMake(claims, secret, crypto) {
+      var c = claims || {};
+      var body = b64url(utf8(canon({ a: str(c.a), cv: str(c.cv), exp: c.exp, m: c.m, via: str(c.via), n: str(c.n) })));
+      return 't2.' + body + '.' + hmac(crypto, secret, 't2|' + body);
+    }
+    function ticketRead(ticket, secret, crypto, nowMs) {
+      var parts = str(ticket).split('.');
+      if (parts.length !== 3 || parts[0] !== 't2' || !/^[0-9a-f]{64}$/.test(parts[2])) return { error: 'bad-ticket' };
+      if (!same(hmac(crypto, secret, 't2|' + parts[1]), parts[2])) return { error: 'bad-ticket' };
+      var c = null;
+      try { var bytes = unb64url(parts[1]); c = bytes ? JSON.parse(fromUtf8(bytes)) : null; } catch (e) { c = null; }
+      if (!isObj(c) || !c.a || typeof c.exp !== 'number') return { error: 'bad-ticket' };
+      if (nowMs >= c.exp) return { error: 'expired' };
+      c.mac = parts[2].slice(0, 32);
+      return c;
+    }
+    /* A session id's random part begins with the account's credential
+       version (sealed by the gatekeeper's secret with the rest: sid.make), so
+       an item sealed in a session whose password, status or two-step has
+       changed since is known as revoked with no table of sessions. sidCv
+       reads it back ('' when the id is not one of these). */
+    function sidRand(cv, randHex12) { return str(cv).slice(0, 12) + str(randHex12); }
+    function sidCv(sid) { var m = /^[0-9a-z]+\.([A-Za-z0-9]{12})[A-Za-z0-9]*\.[0-9a-f]{8}$/.exec(str(sid)); return m ? m[1] : ''; }
+
     /* ---- Reading a store map ---- */
     function reader(storeMap) {
       var map = storeMap || {}, memo = dict();
@@ -13987,11 +14104,153 @@
         var t = { acct: str(a.id), stu: str(st.id), account: a, student: st, course: str(st.course || a.programme) };
         ctx.trainees.push(t); ctx.byAcct[t.acct] = t;
       });
+      // The student IDs they had before — a rename, a transfer, a folded duplicate (formerIdsOf).
+      formerIdsOf(ctx, allAccounts, delStu, opts.relinked);
       return ctx;
     }
 
+    /* ---- A trainee's former student IDs ----------------------------------
+       A student ID is a hash of the name and the programme, so a rename or a
+       transfer moves it (Core.stableStudentId). The dashboard moves the
+       records it holds at that moment (Core.relinkDependentData) — but a
+       result marked since on a lab PC that still knew the old ID, an
+       assignment grade (which no relink carries), and the records of a
+       duplicate the fee roll made and a fold later removed, stay under the
+       old ID, and a slice built by student ID alone left them out.
+
+       Each trainee's former IDs are taken from what the records themselves
+       say, where they say it:
+         - a stub account folded into theirs (the fold log, opts.folds, or
+           Core.accountAccess.backfillStubFolds): the record it linked to —
+           from the stub's own copy, deleted or not, or the ID a
+           deterministic stub id (USR-SYNC-…, USR-STU-…) is made of;
+         - the dashboard's own identity rule (Core.migrateToStableIds, run
+           on a copy of the roll): a duplicate of their record, or the ID
+           their record is about to move to;
+         - a move the caller kept: opts.relinked { oldId: newId } (the
+           stabiliser's idMaps; chains are followed);
+         - a record of theirs that names their account (accountId) under
+           another student ID.
+       The privacy back-check, before any ID is taken: never another
+       trainee's current student ID; never a record another account links
+       to; never a deleted trainee's ID; never a record the office pinned as
+       its own person; a live record only on the dashboard's own decisions
+       (the identity rule, a kept move), never on a fold or an account alone;
+       and an ID two trainees could both claim goes to neither (formerUnsure).
+       ctx.formerIds: { acct: [ids] }; ctx.formerNames: { acct: [the names
+       of live records taken] } (theirs too, for the sweep). */
+    function formerIdsOf(ctx, allAccounts, deleted, relinked) {
+      var claims = dict(), current = dict(), live = dict(), mine = dict(), linkedBy = dict();
+      deleted = deleted || {};
+      ctx.trainees.forEach(function (t) {
+        current[t.stu] = t.acct;
+        mine[t.acct] = t.acct;
+        (ctx.foldedInto[t.acct] || []).forEach(function (s) { mine[str(s)] = t.acct; });
+      });
+      ctx.students.forEach(function (s) { if (s.id != null && s.id !== '') live[str(s.id)] = s; });
+      ctx.accounts.forEach(function (a) {
+        if (a.studentDataId != null && a.studentDataId !== '') (linkedBy[str(a.studentDataId)] = linkedBy[str(a.studentDataId)] || []).push(str(a.id));
+      });
+      var claim = function (id, t, strong) {
+        id = str(id);
+        if (!id || id === t.stu || deleted[id] === true || current[id] !== undefined) return;
+        if ((linkedBy[id] || []).some(function (a) { return mine[a] !== t.acct; })) return;
+        var rec = live[id];
+        if (rec && (!strong || Core.keepsOwnId(rec))) return;
+        (claims[id] = claims[id] || dict())[t.acct] = 1;
+      };
+      // Where a map leads an id, following its chain (a circle leads nowhere).
+      var end = function (m, id) {
+        var seen = dict(), hops = 0;
+        id = str(id);
+        while (hasOwn.call(m, id) && str(m[id]) !== id) {
+          if (seen[id] || hops++ > 50) return '';
+          seen[id] = 1;
+          id = str(m[id]);
+        }
+        return id;
+      };
+
+      // A stub folded into theirs: the record it linked to.
+      var copiesOf = dict();
+      allAccounts.forEach(function (a) { if (a.id != null) (copiesOf[str(a.id)] = copiesOf[str(a.id)] || []).push(a); });
+      ctx.trainees.forEach(function (t) {
+        (ctx.foldedInto[t.acct] || []).forEach(function (stub) {
+          (copiesOf[str(stub)] || []).forEach(function (a) { claim(a.studentDataId, t, false); });
+          var m = /^USR-(?:SYNC|STU)-(STU.+)$/.exec(str(stub));
+          if (m) claim(m[1], t, false);
+        });
+      });
+
+      // The dashboard's own identity rule, on a copy of the roll.
+      var idMap = {};
+      try { idMap = Core.migrateToStableIds({ students: copy(ctx.students) }).idMap || {}; } catch (e) { idMap = {}; }
+      var groups = dict();
+      Object.keys(idMap).concat(Object.keys(live)).forEach(function (id) {
+        var to = end(idMap, id);
+        if (to) (groups[to] = groups[to] || []).push(id);
+      });
+      var byEnd = dict();
+      ctx.trainees.forEach(function (t) {
+        var to = end(idMap, t.stu);
+        if (!to) return;
+        (byEnd[to] = byEnd[to] || []).push(t);
+        [to].concat(groups[to] || []).forEach(function (id) { claim(id, t, true); });
+      });
+
+      // A move the caller kept.
+      var kept = isObj(relinked) ? relinked : {};
+      Object.keys(kept).forEach(function (old) {
+        var to = end(kept, old);
+        if (!to) return;
+        var whose = current[to] !== undefined ? [ctx.byAcct[current[to]]] : (byEnd[end(idMap, to)] || []);
+        var chain = [], id = str(old), hops = 0;
+        while (id && id !== to && hops++ < 50) { chain.push(id); id = str(kept[id]); }
+        whose.forEach(function (t) { chain.concat([to]).forEach(function (x) { claim(x, t, true); }); });
+      });
+
+      // A record of theirs that names their account under another student ID.
+      OWNED.forEach(function (k) {
+        ctx.L[k].forEach(function (r) {
+          if (r.studentId == null || r.accountId == null) return;
+          var t = mine[str(r.accountId)] ? ctx.byAcct[mine[str(r.accountId)]] : null;
+          if (t && str(r.studentId) !== t.stu) claim(r.studentId, t, false);
+        });
+      });
+
+      ctx.formerIds = dict(); ctx.formerNames = dict(); ctx.formerUnsure = [];
+      Object.keys(claims).sort().forEach(function (id) {
+        var who = Object.keys(claims[id]);
+        if (who.length !== 1) { ctx.formerUnsure.push(id); return; }
+        (ctx.formerIds[who[0]] = ctx.formerIds[who[0]] || []).push(id);
+        if (live[id] && Core.normName(live[id].name)) (ctx.formerNames[who[0]] = ctx.formerNames[who[0]] || []).push(Core.normName(live[id].name));
+      });
+    }
+    /* A trainee's records still filed under a former student ID, as theirs
+       today: copies with the student ID (and a folded stub's account id)
+       rewritten (reown). A record whose id the current ID already holds is
+       the one kept; a record with no id (a download approval) comes only
+       when the current ID holds none of that kind. */
+    function formerOwned(ctx, key, t) {
+      var former = (ctx.formerIds && ctx.formerIds[t.acct]) || [];
+      if (!former.length) return [];
+      var now = ctx.owned[key][t.stu] || [], have = dict(), out = [];
+      now.forEach(function (r) { if (r.id != null) have[str(r.id)] = 1; });
+      former.forEach(function (id) {
+        (ctx.owned[key][id] || []).forEach(function (r) {
+          if (r.id == null) { if (!now.length) out.push(r); return; }
+          if (have[str(r.id)]) return;
+          have[str(r.id)] = 1;
+          out.push(r);
+        });
+      });
+      if (!out.length) return out;
+      var recs = {}; recs[key] = out;
+      return reown(recs, { stus: former, accts: ctx.foldedInto[t.acct] || [] }, { stu: t.stu, acct: t.acct })[key];
+    }
+
     function cutList(list, own) { return (Array.isArray(list) ? list : []).filter(function (x) { return own[str(x)]; }); }
-    function ownedOf(ctx, key, t) { return (ctx.owned[key][t.stu] || []).map(copy); }
+    function ownedOf(ctx, key, t) { return (ctx.owned[key][t.stu] || []).map(copy).concat(formerOwned(ctx, key, t)); }
     function cutReaders(rec, own) {
       var r = copy(rec);
       ['readBy', 'clearedBy', 'dismissedBy'].forEach(function (f) { if (Array.isArray(r[f])) r[f] = cutList(r[f], own); });
@@ -14071,6 +14330,10 @@
       var course = t.course, now = ctx.now, d = {};
       var own = identityOf(t.account, t.student);
       (ctx.foldedInto[t.acct] || []).forEach(function (id) { own.ids[id] = 1; });
+      // Student IDs this trainee had before are theirs too (formerIdsOf).
+      var former = (ctx.formerIds && ctx.formerIds[t.acct]) || [], wasMine = dict();
+      former.forEach(function (id) { own.ids[id] = 1; wasMine[id] = 1; });
+      ((ctx.formerNames && ctx.formerNames[t.acct]) || []).forEach(function (n) { own.names[n] = 1; });
       var readers = dict(); readers[t.acct] = 1;
       var forStudent = function (r) { return Core.comms.forViewer(r, 'student', course, ctx.same); };
       var sameCourse = function (c) { return !!c && !!course && (c === course || !!ctx.same(course, c)); };
@@ -14093,9 +14356,14 @@
           if (!isObj(r[f])) return;
           var keep = {};
           if (r[f][t.stu] !== undefined) keep[t.stu] = r[f][t.stu];
+          // A grade still under a former student ID (no relink carries these maps) is theirs, under today's.
+          else former.some(function (x) { if (hasOwn.call(r[f], x) && r[f][x] !== undefined) { keep[t.stu] = r[f][x]; return true; } return false; });
           r[f] = keep;
         });
         if (Array.isArray(r.gradeLog)) r.gradeLog = r.gradeLog.filter(function (g) { return g && str(g.studentId) === t.stu; });
+        if (Array.isArray(a.gradeLog) && former.length) a.gradeLog.forEach(function (g) {
+          if (g && wasMine[str(g.studentId)]) { var c = copy(g); c.studentId = t.stu; r.gradeLog.push(c); }
+        });
         return r;
       });
       d.voctrain_submissions = ownedOf(ctx, 'voctrain_submissions', t);
@@ -14130,6 +14398,13 @@
       d.voctrain_support_messages = (ctx.support[t.acct] || []).concat(ctx.support[t.stu] || []).filter(function (m, i, all) {
         return all.indexOf(m) === i;
       }).map(copy);
+      if (former.length) {
+        var sent = dict();
+        d.voctrain_support_messages.forEach(function (m) { if (m.id != null) sent[str(m.id)] = 1; });
+        var earlier = [];
+        former.forEach(function (id) { (ctx.support[id] || []).forEach(function (m) { if (m.id == null || !sent[str(m.id)]) { if (m.id != null) sent[str(m.id)] = 1; earlier.push(m); } }); });
+        d.voctrain_support_messages = d.voctrain_support_messages.concat(reown({ s: earlier }, { stus: former }, t).s);
+      }
       d.voctrain_chatRooms = roomsFor(ctx, t);
       var mine = null;
       try { mine = course ? ctx.findSkill(course) : null; } catch (e) { mine = null; }
@@ -14151,6 +14426,12 @@
       };
       d.voctrain_transcriptProfiles = ownMap(ctx.M.voctrain_transcriptProfiles, [t.stu]);
       d.voctrain_studentProfiles = ownMap(ctx.M.voctrain_studentProfiles, [t.acct, t.stu]);
+      // A profile still under a former ID, where today's has none, under today's (as the relink files it).
+      former.forEach(function (x) {
+        ['voctrain_transcriptProfiles', 'voctrain_studentProfiles'].forEach(function (k) {
+          if (!hasOwn.call(d[k], t.stu) && hasOwn.call(ctx.M[k], x)) d[k][t.stu] = copy(ctx.M[k][x]);
+        });
+      });
       d.voctrain_certTemplates = {};
       Object.keys(ctx.M.voctrain_certTemplates).forEach(function (k) {
         if (!(k === course || sameCourse(k))) return;
@@ -14714,6 +14995,65 @@
       });
       return out;
     }
+
+    /* ---- A session's lane (§5.1) ----------------------------------------
+       What one session sent, in its own inbox file (one writer, so no lock):
+       an attempt merged question by question (Core.exams.mergeAttemptLists),
+       a profile kept by its key, a chat message by its id within its room,
+       anything else by its id — the copy stamped last wins, and on a tie the
+       one just sent. laneStamp is that stamp: the newest of updatedAt,
+       timestamp, submittedAt, requestedAt and createdAt, as written (only the
+       session's own copies are compared). laneMerge(lane, v, nowMs) takes
+       what validateItem kept (v: { key, rec, recId }) and changes the lane
+       in place. */
+    function laneStamp(r) {
+      if (!isObj(r)) return 0;
+      return Math.max(msOf(r.updatedAt), msOf(r.timestamp), msOf(r.submittedAt), msOf(r.requestedAt), msOf(r.createdAt));
+    }
+    function laneMerge(lane, v, nowMs) {
+      var R = lane.records || (lane.records = {}), k = v.key, rec = v.rec;
+      var byId = function (list, r) {
+        list = Array.isArray(list) ? list : [];
+        for (var i = 0; i < list.length; i++) {
+          if (list[i] && str(list[i].id) === str(r.id)) { if (laneStamp(r) >= laneStamp(list[i])) list[i] = r; return list; }
+        }
+        list.push(r);
+        return list;
+      };
+      if (k === 'voctrain_examAttempts') { R[k] = Core.exams.mergeAttemptLists(R[k] || [], [rec], { nowMs: nowMs }).list; return; }
+      if (k === 'voctrain_studentProfiles') {
+        var m = isObj(R[k]) ? R[k] : {};
+        if (!m[v.recId] || laneStamp(rec) >= laneStamp(m[v.recId])) m[v.recId] = rec;
+        R[k] = m; return;
+      }
+      if (k === 'voctrain_chatMessages') {
+        var rooms = isObj(R[k]) ? R[k] : {};
+        var room = str(rec.roomId), msg = {};
+        Object.keys(rec).forEach(function (f) { if (f !== 'roomId') msg[f] = rec[f]; });
+        rooms[room] = byId(rooms[room], msg);
+        R[k] = rooms; return;
+      }
+      R[k] = byId(R[k], rec);
+    }
+    /* When the gatekeeper first saw an attempt — for the late flag only
+       (§5.3): written once into the lane's firstSeen; true when this call
+       wrote it. firstSeenOf: the earliest of those times, over every lane, of
+       any of the attempt's ids (several devices' copies of one attempt), or
+       nowMs when none has one. */
+    function laneFirstSeen(lane, attemptId, nowMs) {
+      if (!isObj(lane.firstSeen)) lane.firstSeen = {};
+      var k = str(attemptId);
+      if (lane.firstSeen[k]) return false;
+      lane.firstSeen[k] = iso(nowMs);
+      return true;
+    }
+    function firstSeenOf(lanes, ids, nowMs) {
+      var first = nowMs;
+      (Array.isArray(lanes) ? lanes : []).forEach(function (l) {
+        (Array.isArray(ids) ? ids : []).forEach(function (id) { var t = msOf(l && l.firstSeen && l.firstSeen[id]); if (t && t < first) first = t; });
+      });
+      return first;
+    }
     /* Everything a staff device's collector does between downloading the
        inbox files and merging them (§5.6 steps 2–4), as one pure step.
        files: [{ fileId, version, modifiedTime, folderAcct (from the folder's
@@ -14898,6 +15238,44 @@
       });
       return r;
     }
+    /* The right answers put back into a result, from the exam's key file.
+
+       Every result in a slice is redacted (a slice never carries a key), so
+       a test marked on a lab PC reaches the trainee's own device without its
+       right answers — and the online gatekeeper, answering `review` from
+       that copy, said "released" and showed none, while the Centre's server,
+       which holds the result whole, showed them. Before redactResult decides
+       (on the gatekeeper's clock) whether they may be shown, each answer's
+       right answer is worked out from the key's own question exactly as
+       marking shows it (Core.exams.mark). An answer that already carries one
+       keeps it (a result the gate marked, the Centre's own copy); one whose
+       question the key no longer has stays without; a key file of another
+       exam fills nothing. Each answer keeps marking's own order of fields,
+       so the copy reads byte for byte as the whole one. A copy. */
+    function fillAnswers(result, keyFile) {
+      var r = copy(result);
+      if (!isObj(r) || !Array.isArray(r.answers)) return r;
+      if (!isObj(keyFile) || keyFile.format !== FORMAT.key || !isObj(keyFile.exam) || str(keyFile.exam.id) !== str(r.examId)) return r;
+      var byId = dict();
+      (Array.isArray(keyFile.exam.questionData) ? keyFile.exam.questionData : []).forEach(function (q) {
+        if (q && q.id != null && !byId[str(q.id)]) byId[str(q.id)] = q;
+      });
+      r.answers.forEach(function (a, i) {
+        if (!isObj(a) || a.questionId == null || hasOwn.call(a, 'correctAnswer')) return;
+        var kq = byId[str(a.questionId)];
+        if (!kq || kq.type === 'info') return;
+        var row = Core.exams.mark(Core.exams.publicQuestions([kq]), [null], [kq]).gradedResults[0];
+        if (!row) return;
+        var put = { correctAnswer: copy(row.correctAnswer) };
+        if (row.tolerance !== undefined && !hasOwn.call(a, 'tolerance')) put.tolerance = row.tolerance;
+        var out = {};
+        Object.keys(row).forEach(function (k) { if (hasOwn.call(a, k)) out[k] = a[k]; else if (hasOwn.call(put, k)) out[k] = put[k]; });
+        Object.keys(a).forEach(function (k) { if (!hasOwn.call(out, k)) out[k] = a[k]; });
+        Object.keys(put).forEach(function (k) { if (!hasOwn.call(out, k)) out[k] = put[k]; });
+        r.answers[i] = out;
+      });
+      return r;
+    }
     /* The trainee's attempt at one exam, however many devices and inboxes it
        is spread over (§5.3 attempt.get): their result if there is one, else
        'retired' (submitted elsewhere, result not here yet), else the attempt
@@ -15016,6 +15394,10 @@
     }
 
     return {
+      indexAccounts: indexAccounts, lookupLogin: lookupLogin, credentialRefusal: credentialRefusal, twoStep: twoStep,
+      ticketMake: ticketMake, ticketRead: ticketRead, sidRand: sidRand, sidCv: sidCv,
+      laneStamp: laneStamp, laneMerge: laneMerge, laneFirstSeen: laneFirstSeen, firstSeenOf: firstSeenOf,
+      fillAnswers: fillAnswers,
       VERSION: VERSION, FORMAT: FORMAT, DEVICE_KEYS: DEVICE_KEYS, NS_KEY: NS_KEY, KEY_NAMES: KEY_NAMES,
       canon: canon, hashOf: hashOf, utf8: utf8, toHex: toHex, fromHex: fromHex, b64url: b64url, unb64url: unb64url, same: same,
       prepare: prepare, sliceFor: sliceFor, buildAll: buildAll, buildSlice: buildSlice,

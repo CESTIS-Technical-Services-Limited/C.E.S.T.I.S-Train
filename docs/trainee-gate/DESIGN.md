@@ -1070,7 +1070,7 @@ of its text: a hex secret is used as written, never decoded, so every side deriv
 |---|---|
 | `canon(v)` | Sorted-key canonical JSON; byte-identical to `MegaData.canon` (tested). |
 | `hashOf(v)` | `'h1-' + Core.hashString(canon(v))` — the content hash publishers compare (no crypto needed). |
-| `prepare(storeMap, nowMs, opts)` / `sliceFor(ctx, acct)` | One pass over the Centre's records, then one trainee's slice; a staff device yields between `sliceFor` calls (the "chunked" publisher). `opts: {builtBy, gateUrl, inboxSeenUntil, findSkill, folds}`. |
+| `prepare(storeMap, nowMs, opts)` / `sliceFor(ctx, acct)` | One pass over the Centre's records, then one trainee's slice; a staff device yields between `sliceFor` calls (the "chunked" publisher). `opts: {builtBy, gateUrl, inboxSeenUntil, findSkill, folds, relinked}` (`relinked`: `{oldStudentId: newStudentId}` moves the caller kept, §14.4). `ctx.formerIds` / `ctx.formerUnsure`: each trainee's former student IDs, and those two could claim. |
 | `buildAll(storeMap, nowMs, opts)` | `{slices:{acct:{slice,h,s,scrubbed}}, papers:{examId:{paper,h}}, keys:{examId:{key,h}}, rooms:{roomId:{room,h}}, unlinked:[acct], s}`; `opts.only` limits it to some accounts. |
 | `buildSlice(storeMap, acct, nowMs, opts)` | One slice (the Centre's machine builds on request), or `{error:'not-found'\|'unlinked'}`. |
 | `buildPaper(exam, nowMs)` / `buildKey(exam, offset)` / `buildRoom(room, msgs, members, nowMs)` | The three published file shapes of §2.2. |
@@ -1085,6 +1085,7 @@ of its text: a hex secret is used as written, never decoded, so every side deriv
 | `collect(files, cx)` | The collector's pure step (§5.6 steps 2–4): owner from the folder, re-check, re-own, payload, ops, the unassigned list, files seen, watermark. |
 | `markAttempt(attempt, keyFile, nowMs, opts)` | §5.3: `{result, retired, keyHash, file}` or `{error}`; `resultId(attemptId, crypto)`. |
 | `redactResult(result, exam, nowMs, offset)` | The right answers only when `Core.exams.canRevealAnswers` allows on the given time. |
+| `fillAnswers(result, keyFile)` | The right answers put back into a result from the exam's key file, each as `Core.exams.mark` gives it from the key's own question, in marking's field order (§14.4). An answer that has one keeps it; a question the key no longer has stays without; another exam's key, a paper or nothing fills nothing. A copy. `review` runs `redactResult(fillAnswers(result, key), …)` on both gates. |
 | `resumeAttempt({lanes, results, slice}, stu, examId)` | `attempt.get`: `{state:'result'\|'retired'\|'attempt'\|'none', …}`. |
 | `token.sign/verify/claims`, `cv`, `sid.make/check`, `sessionKey` | §4.4. |
 | `seal(item, key, crypto)` / `sealOk(item, key, crypto)` | §5.1. |
@@ -1092,6 +1093,11 @@ of its text: a hex secret is used as written, never decoded, so every side deriv
 | `totp.code/verify/hotp/base32`, `codeHash(code)` | §4.3. |
 | `cleanupPlan(storeKeys, markers)` | §7.3: `{remove, keep, send, defer}`. |
 | `selfTest(crypto)` | §10.3: `{ok, version, checks:[{name, ok}]}` (canon, SHA-256, HMAC-SHA256 RFC 4231, TOTP RFC 6238, a golden token, the proof). |
+| `indexAccounts(accounts, deletedUserIds, crypto)` / `lookupLogin(idx, login, opts)` | §4.5, moved here from both gates (§14.4): the accounts index `{n, a:{id:{cv, st, pw, sd, tf, eo, em, bc, sdi}}, user, mail}` (trainees only, deleted dropped, the copy that can sign in); which account a login names → `{none}` \| `{id, e}` \| `{ambiguous}` (`opts: {emailOnly, allowNoPassword}`). |
+| `credentialRefusal(entry, via)` / `twoStep(entry, unusedCodes, canEmail)` | §4.1–4.3: `null` or `{error, why?}` once the credential is right; `{needed, methods}` (`unusedCodes` an array, or a function asked only when a second step is needed). |
+| `ticketMake(claims, secret, crypto)` / `ticketRead(ticket, secret, crypto, nowMs)` | §4.3: `t2.<b64url(canon {a, cv, exp, m, via, n})>.<HMAC hex>`; read back with `mac` (its seal's first 32 hex) or `{error:'bad-ticket'\|'expired'}`. Single use and tries stay with each gate. |
+| `sidRand(cv, rand12)` / `sidCv(sid)` | §4.4: a session id's random part begins with the credential version (`sid.make` seals it); `sidCv` reads it back, `''` otherwise. |
+| `laneMerge(lane, v, nowMs)` / `laneStamp(rec)` / `laneFirstSeen(lane, attemptId, nowMs)` / `firstSeenOf(lanes, ids, nowMs)` | §5.1, §5.3, moved here from Gate.gs: what a session's lane keeps of what `validateItem` took (attempts by `mergeAttemptLists`, profiles by key, chat by room and id, the rest by id; newest `laneStamp` wins, a tie the one sent last); when an attempt was first seen (once); the earliest over every lane. |
 | `DEVICE_KEYS`, `FORMAT`, `VERSION`, `NS_KEY`, `KEY_NAMES`, `PAYLOAD_NAMES`, `utf8`, `toHex`, `fromHex`, `b64url`, `unb64url`, `same` | Constants and byte helpers. |
 
 Also: `Core.exams.attemptQuestionsFromPaper(questions, opts)` and `Core.enrolment.courseMatch(a, b,
@@ -1174,10 +1180,14 @@ of the file, beside `Core.gate`, to keep merges clear of the modules they extend
 - **Stage 2 (gatekeeper).** Pass `crypto` from `Utilities` (`computeHmacSha256Signature`,
   `computeDigest` SHA-256 and SHA-1; convert signed bytes to 0–255). Run `selfTest` on `selfcheck`. Before
   `markAttempt`, merge the trainee's lanes and slice with `resumeAttempt` and pass `receivedAt` and
-  `firstSeen`. Answer `review` with `redactResult(result, key.exam, serverNow, key.centreUtcOffset)`.
+  `firstSeen`. Answer `review` with `redactResult(fillAnswers(result, key), key.exam, serverNow, key.centreUtcOffset)`
+  (built: §14.4).
   Refuse items older than `ITEM_MAX_AGE_MS` by `sid.check(...).iat`.
 - **Stage 3 (staff).** Pass the dashboard's `findSkillAreaForCourse` as `opts.findSkill` so slices match
-  what the trainee portal shows; yield between `sliceFor` calls. Feed `collect()`'s `payload.data` to
+  what the trainee portal shows; yield between `sliceFor` calls. Pass the fold log (`cestisFoldedAccounts`)
+  as `opts.folds`, and keep the student-ID moves the stabiliser makes (`cestisStabilizeStudentIds`'s
+  `res.idMap`, today thrown away) to pass as `opts.relinked` — without them a rename's later records reach
+  the slice only when one of them names the trainee's account (§14.4). Feed `collect()`'s `payload.data` to
   `mergeBackupData` and `payload.records.voctrain_certTranscriptRequests` through
   `Core.Transcript.mergeRequestLists` (`mergeBackupData` reads every `data` name, `examAttempts`
   included since the exam-resume page work). Apply `ops` with `applyOps` and stamp
@@ -1190,6 +1200,52 @@ of the file, beside `Core.gate`, to keep merges clear of the modules they extend
   conversation is not in slices yet.
 - **Release.** `index.html`'s `instructorCourseMatch` now needs the new `cestis-core.js`; bump the
   `?v=` stamp of `cestis-core.js` and `cestis-page-cloud.js` (and `sw.js`'s list) when this is merged.
+
+### 14.4 Moved into `Core.gate` after Stages 2 and 6a
+
+The two gatekeepers — the online one (`trainee-gate/Gate.gs`) and the Centre server's
+(`Offline System/cestis-offline-gate.js`) — each carried their own copy of the rules they share, kept
+equal by tests (Stage 6a marked its copy `TODO(core)`). They are `Core.gate`'s now, and both call them;
+behaviour is unchanged, answer for answer (`tests/gate-contract.test.js` also checks that neither gate
+defines a copy any more).
+
+- **Sign-in:** `indexAccounts`, `lookupLogin`, `credentialRefusal`, `twoStep`, `ticketMake` /
+  `ticketRead`, `sidRand` / `sidCv` (§14.1). Gate.gs's `gateBuildIndex` adds only its cache fields
+  (`v`, `ledgerId`, `updated`); `gateTicketRead` adds only single use and the tries count. The Centre
+  server's module no longer exports `rules`.
+- **Lanes (online only):** `laneMerge`, `laneStamp`, `laneFirstSeen`, `firstSeenOf` replace Gate.gs's
+  `gateLaneMerge`, `gateRecStamp`, `gateFirstSeen` and the earliest-first-seen loop in `gateSubmit`. The
+  Centre server has no lanes (it merges into the records file) and keeps its own `gateFirstSeen` stamp
+  on the attempt.
+- The allowlist paste carries all of `Core.gate`, so nothing new is needed in it; the new rules touch only
+  `Core.accountAccess`, `Core.accountLoginScore` and `Core.exams`, which it already carries.
+- **`review` of a result that came only in the slice.** A test marked on a lab PC reaches the trainee's
+  device only through their slice, and every result there is redacted. Gate.gs answered `review` from
+  that copy: `revealed: true` and no right answers, where the Centre's server, holding the result whole,
+  showed them. `fillAnswers(result, keyFile)` now puts them back from the key file before `redactResult`
+  decides on the gatekeeper's clock; the Centre's server calls it too (a no-op on its whole copies, and the
+  same repair for one stored without them). One difference remains by construction: if staff change a
+  question's key after a result was marked, the online review shows the key as it is now, the Centre's
+  server the one stored at marking.
+- **Records under a former student ID reach the slice** (a gap Stage 6a found). A student ID is a hash of
+  the name and the programme, so a rename or a transfer moves it; the dashboard relinks what it holds at
+  that moment, but a result marked since on a lab PC that still knew the old ID, an assignment's grade
+  maps (no relink carries them) and a duplicate's records once the fee roll's stub is folded stayed under
+  the old ID, and `sliceFor` (by student ID alone) left them out. `prepare` now works out each trainee's
+  former IDs (`formerIdsOf`) from what the records say: a stub folded into their account (the fold log
+  or `backfillStubFolds`; the stub's own copy, deleted or not, or the ID a `USR-SYNC-…`/`USR-STU-…` id is
+  made of); the dashboard's own identity rule (`Core.migrateToStableIds` on a copy of the roll: a
+  duplicate, or the ID their record is about to move to); a move the caller kept (`opts.relinked`); a
+  record of theirs naming their account under another ID. **The privacy back-check:** never another
+  trainee's current ID, never a record another account links to, never a deleted trainee's ID, never a
+  record pinned "keep separate"; a live record only on the identity rule or a kept move (never a fold or an
+  account alone); an ID two trainees could claim goes to neither (`ctx.formerUnsure`). Those records come
+  into the slice re-owned to today's ID (`reown`), as do support messages, the assignment's grade, grade
+  history and feedback, and a transcript header or profile where today's ID has none. A Centre with none of
+  this builds the same slices as before, byte for byte (`tests/gate-slice.test.js`, which also covers a
+  rename, three kinds of fold and six near misses). Stage 1's last-line sweep still takes out of a slice
+  any record naming another trainee's account (a result staff moved from one trainee to another keeps the
+  first one's `accountId`, so it leaves the second one's slice too): left as it is, for Stage 3/4 to decide.
 
 ---
 
