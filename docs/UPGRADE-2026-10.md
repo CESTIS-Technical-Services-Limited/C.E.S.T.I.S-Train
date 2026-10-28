@@ -88,7 +88,7 @@ shown to the owner in screenshots first, and merged only once approved or decide
 | **Duplicate "Disabled" accounts** | A cleared office PC no longer creates second and third accounts from the fee roll and chat roster. Provable leftovers fold into the real account, with a deletion record so they cannot come back; anything unsure stays for the administrator. | `tests/backfill-stub-fold.test.js` |
 | **"Set a new password"** | The cursor no longer jumps back from "Confirm password" (an intermittent "Passwords do not match" for a first administrator). | `tests/force-change-pw-focus.test.js` |
 | **A test that follows the trainee** | Answers are saved on the device and in the shared copy. Kicked out, crashed or disconnected, the trainee signs in and presses "Continue your attempt"; at another Centre PC too. The original clock stands, the newest answer per question wins, a submitted test cannot be reopened, and there is exactly one result per attempt. A trainee taking a test is not signed out part-way; a test whose time ran out is submitted at the next sign-in. | `tests/exam-attempt-travel.test.js`, `tests/browser/exam-resume.js` |
-| **Shared files' version tags** | Every page asks for the current shared code files (`?v=20261028a`). | — |
+| **Shared files' version tags** | Every page asks for the current shared code files (`?v=20261028b`). | — |
 
 **Decisions the owner made in this round:**
 - Trainees register at the Centre (or the office creates their account). A trainee's own phone
@@ -411,7 +411,7 @@ shown to the owner in screenshots first, and merged only once approved or decide
   maintained by hand.
 - **When a shared library changes** (`cestis-core.js`, `cestis-page-cloud.js`,
   `cestis-offline-rtc.js`, `finance-docs.js`, `staff-appraisals.js`, `cmc-portal.js`), bump its
-  `?v=` on every page so browsers fetch the new copy. They are all `?v=20261028a` as delivered. The service worker always tries the network
+  `?v=` on every page so browsers fetch the new copy. They are all `?v=20261028b` as delivered. The service worker always tries the network
   first.
 - **New pure logic belongs in `cestis-core.js`** with a Node test, called from the pages. This is
   the pattern the whole upgrade follows.
