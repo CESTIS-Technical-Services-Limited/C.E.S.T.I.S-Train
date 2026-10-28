@@ -595,8 +595,14 @@
     'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisCertDeviceSessionId', 'voctrain_supportSendLog',
     'voctrain_sessionUpgradeCarried',
     // This screen's light/dark choice: one person's Light never reaches another device.
-    'cestisTheme'];
+    'cestisTheme',
+    // The trainee gate's part on this device (CESTISCore.gate.DEVICE_KEYS).
+    'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
+    'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
+    'cestisGateUnassigned', 'cestisGateQuarantine'];
   function deviceOnly(k) {
+    // A trainee gate session's own records ('g1::…') stay in that session's namespace.
+    if (/^g[0-9]{1,3}::/.test(k)) return true;
     return /^voctrain_session(Expiry|Role|UserId|StudentId|SeenAt)$/.test(k) || k === 'voctrain_examInProgress' ||
            k.indexOf('cestisExamSession__') === 0 || k === 'cestisExamOutbox' ||
            k.indexOf('voctrain_user_') === 0 ||
@@ -942,7 +948,11 @@
       'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
       'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
       // This device's own "not yet uploaded" marker.
-      'cestisPendingUpload', 'cestisUnsyncedOnSignOut'
+      'cestisPendingUpload', 'cestisUnsyncedOnSignOut',
+      // The trainee gate's part on this device (see DEVICE_KEYS).
+      'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
+      'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
+      'cestisGateUnassigned', 'cestisGateQuarantine'
     ],
     // This module's own bookkeeping about what it has already synced.
     excludePrefixes: ['cestis_pagecloud_stamps__'],
