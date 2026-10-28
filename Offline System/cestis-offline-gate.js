@@ -120,105 +120,15 @@ function isPage(p) { return isObj(p) && isObj(p.data); }
 function randomHex(n) { return nodeCrypto.randomBytes(Math.ceil(n / 2)).toString('hex').slice(0, n); }
 // Ids that name an exam, a room, a file: plain characters only (as the online gate takes them).
 function safeId(s, max) { s = str(s); return new RegExp('^[A-Za-z0-9._-]{1,' + (max || 100) + '}$').test(s) && !/^\.+$/.test(s) ? s : null; }
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function maskEmail(email) { const m = /^([^@]{0,1})[^@]*(@.*)$/.exec(str(email)); return m ? m[1] + '•••' + m[2] : ''; }
 
-/* ============================================================================
-   RULES BOTH GATES MUST KEEP ALIKE
-   TODO(core): move to Core.gate. These are the decisions trainee-gate/Gate.gs
-   makes too (written the same way, answer for answer); until they live in
-   cestis-core.js each gate carries them, and tests/gate-lan.test.js pins
-   this copy. Pure: no files, no clock of their own, cryptography handed in.
-   ============================================================================ */
-const rules = {
-  /* The accounts index: trainee accounts only, deleted ones dropped
-     (Core.accountAccess.dropDeleted), one entry per account id (of two
-     copies, the one that can sign in: Core.accountLoginScore), with what
-     sign-in needs — the credential version (Core.gate.cv), whether it may
-     sign in (Core.accountAccess.check's reason), its password check, whether
-     it is still a published default (isSeededLogin), its two-step secret,
-     email codes, unused backup codes (trimmed, upper case) — and who answers
-     to each username and email. */
-  indexAccounts(Core, accounts, deletedUserIds, cryptoImpl) {
-    const A = Core.accountAccess, del = {};
-    (Array.isArray(deletedUserIds) ? deletedUserIds : []).forEach(id => { if (id != null && id !== '') del[id] = true; });
-    const list = A.dropDeleted(Array.isArray(accounts) ? accounts : [], del).accounts;
-    const idx = { n: 0, a: {}, user: {}, mail: {} }, score = {};
-    list.forEach(acc => {
-      if (!isObj(acc) || acc.id == null || acc.id === '' || lower(acc.role) !== 'student') return;
-      const id = String(acc.id), sc = Core.accountLoginScore(acc);
-      if (idx.a[id] && score[id] >= sc) return;
-      if (!idx.a[id]) idx.n++;
-      score[id] = sc;
-      const email = str(acc.email).trim();
-      idx.a[id] = {
-        cv: Core.gate.cv(acc, cryptoImpl), st: A.check(acc).reason, pw: typeof acc.password === 'string' ? acc.password : '',
-        sd: A.isSeededLogin(acc) ? 1 : 0,
-        tf: acc.twoFactorEnabled && acc.twoFactorSecret ? str(acc.twoFactorSecret) : '',
-        eo: acc.emailOtpLogin && EMAIL_RE.test(email) ? 1 : 0, em: email,
-        bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(c => c && c.code && !c.used).map(c => str(c.code).trim().toUpperCase()),
-        sdi: acc.studentDataId != null ? str(acc.studentDataId) : ''
-      };
-      const add = (map, v) => { v = lower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
-      add(idx.user, acc.username); add(idx.mail, acc.email);
-    });
-    return idx;
-  },
-  /* Which trainee account a login names (a username or an email, any case).
-     Two answer to it: the single one that can sign in, else the office must
-     sort it out. → { none } | { id, e } | { ambiguous } */
-  lookupLogin(idx, login, opts) {
-    opts = opts || {};
-    const l = lower(login), ids = [];
-    (opts.emailOnly ? [idx.mail] : [idx.user, idx.mail]).forEach(m => { (m[l] || []).forEach(id => { if (ids.indexOf(id) === -1) ids.push(id); }); });
-    if (!ids.length) return { none: true };
-    if (ids.length === 1) return { id: ids[0], e: idx.a[ids[0]] };
-    const usable = ids.filter(id => { const s = idx.a[id].st; return s === 'ok' || (opts.allowNoPassword && s === 'no-password'); });
-    if (usable.length === 1) return { id: usable[0], e: idx.a[usable[0]] };
-    return { ambiguous: true };
-  },
-  /* The credential is right: may the account go on? null, or the refusal
-     ({error, why?}) — the dashboard's loginBlocked as the gate sees it. */
-  credentialRefusal(e, via) {
-    if (e.st === 'pending' || e.st === 'disabled' || e.st === 'rejected') return { error: e.st };
-    if (e.st !== 'ok' && !(via === 'email' && e.st === 'no-password')) return { error: e.st || 'no-match' };
-    // A login still on a password published with the platform opens nothing here.
-    if (via === 'password' && e.sd) return { error: 'ask-office', why: 'default-password' };
-    return null;
-  },
-  /* Which second steps an account is offered: its authenticator, its unused
-     backup codes, an emailed code (only where email can be sent). An empty
-     list for an account that has a second step means it cannot finish here. */
-  twoStep(e, unusedCodes, canEmail) {
-    const needed = !!(e.tf || e.eo), methods = [];
-    if (e.tf) methods.push('totp');
-    if (unusedCodes.length) methods.push('backup');
-    if (e.eo && canEmail) methods.push('email');
-    return { needed, methods };
-  },
-  /* The two-step ticket: t2.<base64url(canon {a, cv, exp, m, via, n})>.<HMAC hex>;
-     its first 32 hex characters of mac name it (used once, tries counted). */
-  ticketMake(G, secret, cryptoImpl, claims) {
-    const body = G.b64url(G.utf8(G.canon({ a: str(claims.a), cv: str(claims.cv), exp: claims.exp, m: claims.m, via: str(claims.via), n: str(claims.n) })));
-    return 't2.' + body + '.' + cryptoImpl.hmacHex(G.utf8(secret), 't2|' + body);
-  },
-  ticketRead(G, secret, cryptoImpl, ticket, nowMs) {
-    const parts = str(ticket).split('.');
-    if (parts.length !== 3 || parts[0] !== 't2' || !/^[0-9a-f]{64}$/.test(parts[2])) return { error: 'bad-ticket' };
-    if (!G.same(cryptoImpl.hmacHex(G.utf8(secret), 't2|' + parts[1]), parts[2])) return { error: 'bad-ticket' };
-    let c = null;
-    try { const bytes = G.unb64url(parts[1]); c = bytes ? JSON.parse(Buffer.from(bytes).toString('utf8')) : null; } catch (e) { c = null; }
-    if (!isObj(c) || !c.a || typeof c.exp !== 'number') return { error: 'bad-ticket' };
-    if (nowMs >= c.exp) return { error: 'expired' };
-    c.mac = parts[2].slice(0, 32);
-    return c;
-  },
-  /* A session id's random part begins with the account's credential version
-     (sealed by the gate's secret with the rest), so an item from a session
-     whose password has since changed is known as revoked with no table. */
-  sidRand(cv, randHex12) { return str(cv).slice(0, 12) + str(randHex12); },
-  sidCv(sid) { const m = /^[0-9a-z]+\.([A-Za-z0-9]{12})[A-Za-z0-9]*\.[0-9a-f]{8}$/.exec(str(sid)); return m ? m[1] : ''; }
-};
+/* The decisions both gates make alike — the accounts index, which account a
+   login names, when a right password still may not sign in, which second
+   steps an account is offered, the two-step ticket, the credential version
+   inside a session id — are Core.gate's (indexAccounts, lookupLogin,
+   credentialRefusal, twoStep, ticketMake / ticketRead, sidRand / sidCv), the
+   same functions trainee-gate/Gate.gs calls. What is here is this server's
+   own part: its counters, its memory, its files. */
 
 /* opts: {
      core      the CESTISCore the server loaded (cestis-core.js)
@@ -297,7 +207,7 @@ function create(opts) {
     const read = k => { if (!(k in memo)) memo[k] = parseValue(map[k]); return memo[k]; };
     const list = k => { const v = read(k); return Array.isArray(v) ? v.filter(isObj) : []; };
     const mapOf = k => { const v = read(k); return isObj(v) ? v : {}; };
-    const idx = rules.indexAccounts(Core, map.voctrain_users, read('voctrain_deletedUserIds'), crypto);
+    const idx = G.indexAccounts(map.voctrain_users, read('voctrain_deletedUserIds'), crypto);
     cache = {
       key, ctx, payload, map, list, mapOf, idx,
       updated: payload ? (() => { try { return fs.statSync(LMS).mtime.toISOString(); } catch (e) { return null; } })() : null,
@@ -388,7 +298,7 @@ function create(opts) {
     const login = str(req.login).trim();
     if (!login || login.length > 200) fail('bad-request');
     const c = ready(t);
-    const look = rules.lookupLogin(c.idx, login), key = triesKey(look, login);
+    const look = G.lookupLogin(c.idx, login), key = triesKey(look, login);
     if (locked(key, t)) return LOCKED();
     if (busy(t)) return { ok: false, error: 'busy', retry: true };
     if (count('s:' + key, LIMITS.LOCK_S * 1000, t) > LIMITS.START_MAX) return LOCKED();
@@ -404,7 +314,7 @@ function create(opts) {
     const login = str(req.login).trim(), nonce = str(req.nonce);
     if (!login || !/^[0-9a-f]{32}$/.test(nonce)) fail('bad-request');
     const c = ready(t);
-    const look = rules.lookupLogin(c.idx, login), key = triesKey(look, login);
+    const look = G.lookupLogin(c.idx, login), key = triesKey(look, login);
     if (locked(key, t)) return LOCKED();
     if (busy(t)) return { ok: false, error: 'busy', retry: true };
     const held = nonces.get(nonce);
@@ -420,15 +330,15 @@ function create(opts) {
   }
 
   function afterCredential(c, acct, e, via, t) {
-    const refusal = rules.credentialRefusal(e, via);
+    const refusal = G.credentialRefusal(e, via);
     if (refusal) return Object.assign({ ok: false }, refusal);
     const p = place(c, acct);
     if (p.error) return { ok: false, error: p.error };
-    const two = rules.twoStep(e, unusedCodes(acct, e), false);
+    const two = G.twoStep(e, unusedCodes(acct, e), false);
     if (two.needed) {
       // Emailed codes need the internet; here only the authenticator and backup codes can finish it.
       if (!two.methods.length) return { ok: false, error: 'not-available', why: 'email-code' };
-      const ticket = rules.ticketMake(G, SECRET, crypto, { a: acct, cv: e.cv, exp: t + LIMITS.TICKET_MS, m: two.methods, via, n: randomHex(8) });
+      const ticket = G.ticketMake({ a: acct, cv: e.cv, exp: t + LIMITS.TICKET_MS, m: two.methods, via, n: randomHex(8) }, SECRET, crypto);
       return { ok: true, need2fa: true, ticket, methods: two.methods, email: e.eo ? maskEmail(e.em) : '' };
     }
     return issue(acct, e, p.slice, t);
@@ -439,7 +349,7 @@ function create(opts) {
      seals what it sends with; its lane is named as online, though here what
      it sends goes straight into the Centre's records. */
   function issue(acct, e, slice, t) {
-    const sid = G.sid.make(t, rules.sidRand(e.cv, randomHex(12)), SECRET, crypto);
+    const sid = G.sid.make(t, G.sidRand(e.cv, randomHex(12)), SECRET, crypto);
     const exp = t + G.token.TTL_MS;
     const token = G.token.sign({ a: acct, s: slice.studentId, sid, iat: t, exp, cv: e.cv }, SECRET, crypto);
     return { ok: true, token, sessionKey: G.sessionKey(SECRET, acct, sid, crypto), sid, lane: 'L-' + sid,
@@ -448,7 +358,7 @@ function create(opts) {
 
   function authTwoStep(req, t) {
     const c = ready(t);
-    const tk = rules.ticketRead(G, SECRET, crypto, req.ticket, t);
+    const tk = G.ticketRead(req.ticket, SECRET, crypto, t);
     if (tk.error) return { ok: false, error: tk.error };
     if (usedTickets.has(tk.mac) || countOf('tf:' + tk.mac, t) >= LIMITS.TICKET_TRIES) return { ok: false, error: 'bad-ticket' };
     const e = c.idx.a[tk.a];
@@ -740,7 +650,7 @@ function create(opts) {
     if (t - sc.iat > G.ITEM_MAX_AGE_MS) return all('expired');
     const e = c.idx.a[acct];
     if (!e) return all('unknown-account');
-    if (rules.sidCv(sid) !== str(e.cv).slice(0, 12)) return all('revoked');
+    if (G.sidCv(sid) !== str(e.cv).slice(0, 12)) return all('revoked');
     const key = G.sessionKey(SECRET, acct, sid, crypto);
     const good = group.filter(x => {
       const no = reason => { out[x.i] = { id: str(x.item.id), ok: false, reason }; return false; };
@@ -908,4 +818,4 @@ function create(opts) {
   return { handle, run, health, GATE_VERSION };
 }
 
-module.exports = { create, rules, loadOrCreateSecret, crypto, GATE_VERSION, PROTOCOL, LIMITS, LMS_FILE };
+module.exports = { create, loadOrCreateSecret, crypto, GATE_VERSION, PROTOCOL, LIMITS, LMS_FILE };

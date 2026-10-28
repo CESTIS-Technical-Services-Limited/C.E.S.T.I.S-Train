@@ -439,9 +439,9 @@ function gateIsOff(G) {
 /* -------------------------------------------------------- accounts index
    The accounts list staff already publish (CESTIS_ACCOUNTS.json), read at
    most once a minute and only when it changed, cut down to trainee accounts
-   and remembered in the cache in pieces (DESIGN.md §4.5). Deleted accounts
-   are dropped (Core.accountAccess.dropDeleted); whether an account may sign
-   in is Core.accountAccess.check; its credential version is Core.gate.cv. */
+   and remembered in the cache in pieces (DESIGN.md §4.5). What the index
+   holds, and which account a login names, are Core.gate.indexAccounts and
+   Core.gate.lookupLogin — the Centre server's gate uses the same two. */
 function gateIndex(G) {
   if (G.idx) return G.idx;
   var cfg = gateReady(G);
@@ -489,47 +489,9 @@ function gateIndexChunks(G, meta) {
   try { return JSON.parse(text); } catch (e) { return null; }
 }
 function gateBuildIndex(G, led, updated, ledgerId) {
-  var A = G.core.accountAccess, del = {};
-  (Array.isArray(led.deletedUserIds) ? led.deletedUserIds : []).forEach(function (id) { if (id != null && id !== '') del[id] = true; });
-  var accounts = A.dropDeleted(led.accounts, del).accounts;
-  var idx = { v: 1, ledgerId: ledgerId, updated: updated, n: 0, a: {}, user: {}, mail: {} };
-  var score = {};
-  accounts.forEach(function (acc) {
-    if (!acc || typeof acc !== 'object' || acc.id == null || acc.id === '' || gateLower(acc.role) !== 'student') return;
-    var id = String(acc.id), sc = G.core.accountLoginScore(acc);
-    if (idx.a[id] && score[id] >= sc) return;          // the same id twice: the copy that can sign in
-    if (!idx.a[id]) idx.n++;
-    score[id] = sc;
-    var email = gateStr(acc.email).trim();
-    idx.a[id] = {
-      cv: G.gate.cv(acc, G.crypto), st: A.check(acc).reason, pw: typeof acc.password === 'string' ? acc.password : '',
-      sd: A.isSeededLogin(acc) ? 1 : 0,
-      tf: acc.twoFactorEnabled && acc.twoFactorSecret ? gateStr(acc.twoFactorSecret) : '',
-      eo: acc.emailOtpLogin && GATE_EMAIL_RE.test(email) ? 1 : 0, em: email,
-      bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(function (c) { return c && c.code && !c.used; })
-        .map(function (c) { return gateStr(c.code).trim().toUpperCase(); }),
-      sdi: acc.studentDataId != null ? gateStr(acc.studentDataId) : ''
-    };
-    var add = function (map, v) { v = gateLower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
-    add(idx.user, acc.username); add(idx.mail, acc.email);
-  });
+  var idx = G.gate.indexAccounts(led.accounts, led.deletedUserIds, G.crypto);
+  idx.v = 1; idx.ledgerId = ledgerId; idx.updated = updated;
   return idx;
-}
-/* Which trainee account a login names: a username or an email
-   (Core.accountAccess.idMatches). When two trainee accounts answer to it
-   and exactly one of them can sign in, that one (as Core.accountAccess.find
-   prefers the usable copy); otherwise the office must sort it out. */
-function gateLookup(idx, login, opts) {
-  opts = opts || {};
-  var l = gateLower(login), ids = [];
-  (opts.emailOnly ? [idx.mail] : [idx.user, idx.mail]).forEach(function (m) {
-    (m[l] || []).forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
-  });
-  if (!ids.length) return { none: true };
-  if (ids.length === 1) return { id: ids[0], e: idx.a[ids[0]] };
-  var usable = ids.filter(function (id) { var s = idx.a[id].st; return s === 'ok' || (opts.allowNoPassword && s === 'no-password'); });
-  if (usable.length === 1) return { id: usable[0], e: idx.a[usable[0]] };
-  return { ambiguous: true };
 }
 
 /* --------------------------------------------- a trainee's folder, files
@@ -664,7 +626,7 @@ function gateAuthStart(G, req) {
   var login = gateStr(req.login).trim();
   if (!login || login.length > 200) gateFail('bad-request');
   gateReady(G);
-  var look = gateLookup(gateIndex(G), login), key = gateTriesKey(G, look, login);
+  var look = G.gate.lookupLogin(gateIndex(G), login), key = gateTriesKey(G, look, login);
   if (gateLocked(G, key)) return { ok: false, error: 'locked', retryAfter: GATE_LIMITS.LOCK_S };
   if (gateBusy(G)) return { ok: false, error: 'busy', retry: true };
   if (gateCount(G, 's:' + key, GATE_LIMITS.LOCK_S) > GATE_LIMITS.START_MAX) return { ok: false, error: 'locked', retryAfter: GATE_LIMITS.LOCK_S };
@@ -680,7 +642,7 @@ function gateAuthPassword(G, req) {
   var login = gateStr(req.login).trim(), nonce = gateStr(req.nonce);
   if (!login || !/^[0-9a-f]{32}$/.test(nonce)) gateFail('bad-request');
   gateReady(G);
-  var look = gateLookup(gateIndex(G), login), key = gateTriesKey(G, look, login);
+  var look = G.gate.lookupLogin(gateIndex(G), login), key = gateTriesKey(G, look, login);
   if (gateLocked(G, key)) return { ok: false, error: 'locked', retryAfter: GATE_LIMITS.LOCK_S };
   if (gateBusy(G)) return { ok: false, error: 'busy', retry: true };
   var held = gateCacheJson(G, 'n:' + nonce);
@@ -714,7 +676,7 @@ function gateAuthEmail(G, req) {
   if (gateStr(info.email_verified) !== 'true') return { ok: false, error: 'unverified-email' };
   if (!(Number(info.expires_in) > 0)) return { ok: false, error: 'bad-token' };
   if (!/(^|\s)(https:\/\/www\.googleapis\.com\/auth\/userinfo\.email|email)(\s|$)/.test(gateStr(info.scope))) return { ok: false, error: 'bad-token' };
-  var look = gateLookup(gateIndex(G), info.email, { emailOnly: true, allowNoPassword: true });
+  var look = G.gate.lookupLogin(gateIndex(G), info.email, { emailOnly: true, allowNoPassword: true });
   if (look.ambiguous) return { ok: false, error: 'ask-office', why: 'ambiguous' };
   if (!look.e) return { ok: false, error: 'not-found' };
   return gateAfterCredential(G, look.id, look.e, 'email');
@@ -722,31 +684,28 @@ function gateAuthEmail(G, req) {
 
 /* The credential is right: may this account go on, and does it need its
    second step? (The dashboard's loginBlocked and tfaGateLogin, as the gate
-   sees them.) */
+   sees them: Core.gate.credentialRefusal and Core.gate.twoStep.) */
 function gateAfterCredential(G, acct, e, via) {
-  if (e.st === 'pending' || e.st === 'disabled' || e.st === 'rejected') return { ok: false, error: e.st };
-  if (e.st !== 'ok' && !(via === 'email' && e.st === 'no-password')) return { ok: false, error: e.st || 'no-match' };
-  // A login still on the default password published with the platform opens nothing here.
-  if (via === 'password' && e.sd) return { ok: false, error: 'ask-office', why: 'default-password' };
+  var refusal = G.gate.credentialRefusal(e, via);
+  if (refusal) return Object.assign({ ok: false }, refusal);
   var place = gatePlace(G, acct, e);
   if (place.error) return { ok: false, error: place.error };
-  if (e.tf || e.eo) {
-    var methods = [];
-    if (e.tf) methods.push('totp');
-    if (gateUnusedCodes(G, acct, e).length) methods.push('backup');
-    if (e.eo) methods.push('email');
-    return { ok: true, need2fa: true, ticket: gateTicketMake(G, acct, e, methods, via), methods: methods, email: e.eo ? gateMask(e.em) : '' };
+  // Emailed codes can be sent from here. The spent codes are read only when a second step is needed.
+  var two = G.gate.twoStep(e, function () { return gateUnusedCodes(G, acct, e); }, true);
+  if (two.needed) {
+    var ticket = G.gate.ticketMake({ a: acct, cv: e.cv, exp: G.now + GATE_LIMITS.TICKET_MS, m: two.methods, via: via, n: gateRandomHex(8) },
+      gateCfg(G).secret, G.crypto);
+    return { ok: true, need2fa: true, ticket: ticket, methods: two.methods, email: e.eo ? gateMask(e.em) : '' };
   }
   return gateIssue(G, acct, e, place, []);
 }
 /* A session (DESIGN.md §4.4). The session id carries its credential
-   version in its random part — sealed by the gate's own secret — so an
-   item sealed in a session whose password has since been reset is known
-   for what it is (revoked) without any table of sessions. */
+   version in its random part (Core.gate.sidRand) — sealed by the gate's own
+   secret — so an item sealed in a session whose password has since been
+   reset is known for what it is (revoked) without any table of sessions. */
 function gateIssue(G, acct, e, place, ops) {
   var cfg = gateCfg(G);
-  var rand = gateStr(e.cv).slice(0, 12) + gateRandomHex(12);
-  var sid = G.gate.sid.make(G.now, rand, cfg.secret, G.crypto);
+  var sid = G.gate.sid.make(G.now, G.gate.sidRand(e.cv, gateRandomHex(12)), cfg.secret, G.crypto);
   var exp = G.now + G.gate.token.TTL_MS;
   var token = G.gate.token.sign({ a: acct, s: place.slice.studentId, sid: sid, iat: G.now, exp: exp, cv: e.cv }, cfg.secret, G.crypto);
   if (ops && ops.length) {
@@ -759,28 +718,16 @@ function gateIssue(G, acct, e, place, ops) {
   return { ok: true, token: token, sessionKey: G.gate.sessionKey(cfg.secret, acct, sid, G.crypto), sid: sid, lane: 'L-' + sid,
     exp: exp, account: { id: acct, studentId: place.slice.studentId }, serverTime: gateIso(G.now) };
 }
-function gateSidCv(sid) { var m = /^[0-9a-z]+\.([A-Za-z0-9]{12})[A-Za-z0-9]*\.[0-9a-f]{8}$/.exec(gateStr(sid)); return m ? m[1] : ''; }
 
-/* Two-step (DESIGN.md §4.3). The ticket: t2.<base64url(canon claims)>.<HMAC hex>. */
-function gateTicketMake(G, acct, e, methods, via) {
-  var cfg = gateCfg(G), g = G.gate;
-  var body = g.b64url(g.utf8(g.canon({ a: acct, cv: e.cv, exp: G.now + GATE_LIMITS.TICKET_MS, m: methods, via: via, n: gateRandomHex(8) })));
-  return 't2.' + body + '.' + G.crypto.hmacHex(g.utf8(cfg.secret), 't2|' + body);
-}
+/* Two-step (DESIGN.md §4.3). The ticket is Core.gate.ticketMake's; here it
+   is also refused once used, or after too many wrong codes. */
 function gateTicketRead(G, ticket) {
-  var g = G.gate, parts = gateStr(ticket).split('.');
-  if (parts.length !== 3 || parts[0] !== 't2' || !/^[0-9a-f]{64}$/.test(parts[2])) return { error: 'bad-ticket' };
-  if (!g.same(G.crypto.hmacHex(g.utf8(gateCfg(G).secret), 't2|' + parts[1]), parts[2])) return { error: 'bad-ticket' };
-  var c = null;
-  try { var bytes = g.unb64url(parts[1]); c = bytes ? JSON.parse(gateBytesText(bytes)) : null; } catch (err) { c = null; }
-  if (!c || !c.a || typeof c.exp !== 'number') return { error: 'bad-ticket' };
-  if (G.now >= c.exp) return { error: 'expired' };
-  c.mac = parts[2].slice(0, 32);
+  var c = G.gate.ticketRead(ticket, gateCfg(G).secret, G.crypto, G.now);
+  if (c.error) return c;
   if (G.cache.get('tu:' + c.mac)) return { error: 'bad-ticket' };
   if (gateCountOf(G, 'tf:' + c.mac) >= GATE_LIMITS.TICKET_TRIES) return { error: 'bad-ticket' };
   return c;
 }
-function gateBytesText(bytes) { return Utilities.newBlob(gateSigned(bytes)).getDataAsString('UTF-8'); }
 // Backup codes still good here: unused in the accounts list and not spent at the gate since.
 function gateUnusedCodes(G, acct, e) {
   var spent = gateSpent(G, acct);
@@ -1088,7 +1035,7 @@ function gateDeliverSession(G, acct, sid, items, suffix) {
   if (G.now - sc.iat > g.ITEM_MAX_AGE_MS) return all({ reason: 'expired' });
   var e = gateIndex(G).a[acct];
   if (!e) return all({ reason: 'unknown-account' });
-  if (gateSidCv(sid) !== gateStr(e.cv).slice(0, 12)) return all({ reason: 'revoked' });
+  if (g.sidCv(sid) !== gateStr(e.cv).slice(0, 12)) return all({ reason: 'revoked' });
   var key = g.sessionKey(cfg.secret, acct, sid, G.crypto);
   var out = items.map(function (it) { return { id: gateStr(it.id), ok: false }; });
   var good = [];
@@ -1125,12 +1072,12 @@ function gateDeliverSession(G, acct, sid, items, suffix) {
     var v = g.validateItem(it, me, slice, opts);
     if (!v.ok) { out[j].reason = v.reason || 'not-yours'; return; }
     if (it.kind === 'submit') {
-      gateFirstSeen(lane, v.attempt.id, G.now) && (changed = true);
+      g.laneFirstSeen(lane, v.attempt.id, G.now) && (changed = true);
       submits.push({ j: j, item: it, attempt: v.attempt });
       return;
     }
-    if (it.kind === 'rec' && !v.known) gateLaneMerge(G, lane, v);
-    if (it.kind === 'rec' && v.key === 'voctrain_examAttempts') gateFirstSeen(lane, v.rec.id, G.now);
+    if (it.kind === 'rec' && !v.known) g.laneMerge(lane, v, G.now);
+    if (it.kind === 'rec' && v.key === 'voctrain_examAttempts') g.laneFirstSeen(lane, v.rec.id, G.now);
     if (it.kind === 'op' && !lane.ops.some(function (o) { return o && o.id === v.op.id; })) lane.ops.push(v.op);
     lane.received[gateStr(it.id)] = gateIso(G.now);
     changed = true;
@@ -1165,45 +1112,8 @@ function gateLaneWrite(G, folder, laneId, file, lane) {
   if (file) file.setContent(text);
   else folder.createFile(GATE_NAMES.inbox + '.' + laneId + '.json', text, 'application/json');
 }
-// When the gate first saw an attempt — for the late flag only (DESIGN.md §5.3).
-function gateFirstSeen(lane, attemptId, now) {
-  if (!lane.firstSeen || typeof lane.firstSeen !== 'object') lane.firstSeen = {};
-  var k = gateStr(attemptId);
-  if (lane.firstSeen[k]) return false;
-  lane.firstSeen[k] = gateIso(now);
-  return true;
-}
-/* One session's records, kept by id: an attempt question by question
-   (Core.exams.mergeAttemptLists), anything else the copy written last. */
-function gateRecStamp(r) {
-  if (!r || typeof r !== 'object') return 0;
-  return Math.max(gateMs(r.updatedAt), gateMs(r.timestamp), gateMs(r.submittedAt), gateMs(r.requestedAt), gateMs(r.createdAt));
-}
-function gateLaneMerge(G, lane, v) {
-  var R = lane.records || (lane.records = {}), k = v.key, rec = v.rec;
-  var byId = function (list, r) {
-    list = Array.isArray(list) ? list : [];
-    for (var i = 0; i < list.length; i++) {
-      if (list[i] && gateStr(list[i].id) === gateStr(r.id)) { if (gateRecStamp(r) >= gateRecStamp(list[i])) list[i] = r; return list; }
-    }
-    list.push(r);
-    return list;
-  };
-  if (k === 'voctrain_examAttempts') { R[k] = G.core.exams.mergeAttemptLists(R[k] || [], [rec], { nowMs: G.now }).list; return; }
-  if (k === 'voctrain_studentProfiles') {
-    var m = R[k] && typeof R[k] === 'object' && !Array.isArray(R[k]) ? R[k] : {};
-    if (!m[v.recId] || gateRecStamp(rec) >= gateRecStamp(m[v.recId])) m[v.recId] = rec;
-    R[k] = m; return;
-  }
-  if (k === 'voctrain_chatMessages') {
-    var rooms = R[k] && typeof R[k] === 'object' && !Array.isArray(R[k]) ? R[k] : {};
-    var room = gateStr(rec.roomId), msg = {};
-    Object.keys(rec).forEach(function (f) { if (f !== 'roomId') msg[f] = rec[f]; });
-    rooms[room] = byId(rooms[room], msg);
-    R[k] = rooms; return;
-  }
-  R[k] = byId(R[k], rec);
-}
+/* What goes into a lane, and when an attempt was first seen there (the
+   late flag only), are Core.gate.laneMerge and Core.gate.laneFirstSeen. */
 
 /* A submitted test (DESIGN.md §5.3): marked from the key file by
    Core.gate.markAttempt, after the attempt is put together from every
@@ -1244,10 +1154,7 @@ function gateSubmit(G, place, me, lane, item, attempt) {
     var other = gateResultFile(G, folder, tid);
     if (other) { var oj = gateJsonOf(G, other, 'rf:' + other.getId()); if (oj && oj.result) return answer(oj, true); }
   }
-  var first = G.now;
-  lanes.forEach(function (l) {
-    (r.ids || [aid]).forEach(function (id) { var t = gateMs(l.firstSeen && l.firstSeen[id]); if (t && t < first) first = t; });
-  });
+  var first = g.firstSeenOf(lanes, r.ids || [aid], G.now);
   var students = (place.slice.data && place.slice.data.voctrain_students) || [];
   var m = g.markAttempt(target, key, G.now, { crypto: G.crypto, receivedAt: G.now, firstSeen: first, auto: item.auto === true,
     studentName: students[0] ? students[0].name : undefined, accountId: me.acct });

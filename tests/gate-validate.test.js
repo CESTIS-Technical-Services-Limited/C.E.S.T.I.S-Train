@@ -26,6 +26,8 @@
        trainees' records — refused as not theirs.
    Plus a fuzz: a valid item of every kind with any owner field turned into
    somebody else's is refused, every time; and random rubbish never throws.
+   And what the online gatekeeper keeps of what it took, in the session's
+   lane (Core.gate.laneMerge / laneStamp / laneFirstSeen / firstSeenOf).
 
    Run: node tests/gate-validate.test.js */
 'use strict';
@@ -278,6 +280,43 @@ console.log('Fuzz: any owner field turned into somebody else\'s is refused, ever
   }
   assertEq(threw, 0, 'random rubbish never throws');
   assertEq(takenRubbish, 0, 'and is never taken as a record');
+}
+
+/* What the online gatekeeper keeps of what it took, in the session's own
+   lane file (DESIGN.md §5.1). Gate.gs carried this as gateLaneMerge /
+   gateRecStamp / gateFirstSeen; it is Core.gate's now, so it is pinned here. */
+console.log('What a session\'s lane keeps: an attempt question by question, anything else the copy stamped last');
+{
+  const t0 = Date.parse('2026-11-02T14:00:00.000Z');
+  const lane = { records: {}, firstSeen: {} };
+  const att = (answers, at) => ({ id: 'ATT-L', examId: 'EX1', studentId: me.stu, status: 'open', questions: [{ id: 'q1' }, { id: 'q2' }],
+    answers, answeredAt: at, flagged: [false, false], flaggedAt: [0, 0], startTime: t0, updatedAt: new Date(Math.max.apply(null, at.concat([t0]))).toISOString() });
+  G.laneMerge(lane, { key: 'voctrain_examAttempts', rec: att([1, null], [t0 + 1000, 0]) }, t0 + 2000);
+  G.laneMerge(lane, { key: 'voctrain_examAttempts', rec: att([null, 2], [0, t0 + 3000]) }, t0 + 4000);
+  assertEq([lane.records.voctrain_examAttempts.length, lane.records.voctrain_examAttempts[0].answers], [1, [1, 2]],
+    'two saves of one attempt: one attempt, each answer kept from the save that made it');
+  const iso = ms => new Date(ms).toISOString();
+  const sub = (comment, at) => ({ id: 'SUB-L', assignmentId: 'ASG-1', studentId: me.stu, comment, updatedAt: iso(at) });
+  G.laneMerge(lane, { key: 'voctrain_submissions', rec: sub('first', t0 + 5000) }, t0);
+  G.laneMerge(lane, { key: 'voctrain_submissions', rec: sub('older copy', t0 + 1000) }, t0);
+  assertEq(lane.records.voctrain_submissions.map(s => s.comment), ['first'], 'a record by its id: an older copy does not replace a newer one');
+  G.laneMerge(lane, { key: 'voctrain_submissions', rec: sub('same moment, sent later', t0 + 5000) }, t0);
+  assertEq(lane.records.voctrain_submissions.map(s => s.comment), ['same moment, sent later'], 'at the same moment, the copy sent last');
+  G.laneMerge(lane, { key: 'voctrain_studentProfiles', recId: me.acct, rec: { phone: '1', updatedAt: iso(t0 + 9000) } }, t0);
+  G.laneMerge(lane, { key: 'voctrain_studentProfiles', recId: me.acct, rec: { phone: '0', updatedAt: iso(t0) } }, t0);
+  assertEq(lane.records.voctrain_studentProfiles, { [me.acct]: { phone: '1', updatedAt: iso(t0 + 9000) } }, 'a profile by its key, newest kept');
+  G.laneMerge(lane, { key: 'voctrain_chatMessages', rec: { id: 'M1', roomId: 'ROOM-A', text: 'hi', timestamp: iso(t0) } }, t0);
+  G.laneMerge(lane, { key: 'voctrain_chatMessages', rec: { id: 'M2', roomId: 'ROOM-A', text: 'again', timestamp: iso(t0 + 1) } }, t0);
+  assertEq(lane.records.voctrain_chatMessages, { 'ROOM-A': [{ id: 'M1', text: 'hi', timestamp: iso(t0) }, { id: 'M2', text: 'again', timestamp: iso(t0 + 1) }] },
+    'a chat message under its room (the room is the key, not a field)');
+  assertEq([G.laneStamp({ createdAt: iso(t0), requestedAt: iso(t0 + 7), timestamp: t0 + 3 }), G.laneStamp(null), G.laneStamp({ updatedAt: 'junk' })],
+    [t0 + 7, 0, 0], 'the stamp: the newest of the record\'s times, nothing for nothing');
+  const L1 = { firstSeen: {} };
+  assertEq([G.laneFirstSeen(L1, 'ATT-1', t0), G.laneFirstSeen(L1, 'ATT-1', t0 + 60000), L1.firstSeen], [true, false, { 'ATT-1': iso(t0) }],
+    'first seen: written once, at the first time');
+  const L2 = { firstSeen: { 'ATT-2': iso(t0 - 5000) } };
+  assertEq([G.firstSeenOf([L1, L2, {}], ['ATT-1', 'ATT-2'], t0 + 1e6), G.firstSeenOf([L1], ['ATT-9'], t0 + 1e6)], [t0 - 5000, t0 + 1e6],
+    'the earliest over every lane and every copy of the attempt; now when none');
 }
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

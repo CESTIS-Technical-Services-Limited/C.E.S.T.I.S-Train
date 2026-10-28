@@ -21,7 +21,10 @@
    credential version in its session id, the slice's hash (the two build
    byte-for-byte the same records), the paper's questions, every receipt,
    the result's id, score and late flag, review's "revealed", the room's
-   hash, sign-out, and revocation after a password change.
+   hash, sign-out, and revocation after a password change. And, first, that
+   the rules the two share (the accounts index, the login lookup, refusals,
+   two-step methods and ticket, the credential version in a session id) are
+   Core.gate's in both — neither gate carries a copy of its own any more.
 
    What only one of them can do is left out on purpose, and listed: email
    sign-in, emailed codes, uploads and file downloads need the internet
@@ -66,6 +69,7 @@ const lanStore = require(path.join(OFF, 'cestis-offline-store.js'));
 
 let passed = 0, failed = 0;
 function assert(cond, msg) { if (cond) passed++; else { failed++; console.error('  ✗ FAIL: ' + msg); } }
+function assertEq(a, b, msg) { assert(JSON.stringify(a) === JSON.stringify(b), msg + ' — expected ' + JSON.stringify(b) + ', got ' + JSON.stringify(a)); }
 function same(step, online, lan, project) {
   const a = JSON.stringify(project ? project(online) : online), b = JSON.stringify(project ? project(lan) : lan);
   assert(a === b, step + '\n      online: ' + a + '\n      centre: ' + b);
@@ -160,6 +164,20 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
 
 (async () => {
   try {
+    console.log('Both gates call the rules they share (Core.gate); neither carries a copy of its own');
+    {
+      const gs = fs.readFileSync(path.join(ROOT, 'trainee-gate', 'Gate.gs'), 'utf8');
+      const lan = fs.readFileSync(path.join(OFF, 'cestis-offline-gate.js'), 'utf8');
+      const SHARED = ['indexAccounts', 'lookupLogin', 'credentialRefusal', 'twoStep', 'ticketMake', 'ticketRead', 'sidRand', 'sidCv'];
+      const calls = (src, f) => new RegExp('\\b(?:G\\.gate|g|G)\\.' + f + '\\(').test(src);
+      same('the sign-in rules each gate calls', SHARED.filter(f => calls(gs, f)), SHARED.filter(f => calls(lan, f)));
+      assertEq(SHARED.filter(f => !calls(gs, f)), [], 'the online gate calls every one of them');
+      assertEq(['laneMerge', 'laneFirstSeen', 'firstSeenOf'].filter(f => !calls(gs, f)), [], 'and the lane rules');
+      const COPIES = ['gateLookup', 'gateSidCv', 'gateTicketMake', 'gateBytesText', 'gateRecStamp', 'gateLaneMerge', 'gateFirstSeen'];
+      assertEq(COPIES.filter(f => new RegExp('function ' + f + '\\(').test(gs)), [], 'Gate.gs defines none of its old copies');
+      assert(!/TODO\(core\)/.test(lan) && !('rules' in lanGate), 'nor does the Centre server\'s gate');
+    }
+
     console.log('Health and the answers to requests it cannot take');
     const [h1, h2] = await both({ op: 'health' });
     same('health: the same fields (the Centre also says whether its staff-only switch is on)', keys(h1), keys(h2, ['staffOnly']));

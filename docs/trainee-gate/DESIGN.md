@@ -1092,6 +1092,11 @@ of its text: a hex secret is used as written, never decoded, so every side deriv
 | `totp.code/verify/hotp/base32`, `codeHash(code)` | §4.3. |
 | `cleanupPlan(storeKeys, markers)` | §7.3: `{remove, keep, send, defer}`. |
 | `selfTest(crypto)` | §10.3: `{ok, version, checks:[{name, ok}]}` (canon, SHA-256, HMAC-SHA256 RFC 4231, TOTP RFC 6238, a golden token, the proof). |
+| `indexAccounts(accounts, deletedUserIds, crypto)` / `lookupLogin(idx, login, opts)` | §4.5, moved here from both gates (§14.4): the accounts index `{n, a:{id:{cv, st, pw, sd, tf, eo, em, bc, sdi}}, user, mail}` (trainees only, deleted dropped, the copy that can sign in); which account a login names → `{none}` \| `{id, e}` \| `{ambiguous}` (`opts: {emailOnly, allowNoPassword}`). |
+| `credentialRefusal(entry, via)` / `twoStep(entry, unusedCodes, canEmail)` | §4.1–4.3: `null` or `{error, why?}` once the credential is right; `{needed, methods}` (`unusedCodes` an array, or a function asked only when a second step is needed). |
+| `ticketMake(claims, secret, crypto)` / `ticketRead(ticket, secret, crypto, nowMs)` | §4.3: `t2.<b64url(canon {a, cv, exp, m, via, n})>.<HMAC hex>`; read back with `mac` (its seal's first 32 hex) or `{error:'bad-ticket'\|'expired'}`. Single use and tries stay with each gate. |
+| `sidRand(cv, rand12)` / `sidCv(sid)` | §4.4: a session id's random part begins with the credential version (`sid.make` seals it); `sidCv` reads it back, `''` otherwise. |
+| `laneMerge(lane, v, nowMs)` / `laneStamp(rec)` / `laneFirstSeen(lane, attemptId, nowMs)` / `firstSeenOf(lanes, ids, nowMs)` | §5.1, §5.3, moved here from Gate.gs: what a session's lane keeps of what `validateItem` took (attempts by `mergeAttemptLists`, profiles by key, chat by room and id, the rest by id; newest `laneStamp` wins, a tie the one sent last); when an attempt was first seen (once); the earliest over every lane. |
 | `DEVICE_KEYS`, `FORMAT`, `VERSION`, `NS_KEY`, `KEY_NAMES`, `PAYLOAD_NAMES`, `utf8`, `toHex`, `fromHex`, `b64url`, `unb64url`, `same` | Constants and byte helpers. |
 
 Also: `Core.exams.attemptQuestionsFromPaper(questions, opts)` and `Core.enrolment.courseMatch(a, b,
@@ -1190,3 +1195,22 @@ of the file, beside `Core.gate`, to keep merges clear of the modules they extend
   conversation is not in slices yet.
 - **Release.** `index.html`'s `instructorCourseMatch` now needs the new `cestis-core.js`; bump the
   `?v=` stamp of `cestis-core.js` and `cestis-page-cloud.js` (and `sw.js`'s list) when this is merged.
+
+### 14.4 Moved into `Core.gate` after Stages 2 and 6a
+
+The two gatekeepers — the online one (`trainee-gate/Gate.gs`) and the Centre server's
+(`Offline System/cestis-offline-gate.js`) — each carried their own copy of the rules they share, kept
+equal by tests (Stage 6a marked its copy `TODO(core)`). They are `Core.gate`'s now, and both call them;
+behaviour is unchanged, answer for answer (`tests/gate-contract.test.js` also checks that neither gate
+defines a copy any more).
+
+- **Sign-in:** `indexAccounts`, `lookupLogin`, `credentialRefusal`, `twoStep`, `ticketMake` /
+  `ticketRead`, `sidRand` / `sidCv` (§14.1). Gate.gs's `gateBuildIndex` adds only its cache fields
+  (`v`, `ledgerId`, `updated`); `gateTicketRead` adds only single use and the tries count. The Centre
+  server's module no longer exports `rules`.
+- **Lanes (online only):** `laneMerge`, `laneStamp`, `laneFirstSeen`, `firstSeenOf` replace Gate.gs's
+  `gateLaneMerge`, `gateRecStamp`, `gateFirstSeen` and the earliest-first-seen loop in `gateSubmit`. The
+  Centre server has no lanes (it merges into the records file) and keeps its own `gateFirstSeen` stamp
+  on the attempt.
+- The allowlist paste carries all of `Core.gate`, so nothing new is needed in it; the new rules touch only
+  `Core.accountAccess`, `Core.accountLoginScore` and `Core.exams`, which it already carries.

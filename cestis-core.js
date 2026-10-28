@@ -13688,6 +13688,123 @@
     // How a spent backup code is named in a trainee's inbox (never the code itself).
     function codeHash(code) { return 'h1-' + Core.hashString('bc|' + str(code).trim().toUpperCase()); }
 
+    /* ---- Who a login names, and whether they may go on (§4.1–§4.5) -------
+       The decisions both gatekeepers make — the online one (trainee-gate/
+       Gate.gs) and the Centre server's (Offline System/cestis-offline-
+       gate.js) — written once, so the two answer every sign-in alike. Each
+       of them used to carry its own copy, kept equal by a test. Pure: the
+       cache, the lock-out counters and the clock stay with the gatekeeper. */
+    var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    /* The accounts index: trainee accounts only, deleted ones dropped
+       (Core.accountAccess.dropDeleted), one entry per account id — of two
+       copies, the one that can sign in (Core.accountLoginScore) — with what
+       sign-in needs: the credential version (cv), why it may not sign in, if
+       it may not (st: Core.accountAccess.check's reason), its password check
+       (pw), whether it is still a published default (sd), its two-step
+       secret (tf), whether it signs in with emailed codes (eo) and to which
+       address (em), its unused backup codes, trimmed and upper case (bc), and
+       its record link (sdi). Then who answers to each username (user) and
+       each email (mail), in lower case. → { n, a: { id: entry }, user, mail } */
+    function indexAccounts(accounts, deletedUserIds, crypto) {
+      var A = Core.accountAccess, del = {};
+      (Array.isArray(deletedUserIds) ? deletedUserIds : []).forEach(function (id) { if (id != null && id !== '') del[id] = true; });
+      var list = A.dropDeleted(Array.isArray(accounts) ? accounts : [], del).accounts;
+      var idx = { n: 0, a: {}, user: {}, mail: {} }, score = {};
+      list.forEach(function (acc) {
+        if (!isObj(acc) || acc.id == null || acc.id === '' || lower(acc.role) !== 'student') return;
+        var id = String(acc.id), sc = Core.accountLoginScore(acc);
+        if (idx.a[id] && score[id] >= sc) return;          // the same id twice: the copy that can sign in
+        if (!idx.a[id]) idx.n++;
+        score[id] = sc;
+        var email = str(acc.email).trim();
+        idx.a[id] = {
+          cv: cvOf(acc, crypto), st: A.check(acc).reason, pw: typeof acc.password === 'string' ? acc.password : '',
+          sd: A.isSeededLogin(acc) ? 1 : 0,
+          tf: acc.twoFactorEnabled && acc.twoFactorSecret ? str(acc.twoFactorSecret) : '',
+          eo: acc.emailOtpLogin && EMAIL_RE.test(email) ? 1 : 0, em: email,
+          bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(function (c) { return c && c.code && !c.used; })
+            .map(function (c) { return str(c.code).trim().toUpperCase(); }),
+          sdi: acc.studentDataId != null ? str(acc.studentDataId) : ''
+        };
+        var add = function (map, v) { v = lower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
+        add(idx.user, acc.username); add(idx.mail, acc.email);
+      });
+      return idx;
+    }
+    /* Which trainee account a login names: a username or an email, any case
+       (opts.emailOnly: an email only). When two trainee accounts answer to it
+       and exactly one of them can sign in, that one (as Core.accountAccess
+       .find prefers the usable copy; opts.allowNoPassword counts an account
+       with no password yet as usable — the email sign-in); otherwise the
+       office must sort it out. → { none } | { id, e } | { ambiguous } */
+    function lookupLogin(idx, login, opts) {
+      opts = opts || {};
+      var l = lower(login), ids = [];
+      (opts.emailOnly ? [idx.mail] : [idx.user, idx.mail]).forEach(function (m) {
+        (m[l] || []).forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
+      });
+      if (!ids.length) return { none: true };
+      if (ids.length === 1) return { id: ids[0], e: idx.a[ids[0]] };
+      var usable = ids.filter(function (id) { var s = idx.a[id].st; return s === 'ok' || (opts.allowNoPassword && s === 'no-password'); });
+      if (usable.length === 1) return { id: usable[0], e: idx.a[usable[0]] };
+      return { ambiguous: true };
+    }
+    /* The credential is right: may the account go on? (The dashboard's
+       loginBlocked, as a gatekeeper sees it.) null, or the refusal
+       { error, why? }. via: 'password' | 'email' — an account with no
+       password yet may still use its email account; a login still on a
+       password published with the platform opens nothing. */
+    function credentialRefusal(entry, via) {
+      var e = entry || {};
+      if (e.st === 'pending' || e.st === 'disabled' || e.st === 'rejected') return { error: e.st };
+      if (e.st !== 'ok' && !(via === 'email' && e.st === 'no-password')) return { error: e.st || 'no-match' };
+      if (via === 'password' && e.sd) return { error: 'ask-office', why: 'default-password' };
+      return null;
+    }
+    /* Which second steps an account is offered: its authenticator, its
+       unused backup codes, an emailed code (only where email can be sent).
+       unusedCodes: the backup codes still good, or a function giving them —
+       asked only when a second step is needed (it may cost a read). An empty
+       list for an account that needs a second step: it cannot finish here.
+       Backup codes alone never ask for one. → { needed, methods } */
+    function twoStep(entry, unusedCodes, canEmail) {
+      var e = entry || {}, needed = !!(e.tf || e.eo), methods = [];
+      var codes = typeof unusedCodes === 'function' ? (needed ? unusedCodes() : []) : unusedCodes;
+      if (e.tf) methods.push('totp');
+      if (Array.isArray(codes) && codes.length) methods.push('backup');
+      if (e.eo && canEmail) methods.push('email');
+      return { needed: needed, methods: methods };
+    }
+    /* The two-step ticket (§4.3): t2.<base64url(canon {a, cv, exp, m, via, n})>.<HMAC hex>.
+       claims: { a (account), cv (its credential version), exp (ms), m
+       (methods offered), via, n (a random nonce) }. Read back: the claims and
+       `mac`, the first 32 hex characters of its seal — the name a gatekeeper
+       counts tries and single use under — or { error: 'bad-ticket' |
+       'expired' }. */
+    function ticketMake(claims, secret, crypto) {
+      var c = claims || {};
+      var body = b64url(utf8(canon({ a: str(c.a), cv: str(c.cv), exp: c.exp, m: c.m, via: str(c.via), n: str(c.n) })));
+      return 't2.' + body + '.' + hmac(crypto, secret, 't2|' + body);
+    }
+    function ticketRead(ticket, secret, crypto, nowMs) {
+      var parts = str(ticket).split('.');
+      if (parts.length !== 3 || parts[0] !== 't2' || !/^[0-9a-f]{64}$/.test(parts[2])) return { error: 'bad-ticket' };
+      if (!same(hmac(crypto, secret, 't2|' + parts[1]), parts[2])) return { error: 'bad-ticket' };
+      var c = null;
+      try { var bytes = unb64url(parts[1]); c = bytes ? JSON.parse(fromUtf8(bytes)) : null; } catch (e) { c = null; }
+      if (!isObj(c) || !c.a || typeof c.exp !== 'number') return { error: 'bad-ticket' };
+      if (nowMs >= c.exp) return { error: 'expired' };
+      c.mac = parts[2].slice(0, 32);
+      return c;
+    }
+    /* A session id's random part begins with the account's credential
+       version (sealed by the gatekeeper's secret with the rest: sid.make), so
+       an item sealed in a session whose password, status or two-step has
+       changed since is known as revoked with no table of sessions. sidCv
+       reads it back ('' when the id is not one of these). */
+    function sidRand(cv, randHex12) { return str(cv).slice(0, 12) + str(randHex12); }
+    function sidCv(sid) { var m = /^[0-9a-z]+\.([A-Za-z0-9]{12})[A-Za-z0-9]*\.[0-9a-f]{8}$/.exec(str(sid)); return m ? m[1] : ''; }
+
     /* ---- Reading a store map ---- */
     function reader(storeMap) {
       var map = storeMap || {}, memo = dict();
@@ -14714,6 +14831,65 @@
       });
       return out;
     }
+
+    /* ---- A session's lane (§5.1) ----------------------------------------
+       What one session sent, in its own inbox file (one writer, so no lock):
+       an attempt merged question by question (Core.exams.mergeAttemptLists),
+       a profile kept by its key, a chat message by its id within its room,
+       anything else by its id — the copy stamped last wins, and on a tie the
+       one just sent. laneStamp is that stamp: the newest of updatedAt,
+       timestamp, submittedAt, requestedAt and createdAt, as written (only the
+       session's own copies are compared). laneMerge(lane, v, nowMs) takes
+       what validateItem kept (v: { key, rec, recId }) and changes the lane
+       in place. */
+    function laneStamp(r) {
+      if (!isObj(r)) return 0;
+      return Math.max(msOf(r.updatedAt), msOf(r.timestamp), msOf(r.submittedAt), msOf(r.requestedAt), msOf(r.createdAt));
+    }
+    function laneMerge(lane, v, nowMs) {
+      var R = lane.records || (lane.records = {}), k = v.key, rec = v.rec;
+      var byId = function (list, r) {
+        list = Array.isArray(list) ? list : [];
+        for (var i = 0; i < list.length; i++) {
+          if (list[i] && str(list[i].id) === str(r.id)) { if (laneStamp(r) >= laneStamp(list[i])) list[i] = r; return list; }
+        }
+        list.push(r);
+        return list;
+      };
+      if (k === 'voctrain_examAttempts') { R[k] = Core.exams.mergeAttemptLists(R[k] || [], [rec], { nowMs: nowMs }).list; return; }
+      if (k === 'voctrain_studentProfiles') {
+        var m = isObj(R[k]) ? R[k] : {};
+        if (!m[v.recId] || laneStamp(rec) >= laneStamp(m[v.recId])) m[v.recId] = rec;
+        R[k] = m; return;
+      }
+      if (k === 'voctrain_chatMessages') {
+        var rooms = isObj(R[k]) ? R[k] : {};
+        var room = str(rec.roomId), msg = {};
+        Object.keys(rec).forEach(function (f) { if (f !== 'roomId') msg[f] = rec[f]; });
+        rooms[room] = byId(rooms[room], msg);
+        R[k] = rooms; return;
+      }
+      R[k] = byId(R[k], rec);
+    }
+    /* When the gatekeeper first saw an attempt — for the late flag only
+       (§5.3): written once into the lane's firstSeen; true when this call
+       wrote it. firstSeenOf: the earliest of those times, over every lane, of
+       any of the attempt's ids (several devices' copies of one attempt), or
+       nowMs when none has one. */
+    function laneFirstSeen(lane, attemptId, nowMs) {
+      if (!isObj(lane.firstSeen)) lane.firstSeen = {};
+      var k = str(attemptId);
+      if (lane.firstSeen[k]) return false;
+      lane.firstSeen[k] = iso(nowMs);
+      return true;
+    }
+    function firstSeenOf(lanes, ids, nowMs) {
+      var first = nowMs;
+      (Array.isArray(lanes) ? lanes : []).forEach(function (l) {
+        (Array.isArray(ids) ? ids : []).forEach(function (id) { var t = msOf(l && l.firstSeen && l.firstSeen[id]); if (t && t < first) first = t; });
+      });
+      return first;
+    }
     /* Everything a staff device's collector does between downloading the
        inbox files and merging them (§5.6 steps 2–4), as one pure step.
        files: [{ fileId, version, modifiedTime, folderAcct (from the folder's
@@ -15016,6 +15192,9 @@
     }
 
     return {
+      indexAccounts: indexAccounts, lookupLogin: lookupLogin, credentialRefusal: credentialRefusal, twoStep: twoStep,
+      ticketMake: ticketMake, ticketRead: ticketRead, sidRand: sidRand, sidCv: sidCv,
+      laneStamp: laneStamp, laneMerge: laneMerge, laneFirstSeen: laneFirstSeen, firstSeenOf: firstSeenOf,
       VERSION: VERSION, FORMAT: FORMAT, DEVICE_KEYS: DEVICE_KEYS, NS_KEY: NS_KEY, KEY_NAMES: KEY_NAMES,
       canon: canon, hashOf: hashOf, utf8: utf8, toHex: toHex, fromHex: fromHex, b64url: b64url, unb64url: unb64url, same: same,
       prepare: prepare, sliceFor: sliceFor, buildAll: buildAll, buildSlice: buildSlice,
