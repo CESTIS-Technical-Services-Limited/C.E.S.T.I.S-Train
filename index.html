@@ -11052,6 +11052,15 @@ function forgotPwMaskEmail(email) {
   return shown + '•••@' + parts[1];
 }
 
+// Forgot password from the trainee card, on a device that signs trainees in
+// from home, or inside a trainee's home session.
+function forgotPwTraineeSide() {
+  try {
+    if(typeof cestisGateSession === 'function' && cestisGateSession()) return true;
+    if(document.body && document.body.classList.contains('gate-trainee')) return true;
+  } catch(e) {}
+  return !!(forgotPwState && forgotPwState.role === 'student');
+}
 async function forgotPwLookup() {
   var uname = (document.getElementById('forgotPwUser').value || '').trim();
   if(!uname) { showToast('Enter your username or email.', 'warning'); return; }
@@ -11063,7 +11072,13 @@ async function forgotPwLookup() {
     acct = findAny();
     if(!acct) { try { if(await cloudFetchAccountData(false)) acct = findAny(); } catch(_){} }
   }
-  if(!acct) { showToast('No account found for "' + uname + '". Use "Sync Now" first, or contact an administrator.', 'error'); return; }
+  if(!acct) {
+    // A trainee — at home above all, where there is no Sync Now to press, and
+    // the password is kept by the office's records, not the phone — is told
+    // the one thing that helps.
+    if(forgotPwTraineeSide()) { showToast('Ask the office to reset your password.', 'error'); return; }
+    showToast('No account found for "' + uname + '". Use "Sync Now" first, or contact an administrator.', 'error'); return;
+  }
   // A disabled or refused account must not be recoverable — resetting the
   // password would otherwise hand back access an administrator took away. A
   // password-less account IS recoverable: setting one is exactly the fix.
@@ -48084,7 +48099,11 @@ function certDownloadAllowed(student) {
   if (!student || !student.certNo) return { allowed: false, reason: 'No certificate has been issued yet.' };
   var approval = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function (d) { return d && d.studentId === student.id; });
   if (!(approval && approval.approved)) return { allowed: false, reason: 'Certificate download has not been approved yet. Please contact the administration office.' };
-  if (!certSyncDone()) return { allowed: false, reason: 'Sync first \u2014 the Download button switches on once this computer has synced.' };
+  if (!certSyncDone()) {
+    // A trainee signed in from home has no Sync Now: tell her what she can do.
+    if (typeof cestisGateSession === 'function' && cestisGateSession()) return { allowed: false, reason: 'Collect your certificate at the Centre, or download it here once the office has finished it.' };
+    return { allowed: false, reason: 'Sync first \u2014 the Download button switches on once this computer has synced.' };
+  }
   return { allowed: true, reason: '' };
 }
 function certApplyDownloadState(btn, student) {

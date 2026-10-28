@@ -887,6 +887,17 @@ const GSI_STUB = `(function(){
     await shotAll(page, '15-pending-approval');
     ok(await page.evaluate(() => !(window.CESTISStore && CESTISStore.namespace) && !localStorage.getItem('cestisGateNs') && !Object.keys(localStorage).some(k => /^g1::/.test(k))),
       'none of them leaves anything of a session on the phone');
+    // Forgot password on the phone: it used to say 'Use "Sync Now" first' —
+    // there is no Sync Now for a trainee at home. The office resets it.
+    const forgot = await page.evaluate(async () => {
+      try { closePendingScreen(); } catch (e) {}
+      const seen = [], was = showToast;
+      showToast = function (m) { seen.push(String(m)); return was.apply(this, arguments); };
+      try { openForgotPassword('student'); document.getElementById('forgotPwUser').value = 'tameka.richards'; await forgotPwLookup(); } finally { showToast = was; }
+      try { closeForgotPassword(); } catch (e) {}
+      return seen;
+    });
+    ok(forgot.length === 1 && forgot[0] === 'Ask the office to reset your password.', 'Forgot password on the phone: "Ask the office to reset your password." (' + JSON.stringify(forgot) + ')');
     await ctx.close();
   });
 
