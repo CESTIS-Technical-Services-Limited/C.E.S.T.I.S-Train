@@ -13237,7 +13237,8 @@
         row.live = !!(lv && lv.rcv && p && now - lv.rcv < 30000);
         var warn = function (k, level, text) { row.warnings.push({ k: k, level: level, text: text }); };
         if (st === 'in-progress' && summary.awaySince) warn('away-now', 'alert', 'Away from the test window now — since ' + clock(summary.awaySince, off) + ' (' + duration(now - summary.awaySince) + ')');
-        if (summary.left) warn('left', 'warn', 'Left the test window ' + summary.left + '× (' + duration(summary.awayMs + (st === 'in-progress' && summary.awaySince ? now - summary.awaySince : 0)) + ')');
+        // (Away now and never before: the line above says it all.)
+        if (summary.left && !(st === 'in-progress' && summary.awaySince && summary.left === 1)) warn('left', 'warn', 'Left the test window ' + summary.left + '× (' + duration(summary.awayMs + (st === 'in-progress' && summary.awaySince ? now - summary.awaySince : 0)) + ')');
         if (st === 'in-progress' && summary.offlineSince) warn('offline-now', 'alert', 'Connection lost now — since ' + clock(summary.offlineSince, off));
         if (summary.offline) warn('offline', 'warn', 'Connection lost ' + summary.offline + '× (' + duration(summary.offlineMs) + ')');
         if (st === 'in-progress' && !row.timeUp && row.asOf && now - row.asOf > stale) warn('silent', 'alert', 'No update for ' + duration(now - row.asOf) + ' — the connection may be lost');
@@ -13309,7 +13310,7 @@
         var text = '';
         if (e.k === 'start') { hadStart = true; if (!startDev) startDev = e.d || ''; text = 'Started the test' + (e.d ? ' on ' + e.d : ''); }
         else if (e.k === 'resume') text = 'Continued the test' + (e.d ? ' on ' + e.d : '') + (e.d && startDev && e.d !== startDev ? ' (another device)' : '');
-        else if (e.k === 'left') text = e.why === 'blur' ? 'Switched away from the test window' : 'Left the test window';
+        else if (e.k === 'left') text = e.why === 'blur' ? 'Switched away from the test window' : e.why === 'page' ? 'Left the test for another page of the site' : 'Left the test window';
         else if (e.k === 'back') text = 'Came back to the test' + (e.ms ? ' after ' + duration(e.ms) : '');
         else if (e.k === 'offline') text = 'Connection lost';
         else if (e.k === 'online') text = 'Connection back' + (e.ms ? ' after ' + duration(e.ms) : '');
@@ -13338,8 +13339,8 @@
        the attendance log entry by entry (Core.sync.RECORD_MAPS.examRegisters),
        so two invigilators writing at once both keep what they wrote. A signed
        register is never rewritten from the board again. */
-    var REG_STATUS = { completed: 'Present — completed', unfinished: 'Present — did not finish', absent: 'Absent',
-      'not-started': 'Not started yet', 'other-day': 'Sat on another day' };
+    var REG_STATUS = { completed: 'Present — completed', unfinished: 'Present — did not finish', sitting: 'Present — still sitting',
+      absent: 'Absent', 'not-started': 'Not started yet', 'other-day': 'Sat on another day' };
     function registerId(examId, date) { return 'XREG-' + String(examId) + '-' + String(date || ''); }
     function isSigned(reg) { return !!(reg && reg.signoff && typeof reg.signoff === 'object' && Object.keys(reg.signoff).length); }
     /* opts: { existing, now, by, byName }. */
@@ -13349,7 +13350,9 @@
       if (prev && isSigned(prev)) return copy(prev);
       var now = opts.now || Date.now(), at = iso(now);
       var rows = (b && b.rows || []).map(function (r) {
-        var status = r.status === 'submitted' ? 'completed' : r.status === 'in-progress' ? 'unfinished' : r.status;
+        // An attempt still open while the test is: still sitting. Once the
+        // test has closed (or her time is up) without a submission: did not finish.
+        var status = r.status === 'submitted' ? 'completed' : r.status === 'in-progress' ? (b.closed || r.timeUp ? 'unfinished' : 'sitting') : r.status;
         var spent = 0;
         if (r.startedAt) {
           if (r.status === 'submitted' && r.timeTakenSec != null) spent = Math.max(0, Math.round(r.timeTakenSec));
@@ -13373,6 +13376,7 @@
         counts.expected++;
         if (r.status === 'completed') { counts.completed++; counts.present++; }
         else if (r.status === 'unfinished') { counts.unfinished++; counts.present++; }
+        else if (r.status === 'sitting') { counts.sitting = (counts.sitting || 0) + 1; counts.present++; }
         else if (r.status === 'absent') counts.absent++;
       });
       var reg = prev ? copy(prev) : {};
@@ -13429,7 +13433,7 @@
        have been in class without sitting the test). */
     function attendanceProposal(reg, markOf) {
       return ((reg && reg.rows) || []).filter(function (r) {
-        return r.status === 'completed' || r.status === 'unfinished' || r.status === 'absent';
+        return r.status === 'completed' || r.status === 'unfinished' || r.status === 'sitting' || r.status === 'absent';
       }).map(function (r) {
         var current = typeof markOf === 'function' ? (markOf(r.studentId) || '') : '';
         var status = r.status === 'absent' ? 'absent' : 'present';

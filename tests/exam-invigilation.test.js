@@ -276,6 +276,9 @@ const QS = ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'I1', 'Q7', 'Q8', 'Q9', 'Q10'].m
     'Present — completed / Present — did not finish / Absent');
   assertEq(reg.counts, { expected: 4, present: 3, completed: 1, unfinished: 2, absent: 1 }, 'with its counts');
   assertEq(reg.rows.find(r => r.name === 'Devon Campbell').spentSec, 1560, 'time spent from the result');
+  const midReg = V.registerFrom(B, exam, { now: now, byName: 'Marcia Thompson' });
+  assertEq(midReg.rows.map(r => r.status), ['completed', 'sitting', 'not-started', 'sitting'], 'made while the test is open: still sitting, not "did not finish"; not started yet, not absent');
+  assertEq(midReg.counts.present, 3, 'those still sitting are present');
   reg.notes['STU-SB'] = { text: '=HYPERLINK("x") arrived late, sent home', by: 'USR-MT', byName: 'Marcia Thompson' };
   reg.noteAt['STU-SB'] = new Date(T0 + 72 * MIN).toISOString();
   const refreshed = V.registerFrom(closed, exam, { now: T0 + 75 * MIN, existing: reg, byName: 'Marcia Thompson' });
@@ -332,6 +335,21 @@ const QS = ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'I1', 'Q7', 'Q8', 'Q9', 'Q10'].m
     'an instructor: their programme\'s exams and the ones they set — not another programme\'s');
   assertEq(V.examsFor('student', EX, {}), [], 'a trainee: none');
 });
+
+console.log('\nThe page: the tick is off by default, and the page needs it');
+{
+  const PAGE = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const grab = (a, b) => { const i = PAGE.indexOf(a); if (i < 0) throw new Error('index.html no longer declares ' + a); return PAGE.slice(i, PAGE.indexOf(b, i) + b.length); };
+  const box = {};
+  vm.createContext(box);
+  vm.runInContext([grab('var AS_ACCESS_DEFAULTS = {', '};'), grab('var asAccessPages = [', '];'), grab('var AS_PAGE_PERMISSION = {', '};')].join('\n'), box);
+  assert(box.AS_ACCESS_DEFAULTS.invigilation === false, 'Admin Staff\'s "Exam invigilation" is off until an Administrator ticks it');
+  const tick = box.asAccessPages.find(p => p.key === 'invigilation');
+  assert(tick && tick.label === 'Exam invigilation', 'the Settings grid offers the tick "Exam invigilation"');
+  assert(box.AS_PAGE_PERMISSION['as-invigilator'] === 'invigilation', 'and the Admin Staff invigilator page is refused without it (showPage checks it)');
+  assert(/function invigAllowed\(\)[\s\S]{0,400}CESTISCore\.invigilation\.canOpen\(currentRole/.test(PAGE), 'every role\'s page asks the one rule (CESTISCore.invigilation.canOpen)');
+  assert(!/answers/.test(grab('function examLivePulseBody(', '\n}')), 'the live word a trainee\'s computer sends never names the answers');
+}
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

@@ -2583,6 +2583,143 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .exam-note .btn { flex:none; }
 .exam-continue { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
 .exam-continue-note { font-size:12px; color:var(--text-secondary); text-align:right; }
+/* ============================== EXAM INVIGILATOR ==============================
+   The live board of an exam sitting, a trainee's timeline and the sitting's
+   register (Pages/Exam-Invigilator.html). Theme tokens only, so it reads in
+   Light and Dark alike; small text uses the tokens that hold 4.5:1 on a card
+   (--text-secondary, --text-muted, --red-text, --info-text). On a phone the
+   board's rows become cards. */
+.invig-head { display:flex; flex-wrap:wrap; gap:12px 20px; align-items:flex-end; justify-content:space-between; }
+.invig-pick { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end; }
+.invig-pick label, .invig-tool { display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; }
+.invig-pick select { min-width:320px; max-width:100%; }
+.invig-tool { display:flex; align-items:center; gap:8px; margin:0; }
+.invig-tool select { width:auto; }
+.invig-meta { width:100%; font-size:13px; color:var(--text-secondary); line-height:1.6; }
+.invig-meta strong { color:var(--text-primary); }
+.invig-fresh { display:flex; align-items:center; gap:8px 12px; flex-wrap:wrap; font-size:12.5px; color:var(--text-secondary); }
+.invig-fresh .btn { padding:5px 12px; }
+.invig-counts { display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:10px; margin-bottom:14px; }
+.invig-count { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; cursor:pointer; text-align:left; color:var(--text-primary); font:inherit; min-height:44px; }
+.invig-count:hover { border-color:var(--border-light); }
+.invig-count .n { display:block; font-size:22px; font-weight:700; line-height:1.15; font-family:'Playfair Display',serif; }
+.invig-count .l { font-size:12px; color:var(--text-secondary); }
+.invig-count[aria-pressed="true"] { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+.invig-tools { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin-bottom:12px; }
+.invig-tools .grow { flex:1; }
+.invig-search { width:220px; max-width:100%; }
+.invig-board-card { padding:6px 0; }
+.invig-table { width:100%; border-collapse:collapse; }
+.invig-table th { text-align:left; font-size:12px; font-weight:600; color:var(--text-secondary); padding:9px 12px; border-bottom:1px solid var(--border-light); white-space:nowrap; }
+.invig-table td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:top; font-size:13px; color:var(--text-primary); }
+.invig-table tbody tr:last-child td { border-bottom:none; }
+.invig-row { cursor:pointer; }
+.invig-row:hover td, .invig-row:focus-within td { background:var(--bg-card-hover); }
+.invig-row:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.invig-name { font-weight:600; }
+.invig-sub { font-size:12px; color:var(--text-muted); margin-top:2px; }
+.invig-num { font-variant-numeric:tabular-nums; white-space:nowrap; }
+.invig-bar { height:6px; width:110px; max-width:100%; border-radius:3px; background:var(--w-10); overflow:hidden; margin-top:5px; }
+.invig-bar > span { display:block; height:100%; background:var(--blue); }
+.invig-st { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; }
+.invig-st::before { content:''; width:7px; height:7px; border-radius:50%; background:currentColor; }
+.invig-st-in-progress { background:var(--blue-dim); color:var(--info-text); }
+.invig-st-submitted { background:var(--green-dim); color:var(--green); }
+.invig-st-absent { background:var(--red-dim); color:var(--red-text); }
+.invig-st-unfinished { background:var(--accent-dim); color:var(--accent); }
+.invig-st-not-started, .invig-st-other-day { background:var(--w-06); color:var(--text-secondary); }
+.invig-td-name .invig-st-phone { display:none; }
+.invig-live { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; color:var(--green); margin-left:6px; }
+.invig-live::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 0 3px var(--green-dim); }
+.invig-flags { display:flex; flex-wrap:wrap; gap:4px; }
+.invig-flag { display:inline-block; font-size:12px; line-height:1.35; padding:2px 8px; border-radius:10px; }
+.invig-flag.alert { background:var(--red-dim); color:var(--red-text); font-weight:600; }
+.invig-flag.warn { background:var(--accent-dim); color:var(--accent); }
+.invig-flag.info { background:var(--blue-dim); color:var(--info-text); }
+.invig-empty, .invig-empty-row { padding:22px; text-align:center; color:var(--text-secondary); font-size:14px; }
+.invig-foot { font-size:12.5px; color:var(--text-muted); margin:4px 2px 16px; }
+/* The timeline */
+.invig-tl-modal { max-width:640px; width:100%; max-height:88vh; overflow-y:auto; }
+.invig-tl-head { font-size:13px; color:var(--text-secondary); line-height:1.6; margin:-8px 0 12px; }
+.invig-tl-head strong { color:var(--text-primary); }
+.invig-tl { list-style:none; margin:0; padding:0; }
+.invig-tl li { display:flex; gap:14px; padding:7px 2px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text-primary); }
+.invig-tl li:last-child { border-bottom:none; }
+.invig-tl time { flex:none; min-width:66px; font-variant-numeric:tabular-nums; color:var(--text-secondary); }
+.invig-tl .k-left time, .invig-tl .k-offline time { color:var(--red-text); }
+.invig-tl .k-left span, .invig-tl .k-offline span { color:var(--red-text); font-weight:600; }
+.invig-tl .k-start span, .invig-tl .k-submit span, .invig-tl .k-resume span { font-weight:600; }
+.invig-tl .k-seen span, .invig-tl .k-first span { color:var(--text-secondary); }
+/* The register */
+.invig-reg-top { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.invig-reg h3 { font-size:20px; margin-bottom:6px; }
+.invig-reg-meta { font-size:13px; color:var(--text-secondary); line-height:1.7; margin-bottom:10px; }
+.invig-reg-meta strong { color:var(--text-primary); }
+.invig-reg-sign { font-size:13px; font-weight:600; margin-bottom:12px; }
+.invig-reg-sign.signed { color:var(--green); }
+.invig-reg-sign.unsigned { color:var(--accent); }
+.invig-reg-actions { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.invig-reg-counts { font-size:13px; color:var(--text-secondary); margin-bottom:10px; }
+.invig-reg-counts strong { color:var(--text-primary); }
+.invig-note { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.invig-note-facts { margin:0 0 4px; }
+.invig-note-btn { padding:4px 10px; }
+.invig-nowrap { white-space:nowrap; }
+.invig-note input { flex:1; min-width:140px; padding:6px 8px; font-size:13px; }
+.invig-note-text { color:var(--text-primary); }
+.invig-note-none { color:var(--text-muted); font-size:12px; }
+.invig-reg-log { font-size:12.5px; color:var(--text-secondary); margin-top:10px; }
+.invig-att-modal { max-width:780px; width:100%; max-height:90vh; overflow-y:auto; }
+.invig-att-modal p { font-size:13px; color:var(--text-secondary); margin:0 0 12px; }
+.invig-att-modal select { padding:4px 6px; font-size:13px; }
+.invig-att-table { width:100%; border-collapse:collapse; }
+.invig-att-table th { text-align:left; font-size:12px; font-weight:600; color:var(--text-secondary); padding:8px 10px; border-bottom:1px solid var(--border-light); }
+.invig-att-table td { padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text-primary); vertical-align:middle; }
+.invig-att-table td.invig-sub { color:var(--text-muted); font-size:12px; }
+@media (max-width:760px) {
+  .invig-pick, .invig-pick > div { width:100%; }
+  .invig-pick select { min-width:0; width:100%; }
+  .invig-counts { grid-template-columns:repeat(3,1fr); gap:8px; }
+  .invig-count { padding:8px 10px; }
+  .invig-count .n { font-size:19px; }
+  .invig-search { width:100%; }
+  .invig-tools .grow { display:none; }
+  .invig-tools .btn { width:100%; }
+  .card.invig-board-card { background:transparent; border:none; padding:0; overflow:visible; }
+  .invig-table thead { display:none; }
+  .invig-board-card .invig-table, .invig-reg .invig-reg-table { min-width:0; }
+  .invig-board-card .table-wrapper { overflow:visible; }
+  .invig-table, .invig-table tbody { display:block; width:100%; }
+  /* Each trainee a card: name and status across the top, the facts two to a row. */
+  .invig-table tr { display:grid; grid-template-columns:1fr 1fr; column-gap:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:10px; padding:6px 0 8px; }
+  .invig-table td { display:block; width:auto; border-bottom:none; padding:4px 14px; }
+  .invig-table td.invig-td-name, .invig-table td[data-label="To note"], .invig-table td[data-label="Notes"] { grid-column:1 / -1; }
+  .invig-reg-table td[data-label="#"] { display:none; }
+  .invig-table td[data-label]:not(.invig-td-name)::before { content:attr(data-label); display:block; font-size:12px; font-weight:600; color:var(--text-muted); }
+  .invig-table td.invig-td-empty { display:none; }
+  .invig-td-name { display:flex !important; justify-content:space-between; align-items:flex-start; gap:8px; padding-top:8px !important; }
+  .invig-td-name .invig-st-phone { display:inline-flex; }
+  .invig-table td.invig-td-status { display:none; }
+  .invig-row:hover td, .invig-row:focus-within td { background:transparent; }
+  .invig-reg-table td.invig-td-name { display:block !important; }
+}
+/* Printing the register: only the register sheet, in black on white. */
+#invigPrintSheet { display:none; }
+@media print {
+  body.invig-printing { overflow:visible !important; height:auto !important; background:#fff !important; color:#000 !important; }
+  body.invig-printing > *:not(#invigPrintSheet) { display:none !important; }
+  body.invig-printing #invigPrintSheet { display:block !important; }
+  @page { size:A4 landscape; margin:12mm; }
+}
+#invigPrintSheet { color:#000; background:#fff; font-family:'DM Sans',Arial,sans-serif; font-size:11pt; }
+#invigPrintSheet h1 { font-family:'Playfair Display',Georgia,serif; font-size:17pt; margin:0 0 4px; color:#000; }
+#invigPrintSheet .ps-centre { font-size:10pt; letter-spacing:.04em; text-transform:uppercase; color:#333; margin-bottom:6px; }
+#invigPrintSheet .ps-meta { font-size:10pt; line-height:1.6; margin-bottom:10px; color:#000; }
+#invigPrintSheet table { width:100%; border-collapse:collapse; margin-top:6px; }
+#invigPrintSheet th, #invigPrintSheet td { border:1px solid #555; padding:5px 6px; text-align:left; vertical-align:top; font-size:9.5pt; color:#000; }
+#invigPrintSheet th { background:#eee; }
+#invigPrintSheet .ps-sign { display:flex; gap:40px; margin-top:22px; font-size:10pt; }
+#invigPrintSheet .ps-sign div { flex:1; border-top:1px solid #000; padding-top:4px; }
 .exam-option-list li, .exam-option-list label {
   display:flex; align-items:center; gap:12px; padding:12px 16px; margin-bottom:6px;
   border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border);
@@ -6511,6 +6648,11 @@ var examResults = [];
 // small retired record). The device's own copy of an attempt stays under
 // CESTISCore.exams.draftKey, which never leaves the PC.
 var examAttempts = [];
+// The invigilator's attendance register of each exam sitting (exam + day),
+// kept so it can be opened again (CESTISCore.invigilation): merged register
+// by register, its notes and sign-offs entry by entry, deleted only by a
+// tombstone, like the Centre's other records.
+var examRegisters = [];
 
 var calendarEvents = [];
 
@@ -6648,6 +6790,10 @@ function syncCollections() {
     // Removals are only ever written down deliberately: a trainee's device
     // holds just that trainee's rows, which is not a deletion of the rest.
     { name: 'examResults',           get: function(){ return examResults; },           key: function(r){ return CESTISCore.sync.examResultKey(r); }, removals: false, genIds: true },
+    // The invigilators' registers, one per sitting (its id names the exam and
+    // day). A register is never deleted from this page, and a trainee's
+    // sign-out empties this PC's copy — which must never read as a deletion.
+    { name: 'examRegisters',         get: function(){ return examRegisters; },         key: syncKeyById, removals: false },
     // Download approvals, one per trainee: stamped when they change; merged
     // by the certificate rules (CESTISCore.certs.mergeApprovals).
     { name: 'certDownloadApprovals', get: function(){ return certDownloadApprovals; }, key: function(r){ return r && r.studentId != null ? String(r.studentId) : undefined; }, removals: false },
@@ -7419,7 +7565,7 @@ function exportDataBackup() {
     // "session" in it (voctrain_session*) — and so left these out of the file.
     'voctrain_vcSessions',
     'voctrain_resources','voctrain_driveResources','voctrain_studentProfiles','voctrain_instructorProfiles',
-    'voctrain_systemSettings','voctrain_examResults','voctrain_examAttempts','voctrain_calendarEvents','voctrain_adrTasks',
+    'voctrain_systemSettings','voctrain_examResults','voctrain_examAttempts','voctrain_examRegisters','voctrain_calendarEvents','voctrain_adrTasks',
     'voctrain_adrStaffMeta','voctrain_adminStaffAccess','voctrain_instructorData','voctrain_certDownloadApprovals',
     'voctrain_skillAreas','voctrain_certTemplates','voctrain_chatRooms','voctrain_chatMessages',
     'voctrain_chatProfiles','voctrain_chatFollows',
@@ -8309,7 +8455,9 @@ function lmsChatFlushDriveSyncNow() {
 // hand Admin Staff add / edit / delete / certify / re-id powers in Student
 // Progress. Changing the roll is its own grant, off unless an Administrator
 // ticks it.
-var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, video:true, resources:false, supportmessages:false };
+// 'invigilation' (the Exam Invigilator page: live board and sitting
+// registers) is off until an Administrator ticks it.
+var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false };
 function adminStaffAccessDefaults() { return Object.assign({}, AS_ACCESS_DEFAULTS); }
 var adminStaffAccessSettings = adminStaffAccessDefaults();
 
@@ -8579,6 +8727,12 @@ function clearSensitiveStudentData() {
     CESTISStore.setItem('voctrain_examAttempts', JSON.stringify(myAttempts));
   } catch(e) {}
 
+  // 3c. The invigilators' registers of exam sittings name other trainees and
+  // are the staff's records: a trainee's PC keeps none after she signs out
+  // (the staff's copies are untouched; a staff sign-in's unsent work is kept
+  // by the guard above).
+  try { examRegisters = []; CESTISStore.removeItem('voctrain_examRegisters'); } catch(e) {}
+
   // 4. Keep only this student's profile
   try {
     var myProfile = {};
@@ -8765,6 +8919,7 @@ function clearAllSessionData() {
   attendanceRegister = [];
   examResults = [];
   examAttempts = [];
+  examRegisters = [];
   calendarEvents = [];
   classSessions = [];
   adminMeetings = [];
@@ -8919,6 +9074,7 @@ function saveState() {
     CESTISStore.setItem('voctrain_systemSettings', JSON.stringify(systemSettings));
     saveCollection('voctrain_examResults', examResults);
     try { examAttemptsPersist(); } catch(e) {}
+    saveCollection('voctrain_examRegisters', examRegisters);
     saveCollection('voctrain_calendarEvents', calendarEvents);
     saveCollection('voctrain_instructorData', instructorData);
     saveCollection('voctrain_certDownloadApprovals', certDownloadApprovals);
@@ -9086,6 +9242,8 @@ function loadState() {
     if(Array.isArray(er)) examResults = er;
     var eat = safeJsonParse(CESTISStore.getItem('voctrain_examAttempts'), null);
     if(Array.isArray(eat)) examAttempts = eat;
+    var xreg = safeJsonParse(CESTISStore.getItem('voctrain_examRegisters'), null);
+    if(Array.isArray(xreg)) examRegisters = xreg;
     if(ce) { var _cc={class:'var(--blue)',exam:'var(--red)',deadline:'var(--accent)',meeting:'var(--purple)'}; calendarEvents = ce.map(function(e){if(!e.color){e.color=_cc[e.type]||'var(--blue)';}return e;}); }
     var adrT = safeJsonParse(CESTISStore.getItem('voctrain_adrTasks'), null);
     var adrM = safeJsonParse(CESTISStore.getItem('voctrain_adrStaffMeta'), null);
@@ -13313,6 +13471,8 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Assignments</div>
     <div class="nav-item" data-page="exams" onclick="showPage('exams')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>
+    <div class="nav-item" data-page="invigilator" onclick="showPage('invigilator')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Exam Invigilator</div>
     <div class="nav-item" data-page="import-exam" onclick="showPage('import-exam')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import Exam</div>
     <div class="nav-item" data-page="pdf-workshop" onclick="showPage('pdf-workshop')">
@@ -13433,6 +13593,8 @@ function buildInstructorSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Qual Plan/Curriculum</div>
     <div class="nav-item" data-page="i-exams" onclick="showPage('i-exams')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>
+    <div class="nav-item" data-page="i-invigilator" onclick="showPage('i-invigilator')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Exam Invigilator</div>
     <div class="nav-section-label">Tasks</div>
     <div class="nav-item" data-page="i-duties" onclick="showPage('i-duties')" style="position:relative;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>My Assigned Tasks<span id="iDutyTasksBadge" class="nav-badge" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:var(--red);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;min-width:18px;text-align:center;">0</span></div>
@@ -13567,6 +13729,14 @@ var cestisFeatureConfig = {
     file: 'Pages/Online-Exams.html',
     onMount: function() {
       renderExamsUpcoming();
+    }
+  },
+  // The Exam Invigilator: one page for every staff role (who may open it and
+  // which exams they see: CESTISCore.invigilation).
+  'invigilator': {
+    file: 'Pages/Exam-Invigilator.html',
+    onMount: function(prefix) {
+      if(typeof invigOnMount === 'function') { try { invigOnMount(prefix); } catch(e) { console.warn('invigilator mount error', e); } }
     }
   },
   'import-exam': {
@@ -13868,7 +14038,7 @@ function cestisActivePageId() {
 // of the role itself and are always available.
 var AS_PAGE_PERMISSION = {
   'as-students': 'students', 'as-certificates': 'certificates', 'as-reports': 'reports',
-  'as-training': 'training', 'as-exams': 'exams', 'as-video': 'video',
+  'as-training': 'training', 'as-exams': 'exams', 'as-invigilator': 'invigilation', 'as-video': 'video',
   'as-resources': 'resources', 'as-support-messages': 'supportmessages',
   'as-attendance': 'attendance', 'as-announcements': 'announcements', 'as-calendar': 'calendar'
 };
@@ -13922,7 +14092,7 @@ function showPage(pageId) {
   }
   const titles = {
     dashboard:'Dashboard',video:'Video Conference',students:'Student Progress',
-    training:'Training Centres','course-duration':'Course / Training Centre Duration','transfer-trainees':'Transfer Trainees','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams','import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
+    training:'Training Centres','course-duration':'Course / Training Centre Duration','transfer-trainees':'Transfer Trainees','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams',invigilator:'Exam Invigilator','i-invigilator':'Exam Invigilator','as-invigilator':'Exam Invigilator','import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
     reports:'Reports & Analytics','verify-users':'Verify Users',settings:'Settings',
     attendance:'Attendance Management',announcements:'Announcements',calendar:'Calendar & Schedule',
     's-dashboard':'My Dashboard','s-video':'My Classes','s-progress':'My Progress',
@@ -14238,6 +14408,11 @@ function buildAdminPages() {
   <!-- EXAMS -->
   <section class="page" id="page-exams">
     <div class="cestis-mount" data-feature="exams" data-prefix="admin"></div>
+  </section>
+
+  <!-- EXAM INVIGILATOR (live board and sitting registers) -->
+  <section class="page" id="page-invigilator">
+    <div class="cestis-mount" data-feature="invigilator" data-prefix="admin"></div>
   </section>
 
   <!-- IMPORT EXAM PAGE -->
@@ -15634,6 +15809,11 @@ function buildInstructorPages() {
   <!-- INSTRUCTOR ONLINE EXAMS -->
   <section class="page" id="page-i-exams">
     <div class="cestis-mount" data-feature="i-exams" data-prefix="instructor"></div>
+  </section>
+
+  <!-- EXAM INVIGILATOR (Instructor: their programmes' exams) -->
+  <section class="page" id="page-i-invigilator">
+    <div class="cestis-mount" data-feature="invigilator" data-prefix="instructor"></div>
   </section>
 
   <!-- DOCUMENT HUB (Instructor - Download Only) -->
@@ -23258,6 +23438,7 @@ var CESTIS_SHARED_COLLECTIONS = {
   // Merged, never adopted wholesale: another tab or the Centre's network may
   // hold an older copy of the attempt open here (examAttemptsMergeIncoming).
   voctrain_examAttempts:        function(v){ examAttemptsMergeIncoming(v); },
+  voctrain_examRegisters:       function(v){ invigRegistersMergeIncoming(v); },
   voctrain_certDownloadApprovals: function(v){ certDownloadApprovals = v; },
   voctrain_skillAreas:          function(v){ skillAreas = CESTISCore.catalogue.liveCentres(v, CESTISStore); },
   voctrain_users:               function(v){ userAccounts = v; },
@@ -27962,6 +28143,7 @@ function examAttemptsMergeIncoming(incoming) {
   try { settled = X.settleAttempts(examAttempts, examResults); } catch (e) {}
   if (r.changed || settled) { try { saveCollection('voctrain_examAttempts', examAttempts); } catch (e) {} }
   try { examAttemptsArrived('device'); } catch (e) {}
+  if (r.changed || settled) { try { if (typeof invigDataChanged === 'function') invigDataChanged(); } catch (e) {} }
   return !!(r.changed || settled);
 }
 // At sign-in: every attempt saved on this PC (anyone's — a power cut, a
@@ -29661,6 +29843,733 @@ function backToStudentExamList() {
   showPage('s-exams');
 }
 
+/* ============================== EXAM INVIGILATOR ==============================
+   The owner's request: "I want a exam invigilator page, so that administrative
+   staff can track when individuals start their assessments and begin each page
+   and questions in real time, which produces a register of attendance for
+   trainees. Invigilator see when each trainee complete their assessment."
+
+   One page (Pages/Exam-Invigilator.html) for administrators, instructors (their
+   own programmes' exams) and Admin Staff with the "Exam invigilation" tick —
+   the rules are CESTISCore.invigilation. For a chosen sitting (exam + day): a
+   live board with a row per expected trainee, each trainee's timeline, and
+   the sitting's attendance register.
+
+   How "live" it is, honestly. The board reads the attempt records this PC
+   holds — the records every route already brings here, and the trainee gate
+   will collect — and redraws every few seconds and the moment new ones are
+   merged. On the Centre's network it asks for the latest every
+   INVIG_CHECK_MS; otherwise the regular sync brings them every few seconds. A
+   trainee's computer re-saves its attempt at least every half minute while a
+   test is open (at once when it starts, leaves the page or submits), so a
+   row is normally under a minute old — and each row says how old it is.
+   When a trainee's computer is linked live (the link notifications use), it
+   also sends word at each change (examLivePulse) and the row moves at once:
+   shown here, never stored. Nothing on the page shows an answer.
+   ============================================================================ */
+var INVIG_CHECK_MS = 10000, INVIG_WATCH_MS = 20000, INVIG_REDRAW_MS = 5000;
+// A test in progress that has said nothing for this long is flagged
+// (CESTISCore.invigilation.STALE_MS); a configuration value, not a rule.
+var INVIG_STALE_MS = 150000;
+var invigState = { prefix: 'admin', examId: '', date: '', show: 'all', sort: 'status', q: '', view: 'board', board: null, exam: null,
+  lastCheck: 0, lastCheckDone: 0, lastDraw: 0, lastWatch: 0, tick: null, checking: false, timelineSid: null, regId: '', editNote: null, soon: null };
+var invigLive = {};   // studentId -> { p, rcv }: the latest word from a trainee's computer, memory only
+var _INVIG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+var _INVIG_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function invigAllowed() {
+  return !!(window.CESTISCore && CESTISCore.invigilation && CESTISCore.invigilation.canOpen(currentRole, adminStaffAccessSettings));
+}
+function invigPageActive() {
+  return !!document.querySelector('#page-invigilator.active, #page-i-invigilator.active, #page-as-invigilator.active');
+}
+function invigWho() {
+  var u = (typeof currentLoggedInUser !== 'undefined' && currentLoggedInUser) ? currentLoggedInUser : {};
+  return { id: String(u.id || u.username || currentRole || ''), name: String(u.name || u.fullName || u.username || 'Invigilator') };
+}
+function invigInstructorCourses() {
+  var i = (typeof currentInstructor !== 'undefined' && currentInstructor) ? currentInstructor : {}, out = [];
+  [i.course, i.programme].concat(Array.isArray(i.courses) ? i.courses : []).forEach(function(c) { c = String(c || '').trim(); if (c && out.indexOf(c) === -1) out.push(c); });
+  return out;
+}
+function invigMatch(a, b) { return a === b || instructorCourseMatch(a, b); }
+// "Wednesday 28 October 2026" for a 'YYYY-MM-DD' day.
+function invigDayText(d, short) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || ''));
+  if (!m) return String(d || '');
+  var dt = new Date(+m[1], +m[2] - 1, +m[3]);
+  if (short) return _INVIG_DAYS[dt.getDay()].slice(0, 3) + ' ' + (+m[3]) + ' ' + _INVIG_MONTHS[+m[2] - 1].slice(0, 3);
+  return _INVIG_DAYS[dt.getDay()] + ' ' + (+m[3]) + ' ' + _INVIG_MONTHS[+m[2] - 1] + ' ' + m[1];
+}
+function invigClock(ms, seconds) { return CESTISCore.invigilation.clock(ms, examCentreOffset(), seconds); }
+// The exams this person may watch.
+function invigExams() {
+  var sat = {};
+  (Array.isArray(examAttempts) ? examAttempts : []).forEach(function(a) { if (a && a.examId != null) sat[String(a.examId)] = 1; });
+  (Array.isArray(examResults) ? examResults : []).forEach(function(r) { if (r && !r.archived && r.examId != null) sat[String(r.examId)] = 1; });
+  return CESTISCore.invigilation.examsFor(currentRole, exams, { now: examStampNow(), offset: examCentreOffset(), courses: invigInstructorCourses(),
+    match: invigMatch, userId: currentRole === 'instructor' && currentInstructor ? currentInstructor.id : null, sat: sat });
+}
+function invigExam() { return (exams || []).find(function(e) { return e && String(e.id) === String(invigState.examId); }) || null; }
+
+/* ---- Mounting, the loop, and asking for the latest ---- */
+function invigOnMount(prefix) {
+  invigState.prefix = prefix || 'admin';
+  var denied = document.getElementById('invigDenied'), main = document.getElementById('invigMain');
+  if (!denied || !main) return;
+  var ok = invigAllowed();
+  denied.style.display = ok ? 'none' : 'block';
+  main.style.display = ok ? '' : 'none';
+  if (!ok) return;
+  var sortSel = document.getElementById('invigSort');
+  if (sortSel) sortSel.value = invigState.sort;
+  invigFillExams();
+  invigRender();
+  invigStartLoop();
+  invigCheckNow();
+  invigWatchTrainees();
+}
+function invigStartLoop() {
+  if (invigState.tick) return;
+  invigState.tick = setInterval(invigTick, 1000);
+}
+function invigTick() {
+  if (!invigPageActive() || document.visibilityState === 'hidden') {
+    clearInterval(invigState.tick); invigState.tick = null;
+    return;
+  }
+  var now = Date.now();
+  invigUpdateClocks();
+  if (invigState.view === 'board' && now - invigState.lastDraw >= INVIG_REDRAW_MS) invigRender();
+  if (now - invigState.lastCheck >= INVIG_CHECK_MS) invigCheckNow();
+  if (now - invigState.lastWatch >= INVIG_WATCH_MS) invigWatchTrainees();
+}
+// Back on the page (another tab, the PC woken): the latest at once.
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && typeof invigPageActive === 'function' && invigPageActive() && invigAllowed()) { invigStartLoop(); invigCheckNow(); }
+});
+window.addEventListener('focus', function() {
+  if (typeof invigPageActive === 'function' && invigPageActive() && invigAllowed()) { invigStartLoop(); if (Date.now() - invigState.lastCheck > 3000) invigCheckNow(); }
+});
+/* Ask for the latest records now. On the Centre's network: its latest copy;
+   otherwise the regular sync already does this every few seconds, and "Check
+   now" asks for it at once. */
+function invigCheckNow(manual) {
+  invigState.lastCheck = Date.now();
+  if (invigState.checking) return;
+  var done = function() { invigState.checking = false; invigState.lastCheckDone = Date.now(); invigFillExams(); invigRender(); };
+  var job = null;
+  try {
+    if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function') {
+      job = Promise.resolve(CESTISPageCloud.lan()).then(function(on) {
+        if (on) return CESTISPageCloud.loadNow();
+        if (manual && typeof isCloudConnected !== 'undefined' && isCloudConnected && googleAccessToken && typeof pullMainIfRemoteNewer === 'function') return pullMainIfRemoteNewer();
+        return null;
+      });
+    }
+  } catch (e) { job = null; }
+  if (!job) { done(); return; }
+  invigState.checking = true;
+  var timeout = new Promise(function(r) { setTimeout(r, 15000); });
+  Promise.race([job.catch(function() {}), timeout]).then(done, done);
+}
+// New attempts or results were merged here: the board follows at once.
+function invigDataChanged() {
+  if (!invigPageActive() || invigState.view !== 'board' || invigState.soon) return;
+  invigState.soon = setTimeout(function() { invigState.soon = null; invigRender(); }, 250);
+}
+/* Word from a trainee's computer over the live link (examLivePulse): believed
+   only from that trainee's own account, kept in memory, drawn at once. */
+function invigPulseArrived(data, fromUid) {
+  if (!examIsStaffSession() || !data || !data.p || typeof data.p !== 'object') return;
+  var p = data.p;
+  var acc = (userAccounts || []).find(function(u) { return u && u.id === fromUid; });
+  if (!acc || acc.role !== 'student' || !acc.studentDataId || String(acc.studentDataId) !== String(p.studentId)) return;
+  var n = function(v) { v = Number(v); return isFinite(v) && v >= 0 ? v : 0; };
+  invigLive[String(p.studentId)] = { rcv: examStampNow(), p: {
+    attemptId: String(p.attemptId || '').slice(0, 80), examId: String(p.examId || '').slice(0, 80), studentId: String(p.studentId),
+    at: n(p.at), page: n(p.page), pages: n(p.pages), q: String(p.q == null ? '' : p.q).slice(0, 6), view: p.view === 'summary' ? 'summary' : 'attempt',
+    answered: n(p.answered), total: n(p.total), startTime: n(p.startTime), deadline: n(p.deadline), last: n(p.last),
+    done: p.done === true, submittedAt: n(p.submittedAt), activity: CESTISCore.exams.activityOf(p.activity) } };
+  invigDataChanged();
+}
+/* Ask the computers of trainees sitting (or about to sit) this test for live
+   word, every INVIG_WATCH_MS while the board is open. A trainee who has not
+   started is asked only while her computer is about. */
+function invigWatchTrainees() {
+  invigState.lastWatch = Date.now();
+  var b = invigState.board;
+  if (!b || typeof cestisRTBroadcast !== 'function' || typeof lmsChatRTReady === 'undefined' || !lmsChatRTReady) return;
+  var now = Date.now(), ids = [];
+  b.rows.forEach(function(r) {
+    if (r.status !== 'in-progress' && r.status !== 'not-started') return;
+    var uid = examTraineeUserId(r.studentId);
+    if (!uid) return;
+    if (r.status === 'not-started' && !(CESTISCore.chat && CESTISCore.chat.isOnline(lmsChatProfiles && lmsChatProfiles[uid], now))) return;
+    ids.push(uid);
+  });
+  if (ids.length) { try { cestisRTBroadcast(ids, { type: 'exam-watch', examId: String(b.examId) }); } catch (e) {} }
+}
+
+/* ---- Choosing the sitting ---- */
+function invigExamLabel(e) {
+  var off = examCentreOffset(), st = CESTISCore.exams.statusAt(e, examStampNow(), off);
+  return e.title + ' — ' + invigDayText(e.date, true) + (e.time ? ', ' + e.time : '') + (st === 'active' ? ' (open now)' : st === 'upcoming' ? ' (coming up)' : '');
+}
+function invigFillExams() {
+  var sel = document.getElementById('invigExam');
+  if (!sel) return;
+  var list = invigExams();
+  if (!list.some(function(e) { return String(e.id) === String(invigState.examId); })) { invigState.examId = list.length ? String(list[0].id) : ''; invigState.date = ''; }
+  var off = examCentreOffset(), now = examStampNow(), groups = { active: [], upcoming: [], completed: [] };
+  list.forEach(function(e) { groups[CESTISCore.exams.statusAt(e, now, off)].push(e); });
+  var html = '';
+  [['active', 'Open now'], ['upcoming', 'Coming up'], ['completed', 'Finished']].forEach(function(g) {
+    if (!groups[g[0]].length) return;
+    html += '<optgroup label="' + g[1] + '">' + groups[g[0]].map(function(e) {
+      return '<option value="' + escapeAttr(e.id) + '"' + (String(e.id) === String(invigState.examId) ? ' selected' : '') + '>' + escapeHtml(invigExamLabel(e)) + '</option>';
+    }).join('') + '</optgroup>';
+  });
+  if (sel.innerHTML !== html) sel.innerHTML = html || '<option value="">No exams to invigilate yet</option>';
+  sel.disabled = !list.length;
+}
+function invigPickExam(id) {
+  invigState.examId = String(id || ''); invigState.date = ''; invigState.show = 'all'; invigState.view = 'board';
+  invigLive = {};
+  invigRender();
+  invigWatchTrainees();
+}
+function invigPickDate(d) { invigState.date = String(d || ''); invigRender(); }
+function invigSetSort(v) { invigState.sort = v || 'status'; invigRender(); }
+function invigSetShow(v) { invigState.show = invigState.show === v && v !== 'all' ? 'all' : (v || 'all'); invigRender(); }
+function invigSetSearch(v) { invigState.q = String(v || '').trim().toLowerCase(); invigRender(); }
+
+/* ---- The board ---- */
+function invigBuildBoard() {
+  var exam = invigExam();
+  if (!exam) { invigState.board = null; invigState.exam = null; return null; }
+  var V = CESTISCore.invigilation, off = examCentreOffset();
+  var roll = V.rollFor(exam, students, examAttempts, examResults, { match: invigMatch });
+  var b = V.board(exam, { students: roll, attempts: examAttempts, results: examResults, live: invigLive, now: examStampNow(),
+    offset: off, date: invigState.date, staleMs: INVIG_STALE_MS });
+  if (!invigState.date || b.dates.indexOf(invigState.date) === -1) invigState.date = b.date;
+  invigState.exam = exam; invigState.board = b;
+  return b;
+}
+function invigWindowText(b, exam) {
+  var w = b.window, off = examCentreOffset(), now = b.now;
+  if (!w) return '';
+  var span = invigClock(w.start) + '–' + invigClock(w.end) + (b.multiDay ? ' (open until ' + invigDayText(CESTISCore.exams.centreParts(w.end - 1, off).date, true) + ')' : '');
+  var st = b.status === 'active' ? 'Open now — closes at ' + invigClock(w.end) : b.status === 'upcoming' ? 'Opens at ' + invigClock(w.start) : 'Closed';
+  return span + ' · <strong>' + escapeHtml(st) + '</strong>';
+}
+function invigRender() {
+  invigState.lastDraw = Date.now();
+  var main = document.getElementById('invigMain');
+  if (!main || !invigAllowed()) return;
+  var b = invigBuildBoard(), exam = invigState.exam;
+  var meta = document.getElementById('invigMeta'), fresh = document.getElementById('invigFresh');
+  var dWrap = document.getElementById('invigDateWrap'), dSel = document.getElementById('invigDate');
+  var boardView = document.getElementById('invigBoardView'), regView = document.getElementById('invigRegisterView');
+  if (!b) {
+    if (meta) meta.innerHTML = '';
+    if (fresh) fresh.innerHTML = '';
+    if (dWrap) dWrap.style.display = 'none';
+    if (boardView) boardView.style.display = 'none';
+    if (regView) { regView.style.display = 'block'; regView.innerHTML = '<div class="card invig-empty">No exams to invigilate yet. An exam appears here once it has questions' + (currentRole === 'instructor' ? ' and is on one of your programmes' : '') + '.</div>'; }
+    return;
+  }
+  if (dWrap && dSel) {
+    dWrap.style.display = b.dates.length > 1 ? '' : 'none';
+    var dh = b.dates.map(function(d) { return '<option value="' + escapeAttr(d) + '"' + (d === b.date ? ' selected' : '') + '>' + escapeHtml(invigDayText(d)) + '</option>'; }).join('');
+    if (dSel.innerHTML !== dh) dSel.innerHTML = dh;
+  }
+  if (meta) meta.innerHTML = '<strong>' + escapeHtml(exam.course || '') + '</strong> · ' + escapeHtml(invigDayText(b.date)) + ' · ' + invigWindowText(b, exam) +
+    ' · ' + escapeHtml(String(exam.duration || '')) + ' minutes, ' + CESTISCore.exams.questionCount(exam) + ' questions';
+  var liveN = b.rows.filter(function(r) { return r.live; }).length;
+  var fh = '<span>Updates arrive by themselves — last checked <span id="invigChecked">just now</span>.</span>' +
+    (liveN ? '<span class="invig-live">' + liveN + ' linked live</span>' : '') +
+    '<button type="button" class="btn btn-secondary btn-sm" onclick="invigCheckNow(true)">Check now</button>';
+  if (fresh && fresh._invigHtml !== fh) { fresh.innerHTML = fh; fresh._invigHtml = fh; }
+  if (invigState.view === 'register') {
+    if (boardView) boardView.style.display = 'none';
+    if (regView) regView.style.display = 'block';
+    invigRenderRegister();
+    return;
+  }
+  if (boardView) boardView.style.display = '';
+  if (regView) { regView.style.display = 'none'; }
+  invigRenderCounts(b);
+  invigRenderRows(b);
+  if (invigState.timelineSid) invigRenderTimeline();
+}
+function invigRenderCounts(b) {
+  var el = document.getElementById('invigCounts');
+  if (!el) return;
+  var c = b.counts;
+  var items = [['all', c.expected, 'Expected'], ['started', c.started, 'Started'], ['in-progress', c.inProgress, 'In progress'],
+    ['submitted', c.submitted, 'Submitted'], ['not-started', c.notStarted, 'Not started'], ['absent', c.absent, 'Absent']];
+  if (c.attention) items.push(['attention', c.attention, 'Needs attention']);
+  if (c.otherDay) items.push(['other-day', c.otherDay, 'Sat another day']);
+  el.innerHTML = items.map(function(it) {
+    return '<button type="button" class="invig-count" data-show="' + it[0] + '" aria-pressed="' + (invigState.show === it[0] ? 'true' : 'false') + '" onclick="invigSetShow(\'' + it[0] + '\')">' +
+      '<span class="n">' + it[1] + '</span><span class="l">' + it[2] + '</span></button>';
+  }).join('');
+}
+function invigRowsShown(b) {
+  var V = CESTISCore.invigilation, rows = b.rows;
+  if (invigState.show === 'started') rows = rows.filter(function(r) { return r.status === 'in-progress' || r.status === 'submitted'; });
+  else rows = V.filterRows(rows, invigState.show);
+  if (invigState.q) rows = rows.filter(function(r) { return String(r.name).toLowerCase().indexOf(invigState.q) !== -1 || String(r.studentId).toLowerCase().indexOf(invigState.q) !== -1; });
+  return V.sortRows(rows, invigState.sort);
+}
+function invigHowText(how) {
+  return how === 'time' ? 'automatically when the time ran out' : how === 'away' ? 'automatically — the time ran out while away' : 'by the trainee';
+}
+function invigRowHtml(r) {
+  var sid = jsArg(r.studentId), s = r.summary || {};
+  var started = r.startedAt ? '<span class="invig-num">' + escapeHtml(invigClock(r.startedAt)) + '</span>' + (s.device ? '<div class="invig-sub invig-nowrap">' + escapeHtml(s.device) + '</div>' : '') : '—';
+  var now = '—', nowSub = '';
+  if (r.status === 'in-progress') {
+    if (r.timeUp) now = 'Time is up';
+    else if (r.onSummary) now = 'Checking the summary page';
+    else now = 'Page ' + r.pageNo + (r.pageCount ? ' of ' + r.pageCount : '') + (r.qLabel ? ' · ' + (r.qLabel === 'i' ? 'Information' : 'Question ' + r.qLabel) : '');
+  } else if (r.status === 'submitted') {
+    now = 'Submitted ' + invigClock(r.submittedAt);
+    nowSub = invigHowText(r.how) + (r.late ? ', after the test closed' : '');
+  } else if (r.status === 'not-started') nowSub = 'Not started yet';
+  else if (r.status === 'absent') nowSub = 'Did not start';
+  else if (r.status === 'other-day') nowSub = 'Sat on ' + invigDayText(r.otherDate, true);
+  var pct = r.total ? Math.round(r.answered / r.total * 100) : 0;
+  var answered = (r.status === 'in-progress' || r.status === 'submitted') && r.total
+    ? '<span class="invig-num">' + r.answered + ' of ' + r.total + '</span><div class="invig-bar" aria-hidden="true"><span style="width:' + pct + '%"></span></div>' : '—';
+  var left = r.status === 'in-progress' && r.deadline ? '<span class="invig-num" data-invig-left="' + r.deadline + '"></span>' : '—';
+  var last = r.lastActivityAt && r.status !== 'not-started' && r.status !== 'absent'
+    ? '<span data-invig-ago="' + r.lastActivityAt + '"></span>' +
+      (r.asOf && r.status === 'in-progress' ? '<div class="invig-sub">updated <span data-invig-ago="' + r.asOf + '"></span></div>' : '')
+    : '—';
+  var flags = r.warnings.length ? '<div class="invig-flags">' + r.warnings.map(function(w) { return '<span class="invig-flag ' + w.level + '">' + escapeHtml(w.text) + '</span>'; }).join('') + '</div>' : '';
+  return '<tr class="invig-row" tabindex="0" data-sid="' + escapeAttr(r.studentId) + '" onclick="invigOpenTimeline(' + sid + ')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();invigOpenTimeline(' + sid + ');}" aria-label="' + escapeAttr(r.name + ': ' + r.statusLabel + '. Open the timeline') + '">' +
+    '<td class="invig-td-name" data-label="Trainee"><div><div class="invig-name">' + escapeHtml(r.name) + '</div><div class="invig-sub">' + escapeHtml(r.studentId) + '</div></div>' +
+      '<div><span class="invig-st invig-st-' + r.status + ' invig-st-phone">' + escapeHtml(r.statusLabel) + '</span>' + (r.live ? '<span class="invig-live invig-st-phone">Live</span>' : '') + '</div></td>' +
+    '<td data-label="Status" class="invig-td-status"><span class="invig-st invig-st-' + r.status + '">' + escapeHtml(r.statusLabel) + '</span>' + (r.live ? '<span class="invig-live">Live</span>' : '') + '</td>' +
+    '<td data-label="Started"' + (r.startedAt ? '' : ' class="invig-td-empty"') + '>' + started + '</td>' +
+    '<td data-label="Now at">' + escapeHtml(now) + (nowSub ? '<div class="invig-sub">' + escapeHtml(nowSub) + '</div>' : '') + '</td>' +
+    '<td data-label="Answered"' + (answered === '—' ? ' class="invig-td-empty"' : '') + '>' + answered + '</td>' +
+    '<td data-label="Time left"' + (left === '—' ? ' class="invig-td-empty"' : '') + '>' + left + '</td>' +
+    '<td data-label="Last activity"' + (last === '—' ? ' class="invig-td-empty"' : '') + '>' + last + '</td>' +
+    '<td data-label="To note"' + (flags ? '' : ' class="invig-td-empty"') + '>' + (flags || '—') + '</td></tr>';
+}
+function invigRenderRows(b) {
+  var tb = document.getElementById('invigBoard'), empty = document.getElementById('invigBoardEmpty');
+  if (!tb) return;
+  var rows = invigRowsShown(b);
+  var html = rows.map(invigRowHtml).join('');
+  // Redrawn only when something on it changed (the clocks tick by
+  // themselves), so a row keeps the keyboard's place.
+  if (tb._invigHtml !== html) {
+    var focused = document.activeElement && document.activeElement.closest && document.activeElement.closest('.invig-row');
+    var fsid = focused ? focused.getAttribute('data-sid') : null;
+    tb.innerHTML = html;
+    tb._invigHtml = html;
+    if (fsid) { var again = tb.querySelector('.invig-row[data-sid="' + fsid.replace(/"/g, '') + '"]'); if (again) { try { again.focus({ preventScroll: true }); } catch (e) {} } }
+  }
+  invigUpdateClocks();
+  if (empty) {
+    empty.style.display = rows.length ? 'none' : 'block';
+    empty.textContent = b.rows.length ? 'Nobody to show with this choice.' : 'Nobody is expected at this sitting: no trainee in training is on ' + (invigState.exam ? invigState.exam.course : 'this programme') + '.';
+  }
+}
+// The clocks on the board tick every second without redrawing it.
+function invigUpdateClocks() {
+  var now = examStampNow(), V = CESTISCore.invigilation;
+  Array.prototype.forEach.call(document.querySelectorAll('#invigRoot [data-invig-ago], #invigTimelineModal [data-invig-ago]'), function(el) {
+    var t = Number(el.getAttribute('data-invig-ago'));
+    if (t) el.textContent = V.ago(now - t);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#invigRoot [data-invig-left]'), function(el) {
+    el.textContent = examClock(Math.max(0, Math.ceil((Number(el.getAttribute('data-invig-left')) - now) / 1000)));
+  });
+  var c = document.getElementById('invigChecked');
+  if (c && invigState.lastCheckDone) c.textContent = V.ago(Date.now() - invigState.lastCheckDone);
+}
+
+/* ---- A trainee's timeline ---- */
+function invigOpenTimeline(sid) {
+  invigState.timelineSid = String(sid);
+  invigRenderTimeline();
+  openModal('invigTimelineModal');
+  var x = document.querySelector('#invigTimelineModal .modal-close');
+  if (x && x.focus) { try { x.focus({ preventScroll: true }); } catch (e) {} }
+}
+function invigCloseTimeline() {
+  var sid = invigState.timelineSid;
+  invigState.timelineSid = null;
+  closeModal('invigTimelineModal');
+  var row = sid ? document.querySelector('#invigBoard .invig-row[data-sid="' + String(sid).replace(/"/g, '') + '"]') : null;
+  if (row && row.focus) { try { row.focus({ preventScroll: true }); } catch (e) {} }
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && invigState.timelineSid && document.getElementById('invigTimelineModal') && document.getElementById('invigTimelineModal').classList.contains('active')) invigCloseTimeline();
+});
+function invigRenderTimeline() {
+  var b = invigState.board, title = document.getElementById('invigTimelineTitle'), body = document.getElementById('invigTimelineBody');
+  if (!b || !body) return;
+  var r = b.rows.find(function(x) { return String(x.studentId) === String(invigState.timelineSid); });
+  if (!r) return;
+  var s = r.summary || {}, V = CESTISCore.invigilation, off = examCentreOffset();
+  if (title) title.textContent = r.name + ' — timeline';
+  var head = '<div class="invig-tl-head"><span class="invig-st invig-st-' + r.status + '">' + escapeHtml(r.statusLabel) + '</span> ' + escapeHtml(r.studentId) +
+    (r.startedAt ? ' · started <strong>' + escapeHtml(invigClock(r.startedAt, true)) + '</strong>' + (s.device ? ' on ' + escapeHtml(s.device) : '') : '') +
+    (r.status === 'submitted' && r.submittedAt ? ' · submitted <strong>' + escapeHtml(invigClock(r.submittedAt, true)) + '</strong> ' + escapeHtml(invigHowText(r.how)) : '') +
+    (r.status === 'in-progress' ? ' · now on <strong>' + escapeHtml('page ' + r.pageNo + (r.pageCount ? ' of ' + r.pageCount : '') + (r.qLabel && r.qLabel !== 'i' ? ', question ' + r.qLabel : '')) + '</strong>, ' + r.answered + ' of ' + r.total + ' answered' : '') +
+    (r.asOf ? ' · as of <span data-invig-ago="' + r.asOf + '">' + escapeHtml(V.ago(b.now - r.asOf)) + '</span>' : '') + '</div>';
+  var items = V.timeline(r, off);
+  var list = items.length ? '<ol class="invig-tl">' + items.map(function(x) {
+    return '<li class="k-' + x.kind + '"><time>' + escapeHtml(x.time) + '</time><span>' + escapeHtml(x.text) + '</span></li>';
+  }).join('') + '</ol>' : '<div class="invig-empty">' + (r.status === 'absent' ? 'Did not start the test.' : 'Nothing yet: the test has not been started.') + '</div>';
+  var html = head + list;
+  if (body.innerHTML !== html) body.innerHTML = html;
+}
+
+/* ---- The sitting's attendance register ---- */
+function invigRegisters() {
+  var mine = {};
+  invigExams().forEach(function(e) { mine[String(e.id)] = 1; });
+  return (Array.isArray(examRegisters) ? examRegisters : []).filter(function(r) { return r && r.id && (currentRole !== 'instructor' || mine[String(r.examId)]); })
+    .sort(function(a, b) { return String(b.date).localeCompare(String(a.date)) || String(a.examTitle).localeCompare(String(b.examTitle)); });
+}
+function invigCurrentRegister() {
+  var id = invigState.regId;
+  return (Array.isArray(examRegisters) ? examRegisters : []).find(function(r) { return r && r.id === id; }) || null;
+}
+function invigSaveRegister(reg) {
+  if (!Array.isArray(examRegisters)) examRegisters = [];
+  var i = examRegisters.findIndex(function(r) { return r && r.id === reg.id; });
+  if (i === -1) examRegisters.push(reg); else examRegisters[i] = reg;
+  try { saveCollection('voctrain_examRegisters', examRegisters); } catch (e) {}
+  // Stamped and sent on with the next sync, like every other record.
+  try { saveState(); } catch (e) {}
+}
+// Produce (or bring up to date) the register of the sitting on the board.
+function invigProduceRegister() {
+  var b = invigBuildBoard(), exam = invigState.exam;
+  if (!b || !exam) return null;
+  var V = CESTISCore.invigilation, id = V.registerId(exam.id, b.date);
+  var prev = (examRegisters || []).find(function(r) { return r && r.id === id; }) || null;
+  if (prev && V.isSigned(prev)) return prev;
+  var reg = V.registerFrom(b, exam, { existing: prev, now: examStampNow(), byName: invigWho().name });
+  invigSaveRegister(reg);
+  return reg;
+}
+function invigOpenRegister(id) {
+  var reg = null;
+  if (id) reg = (examRegisters || []).find(function(r) { return r && r.id === id; }) || null;
+  if (!reg) {
+    var b = invigBuildBoard();
+    if (!b) return;
+    var rid = CESTISCore.invigilation.registerId(b.examId, b.date);
+    reg = (examRegisters || []).find(function(r) { return r && r.id === rid; }) || invigProduceRegister();
+  }
+  if (!reg) return;
+  invigState.regId = reg.id;
+  if (String(reg.examId) !== String(invigState.examId) && (exams || []).some(function(e) { return e && String(e.id) === String(reg.examId); })) { invigState.examId = String(reg.examId); invigFillExams(); }
+  invigState.date = reg.date;
+  invigState.view = 'register';
+  invigState.editNote = null;
+  invigRender();
+  var top = document.getElementById('invigRegisterView');
+  if (top && top.scrollIntoView) top.scrollIntoView({ block: 'start' });
+}
+function invigBackToBoard() { invigState.view = 'board'; invigState.editNote = null; invigRender(); }
+function invigRefreshRegister() {
+  var reg = invigCurrentRegister();
+  if (reg && CESTISCore.invigilation.isSigned(reg)) return;
+  invigState.examId = String(reg ? reg.examId : invigState.examId);
+  if (reg) invigState.date = reg.date;
+  var out = invigProduceRegister();
+  if (out) { invigState.regId = out.id; showToast('The register is up to date with the board.'); }
+  invigRender();
+}
+function invigRegisterSigned(reg) { return CESTISCore.invigilation.isSigned(reg); }
+function invigSignOff() {
+  var reg = invigCurrentRegister();
+  if (!reg || invigRegisterSigned(reg)) return;
+  var who = invigWho();
+  if (!confirm('Sign off this register as ' + who.name + '?\n\nOnce it is signed off it is kept as it stands: it is no longer updated from the board and its notes are final.')) return;
+  reg = JSON.parse(JSON.stringify(reg));
+  var at = new Date(examStampNow()).toISOString();
+  reg.signoff = reg.signoff || {}; reg.signoffAt = reg.signoffAt || {};
+  reg.signoff[who.id] = { name: who.name };
+  reg.signoffAt[who.id] = at;
+  reg.updatedAt = at;
+  invigSaveRegister(reg);
+  showToast('Register signed off by ' + who.name + '.', 'success');
+  invigRender();
+}
+function invigEditNote(sid) { invigState.editNote = String(sid); invigRenderRegister(); var i = document.getElementById('invigNoteInput'); if (i) i.focus(); }
+function invigCancelNote() { invigState.editNote = null; invigRenderRegister(); }
+function invigSaveNote(sid) {
+  var reg = invigCurrentRegister(), input = document.getElementById('invigNoteInput');
+  if (!reg || !input || invigRegisterSigned(reg)) return;
+  var text = String(input.value || '').trim().slice(0, 300), who = invigWho(), at = new Date(examStampNow()).toISOString();
+  reg = JSON.parse(JSON.stringify(reg));
+  reg.notes = reg.notes || {}; reg.noteAt = reg.noteAt || {};
+  // A cleared note is kept as an empty one (dated), so the clearing travels too.
+  reg.notes[String(sid)] = { text: text, by: who.id, byName: who.name };
+  reg.noteAt[String(sid)] = at;
+  reg.updatedAt = at;
+  invigSaveRegister(reg);
+  invigState.editNote = null;
+  invigRenderRegister();
+}
+function invigSpent(sec) { return CESTISCore.invigilation.duration((Number(sec) || 0) * 1000); }
+function invigRenderRegister() {
+  var view = document.getElementById('invigRegisterView');
+  var reg = invigCurrentRegister();
+  if (!view) return;
+  if (!reg) { view.innerHTML = '<div class="card invig-empty">This register is not on this computer yet.</div>'; return; }
+  var V = CESTISCore.invigilation, off = examCentreOffset(), signed = V.isSigned(reg), c = reg.counts || {};
+  var kept = invigRegisters();
+  var pick = kept.length > 1 ? '<label class="invig-tool">Registers kept <select class="form-control" onchange="invigOpenRegister(this.value)">' + kept.map(function(r) {
+    return '<option value="' + escapeAttr(r.id) + '"' + (r.id === reg.id ? ' selected' : '') + '>' + escapeHtml(invigDayText(r.date, true) + ' — ' + r.examTitle) + '</option>';
+  }).join('') + '</select></label>' : '';
+  var produced = Date.parse(reg.producedAt || ''), refreshed = Date.parse(reg.refreshedAt || '');
+  var html = '<div class="card invig-reg">' +
+    '<div class="invig-reg-top"><button type="button" class="btn btn-secondary btn-sm" onclick="invigBackToBoard()">&larr; Back to the live board</button>' + pick + '</div>' +
+    '<h3>Exam attendance register</h3>' +
+    '<div class="invig-reg-meta"><strong>' + escapeHtml(reg.examTitle) + '</strong> · ' + escapeHtml(reg.course) + '<br>' +
+      escapeHtml(invigDayText(reg.date)) + (reg.time ? ' · starts ' + escapeHtml(reg.time) : '') + (reg.duration ? ' · ' + escapeHtml(String(reg.duration)) + ' minutes' : '') + '<br>' +
+      'Invigilator: <strong>' + escapeHtml(reg.producedBy || '—') + '</strong>' +
+      (produced ? ' · made from the board at ' + escapeHtml(invigClock(produced)) : '') +
+      (refreshed && refreshed !== produced ? ', brought up to date at ' + escapeHtml(invigClock(refreshed)) + (reg.refreshedBy && reg.refreshedBy !== reg.producedBy ? ' by ' + escapeHtml(reg.refreshedBy) : '') : '') +
+      (!reg.windowClosed && !signed ? '<br>The test is still open: bring the register up to date once everyone has finished.' : '') + '</div>' +
+    '<div class="invig-reg-sign ' + (signed ? 'signed' : 'unsigned') + '">' + (signed ? '&#10003; Signed off by ' + escapeHtml(V.signedText(reg, off)) : 'Not signed off yet') + '</div>' +
+    '<div class="invig-reg-actions">' +
+      (signed ? '' : '<button type="button" class="btn btn-secondary btn-sm" onclick="invigRefreshRegister()">Update from the board</button><button type="button" class="btn btn-primary btn-sm" id="invigSignBtn" onclick="invigSignOff()">Sign off</button>') +
+      '<button type="button" class="btn btn-secondary btn-sm" onclick="invigPrintRegister()">Print</button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" onclick="invigDownloadCsv()">Download CSV</button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" onclick="invigDownloadPdf()">Download PDF</button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" id="invigAttendBtn" onclick="invigOpenAttendance()">Add to the day’s attendance</button>' +
+    '</div>' +
+    '<div class="invig-reg-counts">Expected <strong>' + (c.expected || 0) + '</strong> · Present <strong>' + (c.present || 0) + '</strong> (completed ' + (c.completed || 0) +
+      ', did not finish ' + (c.unfinished || 0) + (c.sitting ? ', still sitting ' + c.sitting : '') + ') · Absent <strong>' + (c.absent || 0) + '</strong></div>' +
+    '<div class="table-wrapper"><table class="invig-table invig-reg-table"><thead><tr><th scope="col">#</th><th scope="col">Trainee</th><th scope="col">Student ID</th><th scope="col">Status</th>' +
+      '<th scope="col">Started</th><th scope="col">Submitted</th><th scope="col">Time spent</th><th scope="col">Notes</th></tr></thead><tbody>' +
+    (reg.rows || []).map(function(r, i) {
+      var note = reg.notes && reg.notes[r.studentId] ? String(reg.notes[r.studentId].text || '') : '';
+      var noteBy = reg.notes && reg.notes[r.studentId] ? reg.notes[r.studentId].byName : '';
+      var auto = [];
+      if (r.left) auto.push('left the test window ' + r.left + '× (' + V.duration(r.awayMs) + ')');
+      if (r.offline) auto.push('connection lost ' + r.offline + '× (' + V.duration(r.offlineMs) + ')');
+      if (r.moved) auto.push('continued on another device');
+      if (r.late) auto.push('submitted after the test closed');
+      var noteCell;
+      if (invigState.editNote === String(r.studentId) && !signed) {
+        noteCell = '<div class="invig-note"><input type="text" id="invigNoteInput" class="form-control" maxlength="300" value="' + escapeAttr(note) + '" aria-label="Note for ' + escapeAttr(r.name) + '" placeholder="e.g. arrived late, left the room 5 min" onkeydown="if(event.key===\'Enter\'){event.preventDefault();invigSaveNote(' + jsArg(r.studentId) + ');}else if(event.key===\'Escape\'){invigCancelNote();}">' +
+          '<button type="button" class="btn btn-primary btn-sm" onclick="invigSaveNote(' + jsArg(r.studentId) + ')">Save</button><button type="button" class="btn btn-secondary btn-sm" onclick="invigCancelNote()">Cancel</button></div>';
+      } else {
+        noteCell = '<div class="invig-note">' + (note ? '<span class="invig-note-text">' + escapeHtml(note) + (noteBy ? '<span class="invig-sub"> — ' + escapeHtml(noteBy) + '</span>' : '') + '</span>' : (signed && !auto.length ? '<span class="invig-note-none">No note</span>' : '')) +
+          (signed ? '' : '<button type="button" class="btn btn-secondary btn-sm invig-note-btn" onclick="invigEditNote(' + jsArg(r.studentId) + ')" aria-label="' + escapeAttr((note ? 'Change the note for ' : 'Add a note for ') + r.name) + '">' + (note ? 'Change' : 'Add note') + '</button>') + '</div>';
+      }
+      var stCls = r.status === 'completed' ? 'submitted' : r.status === 'unfinished' ? 'unfinished' : r.status === 'sitting' ? 'in-progress' : r.status === 'absent' ? 'absent' : 'not-started';
+      return '<tr><td data-label="#">' + (i + 1) + '</td><td class="invig-td-name" data-label="Trainee"><span class="invig-name">' + escapeHtml(r.name) + '</span></td>' +
+        '<td data-label="Student ID" class="invig-nowrap">' + escapeHtml(r.studentId) + '</td>' +
+        '<td data-label="Status"><span class="invig-st invig-st-' + stCls + '">' + escapeHtml(V.statusText(r)) + '</span></td>' +
+        '<td data-label="Started" class="invig-num">' + (r.startedAt ? escapeHtml(invigClock(Date.parse(r.startedAt))) : '—') + '</td>' +
+        '<td data-label="Submitted" class="invig-num">' + (r.submittedAt ? escapeHtml(invigClock(Date.parse(r.submittedAt))) + '<div class="invig-sub">' + escapeHtml(invigHowText(r.how)) + '</div>' : '—') + '</td>' +
+        '<td data-label="Time spent" class="invig-num">' + (r.startedAt ? escapeHtml(invigSpent(r.spentSec)) : '—') + '</td>' +
+        '<td data-label="Notes">' + (auto.length ? '<div class="invig-sub invig-note-facts">' + escapeHtml(auto.join('; ')) + '</div>' : '') + noteCell + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    ((reg.attendanceLog || []).length ? '<div class="invig-reg-log">' + reg.attendanceLog.map(function(l) {
+      return 'Added to the day’s attendance by ' + escapeHtml(l.byName || '—') + ' at ' + escapeHtml(invigClock(Date.parse(l.at))) + ' (' + (l.n || 0) + ' mark' + (l.n === 1 ? '' : 's') + ')';
+    }).join('<br>') + '</div>' : '') +
+    '</div>';
+  view.innerHTML = html;
+}
+function invigFileName(reg, ext) {
+  var t = String(reg.examTitle || 'exam').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+  return 'Exam-register_' + t + '_' + reg.date + '.' + ext;
+}
+function invigDownloadCsv() {
+  var reg = invigCurrentRegister();
+  if (!reg) return;
+  var csv = CESTISCore.invigilation.registerCsv(reg, examCentreOffset());
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = invigFileName(reg, 'csv'); a.style.display = 'none';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 4000);
+  showToast('Register downloaded as a spreadsheet (CSV).');
+}
+// The printed register: a plain black-on-white sheet with signature lines.
+function invigPrintSheetHtml(reg) {
+  var V = CESTISCore.invigilation, off = examCentreOffset(), c = reg.counts || {};
+  var centre = (typeof systemSettings !== 'undefined' && systemSettings && (systemSettings.centreName || systemSettings.siteName)) || 'C.E.S.T.I.S';
+  return '<div class="ps-centre">' + escapeHtml(centre) + '</div><h1>Exam attendance register</h1>' +
+    '<div class="ps-meta"><strong>' + escapeHtml(reg.examTitle) + '</strong> · ' + escapeHtml(reg.course) + '<br>' + escapeHtml(invigDayText(reg.date)) +
+      (reg.time ? ' · starts ' + escapeHtml(reg.time) : '') + ' · Invigilator: ' + escapeHtml(reg.producedBy || '') +
+      '<br>Expected ' + (c.expected || 0) + ' · Present ' + (c.present || 0) + ' (completed ' + (c.completed || 0) + ', did not finish ' + (c.unfinished || 0) + ') · Absent ' + (c.absent || 0) +
+      (V.isSigned(reg) ? '<br>Signed off by ' + escapeHtml(V.signedText(reg, off)) : '') + '</div>' +
+    '<table><thead><tr><th>#</th><th>Trainee</th><th>Student ID</th><th>Status</th><th>Started</th><th>Submitted</th><th>Time spent</th><th>Notes</th></tr></thead><tbody>' +
+    (reg.rows || []).map(function(r, i) {
+      var note = reg.notes && reg.notes[r.studentId] ? String(reg.notes[r.studentId].text || '') : '';
+      var auto = [];
+      if (r.left) auto.push('left the test window ' + r.left + '× (' + V.duration(r.awayMs) + ')');
+      if (r.offline) auto.push('connection lost ' + r.offline + '×');
+      return '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.studentId) + '</td><td>' + escapeHtml(V.statusText(r)) + '</td>' +
+        '<td>' + (r.startedAt ? escapeHtml(invigClock(Date.parse(r.startedAt))) : '') + '</td><td>' + (r.submittedAt ? escapeHtml(invigClock(Date.parse(r.submittedAt))) : '') + '</td>' +
+        '<td>' + (r.startedAt ? escapeHtml(invigSpent(r.spentSec)) : '') + '</td><td>' + escapeHtml([note].concat(auto).filter(Boolean).join('; ')) + '</td></tr>';
+    }).join('') + '</tbody></table>' +
+    '<div class="ps-sign"><div>Invigilator’s signature</div><div>Date and time</div></div>';
+}
+function invigPrintRegister() {
+  var reg = invigCurrentRegister();
+  if (!reg) return;
+  var sheet = document.getElementById('invigPrintSheet');
+  if (!sheet) { sheet = document.createElement('div'); sheet.id = 'invigPrintSheet'; document.body.appendChild(sheet); }
+  sheet.innerHTML = invigPrintSheetHtml(reg);
+  document.body.classList.add('invig-printing');
+  var done = function() { document.body.classList.remove('invig-printing'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  try { window.print(); } catch (e) {}
+  setTimeout(done, 60000);
+}
+function invigDownloadPdf() {
+  var reg = invigCurrentRegister();
+  if (!reg) return;
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    // This site's copy first (it works with no internet), a CDN only if that fails.
+    showToast('Preparing the PDF, please wait...');
+    cestisNeedLib('jspdf').then(function() { invigDownloadPdf(); }, function() { showToast('The PDF could not be prepared. Try again, or use Print.', 'error'); });
+    return;
+  }
+  try {
+    var V = CESTISCore.invigilation, off = examCentreOffset(), c = reg.counts || {};
+    var doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), x0 = 12, y = 16;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text('Exam attendance register', x0, y); y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    var plain = function(s) { return String(s == null ? '' : s).replace(/[—–]/g, '-').replace(/[’‘]/g, "'").replace(/×/g, 'x').replace(/·/g, '-'); };
+    [reg.examTitle + ' - ' + reg.course, invigDayText(reg.date) + (reg.time ? ' - starts ' + reg.time : '') + ' - Invigilator: ' + (reg.producedBy || ''),
+     'Expected ' + (c.expected || 0) + ' - Present ' + (c.present || 0) + ' (completed ' + (c.completed || 0) + ', did not finish ' + (c.unfinished || 0) + ') - Absent ' + (c.absent || 0),
+     V.isSigned(reg) ? 'Signed off by ' + V.signedText(reg, off) : 'Not signed off yet'].forEach(function(l) { doc.text(plain(l), x0, y); y += 5.2; });
+    y += 3;
+    var cols = [['#', 8], ['Trainee', 46], ['Student ID', 28], ['Status', 46], ['Started', 18], ['Submitted', 20], ['Time spent', 22], ['Notes', W - 2 * x0 - 188]];
+    var head = function() {
+      doc.setFillColor(235, 235, 235); doc.rect(x0, y - 4.5, W - 2 * x0, 7, 'F');
+      doc.setFont('helvetica', 'bold'); var x = x0 + 1.5;
+      cols.forEach(function(col) { doc.text(col[0], x, y); x += col[1]; });
+      doc.setFont('helvetica', 'normal'); y += 6;
+    };
+    head();
+    (reg.rows || []).forEach(function(r, i) {
+      var note = reg.notes && reg.notes[r.studentId] ? String(reg.notes[r.studentId].text || '') : '';
+      var auto = [];
+      if (r.left) auto.push('left the test window ' + r.left + 'x (' + V.duration(r.awayMs) + ')');
+      if (r.offline) auto.push('connection lost ' + r.offline + 'x');
+      var cells = [String(i + 1), r.name, r.studentId, V.statusText(r), r.startedAt ? invigClock(Date.parse(r.startedAt)) : '', r.submittedAt ? invigClock(Date.parse(r.submittedAt)) : '',
+        r.startedAt ? invigSpent(r.spentSec) : '', [note].concat(auto).filter(Boolean).join('; ')].map(plain);
+      var lines = cells.map(function(t, k) { return doc.splitTextToSize(t, cols[k][1] - 3); });
+      var h = Math.max.apply(null, lines.map(function(l) { return l.length; })) * 4.6 + 1.6;
+      if (y + h > H - 22) { doc.addPage(); y = 16; head(); }
+      var x = x0 + 1.5;
+      lines.forEach(function(l, k) { doc.text(l, x, y); x += cols[k][1]; });
+      doc.setDrawColor(190, 190, 190); doc.line(x0, y + h - 4, W - x0, y + h - 4);
+      y += h;
+    });
+    if (y > H - 26) { doc.addPage(); y = 20; }
+    y += 10; doc.setDrawColor(0, 0, 0);
+    doc.line(x0, y, x0 + 90, y); doc.line(x0 + 120, y, x0 + 190, y);
+    doc.text('Invigilator\'s signature', x0, y + 5); doc.text('Date and time', x0 + 120, y + 5);
+    doc.save(invigFileName(reg, 'pdf'));
+    showToast('Register downloaded as a PDF.');
+  } catch (e) { console.warn('[Invigilator] PDF failed', e); showToast('The PDF could not be made. Use Print or the CSV instead.', 'error'); }
+}
+
+/* ---- "Add to the day's attendance": proposed, then confirmed ----
+   The same rule as a live class: the system proposes, staff confirm. Present
+   for every trainee who started the test, Absent for anyone who did not —
+   unticked, since they may have been in class without sitting it — and a
+   trainee already marked that day is shown with that mark and never changed
+   unless staff tick them. */
+var _invigAttend = null;
+function invigMayMarkAttendance() {
+  if (currentRole === 'admin' || currentRole === 'instructor') return true;
+  return currentRole === 'adminstaff' && !!(adminStaffAccessSettings && adminStaffAccessSettings.attendance);
+}
+function invigOpenAttendance() {
+  var reg = invigCurrentRegister();
+  if (!reg) return;
+  if (!invigMayMarkAttendance()) { showToast('Marking attendance has not been turned on for you by the Administrator.', 'warning'); return; }
+  var A = CESTISCore.attendance;
+  var rows = CESTISCore.invigilation.attendanceProposal(reg, function(sid) {
+    var cur = attendanceRecordFor(sid, reg.date);
+    return cur && !cur.unconfirmed ? A.normStatus(cur.status) : '';
+  });
+  _invigAttend = { regId: reg.id, date: reg.date, rows: rows };
+  var opt = function(cur) {
+    return [['present', 'Present'], ['late', 'Late'], ['absent', 'Absent'], ['excused', 'Excused']].map(function(o) {
+      return '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>';
+    }).join('');
+  };
+  var body = document.getElementById('invigAttendBody');
+  if (!body) return;
+  body.innerHTML = '<p>' + escapeHtml(invigDayText(reg.date)) + ' — proposed from the register: Present for everyone who started the test; Absent for anyone who did not (left unticked: they may have been in class without sitting it). ' +
+    'A trainee already marked that day is not ticked, so nothing is changed without you. Nothing is written until you press Add.</p>' +
+    (rows.length ? '<div class="table-wrapper"><table class="invig-att-table"><thead><tr><th scope="col"><span class="exam-sr-only">Add</span></th><th scope="col">Trainee</th><th scope="col">From the test</th><th scope="col">Mark</th><th scope="col">Already marked</th></tr></thead><tbody>' +
+    rows.map(function(r, i) {
+      return '<tr><td><input type="checkbox" data-invig-att="' + i + '" aria-label="' + escapeAttr('Add a mark for ' + r.name) + '"' + (r.tick ? ' checked' : '') + '></td>' +
+        '<td><strong>' + escapeHtml(r.name) + '</strong></td><td class="invig-sub">' + escapeHtml(r.reason) + '</td>' +
+        '<td><select class="form-control" data-invig-att-status="' + i + '" aria-label="' + escapeAttr('Mark for ' + r.name) + '">' + opt(r.status) + '</select></td>' +
+        '<td>' + (r.current ? escapeHtml(A.LABELS[r.current] || r.current) : '—') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<div class="invig-empty">Nobody on this register to mark.</div>') +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;"><button type="button" class="btn btn-secondary" onclick="closeModal(\'invigAttendModal\')">Cancel</button>' +
+    '<button type="button" class="btn btn-primary" id="invigAttendGo" onclick="invigApplyAttendance()">Add ticked marks to the attendance</button></div>';
+  openModal('invigAttendModal');
+}
+function invigApplyAttendance() {
+  var dlg = _invigAttend, box = document.getElementById('invigAttendBody');
+  if (!dlg || !box) return;
+  var done = [], locked = 0;
+  dlg.rows.forEach(function(r, i) {
+    var cb = box.querySelector('[data-invig-att="' + i + '"]');
+    if (!cb || !cb.checked) return;
+    var sel = box.querySelector('[data-invig-att-status="' + i + '"]');
+    var res = setAttendanceMark(r.studentId, dlg.date, sel ? sel.value : r.status, { batch: true, source: 'exam' });
+    if (res === 'locked') locked++;
+    else if (res === true) done.push(r.studentId);
+  });
+  if (done.length) { syncStudentAttendanceFromRegister(done); attendanceMarkDirty(); flushAttendanceRegister(); }
+  var reg = (examRegisters || []).find(function(x) { return x && x.id === dlg.regId; });
+  if (reg && done.length) {
+    reg = JSON.parse(JSON.stringify(reg));
+    var who = invigWho();
+    reg.attendanceLog = Array.isArray(reg.attendanceLog) ? reg.attendanceLog : [];
+    reg.attendanceLog.push({ at: new Date(examStampNow()).toISOString(), by: who.id, byName: who.name, n: done.length });
+    reg.updatedAt = new Date(examStampNow()).toISOString();
+    invigSaveRegister(reg);
+  } else { try { saveState(); } catch (e) {} }
+  _invigAttend = null;
+  closeModal('invigAttendModal');
+  showToast('Added ' + done.length + ' mark' + (done.length === 1 ? '' : 's') + ' to the attendance for ' + invigDayText(dlg.date, true) + (locked ? ' · ' + locked + ' on a closed register were not changed' : ''), 'success');
+  invigRenderRegister();
+}
+// Registers that arrived from another device, tab or the Centre's copy:
+// register by register, notes and sign-offs entry by entry (never adopted
+// wholesale). Returns true when anything changed.
+function invigRegistersMergeIncoming(incoming) {
+  if (!Array.isArray(incoming) || !window.CESTISCore) return false;
+  if (!Array.isArray(examRegisters)) examRegisters = [];
+  var out = CESTISCore.sync.mergeList(examRegisters, incoming, syncKeyById, CESTISCore.sync.mapRules('examRegisters', { tombs: syncTombsFor('examRegisters') }));
+  var changed = !!(out.added || out.updated || out.removed);
+  if (changed) {
+    try { saveCollection('voctrain_examRegisters', examRegisters); } catch (e) {}
+    try { if (invigState.view === 'register' && invigPageActive() && invigState.editNote == null) invigRenderRegister(); } catch (e) {}
+  }
+  return changed;
+}
+
 function renderCerts(filter,search) {
   // Backfill cert numbers for certified students so the list matches the
   // stage-based certified count shown elsewhere.
@@ -30551,7 +31460,7 @@ function attendanceCellTitle(r) {
   } else if (r.markedAt) {
     var when = '';
     try { when = new Date(r.markedAt).toLocaleString(); } catch (e) { when = r.markedAt; }
-    t += ' — marked by ' + (r.markedByName || r.markedBy || 'unknown') + ', ' + when + (r.source === 'live-class' ? ' (from the live class)' : '');
+    t += ' — marked by ' + (r.markedByName || r.markedBy || 'unknown') + ', ' + when + (r.source === 'live-class' ? ' (from the live class)' : r.source === 'exam' ? ' (from an exam register)' : '');
   }
   if (r.history && r.history.length) t += '. Changed ' + r.history.length + ' time' + (r.history.length > 1 ? 's' : '') + ' before.';
   return t;
@@ -33620,6 +34529,8 @@ async function mergeFromCloud() {
     }
     // Tests in progress: the same merge every sync uses.
     try { if (typeof examAttemptsMergeIncoming === 'function') examAttemptsMergeIncoming(backupData.data.examAttempts); } catch(e) {}
+    // The sittings' registers: register by register, notes entry by entry.
+    try { if (typeof invigRegistersMergeIncoming === 'function') invigRegistersMergeIncoming(backupData.data.examRegisters); } catch(e) {}
 
     // Merge chat data from cloud backup
     if (backupData.data.chatRooms) {
@@ -34364,6 +35275,8 @@ async function savePerUserBackup() {
         exams: exams,
         examResults: examResults,
         examAttempts: (typeof examAttempts !== 'undefined' && Array.isArray(examAttempts)) ? examAttempts : [],
+        // The sittings' registers are the staff's: a trainee's device sends none.
+        examRegisters: currentRole === 'student' ? undefined : ((typeof examRegisters !== 'undefined' && Array.isArray(examRegisters)) ? examRegisters : []),
         announcements: announcements,
         attendanceRecords: attendanceRecords,
         vcSessions: vcSessions,
@@ -35090,6 +36003,9 @@ async function mergeBackupData(backupData) {
     // attempt is never brought back, and a result that arrived settles its
     // attempt. The attempt open on this screen follows (examAttemptsArrived).
     if (typeof examAttemptsMergeIncoming === 'function' && examAttemptsMergeIncoming(backupData.data.examAttempts)) changed = true;
+    // The invigilators' registers of each sitting (CESTISCore.invigilation):
+    // register by register, a note or a sign-off entry by entry.
+    if (typeof invigRegistersMergeIncoming === 'function' && invigRegistersMergeIncoming(backupData.data.examRegisters)) changed = true;
 
     // Merge chat rooms
     if (Array.isArray(backupData.data.chatRooms)) {
@@ -35919,6 +36835,8 @@ async function autoSaveToAllFolders() {
         examResults: examResults,
         // Tests in progress travel the same way as the results they become.
         examAttempts: (typeof examAttempts !== 'undefined' && Array.isArray(examAttempts)) ? examAttempts : [],
+        // The invigilators' registers (a trainee's device sends none).
+        examRegisters: currentRole === 'student' ? undefined : ((typeof examRegisters !== 'undefined' && Array.isArray(examRegisters)) ? examRegisters : []),
         chatRooms: lmsChatRooms,
         chatMessages: CESTISCore.chat.stripUploadedBytes(lmsChatMessages), // attachments Drive already holds travel as their link
         chatProfiles: lmsChatProfiles,
@@ -41650,6 +42568,7 @@ var asAccessPages = [
   { key:'reports', label:'Reports & Analytics', desc:'Access reports and charts' },
   { key:'training', label:'Training Centres', desc:'View training centre information' },
   { key:'exams', label:'Online Exams', desc:'View and manage exams' },
+  { key:'invigilation', label:'Exam invigilation', desc:'Watch exam sittings as they happen and keep their attendance registers' },
   { key:'video', label:'Video Conference', desc:'Join and manage video sessions' },
   { key:'resources', label:'Resource Manager', desc:'Access shared resources' },
   { key:'supportmessages', label:'Support Messages', desc:'Send and receive support messages' }
@@ -41751,6 +42670,10 @@ function buildAdminStaffSidebar() {
   if(adminStaffAccessSettings.exams) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
     html += '<div class="nav-item" data-page="as-exams" onclick="showPage(\'as-exams\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>';
+  }
+  if(adminStaffAccessSettings.invigilation) {
+    if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
+    html += '<div class="nav-item" data-page="as-invigilator" onclick="showPage(\'as-invigilator\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Exam Invigilator</div>';
   }
 
   var hasMgmt = false;
@@ -42032,6 +42955,7 @@ function buildAdminStaffPages() {
 
   // Online Exams
   html += '<section class="page" id="page-as-exams">' + '<div class="cestis-mount" data-feature="as-exams" data-prefix="adminstaff"></div>' + '</section>';
+  html += '<section class="page" id="page-as-invigilator">' + '<div class="cestis-mount" data-feature="invigilator" data-prefix="adminstaff"></div>' + '</section>';
 
   // Attendance Management
   html += '<section class="page" id="page-as-attendance">' + '<div class="cestis-mount" data-feature="as-attendance" data-prefix="adminstaff"></div>' + '</section>';

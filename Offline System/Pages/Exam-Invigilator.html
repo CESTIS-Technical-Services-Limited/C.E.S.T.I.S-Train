@@ -1,0 +1,79 @@
+<!--
+  ============================================================================
+  Pages/Exam-Invigilator.html  —  C.E.S.T.I.S Exam Invigilator UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot of every staff role
+  (<div class="cestis-mount" data-feature="invigilator" data-prefix="...">):
+  the Administrator's, an instructor's (their own programmes' exams) and Admin
+  Staff's (with the "Exam invigilation" tick). Filled on mount by
+  invigOnMount() in index.html: the live board of an exam sitting, each
+  trainee's timeline, and the sitting's attendance register.
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> tags
+  here will NOT run; put JS in index.html.
+  ============================================================================
+-->
+<div class="invig" id="invigRoot">
+  <div class="card invig-empty" id="invigDenied" style="display:none;">
+    The Exam Invigilator has not been turned on for you. The Administrator can turn it on in Settings, under Admin Staff access: “Exam invigilation”.
+  </div>
+  <div id="invigMain">
+    <div class="card invig-head">
+      <div class="invig-pick">
+        <div>
+          <label for="invigExam">Exam sitting</label>
+          <select id="invigExam" class="form-control" onchange="invigPickExam(this.value)"></select>
+        </div>
+        <div id="invigDateWrap" style="display:none;">
+          <label for="invigDate">Day</label>
+          <select id="invigDate" class="form-control" onchange="invigPickDate(this.value)"></select>
+        </div>
+      </div>
+      <div class="invig-fresh" id="invigFresh"></div>
+      <div class="invig-meta" id="invigMeta"></div>
+    </div>
+
+    <div id="invigBoardView">
+      <div class="invig-counts" id="invigCounts" role="group" aria-label="Show trainees"></div>
+      <div class="invig-tools">
+        <label class="invig-tool">Sort by
+          <select id="invigSort" class="form-control" onchange="invigSetSort(this.value)">
+            <option value="status">Status</option>
+            <option value="name">Name</option>
+            <option value="started">Started</option>
+            <option value="activity">Last activity</option>
+            <option value="progress">Answered</option>
+          </select>
+        </label>
+        <input type="search" id="invigSearch" class="form-control invig-search" placeholder="Find a trainee" aria-label="Find a trainee" oninput="invigSetSearch(this.value)">
+        <span class="grow"></span>
+        <button type="button" class="btn btn-primary" id="invigRegisterBtn" onclick="invigOpenRegister()">Attendance register</button>
+      </div>
+      <div class="card invig-board-card">
+        <div class="table-wrapper"><table class="invig-table" id="invigTable">
+          <thead><tr><th scope="col">Trainee</th><th scope="col">Status</th><th scope="col">Started</th><th scope="col">Now at</th><th scope="col">Answered</th><th scope="col">Time left</th><th scope="col">Last activity</th><th scope="col">To note</th></tr></thead>
+          <tbody id="invigBoard"></tbody>
+        </table></div>
+        <div class="invig-empty-row" id="invigBoardEmpty" style="display:none;"></div>
+      </div>
+      <p class="invig-foot">Choose a trainee to see their timeline: when they started, each page and question begun, when they left the test window and came back, and when they finished. Answers are never shown here.</p>
+    </div>
+
+    <div id="invigRegisterView" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- A trainee's timeline -->
+<div class="modal-overlay" id="invigTimelineModal" role="dialog" aria-modal="true" aria-labelledby="invigTimelineTitle">
+  <div class="modal invig-tl-modal">
+    <div class="modal-header"><h3 id="invigTimelineTitle">Timeline</h3><button type="button" class="modal-close" aria-label="Close" onclick="invigCloseTimeline()">✕</button></div>
+    <div id="invigTimelineBody"></div>
+  </div>
+</div>
+
+<!-- "Add to the day's attendance": proposed marks, confirmed by staff -->
+<div class="modal-overlay" id="invigAttendModal" role="dialog" aria-modal="true" aria-labelledby="invigAttendTitle">
+  <div class="modal invig-att-modal">
+    <div class="modal-header"><h3 id="invigAttendTitle">Add to the day’s attendance</h3><button type="button" class="modal-close" aria-label="Close" onclick="closeModal('invigAttendModal')">✕</button></div>
+    <div id="invigAttendBody"></div>
+  </div>
+</div>
