@@ -480,9 +480,90 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
        role — tampered, or from a version before the rule above. Approving it
        must never be one click. */
     function isPrivilegedSelfRegistration(account) {
-      if (!account || account.registeredVia !== 'registration') return false;
+      if (!account || (account.registeredVia !== 'registration' && account.registeredVia !== 'home-registration')) return false;
       var r = String(account.role || '').trim().toLowerCase();
-      return r !== 'student' && r !== 'instructor';
+      // A registration from home is a trainee's, always (the trainee gate files nothing else).
+      return account.registeredVia === 'home-registration' ? r !== 'student' : (r !== 'student' && r !== 'instructor');
+    }
+
+    /* Is this a person's full name — a first name AND a last name? Two or
+       more words of two letters or more, titles (Mr, Mrs, Dr …) not counted.
+       It is the rule every account form already applies (Staff Appraisals'
+       sappIsFullName in staff-appraisals.js, kept equal to this by
+       tests/office-trainee-accounts.test.js); it is here as well so the
+       trainee gate, which has no page of its own, applies the same one. */
+    var NAME_TITLES = { mr: 1, mrs: 1, ms: 1, miss: 1, dr: 1, prof: 1, hon: 1, rev: 1 };
+    function isFullName(name) {
+      var toks = String(name == null ? '' : name).toLowerCase().replace(/[-_.,'’]/g, ' ').split(/\s+/)
+        .filter(function (t) { return t && !NAME_TITLES[t] && t.length >= 2; });
+      return toks.length >= 2;
+    }
+
+    /* May the office create this account? (The owner: "both the office admin
+       staff and administrators can create accounts for students".)
+
+       An administrator may create any role. Admin Staff may create TRAINEE
+       accounts only — never an administrator, admin staff, instructor or
+       board login — and only while the Administrator leaves "Trainee
+       accounts" ticked in Admin Staff access (actor.allowed). Every account
+       answers to the rules each sign-up form already follows: a full name, no
+       markup in a name or address, a username nobody holds (in any case), a
+       password of six characters or more, a programme for anybody who is not
+       office staff. A trainee account also needs an email address nobody
+       holds (in any case, any role — the registration form's rule, so email
+       sign-in can never name two people; left blank, it is not checked) and
+       a programme that is taking trainees now (opts.enrolBlock: the page's
+       courseEnrolmentBlockReason() for it).
+         actor: { role, allowed }   draft: { role, name, username, email, programme, password }
+       → null when it may be created, else { code, message }. */
+    var STAFF_ROLES = { admin: 1, adminstaff: 1, cmc: 1 };
+    // A phone number as people write one: digits, spaces, + - . ( ), 7–20 long.
+    var PHONE_RE = /^(?=(?:\D*\d){7})[0-9+()\-.\s]{7,20}$/;
+    function officeCreateRefusal(actor, draft, accounts, opts) {
+      opts = opts || {};
+      actor = actor || {};
+      draft = draft || {};
+      var who = String(actor.role || '').trim().toLowerCase();
+      var role = String(draft.role || '').trim().toLowerCase();
+      var no = function (code, message) { return { code: code, message: message }; };
+      if (who !== 'admin' && who !== 'adminstaff') return no('not-allowed', 'Only the office can create accounts.');
+      if (who === 'adminstaff' && actor.allowed === false) {
+        return no('not-allowed', 'Creating trainee accounts has been switched off for Admin Staff by the Administrator.');
+      }
+      if (who === 'adminstaff' && role !== 'student') return no('role', 'Admin Staff can create trainee accounts only.');
+      if (!role) return no('missing', 'Please choose a role.');
+      var name = String(draft.name == null ? '' : draft.name).trim();
+      var username = String(draft.username == null ? '' : draft.username).trim();
+      var email = String(draft.email == null ? '' : draft.email).trim();
+      var password = String(draft.password == null ? '' : draft.password);
+      if (!name || !username || !password) return no('missing', 'Please fill in Name, Username, and Password.');
+      if (!isFullName(name)) {
+        return no('full-name', role === 'student'
+          ? 'Please enter the trainee\'s FULL name — first name AND last name (e.g. "John Smith").'
+          : 'Please enter the user\'s FULL name — first name AND last name (e.g. "John Smith").\n\nThe full name is required to link staff to their Payslip employee record.');
+      }
+      if (/[<>]/.test(name) || /[<>"]/.test(email) || /[<>"]/.test(username)) {
+        return no('markup', 'Names, usernames and email addresses cannot contain < > or " characters.');
+      }
+      if (password.length < 6) return no('password', 'Password must be at least 6 characters.');
+      if (draft.phone != null && String(draft.phone).trim() && !PHONE_RE.test(String(draft.phone).trim())) {
+        return no('phone', 'Please enter the phone number with digits only (spaces and + - ( ) are fine), or leave it blank.');
+      }
+      var list = Array.isArray(accounts) ? accounts : [];
+      var un = username.toLowerCase();
+      if (list.some(function (u) { return u && String(u.username || '').trim().toLowerCase() === un; })) return no('username-taken', 'Username already exists.');
+      if (!STAFF_ROLES[role] && !String(draft.programme == null ? '' : draft.programme).trim()) return no('programme', 'Please select a programme.');
+      if (role === 'student') {
+        if (email) {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return no('email', 'Please enter a valid email address, or leave it blank.');
+          var em = email.toLowerCase();
+          if (list.some(function (u) { return u && String(u.email || '').trim().toLowerCase() === em; })) {
+            return no('email-taken', 'An account with this email already exists. Find it in the accounts list instead of creating a second one.');
+          }
+        }
+        if (opts.enrolBlock) return no('enrol', String(opts.enrolBlock));
+      }
+      return null;
     }
 
     /* What Verify Users lists, and what Approve All / Reject All act on.
@@ -777,6 +858,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin, toolDefaultLogin: toolDefaultLogin,
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
+      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
       isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
       backfillStubFolds: backfillStubFolds,

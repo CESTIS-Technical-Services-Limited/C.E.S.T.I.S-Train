@@ -5774,6 +5774,29 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
   </div>
 </div>
 
+<!-- ADD TRAINEE ACCOUNT MODAL (Verify Users / Admin Staff: Trainee Accounts) -->
+<div class="modal-overlay" id="addTraineeModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTraineeTitle">
+    <div class="modal-header"><h3 id="addTraineeTitle">Add Trainee Account</h3><button class="modal-close" onclick="closeModal('addTraineeModal')" aria-label="Close">✕</button></div>
+    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;">The account is active at once. Give the trainee their username and password. With their email address entered, they can also sign in with their email account.</p>
+    <div class="form-group"><label for="atName">Full Name (first &amp; last name required)</label><input type="text" class="form-control" id="atName" placeholder="First and last name, e.g. Tameka Richards" autocomplete="off"></div>
+    <div class="um-form-row">
+      <div class="form-group"><label for="atEmail">Email</label><input type="email" class="form-control" id="atEmail" placeholder="trainee@example.com" autocomplete="off"></div>
+      <div class="form-group"><label for="atPhone">Phone (optional)</label><input type="tel" class="form-control" id="atPhone" placeholder="876-555-0123" autocomplete="off"></div>
+    </div>
+    <div class="form-group"><label for="atProgramme">Programme</label><select class="form-control" id="atProgramme"><option value="">— Select Programme —</option></select></div>
+    <div class="um-form-row">
+      <div class="form-group"><label for="atUsername">Username</label><input type="text" class="form-control" id="atUsername" placeholder="Left blank: made from the email" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+      <div class="form-group"><label for="atPassword">Password</label><input type="password" class="form-control" id="atPassword" placeholder="Minimum 6 characters" autocomplete="new-password"></div>
+    </div>
+    <div class="role-login-error" id="atSaid" role="alert" hidden></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-secondary" onclick="closeModal('addTraineeModal')">Cancel</button>
+      <button class="btn btn-primary" id="atCreateBtn" onclick="createTraineeAccount()">Create Account</button>
+    </div>
+  </div>
+</div>
+
 <!-- EDIT USER MODAL -->
 <div class="modal-overlay" id="editUserModal">
   <div class="modal">
@@ -8578,7 +8601,12 @@ function lmsChatFlushDriveSyncNow() {
 // ticks it.
 // 'invigilation' (the Exam Invigilator page: live board and sitting
 // registers) is off until an Administrator ticks it.
-var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false };
+// 'traineeaccounts' (Trainee Accounts: add a trainee's account in the office,
+// and approve or reject the registrations trainees send from home) is ON
+// unless an Administrator turns it off — the owner: "both the office admin
+// staff and administrators can create accounts for students". Trainee
+// accounts only: Admin Staff can never create or approve a staff login.
+var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false, traineeaccounts:true };
 function adminStaffAccessDefaults() { return Object.assign({}, AS_ACCESS_DEFAULTS); }
 var adminStaffAccessSettings = adminStaffAccessDefaults();
 
@@ -10688,17 +10716,16 @@ async function createUserAccount() {
   var password = document.getElementById('newUserPassword').value;
   var email = document.getElementById('newUserEmail').value.trim();
   var programme = document.getElementById('newUserProgramme').value;
-  if(!name || !username || !password) { alert('Please fill in Name, Username, and Password.'); return; }
-  if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter the user\'s FULL name — first name AND last name (e.g. "John Smith").\n\nThe full name is required to link staff to their Payslip employee record.'); return; }
-  if(password.length < 6) { alert('Password must be at least 6 characters.'); return; }
-  // Case-insensitive: login matching ignores case, so "JSmith" and "jsmith"
-  // are the same login and must not both exist.
-  if(userAccounts.find(function(u){ return u && String(u.username||'').toLowerCase() === username.toLowerCase(); })) { alert('Username already exists.'); return; }
-  if(role !== 'admin' && role !== 'adminstaff' && role !== 'cmc' && !programme) { alert('Please select a programme.'); return; }
-  if(role === 'student') { var _enrolBlk = courseEnrolmentBlockReason(programme); if(_enrolBlk) { alert(_enrolBlk); return; } }
+  // The office's one rule for a new account (who may create which role, the
+  // full name, a username nobody holds in any case, a trainee's email nobody
+  // holds, a programme taking trainees now): CESTISCore.accountAccess.officeCreateRefusal.
+  var _refusal = CESTISCore.accountAccess.officeCreateRefusal({ role: currentRole }, { role: role, name: name, username: username, email: email, programme: programme, password: password },
+    userAccounts, { enrolBlock: role === 'student' ? courseEnrolmentBlockReason(programme) : '' });
+  if(_refusal) { alert(_refusal.message); return; }
   var now = new Date(); var dateStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
   var hashedPw = await hashPassword(password);
   var newAccount = {id:getNextUserId(),name:name,role:role,username:username,password:hashedPw,email:email,programme:(role==='admin'||role==='adminstaff'||role==='cmc')?'':programme,status:'active',createdAt:dateStr,registeredVia:'admin-created'};
+  officeStampCreator(newAccount, dateStr);
   cachePlaintextPw(newAccount, password);
   // Ids are random, so this is defensive — but an id that ever did land on a
   // deleted one would see the new account swept away again the moment it saved.
@@ -10736,6 +10763,85 @@ async function createUserAccount() {
   renderUserAccountsTable();
   showToast('User account created successfully!');
   addNotification('New user account created: ' + name + ' (' + role + ')', 'student', null, ['admin']);
+  if(role === 'student') { try { gatePublishSoon(); } catch(e) {} }
+}
+
+/* Who made an account in the office, on the account itself. A trainee's
+   account made by the office is approved by the office in the same act (it
+   has seen the trainee), so it is active at once and says who approved it. */
+function officeStampCreator(acct, dateStr) {
+  var me = currentLoggedInUser || {};
+  acct.createdBy = String(me.username || me.name || currentRole || '');
+  acct.createdByRole = String(currentRole || '');
+  if(acct.role === 'student') { acct.approvedAt = dateStr; stampReviewer(acct); }
+}
+
+/* ---- Add a trainee's account in the office (Verify Users; Admin Staff:
+   Trainee Accounts) ----
+   Administrators and Admin Staff alike — the owner: "both the office admin
+   staff and administrators can create accounts for students". A trainee
+   account only, under the same rule as Settings → Users
+   (CESTISCore.accountAccess.officeCreateRefusal). It is active at once. With
+   trainee sign-in from anywhere on, the trainee's own folder is made in the
+   same moment (gatePublishSoon); with it off, the first publishing turn
+   after it is turned on makes it. */
+function officeMayAddTrainee() {
+  return currentRole === 'admin' || (currentRole === 'adminstaff' && !!(adminStaffAccessSettings && adminStaffAccessSettings.traineeaccounts));
+}
+// Programmes a trainee can be put on now (the centres taking trainees today).
+function officeEnrollingProgrammes() {
+  return getCourseList().filter(function(p) { return !courseEnrolmentBlockReason(p); });
+}
+// A username nobody holds yet, from the email address or else the name.
+function officeSuggestUsername(name, email) {
+  var base = String(email || '').split('@')[0] || String(name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, '');
+  base = String(base || 'trainee').toLowerCase().replace(/[^a-z0-9._-]/g, '') || 'trainee';
+  var u = base, n = 1;
+  while (userAccounts.some(function(a) { return a && String(a.username || '').trim().toLowerCase() === u; })) { n++; u = base + n; }
+  return u;
+}
+function openAddTraineeAccount() {
+  if(!officeMayAddTrainee()) { showToast('Adding trainee accounts has not been enabled for Admin Staff by the Administrator.', 'warning'); return; }
+  var sel = document.getElementById('atProgramme');
+  if(sel) sel.innerHTML = '<option value="">— Select Programme —</option>' + officeEnrollingProgrammes().map(function(p) { return '<option value="' + escapeAttr(p) + '">' + escapeHtml(p) + '</option>'; }).join('');
+  ['atName', 'atEmail', 'atPhone', 'atUsername', 'atPassword'].forEach(function(id) { var el = document.getElementById(id); if(el) el.value = ''; });
+  var said = document.getElementById('atSaid'); if(said) { said.hidden = true; said.textContent = ''; }
+  openModal('addTraineeModal');
+}
+async function createTraineeAccount() {
+  if(!officeMayAddTrainee()) return;
+  var v = function(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; };
+  var name = v('atName').trim().replace(/\s+/g, ' '), email = v('atEmail').trim(), phone = v('atPhone').trim();
+  var programme = v('atProgramme'), password = v('atPassword');
+  var username = v('atUsername').trim() || officeSuggestUsername(name, email);
+  var draft = { role: 'student', name: name, username: username, email: email, programme: programme, password: password, phone: phone };
+  var refusal = CESTISCore.accountAccess.officeCreateRefusal({ role: currentRole, allowed: officeMayAddTrainee() }, draft, userAccounts,
+    { enrolBlock: programme ? courseEnrolmentBlockReason(programme) : '' });
+  var said = document.getElementById('atSaid');
+  if(refusal) { if(said) { said.hidden = false; said.textContent = refusal.message; } else alert(refusal.message); return; }
+  var btn = document.getElementById('atCreateBtn'); if(btn) btn.disabled = true;
+  try {
+    var dateStr = localDateStr();
+    var acct = { id: getNextUserId(), name: name, role: 'student', username: username, password: await hashPassword(password), email: email,
+      programme: programme, status: 'active', createdAt: dateStr, registeredVia: 'admin-created' };
+    if(phone) acct.phone = phone;
+    officeStampCreator(acct, dateStr);
+    cachePlaintextPw(acct, password);
+    clearDeletedUser(acct.id);
+    userAccounts.push(acct);
+    // Their trainee record: the one of that name on that programme, or a new one.
+    var existingStudent = findStudentRecordForAccount(acct);
+    if(existingStudent) acct.studentDataId = existingStudent.id;
+    else createStudentDataForAccount(acct);
+    saveUserAccounts();
+    saveState();
+    closeModal('addTraineeModal');
+    try { renderVerifyUsersPage(); } catch(e) {}
+    try { refreshStudentDependentViews(); } catch(e) {}
+    showToast('Trainee account created: ' + name + ' (username ' + username + ')');
+    addNotification('New trainee account created: ' + name, 'student', null, ['admin']);
+    try { gatePublishSoon(); } catch(e) {}
+  } finally { if(btn) btn.disabled = false; }
 }
 
 function openEditUser(userId) {
@@ -13170,19 +13276,36 @@ function createInstructorDataForAccount(userAccount) {
   return newInstructor;
 }
 
-// ----- Verify Users Page (Admin) -----
+// ----- Verify Users Page (Admin) — and Trainee Accounts (Admin Staff) -----
+/* Who may decide on an account here. An administrator: any account. Admin
+   Staff, while "Trainee Accounts" is ticked in Admin Staff access: a
+   TRAINEE's account only — never a staff role, and never a registration
+   asking for one (the owner: the office approves what trainees register
+   from home, and both administrators and admin staff are the office). */
+function accountReviewAllowed(u) {
+  if (currentRole === 'admin') return true;
+  if (currentRole !== 'adminstaff' || !(adminStaffAccessSettings && adminStaffAccessSettings.traineeaccounts)) return false;
+  return !!u && String(u.role || '').trim().toLowerCase() === 'student' && !CESTISCore.accountAccess.isPrivilegedSelfRegistration(u);
+}
+// Who decided, on the account itself: the role (as the field always held) and the person.
+function stampReviewer(u) {
+  u.approvedBy = currentRole === 'adminstaff' ? 'adminstaff' : 'admin';
+  var me = currentLoggedInUser && (currentLoggedInUser.name || currentLoggedInUser.username);
+  if (me) u.approvedByName = String(me);
+}
 function renderVerifyUsersPage() {
   // Only registrations and never-reviewed trainee placeholders: an account a
   // person switched off is not "awaiting" anything (CESTISCore.accountAccess.reviewQueue).
-  var needsReview = CESTISCore.accountAccess.reviewQueue(userAccounts);
+  // Admin Staff see the trainees' among them only.
+  var needsReview = CESTISCore.accountAccess.reviewQueue(userAccounts).filter(accountReviewAllowed);
   var pending = needsReview.filter(function(u) { return u.status === 'pending'; });
   var disabled = needsReview.filter(function(u) { return u.status === 'disabled'; });
   var recentlyProcessed = userAccounts.filter(function(u) {
-    return (u.status === 'active' || u.status === 'rejected') && u.approvedAt;
+    return (u.status === 'active' || u.status === 'rejected') && u.approvedAt && (currentRole === 'admin' || u.role === 'student');
   }).sort(function(a, b) { return (b.approvedAt || '').localeCompare(a.approvedAt || ''); }).slice(0, 10);
 
   // Update badge — show count of both pending and disabled accounts needing review
-  var badge = document.getElementById('pendingUsersBadge');
+  var badge = document.getElementById(currentRole === 'adminstaff' ? 'asPendingUsersBadge' : 'pendingUsersBadge');
   if(badge) {
     if(needsReview.length > 0) {
       badge.style.display = 'inline';
@@ -13218,14 +13341,26 @@ function renderVerifyUsersPage() {
       // said, so nobody activates a second login for a person unawares.
       var _maybeDup = {};
       try { CESTISCore.accountAccess.backfillStubFolds(userAccounts, students).unsure.forEach(function(id) { _maybeDup[id] = true; }); } catch(e) {}
+      // A registration from home by somebody who already has an account (one
+      // the office made without their email, say) gets the same warning.
+      needsReview.forEach(function(u) {
+        if (u.registeredVia !== 'home-registration') return;
+        try {
+          var r = CESTISCore.accountAccess.accountForTrainee(userAccounts, { name: u.name, programme: u.programme, email: u.email }, { skip: function(a) { return a === u || a.id === u.id; } });
+          if (r.match || r.ambiguous) _maybeDup[u.id] = true;
+        } catch(e) {}
+      });
       tbody.innerHTML = needsReview.map(function(u) {
         var roleBadge = u.role === 'student' ? 'badge-blue' : 'badge-green';
         var statusLabel = u.status === 'pending' ? '<span style="color:var(--accent);font-size:11px;font-weight:600;">Pending</span>' : '<span style="color:var(--red);font-size:11px;font-weight:600;">Disabled</span>';
         var sourceLabel = u.registeredVia === 'admin-created' ? ' <span style="font-size:10px;color:var(--text-muted);">(Admin Created)</span>' : u.registeredVia === 'fee-system' ? ' <span style="font-size:10px;color:var(--text-muted);">(Fee System)</span>' : u.registeredVia === 'registration' ? ' <span style="font-size:10px;color:var(--text-muted);">(Self-Registered)</span>' : '';
-        if (_maybeDup[u.id]) sourceLabel += ' <span style="font-size:10px;color:var(--accent);font-weight:600;">(may be a second account of somebody listed in Settings → Users — check before activating)</span>';
+        // Sent by the trainee from home, signed in with their own email account
+        // (the address was checked as theirs before the registration was taken).
+        if (u.registeredVia === 'home-registration') sourceLabel = ' <span class="vu-home-note" style="display:block;font-size:12px;color:var(--green);font-weight:600;">Registered from home · email account verified</span>';
+        if (_maybeDup[u.id]) sourceLabel += ' <span style="font-size:10px;color:var(--accent);font-weight:600;">(may be a second account of somebody who already has one — check the accounts list before activating)</span>';
         return '<tr>' +
           '<td><strong>' + escapeHtml(u.name) + '</strong>' + sourceLabel + '</td>' +
-          '<td style="font-size:12px;">' + escapeHtml(u.email || '—') + '</td>' +
+          '<td style="font-size:12px;">' + escapeHtml(u.email || '—') + (u.phone ? '<br><span style="color:var(--text-muted);">' + escapeHtml(u.phone) + '</span>' : '') + '</td>' +
           '<td><span class="badge ' + roleBadge + '"><span class="badge-dot"></span>' + u.role.charAt(0).toUpperCase() + u.role.slice(1) + '</span> ' + statusLabel + '</td>' +
           '<td>' + escapeHtml(u.programme || '—') + '</td>' +
           '<td style="font-size:12px;color:var(--text-muted);">' + u.createdAt + '</td>' +
@@ -13257,9 +13392,8 @@ function renderVerifyUsersPage() {
 }
 
 function approveUser(userId) {
-  if(currentRole !== 'admin') return;
   var user = userAccounts.find(function(u) { return u.id === userId; });
-  if(!user) return;
+  if(!user || !accountReviewAllowed(user)) return;
   if(CESTISCore.accountAccess.isPrivilegedSelfRegistration(user)) {
     alert('"' + user.name + '" registered through the public form but the request says "' + user.role + '".\n\n' +
       'A registration can only be a trainee or an instructor. Reject it, or approve it and set the role yourself in Settings → Users → Edit.');
@@ -13267,7 +13401,7 @@ function approveUser(userId) {
   }
   user.status = 'active';
   user.approvedAt = localDateStr();
-  user.approvedBy = 'admin';
+  stampReviewer(user);
   touchAccount(user);
   // Ensure student data is created and linked when approving a student account
   if (user.role === 'student' && !user.studentDataId) {
@@ -13301,29 +13435,33 @@ function approveUser(userId) {
   }
   showToast('Account approved: ' + user.name + ' (' + user.role + ')');
   addNotification('Account approved: ' + user.name + ' (' + user.role + ')', 'success', null, ['admin']);
+  // A trainee who signs in from home: their records are sent at once.
+  try { gatePublishSoon(); } catch(e) {}
 }
 
 function rejectUser(userId) {
-  if(currentRole !== 'admin') return;
   var user = userAccounts.find(function(u) { return u.id === userId; });
-  if(!user) return;
+  if(!user || !accountReviewAllowed(user)) return;
   if(!confirm('Reject the account for "' + user.name + '"? They will not be able to log in.')) return;
   user.status = 'rejected';
   user.approvedAt = localDateStr();
-  user.approvedBy = 'admin';
+  stampReviewer(user);
   touchAccount(user);
   saveState();
   try { saveUserAccounts(); } catch(e) {}   // the accounts ledger at once (see approveUser)
   renderVerifyUsersPage();
   showToast('Account rejected: ' + user.name);
   addNotification('Account rejected: ' + user.name, 'warning', null, ['admin']);
+  // A registration from home keeps its folder; it is marked as not approved.
+  try { gatePublishSoon(); } catch(e) {}
 }
 
 function approveAllPending() {
-  if(currentRole !== 'admin') return;
+  if(currentRole !== 'admin' && currentRole !== 'adminstaff') return;
   // The review queue only — never an account somebody deliberately switched
-  // off — and never a self-registration asking for a staff role.
-  var queue = CESTISCore.accountAccess.reviewQueue(userAccounts);
+  // off — and never a self-registration asking for a staff role. Admin
+  // Staff: the trainees' only (accountReviewAllowed).
+  var queue = CESTISCore.accountAccess.reviewQueue(userAccounts).filter(accountReviewAllowed);
   var skipped = queue.filter(function(u) { return CESTISCore.accountAccess.isPrivilegedSelfRegistration(u); });
   var pending = queue.filter(function(u) { return !CESTISCore.accountAccess.isPrivilegedSelfRegistration(u); });
   if(pending.length === 0) { alert('No pending accounts to approve.' + (skipped.length ? '\n\n' + skipped.length + ' registration(s) asking for a staff role must be reviewed one by one.' : '')); return; }
@@ -13332,7 +13470,7 @@ function approveAllPending() {
   pending.forEach(function(u) {
     u.status = 'active';
     u.approvedAt = dateStr;
-    u.approvedBy = 'admin';
+    stampReviewer(u);
     touchAccount(u);
     // Create linked student/instructor data on approval
     if (u.role === 'student' && !u.studentDataId) {
@@ -13365,18 +13503,19 @@ function approveAllPending() {
       '\n\nSet a password for each in Settings → Users (🔑 Reset Password).');
   }
   addNotification(pending.length + ' user account(s) approved' + (noPw.length ? ' — ' + noPw.length + ' still need a password' : ''), 'success', null, ['admin']);
+  try { gatePublishSoon(); } catch(e) {}
 }
 
 function rejectAllPending() {
-  if(currentRole !== 'admin') return;
-  var pending = CESTISCore.accountAccess.reviewQueue(userAccounts);
+  if(currentRole !== 'admin' && currentRole !== 'adminstaff') return;
+  var pending = CESTISCore.accountAccess.reviewQueue(userAccounts).filter(accountReviewAllowed);
   if(pending.length === 0) { alert('No pending accounts to reject.'); return; }
   if(!confirm('Reject all ' + pending.length + ' pending account(s)?')) return;
   var dateStr = localDateStr();
   pending.forEach(function(u) {
     u.status = 'rejected';
     u.approvedAt = dateStr;
-    u.approvedBy = 'admin';
+    stampReviewer(u);
     // Stamped like a single rejection, so an older 'pending' copy on another
     // device cannot bring the registration back on the next sync.
     touchAccount(u);
@@ -13386,6 +13525,7 @@ function rejectAllPending() {
   renderVerifyUsersPage();
   showToast(pending.length + ' account(s) rejected.');
   addNotification(pending.length + ' user account(s) rejected', 'warning', null, ['admin']);
+  try { gatePublishSoon(); } catch(e) {}
 }
 
 /* ============================== MOBILE SIDEBAR TOGGLE ============================== */
@@ -14213,7 +14353,8 @@ var AS_PAGE_PERMISSION = {
   'as-students': 'students', 'as-certificates': 'certificates', 'as-reports': 'reports',
   'as-training': 'training', 'as-exams': 'exams', 'as-invigilator': 'invigilation', 'as-video': 'video',
   'as-resources': 'resources', 'as-support-messages': 'supportmessages',
-  'as-attendance': 'attendance', 'as-announcements': 'announcements', 'as-calendar': 'calendar'
+  'as-attendance': 'attendance', 'as-announcements': 'announcements', 'as-calendar': 'calendar',
+  'as-trainee-accounts': 'traineeaccounts'
 };
 
 // Is this page allowed for whoever is signed in? The Admin Staff access grid
@@ -14283,6 +14424,7 @@ function showPage(pageId) {
     'as-attendance':'Attendance Management','as-announcements':'Announcements','as-calendar':'Calendar & Schedule',
     'as-students':'Student Progress','as-certificates':'Certificate Tracking','as-reports':'Reports & Analytics',
     'as-training':'Training Centres','as-exams':'Online Exams','as-video':'Video Conference','as-resources':'Resource Manager',
+    'as-trainee-accounts':'Trainee Accounts',
     'timetracking':'Staff Time Tracking','i-timetracking':'Staff Time Tracking','as-timetracking':'Staff Time Tracking',
     'fee-management':'School Fee Management','as-fee-management':'School Fee Management',
     'cashbook':'Cashbook Management','income-expenditure':'Income and Expenditure Account','megadata-admin':'Record Book Setup','megadata-adjq':'Identity Review','payments-invoices':'Payments / Invoices','document-hub':'Document Hub','i-document-hub':'Document Hub','as-document-hub':'Document Hub','pdf-workshop':'PDF Workshop','as-pdf-workshop':'PDF Workshop','i-pdf-workshop':'PDF Workshop',
@@ -37334,7 +37476,7 @@ var GATE_STORE_KEYS = ['voctrain_users', 'voctrain_deletedUserIds', 'voctrain_st
 // This page's own state for the gate (never stored: it is rebuilt after a reload).
 var _gateRun = { publishing: false, collecting: false, cfg: null, cfgAt: 0, cfgMissing: false, built: null, builtAt: 0,
   buildWrites: -1, buildMs: 0, remoteAt: 0, collectAt: 0, refetchAt: 0, healthAt: 0, drive: 0, killed: undefined,
-  decisions: null, lastError: '', lastCollect: null, offPending: '', offBusy: false };
+  decisions: null, lastError: '', lastCollect: null, offPending: '', offBusy: false, buildNow: false, again: false };
 
 /* ---- This PC's own notes (CESTISCore.gate.DEVICE_KEYS) ----
    Written straight into this browser's own copy, not through the store: they
@@ -37634,9 +37776,12 @@ async function gatePublishRun(env) {
     listed = true;
   }
   var writes = env.writes();
-  var due = !R.built || !R.builtAt || now - R.builtAt >= L.buildMaxMs ||
+  // R.buildNow: something a trainee needs at once (an account the office just
+  // made or approved) — built now, not at the next minute (gatePublishSoon).
+  var due = !!R.buildNow || !R.built || !R.builtAt || now - R.builtAt >= L.buildMaxMs ||
     ((writes !== R.buildWrites || env.pullChanged()) && now - R.builtAt >= L.buildMinMs);
   if (due) {
+    R.buildNow = false;
     var t0 = env.clock();
     R.built = await gateBuild(env.storeMap(), now, env.opts(st), env.pause, L.yieldEvery);
     R.buildMs = Math.round(env.clock() - t0);
@@ -37938,7 +38083,25 @@ function gatePublishTick() {
     _gateRun.lastError = String(e && e.message || e);
     console.warn('[TraineeGate] publishing turn failed:', e);
     return null;
-  }).then(function(res) { _gateRun.publishing = false; try { gateCardRefresh(); } catch (e) {} return res; });
+  }).then(function(res) {
+    _gateRun.publishing = false;
+    try { gateCardRefresh(); } catch (e) {}
+    // Asked for again while this turn ran (gatePublishSoon): one more turn now.
+    if (_gateRun.again) { _gateRun.again = false; setTimeout(function() { gatePublishTick(); }, 0); }
+    return res;
+  });
+}
+/* The office has just made a trainee's account (or approved or rejected a
+   registration): with trainee sign-in from anywhere on, the publishing turn
+   runs now and builds at once, so the trainee's own folder is made — and
+   their records sent — in the same moment, not at the next minute. With it
+   off: nothing at all (the first turn after it is turned on does it). */
+function gatePublishSoon() {
+  if (!gateStaffOn()) return false;
+  _gateRun.buildNow = true;
+  if (_gateRun.publishing) { _gateRun.again = true; return true; }
+  gatePublishTick();
+  return true;
 }
 function gateCollectTick(opts) {
   if (!gateStaffOn() || _gateRun.collecting) return Promise.resolve(null);
@@ -44541,7 +44704,8 @@ var asAccessPages = [
   { key:'invigilation', label:'Exam invigilation', desc:'Watch tests live and keep their registers' },
   { key:'video', label:'Video Conference', desc:'Join and manage video sessions' },
   { key:'resources', label:'Resource Manager', desc:'Access shared resources' },
-  { key:'supportmessages', label:'Support Messages', desc:'Send and receive support messages' }
+  { key:'supportmessages', label:'Support Messages', desc:'Send and receive support messages' },
+  { key:'traineeaccounts', label:'Trainee Accounts', desc:'Add trainee accounts, and approve or reject trainees\' registrations (trainees only)' }
 ];
 
 function loadAdminStaffAccess() {
@@ -44647,6 +44811,10 @@ function buildAdminStaffSidebar() {
   }
 
   var hasMgmt = false;
+  if(adminStaffAccessSettings.traineeaccounts) {
+    if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
+    html += '<div class="nav-item" data-page="as-trainee-accounts" onclick="showPage(\'as-trainee-accounts\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>Trainee Accounts<span class="nav-badge" id="asPendingUsersBadge" style="display:none;background:var(--red);">0</span></div>';
+  }
   if(adminStaffAccessSettings.attendance) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
     html += '<div class="nav-item" data-page="as-attendance" onclick="showPage(\'as-attendance\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>Attendance</div>';
@@ -44910,6 +45078,12 @@ function buildAdminStaffPages() {
   // Student Progress
   html += '<section class="page" id="page-as-students">' +
     '<iframe id="asStudentProgressFrame" style="width:100%;height:calc(100vh - var(--topbar-h) - 56px);border:none;border-radius:12px;"></iframe>' +
+  '</section>';
+
+  // Trainee Accounts: add a trainee's account; the registrations trainees sent
+  // from home (the Administrator's Verify Users page, trainees only).
+  html += '<section class="page" id="page-as-trainee-accounts">' +
+    '<div class="cestis-mount" data-feature="verify-users" data-prefix="adminstaff"></div>' +
   '</section>';
 
   // Training Centres
