@@ -20,6 +20,7 @@
   <div class="tab" onclick="switchSettingsTab(this,'staffaccess')">Admin Staff Access</div>
   <div class="tab" onclick="switchSettingsTab(this,'datamanagement')">Data Management</div>
   <div class="tab" onclick="switchSettingsTab(this,'googleverification')">Verification &amp; Links</div>
+  <div class="tab" onclick="switchSettingsTab(this,'traineegate')">Trainee Sign-in</div>
   <div class="tab" onclick="switchSettingsTab(this,'maintenance')">Maintenance Mode</div>
 </div>
 
@@ -276,6 +277,66 @@
     <div style="display:flex;gap:10px;">
       <button class="btn btn-primary" onclick="saveCertVerifyUrl()">Save</button>
       <button class="btn btn-secondary" onclick="clearCertVerifyUrl()">Use This Page's Address</button>
+    </div>
+  </div>
+</div>
+
+<div id="settingsTabTraineeGate" style="display:none;">
+  <div class="card gate-card" id="gateCard" style="max-width:760px;">
+    <div class="card-header"><h3>Trainee sign-in from anywhere</h3><span class="badge badge-blue" id="gateOnBadge">Off</span></div>
+    <p class="gate-lead">Trainees sign in on their own phone or computer, wherever they are, and see only their own records and tests. Set it up once, then turn it on.</p>
+    <div class="gate-status gate-tone-muted" id="gateStatusLine" role="status" aria-live="polite">Not set up</div>
+    <div class="gate-step">
+      <div class="gate-step-n" aria-hidden="true">1</div>
+      <div class="gate-step-body">
+        <h4>Copy the setup code</h4>
+        <p>Then follow the setup sheet. It takes about ten minutes, once.</p>
+        <div class="gate-actions">
+          <button class="btn btn-secondary" id="gateCopyCodeBtn" onclick="gateCopySetupCode()">Copy the setup code</button>
+          <a class="btn btn-secondary" id="gateSetupSheet" href="trainee-gate/SETUP.md" target="_blank" rel="noopener noreferrer">Setup sheet</a>
+        </div>
+      </div>
+    </div>
+    <div class="gate-step">
+      <div class="gate-step-n" aria-hidden="true">2</div>
+      <div class="gate-step-body">
+        <h4>Paste the address, then check it</h4>
+        <p>The last step of the setup sheet gives you the address.</p>
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="gateAddress">Address</label>
+          <div class="gate-address-row">
+            <input type="url" class="form-control" id="gateAddress" placeholder="https://…/exec" autocomplete="off" spellcheck="false">
+            <button class="btn btn-primary" id="gateCheckBtn" onclick="gateCheckNow()">Check</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="gate-step">
+      <div class="gate-step-n" aria-hidden="true">3</div>
+      <div class="gate-step-body">
+        <h4>Turn it on</h4>
+        <p>While it is off, trainees sign in exactly as before.</p>
+        <button class="btn btn-primary" id="gateToggleBtn" onclick="gateToggle()">Turn on</button>
+      </div>
+    </div>
+    <div class="gate-linkbox" id="gateLinkBox" hidden>
+      <h4 class="gate-h4">Trainees&rsquo; sign-in link</h4>
+      <div class="gate-link">
+        <img id="gateQrImg" alt="Sign-in code for trainees" width="180" height="180" hidden>
+        <div class="gate-link-body">
+          <p class="gate-qr-caption">Sign in on your own phone: scan this code.</p>
+          <input type="text" class="form-control" id="gateLinkText" readonly aria-label="Trainees&rsquo; sign-in link">
+          <div class="gate-actions" style="margin-top:10px;">
+            <button class="btn btn-secondary" onclick="gateCopyLink()">Copy link</button>
+            <button class="btn btn-secondary" id="gatePrintBtn" onclick="gatePrintQr()">Print</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="gate-facts">
+      <div id="gatePublishLine">Records sent to trainees: &mdash;</div>
+      <div id="gateWaitingLine">Trainee work waiting for a decision: 0</div>
+      <div id="gateWaitingList" hidden></div>
     </div>
   </div>
 </div>

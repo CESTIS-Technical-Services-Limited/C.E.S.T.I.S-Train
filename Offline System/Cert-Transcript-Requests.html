@@ -59,6 +59,7 @@
   .b-ready      { background:var(--green-dim); color:var(--green); }
   .b-collected  { background:rgba(255,255,255,0.07); color:var(--text-secondary); }
   .b-declined   { background:var(--red-dim); color:var(--red); }
+  .b-cancelled  { background:rgba(255,255,255,0.07); color:var(--text-secondary); }
   .t-transcript   { background:var(--blue-dim); color:var(--blue); }
   .t-certificate  { background:var(--purple); background:rgba(155,89,182,0.15); color:#c39bd3; }
   .t-both         { background:var(--accent-dim); color:var(--accent); }
@@ -101,6 +102,7 @@
     <option value="ready">Ready for Collection</option>
     <option value="collected">Collected</option>
     <option value="declined">Declined</option>
+    <option value="cancelled">Withdrawn by the trainee</option>
   </select>
   <select class="cr-select" id="crTypeFilter" onchange="render()">
     <option value="all">All types</option>
@@ -208,7 +210,10 @@ function render() {
     return;
   }
   var statuses = T ? T.REQUEST_STATUSES : ['pending', 'processing', 'ready', 'collected', 'declined'];
-  var labels = T ? T.REQUEST_STATUS_LABELS : {};
+  // A trainee may withdraw a request of their own that is still pending
+  // ('cancelled', sent from their own device): it is shown as what it is, and
+  // the office can still move it on.
+  var labels = Object.assign({ cancelled: 'Withdrawn by the trainee' }, T ? T.REQUEST_STATUS_LABELS : {});
   tbody.innerHTML = list.map(function (r) {
     return '<tr>' +
       '<td style="font-weight:600;">' + esc(r.studentName || r.studentId) + '</td>' +
@@ -218,7 +223,7 @@ function render() {
       '<td><span class="cr-badge t-' + esc(r.type) + '">' + esc((T && T.REQUEST_TYPES[r.type]) || r.type) + '</span></td>' +
       '<td><span class="cr-badge b-' + esc(r.status) + '">' + esc(labels[r.status] || r.status) + '</span></td>' +
       '<td><select class="cr-select sm" onchange="setStatus(' + crJsArg(r.id) + ', this.value)">' +
-        statuses.map(function (s) {
+        (statuses.indexOf(r.status) === -1 && r.status === 'cancelled' ? statuses.concat(['cancelled']) : statuses).map(function (s) {
           return '<option value="' + s + '"' + (s === r.status ? ' selected' : '') + '>' + esc(labels[s] || s) + '</option>';
         }).join('') +
       '</select></td>' +

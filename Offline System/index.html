@@ -4720,6 +4720,35 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
   font-size:13px; text-align:center; line-height:1.6;
 }
 .maint-preview-box .maint-preview-title { font-family:'Playfair Display',serif; font-size:18px; margin-bottom:6px; }
+/* ===== Settings → Trainee Sign-in ("Trainee sign-in from anywhere") ===== */
+.gate-card .card-header { flex-wrap:wrap; gap:8px; }
+.gate-lead { font-size:13px; color:var(--text-secondary); line-height:1.6; margin:0 0 14px; }
+.gate-status { font-size:14px; font-weight:600; padding:10px 14px; border-radius:var(--radius-sm); margin-bottom:6px; border:1px solid var(--border); background:var(--w-02); color:var(--text-primary); line-height:1.5; }
+.gate-status.gate-tone-ok { border-color:var(--green); color:var(--green); background:var(--green-dim); }
+.gate-status.gate-tone-warn { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+.gate-status.gate-tone-bad { border-color:var(--red); color:var(--red); background:var(--red-dim); }
+.gate-step { display:flex; gap:12px; align-items:flex-start; padding:14px 0; border-bottom:1px solid var(--border); }
+.gate-step-n { flex:0 0 28px; height:28px; border-radius:50%; background:var(--accent-dim); color:var(--accent); font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; }
+.gate-step-body { flex:1; min-width:0; }
+.gate-step-body h4, .gate-h4 { margin:3px 0 6px; font-size:14px; color:var(--text-primary); }
+.gate-step-body p { font-size:13px; color:var(--text-secondary); margin:0 0 10px; line-height:1.55; }
+.gate-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.gate-actions a.btn { text-decoration:none; }
+.gate-address-row { display:flex; gap:10px; flex-wrap:wrap; }
+.gate-address-row .form-control { flex:1 1 260px; min-width:0; }
+.gate-linkbox { padding-top:16px; }
+.gate-link { display:flex; gap:18px; flex-wrap:wrap; align-items:center; padding:14px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--w-02); }
+.gate-link img { width:180px; height:180px; background:#fff; padding:8px; border-radius:8px; flex:0 0 auto; }
+.gate-link-body { flex:1 1 240px; min-width:0; }
+.gate-qr-caption { font-size:14px; font-weight:600; margin:0 0 10px; color:var(--text-primary); }
+.gate-facts { margin-top:16px; display:grid; gap:6px; font-size:13px; color:var(--text-secondary); }
+.gate-note { font-size:13px; color:var(--text-secondary); margin:6px 0; }
+.gate-waiting { margin:4px 0 0 18px; padding:0; font-size:13px; color:var(--text-secondary); }
+@media(max-width:768px) {
+  .gate-card .btn { min-height:44px; }
+  .gate-card .form-control { min-height:44px; font-size:16px; }
+  .gate-link { justify-content:center; }
+}
 /* ===== Google Drive token-expiry / cloud connectivity notification ===== */
 .cloud-notify{position:fixed;top:1.25rem;right:1.25rem;z-index:100000;width:370px;max-width:calc(100vw - 2rem);background:var(--bg-card);border:1px solid var(--border-light);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.55);transform:translateX(120%);transition:transform .4s cubic-bezier(.22,1,.36,1);overflow:hidden}
 .cloud-notify.show{transform:translateX(0)}
@@ -11276,6 +11305,8 @@ function switchSettingsTab(tab, which) {
   document.getElementById('settingsTabDatamanagement').style.display = which==='datamanagement' ? '' : 'none';
   document.getElementById('settingsTabGoogleVerification').style.display = which==='googleverification' ? '' : 'none';
   document.getElementById('settingsTabMaintenance').style.display = which==='maintenance' ? '' : 'none';
+  var gateTab = document.getElementById('settingsTabTraineeGate');
+  if(gateTab) gateTab.style.display = which==='traineegate' ? '' : 'none';
   var extTab = document.getElementById('settingsTabExtsystems');
   if(extTab) extTab.style.display = which==='extsystems' ? '' : 'none';
   if(which === 'users') renderUserAccountsTable();
@@ -11284,6 +11315,7 @@ function switchSettingsTab(tab, which) {
   if(which === 'datamanagement') refreshStorageUsage();
   if(which === 'googleverification') loadGoogleVerificationUI();
   if(which === 'maintenance') loadMaintenanceModeUI();
+  if(which === 'traineegate') gateCardOpen();
 }
 
 /* Sign-in messages appear under the card's own fields, announced to screen
@@ -35714,6 +35746,12 @@ async function autoSaveToAllFolders() {
       console.warn('[AutoSave] The cloud copy could not be read (' + (_lastPull.kind || 'unknown') + '); not uploading over it this time.');
       return;
     }
+    // The trainee gate's staff side (docs/trainee-gate): each trainee's own
+    // records out, what trainees sent in. It runs on its own beside this save,
+    // after a pull that could be read, and does nothing at all — not one
+    // request — until an administrator has set it up and turned it on. It can
+    // never stop this save: whatever it does, the save carries on.
+    try { if (typeof gateStaffTick === 'function') gateStaffTick(); } catch (e) { console.warn('[TraineeGate]', e); }
 
     // Nothing written since our last completed save: the local copy and the
     // cloud copy are both already what we would produce. Skip the serialise,
@@ -35940,6 +35978,956 @@ async function autoSaveToAllFolders() {
   } finally {
     _isAutoSaving = false;
   }
+}
+
+/* ===================== TRAINEE GATE — the staff side: publish and collect =====================
+   docs/trainee-gate/DESIGN.md §3 (who writes each trainee's records) and
+   §5.6 (how staff computers pick up what trainees sent).
+
+   Once an administrator has set up "Trainee sign-in from anywhere" and
+   turned it on, every staff computer that is signed in for syncing does two
+   things beside the 5-second save:
+
+     - PUBLISH. After a pull it could read, it builds each trainee's own
+       records (CESTISCore.gate.prepare + sliceFor, with a pause every 25
+       trainees so an old office PC stays usable), the papers and answer keys
+       of the exams those trainees may sit, and their chat rooms; compares
+       them with what is already published; and writes only what changed —
+       answer keys first, then papers, then the trainees' folders and records,
+       then rooms (a trainee's records never list an exam before the gate can
+       mark it). At most 2 writes a second and 120 a turn, from a list kept on
+       this PC, so a closed tab carries on where it stopped. Two staff PCs
+       never take turns overwriting each other: CESTISCore.gate.publishDecision
+       decides, and a PC that has seen less waits for its own sync.
+     - COLLECT. Every minute it asks once for what trainees have sent since it
+       last looked, checks it again (CESTISCore.gate.collect), gives it to the
+       trainee as they are today (renamed, moved, or folded into their real
+       account), and merges it through the same rules every sync uses.
+       Nothing a trainee sent is ever lost: work that cannot be placed waits
+       for an administrator, a merge that fails leaves the mark where it was,
+       and the files themselves are never deleted.
+
+   With the gate not set up, or turned off, none of this runs: not one extra
+   request, nothing written — exactly as before. */
+var GATE_STAFF_ROLES = { admin: 1, adminstaff: 1, instructor: 1 };
+var GATE_CONFIG_FILE = 'CESTIS_GATE.json';
+var GATE_FOLDER_MIME = 'application/vnd.google-apps.folder';
+var GATE_EXPECTED_VERSION = 1;
+var GATE_LIMITS = {
+  gapMs: 500,                 // at most 2 writes a second
+  perTick: 120,               // and 120 in one turn
+  yieldEvery: 25,             // trainees built between pauses
+  buildMinMs: 60 * 1000,      // records changing: at most one build a minute
+  buildMaxMs: 10 * 60 * 1000, // and one at least every 10 minutes
+  remoteMs: 5 * 60 * 1000,    // what other PCs published: looked at every 5 minutes
+  overlapMs: 10 * 60 * 1000,  // each look reaches 10 minutes further back (search lag)
+  fullMs: 24 * 3600 * 1000,   // and once a day, everything
+  collectMs: 60 * 1000,       // what trainees sent: every minute
+  refetchMs: 10 * 60 * 1000,  // work waiting for a decision: looked at again
+  configMs: 6 * 3600 * 1000,  // where the gate's folders are: read again
+  healthMs: 24 * 3600 * 1000  // the administrator's PC checks the address daily
+};
+// Every collection CESTISCore.gate reads to build the trainees' records.
+var GATE_STORE_KEYS = ['voctrain_users', 'voctrain_deletedUserIds', 'voctrain_students', 'voctrain_deletedStudentIds',
+  'voctrain_deletedStudentAt', 'voctrain_systemSettings', 'voctrain_syncTombstones', 'voctrain_exams', 'voctrain_examResults',
+  'voctrain_examAttempts', 'voctrain_attendanceRegister', 'voctrain_assignments', 'voctrain_submissions', 'voctrain_announcements',
+  'voctrain_notifications', 'voctrain_calendarEvents', 'voctrain_classSessions', 'voctrain_vcSessions', 'voctrain_resources',
+  'voctrain_driveResources', 'voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_certTranscriptRequests',
+  'voctrain_certDownloadApprovals', 'voctrain_support_messages', 'voctrain_chatRooms', 'voctrain_chatMessages',
+  'voctrain_skillAreas', 'voctrain_instructorData', 'voctrain_transcriptProfiles', 'voctrain_studentProfiles',
+  'voctrain_certTemplates'];
+// This page's own state for the gate (never stored: it is rebuilt after a reload).
+var _gateRun = { publishing: false, collecting: false, cfg: null, cfgAt: 0, cfgMissing: false, built: null, builtAt: 0,
+  buildWrites: -1, buildMs: 0, remoteAt: 0, collectAt: 0, refetchAt: 0, healthAt: 0, drive: 0, killed: undefined,
+  decisions: null, lastError: '', lastCollect: null };
+
+/* ---- This PC's own notes (CESTISCore.gate.DEVICE_KEYS) ----
+   Written straight into this browser's own copy, not through the store: they
+   are this computer's bookkeeping, and a write through the store counts as a
+   change to the Centre's records — the 5-second save would re-read and
+   re-check the whole backup every time the publisher noted what it sent.
+   Read through the store, which reads this copy first. */
+function gateDevRead(k, fallback) {
+  try {
+    var raw = CESTISStore.getItem(k);
+    if (raw == null) return fallback;
+    var v = JSON.parse(raw);
+    return v == null ? fallback : v;
+  } catch (e) { return fallback; }
+}
+function gateDevWrite(k, v) {
+  var text = JSON.stringify(v);
+  if (!(window.CESTISStore && CESTISStore.namespace)) {
+    try { localStorage.setItem(k, text); return true; }
+    catch (e) { try { localStorage.removeItem(k); } catch (e2) {} }
+  }
+  try { CESTISStore.setItem(k, text); return true; } catch (e3) { return false; }
+}
+// What this PC knows is published, and where (cestisGatePublished).
+function gatePublishedState(raw) {
+  var st = raw && typeof raw === 'object' && !Array.isArray(raw) && raw.v === 1 ? raw : { v: 1 };
+  ['files', 'folders', 'dups'].forEach(function(k) { if (!st[k] || typeof st[k] !== 'object' || Array.isArray(st[k])) st[k] = {}; });
+  if (!st.device) st.device = 'dev-' + Math.random().toString(36).slice(2, 10);
+  return st;
+}
+// What this PC has collected (cestisGateCollected).
+function gateCollectedState(raw) {
+  var c = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  ['seen', 'byAcct', 'held'].forEach(function(k) { if (!c[k] || typeof c[k] !== 'object' || Array.isArray(c[k])) c[k] = {}; });
+  if (typeof c.watermark !== 'string') c.watermark = '';
+  return c;
+}
+
+/* ---- Names on the gate's folders ---- */
+// A trainee's folder is named with their student ID, which changes on a
+// rename or a transfer; it is FOUND by the account written in its
+// description, which never does (DESIGN §1.2).
+function gateFolderDescription(acct) { return 'cestis-trainee acct=' + acct + ' v=1'; }
+function gateFolderAcct(description) {
+  var m = /(?:^|\s)acct=(\S+)/.exec(String(description || ''));
+  return m ? m[1] : '';
+}
+function gateFileName(kind, key) {
+  if (kind === 'slice') return 'from-centre.json';
+  return kind + '.' + key + '.json';
+}
+function gateFileProps(kind, item) {
+  var p = { cestisGate: '1', cestisKind: kind, h: String(item.h), s: String(item.s || 0) };
+  if (kind === 'slice') p.acct = item.acct;
+  else if (kind === 'room') p.roomId = item.key;
+  else p.examId = item.key;
+  return p;
+}
+
+/* ---- What is published: one listing folded into this PC's notes ----
+   Folders first, so a trainee's records are only counted when they sit in
+   that trainee's folder. When two PCs made the same folder or file at the
+   same moment, the OLDEST is the one (every reader, the gate included, takes
+   the oldest); the younger is noted as a duplicate — never deleted, and a
+   folder is never emptied or trashed by anything. full: this listing is
+   everything there is, so what it does not hold is gone. */
+function gateIndexListing(st, files, cfg, full) {
+  var older = function(a, b) {
+    var ta = String(a.created || ''), tb = String(b.created || '');
+    return ta !== tb ? ta < tb : String(a.id) < String(b.id);
+  };
+  var list = (Array.isArray(files) ? files : []).filter(function(f) { return f && f.id && f.appProperties && f.appProperties.cestisGate === '1'; });
+  if (full) { st.files = {}; st.folders = {}; }
+  list.forEach(function(f) {
+    var p = f.appProperties;
+    if (p.cestisKind !== 'folder') return;
+    var acct = String(p.acct || gateFolderAcct(f.description) || '');
+    if (!acct) return;
+    if (cfg && cfg.traineesId && Array.isArray(f.parents) && f.parents.indexOf(cfg.traineesId) === -1) return;
+    var cand = { id: f.id, name: String(f.name || ''), created: String(f.createdTime || '') };
+    var cur = st.folders[acct];
+    if (!cur || cur.id === f.id) { st.folders[acct] = cand; delete st.dups[f.id]; return; }
+    if (st.dups[f.id] && st.dups[f.id].of === cur.id) return;
+    if (older(cand, cur)) {
+      st.dups[cur.id] = { kind: 'folder', acct: acct, of: cand.id, name: cur.name };
+      st.folders[acct] = cand;
+    } else st.dups[f.id] = { kind: 'folder', acct: acct, of: cur.id, name: cand.name };
+  });
+  list.forEach(function(f) {
+    var p = f.appProperties, kind = p.cestisKind;
+    var key = kind === 'slice' ? p.acct : (kind === 'room' ? p.roomId : (kind === 'paper' || kind === 'key' ? p.examId : ''));
+    if (!key) return;
+    var path = kind + ':' + key;
+    var parent = Array.isArray(f.parents) && f.parents.length ? String(f.parents[0]) : '';
+    // A trainee's records in a folder that is not theirs (a younger duplicate)
+    // are left where they are: nobody reads them.
+    if (kind === 'slice' && (!st.folders[key] || st.folders[key].id !== parent)) return;
+    var ent = { id: f.id, h: String(p.h || ''), s: Number(p.s) || 0, parent: parent, created: String(f.createdTime || ''), modified: String(f.modifiedTime || '') };
+    var cur = st.files[path];
+    if (!cur || cur.id === f.id || (cur.parent && cur.parent !== parent && kind === 'slice')) { st.files[path] = ent; return; }
+    if (st.dups[f.id]) return;
+    if (older(ent, cur)) {
+      st.dups[cur.id] = { kind: 'file', path: path, of: ent.id, name: gateFileName(kind, key) };
+      st.files[path] = ent;
+    } else st.dups[f.id] = { kind: 'file', path: path, of: cur.id, name: gateFileName(kind, key) };
+  });
+}
+
+/* ---- Build: every trainee's records, then papers, keys and rooms ----
+   CESTISCore.gate.buildAll's work, done a trainee at a time with a pause
+   every 25 (pause() resolves when the browser has had its turn), so a
+   build of hundreds of trainees never freezes the page. The same output as
+   buildAll, item for item (tests/gate-publisher.test.js). */
+async function gateBuild(storeMap, nowMs, opts, pause, every) {
+  var G = CESTISCore.gate, ctx = G.prepare(storeMap, nowMs, opts || {});
+  var out = { items: {}, unlinked: ctx.unlinked.slice(), s: ctx.maxStamp, scrubbed: 0, trainees: ctx.trainees.length };
+  var papers = {}, rooms = {}, inRooms = {};
+  every = every || GATE_LIMITS.yieldEvery;
+  for (var i = 0; i < ctx.trainees.length; i++) {
+    var t = ctx.trainees[i], r = G.sliceFor(ctx, t.acct);
+    if (!r) continue;
+    out.scrubbed += r.scrubbed || 0;
+    out.items['slice:' + t.acct] = { kind: 'slice', key: t.acct, acct: t.acct, stu: r.slice.studentId, h: r.h, s: r.s, body: r.slice };
+    r.slice.access.papers.forEach(function(id) { papers[id] = 1; });
+    r.slice.access.rooms.forEach(function(id) { rooms[id] = 1; (inRooms[id] = inRooms[id] || []).push(t.acct); });
+    if (pause && (i + 1) % every === 0) await pause();
+  }
+  ctx.L.voctrain_exams.forEach(function(e) {
+    var id = String(e.id);
+    if (!papers[id] || out.items['paper:' + id]) return;
+    var p = G.buildPaper(e, ctx.now), k = G.buildKey(e, ctx.offset);
+    out.items['key:' + k.examId] = { kind: 'key', key: k.examId, h: k.hash, s: ctx.maxStamp, body: k };
+    out.items['paper:' + p.examId] = { kind: 'paper', key: p.examId, h: p.hash, s: ctx.maxStamp, body: p };
+  });
+  var msgs = storeMap && storeMap.voctrain_chatMessages;
+  if (typeof msgs === 'string') { try { msgs = JSON.parse(msgs); } catch (e) { msgs = null; } }
+  if (!msgs || typeof msgs !== 'object' || Array.isArray(msgs)) msgs = {};
+  ctx.L.voctrain_chatRooms.forEach(function(room) {
+    var id = String(room.id);
+    if (!rooms[id] || out.items['room:' + id]) return;
+    var removed = room.removed && typeof room.removed === 'object' ? room.removed : {};
+    var members = (Array.isArray(room.members) ? room.members : []).map(String).filter(function(m) { return !removed[m]; }).concat(inRooms[id] || []);
+    var f = G.buildRoom(room, msgs[id], members, ctx.now);
+    out.items['room:' + id] = { kind: 'room', key: id, h: f.hash, s: ctx.maxStamp, body: f };
+  });
+  return out;
+}
+
+/* ---- Plan: what has to be written ----
+   Answer keys, papers, trainees' folders and records, rooms — in that order.
+   Each item is decided by CESTISCore.gate.publishDecision against the copy
+   already published: 'write' only when this PC has seen newer records (or the
+   same moment and the higher hash), so two PCs settle on one copy; a PC that
+   has seen less ('behind') or loses the tie ('keep') writes nothing. A
+   trainee's folder is made, or renamed to their student ID, only alongside
+   records this PC may publish — a PC that is behind never renames a folder
+   back. Duplicates are noted last. Pure. */
+function gatePlan(built, st) {
+  var G = CESTISCore.gate, ops = [], seen = { skip: 0, write: 0, behind: 0, keep: 0 };
+  var paths = Object.keys((built && built.items) || {});
+  ['key', 'paper', 'slice', 'room'].forEach(function(kind) {
+    paths.filter(function(p) { return p.indexOf(kind + ':') === 0; }).sort().forEach(function(path) {
+      var it = built.items[path], cur = st.files[path] || null;
+      var fold = kind === 'slice' ? (st.folders[it.acct] || null) : null;
+      if (kind === 'slice' && cur && (!fold || cur.parent !== fold.id)) cur = null;
+      var d = G.publishDecision({ h: it.h, s: it.s }, cur ? { h: cur.h, s: cur.s } : null);
+      seen[d] = (seen[d] || 0) + 1;
+      if (kind === 'slice' && (d === 'write' || d === 'skip')) {
+        if (!fold) ops.push({ op: 'folder', path: 'folder:' + it.acct, acct: it.acct, name: it.stu });
+        else if (fold.name !== it.stu) ops.push({ op: 'rename', path: 'folder:' + it.acct, acct: it.acct, name: it.stu });
+      }
+      if (d === 'write') ops.push({ op: 'put', path: path, kind: kind, key: it.key, acct: it.acct || '', h: it.h, s: it.s });
+    });
+  });
+  Object.keys(st.dups).sort().forEach(function(id) {
+    var d = st.dups[id];
+    if (d && !d.marked) ops.push({ op: 'dup', path: 'dup:' + id, id: id });
+  });
+  return { ops: ops, decisions: seen };
+}
+
+/* ---- One write ----
+   'done' (written), 'skip' (nothing left to do), 'wait' (its content or its
+   folder is not there yet: kept for the next turn), 'fail' (this one could
+   not be written: kept), 'stop' (stop the turn: signed out, too many
+   requests, or the connection is down). */
+async function gateDoOp(op, env) {
+  var st = env.st, cfg = env.cfg, drive = env.drive, now = env.now();
+  try {
+    if (op.op === 'folder') {
+      if (st.folders[op.acct]) return 'skip';
+      var fm = await drive.create({ name: op.name, mimeType: GATE_FOLDER_MIME, parents: [cfg.traineesId], description: gateFolderDescription(op.acct),
+        appProperties: { cestisGate: '1', cestisKind: 'folder', acct: op.acct } }, null);
+      st.folders[op.acct] = { id: fm.id, name: op.name, created: String(fm.createdTime || new Date(now).toISOString()) };
+      return 'done';
+    }
+    if (op.op === 'rename') {
+      var fo = st.folders[op.acct];
+      if (!fo || fo.name === op.name) return 'skip';
+      await drive.update(fo.id, { name: op.name }, null);
+      fo.name = op.name;
+      return 'done';
+    }
+    if (op.op === 'dup') {
+      var d = st.dups[op.id];
+      if (!d || d.marked) return 'skip';
+      // Noted, never deleted: a younger folder may hold what a trainee sent.
+      if (d.kind === 'folder') await drive.update(op.id, { description: gateFolderDescription(d.acct) + ' duplicate-of=' + d.of, appProperties: { cestisGate: 'dup' } }, null);
+      else await drive.update(op.id, { name: 'duplicate-of-' + d.of + '.' + (d.name || 'file.json'), appProperties: { cestisGate: 'dup' } }, null);
+      d.marked = new Date(now).toISOString();
+      return 'done';
+    }
+    if (op.op !== 'put') return 'skip';
+    var built = env.run && env.run.built;
+    var it = built && built.items ? built.items[op.path] : null;
+    if (!it || it.h !== op.h) return 'wait';
+    var parent = '';
+    if (op.kind === 'slice') {
+      var f2 = st.folders[op.acct];
+      if (!f2) return 'wait';
+      parent = f2.id;
+    } else parent = cfg[{ key: 'keysId', paper: 'papersId', room: 'roomsId' }[op.kind]] || '';
+    if (!parent) return 'wait';
+    var cur = st.files[op.path] || null;
+    if (cur && cur.parent && cur.parent !== parent) cur = null;
+    if (cur && cur.h === op.h) return 'skip';
+    var props = gateFileProps(op.kind, it), text = JSON.stringify(it.body), meta;
+    if (cur && cur.id) {
+      try { meta = await drive.update(cur.id, { appProperties: props }, text); }
+      catch (e) {
+        if (e && e.status === 404) { delete st.files[op.path]; st.full = true; return 'fail'; }
+        throw e;
+      }
+    } else {
+      meta = await drive.create({ name: gateFileName(op.kind, op.key), mimeType: 'application/json', parents: [parent], appProperties: props }, text);
+    }
+    st.files[op.path] = { id: (meta && meta.id) || (cur && cur.id), h: it.h, s: it.s, parent: parent,
+      created: (cur && cur.created) || String((meta && meta.createdTime) || new Date(now).toISOString()),
+      modified: String((meta && meta.modifiedTime) || new Date(now).toISOString()) };
+    return 'done';
+  } catch (e) {
+    var s = e && e.status;
+    env.log('warn', 'could not write ' + op.path + (s ? ' (' + s + ')' : '') + ': ' + (e && e.message));
+    if (!s || s === 401 || s === 403 || s === 429 || s >= 500) return 'stop';
+    return 'fail';
+  }
+}
+
+/* ---- The list of writes, worked through ----
+   At most env.limits.perTick writes, env.limits.gapMs apart (≤ 2 a second),
+   the notes saved after every one: a tab closed half-way resumes without
+   writing anything twice. */
+async function gateRunQueue(env) {
+  var q = env.queue, wrote = 0, i = 0, stopped = false;
+  while (i < q.length && wrote < env.limits.perTick) {
+    if (!env.alive()) { stopped = true; break; }
+    var res = await gateDoOp(q[i], env);
+    if (res === 'done' || res === 'skip') {
+      q.splice(i, 1);
+      env.persist();
+      if (res === 'done') {
+        wrote++;
+        if (i < q.length && wrote < env.limits.perTick) await env.sleep(env.limits.gapMs);
+      }
+      continue;
+    }
+    if (res === 'stop') { stopped = true; break; }
+    i++;
+  }
+  return { wrote: wrote, left: q.length, stopped: stopped };
+}
+
+/* ---- One publishing turn ----
+   1. What is published: once a page load, and every 5 minutes after, one
+      listing of the gate's files changed since the last look (10 minutes'
+      overlap); everything once a day, or when a file turned out missing.
+   2. Build, when the records changed (at most once a minute) or every
+      10 minutes regardless.
+   3. Plan against what is published, and write. */
+async function gatePublishRun(env) {
+  var st = env.st, R = env.run, L = env.limits, now = env.now(), listed = false;
+  var full = !st.remoteAt || !st.inventoryAt || st.full || now - (Date.parse(st.inventoryAt) || 0) >= L.fullMs;
+  if (full || !R.remoteAt || now - R.remoteAt >= L.remoteMs) {
+    var q = "appProperties has { key='cestisGate' and value='1' } and trashed = false";
+    if (!full) q += " and modifiedTime > '" + new Date((Date.parse(st.remoteAt) || now) - L.overlapMs).toISOString() + "'";
+    var files = await env.drive.list(q, 'id,name,parents,description,appProperties,createdTime,modifiedTime');
+    gateIndexListing(st, files, env.cfg, full);
+    st.remoteAt = new Date(now).toISOString();
+    if (full) { st.inventoryAt = st.remoteAt; st.full = false; }
+    R.remoteAt = now;
+    listed = true;
+  }
+  var writes = env.writes();
+  var due = !R.built || !R.builtAt || now - R.builtAt >= L.buildMaxMs ||
+    ((writes !== R.buildWrites || env.pullChanged()) && now - R.builtAt >= L.buildMinMs);
+  if (due) {
+    var t0 = env.clock();
+    R.built = await gateBuild(env.storeMap(), now, env.opts(st), env.pause, L.yieldEvery);
+    R.buildMs = Math.round(env.clock() - t0);
+    R.builtAt = now;
+    R.buildWrites = writes;
+    if (R.built.scrubbed > 0) env.log('warn', 'the privacy sweep took ' + R.built.scrubbed + ' value(s) out of trainees\' records that the rules did not remove');
+  }
+  var plan = gatePlan(R.built, st);
+  R.decisions = plan.decisions;
+  env.queue.length = 0;
+  plan.ops.forEach(function(op) { env.queue.push(op); });
+  env.persist();
+  var res = { wrote: 0, left: env.queue.length, stopped: false, built: due, listed: listed };
+  if (env.queue.length) {
+    var r2 = await gateRunQueue(env);
+    res.wrote = r2.wrote; res.left = r2.left; res.stopped = r2.stopped;
+  }
+  if (!env.queue.length) st.syncedAt = new Date(env.now()).toISOString();
+  env.persist();
+  return res;
+}
+
+/* ---- Where the gate's folders are (CESTIS_GATE.json, written by the gate
+   at its first check). null when it is not there yet; a newer format than
+   this page knows is not read as anything. ---- */
+async function gateReadConfig(drive, mainFolderId) {
+  var list = await drive.list("name = '" + GATE_CONFIG_FILE + "' and '" + mainFolderId + "' in parents and trashed = false",
+    'id,name,modifiedTime,createdTime', { pageSize: 10 });
+  if (!list.length) return null;
+  list.sort(function(a, b) { return String(b.modifiedTime || '').localeCompare(String(a.modifiedTime || '')); });
+  var j = null;
+  try { j = JSON.parse(await drive.media(list[0].id)); } catch (e) { j = null; }
+  if (!j || typeof j !== 'object') return null;
+  if (Number(j.version) > 1) return { tooNew: true };
+  if (!j.traineesId || !j.keysId || !j.papersId) return null;
+  return { traineesId: String(j.traineesId), keysId: String(j.keysId), papersId: String(j.papersId), roomsId: String(j.roomsId || ''),
+    rootId: String(j.rootId || ''), gateVersion: Number(j.gateVersion) || 0, fileId: list[0].id };
+}
+
+/* ---- Whose folder a file sits in: the account in the folder's own
+   description, never anything the file says. '' when the folder is not one
+   of the trainees' folders; null when it could not be looked at. ---- */
+async function gateFolderAcctOf(parents, env) {
+  var st = env.st, cfg = env.cfg;
+  var id = Array.isArray(parents) && parents.length ? String(parents[0]) : '';
+  if (!id) return '';
+  var accts = Object.keys(st.folders);
+  for (var i = 0; i < accts.length; i++) if (st.folders[accts[i]].id === id) return accts[i];
+  if (st.dups[id] && st.dups[id].kind === 'folder') return String(st.dups[id].acct);
+  env.folderCache = env.folderCache || {};
+  if (id in env.folderCache) return env.folderCache[id];
+  var meta;
+  try { meta = await env.drive.get(id, 'id,name,description,parents'); }
+  catch (e) { return e && e.status === 404 ? (env.folderCache[id] = '') : null; }
+  var ok = meta && Array.isArray(meta.parents) && meta.parents.indexOf(cfg.traineesId) !== -1;
+  return (env.folderCache[id] = ok ? gateFolderAcct(meta.description) : '');
+}
+
+/* ---- One collecting turn (§5.6) ----
+   One query for inbox files changed since the mark (10 minutes' overlap),
+   plus — every 10 minutes — the files still waiting for a decision or
+   written in a newer format, looked at again by id (the mark has passed
+   them). Each file is read once per version; CESTISCore.gate.collect checks
+   and re-owns it; the records merge through mergeBackupData's own rules,
+   the requests through the request queue's, and the read marks and spent
+   codes through CESTISCore.gate.applyOps. If the merge fails, nothing is
+   noted as collected and the mark stays where it was. */
+async function gateCollectRun(env) {
+  var G = CESTISCore.gate, C = env.collected, U = env.unassigned, L = env.limits, now = env.now();
+  var verOf = function(f) { return String(f.version != null ? f.version : f.modifiedTime); };
+  var q = "name contains 'CESTISINBOX' and trashed = false";
+  if (C.watermark) q += " and modifiedTime > '" + new Date((Date.parse(C.watermark) || now) - L.overlapMs).toISOString() + "'";
+  var listed = await env.drive.list(q, 'id,name,parents,modifiedTime,version', { orderBy: 'modifiedTime', pageSize: 500 });
+  var byId = {};
+  listed.forEach(function(f) { if (f && f.id && /^CESTISINBOX\./.test(String(f.name || ''))) byId[f.id] = f; });
+  var again = Object.keys(U).concat(Object.keys(C.held)).filter(function(id) { return !byId[id]; });
+  if (again.length && (env.refetchNow || !env.run.refetchAt || now - env.run.refetchAt >= L.refetchMs)) {
+    env.run.refetchAt = now;
+    for (var a = 0; a < again.length; a++) {
+      try {
+        var m = await env.drive.get(again[a], 'id,name,parents,modifiedTime,version,trashed');
+        if (m && m.id && !m.trashed) byId[m.id] = m;
+      } catch (e) { if (e && e.status === 404) { delete U[again[a]]; delete C.held[again[a]]; } }
+    }
+  }
+  var files = [], failed = false;
+  var ids = Object.keys(byId).sort(function(x, y) { return String(byId[x].modifiedTime).localeCompare(String(byId[y].modifiedTime)); });
+  for (var i = 0; i < ids.length; i++) {
+    var f = byId[ids[i]];
+    if (C.seen[f.id] === verOf(f)) continue;
+    var acct = await gateFolderAcctOf(f.parents, env);
+    if (acct === null) { failed = true; continue; }
+    // Not in a trainee's folder: nobody's inbox. Noted, so it is not read again.
+    if (!acct) { C.seen[f.id] = verOf(f); continue; }
+    var text;
+    try { text = await env.drive.media(f.id); } catch (e) { failed = true; continue; }
+    files.push({ fileId: f.id, version: verOf(f), modifiedTime: String(f.modifiedTime || ''), folderAcct: acct, json: text });
+  }
+  var out = G.collect(files, { accounts: env.accounts(), deletedUserIds: env.deletedUserIds(), students: env.students(),
+    folds: env.folds(), seen: C.seen, watermark: C.watermark });
+  var data = (out.payload && out.payload.data) || {}, recs = (out.payload && out.payload.records) || {};
+  var merged = { data: Object.keys(data), requests: 0, ops: 0 };
+  if (merged.data.length) {
+    var ok = await env.mergePayload({ version: '1.0', data: data });
+    if (!ok) { env.log('warn', 'what trainees sent could not be merged this time; it is read again next time'); return { error: 'merge', files: 0 }; }
+  }
+  if (Array.isArray(recs.voctrain_certTranscriptRequests) && recs.voctrain_certTranscriptRequests.length) merged.requests = env.mergeRequests(recs.voctrain_certTranscriptRequests) ? 1 : 0;
+  if (out.ops.length) merged.ops = env.applyOps(out.ops);
+  C.seen = out.seen;
+  if (!failed && out.watermark) C.watermark = out.watermark;
+  var collectedNow = {};
+  files.forEach(function(fl) { if (C.seen[fl.fileId] === fl.version) collectedNow[fl.fileId] = fl; });
+  Object.keys(collectedNow).forEach(function(id) {
+    var fl = collectedNow[id];
+    delete U[id]; delete C.held[id];
+    if (!C.byAcct[fl.folderAcct] || fl.modifiedTime > C.byAcct[fl.folderAcct]) C.byAcct[fl.folderAcct] = fl.modifiedTime;
+  });
+  out.unassigned.forEach(function(u) {
+    var n = 0;
+    Object.keys(u.records || {}).forEach(function(k) { var v = u.records[k]; n += Array.isArray(v) ? v.length : (v && typeof v === 'object' ? Object.keys(v).length : 0); });
+    U[u.file] = { file: u.file, accountId: u.accountId, studentId: u.studentId, reason: u.reason, items: n + (u.ops || []).length,
+      since: (U[u.file] && U[u.file].since) || new Date(now).toISOString() };
+  });
+  out.refused.forEach(function(r) {
+    if (r.reason === 'newer-version') C.held[r.file] = { at: new Date(now).toISOString() };
+  });
+  C.at = new Date(now).toISOString();
+  env.persist();
+  return { files: out.files, unassigned: out.unassigned.length, refused: out.refused.length, merged: merged, failed: failed };
+}
+
+/* ---- The page's side ---- */
+// Drive's v3 files API, as the gate's own few calls. Every call is counted
+// (_gateRun.drive): with the gate off the count stays at nought.
+function gateDriveApi(tokenFn) {
+  var BASE = 'https://www.googleapis.com/drive/v3/files', UP = 'https://www.googleapis.com/upload/drive/v3/files';
+  var call = async function(url, init) {
+    _gateRun.drive++;
+    init = init || {};
+    init.headers = Object.assign({ 'Authorization': 'Bearer ' + tokenFn() }, init.headers || {});
+    var r = await fetch(url, init);
+    if (!r.ok) { var err = new Error('HTTP ' + r.status); err.status = r.status; throw err; }
+    return r;
+  };
+  var multipart = function(meta, text) {
+    var b = 'cestisgate' + Math.random().toString(36).slice(2);
+    return { type: 'multipart/related; boundary=' + b,
+      body: '--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta || {}) +
+        '\r\n--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + text + '\r\n--' + b + '--' };
+  };
+  var F = 'id,name,parents,createdTime,modifiedTime';
+  return {
+    list: async function(q, fields, opts) {
+      opts = opts || {};
+      var out = [], token = '', pages = 0;
+      do {
+        var url = BASE + '?q=' + encodeURIComponent(q) + '&fields=' + encodeURIComponent('nextPageToken,files(' + fields + ')') +
+          '&pageSize=' + (opts.pageSize || 1000) + (opts.orderBy ? '&orderBy=' + encodeURIComponent(opts.orderBy) : '') +
+          (token ? '&pageToken=' + encodeURIComponent(token) : '');
+        var d = await (await call(url)).json();
+        (d.files || []).forEach(function(f) { out.push(f); });
+        token = d.nextPageToken || '';
+      } while (token && ++pages < 50);
+      return out;
+    },
+    get: async function(id, fields) { return (await call(BASE + '/' + encodeURIComponent(id) + '?fields=' + encodeURIComponent(fields))).json(); },
+    media: async function(id) { return (await call(BASE + '/' + encodeURIComponent(id) + '?alt=media')).text(); },
+    create: async function(meta, text) {
+      if (text == null) return (await call(BASE + '?fields=' + F, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(meta) })).json();
+      var mp = multipart(meta, text);
+      return (await call(UP + '?uploadType=multipart&fields=' + F, { method: 'POST', headers: { 'Content-Type': mp.type }, body: mp.body })).json();
+    },
+    update: async function(id, meta, text) {
+      if (text == null) return (await call(BASE + '/' + encodeURIComponent(id) + '?fields=' + F, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(meta || {}) })).json();
+      var mp = multipart(meta, text);
+      return (await call(UP + '/' + encodeURIComponent(id) + '?uploadType=multipart&fields=' + F, { method: 'PATCH', headers: { 'Content-Type': mp.type }, body: mp.body })).json();
+    }
+  };
+}
+// A pause that lets the page breathe while a build runs. Not a timer: the
+// browser slows timers right down in a tab that is not in front.
+function gatePause() {
+  return new Promise(function(res) {
+    try { var ch = new MessageChannel(); ch.port1.onmessage = function() { ch.port1.close(); res(); }; ch.port2.postMessage(0); }
+    catch (e) { setTimeout(res, 0); }
+  });
+}
+function gateStoreMap() {
+  var map = {};
+  GATE_STORE_KEYS.forEach(function(k) { try { var v = CESTISStore.getItem(k); if (v != null) map[k] = v; } catch (e) {} });
+  return map;
+}
+function gateFoldLog() {
+  try { var l = JSON.parse(CESTISStore.getItem('cestisFoldedAccounts') || '{}'); return l && typeof l === 'object' ? l : {}; } catch (e) { return {}; }
+}
+// Is the gate's staff side to run on this page now? Every part of the answer
+// is already in memory, so with the gate off this costs nothing at all.
+function gateStaffOn() {
+  var g = (typeof systemSettings !== 'undefined' && systemSettings) ? systemSettings.traineeGate : null;
+  if (!g || typeof g !== 'object' || g.enabled !== true || !g.url) return false;
+  if (!GATE_STAFF_ROLES[currentRole] || !isCloudConnected || !googleAccessToken) return false;
+  if ((typeof _sessionWiped !== 'undefined' && _sessionWiped) || _gateRun.killed === true) return false;
+  return !(window.CESTISStore && CESTISStore.namespace);
+}
+// The kill switch: a file named gate-off next to this page (like sw-disable)
+// stops the gate everywhere. Looked for once a page load, and only once the
+// gate is on.
+function gateKillSwitch() {
+  if (_gateRun.killed !== undefined) return Promise.resolve(_gateRun.killed);
+  _gateRun.killed = null;
+  return fetch('gate-off', { cache: 'no-store' }).then(function(r) { return r.ok; }, function() { return false; })
+    .then(function(off) { _gateRun.killed = !!off; if (off) console.warn('[TraineeGate] switched off for every device (gate-off).'); return _gateRun.killed; });
+}
+// Only one tab of this PC publishes (or collects) at a time.
+function gateWithLock(name, fn) {
+  try {
+    if (navigator.locks && typeof navigator.locks.request === 'function') {
+      return navigator.locks.request(name, { ifAvailable: true }, function(lock) { return lock ? fn() : null; });
+    }
+  } catch (e) {}
+  return fn();
+}
+async function gateConfigLoad(drive) {
+  var now = Date.now();
+  if (_gateRun.cfg && now - _gateRun.cfgAt < GATE_LIMITS.configMs) return _gateRun.cfg;
+  var cfg = await gateReadConfig(drive, GOOGLE_DRIVE_CONFIG.FOLDER_ID);
+  _gateRun.cfgAt = now;
+  _gateRun.cfgMissing = !cfg || !!cfg.tooNew;
+  _gateRun.cfgTooNew = !!(cfg && cfg.tooNew);
+  _gateRun.cfg = cfg && !cfg.tooNew ? cfg : null;
+  return _gateRun.cfg;
+}
+function gatePageEnv(drive, cfg) {
+  var env = {
+    drive: drive, cfg: cfg, run: _gateRun, limits: GATE_LIMITS,
+    st: gatePublishedState(gateDevRead('cestisGatePublished', null)),
+    queue: [],
+    now: function() { return Date.now(); },
+    clock: function() { return (window.performance && performance.now) ? performance.now() : Date.now(); },
+    sleep: function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); },
+    pause: gatePause,
+    alive: gateStaffOn,
+    writes: function() { return (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : 0; },
+    pullChanged: function() { return !!(typeof _lastPull !== 'undefined' && _lastPull && _lastPull.changed); },
+    storeMap: gateStoreMap,
+    opts: function(st) {
+      var g = systemSettings.traineeGate || {};
+      return { builtBy: st.device, gateUrl: String(g.url || ''), inboxSeenUntil: gateCollectedState(gateDevRead('cestisGateCollected', null)).byAcct,
+        findSkill: function(c) { try { return findSkillAreaForCourse(c); } catch (e) { return null; } }, folds: gateFoldLog() };
+    },
+    persist: function() { gateDevWrite('cestisGatePublished', env.st); gateDevWrite('cestisGatePublishQueue', env.queue); },
+    log: function(level, msg) { (level === 'warn' ? console.warn : console.log)('[TraineeGate] ' + msg); }
+  };
+  var q = gateDevRead('cestisGatePublishQueue', []);
+  if (Array.isArray(q)) q.forEach(function(op) { env.queue.push(op); });
+  return env;
+}
+function gatePublishTick() {
+  if (!gateStaffOn() || _gateRun.publishing) return Promise.resolve(null);
+  _gateRun.publishing = true;
+  return gateKillSwitch().then(function(off) {
+    if (off || !gateStaffOn()) return null;
+    return gateWithLock('cestis-gate-publish', async function() {
+      var drive = gateDriveApi(function() { return googleAccessToken; });
+      var cfg = await gateConfigLoad(drive);
+      if (!cfg) return null;
+      var res = await gatePublishRun(gatePageEnv(drive, cfg));
+      _gateRun.lastError = res && res.stopped && gateStaffOn() ? 'stopped' : '';
+      return res;
+    });
+  }).catch(function(e) {
+    _gateRun.lastError = String(e && e.message || e);
+    console.warn('[TraineeGate] publishing turn failed:', e);
+    return null;
+  }).then(function(res) { _gateRun.publishing = false; try { gateCardRefresh(); } catch (e) {} return res; });
+}
+function gateCollectTick(opts) {
+  if (!gateStaffOn() || _gateRun.collecting) return Promise.resolve(null);
+  _gateRun.collecting = true;
+  _gateRun.collectAt = Date.now();
+  return gateKillSwitch().then(function(off) {
+    if (off || !gateStaffOn()) return null;
+    return gateWithLock('cestis-gate-collect', async function() {
+      var drive = gateDriveApi(function() { return googleAccessToken; });
+      var cfg = await gateConfigLoad(drive);
+      if (!cfg) return null;
+      var env = gatePageEnv(drive, cfg);
+      env.refetchNow = !!(opts && opts.refetch);
+      env.collected = gateCollectedState(gateDevRead('cestisGateCollected', null));
+      var un = gateDevRead('cestisGateUnassigned', {});
+      env.unassigned = un && typeof un === 'object' && !Array.isArray(un) ? un : {};
+      env.accounts = function() { return userAccounts; };
+      env.students = function() { return students; };
+      env.deletedUserIds = function() { return safeJsonParse(CESTISStore.getItem('voctrain_deletedUserIds'), []); };
+      env.folds = gateFoldLog;
+      env.mergePayload = async function(payload) { await mergeBackupData(payload); return !_mergeBackupFailed; };
+      env.mergeRequests = gateMergeRequests;
+      env.applyOps = gateApplyOps;
+      env.persist = function() {
+        gateDevWrite('cestisGateCollected', env.collected);
+        gateDevWrite('cestisGateUnassigned', env.unassigned);
+      };
+      var res = await gateCollectRun(env);
+      _gateRun.lastCollect = res;
+      return res;
+    });
+  }).catch(function(e) {
+    console.warn('[TraineeGate] collecting turn failed:', e);
+    return null;
+  }).then(function(res) { _gateRun.collecting = false; try { gateCardRefresh(); } catch (e) {} return res; });
+}
+// The request queue's own rule: request by request, the copy changed last
+// wins (a trainee withdrawing a request arrives as status 'cancelled').
+function gateMergeRequests(incoming) {
+  var key = 'voctrain_certTranscriptRequests';
+  var cur = safeJsonParse(CESTISStore.getItem(key), []);
+  if (!Array.isArray(cur)) cur = [];
+  var merged = CESTISCore.Transcript.mergeRequestLists(cur, incoming);
+  if (JSON.stringify(merged) === JSON.stringify(cur)) return false;
+  CESTISStore.setItem(key, JSON.stringify(merged));
+  try { if (typeof updateCtrRequestsBadge === 'function') updateCtrRequestsBadge(); } catch (e) {}
+  return true;
+}
+// Read marks, cleared notices, chat follows and spent backup codes, each the
+// trainee's own; an account whose code was spent is stamped, so the burn
+// reaches every device through the account rule.
+function gateApplyOps(list) {
+  var store = { voctrain_announcements: announcements, voctrain_notifications: notifications, voctrain_chatMessages: lmsChatMessages,
+    voctrain_chatFollows: lmsChatFollows, voctrain_chatFollowLog: lmsChatFollowLog, voctrain_users: userAccounts };
+  var applied = 0, changed = {}, touched = {};
+  (list || []).forEach(function(x) {
+    var r = CESTISCore.gate.applyOps(store, [x.op], x.me);
+    applied += r.applied;
+    r.changed.forEach(function(k) { changed[k] = 1; });
+    r.touchedAccounts.forEach(function(a) { touched[a] = 1; });
+  });
+  lmsChatFollows = store.voctrain_chatFollows; lmsChatFollowLog = store.voctrain_chatFollowLog;
+  Object.keys(touched).forEach(function(id) { touchAccount(userAccounts.find(function(u) { return u && String(u.id) === id; })); });
+  if (Object.keys(touched).length) saveUserAccounts();
+  if (changed.voctrain_notifications) saveNotifications();
+  if (applied) saveState();
+  return applied;
+}
+// Beside every 5-second save, after a pull that could be read.
+function gateStaffTick() {
+  if (!gateStaffOn()) return;
+  gatePublishTick();
+  if (!_gateRun.collectAt || Date.now() - _gateRun.collectAt >= GATE_LIMITS.collectMs) gateCollectTick();
+  if (currentRole === 'admin' && (!_gateRun.healthAt || Date.now() - _gateRun.healthAt >= GATE_LIMITS.healthMs)) {
+    var h = gatePublishedState(gateDevRead('cestisGatePublished', null)).health;
+    if (!h || h.url !== systemSettings.traineeGate.url || Date.now() - (Date.parse(h.at) || 0) >= GATE_LIMITS.healthMs) gateCheckHealth(systemSettings.traineeGate.url);
+    else _gateRun.healthAt = Date.parse(h.at) || Date.now();
+  }
+}
+
+/* ---- Settings → Trainee Sign-in: the administrator's card ----
+   "Trainee sign-in from anywhere" (DESIGN §9, §10). Set up once: copy the
+   setup code, follow the setup sheet, paste the address it gives, Check,
+   Turn on. Then the trainees' sign-in link and its QR code to print. The
+   address is kept in the Centre's settings (traineeGate) and in the link's
+   fragment (#gate=…), never in the site's files. Every word here is about
+   what happens, never where the records are kept. */
+// The address's own answer to "are you ready?" (§10.3), as one verdict.
+function gateHealthVerdict(j, expectVersion) {
+  if (!j || typeof j !== 'object') return { ok: false, reason: 'no-answer' };
+  if (j.service !== 'cestis-trainee-gate') return { ok: false, reason: 'not-gate' };
+  var ready = j.ready && typeof j.ready === 'object' ? j.ready : {};
+  var v = Number(j.version) || 0;
+  var out = { ok: false, version: v, trainees: typeof ready.trainees === 'number' ? ready.trainees : null };
+  if (Array.isArray(j.protocol) && j.protocol.indexOf(1) === -1) { out.reason = 'too-new'; return out; }
+  if (!ready.secret || !ready.folders) { out.reason = 'not-ready'; return out; }
+  if (!ready.ledger) { out.reason = 'no-accounts'; return out; }
+  out.ok = j.ok !== false;
+  if (!out.ok) out.reason = 'not-ready';
+  if (out.ok && v && v < (expectVersion || 1)) out.newer = true;
+  return out;
+}
+var GATE_REASON_TEXT = {
+  'no-answer': 'the address did not answer. Check that it was copied in full, then try again.',
+  'not-gate': 'that address is not the trainee sign-in. Copy the address from the setup sheet’s last step.',
+  'not-ready': 'the setup is not finished yet. Press Check again in a minute.',
+  'no-accounts': 'the accounts list was not found yet. Sign in on the office computer, press Sync Now, then Check again.',
+  'too-new': 'this page is older than the trainee sign-in. Reload the page.',
+  'no-folders': 'the setup is not finished yet. Press Check — the first check gets everything ready.',
+  'not-sent': 'records could not be sent to trainees just now. They are sent again shortly.',
+  'not-checked': 'not checked yet. Press Check.'
+};
+// The status line: Not set up / Ready — version N / Needs attention: …
+function gateStatusText(tg, health, run) {
+  if (!tg || !tg.url) return { tone: 'muted', text: 'Not set up' };
+  if (!health || health.url !== tg.url) return { tone: 'warn', text: 'Needs attention: ' + GATE_REASON_TEXT['not-checked'] };
+  if (!health.ok) return { tone: 'bad', text: 'Needs attention: ' + (GATE_REASON_TEXT[health.reason] || GATE_REASON_TEXT['no-answer']) };
+  if (tg.enabled === true && run && run.cfgTooNew) return { tone: 'bad', text: 'Needs attention: ' + GATE_REASON_TEXT['too-new'] };
+  if (tg.enabled === true && run && run.cfgMissing) return { tone: 'bad', text: 'Needs attention: ' + GATE_REASON_TEXT['no-folders'] };
+  if (tg.enabled === true && run && run.lastError) return { tone: 'warn', text: 'Needs attention: ' + GATE_REASON_TEXT['not-sent'] };
+  var t = 'Ready — version ' + (health.version || 1);
+  if (typeof health.trainees === 'number') t += ' · ' + health.trainees + ' trainee account' + (health.trainees === 1 ? '' : 's');
+  if (health.newer) t += ' · A newer version is available: copy the setup code again';
+  return { tone: 'ok', text: t };
+}
+// The trainees' sign-in link: this site's own address with the gate's in
+// the fragment, which a browser never sends anywhere (§10.2).
+function gateSignInLink(url, base) {
+  if (!url) return '';
+  var b = String(base || '').split('#')[0].split('?')[0];
+  if (!b) return '';
+  if (/\/$/.test(b)) b += 'index.html';
+  var G = CESTISCore.gate;
+  return b + '#gate=' + G.b64url(G.utf8(String(url)));
+}
+function gateSiteBase() {
+  var pub = systemSettings && systemSettings.certVerifyUrl ? String(systemSettings.certVerifyUrl).trim() : '';
+  if (/^https?:\/\//i.test(pub)) return pub;
+  return location.origin + location.pathname;
+}
+function gateAgo(iso) {
+  var t = Date.parse(iso || '');
+  if (!t) return '';
+  var m = Math.max(0, Math.floor((Date.now() - t) / 60000));
+  if (m < 1) return 'just now';
+  if (m < 60) return m + ' min ago';
+  var h = Math.floor(m / 60);
+  return h < 24 ? h + ' h ago' : Math.floor(h / 24) + ' d ago';
+}
+var GATE_UNASSIGNED_TEXT = {
+  'account-gone': 'the account is no longer on the list',
+  'student-gone': 'no trainee record goes with the account',
+  'not-a-trainee': 'the account is not a trainee’s',
+  'ambiguous': 'it matches more than one trainee record',
+  'owner-mismatch': 'it names another trainee'
+};
+async function gateCheckHealth(url) {
+  _gateRun.healthAt = Date.now();
+  var at = new Date().toISOString(), verdict;
+  try {
+    var r = await fetch(url + (url.indexOf('?') === -1 ? '?' : '&') + 'op=health', { method: 'GET', cache: 'no-store', credentials: 'omit', redirect: 'follow' });
+    verdict = r.ok ? gateHealthVerdict(await r.json().catch(function() { return null; }), GATE_EXPECTED_VERSION) : { ok: false, reason: 'no-answer' };
+  } catch (e) { verdict = { ok: false, reason: 'no-answer' }; }
+  verdict.url = url; verdict.at = at;
+  var st = gatePublishedState(gateDevRead('cestisGatePublished', null));
+  st.health = verdict;
+  gateDevWrite('cestisGatePublished', st);
+  // The first check makes the gate set up its folders: read where they are again.
+  _gateRun.cfg = null; _gateRun.cfgAt = 0;
+  try { gateCardRefresh(); } catch (e) {}
+  return verdict;
+}
+function gateAdminOnly() {
+  if (currentRole === 'admin') return true;
+  showToast('Only the Administrator can change trainee sign-in.', 'warning');
+  return false;
+}
+async function gateCheckNow() {
+  if (!gateAdminOnly()) return;
+  var input = document.getElementById('gateAddress');
+  var url = input ? String(input.value || '').trim() : '';
+  if (!/^https:\/\/\S+$/i.test(url)) { showToast('Paste the full address from the setup sheet. It starts with https://', 'warning'); return; }
+  var tg = Object.assign({}, systemSettings.traineeGate || {});
+  if (tg.url !== url) {
+    tg.url = url; tg.setAt = new Date().toISOString();
+    tg.setBy = (currentLoggedInUser && (currentLoggedInUser.username || currentLoggedInUser.name)) || 'admin';
+    if (typeof tg.enabled !== 'boolean') tg.enabled = false;
+    systemSettings.traineeGate = tg;
+    saveState();
+  }
+  var btn = document.getElementById('gateCheckBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+  var v = await gateCheckHealth(url);
+  if (btn) { btn.disabled = false; btn.textContent = 'Check'; }
+  showToast(v.ok ? 'Ready. You can turn it on.' : 'Needs attention: ' + (GATE_REASON_TEXT[v.reason] || GATE_REASON_TEXT['no-answer']), v.ok ? 'success' : 'warning');
+}
+function gateToggle() {
+  if (!gateAdminOnly()) return;
+  var tg = Object.assign({}, systemSettings.traineeGate || {});
+  var turnOn = tg.enabled !== true;
+  if (turnOn) {
+    var h = gatePublishedState(gateDevRead('cestisGatePublished', null)).health;
+    if (!tg.url || !h || h.url !== tg.url || !h.ok) { showToast('Press Check first. The address has to answer before trainees can use it.', 'warning'); return; }
+  }
+  tg.enabled = turnOn;
+  tg.setAt = new Date().toISOString();
+  tg.setBy = (currentLoggedInUser && (currentLoggedInUser.username || currentLoggedInUser.name)) || 'admin';
+  systemSettings.traineeGate = tg;
+  saveState();
+  _gateRun.cfg = null; _gateRun.cfgAt = 0; _gateRun.killed = undefined; _gateRun.lastError = '';
+  gateCardRefresh();
+  showToast(turnOn ? 'Trainee sign-in from anywhere is on.' : 'Trainee sign-in from anywhere is off. Trainees sign in as before.', 'success');
+}
+async function gateCopyText(text) {
+  try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); return true; } } catch (e) {}
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    var ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch (e2) { return false; }
+}
+async function gateCopySetupCode() {
+  if (!gateAdminOnly()) return;
+  var text = '';
+  try { var r = await fetch('trainee-gate/PASTE-GATE.gs', { cache: 'no-store' }); if (r.ok) text = await r.text(); } catch (e) { text = ''; }
+  if (!text.trim() || /^\s*</.test(text)) { showToast('The setup code isn’t available yet.', 'warning'); return; }
+  var ok = await gateCopyText(text);
+  showToast(ok ? 'Setup code copied. Paste it as the setup sheet shows.' : 'The setup code could not be copied. Try again.', ok ? 'success' : 'warning');
+}
+async function gateCopyLink() {
+  var el = document.getElementById('gateLinkText');
+  if (!el || !el.value) return;
+  var ok = await gateCopyText(el.value);
+  showToast(ok ? 'Sign-in link copied.' : 'The link could not be copied. Select it and copy it.', ok ? 'success' : 'warning');
+}
+// The QR code as a picture (the bundled qrcode.js, as on certificates).
+function gateQrDataUrl(text, px) {
+  var c = (typeof certMakeQrCanvas === 'function') ? certMakeQrCanvas(text, px || 360) : null;
+  try { return c ? c.toDataURL('image/png') : ''; } catch (e) { return ''; }
+}
+function gatePrintQr() {
+  var link = (document.getElementById('gateLinkText') || {}).value || '';
+  var img = gateQrDataUrl(link, 720);
+  if (!link || !img) { showToast('Turn it on first. The sign-in code appears once it is on.', 'warning'); return; }
+  var centre = (systemSettings && systemSettings.institutionName) || 'C.E.S.T.I.S';
+  var doc = '<!doctype html><html><head><meta charset="utf-8"><title>Trainee sign-in</title>' +
+    '<style>body{font-family:Arial,sans-serif;text-align:center;color:#111;margin:40px}h1{font-size:22pt;margin:0 0 6px}' +
+    'p{font-size:15pt;margin:10px 0}img{width:9cm;height:9cm;margin:18px auto;display:block}.l{font-size:9pt;word-break:break-all;color:#333}</style></head>' +
+    '<body><h1>' + escapeHtml(centre) + '</h1><p><strong>Sign in on your own phone: scan this code.</strong></p>' +
+    '<img src="' + img + '" alt="Sign-in code"><p>Use your usual username and password.</p><p class="l">' + escapeHtml(link) + '</p></body></html>';
+  var old = document.getElementById('gatePrintFrame');
+  if (old) old.remove();
+  var fr = document.createElement('iframe');
+  fr.id = 'gatePrintFrame'; fr.title = 'Trainee sign-in code';
+  fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(fr);
+  var w = fr.contentWindow;
+  w.document.open(); w.document.write(doc); w.document.close();
+  setTimeout(function() { try { w.focus(); w.print(); } catch (e) {} }, 250);
+}
+// Paint the card from what this PC knows. Safe to call at any time: it does
+// nothing unless the card is on the page.
+function gateCardRefresh() {
+  var card = document.getElementById('gateCard');
+  if (!card) return;
+  var tg = (systemSettings && systemSettings.traineeGate) || {};
+  var st = gatePublishedState(gateDevRead('cestisGatePublished', null));
+  var s = gateStatusText(tg, st.health, _gateRun);
+  var line = document.getElementById('gateStatusLine');
+  if (line) { line.textContent = s.text; line.className = 'gate-status gate-tone-' + s.tone; }
+  var on = tg.enabled === true;
+  var badge = document.getElementById('gateOnBadge');
+  if (badge) { badge.textContent = on ? 'On' : 'Off'; badge.className = 'badge ' + (on ? 'badge-green' : 'badge-blue'); }
+  var addr = document.getElementById('gateAddress');
+  if (addr && document.activeElement !== addr && !addr.dataset.touched) addr.value = tg.url || '';
+  var btn = document.getElementById('gateToggleBtn');
+  if (btn) { btn.textContent = on ? 'Turn off' : 'Turn on'; btn.className = 'btn ' + (on ? 'btn-secondary' : 'btn-primary'); btn.disabled = !on && !tg.url; }
+  var box = document.getElementById('gateLinkBox');
+  if (box) {
+    var link = on ? gateSignInLink(tg.url, gateSiteBase()) : '';
+    box.hidden = !link;
+    var lt = document.getElementById('gateLinkText');
+    if (lt && lt.value !== link) {
+      lt.value = link;
+      var qr = document.getElementById('gateQrImg'), src = link ? gateQrDataUrl(link, 360) : '';
+      if (qr) { if (src) qr.src = src; else qr.removeAttribute('src'); qr.hidden = !src; }
+    }
+  }
+  var q = gateDevRead('cestisGatePublishQueue', []);
+  var waiting = Array.isArray(q) ? q.filter(function(op) { return op && op.op !== 'dup'; }).length : 0;
+  var pub = document.getElementById('gatePublishLine');
+  if (pub) pub.textContent = 'Records sent to trainees: ' + (st.syncedAt ? gateAgo(st.syncedAt) : (on ? 'not yet' : '—')) + ' (' + waiting + ' waiting)';
+  var un = gateDevRead('cestisGateUnassigned', {});
+  var keys = un && typeof un === 'object' && !Array.isArray(un) ? Object.keys(un) : [];
+  var wl = document.getElementById('gateWaitingLine');
+  if (wl) wl.textContent = 'Trainee work waiting for a decision: ' + keys.length;
+  var list = document.getElementById('gateWaitingList');
+  if (list) {
+    list.hidden = !keys.length;
+    list.innerHTML = keys.length ? '<p class="gate-note">It is placed by itself once the trainee’s account and record are in order.</p><ul class="gate-waiting">' +
+      keys.slice(0, 50).map(function(k) {
+        var u = un[k] || {};
+        return '<li><strong>' + escapeHtml(u.studentId || u.accountId || 'A trainee') + '</strong> — ' + escapeHtml(GATE_UNASSIGNED_TEXT[u.reason] || 'it could not be placed') +
+          (u.items ? ' (' + escapeHtml(u.items) + ' item' + (u.items === 1 ? '' : 's') + ')' : '') + '</li>';
+      }).join('') + '</ul>' : '';
+  }
+}
+function gateCardOpen() {
+  var addr = document.getElementById('gateAddress');
+  if (addr && !addr.dataset.wired) {
+    addr.dataset.wired = '1';
+    addr.addEventListener('input', function() { addr.dataset.touched = '1'; });
+  }
+  gateCardRefresh();
 }
 
 /* ---- Sync health chip (top bar) ----

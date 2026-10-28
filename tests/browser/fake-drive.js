@@ -12,27 +12,58 @@
 'use strict';
 function parse(v) { try { return JSON.parse(v); } catch (e) { return undefined; } }
 function FakeDrive() { this.files = {}; this.seq = 0; this.calls = 0; this.errors = []; }
+// The query's clauses, split on "and" — but not inside quotes, nor inside
+// an appProperties { key=… and value=… } clause.
+function clausesOf(q) {
+  const out = []; let cur = '', depth = 0, quote = false;
+  const src = String(q || '');
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (quote) { cur += c; if (c === '\\') { cur += src[++i] || ''; } else if (c === "'") quote = false; continue; }
+    if (c === "'") { quote = true; cur += c; continue; }
+    if (c === '{') depth++;
+    if (c === '}') depth--;
+    const m = !depth && /\s/.test(c) ? /^\s+and\s+/i.exec(src.slice(i)) : null;
+    if (m) { out.push(cur.trim()); cur = ''; i += m[0].length - 1; continue; }
+    cur += c;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
 FakeDrive.prototype.list = function (q) {
-  const clauses = String(q || '').split(/\s+and\s+/i).map(c => c.trim()).filter(Boolean);
+  const clauses = clausesOf(q);
   const unq = s => s.replace(/^'|'$/g, '').replace(/\\'/g, "'");
+  const Q = "('(?:[^'\\\\]|\\\\.)*')";
   return Object.values(this.files).filter(f => clauses.every(c => {
     let m;
-    if ((m = /^name\s*=\s*('(?:[^'\\]|\\.)*')$/.exec(c))) return f.name === unq(m[1]);
-    if ((m = /^name\s+contains\s+('(?:[^'\\]|\\.)*')$/.exec(c))) return f.name.indexOf(unq(m[1])) !== -1;
-    if ((m = /^('(?:[^'\\]|\\.)*')\s+in\s+parents$/.exec(c))) return f.parents.indexOf(unq(m[1])) !== -1;
+    if ((m = new RegExp('^name\\s*=\\s*' + Q + '$').exec(c))) return f.name === unq(m[1]);
+    if ((m = new RegExp('^name\\s+contains\\s+' + Q + '$').exec(c))) return f.name.indexOf(unq(m[1])) !== -1;
+    if ((m = new RegExp('^' + Q + '\\s+in\\s+parents$').exec(c))) return f.parents.indexOf(unq(m[1])) !== -1;
     if ((m = /^trashed\s*=\s*(true|false)$/.exec(c))) return String(!!f.trashed) === m[1];
-    if ((m = /^mimeType\s*=\s*('(?:[^'\\]|\\.)*')$/.exec(c))) return f.mimeType === unq(m[1]);
-    if ((m = /^mimeType\s*!=\s*('(?:[^'\\]|\\.)*')$/.exec(c))) return f.mimeType !== unq(m[1]);
+    if ((m = new RegExp('^mimeType\\s*=\\s*' + Q + '$').exec(c))) return f.mimeType === unq(m[1]);
+    if ((m = new RegExp('^mimeType\\s*!=\\s*' + Q + '$').exec(c))) return f.mimeType !== unq(m[1]);
+    if ((m = new RegExp('^modifiedTime\\s*(>=|>|<=|<)\\s*' + Q + '$').exec(c))) {
+      const a = Date.parse(f.modifiedTime), b = Date.parse(unq(m[2]));
+      return m[1] === '>' ? a > b : m[1] === '>=' ? a >= b : m[1] === '<' ? a < b : a <= b;
+    }
+    if ((m = new RegExp('^appProperties\\s+has\\s*\\{\\s*key\\s*=\\s*' + Q + '\\s+and\\s+value\\s*=\\s*' + Q + '\\s*\\}$').exec(c))) {
+      const ap = f.appProperties || {};
+      return Object.prototype.hasOwnProperty.call(ap, unq(m[1])) && String(ap[unq(m[1])]) === unq(m[2]);
+    }
+    if ((m = new RegExp('^fullText\\s+contains\\s+' + Q + '$').exec(c))) return (f.name + ' ' + (f.description || '') + ' ' + (f.content || '')).indexOf(unq(m[1])) !== -1;
     return true;   // a clause this emulation does not model narrows nothing
   }));
 };
 FakeDrive.prototype.meta = function (f) {
   return { id: f.id, name: f.name, mimeType: f.mimeType, parents: f.parents, modifiedTime: f.modifiedTime, createdTime: f.createdTime,
+    description: f.description || '', appProperties: Object.assign({}, f.appProperties || {}), trashed: !!f.trashed,
     version: String(f.version), size: String(Buffer.byteLength(f.content || '')), webViewLink: 'https://drive.example/' + f.id,
     webContentLink: 'https://drive.example/dl/' + f.id, md5Checksum: require('crypto').createHash('md5').update(f.content || '').digest('hex') };
 };
 FakeDrive.prototype.put = function (id, meta, content) {
-  const now = new Date(Date.now() + (this.seq++)).toISOString();
+  // (clock: an optional stand-in for the time, for a suite that runs its
+  // pages on a clock of its own.)
+  const now = new Date((this.clock ? this.clock() : Date.now()) + (this.seq++)).toISOString();
   let f = id ? this.files[id] : null;
   if (!f) {
     id = id || ('fake' + (++this.seq) + 'x' + Math.random().toString(36).slice(2, 8));
@@ -43,6 +74,12 @@ FakeDrive.prototype.put = function (id, meta, content) {
     if (meta.mimeType) f.mimeType = meta.mimeType;
     if (Array.isArray(meta.parents)) f.parents = meta.parents.slice();
     if (meta.trashed != null) f.trashed = !!meta.trashed;
+    if (meta.description != null) f.description = String(meta.description);
+    // appProperties merge key by key, as Drive does (null removes one).
+    if (meta.appProperties && typeof meta.appProperties === 'object') {
+      f.appProperties = Object.assign({}, f.appProperties || {});
+      Object.keys(meta.appProperties).forEach(k => { if (meta.appProperties[k] === null) delete f.appProperties[k]; else f.appProperties[k] = String(meta.appProperties[k]); });
+    }
   }
   if (content != null) f.content = content;
   f.version++; f.modifiedTime = now;
@@ -53,6 +90,15 @@ function parseMultipart(buf, ctype) {
   if (!m) return null;
   const s = buf.toString('latin1'), parts = s.split('--' + m[2]).slice(1).filter(p => !/^--/.test(p));
   const out = { meta: null, content: null };
+  // A multipart/related upload names no parts: the first is the metadata,
+  // the second the content (as the real upload reads them).
+  const headOf = p => p.slice(0, Math.max(0, p.indexOf('\r\n\r\n')));
+  if (parts.length >= 2 && !parts.some(p => /name="/i.test(headOf(p)))) {
+    const bodyOf = p => { const i = p.indexOf('\r\n\r\n'); return i === -1 ? '' : Buffer.from(p.slice(i + 4).replace(/\r\n$/, ''), 'latin1').toString('utf8'); };
+    try { out.meta = JSON.parse(bodyOf(parts[0])); } catch (e) { out.meta = null; }
+    out.content = bodyOf(parts[1]);
+    return out;
+  }
   parts.forEach(p => {
     const i = p.indexOf('\r\n\r\n');
     if (i === -1) return;
@@ -96,7 +142,9 @@ FakeDrive.prototype.handle = async function (route) {
     if (/^\/drive\/v3\/files\/?$/.test(p)) {
       if (method === 'GET') {
         let files = this.list(url.searchParams.get('q')).map(f => this.meta(f));
-        if (/modifiedTime desc/.test(url.searchParams.get('orderBy') || '')) files.sort((a, b) => b.modifiedTime.localeCompare(a.modifiedTime));
+        const ob = url.searchParams.get('orderBy') || '';
+        if (/modifiedTime desc/.test(ob)) files.sort((a, b) => b.modifiedTime.localeCompare(a.modifiedTime));
+        else if (/modifiedTime/.test(ob)) files.sort((a, b) => a.modifiedTime.localeCompare(b.modifiedTime));
         return json({ files });
       }
       if (method === 'POST') { let meta = {}; try { meta = JSON.parse(body.toString('utf8') || '{}'); } catch (e) {} return json(this.meta(this.put(null, meta, ''))); }
