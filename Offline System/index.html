@@ -13907,6 +13907,7 @@ function showPage(pageId) {
   if(pageId === 'reports') { try { refreshReportsAnalytics(); } catch(e) { console.warn('[Reports] render failed', e); } }
   if(pageId === 's-announcements') { try { renderStudentAnnouncements(); } catch(e) {} }
   if(pageId === 's-exams') { try { studentExamsShowList(); } catch(e) {} }
+  try { examPageSwitched(pageId); } catch(e) {}
   document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   const navItem = document.querySelector('.nav-item[data-page="'+pageId+'"]');
   if(navItem) {
@@ -27828,6 +27829,57 @@ function examStampNow() {
   try { if (CESTISCore.sync && typeof CESTISCore.sync.now === 'function') return CESTISCore.sync.now(); } catch (e) {}
   return Date.now();
 }
+// ---- What the invigilator sees of the attempt (CESTISCore.exams activity) ----
+// When the test was started and on which device, when each page was first
+// opened and each question first reached and first answered, when the test
+// window was left and come back to, the connection lost and back, flags, and
+// how it was submitted. Times only — never an answer. It rides in the attempt
+// record, so it reaches the staff PCs by the routes the attempt already takes.
+// The device is named by its kind and a code of this browser's own ("Computer
+// · 7KQ2"), kept under a "Session" key so it never travels in a backup, and
+// saying nothing about the person.
+function examDeviceCode() {
+  var k = 'cestisExamDeviceSessionCode';
+  try {
+    var v = localStorage.getItem(k);
+    if (!v || !/^[A-Z0-9]{4}$/.test(v)) {
+      var abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      v = '';
+      for (var i = 0; i < 4; i++) v += abc.charAt(Math.floor(Math.random() * abc.length));
+      localStorage.setItem(k, v);
+    }
+    return v;
+  } catch (e) { return 'PC00'; }
+}
+function examDeviceLabel() {
+  var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  var kind = /iPad|Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua)) ? 'Tablet' : (/Mobi|iPhone|Android/i.test(ua) ? 'Phone' : 'Computer');
+  return kind + ' · ' + examDeviceCode();
+}
+var _examEventSeq = 0;
+function examActivityEvent(k, extra) {
+  var t = examStampNow();
+  return Object.assign({ id: examDeviceCode() + '.' + (++_examEventSeq) + '.' + t.toString(36), k: k, t: t }, extra || {});
+}
+// A moment of the attempt on screen. Returns the moment (its id pairs a
+// return with its leaving).
+function examActivityNote(k, extra) {
+  var s = currentExamSession;
+  if (!s || _isExamPreviewMode || !s.studentId) return null;
+  var e = examActivityEvent(k, extra);
+  s.activity = CESTISCore.exams.activityNote(s.activity, e);
+  examLivePulse();
+  return e;
+}
+// The first time a page was opened ('pages'), a question reached ('seen') or
+// answered ('first'). A later time never replaces it.
+function examActivityMark(field, i) {
+  var s = currentExamSession;
+  if (!s || _isExamPreviewMode || !s.studentId || typeof i !== 'number' || i < 0) return;
+  if (s.activity && Array.isArray(s.activity[field]) && s.activity[field][i]) return;
+  s.activity = CESTISCore.exams.activityMark(s.activity, field, i, examStampNow());
+  examLivePulse();
+}
 // This device's copy as stored: an attempt in progress, or the small retired
 // record a submission leaves in its place (so a second window cannot write
 // the submitted attempt back).
@@ -27883,7 +27935,8 @@ function examAttemptRecord(s) {
     title: s.title, duration: s.duration, passMark: s.passMark, instructions: s.instructions || '', course: s.course || '',
     questions: s.questions, answers: s.answers, flagged: s.flagged, answeredAt: s.answeredAt, flaggedAt: s.flaggedAt,
     startTime: s.startTime, deadline: s.deadline, perPage: s.perPage || 0, page: s.page || 0, current: s.current || 0,
-    posAt: s.posAt || 0, allowFlag: s.allowFlag !== false, status: 'open', updatedAt: at, savedAt: at
+    posAt: s.posAt || 0, allowFlag: s.allowFlag !== false, status: 'open', updatedAt: at, savedAt: at,
+    activity: s.activity || undefined
   };
 }
 // Put attempt records into the shared list: read from the store first (another
@@ -27999,6 +28052,7 @@ function examAdoptAttempt(rec, ids, where) {
   }
   s.answers = rec.answers.slice(); s.flagged = (rec.flagged || []).slice();
   s.answeredAt = (rec.answeredAt || []).slice(); s.flaggedAt = (rec.flaggedAt || []).slice();
+  if(rec.activity) s.activity = CESTISCore.exams.mergeActivity(s.activity, rec.activity, null, true);
   if (earlier) { s.deadline = Number(rec.deadline); s.timeRemaining = Math.max(0, Math.ceil((s.deadline - Date.now()) / 1000)); }
   if (changed) {
     s._note = where === 'window'
@@ -28090,12 +28144,18 @@ function examResumeDraft(d, ids) {
     timeRemaining: Math.max(0, Math.ceil((d.deadline - Date.now()) / 1000)),
     studentId: d.studentId, studentName: d.studentName,
     course: d.course || '', perPage: d.perPage || 0, page: d.page || 0, current: d.current || 0, posAt: d.posAt || 0,
-    allowFlag: d.allowFlag !== false, view: 'attempt'
+    allowFlag: d.allowFlag !== false, view: 'attempt',
+    // What happened so far (an attempt saved before this has none: it starts
+    // here, with the paper's shape).
+    activity: CESTISCore.exams.activityOf(d.activity) || { v: 1 }
   };
+  if (!currentExamSession.activity.lay) currentExamSession.activity.lay = CESTISCore.exams.activityLayout(d.questions, d.perPage);
   if (Date.now() >= d.deadline) {
     submitExam(true, { away: true });
     return;
   }
+  examActivityNote('resume', { d: examDeviceLabel() });
+  examActivityNetAtStart();
   // This PC's own copy was older than the shared one: she carried on
   // elsewhere. Say so, calmly — nothing she answered here is lost.
   var mine = examLoadDraft(d.studentId, d.examId);
@@ -28261,7 +28321,123 @@ window.addEventListener('beforeunload', function(ev) {
   ev.returnValue = '';
 });
 window.addEventListener('pagehide', examSaveOnLeaving);
-document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'hidden') examSaveOnLeaving(); });
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'hidden') { examWindowLeft('hidden'); examSaveOnLeaving(); }
+  else examWindowBack();
+});
+// The test window left and come back to, and the connection lost and back,
+// for the invigilator. The page hidden (another tab, another program, the
+// phone locked or the tab closed) counts at once; the window losing focus
+// while still on screen counts after two seconds (a click on the browser's
+// own bar is not leaving); another page of this site counts too.
+var _examLeft = null, _examBlurTimer = null, _examOffline = null;
+function examWindowLeft(why) {
+  if (_examBlurTimer) { clearTimeout(_examBlurTimer); _examBlurTimer = null; }
+  if (!currentExamSession || _isExamPreviewMode || _examLeft) return;
+  _examLeft = examActivityNote('left', { why: why });
+}
+function examWindowBack() {
+  if (_examBlurTimer) { clearTimeout(_examBlurTimer); _examBlurTimer = null; }
+  var l = _examLeft;
+  _examLeft = null;
+  if (!l || !currentExamSession || _isExamPreviewMode) return;
+  examActivityNote('back', { of: l.id, ms: Math.max(0, examStampNow() - l.t) });
+  autoSaveExamProgress();
+}
+window.addEventListener('blur', function() {
+  if (!currentExamSession || _isExamPreviewMode || _examLeft || _examBlurTimer) return;
+  _examBlurTimer = setTimeout(function() {
+    _examBlurTimer = null;
+    if (!currentExamSession || (document.hasFocus && document.hasFocus())) return;
+    examWindowLeft('blur');
+    autoSaveExamProgress();
+  }, 2000);
+});
+window.addEventListener('focus', function() { if (document.visibilityState !== 'hidden') examWindowBack(); });
+// Another page of this site while a test is open (the sidebar), and back.
+function examPageSwitched(pageId) {
+  if (!currentExamSession || _isExamPreviewMode || currentRole !== 'student') return;
+  if (pageId === 's-exams') examWindowBack();
+  else { examWindowLeft('page'); autoSaveExamProgress(); }
+}
+function examNetBack() {
+  var o = _examOffline;
+  _examOffline = null;
+  if (!o || !currentExamSession || _isExamPreviewMode) return;
+  examActivityNote('online', { of: o.id, ms: Math.max(0, examStampNow() - o.t) });
+}
+// A test begun (or carried on) with no connection.
+function examActivityNetAtStart() {
+  _examLeft = null; _examOffline = null;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) _examOffline = examActivityNote('offline');
+}
+window.addEventListener('offline', function() {
+  if (!currentExamSession || _isExamPreviewMode || _examOffline) return;
+  _examOffline = examActivityNote('offline');
+  autoSaveExamProgress();
+});
+window.addEventListener('online', function() {
+  if (!_examOffline) return;
+  examNetBack();
+  autoSaveExamProgress();
+  examPublishNow();   // the invigilator hears at once that it is back
+});
+
+// ---- The invigilator's live view of this test -------------------------------
+// A staff PC with the invigilator page open asks this computer, over the live
+// link that carries notifications ('exam-watch', renewed every 20 seconds
+// while it watches), for word of the test on screen. This computer then sends
+// a short pulse at each change — where she is, how many are answered, the
+// moments so far, never an answer — so the board moves at once. The shared
+// attempt record stays the truth: a pulse is shown, never stored.
+var _examWatchers = {}, EXAM_WATCH_MS = 75000, _examPulseAt = 0, _examPulseTimer = null;
+function examLiveWatched(data, fromUid) {
+  if (currentRole !== 'student' || !fromUid || !data) return;
+  var acc = (userAccounts || []).find(function(u) { return u && u.id === fromUid; });
+  if (!acc || ['admin', 'instructor', 'adminstaff'].indexOf(acc.role) === -1) return;
+  _examWatchers[fromUid] = { until: Date.now() + EXAM_WATCH_MS, examId: String(data.examId || '') };
+  examLivePulse(true);
+}
+function examLiveTargets(examId) {
+  var t = Date.now(), to = [];
+  Object.keys(_examWatchers).forEach(function(uid) {
+    var w = _examWatchers[uid];
+    if (!w || w.until < t) { delete _examWatchers[uid]; return; }
+    if (!w.examId || w.examId === String(examId)) to.push(uid);
+  });
+  return to;
+}
+// What a pulse says (no answers: the counts and the moments only).
+function examLivePulseBody(s) {
+  var X = CESTISCore.exams, nums = X.questionNumbers(s.questions), c = examCounts(s);
+  var last = X.activitySummary({ activity: s.activity, startTime: s.startTime, answeredAt: s.answeredAt, flaggedAt: s.flaggedAt, posAt: s.posAt }).lastAt;
+  return { attemptId: s.attemptId, examId: s.examId, studentId: s.studentId, at: examStampNow(), page: s.page || 0, pages: examPages(s).length,
+    q: nums[s.current] == null ? '' : String(nums[s.current]), view: s.view === 'summary' ? 'summary' : 'attempt', answered: c.answered, total: c.total,
+    startTime: s.startTime, deadline: s.deadline, last: last, activity: s.activity || null };
+}
+function examLivePulse(now) {
+  var s = currentExamSession;
+  if (!s || _isExamPreviewMode || !s.studentId || typeof cestisRTBroadcast !== 'function' || typeof lmsChatRTReady === 'undefined' || !lmsChatRTReady) return;
+  var to = examLiveTargets(s.examId);
+  if (!to.length) return;
+  // At most one every two seconds; the last change is never left unsent.
+  var t = Date.now();
+  if (!now && t - _examPulseAt < 2000) {
+    if (!_examPulseTimer) _examPulseTimer = setTimeout(function() { _examPulseTimer = null; examLivePulse(true); }, 2000 - (t - _examPulseAt));
+    return;
+  }
+  _examPulseAt = t;
+  try { cestisRTBroadcast(to, { type: 'exam-pulse', p: examLivePulseBody(s) }); } catch (e) {}
+}
+// The last pulse: submitted.
+function examLivePulseDone(s, result) {
+  if (!s || _isExamPreviewMode || typeof cestisRTBroadcast !== 'function' || typeof lmsChatRTReady === 'undefined' || !lmsChatRTReady) return;
+  var to = examLiveTargets(s.examId);
+  if (!to.length) return;
+  var p = examLivePulseBody(s);
+  p.done = true; p.submittedAt = Date.parse(result && result.submittedAt) || examStampNow();
+  try { cestisRTBroadcast(to, { type: 'exam-pulse', p: p }); } catch (e) {}
+}
 // The same attempt open in a second window (a second tab, the page opened
 // twice): every save there is seen here at once, so this window shows the
 // newest answers and never writes an older copy back over them — and a
@@ -28436,8 +28612,12 @@ function examStartFresh(e, me) {
     page: 0,
     current: 0,
     allowFlag: e.allowFlag !== false,
-    view: 'attempt'
+    view: 'attempt',
+    // When it started and on which device, for the invigilator.
+    activity: CESTISCore.exams.activityNote({ v: 1, lay: CESTISCore.exams.activityLayout(questions, parseInt(e.questionsPerPage) || 0) },
+      examActivityEvent('start', { d: examDeviceLabel() }))
   };
+  examActivityNetAtStart();
   autoSaveExamProgress();
   examPublishNow();   // shared at once: another PC must never start a second attempt
   examShowTakingView();
@@ -28665,6 +28845,9 @@ function renderExamTaking() {
   var onPage = pages[s.page] || [];
   if(typeof s.current !== 'number' || onPage.indexOf(s.current) === -1) s.current = onPage.length ? onPage[0] : 0;
   var nums = CESTISCore.exams.questionNumbers(s.questions);
+  // The first time this page was opened and its first question reached.
+  examActivityMark('pages', s.page);
+  examActivityMark('seen', s.current);
 
   var html = '<div class="exam-taking exam-attempt">';
   if(_isExamPreviewMode) {
@@ -28704,6 +28887,7 @@ function examSetCurrent(qIdx) {
   var prev = s.current;
   s.current = qIdx;
   s.posAt = examStampNow();   // where the trainee is: another device opens here
+  examActivityMark('seen', qIdx);
   [prev, qIdx].forEach(examRefreshNavBox);
 }
 function examRefreshNavBox(i) {
@@ -28723,6 +28907,7 @@ function examGoTo(qIdx) {
   var p = examPageOf(s, qIdx);
   s.current = qIdx;
   s.posAt = examStampNow();
+  examActivityMark('seen', qIdx);
   // On a phone the strip folds away again, so the question is in view.
   if(s._navOpen && typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width:760px)').matches) {
     s._navOpen = false;
@@ -28973,6 +29158,8 @@ function examAnswerChanged(qIdx) {
   if(!s) return;
   // When this answer changed: two copies of the attempt keep the newest.
   if(Array.isArray(s.answeredAt)) s.answeredAt[qIdx] = examStampNow();
+  // ...and, for the invigilator, when it was first answered (not what).
+  if(CESTISCore.exams.hasAnswerValue(s.answers[qIdx])) examActivityMark('first', qIdx);
   var st = document.getElementById('examQState-' + qIdx);
   if(st) st.textContent = examStateText(s.questions[qIdx], s.answers[qIdx]);
   if(s.current !== qIdx) examSetCurrent(qIdx); else examRefreshNavBox(qIdx);
@@ -28991,6 +29178,7 @@ function toggleExamFlag(qIdx) {
   s.flagged[qIdx] = !s.flagged[qIdx];
   if(Array.isArray(s.flaggedAt)) s.flaggedAt[qIdx] = examStampNow();
   var on = s.flagged[qIdx];
+  examActivityNote('flag', { q: qIdx, on: on });
   var card = document.getElementById('examQ-'+qIdx);
   var btn = document.getElementById('examFlag-'+qIdx);
   if(card && btn) {
@@ -29035,6 +29223,7 @@ function autoSaveExamProgress() {
     CESTISStore.removeItem('voctrain_examInProgress');
   } catch(e) {}
   examPublishSoon();
+  examLivePulse();
 }
 
 // Anything that still asks to submit gets the same on-page question as
@@ -29184,7 +29373,13 @@ function submitExam(auto, opts) {
   // record (a second window cannot write it back), and so does the shared
   // one — on every PC, a stale copy can no longer be continued or submitted.
   var X = CESTISCore.exams;
-  var retired = X.retireAttempt({ id: s.attemptId, examId: s.examId, studentId: s.studentId, startTime: s.startTime, deadline: s.deadline }, result.id, result.submittedAt);
+  // How it was submitted, for the invigilator: by the trainee, by the clock,
+  // or on her return after the time ran out while she was away.
+  // (A time away or a lost connection still open ends with the submission.)
+  examActivityNote('submit', { how: auto ? (opts.away ? 'away' : 'time') : 'trainee', late: !!result.late });
+  _examLeft = null; _examOffline = null;
+  examLivePulseDone(s, result);
+  var retired = X.retireAttempt({ id: s.attemptId, examId: s.examId, studentId: s.studentId, startTime: s.startTime, deadline: s.deadline, activity: s.activity }, result.id, result.submittedAt);
   try { CESTISStore.setItem(X.draftKey(s.studentId, s.examId), JSON.stringify(retired)); } catch(e) {}
   try { examAttemptsUpsert((s.alsoIds && s.alsoIds.length ? s.alsoIds : [s.attemptId]).map(function(id) { return Object.assign({}, retired, { id: id }); })); } catch(e) {}
   CESTISStore.removeItem('voctrain_examInProgress');
@@ -39254,6 +39449,10 @@ function lmsChatRTHandleData(data, fromPeer) {
   // App-wide live events (notifications + data nudges) ride the same channel.
   if (data.type === 'notify') { try { cestisRTHandleNotify(data, fromPeer); } catch (e) {} return; }
   if (data.type === 'data-nudge') { try { cestisRTHandleNudge(); } catch (e) {} return; }
+  // The invigilator's live view: a staff PC asking for word of a test, and
+  // a trainee's computer answering (shown on the board, never stored).
+  if (data.type === 'exam-watch') { try { examLiveWatched(data, fromUid); } catch (e) {} return; }
+  if (data.type === 'exam-pulse') { try { if (typeof invigPulseArrived === 'function') invigPulseArrived(data, fromUid); } catch (e) {} return; }
   if (data.type !== 'chat-msg' || !data.msg || !data.msg.roomId) return;
   var me = lmsChatGetCurrentUser();
   if (!me) return;
