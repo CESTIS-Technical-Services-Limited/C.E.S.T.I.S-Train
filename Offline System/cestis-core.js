@@ -15496,6 +15496,13 @@
       r.questions = r.questions.map(stripKeys);
       r.accountId = str(me.acct);
       r.status = 'open';
+      // The attempt's activity (when things happened, for the invigilator)
+      // travels with it, as the clean copy Core.exams keeps everywhere: only
+      // its known fields and well-formed moments, never anything else.
+      if (r.activity !== undefined) {
+        var act = Core.exams.activityOf ? Core.exams.activityOf(r.activity) : null;
+        if (act) r.activity = act; else delete r.activity;
+      }
       return r;
     }
     function validateRecord(item, me, slice, opts) {

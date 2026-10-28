@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261028d"></script>
+<script src="cestis-core.js?v=20261028e"></script>
 <script src="cestis-form-modal.js?v=20261028d" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -30075,9 +30075,11 @@ function backToStudentExamList() {
 
    How "live" it is, honestly. The board reads the attempt records this PC
    holds — the records every route already brings here, and the trainee gate
-   will collect — and redraws every few seconds and the moment new ones are
+   collects — and redraws every few seconds and the moment new ones are
    merged. On the Centre's network it asks for the latest every
-   INVIG_CHECK_MS; otherwise the regular sync brings them every few seconds. A
+   INVIG_CHECK_MS; trainees signed in through the trainee gate (at home) are
+   collected every INVIG_GATE_MS while the board is open; otherwise the
+   regular sync brings them every few seconds. A
    trainee's computer re-saves its attempt at least every half minute while a
    test is open (at once when it starts, leaves the page or submits), so a
    row is normally under a minute old — and each row says how old it is.
@@ -30086,6 +30088,8 @@ function backToStudentExamList() {
    shown here, never stored. Nothing on the page shows an answer.
    ============================================================================ */
 var INVIG_CHECK_MS = 10000, INVIG_WATCH_MS = 20000, INVIG_REDRAW_MS = 5000;
+// Through the trainee gate: how often the board collects what trainees sent.
+var INVIG_GATE_MS = 20000;
 // A test in progress that has said nothing for this long is flagged
 // (CESTISCore.invigilation.STALE_MS); a configuration value, not a rule.
 var INVIG_STALE_MS = 150000;
@@ -30175,7 +30179,14 @@ window.addEventListener('focus', function() {
 function invigCheckNow(manual) {
   invigState.lastCheck = Date.now();
   if (invigState.checking) return;
-  var done = function() { invigState.checking = false; invigState.lastCheckDone = Date.now(); invigFillExams(); invigRender(); };
+  // Trainees signing in from home sit their tests through the trainee gate:
+  // while the board is open, what they sent is collected every INVIG_GATE_MS
+  // (at once on "Check now") rather than once a minute, and "last checked"
+  // then means the last time it was actually collected.
+  var viaGate = typeof gateStaffOn === 'function' && gateStaffOn();
+  var collect = null;
+  try { collect = viaGate && typeof gateCollectForBoard === 'function' ? gateCollectForBoard(manual) : null; } catch (e) { collect = null; }
+  var done = function() { invigState.checking = false; if (!viaGate || collect) invigState.lastCheckDone = Date.now(); invigFillExams(); invigRender(); };
   var job = null;
   try {
     if (window.CESTISPageCloud && typeof CESTISPageCloud.lan === 'function') {
@@ -30186,6 +30197,7 @@ function invigCheckNow(manual) {
       });
     }
   } catch (e) { job = null; }
+  if (collect) job = job ? Promise.all([job, collect]) : collect;
   if (!job) { done(); return; }
   invigState.checking = true;
   var timeout = new Promise(function(r) { setTimeout(r, 15000); });
@@ -37963,6 +37975,14 @@ function gateCollectTick(opts) {
     return null;
   }).then(function(res) { _gateRun.collecting = false; try { gateCardRefresh(); } catch (e) {} return res; });
 }
+// The Exam Invigilator board, open on a staff PC: what trainees sent through
+// the gate is collected every INVIG_GATE_MS (at once on "Check now") rather
+// than once a minute. → the collecting turn, or null when it is not time.
+function gateCollectForBoard(manual) {
+  if (!gateStaffOn()) return null;
+  if (!manual && _gateRun.collectAt && Date.now() - _gateRun.collectAt < INVIG_GATE_MS) return null;
+  return gateCollectTick();
+}
 // The request queue's own rule: request by request, the copy changed last
 // wins (a trainee withdrawing a request arrives as status 'cancelled').
 function gateMergeRequests(incoming) {
@@ -38806,11 +38826,17 @@ function gateResultArrived(r) {
 function gateSubmitExam(s, auto, opts) {
   opts = opts || {};
   var X = CESTISCore.exams;
-  var attempt = examAttemptRecord(s);
   var exam = (exams || []).find(function(x) { return x && x.id === s.examId; }) || null;
+  // For the invigilator, as on any other device: how it was submitted (the
+  // gate marks it late or not on its own clock; this is the device's word).
+  var win = exam ? X.windowOf(exam, examCentreOffset()) : null;
+  examActivityNote('submit', { how: auto ? (opts.away ? 'away' : 'time') : 'trainee', late: !!(win && win.end != null && examStampNow() > win.end + 120000) });
+  _examLeft = null; _examOffline = null;
+  try { examLivePulseDone(s, { submittedAt: new Date(examStampNow()).toISOString() }); } catch (e) {}
+  var attempt = examAttemptRecord(s);
   var ids = (s.alsoIds && s.alsoIds.length ? s.alsoIds : [s.attemptId]);
   // Closed here, at once: the clock stops, and this device never offers it again.
-  var retired = X.retireAttempt({ id: s.attemptId, examId: s.examId, studentId: s.studentId, startTime: s.startTime, deadline: s.deadline }, null, new Date().toISOString());
+  var retired = X.retireAttempt({ id: s.attemptId, examId: s.examId, studentId: s.studentId, startTime: s.startTime, deadline: s.deadline, activity: s.activity }, null, new Date().toISOString());
   try { CESTISStore.setItem(X.draftKey(s.studentId, s.examId), JSON.stringify(retired)); } catch (e) {}
   try { examAttemptsUpsert(ids.map(function(id) { return Object.assign({}, retired, { id: id }); })); } catch (e) {}
   CESTISStore.removeItem('voctrain_examInProgress');

@@ -278,16 +278,48 @@ Gate.configure({ outboxBackend: backend, store: null, client: 'test' });
   assert(p.ok && p.paper && !/correctAnswer/.test(JSON.stringify(p.paper)), 'the paper of her open exam, without answers');
   const qs = Core.exams.attemptQuestionsFromPaper(p.paper.questions, { shuffleQuestions: true, shuffleOptions: true });
   const RIGHT = { mcq: 0, tf: false, multi: [0, 2], match: ['Grinder', 'Torch'], shortanswer: 'Flashback Arrestor', numerical: '108', fill: 'butt', essay: 'I keep it tidy.' };
+  // The attempt's activity, for the invigilator: when it started, the page
+  // and questions reached, the test window left and come back to — and, as a
+  // tampered copy might carry, an answer and a moment of no known kind.
+  const T0 = WORLD.clock.now - 10 * MIN;
+  const activity = Core.exams.activityMark(Core.exams.activityMark(Core.exams.activityNote(
+    { v: 1, lay: Core.exams.activityLayout(qs, 3), answers: ['Flashback Arrestor'] },
+    { id: 'PH01.1.a', k: 'start', t: T0, d: 'Phone · PH01' }), 'pages', 0, T0 + 1000), 'first', 1, T0 + 60000);
+  activity.ev.push({ id: 'PH01.2.b', k: 'left', t: T0 + 120000, why: 'hidden' }, { id: 'PH01.3.c', k: 'back', t: T0 + 150000, of: 'PH01.2.b', ms: 30000 },
+    { id: 'PH01.4.d', k: 'answer', t: T0 + 160000, text: 'Flashback Arrestor' });
   const att = { id: 'ATT-CLIENT-1', examId: 'EX2', studentId: T1.stu.id, studentName: T1.stu.name, questions: qs, answers: qs.map(q => (q.type === 'info' ? null : J(RIGHT[q.type]))),
-    flagged: qs.map(() => false), answeredAt: qs.map(() => WORLD.clock.now), flaggedAt: qs.map(() => 0), startTime: WORLD.clock.now - 10 * MIN, deadline: WORLD.clock.now + 60 * MIN, status: 'open' };
+    flagged: qs.map(() => false), answeredAt: qs.map(() => WORLD.clock.now), flaggedAt: qs.map(() => 0), startTime: T0, deadline: WORLD.clock.now + 60 * MIN, status: 'open', activity };
   await Gate.queue('rec', { key: 'voctrain_examAttempts', rec: att }, { noKick: true });
   await Gate.queue('rec', { key: 'voctrain_examAttempts', rec: Object.assign({}, att, { updatedAt: iso(WORLD.clock.now + 1000) }) }, { noKick: true });
   eq((await Gate.outbox()).length, 1, 'two saves of the attempt: one waits');
   let got = null;
   Gate.configure({ onResult: r => { got = r; } });
-  await Gate.queue('submit', { attempt: att }, { noKick: true, noCoalesce: true });
+  // Submitted: the moment it was, by the trainee, in the attempt sent.
+  const subAtt = J(att);
+  subAtt.activity = Core.exams.activityNote(subAtt.activity, { id: 'PH01.5.e', k: 'submit', t: WORLD.clock.now, how: 'trainee' });
+  await Gate.queue('submit', { attempt: subAtt }, { noKick: true, noCoalesce: true });
   res = await Gate.deliver({ force: true });
   assert(res.done === 2 && got && /^RES-G-/.test(got.id) && got.attemptId === att.id && !/correctAnswer"\s*:\s*[^n]/.test(JSON.stringify(got)), 'the submit is marked by the gate and its result handed to the page (' + (got && got.score) + '%)');
+  // The activity, end to end: kept in her lane and in the result file's
+  // retired record, as the clean copy (no answer, no unknown moment), and
+  // read back from both by the staff PC's collector.
+  const lanes = WORLD.drive.children(folder.id, 'file').filter(f => f.name.indexOf('CESTISINBOX.L-') === 0);
+  const laneOf = lanes.find(f => (WORLD.drive.json(f.id).records.voctrain_examAttempts || []).some(a => a.id === att.id));
+  const laneJ = laneOf && WORLD.drive.json(laneOf.id);
+  const laneAtt = laneJ && (laneJ.records.voctrain_examAttempts || []).find(a => a.id === att.id);
+  const kinds = a => ((a && a.activity && a.activity.ev) || []).map(e => e.k).join(',');
+  assert(laneAtt && kinds(laneAtt) === 'start,left,back' && laneAtt.activity.lay && laneAtt.activity.lay.per === 3 && laneAtt.activity.pages[0] === T0 + 1000 && laneAtt.activity.first[1] === T0 + 60000,
+    'the attempt in her lane keeps its activity: started, left the window, came back, page and question times (' + kinds(laneAtt) + ')');
+  assert(!/Flashback Arrestor/i.test(JSON.stringify(laneAtt.activity)) && !('answers' in laneAtt.activity), '   and nothing else: no answer rides in it');
+  const resFile = WORLD.drive.children(folder.id, 'file').find(f => f.name === 'CESTISINBOX.result.' + att.id + '.json');
+  const resJ = resFile && WORLD.drive.json(resFile.id);
+  assert(resJ && resJ.retired && kinds(resJ.retired) === 'start,left,back,submit' && !/Flashback Arrestor/i.test(JSON.stringify(resJ.retired)),
+    'the result file\'s retired attempt carries the whole activity, the submission too (' + kinds(resJ && resJ.retired) + ')');
+  const coll = G.collect([{ fileId: laneOf.id, version: 1, json: laneJ, folderAcct: T1.acct.id }, { fileId: resFile.id, version: 1, json: resJ, folderAcct: T1.acct.id }],
+    { accounts: C.store.voctrain_users, students: C.store.voctrain_students });
+  const collected = Core.exams.mergeAttemptLists([], (coll.payload && coll.payload.data && coll.payload.data.examAttempts) || []).list.filter(a => a.id === att.id);
+  assert(collected.length === 1 && Core.exams.attemptIsRetired(collected[0]) && kinds(collected[0]) === 'start,left,back,submit' && !/Flashback Arrestor/i.test(JSON.stringify(collected[0].activity)),
+    'the staff PC\'s collector takes it in: one submitted attempt, its activity whole (' + kinds(collected[0]) + ')');
   DOWN = true;
   await Gate.queue('rec', { key: 'voctrain_support_messages', rec: { id: 'SUP-CLIENT-3', subject: 'Offline', message: 'kept', timestamp: WORLD.clock.now } }, { noKick: true });
   res = await Gate.deliver({ force: true });
@@ -357,6 +389,38 @@ Gate.configure({ outboxBackend: backend, store: null, client: 'test' });
       'the pending screen through the gate leaves out the empty programme / registered line');
     assert(/Programme: Plumbing &bull; Registered: 2026-10-01/.test(pendingHtml({ email: 'p@x.test', role: 'student', programme: 'Plumbing', createdAt: '2026-10-01' })),
       'and shows it as before when the device knows them');
+
+    // The Exam Invigilator board on a staff PC, with trainees at home sitting
+    // their tests through the gate: collected every INVIG_GATE_MS while it is
+    // open (at once on "Check now"), and "last checked" is the last time it
+    // actually was — never "just now" when nothing was collected.
+    console.log('The invigilator board collects what trainees sent, and says honestly when it last did');
+    const board = (on, collectAt) => {
+      const box = { console: { log() {}, warn() {} }, Date, Promise, setTimeout, INVIG_GATE_MS: 20000, window: {},
+        _gateRun: { collectAt: collectAt, collecting: false }, ticks: 0, renders: 0,
+        invigState: { lastCheck: 0, lastCheckDone: 0, checking: false } };
+      box.gateStaffOn = () => on;
+      box.gateCollectTick = () => { box.ticks++; box._gateRun.collectAt = Date.now(); return Promise.resolve({}); };
+      box.invigFillExams = () => {}; box.invigRender = () => { box.renders++; };
+      vm.createContext(box);
+      vm.runInContext([fn('gateCollectForBoard'), fn('invigCheckNow')].join('\n'), box);
+      return box;
+    };
+    let b = board(true, Date.now() - 5000);
+    b.invigCheckNow(false);
+    await new Promise(r => setTimeout(r, 20));
+    eq([b.ticks, b.invigState.lastCheckDone], [0, 0], 'collected 5 s ago: not again yet, and "last checked" is not moved to now');
+    b.invigCheckNow(true);
+    await new Promise(r => setTimeout(r, 20));
+    assert(b.ticks === 1 && b.invigState.lastCheckDone > 0 && b.renders >= 1, '"Check now": collected at once, then "last checked" and the board follow');
+    b = board(true, Date.now() - 25000);
+    b.invigCheckNow(false);
+    await new Promise(r => setTimeout(r, 20));
+    eq(b.ticks, 1, 'every 20 seconds by itself while the board is open');
+    b = board(false, 0);
+    b.invigCheckNow(true);
+    await new Promise(r => setTimeout(r, 20));
+    assert(b.ticks === 0 && b.invigState.lastCheckDone > 0, 'with the gate off: nothing collected, the board as before');
   }
 
   console.log('\n' + passed + ' passed, ' + failed + ' failed');

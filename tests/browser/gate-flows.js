@@ -851,6 +851,88 @@ const GSI_STUB = `(function(){
     await ctx.close();
   });
 
+  /* ------------------------------------------------------------------ 11 */
+  section('11. A trainee sits a test at home while the office watches the Exam Invigilator board', async () => {
+    const op = shared.officePage;
+    // The office opens the Exam Invigilator on the electrical quiz.
+    await op.evaluate(() => showPage('invigilator'));
+    await op.waitForFunction(() => !!document.getElementById('invigBoard') && typeof invigPickExam === 'function', null, { timeout: 20000 });
+    await op.evaluate(() => invigPickExam('EXAM-EI2'));
+    const rowOf = name => op.evaluate(n => {
+      const r = Array.prototype.find.call(document.querySelectorAll('#invigBoard .invig-row'), t => t.innerText.indexOf(n) !== -1);
+      return r ? { text: r.innerText.replace(/\s+/g, ' '), status: (r.querySelector('.invig-td-status') || {}).innerText || '' } : null;
+    }, name);
+    // "Check now", as the invigilator presses it: what trainees sent is collected, then the board is drawn.
+    const checkNow = async () => {
+      await op.evaluate(() => invigCheckNow(true));
+      await op.waitForFunction(() => !invigState.checking && !_gateRun.collecting, null, { timeout: 40000, polling: 300 });
+      await op.evaluate(() => invigRender());
+    };
+    await checkNow();
+    let row = await rowOf('Rushane Grant');
+    ok(row && /Not started/i.test(row.status), 'the board expects Rushane, not started yet (' + (row && row.text) + ')');
+    // Rushane, at home on his phone.
+    const ctx = await phone({});
+    const page = await open(ctx, 'rushane-home');
+    await traineeSignIn(page, T.rushane.user, TRAINEE_PASS);
+    await inPortal(page);
+    await page.evaluate(() => showPage('s-exams'));
+    await page.waitForTimeout(800);
+    await page.click('#studentUpcomingExams button:has-text("Take Exam")');
+    await page.waitForFunction(() => !!currentExamSession && document.getElementById('studentExamTakingView').style.display === 'block', null, { timeout: 25000 });
+    await answer(page, 'Q1', { opt: 0 });
+    // He switches to another app and comes back.
+    const setVisible = v => page.evaluate(v => {
+      Object.defineProperty(document, 'visibilityState', { value: v ? 'visible' : 'hidden', configurable: true });
+      Object.defineProperty(document, 'hidden', { value: !v, configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, v);
+    await setVisible(false);
+    await page.waitForTimeout(1200);
+    await setVisible(true);
+    // (The shared copy follows within 30 seconds of a change; sent at once here.)
+    await page.evaluate(() => examPublishNow());
+    await page.waitForFunction(() => CESTISGate.capture().then(() => CESTISGate.deliver({ force: true })).then(() => CESTISGate.status()).then(s => s.waiting === 0), null, { timeout: 40000, polling: 1000 });
+    const mine = await page.evaluate(() => (currentExamSession.activity.ev || []).map(e => e.k).join(','));
+    ok(/^start,left,back/.test(mine), 'his phone notes the moments, as on any other device (' + mine + ')');
+    // The office: "Check now".
+    await checkNow();
+    row = await rowOf('Rushane Grant');
+    ok(row && /In progress/i.test(row.status) && /Page 1 of 1 · Question \d/.test(row.text), 'the board: Rushane in progress, on page 1, the question he is on (' + (row && row.text) + ')');
+    ok(row && /Left the test window 1×/.test(row.text), '   and that he left the test window once');
+    const fresh = await op.evaluate(() => ({ checked: (document.getElementById('invigChecked') || {}).textContent || '', at: invigState.lastCheckDone, collected: _gateRun.collectAt }));
+    ok(/just now|\d+ s(ec)? ago|seconds? ago/i.test(fresh.checked) && fresh.at >= fresh.collected, '   "last checked ' + fresh.checked + '" — the moment the office last collected what trainees sent');
+    ok(row && /updated/.test(row.text), '   and the row says how old its copy is (' + (row && (row.text.match(/updated[^·]*?ago/) || [''])[0]) + ')');
+    await op.locator('#invigBoard .invig-row', { hasText: 'Rushane Grant' }).click();
+    await op.waitForSelector('#invigTimelineModal.active', { timeout: 10000 });
+    let tl = await op.evaluate(() => document.getElementById('invigTimelineBody').innerText);
+    ok(/Started the test on (Phone|Computer|Tablet) · /.test(tl) && /Opened page 1/.test(tl) && /Answered question/.test(tl) && /Left the test window/.test(tl) && /Came back to the test/.test(tl),
+      'his timeline: started (on his device, named), page 1 opened, a question answered, left the window and came back (' + tl.replace(/\s+/g, ' ').slice(0, 260) + ')');
+    await shotAll(op, '16-invigilator-timeline-in-progress');
+    await op.evaluate(() => invigCloseTimeline());
+    await shotAll(op, '16-invigilator-board-in-progress');
+    // He finishes.
+    await answer(page, 'Q2', { opt: 'true' });
+    await submitAll(page);
+    await page.waitForFunction(() => /%/.test((document.getElementById('studentExamResultView') || {}).innerText || ''), null, { timeout: 30000 }).catch(() => {});
+    await page.waitForFunction(() => CESTISGate.status().then(s => s.waiting === 0), null, { timeout: 40000, polling: 1000 });
+    await checkNow();
+    row = await rowOf('Rushane Grant');
+    ok(row && /Submitted/i.test(row.status) && /by the trainee/.test(row.text), 'the board: submitted, by the trainee (' + (row && row.text) + ')');
+    await op.locator('#invigBoard .invig-row', { hasText: 'Rushane Grant' }).click();
+    await op.waitForSelector('#invigTimelineModal.active', { timeout: 10000 });
+    tl = await op.evaluate(() => document.getElementById('invigTimelineBody').innerText);
+    ok(/Submitted/.test(tl) && /Started the test on (Phone|Computer|Tablet) · /.test(tl) && /Left the test window/.test(tl), '   and his whole timeline, the submission last (' + tl.replace(/\s+/g, ' ').slice(-120) + ')');
+    ok(!/\bRed\b|\bBlue\b|\bTrue\b|\bFalse\b/.test(tl), '   never an answer');
+    await shotAll(op, '17-invigilator-timeline-submitted');
+    await op.evaluate(() => invigCloseTimeline());
+    await shotAll(op, '17-invigilator-board-submitted');
+    const att = await op.evaluate(sid => (examAttempts || []).filter(a => a && a.studentId === sid && a.examId === 'EXAM-EI2').map(a => ({ status: a.status, ev: ((a.activity || {}).ev || []).map(e => e.k).join(',') })), T.rushane.sid);
+    ok(att.length === 1 && att[0].status === 'submitted' && /start,left,back.*submit/.test(att[0].ev), 'the office holds one submitted attempt of his, its activity whole (' + JSON.stringify(att) + ')');
+    await op.evaluate(() => showPage('dashboard'));
+    await ctx.close();
+  });
+
   for (const sec of PLAN) {
     if (ONLY && !ONLY.test(sec.title)) continue;
     console.log(sec.title);
