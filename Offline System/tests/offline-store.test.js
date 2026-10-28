@@ -21,6 +21,10 @@
      7. The certificate is its own authority (so devices can trust it); it is
         now limited by name constraints to private addresses and this
         computer's names, so its key cannot vouch for a public website.
+   And for the trainee gate (cestis-offline-gate.js): a save can read what is
+   stored and decide what to write inside the file's queue, so no device's
+   save lands between the gate's read and its write; and the token can be
+   replaced (the staff-only switch), on the disk, not just in memory.
 
    Run: node tests/offline-store.test.js */
 'use strict';
@@ -81,6 +85,36 @@ const DATA = path.join(tmp, 'data');
   const same = await store.save({ file: Q, dataDir: DATA, core: Core, incoming: { a: 3 } });
   assert(same.history === null, 'saving exactly what is already there writes nothing and keeps no extra version');
 
+  // The trainee gate's save: read what is stored and decide, inside the queue.
+  console.log('A save can decide from what is stored, with no other save in between');
+  const G = path.join(DATA, 'G.json');
+  await store.save({ file: G, dataDir: DATA, core: Core, incoming: pagefile([{ id: 'G1' }], T1, { savedBy: 'office' }) });
+  const seenBy = [];
+  const decide = id => text => {
+    const p = JSON.parse(text);
+    seenBy.push(JSON.parse(p.data.voctrain_examResults).map(x => x.id).join(','));
+    return { version: p.version, page: p.page, file: p.file, savedBy: p.savedBy,
+      stamps: { voctrain_examResults: '2026-10-03T00:00:00.000Z' }, data: { voctrain_examResults: JSON.stringify([{ id }]) } };
+  };
+  await Promise.all([
+    store.save({ file: G, dataDir: DATA, core: Core, incoming: decide('G2') }),
+    store.save({ file: G, dataDir: DATA, core: Core, incoming: pagefile([{ id: 'G3' }], '2026-10-02T00:00:00.000Z', { savedBy: 'lab-pc' }) }),
+    store.save({ file: G, dataDir: DATA, core: Core, incoming: decide('G4') })
+  ]);
+  assert(seenBy.join(' / ') === 'G1 / G1,G2,G3', 'each one read the file as every earlier save had left it — ' + seenBy.join(' / '));
+  const g = JSON.parse(fs.readFileSync(G, 'utf8'));
+  assert(JSON.parse(g.data.voctrain_examResults).map(x => x.id).join(',') === 'G1,G2,G3,G4' && g.savedBy === 'lab-pc' && g.page === 'P',
+    'every record landed, and the file kept what it said about itself');
+  const before = fs.readFileSync(G, 'utf8');
+  const nothing = await store.save({ file: G, dataDir: DATA, core: Core, incoming: () => null });
+  assert(nothing.skipped === true && fs.readFileSync(G, 'utf8') === before, 'nothing to save writes nothing');
+  let threw = null;
+  await store.save({ file: G, dataDir: DATA, core: Core, incoming: () => { throw new Error('not now'); } }).catch(e => { threw = e; });
+  assert(threw && threw.message === 'not now' && fs.readFileSync(G, 'utf8') === before, 'and a refusal fails the save, writing nothing');
+  let gotText;
+  await store.save({ file: path.join(DATA, 'NEW.json'), dataDir: DATA, core: Core, incoming: t => { gotText = t; return null; } });
+  assert(gotText === null && !fs.existsSync(path.join(DATA, 'NEW.json')), 'a file not there yet is handed over as null');
+
   /* ---------- 3. History ---------- */
   console.log('Earlier versions are kept, up to a limit');
   const H = path.join(DATA, 'H.json');
@@ -95,6 +129,11 @@ const DATA = path.join(tmp, 'data');
   const CERT = path.join(tmp, 'cert');
   const t1 = store.loadOrCreateToken(CERT), t2 = store.loadOrCreateToken(CERT);
   assert(/^[a-f0-9]{48}$/.test(t1) && t1 === t2, 'the same token comes back every start');
+  const t3 = store.rotateToken(CERT);
+  assert(/^[a-f0-9]{48}$/.test(t3) && t3 !== t1, 'a rotated token is a new one');
+  assert(store.loadOrCreateToken(CERT) === t3, 'and it is what the next start reads');
+  assert(fs.readdirSync(CERT).join(',') === 'lan-token', 'with no temporary file left behind');
+  if (process.platform !== 'win32') assert((fs.statSync(path.join(CERT, 'lan-token')).mode & 0o777) === 0o600, 'readable by this computer\'s owner only');
 
   /* ---------- 5. Node version ---------- */
   console.log('Old Node is refused at start');
