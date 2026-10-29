@@ -37555,7 +37555,7 @@ async function autoSaveToAllFolders() {
     // Extra copies still behind the Main copy are written even when nothing
     // is new — at sign-out, and once their 30 minutes are up (EF-2).
     var _flushBehind = (typeof _copyState !== 'undefined') && !!_copyState && _copyState.behind &&
-      ((typeof _copiesFlushRequested !== 'undefined' && _copiesFlushRequested) || (Date.now() - (_copyState.writtenAt || 0) >= CESTISCore.copyCadence.EVERY_MS));
+      ((typeof _copiesFlushRequested !== 'undefined' && _copiesFlushRequested) || CESTISCore.copyCadence.due(_copyState, { now: Date.now(), mainOk: null }).write);
     if (_writesNow === _lastAutoSaveWriteMark && _lastAutoSaveHash && !_flushBehind) {
       _lastAutoSaveResult = { uploaded: true, reason: 'nothing-new' };
       cestisBookkeeping(cestisMarkUploaded);

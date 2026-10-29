@@ -83,6 +83,13 @@ for (const page of PAGES) {
     assertEq(CC.due(g, { now: t0 + 2 * MIN, mainOk: false }).write, false, w + ': a failed attempt counts too (no hammering)');
     assertEq(CC.due({ writtenAt: t0, behind: false, mainFailAt: 0 }, { now: t0 + MIN, mainOk: true, urgent: true }), { write: true, why: 'urgent' }, w + ': a lost write that could not be recovered: at once');
     assertEq([CC.EVERY_MS, CC.MAIN_DOWN_EVERY_MS], [30 * MIN, 5 * MIN], w + ': 30 minutes; 5 while the Main copy fails');
+    // A due write that could not be completed is tried again after 5 minutes, not every tick.
+    let r = CC.after({ writtenAt: t0, behind: true, mainFailAt: 0 }, { now: t0 + 31 * MIN, mainOk: null, wrote: false, why: 'periodic' });
+    assertEq(CC.due(r, { now: t0 + 32 * MIN, mainOk: null }), { write: false, why: 'failed-recently' }, w + ': the extra copies could not be written: not tried again at once');
+    assertEq(CC.due(r, { now: t0 + 36 * MIN, mainOk: null }), { write: true, why: 'periodic' }, w + ': but again after 5 minutes');
+    assertEq(CC.due(r, { now: t0 + 32 * MIN, mainOk: null, flush: true }).write, true, w + ': and at sign-out regardless');
+    r = CC.after(r, { now: t0 + 36 * MIN, mainOk: null, wrote: true, why: 'periodic' });
+    assertEq([r.behind, r.triedAt], [false, 0], w + ': once written, up to date');
   }
 
   console.log('The page\'s 5-second save (' + w + ')');

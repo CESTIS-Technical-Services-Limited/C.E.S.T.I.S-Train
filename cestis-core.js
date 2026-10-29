@@ -9188,8 +9188,9 @@
          quota, a write lost to another device's), they go up in the same
          tick instead — at most every 5 minutes — so a change still reaches
          the shared copies.
-     state: { writtenAt, behind, mainFailAt } (ms; behind: true when the Main
-     copy holds changes the extra copies do not).
+     state: { writtenAt, behind, mainFailAt, triedAt } (ms; behind: true when
+     the Main copy holds changes the extra copies do not; triedAt: the last
+     attempt that did not write them all — tried again after 5 minutes).
      o: { now, mainOk (the Main copy was written this tick; null: nothing to
      write), flush (sign-out), urgent (a write was lost to another device's) }
      Returns { write: bool, why }. The caller updates the state with after(). */
@@ -9206,17 +9207,22 @@
       if (o && o.urgent && now - (Number(s.mainFailAt) || 0) >= MAIN_DOWN_EVERY_MS) return { write: true, why: 'urgent' };
       if (!behind) return { write: false, why: 'up-to-date' };
       if (o && o.flush) return { write: true, why: 'sign-out' };
-      if (now - (Number(s.writtenAt) || 0) >= EVERY_MS) return { write: true, why: 'periodic' };
+      if (now - (Number(s.writtenAt) || 0) >= EVERY_MS) {
+        if (now - (Number(s.triedAt) || 0) < MAIN_DOWN_EVERY_MS) return { write: false, why: 'failed-recently' };
+        return { write: true, why: 'periodic' };
+      }
       return { write: false, why: 'not-yet' };
     }
     /* The state after a tick: wrote (the extra copies were written, all of
        them), why (from due()), mainOk as given to due(). */
     function after(state, o) {
-      var s = { writtenAt: Number(state && state.writtenAt) || 0, behind: !!(state && state.behind), mainFailAt: Number(state && state.mainFailAt) || 0 };
+      var s = { writtenAt: Number(state && state.writtenAt) || 0, behind: !!(state && state.behind), mainFailAt: Number(state && state.mainFailAt) || 0,
+        triedAt: Number(state && state.triedAt) || 0 };
       var now = Number(o && o.now) || Date.now();
       if (o && o.mainOk === true) s.behind = true;
       if (o && (o.why === 'main-failed' || o.why === 'urgent')) s.mainFailAt = now;
-      if (o && o.wrote) { s.writtenAt = now; s.behind = false; }
+      if (o && o.wrote) { s.writtenAt = now; s.behind = false; s.triedAt = 0; }
+      else if (o && (o.why === 'periodic' || o.why === 'sign-out')) s.triedAt = now;
       return s;
     }
     return { EVERY_MS: EVERY_MS, MAIN_DOWN_EVERY_MS: MAIN_DOWN_EVERY_MS, due: due, after: after };
