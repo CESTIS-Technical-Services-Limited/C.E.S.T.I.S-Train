@@ -4794,7 +4794,8 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .home-now-test .home-now-kicker { color:var(--green); }
 .home-now-title { font-size:20px; font-weight:700; color:var(--text-primary); margin-top:2px; }
 .home-now-sub { font-size:13px; color:var(--text-secondary); margin-top:2px; overflow-wrap:anywhere; }
-.home-now-btn { min-height:52px; padding:0 26px; font-size:16px; font-weight:700; border:none; border-radius:var(--radius-sm); cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; }
+/* (#sHomeNow: never shrunk by the 44 px rule for her other buttons below.) */
+#sHomeNow .home-now-btn { min-height:52px; padding:0 26px; font-size:16px; font-weight:700; border:none; border-radius:var(--radius-sm); cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; }
 .home-now-join { background:#c0392b; color:#fff; }
 .home-now-join:hover { background:#a93226; }
 .home-now-start { background:#1e7e46; color:#fff; }
@@ -4802,7 +4803,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .home-now-live .live-dot { animation-iteration-count:6; }
 @media (max-width:600px) {
   .home-now-card { flex-direction:column; align-items:stretch; text-align:left; }
-  .home-now-btn { width:100%; min-height:56px; font-size:17px; }
+  #sHomeNow .home-now-btn { width:100%; min-height:56px; font-size:17px; }
 }
 
 /* On a phone a finger needs about 44 px to hit a control (WCAG 2.5.5). The
@@ -11829,6 +11830,10 @@ function signInSay(card, msg) {
     box = document.getElementById(card + 'LoginError');
     var panel = document.getElementById(card + 'Login');
     shown = !!(box && panel && panel.getClientRects && panel.getClientRects().length);
+    // A trainee's own form on her phone lays its parts out in the card itself
+    // (display: contents, so Sign in sits under the password): it has no box
+    // of its own, but it is on screen — the message goes in it, never an alert.
+    if (!shown && box && panel && getComputedStyle(panel).display === 'contents') shown = !!(panel.parentElement && panel.parentElement.getClientRects().length);
   } catch(e) { shown = false; }
   if(!shown) { alert(msg); return; }
   box.textContent = String(msg == null ? '' : msg);

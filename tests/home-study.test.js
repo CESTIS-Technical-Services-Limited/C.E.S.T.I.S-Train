@@ -60,6 +60,8 @@ assert(/document\.body\.classList\.contains\('gate-trainee-only'\)/.test(HTML.sl
 assert(/body\.trainee-first \.role-cards \.role-card:not\(#studentCard\) \{ display:none; \}/.test(css), 'the staff cards are out of her way');
 assert(/class="register-link staff-cards-toggle" onclick="homeShowStaffCards\(\)">Staff sign-in</.test(HTML), '… one tap away ("Staff sign-in")');
 assert(/body\.trainee-first #studentCard \.role-enter-btn \{ order:1;/.test(css), 'Sign in sits right under the password');
+assert(/getComputedStyle\(panel\)\.display === 'contents'\) shown = !!\(panel\.parentElement && panel\.parentElement\.getClientRects\(\)\.length\)/.test(HTML),
+  '… and a refusal is said in the card, never as an alert (her form is laid out with display: contents)');
 const tap = (css.match(/@media \(pointer: coarse\), \(max-width: 600px\) \{[\s\S]*?\n\}/) || [''])[0];
 ['[id^="page-s-"] .btn-sm', '[id^="page-s-"] a.cw-file-link', '.landing-footer a'].forEach(sel => {
   assert(tap.indexOf(sel) !== -1 && /min-height:44px/.test(tap), sel + ' is at least 44 px tall on a phone');
