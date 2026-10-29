@@ -16553,6 +16553,105 @@
     return { record: record, toMap: toMap, KEY: 'cestisStudentIdMoves' };
   })();
 
+  /* Home study (the owner's group C: "Make home study smooth"). Trainees sign
+     in and study at home; these are the pure rules behind what their home
+     screen shows and how often a phone asks for news. Pure: the page hands in
+     its records, its own course comparison and the clock.
+
+       classPollDelay(sessions, course, nowMs, opts)
+         How long a trainee's phone waits before asking for her records again:
+         opts.fastMs (60 s) from 10 minutes before to 30 minutes after a class
+         of her programme is due to start (a class that is neither finished nor
+         called off), else opts.slowMs (5 min) — so a class going live reaches
+         her within a minute, without asking every minute all day.
+         opts: { matchCourse(sessionCourse, course), offsetMin (the Centre's UTC
+         offset in minutes; absent: this device's own time zone), fastMs, slowMs,
+         beforeMs, afterMs }.
+       classStartMs(session, offsetMin) → ms, or 0 when it has no date/time.
+       progress(input) → the trainee's real figures for My Progress:
+         { units, attendance, tests, coursework } from the transcript readiness
+         (Core.Transcript.transcriptReadiness), her own attendance register (one
+         rate rule: Core.attendance), her MARKED test results (final only) and
+         her coursework summary (Core.coursework.studentSummary). Nothing typed
+         by hand: no "progress", no "score" field. */
+  Core.homeStudy = (function () {
+    var MIN = 60000;
+    function str(v) { return v == null ? '' : String(v); }
+    function classStartMs(s, offsetMin) {
+      var d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str(s && s.date).trim());
+      var t = /^(\d{1,2}):(\d{2})/.exec(str(s && (s.time || s.startTime)).trim());
+      if (!d || !t) return 0;
+      var y = +d[1], mo = +d[2] - 1, da = +d[3], h = +t[1], mi = +t[2];
+      if (typeof offsetMin === 'number' && isFinite(offsetMin)) return Date.UTC(y, mo, da, h, mi) - offsetMin * MIN;
+      return new Date(y, mo, da, h, mi).getTime();
+    }
+    function parseOffset(o) {
+      if (typeof o === 'number') return o;
+      var m = /^([+-])(\d{2}):?(\d{2})$/.exec(str(o).trim());
+      return m ? (m[1] === '-' ? -1 : 1) * (+m[2] * 60 + +m[3]) : undefined;
+    }
+    function classPollDelay(sessions, course, nowMs, opts) {
+      opts = opts || {};
+      var fast = opts.fastMs || MIN, slow = opts.slowMs || 5 * MIN;
+      var before = opts.beforeMs == null ? 10 * MIN : opts.beforeMs, after = opts.afterMs == null ? 30 * MIN : opts.afterMs;
+      var same = typeof opts.matchCourse === 'function' ? opts.matchCourse : function (a, b) { return str(a).trim().toLowerCase() === str(b).trim().toLowerCase(); };
+      var off = parseOffset(opts.offsetMin);
+      var wait = slow;
+      (Array.isArray(sessions) ? sessions : []).forEach(function (s) {
+        if (!s || !course || s.status === 'completed' || s.status === 'cancelled' || s.deleted) return;
+        var ok = false;
+        try { ok = !!same(s.course, course); } catch (e) { ok = false; }
+        if (!ok) return;
+        var start = classStartMs(s, off);
+        if (!start) return;
+        if (nowMs >= start - before && nowMs <= start + after) { wait = Math.min(wait, fast); return; }
+        // Before the window: wake when it opens (never later than the slow pace).
+        if (nowMs < start - before) wait = Math.min(wait, Math.max(fast, start - before - nowMs));
+      });
+      return wait;
+    }
+    function num(v) { var n = Number(v); return isFinite(n) ? n : null; }
+    function progress(input) {
+      input = input || {};
+      var s = input.student || {}, sid = str(s.id);
+      // Units: the transcript's own reading of her plan.
+      var tr = input.transcript || null;
+      var units = { known: !!(tr && tr.known && tr.total), total: 0, competent: 0, nyc: 0, pending: 0, graded: 0, average: null, pct: null, title: '' };
+      if (units.known) {
+        units.total = tr.total; units.competent = tr.competent || 0; units.nyc = tr.nyc || 0; units.pending = tr.pending || 0;
+        units.graded = tr.graded || 0; units.average = tr.average == null ? null : tr.average; units.title = str(tr.qualTitle);
+        units.pct = Math.round(units.competent / units.total * 100);
+      }
+      // Attendance: her marks in the register, by the one rate rule.
+      var att = { pct: null, held: 0, attended: 0, absent: 0, late: 0, excused: 0, source: 'none' };
+      var A = Core.attendance;
+      var mine = (Array.isArray(input.register) ? input.register : []).filter(function (r) { return r && str(r.studentId) === sid; });
+      if (A && typeof A.summarize === 'function' && mine.length) {
+        var sm = A.summarize(mine);
+        att = { pct: sm.pct, held: sm.held, attended: sm.attended, absent: sm.absent, late: sm.late, excused: sm.excused, source: 'register' };
+      } else if (num(s.attendance) != null && input.allowStored !== false && num(s.attendance) > 0) {
+        att.pct = Math.round(num(s.attendance)); att.source = 'record';
+      }
+      // Tests: her MARKED results only (a provisional one is not a score yet), newest first.
+      var X = Core.exams, exams = Array.isArray(input.exams) ? input.exams : [];
+      var titles = {};
+      exams.forEach(function (e) { if (e && e.id != null) titles[str(e.id)] = e; });
+      var marked = (Array.isArray(input.examResults) ? input.examResults : []).filter(function (r) {
+        return r && !r.archived && str(r.studentId) === sid && num(r.score) != null && (!X || typeof X.isFinal !== 'function' || X.isFinal(r));
+      }).map(function (r) {
+        var e = titles[str(r.examId)] || {};
+        return { id: str(r.id), examId: str(r.examId), title: str(r.examTitle || e.title || 'Test'), date: str(r.submittedAt || r.markedAt || '').slice(0, 10),
+          score: Math.round(num(r.score)), passed: r.passed === true || (r.passed == null && num(e.passMark) != null && num(r.score) >= num(e.passMark)) };
+      }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.id < b.id ? 1 : -1); });
+      var tests = { count: marked.length, list: marked, last: marked[0] || null, passed: marked.filter(function (m) { return m.passed; }).length,
+        average: marked.length ? Math.round(marked.reduce(function (n, m) { return n + m.score; }, 0) / marked.length) : null };
+      var cw = input.coursework || {};
+      return { units: units, attendance: att, tests: tests,
+        coursework: { graded: cw.graded || 0, total: cw.total || 0, percent: cw.percent == null ? null : cw.percent }, gpa: input.gpa == null ? '' : str(input.gpa) };
+    }
+    return { classPollDelay: classPollDelay, classStartMs: classStartMs, parseOffset: parseOffset, progress: progress };
+  })();
+
   root.CESTISCore = Core;
 
   if (typeof module !== 'undefined' && module.exports) {

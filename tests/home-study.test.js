@@ -70,5 +70,70 @@ const tg = read('Transcript-Grades.html');
 assert(tg.indexOf('the moment an exam is marked') === -1, 'the transcript no longer says grades appear "the moment an exam is marked"');
 assert(/Your grades appear here once a test is marked or the office updates your record\. A new mark usually takes a few minutes to reach you\./.test(tg), '… it says what really happens');
 
+/* ---------- T1 + T11, the pure rules, in both builds ---------- */
+[['cestis-core.js', require('../cestis-core.js')], ['Offline System/cestis-core.js', require('../Offline System/cestis-core.js')]].forEach(([where, Core]) => {
+  const H = Core.homeStudy;
+  console.log('\n[' + where + '] T1. A phone asks every minute around her class times, else every 5 minutes');
+  assert(H && typeof H.classPollDelay === 'function', 'Core.homeStudy.classPollDelay exists');
+  if (!H) return;
+  const MIN = 60000;
+  // 10:00 at the Centre (UTC-5) on 2026-11-02 = 15:00 UTC.
+  const start = Date.UTC(2026, 10, 2, 15, 0);
+  const cls = { id: 'CS-1', course: 'Welding & Fabrication', date: '2026-11-02', time: '10:00', duration: 60, status: 'scheduled' };
+  const o = { offsetMin: '-05:00', slowMs: 5 * MIN };
+  eq(H.classStartMs(cls, -300), start, 'the class starts at 10:00 Centre time');
+  eq(H.classPollDelay([cls], 'Welding & Fabrication', start - 30 * MIN, o), 5 * MIN, 'half an hour before: every 5 minutes');
+  eq(H.classPollDelay([cls], 'Welding & Fabrication', start - 13 * MIN, o), 3 * MIN, '13 minutes before: wakes when the window opens (in 3 minutes)');
+  eq(H.classPollDelay([cls], 'Welding & Fabrication', start - 10 * MIN, o), MIN, '10 minutes before: every minute');
+  eq(H.classPollDelay([cls], 'Welding & Fabrication', start + 29 * MIN, o), MIN, '29 minutes after the start: still every minute');
+  eq(H.classPollDelay([cls], 'Welding & Fabrication', start + 31 * MIN, o), 5 * MIN, '31 minutes after: back to every 5 minutes');
+  eq(H.classPollDelay([Object.assign({}, cls, { status: 'live' })], 'Welding & Fabrication', start + 5 * MIN, o), MIN, 'a class that went live: every minute in its window');
+  eq(H.classPollDelay([Object.assign({}, cls, { status: 'completed' })], 'Welding & Fabrication', start, o), 5 * MIN, 'a finished class does not count');
+  eq(H.classPollDelay([Object.assign({}, cls, { status: 'cancelled' })], 'Welding & Fabrication', start, o), 5 * MIN, 'a called-off class does not count');
+  eq(H.classPollDelay([Object.assign({}, cls, { course: 'Cosmetology' })], 'Welding & Fabrication', start, o), 5 * MIN, 'another programme\'s class does not count');
+  eq(H.classPollDelay([Object.assign({}, cls, { course: 'Welding Level 2' })], 'Welding & Fabrication', start, Object.assign({ matchCourse: (a, b) => /^Welding/.test(a) && /^Welding/.test(b) }, o)), MIN,
+    'the page\'s own course comparison decides "her programme"');
+  eq(H.classPollDelay([{ course: 'Welding & Fabrication', status: 'scheduled' }], 'Welding & Fabrication', start, o), 5 * MIN, 'a class with no date or time does not count');
+  eq(H.classPollDelay([], 'Welding & Fabrication', start, o), 5 * MIN, 'no classes: every 5 minutes, as before');
+
+  console.log('[' + where + '] T11. My Progress: her real figures');
+  const sid = 'STU-tameka', other = 'STU-kemar';
+  const register = [];
+  for (let i = 0; i < 18; i++) register.push({ studentId: sid, date: '2026-10-' + String(i + 1).padStart(2, '0'), status: i % 9 ? (i === 4 ? 'late' : 'present') : 'absent' });
+  register.push({ studentId: sid, date: '2026-10-25', status: 'excused' }, { studentId: other, date: '2026-10-01', status: 'absent' });
+  const results = [
+    { id: 'R1', examId: 'E1', studentId: sid, score: 75, passed: true, submittedAt: '2026-10-01T15:00:00Z' },
+    { id: 'R2', examId: 'E2', studentId: sid, score: 52, passed: false, submittedAt: '2026-10-20T15:00:00Z' },
+    { id: 'R3', examId: 'E3', studentId: sid, score: 0, needsReview: true, submittedAt: '2026-10-28T15:00:00Z' },
+    { id: 'R4', examId: 'E1', studentId: other, score: 99, passed: true, submittedAt: '2026-10-29T15:00:00Z' },
+    { id: 'R5', examId: 'E4', studentId: sid, score: 90, passed: true, archived: true, submittedAt: '2026-10-29T15:00:00Z' }];
+  const examsList = [{ id: 'E1', title: 'Welding Unit 1 Theory Test', passMark: 60 }, { id: 'E2', title: 'Welding Unit 2 Theory Test', passMark: 60 }, { id: 'E3', title: 'Unit 3' }];
+  const f = H.progress({ student: { id: sid, attendance: 40, progress: 58, score: '' }, register, examResults: results, exams: examsList,
+    transcript: { known: true, total: 12, competent: 7, nyc: 1, pending: 2, graded: 10, average: 78, qualTitle: 'Welding NVQ-J Level 2' },
+    coursework: { graded: 6, total: 11, percent: 80 }, gpa: '3.0' });
+  eq([f.attendance.pct, f.attendance.held, f.attendance.attended, f.attendance.late, f.attendance.source], [89, 18, 16, 1, 'register'],
+    'attendance from her own register marks (16 of 18 held; excused is not a held class; nobody else\'s marks)');
+  eq([f.tests.count, f.tests.last && f.tests.last.title, f.tests.last && f.tests.last.score, f.tests.average, f.tests.passed], [2, 'Welding Unit 2 Theory Test', 52, 64, 1],
+    'tests: her MARKED results only — not one awaiting marking, not an archived one, not another trainee\'s; newest first');
+  eq([f.units.competent, f.units.total, f.units.pending, f.units.nyc, f.units.pct], [7, 12, 2, 1, 58], 'units competent, from the transcript\'s own reading');
+  eq([f.coursework.graded, f.coursework.total, f.coursework.percent, f.gpa], [6, 11, 80, '3.0'], 'coursework and GPA as the instructor\'s views count them');
+  const none = H.progress({ student: { id: sid, attendance: 0 }, register: [], examResults: [], exams: [], transcript: { known: false } });
+  eq([none.units.known, none.attendance.pct, none.tests.count, none.tests.last], [false, null, 0, null], 'nothing yet: no made-up numbers (no units, no 0% attendance, no score)');
+  const stored = H.progress({ student: { id: sid, attendance: 88 }, register: [] });
+  eq([stored.attendance.pct, stored.attendance.source], [88, 'record'], 'no register marks on this device: the attendance her record carries (derived from the register on staff devices)');
+});
+
+console.log('\nT11 / T1 / T13 in the page');
+assert(HTML.indexOf("${escapeHtml(s.score || 'N/A')}</div><div class=\"stat-label\">Last Test Score") === -1, 'no "Last Test Score N/A" from a hand-typed field');
+assert(HTML.indexOf('Course Modules Progress') === -1 && HTML.indexOf("'Module 1','Module 2'") === -1, 'no made-up module bars');
+assert(/function studentProgressFigures\(s\)[\s\S]{0,900}CESTISCore\.homeStudy\.progress\(/.test(HTML) && /coursework: studentCourseworkSummary\(s\), gpa: studentEffectiveGpa\(s\)/.test(HTML),
+  'My Progress uses the computed values the instructor views use (studentCourseworkSummary, studentEffectiveGpa)');
+assert(/<div id="sHomeNow" class="home-now">[\s\S]{0,400}id="sHomeLiveClass"[\s\S]{0,300}id="sHomeOpenTest"[\s\S]{0,200}<div class="student-welcome-banner">/.test(HTML), 'the live-class and open-test cards sit at the very top of her home screen');
+assert(/function renderStudentDashboard\(\)/.test(HTML), 'renderStudentDashboard exists — the gate\'s refresh after every pull redraws the cards (gateAfterApply already calls it)');
+assert(/CESTISCore\.ui\.liveSessionsFor\(classSessions, \{ role: 'student', course: s\.course \}/.test(HTML), 'a live class is decided by the one rule the LIVE badge uses');
+assert(/examStatusNow\(e\) === 'active' && has/.test(HTML), 'an open test is decided on the clock her exams use (the gate\'s, at home)');
+assert(/homePullSchedule\(\);/.test(HTML) && !/_gateT\.pullTimer = setInterval/.test(HTML), 'the phone\'s pull is scheduled around class times, not a fixed 5 minutes');
+assert(/>Join class<\/button>/.test(HTML) && /'Start test'/.test(HTML), 'one big button each: Join class, Start test');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);

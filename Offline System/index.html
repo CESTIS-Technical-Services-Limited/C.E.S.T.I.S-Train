@@ -909,6 +909,30 @@ html[data-theme="light"] #landingPage {
    no Sync Now, and a trainee's own device is not asked to sync at all. */
 body.gate-trainee .role-cards.sync-pending #studentCard { opacity:1; filter:none; pointer-events:auto; transform:none; }
 body.gate-trainee-only #loginSyncBar, body.gate-trainee-only #loginSyncWhy { display:none; }
+/* Opened from the trainees' link, or on a trainee's own device: the student
+   form, open, first, with Sign in right under the password (the extras —
+   forgot password, email account, register — below it). The staff cards are
+   one tap away ("Staff sign-in"). The link used to open on the Administrator
+   card and four dimmed staff cards, the trainee's Sign in button below the
+   bottom of a phone's screen. */
+.staff-cards-toggle { display:none; }
+body.trainee-first .role-cards .role-card:not(#studentCard) { display:none; }
+body.trainee-first .staff-cards-toggle { display:inline-flex; align-items:center; justify-content:center; min-height:44px; margin:14px auto 0; }
+body.trainee-first #studentCard .role-login-form { display:flex; flex-direction:column; }
+body.trainee-first #studentLogin.active { display:contents; }
+body.trainee-first #studentCard .role-login-form > * , body.trainee-first #studentLogin > * { order:0; }
+body.trainee-first #studentCard .role-enter-btn { order:1; align-self:center; margin:4px 0 6px; min-height:48px; }
+body.trainee-first #studentLogin > .register-link, body.trainee-first #studentLogin > .gmail-divider,
+body.trainee-first #studentLogin > .gmail-btn, body.trainee-first #studentLogin > .gate-register-note { order:2; }
+body.trainee-first #studentCard > p { display:none; }
+body.trainee-first #studentCard .role-icon { width:56px; height:56px; font-size:28px; margin-bottom:10px; }
+@media (max-width:600px) {
+  body.trainee-first .landing-subtitle { display:none; }
+  body.trainee-first .landing-logo-group { margin-bottom:12px; }
+}
+@media (min-width:601px) {
+  body.trainee-first .landing-subtitle { margin-bottom:20px; }
+}
 /* Registering, with the gate on: only with the trainee's own email account
    (DESIGN.md §17) — today's "Register here" form is not offered; on the
    Centre's own network (no email-account sign-in there) the office creates
@@ -1196,11 +1220,15 @@ html[data-theme="light"] .theme-ico-moon, html[data-theme="light"] .theme-to-dar
   90% { transform:rotate(-2deg); }
   100% { transform:rotate(0); }
 }
-@keyframes bellGlow {
-  0%,100% { box-shadow:0 0 4px rgba(240,165,0,0.3); }
-  50% { box-shadow:0 0 14px rgba(240,165,0,0.7), 0 0 28px rgba(240,165,0,0.3); }
-}
-.topbar-btn.notif-active { animation:bellGlow 2s ease-in-out infinite; border-radius:var(--radius-sm); }
+/* Unread notices: the bell glows three times, then keeps a quiet steady ring.
+   It used to glow for ever by animating box-shadow, which repaints on the
+   main thread every frame — 15.6 s of every minute on a slow phone sitting
+   on its dashboard. Only the glow layer's opacity moves now (the compositor
+   does that), and only three times; prefers-reduced-motion: not at all. */
+@keyframes bellGlow { 0%,100% { opacity:0; } 50% { opacity:1; } }
+.topbar-btn.notif-active { border-radius:var(--radius-sm); box-shadow:0 0 4px rgba(240,165,0,0.3); }
+.topbar-btn.notif-active::after { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  box-shadow:0 0 14px rgba(240,165,0,0.7), 0 0 28px rgba(240,165,0,0.3); opacity:0; animation:bellGlow 2s ease-in-out 3; }
 .topbar-btn.notif-shake svg { animation:bellShake 0.6s ease-in-out; transform-origin:top center; }
 .logout-btn {
   display:flex; align-items:center; gap:6px;
@@ -1750,9 +1778,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   transition:all 0.4s ease;
 }
 .stage-circle.completed { border-color:var(--green); background:var(--green-dim); }
-.stage-circle.current { border-color:var(--accent); background:var(--accent-dim); box-shadow:0 0 16px var(--accent-glow); animation:pulseGlow 2s infinite; }
+/* "Where you are now": three soft pulses of a glow layer's opacity, then still
+   (it pulsed box-shadow for ever, repainting every frame). */
+.stage-circle.current { position:relative; border-color:var(--accent); background:var(--accent-dim); box-shadow:0 0 12px var(--accent-glow); }
+.stage-circle.current::after { content:''; position:absolute; inset:-3px; border-radius:50%; pointer-events:none;
+  box-shadow:0 0 20px var(--accent-glow); opacity:0; animation:pulseGlow 2s ease-in-out 3; }
 .stage-circle.locked { opacity:0.4; }
-@keyframes pulseGlow { 0%,100%{box-shadow:0 0 8px var(--accent-glow);} 50%{box-shadow:0 0 20px var(--accent-glow);} }
+@keyframes pulseGlow { 0%,100%{opacity:0;} 50%{opacity:1;} }
 .stage-label { font-size:12px; font-weight:600; color:var(--text-muted); text-align:center; max-width:70px; }
 .stage-label.active-label { color:var(--accent); }
 .stage-connector {
@@ -4745,8 +4777,48 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
    device asks for less motion. Spinners keep turning: they say "working". */
 @media (prefers-reduced-motion: reduce) {
   .landing-bg .orb, .pulse-dot, #toastContainer .toast, .modal, .cestis-alert-box { animation:none !important; }
+  .topbar-btn.notif-active::after, .stage-circle.current::after, .topbar-btn.notif-shake svg, .live-dot, .home-now-card .live-dot { animation:none !important; }
   .cestis-alert-overlay, .cestis-alert-box { transition:none !important; }
 }
+
+/* Her home screen's "now" cards: a live class, an open test. One big button
+   each, at the very top, on a phone and on a desktop. */
+.home-now:empty, .home-now-card[hidden] { display:none; }
+.home-now { display:flex; flex-direction:column; gap:12px; margin-bottom:16px; }
+.home-now-card { display:flex; align-items:center; gap:16px; padding:16px 18px; border-radius:var(--radius); border:1px solid var(--border); background:var(--bg-card); }
+.home-now-live { border-color:var(--red); background:linear-gradient(135deg, var(--red-dim), var(--bg-card) 70%); }
+.home-now-test { border-color:var(--green); background:linear-gradient(135deg, var(--green-dim), var(--bg-card) 70%); }
+.home-now-text { flex:1; min-width:0; }
+.home-now-kicker { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-secondary); display:flex; align-items:center; gap:6px; }
+.home-now-live .home-now-kicker { color:var(--red); }
+.home-now-test .home-now-kicker { color:var(--green); }
+.home-now-title { font-size:20px; font-weight:700; color:var(--text-primary); margin-top:2px; }
+.home-now-sub { font-size:13px; color:var(--text-secondary); margin-top:2px; overflow-wrap:anywhere; }
+.home-now-btn { min-height:52px; padding:0 26px; font-size:16px; font-weight:700; border:none; border-radius:var(--radius-sm); cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; }
+.home-now-join { background:#c0392b; color:#fff; }
+.home-now-join:hover { background:#a93226; }
+.home-now-start { background:#1e7e46; color:#fff; }
+.home-now-start:hover { background:#196a3b; }
+.home-now-live .live-dot { animation-iteration-count:6; }
+@media (max-width:600px) {
+  .home-now-card { flex-direction:column; align-items:stretch; text-align:left; }
+  .home-now-btn { width:100%; min-height:56px; font-size:17px; }
+}
+
+/* On a phone a finger needs about 44 px to hit a control (WCAG 2.5.5). The
+   trainee's own pages (page-s-...) and the sign-in page's footer links were
+   28-30 px buttons ("Open", "Play", "Download", "Join") and 14 px links (her
+   files, Privacy, Support). Only on touch screens and narrow windows: a
+   mouse on a desktop keeps today's compact look. */
+@media (pointer: coarse), (max-width: 600px) {
+  [id^="page-s-"] .btn-sm, [id^="page-s-"] .btn, #pendingApprovalScreen .btn { min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
+  [id^="page-s-"] a.cw-file-link, [id^="page-s-"] .cert-download-btn { min-height:44px; display:inline-flex; align-items:center; padding-top:0; padding-bottom:0; }
+  .landing-footer a { display:inline-flex; align-items:center; min-height:44px; min-width:44px; padding:0 10px; justify-content:center; }
+  .role-enter-btn, .cert-check-btn { min-height:44px; }
+}
+/* A label that is there for screen readers but takes no room on screen. */
+.home-sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.home-field-label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
 
 /* Skip to content link for accessibility */
 .skip-to-content {
@@ -5277,6 +5349,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
       </div>
 
     </div>
+    <button type="button" class="register-link staff-cards-toggle" onclick="homeShowStaffCards()">Staff sign-in</button>
   </div>
 
   <!-- Certificate Check Button -->
@@ -11615,7 +11688,13 @@ function updateNotificationDot() {
   const unread = roleNotifications.filter(n=>!CESTISCore.comms.isRead(n, viewer)).length;
   dot.style.display = unread > 0 ? 'flex' : 'none';
   dot.textContent = unread > 99 ? '99+' : unread;
-  if(btn) { if(unread > 0) btn.classList.add('notif-active'); else btn.classList.remove('notif-active'); }
+  if(btn) {
+    // A new notice glows again (three times); the same count just stays lit.
+    var prev = Number(btn.getAttribute('data-unread') || 0);
+    if(unread > 0 && unread > prev && btn.classList.contains('notif-active')) { btn.classList.remove('notif-active'); void btn.offsetWidth; }
+    if(unread > 0) btn.classList.add('notif-active'); else btn.classList.remove('notif-active');
+    btn.setAttribute('data-unread', String(unread));
+  }
 }
 
 function exportCSV(data, headers, filename) {
@@ -15491,6 +15570,12 @@ function buildStudentPages() {
   mc.innerHTML = `
   <!-- STUDENT DASHBOARD -->
   <section class="page active" id="page-s-dashboard">
+    <!-- What needs her NOW, above everything else (renderStudentHomeNow):
+         her class is live — Join; a test is open for her — Start. -->
+    <div id="sHomeNow" class="home-now">
+      <div class="home-now-card home-now-live" id="sHomeLiveClass" role="region" aria-label="Your class is live" hidden></div>
+      <div class="home-now-card home-now-test" id="sHomeOpenTest" role="region" aria-label="Test open now" hidden></div>
+    </div>
     <div class="student-welcome-banner">
       <h2>Welcome back, ${escapeHtml(s.name.split(' ')[0])}! 👋</h2>
       <p>Programme: <strong>${escapeHtml(s.course)}</strong> &nbsp;•&nbsp; ID: <strong>${escapeHtml(s.id)}</strong> &nbsp;•&nbsp; Instructor: <strong>${escapeHtml(s.instructor)}</strong></p>
@@ -15594,25 +15679,18 @@ function buildStudentPages() {
 
   <!-- STUDENT PROGRESS -->
   <section class="page" id="page-s-progress">
-    <div class="stats-grid stats-grid-4">
-      <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📊</div><div class="stat-value">${s.progress}%</div><div class="stat-label">Overall Progress</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📅</div><div class="stat-value">${escapeHtml(s.attendance)}%</div><div class="stat-label">Attendance</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">✅</div><div class="stat-value">${escapeHtml(s.score || 'N/A')}</div><div class="stat-label">Last Test Score</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--purple-dim);color:var(--purple);">🏷️</div><div class="stat-value" style="font-size:18px;">${stageLabels[s.stage]}</div><div class="stat-label">Current Status</div></div>
-    </div>
-
-    <!-- Detailed progress -->
-    <div class="card">
-      <div class="card-header"><h3>Course Modules Progress</h3></div>
-      ${(function(){ var tpl = certTemplates[s.course] || certTemplates[Object.keys(certTemplates).find(function(k){return instructorCourseMatch(k,s.course);})||''] || {}; return (tpl.modules && tpl.modules.length > 0 ? tpl.modules.map(function(m){return typeof m === 'string' ? m : m.name || m.title || 'Module';}) : ['Module 1','Module 2','Module 3','Module 4','Module 5','Module 6','Module 7','Module 8']); })().map((mod,i) => {
-        const pct = i < Math.floor(s.progress/12.5) ? 100 : (i === Math.floor(s.progress/12.5) ? (s.progress % 12.5)/12.5*100 : 0);
-        return `<div style="display:flex;align-items:center;gap:14px;padding:10px 0;${i<7?'border-bottom:1px solid var(--border);':''}">
-          <div style="width:200px;font-size:13px;">${mod}</div>
-          <div class="progress-bar progress-bar-lg" style="flex:1;"><div class="fill" style="width:${pct.toFixed(0)}%;background:${pct>=100?'var(--green)':pct>0?'var(--accent)':'var(--border-light)'};"></div></div>
-          <div style="width:50px;text-align:right;font-size:12px;font-weight:600;color:${pct>=100?'var(--green)':pct>0?'var(--accent)':'var(--text-muted)'};">${pct.toFixed(0)}%</div>
-          <span class="badge ${pct>=100?'badge-green':pct>0?'badge-amber':'badge-blue'}" style="width:90px;justify-content:center;">${pct>=100?'Complete':pct>0?'In Progress':'Locked'}</span>
-        </div>`;
-      }).join('')}
+    <!-- Her real figures (renderStudentProgressPage): units competent, her
+         attendance from the register, her MARKED test results, her coursework.
+         It used to show one hand-typed "progress" sliced into eight made-up
+         module bars and "Last Test Score N/A" beside six marked tests. -->
+    <div id="sProgressSummary" class="stats-grid stats-grid-4"></div>
+    <div class="grid-2col">
+      <div class="card"><div class="card-header"><h3>Marked tests</h3><button class="btn btn-sm btn-secondary" onclick="showPage('s-exams')">My Exams</button></div>
+        <div id="sProgressTests"></div>
+      </div>
+      <div class="card"><div class="card-header"><h3>Units</h3><button class="btn btn-sm btn-secondary" onclick="showPage('s-transcript-grades')">Transcript</button></div>
+        <div id="sProgressUnits"></div>
+      </div>
     </div>
 
     <!-- Assignments (dynamic from instructor-created assignments) -->
@@ -15717,6 +15795,188 @@ function buildStudentPages() {
   renderStudentAssignmentsPage();
   renderStudentAnnouncements();
   renderStudentDeadlines();
+  try { renderStudentProgressPage(); } catch (e) { console.warn('[Progress] ' + (e && e.message)); }
+  try { renderStudentHomeNow(); } catch (e) { console.warn('[HomeNow] ' + (e && e.message)); }
+  homeNowWatch();
+}
+
+/* ---- Her home screen's "now" cards (T1, T13) ----
+   A live class is invisible on a phone until she goes looking (the sidebar
+   with its LIVE badge is folded away there), and an open test sat in the
+   seventh card of the dashboard with no button. Now the top of her home
+   screen says it, with one big button: "Your class is live — Join class",
+   "Test open now — Start test". Worked out from the records she holds, on
+   the clock her exams use; drawn at sign-in, after every refresh of her
+   records (renderStudentDashboard, which the gate's refresh calls), on
+   another device's save, and every 30 seconds while her dashboard is open
+   (a test that opens at 9:00 shows at 9:00 without asking anybody). */
+function studentLiveClasses(s) {
+  if (!s) return [];
+  try { return CESTISCore.ui.liveSessionsFor(classSessions, { role: 'student', course: s.course }, localDateStr(), instructorCourseMatch); } catch (e) { return []; }
+}
+function studentOpenTests(s) {
+  if (!s) return [];
+  var out = [], X = CESTISCore.exams, gate = typeof cestisGateSession === 'function' && cestisGateSession();
+  (exams || []).forEach(function(e) {
+    if (!e || !(e.course === s.course || instructorCourseMatch(e.course, s.course))) return;
+    if ((examResults || []).some(function(r) { return r && !r.archived && r.examId === e.id && r.studentId === s.id; })) return;
+    if (gate) { var d = examReadDraftRaw(s.id, e.id); if (d && X.attemptIsRetired(d) && !d.resultId) return; }
+    var cur = null;
+    try { cur = examCurrentAttempt(s.id, e.id); } catch (x) { cur = null; }
+    if (cur && cur.attempt) {
+      var left = Math.max(0, Math.floor(((cur.attempt.deadline || 0) - Date.now()) / 1000));
+      out.push({ exam: e, action: 'continue', leftS: left });
+      return;
+    }
+    var has = typeof gateExamHasQuestions === 'function' ? gateExamHasQuestions(e) : !!(e.questionData && e.questionData.length);
+    if (examStatusNow(e) === 'active' && has) {
+      var w = null;
+      try { w = X.windowOf(e, examCentreOffset()); } catch (x) { w = null; }
+      out.push({ exam: e, action: 'start', endsAt: w && w.end ? w.end : null });
+    }
+  });
+  return out;
+}
+function homeClock(ms) {
+  try { var p = CESTISCore.exams.centreParts(ms, examCentreOffset()); var t = p.time.split(':').map(Number); return (t[0] % 12 || 12) + ':' + String(t[1]).padStart(2, '0') + (t[0] >= 12 ? ' pm' : ' am'); }
+  catch (e) { return ''; }
+}
+function renderStudentHomeNow() {
+  var s = currentStudent;
+  var live = document.getElementById('sHomeLiveClass'), test = document.getElementById('sHomeOpenTest');
+  if (!s || !live || !test || currentRole !== 'student') return;
+  var cls = studentLiveClasses(s);
+  var lh = '';
+  if (cls.length) {
+    var c = cls[0];
+    lh = '<div class="home-now-text"><div class="home-now-kicker"><span class="live-dot" aria-hidden="true"></span> Live now</div>' +
+      '<div class="home-now-title">Your class is live</div>' +
+      '<div class="home-now-sub">' + escapeHtml((c.name || c.course || 'Class') + (c.createdBy ? ' · ' + c.createdBy : '')) + (cls.length > 1 ? ' · ' + (cls.length - 1) + ' more live' : '') + '</div></div>' +
+      '<button type="button" class="btn home-now-btn home-now-join" onclick="homeJoinLiveClass(' + jsArg(c.id) + ')">Join class</button>';
+  }
+  if (live.getAttribute('data-html') !== lh) { live.innerHTML = lh; live.setAttribute('data-html', lh); }
+  live.hidden = !lh;
+  var tests = studentOpenTests(s);
+  var th = '';
+  if (tests.length) {
+    var t = tests[0], e = t.exam;
+    var sub = escapeHtml(e.title || 'Test') + (t.action === 'continue'
+      ? ' · ' + (t.leftS > 0 ? Math.floor(t.leftS / 60) + ' min left' : 'time is up — send your saved answers')
+      : (t.endsAt ? ' · open until ' + escapeHtml(homeClock(t.endsAt)) : '') + (e.duration ? ' · ' + escapeHtml(e.duration) + ' minutes' : ''));
+    th = '<div class="home-now-text"><div class="home-now-kicker">' + (t.action === 'continue' ? 'In progress' : 'Your test') + '</div>' +
+      '<div class="home-now-title">' + (t.action === 'continue' ? 'Your test is waiting for you' : 'Test open now') + '</div>' +
+      '<div class="home-now-sub">' + sub + (tests.length > 1 ? ' · ' + (tests.length - 1) + ' more open' : '') + '</div></div>' +
+      '<button type="button" class="btn home-now-btn home-now-start" onclick="homeStartTest(' + jsArg(e.id) + ')">' + (t.action === 'continue' ? 'Continue test' : 'Start test') + '</button>';
+  }
+  if (test.getAttribute('data-html') !== th) { test.innerHTML = th; test.setAttribute('data-html', th); }
+  test.hidden = !th;
+}
+// The refresh after new records arrive (the gate's refresh calls this).
+function renderStudentDashboard() {
+  if (currentRole !== 'student') return;
+  try { renderStudentHomeNow(); } catch (e) {}
+  try { renderStudentProgressPage(); } catch (e) {}
+}
+var _homeNow = { timer: null, wired: false };
+function homeNowWatch() {
+  if (!_homeNow.wired) {
+    _homeNow.wired = true;
+    try { if (window.CESTISCore && typeof CESTISCore.on === 'function') CESTISCore.on('cestis:state-saved', function() { if (currentRole === 'student') renderStudentHomeNow(); }); } catch (e) {}
+  }
+  if (_homeNow.timer) clearInterval(_homeNow.timer);
+  _homeNow.timer = setInterval(function() {
+    if (currentRole !== 'student') { clearInterval(_homeNow.timer); _homeNow.timer = null; return; }
+    if (document.visibilityState === 'hidden') return;
+    var pg = document.getElementById('page-s-dashboard');
+    if (pg && pg.classList.contains('active')) { try { renderStudentHomeNow(); } catch (e) {} }
+  }, 30000);
+}
+// Run fn once the page's fragment (fetched the first time) holds `sel`.
+function homeAfterMount(sel, fn) {
+  var t0 = Date.now();
+  (function tick() {
+    if (document.querySelector(sel)) { fn(); return; }
+    if (Date.now() - t0 > 8000) { showToast('That page did not open. Please try again.', 'warning'); return; }
+    setTimeout(tick, 120);
+  })();
+}
+function homeJoinLiveClass(id) {
+  var c = (classSessions || []).find(function(x) { return x && x.id === id; });
+  if (!c) { showToast('That class has ended.', 'warning'); renderStudentHomeNow(); return; }
+  showPage('s-video');
+  homeAfterMount('#sVideoRoom', function() { enterVideoRoom(c.name || c.course, 'student', c.roomCode || undefined); });
+}
+function homeStartTest(examId) {
+  showPage('s-exams');
+  homeAfterMount('#studentUpcomingExams', function() { startStudentExam(examId); });
+}
+
+/* My Progress, from her real records (CESTISCore.homeStudy.progress): the
+   units of her plan she is competent in (the transcript's own reading), her
+   attendance from the register (the one rate rule every view uses), her
+   marked tests (final results only — one awaiting marking is not a score
+   yet) and her coursework (CESTISCore.coursework, as the instructor's views
+   count it). Nothing hand-typed. Drawn again after every refresh of her
+   records (renderStudentDashboard). */
+function studentProgressFigures(s) {
+  var tr = null;
+  try {
+    var read = function (k, d) { try { var v = JSON.parse(CESTISStore.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+    tr = CESTISCore.Transcript.transcriptReadiness(s, { catalogs: read('voctrain_unitCatalogs', []), grades: read('voctrain_transcriptGrades', []),
+      profiles: read('voctrain_transcriptProfiles', {}), exams: (typeof exams !== 'undefined' ? exams : []), examResults: (typeof examResults !== 'undefined' ? examResults : []) });
+  } catch (e) { tr = null; }
+  return CESTISCore.homeStudy.progress({ student: s, transcript: tr,
+    register: (typeof attendanceRegister !== 'undefined' ? attendanceRegister : []),
+    examResults: (typeof examResults !== 'undefined' ? examResults : []), exams: (typeof exams !== 'undefined' ? exams : []),
+    coursework: studentCourseworkSummary(s), gpa: studentEffectiveGpa(s) });
+}
+function renderStudentProgressPage() {
+  var s = currentStudent, box = document.getElementById('sProgressSummary');
+  if (!s || !box || currentRole !== 'student') return;
+  var f = studentProgressFigures(s);
+  var card = function (icon, tone, value, label, sub) {
+    return '<div class="stat-card"><div class="stat-icon" style="background:var(--' + tone + '-dim);color:var(--' + tone + ');">' + icon + '</div>' +
+      '<div class="stat-value">' + value + '</div><div class="stat-label">' + label + '</div>' + (sub ? '<div class="stat-sub" style="font-size:12px;color:var(--text-muted);margin-top:4px;">' + sub + '</div>' : '') + '</div>';
+  };
+  var u = f.units, a = f.attendance, t = f.tests, c = f.coursework;
+  box.innerHTML =
+    (u.known ? card('🎯', 'green', escapeHtml(u.competent + ' of ' + u.total), 'Units competent',
+        escapeHtml([u.pending ? u.pending + ' awaiting marking' : '', u.nyc ? u.nyc + ' not yet competent' : '', !u.pending && !u.nyc ? (u.total - u.competent) + ' still to do' : ''].filter(Boolean).join(' · ')))
+      : card('🎯', 'green', '—', 'Units competent', 'Your programme\'s units are not listed yet')) +
+    card('📅', 'blue', a.pct == null ? '—' : escapeHtml(a.pct + '%'), 'Attendance',
+      a.source === 'register' ? escapeHtml(a.attended + ' of ' + a.held + ' classes attended' + (a.late ? ' (' + a.late + ' late)' : '')) : (a.pct == null ? 'No classes marked yet' : '')) +
+    card('✅', 'accent', t.last ? escapeHtml(t.last.score + '%') : '—', 'Last marked test',
+      t.last ? escapeHtml(t.last.title + (t.count > 1 ? ' · average ' + t.average + '% over ' + t.count + ' tests' : '')) : 'No marked tests yet') +
+    card('📝', 'purple', escapeHtml(c.graded + '/' + c.total), 'Assignments marked',
+      escapeHtml((c.percent == null ? '' : c.percent + '% average') + (f.gpa && parseFloat(f.gpa) > 0 ? (c.percent == null ? '' : ' · ') + 'GPA ' + f.gpa : '')));
+  var tests = document.getElementById('sProgressTests');
+  if (tests) {
+    tests.innerHTML = !t.count ? '<p style="color:var(--text-muted);padding:12px;">No marked tests yet. Your results show here once they are marked.</p>' :
+      '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">' + escapeHtml(t.passed + ' of ' + t.count + ' passed · average ' + t.average + '%') + '</div>' +
+      t.list.slice(0, 8).map(function (r) {
+        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">' +
+          '<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;">' + escapeHtml(r.title) + '</div><div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(r.date) + '</div></div>' +
+          '<div style="font-weight:700;font-size:15px;">' + escapeHtml(r.score + '%') + '</div>' +
+          '<span class="badge ' + (r.passed ? 'badge-green' : 'badge-red') + '">' + (r.passed ? 'Passed' : 'Not passed') + '</span></div>';
+      }).join('') + (t.count > 8 ? '<div style="font-size:12px;color:var(--text-muted);padding-top:8px;">' + (t.count - 8) + ' more in My Exams</div>' : '');
+  }
+  var units = document.getElementById('sProgressUnits');
+  if (units) {
+    if (!u.known) { units.innerHTML = '<p style="color:var(--text-muted);padding:12px;">Your programme\'s units are not listed yet. Ask your instructor.</p>'; }
+    else {
+      var w = function (n) { return (u.total ? Math.round(n / u.total * 1000) / 10 : 0) + '%'; };
+      var rest = Math.max(0, u.total - u.competent - u.nyc - u.pending);
+      units.innerHTML = '<div style="font-size:13px;margin-bottom:8px;">' + escapeHtml(u.title || s.course) + '</div>' +
+        '<div class="progress-bar progress-bar-lg" role="img" aria-label="' + escapeAttr(u.competent + ' of ' + u.total + ' units competent') + '" style="display:flex;overflow:hidden;">' +
+          '<div style="width:' + w(u.competent) + ';background:var(--green);"></div><div style="width:' + w(u.pending) + ';background:var(--accent);"></div><div style="width:' + w(u.nyc) + ';background:var(--red);"></div></div>' +
+        '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px;font-size:13px;">' +
+          '<div><span class="badge badge-green">' + u.competent + '</span> Competent</div>' +
+          '<div><span class="badge badge-amber">' + u.pending + '</span> Awaiting marking</div>' +
+          '<div><span class="badge badge-red">' + u.nyc + '</span> Not yet competent</div>' +
+          '<div><span class="badge badge-blue">' + rest + '</span> Still to do</div>' +
+        '</div>' + (u.average != null ? '<div style="font-size:12px;color:var(--text-muted);margin-top:10px;">' + escapeHtml('Average mark on graded units: ' + u.average + '%') + '</div>' : '');
+    }
+  }
 }
 
 // Announcements a trainee may read: aimed at students, for their programme or
@@ -21221,11 +21481,11 @@ function courseworkFileLink(f, cls, style, label) {
   if (!f) return '';
   var name = f.origName || f.name || 'file';
   if (f.dataUrl) {
-    return '<a href="' + escapeAttr(safeUrl(f.dataUrl, {data:true})) + '" download="' + escapeAttr(name) + '" class="' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '">' + label + '</a>';
+    return '<a href="' + escapeAttr(safeUrl(f.dataUrl, {data:true})) + '" download="' + escapeAttr(name) + '" class="cw-file-link ' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '">' + label + '</a>';
   }
   var id = f.driveId || f.id;
   if (!id) return '';
-  return '<a href="#" class="' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '" title="Open this file" onclick="event.preventDefault();cestisOpenDriveFile(' + jsArg(id) + ',' + jsArg(name) + ',' + jsArg(f.webViewLink || f.url || '') + ')">' + label + '</a>';
+  return '<a href="#" class="cw-file-link ' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '" title="Open this file" onclick="event.preventDefault();cestisOpenDriveFile(' + jsArg(id) + ',' + jsArg(name) + ',' + jsArg(f.webViewLink || f.url || '') + ')">' + label + '</a>';
 }
 
 // ============================== STUDENT ASSIGNMENTS PAGE ==============================
@@ -38729,6 +38989,25 @@ function gateTraineeCard() {
   // A device holding none of the Centre's records (a trainee's own phone):
   // "Sync before signing in" is not for them.
   if (!gateDeviceHoldsCentre()) document.body.classList.add('gate-trainee-only');
+  homeTraineeFirst();
+}
+/* The trainees' link just opened, or a trainee's own device: her form, open
+   and first; the staff cards one tap away. (Never on a lab PC that holds the
+   Centre's records, where staff sign in too.) */
+function homeTraineeFirst() {
+  if (!_gateT.base || cestisGateSession()) return false;
+  if (!(_gateT.fromLink || document.body.classList.contains('gate-trainee-only'))) return false;
+  if (_gateT.staffCards) return false;
+  document.body.classList.add('trainee-first');
+  var f = document.getElementById('studentLogin');
+  if (f && !f.classList.contains('active')) { f.classList.add('active'); studentLoginShown = true; }
+  return true;
+}
+function homeShowStaffCards() {
+  _gateT.staffCards = true;
+  document.body.classList.remove('trainee-first');
+  var c = document.getElementById('adminCard');
+  if (c && c.scrollIntoView) { try { c.scrollIntoView({ block: 'start' }); } catch (e) {} }
 }
 function gateCardWorking(on, text) {
   var card = document.getElementById('studentCard');
@@ -39120,13 +39399,36 @@ function gateEnterPortal() {
   gateBootScreenHide();
   enterApp('student');
 }
+/* How often this phone asks for her records (T1): every minute from 10
+   minutes before to 30 minutes after a class of her programme is due to
+   start (CESTISCore.homeStudy.classPollDelay), else every 5 minutes as
+   before — so a class going live reaches her within about a minute, without
+   asking every minute all day. Worked out again after every ask. */
+function homePullDelay() {
+  var slow = CESTISGate.PULL_EVERY_MS;
+  try {
+    var s = currentStudent;
+    if (!s) return slow;
+    return CESTISCore.homeStudy.classPollDelay(classSessions, s.course, CESTISGate.now(), { matchCourse: instructorCourseMatch, offsetMin: examCentreOffset(), slowMs: slow });
+  } catch (e) { return slow; }
+}
+function homePullSchedule() {
+  if (_gateT.pullTimer) clearTimeout(_gateT.pullTimer);
+  var ms = homePullDelay();
+  _gateT.pullDelay = ms;
+  _gateT.pullTimer = setTimeout(function() {
+    _gateT.pullTimer = null;
+    if (!cestisGateSession() || !currentRole || _gateT.reloading) return;
+    if (document.visibilityState !== 'hidden') gatePullSoon(0);
+    homePullSchedule();
+  }, ms);
+}
 // After enterApp: the gate does what the 5-second save and the sign-in sync do for staff.
 function gateSessionStart() {
   if (_gateT.started) return;
   _gateT.started = true;
   CESTISGate.wire({ onVisible: function() { if (Date.now() - (_gateT.pulledAt || 0) > 60 * 1000) gatePullSoon(0); } });
-  if (_gateT.pullTimer) clearInterval(_gateT.pullTimer);
-  _gateT.pullTimer = setInterval(function() { if (document.visibilityState !== 'hidden') gatePullSoon(0); }, CESTISGate.PULL_EVERY_MS);
+  homePullSchedule();
   CESTISGate.capture().then(function() { CESTISGate.deliver(); });
   CESTISGate.status().then(function(st) { _gateT.status = st; try { refreshSyncChip(); } catch (e) {} });
   try { examAfterSignIn(); } catch (e) {}
@@ -39200,7 +39502,7 @@ async function gateSignOutFlow(opts) {
   try { stopSessionExpiryCheck(); } catch (e) {}
   try { if (typeof lmsChatRTStop === 'function') lmsChatRTStop(); } catch (e) {}
   try { lmsChatStopPolling(); } catch (e) {}
-  if (_gateT.pullTimer) { clearInterval(_gateT.pullTimer); _gateT.pullTimer = null; }
+  if (_gateT.pullTimer) { clearTimeout(_gateT.pullTimer); _gateT.pullTimer = null; }
   gateBootScreen('Signing out…');
   var sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
   try { await CESTISGate.capture(); } catch (e) {}
@@ -39432,7 +39734,7 @@ function gateTraineeInit() {
   try {
     CESTISGate.configure(gateClientHooks());
     // The trainee's link (index.html#gate=…): the address is this device's own.
-    CESTISGate.takeLink();
+    if (CESTISGate.takeLink()) _gateT.fromLink = true;
     if (gateBoot()) return;
     // Work a trainee sealed on this device, waiting for the gate: sent by any
     // session, or none — and a namespace that has nothing left to send goes.
