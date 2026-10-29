@@ -39677,11 +39677,16 @@ async function gateOpenFile(fileId, name) {
 
 /* ---- Chat (§5.5): a room's history from its own file, to its members; live
    class chat still goes over the realtime channel. Away from a live class a
-   message takes a minute or two to arrive. ---- */
+   message takes a minute or two to arrive.
+   Asked for while the chat page is open (every 45 s); on any other page only
+   the unread check, every 10 minutes (it was every 2½ minutes on every page,
+   all day, once the chat had been opened); never while the screen is off. ---- */
+var GATE_CHAT_PAGE_MS = 45000, GATE_CHAT_IDLE_MS = 10 * 60 * 1000;
 function gateChatPoll() {
   if (!cestisGateSession() || !window.CESTISGate) return Promise.resolve(false);
+  if (document.visibilityState === 'hidden') return Promise.resolve(false);
   var now = Date.now();
-  var due = lmsChatOnChatPage() ? 45000 : 150000;
+  var due = lmsChatOnChatPage() ? GATE_CHAT_PAGE_MS : GATE_CHAT_IDLE_MS;
   if (now - _gateT.roomAt < due) return Promise.resolve(false);
   _gateT.roomAt = now;
   var slice = safeJsonParse(CESTISStore.getItem('cestisGateSlice'), null);

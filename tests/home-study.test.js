@@ -135,5 +135,13 @@ assert(/examStatusNow\(e\) === 'active' && has/.test(HTML), 'an open test is dec
 assert(/homePullSchedule\(\);/.test(HTML) && !/_gateT\.pullTimer = setInterval/.test(HTML), 'the phone\'s pull is scheduled around class times, not a fixed 5 minutes');
 assert(/>Join class<\/button>/.test(HTML) && /'Start test'/.test(HTML), 'one big button each: Join class, Start test');
 
+/* ---------- T9 (light). Chat asked for only while the chat page is open ---------- */
+console.log('\nT9. Chat: every 45 s on the chat page; elsewhere only the unread check, every 10 minutes; never with the screen off');
+const chatPoll = HTML.slice(HTML.indexOf('function gateChatPoll()'), HTML.indexOf('function gateChatPoll()') + 600);
+assert(/var GATE_CHAT_PAGE_MS = 45000, GATE_CHAT_IDLE_MS = 10 \* 60 \* 1000;/.test(HTML), 'the two paces are named');
+assert(/if \(document\.visibilityState === 'hidden'\) return Promise\.resolve\(false\);/.test(chatPoll), 'nothing is asked while the screen is off');
+assert(/var due = lmsChatOnChatPage\(\) \? GATE_CHAT_PAGE_MS : GATE_CHAT_IDLE_MS;/.test(chatPoll), 'the chat page: 45 s; any other page: 10 minutes (was 2½ minutes)');
+assert(/function gateSignOutFlow[\s\S]{0,2500}CESTISGate\.leave\(\{ keepData: waiting\.length > 0 \}\)/.test(HTML), 'sign-out still clears her records from the device (shared devices rely on it)');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);
