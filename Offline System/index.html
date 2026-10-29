@@ -33810,11 +33810,15 @@ async function cestisConfirmCopyMerged(fileId, meta) {
     if (j && j.md5Checksum === meta.md5Checksum && String(j.version) === String(meta.version)) cestisNoteCopyMerged(meta.md5Checksum);
   } catch (e) {}
 }
-/* Did any pull change this device since its last successful upload? With
-   nothing changed and nothing unsent, the device holds exactly what it last
-   uploaded — the first save after a sign-in need not send it all again. */
-var _pullChanges = 0, _pullChangesUploaded = 0;   // pulls that changed this device; as of the last payload that went up
-var _signInCleanBaseline = null;   // { writes } — see autoSyncOnLogin and autoSaveToAllFolders
+/* What this device last put in the Main copy, kept on this device only
+   ('cestisLastUploadHash': the hash of the data it sent and the checksum
+   Drive gave those bytes). When the Main copy still has exactly those bytes
+   and this device would send exactly that data, the first save after a
+   sign-in need not send it all again. Anything else — another device wrote,
+   the file was replaced, this device holds anything new, an older build that
+   never wrote the note — and it goes up as before. */
+var _mainHeadMd5 = null;     // the Main copy's checksum, as read during this save's pull
+var _mainUploadMd5 = null;   // the checksum Drive gave this device's own last Main write
 var AUTO_SAVE_INTERVAL_MS = 5000; // 5 seconds
 var _debouncedCloudSaveTimer = null;
 var _lastAutoSaveHash = null; // hash of last data successfully pushed to the cloud (dirty-check)
@@ -35786,7 +35790,6 @@ async function reconcileWithMasterSnapshot() {
       }
       console.log('[MasterSnapshot] reconcile restored', res.restored, 'config keys:', res.restoredKeys, 'checksumOk:', ver.ok);
       _lastMasterSnapshotHash = null; // force a fresh save so the master reflects the merged state
-      if (typeof _pullChanges === 'number') _pullChanges++;
     } else {
       console.log('[MasterSnapshot] local data consistent with master backup (checksumOk:' + ver.ok + ')');
     }
@@ -36428,7 +36431,6 @@ async function silentMergeFromBackup(fileId, meta) {
     if (_mergeBackupFailed) return fail('merge');
     _lastPull = { ok: true, changed: !!changed, kind: '' };
     _pullFailStreak = 0;
-    if (changed && typeof _pullChanges === 'number') _pullChanges++;
     if (_verBefore && _lastCloudVersion[_mainFolder] === undefined) _lastCloudVersion[_mainFolder] = _verBefore;
     // These bytes are now merged here: an identical copy is not fetched again.
     if (meta && meta.md5Checksum && typeof cestisConfirmCopyMerged === 'function') await cestisConfirmCopyMerged(fileId, meta);
@@ -36970,11 +36972,6 @@ async function autoSyncOnLogin() {
   }
 
   console.log('[AutoSync] Starting auto-sync from all Google Drive folders...');
-  // Did this device hold work it had not uploaded? (Then its first save
-  // after the sign-in must go up, whatever the pulls found.)
-  var _hadUnsent = false;
-  try { _hadUnsent = !!(CESTISStore.getItem('cestisPendingUpload') || CESTISStore.getItem('cestisUnsyncedOnSignOut')); } catch (e) { _hadUnsent = true; }
-  _signInCleanBaseline = null;
   setCloudSyncing(true);
 
   try {
@@ -37174,14 +37171,6 @@ async function autoSyncOnLogin() {
 
     console.log('[AutoSync] Auto-sync complete. Data changed: ' + anyChanged);
 
-    // Nothing unsent here, and nothing any pull brought in: this device holds
-    // exactly what it last uploaded, which the Main copy already has. Its
-    // first save then sends nothing (autoSaveToAllFolders) — unless anything
-    // at all is written before that save runs.
-    if (!_hadUnsent && !anyChanged && typeof _pullChanges === 'number' && _pullChanges === _pullChangesUploaded && _mainMergedThisSession && _lastPull && _lastPull.ok) {
-      _signInCleanBaseline = { writes: (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -3 };
-    }
-
     // 6. Refresh the dashboard display if data changed — but only if the user is
     // actually on the dashboard. If they've navigated elsewhere, leave them there.
     if (anyChanged) {
@@ -37240,12 +37229,17 @@ async function silentSaveToFolder(folderId, folderLabel, blob) {
         // What this device just wrote is what it holds: a copy with these
         // bytes is not downloaded back (EF-3).
         if (pResult && pResult.md5Checksum && typeof cestisNoteCopyMerged === 'function') cestisNoteCopyMerged(pResult.md5Checksum);
+        // The checksum of the bytes this device just put in the Main copy
+        // (see 'cestisLastUploadHash'); none when another write overtook it.
+        var _isMainWrite = (typeof GOOGLE_DRIVE_CONFIG !== 'undefined') && folderId === GOOGLE_DRIVE_CONFIG.FOLDER_ID;
+        if (_isMainWrite && typeof _mainUploadMd5 !== 'undefined') _mainUploadMd5 = (pResult && pResult.md5Checksum) || null;
         if (pResult && pResult.version != null) {
           var prevVer = _lastCloudVersion[folderId];
           _lastCloudVersion[folderId] = String(pResult.version);
           // A jump of more than one: somebody's write landed inside the window
           // between this device's version check and its PATCH. Recover it.
-          if (folderId === GOOGLE_DRIVE_CONFIG.FOLDER_ID && prevVer !== undefined && Number(pResult.version) - Number(prevVer) > 1) {
+          if (_isMainWrite && prevVer !== undefined && Number(pResult.version) - Number(prevVer) > 1) {
+            if (typeof _mainUploadMd5 !== 'undefined') _mainUploadMd5 = null;
             recoverOvertakenWrite(fileId, prevVer, String(pResult.version));
           }
         }
@@ -37325,6 +37319,7 @@ async function mainMovedSincePull() {
     var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version,md5Checksum', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
     if (!r.ok) return false;
     var rj = await r.json();
+    if (typeof _mainHeadMd5 !== 'undefined') _mainHeadMd5 = rj.md5Checksum || null;
     var ver = String(rj.version || '');
     if (!ver || ver === baseline) return false;
     console.log('[Sync] The Main backup moved (v' + baseline + ' → v' + ver + ') since this device pulled; merging it before this save.');
@@ -37379,6 +37374,7 @@ async function pullMainIfRemoteNewer() {
       return false;
     }
     var meta = await metaResp.json();
+    if (typeof _mainHeadMd5 !== 'undefined') _mainHeadMd5 = meta.md5Checksum || null;
     var ver = String(meta.version || '');
     if (!ver) return false;
     var baseline = _lastCloudVersion[folderId];
@@ -37505,7 +37501,7 @@ async function cestisMaybeWriteExtraCopies(blob, opts) {
 // The session's "still here" stamp, written once a minute while signed in,
 // is this device's own note and is never uploaded: it is not a change for the
 // 5-second save (it used to start a full save every minute).
-try { if (window.CESTISStore && CESTISStore.uncounted) CESTISStore.uncounted.voctrain_sessionSeenAt = 1; } catch (e) {}
+try { if (window.CESTISStore && CESTISStore.uncounted) { CESTISStore.uncounted.voctrain_sessionSeenAt = 1; CESTISStore.uncounted.cestisLastUploadHash = 1; } } catch (e) {}
 function cestisBookkeeping(fn) {
   var S = window.CESTISStore;
   var w0 = (S && typeof S.writes === 'number') ? S.writes : null;
@@ -37531,6 +37527,7 @@ async function autoSaveToAllFolders() {
     // the cloud→local path, so it runs on every tick regardless of the gate
     // below: another device's work still arrives within seconds.
     _lastPull = { ok: true, changed: false, kind: '' };
+    if (typeof _mainHeadMd5 !== 'undefined') _mainHeadMd5 = null;   // read afresh by this tick's pull
     await pullMainIfRemoteNewer();
     if (_sessionWiped || !currentRole) return;   // the session ended while we were pulling
     // The cloud copy could not be read this tick. Uploading now would put this
@@ -37658,7 +37655,6 @@ async function autoSaveToAllFolders() {
     // the upload swallowed every edit made while it was in flight — an edit
     // that then never went up until something unrelated changed.
     var _writesAfterSave = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : _lastAutoSaveWriteMark;
-    var _pullChangesAtBuild = (typeof _pullChanges === 'number') ? _pullChanges : 0;
     // Version precondition. Drive offers none server-side for a media upload,
     // so it is done here: re-read the Main file's version right before
     // writing; if another device wrote since this device last pulled, take
@@ -37679,15 +37675,19 @@ async function autoSaveToAllFolders() {
     // data to all Drive folders (the main cause of slow, constant syncing).
     const _dataStr = JSON.stringify(backupData.data, stripSecretFields);
     const _curHash = cestisHashString(_dataStr);
-    // The first save after a sign-in whose pulls changed nothing, on a device
-    // that had nothing unsent, with not one write since: what it would send is
-    // what it last uploaded (autoSyncOnLogin). Taken as already uploaded.
-    if (typeof _signInCleanBaseline !== 'undefined' && _signInCleanBaseline) {
-      if (_lastAutoSaveHash === null && _writesNow === _signInCleanBaseline.writes) {
+    // The first save this session (after a sign-in, or the dashboard opened
+    // afresh): if the Main copy, as read by this tick's pull, still has the
+    // very bytes this device last put there, and what it would send now is
+    // exactly the data those bytes hold, there is nothing to send. Proved
+    // by content, not by markers — a build, page or pull that changed
+    // anything gives a different hash, and the payload goes up as before.
+    if (_lastAutoSaveHash === null && typeof _mainHeadMd5 !== 'undefined' && _mainHeadMd5) {
+      var _lastUp = null;
+      try { _lastUp = JSON.parse(CESTISStore.getItem('cestisLastUploadHash') || 'null'); } catch (e) { _lastUp = null; }
+      if (_lastUp && _lastUp.md5 && _lastUp.md5 === _mainHeadMd5 && _lastUp.h === _curHash && _lastUp.n === _dataStr.length) {
         _lastAutoSaveHash = _curHash;
-        console.log('[AutoSave] Nothing changed since this device\'s last upload; not sending it all again after the sign-in.');
+        console.log('[AutoSave] The Main copy already holds exactly what this device would send; not sending it again.');
       }
-      _signInCleanBaseline = null;
     }
     if (_curHash === _lastAutoSaveHash) {
       // The writes were bookkeeping only — the data itself is unchanged.
@@ -37695,7 +37695,6 @@ async function autoSaveToAllFolders() {
       // and the note saveState() set, which cestisMarkUploaded() now removes.
       _lastAutoSaveWriteMark = _writesAfterSave;
       _lastAutoSaveResult = { uploaded: true, reason: 'unchanged' };
-      _pullChangesUploaded = _pullChangesAtBuild;
       cestisBookkeeping(cestisMarkUploaded);
       // The extra copies behind the Main copy (signing out, or their 30
       // minutes up): they get what the Main copy holds now (the same payload).
@@ -37722,10 +37721,14 @@ async function autoSaveToAllFolders() {
     const _mainId = (typeof GOOGLE_DRIVE_CONFIG !== 'undefined' && GOOGLE_DRIVE_CONFIG.FOLDER_ID) || (ALL_DRIVE_FOLDERS[0] && ALL_DRIVE_FOLDERS[0].id);
     const _mainIdx = ALL_DRIVE_FOLDERS.findIndex(function(f) { return f.id === _mainId; });
     const results = ALL_DRIVE_FOLDERS.map(function() { return { status: 'skipped' }; });
-    var _mainOk = false;
+    var _mainOk = false, _upMd5 = null;
     if (_mainIdx !== -1) {
+      if (typeof _mainUploadMd5 !== 'undefined') _mainUploadMd5 = null;
       try { _mainOk = (await silentSaveToFolder(_mainId, ALL_DRIVE_FOLDERS[_mainIdx].label, blob)) === true; } catch (e) { _mainOk = false; }
       results[_mainIdx] = { status: 'fulfilled', value: _mainOk };
+      // The checksum Drive gave these bytes — read at once, before anything
+      // else can write the Main copy (noted below, 'cestisLastUploadHash').
+      _upMd5 = (_mainOk && typeof _mainUploadMd5 !== 'undefined') ? _mainUploadMd5 : null;
     }
     var _flushNow = (typeof _copiesFlushRequested !== 'undefined') && !!_copiesFlushRequested;
     var _urgentNow = (typeof _copiesUrgent !== 'undefined') && !!_copiesUrgent;
@@ -37766,8 +37769,15 @@ async function autoSaveToAllFolders() {
       // is still counted: it goes up on the next tick. On failure the mark is
       // left alone, which is what makes the next tick retry.
       _lastAutoSaveWriteMark = _writesAfterSave;
-      _pullChangesUploaded = _pullChangesAtBuild;
       cestisBookkeeping(cestisMarkUploaded);
+      // This device's own note of what the Main copy now holds (never
+      // uploaded, not a change to save): the data's hash, its length and the
+      // bytes' checksum. Only when the Main copy itself took this payload.
+      if (_mainOk && _upMd5) {
+        cestisBookkeeping(function() {
+          try { CESTISStore.setItem('cestisLastUploadHash', JSON.stringify({ h: _curHash, n: _dataStr.length, md5: _upMd5 })); } catch (e) {}
+        });
+      }
     }
     // A submitted result waiting on this PC (the exam outbox) used to be let
     // go only when a later DOWNLOAD showed the shared copy holding it — on a
@@ -44302,7 +44312,6 @@ async function lmsChatSyncFromDrive() {
     var _sigKeys = Object.keys(_sigNow), _sigOld = Object.keys(_beforeSig);
     var _dataMoved = _chatMoved || _sigKeys.length !== _sigOld.length ||
       _sigKeys.some(function(k){ return _beforeSig[k] !== _sigNow[k]; });
-    if (_dataMoved && typeof _pullChanges === 'number') _pullChanges++;
     if (_dataMoved) try {
       var msgCopy = {};
       Object.keys(lmsChatMessages).forEach(function(roomId) {

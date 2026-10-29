@@ -1781,8 +1781,9 @@
   var DEVICE_ONLY_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
     'cestisAttendanceCurrentUser', 'cestisTimeDarkMode', 'cestisTheme', 'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
     'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
-    // "this device holds work not yet uploaded" — true of THIS device only.
-    'cestisPendingUpload', 'cestisUnsyncedOnSignOut',
+    // "this device holds work not yet uploaded" — true of THIS device only —
+    // and its note of what it last put in the Main copy.
+    'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisLastUploadHash',
     // The trainee gate's part on THIS device (Core.gate.DEVICE_KEYS): its
     // switch and address, a gate session's token and sealing key, a staff
     // device's publishing and collecting bookkeeping, and another trainee's

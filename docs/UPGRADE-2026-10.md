@@ -356,6 +356,10 @@ shown to the owner in screenshots first, and merged only once approved or decide
     cannot be written. Every reader still reads all of them, newest record winning.
   - Sign-in and Sync Now download each distinct copy once: a copy whose bytes (Drive's MD5)
     this device has already merged is not downloaded again.
+  - The first save after a sign-in sends nothing only when the Main copy still has the exact
+    bytes this device last put there (same MD5) and the device would send exactly that data
+    (same hash). Each device keeps that note for itself (`cestisLastUploadHash`); it never
+    travels. A device upgraded from an older build has no note, so it uploads once, as before.
   - The chat file is uploaded only when the chat changed; the Cashbook checks its file's
     version before downloading it.
   - A PC's chat history, notifications and School Fee roll are read again once the browser's

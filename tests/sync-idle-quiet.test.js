@@ -91,14 +91,18 @@ for (const page of PAGES) {
       safeJsonParse: (s, d) => { try { return s == null ? d : JSON.parse(s); } catch (e) { return d; } },
       stripSecretFields: (k, v) => v, carryForwardCloudAdminSlices() {}, getCurrentCloudUser: () => ({ username: 'admin' }),
       updateLastSyncDisplay() {}, updateLastSavedByDisplay() {}, showToast() {}, examOutboxRead: () => [], examOutboxConfirm() {},
-      pullMainIfRemoteNewer: async () => false, pullAllowsUpload: () => true, mainMovedSincePull: async () => { if (ctx.__duringCheck) ctx.__duringCheck(); return false; },
+      // The pull reads the Main copy's checksum (as Drive gives it).
+      pullMainIfRemoteNewer: async () => { ctx._mainHeadMd5 = ctx.__mainMd5; return false; },
+      pullAllowsUpload: () => true, mainMovedSincePull: async () => { if (ctx.__duringCheck) ctx.__duringCheck(); return false; },
       lmsChatSyncToDrive: async () => true, savePerUserBackup: async () => true, syncUserLoginFolderToDrive: async () => true,
       saveAssignmentsToDrive: async () => true, saveMasterSnapshot: async () => ({ ok: true, skipped: true }),
+      _mainHeadMd5: null, _mainUploadMd5: null, __mainMd5: null,
       silentSaveToFolder: async (folderId, label, blob) => {
         const text = await blob.text();
         if (hold && folderId === 'MAIN') await hold();
         if (ctx.__failNext) { ctx.__failNext = false; return false; }
         uploads.push({ folderId, data: JSON.parse(text).data });
+        if (folderId === 'MAIN') { ctx.__mainMd5 = require('crypto').createHash('md5').update(text).digest('hex'); ctx._mainUploadMd5 = ctx.__mainMd5; }
         return true;
       },
       // saveState as the page has it: every collection rewritten as it is,
@@ -195,6 +199,57 @@ for (const page of PAGES) {
     await t2.ctx.autoSaveToAllFolders();
     assertEq(t2.uploads.length, 1, w + ': and the next tick tries again');
     assert(t2.store.getItem('cestisPendingUpload') === null, w + ': cleared only once it went up');
+  }
+
+  // 5. The first save of a fresh session (the dashboard opened again, a new
+  // sign-in): it sends nothing only when the Main copy still has the very
+  // bytes this device last put there AND it would send exactly that data.
+  // Proved by content — never by the "pending upload" note, which an older
+  // build never set and the other pages never touch.
+  {
+    const fresh = t => { t.ctx._lastAutoSaveHash = null; t.ctx._lastAutoSaveWriteMark = -1; t.ctx.saveState(); };
+    const mainUps = t => t.uploads.filter(u => u.folderId === 'MAIN').length;
+    // a. Nothing changed anywhere: nothing is sent.
+    let t = world();
+    t.ctx.saveState(); await t.ctx.autoSaveToAllFolders();
+    assert(!!t.store.getItem('cestisLastUploadHash'), w + ': the device notes what it put in the Main copy');
+    assert(/uncounted\.cestisLastUploadHash = 1/.test(page.src), w + ': the note is not a change to save (named uncounted)');
+    assert(C.isSnapshotableKey && !C.isSnapshotableKey('cestisLastUploadHash'), w + ': and it never travels in the master backup');
+    fresh(t); let n = mainUps(t);
+    await t.ctx.autoSaveToAllFolders();
+    assertEq([mainUps(t) - n, t.ctx._lastAutoSaveResult.reason], [0, 'unchanged'], w + ': a fresh session with nothing new sends nothing');
+    // b. Another device wrote (or the file was replaced by hand): it all goes up.
+    t.ctx.__mainMd5 = 'someone-elses-bytes';
+    fresh(t); n = mainUps(t);
+    await t.ctx.autoSaveToAllFolders();
+    assertEq(mainUps(t) - n, 1, w + ': the Main copy no longer has this device\'s bytes — the whole backup goes up');
+    // c. A record held here that never went up (written by another page, or
+    // by an older build, with no "pending upload" note): it goes up.
+    await t.ctx.autoSaveToAllFolders();            // (the Main copy is this device's again)
+    t.ctx.students.push({ id: 'S2', name: 'Andre' });
+    fresh(t); n = mainUps(t);
+    await t.ctx.autoSaveToAllFolders();
+    let last = t.uploads.filter(u => u.folderId === 'MAIN').pop();
+    assert(mainUps(t) - n === 1 && last.data.students.some(s => s.id === 'S2'), w + ': a record this device holds that it never sent goes up, note or no note');
+    // d. A device that never wrote the note (the build before this one): it goes up.
+    t = world();
+    t.ctx.__mainMd5 = 'whatever-is-there';
+    t.ctx.saveState(); n = mainUps(t);
+    await t.ctx.autoSaveToAllFolders();
+    assertEq(mainUps(t) - n, 1, w + ': no note — the first save sends it all, as before');
+    // e. Drive gave no checksum for the Main copy: it goes up.
+    t = world();
+    t.ctx.saveState(); await t.ctx.autoSaveToAllFolders();
+    t.ctx.pullMainIfRemoteNewer = async () => { t.ctx._mainHeadMd5 = null; return false; };
+    fresh(t); n = mainUps(t);
+    await t.ctx.autoSaveToAllFolders();
+    assertEq(mainUps(t) - n, 1, w + ': no checksum to compare — it goes up');
+    // f. The Main write failed (the extra copy took it): no note is written.
+    t = world();
+    t.ctx.__mainMd5 = null;
+    t.ctx.silentSaveToFolder = async (folderId, label, blob) => { const text = await blob.text(); if (folderId === 'MAIN') return false; t.uploads.push({ folderId, data: JSON.parse(text).data }); return true; };
+    t.ctx.saveState(); await t.ctx.autoSaveToAllFolders();
+    assertEq(t.store.getItem('cestisLastUploadHash'), null, w + ': a failed Main write leaves no note');
   }
 
   console.log('The chat push: nothing when unchanged, one at a time (' + w + ')');

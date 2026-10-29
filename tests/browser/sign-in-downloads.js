@@ -23,7 +23,12 @@
      4. a Drive that gives no checksum: every copy is downloaded, as before;
      5. the sign-in's sync run again on B with nothing changed anywhere and
         nothing unsent (as when the dashboard is opened afresh): its first save
-        does not send the whole backup again.
+        does not send the whole backup again — the Main copy still has the
+        very bytes B last put there, and B would send exactly that data;
+     6. the Main copy replaced by an older one with a trainee missing (as if
+        restored by hand in Drive): B's next sign-in finds the Main copy is no
+        longer what it last put there, sends its whole backup, and the trainee
+        is back in the Main copy.
    The outside world is cut off. No page errors. */
 'use strict';
 const { chromium } = require('playwright-core');
@@ -173,6 +178,21 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     const ups = log.filter(e => e.t >= t && e.upload && e.name === BACKUP).length;
     const reason = await p.evaluate(() => _lastAutoSaveResult.reason);
     ok(ups === 0, 'its first save does not send the backup again (' + ups + ' uploads; ' + reason + ')');
+
+    console.log('6. The Main copy replaced by an older one, a trainee missing');
+    const mainNow = Object.values(drive.files).find(f => f.name === BACKUP && f.parents[0] === kit.MAIN_FOLDER);
+    const older = JSON.parse(mainNow.content);
+    const nBefore = older.data.students.length;
+    older.data.students = older.data.students.filter(x => !(x && x.name === 'Tameka Richards'));
+    ok(older.data.students.length === nBefore - 1, 'the older copy lacks one trainee');
+    drive.put(mainNow.id, null, JSON.stringify(older));
+    t = Date.now();
+    await p.evaluate(async () => { stopAutoSave(); _lastAutoSaveHash = null; _lastAutoSaveWriteMark = -1; await autoSyncOnLogin(); startAutoSave(); });
+    await wait(12000);
+    const ups6 = log.filter(e => e.t >= t && e.upload && e.id === mainNow.id).length;
+    const back = JSON.parse(drive.files[mainNow.id].content).data.students.some(x => x && x.name === 'Tameka Richards');
+    ok(ups6 >= 1, 'B\'s first save sends its whole backup to the Main copy (' + ups6 + ' upload(s))');
+    ok(back, 'and the trainee is back in the Main copy');
     ok(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
   } catch (e) {
     failed++; console.log('  ✗ FAIL: ' + (e && e.stack || e));

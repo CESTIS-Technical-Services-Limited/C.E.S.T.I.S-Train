@@ -599,7 +599,7 @@
      budget, its "seen this help" dismissals and its own copy of a video
      room's chat (each line marked as sent from this device or not). */
   var DEVICE_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser', 'cestisAttendanceCurrentUser',
-    'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisCertDeviceSessionId', 'voctrain_supportSendLog',
+    'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisLastUploadHash', 'cestisCertDeviceSessionId', 'voctrain_supportSendLog',
     'voctrain_sessionUpgradeCarried',
     // This screen's light/dark choice: one person's Light never reaches another device.
     'cestisTheme',
@@ -1014,8 +1014,9 @@
       // One-off "I have seen this" dismissals.
       'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
       'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
-      // This device's own "not yet uploaded" marker.
-      'cestisPendingUpload', 'cestisUnsyncedOnSignOut',
+      // This device's own "not yet uploaded" marker, and its note of what it
+      // last put in the Main copy.
+      'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisLastUploadHash',
       // The trainee gate's part on this device (see DEVICE_KEYS).
       'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
       'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
