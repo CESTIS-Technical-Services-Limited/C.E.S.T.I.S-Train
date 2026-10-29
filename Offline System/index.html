@@ -11739,9 +11739,13 @@ function exportReportCSV() {
   // One row per training centre that holds trainees, named with its intake key
   // where two share a programme — the old one-row-per-programme-name resolved
   // each name to a single centre and silently dropped every other intake.
+  // avgAttendance by the one rule: over the programme's ACTIVE trainees
+  // (blank when it has none in training).
+  const _fig = centreFigureSet();
   const data = reportProgrammeRolls().map(p => {
     const cs = p.roll;
-    return {course:p.full||p.label,enrolled:cs.length,certified:cs.filter(s=>s.stage==='certified'||s.stage==='collected').length,avgAttendance:cs.length?Math.round(cs.reduce((a,s)=>a+(parseFloat(s && s.attendance)||0),0)/cs.length):0};
+    const att = CESTISCore.centreFigures.attendance(cs, _fig.attOf);
+    return {course:p.full||p.label,enrolled:cs.length,certified:cs.filter(s=>s.stage==='certified'||s.stage==='collected').length,avgAttendance:att.rate == null ? '' : att.rate};
   });
   exportCSV(data, ['course','enrolled','certified','avgAttendance'], 'report_export.csv');
   showToast('Report CSV exported!');
@@ -14704,7 +14708,7 @@ function buildAdminPages() {
   <section class="page active" id="page-dashboard">
     <div id="sappAdminDueCard"></div>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDC65</div><div class="stat-value" data-count="${totalEnrolled}">0</div><div class="stat-label">Total Enrolled Students</div><div class="stat-change" style="color:var(--text-muted);">Across all programmes</div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDC65</div><div class="stat-value" data-count="${totalEnrolled}">0</div><div class="stat-label">Total Enrolled Students</div><div class="stat-change" id="dashActiveLine" style="color:var(--text-muted);">${dashActiveLineText()}</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83C\uDF93</div><div class="stat-value" data-count="${totalCertified}">0</div><div class="stat-label">Certified This Year</div><div class="stat-change" style="color:var(--text-muted);">Completed certification</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">\uD83D\uDCDD</div><div class="stat-value" data-count="${upcomingExams}">0</div><div class="stat-label">Upcoming Exams</div><div class="stat-change" style="color:var(--text-muted);">Next: ${escapeHtml(nextExam?nextExam.date.slice(5):'None scheduled')}</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--purple-dim);color:var(--purple);">\uD83D\uDCF9</div><div class="stat-value" data-count="${classSessions.length}">0</div><div class="stat-label">Class Sessions</div><div class="stat-change" style="color:var(--text-muted);">Total scheduled</div></div>
@@ -24787,7 +24791,14 @@ function backfillAccountProgrammes() {
 // students added via any path (e.g. pulled in from School Fee) without
 // rebuilding the page (the dashboard is template-literal HTML; there is no
 // updateDashboard fn). The cards have no ids, so match them by label text.
+// Under "Total Enrolled": how many of them are in training now, and how many
+// are applicants — the total counts both, and those who have finished.
+function dashActiveLineText() {
+  var e = CESTISCore.centreFigures.enrolment(students);
+  return e.active + ' active (in training) \u00b7 ' + e.applicants + ' applicant' + (e.applicants === 1 ? '' : 's');
+}
 function refreshDashboardStudentTotals() {
+  try { var _al = document.getElementById('dashActiveLine'); if (_al) _al.textContent = dashActiveLineText(); } catch (e) {}
   try {
     var totalEnrolled = students.length;
     var totalCertified = CESTISCore.certs.certifiedInYear(students, new Date().getFullYear());
@@ -31271,18 +31282,18 @@ function renderReportStats() {
     }
   });
   const avgMonthsToCert = certCount > 0 ? (totalMonths / certCount).toFixed(1) : '0';
-  // A record whose attendance was never recorded holds undefined, and adding it
-  // made the whole sum NaN — one blank field and the Attendance Rate card read 0%
-  // for the entire Centre, indistinguishable from genuinely zero attendance.
-  const avgAtt = students.length
-    ? Math.round(students.reduce((a,s)=>a+(parseFloat(s && s.attendance)||0),0)/students.length) : 0;
-  // A dropout marked on the enrolment register counts, as well as the stage.
-  const dropoutRate = students.length ? (students.filter(s=>s && (s.stage==='incomplete' || s.enrolStatus==='dropout')).length/students.length*100).toFixed(1) : 0;
+  // Attendance over ACTIVE trainees with a figure (an applicant who never
+  // attended is not a 0%), dropouts over intakes that have ENDED
+  // (CESTISCore.centreFigures, as on the board's screens). A blank field is
+  // skipped, never added as NaN.
+  const fig = centreFigureSet();
+  const avgAtt = fig.attendance.rate == null ? 0 : fig.attendance.rate;
+  const dropoutRate = fig.dropout.rate == null ? 0 : fig.dropout.rate.toFixed(1);
   el.innerHTML = `
     <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83D\uDCCA</div><div class="stat-value" data-count="${overallPassRate}" data-suffix="%">0</div><div class="stat-label">Overall Pass Rate</div><div class="stat-change" style="color:var(--text-muted);">${passFig.rate == null ? 'No marked results yet' : 'of ' + passFig.of + ' marked results'}</div></div>
     <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">\u23F1\uFE0F</div><div class="stat-value" data-count="${avgMonthsToCert}">0</div><div class="stat-label">Avg. Months to Cert</div></div>
-    <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDCC8</div><div class="stat-value" data-count="${avgAtt}" data-suffix="%">0</div><div class="stat-label">Attendance Rate</div></div>
-    <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">\u26A0\uFE0F</div><div class="stat-value" data-count="${dropoutRate}" data-suffix="%">0</div><div class="stat-label">Dropout Rate</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDCC8</div><div class="stat-value" data-count="${avgAtt}" data-suffix="%">0</div><div class="stat-label">Attendance Rate</div><div class="stat-change" style="color:var(--text-muted);">${fig.attendance.rate == null ? 'No attendance recorded for active trainees' : 'of ' + fig.attendance.of + ' active'}</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">\u26A0\uFE0F</div><div class="stat-value" data-count="${dropoutRate}" data-suffix="%">0</div><div class="stat-label">Dropout Rate</div><div class="stat-change" style="color:var(--text-muted);">${fig.dropout.rate == null ? 'No intake has ended yet' : 'of ' + fig.dropout.of + ' in ended intakes'}</div></div>
   `;
 }
 
@@ -31341,7 +31352,10 @@ function renderEnrollmentBars() {
 function renderGaugeChart() {
   const el = document.getElementById('gaugeContainer');
   if(!el) return;
-  const completionRate = students.length > 0 ? Math.round(students.filter(s=>s.stage==='certified'||s.stage==='collected').length / students.length * 100) : 0;
+  // Certified or collected, over the trainees of intakes that have ENDED: a
+  // running intake has not completed yet (CESTISCore.centreFigures.completion).
+  const comp = centreFigureSet().completion;
+  const completionRate = comp.rate == null ? 0 : comp.rate;
   const rotation = (completionRate / 100) * 180;
   el.innerHTML = `
     <div class="gauge-chart">
@@ -31352,7 +31366,7 @@ function renderGaugeChart() {
       <div class="gauge-min">0%</div>
       <div class="gauge-max">100%</div>
     </div>
-    <div class="gauge-label" style="font-size:12px;color:var(--text-muted);margin-top:20px;">Overall Completion Rate</div>
+    <div class="gauge-label" style="font-size:12px;color:var(--text-muted);margin-top:20px;">Overall Completion Rate \u2014 ${comp.rate == null ? 'no intake has ended yet' : comp.certified + ' of ' + comp.of + ' in ended intakes'}</div>
   `;
 }
 
@@ -31644,6 +31658,28 @@ function attendancePctByStudent() {
     source = 'weekly';
   }
   return { pct: out, source: source };
+}
+
+/* The Centre's figures, one rule each (CESTISCore.centreFigures), so the
+   administrator's dashboard, Reports and the board's screens say the same:
+   attendance over ACTIVE trainees (by this register's rule), completion and
+   dropouts over intakes that have ENDED, exam passes over MARKED results,
+   instructors from the instructor records and accounts. */
+function centreFigureSet() {
+  var F = CESTISCore.centreFigures, pm = {};
+  try { pm = attendancePctByStudent().pct || {}; } catch (e) { pm = {}; }
+  var attOf = function (s) { return s && pm[s.id] != null ? pm[s.id] : (s ? s.attendance : null); };
+  var endedOf = function (s) { try { return studentCourseStatus(s) === 'ended'; } catch (e) { return false; } };
+  var roll = Array.isArray(students) ? students : [];
+  return {
+    attOf: attOf, endedOf: endedOf,
+    enrolment: F.enrolment(roll),
+    attendance: F.attendance(roll, attOf),
+    completion: F.completion(roll, endedOf),
+    dropout: F.dropout(roll, endedOf),
+    examPass: F.examPass(typeof examResults !== 'undefined' ? examResults : []),
+    instructors: F.instructorCount(typeof instructorData !== 'undefined' ? instructorData : [], typeof userAccounts !== 'undefined' ? userAccounts : [])
+  };
 }
 
 /* ---------- merging other copies ---------- */
@@ -46663,28 +46699,18 @@ function buildCmcPages() {
 
   var totalStudents = students.length;
   var totalCertified = students.filter(function(s){ return s.stage==='certified'||s.stage==='collected'; }).length;
-  // Instructors on record: the roster the Centre maintains, the accounts that
-  // carry the instructor role, and the profile blobs — whichever the Centre has
-  // actually filled in. Counting only one of the three showed "0 instructors"
-  // to a board looking at a Centre that plainly had them.
-  var _insNames = {};
-  (instructorData || []).forEach(function(i) { if(i && i.name) _insNames[String(i.name).toLowerCase()] = 1; });
-  Object.keys(instructorProfiles || {}).forEach(function(k) { if(k) _insNames[String(k).toLowerCase()] = 1; });
-  (userAccounts || []).forEach(function(u) { if(u && u.role === 'instructor' && u.name) _insNames[String(u.name).toLowerCase()] = 1; });
-  (students || []).forEach(function(s) { if(s && s.instructor) _insNames[String(s.instructor).toLowerCase()] = 1; });
-  var totalInstructors = Object.keys(_insNames).length;
+  // The figures, one rule each (centreFigureSet): the board and the
+  // administrator's Reports read the same numbers. Instructors: the roster
+  // the Centre maintains and the accounts that carry the instructor role, one
+  // per name (counting only one of them showed "0 instructors", or 2 of 4).
+  var _fig = centreFigureSet();
+  var totalInstructors = _fig.instructors;
   var totalStaff = userAccounts.filter(function(u){ return u.role === 'adminstaff'; }).length;
   // Average attendance by the one rule (CESTISCore.attendance.summarize: held
   // sessions only), over the trainees who have any held session recorded.
-  var avgAttendance = 0;
-  var _attPctMap = attendancePctByStudent().pct, _attPctVals = Object.keys(_attPctMap).map(function(k){ return _attPctMap[k]; });
-  if(_attPctVals.length > 0) {
-    avgAttendance = Math.round(_attPctVals.reduce(function(a, b){ return a + b; }, 0) / _attPctVals.length);
-  } else if(students.length > 0) {
-    var totalAtt2 = 0;
-    students.forEach(function(s){ totalAtt2 += (parseFloat(s.attendance)||0); });
-    avgAttendance = Math.round(totalAtt2 / students.length);
-  }
+  // Over ACTIVE trainees only (CESTISCore.centreFigures.attendance).
+  var avgAttendance = _fig.attendance.rate == null ? 0 : _fig.attendance.rate;
+  var avgAttendanceOf = _fig.attendance.rate == null ? 'no active trainee has attendance recorded' : 'of ' + _fig.attendance.of + ' active';
   // Average GPA: the GPA each trainee's marks produce (studentGpaFigure),
   // over the trainees who have one — the figure the instructors and the
   // trainees themselves see.
@@ -46701,14 +46727,16 @@ function buildCmcPages() {
   html += '</div></div>';
 
   // Compute local metrics
-  var completionRate = totalStudents > 0 ? Math.round((totalCertified/totalStudents)*100) : 0;
+  // Over intakes that have ENDED; exam passes over MARKED results.
+  var completionRate = _fig.completion.rate == null ? 0 : _fig.completion.rate;
+  var completionOf = _fig.completion.rate == null ? 'no intake has ended yet' : _fig.completion.certified + ' of ' + _fig.completion.of + ' in ended intakes';
   var incompleteCount = students.filter(function(s){ return s.stage==='incomplete'; }).length;
   var inTrainingCount = students.filter(function(s){ return s.stage==='training'; }).length;
   var totalExams = (exams||[]).length;
   var completedExams = (exams||[]).filter(function(e){ return e.status==='completed'; }).length;
-  var totalExamResults = (examResults||[]).length;
-  var passedResults = (examResults||[]).filter(function(r){ return r.passed; }).length;
-  var examPassRate = totalExamResults > 0 ? Math.round((passedResults/totalExamResults)*100) : 0;
+  var totalExamResults = _fig.examPass.of;
+  var passedResults = _fig.examPass.passed;
+  var examPassRate = _fig.examPass.rate == null ? 0 : _fig.examPass.rate;
   var attRecCount = (Array.isArray(attendanceRegister) && attendanceRegister.length) ? attendanceRegister.length : (attendanceRecords||[]).length;
 
   // The books the board oversees, with what each currently holds.
@@ -46719,25 +46747,25 @@ function buildCmcPages() {
   html += '<div class="cmc-kpi-card kpi-attendance" onclick="cmcShowDetail(\'attendance\')"><div class="cmc-kpi-icon">👥</div>';
   html += '<div class="cmc-kpi-label">Total Enrolment</div>';
   html += '<div class="cmc-kpi-value">' + totalStudents + '</div>';
-  html += '<div class="cmc-kpi-sub">' + inTrainingCount + ' in training, ' + totalCertified + ' certified</div>';
+  html += '<div class="cmc-kpi-sub">' + _fig.enrolment.active + ' active (in training) \u00b7 ' + _fig.enrolment.applicants + ' applicants \u00b7 ' + totalCertified + ' certified</div>';
   html += '<div class="cmc-kpi-hint">Click to view details</div></div>';
 
   html += '<div class="cmc-kpi-card kpi-clockin" onclick="cmcShowDetail(\'attendance\')"><div class="cmc-kpi-icon">📋</div>';
   html += '<div class="cmc-kpi-label">Avg Attendance</div>';
   html += '<div class="cmc-kpi-value" id="cmcKpiAttendance">' + avgAttendance + '%</div>';
-  html += '<div class="cmc-kpi-sub">' + attRecCount + ' attendance records</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcKpiAttendanceSub">' + avgAttendanceOf + '</div>';
   html += '<div class="cmc-kpi-hint">Click to view details</div></div>';
 
   html += '<div class="cmc-kpi-card kpi-cashbook" onclick="cmcShowDetail(\'fees\')"><div class="cmc-kpi-icon">🏆</div>';
   html += '<div class="cmc-kpi-label">Completion Rate</div>';
   html += '<div class="cmc-kpi-value">' + completionRate + '%</div>';
-  html += '<div class="cmc-kpi-sub">' + totalCertified + ' of ' + totalStudents + ' certified</div>';
+  html += '<div class="cmc-kpi-sub">' + completionOf + '</div>';
   html += '<div class="cmc-kpi-hint">Click to view details</div></div>';
 
   html += '<div class="cmc-kpi-card kpi-virement"><div class="cmc-kpi-icon">📝</div>';
   html += '<div class="cmc-kpi-label">Exam Pass Rate</div>';
   html += '<div class="cmc-kpi-value">' + examPassRate + '%</div>';
-  html += '<div class="cmc-kpi-sub">' + passedResults + ' of ' + totalExamResults + ' passed (' + completedExams + ' exams)</div>';
+  html += '<div class="cmc-kpi-sub">' + (_fig.examPass.rate == null ? 'no marked results yet' : passedResults + ' of ' + totalExamResults + ' marked results passed') + (_fig.examPass.awaiting ? ' \u00b7 ' + _fig.examPass.awaiting + ' awaiting marking' : '') + '</div>';
   html += '</div>';
 
   html += '<div class="cmc-kpi-card kpi-payroll" onclick="cmcShowDetail(\'payroll\')"><div class="cmc-kpi-icon">💰</div>';
@@ -46965,15 +46993,15 @@ function buildCmcPages() {
   html += '<div class="cmc-kpi-card kpi-attendance"><div class="cmc-kpi-icon">📋</div>';
   html += '<div class="cmc-kpi-label">Average Attendance</div>';
   html += '<div class="cmc-kpi-value">' + avgAttendance + '%</div>';
-  html += '<div class="cmc-kpi-sub">' + totalStudents + ' students</div></div>';
+  html += '<div class="cmc-kpi-sub">' + avgAttendanceOf + '</div></div>';
   html += '<div class="cmc-kpi-card kpi-fees"><div class="cmc-kpi-icon">📊</div>';
   html += '<div class="cmc-kpi-label">Average GPA</div>';
   html += '<div class="cmc-kpi-value">' + avgGpa + '</div>';
   html += '<div class="cmc-kpi-sub">Across all courses</div></div>';
   html += '<div class="cmc-kpi-card kpi-cashbook"><div class="cmc-kpi-icon">🏆</div>';
   html += '<div class="cmc-kpi-label">Certification Rate</div>';
-  html += '<div class="cmc-kpi-value">' + (totalStudents > 0 ? Math.round((totalCertified/totalStudents)*100) : 0) + '%</div>';
-  html += '<div class="cmc-kpi-sub">' + totalCertified + ' of ' + totalStudents + ' certified</div></div>';
+  html += '<div class="cmc-kpi-value">' + completionRate + '%</div>';
+  html += '<div class="cmc-kpi-sub">' + completionOf + '</div></div>';
   html += '</div>';
 
   // Student pipeline breakdown
@@ -47141,7 +47169,8 @@ function cmcRenderCharts() {
 
   // Staff Distribution Chart — instructors are in instructorData, not userAccounts
   var adminCount = userAccounts.filter(function(u){ return u.role === 'admin'; }).length;
-  var instrCount = (instructorData && instructorData.length) || Object.keys(instructorProfiles || {}).length || 0;
+  // Instructor records and instructor accounts, one per name (centreFigureSet).
+  var instrCount = centreFigureSet().instructors;
   var staffCount = userAccounts.filter(function(u){ return u.role === 'adminstaff'; }).length;
   var cmcCount = userAccounts.filter(function(u){ return u.role === 'cmc'; }).length;
 
@@ -47321,17 +47350,12 @@ function cmcLoadAllData() {
 }
 
 function cmcUpdateLocalKpis() {
-  var avgAtt = 0;
-  var _kMap = attendancePctByStudent().pct, _kVals = Object.keys(_kMap).map(function(k){ return _kMap[k]; });
-  if(_kVals.length > 0) {
-    avgAtt = Math.round(_kVals.reduce(function(a, b){ return a + b; }, 0) / _kVals.length);
-  } else if(students.length > 0) {
-    var sum2 = 0;
-    students.forEach(function(s){ sum2 += (parseFloat(s.attendance)||0); });
-    avgAtt = Math.round(sum2 / students.length);
-  }
+  // Over ACTIVE trainees only, as the card was drawn (centreFigureSet).
+  var _att = centreFigureSet().attendance;
   var el = document.getElementById('cmcKpiAttendance');
-  if(el) el.textContent = avgAtt + '%';
+  if(el) el.textContent = (_att.rate == null ? 0 : _att.rate) + '%';
+  var elSub = document.getElementById('cmcKpiAttendanceSub');
+  if(elSub) elSub.textContent = _att.rate == null ? 'no active trainee has attendance recorded' : 'of ' + _att.of + ' active';
 
   cmcUpdatePayslipKpi();
   cmcUpdateClockinKpi();
@@ -47954,7 +47978,10 @@ function cmcBuildAttendanceDetail() {
   }
 
   html += '<div class="cmc-detail-stat"><div class="stat-label">Total Students</div><div class="stat-value">' + totalRecords + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Average Attendance</div><div class="stat-value">' + avgAtt + '%</div></div>';
+  // The Centre's figure (over ACTIVE trainees, as on the dashboard); the list
+  // below still shows everyone with attendance recorded.
+  var _figAtt = centreFigureSet().attendance;
+  html += '<div class="cmc-detail-stat"><div class="stat-label">Average Attendance</div><div class="stat-value">' + (_figAtt.rate == null ? '\u2014' : _figAtt.rate + '%') + '</div><div style="font-size:12px;color:var(--text-muted);">' + (_figAtt.rate == null ? 'none recorded' : 'of ' + _figAtt.of + ' active') + '</div></div>';
   html += '<div class="cmc-detail-stat"><div class="stat-label">Above 80%</div><div class="stat-value" style="color:var(--green)">' + above80 + '</div></div>';
   html += '<div class="cmc-detail-stat"><div class="stat-label">Below 60%</div><div class="stat-value" style="color:var(--red)">' + below60 + '</div></div>';
   html += '</div>';

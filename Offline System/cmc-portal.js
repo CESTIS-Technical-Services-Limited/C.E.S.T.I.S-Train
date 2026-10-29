@@ -623,14 +623,27 @@
     var sum = cmcStudentSummary(students);
     var avg = cmcAverages(students, gpaOf);
     var accounts = arr('userAccounts');
-    var instructors = accounts.filter(function (u) { return u && u.role === 'instructor'; }).length;
     var staff = accounts.filter(function (u) { return u && u.role === 'adminstaff'; }).length;
+    // The Centre's figures by the dashboard's own rules (centreFigureSet:
+    // CESTISCore.centreFigures), so the board reads what Reports reads —
+    // attendance over ACTIVE trainees, completion over ENDED intakes,
+    // instructors from the records and the accounts — each with what it is a
+    // rate of.
+    var fig = null;
+    try { if (typeof root.centreFigureSet === 'function') fig = root.centreFigureSet(); } catch (e) { fig = null; }
+    var F = (root.CESTISCore && root.CESTISCore.centreFigures) || null;
+    var instructors = fig ? fig.instructors : (F ? F.instructorCount(arr('instructorData'), accounts) : accounts.filter(function (u) { return u && u.role === 'instructor'; }).length);
+    var active = fig ? fig.enrolment.active : sum.inTraining;
+    var certSub = fig ? (fig.completion.rate == null ? 'No intake has ended yet' : fig.completion.rate + '% of ' + fig.completion.of + ' in ended intakes')
+      : sum.certificationRate + '% of all students';
+    var attVal = fig ? (fig.attendance.rate == null ? '—' : fig.attendance.rate + '%') : avg.attendance + '%';
+    var attSub = fig ? (fig.attendance.rate == null ? 'None recorded for active trainees' : 'of ' + fig.attendance.of + ' active') : 'Across the roster';
 
     var h = '<div class="stats-grid stats-grid-4">' +
       statCard('👥', 'blue', sum.total, 'Total Students on Platform', 'All enrolled records') +
-      statCard('🎓', 'green', sum.certified, 'Certified', sum.certificationRate + '% of all students') +
-      statCard('📚', 'accent', sum.inTraining, 'Currently in Training', 'Active trainees') +
-      statCard('📊', 'purple', avg.attendance + '%', 'Average Attendance', 'Across the roster') +
+      statCard('🎓', 'green', sum.certified, 'Certified', certSub) +
+      statCard('📚', 'accent', active, 'Currently in Training', 'Active trainees') +
+      statCard('📊', 'purple', attVal, 'Average Attendance', attSub) +
       '</div>';
 
     h += '<div class="grid-2col">';
@@ -658,7 +671,7 @@
       '<table class="data-table" style="width:100%;"><tbody>' +
       '<tr><td>Total students on the platform</td><td style="text-align:right;"><strong>' + sum.total + '</strong></td></tr>' +
       '<tr><td>Certified (incl. collected)</td><td style="text-align:right;"><strong>' + sum.certified + '</strong></td></tr>' +
-      '<tr><td>In training</td><td style="text-align:right;"><strong>' + sum.inTraining + '</strong></td></tr>' +
+      '<tr><td>In training</td><td style="text-align:right;"><strong>' + active + '</strong></td></tr>' +
       '<tr><td>Marked incomplete</td><td style="text-align:right;"><strong>' + sum.incomplete + '</strong></td></tr>' +
       '<tr><td>Instructors</td><td style="text-align:right;"><strong>' + instructors + '</strong></td></tr>' +
       '<tr><td>Administrative staff</td><td style="text-align:right;"><strong>' + staff + '</strong></td></tr>' +

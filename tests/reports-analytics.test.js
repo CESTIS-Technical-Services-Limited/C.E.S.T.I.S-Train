@@ -65,7 +65,8 @@ function extractFunction(name) {
 }
 
 const PANELS = ['reportProgrammeRolls', 'renderPassRates', 'renderEnrollmentBars',
-  'renderDonutChart', 'renderGenderDist', 'renderReportStats', 'renderAttendanceHeatmap', 'examPassFigure'];
+  'renderDonutChart', 'renderGenderDist', 'renderReportStats', 'renderAttendanceHeatmap', 'examPassFigure',
+  'centreFigureSet', 'attendancePctByStudent'];
 
 const STAGES = ['testing', 'interview', 'training', 'certified', 'collected', 'nyc', 'incomplete'];
 
@@ -81,6 +82,8 @@ function makePage(opts) {
     skillAreas: skillAreas,
     attendanceRecords: opts.attendance || [],
     examResults: opts.results || [],
+    attendanceRegister: [], userAccounts: [], instructorData: [],
+    studentCourseStatus: s => (s && s.ended ? 'ended' : 'active'),
     courses: [...new Set(students.map(s => s.course).filter(Boolean))],
     stages: STAGES,
     stageLabels: { testing: 'Testing', interview: 'Interview', training: 'In Training',
@@ -263,15 +266,19 @@ function runFor(pageFile) {
   /* ---------- 5. Averages survive a blank field ---------- */
   console.log('\nOne unrecorded field does not zero a whole statistic');
 
-  page = makePage({ students: ROLL });
+  // Attendance is a rate over ACTIVE trainees (CESTISCore.centreFigures,
+  // tests/centre-figures.test.js): a third of this roll is put in training.
+  const ACTIVE_ROLL = ROLL.map((s, i) => Object.assign({}, s, { stage: i % 3 === 0 ? 'training' : s.stage }));
+  page = makePage({ students: ACTIVE_ROLL });
   page.renderReportStats();
   const stats = page._html('reportStats');
   assert(stats.indexOf('NaN') === -1, 'no card reads NaN');
   const attendance = +(stats.match(/data-count="([^"]*)"[^>]*>0<\/div><div class="stat-label">Attendance Rate/) || [])[1];
-  const recorded = ROLL.filter(s => typeof s.attendance === 'number');
-  assert(recorded.length > 0 && recorded.length < ROLL.length,
+  const active = ACTIVE_ROLL.filter(s => s.stage === 'training');
+  const recorded = active.filter(s => typeof s.attendance === 'number');
+  assert(recorded.length > 0 && recorded.length < active.length,
     'the fixture mixes recorded and unrecorded attendance, as the export does');
-  const want = Math.round(ROLL.reduce((a, s) => a + (parseFloat(s.attendance) || 0), 0) / ROLL.length);
+  const want = Math.round(recorded.reduce((a, s) => a + s.attendance, 0) / recorded.length);
   assertEq(attendance, want,
     'the average counts the attendance that IS recorded — adding an undefined made it ' +
     'NaN, and the card then read 0% for the whole Centre');

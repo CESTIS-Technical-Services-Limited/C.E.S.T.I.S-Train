@@ -79,7 +79,9 @@ sb.exportCSV = (rows, headers, name) => { sb.exported = { rows, headers, name };
 sb.window = sb;
 vm.createContext(sb);
 try { Core.enrolment.assignCentreKeys(sb.skillAreas); } catch (e) {}
-vm.runInContext(['studentCourseworkSummary', 'studentEffectiveGpa', 'studentGpaFigure', 'examPassFigure', 'reportProgrammeRolls', 'renderPassRates', 'renderReportStats', 'exportStudentsCSV'].map(fn).join('\n'), sb);
+Object.assign(sb, { attendanceRegister: [], attendanceRecords: [], userAccounts: [], instructorData: [], studentCourseStatus: () => 'active' });
+vm.runInContext(['studentCourseworkSummary', 'studentEffectiveGpa', 'studentGpaFigure', 'examPassFigure', 'attendancePctByStudent', 'centreFigureSet',
+  'reportProgrammeRolls', 'renderPassRates', 'renderReportStats', 'exportStudentsCSV'].map(fn).join('\n'), sb);
 {
   sb.renderPassRates();
   const html = sb.els.passRateChart.innerHTML;

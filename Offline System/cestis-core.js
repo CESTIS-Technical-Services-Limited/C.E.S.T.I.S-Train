@@ -13946,8 +13946,9 @@
     function isApplicant(s) { var st = stageOf(s); return st === 'testing' || st === 'interview'; }
     // A dropout: Incomplete, or marked so on the enrolment register.
     function isDropout(s) { return stageOf(s) === 'incomplete' || String((s && s.enrolStatus) || '').toLowerCase() === 'dropout'; }
-    // In training now.
-    function isActive(s) { return !!s && stageOf(s) === 'training' && !isDropout(s); }
+    // In training now (a record with no stage at all is read as in training,
+    // as the invigilator's roll reads it).
+    function isActive(s) { var st = stageOf(s); return !!s && (st === 'training' || st === '') && !isDropout(s); }
     function isCertified(s) { var st = stageOf(s); return st === 'certified' || st === 'collected'; }
     function list(a) { return (Array.isArray(a) ? a : []).filter(Boolean); }
     function rate(n, d, dp) { if (!d) return null; var f = Math.pow(10, dp || 0); return Math.round(n / d * 100 * f) / f; }
