@@ -11794,7 +11794,18 @@
       };
     }
 
-    return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload,
+    /* A fingerprint of a page file's content — its keys, values and dates,
+       in key order — the same on a device and on the Centre's server. A
+       device that sent only its changed keys (EF-5) keeps its own prediction
+       of the merged file only when the server's result has this same
+       fingerprint; otherwise it reads the file again. */
+    function resultSig(data, stamps) {
+      data = data || {}; stamps = stamps || {};
+      var keys = Object.keys(data).concat(Object.keys(stamps).filter(function (k) { return !Object.prototype.hasOwnProperty.call(data, k); })).sort();
+      return Core.hashString(JSON.stringify(keys.map(function (k) { return [k, data[k] === undefined ? null : data[k], stamps[k] == null ? null : stamps[k]]; })));
+    }
+
+    return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload, resultSig: resultSig,
              sharedSources: sharedSources, isShared: isShared, sourceOf: sourceOf,
              sharedPullPlan: sharedPullPlan, pickShared: pickShared,
              isEmptyValue: isEmptyValue, wouldDiscardRecords: wouldDiscardRecords,

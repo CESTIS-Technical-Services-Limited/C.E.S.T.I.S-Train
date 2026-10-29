@@ -496,8 +496,15 @@
     if (s && typeof s.setItem === 'function' && !s.__pageCloudWrapped) {
       var orig = s.setItem.bind(s);
       s.setItem = function (k, v) {
+        // The value as it stood (EF-5): writing the same value again is not an
+        // edit. The dashboard rewrites every collection on each save, and each
+        // of those rewrites was stamped as new and sent — the whole dashboard
+        // file and the whole-store file, again, for one changed mark.
+        var prev;
+        try { prev = (typeof s.getItem === 'function') ? s.getItem(k) : undefined; } catch (e) { prev = undefined; }
         var r = orig(k, v);
         try {
+          if (prev != null && prev === String(v)) return r;
           // A pull writing the cloud's own copy back into storage is not an edit
           // made on this device. Without this test each of those writes was
           // stamped "now" and scheduled straight back up, so the value just
@@ -557,7 +564,7 @@
      ========================================================================== */
   var LOCAL_BASE = '/_cestis/data/';
   var LAN_REFRESH_MS = 30000;
-  var lan = { probe: null, on: false, token: '', offset: 0, synced: false, failures: 0, cache: {} };
+  var lan = { probe: null, on: false, token: '', offset: 0, synced: false, failures: 0, cache: {}, partialPut: false };
 
   /* Off the Centre's network, "now" is this device's clock as corrected by the
      last server time it measured (CESTISCore.sync.setClockOffset — Google's
@@ -651,7 +658,11 @@
       return lan.probe;
     }
     lan.probe = root.fetch('/_cestis/health', { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (r) {
+        if (!r.ok) return null;
+        try { lan.features = String((r.headers && r.headers.get && r.headers.get('X-CESTIS-Features')) || ''); } catch (e) { lan.features = ''; }
+        return r.json();
+      })
       .then(function (d) {
         if (!(d && d.ok && d.mode === 'offline-lan')) return false;
         var t = Date.parse(d.time || '');
@@ -661,6 +672,8 @@
           // Centre's clock too, not by this device's (Core.sync.trusted).
           try { root.CESTISCore.sync.setClockOffset(lan.offset); } catch (e) {}
         }
+        // Can it take a save of only the keys that changed (EF-5)?
+        lan.partialPut = /(^|[ ,])partial-put([ ,]|$)/.test(lan.features || '');
         return fetchLanToken().then(function () { lan.on = true; return true; });
       })
       .catch(function () { return false; });
@@ -704,16 +717,26 @@
     }).catch(function () { return { ok: false, status: 0, payload: null }; });
   }
 
-  function localPut(file, payload) {
+  /* opts.base: the version (ETag) of the file this save was built on;
+     opts.result: what the file holds after the server's merge, if it still
+     was that version (computed here by the same merge the server runs). */
+  function localPut(file, payload, opts) {
+    opts = opts || {};
     var body = JSON.stringify(payload);
-    return lanFetch(file, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: body })
+    var headers = { 'Content-Type': 'application/json' };
+    if (opts.base) headers['X-CESTIS-Base'] = opts.base;
+    return lanFetch(file, { method: 'PUT', headers: headers, body: body })
       .then(function (r) {
         if (!r.ok) return { ok: false, status: r.status };
         return r.json().then(function (d) { return d || {}; }, function () { return {}; }).then(function (d) {
           // The server merges what it is sent into what it holds. When that
           // left exactly what we sent, our copy IS the file — remember it, so
-          // the next refresh is a "not modified".
+          // the next refresh is a "not modified". The same when it merged a
+          // save of only the changed keys into the very version this device
+          // had read: the result is known here without downloading it.
           if (d.etag && d.changedByServer === false) lan.cache[file] = { etag: d.etag, payload: payload };
+          else if (d.etag && d.basedOn === true && opts.result && d.resultSig && core().resultSig &&
+                   d.resultSig === core().resultSig(opts.result.data, opts.result.stamps)) lan.cache[file] = { etag: d.etag, payload: opts.result };
           else delete lan.cache[file];
           return { ok: true, status: r.status };
         });
@@ -814,11 +837,43 @@
       // "nothing to upload" test impossible to pass.
       var sig = JSON.stringify([merged.data, merged.stamps]);
       if (sig === self._lanLastSig && got.same) { lanSaved(); return true; }
-      var payload = C.buildPayload(self.spec, merged.data, merged.stamps, {
+      var meta = {
         savedAt: lanNow(),
         savedBy: (root.currentLoggedInUser && root.currentLoggedInUser.username) || root.currentRole || 'offline'
-      });
-      return localPut(self.spec.file, payload).then(function (put) {
+      };
+      var payload = C.buildPayload(self.spec, merged.data, merged.stamps, meta);
+      // Only what the server's copy lacks (EF-5): the keys whose value or
+      // date differ from the file as read. Each save used to send the whole
+      // dashboard file (52 MB at a school year's size) for one changed mark.
+      // The server merges it into the file it holds, and refuses it (409) if
+      // that file is not there to merge into; then the whole file goes.
+      var partial = null, putOpts = {};
+      var cached = lan.cache[self.spec.file];
+      if (lan.partialPut && got.payload && remote.data && typeof remote.data === 'object' && cached && cached.etag && cached.payload === got.payload) {
+        var rd = remote.data, rs = remote.stamps || {};
+        var dData = {}, dStamps = {}, n = 0;
+        Object.keys(merged.data).forEach(function (k) {
+          if (merged.data[k] !== rd[k] || (merged.stamps[k] || null) !== (rs[k] || null)) {
+            dData[k] = merged.data[k]; if (merged.stamps[k] != null) dStamps[k] = merged.stamps[k]; n++;
+          }
+        });
+        Object.keys(merged.stamps).forEach(function (k) {
+          if (!(k in merged.data) && merged.stamps[k] !== rs[k]) { dStamps[k] = merged.stamps[k]; n++; }
+        });
+        if (!n) { self._lanLastSig = sig; lanSaved(); return true; }   // the server holds all of it already
+        partial = C.buildPayload(self.spec, dData, dStamps, meta);
+        partial.partial = true;
+        // What the server's merge will leave, if the file is still the version read.
+        var after = C.mergeKeys(rd, rs, dData, dStamps, { records: true, symmetric: true });
+        var result = {};
+        Object.keys(partial).forEach(function (k) { if (k !== 'partial') result[k] = partial[k]; });
+        result.data = after.data; result.stamps = after.stamps; result.keyCount = Object.keys(after.data).length;
+        putOpts = { base: cached.etag, result: result };
+      }
+      var put0 = partial
+        ? localPut(self.spec.file, partial, putOpts).then(function (put) { return put.ok || put.status !== 409 ? put : localPut(self.spec.file, payload); })
+        : localPut(self.spec.file, payload);
+      return put0.then(function (put) {
         lanResult(self, put.ok, put.status);
         if (!put.ok) return false;
         self._lanLastSig = sig;
