@@ -129,8 +129,32 @@ function serve() {
   const CODE = 'VCTEST2345';
   const HOST_ID = 'cestis-' + CODE + '-host';
 
-  section('The instructor opens a room');
+  section('The instructor\'s start screen suggests Large Class for more than 6 trainees');
   const host = await open('host', 'av');
+  async function startScreen(n) {
+    return host.evaluate((n) => {
+      if (!document.getElementById('iVideoRoom')) { const d = document.createElement('div'); d.id = 'iVideoRoom'; document.body.appendChild(d); }
+      currentInstructor = { id: 'INS1', name: 'Teacher T' };
+      students = [];
+      for (let i = 0; i < n; i++) students.push({ id: 'STU-B' + i, name: 'Trainee ' + i, course: 'Welding 101', stage: 'training' });
+      classSessions = [{ id: 'CS-B', name: 'Welding 101', course: 'Welding 101', date: localDateStr(), roomCode: 'BIGCLASS23', status: 'scheduled' }];
+      enterVideoRoom('Welding 101', 'instructor', 'BIGCLASS23');
+      const box = document.getElementById('vc-large-suggest');
+      const large = document.getElementById('vc-start-large');
+      const out = { box: box ? box.textContent.replace(/\s+/g, ' ').trim() : '', largePrimary: !!large && large.classList.contains('btn-primary'),
+        builtIn: Array.from(document.querySelectorAll('#iVideoRoom button')).some(b => /Start Session/.test(b.textContent)) };
+      exitVideoRoom('instructor');
+      students = []; classSessions = [];
+      return out;
+    }, n);
+  }
+  const big = await startScreen(9), small = await startScreen(6);
+  ok(/^9 trainees are expected\. Large Class is suggested/.test(big.box) && big.largePrimary, 'a class of 9: Large Class first, with the reason (' + big.box.slice(0, 90) + '…)');
+  ok(big.builtIn, 'and the built-in room can still be chosen');
+  ok(!small.box && !small.largePrimary && small.builtIn, 'a class of 6: the built-in room first, no suggestion');
+  await host.waitForTimeout(500);
+
+  section('The instructor opens a room');
   await asInstructor(host, 'Teacher T', CODE);
   await host.evaluate((code) => vcCreateRoom('Welding 101', 'instructor', code), CODE);
   await host.waitForTimeout(2500);
@@ -162,20 +186,39 @@ function serve() {
   ok(l1.inbound.indexOf('audio') !== -1 && l1.inbound.indexOf('video') !== -1,
     'with no devices of its own the trainee still receives the instructor\'s sound and picture (got ' + JSON.stringify(l1) + ')');
 
-  section('A trainee who switches the camera off in the lobby still sees the instructor');
+  section('A trainee starts with the camera off and the microphone muted, and still sees and hears the instructor');
   const s2 = await open('s2', 'av');
   await asStudent(s2, 'Student Two', CODE);
   await s2.waitForTimeout(1500);
+  const s2lobby = await s2.evaluate(() => ({
+    tracks: localStream ? localStream.getTracks().map(t => t.kind + ':' + t.enabled) : null,
+    micBtn: document.getElementById('vc-lobby-mic').textContent, camBtn: document.getElementById('vc-lobby-cam').textContent,
+    micOff: document.getElementById('vc-lobby-mic').classList.contains('vc-off'), camOff: document.getElementById('vc-lobby-cam').classList.contains('vc-off'),
+    note: (document.getElementById('vc-lobby-note') || {}).textContent || ''
+  }));
+  ok(JSON.stringify(s2lobby.tracks) === '["audio:false"]', 'the camera is not even opened, and the microphone is muted (tracks: ' + JSON.stringify(s2lobby.tracks) + ')');
+  ok(s2lobby.micOff && s2lobby.camOff && /Microphone off/.test(s2lobby.micBtn) && /Camera off/.test(s2lobby.camBtn), 'the lobby buttons say so in words (' + s2lobby.micBtn + ' / ' + s2lobby.camBtn + ')');
+  ok(/save mobile data/.test(s2lobby.note), 'and why, in one line');
+  // The lobby camera can be tried and switched off again.
+  await s2.evaluate(() => toggleLobbyDevice('video'));
+  await s2.waitForTimeout(800);
+  const s2on = await s2.evaluate(() => localStream.getVideoTracks().length);
   await s2.evaluate(() => toggleLobbyDevice('video'));
   await s2.waitForTimeout(500);
   const s2tracks = await s2.evaluate(() => localStream ? localStream.getTracks().map(t => t.kind) : null);
-  ok(JSON.stringify(s2tracks) === '["audio"]', 'the lobby camera is really off (tracks: ' + JSON.stringify(s2tracks) + ')');
+  ok(s2on === 1 && JSON.stringify(s2tracks) === '["audio"]', 'the lobby camera turns on, and off again for real (tracks: ' + JSON.stringify(s2tracks) + ')');
   await s2.evaluate((code) => vcJoinRoom('Welding 101', 'student', code), CODE);
   await s2.waitForTimeout(8000);
   let r2 = await roomState(s2);
   let l2 = await linkStats(s2, HOST_ID);
   ok(r2.inRoom && r2.hostTile, 'the trainee is in the room with the instructor\'s tile');
   ok(l2.inbound.indexOf('video') !== -1 && l2.inbound.indexOf('audio') !== -1, 'and receives the instructor\'s picture and sound (got ' + JSON.stringify(l2) + ')');
+  const s2room = await s2.evaluate(() => ({
+    mic: document.getElementById('vc-mic-btn').classList.contains('vc-off'), cam: document.getElementById('vc-cam-btn').classList.contains('vc-off'),
+    micTitle: document.getElementById('vc-mic-btn').title, own: document.getElementById('vc-tile-local').textContent
+  }));
+  ok(s2room.mic && s2room.cam && s2room.micTitle === 'Turn microphone on', 'in the room the microphone and camera buttons show OFF, and say what a tap does');
+  ok(/muted/.test(s2room.own) && /Camera off/.test(s2room.own), 'the trainee\'s own tile says muted, camera off (' + s2room.own.replace(/\s+/g, ' ').trim() + ')');
 
   section('Two trainees hold one connection between them, and send each other no video');
   const s1id = await s1.evaluate(() => rtcPeer.id);
@@ -192,6 +235,41 @@ function serve() {
   ok(toPeer.outboundVideo === 0, 'and still not the other trainee');
   h = await roomState(host);
   ok(h.peers.length === 2, 'the host sees both trainees in the participant list (' + h.peers.length + ')');
+
+  section('A muted trainee sends no sound at all; unmuted, the instructor and classmates hear them');
+  // Audio packets a page sends to one peer over `ms`.
+  async function audioPacketsOut(page, peerId, ms) {
+    const read = () => page.evaluate(async (pid) => {
+      const conns = (rtcPeer && rtcPeer.connections && rtcPeer.connections[pid]) || [];
+      let pk = 0;
+      for (const mc of conns.filter(c => c.type === 'media' && c.peerConnection && c.peerConnection.connectionState !== 'closed')) {
+        const st = await mc.peerConnection.getStats();
+        st.forEach(x => { if (x.type === 'outbound-rtp' && x.kind === 'audio') pk += x.packetsSent || 0; });
+      }
+      return pk;
+    }, peerId);
+    const a = await read(); await page.waitForTimeout(ms); return (await read()) - a;
+  }
+  let mutedToHost = await audioPacketsOut(s2, HOST_ID, 3000), mutedToPeer = await audioPacketsOut(s2, s1id, 3000);
+  ok(mutedToHost <= 2 && mutedToPeer <= 2, 'muted: no sound packets to the instructor or the classmate (' + mutedToHost + ' / ' + mutedToPeer + ' in 3 s; a switched-off track used to send ~150)');
+  ok(await host.evaluate((id) => !!mutedPeers[id], s2id), 'the instructor\'s list shows the trainee as muted');
+  await s2.evaluate(() => vcToggleMic());
+  await s2.waitForTimeout(1500);
+  const openToHost = await audioPacketsOut(s2, HOST_ID, 3000), openToPeer = await audioPacketsOut(s2, s1id, 3000);
+  ok(openToHost > 100 && openToPeer > 100, 'unmuted: the instructor and the classmate hear them (' + openToHost + ' / ' + openToPeer + ' packets in 3 s)');
+  ok(await host.evaluate((id) => !mutedPeers[id], s2id), 'and the instructor\'s list shows them unmuted');
+  await s2.evaluate(() => vcToggleMic());
+  await s2.waitForTimeout(1500);
+  mutedToHost = await audioPacketsOut(s2, HOST_ID, 3000);
+  ok(mutedToHost <= 2, 'muted again: silent again (' + mutedToHost + ')');
+  // The instructor's mute-all reaches a trainee who had unmuted.
+  await s2.evaluate(() => vcToggleMic());
+  await s2.waitForTimeout(800);
+  await host.evaluate(() => vcMuteAll());
+  await s2.waitForTimeout(1500);
+  const afterMuteAll = await s2.evaluate(() => vcMicIsOn());
+  mutedToHost = await audioPacketsOut(s2, HOST_ID, 3000);
+  ok(!afterMuteAll && mutedToHost <= 2, 'the instructor\'s Mute All mutes them, and they send nothing (' + mutedToHost + ')');
 
   section('A trainee cannot end the class, remove anyone, or mute the instructor');
   await s1.evaluate(() => {
