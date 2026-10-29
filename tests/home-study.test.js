@@ -163,5 +163,54 @@ const GS = read('trainee-gate/Gate.gs');
 assert(/function gateMailSend\(G\)/.test(GS) && /MailApp\.sendEmail/.test(GS) && /GATE_MAIL = \{ QUEUE: 'MAIL_QUEUE', MAILED: 'MAILED'/.test(GS), 'the gate sends the approval email itself (MailApp, the Centre\'s own account), once per trainee');
 assert(/function gateNudgeApprovalMail\(\)/.test(HTML) && /registeredVia === 'home-registration'\) gateNudgeApprovalMail\(\)/.test(HTML), 'Activate / Approve All ask the gate to send it straight away');
 
+/* ---------- T4. Her certificate at home ---------- */
+console.log('\nT4. A certified, approved trainee downloads her certificate at home (counted through her outbox); else "Collect your certificate at the Centre"');
+const vm = require('vm');
+function fnSrc(name) {
+  const i = HTML.indexOf('function ' + name + '(');
+  if (i === -1) return '';
+  let j = HTML.indexOf('{', i), depth = 0;
+  for (let k = j; k < HTML.length; k++) { if (HTML[k] === '{') depth++; else if (HTML[k] === '}') { depth--; if (!depth) return HTML.slice(i, k + 1); } }
+  return '';
+}
+{
+  const Core = require(path.join(ROOT, 'cestis-core.js'));
+  const run = (o) => {
+    const ctx = { CESTISCore: Core, certDownloadApprovals: o.approvals, cestisGateSession: () => !!o.gate, certSyncDone: () => !!o.synced,
+      window: { CESTISGate: { session: () => (o.gate ? { base: { kind: o.gate } } : null) } } };
+    ctx.CESTISGate = ctx.window.CESTISGate;
+    vm.createContext(ctx);
+    vm.runInContext(fnSrc('homeCertLan') + '\n' + fnSrc('certDownloadAllowed') + '\nthis.out = certDownloadAllowed(' + JSON.stringify(o.student) + ');', ctx);
+    return ctx.out;
+  };
+  const kem = { id: 'STU-K', certNo: 'WF-2026-4821-QX' };
+  const ok = [{ studentId: 'STU-K', approved: true }];
+  eq(run({ student: kem, approvals: ok, gate: 'online' }), { allowed: true, reason: '' }, 'at home, issued and approved: the Download button works (no "sync first")');
+  eq(run({ student: kem, approvals: ok, gate: 'lan' }), { allowed: false, collect: true, reason: '' }, 'signed in on the Centre\'s own network: collected there');
+  eq(run({ student: kem, approvals: [{ studentId: 'STU-K', approved: false }], gate: 'online' }), { allowed: false, collect: true, reason: 'Its download has not been approved yet.' }, 'at home, not approved: "Collect your certificate at the Centre"');
+  assert(run({ student: Object.assign({ certRevokedAt: '2026-10-01T00:00:00Z' }, kem), approvals: ok, gate: 'online' }).allowed === false, 'a withdrawn certificate: never');
+  assert(/Sync first/.test(run({ student: kem, approvals: ok, gate: null, synced: false }).reason), 'staff and the Centre\'s PCs: unchanged (sync first)');
+}
+const certFns = fnSrc('homeCertDownload') + fnSrc('homeCertRecordDownload') + fnSrc('homeCertCollectBlock');
+assert(/CESTISGate\.certTemplate\(key, 'bgPage1'\)/.test(certFns) && /certImageSave\(key, 'bgPage1', r1\.data\)/.test(certFns), 'its background comes through the gate (once; kept on the device for the next time)');
+assert(/kind: 'certDownload', device: dev, n: n, certNo: String\(student\.certNo\)/.test(certFns) && /CESTISGate\.queue\('op'/.test(certFns), 'the download is counted for this device and sent through her outbox');
+assert(/'cestisCertHomeCountSession'/.test(certFns), 'the running count is kept under a "Session" key (never in a backup)');
+assert(/Collect your certificate at the Centre<\/button>/.test(certFns), 'the button itself says where to collect it when it cannot be downloaded');
+assert(/if \(typeof cestisGateSession === 'function' && cestisGateSession\(\)\) homeCertRecordDownload\(student\);\n    else \{\n      CESTISCore\.certs\.recordDownload\(approval, certDeviceId\(\)\);/.test(HTML), 'at home the count goes through the outbox; elsewhere as before');
+assert(/async function studentRefreshCertData\(\) \{[\s\S]{0,300}cestisGateSession\(\) && window\.CESTISGate\) \{[\s\S]{0,300}gatePullAndApply\(\)/.test(HTML), '"Check for Updates" at home asks for her records (never a Google sign-in)');
+[['online', require(path.join(ROOT, 'cestis-core.js'))], ['Offline System', require(path.join(ROOT, 'Offline System', 'cestis-core.js'))]].forEach(([build, C]) => {
+  const G = C.gate, me = { acct: 'U-K', stu: 'STU-K' };
+  const slice = { data: { voctrain_students: [{ id: 'STU-K', certNo: 'WF-1' }], voctrain_certDownloadApprovals: [{ studentId: 'STU-K', approved: true }] } };
+  const item = n => ({ kind: 'op', a: 'U-K', op: { id: 'OP-cd-D1-' + n, kind: 'certDownload', device: 'D-1', n: n, certNo: 'WF-1', at: '2026-10-29T12:00:00Z' } });
+  assert(G.validateItem(item(1), me, slice).ok === true, build + ': her own download of her own approved certificate is taken');
+  assert(G.validateItem(Object.assign(item(1), { op: Object.assign(item(1).op, { certNo: 'WF-2' }) }), me, slice).ok === false, build + ': another number is refused');
+  const notYet = { data: { voctrain_students: slice.data.voctrain_students, voctrain_certDownloadApprovals: [{ studentId: 'STU-K', approved: false }] } };
+  assert(G.validateItem(item(1), me, notYet).ok === false, build + ': not approved: refused');
+  const store = { voctrain_certDownloadApprovals: [{ studentId: 'STU-K', approved: true, downloadCount: 2 }] };
+  G.applyOps(store, [item(2).op], me); G.applyOps(store, [item(1).op], me); G.applyOps(store, [item(2).op], me);
+  eq(store.voctrain_certDownloadApprovals[0].downloadsByDevice, { _earlier: 2, 'home-D-1': 2 }, build + ': counted once per device (the highest count), earlier downloads kept');
+  eq(store.voctrain_certDownloadApprovals[0].downloadCount, 4, build + ': the total adds up');
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);

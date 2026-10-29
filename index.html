@@ -4819,6 +4819,9 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 /* A label that is there for screen readers but takes no room on screen. */
 .home-sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 .home-field-label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
+/* Her certificate at home (T4) */
+.cert-download-btn.home-cert-collect { opacity:1; cursor:default; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border); box-shadow:none; }
+.home-cert-why { font-size:12px; color:var(--text-muted); margin-top:8px; }
 /* The office will email her (T6) */
 .pending-when { font-size:14px; line-height:1.5; color:var(--text-primary); background:var(--accent-dim); border-radius:var(--radius-sm); padding:12px 14px; margin:0 0 16px; text-align:left; overflow-wrap:anywhere; }
 
@@ -15486,9 +15489,14 @@ function renderStudentCertificate(){
       // download must be recorded centrally. "Refresh from Cloud" below is
       // the sync that switches it on.
       var _dlOk = certDownloadAllowed(s);
+      if (_dlOk.collect) dlBlock = homeCertCollectBlock(_dlOk.reason);
+      else
       dlBlock = '<button class="cert-download-btn" id="certPublicDownloadBtn" ' + (_dlOk.allowed ? '' : 'disabled ') + 'title="' + _certEsc(_dlOk.reason) + '" onclick="if(certDownloadAllowed(currentStudent).allowed)generateCertificatePDF('+jsArg(s.id)+')">' + CERT_DOWNLOAD_ICON + ' Download Certificate</button>' +
         '<div id="certDownloadHint" style="font-size:12px;color:var(--accent);margin-top:8px;' + (_dlOk.allowed ? 'display:none;' : '') + '">' + _certEsc(_dlOk.reason) + '</div>' +
         '<div id="certPublicDownloadStatus" style="display:none;font-size:13px;margin-top:8px;padding:10px 14px;border-radius:8px;"></div>';
+    } else if (typeof cestisGateSession === 'function' && cestisGateSession()) {
+      // At home, with no download approved: where to get it, said on the button itself.
+      dlBlock = homeCertCollectBlock('Its download has not been approved yet.');
     } else {
       dlBlock = '<p style="font-size:13px;color:var(--text-muted);margin-top:8px;">Certificate download not yet approved. Contact administration.</p>';
     }
@@ -39711,6 +39719,79 @@ async function gateUploadFiles(pending, files, refId) {
   }
   return { ok: true, files: out };
 }
+/* ===================== HOME STUDY (group C) =====================
+   Her photos made small, her work kept until it is sent, her fees, her
+   password, her certificate. */
+
+/* ---- Her certificate at home (T4) ---- */
+function homeCertLan() {
+  var s = window.CESTISGate && typeof CESTISGate.session === 'function' ? CESTISGate.session() : null;
+  return !!(s && s.base && s.base.kind === 'lan');
+}
+var HOME_COLLECT_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg>';
+function homeCertCollectBlock(reason) {
+  return '<button type="button" class="cert-download-btn home-cert-collect" id="certPublicDownloadBtn" disabled aria-disabled="true">' + HOME_COLLECT_ICON + ' Collect your certificate at the Centre</button>' +
+    (reason ? '<div class="home-cert-why">' + _certEsc(reason) + '</div>' : '') +
+    '<div id="certPublicDownloadStatus" style="display:none;font-size:13px;margin-top:8px;padding:10px 14px;border-radius:8px;"></div>';
+}
+async function homeCertDownload(student) {
+  var v = certDownloadAllowed(student);
+  if (!v.allowed) { _certDownloadStatus(v.collect ? 'Collect your certificate at the Centre.' : v.reason, true); return; }
+  var btn = document.getElementById('certPublicDownloadBtn');
+  var reset = function() { if (btn) { btn.disabled = false; btn.innerHTML = CERT_DOWNLOAD_ICON + ' Download Certificate'; } };
+  var collect = function() { reset(); _certDownloadStatus('Collect your certificate at the Centre — it cannot be made on this device.', true); };
+  if (btn) { btn.disabled = true; btn.innerHTML = '&#9203; Preparing…'; }
+  _certDownloadStatus('Preparing your certificate…', false);
+  try {
+    if (!window.jspdf || !window.jspdf.jsPDF) await cestisNeedLib('jspdf');
+    var key = getCertTemplateKey(student.course);
+    var tpl = certTemplates[key];
+    if (!tpl) { collect(); return; }
+    if (!tpl.bgPage1) {
+      // This device's own copy, from an earlier download.
+      try { (await certImageLoadAll()).forEach(function(img) { var p = String(img.id).split('___'); if (p[0] === key && (p[1] === 'bgPage1' || p[1] === 'bgPage2')) tpl[p[1]] = img.data; }); } catch (e) {}
+    }
+    if (!tpl.bgPage1) {
+      var r1 = await CESTISGate.certTemplate(key, 'bgPage1');
+      if (!r1 || r1.ok !== true || !r1.data) {
+        if (gateUnreachable(r1)) { reset(); _certDownloadStatus('Could not get your certificate right now. Try again when you have signal.', true); }
+        else collect();
+        return;
+      }
+      tpl.bgPage1 = r1.data;
+      try { certImageSave(key, 'bgPage1', r1.data); } catch (e) {}
+      if (tpl.modules && tpl.modules.length && !tpl.bgPage2) {
+        var r2 = await CESTISGate.certTemplate(key, 'bgPage2');
+        if (r2 && r2.ok === true && r2.data) { tpl.bgPage2 = r2.data; try { certImageSave(key, 'bgPage2', r2.data); } catch (e) {} }
+      }
+    }
+    reset();
+    _generateCertPDFInner(student.id);
+  } catch (e) {
+    reset();
+    _certDownloadStatus('Could not make your certificate right now. Try again in a moment.', true);
+  }
+}
+/* Her download, counted for this device as the office counts any other
+   (Core.gate.home.recordHomeDownload): a running count kept on this device
+   (a "Session" key, never in a backup), sent through her outbox. */
+function homeCertRecordDownload(student) {
+  try {
+    var sess = CESTISGate.session();
+    if (!sess || !student || !student.certNo) return false;
+    var dev = String(certDeviceId()).replace(/[^A-Za-z0-9._-]/g, '').slice(0, 60) || 'phone';
+    var k = 'cestisCertHomeCountSession', all = {};
+    try { all = JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch (e) { all = {}; }
+    var slot = sess.acct + '|' + student.certNo;
+    var n = (parseInt(all[slot], 10) || 0) + 1;
+    all[slot] = n;
+    try { localStorage.setItem(k, JSON.stringify(all)); } catch (e) {}
+    CESTISGate.queue('op', { op: { id: 'OP-cd-' + dev.slice(0, 40) + '-' + n, kind: 'certDownload', device: dev, n: n, certNo: String(student.certNo), at: new Date().toISOString() } }, { noCoalesce: true })
+      .catch(function(e) { console.warn('[Certificate] download not queued:', e && e.message); });
+    return true;
+  } catch (e) { return false; }
+}
+
 // Opening a file of the trainee's (their coursework, a resource) through the gate.
 async function gateOpenFile(fileId, name) {
   var res = await CESTISGate.fileGet(fileId);
@@ -40949,6 +41030,18 @@ async function findBackupFileInFolderWithToken(folderId, token) {
 
 async function studentRefreshCertData() {
   if (!currentStudent) { showToast('No student session active.'); return; }
+  // At home: her records, asked for again (never a Google sign-in).
+  if (typeof cestisGateSession === 'function' && cestisGateSession() && window.CESTISGate) {
+    var gb = document.getElementById('studentCertRefreshBtn');
+    if (gb) { gb.disabled = true; gb.textContent = '↻ Checking...'; }
+    var gr = await gatePullAndApply();
+    if (gr && gr.ok && gr.applied) gateAfterApply(gr.applied);
+    try { renderStudentCertificate(); } catch (e) {}
+    gb = document.getElementById('studentCertRefreshBtn');
+    if (gb) { gb.disabled = false; gb.textContent = '↻ Check for Updates'; }
+    showToast(gr && gr.ok ? 'Your certificate details are up to date.' : 'Could not check right now. Try again when you have signal.');
+    return;
+  }
 
   var btn = document.getElementById('studentCertRefreshBtn');
   if (btn) { btn.disabled = true; btn.textContent = '↻ Checking...'; }
@@ -48387,7 +48480,13 @@ function certDownloadAllowed(student) {
   if (student && typeof CESTISCore !== 'undefined' && CESTISCore.certs && CESTISCore.certs.isRevoked(student)) return { allowed: false, reason: 'This certificate has been withdrawn. Please contact the administration office.' };
   if (!student || !student.certNo) return { allowed: false, reason: 'No certificate has been issued yet.' };
   var approval = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function (d) { return d && d.studentId === student.id; });
-  if (!(approval && approval.approved)) return { allowed: false, reason: 'Certificate download has not been approved yet. Please contact the administration office.' };
+  var home = typeof cestisGateSession === 'function' && cestisGateSession();
+  if (!(approval && approval.approved)) return home ? { allowed: false, collect: true, reason: 'Its download has not been approved yet.' } : { allowed: false, reason: 'Certificate download has not been approved yet. Please contact the administration office.' };
+  // At home (T4): her records are the office's own, and the gate checks
+  // again — issued, approved, not withdrawn — before it gives the
+  // certificate's background; the download is recorded through her outbox.
+  // Signed in on the Centre's own network: it is collected there.
+  if (home) return homeCertLan() ? { allowed: false, collect: true, reason: '' } : { allowed: true, reason: '' };
   if (!certSyncDone()) return { allowed: false, reason: 'Sync first \u2014 the Download button switches on once this computer has synced.' };
   return { allowed: true, reason: '' };
 }
@@ -49174,6 +49273,8 @@ function _certHasCloudToken() {
 function generateCertificatePDF(studentId) {
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student || !student.certNo) { showToast('Certificate not found'); _certDownloadStatus('Certificate not found.', true); return; }
+  // Her own certificate, at home (T4): its background through the gate.
+  if (typeof cestisGateSession === 'function' && cestisGateSession() && window.CESTISGate) { homeCertDownload(student); return; }
 
   // Gate: require a cloud sync first so every download is recorded centrally.
   if(!certSyncDone()) {
@@ -49290,9 +49391,13 @@ function _generateCertPDFInner(studentId) {
   if(approval) {
     certAlignNumberWithApproval(student, approval);
     // Counted per device, so two devices' downloads add up when they sync
-    // instead of one device's count replacing the other's.
-    CESTISCore.certs.recordDownload(approval, certDeviceId());
-    saveState();
+    // instead of one device's count replacing the other's. At home the count
+    // goes to the office through her outbox (homeCertRecordDownload).
+    if (typeof cestisGateSession === 'function' && cestisGateSession()) homeCertRecordDownload(student);
+    else {
+      CESTISCore.certs.recordDownload(approval, certDeviceId());
+      saveState();
+    }
   }
 
   var certKey = getCertTemplateKey(student.course);
