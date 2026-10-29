@@ -68,14 +68,17 @@
     };
   }
 
-  /* Average attendance / GPA across the roster, ignoring blank values. */
-  function cmcAverages(students) {
+  /* Average attendance / GPA across the roster, ignoring blank values.
+     gpaOf(s) (optional): the GPA the dashboard reports for a trainee
+     (studentGpaFigure — what the marks produce), null when there is none;
+     without it, the stored figure. */
+  function cmcAverages(students, gpaOf) {
     var list = Array.isArray(students) ? students : [];
     var attSum = 0, attN = 0, gpaSum = 0, gpaN = 0;
     list.forEach(function (s) {
       var a = parseFloat(s && s.attendance);
       if (!isNaN(a)) { attSum += a; attN++; }
-      var g = parseFloat(s && s.gpa);
+      var g = parseFloat(typeof gpaOf === 'function' ? gpaOf(s) : (s && s.gpa));
       if (!isNaN(g)) { gpaSum += g; gpaN++; }
     });
     return {
@@ -532,6 +535,12 @@
   function arr(name) {
     try { var v = root[name]; return Array.isArray(v) ? v : []; } catch (e) { return []; }
   }
+  /* The GPA the dashboard reports for a trainee (its studentGpaFigure: what
+     the marks produce, never the untouched hand-typed 0.0); null if none. */
+  function gpaOf(s) {
+    try { if (typeof root.studentGpaFigure === 'function') return root.studentGpaFigure(s); } catch (e) {}
+    return null;
+  }
 
   var cmcpState = { panel: 'dashboard', room: null };
 
@@ -612,7 +621,7 @@
   function cmcpDashboardPanel() {
     var students = arr('students');
     var sum = cmcStudentSummary(students);
-    var avg = cmcAverages(students);
+    var avg = cmcAverages(students, gpaOf);
     var accounts = arr('userAccounts');
     var instructors = accounts.filter(function (u) { return u && u.role === 'instructor'; }).length;
     var staff = accounts.filter(function (u) { return u && u.role === 'adminstaff'; }).length;
@@ -653,7 +662,7 @@
       '<tr><td>Marked incomplete</td><td style="text-align:right;"><strong>' + sum.incomplete + '</strong></td></tr>' +
       '<tr><td>Instructors</td><td style="text-align:right;"><strong>' + instructors + '</strong></td></tr>' +
       '<tr><td>Administrative staff</td><td style="text-align:right;"><strong>' + staff + '</strong></td></tr>' +
-      '<tr><td>Average GPA</td><td style="text-align:right;"><strong>' + avg.gpa + '</strong></td></tr>' +
+      '<tr><td>Average GPA</td><td style="text-align:right;"><strong>' + (avg.gpa || '—') + '</strong></td></tr>' +
       '</tbody></table></div>';
     h += '</div>';
     return h;
@@ -680,7 +689,7 @@
           '<div style="height:100%;width:' + Math.max(0, Math.min(100, prog)) + '%;background:var(--teal,#1abc9c);"></div></div>' +
           '<span style="font-size:11px;color:var(--text-muted);">' + prog + '%</span></td>' +
         '<td>' + esc(s.attendance != null ? s.attendance + '%' : '—') + '</td>' +
-        '<td>' + esc(s.gpa || '—') + '</td>' +
+        '<td>' + esc(gpaOf(s) || '—') + '</td>' +
         '</tr>';
     }).join('');
 

@@ -65,7 +65,7 @@ function extractFunction(name) {
 }
 
 const PANELS = ['reportProgrammeRolls', 'renderPassRates', 'renderEnrollmentBars',
-  'renderDonutChart', 'renderGenderDist', 'renderReportStats', 'renderAttendanceHeatmap'];
+  'renderDonutChart', 'renderGenderDist', 'renderReportStats', 'renderAttendanceHeatmap', 'examPassFigure'];
 
 const STAGES = ['testing', 'interview', 'training', 'certified', 'collected', 'nyc', 'incomplete'];
 
@@ -80,6 +80,7 @@ function makePage(opts) {
     students: students,
     skillAreas: skillAreas,
     attendanceRecords: opts.attendance || [],
+    examResults: opts.results || [],
     courses: [...new Set(students.map(s => s.course).filter(Boolean))],
     stages: STAGES,
     stageLabels: { testing: 'Testing', interview: 'Interview', training: 'In Training',

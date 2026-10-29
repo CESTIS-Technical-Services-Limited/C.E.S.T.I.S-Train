@@ -13926,6 +13926,102 @@
     };
   })();
 
+  // ===================== THE CENTRE'S FIGURES: one rule per figure =====================
+  // The administrator's dashboard, Reports and the CMC board's screens each
+  // counted the Centre their own way, out of the same records: attendance over
+  // every record (applicants who never attended counted as 0%), completion as
+  // certified over everyone ever enrolled (running intakes and applicants
+  // included), the exam pass rate with work still awaiting marking counted as
+  // a fail — or, worse, a "pass rate" read from a GPA typed by hand that
+  // nobody had typed (20% overall, 0% for every running programme). The audit
+  // measured the same Centre at 76% / 84% attendance, 20% / 67% completion and
+  // 67% / 73% exam passes depending on the screen. These are the rules, once;
+  // each figure says what it is a rate OF ("84% of 60 active").
+  Core.centreFigures = (function () {
+    function stageOf(s) {
+      var st = String((s && s.stage) || '').trim().toLowerCase().replace(/\s+/g, '');
+      return st === 'intraining' ? 'training' : st;
+    }
+    // Testing or interview: not admitted yet.
+    function isApplicant(s) { var st = stageOf(s); return st === 'testing' || st === 'interview'; }
+    // A dropout: Incomplete, or marked so on the enrolment register.
+    function isDropout(s) { return stageOf(s) === 'incomplete' || String((s && s.enrolStatus) || '').toLowerCase() === 'dropout'; }
+    // In training now.
+    function isActive(s) { return !!s && stageOf(s) === 'training' && !isDropout(s); }
+    function isCertified(s) { var st = stageOf(s); return st === 'certified' || st === 'collected'; }
+    function list(a) { return (Array.isArray(a) ? a : []).filter(Boolean); }
+    function rate(n, d, dp) { if (!d) return null; var f = Math.pow(10, dp || 0); return Math.round(n / d * 100 * f) / f; }
+    function figure(v) {
+      if (v == null || v === '') return null;
+      var n = typeof v === 'number' ? v : parseFloat(v);
+      return isFinite(n) ? n : null;
+    }
+
+    /* "Total Enrolled" is everyone on the roll; "Active" those in training. */
+    function enrolment(students) {
+      var l = list(students);
+      return { total: l.length, active: l.filter(isActive).length, applicants: l.filter(isApplicant).length,
+        certified: l.filter(isCertified).length, dropouts: l.filter(isDropout).length };
+    }
+    /* Attendance: the average of ACTIVE trainees' attendance (pctOf(s), by
+       default their recorded s.attendance), over those with a figure.
+       -> { rate, of, active } */
+    function attendance(students, pctOf) {
+      var act = list(students).filter(isActive), vals = [];
+      act.forEach(function (s) { var v = figure(pctOf ? pctOf(s) : s.attendance); if (v != null) vals.push(v); });
+      return { rate: vals.length ? Math.round(vals.reduce(function (a, b) { return a + b; }, 0) / vals.length) : null, of: vals.length, active: act.length };
+    }
+    /* Completion and dropout: over the trainees of intakes that have ENDED
+       (endedOf(s) — their course is over), applicants never admitted left out.
+       A running intake has not completed or failed to yet.
+       -> { rate, of, certified } / { rate (one decimal), of, dropouts } */
+    function endedPopulation(students, endedOf) {
+      return list(students).filter(function (s) { return !isApplicant(s) && typeof endedOf === 'function' && !!endedOf(s); });
+    }
+    function completion(students, endedOf) {
+      var pop = endedPopulation(students, endedOf), done = pop.filter(isCertified).length;
+      return { rate: rate(done, pop.length), of: pop.length, certified: done };
+    }
+    function dropout(students, endedOf) {
+      var pop = endedPopulation(students, endedOf), out = pop.filter(isDropout).length;
+      return { rate: rate(out, pop.length, 1), of: pop.length, dropouts: out };
+    }
+    /* Exam passes: over MARKED results only (Core.exams.isFinal — one still
+       awaiting marking, or archived, is not a result yet). opts.studentIds
+       narrows it to some trainees (a programme's roll).
+       -> { rate, of, passed, awaiting } */
+    function examPass(results, opts) {
+      opts = opts || {};
+      var ids = null;
+      if (opts.studentIds) { ids = {}; opts.studentIds.forEach(function (id) { ids[String(id)] = 1; }); }
+      var mine = list(results).filter(function (r) { return !r.archived && (!ids || ids[String(r.studentId)]); });
+      var marked = mine.filter(function (r) { return Core.exams.isFinal(r); });
+      var passed = marked.filter(function (r) { return !!r.passed; }).length;
+      return { rate: rate(passed, marked.length), of: marked.length, passed: passed, awaiting: mine.length - marked.length };
+    }
+    /* Instructors: the Centre's instructor records and the accounts that
+       carry the instructor role, one per name. */
+    function instructorCount(records, accounts) {
+      var seen = {};
+      list(records).forEach(function (i) { var n = String(i.name || '').trim().toLowerCase(); if (n) seen[n] = 1; });
+      list(accounts).forEach(function (u) {
+        if (u.role !== 'instructor') return;
+        var n = String(u.name || '').trim().toLowerCase();
+        if (n) seen[n] = 1;
+      });
+      return Object.keys(seen).length;
+    }
+    /* A rate with what it is a rate of: "84% of 60 active",
+       "— (no marked results yet)" when there is nothing to divide. */
+    function rateText(f, noun, none) {
+      if (!f || f.rate == null) return '— (' + (none || 'none yet') + ')';
+      return f.rate + '% of ' + f.of + ' ' + noun;
+    }
+    return { isApplicant: isApplicant, isActive: isActive, isDropout: isDropout, isCertified: isCertified,
+      enrolment: enrolment, attendance: attendance, completion: completion, dropout: dropout, examPass: examPass,
+      instructorCount: instructorCount, rateText: rateText };
+  })();
+
   // ===================== COMMUNICATIONS: announcements, agenda, bell =====================
   Core.comms = (function () {
     var CW = Core.coursework;

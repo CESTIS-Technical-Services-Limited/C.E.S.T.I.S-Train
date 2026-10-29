@@ -9,7 +9,7 @@
 <script src="cestis-page-cloud.js?v=20261028e"></script>
 <script src="cestis-gate-client.js?v=20261029a" defer></script>
 <script src="staff-appraisals.js?v=20261028d"></script>
-<script src="cmc-portal.js?v=20261028d"></script>
+<script src="cmc-portal.js?v=20261029b"></script>
 <script src="cert-template-seed.js?v=20260802b"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Installable, with an icon, and able to open with no connection (sw.js). -->
@@ -11722,7 +11722,10 @@ function exportCSV(data, headers, filename) {
 
 function exportStudentsCSV() {
   const headers = ['name','id','course','stage','score','progress','attendance','gpa','instructor'];
-  exportCSV(students, headers, 'students_export.csv');
+  // The GPA the marks produce (a figure an administrator set still stands);
+  // blank when there is nothing behind it — never the untouched 0.0.
+  const rows = students.map(s => { const g = studentGpaFigure(s); return Object.assign({}, s, { gpa: g == null ? '' : g }); });
+  exportCSV(rows, headers, 'students_export.csv');
   showToast('Students CSV exported!');
 }
 
@@ -14678,7 +14681,12 @@ function buildAdminPages() {
   // used to count every graduate the Centre ever had.
   const totalCertified = CESTISCore.certs.certifiedInYear(students, new Date().getFullYear());
   const upcomingExams = exams.filter(e=>e.status==='upcoming').length;
-  const topPerformers = [...students].sort((a,b)=>parseFloat(b.gpa)-parseFloat(a.gpa)).slice(0,5);
+  // By the GPA the marks produce (studentGpaFigure), best first; trainees with
+  // no marks yet are not "performers" (the hand-typed 0.0 put five at-risk
+  // trainees at the top).
+  const topPerformers = students.map(s => { const sum = studentCourseworkSummary(s); return { s: s, g: studentGpaFigure(s, sum), p: sum.percent }; })
+    .filter(x => x.g != null).sort((a,b) => (parseFloat(b.g) - parseFloat(a.g)) || ((b.p || 0) - (a.p || 0))).slice(0,5)
+    .map(x => Object.assign({}, x.s, { gpa: x.g }));
   const incompleteCount = students.filter(s=>s.stage==='incomplete').length;
   // Only trainees still in training, and only where attendance has been
   // recorded: graduates and never-registered trainees are not a warning.
@@ -14723,6 +14731,7 @@ function buildAdminPages() {
         <div class="alert-item alert-info"><div class="alert-icon">\uD83D\uDD04</div><div class="alert-body"><div class="alert-msg">Auto-sync is ${isCloudConnected?'active':'inactive'}</div><div class="alert-time">${isCloudConnected?'Every '+(AUTO_SAVE_INTERVAL_MS/1000)+' seconds':'Turn it on with the Sync button'}</div></div></div>
       </div>
       <div class="card"><div class="card-header"><h3>Top Performers</h3></div>
+        ${topPerformers.length ? '' : '<p style="font-size:13px;color:var(--text-muted);padding:8px 0;">No marks recorded yet.</p>'}
         ${topPerformers.map((s,i) => {
           const colors = ['linear-gradient(135deg,#f0a500,#d4900a)','linear-gradient(135deg,#bdc3c7,#95a5a6)','linear-gradient(135deg,#e67e22,#d35400)','linear-gradient(135deg,var(--blue),#2980b9)','linear-gradient(135deg,var(--teal),#16a085)'];
           const initials = s.name.split(' ').map(n=>n[0]).join('');
@@ -16315,6 +16324,23 @@ function studentCourseworkSummary(s) {
 }
 function studentEffectiveGpa(s) {
   return CESTISCore.coursework.effectiveGpa(s && s.gpa, studentCourseworkSummary(s).gpa);
+}
+// The GPA the Centre REPORTS for a trainee (Top Performers, the board's
+// averages and charts, exports): the effective GPA above, or null when there
+// is nothing behind it — no marks yet and no figure set by an administrator.
+// Every report used to read the hand-typed s.gpa, which nobody types: Top
+// Performers listed five 0.0-GPA trainees at risk of failing.
+function studentGpaFigure(s, summary) {
+  var sum = summary || studentCourseworkSummary(s);
+  var stored = String(s && s.gpa != null ? s.gpa : '').trim();
+  var handSet = stored !== '' && isFinite(Number(stored)) && Number(stored) !== 0;
+  if (!handSet && sum.gpa == null) return null;
+  return CESTISCore.coursework.effectiveGpa(s && s.gpa, sum.gpa);
+}
+// A programme's (or the Centre's) exam pass rate: over MARKED results only
+// (CESTISCore.centreFigures.examPass — the rule passRateOf uses).
+function examPassFigure(roll) {
+  return CESTISCore.centreFigures.examPass(examResults || [], roll ? { studentIds: roll.map(function(s){ return s && s.id; }) } : null);
 }
 
 // The exact name, or the same training centre. The rule itself lives in
@@ -24471,13 +24497,8 @@ try {
 function isStudentCertified(s) {
   return !!s && (s.stage === 'certified' || s.stage === 'collected');
 }
-// Canonical "has this student passed?" — used for academic pass-rate widgets.
-// Per product decision this counts certified/collected OR a GPA of 2.0+.
-function isStudentPassed(s) {
-  if(!s) return false;
-  if(isStudentCertified(s)) return true;
-  return parseFloat(s.gpa) >= 2.0;
-}
+// (Pass rates are read from marked exam results — examPassFigure — not from a
+// GPA typed by hand, which nobody types: every running programme read 0%.)
 
 // Recompute a single student's stored attendance % from the dated register,
 // so every dashboard / progress bar / report that reads students[].attendance
@@ -24845,9 +24866,9 @@ function showSkillDetail(id) {
   // the same trainees the Enrolment Register lists for the intake.
   var _rmTally = centreRollTally();
   var courseStudents = _rmTally ? _rmTally.listOf(skill) : [];
-  var passRate = courseStudents.length > 0
-    ? Math.round(courseStudents.filter(isStudentPassed).length / courseStudents.length * 100)
-    : 0;
+  // Over the marked exam results of the intake's trainees.
+  var _passFig = examPassFigure(courseStudents);
+  var passRate = _passFig.rate == null ? 0 : _passFig.rate;
 
   var materialsHtml = '';
   var hasAnyResources = false;
@@ -31176,9 +31197,11 @@ function renderPassRates() {
   const el = document.getElementById('passRateChart');
   if(!el) return;
   // Compute pass rates dynamically from student data per training centre
+  // Over the MARKED exam results of each programme's trainees — read from a
+  // hand-typed GPA it showed 0% for every running programme.
   var progs = reportProgrammeRolls().map(function (p) {
-    return { name: p.label, full: p.full, n: p.roll.length,
-      rate: Math.round(p.roll.filter(isStudentPassed).length / p.roll.length * 100) };
+    var f = examPassFigure(p.roll);
+    return { name: p.label, full: p.full, n: p.roll.length, marked: f.of, rate: f.rate == null ? 0 : f.rate, none: f.rate == null };
   });
   if (progs.length === 0) {
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No student data available to compute pass rates.</div>';
@@ -31187,7 +31210,7 @@ function renderPassRates() {
   // The full programme name and its roll size are on every row, so a rate can be
   // read against the number of trainees it is a rate OF — 0% over 3 trainees and
   // 0% over 81 are not the same finding.
-  el.innerHTML = progs.map(p=>`<div style="display:flex;align-items:center;gap:12px;" title="${escapeHtml(p.full)} — ${p.n} trainee${p.n===1?'':'s'}"><div style="width:140px;font-size:12px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.name)}</div><div class="progress-bar" style="flex:1;height:10px;"><div class="fill" style="width:${p.rate}%;background:${p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};border-radius:5px;"></div></div><div style="width:40px;font-size:12px;font-weight:700;color:${p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};">${p.rate}%</div><div style="width:64px;font-size:11px;color:var(--text-muted);text-align:right;">${p.n} trainee${p.n===1?'':'s'}</div></div>`).join('');
+  el.innerHTML = progs.map(p=>`<div style="display:flex;align-items:center;gap:12px;" title="${escapeHtml(p.full)} — ${p.n} trainee${p.n===1?'':'s'}, ${p.marked} marked result${p.marked===1?'':'s'}"><div style="width:140px;font-size:12px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.name)}</div><div class="progress-bar" style="flex:1;height:10px;"><div class="fill" style="width:${p.rate}%;background:${p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};border-radius:5px;"></div></div><div style="width:40px;font-size:12px;font-weight:700;color:${p.none?'var(--text-muted)':p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};">${p.none?'\u2014':p.rate+'%'}</div><div style="width:96px;font-size:11px;color:var(--text-muted);text-align:right;">${p.none?'no marked results':'of '+p.marked+' marked'}</div></div>`).join('');
 }
 
 function renderCertStats() {
@@ -31233,9 +31256,9 @@ function refreshReportsAnalytics() {
 function renderReportStats() {
   const el = document.getElementById('reportStats');
   if(!el) return;
-  // Compute overall pass rate from student data
-  const passedStudents = students.filter(isStudentPassed);
-  const overallPassRate = students.length ? Math.round(passedStudents.length / students.length * 100) : 0;
+  // The Centre's exam pass rate, over MARKED results (examPassFigure).
+  const passFig = examPassFigure(null);
+  const overallPassRate = passFig.rate == null ? 0 : passFig.rate;
   // Compute average months to certification from students who have certDate
   var totalMonths = 0; var certCount = 0;
   students.forEach(function(s) {
@@ -31256,7 +31279,7 @@ function renderReportStats() {
   // A dropout marked on the enrolment register counts, as well as the stage.
   const dropoutRate = students.length ? (students.filter(s=>s && (s.stage==='incomplete' || s.enrolStatus==='dropout')).length/students.length*100).toFixed(1) : 0;
   el.innerHTML = `
-    <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83D\uDCCA</div><div class="stat-value" data-count="${overallPassRate}" data-suffix="%">0</div><div class="stat-label">Overall Pass Rate</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83D\uDCCA</div><div class="stat-value" data-count="${overallPassRate}" data-suffix="%">0</div><div class="stat-label">Overall Pass Rate</div><div class="stat-change" style="color:var(--text-muted);">${passFig.rate == null ? 'No marked results yet' : 'of ' + passFig.of + ' marked results'}</div></div>
     <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">\u23F1\uFE0F</div><div class="stat-value" data-count="${avgMonthsToCert}">0</div><div class="stat-label">Avg. Months to Cert</div></div>
     <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDCC8</div><div class="stat-value" data-count="${avgAtt}" data-suffix="%">0</div><div class="stat-label">Attendance Rate</div></div>
     <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">\u26A0\uFE0F</div><div class="stat-value" data-count="${dropoutRate}" data-suffix="%">0</div><div class="stat-label">Dropout Rate</div></div>
@@ -46662,18 +46685,11 @@ function buildCmcPages() {
     students.forEach(function(s){ totalAtt2 += (parseFloat(s.attendance)||0); });
     avgAttendance = Math.round(totalAtt2 / students.length);
   }
-  // Compute avg GPA from examResults if available
-  var avgGpa = 0;
-  if(examResults && examResults.length > 0) {
-    var totalScore = 0;
-    examResults.forEach(function(r){ totalScore += (parseFloat(r.score)||0); });
-    var avgScore = totalScore / examResults.length;
-    avgGpa = (avgScore >= 90 ? 4.0 : avgScore >= 80 ? 3.5 : avgScore >= 70 ? 3.0 : avgScore >= 60 ? 2.5 : (avgScore / 100 * 4).toFixed(2));
-  } else if(students.length > 0) {
-    var totalGpa = 0;
-    students.forEach(function(s){ totalGpa += (parseFloat(s.gpa)||0); });
-    avgGpa = (totalGpa / students.length).toFixed(2);
-  }
+  // Average GPA: the GPA each trainee's marks produce (studentGpaFigure),
+  // over the trainees who have one — the figure the instructors and the
+  // trainees themselves see.
+  var _gpas = students.map(function(s){ return parseFloat(studentGpaFigure(s)); }).filter(function(g){ return isFinite(g); });
+  var avgGpa = _gpas.length ? (_gpas.reduce(function(a, b){ return a + b; }, 0) / _gpas.length).toFixed(2) : '\u2014';
 
   var html = '';
 
@@ -47141,38 +47157,19 @@ function cmcRenderCharts() {
     });
   }
 
-  // GPA Distribution Chart — compute from examResults scores (score% → 4.0 scale)
+  // GPA Distribution Chart — the GPA each trainee's marks produce
+  // (studentGpaFigure: the same figure as everywhere else); trainees with no
+  // marks yet are not drawn as "Below 2.5".
   var gpaBuckets = {'4.0+':0,'3.5-3.9':0,'3.0-3.4':0,'2.5-2.9':0,'Below 2.5':0};
-  if(examResults && examResults.length > 0) {
-    // Group exam results by student and compute average score → GPA
-    var studentScores = {};
-    examResults.forEach(function(r) {
-      var sid = r.studentId || r.student_id;
-      if(!sid) return;
-      if(!studentScores[sid]) studentScores[sid] = [];
-      studentScores[sid].push(parseFloat(r.score)||0);
-    });
-    Object.keys(studentScores).forEach(function(sid) {
-      var scores = studentScores[sid];
-      var avg = scores.reduce(function(a,b){return a+b;},0) / scores.length;
-      // Convert percentage to 4.0 GPA scale: 90+=4.0, 80-89=3.5, 70-79=3.0, 60-69=2.5, <60=below
-      var gpa = avg >= 90 ? 4.0 : avg >= 80 ? 3.5 : avg >= 70 ? 3.0 : avg >= 60 ? 2.5 : 1.0;
-      if(gpa >= 4.0) gpaBuckets['4.0+']++;
-      else if(gpa >= 3.5) gpaBuckets['3.5-3.9']++;
-      else if(gpa >= 3.0) gpaBuckets['3.0-3.4']++;
-      else if(gpa >= 2.5) gpaBuckets['2.5-2.9']++;
-      else gpaBuckets['Below 2.5']++;
-    });
-  } else {
-    students.forEach(function(s) {
-      var g = parseFloat(s.gpa)||0;
-      if(g >= 4.0) gpaBuckets['4.0+']++;
-      else if(g >= 3.5) gpaBuckets['3.5-3.9']++;
-      else if(g >= 3.0) gpaBuckets['3.0-3.4']++;
-      else if(g >= 2.5) gpaBuckets['2.5-2.9']++;
-      else gpaBuckets['Below 2.5']++;
-    });
-  }
+  students.forEach(function(s) {
+    var g = parseFloat(studentGpaFigure(s));
+    if(!isFinite(g)) return;
+    if(g >= 4.0) gpaBuckets['4.0+']++;
+    else if(g >= 3.5) gpaBuckets['3.5-3.9']++;
+    else if(g >= 3.0) gpaBuckets['3.0-3.4']++;
+    else if(g >= 2.5) gpaBuckets['2.5-2.9']++;
+    else gpaBuckets['Below 2.5']++;
+  });
 
   var gpaEl = document.getElementById('cmcChartGpa');
   if(gpaEl) {
@@ -48032,7 +48029,7 @@ function cmcBuildFeesDetail() {
   students.slice(0, 50).forEach(function(s, i) {
     html += '<tr><td>' + (i+1) + '</td><td>' + escapeHtml(s.name||'--') + '</td><td>' + escapeHtml(s.course||'--') + '</td>';
     html += '<td>' + escapeHtml(s.stage||'--') + '</td>';
-    html += '<td>' + escapeHtml(s.gpa||'--') + '</td></tr>';
+    html += '<td>' + escapeHtml(studentGpaFigure(s) || '--') + '</td></tr>';
   });
   html += '</tbody></table>';
   if(students.length > 50) html += '<div style="text-align:center;color:var(--text-muted);padding:10px;font-size:12px;">Showing first 50 of ' + students.length + ' students</div>';
