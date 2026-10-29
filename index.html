@@ -13817,9 +13817,13 @@ async function finalCloudSaveBeforeLogout() {
     while (_isAutoSaving && waited < 15000) { await sleep(250); waited += 250; }
     _lastAutoSaveResult = { uploaded: false, reason: 'final-save' };
     var done = false;
+    // The extra copies of the backup go up too if the Main copy is ahead of
+    // them (they are otherwise written at most every 30 minutes).
+    _copiesFlushRequested = true;
     await Promise.race([autoSaveToAllFolders().then(function() { done = true; }), sleep(20000)]);
+    _copiesFlushRequested = false;
     return done && !!(_lastAutoSaveResult && _lastAutoSaveResult.uploaded);
-  } catch(e) { console.warn('[Logout] Final cloud save failed:', e); return false; }
+  } catch(e) { _copiesFlushRequested = false; console.warn('[Logout] Final cloud save failed:', e); return false; }
 }
 // The same on the Centre's own network: every page file pushed to its server.
 async function finalLanSaveBeforeLogout() {
@@ -21490,6 +21494,10 @@ function renderStudentAssignmentsPage() {
 
 // ============================== ASSIGNMENT DRIVE SYNC ==============================
 var _assignmentsDriveFileId = null;
+// What this device last wrote to the side file (its content, time stamp and
+// writer aside): the file used to be uploaded whole with every save, whether
+// or not any assignment had changed.
+var _assignmentsLastSent = null;
 
 // Save all assignments + submissions to the dedicated Assignments Drive folder
 async function saveAssignmentsToDrive() {
@@ -21505,6 +21513,8 @@ async function saveAssignmentsToDrive() {
       // this file cannot bring a deleted assignment or submission back.
       tombstones: { instructorAssignments: syncTombsFor('instructorAssignments'), assignmentSubmissions: syncTombsFor('assignmentSubmissions') }
     };
+    var _sentKey = JSON.stringify([data.assignments, data.submissions, data.tombstones]);
+    if (_sentKey === _assignmentsLastSent) return;
     var jsonContent = JSON.stringify(data);
     var blob = new Blob([jsonContent], { type: 'application/json' });
 
@@ -21545,6 +21555,7 @@ async function saveAssignmentsToDrive() {
       }
     }
     if (response.ok) {
+      _assignmentsLastSent = _sentKey;
       console.log('[AssignmentSync] Saved assignments to Drive (' + instructorAssignments.length + ' assignments, ' + assignmentSubmissions.length + ' submissions)');
     }
   } catch(e) {
@@ -36051,25 +36062,33 @@ async function driveUploadJsonToFolder(fileName, obj, folderId, token) {
   var existingId = null;
   if (sResp.ok) { var sd = await sResp.json(); if (sd.files && sd.files.length) existingId = sd.files[0].id; }
   if (existingId) {
-    await fetch('https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=media', {
+    var pr = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=media', {
       method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: blob
     });
+    return !!(pr && pr.ok);
   } else {
     var metadata = { name: fileName, parents: [folderId], mimeType: 'application/json' };
     var form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
     form.append('file', blob);
-    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    var cr = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: form
     });
+    return !!(cr && cr.ok);
   }
 }
 
 // Ensure a single account has its named sub-folder under "User Login" and its
 // hashed record written into it. Safe to call opportunistically — returns
 // quietly when offline / not signed in.
-async function syncUserLoginFolderToDrive(account) {
+// What this page last wrote for each account (opts.ifChanged: the 5-second
+// save, which used to rewrite the signed-in person's record with every save).
+var _userLoginLastSent = {};
+async function syncUserLoginFolderToDrive(account, opts) {
   if (!account || !isCloudConnected || !googleAccessToken) return false;
+  var _rec = buildUserLoginRecord(account);
+  var _recKey = JSON.stringify(_rec.account);
+  if (opts && opts.ifChanged && _userLoginLastSent[account.id] === _recKey) return true;
   try {
     if (!_userLoginRootFolderId) {
       _userLoginRootFolderId = await driveFindOrCreateFolder(USER_LOGIN_FOLDER_NAME, GOOGLE_DRIVE_CONFIG.FOLDER_ID, googleAccessToken);
@@ -36081,7 +36100,8 @@ async function syncUserLoginFolderToDrive(account) {
       if (subId) _userLoginSubfolderIds[account.id] = subId;
     }
     if (!subId) return false;
-    await driveUploadJsonToFolder('account.json', buildUserLoginRecord(account), subId, googleAccessToken);
+    var _sent = await driveUploadJsonToFolder('account.json', _rec, subId, googleAccessToken);
+    if (_sent) _userLoginLastSent[account.id] = _recKey;
     return true;
   } catch (e) {
     console.warn('[UserLogin] Could not sync folder for account ' + (account && account.id) + ':', e);
@@ -37323,17 +37343,19 @@ async function mainMovedSincePull() {
 async function recoverOvertakenWrite(fileId, prevVer, newVer) {
   try {
     console.warn('[Sync] Another device wrote the Main backup between this device\'s check and its write (v' + prevVer + ' → v' + newVer + '); recovering that write from the file\'s revisions.');
+    // (Could it not be recovered, the extra copies go up at once: EF-2.)
+    var lost = function() { _copiesUrgent = true; return false; };
     var lr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/revisions?fields=revisions(id,modifiedTime)&pageSize=1000', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
-    if (!lr.ok) return false;
+    if (!lr.ok) return lost();
     var revs = ((await lr.json()).revisions || []).slice().sort(function(a, b) { return Date.parse(a.modifiedTime || '') - Date.parse(b.modifiedTime || ''); });
-    if (revs.length < 2) return false;
+    if (revs.length < 2) return lost();
     var theirs = revs[revs.length - 2];   // the revision this device's write replaced
     var dr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/revisions/' + theirs.id + '?alt=media', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
-    if (!dr.ok) return false;
+    if (!dr.ok) return lost();
     var merged = await mergeBackupData(await dr.json());
     _lastAutoSaveHash = null;             // the union goes up on the next tick
     return merged;
-  } catch (e) { console.warn('[Sync] Could not recover the overtaken write:', e && e.message); return false; }
+  } catch (e) { console.warn('[Sync] Could not recover the overtaken write:', e && e.message); _copiesUrgent = true; return false; }
 }
 
 async function pullMainIfRemoteNewer() {
@@ -37441,6 +37463,45 @@ function cestisMarkUploaded() {
    Only the writes fn makes, synchronously, are absorbed: nothing else can run
    in between, so an edit the user makes at any moment — during an upload
    too — is still counted, and goes up on the next tick. */
+/* ---- The extra copies of the backup (EF-2, CESTISCore.copyCadence) ----
+   _copyState: when they were last all written, and whether the Main copy
+   has taken changes since. The clock starts when the page opens, so a short
+   session writes them at its sign-out. */
+var _copyState = { writtenAt: Date.now(), behind: false, mainFailAt: 0 };
+var _copiesFlushRequested = false;   // the sign-out's final save: write them if they are behind
+var _copiesUrgent = false;           // a write to the Main copy was lost to another device's and could not be recovered
+/* Write the extra copies with this tick's payload, if they are due. opts:
+   { mainOk (true/false; null when the Main copy had nothing to write), flush,
+   urgent, results (ALL_DRIVE_FOLDERS-ordered, filled in for the folders
+   written) }. Returns true when they were written. Never throws. */
+async function cestisMaybeWriteExtraCopies(blob, opts) {
+  opts = opts || {};
+  if (typeof _copyState === 'undefined' || !_copyState) _copyState = { writtenAt: Date.now(), behind: false, mainFailAt: 0 };
+  var now = Date.now();
+  var d = CESTISCore.copyCadence.due(_copyState, { now: now, mainOk: opts.mainOk, flush: !!opts.flush, urgent: !!opts.urgent });
+  if (opts.flush) _copiesFlushRequested = false;
+  if (!d.write) { _copyState = CESTISCore.copyCadence.after(_copyState, { now: now, mainOk: opts.mainOk, wrote: false, why: d.why }); return false; }
+  if (d.why === 'urgent') _copiesUrgent = false;
+  var wrote = true;
+  try {
+    var mainId = (typeof GOOGLE_DRIVE_CONFIG !== 'undefined' && GOOGLE_DRIVE_CONFIG.FOLDER_ID) || (ALL_DRIVE_FOLDERS[0] && ALL_DRIVE_FOLDERS[0].id);
+    var jobs = [];
+    ALL_DRIVE_FOLDERS.forEach(function(f, i) {
+      if (f.id === mainId) return;
+      jobs.push(silentSaveToFolder(f.id, f.label, blob).then(function(ok) {
+        if (opts.results) opts.results[i] = { status: 'fulfilled', value: ok === true };
+        if (ok !== true) wrote = false;
+      }, function() { if (opts.results) opts.results[i] = { status: 'rejected' }; wrote = false; }));
+    });
+    await Promise.all(jobs);
+    // The per-person copy and the master, built from what this device holds now.
+    try { await savePerUserBackup(); } catch (e) { console.warn('[AutoSave] Per-user backup error:', e); }
+    try { var m = await saveMasterSnapshot('autosave'); if (!m || m.ok === false) wrote = false; } catch (e) { wrote = false; console.warn('[AutoSave] Master snapshot error:', e); }
+  } catch (e) { wrote = false; }
+  console.log('[AutoSave] Extra copies (' + d.why + '): ' + (wrote ? 'written' : 'not all written'));
+  _copyState = CESTISCore.copyCadence.after(_copyState, { now: now, mainOk: opts.mainOk, wrote: wrote, why: d.why });
+  return wrote;
+}
 // The session's "still here" stamp, written once a minute while signed in,
 // is this device's own note and is never uploaded: it is not a change for the
 // 5-second save (it used to start a full save every minute).
@@ -37491,7 +37552,11 @@ async function autoSaveToAllFolders() {
     // cloud copy are both already what we would produce. Skip the serialise,
     // the saveState and the uploads outright.
     var _writesNow = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -2;
-    if (_writesNow === _lastAutoSaveWriteMark && _lastAutoSaveHash) {
+    // Extra copies still behind the Main copy are written even when nothing
+    // is new — at sign-out, and once their 30 minutes are up (EF-2).
+    var _flushBehind = (typeof _copyState !== 'undefined') && !!_copyState && _copyState.behind &&
+      ((typeof _copiesFlushRequested !== 'undefined' && _copiesFlushRequested) || (Date.now() - (_copyState.writtenAt || 0) >= CESTISCore.copyCadence.EVERY_MS));
+    if (_writesNow === _lastAutoSaveWriteMark && _lastAutoSaveHash && !_flushBehind) {
       _lastAutoSaveResult = { uploaded: true, reason: 'nothing-new' };
       cestisBookkeeping(cestisMarkUploaded);
       return; // finally{} clears _isAutoSaving
@@ -37632,6 +37697,11 @@ async function autoSaveToAllFolders() {
       _lastAutoSaveResult = { uploaded: true, reason: 'unchanged' };
       _pullChangesUploaded = _pullChangesAtBuild;
       cestisBookkeeping(cestisMarkUploaded);
+      // The extra copies behind the Main copy (signing out, or their 30
+      // minutes up): they get what the Main copy holds now (the same payload).
+      if (_flushBehind) {
+        await cestisMaybeWriteExtraCopies(new Blob([JSON.stringify(backupData, stripSecretFields)], { type: 'application/json' }), { mainOk: null, flush: (typeof _copiesFlushRequested !== 'undefined') && !!_copiesFlushRequested, results: null });
+      }
       return; // unchanged — nothing to push; finally{} clears _isAutoSaving
     }
 
@@ -37642,46 +37712,45 @@ async function autoSaveToAllFolders() {
     var _sentResultIds = null;
     try { if (examOutboxRead().length) _sentResultIds = (backupData.data.examResults || []).filter(function(r){ return r && r.id != null; }).map(function(r){ return { id: r.id }; }); } catch (e) {}
 
-    // Save to ALL Google Drive folders in parallel
-    const results = await Promise.allSettled(
-      ALL_DRIVE_FOLDERS.map(folder => silentSaveToFolder(folder.id, folder.label, blob))
-    );
+    // The Main copy with every change; the extra copies (four more folders,
+    // the per-person copy, the master) at most every 30 minutes while the
+    // Main copy is ahead of them, at sign-out, and — while the Main copy
+    // cannot be written — in the same tick, at most every 5 minutes
+    // (CESTISCore.copyCadence, EF-2). Every reader still reads all of them.
+    // results[] stays in the order of ALL_DRIVE_FOLDERS.
+    // (The Main folder is first in the list; the config names it too.)
+    const _mainId = (typeof GOOGLE_DRIVE_CONFIG !== 'undefined' && GOOGLE_DRIVE_CONFIG.FOLDER_ID) || (ALL_DRIVE_FOLDERS[0] && ALL_DRIVE_FOLDERS[0].id);
+    const _mainIdx = ALL_DRIVE_FOLDERS.findIndex(function(f) { return f.id === _mainId; });
+    const results = ALL_DRIVE_FOLDERS.map(function() { return { status: 'skipped' }; });
+    var _mainOk = false;
+    if (_mainIdx !== -1) {
+      try { _mainOk = (await silentSaveToFolder(_mainId, ALL_DRIVE_FOLDERS[_mainIdx].label, blob)) === true; } catch (e) { _mainOk = false; }
+      results[_mainIdx] = { status: 'fulfilled', value: _mainOk };
+    }
+    var _flushNow = (typeof _copiesFlushRequested !== 'undefined') && !!_copiesFlushRequested;
+    var _urgentNow = (typeof _copiesUrgent !== 'undefined') && !!_copiesUrgent;
+    await cestisMaybeWriteExtraCopies(blob, { mainOk: _mainIdx === -1 ? null : _mainOk, flush: _flushNow, urgent: _urgentNow, results: results });
 
-    // Also save chat-specific data to the chat folder
+    // Also save chat-specific data to the chat folder (only when it changed)
     try {
       await lmsChatSyncToDrive();
     } catch (e) {
       console.warn('[AutoSave] Chat Drive sync error:', e);
     }
 
-    // Save per-user backup to individual user folder
-    try {
-      await savePerUserBackup();
-    } catch (e) {
-      console.warn('[AutoSave] Per-user backup error:', e);
-    }
-
     // Keep this user's named "User Login" sub-folder (in the main Drive backup
     // folder) up to date with their current hashed account record.
     try {
-      if (currentLoggedInUser) await syncUserLoginFolderToDrive(currentLoggedInUser);
+      if (currentLoggedInUser) await syncUserLoginFolderToDrive(currentLoggedInUser, { ifChanged: true });
     } catch (e) {
       console.warn('[AutoSave] User Login folder sync error:', e);
     }
 
-    // Save assignments to dedicated Assignments Drive folder
+    // Save assignments to dedicated Assignments Drive folder (only when they changed)
     try {
       await saveAssignmentsToDrive();
     } catch (e) {
       console.warn('[AutoSave] Assignments Drive sync error:', e);
-    }
-
-    // Refresh the single master snapshot (whole-store reference file). Its own
-    // checksum dirty-check skips the upload when nothing has actually changed.
-    try {
-      await saveMasterSnapshot('autosave');
-    } catch (e) {
-      console.warn('[AutoSave] Master snapshot error:', e);
     }
 
     const successCount = results.filter(r => r.status === 'fulfilled' && r.value === true).length;

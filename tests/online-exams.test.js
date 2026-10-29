@@ -463,7 +463,7 @@ console.log('Resume after a reload or power cut, with the original clock (exams-
   // A waiting result is let go once this PC's own upload of the Main copy
   // carried it (noted as serialised), not only after a later download.
   const asv = extractFunction(SRC, 'autoSaveToAllFolders');
-  assert(asv.indexOf('examOutboxConfirm(_sentResultIds)') !== -1 && asv.indexOf('_sentResultIds = ') < asv.indexOf('ALL_DRIVE_FOLDERS.map(folder => silentSaveToFolder') &&
+  assert(asv.indexOf('examOutboxConfirm(_sentResultIds)') !== -1 && asv.indexOf('_sentResultIds = ') < asv.indexOf('await silentSaveToFolder(_mainId') &&
     /f\.id === GOOGLE_DRIVE_CONFIG\.FOLDER_ID && results\[i\]/.test(asv), 'the autosave lets a waiting result go once the Main copy\'s upload carried it');
   // On the Centre's network: let go once a push to the Centre's server
   // succeeded (it never downloads the online backup that used to confirm it).

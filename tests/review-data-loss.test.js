@@ -168,7 +168,7 @@ const LMS = { page: 'LMS Dashboard', file: 'CESTIS_LMS_Dashboard.json', prefixes
     console.log('1. An instructor\'s unsent marks survive a trainee using the same PC' + tag);
     try {
       const fns = ['logout', 'finalCloudSaveBeforeLogout', 'finalLanSaveBeforeLogout', 'autoSaveToAllFolders', 'clearSensitiveStudentData',
-        'keepUnsyncedDataOnSignOut', 'cestisMarkPendingUpload', 'cestisMarkUploaded', 'cestisBookkeeping', 'carryForwardCloudAdminSlices',
+        'keepUnsyncedDataOnSignOut', 'cestisMarkPendingUpload', 'cestisMarkUploaded', 'cestisBookkeeping', 'cestisMaybeWriteExtraCopies', 'carryForwardCloudAdminSlices',
         'clearAllSessionData', 'clearSensitiveDataOnExpiry'];
       const SRC = fns.map(n => extractFunction(IDX, n)).join('\n\n');
       const dashboard = function (map) {

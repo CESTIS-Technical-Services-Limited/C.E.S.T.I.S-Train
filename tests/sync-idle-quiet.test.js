@@ -69,8 +69,9 @@ function fakeStore() {
 for (const page of PAGES) {
   const w = page.where, C = page.core;
   console.log('The 5-second save goes quiet, and swallows no edit (' + w + ')');
-  const names = ['autoSaveToAllFolders', 'cestisBookkeeping', 'cestisMarkUploaded', 'cestisMarkPendingUpload', 'cestisHashString'];
-  const src = names.map(n => extractFunction(page.src, n, w)).join('\n');
+  const names = ['autoSaveToAllFolders', 'cestisBookkeeping', 'cestisMarkUploaded', 'cestisMarkPendingUpload', 'cestisHashString', 'cestisMaybeWriteExtraCopies'];
+  const src = names.map(n => extractFunction(page.src, n, w)).join('\n') +
+    '\nvar _copyState = { writtenAt: Date.now(), behind: false, mainFailAt: 0 }, _copiesFlushRequested = false, _copiesUrgent = false;';
   function world() {
     const store = fakeStore();
     const uploads = []; let hold = null;

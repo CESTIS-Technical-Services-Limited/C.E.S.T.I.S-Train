@@ -9153,6 +9153,59 @@
      instructor / board < admin staff < administrator); an unknown signed-in
      role counts as staff. While a staff member's note stands, nothing on
      the device is trimmed or wiped by any session that cannot clear it. */
+  /* ==========================================================================
+     THE BACKUP'S EXTRA COPIES — when they are written (EF-2)
+
+     Every change used to upload the whole backup seven times: the Main copy,
+     the same bytes again into four more folders (Online Exams, LMS Chat,
+     Class Recording, Assignments), a per-person near-copy and the master
+     snapshot — 309 MB per change at a school year's size. Only the Main copy
+     is read after every change (each device's 5-second check); the other
+     copies are read at Sync Now and at sign-in, merged oldest first so the
+     Main copy wins, and by the recovery and restore paths. So:
+       - the Main copy goes up with every change, as before;
+       - the extra copies (the four folders, the per-person copy and the
+         master) go up together, with the same payload as the Main copy in
+         that tick, at most every 30 minutes while the Main copy has taken
+         changes they have not, and at sign-out;
+       - while the Main copy cannot be written (its folder refused it, the
+         quota, a write lost to another device's), they go up in the same
+         tick instead — at most every 5 minutes — so a change still reaches
+         the shared copies.
+     state: { writtenAt, behind, mainFailAt } (ms; behind: true when the Main
+     copy holds changes the extra copies do not).
+     o: { now, mainOk (the Main copy was written this tick; null: nothing to
+     write), flush (sign-out), urgent (a write was lost to another device's) }
+     Returns { write: bool, why }. The caller updates the state with after(). */
+  Core.copyCadence = (function () {
+    var EVERY_MS = 30 * 60 * 1000, MAIN_DOWN_EVERY_MS = 5 * 60 * 1000;
+    function due(state, o) {
+      var s = state || {}, now = Number(o && o.now) || Date.now();
+      var behind = !!s.behind || (o && o.mainOk === true);
+      if (o && o.mainOk === false) {
+        // The Main copy could not be written: the change goes to the others.
+        if (now - (Number(s.mainFailAt) || 0) >= MAIN_DOWN_EVERY_MS) return { write: true, why: 'main-failed' };
+        return { write: false, why: 'main-failed-recently' };
+      }
+      if (o && o.urgent && now - (Number(s.mainFailAt) || 0) >= MAIN_DOWN_EVERY_MS) return { write: true, why: 'urgent' };
+      if (!behind) return { write: false, why: 'up-to-date' };
+      if (o && o.flush) return { write: true, why: 'sign-out' };
+      if (now - (Number(s.writtenAt) || 0) >= EVERY_MS) return { write: true, why: 'periodic' };
+      return { write: false, why: 'not-yet' };
+    }
+    /* The state after a tick: wrote (the extra copies were written, all of
+       them), why (from due()), mainOk as given to due(). */
+    function after(state, o) {
+      var s = { writtenAt: Number(state && state.writtenAt) || 0, behind: !!(state && state.behind), mainFailAt: Number(state && state.mainFailAt) || 0 };
+      var now = Number(o && o.now) || Date.now();
+      if (o && o.mainOk === true) s.behind = true;
+      if (o && (o.why === 'main-failed' || o.why === 'urgent')) s.mainFailAt = now;
+      if (o && o.wrote) { s.writtenAt = now; s.behind = false; }
+      return s;
+    }
+    return { EVERY_MS: EVERY_MS, MAIN_DOWN_EVERY_MS: MAIN_DOWN_EVERY_MS, due: due, after: after };
+  })();
+
   Core.pendingUpload = (function () {
     var RANK = Core.sessionAccess.RANK;
     function roleOf(marker) { var s = String(marker || ''); var i = s.indexOf('|'); return i === -1 ? s : s.slice(0, i); }
