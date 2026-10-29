@@ -478,6 +478,18 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     const card = await I.locator('#iCustomAssignmentsList .card', { hasText: ASSIGNMENT }).innerText();
     ok(/85\/100/.test(card) && /0\/100/.test(card), 'the instructor\'s list shows 85/100 and 0/100');
     ok(!!(await serverHas('voctrain_assignments', l => { const a = l.find(x => x.id === aid); return a && a.grades && a.grades[ids.ama] != null && a.grades[ids.kofi] != null; })), 'both marks reach the Centre\'s server');
+    // "Export Grades" used to download the trainee list (stage, attendance,
+    // GPA) with no marks in it at all.
+    {
+      const dl = I.waitForEvent('download', { timeout: 15000 });
+      await I.click('#page-i-gradebook button:has-text("Export Grades")');
+      const d = await dl;
+      const csv = fs.readFileSync(await d.path(), 'utf8').split('\n');
+      const col = csv[0].split(',').findIndex(h => h.indexOf(ASSIGNMENT) !== -1);
+      const row = n => (csv.find(l => l.indexOf(n) === 0) || '').split(',');
+      ok(col > 1 && row(AMA.name)[col] === '85' && row(KOFI.name)[col] === '0',
+        'Export Grades downloads the marks: the assignment\'s column holds 85 for Ama and 0 for Kofi (' + csv[0].slice(0, 120) + ' | ' + csv.slice(1, 3).join(' | ').slice(0, 160) + ')');
+    }
 
     await refresh(P);
     await nav(P, 's-assignments');

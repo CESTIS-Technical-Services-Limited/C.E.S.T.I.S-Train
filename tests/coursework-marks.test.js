@@ -159,8 +159,13 @@ PAGES.forEach(function (page) {
     assert(!/type: 'anyone'/.test(extractFunction(src, fn, w)), fn + ' never shares with "anyone with the link"');
   });
   const book = src.slice(src.indexOf('// Build gradebook dynamically'), src.indexOf('// Grade distribution from actual scores'));
-  assert(/CW\.percentOf\(/.test(book) && /CW\.weightedAverage\(/.test(book) && !/parseInt\(g\)\|\|null/.test(book), 'the gradebook table uses percentages, weights and keeps 0');
-  assert(/courseExams\.map[\s\S]*\.concat\(myAssignments\.map/.test(book), 'exam and assignment columns sit side by side');
+  // The columns and their marks come from CESTISCore.coursework.gradebook
+  // (every exam and assignment, newest first — tests/gradebook-all-items.test.js),
+  // which reads each assignment mark with percentOf.
+  assert(/instructorGradebookData\(ins, myStudents, myExams\)/.test(book) && /CW\.weightedAverage\(/.test(book) && !/parseInt\(g\)\|\|null/.test(book) &&
+    /percentOf\(c\.src\.grades/.test(require('fs').readFileSync(require('path').join(__dirname, '..', 'cestis-core.js'), 'utf8')), 'the gradebook table uses percentages, weights and keeps 0');
+  const kinds = require('../cestis-core.js').coursework.gradebook({ students: [], exams: [{ id: 'E1', date: '2026-01-01' }], assignments: [{ id: 'A1', dueDate: '2026-01-02' }] }).columns.map(c => c.kind);
+  assert(/book\.columns\.map\(function\(c\)\{ return c\.label; \}\)/.test(book) && kinds.indexOf('exam') !== -1 && kinds.indexOf('assignment') !== -1, 'exam and assignment columns sit side by side');
   assert(/<th>'\+escapeHtml\(c\)\+'<\/th>/.test(book), 'column titles are escaped');
   const dash = extractFunction(src, 'buildStudentPages', w);
   assert(/cwSum\.graded\}\/\$\{cwSum\.total\}/.test(dash) && /escapeHtml\(shownGpa\)/.test(dash), 'the dashboard tiles show the marks, not the seed values');

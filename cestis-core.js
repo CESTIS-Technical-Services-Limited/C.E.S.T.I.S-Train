@@ -13742,6 +13742,67 @@
       return { graded: graded, total: assignments.length, percent: percent, gpa: gpaFromPercent(avg) };
     }
 
+    /* The instructor's gradebook: a column for EVERY exam and EVERY assignment
+       of the programme, newest first, and each trainee's average over all of
+       them. It used to show the first seven exams and the first seven
+       assignments only, and average just those: from week 8 a trainee's
+       latest marks were not on screen and her average still read 90% when
+       the truth was 71%.
+         opts { students, exams, assignments, results, isFinal(result) }
+       Exams count as one standard item each; an assignment by its Weight
+       (%). An exam's mark is the trainee's final result for it (isFinal: one
+       still awaiting marking, or archived, is not a mark yet).
+       -> { columns: [{ kind:'exam'|'assignment', id, title, label, weight, date }],
+            rows: [{ student, cells: [pct|null per column], average: pct|null }] } */
+    function gradebook(opts) {
+      opts = opts || {};
+      var isFinal = typeof opts.isFinal === 'function' ? opts.isFinal : function (r) { return !!r; };
+      var cols = [];
+      (opts.exams || []).forEach(function (e) {
+        if (!e) return;
+        cols.push({ kind: 'exam', id: e.id, title: e.title || 'Exam', label: e.title || 'Exam', weight: DEFAULT_WEIGHT,
+          date: String(e.date || '') + ' ' + String(e.time || ''), src: e });
+      });
+      (opts.assignments || []).forEach(function (a) {
+        if (!a) return;
+        cols.push({ kind: 'assignment', id: a.id, title: a.title || 'Assignment', label: (a.title || 'Assignment') + ' (' + weightOf(a.weight) + '%)',
+          weight: a.weight, date: String(a.dueDate || '') + ' ' + String(a.createdAt || ''), src: a });
+      });
+      // Newest first; the order they were set in breaks a tie.
+      cols = cols.map(function (c, i) { c._i = i; return c; }).sort(function (a, b) {
+        return a.date < b.date ? 1 : a.date > b.date ? -1 : b._i - a._i;
+      });
+      var results = (opts.results || []).filter(function (r) { return r && isFinal(r); });
+      var rows = (opts.students || []).map(function (st) {
+        var mine = results.filter(function (r) { return r.studentId === st.id; });
+        var items = cols.map(function (c) {
+          if (c.kind === 'exam') {
+            var r = mine.filter(function (x) { return x.examId === c.id || x.examTitle === c.src.title; })[0];
+            return { pct: r ? gradeValue(r.score) : null, weight: DEFAULT_WEIGHT };
+          }
+          return { pct: percentOf(c.src.grades ? c.src.grades[st.id] : null, c.src.maxPoints), weight: c.src.weight };
+        });
+        return { student: st, cells: items.map(function (it) { return it.pct; }), average: weightedAverage(items) };
+      });
+      return {
+        columns: cols.map(function (c) { return { kind: c.kind, id: c.id, title: c.title, label: c.label, weight: c.kind === 'exam' ? DEFAULT_WEIGHT : weightOf(c.weight), date: c.date.trim() }; }),
+        rows: rows
+      };
+    }
+    /* "Export Grades": the gradebook as a spreadsheet — a row per trainee, a
+       column per exam and assignment (newest first, as on screen), whole
+       percentages, then the average. Cells that start like a formula are
+       made text (Core.attendance.csvCell). */
+    function gradebookCsv(book) {
+      var cell = Core.attendance.csvCell;
+      var pct = function (v) { return v == null ? '' : String(Math.round(v)); };
+      var lines = [['Trainee', 'Student ID'].concat(book.columns.map(function (c) { return c.label + ' %'; })).concat(['Average %']).map(cell).join(',')];
+      book.rows.forEach(function (r) {
+        lines.push([r.student.name || '', r.student.id || ''].concat(r.cells.map(pct)).concat([pct(r.average)]).map(cell).join(','));
+      });
+      return lines.join('\n');
+    }
+
     // A changed mark is recorded, not just overwritten: who, when, and what it
     // was before. HEART/NSTA moderation asks exactly that.
     function recordGrade(assignment, studentId, points, by, nowIso) {
@@ -13827,6 +13888,7 @@
       isPastDue: isPastDue, daysUntil: daysUntil,
       gradeValue: gradeValue, percentOf: percentOf, weightOf: weightOf, weightedAverage: weightedAverage,
       gpaFromPercent: gpaFromPercent, effectiveGpa: effectiveGpa, studentSummary: studentSummary,
+      gradebook: gradebook, gradebookCsv: gradebookCsv,
       recordGrade: recordGrade, submissionHistory: submissionHistory, latestSubmission: latestSubmission,
       latestPerStudent: latestPerStudent, canSubmit: canSubmit, oversizeFiles: oversizeFiles,
       resourceVisible: resourceVisible

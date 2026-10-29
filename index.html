@@ -16007,7 +16007,7 @@ function buildInstructorPages() {
   <section class="page" id="page-i-gradebook">
     <div style="display:flex;gap:12px;margin-bottom:20px;">
       <button class="btn btn-primary" onclick="openInstructorCreateAssignment()">+ New Assignment</button>
-      <button class="btn-export" onclick="exportInstructorStudentsCSV()">📄 Export Grades</button>
+      <button class="btn-export" onclick="exportInstructorGradebookCSV()">📄 Export Grades</button>
     </div>
     <div id="iExamReviewQueue">${instructorExamReviewQueueHtml(ins)}</div>
     <div class="card" style="margin-bottom:18px;"><div class="card-header"><h3>My Assignments</h3><span style="font-size:12px;color:var(--text-muted);">Created by you</span></div>
@@ -16019,38 +16019,31 @@ function buildInstructorPages() {
       // maximum (8/10 and 80/100 are both 80%, not 8 and 80), a mark of 0 is
       // a mark, exams and assignments sit side by side, and the average
       // weights each assignment by its Weight (%) — exams count as one
-      // standard item each (CESTISCore.coursework).
+      // standard item each (CESTISCore.coursework). EVERY exam and
+      // assignment has a column, newest first, and the average covers them
+      // all (it used to stop at the first seven of each); the table scrolls
+      // inside its card (CESTISCore.coursework.gradebook).
       var CW = CESTISCore.coursework;
-      var courseExams = myExams.slice(0, 7);
-      var myAssignments = (instructorAssignments||[]).filter(function(a){ return instructorCourseMatch(a.course, ins.course); }).slice(0, 7);
-      var gradeCols = courseExams.map(function(ex){ return ex.title || 'Exam'; })
-        .concat(myAssignments.map(function(a){ return (a.title || 'Assignment') + ' (' + CW.weightOf(a.weight) + '%)'; }));
+      var book = instructorGradebookData(ins, myStudents, myExams);
+      var gradeCols = book.columns.map(function(c){ return c.label; });
       var noColumns = gradeCols.length === 0;
       if (noColumns) gradeCols = ['Test Score'];
 
-      var html = '<div class="card"><div class="card-header"><h3>Gradebook &mdash; '+escapeHtml(ins.course)+'</h3></div>';
+      var html = '<div class="card"><div class="card-header"><h3>Gradebook &mdash; '+escapeHtml(ins.course)+'</h3><span style="font-size:12px;color:var(--text-muted);">'+(noColumns ? '' : book.columns.length+' item'+(book.columns.length === 1 ? '' : 's')+', newest first')+'</span></div>';
+      html += '<div id="iGradebookScroll" style="max-height:70vh;overflow:auto;">';
       html += '<div class="table-wrapper"><table class="tbl-phone"><thead><tr><th>Student</th>';
       gradeCols.forEach(function(c){ html += '<th>'+escapeHtml(c)+'</th>'; });
       html += '<th>Avg</th></tr></thead><tbody id="iGradebookBody">';
 
       var allScores = [];
-      myStudents.forEach(function(st) {
-        // Final results only (the exams track): a result still awaiting manual
-        // marking, or an archived one, is not a mark yet.
-        var stuResults = (examResults||[]).filter(function(r){ return r && r.studentId === st.id && CESTISCore.exams.isFinal(r); });
+      myStudents.forEach(function(st, si) {
         var items = [];
         if (noColumns) {
           items = [{ pct: CW.gradeValue(st.score), weight: CW.DEFAULT_WEIGHT }];
         } else {
-          courseExams.forEach(function(ex) {
-            var r = stuResults.find(function(res){ return res.examId === ex.id || res.examTitle === ex.title; });
-            items.push({ pct: r ? CW.gradeValue(r.score) : null, weight: CW.DEFAULT_WEIGHT });
-          });
-          myAssignments.forEach(function(a) {
-            // Grades are stored on the assignment (a.grades[studentId]), not on
-            // the submission record — read from there so the gradebook fills in.
-            items.push({ pct: CW.percentOf(a.grades ? a.grades[st.id] : null, a.maxPoints), weight: a.weight });
-          });
+          // Final results only (the exams track) and the marks stored on each
+          // assignment (a.grades[studentId]), one per column.
+          items = book.rows[si].cells.map(function(p, k){ return { pct: p, weight: book.columns[k].weight }; });
         }
         var avgRaw = CW.weightedAverage(items);
         var avg = avgRaw == null ? null : Math.round(avgRaw);
@@ -16063,7 +16056,7 @@ function buildInstructorPages() {
         });
         html += '<td style="text-align:center;font-weight:700;color:'+(avg === null ? 'var(--text-muted)' : avg>=80?'var(--green)':avg>=60?'var(--accent)':'var(--red)')+';">'+(avg === null ? '\u2014' : avg+'%')+'</td></tr>';
       });
-      html += '</tbody></table></div></div>';
+      html += '</tbody></table></div></div></div>';
 
       // Grade distribution from actual scores
       var distA = allScores.filter(function(s){return s>=80;}).length;
@@ -16330,6 +16323,29 @@ function updateInstructorPipeline() {
   });
 }
 
+// The gradebook's data: the instructor's trainees, every exam of the
+// programme and every assignment, newest first (CESTISCore.coursework.gradebook).
+function instructorGradebookData(ins, myStudents, myExams) {
+  var myAssignments = (instructorAssignments||[]).filter(function(a){ return a && instructorCourseMatch(a.course, ins.course); });
+  return CESTISCore.coursework.gradebook({ students: myStudents, exams: myExams, assignments: myAssignments,
+    results: examResults || [], isFinal: function(r){ return CESTISCore.exams.isFinal(r); } });
+}
+// "Export Grades": the marks themselves, as on the gradebook — it used to
+// export the trainee list (stage, score, attendance) with no marks at all.
+function exportInstructorGradebookCSV() {
+  if(!currentInstructor) return;
+  var ins = currentInstructor;
+  var myStudents = students.filter(function(s){ return s.instructor === ins.name || instructorCourseMatch(s.course, ins.course); });
+  var myExams = exams.filter(function(e){ return instructorCourseMatch(e.course, ins.course); });
+  var csv = CESTISCore.coursework.gradebookCsv(instructorGradebookData(ins, myStudents, myExams));
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'gradebook_' + String(ins.course || 'grades').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') + '.csv'; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Grades exported.');
+}
 function exportInstructorStudentsCSV() {
   if(!currentInstructor) return;
   const myStudents = students.filter(s => s.instructor === currentInstructor.name || instructorCourseMatch(s.course, currentInstructor.course));
