@@ -88,7 +88,7 @@ shown to the owner in screenshots first, and merged only once approved or decide
 | **Duplicate "Disabled" accounts** | A cleared office PC no longer creates second and third accounts from the fee roll and chat roster. Provable leftovers fold into the real account, with a deletion record so they cannot come back; anything unsure stays for the administrator. | `tests/backfill-stub-fold.test.js` |
 | **"Set a new password"** | The cursor no longer jumps back from "Confirm password" (an intermittent "Passwords do not match" for a first administrator). | `tests/force-change-pw-focus.test.js` |
 | **A test that follows the trainee** | Answers are saved on the device and in the shared copy. Kicked out, crashed or disconnected, the trainee signs in and presses "Continue your attempt"; at another Centre PC too. The original clock stands, the newest answer per question wins, a submitted test cannot be reopened, and there is exactly one result per attempt. A trainee taking a test is not signed out part-way; a test whose time ran out is submitted at the next sign-in. | `tests/exam-attempt-travel.test.js`, `tests/browser/exam-resume.js` |
-| **Shared files' version tags** | Every page asks for the current shared code files (`?v=20261028d`; `cestis-core.js`, `cestis-page-cloud.js` and `cestis-gate-client.js` at `?v=20261028e`). | — |
+| **Shared files' version tags** | Every page asks for the current shared code files (`?v=20261029c`). | — |
 
 **Decisions the owner made in this round:**
 - Trainees register at the Centre (or the office creates their account). A trainee's own phone
@@ -347,6 +347,19 @@ shown to the owner in screenshots first, and merged only once approved or decide
   - Its own edits are re-dated to the correct time instead of being lost.
   - A warning shows when a device's clock disagrees with Google's.
 - **Restores.** Importing a backup pauses auto-save, so the restore is not undone.
+- **Sync cost (29 October).**
+  - An untouched dashboard no longer saves or uploads anything; an edit made at any moment,
+    during an upload too, still goes up on the next 5-second tick.
+  - A change uploads the Main backup copy only. The four other folder copies, the per-person
+    copy and the master snapshot go up together at most every 30 minutes while the Main copy
+    is ahead of them, at sign-out, and at once (at most every 5 minutes) while the Main copy
+    cannot be written. Every reader still reads all of them, newest record winning.
+  - Sign-in and Sync Now download each distinct copy once: a copy whose bytes (Drive's MD5)
+    this device has already merged is not downloaded again.
+  - The chat file is uploaded only when the chat changed; the Cashbook checks its file's
+    version before downloading it.
+  - A PC's chat history, notifications and School Fee roll are read again once the browser's
+    database is open; nothing is written over them before that.
 
 ### The Offline System
 - **Generated from the main files.** `Offline System/` is produced by
@@ -358,7 +371,10 @@ shown to the owner in screenshots first, and merged only once approved or decide
   no longer wipe the Centre's records.
 - **The local server.**
   - Each save is written safely and merged with what the server already holds.
-  - The last 40 versions of every data file are kept in `data/.history`.
+  - The last 40 versions of every data file are kept in `data/.history`: the newest 3 as plain
+    `.json`, older ones compressed (`.json.gz`; extract one before copying it back).
+  - A save sends only the keys that changed; the server merges them into its file. It takes
+    saves up to 512 MiB.
   - It tells a missing file apart from one it could not read.
 - **Offline gates.** The Cashbook and certificate downloads work offline, with the Centre's
   server acting as the central store.
@@ -411,7 +427,7 @@ shown to the owner in screenshots first, and merged only once approved or decide
   maintained by hand.
 - **When a shared library changes** (`cestis-core.js`, `cestis-page-cloud.js`,
   `cestis-offline-rtc.js`, `finance-docs.js`, `staff-appraisals.js`, `cmc-portal.js`), bump its
-  `?v=` on every page so browsers fetch the new copy. They are `?v=20261028d` as delivered (`cestis-core.js`, `cestis-page-cloud.js` and `cestis-gate-client.js`: `?v=20261028e`). The service worker always tries the network
+  `?v=` on every page so browsers fetch the new copy. They are `?v=20261029c` as delivered. The service worker always tries the network
   first.
 - **New pure logic belongs in `cestis-core.js`** with a Node test, called from the pages. This is
   the pattern the whole upgrade follows.
