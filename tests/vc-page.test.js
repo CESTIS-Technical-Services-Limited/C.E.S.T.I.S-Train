@@ -680,6 +680,13 @@ console.log('The instructor sees who is muted and whose camera is off');
   assert(run(sb, '!!mutedPeers["' + STU + '"]'), 'muting again is shown');
   sb.vcOnData(msg({ type: 'mic-state', on: false }), 'cestis-ABC234-stranger');
   assertEq(run(sb, 'Object.keys(mutedPeers).join()'), STU, 'somebody not let into the room changes nothing');
+  // The host's "turn off camera" switches it off for real (a disabled track
+  // still sends black pictures).
+  const body = extractFunction('vcOnData');
+  const i = body.indexOf("case 'force-cam-off'");
+  assert(i > 0 && /if \(vcCamIsOn\(\)\) vcToggleCam\(\);/.test(body.slice(i, i + 400)), "the host's camera-off goes through the camera button's own off path");
+  // Names stay readable over a camera-off tile.
+  assert(/\.video-tile \.participant-info \{[^}]*z-index:2/.test(SRC), 'a tile\'s name label sits above the camera-off initial');
 }
 
 console.log('The host\'s picture budget is shared again whenever someone joins or leaves');

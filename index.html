@@ -1404,7 +1404,7 @@ textarea.form-control { resize:vertical; min-height:80px; }
   border:1px solid var(--border); display:flex; align-items:center;
   justify-content:center; position:relative; overflow:hidden;
 }
-.video-tile .participant-info { position:absolute; bottom:12px; left:12px; background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:6px; font-size:12px; }
+.video-tile .participant-info { position:absolute; bottom:12px; left:12px; background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:6px; font-size:12px; z-index:2; }
 .video-tile .vc-cam-off-overlay {
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   background:var(--bg-input); z-index:1;
@@ -18249,14 +18249,10 @@ function vcOnData(raw, fromId) {
       showToast('All participants have been muted by the host');
       break;
     case 'force-cam-off':
-      // Host tells a participant to turn off their camera
-      if(localStream) {
-        localStream.getVideoTracks().forEach(function(t){ t.enabled = false; });
-        var camBtn = document.getElementById('vc-cam-btn');
-        if(camBtn) camBtn.classList.remove('active');
-        var lv = document.getElementById('vc-local-video');
-        if(lv) lv.style.opacity = '0.15';
-      }
+      // Host tells a participant to turn off their camera. It is switched
+      // off properly (as with the button): a track that is merely disabled
+      // keeps sending black pictures, which still costs data.
+      if (vcCamIsOn()) vcToggleCam();
       showToast('Your camera has been turned off by the host');
       break;
     case 'promote-host':
