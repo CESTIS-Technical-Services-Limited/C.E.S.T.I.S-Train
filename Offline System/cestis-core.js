@@ -14058,6 +14058,33 @@
     return { fillFromAccount: fillFromAccount, FEE_FIELDS: { email: 'email', phone: 'contact' } };
   })();
 
+  // ===================== RECEIPT NUMBERS: a number already given =====================
+  // Receipt numbers are typed by hand on School Fee, and the same number was
+  // accepted for two trainees without a word ("R-0412" twice: two receipt
+  // PDFs with one number). It is not refused — a parent may pay for two
+  // trainees on one receipt — but the page asks first. Blank numbers are not
+  // compared (how they are generated is unchanged).
+  Core.receiptNumbers = (function () {
+    function key(v) { return String(v == null ? '' : v).trim().toLowerCase(); }
+    /* The payment (other than exceptId) that already carries this receipt
+       number, trimmed and case-insensitively; null when none. */
+    function usedBy(payments, number, exceptId) {
+      var k = key(number);
+      if (!k) return null;
+      var list = Array.isArray(payments) ? payments : [];
+      for (var i = 0; i < list.length; i++) {
+        var p = list[i];
+        if (p && key(p.receiptNumber) === k && (exceptId == null || String(p.id) !== String(exceptId))) return p;
+      }
+      return null;
+    }
+    /* "Receipt R-0412 is already used for Ann Brown on 2026-10-12. Use it again?" */
+    function question(number, p) {
+      return 'Receipt ' + String(number).trim() + ' is already used for ' + (p.studentName || 'another payment') + (p.date ? ' on ' + p.date : '') + '. Use it again?';
+    }
+    return { usedBy: usedBy, question: question };
+  })();
+
   // ===================== COMMUNICATIONS: announcements, agenda, bell =====================
   Core.comms = (function () {
     var CW = Core.coursework;
