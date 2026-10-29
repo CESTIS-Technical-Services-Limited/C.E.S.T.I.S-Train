@@ -6206,7 +6206,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
       <div class="form-group"><label>Category</label><select class="form-control" id="resCat"><option value="video">Video Lectures</option><option value="guide">Study Guides & Handbooks</option><option value="worksheet">Worksheets & Assignments</option><option value="rubric">Assessment Rubrics</option></select></div>
       <div class="form-group"><label>File Type</label><select class="form-control" id="resType"><option value="PDF">PDF</option><option value="Video">Video</option><option value="DOC">DOC</option><option value="XLSX">XLSX</option><option value="Link">External Link</option></select></div>
     </div>
-    <div class="form-group"><label>URL / Link (optional)</label><input type="text" class="form-control" id="resUrl" placeholder="https://..."></div>
+    <div class="form-group"><label>Link</label><input type="text" class="form-control" id="resUrl" placeholder="https://..."></div>
     <div class="form-group"><label>Description</label><textarea class="form-control" id="resDesc" placeholder="Brief description of this resource..."></textarea></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('uploadResourceModal')">Cancel</button>
@@ -21691,6 +21691,9 @@ function uploadResource() {
   const desc = document.getElementById('resDesc')?.value?.trim();
 
   if(!name) { showToast('Please enter a resource name'); return; }
+  // This form has no file to attach: without a link it saved a resource
+  // trainees could not open, and still said "uploaded successfully".
+  if(!url) { showToast('Add the resource\'s link (starting with https://). Nothing was saved: trainees need something to open.', 'warning'); return; }
   // Only a web link: a javascript: "link" ran in whoever clicked Open.
   if(url && !/^https?:\/\//i.test(url)) { showToast('The link must start with http:// or https://'); return; }
 

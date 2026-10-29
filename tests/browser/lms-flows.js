@@ -490,6 +490,23 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
       ok(col > 1 && row(AMA.name)[col] === '85' && row(KOFI.name)[col] === '0',
         'Export Grades downloads the marks: the assignment\'s column holds 85 for Ama and 0 for Kofi (' + csv[0].slice(0, 120) + ' | ' + csv.slice(1, 3).join(' | ').slice(0, 160) + ')');
     }
+    // "Upload Resource" has no file to attach: with no link it used to save a
+    // resource nobody could open and say "uploaded successfully".
+    {
+      await nav(I, 'i-resources');
+      const before = await I.evaluate(() => instructorResources.length);
+      await I.click('#page-i-resources button:has-text("+ Upload Resource")');
+      await I.fill('#resName', 'Plasma cutter safety guide');
+      await I.click('#uploadResourceModal button:has-text("Upload Resource")');
+      await I.waitForTimeout(400);
+      const r = await I.evaluate(() => ({ n: instructorResources.length, open: document.getElementById('uploadResourceModal').classList.contains('active'),
+        toast: (document.getElementById('toastContainer') || {}).innerText || '' }));
+      ok(r.n === before && r.open && /Add the resource's link/.test(r.toast) && !/Plasma cutter safety guide" uploaded successfully/.test(r.toast),
+        'a resource with no link is refused, plainly, and nothing is saved (' + r.toast.replace(/\s+/g, ' ').slice(0, 140) + ')');
+      await I.fill('#resUrl', 'https://example.org/plasma-safety.pdf');
+      await I.click('#uploadResourceModal button:has-text("Upload Resource")');
+      ok(await waitFor(I, n => instructorResources.length === n + 1, before), 'with its link it is saved');
+    }
 
     await refresh(P);
     await nav(P, 's-assignments');
