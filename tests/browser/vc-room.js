@@ -129,29 +129,40 @@ function serve() {
   const CODE = 'VCTEST2345';
   const HOST_ID = 'cestis-' + CODE + '-host';
 
-  section('The instructor\'s start screen suggests Large Class for more than 6 trainees');
+  section('The instructor\'s start screen: Large Class first above 6 trainees only with the Centre\'s own video server');
   const host = await open('host', 'av');
-  async function startScreen(n) {
-    return host.evaluate((n) => {
+  async function startScreen(n, largeBase) {
+    return host.evaluate(([n, largeBase]) => {
       if (!document.getElementById('iVideoRoom')) { const d = document.createElement('div'); d.id = 'iVideoRoom'; document.body.appendChild(d); }
       currentInstructor = { id: 'INS1', name: 'Teacher T' };
+      const keep = systemSettings.vcLargeRoomBase;
+      systemSettings.vcLargeRoomBase = largeBase;
       students = [];
       for (let i = 0; i < n; i++) students.push({ id: 'STU-B' + i, name: 'Trainee ' + i, course: 'Welding 101', stage: 'training' });
       classSessions = [{ id: 'CS-B', name: 'Welding 101', course: 'Welding 101', date: localDateStr(), roomCode: 'BIGCLASS23', status: 'scheduled' }];
       enterVideoRoom('Welding 101', 'instructor', 'BIGCLASS23');
       const box = document.getElementById('vc-large-suggest');
+      const later = document.getElementById('vc-large-later');
       const large = document.getElementById('vc-start-large');
-      const out = { box: box ? box.textContent.replace(/\s+/g, ' ').trim() : '', largePrimary: !!large && large.classList.contains('btn-primary'),
-        builtIn: Array.from(document.querySelectorAll('#iVideoRoom button')).some(b => /Start Session/.test(b.textContent)) };
+      const small = Array.from(document.querySelectorAll('#iVideoRoom button')).filter(b => /Start Session/.test(b.textContent))[0];
+      const out = { box: box ? box.textContent.replace(/\s+/g, ' ').trim() : '', later: later ? later.textContent.trim() : '',
+        largePrimary: !!large && large.classList.contains('btn-primary'), smallPrimary: !!small && small.classList.contains('btn-primary'),
+        builtIn: !!small, largeThere: !!large,
+        largeAbove: !!(large && small && (large.compareDocumentPosition(small) & Node.DOCUMENT_POSITION_FOLLOWING)) };
       exitVideoRoom('instructor');
-      students = []; classSessions = [];
+      students = []; classSessions = []; systemSettings.vcLargeRoomBase = keep;
       return out;
-    }, n);
+    }, [n, largeBase]);
   }
-  const big = await startScreen(9), small = await startScreen(6);
-  ok(/^Large Class is suggested for 9 trainees: /.test(big.box) && big.largePrimary, 'a class of 9: Large Class first, with the reason (' + big.box.slice(0, 90) + '…)');
-  ok(big.builtIn, 'and the built-in room can still be chosen');
-  ok(!small.box && !small.largePrimary && small.builtIn, 'a class of 6: the built-in room first, no suggestion');
+  const own = await startScreen(9, 'video.centre-example.org'), ownSmall = await startScreen(6, 'video.centre-example.org');
+  ok(/^Large Class is suggested for 9 trainees: /.test(own.box) && own.largePrimary && !own.smallPrimary && own.largeAbove, 'own video server, a class of 9: Large Class first, with the reason (' + own.box.slice(0, 90) + '…)');
+  ok(own.builtIn && !own.later, 'and the built-in room can still be chosen');
+  ok(!ownSmall.box && !ownSmall.later && !ownSmall.largePrimary && ownSmall.smallPrimary, 'own video server, a class of 6: the built-in room first, no suggestion');
+  const pub = await startScreen(9, ''), pubSmall = await startScreen(6, '');
+  ok(!pub.box && pub.smallPrimary && !pub.largePrimary && !pub.largeAbove, 'no Centre video server, a class of 9: the built-in room stays the main button (the public fallback cuts embedded meetings off)');
+  ok(pub.later === 'For more than 6 trainees, Large Class saves everyone data once the Centre’s own video server is added in Settings → Video Conference.', 'with one plain line under it (' + pub.later + ')');
+  ok(pub.largeThere, 'and Large Class is still the second choice');
+  ok(!pubSmall.box && !pubSmall.later && pubSmall.smallPrimary, 'no Centre video server, a class of 6: nothing more said');
   await host.waitForTimeout(500);
 
   section('The instructor opens a room');

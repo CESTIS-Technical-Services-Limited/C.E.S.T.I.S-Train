@@ -1448,6 +1448,8 @@ textarea.form-control { resize:vertical; min-height:80px; }
 /* The start screen's Large Class suggestion (a class bigger than the built-in room carries well). */
 .vc-large-suggest { text-align:center; background:var(--accent-dim); border:1px solid var(--accent); border-radius:var(--radius); padding:14px 16px; max-width:520px; }
 .vc-large-suggest-line { font-size:13px; color:var(--text-primary); margin-bottom:10px; line-height:1.5; }
+/* No Centre video server yet: one plain line under the built-in room. */
+.vc-large-later { font-size:12px; color:var(--text-secondary); margin:8px auto 0; max-width:440px; line-height:1.5; }
 
 .chat-panel {
   background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
@@ -16506,14 +16508,22 @@ function enterVideoRoom(title, role, roomCode) {
   // a \' escape inside onclick="..." broke on a double quote or backslash.
   var escapedRoomCode = jsArg(roomCode || '');
   // A class bigger than the built-in room carries well: Large Class first,
-  // with one line saying why (CESTISCore.vcCapacity.largeClassAdvice). The
-  // instructor can still start the built-in room.
-  var advice = role !== 'student' ? CESTISCore.vcCapacity.largeClassAdvice(vcExpectedTrainees(roomCode)) : { suggest: false };
-  var smallBtn = `<button class="btn ${advice.suggest ? 'btn-secondary' : 'btn-primary'}" onclick="vcCreateRoom(${jsArg(title)},'${role}',${escapedRoomCode})">${roomCode ? 'Start Session (Room: '+escapeHtml(roomCode)+')' : 'Create Room'}</button>`;
-  var largeBtn = `<button class="btn ${advice.suggest ? 'btn-primary' : 'btn-secondary'}" id="vc-start-large" onclick="vcCreateLargeRoom(${jsArg(title)},'${role}',${escapedRoomCode})">Start Large Class (up to ${CESTISCore.vcCapacity.SFU_MAX})</button>`;
+  // with one line saying why (CESTISCore.vcCapacity.largeClassAdvice) — but
+  // only when the Centre has its own Large Class video server. On the public
+  // fallback an embedded meeting is cut off after a few minutes, so there the
+  // built-in room stays first and one line under it says what Large Class
+  // would give. The instructor can always choose either.
+  var advice = role !== 'student'
+    ? CESTISCore.vcCapacity.largeClassAdvice(vcExpectedTrainees(roomCode), { ownServer: !vcLargeRoomIsPublic() })
+    : { suggest: false, largeFirst: false, line: '' };
+  var largeFirst = !!advice.largeFirst;
+  var smallBtn = `<button class="btn ${largeFirst ? 'btn-secondary' : 'btn-primary'}" onclick="vcCreateRoom(${jsArg(title)},'${role}',${escapedRoomCode})">${roomCode ? 'Start Session (Room: '+escapeHtml(roomCode)+')' : 'Create Room'}</button>`;
+  var largeBtn = `<button class="btn ${largeFirst ? 'btn-primary' : 'btn-secondary'}" id="vc-start-large" onclick="vcCreateLargeRoom(${jsArg(title)},'${role}',${escapedRoomCode})">Start Large Class (up to ${CESTISCore.vcCapacity.SFU_MAX})</button>`;
   var smallNote = `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Peer-to-peer &mdash; best for up to ${CESTISCore.vcCapacity.MESH_MAX_VIDEO} people, nothing extra to set up.</div>`;
   var largeNote = `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Runs on the large-class video service so every device sends one stream instead of one per person. The room is locked with a lobby, and attendance is recorded automatically.</div>`;
-  var startChoices = advice.suggest
+  var laterLine = (advice.suggest && !largeFirst)
+    ? `<div class="vc-large-later" id="vc-large-later">${escapeHtml(advice.line)}</div>` : '';
+  var startChoices = largeFirst
     ? `<div class="vc-large-suggest" id="vc-large-suggest">
           <div class="vc-large-suggest-line">${escapeHtml(advice.line)}</div>
           ${largeBtn}
@@ -16528,6 +16538,7 @@ function enterVideoRoom(title, role, roomCode) {
           <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">${roomCode ? 'Start this scheduled session' : 'Start a new session for this class'}</div>
           ${smallBtn}
           ${smallNote}
+          ${laterLine}
           <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
             <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Teaching a whole cohort?</div>
             ${largeBtn}

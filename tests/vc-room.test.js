@@ -149,11 +149,21 @@ console.log('The start screen suggests Large Class above 6 trainees, and says wh
 {
   const VC = Core.vcCapacity;
   assertEq(VC.SUGGEST_LARGE_ABOVE, 6, 'the owner\'s threshold: about 6 trainees');
-  [0, 1, 6].forEach(n => assert(!VC.largeClassAdvice(n).suggest, n + ' trainees: the built-in room, no suggestion'));
-  const a = VC.largeClassAdvice(9);
-  assert(a.suggest && a.trainees === 9, '9 trainees: Large Class is suggested');
+  [0, 1, 6].forEach(n => {
+    assert(!VC.largeClassAdvice(n, { ownServer: true }).suggest && !VC.largeClassAdvice(n).suggest, n + ' trainees: the built-in room, no suggestion, with or without the Centre\'s own video server');
+  });
+  // The Centre has its own Large Class video server: Large Class first.
+  const a = VC.largeClassAdvice(9, { ownServer: true });
+  assert(a.suggest && a.largeFirst && a.trainees === 9, '9 trainees, the Centre\'s own server: Large Class first');
   assert(/^Large Class is suggested for 9 trainees: /.test(a.line) && /once per trainee/.test(a.line) && /less data/.test(a.line), 'in one plain line that says why: ' + a.line);
   assert(a.line.indexOf('\n') === -1 && a.line.length < 200, 'one line');
+  // No server of its own (the public fallback cuts embedded meetings off
+  // after a few minutes): the built-in room stays first, one line explains.
+  const p = VC.largeClassAdvice(9);
+  assert(p.suggest && !p.largeFirst, '9 trainees, no Centre server: the built-in room stays first');
+  assert(/^For more than 6 trainees, Large Class saves everyone data once the Centre’s own video server is added in Settings → Video Conference\.$/.test(p.line), 'and one plain line says what to add: ' + p.line);
+  assert(!VC.largeClassAdvice(9, { ownServer: 'yes' }).largeFirst && !VC.largeClassAdvice(9, {}).largeFirst, 'only a real "own server: yes" puts Large Class first');
+  assert(!/cloud|google|drive|stored|kept/i.test(a.line + p.line), 'neither line says where anything is kept');
   assert(!VC.largeClassAdvice('x').suggest && !VC.largeClassAdvice(-3).suggest && !VC.largeClassAdvice(null).suggest, 'no size known: no suggestion');
   assert(VC.SUGGEST_LARGE_ABOVE < VC.MESH_MAX_VIDEO, 'suggested before the built-in room is full');
 }

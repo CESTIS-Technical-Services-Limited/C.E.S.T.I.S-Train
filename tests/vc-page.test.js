@@ -747,11 +747,55 @@ console.log('The start screen knows how many trainees the class expects');
   assertEq(run(sb, 'vcExpectedTrainees("WIRE234567")'), 9, 'the programme\'s trainees still in training (not the certified, not another programme)');
   assertEq(run(sb, 'vcExpectedTrainees("OPEN234567")'), 0, 'a class with no programme: no count, no suggestion');
   assertEq(run(sb, 'vcExpectedTrainees("NOPE234567")'), 0, 'a code that is not a scheduled class: no count');
-  const advice = Core.vcCapacity.largeClassAdvice(run(sb, 'vcExpectedTrainees("WIRE234567")'));
-  assert(advice.suggest, 'so the instructor is offered Large Class first');
-  const lobby = extractFunction('enterVideoRoom');
-  assert(/largeClassAdvice\(vcExpectedTrainees\(roomCode\)\)/.test(lobby) && /advice\.suggest \? 'btn-primary' : 'btn-secondary'/.test(lobby), 'the start screen leads with Large Class when it is suggested');
-  assert(/vcCreateRoom\(/.test(lobby) && /vcCreateLargeRoom\(/.test(lobby), 'and the instructor can still choose either');
+  assert(Core.vcCapacity.largeClassAdvice(run(sb, 'vcExpectedTrainees("WIRE234567")')).suggest, 'so the class is big enough for the start screen to say something');
+}
+
+console.log('Large Class comes first only when the Centre has its own video server');
+{
+  // The real start screen (enterVideoRoom), drawn for a class of `n` with
+  // the Large Class address the Centre typed in Settings (or none).
+  function startScreen(n, largeBase) {
+    const today = '2026-11-02';
+    const room = { style: {}, innerHTML: '' }, list = { style: {} };
+    const sb = sandbox({
+      document: { getElementById(id) { return id === 'iVideoRoom' ? room : id === 'iVideoContent' ? list : null; } },
+      localDateStr() { return today; }, studentCentreRecord() { return null; },
+      instructorCourseMatch(a, b) { return String(a).toLowerCase() === String(b).toLowerCase(); },
+      jsArg(v) { return JSON.stringify(String(v)).replace(/"/g, '&quot;'); },
+      escapeHtml(v) { return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
+      vcRefreshDeviceButtons() {}, vcStartCameraPreview() {}, vcOfferRecordingRecovery() {},
+      systemSettings: largeBase ? { vcLargeRoomBase: largeBase } : {}
+    });
+    sb.students = Array.from({ length: n }, (_, i) => ({ id: 'STU-' + i, name: 'Trainee ' + i, course: 'Electrical Installation', stage: 'training' }));
+    sb.classSessions = [{ id: 'CS-1', name: 'Wiring', course: 'Electrical Installation', date: today, roomCode: 'WIRE234567' }];
+    run(sb, 'var activeHostRoom = null, vcCurrentRole = "", vcCurrentUserName = "", currentInstructor = { name: "Grace Bennett" }, currentStudent = null, currentLoggedInUser = null;');
+    load(sb, ['attendanceCourseFilterFn', 'vcExpectedTrainees', 'vcLargeRoomBase', 'vcLargeRoomIsPublic', 'enterVideoRoom']);
+    run(sb, 'enterVideoRoom("Wiring", "instructor", "WIRE234567")');
+    const h = room.innerHTML;
+    const btnClass = re => { const m = re.exec(h); return m ? m[1] : ''; };
+    return {
+      html: h,
+      largeFirst: h.indexOf('id="vc-large-suggest"') !== -1,
+      later: (/id="vc-large-later">([^<]*)</.exec(h) || [])[1] || '',
+      smallClass: btnClass(/<button class="btn ([\w-]+)" onclick="vcCreateRoom\(/),
+      largeClass: btnClass(/<button class="btn ([\w-]+)" id="vc-start-large"/),
+      smallAt: h.indexOf('vcCreateRoom('), largeAt: h.indexOf('vcCreateLargeRoom(')
+    };
+  }
+  const own = startScreen(9, 'video.centre-example.org');
+  assert(own.largeFirst && own.largeClass === 'btn-primary' && own.smallClass === 'btn-secondary' && own.largeAt < own.smallAt,
+    'own video server, 9 trainees: Large Class is the main button and comes first');
+  assert(/Large Class is suggested for 9 trainees: /.test(own.html) && !own.later, 'with its one-line reason');
+  const pub = startScreen(9, '');
+  assert(!pub.largeFirst && pub.smallClass === 'btn-primary' && pub.largeClass === 'btn-secondary' && pub.smallAt < pub.largeAt,
+    'no Centre server (the public fallback cuts meetings off): the built-in room stays the main button');
+  assertEq(pub.later, 'For more than 6 trainees, Large Class saves everyone data once the Centre’s own video server is added in Settings → Video Conference.', 'one plain line under it says what to add');
+  assert(/vcCreateLargeRoom\(/.test(pub.html), 'and Large Class is still there as the second choice');
+  const meet = startScreen(9, 'https://meet.jit.si/');
+  assert(!meet.largeFirst && meet.smallClass === 'btn-primary' && !!meet.later, 'the public service typed in by hand counts as no server of the Centre\'s own');
+  [startScreen(6, 'video.centre-example.org'), startScreen(6, '')].forEach((s, i) => {
+    assert(!s.largeFirst && !s.later && s.smallClass === 'btn-primary', '6 trainees (' + (i ? 'no server' : 'own server') + '): the built-in room first, nothing more said');
+  });
 }
 
 Promise.all(pendingAsync).then(() => {

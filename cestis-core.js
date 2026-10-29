@@ -3372,12 +3372,21 @@
        trainees, the thinner each copy and the harder the instructor's
        connection works. It is a suggestion only — the instructor chooses.
        trainees: how many are expected (the class's register).
-       -> { suggest, trainees, line } — `line` is one plain sentence saying why. */
+       opts.ownServer: the Centre has set its own Large Class video server.
+         Without one, Large Class falls back to the public meet.jit.si, which
+         cuts an embedded meeting off after a few minutes: then the built-in
+         room stays first and the line only says what Large Class would give
+         once the Centre adds its own.
+       -> { suggest, largeFirst, trainees, line } — `line` is one plain sentence. */
     var SUGGEST_LARGE_ABOVE = 6;
-    function largeClassAdvice(trainees) {
+    function largeClassAdvice(trainees, opts) {
       var n = Math.max(0, Math.floor(Number(trainees) || 0));
-      if (n <= SUGGEST_LARGE_ABOVE) return { suggest: false, trainees: n, line: '' };
-      return { suggest: true, trainees: n,
+      if (n <= SUGGEST_LARGE_ABOVE) return { suggest: false, largeFirst: false, trainees: n, line: '' };
+      if (!(opts && opts.ownServer === true)) {
+        return { suggest: true, largeFirst: false, trainees: n,
+          line: 'For more than ' + SUGGEST_LARGE_ABOVE + ' trainees, Large Class saves everyone data once the Centre\u2019s own video server is added in Settings \u2192 Video Conference.' };
+      }
+      return { suggest: true, largeFirst: true, trainees: n,
         line: 'Large Class is suggested for ' + n + ' trainees: it sends your picture once instead of once per trainee, so everyone uses less data.' };
     }
 
