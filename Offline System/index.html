@@ -39987,6 +39987,9 @@ async function homeQueueSubmission(submission, files, a, s, prior) {
   setTimeout(function() {
     if (_homeSubmitWatch && _homeSubmitWatch.id === view.id) { _homeSubmitWatch.slow = true; homeSubmitProgress(null, 'progress'); }
   }, 20000);
+  // A small file usually goes at once: wait a little for it (the window then
+  // closes with "submitted", as before). Whatever is left goes on by itself.
+  try { await Promise.race([CESTISGate.uploadPump(), new Promise(function(r) { setTimeout(r, 15000); })]); } catch (e) {}
   return true;
 }
 // The submit window while her work is on its way.
