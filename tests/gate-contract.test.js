@@ -106,6 +106,18 @@ const labExam = (id, release) => ({ id, title: 'Quiz ' + id, course: T(1).p.name
 const WITHHELD = labExam('EX2-W', 'withheld'), RELEASED = labExam('EX2-R', 'released');
 C.store.voctrain_exams.push(WITHHELD, RELEASED);
 C.store.voctrain_examResults.push(labResult(WITHHELD, T(1), false), labResult(RELEASED, T(1), true));
+/* Version 3 (home study): his fee record and receipts on the office's fee
+   roll — and another trainee's, which must never reach him. */
+C.store.cestiSchoolFeeStudents = [
+  { id: T(1).stu.id, lmsId: T(1).stu.id, name: T(1).stu.name, skillArea: T(1).p.name, tuitionFee: 60000, updatedAt: iso(NOW - 5 * DAY) },
+  { id: T(3).stu.id, lmsId: T(3).stu.id, name: T(3).stu.name, skillArea: T(3).p.name, tuitionFee: 55000, updatedAt: iso(NOW - 6 * DAY) }];
+C.store.cestiSchoolFeePayments = [
+  { id: 'PAY-K1', studentId: T(1).stu.id, studentName: T(1).stu.name, amount: 20000, date: '2026-09-04', method: 'Cash', term: 'Term 1', receiptNumber: 'R-0101', notes: 'kept here', createdAt: iso(NOW - 50 * DAY) },
+  { id: 'PAY-K2', studentId: T(1).stu.id, studentName: T(1).stu.name, amount: 15000, date: '2026-10-20', method: 'Bank transfer', term: 'Term 2', receiptNumber: 'R-0144', createdAt: iso(NOW - 13 * DAY) },
+  { id: 'PAY-K3', studentId: T(1).stu.id, studentName: T(1).stu.name, amount: 999, date: '2026-10-21', method: 'Cash', receiptNumber: 'R-0145', createdAt: iso(NOW - 12 * DAY) },
+  { id: 'PAY-O1', studentId: T(3).stu.id, studentName: T(3).stu.name, amount: 55000, date: '2026-09-02', method: 'Cheque', receiptNumber: 'R-0099', createdAt: iso(NOW - 60 * DAY) }];
+C.store.cestiSchoolFeeDeletedPaymentIds = ['PAY-K3'];        // taken back by the office
+const FEE_TRAINEES = C.trainees.map(t => ({ acct: t.acct.id, stu: t.stu.id, student: t.stu }));
 
 /* ---------------------------------------------------------- online */
 const w = fakes.makeWorld({ now: NOW - 30 * MIN, seed: 'gate-contract' });
@@ -128,6 +140,12 @@ function publish() {
   Object.keys(all.keys).forEach(id => put(cfg.keysId, 'key.' + id + '.json', all.keys[id].key));
   Object.keys(all.papers).forEach(id => put(cfg.papersId, 'paper.' + id + '.json', all.papers[id].paper));
   Object.keys(all.rooms).forEach(id => put(cfg.roomsId, 'room.' + id + '.json', all.rooms[id].room));
+  // Her fees, in her own folder (the office's computers that hold the fee roll write it).
+  const fees = G.home.buildFees(C.store, FEE_TRAINEES, w.clock.now, { builtBy: 'dev-contract' }).byAcct;
+  Object.keys(fees).forEach(acct => {
+    const f = w.drive.children(cfg.traineesId, 'folder').filter(x => new RegExp('(^|\\s)acct=' + acct + '(\\s|$)').test(x.description))[0];
+    if (f) put(f.id, 'from-centre-fees.json', fees[acct].file);
+  });
 }
 publish();
 const online = body => Promise.resolve(w.post(body));
@@ -201,7 +219,10 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
 
     console.log('Health and the answers to requests it cannot take');
     const [h1, h2] = await both({ op: 'health' });
-    same('health: the same fields (the Centre also says whether its staff-only switch is on)', keys(h1), keys(h2, ['staffOnly']));
+    // (The Centre also says whether its staff-only switch is on; online, health also sends approval emails: mail.)
+    same('health: the same fields (the Centre also says whether its staff-only switch is on)', keys(h1, ['mail']), keys(h2, ['staffOnly']));
+    assert(h1.features.indexOf('fees') !== -1 && h1.features.indexOf('password') !== -1 && h2.features.indexOf('fees') !== -1 && h2.features.indexOf('password') !== -1,
+      'version 3: both answer for her fees and her password');
     same('health: who it is, and whether it answers', h1, h2, h => [h.ok, h.service, h.version, h.protocol, h.accepting, h.ready.secret, h.ready.trainees]);
     same('an unknown request', ...(await both({ op: 'frobnicate' })));
     same('an old client', ...(await both({ op: 'health', v: 0 })));
@@ -314,6 +335,64 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     same('review: one whose answers staff released, kept without them — both put them back, the same', rl1, rl2, r => [r.ok, r.revealed, r.result]);
     assertEq([rl1.revealed, shown(rl1)], [true, 8], '— all eight');
 
+    console.log('Version 3 (home study): her fees, and her password changed at home');
+    {
+      const [f1, f2] = await Promise.all([online({ op: 'fees', token: S1.token }), centre({ op: 'fees', token: S2.token })]);
+      same('fees: the same answer — his record and receipts only, worked out from the payments, a deleted one left out', f1, f2, f => [f.ok, keys(f, ['builtAt']), f.h, f.fees]);
+      assertEq([f1.fees.tuition, f1.fees.paid, f1.fees.balance, f1.fees.status, f1.fees.receipts.map(r => r.receipt)], [60000, 35000, 25000, 'part-paid', ['R-0101', 'R-0144']],
+        'his figures: tuition, paid, balance, status and his two receipts');
+      const text = JSON.stringify(f1);
+      assert(text.indexOf(T(3).stu.name) === -1 && text.indexOf('R-0099') === -1 && text.indexOf('kept here') === -1 && text.indexOf('PAY-O1') === -1,
+        'nobody else\'s fee record or receipt, and no notes');
+      same('fees with the hash it has', await online({ op: 'fees', token: S1.token, have: f1.h }), await centre({ op: 'fees', token: S2.token, have: f2.h }));
+      const Z = T(2);
+      const [Z1, Z2] = await signIn(Z.acct.username, Z.pw);
+      same('a trainee with no fee record: none', await online({ op: 'fees', token: Z1.token }), await centre({ op: 'fees', token: Z2.token }));
+      same('fees with no token', await online({ op: 'fees' }), await centre({ op: 'fees' }));
+
+      // Her password, changed at home: her old one proved, the new one as the dashboard stores one.
+      const [ps1, ps2] = await Promise.all([online({ op: 'password.start', token: Z1.token }), centre({ op: 'password.start', token: Z2.token })]);
+      same('password.start: her own challenge', ps1, ps2, c => [c.ok, keys(c), c.algo, c.iter, c.salt]);
+      const zLogin = 'acct:' + Z.acct.id;
+      same('password.change with a wrong old password', await online({ op: 'password.change', token: Z1.token, nonce: ps1.nonce, proof: 'f'.repeat(64), password: pbkdf2('x', '00'.repeat(16), 100000) }),
+        await centre({ op: 'password.change', token: Z2.token, nonce: ps2.nonce, proof: 'f'.repeat(64), password: pbkdf2('x', '00'.repeat(16), 100000) }));
+      const NEWPW = pbkdf2('Home-Change-2026', 'a1'.repeat(16), 100000);
+      const change = async (gate, sess) => {
+        const ch = await gate({ op: 'password.start', token: sess.token });
+        return gate({ op: 'password.change', token: sess.token, nonce: ch.nonce, proof: proof(Z.pw, ch, zLogin), password: NEWPW });
+      };
+      const weak = async (gate, sess) => {
+        const ch = await gate({ op: 'password.start', token: sess.token });
+        return gate({ op: 'password.change', token: sess.token, nonce: ch.nonce, proof: proof(Z.pw, ch, zLogin), password: pbkdf2('x', '00'.repeat(16), 1000) });
+      };
+      same('password.change with a new check that is not the dashboard\'s (too few rounds)', await weak(online, Z1), await weak(centre, Z2));
+      const [P1, P2] = [await change(online, Z1), await change(centre, Z2)];
+      same('password.change: a new session, the same fields', P1, P2, s => [s.ok, keys(s), s.account]);
+      same('… whose credential version is the new password\'s', P1, P2, s => s.sid.split('.')[1].slice(0, 12));
+      assert(P1.sid.split('.')[1].slice(0, 12) !== Z1.sid.split('.')[1].slice(0, 12), '… not the old one\'s');
+      same('the old session has ended', await online({ op: 'pull', token: Z1.token }), await centre({ op: 'pull', token: Z2.token }));
+      same('the new session reads', await online({ op: 'pull', token: P1.token }), await centre({ op: 'pull', token: P2.token }), p => [p.ok, p.slice && p.slice.studentId]);
+      same('her old password no longer signs in', ...(await signIn(Z.acct.username, Z.pw)));
+      // (Signing in with the new one: the device works out the proof from the new password.)
+      const newOn = async gate => { const ch = await gate({ op: 'auth.start', login: Z.acct.username });
+        return gate({ op: 'auth.password', login: Z.acct.username, nonce: ch.nonce, proof: proof('Home-Change-2026', ch, Z.acct.username) }); };
+      same('her new password signs in, at once', await newOn(online), await newOn(centre), s => [s.ok, s.account, s.sid.split('.')[1].slice(0, 12)]);
+      // Where the change went: online, a note in her inbox for the office; on the Centre's server, her account.
+      const zFolder = w.drive.children(cfg.traineesId, 'folder').filter(x => new RegExp('acct=' + Z.acct.id + '(\\s|$)').test(x.description))[0];
+      const note = w.drive.children(zFolder.id, 'file').filter(x => /^CESTISINBOX\.L-pw-/.test(x.name))[0];
+      const lane = note && w.drive.json(note.id);
+      const op = lane && lane.ops.filter(o => o.kind === 'passwordChange')[0];
+      assert(!!op && op.password === NEWPW && op.was === G.home.pwFingerprint(Z.acct.password) && op.at === iso(w.clock.now),
+        'online: her inbox notes the change — the new check, which password it replaced, the gate\'s moment');
+      const users = J(C.store.voctrain_users), mine = users.filter(a => a.id === Z.acct.id)[0];
+      const got = G.collect([{ fileId: note.id, version: '1', modifiedTime: iso(w.clock.now), folderAcct: Z.acct.id, json: lane }], { accounts: users, students: C.store.voctrain_students });
+      const applied = G.applyOps({ voctrain_users: users }, got.ops.map(x => x.op), { acct: Z.acct.id, stu: Z.stu.id });
+      assert(applied.applied === 1 && mine.password === NEWPW && mine.updatedAt === iso(Math.max((Date.parse(Z.acct.updatedAt || '') || 0) + 1, w.clock.now)) && applied.stampedAccounts[0] === Z.acct.id,
+        'the office\'s collector takes it into her account, stamped with the change\'s own moment');
+      const lanUser = JSON.parse(JSON.parse(fs.readFileSync(LMS, 'utf8')).data.voctrain_users).filter(a => a.id === Z.acct.id)[0];
+      assert(lanUser.password === NEWPW && lanUser.passwordChangedAt === iso(w.clock.now), 'on the Centre\'s server, written into her account at once');
+    }
+
     console.log('Sign-out and revocation');
     same('sign-out', await online({ op: 'signOut', token: A1.token }), await centre({ op: 'signOut', token: A2.token }));
     same('a signed-out token', await online({ op: 'pull', token: A1.token }), await centre({ op: 'pull', token: A2.token }));
@@ -335,11 +414,11 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     same('the new one: a session', N1, N2, s => [s.ok, s.account, s.sid.split('.')[1].slice(0, 12)]);
 
     console.log('Left out on purpose (the Centre\'s network has no internet): auth.email, auth.2fa.send, upload, file.get, and registering from home');
-    for (const op of ['auth.email', 'auth.2fa.send', 'upload', 'file.get', 'catalogue', 'register.start', 'register.submit']) {
+    for (const op of ['auth.email', 'auth.2fa.send', 'upload', 'upload.part', 'file.get', 'cert.template', 'catalogue', 'register.start', 'register.submit']) {
       assert((await centre({ op, token: N2.token })).error === 'not-available', op + ' is not-available on the Centre\'s server');
     }
     // Online, the same three are real requests (tests/gate-appsscript-vm.test.js walks them through).
-    for (const op of ['catalogue', 'register.start', 'register.submit']) {
+    for (const op of ['catalogue', 'register.start', 'register.submit', 'upload.part', 'cert.template', 'fees', 'password.start', 'password.change']) {
       assert((await online({ op })).error !== 'unknown-op', op + ' is a request the online gate knows');
     }
   } catch (e) {

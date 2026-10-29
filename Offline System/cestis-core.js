@@ -14280,7 +14280,9 @@
     var FORMAT = {
       slice: 'cestis-trainee-slice', paper: 'cestis-exam-paper', key: 'cestis-exam-key',
       room: 'cestis-chat-room', inbox: 'cestis-trainee-inbox', result: 'cestis-gate-result',
-      registration: 'cestis-registration', catalogue: 'cestis-programme-catalogue'
+      registration: 'cestis-registration', catalogue: 'cestis-programme-catalogue',
+      // Her fee record and receipts (from-centre-fees.json in her folder; group C, OF-12).
+      fees: 'cestis-trainee-fees'
     };
     /* Keys that describe THIS device's part in the gate. None of them may
        ever reach another device: the master snapshot (Core.isSnapshotableKey)
@@ -14647,7 +14649,8 @@
           bc: (Array.isArray(acc.backupCodes) ? acc.backupCodes : []).filter(function (c) { return c && c.code && !c.used; })
             .map(function (c) { return str(c.code).trim().toUpperCase(); }),
           sdi: acc.studentDataId != null ? str(acc.studentDataId) : '',
-          nm: str(acc.name).trim()
+          nm: str(acc.name).trim(),
+          cb: [acc.status, acc.disabledAt, acc.twoFactorUpdatedAt].map(str).join('|')
         };
         var add = function (map, v) { v = lower(v); if (!v) return; map[v] = map[v] || []; if (map[v].indexOf(id) === -1) map[v].push(id); };
         add(idx.user, acc.username); add(idx.mail, acc.email);
@@ -15721,8 +15724,31 @@
         out.codeHash = str(op.codeHash);
         return verdict(item, true, { op: out });
       }
+      if (op.kind === 'passwordChange') {
+        // Written by the gatekeeper itself once the trainee proved her old
+        // password (password.change) — never something a device may send.
+        if (opts.lane !== true || !STORED_PW_RE.test(str(op.password)) || !/^h1-[0-9a-z]+$/.test(str(op.was)) || !msOf(op.at)) return verdict(item, false, { reason: 'not-yours' });
+        out.password = str(op.password); out.was = str(op.was);
+        return verdict(item, true, { op: out });
+      }
+      if (op.kind === 'certDownload') {
+        // Her certificate, downloaded on her own device: counted for that
+        // device (its running count n), as a download on any other device is.
+        var dev = str(op.device), n = Number(op.n), no = str(op.certNo);
+        if (!/^[A-Za-z0-9._-]{1,64}$/.test(dev) || !(n >= 1 && n <= 100000 && Math.floor(n) === n) || !no || no.length > 64) return verdict(item, false, { reason: 'malformed' });
+        if (data) {
+          var stu = sliceData(slice, 'voctrain_students').filter(function (s) { return str(s.id) === str(me.stu); })[0];
+          if (!stu || str(stu.certNo) !== no || certRevoked(stu)) return verdict(item, false, { reason: 'not-yours' });
+          var appr = sliceData(slice, 'voctrain_certDownloadApprovals').filter(function (a) { return str(a.studentId) === str(me.stu); })[0];
+          if (!appr || appr.approved !== true) return verdict(item, false, { reason: 'not-approved' });
+        }
+        out.device = dev; out.n = n; out.certNo = no;
+        return verdict(item, true, { op: out });
+      }
       return verdict(item, false, { reason: 'not-yours' });
     }
+    // A certificate withdrawn (Core.certs.isRevoked's rule, here so a gatekeeper's paste needs no Core.certs).
+    function certRevoked(s) { var r = msOf(s && s.certRevokedAt); return r > 0 && r > msOf(s && s.certReinstatedAt); }
     function validateItem(item, me, slice, opts) {
       opts = opts || {};
       if (!isObj(item) || !isObj(me) || !me.acct || !me.stu) return verdict(item, false, { reason: 'malformed' });
@@ -15750,7 +15776,7 @@
        backup code was burnt must be stamped (touchAccount) by the page. */
     function applyOps(store, ops, me) {
       store = store || {};
-      var res = { applied: 0, skipped: 0, changed: [], touchedAccounts: [] };
+      var res = { applied: 0, skipped: 0, changed: [], touchedAccounts: [], stampedAccounts: [] };
       var changed = function (k) { if (res.changed.indexOf(k) === -1) res.changed.push(k); };
       var acct = str(me && me.acct);
       (Array.isArray(ops) ? ops : []).forEach(function (op) {
@@ -15782,6 +15808,15 @@
             if (c && !c.used && codeHash(c.code) === op.codeHash) { c.used = true; did = true; }
           });
           if (did) { changed('voctrain_users'); if (res.touchedAccounts.indexOf(acct) === -1) res.touchedAccounts.push(acct); }
+        } else if (op.kind === 'passwordChange' && op.password) {
+          var who = (Array.isArray(store.voctrain_users) ? store.voctrain_users : []).filter(function (a) { return a && str(a.id) === acct; })[0];
+          did = applyPasswordChange(who, op);
+          if (did) { changed('voctrain_users'); if (res.stampedAccounts.indexOf(acct) === -1) res.stampedAccounts.push(acct); }
+        } else if (op.kind === 'certDownload' && op.device) {
+          var stuId = str(me && me.stu);
+          var appr = stuId ? (Array.isArray(store.voctrain_certDownloadApprovals) ? store.voctrain_certDownloadApprovals : []).filter(function (a) { return a && str(a.studentId) === stuId; })[0] : null;
+          did = recordHomeDownload(appr, op);
+          if (did) changed('voctrain_certDownloadApprovals');
         } else { res.skipped++; return; }
         if (did) res.applied++;
       });
@@ -16419,8 +16454,13 @@
       if (phone && !Core.accountAccess.PHONE_RE.test(phone)) return { ok: false, field: 'phone' };
       var pw = str(form.password), m = STORED_PW_RE.exec(pw);
       if (!m || Number(m[1]) < 100000 || Number(m[1]) > 1000000) return { ok: false, field: 'password' };
-      return { ok: true, value: { name: name, programme: programme, phone: phone, password: pw } };
+      var value = { name: name, programme: programme, phone: phone, password: pw };
+      // The sign-in link she registered from (https only, with the gate's address): the approval email carries it.
+      var link = str(form.link).trim();
+      if (link && REG_LINK_RE.test(link)) value.link = link;
+      return { ok: true, value: value };
     }
+    var REG_LINK_RE = /^https:\/\/[^\s"'<>]{1,400}#gate=[A-Za-z0-9_-]+={0,2}$/;
     /* The registration file (Registrations/CESTISREG.<id>.json). o: { acct,
        email, value (checkRegistration's), folder: { id, name }, nowMs }. */
     function buildRegistration(o) {
@@ -16430,6 +16470,7 @@
         name: str(v.name), email: str(o.email).trim(), programme: str(v.programme), password: str(v.password),
         googleVerified: true, registeredVia: 'home-registration', status: 'pending', createdAt: iso(o.nowMs) };
       if (v.phone) out.phone = str(v.phone);
+      if (v.link) out.link = str(v.link);
       if (o.folder && o.folder.id) { out.folderId = str(o.folder.id); out.folderName = str(o.folder.name); }
       return out;
     }
@@ -16485,8 +16526,172 @@
       return 'has-account';
     }
 
+    /* ---- Home study (the owner's group C: "Make home study smooth") ----------
+
+       HER PASSWORD, CHANGED AT HOME (OF-12). She proves her old password to the
+       gate (the same challenge as signing in, its tries counted against her
+       account), and sends the new one as the dashboard stores one (PBKDF2 on
+       her device: the password never travels). The gate notes the change in an
+       inbox of hers — a passwordChange operation carrying the new check, the
+       gate's own moment, and which password it replaced (pwFingerprint, never
+       the check itself) — and the office's computers take it into the accounts
+       list exactly as they take any other trainee change (applyOps). It is
+       applied only on top of the password it replaced: if the office has set
+       another one since, the office's stands; a copy older than hers never
+       brings the old password back, because the account is stamped with her
+       change's own moment (never earlier than its last edit). Until the
+       accounts list shows it, the gate signs her in with the new password
+       (pendingPasswords). */
+    function pwFingerprint(stored) { return 'h1-' + Core.hashString('pw|' + str(stored)); }
+    // A password as the dashboard stores one: PBKDF2, 100 000 to 1 000 000 rounds, a 16-byte salt.
+    function storedPasswordOk(pw) { var m = STORED_PW_RE.exec(str(pw)); return !!m && Number(m[1]) >= 100000 && Number(m[1]) <= 1000000; }
+    // The credential version an index entry would have with this password (cvOf, from the entry's cb).
+    function cvWith(entry, stored, crypto) {
+      return str(need(crypto, 'sha256Hex').sha256Hex(str(stored) + '|' + str(entry && entry.cb))).toLowerCase().slice(0, 12);
+    }
+    /* The operation the gate notes. at: the gate's own moment (ISO). */
+    function passwordChangeOp(newStored, oldStored, at) {
+      return { id: 'OP-pw-' + Core.hashString('pwc|' + str(newStored)), kind: 'passwordChange', password: str(newStored), was: pwFingerprint(oldStored), at: str(at) };
+    }
+    /* On a staff device: the change, onto the account — only over the password
+       it replaced; stamped with its own moment, never earlier than the
+       account's last edit. Applying it twice changes nothing. */
+    function applyPasswordChange(account, op) {
+      if (!isObj(account) || !isObj(op) || !storedPasswordOk(op.password)) return false;
+      if (str(account.password) === str(op.password)) return false;
+      if (pwFingerprint(account.password) !== str(op.was)) return false;
+      account.password = str(op.password);
+      delete account.defaultPassword; delete account.mustChangePassword; delete account._plaintextPw;
+      account.passwordChangedAt = str(op.at);
+      account.passwordChangedVia = 'home';
+      account.updatedAt = iso(Math.max(msOf(account.updatedAt) + 1, msOf(op.at)));
+      return true;
+    }
+    /* The gate's own list of changes the accounts list does not show yet:
+       { acct: { h (the new check), at, was } }. Applied to an index as it is
+       read: the new check and its credential version stand in for the old
+       until the list shows the new one (then the change is done) or another
+       password (the office's: the change is dropped). The account's password
+       IS replaced at once at the gate: every other session of hers ends.
+       → { done: [acct], dropped: [acct], applied: [acct] } (idx changed in place). */
+    function pendingPasswords(idx, pending, crypto) {
+      var out = { done: [], dropped: [], applied: [] };
+      if (!idx || !isObj(idx.a) || !isObj(pending)) return out;
+      Object.keys(pending).forEach(function (acct) {
+        var p = pending[acct], e = idx.a[acct];
+        if (!isObj(p) || !e) { out.dropped.push(acct); return; }
+        if (e.pw === str(p.h)) { out.done.push(acct); return; }
+        if (pwFingerprint(e.pw) !== str(p.was)) { out.dropped.push(acct); return; }
+        e.pw = str(p.h); e.cv = cvWith(e, p.h, crypto); e.sd = 0;
+        if (e.st === 'no-password') e.st = 'ok';
+        out.applied.push(acct);
+      });
+      return out;
+    }
+
+    /* HER CERTIFICATE, DOWNLOADED AT HOME (T4). Counted for her device as a
+       download on any other device is (Core.certs.recordDownload counts per
+       device; copies merge by the larger count for each): the device's own
+       running count n, so applying the same note twice changes nothing. */
+    function recordHomeDownload(approval, op) {
+      if (!isObj(approval) || approval.approved !== true || !isObj(op)) return false;
+      var key = 'home-' + str(op.device), n = Number(op.n) || 0;
+      var m = isObj(approval.downloadsByDevice) ? approval.downloadsByDevice : null;
+      if (m && (parseInt(m[key], 10) || 0) >= n) return false;
+      if (!m) { m = {}; var earlier = parseInt(approval.downloadCount, 10) || 0; if (earlier) m._earlier = earlier; }
+      m[key] = n;
+      approval.downloadsByDevice = m;
+      var sum = 0;
+      Object.keys(m).forEach(function (k) { sum += Math.max(0, parseInt(m[k], 10) || 0); });
+      approval.downloadCount = sum;
+      if (msOf(op.at) > msOf(approval.lastDownloaded)) approval.lastDownloaded = str(op.at);
+      return true;
+    }
+
+    /* HER FEES AT HOME (OF-12). From the office's fee roll
+       (cestiSchoolFeeStudents, cestiSchoolFeePayments, the deleted payments),
+       one small file per trainee — from-centre-fees.json in her own folder —
+       with HER fee record's figures and HER receipts, nothing else: no other
+       trainee, no notes, no contact details.
+         - Her record is the one the dashboard links to her (Core.feeTwinIndex);
+           a record two trainees could claim goes to neither.
+         - Only a real record (Core.feeRecordRank: typed in, priced, or paid
+           towards) is published, never a placeholder a computer without the
+           fee roll made — so such a computer publishes nothing, and nothing
+           real is ever replaced by an empty or partial copy.
+         - Paid, balance and status are worked out from the payments
+           (School Fee's own rule), never taken from stored totals.
+         - Its moment (s) is the newest stamp of her record and payments, plus
+           the number of deleted payments the builder knows (a deletion carries
+           no stamp, so this is how a computer that saw it outranks one that
+           did not).
+       buildFees(storeMap, trainees [{acct, stu, student}], nowMs, opts) →
+         { byAcct: { acct: { file, h, s } }, ambiguous: [feeId] } */
+    function feeStatus(tuition, paid) {
+      if (tuition <= 0 && paid <= 0) return 'not-priced';
+      if (tuition - paid <= 0) return 'paid';
+      return paid > 0 ? 'part-paid' : 'owing';
+    }
+    function money(v) { var n = parseFloat(v); return isFinite(n) ? Math.round(n * 100) / 100 : 0; }
+    function buildFees(storeMap, trainees, nowMs, opts) {
+      opts = opts || {};
+      var out = { byAcct: {}, ambiguous: [] };
+      var read = function (k) { var v = storeMap ? storeMap[k] : null; if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { v = null; } } return v; };
+      var roll = (read('cestiSchoolFeeStudents') || []), pays = (read('cestiSchoolFeePayments') || []), gone = (read('cestiSchoolFeeDeletedPaymentIds') || []);
+      if (!Array.isArray(roll) || !roll.length) return out;
+      if (!Array.isArray(pays)) pays = [];
+      var deleted = dict();
+      (Array.isArray(gone) ? gone : []).forEach(function (id) { if (id != null && id !== '') deleted[str(id)] = 1; });
+      var tombs = Object.keys(deleted).length;
+      var idx = Core.feeTwinIndex(roll.filter(isObj));
+      var claims = dict(), recOf = dict();
+      (Array.isArray(trainees) ? trainees : []).forEach(function (t) {
+        if (!t || !t.student) return;
+        var f = idx.find(t.student);
+        if (!f || f.id == null || f.id === '') return;
+        var k = str(f.id);
+        recOf[k] = f;
+        (claims[k] = claims[k] || []).push(t);
+      });
+      var byFee = dict();
+      pays.forEach(function (p) { if (isObj(p) && p.studentId != null && !deleted[str(p.id)]) (byFee[str(p.studentId)] = byFee[str(p.studentId)] || []).push(p); });
+      var limit = (typeof nowMs === 'number' ? nowMs : Date.now()) + 24 * 3600 * 1000;
+      var stampOf = function (r) { var s = Math.max(msOf(r.updatedAt), msOf(r.lastModified), msOf(r.createdAt)); return s > limit ? 0 : s; };
+      Object.keys(claims).sort().forEach(function (k) {
+        var who = claims[k];
+        if (who.length !== 1) { out.ambiguous.push(k); return; }
+        var t = who[0], rec = recOf[k], mine = byFee[k] || [];
+        if (Core.feeRecordRank(rec) !== 1 && !mine.length) return;
+        var receipts = mine.map(function (p) {
+          return { id: str(p.id), receipt: str(p.receiptNumber || ''), date: str(p.date || p.createdAt || '').slice(0, 10), amount: money(p.amount), method: str(p.method || ''), term: str(p.term || '') };
+        }).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.id < b.id ? -1 : a.id > b.id ? 1 : 0); });
+        var paid = money(receipts.reduce(function (n, r) { return n + r.amount; }, 0)), tuition = money(rec.tuitionFee);
+        var fees = { programme: str(rec.skillArea || rec.course || t.student.course || ''), tuition: tuition, paid: paid, balance: money(tuition - paid),
+          status: feeStatus(tuition, paid), receipts: receipts };
+        var s = stampOf(rec);
+        mine.forEach(function (p) { s = Math.max(s, stampOf(p)); });
+        s += tombs;
+        var stu = str(t.stu || t.student.id);
+        var h = hashOf({ version: VERSION, accountId: str(t.acct), studentId: stu, fees: fees });
+        out.byAcct[str(t.acct)] = { h: h, s: s, file: { format: FORMAT.fees, version: VERSION, accountId: str(t.acct), studentId: stu,
+          builtAt: iso(typeof nowMs === 'number' ? nowMs : Date.now()), builtBy: str(opts.builtBy), hash: h, maxStamp: s, fees: fees } };
+      });
+      return out;
+    }
+    /* A published fees file, read back for the trainee it belongs to → the file, or null. */
+    function readFees(json, me) {
+      var f = json;
+      if (typeof f === 'string') { try { f = JSON.parse(f); } catch (e) { f = null; } }
+      if (!isObj(f) || f.format !== FORMAT.fees || Number(f.version) > VERSION || !isObj(f.fees)) return null;
+      if (!me || str(f.accountId) !== str(me.acct) || str(f.studentId) !== str(me.stu)) return null;
+      return f;
+    }
+
     return {
       folderName: folderName, folderDescription: folderDescription, folderMark: folderMark, folderMarkFor: folderMarkFor,
+      home: { pwFingerprint: pwFingerprint, storedPasswordOk: storedPasswordOk, cvWith: cvWith, passwordChangeOp: passwordChangeOp,
+        applyPasswordChange: applyPasswordChange, pendingPasswords: pendingPasswords, recordHomeDownload: recordHomeDownload, certRevoked: certRevoked,
+        buildFees: buildFees, readFees: readFees, feeStatus: feeStatus, FEES_FILE: 'from-centre-fees.json' },
       reg: { accountId: regAccountId, fileName: regFileName, isFileName: isRegFileName, studentId: regStudentId, buildCatalogue: buildCatalogue,
         catalogueNames: catalogueNames, check: checkRegistration, build: buildRegistration, read: readRegistration, importOne: importRegistration,
         existing: regExisting, FILE_PREFIX: REG_FILE_PREFIX, ID_PREFIX: REG_ID_PREFIX, STORED_PW_RE: STORED_PW_RE },
