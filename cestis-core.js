@@ -2944,9 +2944,20 @@
       };
     }
 
+    /* id -> position. It also notes (not enumerable) the register it was
+       built from and how many records that held: mark() keeps both in step
+       when it adds a mark, so while they still match, the index covers every
+       record — and an id it does not hold is a new mark, without reading the
+       whole register to be sure (EF-10: 19.5 ms per new mark at a school
+       year's 48,000 marks). Anything else that adds to or replaces the
+       register makes them differ, and mark() reads the register as before. */
     function indexOf(register) {
       var idx = {};
       (register || []).forEach(function (r, i) { var k = keyOf(r); if (k && !hasOwn(idx, k)) idx[k] = i; });
+      try {
+        Object.defineProperty(idx, '__reg', { value: register, writable: true, enumerable: false, configurable: true });
+        Object.defineProperty(idx, '__n', { value: (register || []).length, writable: true, enumerable: false, configurable: true });
+      } catch (e) {}
       return idx;
     }
 
@@ -2963,8 +2974,12 @@
       }
       var id = recordId(o.studentId, o.date);
       var i = -1;
-      if (index && hasOwn(index, id) && register[index[id]] && keyOf(register[index[id]]) === id) i = index[id];
-      else {
+      // The index still describes this very register, every record of it
+      // (indexOf above): an id it does not hold is not in the register.
+      var whole = !!index && index.__reg === register && index.__n === register.length;
+      var held = !!index && hasOwn(index, id);
+      if (held && register[index[id]] && keyOf(register[index[id]]) === id) i = index[id];
+      else if (!(whole && !held)) {
         for (var j = 0; j < register.length; j++) { if (keyOf(register[j]) === id) { i = j; break; } }
       }
       var prev = i >= 0 ? register[i] : null;
@@ -2986,6 +3001,7 @@
       } else {
         if (index) index[id] = register.length;
         register.push(rec);
+        if (whole) index.__n = register.length;
       }
       return { changed: true, record: rec };
     }
