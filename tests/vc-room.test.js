@@ -152,7 +152,7 @@ console.log('The start screen suggests Large Class above 6 trainees, and says wh
   [0, 1, 6].forEach(n => assert(!VC.largeClassAdvice(n).suggest, n + ' trainees: the built-in room, no suggestion'));
   const a = VC.largeClassAdvice(9);
   assert(a.suggest && a.trainees === 9, '9 trainees: Large Class is suggested');
-  assert(/^9 trainees are expected\./.test(a.line) && /Large Class/.test(a.line) && /less data/.test(a.line), 'in one plain line that says why: ' + a.line);
+  assert(/^Large Class is suggested for 9 trainees: /.test(a.line) && /once per trainee/.test(a.line) && /less data/.test(a.line), 'in one plain line that says why: ' + a.line);
   assert(a.line.indexOf('\n') === -1 && a.line.length < 200, 'one line');
   assert(!VC.largeClassAdvice('x').suggest && !VC.largeClassAdvice(-3).suggest && !VC.largeClassAdvice(null).suggest, 'no size known: no suggestion');
   assert(VC.SUGGEST_LARGE_ABOVE < VC.MESH_MAX_VIDEO, 'suggested before the built-in room is full');

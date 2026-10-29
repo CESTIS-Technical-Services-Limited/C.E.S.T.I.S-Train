@@ -1404,7 +1404,9 @@ textarea.form-control { resize:vertical; min-height:80px; }
   border:1px solid var(--border); display:flex; align-items:center;
   justify-content:center; position:relative; overflow:hidden;
 }
-.video-tile .participant-info { position:absolute; bottom:12px; left:12px; background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:6px; font-size:12px; z-index:2; }
+.video-tile .participant-info { position:absolute; bottom:12px; left:12px; background:rgba(0,0,0,0.7); color:#fff; padding:4px 10px; border-radius:6px; font-size:12px; z-index:2; }
+/* A muted microphone, on that person's tile (trainees start muted). */
+.video-tile .vc-tile-muted { position:absolute; top:8px; right:8px; z-index:2; background:rgba(0,0,0,0.7); color:#fff; border-radius:12px; padding:2px 8px; font-size:12px; line-height:1.4; }
 .video-tile .vc-cam-off-overlay {
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   background:var(--bg-input); z-index:1;
@@ -1546,6 +1548,12 @@ textarea.form-control { resize:vertical; min-height:80px; }
   z-index:10; border:2px solid var(--accent) !important; border-radius:var(--radius);
   box-shadow:0 4px 16px rgba(0,0,0,0.4);
 }
+/* Your own small picture with the camera off: just your initial. */
+.video-grid.vc-host-focus-mode .video-tile.local .vc-cam-off-overlay .vc-cam-off-avatar { width:36px; height:36px; font-size:16px; margin:0 auto !important; }
+.video-grid.vc-host-focus-mode .video-tile.local .vc-cam-off-note { display:none; }
+.video-grid.vc-host-focus-mode .video-tile.local .participant-info { bottom:4px; left:4px; max-width:calc(100% - 8px); padding:2px 6px; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.video-grid.vc-host-focus-mode .video-tile.local .vc-tile-muted { top:4px; right:4px; padding:1px 5px; font-size:11px; }
+.video-grid.vc-host-focus-mode .video-tile.local .vc-tile-muted-word { display:none; }
 /* When screen share is active on top of host-focus, use screen-share layout */
 .video-grid.vc-host-focus-mode.vc-screen-share-mode .video-tile.local {
   position:relative; bottom:auto; right:auto; align-self:flex-end;
@@ -16749,13 +16757,25 @@ function vcRefreshDeviceButtons() {
         ov.className = 'vc-cam-off-overlay';
         var initial = (String(vcCurrentUserName || '?').trim()[0] || '?').toUpperCase();
         ov.innerHTML = '<div style="text-align:center;"><div class="vc-cam-off-avatar" style="margin:0 auto 6px;">' + escapeHtml(initial) + '</div>' +
-          '<div style="font-size:12px;color:var(--text-muted);">Camera off</div></div>';
+          '<div class="vc-cam-off-note" style="font-size:12px;color:var(--text-muted);">Camera off</div></div>';
         tile.appendChild(ov);
       }
     } else if (ov) { ov.remove(); }
-    var info = document.getElementById('vc-local-mic-state');
-    if (info) info.textContent = mic ? '' : ' · muted';
+    vcSetTileMuted(tile, !mic);
   }
+}
+
+// The 🔇 on a tile whose microphone is off.
+function vcSetTileMuted(tile, muted) {
+  if (!tile || !tile.querySelector) return;
+  var b = tile.querySelector('.vc-tile-muted');
+  if (muted && !b) {
+    b = document.createElement('div');
+    b.className = 'vc-tile-muted';
+    b.title = 'Microphone off';
+    b.innerHTML = '\uD83D\uDD07<span class="vc-tile-muted-word"> muted</span>';
+    tile.appendChild(b);
+  } else if (!muted && b) { b.remove(); }
 }
 
 function toggleLobbyDevice(kind) {
@@ -18464,7 +18484,7 @@ function vcShowConference(title, role) {
           <div class="video-grid" id="vc-video-grid">
             <div class="video-tile local" id="vc-tile-local" style="border:2px solid var(--accent);">
               <video id="vc-local-video" autoplay muted playsinline></video>
-              <div class="participant-info">${escapeHtml(userName)} (You)<span id="vc-local-mic-state"></span>${isRoomHost ? ' <span class="vc-host-badge">HOST</span>' : ''}</div>
+              <div class="participant-info">${escapeHtml(userName)} (You)${isRoomHost ? ' <span class="vc-host-badge">HOST</span>' : ''}</div>
             </div>
           </div>
           <div class="video-controls">
@@ -18874,6 +18894,10 @@ function vcUpdateParticipants() {
   if(title) title.textContent = 'Participants (' + count + ')';
 
   var canControl = isRoomHost || vcIsCoHost;
+  // Each person's tile shows when their microphone is off.
+  Object.keys(peerNames).forEach(function (pid) {
+    vcSetTileMuted(document.getElementById('vc-tile-' + sanitizePeerId(pid)), !!mutedPeers[pid]);
+  });
 
   // Build self entry
   var html = '<div class="vc-participant-item" style="border-color:var(--accent);">' +

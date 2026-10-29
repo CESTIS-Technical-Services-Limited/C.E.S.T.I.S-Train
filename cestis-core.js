@@ -3378,8 +3378,7 @@
       var n = Math.max(0, Math.floor(Number(trainees) || 0));
       if (n <= SUGGEST_LARGE_ABOVE) return { suggest: false, trainees: n, line: '' };
       return { suggest: true, trainees: n,
-        line: n + ' trainees are expected. Large Class is suggested for more than ' + SUGGEST_LARGE_ABOVE +
-              ': your picture is sent once instead of once for each trainee, so the class stays clear and uses less data.' };
+        line: 'Large Class is suggested for ' + n + ' trainees: it sends your picture once instead of once per trainee, so everyone uses less data.' };
     }
 
     return {

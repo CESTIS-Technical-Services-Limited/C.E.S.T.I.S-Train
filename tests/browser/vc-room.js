@@ -149,7 +149,7 @@ function serve() {
     }, n);
   }
   const big = await startScreen(9), small = await startScreen(6);
-  ok(/^9 trainees are expected\. Large Class is suggested/.test(big.box) && big.largePrimary, 'a class of 9: Large Class first, with the reason (' + big.box.slice(0, 90) + '…)');
+  ok(/^Large Class is suggested for 9 trainees: /.test(big.box) && big.largePrimary, 'a class of 9: Large Class first, with the reason (' + big.box.slice(0, 90) + '…)');
   ok(big.builtIn, 'and the built-in room can still be chosen');
   ok(!small.box && !small.largePrimary && small.builtIn, 'a class of 6: the built-in room first, no suggestion');
   await host.waitForTimeout(500);
@@ -253,11 +253,12 @@ function serve() {
   let mutedToHost = await audioPacketsOut(s2, HOST_ID, 3000), mutedToPeer = await audioPacketsOut(s2, s1id, 3000);
   ok(mutedToHost <= 2 && mutedToPeer <= 2, 'muted: no sound packets to the instructor or the classmate (' + mutedToHost + ' / ' + mutedToPeer + ' in 3 s; a switched-off track used to send ~150)');
   ok(await host.evaluate((id) => !!mutedPeers[id], s2id), 'the instructor\'s list shows the trainee as muted');
+  ok(await host.evaluate((id) => !!document.querySelector('#vc-tile-' + sanitizePeerId(id) + ' .vc-tile-muted'), s2id), 'and their tile carries the muted sign');
   await s2.evaluate(() => vcToggleMic());
   await s2.waitForTimeout(1500);
   const openToHost = await audioPacketsOut(s2, HOST_ID, 3000), openToPeer = await audioPacketsOut(s2, s1id, 3000);
   ok(openToHost > 100 && openToPeer > 100, 'unmuted: the instructor and the classmate hear them (' + openToHost + ' / ' + openToPeer + ' packets in 3 s)');
-  ok(await host.evaluate((id) => !mutedPeers[id], s2id), 'and the instructor\'s list shows them unmuted');
+  ok(await host.evaluate((id) => !mutedPeers[id] && !document.querySelector('#vc-tile-' + sanitizePeerId(id) + ' .vc-tile-muted'), s2id), 'and the instructor\'s list and their tile show them unmuted');
   await s2.evaluate(() => vcToggleMic());
   await s2.waitForTimeout(1500);
   mutedToHost = await audioPacketsOut(s2, HOST_ID, 3000);
