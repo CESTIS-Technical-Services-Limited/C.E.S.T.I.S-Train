@@ -280,6 +280,41 @@ assert(/id="homePwOld" autocomplete="current-password"/.test(HTML) && /id="homeP
   })().catch(e => assert(false, 'password checks: ' + e.message)));
 }
 
+/* ---------- T2. Her photos made small, her work never lost ---------- */
+console.log('\nT2. A phone photo is made about 0.4 MB; her work is kept on the device and sent in parts until the gate has it all');
+[['online', require(path.join(ROOT, 'cestis-core.js'))], ['Offline System', require(path.join(ROOT, 'Offline System', 'cestis-core.js'))]].forEach(([build, C]) => {
+  const H = C.homeStudy;
+  eq(H.photoPlan({ w: 4000, h: 3000, size: 4.7e6, type: 'image/jpeg' }), { keep: false, w: 1600, h: 1200, quality: 0.8, minQuality: 0.5, step: 0.1, target: 460800 }, build + ': a 12-megapixel photo: 1600 px on the long side, JPEG 0.8 down to 0.5, about 450 KB');
+  eq(H.photoPlan({ w: 3000, h: 4000, size: 4e6, type: 'image/heic' }).w, 1200, build + ': upright too');
+  eq(H.photoPlan({ w: 1200, h: 900, size: 200000, type: 'image/jpeg' }).keep, true, build + ': already small: sent as it is (no second loss of quality)');
+  eq(H.photoPlan({ w: 1200, h: 900, size: 200000, type: 'image/heic' }).keep, false, build + ': a HEIC the phone can read becomes a JPEG every computer opens');
+  eq(H.photoPlan({ w: 0, h: 0, size: 200000, type: 'image/heic' }).keep, true, build + ': one it cannot read is sent as it is');
+  eq([H.photoPick({ size: 4e6, type: 'image/jpeg' }, { size: 4e5 }), H.photoPick({ size: 3e5, type: 'image/png' }, { size: 4e5 }), H.photoPick({ size: 3e5, type: 'image/heic' }, { size: 4e5 }), H.photoPick({ size: 3e5, type: 'image/jpeg' }, { size: 0 })],
+    ['made', 'original', 'made', 'original'], build + ': the smaller of the two; a HEIC always replaced when it could be read; nothing made: the original');
+});
+assert(/accept="\.pdf,\.doc,\.docx,\.xls,\.xlsx,\.ppt,\.pptx,\.txt,\.zip,\.jpg,\.jpeg,\.png,\.heic,\.heif,\.webp,image\/\*"/.test(HTML), 'the picker takes .jpeg, .heic, .webp and the camera');
+assert(/heif: \['image\/heif', 'image\/heic'\]/.test(read('trainee-gate/Gate.gs')), 'the gate takes a .heif file too (sent as it is when the phone cannot read it)');
+const pick = fnSrc('submitFileSelected');
+assert(/homeShrinkImage\(f\)[\s\S]{0,200}courseworkFileTooBig\(g\)/.test(pick), 'a photo is made smaller BEFORE the 5 MB check (a camera photo is no longer turned away)');
+assert(/homeSizeLabel\(f\._homeFrom\) \+ ' \\u2192 ' \+ size \+ ', made smaller for sending'/.test(HTML), 'she sees "4.7 MB → 0.4 MB, made smaller for sending"');
+const shrink = fnSrc('homeShrinkImage');
+assert(/CESTISCore\.homeStudy\.photoPlan|H\.photoPlan/.test(shrink) && /'image\/jpeg'/.test(shrink) && /fillStyle = '#ffffff'/.test(shrink) && /\.catch\(function\(\) \{ return file; \}\)/.test(shrink),
+  'drawn on white, saved as JPEG; anything it cannot read is sent as it is');
+assert(/imageOrientation: 'from-image'/.test(fnSrc('homeDecodeImage')), 'a phone photo keeps its way up');
+const submitFn = fnSrc('submitStudentAssignment');
+assert(/gs\.base\.kind !== 'lan' && typeof CESTISGate\.uploadQueue === 'function'[\s\S]{0,120}await homeQueueSubmission\(submission, files, a, s, prior\);\n\s*return;/.test(submitFn), 'from home: her work goes into the device\'s queue (never xhr upload progress); the Centre\'s own network as before');
+assert(/then: \{ key: 'voctrain_submissions', rec: rec \}/.test(fnSrc('homeQueueSubmission')), 'her submission is saved only once every file is in');
+assert(/if \(_submitShrinking > 0\)/.test(submitFn), 'Submit waits while a photo is still being made smaller');
+assert(/No signal just now\. Your work is saved on this device and will finish sending by itself when the signal is back/.test(HTML), 'a dropped signal: a clear message, not "check your connection"');
+assert(/function homeUploadEvent\(ev\)[\s\S]{0,400}ev\.type === 'filed'[\s\S]{0,300}assignmentSubmissions\.push\(ev\.rec\)/.test(HTML), 'once filed, the page takes her submission into what it holds at once (never overwritten by an older copy)');
+assert((HTML.match(/if \(sending && sending\.state === 'wait'\) mayUpload = false;/g) || []).length === 2 && /'<span class="badge badge-amber">Sending…<\/span>'/.test(HTML), 'her assignment says "Sending…" and offers no second upload meanwhile');
+assert(/try \{ homeUploadsWire\(\); \} catch \(e\) \{\}/.test(HTML), 'at sign-in what waits carries on by itself');
+assert(/CESTISGate\.uploadPump\(\{ force: true \}\), sleep\(8000\)/.test(fnSrc('gateSignOutFlow')) && /will finish sending the next time you sign in here/.test(HTML), 'sign-out: a last try, and she is told the rest goes at her next sign-in here');
+assert(!/upload\.onprogress/.test(HTML), 'no upload progress events (they would need a CORS preflight the gate cannot answer)');
+const CL = read('cestis-gate-client.js');
+assert(/OUTBOX_DB_VERSION = 2/.test(CL) && /if \(!d\.objectStoreNames\.contains\(UPLOAD_STORE\)\) d\.createObjectStore\(UPLOAD_STORE/.test(CL), 'the device\'s outbox database gains a store for her files (additive: the items kept)');
+assert(/var REFUSE = \{ 'type-not-allowed': 1, 'too-large': 1, 'not-yours': 1 \};/.test(CL) && /code === 'quota'/.test(CL), 'only a file the gate can never take is set aside (kept until she lets it go); the day\'s allowance waits an hour');
+
 Promise.all(ASYNC).then(() => {
   console.log('\n' + passed + ' passed, ' + failed + ' failed');
   if (failed) process.exit(1);

@@ -5230,7 +5230,7 @@ var GATE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // What a trainee may upload (DESIGN.md §5.4): pdf, images, office documents, text, zip.
 var GATE_UPLOAD_TYPES = {
   pdf: ['application/pdf'], png: ['image/png'], jpg: ['image/jpeg'], jpeg: ['image/jpeg'], gif: ['image/gif'],
-  webp: ['image/webp'], heic: ['image/heic', 'image/heif'], txt: ['text/plain'],
+  webp: ['image/webp'], heic: ['image/heic', 'image/heif'], heif: ['image/heif', 'image/heic'], txt: ['text/plain'],
   doc: ['application/msword'], docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   xls: ['application/vnd.ms-excel'], xlsx: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
   ppt: ['application/vnd.ms-powerpoint'], pptx: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
@@ -6388,7 +6388,6 @@ function gateCertTemplate(G, req) {
   var tpls = d.voctrain_certTemplates && typeof d.voctrain_certTemplates === 'object' ? d.voctrain_certTemplates : {};
   if (!key || !Object.prototype.hasOwnProperty.call(tpls, key)) return { ok: false, error: 'not-found' };
   var name = 'cert_template_' + key.replace(/[^a-zA-Z0-9]/g, '_') + '_' + page + '.txt';
-  var cacheKey = 'ct:' + gateKeyOf(G, name);
   var file = gateNewest(DriveApp.getFilesByName(name));
   if (!file) return { ok: false, error: 'not-found' };
   if (file.getSize() > GATE_LIMITS.FILE_GET_MAX) return { ok: false, error: 'too-large' };

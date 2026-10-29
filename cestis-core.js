@@ -16867,6 +16867,33 @@
       return { units: units, attendance: att, tests: tests,
         coursework: { graded: cw.graded || 0, total: cw.total || 0, percent: cw.percent == null ? null : cw.percent }, gpa: input.gpa == null ? '' : str(input.gpa) };
     }
+    /* A photo of her work, made small on her phone before it is sent (T2):
+       the long side at most 1600 px, JPEG at quality 0.8, stepping down to
+       0.5 until it is about 450 KB or less — a page of handwriting stays
+       readable, and a 4–5 MB camera photo becomes about 0.3–0.5 MB.
+       photoPlan({ w, h, size, type }) → { keep: true } (already small: sent
+       as it is) or { keep: false, w, h, quality, minQuality, target }.
+       photoPick(original, made) → 'made' | 'original': the smaller one,
+       except that a kind the instructor's computer may not open (HEIC) is
+       always replaced when it could be read. */
+    var PHOTO = { LONG_SIDE: 1600, QUALITY: 0.8, MIN_QUALITY: 0.5, STEP: 0.1, TARGET_BYTES: 450 * 1024 };
+    var PHOTO_KEEP_TYPES = /^image\/(jpeg|png|webp)$/i;
+    function photoPlan(o) {
+      o = o || {};
+      var w = Number(o.w) || 0, h = Number(o.h) || 0, size = Number(o.size) || 0, type = str(o.type).toLowerCase();
+      if (!(w > 0 && h > 0)) return { keep: true, why: 'unreadable' };
+      var long = Math.max(w, h), k = long > PHOTO.LONG_SIDE ? PHOTO.LONG_SIDE / long : 1;
+      if (k === 1 && size > 0 && size <= PHOTO.TARGET_BYTES && PHOTO_KEEP_TYPES.test(type)) return { keep: true, why: 'small' };
+      return { keep: false, w: Math.max(1, Math.round(w * k)), h: Math.max(1, Math.round(h * k)), quality: PHOTO.QUALITY,
+        minQuality: PHOTO.MIN_QUALITY, step: PHOTO.STEP, target: PHOTO.TARGET_BYTES };
+    }
+    function photoPick(original, made) {
+      original = original || {}; made = made || {};
+      var os = Number(original.size) || 0, ms = Number(made.size) || 0;
+      if (!(ms > 0)) return 'original';
+      if (!PHOTO_KEEP_TYPES.test(str(original.type))) return 'made';
+      return ms < os ? 'made' : 'original';
+    }
     /* What a trainee who registered from home is told while she waits (T6).
        notify: the gate said it will email her when the office approves. */
     function approvalWait(o) {
@@ -16893,7 +16920,7 @@
         status: status, statusText: FEE_SAY[status], receipts: receipts };
     }
     return { classPollDelay: classPollDelay, classStartMs: classStartMs, parseOffset: parseOffset, progress: progress,
-      approvalWait: approvalWait, feeView: feeView };
+      PHOTO: PHOTO, photoPlan: photoPlan, photoPick: photoPick, approvalWait: approvalWait, feeView: feeView };
   })();
 
   root.CESTISCore = Core;

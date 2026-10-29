@@ -4819,6 +4819,16 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 /* A label that is there for screen readers but takes no room on screen. */
 .home-sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 .home-field-label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
+/* Her work on its way (T2): a bar that grows by transform only. */
+.submit-progress { margin-top:4px; padding:14px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-input); }
+.submit-progress-bar, .home-upload-bar { display:block; height:8px; border-radius:4px; background:var(--w-06); overflow:hidden; }
+.submit-progress-bar span, .home-upload-bar span { display:block; height:100%; background:var(--accent-fill, var(--accent)); transform-origin:left center; transform:scaleX(0); transition:transform .3s ease-out; }
+.submit-progress-text { font-size:13px; color:var(--text-secondary); margin-top:10px; line-height:1.45; }
+.home-upload-line { display:flex; flex-direction:column; gap:6px; margin-top:8px; font-size:12px; color:var(--text-secondary); }
+.home-upload-line.is-refused { flex-direction:row; flex-wrap:wrap; align-items:center; color:var(--red); }
+.home-upload-line.is-refused span { flex:1; min-width:180px; }
+.submit-file-note { font-size:12px; color:var(--text-muted); padding:6px 2px; }
+.submit-file-remove { min-width:40px; min-height:40px; padding:0 8px; font-size:13px; }
 /* Home study (group C): only in a trainee's own sign-in from home. */
 .tam-gate-only { display:none; }
 html.gate-ns .tam-gate-only { display:flex; }
@@ -6245,17 +6255,22 @@ html.gate-ns .tam-gate-only { display:flex; }
     <div class="modal-header"><h3>Submit Assignment</h3><button class="modal-close" onclick="closeModal('submitAssignmentModal')">✕</button></div>
     <input type="hidden" id="submitAssignId">
     <div id="submitAssignTitle" style="font-size:15px;font-weight:600;margin-bottom:12px;"></div>
-    <div class="form-group"><label>Upload Your Work</label>
-      <div style="border:2px dashed var(--border);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;" onclick="document.getElementById('submitFileInput').click()">
-        <div style="font-size:24px;margin-bottom:4px;">📤</div>
-        <div style="font-size:13px;color:var(--text-muted);">Click to upload your completed document(s) (up to 5 MB each)</div>
-        <input type="file" id="submitFileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.jpg,.png" style="display:none;" onchange="submitFileSelected(this)">
+    <div class="form-group" id="submitPickArea"><label for="submitFileInput">Upload Your Work</label>
+      <div role="button" tabindex="0" style="border:2px dashed var(--border);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;" onclick="document.getElementById('submitFileInput').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+        <div style="font-size:24px;margin-bottom:4px;" aria-hidden="true">📤</div>
+        <div style="font-size:13px;color:var(--text-muted);">Tap to add your work — a photo, a PDF or a document (up to 5 MB each). Photos are made smaller for sending.</div>
+        <input type="file" id="submitFileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,.heic,.heif,.webp,image/*" style="display:none;" onchange="submitFileSelected(this)">
       </div>
       <div id="submitFileList" style="margin-top:8px;"></div>
     </div>
-    <div class="form-group"><label>Comment (optional)</label><textarea class="form-control" id="submitComment" placeholder="Add a note for your instructor..." rows="2"></textarea></div>
+    <div class="form-group" id="submitCommentGroup"><label for="submitComment">Comment (optional)</label><textarea class="form-control" id="submitComment" placeholder="Add a note for your instructor..." rows="2"></textarea></div>
+    <!-- Her work on its way (T2, from home): what has gone, and what happens if the signal drops. -->
+    <div class="submit-progress" id="submitProgress" hidden>
+      <span class="submit-progress-bar" aria-hidden="true"><span id="submitProgressFill"></span></span>
+      <div class="submit-progress-text" id="submitProgressText" role="status" aria-live="polite"></div>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-      <button class="btn btn-secondary" onclick="closeModal('submitAssignmentModal')">Cancel</button>
+      <button class="btn btn-secondary" id="submitCancelBtn" onclick="closeModal('submitAssignmentModal')">Cancel</button>
       <button class="btn btn-primary" id="submitAssignBtn" onclick="submitStudentAssignment()">Submit</button>
     </div>
   </div>
@@ -21326,9 +21341,14 @@ function renderStudentAssignments() {
     var mayUpload = CESTISCore.coursework.canSubmit(a, !!mySub, myGrade);
     var isPastDue = CESTISCore.coursework.isPastDue(a.dueDate); // due = by the end of that day, here (not UTC midnight)
     var attachCount = (a.attachments && a.attachments.length) || 0;
+    // Her work for it, still on its way from this device (T2).
+    var sending = typeof homeUploadFor === 'function' ? homeUploadFor(a.id, s.id) : null;
+    if (sending && sending.state === 'wait') mayUpload = false;
 
     var statusBadge = '';
-    if (myGrade !== null) {
+    if (sending && sending.state === 'wait') {
+      statusBadge = '<span class="badge badge-amber">Sending…</span>';
+    } else if (myGrade !== null) {
       var pct = Math.round(myGrade / a.maxPoints * 100);
       statusBadge = '<span class="badge badge-green">Graded: ' + myGrade + '/' + escapeHtml(a.maxPoints) + ' (' + pct + '%)</span>';
     } else if (mySub) {
@@ -21357,6 +21377,7 @@ function renderStudentAssignments() {
       html += '</div>';
     }
 
+    if (sending) html += homeUploadLine(sending);
     // Show own submission
     var myFiles = mySub ? (mySub.files || []).concat(mySub.driveFiles || []) : [];
     if (myFiles.length > 0) {
@@ -21383,26 +21404,52 @@ function openSubmitAssignment(assignmentId, title) {
   document.getElementById('submitAssignId').value = assignmentId;
   document.getElementById('submitAssignTitle').textContent = title;
   _submitPendingFiles = [];
+  _submitGen++;
   var listEl = document.getElementById('submitFileList');
   if (listEl) listEl.innerHTML = '';
   document.getElementById('submitComment').value = '';
   document.getElementById('submitFileInput').value = '';
+  // The window as it opens: choosing files, nothing on its way.
+  var prog = document.getElementById('submitProgress'); if (prog) prog.hidden = true;
+  ['submitPickArea', 'submitCommentGroup'].forEach(function(id) { var el = document.getElementById(id); if (el) el.hidden = false; });
+  var sb = document.getElementById('submitAssignBtn'); if (sb) { sb.hidden = false; sb.disabled = false; sb.textContent = 'Submit'; }
+  var cb = document.getElementById('submitCancelBtn'); if (cb) cb.textContent = 'Cancel';
   openModal('submitAssignmentModal');
 }
 
+/* The files she chose; a photo is made smaller first (homeShrinkImage, T2),
+   so a 4–5 MB camera photo is no longer turned away as too big. */
+var _submitShrinking = 0, _submitGen = 0;
 function submitFileSelected(input) {
-  for (var i = 0; i < input.files.length; i++) {
-    if (courseworkFileTooBig(input.files[i])) continue;
-    _submitPendingFiles.push(input.files[i]);
-  }
+  var picked = Array.prototype.slice.call((input && input.files) || []);
+  // The same photo can be chosen again after it was removed.
+  if (input && input.tagName) { try { input.value = ''; } catch (e) {} }
+  if (!picked.length) { submitRenderFileList(); return Promise.resolve(); }
+  var gen = _submitGen;
+  _submitShrinking++;
+  submitRenderFileList();
+  return picked.reduce(function(p, f) {
+    return p.then(function() { return homeShrinkImage(f); }).then(function(g) {
+      if (gen !== _submitGen) return;
+      if (!courseworkFileTooBig(g)) _submitPendingFiles.push(g);
+    });
+  }, Promise.resolve()).catch(function(e) { console.warn('[Submit] could not read a file:', e); }).then(function() {
+    _submitShrinking = Math.max(0, _submitShrinking - 1);
+    submitRenderFileList();
+  });
+}
+function submitRenderFileList() {
   var listEl = document.getElementById('submitFileList');
   if (!listEl) return;
-  listEl.innerHTML = _submitPendingFiles.map(function(f, i) {
-    var size = f.size < 1024 ? f.size + ' B' : f.size < 1048576 ? (f.size/1024).toFixed(1) + ' KB' : (f.size/1048576).toFixed(1) + ' MB';
+  var html = _submitPendingFiles.map(function(f, i) {
+    var size = homeSizeLabel(f.size);
+    var note = f._homeFrom ? homeSizeLabel(f._homeFrom) + ' \u2192 ' + size + ', made smaller for sending' : size;
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-input);border-radius:var(--radius-sm);margin-bottom:4px;">' +
-      '<span style="font-size:16px;">📄</span><span style="flex:1;font-size:12px;">' + escapeHtml(f.name) + ' <span style="color:var(--text-muted);">(' + size + ')</span></span>' +
-      '<button class="btn btn-sm btn-danger" style="padding:2px 8px;font-size:11px;" onclick="_submitPendingFiles.splice(' + i + ',1);submitFileSelected({files:[]})">✕</button></div>';
+      '<span style="font-size:16px;" aria-hidden="true">📄</span><span style="flex:1;font-size:12px;overflow-wrap:anywhere;">' + escapeHtml(f.name) + ' <span style="color:var(--text-muted);">(' + escapeHtml(note) + ')</span></span>' +
+      '<button type="button" class="btn btn-sm btn-danger submit-file-remove" aria-label="Remove ' + escapeAttr(f.name) + '" onclick="_submitPendingFiles.splice(' + i + ',1);submitRenderFileList()">✕</button></div>';
   }).join('');
+  if (_submitShrinking > 0) html += '<div class="submit-file-note" role="status">Making your photo smaller for sending…</div>';
+  listEl.innerHTML = html;
 }
 
 // One submission at a time: a second tap on Submit while the first is still
@@ -21410,6 +21457,7 @@ function submitFileSelected(input) {
 var _submitInFlight = false;
 function submitStudentAssignment() {
   if (_submitInFlight) return;
+  if (_submitShrinking > 0) { showToast('One moment — your photo is still being made smaller.'); return; }
   var assignmentId = document.getElementById('submitAssignId').value;
   var comment = (document.getElementById('submitComment')?.value || '').trim();
   var s = currentStudent;
@@ -21453,6 +21501,13 @@ function submitStudentAssignment() {
     // kind and size), and the submission names them. Nothing is saved until
     // they have gone — the files stay chosen, to try again.
     if ((typeof cestisGateSession === 'function' && cestisGateSession())) {
+      // From home (T2): kept on this device and sent in parts; her submission
+      // is saved once every file is in. Never lost if the signal drops.
+      var gs = CESTISGate.session();
+      if (gs && gs.base && gs.base.kind !== 'lan' && typeof CESTISGate.uploadQueue === 'function') {
+        await homeQueueSubmission(submission, files, a, s, prior);
+        return;
+      }
       var up = await gateUploadFiles(pending, files, submission.id);
       if (!up.ok) { showToast(up.message, 'warning'); return; }
       if (!up.inline) { submission.driveFiles = up.files; submission.files = []; }
@@ -21596,10 +21651,15 @@ function renderStudentAssignmentsPage() {
     var mayUpload = CESTISCore.coursework.canSubmit(a, !!mySub, myGrade);
     var isPastDue = CESTISCore.coursework.isPastDue(a.dueDate); // due = by the end of that day, here (not UTC midnight)
     var attachCount = (a.attachments && a.attachments.length) || 0;
+    // Her work for it, still on its way from this device (T2).
+    var sending = typeof homeUploadFor === 'function' ? homeUploadFor(a.id, s.id) : null;
+    if (sending && sending.state === 'wait') mayUpload = false;
 
     var statusBadge = '';
     var borderColor = 'var(--accent)';
-    if (myGrade !== null) {
+    if (sending && sending.state === 'wait') {
+      statusBadge = '<span class="badge badge-amber">Sending…</span>';
+    } else if (myGrade !== null) {
       var pct = Math.round(myGrade / a.maxPoints * 100);
       statusBadge = '<span class="badge badge-green">Graded: ' + myGrade + '/' + escapeHtml(a.maxPoints) + ' (' + pct + '%)</span>';
       borderColor = 'var(--green)';
@@ -21639,6 +21699,7 @@ function renderStudentAssignmentsPage() {
       html += '</div>';
     }
 
+    if (sending) html += '<div style="padding:8px 16px;border-bottom:1px solid var(--border);">' + homeUploadLine(sending) + '</div>';
     // Show own submission files
     if (mySub && ((mySub.files && mySub.files.length) || (mySub.driveFiles && mySub.driveFiles.length))) {
       var myAttempts = CESTISCore.coursework.submissionHistory(assignmentSubmissions, a.id, s.id).length;
@@ -39530,6 +39591,7 @@ function gateSessionStart() {
   _gateT.started = true;
   CESTISGate.wire({ onVisible: function() { if (Date.now() - (_gateT.pulledAt || 0) > 60 * 1000) gatePullSoon(0); } });
   homePullSchedule();
+  try { homeUploadsWire(); } catch (e) {}
   CESTISGate.capture().then(function() { CESTISGate.deliver(); });
   CESTISGate.status().then(function(st) { _gateT.status = st; try { refreshSyncChip(); } catch (e) {} });
   try { examAfterSignIn(); } catch (e) {}
@@ -39606,10 +39668,16 @@ async function gateSignOutFlow(opts) {
   if (_gateT.pullTimer) { clearTimeout(_gateT.pullTimer); _gateT.pullTimer = null; }
   gateBootScreen('Signing out…');
   var sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+  // Her files on their way (T2): a last try; whatever is left stays on this
+  // device and goes on at her next sign-in here.
+  try { if (sess && typeof CESTISGate.uploadPump === 'function') await Promise.race([CESTISGate.uploadPump({ force: true }), sleep(8000)]); } catch (e) {}
   try { await CESTISGate.capture(); } catch (e) {}
   try { await Promise.race([CESTISGate.deliver({ force: true }), sleep(8000)]); } catch (e) {}
   var waiting = [];
   try { waiting = sess ? await CESTISGate.pending(sess.acct) : []; } catch (e) { waiting = [1]; }
+  var upWaiting = 0;
+  try { upWaiting = sess && typeof CESTISGate.uploads === 'function' ? (await CESTISGate.uploads(sess.acct)).filter(function(u) { return u.state === 'wait'; }).length : 0; } catch (e) { upWaiting = 0; }
+  if (upWaiting && !opts.quiet) { gateBootScreen('Your work is saved on this device. It will finish sending the next time you sign in here.'); await sleep(3000); }
   try { await Promise.race([CESTISGate.signOut(), sleep(5000)]); } catch (e) {}
   _gateT.reloading = true;
   try { await CESTISGate.leave({ keepData: waiting.length > 0 }); } catch (e) {}
@@ -39765,6 +39833,210 @@ async function gateUploadFiles(pending, files, refId) {
 /* ===================== HOME STUDY (group C) =====================
    Her photos made small, her work kept until it is sent, her fees, her
    password, her certificate. */
+
+/* ---- Her photos, made small before they are sent (T2) ----
+   A phone camera's photo (4–5 MB) becomes about 0.4 MB here
+   (CESTISCore.homeStudy.photoPlan: 1600 px on the long side, JPEG 0.8,
+   down to 0.5 if needed): it goes in seconds on a weak signal, and a page
+   of handwriting stays readable. A picture this browser cannot read (HEIC
+   on most Android phones) is sent as it is; nothing else is changed. */
+function homeIsPhoto(f) {
+  var t = String((f && f.type) || '').toLowerCase(), n = String((f && f.name) || '').toLowerCase();
+  if (/^image\/(gif|svg)/.test(t) || /\.(gif|svg)$/.test(n)) return false;
+  return /^image\//.test(t) || /\.(jpe?g|png|heic|heif|webp)$/.test(n);
+}
+function homeDecodeImage(file) {
+  var viaImg = function() {
+    return new Promise(function(resolve, reject) {
+      var url = URL.createObjectURL(file), img = new Image(), done = false, timer = null;
+      var end = function(ok) {
+        if (done) return;
+        done = true; clearTimeout(timer);
+        if (ok) resolve({ src: img, w: img.naturalWidth, h: img.naturalHeight, close: function() { URL.revokeObjectURL(url); } });
+        else { URL.revokeObjectURL(url); reject(new Error('undecodable')); }
+      };
+      timer = setTimeout(function() { end(false); }, 20000);
+      img.onload = function() { end(img.naturalWidth > 0); };
+      img.onerror = function() { end(false); };
+      img.src = url;
+    });
+  };
+  if (typeof createImageBitmap !== 'function') return viaImg();
+  var bm;
+  try { bm = createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) { return viaImg(); }
+  return Promise.resolve(bm).then(function(b) { return { src: b, w: b.width, h: b.height, close: function() { try { b.close(); } catch (e) {} } }; }, viaImg);
+}
+function homeCanvasJpeg(canvas, q) {
+  return new Promise(function(resolve) {
+    try { canvas.toBlob(function(b) { resolve(b || null); }, 'image/jpeg', q); } catch (e) { resolve(null); }
+  });
+}
+function homeShrinkImage(file) {
+  if (!file || !homeIsPhoto(file) || typeof document === 'undefined') return Promise.resolve(file);
+  var H = CESTISCore.homeStudy;
+  return homeDecodeImage(file).then(function(d) {
+    var plan = H.photoPlan({ w: d.w, h: d.h, size: file.size, type: file.type });
+    if (plan.keep) { d.close(); return file; }
+    var c = document.createElement('canvas');
+    c.width = plan.w; c.height = plan.h;
+    var g = c.getContext('2d');
+    // A see-through picture goes on white (a JPEG has no see-through; it would turn black).
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, plan.w, plan.h);
+    try { g.imageSmoothingQuality = 'high'; } catch (e) {}
+    g.drawImage(d.src, 0, 0, plan.w, plan.h);
+    d.close();
+    var q = plan.quality;
+    var step = function(best) {
+      return homeCanvasJpeg(c, q).then(function(b) {
+        if (b && (!best || b.size < best.size)) best = b;
+        if (!b || b.size <= plan.target || q - plan.step < plan.minQuality - 1e-9) return best;
+        q = Math.round((q - plan.step) * 100) / 100;
+        return step(best);
+      });
+    };
+    return step(null).then(function(b) {
+      c.width = 0; c.height = 0;
+      if (H.photoPick({ size: file.size, type: file.type }, { size: b ? b.size : 0 }) !== 'made') return file;
+      var name = String(file.name || 'photo').replace(/\.[A-Za-z0-9]{1,5}$/, '') + '.jpg';
+      var out;
+      try { out = new File([b], name, { type: 'image/jpeg', lastModified: Date.now() }); } catch (e) { out = b; try { out.name = name; } catch (x) {} }
+      try { out._homeFrom = file.size; out._homeFromName = file.name; } catch (e) {}
+      return out;
+    });
+  }).catch(function() { return file; });
+}
+function homeSizeLabel(n) {
+  n = Number(n) || 0;
+  if (n < 1024) return n + ' B';
+  if (n < 100 * 1024) return Math.round(n / 1024) + ' KB';
+  return (n / 1048576).toFixed(1) + ' MB';
+}
+
+/* ---- Her work, never lost on a weak signal (T2) ----
+   From home, a submission's files are kept on this device and sent in parts
+   (CESTISGate.uploadQueue): a dropped connection costs one part, and the
+   sending carries on by itself when the signal is back — at her next
+   sign-in on this device too. Her submission is saved into her records once
+   every file is in, and then sent like any other change of hers. Until
+   then her assignment says "Sending…". On the Centre's own network nothing
+   changes. */
+var _homeUploads = [], _homeSubmitWatch = null;
+var HOME_UPLOAD_SAY = {
+  sending: 'Sending your work…',
+  slowTail: 'On a slow connection this can take a few minutes. Your work is saved on this device, so you can close this and carry on.',
+  waiting: 'No signal just now. Your work is saved on this device and will finish sending by itself when the signal is back — you can close this and carry on.',
+  waitingLine: 'Waiting for signal — your work is saved on this device and will be sent by itself.',
+  quota: 'You have sent as many files as allowed today. Your work is saved on this device and will be sent by itself later.'
+};
+function homeUploadsOn() { return typeof cestisGateSession === 'function' && cestisGateSession() && !!window.CESTISGate && typeof CESTISGate.uploads === 'function' && !!CESTISGate.session(); }
+function homeUploadsRefresh() {
+  if (!homeUploadsOn()) { _homeUploads = []; return Promise.resolve([]); }
+  var sess = CESTISGate.session();
+  return CESTISGate.uploads(sess.acct).then(function(list) {
+    _homeUploads = Array.isArray(list) ? list : [];
+    try { renderStudentAssignments(); } catch (e) {}
+    try { renderStudentAssignmentsPage(); } catch (e) {}
+    return _homeUploads;
+  }, function() { return _homeUploads; });
+}
+function homeUploadFor(assignmentId, studentId) {
+  var mine = (_homeUploads || []).filter(function(u) { return u && u.rec && String(u.rec.assignmentId) === String(assignmentId) && String(u.rec.studentId) === String(studentId); });
+  mine.sort(function(x, y) { return String(y.createdAt).localeCompare(String(x.createdAt)); });
+  return mine[0] || null;
+}
+function homeUploadPct(u) { return u && u.bytes ? Math.min(100, Math.round(u.bytesSent / u.bytes * 100)) : 0; }
+// What an assignment shows while its work is on its way (or was turned away).
+function homeUploadLine(u) {
+  if (!u) return '';
+  if (u.state === 'refused') {
+    return '<div class="home-upload-line is-refused" role="status"><span>' + escapeHtml(GATE_UPLOAD_SAY[u.reason] || GATE_UPLOAD_SAY['type-not-allowed']) + '</span>' +
+      '<button type="button" class="btn btn-sm btn-secondary" onclick="homeUploadDrop(' + jsArg(u.id) + ')">Remove</button></div>';
+  }
+  var waiting = u.tries > 0 && u.reason && u.reason !== 'retry';
+  return '<div class="home-upload-line" role="status"><span class="home-upload-bar" aria-hidden="true"><span style="transform:scaleX(' + (homeUploadPct(u) / 100) + ')"></span></span>' +
+    '<span>' + escapeHtml(waiting ? (u.reason === 'quota' ? HOME_UPLOAD_SAY.quota : HOME_UPLOAD_SAY.waitingLine)
+      : 'Sending your work — ' + homeUploadPct(u) + '%. It is saved on this device and finishes by itself.') + '</span></div>';
+}
+function homeUploadDrop(id) {
+  if (!confirm('Remove this work from this device? It was not sent, so choose the file again to hand it in.')) return;
+  CESTISGate.uploadDrop(id).then(function() { homeUploadsRefresh(); });
+}
+async function homeQueueSubmission(submission, files, a, s, prior) {
+  var rec = Object.assign({}, submission, { files: [], driveFiles: [] });
+  var view = null;
+  try {
+    view = await CESTISGate.uploadQueue({ refId: rec.id, purpose: 'submission',
+      files: files.map(function(f) { return { name: f.name, type: f.type, dataUrl: f.dataUrl, origName: f.name }; }),
+      then: { key: 'voctrain_submissions', rec: rec } });
+  } catch (e) { view = null; }
+  if (!view) { showToast('Your work could not be kept on this device. Please try again.', 'error'); return false; }
+  if (prior && a.gradeMeta && a.gradeMeta[s.id] && a.grades && a.grades[s.id] != null) {
+    // Marked work came back: flag it so the instructor knows to re-mark.
+    a.gradeMeta[s.id].resubmittedAt = rec.submittedAt;
+    saveState();
+  }
+  _submitPendingFiles = [];
+  _homeSubmitWatch = { id: view.id, assignmentId: rec.assignmentId, startedAt: Date.now(), last: view };
+  homeSubmitProgress(view, 'queued');
+  homeUploadsRefresh();
+  setTimeout(function() {
+    if (_homeSubmitWatch && _homeSubmitWatch.id === view.id) { _homeSubmitWatch.slow = true; homeSubmitProgress(null, 'progress'); }
+  }, 20000);
+  return true;
+}
+// The submit window while her work is on its way.
+function homeSubmitProgress(view, kind) {
+  var w = _homeSubmitWatch, box = document.getElementById('submitProgress'), forId = document.getElementById('submitAssignId');
+  if (!w || !box || !forId || forId.value !== w.assignmentId) return;
+  if (view) w.last = view;
+  var v = w.last, fill = document.getElementById('submitProgressFill'), text = document.getElementById('submitProgressText');
+  box.hidden = false;
+  ['submitPickArea', 'submitCommentGroup'].forEach(function(id) { var el = document.getElementById(id); if (el) el.hidden = true; });
+  var sb = document.getElementById('submitAssignBtn'); if (sb) sb.hidden = true;
+  var cb = document.getElementById('submitCancelBtn'); if (cb) cb.textContent = 'Close';
+  if (fill && v) fill.style.transform = 'scaleX(' + (homeUploadPct(v) / 100) + ')';
+  if (!text) return;
+  if (kind === 'waiting') { text.textContent = v && v.reason === 'quota' ? HOME_UPLOAD_SAY.quota : HOME_UPLOAD_SAY.waiting; return; }
+  if (kind === 'refused') { text.textContent = (GATE_UPLOAD_SAY[v && v.reason] || GATE_UPLOAD_SAY['type-not-allowed']) + ' Close this, remove it from your assignment and choose another file.'; return; }
+  text.textContent = (v ? 'Sending your work — ' + homeSizeLabel(v.bytesSent) + ' of ' + homeSizeLabel(v.bytes) + ' (' + homeUploadPct(v) + '%).' : HOME_UPLOAD_SAY.sending) +
+    (w.slow ? ' ' + HOME_UPLOAD_SAY.slowTail : '');
+}
+function homeUploadEvent(ev) {
+  if (!ev || !ev.entry || !homeUploadsOn()) return;
+  var sess = CESTISGate.session();
+  if (!sess || ev.entry.a !== sess.acct) return;
+  if (ev.type === 'filed') {
+    // Her submission, now naming its files: into what this page holds, at once.
+    if (ev.key === 'voctrain_submissions' && ev.rec && ev.rec.id) {
+      var i = assignmentSubmissions.findIndex(function(x) { return x && x.id === ev.rec.id; });
+      if (i === -1) assignmentSubmissions.push(ev.rec); else assignmentSubmissions[i] = ev.rec;
+    }
+    return;
+  }
+  var w = _homeSubmitWatch && _homeSubmitWatch.id === ev.entry.id ? _homeSubmitWatch : null;
+  if (ev.type === 'done') {
+    var rec = ev.entry.rec || {};
+    var a = (instructorAssignments || []).find(function(x) { return x && x.id === rec.assignmentId; });
+    if (w) {
+      _homeSubmitWatch = null;
+      var m = document.getElementById('submitAssignmentModal'), forId = document.getElementById('submitAssignId');
+      if (m && m.classList.contains('active') && forId && forId.value === rec.assignmentId) closeModal('submitAssignmentModal');
+    }
+    showToast(w ? (rec.attempt > 1 ? 'Resubmitted — your earlier attempt is kept too.' : 'Assignment submitted successfully!')
+      : 'Your work for "' + ((a && a.title) || 'your assignment') + '" has been sent.');
+    try { if (currentStudent && a) addNotification(currentStudent.name + (rec.attempt > 1 ? ' resubmitted' : ' submitted') + ' work for "' + a.title + '"', 'exam', null, ['admin','instructor']); } catch (e) {}
+    try { refreshContentDependentViews(); } catch (e) {}
+  } else if (w) homeSubmitProgress(ev.entry, ev.type);
+  homeUploadsRefresh();
+}
+function homeUploadsWire() {
+  if (_gateT.uploadsWired || !homeUploadsOn() || typeof CESTISGate.onUpload !== 'function') return;
+  _gateT.uploadsWired = true;
+  CESTISGate.onUpload(homeUploadEvent);
+  homeUploadsRefresh().then(function(list) {
+    if ((list || []).some(function(u) { return u.state === 'wait'; })) CESTISGate.uploadPump({ force: true });
+  });
+}
 
 /* ---- Her fees (OF-12) ----
    Her own fee record's figures and her own receipts, nothing else. From

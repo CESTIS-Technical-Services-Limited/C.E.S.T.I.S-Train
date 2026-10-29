@@ -1046,7 +1046,9 @@
     if (!us) return Promise.resolve([]);
     return Promise.resolve(us.all()).then(function (l) { return (l || []).filter(function (e) { return !acct || e.a === acct; }).map(entryView); }, function () { return []; });
   }
-  var REFUSE = { 'type-not-allowed': 1, 'too-large': 1, 'quota': 1, 'not-yours': 1, 'bad-parts': 0 };
+  // Refused for good (the file itself is the matter); anything else is tried again.
+  var REFUSE = { 'type-not-allowed': 1, 'too-large': 1, 'not-yours': 1 };
+  var QUOTA_WAIT_MS = 60 * 60 * 1000;
   /* Send what waits, one file and one part at a time, for the trainee signed
      in here (her token is needed). Stops at the first part that does not go
      through, and tries again later (2 s → 5 min), on 'online', on coming back
@@ -1067,6 +1069,8 @@
     var fail = function (res) {
       var code = str(res && res.error) || 'unreachable';
       if (REFUSE[code]) { e.state = 'refused'; e.reason = code; }
+      // Today's allowance used up: kept, and tried again in an hour.
+      else if (code === 'quota') { e.tries = (e.tries || 0) + 1; e.nextAt = Date.now() + QUOTA_WAIT_MS; e.reason = code; }
       else { e.tries = (e.tries || 0) + 1; e.nextAt = Date.now() + backoffMs(e.tries); e.reason = code; }
       return Promise.resolve(us.put(e)).then(function () { tellUpload({ type: e.state === 'refused' ? 'refused' : 'waiting', entry: entryView(e), error: code }); return true; });
     };
@@ -1084,6 +1088,8 @@
           refId: e.refId, base64: chunks[pi] }, { timeout: PART_TIMEOUT_MS }).then(function (res) {
           // An older gate (before version 3): the file in one request.
           if (res && res.ok === false && res.error === 'unknown-op') return wholeFile(f).then(function (r) { return r ? r : fileStep(fi + 1); });
+          // The gate could not put the parts together (it let them go): all of them again.
+          if (res && res.ok === false && res.error === 'bad-parts') { f.sent = []; return Promise.resolve(us.put(e)).then(function () { return res; }); }
           if (!res || res.ok !== true) return res || { ok: false, error: 'unreachable' };
           if (res.done && res.fileId) { f.fileId = str(res.fileId); f.name = str(res.name || f.name); }
           else f.sent[pi] = true;
@@ -1124,7 +1130,19 @@
     list.forEach(function (r, i) { if (r && str(r.id) === str(rec.id)) at = i; });
     if (at === -1) list.push(rec); else list[at] = rec;
     s.setItem(key, JSON.stringify(list));
+    // At once, before anything else can run: the page takes her record into what it holds.
+    tellUpload({ type: 'filed', entry: entryView(e), files: files, key: key, rec: rec });
     return capture().then(done, done);
+  }
+  // Her own file that the gate refused for good (its kind, its size): she lets it go.
+  function uploadDrop(id) {
+    var sess = session(), us = uploadStore();
+    if (!sess || !us) return Promise.resolve(false);
+    return Promise.resolve(us.all()).then(function (l) {
+      var e = (l || []).filter(function (x) { return x.id === id && x.a === sess.acct && x.state === 'refused'; })[0];
+      if (!e) return false;
+      return Promise.resolve(us.del(e.id)).then(function () { tellUpload({ type: 'dropped', entry: entryView(e) }); return true; });
+    });
   }
 
   // This room's messages, merged into the namespace's chat (keeping this trainee's unsent ones).
@@ -1354,7 +1372,7 @@
     paper: paper, storedPaper: storedPaper, attempt: attempt, review: review, roomGet: roomGet, applyRoom: applyRoom,
     upload: upload, fileGet: fileGet, signOut: signOut,
     fees: fees, storedFees: storedFees, changePassword: changePassword, certTemplate: certTemplate,
-    uploadQueue: uploadQueue, uploads: uploads, uploadPump: uploadPump, onUpload: onUpload, PART_BYTES: PART_BYTES,
+    uploadQueue: uploadQueue, uploads: uploads, uploadPump: uploadPump, uploadDrop: uploadDrop, onUpload: onUpload, PART_BYTES: PART_BYTES,
     queue: queue, deliver: deliver, deliverNow: deliverNow, kick: kick, capture: capture, status: status,
     pending: function (acct) { return getOutbox().pendingFor(acct); },
     outbox: function () { return getOutbox().all(); },
