@@ -10830,6 +10830,7 @@ async function createUserAccount() {
     var existingStudent = findStudentRecordForAccount(newAccount);
     if (existingStudent) {
       newAccount.studentDataId = existingStudent.id;
+      fillTraineeContactFromAccount(existingStudent, newAccount);
     } else {
       createStudentDataForAccount(newAccount);
     }
@@ -10918,7 +10919,7 @@ async function createTraineeAccount() {
     userAccounts.push(acct);
     // Their trainee record: the one of that name on that programme, or a new one.
     var existingStudent = findStudentRecordForAccount(acct);
-    if(existingStudent) acct.studentDataId = existingStudent.id;
+    if(existingStudent) { acct.studentDataId = existingStudent.id; fillTraineeContactFromAccount(existingStudent, acct); }
     else createStudentDataForAccount(acct);
     saveUserAccounts();
     saveState();
@@ -13276,6 +13277,39 @@ function studentAccountTombstoned(account) {
     return cestisIsStudentTombstoned({ id: '', name: account.name, course: account.programme || '', enrolledAt: when });
   } catch (e) { return false; }
 }
+/* The email and telephone typed when the account was made — by the office
+   (Add Trainee Account) or by the trainee registering from home — reach the
+   trainee record and the fee record, filling ONLY what is blank there: a value
+   somebody already typed is never replaced (CESTISCore.traineeContact). They
+   used to stay on the account: the enrolment register read "— — —" and the fee
+   record had no contact. Returns whether the trainee record changed. */
+function fillTraineeContactFromAccount(student, account) {
+  if (!student || !account) return false;
+  var TC = CESTISCore.traineeContact, fee = [], twins = [];
+  try {
+    var raw = CESTISStore.getItem('cestiSchoolFeeStudents');
+    fee = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(fee)) fee = [];
+    twins = fee.filter(function (f) { return f && CESTISCore.isFeeTwin(student, f); });
+  } catch (e) { fee = []; twins = []; }
+  // A detail the fee record already holds was typed there: it reaches the
+  // trainee record by the fee page's own route, and the account's copy is not
+  // put beside it (the twin rule would then carry one over the other).
+  var give = { email: account.email, phone: account.phone };
+  twins.forEach(function (f) {
+    if (String(f.email == null ? '' : f.email).trim()) give.email = '';
+    if (String(f.contact == null ? '' : f.contact).trim()) give.phone = '';
+  });
+  var changed = TC.fillFromAccount(student, give).length > 0;
+  try {
+    var feeChanged = false;
+    twins.forEach(function (f) {
+      if (TC.fillFromAccount(f, account, TC.FEE_FIELDS).length) { f.updatedAt = new Date().toISOString(); feeChanged = true; }
+    });
+    if (feeChanged) CESTISCore.pageCloud.guardedSet(CESTISStore, 'cestiSchoolFeeStudents', fee);
+  } catch (e) { console.warn('[Accounts] could not fill the fee record\'s contact:', e); }
+  return changed;
+}
 function createStudentDataForAccount(userAccount) {
   var prog = userAccount.programme || 'Welding';
   var matchedInstructor = instructorData.find(function(ins){ return ins.course && instructorCourseMatch(prog, ins.course); });
@@ -13313,6 +13347,9 @@ function createStudentDataForAccount(userAccount) {
     }
   } catch(e) {}
   if (window.CESTISCore) { var _sid = CESTISCore.stableStudentId(newStudent); if (_sid) newStudent.id = _sid; }
+  // The email and telephone given with the account (a fee record that does
+  // not exist yet is created on save by the mirror, carrying them across).
+  try { fillTraineeContactFromAccount(newStudent, userAccount); } catch (e) {}
   // A NEW enrolment: an earlier deletion of the same person (same id) must
   // not hide it (CESTISCore.markEnrolment).
   try { CESTISCore.markEnrolment(newStudent, CESTISStore); _delStudentAtMemo = null; } catch(e) {}
@@ -13522,6 +13559,7 @@ function approveUser(userId) {
     var existingStudent = findStudentRecordForAccount(user);
     if (existingStudent) {
       user.studentDataId = existingStudent.id;
+      fillTraineeContactFromAccount(existingStudent, user);
     } else {
       createStudentDataForAccount(user);
     }
@@ -13591,6 +13629,7 @@ function approveAllPending() {
       var existingStudent = findStudentRecordForAccount(u);
       if (existingStudent) {
         u.studentDataId = existingStudent.id;
+        fillTraineeContactFromAccount(existingStudent, u);
       } else {
         createStudentDataForAccount(u);
       }

@@ -14031,6 +14031,33 @@
       instructorCount: instructorCount, rateText: rateText };
   })();
 
+  // ===================== A TRAINEE'S CONTACT DETAILS FROM THEIR ACCOUNT =====================
+  // The email and telephone typed when a trainee account is made (by the
+  // office, or by the trainee registering from home) stayed on the account:
+  // the trainee record and the fee record were created without them, so the
+  // enrolment register read "— —" and the office had no number to call.
+  // They are now carried across — filling ONLY what is blank: a value
+  // somebody already typed is never replaced.
+  Core.traineeContact = (function () {
+    function blank(v) { return v == null || String(v).trim() === ''; }
+    /* record: a trainee record ({email, phone}) or a fee record — map gives
+       the record's own field names, e.g. { email: 'email', phone: 'contact' }.
+       Returns the record fields it filled. */
+    function fillFromAccount(record, account, map) {
+      var out = [];
+      if (!record || !account) return out;
+      map = map || { email: 'email', phone: 'phone' };
+      ['email', 'phone'].forEach(function (k) {
+        var to = map[k], v = account[k];
+        if (!to || blank(v) || !blank(record[to])) return;
+        record[to] = String(v).trim();
+        out.push(to);
+      });
+      return out;
+    }
+    return { fillFromAccount: fillFromAccount, FEE_FIELDS: { email: 'email', phone: 'contact' } };
+  })();
+
   // ===================== COMMUNICATIONS: announcements, agenda, bell =====================
   Core.comms = (function () {
     var CW = Core.coursework;
