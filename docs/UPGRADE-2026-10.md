@@ -139,6 +139,9 @@ shown to the owner in screenshots first, and merged only once approved or decide
      Video Conference. Nothing paid is required by the code.
    - The *Large Class* option should point at a Jitsi server the Centre controls. The public
      meet.jit.si no longer allows long embedded meetings.
+   - The start screen now suggests Large Class for classes of more than 6 trainees. Until the
+     Centre has its own Jitsi server, such a class on meet.jit.si can be cut off after a few
+     minutes; the instructor can still choose the built-in room (it carries up to 8 people).
 7. **E-mail (EmailJS).**
    - In the EmailJS dashboard, restrict the allowed origin and set a daily cap (see
      `LONGEVITY-AUDIT.md`).
@@ -179,6 +182,43 @@ shown to the owner in screenshots first, and merged only once approved or decide
   - Recordings attach to their class session.
 - **Class sessions** move scheduled → live → completed, so *Live Now* and *Past Recordings*
   work.
+
+### Live classes on less mobile data (owner's decision, group D)
+Measured first, in headless Chromium with fake cameras and a speech-like fake microphone: an
+instructor and 6 trainees on phone settings, every connection's bytes read from the browser
+(`RTCPeerConnection.getStats()`), plus IP/UDP headers, as a mobile network bills them.
+- **What the measurement found.**
+  - A muted microphone still sent 50 packets of silence a second: about 40 kbit/s (18 MB an
+    hour) to *every* other person in the room. Six muted trainees each uploaded 199 kbit/s of
+    silence.
+  - With the camera on and the microphone open (how everyone joined), a trainee on a phone
+    uploaded about 760 kbit/s in a class of 6 — more than a typical 750 kbit/s mobile uplink.
+  - The instructor's picture budget was worked out once, as each trainee arrived, so the first
+    four kept 1.2 Mbit/s each for the whole class (6.7 Mbit/s in all instead of 5).
+- **What changed.**
+  - Trainees join with the camera **off** (it is not even opened) and the microphone
+    **muted**. The lobby buttons say "Microphone off" / "Camera off" in words; in the room the
+    buttons are red with a line through, and one tap turns them on. Staff start as before.
+  - A muted microphone now sends **nothing** (its sender is stopped, not just silenced). The
+    instructor's Mute, Unmute and Mute All do the same, and the host's camera-off really stops
+    the trainee's camera.
+  - Everyone still hears whoever unmutes (a question asked aloud). Measured against "voice only
+    to the instructor", the difference with everyone muted is 0.9 kbit/s per trainee (about
+    0.4 MB an hour), so the classroom was kept. Trainee cameras go to the instructor only.
+  - The instructor sees who is muted (a 🔇 on the tile and in the participant list) and whose
+    camera is off (their initial instead of a black box).
+  - The instructor's picture budget is shared again whenever someone joins or leaves.
+  - The start screen suggests **Large Class** when the class's register has more than 6
+    trainees, in one line saying why. The instructor can still start the built-in room.
+  - Recordings are made at 550 kbit/s of picture and 64 kbit/s of sound: at most about 276 MB
+    an hour (it was up to ~1.1 GB). Writing on a whiteboard reads exactly as before.
+- **Measured, class of 6 trainees** (as they join; per trainee): upload 553 → 6 kbit/s;
+  sound from classmates 325 → 1 kbit/s; the instructor's download 1.3 Mbit/s → 35 kbit/s.
+- **Per trainee per hour** (worked out from measured costs per connection, the instructor's
+  picture at its ceiling): about 1.0 GB → 0.4 GB in a class of 6. Almost all of what is left is
+  the instructor's own picture and voice. Recordings measured: a demonstration 4.7 → 1.7 MB a
+  minute, a whiteboard 1.9 → 1.4, a camera-like scene 8.6 → 3.0.
+- Tests: `tests/vc-room.test.js`, `tests/vc-page.test.js`, `tests/browser/vc-room.js`.
 
 ### Attendance
 - **A dated register.** One mark per trainee per actual date for the whole course
@@ -446,6 +486,9 @@ These need a real server, or a decision by the Centre. They are documented, not 
   knows a room code can still try to take the host's place online; the instructor is warned and
   told to start a new code. On the Centre network the server now issues hosting only to staff
   who sign in, so this cannot happen there.
+- **A trainee's live-class data is now mostly the instructor's own picture.** In the built-in
+  room each trainee receives it at up to 833 kbit/s in a class of 6 (about 0.4 GB an hour with
+  the voice). A lower ceiling for phones would cut that further; it is the owner's decision.
 - **Files shared publicly by the old code** keep their public links. Nothing was revoked
   automatically.
 - **Clocks.** A device whose clock is wrong by more than a day, with no way to reach Google or
