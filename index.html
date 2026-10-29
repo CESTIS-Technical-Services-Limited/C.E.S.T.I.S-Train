@@ -1196,11 +1196,15 @@ html[data-theme="light"] .theme-ico-moon, html[data-theme="light"] .theme-to-dar
   90% { transform:rotate(-2deg); }
   100% { transform:rotate(0); }
 }
-@keyframes bellGlow {
-  0%,100% { box-shadow:0 0 4px rgba(240,165,0,0.3); }
-  50% { box-shadow:0 0 14px rgba(240,165,0,0.7), 0 0 28px rgba(240,165,0,0.3); }
-}
-.topbar-btn.notif-active { animation:bellGlow 2s ease-in-out infinite; border-radius:var(--radius-sm); }
+/* Unread notices: the bell glows three times, then keeps a quiet steady ring.
+   It used to glow for ever by animating box-shadow, which repaints on the
+   main thread every frame — 15.6 s of every minute on a slow phone sitting
+   on its dashboard. Only the glow layer's opacity moves now (the compositor
+   does that), and only three times; prefers-reduced-motion: not at all. */
+@keyframes bellGlow { 0%,100% { opacity:0; } 50% { opacity:1; } }
+.topbar-btn.notif-active { border-radius:var(--radius-sm); box-shadow:0 0 4px rgba(240,165,0,0.3); }
+.topbar-btn.notif-active::after { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  box-shadow:0 0 14px rgba(240,165,0,0.7), 0 0 28px rgba(240,165,0,0.3); opacity:0; animation:bellGlow 2s ease-in-out 3; }
 .topbar-btn.notif-shake svg { animation:bellShake 0.6s ease-in-out; transform-origin:top center; }
 .logout-btn {
   display:flex; align-items:center; gap:6px;
@@ -1750,9 +1754,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   transition:all 0.4s ease;
 }
 .stage-circle.completed { border-color:var(--green); background:var(--green-dim); }
-.stage-circle.current { border-color:var(--accent); background:var(--accent-dim); box-shadow:0 0 16px var(--accent-glow); animation:pulseGlow 2s infinite; }
+/* "Where you are now": three soft pulses of a glow layer's opacity, then still
+   (it pulsed box-shadow for ever, repainting every frame). */
+.stage-circle.current { position:relative; border-color:var(--accent); background:var(--accent-dim); box-shadow:0 0 12px var(--accent-glow); }
+.stage-circle.current::after { content:''; position:absolute; inset:-3px; border-radius:50%; pointer-events:none;
+  box-shadow:0 0 20px var(--accent-glow); opacity:0; animation:pulseGlow 2s ease-in-out 3; }
 .stage-circle.locked { opacity:0.4; }
-@keyframes pulseGlow { 0%,100%{box-shadow:0 0 8px var(--accent-glow);} 50%{box-shadow:0 0 20px var(--accent-glow);} }
+@keyframes pulseGlow { 0%,100%{opacity:0;} 50%{opacity:1;} }
 .stage-label { font-size:12px; font-weight:600; color:var(--text-muted); text-align:center; max-width:70px; }
 .stage-label.active-label { color:var(--accent); }
 .stage-connector {
@@ -4745,6 +4753,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
    device asks for less motion. Spinners keep turning: they say "working". */
 @media (prefers-reduced-motion: reduce) {
   .landing-bg .orb, .pulse-dot, #toastContainer .toast, .modal, .cestis-alert-box { animation:none !important; }
+  .topbar-btn.notif-active::after, .stage-circle.current::after, .topbar-btn.notif-shake svg, .live-dot, .home-now-card .live-dot { animation:none !important; }
   .cestis-alert-overlay, .cestis-alert-box { transition:none !important; }
 }
 
@@ -11615,7 +11624,13 @@ function updateNotificationDot() {
   const unread = roleNotifications.filter(n=>!CESTISCore.comms.isRead(n, viewer)).length;
   dot.style.display = unread > 0 ? 'flex' : 'none';
   dot.textContent = unread > 99 ? '99+' : unread;
-  if(btn) { if(unread > 0) btn.classList.add('notif-active'); else btn.classList.remove('notif-active'); }
+  if(btn) {
+    // A new notice glows again (three times); the same count just stays lit.
+    var prev = Number(btn.getAttribute('data-unread') || 0);
+    if(unread > 0 && unread > prev && btn.classList.contains('notif-active')) { btn.classList.remove('notif-active'); void btn.offsetWidth; }
+    if(unread > 0) btn.classList.add('notif-active'); else btn.classList.remove('notif-active');
+    btn.setAttribute('data-unread', String(unread));
+  }
 }
 
 function exportCSV(data, headers, filename) {
