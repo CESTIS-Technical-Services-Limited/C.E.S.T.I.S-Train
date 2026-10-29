@@ -6685,7 +6685,11 @@ function shakeNotificationBell() {
 // `fixedId` (optional): a deterministic id for a notice several devices may
 // raise at once (duty reminders). A notice with that id already here is not
 // added again, and copies from other devices merge into one by id.
-function addNotification(text, type, icon, forRoles, fixedId) {
+// `aud` (optional): { forCourse } — a programme's notice, which reaches only
+// that programme's trainees; { forInstructors: [account ids] } — a marking
+// notice, which reaches the instructor who marked, not every instructor
+// (CESTISCore.notify.reaches).
+function addNotification(text, type, icon, forRoles, fixedId, aud) {
   if(fixedId && notifications.some(function(n) { return n && n.id === fixedId; })) return null;
   type = type || 'info';
   var icons = {success:'\u2705',warning:'\u26A0\uFE0F',info:'\uD83D\uDD14',exam:'\uD83D\uDCDD',student:'\uD83D\uDC64',cert:'\uD83C\uDF93',announce:'\uD83D\uDCE2',calendar:'\uD83D\uDCC5',attendance:'\uD83D\uDCCB',resource:'\uD83D\uDCC1',grade:'\uD83C\uDF1F'};
@@ -6699,6 +6703,8 @@ function addNotification(text, type, icon, forRoles, fixedId) {
     type: type === 'warning' ? 'warning' : type === 'success' || type === 'grade' || type === 'cert' ? 'success' : 'info',
     forRoles: forRoles || ['admin','instructor','student']
   };
+  if(aud && aud.forCourse) notif.forCourse = String(aud.forCourse);
+  if(aud && Array.isArray(aud.forInstructors) && aud.forInstructors.length) notif.forInstructors = aud.forInstructors.slice();
   notifications.unshift(notif);
   try { notifications = CESTISCore.notify.prune(notifications, 50, 400); } catch(e) {}   // per audience, never a deletion
   updateNotificationDot();
@@ -6732,6 +6738,13 @@ function getFilteredNotifications() {
       return currentUserId && n.forUsers.indexOf(currentUserId) !== -1;
     }
     if(!currentRole) return true;
+    // A programme's notice reaches that programme's trainees; a marking
+    // notice the instructor who marked (older notices: everyone, as before).
+    try {
+      if(!CESTISCore.notify.reaches(n, { role: currentRole, userId: currentUserId,
+        course: currentRole === 'student' && currentStudent ? currentStudent.course : '',
+        sameProgramme: typeof instructorCourseMatch === 'function' ? instructorCourseMatch : null })) return false;
+    } catch(e) {}
     // Exam scores used to be announced to every trainee ("Ann Brown scored
     // 45% on ... NOT PASSED"). New ones go to staff only; the ones already
     // stored and synced are hidden from trainees here.
@@ -6744,6 +6757,14 @@ function getFilteredNotifications() {
   });
 }
 
+// Who hears that a piece of work was marked: the administrators, and the
+// instructor who marked it — not every instructor in the Centre.
+function notifyMarkingAudience() {
+  if(currentRole === 'instructor' && currentLoggedInUser && currentLoggedInUser.id) {
+    return { roles: ['admin','instructor'], aud: { forInstructors: [currentLoggedInUser.id] } };
+  }
+  return { roles: ['admin'], aud: null };
+}
 function addNotificationForUser(text, type, icon, userId, role, fixedId) {
   if(fixedId && notifications.some(function(n) { return n && n.id === fixedId; })) return null;
   type = type || 'info';
@@ -16420,7 +16441,8 @@ function createInstructorAnnouncement() {
   refreshContentDependentViews();
   saveState();
   showToast('Announcement published!');
-  addNotification('New announcement: "' + title + '"' + (priority==='urgent' ? ' (URGENT)' : ''), priority==='urgent' ? 'warning' : 'announce', null, targetRoles);
+  addNotification('New announcement: "' + title + '"' + (priority==='urgent' ? ' (URGENT)' : ''), priority==='urgent' ? 'warning' : 'announce', null, targetRoles, null,
+    currentInstructor && currentInstructor.course ? { forCourse: currentInstructor.course } : null);
 }
 
 function renderInstructorAnnouncements() {
@@ -17106,7 +17128,7 @@ function vcCreateLargeRoom(title, role, scheduledCode) {
   // Centre: those in the class reach it from their class session, or from
   // the instructor.
   try {
-    addNotification('Large class session started: "' + title + '"', 'calendar', null, ['admin','instructor','student']);
+    addNotification('Large class session started: "' + title + '"', 'calendar', null, ['admin','instructor','student'], null, _course ? { forCourse: _course } : null);
   } catch(e) {}
 }
 function vcJoinLargeRoom(code, title, role) {
@@ -20234,7 +20256,7 @@ function createClassSession() {
   showToast('Class session "' + name + '" created successfully');
   // Notify students too — they have a class-sessions view and should hear about
   // a new scheduled session for their course.
-  addNotification('New class session: "' + name + '"', 'calendar', null, ['admin','instructor','student']);
+  addNotification('New class session: "' + name + '"', 'calendar', null, ['admin','instructor','student'], null, course ? { forCourse: course } : null);
 
   // Reset form fields
   document.getElementById('csSessionName').value = '';
@@ -20887,7 +20909,8 @@ function gradeSubmission(assignmentId, studentId) {
   showToast((res.previous != null ? 'Mark changed for ' : 'Graded ') + (st ? st.name : studentId) + ': ' + score + '/' + a.maxPoints + (res.previous != null ? ' (was ' + res.previous + ')' : ''));
   // Staff only, like exam scores: a trainee's mark is not news for the whole
   // class. The trainee sees it on My Assignments.
-  addNotification((st ? st.name : 'Student') + ' graded ' + score + '/' + a.maxPoints + ' on "' + a.title + '"', 'grade', null, ['admin','instructor']);
+  var _mk = notifyMarkingAudience();
+  addNotification((st ? st.name : 'Student') + ' graded ' + score + '/' + a.maxPoints + ' on "' + a.title + '"', 'grade', null, _mk.roles, null, _mk.aud);
   renderInstructorGradebook();
   refreshContentDependentViews();
 }
@@ -21714,7 +21737,7 @@ function uploadResource() {
   saveState();
   closeModal('uploadResourceModal');
   showToast('Resource "' + name + '" uploaded successfully');
-  addNotification('New resource uploaded: "' + name + '"', 'resource', null, ['admin','instructor','student']);
+  addNotification('New resource uploaded: "' + name + '"', 'resource', null, ['admin','instructor','student'], null, { forCourse: resource.course });
 
   // Reset form
   document.getElementById('resName').value = '';
@@ -22387,7 +22410,7 @@ async function uploadResourceToDrive() {
     statusEl.textContent = 'Upload complete!';
 
     showToast('Resource "' + name + '" uploaded with ID: ' + resourceId);
-    addNotification('New resource uploaded for ' + course + ': "' + name + '" (ID: ' + resourceId + ')', 'resource', null, ['admin','instructor','student']);
+    addNotification('New resource uploaded for ' + course + ': "' + name + '" (ID: ' + resourceId + ')', 'resource', null, ['admin','instructor','student'], null, course ? { forCourse: course } : null);
 
     setTimeout(function() {
       closeModal('driveUploadModal');
@@ -28410,7 +28433,8 @@ function submitGrading() {
   showToast('Grades saved! Final score: ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'));
   // Staff see the outcome; the trainee is told their OWN result, addressed to
   // their account alone. It used to go to every trainee in every programme.
-  addNotification('Grading completed: ' + result.studentName + ' scored ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'), result.passed ? 'grade' : 'warning', null, ['admin','instructor']);
+  var _mk = notifyMarkingAudience();
+  addNotification('Grading completed: ' + result.studentName + ' scored ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'), result.passed ? 'grade' : 'warning', null, _mk.roles, null, _mk.aud);
   var traineeUser = examTraineeUserId(result.studentId);
   if(traineeUser && pendingLeft === 0) {
     addNotificationForUser('Your exam "' + (exam ? exam.title : 'exam') + '" has been marked: ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'), result.passed ? 'success' : 'info', null, traineeUser, 'student');
@@ -43003,6 +43027,10 @@ function cestisNotifTargetsMe(n) {
   var myId = me ? me.id : null;
   if (n.forUsers && n.forUsers.length) return !!myId && n.forUsers.indexOf(myId) !== -1;
   if (!currentRole) return false;
+  try {
+    if (!CESTISCore.notify.reaches(n, { role: currentRole, userId: myId, course: currentRole === 'student' && currentStudent ? currentStudent.course : '',
+      sameProgramme: typeof instructorCourseMatch === 'function' ? instructorCourseMatch : null })) return false;
+  } catch (e) {}
   if (!n.forRoles || !n.forRoles.length) return true;
   if (currentRole === 'adminstaff') return n.forRoles.indexOf('adminstaff') !== -1 || n.forRoles.indexOf('admin') !== -1;
   return n.forRoles.indexOf(currentRole) !== -1;

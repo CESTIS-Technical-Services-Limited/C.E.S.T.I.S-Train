@@ -10346,7 +10346,34 @@
   Core.notify = (function () {
     function audience(n) {
       if (n && Array.isArray(n.forUsers) && n.forUsers.length) return 'u:' + n.forUsers.slice().sort().join(',');
-      return 'r:' + ((n && Array.isArray(n.forRoles)) ? n.forRoles.slice().sort().join(',') : '');
+      var k = 'r:' + ((n && Array.isArray(n.forRoles)) ? n.forRoles.slice().sort().join(',') : '');
+      // A programme's notices, and one instructor's marking notices, are kept
+      // as their own audience: a busy programme, or a marking session, no
+      // longer pushes everybody else's notices out of the bell.
+      if (n && n.forCourse) k += '|c:' + String(n.forCourse);
+      if (n && Array.isArray(n.forInstructors) && n.forInstructors.length) k += '|i:' + n.forInstructors.slice().sort().join(',');
+      return k;
+    }
+    /* Who a notice reaches beyond its roles. Two optional fields, on new
+       notices only — every notice already stored has neither and reaches
+       everybody in its roles exactly as before:
+         n.forCourse       a programme's notice (a new class, a resource, an
+                           instructor's announcement): a TRAINEE sees it only
+                           when it is her programme (or 'General'); staff as
+                           before. A Plumbing trainee's bell held every
+                           Welding class, resource and announcement.
+         n.forInstructors  [account ids]: a marking notice reaches the
+                           instructor who marked (and the administrators),
+                           not every instructor in the Centre.
+       viewer { role, userId, course, sameProgramme(a, b) } -> true | false */
+    function reaches(n, viewer) {
+      if (!n) return false;
+      var v = viewer || {};
+      if (v.role === 'student' && n.forCourse) return Core.coursework.resourceVisible(n.forCourse, v.course, v.sameProgramme);
+      if (v.role === 'instructor' && Array.isArray(n.forInstructors) && n.forInstructors.length) {
+        return !!v.userId && n.forInstructors.indexOf(v.userId) !== -1;
+      }
+      return true;
     }
     function prune(list, perAudience, max) {
       if (!Array.isArray(list)) return list;
@@ -10362,7 +10389,7 @@
       if (keep.length === list.length) return list;
       return list.filter(function (n) { return n && keep.indexOf(n) !== -1; });
     }
-    return { prune: prune };
+    return { prune: prune, reaches: reaches };
   })();
 
   Core.cashbook = (function () {
@@ -11895,6 +11922,10 @@
       };
       var users = strList(n.forUsers, 50);
       if (users.length) out.forUsers = users;
+      // Who else it is for (Core.notify.reaches): a programme, the marking instructor.
+      if (n.forCourse != null && String(n.forCourse).trim()) out.forCourse = String(n.forCourse).slice(0, 120);
+      var ins = strList(n.forInstructors, 20);
+      if (ins.length) out.forInstructors = ins;
       return out;
     }
 

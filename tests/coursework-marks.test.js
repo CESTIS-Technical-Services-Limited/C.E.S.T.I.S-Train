@@ -184,7 +184,7 @@ PAGES.forEach(function (page) {
       addNotification(t, ty, ic, roles) { sb.roles = roles; }, renderInstructorGradebook() {}, refreshContentDependentViews() {}
     };
     vm.createContext(sb);
-    vm.runInContext(extractFunction(src, 'gradeSubmission', w), sb);
+    vm.runInContext(extractFunction(src, 'gradeSubmission', w) + extractFunction(src, 'notifyMarkingAudience', w), sb);
     vm.runInContext('gradeSubmission("A9", "S1")', sb);
     assertEq(asg.grades.S1, 0, 'a 0 is accepted as a mark');
     assertEq(asg.gradeLog && asg.gradeLog[0].previous, 4, 'the previous mark is logged');
