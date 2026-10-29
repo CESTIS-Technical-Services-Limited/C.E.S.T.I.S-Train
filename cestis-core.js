@@ -3365,14 +3365,33 @@
                 ' participants; start the session as a Large Class to host more.' };
     }
 
+    /* Above this many trainees the instructor's start screen SUGGESTS a
+       Large Class (the owner's decision, October 2026: "classes above about
+       6 trainees use Large Class"). In the built-in room the instructor's
+       device sends its picture once per trainee, out of one upload: the more
+       trainees, the thinner each copy and the harder the instructor's
+       connection works. It is a suggestion only — the instructor chooses.
+       trainees: how many are expected (the class's register).
+       -> { suggest, trainees, line } — `line` is one plain sentence saying why. */
+    var SUGGEST_LARGE_ABOVE = 6;
+    function largeClassAdvice(trainees) {
+      var n = Math.max(0, Math.floor(Number(trainees) || 0));
+      if (n <= SUGGEST_LARGE_ABOVE) return { suggest: false, trainees: n, line: '' };
+      return { suggest: true, trainees: n,
+        line: n + ' trainees are expected. Large Class is suggested for more than ' + SUGGEST_LARGE_ABOVE +
+              ': your picture is sent once instead of once for each trainee, so the class stays clear and uses less data.' };
+    }
+
     return {
       MESH_MAX_VIDEO: MESH_MAX_VIDEO, MESH_MAX_AUDIO: MESH_MAX_AUDIO, SFU_MAX: SFU_MAX,
+      SUGGEST_LARGE_ABOVE: SUGGEST_LARGE_ABOVE,
       meshConnections: meshConnections,
       meshStreamsPerParticipant: meshStreamsPerParticipant,
       meshUplinkKbps: meshUplinkKbps,
       meshLimit: meshLimit,
       recommend: recommend,
-      canJoinMesh: canJoinMesh
+      canJoinMesh: canJoinMesh,
+      largeClassAdvice: largeClassAdvice
     };
   })();
 
@@ -3853,11 +3872,47 @@
        themselves), so a trainee's camera going to every classmate was upload
        spent on tiles nobody shows — on a phone, the difference between a
        class that works and one that breaks up. Trainees still HEAR each other
-       (a question asked aloud), so audio goes to everyone. */
+       (a question asked aloud), so audio goes to everyone — but a muted
+       microphone sends nothing at all (see sendSound), so the classroom
+       stays a classroom without everyone paying for everyone's silence. */
     function mediaPlan(opts) {
       opts = opts || {};
       var video = !!(opts.amHost || opts.peerIsHost);
       return { sendVideo: video, receiveVideo: video, sendAudio: true, receiveAudio: true };
+    }
+
+    /* How each person's camera and microphone start. Trainees join from home
+       on phones with mobile data: their camera starts OFF and their
+       microphone MUTED, with buttons to turn either on. Staff (the
+       instructor running the class, a staff meeting) start as before. */
+    function startDevices(role) {
+      var trainee = role === 'student';
+      return { camera: !trainee, mic: !trainee };
+    }
+
+    /* Should sound be sent at all? A browser keeps sending a switched-off
+       microphone as silence — 50 packets a second, about 40 kbit/s (18 MB an
+       hour) to EVERY other person in the room, measured in Chromium — so a
+       muted microphone stops its sender instead. A shared tab's sound (mixed
+       with the microphone while sharing) still has to go out. */
+    function sendSound(micOn, sharingSound) {
+      return !!(micOn || sharingSound);
+    }
+
+    /* Class recordings. With no bitrate set, Chromium records at about
+       2.5 Mbit/s — up to ~1.1 GB an hour of class. 550 kbit/s of picture (the
+       1280x720, 15 frames-a-second stage) and 64 kbit/s of sound is about
+       276 MB an hour, and a whiteboard or a demonstration stays legible. */
+    var RECORDING_VIDEO_BPS = 550000;
+    var RECORDING_AUDIO_BPS = 64000;
+    function recorderOptions(mimeType) {
+      var o = { videoBitsPerSecond: RECORDING_VIDEO_BPS, audioBitsPerSecond: RECORDING_AUDIO_BPS };
+      if (mimeType) o.mimeType = mimeType;
+      return o;
+    }
+    /* Megabytes (1,000,000 bytes) an hour of recording at those rates. */
+    function recordingMBPerHour() {
+      return Math.round((RECORDING_VIDEO_BPS + RECORDING_AUDIO_BPS) / 8 * 3600 / 1e6);
     }
 
     /* How much picture each device sends. A phone filming at 720p for a tile
@@ -3990,6 +4045,12 @@
       canJoinMeeting: canJoinMeeting,
       shouldInitiate: shouldInitiate,
       mediaPlan: mediaPlan,
+      startDevices: startDevices,
+      sendSound: sendSound,
+      RECORDING_VIDEO_BPS: RECORDING_VIDEO_BPS,
+      RECORDING_AUDIO_BPS: RECORDING_AUDIO_BPS,
+      recorderOptions: recorderOptions,
+      recordingMBPerHour: recordingMBPerHour,
       videoProfile: videoProfile,
       backoffDelay: backoffDelay,
       parseIceServers: parseIceServers,

@@ -211,13 +211,15 @@ function roomSandbox(opts) {
     vcDisplayChat(sender, text) { calls.chat.push(sender + ': ' + text); }, vcRefreshRecordingBanner() { calls.banner++; },
     vcSetRemoteCamState() {}, vcRemoveVideo() {}, vcEnterScreenShareView(id) { calls.share.push(id); }, vcExitScreenShareView() {},
     vcDoHostAction(a, p) { calls.action.push(a + ':' + p); },
+    vcApplySoundSendingAll() { calls.sound = (calls.sound || 0) + 1; }, vcRefreshDeviceButtons() {}, vcApplySenderLimitsAll() { calls.limits = (calls.limits || 0) + 1; },
+    vcBroadcastData(m) { (calls.broadcast = calls.broadcast || []).push(m); },
     document: { getElementById() { return null; } }
   });
   run(sb, 'var peerNames = {}, peerRoles = {}, mutedPeers = {}, vcCoHosts = {}, vcAdmitted = {}, dataConnections = {}, peerConnections = {},' +
     ' vcDialling = {}, vcRemoteRecorders = {}, vcPendingConns = {}, vcIsCoHost = false, vcRefusedByHost = false, vcHostPermissions = {screenShare:false, recording:false},' +
-    ' vcCurrentRole = "student", currentRoomCode = "ABC234", isRoomHost = ' + (opts.host ? 'true' : 'false') + ', rtcPeer = {id: "' + (opts.host ? 'cestis-ABC234-host' : 'cestis-ABC234-me0001') + '"};');
+    ' vcPeerCamOn = {}, vcCurrentRole = "student", currentRoomCode = "ABC234", isRoomHost = ' + (opts.host ? 'true' : 'false') + ', rtcPeer = {id: "' + (opts.host ? 'cestis-ABC234-host' : 'cestis-ABC234-me0001') + '"};');
   sb.localStream = new FakeStream([mic]);
-  load(sb, ['vcHostPeerId', 'vcCleanPeerName', 'vcCleanPeerRole', 'sanitizePeerId', 'vcOnData']);
+  load(sb, ['vcHostPeerId', 'vcCleanPeerName', 'vcCleanPeerRole', 'sanitizePeerId', 'vcMicIsOn', 'vcCamIsOn', 'vcSetMic', 'vcOnData']);
   return { sb, calls, mic };
 }
 const HOST = 'cestis-ABC234-host', STU = 'cestis-ABC234-zz9abc', STU2 = 'cestis-ABC234-yy8abc';
@@ -304,8 +306,8 @@ console.log('Admission: the host lets people in, or turns them away with the rea
     run(sb, 'var peerNames = {}, peerRoles = {}, vcCoHosts = {}, vcAdmitted = {}, vcRefusedPeers = {}, vcKickedUids = {}, vcPendingConns = {}, vcPeerUids = {},' +
       ' dataConnections = {}, peerConnections = {}, vcRemoteRecorders = {}, vcIsRecording = false, vcHostPermissions = {screenShare:false, recording:false},' +
       ' vcCurrentRole = "admin", vcCurrentUserName = "Admin", currentRoomCode = "MEET234567", isRoomHost = true, rtcPeer = {id: "cestis-MEET234567-host"},' +
-      ' currentStudent = null, currentInstructor = null, currentLoggedInUser = {id: "U1"};');
-    load(sb, ['vcHostPeerId', 'vcMeetingForCode', 'vcCurrentUserId', 'vcNameMessage', 'vcAdmitPeer', 'vcWhenAdmitted']);
+      ' currentStudent = null, currentInstructor = null, currentLoggedInUser = {id: "U1"}, localStream = null;');
+    load(sb, ['vcHostPeerId', 'vcMeetingForCode', 'vcCurrentUserId', 'vcMicIsOn', 'vcCamIsOn', 'vcNameMessage', 'vcAdmitPeer', 'vcWhenAdmitted']);
     return { sb, sent, conn, conns, t };
   }
   // A student holding an Admin Only meeting's code.
@@ -406,8 +408,9 @@ console.log('Every room function the page calls exists');
 console.log('A picture that arrives before the room is drawn is shown when it is');
 {
   const doc = makeDom();
-  const sb = sandbox({ document: doc, vcUpdateParticipants() {}, vcApplyHostOnlyVisibility() {}, vcRecordingAddStream() {} });
-  run(sb, 'var isRoomHost = false, currentRoomCode = "LAT234", peerConnections = {}, peerNames = {}, vcPendingStreams = {}, vcCurrentViewMode = "gallery", vcScreenSharingPeerId = null;');
+  const camState = [];
+  const sb = sandbox({ document: doc, vcUpdateParticipants() {}, vcApplyHostOnlyVisibility() {}, vcRecordingAddStream() {}, vcSetRemoteCamState(id, on) { camState.push(id + ':' + on); } });
+  run(sb, 'var isRoomHost = false, currentRoomCode = "LAT234", peerConnections = {}, peerNames = {}, vcPendingStreams = {}, vcCurrentViewMode = "gallery", vcScreenSharingPeerId = null, vcPeerCamOn = {};');
   load(sb, ['sanitizePeerId', 'vcHostPeerId', 'vcAddVideo', 'vcReplayStreams']);
   const hostStream = new FakeStream([new FakeTrack('audio'), new FakeTrack('video')]);
   sb.__s = hostStream;
