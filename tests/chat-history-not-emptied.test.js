@@ -178,7 +178,7 @@ for (const page of PAGES) {
   console.log('The School Fee mirror waits for the store (' + w + ')');
   {
     const f = extractFunction(page.src, 'syncStudentsToSchoolFee', w);
-    assert(/if \(storeNotReady\(\)\) \{[\s\S]{0,300}CESTISStore\.whenReady\(/.test(f), w + ': before the store is ready it waits, then runs once');
+    assert(/storeNotReady\(\)\) \{[\s\S]{0,300}CESTISStore\.whenReady\(/.test(f), w + ': before the store is ready it waits, then runs once');
     assert(page.src.indexOf("if (storeNotReady()) return;\n      CESTISCore.pageCloud.guardedSet(CESTISStore, 'cestiSchoolFeeStudents', JSON.stringify(d.students));") !== -1,
       w + ': the roll the fee page sends is not written before the store is ready, nor empty over a stored one');
   }

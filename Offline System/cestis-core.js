@@ -2139,7 +2139,11 @@
       if (!Core.isSnapshotableKey(key)) return;
       var local = localStoreMap[key];
       var localEmpty = (local == null || local === '' || local === '[]' || local === '{}');
-      if (localEmpty && snapStore[key] != null && snapStore[key] !== '') {
+      // An empty value in the snapshot restores nothing: putting "{}" over a
+      // local "{}" counted as a repair on every sign-in, and had the whole
+      // dashboard reloaded for it.
+      var snapEmpty = (snapStore[key] === '[]' || snapStore[key] === '{}');
+      if (localEmpty && !snapEmpty && snapStore[key] != null && snapStore[key] !== '') {
         var restore = snapStore[key];
         // A collection emptied by deleting its last record is empty on
         // purpose: what the tombstones say was deleted is not restored.

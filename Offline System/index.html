@@ -33752,9 +33752,58 @@ var _autoSaveFileIds = {}; // { folderId: fileId } for tracking backup files per
 // { folderId: modifiedTime } — when Drive last saw each folder's copy written,
 // so the login merges can apply the oldest copy first and the newest last.
 var _backupFileModified = {};
+// { folderId: { md5Checksum, size, modifiedTime, version } } of each folder's
+// copy, as Drive described it when it was located (EF-3, below).
+var _backupFileMeta = {};
 // Has the Main backup been merged into this device in this session? Until it
 // has, the first autosave pulls before it pushes.
 var _mainMergedThisSession = false;
+
+/* ---- Copies whose exact bytes this device has already taken in (EF-3) ----
+   A staff sign-in used to download every copy of the Centre's backup twice
+   over: Sync Now read the five folder copies (most of them byte for byte the
+   same file) and the master, and the sign-in that followed read them all
+   again — 771 MB at a school year's size. Drive gives each file's MD5
+   checksum with its listing: a copy whose checksum is one this device has
+   already merged, in this page and with nothing wiped since, holds nothing
+   it does not already have, and is not downloaded again. Every copy is still
+   looked at; a copy with no checksum, or a new one, is downloaded and merged
+   exactly as before.
+
+   An entry counts only while the data it brought in is still on the device:
+   one taken in during a signed-in session is forgotten when that session
+   signs out (the sign-out may trim the device); one taken in before anybody
+   signed in, or after the sign-out, carries over to the next sign-in. */
+var _mergedCopies = {};   // md5 -> { seq, wiped }
+function cestisCopyMerged(meta) {
+  var md5 = meta && meta.md5Checksum;
+  if (!md5) return false;
+  var e = _mergedCopies[md5];
+  if (!e) return false;
+  if (_sessionWiped) return e.seq === _sessionSeq && e.wiped === true;
+  if (e.seq === _sessionSeq) return e.wiped === false;
+  return e.seq === _sessionSeq - 1 && (e.wiped === true || e.seq === 0);
+}
+function cestisNoteCopyMerged(md5) {
+  if (md5) _mergedCopies[md5] = { seq: _sessionSeq, wiped: !!_sessionWiped };
+}
+/* Note a downloaded copy as merged — only if Drive still describes the file
+   as the same version: then the bytes that were merged are the ones its
+   checksum names (a write in between would have moved the version). */
+async function cestisConfirmCopyMerged(fileId, meta) {
+  if (!meta || !meta.md5Checksum || meta.version == null) return;
+  try {
+    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=md5Checksum,version', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+    if (!r.ok) return;
+    var j = await r.json();
+    if (j && j.md5Checksum === meta.md5Checksum && String(j.version) === String(meta.version)) cestisNoteCopyMerged(meta.md5Checksum);
+  } catch (e) {}
+}
+/* Did any pull change this device since its last successful upload? With
+   nothing changed and nothing unsent, the device holds exactly what it last
+   uploaded — the first save after a sign-in need not send it all again. */
+var _pullChanges = 0, _pullChangesUploaded = 0;   // pulls that changed this device; as of the last payload that went up
+var _signInCleanBaseline = null;   // { writes } — see autoSyncOnLogin and autoSaveToAllFolders
 var AUTO_SAVE_INTERVAL_MS = 5000; // 5 seconds
 var _debouncedCloudSaveTimer = null;
 var _lastAutoSaveHash = null; // hash of last data successfully pushed to the cloud (dirty-check)
@@ -35492,9 +35541,17 @@ async function mergeFromCloud() {
 async function locateBackupCopy(folderId) {
   var fileId = await findBackupFileInFolder(folderId);
   if (!fileId || fileId === 'LOOKUP_FAILED') return fileId;
+  // Its checksum, size and version come with it (EF-3: an identical copy is
+  // not downloaded twice). A copy whose description cannot be read has none,
+  // and is downloaded as before.
+  if (typeof _backupFileMeta !== 'undefined') delete _backupFileMeta[folderId];
   try {
-    var m = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=modifiedTime', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
-    if (m.ok) { var mj = await m.json(); _backupFileModified[folderId] = mj.modifiedTime || ''; }
+    var m = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=modifiedTime,md5Checksum,size,version', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+    if (m.ok) {
+      var mj = await m.json();
+      _backupFileModified[folderId] = mj.modifiedTime || '';
+      if (typeof _backupFileMeta !== 'undefined') _backupFileMeta[folderId] = { md5Checksum: mj.md5Checksum || '', size: mj.size, modifiedTime: mj.modifiedTime || '', version: mj.version != null ? String(mj.version) : null };
+    }
   } catch (e) {}
   return fileId;
 }
@@ -35603,8 +35660,10 @@ async function saveMasterSnapshot(eventName, force) {
     if (fileId === 'LOOKUP_FAILED') return { ok: false, reason: 'lookup-failed' };
     var resp;
     if (fileId) {
-      resp = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media',
+      resp = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media&fields=id,md5Checksum',
         { method: 'PATCH', headers: { 'Authorization': 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' }, body: blob });
+      // What this device just wrote it holds: not downloaded back (EF-3).
+      if (resp && resp.ok) { try { var _pj = await resp.clone().json(); if (_pj && _pj.md5Checksum && typeof cestisNoteCopyMerged === 'function') cestisNoteCopyMerged(_pj.md5Checksum); } catch (e) {} }
     } else {
       var metadata = { name: MASTER_SNAPSHOT_CONFIG.FILE_NAME, parents: [MASTER_SNAPSHOT_CONFIG.FOLDER_ID], mimeType: 'application/json' };
       var fd = new FormData();
@@ -35655,15 +35714,29 @@ function cestisUnionMasterTombstones(map) {
   });
 }
 
-async function fetchMasterSnapshot() {
+/* opts.skipIfMerged: when the master's bytes are ones this device has
+   already reconciled with (cestisCopyMerged), it is not downloaded again and
+   { alreadyMerged: true, fileId, meta } comes back instead. A snapshot that
+   is downloaded carries __fileId and __meta for cestisConfirmCopyMerged. */
+async function fetchMasterSnapshot(opts) {
   if (!googleAccessToken) return null;
   try {
     var fileId = await findMasterSnapshotFile();
     if (!fileId || fileId === 'LOOKUP_FAILED') return null;
+    var meta = null;
+    if (opts && opts.skipIfMerged) {
+      try {
+        var mr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=md5Checksum,version', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+        if (mr.ok) { var mj = await mr.json(); meta = { md5Checksum: mj.md5Checksum || '', version: mj.version != null ? String(mj.version) : null }; }
+      } catch (e) { meta = null; }
+      if (cestisCopyMerged(meta)) return { alreadyMerged: true, fileId: fileId, meta: meta };
+    }
     var resp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media',
       { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
     if (!resp.ok) return null;
-    return await resp.json();
+    var snap = await resp.json();
+    if (snap && typeof snap === 'object') { try { Object.defineProperty(snap, '__fileId', { value: fileId }); Object.defineProperty(snap, '__meta', { value: meta }); } catch (e) {} }
+    return snap;
   } catch (e) { console.warn('[MasterSnapshot] fetch failed:', e); return null; }
 }
 
@@ -35674,7 +35747,10 @@ async function reconcileWithMasterSnapshot() {
   if (!isCloudConnected || !googleAccessToken) return false;
   if (!window.CESTISCore || typeof CESTISCore.reconcileSnapshot !== 'function') return false;
   try {
-    var snapshot = await fetchMasterSnapshot();
+    var snapshot = await fetchMasterSnapshot({ skipIfMerged: true });
+    // The same bytes this device reconciled with moments ago (Sync Now, then
+    // the sign-in): everything they could add is already here (EF-3).
+    if (snapshot && snapshot.alreadyMerged) { console.log('[MasterSnapshot] already reconciled with this copy; not downloaded again.'); return true; }
     if (!snapshot || !snapshot.store) return false;
     var ver = CESTISCore.verifySnapshot(snapshot);
     if (!ver.ok) console.warn('[MasterSnapshot] checksum mismatch — snapshot may be partial; merging cautiously.');
@@ -35699,9 +35775,11 @@ async function reconcileWithMasterSnapshot() {
       }
       console.log('[MasterSnapshot] reconcile restored', res.restored, 'config keys:', res.restoredKeys, 'checksumOk:', ver.ok);
       _lastMasterSnapshotHash = null; // force a fresh save so the master reflects the merged state
+      if (typeof _pullChanges === 'number') _pullChanges++;
     } else {
       console.log('[MasterSnapshot] local data consistent with master backup (checksumOk:' + ver.ok + ')');
     }
+    try { if (snapshot.__meta) await cestisConfirmCopyMerged(snapshot.__fileId, snapshot.__meta); } catch (e) {}
     // True means the master file was read — whether or not it changed anything.
     return true;
   } catch (e) { console.warn('[MasterSnapshot] reconcile failed:', e); return false; }
@@ -36271,8 +36349,24 @@ function carryForwardCloudAdminSlices(data) {
    device's copy over another device's write without ever having read it. */
 var _lastPull = { ok: true, changed: false, kind: '' };
 var _pullFailStreak = 0;
-async function silentMergeFromBackup(fileId) {
+async function silentMergeFromBackup(fileId, meta) {
   var fail = function(kind) { _lastPull = { ok: false, changed: false, kind: kind }; _pullFailStreak++; return false; };
+  // The very bytes this device has already merged (cestisCopyMerged): nothing
+  // in them is new here, so they are not downloaded again. Read for what it
+  // is — a successful pull that changed nothing.
+  if (meta && typeof cestisCopyMerged === 'function' && cestisCopyMerged(meta)) {
+    try {
+      var _mf = GOOGLE_DRIVE_CONFIG.FOLDER_ID;
+      if (fileId && (fileId === _autoSaveFileIds[_mf] || fileId === cloudFileId)) {
+        _mainMergedThisSession = true;
+        if (_lastCloudVersion[_mf] === undefined && meta.version) _lastCloudVersion[_mf] = String(meta.version);
+      }
+    } catch (e) {}
+    console.log('[AutoSync] Copy ' + fileId + ' is one this device has already merged; not downloaded again.');
+    _lastPull = { ok: true, changed: false, kind: '' };
+    _pullFailStreak = 0;
+    return false;
+  }
   try {
     // The sign-in merge of the Main backup notes WHICH version it read (taken
     // before the download, so a write in between is merged again, never
@@ -36314,7 +36408,10 @@ async function silentMergeFromBackup(fileId) {
     if (_mergeBackupFailed) return fail('merge');
     _lastPull = { ok: true, changed: !!changed, kind: '' };
     _pullFailStreak = 0;
+    if (changed && typeof _pullChanges === 'number') _pullChanges++;
     if (_verBefore && _lastCloudVersion[_mainFolder] === undefined) _lastCloudVersion[_mainFolder] = _verBefore;
+    // These bytes are now merged here: an identical copy is not fetched again.
+    if (meta && meta.md5Checksum && typeof cestisConfirmCopyMerged === 'function') await cestisConfirmCopyMerged(fileId, meta);
     return changed;
   } catch (err) {
     console.warn('[AutoSync] Silent merge download error:', err);
@@ -36853,6 +36950,11 @@ async function autoSyncOnLogin() {
   }
 
   console.log('[AutoSync] Starting auto-sync from all Google Drive folders...');
+  // Did this device hold work it had not uploaded? (Then its first save
+  // after the sign-in must go up, whatever the pulls found.)
+  var _hadUnsent = false;
+  try { _hadUnsent = !!(CESTISStore.getItem('cestisPendingUpload') || CESTISStore.getItem('cestisUnsyncedOnSignOut')); } catch (e) { _hadUnsent = true; }
+  _signInCleanBaseline = null;
   setCloudSyncing(true);
 
   try {
@@ -36883,7 +36985,7 @@ async function autoSyncOnLogin() {
     for (const copy of CESTISCore.cloudMerge.oldestFirst(_copies)) {
       try {
         console.log('[AutoSync] Merging from ' + copy.folder.label + ' folder...');
-        const changed = await silentMergeFromBackup(copy.fileId);
+        const changed = await silentMergeFromBackup(copy.fileId, typeof _backupFileMeta !== 'undefined' ? _backupFileMeta[copy.folder.id] : null);
         if (changed) anyChanged = true;
       } catch (e) {
         console.warn('[AutoSync] Error syncing from ' + copy.folder.label + ':', e);
@@ -36959,6 +37061,9 @@ async function autoSyncOnLogin() {
         var _bfId = await findBackupFileInFolder(ALL_DRIVE_FOLDERS[_bi].id);
         if (_bfId === 'LOOKUP_FAILED') _bfId = null;
         if (!_bfId) continue;
+        // A copy merged moments ago, byte for byte (step 1): every record in
+        // it is already here, so it has nothing to recover (EF-3).
+        if (typeof cestisCopyMerged === 'function' && typeof _backupFileMeta !== 'undefined' && cestisCopyMerged(_backupFileMeta[ALL_DRIVE_FOLDERS[_bi].id])) continue;
         var _bResp = await fetch('https://www.googleapis.com/drive/v3/files/' + _bfId + '?alt=media', {
           headers: { 'Authorization': 'Bearer ' + googleAccessToken }
         });
@@ -37049,6 +37154,14 @@ async function autoSyncOnLogin() {
 
     console.log('[AutoSync] Auto-sync complete. Data changed: ' + anyChanged);
 
+    // Nothing unsent here, and nothing any pull brought in: this device holds
+    // exactly what it last uploaded, which the Main copy already has. Its
+    // first save then sends nothing (autoSaveToAllFolders) — unless anything
+    // at all is written before that save runs.
+    if (!_hadUnsent && !anyChanged && typeof _pullChanges === 'number' && _pullChanges === _pullChangesUploaded && _mainMergedThisSession && _lastPull && _lastPull.ok) {
+      _signInCleanBaseline = { writes: (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -3 };
+    }
+
     // 6. Refresh the dashboard display if data changed — but only if the user is
     // actually on the dashboard. If they've navigated elsewhere, leave them there.
     if (anyChanged) {
@@ -37092,7 +37205,7 @@ async function silentSaveToFolder(folderId, folderLabel, blob) {
       // Update existing file (ask for the new `version` back so we can record our
       // own write and not treat it as someone else's change on the next pull).
       response = await fetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=id,version`,
+        `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=id,version,md5Checksum`,
         {
           method: 'PATCH',
           headers: {
@@ -37104,6 +37217,9 @@ async function silentSaveToFolder(folderId, folderLabel, blob) {
       );
       if (response.ok) {
         const pResult = await response.json().catch(() => ({}));
+        // What this device just wrote is what it holds: a copy with these
+        // bytes is not downloaded back (EF-3).
+        if (pResult && pResult.md5Checksum && typeof cestisNoteCopyMerged === 'function') cestisNoteCopyMerged(pResult.md5Checksum);
         if (pResult && pResult.version != null) {
           var prevVer = _lastCloudVersion[folderId];
           _lastCloudVersion[folderId] = String(pResult.version);
@@ -37186,12 +37302,13 @@ async function mainMovedSincePull() {
     if (!fileId || !isCloudConnected || !googleAccessToken) return false;
     var baseline = _lastCloudVersion[folderId];
     if (baseline === undefined) return false;
-    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version,md5Checksum', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
     if (!r.ok) return false;
-    var ver = String((await r.json()).version || '');
+    var rj = await r.json();
+    var ver = String(rj.version || '');
     if (!ver || ver === baseline) return false;
     console.log('[Sync] The Main backup moved (v' + baseline + ' → v' + ver + ') since this device pulled; merging it before this save.');
-    await silentMergeFromBackup(fileId);
+    await silentMergeFromBackup(fileId, { md5Checksum: rj.md5Checksum || '', version: ver });
     // A version is "seen" only once it has actually been merged: after a
     // failed download it stays unseen, so the next tick fetches it again.
     if (_lastPull.ok) _lastCloudVersion[folderId] = ver;
@@ -37229,7 +37346,7 @@ async function pullMainIfRemoteNewer() {
       if (!fileId || fileId === 'LOOKUP_FAILED') return false;
     }
     var _sent = Date.now();
-    var metaResp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version', {
+    var metaResp = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=version,md5Checksum', {
       headers: { 'Authorization': 'Bearer ' + googleAccessToken }
     });
     try { cestisNoteServerClock(metaResp, _sent); } catch (e) {}
@@ -37251,14 +37368,14 @@ async function pullMainIfRemoteNewer() {
       // complete — the very next step is an upload, and uploading before ever
       // pulling is how a stale device overwrote everybody else's work.
       if (_mainMergedThisSession) return false;
-      var first = await silentMergeFromBackup(fileId);
+      var first = await silentMergeFromBackup(fileId, { md5Checksum: meta.md5Checksum || '', version: ver });
       if (!_lastPull.ok) delete _lastCloudVersion[folderId];   // not seen until merged
       if (first) console.log('[Sync] Merged the cloud copy before this device\'s first save.');
       return first;
     }
     if (ver === baseline) return false; // nobody else has written since we last saw it
     // Another device wrote: merge their changes into local before we save ours.
-    var merged = await silentMergeFromBackup(fileId);
+    var merged = await silentMergeFromBackup(fileId, { md5Checksum: meta.md5Checksum || '', version: ver });
     // Marked seen only once merged — a failed download is tried again.
     if (_lastPull.ok) _lastCloudVersion[folderId] = ver;
     if (merged) console.log('[Sync] Merged newer cloud data (v' + ver + ') before saving.');
@@ -37476,6 +37593,7 @@ async function autoSaveToAllFolders() {
     // the upload swallowed every edit made while it was in flight — an edit
     // that then never went up until something unrelated changed.
     var _writesAfterSave = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : _lastAutoSaveWriteMark;
+    var _pullChangesAtBuild = (typeof _pullChanges === 'number') ? _pullChanges : 0;
     // Version precondition. Drive offers none server-side for a media upload,
     // so it is done here: re-read the Main file's version right before
     // writing; if another device wrote since this device last pulled, take
@@ -37496,12 +37614,23 @@ async function autoSaveToAllFolders() {
     // data to all Drive folders (the main cause of slow, constant syncing).
     const _dataStr = JSON.stringify(backupData.data, stripSecretFields);
     const _curHash = cestisHashString(_dataStr);
+    // The first save after a sign-in whose pulls changed nothing, on a device
+    // that had nothing unsent, with not one write since: what it would send is
+    // what it last uploaded (autoSyncOnLogin). Taken as already uploaded.
+    if (typeof _signInCleanBaseline !== 'undefined' && _signInCleanBaseline) {
+      if (_lastAutoSaveHash === null && _writesNow === _signInCleanBaseline.writes) {
+        _lastAutoSaveHash = _curHash;
+        console.log('[AutoSave] Nothing changed since this device\'s last upload; not sending it all again after the sign-in.');
+      }
+      _signInCleanBaseline = null;
+    }
     if (_curHash === _lastAutoSaveHash) {
       // The writes were bookkeeping only — the data itself is unchanged.
       // Absorb them (including saveState()'s own) so the next tick is free —
       // and the note saveState() set, which cestisMarkUploaded() now removes.
       _lastAutoSaveWriteMark = _writesAfterSave;
       _lastAutoSaveResult = { uploaded: true, reason: 'unchanged' };
+      _pullChangesUploaded = _pullChangesAtBuild;
       cestisBookkeeping(cestisMarkUploaded);
       return; // unchanged — nothing to push; finally{} clears _isAutoSaving
     }
@@ -37568,6 +37697,7 @@ async function autoSaveToAllFolders() {
       // is still counted: it goes up on the next tick. On failure the mark is
       // left alone, which is what makes the next tick retry.
       _lastAutoSaveWriteMark = _writesAfterSave;
+      _pullChangesUploaded = _pullChangesAtBuild;
       cestisBookkeeping(cestisMarkUploaded);
     }
     // A submitted result waiting on this PC (the exam outbox) used to be let
@@ -39896,7 +40026,16 @@ async function centreFolderAccess(token) {
 }
 
 // Pre-login sync: pull data from all Google Drive folders before user logs in
+var _loginPageSyncRun = null;
 async function loginPageSync() {
+  // One run at a time. The page starts a sync by itself on load, and Sync
+  // Now (or a second caller) started another beside it: every copy of the
+  // Centre's records was downloaded twice over (EF-3). A call made while a
+  // run is in progress waits for that run instead.
+  if (typeof _loginPageSyncRun !== 'undefined' && _loginPageSyncRun) return _loginPageSyncRun;
+  var _endRun = null;
+  _loginPageSyncRun = new Promise(function(r) { _endRun = r; });
+  try { return await (async function() {
   try {
   isLoginPageSync = true;
   var isAdmin = adminLoginShown;
@@ -39984,7 +40123,7 @@ async function loginPageSync() {
         if (isAdmin) {
           updateLoginSyncStatus('Syncing from ' + entry.folder.label + ' (' + (j + 1) + '/' + _found.length + ')...', '');
         }
-        var changed = await silentMergeFromBackup(entry.fileId);
+        var changed = await silentMergeFromBackup(entry.fileId, typeof _backupFileMeta !== 'undefined' ? _backupFileMeta[entry.folder.id] : null);
         if (changed) totalMerged++;
         foldersSynced++;
       } catch (e) {
@@ -40136,6 +40275,8 @@ async function loginPageSync() {
     loginSyncCompleted = true;
     enableLoginButtons();
   }
+})(); }
+  finally { _loginPageSyncRun = null; if (_endRun) _endRun(); }
 }
 
 // Google OAuth for the login page (returns access token or null)
@@ -44092,6 +44233,7 @@ async function lmsChatSyncFromDrive() {
     var _sigKeys = Object.keys(_sigNow), _sigOld = Object.keys(_beforeSig);
     var _dataMoved = _chatMoved || _sigKeys.length !== _sigOld.length ||
       _sigKeys.some(function(k){ return _beforeSig[k] !== _sigNow[k]; });
+    if (_dataMoved && typeof _pullChanges === 'number') _pullChanges++;
     if (_dataMoved) try {
       var msgCopy = {};
       Object.keys(lmsChatMessages).forEach(function(roomId) {
@@ -59342,7 +59484,7 @@ function ttRefreshOnShow(){
     return !!(window.CESTISStore && typeof CESTISStore.isReady === 'function' && !CESTISStore.isReady());
   }
   function syncStudentsToSchoolFee(){
-    if (storeNotReady()) {
+    if (typeof storeNotReady === 'function' && storeNotReady()) {
       if (!_feeMirrorWaiting && typeof CESTISStore.whenReady === 'function') {
         _feeMirrorWaiting = true;
         CESTISStore.whenReady(function(){ _feeMirrorWaiting = false; try { syncStudentsToSchoolFee(); } catch(e){} });

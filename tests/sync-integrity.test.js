@@ -143,7 +143,7 @@ console.log('A device pulls before its first push, and never strips the Centre\'
 PAGES.forEach(function (page) {
   const w = page.where, src = page.src;
   const pull = fnBody(src, 'pullMainIfRemoteNewer', w);
-  assert(pull.indexOf('if (_mainMergedThisSession) return false;') !== -1 && pull.indexOf('await silentMergeFromBackup(fileId)') !== -1,
+  assert(pull.indexOf('if (_mainMergedThisSession) return false;') !== -1 && pull.indexOf('await silentMergeFromBackup(fileId') !== -1,
     w + ': first sight of the Main backup merges it unless a login sync already did');
   assert(fnBody(src, 'silentMergeFromBackup', w).indexOf('_mainMergedThisSession = true') !== -1, w + ': and the login merge records that it did');
   assert(fnBody(src, 'silentMergeFromBackup', w).indexOf('handleCloudAuthExpired()') !== -1, w + ': a rejected download is no longer silent');
