@@ -4819,6 +4819,8 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 /* A label that is there for screen readers but takes no room on screen. */
 .home-sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 .home-field-label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
+/* The office will email her (T6) */
+.pending-when { font-size:14px; line-height:1.5; color:var(--text-primary); background:var(--accent-dim); border-radius:var(--radius-sm); padding:12px 14px; margin:0 0 16px; text-align:left; overflow-wrap:anywhere; }
 
 /* Skip to content link for accessibility */
 .skip-to-content {
@@ -13192,6 +13194,9 @@ function showPendingApprovalScreen(user, opts) {
     '<div class="pending-icon" id="pendingApprovalIcon">' + (n.tone === 'warn' ? '⚠️' : '📋') + '</div>' +
     '<h2 id="pendingApprovalTitle">' + escapeHtml(n.title) + '</h2>' +
     '<div class="pending-msg" id="pendingApprovalMsg" role="status" aria-live="polite">' + escapeHtml(n.message) + '</div>' +
+    // Registered from home (T6): how long it usually takes, and — when the
+    // gate said it will — that an email tells her when she can sign in.
+    (opts.home ? '<div class="pending-when" id="pendingApprovalWhen">' + escapeHtml(CESTISCore.homeStudy.approvalWait({ email: user.email, notify: opts.notify === true })) + '</div>' : '') +
     '<div class="pending-email">Registered as: <strong>' + escapeHtml(user.email) + '</strong> (' + escapeHtml(user.role) + ')</div>' +
     // (Through the trainee gate the device is told only "waiting": the line is
     // left out rather than shown with nothing in it.)
@@ -39112,7 +39117,7 @@ function gateTraineeAnswer(res, ctx) {
   }
   if (code === 'pending') {
     var who = ctx.login || '';
-    showPendingApprovalScreen({ email: /@/.test(who) ? who : (who || ''), role: 'student', programme: '', createdAt: '' }, { state: 'waiting' });
+    showPendingApprovalScreen({ email: /@/.test(who) ? who : (who || ''), role: 'student', programme: '', createdAt: '' }, { state: 'waiting', home: true });
     return;
   }
   // Signed in with an email account no trainee account uses: they may be new —
@@ -39198,7 +39203,7 @@ function gateRegisterAnswer(res, ctx) {
   if (res && res.ok && res.state === 'submitted') { gateRegisterReached(res); return; }
   var code = (res && res.error) || 'unreachable';
   if (code === 'pending') {
-    showPendingApprovalScreen({ email: (ctx.profile && ctx.profile.email) || '', role: 'student', programme: '', createdAt: '' }, { state: 'waiting' });
+    showPendingApprovalScreen({ email: (ctx.profile && ctx.profile.email) || '', role: 'student', programme: '', createdAt: '' }, { state: 'waiting', home: true });
     return;
   }
   signInSay('student', gateRegSay(code));
@@ -39207,7 +39212,7 @@ function gateRegisterAnswer(res, ctx) {
 function gateRegisterReached(res) {
   gateRegisterClose();
   var day = String(res.submittedAt || '').slice(0, 10);
-  showPendingApprovalScreen({ email: res.email || '', role: 'student', programme: res.programme || '', createdAt: day || localDateStr() }, { state: 'sent' });
+  showPendingApprovalScreen({ email: res.email || '', role: 'student', programme: res.programme || '', createdAt: day || localDateStr() }, { state: 'sent', home: true, notify: res.notify === true });
 }
 function gateRegisterClose() {
   var m = document.getElementById('gateRegModal');
@@ -39268,7 +39273,7 @@ async function gateRegisterSubmit() {
   if (res && res.ok && res.state === 'submitted') { gateRegisterReached(res); return; }
   var code = (res && res.error) || 'unreachable';
   if (code === 'bad-form') { gateRegFormSay(GATE_REG_FIELD[res.field] || gateRegSay('unreachable')); return; }
-  if (code === 'pending') { gateRegisterClose(); showPendingApprovalScreen({ email: _gateReg.email, role: 'student', programme: programme, createdAt: '' }, { state: 'waiting' }); return; }
+  if (code === 'pending') { gateRegisterClose(); showPendingApprovalScreen({ email: _gateReg.email, role: 'student', programme: programme, createdAt: '' }, { state: 'waiting', home: true }); return; }
   if (code === 'bad-token') { gateRegFormSay(GATE_REG_SAY['token-ended']); return; }
   gateRegFormSay(gateRegSay(code));
 }

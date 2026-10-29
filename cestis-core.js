@@ -16867,7 +16867,17 @@
       return { units: units, attendance: att, tests: tests,
         coursework: { graded: cw.graded || 0, total: cw.total || 0, percent: cw.percent == null ? null : cw.percent }, gpa: input.gpa == null ? '' : str(input.gpa) };
     }
-    return { classPollDelay: classPollDelay, classStartMs: classStartMs, parseOffset: parseOffset, progress: progress };
+    /* What a trainee who registered from home is told while she waits (T6).
+       notify: the gate said it will email her when the office approves. */
+    function approvalWait(o) {
+      o = o || {};
+      var email = str(o.email).trim();
+      var line = 'The office usually approves registrations within 1\u20132 working days.';
+      if (o.notify && /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(email)) return line + ' We\u2019ll email you at ' + email + ' when you can sign in.';
+      return line + ' Try signing in again after that.';
+    }
+    return { classPollDelay: classPollDelay, classStartMs: classStartMs, parseOffset: parseOffset, progress: progress,
+      approvalWait: approvalWait };
   })();
 
   root.CESTISCore = Core;

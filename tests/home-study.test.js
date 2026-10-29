@@ -143,5 +143,25 @@ assert(/if \(document\.visibilityState === 'hidden'\) return Promise\.resolve\(f
 assert(/var due = lmsChatOnChatPage\(\) \? GATE_CHAT_PAGE_MS : GATE_CHAT_IDLE_MS;/.test(chatPoll), 'the chat page: 45 s; any other page: 10 minutes (was 2½ minutes)');
 assert(/function gateSignOutFlow[\s\S]{0,2500}CESTISGate\.leave\(\{ keepData: waiting\.length > 0 \}\)/.test(HTML), 'sign-out still clears her records from the device (shared devices rely on it)');
 
+/* ---------- T6. Registered from home: how long, and an email when approved ---------- */
+console.log('\nT6. The pending screen says 1–2 working days, and that she will be emailed when she can sign in');
+[['online', require(path.join(ROOT, 'cestis-core.js'))], ['Offline System', require(path.join(ROOT, 'Offline System', 'cestis-core.js'))]].forEach(([build, C]) => {
+  const W = C.homeStudy && C.homeStudy.approvalWait;
+  assert(typeof W === 'function', build + ': CESTISCore.homeStudy.approvalWait exists');
+  if (typeof W !== 'function') return;
+  eq(W({ email: 'shanice.walters@example.com', notify: true }),
+    'The office usually approves registrations within 1\u20132 working days. We\u2019ll email you at shanice.walters@example.com when you can sign in.', build + ': with the email promise');
+  assert(!/email you/.test(W({ email: 'shanice.walters@example.com' })), build + ': no promise unless the gate said it will send it');
+  assert(!/email you/.test(W({ email: 'not an address', notify: true })), build + ': no promise to an address that is not one');
+  assert(!/Drive|Google|server|cloud|sync/i.test(W({ email: 'a@b.co', notify: true }) + W({})), build + ': says nothing of where anything is kept');
+});
+assert(/\(opts\.home \? '<div class="pending-when" id="pendingApprovalWhen">' \+ escapeHtml\(CESTISCore\.homeStudy\.approvalWait\(\{ email: user\.email, notify: opts\.notify === true \}\)\)/.test(HTML),
+  'the pending screen shows the line for a registration from home (escaped)');
+assert(/\{ state: 'sent', home: true, notify: res\.notify === true \}/.test(HTML), 'just registered: the email is promised only when the gate said it will send it');
+assert((HTML.match(/\{ state: 'waiting', home: true \}/g) || []).length === 3, 'signing in while still waiting: the same line, without a promise it cannot know');
+const GS = read('trainee-gate/Gate.gs');
+assert(/function gateMailSend\(G\)/.test(GS) && /MailApp\.sendEmail/.test(GS) && /GATE_MAIL = \{ QUEUE: 'MAIL_QUEUE', MAILED: 'MAILED'/.test(GS), 'the gate sends the approval email itself (MailApp, the Centre\'s own account), once per trainee');
+assert(/function gateNudgeApprovalMail\(\)/.test(HTML) && /registeredVia === 'home-registration'\) gateNudgeApprovalMail\(\)/.test(HTML), 'Activate / Approve All ask the gate to send it straight away');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);
