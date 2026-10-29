@@ -8935,6 +8935,11 @@ function updateAutoSyncStatusUI(active) {
 // The store's write counter as of our last completed cloud push — the gate
 // that makes an idle 15-second tick cost nothing on the push side.
 var _cashbookLastPushWrites = -1;
+// The file's Drive version as this page last took it in (or wrote it). The
+// 15-second tick downloaded the whole file every time — 240 downloads an hour
+// on an idle page (EF-8). It now asks for the version first (a few hundred
+// bytes) and downloads only when another device has written since.
+var _cashbookSeenVersion = null;
 
 async function autoMergeAndSave() {
     // Skip if not connected, already syncing, or offline
@@ -8952,19 +8957,33 @@ async function autoMergeAndSave() {
         if (!cloudFileId) await findExistingBackupFile();
 
         // --- STEP 1: Merge from cloud (pull changes from other users) ---
+        // Only when the file has changed since this page last took it in or
+        // wrote it. A version that cannot be read is downloaded as before.
         if (cloudFileId) {
-            var pullResponse = await fetch(
-                'https://www.googleapis.com/drive/v3/files/' + cloudFileId + '?alt=media',
-                { headers: { 'Authorization': 'Bearer ' + googleAccessToken } }
-            );
+            var _ver = null;
+            try {
+                var metaResponse = await fetch('https://www.googleapis.com/drive/v3/files/' + cloudFileId + '?fields=version,modifiedTime',
+                    { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+                if (metaResponse.ok) { var _m = await metaResponse.json(); _ver = (_m && _m.version != null) ? String(_m.version) : null; }
+                else if (metaResponse.status === 401) throw new Error('invalid_token');
+            } catch (metaErr) { if (metaErr && metaErr.message === 'invalid_token') throw metaErr; _ver = null; }
+            if (!(_ver && _ver === _cashbookSeenVersion)) {
+                var pullResponse = await fetch(
+                    'https://www.googleapis.com/drive/v3/files/' + cloudFileId + '?alt=media',
+                    { headers: { 'Authorization': 'Bearer ' + googleAccessToken } }
+                );
 
-            if (pullResponse.ok) {
-                var backupData = await pullResponse.json();
-                if (backupData.data && backupData.version) {
-                    silentMerge(backupData);
+                if (pullResponse.ok) {
+                    var backupData = await pullResponse.json();
+                    if (backupData.data && backupData.version) {
+                        silentMerge(backupData);
+                    }
+                    // Seen, as of the version asked for before the download (a
+                    // write in between is simply downloaded again next tick).
+                    _cashbookSeenVersion = _ver;
+                } else if (pullResponse.status === 401 || pullResponse.status === 403) {
+                    throw new Error('invalid_token');
                 }
-            } else if (pullResponse.status === 401 || pullResponse.status === 403) {
-                throw new Error('invalid_token');
             }
         }
 
@@ -8981,6 +9000,10 @@ async function autoMergeAndSave() {
             return; // finally{} clears the syncing flags
         }
         var backupPayload = prepareBackupData();
+        // The write count as of THIS payload: an edit made while the upload is
+        // on its way is counted after it, and goes up on the next tick. (Taking
+        // the count once the upload had finished swallowed such an edit.)
+        var _writesAtBuild = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -1;
         // No pretty-printing: the indentation inflated every upload by roughly
         // a third, and no person reads the wire format.
         var jsonContent = JSON.stringify(backupPayload);
@@ -8989,7 +9012,7 @@ async function autoMergeAndSave() {
         var pushResponse;
         if (cloudFileId) {
             pushResponse = await fetch(
-                'https://www.googleapis.com/upload/drive/v3/files/' + cloudFileId + '?uploadType=media',
+                'https://www.googleapis.com/upload/drive/v3/files/' + cloudFileId + '?uploadType=media&fields=id,version',
                 {
                     method: 'PATCH',
                     headers: {
@@ -9010,7 +9033,7 @@ async function autoMergeAndSave() {
             formData.append('file', blob);
 
             pushResponse = await fetch(
-                'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,version',
                 {
                     method: 'POST',
                     headers: { 'Authorization': 'Bearer ' + googleAccessToken },
@@ -9019,7 +9042,7 @@ async function autoMergeAndSave() {
             );
 
             if (pushResponse.ok) {
-                var result = await pushResponse.json();
+                var result = await pushResponse.clone().json();
                 cloudFileId = result.id;
                 CESTISStore.setItem('cestisCloudFileId', cloudFileId);
                 CESTISStore.setItem('cestisCloudFolderId', GOOGLE_DRIVE_CONFIG.FOLDER_ID);
@@ -9027,16 +9050,26 @@ async function autoMergeAndSave() {
         }
 
         if (pushResponse.ok) {
+            // The version this push made is this page's own: not downloaded
+            // back. A jump of more than one means another device wrote in
+            // between — downloaded next tick and merged.
+            try {
+                var _pv = await pushResponse.json();
+                var _nv = (_pv && _pv.version != null) ? String(_pv.version) : null;
+                var _jump = _nv && _cashbookSeenVersion && (Number(_nv) - Number(_cashbookSeenVersion) > 1);
+                _cashbookSeenVersion = (_nv && !_jump) ? _nv : null;
+            } catch (e) { _cashbookSeenVersion = null; }
+            var _w0 = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -1;
             lastSyncTime = new Date();
             CESTISStore.setItem('cestisLastSyncTime', lastSyncTime.toISOString());
             lastSavedBy = currentUser ? currentUser.fullName : 'Unknown';
             cloudFileTimestamp = new Date().toISOString();
             updateLastSyncDisplay();
             updateLastSavedByDisplay();
-            // Absorb every write this sync itself made (the pull's merges and
-            // the bookkeeping above), so the next idle tick skips the push.
-            if (window.CESTISStore && typeof CESTISStore.writes === 'number') {
-                _cashbookLastPushWrites = CESTISStore.writes;
+            // Absorb the writes this payload carried (the pull's merges
+            // included) and this bookkeeping — not an edit made meanwhile.
+            if (_writesAtBuild >= 0 && _w0 >= 0 && window.CESTISStore && typeof CESTISStore.writes === 'number') {
+                _cashbookLastPushWrites = _writesAtBuild + (CESTISStore.writes - _w0);
             }
         } else if (pushResponse.status === 401 || pushResponse.status === 403) {
             // Auth failure on push — token is invalid
