@@ -35580,7 +35580,10 @@ async function saveMasterSnapshot(eventName, force) {
   // exactly when it is needed most.
   if (currentRole === 'student') return { ok: false, reason: 'student-session' };
   try {
-    try { saveState(); } catch (e) {}
+    // The 5-second save has just written everything (and every edit since
+    // has saved itself); saving again from here only rewrote every
+    // collection and set the next tick going.
+    if (eventName !== 'autosave') { try { saveState(); } catch (e) {} }
     var cloudUser = getCurrentCloudUser() || {};
     // The master is written whole, with no pull before it. A device that had
     // not yet heard of a deletion used to write its shorter deletion lists
@@ -37307,6 +37310,32 @@ function cestisMarkUploaded() {
     if (CESTISStore.getItem('cestisUnsyncedOnSignOut')) CESTISStore.removeItem('cestisUnsyncedOnSignOut');
   } catch (e) {}
 }
+/* Run fn — the save's own bookkeeping on this device (the "pending upload"
+   note, the time of the last sync) — and count the store writes it makes as
+   already saved.
+
+   Why: the 5-second save asks "was anything written since my last save?" by
+   the store's write counter. Its own bookkeeping moved that counter after the
+   mark was taken (cestisMarkUploaded removing the note saveState() had just
+   set), so every tick found a "change", rewrote every collection, scheduled
+   another save and uploaded the chat file: an idle PC saved 27 times a minute
+   and sent ~2.9 GB a day (the efficiency audit, EF-1).
+
+   Only the writes fn makes, synchronously, are absorbed: nothing else can run
+   in between, so an edit the user makes at any moment — during an upload
+   too — is still counted, and goes up on the next tick. */
+// The session's "still here" stamp, written once a minute while signed in,
+// is this device's own note and is never uploaded: it is not a change for the
+// 5-second save (it used to start a full save every minute).
+try { if (window.CESTISStore && CESTISStore.uncounted) CESTISStore.uncounted.voctrain_sessionSeenAt = 1; } catch (e) {}
+function cestisBookkeeping(fn) {
+  var S = window.CESTISStore;
+  var w0 = (S && typeof S.writes === 'number') ? S.writes : null;
+  try { return fn(); }
+  finally {
+    if (w0 !== null && _lastAutoSaveWriteMark >= 0) _lastAutoSaveWriteMark += (S.writes - w0);
+  }
+}
 
 async function autoSaveToAllFolders() {
   if (!isCloudConnected || !googleAccessToken || _isAutoSaving) return;
@@ -37347,7 +37376,7 @@ async function autoSaveToAllFolders() {
     var _writesNow = (window.CESTISStore && typeof CESTISStore.writes === 'number') ? CESTISStore.writes : -2;
     if (_writesNow === _lastAutoSaveWriteMark && _lastAutoSaveHash) {
       _lastAutoSaveResult = { uploaded: true, reason: 'nothing-new' };
-      cestisMarkUploaded();
+      cestisBookkeeping(cestisMarkUploaded);
       return; // finally{} clears _isAutoSaving
     }
 
@@ -37469,10 +37498,11 @@ async function autoSaveToAllFolders() {
     const _curHash = cestisHashString(_dataStr);
     if (_curHash === _lastAutoSaveHash) {
       // The writes were bookkeeping only — the data itself is unchanged.
-      // Absorb them (including saveState()'s own) so the next tick is free.
+      // Absorb them (including saveState()'s own) so the next tick is free —
+      // and the note saveState() set, which cestisMarkUploaded() now removes.
       _lastAutoSaveWriteMark = _writesAfterSave;
       _lastAutoSaveResult = { uploaded: true, reason: 'unchanged' };
-      cestisMarkUploaded();
+      cestisBookkeeping(cestisMarkUploaded);
       return; // unchanged — nothing to push; finally{} clears _isAutoSaving
     }
 
@@ -37530,21 +37560,26 @@ async function autoSaveToAllFolders() {
     // Remember this payload only when the canonical folders actually saved, so a
     // failed upload is retried on the next tick instead of being skipped.
     _lastAutoSaveResult = { uploaded: successCount >= 1, reason: successCount >= 1 ? 'saved' : 'upload-failed' };
-    if (successCount >= 1) cestisMarkUploaded();
+    if (successCount >= 1) {
+      _lastAutoSaveHash = _curHash;
+      // Absorb every write this save itself made (saveState() above), so an
+      // idle next tick costs an integer compare and nothing else. An edit
+      // made while the upload was in flight came after _writesAfterSave and
+      // is still counted: it goes up on the next tick. On failure the mark is
+      // left alone, which is what makes the next tick retry.
+      _lastAutoSaveWriteMark = _writesAfterSave;
+      cestisBookkeeping(cestisMarkUploaded);
+    }
     // A submitted result waiting on this PC (the exam outbox) used to be let
     // go only when a later DOWNLOAD showed the shared copy holding it — on a
     // PC alone that could be the next sign-in, and the top bar said "Waiting
     // to send" all the while. The Main copy now holding it is the same proof.
     if (_sentResultIds) {
       var _mainSaved = ALL_DRIVE_FOLDERS.some(function(f, i) { return f.id === GOOGLE_DRIVE_CONFIG.FOLDER_ID && results[i] && results[i].status === 'fulfilled' && results[i].value === true; });
-      if (_mainSaved) { try { examOutboxConfirm(_sentResultIds); } catch (e) {} }
+      // (The outbox is this PC's own waiting list, not a change to upload.)
+      if (_mainSaved) { try { cestisBookkeeping(function() { examOutboxConfirm(_sentResultIds); }); } catch (e) {} }
     }
     if (successCount >= 1) {
-      _lastAutoSaveHash = _curHash;
-      // Absorb every write this save itself just made, so an idle next tick
-      // costs an integer compare and nothing else. On failure the mark is left
-      // alone, which is what makes the next tick retry.
-      _lastAutoSaveWriteMark = _writesAfterSave;
       _consecutiveCloudSaveFailures = 0;
     } else {
       _consecutiveCloudSaveFailures = (_consecutiveCloudSaveFailures || 0) + 1;
@@ -37553,9 +37588,9 @@ async function autoSaveToAllFolders() {
       }
     }
 
-    // Update sync metadata
+    // Update sync metadata (this device's own note: not a change to save)
     lastSyncTime = new Date();
-    CESTISStore.setItem('schoolDashboardLastSyncTime', lastSyncTime.toISOString());
+    cestisBookkeeping(function() { CESTISStore.setItem('schoolDashboardLastSyncTime', lastSyncTime.toISOString()); });
     updateLastSyncDisplay();
 
     lastSavedBy = cloudUser.username;
@@ -43854,11 +43889,34 @@ async function lmsChatFindDriveFile() {
 }
 
 var _lmsChatLastModified = null;   // the chat file's modifiedTime as this device last saw it
+/* What the shared chat file holds, as far as this device knows: the content
+   fingerprint (CESTISCore.chat.contentSig) of the copy it last uploaded or
+   downloaded. The push compares the chat it would upload with this and sends
+   nothing when they are the same. It used to upload the whole file on every
+   save — on an idle PC every 2.6 seconds — although only its time stamp had
+   changed. null: not known, so the next push uploads. */
+var _lmsChatDriveSig = null;
+var _lmsChatPushSeq = 0;           // which push is the latest (a later one decides what the file holds)
+/* One push at a time. Two pushes from this PC used to overlap — a message
+   sent while the previous upload was still on its way started a second one —
+   and the OLDER upload, landing last, put the file back without the newer
+   message (the chat file was then re-sent every few seconds anyway, which
+   hid it). A push asked for while one is in flight now runs once that one
+   has finished, with whatever the chat holds by then. */
+var _lmsChatPushing = null, _lmsChatPushAgain = false;
 async function lmsChatSyncToDrive() {
   if(!isCloudConnected || !googleAccessToken) return false;
   // A signed-out page has nothing of its own to say: after the wipe its chat
   // lists are empty, and this push would overwrite the Centre's chat file.
   if(_sessionWiped || !currentRole) return false;
+  // One at a time (above): asked for during an upload, it runs again after.
+  if(_lmsChatPushing) { _lmsChatPushAgain = true; return _lmsChatPushing; }
+  var _finish = null, _result = false;
+  _lmsChatPushing = new Promise(function(r) { _finish = r; });
+  try {
+    do {
+      _lmsChatPushAgain = false;
+      _result = await (async function() {
   try {
     // Read before writing. This file used to be overwritten with whatever
     // this device held, so a device that had not yet seen a deletion, an
@@ -43885,8 +43943,17 @@ async function lmsChatSyncToDrive() {
       tombstones: { chatRooms: syncTombsFor('chatRooms') }
     };
 
+    // The file already holds exactly this chat (when and by whom it was
+    // written aside): nothing to send. Any change at all — a message, an
+    // edit, a vote, someone seen online — makes the fingerprint differ.
+    var _sig = null;
+    try { _sig = CESTISCore.chat.contentSig(chatData); } catch (e) { _sig = null; }
+    if(fileId && _sig !== null && _sig === _lmsChatDriveSig) return true;
+
     var jsonContent = JSON.stringify(chatData);
     var blob = new Blob([jsonContent], {type:'application/json'});
+    // A push that starts after this one decides what the file holds.
+    var _mySeq = ++_lmsChatPushSeq;
 
     var resp;
     if(fileId) {
@@ -43899,21 +43966,32 @@ async function lmsChatSyncToDrive() {
       var formData = new FormData();
       formData.append('metadata', new Blob([JSON.stringify(metadata)],{type:'application/json'}));
       formData.append('file', blob);
-      resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
+      resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime', {
         method:'POST', headers:{'Authorization':'Bearer '+googleAccessToken}, body:formData
       });
       if(resp.ok) {
         var result = await resp.json();
         _lmsChatDriveFileId = result.id;
+        if(result && result.modifiedTime) _lmsChatLastModified = result.modifiedTime;
       }
     }
-    if(!resp.ok) throw new Error('Upload failed');
+    if(!resp.ok) { if(_mySeq === _lmsChatPushSeq) _lmsChatDriveSig = null; throw new Error('Upload failed'); }
+    // What the file holds now — unless another push started meanwhile, in
+    // which case it is not known which landed last, and the next push sends.
+    _lmsChatDriveSig = (_mySeq === _lmsChatPushSeq) ? _sig : null;
     console.log('Chat data auto-saved to Google Drive');
     return true;
   } catch(err) {
     console.error('Chat auto-sync to Drive error:', err);
     return false;
   }
+      })();
+    } while(_lmsChatPushAgain && !_sessionWiped && currentRole);
+  } finally {
+    _lmsChatPushing = null;
+    _finish(_result);
+  }
+  return _result;
 }
 
 // Lightweight signature of the in-memory messages so a poll can tell whether a
@@ -43957,6 +44035,9 @@ async function lmsChatSyncFromDrive() {
     if(!resp.ok) throw new Error('Download failed');
     var data = await resp.json();
     if(_sessionWiped || !currentRole) return { ok: false, signedOut: true };   // signed out while downloading
+    // What the file holds (before it is merged in here): the push sends
+    // nothing while this device's chat is the same.
+    try { _lmsChatDriveSig = (data && typeof data === 'object') ? CESTISCore.chat.contentSig(data) : null; } catch (e) { _lmsChatDriveSig = null; }
     var _chatMoved = false;
     // Deleted rooms written down in the file stay deleted here too.
     try {

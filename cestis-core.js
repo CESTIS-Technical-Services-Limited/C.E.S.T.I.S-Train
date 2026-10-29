@@ -204,6 +204,10 @@
       // for the price of an integer compare, instead of re-serialising the
       // whole dataset every tick to find out the answer is no.
       writes: 0,
+      // Keys a page names as its own notes about this device's session (the
+      // dashboard's once-a-minute "still here" stamp): never uploaded, so
+      // writing them is not a change. Empty unless a page fills it in.
+      uncounted: {},
       setItem: function (k, v) {
         k = String(k); v = String(v);
         // Before IndexedDB has been read in, a key that lives there only (too
@@ -219,7 +223,8 @@
           try { console.warn('[CESTISStore] Not writing "' + k + '" before the stored copy has been read.'); } catch (_) {}
           return;
         }
-        Store.writes++; cache[k] = v;
+        if (!(Store.uncounted && Store.uncounted[k] === 1)) Store.writes++;
+        cache[k] = v;
         // A failed localStorage write leaves the OLD value in place. Left there,
         // it out-votes the truth on every later read (see getItem above), so the
         // stale entry is removed and the read falls through to the cache and
@@ -244,7 +249,7 @@
         if (lsOk) markIdbOnly(k, false);
         writeIDB(k, v, false);
       },
-      removeItem: function (k) { k = String(k); Store.writes++; delete cache[k]; markIdbOnly(k, false); try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
+      removeItem: function (k) { k = String(k); if (!(Store.uncounted && Store.uncounted[k] === 1)) Store.writes++; delete cache[k]; markIdbOnly(k, false); try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
       clear: function () {
         for (var k in cache) { if (Object.prototype.hasOwnProperty.call(cache, k)) delete cache[k]; }
         try { if (LS) LS.clear(); } catch (e) {}

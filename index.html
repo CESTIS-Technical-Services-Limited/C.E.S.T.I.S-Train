@@ -37324,6 +37324,10 @@ function cestisMarkUploaded() {
    Only the writes fn makes, synchronously, are absorbed: nothing else can run
    in between, so an edit the user makes at any moment — during an upload
    too — is still counted, and goes up on the next tick. */
+// The session's "still here" stamp, written once a minute while signed in,
+// is this device's own note and is never uploaded: it is not a change for the
+// 5-second save (it used to start a full save every minute).
+try { if (window.CESTISStore && CESTISStore.uncounted) CESTISStore.uncounted.voctrain_sessionSeenAt = 1; } catch (e) {}
 function cestisBookkeeping(fn) {
   var S = window.CESTISStore;
   var w0 = (S && typeof S.writes === 'number') ? S.writes : null;
@@ -43893,11 +43897,26 @@ var _lmsChatLastModified = null;   // the chat file's modifiedTime as this devic
    changed. null: not known, so the next push uploads. */
 var _lmsChatDriveSig = null;
 var _lmsChatPushSeq = 0;           // which push is the latest (a later one decides what the file holds)
+/* One push at a time. Two pushes from this PC used to overlap — a message
+   sent while the previous upload was still on its way started a second one —
+   and the OLDER upload, landing last, put the file back without the newer
+   message (the chat file was then re-sent every few seconds anyway, which
+   hid it). A push asked for while one is in flight now runs once that one
+   has finished, with whatever the chat holds by then. */
+var _lmsChatPushing = null, _lmsChatPushAgain = false;
 async function lmsChatSyncToDrive() {
   if(!isCloudConnected || !googleAccessToken) return false;
   // A signed-out page has nothing of its own to say: after the wipe its chat
   // lists are empty, and this push would overwrite the Centre's chat file.
   if(_sessionWiped || !currentRole) return false;
+  // One at a time (above): asked for during an upload, it runs again after.
+  if(_lmsChatPushing) { _lmsChatPushAgain = true; return _lmsChatPushing; }
+  var _finish = null, _result = false;
+  _lmsChatPushing = new Promise(function(r) { _finish = r; });
+  try {
+    do {
+      _lmsChatPushAgain = false;
+      _result = await (async function() {
   try {
     // Read before writing. This file used to be overwritten with whatever
     // this device held, so a device that had not yet seen a deletion, an
@@ -43966,6 +43985,13 @@ async function lmsChatSyncToDrive() {
     console.error('Chat auto-sync to Drive error:', err);
     return false;
   }
+      })();
+    } while(_lmsChatPushAgain && !_sessionWiped && currentRole);
+  } finally {
+    _lmsChatPushing = null;
+    _finish(_result);
+  }
+  return _result;
 }
 
 // Lightweight signature of the in-memory messages so a poll can tell whether a
