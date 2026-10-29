@@ -2578,6 +2578,14 @@
         }
         // This ending has been dealt with: by a person, or by this rule's NYC.
         if (s._nycForCourseEnd === endKey) { out.outcome = 'settled'; return out; }
+        // A dropout ("Incomplete") is how this course ended for them, whoever
+        // recorded it and whenever — and a stage a person chose (other than In
+        // Training, which is exactly what the ending judges) is theirs to
+        // change. The sweep turned every dropout into Not Yet Competent the
+        // day the course ended, so dropouts were reported as NYC; neither is
+        // touched now (as Student Progress's own stage edit promises).
+        var stg = String(s.stage || '').trim().toLowerCase();
+        if (stg === 'incomplete' || (s.stageSetByUser && stg && stg !== 'training' && stg !== 'in training')) { out.outcome = 'settled'; return out; }
         // Already NYC (set by hand, or arrived so from another device).
         if (s.stage === 'nyc') return out;
         var r = opts.readiness;
