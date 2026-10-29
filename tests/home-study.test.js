@@ -17,6 +17,8 @@ function eq(a, b, m) { assert(JSON.stringify(a) === JSON.stringify(b), m + ' —
 const ROOT = path.join(__dirname, '..');
 const HTML = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const css = (HTML.match(/<style[^>]*>[\s\S]*?<\/style>/g) || []).join('\n');
+// Checks that wait for an answer (the summary waits for them).
+const ASYNC = [];
 
 /* ---------- T7. Animations that end ---------- */
 console.log('\nT7. The bell and the current stage glow a few times, then stop');
@@ -212,5 +214,73 @@ assert(/async function studentRefreshCertData\(\) \{[\s\S]{0,300}cestisGateSessi
   eq(store.voctrain_certDownloadApprovals[0].downloadCount, 4, build + ': the total adds up');
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-if (failed) process.exit(1);
+/* ---------- OF-12. Her fees and her password, at home ---------- */
+console.log('\nOF-12. My Fees (only hers: her figures, her receipts) and Change Password');
+[['online', require(path.join(ROOT, 'cestis-core.js'))], ['Offline System', require(path.join(ROOT, 'Offline System', 'cestis-core.js'))]].forEach(([build, C]) => {
+  const V = C.homeStudy.feeView;
+  const v = V({ programme: 'Welding & Fabrication', tuition: 85000, paid: 999999, balance: 1, status: 'paid',
+    receipts: [{ id: 'P1', receipt: 'R-0141', date: '2026-08-12', amount: 30000, method: 'Cash', term: 'Term 1' }, { id: 'P2', receipt: 'R-0187', date: '2026-10-20', amount: '20000', method: 'Bank transfer', term: 'Term 2' }] });
+  eq([v.tuition, v.paid, v.balance, v.status], [85000, 50000, 35000, 'part-paid'], build + ': paid and balance are added up from her receipts, never taken from stored totals');
+  eq(v.receipts.map(r => r.receipt), ['R-0187', 'R-0141'], build + ': newest receipt first');
+  eq(V({ tuition: 1000, receipts: [{ id: 'a', amount: 1200 }] }).credit, 200, build + ': an overpayment shows as credit');
+  eq(V({ tuition: 0, receipts: [] }).status, 'not-priced', build + ': no fee set yet');
+  eq(V(null), null, build + ': nothing to show');
+});
+{
+  const Core = require(path.join(ROOT, 'cestis-core.js'));
+  const ctx = { CESTISCore: Core, escapeHtml: s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') };
+  vm.createContext(ctx);
+  vm.runInContext(['homeMoney', 'homeDay', 'homeFeesHtml'].map(fnSrc).join('\n') + '\nvar HOME_FEE_BADGE = {};', ctx);
+  const html = vm.runInContext('homeFeesHtml(' + JSON.stringify({ programme: 'Welding', tuition: 85000, receipts: [{ id: 'P1', receipt: '<img src=x onerror=alert(1)>', date: '2026-08-12', amount: 30000, method: 'Cash', term: 'Term 1' }] }) + ', { builtAt: "2026-10-29T12:00:00Z" })', ctx);
+  assert(/\$85,000\.00/.test(html) && /\$30,000\.00/.test(html) && /\$55,000\.00/.test(html), 'her programme fee, what she paid and her balance');
+  assert(!/<img/.test(html) && /&lt;img/.test(html), 'everything from the record is escaped');
+  assert(/My receipts/.test(html) && /Figures as of/.test(html) && !/Drive|Google|server|cloud|sync/i.test(html), 'her receipts, and when the figures are from — never where they are kept');
+  const none = vm.runInContext('homeFeesHtml(null, { none: true })', ctx), off = vm.runInContext('homeFeesHtml(null, { err: "unreachable" })', ctx), old = vm.runInContext('homeFeesHtml(null, { err: "unknown-op" })', ctx);
+  assert(/not on record yet/.test(none) && /when you have signal/.test(off) && /Ask the office for your balance/.test(old), 'none yet / no signal / an older gate: each said plainly');
+}
+assert(/data-page="s-fees" onclick="showPage\('s-fees'\)"[\s\S]{0,400}>My Fees<\/div>/.test(HTML) && /'s-fees':'My Fees'/.test(HTML), 'My Fees is in her menu, with its title');
+assert(/<section class="page" id="page-s-fees">\s*<div id="sFeesContent"><\/div>/.test(HTML) && /if\(pageId === 's-fees'\) renderStudentFeesPage\(true\);/.test(HTML), 'its page asks for her fees as it opens');
+const feeFn = fnSrc('renderStudentFeesPage') + fnSrc('homeLocalFees');
+assert(/CESTISGate\.fees\(\)/.test(feeFn) && /CESTISGate\.storedFees\(\)/.test(feeFn), 'from home: her fees through the gate, kept on the device for when there is no signal');
+assert(/CESTISCore\.gate\.home\.buildFees\(map, \[\{ acct: acct, stu: s\.id, student: s \}\]/.test(feeFn), 'on a computer that holds the fee roll: worked out by the same rule, for her alone');
+assert(/class="tam-item tam-gate-only" id="tamChangePassword" onclick="closeAccountMenu\(\); homePasswordOpen\(\)"/.test(HTML) && /\.tam-gate-only \{ display:none; \}/.test(css) && /html\.gate-ns \.tam-gate-only \{ display:flex; \}/.test(css),
+  'Change Password is in her account menu — only when she signed in from home');
+['homePwOld', 'homePwNew', 'homePwNew2'].forEach(id => assert(new RegExp('<label for="' + id + '">').test(HTML), 'the ' + id + ' box has a real label'));
+assert(/id="homePwOld" autocomplete="current-password"/.test(HTML) && /id="homePwNew" autocomplete="new-password"/.test(HTML), 'password managers know which box is which');
+{
+  const says = {};
+  const mk = (answer) => {
+    const el = {};
+    const ctx = { cestisGateSession: () => true, window: {}, gateUnreachable: r => !r || r.error === 'unreachable', showToast: (t) => { says.toast = t; }, closeModal: () => { says.closed = true; },
+      document: { getElementById: id => (el[id] = el[id] || { value: '', classList: { toggle() {} }, textContent: '' }) } };
+    ctx.CESTISGate = { changePassword: async (o) => { says.sent = o; return answer; } };
+    vm.createContext(ctx);
+    const sayAt = HTML.indexOf('var HOME_PW_SAY = {');
+    vm.runInContext(fnSrc('homePwSay') + '\nasync ' + fnSrc('homePasswordSubmit') + '\nvar _homePwBusy = false;\n' + HTML.slice(sayAt, HTML.indexOf('};', sayAt) + 2), ctx);
+    return { ctx, el };
+  };
+  const tryIt = async (answer, old, nw, nw2) => {
+    const { ctx, el } = mk(answer);
+    el.homePwOld = { value: old }; el.homePwNew = { value: nw }; el.homePwNew2 = { value: nw2 == null ? nw : nw2 };
+    el.homePwSay = { textContent: '', classList: { toggle() {} } };
+    await vm.runInContext('homePasswordSubmit()', ctx);
+    return el.homePwSay.textContent;
+  };
+  ASYNC.push((async () => {
+    assert(/capital letter and a number/.test(await tryIt({ ok: true }, 'Old1pass', 'short')), 'a weak new password is turned away here first');
+    assert(/do not match/.test(await tryIt({ ok: true }, 'Old1pass', 'Welder2026', 'Welder2027')), 'the two new ones must match');
+    assert(/not right/.test(await tryIt({ ok: false, error: 'no-match' }, 'Wrong1', 'Welder2026')), 'a wrong current password is said plainly');
+    assert(/15 minutes/.test(await tryIt({ ok: false, error: 'locked' }, 'Wrong1', 'Welder2026')), 'locked after too many tries (the gate\'s limit)');
+    assert(/not available here yet/.test(await tryIt({ ok: false, error: 'unknown-op' }, 'Old1pass', 'Welder2026')), 'an older gate: ask the office');
+    assert(/need a connection/.test(await tryIt({ ok: false, error: 'unreachable' }, 'Old1pass', 'Welder2026')), 'no signal: said so');
+    says.closed = false;
+    await tryIt({ ok: true }, 'Old1pass', 'Welder2026');
+    assert(says.closed && /has been changed/.test(says.toast) && says.sent && says.sent.oldPassword === 'Old1pass' && says.sent.newPassword === 'Welder2026', 'changed: the window closes and she is told');
+    console.log('  (password checks: done)');
+  })().catch(e => assert(false, 'password checks: ' + e.message)));
+}
+
+Promise.all(ASYNC).then(() => {
+  console.log('\n' + passed + ' passed, ' + failed + ' failed');
+  if (failed) process.exit(1);
+});

@@ -16876,8 +16876,24 @@
       if (o.notify && /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(email)) return line + ' We\u2019ll email you at ' + email + ' when you can sign in.';
       return line + ' Try signing in again after that.';
     }
+    /* Her fees as her page shows them (OF-12): from the fees she was sent
+       (Core.gate.home.buildFees's shape), checked again here — the figures
+       added up from her receipts, never trusted from a stored total. */
+    var FEE_SAY = { 'paid': 'Paid in full', 'part-paid': 'Part paid', 'owing': 'Not paid yet', 'not-priced': 'No fee set yet' };
+    function feeView(fees) {
+      if (!fees || typeof fees !== 'object') return null;
+      var money = function (v) { var n = parseFloat(v); return isFinite(n) ? Math.round(n * 100) / 100 : 0; };
+      var receipts = (Array.isArray(fees.receipts) ? fees.receipts : []).filter(function (r) { return r && typeof r === 'object'; }).map(function (r) {
+        return { id: str(r.id), receipt: str(r.receipt), date: str(r.date).slice(0, 10), amount: money(r.amount), method: str(r.method), term: str(r.term) };
+      }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.id < b.id ? 1 : -1); });
+      var tuition = money(fees.tuition), paid = money(receipts.reduce(function (n, r) { return n + r.amount; }, 0));
+      var balance = money(tuition - paid);
+      var status = tuition <= 0 && paid <= 0 ? 'not-priced' : (balance <= 0 ? 'paid' : (paid > 0 ? 'part-paid' : 'owing'));
+      return { programme: str(fees.programme), tuition: tuition, paid: paid, balance: balance, credit: balance < 0 ? -balance : 0,
+        status: status, statusText: FEE_SAY[status], receipts: receipts };
+    }
     return { classPollDelay: classPollDelay, classStartMs: classStartMs, parseOffset: parseOffset, progress: progress,
-      approvalWait: approvalWait };
+      approvalWait: approvalWait, feeView: feeView };
   })();
 
   root.CESTISCore = Core;

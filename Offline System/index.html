@@ -4819,6 +4819,21 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 /* A label that is there for screen readers but takes no room on screen. */
 .home-sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 .home-field-label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
+/* Home study (group C): only in a trainee's own sign-in from home. */
+.tam-gate-only { display:none; }
+html.gate-ns .tam-gate-only { display:flex; }
+/* Her fees (OF-12) */
+.home-fees-sum .ps-value { font-size:22px; }
+.home-fees-list { list-style:none; margin:0; padding:0; }
+.home-fee-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--border); }
+.home-fee-row:first-child { border-top:none; }
+.home-fee-amt { font-size:16px; font-weight:700; color:var(--text-primary); min-width:110px; }
+.home-fee-meta { flex:1; font-size:13px; color:var(--text-secondary); overflow-wrap:anywhere; }
+.home-fees-note { font-size:12px; color:var(--text-muted); margin:12px 2px 0; }
+.home-fees-empty { text-align:center; padding:32px 20px; color:var(--text-muted); font-size:14px; }
+@media (max-width:600px) { .home-fee-row { flex-direction:column; align-items:flex-start; gap:2px; } }
+.home-pw-say { font-size:13px; color:var(--red); min-height:18px; margin-top:4px; }
+.home-pw-say.is-status { color:var(--text-secondary); }
 /* Her certificate at home (T4) */
 .cert-download-btn.home-cert-collect { opacity:1; cursor:default; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border); box-shadow:none; }
 .home-cert-why { font-size:12px; color:var(--text-muted); margin-top:8px; }
@@ -5653,6 +5668,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
           <button type="button" role="menuitem" class="tam-item" onclick="closeAccountMenu(); lockSessionNow()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Lock</span></button>
           <button type="button" role="menuitem" class="tam-item" data-theme-toggle onclick="cestisToggleTheme()"><svg class="theme-ico-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg><svg class="theme-ico-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span class="theme-to-light">Light mode</span><span class="theme-to-dark">Dark mode</span></button>
           <button type="button" role="menuitem" class="tam-item" onclick="closeAccountMenu(); tfaOpenManage()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg><span>Two-Step Verification</span></button>
+          <button type="button" role="menuitem" class="tam-item tam-gate-only" id="tamChangePassword" onclick="closeAccountMenu(); homePasswordOpen()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15 19 4"/><path d="M18 5l2 2"/><path d="M15 8l2 2"/></svg><span>Change Password</span></button>
           <button type="button" role="menuitem" class="tam-item tam-signout" onclick="closeAccountMenu(); logout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Sign Out</span></button>
         </div>
       </div>
@@ -6242,6 +6258,25 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
       <button class="btn btn-secondary" onclick="closeModal('submitAssignmentModal')">Cancel</button>
       <button class="btn btn-primary" id="submitAssignBtn" onclick="submitStudentAssignment()">Submit</button>
     </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD at home (OF-12): her current password proved, the new one set. -->
+<div class="modal-overlay" id="homePasswordModal">
+  <div class="modal" style="max-width:440px;" role="dialog" aria-modal="true" aria-labelledby="homePwTitle">
+    <div class="modal-header"><h3 id="homePwTitle">Change Password</h3><button class="modal-close" onclick="closeModal('homePasswordModal')" aria-label="Close">✕</button></div>
+    <form id="homePwForm" onsubmit="event.preventDefault(); homePasswordSubmit();" novalidate>
+      <input type="text" id="homePwUser" autocomplete="username" hidden>
+      <div class="form-group"><label for="homePwOld">Current password</label><input type="password" class="form-control" id="homePwOld" autocomplete="current-password"></div>
+      <div class="form-group"><label for="homePwNew">New password</label><input type="password" class="form-control" id="homePwNew" autocomplete="new-password" aria-describedby="homePwRule">
+        <div class="gate-reg-hint" id="homePwRule">At least 6 characters, with a capital letter and a number.</div></div>
+      <div class="form-group"><label for="homePwNew2">Type the new password again</label><input type="password" class="form-control" id="homePwNew2" autocomplete="new-password"></div>
+      <div class="home-pw-say" id="homePwSay" role="alert" aria-live="polite"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('homePasswordModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="homePwBtn">Change password</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -13984,6 +14019,8 @@ function buildStudentSidebar() {
     <div class="nav-item" data-page="s-certificate" onclick="showPage('s-certificate')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>My Certificate</div>
     <div class="nav-section-label">Account</div>
+    <div class="nav-item" data-page="s-fees" onclick="showPage('s-fees')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>My Fees</div>
     <div class="nav-item" data-page="s-profile" onclick="showPage('s-profile')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>My Profile</div>
     <div class="nav-item" data-page="s-calendar" onclick="showPage('s-calendar')">
@@ -14522,7 +14559,7 @@ function showPage(pageId) {
     attendance:'Attendance Management',announcements:'Announcements',calendar:'Calendar & Schedule',
     's-dashboard':'My Dashboard','s-video':'My Classes','s-progress':'My Progress',
     's-resources':'My Resources','s-assignments':'My Assignments','s-exams':'My Exams','s-certificate':'My Certificate',
-    's-profile':'My Profile','s-calendar':'My Calendar','s-announcements':'Announcements',
+    's-profile':'My Profile','s-calendar':'My Calendar','s-announcements':'Announcements','s-fees':'My Fees',
     'i-dashboard':'Instructor Dashboard','i-classes':'Video Conference','i-students':'My Students',
     'i-attendance':'Class Attendance','i-gradebook':'Gradebook','i-resources':'Course Resources','i-exams':'Online Exams',
     'i-duties':'My Assigned Tasks','i-announcements':'Announcements','i-calendar':'Calendar','i-profile':'My Profile',
@@ -14553,7 +14590,8 @@ function showPage(pageId) {
   if(pageId === 'i-document-hub') renderDocumentHubInstructor();
   if(pageId === 'as-document-hub') renderDocumentHubAdmin();
   if(pageId === 's-resources') renderStudentResourcesPage();
-  if(pageId === 's-progress') renderStudentAssignments();
+  if(pageId === 's-progress') { renderStudentAssignments(); try { renderStudentProgressPage(); } catch (e) {} }
+  if(pageId === 's-fees') renderStudentFeesPage(true);
   if(pageId === 's-dashboard' && typeof renderStudentDurationNotice === 'function') renderStudentDurationNotice();
   // LMS Chat and Video Conference for every role are loaded from their own HTML
   // files and initialised by the mount onMount hooks (see the .cestis-mount block
@@ -15743,6 +15781,11 @@ function buildStudentPages() {
   <!-- STUDENT CERTIFICATE -->
   <section class="page" id="page-s-certificate">
     <div class="cestis-mount" data-feature="s-certificate" data-prefix="student"></div>
+  </section>
+
+  <!-- MY FEES (OF-12): her own fee record's figures and her receipts (renderStudentFeesPage). -->
+  <section class="page" id="page-s-fees">
+    <div id="sFeesContent"></div>
   </section>
 
   <section class="page" id="page-s-profile">
@@ -39722,6 +39765,141 @@ async function gateUploadFiles(pending, files, refId) {
 /* ===================== HOME STUDY (group C) =====================
    Her photos made small, her work kept until it is sent, her fees, her
    password, her certificate. */
+
+/* ---- Her fees (OF-12) ----
+   Her own fee record's figures and her own receipts, nothing else. From
+   home: what the office's computers sent for her (CESTISGate.fees, kept on
+   this device for when there is no signal). On a computer that holds the
+   fee roll: worked out here by the same rule (CESTISCore.gate.home.buildFees).
+   The figures are added up from her receipts (CESTISCore.homeStudy.feeView). */
+var _homeFees = { busy: false, err: '' };
+function homeMoney(n) {
+  var v = Number(n) || 0;
+  try { return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } catch (e) { return '$' + v.toFixed(2); }
+}
+function homeDay(d) {
+  var t = Date.parse(String(d || '').slice(0, 10) + 'T12:00:00');
+  if (!t) return String(d || '');
+  try { return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) { return String(d).slice(0, 10); }
+}
+function homeLocalFees() {
+  var s = currentStudent, u = currentLoggedInUser;
+  if (!s) return null;
+  var map = {};
+  ['cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDeletedPaymentIds'].forEach(function(k) { try { map[k] = CESTISStore.getItem(k); } catch (e) {} });
+  var acct = String((u && u.id) || s.id);
+  try {
+    var r = CESTISCore.gate.home.buildFees(map, [{ acct: acct, stu: s.id, student: s }], Date.now());
+    return r.byAcct[acct] ? r.byAcct[acct].file.fees : null;
+  } catch (e) { return null; }
+}
+var HOME_FEE_BADGE = { 'paid': 'badge-green', 'part-paid': 'badge-amber', 'owing': 'badge-red', 'not-priced': 'badge-blue' };
+function homeFeesHtml(fees, o) {
+  o = o || {};
+  var v = CESTISCore.homeStudy.feeView(fees);
+  if (!v) {
+    var say = o.loading ? 'Getting your fees…'
+      : o.err === 'unknown-op' || o.err === 'not-available' ? 'Your fees cannot be shown here yet. Ask the office for your balance.'
+      : o.err && !o.none ? 'Could not get your fees right now. Try again when you have signal.'
+      : 'Your fees are not on record yet. If you have paid, ask the office and bring your receipt.';
+    return '<div class="card home-fees-empty" role="status">' + escapeHtml(say) + '</div>';
+  }
+  var html = '<div class="stats-grid stats-grid-4 home-fees-sum">' +
+    '<div class="profile-stat"><div class="ps-value">' + escapeHtml(homeMoney(v.tuition)) + '</div><div class="ps-label">Programme fee</div></div>' +
+    '<div class="profile-stat"><div class="ps-value" style="color:var(--green);">' + escapeHtml(homeMoney(v.paid)) + '</div><div class="ps-label">Paid</div></div>' +
+    '<div class="profile-stat"><div class="ps-value" style="color:' + (v.balance > 0 ? 'var(--red)' : 'var(--green)') + ';">' + escapeHtml(homeMoney(Math.max(0, v.balance))) + '</div><div class="ps-label">' + (v.credit ? 'Balance (in credit ' + escapeHtml(homeMoney(v.credit)) + ')' : 'Balance') + '</div></div>' +
+    '<div class="profile-stat"><div class="ps-value"><span class="badge ' + (HOME_FEE_BADGE[v.status] || 'badge-blue') + '">' + escapeHtml(v.statusText) + '</span></div><div class="ps-label">' + escapeHtml(v.programme || 'Status') + '</div></div>' +
+    '</div>';
+  html += '<div class="card"><div class="card-header"><h3>My receipts</h3><span style="font-size:13px;color:var(--text-muted);">' + v.receipts.length + (v.receipts.length === 1 ? ' payment' : ' payments') + '</span></div>';
+  if (!v.receipts.length) html += '<p class="home-fees-empty" style="padding:20px;">No payments on record yet.</p>';
+  else {
+    html += '<ul class="home-fees-list">' + v.receipts.map(function(r) {
+      var meta = [homeDay(r.date), r.receipt ? 'Receipt ' + r.receipt : '', r.term, r.method].filter(Boolean).join(' · ');
+      return '<li class="home-fee-row"><span class="home-fee-amt">' + escapeHtml(homeMoney(r.amount)) + '</span><span class="home-fee-meta">' + escapeHtml(meta) + '</span></li>';
+    }).join('') + '</ul>';
+  }
+  html += '</div>';
+  var asOf = o.builtAt ? 'Figures as of ' + homeDay(o.builtAt) + '. ' : '';
+  var stale = o.err ? 'Could not check for newer figures just now. ' : '';
+  html += '<p class="home-fees-note">' + escapeHtml(asOf + stale + 'If something here looks wrong, ask the office and bring your receipt.') + '</p>';
+  return html;
+}
+function renderStudentFeesPage(ask) {
+  var el = document.getElementById('sFeesContent');
+  if (!el) return;
+  var gate = typeof cestisGateSession === 'function' && cestisGateSession() && !!window.CESTISGate && typeof CESTISGate.fees === 'function';
+  var kept = gate ? CESTISGate.storedFees() : null;
+  var fees = gate ? (kept && kept.fees) || null : homeLocalFees();
+  el.innerHTML = homeFeesHtml(fees, { none: gate ? !!(kept && kept.none) : true, builtAt: kept && kept.builtAt, err: gate ? _homeFees.err : '',
+    loading: gate && !kept && (ask || _homeFees.busy) && !_homeFees.err });
+  if (!gate || !ask || _homeFees.busy) return;
+  _homeFees.busy = true;
+  CESTISGate.fees().then(function(res) {
+    _homeFees.busy = false;
+    _homeFees.err = res && res.ok ? '' : ((res && res.error) || 'unreachable');
+    renderStudentFeesPage(false);
+  }, function() { _homeFees.busy = false; _homeFees.err = 'unreachable'; renderStudentFeesPage(false); });
+}
+
+/* ---- Her password, changed at home (OF-12) ----
+   Her current password is proved to the gate (never sent); the new one
+   goes as the dashboard stores one. The office's computers take the change
+   with its own moment; meanwhile the gate signs her in with the new one, and
+   every other session of hers ends. */
+var _homePwBusy = false;
+var HOME_PW_SAY = {
+  'no-match': 'Your current password is not right. Try again.',
+  'locked': 'Too many tries. Wait 15 minutes, then try again.',
+  'too-many': 'Your password has been changed several times today. Try again later.',
+  'same': 'The new password is the same as your current one. Choose a different one.',
+  'weak': 'Your new password must be at least 6 characters, with a capital letter and a number.',
+  'unavailable': 'Changing your password is not available here yet. Ask the office to change it for you.',
+  'signed-out': 'Sign in again, then change your password.',
+  'unreachable': 'Could not change your password right now — you need a connection for this. Try again when you have signal.'
+};
+function homePasswordOpen() {
+  if (!(typeof cestisGateSession === 'function' && cestisGateSession()) || !window.CESTISGate) return;
+  ['homePwOld', 'homePwNew', 'homePwNew2'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  var u = document.getElementById('homePwUser');
+  if (u) u.value = (currentLoggedInUser && (currentLoggedInUser.username || currentLoggedInUser.email)) || '';
+  homePwSay('');
+  openModal('homePasswordModal');
+  setTimeout(function() { var el = document.getElementById('homePwOld'); if (el) el.focus(); }, 60);
+}
+function homePwSay(text, status) {
+  var el = document.getElementById('homePwSay');
+  if (!el) return;
+  el.textContent = text || '';
+  el.classList.toggle('is-status', !!status);
+}
+async function homePasswordSubmit() {
+  if (_homePwBusy) return;
+  var v = function(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; };
+  var old = v('homePwOld'), pw = v('homePwNew'), pw2 = v('homePwNew2');
+  if (!old) { homePwSay('Type your current password.'); return; }
+  if (pw.length < 6 || !/[A-Z]/.test(pw) || !/[0-9]/.test(pw)) { homePwSay(HOME_PW_SAY.weak); return; }
+  if (pw !== pw2) { homePwSay('The two new passwords do not match.'); return; }
+  if (pw === old) { homePwSay(HOME_PW_SAY.same); return; }
+  _homePwBusy = true;
+  var btn = document.getElementById('homePwBtn'); if (btn) btn.disabled = true;
+  homePwSay('Changing your password…', true);
+  var res = null;
+  try { res = await CESTISGate.changePassword({ oldPassword: old, newPassword: pw }); } catch (e) { res = { ok: false, error: 'unreachable' }; }
+  _homePwBusy = false;
+  if (btn) btn.disabled = false;
+  if (res && res.ok) {
+    ['homePwOld', 'homePwNew', 'homePwNew2'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+    closeModal('homePasswordModal');
+    showToast('Your password has been changed. Use the new one next time you sign in.', 'success');
+    return;
+  }
+  var code = String((res && res.error) || 'unreachable');
+  if (code === 'bad-form') code = res.field === 'same' ? 'same' : 'weak';
+  else if (code === 'unknown-op' || code === 'not-available') code = 'unavailable';
+  else if (code === 'expired' || code === 'revoked' || code === 'signed-out' || code === 'bad-session') code = 'signed-out';
+  else if (code === 'bad-nonce' || code === 'busy' || gateUnreachable(res)) code = 'unreachable';
+  homePwSay(HOME_PW_SAY[code] || HOME_PW_SAY.unreachable);
+}
 
 /* ---- Her certificate at home (T4) ---- */
 function homeCertLan() {
