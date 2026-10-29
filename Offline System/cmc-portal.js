@@ -68,14 +68,17 @@
     };
   }
 
-  /* Average attendance / GPA across the roster, ignoring blank values. */
-  function cmcAverages(students) {
+  /* Average attendance / GPA across the roster, ignoring blank values.
+     gpaOf(s) (optional): the GPA the dashboard reports for a trainee
+     (studentGpaFigure — what the marks produce), null when there is none;
+     without it, the stored figure. */
+  function cmcAverages(students, gpaOf) {
     var list = Array.isArray(students) ? students : [];
     var attSum = 0, attN = 0, gpaSum = 0, gpaN = 0;
     list.forEach(function (s) {
       var a = parseFloat(s && s.attendance);
       if (!isNaN(a)) { attSum += a; attN++; }
-      var g = parseFloat(s && s.gpa);
+      var g = parseFloat(typeof gpaOf === 'function' ? gpaOf(s) : (s && s.gpa));
       if (!isNaN(g)) { gpaSum += g; gpaN++; }
     });
     return {
@@ -532,6 +535,12 @@
   function arr(name) {
     try { var v = root[name]; return Array.isArray(v) ? v : []; } catch (e) { return []; }
   }
+  /* The GPA the dashboard reports for a trainee (its studentGpaFigure: what
+     the marks produce, never the untouched hand-typed 0.0); null if none. */
+  function gpaOf(s) {
+    try { if (typeof root.studentGpaFigure === 'function') return root.studentGpaFigure(s); } catch (e) {}
+    return null;
+  }
 
   var cmcpState = { panel: 'dashboard', room: null };
 
@@ -612,16 +621,29 @@
   function cmcpDashboardPanel() {
     var students = arr('students');
     var sum = cmcStudentSummary(students);
-    var avg = cmcAverages(students);
+    var avg = cmcAverages(students, gpaOf);
     var accounts = arr('userAccounts');
-    var instructors = accounts.filter(function (u) { return u && u.role === 'instructor'; }).length;
     var staff = accounts.filter(function (u) { return u && u.role === 'adminstaff'; }).length;
+    // The Centre's figures by the dashboard's own rules (centreFigureSet:
+    // CESTISCore.centreFigures), so the board reads what Reports reads —
+    // attendance over ACTIVE trainees, completion over ENDED intakes,
+    // instructors from the records and the accounts — each with what it is a
+    // rate of.
+    var fig = null;
+    try { if (typeof root.centreFigureSet === 'function') fig = root.centreFigureSet(); } catch (e) { fig = null; }
+    var F = (root.CESTISCore && root.CESTISCore.centreFigures) || null;
+    var instructors = fig ? fig.instructors : (F ? F.instructorCount(arr('instructorData'), accounts) : accounts.filter(function (u) { return u && u.role === 'instructor'; }).length);
+    var active = fig ? fig.enrolment.active : sum.inTraining;
+    var certSub = fig ? (fig.completion.rate == null ? 'No intake has ended yet' : fig.completion.rate + '% of ' + fig.completion.of + ' in ended intakes')
+      : sum.certificationRate + '% of all students';
+    var attVal = fig ? (fig.attendance.rate == null ? '—' : fig.attendance.rate + '%') : avg.attendance + '%';
+    var attSub = fig ? (fig.attendance.rate == null ? 'None recorded for active trainees' : 'of ' + fig.attendance.of + ' active') : 'Across the roster';
 
     var h = '<div class="stats-grid stats-grid-4">' +
       statCard('👥', 'blue', sum.total, 'Total Students on Platform', 'All enrolled records') +
-      statCard('🎓', 'green', sum.certified, 'Certified', sum.certificationRate + '% of all students') +
-      statCard('📚', 'accent', sum.inTraining, 'Currently in Training', 'Active trainees') +
-      statCard('📊', 'purple', avg.attendance + '%', 'Average Attendance', 'Across the roster') +
+      statCard('🎓', 'green', sum.certified, 'Certified', certSub) +
+      statCard('📚', 'accent', active, 'Currently in Training', 'Active trainees') +
+      statCard('📊', 'purple', attVal, 'Average Attendance', attSub) +
       '</div>';
 
     h += '<div class="grid-2col">';
@@ -649,11 +671,11 @@
       '<table class="data-table" style="width:100%;"><tbody>' +
       '<tr><td>Total students on the platform</td><td style="text-align:right;"><strong>' + sum.total + '</strong></td></tr>' +
       '<tr><td>Certified (incl. collected)</td><td style="text-align:right;"><strong>' + sum.certified + '</strong></td></tr>' +
-      '<tr><td>In training</td><td style="text-align:right;"><strong>' + sum.inTraining + '</strong></td></tr>' +
+      '<tr><td>In training</td><td style="text-align:right;"><strong>' + active + '</strong></td></tr>' +
       '<tr><td>Marked incomplete</td><td style="text-align:right;"><strong>' + sum.incomplete + '</strong></td></tr>' +
       '<tr><td>Instructors</td><td style="text-align:right;"><strong>' + instructors + '</strong></td></tr>' +
       '<tr><td>Administrative staff</td><td style="text-align:right;"><strong>' + staff + '</strong></td></tr>' +
-      '<tr><td>Average GPA</td><td style="text-align:right;"><strong>' + avg.gpa + '</strong></td></tr>' +
+      '<tr><td>Average GPA</td><td style="text-align:right;"><strong>' + (avg.gpa || '—') + '</strong></td></tr>' +
       '</tbody></table></div>';
     h += '</div>';
     return h;
@@ -680,7 +702,7 @@
           '<div style="height:100%;width:' + Math.max(0, Math.min(100, prog)) + '%;background:var(--teal,#1abc9c);"></div></div>' +
           '<span style="font-size:11px;color:var(--text-muted);">' + prog + '%</span></td>' +
         '<td>' + esc(s.attendance != null ? s.attendance + '%' : '—') + '</td>' +
-        '<td>' + esc(s.gpa || '—') + '</td>' +
+        '<td>' + esc(gpaOf(s) || '—') + '</td>' +
         '</tr>';
     }).join('');
 

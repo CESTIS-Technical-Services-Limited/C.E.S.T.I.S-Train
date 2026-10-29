@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261029a"></script>
+<script src="cestis-core.js?v=20261029b"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CESTIS - Student Progress</title>
 
@@ -1003,7 +1003,8 @@ function renderStudents(data) {
   if(sc) sc.textContent = 'Showing ' + data.length + ' student' + (data.length !== 1 ? 's' : '');
 }
 
-function filterStudents() {
+// The trainees the filters and the search box leave on screen.
+function filteredStudents() {
   var filtered = students.slice();
   var stage = document.getElementById('filterStage') ? document.getElementById('filterStage').value : 'all';
   var course = document.getElementById('filterCourse') ? document.getElementById('filterCourse').value : 'all';
@@ -1024,7 +1025,10 @@ function filterStudents() {
     var sCourse = (s.course||'').toLowerCase();
     return name.includes(search) || id.includes(search) || sCourse.includes(search);
   });
-  renderStudents(filtered);
+  return filtered;
+}
+function filterStudents() {
+  renderStudents(filteredStudents());
 }
 
 function updatePipelineCounts() {
@@ -1487,10 +1491,14 @@ function exportCSV(data, headers, filename) {
   URL.revokeObjectURL(url);
 }
 
+// Export what is on screen: the rows the filters and the search leave. It
+// used to export the whole roll whatever was filtered (60 on screen, 100
+// rows in the file).
 function exportStudentsCSV() {
   var headers = ['name','id','course','stage','score','progress','attendance','gpa','instructor'];
-  exportCSV(students, headers, 'students_export.csv');
-  showToast('Students CSV exported!');
+  var rows = filteredStudents();
+  exportCSV(rows, headers, 'students_export.csv');
+  showToast('Exported ' + rows.length + ' student' + (rows.length === 1 ? '' : 's') + ' (as filtered on screen).');
 }
 
 // ============================== INIT ==============================

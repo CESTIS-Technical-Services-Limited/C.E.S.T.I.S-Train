@@ -257,6 +257,15 @@ const GSI_STUB = `(function(){
     'an ACTIVE trainee account, made and approved by Admin Staff, by name (' + JSON.stringify(made) + ')');
   const officeSid = Core.stableStudentId({ name: OFFICE_NEW.name, course: OFFICE_NEW.prog });
   ok(made && made.sid === officeSid, 'her trainee record, under the dashboard\'s own student ID (' + (made && made.sid) + ')');
+  // The email and telephone typed on the form used to stay on the account:
+  // the trainee record had neither and her fee record was made with contact "".
+  const officeContact = await until(() => sp.evaluate(sid => {
+    const s = students.find(x => x.id === sid);
+    const f = (JSON.parse(CESTISStore.getItem('cestiSchoolFeeStudents') || '[]') || []).find(x => x && x.lmsId === sid);
+    return s && f ? { email: s.email, phone: s.phone, feeEmail: f.email, feeContact: f.contact } : null;
+  }, officeSid), 15000);
+  ok(officeContact && officeContact.email === OFFICE_NEW.email && officeContact.phone === OFFICE_NEW.phone && officeContact.feeEmail === OFFICE_NEW.email && officeContact.feeContact === OFFICE_NEW.phone,
+    'her email and telephone reach her trainee record and her fee record (' + JSON.stringify(officeContact) + ')');
   const fA = await until(() => { const f = folderOf(driveA, cfgA, made.id); return f.length && filesIn(driveA, f[0].id).some(x => x.name === 'from-centre.json') ? f : null; }, 30000, 250);
   ok(fA && fA.length === 1 && fA[0].name === OFFICE_NEW.name + ' (' + officeSid + ')' && fA[0].description === 'cestis-trainee acct=' + made.id + ' v=1',
     'her folder "' + OFFICE_NEW.name + ' (' + officeSid + ')" is made — with her records — in ' + Math.round((Date.now() - t0) / 1000) + ' s');
@@ -386,6 +395,15 @@ const GSI_STUB = `(function(){
   await op.click('#verifyUsersTableBody button:has-text("Activate")');
   const ap = await until(() => op.evaluate(id => { const a = userAccounts.find(u => u.id === id); return a && a.status === 'active' ? { by: a.approvedBy, sid: a.studentDataId } : null; }, reg.accountId), 10000);
   ok(ap && ap.by === 'admin' && ap.sid === regSid, 'approved: active, her trainee record under the student ID her folder was named with (' + JSON.stringify(ap) + ')');
+  // Her email and the phone she gave at home reach her trainee record, and the
+  // enrolment register shows them (it read "— — —").
+  const regContact = await until(() => op.evaluate(sid => { const s = students.find(x => x.id === sid); return s && s.phone ? { email: s.email, phone: s.phone } : null; }, regSid), 10000);
+  ok(regContact && regContact.email === NEW.email && regContact.phone === NEW.phone, 'approved: her email and phone are on her trainee record (' + JSON.stringify(regContact) + ')');
+  await op.evaluate(sid => { showPage('enrolment-registers'); const s = students.find(x => x.id === sid); const c = s && studentCentreRecord(s); if (c) enrolToggleRoster(c.id); }, regSid);
+  const regRow = await until(() => op.evaluate(n => { const r = Array.from(document.querySelectorAll('#enrolmentRegistersContent tr')).find(tr => tr.innerText.indexOf(n) !== -1); return r ? r.innerText.replace(/\s+/g, ' ') : null; }, NEW.name), 10000);
+  ok(regRow && regRow.indexOf(NEW.phone) !== -1 && regRow.indexOf(NEW.email) !== -1, 'and the enrolment register row shows them (' + regRow + ')');
+  await shotBoth(op, '06b-enrolment-register-contact', { scrollTo: '#enrolmentRegistersContent' });
+  await op.evaluate(() => showPage('verify-users'));
   const pub = await until(() => { const f = folderOf(drive, cfg, reg.accountId); return f.length === 1 && filesIn(drive, f[0].id).some(x => x.name === 'from-centre.json') && !/registration=/.test(f[0].description) ? f[0] : null; }, 40000, 300);
   ok(pub && pub.id === folders[0].id && pub.name === NEW.name + ' (' + regSid + ')', 'her records are written into the folder made at her registration — no second folder, the waiting mark gone');
   ok(pub && pub.appProperties && pub.appProperties.cestisGate === '1', 'and every office PC now sees it as hers');

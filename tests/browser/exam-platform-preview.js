@@ -40,6 +40,20 @@ const { chromium } = require('playwright-core');
 
 const ROOT = path.join(__dirname, '..', '..');
 const EXE = process.env.CESTIS_CHROME || '/opt/pw-browsers/chromium';
+// EXAM_PREVIEW_SHOTS=<dir>: Light and Dark screenshots at the marked steps.
+const STEP_SHOTS = process.env.EXAM_PREVIEW_SHOTS || '';
+async function shotStep(page, name) {
+  if (!STEP_SHOTS) return;
+  try {
+    require('fs').mkdirSync(STEP_SHOTS, { recursive: true });
+    for (const scheme of ['light', 'dark']) {
+      await page.evaluate(t => { if (t === 'light') document.documentElement.setAttribute('data-theme', 'light'); else document.documentElement.removeAttribute('data-theme'); }, scheme);
+      await page.waitForTimeout(150);
+      await page.screenshot({ path: require('path').join(STEP_SHOTS, name + '-' + scheme + '.png') });
+    }
+    await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
+  } catch (e) { console.log('  (screenshot ' + name + ' not taken: ' + String(e.message).split('\n')[0] + ')'); }
+}
 let passed = 0, failed = 0;
 let THEME = 'dark';
 function ok(cond, msg) { if (cond) passed++; else { failed++; console.log('  ✗ FAIL: [' + THEME + '] ' + msg); } return !!cond; }
@@ -417,6 +431,23 @@ const QUESTIONS = [
     ok(/within the tolerance/.test(await txt(p, '#examTypeDesc')), 'each type is explained');
     await p.keyboard.press('Escape');
     ok(!(await p.isVisible('#examTypePicker')), 'Escape closes it');
+    // A new multiple-choice question used to start keyed to (a), so a key
+    // nobody chose was marked silently. It starts with none, says so, and the
+    // exam is not saved until the author picks one.
+    await addQ('mcq');
+    await p.fill('#qItem-0 .q-text-input', 'Which colour is the oxygen hose?'); await p.dispatchEvent('#qItem-0 .q-text-input', 'change');
+    const noKey = await p.evaluate(() => ({ key: examBuilderQuestions[0].correctAnswer, picked: document.querySelectorAll('#qItem-0 .q-option-row input[type=radio]:checked').length,
+      row: (document.querySelector('#qItem-0') || {}).innerText || '' }));
+    ok(noKey.key == null && noKey.picked === 0 && /Answer not set/.test(noKey.row), 'a new multiple-choice question has no answer ticked and says "Answer not set" (' + JSON.stringify({ key: noKey.key, picked: noKey.picked }) + ')');
+    await shotStep(p, 'new-mcq-answer-not-set');
+    await p.click('#createExamPublishBtn');
+    await p.waitForTimeout(400);
+    // The page's own message box (alert is drawn in the page).
+    const said = await p.evaluate(() => { const m = document.querySelector('.cestis-alert-overlay.active .cestis-alert-msg'); return m ? m.innerText : ''; });
+    if (said) { await shotStep(p, 'new-mcq-save-refused'); await p.click('.cestis-alert-overlay.active .cestis-alert-ok'); await p.waitForTimeout(200); }
+    ok(/Select the correct answer for question 1/.test(said) && !(await p.evaluate(() => exams.some(e => e.title === 'Welding Safety — Unit 4 Quiz'))),
+      'the exam is not saved until its answer is chosen (' + said + ')');
+    await p.evaluate(() => { examBuilderQuestions.splice(0, 1); renderExamBuilderQuestions(); });
     await addQ('multi');
     await p.fill('#qItem-0 .q-text-input', 'Which are PPE?'); await p.dispatchEvent('#qItem-0 .q-text-input', 'change');
     await p.locator('#qItem-0 .q-option-row input[type=checkbox]').nth(0).check();

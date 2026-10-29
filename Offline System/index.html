@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261029a"></script>
+<script src="cestis-core.js?v=20261029b"></script>
 <script src="cestis-form-modal.js?v=20261028d" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
 <script src="cestis-page-cloud.js?v=20261028e"></script>
 <script src="cestis-gate-client.js?v=20261029a" defer></script>
 <script src="staff-appraisals.js?v=20261028d"></script>
-<script src="cmc-portal.js?v=20261028d"></script>
+<script src="cmc-portal.js?v=20261029b"></script>
 <script src="cert-template-seed.js?v=20260802b"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Installable, with an icon, and able to open with no connection (sw.js). -->
@@ -6206,7 +6206,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
       <div class="form-group"><label>Category</label><select class="form-control" id="resCat"><option value="video">Video Lectures</option><option value="guide">Study Guides & Handbooks</option><option value="worksheet">Worksheets & Assignments</option><option value="rubric">Assessment Rubrics</option></select></div>
       <div class="form-group"><label>File Type</label><select class="form-control" id="resType"><option value="PDF">PDF</option><option value="Video">Video</option><option value="DOC">DOC</option><option value="XLSX">XLSX</option><option value="Link">External Link</option></select></div>
     </div>
-    <div class="form-group"><label>URL / Link (optional)</label><input type="text" class="form-control" id="resUrl" placeholder="https://..."></div>
+    <div class="form-group"><label>Link</label><input type="text" class="form-control" id="resUrl" placeholder="https://..."></div>
     <div class="form-group"><label>Description</label><textarea class="form-control" id="resDesc" placeholder="Brief description of this resource..."></textarea></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('uploadResourceModal')">Cancel</button>
@@ -6685,7 +6685,11 @@ function shakeNotificationBell() {
 // `fixedId` (optional): a deterministic id for a notice several devices may
 // raise at once (duty reminders). A notice with that id already here is not
 // added again, and copies from other devices merge into one by id.
-function addNotification(text, type, icon, forRoles, fixedId) {
+// `aud` (optional): { forCourse } — a programme's notice, which reaches only
+// that programme's trainees; { forInstructors: [account ids] } — a marking
+// notice, which reaches the instructor who marked, not every instructor
+// (CESTISCore.notify.reaches).
+function addNotification(text, type, icon, forRoles, fixedId, aud) {
   if(fixedId && notifications.some(function(n) { return n && n.id === fixedId; })) return null;
   type = type || 'info';
   var icons = {success:'\u2705',warning:'\u26A0\uFE0F',info:'\uD83D\uDD14',exam:'\uD83D\uDCDD',student:'\uD83D\uDC64',cert:'\uD83C\uDF93',announce:'\uD83D\uDCE2',calendar:'\uD83D\uDCC5',attendance:'\uD83D\uDCCB',resource:'\uD83D\uDCC1',grade:'\uD83C\uDF1F'};
@@ -6699,6 +6703,8 @@ function addNotification(text, type, icon, forRoles, fixedId) {
     type: type === 'warning' ? 'warning' : type === 'success' || type === 'grade' || type === 'cert' ? 'success' : 'info',
     forRoles: forRoles || ['admin','instructor','student']
   };
+  if(aud && aud.forCourse) notif.forCourse = String(aud.forCourse);
+  if(aud && Array.isArray(aud.forInstructors) && aud.forInstructors.length) notif.forInstructors = aud.forInstructors.slice();
   notifications.unshift(notif);
   try { notifications = CESTISCore.notify.prune(notifications, 50, 400); } catch(e) {}   // per audience, never a deletion
   updateNotificationDot();
@@ -6732,6 +6738,13 @@ function getFilteredNotifications() {
       return currentUserId && n.forUsers.indexOf(currentUserId) !== -1;
     }
     if(!currentRole) return true;
+    // A programme's notice reaches that programme's trainees; a marking
+    // notice the instructor who marked (older notices: everyone, as before).
+    try {
+      if(!CESTISCore.notify.reaches(n, { role: currentRole, userId: currentUserId,
+        course: currentRole === 'student' && currentStudent ? currentStudent.course : '',
+        sameProgramme: typeof instructorCourseMatch === 'function' ? instructorCourseMatch : null })) return false;
+    } catch(e) {}
     // Exam scores used to be announced to every trainee ("Ann Brown scored
     // 45% on ... NOT PASSED"). New ones go to staff only; the ones already
     // stored and synced are hidden from trainees here.
@@ -6744,6 +6757,14 @@ function getFilteredNotifications() {
   });
 }
 
+// Who hears that a piece of work was marked: the administrators, and the
+// instructor who marked it — not every instructor in the Centre.
+function notifyMarkingAudience() {
+  if(currentRole === 'instructor' && currentLoggedInUser && currentLoggedInUser.id) {
+    return { roles: ['admin','instructor'], aud: { forInstructors: [currentLoggedInUser.id] } };
+  }
+  return { roles: ['admin'], aud: null };
+}
 function addNotificationForUser(text, type, icon, userId, role, fixedId) {
   if(fixedId && notifications.some(function(n) { return n && n.id === fixedId; })) return null;
   type = type || 'info';
@@ -8725,8 +8746,25 @@ function sessionAccountRevoked() {
   var st = String(acct.status || '').toLowerCase();
   return st === 'disabled' || st === 'rejected';
 }
+/* Is this PC teaching or watching something that is still going on — in a
+   running live class (host or trainee, small room or Large Class), or on the
+   Exam Invigilator with a sitting that is open? Nobody presses a key while
+   they teach or watch, and the idle lock used to cover the class
+   (CESTISCore.sessionAccess.keepsAwake). */
+function sessionKeptAwake() {
+  var live = false, board = null;
+  try {
+    live = !!currentRoomCode && (!!vcLargeRoomActive || (!!rtcPeer && !!document.getElementById('vc-video-grid')));
+  } catch(e) { live = false; }
+  try {
+    if(typeof invigPageActive === 'function' && invigPageActive() && invigState && invigState.board) board = invigState.board;
+  } catch(e) { board = null; }
+  try { return CESTISCore.sessionAccess.keepsAwake({ inLiveRoom: live, invigilatorBoard: board }); } catch(e) { return false; }
+}
 function sessionHeartbeat() {
   if(!currentRole) return;
+  // A live class or an open sitting on screen counts as use of the PC.
+  if(!_sessionLocked && sessionKeptAwake()) _sessionLastActivity = Date.now();
   // The heartbeat is what lets the record pages open in another tab
   // (CESTISCore.sessionAccess). A dashboard covered by the idle lock is not
   // "still open" for that purpose: it kept beating, so anybody could open
@@ -8777,12 +8815,44 @@ function openIdleLock(byChoice) {
   openModal('idleLockModal');
   setTimeout(function(){ if(pw) pw.focus(); }, 60);
 }
+/* A trainee signed in at home (a gate session) has no password check on the
+   device — by design, the gate keeps it — so the lock compared her correct
+   password with nothing and said "That password is not correct.": the only
+   way out was Sign Out, which dropped her out of a live class. In a gate
+   session the gate checks the password, exactly as at sign-in (and its limit
+   on wrong tries still applies). A correct password unlocks — a second step,
+   if the account has one, is not asked for here, as it is not on any other
+   device. When the gate cannot be asked, the trainee is told that, never
+   that the password is wrong. → { ok } | { ok:false, text } */
+function idleLockGateVerdict(res) {
+  if(res && res.ok && (res.token || res.need2fa)) return { ok: true };
+  var code = (res && res.error) || 'unreachable';
+  if(code === 'no-match') return { ok: false, text: 'That password is not correct.' };
+  if(code === 'locked' || code === 'disabled' || code === 'rejected' || code === 'ask-office') return { ok: false, text: gateSay(code) };
+  return { ok: false, text: 'Can\'t check your password right now — check your connection and try again.' };
+}
+var _idleLockChecking = false;
 async function idleLockUnlock() {
   var pw = document.getElementById('idleLockPassword'), err = document.getElementById('idleLockError');
-  var acct = currentLoggedInUser && (userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; }) || currentLoggedInUser);
-  var ok = false;
-  try { ok = !!acct && CESTISCore.accountAccess.hasPassword(acct) && await verifyPassword(pw ? pw.value : '', acct.password); } catch(e) { ok = false; }
-  if(!ok) { if(err) { err.textContent = 'That password is not correct.'; err.style.display = 'block'; } if(pw) pw.value = ''; return; }
+  var ok = false, why = 'That password is not correct.';
+  if(typeof cestisGateSession === 'function' && cestisGateSession()) {
+    if(_idleLockChecking) return;
+    var me = currentLoggedInUser || {};
+    var login = String(me.username || me.email || '').trim();
+    _idleLockChecking = true;
+    if(err) { err.textContent = 'Checking your password…'; err.style.display = 'block'; }
+    var res = null;
+    try { res = (login && window.CESTISGate) ? await CESTISGate.signIn({ login: login, password: pw ? pw.value : '' }) : { ok: false, error: 'unreachable' }; }
+    catch(e) { res = { ok: false, error: 'unreachable' }; }
+    _idleLockChecking = false;
+    var v = idleLockGateVerdict(res);
+    ok = v.ok; if(!ok) why = v.text;
+  } else {
+    var acct = currentLoggedInUser && (userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; }) || currentLoggedInUser);
+    try { ok = !!acct && CESTISCore.accountAccess.hasPassword(acct) && await verifyPassword(pw ? pw.value : '', acct.password); } catch(e) { ok = false; }
+  }
+  if(!ok) { if(err) { err.textContent = why; err.style.display = 'block'; } if(pw) pw.value = ''; return; }
+  if(err) { err.textContent = ''; err.style.display = 'none'; }
   _sessionLocked = false;
   _sessionLastActivity = Date.now();
   try { CESTISStore.setItem('voctrain_sessionSeenAt', String(Date.now())); } catch(e) {}   // the owner is back
@@ -10760,6 +10830,7 @@ async function createUserAccount() {
     var existingStudent = findStudentRecordForAccount(newAccount);
     if (existingStudent) {
       newAccount.studentDataId = existingStudent.id;
+      fillTraineeContactFromAccount(existingStudent, newAccount);
     } else {
       createStudentDataForAccount(newAccount);
     }
@@ -10848,7 +10919,7 @@ async function createTraineeAccount() {
     userAccounts.push(acct);
     // Their trainee record: the one of that name on that programme, or a new one.
     var existingStudent = findStudentRecordForAccount(acct);
-    if(existingStudent) acct.studentDataId = existingStudent.id;
+    if(existingStudent) { acct.studentDataId = existingStudent.id; fillTraineeContactFromAccount(existingStudent, acct); }
     else createStudentDataForAccount(acct);
     saveUserAccounts();
     saveState();
@@ -11003,6 +11074,15 @@ function forgotPwMaskEmail(email) {
   return shown + '•••@' + parts[1];
 }
 
+// Forgot password from the trainee card, on a device that signs trainees in
+// from home, or inside a trainee's home session.
+function forgotPwTraineeSide() {
+  try {
+    if(typeof cestisGateSession === 'function' && cestisGateSession()) return true;
+    if(document.body && document.body.classList.contains('gate-trainee')) return true;
+  } catch(e) {}
+  return !!(forgotPwState && forgotPwState.role === 'student');
+}
 async function forgotPwLookup() {
   var uname = (document.getElementById('forgotPwUser').value || '').trim();
   if(!uname) { showToast('Enter your username or email.', 'warning'); return; }
@@ -11014,7 +11094,13 @@ async function forgotPwLookup() {
     acct = findAny();
     if(!acct) { try { if(await cloudFetchAccountData(false)) acct = findAny(); } catch(_){} }
   }
-  if(!acct) { showToast('No account found for "' + uname + '". Use "Sync Now" first, or contact an administrator.', 'error'); return; }
+  if(!acct) {
+    // A trainee — at home above all, where there is no Sync Now to press, and
+    // the password is kept by the office's records, not the phone — is told
+    // the one thing that helps.
+    if(forgotPwTraineeSide()) { showToast('Ask the office to reset your password.', 'error'); return; }
+    showToast('No account found for "' + uname + '". Use "Sync Now" first, or contact an administrator.', 'error'); return;
+  }
   // A disabled or refused account must not be recoverable — resetting the
   // password would otherwise hand back access an administrator took away. A
   // password-less account IS recoverable: setting one is exactly the fix.
@@ -11637,7 +11723,10 @@ function exportCSV(data, headers, filename) {
 
 function exportStudentsCSV() {
   const headers = ['name','id','course','stage','score','progress','attendance','gpa','instructor'];
-  exportCSV(students, headers, 'students_export.csv');
+  // The GPA the marks produce (a figure an administrator set still stands);
+  // blank when there is nothing behind it — never the untouched 0.0.
+  const rows = students.map(s => { const g = studentGpaFigure(s); return Object.assign({}, s, { gpa: g == null ? '' : g }); });
+  exportCSV(rows, headers, 'students_export.csv');
   showToast('Students CSV exported!');
 }
 
@@ -11651,9 +11740,13 @@ function exportReportCSV() {
   // One row per training centre that holds trainees, named with its intake key
   // where two share a programme — the old one-row-per-programme-name resolved
   // each name to a single centre and silently dropped every other intake.
+  // avgAttendance by the one rule: over the programme's ACTIVE trainees
+  // (blank when it has none in training).
+  const _fig = centreFigureSet();
   const data = reportProgrammeRolls().map(p => {
     const cs = p.roll;
-    return {course:p.full||p.label,enrolled:cs.length,certified:cs.filter(s=>s.stage==='certified'||s.stage==='collected').length,avgAttendance:cs.length?Math.round(cs.reduce((a,s)=>a+(parseFloat(s && s.attendance)||0),0)/cs.length):0};
+    const att = CESTISCore.centreFigures.attendance(cs, _fig.attOf);
+    return {course:p.full||p.label,enrolled:cs.length,certified:cs.filter(s=>s.stage==='certified'||s.stage==='collected').length,avgAttendance:att.rate == null ? '' : att.rate};
   });
   exportCSV(data, ['course','enrolled','certified','avgAttendance'], 'report_export.csv');
   showToast('Report CSV exported!');
@@ -13184,6 +13277,39 @@ function studentAccountTombstoned(account) {
     return cestisIsStudentTombstoned({ id: '', name: account.name, course: account.programme || '', enrolledAt: when });
   } catch (e) { return false; }
 }
+/* The email and telephone typed when the account was made — by the office
+   (Add Trainee Account) or by the trainee registering from home — reach the
+   trainee record and the fee record, filling ONLY what is blank there: a value
+   somebody already typed is never replaced (CESTISCore.traineeContact). They
+   used to stay on the account: the enrolment register read "— — —" and the fee
+   record had no contact. Returns whether the trainee record changed. */
+function fillTraineeContactFromAccount(student, account) {
+  if (!student || !account) return false;
+  var TC = CESTISCore.traineeContact, fee = [], twins = [];
+  try {
+    var raw = CESTISStore.getItem('cestiSchoolFeeStudents');
+    fee = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(fee)) fee = [];
+    twins = fee.filter(function (f) { return f && CESTISCore.isFeeTwin(student, f); });
+  } catch (e) { fee = []; twins = []; }
+  // A detail the fee record already holds was typed there: it reaches the
+  // trainee record by the fee page's own route, and the account's copy is not
+  // put beside it (the twin rule would then carry one over the other).
+  var give = { email: account.email, phone: account.phone };
+  twins.forEach(function (f) {
+    if (String(f.email == null ? '' : f.email).trim()) give.email = '';
+    if (String(f.contact == null ? '' : f.contact).trim()) give.phone = '';
+  });
+  var changed = TC.fillFromAccount(student, give).length > 0;
+  try {
+    var feeChanged = false;
+    twins.forEach(function (f) {
+      if (TC.fillFromAccount(f, account, TC.FEE_FIELDS).length) { f.updatedAt = new Date().toISOString(); feeChanged = true; }
+    });
+    if (feeChanged) CESTISCore.pageCloud.guardedSet(CESTISStore, 'cestiSchoolFeeStudents', fee);
+  } catch (e) { console.warn('[Accounts] could not fill the fee record\'s contact:', e); }
+  return changed;
+}
 function createStudentDataForAccount(userAccount) {
   var prog = userAccount.programme || 'Welding';
   var matchedInstructor = instructorData.find(function(ins){ return ins.course && instructorCourseMatch(prog, ins.course); });
@@ -13221,6 +13347,9 @@ function createStudentDataForAccount(userAccount) {
     }
   } catch(e) {}
   if (window.CESTISCore) { var _sid = CESTISCore.stableStudentId(newStudent); if (_sid) newStudent.id = _sid; }
+  // The email and telephone given with the account (a fee record that does
+  // not exist yet is created on save by the mirror, carrying them across).
+  try { fillTraineeContactFromAccount(newStudent, userAccount); } catch (e) {}
   // A NEW enrolment: an earlier deletion of the same person (same id) must
   // not hide it (CESTISCore.markEnrolment).
   try { CESTISCore.markEnrolment(newStudent, CESTISStore); _delStudentAtMemo = null; } catch(e) {}
@@ -13430,6 +13559,7 @@ function approveUser(userId) {
     var existingStudent = findStudentRecordForAccount(user);
     if (existingStudent) {
       user.studentDataId = existingStudent.id;
+      fillTraineeContactFromAccount(existingStudent, user);
     } else {
       createStudentDataForAccount(user);
     }
@@ -13499,6 +13629,7 @@ function approveAllPending() {
       var existingStudent = findStudentRecordForAccount(u);
       if (existingStudent) {
         u.studentDataId = existingStudent.id;
+        fillTraineeContactFromAccount(existingStudent, u);
       } else {
         createStudentDataForAccount(u);
       }
@@ -14593,7 +14724,12 @@ function buildAdminPages() {
   // used to count every graduate the Centre ever had.
   const totalCertified = CESTISCore.certs.certifiedInYear(students, new Date().getFullYear());
   const upcomingExams = exams.filter(e=>e.status==='upcoming').length;
-  const topPerformers = [...students].sort((a,b)=>parseFloat(b.gpa)-parseFloat(a.gpa)).slice(0,5);
+  // By the GPA the marks produce (studentGpaFigure), best first; trainees with
+  // no marks yet are not "performers" (the hand-typed 0.0 put five at-risk
+  // trainees at the top).
+  const topPerformers = students.map(s => { const sum = studentCourseworkSummary(s); return { s: s, g: studentGpaFigure(s, sum), p: sum.percent }; })
+    .filter(x => x.g != null).sort((a,b) => (parseFloat(b.g) - parseFloat(a.g)) || ((b.p || 0) - (a.p || 0))).slice(0,5)
+    .map(x => Object.assign({}, x.s, { gpa: x.g }));
   const incompleteCount = students.filter(s=>s.stage==='incomplete').length;
   // Only trainees still in training, and only where attendance has been
   // recorded: graduates and never-registered trainees are not a warning.
@@ -14611,7 +14747,7 @@ function buildAdminPages() {
   <section class="page active" id="page-dashboard">
     <div id="sappAdminDueCard"></div>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDC65</div><div class="stat-value" data-count="${totalEnrolled}">0</div><div class="stat-label">Total Enrolled Students</div><div class="stat-change" style="color:var(--text-muted);">Across all programmes</div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDC65</div><div class="stat-value" data-count="${totalEnrolled}">0</div><div class="stat-label">Total Enrolled Students</div><div class="stat-change" id="dashActiveLine" style="color:var(--text-muted);">${dashActiveLineText()}</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83C\uDF93</div><div class="stat-value" data-count="${totalCertified}">0</div><div class="stat-label">Certified This Year</div><div class="stat-change" style="color:var(--text-muted);">Completed certification</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">\uD83D\uDCDD</div><div class="stat-value" data-count="${upcomingExams}">0</div><div class="stat-label">Upcoming Exams</div><div class="stat-change" style="color:var(--text-muted);">Next: ${escapeHtml(nextExam?nextExam.date.slice(5):'None scheduled')}</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--purple-dim);color:var(--purple);">\uD83D\uDCF9</div><div class="stat-value" data-count="${classSessions.length}">0</div><div class="stat-label">Class Sessions</div><div class="stat-change" style="color:var(--text-muted);">Total scheduled</div></div>
@@ -14638,6 +14774,7 @@ function buildAdminPages() {
         <div class="alert-item alert-info"><div class="alert-icon">\uD83D\uDD04</div><div class="alert-body"><div class="alert-msg">Auto-sync is ${isCloudConnected?'active':'inactive'}</div><div class="alert-time">${isCloudConnected?'Every '+(AUTO_SAVE_INTERVAL_MS/1000)+' seconds':'Turn it on with the Sync button'}</div></div></div>
       </div>
       <div class="card"><div class="card-header"><h3>Top Performers</h3></div>
+        ${topPerformers.length ? '' : '<p style="font-size:13px;color:var(--text-muted);padding:8px 0;">No marks recorded yet.</p>'}
         ${topPerformers.map((s,i) => {
           const colors = ['linear-gradient(135deg,#f0a500,#d4900a)','linear-gradient(135deg,#bdc3c7,#95a5a6)','linear-gradient(135deg,#e67e22,#d35400)','linear-gradient(135deg,var(--blue),#2980b9)','linear-gradient(135deg,var(--teal),#16a085)'];
           const initials = s.name.split(' ').map(n=>n[0]).join('');
@@ -15943,7 +16080,7 @@ function buildInstructorPages() {
   <section class="page" id="page-i-gradebook">
     <div style="display:flex;gap:12px;margin-bottom:20px;">
       <button class="btn btn-primary" onclick="openInstructorCreateAssignment()">+ New Assignment</button>
-      <button class="btn-export" onclick="exportInstructorStudentsCSV()">📄 Export Grades</button>
+      <button class="btn-export" onclick="exportInstructorGradebookCSV()">📄 Export Grades</button>
     </div>
     <div id="iExamReviewQueue">${instructorExamReviewQueueHtml(ins)}</div>
     <div class="card" style="margin-bottom:18px;"><div class="card-header"><h3>My Assignments</h3><span style="font-size:12px;color:var(--text-muted);">Created by you</span></div>
@@ -15955,38 +16092,31 @@ function buildInstructorPages() {
       // maximum (8/10 and 80/100 are both 80%, not 8 and 80), a mark of 0 is
       // a mark, exams and assignments sit side by side, and the average
       // weights each assignment by its Weight (%) — exams count as one
-      // standard item each (CESTISCore.coursework).
+      // standard item each (CESTISCore.coursework). EVERY exam and
+      // assignment has a column, newest first, and the average covers them
+      // all (it used to stop at the first seven of each); the table scrolls
+      // inside its card (CESTISCore.coursework.gradebook).
       var CW = CESTISCore.coursework;
-      var courseExams = myExams.slice(0, 7);
-      var myAssignments = (instructorAssignments||[]).filter(function(a){ return instructorCourseMatch(a.course, ins.course); }).slice(0, 7);
-      var gradeCols = courseExams.map(function(ex){ return ex.title || 'Exam'; })
-        .concat(myAssignments.map(function(a){ return (a.title || 'Assignment') + ' (' + CW.weightOf(a.weight) + '%)'; }));
+      var book = instructorGradebookData(ins, myStudents, myExams);
+      var gradeCols = book.columns.map(function(c){ return c.label; });
       var noColumns = gradeCols.length === 0;
       if (noColumns) gradeCols = ['Test Score'];
 
-      var html = '<div class="card"><div class="card-header"><h3>Gradebook &mdash; '+escapeHtml(ins.course)+'</h3></div>';
+      var html = '<div class="card"><div class="card-header"><h3>Gradebook &mdash; '+escapeHtml(ins.course)+'</h3><span style="font-size:12px;color:var(--text-muted);">'+(noColumns ? '' : book.columns.length+' item'+(book.columns.length === 1 ? '' : 's')+', newest first')+'</span></div>';
+      html += '<div id="iGradebookScroll" style="max-height:70vh;overflow:auto;">';
       html += '<div class="table-wrapper"><table class="tbl-phone"><thead><tr><th>Student</th>';
       gradeCols.forEach(function(c){ html += '<th>'+escapeHtml(c)+'</th>'; });
       html += '<th>Avg</th></tr></thead><tbody id="iGradebookBody">';
 
       var allScores = [];
-      myStudents.forEach(function(st) {
-        // Final results only (the exams track): a result still awaiting manual
-        // marking, or an archived one, is not a mark yet.
-        var stuResults = (examResults||[]).filter(function(r){ return r && r.studentId === st.id && CESTISCore.exams.isFinal(r); });
+      myStudents.forEach(function(st, si) {
         var items = [];
         if (noColumns) {
           items = [{ pct: CW.gradeValue(st.score), weight: CW.DEFAULT_WEIGHT }];
         } else {
-          courseExams.forEach(function(ex) {
-            var r = stuResults.find(function(res){ return res.examId === ex.id || res.examTitle === ex.title; });
-            items.push({ pct: r ? CW.gradeValue(r.score) : null, weight: CW.DEFAULT_WEIGHT });
-          });
-          myAssignments.forEach(function(a) {
-            // Grades are stored on the assignment (a.grades[studentId]), not on
-            // the submission record — read from there so the gradebook fills in.
-            items.push({ pct: CW.percentOf(a.grades ? a.grades[st.id] : null, a.maxPoints), weight: a.weight });
-          });
+          // Final results only (the exams track) and the marks stored on each
+          // assignment (a.grades[studentId]), one per column.
+          items = book.rows[si].cells.map(function(p, k){ return { pct: p, weight: book.columns[k].weight }; });
         }
         var avgRaw = CW.weightedAverage(items);
         var avg = avgRaw == null ? null : Math.round(avgRaw);
@@ -15999,7 +16129,7 @@ function buildInstructorPages() {
         });
         html += '<td style="text-align:center;font-weight:700;color:'+(avg === null ? 'var(--text-muted)' : avg>=80?'var(--green)':avg>=60?'var(--accent)':'var(--red)')+';">'+(avg === null ? '\u2014' : avg+'%')+'</td></tr>';
       });
-      html += '</tbody></table></div></div>';
+      html += '</tbody></table></div></div></div>';
 
       // Grade distribution from actual scores
       var distA = allScores.filter(function(s){return s>=80;}).length;
@@ -16238,6 +16368,23 @@ function studentCourseworkSummary(s) {
 function studentEffectiveGpa(s) {
   return CESTISCore.coursework.effectiveGpa(s && s.gpa, studentCourseworkSummary(s).gpa);
 }
+// The GPA the Centre REPORTS for a trainee (Top Performers, the board's
+// averages and charts, exports): the effective GPA above, or null when there
+// is nothing behind it — no marks yet and no figure set by an administrator.
+// Every report used to read the hand-typed s.gpa, which nobody types: Top
+// Performers listed five 0.0-GPA trainees at risk of failing.
+function studentGpaFigure(s, summary) {
+  var sum = summary || studentCourseworkSummary(s);
+  var stored = String(s && s.gpa != null ? s.gpa : '').trim();
+  var handSet = stored !== '' && isFinite(Number(stored)) && Number(stored) !== 0;
+  if (!handSet && sum.gpa == null) return null;
+  return CESTISCore.coursework.effectiveGpa(s && s.gpa, sum.gpa);
+}
+// A programme's (or the Centre's) exam pass rate: over MARKED results only
+// (CESTISCore.centreFigures.examPass — the rule passRateOf uses).
+function examPassFigure(roll) {
+  return CESTISCore.centreFigures.examPass(examResults || [], roll ? { studentIds: roll.map(function(s){ return s && s.id; }) } : null);
+}
 
 // The exact name, or the same training centre. The rule itself lives in
 // CESTISCore.enrolment.courseMatch, so the trainee gate decides "this trainee's
@@ -16266,6 +16413,29 @@ function updateInstructorPipeline() {
   });
 }
 
+// The gradebook's data: the instructor's trainees, every exam of the
+// programme and every assignment, newest first (CESTISCore.coursework.gradebook).
+function instructorGradebookData(ins, myStudents, myExams) {
+  var myAssignments = (instructorAssignments||[]).filter(function(a){ return a && instructorCourseMatch(a.course, ins.course); });
+  return CESTISCore.coursework.gradebook({ students: myStudents, exams: myExams, assignments: myAssignments,
+    results: examResults || [], isFinal: function(r){ return CESTISCore.exams.isFinal(r); } });
+}
+// "Export Grades": the marks themselves, as on the gradebook — it used to
+// export the trainee list (stage, score, attendance) with no marks at all.
+function exportInstructorGradebookCSV() {
+  if(!currentInstructor) return;
+  var ins = currentInstructor;
+  var myStudents = students.filter(function(s){ return s.instructor === ins.name || instructorCourseMatch(s.course, ins.course); });
+  var myExams = exams.filter(function(e){ return instructorCourseMatch(e.course, ins.course); });
+  var csv = CESTISCore.coursework.gradebookCsv(instructorGradebookData(ins, myStudents, myExams));
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'gradebook_' + String(ins.course || 'grades').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') + '.csv'; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Grades exported.');
+}
 function exportInstructorStudentsCSV() {
   if(!currentInstructor) return;
   const myStudents = students.filter(s => s.instructor === currentInstructor.name || instructorCourseMatch(s.course, currentInstructor.course));
@@ -16340,7 +16510,8 @@ function createInstructorAnnouncement() {
   refreshContentDependentViews();
   saveState();
   showToast('Announcement published!');
-  addNotification('New announcement: "' + title + '"' + (priority==='urgent' ? ' (URGENT)' : ''), priority==='urgent' ? 'warning' : 'announce', null, targetRoles);
+  addNotification('New announcement: "' + title + '"' + (priority==='urgent' ? ' (URGENT)' : ''), priority==='urgent' ? 'warning' : 'announce', null, targetRoles, null,
+    currentInstructor && currentInstructor.course ? { forCourse: currentInstructor.course } : null);
 }
 
 function renderInstructorAnnouncements() {
@@ -17026,7 +17197,7 @@ function vcCreateLargeRoom(title, role, scheduledCode) {
   // Centre: those in the class reach it from their class session, or from
   // the instructor.
   try {
-    addNotification('Large class session started: "' + title + '"', 'calendar', null, ['admin','instructor','student']);
+    addNotification('Large class session started: "' + title + '"', 'calendar', null, ['admin','instructor','student'], null, _course ? { forCourse: _course } : null);
   } catch(e) {}
 }
 function vcJoinLargeRoom(code, title, role) {
@@ -20154,7 +20325,7 @@ function createClassSession() {
   showToast('Class session "' + name + '" created successfully');
   // Notify students too — they have a class-sessions view and should hear about
   // a new scheduled session for their course.
-  addNotification('New class session: "' + name + '"', 'calendar', null, ['admin','instructor','student']);
+  addNotification('New class session: "' + name + '"', 'calendar', null, ['admin','instructor','student'], null, course ? { forCourse: course } : null);
 
   // Reset form fields
   document.getElementById('csSessionName').value = '';
@@ -20807,7 +20978,8 @@ function gradeSubmission(assignmentId, studentId) {
   showToast((res.previous != null ? 'Mark changed for ' : 'Graded ') + (st ? st.name : studentId) + ': ' + score + '/' + a.maxPoints + (res.previous != null ? ' (was ' + res.previous + ')' : ''));
   // Staff only, like exam scores: a trainee's mark is not news for the whole
   // class. The trainee sees it on My Assignments.
-  addNotification((st ? st.name : 'Student') + ' graded ' + score + '/' + a.maxPoints + ' on "' + a.title + '"', 'grade', null, ['admin','instructor']);
+  var _mk = notifyMarkingAudience();
+  addNotification((st ? st.name : 'Student') + ' graded ' + score + '/' + a.maxPoints + ' on "' + a.title + '"', 'grade', null, _mk.roles, null, _mk.aud);
   renderInstructorGradebook();
   refreshContentDependentViews();
 }
@@ -21611,6 +21783,9 @@ function uploadResource() {
   const desc = document.getElementById('resDesc')?.value?.trim();
 
   if(!name) { showToast('Please enter a resource name'); return; }
+  // This form has no file to attach: without a link it saved a resource
+  // trainees could not open, and still said "uploaded successfully".
+  if(!url) { showToast('Add the resource\'s link (starting with https://). Nothing was saved: trainees need something to open.', 'warning'); return; }
   // Only a web link: a javascript: "link" ran in whoever clicked Open.
   if(url && !/^https?:\/\//i.test(url)) { showToast('The link must start with http:// or https://'); return; }
 
@@ -21631,7 +21806,7 @@ function uploadResource() {
   saveState();
   closeModal('uploadResourceModal');
   showToast('Resource "' + name + '" uploaded successfully');
-  addNotification('New resource uploaded: "' + name + '"', 'resource', null, ['admin','instructor','student']);
+  addNotification('New resource uploaded: "' + name + '"', 'resource', null, ['admin','instructor','student'], null, { forCourse: resource.course });
 
   // Reset form
   document.getElementById('resName').value = '';
@@ -22304,7 +22479,7 @@ async function uploadResourceToDrive() {
     statusEl.textContent = 'Upload complete!';
 
     showToast('Resource "' + name + '" uploaded with ID: ' + resourceId);
-    addNotification('New resource uploaded for ' + course + ': "' + name + '" (ID: ' + resourceId + ')', 'resource', null, ['admin','instructor','student']);
+    addNotification('New resource uploaded for ' + course + ': "' + name + '" (ID: ' + resourceId + ')', 'resource', null, ['admin','instructor','student'], null, course ? { forCourse: course } : null);
 
     setTimeout(function() {
       closeModal('driveUploadModal');
@@ -24365,13 +24540,8 @@ try {
 function isStudentCertified(s) {
   return !!s && (s.stage === 'certified' || s.stage === 'collected');
 }
-// Canonical "has this student passed?" — used for academic pass-rate widgets.
-// Per product decision this counts certified/collected OR a GPA of 2.0+.
-function isStudentPassed(s) {
-  if(!s) return false;
-  if(isStudentCertified(s)) return true;
-  return parseFloat(s.gpa) >= 2.0;
-}
+// (Pass rates are read from marked exam results — examPassFigure — not from a
+// GPA typed by hand, which nobody types: every running programme read 0%.)
 
 // Recompute a single student's stored attendance % from the dated register,
 // so every dashboard / progress bar / report that reads students[].attendance
@@ -24660,7 +24830,14 @@ function backfillAccountProgrammes() {
 // students added via any path (e.g. pulled in from School Fee) without
 // rebuilding the page (the dashboard is template-literal HTML; there is no
 // updateDashboard fn). The cards have no ids, so match them by label text.
+// Under "Total Enrolled": how many of them are in training now, and how many
+// are applicants — the total counts both, and those who have finished.
+function dashActiveLineText() {
+  var e = CESTISCore.centreFigures.enrolment(students);
+  return e.active + ' active (in training) \u00b7 ' + e.applicants + ' applicant' + (e.applicants === 1 ? '' : 's');
+}
 function refreshDashboardStudentTotals() {
+  try { var _al = document.getElementById('dashActiveLine'); if (_al) _al.textContent = dashActiveLineText(); } catch (e) {}
   try {
     var totalEnrolled = students.length;
     var totalCertified = CESTISCore.certs.certifiedInYear(students, new Date().getFullYear());
@@ -24739,9 +24916,9 @@ function showSkillDetail(id) {
   // the same trainees the Enrolment Register lists for the intake.
   var _rmTally = centreRollTally();
   var courseStudents = _rmTally ? _rmTally.listOf(skill) : [];
-  var passRate = courseStudents.length > 0
-    ? Math.round(courseStudents.filter(isStudentPassed).length / courseStudents.length * 100)
-    : 0;
+  // Over the marked exam results of the intake's trainees.
+  var _passFig = examPassFigure(courseStudents);
+  var passRate = _passFig.rate == null ? 0 : _passFig.rate;
 
   var materialsHtml = '';
   var hasAnyResources = false;
@@ -27198,8 +27375,13 @@ var EXAM_TYPE_HELP = {
 
 function addExamQuestion(type) {
   var q = { id: cestisGenId('Q-')+'-'+Math.random().toString(36).substr(2,4), type:type, text:'', points:1 };
-  if(type==='mcq') { q.options=['Option A','Option B','Option C','Option D']; q.correctAnswer=0; }
-  else if(type==='tf') { q.correctAnswer=true; }
+  // A new multiple-choice or true/false question starts with NO answer key:
+  // it used to start keyed to (a) / True, so a question whose key nobody
+  // chose was marked silently against (a). Until the author picks one it
+  // shows "Answer not set", and the exam cannot be saved or activated
+  // (CESTISCore.exams.keyProblems). Questions already saved keep their keys.
+  if(type==='mcq') { q.options=['Option A','Option B','Option C','Option D']; q.correctAnswer=null; }
+  else if(type==='tf') { q.correctAnswer=null; }
   else if(type==='fill') { q.correctAnswer=''; }
   else if(type==='short') { q.correctAnswer=''; q.autoGrade=false; }
   else if(type==='multi') { q.options=['Option A','Option B','Option C','Option D']; q.correctAnswer=[]; q.allOrNothing=false; }
@@ -28322,7 +28504,8 @@ function submitGrading() {
   showToast('Grades saved! Final score: ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'));
   // Staff see the outcome; the trainee is told their OWN result, addressed to
   // their account alone. It used to go to every trainee in every programme.
-  addNotification('Grading completed: ' + result.studentName + ' scored ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'), result.passed ? 'grade' : 'warning', null, ['admin','instructor']);
+  var _mk = notifyMarkingAudience();
+  addNotification('Grading completed: ' + result.studentName + ' scored ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'), result.passed ? 'grade' : 'warning', null, _mk.roles, null, _mk.aud);
   var traineeUser = examTraineeUserId(result.studentId);
   if(traineeUser && pendingLeft === 0) {
     addNotificationForUser('Your exam "' + (exam ? exam.title : 'exam') + '" has been marked: ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'), result.passed ? 'success' : 'info', null, traineeUser, 'student');
@@ -31064,9 +31247,11 @@ function renderPassRates() {
   const el = document.getElementById('passRateChart');
   if(!el) return;
   // Compute pass rates dynamically from student data per training centre
+  // Over the MARKED exam results of each programme's trainees — read from a
+  // hand-typed GPA it showed 0% for every running programme.
   var progs = reportProgrammeRolls().map(function (p) {
-    return { name: p.label, full: p.full, n: p.roll.length,
-      rate: Math.round(p.roll.filter(isStudentPassed).length / p.roll.length * 100) };
+    var f = examPassFigure(p.roll);
+    return { name: p.label, full: p.full, n: p.roll.length, marked: f.of, rate: f.rate == null ? 0 : f.rate, none: f.rate == null };
   });
   if (progs.length === 0) {
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No student data available to compute pass rates.</div>';
@@ -31075,7 +31260,7 @@ function renderPassRates() {
   // The full programme name and its roll size are on every row, so a rate can be
   // read against the number of trainees it is a rate OF — 0% over 3 trainees and
   // 0% over 81 are not the same finding.
-  el.innerHTML = progs.map(p=>`<div style="display:flex;align-items:center;gap:12px;" title="${escapeHtml(p.full)} — ${p.n} trainee${p.n===1?'':'s'}"><div style="width:140px;font-size:12px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.name)}</div><div class="progress-bar" style="flex:1;height:10px;"><div class="fill" style="width:${p.rate}%;background:${p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};border-radius:5px;"></div></div><div style="width:40px;font-size:12px;font-weight:700;color:${p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};">${p.rate}%</div><div style="width:64px;font-size:11px;color:var(--text-muted);text-align:right;">${p.n} trainee${p.n===1?'':'s'}</div></div>`).join('');
+  el.innerHTML = progs.map(p=>`<div style="display:flex;align-items:center;gap:12px;" title="${escapeHtml(p.full)} — ${p.n} trainee${p.n===1?'':'s'}, ${p.marked} marked result${p.marked===1?'':'s'}"><div style="width:140px;font-size:12px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.name)}</div><div class="progress-bar" style="flex:1;height:10px;"><div class="fill" style="width:${p.rate}%;background:${p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};border-radius:5px;"></div></div><div style="width:40px;font-size:12px;font-weight:700;color:${p.none?'var(--text-muted)':p.rate>=80?'var(--green)':p.rate>=70?'var(--accent)':'var(--red)'};">${p.none?'\u2014':p.rate+'%'}</div><div style="width:96px;font-size:11px;color:var(--text-muted);text-align:right;">${p.none?'no marked results':'of '+p.marked+' marked'}</div></div>`).join('');
 }
 
 function renderCertStats() {
@@ -31121,9 +31306,9 @@ function refreshReportsAnalytics() {
 function renderReportStats() {
   const el = document.getElementById('reportStats');
   if(!el) return;
-  // Compute overall pass rate from student data
-  const passedStudents = students.filter(isStudentPassed);
-  const overallPassRate = students.length ? Math.round(passedStudents.length / students.length * 100) : 0;
+  // The Centre's exam pass rate, over MARKED results (examPassFigure).
+  const passFig = examPassFigure(null);
+  const overallPassRate = passFig.rate == null ? 0 : passFig.rate;
   // Compute average months to certification from students who have certDate
   var totalMonths = 0; var certCount = 0;
   students.forEach(function(s) {
@@ -31136,18 +31321,18 @@ function renderReportStats() {
     }
   });
   const avgMonthsToCert = certCount > 0 ? (totalMonths / certCount).toFixed(1) : '0';
-  // A record whose attendance was never recorded holds undefined, and adding it
-  // made the whole sum NaN — one blank field and the Attendance Rate card read 0%
-  // for the entire Centre, indistinguishable from genuinely zero attendance.
-  const avgAtt = students.length
-    ? Math.round(students.reduce((a,s)=>a+(parseFloat(s && s.attendance)||0),0)/students.length) : 0;
-  // A dropout marked on the enrolment register counts, as well as the stage.
-  const dropoutRate = students.length ? (students.filter(s=>s && (s.stage==='incomplete' || s.enrolStatus==='dropout')).length/students.length*100).toFixed(1) : 0;
+  // Attendance over ACTIVE trainees with a figure (an applicant who never
+  // attended is not a 0%), dropouts over intakes that have ENDED
+  // (CESTISCore.centreFigures, as on the board's screens). A blank field is
+  // skipped, never added as NaN.
+  const fig = centreFigureSet();
+  const avgAtt = fig.attendance.rate == null ? 0 : fig.attendance.rate;
+  const dropoutRate = fig.dropout.rate == null ? 0 : fig.dropout.rate.toFixed(1);
   el.innerHTML = `
-    <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83D\uDCCA</div><div class="stat-value" data-count="${overallPassRate}" data-suffix="%">0</div><div class="stat-label">Overall Pass Rate</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83D\uDCCA</div><div class="stat-value" data-count="${overallPassRate}" data-suffix="%">0</div><div class="stat-label">Overall Pass Rate</div><div class="stat-change" style="color:var(--text-muted);">${passFig.rate == null ? 'No marked results yet' : 'of ' + passFig.of + ' marked results'}</div></div>
     <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">\u23F1\uFE0F</div><div class="stat-value" data-count="${avgMonthsToCert}">0</div><div class="stat-label">Avg. Months to Cert</div></div>
-    <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDCC8</div><div class="stat-value" data-count="${avgAtt}" data-suffix="%">0</div><div class="stat-label">Attendance Rate</div></div>
-    <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">\u26A0\uFE0F</div><div class="stat-value" data-count="${dropoutRate}" data-suffix="%">0</div><div class="stat-label">Dropout Rate</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDCC8</div><div class="stat-value" data-count="${avgAtt}" data-suffix="%">0</div><div class="stat-label">Attendance Rate</div><div class="stat-change" style="color:var(--text-muted);">${fig.attendance.rate == null ? 'No attendance recorded for active trainees' : 'of ' + fig.attendance.of + ' active'}</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:var(--red-dim);color:var(--red);">\u26A0\uFE0F</div><div class="stat-value" data-count="${dropoutRate}" data-suffix="%">0</div><div class="stat-label">Dropout Rate</div><div class="stat-change" style="color:var(--text-muted);">${fig.dropout.rate == null ? 'No intake has ended yet' : 'of ' + fig.dropout.of + ' in ended intakes'}</div></div>
   `;
 }
 
@@ -31206,7 +31391,10 @@ function renderEnrollmentBars() {
 function renderGaugeChart() {
   const el = document.getElementById('gaugeContainer');
   if(!el) return;
-  const completionRate = students.length > 0 ? Math.round(students.filter(s=>s.stage==='certified'||s.stage==='collected').length / students.length * 100) : 0;
+  // Certified or collected, over the trainees of intakes that have ENDED: a
+  // running intake has not completed yet (CESTISCore.centreFigures.completion).
+  const comp = centreFigureSet().completion;
+  const completionRate = comp.rate == null ? 0 : comp.rate;
   const rotation = (completionRate / 100) * 180;
   el.innerHTML = `
     <div class="gauge-chart">
@@ -31217,7 +31405,7 @@ function renderGaugeChart() {
       <div class="gauge-min">0%</div>
       <div class="gauge-max">100%</div>
     </div>
-    <div class="gauge-label" style="font-size:12px;color:var(--text-muted);margin-top:20px;">Overall Completion Rate</div>
+    <div class="gauge-label" style="font-size:12px;color:var(--text-muted);margin-top:20px;">Overall Completion Rate \u2014 ${comp.rate == null ? 'no intake has ended yet' : comp.certified + ' of ' + comp.of + ' in ended intakes'}</div>
   `;
 }
 
@@ -31509,6 +31697,28 @@ function attendancePctByStudent() {
     source = 'weekly';
   }
   return { pct: out, source: source };
+}
+
+/* The Centre's figures, one rule each (CESTISCore.centreFigures), so the
+   administrator's dashboard, Reports and the board's screens say the same:
+   attendance over ACTIVE trainees (by this register's rule), completion and
+   dropouts over intakes that have ENDED, exam passes over MARKED results,
+   instructors from the instructor records and accounts. */
+function centreFigureSet() {
+  var F = CESTISCore.centreFigures, pm = {};
+  try { pm = attendancePctByStudent().pct || {}; } catch (e) { pm = {}; }
+  var attOf = function (s) { return s && pm[s.id] != null ? pm[s.id] : (s ? s.attendance : null); };
+  var endedOf = function (s) { try { return studentCourseStatus(s) === 'ended'; } catch (e) { return false; } };
+  var roll = Array.isArray(students) ? students : [];
+  return {
+    attOf: attOf, endedOf: endedOf,
+    enrolment: F.enrolment(roll),
+    attendance: F.attendance(roll, attOf),
+    completion: F.completion(roll, endedOf),
+    dropout: F.dropout(roll, endedOf),
+    examPass: F.examPass(typeof examResults !== 'undefined' ? examResults : []),
+    instructors: F.instructorCount(typeof instructorData !== 'undefined' ? instructorData : [], typeof userAccounts !== 'undefined' ? userAccounts : [])
+  };
 }
 
 /* ---------- merging other copies ---------- */
@@ -33503,7 +33713,8 @@ function addImportQuestion() {
     id: cestisGenId('IQ-') + '-' + Math.random().toString(36).substr(2, 4),
     text: '', type: 'mcq', points: 1,
     options: ['Option A','Option B','Option C','Option D'],
-    correctAnswer: 0
+    // No key until the author chooses one (as in the builder: addExamQuestion).
+    correctAnswer: null
   });
   renderImportPreview();
 }
@@ -37471,7 +37682,9 @@ async function autoSaveToAllFolders() {
 var GATE_STAFF_ROLES = { admin: 1, adminstaff: 1, instructor: 1 };
 var GATE_CONFIG_FILE = 'CESTIS_GATE.json';
 var GATE_FOLDER_MIME = 'application/vnd.google-apps.folder';
-var GATE_EXPECTED_VERSION = 1;
+// Must equal GATE_VERSION in trainee-gate/Gate.gs (tests/gate-card-ready.test.js checks it):
+// a gate older than this shows "A newer version is available" on the Settings card.
+var GATE_EXPECTED_VERSION = 2;
 var GATE_LIMITS = {
   gapMs: 500,                 // at most 2 writes a second
   perTick: 120,               // and 120 in one turn
@@ -39161,6 +39374,10 @@ function gateAfterApply(r) {
   try { if (typeof renderStudentDashboard === 'function') renderStudentDashboard(); } catch (e) {}
   try { updateNotificationDot(); } catch (e) {}
   try { refreshSyncChip(); } catch (e) {}
+  // The sidebar's LIVE badge redraws after a save; a trainee at home never
+  // saves the class list, so a class going live reached her records but the
+  // badge never lit. It is redrawn whenever new records arrive.
+  try { refreshNavLiveBadges(); } catch (e) {}
 }
 // Everything the page holds in memory, read again from the namespace.
 function gateReloadMemory() {
@@ -42910,6 +43127,10 @@ function cestisNotifTargetsMe(n) {
   var myId = me ? me.id : null;
   if (n.forUsers && n.forUsers.length) return !!myId && n.forUsers.indexOf(myId) !== -1;
   if (!currentRole) return false;
+  try {
+    if (!CESTISCore.notify.reaches(n, { role: currentRole, userId: myId, course: currentRole === 'student' && currentStudent ? currentStudent.course : '',
+      sameProgramme: typeof instructorCourseMatch === 'function' ? instructorCourseMatch : null })) return false;
+  } catch (e) {}
   if (!n.forRoles || !n.forRoles.length) return true;
   if (currentRole === 'adminstaff') return n.forRoles.indexOf('adminstaff') !== -1 || n.forRoles.indexOf('admin') !== -1;
   return n.forRoles.indexOf(currentRole) !== -1;
@@ -46519,40 +46740,23 @@ function buildCmcPages() {
 
   var totalStudents = students.length;
   var totalCertified = students.filter(function(s){ return s.stage==='certified'||s.stage==='collected'; }).length;
-  // Instructors on record: the roster the Centre maintains, the accounts that
-  // carry the instructor role, and the profile blobs — whichever the Centre has
-  // actually filled in. Counting only one of the three showed "0 instructors"
-  // to a board looking at a Centre that plainly had them.
-  var _insNames = {};
-  (instructorData || []).forEach(function(i) { if(i && i.name) _insNames[String(i.name).toLowerCase()] = 1; });
-  Object.keys(instructorProfiles || {}).forEach(function(k) { if(k) _insNames[String(k).toLowerCase()] = 1; });
-  (userAccounts || []).forEach(function(u) { if(u && u.role === 'instructor' && u.name) _insNames[String(u.name).toLowerCase()] = 1; });
-  (students || []).forEach(function(s) { if(s && s.instructor) _insNames[String(s.instructor).toLowerCase()] = 1; });
-  var totalInstructors = Object.keys(_insNames).length;
+  // The figures, one rule each (centreFigureSet): the board and the
+  // administrator's Reports read the same numbers. Instructors: the roster
+  // the Centre maintains and the accounts that carry the instructor role, one
+  // per name (counting only one of them showed "0 instructors", or 2 of 4).
+  var _fig = centreFigureSet();
+  var totalInstructors = _fig.instructors;
   var totalStaff = userAccounts.filter(function(u){ return u.role === 'adminstaff'; }).length;
   // Average attendance by the one rule (CESTISCore.attendance.summarize: held
   // sessions only), over the trainees who have any held session recorded.
-  var avgAttendance = 0;
-  var _attPctMap = attendancePctByStudent().pct, _attPctVals = Object.keys(_attPctMap).map(function(k){ return _attPctMap[k]; });
-  if(_attPctVals.length > 0) {
-    avgAttendance = Math.round(_attPctVals.reduce(function(a, b){ return a + b; }, 0) / _attPctVals.length);
-  } else if(students.length > 0) {
-    var totalAtt2 = 0;
-    students.forEach(function(s){ totalAtt2 += (parseFloat(s.attendance)||0); });
-    avgAttendance = Math.round(totalAtt2 / students.length);
-  }
-  // Compute avg GPA from examResults if available
-  var avgGpa = 0;
-  if(examResults && examResults.length > 0) {
-    var totalScore = 0;
-    examResults.forEach(function(r){ totalScore += (parseFloat(r.score)||0); });
-    var avgScore = totalScore / examResults.length;
-    avgGpa = (avgScore >= 90 ? 4.0 : avgScore >= 80 ? 3.5 : avgScore >= 70 ? 3.0 : avgScore >= 60 ? 2.5 : (avgScore / 100 * 4).toFixed(2));
-  } else if(students.length > 0) {
-    var totalGpa = 0;
-    students.forEach(function(s){ totalGpa += (parseFloat(s.gpa)||0); });
-    avgGpa = (totalGpa / students.length).toFixed(2);
-  }
+  // Over ACTIVE trainees only (CESTISCore.centreFigures.attendance).
+  var avgAttendance = _fig.attendance.rate == null ? 0 : _fig.attendance.rate;
+  var avgAttendanceOf = _fig.attendance.rate == null ? 'no active trainee has attendance recorded' : 'of ' + _fig.attendance.of + ' active';
+  // Average GPA: the GPA each trainee's marks produce (studentGpaFigure),
+  // over the trainees who have one — the figure the instructors and the
+  // trainees themselves see.
+  var _gpas = students.map(function(s){ return parseFloat(studentGpaFigure(s)); }).filter(function(g){ return isFinite(g); });
+  var avgGpa = _gpas.length ? (_gpas.reduce(function(a, b){ return a + b; }, 0) / _gpas.length).toFixed(2) : '\u2014';
 
   var html = '';
 
@@ -46564,14 +46768,16 @@ function buildCmcPages() {
   html += '</div></div>';
 
   // Compute local metrics
-  var completionRate = totalStudents > 0 ? Math.round((totalCertified/totalStudents)*100) : 0;
+  // Over intakes that have ENDED; exam passes over MARKED results.
+  var completionRate = _fig.completion.rate == null ? 0 : _fig.completion.rate;
+  var completionOf = _fig.completion.rate == null ? 'no intake has ended yet' : _fig.completion.certified + ' of ' + _fig.completion.of + ' in ended intakes';
   var incompleteCount = students.filter(function(s){ return s.stage==='incomplete'; }).length;
   var inTrainingCount = students.filter(function(s){ return s.stage==='training'; }).length;
   var totalExams = (exams||[]).length;
   var completedExams = (exams||[]).filter(function(e){ return e.status==='completed'; }).length;
-  var totalExamResults = (examResults||[]).length;
-  var passedResults = (examResults||[]).filter(function(r){ return r.passed; }).length;
-  var examPassRate = totalExamResults > 0 ? Math.round((passedResults/totalExamResults)*100) : 0;
+  var totalExamResults = _fig.examPass.of;
+  var passedResults = _fig.examPass.passed;
+  var examPassRate = _fig.examPass.rate == null ? 0 : _fig.examPass.rate;
   var attRecCount = (Array.isArray(attendanceRegister) && attendanceRegister.length) ? attendanceRegister.length : (attendanceRecords||[]).length;
 
   // The books the board oversees, with what each currently holds.
@@ -46582,25 +46788,25 @@ function buildCmcPages() {
   html += '<div class="cmc-kpi-card kpi-attendance" onclick="cmcShowDetail(\'attendance\')"><div class="cmc-kpi-icon">👥</div>';
   html += '<div class="cmc-kpi-label">Total Enrolment</div>';
   html += '<div class="cmc-kpi-value">' + totalStudents + '</div>';
-  html += '<div class="cmc-kpi-sub">' + inTrainingCount + ' in training, ' + totalCertified + ' certified</div>';
+  html += '<div class="cmc-kpi-sub">' + _fig.enrolment.active + ' active (in training) \u00b7 ' + _fig.enrolment.applicants + ' applicants \u00b7 ' + totalCertified + ' certified</div>';
   html += '<div class="cmc-kpi-hint">Click to view details</div></div>';
 
   html += '<div class="cmc-kpi-card kpi-clockin" onclick="cmcShowDetail(\'attendance\')"><div class="cmc-kpi-icon">📋</div>';
   html += '<div class="cmc-kpi-label">Avg Attendance</div>';
   html += '<div class="cmc-kpi-value" id="cmcKpiAttendance">' + avgAttendance + '%</div>';
-  html += '<div class="cmc-kpi-sub">' + attRecCount + ' attendance records</div>';
+  html += '<div class="cmc-kpi-sub" id="cmcKpiAttendanceSub">' + avgAttendanceOf + '</div>';
   html += '<div class="cmc-kpi-hint">Click to view details</div></div>';
 
   html += '<div class="cmc-kpi-card kpi-cashbook" onclick="cmcShowDetail(\'fees\')"><div class="cmc-kpi-icon">🏆</div>';
   html += '<div class="cmc-kpi-label">Completion Rate</div>';
   html += '<div class="cmc-kpi-value">' + completionRate + '%</div>';
-  html += '<div class="cmc-kpi-sub">' + totalCertified + ' of ' + totalStudents + ' certified</div>';
+  html += '<div class="cmc-kpi-sub">' + completionOf + '</div>';
   html += '<div class="cmc-kpi-hint">Click to view details</div></div>';
 
   html += '<div class="cmc-kpi-card kpi-virement"><div class="cmc-kpi-icon">📝</div>';
   html += '<div class="cmc-kpi-label">Exam Pass Rate</div>';
   html += '<div class="cmc-kpi-value">' + examPassRate + '%</div>';
-  html += '<div class="cmc-kpi-sub">' + passedResults + ' of ' + totalExamResults + ' passed (' + completedExams + ' exams)</div>';
+  html += '<div class="cmc-kpi-sub">' + (_fig.examPass.rate == null ? 'no marked results yet' : passedResults + ' of ' + totalExamResults + ' marked results passed') + (_fig.examPass.awaiting ? ' \u00b7 ' + _fig.examPass.awaiting + ' awaiting marking' : '') + '</div>';
   html += '</div>';
 
   html += '<div class="cmc-kpi-card kpi-payroll" onclick="cmcShowDetail(\'payroll\')"><div class="cmc-kpi-icon">💰</div>';
@@ -46828,15 +47034,15 @@ function buildCmcPages() {
   html += '<div class="cmc-kpi-card kpi-attendance"><div class="cmc-kpi-icon">📋</div>';
   html += '<div class="cmc-kpi-label">Average Attendance</div>';
   html += '<div class="cmc-kpi-value">' + avgAttendance + '%</div>';
-  html += '<div class="cmc-kpi-sub">' + totalStudents + ' students</div></div>';
+  html += '<div class="cmc-kpi-sub">' + avgAttendanceOf + '</div></div>';
   html += '<div class="cmc-kpi-card kpi-fees"><div class="cmc-kpi-icon">📊</div>';
   html += '<div class="cmc-kpi-label">Average GPA</div>';
   html += '<div class="cmc-kpi-value">' + avgGpa + '</div>';
   html += '<div class="cmc-kpi-sub">Across all courses</div></div>';
   html += '<div class="cmc-kpi-card kpi-cashbook"><div class="cmc-kpi-icon">🏆</div>';
   html += '<div class="cmc-kpi-label">Certification Rate</div>';
-  html += '<div class="cmc-kpi-value">' + (totalStudents > 0 ? Math.round((totalCertified/totalStudents)*100) : 0) + '%</div>';
-  html += '<div class="cmc-kpi-sub">' + totalCertified + ' of ' + totalStudents + ' certified</div></div>';
+  html += '<div class="cmc-kpi-value">' + completionRate + '%</div>';
+  html += '<div class="cmc-kpi-sub">' + completionOf + '</div></div>';
   html += '</div>';
 
   // Student pipeline breakdown
@@ -47004,7 +47210,8 @@ function cmcRenderCharts() {
 
   // Staff Distribution Chart — instructors are in instructorData, not userAccounts
   var adminCount = userAccounts.filter(function(u){ return u.role === 'admin'; }).length;
-  var instrCount = (instructorData && instructorData.length) || Object.keys(instructorProfiles || {}).length || 0;
+  // Instructor records and instructor accounts, one per name (centreFigureSet).
+  var instrCount = centreFigureSet().instructors;
   var staffCount = userAccounts.filter(function(u){ return u.role === 'adminstaff'; }).length;
   var cmcCount = userAccounts.filter(function(u){ return u.role === 'cmc'; }).length;
 
@@ -47020,38 +47227,19 @@ function cmcRenderCharts() {
     });
   }
 
-  // GPA Distribution Chart — compute from examResults scores (score% → 4.0 scale)
+  // GPA Distribution Chart — the GPA each trainee's marks produce
+  // (studentGpaFigure: the same figure as everywhere else); trainees with no
+  // marks yet are not drawn as "Below 2.5".
   var gpaBuckets = {'4.0+':0,'3.5-3.9':0,'3.0-3.4':0,'2.5-2.9':0,'Below 2.5':0};
-  if(examResults && examResults.length > 0) {
-    // Group exam results by student and compute average score → GPA
-    var studentScores = {};
-    examResults.forEach(function(r) {
-      var sid = r.studentId || r.student_id;
-      if(!sid) return;
-      if(!studentScores[sid]) studentScores[sid] = [];
-      studentScores[sid].push(parseFloat(r.score)||0);
-    });
-    Object.keys(studentScores).forEach(function(sid) {
-      var scores = studentScores[sid];
-      var avg = scores.reduce(function(a,b){return a+b;},0) / scores.length;
-      // Convert percentage to 4.0 GPA scale: 90+=4.0, 80-89=3.5, 70-79=3.0, 60-69=2.5, <60=below
-      var gpa = avg >= 90 ? 4.0 : avg >= 80 ? 3.5 : avg >= 70 ? 3.0 : avg >= 60 ? 2.5 : 1.0;
-      if(gpa >= 4.0) gpaBuckets['4.0+']++;
-      else if(gpa >= 3.5) gpaBuckets['3.5-3.9']++;
-      else if(gpa >= 3.0) gpaBuckets['3.0-3.4']++;
-      else if(gpa >= 2.5) gpaBuckets['2.5-2.9']++;
-      else gpaBuckets['Below 2.5']++;
-    });
-  } else {
-    students.forEach(function(s) {
-      var g = parseFloat(s.gpa)||0;
-      if(g >= 4.0) gpaBuckets['4.0+']++;
-      else if(g >= 3.5) gpaBuckets['3.5-3.9']++;
-      else if(g >= 3.0) gpaBuckets['3.0-3.4']++;
-      else if(g >= 2.5) gpaBuckets['2.5-2.9']++;
-      else gpaBuckets['Below 2.5']++;
-    });
-  }
+  students.forEach(function(s) {
+    var g = parseFloat(studentGpaFigure(s));
+    if(!isFinite(g)) return;
+    if(g >= 4.0) gpaBuckets['4.0+']++;
+    else if(g >= 3.5) gpaBuckets['3.5-3.9']++;
+    else if(g >= 3.0) gpaBuckets['3.0-3.4']++;
+    else if(g >= 2.5) gpaBuckets['2.5-2.9']++;
+    else gpaBuckets['Below 2.5']++;
+  });
 
   var gpaEl = document.getElementById('cmcChartGpa');
   if(gpaEl) {
@@ -47203,17 +47391,12 @@ function cmcLoadAllData() {
 }
 
 function cmcUpdateLocalKpis() {
-  var avgAtt = 0;
-  var _kMap = attendancePctByStudent().pct, _kVals = Object.keys(_kMap).map(function(k){ return _kMap[k]; });
-  if(_kVals.length > 0) {
-    avgAtt = Math.round(_kVals.reduce(function(a, b){ return a + b; }, 0) / _kVals.length);
-  } else if(students.length > 0) {
-    var sum2 = 0;
-    students.forEach(function(s){ sum2 += (parseFloat(s.attendance)||0); });
-    avgAtt = Math.round(sum2 / students.length);
-  }
+  // Over ACTIVE trainees only, as the card was drawn (centreFigureSet).
+  var _att = centreFigureSet().attendance;
   var el = document.getElementById('cmcKpiAttendance');
-  if(el) el.textContent = avgAtt + '%';
+  if(el) el.textContent = (_att.rate == null ? 0 : _att.rate) + '%';
+  var elSub = document.getElementById('cmcKpiAttendanceSub');
+  if(elSub) elSub.textContent = _att.rate == null ? 'no active trainee has attendance recorded' : 'of ' + _att.of + ' active';
 
   cmcUpdatePayslipKpi();
   cmcUpdateClockinKpi();
@@ -47836,7 +48019,10 @@ function cmcBuildAttendanceDetail() {
   }
 
   html += '<div class="cmc-detail-stat"><div class="stat-label">Total Students</div><div class="stat-value">' + totalRecords + '</div></div>';
-  html += '<div class="cmc-detail-stat"><div class="stat-label">Average Attendance</div><div class="stat-value">' + avgAtt + '%</div></div>';
+  // The Centre's figure (over ACTIVE trainees, as on the dashboard); the list
+  // below still shows everyone with attendance recorded.
+  var _figAtt = centreFigureSet().attendance;
+  html += '<div class="cmc-detail-stat"><div class="stat-label">Average Attendance</div><div class="stat-value">' + (_figAtt.rate == null ? '\u2014' : _figAtt.rate + '%') + '</div><div style="font-size:12px;color:var(--text-muted);">' + (_figAtt.rate == null ? 'none recorded' : 'of ' + _figAtt.of + ' active') + '</div></div>';
   html += '<div class="cmc-detail-stat"><div class="stat-label">Above 80%</div><div class="stat-value" style="color:var(--green)">' + above80 + '</div></div>';
   html += '<div class="cmc-detail-stat"><div class="stat-label">Below 60%</div><div class="stat-value" style="color:var(--red)">' + below60 + '</div></div>';
   html += '</div>';
@@ -47911,7 +48097,7 @@ function cmcBuildFeesDetail() {
   students.slice(0, 50).forEach(function(s, i) {
     html += '<tr><td>' + (i+1) + '</td><td>' + escapeHtml(s.name||'--') + '</td><td>' + escapeHtml(s.course||'--') + '</td>';
     html += '<td>' + escapeHtml(s.stage||'--') + '</td>';
-    html += '<td>' + escapeHtml(s.gpa||'--') + '</td></tr>';
+    html += '<td>' + escapeHtml(studentGpaFigure(s) || '--') + '</td></tr>';
   });
   html += '</tbody></table>';
   if(students.length > 50) html += '<div style="text-align:center;color:var(--text-muted);padding:10px;font-size:12px;">Showing first 50 of ' + students.length + ' students</div>';
@@ -48031,7 +48217,11 @@ function certDownloadAllowed(student) {
   if (!student || !student.certNo) return { allowed: false, reason: 'No certificate has been issued yet.' };
   var approval = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function (d) { return d && d.studentId === student.id; });
   if (!(approval && approval.approved)) return { allowed: false, reason: 'Certificate download has not been approved yet. Please contact the administration office.' };
-  if (!certSyncDone()) return { allowed: false, reason: 'Sync first \u2014 the Download button switches on once this computer has synced.' };
+  if (!certSyncDone()) {
+    // A trainee signed in from home has no Sync Now: tell her what she can do.
+    if (typeof cestisGateSession === 'function' && cestisGateSession()) return { allowed: false, reason: 'Collect your certificate at the Centre, or download it here once the office has finished it.' };
+    return { allowed: false, reason: 'Sync first \u2014 the Download button switches on once this computer has synced.' };
+  }
   return { allowed: true, reason: '' };
 }
 function certApplyDownloadState(btn, student) {
