@@ -21462,7 +21462,7 @@ function submitRenderFileList() {
 var _submitInFlight = false;
 function submitStudentAssignment() {
   if (_submitInFlight) return;
-  if (_submitShrinking > 0) { showToast('One moment — your photo is still being made smaller.'); return; }
+  if (typeof _submitShrinking !== 'undefined' && _submitShrinking > 0) { showToast('One moment — your photo is still being made smaller.'); return; }
   var assignmentId = document.getElementById('submitAssignId').value;
   var comment = (document.getElementById('submitComment')?.value || '').trim();
   var s = currentStudent;

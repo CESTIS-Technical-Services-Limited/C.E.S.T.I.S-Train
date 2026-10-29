@@ -306,7 +306,7 @@ assert(/imageOrientation: 'from-image'/.test(fnSrc('homeDecodeImage')), 'a phone
 const submitFn = fnSrc('submitStudentAssignment');
 assert(/gs\.base\.kind !== 'lan' && typeof CESTISGate\.uploadQueue === 'function'[\s\S]{0,120}await homeQueueSubmission\(submission, files, a, s, prior\);\n\s*return;/.test(submitFn), 'from home: her work goes into the device\'s queue (never xhr upload progress); the Centre\'s own network as before');
 assert(/then: \{ key: 'voctrain_submissions', rec: rec \}/.test(fnSrc('homeQueueSubmission')), 'her submission is saved only once every file is in');
-assert(/if \(_submitShrinking > 0\)/.test(submitFn), 'Submit waits while a photo is still being made smaller');
+assert(/_submitShrinking > 0\) \{ showToast\('One moment/.test(submitFn), 'Submit waits while a photo is still being made smaller');
 assert(/No signal just now\. Your work is saved on this device and will finish sending by itself when the signal is back/.test(HTML), 'a dropped signal: a clear message, not "check your connection"');
 assert(/function homeUploadEvent\(ev\)[\s\S]{0,400}ev\.type === 'filed'[\s\S]{0,300}assignmentSubmissions\.push\(ev\.rec\)/.test(HTML), 'once filed, the page takes her submission into what it holds at once (never overwritten by an older copy)');
 assert((HTML.match(/if \(sending && sending\.state === 'wait'\) mayUpload = false;/g) || []).length === 2 && /'<span class="badge badge-amber">Sending…<\/span>'/.test(HTML), 'her assignment says "Sending…" and offers no second upload meanwhile');
