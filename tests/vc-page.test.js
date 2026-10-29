@@ -30,6 +30,7 @@ const vm = require('vm');
 const Core = require('../cestis-core.js');
 
 let passed = 0, failed = 0;
+const pendingAsync = [];
 function assert(cond, msg) {
   if (cond) { passed++; } else { failed++; console.error('  ✗ FAIL: ' + msg); }
 }
@@ -605,5 +606,148 @@ for (const host of [true, false]) {
   assertEq((conn.h.close || []).length, 1, (host ? 'the host' : 'a participant') + ': one close handler, not two');
 }
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed ? 1 : 0);
+/* ====================================================================== */
+console.log('A muted microphone sends nothing; unmuting sends again; the room is told');
+{
+  // A sender as Chromium has it: getParameters() hands a copy, setParameters()
+  // applies it later (a promise), and a stale copy is refused.
+  function fakeSender(kind) {
+    const s = { track: { kind }, applied: { active: true }, version: 0, pending: [], sets: 0,
+      getParameters() { return { v: s.version, encodings: [{ active: s.applied.active }] }; },
+      setParameters(p) {
+        s.sets++;
+        if (p.v !== s.version) return Promise.reject(new Error('stale parameters'));
+        s.version++;
+        return new Promise(res => s.pending.push(() => { s.applied.active = p.encodings[0].active; res(); }));
+      },
+      flush() { const q = s.pending.splice(0); q.forEach(f => f()); } };
+    return s;
+  }
+  const audio = fakeSender('audio'), video = fakeSender('video');
+  const pc = { getSenders() { return [audio, video]; } };
+  const mic = new FakeTrack('audio');
+  const sent = [];
+  const sb = sandbox({ vcRefreshDeviceButtons() {}, vcBroadcastData(m) { sent.push(m); }, vcGetPeerConnection(m) { return m && m.pc; } });
+  sb.__ls = new FakeStream([mic]); sb.__pc = pc;
+  run(sb, 'var localStream = globalThis.__ls, vcScreenAudioCtx = null, peerConnections = { a: { media: { pc: globalThis.__pc } } };');
+  load(sb, ['vcMicIsOn', 'vcCamIsOn', 'vcSetMic', 'vcApplySoundSending', 'vcApplySoundSendingAll']);
+  const flushAll = () => new Promise(r => setImmediate(r));
+  pendingAsync.push((async () => {
+    run(sb, 'vcSetMic(false)');
+    assert(!mic.enabled, 'muting switches the microphone track off');
+    audio.flush(); await flushAll();
+    assertEq(audio.applied.active, false, 'and stops its sender: nothing at all is sent (not 50 packets of silence a second)');
+    assertEq(video.sets, 0, 'the picture is left alone');
+    assert(sent.some(m => m.type === 'mic-state' && m.on === false), 'the room is told this person is muted');
+    run(sb, 'vcSetMic(true)');
+    audio.flush(); await flushAll();
+    assertEq(audio.applied.active, true, 'unmuting sends sound again');
+    assert(mic.enabled && sent.some(m => m.type === 'mic-state' && m.on === true), 'and the room is told');
+    // Mute, unmute, mute — tapped before the first change has landed.
+    run(sb, 'vcSetMic(false); vcSetMic(true); vcSetMic(false);');
+    for (let i = 0; i < 4; i++) { audio.flush(); await flushAll(); }
+    assertEq(audio.applied.active, false, 'quick taps end in the state last chosen (muted)');
+    // Sharing a tab with sound while muted: the tab is still heard.
+    run(sb, 'vcScreenAudioCtx = {}; vcApplySoundSendingAll();');
+    audio.flush(); await flushAll();
+    assertEq(audio.applied.active, true, 'a shared tab\'s sound still goes out while the microphone is muted');
+    run(sb, 'vcScreenAudioCtx = null; vcApplySoundSendingAll();');
+    audio.flush(); await flushAll();
+    assertEq(audio.applied.active, false, 'and stops again when sharing ends');
+    // Connected calls get the same rule.
+    assert(/vcApplySenderLimits\(pc\);\s*vcApplySoundSending\(pc\);/.test(extractFunction('vcWatchIce')), 'every connection, once connected, sends sound only if the microphone is on');
+    ['force-mute', 'force-unmute', 'mute-all'].forEach(t => {
+      const body = extractFunction('vcOnData');
+      const i = body.indexOf("case '" + t + "'");
+      assert(i > 0 && /vcSetMic\((true|false)\)/.test(body.slice(i, i + 200)), "the host's " + t + ' goes through vcSetMic (so a muted trainee really sends nothing)');
+    });
+  })().catch(e => { failed++; console.error('  ✗ FAIL: ' + e.stack); }));
+}
+
+console.log('The instructor sees who is muted and whose camera is off');
+{
+  const { sb } = roomSandbox({ host: true });
+  const camCalls = [];
+  sb.vcSetRemoteCamState = (id, on) => camCalls.push(id + ':' + on);
+  run(sb, 'vcAdmitted["' + STU + '"] = true;');
+  sb.vcOnData(msg({ type: 'name', name: 'Tanisha Brown', role: 'student', mic: false, cam: false }), STU);
+  assert(run(sb, '!!mutedPeers["' + STU + '"]'), 'a trainee who arrives muted is listed as muted');
+  assertEq(run(sb, 'vcPeerCamOn["' + STU + '"]'), false, 'and shown with the camera off');
+  assert(camCalls.indexOf(STU + ':false') !== -1, 'their tile shows their initial');
+  sb.vcOnData(msg({ type: 'mic-state', on: true }), STU);
+  assert(!run(sb, 'mutedPeers["' + STU + '"]'), 'unmuting is shown');
+  sb.vcOnData(msg({ type: 'mic-state', on: false }), STU);
+  assert(run(sb, '!!mutedPeers["' + STU + '"]'), 'muting again is shown');
+  sb.vcOnData(msg({ type: 'mic-state', on: false }), 'cestis-ABC234-stranger');
+  assertEq(run(sb, 'Object.keys(mutedPeers).join()'), STU, 'somebody not let into the room changes nothing');
+}
+
+console.log('The host\'s picture budget is shared again whenever someone joins or leaves');
+{
+  const limits = [];
+  const sb = sandbox({ vcGetPeerConnection(m) { return m && m.pc; }, vcApplySenderLimits(pc) { limits.push(pc.name); } });
+  run(sb, 'var peerConnections = { a: { media: { pc: { name: "a", iceConnectionState: "connected" } } }, b: { media: { pc: { name: "b", iceConnectionState: "checking" } } }, c: { media: { pc: { name: "c", iceConnectionState: "completed" } } }, d: {} };');
+  load(sb, ['vcApplySenderLimitsAll']);
+  run(sb, 'vcApplySenderLimitsAll()');
+  assertEq(limits.join(','), 'a,c', 'every connected call gets the new share (one still connecting gets it when it connects)');
+  const nameCase = extractFunction('vcOnData');
+  assert(/if\(isRoomHost\) \{\s*\/\/[^\n]*\n\s*vcApplySenderLimitsAll\(\);/.test(nameCase), 'a newcomer re-shares the budget');
+  assert(/vcApplySenderLimitsAll\(\)/.test(extractFunction('vcOnPeerConnClosed')) && /vcApplySenderLimitsAll\(\)/.test(extractFunction('vcDoKick')), 'and so does someone leaving or being removed');
+}
+
+console.log('Recordings are made at a set bitrate');
+{
+  const made = [];
+  class FakeAudioContext { createMediaStreamDestination() { return { stream: new FakeStream([new FakeTrack('audio')]) }; } createMediaStreamSource() { return { connect() {} }; } close() {} }
+  class FakeRecorder { constructor(s, o) { made.push(o); this.mimeType = o.mimeType; this.state = 'inactive'; } start() { this.state = 'recording'; } stop() { this.state = 'inactive'; } }
+  FakeRecorder.isTypeSupported = () => true;
+  const doc = makeDom();
+  doc.createElement = (tag) => tag === 'canvas'
+    ? { width: 0, height: 0, getContext() { return { fillRect() {}, fillText() {}, drawImage() {} }; }, captureStream() { return new FakeStream([new FakeTrack('video')]); } }
+    : { muted: false, setAttribute() {}, play() { return Promise.resolve(); } };
+  const sb = sandbox({ document: doc, AudioContext: FakeAudioContext, MediaRecorder: FakeRecorder, setInterval() { return 1; }, clearInterval() {},
+    vcBroadcastData() {}, vcRecStoreBegin() {}, vcRecStoreChunk() {}, vcOnRecordingComplete() {} });
+  run(sb, 'var vcIsRecording = false, vcRecordingAudioCtx = null, vcMediaRecorder = null, vcRecordedChunks = [], vcRecordingStartTime = null, vcRecTimerInterval = null,' +
+    ' vcRecMixDest = null, vcRecMixed = {}, vcRecDrawTimer = null, vcRecId = null, vcRecSeq = 0, vcRecMeta = null, vcRecStoreFailed = false,' +
+    ' isRoomHost = true, currentRoomCode = "REC234", vcCurrentRoomTitle = "Welding", vcCurrentUserName = "Teacher", screenStream = null, peerConnections = {}, localStream = null;');
+  load(sb, ['vcHostPeerId', 'vcGetSupportedMimeType', 'vcRecordingAddStream', 'vcRecordingStageTrack', 'vcStartRecordingCanvas', 'vcStartRecording', 'vcStopRecording']);
+  run(sb, 'vcStartRecording()');
+  assertEq(made[0] && made[0].videoBitsPerSecond, 550000, 'the picture is recorded at 550 kbit/s (it used to be left to the browser: ~2.5 Mbit/s)');
+  assertEq(made[0] && made[0].audioBitsPerSecond, 64000, 'the sound at 64 kbit/s');
+  run(sb, 'vcStopRecording()');
+  // A browser that refuses the settings still records.
+  made.length = 0;
+  sb.MediaRecorder = class extends FakeRecorder { constructor(s, o) { if (o.videoBitsPerSecond) throw new Error('NotSupported'); super(s, o); } };
+  sb.MediaRecorder.isTypeSupported = () => true;
+  run(sb, 'MediaRecorder = globalThis.MediaRecorder; vcStartRecording()');
+  assert(run(sb, 'vcIsRecording') && made.length === 1 && !made[0].videoBitsPerSecond, 'a browser that refuses the bitrate records as before rather than not at all');
+  run(sb, 'vcStopRecording()');
+}
+
+console.log('The start screen knows how many trainees the class expects');
+{
+  const today = '2026-11-02';
+  const sb = sandbox({ localDateStr() { return today; }, studentCentreRecord() { return null; },
+    instructorCourseMatch(a, b) { return String(a).toLowerCase() === String(b).toLowerCase(); } });
+  const roster = [];
+  for (let i = 0; i < 9; i++) roster.push({ id: 'STU-' + i, name: 'Trainee ' + i, course: 'Electrical Installation', stage: 'training' });
+  roster.push({ id: 'STU-x', name: 'Done', course: 'Electrical Installation', stage: 'certified' });
+  roster.push({ id: 'STU-y', name: 'Other', course: 'Welding', stage: 'training' });
+  sb.students = roster;
+  sb.classSessions = [{ id: 'CS-1', name: 'Wiring', course: 'Electrical Installation', date: today, roomCode: 'WIRE234567' },
+                      { id: 'CS-2', name: 'Open', course: '', date: today, roomCode: 'OPEN234567' }];
+  load(sb, ['attendanceCourseFilterFn', 'vcExpectedTrainees']);
+  assertEq(run(sb, 'vcExpectedTrainees("WIRE234567")'), 9, 'the programme\'s trainees still in training (not the certified, not another programme)');
+  assertEq(run(sb, 'vcExpectedTrainees("OPEN234567")'), 0, 'a class with no programme: no count, no suggestion');
+  assertEq(run(sb, 'vcExpectedTrainees("NOPE234567")'), 0, 'a code that is not a scheduled class: no count');
+  const advice = Core.vcCapacity.largeClassAdvice(run(sb, 'vcExpectedTrainees("WIRE234567")'));
+  assert(advice.suggest, 'so the instructor is offered Large Class first');
+  const lobby = extractFunction('enterVideoRoom');
+  assert(/largeClassAdvice\(vcExpectedTrainees\(roomCode\)\)/.test(lobby) && /advice\.suggest \? 'btn-primary' : 'btn-secondary'/.test(lobby), 'the start screen leads with Large Class when it is suggested');
+  assert(/vcCreateRoom\(/.test(lobby) && /vcCreateLargeRoom\(/.test(lobby), 'and the instructor can still choose either');
+}
+
+Promise.all(pendingAsync).then(() => {
+  console.log('\n' + passed + ' passed, ' + failed + ' failed');
+  process.exit(failed ? 1 : 0);
+});
