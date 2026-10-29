@@ -16621,10 +16621,13 @@
            real is ever replaced by an empty or partial copy.
          - Paid, balance and status are worked out from the payments
            (School Fee's own rule), never taken from stored totals.
-         - Its moment (s) is the newest stamp of her record and payments, plus
-           the number of deleted payments the builder knows (a deletion carries
-           no stamp, so this is how a computer that saw it outranks one that
-           did not).
+         - What the builder knew (feesDecision): t, how many deleted payments
+           it knows (a deletion carries no stamp of its own, and the list only
+           grows), then s, the newest stamp on the whole fee roll it looked at.
+           A computer that knows more deletions writes; at the same, the newer
+           stamp; at the same moment, the higher hash. One that knows less is
+           behind and writes nothing — so a deleted payment never comes back,
+           and an older roll never replaces a newer one.
        buildFees(storeMap, trainees [{acct, stu, student}], nowMs, opts) →
          { byAcct: { acct: { file, h, s } }, ambiguous: [feeId] } */
     function feeStatus(tuition, paid) {
@@ -16657,6 +16660,9 @@
       pays.forEach(function (p) { if (isObj(p) && p.studentId != null && !deleted[str(p.id)]) (byFee[str(p.studentId)] = byFee[str(p.studentId)] || []).push(p); });
       var limit = (typeof nowMs === 'number' ? nowMs : Date.now()) + 24 * 3600 * 1000;
       var stampOf = function (r) { var s = Math.max(msOf(r.updatedAt), msOf(r.lastModified), msOf(r.createdAt)); return s > limit ? 0 : s; };
+      var rollStamp = 0;
+      roll.forEach(function (r) { if (isObj(r)) rollStamp = Math.max(rollStamp, stampOf(r)); });
+      pays.forEach(function (p) { if (isObj(p) && !deleted[str(p.id)]) rollStamp = Math.max(rollStamp, stampOf(p)); });
       Object.keys(claims).sort().forEach(function (k) {
         var who = claims[k];
         if (who.length !== 1) { out.ambiguous.push(k); return; }
@@ -16668,15 +16674,22 @@
         var paid = money(receipts.reduce(function (n, r) { return n + r.amount; }, 0)), tuition = money(rec.tuitionFee);
         var fees = { programme: str(rec.skillArea || rec.course || t.student.course || ''), tuition: tuition, paid: paid, balance: money(tuition - paid),
           status: feeStatus(tuition, paid), receipts: receipts };
-        var s = stampOf(rec);
-        mine.forEach(function (p) { s = Math.max(s, stampOf(p)); });
-        s += tombs;
+        var s = rollStamp;
         var stu = str(t.stu || t.student.id);
         var h = hashOf({ version: VERSION, accountId: str(t.acct), studentId: stu, fees: fees });
-        out.byAcct[str(t.acct)] = { h: h, s: s, file: { format: FORMAT.fees, version: VERSION, accountId: str(t.acct), studentId: stu,
-          builtAt: iso(typeof nowMs === 'number' ? nowMs : Date.now()), builtBy: str(opts.builtBy), hash: h, maxStamp: s, fees: fees } };
+        out.byAcct[str(t.acct)] = { h: h, s: s, t: tombs, file: { format: FORMAT.fees, version: VERSION, accountId: str(t.acct), studentId: stu,
+          builtAt: iso(typeof nowMs === 'number' ? nowMs : Date.now()), builtBy: str(opts.builtBy), hash: h, maxStamp: s, deletedKnown: tombs, fees: fees } };
       });
       return out;
+    }
+    /* Publish her fees file? local/remote: { h, s, t } (t: deleted payments known). */
+    function feesDecision(local, remote) {
+      if (!remote || !remote.h) return 'write';
+      if (str(local && local.h) === str(remote.h)) return 'skip';
+      var ls = Number(local && local.s) || 0, rs = Number(remote.s) || 0, lt = Number(local && local.t) || 0, rt = Number(remote.t) || 0;
+      if (lt !== rt) return lt > rt ? 'write' : 'behind';
+      if (ls !== rs) return ls > rs ? 'write' : 'behind';
+      return str(local.h) > str(remote.h) ? 'write' : 'keep';
     }
     /* A published fees file, read back for the trainee it belongs to → the file, or null. */
     function readFees(json, me) {
@@ -16691,7 +16704,7 @@
       folderName: folderName, folderDescription: folderDescription, folderMark: folderMark, folderMarkFor: folderMarkFor,
       home: { pwFingerprint: pwFingerprint, storedPasswordOk: storedPasswordOk, cvWith: cvWith, passwordChangeOp: passwordChangeOp,
         applyPasswordChange: applyPasswordChange, pendingPasswords: pendingPasswords, recordHomeDownload: recordHomeDownload, certRevoked: certRevoked,
-        buildFees: buildFees, readFees: readFees, feeStatus: feeStatus, FEES_FILE: 'from-centre-fees.json' },
+        buildFees: buildFees, readFees: readFees, feeStatus: feeStatus, feesDecision: feesDecision, FEES_FILE: 'from-centre-fees.json' },
       reg: { accountId: regAccountId, fileName: regFileName, isFileName: isRegFileName, studentId: regStudentId, buildCatalogue: buildCatalogue,
         catalogueNames: catalogueNames, check: checkRegistration, build: buildRegistration, read: readRegistration, importOne: importRegistration,
         existing: regExisting, FILE_PREFIX: REG_FILE_PREFIX, ID_PREFIX: REG_ID_PREFIX, STORED_PW_RE: STORED_PW_RE },

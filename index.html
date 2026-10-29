@@ -13538,6 +13538,7 @@ function approveUser(userId) {
   addNotification('Account approved: ' + user.name + ' (' + user.role + ')', 'success', null, ['admin']);
   // A trainee who signs in from home: their records are sent at once.
   try { gatePublishSoon(); } catch(e) {}
+  try { if (user.registeredVia === 'home-registration') gateNudgeApprovalMail(); } catch(e) {}
 }
 
 function rejectUser(userId) {
@@ -13595,6 +13596,7 @@ function approveAllPending() {
   refreshStudentDependentViews();
   // Flag the approved accounts that still cannot sign in because no password was
   // ever set for them (fee-sync / chat-backfill records).
+  try { if (pending.some(function(u) { return u.registeredVia === 'home-registration'; })) gateNudgeApprovalMail(); } catch(e) {}
   var noPw = pending.filter(function(u) { return !CESTISCore.accountAccess.hasPassword(u); });
   showToast(pending.length + ' account(s) approved!' + (noPw.length ? ' ' + noPw.length + ' still need a password.' : ''));
   if(noPw.length) {
@@ -37754,7 +37756,9 @@ var GATE_STORE_KEYS = ['voctrain_users', 'voctrain_deletedUserIds', 'voctrain_st
   'voctrain_driveResources', 'voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_certTranscriptRequests',
   'voctrain_certDownloadApprovals', 'voctrain_support_messages', 'voctrain_chatRooms', 'voctrain_chatMessages',
   'voctrain_skillAreas', 'voctrain_instructorData', 'voctrain_transcriptProfiles', 'voctrain_studentProfiles',
-  'voctrain_certTemplates'];
+  'voctrain_certTemplates',
+  // Her fees at home (CESTISCore.gate.home.buildFees): read only, and only on a PC that holds the fee roll.
+  'cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDeletedPaymentIds'];
 // This page's own state for the gate (never stored: it is rebuilt after a reload).
 var _gateRun = { publishing: false, collecting: false, cfg: null, cfgAt: 0, cfgMissing: false, built: null, builtAt: 0,
   buildWrites: -1, buildMs: 0, remoteAt: 0, collectAt: 0, refetchAt: 0, healthAt: 0, drive: 0, killed: undefined,
@@ -37821,12 +37825,14 @@ function gateOlder(a, b) {
 }
 function gateFileName(kind, key) {
   if (kind === 'slice') return 'from-centre.json';
+  if (kind === 'fees') return CESTISCore.gate.home.FEES_FILE;
   if (kind === 'catalogue') return 'catalogue.json';
   return kind + '.' + key + '.json';
 }
 function gateFileProps(kind, item) {
   var p = { cestisGate: '1', cestisKind: kind, h: String(item.h), s: String(item.s || 0) };
-  if (kind === 'slice') p.acct = item.acct;
+  if (kind === 'fees') p.t = String(item.t || 0);
+  if (kind === 'slice' || kind === 'fees') p.acct = item.acct;
   else if (kind === 'room') p.roomId = item.key;
   else if (kind === 'catalogue') p.catalogue = item.key;
   else p.examId = item.key;
@@ -37861,16 +37867,17 @@ function gateIndexListing(st, files, cfg, full) {
   });
   list.forEach(function(f) {
     var p = f.appProperties, kind = p.cestisKind;
-    var key = kind === 'slice' ? p.acct : (kind === 'room' ? p.roomId : (kind === 'paper' || kind === 'key' ? p.examId : (kind === 'catalogue' ? p.catalogue : '')));
+    var key = (kind === 'slice' || kind === 'fees') ? p.acct : (kind === 'room' ? p.roomId : (kind === 'paper' || kind === 'key' ? p.examId : (kind === 'catalogue' ? p.catalogue : '')));
     if (!key) return;
     var path = kind + ':' + key;
     var parent = Array.isArray(f.parents) && f.parents.length ? String(f.parents[0]) : '';
     // A trainee's records in a folder that is not theirs (a younger duplicate)
     // are left where they are: nobody reads them.
-    if (kind === 'slice' && (!st.folders[key] || st.folders[key].id !== parent)) return;
+    if ((kind === 'slice' || kind === 'fees') && (!st.folders[key] || st.folders[key].id !== parent)) return;
     var ent = { id: f.id, h: String(p.h || ''), s: Number(p.s) || 0, parent: parent, created: String(f.createdTime || ''), modified: String(f.modifiedTime || '') };
+    if (kind === 'fees') ent.t = Number(p.t) || 0;
     var cur = st.files[path];
-    if (!cur || cur.id === f.id || (cur.parent && cur.parent !== parent && kind === 'slice')) { st.files[path] = ent; return; }
+    if (!cur || cur.id === f.id || (cur.parent && cur.parent !== parent && (kind === 'slice' || kind === 'fees'))) { st.files[path] = ent; return; }
     if (st.dups[f.id]) return;
     if (older(ent, cur)) {
       st.dups[cur.id] = { kind: 'file', path: path, of: ent.id, name: gateFileName(kind, key) };
@@ -37899,6 +37906,17 @@ async function gateBuild(storeMap, nowMs, opts, pause, every) {
     r.slice.access.rooms.forEach(function(id) { rooms[id] = 1; (inRooms[id] = inRooms[id] || []).push(t.acct); });
     if (pause && (i + 1) % every === 0) await pause();
   }
+  /* Her fees (from-centre-fees.json in her folder): only from a PC that holds
+     the office's fee roll, only her own real record and receipts
+     (CESTISCore.gate.home.buildFees) — a PC without it publishes nothing, so
+     it never replaces what one with it published. */
+  try {
+    var fees = G.home.buildFees(storeMap, ctx.trainees.filter(function(t) { return out.items['slice:' + t.acct]; }).map(function(t) { return { acct: t.acct, stu: t.stu, student: t.student }; }),
+      ctx.now, { builtBy: opts && opts.builtBy }).byAcct;
+    Object.keys(fees).forEach(function(acct) {
+      out.items['fees:' + acct] = { kind: 'fees', key: acct, acct: acct, h: fees[acct].h, s: fees[acct].s, t: fees[acct].t, body: fees[acct].file };
+    });
+  } catch (e) { console.warn('[TraineeGate] fees not built: ' + (e && e.message)); }
   ctx.L.voctrain_exams.forEach(function(e) {
     var id = String(e.id);
     if (!papers[id] || out.items['paper:' + id]) return;
@@ -37964,15 +37982,16 @@ function gatePlan(built, st) {
       ops.push({ op: 'rename', path: 'folder:' + acct, acct: acct, name: want.name, desc: want.desc });
     }
   };
-  ['key', 'paper', 'slice', 'room', 'catalogue'].forEach(function(kind) {
+  ['key', 'paper', 'slice', 'fees', 'room', 'catalogue'].forEach(function(kind) {
     paths.filter(function(p) { return p.indexOf(kind + ':') === 0; }).sort().forEach(function(path) {
       var it = built.items[path], cur = st.files[path] || null;
-      var fold = kind === 'slice' ? (st.folders[it.acct] || null) : null;
-      if (kind === 'slice' && cur && (!fold || cur.parent !== fold.id)) cur = null;
-      var d = G.publishDecision({ h: it.h, s: it.s }, cur ? { h: cur.h, s: cur.s } : null);
+      var fold = (kind === 'slice' || kind === 'fees') ? (st.folders[it.acct] || null) : null;
+      if ((kind === 'slice' || kind === 'fees') && cur && (!fold || cur.parent !== fold.id)) cur = null;
+      var d = kind === 'fees' ? G.home.feesDecision({ h: it.h, s: it.s, t: it.t }, cur ? { h: cur.h, s: cur.s, t: cur.t } : null)
+        : G.publishDecision({ h: it.h, s: it.s }, cur ? { h: cur.h, s: cur.s } : null);
       seen[d] = (seen[d] || 0) + 1;
       if (kind === 'slice' && (d === 'write' || d === 'skip')) folderOp(it.acct, { name: G.folderName(it.name, it.stu), desc: G.folderDescription(it.acct, '') }, true);
-      if (d === 'write') ops.push({ op: 'put', path: path, kind: kind, key: it.key, acct: it.acct || '', h: it.h, s: it.s });
+      if (d === 'write') ops.push({ op: 'put', path: path, kind: kind, key: it.key, acct: it.acct || '', h: it.h, s: it.s, t: it.t });
     });
   });
   // Registrations from home not taking records yet: their folder's name and mark.
@@ -38042,7 +38061,7 @@ async function gateDoOp(op, env) {
     var it = built && built.items ? built.items[op.path] : null;
     if (!it || it.h !== op.h) return 'wait';
     var parent = '';
-    if (op.kind === 'slice') {
+    if (op.kind === 'slice' || op.kind === 'fees') {
       var f2 = st.folders[op.acct];
       if (!f2) return 'wait';
       parent = f2.id;
@@ -38061,7 +38080,7 @@ async function gateDoOp(op, env) {
     } else {
       meta = await drive.create({ name: gateFileName(op.kind, op.key), mimeType: 'application/json', parents: [parent], appProperties: props }, text);
     }
-    st.files[op.path] = { id: (meta && meta.id) || (cur && cur.id), h: it.h, s: it.s, parent: parent,
+    st.files[op.path] = { id: (meta && meta.id) || (cur && cur.id), h: it.h, s: it.s, t: it.t, parent: parent,
       created: (cur && cur.created) || String((meta && meta.createdTime) || new Date(now).toISOString()),
       modified: String((meta && meta.modifiedTime) || new Date(now).toISOString()) };
     return 'done';
@@ -38553,6 +38572,29 @@ function gateAddRegistrations(list) {
   try { renderVerifyUsersPage(); } catch (e) {}
   return true;
 }
+/* A trainee who registered from home and has just been approved is emailed
+   by the gate (T6): it notices when it next reads the accounts list, and
+   sends from its health answer. So after an approval this PC asks for that
+   answer a few times — 20 s, 1, 2 and 5 minutes on, while the accounts list
+   reaches the gate — and stops once nothing waits. Never with the gate off. */
+var _gateMailNudge = { timers: [] };
+function gateNudgeApprovalMail() {
+  var tg = systemSettings && systemSettings.traineeGate;
+  if (!tg || tg.enabled !== true || !tg.url) return false;
+  _gateMailNudge.timers.forEach(function(t) { clearTimeout(t); });
+  _gateMailNudge.timers = [];
+  var done = false;
+  [20, 60, 120, 300].forEach(function(s) {
+    _gateMailNudge.timers.push(setTimeout(function() {
+      if (done) return;
+      fetch(tg.url + (tg.url.indexOf('?') === -1 ? '?' : '&') + 'op=health', { method: 'GET', cache: 'no-store', credentials: 'omit', redirect: 'follow' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(j) { if (j && j.mail && j.mail.queued === 0 && s >= 60) done = true; })
+        .catch(function() {});
+    }, s * 1000));
+  });
+  return true;
+}
 // The request queue's own rule: request by request, the copy changed last
 // wins (a trainee withdrawing a request arrives as status 'cancelled').
 function gateMergeRequests(incoming) {
@@ -38570,17 +38612,20 @@ function gateMergeRequests(incoming) {
 // reaches every device through the account rule.
 function gateApplyOps(list) {
   var store = { voctrain_announcements: announcements, voctrain_notifications: notifications, voctrain_chatMessages: lmsChatMessages,
-    voctrain_chatFollows: lmsChatFollows, voctrain_chatFollowLog: lmsChatFollowLog, voctrain_users: userAccounts };
-  var applied = 0, changed = {}, touched = {};
+    voctrain_chatFollows: lmsChatFollows, voctrain_chatFollowLog: lmsChatFollowLog, voctrain_users: userAccounts,
+    voctrain_certDownloadApprovals: (typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) ? certDownloadApprovals : [] };
+  var applied = 0, changed = {}, touched = {}, stamped = {};
   (list || []).forEach(function(x) {
     var r = CESTISCore.gate.applyOps(store, [x.op], x.me);
     applied += r.applied;
     r.changed.forEach(function(k) { changed[k] = 1; });
     r.touchedAccounts.forEach(function(a) { touched[a] = 1; });
+    (r.stampedAccounts || []).forEach(function(a) { stamped[a] = 1; });
   });
   lmsChatFollows = store.voctrain_chatFollows; lmsChatFollowLog = store.voctrain_chatFollowLog;
   Object.keys(touched).forEach(function(id) { touchAccount(userAccounts.find(function(u) { return u && String(u.id) === id; })); });
-  if (Object.keys(touched).length) saveUserAccounts();
+  // A password a trainee changed at home is already stamped with its own moment (never re-stamped now).
+  if (Object.keys(touched).length || Object.keys(stamped).length) saveUserAccounts();
   if (changed.voctrain_notifications) saveNotifications();
   if (applied) saveState();
   return applied;
