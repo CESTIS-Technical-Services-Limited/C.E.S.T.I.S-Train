@@ -1404,7 +1404,9 @@ textarea.form-control { resize:vertical; min-height:80px; }
   border:1px solid var(--border); display:flex; align-items:center;
   justify-content:center; position:relative; overflow:hidden;
 }
-.video-tile .participant-info { position:absolute; bottom:12px; left:12px; background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:6px; font-size:12px; }
+.video-tile .participant-info { position:absolute; bottom:12px; left:12px; background:rgba(0,0,0,0.7); color:#fff; padding:4px 10px; border-radius:6px; font-size:12px; z-index:2; }
+/* A muted microphone, on that person's tile (trainees start muted). */
+.video-tile .vc-tile-muted { position:absolute; top:8px; right:8px; z-index:2; background:rgba(0,0,0,0.7); color:#fff; border-radius:12px; padding:2px 8px; font-size:12px; line-height:1.4; }
 .video-tile .vc-cam-off-overlay {
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   background:var(--bg-input); z-index:1;
@@ -1433,6 +1435,19 @@ textarea.form-control { resize:vertical; min-height:80px; }
 .vc-btn.danger { background:var(--red); }
 .vc-btn.danger:hover { background:#c0392b; }
 .vc-btn.active { background:var(--accent-fill); color:var(--on-accent); }
+/* A microphone or camera that is OFF: red, with a line through, so "muted"
+   is never mistaken for "on" (trainees start that way, to save data). */
+.vc-btn.vc-off { background:var(--red-dim); color:var(--red); position:relative; box-shadow:inset 0 0 0 1px var(--red); }
+.vc-btn.vc-off::after { content:''; position:absolute; left:20%; right:20%; top:calc(50% - 1px); height:2px; border-radius:2px; background:var(--red); transform:rotate(-45deg); pointer-events:none; }
+/* In the lobby the two buttons also say, in words, what is on and off. */
+.vc-lobby-devices { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+.vc-lobby .vc-btn.vc-btn-label { width:auto; height:48px; border-radius:24px; padding:0 18px; gap:8px; font-size:17px; }
+.vc-btn.vc-btn-label .vc-btn-text { font-size:13px; font-weight:600; }
+.vc-btn.vc-btn-label.vc-off::after { display:none; }
+.vc-lobby-note { font-size:12px; color:var(--text-muted); text-align:center; max-width:420px; line-height:1.5; }
+/* The start screen's Large Class suggestion (a class bigger than the built-in room carries well). */
+.vc-large-suggest { text-align:center; background:var(--accent-dim); border:1px solid var(--accent); border-radius:var(--radius); padding:14px 16px; max-width:520px; }
+.vc-large-suggest-line { font-size:13px; color:var(--text-primary); margin-bottom:10px; line-height:1.5; }
 
 .chat-panel {
   background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
@@ -1533,6 +1548,12 @@ textarea.form-control { resize:vertical; min-height:80px; }
   z-index:10; border:2px solid var(--accent) !important; border-radius:var(--radius);
   box-shadow:0 4px 16px rgba(0,0,0,0.4);
 }
+/* Your own small picture with the camera off: just your initial. */
+.video-grid.vc-host-focus-mode .video-tile.local .vc-cam-off-overlay .vc-cam-off-avatar { width:36px; height:36px; font-size:16px; margin:0 auto !important; }
+.video-grid.vc-host-focus-mode .video-tile.local .vc-cam-off-note { display:none; }
+.video-grid.vc-host-focus-mode .video-tile.local .participant-info { bottom:4px; left:4px; max-width:calc(100% - 8px); padding:2px 6px; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.video-grid.vc-host-focus-mode .video-tile.local .vc-tile-muted { top:4px; right:4px; padding:1px 5px; font-size:11px; }
+.video-grid.vc-host-focus-mode .video-tile.local .vc-tile-muted-word { display:none; }
 /* When screen share is active on top of host-focus, use screen-share layout */
 .video-grid.vc-host-focus-mode.vc-screen-share-mode .video-tile.local {
   position:relative; bottom:auto; right:auto; align-self:flex-end;
@@ -16429,6 +16450,7 @@ var vcIsCoHost = false;      // this participant was made co-host by the host
 var vcRefusedByHost = false; // this participant was turned away; do not wait for the host to "return"
 var vcRemoteRecorders = {};  // peerId -> name of anyone recording this room
 var vcReconnectTimer = null; // pending reconnect to the introduction service
+var vcPeerCamOn = {};        // peerId -> false when that person's camera is off (their tile shows their initial)
 
 function vcHostPeerId() { return CESTISCore.vcRoom.hostPeerId(currentRoomCode); }
 
@@ -16448,7 +16470,7 @@ function vcResetRoomState() {
   peerRoles = {}; mutedPeers = {}; vcCoHosts = {};
   vcAdmitted = {}; vcRefusedPeers = {}; vcKickedUids = {}; vcPendingStreams = {};
   vcDialling = {}; vcIsCoHost = false; vcRemoteRecorders = {};
-  vcPendingConns = {}; vcPeerUids = {}; vcNatFailed = {};
+  vcPendingConns = {}; vcPeerUids = {}; vcNatFailed = {}; vcPeerCamOn = {};
 }
 
 // Phones send a smaller picture (CESTISCore.vcRoom.videoProfile).
@@ -16483,6 +16505,35 @@ function enterVideoRoom(title, role, roomCode) {
   // roomCode and title go into onclick handlers as quoted JS strings (jsArg):
   // a \' escape inside onclick="..." broke on a double quote or backslash.
   var escapedRoomCode = jsArg(roomCode || '');
+  // A class bigger than the built-in room carries well: Large Class first,
+  // with one line saying why (CESTISCore.vcCapacity.largeClassAdvice). The
+  // instructor can still start the built-in room.
+  var advice = role !== 'student' ? CESTISCore.vcCapacity.largeClassAdvice(vcExpectedTrainees(roomCode)) : { suggest: false };
+  var smallBtn = `<button class="btn ${advice.suggest ? 'btn-secondary' : 'btn-primary'}" onclick="vcCreateRoom(${jsArg(title)},'${role}',${escapedRoomCode})">${roomCode ? 'Start Session (Room: '+escapeHtml(roomCode)+')' : 'Create Room'}</button>`;
+  var largeBtn = `<button class="btn ${advice.suggest ? 'btn-primary' : 'btn-secondary'}" id="vc-start-large" onclick="vcCreateLargeRoom(${jsArg(title)},'${role}',${escapedRoomCode})">Start Large Class (up to ${CESTISCore.vcCapacity.SFU_MAX})</button>`;
+  var smallNote = `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Peer-to-peer &mdash; best for up to ${CESTISCore.vcCapacity.MESH_MAX_VIDEO} people, nothing extra to set up.</div>`;
+  var largeNote = `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Runs on the large-class video service so every device sends one stream instead of one per person. The room is locked with a lobby, and attendance is recorded automatically.</div>`;
+  var startChoices = advice.suggest
+    ? `<div class="vc-large-suggest" id="vc-large-suggest">
+          <div class="vc-large-suggest-line">${escapeHtml(advice.line)}</div>
+          ${largeBtn}
+          ${largeNote}
+        </div>
+        <div style="text-align:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">${roomCode ? 'Or start this scheduled session in the built-in room' : 'Or start the built-in room'}</div>
+          ${smallBtn}
+          ${smallNote}
+        </div>`
+    : `<div style="text-align:center;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">${roomCode ? 'Start this scheduled session' : 'Start a new session for this class'}</div>
+          ${smallBtn}
+          ${smallNote}
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+            <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Teaching a whole cohort?</div>
+            ${largeBtn}
+            ${largeNote}
+          </div>
+        </div>`;
 
   room.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
@@ -16500,10 +16551,11 @@ function enterVideoRoom(title, role, roomCode) {
           </div>
         </div>
       </div>
-      <div style="display:flex;gap:12px;">
-        <button class="vc-btn active" id="vc-lobby-mic" onclick="toggleLobbyDevice('audio')" title="Microphone">&#x1F3A4;</button>
-        <button class="vc-btn active" id="vc-lobby-cam" onclick="toggleLobbyDevice('video')" title="Camera">&#x1F4F9;</button>
+      <div class="vc-lobby-devices">
+        <button class="vc-btn vc-btn-label" id="vc-lobby-mic" onclick="toggleLobbyDevice('audio')" title="Microphone">&#x1F3A4;<span class="vc-btn-text">Microphone</span></button>
+        <button class="vc-btn vc-btn-label" id="vc-lobby-cam" onclick="toggleLobbyDevice('video')" title="Camera">&#x1F4F9;<span class="vc-btn-text">Camera</span></button>
       </div>
+      ${role === 'student' ? '<div class="vc-lobby-note" id="vc-lobby-note">Your camera and microphone start off to save mobile data. Turn them on whenever you need them.</div>' : ''}
       <div id="vc-status" class="vc-status">Ready to connect</div>
       ${role !== 'student' && activeHostRoom ? `
         <div style="text-align:center;background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius);padding:16px;margin-bottom:12px;">
@@ -16516,16 +16568,7 @@ function enterVideoRoom(title, role, roomCode) {
         </div>
       ` : ''}
       ${role !== 'student' ? `
-        <div style="text-align:center;">
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">${roomCode ? 'Start this scheduled session' : 'Start a new session for this class'}</div>
-          <button class="btn btn-primary" onclick="vcCreateRoom(${jsArg(title)},'${role}',${escapedRoomCode})">${roomCode ? 'Start Session (Room: '+escapeHtml(roomCode)+')' : 'Create Room'}</button>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Peer-to-peer &mdash; best for up to ${CESTISCore.vcCapacity.MESH_MAX_VIDEO} people, nothing extra to set up.</div>
-          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-            <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Teaching a whole cohort?</div>
-            <button class="btn btn-secondary" onclick="vcCreateLargeRoom(${jsArg(title)},'${role}',${escapedRoomCode})">Start Large Class (up to ${CESTISCore.vcCapacity.SFU_MAX})</button>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Runs on the large-class video service so every device sends one stream instead of one per person. The room is locked with a lobby, and attendance is recorded automatically.</div>
-          </div>
-        </div>
+        ${startChoices}
         <div class="vc-divider">or join existing</div>
       ` : ''}
       <div style="text-align:center;">
@@ -16542,9 +16585,30 @@ function enterVideoRoom(title, role, roomCode) {
     <div id="vc-rec-recovery"></div>
   `;
 
+  vcRefreshDeviceButtons();
   vcStartCameraPreview();
   // A recording that was cut off (crash, closed tab) is offered back here.
   try { vcOfferRecordingRecovery(); } catch (e) {}
+}
+
+// How many trainees a scheduled class expects: those on the register of the
+// class's programme on the class's day (the same rule as the attendance
+// register — CESTISCore.attendance.onRegister). 0 when the room code is not
+// a scheduled class, or the class names no programme.
+function vcExpectedTrainees(roomCode) {
+  try {
+    var cs = CESTISCore.vcRoom.findClassSession(typeof classSessions !== 'undefined' ? classSessions : [], roomCode, localDateStr());
+    if (!cs || !cs.course) return 0;
+    var day = cs.date || localDateStr();
+    var inCourse = attendanceCourseFilterFn(cs.course);
+    var A = CESTISCore.attendance;
+    return (Array.isArray(students) ? students : []).filter(function (s) {
+      if (!s || s.id == null || (inCourse && !inCourse(s))) return false;
+      var centre = null;
+      try { centre = studentCentreRecord(s); } catch (e) { centre = null; }
+      return A.onRegister(s, centre, day, day);
+    }).length;
+  } catch (e) { return 0; }
 }
 
 // The camera question (the browser's permission prompt) can still be open
@@ -16591,16 +16655,38 @@ async function vcStartCameraPreviewNow(gen) {
         'everybody, they will not see or hear you.</div></div>';
     }
     vcUpdateStatus('', 'Ready to connect — without camera or microphone');
+    vcRefreshDeviceButtons();
+    return;
+  }
+  // Trainees start with the camera off and the microphone muted, to save
+  // their mobile data (CESTISCore.vcRoom.startDevices). The camera is not
+  // even opened — its light stays off — until they turn it on. The
+  // microphone is opened (so unmuting is instant) but sends nothing.
+  var _start = CESTISCore.vcRoom.startDevices(vcCurrentRole);
+  if (!_start.camera) {
+    try {
+      var _mic = await navigator.mediaDevices.getUserMedia({video:false, audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+      if (!vcPreviewStillWanted(gen, _mic)) return;
+      localStream = _mic;
+      if (!_start.mic) localStream.getAudioTracks().forEach(function (t) { t.enabled = false; });
+    } catch (e) {
+      console.warn('Microphone not available:', e);
+      if (gen === vcPreviewGen) localStream = null;
+    }
+    vcShowLobbyCameraOff();
+    vcRefreshDeviceButtons();
     return;
   }
   try {
     var _got = await navigator.mediaDevices.getUserMedia({video:vcVideoConstraints(), audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
     if (!vcPreviewStillWanted(gen, _got)) return;
     localStream = _got;
+    if (!_start.mic) localStream.getAudioTracks().forEach(function (t) { t.enabled = false; });
     const vid = document.getElementById('vc-preview');
     if(vid) { vid.srcObject = localStream; vid.muted = true; vid.play().catch(function(){}); }
     const ph = document.getElementById('vc-preview-ph');
     if(ph) ph.style.display = 'none';
+    vcRefreshDeviceButtons();
   } catch(err) {
     console.warn('Camera not available:', err);
     const ph = document.getElementById('vc-preview-ph');
@@ -16609,21 +16695,96 @@ async function vcStartCameraPreviewNow(gen) {
       var _aud = await navigator.mediaDevices.getUserMedia({video:false, audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
       if (!vcPreviewStillWanted(gen, _aud)) return;
       localStream = _aud;
+      if (!_start.mic) localStream.getAudioTracks().forEach(function (t) { t.enabled = false; });
     }
     catch(e) {
       console.warn('Audio also not available:', e);
       if (gen === vcPreviewGen) localStream = null;
     }
+    vcRefreshDeviceButtons();
   }
+}
+
+// The lobby's picture area while the camera is off.
+function vcShowLobbyCameraOff() {
+  var vid = document.getElementById('vc-preview');
+  var ph = document.getElementById('vc-preview-ph');
+  if (vid) vid.style.display = 'none';
+  if (ph) {
+    ph.style.display = 'flex';
+    ph.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:0 12px;"><div style="font-size:44px;">&#x1F4F7;</div>' +
+      '<div style="font-weight:600;">Camera off</div>' +
+      (vcCurrentRole === 'student' ? '<div style="font-size:12px;margin-top:4px;">Nobody sees you until you turn it on.</div>' : '') + '</div>';
+  }
+}
+
+// Is this device's microphone on / camera on right now?
+function vcMicIsOn() {
+  return !!(localStream && localStream.getAudioTracks().some(function (t) { return t.enabled && t.readyState !== 'ended'; }));
+}
+function vcCamIsOn() {
+  return !!(localStream && localStream.getVideoTracks().some(function (t) { return t.readyState === 'live' && t.enabled !== false; }));
+}
+
+// Draw the microphone and camera buttons (lobby and room) as what they are:
+// on, or off with a line through. The words on them say what a tap does.
+function vcRefreshDeviceButtons() {
+  var mic = vcMicIsOn(), cam = vcCamIsOn();
+  [['vc-lobby-mic', mic, 'Microphone on', 'Microphone off', 'Mute microphone', 'Turn microphone on'],
+   ['vc-mic-btn', mic, 'Microphone on', 'Microphone off', 'Mute microphone', 'Turn microphone on'],
+   ['vc-lobby-cam', cam, 'Camera on', 'Camera off', 'Turn camera off', 'Turn camera on'],
+   ['vc-cam-btn', cam, 'Camera on', 'Camera off', 'Turn camera off', 'Turn camera on']].forEach(function (b) {
+    var el = document.getElementById(b[0]);
+    if (!el) return;
+    var on = b[1];
+    el.classList.toggle('active', on);
+    el.classList.toggle('vc-off', !on);
+    el.title = on ? b[4] : b[5];
+    try { el.setAttribute('aria-label', el.title); el.setAttribute('aria-pressed', on ? 'true' : 'false'); } catch (e) {}
+    var txt = el.querySelector ? el.querySelector('.vc-btn-text') : null;
+    if (txt) txt.textContent = on ? b[2] : b[3];
+  });
+  // The person's own tile says when they are muted or not seen.
+  var tile = document.getElementById('vc-tile-local');
+  if (tile) {
+    var lv = document.getElementById('vc-local-video');
+    var sharing = typeof screenStream !== 'undefined' && !!screenStream;
+    if (lv) lv.style.opacity = (cam || sharing) ? '1' : '0.15';
+    var ov = tile.querySelector ? tile.querySelector('.vc-cam-off-overlay') : null;
+    if (!cam && !sharing) {
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.className = 'vc-cam-off-overlay';
+        var initial = (String(vcCurrentUserName || '?').trim()[0] || '?').toUpperCase();
+        ov.innerHTML = '<div style="text-align:center;"><div class="vc-cam-off-avatar" style="margin:0 auto 6px;">' + escapeHtml(initial) + '</div>' +
+          '<div class="vc-cam-off-note" style="font-size:12px;color:var(--text-muted);">Camera off</div></div>';
+        tile.appendChild(ov);
+      }
+    } else if (ov) { ov.remove(); }
+    vcSetTileMuted(tile, !mic);
+  }
+}
+
+// The 🔇 on a tile whose microphone is off.
+function vcSetTileMuted(tile, muted) {
+  if (!tile || !tile.querySelector) return;
+  var b = tile.querySelector('.vc-tile-muted');
+  if (muted && !b) {
+    b = document.createElement('div');
+    b.className = 'vc-tile-muted';
+    b.title = 'Microphone off';
+    b.innerHTML = '\uD83D\uDD07<span class="vc-tile-muted-word"> muted</span>';
+    tile.appendChild(b);
+  } else if (!muted && b) { b.remove(); }
 }
 
 function toggleLobbyDevice(kind) {
   if(!localStream) return;
-  const btn = document.getElementById(kind==='audio' ? 'vc-lobby-mic' : 'vc-lobby-cam');
   if(kind==='audio') {
     const tracks = localStream.getAudioTracks();
-    tracks.forEach(t => t.enabled = !t.enabled);
-    btn.classList.toggle('active');
+    var on = !vcMicIsOn();
+    tracks.forEach(t => t.enabled = on);
+    vcRefreshDeviceButtons();
   } else {
     // Video: fully stop track to release camera hardware (turn off light)
     const vid = document.getElementById('vc-preview');
@@ -16632,17 +16793,17 @@ function toggleLobbyDevice(kind) {
     if(existingTracks.length > 0 && existingTracks[0].readyState === 'live') {
       // Camera is on — stop it
       existingTracks.forEach(function(t) { t.stop(); localStream.removeTrack(t); });
-      btn.classList.remove('active');
-      if(vid) vid.style.display = 'none';
-      if(ph) { ph.style.display = 'flex'; ph.innerHTML = '<div style="text-align:center;color:var(--text-muted);"><div style="font-size:48px;">&#x1F4F7;</div><div>Camera off</div></div>'; }
+      vcShowLobbyCameraOff();
+      vcRefreshDeviceButtons();
     } else {
       // Camera is off — re-acquire
       navigator.mediaDevices.getUserMedia({video:vcVideoConstraints()}).then(function(vidStream) {
         var newTrack = vidStream.getVideoTracks()[0];
+        if (!localStream) { vidStream.getTracks().forEach(function (t) { t.stop(); }); return; }
         localStream.addTrack(newTrack);
         if(vid) { vid.srcObject = localStream; vid.style.display = ''; vid.play().catch(function(){}); }
         if(ph) ph.style.display = 'none';
-        btn.classList.add('active');
+        vcRefreshDeviceButtons();
       }).catch(function(err) {
         console.warn('Could not re-acquire camera:', err);
         if(ph) { ph.style.display = 'flex'; ph.innerHTML = '<div style="text-align:center;color:var(--text-muted);"><div style="font-size:48px;">&#x1F6AB;</div><div>Camera unavailable</div></div>'; }
@@ -17528,8 +17689,10 @@ function vcCurrentUserId() {
   return '';
 }
 // How this device introduces itself to everyone it connects to.
+// It also says whether its microphone and camera are on, so a newcomer's
+// tile and the participant list are right from the start.
 function vcNameMessage() {
-  return {type:'name', name:vcCurrentUserName, role:vcCurrentRole, uid:vcCurrentUserId()};
+  return {type:'name', name:vcCurrentUserName, role:vcCurrentRole, uid:vcCurrentUserId(), mic:vcMicIsOn(), cam:vcCamIsOn()};
 }
 
 // Run ok() once peer pid has been let into the room, or refused() if it is
@@ -17701,6 +17864,7 @@ function vcWatchIce(call, pid, onUp) {
       if (onUp) onUp();
       vcNatNotice(pid, false);
       vcApplySenderLimits(pc);
+      vcApplySoundSending(pc);
     } else if (st === 'failed') {
       vcNatNotice(pid, true);
     }
@@ -17720,6 +17884,15 @@ function vcNatNotice(pid, failed) {
     ? 'The two networks could not reach each other, even through the Centre\'s relay server. Check that the relay server is running, or try another network.'
     : 'Their network and yours block direct connections, and no relay server is set up. Try a different network (for example, not mobile data), or ask the Centre to add a relay server in Settings → Video Conference.');
   el.style.display = 'block';
+}
+// The host's picture budget is shared by however many are in the room NOW:
+// it used to be worked out once, as each person arrived, so the first
+// trainees in kept the 1.2 Mbit/s of a near-empty room for the whole class.
+function vcApplySenderLimitsAll() {
+  Object.keys(peerConnections).forEach(function (pid) {
+    var pc = peerConnections[pid] && vcGetPeerConnection(peerConnections[pid].media);
+    if (pc && (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed')) vcApplySenderLimits(pc);
+  });
 }
 // Cap how much picture each connection carries (CESTISCore.vcRoom.videoProfile).
 function vcApplySenderLimits(pc) {
@@ -17959,8 +18132,10 @@ function vcOnPeerConnClosed(pid, conn) {
   delete peerConnections[pid]; delete dataConnections[pid]; delete peerNames[pid]; delete peerRoles[pid];
   delete mutedPeers[pid]; delete vcCoHosts[pid]; delete vcDialling[pid]; delete vcRemoteRecorders[pid];
   delete vcNatFailed[pid];
+  delete vcPeerCamOn[pid];
   if (isRoomHost) {
     delete vcAdmitted[pid];
+    vcApplySenderLimitsAll();
     // Close the participant's stay in the host's join/leave log, which the
     // attendance register offers to the instructor for confirmation.
     try { vcMeshLogLeave(pid); } catch(e) {}
@@ -18001,9 +18176,13 @@ function vcOnData(raw, fromId) {
       }
       peerNames[fromId] = msg.name;
       peerRoles[fromId] = msg.role;
+      if (typeof msg.mic === 'boolean') { if (msg.mic) delete mutedPeers[fromId]; else mutedPeers[fromId] = true; }
+      if (typeof msg.cam === 'boolean') { vcPeerCamOn[fromId] = msg.cam; vcSetRemoteCamState(fromId, msg.cam); }
       vcUpdateVideoLabel(fromId, msg.name + (msg.role==='instructor'?' (Instructor)':msg.role==='admin'?' (Admin)':msg.role==='adminstaff'?' (Admin Staff)':''));
       vcUpdateParticipants();
       if(isRoomHost) {
+        // One more trainee: the instructor's picture budget is shared again.
+        vcApplySenderLimitsAll();
         // The host keeps who joined, for the attendance register to offer.
         try { vcMeshLogJoin(fromId, msg.name, msg.role); } catch(e) {}
         Object.keys(dataConnections).forEach(function(id) {
@@ -18076,40 +18255,24 @@ function vcOnData(raw, fromId) {
       break;
     case 'force-mute':
       // Host tells a participant to mute their mic
-      if(localStream) {
-        localStream.getAudioTracks().forEach(function(t){ t.enabled = false; });
-        var micBtn = document.getElementById('vc-mic-btn');
-        if(micBtn) micBtn.classList.remove('active');
-      }
+      vcSetMic(false);
       showToast('Your microphone has been muted by the host');
       break;
     case 'force-unmute':
       // Host tells a participant they are unmuted (enables the track)
-      if(localStream) {
-        localStream.getAudioTracks().forEach(function(t){ t.enabled = true; });
-        var micBtn2 = document.getElementById('vc-mic-btn');
-        if(micBtn2) micBtn2.classList.add('active');
-      }
+      vcSetMic(true);
       showToast('Your microphone has been unmuted by the host');
       break;
     case 'mute-all':
       // Host tells all participants to mute their mics
-      if(localStream) {
-        localStream.getAudioTracks().forEach(function(t){ t.enabled = false; });
-        var micBtn3 = document.getElementById('vc-mic-btn');
-        if(micBtn3) micBtn3.classList.remove('active');
-      }
+      vcSetMic(false);
       showToast('All participants have been muted by the host');
       break;
     case 'force-cam-off':
-      // Host tells a participant to turn off their camera
-      if(localStream) {
-        localStream.getVideoTracks().forEach(function(t){ t.enabled = false; });
-        var camBtn = document.getElementById('vc-cam-btn');
-        if(camBtn) camBtn.classList.remove('active');
-        var lv = document.getElementById('vc-local-video');
-        if(lv) lv.style.opacity = '0.15';
-      }
+      // Host tells a participant to turn off their camera. It is switched
+      // off properly (as with the button): a track that is merely disabled
+      // keeps sending black pictures, which still costs data.
+      if (vcCamIsOn()) vcToggleCam();
       showToast('Your camera has been turned off by the host');
       break;
     case 'promote-host':
@@ -18151,7 +18314,15 @@ function vcOnData(raw, fromId) {
       // A peer turned their camera on/off — show or hide a "camera off" overlay
       // on their tile so it doesn't appear frozen on the last frame. A device
       // speaks only for its own camera.
+      vcPeerCamOn[fromId] = !!msg.on;
       vcSetRemoteCamState(fromId, !!msg.on);
+      break;
+    case 'mic-state':
+      // A peer muted or unmuted their own microphone (trainees arrive
+      // muted): the participant list shows it. A device speaks only for
+      // its own microphone.
+      if (msg.on) delete mutedPeers[fromId]; else mutedPeers[fromId] = true;
+      vcUpdateParticipants();
       break;
     case 'screen-share-started':
       // Highlight the sharing tile for the host; participants switch to the
@@ -18317,8 +18488,8 @@ function vcShowConference(title, role) {
             </div>
           </div>
           <div class="video-controls">
-            <button class="vc-btn active" id="vc-mic-btn" onclick="vcToggleMic()" title="Microphone">&#x1F3A4;</button>
-            <button class="vc-btn active" id="vc-cam-btn" onclick="vcToggleCam()" title="Camera">&#x1F4F9;</button>
+            <button class="vc-btn" id="vc-mic-btn" onclick="vcToggleMic()" title="Microphone">&#x1F3A4;</button>
+            <button class="vc-btn" id="vc-cam-btn" onclick="vcToggleCam()" title="Camera">&#x1F4F9;</button>
             <button class="vc-btn" id="vc-screen-btn" onclick="vcToggleScreen()" title="Screen Share${!showHostControls ? ' (requires host permission)' : ''}" ${!showHostControls ? 'style="opacity:0.5;"' : ''}>&#x1F5A5;&#xFE0F;</button>
             ${role==='student'
               ? `<button class="vc-btn" id="vc-hand-btn" onclick="vcToggleHand()" title="Raise Hand">&#x270B;</button>`
@@ -18372,6 +18543,12 @@ function vcShowConference(title, role) {
 
   // Initialize participant list
   vcUpdateParticipants();
+  vcRefreshDeviceButtons();
+  // Trainees arrive muted with the camera off (to save their data): say how
+  // to speak, once.
+  if (role === 'student' && !vcMicIsOn()) {
+    showToast('You are muted and your camera is off, to save data. Tap 🎤 to speak.');
+  }
 
   // Pictures and sound that arrived before this view existed. The host's
   // stream usually reaches a trainee BEFORE the data connection that draws
@@ -18566,6 +18743,7 @@ function vcAddVideo(peerId, stream, name) {
   if(existing) {
     if (existing.srcObject !== stream) existing.srcObject = stream;
     existing.play().catch(function(){});
+    vcSetRemoteCamState(peerId, vcPeerCamOn[peerId] !== false && stream.getVideoTracks().length > 0);
     return;
   }
 
@@ -18622,6 +18800,9 @@ function vcAddVideo(peerId, stream, name) {
   tile.appendChild(video);
   tile.appendChild(info);
   grid.appendChild(tile);
+  // Somebody whose camera is off (trainees start that way) shows their
+  // initial, not a black box.
+  if (vcPeerCamOn[peerId] === false || !stream.getVideoTracks().length) vcSetRemoteCamState(peerId, false);
 
   // Host-focus mode: participants only see the host's video + their own local tile.
   // Non-host peers are hidden. (Matched against this room's host id exactly:
@@ -18693,14 +18874,15 @@ function vcSetRemoteCamState(peerId, on) {
     if(overlay) overlay.remove();
   } else {
     if(vid) vid.style.visibility = 'hidden';
+    var name = peerNames[peerId] || 'Participant';
+    var initial = (name.trim()[0] || '?').toUpperCase();
     if(!overlay) {
       overlay = document.createElement('div');
       overlay.className = 'vc-cam-off-overlay';
-      var name = peerNames[peerId] || 'Participant';
-      var initial = (name.trim()[0] || '?').toUpperCase();
-      overlay.innerHTML = '<div class="vc-cam-off-avatar">'+escapeHtml(initial)+'</div>';
       tile.appendChild(overlay);
     }
+    // (Drawn again when the name arrives after the picture did.)
+    overlay.innerHTML = '<div class="vc-cam-off-avatar">'+escapeHtml(initial)+'</div>';
   }
 }
 
@@ -18712,6 +18894,10 @@ function vcUpdateParticipants() {
   if(title) title.textContent = 'Participants (' + count + ')';
 
   var canControl = isRoomHost || vcIsCoHost;
+  // Each person's tile shows when their microphone is off.
+  Object.keys(peerNames).forEach(function (pid) {
+    vcSetTileMuted(document.getElementById('vc-tile-' + sanitizePeerId(pid)), !!mutedPeers[pid]);
+  });
 
   // Build self entry
   var html = '<div class="vc-participant-item" style="border-color:var(--accent);">' +
@@ -18771,49 +18957,96 @@ function vcToggleMic() {
     // Try to acquire audio if we don't have a stream yet
     navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream) {
       localStream = stream;
-      var btn = document.getElementById('vc-mic-btn');
-      if(btn) btn.classList.add('active');
       // The calls were set up without a microphone: call again with it, or
       // nobody would ever hear this person.
       vcResendLocalMedia();
       vcRecordingAddStream(localStream);
+      vcSetMic(true);
       showToast('Microphone connected');
     }).catch(function(err) {
       showToast('Could not access microphone: ' + (err.name === 'NotAllowedError' ? 'Permission denied' : err.message));
     });
     return;
   }
-  var btn = document.getElementById('vc-mic-btn');
   var audioTracks = localStream.getAudioTracks();
   if(audioTracks.length === 0) {
     // No audio track — try to add one
     navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(audioStream) {
       audioStream.getAudioTracks().forEach(function(t) { localStream.addTrack(t); });
-      if(btn) btn.classList.add('active');
       vcResendLocalMedia();
       vcRecordingAddStream(localStream);
+      vcSetMic(true);
       showToast('Microphone connected');
     }).catch(function(err) {
       showToast('Could not access microphone');
     });
     return;
   }
-  audioTracks.forEach(function(t){t.enabled=!t.enabled;});
-  if(btn) btn.classList.toggle('active');
+  vcSetMic(!vcMicIsOn());
+}
+
+// Turn this device's microphone on or off: the one place that does it, for
+// the button and for the host's mute, unmute and mute-all. Off means NOTHING
+// is sent (vcApplySoundSending), and the room is told, so the instructor's
+// list shows who is muted.
+function vcSetMic(on) {
+  if (!localStream) return;
+  localStream.getAudioTracks().forEach(function (t) { t.enabled = !!on; });
+  vcApplySoundSendingAll();
+  vcRefreshDeviceButtons();
+  try { vcBroadcastData({type:'mic-state', on: !!on}); } catch (e) {}
+}
+
+// Send sound on a connection only while there is something to hear
+// (CESTISCore.vcRoom.sendSound). A browser sends a switched-off microphone
+// as 50 packets of silence a second — about 18 MB an hour to every other
+// person in the room — so a muted microphone stops its sender instead. One
+// change at a time per sender: a tap that lands while the last change is
+// still being applied is applied straight after it.
+function vcApplySoundSending(pc) {
+  var want = CESTISCore.vcRoom.sendSound(vcMicIsOn(), !!vcScreenAudioCtx);
+  try {
+    pc.getSenders().forEach(function (s) {
+      if (!s.track || s.track.kind !== 'audio' || !s.getParameters || !s.setParameters) return;
+      s.__vcWantSound = want;
+      if (s.__vcSettingSound) return;
+      (function apply() {
+        var p = s.getParameters();
+        if (!p.encodings || !p.encodings.length) return;
+        var goal = s.__vcWantSound;
+        if ((p.encodings[0].active !== false) === goal) return;
+        p.encodings[0].active = goal;
+        s.__vcSettingSound = true;
+        var done = function () { s.__vcSettingSound = false; if (s.__vcWantSound !== goal) apply(); };
+        var r;
+        try { r = s.setParameters(p); } catch (e) { s.__vcSettingSound = false; return; }
+        if (r && r.then) r.then(done, function () { s.__vcSettingSound = false; });
+        else s.__vcSettingSound = false;
+      })();
+    });
+  } catch (e) {}
+}
+function vcApplySoundSendingAll() {
+  Object.keys(peerConnections).forEach(function (pid) {
+    var pc = peerConnections[pid] && vcGetPeerConnection(peerConnections[pid].media);
+    if (pc) vcApplySoundSending(pc);
+  });
 }
 
 function vcToggleCam() {
-  var btn = document.getElementById('vc-cam-btn');
   var lv = document.getElementById('vc-local-video');
 
   if(!localStream) {
     // Try to acquire video if we don't have a stream yet
     navigator.mediaDevices.getUserMedia({video:vcVideoConstraints(),audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream) {
       localStream = stream;
-      if(lv) { lv.srcObject = localStream; lv.style.opacity = '1'; lv.play().catch(function(){}); }
-      if(btn) btn.classList.add('active');
+      // Turning the camera on is not turning the microphone on: a trainee's
+      // stays muted until they unmute it.
+      if (!CESTISCore.vcRoom.startDevices(vcCurrentRole).mic) stream.getAudioTracks().forEach(function (t) { t.enabled = false; });
+      if(lv) { lv.srcObject = localStream; lv.play().catch(function(){}); }
       vcResendLocalMedia();
       vcRecordingAddStream(localStream);
+      vcRefreshDeviceButtons();
       showToast('Camera connected');
     }).catch(function(err) {
       showToast('Could not access camera: ' + (err.name === 'NotAllowedError' ? 'Permission denied' : err.message));
@@ -18833,8 +19066,7 @@ function vcToggleCam() {
       vcReplaceVideoTrackForAll(null);
       vcBroadcastData({type:'cam-state', peerId: rtcPeer ? rtcPeer.id : '', on:false});
     }
-    if(btn) btn.classList.remove('active');
-    if(lv) lv.style.opacity = '0.15';
+    vcRefreshDeviceButtons();
     showToast('Camera off');
   } else {
     // Camera is off — re-acquire a new video track
@@ -18845,8 +19077,8 @@ function vcToggleCam() {
         vcReplaceVideoTrackForAll(newTrack);
         vcBroadcastData({type:'cam-state', peerId: rtcPeer ? rtcPeer.id : '', on:true});
       }
-      if(lv) { lv.srcObject = localStream; lv.style.opacity = '1'; lv.play().catch(function(){}); }
-      if(btn) btn.classList.add('active');
+      if(lv) { lv.srcObject = localStream; lv.play().catch(function(){}); }
+      vcRefreshDeviceButtons();
       showToast('Camera on');
     }).catch(function(err) {
       showToast('Could not access camera: ' + (err.name === 'NotAllowedError' ? 'Permission denied' : err.message));
@@ -18884,6 +19116,7 @@ async function vcToggleScreen() {
     if(lv) { lv.srcObject = (hasCamera && localStream) ? localStream : null; lv.parentElement.classList.add('local'); }
     // Notify peers that screen share stopped
     vcBroadcastData({type:'screen-share-stopped', peerId: rtcPeer ? rtcPeer.id : '', name: vcCurrentUserName});
+    vcRefreshDeviceButtons();
     return;
   }
   try {
@@ -18903,6 +19136,7 @@ async function vcToggleScreen() {
     // The local camera-off overlay no longer applies while sharing.
     vcBroadcastData({type:'cam-state', peerId: rtcPeer ? rtcPeer.id : '', on:true});
     sTrack.onended = function() { vcToggleScreen(); };
+    vcRefreshDeviceButtons();
   } catch(err) { console.warn('Screen share cancelled or failed:', err); }
 }
 
@@ -18926,6 +19160,8 @@ function vcSetupScreenAudioMix() {
     }
     var mixedTrack = dest.stream.getAudioTracks()[0];
     if(mixedTrack) vcReplaceAudioTrackForAll(mixedTrack);
+    // The shared tab's sound goes out even while the microphone is muted.
+    vcApplySoundSendingAll();
   } catch(err) {
     console.warn('Could not mix screen-share audio:', err);
     vcTeardownScreenAudioMix();
@@ -18942,6 +19178,7 @@ function vcTeardownScreenAudioMix() {
       var mic = localStream.getAudioTracks();
       if(mic.length > 0) vcReplaceAudioTrackForAll(mic[0]);
     }
+    vcApplySoundSendingAll();
   }
 }
 
@@ -19272,7 +19509,11 @@ function vcStartRecording() {
     }
     vcRecMixDest.stream.getAudioTracks().forEach(function(t) { combinedStream.addTrack(t); });
 
-    vcMediaRecorder = new MediaRecorder(combinedStream, { mimeType: mimeType });
+    // A set bitrate: about 276 MB an hour instead of up to ~1.1 GB
+    // (CESTISCore.vcRoom.recorderOptions). A browser that refuses the
+    // settings records as before rather than not at all.
+    try { vcMediaRecorder = new MediaRecorder(combinedStream, CESTISCore.vcRoom.recorderOptions(mimeType)); }
+    catch (e) { vcMediaRecorder = new MediaRecorder(combinedStream, { mimeType: mimeType }); }
     vcRecordedChunks = [];
     vcRecMeta = { code: currentRoomCode, title: vcCurrentRoomTitle };
     vcRecId = 'rec-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
@@ -19759,7 +20000,8 @@ function vcDoKick(peerId) {
     if(pcs.data) { var _d = pcs.data; setTimeout(function () { try { _d.close(); } catch(e) {} }, 400); }
   }
   vcRemoveVideo(peerId);
-  delete peerNames[peerId]; delete peerRoles[peerId]; delete mutedPeers[peerId]; delete vcCoHosts[peerId];
+  delete peerNames[peerId]; delete peerRoles[peerId]; delete mutedPeers[peerId]; delete vcCoHosts[peerId]; delete vcPeerCamOn[peerId];
+  vcApplySenderLimitsAll();
   vcUpdateParticipants();
   showToast(name + ' has been removed from the meeting');
 }
