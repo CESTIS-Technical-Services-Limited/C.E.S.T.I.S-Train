@@ -909,6 +909,30 @@ html[data-theme="light"] #landingPage {
    no Sync Now, and a trainee's own device is not asked to sync at all. */
 body.gate-trainee .role-cards.sync-pending #studentCard { opacity:1; filter:none; pointer-events:auto; transform:none; }
 body.gate-trainee-only #loginSyncBar, body.gate-trainee-only #loginSyncWhy { display:none; }
+/* Opened from the trainees' link, or on a trainee's own device: the student
+   form, open, first, with Sign in right under the password (the extras —
+   forgot password, email account, register — below it). The staff cards are
+   one tap away ("Staff sign-in"). The link used to open on the Administrator
+   card and four dimmed staff cards, the trainee's Sign in button below the
+   bottom of a phone's screen. */
+.staff-cards-toggle { display:none; }
+body.trainee-first .role-cards .role-card:not(#studentCard) { display:none; }
+body.trainee-first .staff-cards-toggle { display:inline-flex; align-items:center; justify-content:center; min-height:44px; margin:14px auto 0; }
+body.trainee-first #studentCard .role-login-form { display:flex; flex-direction:column; }
+body.trainee-first #studentLogin.active { display:contents; }
+body.trainee-first #studentCard .role-login-form > * , body.trainee-first #studentLogin > * { order:0; }
+body.trainee-first #studentCard .role-enter-btn { order:1; align-self:center; margin:4px 0 6px; min-height:48px; }
+body.trainee-first #studentLogin > .register-link, body.trainee-first #studentLogin > .gmail-divider,
+body.trainee-first #studentLogin > .gmail-btn, body.trainee-first #studentLogin > .gate-register-note { order:2; }
+body.trainee-first #studentCard > p { display:none; }
+body.trainee-first #studentCard .role-icon { width:56px; height:56px; font-size:28px; margin-bottom:10px; }
+@media (max-width:600px) {
+  body.trainee-first .landing-subtitle { display:none; }
+  body.trainee-first .landing-logo-group { margin-bottom:12px; }
+}
+@media (min-width:601px) {
+  body.trainee-first .landing-subtitle { margin-bottom:20px; }
+}
 /* Registering, with the gate on: only with the trainee's own email account
    (DESIGN.md §17) — today's "Register here" form is not offered; on the
    Centre's own network (no email-account sign-in there) the office creates
@@ -4757,6 +4781,21 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
   .cestis-alert-overlay, .cestis-alert-box { transition:none !important; }
 }
 
+/* On a phone a finger needs about 44 px to hit a control (WCAG 2.5.5). The
+   trainee's own pages (page-s-...) and the sign-in page's footer links were
+   28-30 px buttons ("Open", "Play", "Download", "Join") and 14 px links (her
+   files, Privacy, Support). Only on touch screens and narrow windows: a
+   mouse on a desktop keeps today's compact look. */
+@media (pointer: coarse), (max-width: 600px) {
+  [id^="page-s-"] .btn-sm, [id^="page-s-"] .btn, #pendingApprovalScreen .btn { min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
+  [id^="page-s-"] a.cw-file-link, [id^="page-s-"] .cert-download-btn { min-height:44px; display:inline-flex; align-items:center; padding-top:0; padding-bottom:0; }
+  .landing-footer a { display:inline-flex; align-items:center; min-height:44px; min-width:44px; padding:0 10px; justify-content:center; }
+  .role-enter-btn, .cert-check-btn { min-height:44px; }
+}
+/* A label that is there for screen readers but takes no room on screen. */
+.home-sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.home-field-label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
+
 /* Skip to content link for accessibility */
 .skip-to-content {
   position:fixed; top:-100px; left:50%; transform:translateX(-50%);
@@ -5286,6 +5325,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
       </div>
 
     </div>
+    <button type="button" class="register-link staff-cards-toggle" onclick="homeShowStaffCards()">Staff sign-in</button>
   </div>
 
   <!-- Certificate Check Button -->
@@ -21236,11 +21276,11 @@ function courseworkFileLink(f, cls, style, label) {
   if (!f) return '';
   var name = f.origName || f.name || 'file';
   if (f.dataUrl) {
-    return '<a href="' + escapeAttr(safeUrl(f.dataUrl, {data:true})) + '" download="' + escapeAttr(name) + '" class="' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '">' + label + '</a>';
+    return '<a href="' + escapeAttr(safeUrl(f.dataUrl, {data:true})) + '" download="' + escapeAttr(name) + '" class="cw-file-link ' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '">' + label + '</a>';
   }
   var id = f.driveId || f.id;
   if (!id) return '';
-  return '<a href="#" class="' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '" title="Open this file" onclick="event.preventDefault();cestisOpenDriveFile(' + jsArg(id) + ',' + jsArg(name) + ',' + jsArg(f.webViewLink || f.url || '') + ')">' + label + '</a>';
+  return '<a href="#" class="cw-file-link ' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '" title="Open this file" onclick="event.preventDefault();cestisOpenDriveFile(' + jsArg(id) + ',' + jsArg(name) + ',' + jsArg(f.webViewLink || f.url || '') + ')">' + label + '</a>';
 }
 
 // ============================== STUDENT ASSIGNMENTS PAGE ==============================
@@ -38744,6 +38784,25 @@ function gateTraineeCard() {
   // A device holding none of the Centre's records (a trainee's own phone):
   // "Sync before signing in" is not for them.
   if (!gateDeviceHoldsCentre()) document.body.classList.add('gate-trainee-only');
+  homeTraineeFirst();
+}
+/* The trainees' link just opened, or a trainee's own device: her form, open
+   and first; the staff cards one tap away. (Never on a lab PC that holds the
+   Centre's records, where staff sign in too.) */
+function homeTraineeFirst() {
+  if (!_gateT.base || cestisGateSession()) return false;
+  if (!(_gateT.fromLink || document.body.classList.contains('gate-trainee-only'))) return false;
+  if (_gateT.staffCards) return false;
+  document.body.classList.add('trainee-first');
+  var f = document.getElementById('studentLogin');
+  if (f && !f.classList.contains('active')) { f.classList.add('active'); studentLoginShown = true; }
+  return true;
+}
+function homeShowStaffCards() {
+  _gateT.staffCards = true;
+  document.body.classList.remove('trainee-first');
+  var c = document.getElementById('adminCard');
+  if (c && c.scrollIntoView) { try { c.scrollIntoView({ block: 'start' }); } catch (e) {} }
 }
 function gateCardWorking(on, text) {
   var card = document.getElementById('studentCard');
@@ -39447,7 +39506,7 @@ function gateTraineeInit() {
   try {
     CESTISGate.configure(gateClientHooks());
     // The trainee's link (index.html#gate=…): the address is this device's own.
-    CESTISGate.takeLink();
+    if (CESTISGate.takeLink()) _gateT.fromLink = true;
     if (gateBoot()) return;
     // Work a trainee sealed on this device, waiting for the gate: sent by any
     // session, or none — and a namespace that has nothing left to send goes.

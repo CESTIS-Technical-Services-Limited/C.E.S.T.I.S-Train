@@ -48,5 +48,27 @@ const rm = (css.match(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/
 assert(/\.topbar-btn\.notif-active::after/.test(rm) && /\.stage-circle\.current::after/.test(rm), '"reduce motion": neither moves at all');
 assert(/btn\.setAttribute\('data-unread'/.test(HTML) && /unread > prev/.test(HTML), 'a NEW notice glows again (three times); the same count stays still');
 
+/* ---------- T14. Small phone friction ---------- */
+console.log('\nT14. The trainees\' link opens on her form; 44 px targets; real labels; honest words');
+const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+assert(/if \(CESTISGate\.takeLink\(\)\) _gateT\.fromLink = true;/.test(HTML), 'the page notes that it was opened from the trainees\' link');
+assert(/function homeTraineeFirst\(\)/.test(HTML) && /homeTraineeFirst\(\);\n\}/.test(HTML), 'the trainee card, once set up for the gate, opens her form first');
+assert(/document\.body\.classList\.contains\('gate-trainee-only'\)/.test(HTML.slice(HTML.indexOf('function homeTraineeFirst'), HTML.indexOf('function homeShowStaffCards'))),
+  'on a trainee\'s own device too — never on a PC that holds the Centre\'s records');
+assert(/body\.trainee-first \.role-cards \.role-card:not\(#studentCard\) \{ display:none; \}/.test(css), 'the staff cards are out of her way');
+assert(/class="register-link staff-cards-toggle" onclick="homeShowStaffCards\(\)">Staff sign-in</.test(HTML), '… one tap away ("Staff sign-in")');
+assert(/body\.trainee-first #studentCard \.role-enter-btn \{ order:1;/.test(css), 'Sign in sits right under the password');
+const tap = (css.match(/@media \(pointer: coarse\), \(max-width: 600px\) \{[\s\S]*?\n\}/) || [''])[0];
+['[id^="page-s-"] .btn-sm', '[id^="page-s-"] a.cw-file-link', '.landing-footer a'].forEach(sel => {
+  assert(tap.indexOf(sel) !== -1 && /min-height:44px/.test(tap), sel + ' is at least 44 px tall on a phone');
+});
+assert((HTML.match(/class="cw-file-link /g) || []).length === 2, 'every link to a coursework file carries cw-file-link');
+assert(/<label for="s-vc-join-code"[^>]*>[\s\S]*?Room code/.test(read('Video-Conference-Student.html')), 'the room-code box has a real label');
+assert(/<label for="sResSearch"[^>]*>Search resources<\/label>/.test(read('Pages/Student-Resources.html')), 'the resources search box has a real label');
+assert(/<label class="home-sr-only" for="__PREFIX__ChatSearch">Search chats<\/label>\s*<input type="text" id="__PREFIX__ChatSearch"/.test(read('LMS-Chat-Member.html')), 'the chat search box has a real label');
+const tg = read('Transcript-Grades.html');
+assert(tg.indexOf('the moment an exam is marked') === -1, 'the transcript no longer says grades appear "the moment an exam is marked"');
+assert(/Your grades appear here once a test is marked or the office updates your record\. A new mark usually takes a few minutes to reach you\./.test(tg), '… it says what really happens');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);
