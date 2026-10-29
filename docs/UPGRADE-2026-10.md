@@ -139,9 +139,9 @@ shown to the owner in screenshots first, and merged only once approved or decide
      Video Conference. Nothing paid is required by the code.
    - The *Large Class* option should point at a Jitsi server the Centre controls. The public
      meet.jit.si no longer allows long embedded meetings.
-   - The start screen now suggests Large Class for classes of more than 6 trainees. Until the
-     Centre has its own Jitsi server, such a class on meet.jit.si can be cut off after a few
-     minutes; the instructor can still choose the built-in room (it carries up to 8 people).
+   - Once the Centre's own Jitsi server is set, the start screen puts Large Class first for
+     classes of more than 6 trainees. Until then the built-in room stays first (it carries up to
+     8 people), with one line saying Large Class will save data once the server is added.
 7. **E-mail (EmailJS).**
    - In the EmailJS dashboard, restrict the allowed origin and set a daily cap (see
      `LONGEVITY-AUDIT.md`).
@@ -208,8 +208,11 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   - The instructor sees who is muted (a 🔇 on the tile and in the participant list) and whose
     camera is off (their initial instead of a black box).
   - The instructor's picture budget is shared again whenever someone joins or leaves.
-  - The start screen suggests **Large Class** when the class's register has more than 6
-    trainees, in one line saying why. The instructor can still start the built-in room.
+  - When the class's register has more than 6 trainees and the Centre has its own Large Class
+    video server, the start screen puts **Large Class** first, in one line saying why. Without
+    one (the public fallback cuts embedded meetings off after a few minutes), the built-in room
+    stays first and one line says Large Class will save data once the Centre's own video server
+    is added. The instructor can always choose either.
   - Recordings are made at 550 kbit/s of picture and 64 kbit/s of sound: at most about 276 MB
     an hour (it was up to ~1.1 GB). Writing on a whiteboard reads exactly as before.
 - **Measured, class of 6 trainees** (as they join; per trainee): upload 553 → 6 kbit/s;
