@@ -27278,8 +27278,13 @@ var EXAM_TYPE_HELP = {
 
 function addExamQuestion(type) {
   var q = { id: cestisGenId('Q-')+'-'+Math.random().toString(36).substr(2,4), type:type, text:'', points:1 };
-  if(type==='mcq') { q.options=['Option A','Option B','Option C','Option D']; q.correctAnswer=0; }
-  else if(type==='tf') { q.correctAnswer=true; }
+  // A new multiple-choice or true/false question starts with NO answer key:
+  // it used to start keyed to (a) / True, so a question whose key nobody
+  // chose was marked silently against (a). Until the author picks one it
+  // shows "Answer not set", and the exam cannot be saved or activated
+  // (CESTISCore.exams.keyProblems). Questions already saved keep their keys.
+  if(type==='mcq') { q.options=['Option A','Option B','Option C','Option D']; q.correctAnswer=null; }
+  else if(type==='tf') { q.correctAnswer=null; }
   else if(type==='fill') { q.correctAnswer=''; }
   else if(type==='short') { q.correctAnswer=''; q.autoGrade=false; }
   else if(type==='multi') { q.options=['Option A','Option B','Option C','Option D']; q.correctAnswer=[]; q.allOrNothing=false; }
@@ -33583,7 +33588,8 @@ function addImportQuestion() {
     id: cestisGenId('IQ-') + '-' + Math.random().toString(36).substr(2, 4),
     text: '', type: 'mcq', points: 1,
     options: ['Option A','Option B','Option C','Option D'],
-    correctAnswer: 0
+    // No key until the author chooses one (as in the builder: addExamQuestion).
+    correctAnswer: null
   });
   renderImportPreview();
 }
