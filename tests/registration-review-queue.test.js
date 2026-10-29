@@ -115,7 +115,7 @@ assertEq(AA.registrationRole(' INSTRUCTOR '), 'instructor', 'whatever its case')
       confirm: function () { return true; }, alert: function (m) { notes.push(m); },
       localDateStr: function () { return '2026-10-20'; },
       touchAccount: function (a) { a.updatedAt = '2026-10-20T10:00:00.000Z'; },
-      findStudentRecordForAccount: function () { return { id: 'STU-1' }; }, createStudentDataForAccount: function () {},
+      findStudentRecordForAccount: function () { return { id: 'STU-1' }; }, createStudentDataForAccount: function () {}, fillTraineeContactFromAccount: function () {},
       findInstructorRecordForAccount: function () { return {}; }, createInstructorDataForAccount: function () {},
       saveState: function () {}, renderVerifyUsersPage: function () {}, refreshStudentDependentViews: function () {},
       showToast: function () {}, addNotification: function () {}, openResetPassword: function () {} };

@@ -17,7 +17,12 @@
      - anyone who knew the code received the class's media without joining;
      - a trainee turned away from a full room stayed, and was turned away
        again every ten seconds;
-     - Exit left the room id registered, so the instructor could not rejoin.
+     - Exit left the room id registered, so the instructor could not rejoin;
+     - in a small-room class only the FIRST trainee reached the instructor:
+       once the host's join log reached a device, Join read it as a running
+       Large Class and sent every later trainee to an empty hosted room;
+     - the idle lock covered a running class (nobody presses a key while
+       teaching or following a lesson).
    Kept OUT of the default npm test chain because it needs a browser. */
 'use strict';
 const http = require('http');
@@ -267,6 +272,70 @@ function serve() {
   r1 = await roomState(s1); r2 = await roomState(s2); h = await roomState(host);
   ok(!r1.inRoom && !r1.rtcPeer && !r2.inRoom && !r2.rtcPeer, 'both trainees left when the host ended the class');
   ok(!h.rtcPeer, 'the host left too');
+  for (const p of [s1, s2, host]) { try { await p.context().close(); } catch (e) {} }
+
+  // The small room's host keeps its join log in the shared live-session list
+  // (mode 'mesh') from the first arrival. That list reaches every trainee's
+  // device, and Join used to read the open log as "a Large Class is running",
+  // so only the FIRST trainee ever reached the instructor: everyone after was
+  // sent to an empty public Large Class (CESTISCore.vcSessions.liveFor).
+  section('A small-room class: three trainees join one after another, the shared list on each device, and all reach the instructor');
+  {
+    const CODE2 = 'VCWELD7Q4M';
+    const host2 = await open('host2', 'av');
+    await asInstructor(host2, 'Ian Barrett', CODE2);
+    await host2.evaluate((code) => vcCreateRoom('Welding Theory', 'instructor', code), CODE2);
+    await host2.waitForTimeout(2500);
+    const names = ['Tameka Richards', 'Kemar Johnson', 'Shanice Brown'];
+    const pages = [];
+    for (let i = 0; i < names.length; i++) {
+      const t = await open('t' + (i + 1), i === 0 ? 'none' : 'audio');
+      // What the regular sync does: the host's live-session list, as it
+      // stands now, arrives on this trainee's device before they press Join.
+      const shared = await host2.evaluate(() => JSON.stringify(vcSessions || []));
+      const pre = await t.evaluate(([raw, code]) => {
+        CESTISStore.setItem('voctrain_vcSessions', raw);
+        vcSessions = JSON.parse(raw);
+        window.__large = 0;
+        const go = vcJoinLargeRoom;
+        vcJoinLargeRoom = function () { window.__large++; return go.apply(this, arguments); };
+        return vcSessions.filter(s => s && s.mode === 'mesh' && s.code === code && CESTISCore.vcSessions.isLive(s, new Date().toISOString())).length;
+      }, [shared, CODE2]);
+      if (i > 0) ok(pre === 1, names[i] + '\'s device holds the small room\'s open join log before Join (' + pre + ')');
+      await asStudent(t, names[i], CODE2);
+      await t.evaluate((code) => vcJoinRoom('Welding Theory', 'student', code), CODE2);
+      await t.waitForTimeout(9000);
+      const st = await roomState(t);
+      const large = await t.evaluate(() => window.__large);
+      ok(large === 0, names[i] + ' is not sent to the Large Class');
+      ok(st.inRoom && st.hostTile, names[i] + ' is in the small room with the instructor\'s tile (' + JSON.stringify({ inRoom: st.inRoom, hostTile: st.hostTile }) + ')');
+      const link = await linkStats(t, 'cestis-' + CODE2 + '-host');
+      ok(link.inbound.indexOf('video') !== -1 && link.inbound.indexOf('audio') !== -1, names[i] + ' receives the instructor\'s picture and sound (' + JSON.stringify(link) + ')');
+      pages.push(t);
+    }
+    const hs = await roomState(host2);
+    ok(hs.peers.length === 3, 'the instructor has all three trainees in the room (' + hs.peers.length + ')');
+    // The register's proposal for the class (Attendance -> "Review & add to
+    // register") is built from the host's join log.
+    const proposal = await host2.evaluate((names) => {
+      const roster = names.map(n => ({ id: 'STU-' + n.replace(/\W/g, ''), name: n }));
+      const sug = CESTISCore.attendance.suggestFromLive(vcSessions, roster);
+      return { joined: sug.joined.map(j => j.studentName).sort(), absent: sug.absent.map(j => j.studentName) };
+    }, names);
+    ok(proposal.joined.length === 3 && proposal.absent.length === 0,
+      'all three are in the class register proposal, none suggested absent (' + JSON.stringify(proposal) + ')');
+    // Teaching to the camera and following the lesson press no key: the idle
+    // lock (20 minutes for staff, 60 for a trainee) used to cover the class.
+    const idleHost = await host2.evaluate(() => { currentRole = 'instructor'; _sessionLastActivity = Date.now() - 21 * 60000; sessionHeartbeat(); return !!document.querySelector('#idleLockModal.active'); });
+    const idleT = await pages[0].evaluate(() => { currentRole = 'student'; _sessionLastActivity = Date.now() - 61 * 60000; sessionHeartbeat(); return !!document.querySelector('#idleLockModal.active'); });
+    ok(!idleHost, 'the instructor is not locked 21 minutes into the class without a click');
+    ok(!idleT, 'a trainee is not locked at minute 61 of the class');
+    await host2.evaluate(() => vcEndMeetingForAll());
+    await host2.waitForTimeout(1500);
+    const idleAfter = await host2.evaluate(() => { _sessionLastActivity = Date.now() - 21 * 60000; sessionHeartbeat(); return !!document.querySelector('#idleLockModal.active'); });
+    ok(idleAfter, 'once the class is over, the idle PC locks as before');
+    for (const p of pages.concat([host2])) { try { await p.context().close(); } catch (e) {} }
+  }
 
   ok(pageErrors.length === 0, 'no page errors (' + pageErrors.slice(0, 3).join(' | ') + ')');
 
