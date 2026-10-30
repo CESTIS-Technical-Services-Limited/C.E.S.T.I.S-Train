@@ -25768,6 +25768,10 @@ function populateCourseDropdowns() {
       courses.map(function(c) { return courseOptionHtml(c, forEnrol); }).join('') + archivedGroupHtml(id);
     restoreSelection(sel, prev);
   });
+  // An instructor's Import Exam and Upload File offer her own programme(s)
+  // only — kept so when the lists are rebuilt (every refresh does it).
+  try { if (typeof importExamLimitCourses === 'function') importExamLimitCourses(); } catch (e) {}
+  try { if (typeof driveUploadLimitCourses === 'function') driveUploadLimitCourses(); } catch (e) {}
   // Also refresh the filter dropdowns if they exist. A filter keeps the
   // archived names: without them the trainees recorded under a deleted centre
   // could not be listed at all.
