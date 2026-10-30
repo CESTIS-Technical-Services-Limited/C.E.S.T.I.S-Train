@@ -172,7 +172,9 @@ async function seedAccounts(PW) {
       } else {
         await page.click('#topbarLockBtn');
       }
-      await page.waitForTimeout(400);
+      // Wait for the lock itself, not a fixed time (a fixed wait failed under load).
+      await page.waitForFunction(() => _sessionLocked && document.getElementById('idleLockModal').classList.contains('active') && document.activeElement && document.activeElement.id === 'idleLockPassword',
+        null, { timeout: 15000, polling: 50 }).catch(() => {});
       r = await page.evaluate(() => ({ locked: _sessionLocked, open: document.getElementById('idleLockModal').classList.contains('active'),
         why: document.getElementById('idleLockWhy').textContent, focus: document.activeElement && document.activeElement.id,
         beat: CESTISStore.getItem('voctrain_sessionSeenAt') }));
@@ -182,7 +184,9 @@ async function seedAccounts(PW) {
       ok(await page.evaluate(() => document.getElementById('idleLockModal').classList.contains('active')), kind + ': Escape does not walk past it');
       await page.fill('#idleLockPassword', PW.admin);
       await page.press('#idleLockPassword', 'Enter');
-      await page.waitForTimeout(500);
+      // The password check is asynchronous (PBKDF2): wait for it to finish, not a fixed 500 ms.
+      await page.waitForFunction(() => !_sessionLocked && !document.getElementById('idleLockModal').classList.contains('active'),
+        null, { timeout: 15000, polling: 50 }).catch(() => {});
       ok(await page.evaluate(() => !_sessionLocked && !document.getElementById('idleLockModal').classList.contains('active')), kind + ': the right password opens it again');
 
       console.log('Item 4 (' + kind + '): a new computer says why Sync Now comes first, in neutral words');
@@ -307,9 +311,9 @@ async function seedAccounts(PW) {
         documentHubFiles.push({ id: 'DOC-T1', title: 'Fire Safety Policy 2026', description: 'Evacuation routes.', category: 'Policies', fileName: 'fire.pdf', fileType: 'application/pdf', fileSize: 1000, fileData: '', uploadedBy: 'Marcia Thompson', uploadedAt: '2026-09-14T10:00:00.000Z' });
         showPage('document-hub');
       });
-      await page.waitForTimeout(500);
+      await page.waitForFunction(() => !!document.querySelector('#page-document-hub.active'), null, { timeout: 15000, polling: 50 }).catch(() => {});
       await page.evaluate(() => { window.__back = document.activeElement; docHubEditFile('DOC-T1'); });
-      await page.waitForTimeout(300);
+      await page.waitForFunction(() => { const o = document.querySelector('.cestis-form-overlay'); return !!o && o.contains(document.activeElement); }, null, { timeout: 15000, polling: 50 }).catch(() => {});
       let r = await page.evaluate(() => { const o = document.querySelector('.cestis-form-overlay'), a = document.activeElement;
         return { open: !!o, role: o && o.getAttribute('role'), modal: o && o.getAttribute('aria-modal'), label: a && a.labels && a.labels[0] && a.labels[0].textContent, value: a && a.value,
           fits: o && o.querySelector('.cestis-form-box').getBoundingClientRect().right <= innerWidth }; });

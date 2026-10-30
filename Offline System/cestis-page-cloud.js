@@ -52,8 +52,13 @@
 (function (root) {
   'use strict';
 
-  // The one folder every page's backup goes into.
-  var FOLDER_ID = '11vWe_Nc40TtJ1Hi7PoE7EZ3JrpR-K0Vj';
+  // The one folder every page's backup goes into: the Centre's shared folder
+  // in cestis-config.js (loaded first by every page that loads this file).
+  var FOLDER_ID = (function () {
+    var c = root.CESTIS_CONFIG;
+    if (!c && typeof module !== 'undefined' && typeof require === 'function') { try { c = require('./cestis-config.js'); } catch (e) {} }
+    return (c && c.folders && c.folders.shared) || '';
+  })();
 
   var TOKEN_KEY = 'schoolDashboardGoogleAccessToken';
   var EXPIRY_KEY = 'schoolDashboardGoogleTokenExpiry';

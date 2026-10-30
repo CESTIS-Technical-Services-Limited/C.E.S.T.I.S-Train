@@ -4,6 +4,14 @@
    pages, the enforcement shim installs, mode resolution lands on 'legacy'
    with no broker configured, the legacy page still renders, and the
    IndexedDB adapter's atomic accept survives a real page reload.
+
+   MegaData is dormant, so the everyday pages load only megadata/loader.js:
+   with no broker set up in the browser (every device today) nothing else of
+   MegaData is fetched; with broker settings stored on the device the loader
+   brings the page's whole stack in on demand. The first section proves the
+   dormant path on every everyday page; the others open each page as a device
+   with a broker set up (unreachable here, so legacy mode) and check the stack
+   arrives and boots exactly as it did when it was loaded up front.
    Uses the environment's Chromium (PLAYWRIGHT_BROWSERS_PATH) via
    playwright-core; kept OUT of the default npm test chain because it needs
    a browser. */
@@ -44,6 +52,27 @@ function serve() {
   // smoke-tested as the Centre uses them: with an administrator signed in.
   async function openPage(rel, opts) {
     const page = await browser.newPage();
+    const requests = [];
+    // The page's own requests (the Cashbook embeds Payroll and Virement, each with its own loader).
+    page.on('request', r => { if (r.frame() === page.mainFrame()) requests.push(r.url()); });
+    if (opts && opts.broker) {
+      // What MegaData-Admin's "Save on this device" stores (IndexedDB CESTIS_MEGA,
+      // kv 'meta\u0000brokerConfig'), written from a page of the same site first.
+      await page.route('**/*', route => { route.request().url().startsWith(base) ? route.continue() : route.abort(); });
+      await page.goto(base + '/Pages/Calendar.html', { waitUntil: 'load' });
+      await page.evaluate(() => new Promise((resolve, reject) => {
+        const q = indexedDB.open('CESTIS_MEGA', 1);
+        q.onupgradeneeded = () => q.result.createObjectStore('kv');
+        q.onerror = () => reject(q.error);
+        q.onsuccess = () => {
+          const t = q.result.transaction('kv', 'readwrite');
+          t.objectStore('kv').put({ url: 'https://script.google.com/macros/s/smoke/exec', secret: 'smoke-secret-value-123' }, 'meta\u0000brokerConfig');
+          t.oncomplete = () => { q.result.close(); resolve(); };
+          t.onerror = () => reject(t.error);
+        };
+      }));
+      await page.unroute('**/*');
+    }
     if (opts && opts.admin) {
       await page.addInitScript(() => {
         const now = Date.now();
@@ -70,17 +99,34 @@ function serve() {
     page.on('pageerror', e => pageErrors.push(String(e.message)));
     page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
     await page.goto(base + '/' + rel, { waitUntil: 'load' });
+    const mega = await page.evaluate(() => window.__cestisMegaLoad || null).catch(() => null);
     await page.waitForTimeout(1200); // whenReady + async pageBoot
-    return { page, pageErrors, consoleErrors };
+    return { page, pageErrors, consoleErrors, requests, mega };
   }
 
-  section('Cert-Transcript-Requests loads clean with the MegaData stack');
+  section('Everyday pages: MegaData is dormant, so only its small loader is fetched');
+  for (const f of [{ file: 'index.html' }, { file: 'CESTIS.Cashbook.html' }, { file: 'Cert-Transcript-Requests.html' }, { file: 'Finance.Invoice.html', admin: true },
+    { file: 'Finance.Payment.Voucher.html', admin: true }, { file: 'Finance.Purchase.Order.html', admin: true }, { file: 'Finance.Quote.html', admin: true },
+    { file: 'School.Fee.html', admin: true }, { file: 'Staff.Clock.in.html' }, { file: 'Staff.Payslip.html' }, { file: 'Student-Progress.html' }, { file: 'Transcript-Grades.html' }]) {
+    const { page, pageErrors, requests, mega } = await openPage(f.file, { admin: f.admin });
+    const megaFiles = requests.filter(u => u.indexOf(base + '/megadata/') === 0).map(u => u.slice(base.length + 1).split('?')[0]);
+    ok(pageErrors.length === 0, f.file + ': zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
+    ok(mega === 'dormant', f.file + ': no broker set up in this browser → the loader stays dormant (got ' + mega + ')');
+    ok(megaFiles.length === 1 && megaFiles[0] === 'megadata/loader.js', f.file + ': and fetches nothing of MegaData but the loader (got ' + megaFiles.join(', ') + ')');
+    ok(await page.evaluate(() => typeof window.MegaData === 'undefined' && typeof window.__cestisShim === 'undefined'), f.file + ': no MegaData module and no storage wrapper on the page');
+    ok(await page.evaluate(() => new Promise(r => { if (!indexedDB.databases) return r(true); indexedDB.databases().then(l => r(!l.some(d => d.name === 'CESTIS_MEGA')), () => r(true)); })),
+      f.file + ': and the look-up created no database');
+    await page.close();
+  }
+
+  section('Cert-Transcript-Requests: with a broker set up on the device, the loader brings the MegaData stack');
   {
-    const { page, pageErrors } = await openPage('Cert-Transcript-Requests.html');
+    const { page, pageErrors, mega } = await openPage('Cert-Transcript-Requests.html', { broker: true });
+    ok(mega === 'loaded', 'broker settings on this device → the loader brought the page\'s MegaData scripts (got ' + mega + ')');
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | '));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.pageBoot && MegaData.createDAL && MegaData.ctrFromDocs)), 'all MegaData modules registered');
     ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.mode === 'report'), 'enforcement shim installed in report mode');
-    ok(await page.evaluate(() => String(window.load).indexOf('CESTISStore.getItem') !== -1), 'no broker configured → the page kept its LEGACY data layer');
+    ok(await page.evaluate(() => String(window.load).indexOf('CESTISStore.getItem') !== -1), 'the broker cannot be reached → the page kept its LEGACY data layer');
     ok(await page.evaluate(() => document.querySelectorAll('#crRows td').length > 0), 'the legacy page rendered its table');
     ok(await page.evaluate(() => (window.__cestisShim.violations || []).every(v => v.api !== 'storage' || v.key.indexOf('voctrain_') === 0 || v.key.indexOf('cesti') === 0)),
       'shim telemetry contains only legacy-key accesses (allowlist sane)');
@@ -89,7 +135,7 @@ function serve() {
 
   section('Student-Progress loads clean with the bridge stack');
   {
-    const { page, pageErrors } = await openPage('Student-Progress.html');
+    const { page, pageErrors } = await openPage('Student-Progress.html', { broker: true });
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | '));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.identityIds && MegaData.rosterDrifted)), 'roster model registered');
     ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'Student-Progress'), 'shim carries the page identity');
@@ -99,7 +145,7 @@ function serve() {
 
   section('School.Fee loads clean with the money-bearing bridge stack');
   {
-    const { page, pageErrors } = await openPage('School.Fee.html', { admin: true });
+    const { page, pageErrors } = await openPage('School.Fee.html', { admin: true, broker: true });
     await page.waitForTimeout(1800); // heavy page: seeds + charts + auto-admin init
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.feeBridgeAll && MegaData.reconcileFees)), 'fee bridge model registered');
@@ -110,7 +156,7 @@ function serve() {
 
   section('IndexedDB adapter: an accepted write survives a REAL page reload');
   {
-    const { page } = await openPage('Cert-Transcript-Requests.html');
+    const { page } = await openPage('Cert-Transcript-Requests.html', { broker: true });
     const first = await page.evaluate(async () => {
       await new Promise(r => { const q = indexedDB.deleteDatabase('SMOKE_DB'); q.onsuccess = q.onerror = q.onblocked = r; });
       const stub = { append: async () => ({ ok: true, acks: {}, errors: {}, head: { seq: 0, chain: 'genesis' } }), pull: async () => ({ events: [], head: { seq: 0, chain: 'genesis' } }) };
@@ -136,19 +182,19 @@ function serve() {
 
   section('Transcript-Grades loads clean with the docsync stack');
   {
-    const { page, pageErrors } = await openPage('Transcript-Grades.html');
+    const { page, pageErrors } = await openPage('Transcript-Grades.html', { broker: true });
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | '));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.docSyncPlan && MegaData.TG_SPECS && MegaData.profilesToList)), 'docsync + TG models registered');
     ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'Transcript-Grades'), 'shim carries the page identity');
     ok(await page.evaluate(() => typeof window.__tgTick === 'undefined'), 'docsync stays dormant in legacy mode');
     ok(await page.evaluate(() => typeof window.writeJSON === 'function' && String(window.writeJSON).indexOf('CESTISStore.setItem') !== -1),
-      'no broker configured → the page kept its LEGACY writeJSON unwrapped');
+      'the broker cannot be reached → the page kept its LEGACY writeJSON unwrapped');
     await page.close();
   }
 
   section('CESTIS.Cashbook loads clean with the D11 bridge stack');
   {
-    const { page, pageErrors } = await openPage('CESTIS.Cashbook.html');
+    const { page, pageErrors } = await openPage('CESTIS.Cashbook.html', { broker: true });
     await page.waitForTimeout(1200); // heavy page: charts + recon views
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.cbPlanQuarter && MegaData.cbReconcile && MegaData.cbAmount)), 'cashbook bridge + shared resolver registered');
@@ -159,7 +205,7 @@ function serve() {
 
   section('Staff.Payslip loads clean with the docsync stack');
   {
-    const { page, pageErrors } = await openPage('Staff.Payslip.html');
+    const { page, pageErrors } = await openPage('Staff.Payslip.html', { broker: true });
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.PS_SPECS && MegaData.payrollDecompose)), 'staff-pages model registered');
     ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'Staff.Payslip'), 'shim carries the page identity');
@@ -169,7 +215,7 @@ function serve() {
 
   section('Staff.Clock.in loads clean with the docsync stack');
   {
-    const { page, pageErrors } = await openPage('Staff.Clock.in.html');
+    const { page, pageErrors } = await openPage('Staff.Clock.in.html', { broker: true });
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.CLOCK_SPECS && MegaData.docSyncPlan)), 'clock specs + docsync registered');
     ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'Staff.Clock.in'), 'shim carries the page identity');
@@ -183,7 +229,7 @@ function serve() {
     { file: 'Finance.Purchase.Order.html', page: 'Finance.Purchase.Order' }
   ]) {
     section(fin.page + ' loads clean with the findoc bridge stack');
-    const { page, pageErrors } = await openPage(fin.file, { admin: true });
+    const { page, pageErrors } = await openPage(fin.file, { admin: true, broker: true });
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.fdPlan && MegaData.findocReconcile && window.FinanceDoc)), 'findoc model + legacy engine registered');
     ok(await page.evaluate(p => window.__cestisShim && window.__cestisShim.page === p, fin.page), 'shim carries the page identity');
@@ -193,7 +239,7 @@ function serve() {
 
   section('Finance.Payment.Voucher loads clean with the docsync stack');
   {
-    const { page, pageErrors } = await openPage('Finance.Payment.Voucher.html', { admin: true });
+    const { page, pageErrors } = await openPage('Finance.Payment.Voucher.html', { admin: true, broker: true });
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.docSyncPlan)), 'docsync registered');
     ok(await page.evaluate(() => window.__cestisShim && window.__cestisShim.page === 'Finance.Payment.Voucher'), 'shim carries the page identity');
@@ -201,9 +247,9 @@ function serve() {
     await page.close();
   }
 
-  section('index.html — the LMS dashboard loads clean with the full bridge stack');
+  section('index.html — the LMS dashboard loads clean with the full bridge stack (broker set up on the device)');
   {
-    const { page, pageErrors } = await openPage('index.html');
+    const { page, pageErrors } = await openPage('index.html', { broker: true });
     await page.waitForTimeout(2000); // the biggest page: login shell + seeds + badges
     ok(pageErrors.length === 0, 'zero uncaught page errors — got: ' + pageErrors.join(' | ').slice(0, 300));
     ok(await page.evaluate(() => !!(window.MegaData && MegaData.lmsSpecs && MegaData.lmsDecompose && MegaData.spMergePlan && MegaData.LMS_COLLECTIONS)), 'LMS specs + shared table + roster merge registered');

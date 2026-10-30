@@ -185,6 +185,18 @@ if (typeof self !== 'undefined' && typeof self.addEventListener === 'function' &
     if (event.data && event.data.cestis === KILL_FILE) {
       killed = true;
       event.waitUntil(dropAllCopies());
+      return;
+    }
+    // A staff page asks for files it loaded before this worker was running
+    // (the staff modules a trainee's phone skips): keep them for offline use.
+    // Only this site's own files that the worker would keep anyway, at most 10.
+    if (!killed && event.data && Array.isArray(event.data.cestisKeep)) {
+      var urls = event.data.cestisKeep.slice(0, 10).map(function (u) {
+        try { return new URL(String(u), scope()).href; } catch (e) { return null; }
+      }).filter(function (u) { return u && routeRequest({ url: u, method: 'GET' }, scope()) === 'network-first'; });
+      event.waitUntil(Promise.all(urls.map(function (u) {
+        return fetch(u).then(function (res) { return keepable(res) ? keep(new Request(u), res) : null; }, function () { return null; });
+      })));
     }
   });
 

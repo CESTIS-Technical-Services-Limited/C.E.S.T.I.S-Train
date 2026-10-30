@@ -11,7 +11,8 @@
   'use strict';
   if (typeof window === 'undefined') return;
 
-  window.addEventListener('DOMContentLoaded', function () {
+  // Loaded on demand (megadata/loader.js) after the page was read: start at once.
+  (document.readyState === 'loading' ? function (f) { window.addEventListener('DOMContentLoaded', f); } : function (f) { f(); })(function () {
     var MG = window.MegaData;
     if (!MG || !MG.pageBoot || !MG.lmsSpecs || !MG.spMergePlan) return;
     var PAGE = 'index';

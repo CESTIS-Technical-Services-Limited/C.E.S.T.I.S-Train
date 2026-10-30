@@ -1,0 +1,65 @@
+# The Centre's automatic checks. They run on GitHub, free for a public
+# repository, for every pull request and every change to main, so a broken
+# change is caught before it reaches anyone's screen. No secrets are used.
+#
+# A red cross on a pull request means: do not merge it yet. Open "Details" to
+# see which step failed; each step below says what it checks.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Every Node test suite (npm test)
+        run: npm test
+
+      - name: Every JavaScript file parses (npm run test:syntax)
+        run: npm run test:syntax
+
+      - name: No screen says where the Centre's information is kept (must report 0)
+        run: node tools/scan-ui-wording.js
+
+      - name: The Offline System is generated from these pages, and every ?v= tag matches its file
+        run: node tools/build-offline.js --check
+
+      - name: Version tags (npm run stamp has been run)
+        run: node tools/stamp-versions.js --check
+
+      # Three quick browser suites (about 2 minutes together on a 4-core
+      # machine): sign-in, every page opening clean, the dashboard's screens.
+      # The other test:browser:* suites in package.json are run by hand
+      # before a release (docs/UPGRADE-2026-10.md, "Keeping it healthy").
+      - name: Install Chromium for the browser suites
+        run: |
+          npm install --no-save --no-package-lock playwright-core@1.56.1
+          npx playwright-core install --with-deps chromium
+          echo "CESTIS_CHROME=$(node -e "console.log(require('playwright-core').chromium.executablePath())")" >> "$GITHUB_ENV"
+
+      - name: Browser — sign-in on every card (tests/browser/sign-in-gates.js)
+        run: node tests/browser/sign-in-gates.js
+
+      - name: Browser — every page and the dashboards open with no errors (tests/browser/megadata-smoke.js)
+        run: node tests/browser/megadata-smoke.js
+
+      - name: Browser — the dashboard's screens, keyboard and phone layout (tests/browser/ui-accessibility.js)
+        run: node tests/browser/ui-accessibility.js

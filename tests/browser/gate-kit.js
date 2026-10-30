@@ -18,7 +18,7 @@ const { driveTokenSeed } = require('./fake-drive');
 
 const ROOT = path.join(__dirname, '..', '..');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.gs': 'text/plain', '.md': 'text/plain' };
-const MAIN_FOLDER = '1lNpI00Et1BN5c4eaV5WfQwuQVhCMBtv8';   // GOOGLE_DRIVE_CONFIG.FOLDER_ID
+const MAIN_FOLDER = require('../../cestis-config.js').folders.mainBackup;   // GOOGLE_DRIVE_CONFIG.FOLDER_ID
 const ADMIN = { id: 'USR-mthompson', name: 'Marcia Thompson', user: 'mthompson', pass: 'Centre-Admin-2026!' };
 // Their student IDs are the dashboard's own stable ones (name + programme).
 const TRAINEES = [

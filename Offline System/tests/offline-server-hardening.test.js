@@ -224,8 +224,19 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(!!whole && typeof whole.n === 'number', 'and the file left on disk is whole, valid JSON');
   assert(!fs.readdirSync(DATA).some(f => /\.tmp$/.test(f)), 'with no temporary file left behind');
   const histDir = path.join(DATA, '.history', 'CONCURRENT.json');
-  assert(fs.existsSync(histDir) && fs.readdirSync(histDir).length === 7,
-    'every replaced version is kept in data/.history (7 of 8 saves replaced one)');
+  // Older versions are compressed in the background, after the save has
+  // answered: for a moment one version can be on disk both ways (plain and
+  // .gz). Count each version once, and give the compression time to settle.
+  const versionsKept = () => {
+    let names = [];
+    try { names = fs.readdirSync(histDir).filter(f => /\.json(\.gz)?$/.test(f)); } catch (e) { return { count: 0, settled: false }; }
+    const bases = new Set(names.map(f => f.replace(/\.gz$/, '')));
+    return { count: bases.size, settled: bases.size === names.length };
+  };
+  let kept = versionsKept();
+  for (let i = 0; i < 50 && !kept.settled; i++) { await new Promise(r => setTimeout(r, 100)); kept = versionsKept(); }
+  assert(kept.count === 7,
+    'every replaced version is kept in data/.history (7 of 8 saves replaced one; found ' + kept.count + ')');
   assert(!JSON.parse((await req('/_cestis/data', { headers: hdr })).body).files.some(f => f.file === '.history'),
     'and the history is not listed as a page file');
 

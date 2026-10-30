@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261030d"></script>
-<script src="cestis-form-modal.js?v=20261028d" defer></script>
+<script src="cestis-config.js?v=284ebb2a"></script>
+<script src="cestis-core.js?v=a38ff14d"></script>
+<script src="cestis-form-modal.js?v=74020c38" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C.E.S.T.I.S - Payroll Management System</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all';this.onload=null"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
@@ -139,7 +140,7 @@
     // Initialize EmailJS with public key
     (function() {
         if (typeof emailjs !== 'undefined') {
-            emailjs.init('z_6Ya8J_WGJjRIGuX');
+            emailjs.init(CESTIS_CONFIG.emailjs.publicKey);
         }
     })();
 </script>
@@ -636,7 +637,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 <!-- Light or Dark, as this device chose on the dashboard (its sun/moon button), before the first paint; it follows a change made there. -->
 <script>(function(){function apply(){try{if(localStorage.getItem('cestisTheme')==='light')document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');}catch(e){}}apply();try{window.addEventListener('storage',function(e){if(e.key==='cestisTheme')apply();});}catch(e){}})();</script>
 <!-- One look with the LMS dashboard (outer chrome only; see the file). Last, so it wins. -->
-<link rel="stylesheet" href="cestis-theme.css?v=20261028d">
+<link rel="stylesheet" href="cestis-theme.css?v=96628488">
 </head>
 <body>
 
@@ -3465,10 +3466,14 @@ function saveSettings(){
 }
 
 // ==================== FETCH CURRENT RATES ====================
-// Google Drive folder: https://drive.google.com/drive/folders/1JY8N-AXxxM_eQJ3Gfr0OKBoK4rKchdeV
-// To set up: upload rates.json to the folder above, right-click → Share → "Anyone with the link",
-// then paste the file's ID below (the long string from the share link between /d/ and /view).
-const GDRIVE_RATES_FILE_ID = '1F_GCD8rM4SltmcyGMlUG-EXBsvTQLWWR';
+// The statutory rates live in this site's own payroll-rates.json, kept in the
+// Centre's repository (docs/UPGRADE-2026-10.md, "Updating the payroll rates":
+// five steps on GitHub). It is read first. The two older places stay as
+// fallbacks: a public copy in the Payroll folder (its file id is
+// CESTIS_CONFIG.files.payrollRates in cestis-config.js) and the rates list
+// first published from a personal repository.
+const SITE_RATES_URL = 'payroll-rates.json';
+const GDRIVE_RATES_FILE_ID = CESTIS_CONFIG.files.payrollRates;
 const GITHUB_RATES_URL = 'https://raw.githubusercontent.com/stevebarrettsrha-ops/Staff-Payslip---Dashboard/main/rates.json';
 
 function applyRatesData(data, sourceName, statusDiv){
@@ -3533,11 +3538,11 @@ async function fetchCurrentRates(){
   statusDiv.style.background = 'var(--primary-glow)';
   statusDiv.style.color = 'var(--text)';
 
-  // Build ordered list of sources to try
-  const sources = [];
+  // Build ordered list of sources to try: the site's own rates file first.
+  const sources = [{ name: 'the Centre’s rates file', url: SITE_RATES_URL }];
   if (GDRIVE_RATES_FILE_ID) {
     sources.push({
-      name: 'the Centre’s rates file',
+      name: 'a copy of the rates file',
       url: 'https://drive.google.com/uc?export=download&id=' + GDRIVE_RATES_FILE_ID
     });
   }
@@ -3686,8 +3691,8 @@ function importData(evt){
 
 // Google Drive Configuration
 const GOOGLE_DRIVE_CONFIG = {
-    CLIENT_ID: '302497466088-0b619cqa9qno2c606k4rqp742lebc5o8.apps.googleusercontent.com',
-    FOLDER_ID: '1JY8N-AXxxM_eQJ3Gfr0OKBoK4rKchdeV',
+    CLIENT_ID: CESTIS_CONFIG.googleClientId,
+    FOLDER_ID: CESTIS_CONFIG.folders.payroll,
     BACKUP_FILE_NAME: 'employee_payroll_Backup.json',
     SCOPES: 'https://www.googleapis.com/auth/drive'
 };
@@ -5001,9 +5006,9 @@ let pendingTwoFASecret=null;
 let pendingBackupCodes=null;
 
 // EmailJS Configuration for OTP emails
-window.EMAILJS_PUBLIC_KEY='z_6Ya8J_WGJjRIGuX';
-window.EMAILJS_SERVICE_ID='service_v49btoq';
-window.EMAILJS_TEMPLATE_ID='template_80h43gm';
+window.EMAILJS_PUBLIC_KEY=CESTIS_CONFIG.emailjs.publicKey;
+window.EMAILJS_SERVICE_ID=CESTIS_CONFIG.emailjs.serviceId;
+window.EMAILJS_TEMPLATE_ID=CESTIS_CONFIG.emailjs.templateId;
 
 // Password Reset OTP variables
 let currentOTP=null;
@@ -6856,8 +6861,8 @@ document.addEventListener('DOMContentLoaded',function(){
 </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20261030d"></script>
-<script src="cestis-sync-chip.js?v=20261028d"></script>
+<script src="cestis-page-cloud.js?v=6e14079c"></script>
+<script src="cestis-sync-chip.js?v=c00bf07d"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Staff Payslips',
@@ -6865,17 +6870,6 @@ CESTISPageCloud.init({
   keys: ['cestisPayroll']
 });
 </script>
-<script src="megadata/schemas.js?v=1"></script>
-<script src="megadata/projections.js?v=1"></script>
-<script src="megadata/dal.js?v=1"></script>
-<script src="megadata/adapter-idb.js?v=1"></script>
-<script src="megadata/broker-client.js?v=1"></script>
-<script src="megadata/enforcement-shim.js?v=1"></script>
-<script src="megadata/browser-sync.js?v=1"></script>
-<script src="megadata/page-boot.js?v=1"></script>
-<script src="megadata/pages/roster-model.js?v=1"></script>
-<script src="megadata/pages/docsync-model.js?v=1"></script>
-<script src="megadata/pages/ps-model.js?v=1"></script>
-<script src="megadata/pages/ps-page.js?v=1"></script>
+<script src="megadata/loader.js?v=8323d60e" data-megadata="megadata/schemas.js?v=587d1f90 megadata/projections.js?v=fab3751c megadata/dal.js?v=bfa8a7f0 megadata/adapter-idb.js?v=ed376ed4 megadata/broker-client.js?v=fe421bad megadata/enforcement-shim.js?v=822fd59a megadata/browser-sync.js?v=a8f6fc04 megadata/page-boot.js?v=cc05f2e4 megadata/pages/roster-model.js?v=9d3cd451 megadata/pages/docsync-model.js?v=1013d84b megadata/pages/ps-model.js?v=8e798729 megadata/pages/ps-page.js?v=dacecbad"></script>
 </body>
 </html>

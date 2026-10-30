@@ -90,8 +90,9 @@ const shell = sw.shellUrlsFromHtml(INDEX, SCOPE + 'index.html');
 const rel = shell.map(u => u.slice(SCOPE.length));
 const coreTag = /<script src="(cestis-core\.js\?v=[^"]+)"/.exec(INDEX)[1];
 assert(rel.indexOf(coreTag) !== -1, 'it takes cestis-core.js with the exact ?v= the page asks for (' + coreTag + ')');
+const cloudTag = /<script src="(cestis-page-cloud\.js\?v=[^"]+)"/.exec(INDEX)[1];
 ['vendor/otpauth-9.2.2.umd.min.js', 'vendor/peerjs-1.5.4.min.js', 'manifest.json', 'icons/icon.svg',
- 'Pages/Online-Exams.html', 'Pages/Student-Certificate.html', 'LMS-Chat.html', 'Video-Conference-Student.html', 'megadata/dal.js?v=1'].forEach(function (f) {
+ 'Pages/Online-Exams.html', 'Pages/Student-Certificate.html', 'LMS-Chat.html', 'Video-Conference-Student.html', cloudTag].forEach(function (f) {
   assert(rel.indexOf(f) !== -1, 'it keeps ' + f);
 });
 // The libraries fetched on first use are kept when they are first used, not
@@ -148,7 +149,7 @@ const planned = require('../tools/build-offline.js').plan();
 console.log('Nothing the sign-in screen does not use holds up its first paint');
 const tags = INDEX.slice(0, INDEX.indexOf('<body')).match(/<script\b[^>]*\bsrc="[^"]+"[^>]*>/g) || [];
 // Read by the page while it is being parsed, or wrapped as they load (PeerJS by cestis-offline-rtc.js).
-const MAY_BLOCK = /^(cestis-core|cestis-page-cloud|staff-appraisals|cmc-portal|cert-template-seed|cestis-offline-rtc)\.js|^vendor\/peerjs-/;
+const MAY_BLOCK = /^(cestis-config|cestis-core|cestis-page-cloud|staff-appraisals|cmc-portal|cert-template-seed|cestis-offline-rtc)\.js|^vendor\/peerjs-/;
 // (A CDN address here is PeerJS's document.write fallback, written only when the local copy is missing.)
 const blocking = tags.filter(t => !/\b(defer|async)\b/.test(t)).map(t => /src="([^"?]+)/.exec(t)[1])
   .filter(s => !MAY_BLOCK.test(s) && !/^https:\/\/(unpkg\.com|cdn\.jsdelivr\.net)\/(npm\/)?peerjs@/.test(s));

@@ -25,6 +25,12 @@ migration), `docs/03-VERIFICATION.md` (gate-by-gate proof with actual outputs).
   that wraps its own save function(s): in *shadow* mode local writes flow into the record book
   and remote changes mirror back into legacy storage; in *legacy* mode (no broker configured,
   or migration not sealed) pages behave byte-identically to today.
+- **Loaded only where a broker is set up.** No broker is deployed, so MegaData is dormant: the
+  everyday pages load only `megadata/loader.js` (about 1.5 KB on the wire), which fetches the
+  page's MegaData scripts (listed in its tag) only on a device whose browser holds broker
+  settings from `MegaData-Admin.html`. The two MegaData admin pages load everything as before.
+  The operator checklist below is how MegaData would be switched on; it is not part of running
+  the Centre.
 
 **October 2026 upgrade:** what changed across the whole platform, what the Centre must do before
 deploying, what is still open, and the UI and feature roadmap are in
@@ -33,9 +39,9 @@ deploying, what is still open, and the UI and feature roadmap are in
 ## Running the tests
 
 ```
-npm test                       # 126 Node suites (10,000+ checks), both builds
+npm test                       # every Node suite, both builds; ends by printing how many suites and checks passed
 npm run test:syntax            # node --check over every standalone JS file
-npm run build:offline          # regenerate "Offline System/" from the root files (a test fails on drift)
+npm run build:offline          # stamp the ?v= tags (npm run stamp), then regenerate "Offline System/" (a test fails on drift)
 npm run test:browser           # real Chromium over the real pages (zero uncaught errors)
 npm run test:browser:flows     # a whole training day, live class to certificate, through the real screens
 npm run test:browser:upgrade   # a Centre's data written by the previous version, opened by this one
@@ -43,7 +49,11 @@ npm run test:browser:upgrade   # a Centre's data written by the previous version
 node megadata/bootstrap-cli.js --src tests/fixtures    # migration dry-run over the real (anonymised) backup
 ```
 
-The browser suites need Playwright's Chromium (`NODE_PATH` pointing at `playwright-core`).
+The browser suites need Playwright's Chromium (`NODE_PATH` pointing at `playwright-core`). The
+counts are not kept here: `npm test` prints them (it runs `tools/run-tests.js`, which keeps going
+past a failure and names every suite that failed). GitHub runs `npm test`, the syntax, wording,
+Offline System and version-tag checks and three quick browser suites on every pull request and
+every change to `main` (`.github/workflows/checks.yml`).
 
 ## Setting the system up (operator checklist)
 
@@ -99,6 +109,7 @@ Changing `sw.js` at all makes every browser pick up the new worker on its next v
 
 | Path | What |
 |---|---|
+| `cestis-config.js` | **the Centre's own account ids** — Drive folders, the Google sign-in client, EmailJS. The one file to edit after a lost or changed account: see "Changing the Centre's account" in `docs/UPGRADE-2026-10.md` |
 | `megadata/schemas.js` | canonical serialization, ids, the event REGISTRY |
 | `megadata/broker-core.js` | broker validation core (also runs inside Apps Script) |
 | `megadata/projections.js` | folds: entities, ledgers, quarters, roster, adjudications |

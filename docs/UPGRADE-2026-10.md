@@ -88,7 +88,7 @@ shown to the owner in screenshots first, and merged only once approved or decide
 | **Duplicate "Disabled" accounts** | A cleared office PC no longer creates second and third accounts from the fee roll and chat roster. Provable leftovers fold into the real account, with a deletion record so they cannot come back; anything unsure stays for the administrator. | `tests/backfill-stub-fold.test.js` |
 | **"Set a new password"** | The cursor no longer jumps back from "Confirm password" (an intermittent "Passwords do not match" for a first administrator). | `tests/force-change-pw-focus.test.js` |
 | **A test that follows the trainee** | Answers are saved on the device and in the shared copy. Kicked out, crashed or disconnected, the trainee signs in and presses "Continue your attempt"; at another Centre PC too. The original clock stands, the newest answer per question wins, a submitted test cannot be reopened, and there is exactly one result per attempt. A trainee taking a test is not signed out part-way; a test whose time ran out is submitted at the next sign-in. | `tests/exam-attempt-travel.test.js`, `tests/browser/exam-resume.js` |
-| **Shared files' version tags** | Every page asks for the current shared code files. As of 30 October 2026: `cestis-core.js?v=20261030d`, `cmc-portal.js?v=20261030d`, `cestis-gate-client.js?v=20261030d`, `cestis-page-cloud.js?v=20261030d`, `cestis-form-modal.js?v=20261028d`. | — |
+| **Shared files' version tags** | Every page asks for the current shared code files. The tags are now made from each file's content by `npm run stamp` (which `npm run build:offline` runs); nothing is bumped by hand. See *Keeping it healthy*. | `tools/stamp-versions.js`, `tests/version-tags.test.js` |
 
 **Decisions the owner made in this round:**
 - Trainees register at the Centre (or the office creates their account). A trainee's own phone
@@ -120,6 +120,7 @@ saw screenshots.
 | **Real figures for the board and the regulator (group E, owner approved)** | The board sees the fee money: billed, collected and owed by programme for the financial year, read only, in "$" (was "D"); three "fee" widgets that counted certificates now show money. "Earlier years still owing: $X (n trainees)" sits beside Outstanding on School Fee, the administrator's dashboard and the board's screens, never added into it. Reports has an intake and a period filter and a one-click **Programme return** (CSV and PDF). Measured on the audit's Centre: $1,785,000 billed / $909,000 collected / $876,000 owed, $140,000 from 10 earlier-year trainees — every figure equal to the hand count. | `tests/board-figures.test.js`, `tests/browser/board-figures.js` |
 | **Group B: instructors teach, not type (owner approved)** | **Needs Attention** for instructors (their programme) and the office (everyone, with what each owes; the dashboard's "below 70% attendance" opens it): last attended, absences in a row, attendance, recent marks below the pass mark, work not handed in, phone, Message. **Coursework**: a comment with each mark (the trainee sees it on My Assignments, at home too), "Not submitted (n)" with Remind, Edit with the mark's history, work to mark first. **Tests**: Copy for the next intake; the builder keeps its draft on the computer ("Continue building"); Import Exam for instructors (own programme); exact fill-ins marked at once; Save & next; Mark by question. **Classes**: Upcoming / Past, a state on each, Edit, repeat weekly. **Message** on My Students. Instructors **upload files** for their own programme, and **propose unit results** the office confirms. The office sees the **marking backlog** (how old, on whom, work never handed in) and **registers not taken** on the last school day. New assignments, deleted ones and exams opening reach only the programme's trainees. | `tests/needs-attention.test.js`, `tests/coursework-feedback.test.js`, `tests/exam-reuse.test.js`, `tests/exam-marking-speed.test.js`, `tests/class-list.test.js`, `tests/message-trainee.test.js`, `tests/instructor-uploads.test.js`, `tests/unit-proposals.test.js`, `tests/office-watch.test.js`, `tests/notice-audience.test.js`, `tests/browser/instructor-tools.js` |
 | **The office runs itself (owner approved 30 Oct, group A)** | "Office today" on both office dashboards; Admin Staff get the Administrator's working pages for the sections ticked, ticks per person; Admin Staff reset trainees' passwords; one New trainee form; home registration asks date of birth, gender, TRN, address, parent/guardian and emergency contact; first-sign-in codes and one sign-in slip per trainee; automatic receipt numbers R-2026/27-0001; requests with Open transcript / Certify / Mark collected and the trainee told; Student Progress moves several at once; announcements to one programme; School Fee covered only after 5 idle minutes; details save when a programme has no fee. | `tests/office-today.test.js`, `admin-staff-working-pages`, `new-trainee-form`, `sign-in-slips`, `fee-receipt-numbers`, `requests-run-themselves`, `student-progress-bulk`, `office-announcement-programme`, `fee-idle-cover`, `fee-unpriced-details`; `tests/browser/office-group-a.js` |
+| **Upkeep: less to remember, lighter pages (group F, owner approved)** | `npm test` keeps going past a failure and ends with a summary naming every suite that failed (`tools/run-tests.js`); the same checks and three quick browser suites run on GitHub for every pull request and change to `main` (`.github/workflows/checks.yml`). The `?v=` tags are made from each file's content (`npm run stamp`; `npm run build:offline` runs it): nothing is bumped by hand. The Centre's account ids (16 Drive folders and files, the Google sign-in client, EmailJS) are in one file, `cestis-config.js`. MegaData, built but not in use, is no longer loaded by the 12 everyday pages (a 1.5 KB loader instead: 23–36 KB less on the wire per page, 9–12 fewer requests). Payroll's rates come from the site's own `payroll-rates.json`. A trainee's sign-in link no longer downloads Staff Appraisals, the board's portal or the certificate seed; Transcript-Grades fetches jsPDF, and School Fee its spreadsheet, chart and PDF libraries, the first time each is needed. Measured cold on a phone (1.6 Mbit/s, CPU ×4): a trainee's first visit 1,340 → 1,247 KB, 30 → 16 requests, sign-in card 8.7 → 7.9 s; Transcript-Grades 640 → 496 KB, 4.1 → 3.2 s; School Fee 1,188 → 656 KB, 7.1 → 3.9 s. | `tests/version-tags.test.js`, `tests/centre-config.test.js`, `tests/megadata-dormant.test.js`, `tests/payroll-rates.test.js`, `tests/light-pages.test.js`, `tests/browser/light-pages.js`, `tests/browser/megadata-smoke.js` |
 
 **Decisions the owner made in this round (29–30 October 2026):**
 - Groups A–F of the audit's recommendations approved: the office (A), instructors (B), trainees at
@@ -569,29 +570,76 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
 
 - **Before every change is published, run:**
   ```
-  npm test                     # every Node suite
+  npm run build:offline        # stamp the ?v= tags, regenerate the Offline System (a test fails if you forget)
+  npm test                     # every Node suite; ends with a summary and names every suite that failed
   npm run test:syntax          # every JS file parses
-  npm run build:offline        # regenerate the Offline System (a test fails if you forget)
   NODE_PATH=/opt/node-tools/node_modules npm run test:browser   # and the other test:browser:* suites
   ```
-- **The browser suites** (`npm run test:browser`, `:flows`, `:upgrade`, `:offline`, `:auth`,
-  `:cert`, `:vc`, `:ui`, `:security`, `:transcripts`, `:fee`, `:exams`, `:email`, `:uib`,
-  `:combined`, `:resume`) need Playwright's Chromium. Set `NODE_PATH` to wherever
-  `playwright-core` is installed. Run them one at a time: `:upgrade` and `:resume` each take
+  The same checks (and three quick browser suites) run on GitHub for every pull request and every
+  change to `main` (`.github/workflows/checks.yml`): a red cross there means do not publish.
+- **The browser suites** (every `test:browser:*` script in `package.json`) need Playwright's
+  Chromium. Set `NODE_PATH` to wherever `playwright-core` is installed. Run them one at a time: `:upgrade` and `:resume` each take
   more than ten minutes (`:resume` can be split with `EXAM_RESUME_ONLY='^[1-4]'` and `'^[5-7]'`).
 - **Before publishing, also run** `node tools/scan-ui-wording.js`. It must report 0: no screen
   may say where the Centre's information is synced from or kept (the owner's rule).
 - **Never hand-edit a generated file in `Offline System/`.** Change the root file and regenerate.
   Only the server, signalling, store, certificate, launcher and README files there are
   maintained by hand.
-- **When a shared library changes** (`cestis-core.js`, `cestis-page-cloud.js`,
-  `cestis-offline-rtc.js`, `finance-docs.js`, `staff-appraisals.js`, `cmc-portal.js`), bump its
-  `?v=` on every page so browsers fetch the new copy (the current tags are listed in the owner's
-  review round table above). The service worker always tries the network first.
+- **Version tags are automatic.** Each page asks for a shared file as `cestis-core.js?v=3f9a2c1d`:
+  the tag is made from the file's own content, so a changed file gets a new tag on every page and
+  browsers fetch the new copy. After changing any shared file, run `npm run stamp`
+  (`npm run build:offline` runs it), and commit. Nothing is bumped by hand any more;
+  `tests/version-tags.test.js` fails if a tag does not match its file. The service worker always
+  tries the network first.
 - **New pure logic belongs in `cestis-core.js`** with a Node test, called from the pages. This is
   the pattern the whole upgrade follows.
 - **Certificate signing key:** keep the backup somewhere safe and off the website. Never commit
   it. `.gitignore` already refuses `*signing-key-PRIVATE*.json`.
+
+### Changing the Centre's account
+
+For a lost Google account, a new EmailJS account, or a Drive folder deleted for good. The
+records are not lost (every office PC holds them); sync, trainee sign-in from home and e-mail
+stop until the pages point at the new account. Everything the pages need is in **one file,
+`cestis-config.js`**:
+
+1. In the new Google account, make the folders: one for each line under `folders` in
+   `cestis-config.js` (the comment beside each says what it holds). A folder's id is the last
+   part of its address: `https://drive.google.com/drive/folders/<id>`.
+2. Open `cestis-config.js` on GitHub, press the pencil, paste each new id over the old one
+   (keep the quotes), and save.
+3. A new Google sign-in client (Google Cloud console → APIs & Services → Credentials → OAuth
+   client ID, a *Web application* whose JavaScript origin is the site's address) goes in
+   `googleClientId`. A new EmailJS account's public key, service id and template id go under
+   `emailjs`.
+4. Trainee sign-in from home: set the gate up again in the new account (`trainee-gate/SETUP.md`)
+   and give it the same sign-in client id: set its `GOOGLE_CLIENT_ID` script property, or change
+   `GATE_DEFAULT_CLIENT_ID` in `trainee-gate/Gate.gs` and run `npm run build:gate`. A new gate has
+   a new address, so trainees need the new link or QR code.
+5. Run `npm run build:offline` and `npm test` (`tests/centre-config.test.js` fails if any page
+   still names an old id, or if the gate's client id differs), commit and publish. Then sign in
+   on the office PC with the latest records and press Sync Now.
+
+### Updating the payroll rates (once a year, or when the Government changes one)
+
+Payroll's **Fetch Current Rates** reads `payroll-rates.json` from this site first (the older
+Drive copy and the first published list are only fallbacks). To change a rate:
+
+1. On GitHub, open the Centre's repository and click **`payroll-rates.json`**.
+2. Click the **pencil** (Edit this file).
+3. Change only the numbers that changed (keep every comma and quote), and set `"fiscalYear"`
+   (e.g. `"2026/2027"`), `"effectiveDate"` and `"lastUpdated"` (as `YYYY-MM-DD`).
+4. Click **Commit changes…**, write a short note (e.g. "Payroll rates 2026/27") and confirm.
+5. Wait a few minutes for the green tick beside the change (the checks test the file: a red cross
+   means a number or a comma is wrong). Then in Payroll → Settings press **Fetch Current Rates**,
+   check the figures, and press **Save Settings**.
+
+On the Centre's own network with no internet the button cannot fetch anything; type the rates
+in Settings as before.
+
+The Qualification Plans page also lists one folder per
+qualification (in `Qual-Plan-Curriculum.html`): re-link those documents if they were in the old
+account.
 
 ---
 

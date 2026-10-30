@@ -2,15 +2,75 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261030d"></script>
-<script src="cestis-form-modal.js?v=20261028d" defer></script>
+<script src="cestis-config.js?v=284ebb2a"></script>
+<script src="cestis-core.js?v=a38ff14d"></script>
+<script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=20261030d"></script>
-<script src="cestis-gate-client.js?v=20261030d" defer></script>
-<script src="staff-appraisals.js?v=20261028d"></script>
-<script src="cmc-portal.js?v=20261030d"></script>
-<script src="cert-template-seed.js?v=20260802b"></script>
+<script src="cestis-page-cloud.js?v=6e14079c"></script>
+<script src="cestis-gate-client.js?v=e98c2d11" defer></script>
+<!-- The staff and board modules: Staff Appraisals, the CMC Board's portal and
+     the certificate designs' seed (about 255 KB, 61 KB on the wire). A trainee's
+     phone never runs them, so they are not downloaded on a trainee's sign-in link
+     (#gate=) or in a trainee's own session (the gate's store). Everywhere else
+     they load right here, before the page, exactly as they always have.
+     cestisStaffModules.load() fetches them when they are wanted after all: a
+     member of staff signing in on such a phone (enterApp), or a sync that has to
+     carry the appraisals (the backup builders and merges wait for it, so a backup
+     never goes up without them). -->
+<script>
+(function () {
+  var FILES = ['staff-appraisals.js?v=017111e8', 'cmc-portal.js?v=65318ed9', 'cert-template-seed.js?v=3081872c'];
+  var GLOBALS = ['sappCloudExport', 'CESTISCmc', 'CESTISCertSeed'];
+  var trainee = false;
+  try { trainee = /^g[0-9]{1,3}$/.test(localStorage.getItem('cestisGateNs') || '') || /(?:^#|[#&])gate=/.test(location.hash || ''); } catch (e) {}
+  function have() { return GLOBALS.every(function (g) { return !!window[g]; }); }
+  var pending = null;
+  window.cestisStaffModules = {
+    skipped: trainee,
+    // Here and working. (Also false where they failed to download, so a sync
+    // waits for them rather than sending a backup without the appraisals.)
+    ready: function () { return have(); },
+    load: function () {
+      if (have()) return Promise.resolve();
+      if (pending) return pending;
+      pending = FILES.reduce(function (chain, f, i) {
+        return chain.then(function () {
+          if (window[GLOBALS[i]]) return;
+          return new Promise(function (resolve, reject) {
+            var el = document.createElement('script');
+            el.src = f; el.async = false;
+            el.onload = resolve;
+            el.onerror = function () { reject(new Error(f + ' could not be loaded')); };
+            (document.head || document.documentElement).appendChild(el);
+          });
+        });
+      }, Promise.resolve()).then(function () { if (!have()) throw new Error('the staff modules did not load'); keepOffline(); })
+        .catch(function (e) { pending = null; throw e; });
+      return pending;
+    }
+  };
+  // Keep them for opening with no connection (sw.js). On a computer's first
+  // visit they load before the offline worker is running, and the worker's
+  // own first-visit list leaves them out (see the note below), so the page
+  // asks the worker to keep them once it is ready. Staff pages only.
+  function keepOffline() {
+    try {
+      if (!('serviceWorker' in navigator) || !navigator.serviceWorker.ready) return;
+      navigator.serviceWorker.ready.then(function (reg) {
+        if (reg && reg.active) reg.active.postMessage({ cestisKeep: FILES });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  if (!trainee) { try { window.addEventListener('load', keepOffline); } catch (e) {} }
+  // Written as ordinary script tags, so they load (and run) before the rest of
+  // the page exactly as the three tags here used to. (The tag name is built so
+  // the service worker's first-visit list does not take these files: a
+  // trainee's phone must not download them in the background either.)
+  var tag = 'script';
+  if (!trainee) document.write(FILES.map(function (f) { return '<' + tag + ' src="' + f + '"></' + tag + '>'; }).join(''));
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Installable, with an icon, and able to open with no connection (sw.js). -->
 <link rel="manifest" href="manifest.json">
@@ -312,9 +372,9 @@
 })();
 </script>
 <script>
-  window.EMAILJS_PUBLIC_KEY = 'z_6Ya8J_WGJjRIGuX';
-  window.EMAILJS_SERVICE_ID = 'service_v49btoq';
-  window.EMAILJS_TEMPLATE_ID = 'template_80h43gm';
+  window.EMAILJS_PUBLIC_KEY = CESTIS_CONFIG.emailjs.publicKey;
+  window.EMAILJS_SERVICE_ID = CESTIS_CONFIG.emailjs.serviceId;
+  window.EMAILJS_TEMPLATE_ID = CESTIS_CONFIG.emailjs.templateId;
   // The Support form's e-mail template. Blank until the Centre creates one in
   // the EmailJS dashboard (a template that e-mails the Centre's own inbox with
   // {{from_name}}, {{from_email}}, {{phone}}, {{subject}}, {{message}}) and
@@ -5279,7 +5339,7 @@ html.gate-ns .tam-gate-only { display:flex; }
 <!-- Video on the Centre's own network (the Offline System): introduce calls
      through the Centre's server instead of a public one on the internet.
      Inert everywhere else — it changes nothing unless that server answers. -->
-<script src="cestis-offline-rtc.js?v=20261028d"></script>
+<script src="cestis-offline-rtc.js?v=c2d71b88"></script>
 <!-- Google Identity Services for OAuth. Where it cannot load (the Centre's own
      network has no internet by design) the email sign-in buttons are taken
      away — see markEmailSignInUnavailable. -->
@@ -6697,8 +6757,8 @@ html.gate-ns .tam-gate-only { display:flex; }
 // Configuration constants — declared first to avoid undefined errors
 // ============================================
 var GOOGLE_DRIVE_CONFIG = {
-  CLIENT_ID: '302497466088-0b619cqa9qno2c606k4rqp742lebc5o8.apps.googleusercontent.com',
-  FOLDER_ID: '1lNpI00Et1BN5c4eaV5WfQwuQVhCMBtv8',
+  CLIENT_ID: CESTIS_CONFIG.googleClientId,
+  FOLDER_ID: CESTIS_CONFIG.folders.mainBackup,
   BACKUP_FILE_NAME: 'CESTIS_LMS_BACKUP.json',
   SCOPES: 'https://www.googleapis.com/auth/drive'
 };
@@ -6712,14 +6772,14 @@ function cestisTraineeOnlyDevice() {
   try { if (localStorage.getItem('cestisGateAddress') || /(?:^#|[#&])gate=/.test(location.hash || '')) return true; } catch (e) {}
   return false;
 }
-var LMS_CHAT_DRIVE_FOLDER = '1ashmmL0ZS7mW6XrwoxMuamf7yjtVWHyO';
-var VC_RECORDINGS_FOLDER_ID = '1Yp9aLXGGjhojF1J04QxoNG-9yEgaiS-A';
-var ASSIGNMENTS_DRIVE_FOLDER_ID = '1SEjU_-8XOPM-C2q-Vo-EZUgBz3PMg5Ma';
+var LMS_CHAT_DRIVE_FOLDER = CESTIS_CONFIG.folders.lmsChat;
+var VC_RECORDINGS_FOLDER_ID = CESTIS_CONFIG.folders.classRecordings;
+var ASSIGNMENTS_DRIVE_FOLDER_ID = CESTIS_CONFIG.folders.assignments;
 var ASSIGNMENTS_BACKUP_FILE_NAME = 'CESTIS_ASSIGNMENTS.json';
-var DRIVE_RESOURCES_FOLDER_ID = '122aVdNWxJG9ShRWf9Xso0MdXGdQeDuyt';
-var PER_USER_DRIVE_FOLDER_ID = '1w23WEyGuRduVM9irEkgOjXaIStBy5i0J';
+var DRIVE_RESOURCES_FOLDER_ID = CESTIS_CONFIG.folders.resources;
+var PER_USER_DRIVE_FOLDER_ID = CESTIS_CONFIG.folders.perUser;
 var FEE_SYSTEM_DRIVE_CONFIG = {
-  FOLDER_ID: '11vWe_Nc40TtJ1Hi7PoE7EZ3JrpR-K0Vj',
+  FOLDER_ID: CESTIS_CONFIG.folders.shared,
   FILE_NAME: 'school_fee_management_system.json'
 };
 // Master snapshot: ONE self-describing JSON of the entire data store, kept in a
@@ -6727,14 +6787,14 @@ var FEE_SYSTEM_DRIVE_CONFIG = {
 // login to reconcile (merge & repair) and to detect data loss. See the
 // cestis-core master-snapshot helpers for the pure build/verify/reconcile logic.
 var MASTER_SNAPSHOT_CONFIG = {
-  FOLDER_ID: '1-BVqRHL3bh0UB30pvlXt0AWAsKWsueec',
+  FOLDER_ID: CESTIS_CONFIG.folders.masterSnapshot,
   FILE_NAME: 'cestis-master-snapshot.json'
 };
 var _masterSnapshotFileId = null;     // cached Drive file id for the master file
 var _lastMasterSnapshotHash = null;   // dirty-check so we don't re-upload identical data
 var ALL_DRIVE_FOLDERS = [
   { id: GOOGLE_DRIVE_CONFIG.FOLDER_ID, label: 'Main Backup' },
-  { id: '18ACBw0kRi0BssLEoZLWoeXNa1EiANeBu', label: 'Online Exams' },
+  { id: CESTIS_CONFIG.folders.onlineExams, label: 'Online Exams' },
   { id: LMS_CHAT_DRIVE_FOLDER, label: 'LMS Chat' },
   { id: VC_RECORDINGS_FOLDER_ID, label: 'Class Recording' },
   { id: ASSIGNMENTS_DRIVE_FOLDER_ID, label: 'Assignments' }
@@ -8403,7 +8463,7 @@ function ensureCertImagesLoaded() {
 }
 
 // ---- Google Drive storage for certificate template background images ----
-var CERT_TEMPLATE_DRIVE_FOLDER = '1iLju3l6nBG3oLdiOGuDqtRuwkZjDWsIQ'; // Certificate Templates folder
+var CERT_TEMPLATE_DRIVE_FOLDER = CESTIS_CONFIG.folders.certTemplates; // Certificate Templates folder
 
 function certImageSaveToDrive(course, page, base64Data) {
   if (!googleAccessToken) return Promise.resolve();
@@ -12841,7 +12901,7 @@ var tfaEmailMode = false;  // true when the verify modal is checking an EMAILED 
 // ---- Emailed one-time passcodes (main app: login 2FA option + password reset) ----
 // Client-side OTP (same trust model as the existing time-clock reset): the code
 // lives only in memory here, is single-use, expires, and is rate-limited. It is
-// delivered through the configured EmailJS service (service_v49btoq); if that
+// delivered through the configured EmailJS service (CESTIS_CONFIG.emailjs); if that
 // service isn't configured it falls back to a visible demo code.
 var _emailOtp = null; // { code, accountId, purpose, email, expiresAt, attempts }
 var EMAIL_OTP_TTL_MS = 10 * 60 * 1000;
@@ -13566,6 +13626,15 @@ function updateTopbarWho() {
   box.classList.add('on');
 }
 function enterApp(role) {
+  // The staff and board modules are not downloaded on a trainee's phone (see
+  // cestisStaffModules in <head>): a member of staff signing in there gets
+  // them first, then the portal opens as usual.
+  if (role !== 'student' && window.cestisStaffModules && cestisStaffModules.skipped && !cestisStaffModules.ready() && !cestisStaffModules.tried) {
+    cestisStaffModules.tried = true;
+    var _enterAgain = function() { enterApp(role); };
+    cestisStaffModules.load().then(_enterAgain, _enterAgain);   // if they cannot arrive, it opens as a failed download always did
+    return;
+  }
   try {
     // The portal opened is the one the signed-in account holds. enterApp()
     // trusted its argument, so one console call opened the Administrator
@@ -13896,7 +13965,7 @@ async function submitRegistration() {
   var role = CESTISCore.accountAccess.registrationRole(document.getElementById('regRole').value);
 
   if(!name || name.length < 2) { alert('Please enter your full name.'); return; }
-  if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter your FULL name — first name AND last name (e.g. "John Smith").'); return; }
+  if(!CESTISCore.accountAccess.isFullName(name)) { alert('Please enter your FULL name — first name AND last name (e.g. "John Smith").'); return; }
   // No name has angle brackets; markup in a name was the way script reached admin pages.
   if(/[<>]/.test(name) || /[<>"]/.test(email)) { alert('Names and email addresses cannot contain < > or " characters.'); return; }
   if(!email || !email.includes('@')) { alert('Please enter a valid email address.'); return; }
@@ -37724,6 +37793,10 @@ async function syncFromCloud() {
 // FEATURE 3: MERGE FROM CLOUD
 // ============================================
 async function mergeFromCloud() {
+  // The appraisals travel with every backup: wait for their module where it was left out.
+  if (window.cestisStaffModules && !cestisStaffModules.ready()) {
+    try { await cestisStaffModules.load(); } catch (e) { showToast('Could not sync — try again or ask the office.', 'error'); return; }
+  }
   // Revalidate token from localStorage in case page was restored from bfcache or tab was backgrounded
   revalidateCloudSync();
   if (!isCloudConnected || !googleAccessToken) {
@@ -38684,6 +38757,10 @@ async function findPerUserBackupFile() {
 
 async function savePerUserBackup() {
   if (!isCloudConnected || !googleAccessToken || !currentLoggedInUser) return;
+  // The appraisals travel with every backup: wait for their module where it was left out.
+  if (window.cestisStaffModules && !cestisStaffModules.ready()) {
+    try { await cestisStaffModules.load(); } catch (e) { return; }
+  }
   var fileName = getPerUserBackupFileName();
   if (!fileName) return;
   try {
@@ -39254,6 +39331,10 @@ function pullAllowsUpload() {
 // through here, so there is exactly one set of merge rules.
 var _mergeBackupFailed = false;
 async function mergeBackupData(backupData) {
+  // The appraisals travel with every backup: wait for their module where it was left out.
+  if (window.cestisStaffModules && !cestisStaffModules.ready()) {
+    try { await cestisStaffModules.load(); } catch (e) { _mergeBackupFailed = true; return false; }
+  }
   _mergeBackupFailed = false;
   try {
     if (!backupData || !backupData.data) {
@@ -40317,6 +40398,10 @@ async function autoSaveToAllFolders() {
   // landing page (a pre-login merge, a registration) before this device has
   // pulled, and nothing goes up from a store that has just been wiped.
   if (_sessionWiped || !currentRole) return;
+  // The appraisals travel with every backup: wait for their module where it was left out.
+  if (window.cestisStaffModules && !cestisStaffModules.ready()) {
+    try { await cestisStaffModules.load(); } catch (e) { return; }
+  }
 
   _isAutoSaving = true;
   _lastAutoSaveResult = { uploaded: false, reason: 'not-run' };
@@ -57193,9 +57278,9 @@ function ttUnmount(){
         // Google Drive Configuration
         const ttc_GOOGLE_DRIVE_CONFIG = {
             // Google OAuth Client ID
-            CLIENT_ID: '302497466088-0b619cqa9qno2c606k4rqp742lebc5o8.apps.googleusercontent.com',
+            CLIENT_ID: CESTIS_CONFIG.googleClientId,
             // Your Google Drive folder ID from the shared link
-            FOLDER_ID: '11vWe_Nc40TtJ1Hi7PoE7EZ3JrpR-K0Vj',
+            FOLDER_ID: CESTIS_CONFIG.folders.shared,
             // File name for backup
             BACKUP_FILE_NAME: 'Staff_Clock_In_System.json',
             // API scopes needed - using 'drive' scope to allow access to shared files from any account
@@ -63462,18 +63547,6 @@ function ttRefreshOnShow(){
 })();
 </script>
 
-<script src="megadata/schemas.js?v=1"></script>
-<script src="megadata/projections.js?v=1"></script>
-<script src="megadata/dal.js?v=1"></script>
-<script src="megadata/adapter-idb.js?v=1"></script>
-<script src="megadata/broker-client.js?v=1"></script>
-<script src="megadata/enforcement-shim.js?v=1"></script>
-<script src="megadata/browser-sync.js?v=1"></script>
-<script src="megadata/page-boot.js?v=1"></script>
-<script src="megadata/lms-collections.js?v=1"></script>
-<script src="megadata/pages/roster-model.js?v=1"></script>
-<script src="megadata/pages/docsync-model.js?v=1"></script>
-<script src="megadata/pages/lms-model.js?v=1"></script>
-<script src="megadata/pages/lms-page.js?v=1"></script>
+<script src="megadata/loader.js?v=8323d60e" data-megadata="megadata/schemas.js?v=587d1f90 megadata/projections.js?v=fab3751c megadata/dal.js?v=bfa8a7f0 megadata/adapter-idb.js?v=ed376ed4 megadata/broker-client.js?v=fe421bad megadata/enforcement-shim.js?v=822fd59a megadata/browser-sync.js?v=a8f6fc04 megadata/page-boot.js?v=cc05f2e4 megadata/lms-collections.js?v=e84dcda1 megadata/pages/roster-model.js?v=9d3cd451 megadata/pages/docsync-model.js?v=1013d84b megadata/pages/lms-model.js?v=a5c011ca megadata/pages/lms-page.js?v=294f5041"></script>
 </body>
 </html>

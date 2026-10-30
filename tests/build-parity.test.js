@@ -206,6 +206,8 @@ offlinePages.forEach(pg => {
   src.replace(/<script[^>]+src="([^"]+)"/g, (m, u) => { refs.push(u); return m; });
   src.replace(/<link[^>]+href="([^"]+\.css[^"]*)"/g, (m, u) => { refs.push(u); return m; });
   src.replace(/\bsrc:\s*'([^'"]+\.html)[^']*'/g, (m, u) => { refs.push(u); return m; });
+  // The MegaData scripts megadata/loader.js fetches on demand (listed in its tag).
+  src.replace(/data-megadata="([^"]+)"/g, (m, list) => { list.split(/\s+/).forEach(u => { if (u) refs.push(u); }); return m; });
   refs.forEach(u => {
     if (/^(https?:|data:|\/\/|#|javascript:)/i.test(u)) return;
     const file = decodeURIComponent(u.split('?')[0].split('#')[0]);
