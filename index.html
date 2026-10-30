@@ -31875,12 +31875,15 @@ function programmeReturnPdf(d) {
   y += 2;
   function table(cols, rows, boldLast) {
     var x0 = L, lineH = 3.4;
-    var drawRow = function (cells, bold, shade) {
+    // size: the heading row is a little smaller, so "Applicants" or
+    // "Incomplete" fits its column whole instead of breaking mid-word.
+    var drawRow = function (cells, bold, shade, size) {
+      // Measured in the font it is drawn in.
+      doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size || 7);
       var wrapped = cells.map(function (v, i) { return doc.splitTextToSize(plain(v), cols[i].w - 2); });
       var hgt = Math.max.apply(null, wrapped.map(function (w) { return w.length; })) * lineH + 2;
-      if (y + hgt > H - 12) { newPage(); }
+      if (y + hgt > H - 12) { newPage(); doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size || 7); }
       if (shade) { doc.setFillColor(232, 238, 246); doc.rect(x0, y - 3, cols.reduce(function (a, c) { return a + c.w; }, 0), hgt, 'F'); }
-      doc.setFont('helvetica', bold ? 'bold' : 'normal');
       var x = x0;
       wrapped.forEach(function (w, i) {
         w.forEach(function (t, j) {
@@ -31891,15 +31894,14 @@ function programmeReturnPdf(d) {
       y += hgt;
       doc.setDrawColor(210); doc.line(x0, y - 3, x, y - 3);
     };
-    doc.setFontSize(7);
-    drawRow(cols.map(function (c) { return c.t; }), true, true);
+    drawRow(cols.map(function (c) { return c.t; }), true, true, 6);
     rows.forEach(function (r, i) { drawRow(r, boldLast && i === rows.length - 1, false); });
     y += 3;
   }
   // 277 mm across: the width of landscape A4 inside its margins.
-  var cols = [{ t: 'Programme / intake', w: 40 }].concat(PR_COUNTS.map(function (k) { return { t: k[1], w: 13, right: true }; }),
-    [{ t: 'Completion', w: 22, right: true }, { t: 'Attendance', w: 24, right: true }, { t: 'Test pass rate', w: 28, right: true },
-     { t: 'Fees billed', w: 22, right: true }, { t: 'Collected' + (d.period.from ? ' in period' : ''), w: 22, right: true }, { t: 'Owed (as at today)', w: 28, right: true }]);
+  var cols = [{ t: 'Programme / intake', w: 40 }].concat(PR_COUNTS.map(function (k) { return { t: k[1], w: 14, right: true }; }),
+    [{ t: 'Completion', w: 22, right: true }, { t: 'Attendance', w: 22, right: true }, { t: 'Test pass rate', w: 26, right: true },
+     { t: 'Fees billed', w: 21, right: true }, { t: 'Collected' + (d.period.from ? ' in period' : ''), w: 21, right: true }, { t: 'Owed (as at today)', w: 27, right: true }]);
   // A rate with nothing to divide is written as the reason alone: the "—" of
   // the screen would print as a plain dash and read like a minus sign.
   var rate = function (v, of) { return v === '—' ? of : v + ' ' + of; };
