@@ -41,13 +41,13 @@ deploying, what is still open, and the UI and feature roadmap are in
 ## Running the tests
 
 ```
-npm test                       # 189 Node suites (more than 15,000 checks), both builds
+npm test                       # 207 Node suites (more than 16,000 checks), both builds
 npm run test:syntax            # node --check over every standalone JS file
 npm run build:offline          # regenerate "Offline System/" from the root files (a test fails on drift)
 npm run test:browser           # real Chromium over the real pages (zero uncaught errors)
 npm run test:browser:flows     # a whole training day, live class to certificate, through the real screens
 npm run test:browser:upgrade   # a Centre's data written by the previous version, opened by this one
-#   ...and the other test:browser:* suites (32 in all; see package.json) — run them one at a time
+#   ...and the other test:browser:* suites (36 in all; see package.json) — run them one at a time
 node megadata/bootstrap-cli.js --src tests/fixtures    # migration dry-run over the real (anonymised) backup
 ```
 
