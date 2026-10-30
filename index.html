@@ -36936,7 +36936,9 @@ async function cestisBackupsFolder(api, create) {
   var parent = MASTER_SNAPSHOT_CONFIG.FOLDER_ID;
   try { var mf = await api.get(MASTER_SNAPSHOT_CONFIG.FOLDER_ID, 'id,parents'); if (mf && Array.isArray(mf.parents) && mf.parents[0]) parent = mf.parents[0]; }
   catch (e) { if (e.status !== 404) throw e; }
-  var q = "name = '" + B.FOLDER.name + "' and mimeType = '" + FOLDER_MIME + "' and '" + parent + "' in parents and trashed = false";
+  // Only a folder this system made (its mark): a "Backups" folder of the Centre's own is left alone.
+  var q = "name = '" + B.FOLDER.name + "' and mimeType = '" + FOLDER_MIME + "' and '" + parent + "' in parents and trashed = false" +
+    " and appProperties has { key='" + B.FOLDER.markKey + "' and value='" + B.FOLDER.markValue + "' }";
   var found = (await api.list(q)).sort(function(a, b) { return cestisOlderFile(a, b) ? -1 : cestisOlderFile(b, a) ? 1 : 0; });
   if (found.length) return remember(found[0].id);
   if (!create) return null;
@@ -37178,8 +37180,8 @@ async function cestisStorageRefresh(force) {
     var note = { limit: q.limit || null, usage: q.usage != null ? q.usage : null, usageInDrive: q.usageInDrive || null,
       usageInDriveTrash: q.usageInDriveTrash || null, at: new Date().toISOString() };
     cestisThisPcWrite('cestisThisPc_storage', note);
-    // Room again (the trash emptied, recordings cleared): the next save goes now.
-    if (_storageFull && Number(q.limit) > 0 && Number(q.usage) < Number(q.limit) * 0.99) _storageFull.at = 0;
+    // Room again (the trash emptied, recordings cleared): the note goes, and the next save goes now.
+    if (_storageFull && Number(q.limit) > 0 && Number(q.usage) < Number(q.limit) * 0.99) cestisNoteStorageOk();
     try { renderSystemHealthCard(); } catch (e) {}
     try { refreshSyncChip(); } catch (e) {}
     return note;
@@ -39006,6 +39008,14 @@ async function autoSaveToAllFolders() {
     try { if (typeof gateStaffTick === 'function') gateStaffTick(); } catch (e) { console.warn('[TraineeGate]', e); }
     // The week's dated backup (OPS-1): once a week, on its own, never waited for.
     try { if (typeof cestisWeeklyBackupTick === 'function') cestisWeeklyBackupTick(); } catch (e) { console.warn('[WeeklyBackup]', e); }
+    // While storage is noted as full: one small look at the storage figure
+    // every 2 minutes; room again clears the note, and saving resumes.
+    try {
+      if (typeof _storageFull !== 'undefined' && _storageFull && Date.now() - (_storageFull.probeAt || _storageFull.at || 0) >= STORAGE_FULL_RETRY_MS) {
+        _storageFull.probeAt = Date.now();
+        cestisStorageRefresh(true);
+      }
+    } catch (e) {}
 
     // Nothing written since our last completed save: the local copy and the
     // cloud copy are both already what we would produce. Skip the serialise,

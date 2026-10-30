@@ -57,8 +57,9 @@ function fakeApi(opts) {
     files, calls,
     list: async q => {
       calls.push('list');
-      const m = /'([^']+)' in parents/.exec(q), name = /name = '([^']+)'/.exec(q);
-      return Object.values(files).filter(f => !f.trashed && (!m || f.parents.indexOf(m[1]) !== -1) && (!name || f.name === name[1]))
+      const m = /'([^']+)' in parents/.exec(q), name = /name = '([^']+)'/.exec(q), ap = /appProperties has \{ key='([^']+)' and value='([^']+)' \}/.exec(q);
+      return Object.values(files).filter(f => !f.trashed && (!m || f.parents.indexOf(m[1]) !== -1) && (!name || f.name === name[1]) &&
+        (!ap || (f.appProperties && f.appProperties[ap[1]] === ap[2])))
         .sort((a, b) => a.createdTime < b.createdTime ? -1 : 1).map(f => Object.assign({}, f));
     },
     get: async id => { calls.push('get'); const f = files[id]; if (!f) throw err(404); return Object.assign({}, f); },
@@ -130,11 +131,13 @@ for (const page of PAGES) {
   assert(!r.made && x.api.calls.indexOf('copy') === -1 && Object.values(x.api.files).filter(f => f.name === B.fileName(label)).length === 1, w + ': a week already made: nothing more');
 
   x = world({ role: 'adminstaff' });
-  x.api.files.hand = { id: 'hand', name: 'Backups', parents: ['ROOT'], createdTime: '2024-05-05T00:00:00.000Z', mimeType: 'application/vnd.google-apps.folder' };
+  x.api.files.own = { id: 'own', name: 'Backups', parents: ['ROOT'], createdTime: '2024-01-05T00:00:00.000Z', mimeType: 'application/vnd.google-apps.folder' };
+  x.api.files.hand = { id: 'hand', name: 'Backups', parents: ['ROOT'], createdTime: '2024-05-05T00:00:00.000Z', mimeType: 'application/vnd.google-apps.folder', appProperties: { cestisBackupsFolder: '1' } };
   x.api.files.coll = { id: 'coll', name: B.fileName(label), parents: ['hand'], createdTime: '2026-10-26T08:00:00.000Z' };
   r = await x.ctx.cestisWeeklyBackupRun(label);
   assert(!r.made && x.api.calls.indexOf('copy') === -1, w + ': a file of this week\'s name (no mark even) counts as done — never a second one');
-  assert(x.ctx.systemSettings.backupsFolderId === undefined && JSON.parse(x.ls.cestisThisPc_backupsFolder) === 'hand', w + ': an office PC finds the existing folder (the settings are the Administrator\'s to publish)');
+  assert(x.ctx.systemSettings.backupsFolderId === undefined && JSON.parse(x.ls.cestisThisPc_backupsFolder) === 'hand', w + ': an office PC finds this system\'s folder (the settings are the Administrator\'s to publish), not the Centre\'s own "Backups"');
+  assert(!Object.values(x.api.files).some(f => f.parents && f.parents[0] === 'own'), w + ': nothing is put in a "Backups" folder this system did not make');
 
   x = world({ copyBroken: true });
   r = await x.ctx.cestisWeeklyBackupRun(label);
