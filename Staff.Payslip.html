@@ -3466,9 +3466,13 @@ function saveSettings(){
 }
 
 // ==================== FETCH CURRENT RATES ====================
-// The Payroll folder (CESTIS_CONFIG.folders.payroll in cestis-config.js).
-// To set up: upload rates.json to the folder above, right-click → Share → "Anyone with the link",
-// then paste the file's ID below (the long string from the share link between /d/ and /view).
+// The statutory rates live in this site's own payroll-rates.json, kept in the
+// Centre's repository (docs/UPGRADE-2026-10.md, "Updating the payroll rates":
+// five steps on GitHub). It is read first. The two older places stay as
+// fallbacks: a public copy in the Payroll folder (its file id is
+// CESTIS_CONFIG.files.payrollRates in cestis-config.js) and the rates list
+// first published from a personal repository.
+const SITE_RATES_URL = 'payroll-rates.json';
 const GDRIVE_RATES_FILE_ID = CESTIS_CONFIG.files.payrollRates;
 const GITHUB_RATES_URL = 'https://raw.githubusercontent.com/stevebarrettsrha-ops/Staff-Payslip---Dashboard/main/rates.json';
 
@@ -3534,11 +3538,11 @@ async function fetchCurrentRates(){
   statusDiv.style.background = 'var(--primary-glow)';
   statusDiv.style.color = 'var(--text)';
 
-  // Build ordered list of sources to try
-  const sources = [];
+  // Build ordered list of sources to try: the site's own rates file first.
+  const sources = [{ name: 'the Centre’s rates file', url: SITE_RATES_URL }];
   if (GDRIVE_RATES_FILE_ID) {
     sources.push({
-      name: 'the Centre’s rates file',
+      name: 'a copy of the rates file',
       url: 'https://drive.google.com/uc?export=download&id=' + GDRIVE_RATES_FILE_ID
     });
   }

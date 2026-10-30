@@ -621,6 +621,23 @@ stop until the pages point at the new account. Everything the pages need is in *
    still names an old id, or if the gate's client id differs), commit and publish. Then sign in
    on the office PC with the latest records and press Sync Now.
 
+### Updating the payroll rates (once a year, or when the Government changes one)
+
+Payroll's **Fetch Current Rates** reads `payroll-rates.json` from this site first (the older
+Drive copy and the first published list are only fallbacks). To change a rate:
+
+1. On GitHub, open the Centre's repository and click **`payroll-rates.json`**.
+2. Click the **pencil** (Edit this file).
+3. Change only the numbers that changed (keep every comma and quote), and set `"fiscalYear"`
+   (e.g. `"2026/2027"`), `"effectiveDate"` and `"lastUpdated"` (as `YYYY-MM-DD`).
+4. Click **Commit changes…**, write a short note (e.g. "Payroll rates 2026/27") and confirm.
+5. Wait a few minutes for the green tick beside the change (the checks test the file: a red cross
+   means a number or a comma is wrong). Then in Payroll → Settings press **Fetch Current Rates**,
+   check the figures, and press **Save Settings**.
+
+On the Centre's own network with no internet the button cannot fetch anything; type the rates
+in Settings as before.
+
 The Qualification Plans page also lists one folder per
 qualification (in `Qual-Plan-Curriculum.html`): re-link those documents if they were in the old
 account.

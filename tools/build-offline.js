@@ -62,6 +62,11 @@ const EXCLUDE = [
   /^[0-9]-[A-Z0-9-]+\.bat$/,               // the MegaData migration scripts
   /^MEGADATA_SPEC\.md$/, /^PRODUCTIVITY-AUDIT\.md$/, /^README\.md$/,
   /^package(-lock)?\.json$/,               // the offline build has its own
+  // The payroll rates are edited on GitHub by the owner (a five-step recipe);
+  // copying them here would make every such edit fail the drift check. With
+  // no internet the Payroll page's "Fetch Current Rates" could not reach the
+  // other sources either: rates are typed in Settings, as before.
+  /^payroll-rates\.json$/,
   // Real per-user exports are never copied anywhere; only the documented
   // structure ships.
   /^User Login\/(?!README\.md$|_TEMPLATE\/)/
