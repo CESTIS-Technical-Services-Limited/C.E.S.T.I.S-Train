@@ -14458,6 +14458,111 @@
       LOW_ATTENDANCE: LOW_ATTENDANCE, RUN_ALERT: RUN_ALERT, RECENT_DAYS: RECENT_DAYS, PASS_DEFAULT: PASS_DEFAULT };
   })();
 
+  // ===================== THE OFFICE'S VIEW OF THE WORK: marking backlog, registers not taken =====================
+  // The marking backlog was a bare count ("35 pending"): nothing said that 31
+  // of them were over a week old, that one programme's 16 had waited 14 days,
+  // or that 13 pieces past their due date had never been handed in (audit
+  // M6). And nothing flagged a class whose register was never taken: a Solar
+  // register blank for two days showed only as empty cells in a weekly grid
+  // (M11).
+  Core.officeWatch = (function () {
+    var DAY = 86400000;
+    function ms(v) { var t = Date.parse(v || ''); return isNaN(t) ? null : t; }
+    /* opts: { assignments, submissions, results, exams, students,
+               sameProgramme, ownerOfExam(exam) -> name, nowMs }
+       -> { waiting, oldestAt, oldestDays, items: [{ kind, id, title, course,
+            owner, waiting, oldestAt }], byOwner: [{ owner, waiting,
+            oldestDays, items }], pastDueMissing, missingBy: [{ id, title,
+            course, owner, dueDate, trainees: [names] }] } */
+    function backlog(opts) {
+      opts = opts || {};
+      var CW = Core.coursework, now = opts.nowMs || Date.now();
+      var items = [];
+      (opts.assignments || []).forEach(function (a) {
+        if (!a) return;
+        var subs = CW.latestPerStudent(opts.submissions || [], a.id).filter(function (s) {
+          return CW.gradeValue(a.grades ? a.grades[s.studentId] : null) == null;
+        });
+        if (!subs.length) return;
+        var oldest = subs.reduce(function (m, s) { var t = ms(s.submittedAt); return t != null && (m == null || t < m) ? t : m; }, null);
+        items.push({ kind: 'assignment', id: a.id, title: a.title || 'Assignment', course: a.course || '', owner: a.createdBy || 'Unknown', waiting: subs.length, oldestMs: oldest });
+      });
+      var examById = {};
+      (opts.exams || []).forEach(function (e) { if (e && e.id != null) examById[String(e.id)] = e; });
+      var byExam = {};
+      (opts.results || []).forEach(function (r) {
+        if (!r || r.archived || !Array.isArray(r.answers)) return;
+        if (!r.answers.some(function (x) { return x && x.needsManualGrade && !x.graded; })) return;
+        var k = String(r.examId || r.examTitle || '');
+        (byExam[k] = byExam[k] || []).push(r);
+      });
+      Object.keys(byExam).forEach(function (k) {
+        var e = examById[k] || { id: k, title: byExam[k][0].examTitle || 'Exam' };
+        var oldest = byExam[k].reduce(function (m, r) { var t = ms(r.submittedAt); return t != null && (m == null || t < m) ? t : m; }, null);
+        var owner = typeof opts.ownerOfExam === 'function' ? opts.ownerOfExam(e) : (e.createdBy || 'Unknown');
+        items.push({ kind: 'exam', id: e.id, title: e.title || 'Exam', course: e.course || '', owner: owner || 'Unknown', waiting: byExam[k].length, oldestMs: oldest });
+      });
+      var days = function (t) { return t == null ? null : Math.max(0, Math.floor((now - t) / DAY)); };
+      items.forEach(function (it) { it.oldestDays = days(it.oldestMs); it.oldestAt = it.oldestMs == null ? '' : new Date(it.oldestMs).toISOString(); });
+      items.sort(function (a, b) { return (a.oldestMs == null ? Infinity : a.oldestMs) - (b.oldestMs == null ? Infinity : b.oldestMs); });
+      var owners = {};
+      items.forEach(function (it) {
+        var o = owners[it.owner] = owners[it.owner] || { owner: it.owner, waiting: 0, oldestMs: null, items: [] };
+        o.waiting += it.waiting; o.items.push(it);
+        if (it.oldestMs != null && (o.oldestMs == null || it.oldestMs < o.oldestMs)) o.oldestMs = it.oldestMs;
+      });
+      var byOwner = Object.keys(owners).map(function (k) { var o = owners[k]; o.oldestDays = days(o.oldestMs); return o; })
+        .sort(function (a, b) { return (b.oldestDays || 0) - (a.oldestDays || 0) || b.waiting - a.waiting; });
+      var oldestMs = items.length ? items[0].oldestMs : null;
+      // Work past its due date that was never handed in.
+      var missingBy = [], missingN = 0;
+      (opts.assignments || []).forEach(function (a) {
+        if (!a || !CW.isPastDue(a.dueDate, now)) return;
+        var who = CW.notSubmitted(a, opts.students || [], opts.submissions || [], opts.sameProgramme);
+        if (!who.length) return;
+        missingN += who.length;
+        missingBy.push({ id: a.id, title: a.title || 'Assignment', course: a.course || '', owner: a.createdBy || '', dueDate: a.dueDate || '', trainees: who.map(function (s) { return s.name; }) });
+      });
+      missingBy.sort(function (a, b) { return String(a.dueDate) < String(b.dueDate) ? -1 : 1; });
+      return { waiting: items.reduce(function (n, it) { return n + it.waiting; }, 0), oldestAt: oldestMs == null ? '' : new Date(oldestMs).toISOString(),
+        oldestDays: days(oldestMs), items: items, byOwner: byOwner, pastDueMissing: missingN, missingBy: missingBy };
+    }
+    /* The school day before `today` (Friday for a Monday). */
+    function previousSchoolDay(today) {
+      var A = Core.attendance, d = A.addDays(today, -1);
+      while (A.weekday(d) === 0 || A.weekday(d) === 6) d = A.addDays(d, -1);
+      return d;
+    }
+    /* The classes scheduled on `day` whose register has no mark at all for
+       that day: no trainee of the class's programme is marked present, late,
+       absent, excused or "no class" on it. A cancelled class is not
+       expected to have one, nor a programme with nobody in training.
+       -> [{ session, course, instructor, trainees }] */
+    function registersNotTaken(opts) {
+      opts = opts || {};
+      var day = opts.day, same = opts.sameProgramme || function (a, b) { return Core.normCourse(a) === Core.normCourse(b); };
+      var marked = {};
+      (opts.register || []).forEach(function (r) {
+        if (!r || r.date !== day || r.unconfirmed) return;
+        if (Core.attendance.normStatus(r.status) === '') return;
+        marked[String(r.studentId)] = true;
+      });
+      var out = [], seen = {};
+      (opts.sessions || []).forEach(function (s) {
+        if (!s || s.date !== day || s.status === 'cancelled' || !s.course) return;
+        var roll = (opts.students || []).filter(function (t) { return t && Core.centreFigures.isActive(t) && t.course && (t.course === s.course || same(t.course, s.course)); });
+        if (!roll.length) return;
+        if (roll.some(function (t) { return marked[String(t.id)]; })) return;
+        var key = Core.normCourse(s.course) + '|' + (s.time || '') + '|' + (s.name || '');
+        if (seen[key]) return;
+        seen[key] = true;
+        out.push({ session: s, course: s.course, instructor: s.createdBy || '', trainees: roll.length });
+      });
+      return out.sort(function (a, b) { return String(a.session.time || '') < String(b.session.time || '') ? -1 : 1; });
+    }
+    return { backlog: backlog, previousSchoolDay: previousSchoolDay, registersNotTaken: registersNotTaken };
+  })();
+
   // ===================== THE CLASS LIST: upcoming and past, repeating weekly =====================
   // After a term an instructor's class list was 125 cards in the order they
   // were made, the next class at number 121, with no status, no Edit and no

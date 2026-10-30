@@ -201,6 +201,7 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     const reg = [];
     const put = (s, date, status) => A.mark(reg, { studentId: s.id, date, status, by: 'USR-INS-IAN', byName: 'Ian Barrett', studentName: s.name, course: s.course, at: date + 'T15:00:00.000Z' });
     roll.concat(plumb).forEach((s, i) => days.forEach((date, k) => {
+      if (s.course === P && k === days.length - 1) return;               // Plumbing's register for the last school day was not taken
       let st = (i * 7 + k * 3) % 23 === 0 ? 'absent' : (i * 5 + k) % 17 === 0 ? 'late' : 'present';
       if (s.name === STOPPED && k >= 23) st = 'absent';                 // has not come for the last 7 school days
       if (s.name === LOW) st = k % 2 === 0 ? 'absent' : (k % 3 === 0 ? 'late' : 'present');
@@ -260,6 +261,8 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     // A term of classes: 30 held, 3 to come.
     for (let k = 30; k >= 1; k--) classSessions.push({ id: 'CS-PAST-' + k, name: 'Welding Theory — Session ' + (31 - k), course: W, date: A.addDays(today, -k * 2), time: '09:00', duration: 90,
       type: 'virtual', location: 'Virtual-01', roomCode: 'ROOM' + k + 'PAST', status: 'completed', createdBy: 'Ian Barrett', createdAt: now });
+    classSessions.push({ id: 'CS-PLUMB-LAST', name: 'Pipe Fitting Practical', course: P, date: days[days.length - 1], time: '13:00', duration: 120, type: 'practical',
+      location: 'Plumbing Bay', roomCode: 'ROOMPLUMB', status: 'scheduled', createdBy: 'Paula Reid', createdAt: now });
     for (let k = 1; k <= 3; k++) classSessions.push({ id: 'CS-NEXT-' + k, name: 'Welding Practical — Session ' + (30 + k), course: W, date: A.addDays(today, k * 2), time: '09:00', duration: 120,
       type: 'practical', location: 'Workshop Bay 3', roomCode: 'ROOM' + k + 'NEXT', status: 'scheduled', createdBy: 'Ian Barrett', createdAt: now });
     saveState();
@@ -539,6 +542,36 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     await I.waitForTimeout(400);
     const edited = await I.evaluate(() => classSessions.filter(s => s.name === 'Welding Theory — weekly').map(s => s.seriesIndex + ':' + s.time + ':' + s.location).join(','));
     ok(/2:10:30:Workshop Bay 3/.test(edited) && (edited.match(/:09:00:/g) || []).length === 4, 'only that class changed (' + edited + ')');
+  });
+
+  /* ------------------------------------------------------------ office */
+  await section('office', 'The office: registers not taken, the marking backlog, Admin Staff\'s view', async () => {
+    await O.evaluate(() => { showPage('dashboard'); buildAdminPages(); });
+    await O.waitForTimeout(500);
+    const reg = await txt(O, '#dashRegistersNotTaken');
+    ok(/Registers not taken on [A-Za-z]+day[^:]*: 1 class/.test(reg) && /Pipe Fitting Practical \(Plumbing, Paula Reid\)/.test(reg), 'the dashboard flags the Plumbing register not taken on the last school day (' + reg.replace(/\s+/g, ' ').slice(0, 100) + ')');
+    const bl = await txt(O, '#dashMarkingBacklog');
+    ok(/\d+ pieces of work waiting to be marked, the oldest for \d+ days?/.test(bl) && /Ian Barrett: \d+/.test(bl) && /past due, never handed in/.test(bl), 'and the marking backlog: how many, how old, on whom, and work never handed in (' + bl.replace(/\s+/g, ' ').slice(0, 120) + ')');
+    await shot(O, 'b9-admin-dashboard-office-alerts', { focus: '#dashRegistersNotTaken' });
+    await O.click('#dashMarkingBacklog');
+    await until(() => O.evaluate(() => !!document.getElementById('officeBacklogCard')), 10000);
+    const card = await txt(O, '#officeBacklogCard');
+    ok(/Ian Barrett/.test(card) && /Week 10/.test(card) && /Unit 5 Theory Test/.test(card), 'the Assignments page shows the backlog by instructor, item by item');
+    await shot(O, 'b9-admin-assignments-backlog', { focus: '#officeBacklogCard' });
+    // Admin Staff, at the other office PC.
+    const pc2 = await computer();
+    const S = await open(pc2, 'admin staff', true);
+    PAGES.adminstaff = S;
+    ok(await signIn(S, 'paulette'), 'Paulette (Admin Staff) signs in');
+    await refresh(S);
+    await until(() => S.evaluate(() => examResults.length >= 40), 15000, 1500);
+    ok(!!(await S.$('#sidebarNav .nav-item[data-page="as-needs-attention"]')), 'Admin Staff have Needs Attention in their sidebar');
+    await go(S, 'as-needs-attention');
+    await S.waitForTimeout(500);
+    const t = await txt(S, '#page-as-needs-attention');
+    ok(/Registers not taken on/.test(t) && /waiting to be marked/.test(t), 'her Needs Attention page carries the registers not taken and the marking');
+    ok(/Damion Lewis/.test(t) && /Brandon Lee/.test(t) && /owes/i.test(t), 'and every programme\'s trainees who need attention, with what they owe');
+    await shot(S, 'b9-adminstaff-needs-attention', { focus: '#page-as-needs-attention' });
   });
 
   /* ----------------------------------------------------------- notices */

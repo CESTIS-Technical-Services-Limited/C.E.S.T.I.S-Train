@@ -14780,6 +14780,10 @@ function buildAdminPages() {
   // (CESTISCore.attention) — applicants, graduates and ended intakes are not
   // a warning.
   const lowAttendance = attentionLowAttendanceCount();
+  // The marking backlog and the registers not taken on the last school day
+  // (CESTISCore.officeWatch): who and how old, not a bare count.
+  let backlog = { waiting: 0, pastDueMissing: 0, byOwner: [], oldestDays: null }, notTaken = { day: '', list: [] };
+  try { backlog = officeBacklog(false); notTaken = registersNotTakenList(); } catch (e) {}
   const pendingCerts = students.filter(s=>s.stage==='certified'&&!s.certCollected).length;
   // What the course-end rule found in the transcripts of trainees whose course
   // has ended: ready to certify, or still waiting for results to be marked.
@@ -14811,6 +14815,8 @@ function buildAdminPages() {
     <div class="grid-2col">
       <div class="card"><div class="card-header"><h3>System Alerts</h3></div>
         <div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="dashLowAttendanceAlert" onclick="showPage('needs-attention')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('needs-attention');}" title="See who, with their last attendance and phone"><div class="alert-icon">\u26A0\uFE0F</div><div class="alert-body"><div class="alert-msg">${lowAttendance} student${lowAttendance!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs attention — see who &rarr;</div></div></div>
+        ${notTaken.list.length ? `<div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="dashRegistersNotTaken" onclick="showPage('attendance')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('attendance');}"><div class="alert-icon">\uD83D\uDCCB</div><div class="alert-body"><div class="alert-msg">Registers not taken on ${escapeHtml(officeDayLabel(notTaken.day))}: ${notTaken.list.length} class${notTaken.list.length!==1?'es':''}</div><div class="alert-time">${escapeHtml(notTaken.list.map(x => (x.session.name || 'Class') + ' (' + x.course + (x.instructor ? ', ' + x.instructor : '') + ')').join(' · '))}</div></div></div>` : ''}
+        ${backlog.waiting || backlog.pastDueMissing ? `<div class="alert-item alert-warning alert-link" role="button" tabindex="0" id="dashMarkingBacklog" onclick="showPage('a-assignments')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('a-assignments');}"><div class="alert-icon">\u270D\uFE0F</div><div class="alert-body"><div class="alert-msg">${backlog.waiting} piece${backlog.waiting!==1?'s':''} of work waiting to be marked${backlog.oldestDays != null ? ', the oldest for ' + officeDaysText(backlog.oldestDays) : ''}</div><div class="alert-time">${backlog.pastDueMissing ? backlog.pastDueMissing + ' past due, never handed in · ' : ''}${escapeHtml(backlog.byOwner.slice(0,3).map(o => o.owner + ': ' + o.waiting).join(' · '))} &rarr;</div></div></div>` : ''}
         <div class="alert-item alert-warning"><div class="alert-icon">\uD83D\uDCDD</div><div class="alert-body"><div class="alert-msg">${upcomingExams} exams scheduled this period</div><div class="alert-time">Review schedule</div></div></div>
         ${readyToCertify.length ? `<div class="alert-item alert-success"><div class="alert-icon">\u2705</div><div class="alert-body"><div class="alert-msg">${readyToCertify.length} trainee${readyToCertify.length!==1?'s':''} ready to certify</div><div class="alert-time">Course ended, every core unit competent: ${escapeHtml(someNames(readyToCertify))}</div></div></div>` : ''}
         ${awaitingMarking.length ? `<div class="alert-item alert-warning"><div class="alert-icon">\u23F3</div><div class="alert-body"><div class="alert-msg">${awaitingMarking.length} trainee${awaitingMarking.length!==1?'s':''} awaiting marking after their course ended</div><div class="alert-time">Not marked Not Yet Competent until the results are in: ${escapeHtml(someNames(awaitingMarking))}</div></div></div>` : ''}
@@ -16022,6 +16028,8 @@ function buildInstructorPages() {
   const avgGpa = myStudents.length ? (myStudents.reduce((a,s) => a + (parseFloat(gpaOf[s.id]) || 0), 0) / myStudents.length).toFixed(1) : '0.0';
   // By the register, in a running intake: the rule of the Needs Attention list it opens.
   const lowAttCount = attentionLowAttendanceCount();
+  let myBacklog = { waiting: 0, pastDueMissing: 0, oldestDays: null };
+  try { myBacklog = officeBacklog(true); } catch (e) {}
   const upcomingExams = myExams.filter(e => e.status === 'upcoming');
   const skill = findSkillAreaForCourse(ins.course);
 
@@ -16070,6 +16078,7 @@ function buildInstructorPages() {
     <div class="grid-2col">
       <div class="card"><div class="card-header"><h3>Alerts</h3></div>
         ${lowAttCount > 0 ? `<div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="iDashLowAttendanceAlert" onclick="showPage('i-needs-attention')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('i-needs-attention');}"><div class="alert-icon">⚠️</div><div class="alert-body"><div class="alert-msg">${lowAttCount} student${lowAttCount!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs follow-up — see who &rarr;</div></div></div>` : ''}
+        ${myBacklog.waiting ? `<div class="alert-item alert-warning alert-link" role="button" tabindex="0" id="iDashMarkingBacklog" onclick="showPage('i-gradebook')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('i-gradebook');}"><div class="alert-icon">✍️</div><div class="alert-body"><div class="alert-msg">${myBacklog.waiting} to mark${myBacklog.oldestDays != null ? ', the oldest waiting ' + officeDaysText(myBacklog.oldestDays) : ''}</div><div class="alert-time">${myBacklog.pastDueMissing ? myBacklog.pastDueMissing + ' past due, never handed in · ' : ''}Open the gradebook &rarr;</div></div></div>` : ''}
         <div class="alert-item alert-info"><div class="alert-icon">📝</div><div class="alert-body"><div class="alert-msg">${upcomingExams.length} exam${upcomingExams.length!==1?'s':''} scheduled for ${escapeHtml(ins.course)}</div><div class="alert-time">Review schedule</div></div></div>
         <div class="alert-item alert-warning"><div class="alert-icon">📋</div><div class="alert-body"><div class="alert-msg">${myStudents.filter(s=>s.stage==='incomplete').length} student${myStudents.filter(s=>s.stage==='incomplete').length!==1?'s':''} marked incomplete</div><div class="alert-time">Review progress</div></div></div>
         <div class="alert-item alert-info" id="iDashNextClassAlert" style="display:none;"><div class="alert-icon">🔔</div><div class="alert-body"><div class="alert-msg" id="iDashNextClassMsg"></div><div class="alert-time" id="iDashNextClassTime"></div></div></div>
@@ -16534,6 +16543,7 @@ function ensureAttentionPage(pageId) {
     (pageId === 'i-needs-attention' ? '' : '<select class="form-control" style="width:220px;" id="attnCourse-' + pageId + '" aria-label="Programme" onchange="renderNeedsAttention(' + jsArg(pageId) + ')"><option value="all">All programmes</option></select>') +
     '<input type="text" class="form-control" style="width:200px;" id="attnSearch-' + pageId + '" placeholder="Search a name..." aria-label="Search a name" oninput="renderNeedsAttention(' + jsArg(pageId) + ')"></div></div>' +
     '<div class="table-wrapper"><table class="attn-table"><thead id="attnHead-' + pageId + '"></thead><tbody id="attnBody-' + pageId + '"></tbody></table></div></div>';
+  if (pageId !== 'i-needs-attention') sec.insertAdjacentHTML('afterbegin', '<div id="attnOffice-' + pageId + '"></div>');
   mc.appendChild(sec);
 }
 function attentionShortDate(d) {
@@ -16547,6 +16557,8 @@ function renderNeedsAttention(pageId) {
   var body = document.getElementById('attnBody-' + pageId), head = document.getElementById('attnHead-' + pageId);
   if (!body || !head) return;
   var office = attentionIsOffice(), AT = CESTISCore.attention;
+  var ow = document.getElementById('attnOffice-' + pageId);
+  if (ow) { try { ow.innerHTML = officeWatchHtml(); } catch (e) { ow.innerHTML = ''; } }
   var all = attentionRows();
   var cSel = document.getElementById('attnCourse-' + pageId);
   if (cSel) {
@@ -16594,6 +16606,66 @@ function refreshAttentionViews() {
     var pg = document.getElementById('page-' + id);
     if (pg && pg.classList.contains('active')) renderNeedsAttention(id);
   });
+}
+/* ---- The office's watch on the work (CESTISCore.officeWatch) ----
+   The marking backlog with its age and who it waits on, and the classes
+   whose register was not taken on the last school day (audit M6, M11). */
+function examOwnerName(e) {
+  if (!e) return 'Unknown';
+  var by = e.createdBy;
+  if (!by || by === 'admin' || e.createdByRole === 'admin') return 'Administrator';
+  var ins = (typeof instructorData !== 'undefined' && Array.isArray(instructorData) ? instructorData : []).find(function(i){ return i && i.id === by; });
+  if (ins && ins.name) return ins.name;
+  var acc = (userAccounts || []).find(function(u){ return u && u.id === by; });
+  return acc && acc.name ? acc.name : String(by);
+}
+function officeBacklog(onlyMine) {
+  var asg = instructorAssignments || [], ex = exams || [];
+  if (onlyMine && currentInstructor) {
+    asg = asg.filter(function(a){ return a && (a.createdBy === currentInstructor.name || instructorCourseMatch(a.course, currentInstructor.course)); });
+    ex = ex.filter(function(e){ return e && instructorCourseMatch(e.course, currentInstructor.course); });
+  }
+  var ids = {}; ex.forEach(function(e){ ids[e.id] = 1; });
+  return CESTISCore.officeWatch.backlog({ assignments: asg, submissions: assignmentSubmissions || [], exams: ex,
+    results: (examResults || []).filter(function(r){ return r && ids[r.examId]; }), students: students || [],
+    sameProgramme: instructorCourseMatch, ownerOfExam: examOwnerName });
+}
+function registersNotTakenList() {
+  var day = CESTISCore.officeWatch.previousSchoolDay(localDateStr());
+  return { day: day, list: CESTISCore.officeWatch.registersNotTaken({ day: day, sessions: classSessions || [], students: students || [],
+    register: Array.isArray(attendanceRegister) ? attendanceRegister : [], sameProgramme: instructorCourseMatch }) };
+}
+function officeDayLabel(d) { try { return new Date(d + 'T12:00:00').toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }); } catch (e) { return d; } }
+function officeDaysText(n) { return n == null ? '' : n === 0 ? 'today' : n === 1 ? '1 day' : n + ' days'; }
+// The two boxes the office sees at the top of Needs Attention and on the
+// Assignments page.
+function officeWatchHtml(opts) {
+  opts = opts || {};
+  var html = '';
+  if (opts.registers !== false) {
+    var rn = registersNotTakenList();
+    if (rn.list.length) {
+      html += '<div class="alert-item alert-danger" id="officeRegistersNotTaken"><div class="alert-icon">📋</div><div class="alert-body"><div class="alert-msg">Registers not taken on ' + escapeHtml(officeDayLabel(rn.day)) + ': ' + rn.list.length + ' class' + (rn.list.length !== 1 ? 'es' : '') + '</div>' +
+        '<div class="alert-time" style="color:var(--text-secondary);">' + rn.list.map(function(x){ return escapeHtml(x.session.name || 'Class') + ' (' + escapeHtml(x.course) + (x.session.time ? ', ' + escapeHtml(x.session.time) : '') + (x.instructor ? ', ' + escapeHtml(x.instructor) : '') + ')'; }).join(' · ') + '</div></div></div>';
+    }
+  }
+  var b = officeBacklog(false);
+  if (b.waiting || b.pastDueMissing) {
+    html += '<div class="card office-backlog" id="officeBacklogCard" style="margin-bottom:14px;"><div class="card-header" style="flex-wrap:wrap;gap:8px;"><h3>Marking</h3><span style="font-size:13px;color:var(--text-secondary);">' +
+      b.waiting + ' waiting to be marked' + (b.oldestDays != null ? ', the oldest for ' + officeDaysText(b.oldestDays) : '') +
+      (b.pastDueMissing ? ' · ' + b.pastDueMissing + ' past due, never handed in' : '') + '</span></div>';
+    if (b.byOwner.length) {
+      html += '<div class="table-wrapper"><table><thead><tr><th>Waiting on</th><th class="num">To mark</th><th class="num">Oldest</th><th>What</th></tr></thead><tbody>' +
+        b.byOwner.map(function(o){ return '<tr><td><strong>' + escapeHtml(o.owner) + '</strong></td><td class="num">' + o.waiting + '</td><td class="num" style="' + ((o.oldestDays || 0) >= 7 ? 'color:var(--red);font-weight:700;' : '') + '">' + escapeHtml(officeDaysText(o.oldestDays)) + '</td><td style="font-size:12px;">' +
+          o.items.map(function(it){ return escapeHtml(it.title) + ' (' + it.waiting + ')'; }).join(', ') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    }
+    if (b.missingBy.length) {
+      html += '<details style="padding:8px 4px 4px;"><summary style="cursor:pointer;font-size:13px;font-weight:600;">Past due, never handed in (' + b.pastDueMissing + ')</summary>' +
+        b.missingBy.map(function(m){ return '<div style="font-size:12px;padding:4px 0;"><strong>' + escapeHtml(m.title) + '</strong> <span style="color:var(--text-muted);">(' + escapeHtml(m.course) + ', due ' + escapeHtml(m.dueDate) + ')</span>: ' + m.trainees.map(escapeHtml).join(', ') + '</div>'; }).join('') + '</details>';
+    }
+    html += '</div>';
+  }
+  return html;
 }
 function refreshAttentionBadges() {
   var n = 0;
@@ -21390,6 +21462,12 @@ function renderInstructorGradebook() {
 
   var html = '';
   var CWk = CESTISCore.coursework;
+  // How long the oldest work has waited (audit M6), at the top.
+  try {
+    var mineBl = typeof officeBacklog === 'function' ? officeBacklog(true) : null;
+    if (mineBl && mineBl.waiting) html += '<div class="alert-item alert-warning gb-backlog" style="margin-bottom:12px;"><div class="alert-icon">✍️</div><div class="alert-body"><div class="alert-msg">' + mineBl.waiting + ' to mark' + (mineBl.oldestDays != null ? ', the oldest waiting ' + officeDaysText(mineBl.oldestDays) : '') + '</div>' +
+      '<div class="alert-time" style="color:var(--text-secondary);">' + mineBl.items.slice(0, 4).map(function(it){ return escapeHtml(it.title) + ' (' + it.waiting + ')'; }).join(' · ') + '</div></div></div>';
+  } catch (e) {}
   // Work still to mark first, then the newest (audit IN-4): the assignment
   // waiting to be marked used to be the tenth card down.
   CWk.assignmentOrder(myAssignments, assignmentSubmissions).forEach(function(a) {
@@ -21594,6 +21672,12 @@ function openAdminCreateAssignment() {
 function renderAdminAssignments() {
   var container = document.getElementById('adminAssignmentsList');
   if (!container) return;
+  // Who the marking waits on, and for how long (audit M6).
+  try {
+    var bl = document.getElementById('aAssignBacklog');
+    if (!bl && container.parentNode) { bl = document.createElement('div'); bl.id = 'aAssignBacklog'; container.parentNode.insertBefore(bl, container); }
+    if (bl) bl.innerHTML = officeWatchHtml({ registers: false });
+  } catch (e) {}
 
   // Populate course filter
   var courseSel = document.getElementById('aAssignFilterCourse');
