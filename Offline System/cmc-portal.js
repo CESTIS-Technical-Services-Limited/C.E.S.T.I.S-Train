@@ -109,13 +109,24 @@
   /* The operating pages whose collections the board reads, and the page-cloud
      file each one publishes. Used to pull current copies without asking the
      board member to press anything. */
+  /* School Fee joins them (audit M2). The board saw no fee money at all —
+     not by any decision, but because the fee books were never on this list,
+     so the board's page never pulled them; three widgets labelled "fees"
+     were then filled with certificate counts instead. The fee books come by
+     exactly the route the four books above do: READ, never written. The
+     board's reader names one key it may settle (`writes: ['cesti_virements']`
+     in index.html); no fee key is, or may ever be, among its writes. */
   var CMC_SHARED_FILES = [
     { key: 'cashbook', file: 'CESTIS_Cashbook.json', page: 'Cashbook',
       keys: ['cesti_cashbook_data', 'cestis_active_quarter'], prefixes: ['cestis_quarter_', 'cestis_budget_'] },
     { key: 'payslip', file: 'CESTIS_Staff_Payslips.json', page: 'Staff Payslips', keys: ['cestisPayroll'] },
     { key: 'clockin', file: 'CESTIS_Staff_TimeClock.json', page: 'Staff Time Clock', keys: ['cestisStaffMembers', 'cestisTimeRecords'] },
-    { key: 'virement', file: 'CESTIS_Virement_Requests.json', page: 'Virement Requests', keys: ['cesti_virements'] }
+    { key: 'virement', file: 'CESTIS_Virement_Requests.json', page: 'Virement Requests', keys: ['cesti_virements'] },
+    { key: 'fees', file: 'CESTIS_School_Fees.json', page: 'School Fee Management',
+      keys: ['cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDeletedLmsIds', 'cestiSchoolFeeDeletedPaymentIds'] }
   ];
+  /* The keys the board may never write, whatever else changes: the fee books. */
+  var CMC_FEE_KEYS = CMC_SHARED_FILES[CMC_SHARED_FILES.length - 1].keys.slice();
 
   function num(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
   function parseJson(raw, dflt) {
@@ -260,6 +271,25 @@
         amount: num(v.total != null ? v.total : v.amount)
       };
     }).filter(Boolean).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  }
+
+  /* School fees for the board: billed, collected and owed by programme for
+     one financial year (the present one unless opts.fy says otherwise), with
+     what earlier years' trainees still owe as its own line — by the one rule
+     every screen uses (CESTISCore.centreFigures.fees), over the fee books as
+     the School Fee page reads them (deleted accounts and payments left out).
+     Takes a storage map; returns figures; writes nothing.
+     -> { figures (see centreFigures.fees), accounts: [...] } */
+  function core() {
+    if (root && root.CESTISCore) return root.CESTISCore;
+    try { return typeof require === 'function' ? require('./cestis-core.js') : null; } catch (e) { return null; }
+  }
+  function cmcFeeFigures(storeMap, opts) {
+    var C = core(), map = storeMap || {};
+    if (!C || !C.centreFigures || !C.centreFigures.fees) return null;
+    var F = C.centreFigures;
+    var books = F.feeBooks(function (k) { var v = map[k]; return v == null ? null : (typeof v === 'string' ? v : JSON.stringify(v)); });
+    return { figures: F.fees(books.accounts, books.payments, opts), accounts: books.accounts };
   }
 
   /* --- Filtering: the board decides what it wants to look at ---------------
@@ -491,6 +521,8 @@
     CMC_ALLOWED_PANELS: CMC_ALLOWED_PANELS,
     CMC_ALLOWED_CASHBOOK_PAGES: CMC_ALLOWED_CASHBOOK_PAGES,
     CMC_SHARED_FILES: CMC_SHARED_FILES,
+    CMC_FEE_KEYS: CMC_FEE_KEYS,
+    cmcFeeFigures: cmcFeeFigures,
     cmcPanelAllowed: cmcPanelAllowed,
     cmcCashbookPageAllowed: cmcCashbookPageAllowed,
     cmcStudentSummary: cmcStudentSummary,
@@ -645,6 +677,7 @@
       statCard('📚', 'accent', active, 'Currently in Training', 'Active trainees') +
       statCard('📊', 'purple', attVal, 'Average Attendance', attSub) +
       '</div>';
+    h += cmcpFeesCard();
 
     h += '<div class="grid-2col">';
     // Students by programme
@@ -679,6 +712,59 @@
       '</tbody></table></div>';
     h += '</div>';
     return h;
+  }
+
+  /* ---------------- School fees (read-only) ----------------
+     What the School Fee page's books say for the present financial year, by
+     programme, with what earlier years still owe on its own line. Read with
+     getItem only: the board never writes a fee record. */
+  function feeFiguresNow() {
+    var map = {};
+    try {
+      var S = root.CESTISStore;
+      if (S && typeof S.getItem === 'function') {
+        CMC_FEE_KEYS.concat(['voctrain_deletedStudentIds']).forEach(function (k) {
+          try { map[k] = S.getItem(k); } catch (e) {}
+        });
+      }
+    } catch (e) {}
+    return cmcFeeFigures(map);
+  }
+  root.cmcpFeeFiguresNow = feeFiguresNow;
+
+  function cmcpFeesCard() {
+    var C = core(), r = feeFiguresNow();
+    if (!C || !r) return '';
+    var F = C.centreFigures, f = r.figures, m = F.moneyText;
+    var head = '<div class="card cmcp-fees" id="cmcpFees"><div class="card-header"><h3>School Fees — ' + esc(f.label) + '</h3>' +
+      '<span class="cmcp-readonly-pill">🔒 View only</span></div>';
+    if (!f.accounts && !f.collected && !f.earlier.trainees) {
+      return head + '<p style="color:var(--text-muted);padding:14px;">No fee records yet.</p></div>';
+    }
+    var num = 'text-align:right;white-space:nowrap;';
+    var rows = f.byProgramme.map(function (p) {
+      return '<tr><td>' + esc(p.programme) + '</td><td style="' + num + '">' + esc(m(p.billed)) + '</td>' +
+        '<td style="' + num + '">' + esc(m(p.collected)) + '</td><td style="' + num + '">' + esc(m(p.owed)) + '</td>' +
+        '<td style="' + num + '">' + p.debtors + ' of ' + p.accounts + '</td></tr>';
+    }).join('');
+    rows += '<tr style="font-weight:700;"><td>All programmes</td><td style="' + num + '">' + esc(m(f.billed)) + '</td>' +
+      '<td style="' + num + '">' + esc(m(f.collected)) + '</td><td style="' + num + '">' + esc(m(f.owed)) + '</td>' +
+      '<td style="' + num + '">' + f.debtors + ' of ' + f.accounts + '</td></tr>';
+    var early = f.earlier.byProgramme.map(function (p) {
+      return esc(p.programme) + ' ' + esc(m(p.owed)) + ' (' + p.trainees + ')';
+    }).join(' · ');
+    return head +
+      '<div style="overflow-x:auto;"><table class="data-table" style="width:100%;">' +
+      '<thead><tr><th>Programme</th><th style="text-align:right;">Billed</th><th style="text-align:right;">Collected</th>' +
+      '<th style="text-align:right;">Owed</th><th style="text-align:right;">Trainees owing</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>' +
+      '<div class="cmcp-fees-earlier" style="margin-top:12px;font-weight:600;">' + esc(F.earlierText(f.earlier)) +
+      (early ? '<span style="font-weight:400;color:var(--text-muted);"> — ' + early + '</span>' : '') +
+      '<span style="font-weight:400;color:var(--text-muted);"> · not included in Owed above</span></div>' +
+      '<div style="margin-top:6px;font-size:12px;color:var(--text-muted);">Billed and Owed: trainees enrolled in ' + esc(f.label) +
+      ' (Owed is as at today). Collected: payments dated in ' + esc(f.label) + '.' +
+      (f.unpriced ? ' ' + f.unpriced + ' trainee' + (f.unpriced === 1 ? ' has' : 's have') + ' no fee set yet.' : '') + '</div>' +
+      '</div>';
   }
 
   /* ---------------- Student Progress ---------------- */
