@@ -2578,6 +2578,14 @@
         }
         // This ending has been dealt with: by a person, or by this rule's NYC.
         if (s._nycForCourseEnd === endKey) { out.outcome = 'settled'; return out; }
+        // A dropout ("Incomplete") is how this course ended for them, whoever
+        // recorded it and whenever — and a stage a person chose (other than In
+        // Training, which is exactly what the ending judges) is theirs to
+        // change. The sweep turned every dropout into Not Yet Competent the
+        // day the course ended, so dropouts were reported as NYC; neither is
+        // touched now (as Student Progress's own stage edit promises).
+        var stg = String(s.stage || '').trim().toLowerCase();
+        if (stg === 'incomplete' || (s.stageSetByUser && stg && stg !== 'training' && stg !== 'in training')) { out.outcome = 'settled'; return out; }
         // Already NYC (set by hand, or arrived so from another device).
         if (s.stage === 'nyc') return out;
         var r = opts.readiness;
@@ -3558,12 +3566,16 @@
       return (n - last) < (staleMs || STALE_MS);
     }
 
-    /* The running Large Class for a room code, or null. */
+    /* The running Large Class for a room code, or null. A small room's host
+       keeps its join log in this same list (mode 'mesh'), and that log is
+       open while the class runs: it is NOT a Large Class. Counting it sent
+       every trainee after the first one into an empty hosted room, while the
+       instructor waited in the small room for them. */
     function liveFor(list, code, now, staleMs) {
       var want = String(code || '').toUpperCase().trim();
       if (!want) return null;
       var open = (list || []).filter(function (s) {
-        return s && String(s.code || '').toUpperCase() === want && isLive(s, now, staleMs);
+        return s && s.mode !== 'mesh' && String(s.code || '').toUpperCase() === want && isLive(s, now, staleMs);
       });
       if (!open.length) return null;
       open.sort(function (a, b) { return String(b.startedAt || '').localeCompare(String(a.startedAt || '')); });
@@ -8983,6 +8995,30 @@
       if (!lastActivity || now - lastActivity > EXAM_ACTIVE_MS) return expiry;
       return Math.max(expiry, Math.min(deadline + EXAM_AFTER_MS, now + EXAM_STEP_MS));
     }
+    /* Teaching a live class, or watching a sitting on the Exam Invigilator,
+       is using the PC even when nobody touches the keyboard: the instructor
+       is talking to the camera, the invigilator is watching the board. Only
+       key presses and clicks used to count, so an instructor was locked out
+       21 minutes into a lesson, a trainee at minute 61 of one, and an
+       invigilator part-way through a sitting. The dashboard asks this every
+       minute and, while it says yes, counts the minute as activity.
+         info.inLiveRoom        this device is in a running class (small room
+                                or Large Class), as host or as a trainee
+         info.invigilatorBoard  the board on screen, if any (Core.invigilation
+                                .board): it keeps the PC awake while its
+                                sitting is open now, or somebody is still
+                                writing (time not yet up) after it closed
+       A PC with nothing of the kind open still locks exactly as before; a
+       board left on a sitting that has not opened yet, or is over with
+       everyone finished (or their time up), does not keep it awake. */
+    function keepsAwake(info) {
+      info = info || {};
+      if (info.inLiveRoom) return true;
+      var b = info.invigilatorBoard;
+      if (!b) return false;
+      if (b.status === 'active') return true;
+      return (Array.isArray(b.rows) ? b.rows : []).some(function (r) { return r && r.status === 'in-progress' && !r.timeUp; });
+    }
 
     /* The dashboard this page is embedded in, if it is the same site and
        somebody is signed in to it. (A page on another site cannot read it.) */
@@ -9105,7 +9141,7 @@
       return { students: [], exams: [] };
     }
 
-    return { resolve: resolve, state: state, idleLimit: idleLimit, RANK: RANK, FRESH_MS: FRESH_MS, examGrace: examGrace,
+    return { resolve: resolve, state: state, idleLimit: idleLimit, RANK: RANK, FRESH_MS: FRESH_MS, examGrace: examGrace, keepsAwake: keepsAwake,
              embeddingSession: embeddingSession, forPage: forPage, guard: guard, lockPage: lockPage, searchPool: searchPool };
   })();
 
@@ -10318,7 +10354,34 @@
   Core.notify = (function () {
     function audience(n) {
       if (n && Array.isArray(n.forUsers) && n.forUsers.length) return 'u:' + n.forUsers.slice().sort().join(',');
-      return 'r:' + ((n && Array.isArray(n.forRoles)) ? n.forRoles.slice().sort().join(',') : '');
+      var k = 'r:' + ((n && Array.isArray(n.forRoles)) ? n.forRoles.slice().sort().join(',') : '');
+      // A programme's notices, and one instructor's marking notices, are kept
+      // as their own audience: a busy programme, or a marking session, no
+      // longer pushes everybody else's notices out of the bell.
+      if (n && n.forCourse) k += '|c:' + String(n.forCourse);
+      if (n && Array.isArray(n.forInstructors) && n.forInstructors.length) k += '|i:' + n.forInstructors.slice().sort().join(',');
+      return k;
+    }
+    /* Who a notice reaches beyond its roles. Two optional fields, on new
+       notices only — every notice already stored has neither and reaches
+       everybody in its roles exactly as before:
+         n.forCourse       a programme's notice (a new class, a resource, an
+                           instructor's announcement): a TRAINEE sees it only
+                           when it is her programme (or 'General'); staff as
+                           before. A Plumbing trainee's bell held every
+                           Welding class, resource and announcement.
+         n.forInstructors  [account ids]: a marking notice reaches the
+                           instructor who marked (and the administrators),
+                           not every instructor in the Centre.
+       viewer { role, userId, course, sameProgramme(a, b) } -> true | false */
+    function reaches(n, viewer) {
+      if (!n) return false;
+      var v = viewer || {};
+      if (v.role === 'student' && n.forCourse) return Core.coursework.resourceVisible(n.forCourse, v.course, v.sameProgramme);
+      if (v.role === 'instructor' && Array.isArray(n.forInstructors) && n.forInstructors.length) {
+        return !!v.userId && n.forInstructors.indexOf(v.userId) !== -1;
+      }
+      return true;
     }
     function prune(list, perAudience, max) {
       if (!Array.isArray(list)) return list;
@@ -10334,7 +10397,7 @@
       if (keep.length === list.length) return list;
       return list.filter(function (n) { return n && keep.indexOf(n) !== -1; });
     }
-    return { prune: prune };
+    return { prune: prune, reaches: reaches };
   })();
 
   Core.cashbook = (function () {
@@ -11867,6 +11930,10 @@
       };
       var users = strList(n.forUsers, 50);
       if (users.length) out.forUsers = users;
+      // Who else it is for (Core.notify.reaches): a programme, the marking instructor.
+      if (n.forCourse != null && String(n.forCourse).trim()) out.forCourse = String(n.forCourse).slice(0, 120);
+      var ins = strList(n.forInstructors, 20);
+      if (ins.length) out.forInstructors = ins;
       return out;
     }
 
@@ -13714,6 +13781,67 @@
       return { graded: graded, total: assignments.length, percent: percent, gpa: gpaFromPercent(avg) };
     }
 
+    /* The instructor's gradebook: a column for EVERY exam and EVERY assignment
+       of the programme, newest first, and each trainee's average over all of
+       them. It used to show the first seven exams and the first seven
+       assignments only, and average just those: from week 8 a trainee's
+       latest marks were not on screen and her average still read 90% when
+       the truth was 71%.
+         opts { students, exams, assignments, results, isFinal(result) }
+       Exams count as one standard item each; an assignment by its Weight
+       (%). An exam's mark is the trainee's final result for it (isFinal: one
+       still awaiting marking, or archived, is not a mark yet).
+       -> { columns: [{ kind:'exam'|'assignment', id, title, label, weight, date }],
+            rows: [{ student, cells: [pct|null per column], average: pct|null }] } */
+    function gradebook(opts) {
+      opts = opts || {};
+      var isFinal = typeof opts.isFinal === 'function' ? opts.isFinal : function (r) { return !!r; };
+      var cols = [];
+      (opts.exams || []).forEach(function (e) {
+        if (!e) return;
+        cols.push({ kind: 'exam', id: e.id, title: e.title || 'Exam', label: e.title || 'Exam', weight: DEFAULT_WEIGHT,
+          date: String(e.date || '') + ' ' + String(e.time || ''), src: e });
+      });
+      (opts.assignments || []).forEach(function (a) {
+        if (!a) return;
+        cols.push({ kind: 'assignment', id: a.id, title: a.title || 'Assignment', label: (a.title || 'Assignment') + ' (' + weightOf(a.weight) + '%)',
+          weight: a.weight, date: String(a.dueDate || '') + ' ' + String(a.createdAt || ''), src: a });
+      });
+      // Newest first; the order they were set in breaks a tie.
+      cols = cols.map(function (c, i) { c._i = i; return c; }).sort(function (a, b) {
+        return a.date < b.date ? 1 : a.date > b.date ? -1 : b._i - a._i;
+      });
+      var results = (opts.results || []).filter(function (r) { return r && isFinal(r); });
+      var rows = (opts.students || []).map(function (st) {
+        var mine = results.filter(function (r) { return r.studentId === st.id; });
+        var items = cols.map(function (c) {
+          if (c.kind === 'exam') {
+            var r = mine.filter(function (x) { return x.examId === c.id || x.examTitle === c.src.title; })[0];
+            return { pct: r ? gradeValue(r.score) : null, weight: DEFAULT_WEIGHT };
+          }
+          return { pct: percentOf(c.src.grades ? c.src.grades[st.id] : null, c.src.maxPoints), weight: c.src.weight };
+        });
+        return { student: st, cells: items.map(function (it) { return it.pct; }), average: weightedAverage(items) };
+      });
+      return {
+        columns: cols.map(function (c) { return { kind: c.kind, id: c.id, title: c.title, label: c.label, weight: c.kind === 'exam' ? DEFAULT_WEIGHT : weightOf(c.weight), date: c.date.trim() }; }),
+        rows: rows
+      };
+    }
+    /* "Export Grades": the gradebook as a spreadsheet — a row per trainee, a
+       column per exam and assignment (newest first, as on screen), whole
+       percentages, then the average. Cells that start like a formula are
+       made text (Core.attendance.csvCell). */
+    function gradebookCsv(book) {
+      var cell = Core.attendance.csvCell;
+      var pct = function (v) { return v == null ? '' : String(Math.round(v)); };
+      var lines = [['Trainee', 'Student ID'].concat(book.columns.map(function (c) { return c.label + ' %'; })).concat(['Average %']).map(cell).join(',')];
+      book.rows.forEach(function (r) {
+        lines.push([r.student.name || '', r.student.id || ''].concat(r.cells.map(pct)).concat([pct(r.average)]).map(cell).join(','));
+      });
+      return lines.join('\n');
+    }
+
     // A changed mark is recorded, not just overwritten: who, when, and what it
     // was before. HEART/NSTA moderation asks exactly that.
     function recordGrade(assignment, studentId, points, by, nowIso) {
@@ -13799,10 +13927,162 @@
       isPastDue: isPastDue, daysUntil: daysUntil,
       gradeValue: gradeValue, percentOf: percentOf, weightOf: weightOf, weightedAverage: weightedAverage,
       gpaFromPercent: gpaFromPercent, effectiveGpa: effectiveGpa, studentSummary: studentSummary,
+      gradebook: gradebook, gradebookCsv: gradebookCsv,
       recordGrade: recordGrade, submissionHistory: submissionHistory, latestSubmission: latestSubmission,
       latestPerStudent: latestPerStudent, canSubmit: canSubmit, oversizeFiles: oversizeFiles,
       resourceVisible: resourceVisible
     };
+  })();
+
+  // ===================== THE CENTRE'S FIGURES: one rule per figure =====================
+  // The administrator's dashboard, Reports and the CMC board's screens each
+  // counted the Centre their own way, out of the same records: attendance over
+  // every record (applicants who never attended counted as 0%), completion as
+  // certified over everyone ever enrolled (running intakes and applicants
+  // included), the exam pass rate with work still awaiting marking counted as
+  // a fail — or, worse, a "pass rate" read from a GPA typed by hand that
+  // nobody had typed (20% overall, 0% for every running programme). The audit
+  // measured the same Centre at 76% / 84% attendance, 20% / 67% completion and
+  // 67% / 73% exam passes depending on the screen. These are the rules, once;
+  // each figure says what it is a rate OF ("84% of 60 active").
+  Core.centreFigures = (function () {
+    function stageOf(s) {
+      var st = String((s && s.stage) || '').trim().toLowerCase().replace(/\s+/g, '');
+      return st === 'intraining' ? 'training' : st;
+    }
+    // Testing or interview: not admitted yet.
+    function isApplicant(s) { var st = stageOf(s); return st === 'testing' || st === 'interview'; }
+    // A dropout: Incomplete, or marked so on the enrolment register.
+    function isDropout(s) { return stageOf(s) === 'incomplete' || String((s && s.enrolStatus) || '').toLowerCase() === 'dropout'; }
+    // In training now (a record with no stage at all is read as in training,
+    // as the invigilator's roll reads it).
+    function isActive(s) { var st = stageOf(s); return !!s && (st === 'training' || st === '') && !isDropout(s); }
+    function isCertified(s) { var st = stageOf(s); return st === 'certified' || st === 'collected'; }
+    function list(a) { return (Array.isArray(a) ? a : []).filter(Boolean); }
+    function rate(n, d, dp) { if (!d) return null; var f = Math.pow(10, dp || 0); return Math.round(n / d * 100 * f) / f; }
+    function figure(v) {
+      if (v == null || v === '') return null;
+      var n = typeof v === 'number' ? v : parseFloat(v);
+      return isFinite(n) ? n : null;
+    }
+
+    /* "Total Enrolled" is everyone on the roll; "Active" those in training. */
+    function enrolment(students) {
+      var l = list(students);
+      return { total: l.length, active: l.filter(isActive).length, applicants: l.filter(isApplicant).length,
+        certified: l.filter(isCertified).length, dropouts: l.filter(isDropout).length };
+    }
+    /* Attendance: the average of ACTIVE trainees' attendance (pctOf(s), by
+       default their recorded s.attendance), over those with a figure.
+       -> { rate, of, active } */
+    function attendance(students, pctOf) {
+      var act = list(students).filter(isActive), vals = [];
+      act.forEach(function (s) { var v = figure(pctOf ? pctOf(s) : s.attendance); if (v != null) vals.push(v); });
+      return { rate: vals.length ? Math.round(vals.reduce(function (a, b) { return a + b; }, 0) / vals.length) : null, of: vals.length, active: act.length };
+    }
+    /* Completion and dropout: over the trainees of intakes that have ENDED
+       (endedOf(s) — their course is over), applicants never admitted left out.
+       A running intake has not completed or failed to yet.
+       -> { rate, of, certified } / { rate (one decimal), of, dropouts } */
+    function endedPopulation(students, endedOf) {
+      return list(students).filter(function (s) { return !isApplicant(s) && typeof endedOf === 'function' && !!endedOf(s); });
+    }
+    function completion(students, endedOf) {
+      var pop = endedPopulation(students, endedOf), done = pop.filter(isCertified).length;
+      return { rate: rate(done, pop.length), of: pop.length, certified: done };
+    }
+    function dropout(students, endedOf) {
+      var pop = endedPopulation(students, endedOf), out = pop.filter(isDropout).length;
+      return { rate: rate(out, pop.length, 1), of: pop.length, dropouts: out };
+    }
+    /* Exam passes: over MARKED results only (Core.exams.isFinal — one still
+       awaiting marking, or archived, is not a result yet). opts.studentIds
+       narrows it to some trainees (a programme's roll).
+       -> { rate, of, passed, awaiting } */
+    function examPass(results, opts) {
+      opts = opts || {};
+      var ids = null;
+      if (opts.studentIds) { ids = {}; opts.studentIds.forEach(function (id) { ids[String(id)] = 1; }); }
+      var mine = list(results).filter(function (r) { return !r.archived && (!ids || ids[String(r.studentId)]); });
+      var marked = mine.filter(function (r) { return Core.exams.isFinal(r); });
+      var passed = marked.filter(function (r) { return !!r.passed; }).length;
+      return { rate: rate(passed, marked.length), of: marked.length, passed: passed, awaiting: mine.length - marked.length };
+    }
+    /* Instructors: the Centre's instructor records and the accounts that
+       carry the instructor role, one per name. */
+    function instructorCount(records, accounts) {
+      var seen = {};
+      list(records).forEach(function (i) { var n = String(i.name || '').trim().toLowerCase(); if (n) seen[n] = 1; });
+      list(accounts).forEach(function (u) {
+        if (u.role !== 'instructor') return;
+        var n = String(u.name || '').trim().toLowerCase();
+        if (n) seen[n] = 1;
+      });
+      return Object.keys(seen).length;
+    }
+    /* A rate with what it is a rate of: "84% of 60 active",
+       "— (no marked results yet)" when there is nothing to divide. */
+    function rateText(f, noun, none) {
+      if (!f || f.rate == null) return '— (' + (none || 'none yet') + ')';
+      return f.rate + '% of ' + f.of + ' ' + noun;
+    }
+    return { isApplicant: isApplicant, isActive: isActive, isDropout: isDropout, isCertified: isCertified,
+      enrolment: enrolment, attendance: attendance, completion: completion, dropout: dropout, examPass: examPass,
+      instructorCount: instructorCount, rateText: rateText };
+  })();
+
+  // ===================== A TRAINEE'S CONTACT DETAILS FROM THEIR ACCOUNT =====================
+  // The email and telephone typed when a trainee account is made (by the
+  // office, or by the trainee registering from home) stayed on the account:
+  // the trainee record and the fee record were created without them, so the
+  // enrolment register read "— —" and the office had no number to call.
+  // They are now carried across — filling ONLY what is blank: a value
+  // somebody already typed is never replaced.
+  Core.traineeContact = (function () {
+    function blank(v) { return v == null || String(v).trim() === ''; }
+    /* record: a trainee record ({email, phone}) or a fee record — map gives
+       the record's own field names, e.g. { email: 'email', phone: 'contact' }.
+       Returns the record fields it filled. */
+    function fillFromAccount(record, account, map) {
+      var out = [];
+      if (!record || !account) return out;
+      map = map || { email: 'email', phone: 'phone' };
+      ['email', 'phone'].forEach(function (k) {
+        var to = map[k], v = account[k];
+        if (!to || blank(v) || !blank(record[to])) return;
+        record[to] = String(v).trim();
+        out.push(to);
+      });
+      return out;
+    }
+    return { fillFromAccount: fillFromAccount, FEE_FIELDS: { email: 'email', phone: 'contact' } };
+  })();
+
+  // ===================== RECEIPT NUMBERS: a number already given =====================
+  // Receipt numbers are typed by hand on School Fee, and the same number was
+  // accepted for two trainees without a word ("R-0412" twice: two receipt
+  // PDFs with one number). It is not refused — a parent may pay for two
+  // trainees on one receipt — but the page asks first. Blank numbers are not
+  // compared (how they are generated is unchanged).
+  Core.receiptNumbers = (function () {
+    function key(v) { return String(v == null ? '' : v).trim().toLowerCase(); }
+    /* The payment (other than exceptId) that already carries this receipt
+       number, trimmed and case-insensitively; null when none. */
+    function usedBy(payments, number, exceptId) {
+      var k = key(number);
+      if (!k) return null;
+      var list = Array.isArray(payments) ? payments : [];
+      for (var i = 0; i < list.length; i++) {
+        var p = list[i];
+        if (p && key(p.receiptNumber) === k && (exceptId == null || String(p.id) !== String(exceptId))) return p;
+      }
+      return null;
+    }
+    /* "Receipt R-0412 is already used for Ann Brown on 2026-10-12. Use it again?" */
+    function question(number, p) {
+      return 'Receipt ' + String(number).trim() + ' is already used for ' + (p.studentName || 'another payment') + (p.date ? ' on ' + p.date : '') + '. Use it again?';
+    }
+    return { usedBy: usedBy, question: question };
   })();
 
   // ===================== COMMUNICATIONS: announcements, agenda, bell =====================

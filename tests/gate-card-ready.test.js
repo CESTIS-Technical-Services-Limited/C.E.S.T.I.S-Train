@@ -58,5 +58,18 @@ function extractFunction(src, name) {
   assert(/id="gateNotReadyNote"/.test(card), w + ': the card says why Turn on is not available yet');
   assert(/btn\.disabled = !on && \(!tg\.url \|\| !ready\)/.test(extractFunction(src, 'gateCardRefresh')), w + ': the button stays disabled until the trainee side is there');
 });
+// The card's "A newer version is available" line depends on this number matching the gate.
+(function () {
+  const root = path.join(__dirname, '..');
+  const gs = fs.readFileSync(path.join(root, 'trainee-gate', 'Gate.gs'), 'utf8').match(/var GATE_VERSION = (\d+);/);
+  const paste = fs.readFileSync(path.join(root, 'trainee-gate', 'PASTE-GATE.gs'), 'utf8').match(/var GATE_VERSION = (\d+);/);
+  assert(gs && paste && gs[1] === paste[1], 'PASTE-GATE.gs carries the same GATE_VERSION as Gate.gs');
+  ['', 'Offline System'].forEach(where => {
+    const src = fs.readFileSync(path.join(root, where, 'index.html'), 'utf8').match(/var GATE_EXPECTED_VERSION = (\d+);/);
+    assert(gs && src && src[1] === gs[1], (where || '.') + '/index.html expects gate version ' + (src && src[1]) + ', Gate.gs is version ' + (gs && gs[1]));
+  });
+  const setup = fs.readFileSync(path.join(root, 'trainee-gate', 'SETUP.md'), 'utf8');
+  assert(gs && setup.indexOf('version: ' + gs[1] + ', …}') !== -1 && setup.indexOf('Ready — version ' + gs[1]) !== -1, 'SETUP.md tells the administrator to expect version ' + (gs && gs[1]));
+})();
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exit(1);

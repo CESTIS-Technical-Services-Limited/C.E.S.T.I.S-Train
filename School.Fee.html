@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261029a"></script>
+<script src="cestis-core.js?v=20261029b"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CESTIS - School Fee Management System</title>
     
@@ -8702,6 +8702,16 @@
             } catch (e) { return null; }
         }
 
+        // Is this receipt number one another payment already carries? If so,
+        // ask before it is used again (CESTISCore.receiptNumbers). true = go on.
+        function feeReceiptNumberConfirmed(receiptNumber, exceptId) {
+            try {
+                const other = CESTISCore.receiptNumbers.usedBy(payments, receiptNumber, exceptId);
+                if (other) return confirm(CESTISCore.receiptNumbers.question(receiptNumber, other));
+            } catch (e) {}
+            return true;
+        }
+
         function recordPayment() {
             const studentId = document.getElementById('paymentStudentId').value;
             const amount = parseFloat(document.getElementById('paymentAmount').value) || 0;
@@ -8736,6 +8746,11 @@
                     return;
                 }
             }
+
+            // A receipt number already given to another payment is asked
+            // about, not refused (one receipt may cover two trainees). Cancel
+            // keeps the form as typed.
+            if (!feeReceiptNumberConfirmed(receiptNumber, null)) return;
 
             const payment = {
                 id: 'PAY' + Date.now(),
@@ -9365,6 +9380,9 @@
             const oldAmount = payment.amount;
             const difference = newAmount - oldAmount;
             
+            // The receipt number, if it is now one another payment carries.
+            if (!feeReceiptNumberConfirmed(receiptNumber, payment.id)) return;
+
             // Warn if amount changed significantly
             if (Math.abs(difference) > 0.01) {
                 if (!confirm(`The payment amount will change from $${oldAmount.toFixed(2)} to $${newAmount.toFixed(2)}.\n\nThis will ${difference > 0 ? 'increase' : 'decrease'} the student's total paid by $${Math.abs(difference).toFixed(2)}.\n\nDo you want to continue?`)) {

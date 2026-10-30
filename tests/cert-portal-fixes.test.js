@@ -221,7 +221,9 @@ for (const page of PAGES) {
   const dash = extractFunction(page.src, 'buildAdminPages', w);
   assert(dash.indexOf("split('-')") === -1 && dash.indexOf('CESTISCore.certs.byMonth(students') !== -1 && dash.indexOf('CESTISCore.certs.certifiedInYear(students') !== -1, w + ': the dashboard uses them');
   assert(extractFunction(page.src, 'exportReportCSV', w).indexOf('reportProgrammeRolls()') !== -1, w + ': the report export has a row per training centre, not per programme name');
-  assert(page.src.indexOf("s.stage==='incomplete' || s.enrolStatus==='dropout'") !== -1, w + ': a dropout marked on the register counts in Dropout Rate');
+  // The Dropout Rate's rule is CESTISCore.centreFigures.dropout (tests/centre-figures.test.js).
+  assert(/const dropoutRate = fig\.dropout\.rate/.test(page.src) && require('../cestis-core.js').centreFigures.isDropout({ stage: 'training', enrolStatus: 'dropout' }),
+    w + ': a dropout marked on the register counts in Dropout Rate');
 }
 
 /* ---------- certs-13 and the lookup's approvals ---------- */

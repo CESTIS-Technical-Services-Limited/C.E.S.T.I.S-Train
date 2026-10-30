@@ -13,7 +13,8 @@
    administrator) and three trainees' PCs sharing the Centre's copy, with the
    exam platform's own paper ("Welding Safety — Unit 3 Assessment", 10
    questions and an information item, three to a page):
-     1. the board before anyone starts: three expected, Not started;
+     1. the board before anyone starts: three expected, Not started — and
+        watching it for 25 minutes without a click does not lock the PC;
      2. Tameka starts (the board shows her In progress, on her PC, page 1 of
         4), moves to page 2, leaves the test window and comes back (the board
         says "Away from the test window now", then "Left the test window
@@ -255,6 +256,11 @@ const QUESTIONS = [
       ok(c && c.expected === 3 && c.started === 0 && c.notStarted === 3 && c.absent === 0, 'counts: 3 expected, none started (' + JSON.stringify(c) + ')');
       ok((await row(O, 'shanice')).text.indexOf('Not started yet') !== -1, 'each row: "Not started yet"');
       ok(/Updates arrive by themselves — last checked/.test(await txt(O, '#invigFresh')), 'the page says plainly how it keeps itself up to date');
+      // The idle lock (20 minutes for staff) counted only keys and clicks, so
+      // an invigilator watching the board was locked out part-way through
+      // the sitting. An open sitting on screen counts as use of the PC.
+      const lock = await O.evaluate(() => { _sessionLastActivity = Date.now() - 25 * 60000; sessionHeartbeat(); return { locked: !!document.querySelector('#idleLockModal.active'), fresh: Date.now() - _sessionLastActivity < 5000 }; });
+      ok(!lock.locked && lock.fresh, 'watching the open sitting for 25 minutes without a click does not lock the PC (' + JSON.stringify(lock) + ')');
     });
 
     let tamekaStart = 0;
@@ -355,6 +361,7 @@ const QUESTIONS = [
       const c = await counts(O);
       ok(c.expected === 3 && c.started === 2 && c.submitted === 2 && c.absent === 1 && c.notStarted === 0, 'counts: 3 expected, 2 submitted, 1 absent (' + JSON.stringify(c) + ')');
       ok(/Closed/.test(await txt(O, '#invigMeta')), 'and the sitting says it is closed');
+      ok(await O.evaluate(() => sessionKeptAwake() === false), 'a closed sitting with everyone finished no longer keeps the PC from locking');
       await shot(O, 'board-finished');
     });
 

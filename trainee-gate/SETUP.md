@@ -17,7 +17,7 @@ What you need:
 
 > For whoever installs it: the program is `trainee-gate/PASTE-GATE.gs`. It is built from
 > `cestis-core.js` and `trainee-gate/Gate.gs` by `npm run build:gate` — never edit the paste by
-> hand. Its first line says `mode: allowlist` (only the shared rules the gate runs, ~270 KB) or
+> hand. Its first line says `mode: allowlist` (only the shared rules the gate runs, ~360 KB) or
 > `mode: full` (all of `cestis-core.js`, ~0.9 MB).
 
 ---
