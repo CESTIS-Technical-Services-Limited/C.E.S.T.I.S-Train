@@ -156,6 +156,7 @@ function page(userId) {
   assert(/CESTISCore\.exams\.copyExam\(e, \{ id: cestisGenId\('EXAM-'\)/.test(fn('copyExamToBuilder')), 'Copy uses the core rule with a new id');
   assert(/data-page="i-import-exam"/.test(fn('buildInstructorSidebar')) && /id="page-i-import-exam">\s*<div class="cestis-mount" data-feature="import-exam" data-prefix="instructor">/.test(src), 'instructors have Import Exam');
   assert(/You can import an exam for your own programme only/.test(fn('finalizeImportExam')), 'for their own programme only');
+  assert(/importExamLimitCourses\(\);/.test(fn('populateCourseDropdowns')), 'and the list stays narrowed when every refresh rebuilds the programme lists');
 }
 {
   // The programme list an instructor is offered on Import Exam.
