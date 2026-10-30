@@ -8074,7 +8074,21 @@
             // Populate edit form
             document.getElementById('editStudentId').value = student.id;
             document.getElementById('editStudentName').value = student.name;
-            document.getElementById('editSkillArea').value = student.skillArea;
+            // The programme list is the priced programmes. A trainee whose
+            // programme has no fee set yet used to open with no programme
+            // chosen, and saving their details was refused with "Please fill
+            // in all required fields (Name and Skill Area)" (OF-14). Their own
+            // programme is offered, marked, so the details save.
+            const _editSel = document.getElementById('editSkillArea');
+            _editSel.value = student.skillArea;
+            if (student.skillArea && _editSel.value !== student.skillArea) {
+                const _own = document.createElement('option');
+                _own.value = student.skillArea;
+                _own.textContent = student.skillArea + ' (no fee set yet)';
+                _own.setAttribute('data-unpriced', '1');
+                _editSel.appendChild(_own);
+                _editSel.value = student.skillArea;
+            }
             document.getElementById('editTuitionFee').value = student.tuitionFee;
             document.getElementById('editContactNumber').value = student.contact || '';
             document.getElementById('editEmail').value = student.email || '';
@@ -8212,8 +8226,12 @@
             const parentContact = document.getElementById('editParentContact').value.trim();
             const emergencyContact = document.getElementById('editEmergencyContact').value.trim();
 
-            if (!name || !skillArea) {
-                alert('Please fill in all required fields (Name and Skill Area)');
+            if (!name) {
+                alert('Please enter the trainee\'s name.');
+                return;
+            }
+            if (!skillArea) {
+                alert('Please choose the trainee\'s programme (Skill Area).');
                 return;
             }
 
@@ -8229,6 +8247,12 @@
             const newTuitionFee = _feeKey
                 ? feeStructure[_feeKey].total
                 : (parseFloat(student.tuitionFee) || 0);
+            // A programme with no fee set yet (OF-14): the personal details are
+            // saved, the tuition stays as it is, and a trainee not priced yet
+            // stays marked as such, so setting the programme's fee later fills
+            // in their tuition (feeBackfillTuition) instead of leaving them at
+            // $0 — "fully paid" while owing everything.
+            const _unpricedProgramme = !_feeKey && !(newTuitionFee > 0);
 
             // Warn if changing skill area with existing payments
             if (oldSkillArea !== skillArea && student.totalPaid > 0) {
@@ -8266,7 +8290,8 @@
             // placeholder from the trainee roll. (The tuition back-fill already
             // promises to leave an edited record as set, and a merge never lets
             // a placeholder outrank it — CESTISCore.feeRecordRank.)
-            delete student.needsFeeDetails;
+            if (!_unpricedProgramme) delete student.needsFeeDetails;
+            else student.needsFeeDetails = true;
             // Stamp the edit: the name is synced both ways and resolved by which
             // side was edited last, so an undated record would lose every tie.
             student.updatedAt = new Date().toISOString();
@@ -8304,7 +8329,9 @@
             closeModal('editStudentModal');
             editingStudentIndex = -1;
             
-            feeToastWithYearNote('Student information updated.', yearNote);
+            feeToastWithYearNote(_unpricedProgramme
+                ? 'Student information updated. ' + skillArea + ' has no fee set yet: set it under Fee Structure and this trainee\'s tuition is filled in.'
+                : 'Student information updated.', yearNote);
         }
 
         // Populate payment student select
