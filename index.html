@@ -740,6 +740,12 @@ html[data-theme="light"] #landingPage {
 .cmc-kpi-label { font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:600; }
 .cmc-kpi-value { font-size:28px; font-weight:700; color:var(--text-primary); margin:4px 0; font-family:'Playfair Display',serif; }
 .cmc-kpi-sub { font-size:12px; color:var(--text-secondary); }
+/* School fees on the board's dashboard: the whole width, three money figures. */
+.cmc-kpi-card.cmc-kpi-wide { grid-column:1 / -1; }
+.cmc-fee-trio { display:flex; flex-wrap:wrap; gap:12px 36px; margin:6px 0 8px; }
+.cmc-fee-cell-label { font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); font-weight:600; }
+.cmc-fee-cell-value { font-size:26px; font-weight:700; color:var(--text-primary); font-family:'Playfair Display',serif; }
+.cmc-kpi-sub.cmc-fee-earlier { color:var(--orange); font-weight:600; margin-top:4px; }
 .cmc-charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:24px; }
 .cmc-chart-card {
   background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
@@ -1927,6 +1933,31 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .search-results .search-empty {
   padding:24px 14px; text-align:center; font-size:13px; color:var(--text-muted);
 }
+
+/* The Programme return on Reports: its two choices, a plain heading, the table. */
+.pr-card .card-header { flex-wrap:wrap; gap:10px; }
+.pr-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.pr-filters { display:flex; flex-wrap:wrap; gap:12px 18px; margin-bottom:12px; }
+.pr-filter { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; min-width:220px; flex:1 1 220px; max-width:420px; }
+.pr-filter .form-control { text-transform:none; letter-spacing:normal; font-weight:500; }
+.pr-heading { font-size:15px; font-weight:700; color:var(--text-primary); margin:6px 0 4px; line-height:1.4; }
+.pr-sub { font-size:12px; color:var(--text-muted); margin-bottom:12px; line-height:1.5; font-weight:400; }
+.pr-table td, .pr-table th { white-space:nowrap; text-align:right; padding:8px 7px; }
+.pr-table th { white-space:normal; vertical-align:bottom; font-size:12px; letter-spacing:0.2px; line-height:1.3; }
+.pr-table td:first-child, .pr-table th:first-child { text-align:left; white-space:normal; min-width:160px; }
+.pr-table .pr-of { display:block; font-size:12px; color:var(--text-muted); font-weight:400; }
+.pr-table tr.pr-total td { font-weight:700; border-top:2px solid var(--border-light); }
+.pr-section { font-size:13px; font-weight:700; color:var(--text-secondary); margin:18px 0 6px; }
+.pr-note { font-size:12px; color:var(--text-muted); margin-top:10px; line-height:1.5; }
+
+/* School fees on the administrator's dashboard: three money figures, and the
+   earlier years' arrears right under Outstanding (never added into it). */
+.dash-fees-card { margin-bottom:24px; }
+.dash-fees-row { display:flex; flex-wrap:wrap; gap:14px 40px; }
+.dash-fees-cell .stat-label { margin-top:0; }
+.dash-fees-v { font-size:26px; font-weight:700; color:var(--text-primary); font-family:'Playfair Display',serif; }
+.dash-fees-earlier { font-size:13px; font-weight:700; color:var(--orange); margin-top:4px; }
+.dash-fees-note { font-size:12px; color:var(--text-muted); margin-top:12px; line-height:1.5; }
 
 /* ============================== QUICK ACTIONS GRID ============================== */
 .quick-actions {
@@ -14844,7 +14875,7 @@ function showPage(pageId) {
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
   // Keep the staff-appraisal due indicator fresh whenever the admin dashboard is shown
-  if(pageId === 'dashboard') { try { if(typeof sappRenderAdminDueCard === 'function') sappRenderAdminDueCard(); } catch(e) {} }
+  if(pageId === 'dashboard') { try { if(typeof sappRenderAdminDueCard === 'function') sappRenderAdminDueCard(); } catch(e) {} try { refreshDashboardFees(); } catch(e) {} }
   if(pageId === 'transfer-trainees') { try { renderTransferTraineesPage(); } catch(e) { console.warn('[Transfer] render failed', e); } }
   // Reports counts the roll on every panel, so it is drawn on the way in rather
   // than served from whenever the page happened to be built.
@@ -15060,6 +15091,7 @@ function buildAdminPages() {
       <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">\uD83D\uDCDD</div><div class="stat-value" data-count="${upcomingExams}">0</div><div class="stat-label">Upcoming Exams</div><div class="stat-change" style="color:var(--text-muted);">Next: ${escapeHtml(nextExam?nextExam.date.slice(5):'None scheduled')}</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--purple-dim);color:var(--purple);">\uD83D\uDCF9</div><div class="stat-value" data-count="${classSessions.length}">0</div><div class="stat-label">Class Sessions</div><div class="stat-change" style="color:var(--text-muted);">Total scheduled</div></div>
     </div>
+    <div class="card dash-fees-card" id="dashFeesCard">${dashFeesCardInner()}</div>
     <div class="quick-actions">
       <div class="quick-action-btn" onclick="showPage('students')"><div class="qa-icon">&#128100;</div><div class="qa-label">Add Student</div></div>
       <div class="quick-action-btn" onclick="openModal('createExamModal')"><div class="qa-icon">\uD83D\uDCDD</div><div class="qa-label">Create Exam</div></div>
@@ -15459,6 +15491,22 @@ function buildAdminPages() {
   </div>
 
   <section class="page" id="page-reports">
+    <!-- The Programme return (audit M8): choose an intake and a period, then
+         download it as a spreadsheet (CSV) or a PDF. Drawn by renderProgrammeReturn(). -->
+    <div class="card pr-card" id="programmeReturnCard">
+      <div class="card-header"><h3>Programme return</h3>
+        <div class="pr-actions">
+          <button type="button" class="btn btn-primary btn-sm" onclick="exportProgrammeReturnCSV()">Download CSV</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="exportProgrammeReturnPDF()">Download PDF</button>
+        </div>
+      </div>
+      <div class="pr-filters">
+        <label class="pr-filter"><span>Intake</span><select class="form-control" id="prIntake" onchange="programmeReturnChoose('intake', this.value)"></select></label>
+        <label class="pr-filter"><span>Period</span><select class="form-control" id="prPeriod" onchange="programmeReturnChoose('period', this.value)"></select></label>
+      </div>
+      <div id="prHeading" class="pr-heading"></div>
+      <div id="prBody"></div>
+    </div>
     <div class="stats-grid" id="reportStats"></div>
     <div class="grid-2col">
       <div class="card"><div class="card-header"><h3>Student Stage Distribution</h3><button class="btn-export" onclick="exportReportCSV()">\uD83D\uDCC4 Export</button></div><div id="donutChartContainer" style="display:flex;align-items:center;gap:24px;justify-content:center;"></div></div>
@@ -25618,8 +25666,43 @@ function dashActiveLineText() {
   var e = CESTISCore.centreFigures.enrolment(students);
   return e.active + ' active (in training) \u00b7 ' + e.applicants + ' applicant' + (e.applicants === 1 ? '' : 's');
 }
+/* School fees on the administrator's dashboard (audit M7): this financial
+   year's billed, collected and outstanding, and — beside Outstanding, never
+   added into it — what trainees of earlier years still owe. Read from the
+   School Fee books by the rule the board and School Fee itself use
+   (CESTISCore.centreFigures.fees). Reads only. */
+function dashFeesCardInner() {
+  var F = CESTISCore.centreFigures, f = null;
+  try {
+    var books = F.feeBooks(function (k) { return CESTISStore.getItem(k); });
+    f = F.fees(books.accounts, books.payments);
+  } catch (e) { f = null; }
+  var m = F.moneyText;
+  var open = '<button class="btn btn-secondary btn-sm" onclick="showPage(\'fee-management\')">Open School Fee →</button>';
+  if (!f || (!f.accounts && !f.collected && !f.earlier.trainees)) {
+    return '<div class="card-header"><h3>School Fees</h3>' + open + '</div><p style="font-size:13px;color:var(--text-muted);">No fee records yet.</p>';
+  }
+  var cell = function (label, value, colour, extra) {
+    return '<div class="dash-fees-cell"><div class="stat-label">' + label + '</div><div class="dash-fees-v"' + (colour ? ' style="color:' + colour + ';"' : '') + '>' +
+      escapeHtml(value) + '</div>' + (extra || '') + '</div>';
+  };
+  return '<div class="card-header"><h3>School Fees — ' + escapeHtml(f.label) + '</h3>' + open + '</div>' +
+    '<div class="dash-fees-row">' +
+      cell('Billed', m(f.billed)) +
+      cell('Collected', m(f.collected), 'var(--green)') +
+      cell('Outstanding', m(f.owed), 'var(--red)', '<div class="dash-fees-earlier" id="dashFeesEarlier">' + escapeHtml(F.earlierText(f.earlier)) + '</div>') +
+    '</div>' +
+    '<div class="dash-fees-note">Billed and Outstanding: trainees enrolled in ' + escapeHtml(f.label) + ' (Outstanding is as at today; ' +
+      f.debtors + ' of ' + f.accounts + ' still owe). Collected: payments dated in ' + escapeHtml(f.label) + '. Earlier years are not included in Outstanding.</div>';
+}
+function refreshDashboardFees() {
+  var el = document.getElementById('dashFeesCard');
+  if (el) el.innerHTML = dashFeesCardInner();
+}
+
 function refreshDashboardStudentTotals() {
   try { var _al = document.getElementById('dashActiveLine'); if (_al) _al.textContent = dashActiveLineText(); } catch (e) {}
+  try { refreshDashboardFees(); } catch (e) {}
   try {
     var totalEnrolled = students.length;
     var totalCertified = CESTISCore.certs.certifiedInYear(students, new Date().getFullYear());
@@ -32063,6 +32146,319 @@ function renderCertStats() {
   `;
 }
 
+/* ============================== THE PROGRAMME RETURN (audit M8) ==============================
+   The figures a board or a regulator asks for each quarter, per programme and
+   intake, were assembled by hand from three or more screens: Reports had no
+   intake or date filter and Export Report carried four columns. This is one
+   table, chosen by intake and period and downloaded in one click as a
+   spreadsheet (CSV) or a PDF, by the Centre's own counting rules
+   (CESTISCore.centreFigures.programmeReturn), every rate with what it is a
+   rate of. A plain heading says which intake and period it covers.
+   It is called a "Programme return": it is not any particular agency's form. */
+var _prChoice = { intake: 'all', period: '' };          // '' = the quarter today falls in
+var PR_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function prDay(d) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ''));
+  return m ? (+m[3]) + ' ' + PR_MONTHS[+m[2] - 1] + ' ' + m[1] : '';
+}
+function prMonth(d) {
+  var m = /^(\d{4})-(\d{2})/.exec(String(d || ''));
+  return m ? PR_MONTHS[+m[2] - 1] + ' ' + m[1] : '';
+}
+function prRange(from, to) {
+  var a = prDay(from), b = prDay(to);
+  if (a.slice(-4) === b.slice(-4)) a = a.slice(0, -5);
+  return a + ' – ' + b;
+}
+/* The periods a return can cover: each quarter and each whole financial year,
+   from the earliest intake on record (at most six years back) to today, and
+   "All dates". The quarter today falls in comes first and is the default. */
+function programmeReturnPeriods(todayStr) {
+  var today = todayStr || localDateStr();
+  var cur = CESTISCore.currentQuarter(new Date(today + 'T12:00:00'));
+  var y0 = parseInt(cur.fy, 10), minY = y0;
+  (typeof skillAreas !== 'undefined' && Array.isArray(skillAreas) ? skillAreas : []).forEach(function (sk) {
+    var q = CESTISCore.deriveQuarter(sk && sk.startDate);
+    if (q && parseInt(q.fy, 10) < minY) minY = parseInt(q.fy, 10);
+  });
+  minY = Math.max(minY, y0 - 5);
+  var out = [];
+  for (var y = y0; y >= minY; y--) {
+    var fy = y + '/' + (y + 1), group = 'FY ' + fy;
+    for (var q = 4; q >= 1; q--) {
+      var b = CESTISCore.attendance.quarterBounds(fy, q), meta = CESTISCore.getQuarterMeta(q);
+      if (!b || b.start > today) continue;
+      var running = b.end >= today;
+      out.push({ value: 'q:' + fy + ':' + q, group: group, from: b.start, to: b.end, running: running,
+        label: meta.label + ' · ' + meta.months + ' ' + CESTISCore.quarterCalendarYear(fy, q) + (running ? ' (to date)' : ''),
+        heading: prRange(b.start, b.end) + ' (' + meta.label + ', FY ' + fy + ')' + (running ? ', to date' : '') });
+    }
+    var fs = y + '-04-01', fe = (y + 1) + '-03-31', fr = fe >= today;
+    out.push({ value: 'fy:' + fy, group: group, from: fs, to: fe, running: fr,
+      label: 'The whole year, FY ' + fy + (fr ? ' (to date)' : ''), heading: 'FY ' + fy + ', ' + prRange(fs, fe) + (fr ? ', to date' : '') });
+  }
+  out.push({ value: 'all', group: 'Other', from: '', to: '', running: true, label: 'All dates', heading: 'all dates' });
+  return out;
+}
+function programmeReturnDefaultPeriod() {
+  var cur = CESTISCore.currentQuarter(new Date(localDateStr() + 'T12:00:00'));
+  return 'q:' + cur.fy + ':' + cur.q;
+}
+function prIntakeDates(sk) {
+  if (!sk || (!sk.startDate && !sk.endDate)) return 'no dates set';
+  return (prMonth(sk.startDate) || '…') + ' – ' + (prMonth(sk.endDate) || '…');
+}
+function programmeReturnChoose(field, value) {
+  _prChoice[field] = String(value == null ? '' : value);
+  renderProgrammeReturn();
+}
+/* Everything the return shows, for the current choices. */
+function programmeReturnData() {
+  var F = CESTISCore.centreFigures;
+  var periods = programmeReturnPeriods();
+  var per = periods.find(function (p) { return p.value === (_prChoice.period || programmeReturnDefaultPeriod()); }) ||
+    periods.find(function (p) { return p.value === programmeReturnDefaultPeriod(); }) || periods[periods.length - 1];
+  var progs = reportProgrammeRolls();
+  var picked = _prChoice.intake === 'all' ? null : progs.find(function (p) { return String(p.centre.id) === _prChoice.intake; });
+  if (_prChoice.intake !== 'all' && !picked) _prChoice.intake = 'all';
+  var chosen = picked ? [picked] : progs.slice();
+  // With every intake chosen, one that did not run in the period is left out —
+  // and named, so nobody wonders where it went. An intake with no dates set is
+  // never left out.
+  var left = [];
+  if (!picked && (per.from || per.to)) {
+    chosen = chosen.filter(function (p) {
+      var s = p.centre.startDate || '', e = p.centre.endDate || '';
+      var ran = (!s || !per.to || s <= per.to) && (!e || !per.from || e >= per.from);
+      if (!ran) left.push(p.full + ' (' + prIntakeDates(p.centre) + ')');
+      return ran;
+    });
+  }
+  var fig = centreFigureSet();
+  var books = { accounts: [], payments: [] };
+  try { books = F.feeBooks(function (k) { return CESTISStore.getItem(k); }); } catch (e) {}
+  var asAt = localDateStr();
+  var r = F.programmeReturn({
+    intakes: chosen.map(function (p) { return { label: p.full, dates: prIntakeDates(p.centre), roll: p.roll }; }),
+    register: Array.isArray(attendanceRegister) ? attendanceRegister : [],
+    results: typeof examResults !== 'undefined' ? examResults : [],
+    feeAccounts: books.accounts, payments: books.payments,
+    endedOf: fig.endedOf, attOf: fig.attOf, from: per.from, to: per.to, asAt: asAt
+  });
+  var intakeLabel = picked ? picked.full + ' (' + prIntakeDates(picked.centre) + ')' : 'All intakes';
+  var rule = 'Enrolment and stages are as they stand on ' + prDay(asAt) + '; attendance, marked test results and fee payments are those dated in ' +
+    (per.from ? 'the period' : 'any period') + '. Ages are as at ' + prDay(r.asAt) + '.';
+  return {
+    period: per, periods: periods, progs: progs, left: left, r: r, asAt: asAt, intakeLabel: intakeLabel,
+    heading: 'Programme return — ' + intakeLabel + ' — ' + per.heading,
+    rule: rule, sub: 'Figures as at ' + prDay(asAt) + '. ' + rule
+  };
+}
+/* A rate and what it is a rate of, for the screen and the files alike. */
+function prRates(row) {
+  var c = row.completion, a = row.attendance, p = row.pass;
+  return {
+    completion: c.rate == null ? '—' : c.rate + '%', completionOf: c.rate == null ? 'no ended intake' : 'of ' + c.of + ' in ended intake',
+    attendance: a.rate == null ? '—' : a.rate + '%', attendanceOf: a.rate == null ? 'no active trainee marked' : 'of ' + a.of + ' active',
+    pass: p.rate == null ? '—' : p.rate + '%', passOf: (p.rate == null ? 'no marked results' : 'of ' + p.of + ' marked') + (p.awaiting ? ' · ' + p.awaiting + ' awaiting marking' : '')
+  };
+}
+var PR_COUNTS = [['applicants', 'Applicants'], ['enrolled', 'Enrolled'], ['active', 'Active (in training)'], ['completed', 'Completed'],
+  ['certified', 'Certified'], ['nyc', 'Not Yet Competent'], ['dropouts', 'Incomplete / dropouts']];
+function renderProgrammeReturn() {
+  var card = document.getElementById('programmeReturnCard');
+  if (!card) return;
+  var d = programmeReturnData(), m = CESTISCore.centreFigures.moneyText;
+  var iSel = document.getElementById('prIntake'), pSel = document.getElementById('prPeriod');
+  if (iSel) {
+    iSel.innerHTML = '<option value="all">All intakes</option>' + d.progs.map(function (p) {
+      return '<option value="' + escapeAttr(String(p.centre.id)) + '"' + (String(p.centre.id) === _prChoice.intake ? ' selected' : '') + '>' +
+        escapeHtml(p.full + ' (' + prIntakeDates(p.centre) + ')') + '</option>';
+    }).join('');
+    if (_prChoice.intake === 'all') iSel.value = 'all';
+  }
+  if (pSel) {
+    var groups = [], html = '';
+    d.periods.forEach(function (p) { if (groups.indexOf(p.group) === -1) groups.push(p.group); });
+    groups.forEach(function (g) {
+      html += '<optgroup label="' + escapeAttr(g) + '">' + d.periods.filter(function (p) { return p.group === g; }).map(function (p) {
+        return '<option value="' + escapeAttr(p.value) + '"' + (p.value === d.period.value ? ' selected' : '') + '>' + escapeHtml(p.label) + '</option>';
+      }).join('') + '</optgroup>';
+    });
+    pSel.innerHTML = html;
+  }
+  var head = document.getElementById('prHeading');
+  if (head) head.innerHTML = escapeHtml(d.heading) + '<div class="pr-sub">' + escapeHtml(d.sub) + '</div>';
+  var body = document.getElementById('prBody');
+  if (!body) return;
+  if (!d.r.rows.length) {
+    body.innerHTML = '<p class="pr-note">No intake has trainees in this period.' + (d.left.length ? ' Not on this return (did not run in this period): ' + escapeHtml(d.left.join('; ')) + '.' : '') + '</p>';
+    return;
+  }
+  var cell = function (v, of) { return '<td>' + escapeHtml(v) + (of ? '<span class="pr-of">' + escapeHtml(of) + '</span>' : '') + '</td>'; };
+  var nameCell = function (row) { return '<td>' + escapeHtml(row.intake) + (row.dates ? '<span class="pr-of" style="text-align:left;">' + escapeHtml(row.dates) + '</span>' : '') + '</td>'; };
+  // On screen the return is two tables that each fit the page — the trainees,
+  // then attendance, tests and fees. The CSV and PDF carry it as one table.
+  var rowsOf = function (fn) {
+    return d.r.rows.map(function (row) { return fn(row, false); }).join('') + (d.r.rows.length > 1 ? fn(d.r.total, true) : '');
+  };
+  var trainees = function (row, total) {
+    return '<tr' + (total ? ' class="pr-total"' : '') + '>' + nameCell(row) +
+      PR_COUNTS.map(function (c) { return '<td>' + row[c[0]] + '</td>'; }).join('') + cell(prRates(row).completion, prRates(row).completionOf) + '</tr>';
+  };
+  var results = function (row, total) {
+    var t = prRates(row);
+    return '<tr' + (total ? ' class="pr-total"' : '') + '>' + nameCell(row) +
+      cell(t.attendance, t.attendanceOf) + cell(t.pass, t.passOf) +
+      cell(m(row.fees.billed), row.fees.accounts ? row.fees.accounts + ' fee account' + (row.fees.accounts === 1 ? '' : 's') : 'no fee accounts') +
+      cell(m(row.fees.collected), '') + cell(m(row.fees.owed), row.fees.debtors + ' owing') + '</tr>';
+  };
+  var h = '<div class="pr-section">Trainees</div><div class="table-wrapper"><table class="tbl-phone pr-table"><thead><tr><th>Programme / intake</th>' +
+    PR_COUNTS.map(function (c) { return '<th>' + c[1] + '</th>'; }).join('') + '<th>Completion</th></tr></thead><tbody>' + rowsOf(trainees) + '</tbody></table></div>';
+  h += '<div class="pr-section">Attendance, tests and fees</div><div class="table-wrapper"><table class="tbl-phone pr-table"><thead><tr><th>Programme / intake</th>' +
+    '<th>Attendance</th><th>Test pass rate</th><th>Fees billed</th><th>Collected' + (d.period.from ? ' in period' : '') + '</th><th>Owed (as at today)</th></tr></thead><tbody>' +
+    rowsOf(results) + '</tbody></table></div>';
+  var groupTable = function (title, groups) {
+    return '<div class="pr-section">' + escapeHtml(title) + '</div><div class="table-wrapper"><table class="tbl-phone pr-table"><thead><tr><th>' + escapeHtml(title.split(' (')[0]) + '</th>' +
+      PR_COUNTS.map(function (c) { return '<th>' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      groups.map(function (g) { return '<tr><td>' + escapeHtml(g.group) + '</td>' + PR_COUNTS.map(function (c) { return '<td>' + g[c[0]] + '</td>'; }).join('') + '</tr>'; }).join('') +
+      '</tbody></table></div>';
+  };
+  h += groupTable('By gender', d.r.genders) + groupTable('By age band (as at ' + prDay(d.r.asAt) + ')', d.r.ages);
+  h += '<div class="pr-note">Completion: certified, of the admitted trainees of an intake that has ended. Attendance: over trainees in training, from the register marks dated in the period. ' +
+    'Test pass rate: marked results dated in the period (work awaiting marking is not counted as a fail). Enrolled: admitted trainees (applicants are counted separately). ' +
+    'Owed: tuition less every payment, as at today. A gender or date of birth nobody recorded is counted as "Not recorded".' +
+    (d.left.length ? '<br>Not on this return (did not run in this period): ' + escapeHtml(d.left.join('; ')) + '.' : '') + '</div>';
+  body.innerHTML = h;
+}
+/* The return as lines of a spreadsheet: a heading block, the main table, the
+   two breakdowns and the notes. Names are typed by people, so every text cell
+   is formula-safe (CESTISCore.attendance.csvCell). */
+function programmeReturnCsv(d) {
+  var c = function (v) { return typeof v === 'number' ? String(v) : CESTISCore.attendance.csvCell(v); };
+  var line = function (cells) { return cells.map(c).join(','); };
+  var rateNum = function (f) { return f.rate == null ? '' : f.rate; };
+  var lines = [line(['Programme return']), line(['Intake', d.intakeLabel]), line(['Period', d.period.heading]),
+    line(['Figures as at', prDay(d.asAt)]), line(['Note', d.rule]), ''];
+  lines.push(line(['Programme / intake', 'Intake dates'].concat(PR_COUNTS.map(function (k) { return k[1]; }),
+    ['Completion %', 'Completion over (admitted trainees of an ended intake)', 'Dropout %', 'Dropout over (admitted trainees of an ended intake)',
+     'Attendance %', 'Attendance over (active trainees with register marks)', 'Test pass rate %', 'Marked test results', 'Awaiting marking',
+     'Fees billed (JMD)', 'Fees collected' + (d.period.from ? ' in period' : '') + ' (JMD)', 'Fees owed as at today (JMD)', 'Trainees owing', 'Fee accounts'])));
+  var rowLine = function (row) {
+    return line([row.intake, row.dates].concat(PR_COUNTS.map(function (k) { return row[k[0]]; }),
+      [rateNum(row.completion), row.completion.of, rateNum(row.dropout), row.dropout.of, rateNum(row.attendance), row.attendance.of,
+       rateNum(row.pass), row.pass.of, row.pass.awaiting, row.fees.billed, row.fees.collected, row.fees.owed, row.fees.debtors, row.fees.accounts]));
+  };
+  d.r.rows.forEach(function (row) { lines.push(rowLine(row)); });
+  lines.push(rowLine(d.r.total));
+  [['By gender', d.r.genders], ['By age band (as at ' + prDay(d.r.asAt) + ')', d.r.ages]].forEach(function (b) {
+    lines.push('');
+    lines.push(line([b[0]].concat(PR_COUNTS.map(function (k) { return k[1]; }))));
+    b[1].forEach(function (g) { lines.push(line([g.group].concat(PR_COUNTS.map(function (k) { return g[k[0]]; })))); });
+  });
+  if (d.left.length) { lines.push(''); lines.push(line(['Not on this return (did not run in this period)', d.left.join('; ')])); }
+  return lines.join('\r\n') + '\r\n';
+}
+function programmeReturnFileName(d, ext) {
+  var who = d.intakeLabel === 'All intakes' ? 'all-intakes' : d.intakeLabel.replace(/\s*\(.*$/, '');
+  var when = d.period.value === 'all' ? 'all-dates' : d.period.value.replace(/^q:/, 'FY').replace(/^fy:/, 'FY').replace(/\//g, '-').replace(/:(\d)$/, '-Q$1');
+  return ('programme-return_' + who + '_' + when).replace(/[^A-Za-z0-9_.-]+/g, '-').replace(/-+/g, '-') + '.' + ext;
+}
+function prDownload(blob, name) {
+  var url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = name; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+function exportProgrammeReturnCSV() {
+  var d = programmeReturnData();
+  // The byte-order mark lets a spreadsheet read the dashes and accents as written.
+  prDownload(new Blob(['\ufeff' + programmeReturnCsv(d)], { type: 'text/csv;charset=utf-8;' }), programmeReturnFileName(d, 'csv'));
+  showToast('Programme return downloaded (spreadsheet).');
+}
+function exportProgrammeReturnPDF() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('Preparing the PDF…');
+    cestisNeedLib('jspdf').then(function () { exportProgrammeReturnPDF(); }, function () { showToast('The PDF could not be prepared. Try again in a moment.'); });
+    return;
+  }
+  var d = programmeReturnData();
+  try { programmeReturnPdf(d).save(programmeReturnFileName(d, 'pdf')); showToast('Programme return downloaded (PDF).'); }
+  catch (e) { console.error('[ProgrammeReturn] PDF failed', e); showToast('The PDF could not be made.'); }
+}
+/* The same return on landscape A4 pages, drawn with jsPDF's plain fonts (so
+   the few typographic dashes are written as plain ones). */
+function programmeReturnPdf(d) {
+  var doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  var W = 297, H = 210, L = 10, y = 14, m = CESTISCore.centreFigures.moneyText;
+  var plain = function (s) { return String(s == null ? '' : s).replace(/[\u2013\u2014]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\u2026/g, '...'); };
+  var page = 1;
+  var footer = function () { doc.setFontSize(7); doc.setTextColor(120); doc.text(plain('Programme return - ' + d.intakeLabel + ' - ' + d.period.heading + ' - page ' + page), L, H - 6); doc.setTextColor(0); };
+  var newPage = function () { footer(); doc.addPage(); page++; y = 14; };
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+  doc.text('Programme return', L, y); y += 7;
+  doc.setFontSize(10);
+  doc.splitTextToSize(plain(d.intakeLabel + ' - ' + d.period.heading), W - 2 * L).forEach(function (t) { doc.text(t, L, y); y += 5; });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  doc.splitTextToSize(plain(d.sub), W - 2 * L).forEach(function (t) { doc.text(t, L, y); y += 4; });
+  y += 2;
+  function table(cols, rows, boldLast) {
+    var x0 = L, lineH = 3.4;
+    // size: the heading row is a little smaller, so "Applicants" or
+    // "Incomplete" fits its column whole instead of breaking mid-word.
+    var drawRow = function (cells, bold, shade, size) {
+      // Measured in the font it is drawn in.
+      doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size || 7);
+      var wrapped = cells.map(function (v, i) { return doc.splitTextToSize(plain(v), cols[i].w - 2); });
+      var hgt = Math.max.apply(null, wrapped.map(function (w) { return w.length; })) * lineH + 2;
+      if (y + hgt > H - 12) { newPage(); doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size || 7); }
+      if (shade) { doc.setFillColor(232, 238, 246); doc.rect(x0, y - 3, cols.reduce(function (a, c) { return a + c.w; }, 0), hgt, 'F'); }
+      var x = x0;
+      wrapped.forEach(function (w, i) {
+        w.forEach(function (t, j) {
+          if (cols[i].right) doc.text(t, x + cols[i].w - 1, y + j * lineH, { align: 'right' }); else doc.text(t, x + 1, y + j * lineH);
+        });
+        x += cols[i].w;
+      });
+      y += hgt;
+      doc.setDrawColor(210); doc.line(x0, y - 3, x, y - 3);
+    };
+    drawRow(cols.map(function (c) { return c.t; }), true, true, 6);
+    rows.forEach(function (r, i) { drawRow(r, boldLast && i === rows.length - 1, false); });
+    y += 3;
+  }
+  // 277 mm across: the width of landscape A4 inside its margins.
+  var cols = [{ t: 'Programme / intake', w: 40 }].concat(PR_COUNTS.map(function (k) { return { t: k[1], w: 14, right: true }; }),
+    [{ t: 'Completion', w: 22, right: true }, { t: 'Attendance', w: 22, right: true }, { t: 'Test pass rate', w: 26, right: true },
+     { t: 'Fees billed', w: 21, right: true }, { t: 'Collected' + (d.period.from ? ' in period' : ''), w: 21, right: true }, { t: 'Owed (as at today)', w: 27, right: true }]);
+  // A rate with nothing to divide is written as the reason alone: the "—" of
+  // the screen would print as a plain dash and read like a minus sign.
+  var rate = function (v, of) { return v === '—' ? of : v + ' ' + of; };
+  var rowCells = function (row) {
+    var t = prRates(row);
+    return [row.intake + (row.dates ? ' (' + row.dates + ')' : '')].concat(PR_COUNTS.map(function (k) { return String(row[k[0]]); }),
+      [rate(t.completion, t.completionOf), rate(t.attendance, t.attendanceOf), rate(t.pass, t.passOf),
+       m(row.fees.billed), m(row.fees.collected), m(row.fees.owed) + ' (' + row.fees.debtors + ' owing)']);
+  };
+  var rows = d.r.rows.map(rowCells);
+  if (d.r.rows.length > 1) rows.push(rowCells(d.r.total));
+  table(cols, rows, d.r.rows.length > 1);
+  var gcols = function (title) { return [{ t: title, w: 42 }].concat(PR_COUNTS.map(function (k) { return { t: k[1], w: 22, right: true }; })); };
+  [['By gender', d.r.genders], ['By age band (as at ' + prDay(d.r.asAt) + ')', d.r.ages]].forEach(function (b) {
+    if (y + 20 > H - 12) newPage();
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text(plain(b[0]), L, y); y += 5;
+    table(gcols(b[0].split(' (')[0]), b[1].map(function (g) { return [g.group].concat(PR_COUNTS.map(function (k) { return String(g[k[0]]); })); }), false);
+  });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+  var notes = 'Completion: certified, of the admitted trainees of an intake that has ended. Attendance: over trainees in training, from the register marks dated in the period. ' +
+    'Test pass rate: marked results dated in the period (work awaiting marking is not counted as a fail). Enrolled: admitted trainees (applicants are counted separately). ' +
+    'Owed: tuition less every payment, as at today. A gender or date of birth nobody recorded is counted as "Not recorded".' +
+    (d.left.length ? ' Not on this return (did not run in this period): ' + d.left.join('; ') + '.' : '');
+  doc.splitTextToSize(plain(notes), W - 2 * L).forEach(function (t) { if (y > H - 12) newPage(); doc.text(t, L, y); y += 3.5; });
+  footer();
+  return doc;
+}
+
 /* Redraw every panel on Reports & Analytics.
 
    All seven used to be called once, at the tail of buildAdminPages(), and never
@@ -32075,7 +32471,7 @@ function renderCertStats() {
    Each renderer guards on its own missing DOM, so this is a safe no-op for a
    role whose pages do not include Reports. */
 function refreshReportsAnalytics() {
-  ['renderReportStats', 'renderDonutChart', 'renderPassRates', 'renderEnrollmentBars',
+  ['renderProgrammeReturn', 'renderReportStats', 'renderDonutChart', 'renderPassRates', 'renderEnrollmentBars',
    'renderGaugeChart', 'renderAttendanceHeatmap', 'renderGenderDist',
    'renderCertStats'].forEach(function (name) {
     try {
@@ -48048,11 +48444,15 @@ var CMC_SOURCES = [
   { key: 'cashbook', label: 'Cashbook', icon: '📒', noun: 'entries' },
   { key: 'payslip',  label: 'Staff Payslips', icon: '💰', noun: 'pay records' },
   { key: 'clockin',  label: 'Staff Clock-in', icon: '🕐', noun: 'sessions' },
-  { key: 'virement', label: 'Virement Requests', icon: '📋', noun: 'requests' }
+  { key: 'virement', label: 'Virement Requests', icon: '📋', noun: 'requests' },
+  { key: 'fees',     label: 'School Fees', icon: '💵', noun: 'fee accounts' }
 ];
 
-/* Normalised rows, one list per book — see cmc-portal.js for the parsers. */
-var cmcData = { payslip: [], clockin: [], cashbook: [], virement: [], loadedAt: null };
+/* Normalised rows, one list per book — see cmc-portal.js for the parsers.
+   fees: the School Fee accounts (read, never written); feeFigures: this
+   financial year's billed / collected / owed by programme and the earlier
+   years' arrears (CESTISCore.centreFigures.fees). */
+var cmcData = { payslip: [], clockin: [], cashbook: [], virement: [], fees: [], feeFigures: null, loadedAt: null };
 var cmcChartInstances = {};
 var cmcStaffView = 'payslip';    // which staff book is on screen — a view, not a filter
 
@@ -48085,6 +48485,9 @@ function cmcLoadOversightData() {
   cmcData.payslip  = C.cmcPayrollRows(map.cestisPayroll);
   cmcData.clockin  = C.cmcClockRows(map.cestisTimeRecords, map.cestisStaffMembers);
   cmcData.virement = C.cmcVirementRows(map.cesti_virements);
+  var _fee = C.cmcFeeFigures ? C.cmcFeeFigures(map) : null;
+  cmcData.fees = _fee ? _fee.accounts : [];
+  cmcData.feeFigures = _fee ? _fee.figures : null;
   cmcData.loadedAt = new Date();
   return cmcData;
 }
@@ -48133,7 +48536,92 @@ function cmcLoadedAgo() {
 
 
 // ---- Headline figures, all from the normalised rows ----
-function cmcMoney(n) { return 'D' + (Math.round((Number(n) || 0) * 100) / 100).toLocaleString(); }
+// Jamaican dollars, "$1,785,000" (it printed "D1785000" — a "D" no one
+// recognised as dollars). The one format: CESTISCore.centreFigures.moneyText.
+function cmcMoney(n) { return CESTISCore.centreFigures.moneyText(n); }
+
+/* ---- School fees: what the board was never shown (audit M2, M7) ----------
+   Three widgets labelled as fees ("Fee Completion", "Fee Collection Status",
+   "School Fees Details") counted CERTIFICATES, because the fee books never
+   reached the board. They now read the School Fee books (read-only, see
+   cmcStartOversightReader) by the one rule, CESTISCore.centreFigures.fees:
+   this financial year's billed, collected and owed, by programme, and what
+   earlier years still owe on a line of its own — never added into Owed. */
+function cmcFeeFigures() { return cmcData.feeFigures || null; }
+function cmcFeeTrio(f) {
+  var m = cmcMoney;
+  var cell = function(label, value, colour) {
+    return '<div class="cmc-fee-cell"><div class="cmc-fee-cell-label">' + label + '</div>' +
+      '<div class="cmc-fee-cell-value"' + (colour ? ' style="color:' + colour + ';"' : '') + '>' + cmcEsc(value) + '</div></div>';
+  };
+  return '<div class="cmc-fee-trio">' + cell('Billed', m(f.billed)) + cell('Collected', m(f.collected), 'var(--green)') +
+    cell('Owed', m(f.owed), 'var(--red)') + '</div>';
+}
+// The board's dashboard card: the three figures, and the earlier years beside them.
+function cmcFeeKpiInner() {
+  var f = cmcFeeFigures();
+  var h = '<div class="cmc-kpi-icon">💵</div>';
+  if (!f || (!f.accounts && !f.collected && !f.earlier.trainees)) {
+    return h + '<div class="cmc-kpi-label">School Fees</div><div class="cmc-kpi-sub">No fee records yet.</div>';
+  }
+  h += '<div class="cmc-kpi-label">School Fees — ' + cmcEsc(f.label) + '</div>';
+  h += cmcFeeTrio(f);
+  h += '<div class="cmc-kpi-sub">' + f.debtors + ' of ' + f.accounts + ' trainees enrolled in ' + cmcEsc(f.label) + ' still owe · Owed is as at today</div>';
+  h += '<div class="cmc-kpi-sub cmc-fee-earlier" id="cmcKpiFeesEarlier">' + cmcEsc(CESTISCore.centreFigures.earlierText(f.earlier)) + ' — not included in Owed</div>';
+  h += '<div class="cmc-kpi-hint">Click to view each programme</div>';
+  return h;
+}
+// The Financial Overview's card: what is owed, with what it is owed out of.
+function cmcFinFeeKpiInner() {
+  var f = cmcFeeFigures(), m = cmcMoney;
+  var h = '<div class="cmc-kpi-icon">💵</div>';
+  if (!f || (!f.accounts && !f.collected && !f.earlier.trainees)) {
+    return h + '<div class="cmc-kpi-label">School Fees Owed</div><div class="cmc-kpi-value">—</div><div class="cmc-kpi-sub">No fee records yet.</div>';
+  }
+  h += '<div class="cmc-kpi-label">School Fees Owed — ' + cmcEsc(f.label) + '</div>';
+  h += '<div class="cmc-kpi-value" id="cmcKpiFees">' + cmcEsc(m(f.owed)) + '</div>';
+  h += '<div class="cmc-kpi-sub" id="cmcKpiFeesSub">' + cmcEsc(m(f.collected)) + ' collected of ' + cmcEsc(m(f.billed)) + ' billed</div>';
+  h += '<div class="cmc-kpi-sub cmc-fee-earlier">' + cmcEsc(CESTISCore.centreFigures.earlierText(f.earlier)) + '</div>';
+  return h;
+}
+// Billed / collected / owed by programme, then the earlier years on their own.
+function cmcBuildFeeTable() {
+  var f = cmcFeeFigures(), m = cmcMoney;
+  if (!f || (!f.accounts && !f.collected && !f.earlier.trainees)) return cmcEmptyNote('School Fee');
+  var R = 'style="text-align:right;white-space:nowrap;"';
+  var h = '<div style="overflow-x:auto;"><table class="cmc-table"><thead><tr><th>Programme</th><th ' + R + '>Billed</th><th ' + R + '>Collected</th><th ' + R + '>Owed</th><th ' + R + '>Trainees owing</th></tr></thead><tbody>';
+  f.byProgramme.forEach(function(p) {
+    h += '<tr><td><strong>' + cmcEsc(p.programme) + '</strong></td><td ' + R + '>' + cmcEsc(m(p.billed)) + '</td><td ' + R + '>' + cmcEsc(m(p.collected)) + '</td>' +
+      '<td ' + R + '>' + cmcEsc(m(p.owed)) + '</td><td ' + R + '>' + p.debtors + ' of ' + p.accounts + '</td></tr>';
+  });
+  h += '<tr style="font-weight:700;"><td>All programmes</td><td ' + R + '>' + cmcEsc(m(f.billed)) + '</td><td ' + R + '>' + cmcEsc(m(f.collected)) + '</td>' +
+    '<td ' + R + '>' + cmcEsc(m(f.owed)) + '</td><td ' + R + '>' + f.debtors + ' of ' + f.accounts + '</td></tr>';
+  h += '</tbody></table></div>';
+  h += '<div class="cmc-fee-earlier" style="margin-top:14px;font-weight:600;color:var(--text-primary);">' + cmcEsc(CESTISCore.centreFigures.earlierText(f.earlier)) + ' — not included in Owed above</div>';
+  if (f.earlier.byProgramme.length) {
+    h += '<div style="overflow-x:auto;"><table class="cmc-table" style="margin-top:8px;"><thead><tr><th>Programme (earlier years)</th><th ' + R + '>Still owed</th><th ' + R + '>Trainees</th></tr></thead><tbody>';
+    f.earlier.byProgramme.forEach(function(p) {
+      h += '<tr><td>' + cmcEsc(p.programme) + '</td><td ' + R + '>' + cmcEsc(m(p.owed)) + '</td><td ' + R + '>' + p.trainees + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  h += '<div style="font-size:12px;color:var(--text-muted);margin-top:10px;">Billed and Owed: trainees enrolled in ' + cmcEsc(f.label) +
+    ' (Owed is as at today). Collected: payments dated in ' + cmcEsc(f.label) + '.' +
+    (f.unpriced ? ' ' + f.unpriced + ' trainee' + (f.unpriced === 1 ? ' has' : 's have') + ' no fee set yet.' : '') + '</div>';
+  return h;
+}
+// Repaint every fee figure on the board's screens from cmcData.
+function cmcUpdateFeeKpis() {
+  var a = document.getElementById('cmcKpiFeesCard');
+  if (a) a.innerHTML = cmcFeeKpiInner();
+  var b = document.getElementById('cmcFinFeesCard');
+  if (b) b.innerHTML = cmcFinFeeKpiInner();
+  var t = document.getElementById('cmcFinFeesTable');
+  if (t) t.innerHTML = cmcBuildFeeTable();
+  var head = document.getElementById('cmcFinFeesTitle');
+  var f = cmcFeeFigures();
+  if (head) head.textContent = 'School Fees by Programme' + (f ? ' — ' + f.label : '');
+}
 
 function cmcComputePayrollSummary() {
   var rows = cmcData.payslip || [];
@@ -48407,7 +48895,9 @@ function buildCmcPages() {
   html += '<div class="cmc-kpi-sub" id="cmcKpiAttendanceSub">' + avgAttendanceOf + '</div>';
   html += '<div class="cmc-kpi-hint">Click to view details</div></div>';
 
-  html += '<div class="cmc-kpi-card kpi-cashbook" onclick="cmcShowDetail(\'fees\')"><div class="cmc-kpi-icon">🏆</div>';
+  // Completion opens the completion details. It used to open "School Fees
+  // Details", which listed trainees and their stages — no money at all.
+  html += '<div class="cmc-kpi-card kpi-cashbook" onclick="cmcShowDetail(\'completion\')"><div class="cmc-kpi-icon">🏆</div>';
   html += '<div class="cmc-kpi-label">Completion Rate</div>';
   html += '<div class="cmc-kpi-value">' + completionRate + '%</div>';
   html += '<div class="cmc-kpi-sub">' + completionOf + '</div>';
@@ -48430,6 +48920,8 @@ function buildCmcPages() {
   html += '<div class="cmc-kpi-value" id="cmcKpiCashbook">' + cmcComputeCashbookBalance() + '</div>';
   html += '<div class="cmc-kpi-sub" id="cmcKpiCashbookSub">' + cmcComputeCashbookInOut() + '</div>';
   html += '<div class="cmc-kpi-hint">Click to view details</div></div>';
+  // School fees: this financial year's money, the full width of the grid.
+  html += '<div class="cmc-kpi-card kpi-fees cmc-kpi-wide" id="cmcKpiFeesCard" onclick="cmcShowDetail(\'fees\')">' + cmcFeeKpiInner() + '</div>';
   html += '</div>';
 
   // Drive Data Panels — show actual data from each source
@@ -48506,7 +48998,11 @@ function buildCmcPages() {
     var enrolled = _roll.length;
     var cert = _roll.filter(function(s){return s.stage==='certified'||s.stage==='collected';}).length;
     var inc = _roll.filter(function(s){return s.stage==='incomplete';}).length;
-    return {name:p, enrolled:enrolled, certified:cert, incomplete:inc};
+    // Completion by the one rule (certified over the trainees of an intake that
+    // has ENDED), not certified over everyone enrolled: a running intake has
+    // not completed yet, and "0%" said it had failed to.
+    var comp = CESTISCore.centreFigures.completion(_roll, _fig.endedOf);
+    return {name:p, enrolled:enrolled, certified:cert, incomplete:inc, comp:comp};
   }).filter(function(p){return p.enrolled>0;});
 
   html += '<section class="page" id="page-cmc-financial">';
@@ -48518,21 +49014,24 @@ function buildCmcPages() {
   html += '<div class="cmc-kpi-label">Programmes Active</div>';
   html += '<div class="cmc-kpi-value">' + progData.length + '</div>';
   html += '<div class="cmc-kpi-sub">Of ' + programmes.length + ' available</div></div>';
-  html += '<div class="cmc-kpi-card kpi-cashbook"><div class="cmc-kpi-icon">📊</div>';
-  html += '<div class="cmc-kpi-label">Fee Completion</div>';
-  html += '<div class="cmc-kpi-value" id="cmcKpiFees">' + completionRate + '%</div>';
-  html += '<div class="cmc-kpi-sub" id="cmcKpiFeesSub">' + totalCertified + ' certified of ' + totalStudents + '</div></div>';
+  // School fees owed — it was "Fee Completion", a certificate count.
+  html += '<div class="cmc-kpi-card kpi-cashbook" id="cmcFinFeesCard" onclick="cmcShowDetail(\'fees\')">' + cmcFinFeeKpiInner() + '</div>';
   html += '<div class="cmc-kpi-card kpi-virement"><div class="cmc-kpi-icon">📒</div>';
   html += '<div class="cmc-kpi-label">Cashbook Balance</div>';
   html += '<div class="cmc-kpi-value" id="cmcFinCashbook">--</div>';
   html += '<div class="cmc-kpi-sub" id="cmcFinCashbookSub">--</div></div>';
   html += '</div>';
 
-  // Charts: Fee completion doughnut + Enrolment by programme bar
+  // Charts: fees collected and owed (money, this financial year) + enrolment by programme
+  var _feeFig = cmcFeeFigures();
   html += '<div class="cmc-charts-grid">';
-  html += '<div class="cmc-chart-card"><h4>Fee Collection Status</h4><canvas id="cmcChartFees"></canvas></div>';
+  html += '<div class="cmc-chart-card"><h4>School Fees' + (_feeFig ? ' — ' + cmcEsc(_feeFig.label) : '') + ': Collected and Owed</h4><canvas id="cmcChartFees"></canvas></div>';
   html += '<div class="cmc-chart-card"><h4>Enrolment by Programme</h4><canvas id="cmcChartEnrolment"></canvas></div>';
   html += '</div>';
+
+  // Billed, collected and owed by programme, with the earlier years' arrears.
+  html += '<div class="cmc-table-card"><h4 id="cmcFinFeesTitle">School Fees by Programme' + (_feeFig ? ' — ' + cmcEsc(_feeFig.label) : '') + '</h4>';
+  html += '<div id="cmcFinFeesTable">' + cmcBuildFeeTable() + '</div></div>';
 
   html += '<div class="cmc-charts-grid">';
   html += '<div class="cmc-chart-card"><h4>Cashbook Trends</h4><canvas id="cmcChartCashbookTrend"></canvas></div>';
@@ -48547,10 +49046,13 @@ function buildCmcPages() {
   html += '<div class="cmc-table-card"><h4>Programme Breakdown</h4>';
   html += '<table class="cmc-table"><thead><tr><th>Programme</th><th>Enrolled</th><th>Certified</th><th>Incomplete</th><th>Completion</th></tr></thead><tbody>';
   progData.forEach(function(p) {
-    var pct = p.enrolled > 0 ? Math.round(p.certified/p.enrolled*100) : 0;
-    var cls = pct >= 60 ? 'good' : pct >= 30 ? 'warning' : 'critical';
     html += '<tr><td><strong>' + escapeHtml(p.name) + '</strong></td><td>' + p.enrolled + '</td><td>' + p.certified + '</td><td>' + p.incomplete + '</td>';
-    html += '<td><span class="cmc-status ' + cls + '">' + pct + '%</span></td></tr>';
+    if (p.comp.rate == null) {
+      html += '<td><span class="cmc-status info">—</span> <span style="font-size:12px;color:var(--text-muted);">no ended intake yet</span></td></tr>';
+    } else {
+      var cls = p.comp.rate >= 60 ? 'good' : p.comp.rate >= 30 ? 'warning' : 'critical';
+      html += '<td><span class="cmc-status ' + cls + '">' + p.comp.rate + '%</span> <span style="font-size:12px;color:var(--text-muted);">of ' + p.comp.of + ' in ended intakes</span></td></tr>';
+    }
   });
   if(progData.length === 0) html += '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No students enrolled yet</td></tr>';
   html += '</tbody></table></div>';
@@ -48904,18 +49406,18 @@ function cmcRenderCharts() {
     });
   }
 
-  // Fee Collection Status — show real data immediately
-  var feeCollected = students.filter(function(s){ return s.stage === 'certified' || s.stage === 'collected'; }).length;
-  var feeOutstanding = students.length - feeCollected;
+  // School fees, in money: collected and owed this financial year. It drew
+  // certified-vs-everyone-else under the title "Fee Collection Status".
   var feesEl = document.getElementById('cmcChartFees');
   if(feesEl) {
+    var _fc = cmcFeeChartData();
     cmcChartInstances.fees = new Chart(feesEl, {
       type: 'doughnut',
       data: {
-        labels: ['Completed (' + feeCollected + ')','In Progress (' + feeOutstanding + ')'],
-        datasets: [{ data: [feeCollected, feeOutstanding], backgroundColor: ['#2ecc71','#e74c3c'] }]
+        labels: _fc.labels,
+        datasets: [{ data: _fc.data, backgroundColor: ['#2ecc71','#e74c3c'] }]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#8899aa', font: { family: 'DM Sans', size: 11 } } } } }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#8899aa', font: { family: 'DM Sans', size: 12 } } } } }
     });
   }
 
@@ -49012,6 +49514,7 @@ function cmcUpdateLocalKpis() {
   cmcUpdateClockinKpi();
   cmcUpdateCashbookKpi();
   cmcUpdateVirementKpi();
+  cmcUpdateFeeKpis();
   var sum3 = document.getElementById('cmcSourceSummary');
   if(sum3) sum3.innerHTML = cmcBuildSourceSummary();
 }
@@ -49482,10 +49985,20 @@ function cmcUpdateDriveCharts() {
   }
 
   if(cmcChartInstances.fees) {
-    var collected = students.filter(function(s){ return s.stage === 'certified' || s.stage === 'collected'; }).length;
-    cmcChartInstances.fees.data.datasets[0].data = [collected, students.length - collected];
+    var _fc = cmcFeeChartData();
+    cmcChartInstances.fees.data.labels = _fc.labels;
+    cmcChartInstances.fees.data.datasets[0].data = _fc.data;
     cmcChartInstances.fees.update();
   }
+}
+
+/* The fees doughnut: this financial year's money collected, and what is still
+   owed (an overpaid balance is not drawn as a negative slice). */
+function cmcFeeChartData() {
+  var f = cmcFeeFigures();
+  if(!f) return { labels: ['Collected $0', 'Owed $0'], data: [0, 0] };
+  var owed = Math.max(0, f.owed);
+  return { labels: ['Collected ' + cmcMoney(f.collected), 'Owed ' + cmcMoney(owed)], data: [f.collected, owed] };
 }
 
 function cmcShowDetail(type) {
@@ -49506,7 +50019,9 @@ function cmcShowDetail(type) {
     case 'attendance':
       title = 'Student Attendance Details'; bodyHtml = cmcBuildAttendanceDetail(); break;
     case 'fees':
-      title = 'School Fees Details'; bodyHtml = cmcBuildFeesDetail(); break;
+      title = 'School Fees' + (cmcFeeFigures() ? ' — ' + cmcEsc(cmcFeeFigures().label) : ''); bodyHtml = cmcBuildFeesDetail(); break;
+    case 'completion':
+      title = 'Completion — Trainees by Stage'; bodyHtml = cmcBuildCompletionDetail(); break;
   }
 
   overlay.innerHTML =
@@ -49689,7 +50204,23 @@ function cmcBuildAttendanceDetail() {
   return html;
 }
 
+/* School fees, in money: this financial year's billed, collected and owed,
+   each programme, and the earlier years' arrears on their own (read-only). */
 function cmcBuildFeesDetail() {
+  var f = cmcFeeFigures(), m = cmcMoney;
+  if(!f || (!f.accounts && !f.collected && !f.earlier.trainees)) return cmcDetailEmpty('School Fee');
+  var html = '<div class="cmc-detail-summary">';
+  html += '<div class="cmc-detail-stat"><div class="stat-label">Billed</div><div class="stat-value">' + cmcEsc(m(f.billed)) + '</div></div>';
+  html += '<div class="cmc-detail-stat"><div class="stat-label">Collected</div><div class="stat-value" style="color:var(--green)">' + cmcEsc(m(f.collected)) + '</div></div>';
+  html += '<div class="cmc-detail-stat"><div class="stat-label">Owed</div><div class="stat-value" style="color:var(--red)">' + cmcEsc(m(f.owed)) + '</div></div>';
+  html += '<div class="cmc-detail-stat"><div class="stat-label">Earlier years</div><div class="stat-value" style="color:var(--orange)">' + cmcEsc(m(f.earlier.owed)) + '</div><div style="font-size:12px;color:var(--text-muted);">' + f.earlier.trainees + ' trainee' + (f.earlier.trainees === 1 ? '' : 's') + ' · not in Owed</div></div>';
+  html += '</div>';
+  return html + cmcBuildFeeTable();
+}
+
+/* Completion: the trainees and the stage each has reached. This list was
+   titled "School Fees Details" and opened from the Completion card. */
+function cmcBuildCompletionDetail() {
   var totalStudents = students.length;
   var certified = students.filter(function(s){ return s.stage === 'certified' || s.stage === 'collected'; }).length;
   var inTraining = students.filter(function(s){ var st = (s.stage||'').toLowerCase(); return st === 'training' || st === 'in training' || st === 'intraining'; }).length;
@@ -49702,7 +50233,7 @@ function cmcBuildFeesDetail() {
   html += '<div class="cmc-detail-stat"><div class="stat-label">Testing</div><div class="stat-value" style="color:var(--orange)">' + testing + '</div></div>';
   html += '</div>';
 
-  // Show fee-related student data
+  // Each trainee and the stage they have reached
   html += '<table class="cmc-table"><thead><tr><th>#</th><th>Name</th><th>Course</th><th>Stage</th><th>GPA</th></tr></thead><tbody>';
   students.slice(0, 50).forEach(function(s, i) {
     html += '<tr><td>' + (i+1) + '</td><td>' + escapeHtml(s.name||'--') + '</td><td>' + escapeHtml(s.course||'--') + '</td>';
@@ -60938,6 +61469,10 @@ function ttRefreshOnShow(){
     return !!(window.CESTISStore && typeof CESTISStore.isReady === 'function' && !CESTISStore.isReady());
   }
   function syncStudentsToSchoolFee(){
+    // The CMC Board reads the fee books and never writes them (cmc-portal.js,
+    // CMC_FEE_KEYS): a board member's session mints no fee record, links none
+    // and edits none — this mirror is for the people who run the Centre.
+    if (typeof currentRole !== 'undefined' && currentRole === 'cmc') return;
     if (typeof storeNotReady === 'function' && storeNotReady()) {
       if (!_feeMirrorWaiting && typeof CESTISStore.whenReady === 'function') {
         _feeMirrorWaiting = true;

@@ -14205,9 +14205,310 @@
       if (!f || f.rate == null) return '— (' + (none || 'none yet') + ')';
       return f.rate + '% of ' + f.of + ' ' + noun;
     }
+
+    /* ---- School fees: billed, collected and owed (audit M2, M7) ----------
+       The board saw no fee money at all — three widgets labelled "fees"
+       counted certificates — and nobody saw what trainees of earlier years
+       still owe ($140,000 from 10 trainees in the audit's Centre). These are
+       the School Fee dashboard's own rules, written once, so the board, the
+       administrator's dashboard and Reports say what that page says:
+
+         a fee account's YEAR is the financial year (Apr–Mar) its enrolment
+         date falls in, or its created date if it has none; an account with
+         no usable date belongs to every year, so nobody is hidden;
+         billed     the tuition of that year's accounts;
+         collected  the payments DATED in that year (an undated one: every year);
+         owed       those accounts' balances as at today — tuition less every
+                    payment recorded against them, whenever it was made.
+
+       Earlier years are their own line — accounts of a year BEFORE this one
+       that still owe something — and are never added into `owed`. An account
+       with no tuition and nothing paid has not been priced: it is counted in
+       `unpriced`, never as owing nothing. Nothing here writes. */
+    function cents(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+    function num(v) { var n = parseFloat(v); return isFinite(n) ? n : 0; }
+    function fyStart(fy) { var y = parseInt(String(fy || '').split('/')[0], 10); return isFinite(y) ? y : null; }
+    // The financial year a fee account belongs to; null when it has no usable date.
+    function feeYearOf(f) {
+      var q = Core.deriveQuarter(f && f.enrollmentDate) || Core.deriveQuarter(f && f.createdAt);
+      return q ? q.fy : null;
+    }
+    // A programme's name without its intake key, and the key it is grouped by.
+    function bareProgramme(name) {
+      var s = String(name == null ? '' : name).trim();
+      try { if (Core.enrolment && Core.enrolment.parseCentreLabel) s = Core.enrolment.parseCentreLabel(s).name || s; } catch (e) {}
+      return String(s).trim();
+    }
+    function programmeOfFee(f) { return bareProgramme(f && (f.skillArea || f.course)); }
+    function paidByAccount(payments) {
+      var paid = {};
+      list(payments).forEach(function (p) { var k = String(p.studentId); paid[k] = (paid[k] || 0) + num(p.amount); });
+      return paid;
+    }
+    function feeRow(name) {
+      return { programme: name || 'No programme recorded', billed: 0, collected: 0, owed: 0, accounts: 0, debtors: 0, unpriced: 0 };
+    }
+    function roundRow(r) { r.billed = cents(r.billed); r.collected = cents(r.collected); r.owed = cents(r.owed); return r; }
+
+    /* fees(feeAccounts, payments, opts) — one financial year, by programme.
+       opts: { fy: '2026/2027' (default: the year today falls in), now,
+               programmeOf(account) -> the programme it is shown under }
+       -> { fy, label, billed, collected, owed, accounts, debtors, unpriced,
+            byProgramme: [{ programme, billed, collected, owed, accounts, debtors, unpriced }],
+            earlier: { owed, trainees, byProgramme: [{ programme, owed, trainees }] } } */
+    function fees(feeAccounts, payments, opts) {
+      opts = opts || {};
+      var fy = opts.fy || (Core.currentQuarter(opts.now ? new Date(opts.now) : undefined) || {}).fy;
+      var nameOf = typeof opts.programmeOf === 'function' ? opts.programmeOf : programmeOfFee;
+      var accts = list(feeAccounts), pays = list(payments), paid = paidByAccount(pays), byId = {};
+      var rows = {}, order = [], early = {}, eorder = [], y0 = fyStart(fy);
+      function rowFor(map, ord, name) {
+        var k = Core.normCourse(name) || '~';
+        if (!map[k]) { map[k] = feeRow(name); ord.push(k); }
+        return map[k];
+      }
+      var out = { fy: fy, label: 'FY ' + fy, billed: 0, collected: 0, owed: 0, accounts: 0, debtors: 0, unpriced: 0,
+        byProgramme: [], earlier: { owed: 0, trainees: 0, byProgramme: [] } };
+      accts.forEach(function (f) {
+        if (f.id != null) byId[String(f.id)] = f;
+        var tuition = num(f.tuitionFee), got = paid[String(f.id)] || 0, bal = tuition - got;
+        var y = feeYearOf(f);
+        if (y == null || y === fy) {
+          var r = rowFor(rows, order, nameOf(f));
+          out.accounts++; r.accounts++;
+          out.billed += tuition; r.billed += tuition;
+          out.owed += bal; r.owed += bal;              // as the School Fee page totals its balances
+          if (bal > 0) { out.debtors++; r.debtors++; }
+          if (tuition <= 0 && got <= 0) { out.unpriced++; r.unpriced++; }
+        } else if (y0 != null && fyStart(y) < y0 && bal > 0) {
+          var e = rowFor(early, eorder, nameOf(f));
+          out.earlier.owed += bal; out.earlier.trainees++;
+          e.owed += bal; e.debtors++;
+        }
+      });
+      pays.forEach(function (p) {
+        var q = Core.deriveQuarter(p.date);
+        if (q && q.fy !== fy) return;
+        var owner = byId[String(p.studentId)];
+        var r = rowFor(rows, order, owner ? nameOf(owner) : bareProgramme(p.skillArea || p.course));
+        out.collected += num(p.amount); r.collected += num(p.amount);
+      });
+      var byBilled = function (a, b) { return (b.billed - a.billed) || (b.collected - a.collected) || a.programme.localeCompare(b.programme); };
+      out.byProgramme = order.map(function (k) { return roundRow(rows[k]); }).sort(byBilled);
+      out.earlier.byProgramme = eorder.map(function (k) { var e = early[k]; return { programme: e.programme, owed: cents(e.owed), trainees: e.debtors }; })
+        .sort(function (a, b) { return (b.owed - a.owed) || a.programme.localeCompare(b.programme); });
+      out.billed = cents(out.billed); out.collected = cents(out.collected); out.owed = cents(out.owed);
+      out.earlier.owed = cents(out.earlier.owed);
+      return out;
+    }
+
+    /* feeAccountsSummary(accounts, payments, opts) — the fees of a chosen set
+       of accounts (a programme return's intake): billed is their tuition, owed
+       their balances as at today, and collected their payments dated from..to
+       (inclusive, YYYY-MM-DD). With no dates, every payment counts; with dates,
+       an undated payment cannot be placed in the period and is counted in
+       `undated` instead.
+       -> { billed, collected, owed, accounts, debtors, unpriced, undated } */
+    function feeAccountsSummary(accounts, payments, opts) {
+      opts = opts || {};
+      var accts = list(accounts), ids = {};
+      accts.forEach(function (f) { if (f.id != null) ids[String(f.id)] = 1; });
+      var mine = list(payments).filter(function (p) { return ids[String(p.studentId)]; });
+      var paid = paidByAccount(mine), out = feeRow('');
+      out.undated = 0;
+      accts.forEach(function (f) {
+        var tuition = num(f.tuitionFee), got = paid[String(f.id)] || 0, bal = tuition - got;
+        out.accounts++; out.billed += tuition; out.owed += bal;
+        if (bal > 0) out.debtors++;
+        if (tuition <= 0 && got <= 0) out.unpriced++;
+      });
+      var ranged = !!(opts.from || opts.to);
+      mine.forEach(function (p) {
+        var d = String(p.date || '').slice(0, 10);
+        if (ranged) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { out.undated++; return; }
+          if ((opts.from && d < opts.from) || (opts.to && d > opts.to)) return;
+        }
+        out.collected += num(p.amount);
+      });
+      delete out.programme;
+      return roundRow(out);
+    }
+
+    /* The School Fee books as that page reads them — the fee roll and the
+       payments, less what has been deleted (a trainee removed on either page,
+       a payment deleted), with the page's own guard that a sweep which would
+       remove EVERY account is a fault and is not applied. Reads through
+       get(key); writes nothing, so a reader (the board) can use it.
+       -> { accounts, payments } */
+    function feeBooks(get) {
+      function arr(k) { try { var v = JSON.parse(get(k) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+      var feeDel = {}, lmsDel = {}, payDel = {};
+      arr('cestiSchoolFeeDeletedLmsIds').forEach(function (id) { if (id) feeDel[id] = 1; });
+      arr('voctrain_deletedStudentIds').forEach(function (id) { if (id) lmsDel[id] = 1; });
+      arr('cestiSchoolFeeDeletedPaymentIds').forEach(function (id) { if (id) payDel[id] = 1; });
+      var all = list(arr('cestiSchoolFeeStudents'));
+      var kept = all.filter(function (s) {
+        var sid = null;
+        try { sid = Core.stableStudentId({ name: s.name, course: s.skillArea }); } catch (e) { sid = null; }
+        if (feeDel[s.id] || (s.lmsId && feeDel[s.lmsId]) || feeDel['SF-' + s.id]) return false;
+        if (lmsDel[s.id] || (s.lmsId && lmsDel[s.lmsId]) || lmsDel['SF-' + s.id] || (sid && lmsDel[sid])) return false;
+        return true;
+      });
+      if (all.length && !kept.length) kept = all;
+      return { accounts: kept, payments: list(arr('cestiSchoolFeePayments')).filter(function (p) { return !payDel[p.id]; }) };
+    }
+
+    /* Jamaican dollars as the Centre writes them: "$1,785,000", cents only
+       when there are some ("$1,234.50"). */
+    function moneyText(n) {
+      var v = cents(n), neg = v < 0;
+      v = Math.abs(v);
+      var whole = Math.floor(v), c = Math.round((v - whole) * 100);
+      if (c === 100) { whole++; c = 0; }
+      return (neg ? '-' : '') + '$' + String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (c ? '.' + (c < 10 ? '0' : '') + c : '');
+    }
+    /* "Earlier years still owing: $140,000 (10 trainees)" — one sentence,
+       said the same way on every screen that shows it. */
+    function earlierText(e) {
+      if (!e || !e.trainees) return 'Earlier years still owing: nothing';
+      return 'Earlier years still owing: ' + moneyText(e.owed) + ' (' + e.trainees + ' trainee' + (e.trainees === 1 ? '' : 's') + ')';
+    }
+
+    /* ---- The Programme return (audit M8) ---------------------------------
+       The quarterly figures a board or a regulator asks for, per programme
+       and intake, were assembled by hand from three or more screens. This
+       puts them in one table by the rules above — never rival ones — each
+       rate with what it is a rate of:
+
+         applicants        testing or interview: not admitted yet
+         enrolled          admitted: everyone on the intake's roll who is not an applicant
+         active            in training now (isActive)
+         completed         finished the course: an ENDED intake's admitted trainees,
+                           dropouts left out (a running intake has completed nobody)
+         certified, NYC    certified or collected; Not Yet Competent
+         dropouts          Incomplete, or marked dropout on the enrolment register
+         completion        completion(): certified of an ended intake's admitted trainees
+         attendance        attendance(): over ACTIVE trainees, each one's rate from
+                           the register marks DATED in the period
+         test pass rate    examPass(): over MARKED results dated in the period
+         fees              feeAccountsSummary(): billed and owed (as at today) for
+                           the intake's fee accounts; collected = payments dated
+                           in the period
+       Enrolment and stages are as they stand today (the records keep no
+       history of a stage); everything dated is limited to the period.
+       Gender and age band break the same counts down; a gender or a date of
+       birth nobody recorded is its own row, "Not recorded" — never guessed.
+
+       opts: { intakes: [{ label, dates, roll: [trainee] }], register, results,
+               feeAccounts, payments, endedOf(trainee), from, to ('YYYY-MM-DD'
+               or ''), asAt ('YYYY-MM-DD', today: ages are as at the period's
+               end, or this if that is sooner), attOf(trainee) (the attendance figure
+               to use when there is no period; default: the whole register) }
+       -> { rows: [row], total: row, genders: [group], ages: [group], unmatchedAccounts } */
+    var GROUP_KEYS = ['applicants', 'enrolled', 'active', 'completed', 'certified', 'nyc', 'dropouts'];
+    var AGE_BANDS = ['Under 18', '18–24', '25–34', '35–44', '45 and over', 'Not recorded'];
+    function genderOf(s) {
+      var g = String((s && s.gender) || '').trim();
+      if (!g) return 'Not recorded';
+      var l = g.toLowerCase();
+      if (l === 'f' || l === 'female' || l === 'woman') return 'Female';
+      if (l === 'm' || l === 'male' || l === 'man') return 'Male';
+      return g.charAt(0).toUpperCase() + g.slice(1);
+    }
+    function ageOn(dob, on) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dob || '')), o = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(on || ''));
+      if (!m || !o) return null;
+      var a = +o[1] - +m[1];
+      if (+o[2] < +m[2] || (+o[2] === +m[2] && +o[3] < +m[3])) a--;
+      return a >= 0 && a < 120 ? a : null;
+    }
+    function ageBand(s, on) {
+      var a = ageOn(s && (s.dob || s.dateOfBirth), on);
+      return a == null ? 'Not recorded' : a < 18 ? 'Under 18' : a <= 24 ? '18–24' : a <= 34 ? '25–34' : a <= 44 ? '35–44' : '45 and over';
+    }
+    function dated(d, from, to) {
+      d = String(d || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return !from && !to;
+      return (!from || d >= from) && (!to || d <= to);
+    }
+    function programmeReturn(opts) {
+      opts = opts || {};
+      var from = opts.from || '', to = opts.to || '';
+      var endedOf = typeof opts.endedOf === 'function' ? opts.endedOf : function () { return false; };
+      var ranged = !!(from || to), attOf = opts.attOf;
+      if (ranged || typeof attOf !== 'function') {
+        var rates = Core.attendance.ratesByStudent(list(opts.register), { from: from || undefined, to: to || undefined });
+        attOf = function (s) { var r = s && rates[s.id]; return r && r.pct != null ? r.pct : null; };
+      }
+      var results = list(opts.results).filter(function (r) { return dated(r.date || r.submittedAt, from, to); });
+      // Each fee account belongs to the trainee it is the twin of (Core.isFeeTwin).
+      var everyone = [];
+      list(opts.intakes).forEach(function (ik) { list(ik.roll).forEach(function (s) { everyone.push(s); }); });
+      var twins = Core.twinIndex(everyone), accountsOf = {}, unmatched = 0;
+      list(opts.feeAccounts).forEach(function (f) {
+        var s = twins.find(f);
+        if (!s) { unmatched++; return; }
+        (accountsOf[s.id] = accountsOf[s.id] || []).push(f);
+      });
+      // Ages as at the period's end — or today, while the period is still running.
+      var asAt = (to && (!opts.asAt || to < opts.asAt)) ? to : (opts.asAt || to || '');
+      function rowFor(label, dates, roll) {
+        var ended = roll.filter(function (s) { return !isApplicant(s) && endedOf(s); });
+        var accts = [];
+        roll.forEach(function (s) { (accountsOf[s.id] || []).forEach(function (f) { accts.push(f); }); });
+        return {
+          intake: label, dates: dates || '',
+          onRoll: roll.length,
+          applicants: roll.filter(isApplicant).length,
+          enrolled: roll.filter(function (s) { return !isApplicant(s); }).length,
+          active: roll.filter(isActive).length,
+          completed: ended.filter(function (s) { return !isDropout(s); }).length,
+          certified: roll.filter(isCertified).length,
+          nyc: roll.filter(function (s) { return stageOf(s) === 'nyc'; }).length,
+          dropouts: roll.filter(isDropout).length,
+          completion: completion(roll, endedOf),
+          dropout: dropout(roll, endedOf),
+          attendance: attendance(roll, attOf),
+          pass: examPass(results, { studentIds: roll.map(function (s) { return s.id; }) }),
+          fees: feeAccountsSummary(accts, opts.payments, { from: from, to: to })
+        };
+      }
+      var rows = list(opts.intakes).map(function (ik) { return rowFor(ik.label, ik.dates, list(ik.roll)); });
+      var total = rowFor('All intakes on this return', '', everyone);
+      function breakdown(keyOf, order) {
+        var groups = {};
+        everyone.forEach(function (s) {
+          var k = keyOf(s), g = groups[k];
+          if (!g) { g = groups[k] = { group: k }; GROUP_KEYS.forEach(function (n) { g[n] = 0; }); }
+          if (isApplicant(s)) { g.applicants++; return; }
+          g.enrolled++;
+          if (isActive(s)) g.active++;
+          if (endedOf(s) && !isDropout(s)) g.completed++;
+          if (isCertified(s)) g.certified++;
+          if (stageOf(s) === 'nyc') g.nyc++;
+          if (isDropout(s)) g.dropouts++;
+        });
+        return Object.keys(groups).sort(function (a, b) {
+          var ia = order.indexOf(a), ib = order.indexOf(b);
+          if (ia === -1) ia = order.length - 1.5; if (ib === -1) ib = order.length - 1.5;
+          return (ia - ib) || a.localeCompare(b);
+        }).map(function (k) { return groups[k]; });
+      }
+      return {
+        from: from, to: to, asAt: asAt, rows: rows, total: total,
+        genders: breakdown(genderOf, ['Female', 'Male', 'Not recorded']),
+        ages: breakdown(function (s) { return ageBand(s, asAt); }, AGE_BANDS),
+        unmatchedAccounts: unmatched
+      };
+    }
+
     return { isApplicant: isApplicant, isActive: isActive, isDropout: isDropout, isCertified: isCertified,
       enrolment: enrolment, attendance: attendance, completion: completion, dropout: dropout, examPass: examPass,
-      instructorCount: instructorCount, rateText: rateText };
+      instructorCount: instructorCount, rateText: rateText,
+      fees: fees, feeAccountsSummary: feeAccountsSummary, feeBooks: feeBooks, feeYearOf: feeYearOf,
+      moneyText: moneyText, earlierText: earlierText,
+      programmeReturn: programmeReturn, genderOf: genderOf, ageBand: ageBand, AGE_BANDS: AGE_BANDS };
   })();
 
   // ===================== A TRAINEE'S CONTACT DETAILS FROM THEIR ACCOUNT =====================

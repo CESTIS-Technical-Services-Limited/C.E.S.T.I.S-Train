@@ -174,11 +174,22 @@ assertEq(cmcFilterOptions([], 'period').length, 0, 'no rows, no choices');
 
 /* ---------- 6. Where the board reads from ---------- */
 console.log('Shared files the board reads');
-assertEq(CMC_SHARED_FILES.length, 4, 'four operating books');
-['CESTIS_Cashbook.json', 'CESTIS_Staff_Payslips.json', 'CESTIS_Staff_TimeClock.json', 'CESTIS_Virement_Requests.json']
+assertEq(CMC_SHARED_FILES.length, 5, 'four operating books and the School Fee books');
+['CESTIS_Cashbook.json', 'CESTIS_Staff_Payslips.json', 'CESTIS_Staff_TimeClock.json', 'CESTIS_Virement_Requests.json', 'CESTIS_School_Fees.json']
   .forEach(f => assert(CMC_SHARED_FILES.some(s => s.file === f), 'reads ' + f));
 assert(CMC_SHARED_FILES.find(s => s.key === 'cashbook').prefixes.indexOf('cestis_quarter_') !== -1,
   'the Cashbook is read by prefix — its quarter keys are generated names');
+// The fee books are read where the School Fee page publishes them (the
+// shared-source registry agrees), and only read: see tests/board-figures.test.js
+// for the reader's writes.
+{
+  const Core = require('../cestis-core.js');
+  const fees = CMC_SHARED_FILES.find(s => s.key === 'fees');
+  assert(fees && fees.keys.indexOf('cestiSchoolFeeStudents') !== -1 && fees.keys.indexOf('cestiSchoolFeePayments') !== -1,
+    'the board reads the fee roll and the payments');
+  fees.keys.forEach(k => assertEq((Core.pageCloud.sourceOf(k) || {}).file, 'CESTIS_School_Fees.json', k + ' comes from the School Fee page\'s own file'));
+  assertEq(JSON.stringify(cmc.CMC_FEE_KEYS), JSON.stringify(fees.keys), 'the keys the board may never write are exactly the fee books it reads');
+}
 
 
 /* ---------- 7. The one decision the Board makes, and it takes two ----------

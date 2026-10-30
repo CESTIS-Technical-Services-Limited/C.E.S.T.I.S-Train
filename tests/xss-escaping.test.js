@@ -444,7 +444,17 @@ console.log('Attendance registers (admin, instructor, admin staff, CMC)');
   run('cmcBuildAttendanceDetail (weekly rows only)', ['cmcBuildAttendanceDetail'], Object.assign({}, common, { attendanceRegister: [] }), 'cmcBuildAttendanceDetail()');
   run('cmcBuildAttendanceDetail (no records)', ['cmcBuildAttendanceDetail'], Object.assign({}, common, { attendanceRecords: [], attendanceRegister: [] }), 'cmcBuildAttendanceDetail()');
   // (The GPA column shows the figure the marks produce — studentGpaFigure.)
-  render('cmcBuildFeesDetail', ['cmcBuildFeesDetail', 'studentGpaFigure', 'studentCourseworkSummary'], Object.assign({ instructorAssignments: [], examResults: [] }, common), 'cmcBuildFeesDetail()');
+  // The trainee-by-stage list the Completion card opens (it was titled
+  // "School Fees Details" and showed no money).
+  render('cmcBuildCompletionDetail', ['cmcBuildCompletionDetail', 'studentGpaFigure', 'studentCourseworkSummary'], Object.assign({ instructorAssignments: [], examResults: [] }, common), 'cmcBuildCompletionDetail()');
+  // School fees in money: a programme name in the fee books is typed by a
+  // person, so it is user data too — this year's and an earlier year's.
+  const feeFig = Core.centreFigures.fees([
+    { id: 'F1', name: EVIL, skillArea: EVIL, tuitionFee: 1000, enrollmentDate: '2026-09-01' },
+    { id: 'F2', name: EVIL, skillArea: EVIL + ' (earlier)', tuitionFee: 500, enrollmentDate: '2025-09-01' }
+  ], [{ id: 'P1', studentId: 'F1', amount: 200, date: '2026-10-01', skillArea: EVIL }], { fy: '2026/2027' });
+  render('cmcBuildFeesDetail', ['cmcBuildFeesDetail', 'cmcBuildFeeTable', 'cmcFeeFigures', 'cmcMoney', 'cmcEsc', 'cmcDetailEmpty', 'cmcEmptyNote'],
+    { cmcData: { feeFigures: feeFig } }, 'cmcBuildFeesDetail()');
 }
 
 console.log('Certificates: the QR verify link and the admin pages');
@@ -670,7 +680,8 @@ console.log('No raw user field is concatenated into the fixed renderers again');
   const FIELDS = 'name|title|course|studentName|instructions|comment|description|body|author|message|subject|fileName|createdBy|location|assigneeName|senderName|profilePic|gpa|certNo|email|phone|programme|reason';
   const RAW = new RegExp("(?:\\+\\s*\\(?|\\$\\{\\s*\\(?)[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*\\.(?:" + FIELDS + ")\\b(?!\\s*\\()(?=\\s*(?:\\+|\\}|\\|\\||\\)))", 'g');
   const RENDERERS = ['toggleNotifications', 'renderSupportMessagesPage', 'viewSupportMessage', 'renderAttendancePage',
-    'renderInstructorAttendance', 'cmcBuildAttendanceDetail', 'cmcBuildFeesDetail', 'renderCerts', 'renderCertDownloadMgmt',
+    'renderInstructorAttendance', 'cmcBuildAttendanceDetail', 'cmcBuildFeesDetail', 'cmcBuildCompletionDetail', 'cmcBuildFeeTable',
+    'cmcFeeKpiInner', 'cmcFinFeeKpiInner', 'dashFeesCardInner', 'renderProgrammeReturn', 'renderCerts', 'renderCertDownloadMgmt',
     'renderCertDlLog', 'openBulkCertApproveModal', 'lmsChatRenderMessages', 'lmsChatRenderRoomList', 'lmsChatRenderInfoPanel',
     'lmsChatManageMembers', 'lmsChatShowIncomingCallNotif', 'renderAnnouncements', 'renderInstructorAnnouncements', 'adrOpenTaskDetail',
     'renderCalendarEventList', 'renderInstructorGradebook', 'renderStudentAssignmentsPage', 'renderStudentAssignments',
