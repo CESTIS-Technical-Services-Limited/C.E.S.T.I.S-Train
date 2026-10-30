@@ -115,6 +115,7 @@ saw screenshots.
 |---|---|---|
 | **Audit fixes (PR #349)** | Every trainee reaches a small-room live class; the idle lock leaves a class or an open sitting alone and accepts a trainee's password at home; pass rates from marked results; one counting rule per figure with its denominator; dropouts stay Incomplete; the full gradebook; no default answer key; no false "uploaded"; notices to their programme; contact details carried to the trainee and fee records; a warning before a receipt number is reused. | `tests/vc-small-room-joiners.test.js`, `tests/centre-figures.test.js`, `tests/pass-rate-from-marks.test.js` and the other tests named in each commit |
 | **Live classes on less data (owner approved 30 Oct)** | Trainees start muted with the camera off; a muted microphone sends nothing; a trainee's camera goes to the instructor only; the instructor's picture budget is shared fairly as people join and leave; recordings at about 550 kbit/s; Large Class is put first above 6 trainees only once the Centre has its own video server. Measured, class of 6: a trainee's upload 553 → 6 kbit/s. | `tests/vc-room.test.js`, `tests/vc-page.test.js`, `tests/browser/vc-room.js` |
+| **Group B: instructors teach, not type (owner approved)** | **Needs Attention** for instructors (their programme) and the office (everyone, with what each owes; the dashboard's "below 70% attendance" opens it): last attended, absences in a row, attendance, recent marks below the pass mark, work not handed in, phone, Message. **Coursework**: a comment with each mark (the trainee sees it on My Assignments, at home too), "Not submitted (n)" with Remind, Edit with the mark's history, work to mark first. **Tests**: Copy for the next intake; the builder keeps its draft on the computer ("Continue building"); Import Exam for instructors (own programme); exact fill-ins marked at once; Save & next; Mark by question. **Classes**: Upcoming / Past, a state on each, Edit, repeat weekly. **Message** on My Students. Instructors **upload files** for their own programme, and **propose unit results** the office confirms. The office sees the **marking backlog** (how old, on whom, work never handed in) and **registers not taken** on the last school day. New assignments, deleted ones and exams opening reach only the programme's trainees. | `tests/needs-attention.test.js`, `tests/coursework-feedback.test.js`, `tests/exam-reuse.test.js`, `tests/exam-marking-speed.test.js`, `tests/class-list.test.js`, `tests/message-trainee.test.js`, `tests/instructor-uploads.test.js`, `tests/unit-proposals.test.js`, `tests/office-watch.test.js`, `tests/notice-audience.test.js`, `tests/browser/instructor-tools.js` |
 
 **Decisions the owner made in this round (29–30 October 2026):**
 - Groups A–F of the audit's recommendations approved: the office (A), instructors (B), trainees at
@@ -497,6 +498,12 @@ These need a real server, or a decision by the Centre. They are documented, not 
   Now, so anyone at that PC could open the Centre's files in another tab. Until the trainee
   gate's "shared computer" setting arrives, staff should sign that account out of the browser
   after use.
+- **Uploading a resource file** (the Resource Manager's upload, now also the instructor's
+  "+ Upload File") needs sync turned on on that PC. On the Centre's own network without it,
+  "+ Add Link" still works.
+- **The test builder's draft** is kept on the computer it was built on (on purpose: a half-built
+  test and its answers go nowhere else). Building on one PC and finishing on another means
+  saving it first.
 - **A trainee's own phone away from the Centre** cannot sync (the owner chose registration at
   the Centre for now). The trainee gate is what will let trainees sign in from home.
 - **A test moving between devices:** a PC that loses power suddenly may hold up to its last
